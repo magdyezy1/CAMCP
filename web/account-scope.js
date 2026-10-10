@@ -10,8 +10,6 @@ const testAccountRoutes = [
   '/settings',
   '/account',
   '/privacy',
-  '/terms',
-  '/data-deletion',
   '/auth/complete',
   '/oauth/consent',
   '/oauth/result',

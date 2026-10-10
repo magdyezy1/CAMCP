@@ -285,6 +285,8 @@ async function renderClientPlaybooks() {
     $('#profile-preview').innerHTML = '';
     drawAccounts(p?.bindings ?? []);
     drawDefaults();
+    // The filled playbook is the form's starting state, so a language switch does not report edits (WEB-05).
+    if (typeof uiMarkPristine === 'function') uiMarkPristine(form);
   };
   $('#profile-recipe').addEventListener('change', e => {
     saveDefaults();

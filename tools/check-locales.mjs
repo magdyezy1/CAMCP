@@ -16,6 +16,17 @@ export function localeProblems(catalog, required) {
       problems.push('Invalid Arabic message or interpolation: ' + key);
   return problems;
 }
+// The workspace shell and the pages every person sees first (WEB-05): their messages are whole and slotted.
+export const shellScripts = new Set([
+  'app.js',
+  'identity.js',
+  'localization.js',
+  'workspace.js',
+  'account-security.js',
+  'account-scope.js',
+  'route-assets.js',
+  'capability-center.js',
+]);
 export function inspectLocaleSource(source, file = 'script.js') {
   const ast = parsers.babel.parse(source, {filepath: file}),
     required = new Set(),
@@ -51,6 +62,8 @@ export function inspectLocaleSource(source, file = 'script.js') {
     'capabilityEvidenceHeaders',
     'capabilityContractMessages',
     'themeLabels',
+    'statusLabels',
+    'capabilityFeatureLabels',
   ]);
   const collectValues = node => {
     if (!node || typeof node !== 'object') return;
@@ -77,10 +90,24 @@ export function inspectLocaleSource(source, file = 'script.js') {
       collectValues(node.init);
     if (node.type === 'VariableDeclarator' && node.id?.name === 'approvalState')
       for (const property of node.init?.properties ?? []) collectValues(property.value?.elements?.[1]);
-    if (node.type === 'CallExpression' && node.callee?.name === 'uiText') {
+    if (node.type === 'CallExpression' && ['uiText', 'uiMarkup'].includes(node.callee?.name)) {
       collectMessage(node.arguments[0]);
       if (/^_?[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/.test(node.arguments[0]?.value ?? ''))
         problems.push(file + ':' + node.loc.start.line + ': technical identifiers must not be translated');
+      // WEB-05: the shell builds each sentence from one slotted message; a space-padded fragment glued to a value
+      // cannot be reordered in Arabic and mixes directions.
+      if (
+        shellScripts.has(path.basename(file)) &&
+        [node.arguments[0], node.arguments[0]?.consequent, node.arguments[0]?.alternate].some(
+          argument => argument?.type === 'StringLiteral' && /^\s|\s$/.test(argument.value),
+        )
+      )
+        problems.push(
+          file +
+            ':' +
+            node.loc.start.line +
+            ': build the sentence from one slotted message, not a space-padded fragment',
+        );
       if (
         ancestors.some(
           ancestor =>
@@ -327,6 +354,33 @@ export function inspectAccountExplanations(source, file) {
         for (const child of Array.isArray(value) ? value : [value]) walk(child);
   };
   walk(ast);
+  return messages;
+}
+// The guidance AMCP attaches to a failed report source or sync (diagnostic.next_action) is authored copy; the website
+// translates it next to the provider's literal message (WEB-05). Codes and provider text are never collected.
+export function inspectSourceNextActions(source) {
+  const messages = new Set();
+  const collect = node => {
+    if (node?.type === 'StringLiteral') messages.add(node.value);
+    if (node?.type === 'ConditionalExpression') {
+      collect(node.consequent);
+      collect(node.alternate);
+    }
+  };
+  const walk = node => {
+    if (!node || typeof node !== 'object') return;
+    if (
+      node.type === 'AssignmentExpression' &&
+      node.left?.type === 'MemberExpression' &&
+      node.left.object?.name === 'diagnostic' &&
+      node.left.property?.name === 'next_action'
+    )
+      collect(node.right);
+    for (const [key, value] of Object.entries(node))
+      if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
+        for (const child of Array.isArray(value) ? value : [value]) walk(child);
+  };
+  walk(parsers['babel-ts'].parse(source));
   return messages;
 }
 // This exact collector owns direct refusal sentences. Dynamic diagnostics and fallback expressions stay native.
@@ -1116,6 +1170,8 @@ export function checkWebLocales(root = process.cwd()) {
   ])
     for (const message of inspectReportingFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
       required.add(message);
+  for (const message of inspectSourceNextActions(fs.readFileSync(path.join(root, 'src/report-errors.ts'), 'utf8')))
+    required.add(message);
   for (const file of [
     'src/portfolio.ts',
     'src/google-portfolio.ts',

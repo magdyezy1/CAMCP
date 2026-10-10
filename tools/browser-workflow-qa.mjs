@@ -161,12 +161,97 @@ const require = createRequire(import.meta.url),
   };
 const save = () => fs.writeFileSync(path.join(output, 'results.json'), JSON.stringify(evidence, null, 2) + '\n');
 
-async function keyboardNavigation(page, width) {
+// Contrast of the focused element's ring (or its text) against the nearest opaque background behind it, in the page.
+// Gradient backgrounds count every stop, so the result is the worst case across the surface (WEB-01).
+async function focusedContrast(page, kind) {
+  return page.evaluate(kind => {
+    const parse = value =>
+      [...String(value).matchAll(/rgba?\(([^)]+)\)/g)].map(m => {
+        const [r, g, b, a = 1] = m[1]
+          .split(/[\s,/]+/)
+          .filter(Boolean)
+          .map(part => (part.endsWith('%') ? Number.parseFloat(part) / 100 : Number(part)));
+        return {r, g, b, a};
+      });
+    const channel = c => ((c /= 255) <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+    const luminance = c => 0.2126 * channel(c.r) + 0.7152 * channel(c.g) + 0.0722 * channel(c.b);
+    const ratio = (a, b) => {
+      const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+      return (high + 0.05) / (low + 0.05);
+    };
+    const backgrounds = element => {
+      for (let node = element; node; node = node.parentElement) {
+        const style = getComputedStyle(node),
+          stops = parse(style.backgroundImage).filter(c => c.a === 1);
+        if (stops.length) return stops;
+        const [colour] = parse(style.backgroundColor);
+        if (colour?.a === 1) return [colour];
+      }
+      return [{r: 255, g: 255, b: 255, a: 1}];
+    };
+    const element = document.activeElement,
+      style = getComputedStyle(element);
+    const [foreground] = parse(kind === 'ring' ? style.outlineColor : style.color);
+    // A ring sits outside the element, so it is measured against the surface behind the element.
+    const behind = backgrounds(kind === 'ring' ? element.parentElement : element);
+    return {
+      selector: element.id ? '#' + element.id : element.tagName.toLowerCase() + '.' + [...element.classList].join('.'),
+      focus_visible: element.matches(':focus-visible'),
+      outline_style: style.outlineStyle,
+      ratio: Math.min(...behind.map(colour => ratio(foreground, colour))),
+    };
+  }, kind);
+}
+
+async function keyboardNavigation(page, width, route = '') {
   const skip = page.locator('.skip,.skip-link'),
-    target = (await skip.getAttribute('href')).slice(1);
+    target = (await skip.getAttribute('href')).slice(1),
+    apiRequests = [];
+  const countApi = request => {
+    if (new URL(request.url()).pathname.startsWith('/api/')) apiRequests.push(new URL(request.url()).pathname);
+  };
+  // WEB-01: activating the skip link keeps typed input and sends no requests; it once re-rendered the route.
+  const field = ['/measurement', '/reporting-overview'].includes(route)
+    ? page
+        .locator('#main input[type=text]:not([readonly]):visible, #main input:not([type]):not([readonly]):visible')
+        .first()
+    : null;
+  const original = field && (await field.count()) ? await field.inputValue() : null;
+  if (original !== null) await field.fill('WEB-01 typed value');
+  page.on('request', countApi);
   await skip.focus();
+  const skipText = await focusedContrast(page, 'text');
+  assert.ok(skipText.ratio >= 4.5, 'The focused skip link needs readable text: ' + skipText.ratio.toFixed(2));
   await page.keyboard.press('Enter');
   assert.equal(await page.evaluate(() => document.activeElement.id), target, 'Keyboard skip link must reach main');
+  await page.waitForTimeout(150);
+  page.off('request', countApi);
+  assert.deepEqual(apiRequests, [], 'The skip link must not re-render the route or repeat its requests');
+  if (original !== null) {
+    assert.equal(await field.inputValue(), 'WEB-01 typed value', 'The skip link must keep typed input');
+    await field.fill(original);
+  }
+  await skip.focus();
+  await page.keyboard.press('Tab');
+  const ring = await focusedContrast(page, 'ring');
+  if (ring.focus_visible && ring.outline_style !== 'none')
+    assert.ok(ring.ratio >= 3, 'Focus ring on ' + ring.selector + ' needs 3:1, measured ' + ring.ratio.toFixed(2));
+  if (await page.locator('#' + target).count()) {
+    await page.locator('#' + target).focus();
+    await page.keyboard.press('Tab');
+    assert.equal(
+      await page.evaluate(target => !!document.activeElement.closest('#' + target), target),
+      true,
+      'The next Tab after the skip link must land inside the main content',
+    );
+  }
+  const hero = page.locator('.connector-hero button:visible').first();
+  if (await hero.count()) {
+    await hero.focus();
+    const heroRing = await focusedContrast(page, 'ring');
+    if (heroRing.focus_visible)
+      assert.ok(heroRing.ratio >= 3, 'Connector hero focus ring needs 3:1, measured ' + heroRing.ratio.toFixed(2));
+  }
   if (width <= 850 && (await page.locator('#menu-toggle').isVisible())) {
     await page.locator('#menu-toggle').click();
     assert.equal(await page.locator('#menu-toggle').getAttribute('aria-expanded'), 'true');
@@ -376,7 +461,9 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         : workflow === 'retained-evidence'
           ? '?id=' + evidenceId
           : '';
-    const routeQuery = route === '/privacy' ? '?lang=' + locale : query;
+    // The legal pages are static documents in one language each (WEB-02); their address carries the language.
+    const staticLegal = ['/privacy', '/terms', '/data-deletion'].includes(route),
+      routeQuery = staticLegal ? '?lang=' + locale : query;
     await page.goto(site.origin + route + routeQuery, {waitUntil: 'networkidle'});
     await page.waitForFunction(locale => document.documentElement.lang === locale, locale);
     await page.evaluate(() => document.fonts.ready);
@@ -384,6 +471,24 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     assert.equal(await page.locator('h1').count(), 1, 'Page needs one primary heading');
     assert.equal(await page.locator('h1').isVisible(), true, 'Primary heading must be visible');
     assert.equal(site.counts().nativeReads, before.nativeReads, 'Navigation must not silently read provider data');
+    // WEB-05: every route as first rendered is pristine, so a language switch never asks to discard edits.
+    if (kind === 'empty')
+      assert.equal(
+        await page.evaluate(() => typeof uiHasUnsavedEdits !== 'function' || !uiHasUnsavedEdits()),
+        true,
+        'A freshly rendered page must not report unsaved edits',
+      );
+    // WEB-05: an Arabic reader sees state badges in Arabic; a raw English enum value means a label is missing.
+    if (locale === 'ar' && ['/dashboard', '/reports', '/capabilities', '/reporting-overview'].includes(route))
+      assert.deepEqual(
+        await page.evaluate(() =>
+          [...document.querySelectorAll('.status')]
+            .map(element => element.textContent.trim())
+            .filter(text => text && !/[؀-ۿ]/.test(text)),
+        ),
+        [],
+        'Arabic state badges carry Arabic labels',
+      );
     assert.equal(await page.locator('html').getAttribute('data-theme'), appearance);
     if (appearance === 'dark') {
       const select = page.locator('[data-theme-select]:visible').first();
@@ -418,7 +523,28 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       initialAccessibilityCounts,
       'Accessibility inspection must not read or mutate providers',
     );
-    await keyboardNavigation(page, width);
+    await keyboardNavigation(page, width, route);
+    if (['/', '/login'].includes(route) && !authenticated) {
+      // WEB-02: About stays reachable on phones, and Privacy and Terms stay visible without a menu.
+      assert.ok((await page.locator('a[href="/about"]:visible').count()) > 0, 'About needs a visible link at ' + width);
+      for (const legal of ['privacy', 'terms'])
+        assert.ok(
+          (await page.locator('a[href^="/' + legal + '"]:visible').count()) > 0,
+          legal + ' needs a visible link at ' + width,
+        );
+    }
+    if (route === '/terms' || route === '/data-deletion') {
+      assert.equal(
+        await page.locator('link[rel=canonical]').getAttribute('href'),
+        'https://amcp.shop' + route + (locale === 'ar' ? '?lang=ar' : ''),
+      );
+      assert.equal(
+        await page.locator('script').count(),
+        1,
+        'The complete legal text is static; only appearance uses a script',
+      );
+      assert.match(await page.locator('main').innerText(), /privacy@amcp\.shop/);
+    }
     if (route === '/privacy') {
       assert.equal(
         await page.locator('link[rel=canonical]').getAttribute('href'),
@@ -2080,6 +2206,154 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
   }
 }
 
+// WEB-04: a tab opened before a deploy. The server then answers 409 for the page's whole asset snapshot; the next
+// lazy route must offer a reload (not "Try again"), and the reload must succeed.
+async function versionSkewCase(site, locale, width) {
+  const id = `version-skew-reports-${locale}-${width}`,
+    context = await browser.newContext({
+      viewport: {width, height: 900},
+      reducedMotion: 'reduce',
+      serviceWorkers: 'block',
+    }),
+    page = await context.newPage(),
+    result = {id, kind: 'version-skew', route: '/reports', locale, width, errors: [], blocked_external_requests: []},
+    catalog = JSON.parse(fs.readFileSync(path.join(root, 'web/locales/ar.json'), 'utf8')),
+    text = key => (locale === 'ar' ? catalog[key] : key);
+  page.setDefaultTimeout(10000);
+  try {
+    await context.route('**/*', intercepted => {
+      const url = new URL(intercepted.request().url());
+      if (url.origin === site.origin) return intercepted.continue();
+      result.blocked_external_requests.push(url.origin + url.pathname);
+      return intercepted.abort('blockedbyclient');
+    });
+    await context.addCookies([site.cookie]);
+    await context.addInitScript(locale => localStorage.setItem('amcp.locale', locale), locale);
+    page.on('pageerror', error => result.errors.push(error.message));
+    await page.goto(site.origin + '/connections', {waitUntil: 'networkidle'});
+    await page.waitForFunction(locale => document.documentElement.lang === locale, locale);
+    const version = /^\/assets\/v\/([0-9a-f]{64})\/theme\.js$/.exec(
+      await page.locator('script[src*="/theme.js"]').getAttribute('src'),
+    )?.[1];
+    assert.ok(version, 'The page is bound to an asset snapshot');
+    const superseded = route =>
+      route.fulfill({
+        status: 409,
+        headers: {'cache-control': 'no-store'},
+        contentType: 'text/plain',
+        body: 'ASSET_VERSION_CHANGED',
+      });
+    await page.route('**/assets/v/' + version + '/**', superseded);
+    await page.evaluate(() => navigate('/reports'));
+    const heading = page.locator('.page-error h1');
+    await heading.waitFor({state: 'visible'});
+    assert.equal((await heading.innerText()).trim(), text('AMCP was updated'));
+    const action = page.locator('[data-retry-page]');
+    assert.equal((await action.innerText()).trim(), text('Reload page'));
+    assert.match(
+      await page.locator('.page-error').innerText(),
+      new RegExp(text('AMCP was updated. Reload to continue.').replace(/[.?*+^$()[\]{}|\\]/g, '\\$&')),
+    );
+    await page.unroute('**/assets/v/' + version + '/**', superseded);
+    await Promise.all([page.waitForEvent('load'), action.click()]);
+    await page.waitForFunction(locale => document.documentElement.lang === locale, locale);
+    await page.locator('h1').first().waitFor({state: 'visible'});
+    assert.equal(await page.locator('.page-error').count(), 0, 'The reloaded page opens');
+    assert.equal(new URL(page.url()).pathname, '/reports');
+    assert.deepEqual(result.errors, []);
+    assert.deepEqual(result.blocked_external_requests, []);
+    result.passed = true;
+  } catch (error) {
+    result.passed = false;
+    result.failure = error.message;
+    await page.screenshot({path: path.join(output, id + '-failure.png'), fullPage: true}).catch(() => {});
+  } finally {
+    evidence.cases.push(result);
+    save();
+    console.log(JSON.stringify({id, passed: result.passed, failure: result.failure}));
+    await context.close();
+  }
+}
+
+// WEB-05: the workspace top bar is one row at the widths where the sidebar stays open, in both languages; the avatar
+// is square, nothing leaves the bar, the RTL workspace name starts with its first word, and the state badges an Arabic
+// reader sees carry Arabic words rather than raw English enum values.
+async function shellChromeCase(site, route, locale, width) {
+  const id = `shell-chrome-${route.slice(1)}-${locale}-${width}`,
+    context = await browser.newContext({
+      viewport: {width, height: 900},
+      reducedMotion: 'reduce',
+      serviceWorkers: 'block',
+    }),
+    page = await context.newPage(),
+    result = {id, kind: 'shell-chrome', route, locale, width, errors: [], blocked_external_requests: []};
+  page.setDefaultTimeout(10000);
+  try {
+    await context.route('**/*', intercepted => {
+      const url = new URL(intercepted.request().url());
+      if (url.origin === site.origin) return intercepted.continue();
+      result.blocked_external_requests.push(url.origin + url.pathname);
+      return intercepted.abort('blockedbyclient');
+    });
+    await context.addCookies([site.cookie]);
+    await context.addInitScript(locale => localStorage.setItem('amcp.locale', locale), locale);
+    page.on('pageerror', error => result.errors.push(error.message));
+    await page.goto(site.origin + route, {waitUntil: 'networkidle'});
+    await page.waitForFunction(locale => document.documentElement.lang === locale, locale);
+    await page.evaluate(() => document.fonts.ready);
+    await page.locator('h1').first().waitFor({state: 'visible'});
+    result.geometry = await page.evaluate(() => {
+      const box = element => {
+          const r = element.getBoundingClientRect();
+          return {left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height};
+        },
+        bar = box(document.querySelector('.topbar')),
+        items = [
+          ...document.querySelectorAll(
+            '.topbar .breadcrumb, .topbar .language-control, .topbar .theme-control, .topbar .command-trigger, .topbar .button, #user-avatar',
+          ),
+        ]
+          .filter(element => element.getClientRects().length)
+          .map(element => ({name: element.id || element.className, ...box(element)}));
+      return {
+        bar,
+        items,
+        avatar: box(document.getElementById('user-avatar')),
+        overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        nameDirection: getComputedStyle(document.getElementById('workspace-name')).direction,
+        nameDir: document.getElementById('workspace-name').getAttribute('dir'),
+        asciiStatuses: [...document.querySelectorAll('.status')]
+          .map(element => element.textContent.trim())
+          .filter(text => text && !/[؀-ۿ]/.test(text)),
+      };
+    });
+    const {bar, items, avatar} = result.geometry;
+    assert.equal(Math.round(avatar.width), Math.round(avatar.height), 'The avatar stays square');
+    for (const item of items) {
+      assert.ok(item.top >= bar.top - 1 && item.bottom <= bar.bottom + 1, item.name + ' stays inside the bar height');
+      assert.ok(item.left >= bar.left - 1 && item.right <= bar.right + 1, item.name + ' stays inside the bar width');
+    }
+    assert.equal(result.geometry.overflow, 0, 'The page does not scroll sideways');
+    assert.equal(result.geometry.nameDir, 'auto', 'The workspace name takes its own direction');
+    if (locale === 'ar') {
+      assert.equal(result.geometry.nameDirection, 'rtl', 'The Arabic workspace name starts with its first word');
+      assert.deepEqual(result.geometry.asciiStatuses, [], 'Arabic state badges carry Arabic labels');
+    }
+    assert.deepEqual(result.errors, []);
+    assert.deepEqual(result.blocked_external_requests, []);
+    result.passed = true;
+  } catch (error) {
+    result.passed = false;
+    result.failure = error.message;
+    await page.screenshot({path: path.join(output, id + '-failure.png'), fullPage: true}).catch(() => {});
+  } finally {
+    evidence.cases.push(result);
+    save();
+    console.log(JSON.stringify({id, passed: result.passed, failure: result.failure}));
+    await context.close();
+  }
+}
+
 const fixtureKinds = [
   'empty',
   'granular-reporting',
@@ -2185,13 +2459,17 @@ async function runFixture(kind) {
           ];
         for (const route of publicRoutes)
           for (const locale of ['en', 'ar'])
-            for (const width of ['/', '/privacy'].includes(route) ? [320, 375, 768, 1280] : [320, 1280])
+            for (const width of ['/', '/login', '/privacy'].includes(route) ? [320, 375, 768, 1280] : [320, 1280])
               await renderedCase(site, kind, route, locale, width, false, undefined, appearance);
         for (const route of workspaceRoutes)
           for (const locale of ['en', 'ar'])
             for (const width of [320, 1280])
               await renderedCase(site, kind, route, locale, width, true, undefined, appearance);
       }
+      for (const locale of ['en', 'ar']) for (const width of [375, 1280]) await versionSkewCase(site, locale, width);
+      for (const route of ['/dashboard', '/capabilities', '/reporting-overview'])
+        for (const locale of ['en', 'ar'])
+          for (const width of [851, 1024, 1150, 1280]) await shellChromeCase(site, route, locale, width);
     } else {
       const route =
         kind === 'granular-reporting'

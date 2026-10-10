@@ -276,18 +276,18 @@ html[data-theme='dark'],
   background: var(--iris);
   border-color: var(--iris);
 }
-[data-theme='dark'] :is(.status.online, .auth-success, .callback-step.done, .decision-maintain) {
+/* Recommendation decisions take their dark colours from the decision tokens (reporting.css), never from these groups. */
+[data-theme='dark'] :is(.status.online, .auth-success, .callback-step.done) {
   color: var(--success-ink);
   background: var(--success-bg);
   border-color: var(--success-ink);
 }
-[data-theme='dark'] :is(.status.attention, .notice.warning, .recommendation-pill) {
+[data-theme='dark'] :is(.status.attention, .notice.warning) {
   color: var(--warning-ink);
   background: var(--warning-bg);
   border-color: var(--warning-ink);
 }
-[data-theme='dark']
-  :is(.button.danger, .button.danger:hover, .callback-step.failed, .decision-pull_back, .decision-reconsider_pause) {
+[data-theme='dark'] :is(.button.danger, .button.danger:hover, .callback-step.failed) {
   color: var(--danger);
   background: var(--danger-bg);
   border-color: var(--danger);

@@ -37,6 +37,8 @@ test('global click delegation does not re-enable controls owned by a workspace c
       },
     },
     clientNavigation: () => false,
+    // Same-page fragment links are handled first (WEB-01); this control is not one.
+    fragmentLink: () => null,
   });
   const s = readFileSync('web/app.js', 'utf8'),
     start = s.indexOf("document.addEventListener('click', async event =>"),

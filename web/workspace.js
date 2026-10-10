@@ -15,6 +15,89 @@ const workspaceTitles = {
   measurement: 'Measurement diagnostics',
   commerce: 'Commerce',
 };
+// First-party labels for the state values AMCP itself assigns (WEB-05). tests/status-labels.test.mjs reads the value
+// lists from src and fails when one lacks a label here or an Arabic entry. Provider values never pass through here.
+const statusLabels = {
+  complete: 'Complete',
+  incomplete: 'Incomplete',
+  verified: 'Verified',
+  verified_with_acceptance: 'Verified with acceptance',
+  available: 'Available',
+  resolved: 'Resolved',
+  passed: 'Passed',
+  ready: 'Ready',
+  partial: 'Partial',
+  uncertain: 'Uncertain',
+  mismatch: 'Mismatch',
+  failed: 'Failed',
+  inconclusive: 'Inconclusive',
+  open: 'Unresolved',
+  attention: 'Needs attention',
+  blocked: 'Blocked',
+  cancelled: 'Cancelled',
+  expired: 'Expired',
+  missing: 'Missing',
+  unknown: 'Unknown',
+  running: 'Running',
+  queued: 'Queued',
+  processing: 'Processing',
+  verifying: 'Verifying',
+  executing: 'Executing',
+  pending: 'Pending',
+  prepared: 'Prepared',
+  review_ready: 'Ready for review',
+  awaiting_review: 'Awaiting review',
+  draft: 'Draft',
+  snoozed: 'Snoozed',
+  acknowledged: 'Acknowledged',
+  paused: 'Paused',
+  active: 'Active',
+  superseded: 'Superseded',
+  skipped: 'Skipped',
+  implemented_unverified: 'Implemented, not live-verified',
+  recent_complete: 'Recent and complete',
+  stale_or_incomplete: 'Stale or incomplete',
+  // Media kinds share the badge.
+  image: 'Image',
+  video: 'Video',
+  media: 'Media',
+};
+/** A state value's label; a value without one keeps its earlier spaced form. */
+const statusLabel = value =>
+  uiText(Object.hasOwn(statusLabels, value) ? statusLabels[value] : String(value ?? '').replaceAll('_', ' '));
+// AMCP's own capability vocabulary from src/capabilities.ts, listed so its Arabic is required. The server's text is what
+// is shown; tests/status-labels.test.mjs fails when the two drift apart.
+const capabilityFeatureLabels = {
+  campaign_builder: [
+    'Durable campaign plans',
+    'Dependency references, frozen reviews, restart recovery and verification',
+  ],
+  readiness: ['Account readiness', 'Current grants, recorded scopes, exact account read and requested asset checks'],
+  media_library: [
+    'Media library',
+    'Selected private Drive files, receipt reuse, explicit format variants and seven upload adapters',
+  ],
+  write_verification: [
+    'Write verification',
+    'Background configuration read-back; unsupported and uncertain outcomes remain explicit',
+  ],
+  reporting: [
+    'Source-linked reports',
+    'Native source hashes, declared attribution, exact decimal totals and reconciliation',
+  ],
+  optimization: [
+    'Evidence-based suggestions',
+    'Pacing, sample thresholds, conversion lag warnings and comparable baselines',
+  ],
+  profiles: ['Approved client profiles', 'Revisioned naming, UTMs, account bindings and reusable native templates'],
+  capabilities: [
+    'Capability evidence',
+    'Separate local implementation, provider reads, validation and verified writes',
+  ],
+  meaning: [
+    'Implemented and fixture-tested are not live qualification. Evidence is timestamped and applies only to the listed account, action and fields.',
+  ],
+};
 async function workspaceCall(tool, args) {
   const r = await api('/api/workspace/' + tool, {method: 'POST', body: JSON.stringify(args)});
   if (!r.success) throw requestError(r, uiText('Operation failed.'));
@@ -22,7 +105,7 @@ async function workspaceCall(tool, args) {
 }
 const recordDetails = (v, title = uiText('Details')) =>
   `<details class="workspace-details"><summary>${esc(uiText(title))}</summary><pre class="code-block" tabindex="0" role="region" aria-label="${esc(uiText(title))}">${esc(JSON.stringify(v, null, 2))}</pre></details>`;
-const badge = (v, label = uiText(String(v).replaceAll('_', ' '))) =>
+const badge = (v, label = statusLabel(v)) =>
   `<span class="status ${['verified', 'verified_with_acceptance', 'complete', 'passed', 'ready', 'resolved'].includes(v) ? 'online' : ['failed', 'mismatch', 'uncertain', 'blocked', 'attention', 'open', 'partial', 'expired'].includes(v) ? 'attention' : 'offline'}">${esc(label)}</span>`;
 const blank = text => `<div class="empty">${esc(text)}</div>`;
 const controls = (label, type = 'text', value = '', name = label) =>
@@ -177,7 +260,7 @@ async function renderOverview() {
     accounts = d.connections.flatMap(c => c.accounts_status.map(a => ({...a, connection: c}))),
     receipts = accounts.flatMap(a => a.verified_writes);
   content.innerHTML = workHome(d, accounts);
-  content.innerHTML += `<div class="workspace-metrics"><article><strong>${accounts.length}</strong><span>${esc(uiText('Selected resources'))}</span></article><article><strong>${d.campaigns.length}</strong><span>${esc(uiText('Campaign plans'))}</span></article><article><strong>${receipts.filter(r => r.status === 'verified').length}</strong><span>${esc(uiText('Verified write receipts'))}</span></article></div><section class="panel"><div class="panel-header"><h2>${esc(uiText('Account readiness'))}</h2><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a></div>${accounts.map((a, i) => `<div class="token-row"><div><strong>${esc(a.connection.label)} · ${esc(a.account_id)}</strong><small>${esc(a.connection.gateway)} · ${a.connection.write_accounts.includes(a.account_id) ? uiText('Reviewed writes enabled') : uiText('Read access')} · ${esc(readinessAge(a.check))}</small>${a.check?.checks ? recordDetails(a.check.checks, uiText('Prerequisites')) : ''}</div><div>${readinessBadge(a.check)}${a.check?.readiness === 'not_applicable' ? '' : `<button class="button small" data-check-account="${i}">${esc(uiText('Check account'))}</button>`}</div></div>`).join('') || blank(uiText('Connect a platform and select resources to check readiness.'))}</section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Capabilities and evidence'))}</h2></div><p class="workspace-copy">${esc(d.capabilities.meaning)}</p>${d.capabilities.features.map(f => `<div class="token-row"><div><strong>${esc(f.name)}</strong><small>${esc(f.coverage)}</small><code>${esc(f.tool)}</code></div>${badge(f.implementation)}</div>`).join('')}${recordDetails(d.capabilities.evidence, uiText('Provider evidence by account and action'))}</section>`;
+  content.innerHTML += `<div class="workspace-metrics"><article><strong>${accounts.length}</strong><span>${esc(uiText('Selected resources'))}</span></article><article><strong>${d.campaigns.length}</strong><span>${esc(uiText('Campaign plans'))}</span></article><article><strong>${receipts.filter(r => r.status === 'verified').length}</strong><span>${esc(uiText('Verified write receipts'))}</span></article></div><section class="panel"><div class="panel-header"><h2>${esc(uiText('Account readiness'))}</h2><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a></div>${accounts.map((a, i) => `<div class="token-row"><div><strong>${esc(a.connection.label)} · ${esc(a.account_id)}</strong><small>${esc(a.connection.gateway)} · ${a.connection.write_accounts.includes(a.account_id) ? uiText('Reviewed writes enabled') : uiText('Read access')} · ${esc(readinessAge(a.check))}</small>${a.check?.checks ? recordDetails(a.check.checks, uiText('Prerequisites')) : ''}</div><div>${readinessBadge(a.check)}${a.check?.readiness === 'not_applicable' ? '' : `<button class="button small" data-check-account="${i}">${esc(uiText('Check account'))}</button>`}</div></div>`).join('') || blank(uiText('Connect a platform and select resources to check readiness.'))}</section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Capabilities and evidence'))}</h2></div><p class="workspace-copy">${esc(uiText(d.capabilities.meaning))}</p>${d.capabilities.features.map(f => `<div class="token-row"><div><strong>${esc(uiText(f.name))}</strong><small>${esc(uiText(f.coverage))}</small><code>${esc(f.tool)}</code></div>${badge(f.implementation)}</div>`).join('')}${recordDetails(d.capabilities.evidence, uiText('Provider evidence by account and action'))}</section>`;
   workspaceBind('[data-check-account]', async b => {
     const a = accounts[Number(b.dataset.checkAccount)];
     await workspaceCall('workspace', {
@@ -381,7 +464,7 @@ async function renderMediaLibrary() {
       .map(p => `<option value="${p}">${p} · ${d.presets[p].join(' × ')}</option>`)
       .join(
         '',
-      )}</select></label><label>${esc(uiText('Fit'))}<select name="fit"><option value="contain">${esc(uiText('Full frame with padding'))}</option><option value="crop">${esc(uiText('Center crop — review content loss'))}</option></select></label><button class="button" type="submit">${esc(uiText('Preview variant'))}</button></form><div id="variant-preview"></div><form id="media-import"><label>${esc(uiText('Advertising account'))}<select name="target" required>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Media name'), 'text', 'AMCP media', 'name')}<label class="form-note"><input name="reuse" type="checkbox" checked> ${esc(uiText('Reuse a matching available upload receipt when one exists.'))}</label><button class="button primary" type="submit">${esc(uiText('Prepare upload'))}</button></form></details><section class="panel workspace-form"><h2>${esc(uiText('Unfinished uploads and recovery'))}</h2>${(d.recovery_reviews ?? []).map(r => `<div class="token-row"><div><strong>${esc(r.request.name)}</strong><small>${esc(recordAccountLabel(r.request.platform, r.request.connection_id, r.request.account_id))} ${esc(uiText('· Review expires'))} ${date(r.expires_at)}</small></div>${badge(r.state)}<button class="button small" data-media-recovery="${esc(r.review_id)}">${esc(uiText('Inspect recovery'))}</button></div>`).join('') || blank(uiText('No unfinished uploads in your currently authorized accounts.'))}<p class="form-note">${esc(uiText('Showing'))} ${(d.recovery_reviews ?? []).length} ${esc(uiText('of'))} ${d.recovery_total ?? 0}${esc(uiText('. Submitted uploads retain their original request and key.'))}</p></section><div id="media-review"></div>`;
+      )}</select></label><label>${esc(uiText('Fit'))}<select name="fit"><option value="contain">${esc(uiText('Full frame with padding'))}</option><option value="crop">${esc(uiText('Center crop — review content loss'))}</option></select></label><button class="button" type="submit">${esc(uiText('Preview variant'))}</button></form><div id="variant-preview"></div><form id="media-import"><label>${esc(uiText('Advertising account'))}<select name="target" required>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Media name'), 'text', 'AMCP media', 'name')}<label class="form-note"><input name="reuse" type="checkbox" checked> ${esc(uiText('Reuse a matching available upload receipt when one exists.'))}</label><button class="button primary" type="submit">${esc(uiText('Prepare upload'))}</button></form></details><section class="panel workspace-form"><h2>${esc(uiText('Unfinished uploads and recovery'))}</h2>${(d.recovery_reviews ?? []).map(r => `<div class="token-row"><div><strong>${esc(r.request.name)}</strong><small>${recordAccountLabelHtml(r.request.platform, r.request.connection_id, r.request.account_id)} ${esc(uiText('· Review expires'))} ${date(r.expires_at)}</small></div>${badge(r.state)}<button class="button small" data-media-recovery="${esc(r.review_id)}">${esc(uiText('Inspect recovery'))}</button></div>`).join('') || blank(uiText('No unfinished uploads in your currently authorized accounts.'))}<p class="form-note">${esc(uiText('Showing'))} ${(d.recovery_reviews ?? []).length} ${esc(uiText('of'))} ${d.recovery_total ?? 0}${esc(uiText('. Submitted uploads retain their original request and key.'))}</p></section><div id="media-review"></div>`;
   bindCreativePush(
     targets,
     pushDrives(),

@@ -353,7 +353,7 @@ test('Arabic creative UI keeps filenames, tags, source hashes and the exact save
       media_id: '00091',
       asset_id: 'asset-001',
     };
-    f.context.recordAccountLabel = () => 'Home 001';
+    f.context.recordAccountLabelHtml = () => '<bdi>Home 001</bdi>';
     const html = f.run('creativeAssetCard(asset)');
     assert.match(html, /Home &lt;img&gt;/);
     assert.match(html, /00091/);

@@ -1,6 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import type {Server} from 'node:http';
-import express, {type ErrorRequestHandler} from 'express';
+import express, {type ErrorRequestHandler, type RequestHandler} from 'express';
 import {hostHeaderValidation} from '@modelcontextprotocol/sdk/server/middleware/hostHeaderValidation.js';
 import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
@@ -183,12 +183,20 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
     : undefined;
   const app = express();
   app.disable('x-powered-by');
+  const securityHeaders: RequestHandler = (_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    if (origin) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+  };
   // Railway health probes need no workspace data and may use a platform host header. This route
   // is mounted before host validation so the platform probe can reach it, which makes it
   // unauthenticated: it reports liveness only. Whether the instance can perform real provider
   // mutations is operational detail an anonymous caller has no use for, and it is still reported
-  // on the authenticated health surface (amcp_workspace health).
-  app.get('/healthz', async (_req, res) => {
+  // on the authenticated health surface (amcp_workspace health). It still carries the shared security headers (WEB-02).
+  app.get('/healthz', securityHeaders, async (_req, res) => {
     const result = await health();
     res.status(result.status).setHeader('Cache-Control', 'no-store').json(result.body);
   });
@@ -216,14 +224,7 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
     next();
   });
   app.use(hostHeaderValidation(['127.0.0.1', 'localhost', '[::1]', ...(origin ? [origin.hostname] : [])]));
-  app.use((_req, res, next) => {
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    if (origin) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
-    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-    res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
-    res.setHeader('Cache-Control', 'no-store');
-    next();
-  });
+  app.use(securityHeaders);
   const releaseStatus = createReleaseStatus({
     root: options.releaseRoot ?? process.cwd(),
     clock: options.clock ?? Date.now,

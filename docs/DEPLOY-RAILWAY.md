@@ -104,6 +104,14 @@ Add `amcp.shop` as a Railway custom domain. Copy Railway's actual CNAME target a
 
 For `www`, use Cloudflare's documented proxied CNAME and a redirect to `https://amcp.shop`, preserving path and query string. The app has one canonical origin. Avoid rewriting OAuth query parameters. Keep account/API responses out of Cloudflare cache rules. MCP clients cannot complete browser challenges on `/mcp`, `/authorize`, `/token`, `/register`, `/revoke`, or `/.well-known/*`; configure any custom challenge rules accordingly.
 
+Cloudflare caching must respect AMCP's own headers. In **Caching → Configuration**, set **Browser Cache TTL** to
+**Respect Existing Headers** (owner-run; not yet applied). With an override, Cloudflare rewrote the origin's
+`no-cache` on unversioned `/assets/app.js`, `/assets/mark.svg` and the Arabic font to `max-age=14400`. Pages
+reference only `/assets/v/<version>/…` addresses, which are `immutable`, so the setting matters for legacy links
+and bookmarks. To check it after the change, a `HEAD` request on `https://amcp.shop/assets/app.js` should return
+`Cache-Control: no-cache`, and the landing page's network log should show only versioned asset addresses. Also
+turn off automatic Web Analytics injection (owner decision D2): the site's security policy blocks that beacon.
+
 References: [Railway custom domains and Cloudflare](https://docs.railway.com/networking/domains/working-with-domains), [Railway volumes](https://docs.railway.com/volumes), [Railway health checks](https://docs.railway.com/deployments/healthchecks).
 
 ### Diagnose DNS before changing application settings
@@ -151,7 +159,9 @@ Apple Ads uses server-side API credentials and has no browser callback. See [mea
 
 All use `AMCP_<PROVIDER>_CLIENT_ID` and `AMCP_<PROVIDER>_CLIENT_SECRET`, with uppercase provider names. X uses its consumer/API key and secret in these variables. Google Ads API access belongs to the Google Cloud project containing that OAuth client after the September 9, 2026 migration. `AMCP_GOOGLE_DEVELOPER_TOKEN` is optional legacy configuration; it cannot grant access to a different Cloud project. Check **Google Cloud → Google Ads API → Overview** for Explorer or higher access to production accounts. An optional manager context uses `AMCP_GOOGLE_LOGIN_CUSTOMER_ID`; synced accounts retain their verified login manager. Meta Login for Business can use `AMCP_META_CONFIG_ID`. TikTok's developer portal may provide `redirect_uri` or `redirect_url`; match it using `AMCP_TIKTOK_REDIRECT_PARAMETER`. LinkedIn API version defaults to `202609`. `AMCP_LINKEDIN_API_VERSION` may only name a version AMCP has reviewed (`linkedinVersions` in `src/linkedin-version.ts`, now 202609 only) before its sunset; the server refuses to start with any other value (unset, the default's own sunset refuses LinkedIn requests only, never startup or other providers), and owner health (`linkedin_version`, `provider_version_alarms`) flags an override and a sunset within 90 days. Leave it unset unless rolling back to another reviewed version.
 
-Privacy URL: `https://amcp.shop/privacy`; terms: `/terms`; deletion instructions: `/data-deletion`. These pages describe this private workspace deployment. Add your actual operator/contact details and retention commitments before applying for public distribution. Provider access approval and app review remain external requirements.
+Privacy URL: `https://amcp.shop/privacy`; terms: `/terms`; deletion instructions: `/data-deletion`. All three are complete static pages in English and Arabic (`?lang=ar`), readable without a session, JavaScript or a working API, and they name `privacy@amcp.shop` as the contact. They describe this private workspace deployment. Before applying for public distribution the owner still supplies the operator's legal name and jurisdiction and signs off the Terms wording (`web/terms*.html`) and the deletion process (`web/data-deletion*.html`). Provider access approval and app review remain external requirements.
+
+The public surface also answers `/robots.txt`, `/favicon.ico` and `/.well-known/security.txt`; set `AMCP_SECURITY_CONTACT` (a `mailto:` or `https:` URI) to the security contact, which otherwise falls back to `mailto:privacy@amcp.shop`. Unknown page addresses return a branded 404 (`web/404*.html`), unknown `/api` addresses a JSON `NOT_FOUND`, and page templates are never served under `/assets`. HSTS stays without `includeSubDomains` until the owner confirms every subdomain is HTTPS-only.
 
 After OAuth, a login starts with no enabled accounts. Open Manage, sync ad accounts, select accounts, and Save selection. Other tabs show related asset inventory; account selections govern MCP access to account data. Syncing, selecting, changing the default, and disconnecting affect AMCP locally. Some resource-specific reads still require an account ownership observation or an explicit administrator binding.
 

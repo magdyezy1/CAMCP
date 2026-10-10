@@ -65,6 +65,29 @@ const pageAssetRoutes = {
   '/settings': ['owner-operations.js', 'account-approvals.js'],
 };
 const pageAssetLoads = new Map();
+/**
+ * After a versioned file failed to download, asks the server once whether this page's snapshot is still current.
+ * A 409 means AMCP was updated: retrying the same address can never succeed, only a reload can (WEB-04).
+ */
+async function assetVersionChanged(path) {
+  if (!/^\/assets\/v\/[0-9a-f]{64}\//.test(path) || typeof fetch !== 'function') return false;
+  const controller = typeof AbortController === 'function' ? new AbortController() : null,
+    timer = setTimeout(() => controller?.abort(), 5000);
+  try {
+    const response = await fetch(path, {
+      method: 'HEAD',
+      cache: 'no-store',
+      credentials: 'same-origin',
+      redirect: 'error',
+      ...(controller ? {signal: controller.signal} : {}),
+    });
+    return response.status === 409;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 function pageAssetsFor(pathname) {
   const wanted = new Set();
   const include = file => {
@@ -92,7 +115,7 @@ function loadPageAsset(file) {
         originalPath = '/assets/' + file,
         path = typeof AMCPAssets === 'object' ? AMCPAssets.url(originalPath) : originalPath;
       let settled = false;
-      const finish = (code, message) => {
+      const finish = (code, message, updated = false) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
@@ -100,7 +123,7 @@ function loadPageAsset(file) {
         script.onload = script.onerror = null;
         if (code) {
           script.remove();
-          reject(Object.assign(Error(message), {code}));
+          reject(Object.assign(Error(message), {code}, updated ? {updated} : {}));
         } else resolve();
       };
       const evaluationError = event => {
@@ -124,8 +147,15 @@ function loadPageAsset(file) {
       script.async = false;
       script.src = path;
       script.onload = () => finish();
-      script.onerror = () =>
-        finish('PAGE_ASSET_UNAVAILABLE', uiText('A file needed for this page could not be downloaded. Try again.'));
+      // A script error cannot tell a deploy (409) from a network failure, so one probe decides between "Reload" and
+      // "Try again"; retrying a superseded snapshot address could never succeed (WEB-04).
+      script.onerror = async () => {
+        if (settled) return;
+        if (await assetVersionChanged(path))
+          finish('PAGE_ASSET_RELOAD_REQUIRED', uiText('AMCP was updated. Reload to continue.'), true);
+        else
+          finish('PAGE_ASSET_UNAVAILABLE', uiText('A file needed for this page could not be downloaded. Try again.'));
+      };
       document.head.append(script);
     });
     entry.state = 'ready';

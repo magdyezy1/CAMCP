@@ -85,6 +85,7 @@ test('structured server errors keep their recovery advice and request reference 
 function browserFixture(fetcher = async () => response({})) {
   const elements = new Map(),
     documentListeners = new Map(),
+    windowListeners = new Map(),
     scrolls = [],
     bindings = new Map();
   const node = selector => {
@@ -177,7 +178,14 @@ function browserFixture(fetcher = async () => response({})) {
     fetch: (...args) => fetcher(...args),
     setTimeout: () => 1,
     clearTimeout() {},
-    window: {scrollTo: () => scrolls.push('top'), addEventListener() {}},
+    window: {
+      scrollTo: () => scrolls.push('top'),
+      addEventListener(type, fn) {
+        const list = windowListeners.get(type) ?? [];
+        list.push(fn);
+        windowListeners.set(type, list);
+      },
+    },
     document: {
       body: {classList: {toggle() {}}},
       activeElement: null,
@@ -220,7 +228,7 @@ function browserFixture(fetcher = async () => response({})) {
     run(readFileSync('web/' + file + '.js', 'utf8'));
   context.nextIdentity = identity();
   run('session = nextIdentity; overviewState.bootstrap={platforms:[],metrics:{}}');
-  return {context, run, node, location, scrolls, documentListeners, bindings, updateLocation};
+  return {context, run, node, location, scrolls, documentListeners, windowListeners, bindings, updateLocation};
 }
 
 function seedPrivateState(f) {
@@ -363,6 +371,87 @@ test('fragment navigation scrolls to the requested section after the destination
   assert.equal(f.scrolls.at(-1), '#how-it-works');
 });
 
+// WEB-01 regression: a native "#main" fragment step fired popstate, which re-rendered the route and cleared typed input.
+test('a fragment-only history step focuses its section without re-rendering; a real Back still renders', async () => {
+  let requests = 0;
+  const f = browserFixture(async () => {
+    requests++;
+    return response({events: []});
+  });
+  f.updateLocation('/connections');
+  await f.run('render()');
+  let renders = 0;
+  f.context.countRender = () => renders++;
+  f.run('const originalRender = render; render = () => { countRender(); return originalRender(); }');
+  const [popstate] = f.windowListeners.get('popstate');
+  const before = requests;
+  f.updateLocation('/connections#main');
+  await popstate();
+  assert.equal(renders, 0, 'A hash-only history step must not re-render the route');
+  assert.equal(requests, before, 'A hash-only history step must not repeat page requests');
+  assert.equal(f.context.document.activeElement, f.node('#main'));
+  f.updateLocation('/activity');
+  await popstate();
+  assert.equal(renders, 1, 'Back to a different path still renders it');
+  f.updateLocation('/activity?cursor=next');
+  await popstate();
+  assert.equal(renders, 2, 'A different query is a different view');
+});
+
+test('the skip link and in-page jumps move focus without history, rendering or API requests', async () => {
+  let requests = 0;
+  const f = browserFixture(async () => {
+    requests++;
+    return response({});
+  });
+  f.updateLocation('/connections');
+  await f.run('render()');
+  const before = requests,
+    pushes = [];
+  f.context.history.pushState = (_a, _b, url) => pushes.push(url);
+  for (const href of ['#main', '#overview-config']) {
+    let prevented = false;
+    const link = {
+      tagName: 'A',
+      dataset: {},
+      getAttribute: name => (name === 'href' ? href : null),
+      hasAttribute: () => false,
+    };
+    await f.documentListeners.get('click')[0]({
+      target: {closest: () => link},
+      button: 0,
+      get defaultPrevented() {
+        return prevented;
+      },
+      preventDefault() {
+        prevented = true;
+      },
+    });
+    assert.equal(prevented, true, href + ' must not fall through to a native fragment navigation');
+    assert.equal(f.context.document.activeElement, f.node(href), href);
+    assert.equal(f.scrolls.at(-1), href);
+  }
+  assert.deepEqual(pushes, []);
+  assert.equal(requests, before);
+});
+
+// WEB-01 regression: an explicit smooth scroll animates even when the CSS reduced-motion reset applies.
+test('the landing section jump honours a reduced-motion preference', async () => {
+  for (const reduce of [true, false]) {
+    const f = browserFixture(),
+      calls = [];
+    f.context.requestAnimationFrame = callback => callback();
+    f.context.matchMedia = query => ({matches: reduce && query === '(prefers-reduced-motion: reduce)'});
+    f.node('#how-it-works').scrollIntoView = options => calls.push(options);
+    f.updateLocation('/#how-it-works');
+    await f.run('renderLanding()');
+    assert.deepEqual(
+      calls.map(options => options.behavior),
+      [reduce ? 'auto' : 'smooth'],
+    );
+  }
+});
+
 test('late feature downloads or failures cannot render across a route or identity change', async () => {
   for (const change of ['route', 'identity', 'same-route'])
     for (const failure of [false, true]) {
@@ -408,6 +497,9 @@ test('an asset download retry stays on the page; uncertain initialization instea
   assert.equal(attempts, 2);
   assert.doesNotMatch(f.node('#content').innerHTML, /Download unavailable/);
   f.location.reload = () => reloads++;
+  // This fixture's query stub finds every selector, so the page would look edited; a pristine page reloads at once,
+  // and the unsaved-edit confirmation has its own coverage (tests/asset-version-skew.test.mjs, WEB-04).
+  f.context.uiHasUnsavedEdits = () => false;
   f.run("showPageError({code:'PAGE_ASSET_RELOAD_REQUIRED',message:'Reload required'})");
   assert.match(f.node('#content').innerHTML, /Reload page/);
   await f.node('[data-retry-page]').click();
@@ -501,4 +593,92 @@ test('repeated Next clicks while a page is loading cannot skip a report page', a
   await Promise.all([first, repeated]);
   assert.deepEqual(offsets, [0, 100]);
   assert.equal(f.run('overviewState.page'), 1);
+});
+
+// WEB-02: every public call to action pointed at a sign-up that production could not complete (no email delivery and
+// no social sign-in), and anonymous /connectors offered enabled create-token buttons.
+const closedOptions = {providers: [], emailEnabled: false, signupEnabled: true, registrationAvailable: false};
+function publicFixture(options) {
+  const requests = [];
+  const f = browserFixture(async url => {
+    requests.push(url);
+    return response(url === '/api/account/options' ? options : {});
+  });
+  f.run('session = {authenticated: false, csrf: null}');
+  return {...f, requests};
+}
+test('the landing offers sign-in, not a sign-up, when registration cannot complete; open registration keeps sign-up', async () => {
+  const closed = publicFixture(closedOptions);
+  closed.updateLocation('/');
+  await closed.run('renderLanding()');
+  const html = closed.node('#content').innerHTML;
+  assert.deepEqual(closed.requests, ['/api/account/options']);
+  assert.doesNotMatch(html, /href="\/signup"/, 'No call to action may lead to an unavailable sign-up');
+  assert.match(html, /class="button primary" href="\/login"/);
+  assert.match(html, /class="button primary large" href="\/login"/);
+  assert.match(html, /Ask your workspace owner for access/);
+  // About stays reachable from the footer on phones, and the legal links carry the interface language.
+  assert.match(html, /<footer class="public-footer">[\s\S]*href="\/about"/);
+  assert.match(html, /href="\/privacy\?lang=en"[\s\S]*href="\/terms\?lang=en"[\s\S]*href="\/data-deletion\?lang=en"/);
+
+  for (const options of [
+    {...closedOptions, emailEnabled: true, registrationAvailable: true},
+    // An older server without the flag: derived from the same rule.
+    {providers: [{id: 'google', configured: true}], emailEnabled: false, signupEnabled: true},
+  ]) {
+    const open = publicFixture(options);
+    open.updateLocation('/');
+    await open.run('renderLanding()');
+    assert.equal((open.node('#content').innerHTML.match(/href="\/signup"/g) ?? []).length, 4);
+    assert.doesNotMatch(open.node('#content').innerHTML, /Ask your workspace owner/);
+  }
+  // Signed-in visitors go to their workspace without asking about registration.
+  const member = browserFixture(async url => assert.fail('No request expected: ' + url));
+  member.updateLocation('/');
+  await member.run('renderLanding()');
+  assert.doesNotMatch(member.node('#content').innerHTML, /href="\/signup"|href="\/login"/);
+});
+
+test('a closed sign-up page explains access and links sign-in instead of a disabled form', async () => {
+  const identitySource = readFileSync('web/identity.js', 'utf8'),
+    authPage = identitySource.slice(
+      identitySource.indexOf('async function renderAuthPage()'),
+      identitySource.indexOf('async function renderAccountPage()'),
+    );
+  for (const [options, closed] of [
+    [closedOptions, true],
+    [{...closedOptions, emailEnabled: true, registrationAvailable: true}, false],
+  ])
+    for (const mode of ['/signup', '/login']) {
+      const f = publicFixture(options);
+      f.run(authPage);
+      f.updateLocation(mode);
+      await f.run('renderAuthPage()');
+      const html = f.node('#content').innerHTML;
+      assert.match(html, /href="\/about"/, 'The sign-in layout links About');
+      if (mode === '/signup') {
+        assert.equal(html.includes('id="member-form"'), !closed);
+        assert.equal(html.includes('Registration is currently closed.'), closed);
+        if (closed) assert.match(html, /class="button primary full" href="\/login"/);
+      } else assert.equal(/href="\/signup"/.test(html), !closed, 'Sign-in offers sign-up only when it can complete');
+    }
+});
+
+test('anonymous MCP connectors offer sign-in instead of enabled create-token buttons', async () => {
+  for (const authenticated of [false, true]) {
+    const f = browserFixture(async url =>
+      response(url === '/api/connector-tokens' ? {tokens: []} : url === '/api/mcp/authorizations' ? {clients: []} : {}),
+    );
+    f.run(
+      authenticated
+        ? "session = {...nextIdentity, writesEnabled: true, origin: 'https://amcp.invalid'}"
+        : "session = {authenticated: false, csrf: null, writesEnabled: true, origin: 'https://amcp.invalid'}",
+    );
+    f.updateLocation('/connectors');
+    await f.run('renderConnectors()');
+    const html = f.node('#content').innerHTML;
+    assert.equal(html.includes('data-create-token="true"'), authenticated);
+    assert.equal(html.includes('data-create-operator-token="true"'), authenticated);
+    assert.equal(html.includes('Sign in to create a token'), !authenticated);
+  }
 });

@@ -36,7 +36,10 @@ test('About is publicly readable without account APIs or advertising access', as
     assert.match(html, /<h1[^>]*>.*Advertising deserves a clearer workspace\./);
     assert.equal((html.match(/<h1\b/g) ?? []).length, 1);
     assert.match(html, /href="#main"/);
-    for (const link of ['/login', '/signup', '/privacy', '/terms']) assert.ok(html.includes('href="' + link + '"'));
+    for (const link of ['/login', '/privacy', '/terms']) assert.ok(html.includes(' href="' + link + '"'));
+    // WEB-02: without JavaScript (or while registration cannot complete) no call to action leads to sign-up.
+    assert.ok(!html.includes(' href="/signup"'));
+    assert.match(html, /data-open-href="\/signup"/);
     assert.equal(providerCalls, 0);
   } finally {
     await new Promise(resolve => listener.close(resolve));
@@ -55,5 +58,58 @@ test('About provides complete authored Arabic copy and first-party-only assets',
   assert.deepEqual(scripts, ['/assets/localization.js', '/assets/about.js']);
   assert.ok(!/on(?:click|load)=|<style\b|style="|src="https?:/.test(html));
   const controller = readFileSync('web/about.js', 'utf8');
-  assert.ok(!/\/api\//.test(controller));
+  // The page is complete without any API. Its script reads only the anonymous registration options, to offer
+  // sign-up where a new person can complete it (WEB-02); it reads nothing private.
+  assert.deepEqual(
+    [...controller.matchAll(/\/api\/[\w/-]*/g)].map(m => m[0]),
+    ['/api/account/options'],
+  );
+  assert.doesNotMatch(controller, /method:|X-AMCP-CSRF|localStorage\.setItem\('amcp\.(?!locale)/);
+});
+
+test('About offers sign-up only when the deployment reports that registration can complete', async () => {
+  for (const [options, open] of [
+    [{registrationAvailable: false, signupEnabled: true, emailEnabled: false, providers: []}, false],
+    [{registrationAvailable: true}, true],
+    [null, false],
+  ]) {
+    const elements = [
+        {href: '/login', 'data-open-href': '/signup', 'data-open-text': 'Make yourself at home'},
+        {href: '/login', 'data-open-href': '/signup', 'data-open-text': 'Create an account'},
+      ].map(attributes => ({
+        attributes: {...attributes, 'data-ui-text': 'Sign in to your workspace'},
+        getAttribute(name) {
+          return this.attributes[name] ?? null;
+        },
+        setAttribute(name, value) {
+          this.attributes[name] = value;
+        },
+      })),
+      note = {hidden: false};
+    let applied = 0;
+    const context = {
+      document: {
+        getElementById: () => ({textContent: ''}),
+        querySelectorAll: selector =>
+          selector === '[data-registration-cta]' ? elements : selector === '[data-registration-note]' ? [note] : [],
+      },
+      fetch: async url => {
+        assert.equal(url, '/api/account/options');
+        if (!options) throw Error('offline');
+        return {ok: true, json: async () => options};
+      },
+      initializeUILocale() {},
+      applyUILocale: () => applied++,
+    };
+    const source = readFileSync('web/about.js', 'utf8'),
+      startup = 'initializeUILocale();\napplyRegistration();\n';
+    assert.ok(source.endsWith(startup), 'About applies the registration state when it loads');
+    const run = new Function(...Object.keys(context), source.slice(0, -startup.length) + '\nreturn applyRegistration;');
+    await run(...Object.values(context))();
+    for (const element of elements)
+      assert.equal(element.attributes.href, open ? '/signup' : '/login', JSON.stringify(options));
+    assert.equal(elements[0].attributes['data-ui-text'], open ? 'Make yourself at home' : 'Sign in to your workspace');
+    assert.equal(note.hidden, open);
+    assert.equal(applied, open ? 1 : 0);
+  }
 });

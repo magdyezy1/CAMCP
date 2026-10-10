@@ -51,7 +51,7 @@ a:hover {
   color: #38236f;
 }
 a:focus-visible {
-  outline: 3px solid #785ce2;
+  outline: 3px solid var(--iris-700);
   outline-offset: 5px;
   border-radius: 3px;
 }
@@ -61,7 +61,10 @@ a:focus-visible {
   inset-inline-start: 20px;
   z-index: 2;
   padding: 12px;
-  background: #fff;
+  color: var(--ink);
+  background: var(--white);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
 }
 .skip-link:focus {
   top: 12px;

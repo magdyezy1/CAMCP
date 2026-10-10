@@ -312,8 +312,8 @@ h2.report-section-label {
 }
 .custom-metric-row code {
   display: block;
-  color: #92839f;
-  font-size: 11px;
+  color: var(--muted);
+  font-size: 12px;
   margin-top: 5px;
 }
 .custom-metric-fields {
@@ -522,30 +522,47 @@ h2.report-section-label {
   margin-top: 6px;
   font-size: 11px;
   color: var(--muted);
-}
+}/* One token pair per decision meaning, in both themes, with a symbol so colour is not the only cue. Decisions without
+   a budget direction (wait, needs review, needs a target, insufficient data, observe) share the neutral hold pair
+   (WEB-01: the dark theme previously collapsed "Scale" and "Needs review" into one colour). */
 .recommendation-pill {
   border-radius: 6px;
-  background: var(--surface-subtle);
-  color: var(--muted);
+  background: var(--decision-hold-bg);
+  color: var(--decision-hold-ink);
   padding: 5px 8px;
-  font-size: 10px;
+  font-size: 12px;
   display: inline-block;
 }
-.decision-scale {
-  background: #dff3eb;
-  color: #317b62;
+.recommendation-pill::before {
+  content: '• ' / '';
 }
-.decision-pull_back {
-  background: #fff0dc;
-  color: #a47c41;
+.recommendation-pill.decision-scale {
+  background: var(--decision-positive-bg);
+  color: var(--decision-positive-ink);
 }
-.decision-reconsider_pause {
-  background: #f8e3e9;
-  color: #a25c74;
+.recommendation-pill.decision-scale::before {
+  content: '↑ ' / '';
 }
-.decision-maintain {
-  background: #e6eafa;
-  color: #616fa5;
+.recommendation-pill.decision-maintain {
+  background: var(--decision-steady-bg);
+  color: var(--decision-steady-ink);
+}
+.recommendation-pill.decision-maintain::before {
+  content: '→ ' / '';
+}
+.recommendation-pill.decision-pull_back {
+  background: var(--decision-caution-bg);
+  color: var(--decision-caution-ink);
+}
+.recommendation-pill.decision-pull_back::before {
+  content: '↓ ' / '';
+}
+.recommendation-pill.decision-reconsider_pause {
+  background: var(--decision-negative-bg);
+  color: var(--decision-negative-ink);
+}
+.recommendation-pill.decision-reconsider_pause::before {
+  content: '‖ ' / '';
 }
 .report-pagination {
   display: flex;
@@ -674,8 +691,8 @@ h2.report-section-label {
 .schedule-row small {
   display: block;
   line-height: 1.7;
-  color: #9b83ac;
-  font-size: 11px;
+  color: var(--muted);
+  font-size: 12px;
   margin-top: 5px;
 }
 .password-field {
@@ -684,11 +701,11 @@ h2.report-section-label {
 }
 .password-field input {
   width: 100%;
-  padding-right: 65px;
+  padding-inline-end: 65px;
 }
 .password-toggle {
   position: absolute;
-  right: 9px;
+  inset-inline-end: 9px;
   top: 50%;
   transform: translateY(-50%);
   border: 0;
@@ -883,7 +900,8 @@ h2.report-section-label {
 
 .report-actions > select {
   min-height: 44px;
-  padding: 0 36px 0 14px;
+  padding-block: 0;
+  padding-inline: 14px 36px;
   border: 1px solid var(--line, #e6e1ed);
   border-radius: 12px;
   color: var(--ink, #242031);
@@ -897,7 +915,7 @@ h2.report-section-label {
 }
 .source-diagnostic > strong {
   display: block;
-  color: #843e43;
+  color: var(--danger);
 }
 .source-diagnostic small {
   display: block;

@@ -15,9 +15,42 @@ function uiText(message, values = {}) {
     Object.hasOwn(values, key) ? String(values[key]) : placeholder,
   );
 }
+/**
+ * An error's text for display (WEB-05). Its next action is always AMCP's guidance and is translated. Its message is
+ * AMCP's own unless the error carries a provider object: then the provider's message is shown exactly as written and
+ * nothing in it is translated.
+ */
+function uiOwnedError(error) {
+  if (!error || typeof error !== 'object') return {message: '', nextAction: ''};
+  const provider = error.provider && typeof error.provider === 'object' ? error.provider : null,
+    message =
+      typeof provider?.message === 'string' ? provider.message : typeof error.message === 'string' ? error.message : '';
+  return {
+    message: provider ? message : uiText(message),
+    nextAction: typeof error.next_action === 'string' ? uiText(error.next_action) : '',
+  };
+}
+/** The workspace's name; the unedited default ("<owner>’s workspace") reads in the interface language (WEB-05). */
+function uiWorkspaceName(name, owner) {
+  if (typeof name !== 'string' || !name) return uiText('AMCP workspace');
+  return typeof owner === 'string' && owner && name === owner + '’s workspace'
+    ? uiText('{name}’s workspace', {name: owner})
+    : name;
+}
+/** A list in the interface language's own conjunction and separators (Arabic uses "،" and "و"). */
+function uiList(items) {
+  const values = [...items].map(String);
+  try {
+    return new Intl.ListFormat(uiLocale, {style: 'long', type: 'conjunction'}).format(values);
+  } catch {
+    return values.join(', ');
+  }
+}
+// Digits are Latin in both languages (owner decision D27); naming the numbering system keeps a runtime whose Arabic
+// default is Arabic-Indic from changing them (WEB-05).
 function uiNumber(value, options = {}) {
   return (typeof value === 'number' && Number.isFinite(value)) || typeof value === 'bigint'
-    ? new Intl.NumberFormat(uiLocale, options).format(value)
+    ? new Intl.NumberFormat(uiLocale, {numberingSystem: 'latn', ...options}).format(value)
     : String(value ?? '');
 }
 function uiRole(role) {
@@ -38,13 +71,37 @@ function uiRole(role) {
 function uiDate(value, options = {dateStyle: 'medium', timeStyle: 'short'}) {
   const date = new Date(value);
   return Number.isFinite(date.getTime())
-    ? new Intl.DateTimeFormat(uiLocale, options).format(date)
+    ? new Intl.DateTimeFormat(uiLocale, {numberingSystem: 'latn', ...options}).format(date)
     : uiText('Date unavailable');
+}
+/** An audit, session or token time with its time zone, so a reader elsewhere cannot misread it (WEB-05, D27). */
+function uiDateZoned(value) {
+  return uiDate(value, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  });
 }
 const uiEscape = value =>
   String(value).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c]);
+/**
+ * Escaped text in its own direction (WEB-05): a name or label decides its direction from its first strong character,
+ * and an identifier, address or native value (`'ltr'`) always reads left to right inside Arabic text.
+ */
+function uiBidi(value, direction = 'auto') {
+  return (direction === 'ltr' ? '<bdi dir="ltr">' : '<bdi>') + uiEscape(value ?? '') + '</bdi>';
+}
+/** A translated message as markup: its text is escaped and each {slot} receives the given markup (WEB-05). */
+function uiMarkup(message, markup = {}) {
+  return uiEscape(uiText(message)).replace(/\{([a-zA-Z][a-zA-Z0-9_]*)\}/g, (placeholder, key) =>
+    Object.hasOwn(markup, key) ? String(markup[key]) : placeholder,
+  );
+}
 function authLegalNotice() {
-  return `<p class="auth-legal" lang="${uiLocale}" dir="${uiLocale === 'ar' ? 'rtl' : 'ltr'}">${uiEscape(uiText('By continuing, you agree to AMCP’s'))} <a href="/terms">${uiEscape(uiText('Terms'))}</a> ${uiEscape(uiText('and'))} <a href="/privacy?lang=${uiLocale}">${uiEscape(uiText('Privacy Policy'))}</a>.</p>`;
+  return `<p class="auth-legal" lang="${uiLocale}" dir="${uiLocale === 'ar' ? 'rtl' : 'ltr'}">${uiEscape(uiText('By continuing, you agree to AMCP’s'))} <a href="/terms?lang=${uiLocale}">${uiEscape(uiText('Terms'))}</a> ${uiEscape(uiText('and'))} <a href="/privacy?lang=${uiLocale}">${uiEscape(uiText('Privacy Policy'))}</a>.</p>`;
 }
 function languageControl() {
   return `<div class="appearance-controls"><label class="language-control"><span>${uiEscape(uiText('Language'))}</span><select data-language-select aria-label="${uiEscape(uiText('Language'))}"><option value="en" lang="en" ${uiLocale === 'en' ? 'selected' : ''}>English</option><option value="ar" lang="ar" ${uiLocale === 'ar' ? 'selected' : ''}>العربية (جزئي)</option></select></label>${themeControl()}</div>`;
@@ -100,6 +157,12 @@ async function uiCatalog(locale) {
             },
           ),
         );
+        // The page's asset snapshot was replaced by a deploy: this address can never succeed again (WEB-04).
+        if (response.status === 409)
+          throw Object.assign(Error(uiText('AMCP was updated. Reload to continue.')), {
+            code: 'PAGE_ASSET_RELOAD_REQUIRED',
+            updated: true,
+          });
         if (!response.body) throw Error('Language catalog unavailable');
         reader = response.body.getReader();
         if (!response.ok) throw Error('Language catalog unavailable');
@@ -158,10 +221,15 @@ function applyUILocale() {
     el.value = uiLocale;
   });
   if (typeof AMCPTheme === 'object') AMCPTheme.sync();
+  // The static policy pages follow their address, so every link to them names the current language (WEB-05).
   document
-    .querySelectorAll('a[href="/privacy"],a[href="/privacy?lang=en"],a[href="/privacy?lang=ar"]')
+    .querySelectorAll(
+      ['/privacy', '/terms', '/data-deletion']
+        .flatMap(page => [page, page + '?lang=en', page + '?lang=ar'].map(href => 'a[href="' + href + '"]'))
+        .join(','),
+    )
     .forEach(link => {
-      link.setAttribute('href', '/privacy?lang=' + uiLocale);
+      link.setAttribute('href', link.getAttribute('href').replace(/\?lang=(?:en|ar)$/, '') + '?lang=' + uiLocale);
     });
 }
 async function initializeUILocale() {
@@ -188,13 +256,17 @@ async function initializeUILocale() {
 function uiHasUnsavedEdits() {
   if (document.querySelector('.recovery-key') || document.querySelector('.token-secret')) return true;
   return [...document.querySelectorAll('input,select,textarea')].some(el => {
+    // A read-only or derived field holds what the page computed, never something the person typed (WEB-05).
     if (
-      el.matches('[data-language-select],[data-theme-select]') ||
+      el.matches('[data-language-select],[data-theme-select],[data-derived]') ||
+      el.readOnly ||
       ['hidden', 'button', 'submit', 'reset'].includes(el.type)
     )
       return false;
     if (el.type === 'file') return !!el.files?.length;
     if (['checkbox', 'radio'].includes(el.type)) return el.checked !== el.defaultChecked;
+    // A colour field reports its value in lower case whatever case its markup used.
+    if (el.type === 'color') return el.value.toLowerCase() !== el.defaultValue.toLowerCase();
     if (el.tagName === 'SELECT') {
       const options = [...el.options],
         explicit = options.some(option => option.defaultSelected);
@@ -204,6 +276,19 @@ function uiHasUnsavedEdits() {
     }
     return el.value !== el.defaultValue;
   });
+}
+/** Fills a field as part of the page's starting state, so the value is not mistaken for an unsaved edit (WEB-05). */
+function uiSetInitialValue(field, value) {
+  field.value = value;
+  if (field.tagName === 'SELECT') for (const option of field.options) option.defaultSelected = option.selected;
+  else field.defaultValue = field.value;
+}
+/** Marks every field in a form the page just filled from saved data as its starting state (WEB-05). */
+function uiMarkPristine(root) {
+  for (const field of root.querySelectorAll('input,select,textarea'))
+    if (field.tagName === 'SELECT') for (const option of field.options) option.defaultSelected = option.selected;
+    else if (['checkbox', 'radio'].includes(field.type)) field.defaultChecked = field.checked;
+    else if (field.type !== 'file') field.defaultValue = field.value;
 }
 async function changeUILocale(locale) {
   if (!['en', 'ar'].includes(locale)) return false;
@@ -245,8 +330,19 @@ async function changeUILocale(locale) {
       document.querySelector('#content [data-language-select]') ?? document.querySelector('[data-language-select]')
     )?.focus?.();
     return true;
-  } catch {
-    if (current()) toast(uiText('The language could not be loaded. Your current view is unchanged.'));
+  } catch (error) {
+    if (!current()) return false;
+    // After a deploy the catalog exists only in the new snapshot: offer the reload, and open it in the chosen language.
+    if (error?.code === 'PAGE_ASSET_RELOAD_REQUIRED' && typeof reloadForUpdate === 'function')
+      await reloadForUpdate(() => {
+        try {
+          localStorage.setItem('amcp.locale', locale);
+        } catch {
+          /* The reloaded page opens in the previous language. */
+        }
+      });
+    else if (error?.code === 'PAGE_ASSET_RELOAD_REQUIRED') toast(error.message);
+    else toast(uiText('The language could not be loaded. Your current view is unchanged.'));
     return false;
   } finally {
     applyUILocale();
@@ -255,3 +351,9 @@ async function changeUILocale(locale) {
 document.addEventListener('change', event => {
   if (event.target.matches?.('[data-language-select]')) void changeUILocale(event.target.value);
 });
+// A language chosen in another tab applies here too, through the same unsaved-edit confirmation (WEB-05).
+if (typeof addEventListener === 'function')
+  addEventListener('storage', event => {
+    if (event.key !== 'amcp.locale' || !['en', 'ar'].includes(event.newValue) || event.newValue === uiLocale) return;
+    void changeUILocale(event.newValue);
+  });

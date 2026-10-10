@@ -449,6 +449,37 @@ test('MCP consent and refresh bind grants to the signed-in member workspace; ten
     await f.close();
   }
 });
+// WEB-02: production reported signupEnabled with no email delivery and no social sign-in, so every public call to
+// action led to a sign-up no method could complete. registrationAvailable reports whether one can.
+test('registrationAvailable is true only when sign-up is open and email or a social sign-in can complete it', async () => {
+  const none = {
+    AMCP_EMAIL_API_KEY: '',
+    AMCP_SIGNIN_GOOGLE_CLIENT_ID: '',
+    AMCP_SIGNIN_APPLE_CLIENT_ID: '',
+    AMCP_SIGNIN_FACEBOOK_CLIENT_ID: '',
+  };
+  for (const [env, expected] of [
+    [none, false],
+    [{...none, AMCP_EMAIL_API_KEY: 'synthetic-mail-secret'}, true],
+    [{...none, AMCP_SIGNIN_GOOGLE_CLIENT_ID: 'google-client'}, true],
+    [{AMCP_ALLOW_SIGNUP: 'false'}, false],
+  ] as [NodeJS.ProcessEnv, boolean][]) {
+    const f = await fixture(env);
+    try {
+      const options = await (await f.request('/api/account/options')).json();
+      assert.equal(options.registrationAvailable, expected, JSON.stringify(env));
+      assert.equal(options.signupEnabled, env.AMCP_ALLOW_SIGNUP !== 'false', 'The policy flag keeps its meaning');
+      if (!expected)
+        assert.notEqual(
+          (await f.request('/api/account/register', 'POST', {name: 'Name', email: 'new@example.test'})).status,
+          200,
+          'A deployment that reports registration unavailable also refuses it',
+        );
+    } finally {
+      await f.close();
+    }
+  }
+});
 test('account recovery and social signup fail closed without configured delivery or open registration', async () => {
   const f = await fixture({AMCP_EMAIL_API_KEY: '', AMCP_ALLOW_SIGNUP: 'false'});
   try {

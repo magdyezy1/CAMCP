@@ -19,11 +19,13 @@ report/planning POSTs. The granular reporting fixture also accepts only its owne
 cell batch and verifies its read-back and unrelated-tab preservation. All other requests and native
 advertising writes are refused. It signs into no live website or advertising account.
 
-The maintained runner now selects 1184 cases across 27 distinct page paths, including light/dark appearance and the
+The maintained runner now selects 1212 cases across 27 distinct page paths, including light/dark appearance and the
 additional populated/refusal/recovery cases documented below. Its initial page selection covers:
 
 - About Us and the public landing page at 320, 375, 768 and 1280 CSS pixels in English and Arabic.
-- Sign-in, signup, terms and data-deletion views at 320 and 1280 pixels in both selected languages.
+- Sign-in and signup at 320 and 1280 pixels (sign-in also at 375 and 768, where a visible About link and visible
+  Privacy and Terms links are asserted), and the static Terms and Data deletion pages (`?lang=`, one script, the
+  published contact) at 320 and 1280 pixels, in both selected languages.
 - The complete standalone privacy policy at all four widths in English and Arabic. Actual language
   links, skip focus, eight sections and the original published date are checked. Both versions remain
   complete static HTML without login or JavaScript; the optional pre-style appearance script does not supply policy content.
@@ -33,6 +35,17 @@ additional populated/refusal/recovery cases documented below. Its initial page s
   connectors, settings, account and audit activity.
 - Original Snapchat top-snap references, selected WooCommerce products and Meta supplied-product
   comparisons at all four widths in English and Arabic, using actual served controllers and APIs.
+- Deploy version skew (WEB-04) at 375 and 1280 pixels in English and Arabic: a tab opened on Connections sees its
+  asset snapshot answer 409, opens `/reports`, must show "AMCP was updated" with **Reload page** (never "Try
+  again"), and the reload must open the page.
+- Shell chrome (WEB-05) on Home, Capabilities and the report builder at 851, 1024, 1150 and 1280 pixels in English
+  and Arabic: every top-bar control stays inside one 78-pixel row, the avatar is square, the page never scrolls
+  sideways, the workspace name takes its own direction (`dir="auto"`, right-to-left for an Arabic name), and Arabic
+  state badges carry Arabic words.
+
+Every empty-workspace route must also open pristine (`uiHasUnsavedEdits()` is false, so a language switch asks
+nothing), and in Arabic `/dashboard`, `/reports`, `/capabilities` and `/reporting-overview` show no `.status` badge
+made only of Latin text.
 
 Cases check one visible page heading, keyboard skip links, narrow navigation opening, Tab/Shift+Tab
 boundaries, Escape focus restoration and switching from an open drawer to workspace search. They

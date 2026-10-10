@@ -1,21 +1,81 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
-import {brotliCompressSync, constants, gzipSync} from 'node:zlib';
 import type {NextFunction, Request, Response} from 'express';
-import {assetEncoding} from './compressed-assets.js';
+import {assetEncoding, compressAsset} from './compressed-assets.js';
 
-const textTypes = new Set(['.js', '.css', '.html', '.svg', '.json', '.txt']);
+// The Arabic font is 845 KB of TrueType, which compresses well (WEB-04).
+const textTypes = new Set(['.js', '.css', '.html', '.svg', '.json', '.txt', '.ttf']);
 const sha = (bytes: Buffer | string) => createHash('sha256').update(bytes).digest('hex');
 const unavailable = (): never => {
   throw new Error('PUBLIC_ASSETS_UNAVAILABLE');
 };
 
+/** Crawlers may read the public pages; the API, authorization flows and protocol endpoints are not pages. */
+export const robotsTxt =
+  'User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /mcp\nDisallow: /authorize\nDisallow: /oauth/\nDisallow: /assets/v/*.html\n';
+/**
+ * RFC 9116 security contact. The owner sets AMCP_SECURITY_CONTACT (a mailto: or https: URI); until then it is the
+ * contact the privacy policy already publishes. The expiry is recomputed for each response, 90 days ahead.
+ */
+export function securityTxt(origin: string, env: NodeJS.ProcessEnv, now = Date.now()) {
+  const configured = env.AMCP_SECURITY_CONTACT?.trim(),
+    contact =
+      configured && /^(?:mailto:[^\s@]+@[^\s@]+|https:\/\/[^\s]+)$/.test(configured) && configured.length <= 256
+        ? configured
+        : 'mailto:privacy@amcp.shop',
+    expires = new Date(now + 90 * 86400000);
+  expires.setUTCHours(0, 0, 0, 0);
+  return (
+    'Contact: ' +
+    contact +
+    '\nExpires: ' +
+    expires.toISOString() +
+    '\nPreferred-Languages: en, ar\nCanonical: ' +
+    origin +
+    '/.well-known/security.txt\n'
+  );
+}
+/** The HTML documents the website serves at their own addresses; each is bound to the snapshot when served. */
+export type PublicPage =
+  | 'index.html'
+  | 'about.html'
+  | 'privacy.html'
+  | 'privacy-ar.html'
+  | 'terms.html'
+  | 'terms-ar.html'
+  | 'data-deletion.html'
+  | 'data-deletion-ar.html'
+  | '404.html'
+  | '404-ar.html';
 /** One bounded, immutable public-file snapshot per website process. No private state is part of its identity. */
 export function createPublicAssets(directory: string) {
   const root = path.resolve(directory);
   let snapshot: {version: string; files: Map<string, {body: Buffer; hash: string}>} | undefined;
-  const compressed = new Map<string, Buffer>();
+  const compressed = new Map<string, Promise<Buffer>>(),
+    bound = new Map<string, {body: Buffer; hash: string}>();
+  /**
+   * A stylesheet's url() references bind to the same snapshot as the page, so a font or image can never come from an
+   * edge-cached unversioned copy (WEB-04). The snapshot version stays computed from the source bytes; the served bytes
+   * and their ETag are the rewritten ones.
+   */
+  function served(file: string, source: {body: Buffer; hash: string}, version: string, files: Map<string, unknown>) {
+    if (path.extname(file) !== '.css') return source;
+    let result = bound.get(file);
+    if (!result) {
+      const body = Buffer.from(
+        source.body
+          .toString('utf8')
+          .replace(/url\((['"]?)\/assets\/([A-Za-z0-9_./-]+)\1\)/g, (original, quote, name) =>
+            files.has(name) ? 'url(' + quote + '/assets/v/' + version + '/' + name + quote + ')' : original,
+          ),
+        'utf8',
+      );
+      result = {body, hash: sha(body)};
+      bound.set(file, result);
+    }
+    return result;
+  }
   function current() {
     if (snapshot) return snapshot;
     const files = new Map<string, {body: Buffer; hash: string}>();
@@ -90,7 +150,11 @@ export function createPublicAssets(directory: string) {
     get version() {
       return current().version;
     },
-    html(name: 'index.html' | 'about.html' | 'privacy.html' | 'privacy-ar.html') {
+    /** The bytes of one snapshot file, for the few root addresses (such as /favicon.ico) that serve an asset. */
+    file(name: string) {
+      return current().files.get(name)?.body ?? unavailable();
+    },
+    html(name: PublicPage) {
       const {version, files} = current(),
         body = files.get(name)?.body.toString('utf8');
       if (!body) return unavailable();
@@ -102,7 +166,7 @@ export function createPublicAssets(directory: string) {
         },
       );
     },
-    middleware(req: Request, res: Response, next: NextFunction) {
+    async middleware(req: Request, res: Response, next: NextFunction) {
       if ((req.method !== 'GET' && req.method !== 'HEAD') || !req.path.startsWith('/v/')) return next();
       const matchVersion = /^\/v\/([0-9a-f]{64})\/(.+)$/.exec(req.path),
         version = matchVersion?.[1],
@@ -127,31 +191,31 @@ export function createPublicAssets(directory: string) {
         } catch {
           return void res.status(400).setHeader('Cache-Control', 'no-store').end();
         }
-        const source = active.files.get(file);
-        if (!source) return void res.status(404).setHeader('Cache-Control', 'no-store').end();
-        const encoding = textTypes.has(path.extname(file)) ? assetEncoding(req.headers['accept-encoding']) : undefined,
+        const stored = active.files.get(file);
+        if (!stored) return void res.status(404).setHeader('Cache-Control', 'no-store').end();
+        const source = served(file, stored, active.version, active.files),
+          encoding = textTypes.has(path.extname(file)) ? assetEncoding(req.headers['accept-encoding']) : undefined,
           etag = '"' + source.hash + (encoding ? '-' + encoding : '') + '"';
-        let body = source.body;
-        if (encoding) {
-          const key = file + ':' + encoding;
-          let cached = compressed.get(key);
-          if (!cached) {
-            cached =
-              encoding === 'br'
-                ? brotliCompressSync(body, {params: {[constants.BROTLI_PARAM_QUALITY]: 5}})
-                : gzipSync(body, {level: 9});
-            compressed.set(key, cached);
-          }
-          body = cached;
-          res.setHeader('Content-Encoding', encoding);
-        }
-        res.type(path.extname(file));
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
         res.setHeader('Vary', 'Accept-Encoding');
         res.setHeader('ETag', etag);
         const match = req.headers['if-none-match'];
         if (match && match.split(',').some(tag => tag.trim() === '*' || tag.trim().replace(/^W\//, '') === etag))
           return void res.status(304).end();
+        let body = source.body;
+        if (encoding) {
+          const key = file + ':' + encoding;
+          // Compression runs off the event loop; concurrent first requests share one result (WEB-04).
+          let cached = compressed.get(key);
+          if (!cached) {
+            cached = compressAsset(body, encoding);
+            compressed.set(key, cached);
+            cached.catch(() => compressed.delete(key));
+          }
+          body = await cached;
+          res.setHeader('Content-Encoding', encoding);
+        }
+        res.type(path.extname(file));
         res.setHeader('Content-Length', body.length);
         if (req.method === 'HEAD') return void res.end();
         res.end(body);
