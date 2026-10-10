@@ -329,7 +329,7 @@ media, with a Google Drive link like other AMCP media imports:
 - `amcp_media` `prepare` with `platform: dv360`, `dv360_target: ad_asset` and optionally
   `synthetic_content` (`NOT_SYNTHETIC` or `IS_SYNTHETIC`), or the native
   `DV360_ADVERTISERS_AD_ASSETS_UPLOAD` (`pathParams: {advertiserId}`, `payload: {url, filename,
-adAssetType: AD_ASSET_TYPE_IMAGE, syntheticContentAttestationStatus}`). Without
+  adAssetType: AD_ASSET_TYPE_IMAGE, syntheticContentAttestationStatus}`). Without
   `dv360_target`, `amcp_media` uploads a creative asset as before; `platform_media_upload` keeps
   its captured schema and uploads creative assets only.
 - AMCP freezes the PNG or JPEG bytes (up to 5120 KB, the Demand Gen image limit) for review and
@@ -337,7 +337,7 @@ adAssetType: AD_ASSET_TYPE_IMAGE, syntheticContentAttestationStatus}`). Without
   `creative_reference: {assetId}` for the ad's image fields. Videos are refused: YouTube videos
   become ad assets by video ID.
 - The API does not read image assets back, so the receipt is the only evidence (`status_source:
-upload_receipt`). DV360 checks each slot's requirements when the ad is written: at least 600x314
+  upload_receipt`). DV360 checks each slot's requirements when the ad is written: at least 600x314
   for landscape, 300x300 for square, 480x600 for portrait and 128x128 for logo images, and 300x60
   up to 150 KB for companion banners. A receipt that names another type, advertiser or AI label is
   `MEDIA_RESPONSE_INVALID` and is not uploaded again.
@@ -397,10 +397,10 @@ target the group buy from them. AMCP writes groups the advertiser owns, always n
   `..._DELETE` (`params: {advertiserId, inventorySourceGroupId}`). Only the name (up to 240 UTF-8
   bytes) can change.
 - `DV360_INVENTORY_SOURCE_GROUPS_ASSIGNED_INVENTORY_SOURCES_CREATE` (`params: {advertiserId,
-inventorySourceGroupId}`, `body: {inventorySourceId}`), `..._DELETE` (`params: {advertiserId,
-inventorySourceGroupId, assignedInventorySourceId}`) and `..._BULK_EDIT` (`params:
-{inventorySourceGroupId}`, `body: {advertiserId, createdAssignedInventorySources: [{inventorySourceId}],
-deletedAssignedInventorySources: [assignedInventorySourceId]}`, 1–1000 changes; DV360 deletes
+  inventorySourceGroupId}`, `body: {inventorySourceId}`), `..._DELETE` (`params: {advertiserId,
+  inventorySourceGroupId, assignedInventorySourceId}`) and `..._BULK_EDIT` (`params:
+  {inventorySourceGroupId}`, `body: {advertiserId, createdAssignedInventorySources: [{inventorySourceId}],
+  deletedAssignedInventorySources: [assignedInventorySourceId]}`, 1–1000 changes; DV360 deletes
   first, then creates).
 
 `partnerId` is refused: it would act with partner access, which an advertiser connection is not
@@ -449,7 +449,7 @@ and the pinned v4 Discovery document, checked 2026-09-27.
 ### Custom bidding algorithms
 
 - `DV360_CUSTOM_BIDDING_ALGORITHMS_CREATE` with `body: {advertiserId, displayName,
-customBiddingAlgorithmType, entityStatus}`: the selected advertiser owns it; the name has up to
+  customBiddingAlgorithmType, entityStatus}`: the selected advertiser owns it; the name has up to
   240 UTF-8 bytes; the type is `SCRIPT_BASED` or `RULE_BASED` and never changes; the status is
   `ENTITY_STATUS_ACTIVE` (usable as a bidding strategy) or `ENTITY_STATUS_ARCHIVED`.
 - `DV360_CUSTOM_BIDDING_ALGORITHMS_PATCH` with `params: {customBiddingAlgorithmId, updateMask}` and
@@ -475,10 +475,10 @@ returns a reference such as `customBiddingAlgorithms/801/scriptRef/{ref_id}`, an
 takes the bytes. Registering the uploaded file is reviewed:
 
 - `DV360_CUSTOM_BIDDING_ALGORITHMS_SCRIPTS_CREATE` with `params: {customBiddingAlgorithmId,
-advertiserId}` and `body: {script: {resourceName: "customBiddingAlgorithms/{id}/scriptRef/{ref}"}}`
+  advertiserId}` and `body: {script: {resourceName: "customBiddingAlgorithms/{id}/scriptRef/{ref}"}}`
   for a `SCRIPT_BASED` algorithm.
 - `DV360_CUSTOM_BIDDING_ALGORITHMS_RULES_CREATE` with the same params and `body: {rules:
-{resourceName: "customBiddingAlgorithms/{id}/rulesRef/{ref}"}}` for a `RULE_BASED` algorithm.
+  {resourceName: "customBiddingAlgorithms/{id}/rulesRef/{ref}"}}` for a `RULE_BASED` algorithm.
 
 The reference must belong to the algorithm in the path; other fields are output only, and partner
 access (`partnerId`) is outside the contract. AMCP reads the algorithm with the advertiser as
@@ -801,18 +801,7 @@ Inspect this synthetic example, replacing its business facts with user-approved
 or discovered values. Inspection makes no provider calls:
 
 ```json
-{
-  "action": "inspect",
-  "gateway": "google_business_native_action",
-  "arguments": {
-    "operation": "gmb_engagement_ops",
-    "arguments": {
-      "action": "CREATE_PLACE_ACTION_LINK",
-      "location_id": "456",
-      "payload": {"uri": "https://example.com/book", "placeActionType": "APPOINTMENT", "isPreferred": true}
-    }
-  }
-}
+{"action":"inspect","gateway":"google_business_native_action","arguments":{"operation":"gmb_engagement_ops","arguments":{"action":"CREATE_PLACE_ACTION_LINK","location_id":"456","payload":{"uri":"https://example.com/book","placeActionType":"APPOINTMENT","isPreferred":true}}}}
 ```
 
 Then prepare and show the exact public URI, action type, business identity and
@@ -877,17 +866,11 @@ task rather than assuming AMCP supplies all fields. Use the selected exact locat
 connection_id from connection status when more than one login can serve the resource. For google_business_native_action:
 
 ```json
-{
-  "operation": "gmb_location_ops",
-  "arguments": {"action": "GET_LOCATION", "params": {"name": "locations/456"}, "query": {"readMask": "name,title"}}
-}
+{"operation":"gmb_location_ops","arguments":{"action":"GET_LOCATION","params":{"name":"locations/456"},"query":{"readMask":"name,title"}}}
 ```
 
 ```json
-{
-  "operation": "gmb_lodging_ops",
-  "arguments": {"action": "GET_LODGING", "params": {"name": "locations/456/lodging"}, "query": {"readMask": "*"}}
-}
+{"operation":"gmb_lodging_ops","arguments":{"action":"GET_LODGING","params":{"name":"locations/456/lodging"},"query":{"readMask":"*"}}}
 ```
 
 These illustrative reads select a synthetic location; replace it with an already permitted resource. Missing,
@@ -1103,6 +1086,7 @@ prepare → review → execute → read-back. Retain the original idempotency ke
 response; inspect the durable outcome before doing anything else. Do not retry an uncertain
 write with a new key. No batch or method tunnel bypasses the contract, deployment controls,
 account grants or spending policy.
+
 
 ## Business Profile account and location synchronization
 

@@ -352,34 +352,13 @@ Search waste is found in two calls: capture a search-terms read, then analyze it
 `tests/search-waste-format.test.ts` runs):
 
 ```json
-{
-  "action": "capture",
-  "gateway": "google_ads_native_action",
-  "account_id": "1234567890",
-  "arguments": {
-    "action": "google_ads_v23_google_ads_search",
-    "payload": {
-      "query": "SELECT campaign.id, search_term_view.search_term, metrics.clicks, metrics.cost_micros, metrics.conversions FROM search_term_view WHERE segments.date BETWEEN \"2026-09-01\" AND \"2026-09-28\""
-    }
-  },
-  "mapping": {
-    "entity_id": "/campaign/id",
-    "search_term": "/searchTermView/searchTerm",
-    "clicks": "/metrics/clicks",
-    "spend": {"path": "/metrics/costMicros", "divisor": "1000000"},
-    "conversions": "/metrics/conversions"
-  },
-  "semantics": {
-    "currency": "USD",
-    "timezone": "America/New_York",
-    "date_from": "2026-09-01",
-    "date_to": "2026-09-28",
-    "attribution": "unknown",
-    "conversion_definition": "unknown",
-    "source_name": "Google Ads search terms",
-    "complete": true
-  }
-}
+{"action": "capture", "gateway": "google_ads_native_action", "account_id": "1234567890",
+ "arguments": {"action": "google_ads_v23_google_ads_search", "payload": {"query":
+   "SELECT campaign.id, search_term_view.search_term, metrics.clicks, metrics.cost_micros, metrics.conversions FROM search_term_view WHERE segments.date BETWEEN \"2026-09-01\" AND \"2026-09-28\""}},
+ "mapping": {"entity_id": "/campaign/id", "search_term": "/searchTermView/searchTerm", "clicks": "/metrics/clicks",
+   "spend": {"path": "/metrics/costMicros", "divisor": "1000000"}, "conversions": "/metrics/conversions"},
+ "semantics": {"currency": "USD", "timezone": "America/New_York", "date_from": "2026-09-01", "date_to": "2026-09-28",
+   "attribution": "unknown", "conversion_definition": "unknown", "source_name": "Google Ads search terms", "complete": true}}
 ```
 
 then `{"action": "analyze", "id": "<the captured report's id>", "options": {"minimum_clicks": 30}}`. Each search term
@@ -552,7 +531,7 @@ reviewed.
     GB (UK GDPR); for any other country the uploader names it in `law`.
   - `consent_confirmed` and `platform_terms_confirmed`, as the uploader's own confirmation.
   - For SA, `pdpl: {consent, transfer_abroad, withdrawal_removal}`, each true.
-    A removal takes no confirmations: it only reduces what the platform holds.
+  A removal takes no confirmations: it only reduces what the platform holds.
 - **Who runs it.** An operator may prepare an upload; only the workspace owner executes it
   (`OWNER_REQUIRED` otherwise), and the owner may execute a review a member prepared, with the
   same people. An operator may execute a removal.
@@ -631,7 +610,6 @@ blindly, reshape a request to slip past one, or split a change into smaller piec
 The Campaigns website has forms for every recipe returned by discovery. `amcp_campaign recipe_context` accepts `recipe` and optional `profile_id`; it returns explicit login/account choices, approved defaults and prerequisites. `preview_recipe` accepts the recipe, optional profile and business inputs, returning missing business fields or a locally compiled plan. It performs no mutation. `recipe_lookup` uses an explicit Google `connection_id`, `account_id`, `lookup_kind` (`country` or `language`) and plain-text `query` to discover targeting constants. Ask for business choices; discover native IDs where an authorized lookup exists. `create_from_recipe` freezes the recipe version and each field's user/profile provenance. Preflight verifies account currency. Never interpret an approved template as approval to execute its next review.
 
 Campaign `get` includes a diagnostic execution journal. A legacy unknown phase does not grant retry permission. `recover_step` edits only a definitively unsubmitted/failed step with no retained mutation claim; `RECOVERY_NOT_SAFE` means reconcile the existing request. Owner-only `amcp_workspace support_bundle` exposes aggregate queue age, worker liveness and scoped error codes. It must not include report rows, credential values, source URLs or actor bindings. Account revocation requires explicit rebinding of queued work by a currently authorized operator.
-
 ## Permission changes while work is running
 
 Native MCP reads, reviewed preparation/execution/read-back, media account/upload
@@ -680,6 +658,7 @@ members, while owners retain workspace metadata visibility. No role receives raw
 the original operation endpoint for authorized detail. The website handoff is `/activity`; this is not complete
 provider history or an integrity-chain verification.
 
+
 `amcp_workspace {action:"measurement_conversions",gateway:"linkedin_native_action",account_id,connection_id}`
 reads current LinkedIn conversion settings through existing r_ads/rw_ads. It verifies exact account identity/currency
 before and after bounded collection with unchanged current authorization. Up to 1,000 rules/25 pages retain exact
@@ -694,7 +673,8 @@ requirements:{container_id,workspace_id,tag_ids,required_types}}` previews addit
 never choose a consent policy for the operator or resolve GTM variables. Types other than the documented
 Google consent types (ad_storage, analytics_storage, ad_user_data, ad_personalization, functionality_storage,
 personalization_storage, security_storage) need `custom_types_acknowledged:true` in requirements, confirmed by
-the operator; never set it to get past a typo. They are returned as scope.custom_types and labelled in the draft. Original tag IDs, existing required
+the operator; never set it to get past a typo. They are returned as scope.custom_types and labelled in the draft.
+Original tag IDs, existing required
 types, parameters, triggers, names and paused state are preserved. Unknown/future/dynamic native settings,
 partial resources, missing native fingerprints and changed evidence are refused. Already-required tags are
 shown without a write step; an entirely unchanged selection produces no draft.
@@ -735,6 +715,7 @@ No snapshot is saved. The website link carries the original test scope and makes
 local identifier generation clears old evidence. Never invent a reported count, declare a synthetic fixture as
 live acceptance or use an aggregate match as authorization for a repair/write.
 
+
 ## Source-bound Google exact-negative drafts
 
 Open a completed guided Google search-term report in Reports. Choose minimum clicks (default 30) and maximum
@@ -755,6 +736,7 @@ follow `next_offset` and explicitly select native row IDs. Then call `preview_se
 report, options and `ids`. Use its exact `preview_id`/`preview_hash` with `create_search_exclusion_plan`,
 report `id` and `confirmed:true`. Candidate reads support readers; preview/save require an operator/admin.
 
+
 ### Google Search click optimization
 
 `google_search_clicks` is a separate `amcp_campaign` recipe. Start with `recipe_context` and supply the Search
@@ -764,6 +746,7 @@ ceiling micros and provenance. The standard campaign strategy is `target_spend.c
 spend target or ad-group manual bid is supplied. All native steps retain prepare/execute/read-back gates. The campaign
 starts PAUSED with ENABLED children underneath; activation is separate. Click optimization does not establish conversion
 performance or eligible-account acceptance. `google_search` continues to use manual CPC.
+
 
 ### Snapchat daily purchase evidence
 
@@ -811,9 +794,11 @@ then `create_allocation_plan` with that session's `preview_id`, `preview_hash` a
 report and account scope. Other providers remain unqualified for this handoff; Google retains its dedicated-budget
 flow. See [qualification and limits](../../../docs/review/DELIVERY-2026-10-03-SNAPCHAT-ALLOCATION.md).
 
+
 ### Allocation selection and browser review
 
 Candidates use compact Add/Added controls with full accessible names. Added items remain disabled until removed; selection changes preserve each remaining item's bounds and invalidate obsolete results. Report buttons identify their source, account and dates. Snapchat model/candidate responses identify `entity_kind:ad_squad` and the exact `parent_campaign_id`; daily-budget copy stays provider-specific. Conversion tables retain exact decimal strings and micros inside named horizontal scroll regions. The confirmation starts on Cancel, wraps Tab/Shift+Tab between its controls and supports Escape cancellation. Long native IDs fit the English/Arabic narrow-screen form. See [browser and keyboard qualification](../../../docs/review/DELIVERY-2026-10-03-BROWSER-ALLOCATION.md).
+
 
 ### Saved budget proposal review
 
