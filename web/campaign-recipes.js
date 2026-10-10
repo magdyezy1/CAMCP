@@ -623,6 +623,8 @@ async function mountRecipeBuilder(profiles, openCampaign) {
   section.className = 'panel workspace-form recipe-builder';
   section.innerHTML = `<h2>${esc(uiText('Build from business inputs'))}</h2><p>${esc(uiText('Choose a workflow, complete the brief, then inspect a paused campaign plan. Each provider change receives its own review.'))}</p>${start.notices.map(text => `<p class="notice" role="status">${esc(text)}</p>`).join('')}<div class="recipe-choice"><label>${esc(uiText('Workflow'))}<select id="recipe-choice">${recipes.map(r => `<option value="${esc(r.id)}" ${r.id === start.recipe ? 'selected' : ''}>${esc(uiText(r.name))}</option>`).join('')}</select></label><label>${esc(uiText('Approved client profile'))}<select id="recipe-profile"><option value="">${esc(uiText('No profile'))}</option>${profiles.map(p => `<option value="${esc(p.id)}" ${p.id === start.profile ? 'selected' : ''}>${esc(p.name)} ${esc(uiText('· revision'))} ${p.revision}</option>`).join('')}</select></label></div><div id="recipe-fields" aria-live="polite"></div><p id="recipe-error" class="error" role="alert"></p><div id="recipe-preview" tabindex="-1"></div>`;
   $('#campaign-create > summary').after(section);
+  $('#recipe-choice').value = start.recipe ?? '';
+  $('#recipe-profile').value = start.profile;
   // A link to the composer opens it.
   if (start.notices.length || ['recipe', 'profile_id', 'connection_id'].some(k => recipeLinkParams().has(k)))
     $('#campaign-create').open = true;

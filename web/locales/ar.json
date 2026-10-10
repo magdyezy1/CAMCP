@@ -9168,5 +9168,7 @@
   "X native micros · exact amount in account currency shown": "وحدات X الأصلية (micros) · مع المبلغ الدقيق بعملة الحساب",
   "Clone into a draft": "نسخ إلى مسودة",
   "Capture evidence for this campaign": "التقاط أدلة لهذه الحملة",
-  "Read inventory to reopen {entity} inventory for this account.": "اقرأ المخزون لإعادة فتح مخزون {entity} لهذا الحساب."
+  "Read inventory to reopen {entity} inventory for this account.": "اقرأ المخزون لإعادة فتح مخزون {entity} لهذا الحساب.",
+  "Account security & members": "أمان الحساب والأعضاء",
+  "Deployment settings": "إعدادات النشر"
 }

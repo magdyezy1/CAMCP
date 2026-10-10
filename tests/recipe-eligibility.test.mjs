@@ -89,7 +89,11 @@ test('local eligibility resolves contracts and selected account but preserves un
     assert.equal(f.store.documents(actor.tenantId, 'campaign_run').length, 0);
     assert.equal(r.next_call.arguments.action, 'recipe_eligibility');
     assert.equal(r.next_call.arguments.live, true);
-    assert.equal(response.meta.workflow.website_path, '/campaigns#campaign-create');
+    // WEB-06: the hand-off opens the composer on the checked workflow and account instead of a generic form.
+    assert.equal(
+      response.meta.workflow.website_path,
+      '/campaigns?recipe=google_search&connection_id=synthetic-login&account_id=123#campaign-create',
+    );
     const clicks = ok(
       await f.call({
         ...input({...base, cpc_bid: undefined, cpc_bid_ceiling: '1.250001'}),

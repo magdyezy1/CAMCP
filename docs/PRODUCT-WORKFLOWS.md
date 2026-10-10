@@ -745,6 +745,25 @@ the export or job; a media variant, which no page loads, gets no link. On an HTT
 absolute address on the configured public origin; stdio, which serves no website, returns `website_path` only. A
 `next_call` naming a tool the deployment does not list is withheld. `tests/mcp-handoff-links.test.mjs` opens each
 link for its owner and checks that another workspace is refused.
+
+**Website navigation and deep links (WEB-06).** Every workspace page is listed once in `web/routes.js`: path,
+canonical name (the navigation label, owner decision D27), group, former names, test-account scope and whether a
+sign-in may return to it. Tab title, breadcrumb, heading, command palette, client routing, sign-in returns and
+test-account scope read it; `tools/check-routes.mjs` (part of `check-web`) fails when the navigation in
+`web/index.html`, the lazily loaded page assets or the server's shell pages drift from it. The palette finds a page by
+its navigation name, its former names ("Media library", "MCP connectors", …) and their Arabic translations. The access
+line combines the person's role with the deployment switch; the sidebar workspace card switches workspaces in place
+(private state is reset); a failed shell action stays as an inline alert until the next action. Hand-off links only
+preselect, they never read a provider or save: `/campaigns?recipe=&profile_id=&connection_id=&account_id=
+#campaign-create` (playbook "Build a campaign", Capabilities "Open workflow", a `recipe_eligibility` result's
+`website_path`), `/campaigns?clone=1&connection_id=&account_id=&source_id=#campaign-clone` (Portfolio "Clone into a
+draft", supported gateways with write access) and `/reports?connection_id=&account_id=&campaign_id=#report-capture`
+(Portfolio "Capture evidence for this campaign"; Snapchat opens the parent-scoped ad-squad preset). A value the
+person cannot use is named ("Previously selected account — check access"), never replaced by another. Portfolio keeps
+the account and drill-down in its address: Back returns to the parent level, and a reload restores the selection and
+waits for *Read inventory*. Google, Snapchat and X micros show the exact account-currency decimal beside the native
+value; Meta and TikTok amounts stay unconverted. `tests/route-registry.test.mjs`, `tests/website-navigation.test.mjs`,
+`tests/website-deep-links.test.mjs` and `tests/portfolio-url-state.test.mjs` cover these.
 Monitoring adds `attention_required`, `deferred` and `complete` outcomes without replacing factual incident state.
 The synthetic SDK journey tests measure calls and response bytes; external MCP client acceptance is separate.
 

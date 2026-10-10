@@ -398,7 +398,11 @@ test('MCP assesses a current campaign brief with exact read-only evidence and re
   const local = await f.call('amcp_campaign', input);
   assert.equal(local.success, true, JSON.stringify(local));
   assert.equal(local.data.status, 'unknown');
-  assert.equal(local.meta.workflow.website_path, '/campaigns#campaign-create');
+  // WEB-06: the hand-off opens the composer on the checked workflow and account instead of a generic form.
+  assert.equal(
+    local.meta.workflow.website_path,
+    '/campaigns?recipe=google_search&connection_id=synthetic-login&account_id=123#campaign-create',
+  );
   assert.equal(f.metrics().provider_requests, 0);
   const native = await f.call('amcp_campaign', local.data.next_call.arguments);
   assert.equal(native.success, true, JSON.stringify(native));

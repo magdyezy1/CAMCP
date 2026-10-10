@@ -44,7 +44,7 @@ function renderUnavailableReportSources(config, bootstrap) {
               `<label class="report-account"><input type="checkbox" data-report-account="${esc(s.platform)}" value="${esc(JSON.stringify([s.platform, s.connection_id, s.account_id]))}" checked><span>${esc(pretty(s.platform))} · ${esc(s.account_id)}<small>${esc(uiText('Login:'))} ${esc(s.connection_id)}</small></span></label>`,
           )
           .join('') +
-        `<a href="/connections">${esc(uiText('Manage connections ↗'))}</a></div>`
+        `<a href="/connections">${esc(uiText('Manage connections'))}</a></div>`
     : '';
 }
 function reportWindowLabel(range) {
