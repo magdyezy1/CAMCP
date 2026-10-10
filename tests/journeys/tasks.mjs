@@ -160,9 +160,10 @@ const references = {
   async T6(f, ctx) {
     return [await f.call('amcp_media', {action: 'asset', asset_id: ctx.asset})];
   },
-  async H1(f, ctx) {
+  async H1(f, ctx, entry) {
+    // Retry takes the delivery job's identifier, which the export status names (not the export's own id).
     f.approve();
-    const retried = await f.call('amcp_reporting_overview', {action: 'retry', id: ctx.export, confirmed: true});
+    const retried = await f.call('amcp_reporting_overview', {action: 'retry', id: entry.data.job_id, confirmed: true});
     await f.work();
     return [retried, await f.call('amcp_reporting_overview', {action: 'export_status', id: ctx.export})];
   },
@@ -179,7 +180,8 @@ const goals = {
     f.providers.state.mutations === 0 &&
     responses.some(r => r.success && r.data?.state === 'draft' && r.data?.preflight?.status === 'ready'),
   T3: (f, ctx, responses) =>
-    f.providers.state.mutations === 0 && responses.some(r => r.success && typeof r.data?.review?.review_id === 'string'),
+    f.providers.state.mutations === 0 &&
+    responses.some(r => r.success && typeof r.data?.review?.review_id === 'string'),
   T4: (f, ctx, responses) =>
     f.providers.state.mutations === ctx.mutations &&
     responses.some(r => r.success && r.data?.view === 'step' && r.data?.step?.status === 'uncertain'),
@@ -201,7 +203,12 @@ const goals = {
   },
 };
 /** The object a task's website handoff must open. */
-const handoffIds = {T2: (ctx, responses) => responses[0]?.data?.id, T3: ctx => ctx.plan, T4: ctx => ctx.plan, T6: ctx => ctx.asset};
+const handoffIds = {
+  T2: (ctx, responses) => responses[0]?.data?.id,
+  T3: ctx => ctx.plan,
+  T4: ctx => ctx.plan,
+  T6: ctx => ctx.asset,
+};
 
 /** The next call a response offers: its own, else the first one offered by an item it lists (a feed's rows). */
 export function discoverNextCall(response) {
@@ -226,7 +233,8 @@ export function discoverNextCall(response) {
 }
 /** A call that executes, confirms or saves on the person's behalf; a guided client follows it only with approval. */
 export const needsApproval = call =>
-  call.arguments.confirmed === true || /^(execute|save_|create_|delete|retry|approve|run)/.test(String(call.arguments.action ?? ''));
+  call.arguments.confirmed === true ||
+  /^(execute|save_|create_|delete|retry|approve|run)/.test(String(call.arguments.action ?? ''));
 
 const handoffPath = responses => {
   for (const response of [...responses].reverse()) {
@@ -260,6 +268,7 @@ export async function runTask(f, task, mode, {maxCalls = 8} = {}) {
     // The handoff check is the evaluator opening the link; it is not one of the client's calls.
     measured = f.transcript.length;
   let handoff = null;
-  if (task.handoff) handoff = reached && (await openHandoff(f, handoffPath(responses), handoffIds[task.id]?.(ctx, responses)));
+  if (task.handoff)
+    handoff = reached && (await openHandoff(f, handoffPath(responses), handoffIds[task.id]?.(ctx, responses)));
   return {goalReached: reached, handoff, measured};
 }

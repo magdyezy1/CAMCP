@@ -391,10 +391,11 @@ export const journeys = Object.freeze([
         await f.work();
         const failed = await f.call('amcp_reporting_overview', {action: 'export_status', id: queued.data.id});
         if (failed.data?.retry_available !== true) return {goal: false};
-        // The person restores the sheet's permission and retries the same export: a safe retry, not a new one.
+        // The person restores the sheet's permission and retries the same export: a safe retry, not a new one. Retry
+        // takes the delivery job's identifier, which the status names.
         f.providers.state.sheetsRefusal = false;
         f.approve();
-        await f.call('amcp_reporting_overview', {action: 'retry', id: queued.data.id, confirmed: true});
+        await f.call('amcp_reporting_overview', {action: 'retry', id: failed.data.job_id, confirmed: true});
         await f.work();
         const receipt = await f.call('amcp_reporting_overview', {action: 'export_status', id: queued.data.id});
         return {goal: receipt.data?.outcome === 'complete' && f.providers.state.tab.report === snapshot};
@@ -567,8 +568,7 @@ export const journeys = Object.freeze([
           },
         });
         f.providers.state.accountStatus = 1;
-        let cursor,
-          item;
+        let cursor, item;
         for (let page = 0; page < 4 && !item; page++) {
           const feed = await f.web.call('workspace', {action: 'operations', limit: 1, ...(cursor ? {cursor} : {})});
           item = feed.data?.operations?.find(entry => entry.id === plan.data.id && entry.category === 'attention');

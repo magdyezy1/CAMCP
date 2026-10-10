@@ -58,7 +58,12 @@ export async function runTasks({fault, only} = {}) {
       if (only && !only.includes(task.id) && !only.includes(id)) continue;
       const result = await measured(fault, async f => {
         const outcome = await runTask(f, task, mode);
-        return {goal: outcome.goalReached, handoff: outcome.handoff, measured: outcome.measured, reference: task.reference};
+        return {
+          goal: outcome.goalReached,
+          handoff: outcome.handoff,
+          measured: outcome.measured,
+          reference: task.reference,
+        };
       });
       discovery ??= result.discovery;
       delete result.discovery;

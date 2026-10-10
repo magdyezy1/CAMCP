@@ -65,17 +65,25 @@ export function offeredNextCall(response) {
     : undefined;
 }
 /**
- * Whether a response tells the person what to do next: an offered call, a refusal's next action or remedy, a blocked
- * check's next step, a step error's next action or a list call to find the right identifier.
+ * Whether a response tells the person what to do next: an offered call, a refusal's next action or remedy (also on a
+ * plan's current or inspected step), a list call to find the right identifier, a blocked check's next step, an
+ * execution journal's next safe action, or a data-quality recommendation that names what to refresh.
  */
 export function offersNextStep(response) {
-  const error = response?.error,
-    current = response?.data?.current?.error;
+  const data = response?.data,
+    errors = [response?.error, data?.current?.error, data?.step?.error];
   return !!(
     offeredNextCall(response) ||
-    (error && (error.next_action || error.remedy?.action || error.details?.next_action || error.details?.list_call)) ||
-    (current && (current.next_action || current.remedy?.action)) ||
-    (Array.isArray(response?.data?.checks) && response.data.checks.some(check => check?.next_step))
+    errors.some(
+      error =>
+        error &&
+        typeof error === 'object' &&
+        (error.next_action || error.remedy?.action || error.details?.next_action || error.details?.list_call),
+    ) ||
+    (Array.isArray(data?.checks) && data.checks.some(check => check?.next_step)) ||
+    (Array.isArray(data?.execution_journal) && data.execution_journal.some(entry => entry?.next_safe_action)) ||
+    (Array.isArray(data?.recommendations) &&
+      data.recommendations.some(item => item?.type === 'data_quality' && typeof item.proposal === 'string'))
   );
 }
 /** AMCP's outcome state of a response: its workflow state, else the record's own state, else ok or refused. */
@@ -137,11 +145,21 @@ export function syntheticProviders() {
     sheetsRefusal: false,
     records: new Map(),
     next: 120000000000001n,
-    tab: {markers: [{metadataKey: 'amcp_destination', metadataValue: evaluationDestination, metadataId: 1}], report: null},
+    tab: {
+      markers: [{metadataKey: 'amcp_destination', metadataValue: evaluationDestination, metadataId: 1}],
+      report: null,
+    },
     metadataId: 10,
     // Tag Manager account 44, container 55, workspace 66: tag 001 has no consent setting, 002 needs analytics_storage.
     gtm: {
-      workspace: {path: gtmWorkspacePath, accountId: '44', containerId: '55', workspaceId: '66', name: 'Evaluation workspace', fingerprint: 'workspace-1'},
+      workspace: {
+        path: gtmWorkspacePath,
+        accountId: '44',
+        containerId: '55',
+        workspaceId: '66',
+        name: 'Evaluation workspace',
+        fingerprint: 'workspace-1',
+      },
       tags: new Map(
         ['001', '002'].map(id => [
           id,
@@ -158,7 +176,12 @@ export function syntheticProviders() {
             firingTriggerId: ['7'],
             parameter: [{type: 'template', key: 'html', value: 'SYNTHETIC-SCRIPT'}],
             ...(id === '002'
-              ? {consentSettings: {consentStatus: 'needed', consentType: {type: 'list', list: [{type: 'template', value: 'analytics_storage'}]}}}
+              ? {
+                  consentSettings: {
+                    consentStatus: 'needed',
+                    consentType: {type: 'list', list: [{type: 'template', value: 'analytics_storage'}]},
+                  },
+                }
               : {}),
           },
         ]),
@@ -235,7 +258,9 @@ export function syntheticProviders() {
             actions: [{action_type: 'offsite_conversion.fb_pixel_purchase', value: '2'}],
           },
         ],
-        ...(state.insightsPaging ? {paging: {next: 'https://graph.facebook.com/v26.0/' + id + '/insights?after=2'}} : {}),
+        ...(state.insightsPaging
+          ? {paging: {next: 'https://graph.facebook.com/v26.0/' + id + '/insights?after=2'}}
+          : {}),
       });
     if (method === 'GET') {
       if (/^act_\d+$/.test(id))
@@ -270,7 +295,10 @@ export function syntheticProviders() {
     if (resource === gtmWorkspacePath) return Response.json(state.gtm.workspace);
     const tag = state.gtm.tags.get(resource.split('/').at(-1));
     if (tag && resource === tag.path) return Response.json(tag);
-    return Response.json({error: {code: 404, status: 'NOT_FOUND', message: 'Synthetic missing resource'}}, {status: 404});
+    return Response.json(
+      {error: {code: 404, status: 'NOT_FOUND', message: 'Synthetic missing resource'}},
+      {status: 404},
+    );
   };
   const fetcher = async (raw, init = {}) => {
     const url = new URL(String(raw)),
@@ -337,8 +365,11 @@ function seedSnapshot(store, actor, id, capturedAt) {
   return id;
 }
 
-/** The loopback website over the same store and service, signed in as a workspace member of the same tenant. */
-async function websiteSurface(store, service, record, requestCount) {
+/**
+ * The loopback website over the same store and service, signed in as a workspace member of the same tenant. A response
+ * fault applies here too, since Home and the other pages read the same seams.
+ */
+async function websiteSurface(store, service, record, requestCount, alter) {
   let app;
   const listener = await listenForFetch((req, res) => {
     if (app) app(req, res);
@@ -380,7 +411,7 @@ async function websiteSurface(store, service, record, requestCount) {
     } catch {
       value = {success: false, error: {code: 'NOT_JSON'}};
     }
-    return {status: response.status, value, bytes: Buffer.byteLength(text)};
+    return {status: response.status, value: alter ? alter(value) : value, bytes: Buffer.byteLength(text)};
   };
   return {
     origin,
@@ -540,7 +571,7 @@ export async function evaluationFixture({fault, role = 'operator'} = {}) {
     const result = alter ? alter(wire) : wire;
     return record({surface: 'mcp', tool, args, result, bytes: Buffer.byteLength(text), before, context});
   };
-  const website = await websiteSurface(store, service, record, () => providers.state.requests.length);
+  const website = await websiteSurface(store, service, record, () => providers.state.requests.length, alter);
   let snapshotSequence = 0;
   return {
     store,
@@ -564,7 +595,12 @@ export async function evaluationFixture({fault, role = 'operator'} = {}) {
     userActions: () => userActions,
     /** A completed snapshot of Client A's account; each later one is newer. */
     snapshot(name = 'evaluation-snapshot') {
-      return seedSnapshot(store, actor, name + '-' + ++snapshotSequence, Date.parse('2026-09-03T00:00:00Z') + snapshotSequence * 100000);
+      return seedSnapshot(
+        store,
+        actor,
+        name + '-' + ++snapshotSequence,
+        Date.parse('2026-09-03T00:00:00Z') + snapshotSequence * 100000,
+      );
     },
     /** Runs queued report and delivery jobs, as the worker process would. */
     async work() {
@@ -597,7 +633,10 @@ const sumOf = (entries, field) => entries.reduce((sum, entry) => sum + (Number(e
  * sent again unchanged) and handoff success (the goal reached, with the website handoff verified when the task needs
  * it). Journeys add user actions, website actions, provider requests and response bytes.
  */
-export function transcriptMetrics(transcript, {reference = [], goalReached = false, handoff = null, userActions = 0} = {}) {
+export function transcriptMetrics(
+  transcript,
+  {reference = [], goalReached = false, handoff = null, userActions = 0} = {},
+) {
   const refused = new Set(),
     mcp = transcript.filter(entry => entry.surface !== 'web'),
     web = transcript.filter(entry => entry.surface === 'web');
@@ -620,14 +659,18 @@ export function transcriptMetrics(transcript, {reference = [], goalReached = fal
     refused_calls: transcript.filter(entry => !entry.success).length,
     repeated_refused_calls: repeated,
     unnecessary_calls: reference.length ? Math.max(0, transcript.length - reference.length) : 0,
-    correct_tool_choice: expected ? !!first && first.tool === expected.tool && first.action === (expected.action ?? null) : null,
+    correct_tool_choice: expected
+      ? !!first && first.tool === expected.tool && first.action === (expected.action ?? null)
+      : null,
     followed_next_calls: transcript.filter(entry => entry.followed_next_call).length,
     offered_next_calls: transcript.filter(entry => entry.next_call).length,
     wrong_next_calls: transcript.filter(
       entry =>
         entry.followed_next_call &&
         !entry.success &&
-        ['INVALID_ARGUMENT', 'UNKNOWN_OPERATION', 'NOT_FOUND', 'RESOURCE_NOT_FOUND', 'VALIDATION_FAILED'].includes(entry.code),
+        ['INVALID_ARGUMENT', 'UNKNOWN_OPERATION', 'NOT_FOUND', 'RESOURCE_NOT_FOUND', 'VALIDATION_FAILED'].includes(
+          entry.code,
+        ),
     ).length,
     next_step_at_stop: !goalReached ? !!transcript.at(-1)?.next_step : null,
     user_approvals: transcript.filter(entry => entry.user_approval).length,
@@ -686,6 +729,7 @@ export function compareWithBaseline(current, baseline, {bytesTolerance = 0.1, by
     }
   for (const [suite, runs] of Object.entries(current.runs ?? {}))
     for (const id of Object.keys(runs))
-      if (!baseline.runs?.[suite]?.[id]) improvements.push({suite, id, field: 'new_run', expected: null, actual: 'present'});
+      if (!baseline.runs?.[suite]?.[id])
+        improvements.push({suite, id, field: 'new_run', expected: null, actual: 'present'});
   return {passed: regressions.length === 0, regressions, improvements};
 }
