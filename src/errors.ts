@@ -76,6 +76,28 @@ function familyRemedy(code: string): {category: string; owner: string; action: s
       'request',
       'Supply or correct the recipe input the message names (recipe_context lists every input and its approved defaults), then preview the recipe again.',
     );
+  // Conditional-program checks only read (CON-04): their remedies never mention preparing a change.
+  if (code === 'PROGRAM_ACCOUNT_REQUIRED')
+    return r(
+      'request',
+      'Choose a configured account and login for this program: capabilities lists each one with its program_check call. If none is listed, connect the provider and select the account on the Connections page first. This check only reads; nothing is prepared or changed.',
+    );
+  if (code === 'PROGRAM_INPUT_REQUIRED')
+    return r(
+      'request',
+      'Supply the program input the message names in the shape of requirements_template, which program_check with live:false returns, then check again. This check only reads; nothing is prepared or changed.',
+    );
+  if (code === 'PROGRAM_EVIDENCE_INVALID')
+    return r(
+      'provider',
+      'The provider’s program answer was incomplete or did not match the exact request, so AMCP kept no result. Check the same request once more later; if it recurs, report the request ID.',
+      'provider',
+    );
+  if (code === 'PROGRAM_NOT_FOUND')
+    return r(
+      'request',
+      'Choose a conditional program that capabilities returns (a workflow_id starting with program:).',
+    );
   if (/_LIMIT$/.test(code))
     return r(
       'request',
@@ -457,6 +479,23 @@ export function errorRemedy(e: MirrorError) {
         'Call execute again with idempotency_key equal to the review_id returned by prepare. The review is still valid until its expires_at.',
       mutation_retry_safe: false,
     };
+  // Codes the provider-error taxonomy derives from documented provider codes (PRV-01, src/provider-error-taxonomy.ts).
+  if (e.code === 'PROVIDER_PERMISSION_MISSING')
+    return {
+      category: 'grant',
+      owner: 'provider_or_account_admin',
+      action:
+        'The provider reports a permission this login has not granted, or one that was removed. Reauthorize the login in Connections and approve that permission; if it is already granted, check the login’s role on the account.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'PROVIDER_VERSION_UNSUPPORTED')
+    return {
+      category: 'contract',
+      owner: 'deployment_operator',
+      action:
+        'The provider no longer accepts the API version AMCP sent (details.api_version_sent). The deployment operator moves to a supported version, such as the reviewed default in details.default_version; reconnecting or changing the request does not help.',
+      mutation_retry_safe: false,
+    };
   const provider =
     Object.hasOwn(e.details, 'upstream') ||
     [
@@ -473,7 +512,7 @@ export function errorRemedy(e: MirrorError) {
       category: 'provider',
       owner: 'provider_or_account_admin',
       action:
-        e.code === 'AUTH_EXPIRED'
+        e.code === 'AUTH_EXPIRED' || e.details.layer === 'credential'
           ? 'Reconnect the affected provider identity, then retry reads or prepare a fresh review.'
           : e.code === 'PLATFORM_RATE_LIMIT'
             ? 'Wait for the provider retry interval; preserve the original review for any submitted mutation.'

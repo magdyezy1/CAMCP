@@ -18,7 +18,12 @@ import {
   assertMicrosoftWrite,
   microsoftSnapshots,
   validateMicrosoftResponse,
+  microsoftContracts,
+  microsoftSearchVerification,
+  microsoftAdditionalFields,
+  microsoftReturnFields,
 } from '../src/microsoft-native.js';
+import fs from 'node:fs';
 import type {Connection, JsonObject} from '../src/types.js';
 const admin = {tenantId: 't', userId: 'u', role: 'admin' as const},
   operator = {...admin, role: 'operator' as const};
@@ -719,3 +724,327 @@ for (const kind of ['Campaigns', 'AdGroups', 'Ads', 'Keywords'])
         store.close();
       }
     });
+
+/**
+ * A synthetic Microsoft campaign-management API that keeps what was written and reads it back by exact ID. Like the
+ * provider, it returns AdScheduleUseSearcherTimeZone and MaxConversionsBiddingScheme.TargetCpa only when
+ * ReturnAdditionalFields names them, and it refuses a GetAdsByIds without AdTypes.
+ */
+function statefulMicrosoft() {
+  const records = new Map<string, JsonObject>(),
+    reads: {kind: string; body: JsonObject}[] = [],
+    writes: {kind: string; method: string; body: JsonObject}[] = [];
+  let next = 100;
+  const transport = new NativeTransport(async (url, init) => {
+    const path = new URL(String(url)).pathname,
+      body = JSON.parse(String(init?.body ?? '{}'));
+    if (path.endsWith('/Account/Query'))
+      return Response.json({Account: {Id: '123', ParentCustomerId: '456', CurrencyCode: 'USD'}});
+    const kind = /\/CampaignManagement\/v13\/(Campaigns|AdGroups|Ads|Keywords)(?:\/QueryByIds)?$/.exec(path)?.[1];
+    assert.ok(kind, path);
+    if (path.endsWith('/QueryByIds')) {
+      reads.push({kind, body});
+      if (kind === 'Ads' && !Array.isArray(body.AdTypes))
+        return Response.json({Errors: [{Code: 1, Message: 'AdTypes required'}]}, {status: 400});
+      const asked = String(body.ReturnAdditionalFields ?? '').split(',');
+      return Response.json({
+        [kind]: body[kind.slice(0, -1) + 'Ids'].map((Id: string) => {
+          const r = structuredClone(records.get(kind + ':' + Id));
+          if (!r) return null;
+          if (!asked.includes('AdScheduleUseSearcherTimeZone')) delete r.AdScheduleUseSearcherTimeZone;
+          if (r.BiddingScheme?.Type === 'MaxConversionsBiddingScheme' && !asked.includes('TargetCpaInMaxConversion'))
+            delete r.BiddingScheme.TargetCpa;
+          return r;
+        }),
+      });
+    }
+    writes.push({kind, method: String(init?.method), body});
+    if (init?.method === 'POST')
+      return Response.json({
+        [kind.slice(0, -1) + 'Ids']: body[kind].map((r: JsonObject) => {
+          const Id = String(next++);
+          records.set(kind + ':' + Id, {...structuredClone(r), Id});
+          return Id;
+        }),
+        PartialErrors: null,
+      });
+    for (const r of body[kind] ?? []) records.set(kind + ':' + r.Id, {...records.get(kind + ':' + r.Id), ...r});
+    return Response.json({PartialErrors: null});
+  });
+  return {records, reads, writes, transport};
+}
+const rsa = (overrides: JsonObject = {}) => ({
+  Type: 'ResponsiveSearch',
+  Status: 'Paused',
+  FinalUrls: ['https://example.com'],
+  Headlines: ['First headline', 'Second headline', 'Third headline'].map(Text => ({Asset: {Type: 'TextAsset', Text}})),
+  Descriptions: ['First description', 'Second description'].map(Text => ({Asset: {Type: 'TextAsset', Text}})),
+  ...overrides,
+});
+async function reviewedWrite(
+  service: MirrorService,
+  ms: ReturnType<typeof statefulMicrosoft>,
+  action: string,
+  payload: JsonObject,
+  campaign_id?: string,
+) {
+  const p = await service.call(
+    'amcp_write',
+    {
+      action: 'prepare',
+      gateway,
+      arguments: {action, account_id: '123', payload, ...(campaign_id ? {campaign_id} : {})},
+    },
+    operator,
+  );
+  assert.equal(p.success, true, JSON.stringify(p));
+  const r = await service.call(
+    'amcp_write',
+    {
+      action: 'execute',
+      review_id: p.data.review_id,
+      idempotency_key: p.data.idempotency_key,
+      confirmed: true,
+      spend_change_confirmed: true,
+    },
+    operator,
+  );
+  assert.equal(r.success, true, JSON.stringify(r));
+  const before = ms.reads.length,
+    v = await service.call('amcp_campaign', {action: 'verify', review_id: p.data.review_id}, operator);
+  assert.equal(v.success, true, JSON.stringify(v));
+  return {ids: r.data.data as JsonObject, verification: v.data as JsonObject, reads: ms.reads.slice(before)};
+}
+
+test('PRV-03: Microsoft AddAds and UpdateAds verify by exact read-back with AdTypes (was unverified: Missing AdTypes)', async () => {
+  const store = new Store(':memory:', key);
+  store.putConnection(admin, connection, {accessToken: 'synthetic', developerToken: 'synthetic-developer'});
+  const ms = statefulMicrosoft(),
+    service = new MirrorService(new Registry(), store, ms.transport, undefined, policy),
+    write = (action: string, payload: JsonObject, campaign_id?: string) =>
+      reviewedWrite(service, ms, action, payload, campaign_id);
+  try {
+    const campaign = await write('AddCampaigns', {
+      Campaigns: [
+        {
+          Name: 'Campaign',
+          CampaignType: 'Search',
+          DailyBudget: 50,
+          BudgetType: 'DailyBudgetStandard',
+          Status: 'Paused',
+        },
+      ],
+    });
+    assert.equal(campaign.verification.status, 'verified', JSON.stringify(campaign.verification));
+    const campaignId = campaign.ids.CampaignIds[0];
+    const group = await write('AddAdGroups', {
+      CampaignId: campaignId,
+      AdGroups: [{Name: 'Ad group', Status: 'Paused', CpcBid: {Amount: 1.25}}],
+    });
+    assert.equal(group.verification.status, 'verified', JSON.stringify(group.verification));
+    const adGroupId = group.ids.AdGroupIds[0];
+    const ad = await write('AddAds', {AdGroupId: adGroupId, Ads: [rsa()]}, campaignId);
+    // Before PRV-03 the verification read omitted AdTypes, compileMicrosoft threw "Missing AdTypes" and the
+    // receipt stayed unverified, so a microsoft_search plan never completed.
+    assert.equal(ad.verification.status, 'verified', JSON.stringify(ad.verification));
+    assert.equal(
+      ad.verification.checks.some((c: JsonObject) => c.code === 'INVALID_MICROSOFT_REQUEST'),
+      false,
+    );
+    assert.deepEqual(
+      ad.reads.map(r => [r.kind, r.body.AdTypes, r.body.AdGroupId]),
+      [['Ads', ['ResponsiveSearch'], adGroupId]],
+    );
+    const adId = ad.ids.AdIds[0];
+    const keyword = await write(
+      'AddKeywords',
+      {AdGroupId: adGroupId, Keywords: [{Text: 'example', MatchType: 'Exact', Status: 'Paused', Bid: {Amount: 1.25}}]},
+      campaignId,
+    );
+    assert.equal(keyword.verification.status, 'verified', JSON.stringify(keyword.verification));
+    const updated = await write(
+      'UpdateAds',
+      {AdGroupId: adGroupId, Ads: [{Id: adId, Type: 'ResponsiveSearch', FinalUrls: ['https://example.com/new']}]},
+      campaignId,
+    );
+    assert.equal(updated.verification.status, 'verified', JSON.stringify(updated.verification));
+    assert.deepEqual(updated.reads.at(-1)!.body.AdTypes, ['ResponsiveSearch']);
+    assert.deepEqual(ms.records.get('Ads:' + adId)!.FinalUrls, ['https://example.com/new']);
+    // Verification only reads; it never repeats a mutation.
+    assert.equal(ms.writes.length, 5);
+  } finally {
+    store.close();
+  }
+});
+
+test('PRV-03: a written field Microsoft omits by default is requested on read-back so verification can compare it', async () => {
+  const store = new Store(':memory:', key);
+  store.putConnection(admin, connection, {accessToken: 'synthetic', developerToken: 'synthetic-developer'});
+  const ms = statefulMicrosoft(),
+    service = new MirrorService(new Registry(), store, ms.transport, undefined, policy);
+  try {
+    const campaign = await reviewedWrite(service, ms, 'AddCampaigns', {
+      Campaigns: [
+        {
+          Name: 'Campaign',
+          CampaignType: 'Search',
+          DailyBudget: 50,
+          BudgetType: 'DailyBudgetStandard',
+          Status: 'Paused',
+          AdScheduleUseSearcherTimeZone: true,
+          BiddingScheme: {Type: 'MaxConversionsBiddingScheme', TargetCpa: 12.5},
+        },
+      ],
+    });
+    assert.equal(campaign.verification.status, 'verified', JSON.stringify(campaign.verification));
+    assert.equal(
+      campaign.reads.at(-1)!.body.ReturnAdditionalFields,
+      'AdScheduleUseSearcherTimeZone,TargetCpaInMaxConversion',
+    );
+    assert.equal(campaign.reads.at(-1)!.body.CampaignType, 'Search');
+  } finally {
+    store.close();
+  }
+});
+
+test('PRV-03 conformance: every Microsoft Get*ByIds snapshot and verification payload satisfies its contract', () => {
+  const parents: Record<string, JsonObject> = {
+      Campaigns: {AccountId: '123'},
+      AdGroups: {CampaignId: '100'},
+      Ads: {AdGroupId: '200'},
+      Keywords: {AdGroupId: '200'},
+    },
+    records: Record<string, JsonObject> = {
+      Campaigns: {Name: 'C', CampaignType: 'Search', DailyBudget: 5, Status: 'Paused'},
+      AdGroups: {Name: 'G', Status: 'Paused'},
+      Ads: rsa(),
+      Keywords: {Text: 'k', MatchType: 'Exact', Status: 'Paused'},
+    };
+  let checked = 0;
+  for (const kind of Object.keys(parents))
+    for (const verb of ['Add', 'Update', 'Delete']) {
+      const idsKey = kind.slice(0, -1) + 'Ids',
+        payload = {
+          ...parents[kind],
+          ...(verb === 'Delete' ? {[idsKey]: ['300']} : {[kind]: [verb === 'Add' ? records[kind] : {Id: '300'}]}),
+        },
+        plan = compileMicrosoft({action: verb + kind, account_id: '123', campaign_id: '100', payload}),
+        verification = microsoftSearchVerification(plan, {data: {[idsKey]: ['300']}}).map(v => v.read),
+        reads = [...microsoftSnapshots(plan), ...verification];
+      if (verb !== 'Delete')
+        assert.deepEqual(
+          verification.map(r => r.action),
+          ['Get' + kind + 'ByIds'],
+        );
+      for (const read of reads.filter(r => /^Get(Campaigns|AdGroups|Ads|Keywords)ByIds$/.test(r.action))) {
+        const body = read.body as JsonObject;
+        for (const field of microsoftContracts.get(read.action)!.required)
+          assert.notEqual(body[field], undefined, verb + kind + ' → ' + read.action + ' needs ' + field);
+        if (read.action === 'GetAdsByIds') assert.deepEqual(body.AdTypes, ['ResponsiveSearch']);
+        if (read.action === 'GetCampaignsByIds') assert.equal(body.CampaignType, 'Search');
+        checked++;
+      }
+    }
+  assert.ok(checked >= 16, String(checked));
+});
+
+test('PRV-03 conformance: every ReturnAdditionalFields value AMCP requests is in the pinned v13 WSDL enumeration', () => {
+  const schemas = JSON.parse(fs.readFileSync('.mirror/VENDOR/microsoft-campaign-management-v13.json', 'utf8')).document
+    .schemas;
+  const enumeration = (name: string): string[] => {
+    const found: string[] = [];
+    const walk = (node: any) => {
+      if (!node || typeof node !== 'object') return;
+      if (String(node.kind).endsWith('}enumeration')) found.push(node.attributes.value);
+      for (const child of node.children ?? []) walk(child);
+    };
+    const visit = (node: any) => {
+      if (!node || typeof node !== 'object') return;
+      for (const [k, v] of Object.entries(node))
+        if (k === 'simpleType:{https://bingads.microsoft.com/CampaignManagement/v13}' + name) walk(v);
+        else if (v && typeof v === 'object') visit(v);
+    };
+    visit(schemas);
+    return found;
+  };
+  const enumName: Record<string, string> = {
+    Campaigns: 'CampaignAdditionalField',
+    AdGroups: 'AdGroupAdditionalField',
+    Ads: 'AdAdditionalField',
+    Keywords: 'KeywordAdditionalField',
+  };
+  for (const [kind, table] of Object.entries(microsoftAdditionalFields)) {
+    const allowed = enumeration(enumName[kind]!);
+    assert.ok(allowed.length, kind);
+    for (const field of [...table.fields, ...(table.settings ?? []), ...(table.schemes ?? [])])
+      assert.ok(allowed.includes(field), kind + ' ' + field);
+    if (kind === 'Campaigns') assert.ok(allowed.includes('TargetCpaInMaxConversion'));
+  }
+  assert.deepEqual(microsoftReturnFields('Ads', rsa()), []);
+  assert.deepEqual(
+    microsoftReturnFields('Campaigns', {
+      Settings: [{Type: 'TargetSetting'}, {Type: 'ShoppingSetting'}],
+      BiddingScheme: {Type: 'MaxConversionValueBiddingScheme', TargetRoas: 2},
+    }),
+    ['TargetSetting', 'MaxConversionValueBiddingScheme'],
+  );
+});
+
+test('PRV-03: a microsoft_search plan reaches complete with synthetic read-back (its ad step stayed verifying)', async () => {
+  const store = new Store(':memory:', key);
+  store.putConnection(admin, connection, {accessToken: 'synthetic', developerToken: 'synthetic-developer'});
+  const ms = statefulMicrosoft(),
+    service = new MirrorService(new Registry(), store, ms.transport, undefined, policy),
+    call = (input: JsonObject) => service.call('amcp_campaign', input, operator);
+  try {
+    const saved = await call({
+      action: 'create_from_recipe',
+      recipe: 'microsoft_search',
+      business: {
+        name: 'Synthetic Microsoft demand',
+        account_id: '123',
+        connection_id: connection.id,
+        currency: 'USD',
+        daily_budget: '25.00',
+        cpc_bid: '1.25',
+        language: 'English',
+        keywords: ['running shoes'],
+        headlines: ['Explore the collection', 'Find your next pair', 'Built for every day'],
+        descriptions: ['Discover our latest collection online today.', 'Explore styles and find a pair today.'],
+        destination_url: 'https://example.test/',
+      },
+    });
+    assert.equal(saved.success, true, JSON.stringify(saved));
+    for (let i = 0; i < 4; i++) {
+      const prepared = await call({action: 'prepare_next', id: saved.data.id});
+      assert.equal(prepared.success, true, JSON.stringify(prepared));
+      assert.ok(prepared.data.review?.review_id, JSON.stringify(prepared));
+      const executed = await call({
+        action: 'execute_next',
+        id: saved.data.id,
+        review_id: prepared.data.review.review_id,
+        idempotency_key: prepared.data.review.review_id,
+        confirmed: true,
+        spend_change_confirmed: true,
+      });
+      assert.equal(executed.success, true, JSON.stringify(executed));
+      assert.equal(executed.data.current.status, 'verified', JSON.stringify(executed.data.current));
+    }
+    assert.deepEqual(
+      store.document(operator.tenantId, 'campaign_run', saved.data.id).steps.map((s: JsonObject) => [s.id, s.status]),
+      [
+        ['campaign', 'verified'],
+        ['adgroup', 'verified'],
+        ['keywords', 'verified'],
+        ['ad', 'verified'],
+      ],
+    );
+    const run = store.document(operator.tenantId, 'campaign_run', saved.data.id);
+    assert.equal(run.state, 'complete');
+    assert.equal(ms.writes.length, 4);
+    assert.ok(ms.writes.every(w => w.method === 'POST'));
+    assert.ok([...ms.records.values()].every(r => r.Status === 'Paused'));
+  } finally {
+    store.close();
+  }
+});

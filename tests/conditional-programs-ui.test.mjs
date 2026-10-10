@@ -279,3 +279,209 @@ test('invalid exact money, ambiguous geography and malformed native insight obje
   await assert.rejects(f.submit());
   assert.equal(f.result.innerHTML, '');
 });
+
+test('a refused program read shows its time, provider status, code, references and the reported prerequisite', async () => {
+  // PRV-02/D21: the sanitized provider status and request IDs are shown, never a response body or provider message.
+  const refused = {
+    workflow_id: 'program:linkedin_forecast',
+    scope: {connection_id: 'original/login', account_id: '123'},
+    state: 'blocked',
+    checked_at: Date.UTC(2026, 9, 8, 12, 30),
+    meaning: 'Original result',
+    blockers: ['PROVIDER_ACCESS_DENIED'],
+    native_error: {
+      code: 'PROVIDER_ACCESS_DENIED',
+      http_status: 403,
+      provider_code: 'USER_NOT_AUTHORIZED',
+      amcp_request_id: 'amcp-request-1',
+      request_id: 'amcp-request-1',
+      provider_request_id: 'AAYz-li-uuid_01',
+    },
+    provider_reported_prerequisite: {
+      prerequisite_id: 'member_account_access',
+      provider_code: 'USER_NOT_AUTHORIZED',
+      resolution:
+        'LinkedIn reports that the connected member has no role on this ad account. Ask an account manager to give the member a role on the account in Campaign Manager, then check again.',
+      reference: 'https://learn.microsoft.com/example',
+    },
+  };
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.reply(async () => refused);
+    await f.submit();
+    // The rendered summary, before the original evidence record (raw JSON, kept untranslated).
+    const html = f.result.innerHTML.split('{&quot;')[0];
+    for (const literal of ['USER_NOT_AUTHORIZED', 'AAYz-li-uuid_01', 'amcp-request-1', '403', 'data-copy-reference'])
+      assert.match(html, new RegExp(literal), locale + ' ' + literal);
+    assert.match(html, /2026/);
+    if (locale === 'en') {
+      assert.match(html, /As reported by LinkedIn/);
+      assert.match(html, /Provider request reference/);
+      assert.match(html, /no role on this ad account/);
+      assert.match(html, /No cause is inferred/);
+    } else {
+      assert.doesNotMatch(html, /As reported by LinkedIn|Provider request reference|no role on this ad account/);
+      assert.match(html, /[؀-ۿ]/);
+    }
+  }
+});
+
+// CON-04: forecast budgets read as currency, with the exact six-decimal micros value kept in the title. Before, the
+// website printed "300.000000 USD" as the only form.
+test('a forecast budget renders in USD currency style with the exact micros value in its title', () => {
+  const en = fixture('en');
+  assert.deepEqual(JSON.parse(en.run('JSON.stringify(capabilityUsd("300000000"))')), {
+    text: '$300.00',
+    title: '300.000000 USD',
+  });
+  assert.match(en.run('capabilityUsdHtml("123450006")'), /title="123\.450006 USD">\$123\.45</);
+  const ar = fixture('ar');
+  const html = ar.run('capabilityUsdHtml("300000000")');
+  assert.match(html, /title="300\.000000 USD"/);
+  assert.match(html, /dir="ltr"/);
+  assert.doesNotMatch(html, /300\.000000 USD</);
+});
+
+const denied = {
+  workflow_id: 'program:linkedin_forecast',
+  scope: {connection_id: 'original/login', account_id: '123'},
+  state: 'blocked',
+  checked_at: Date.UTC(2026, 9, 8, 12, 30),
+  provider_requests: 1,
+  meaning: 'Original result',
+  blockers: ['PROVIDER_ACCESS_DENIED'],
+  native_error: {
+    code: 'PROVIDER_ACCESS_DENIED',
+    http_status: 403,
+    provider_code: 'OTHER',
+    amcp_request_id: 'amcp-request-1',
+    request_id: 'amcp-request-1',
+    provider_request_id: 'AAYz-li-uuid_01',
+  },
+  owner_action: {
+    kind: 'contact_provider',
+    reference: 'https://learn.microsoft.com/example',
+    text: 'LinkedIn refused this exact request without a documented code. AMCP infers no cause. Confirm the application approval for this product and the member’s role on this ad account with LinkedIn, citing the provider request reference, then check again.',
+  },
+  retry_after_provisioning: true,
+  next_call: null,
+};
+test('after a refused read the card shows the owner action, and its chip and last-observed line change (en/ar)', async () => {
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale),
+      chip = {innerHTML: 'ready_for_preflight|Ready for native inspection'},
+      last = {innerHTML: ''},
+      parts = {'[data-program-status]': chip, '[data-program-last]': last};
+    f.context.badge = (state, label) => state + '|' + label;
+    f.form.closest = selector => (selector === '.operation-card' ? {querySelector: s => parts[s]} : null);
+    f.reply(async () => denied);
+    await f.submit();
+    const html = f.result.innerHTML.split('{&quot;')[0];
+    assert.match(chip.innerHTML, /^blocked\|/);
+    assert.match(chip.innerHTML, /2026/);
+    assert.match(last.innerHTML, /AAYz-li-uuid_01/);
+    assert.match(last.innerHTML, /OTHER/);
+    if (locale === 'en') {
+      assert.match(chip.innerHTML, /Provider refused · /);
+      assert.match(html, /Owner action/);
+      assert.match(html, /without a documented code/);
+      assert.match(html, /Repeating the same request now returns the same refusal/);
+      assert.match(last.innerHTML, /Last observed:/);
+      assert.match(last.innerHTML, /not a grant/);
+    } else {
+      for (const english of [
+        /Provider refused/,
+        /Owner action/,
+        /without a documented code/,
+        /Last observed/,
+        /not a grant/,
+      ])
+        assert.doesNotMatch(chip.innerHTML + html + last.innerHTML, english);
+      assert.match(chip.innerHTML, /رفضت المنصة/);
+      assert.match(html, /إجراء المالك/);
+    }
+    // A re-rendered card in the same session keeps the observation.
+    const card = f.run(
+      'capabilityReadChip({id:"program:linkedin_forecast",program:{}}, {connection_id:"original/login",account_id:"123",local_state:"ready_for_preflight"})',
+    );
+    assert.match(card, /^blocked\|/);
+  }
+});
+
+test('a retained observation shows after reload, and a program with no account shows its setup path', () => {
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale);
+    f.context.badge = (state, label) => state + '|' + label;
+    const account = {
+      connection_id: 'login',
+      account_id: '123',
+      label: 'Synthetic',
+      local_state: 'ready_for_preflight',
+      blockers: [],
+      unresolved: [],
+      next_call: {tool: 'amcp_workspace', arguments: {action: 'program_check'}},
+      provider_evidence: {status: 'missing', checked_at: null, meaning: 'Exact account-read evidence only.'},
+      program_evidence: {
+        status: 'unverified',
+        last_observation: {
+          state: 'blocked',
+          code: 'PROVIDER_ACCESS_DENIED',
+          provider_code: 'ACCESS_DENIED',
+          provider_request_id: 'li-ref-1',
+          checked_at: Date.UTC(2026, 9, 8, 12, 30),
+          grant: false,
+        },
+      },
+    };
+    const workflow = accounts => ({
+      id: 'program:dv360_advertiser',
+      name: 'Display & Video 360 advertiser access',
+      objective: 'advertiser_access',
+      description: 'Read the exact configured advertiser and retain its native partner, currency and status.',
+      effect_details: 'This read changes no advertiser settings, line items, reports or download jobs.',
+      program: {access: 'Access', limitations: 'Limits', reference: 'https://example.test/', checked_on: '2026-10-06'},
+      required_inputs: ['connection_id', 'account_id'],
+      dependencies: [],
+      lifecycle: [],
+      contracts: [],
+      website_path: '/connections',
+      next_call: null,
+      accounts,
+      ...(accounts.length
+        ? {}
+        : {
+            setup: {
+              text: 'No Display & Video 360 advertiser is selected for AMCP. On the Connections page, connect the Google identity that has Display & Video 360 access, sync it and select the advertiser, then inspect this program again.',
+              prerequisites: [
+                {
+                  id: 'dv360_customer_role',
+                  text: 'The Google identity needs a Display & Video 360 user profile with Admin, Standard or Read only access to the partner or advertiser.',
+                },
+              ],
+              website_path: '/connections',
+            },
+          }),
+    });
+    f.context.w = workflow([account]);
+    const kept = f.run('capabilityCard(w)');
+    assert.match(kept, /blocked\|/);
+    assert.match(kept, /li-ref-1/);
+    assert.doesNotMatch(kept, /ready_for_preflight\|/);
+    f.context.w = workflow([]);
+    const setup = f.run('capabilityCard(w)');
+    assert.match(setup, /href="\/connections"/);
+    assert.match(setup, /Admin, Standard or Read only|Admin أو Standard أو Read only/);
+    assert.doesNotMatch(setup, /null<\/details>$/, 'no "Continue in MCP" record for a null next_call');
+    if (locale === 'en') {
+      assert.match(kept, /Last observed:/);
+      assert.match(setup, /Set up access first/);
+      assert.doesNotMatch(setup, /Connect and select a matching account first/);
+    } else {
+      assert.doesNotMatch(
+        kept + setup,
+        /Last observed|Set up access first|No Display & Video 360 advertiser is selected/,
+      );
+      assert.match(setup, /اضبط الوصول أولًا/);
+    }
+  }
+});

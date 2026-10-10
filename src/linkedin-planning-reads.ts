@@ -47,6 +47,90 @@ const forecastKeys = [
   'ctvOnly',
 ];
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
+/**
+ * The `requirements` of a conditional-program check for this planning read as JSON Schema (CON-04), built from the
+ * same fields, enumerations and bounds validateLinkedinPlanningRead enforces, so a client can build a valid live check
+ * from the template alone. With `account` the ad account URN is fixed; without it, it must name the selected account.
+ */
+export function linkedinPlanningTemplate(kind: 'forecast' | 'insights', account?: string): JsonObject {
+  const urn = account
+      ? {const: 'urn:li:sponsoredAccount:' + account}
+      : {type: 'string', pattern: '^urn:li:sponsoredAccount:[1-9][0-9]*$', description: 'The selected account_id.'},
+    date = (description: string) => ({
+      type: 'object',
+      additionalProperties: false,
+      required: ['year', 'month', 'day'],
+      properties: {
+        year: {type: 'integer'},
+        month: {type: 'integer', minimum: 1, maximum: 12},
+        day: {type: 'integer', minimum: 1, maximum: 31},
+      },
+      description,
+    }),
+    locations = {or: {'urn:li:adTargetingFacet:locations': ['urn:li:geo:103644278']}},
+    targeting = (description: string, example: JsonObject[]) => ({
+      type: 'object',
+      additionalProperties: false,
+      required: ['include'],
+      properties: {include: {type: 'object'}, exclude: {type: 'object'}},
+      description,
+      examples: [{include: {and: example}}],
+    });
+  const request =
+    kind === 'forecast'
+      ? {
+          type: 'object',
+          additionalProperties: false,
+          required: ['sponsoredAccountUrn', 'objectiveType', 'targetingCriteria'],
+          properties: {
+            sponsoredAccountUrn: urn,
+            currencyCode: {const: 'USD'},
+            objectiveType: {enum: objectives},
+            optimizationType: {enum: optimizations},
+            targetBudgetMicros: {
+              type: 'integer',
+              minimum: 100000000,
+              maximum: Number.MAX_SAFE_INTEGER,
+              description: 'USD micros for the whole forecast period.',
+            },
+            startDateOn: date('A UTC calendar date after today.'),
+            endDateOn: date('A UTC calendar date after today, on or after startDateOn and at most 90 days after it.'),
+            targetingCriteria: targeting(
+              'include.and needs one clause whose or names only locations or profileLocations geography URNs. Replace the example geography.',
+              [locations],
+            ),
+            enableAudienceNetwork: {type: 'boolean'},
+            enableAudienceExpansion: {type: 'boolean'},
+            ctvOnly: {type: 'boolean'},
+          },
+        }
+      : {
+          type: 'object',
+          additionalProperties: false,
+          required: ['requestMetaData', 'targetingCriteria', 'groupBy'],
+          properties: {
+            requestMetaData: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['sponsoredAccountUrn'],
+              properties: {sponsoredAccountUrn: urn},
+            },
+            targetingCriteria: targeting('Native audience targeting criteria. Replace the example values.', [
+              locations,
+              {or: {'urn:li:adTargetingFacet:skills': ['urn:li:skill:236']}},
+            ]),
+            groupBy: {enum: groupBy},
+            segmentsOrderedBy: {enum: ['AUDIENCE_PERCENTAGE', 'HIERARCHICAL']},
+            maxReturnCount: {type: 'integer', minimum: 1, maximum: 100},
+          },
+        };
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: kind === 'forecast' ? ['forecast', 'request'] : ['request'],
+    properties: {...(kind === 'forecast' ? {forecast: {enum: forecasts}} : {}), request},
+  };
+}
 function invalid(message: string): never {
   throw new MirrorError('INVALID_LINKEDIN_PLANNING_READ', message);
 }

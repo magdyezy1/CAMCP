@@ -26,6 +26,9 @@ export interface WorkspaceAsset {
   manager?: boolean;
   hidden?: boolean;
   testAccount?: boolean;
+  /** LinkedIn: the member's role on the account (adAccountUsers) and when discovery observed it (PRV-02). */
+  linkedinRole?: string;
+  linkedinRoleObservedAt?: number;
   source: 'vendor' | 'configured_binding';
 }
 export interface AssetGroup {
@@ -828,8 +831,11 @@ export class AssetDiscovery {
                 )
                   throw e;
               }
-            assets.push(
-              this.asset(
+            // The member's role is retained as observed metadata (a closed-set token, never free text). It is evidence for
+            // the member_account_access prerequisite of LinkedIn programs; LinkedIn still decides each request.
+            const role = typeof r.role === 'string' && /^[A-Z][A-Z_]{1,63}$/.test(r.role) ? r.role : undefined;
+            assets.push({
+              ...this.asset(
                 {
                   id,
                   name: typeof account.name === 'string' && account.name.trim() ? account.name : id,
@@ -838,7 +844,8 @@ export class AssetDiscovery {
                 },
                 kind,
               ),
-            );
+              ...(role ? {linkedinRole: role, linkedinRoleObservedAt: Date.now()} : {}),
+            });
           }
         } else if (p.id === 'x') {
           if (kind === 'ad_accounts')

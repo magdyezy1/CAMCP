@@ -154,6 +154,40 @@ test('DV360 advertiser selection and unknown inventory labels render without los
     }
 });
 
+// CON-04: an empty DV360 discovery named no setup step ("The provider returned an empty list for this login.").
+test('an empty DV360 discovery names the user profile and permission to set up, in English and Arabic', () => {
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale),
+      p = structuredClone(platform);
+    Object.assign(p, {
+      id: 'dv360',
+      selectionKind: 'advertisers',
+      selectableKinds: ['advertisers'],
+      assetKinds: ['advertisers'],
+    });
+    Object.assign(p.connections[0].groups[0], {kind: 'advertisers', assets: []});
+    f.context.platform = p;
+    f.run(
+      "platforms=[platform];currentPlatform='dv360';currentConnection='login-001';assetKind='advertisers';renderManage()",
+    );
+    const html = f.node('#manage-content').innerHTML;
+    assert.match(html, /Admin, Standard or Read only|Admin أو Standard أو Read only/);
+    assert.doesNotMatch(html, /The provider returned an empty list for this login/);
+    if (locale === 'en') assert.match(html, /No Display &amp; Video 360 advertisers found/);
+    else {
+      assert.match(html, /لم يُعثر على معلنين في Display &amp; Video 360/);
+      assert.doesNotMatch(html, /Ask a Display/);
+    }
+  }
+  const f = fixture('en');
+  f.context.platform = structuredClone(platform);
+  f.context.platform.connections[0].groups[0].assets = [];
+  f.run(
+    "platforms=[platform];currentPlatform='google';currentConnection='login-001';assetKind='ad_accounts';renderManage()",
+  );
+  assert.match(f.node('#manage-content').innerHTML, /The provider returned an empty list for this login/);
+});
+
 test('Arabic connection selection and write grants retain exact scopes and explicit acknowledgement', async () => {
   const transcripts = [];
   for (const locale of ['en', 'ar']) {

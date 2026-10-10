@@ -45,7 +45,7 @@ function impact(c: Connection): JsonObject {
     selected_account_count: c.accounts.length,
     write_account_count: c.writeAccounts?.length ?? 0,
     effect:
-      'Removes this AMCP connection, its encrypted credentials, saved discovery metadata, resource bindings and the report data read through it (finished report snapshots, captured reports, parsed downloads). Saved report definitions, write reviews, receipts and the audit trail stay. Other connections, provider accounts, advertising entities and provider OAuth grants are unchanged.',
+      'Removes this AMCP connection, its encrypted credentials, saved discovery metadata, resource bindings, its conditional-program observations and the report data read through it (finished report snapshots, captured reports, parsed downloads). Saved report definitions, write reviews, receipts and the audit trail stay. Other connections, provider accounts, advertising entities and provider OAuth grants are unchanged.',
     pending_work:
       'Jobs bound to this connection will fail current-access checks. In-flight provider requests may already have completed; retain their reviews, audit history and idempotency claims for reconciliation. This does not cancel a submitted provider mutation.',
     provider_access:
@@ -102,7 +102,15 @@ export function disconnectLocalConnection(
     store.db
       .prepare("DELETE FROM documents WHERE tenant_id=? AND id=? AND kind='connection_health'")
       .run(actor.tenantId, id);
-    const purged = purgeReportContent(store, actor.tenantId, id);
+    const purged = purgeReportContent(store, actor.tenantId, id),
+      // Conditional-program observations read through this login go with it (owner decision D20, CON-04).
+      observations = Number(
+        store.db
+          .prepare(
+            "DELETE FROM documents WHERE tenant_id=? AND kind='conditional_program_observation' AND json_extract(data,'$.connection_id')=?",
+          )
+          .run(actor.tenantId, id).changes,
+      );
     store.db.prepare('DELETE FROM connections WHERE tenant_id=? AND id=?').run(actor.tenantId, id);
     const receipt = {
       success: true,
@@ -114,6 +122,7 @@ export function disconnectLocalConnection(
         resource_bindings: Number(bindings),
         discovery_documents: Number(documents),
         ...purged,
+        ...(observations ? {program_observations: observations} : {}),
       },
       network_requests: 0,
       provider_changes: 0,

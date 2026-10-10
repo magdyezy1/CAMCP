@@ -3,6 +3,8 @@ import {Registry} from '../src/catalog.js';
 import {Store} from '../src/store.js';
 import {MirrorService} from '../src/service.js';
 import type {CallOptions} from '../src/types.js';
+import {linkedinVersion} from '../src/linkedin-version.js';
+import {resolveMetaVersion} from '../src/meta-version.js';
 import {loadConfig, type AmcpConfig} from './config.js';
 import {checkVolumeMarker, verifyDataVolume, type VolumeLog, type VolumeStat} from './volume.js';
 /** Metadata-only start-up lines: info on stdout for HTTP and the worker; everything on stderr for stdio MCP. */
@@ -18,6 +20,18 @@ export function createRuntime(
   config: AmcpConfig = loadConfig(process.env, 'stdio'),
   options: {log?: VolumeLog; stat?: VolumeStat} = {},
 ) {
+  // Provider version pins fail closed at startup (PRV-02): an unreviewed or sunset LinkedIn-Version, or a Meta version
+  // AMCP holds no evidence for, stops the process instead of every later provider request. Unset, the reviewed default
+  // is sent: its own sunset refuses LinkedIn requests (owner health alarms 90 days ahead), never every other provider.
+  for (const [name, check] of [
+    ['AMCP_LINKEDIN_API_VERSION', () => process.env.AMCP_LINKEDIN_API_VERSION === undefined || linkedinVersion()],
+    ['AMCP_META_API_VERSION', () => resolveMetaVersion()],
+  ] as const)
+    try {
+      check();
+    } catch (e) {
+      throw new Error(name + ' is not a reviewed provider version: ' + (e instanceof Error ? e.message : String(e)));
+    }
   const log = options.log ?? startupLog(config.entry);
   for (const problem of config.problems) log({level: 'warn', event: 'config_problem', message: problem});
   const volume = verifyDataVolume(config, log, options.stat);

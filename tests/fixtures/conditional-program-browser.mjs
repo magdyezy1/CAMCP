@@ -52,6 +52,18 @@ export async function exerciseConditionalPrograms({page, site, workflow, locale,
     await output.locator('summary').click();
     assert.equal(await output.locator('pre').count(), 1);
     assert.match(await output.innerText(), workflow.endsWith('-denied') ? /PROVIDER_ACCESS_DENIED/ : /300000000/);
+    if (workflow.endsWith('-denied')) {
+      // CON-04/D21: the summary shows the provider status, code and reference, the owner action replaces a live
+      // retry, and the card's readiness chip shows the refusal instead of "Ready for native inspection".
+      const text = await output.innerText();
+      for (const literal of ['403', 'ACCESS_DENIED', 'li-uuid-browser-1']) assert.ok(text.includes(literal), literal);
+      assert.equal(envelope.data.next_call, null);
+      assert.equal(envelope.data.owner_action.kind, 'request_provisioning');
+      assert.match(
+        await card.locator('[data-program-status]').first().innerText(),
+        locale === 'ar' ? /رفضت المنصة/ : /Provider refused/,
+      );
+    }
     assert.doesNotMatch(await output.innerText(), /accessToken|synthetic-/);
   }
   let expectedReads = 1;

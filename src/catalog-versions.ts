@@ -5,6 +5,12 @@ import {
   googleAdsVersion,
 } from './google-version.js';
 import {currentMetaCapture, metaActionVersion, metaApiVersion} from './meta-version.js';
+import {
+  currentLinkedInCapture,
+  extendLinkedInTool,
+  linkedinActionVersion,
+  linkedinDescribedVersion,
+} from './linkedin-version.js';
 import type {Action, JsonObject, ToolDefinition} from './types.js';
 
 /**
@@ -29,6 +35,15 @@ export const catalogVersions: Record<
     tool: extendGoogleAdsTool,
   },
   meta_native_action: {version: metaApiVersion, action: metaActionVersion, capture: currentMetaCapture},
+  // The captured LinkedIn catalog reports 202605 (its li-lms-2026-05 snapshot); AMCP sends the reviewed version (PRV-02).
+  linkedin_native_action: {
+    get version() {
+      return linkedinDescribedVersion();
+    },
+    action: linkedinActionVersion,
+    capture: currentLinkedInCapture,
+    tool: extendLinkedInTool,
+  },
 };
 /** A captured page or description of this gateway, as AMCP answers it now. */
 export const currentCapture = (gateway: string, data: JsonObject): JsonObject =>

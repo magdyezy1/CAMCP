@@ -131,9 +131,11 @@ const callerFailures = new Set([
 export function providerReadFailure(e: unknown): {check: ReadinessCheck; shared: boolean} {
   const code = e instanceof MirrorError ? e.code : 'PROVIDER_READ_FAILED',
     message = e instanceof MirrorError ? e.message : 'Provider account read failed.',
-    extra = {code};
+    extra = {code},
+    // The provider-error layer (PRV-01) names who must act when the code alone does not.
+    layer = e instanceof MirrorError ? e.details.layer : undefined;
   if (code === 'READINESS_CONTRACT_UNAVAILABLE') return {check: notApplicableCheck(), shared: false};
-  if (authFailures.has(code))
+  if (authFailures.has(code) || layer === 'credential')
     return {
       check: check(
         'provider_read',
@@ -144,7 +146,8 @@ export function providerReadFailure(e: unknown): {check: ReadinessCheck; shared:
       ),
       shared: true,
     };
-  if (code === 'INSUFFICIENT_SCOPE')
+  // A permission the provider names (PROVIDER_PERMISSION_MISSING, PRV-01) is a missing grant like a missing scope.
+  if (code === 'INSUFFICIENT_SCOPE' || code === 'PROVIDER_PERMISSION_MISSING' || layer === 'consent')
     return {
       check: check(
         'provider_read',
@@ -166,7 +169,8 @@ export function providerReadFailure(e: unknown): {check: ReadinessCheck; shared:
       ),
       shared: true,
     };
-  if (e instanceof MirrorError && e.retryable)
+  // A provider throttle is temporary and says nothing lasting about the account, so it is never shared.
+  if ((e instanceof MirrorError && e.retryable) || code === 'PLATFORM_RATE_LIMIT' || layer === 'rate_limit')
     return {
       check: check(
         'provider_read',

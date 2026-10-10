@@ -73,6 +73,26 @@ The adapter follows the current parameter enum. Official references checked
 2026-09-24: [analytics](https://docs.x.com/x-ads-api/analytics) and
 [rate limiting](https://docs.x.com/x-ads-api/fundamentals/rate-limiting).
 
+## Provider error layers and throttles
+
+A provider refusal is classified from the provider's documented codes before its
+HTTP status (`src/provider-error-taxonomy.ts`). Each error carries `details.layer`
+(`credential`, `consent`, `role_or_asset_access`, `app_eligibility`, `rate_limit`,
+`api_version` or `unknown`), a closed-set `details.provider_code` (a token or a
+number, never provider text) and the provider request ID. Meta's code 190 is
+`REAUTHORIZATION_REQUIRED`, and codes 10 and 200–299 are `PROVIDER_PERMISSION_MISSING`,
+at any HTTP status. Meta throttles 4, 17, 613 and 80000/80003/80004/80014 and the
+Google Ads `RESOURCE_TEMPORARILY_EXHAUSTED` quota body are `PLATFORM_RATE_LIMIT`. They
+wait for Meta's `estimated_time_to_regain_access` (60 s otherwise) or Google's
+`retryDelay` (30 s otherwise). An account-level Meta throttle cools down only that
+account on that login. LinkedIn HTTP 426 is `PROVIDER_VERSION_UNSUPPORTED`. Meta
+`is_transient` makes a read retryable. A write is still sent once and never becomes
+retryable. Unknown codes, including every TikTok in-body code until TikTok's official
+code table is verified, keep their previous code with layer `unknown`. Overview runs
+defer a throttled source to the cooldown instead of failing it, and readiness
+`provider_read` checks carry the same `diagnostic` (code, request ID, layer) and next step.
+`AMCP_PROVIDER_ERROR_TAXONOMY=off` restores the HTTP-status classification.
+
 ## Report-library MCP example
 
 Discover exact source and destination identifiers with `bootstrap`. The following

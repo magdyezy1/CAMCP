@@ -8,7 +8,7 @@ import {writePause} from './owner-operations.js';
 import {mediaPlatforms, mediaPlatformNames, mediaDiscovery} from './media-routing.js';
 import {reportPresets} from './report-presets.js';
 import {enrichCapabilities} from './capability-eligibility.js';
-import {conditionalPrograms} from './conditional-programs.js';
+import {conditionalPrograms, programDiscovery} from './conditional-programs.js';
 
 /** Discovery uses the same registries as execution. Local readiness is a prerequisite projection, never a grant
  * or a claim that the current payload, objective or provider account has passed native validation. */
@@ -143,7 +143,8 @@ export function capabilityGraph(
               };
             }),
           ),
-      })),
+      }))
+      .map(programDiscovery),
     contracts: actionContractSummary(registry).filter(c => !gateway || c.gateway === gateway),
     meaning:
       'Workflow discovery is derived from executable recipes, report adapters, capture presets and media routes. Local prerequisites do not authorize a write or establish objective eligibility. Exact native review and account-specific provider evidence remain authoritative.',

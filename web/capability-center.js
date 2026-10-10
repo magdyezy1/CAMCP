@@ -131,6 +131,12 @@ const capabilityLabels = {
   forecastReaches: 'Reach',
   forecastImpressions: 'Impressions',
   forecastLeads: 'Leads',
+  costPerReach: 'Cost per reached member',
+  costPerThousandImpressions: 'Cost per thousand impressions',
+  costPerLead: 'Cost per lead',
+  averageFrequency: 'Average frequency',
+  observed_at_discovery: 'Recorded at the last discovery',
+  not_observed: 'Not recorded',
   private_application_product: 'Application approval for this private product',
   member_account_access: 'Current member access to the selected account',
   positive_geographic_targeting: 'Explicit included geography',
@@ -236,8 +242,45 @@ function capabilityResolver(w, d) {
     return ` <a href="${esc(w.website_path)}">${esc(uiText('Check this brief'))}</a>`;
   return '';
 }
+// The last program read of each workflow, login and account in this session (CON-04), so a re-rendered card keeps the
+// observation; a read retained by the server (D20) arrives as program_evidence.last_observation.
+const capabilityProgramReads = new Map();
+const capabilityProgramKey = (workflow, connection, account) => [workflow, connection, account].join('\n');
+function capabilityLastRead(w, a) {
+  return [
+    capabilityProgramReads.get(capabilityProgramKey(w.id, a.connection_id, a.account_id)),
+    a.program_evidence?.last_observation,
+  ]
+    .filter(read => read && Number.isFinite(read.checked_at))
+    .sort((x, y) => y.checked_at - x.checked_at)[0];
+}
+function capabilityReadLabel(read) {
+  const state =
+    read.state === 'observed'
+      ? uiText('Observed')
+      : read.state === 'blocked'
+        ? uiText('Provider refused')
+        : uiText('No usable provider answer');
+  return state + ' · ' + uiDate(read.checked_at, {dateStyle: 'medium', timeStyle: 'long'});
+}
+function capabilityReadChip(w, a) {
+  const read = w.program ? capabilityLastRead(w, a) : undefined;
+  return read ? badge(read.state, capabilityReadLabel(read)) : badge(a.local_state, capabilityLabel(a.local_state));
+}
+function capabilityReadSummary(w, a) {
+  const read = capabilityLastRead(w, a);
+  if (!read) return '';
+  const code = (label, value) => (value ? ` · ${esc(uiText(label))} <code dir="ltr">${esc(value)}</code>` : '');
+  return `<p>${esc(uiText('Last observed:'))} ${esc(capabilityReadLabel(read))}${code('Provider code', read.provider_code)}${code('Provider request reference', read.provider_request_id)}</p><p class="form-note">${esc(uiText('This is a timestamped observation, not a grant. It does not establish current access.'))}</p>`;
+}
+// A program with no selected account shows how to set one up instead of a check that can only refuse (CON-04).
+function capabilityProgramSetup(w) {
+  const s = w.setup;
+  if (!s) return `<p>${esc(uiText('Connect and select a matching account first.'))}</p>`;
+  return `<section class="notice"><h4>${esc(uiText('Set up access first'))}</h4><p>${esc(uiText(s.text))}</p><ul>${(s.prerequisites ?? []).map(p => `<li><strong>${esc(capabilityLabel(p.id))}</strong> — ${esc(uiText(p.text))}</li>`).join('')}</ul><a class="button small" href="${esc(s.website_path)}">${esc(uiText('Open Connections'))}</a></section>`;
+}
 function capabilityCard(w) {
-  return `<details class="capability-card"><summary><strong>${esc(uiText(w.name))}</strong> · ${esc(capabilityLabel(w.objective))}</summary><p>${esc(uiText(w.description))}</p><p class="notice">${esc(uiText(w.effect_details))}</p>${capabilityProgramRequirements(w)}<h3>${esc(uiText('Before you start'))}</h3><p>${esc(uiText('Required inputs:'))} ${esc(w.required_inputs.map(capabilityLabel).join(', '))}</p><ul>${w.dependencies.map(d => `<li>${esc(capabilityLabel(d.id))} — ${esc(capabilityLabel(d.status))}${d.resolution ? ` · ${esc(capabilityLabel(d.resolution))}` : ''}${capabilityResolver(w, d)}</li>`).join('')}</ul><h3>${esc(uiText('Selected account readiness'))}</h3>${w.accounts.map((a, index) => `<article class="operation-card"><div class="operation-heading"><h4>${esc(a.label)} · ${esc(a.account_id)}</h4>${badge(a.local_state, capabilityLabel(a.local_state))}</div><p>${esc(a.blockers.map(capabilityBlocker).join(' · ') || uiText('Local prerequisites available. Native preflight is still required.'))}</p><p>${esc(uiText('Account evidence:'))} ${esc(capabilityLabel(a.provider_evidence.status))}${a.provider_evidence.checked_at ? ' · ' + date(a.provider_evidence.checked_at) : ''}</p><p class="form-note">${esc(uiText(a.provider_evidence.meaning))}</p>${a.dependencies?.length ? `<ul>${a.dependencies.map(d => `<li>${esc(capabilityLabel(d.id))} — ${badge(d.status, capabilityLabel(d.status))}</li>`).join('')}</ul>` : ''}<details><summary>${esc(uiText('Still to verify'))}</summary><ul>${a.unresolved.map(u => `<li>${esc(capabilityLabel(u))}</li>`).join('')}</ul></details><a href="/connections" class="button small">${esc(uiText('Manage account access'))}</a>${recordDetails(a.next_call, uiText('Inspect prerequisites in MCP'))}${capabilityProgram(w, a, index)}</article>`).join('') || `<p>${esc(uiText('Connect and select a matching account first.'))}</p>`}<h3>${esc(uiText('Workflow stages'))}</h3><ol>${w.lifecycle.map(s => `<li><strong>${esc(capabilityLabel(s.stage))}</strong> — ${esc(uiText(s.meaning))}${s.tool ? `<small class="form-note">${esc(s.tool)} · ${esc(s.action)}</small>` : ''}</li>`).join('')}</ol>${w.contracts.length ? `<h3>${esc(uiText('Native contract dependencies'))}</h3>${w.contracts.map(c => `<details><summary><code dir="ltr">${esc(c.action)}</code> · ${badge(c.status, capabilityLabel(c.status))}</summary><p>${esc(uiText('Family:'))} ${esc(c.family ?? uiText(c.status === 'native_read' ? 'Native read' : 'Unqualified'))}</p><p>${esc(uiText('Evidence:'))} ${esc(c.source ?? uiText('Unavailable'))}</p><p>${esc(uiText('Tests:'))} ${esc(c.tests.join(', '))}</p><p>${esc(uiText('Account-specific provider acceptance remains unverified.'))}</p></details>`).join('')}` : ''}<div class="dialog-actions work-actions"><a class="button small" href="${esc(w.website_path)}">${esc(uiText('Open workflow'))}</a><a class="button small" href="/capabilities?workflow_id=${encodeURIComponent(w.id)}">${esc(uiText('Link to this workflow'))}</a></div>${recordDetails(w.next_call, uiText('Continue in MCP'))}</details>`;
+  return `<details class="capability-card"><summary><strong>${esc(uiText(w.name))}</strong> · ${esc(capabilityLabel(w.objective))}</summary><p>${esc(uiText(w.description))}</p><p class="notice">${esc(uiText(w.effect_details))}</p>${capabilityProgramRequirements(w)}<h3>${esc(uiText('Before you start'))}</h3><p>${esc(uiText('Required inputs:'))} ${esc(w.required_inputs.map(capabilityLabel).join(', '))}</p><ul>${w.dependencies.map(d => `<li>${esc(capabilityLabel(d.id))} — ${esc(capabilityLabel(d.status))}${d.resolution ? ` · ${esc(capabilityLabel(d.resolution))}` : ''}${capabilityResolver(w, d)}</li>`).join('')}</ul><h3>${esc(uiText('Selected account readiness'))}</h3>${w.accounts.map((a, index) => `<article class="operation-card"><div class="operation-heading"><h4>${esc(a.label)} · ${esc(a.account_id)}</h4><span data-program-status>${capabilityReadChip(w, a)}</span></div><p>${esc(a.blockers.map(capabilityBlocker).join(' · ') || uiText('Local prerequisites available. Native preflight is still required.'))}</p><p>${esc(uiText('Account evidence:'))} ${esc(capabilityLabel(a.provider_evidence.status))}${a.provider_evidence.checked_at ? ' · ' + date(a.provider_evidence.checked_at) : ''}</p><p class="form-note">${esc(uiText(a.provider_evidence.meaning))}</p>${a.dependencies?.length ? `<ul>${a.dependencies.map(d => `<li>${esc(capabilityLabel(d.id))} — ${badge(d.status, capabilityLabel(d.status))}</li>`).join('')}</ul>` : ''}${w.program ? `<div data-program-last>${capabilityReadSummary(w, a)}</div>` : ''}<details><summary>${esc(uiText('Still to verify'))}</summary><ul>${a.unresolved.map(u => `<li>${esc(capabilityLabel(u))}</li>`).join('')}</ul></details><a href="/connections" class="button small">${esc(uiText('Manage account access'))}</a>${recordDetails(a.next_call, uiText('Inspect prerequisites in MCP'))}${capabilityProgram(w, a, index)}</article>`).join('') || capabilityProgramSetup(w)}<h3>${esc(uiText('Workflow stages'))}</h3><ol>${w.lifecycle.map(s => `<li><strong>${esc(capabilityLabel(s.stage))}</strong> — ${esc(uiText(s.meaning))}${s.tool ? `<small class="form-note">${esc(s.tool)} · ${esc(s.action)}</small>` : ''}</li>`).join('')}</ol>${w.contracts.length ? `<h3>${esc(uiText('Native contract dependencies'))}</h3>${w.contracts.map(c => `<details><summary><code dir="ltr">${esc(c.action)}</code> · ${badge(c.status, capabilityLabel(c.status))}</summary><p>${esc(uiText('Family:'))} ${esc(c.family ?? uiText(c.status === 'native_read' ? 'Native read' : 'Unqualified'))}</p><p>${esc(uiText('Evidence:'))} ${esc(c.source ?? uiText('Unavailable'))}</p><p>${esc(uiText('Tests:'))} ${esc(c.tests.join(', '))}</p><p>${esc(uiText('Account-specific provider acceptance remains unverified.'))}</p></details>`).join('')}` : ''}<div class="dialog-actions work-actions"><a class="button small" href="${esc(w.website_path)}">${esc(uiText('Open workflow'))}</a><a class="button small" href="/capabilities?workflow_id=${encodeURIComponent(w.id)}">${esc(uiText('Link to this workflow'))}</a></div>${w.next_call ? recordDetails(w.next_call, uiText('Continue in MCP')) : ''}</details>`;
 }
 function capabilityProgram(w, a, index) {
   if (!w.program) return '';
@@ -273,6 +316,48 @@ function capabilityProgram(w, a, index) {
       : '';
   return `<section class="workspace-form"><h5>${esc(uiText('Inspect this conditional program'))}</h5>${notices}<form id="${id}" data-program-check data-workflow-id="${esc(w.id)}" data-connection-id="${esc(a.connection_id)}" data-account-id="${esc(a.account_id)}"><div class="recipe-fields">${inputs}</div><button type="submit" class="button">${esc(uiText('Read this exact program request'))}</button></form><div id="${id}-result" aria-live="polite" tabindex="-1"></div></section>`;
 }
+// The allow-listed facts of a refused program read (PRV-02): observation time with its time zone, the provider's HTTP
+// status, code and request reference, and the prerequisite its documented refusal names. No cause is inferred otherwise.
+function capabilityProgramFacts(checked) {
+  const e = checked.native_error;
+  if (!e) return '';
+  const reported = checked.provider_reported_prerequisite,
+    value = v => (v === null || v === undefined ? esc(uiText('Not reported')) : `<code dir="ltr">${esc(v)}</code>`);
+  return `<dl class="program-facts"><dt>${esc(uiText('Observed at'))}</dt><dd>${esc(uiDate(checked.checked_at, {dateStyle: 'medium', timeStyle: 'long'}))}</dd><dt>${esc(uiText('Provider HTTP status'))}</dt><dd>${value(e.http_status)}</dd><dt>${esc(uiText('Provider code'))}</dt><dd>${value(e.provider_code)}</dd><dt>${esc(uiText('Provider request reference'))}</dt><dd>${value(e.provider_request_id)}${e.provider_request_id ? ` <button type="button" class="button small" data-copy-reference="${esc(e.provider_request_id)}">${esc(uiText('Copy reference'))}</button>` : ''}</dd><dt>${esc(uiText('AMCP request reference'))}</dt><dd>${value(e.amcp_request_id ?? e.request_id)}</dd></dl>${
+    reported
+      ? `<p><strong>${esc(uiText('As reported by LinkedIn'))}</strong>: ${esc(capabilityLabel(reported.prerequisite_id))}. ${esc(uiText(reported.resolution))} <a href="${esc(reported.reference)}" target="_blank" rel="noopener noreferrer">${esc(uiText('Provider documentation'))}</a></p>`
+      : ''
+  }<p class="form-note">${esc(uiText('No cause is inferred beyond what the provider reports.'))}</p>`;
+}
+// The follow-up a program result names (CON-04): after a refusal, what the owner does before checking again (no live
+// retry is offered); after another failure, the one retry that can change the answer.
+function capabilityOwnerAction(checked) {
+  const o = checked.owner_action,
+    hint = checked.retry_hint;
+  if (!o)
+    return hint
+      ? `<p class="form-note">${esc(uiText(hint.text))}${Number.isSafeInteger(hint.retry_after_ms) ? ' ' + esc(uiText('Check again after {seconds} seconds.', {seconds: uiNumber(Math.ceil(hint.retry_after_ms / 1000))})) : ''}</p>`
+      : '';
+  const repeated = o.text === checked.provider_reported_prerequisite?.resolution;
+  return `<div class="notice"><p><strong>${esc(uiText('Owner action'))}</strong>${repeated ? '' : `: ${esc(uiText(o.text))}`}${o.reference ? ` <a href="${esc(o.reference)}" target="_blank" rel="noopener noreferrer">${esc(uiText('Official program requirements'))}</a>` : ''}</p>${checked.retry_after_provisioning ? `<p>${esc(uiText('Check again only after this is done. Repeating the same request now returns the same refusal.'))}</p>` : ''}</div>`;
+}
+// Budgets in USD currency style, with the exact six-decimal micros value kept in the title (CON-04).
+function capabilityUsd(micros) {
+  const value = BigInt(micros),
+    exact = (value / 1000000n).toString() + '.' + (value % 1000000n).toString().padStart(6, '0') + ' USD';
+  return {text: uiNumber(Number(value) / 1e6, {style: 'currency', currency: 'USD'}), title: exact};
+}
+function capabilityUsdHtml(micros) {
+  const usd = capabilityUsd(micros);
+  return `<bdi dir="ltr" title="${esc(usd.title)}">${esc(usd.text)}</bdi>`;
+}
+// LinkedIn's documented cost and frequency estimates at the selected budget, labelled directional (PRV-02).
+function capabilityDirectionalEstimates(estimates, number) {
+  const points = Object.entries(estimates?.points ?? {}),
+    unavailable = estimates?.unavailable ?? [];
+  if (!points.length && !unavailable.length) return '';
+  return `<h6>${esc(uiText('Directional estimates at the selected budget'))}</h6><ul>${points.map(([name, p]) => `<li>${esc(capabilityLabel(name))}: ${esc(number(p.metricValue))}</li>`).join('')}</ul>${unavailable.length ? `<p class="form-note">${esc(uiText('Unavailable estimates:'))} ${esc(unavailable.map(capabilityLabel).join(', '))}</p>` : ''}<p class="form-note">${esc(uiText(estimates.meaning))}</p>`;
+}
 function capabilityProgramEvidence(checked) {
   const e = checked.evidence;
   if (!e) return '';
@@ -282,24 +367,18 @@ function capabilityProgramEvidence(checked) {
   };
   const number = value => (value === null || value === undefined ? uiText('Unavailable') : uiNumber(value)),
     table = (headers, rows) =>
-      `<div class="report-table-wrap" tabindex="0" role="region" aria-label="${esc(uiText('Program observation'))}"><table class="report-table"><caption>${esc(uiText('Program observation'))}</caption><thead><tr>${headers.map(h => `<th scope="col">${esc(uiText(h))}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${row.map((value, index) => (index === 0 ? `<th scope="row" dir="ltr">${esc(value)}</th>` : `<td>${esc(value)}</td>`)).join('')}</tr>`).join('')}</tbody></table></div>`;
+      `<div class="report-table-wrap" tabindex="0" role="region" aria-label="${esc(uiText('Program observation'))}"><table class="report-table"><caption>${esc(uiText('Program observation'))}</caption><thead><tr>${headers.map(h => `<th scope="col">${esc(uiText(h))}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${row.map((value, index) => (index === 0 ? `<th scope="row" dir="ltr"${value?.title ? ` title="${esc(value.title)}"` : ''}>${esc(value?.text ?? value)}</th>` : `<td>${esc(value)}</td>`)).join('')}</tr>`).join('')}</tbody></table></div>`;
   if (checked.workflow_id === 'program:linkedin_forecast') {
-    const usd = micros => {
-      const value = BigInt(micros),
-        whole = value / 1000000n,
-        fraction = (value % 1000000n).toString().padStart(6, '0');
-      return whole.toString() + '.' + fraction + ' USD';
-    };
     const point = e.single_point_metric;
-    return `<p>${esc(uiText('Forecast metric'))}: ${esc(capabilityLabel(e.forecast))}</p>${point ? `<p><strong>${esc(uiText('Selected budget estimate'))}</strong>: <bdi dir="ltr">${esc(usd(point.budgetMicros))}</bdi> · ${esc(number(point.metricValue))}</p>` : ''}<p class="form-note">${esc(uiText('Native forecast points and provider bounds are retained without interpolation. Missing bounds remain unavailable.'))}</p>${table(
+    return `<p>${esc(uiText('Forecast metric'))}: ${esc(capabilityLabel(e.forecast))}</p>${point ? `<p><strong>${esc(uiText('Selected budget estimate'))}</strong>: ${capabilityUsdHtml(point.budgetMicros)} · ${esc(number(point.metricValue))}</p>` : ''}<p class="form-note">${esc(uiText('Native forecast points and provider bounds are retained without interpolation. Missing bounds remain unavailable.'))}</p>${table(
       capabilityEvidenceHeaders.forecast,
       e.metric_curve.map(p => [
-        usd(p.budgetMicros),
+        capabilityUsd(p.budgetMicros),
         number(p.metricValue),
         number(p.metricLower),
         number(p.metricUpper),
       ]),
-    )}`;
+    )}${capabilityDirectionalEstimates(e.directional_estimates, number)}`;
   }
   if (checked.workflow_id === 'program:linkedin_audience_insights') {
     return `<p><strong>${esc(uiText('Reported audience count'))}</strong>: ${esc(number(e.total_audience_count))}</p><p class="form-note">${esc(uiText(e.meaning))}</p>${e.grouped_by ? `<p>${esc(uiText('Grouping'))}: ${esc(capabilityLabel(e.grouped_by.replace('urn:li:adTargetingFacet:', '')))} · <bdi dir="ltr">${esc(e.grouped_by)}</bdi></p>` : ''}${
@@ -454,7 +533,31 @@ function bindCapabilityPrograms(root) {
         checked.scope?.account_id !== account
       )
         throw Error(uiText('The program result does not match the selected account and login.'));
-      result.innerHTML = `<h5>${esc(uiText('Program observation'))} · ${badge(checked.state, capabilityLabel(checked.state))}</h5><p>${esc(uiText(checked.meaning))}</p>${checked.blockers?.length ? `<p class="notice">${esc(checked.blockers.map(capabilityBlocker).join(' · '))}</p>` : ''}${capabilityProgramEvidence(checked)}${recordDetails(checked, uiText('Original program evidence'))}`;
+      result.innerHTML = `<h5>${esc(uiText('Program observation'))} · ${badge(checked.state, capabilityLabel(checked.state))}</h5><p>${esc(uiText(checked.meaning))}</p>${checked.blockers?.length ? `<p class="notice">${esc(checked.blockers.map(capabilityBlocker).join(' · '))}</p>` : ''}${capabilityProgramFacts(checked)}${capabilityOwnerAction(checked)}${capabilityProgramEvidence(checked)}${recordDetails(checked, uiText('Original program evidence'))}`;
+      // A read that reached the provider replaces the card's readiness chip and last-observed line (CON-04).
+      if (checked.provider_requests > 0 && Number.isFinite(checked.checked_at)) {
+        const e = checked.native_error ?? {},
+          w = {id: workflow, program: true},
+          a = {connection_id: form.dataset.connectionId, account_id: account};
+        capabilityProgramReads.set(capabilityProgramKey(workflow, a.connection_id, account), {
+          state: checked.state,
+          checked_at: checked.checked_at,
+          code: e.code ?? null,
+          provider_code: e.provider_code ?? null,
+          provider_request_id: e.provider_request_id ?? null,
+        });
+        const card = form.closest?.('.operation-card'),
+          chip = card?.querySelector('[data-program-status]'),
+          last = card?.querySelector('[data-program-last]');
+        if (chip) chip.innerHTML = capabilityReadChip(w, a);
+        if (last) last.innerHTML = capabilityReadSummary(w, a);
+      }
+      result.querySelectorAll?.('[data-copy-reference]').forEach(button =>
+        button.addEventListener('click', async () => {
+          await navigator.clipboard.writeText(button.dataset.copyReference);
+          toast(uiText('Reference copied.'));
+        }),
+      );
       result.focus();
     });
   });

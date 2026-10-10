@@ -1,5 +1,6 @@
 import {operationsHealth} from './operations-health.js';
-import {linkedinVersion} from './linkedin-version.js';
+import {linkedinVersionStatus} from './linkedin-version.js';
+import {sunsetStatus} from './provider-sunsets.js';
 import {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {policyWarnings, unprotectedAccounts} from './spend-policy.js';
@@ -94,7 +95,8 @@ export function ownerOperations(store: Store, input: JsonObject, actor: Actor): 
           needs_attention: !!credentials.expiresAt && credentials.expiresAt < Date.now() + 86400000,
           refresh_available: !!credentials.refreshToken,
         };
-      });
+      }),
+      linkedinVersion = linkedinVersionStatus();
     // Deployment-wide rate-limit attribution, for the deployment workspace's owner only (SEC-01).
     const rateLimits = limitDiagnostics(store, tenant);
     return {
@@ -150,18 +152,16 @@ export function ownerOperations(store: Store, input: JsonObject, actor: Actor): 
       // the owner it was migrated to) sees the count and the headroom under the cap (MCP-03), by the same test as the
       // rate-limit attribution above.
       ...(isDeploymentTenant(store, tenant) ? {mcp_clients: mcpClientCapacity(store)} : {}),
+      // The LinkedIn-Version configuration (an AMCP_LINKEDIN_API_VERSION override, the reviewed window) and every
+      // provider version within 90 days of its recorded sunset (PRV-02).
+      linkedin_version: linkedinVersion,
+      provider_version_alarms: sunsetStatus().filter(s => s.alarm),
       api_versions: {
         google: googleAdsVersion,
         meta: metaApiVersion,
         tiktok: 'v1.3',
         snapchat: 'v1',
-        linkedin: (() => {
-          try {
-            return linkedinVersion();
-          } catch {
-            return 'invalid AMCP_LINKEDIN_API_VERSION';
-          }
-        })(),
+        linkedin: linkedinVersion.version ?? 'invalid AMCP_LINKEDIN_API_VERSION',
         x: 'v12',
         microsoft: 'v13',
         apple: 'v1',

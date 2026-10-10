@@ -209,8 +209,13 @@ try {
         );
         results.push({action: probe.plan.action, success: false, request_id: requestId, error: e});
         process.stdout.write(clean(results.at(-1)) + '\n');
+        // Stop probing on an auth, permission or throttle refusal; the provider-error taxonomy names Meta's
+        // documented codes (190, 10/200-299, throttles) instead of UPSTREAM_ERROR.
         if (
           e.code === 'AUTH_EXPIRED' ||
+          e.code === 'REAUTHORIZATION_REQUIRED' ||
+          e.code === 'PROVIDER_PERMISSION_MISSING' ||
+          e.code === 'PLATFORM_RATE_LIMIT' ||
           e.code === 'INSUFFICIENT_SCOPE' ||
           e.code === 'UPSTREAM_ERROR' ||
           e.code === 'UPSTREAM_UNAVAILABLE'

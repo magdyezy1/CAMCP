@@ -1,10 +1,10 @@
-import type {Actor, JsonObject} from './types.js';
+import type {Actor, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import type {Registry} from './catalog.js';
 import {actionContracts} from './action-contracts.js';
 import {bad, fingerprint, optional} from './workspace-core.js';
 import {normalizeAccount} from './scope.js';
-import {conditionalProgram} from './conditional-programs.js';
+import {conditionalProgram, programObservation} from './conditional-programs.js';
 import {readinessBinding, readinessLifetimeMs, recordedGrants} from './readiness.js';
 import {dv360Scope, missingScopes, providerGrant, requirementScopes, type ScopeRequirement} from './provider-grants.js';
 
@@ -278,7 +278,30 @@ function accountDependency(
   const ready = f.recent && (id !== 'account_currency' || typeof f.currency === 'string');
   return {id, status: ready ? 'ready' : 'blocked', ...(ready ? {} : {resolver_call: check})};
 }
-
+/**
+ * The member's LinkedIn role on the account as discovery last observed it (PRV-02): evidence for the program's
+ * member_account_access prerequisite, with its observation time. It is not current access; LinkedIn decides each request.
+ */
+function memberRole(store: Store, actor: Actor, c: Connection, account: string): JsonObject {
+  const assets = optional(store, actor.tenantId, 'website_assets', c.id),
+    asset = (assets?.groups ?? [])
+      .flatMap((g: JsonObject) => (g.kind === 'ad_accounts' && Array.isArray(g.assets) ? g.assets : []))
+      .find((x: JsonObject) => x.id === account);
+  return typeof asset?.linkedinRole === 'string' && Number.isSafeInteger(asset.linkedinRoleObservedAt)
+    ? {
+        status: 'observed_at_discovery',
+        role: asset.linkedinRole,
+        observed_at: asset.linkedinRoleObservedAt,
+        meaning:
+          'The member role LinkedIn listed for this account at the last discovery. It is not current access; LinkedIn decides each program request.',
+      }
+    : {
+        status: 'not_observed',
+        role: null,
+        observed_at: null,
+        meaning: 'No member role is recorded for this account. Sync the LinkedIn login in Connections to record it.',
+      };
+}
 export function enrichCapabilities(
   store: Store,
   registry: Registry,
@@ -408,6 +431,7 @@ export function enrichCapabilities(
                       currency: valid ? (observation!.account?.currency ?? null) : null,
                     }),
                   );
+          const lastProgramRead = program && programObservation(store, actor.tenantId, w.id, c.id, a.account_id);
           return {
             ...a,
             blockers,
@@ -421,6 +445,11 @@ export function enrichCapabilities(
                     status: 'unverified',
                     meaning:
                       'An account read does not qualify this conditional product. Inspect one exact program request.',
+                    ...(program.prerequisite_ids.includes('member_account_access')
+                      ? {member_account_access: memberRole(store, actor, c, a.account_id)}
+                      : {}),
+                    // The last retained program read (D20, CON-04): timestamped, never a grant.
+                    ...(lastProgramRead ? {last_observation: lastProgramRead} : {}),
                   },
                 }
               : {}),

@@ -6,6 +6,7 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
+import {assertLinkedInTracking} from '../dist/src/linkedin-tracking-parameters.js';
 
 /**
  * LinkedIn dynamic UTM tracking parameters, Marketing API "Dynamic UTM Tracking" (li-lms-2026-09, checked 2026-09-27):
@@ -300,18 +301,19 @@ test('foreign and removed campaigns are refused after reading, without writes', 
   }
 });
 
-test('versions before 202606 refuse CREATIVE_NAME and before 202608 account-level parameters', async () => {
+test('an unreviewed version is refused before any request; in-family gates still refuse versions before 202606/202608', async () => {
+  // PRV-02: AMCP_LINKEDIN_API_VERSION=202605 used to be sent and refused here only by the family's own version gate. It is
+  // now outside the reviewed window and refused before any request; the family gates stay for any older reviewed version.
   const previous = process.env.AMCP_LINKEDIN_API_VERSION;
   process.env.AMCP_LINKEDIN_API_VERSION = '202605';
   try {
     const f = fixture();
     try {
-      const r = await f.put(campaign(123), {dynamicValueParameters: {utm_content: 'CREATIVE_NAME'}});
-      assert.equal(r.error?.code, 'INVALID_LINKEDIN_TRACKING', JSON.stringify(r).slice(0, 300));
-      assert.match(r.error.message, /202606/);
-      const account = await f.put('urn:li:sponsoredAccount:507', utm);
-      assert.equal(account.error?.code, 'INVALID_LINKEDIN_TRACKING', JSON.stringify(account).slice(0, 300));
-      assert.match(account.error.message, /202608/);
+      for (const r of [
+        await f.put(campaign(123), {dynamicValueParameters: {utm_content: 'CREATIVE_NAME'}}),
+        await f.put('urn:li:sponsoredAccount:507', utm),
+      ])
+        assert.equal(r.error?.code, 'API_VERSION_UNREVIEWED', JSON.stringify(r).slice(0, 300));
       assert.equal(f.calls.length, 0);
     } finally {
       f.store.close();
@@ -320,11 +322,35 @@ test('versions before 202606 refuse CREATIVE_NAME and before 202608 account-leve
     if (previous === undefined) delete process.env.AMCP_LINKEDIN_API_VERSION;
     else process.env.AMCP_LINKEDIN_API_VERSION = previous;
   }
+  const plan = (path, body) => ({
+    gateway,
+    action: actions.put,
+    method: 'PUT',
+    path: '/rest/adTrackingParameters/' + encodeURIComponent(path),
+    query: {},
+    headers: {'LinkedIn-Version': '202605', 'X-Restli-Protocol-Version': '2.0.0'},
+    body,
+    accountId: '507',
+    readOnly: false,
+    destructive: false,
+    requiresConfirmation: false,
+    evidence: 'TEST',
+    warnings: [],
+  });
+  assert.throws(
+    () => assertLinkedInTracking(plan(key(campaign(123)), {dynamicValueParameters: {utm_content: 'CREATIVE_NAME'}})),
+    e => e.code === 'INVALID_LINKEDIN_TRACKING' && /202606/.test(e.message),
+  );
+  assert.throws(
+    () => assertLinkedInTracking(plan(key('urn:li:sponsoredAccount:507'), utm)),
+    e => e.code === 'INVALID_LINKEDIN_TRACKING' && /202608/.test(e.message),
+  );
 });
 
-test('account-level parameters and CREATIVE_NAME work with LinkedIn-Version 202608; reads-only logins cannot write', async () => {
+test('account-level parameters and CREATIVE_NAME work with the default LinkedIn-Version 202609; reads-only logins cannot write', async () => {
+  // PRV-02: 202608 is not a reviewed version; the default 202609 (at least 202608) carries both features.
   const previous = process.env.AMCP_LINKEDIN_API_VERSION;
-  process.env.AMCP_LINKEDIN_API_VERSION = '202608';
+  delete process.env.AMCP_LINKEDIN_API_VERSION;
   const f = fixture();
   try {
     const p = ok(
