@@ -9,6 +9,7 @@ import {LimitDiagnostics, registerLimitDiagnostics} from '../src/limit-diagnosti
 import {cloudflareIpv4Ranges, cloudflareIpv6Ranges} from './cloudflare-ranges.js';
 import {endMcpGrants} from './mcp-grants.js';
 import type {ClientMetadataOptions} from './client-metadata.js';
+import type {McpRegistrationLimits} from '../src/mcp-clients.js';
 import {
   derivePassword,
   passwordHashParts,
@@ -42,6 +43,8 @@ export interface WebsiteOptions {
   /** Client ID Metadata Documents (MCP-03): `enabled: false` (AMCP_MCP_CLIENT_METADATA=off) turns them off, `hosts`
    * (AMCP_MCP_CLIENT_METADATA_HOSTS) limits them to exact host names. Tests replace the guarded transport. */
   mcpClientMetadata?: {enabled?: boolean} & ClientMetadataOptions;
+  /** New AI-client registrations per client address and per deployment in 24 hours (MCP-03 phase 2). */
+  mcpRegistrationLimits?: Partial<McpRegistrationLimits>;
 }
 /**
  * Where a client's address comes from (AMCP_CLIENT_IP_SOURCE, SEC-01):

@@ -20,6 +20,7 @@ import {SUPPORTED_PROTOCOL_VERSIONS} from '@modelcontextprotocol/sdk/types.js';
 import {recordSqliteFailure} from '../src/sqlite-diagnostics.js';
 import {mediaRetentionState, storageState} from '../src/storage-health.js';
 import {McpRequestLimiter, batchItems, bodySizeBucket, type McpLimitOptions} from './mcp-limits.js';
+import {isModernRequest, modernProtocolModes, serveModernRequest, type ModernProtocolMode} from './mcp-modern.js';
 import {runtimeToolchain, type RuntimeToolchain} from '../src/runtime-toolchain.js';
 import {createPublicAssets} from './public-assets.js';
 export interface HttpOptions {
@@ -33,6 +34,9 @@ export interface HttpOptions {
    * default. An allowed origin's CORS preflight is answered and its responses carry its exact Access-Control-Allow-Origin,
    * so a browser client can read them; every other origin stays refused. */
   mcpAllowedOrigins?: string[];
+  /** AMCP_MCP_MODERN_PROTOCOL (MCP-03 phase 3): where MCP 2026-07-28 is served besides the legacy revisions. `off`
+   * (default) serves the legacy revisions only; `next` serves both eras at /mcp/next; `on` at /mcp as well. */
+  mcpModernProtocol?: ModernProtocolMode;
   /** Receives one structured entry per refused or failed MCP request or non-MCP HTTP error; no request payload or credentials. */
   log?: (entry: JsonObject) => void;
   /** Milliseconds since the epoch; tests replace it. */
@@ -135,15 +139,27 @@ function healthCheck(service: MirrorService, store: Store, clock: () => number, 
 }
 /** /mcp refusals whose details (limits and waits, never request content) are returned in the JSON-RPC error data. */
 const limitRefusals: ReadonlySet<string> = new Set(['RATE_LIMITED', 'BATCH_UNSUPPORTED']);
+/**
+ * Refusals of MCP 2026-07-28 framing (server/mcp-modern.ts) and the codes that revision defines for them. Their
+ * details sit directly in the error data, where the revision puts them (`supported` and `requested` for -32022).
+ */
+const modernRefusals: Readonly<Record<string, number>> = {
+  MCP_HEADER_MISMATCH: -32020,
+  MCP_PROTOCOL_UNSUPPORTED: -32022,
+  MCP_PARAMS_INVALID: -32602,
+  MCP_METHOD_NOT_FOUND: -32601,
+  MCP_REQUEST_INVALID: -32600,
+};
 /** JSON-RPC's code for a refusal before the request reached MCP: parse error, invalid request, internal, or server. */
 const jsonRpcCode = (e: MirrorError) =>
-  e.code === 'INVALID_JSON'
+  modernRefusals[e.code] ??
+  (e.code === 'INVALID_JSON'
     ? -32700
     : e.code === 'REQUEST_TOO_LARGE' || e.code === 'BATCH_UNSUPPORTED'
       ? -32600
       : e.status >= 500
         ? -32603
-        : -32000;
+        : -32000);
 export function createHttpApp(service: MirrorService, store: Store, options: HttpOptions = {}) {
   const host = options.host ?? '127.0.0.1';
   const origin = options.publicOrigin ? new URL(options.publicOrigin) : undefined;
@@ -171,6 +187,8 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
       );
   }
   if (origin) allowedOrigins.add(origin.origin);
+  const modernMode = options.mcpModernProtocol ?? 'off';
+  if (!modernProtocolModes.includes(modernMode)) throw new Error('AMCP_MCP_MODERN_PROTOCOL must be off, next or on.');
   const log = options.log ?? (() => {}),
     health = healthCheck(
       service,
@@ -186,6 +204,8 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
   const website = options.website
     ? createWebsite(store, options.website, service.policy.allowWrites, service)
     : undefined;
+  // Registration limit refusals and alarms leave a line without the address (MCP-03 phase 2).
+  if (website && options.log) website.mcpOAuth.onRegistrationAlarm = entry => log(entry);
   const app = express();
   app.disable('x-powered-by');
   const securityHeaders: RequestHandler = (_req, res, next) => {
@@ -210,9 +230,15 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
   app.use('/mcp', (req, res, next) => {
     res.on('finish', () => {
       if (res.statusCode < 400) return;
-      // A client probing a newer protocol revision than this SDK supports is expected, not a fault (MCP-03).
+      // A client probing a protocol revision this endpoint does not serve is expected, not a fault (MCP-03): the SDK's
+      // own refusal (no AMCP code) of a revision it does not know, or the modern handler's MCP_PROTOCOL_UNSUPPORTED.
       const probed = req.headers['mcp-protocol-version'],
-        modern = res.statusCode === 400 && typeof probed === 'string' && !SUPPORTED_PROTOCOL_VERSIONS.includes(probed);
+        refusal = res.locals.errorCode,
+        modern =
+          res.statusCode === 400 &&
+          typeof probed === 'string' &&
+          (refusal === 'MCP_PROTOCOL_UNSUPPORTED' ||
+            (refusal === undefined && !SUPPORTED_PROTOCOL_VERSIONS.includes(probed)));
       log({
         level: res.statusCode >= 500 ? 'error' : modern ? 'info' : 'warn',
         event: res.statusCode >= 500 ? 'mcp_failed' : modern ? 'mcp_protocol_unsupported' : 'mcp_refused',
@@ -266,7 +292,8 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
     res.setHeader('Access-Control-Allow-Methods', 'POST');
     res.setHeader(
       'Access-Control-Allow-Headers',
-      'Authorization, Content-Type, Accept, Mcp-Protocol-Version, Mcp-Session-Id, Last-Event-ID',
+      // Mcp-Method and Mcp-Name mirror the body in MCP 2026-07-28 (MCP-03 phase 3).
+      'Authorization, Content-Type, Accept, Mcp-Protocol-Version, Mcp-Method, Mcp-Name, Mcp-Session-Id, Last-Event-ID',
     );
     res.setHeader('Access-Control-Max-Age', '600');
     res.status(204).end();
@@ -291,9 +318,9 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
       next(e);
     }
   });
-  app.post(
-    '/mcp',
-    express.json({limit: options.maxBodyBytes ?? 4 * 1024 * 1024, strict: true}),
+  /** The /mcp POST handler; `dualEra` also serves MCP 2026-07-28 requests (MCP-03 phase 3, server/mcp-modern.ts). */
+  const mcpPost =
+    (dualEra: boolean): RequestHandler =>
     async (req, res, next) => {
       // SEC-02: a JSON-RPC array is refused before any item runs, and each actor has a rate and an in-flight cap. A
       // request holds its in-flight slot until its response has closed and every tool call it started has finished,
@@ -328,8 +355,16 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
         }
       };
       try {
-        const server = createMcpServer(service, res.locals.actor, {track}),
-          transport = new StreamableHTTPServerTransport({sessionIdGenerator: undefined, enableJsonResponse: true});
+        const server = createMcpServer(service, res.locals.actor, {track});
+        if (dualEra && isModernRequest(req.headers, req.body)) {
+          // The modern era: stateless, one JSON answer per request, no session (MCP-03 phase 3).
+          res.on('close', () => void server.close());
+          const answer = await serveModernRequest(server, req.headers, req.body);
+          if (answer.body) res.status(answer.status).json(answer.body);
+          else res.status(answer.status).end();
+          return;
+        }
+        const transport = new StreamableHTTPServerTransport({sessionIdGenerator: undefined, enableJsonResponse: true});
         res.on('close', () => {
           void Promise.allSettled([transport.close(), server.close()]);
         });
@@ -338,11 +373,18 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
       } catch (e) {
         next(e);
       }
-    },
-  );
-  app.all('/mcp', (_req, res) =>
-    res.status(405).setHeader('Allow', 'POST').json({error: 'Stateless MCP endpoint: use POST.'}),
-  );
+    };
+  const mcpJson = express.json({limit: options.maxBodyBytes ?? 4 * 1024 * 1024, strict: true}),
+    mcpOnlyPost: RequestHandler = (_req, res) =>
+      res.status(405).setHeader('Allow', 'POST').json({error: 'Stateless MCP endpoint: use POST.'});
+  // AMCP_MCP_MODERN_PROTOCOL (MCP-03 phase 3): `next` serves both eras at /mcp/next for the client checks of ACC-02,
+  // `on` at /mcp too. /mcp/next lies inside the /mcp resource, so OAuth clients accept /mcp's tokens and metadata there.
+  if (modernMode !== 'off') {
+    app.post('/mcp/next', mcpJson, mcpPost(true));
+    app.all('/mcp/next', mcpOnlyPost);
+  }
+  app.post('/mcp', mcpJson, mcpPost(modernMode === 'on'));
+  app.all('/mcp', mcpOnlyPost);
   if (website) {
     // Handoffs from this deployment link to its own website by absolute URL (MCP-09); stdio leaves this unset.
     service.websiteOrigin = new URL(options.website!.origin).origin;
@@ -373,7 +415,7 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
                   : new MirrorError('INTERNAL_ERROR', 'Request could not be processed.', {}, 500);
     res.locals.errorCode = error.code;
     // An MCP client reads JSON-RPC: a refusal in that shape shows its reason instead of a closed connection (F-88).
-    if (req.baseUrl === '/mcp' || req.path === '/mcp') {
+    if (req.baseUrl === '/mcp' || req.path === '/mcp' || req.path === '/mcp/next') {
       // The bearer challenge belongs to authentication refusals only (MCP-03): it names the protected-resource
       // metadata and the scope new clients receive, and says invalid_token when a token was presented.
       if (options.website && (error.status === 401 || (error.status === 403 && error.code !== 'FORBIDDEN_ORIGIN'))) {
@@ -395,8 +437,16 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
         error: {
           code: jsonRpcCode(error),
           message: error.message,
-          // A limit refusal carries its numbers (SEC-02), since its sentence is fixed for translation.
-          data: {code: error.code, ...(limitRefusals.has(error.code) ? {details: error.details} : {})},
+          // A limit refusal carries its numbers (SEC-02), since its sentence is fixed for translation; a modern framing
+          // refusal carries its details where MCP 2026-07-28 defines them.
+          data: {
+            code: error.code,
+            ...(limitRefusals.has(error.code)
+              ? {details: error.details}
+              : error.code in modernRefusals
+                ? error.details
+                : {}),
+          },
         },
       });
     } else {

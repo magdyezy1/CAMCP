@@ -33,7 +33,8 @@ export function readableOAuthDescription(description: unknown): unknown {
  * - authorization-server metadata that also advertises RFC 9207 `iss` and, when enabled, Client ID Metadata Documents;
  * - `iss` on every authorization response the SDK redirects to the client (its error redirects); AMCP's own consent
  *   decision adds it in McpOAuth.decide;
- * - readable error descriptions on /authorize, /register, /token and /revoke.
+ * - readable error descriptions on /authorize, /register, /token and /revoke;
+ * - per-address and per-deployment limits on dynamic registration (phase 2).
  * Mount it before mcpAuthRouter with the same options.
  */
 export function mcpOAuthProtocolRoutes(oauth: McpOAuth, options: AuthRouterOptions): express.Router {
@@ -74,6 +75,32 @@ export function mcpOAuthProtocolRoutes(oauth: McpOAuth, options: AuthRouterOptio
         return redirect(...args);
       }) as typeof res.redirect;
     }
+    next();
+  });
+  // MCP-03 phase 2: dynamic registrations are limited per client address (SEC-01 attribution) and per deployment in 24
+  // hours, before the SDK registers anything. A registration that does not complete gives its place back.
+  router.post('/register', (req, res, next) => {
+    const admitted = oauth.admitRegistration(oauth.web.limitAddress(req));
+    if (!('settle' in admitted)) {
+      res
+        .status(429)
+        .setHeader('Retry-After', String(admitted.wait))
+        .setHeader('Cache-Control', 'no-store')
+        .json({
+          error: 'too_many_requests',
+          error_description:
+            admitted.scope === 'address'
+              ? 'Too many AI-client registrations from this network in the last 24 hours. Try again later.'
+              : 'This AMCP deployment has accepted its daily number of new AI-client registrations. Try again later.',
+        });
+      return;
+    }
+    const json = res.json.bind(res);
+    res.json = (body => {
+      admitted.settle(res.statusCode === 201 && typeof body?.client_id === 'string');
+      return json(body);
+    }) as typeof res.json;
+    res.on('close', () => admitted.settle(false));
     next();
   });
   return router;

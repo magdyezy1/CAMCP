@@ -1,4 +1,5 @@
 import path from 'node:path';
+import {mcpRegistrationLimitDefaults, mcpRegistrationLimits, type McpRegistrationLimits} from '../src/mcp-clients.js';
 
 /** The process an AMCP configuration starts. */
 export type EntryPoint = 'http' | 'worker' | 'stdio';
@@ -42,6 +43,16 @@ export type AmcpConfig = Readonly<{
   mcpRefreshReuseSeconds: number | undefined;
   /** AMCP_MCP_CLIENT_METADATA (`off` disables CIMD) and AMCP_MCP_CLIENT_METADATA_HOSTS (MCP-03). */
   mcpClientMetadata: Readonly<{enabled: boolean; hosts: readonly string[] | undefined}>;
+  /**
+   * AMCP_MCP_REGISTRATIONS_PER_ADDRESS_DAILY and AMCP_MCP_REGISTRATIONS_DAILY (MCP-03 phase 2): new AI-client
+   * registrations per client address and per deployment in 24 hours. A bad value is ignored (listed in `problems`).
+   */
+  mcpRegistrationLimits: Readonly<McpRegistrationLimits>;
+  /**
+   * AMCP_MCP_MODERN_PROTOCOL (MCP-03 phase 3): `off` (default), `next` (MCP 2026-07-28 and the legacy revisions at
+   * /mcp/next) or `on` (at /mcp as well). Another value is ignored and listed in `problems`.
+   */
+  mcpModernProtocol: 'off' | 'next' | 'on';
   mcpAllowedOrigins: readonly string[] | undefined;
   /** Declared persistent mounts the database may live in: `AMCP_DATA_MOUNT`, then `RAILWAY_VOLUME_MOUNT_PATH`. */
   dataMounts: readonly string[];
@@ -55,6 +66,8 @@ export type AmcpConfig = Readonly<{
 export const DEFAULT_DATABASE_PATH = '.runtime/mirror.sqlite';
 /** Below Railway's draining window when that is set to 30 s; see docs/OPERATIONS.md. */
 export const DEFAULT_SHUTDOWN_GRACE_MS = 25000;
+/** The values of AMCP_MCP_MODERN_PROTOCOL (modernProtocolModes in server/mcp-modern.ts; kept equal by a test). */
+export const modernProtocolModeNames: readonly string[] = ['off', 'next', 'on'];
 /** The client address profiles server/web-store.ts accepts (clientIpSources there; kept equal by a test). */
 export const clientIpSourceNames: readonly string[] = ['socket', 'xff-cidrs', 'railway', 'railway+cloudflare'];
 const text = (value: string | undefined) => (value === undefined || value === '' ? undefined : value);
@@ -103,6 +116,23 @@ export function loadConfig(env: NodeJS.ProcessEnv, entry: EntryPoint): AmcpConfi
   const ephemeral = text(env.AMCP_ALLOW_EPHEMERAL_DB);
   if (ephemeral !== undefined && !['true', 'false'].includes(ephemeral))
     problems.push('AMCP_ALLOW_EPHEMERAL_DB must be true or false; it was treated as false.');
+  let registrationLimits: McpRegistrationLimits = {...mcpRegistrationLimitDefaults};
+  try {
+    const whole = (name: string) => {
+      const raw = text(env[name]?.trim());
+      if (raw !== undefined && !/^\d{1,6}$/.test(raw)) throw Error(name + ' must be a whole number.');
+      return raw === undefined ? undefined : Number(raw);
+    };
+    registrationLimits = mcpRegistrationLimits({
+      perAddressDaily: whole('AMCP_MCP_REGISTRATIONS_PER_ADDRESS_DAILY'),
+      daily: whole('AMCP_MCP_REGISTRATIONS_DAILY'),
+    });
+  } catch (e) {
+    problems.push((e as Error).message + ' The registration limit defaults apply.');
+  }
+  const modern = text(env.AMCP_MCP_MODERN_PROTOCOL?.trim().toLowerCase());
+  if (modern !== undefined && !modernProtocolModeNames.includes(modern))
+    problems.push('AMCP_MCP_MODERN_PROTOCOL must be off, next or on; it was treated as off.');
   return Object.freeze({
     entry,
     production,
@@ -131,6 +161,9 @@ export function loadConfig(env: NodeJS.ProcessEnv, entry: EntryPoint): AmcpConfi
       enabled: env.AMCP_MCP_CLIENT_METADATA?.trim().toLowerCase() !== 'off',
       hosts: list(env.AMCP_MCP_CLIENT_METADATA_HOSTS),
     }),
+    mcpRegistrationLimits: Object.freeze(registrationLimits),
+    mcpModernProtocol:
+      modern !== undefined && modernProtocolModeNames.includes(modern) ? (modern as 'off' | 'next' | 'on') : 'off',
     mcpAllowedOrigins: list(env.AMCP_MCP_ALLOWED_ORIGINS),
     dataMounts: Object.freeze([...new Set(dataMounts)]),
     allowEphemeralDb: ephemeral === 'true',

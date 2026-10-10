@@ -10,7 +10,13 @@ import {createHttpApp} from '../server/http-app.js';
 import {WebStore, type WebsiteOptions} from '../server/web-store.js';
 import {UserAccounts} from '../server/user-accounts.js';
 import {readableOAuthDescription} from '../server/mcp-oauth-routes.js';
-import {mcpClientCapacity, mcpClientLimit} from '../src/mcp-clients.js';
+import {
+  mcpClientCapacity,
+  mcpClientLimit,
+  mcpRegistrationLimitDefaults,
+  mcpRegistrationLimits,
+} from '../src/mcp-clients.js';
+import {loadConfig} from '../server/config.js';
 import type {LinkRequest} from '../src/media-link.js';
 import type {JsonObject} from '../src/types.js';
 
@@ -242,11 +248,16 @@ test('MCP-03: the owner health view reports the registered-client count and head
       )
     ).json();
     assert.equal(health.success, true, JSON.stringify(health.error));
+    // Phase 2 added the registrations of the last 24 hours against the daily limits, and the alarms.
     assert.deepEqual(health.data.mcp_clients, {
       registered: 1,
       limit: mcpClientLimit,
       headroom: mcpClientLimit - 1,
       releasable_on_next_registration: 0,
+      registered_last_24h: 1,
+      daily_limit: mcpRegistrationLimitDefaults.daily,
+      per_address_daily_limit: mcpRegistrationLimitDefaults.perAddressDaily,
+      alarms: [],
     });
     // A self-service owner of another workspace does not see the deployment-wide count.
     const web = new WebStore(f.store, {origin, masterKey: master, adminPassword: password}),
@@ -611,4 +622,127 @@ test('MCP-03: a probe with a newer protocol revision is logged at info level, ot
   } finally {
     await f.close();
   }
+});
+
+/** A registration from one client address, as Railway's edge reports it (AMCP_CLIENT_IP_SOURCE=railway). */
+const registerFrom = (f: Awaited<ReturnType<typeof fixture>>, address: string, body: JsonObject = {}) =>
+  f.request(
+    '/register',
+    'POST',
+    {client_name: 'Claude', redirect_uris: [redirect], token_endpoint_auth_method: 'none', ...body},
+    {'X-Real-IP': address},
+  );
+
+test('MCP-03: registrations are limited per client address in 24 hours; other addresses still register, and a refused registration gives its place back (regression: one caller could fill the global cap for everyone)', async () => {
+  const f = await fixture({
+    website: {clientIpSource: 'railway', mcpRegistrationLimits: {perAddressDaily: 2, daily: 50}},
+  });
+  try {
+    for (let i = 0; i < 2; i++) assert.equal((await registerFrom(f, '198.51.100.7')).status, 201);
+    const refused = await registerFrom(f, '198.51.100.7');
+    assert.equal(refused.status, 429);
+    const retry = Number(refused.headers.get('retry-after'));
+    assert.ok(retry > 86000 && retry <= 86400, String(retry));
+    const body = await refused.json();
+    assert.equal(body.error, 'too_many_requests');
+    assert.match(body.error_description, /from this network in the last 24 hours/);
+    // Another address is unaffected; its invalid registration does not use up its place.
+    assert.equal((await registerFrom(f, '203.0.113.9')).status, 201);
+    assert.equal((await registerFrom(f, '203.0.113.9', {redirect_uris: ['http://client.example/cb']})).status, 400);
+    assert.equal((await registerFrom(f, '203.0.113.9')).status, 201);
+    assert.equal((await registerFrom(f, '203.0.113.9')).status, 429);
+    // IPv6 clients share one place per /64, as every other AMCP limit keys them.
+    assert.equal((await registerFrom(f, '2001:db8:5:6::1')).status, 201);
+    assert.equal((await registerFrom(f, '2001:db8:5:6:ffff::2')).status, 201);
+    assert.equal((await registerFrom(f, '2001:db8:5:6::3')).status, 429);
+    assert.equal((f.store.db.prepare('SELECT count(*) AS n FROM amcp_mcp_clients').get() as {n: number}).n, 6);
+    // The first refusal of each kind leaves one line, without the address.
+    const limited = f.logs.filter(e => e.event === 'mcp_registration_limited');
+    assert.deepEqual(
+      limited.map(e => [e.level, e.scope, e.limit]),
+      [['warn', 'address', 2]],
+    );
+    assert.ok(!JSON.stringify(f.logs).includes('198.51.100.7'));
+    assert.ok(!JSON.stringify(f.logs).includes('2001:db8'));
+  } finally {
+    await f.close();
+  }
+});
+
+test('MCP-03: registrations sent together from one address cannot pass the address limit together', async () => {
+  const f = await fixture({
+    website: {clientIpSource: 'railway', mcpRegistrationLimits: {perAddressDaily: 1, daily: 50}},
+  });
+  try {
+    const statuses = (await Promise.all([0, 1, 2, 3].map(() => registerFrom(f, '198.51.100.20')))).map(r => r.status);
+    assert.deepEqual(
+      statuses.sort((a, b) => a - b),
+      [201, 429, 429, 429],
+    );
+  } finally {
+    await f.close();
+  }
+});
+
+test('MCP-03: the deployment daily limit refuses new registrations once reached, reopens as they age out of 24 hours, and raises the owner alarm', async () => {
+  const f = await fixture({
+    website: {clientIpSource: 'railway', mcpRegistrationLimits: {perAddressDaily: 2, daily: 3}},
+  });
+  try {
+    for (const address of ['198.51.100.1', '198.51.100.2', '198.51.100.3'])
+      assert.equal((await registerFrom(f, address)).status, 201);
+    const refused = await registerFrom(f, '198.51.100.4');
+    assert.equal(refused.status, 429);
+    assert.match((await refused.json()).error_description, /daily number of new AI-client registrations/);
+    const retry = Number(refused.headers.get('retry-after'));
+    assert.ok(retry > 86000 && retry <= 86400, String(retry));
+    const alarms = f.logs.filter(e => String(e.event).startsWith('mcp_registration_'));
+    assert.deepEqual(
+      alarms.map(e => [e.level, e.event, e.reason ?? e.scope]),
+      [
+        ['warn', 'mcp_registration_alarm', 'daily_registrations'],
+        ['warn', 'mcp_registration_limited', 'deployment'],
+      ],
+    );
+    assert.equal(alarms[0]!.registered_last_24h, 3);
+    assert.equal(alarms[0]!.daily_limit, 3);
+    // The owner's health view says so.
+    const health = await (
+      await f.request(
+        '/api/workspace/workspace',
+        'POST',
+        {action: 'health'},
+        {...f.admin, 'Content-Type': 'application/json'},
+      )
+    ).json();
+    assert.equal(health.data.mcp_clients.registered_last_24h, 3);
+    assert.equal(health.data.mcp_clients.daily_limit, 3);
+    assert.equal(health.data.mcp_clients.per_address_daily_limit, 2);
+    assert.deepEqual(health.data.mcp_clients.alarms, ['daily_registrations']);
+    // A day later the registrations leave the window (and, never used, are released) and registration reopens.
+    f.store.db
+      .prepare("UPDATE amcp_mcp_clients SET data=json_set(data,'$.client_id_issued_at',?)")
+      .run(Math.floor((Date.now() - 25 * 3600000) / 1000));
+    assert.equal((await registerFrom(f, '198.51.100.4')).status, 201);
+    assert.deepEqual(mcpClientCapacity(f.store).alarms, []);
+  } finally {
+    await f.close();
+  }
+});
+
+test('MCP-03: registration limits are validated, and the environment sets them with a problem listed for a bad value', () => {
+  assert.deepEqual(mcpRegistrationLimits(), {perAddressDaily: 30, daily: 300});
+  assert.throws(() => mcpRegistrationLimits({daily: 0}), /AMCP_MCP_REGISTRATIONS_DAILY must be a whole number from 1/);
+  assert.throws(() => mcpRegistrationLimits({perAddressDaily: 1.5}), /AMCP_MCP_REGISTRATIONS_PER_ADDRESS_DAILY/);
+  assert.throws(() => mcpRegistrationLimits({perAddressDaily: 40, daily: 20}), /must not exceed/);
+  const set = loadConfig({AMCP_MCP_REGISTRATIONS_PER_ADDRESS_DAILY: '10', AMCP_MCP_REGISTRATIONS_DAILY: '120'}, 'http');
+  assert.deepEqual({...set.mcpRegistrationLimits}, {perAddressDaily: 10, daily: 120});
+  assert.deepEqual(set.problems, []);
+  const bad = loadConfig({AMCP_MCP_REGISTRATIONS_DAILY: 'many'}, 'http');
+  assert.deepEqual({...bad.mcpRegistrationLimits}, {...mcpRegistrationLimitDefaults});
+  assert.equal(bad.problems.length, 1);
+  assert.match(
+    bad.problems[0]!,
+    /AMCP_MCP_REGISTRATIONS_DAILY must be a whole number\. The registration limit defaults/,
+  );
 });

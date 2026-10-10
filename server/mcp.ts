@@ -27,12 +27,15 @@ const resourceNotFound = -32002;
 export interface McpServerHooks {
   track?: <T>(work: Promise<T>) => Promise<T>;
 }
+/** The build identity /versionz reports, so a client can tell which build it is talking to (MCP-05). */
+export const mcpServerInfo = () => ({name: 'amcp', version: String(serverIdentity().version)});
+/** What the server offers in both protocol eras; server/discover of the 2026-07-28 handler reports the same. */
+export const mcpServerCapabilities = () => ({tools: {}, resources: {}, prompts: {}});
 export function createMcpServer(service: MirrorService, actor: Actor, hooks: McpServerHooks = {}) {
   const server = new Server(
-    // The build identity /versionz reports, so a client can tell which build it is talking to (MCP-05).
-    {name: 'amcp', version: String(serverIdentity().version)},
+    mcpServerInfo(),
     // Orientation for every client, pinned at 2,000 characters (MCP-06).
-    {capabilities: {tools: {}, resources: {}, prompts: {}}, instructions: serverInstructions},
+    {capabilities: mcpServerCapabilities(), instructions: serverInstructions},
   );
   server.setRequestHandler(ListResourcesRequestSchema, async () => {
     service.store.assertActorActive(actor);
