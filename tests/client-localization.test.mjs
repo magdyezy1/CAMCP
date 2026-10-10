@@ -727,6 +727,76 @@ test('late report downloads and errors stay with their original view while curre
   await assert.rejects(f.bindings.get('#download-pack-pdf')(), /Current download failure/);
 });
 
+// WEB-06 regression: the page also asked the campaign tool for recipes, which the server refuses for a test account
+// (TEST_ACCOUNT_SCOPE), so Clients & templates showed "This page could not open" to platform reviewers.
+test('Clients & templates opens from the profiles response alone, so a test account can use it', async () => {
+  const f = fixture(),
+    scope = Object.assign(Error('This test account does not include that area of AMCP.'), {code: 'TEST_ACCOUNT_SCOPE'});
+  f.context.workspaceCall = async (tool, args) => {
+    f.calls.push({tool, args: plain(args)});
+    if (tool === 'campaign') throw scope;
+    return args.action === 'profiles'
+      ? {
+          profiles: f.profiles,
+          recipe_defaults: [
+            {
+              id: 'google_search_clicks',
+              name: 'Google Search with Maximize Clicks',
+              fields: ['daily_budget', 'cpc_bid_ceiling'],
+            },
+          ],
+        }
+      : {};
+  };
+  await f.run('renderClientPlaybooks()');
+  assert.deepEqual(
+    f.calls.map(call => call.tool),
+    ['workspace'],
+    'only the workspace tool is used',
+  );
+  const html = f.node('content').innerHTML;
+  assert.match(html, /<option value="google_search_clicks">Google Search with Maximize Clicks<\/option>/);
+  assert.match(html, /id="profile-recipe-defaults" >/);
+  f.profiles[0].defaults = {recipes: {google_search_clicks: {daily_budget: '25'}}};
+  f.select(0);
+  assert.match(f.node('#profile-default-fields').innerHTML, /data-default-field="daily_budget" value="25"/);
+  assert.match(f.node('#profile-default-fields').innerHTML, /data-default-field="cpc_bid_ceiling"/);
+  f.form.elements.approve.checked = true;
+  await f.bindings.get('#profile-form')();
+  assert.equal(f.calls.at(-1).args.action, 'save_profile');
+  assert.equal(f.calls.at(-1).tool, 'workspace');
+});
+
+test('an older server without recipe fields still opens the page; a refused recipe list hides only the defaults', async () => {
+  const f = fixture(),
+    scope = Object.assign(Error('Refused'), {code: 'TEST_ACCOUNT_SCOPE'});
+  f.context.workspaceCall = async (tool, args) => {
+    f.calls.push({tool, args: plain(args)});
+    if (tool === 'campaign') throw scope;
+    return args.action === 'profiles' ? {profiles: f.profiles} : {};
+  };
+  await f.run('renderClientPlaybooks()');
+  assert.match(f.node('content').innerHTML, /id="profile-recipe-defaults" hidden>/);
+  assert.match(f.node('content').innerHTML, /id="profile-form"/);
+  // Any other failure still opens the page error, as before.
+  const g = fixture();
+  g.context.workspaceCall = async (tool, args) => {
+    if (tool === 'campaign') throw Object.assign(Error('Server unavailable'), {code: 'INTERNAL_ERROR'});
+    return args.action === 'profiles' ? {profiles: g.profiles} : {};
+  };
+  await assert.rejects(g.run('renderClientPlaybooks()'), /Server unavailable/);
+});
+
+test('Build a campaign opens the composer with that playbook chosen, only where Campaigns is in scope', async () => {
+  const f = fixture();
+  await f.run('renderClientPlaybooks()');
+  assert.match(f.node('content').innerHTML, /href="\/campaigns\?profile_id=first#campaign-create"/);
+  const g = fixture();
+  g.context.routeAvailable = path => path !== '/campaigns';
+  await g.run('renderClientPlaybooks()');
+  assert.doesNotMatch(g.node('content').innerHTML, /Build a campaign/);
+});
+
 test('a client save refresh cannot announce success after the signed-in view changes', async () => {
   const f = fixture();
   await f.run('renderClientPlaybooks()');

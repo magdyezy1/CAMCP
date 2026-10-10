@@ -4,6 +4,35 @@ import {MirrorError} from './errors.js';
 import {noSecrets, fingerprint} from './workspace-core.js';
 import type {Actor, JsonObject} from './types.js';
 import {normalizeAccount} from './scope.js';
+// Business inputs a client playbook may default per recipe. Regulated declarations, goal policies, resource IDs and
+// currency stay in each brief, where preflight checks them.
+export const profileDefaultKeys = [
+  'daily_budget',
+  'cpc_bid',
+  'cpc_bid_ceiling',
+  'target_cpa',
+  'target_roas',
+  'country_codes',
+  'country_criterion_ids',
+  'language_criterion_ids',
+  'destination_url',
+  'keywords',
+  'headlines',
+  'descriptions',
+  'language',
+];
+/**
+ * The recipes a playbook can hold defaults for, with only those fields (WEB-06). The workspace profiles response
+ * carries them, so Clients & templates opens without the campaign tool, which a test account may not use.
+ */
+export function recipeDefaultFields(): JsonObject[] {
+  return campaignRecipes.map(r => ({
+    id: r.id,
+    name: r.name,
+    platform: r.platform,
+    fields: r.required.filter(k => profileDefaultKeys.includes(k)),
+  }));
+}
 export function recipeContext(store: Store, actor: Actor, recipeId: string, profileId?: string): JsonObject {
   store.assertActorActive(actor);
   const recipe = campaignRecipes.find(r => r.id === recipeId);

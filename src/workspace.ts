@@ -23,6 +23,7 @@ import {
   sharedEvidence,
 } from './readiness.js';
 import {previewPlaybook, validatePlaybook} from './client-playbooks.js';
+import {recipeDefaultFields} from './recipe-context.js';
 import {monitorActions, monitorOperation} from './report-monitors.js';
 import {portfolioPage} from './portfolio.js';
 import {reconcilePortfolio} from './portfolio-reconciliation.js';
@@ -512,7 +513,11 @@ export class WorkspaceService {
       ].includes(input.action)
     )
       return ownerOperations(this.store, input, actor, {withheldWorkbookRecords});
-    if (input.action === 'profiles') return {profiles: this.store.documents(actor.tenantId, 'client_profile')};
+    if (input.action === 'profiles')
+      return {
+        profiles: this.store.documents(actor.tenantId, 'client_profile'),
+        recipe_defaults: recipeDefaultFields(),
+      };
     if (input.action === 'preview_profile') {
       const profile = input.id ? read(this.store, actor, 'client_profile', input.id) : input.profile;
       if (!obj(profile)) bad('Supply a saved profile or a draft profile.');

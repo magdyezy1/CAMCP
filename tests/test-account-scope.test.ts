@@ -113,6 +113,65 @@ test('the reviewer areas an evaluator needs still work', async () => {
   }
 });
 
+// WEB-06: Clients & templates is a test-account page, but it needed the campaign tool for its recipe list, which this
+// gate refuses. The profiles response now carries the recipe fields; the campaign tool stays refused.
+test('a reviewer opens Clients & templates and saves a playbook in its own workspace; campaigns stay refused', async () => {
+  const s = await site();
+  try {
+    const profiles = await s.request('/api/workspace/workspace', 'POST', {action: 'profiles'}, s.headers);
+    assert.equal(profiles.status, 200);
+    const listed = (await profiles.json()).data;
+    assert.deepEqual(listed.profiles, []);
+    const clicks = listed.recipe_defaults.find((r: {id: string}) => r.id === 'google_search_clicks');
+    assert.deepEqual(clicks.fields, [
+      'daily_budget',
+      'country_criterion_ids',
+      'language_criterion_ids',
+      'keywords',
+      'headlines',
+      'descriptions',
+      'destination_url',
+      'cpc_bid_ceiling',
+    ]);
+    assert.ok(
+      listed.recipe_defaults.every((r: {fields: string[]}) =>
+        r.fields.every(k => !['account_id', 'connection_id', 'currency', 'special_ad_categories'].includes(k)),
+      ),
+      'resource IDs, currency and declarations stay in each brief',
+    );
+    const saved = await s.request(
+      '/api/workspace/workspace',
+      'POST',
+      {
+        action: 'save_profile',
+        confirmed: true,
+        profile: {
+          name: 'Reviewer client',
+          naming: '{{campaign_name}}',
+          defaults: {recipes: {google_search_clicks: {daily_budget: '25'}}},
+        },
+      },
+      s.headers,
+    );
+    assert.equal(saved.status, 200);
+    const record = (await saved.json()).data;
+    assert.equal(record.name, 'Reviewer client');
+    const again = (await (await s.request('/api/workspace/workspace', 'POST', {action: 'profiles'}, s.headers)).json())
+      .data;
+    assert.deepEqual(
+      again.profiles.map((p: {id: string}) => p.id),
+      [record.id],
+    );
+    for (const args of [{action: 'recipes'}, {action: 'list'}, {action: 'create', name: 'x', brief: 'x', steps: []}]) {
+      const refused = await s.request('/api/workspace/campaign', 'POST', args, s.headers);
+      assert.equal(refused.status, 403, args.action);
+      assert.equal((await refused.json()).error?.code, 'TEST_ACCOUNT_SCOPE', args.action);
+    }
+  } finally {
+    await s.close();
+  }
+});
+
 test('a reviewer test account cannot write owner policy through the workspace tool', async () => {
   const s = await site();
   try {
