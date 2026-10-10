@@ -110,9 +110,16 @@ test('date-only Google recipe boundaries use v23 account-local datetime fields',
   const fixture = JSON.parse(
     fs.readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'),
   ).recipe_business;
-  const built = campaignRecipe('google_search', {...fixture, start_date: '2026-10-01', end_date: '2026-10-31'}),
+  // One step per resource type (atomic: false); the default all-or-nothing build carries the same dates (CMP-04).
+  const dates = {start_date: '2026-10-01', end_date: '2026-10-31'},
+    built = campaignRecipe('google_search', {...fixture, ...dates, atomic: false}),
     body = built.steps.find((s: JsonObject) => s.id === 'campaign').arguments.payload;
-  const campaign = body.operations[0].create;
+  const campaign = body.operations[0].create,
+    build = campaignRecipe('google_search', {...fixture, ...dates}).steps[0].arguments.payload.mutate_operations;
+  const {resource_name, ...composed} = build.find((o: JsonObject) => o.campaign_operation).campaign_operation.create;
+  assert.match(resource_name, /^customers\/\d+\/campaigns\/-\d+$/);
+  assert.equal(composed.start_date_time, '2026-10-01 00:00:00');
+  assert.equal(composed.end_date_time, '2026-10-31 23:59:59');
   assert.equal(campaign.start_date_time, '2026-10-01 00:00:00');
   assert.equal(campaign.end_date_time, '2026-10-31 23:59:59');
   assert.equal('start_date' in campaign, false);

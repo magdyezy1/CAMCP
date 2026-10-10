@@ -145,10 +145,10 @@ test('spread forwarding helpers cannot qualify their static callers through unkn
 });
 
 test('all actual qualified wrapper reasons have Arabic while native fields, limits and examples remain exact', () => {
-  assert.equal(files.length, 482);
+  assert.equal(files.length, 484);
   assert.equal(selected.filter(row => row.messages.size).length, 171);
   assert.equal(owned.size, 2661);
-  assert.equal(Object.keys(catalog).length, 9144);
+  assert.equal(Object.keys(catalog).length, 9162);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

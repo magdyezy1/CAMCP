@@ -105,7 +105,8 @@ test('the guided Search clicks recipe above the bid cap is refused (block) or as
   const {cpc_bid, ...business} = JSON.parse(
     fs.readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'),
   ).recipe_business;
-  const recipe = campaignRecipe('google_search_clicks', {...business, cpc_bid_ceiling: '5.00'}),
+  // One step per resource type (atomic: false), so the campaign step is checked as its own service request.
+  const recipe = campaignRecipe('google_search_clicks', {...business, cpc_bid_ceiling: '5.00', atomic: false}),
     step = recipe.steps.find(s => s.id === 'campaign'),
     p = googleCampaign(step.arguments.payload.operations[0].create);
   for (const enforcement of ['block', 'confirm']) {
@@ -119,6 +120,25 @@ test('the guided Search clicks recipe above the bid cap is refused (block) or as
     } finally {
       s.close();
     }
+  }
+});
+
+// CMP-04: Google Search recipes are one all-or-nothing googleAds:mutate by default. The caps read the whole build:
+// its CPC ceiling against the bid cap and its budget against the budget cap, as the separate steps were.
+test('the default all-or-nothing Search recipe build keeps the bid and budget caps', () => {
+  const {cpc_bid, ...business} = JSON.parse(
+    fs.readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'),
+  ).recipe_business;
+  const build = campaignRecipe('google_search_clicks', {...business, cpc_bid_ceiling: '5.00'}).steps[0],
+    p = plan(google, '/v25/customers/123/googleAds:mutate', build.arguments.payload, {
+      action: 'google_ads_v25_google_ads_mutate',
+    });
+  assert.equal(build.id, 'build');
+  const s = workspace({[google]: {max_bid_currency: 1, max_budget_currency: 1}}, {enforcement: 'confirm'});
+  try {
+    assert.deepEqual(rules(checkSpendPolicy(s, actor, p, [])).sort(), ['POLICY_BID_LIMIT', 'POLICY_BUDGET_LIMIT']);
+  } finally {
+    s.close();
   }
 });
 
