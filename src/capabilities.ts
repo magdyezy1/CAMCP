@@ -70,17 +70,19 @@ export function workspaceCapabilities(store: Store, actor: Actor) {
   return {
     contract_version: 1,
     // A provider this deployment does not offer is not shown (CON-06, src/provider-offering.ts).
-    providers: providerContracts.filter(c => gatewayOffered(c.gateway)).map(c => ({
-      ...effectiveProviderContract(c.id),
-      live_verified: writes
-        .filter(w => w.status === 'verified' && gatewayOf.get(w.connection_id) === c.gateway)
-        .map(w => ({
-          action: w.action,
-          account_id: w.account_id,
-          verified_at: new Date(w.checked_at).toISOString(),
-          review_id: w.review_id,
-        })),
-    })),
+    providers: providerContracts
+      .filter(c => gatewayOffered(c.gateway))
+      .map(c => ({
+        ...effectiveProviderContract(c.id),
+        live_verified: writes
+          .filter(w => w.status === 'verified' && gatewayOf.get(w.connection_id) === c.gateway)
+          .map(w => ({
+            action: w.action,
+            account_id: w.account_id,
+            verified_at: new Date(w.checked_at).toISOString(),
+            review_id: w.review_id,
+          })),
+      })),
     features,
     evidence: store.listConnections(actor.tenantId).flatMap(c =>
       c.accounts.map(account => ({

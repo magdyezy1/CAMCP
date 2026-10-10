@@ -435,7 +435,8 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       groups,
       selected: selection,
       lastSync: Date.now(),
-      error: failed.length ? failed.map(g => g.error).join(' ') : null,
+      // One refusal that fails several groups (Business Profile accounts and locations, CON-06) is stated once.
+      error: failed.length ? [...new Set(failed.map(g => g.error))].join(' ') : null,
     });
     // A login keeps the name an administrator gave it; otherwise it is named "<Platform> · <user>" (CON-05).
     const named = platforms.find(p => p.gateway === c.gateway);
