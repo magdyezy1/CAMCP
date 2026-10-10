@@ -357,8 +357,7 @@ test('capability graph v3: scope blockers on Google read workflows, resolved dep
     });
     f.grants('meta', knownMeta(['ads_read'], ['ads_management']));
     meta = (await f.call({action: 'capabilities', view: 'graph', workflow_id: 'recipe:meta_website_traffic'}))
-      .workflows[0]
-      .accounts[0];
+      .workflows[0].accounts[0];
     assert.ok(meta.blockers.includes('provider_scope_declined:ads_management'), JSON.stringify(meta.blockers));
     // An exact account read resolves exact_account for that account only; it never makes the objective ready.
     let report = (

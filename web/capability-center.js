@@ -253,7 +253,8 @@ function capabilityBlocker(code) {
     return uiText('Declined permission; reauthorize and allow it: {scope}', {
       scope: code.slice('provider_scope_declined:'.length),
     });
-  if (code.startsWith('provider_scope:'))return uiText('Missing recorded permission: {scope}', {scope: code.slice(15)});
+  if (code.startsWith('provider_scope:'))
+    return uiText('Missing recorded permission: {scope}', {scope: code.slice(15)});
   if (code.startsWith('contract:')) return uiText('Unqualified native contract: {action}', {action: code.slice(9)});
   return pretty(code);
 }

@@ -522,7 +522,8 @@ h2.report-section-label {
   margin-top: 6px;
   font-size: 11px;
   color: var(--muted);
-}/* One token pair per decision meaning, in both themes, with a symbol so colour is not the only cue. Decisions without
+}
+/* One token pair per decision meaning, in both themes, with a symbol so colour is not the only cue. Decisions without
    a budget direction (wait, needs review, needs a target, insufficient data, observe) share the neutral hold pair
    (WEB-01: the dark theme previously collapsed "Scale" and "Needs review" into one colour). */
 .recommendation-pill {

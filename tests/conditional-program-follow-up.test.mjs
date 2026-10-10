@@ -265,10 +265,13 @@ test('a program with no selected account points to its setup instead of a progra
     f.store.putConnection(f.owner, {...f.connections[1], enabled: false, accounts: []}, {accessToken: 'synthetic'});
     for (const remove of [false, true]) {
       if (remove) disconnectLocalConnection(f.store, f.owner, 'dv360_native_action', f.connections[1].id, 'mcp');
-      const graph = good(await f.call({action: 'capabilities', view: 'graph', workflow_id: 'program:dv360_advertiser'})),
+      const graph = good(
+          await f.call({action: 'capabilities', view: 'graph', workflow_id: 'program:dv360_advertiser'}),
+        ),
         w = graph.workflows[0];
       // The default summary names the same setup path and no program_check (MCP-01 with CON-04).
-      const summary = good(await f.call({action: 'capabilities', workflow_id: 'program:dv360_advertiser'})).workflows[0];
+      const summary = good(await f.call({action: 'capabilities', workflow_id: 'program:dv360_advertiser'}))
+        .workflows[0];
       assert.equal(summary.next_call, null);
       assert.deepEqual(summary.setup, w.setup);
       assert.deepEqual(w.accounts, []);

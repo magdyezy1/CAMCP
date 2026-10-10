@@ -149,7 +149,13 @@ export function toolPresentation(
     }
     return {
       title: name,
-      annotations: {title: name, readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true},
+      annotations: {
+        title: name,
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
     };
   }
   const {basis: _basis, ...annotations} = entry;
