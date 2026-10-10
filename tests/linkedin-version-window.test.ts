@@ -20,6 +20,8 @@ import {NativeTransport} from '../src/transport.js';
 import {Store} from '../src/store.js';
 import {executionEvidence} from '../src/contract-evidence.js';
 import {providerSunset} from '../src/provider-sunsets.js';
+import {catalogVersions} from '../src/catalog-versions.js';
+import {effectiveProviderContract} from '../src/provider-contracts.js';
 import {metaApiVersions} from '../src/meta-version.js';
 import {createRuntime} from '../server/runtime.js';
 import {MirrorError} from '../src/errors.js';
@@ -135,16 +137,45 @@ test('LIST_ACTIONS, DESCRIBE_ACTION, operation help and the tool description rep
   assert.doesNotMatch(JSON.stringify(registry.help({gateway}, strictOptions)), /202605/);
 });
 
-test('startup refuses an unreviewed AMCP_LINKEDIN_API_VERSION before opening any store', () => {
-  const previous = process.env.AMCP_LINKEDIN_API_VERSION;
+test('a clock past the default sunset still builds every catalog; each LinkedIn request is refused with the reason', t => {
+  // Regression: describing the version (tool description, LIST_ACTIONS, provider contract) called linkedinVersion(), so
+  // once the clock passed the 2027-09 sunset constructing a Registry threw API_VERSION_SUNSET for every gateway.
+  t.mock.method(Date, 'now', () => at('2030-03-17'));
+  const later = new Registry(),
+    gateway = 'linkedin_native_action';
+  assert.ok(later.listTools(strictOptions).some(tool => tool.name === 'meta_native_action'));
+  assert.ok(later.listTools(strictOptions).some(tool => tool.name === gateway));
+  assert.equal(
+    new Introspection(later).list(gateway, {action: 'LIST_ACTIONS', limit: 1}, strictOptions).api_version,
+    linkedinDefaultVersion,
+  );
+  assert.equal(catalogVersions[gateway]!.version, linkedinDefaultVersion);
+  assert.equal(effectiveProviderContract('linkedin')!.api_version, linkedinDefaultVersion);
+  assert.throws(() => new Compiler(later).compile(gateway, read, strictOptions), refused('API_VERSION_SUNSET'));
+});
+
+test('startup refuses an unreviewed AMCP_LINKEDIN_API_VERSION before opening any store', t => {
+  const previous = process.env.AMCP_LINKEDIN_API_VERSION,
+    previousDb = process.env.MIRROR_DB;
   try {
     for (const value of ['202605', '209912', 'latest']) {
       process.env.AMCP_LINKEDIN_API_VERSION = value;
       assert.throws(() => createRuntime(), /AMCP_LINKEDIN_API_VERSION is not a reviewed provider version/, value);
     }
+    // Past the default's sunset an explicit pin still stops startup; an unset value starts (regression: the sunset of
+    // the default stopped the whole process, every provider included) and only LinkedIn requests refuse.
+    t.mock.method(Date, 'now', () => at('2030-03-17'));
+    process.env.AMCP_LINKEDIN_API_VERSION = linkedinDefaultVersion;
+    assert.throws(() => createRuntime(), /AMCP_LINKEDIN_API_VERSION is not a reviewed provider version/);
+    delete process.env.AMCP_LINKEDIN_API_VERSION;
+    process.env.MIRROR_DB = ':memory:';
+    const runtime = createRuntime();
+    runtime.store.close();
   } finally {
     if (previous === undefined) delete process.env.AMCP_LINKEDIN_API_VERSION;
     else process.env.AMCP_LINKEDIN_API_VERSION = previous;
+    if (previousDb === undefined) delete process.env.MIRROR_DB;
+    else process.env.MIRROR_DB = previousDb;
   }
 });
 

@@ -9,7 +9,7 @@ import {
   currentLinkedInCapture,
   extendLinkedInTool,
   linkedinActionVersion,
-  linkedinVersion,
+  linkedinDescribedVersion,
 } from './linkedin-version.js';
 import type {Action, JsonObject, ToolDefinition} from './types.js';
 
@@ -38,7 +38,7 @@ export const catalogVersions: Record<
   // The captured LinkedIn catalog reports 202605 (its li-lms-2026-05 snapshot); AMCP sends the reviewed version (PRV-02).
   linkedin_native_action: {
     get version() {
-      return linkedinVersion();
+      return linkedinDescribedVersion();
     },
     action: linkedinActionVersion,
     capture: currentLinkedInCapture,

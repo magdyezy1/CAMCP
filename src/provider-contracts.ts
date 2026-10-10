@@ -1,5 +1,5 @@
 import type {JsonObject} from './types.js';
-import {linkedinVersion} from './linkedin-version.js';
+import {linkedinDescribedVersion} from './linkedin-version.js';
 import {metaCreativeFields} from './creative-validation.js';
 import {googleAdsVersion} from './google-version.js';
 import {metaApiVersion} from './meta-version.js';
@@ -555,5 +555,5 @@ export const providerContracts: JsonObject[] = [
 /** A provider contract at the version AMCP sends; for LinkedIn, `sent` is the compiled LinkedIn-Version header. */
 export function effectiveProviderContract(id: string, sent?: string): JsonObject | undefined {
   const c = providerContracts.find(c => c.id === id);
-  return c ? {...c, api_version: id === 'linkedin' ? (sent ?? linkedinVersion()) : c.api_version} : undefined;
+  return c ? {...c, api_version: id === 'linkedin' ? (sent ?? linkedinDescribedVersion()) : c.api_version} : undefined;
 }

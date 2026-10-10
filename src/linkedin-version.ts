@@ -61,6 +61,18 @@ export function linkedinVersion(explicit?: unknown, now = Date.now()): string {
   return value;
 }
 /**
+ * The version a listing, description or contract names: the version sent, or the reviewed default when the configured
+ * version is refused. Describing never throws, so a clock past a sunset cannot take down the catalog of every gateway;
+ * each LinkedIn request still refuses through linkedinVersion with the reason.
+ */
+export function linkedinDescribedVersion(now = Date.now()): string {
+  try {
+    return linkedinVersion(undefined, now);
+  } catch {
+    return linkedinDefaultVersion;
+  }
+}
+/**
  * A version stored with a saved report or source (source_request.api_version) as AMCP sends it now: the stored version
  * while it is reviewed and outside its alarm window, otherwise the current version. A fresh read is never sent at a
  * version AMCP no longer reviews.
@@ -101,11 +113,11 @@ export function linkedinVersionStatus(
 // Captured catalog parity: the captured LinkedIn catalog and its three DESCRIBE_ACTION records report 202605, the
 // version of the li-lms-2026-05 documentation snapshot they were generated from. They are listed at the version sent.
 const currentRecord = (record: JsonObject): JsonObject =>
-  record.api_version !== undefined ? {...record, api_version: linkedinVersion()} : record;
+  record.api_version !== undefined ? {...record, api_version: linkedinDescribedVersion()} : record;
 /** A captured LinkedIn LIST_ACTIONS page or DESCRIBE_ACTION response, as AMCP answers it at the version sent. */
 export function currentLinkedInCapture(data: JsonObject): JsonObject {
   return Array.isArray(data.actions)
-    ? {...data, api_version: linkedinVersion(), actions: data.actions.map((a: JsonObject) => currentRecord(a))}
+    ? {...data, api_version: linkedinDescribedVersion(), actions: data.actions.map((a: JsonObject) => currentRecord(a))}
     : currentRecord(data);
 }
 /** The captured catalog's LinkedIn action: its routes are unversioned (the version is a header), so it is unchanged. */
@@ -113,7 +125,7 @@ export const linkedinActionVersion = (a: Action): Action => a;
 /** The captured LinkedIn tool definition (and its help copy), stating the version sent. Its schema shape is unchanged. */
 export function extendLinkedInTool(original: ToolDefinition): ToolDefinition {
   const tool = structuredClone(original),
-    v = linkedinVersion();
+    v = linkedinDescribedVersion();
   const restate = (definition: JsonObject) => {
     if (typeof definition.description === 'string')
       definition.description = definition.description.replace(

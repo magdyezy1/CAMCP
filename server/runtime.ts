@@ -8,9 +8,10 @@ export function createRuntime() {
   if (process.env.MIRROR_ALLOW_WRITES !== undefined && !['true', 'false'].includes(process.env.MIRROR_ALLOW_WRITES))
     throw new Error('MIRROR_ALLOW_WRITES must be true or false.');
   // Provider version pins fail closed at startup (PRV-02): an unreviewed or sunset LinkedIn-Version, or a Meta version
-  // AMCP holds no evidence for, stops the process instead of every later provider request.
+  // AMCP holds no evidence for, stops the process instead of every later provider request. Unset, the reviewed default
+  // is sent: its own sunset refuses LinkedIn requests (owner health alarms 90 days ahead), never every other provider.
   for (const [name, check] of [
-    ['AMCP_LINKEDIN_API_VERSION', () => linkedinVersion()],
+    ['AMCP_LINKEDIN_API_VERSION', () => process.env.AMCP_LINKEDIN_API_VERSION === undefined || linkedinVersion()],
     ['AMCP_META_API_VERSION', () => resolveMetaVersion()],
   ] as const)
     try {
