@@ -51,10 +51,18 @@ runner (PRV-04), and the Meta v25.0 rollback has its own sunset entry to be date
 API end. The TikTok manual check is recorded with the workspace owner as owner and a 30-day cadence; naming a person
 is pending owner.
 
+Also applied on 2026-10-09 (P4, personal data, its recommended part only): reads that return submitted leads (the
+TikTok lead reads) are personal data and are refused before any provider request (SEC-04,
+[personal-data policy](review/PERSONAL-DATA-POLICY.md)). P4 names no recommendation for viewer report downloads: SEC-05
+enforces the documented role matrix with an owner Settings toggle that is off by default, which is never less safe than
+before; whether viewers may download stays the owner's choice. P4's other questions (rehearsals that transmit hashed
+personal data, a user-scoped `amcp_test_id` GA4 dimension) are not decided.
+
 Not decided in this round: the review's resource and authorization requests R1–R8 (test accounts, named reads, a
 disposable Sheets destination, declared provider approvals, LinkedIn programs and DV360, reviewers, a staging
-environment, the workload profile) and the product-direction questions P1–P9, P11 and P12. Each register item that
-needs one of them stays at the stage the review names, and live acceptance stays read-only until R1 is answered.
+environment, the workload profile) and the product-direction questions P1–P9 (except the parts of P4 above), P11 and
+P12. Each register item that needs one of them stays at the stage the review names, and live acceptance stays
+read-only until R1 is answered.
 
 ## October 2026: earlier owner decisions
 
