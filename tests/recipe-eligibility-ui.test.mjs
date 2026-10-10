@@ -128,7 +128,7 @@ const valueIds = ['google_search_conversion_value', 'google_search_target_roas']
 const valueBusiness = id => ({
   ...base,
   cpc_bid: undefined,
-  daily_budget: '25.000001',
+  daily_budget: '25.01',
   conversion_goal_policy: 'ACCOUNT_DEFAULT',
   conversion_value_policy: 'ACCOUNT_RECORDED_VALUES',
   ...(id === valueIds[1] ? {target_roas: '3.5'} : {}),
@@ -185,8 +185,8 @@ test('value previews in both languages explain exact budget, native ratio and un
           ? /<h3>معاينة حملة قيم التحويل المتوقفة<\/h3>/
           : /<h3>Paused conversion-value campaign preview<\/h3>/,
       );
-      assert.match(html, /25\.000001 USD/);
-      assert.match(html, /25000001/);
+      assert.match(html, /25\.01 USD/);
+      assert.match(html, /25010000/);
       assert.match(html, /Source &lt;img onerror=bad&gt;/);
       assert.doesNotMatch(html, /<img/);
       assert.match(

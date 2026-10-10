@@ -655,7 +655,7 @@ test('MCP discovers, previews and saves a paused Maximize Clicks plan with exact
   const {cpc_bid, ...base} = JSON.parse(
     readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'),
   ).recipe_business;
-  const business = {...base, cpc_bid_ceiling: '1.250001'},
+  const business = {...base, cpc_bid_ceiling: '1.37'},
     recipe = 'google_search_clicks';
   f.store.putConnection(
     {...f.actor, role: 'admin'},
@@ -686,7 +686,7 @@ test('MCP discovers, previews and saves a paused Maximize Clicks plan with exact
   assert.equal(full.success, true, JSON.stringify(full));
   const campaign = full.data.steps.find(s => s.id === 'campaign').arguments.payload.operations[0].create;
   assert.equal(campaign.status, 'PAUSED');
-  assert.deepEqual(campaign.target_spend, {cpc_bid_ceiling_micros: '1250001'});
+  assert.deepEqual(campaign.target_spend, {cpc_bid_ceiling_micros: '1370000'});
   assert.equal(
     full.data.steps.find(s => s.id === 'adgroup').arguments.payload.operations[0].create.cpc_bid_micros,
     undefined,
