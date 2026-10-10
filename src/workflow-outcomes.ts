@@ -21,6 +21,56 @@ export function callEffects(call: {tool?: unknown; arguments?: JsonObject}): Jso
   if (['capabilities', 'contracts', 'dashboard', 'operations', 'history'].includes(args.action))
     return effects('none', []);
 }
+const campaignPlanActions = new Set([
+  'create',
+  'get',
+  'prepare_next',
+  'execute_next',
+  'verify',
+  'cancel',
+  'validate_provider',
+  'preflight',
+  'recover_step',
+  'reconcile_step',
+  'approve',
+  'run',
+  'create_from_recipe',
+  'clone',
+]);
+const overviewReportActions = new Set(['run', 'get']);
+/**
+ * The website page that shows the record a first-party result names (MCP-09): an explicit table by tool and action, so
+ * a link carries the ID its page loads. The generic `id` fallback sent exports, retries and cancels to the report page
+ * with an export hash or a job ID, and media variants to the review page with a variant ID; both opened an error page.
+ * A result whose record has no page gets no link.
+ */
+function handoffRecord(tool: string, action: unknown, data: JsonObject): string | undefined {
+  const id = (v: unknown) => (typeof v === 'string' && v.length > 0 && v.length <= 160 ? encodeURIComponent(v) : '');
+  if (tool === 'amcp_campaign') {
+    // A campaign plan: the page loads amcp_campaign get {id}.
+    const plan = id(data.campaign_id) || (campaignPlanActions.has(String(action)) ? id(data.id) : '');
+    return plan ? '/campaigns?id=' + plan : undefined;
+  }
+  if (tool === 'amcp_media') {
+    // A media review: the page loads amcp_media recovery {review_id}. A variant is no review.
+    if (action === 'variant' || data.record_kind === 'media_variant') return;
+    const review = id(data.review_id);
+    return review ? '/media?review_id=' + review : undefined;
+  }
+  if (tool === 'amcp_reporting') {
+    if (['allocation_plan', 'search_exclusion_plan'].includes(data.record_kind)) {
+      const plan = id(data.campaign_id) || id(data.id);
+      return plan ? '/campaigns?id=' + plan : undefined;
+    }
+    const report = id(data.report_id) || id(data.id);
+    return report ? '/reports?id=' + report : undefined;
+  }
+  if (tool === 'amcp_reporting_overview' && data.state) {
+    // A report snapshot: the page loads amcp_reporting_overview get {id}. Exports, retries and cancels name it.
+    const report = id(data.report_id) || (overviewReportActions.has(String(action)) ? id(data.id) : '');
+    return report ? '/reporting-overview?report_id=' + report : undefined;
+  }
+}
 /** A suggested call with its declared effects (MCP-09). */
 export function withEffects<T extends {tool: string; arguments: JsonObject}>(call: T): T & {effects?: JsonObject} {
   const effects = callEffects(call);
@@ -28,7 +78,7 @@ export function withEffects<T extends {tool: string; arguments: JsonObject}>(cal
 }
 
 /** Additive metadata for first-party workflows. Native provider payloads never choose UI routes or next actions. */
-export function workflowOutcome(tool: string | undefined, data: JsonObject): JsonObject | undefined {
+export function workflowOutcome(tool: string | undefined, data: JsonObject, action?: unknown): JsonObject | undefined {
   if (
     !['amcp_campaign', 'amcp_media', 'amcp_reporting', 'amcp_reporting_overview', 'amcp_workspace'].includes(
       tool ?? '',
@@ -56,7 +106,6 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject): Jso
               ? 'deferred'
               : 'inspect';
   const result: JsonObject = {version: 1, state, source_state: raw ?? null, automatic_retry_of_mutation: false};
-  const id = data.campaign_id ?? data.report_id ?? data.review_id ?? data.id;
   if (
     tool === 'amcp_workspace' &&
     data.record_kind === 'conditional_program_check' &&
@@ -230,21 +279,8 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject): Jso
     else if (data.record_kind === 'workbook_bindings') result.website_path = '/operations?bindings=1';
     else if (Array.isArray(data.incidents) || Array.isArray(data.monitors)) result.website_path = '/monitors';
   }
-  if (typeof id === 'string' && id.length <= 160) {
-    const route =
-      tool === 'amcp_campaign'
-        ? '/campaigns?id='
-        : tool === 'amcp_media'
-          ? '/media?review_id='
-          : tool === 'amcp_reporting'
-            ? ['allocation_plan', 'search_exclusion_plan'].includes(data.record_kind)
-              ? '/campaigns?id='
-              : '/reports?id='
-            : tool === 'amcp_reporting_overview' && data.state
-              ? '/reporting-overview?report_id='
-              : null;
-    if (route) result.website_path = route + encodeURIComponent(id);
-  }
+  const record = handoffRecord(tool!, action, data);
+  if (record) result.website_path = record;
   if (data.next_call) result.next_call = data.next_call;
   if (data.execute_requirements)
     result.required_acknowledgements = Object.keys(data.execute_requirements).filter(
