@@ -59,12 +59,30 @@ function repository(t) {
   return {root, git, write};
 }
 
+// The files of the source this check runs in. `npm run check` runs in three places: the Git checkout (the Git index),
+// a public candidate assembled from it inside an ignored directory of the checkout (its release-manifest.json lists the
+// assembled files), and the container build, whose context has no Git metadata (.dockerignore excludes .git) and holds
+// only the checked-out files.
+function sourceFiles(files) {
+  let prefix = null;
+  try {
+    prefix = execFileSync('git', ['rev-parse', '--show-prefix'], {encoding: 'utf8', stdio: 'pipe'}).trim();
+  } catch {
+    // Not inside a Git work tree.
+  }
+  if (prefix === '')
+    return new Set(
+      execFileSync('git', ['ls-files', '-z', '--', ...files], {encoding: 'utf8'})
+        .split('\0')
+        .filter(Boolean),
+    );
+  if (fs.existsSync('release-manifest.json'))
+    return new Set(JSON.parse(fs.readFileSync('release-manifest.json', 'utf8')).files.map(file => file.path));
+  return new Set(files.filter(file => fs.existsSync(file)));
+}
+
 test('every allow-listed single file is tracked here; NOTICE.md and .gitattributes ship, LICENSE and railway.toml are gone', () => {
-  const tracked = new Set(
-    execFileSync('git', ['ls-files', '-z', '--', ...releaseSingleFiles], {encoding: 'utf8'})
-      .split('\0')
-      .filter(Boolean),
-  );
+  const tracked = sourceFiles(releaseSingleFiles);
   assert.deepEqual(
     releaseSingleFiles.filter(file => !tracked.has(file)),
     [],
