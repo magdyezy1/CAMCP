@@ -1,4 +1,5 @@
 import {providerContracts, effectiveProviderContract} from './provider-contracts.js';
+import {gatewayOffered} from './provider-offering.js';
 import {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 export function workspaceCapabilities(store: Store, actor: Actor) {
@@ -68,7 +69,8 @@ export function workspaceCapabilities(store: Store, actor: Actor) {
   const gatewayOf = new Map(store.listConnections(actor.tenantId).map(c => [c.id, c.gateway]));
   return {
     contract_version: 1,
-    providers: providerContracts.map(c => ({
+    // A provider this deployment does not offer is not shown (CON-06, src/provider-offering.ts).
+    providers: providerContracts.filter(c => gatewayOffered(c.gateway)).map(c => ({
       ...effectiveProviderContract(c.id),
       live_verified: writes
         .filter(w => w.status === 'verified' && gatewayOf.get(w.connection_id) === c.gateway)

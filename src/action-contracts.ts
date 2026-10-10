@@ -25,6 +25,7 @@ import {mediaRoute} from './media-routing.js';
 import {providerContracts} from './provider-contracts.js';
 import {redditAudienceRoutes} from './reddit-extensions.js';
 import {MirrorError} from './errors.js';
+import {assertGatewayOffered, gatewayOffered} from './provider-offering.js';
 import {googleLegacyCoverage} from './google-legacy.js';
 import {retiredProviderAction, unsupportedProviderAlias} from './retired-provider-actions.js';
 import {gtmDiagnosticOperations} from './gtm-diagnostics.js';
@@ -561,7 +562,9 @@ export function actionContractPage(registry: Registry, input: JsonObject) {
       'INVALID_ARGUMENT',
       'Contract inventory uses offset >= 0, limit 1–100 and search up to 200 characters.',
     );
-  const summary = actionContractSummary(registry);
+  // A provider this deployment does not offer is neither listed nor searchable here (CON-06, src/provider-offering.ts).
+  const summary = actionContractSummary(registry).filter(s => gatewayOffered(s.gateway));
+  if (input.gateway !== undefined) assertGatewayOffered(input.gateway);
   if (input.gateway !== undefined && !registry.tools.has(input.gateway))
     throw new MirrorError(
       'UNKNOWN_GATEWAY',
@@ -575,6 +578,7 @@ export function actionContractPage(registry: Registry, input: JsonObject) {
   const needle = String(input.search ?? '').toLowerCase(),
     rows = actionContracts(registry).filter(
       r =>
+        gatewayOffered(r.gateway) &&
         (!input.gateway || r.gateway === input.gateway) &&
         (!needle || [r.action, r.operation, r.path, r.status, ...r.aliases].join(' ').toLowerCase().includes(needle)),
     );
