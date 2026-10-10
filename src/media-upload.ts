@@ -51,6 +51,16 @@ const configured = (name: string, fallback: number, min: number, max: number) =>
  * within a website upload's absolute 30-minute deadline; the five-minute review governs confirmation only (MED-01 D).
  */
 export const MEDIA_TRANSFER_WINDOW_MS = configured('AMCP_MEDIA_TRANSFER_WINDOW_MINUTES', 60, 5, 180) * 60000;
+/**
+ * Why a queued upload failed before any claim (MED-02 review): busy media capacity clears with time, so the same
+ * review may be queued again; these other refusals repeat until the upload is prepared again.
+ */
+export const mediaBusyCodes: ReadonlySet<string> = new Set([
+  'MEDIA_MEMORY_BUSY',
+  'MEDIA_UPLOAD_BUSY',
+  'MEDIA_PROCESSOR_BUSY',
+]);
+const repeatsBeforeClaim = new Set(['UPLOAD_DEADLINE_TOO_CLOSE', 'MEDIA_CHANGED', 'REVIEW_CHANGED', 'REVIEW_EXPIRED']);
 /** Deadline-aware start (MED-01 C): a budget per provider request, a throughput floor and a margin, all configurable. */
 const transferStepMs = configured('AMCP_MEDIA_STEP_BUDGET_MS', 5000, 500, 120000),
   transferBytesPerSecond = configured('AMCP_MEDIA_TRANSFER_BYTES_PER_SECOND', 1048576, 65536, 1073741824),
@@ -760,10 +770,21 @@ export class MediaUploadService {
       // never reported as queued (MED-02). With a claim, the claim's state is the only authority.
       state: claim?.state ?? (notSent ? 'not_submitted' : review.job_id ? 'queued' : 'unsubmitted'),
       job_id: review.job_id ?? null,
-      ...(notSent ? {not_submitted: {job_error_code: job?.error?.code ?? null, provider_requests_sent: false}} : {}),
+      ...(notSent
+        ? {
+            not_submitted: {
+              job_error_code: job?.error?.code ?? null,
+              provider_requests_sent: false,
+              busy: mediaBusyCodes.has(job?.error?.code),
+            },
+          }
+        : {}),
       resume_available: available,
       ...(reason ? {resume_blocked_reason: reason} : {}),
-      can_execute: !claim && (!review.job_id || notSent) && review.expires_at > Date.now(),
+      can_execute:
+        !claim &&
+        (!review.job_id || (notSent && !repeatsBeforeClaim.has(job?.error?.code))) &&
+        review.expires_at > Date.now(),
       expires_at: review.expires_at,
       // Set at the claim: how long a qualified resume may continue (never past a website upload's deadline).
       ...(review.transfer_expires_at ? {transfer_expires_at: review.transfer_expires_at} : {}),
@@ -1285,8 +1306,15 @@ export class MediaUploadService {
         job_id: job.id,
         state: job.state,
         error: job.error,
-        // Failed before any claim: nothing reached the platform, and execute_async queues the same review again.
+        // Failed before any claim: nothing reached the platform, and execute_async queues the same review again,
+        // unless the refusal would repeat (retry_available:false: prepare the upload again).
         not_submitted: job.state === 'failed' && !previous,
+        ...(job.state === 'failed' && !previous
+          ? {
+              busy: mediaBusyCodes.has(job.error?.code),
+              retry_available: !repeatsBeforeClaim.has(job.error?.code) && review.expires_at > Date.now(),
+            }
+          : {}),
         result: job.result,
         progress: review.progress ?? {},
         journal: this.store.operationJournal(actor.tenantId, input.review_id),
@@ -1355,6 +1383,12 @@ export class MediaUploadService {
         const current = this.store.document(actor.tenantId, 'media_review', input.review_id),
           // No claim exists here (a claimed review was refused above), so a failed job sent nothing: queue it again.
           unsent = this.unsentJob(actor, current, false);
+        if (unsent && repeatsBeforeClaim.has(unsent.error?.code))
+          fail(
+            'MEDIA_RETRY_UNAVAILABLE',
+            'This upload stopped before anything was sent, for a reason that queueing it again would repeat. Prepare the upload again; upload the file again first when its 30-minute window is nearly over.',
+            {previous_error_code: unsent.error.code, provider_requests_sent: false},
+          );
         if (current.job_id && !unsent)
           return {
             review_id: input.review_id,
@@ -1423,8 +1457,22 @@ export class MediaUploadService {
         409,
       );
     }
-    if (!resuming && !p.library_media) this.store.holdStagedTransfer(actor.tenantId, input.review_id, transferBy);
-    const claim = resuming ? {fresh: true} : this.store.claim(actor.tenantId, input.review_id, fingerprint);
+    const held = !resuming && !p.library_media;
+    if (held) this.store.holdStagedTransfer(actor.tenantId, input.review_id, transferBy);
+    let claim: {fresh: boolean; result?: unknown};
+    try {
+      claim = resuming ? {fresh: true} : this.store.claim(actor.tenantId, input.review_id, fingerprint);
+    } catch (e) {
+      // This execution holds no claim: its review copy goes back to the review's own expiry instead of occupying
+      // staging (and the workspace's review caps) for the whole transfer window (MED-01 review).
+      if (held)
+        try {
+          this.store.capStagedMediaExpiry(actor.tenantId, input.review_id, review.expires_at);
+        } catch {
+          // Already expired or removed: nothing is held.
+        }
+      throw e;
+    }
     if (!claim.fresh) return {...(claim.result as JsonObject), replayed: true};
     if (!resuming)
       this.store.putDocument(actor.tenantId, 'media_review', input.review_id, {

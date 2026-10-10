@@ -119,7 +119,11 @@ test('a job that failed before any claim is not_submitted, can be queued again a
     const recovery = await f.call({action: 'recovery', review_id: id});
     assert.equal(recovery.data.state, 'not_submitted');
     assert.equal(recovery.data.can_execute, true);
-    assert.deepEqual(recovery.data.not_submitted, {job_error_code: 'MEDIA_MEMORY_BUSY', provider_requests_sent: false});
+    assert.deepEqual(recovery.data.not_submitted, {
+      job_error_code: 'MEDIA_MEMORY_BUSY',
+      provider_requests_sent: false,
+      busy: true,
+    });
     // Queueing again creates a new job for the same frozen review instead of returning the failed one.
     const again = await f.call({action: 'execute_async', ...args});
     assert.equal(again.success, true, JSON.stringify(again));
@@ -135,6 +139,40 @@ test('a job that failed before any claim is not_submitted, can be queued again a
     await f.worker.once();
     assert.equal(f.writes(), 1);
     assert.equal((await f.call({action: 'recovery', review_id: id})).data.state, 'complete');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a pre-claim refusal that would repeat is not_submitted but cannot be queued again as it is', async () => {
+  const f = fixture();
+  try {
+    const {id, args, job} = await f.queue();
+    // The worker refused the transfer before any claim because too little time was left: queueing the same review
+    // again would stop the same way (MED-01 Stage C).
+    f.store.db
+      .prepare("UPDATE jobs SET state='failed',error=? WHERE id=?")
+      .run(
+        JSON.stringify({
+          code: 'UPLOAD_DEADLINE_TOO_CLOSE',
+          message: 'Too little time is left.',
+          details: {claimed: false},
+        }),
+        job,
+      );
+    assert.equal(f.writes(), 0);
+    const status = await f.call({action: 'job_status', review_id: id});
+    assert.equal(status.data.not_submitted, true);
+    assert.equal(status.data.busy, false);
+    assert.equal(status.data.retry_available, false);
+    const recovery = await f.call({action: 'recovery', review_id: id});
+    assert.equal(recovery.data.state, 'not_submitted');
+    assert.equal(recovery.data.can_execute, false);
+    assert.equal(recovery.data.not_submitted.busy, false);
+    const again = await f.call({action: 'execute_async', ...args});
+    assert.equal(again.error.code, 'MEDIA_RETRY_UNAVAILABLE');
+    assert.equal(again.error.details.previous_error_code, 'UPLOAD_DEADLINE_TOO_CLOSE');
+    assert.equal(f.store.document('t', 'media_review', id).job_id, job, 'no new job was queued');
   } finally {
     f.store.close();
   }

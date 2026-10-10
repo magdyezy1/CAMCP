@@ -49,3 +49,42 @@ test('a job that failed before any claim is shown as not sent, with a way to try
     assert.equal(run(`mediaNotSentNotice({state: 'queued'})`), '');
   }
 });
+
+test('a refusal that repeats is shown with its own remedy and no Try again; the busy copy is for contention only', () => {
+  for (const locale of ['en', 'ar']) {
+    const run = load(locale),
+      text = key => (locale === 'ar' ? JSON.parse(readFileSync('web/locales/ar.json', 'utf8'))[key] : key),
+      busy = run(
+        `mediaJobPanel({state: 'failed', not_submitted: true, busy: true, retry_available: true, error: {code: 'MEDIA_PROCESSOR_BUSY', message: 'busy'}, progress: {}}, 'review-1')`,
+      ),
+      repeats = run(
+        `mediaJobPanel({state: 'failed', not_submitted: true, busy: false, retry_available: false, error: {code: 'UPLOAD_DEADLINE_TOO_CLOSE', message: 'Too little time is left before this upload’s deadline to send it safely, so nothing was sent. Upload the file again for a new 30-minute window, then prepare it again.'}, progress: {}}, 'review-2')`,
+      ),
+      denied = run(
+        `mediaJobPanel({state: 'failed', not_submitted: true, busy: false, retry_available: true, error: {code: 'WRITE_ACCOUNT_FORBIDDEN', message: 'Grant this account write access.'}, progress: {}}, 'review-3')`,
+      ),
+      contention = text(
+        'Nothing reached the platform: AMCP was busy with other media work. Try again while the review is valid; the same reviewed file is queued again.',
+      );
+    assert.ok(busy.includes(contention), locale);
+    assert.ok(!repeats.includes(contention), locale);
+    assert.ok(!denied.includes(contention), 'a permission refusal is not described as busy media work');
+    assert.ok(
+      repeats.includes(
+        text(
+          'Nothing reached the platform, and queueing this review again would stop the same way. Prepare the upload again.',
+        ),
+      ),
+    );
+    assert.match(repeats, locale === 'ar' ? />فحص الاستعادة<\/button>/ : />Inspect recovery<\/button>/);
+    assert.ok(repeats.includes(text('Not sent')), locale);
+    assert.match(denied, locale === 'ar' ? />إعادة المحاولة<\/button>/ : />Try again<\/button>/);
+    assert.ok(
+      run(`mediaNotSentNotice({state: 'not_submitted', can_execute: false})`).includes(
+        text(
+          'Nothing reached the platform, and queueing this review again would stop the same way. Prepare the upload again.',
+        ),
+      ),
+    );
+  }
+});

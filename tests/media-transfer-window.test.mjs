@@ -236,3 +236,41 @@ for (const origin of ['drive', 'website'])
       }
     }
   });
+
+test('an execution that fails to claim gives its review copy back to the review expiry (MED-01 review)', async t => {
+  const store = new Store(':memory:', key);
+  try {
+    connect(store, 'meta_native_action', '100');
+    const service = new MirrorService(
+      new Registry(),
+      store,
+      new NativeTransport(async () => Response.json({id: 'act_100', account_status: 1, currency: 'USD'})),
+      undefined,
+      {allowWrites: true, requireBeforeState: true, maxBudgetChange: 0},
+    );
+    const call = input => service.call('amcp_media', input, actor),
+      source = websiteSource(store, png, 'image/png', 'image'),
+      prepared = await call({
+        action: 'prepare',
+        source_id: source,
+        platform: 'meta',
+        account_id: '100',
+        connection_id: 'login',
+      });
+    assert.equal(prepared.success, true, JSON.stringify(prepared));
+    const id = prepared.data.review_id,
+      reviewExpiry = store.document(actor.tenantId, 'media_review', id).expires_at,
+      staged = () =>
+        store.db.prepare('SELECT expires_at FROM media_staging WHERE tenant_id=? AND id=?').get(actor.tenantId, id)
+          .expires_at;
+    // Another execution of the same review claimed it between this one's checks and its claim.
+    t.mock.method(store, 'claim', () => {
+      throw new Error('synthetic concurrent claim');
+    });
+    const refused = await call({action: 'execute', review_id: id, idempotency_key: id, confirmed: true});
+    assert.equal(refused.success, false);
+    assert.ok(staged() <= reviewExpiry, 'the review copy is not held for the transfer window');
+  } finally {
+    store.close();
+  }
+});

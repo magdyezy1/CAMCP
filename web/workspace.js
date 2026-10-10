@@ -425,14 +425,20 @@ async function renderCampaigns() {
  * it shows "Not sent — try again" and its button queues the same review again, instead of the "no safe retry" advice.
  */
 function mediaJobPanel(job, id) {
-  const notSent = job.state === 'failed' && job.not_submitted === true;
-  return `<section class="panel"><h2>${esc(uiText('Upload progress'))}</h2>${notSent ? badge('not_submitted', uiText('Not sent — try again')) : badge(job.state)}<p>${esc(uiText('The original review and upload key are retained. You can leave and return to this job.'))}</p>${notSent ? `<p role="status">${esc(uiText('Nothing reached the platform: AMCP was busy with other media work. Try again while the review is valid; the same reviewed file is queued again.'))}</p>` : ''}${reviewTable(job.progress, uiText('Transfer progress'))}${job.error ? `<p class="error">${esc(uiText(job.error.message))}</p>` : ''}${recordDetails(job, uiText('Job, original receipt and journal'))}<a href="/media?review_id=${encodeURIComponent(id)}">${esc(uiText('Link to this upload'))}</a><button class="button" id="inspect-media-job">${esc(uiText(notSent ? 'Try again' : 'Inspect recovery'))}</button></section>`;
+  const notSent = job.state === 'failed' && job.not_submitted === true,
+    // MED-02 review: the busy copy is only for media contention; another refusal shows its own remedy, and one that
+    // would repeat offers no Try again.
+    busy = notSent && ['MEDIA_MEMORY_BUSY', 'MEDIA_UPLOAD_BUSY', 'MEDIA_PROCESSOR_BUSY'].includes(job.error?.code),
+    again = notSent && job.retry_available !== false;
+  return `<section class="panel"><h2>${esc(uiText('Upload progress'))}</h2>${notSent ? badge('not_submitted', uiText(again ? 'Not sent — try again' : 'Not sent')) : badge(job.state)}<p>${esc(uiText('The original review and upload key are retained. You can leave and return to this job.'))}</p>${busy ? `<p role="status">${esc(uiText('Nothing reached the platform: AMCP was busy with other media work. Try again while the review is valid; the same reviewed file is queued again.'))}</p>` : notSent && !again ? `<p role="status">${esc(uiText('Nothing reached the platform, and queueing this review again would stop the same way. Prepare the upload again.'))}</p>` : ''}${reviewTable(job.progress, uiText('Transfer progress'))}${job.error ? `<p class="error">${esc(uiOwnedError(job.error).message)}</p>` : ''}${recordDetails(job, uiText('Job, original receipt and journal'))}<a href="/media?review_id=${encodeURIComponent(id)}">${esc(uiText('Link to this upload'))}</a><button class="button" id="inspect-media-job">${esc(uiText(again ? 'Try again' : 'Inspect recovery'))}</button></section>`;
 }
 /** The recovery note of a review whose background job failed before any claim; empty otherwise. */
 const mediaNotSentNotice = r =>
-  r.state === 'not_submitted'
-    ? `<p role="status">${esc(uiText('Not sent — try again. Nothing reached the platform, so submitting this review again is safe while it is valid.'))}</p>`
-    : '';
+  r.state !== 'not_submitted'
+    ? ''
+    : r.can_execute === false
+      ? `<p role="status">${esc(uiText('Nothing reached the platform, and queueing this review again would stop the same way. Prepare the upload again.'))}</p>`
+      : `<p role="status">${esc(uiText('Not sent — try again. Nothing reached the platform, so submitting this review again is safe while it is valid.'))}</p>`;
 async function renderMediaLibrary() {
   const page = Math.max(0, Number(new URLSearchParams(location.search).get('page')) || 0);
   const d = await workspaceCall('media', {action: 'list', offset: page * 50, limit: 50}),
