@@ -105,7 +105,9 @@ export class Introspection {
     if (!catalog || !listsActions.has(gateway))
       throw new MirrorError('CATALOG_UNAVAILABLE', 'This gateway does not expose a verified LIST_ACTIONS contract.');
     const allowed =
-      input.action === 'DESCRIBE_ACTION' ? ['action', 'target_action'] : ['action', 'search', 'limit', 'offset', 'read_only'];
+      input.action === 'DESCRIBE_ACTION'
+        ? ['action', 'target_action']
+        : ['action', 'search', 'limit', 'offset', 'read_only'];
     for (const key of Object.keys(input))
       if (!allowed.includes(key))
         throw new MirrorError('INVALID_ARGUMENT', 'Unknown catalog listing argument.', {field: key, allowed});
