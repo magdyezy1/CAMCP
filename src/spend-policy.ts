@@ -1115,7 +1115,12 @@ function checkAccountSpendPolicy(
     // between currencies: another or an unknown account currency is a finding like an exceeded cap.
     if (typeof policy.currency === 'string' && (amounts.length || bids.length || unsupported.length)) {
       const observed = accountCurrency(store, actor.tenantId, plan, before);
-      if (!observed)
+      if (!observed) {
+        // The live account check records the currency (account-metadata.ts); it reads through a connection.
+        const account = normalizeAccount(plan.gateway, String(plan.accountId ?? '')),
+          connection = store
+            .listConnections(actor.tenantId)
+            .find(c => c.gateway === plan.gateway && c.accounts.some(a => normalizeAccount(c.gateway, a) === account));
         breach(
           new MirrorError(
             'POLICY_CURRENCY_UNKNOWN',
@@ -1124,14 +1129,19 @@ function checkAccountSpendPolicy(
               ', and the account currency is unknown, so they cannot be compared. Read the account live first (next_call).',
             {
               policy_currency: policy.currency,
-              next_call: {
-                tool: 'amcp_workspace',
-                arguments: {action: 'check', gateway: plan.gateway, account_id: plan.accountId, live: true},
-              },
+              ...(connection
+                ? {
+                    next_call: {
+                      tool: 'amcp_workspace',
+                      arguments: {action: 'check', connection_id: connection.id, account_id: plan.accountId, live: true},
+                    },
+                  }
+                : {}),
             },
             409,
           ),
         );
+      }
       else if (observed !== policy.currency)
         breach(
           new MirrorError(

@@ -280,6 +280,7 @@ test('caps can be stated in account currency where the platform unit is document
     const bound = saveSpendPolicy(f.store, owner, {
       scope: 'workspace',
       confirmed: true,
+      expected_revision: workspace.revision,
       policy: {
         per_gateway: {google_ads_native_action: {max_budget_currency: 100, currency: 'USD'}},
         max_budget_increase_percent: 50,

@@ -450,7 +450,19 @@ The policy supports these settings, all optional:
   `max_bid_currency` and `max_total_budget_currency` are converted to native units where AMCP
   documents the platform's unit (Google Ads, DV360, Reddit, Snapchat and X in micros; Microsoft,
   LinkedIn and Apple in currency units). The saved policy keeps both and names the unit in `native_unit`. Meta, TikTok and Criteo
-  caps are stated in native units, because their unit is not documented in AMCP.
+  caps are stated in native units, because their unit is not documented in AMCP. Meta caps in
+  currency convert only with a `currency` and a pinned capture of Meta's currency offsets
+  (`.mirror/VENDOR/meta-currencies.json`; 100 USD is 10000, 100 JPY is 100); without it they stay
+  native.
+- `currency` — the ISO 4217 code the caps are stated in (`USD`, `KWD`, `JPY`), on an account
+  policy or per platform under a workspace default's `per_gateway`. An account policy without one
+  takes the account's currency from its last live read (`amcp_workspace check live:true`). Caps
+  bound to a currency compare only an account that spends in it: another currency raises
+  `POLICY_CURRENCY_MISMATCH` and an unknown one `POLICY_CURRENCY_UNKNOWN` (with a `next_call` to
+  the live check). Both ask under `confirm` and refuse under `block`; AMCP never converts between
+  currencies. Caps in account currency saved without a currency still apply as before, and
+  `save_spend_policy` and `amcp_workspace health` warn about them (`POLICY_CURRENCY_UNSET` in
+  `policy_warnings`).
 
 Budget comparisons and cumulative reservations use exact decimal arithmetic in
 the native unit; `33.10 + 33.20` fits a `66.30` ceiling. Native decimal strings
@@ -477,10 +489,19 @@ cap to evade the owner policy. JSON Patch `test` is a precondition and contribut
 no budget increase. Provider acceptance of the patch remains a separate check.
 
 Two behaviours worth planning around. A percentage or daily rule needs exactly one unambiguous
-current budget: a mutation touching several resources at once raises `POLICY_BASELINE_REQUIRED`
-(409), so narrow it to one resource. And a budget field AMCP cannot map to a known native unit
-raises `POLICY_AMOUNT_UNSUPPORTED` rather than being ignored — surface that instead of dropping
-the field.
+current budget per amount. Where the request and the reviewed state name the record each budget
+belongs to (Google `resourceName`, a Snapchat or Microsoft `id`, a TikTok `adgroup_id` or
+`campaign_id`), each amount is compared with its own record's current value, so cutting two
+budgets in one mutation is two decreases. Otherwise a mutation touching several resources at once
+raises `POLICY_BASELINE_REQUIRED` (409), so narrow it to one resource. And a budget field AMCP
+cannot map to a known native unit raises `POLICY_AMOUNT_UNSUPPORTED` rather than being ignored —
+surface that instead of dropping the field.
+
+Google amounts follow the account currency's smallest unit: JPY and CLP budgets are whole
+amounts, USD budgets whole cents, KWD budgets three decimal places. A guided recipe refuses a
+finer amount at prepare (`INVALID_RECIPE_MONEY`), an all-or-nothing build refuses a budget that is
+not a multiple of that unit with `BUDGET_PRECISION_INVALID`, and allocation drafts round each
+daily amount down to it and show the residual.
 
 A policy can be attached to one account, or set once for the whole workspace with
 `scope: 'workspace'` and no gateway or account. The account-specific policy wins where one

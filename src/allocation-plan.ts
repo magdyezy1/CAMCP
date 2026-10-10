@@ -229,18 +229,15 @@ export async function previewAllocationPlan(
       (daily < BigInt(limits.min_micros) || (limits.max_micros !== null && daily > BigInt(limits.max_micros)))
     )
       bad(
-        'LinkedIn accepts daily budgets from ' +
-          limits.min +
-          ' to ' +
-          (limits.max ?? 'no stated maximum') +
-          ' ' +
-          modeled.currency +
-          ' for this account; ' +
-          (r.name ?? r.entity_id) +
-          ' would get ' +
-          currencyText(daily, modeled.currency) +
-          '. Adjust the model bounds.',
+        'A converted daily budget is outside the daily budget limits LinkedIn states for this account. Adjust the model bounds.',
         'ALLOCATION_BUDGET_LIMIT',
+        {
+          entity_id: r.entity_id,
+          daily_budget: currencyText(daily, modeled.currency),
+          minimum: limits.min,
+          maximum: limits.max,
+          currency: modeled.currency,
+        },
       );
     if (snap && daily < 5000000n)
       bad(

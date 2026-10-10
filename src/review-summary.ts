@@ -1,5 +1,5 @@
 import type {CompiledRequest, JsonObject} from './types.js';
-import {budgetUnits} from './budget-units.js';
+import {budgetUnits, currencyMinorDigits} from './budget-units.js';
 import {stateTarget} from './write-effects.js';
 
 /**
@@ -44,8 +44,11 @@ const singular: Record<string, string> = {
   campaign: 'campaign',
   ad: 'ad',
 };
-/** native ÷ perUnit as an exact decimal with at least two places, or undefined for a value that is not a decimal. */
-export function exactAmount(native: unknown, perUnit: number): string | undefined {
+/**
+ * native ÷ perUnit as an exact decimal with at least places decimal places (two by default; the account currency's own
+ * where it is known, so 500000000 JPY micros reads 500, WRT-07), or undefined for a value that is not a decimal.
+ */
+export function exactAmount(native: unknown, perUnit: number, places = 2): string | undefined {
   const text = typeof native === 'number' ? (Number.isSafeInteger(native) ? String(native) : '') : String(native ?? '');
   const m = /^(-?)(\d+)(?:\.(\d+))?$/.exec(text.trim());
   if (!m || !Number.isSafeInteger(perUnit) || perUnit < 1 || !/^10*$/.test(String(perUnit))) return undefined;
@@ -56,8 +59,8 @@ export function exactAmount(native: unknown, perUnit: number): string | undefine
     padded = digits.padStart(scale + 1, '0'),
     whole = padded.slice(0, padded.length - scale) || '0';
   let decimals = padded.slice(padded.length - scale).replace(/0+$/, '');
-  if (decimals.length < 2) decimals = decimals.padEnd(2, '0');
-  return (m[1] ?? '') + whole.replace(/^0+(?=\d)/, '') + '.' + decimals;
+  if (decimals.length < places) decimals = decimals.padEnd(places, '0');
+  return (m[1] ?? '') + whole.replace(/^0+(?=\d)/, '') + (decimals ? '.' + decimals : '');
 }
 /** The account record a review read (a currency marks it), as id, name and currency. */
 function accountOf(state: unknown[]): {name?: string; currency?: string} {
@@ -149,7 +152,9 @@ export function reviewSummary(plan: CompiledRequest, state: unknown[]): JsonObje
           /^-?\d+(?:\.\d+)?$/.test(String(x))
         ) {
           const converts = unit && (unit.perCurrencyUnit === 1 || /micro/i.test(k));
-          const amount = converts ? exactAmount(x, unit!.perCurrencyUnit) : undefined;
+          const amount = converts
+            ? exactAmount(x, unit!.perCurrencyUnit, currencyMinorDigits(account.currency) ?? 2)
+            : undefined;
           amounts.push({
             field: path + '/' + k,
             native: x,

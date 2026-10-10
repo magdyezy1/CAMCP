@@ -354,29 +354,19 @@ export function googleAtomicPrerequisites(plan: CompiledRequest, state: unknown[
       for (const field of ['amount_micros', 'total_amount_micros']) {
         const v = op.create[field];
         if ((typeof v !== 'string' && typeof v !== 'number') || !/^\d{1,19}$/.test(String(v))) continue;
+        // One fixed sentence (translated on the website); the details show the amount as "500.5 JPY (500500000 micros)".
         if (BigInt(v) % unit !== 0n)
           throw new MirrorError(
             'BUDGET_PRECISION_INVALID',
-            'mutate_operations[' +
-              op.index +
-              ']: ' +
-              field +
-              ' ' +
-              v +
-              ' is ' +
-              currencyText(BigInt(v), currency as string) +
-              ' ' +
-              currency +
-              ', which the account cannot be charged: ' +
-              currency +
-              ' budgets are multiples of ' +
-              unit +
-              ' micros (' +
-              currencyText(unit, currency as string) +
-              ' ' +
-              currency +
-              ').',
-            {operation: op.index, field, currency, minimum_unit_micros: String(unit)},
+            'A budget amount is not a multiple of the smallest unit of the account currency, which Google refuses (NON_MULTIPLE_OF_MINIMUM_CURRENCY_UNIT). Round it to that unit: JPY and CLP budgets are whole amounts, USD budgets whole cents.',
+            {
+              operation: op.index,
+              field,
+              requested: currencyText(BigInt(v), currency as string) + ' ' + currency + ' (' + v + ' micros)',
+              currency,
+              minimum_unit_micros: String(unit),
+              minimum_unit: currencyText(unit, currency as string) + ' ' + currency,
+            },
           );
       }
     }

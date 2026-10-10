@@ -131,6 +131,8 @@ export async function linkedinAllocationBudgets(
     if (!priced || !obj(priced.targeting) || typeof priced.costType !== 'string' || typeof priced.type !== 'string')
       return unavailable('campaign_targeting_unknown');
     current();
+    // The criteriaV2 finder takes the campaign's own targetingCriteria shape (include/exclude). The request shape is
+    // pending one authorized native read (WRT-07 Native acceptance); a refusal here only leaves the limits unknown.
     const args = {
         action: 'linkedin_rest_ad_budget_pricing_get',
         account_id: account,
@@ -142,13 +144,18 @@ export async function linkedinAllocationBudgets(
           campaignType: priced.type,
           bidType: priced.costType,
           matchType: 'EXACT',
-          target: priced.targeting,
+          targetingCriteria: priced.targeting,
         },
         aggregate_pages: false,
         dry_run: false,
       },
-      requested_at = Date.now(),
+      requested_at = Date.now();
+    let response: JsonObject;
+    try {
       response = await call(gateway, args, actor);
+    } catch {
+      return unavailable('read_failed');
+    }
     current();
     bound.rows('pricing', 1);
     const d = response.success ? response.data?.data : undefined,

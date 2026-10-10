@@ -26,31 +26,12 @@ export function recipeCurrencyMicros(v: unknown, currency: unknown, name: string
     digits = currencyMinorDigits(currency);
   if (unit === undefined || digits === undefined)
     throw new MirrorError('INVALID_RECIPE_MONEY', 'Unknown account currency.');
+  // One fixed sentence (translated on the website); the details name the field, the value and the currency's places.
   if (BigInt(micros) % unit !== 0n)
     throw new MirrorError(
       'INVALID_RECIPE_MONEY',
-      digits === 0
-        ? currency +
-            ' has no minor unit, so a ' +
-            name +
-            ' of ' +
-            v +
-            ' ' +
-            currency +
-            ' cannot be charged. Use a whole amount.'
-        : currency +
-            ' amounts have at most ' +
-            digits +
-            ' decimal places, so a ' +
-            name +
-            ' of ' +
-            v +
-            ' ' +
-            currency +
-            ' cannot be charged. Round it to ' +
-            digits +
-            ' decimal places.',
-      {field: name, currency, minimum_unit_micros: String(unit)},
+      'This amount has more decimal places than the account currency, so Google cannot charge it. Round it to the currency’s smallest unit: JPY and CLP take whole amounts, USD two decimal places, KWD three.',
+      {field: name, value: String(v), currency, decimal_places: digits, minimum_unit_micros: String(unit)},
     );
   return micros;
 }
