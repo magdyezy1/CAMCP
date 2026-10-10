@@ -14,6 +14,8 @@ function renderReportReconciliation(out) {
 }
 // Exact authored explanations only; provider diagnostics and user content retain their original text.
 const reportExplanationMessages = new Set([
+  'Includes an in-progress day: the last reporting day has not ended in the source time zone. The source stays partial and recommendations wait until it closes.',
+  'The reporting window was declared incomplete. The source stays partial and recommendations are held until a complete window is collected.',
   'Select 1–50 distinct native Google campaign IDs.',
   'The selected login lost permissions. Preview the allocation again.',
   'Google campaign budgets or account metadata changed during allocation inspection. Preview again.',
@@ -137,7 +139,7 @@ const reportExplanationMessages = new Set([
   'The factor envelope uses the lowest entity low and highest entity high. It is not pooled campaign attribution or an account-wide probability interval.',
   'Zero predictions, insufficient training and missing ratios remain explicit. Factors outside allocation bounds are not clipped or silently applied.',
   'Original currency, timezone, attribution, conversion lag, completeness declarations and exact entity identity remain unchanged. Auction, creative and measurement changes can invalidate this history.',
-  'Metrics truncate to nine decimal places; factor bounds round outward to six. No provider read, saved change, native plan or advertising mutation is made.',
+  'Calibration arithmetic truncates metrics to nine decimal places; factor bounds round outward to six. No provider read, saved change, native plan or advertising mutation is made.',
   'Declare an evidence age of 1–90 days.',
   'Provider values with more than nine decimal places were rounded half to even to nine places. Each rounded value differs from the provider value by at most 0.0000000005, so totals can differ slightly from provider totals.',
   'The reporting window includes a day that has not ended in the source time zone. Wait until it closes.',

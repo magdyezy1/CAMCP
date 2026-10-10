@@ -3550,7 +3550,7 @@
   "The factor envelope uses the lowest entity low and highest entity high. It is not pooled campaign attribution or an account-wide probability interval.": "يستخدم النطاق الجامع أدنى حد منخفض وأعلى حد مرتفع بين الكيانات. ولا يدمج إسناد الحملات أو يمثل نطاق احتمال للحساب كله.",
   "Zero predictions, insufficient training and missing ratios remain explicit. Factors outside allocation bounds are not clipped or silently applied.": "تبقى التقديرات الصفرية والتدريب غير الكافي والنسب المفقودة ظاهرة. لا تُعدّل العوامل الواقعة خارج حدود التوزيع ولا تُطبّق تلقائياً.",
   "Original currency, timezone, attribution, conversion lag, completeness declarations and exact entity identity remain unchanged. Auction, creative and measurement changes can invalidate this history.": "تبقى العملة والمنطقة الزمنية والإسناد وتأخر التحويل وإقرارات الاكتمال وهوية الكيان الدقيقة كما في المصدر. قد تجعل تغييرات المزاد أو المواد الإعلانية أو القياس هذا التاريخ غير صالح للاستدلال.",
-  "Metrics truncate to nine decimal places; factor bounds round outward to six. No provider read, saved change, native plan or advertising mutation is made.": "تُعرض المقاييس بعد حذف ما يتجاوز تسع منازل عشرية، وتُقرّب حدود العوامل إلى الخارج عند ست منازل. لا تُجرى قراءة من المنصة أو تغييرات محفوظة أو خطط أصلية أو تعديلات إعلانية.",
+  "Calibration arithmetic truncates metrics to nine decimal places; factor bounds round outward to six. No provider read, saved change, native plan or advertising mutation is made.": "تحذف حسابات المعايرة ما يتجاوز تسع منازل عشرية من المقاييس، وتُقرّب حدود العوامل إلى الخارج عند ست منازل. لا تُجرى قراءة من المنصة أو تغييرات محفوظة أو خطط أصلية أو تعديلات إعلانية.",
   "Declare an evidence age of 1–90 days.": "حدد عمراً للأدلة من 1 إلى 90 يوماً.",
   "Historical efficiency calibration": "المعايرة التاريخية للكفاءة",
   "These are one-day historical estimates conditioned on actual test-day spend. They do not forecast future delivery or the effect of changing budgets.": "هذه تقديرات تاريخية ليوم واحد مشروطة بإنفاق يوم الاختبار الفعلي. ولا تتوقع العرض المستقبلي أو أثر تغيير الميزانيات.",
@@ -8892,5 +8892,7 @@
   "Accounts in another currency need their own target. It uses this card’s KPI, sample and lag.": "تحتاج الحسابات بعملة أخرى إلى قيمة مستهدفة خاصة بها، وتستخدم مؤشر هذه البطاقة وحجم العينة وفترة التأخر نفسها.",
   "+ Target for another currency": "+ قيمة مستهدفة لعملة أخرى",
   "Use each currency once per objective.": "استخدم كل عملة مرة واحدة لكل هدف.",
-  "Based on the whole window: {from} – {to}": "بناءً على الفترة كاملة: {from} – {to}"
+  "Based on the whole window: {from} – {to}": "بناءً على الفترة كاملة: {from} – {to}",
+  "Includes an in-progress day: the last reporting day has not ended in the source time zone. The source stays partial and recommendations wait until it closes.": "تتضمن يومًا لم ينتهِ بعد: لم ينتهِ آخر يوم في التقرير بحسب المنطقة الزمنية للمصدر. يبقى المصدر جزئيًا وتنتظر التوصيات حتى ينتهي.",
+  "The reporting window was declared incomplete. The source stays partial and recommendations are held until a complete window is collected.": "أُعلِن أن فترة التقرير غير مكتملة. يبقى المصدر جزئيًا وتُعلَّق التوصيات حتى تُجمع فترة مكتملة."
 }

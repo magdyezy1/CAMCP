@@ -307,7 +307,8 @@ are never summed and keep their exact native text. Negative or non-numeric provi
 `REPORT_SHAPE_CHANGED` error, and JSON numbers above 2^53 with `METRIC_PRECISION_LOSS`. Caller-declared totals,
 tolerances and targets keep the strict grammar of at most nine decimal places. `AMCP_REPORT_LOSSLESS_NUMBERS=true`
 (off by default) also keeps fractional JSON numbers in read-only Google search, Meta Insights, TikTok, Snapchat and
-LinkedIn report responses as their exact source text.
+LinkedIn report responses as their exact source text. Keep it off until the reporting suites cover campaign-level
+overview runs of each of those platforms with it on; only the qualified detail collectors are covered today.
 
 Google presets are `google_campaign`, `google_adset`, `google_ad` and `google_search_terms`. Each needs currency, IANA
 timezone, date_from/date_to, attribution, source_name and a boolean complete declaration. The fixed conversion

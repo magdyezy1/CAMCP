@@ -234,7 +234,7 @@ export function calibrateAllocation(report: JsonObject, ids: unknown, options: J
       'The factor envelope uses the lowest entity low and highest entity high. It is not pooled campaign attribution or an account-wide probability interval.',
       'Zero predictions, insufficient training and missing ratios remain explicit. Factors outside allocation bounds are not clipped or silently applied.',
       'Original currency, timezone, attribution, conversion lag, completeness declarations and exact entity identity remain unchanged. Auction, creative and measurement changes can invalidate this history.',
-      'Metrics truncate to nine decimal places; factor bounds round outward to six. No provider read, saved change, native plan or advertising mutation is made.',
+      'Calibration arithmetic truncates metrics to nine decimal places; factor bounds round outward to six. No provider read, saved change, native plan or advertising mutation is made.',
       ...(semantics.metric_rounding ? [metricRoundingLimitation] : []),
     ],
     network_requests: 0,
