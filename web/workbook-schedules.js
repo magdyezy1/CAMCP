@@ -21,7 +21,7 @@ function workbookScheduleController(root, id, onChange = () => {}) {
           .join('');
       const localTime = at =>
         new Intl.DateTimeFormat(uiLocale, {timeZone: s.timezone, dateStyle: 'medium', timeStyle: 'short'}).format(at);
-      root.innerHTML = `<div class="operation-heading"><div><small>${esc(uiText('Workbook schedule · Local output'))}</small><h2 id="workbook-schedule-heading" tabindex="-1">${esc(s.name)}</h2></div>${badge(s.state)}</div><p><strong>${esc(uiText('Account'))} ${esc(s.account_id)}</strong> ${esc(uiText('· Query revision'))} ${esc(s.query_revision)}</p>${s.error_code ? `<p class="error">${esc(s.error_code)}</p>` : ''}<p>${esc(s.meaning)}</p><details class="workspace-details"><summary>${esc(uiText('Current saved clock ·'))} ${esc(s.timezone)}</summary>${s.preview_error ? `<p class="error">${esc(s.preview_error)}${esc(uiText('. Correct the clock settings below.'))}</p>` : `<ol>${s.occurrences.map(at => `<li>${esc(localTime(at))}</li>`).join('')}</ol>`}<p>${esc(uiText('Preview of future clock times, including while paused. Already queued runs keep their state.'))}</p></details><form id="workbook-schedule-form" class="workspace-form"><fieldset ${s.can_edit ? '' : 'disabled'}><legend>${esc(uiText('Future reporting runs'))}</legend><div class="work-filter"><label>${esc(uiText('Schedule name'))}<input name="name" maxlength="100" required value="${esc(s.name)}"></label><label>${esc(uiText('Clock timezone'))}<input name="timezone" maxlength="80" required value="${esc(s.timezone)}" placeholder="Africa/Cairo"></label><label>${esc(uiText('Frequency'))}<select name="schedule_kind">${options(
+      root.innerHTML = `<div class="operation-heading"><div><small>${esc(uiText('Workbook schedule · Local output'))}</small><h2 id="workbook-schedule-heading" tabindex="-1">${esc(s.name)}</h2></div>${badge(s.state)}</div><p><strong>${esc(uiText('Account'))} ${esc(s.account_id)}</strong> ${esc(uiText('· Query revision'))} ${esc(s.query_revision)}</p>${s.error_code ? `<p class="error">${esc(s.error_code)}</p>` : ''}<p>${esc(s.meaning)}</p><details class="workspace-details"><summary>${esc(uiText('Current saved clock ·'))} ${esc(s.timezone)}</summary>${s.preview_error ? `<p class="error">${esc(s.preview_error)}${esc(uiText('. Correct the clock settings below.'))}</p>` : `<ol>${s.occurrences.map((at, i) => `<li>${esc(localTime(at))}${s.dst_shifted?.[i] ? ' · ' + esc(uiText('Moved forward by the daylight-saving change')) : ''}</li>`).join('')}</ol>`}<p>${esc(uiText('Preview of future clock times, including while paused. Already queued runs keep their state.'))}</p></details><form id="workbook-schedule-form" class="workspace-form"><fieldset ${s.can_edit ? '' : 'disabled'}><legend>${esc(uiText('Future reporting runs'))}</legend><div class="work-filter"><label>${esc(uiText('Schedule name'))}<input name="name" maxlength="100" required value="${esc(s.name)}"></label><label>${esc(uiText('Clock timezone'))}<input name="timezone" maxlength="80" required value="${esc(s.timezone)}" placeholder="Africa/Cairo"></label><label>${esc(uiText('Frequency'))}<select name="schedule_kind">${options(
         [
           ['hourly', uiText('Hourly')],
           ['daily', uiText('Daily')],
@@ -40,7 +40,7 @@ function workbookScheduleController(root, id, onChange = () => {}) {
           uiText('Saturday'),
         ].map((v, i) => [i, v]),
         s.schedule.weekday ?? 1,
-      )}</select></label><label id="workbook-schedule-day">${esc(uiText('Day of month'))}<input name="day" type="number" min="1" max="31" step="1" required value="${esc(s.schedule.day ?? 1)}"></label></div><p class="form-note">${esc(uiText("Monthly dates beyond a month's length use its last day. Nonexistent daylight-saving times are skipped; repeated local times run once."))}</p><label class="form-note"><input name="active" type="checkbox" ${s.active ? 'checked' : ''}> ${esc(uiText('Enable future runs'))}</label><div class="dialog-actions work-actions"><button class="button primary" type="submit">${esc(uiText('Review schedule changes'))}</button></div></fieldset></form>${!s.can_edit ? `<p class="notice">${esc(uiText('Viewer access can inspect this schedule. An operator must change it.'))}</p>` : ''}<div class="dialog-actions work-actions"><button class="button" id="workbook-schedule-refresh">${esc(uiText('Refresh schedule'))}</button>${s.last_run ? `<a class="button" href="${esc(s.last_run.website_path)}">${esc(uiText('Last run ·'))} ${esc(s.last_run.state)}</a>` : ''}${s.query_id ? `<a class="button" href="/operations?query_id=${encodeURIComponent(s.query_id)}">${esc(uiText('Review saved query'))}</a>` : ''}<a class="button" href="/operations?kind=workbook_schedule">${esc(uiText('All workbook schedules'))}</a></div><p data-schedule-status role="status"></p>`;
+      )}</select></label><label id="workbook-schedule-day">${esc(uiText('Day of month'))}<input name="day" type="number" min="1" max="31" step="1" required value="${esc(s.schedule.day ?? 1)}"></label></div><p class="form-note">${esc(uiText("Monthly dates beyond a month's length use its last day. A nonexistent daylight-saving time runs at the first valid time after the change; repeated local times run once."))}</p><label class="form-note"><input name="active" type="checkbox" ${s.active ? 'checked' : ''}> ${esc(uiText('Enable future runs'))}</label><div class="dialog-actions work-actions"><button class="button primary" type="submit">${esc(uiText('Review schedule changes'))}</button></div></fieldset></form>${!s.can_edit ? `<p class="notice">${esc(uiText('Viewer access can inspect this schedule. An operator must change it.'))}</p>` : ''}<div class="dialog-actions work-actions"><button class="button" id="workbook-schedule-refresh">${esc(uiText('Refresh schedule'))}</button>${s.last_run ? `<a class="button" href="${esc(s.last_run.website_path)}">${esc(uiText('Last run ·'))} ${esc(s.last_run.state)}</a>` : ''}${s.query_id ? `<a class="button" href="/operations?query_id=${encodeURIComponent(s.query_id)}">${esc(uiText('Review saved query'))}</a>` : ''}<a class="button" href="/operations?kind=workbook_schedule">${esc(uiText('All workbook schedules'))}</a></div><p data-schedule-status role="status"></p>`;
       const form = $('#workbook-schedule-form');
       const fields = () => {
         const kind = form.elements.schedule_kind.value;
@@ -114,12 +114,14 @@ function workbookScheduleController(root, id, onChange = () => {}) {
             .map(c => `${uiText(labels[c.field])}: ${value(c.field, c.from)} → ${value(c.field, c.to)}`)
             .join('; ');
           const times = preview.occurrences
-            .map(at =>
-              new Intl.DateTimeFormat(uiLocale, {
-                timeZone: preview.schedule.timezone,
-                dateStyle: 'medium',
-                timeStyle: 'short',
-              }).format(at),
+            .map(
+              (at, i) =>
+                new Intl.DateTimeFormat(uiLocale, {
+                  timeZone: preview.schedule.timezone,
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                }).format(at) +
+                (preview.dst_shifted?.[i] ? ' (' + uiText('Moved forward by the daylight-saving change') + ')' : ''),
             )
             .join('; ');
           const confirmed = await confirmAction({

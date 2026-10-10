@@ -5,6 +5,7 @@ import {runWorkerLoop, stageFailureLog} from '../src/worker-loop.js';
 import {gracefulShutdown, jsonLine, loopEventLog} from './shutdown.js';
 import {createRuntime} from './runtime.js';
 import {ReportWorker} from '../src/worker.js';
+import {workerClockEvent} from '../src/scheduled-work.js';
 import {createReportExecutor} from '../src/report-executor.js';
 import {loadConfig} from './config.js';
 // The same validated configuration as the HTTP server, with the worker's production preconditions, checked before
@@ -24,6 +25,8 @@ const close = () => {
   closed = true;
   store.close();
 };
+// A long-running worker records the time-zone database its schedule clocks use. --once stays quiet.
+if (!process.argv.includes('--once')) process.stdout.write(JSON.stringify(workerClockEvent()) + '\n');
 const loop = runWorkerLoop({
   schedule: () => overview.tick(),
   deliverEmails: () => accounts.deliverEmails(),

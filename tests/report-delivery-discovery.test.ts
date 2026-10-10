@@ -501,7 +501,9 @@ test('multiple scheduled account reports save independent views, run once and wr
     assert.equal(store.db.prepare("SELECT count(*) AS n FROM jobs WHERE kind='report_overview'").get()!.n, 2);
     await worker.once();
     await worker.once();
-    assert.equal(writes.length, 2);
+    // EXP-03 D: collection completes without writing; each schedule's delivery is its own sheets_export job.
+    // (This test used to require the write inside the collection job, the coupling EXP-03 removes.)
+    assert.equal(writes.length, 0);
     assert.deepEqual(
       store.db
         .prepare("SELECT state FROM jobs WHERE kind='report_overview'")
@@ -509,7 +511,24 @@ test('multiple scheduled account reports save independent views, run once and wr
         .map(j => j.state),
       ['complete', 'complete'],
     );
-    assert.ok(store.documents('local', 'overview_report').every(r => r.export?.state === 'complete'));
+    assert.ok(store.documents('local', 'overview_report').every(r => r.export?.state === 'queued'));
+    await worker.once();
+    await worker.once();
+    assert.equal(writes.length, 2);
+    assert.deepEqual(
+      store.db
+        .prepare("SELECT state FROM jobs WHERE kind='sheets_export'")
+        .all()
+        .map(j => j.state),
+      ['complete', 'complete'],
+    );
+    assert.ok(
+      store.documents('local', 'overview_export').every(e => e.origin === 'schedule' && e.state === 'complete'),
+    );
+    assert.ok(
+      store.documents('local', 'overview_schedule').every(s => s.last_delivery?.state === 'complete'),
+      'each schedule shows its delivery outcome',
+    );
     assert.equal(store.documents('local', 'sheets_delivery').filter(d => d.state === 'complete').length, 2);
     const updates = writes.map(w => w.requests.find((r: JsonObject) => r.updateCells).updateCells);
     assert.notEqual(updates[0].range.sheetId, updates[1].range.sheetId);

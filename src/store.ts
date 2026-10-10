@@ -1223,7 +1223,8 @@ export class Store {
   }
   // Shared across processes, so this bucket must use wall-clock time; never let a backward
   // clock correction subtract tokens. Refill pauses until the clock catches up, which is the safe direction.
-  providerPermit(key: string) {
+  // The default budget is 30 burst and one token per 200 ms; a caller may size a smaller shared budget.
+  providerPermit(key: string, budget: {burst: number; refillMs: number} = {burst: 30, refillMs: 200}) {
     return this.transaction(() => {
       const now = Date.now(),
         cooldown = this.db.prepare('SELECT until_at FROM provider_cooldowns WHERE key=?').get(key) as
@@ -1241,13 +1242,13 @@ export class Store {
             "SELECT data FROM documents WHERE tenant_id='__service_limits__' AND kind='provider_budget' AND id=?",
           )
           .get(sha256(key)) as JsonObject | undefined,
-        old = record ? JSON.parse(record.data) : {tokens: 30, at: now},
-        tokens = Math.min(30, old.tokens + Math.max(0, now - old.at) / 200);
+        old = record ? JSON.parse(record.data) : {tokens: budget.burst, at: now},
+        tokens = Math.min(budget.burst, old.tokens + Math.max(0, now - old.at) / budget.refillMs);
       if (tokens < 1)
         throw new MirrorError(
           'TENANT_RATE_LIMIT',
           'The shared platform request budget is exhausted.',
-          {retry_after_ms: Math.ceil((1 - tokens) * 200)},
+          {retry_after_ms: Math.ceil((1 - tokens) * budget.refillMs)},
           429,
           true,
         );
@@ -1803,7 +1804,13 @@ export class Store {
   listTenants(): string[] {
     return (this.db.prepare('SELECT id FROM tenants ORDER BY id').all() as {id: string}[]).map(r => r.id);
   }
-  enqueueSchedule(tenantId: string, scheduleId: string, revision: number, nextRunAt: number): string | undefined {
+  enqueueSchedule(
+    tenantId: string,
+    scheduleId: string,
+    revision: number,
+    nextRunAt: number,
+    following: JsonObject = {},
+  ): string | undefined {
     return this.transaction(() => {
       const schedule = this.document(tenantId, 'reporting_schedule', scheduleId),
         now = Date.now();
@@ -1818,14 +1825,19 @@ export class Store {
         query_config: query.query_config,
         schedule_id: scheduleId,
       });
-      this.db
-        .prepare('UPDATE documents SET data=?,revision=revision+1 WHERE tenant_id=? AND kind=? AND id=?')
-        .run(
-          JSON.stringify({...data, next_run_at: nextRunAt, last_run_id: job, last_run_at: new Date(now).toISOString()}),
-          tenantId,
-          'reporting_schedule',
-          scheduleId,
-        );
+      this.db.prepare('UPDATE documents SET data=?,revision=revision+1 WHERE tenant_id=? AND kind=? AND id=?').run(
+        JSON.stringify({
+          ...data,
+          ...following,
+          last_occurrence_at: schedule.next_run_at,
+          next_run_at: nextRunAt,
+          last_run_id: job,
+          last_run_at: new Date(now).toISOString(),
+        }),
+        tenantId,
+        'reporting_schedule',
+        scheduleId,
+      );
       return job;
     });
   }

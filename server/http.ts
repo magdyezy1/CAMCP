@@ -3,6 +3,7 @@ import {createRuntime} from './runtime.js';
 import {createHttpApp, tuneListener} from './http-app.js';
 import {mcpLimits as validMcpLimits, mcpLimitsFromEnv} from './mcp-limits.js';
 import {ReportWorker} from '../src/worker.js';
+import {workerClockEvent} from '../src/scheduled-work.js';
 import {createReportExecutor} from '../src/report-executor.js';
 import {runWorkerLoop, stageFailureLog} from '../src/worker-loop.js';
 import {gracefulShutdown, jsonLine, loopEventLog} from './shutdown.js';
@@ -76,6 +77,7 @@ const worker = new ReportWorker(store, createReportExecutor(service), (t, k, i) 
 worker.onRelease = (t, k, i) => overview.releaseJob(t, k, i);
 const workerDone = (async () => {
   if (!config.runWorker) return;
+  process.stdout.write(JSON.stringify(workerClockEvent()) + '\n');
   await runWorkerLoop({
     schedule: () => overview.tick(),
     deliverEmails: () => app.locals.website.accounts.deliverEmails(),

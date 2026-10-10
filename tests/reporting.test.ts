@@ -124,7 +124,7 @@ test('schedules enqueue atomically and keep one job per claimed occurrence', asy
     store.close();
   }
 });
-test('daily/weekly schedules use IANA timezones, skip nonexistent local times and validate config', () => {
+test('daily/weekly schedules use IANA timezones, shift nonexistent local times forward and validate config', () => {
   assert.equal(
     nextSchedule(
       {timezone: 'Africa/Cairo', schedule_kind: 'daily', schedule_config: {hour: 9, minute: 0}},
@@ -137,7 +137,8 @@ test('daily/weekly schedules use IANA timezones, skip nonexistent local times an
       {timezone: 'America/New_York', schedule_kind: 'daily', schedule_config: {hour: 2, minute: 30}},
       Date.parse('2026-03-08T00:00:00Z'),
     ),
-    Date.parse('2026-03-09T06:30:00Z'),
+    // EXP-02 / D13: 02:30 does not exist on 8 March; it runs at 03:30 EDT that day instead of skipping the day.
+    Date.parse('2026-03-08T07:30:00Z'),
   );
   assert.throws(
     () => nextSchedule({timezone: 'UTC', schedule_kind: 'weekly', schedule_config: {weekday: 8}}),

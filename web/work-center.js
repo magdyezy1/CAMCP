@@ -30,11 +30,11 @@ async function renderScheduleCenter() {
     reader = session.workspaceRole === 'viewer',
     selected = new URLSearchParams(location.search).get('schedule_id'),
     visible = selected ? b.schedules.filter(s => s.id === selected) : b.schedules;
-  content.innerHTML += `<div class="dialog-actions"><a href="/reporting-overview" class="button primary">${esc(uiText('Create a report and schedule'))}</a><a href="/operations" class="button">${esc(uiText('Delivery recovery'))}</a><a href="/operations?kind=workbook_schedule" class="button">${esc(uiText('Workbook schedules'))}</a></div><p class="notice">${esc(uiText('Delivery timezone controls the clock. Window timezone controls the calendar dates collected. Missed occurrences are coalesced; nonexistent daylight-saving times are skipped.'))}</p><section class="panel">${
+  content.innerHTML += `<div class="dialog-actions"><a href="/reporting-overview" class="button primary">${esc(uiText('Create a report and schedule'))}</a><a href="/operations" class="button">${esc(uiText('Delivery recovery'))}</a><a href="/operations?kind=workbook_schedule" class="button">${esc(uiText('Workbook schedules'))}</a></div><p class="notice">${esc(uiText('Delivery timezone controls the clock. Window timezone controls the calendar dates collected. Missed occurrences are coalesced. A nonexistent daylight-saving time runs at the first valid time after the change; a repeated time runs once.'))}</p><section class="panel">${
     visible
       .map(s => {
         const d = [...b.destinations, ...(b.file_destinations ?? [])].find(d => d.id === s.destination_id);
-        return `<article class="schedule-row"><div><h2>${esc(overviewLabel(s.config))}</h2>${badge(s.is_active ? 'active' : 'paused')}<p>${esc(s.schedule_kind)} · ${esc(s.timezone)}<br>${esc(reportWindowLabel(s.config.date_range))}<br>${esc(d?.name ?? uiText('Destination unavailable'))} · ${esc(d?.kind === 'report_files' ? d.formats.map(f => f.toUpperCase()).join(' + ') : (d?.tab_name ?? ''))}<br>${s.is_active ? uiText('Next delivery: ') + date(s.next_run_at) : uiText('Paused')}</p>${s.error ? `<p class="error">${esc(s.error.message)}</p>` : ''}<div class="dialog-actions"><a class="button small" href="/reporting-overview?view_id=${encodeURIComponent(s.view_id)}&delivery=1">${esc(uiText('Edit report and schedule'))}</a><button class="button small" data-schedule-preview="${esc(s.id)}">${esc(uiText('Preview next 3 windows'))}</button>${s.last_report_id ? `<a class="button small" href="/reporting-overview?report_id=${encodeURIComponent(s.last_report_id)}">${esc(uiText('Last snapshot and delivery'))}</a>` : ''}<button class="button small" data-schedule-toggle="${esc(s.id)}" ${reader ? 'disabled' : ''}>${s.is_active ? uiText('Pause') : uiText('Resume')}</button><button class="button small danger" data-schedule-delete="${esc(s.id)}" ${reader ? 'disabled' : ''}>${esc(uiText('Delete schedule'))}</button></div><div id="schedule-preview-${esc(s.id)}"></div></div></article>`;
+        return `<article class="schedule-row"><div><h2>${esc(overviewLabel(s.config))}</h2>${badge(!s.is_active ? 'paused' : ['failed', 'retrying'].includes(s.last_delivery?.state) || s.schedule_warning ? 'attention' : 'active')}<p>${esc(s.schedule_kind)} · ${esc(s.timezone)}<br>${esc(reportWindowLabel(s.config.date_range))}<br>${esc(d?.name ?? uiText('Destination unavailable'))} · ${esc(d?.kind === 'report_files' ? d.formats.map(f => f.toUpperCase()).join(' + ') : (d?.tab_name ?? ''))}<br>${s.is_active ? uiText('Next delivery: ') + date(s.next_run_at) : uiText('Paused')}</p>${s.error ? `<p class="error">${esc(uiText(s.error.message))}</p>` : ''}${s.schedule_warning ? `<p class="notice">${esc(uiText(s.schedule_warning.message))}</p>` : ''}${s.last_delivery ? `<p>${scheduleDeliveryHealth(s, reader)}</p>` : ''}<div class="dialog-actions"><a class="button small" href="/reporting-overview?view_id=${encodeURIComponent(s.view_id)}&delivery=1">${esc(uiText('Edit report and schedule'))}</a><button class="button small" data-schedule-preview="${esc(s.id)}">${esc(uiText('Preview next 3 windows'))}</button>${s.last_report_id ? `<a class="button small" href="/reporting-overview?report_id=${encodeURIComponent(s.last_report_id)}">${esc(uiText('Last snapshot and delivery'))}</a>` : ''}<button class="button small" data-schedule-toggle="${esc(s.id)}" ${reader ? 'disabled' : ''}>${s.is_active ? uiText('Pause') : uiText('Resume')}</button><button class="button small danger" data-schedule-delete="${esc(s.id)}" ${reader ? 'disabled' : ''}>${esc(uiText('Delete schedule'))}</button></div><div id="schedule-preview-${esc(s.id)}"></div></div></article>`;
       })
       .join('') ||
     blank(
@@ -46,9 +46,17 @@ async function renderScheduleCenter() {
   workspaceBind('[data-schedule-preview]', async button => {
     const out = await overviewCall({action: 'preview_schedule', id: button.dataset.schedulePreview});
     $('#schedule-preview-' + button.dataset.schedulePreview).innerHTML = reviewTable(
-      out.occurrences,
+      // A time moved out of a daylight-saving gap is labeled rather than shown as a raw flag (EXP-02).
+      out.occurrences.map(({dst_shifted, ...o}) =>
+        dst_shifted ? {...o, note: uiText('Moved forward by the daylight-saving change')} : o,
+      ),
       uiText('Next delivery times and collected dates'),
     );
+  });
+  workspaceBind('[data-schedule-delivery-retry]', async button => {
+    await overviewCall({action: 'retry', id: button.dataset.scheduleDeliveryRetry, confirmed: true});
+    await renderWorkspacePage();
+    toast(uiText('Delivery queued again.'));
   });
   workspaceBind('[data-schedule-toggle]', async button => {
     const s = b.schedules.find(s => s.id === button.dataset.scheduleToggle);

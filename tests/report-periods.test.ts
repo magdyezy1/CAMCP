@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {collectReportPeriods, reportPeriods} from '../src/report-periods.js';
-import {nextSchedule, resolveReportConfig} from '../src/reporting.js';
+import {nextSchedule, nextScheduleDetail, resolveReportConfig} from '../src/reporting.js';
 import {MirrorError} from '../src/errors.js';
 import {Store} from '../src/store.js';
 import {Registry} from '../src/catalog.js';
@@ -50,15 +50,14 @@ test('month-end schedules, DST gaps and repeated hours produce valid single loca
     ).toISOString(),
     '2026-02-27T19:00:00.000Z',
   );
-  assert.equal(
-    new Date(
-      nextSchedule(
-        {schedule_kind: 'monthly', timezone: 'America/New_York', schedule_config: {day: 8, hour: 2, minute: 30}},
-        Date.parse('2026-03-01T00:00:00Z'),
-      ),
-    ).toISOString(),
-    '2026-04-08T06:30:00.000Z',
+  // EXP-02 / D13: this used to assert that March was skipped (2026-04-08). A nonexistent 02:30 on the DST change day
+  // now runs at the first valid time after it, 03:30 EDT, in the same month.
+  const shifted = nextScheduleDetail(
+    {schedule_kind: 'monthly', timezone: 'America/New_York', schedule_config: {day: 8, hour: 2, minute: 30}},
+    Date.parse('2026-03-01T00:00:00Z'),
   );
+  assert.equal(new Date(shifted.at).toISOString(), '2026-03-08T07:30:00.000Z');
+  assert.equal(shifted.dst_shifted, true);
   const first = Date.parse('2026-11-01T05:30:00Z');
   assert.equal(
     new Date(

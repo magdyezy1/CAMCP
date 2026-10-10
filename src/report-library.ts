@@ -1,7 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import {MirrorError} from './errors.js';
-import {nextSchedule} from './reporting.js';
+import {scheduleClockFields} from './reporting.js';
 import {sha256, stable} from './security.js';
 import {reportDestination} from './report-file-delivery.js';
 import {currencyTargetKey} from './report-metrics.js';
@@ -244,7 +244,8 @@ export class ReportLibrary {
       if (!view && this.store.documents(tenant, 'overview_view').length >= 100)
         throw new MirrorError('REPORT_LIMIT', 'Use at most 100 saved reports.');
       const linkedView = view?.id ?? id,
-        next = nextSchedule(settings);
+        clock = scheduleClockFields(settings),
+        next = clock.next_run_at;
       if (old) this.cancelRuns(tenant, id);
       this.store.putDocument(
         tenant,
@@ -275,8 +276,9 @@ export class ReportLibrary {
           actor_binding: this.store.bindJobActor(actor, id),
           created_at: old?.created_at ?? Date.now(),
           updated_at: Date.now(),
-          next_run_at: next,
+          ...clock,
           error: null,
+          consecutive_delivery_failures: 0,
         },
         old?.revision,
       );
@@ -320,13 +322,19 @@ export class ReportLibrary {
             409,
           );
       }
-      const data = {
+      const data: JsonObject = {
         ...s,
         updated_at: Date.now(),
         is_active: resume,
         definition_version: (s.definition_version ?? 0) + 1,
         ...(resume
-          ? {next_run_at: nextSchedule(s), actor_binding: this.store.bindJobActor(actor, s.id), error: null}
+          ? {
+              ...scheduleClockFields(s),
+              actor_binding: this.store.bindJobActor(actor, s.id),
+              error: null,
+              // A resumed schedule starts a new delivery-failure count (EXP-03 E).
+              consecutive_delivery_failures: 0,
+            }
           : {}),
       };
       this.store.putDocument(tenant, 'overview_schedule', s.id, data, s.revision);
@@ -351,6 +359,26 @@ export class ReportLibrary {
           )
           .run(tenant, r.id);
         this.cancelReport(tenant, r.id);
+        // Terminal Sheets receipts go with the snapshot. An unconfirmed one was released (audited) before this point;
+        // an abandoned receipt stays until retention so a late application of its batch is still recognized.
+        if (
+          this.store.db
+            .prepare(
+              "SELECT 1 FROM documents WHERE tenant_id=? AND kind='sheets_delivery' AND json_extract(data,'$.report_id')=? AND json_extract(data,'$.state') IN ('pending','uncertain') LIMIT 1",
+            )
+            .get(tenant, r.id)
+        )
+          throw new MirrorError(
+            'SHEETS_DELIVERY_UNRESOLVED',
+            'This snapshot has an unconfirmed Google Sheets delivery. Release its report tab before deleting it.',
+            {report_id: r.id},
+            409,
+          );
+        this.store.db
+          .prepare(
+            "DELETE FROM documents WHERE tenant_id=? AND kind='sheets_delivery' AND json_extract(data,'$.report_id')=? AND json_extract(data,'$.state') IN ('complete','rejected')",
+          )
+          .run(tenant, r.id);
         for (const e of this.store.documents(tenant, 'overview_export').filter(e => e.report_id === r.id))
           this.store.db
             .prepare("DELETE FROM documents WHERE tenant_id=? AND kind='overview_export' AND id=?")
