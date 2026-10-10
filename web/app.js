@@ -45,13 +45,17 @@ let session = {authenticated: false, csrf: null},
 let navigationGeneration = 0,
   identityGeneration = 0,
   // The path and query the current view was rendered for; a history step that changes only the fragment keeps it.
-  renderedLocation = null;
+  renderedLocation = null,
+  // A page holding unsaved edits answers true here, so an in-app link asks before leaving (CMP-06). Every render of a
+  // different address and every identity reset clears it, so it never blocks signing out or switching workspace.
+  pageLeaveGuard = null;
 const identityKey = value =>
   JSON.stringify([!!value.authenticated, value.id ?? value.userId, value.workspaceId, value.workspaceRole, value.csrf]);
 /** Clears what the previous identity saw. Signing out or switching workspace also forgets this tab's drafts (CMP-06). */
 function resetPrivateState(forgetTab = false) {
   identityGeneration++;
   navigationGeneration++;
+  pageLeaveGuard = null;
   clearTimeout(pollTimer);
   clearTimeout(toastTimer);
   platforms = [];
@@ -1001,6 +1005,7 @@ async function render() {
   renderedLocation = location.pathname + location.search;
   clearTimeout(pollTimer);
   if (routeChanged) clearShellAlert();
+  pageLeaveGuard = null;
   const page = routeEntry(location.pathname),
     navigationKey = routeNavigationKey(location.pathname);
   document.body.classList.toggle('public-view', page?.public === true);
@@ -1109,7 +1114,18 @@ document.addEventListener('click', async event => {
   }
   if (clientNavigation(event, el)) {
     event.preventDefault();
-    navigate(el.getAttribute('href'));
+    const href = el.getAttribute('href');
+    if (
+      typeof pageLeaveGuard === 'function' &&
+      pageLeaveGuard() &&
+      !(await confirmAction({
+        title: uiText('Leave without saving?'),
+        consequence: uiText('Unsaved edits on this page will be lost. Saved work is kept.'),
+        confirmLabel: uiText('Leave page'),
+      }))
+    )
+      return;
+    navigate(href);
     return;
   }
   if (el.dataset.close) {

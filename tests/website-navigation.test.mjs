@@ -870,3 +870,40 @@ test('the sidebar workspace card switches workspaces in place and clears the pre
   await f.run('render()');
   assert.equal(f.node('#workspace-switch-open').hidden, true);
 });
+
+// CMP-06: unsaved playbook edits were dropped silently when a navigation link was followed.
+test('an in-app link asks before leaving unsaved edits; render and identity resets clear the guard', async () => {
+  const f = browserFixture();
+  f.updateLocation('/connections');
+  await f.run('render()');
+  const asked = [],
+    pushes = [];
+  let answer = false;
+  f.context.confirmAction = async options => {
+    asked.push(options.title);
+    return answer;
+  };
+  f.context.history.pushState = (_a, _b, url) => pushes.push(url);
+  const link = {
+    tagName: 'A',
+    dataset: {},
+    getAttribute: name => (name === 'href' ? '/profiles' : null),
+    hasAttribute: () => false,
+  };
+  const click = () =>
+    f.documentListeners.get('click')[0]({target: {closest: () => link}, button: 0, preventDefault() {}});
+  // Nothing unsaved: no question.
+  await click();
+  assert.deepEqual(asked, []);
+  assert.deepEqual(pushes, ['/profiles']);
+  f.run('pageLeaveGuard = () => true');
+  await click();
+  assert.deepEqual(asked, ['Leave without saving?']);
+  assert.deepEqual(pushes, ['/profiles'], 'a cancelled leave stays on the page');
+  answer = true;
+  await click();
+  assert.deepEqual(pushes, ['/profiles', '/profiles']);
+  assert.equal(f.run('pageLeaveGuard'), null, 'the next render clears the guard');
+  f.run('pageLeaveGuard = () => true; resetPrivateState(true)');
+  assert.equal(f.run('pageLeaveGuard'), null, 'signing out or switching workspace is never blocked');
+});

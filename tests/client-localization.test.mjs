@@ -298,7 +298,10 @@ test('conversion reference edits and local add/remove clear approval and refuse 
   assert.equal(f.node('#profile-conversion-value-0').value, '003');
   assert.equal(f.node('#profile-conversion-name-2').focused, true);
   const obsolete = f.node('#profile-conversion-remove-0').events.get('click');
-  f.select(1);
+  // CMP-06: opening another playbook over unsaved edits now asks first; this test discards them.
+  f.confirm(async () => true);
+  await f.select(1);
+  assert.match(f.confirmations.at(-1).title, /Discard unsaved edits/);
   obsolete();
   assert.match(f.node('#profile-conversion-fields').innerHTML, /No simple conversion references/);
   f.node('#profile-conversion-add').events.get('click')();
@@ -807,4 +810,177 @@ test('a client save refresh cannot announce success after the signed-in view cha
   };
   await f.bindings.get('#profile-form')();
   assert.deepEqual(f.toasts, []);
+});
+
+// CMP-06: Clients & templates at agency scale. The list was unsorted with no search or URL state, opening another
+// playbook silently dropped unsaved edits, bound accounts were one flat list of every resource, shared defaults had to
+// be copied per workflow and a new client could not start from an existing playbook.
+function agencyFixture(search = '') {
+  const f = fixture(),
+    locations = [];
+  f.context.location = {pathname: '/profiles', search};
+  f.context.URLSearchParams = URLSearchParams;
+  f.context.setViewLocation = url => locations.push(url);
+  f.context.pageLeaveGuard = null;
+  f.context.uiNumber = String;
+  f.context.accountLabel = (p, c, id) => p.name + ' · ' + id;
+  f.context.platforms = [
+    {
+      gateway: 'meta_native_action',
+      name: 'Meta',
+      connections: [{id: 'meta-login', enabled: true, accounts: ['1', '2']}],
+    },
+    {
+      gateway: 'google_sheets_native_action',
+      name: 'Google Sheets',
+      selectionKind: 'spreadsheets',
+      connections: [{id: 'sheets-login', enabled: true, accounts: ['sheet']}],
+    },
+  ];
+  f.profiles[0].bindings = [{gateway: 'meta_native_action', connection_id: 'meta-login', account_id: '1'}];
+  return {...f, locations};
+}
+
+test('the playbook list names bindings, narrows by search, and the address reopens a playbook (CMP-06)', async () => {
+  const f = agencyFixture('?profile_id=second');
+  await f.run('renderClientPlaybooks()');
+  const html = f.node('content').innerHTML;
+  assert.match(html, /1 bound accounts · Meta/);
+  assert.match(html, /No bound accounts: any connected account can be chosen/);
+  assert.match(html, /id="profile-search"/);
+  // The linked playbook opens; opening another records it in the address.
+  assert.equal(f.node('#profile-heading').textContent, 'Edit Second client · revision 9');
+  assert.equal(f.locations.at(-1), '/profiles?profile_id=second');
+  f.select(0);
+  assert.equal(f.locations.at(-1), '/profiles?profile_id=first');
+  await f.bindings.get('#new-client')();
+  assert.equal(f.locations.at(-1), '/profiles');
+  // Search hides the rows whose client name does not match; it is not an unsaved edit.
+  const rows = [0, 1].map(i => ({dataset: {profileRow: String(i)}, hidden: false}));
+  f.node('#profile-list').querySelectorAll = () => rows;
+  f.node('#profile-search').events.get('input')({target: {value: ' SECOND '}});
+  assert.deepEqual(
+    rows.map(r => r.hidden),
+    [true, false],
+  );
+  assert.equal(f.node('#profile-search-empty').hidden, true);
+  f.node('#profile-search').events.get('input')({target: {value: 'nobody'}});
+  assert.equal(f.node('#profile-search-empty').hidden, false);
+  assert.equal(f.context.pageLeaveGuard(), false);
+  // A playbook this workspace does not have is named, and the editor starts empty.
+  const g = agencyFixture('?profile_id=gone');
+  await g.run('renderClientPlaybooks()');
+  assert.equal(g.node('#profile-link-missing').hidden, false);
+  assert.equal(g.node('#profile-heading').textContent, 'New client playbook');
+});
+
+test('unsaved playbook edits ask before another playbook, a new one or an in-app link replaces them (CMP-06)', async () => {
+  const f = agencyFixture();
+  await f.run('renderClientPlaybooks()');
+  f.select(0);
+  assert.equal(f.context.pageLeaveGuard(), false, 'an opened playbook is not an edit');
+  // Looking at another example or other defaults is not an edit either.
+  f.form.elements.example_name.name = 'example_name';
+  f.edit('example_name');
+  assert.equal(f.context.pageLeaveGuard(), false);
+  f.form.elements.name.value = 'Home edited';
+  f.edit();
+  assert.equal(f.context.pageLeaveGuard(), true, 'in-app links ask before leaving');
+  f.confirm(async () => false);
+  await f.select(1);
+  assert.match(f.confirmations.at(-1).title, /Discard unsaved edits/);
+  assert.equal(f.node('#profile-heading').textContent, 'Edit Home <img> · revision 3', 'kept on cancel');
+  assert.equal(f.form.elements.name.value, 'Home edited');
+  await f.bindings.get('#new-client')();
+  assert.equal(f.node('#profile-heading').textContent, 'Edit Home <img> · revision 3');
+  f.confirm(async () => true);
+  await f.select(1);
+  assert.equal(f.node('#profile-heading').textContent, 'Edit Second client · revision 9');
+  assert.equal(f.context.pageLeaveGuard(), false);
+  // A sign-out or workspace switch is never blocked: the guard belongs to this view only.
+  f.form.elements.name.value = 'Second edited';
+  f.edit();
+  f.context.identityGeneration++;
+  assert.equal(f.context.pageLeaveGuard(), false);
+});
+
+test('Duplicate playbook starts an unsaved new client from every saved setting (CMP-06)', async () => {
+  const f = agencyFixture();
+  f.profiles[0].naming = {campaign: '{{market}} | {{campaign_name}}', ad: '{{campaign_name}} ad'};
+  f.profiles[0].utm = {utm_source: 'Home', utm_id: '{{campaign_name}}'};
+  await f.run('renderClientPlaybooks()');
+  f.select(0);
+  assert.equal(f.node('#duplicate-profile').hidden, false);
+  await f.bindings.get('#duplicate-profile')();
+  assert.equal(f.node('#profile-heading').textContent, 'New client playbook');
+  assert.equal(f.form.elements.name.value, 'Copy of Home <img>');
+  assert.equal(f.node('#delete-profile').hidden, true);
+  assert.equal(f.context.pageLeaveGuard(), true, 'the copy is not saved yet');
+  f.form.elements.approve.checked = true;
+  await f.bindings.get('#profile-form')();
+  const save = f.calls.at(-1).args;
+  assert.equal(save.action, 'save_profile');
+  assert.equal(save.id, undefined, 'saved as a new playbook');
+  assert.equal(save.revision, undefined);
+  assert.equal(save.profile.name, 'Copy of Home <img>');
+  assert.deepEqual(save.profile.naming, f.profiles[0].naming, 'structured naming is kept');
+  assert.equal(save.profile.utm.utm_id, '{{campaign_name}}', 'UTM keys without a field are kept');
+  assert.deepEqual(save.profile.templates, f.profiles[0].templates);
+});
+
+test('bound accounts are grouped by platform; files and sheets appear on request or when bound (CMP-06)', async () => {
+  const f = agencyFixture();
+  await f.run('renderClientPlaybooks()');
+  f.select(0);
+  let accounts = f.node('#profile-accounts').innerHTML;
+  assert.match(accounts, /<legend>Meta · 2<\/legend>/);
+  assert.doesNotMatch(accounts, /Google Sheets/);
+  assert.match(accounts, /id="profile-accounts-all"/);
+  f.node('#profile-accounts-all').events.get('change')({target: {checked: true}});
+  accounts = f.node('#profile-accounts').innerHTML;
+  assert.match(accounts, /<legend>Google Sheets · 1<\/legend>/);
+  assert.equal(f.context.pageLeaveGuard(), false, 'listing more accounts is not an edit');
+  // A bound sheet is always listed, checked.
+  const g = agencyFixture();
+  g.profiles[0].bindings.push({
+    gateway: 'google_sheets_native_action',
+    connection_id: 'sheets-login',
+    account_id: 'sheet',
+  });
+  await g.run('renderClientPlaybooks()');
+  g.select(0);
+  assert.match(g.node('#profile-accounts').innerHTML, /<legend>Google Sheets · 1<\/legend>/);
+  assert.match(g.node('#profile-accounts').innerHTML, /&quot;sheet&quot;\}" checked/);
+});
+
+test('shared defaults are edited once for every workflow and kept out of Advanced settings (CMP-06)', async () => {
+  const f = agencyFixture();
+  f.recipes.push(
+    {id: 'google_search', name: 'Google Search', required: ['daily_budget', 'destination_url']},
+    {id: 'meta_website_traffic', name: 'Meta traffic', required: ['daily_budget', 'country_codes']},
+  );
+  f.profiles[0].defaults = {common: {destination_url: 'https://example.test/'}, recipes: {}};
+  await f.run('renderClientPlaybooks()');
+  assert.match(f.node('content').innerHTML, /<option value="\*common">Shared by every workflow<\/option>/);
+  f.select(0);
+  assert.doesNotMatch(f.form.elements.additional.value, /common/, 'not duplicated in Advanced settings');
+  f.node('#profile-recipe').events.get('change')({target: {value: '*common'}});
+  const shared = f.node('#profile-default-fields').innerHTML;
+  assert.match(shared, /data-default-field="destination_url" value="https:\/\/example\.test\/"/);
+  assert.match(shared, /data-default-field="country_codes"/);
+  f.node('#profile-default-fields').querySelectorAll = () => [
+    {dataset: {defaultField: 'destination_url'}, value: 'https://example.test/shared'},
+    {dataset: {defaultField: 'daily_budget'}, value: '25'},
+  ];
+  f.form.elements.approve.checked = true;
+  await f.bindings.get('#profile-form')();
+  assert.deepEqual(f.calls.at(-1).args.profile.defaults.common, {
+    destination_url: 'https://example.test/shared',
+    daily_budget: '25',
+  });
+  // Shared defaults typed into Advanced settings are refused before any request, like recipe defaults.
+  const before = f.calls.length;
+  f.form.elements.additional.value = JSON.stringify({defaults: {common: {daily_budget: '1'}}});
+  await assert.rejects(f.bindings.get('#profile-form')(), /Shared by every workflow/);
+  assert.equal(f.calls.length, before);
 });

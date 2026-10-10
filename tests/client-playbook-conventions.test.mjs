@@ -209,6 +209,22 @@ test('the playbook preview tags a landing page exactly as recipe plans do, and r
   }
 });
 
+test('recipe context counts the connected accounts a playbook leaves out, so an empty list can say why', async () => {
+  const f = fixture();
+  try {
+    f.profile({bindings: [{gateway: 'meta_native_action', connection_id: 'elsewhere', account_id: '9'}]});
+    const bound = ok(await f.campaign({action: 'recipe_context', recipe: 'google_search', profile_id: 'client'}));
+    assert.deepEqual(bound.targets, []);
+    assert.equal(bound.excluded_by_playbook, 1);
+    const open = ok(await f.campaign({action: 'recipe_context', recipe: 'google_search'}));
+    assert.equal(open.targets.length, 1);
+    assert.equal(open.excluded_by_playbook, 0);
+    assert.equal(f.requests.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
 test('unresolved variables and over-long derived names are refused with the rule named; playbook variables resolve', async () => {
   const f = fixture();
   try {

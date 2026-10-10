@@ -49,6 +49,7 @@ function composer({
   storage = new Map(),
   sessionId = 'one',
   profiles,
+  excluded = 0,
 } = {}) {
   const nodes = new Map(),
     calls = [],
@@ -116,6 +117,7 @@ function composer({
           drive_connections: [],
           profile: args.profile_id ? {id: args.profile_id, name: 'ACME', revision: 3} : null,
           conventions: args.profile_id ? (conventions ?? null) : null,
+          excluded_by_playbook: args.profile_id ? excluded : 0,
         };
       }
       if (args.action === 'recipe_eligibility') return {status: 'unknown', eligibility_ref: 'elig-1', dependencies: []};
@@ -381,4 +383,20 @@ test('a brief is saved from the composer, reused from the list, and the plan nam
   f.form.values = {name: 'Ramadan push', daily_budget: '10'};
   await f.node('#recipe-form').events.get('submit')({preventDefault() {}});
   assert.equal(f.calls.at(-1).eligibility_ref, undefined);
+});
+
+test('an empty account list says whether the playbook bindings or missing connections are the cause', async () => {
+  // Was: "Connect and select an account first." even when accounts were connected but the playbook left them out.
+  const bound = composer({targets: [], excluded: 2});
+  await bound.mount();
+  bound.node('#recipe-profile').value = 'p1';
+  bound.node('#recipe-profile').events.get('change')();
+  await settle();
+  const fields = bound.node('#recipe-fields').innerHTML;
+  assert.match(fields, /This playbook’s bound accounts do not include an account for this workflow\./);
+  assert.match(fields, /href="\/profiles\?profile_id=p1"/);
+  assert.doesNotMatch(fields, /Connect and select an account first/);
+  const none = composer({targets: []});
+  await none.mount();
+  assert.match(none.node('#recipe-fields').innerHTML, /Connect and select an account first\..*href="\/connections"/);
 });

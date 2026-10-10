@@ -90,10 +90,16 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
     ...own,
   };
   noSecrets(defaults);
+  // Connected accounts the selected playbook's bindings leave out (CMP-06), so an empty account list can say why.
+  const connected = store
+    .listConnections(actor.tenantId)
+    .filter(c => c.gateway === gateway && c.enabled)
+    .reduce((count, c) => count + c.accounts.length, 0);
   return {
     version: 1,
     recipe,
     targets,
+    excluded_by_playbook: profile ? connected - targets.length : 0,
     defaults,
     profile: profile ? {id: profile.id, revision: profile.revision, name: profile.name} : null,
     conventions: playbookConventions(profile),
