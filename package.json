@@ -56,7 +56,7 @@
     "check:public-website": "node tools/check-public-website.mjs"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.30.0",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
     "bidi-js": "1.0.3",
