@@ -1,6 +1,13 @@
 import {randomBytes, randomUUID, createHmac, timingSafeEqual} from 'node:crypto';
 import type {Request} from 'express';
-import {UserAccounts, accountEmail, accountName, hashUserPassword} from './user-accounts.js';
+import {
+  UserAccounts,
+  accountEmail,
+  accountName,
+  hashUserPassword,
+  recentProofMs,
+  verifyPassword,
+} from './user-accounts.js';
 import {checkPassword} from './web-store.js';
 import {endMcpGrants} from './mcp-grants.js';
 import {MirrorError} from '../src/errors.js';
@@ -71,7 +78,8 @@ export class AccountSecurity {
   /** Owner-initiated setup for an evaluator. The recipient chooses their own password, and the
    * account arrives approved and scoped, because inviting it is the vetting step. */
   async inviteTestAccount(req: Request, input: JsonObject) {
-    this.instanceOwner(req);
+    // Inviting grants an approved account, so it needs recent proof of identity (SEC-06).
+    this.accounts.fresh(this.instanceOwner(req));
     if (!this.accounts.emailConfigured)
       throw new MirrorError('EMAIL_SETUP_REQUIRED', 'Configure email delivery before sending a setup link.', {}, 503);
     const email = accountEmail(input.email),
@@ -122,6 +130,8 @@ export class AccountSecurity {
     const user = this.db.prepare('SELECT * FROM amcp_users WHERE id=?').get(id) as JsonObject | undefined;
     if (!user) throw new MirrorError('NOT_FOUND', 'Account not found.', {}, 404);
     if (user.id === s.actor.userId) throw new MirrorError('FORBIDDEN', 'You cannot change your own access.', {}, 403);
+    // Granting access needs recent proof of identity (SEC-06); revoking does not, so an owner can end access at once.
+    if (grant) this.accounts.fresh(s);
     return this.web.store.transaction(() => {
       this.db
         .prepare('UPDATE amcp_users SET approved=?,disabled=?,test_account=?,version=version+1 WHERE id=?')
@@ -265,6 +275,51 @@ export class AccountSecurity {
       message: 'Add this key to your authenticator and enter its six-digit code. Keep the recovery codes offline.',
     };
   }
+  /**
+   * "Confirm it's you" (SEC-06): proves the person behind this session again without signing out, with the account
+   * password or a two-step code (a door session: its door's password). Every attempt counts against the person's own
+   * budget (8 per 15 minutes) and the address's; a success clears the person's count. Only the session's recent-proof
+   * time changes, so UserAccounts.fresh accepts it for 15 minutes; the session's expiry never moves.
+   */
+  async reauthenticate(req: Request, input: JsonObject) {
+    const s = this.web.requireMutation(req),
+      code = typeof input.code === 'string' && input.code.trim() ? input.code.trim() : undefined;
+    let method: string;
+    if (s.actor.userId === 'workspace-admin' || s.actor.userId === 'workspace-test') {
+      if (code !== undefined)
+        throw new MirrorError('INVALID_ARGUMENT', 'Confirm this sign-in with its password.', {}, 400);
+      await this.web.confirmDoor(s.actor.userId, s.actor.tenantId, input.password, this.web.limitAddress(req));
+      method = 'door_password';
+    } else {
+      const u = this.accounts.user(s.actor.userId);
+      this.accounts.limit(req, 'reauth', u.id, 8);
+      if (code !== undefined) {
+        this.verifyCode(u.id, code);
+        method = 'mfa_code';
+      } else {
+        if (!u.password_hash)
+          throw new MirrorError(
+            'PASSWORD_NOT_SET',
+            'This account has no password. Confirm with a two-step code or with your linked sign-in.',
+            {},
+            400,
+          );
+        if (!(await verifyPassword(input.password, u.password_hash)))
+          throw new MirrorError('INVALID_LOGIN', 'That password is incorrect.', {}, 401);
+        method = 'password';
+      }
+      if (this.accounts.user(u.id).version !== u.version)
+        throw new MirrorError('ACCOUNT_CHANGED', 'Sign in again before retrying.');
+      this.accounts.forgive('reauth', u.id);
+    }
+    // The key derivation is asynchronous: the session must still be this one, unchanged, when the proof is recorded.
+    const current = this.web.requireMutation(req);
+    if (current.id !== s.id) throw new MirrorError('SIGN_IN_REQUIRED', 'Sign in to your AMCP workspace.', {}, 401);
+    const at = Date.now();
+    this.web.markReauthenticated(s.id, at);
+    this.web.store.appendAudit(s.actor.tenantId, randomUUID(), {event: 'account_reauthenticated', method});
+    return {reauthenticated: true, until: at + recentProofMs};
+  }
   verifyCode(userId: string, code: unknown) {
     if (typeof code !== 'string' || code.length > 80)
       throw new MirrorError('MFA_INVALID', 'Enter a valid authenticator or recovery code.', {}, 401);
@@ -406,6 +461,8 @@ export class AccountSecurity {
       (role === 'admin' && s.actor.userId !== 'workspace-admin' && s.actor.membershipRole !== 'owner')
     )
       throw new MirrorError('FORBIDDEN', 'Only owners can invite administrators.', {}, 403);
+    // An invitation grants workspace access, so it needs recent proof of identity (SEC-06).
+    this.accounts.fresh(s);
     const email = accountEmail(input.email);
     this.accounts.limit(req, 'invite', s.actor.tenantId, 20);
     const members = this.db
@@ -516,6 +573,8 @@ export class AccountSecurity {
     const s = this.owner(req);
     if (typeof input.userId !== 'string' || !['admin', 'operator', 'viewer', 'remove'].includes(input.role))
       throw new MirrorError('INVALID_ARGUMENT', 'Choose a member and role.');
+    // A role change needs recent proof of identity (SEC-06); removing a member does not, so access can end at once.
+    if (input.role !== 'remove') this.accounts.fresh(s);
     return this.web.store.transaction(() => {
       const row = this.db
         .prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')

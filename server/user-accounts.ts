@@ -18,6 +18,8 @@ const opaque = () => randomBytes(32).toString('base64url');
 /** A known-device cookie lasts 180 days (SEC-03); its value carries the issue time, so the server enforces that too. */
 const deviceLifetimeSeconds = 180 * 86400;
 const userDigest = (id: unknown) => createHash('sha256').update(String(id)).digest();
+/** How long a sign-in or a step-up counts as recent proof of identity (UserAccounts.fresh, SEC-06). */
+export const recentProofMs = 900000;
 /** Shown when an account's own attempt budget is used up; other people's failures can cause it. */
 export const accountLimitMessage =
   'Too many attempts for this account. Try again in 15 minutes, or sign in from a browser you have used with AMCP before, with a linked social sign-in, or after resetting your password.';
@@ -737,11 +739,23 @@ export class UserAccounts {
         'Check your inbox to verify this email. Confirmation signs out existing sessions and revokes old MCP access.',
     };
   }
+  /**
+   * Recent proof of identity (SEC-06): a sign-in or a "Confirm it's you" step-up within the last 15 minutes, whichever
+   * is later. Account security changes and anything that mints lasting access or grants authority call it first, so a
+   * refusal happens before any effect and the website can retry the same request once the person confirms.
+   */
   fresh(s: WebSession) {
     const data = this.web.store.db.prepare('SELECT actor FROM amcp_web_sessions WHERE hash=?').get(sha256(s.id)) as
       JsonObject | undefined;
-    if (!data || Number(JSON.parse(data.actor).signedInAt ?? s.expiresAt - 8 * 3600000) < Date.now() - 900000)
-      throw new MirrorError('REAUTH_REQUIRED', 'Sign out and sign in again before changing account security.', {}, 403);
+    const actor = data ? JSON.parse(data.actor) : {},
+      proved = Math.max(Number(actor.signedInAt ?? s.expiresAt - 8 * 3600000), Number(actor.reauthAt) || 0);
+    if (!data || !(proved >= Date.now() - recentProofMs))
+      throw new MirrorError(
+        'REAUTH_REQUIRED',
+        'Confirm it’s you to continue: enter your password or a two-step verification code.',
+        {},
+        403,
+      );
   }
   update(req: Request, input: JsonObject) {
     const s = this.web.requireMutation(req),

@@ -50,7 +50,9 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
   });
   const mcpOAuth = new McpOAuth(web, allowWrites);
   const accounts = new UserAccounts(web),
-    social = new SocialSignIn(accounts);
+    social = new SocialSignIn(accounts),
+    // For handlers whose own `accounts` is a list of advertising accounts (recent-proof checks, SEC-06).
+    webAccounts = accounts;
   // A test account is limited to the tabs an evaluator needs. Hiding navigation is presentation
   // only, so every API behind an excluded tab refuses it here, at one chokepoint.
   //
@@ -75,6 +77,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     [/^\/api\/account$/, ['GET']], // Settings: read own profile
     [/^\/api\/account\/(options|delivery|sessions)$/, ['GET']],
     [/^\/api\/account\/sessions\/[^/]+$/, ['DELETE']], // Settings: end one's own sessions
+    [/^\/api\/account\/reauthenticate$/, ['POST']], // "Confirm it's you" before a write grant (SEC-06)
     [/^\/api\/workspaces(\/members)?$/, ['GET']], // Settings: the reviewer's own workspace
   ];
   // Deliberately absent, because the reviewer password is shared: changing the password, email,
@@ -720,6 +723,8 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         (req.body.scope !== undefined && typeof req.body.scope !== 'string')
       )
         throw new MirrorError('INVALID_CONSENT', 'Invalid authorization decision.');
+      // An approval issues a 30-day refresh family, so it needs recent proof of identity (SEC-06); a denial does not.
+      if (req.body.approved) accounts.fresh(s);
       const consent = mcpOAuth.consent(req.body.request, s),
         url = mcpOAuth.decide(req.body.request, s, req.body.approved, req.body.scope),
         scope: string = req.body.approved ? (req.body.scope ?? consent.scope) : consent.scope,
@@ -1159,6 +1164,8 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
                 .map(a => [a.id, a.loginCustomerId!]),
             )
           : c.accountLoginCustomers;
+      // A selection that adds write access needs recent proof of identity (SEC-06); keeping or removing it never does.
+      if (writeAccounts.some(id => !(c.writeAccounts ?? []).includes(id))) webAccounts.fresh(s);
       store.transaction(() => {
         store.updateConnection(s.actor, {
           ...c,
@@ -1230,6 +1237,8 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
           {},
           400,
         );
+      // Adding write access needs recent proof of identity (SEC-06); removing it never does.
+      if (accounts.some(id => !(c.writeAccounts ?? []).includes(id))) webAccounts.fresh(s);
       store.updateConnection(s.actor, {...c, writeAccounts: accounts, defaultWriteAccess: false});
       store.appendAudit(tenant, randomUUID(), {
         event: 'website_write_access_changed',
@@ -1305,6 +1314,8 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
           {},
           400,
         );
+      // A connector token is a 30-day bearer credential that outlives this session: recent proof first (SEC-06).
+      accounts.fresh(s);
       const id = randomUUID(),
         token = store.createKey({...s.actor, userId: 'connector/' + id, role}, 30 * 86400000),
         expiresAt = Date.now() + 30 * 86400000;

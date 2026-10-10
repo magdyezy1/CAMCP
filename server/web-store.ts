@@ -530,6 +530,33 @@ export class WebStore {
     if (!(await checkPassword(password, hash))) throw new MirrorError('INVALID_LOGIN', wrong, {}, 401);
     db.prepare('DELETE FROM amcp_login_limits WHERE key=?').run(key);
   }
+  /**
+   * Step-up for a door session (SEC-06): the door's own password, counted per door and address like a sign-in. The
+   * session must still be one the door opens; a door whose password changed refuses.
+   */
+  async confirmDoor(subject: unknown, tenant: unknown, password: unknown, address: string) {
+    const door = this.doorFor(subject, tenant),
+      hash = door === 'workspace-admin' ? this.administratorHash : door && this.reviewerHash;
+    if (!door || !hash || !this.doorOpen(subject, tenant))
+      throw new MirrorError(
+        'SIGN_IN_CHANGED',
+        'This sign-in was reconfigured on the server. Reload the page and sign in again.',
+        {},
+        503,
+      );
+    await this.passDoor(
+      hash,
+      typeof password === 'string' ? password : '',
+      'reauth:' + door + ':' + address,
+      'That password is incorrect.',
+    );
+  }
+  /** Records a step-up on a session (SEC-06). Only the recent-proof time changes; the session's expiry never moves. */
+  markReauthenticated(id: string, at = Date.now()) {
+    this.store.db
+      .prepare("UPDATE amcp_web_sessions SET actor=json_set(actor,'$.reauthAt',?) WHERE hash=? AND expires_at>?")
+      .run(at, sha256(id), at);
+  }
   async signIn(password: string, address: string): Promise<WebSession> {
     // Checked again after the password, which takes a while: owner setup may have finished meanwhile.
     const migrated = () => {

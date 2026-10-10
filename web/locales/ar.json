@@ -470,7 +470,6 @@
   "Use the complete link from your email.": "استخدم الرابط الكامل في بريدك الإلكتروني.",
   "Your account changed. Request a fresh link.": "تغير حسابك. اطلب رابطًا جديدًا.",
   "This email is already used by another account.": "هذا البريد مستخدم في حساب آخر بالفعل.",
-  "Sign out and sign in again before changing account security.": "سجّل الخروج ثم الدخول مجددًا قبل تغيير إعدادات أمان الحساب.",
   "Only workspace administrators can rename the workspace.": "يمكن لمسؤولي مساحة العمل فقط تغيير اسمها.",
   "Your current password is incorrect.": "كلمة مرورك الحالية غير صحيحة.",
   "Verify an email address before adding a password.": "أكّد عنوان بريد إلكتروني قبل إضافة كلمة مرور.",
@@ -9142,5 +9141,17 @@
   "Not sent": "لم يُرسل",
   "Nothing reached the platform, and queueing this review again would stop the same way. Prepare the upload again.": "لم يصل شيء إلى المنصة، وإعادة جدولة هذه المراجعة ستتوقف بالطريقة نفسها. جهّز الرفع من جديد.",
   "This upload stopped before anything was sent, for a reason that queueing it again would repeat. Prepare the upload again; upload the file again first when its 30-minute window is nearly over.": "توقف هذا الرفع قبل إرسال أي شيء، لسبب ستكرره إعادة جدولته. جهّز الرفع من جديد؛ وارفع الملف مرة أخرى أولًا إذا كانت مهلة الثلاثين دقيقة الخاصة به على وشك الانتهاء.",
-  "Open this page": "افتح هذه الصفحة"
+  "Open this page": "افتح هذه الصفحة",
+  "Confirm with {provider}": "التأكيد عبر {provider}",
+  "Confirm it’s you": "أكّد هويتك",
+  "This change needs a recent sign-in. Confirm your identity and AMCP continues with what you asked, once. You stay signed in.": "يتطلب هذا التغيير تسجيل دخول حديثًا. أكّد هويتك وسيتابع AMCP ما طلبته مرة واحدة. ستبقى مسجّل الدخول.",
+  "Or a two-step verification code": "أو رمز التحقق بخطوتين",
+  "Confirm and continue": "التأكيد والمتابعة",
+  "Confirm this sign-in with its password.": "أكّد تسجيل الدخول هذا بكلمة المرور الخاصة به.",
+  "This account has no password. Confirm with a two-step code or with your linked sign-in.": "لا توجد كلمة مرور لهذا الحساب. أكّد هويتك برمز التحقق بخطوتين أو بطريقة تسجيل الدخول المرتبطة بحسابك.",
+  "That password is incorrect.": "كلمة المرور هذه غير صحيحة.",
+  "reauth must be a boolean.": "يجب أن تكون قيمة reauth من النوع boolean.",
+  "Choose linking or confirming, not both.": "اختر الربط أو التأكيد، وليس كليهما.",
+  "This sign-in method is not linked to your account. Confirm with your password or a two-step code.": "طريقة تسجيل الدخول هذه غير مرتبطة بحسابك. أكّد هويتك بكلمة المرور أو برمز التحقق بخطوتين.",
+  "Confirm it’s you to continue: enter your password or a two-step verification code.": "أكّد هويتك للمتابعة: أدخل كلمة المرور أو رمز التحقق بخطوتين."
 }

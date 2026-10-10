@@ -94,6 +94,8 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
   );
   post('/api/account/resend-verification', async (req, res) => res.json(await accounts.register(req, req.body)));
   post('/api/account/owner-setup', async (req, res) => res.json(await security.beginOwner(req, req.body)));
+  // "Confirm it's you" (SEC-06): a password or two-step code renews this session's recent proof of identity in place.
+  post('/api/account/reauthenticate', async (req, res) => res.json(await security.reauthenticate(req, req.body)));
   post('/api/account/mfa/start', (req, res) => res.json(security.beginMfa(req)));
   post('/api/account/mfa/enable', (req, res) => {
     const r = security.enableMfa(req, req.body);
@@ -211,6 +213,12 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
       if (!input || Object.values(input).some(v => typeof v !== 'string' || v.length > 16384))
         throw new MirrorError('SIGNIN_IDENTITY_INVALID', 'Invalid sign-in callback.');
       const result = await social.finish(req, String(req.params.provider), input);
+      // A social step-up (SEC-06) renewed the existing session; the page that asked continues where it was.
+      if ('reauthenticated' in result) {
+        res.setHeader('Set-Cookie', social.cookie('', 0));
+        res.redirect(303, '/auth/complete?reauthenticated=true');
+        return;
+      }
       if ('mfaRequired' in result) {
         res.setHeader('Set-Cookie', social.cookie('', 0));
         res.redirect(303, '/login#mfa=' + encodeURIComponent(result.ticket));

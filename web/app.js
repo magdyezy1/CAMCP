@@ -227,18 +227,98 @@ async function reloadForUpdate(prepare) {
   location.reload();
   return true;
 }
+/**
+ * "Confirm it's you" (SEC-06): a sensitive change made long after sign-in is refused with REAUTH_REQUIRED before it has
+ * any effect. This dialog proves the person again in place, with a password, a two-step code or a linked social
+ * sign-in, so the page and its form keep their state. Resolves true once the server accepted the proof, false when
+ * the person cancels. A social confirmation leaves the page and returns to it afterwards.
+ */
+function confirmIdentity() {
+  const d = $('#reauth-dialog'),
+    form = $('#reauth-form'),
+    password = $('#reauth-password'),
+    code = $('#reauth-code'),
+    error = $('#reauth-error');
+  if (!d || !form) return Promise.resolve(false);
+  const usesPassword = session.hasPassword !== false,
+    usesCode = session.mfaEnabled === true,
+    providers = session.administrator || session.testAccount ? [] : (session.identities ?? []).map(i => i.provider);
+  $('#reauth-password-field').hidden = !usesPassword;
+  $('#reauth-code-field').hidden = !usesCode;
+  $('#reauth-social').innerHTML = providers
+    .map(
+      p =>
+        `<button type="button" class="button" data-reauth-social="${esc(p)}">${esc(uiText('Confirm with {provider}', {provider: p === 'google' ? 'Google' : p === 'apple' ? 'Apple' : p === 'facebook' ? 'Facebook' : p}))}</button>`,
+    )
+    .join('');
+  password.value = code.value = error.textContent = '';
+  return new Promise(resolve => {
+    let settled = false;
+    const finish = value => {
+      if (settled) return;
+      settled = true;
+      form.removeEventListener('submit', submit);
+      $('#reauth-cancel').removeEventListener('click', cancel);
+      $('#reauth-social').removeEventListener('click', social);
+      d.removeEventListener('close', cancel);
+      password.value = code.value = '';
+      if (d.open) d.close();
+      resolve(value);
+    };
+    const cancel = () => finish(false);
+    const submit = async event => {
+      event.preventDefault();
+      const button = $('#reauth-confirm');
+      button.disabled = true;
+      error.textContent = '';
+      try {
+        await api('/api/account/reauthenticate', {
+          method: 'POST',
+          body: JSON.stringify(code.value.trim() ? {code: code.value.trim()} : {password: password.value}),
+        });
+        finish(true);
+      } catch (e) {
+        error.textContent = errorMessage(e);
+      } finally {
+        button.disabled = false;
+      }
+    };
+    const social = async event => {
+      const provider = event.target.closest?.('[data-reauth-social]')?.dataset.reauthSocial;
+      if (!provider) return;
+      try {
+        sessionStorage.setItem('amcp.return', location.pathname + location.search);
+        const r = await api('/api/signin/' + provider + '/start', {
+          method: 'POST',
+          body: JSON.stringify({reauth: true}),
+        });
+        location.assign(r.url);
+      } catch (e) {
+        error.textContent = errorMessage(e);
+      }
+    };
+    form.addEventListener('submit', submit);
+    $('#reauth-cancel').addEventListener('click', cancel);
+    $('#reauth-social').addEventListener('click', social);
+    d.addEventListener('close', cancel);
+    d.showModal();
+    (usesPassword ? password : usesCode ? code : d.querySelector('[data-reauth-social]'))?.focus();
+  });
+}
 async function api(url, options = {}) {
   const generation = navigationGeneration,
     identity = identityGeneration;
-  const method = options.method ?? 'GET',
+  // `reauthRetried` marks the one repeat after "Confirm it's you"; it is not a fetch option.
+  const {reauthRetried, ...init} = options;
+  const method = init.method ?? 'GET',
     headers = {
       'Accept': 'application/json',
       ...(method !== 'GET' ? {'Content-Type': 'application/json', 'X-AMCP-CSRF': session.csrf ?? ''} : {}),
-      ...options.headers,
+      ...init.headers,
     };
   let response, data;
   try {
-    response = await fetch(url, {...options, headers, credentials: 'same-origin'});
+    response = await fetch(url, {...init, headers, credentials: 'same-origin'});
     data = await response.json();
   } catch {
     if (generation !== navigationGeneration || identity !== identityGeneration) throw supersededRequest();
@@ -247,6 +327,12 @@ async function api(url, options = {}) {
   if (generation !== navigationGeneration || identity !== identityGeneration) throw supersededRequest();
   if (!response.ok) {
     const e = requestError(data);
+    // The server refused before any effect; after the person confirms, the same request is sent exactly once more.
+    if (e.code === 'REAUTH_REQUIRED' && !reauthRetried && url !== '/api/account/reauthenticate') {
+      const confirmed = await confirmIdentity();
+      if (generation !== navigationGeneration || identity !== identityGeneration) throw supersededRequest();
+      if (confirmed) return api(url, {...init, reauthRetried: true});
+    }
     if (response.status === 401 && !url.startsWith('/api/account/') && !url.startsWith('/api/session')) {
       resetPrivateState();
       session = {authenticated: false, csrf: null};
