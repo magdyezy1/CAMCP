@@ -567,9 +567,46 @@ export class McpOAuth implements OAuthServerProvider {
       if (data.family) this.revokeFamily(data.family, row.tenant_id, 'client_revoke');
     }
   }
-  /** Live authorizations of a workspace. With `viewer` (a user ID, or null for the administrator door), each says
-   * whether that person approved it, so a member can revoke their own. */
-  authorizations(tenant = this.web.tenantId, viewer?: string | null) {
+  /**
+   * The person a presented authorization code or refresh token belongs to, as "tenant\nowner", or '' when the
+   * client has no such live grant. The per-client budget of successful token responses is kept per connection with it:
+   * a client metadata document's client ID is shared by everyone using that app, so the client alone would put every
+   * person and workspace of one app into one budget.
+   */
+  tokenSubject(clientId: string, body: unknown): string {
+    const input = (body ?? {}) as JsonObject,
+      [kind, token] =
+        input.grant_type === 'refresh_token'
+          ? ['refresh', input.refresh_token]
+          : input.grant_type === 'authorization_code'
+            ? ['code', input.code]
+            : [undefined, undefined];
+    if (!kind || typeof token !== 'string' || !token || token.length > 4096) return '';
+    const row = this.web.store.db
+      .prepare('SELECT tenant_id,data FROM amcp_mcp_grants WHERE hash=? AND kind=? AND client_id=?')
+      .get(sha256(token), kind, clientId) as {tenant_id: string; data: string} | undefined;
+    if (!row) return '';
+    const owner = (JSON.parse(row.data) as JsonObject).ownerUserId;
+    return row.tenant_id + '\n' + (typeof owner === 'string' ? owner : '');
+  }
+  /** Display names of the people who approved connections, for the workspace administrator's view. */
+  private ownerNames(owners: Iterable<string>) {
+    const names = new Map<string, string>(),
+      byId = this.web.store.db.prepare('SELECT name FROM amcp_users WHERE id=?');
+    for (const owner of owners) {
+      const row = byId.get(owner) as {name?: string} | undefined;
+      if (typeof row?.name === 'string') names.set(owner, row.name.slice(0, 120));
+    }
+    return names;
+  }
+  /**
+   * Live authorizations of a workspace, one per client and approving person: a client metadata document (CIMD) client
+   * ID is shared by every installation of that app, so each person's connection is listed (and revoked) on its own.
+   * With `viewer` (a user ID, or null for the administrator door), each says whether that person approved it, so a
+   * member can revoke their own. With `owners` (workspace administrators only), each names the person who approved
+   * it (`owner`: their user ID, or null for the administrator sign-in) so one person's connection can be revoked.
+   */
+  authorizations(tenant = this.web.tenantId, viewer?: string | null, options: {owners?: boolean} = {}) {
     const rows = this.web.store.db
       .prepare(
         "SELECT g.client_id,g.expires_at,g.data AS grant_data,c.data FROM amcp_mcp_grants g LEFT JOIN amcp_mcp_clients c ON c.id=g.client_id WHERE g.tenant_id=? AND g.kind='refresh' AND g.used=0 AND g.expires_at>?",
@@ -579,40 +616,66 @@ export class McpOAuth implements OAuthServerProvider {
     for (const row of rows) {
       const grant = JSON.parse(row.grant_data),
         scopes = (grant.scope ?? readScope).split(' '),
-        previous = clients.get(row.client_id);
-      const owner = grant.ownerUserId ?? null;
-      clients.set(row.client_id, {
+        owner: string | null = typeof grant.ownerUserId === 'string' ? grant.ownerUserId : null,
+        key = row.client_id + '\u0000' + (owner ?? ''),
+        previous = clients.get(key);
+      clients.set(key, {
         id: row.client_id,
         name: row.data ? JSON.parse(row.data).client_name : (grant.clientName ?? 'MCP client'),
         expiresAt: Math.max(row.expires_at, previous?.expiresAt ?? 0),
         role: scopes.includes(writeScope) || previous?.role === 'operator' ? 'operator' : 'reader',
-        ...(viewer !== undefined ? {yours: previous?.yours === true || owner === viewer} : {}),
+        ...(viewer !== undefined ? {yours: owner === viewer} : {}),
+        ...(options.owners ? {owner} : {}),
       });
     }
-    return [...clients.values()];
+    const listed = [...clients.values()];
+    if (options.owners) {
+      const names = this.ownerNames(listed.flatMap(c => (typeof c.owner === 'string' ? [c.owner] : [])));
+      for (const c of listed) c.ownerName = typeof c.owner === 'string' ? (names.get(c.owner) ?? null) : null;
+    }
+    return listed;
   }
-  /** Connections of a workspace that ended in the last 14 days, newest first, with the recorded reason (MCP-08). A
-   * client authorized again since then is listed with the live authorizations instead. */
-  endedAuthorizations(tenant = this.web.tenantId) {
+  /** Connections of a workspace that ended in the last 14 days, newest first, with the recorded reason (MCP-08), one
+   * per client and approving person. A connection the same person authorized again since then is listed with the live
+   * authorizations instead. `owners` names the person, as in authorizations. */
+  endedAuthorizations(tenant = this.web.tenantId, options: {owners?: boolean} = {}) {
     const now = Date.now(),
       rows = this.web.store.db
         .prepare(
-          "SELECT g.client_id,max(json_extract(g.data,'$.ended_at')) AS ended_at,json_extract(g.data,'$.ended_reason') AS reason,json_extract(g.data,'$.clientName') AS grant_name,c.data FROM amcp_mcp_grants g LEFT JOIN amcp_mcp_clients c ON c.id=g.client_id WHERE g.tenant_id=? AND g.kind='refresh' AND json_extract(g.data,'$.ended_at')>? AND NOT EXISTS(SELECT 1 FROM amcp_mcp_grants l WHERE l.tenant_id=g.tenant_id AND l.client_id=g.client_id AND l.kind='refresh' AND l.used=0 AND l.expires_at>?) GROUP BY g.client_id ORDER BY ended_at DESC LIMIT 20",
+          "SELECT g.client_id,json_extract(g.data,'$.ownerUserId') AS owner,max(json_extract(g.data,'$.ended_at')) AS ended_at,json_extract(g.data,'$.ended_reason') AS reason,json_extract(g.data,'$.clientName') AS grant_name,c.data FROM amcp_mcp_grants g LEFT JOIN amcp_mcp_clients c ON c.id=g.client_id WHERE g.tenant_id=? AND g.kind='refresh' AND json_extract(g.data,'$.ended_at')>? AND NOT EXISTS(SELECT 1 FROM amcp_mcp_grants l WHERE l.tenant_id=g.tenant_id AND l.client_id=g.client_id AND json_extract(l.data,'$.ownerUserId') IS json_extract(g.data,'$.ownerUserId') AND l.kind='refresh' AND l.used=0 AND l.expires_at>?) GROUP BY g.client_id,json_extract(g.data,'$.ownerUserId') ORDER BY ended_at DESC LIMIT 20",
         )
         .all(tenant, now - 14 * 86400000, now) as JsonObject[];
+    const names = options.owners
+      ? this.ownerNames(rows.flatMap(r => (typeof r.owner === 'string' ? [r.owner] : [])))
+      : undefined;
     return rows.map(row => ({
       id: row.client_id as string,
       name: row.data ? (JSON.parse(row.data).client_name as string) : ((row.grant_name as string) ?? 'MCP client'),
       endedAt: row.ended_at as number,
       reason: row.reason as GrantEndReason,
+      ...(names
+        ? {
+            owner: typeof row.owner === 'string' ? row.owner : null,
+            ownerName: typeof row.owner === 'string' ? (names.get(row.owner) ?? null) : null,
+          }
+        : {}),
     }));
   }
-  /** Ends a client's grants in a workspace; with `owner`, only those that person approved. Returns the rows ended. */
-  revokeClient(id: string, tenant = this.web.tenantId, owner?: string) {
+  /**
+   * Ends a client's grants in a workspace. `owner` limits it to one person's connection: a user ID, or null for
+   * those approved from the administrator sign-in; undefined ends every person's connection of that client. Returns
+   * the rows ended.
+   */
+  revokeClient(id: string, tenant = this.web.tenantId, owner?: string | null) {
     return endMcpGrants(
       this.web.store,
-      'client_id=? AND tenant_id=?' + (owner === undefined ? '' : " AND json_extract(data,'$.ownerUserId')=?"),
-      owner === undefined ? [id, tenant] : [id, tenant, owner],
+      'client_id=? AND tenant_id=?' +
+        (owner === undefined
+          ? ''
+          : owner === null
+            ? " AND json_extract(data,'$.ownerUserId') IS NULL"
+            : " AND json_extract(data,'$.ownerUserId')=?"),
+      owner === undefined || owner === null ? [id, tenant] : [id, tenant, owner],
       'workspace_revoke',
       {audit: false},
     );

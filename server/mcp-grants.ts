@@ -4,7 +4,9 @@ import type {JsonObject} from '../src/types.js';
 
 /**
  * Why an AI client's authorization ended (MCP-08). The reason is kept on each ended grant row and in one
- * `mcp_oauth_family_revoked` audit row per client, so an approval can be joined to the revocation that ended it.
+ * `mcp_oauth_family_revoked` audit row per client and approving person, so an approval can be joined to the revocation
+ * that ended it. A client metadata document (CIMD) client ID is shared by everyone who uses that app, so the client
+ * alone does not identify a connection; the person who approved it does.
  * Never token material: rows are keyed by hash and audit carries only the client, the reason and counts.
  */
 export const grantEndReasons = [
@@ -25,7 +27,8 @@ export type GrantEndReason = (typeof grantEndReasons)[number];
 /**
  * Ends the live MCP OAuth grants that `where` selects (a condition on the unaliased amcp_mcp_grants table): each
  * unused row is marked used with its reason and time, the API key of each ended access grant is revoked, and one
- * audit row per tenant and client records the reason (unless `audit` is false because the caller writes its own).
+ * audit row per tenant, client and approving person records the reason (unless `audit` is false because the caller
+ * writes its own).
  * Rows already used (rotated or ended before) keep their state. Returns the number of grant rows ended.
  */
 export function endMcpGrants(
@@ -50,11 +53,16 @@ export function endMcpGrants(
       if (row.kind === 'access')
         db.prepare('UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash=?').run(row.tenant_id, row.hash);
       const data = JSON.parse(row.data) as JsonObject,
-        key = row.tenant_id + '\u0000' + row.client_id,
-        entry: Ended = clients.get(key) ?? {tenant: row.tenant_id, client: row.client_id, families: new Set<string>()};
+        owner = typeof data.ownerUserId === 'string' ? data.ownerUserId : undefined,
+        key = row.tenant_id + '\u0000' + row.client_id + '\u0000' + (owner ?? ''),
+        entry: Ended = clients.get(key) ?? {
+          tenant: row.tenant_id,
+          client: row.client_id,
+          families: new Set<string>(),
+          ...(owner ? {owner} : {}),
+        };
       if ((row.kind === 'access' || row.kind === 'refresh') && typeof data.family === 'string')
         entry.families.add(data.family);
-      if (typeof data.ownerUserId === 'string') entry.owner = data.ownerUserId;
       clients.set(key, entry);
     }
     if (options.audit !== false)

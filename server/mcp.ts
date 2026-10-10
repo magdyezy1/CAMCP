@@ -10,7 +10,11 @@ import {
 import type {Actor} from '../src/types.js';
 import {MirrorService} from '../src/service.js';
 import {guidanceResources, readGuidance, campaignPrompt, buildCampaignPrompt} from '../src/guidance.js';
-export function createMcpServer(service: MirrorService, actor: Actor) {
+/** Per-request hooks of the HTTP endpoint: `track` sees each tool call's work until it settles (SEC-02 in-flight cap). */
+export interface McpServerHooks {
+  track?: <T>(work: Promise<T>) => Promise<T>;
+}
+export function createMcpServer(service: MirrorService, actor: Actor, hooks: McpServerHooks = {}) {
   const server = new Server({name: 'amcp', version: '0.1.0'}, {capabilities: {tools: {}, resources: {}, prompts: {}}});
   server.setRequestHandler(ListResourcesRequestSchema, async () => {
     service.store.assertActorActive(actor);
@@ -49,7 +53,8 @@ export function createMcpServer(service: MirrorService, actor: Actor) {
     return {tools: service.listTools().map(t => ({...t, outputSchema})) as any};
   });
   server.setRequestHandler(CallToolRequestSchema, async request => {
-    const result = await service.call(request.params.name, request.params.arguments ?? {}, actor),
+    const work = service.call(request.params.name, request.params.arguments ?? {}, actor),
+      result = await (hooks.track ? hooks.track(work) : work),
       // General discovery already used this structured envelope. Text-only clients must receive the same result.
       presented = typeof result.success === 'boolean' ? result : {success: true, data: result};
     return {

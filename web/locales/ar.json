@@ -705,6 +705,7 @@
   "Sign in to create and manage connector tokens.": "سجّل الدخول لإنشاء رموز الاتصال وإدارتها.",
   "Authorized MCP clients": "عملاء MCP المفوّضون",
   "· Authorization expires": "· ينتهي التفويض في",
+  "· Approved by": "· وافق عليه",
   "Revoke access": "إلغاء الصلاحية",
   "No clients authorized through browser sign-in.": "لا يوجد عملاء مفوّضون عبر تسجيل الدخول بالمتصفح.",
   "Codex configuration follows": "يتبع إعداد Codex",
@@ -8705,5 +8706,12 @@
   "AMCP could not confirm which permissions this login granted. Sync to check again; until then readiness reports them as unknown.": "تعذّر على AMCP تأكيد الصلاحيات التي منحها تسجيل الدخول هذا. نفّذ المزامنة للتحقق مرة أخرى؛ وحتى ذلك الحين تعرضها الجاهزية على أنها غير معروفة.",
   "Declined permissions": "الصلاحيات المرفوضة",
   "Features that need these permissions stay unavailable. Reauthorize and allow them to use those features.": "تبقى الميزات التي تحتاج إلى هذه الصلاحيات غير متاحة. أعد التفويض واسمح بها لاستخدام تلك الميزات.",
-  "Checked {date}": "تم التحقق في {date}"
+  "Checked {date}": "تم التحقق في {date}",
+  "JSON-RPC batches are not supported. Send each request in its own POST.": "دفعات JSON-RPC غير مدعومة. أرسل كل طلب في طلب POST مستقل.",
+  "JSON-RPC batches are accepted only for protocol 2025-03-26 and up to the configured number of requests. Send each request in its own POST.": "تُقبل دفعات JSON-RPC للبروتوكول 2025-03-26 فقط وحتى العدد المضبوط من الطلبات. أرسل كل طلب في طلب POST مستقل.",
+  "Too many MCP requests from this key are still running. Wait for one to finish, then retry.": "ما زالت طلبات MCP كثيرة من هذا المفتاح قيد التنفيذ. انتظر حتى ينتهي أحدها، ثم أعد المحاولة.",
+  "Too many MCP requests from this key. Wait the number of seconds in Retry-After, then retry.": "طلبات MCP من هذا المفتاح كثيرة جدًا. انتظر عدد الثواني المذكور في Retry-After، ثم أعد المحاولة.",
+  "Reviewer test accounts cannot authorize AI clients.": "لا يمكن لحسابات اختبار المراجعين تفويض عملاء الذكاء الاصطناعي.",
+  "Choose read-only access, or read and reviewed changes, within what the client requested and your workspace role allows.": "اختر صلاحية القراءة فقط، أو القراءة مع التغييرات المراجَعة، ضمن ما طلبه العميل وما يسمح به دورك في مساحة العمل.",
+  "Refresh cannot add access. Start a new authorization to request write access.": "لا يمكن للتحديث إضافة صلاحيات. ابدأ تفويضًا جديدًا لطلب صلاحية الكتابة."
 }

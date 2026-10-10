@@ -420,12 +420,16 @@ export class WebStore {
   recordMcpFailure(address: string) {
     this.countLimit(sha256('mcp-auth:' + address));
   }
-  /** A registered client's own budget of successful token responses: 30 per 15 minutes, a starting value to tune. */
-  mcpClientWait(clientId: string): number {
-    return this.limitWait(sha256('mcp-client:' + clientId), 30);
+  /**
+   * A connection's own budget of successful token responses: 30 per 15 minutes, a starting value to tune. `subject`
+   * (McpOAuth.tokenSubject: the workspace and person of the presented grant) keeps one app's client ID, shared by
+   * everyone who uses it, from becoming one budget for all of them.
+   */
+  mcpClientWait(clientId: string, subject = ''): number {
+    return this.limitWait(sha256('mcp-client:' + clientId + (subject ? '\n' + subject : '')), 30);
   }
-  recordMcpClientSuccess(clientId: string) {
-    this.countLimit(sha256('mcp-client:' + clientId));
+  recordMcpClientSuccess(clientId: string, subject = '') {
+    this.countLimit(sha256('mcp-client:' + clientId + (subject ? '\n' + subject : '')));
   }
   sealClientSecret(id: string, secret: string) {
     if (!this.box)

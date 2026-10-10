@@ -128,6 +128,8 @@ function healthCheck(service: MirrorService, store: Store, clock: () => number, 
     return last;
   };
 }
+/** /mcp refusals whose details (limits and waits, never request content) are returned in the JSON-RPC error data. */
+const limitRefusals: ReadonlySet<string> = new Set(['RATE_LIMITED', 'BATCH_UNSUPPORTED']);
 /** JSON-RPC's code for a refusal before the request reached MCP: parse error, invalid request, internal, or server. */
 const jsonRpcCode = (e: MirrorError) =>
   e.code === 'INVALID_JSON'
@@ -272,19 +274,39 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
     express.json({limit: options.maxBodyBytes ?? 4 * 1024 * 1024, strict: true}),
     async (req, res, next) => {
       // SEC-02: a JSON-RPC array is refused before any item runs, and each actor has a rate and an in-flight cap. A
-      // request holds its in-flight slot until its response closes.
+      // request holds its in-flight slot until its response has closed and every tool call it started has finished,
+      // so a client that disconnects cannot free its slot while the server is still working on its request.
+      let release!: () => void;
       try {
         const protocol = req.headers['mcp-protocol-version'],
           items = batchItems(req.body, typeof protocol === 'string' ? protocol : undefined, limiter.limits.batchMax);
-        res.on('close', limiter.admit(res.locals.actor, items));
+        release = limiter.admit(res.locals.actor, items);
       } catch (e) {
         if (e instanceof MirrorError && e.code === 'RATE_LIMITED')
           res.setHeader('Retry-After', String(e.details.retry_after_seconds ?? 1));
         next(e);
         return;
       }
+      let running = 0,
+        closed = false;
+      const settle = () => {
+        if (closed && running === 0) release();
+      };
+      res.on('close', () => {
+        closed = true;
+        settle();
+      });
+      const track = async <T>(work: Promise<T>): Promise<T> => {
+        running++;
+        try {
+          return await work;
+        } finally {
+          running--;
+          settle();
+        }
+      };
       try {
-        const server = createMcpServer(service, res.locals.actor),
+        const server = createMcpServer(service, res.locals.actor, {track}),
           transport = new StreamableHTTPServerTransport({sessionIdGenerator: undefined, enableJsonResponse: true});
         res.on('close', () => {
           void Promise.allSettled([transport.close(), server.close()]);
@@ -346,7 +368,12 @@ export function createHttpApp(service: MirrorService, store: Store, options: Htt
       res.status(error.status).json({
         jsonrpc: '2.0',
         id: typeof req.body?.id === 'string' || typeof req.body?.id === 'number' ? req.body.id : null,
-        error: {code: jsonRpcCode(error), message: error.message, data: {code: error.code}},
+        error: {
+          code: jsonRpcCode(error),
+          message: error.message,
+          // A limit refusal carries its numbers (SEC-02), since its sentence is fixed for translation.
+          data: {code: error.code, ...(limitRefusals.has(error.code) ? {details: error.details} : {})},
+        },
       });
     } else {
       const requestId = randomUUID();

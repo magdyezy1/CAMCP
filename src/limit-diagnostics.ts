@@ -86,8 +86,15 @@ const registered = new WeakMap<Store, LimitDiagnostics>();
 export function registerLimitDiagnostics(store: Store, diagnostics: LimitDiagnostics) {
   registered.set(store, diagnostics);
 }
+/**
+ * Whether `tenant` is the deployment's own workspace: the one the website serves its administrator sign-in from, which
+ * owner migration keeps. Every deployment-wide owner panel (rate-limit attribution, AI-client registrations) uses this
+ * one test, so owners of other workspaces never see deployment-wide figures. False where no website runs.
+ */
+export function isDeploymentTenant(store: Store, tenant: string): boolean {
+  return registered.get(store)?.deploymentTenant === tenant;
+}
 /** The deployment workspace's owner view only: owners of other workspaces never see deployment-wide traffic counts. */
 export function limitDiagnostics(store: Store, tenant: string): JsonObject | undefined {
-  const diagnostics = registered.get(store);
-  return diagnostics && diagnostics.deploymentTenant === tenant ? diagnostics.snapshot() : undefined;
+  return isDeploymentTenant(store, tenant) ? registered.get(store)!.snapshot() : undefined;
 }

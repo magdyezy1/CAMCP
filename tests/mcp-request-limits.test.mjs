@@ -7,7 +7,7 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {createHttpApp} from '../dist/server/http-app.js';
-import {mcpLimits, mcpLimitsFromEnv, bodySizeBucket} from '../dist/server/mcp-limits.js';
+import {McpRequestLimiter, mcpLimits, mcpLimitsFromEnv, bodySizeBucket} from '../dist/server/mcp-limits.js';
 import {listenForFetch} from '../dist/tests/http-listener.js';
 
 async function serve({secondInstance = false, ...options} = {}) {
@@ -36,9 +36,10 @@ async function serve({secondInstance = false, ...options} = {}) {
     a: store.createKey({tenantId: 'limits-a', userId: 'connector/a', role: 'reader'}),
     b: store.createKey({tenantId: 'limits-b', userId: 'connector/b', role: 'reader'}),
   };
-  const post = (key, body, {headers = {}, instance = 0} = {}) =>
+  const post = (key, body, {headers = {}, instance = 0, signal} = {}) =>
     fetch(bases[instance] + '/mcp', {
       method: 'POST',
+      signal,
       body: JSON.stringify(body),
       headers: {
         'Content-Type': 'application/json',
@@ -144,7 +145,11 @@ test('the 21st request in a burst from one key gets 429 with Retry-After; a seco
     assert.equal(body.jsonrpc, '2.0');
     assert.equal(body.id, 21);
     assert.equal(body.error.data.code, 'RATE_LIMITED');
-    assert.match(body.error.message, /60 a minute/);
+    assert.deepEqual(body.error.data.details, {retry_after_seconds: 1, limit: 'rate', per_minute: 60, burst: 20});
+    assert.equal(
+      body.error.message,
+      'Too many MCP requests from this key. Wait the number of seconds in Retry-After, then retry.',
+    );
     assert.equal((await s.post(s.keys.b, ping(1))).status, 200, 'another key has its own bucket');
     // The bucket refills at 60 a minute: one request a second.
     now += 1000;
@@ -242,5 +247,56 @@ test('limits are validated at start-up and each can be turned off as a rollback'
     for (let i = 1; i <= 25; i++) assert.equal((await s.post(s.keys.a, ping(i))).status, 200, 'request ' + i);
   } finally {
     await s.close();
+  }
+});
+
+test('a client that disconnects keeps its in-flight slot until its tool call has finished (regression: abort freed it)', async () => {
+  const s = await serve();
+  const pause = ms => new Promise(r => setTimeout(r, ms));
+  try {
+    const controllers = [1, 2, 3, 4].map(() => new AbortController()),
+      started = controllers.map((controller, i) =>
+        s
+          .post(s.keys.a, help(i + 1, 'hold'), {signal: controller.signal})
+          .then(r => r.status)
+          .catch(() => 'aborted'),
+      );
+    while (s.gates.length < 4) await pause(5);
+    for (const controller of controllers) controller.abort();
+    assert.deepEqual(await Promise.all(started), ['aborted', 'aborted', 'aborted', 'aborted']);
+    await pause(50);
+    const fifth = await s.post(s.keys.a, help(5));
+    assert.equal(fifth.status, 429, 'the four abandoned calls are still running on the server');
+    assert.match((await fifth.json()).error.message, /still running/);
+    for (const release of s.gates) release();
+    let status = 0;
+    for (let attempt = 0; attempt < 100 && status !== 200; attempt++) {
+      await pause(10);
+      status = (await s.post(s.keys.a, ping(10 + attempt))).status;
+    }
+    assert.equal(status, 200, 'the slots are released once the abandoned calls finish');
+  } finally {
+    await s.close();
+  }
+});
+
+test('AI-client tokens of different people using one client ID get separate buckets (regression: CIMD shared one)', () => {
+  const store = new Store(':memory:');
+  try {
+    const limiter = new McpRequestLimiter(store, {perMinute: 60, burst: 1, inFlight: 0}, () => 1_000_000),
+      shared = 'oauth/https://client.example.com/oauth/shared-app.json',
+      alice = {tenantId: 'limits-shared', userId: shared, role: 'reader', ownerUserId: 'alice'},
+      bob = {...alice, ownerUserId: 'bob'},
+      administrator = {tenantId: 'limits-shared', userId: shared, role: 'reader'},
+      otherWorkspace = {...alice, tenantId: 'limits-other'};
+    limiter.admit(alice, 1)();
+    assert.throws(
+      () => limiter.admit(alice, 1),
+      e => e.code === 'RATE_LIMITED',
+    );
+    for (const actor of [bob, administrator, otherWorkspace]) limiter.admit(actor, 1)();
+    assert.equal(new Set([alice, bob, administrator, otherWorkspace].map(a => limiter.actorKey(a))).size, 4);
+  } finally {
+    store.close();
   }
 });

@@ -83,15 +83,17 @@ export function batchItems(body: unknown, protocolVersion: string | undefined, b
   if (!Array.isArray(body)) return 1;
   if (batchMax > 1 && protocolVersion === batchProtocolVersion && body.length >= 1 && body.length <= batchMax)
     return body.length;
+  // Fixed sentences with the numbers in details, so the Arabic inventory tracks each reason (tools/check-locales.mjs).
+  if (batchMax > 1)
+    throw new MirrorError(
+      'BATCH_UNSUPPORTED',
+      'JSON-RPC batches are accepted only for protocol 2025-03-26 and up to the configured number of requests. Send each request in its own POST.',
+      {max_items: batchMax, protocol: batchProtocolVersion},
+      400,
+    );
   throw new MirrorError(
     'BATCH_UNSUPPORTED',
-    batchMax > 1
-      ? 'JSON-RPC batches are accepted only for protocol ' +
-          batchProtocolVersion +
-          ' and at most ' +
-          batchMax +
-          ' requests. Send each request in its own POST.'
-      : 'JSON-RPC batches are not supported. Send each request in its own POST.',
+    'JSON-RPC batches are not supported. Send each request in its own POST.',
     {max_items: batchMax},
     400,
   );
@@ -120,8 +122,13 @@ export class McpRequestLimiter {
     this.limits = mcpLimits(options);
     this.perMs = this.limits.perMinute / 60000;
   }
+  /**
+   * The bucket of one credential holder: tenant, user and, for an AI-client token, the person who approved it. An
+   * OAuth actor's user is 'oauth/' + client_id, and a client metadata document's client ID is shared by every person
+   * and workspace using that app, so without the approving person they would all share one bucket.
+   */
   actorKey(actor: Actor): string {
-    return sha256('mcp-actor:' + actor.tenantId + '\n' + actor.userId);
+    return sha256('mcp-actor:' + actor.tenantId + '\n' + actor.userId + '\n' + (actor.ownerUserId ?? ''));
   }
   /** Seconds to wait before `cost` requests fit the actor's bucket; 0 when they were admitted and charged. */
   private take(key: string, cost: number): number {
@@ -163,10 +170,8 @@ export class McpRequestLimiter {
     if (this.limits.inFlight > 0 && active >= this.limits.inFlight)
       throw new MirrorError(
         'RATE_LIMITED',
-        'Too many MCP requests from this key are still running (at most ' +
-          this.limits.inFlight +
-          '). Wait for one to finish, then retry.',
-        {retry_after_seconds: 1, limit: 'in_flight'},
+        'Too many MCP requests from this key are still running. Wait for one to finish, then retry.',
+        {retry_after_seconds: 1, limit: 'in_flight', max_in_flight: this.limits.inFlight},
         429,
         true,
       );
@@ -174,14 +179,8 @@ export class McpRequestLimiter {
     if (wait)
       throw new MirrorError(
         'RATE_LIMITED',
-        'Too many MCP requests from this key (at most ' +
-          this.limits.perMinute +
-          ' a minute, bursts of ' +
-          this.limits.burst +
-          '). Retry after ' +
-          wait +
-          ' seconds.',
-        {retry_after_seconds: wait, limit: 'rate'},
+        'Too many MCP requests from this key. Wait the number of seconds in Retry-After, then retry.',
+        {retry_after_seconds: wait, limit: 'rate', per_minute: this.limits.perMinute, burst: this.limits.burst},
         429,
         true,
       );

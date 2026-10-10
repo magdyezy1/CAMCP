@@ -138,9 +138,12 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         .json({error: 'invalid_client', error_description: 'Invalid client credentials or authentication method.'});
       return;
     }
-    const token = req.baseUrl === '/token';
+    const token = req.baseUrl === '/token',
+      // The success budget is per connection (client, workspace and approving person), not per client ID alone: a
+      // client metadata document's client ID is shared by everyone using that app (SEC-01 with MCP-03).
+      subject = token ? mcpOAuth.tokenSubject(clientId, req.body) : '';
     if (token) {
-      const clientWait = web.mcpClientWait(clientId);
+      const clientWait = web.mcpClientWait(clientId, subject);
       if (clientWait) {
         tooMany(clientWait, 'Too many token requests for this client. Try again later.');
         return;
@@ -149,7 +152,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     // A refused grant (invalid_grant and other 4xx answers of the token handler) counts as a failure afterwards.
     res.on('finish', () => {
       if (res.statusCode >= 400 && res.statusCode < 500 && res.statusCode !== 429) web.recordMcpFailure(address);
-      else if (token && res.statusCode < 300) web.recordMcpClientSuccess(clientId);
+      else if (token && res.statusCode < 300) web.recordMcpClientSuccess(clientId, subject);
     });
     next();
   });
@@ -726,10 +729,12 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
   router.get(
     '/api/mcp/authorizations',
     handler((req, res) => {
-      const s = web.requireSession(req);
+      const s = web.requireSession(req),
+        // Administrators see who approved each connection, so they can end one person's (MCP-08 with CIMD).
+        owners = s.actor.role === 'admin';
       res.json({
-        clients: mcpOAuth.authorizations(s.actor.tenantId, grantOwner(s)),
-        ended: mcpOAuth.endedAuthorizations(s.actor.tenantId),
+        clients: mcpOAuth.authorizations(s.actor.tenantId, grantOwner(s), {owners}),
+        ended: mcpOAuth.endedAuthorizations(s.actor.tenantId, {owners}),
       });
     }),
   );
@@ -738,9 +743,12 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     handler((req, res) => {
       const s = web.requireMutation(req),
         id = String(req.params.id),
-        administrator = s.actor.role === 'admin';
-      // Administrators revoke any client of the workspace; a member revokes the clients they authorized.
-      const ended = mcpOAuth.revokeClient(id, s.actor.tenantId, administrator ? undefined : s.actor.userId);
+        administrator = s.actor.role === 'admin',
+        // ?owner=<user ID> (or empty for the administrator sign-in) ends one person's connection of this client.
+        requested = typeof req.query.owner === 'string' ? req.query.owner || null : undefined,
+        owner = administrator ? requested : s.actor.userId;
+      // Administrators revoke any connection of the workspace; a member revokes the connections they authorized.
+      const ended = mcpOAuth.revokeClient(id, s.actor.tenantId, owner);
       if (!administrator && !ended)
         throw new MirrorError(
           'FORBIDDEN',
@@ -753,6 +761,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         client_id: id,
         reason: 'workspace_revoke',
         grants: ended,
+        ...(owner !== undefined ? {owner_user_id: owner} : {}),
         ...(grantOwner(s) ? {by_user_id: grantOwner(s)} : {}),
       });
       res.json({success: true});

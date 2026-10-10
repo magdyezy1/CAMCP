@@ -8,6 +8,7 @@ import {MirrorService, strictOptions} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import {createHttpApp} from '../server/http-app.js';
 import {McpOAuth} from '../server/mcp-oauth.js';
+import {endMcpGrants} from '../server/mcp-grants.js';
 import {WebStore, type WebsiteOptions} from '../server/web-store.js';
 import {UserAccounts} from '../server/user-accounts.js';
 import type {JsonObject} from '../src/types.js';
@@ -577,6 +578,138 @@ test('MCP-08: the reuse window is configurable from 0 to 60 seconds, and 0 resto
       f.audit('mcp_oauth_family_revoked').map(e => e.reason),
       ['refresh_replay'],
     );
+  } finally {
+    await f.close();
+  }
+});
+
+test('MCP-08 with CIMD: two members using one metadata-document client keep separate connections, budgets and revocation (regression: one client ID merged everyone)', async () => {
+  const documentUrl = 'https://client.example.com/oauth/shared-app.json',
+    fetched: string[] = [];
+  const f = await fixture({
+    mcpClientMetadata: {
+      request: async url => {
+        fetched.push(url.href);
+        return new Response(
+          JSON.stringify({
+            client_id: documentUrl,
+            client_name: 'Shared App',
+            redirect_uris: [redirect],
+            grant_types: ['authorization_code', 'refresh_token'],
+            response_types: ['code'],
+            token_endpoint_auth_method: 'none',
+          }),
+          {headers: {'content-type': 'application/json', 'cache-control': 'max-age=600'}},
+        );
+      },
+    },
+  });
+  /** Authorizes the shared app from one member's session, as that person's installation of it would. */
+  const connectShared = async (headers: Record<string, string>) => {
+    const verifier = randomBytes(48).toString('base64url');
+    const start = await f.request(
+      '/authorize?' +
+        new URLSearchParams({
+          client_id: documentUrl,
+          redirect_uri: redirect,
+          response_type: 'code',
+          code_challenge: createHash('sha256').update(verifier).digest('base64url'),
+          code_challenge_method: 'S256',
+          scope: 'mcp:read',
+          state: 'shared-state',
+          resource: origin + '/mcp',
+        }),
+    );
+    assert.equal(start.status, 303, await start.clone().text());
+    const consentRequest = new URL(start.headers.get('location')!).searchParams.get('request')!;
+    const decision = await f.request('/api/mcp/consent', 'POST', {request: consentRequest, approved: true}, headers);
+    assert.equal(decision.status, 200, await decision.clone().text());
+    const exchanged = await f.token({
+      grant_type: 'authorization_code',
+      client_id: documentUrl,
+      redirect_uri: redirect,
+      code: new URL((await decision.json()).url).searchParams.get('code')!,
+      code_verifier: verifier,
+      resource: origin + '/mcp',
+    });
+    assert.equal(exchanged.status, 200, await exchanged.clone().text());
+    return (await exchanged.json()) as {access_token: string; refresh_token: string};
+  };
+  try {
+    const alice = f.member('operator', 'alice@example.test'),
+      bob = f.member('viewer', 'bob@example.test');
+    const aliceTokens = await connectShared(alice.headers),
+      bobTokens = await connectShared(bob.headers);
+    assert.equal(await f.mcp(aliceTokens.access_token), 200);
+    assert.equal(await f.mcp(bobTokens.access_token), 200);
+    // The administrator sees one connection per person, named, under the one shared client ID.
+    const listed = await (await f.request('/api/mcp/authorizations', 'GET', undefined, f.admin)).json();
+    assert.deepEqual(
+      listed.clients.map((c: JsonObject) => [c.id, c.owner, c.ownerName]).sort(),
+      [
+        [documentUrl, alice.user.id, 'Member operator'],
+        [documentUrl, bob.user.id, 'Member viewer'],
+      ].sort(),
+    );
+    // A member sees which one is theirs and no other person's identity.
+    const seen = await (await f.request('/api/mcp/authorizations', 'GET', undefined, alice.headers)).json();
+    assert.deepEqual(seen.clients.map((c: JsonObject) => c.yours).sort(), [false, true]);
+    assert.ok(seen.clients.every((c: JsonObject) => !('owner' in c) && !('ownerName' in c)));
+    // Each person's connection has its own budget of 30 successful token responses (SEC-01 with CIMD); the code
+    // exchange was the first of Alice's 30.
+    let aliceRefresh = aliceTokens.refresh_token;
+    for (let i = 0; i < 29; i++) {
+      const r = await f.token({grant_type: 'refresh_token', client_id: documentUrl, refresh_token: aliceRefresh});
+      assert.equal(r.status, 200, 'refresh ' + (i + 1));
+      aliceRefresh = (await r.json()).refresh_token;
+    }
+    assert.equal(
+      (await f.token({grant_type: 'refresh_token', client_id: documentUrl, refresh_token: aliceRefresh})).status,
+      429,
+    );
+    const bobRefreshed = await f.token({
+      grant_type: 'refresh_token',
+      client_id: documentUrl,
+      refresh_token: bobTokens.refresh_token,
+    });
+    assert.equal(bobRefreshed.status, 200, 'another person using the same app keeps their own budget');
+    const bobAccess = (await bobRefreshed.json()).access_token as string;
+    // The administrator ends Alice's connection only; Bob's keeps working, and the audit names whose ended.
+    const revoked = await f.request(
+      '/api/mcp/authorizations/' + encodeURIComponent(documentUrl) + '?owner=' + encodeURIComponent(alice.user.id),
+      'DELETE',
+      undefined,
+      f.admin,
+    );
+    assert.equal(revoked.status, 200, await revoked.clone().text());
+    assert.equal(await f.mcp(bobAccess), 200);
+    const after = await (await f.request('/api/mcp/authorizations', 'GET', undefined, f.admin)).json();
+    assert.deepEqual(
+      after.clients.map((c: JsonObject) => c.owner),
+      [bob.user.id],
+    );
+    assert.deepEqual(
+      after.ended.map((c: JsonObject) => [c.id, c.owner, c.reason]),
+      [[documentUrl, alice.user.id, 'workspace_revoke']],
+    );
+    assert.deepEqual(
+      f.audit('mcp_oauth_revoked').map(e => [e.client_id, e.owner_user_id]),
+      [[documentUrl, alice.user.id]],
+    );
+    // Ending every connection of the app audits one row per person, not one for the whole client. A third member
+    // connects first, so two people have live grants of the app again (Alice's budget is spent for 15 minutes).
+    const carol = f.member('operator', 'carol@example.test');
+    await connectShared(carol.headers);
+    assert.ok(endMcpGrants(f.store, 'client_id=?', [documentUrl], 'workspace_revoke') > 0);
+    assert.deepEqual(
+      f
+        .audit('mcp_oauth_family_revoked')
+        .filter(e => e.client_id === documentUrl && e.reason === 'workspace_revoke')
+        .map(e => e.owner_user_id)
+        .sort(),
+      [bob.user.id, carol.user.id].sort(),
+    );
+    assert.equal(fetched.length, 1, 'the shared document is fetched once and cached');
   } finally {
     await f.close();
   }
