@@ -1183,6 +1183,36 @@ export class Store {
   releaseLock(key: string, owner: string) {
     this.db.prepare('DELETE FROM service_locks WHERE key=? AND owner=?').run(key, owner);
   }
+  /** Every key or none, in one transaction, so two holders of overlapping key sets can never deadlock (WRT-04). */
+  acquireLocks(keys: string[], owner: string, ttl: number): boolean {
+    if (!keys.length) return true;
+    return this.transaction(() => {
+      const now = Date.now();
+      for (const key of keys) this.db.prepare('DELETE FROM service_locks WHERE key=? AND expires_at<=?').run(key, now);
+      if (keys.some(key => this.db.prepare('SELECT 1 FROM service_locks WHERE key=?').get(key))) return false;
+      for (const key of keys)
+        this.db.prepare('INSERT INTO service_locks(key,owner,expires_at) VALUES(?,?,?)').run(key, owner, now + ttl);
+      return true;
+    });
+  }
+  /** Extends every lock this owner still holds; false when another holder took one after it lapsed. */
+  renewLocks(keys: string[], owner: string, ttl: number): boolean {
+    if (!keys.length) return true;
+    return this.transaction(() => {
+      const until = Date.now() + ttl;
+      return keys.every(
+        key =>
+          this.db.prepare('UPDATE service_locks SET expires_at=? WHERE key=? AND owner=?').run(until, key, owner)
+            .changes === 1,
+      );
+    });
+  }
+  releaseLocks(keys: string[], owner: string) {
+    if (!keys.length) return;
+    this.transaction(() => {
+      for (const key of keys) this.releaseLock(key, owner);
+    });
+  }
   renewLock(key: string, owner: string, ttl: number) {
     const now = Date.now();
     return (
@@ -1647,6 +1677,27 @@ export class Store {
     this.transaction(() => {
       this.db.prepare("UPDATE idempotency SET state='uncertain' WHERE tenant_id=? AND key=?").run(tenantId, key);
       this.journal(tenantId, key, 'uncertain');
+    });
+  }
+  /**
+   * A refusal raised before any provider request (WRT-04, owner decision D12): one transaction removes this pending
+   * claim and the daily spend reservations its review took (an Apple shared budget reserves `<key>:<account>` per
+   * account), journals not_sent and audits write_not_sent. Only a pending claim with this fingerprint is released; a
+   * completed or uncertain one is never reset. Returns whether the claim was released.
+   */
+  release(tenantId: string, key: string, fingerprint: string, audit: JsonObject = {}): boolean {
+    return this.transaction(() => {
+      const released =
+        this.db
+          .prepare("DELETE FROM idempotency WHERE tenant_id=? AND key=? AND state='pending' AND fingerprint=?")
+          .run(tenantId, key, fingerprint).changes === 1;
+      if (!released) return false;
+      this.db
+        .prepare("DELETE FROM documents WHERE tenant_id=? AND kind='spend_reservation' AND (id=? OR substr(id,1,?)=?)")
+        .run(tenantId, key, key.length + 1, key + ':');
+      this.journal(tenantId, key, 'not_sent', typeof audit.code === 'string' ? {code: audit.code} : {});
+      this.appendAudit(tenantId, key, {...audit, event: 'write_not_sent'});
+      return true;
     });
   }
   putDocument(tenantId: string, kind: string, id: string, data: unknown, expectedRevision?: number) {

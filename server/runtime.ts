@@ -45,6 +45,7 @@ export function createRuntime(
     allowWrites: config.allowWrites,
     maxBudgetChange: 0,
     requireBeforeState: true,
+    providerValidation: config.providerValidation,
   });
   service.transport.coordination = store;
   // Metadata-only failure lines on stderr (stdout carries stdio MCP); the HTTP app replaces this with its own log.

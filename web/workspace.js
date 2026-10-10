@@ -289,11 +289,13 @@ async function renderCampaigns() {
       await workspaceCall('campaign', {action: 'cancel', id, confirmed: true});
       if (current()) await open(id);
     });
-    workspaceBind('#next-campaign', async () => {
+    const reviewNext = async () => {
       const r = await workspaceCall('campaign', {action: 'prepare_next', id, detail: 'full'});
       if (!current()) return;
       if (r.review) {
         $('#campaign-review').innerHTML = reviewView(r.review, uiText('Execute reviewed campaign step'));
+        // An expired step review is prepared again by prepare_next, which reads the state again (WRT-05).
+        bindReviewCountdown(r.review, reviewNext);
         workspaceBind('#execute-reviewed', async () => {
           const out = await workspaceCall('campaign', {
             action: 'execute_next',
@@ -311,7 +313,8 @@ async function renderCampaigns() {
         await open(id);
         $('#campaign-review').innerHTML = campaignOutcome(r);
       }
-    });
+    };
+    workspaceBind('#next-campaign', reviewNext);
     return sequence === openSequence;
   };
   workspaceBind('[data-run]', b => open(b.dataset.run));
@@ -393,12 +396,27 @@ async function renderMediaLibrary() {
     $('#variant-preview').innerHTML =
       `<p class="form-note">${esc(uiText('Source or format changed. Preview again before importing a variant.'))}</p>`;
   });
-  const showReview = (review, tool = 'write') => {
+  // prepare, when given, prepares the same request again for a new review once this one expires (WRT-05).
+  const showReview = (review, tool = 'write', prepare) => {
     if (review.reused) {
       $('#media-review').innerHTML = recordDetails(review, uiText('Reused upload receipt — no upload performed'));
       return;
     }
     $('#media-review').innerHTML = reviewView(review);
+    const again = async () => {
+      const next = await prepare();
+      // The same request over unchanged state, by the server's fingerprint and state hash, says so as a plan step does.
+      if (
+        typeof review.fingerprint === 'string' &&
+        typeof review.state_hash === 'string' &&
+        next.review_id !== review.review_id &&
+        next.fingerprint === review.fingerprint &&
+        next.state_hash === review.state_hash
+      )
+        next.unchanged_since_review ??= review.review_id;
+      showReview(next, tool, prepare);
+    };
+    bindReviewCountdown(review, prepare ? again : undefined);
     workspaceBind('#execute-reviewed', async () => {
       const consents = readReviewConsents(review);
       try {
@@ -496,8 +514,7 @@ async function renderMediaLibrary() {
       source = Object.fromEntries(new FormData($('#media-source'))),
       target = targets[Number(v.target)];
     if (!target) throw Error(uiText('Connect and select an advertising account first.'));
-    showReview(
-      await workspaceCall('media', {
+    const request = {
         action: 'prepare',
         platform: target.platform,
         connection_id: target.connection_id,
@@ -510,9 +527,9 @@ async function renderMediaLibrary() {
               drive_url: source.drive_url,
               ...(source.drive_connection_id ? {drive_connection_id: source.drive_connection_id} : {}),
             }),
-      }),
-      'media',
-    );
+      },
+      prepare = () => workspaceCall('media', request);
+    showReview(await prepare(), 'media', prepare);
   });
   const showMediaStatus = async id => {
     const r = await workspaceCall('media', {action: 'status', review_id: id});
@@ -520,15 +537,13 @@ async function renderMediaLibrary() {
     if (r.next_call?.arguments?.action === 'prepare_library') {
       $('#media-review').innerHTML +=
         `<button id="prepare-library" class="button">${esc(uiText('Review adding video to the account library'))}</button>`;
-      workspaceBind('#prepare-library', async () =>
-        showReview(await workspaceCall('media', r.next_call.arguments), 'media'),
-      );
+      const prepare = () => workspaceCall('media', r.next_call.arguments);
+      workspaceBind('#prepare-library', async () => showReview(await prepare(), 'media', prepare));
     } else if (r.next_call?.tool === 'amcp_write' && r.next_call.arguments.action === 'prepare') {
       $('#media-review').innerHTML +=
         `<button id="prepare-video-asset" class="button">${esc(uiText('Review creating the video asset'))}</button>`;
-      workspaceBind('#prepare-video-asset', async () =>
-        showReview(await workspaceCall('write', r.next_call.arguments)),
-      );
+      const prepare = () => workspaceCall('write', r.next_call.arguments);
+      workspaceBind('#prepare-video-asset', async () => showReview(await prepare(), 'write', prepare));
     }
   };
   await bindCreativeLibrary(targets, showMediaStatus);

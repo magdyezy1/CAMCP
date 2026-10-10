@@ -6,7 +6,8 @@ import {websiteUploadDeadline, withWebsiteUploadDeadline} from './media-retentio
 import {Registry} from './catalog.js';
 import {Store, MEDIA_LEASE_MS} from './store.js';
 import {CredentialProvider} from './auth.js';
-import {NativeTransport, type BinaryUpload, type TransportResult} from './transport.js';
+import {NativeTransport, trackDispatch, type BinaryUpload, type TransportResult} from './transport.js';
+import {releaseUnsentClaims} from './write-common.js';
 import {ScopeGuard, normalizeAccount} from './scope.js';
 import {writeOutcome} from './write-outcome.js';
 import {validateState} from './write-state.js';
@@ -1332,9 +1333,13 @@ export class MediaUploadService {
       this.store.appendAudit(actor.tenantId, input.review_id, {event: 'media_allocated', ...allocated});
     };
     let receipt: JsonObject;
+    // Whether any upload request left AMCP (WRT-04): a refusal before the first one releases the claim instead.
+    const dispatch = {sent: false};
     try {
-      const out = await this.executionContext.run(review.expires_at, () =>
-        this.upload(actor, p, bytes, record, resuming ? resumable : undefined),
+      const out = await trackDispatch(dispatch, () =>
+        this.executionContext.run(review.expires_at, () =>
+          this.upload(actor, p, bytes, record, resuming ? resumable : undefined),
+        ),
       );
       receipt = {
         success: true,
@@ -1368,9 +1373,6 @@ export class MediaUploadService {
         this.store.appendAudit(actor.tenantId, input.review_id, {event: 'media_uploaded', receipt});
       });
     } catch (e) {
-      this.store.uncertain(actor.tenantId, input.review_id);
-      const retained = this.store.uploadSession(actor.tenantId, input.review_id);
-      if (!retained || retained.finalization_started) this.store.removeStagedMedia(actor.tenantId, input.review_id);
       const error =
         e instanceof MirrorError
           ? e
@@ -1380,6 +1382,31 @@ export class MediaUploadService {
               {},
               502,
             );
+      // Nothing was sent (owner decision D12): the claim is released and the staged file kept, so the same review can
+      // be executed again inside its window. A resumed transfer keeps its original uncertain claim.
+      const unsent =
+        !resuming &&
+        !dispatch.sent &&
+        !Object.keys(allocated).length &&
+        releaseUnsentClaims() &&
+        this.store.release(actor.tenantId, input.review_id, fingerprint, {
+          code: error.code,
+          kind: 'media',
+          gateway: p.platform + '_native_action',
+          account_id: p.account_id,
+          connection_id: p.connection_id,
+        });
+      if (unsent)
+        throw new MirrorError(
+          error.code,
+          error.message,
+          {...error.details, review_id: input.review_id, submission: 'not_sent', retry_safe: true},
+          error.status,
+          error.retryable,
+        );
+      this.store.uncertain(actor.tenantId, input.review_id);
+      const retained = this.store.uploadSession(actor.tenantId, input.review_id);
+      if (!retained || retained.finalization_started) this.store.removeStagedMedia(actor.tenantId, input.review_id);
       this.store.appendAudit(actor.tenantId, input.review_id, {
         event: 'media_upload_incomplete',
         code: error.code,

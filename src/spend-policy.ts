@@ -493,6 +493,7 @@ export function checkSpendPolicy(
   before: unknown,
   reserveId?: string,
   capOverrideConfirmed = false,
+  pendingIncrease?: string,
 ): JsonObject {
   const accounts = appleSharedAccounts(plan);
   if (accounts.length)
@@ -511,7 +512,43 @@ export function checkSpendPolicy(
       })),
       allocation: 'Each account reserves the complete positive increase; no allocation among campaigns is inferred.',
     }));
-  return checkAccountSpendPolicy(store, actor, plan, before, reserveId, capOverrideConfirmed);
+  return checkAccountSpendPolicy(store, actor, plan, before, reserveId, capOverrideConfirmed, pendingIncrease);
+}
+/**
+ * The parts of one group review checked in order as one change (WRT-04): each part counts the earlier parts' increases
+ * as already reserved today, through the same decimal path execute uses, so a daily cap a later part would cross is
+ * known at prepare and again before part 1 is sent. Nothing is reserved; under `block` a breach refuses.
+ */
+export function checkGroupSpendPolicy(
+  store: Store,
+  actor: Actor,
+  parts: {plan: CompiledRequest; state: unknown}[],
+): {parts: JsonObject[]; exceeded: JsonObject[]; increase_decimal: string} {
+  let pending = decimalZero;
+  const results = parts.map(({plan, state}, i) => {
+    let result: JsonObject;
+    try {
+      result = checkSpendPolicy(store, actor, plan, state, undefined, false, decimalText(pending));
+    } catch (e) {
+      // Under `block`, the part that crosses a cap names itself; the earlier parts are counted in already_reserved.
+      if (!(e instanceof MirrorError)) throw e;
+      throw new MirrorError(
+        e.code,
+        'Together, the parts of this review exceed the owner’s spending policy at part ' + (i + 1) + ': ' + e.message,
+        {...e.details, group: true, part: i + 1, parts: parts.length},
+        e.status,
+        e.retryable,
+      );
+    }
+    if (typeof result.requested_increase_decimal === 'string')
+      pending = addDecimal(pending, policyDecimal(result.requested_increase_decimal));
+    return result;
+  });
+  return {
+    parts: results,
+    exceeded: results.flatMap((r, i) => exceededCaps(r).map(x => ({...x, part: i + 1}))),
+    increase_decimal: decimalText(pending),
+  };
 }
 /** True when the request activates or widens delivery under `rule`, the gateway's activation field (owner policy). */
 export function policyActivates(plan: CompiledRequest, before: unknown, rule: Activation | null | undefined): boolean {
@@ -574,6 +611,7 @@ function checkAccountSpendPolicy(
   before: unknown,
   reserveId?: string,
   capOverrideConfirmed = false,
+  pendingIncrease?: string,
 ): JsonObject {
   return store.transaction(() => {
     store.assertActorActive(actor);
@@ -788,6 +826,8 @@ function checkAccountSpendPolicy(
         );
       used = addDecimal(used, amount);
     }
+    // Earlier parts of the same group review count as reserved (WRT-04): the group is one change for the daily cap.
+    if (pendingIncrease !== undefined) used = addDecimal(used, policyDecimal(pendingIncrease));
     const requestedDecimal = decimalText(increase),
       usedDecimal = decimalText(used);
     const requestedNumber = Number(requestedDecimal),
@@ -823,10 +863,15 @@ function checkAccountSpendPolicy(
         {policy_id: id, exceeded},
       );
     if (exceeded.length && reserveId)
+      // Read back for the owner (owner health cap_overrides, WRT-05): who went over which cap, on which account.
       store.appendAudit(actor.tenantId, reserveId, {
         event: 'spend_cap_exceeded_with_confirmation',
         policy_id: id,
         exceeded,
+        actor: actor.userId,
+        actor_role: actor.role,
+        gateway: plan.gateway,
+        account_id: plan.accountId,
       });
     if (reserveId)
       store.putDocument(actor.tenantId, 'spend_reservation', reserveId, {

@@ -1,9 +1,12 @@
 import {randomUUID} from 'node:crypto';
 import {MirrorError} from './errors.js';
 import type {Store} from './store.js';
-import type {Actor, JsonObject} from './types.js';
+import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {fingerprint} from './workspace-core.js';
 import {observedHash} from './write-verification.js';
+import {checkGroupSpendPolicy, describeExceeded} from './spend-policy.js';
+import {assertWritesNotPaused} from './owner-operations.js';
+import {groupPartSeconds} from './write-common.js';
 
 /**
  * One approval for a request longer than one native call allows (the owner's item 4, 2026-09-29): Google Ads
@@ -51,11 +54,42 @@ export function groupParts(gateway: unknown, args: JsonObject): JsonObject[] {
   });
 }
 type Reviewed = (input: JsonObject, actor: Actor) => Promise<any>;
+/** What execute would check of one part before claiming it (WriteReviewService.admit); sends and claims nothing. */
+type Admit = (
+  actor: Actor,
+  reviewId: string,
+  flags: JsonObject,
+) => {plan: CompiledRequest; state: unknown; expiresAt: number};
+/**
+ * The latest time execute can start so that part i (0-based) still has (i+1) part durations of its own window left
+ * (WRT-04): a group that starts later would run out of time part-way and stop half applied.
+ */
+const executeBy = (expiries: number[], seconds: number) =>
+  Math.min(...expiries.map((expires, i) => expires - (i + 1) * seconds * 1000));
 export class WriteGroups {
   constructor(
     private store: Store,
     private reviewed: Reviewed,
+    private admit?: Admit,
   ) {}
+  /** The parts' frozen requests and reviewed state, in order. */
+  private reviews(actor: Actor, parts: string[]): {plan: CompiledRequest; state: unknown; expiresAt: number}[] {
+    return parts.map(id => {
+      const review = this.store.document(actor.tenantId, 'write_review', id);
+      return {plan: review.plan, state: review.state, expiresAt: review.expires_at};
+    });
+  }
+  /** How to send one part that a stopped group did not send: execute it while its review lasts, else prepare it again. */
+  private partCall(actor: Actor, part: string, approved: JsonObject): JsonObject {
+    const review = this.store.document(actor.tenantId, 'write_review', part);
+    if (review.expires_at <= Date.now() && review.prepare_input)
+      return {tool: 'amcp_write', arguments: {action: 'prepare', ...review.prepare_input}};
+    return {
+      tool: 'amcp_write',
+      arguments: {action: 'execute', review_id: part, idempotency_key: part, confirmed: true},
+      ...(Object.keys(approved).length ? {add_after_user_approval: approved} : {}),
+    };
+  }
   group(actor: Actor, id: unknown): JsonObject | undefined {
     if (typeof id !== 'string') return undefined;
     const row = this.store.db
@@ -81,29 +115,116 @@ export class WriteGroups {
         {field: 'arguments.payload.' + batch.key, limit: groupMaxParts * groupPartSize},
       );
     const parts: JsonObject[] = [];
+    let slowest = 0;
     for (let i = 0; i < count; i++) {
       const args = structuredClone(input.arguments) as JsonObject;
       args.payload[batch.key] = batch.items.slice(i * groupPartSize, (i + 1) * groupPartSize);
       // Each part is an ordinary review. If one cannot be prepared, the group is refused: unexecuted part reviews
       // simply expire.
+      const started = performance.now();
       parts.push(await this.reviewed({...input, arguments: args}, actor));
+      slowest = Math.max(slowest, performance.now() - started);
     }
+    // The parts together are one change for the owner's spending caps (WRT-04): each part counts the earlier parts'
+    // increases, so a daily cap only the whole group crosses is named now, and refused now under `block`.
+    const together = checkGroupSpendPolicy(
+      this.store,
+      actor,
+      this.reviews(
+        actor,
+        parts.map(p => p.review_id),
+      ),
+    );
+    // Each part needs time of its own window left when its turn comes; the group lasts until the last moment at which
+    // every part still has it (WRT-04), measured from how long the parts took to prepare.
+    const seconds = groupPartSeconds(slowest),
+      windows = parts.map(p => Date.parse(p.expires_at)),
+      expires = seconds ? Math.min(...windows, executeBy(windows, seconds)) : Math.min(...windows);
+    if (expires <= Date.now() + 5000)
+      throw new MirrorError(
+        'WRITE_GROUP_TOO_LONG',
+        'This request has ' +
+          count +
+          ' parts and each needs about ' +
+          seconds +
+          ' seconds, which is more than one review window holds. Nothing was submitted; send fewer records per request.',
+        {parts: count, seconds_per_part: seconds, review_window_seconds: 300},
+      );
     const id = randomUUID(),
-      expires = Math.min(...parts.map(p => Date.parse(p.expires_at))),
-      union = (key: string) => parts.some(p => p.execute_requirements?.[key] === true);
+      union = (key: string) => parts.some(p => p.execute_requirements?.[key] === true),
+      cap = union('cap_override_confirmed') || together.exceeded.length > 0;
+    const reasons = [
+      ...new Map(
+        parts
+          .flatMap(p => (p.execute_requirements?.reasons ?? []) as JsonObject[])
+          .filter(r => r.flag !== 'cap_override_confirmed')
+          // An effect reason (WRT-05) names the first part's target; one per effect is kept.
+          .map(r => [r.flag ?? 'effect:' + r.effect, r]),
+      ).values(),
+      ...(cap
+        ? [
+            {
+              flag: 'cap_override_confirmed',
+              reason:
+                'Together, the parts of this change go beyond a spending cap the owner set: ' +
+                describeExceeded(together.exceeded) +
+                '. It is not refused; the user decides.',
+              exceeded: together.exceeded,
+            },
+          ]
+        : []),
+    ];
+    const partEffects = parts.map(p => p.execute_requirements?.effects).filter(Boolean) as JsonObject[],
+      effects = partEffects.length
+        ? Object.fromEntries(
+            ['destructive', 'irreversible', 'publishes_live', 'stops_delivery'].map(k => [
+              k,
+              partEffects.some(e => e[k] === true),
+            ]),
+          )
+        : undefined;
     const requirements: JsonObject = {
       confirmed: true,
       ...(union('spend_change_confirmed') ? {spend_change_confirmed: true} : {}),
-      ...(union('cap_override_confirmed') ? {cap_override_confirmed: true} : {}),
+      ...(cap ? {cap_override_confirmed: true} : {}),
       ...(union('creative_edit_confirmed') ? {creative_edit_confirmed: true} : {}),
+      ...(reasons.length ? {reasons} : {}),
+      ...(effects ? {effects} : {}),
     };
+    const last = together.parts.at(-1)!;
+    const spendPolicy: JsonObject =
+      last.configured === true
+        ? {
+            configured: true,
+            policy_id: last.policy_id,
+            scope: last.scope,
+            enforcement: last.enforcement,
+            requested_increase_decimal: together.increase_decimal,
+            reserved_today_decimal: together.parts[0]!.reserved_today_decimal,
+            units: 'native',
+            counted: 'Every part together, in order, as one change.',
+            ...(together.exceeded.length
+              ? {
+                  exceeded: together.exceeded,
+                  cap_override_required: true,
+                  exceeded_summary: describeExceeded(together.exceeded),
+                }
+              : {}),
+          }
+        : last;
     this.store.putDocument(actor.tenantId, 'write_review_group', id, {
       user_id: actor.userId,
       gateway: input.gateway,
       parts: parts.map(p => p.review_id),
       records: parts.map((_, i) => Math.min(groupPartSize, batch.items.length - i * groupPartSize)),
       expires_at: expires,
+      slowest_prepare_ms: Math.round(slowest),
       created_at: Date.now(),
+      prepare_input: {
+        gateway: input.gateway,
+        arguments: input.arguments,
+        ...(input.connection_id !== undefined ? {connection_id: input.connection_id} : {}),
+      },
     });
     this.store.appendAudit(actor.tenantId, id, {
       event: 'write_group_prepared',
@@ -129,11 +250,19 @@ export class WriteGroups {
         state_reads: p.state_reads,
         spend_policy: p.spend_policy,
       })),
+      spend_policy: spendPolicy,
+      time_budget: {
+        seconds_per_part: seconds,
+        execute_by: new Date(expires).toISOString(),
+        meaning:
+          'Each part needs this much of its own review window when its turn comes. Execute before execute_by, or the group is refused before its first part is sent.',
+      },
       contract_evidence: parts[0]!.contract_evidence,
       confirmation_required: true,
       execute_requirements: requirements,
+      ...(effects ? {effects} : {}),
       meaning:
-        'One approval covers every part. Execute sends the parts in order, each checked against the state it was reviewed on, and stops at the first that does not succeed; nothing after it is sent.',
+        'One approval covers every part. Before the first part is sent, execute checks every part (access, acknowledgements, the owner’s spending caps for the parts together, and the time each part needs); then it sends the parts in order, each checked against the state it was reviewed on, and stops at the first that does not succeed; nothing after it is sent.',
     };
   }
   async execute(input: JsonObject, actor: Actor): Promise<JsonObject> {
@@ -173,14 +302,57 @@ export class WriteGroups {
         {},
         409,
       );
+    const prepareAgain = group.prepare_input
+      ? {next_call: {tool: 'amcp_write', arguments: {action: 'prepare', ...group.prepare_input}}}
+      : {};
     // Every part must still be inside its review window before the first is sent: never half a group by expiry.
     if (group.expires_at <= Date.now() + 5000) {
       throw new MirrorError(
         'REVIEW_EXPIRED',
         'This review expired before execution; nothing was submitted. Prepare the same request again.',
-        {},
+        prepareAgain,
         409,
       );
+    }
+    // Before the first part is sent, every part is checked the way its own execute will check it (WRT-04): the owner's
+    // pause, access and grants, the acknowledgements, the spending caps for all the parts together, and the time each
+    // part needs. A refusal here sends nothing and claims nothing.
+    if (this.admit) {
+      assertWritesNotPaused(this.store, actor.tenantId);
+      const admitted = (group.parts as string[]).map(part => this.admit!(actor, part, flags));
+      const together = checkGroupSpendPolicy(this.store, actor, admitted);
+      if (together.exceeded.length && flags.cap_override_confirmed !== true)
+        throw new MirrorError(
+          'CAP_CONFIRMATION_REQUIRED',
+          'Together, the parts of this change go beyond a spending cap the owner set: ' +
+            describeExceeded(together.exceeded) +
+            '. Nothing was sent. Show the user and, once they approve, execute again with cap_override_confirmed=true.',
+          {exceeded: together.exceeded, group: true},
+        );
+      const seconds = groupPartSeconds(group.slowest_prepare_ms),
+        now = Date.now(),
+        late = seconds ? admitted.findIndex((a, i) => a.expiresAt - now < (i + 1) * seconds * 1000) : -1;
+      if (late >= 0)
+        throw new MirrorError(
+          'REVIEW_EXPIRED',
+          'Too little of the review window is left: part ' +
+            (late + 1) +
+            ' of ' +
+            admitted.length +
+            ' needs about ' +
+            (late + 1) * seconds +
+            ' seconds from now and has ' +
+            Math.max(0, Math.floor((admitted[late]!.expiresAt - now) / 1000)) +
+            '. Nothing was submitted; prepare the same request again and execute it promptly.',
+          {
+            ...prepareAgain,
+            part: late + 1,
+            seconds_per_part: seconds,
+            needed_seconds: (late + 1) * seconds,
+            remaining_seconds: Math.max(0, Math.floor((admitted[late]!.expiresAt - now) / 1000)),
+          },
+          409,
+        );
     }
     const results: JsonObject[] = [];
     let failure: {part: number; error: MirrorError} | undefined;
@@ -220,9 +392,25 @@ export class WriteGroups {
       const claimed = !!this.store.db
         .prepare('SELECT 1 FROM idempotency WHERE tenant_id=? AND key=?')
         .get(actor.tenantId, group.parts[failure.part]);
-      if (sent === 0 && !claimed) throw failure.error;
+      // Nothing of the group was sent: the group's own refusal, under the group's review id.
+      if (sent === 0 && !claimed)
+        throw new MirrorError(
+          failure.error.code,
+          failure.error.message,
+          {
+            ...failure.error.details,
+            ...(failure.error.details.review_id !== undefined ? {review_id: id, part_review_id: group.parts[0]} : {}),
+          },
+          failure.error.status,
+          failure.error.retryable,
+        );
       this.store.claim(actor.tenantId, id, fingerprint({group: id, parts: group.parts}));
       this.store.uncertain(actor.tenantId, id);
+      // The parts never sent, the stopped one included when it was refused before sending. Each is an ordinary review:
+      // once the cause is resolved it is sent on its own (WRT-04). After an uncertain part nothing is offered.
+      const unsent = (group.parts as string[]).slice(claimed ? failure.part + 1 : failure.part),
+        approved = Object.fromEntries(Object.entries(flags).filter(([, v]) => v === true)),
+        calls = claimed ? [] : unsent.map(part => this.partCall(actor, part, approved));
       throw new MirrorError(
         claimed ? 'WRITE_OUTCOME_UNCERTAIN' : 'WRITE_PARTIAL_OR_FAILED',
         'Part ' +
@@ -233,11 +421,35 @@ export class WriteGroups {
           failure.error.code +
           '): ' +
           (sent ? 'parts 1–' + sent + ' were applied; ' : '') +
-          (notSent.length
-            ? notSent.length + ' later part' + (notSent.length > 1 ? 's were' : ' was') + ' not sent. '
-            : '') +
-          'Nothing is sent again automatically; read the parts back before any correction.',
-        {parts: results, failed_part: group.parts[failure.part], not_sent: notSent, part_error: failure.error.code},
+          (claimed
+            ? notSent.length
+              ? notSent.length + ' later part' + (notSent.length > 1 ? 's were' : ' was') + ' not sent. '
+              : ''
+            : 'it ' +
+              (notSent.length
+                ? 'and ' + notSent.length + ' later part' + (notSent.length > 1 ? 's were' : ' was')
+                : 'was') +
+              ' not sent. ') +
+          (claimed
+            ? 'Nothing is sent again automatically; read the parts back before any correction.'
+            : 'Applied parts are never sent again; once the cause is resolved, send the parts not sent with details.next_call, one review at a time.'),
+        {
+          parts: results,
+          failed_part: group.parts[failure.part],
+          not_sent: notSent,
+          part_error: failure.error.code,
+          part_submitted: claimed,
+          ...(calls.length
+            ? {
+                next_call: calls[0],
+                not_sent_parts: unsent.map((part, i) => ({
+                  part: group.parts.indexOf(part) + 1,
+                  review_id: part,
+                  call: calls[i],
+                })),
+              }
+            : {}),
+        },
         409,
       );
     }

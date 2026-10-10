@@ -24,6 +24,11 @@ export type AmcpConfig = Readonly<{
   testPasswordHash: string | undefined;
   tenantId: string | undefined;
   allowWrites: boolean;
+  /**
+   * AMCP_PROVIDER_VALIDATION (WRT-06, owner decision D18): the owner's opt-in to provider validation in a deployment
+   * without write support. Only true or false is accepted, so an ambiguous opt-in is never guessed.
+   */
+  providerValidation: boolean;
   mode: 'strict' | 'enhanced';
   flags: Readonly<Record<string, unknown>>;
   runWorker: boolean;
@@ -66,6 +71,8 @@ export function loadConfig(env: NodeJS.ProcessEnv, entry: EntryPoint): AmcpConfi
   const allowWrites = env.MIRROR_ALLOW_WRITES === 'true',
     masterKey = text(env.MIRROR_MASTER_KEY);
   if (allowWrites && !masterKey) throw new Error('Write support requires encrypted persistent connection credentials.');
+  if (env.AMCP_PROVIDER_VALIDATION !== undefined && !['true', 'false'].includes(env.AMCP_PROVIDER_VALIDATION))
+    throw new Error('AMCP_PROVIDER_VALIDATION must be true or false.');
   const host = env.MIRROR_HOST ?? (env.PORT ? '0.0.0.0' : '127.0.0.1'),
     port = Number(env.PORT ?? env.MIRROR_PORT ?? 4317);
   if (entry !== 'stdio' && (!Number.isInteger(port) || port < 1 || port > 65535)) throw Error('Invalid MIRROR_PORT.');
@@ -111,6 +118,7 @@ export function loadConfig(env: NodeJS.ProcessEnv, entry: EntryPoint): AmcpConfi
     testPasswordHash: env.AMCP_TEST_PASSWORD_HASH,
     tenantId: env.AMCP_TENANT_ID,
     allowWrites,
+    providerValidation: env.AMCP_PROVIDER_VALIDATION === 'true',
     mode: env.MIRROR_MODE === 'enhanced' ? 'enhanced' : 'strict',
     flags: Object.freeze(JSON.parse(env.MIRROR_FLAGS ?? '{}')),
     runWorker: env.AMCP_RUN_WORKER !== 'false',

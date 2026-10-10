@@ -38,7 +38,8 @@ import {recordedWriteGrant} from './provider-grants.js';
 import {assertMeasurementScopes, optionalMissingState} from './measurement-writes.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
 import {assertWritesNotPaused} from './owner-operations.js';
-import {object, fail} from './write-common.js';
+import {object, fail, notSent, releaseUnsentClaims, serializeTargets, targetWaitMs} from './write-common.js';
+import {setTimeout as pause} from 'node:timers/promises';
 import {writeOutcome} from './write-outcome.js';
 import {validateState} from './write-state.js';
 import {assertWriteShape} from './write-shape.js';
@@ -46,6 +47,15 @@ import {snapshotPlans} from './write-snapshots.js';
 import {confirmations, hashPeople, scrubError, scrubPeople, type PersonalDataRecord} from './personal-data.js';
 import {assertPersonalDataAllowed} from './personal-data-access.js';
 import {loginStamp} from './connection-authority.js';
+import {
+  providerValidationRequest,
+  providerValidationScope,
+  runProviderValidation,
+  type ProviderCheck,
+} from './provider-validation.js';
+import {effectNames, effectReasons, writeEffects} from './write-effects.js';
+import {snapchatAffectedAds} from './snapchat-affected-ads.js';
+import {reviewSummary} from './review-summary.js';
 
 export const writeTool = {
   name: 'amcp_write',
@@ -87,6 +97,11 @@ export const writeTool = {
         description:
           'prepare only, when adding people: {countries: ISO codes of the people in the list, law (for countries AMCP names no law for), consent_confirmed, platform_terms_confirmed, pdpl (for SA: consent, transfer_abroad, withdrawal_removal)}, confirmed by the uploader.',
       },
+      provider_check: {
+        type: 'boolean',
+        description:
+          'prepare only: also have the provider validate the request without applying it (Google Ads mutate requests; Meta campaign and ad set creates and edits). The result is in provider_check; a request the provider rejects cannot be executed and is prepared again once corrected.',
+      },
       evidence: {
         type: 'string',
         enum: ['full', 'ref'],
@@ -111,6 +126,11 @@ const executeFields = [
   'gateway (the review’s own)',
   'connection_id (the review’s own)',
 ];
+/** Same-target serialization (WRT-04): a hold outlasts state reads plus one transport timeout and is renewed at
+ * dispatch; a crashed holder's lock lapses on its own. A second execution waits briefly, then is refused unsent. */
+const targetLockMs = 120000,
+  targetBusy =
+    'Another reviewed write to the same target is being executed. Nothing was submitted; execute this review again in a moment. Its state is read again first.';
 const sameLogin = (message: string) => ({
   value: (credentials: Credentials) => loginStamp(credentials),
   changed: (): never => fail('CONNECTION_AUTHORITY_CHANGED', message),
@@ -125,6 +145,15 @@ const expiredNext = (review: JsonObject): JsonObject =>
           : {}),
       }
     : {};
+/** A review the provider rejected when it validated it at prepare (provider_check) is never executed (WRT-06). */
+function rejectedByProvider(review: JsonObject): void {
+  if (review.provider_check?.status === 'provider_rejected')
+    fail(
+      'PROVIDER_VALIDATION_FAILED',
+      'The provider rejected this request when it validated it at prepare, so this review cannot be executed. Nothing was submitted; correct what details.field_paths names and prepare it again.',
+      {field_paths: review.provider_check.field_paths ?? []},
+    );
+}
 /** What execute will ask for, decided at prepare by the same authorizeExecution rules, so a client can ask the user
  * once instead of discovering a missing flag from a refused execute. Advisory: execute re-checks everything. */
 export function executeRequirements(
@@ -206,6 +235,7 @@ export class WriteReviewService {
     connection: Connection,
     auth: Credentials,
     beforeDispatch?: () => void,
+    onDispatch?: () => void,
   ) {
     const access = this.authority(actor, reviewPlan, request, connection, auth);
     const response = await this.transport.request(request, access(), auth, undefined, {
@@ -213,6 +243,7 @@ export class WriteReviewService {
         access();
         beforeDispatch?.();
       },
+      onDispatch,
     });
     // A received mutation outcome must be retained before any post-response permission check.
     if (request.readOnly) access();
@@ -423,6 +454,99 @@ export class WriteReviewService {
     validateXTargetingState(plan, values);
     return values;
   }
+  /**
+   * The provider validates the reviewed request without applying it (provider_check, WRT-06): through the review's own
+   * connection, its authority checks and same-login binding, audited before it is sent. Never claims or reserves.
+   */
+  private async providerCheck(
+    actor: Actor,
+    plan: CompiledRequest,
+    connectionId: string,
+    reviewId: string,
+  ): Promise<ProviderCheck> {
+    const request = providerValidationRequest(plan)!,
+      c = this.access(actor, plan, connectionId),
+      auth = await this.credentials.get(c);
+    this.access(actor, plan, connectionId);
+    const subject = {
+      gateway: plan.gateway,
+      account_id: plan.accountId ?? null,
+      connection_id: c.id,
+      action: plan.action,
+    };
+    this.store.appendAudit(actor.tenantId, reviewId, {event: 'provider_validation_started', ...subject});
+    const check = await runProviderValidation(plan, request, () => this.request(actor, plan, request, c, auth));
+    this.access(actor, plan, connectionId);
+    this.store.appendAudit(actor.tenantId, reviewId, {
+      event: check.status === 'provider_validated' ? 'provider_validated' : 'provider_validation_failed',
+      ...subject,
+      ...(check.status === 'provider_rejected' ? {field_paths: check.field_paths} : {}),
+    });
+    return check;
+  }
+  /**
+   * The ads a Snapchat creative edit changes, read through the review's guarded reader. A provider failure of this
+   * disclosure read leaves the list unknown (null, incomplete) instead of refusing the review; an authority failure
+   * (access, grants, login) is raised as for any state read.
+   */
+  private async snapchatAds(
+    actor: Actor,
+    plan: CompiledRequest,
+    connectionId: string,
+    creativeIds: unknown[],
+  ): Promise<JsonObject> {
+    const {read} = this.guardedReader(
+      actor,
+      plan,
+      connectionId,
+      'The affected-ads read of a creative review must be read-only.',
+    );
+    try {
+      return await snapchatAffectedAds(plan, creativeIds, read);
+    } catch (e) {
+      if (
+        !(e instanceof MirrorError) ||
+        !(
+          typeof e.details.http_status === 'number' ||
+          /^(?:UPSTREAM_|PLATFORM_|PROVIDER_|CIRCUIT_OPEN$|TENANT_RATE_LIMIT$|SNAPCHAT_ADS_READ_INVALID$)/.test(e.code)
+        )
+      )
+        throw e;
+      return {
+        affected_ad_ids: null,
+        affected_ads: null,
+        incomplete: true,
+        enumeration: 'read_failed',
+        read_error: e.code,
+      };
+    }
+  }
+  /**
+   * What a group checks for every part before its first part is sent (WRT-04): the review's owner, request shape,
+   * access and grants, and the acknowledgements its execute will ask for. Sends nothing and claims nothing.
+   */
+  admit(actor: Actor, reviewId: string, flags: JsonObject): {plan: CompiledRequest; state: unknown; expiresAt: number} {
+    const review = this.store.document(actor.tenantId, 'write_review', reviewId);
+    if (review.user_id !== actor.userId)
+      throw new MirrorError('FORBIDDEN', 'The review belongs to a different actor.', {}, 403);
+    const plan = review.plan as CompiledRequest;
+    assertWriteShape(plan);
+    rejectedByProvider(review);
+    this.access(actor, plan, review.connection_id);
+    authorizeExecution(
+      actor,
+      plan,
+      {...flags, confirmed: true, idempotency_key: reviewId, dry_run: false},
+      this.policy,
+      true,
+    );
+    if (review.creative_edit_confirmed === true && flags.creative_edit_confirmed !== true)
+      fail(
+        'CREATIVE_EDIT_CONFIRMATION_REQUIRED',
+        'This review permits a potentially destructive creative edit. Also provide creative_edit_confirmed=true to execute.',
+      );
+    return {plan, state: review.state, expiresAt: review.expires_at};
+  }
   /** `evidenceDefault` is the evidence form of a caller that sent none: see ContractMemory. */
   async call(input: JsonObject, actor: Actor, evidenceDefault?: EvidenceForm): Promise<unknown> {
     guardInput(input);
@@ -431,6 +555,8 @@ export class WriteReviewService {
         fail('INVALID_ARGUMENT', 'Unknown write-tool parameter.', {parameter: key});
     if (input.creative_edit_confirmed !== undefined && typeof input.creative_edit_confirmed !== 'boolean')
       fail('INVALID_ARGUMENT', 'creative_edit_confirmed must be a boolean.');
+    if (input.provider_check !== undefined && (typeof input.provider_check !== 'boolean' || input.action !== 'prepare'))
+      fail('INVALID_ARGUMENT', 'provider_check is a boolean that prepare takes.', {field: 'provider_check'});
     const evidence = input.evidence === undefined ? (evidenceDefault ?? 'full') : evidenceForm(input.evidence);
     if (input.action === 'prepare' || input.action === 'inspect') {
       if (
@@ -511,6 +637,7 @@ export class WriteReviewService {
             state_reads: reads.map(r => ({method: r.method, path: r.path})),
             live_permissions_verified: false,
             account_capability: accountCapability,
+            provider_check_available: providerValidationRequest(plan) !== undefined,
             requirements: {
               deployment_writes_enabled: this.policy.allowWrites,
               operator_role: actor.role !== 'reader',
@@ -550,6 +677,10 @@ export class WriteReviewService {
       assertWriteShape(plan);
       familyOf(plan)?.available?.(plan);
       const c = this.access(actor, plan, input.connection_id ?? nativeArgs.connection_id);
+      if (input.provider_check === true && !providerValidationRequest(plan))
+        fail('INVALID_ARGUMENT', 'provider_check is available for ' + providerValidationScope + '.', {
+          field: 'provider_check',
+        });
       if (plan.personalData)
         assertPersonalDataAllowed(this.store, actor, plan, (plan.personalData as PersonalDataRecord).direction, false);
       const reads = snapshotPlans(plan, this.registry),
@@ -572,6 +703,13 @@ export class WriteReviewService {
           'creative_edit_confirmed is only for an X creative edit or deletion, or a TikTok Smart+ ad edit.',
         );
       const creativeImpact = writeImpact(plan, state, input.creative_edit_confirmed === true, c.id);
+      // A Snapchat creative edit changes every ad that uses the creative: name them, from a bounded read (WRT-05).
+      if (
+        creativeImpact?.provider === 'snapchat' &&
+        creativeImpact.affected_ad_ids === null &&
+        Array.isArray(creativeImpact.affected_creative_ids)
+      )
+        Object.assign(creativeImpact, await this.snapchatAds(actor, plan, c.id, creativeImpact.affected_creative_ids));
       assertSnapCreativeReferences(plan, state, resource =>
         this.store.ownsResource(c, normalizeAccount(plan.gateway, plan.accountId!), resource),
       );
@@ -599,6 +737,21 @@ export class WriteReviewService {
               }
             : {}),
         });
+      // Deletions, live publishes and stopped delivery are named, with the target's current status (WRT-05).
+      const effects = writeEffects(plan, state);
+      if (effects) {
+        const flagged = requirements.reasons.length > 0;
+        requirements.effects = effects;
+        requirements.reasons = [...requirements.reasons, ...effectReasons(plan, state, effects)];
+        requirements.user_approval =
+          'This change ' +
+          effectNames(effects).join(', ') +
+          '. Show the user the target, its current status and the reasons' +
+          (flagged ? ', set the flags only after they approve,' : '') +
+          ' and execute only after they approve.';
+      }
+      const providerCheck =
+        input.provider_check === true ? await this.providerCheck(actor, plan, c.id, reviewId) : undefined;
       this.store.putDocument(actor.tenantId, 'write_review', reviewId, {
         user_id: actor.userId,
         connection_id: c.id,
@@ -609,6 +762,7 @@ export class WriteReviewService {
         fingerprint,
         expires_at: expiresAt,
         ...override,
+        ...(providerCheck ? {provider_check: providerCheck} : {}),
         prepare_input: {
           gateway: input.gateway,
           arguments: input.arguments,
@@ -616,6 +770,7 @@ export class WriteReviewService {
           ...(input.creative_edit_confirmed === true ? {creative_edit_confirmed: true} : {}),
           ...(input.evidence !== undefined ? {evidence: input.evidence} : {}),
           ...(input.personal_data !== undefined ? {personal_data: input.personal_data} : {}),
+          ...(input.provider_check === true ? {provider_check: true} : {}),
         },
       });
       this.store.appendAudit(actor.tenantId, reviewId, {
@@ -640,7 +795,20 @@ export class WriteReviewService {
         confirmation_required: true,
         expires_in_seconds: 300,
         execute_requirements: requirements,
+        summary: reviewSummary(plan, state),
+        ...(effects ? {effects} : {}),
         ...(creativeImpact ? {creative_impact: creativeImpact} : {}),
+        ...(providerCheck
+          ? {
+              provider_check: {
+                ...providerCheck,
+                meaning:
+                  providerCheck.status === 'provider_validated'
+                    ? 'The provider checked this request without applying it and found no error. It does not prove execute will succeed; execute still reads the state again.'
+                    : 'The provider rejected this request without applying it. This review cannot be executed: correct what field_paths and the response name, and prepare it again.',
+              },
+            }
+          : {}),
       };
     }
     if (input.action !== 'execute' || typeof input.review_id !== 'string')
@@ -666,6 +834,7 @@ export class WriteReviewService {
       throw new MirrorError('FORBIDDEN', 'The review belongs to a different actor.', {}, 403);
     const plan = review.plan as CompiledRequest;
     assertWriteShape(plan);
+    rejectedByProvider(review);
     // Repeating the review's own gateway/connection is harmless; a different one would silently change the request.
     if (
       (input.gateway !== undefined && input.gateway !== plan.gateway) ||
@@ -710,20 +879,8 @@ export class WriteReviewService {
     );
     if (fingerprint !== review.fingerprint)
       fail('REVIEW_CHANGED', 'The stored reviewed request failed its integrity check.');
-    const previous = this.store.db
-      .prepare('SELECT state,result,fingerprint FROM idempotency WHERE tenant_id=? AND key=?')
-      .get(actor.tenantId, input.idempotency_key) as JsonObject | undefined;
-    if (previous) {
-      if (previous.fingerprint !== fingerprint) fail('IDEMPOTENCY_CONFLICT', 'The key is bound to another request.');
-      if (previous.state === 'complete') {
-        const saved = {...JSON.parse(previous.result), replayed: true};
-        return this.delivered(plan, saved, actor.tenantId, input.review_id);
-      }
-      fail(
-        'WRITE_OUTCOME_UNCERTAIN',
-        'This review was already submitted. Inspect provider state; do not retry with a new key.',
-      );
-    }
+    const replayed = this.previousOutcome(actor, input, plan, fingerprint);
+    if (replayed) return replayed;
     familyOf(plan)?.available?.(plan);
     if (review.expires_at <= Date.now())
       fail(
@@ -762,6 +919,90 @@ export class WriteReviewService {
         field: 'people',
         accepted: executeFields,
       });
+    // Reviews of one target execute one at a time (WRT-04): the later one reads the state again after the earlier one
+    // was sent, so it is refused as STATE_CHANGED instead of being sent against state that already changed.
+    const locks = this.targetLocks(actor, review, plan),
+      lockOwner = randomUUID();
+    await this.lockTargets(locks, lockOwner, input.review_id);
+    try {
+      // A second execute of this same review that waited for the lock replays what the first one recorded.
+      const settled = locks.length ? this.previousOutcome(actor, input, plan, fingerprint) : undefined;
+      if (settled) return settled;
+      return await this.submit(actor, input, review, plan, sent, record, fingerprint, () => {
+        if (locks.length && !this.store.renewLocks(locks, lockOwner, targetLockMs))
+          fail('STATE_BUSY', targetBusy, {review_id: input.review_id, retry_after_ms: 2000});
+      });
+    } finally {
+      this.store.releaseLocks(locks, lockOwner);
+    }
+  }
+  /** A completed claim of this review replays its receipt; a pending or uncertain one is never sent again. */
+  private previousOutcome(
+    actor: Actor,
+    input: JsonObject,
+    plan: CompiledRequest,
+    fingerprint: string,
+  ): JsonObject | undefined {
+    const previous = this.store.db
+      .prepare('SELECT state,result,fingerprint FROM idempotency WHERE tenant_id=? AND key=?')
+      .get(actor.tenantId, input.idempotency_key) as JsonObject | undefined;
+    if (!previous) return undefined;
+    if (previous.fingerprint !== fingerprint) fail('IDEMPOTENCY_CONFLICT', 'The key is bound to another request.');
+    if (previous.state === 'complete') {
+      const saved = {...JSON.parse(previous.result), replayed: true};
+      return this.delivered(plan, saved, actor.tenantId, input.review_id);
+    }
+    fail(
+      'WRITE_OUTCOME_UNCERTAIN',
+      'This review was already submitted. Inspect provider state; do not retry with a new key.',
+    );
+  }
+  /**
+   * What a review's execution must not share with another execution at the same time: each state read it compares
+   * on its connection and account, or its own request target when it reads nothing generic. A read is identified by
+   * what it selects, not by which fields it projects (a `fields` list, a Google query's SELECT list), so two reviews
+   * that read the same record never send concurrently, whichever fields each one changes.
+   */
+  private targetLocks(actor: Actor, review: JsonObject, plan: CompiledRequest): string[] {
+    if (!serializeTargets()) return [];
+    const scope = {
+        tenant: actor.tenantId,
+        connection: review.connection_id,
+        account: normalizeAccount(plan.gateway, plan.accountId ?? ''),
+      },
+      reads: CompiledRequest[] = Array.isArray(review.reads) ? review.reads : [];
+    const selects = (body: unknown) => {
+      const query = object(body).query;
+      return typeof query === 'string'
+        ? {...object(body), query: query.replace(/^\s*SELECT\s.+?\sFROM\s/is, 'FROM ')}
+        : body;
+    };
+    const targets = reads.length
+      ? reads.map(r => {
+          const {fields: _projection, ...query} = object(r.query);
+          return {method: r.method, path: r.path, query, body: selects(r.body) ?? null};
+        })
+      : [{method: plan.method, path: plan.path}];
+    return [...new Set(targets.map(t => 'write-target:' + sha256(stable({...scope, ...t}))))].sort();
+  }
+  /** Waits a bounded time for every target lock at once, or refuses with STATE_BUSY before anything is claimed. */
+  private async lockTargets(locks: string[], owner: string, reviewId: string): Promise<void> {
+    const deadline = Date.now() + targetWaitMs();
+    while (!this.store.acquireLocks(locks, owner, targetLockMs)) {
+      if (Date.now() >= deadline) fail('STATE_BUSY', targetBusy, {review_id: reviewId, retry_after_ms: 2000});
+      await pause(100);
+    }
+  }
+  private async submit(
+    actor: Actor,
+    input: JsonObject,
+    review: JsonObject,
+    plan: CompiledRequest,
+    sent: CompiledRequest,
+    record: PersonalDataRecord | undefined,
+    fingerprint: string,
+    keepTargets: () => void,
+  ): Promise<unknown> {
     // Reproject saved envelopes as well: a still-valid review prepared before an
     // upgrade must not conflict solely because its stored envelope was wider.
     // X creative discovery already returns its own validated resource projection.
@@ -820,7 +1061,8 @@ export class WriteReviewService {
       const saved = {...object(claim.result), replayed: true};
       return this.delivered(plan, saved, actor.tenantId, input.review_id);
     }
-    let completed = false;
+    let completed = false,
+      dispatched = false;
     try {
       this.store.appendAudit(actor.tenantId, input.review_id, {
         event: 'write_started',
@@ -828,17 +1070,28 @@ export class WriteReviewService {
         fingerprint,
         before_state: current,
       });
-      const response = await this.request(actor, plan, sent, c, auth, () => {
-        // Admission may wait. Authority is checked again after that wait, immediately before the unsent write.
-        assertWritesNotPaused(this.store, actor.tenantId);
-        authorizeExecution(actor, plan, {...input, dry_run: false}, this.policy, true);
-        if (record) assertPersonalDataAllowed(this.store, actor, plan, record.direction, true);
-        if (review.expires_at <= Date.now())
-          fail('REVIEW_EXPIRED', 'The review expired before dispatch. Nothing was submitted.', expiredNext(review));
-        this.store.transaction(() => {
-          checkSpendPolicy(this.store, actor, plan, current, input.review_id, input.cap_override_confirmed === true);
-        });
-      });
+      const response = await this.request(
+        actor,
+        plan,
+        sent,
+        c,
+        auth,
+        () => {
+          // Admission may wait. Authority is checked again after that wait, immediately before the unsent write.
+          keepTargets();
+          assertWritesNotPaused(this.store, actor.tenantId);
+          authorizeExecution(actor, plan, {...input, dry_run: false}, this.policy, true);
+          if (record) assertPersonalDataAllowed(this.store, actor, plan, record.direction, true);
+          if (review.expires_at <= Date.now())
+            fail('REVIEW_EXPIRED', 'The review expired before dispatch. Nothing was submitted.', expiredNext(review));
+          this.store.transaction(() => {
+            checkSpendPolicy(this.store, actor, plan, current, input.review_id, input.cap_override_confirmed === true);
+          });
+        },
+        () => {
+          dispatched = true;
+        },
+      );
       this.delegated.validateResponse(plan, response.data, response.status);
       const result = writeOutcome(response, plan, current);
       // A platform may echo a person's value back; nothing of it is kept or returned.
@@ -877,19 +1130,30 @@ export class WriteReviewService {
         return this.delivered(plan, outcome, actor.tenantId, input.review_id);
       }
       return outcome;
-      // The spend reservation taken above is deliberately NOT released here. A write that failed in
-      // transport may still have reached the provider — that is why the outcome is recorded as
-      // uncertain rather than failed — and releasing the reservation would let repeated "failures"
-      // walk past the owner's cumulative daily cap. The accepted cost is that a deterministic
-      // rejection, which certainly did not land, still consumes part of the day's allowance. Only
-      // release on errors provably raised before dispatch, never on transport-layer uncertainty.
     } catch (e) {
-      if (!completed) this.store.uncertain(actor.tenantId, input.idempotency_key);
-      this.store.appendAudit(actor.tenantId, input.review_id, {
-        event: completed ? 'write_result_withheld' : 'write_uncertain',
-        code: e instanceof MirrorError ? e.code : 'INTERNAL_ERROR',
-      });
-      const safe = family?.safeError ? family.safeError(e) : e;
+      const code = e instanceof MirrorError ? e.code : 'INTERNAL_ERROR';
+      // A refusal raised before the request left AMCP sent nothing (owner decision D12): the claim and the day's spend
+      // reservation are released and the same review may be executed again inside its window. Once the request was
+      // dispatched the outcome stays uncertain, and the reservation stays taken: a write that failed in transport may
+      // still have reached the provider, and releasing it would let repeated failures walk past the daily cap.
+      const unsent =
+        !completed &&
+        !dispatched &&
+        releaseUnsentClaims() &&
+        this.store.release(actor.tenantId, input.idempotency_key, fingerprint, {
+          code,
+          gateway: plan.gateway,
+          account_id: plan.accountId ?? null,
+          connection_id: c.id,
+        });
+      if (!completed && !unsent) this.store.uncertain(actor.tenantId, input.idempotency_key);
+      if (!unsent)
+        this.store.appendAudit(actor.tenantId, input.review_id, {
+          event: completed ? 'write_result_withheld' : 'write_uncertain',
+          code,
+        });
+      const raised = family?.safeError ? family.safeError(e) : e,
+        safe = unsent ? notSent(raised, input.review_id) : raised;
       throw record ? scrubError(safe) : safe;
     }
   }

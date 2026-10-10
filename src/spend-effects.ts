@@ -268,3 +268,35 @@ export function deliveryEditFields(plan: CompiledRequest): {entity: string; fiel
     }
   return {entity: family.entity, fields: [...fields].sort()};
 }
+
+/**
+ * What a generic entity write does to delivery (WRT-05 effect disclosure): `serving` when the request writes a
+ * campaign, ad set, ad group, ad squad or line item family, `stops`, the status fields it sets to a value that
+ * pauses, archives or removes (the family's neutral statuses, plus TikTok operation_status DISABLE), and `idle`, those
+ * non-serving statuses, so a deletion of an entity that is already not serving does not claim to stop delivery.
+ */
+export function deliveryStops(plan: CompiledRequest): {
+  serving: boolean;
+  stops: {field: string; value: string}[];
+  idle: string[];
+} {
+  const name = plan.readOnly ? undefined : reviewedWriteFamily(plan),
+    family = genericFamilies[name ?? ''],
+    stops: {field: string; value: string}[] = [];
+  if (name === 'tiktok_entities' && /\/status\/update\/$/.test(plan.path)) {
+    const status = keysOf(plan.body).operation_status;
+    if (status === 'DISABLE') stops.push({field: 'operation_status', value: status});
+    return {serving: true, stops, idle: ['DISABLE']};
+  }
+  for (const record of family?.edits(plan) ?? [])
+    for (const [key, value] of Object.entries(record)) {
+      const field = snake(key),
+        neutral = family!.neutral[field];
+      if (statusFields.has(field) && Array.isArray(neutral) && typeof value === 'string' && neutral.includes(value))
+        stops.push({field, value});
+    }
+  const idle = Object.entries(family?.neutral ?? {}).flatMap(([field, values]) =>
+    statusFields.has(field) && Array.isArray(values) ? values : [],
+  );
+  return {serving: !!family, stops, idle};
+}

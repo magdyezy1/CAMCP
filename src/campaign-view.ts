@@ -207,13 +207,23 @@ export function reviewView(review: JsonObject, runId: string, stepId: string): J
         ...pick(p, ['part', 'review_id', 'records', 'state_hash']),
         request: pick(p.request ?? {}, ['method', 'path']),
       })),
-      ...pick(review, ['execute_requirements', 'contract_evidence', 'confirmation_required', 'meaning']),
+      ...pick(review, ['time_budget', 'execute_requirements', 'contract_evidence', 'confirmation_required', 'meaning']),
       detail: {tool: 'amcp_campaign', arguments: {action: 'get', id: runId, step_id: stepId}},
     };
   const reads: JsonObject[] = review.state_reads ?? [],
     state: unknown[] = Array.isArray(review.before_state) ? review.before_state : [];
   return {
-    ...pick(review, ['review_id', 'idempotency_key', 'expires_at', 'expires_in_seconds', 'request', 'state_hash']),
+    ...pick(review, [
+      'review_id',
+      'idempotency_key',
+      'expires_at',
+      'expires_in_seconds',
+      'summary',
+      'effects',
+      'unchanged_since_review',
+      'request',
+      'state_hash',
+    ]),
     state_summary: state.map((entry, i) => ({
       ...(reads[i] ? {read: reads[i]!.method + ' ' + reads[i]!.path} : {}),
       ...stateSummary(entry),

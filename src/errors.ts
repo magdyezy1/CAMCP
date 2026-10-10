@@ -225,7 +225,8 @@ function familyRemedy(code: string): {category: string; owner: string; action: s
     return r('request', 'Use one of the supported options the message names; this one is not supported here.');
   return undefined;
 }
-export function errorRemedy(e: MirrorError) {
+export type ErrorRemedy = {category: string; owner: string; action: string; mutation_retry_safe: boolean};
+export function errorRemedy(e: MirrorError): ErrorRemedy {
   if (e.code.startsWith('LINKEDIN_TEMPLATE_') || e.code === 'INVALID_AUDIENCE_TEMPLATE')
     return {
       category: 'state',
@@ -496,6 +497,29 @@ export function errorRemedy(e: MirrorError) {
         'The provider no longer accepts the API version AMCP sent (details.api_version_sent). The deployment operator moves to a supported version, such as the reviewed default in details.default_version; reconnecting or changing the request does not help.',
       mutation_retry_safe: false,
     };
+  if (e.code === 'STATE_BUSY')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Another reviewed write to the same target was being executed, so nothing was sent. Execute the same review again in a moment: its state is read again first, and a change the other write made is refused as STATE_CHANGED.',
+      mutation_retry_safe: false,
+    };
+  // A group that stopped at a part refused before it was sent (WRT-04): the cause is the part's, not the provider's.
+  if (
+    e.code === 'WRITE_PARTIAL_OR_FAILED' &&
+    typeof e.details.part_error === 'string' &&
+    e.details.part_submitted === false
+  ) {
+    const part = errorRemedy(new MirrorError(e.details.part_error, e.message));
+    return {
+      category: part.category,
+      owner: part.owner,
+      action:
+        'Earlier parts were applied and stay applied. The part that stopped and every part after it were not sent: resolve what details.part_error names, then send them one review at a time, starting with details.next_call (details.not_sent_parts lists each; a review that expired is prepared again). An applied part is never sent again.',
+      mutation_retry_safe: false,
+    };
+  }
   const provider =
     Object.hasOwn(e.details, 'upstream') ||
     [

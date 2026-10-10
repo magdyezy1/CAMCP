@@ -46,10 +46,75 @@ function readReviewConsents(review) {
     }),
   );
 }
+// The server's one-line summary of a review (WRT-05): the operation is translated; entity, account, field names,
+// amounts and statuses stay as the server wrote them. The exact table below remains what is sent.
+const reviewOperationLabels = {
+  create: 'Create',
+  update: 'Update',
+  delete: 'Delete',
+  remove: 'Remove',
+  publish: 'Publish',
+  change: 'Change',
+};
+function reviewSummaryLine(summary) {
+  if (!summary || typeof summary !== 'object' || typeof summary.operation !== 'string') return '';
+  const account = summary.account ?? {},
+    accountText = account.name ? account.name + ' (' + (account.id ?? '') + ')' : (account.id ?? ''),
+    items = [
+      ...(summary.money ?? []).map(
+        m =>
+          `<li><code dir="ltr">${esc(String(m.field).split('/').at(-1))}</code> <bdi dir="ltr">${m.amount !== undefined ? esc(m.amount + (m.currency ? ' ' + m.currency : '')) + ' · ' : ''}${esc(m.native)}${m.native_unit ? ' ' + esc(m.native_unit) : ''}</bdi></li>`,
+      ),
+      ...(summary.status ?? []).map(
+        s =>
+          `<li><code dir="ltr">${esc(String(s.field).split('/').at(-1))}</code> <bdi dir="ltr">${s.from ? esc(s.from) + ' → ' : ''}${esc(s.to)}</bdi></li>`,
+      ),
+    ];
+  // The server lists the first entries of a large request; the exact table below holds every one.
+  const more =
+    Math.max(0, (summary.money_total ?? 0) - (summary.money ?? []).length) +
+    Math.max(0, (summary.status_total ?? 0) - (summary.status ?? []).length);
+  if (more > 0) items.push(`<li>${esc(uiText('(+{count} more)', {count: uiNumber(more)}))}</li>`);
+  return `<div class="review-summary"><p><strong>${esc(uiText(reviewOperationLabels[summary.operation] ?? 'Change'))}</strong> <bdi dir="ltr">${esc(uiNumber(summary.count ?? 1))} × ${esc(summary.entity ?? '')}</bdi>${accountText ? ` ${esc(uiText('· Account'))} <bdi dir="auto">${esc(accountText)}</bdi>` : ''}</p>${items.length ? `<ul>${items.join('')}</ul>` : ''}<p class="form-note">${esc(uiText('A summary only: the exact native request below is what is sent.'))}</p></div>`;
+}
+let reviewCountdownTimer;
+/**
+ * A live countdown to the review's server expires_at. At zero Execute is disabled, the review says nothing was sent,
+ * and "Prepare again" (when the page can prepare the same request again) reads the state again for a new review.
+ */
+function bindReviewCountdown(review, prepareAgain) {
+  clearInterval(reviewCountdownTimer);
+  const label = $('#review-countdown'),
+    deadline = Date.parse(review?.expires_at);
+  if (!label || !Number.isFinite(deadline)) return;
+  const tick = () => {
+    if (label.isConnected === false) {
+      clearInterval(reviewCountdownTimer);
+      return true;
+    }
+    const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    if (left > 0) {
+      label.textContent = uiText('Expires in {time}', {
+        time: Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0'),
+      });
+      return false;
+    }
+    clearInterval(reviewCountdownTimer);
+    label.textContent = uiText('This review expired. Nothing was sent.');
+    const execute = $('#execute-reviewed');
+    if (execute) execute.disabled = true;
+    const expired = $('#review-expired');
+    if (expired) expired.hidden = false;
+    return true;
+  };
+  if (!tick()) reviewCountdownTimer = setInterval(tick, 1000);
+  if (prepareAgain) workspaceBind('#prepare-again', prepareAgain);
+  else if ($('#prepare-again')) $('#prepare-again').hidden = true;
+}
 function readableReview(review, buttonLabel) {
   const request = review.request ?? {},
     needs = review.execute_requirements ?? {};
-  return `<section class="panel workspace-form review-panel"><div class="panel-header"><h2>${esc(uiText('Review this change'))}</h2>${badge('awaiting_review')}</div><p>${esc(uiText('Expires'))} ${date(review.expires_at)}${esc(uiText('. Approval applies to this frozen request only.'))}</p>${reviewTable(request, uiText('Request to submit — exact native fields'))}${review.creative_impact ? reviewTable(review.creative_impact, uiText('Creative impact')) : ''}${review.spend_policy ? reviewTable(review.spend_policy, uiText('Spending-policy effects')) : ''}${review.before_state ? `<details><summary>${esc(uiText('Current state read from the provider'))}</summary>${reviewTable(review.before_state, uiText('Observed before preparation'))}</details>` : ''}${needs.reasons ? reviewTable(needs.reasons, uiText('Why acknowledgement is required')) : ''}${recordDetails(review, uiText('Complete request, state, prerequisites and evidence'))}<fieldset class="review-consents"><legend>${esc(uiText('Authorize this request'))}</legend>${requiredReviewConsents(
+  return `<section class="panel workspace-form review-panel"><div class="panel-header"><h2>${esc(uiText('Review this change'))}</h2>${badge('awaiting_review')}</div><p>${esc(uiText('Expires'))} ${date(review.expires_at)}${esc(uiText('. Approval applies to this frozen request only.'))}</p><p class="form-note" id="review-countdown" role="timer"></p><div id="review-expired" role="status" hidden><p class="notice">${esc(uiText('This review expired before it was executed. Nothing was sent. Prepare it again: the current state is read again and a new review is created.'))}</p><button id="prepare-again" class="button" type="button">${esc(uiText('Prepare again'))}</button></div>${review.unchanged_since_review ? `<p class="form-note">${esc(uiText('Nothing changed since the expired review: the request and the state it read are the same.'))}</p>` : ''}${reviewSummaryLine(review.summary)}${effectBadges(review.effects ?? needs.effects, needs.reasons)}${reviewTable(request, uiText('Request to submit — exact native fields'))}${review.creative_impact ? reviewTable(review.creative_impact, uiText('Creative impact')) : ''}${review.spend_policy ? reviewTable(review.spend_policy, uiText('Spending-policy effects')) : ''}${review.before_state ? `<details><summary>${esc(uiText('Current state read from the provider'))}</summary>${reviewTable(review.before_state, uiText('Observed before preparation'))}</details>` : ''}${needs.reasons ? reviewTable(needs.reasons, uiText('Why acknowledgement is required')) : ''}${recordDetails(review, uiText('Complete request, state, prerequisites and evidence'))}<fieldset class="review-consents"><legend>${esc(uiText('Authorize this request'))}</legend>${requiredReviewConsents(
     review,
   )
     .map(
@@ -349,9 +414,69 @@ function campaignOutcome(out) {
   const reason = out.run?.reason ?? out.recovery ?? out.decision ?? out.run?.stopped ?? out.state ?? uiText('Saved');
   return `<div class="notice" role="status"><p>${esc(reason)}</p></div>${recordDetails(out, uiText('Result, receipts and next safe action'))}`;
 }
+// A step with more money and status fields than the summary lists is aggregated by the server (WRT-05): one row per
+// field pattern. Its complete list is one call away, and approval stays disabled until every such list was opened.
+const approvalSpending = summary =>
+  summary.steps.some(s => s.spend?.length || s.status?.length || s.aggregates?.length);
+const effectLabels = {
+  destructive: 'Deletes or removes',
+  irreversible: 'Cannot be undone',
+  publishes_live: 'Publishes live',
+  stops_delivery: 'Stops delivery',
+};
+// The target an effect reason names, from the review's before-state: provider values stay literal (WRT-05).
+function effectTarget(reasons) {
+  const target = (Array.isArray(reasons) ? reasons : []).find(r => r?.effect && r.target)?.target;
+  if (!target) return '';
+  const label =
+    target.name && target.id && target.name !== target.id
+      ? target.name + ' (' + target.id + ')'
+      : (target.id ?? target.name ?? '');
+  return `<br>${esc(uiText('Target:'))} <bdi dir="auto">${esc(label)}</bdi>${target.status ? ` · ${esc(uiText('Current status:'))} <bdi dir="ltr">${esc(target.status)}</bdi>` : ''}`;
+}
+function effectBadges(effects, reasons) {
+  const shown = Object.keys(effectLabels).filter(key => effects?.[key] === true);
+  return shown.length
+    ? `<p class="notice" role="note"><strong>${esc(uiText('Effects that need attention:'))}</strong> ${shown.map(key => esc(uiText(effectLabels[key]))).join(' · ')}${effectTarget(reasons)}</p>`
+    : '';
+}
+function approvalAggregates(step) {
+  const caption = uiText('{count} fields in this step, summarized by field', {count: uiNumber(step.fields_total)});
+  return `<div class="data-scroll" role="region" aria-label="${esc(caption)}" tabindex="0"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr><th scope="col">${esc(uiText('Field / native unit'))}</th><th scope="col">${esc(uiText('Count'))}</th><th scope="col">${esc(uiText('Distinct values'))}</th><th scope="col">${esc(uiText('Smallest'))}</th><th scope="col">${esc(uiText('Largest'))}</th></tr></thead><tbody>${step.aggregates.map(a => `<tr><th scope="row"><code dir="ltr">${esc(a.field)}</code></th><td>${esc(uiNumber(a.count))}</td><td dir="auto">${esc(a.values.map(reviewValue).join(', '))}${a.distinct_count > a.values.length ? esc(' ' + uiText('(+{count} more)', {count: uiNumber(a.distinct_count - a.values.length)})) : ''}</td><td dir="ltr">${a.min === undefined ? '' : esc(reviewValue(a.min))}</td><td dir="ltr">${a.max === undefined ? '' : esc(reviewValue(a.max))}</td></tr>`).join('')}</tbody></table></div><details class="approval-all-fields" data-approval-step="${esc(step.id)}"><summary>${esc(uiText('Show all {count} fields', {count: uiNumber(step.fields_total)}))}</summary><div class="approval-all-fields-body" aria-live="polite"></div></details>`;
+}
+function approvalFieldList(fields, caption) {
+  return `<div class="data-scroll" role="region" aria-label="${esc(caption)}" tabindex="0"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr><th scope="col">${esc(uiText('Field / native unit'))}</th><th scope="col">${esc(uiText('Value'))}</th></tr></thead><tbody>${fields.map(f => `<tr><th scope="row"><code dir="ltr">${esc(f.field)}</code></th><td dir="auto">${esc(reviewValue(f.value))}</td></tr>`).join('')}</tbody></table></div>`;
+}
 function approvalView(summary) {
-  const spending = summary.steps.some(s => s.spend?.length || s.status?.length);
-  return `<section class="panel workspace-form"><h2>${esc(uiText('Approve this complete plan'))}</h2><p>${esc(summary.covers)}</p><ol class="campaign-steps">${summary.steps.map(s => `<li><strong>${esc(s.id)} · ${esc(s.action)}</strong><small>${esc(s.gateway)} ${esc(uiText('· Account'))} ${esc(s.account_id)}</small>${reviewTable([...(s.spend ?? []), ...(s.status ?? [])], uiText('Budget, bid and status fields'))}${s.depends_on?.length ? `<small>${esc(uiText('Requires:'))} ${esc(s.depends_on.join(', '))}</small>` : ''}</li>`).join('')}</ol><p>${esc(uiText('Amounts retain their provider field names and units. Inspect all steps and account bindings before approval.'))}</p><label class="form-note"><input id="plan-consent" type="checkbox"> ${esc(uiText('I authorize every step in this exact plan.'))}</label>${spending ? `<label class="form-note"><input id="plan-spend-consent" type="checkbox"> ${esc(uiText('I authorize the budget, bid and serving changes shown above.'))}</label>` : ''}<button id="approve-plan" class="button primary" type="button">${esc(uiText('Save plan approval'))}</button>${recordDetails(summary, uiText('Exact plan hash and approval scope'))}</section>`;
+  const spending = approvalSpending(summary),
+    truncated = summary.steps.some(s => s.truncated);
+  return `<section class="panel workspace-form"><h2>${esc(uiText('Approve this complete plan'))}</h2><p>${esc(summary.covers)}</p><ol class="campaign-steps">${summary.steps.map(s => `<li><strong>${esc(s.id)} · ${esc(s.action)}</strong><small>${esc(s.gateway)} ${esc(uiText('· Account'))} ${esc(s.account_id)}</small>${effectBadges(s.effects)}${s.truncated ? approvalAggregates(s) : reviewTable([...(s.spend ?? []), ...(s.status ?? [])], uiText('Budget, bid and status fields'))}${s.depends_on?.length ? `<small>${esc(uiText('Requires:'))} ${esc(s.depends_on.join(', '))}</small>` : ''}</li>`).join('')}</ol><p>${esc(uiText('Amounts retain their provider field names and units. Inspect all steps and account bindings before approval.'))}</p>${truncated ? `<p class="form-note" id="approval-fields-note">${esc(uiText('Open every “Show all fields” list before approving.'))}</p>` : ''}<label class="form-note"><input id="plan-consent" type="checkbox"> ${esc(uiText('I authorize every step in this exact plan.'))}</label>${spending ? `<label class="form-note"><input id="plan-spend-consent" type="checkbox"> ${esc(uiText('I authorize the budget, bid and serving changes shown above.'))}</label>` : ''}<button id="approve-plan" class="button primary" type="button"${truncated ? ' disabled aria-describedby="approval-fields-note"' : ''}>${esc(uiText('Save plan approval'))}</button>${recordDetails(summary, uiText('Exact plan hash and approval scope'))}</section>`;
+}
+/** Loads a truncated step's complete field list when its list is opened; approval unlocks once every list was seen. */
+function bindApprovalFields(id, summary) {
+  const pending = new Set(summary.steps.filter(s => s.truncated).map(s => s.id));
+  if (!pending.size) return;
+  for (const details of document.querySelectorAll('[data-approval-step]'))
+    details.addEventListener('toggle', async () => {
+      if (!details.open || details.dataset.loaded) return;
+      details.dataset.loaded = 'loading';
+      try {
+        const out = await workspaceCall('campaign', {action: 'approve', id, step_id: details.dataset.approvalStep});
+        if (out.summary_hash !== summary.summary_hash)
+          throw Error(uiText('The plan changed. Review the whole plan again.'));
+        details.querySelector('.approval-all-fields-body').innerHTML = approvalFieldList(
+          out.fields,
+          uiText('Every budget, bid and status field of this step'),
+        );
+        details.dataset.loaded = 'true';
+        pending.delete(details.dataset.approvalStep);
+        if (!pending.size && $('#approve-plan')) $('#approve-plan').disabled = false;
+      } catch (error) {
+        delete details.dataset.loaded;
+        details.open = false;
+        toast(errorMessage(error));
+      }
+    });
 }
 // All progress actions operate on the original plan, review and key. A run may stop for an additional approval or
 // uncertain result; continuing never invents a new key or replays a submitted mutation.
@@ -369,15 +494,18 @@ function bindCampaignWorkflow(run, open, current) {
     const out = await workspaceCall('campaign', {action: 'approve', id});
     if (!current()) return;
     show(approvalView(out.approval));
+    bindApprovalFields(id, out.approval);
     workspaceBind('#approve-plan', async () => {
       if (!$('#plan-consent').checked) throw Error(uiText('Review and authorize this complete plan first.'));
-      const spending = out.approval.steps.some(s => s.spend?.length || s.status?.length);
+      if ($('#approve-plan').disabled) throw Error(uiText('Open every “Show all fields” list before approving.'));
+      const spending = approvalSpending(out.approval);
       if (spending && !$('#plan-spend-consent').checked)
         throw Error(uiText('Acknowledge the displayed budget and serving changes.'));
       const approved = await workspaceCall('campaign', {
         action: 'approve',
         id,
         plan_hash: out.approval.plan_hash,
+        summary_hash: out.approval.summary_hash,
         confirmed: true,
         ...(spending ? {spend_change_confirmed: true} : {}),
       });

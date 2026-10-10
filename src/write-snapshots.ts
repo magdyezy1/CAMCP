@@ -15,7 +15,8 @@ import {googleAdsCustomers} from './google-version.js';
 import {object, fail, snake} from './write-common.js';
 
 /** A state read of the account or resources a reviewed write depends on, made by the write's own connection. */
-const stateRead = (
+/** A read-only request of `path` for the plan's account and connection, as every state read is built. */
+export const stateRead = (
   plan: CompiledRequest,
   path: string,
   query: JsonObject = {},
