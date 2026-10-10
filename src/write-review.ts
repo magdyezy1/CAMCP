@@ -42,7 +42,14 @@ import {writeOutcome} from './write-outcome.js';
 import {validateState} from './write-state.js';
 import {assertWriteShape} from './write-shape.js';
 import {snapshotPlans} from './write-snapshots.js';
-import {confirmations, hashPeople, scrubError, scrubPeople, type PersonalDataRecord} from './personal-data.js';
+import {
+  confirmations,
+  hashPeople,
+  scrubError,
+  scrubPeople,
+  sentIdentifiers,
+  type PersonalDataRecord,
+} from './personal-data.js';
 import {assertPersonalDataAllowed} from './personal-data-access.js';
 
 export const writeTool = {
@@ -731,7 +738,8 @@ export class WriteReviewService {
     // A personal-data review kept only counts and a digest: the people come again, hashed again in memory, and must be
     // the reviewed ones. The switch is read again: turning an account off stops reviews already prepared.
     const record = plan.personalData as PersonalDataRecord | undefined;
-    let sent = plan;
+    let sent = plan,
+      echoes: ReadonlySet<string> = new Set();
     if (record) {
       const spec = familyOf(plan)?.personalData;
       if (!spec)
@@ -754,6 +762,8 @@ export class WriteReviewService {
           {reviewed: record.counts, sent: batch.record.counts},
         );
       sent = {...plan, body: spec.body(plan, batch.rows)};
+      // Click, transaction and event IDs are sent as they are; a reply or an error that echoes them is scrubbed.
+      echoes = sentIdentifiers(spec, batch);
     } else if (input.people !== undefined)
       fail('INVALID_ARGUMENT', 'people is only for a review that sends data about people.', {
         field: 'people',
@@ -839,7 +849,7 @@ export class WriteReviewService {
       this.delegated.validateResponse(plan, response.data, response.status);
       const result = writeOutcome(response, plan, current);
       // A platform may echo a person's value back; nothing of it is kept or returned.
-      if (record) result.data = scrubPeople(result.data);
+      if (record) result.data = scrubPeople(result.data, echoes);
       const outcome: JsonObject = {
         ...result,
         review_id: input.review_id,
@@ -887,7 +897,7 @@ export class WriteReviewService {
         code: e instanceof MirrorError ? e.code : 'INTERNAL_ERROR',
       });
       const safe = family?.safeError ? family.safeError(e) : e;
-      throw record ? scrubError(safe) : safe;
+      throw record ? scrubError(safe, echoes) : safe;
     }
   }
 }

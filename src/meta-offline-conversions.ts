@@ -159,6 +159,7 @@ export const metaOfflineConversionPeople: PersonalDataSpec = {
   maxRows: 1000,
   direction: p => (metaOfflineConversionKind(p) ? 'add' : undefined),
   fields,
+  identifiers: ['event_id'],
   row(f) {
     if (f.event_name === 'Purchase' && (f.value === null || f.currency === null)) return 'purchase_without_value';
     if (f.value !== null && f.currency === null) return 'value_without_currency';
