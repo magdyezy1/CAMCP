@@ -39,6 +39,8 @@ export const sealedDocumentScopes = ['upload-session', 'preview-receipt', 'x-rep
 export const sealedColumnScopes = [
   'media',
   'media-reservation',
+  // The sealed description of a cached fitted copy (MED-03 C), in media_staging.reservation.
+  'media-fit-cache',
   'media-chunk',
   'media-chunk-v2',
   'sealed-bytes',
@@ -228,7 +230,11 @@ export function rekeyStore(store: Store, options: RekeyOptions = {}): JsonObject
       if (next) update.secret = next;
     }
     if (typeof row.reservation === 'string') {
-      const next = text('media_staging', row.reservation, [scopeKey(row.tenant_id, 'media-reservation', row.id)]);
+      // An upload's declared reservation, or a cached fitted copy's sealed description (MED-03 C).
+      const next = text('media_staging', row.reservation, [
+        scopeKey(row.tenant_id, 'media-reservation', row.id),
+        scopeKey(row.tenant_id, 'media-fit-cache', row.id),
+      ]);
       if (next) update.reservation = next;
     }
     return Object.keys(update).length ? update : undefined;

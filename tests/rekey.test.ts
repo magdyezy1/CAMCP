@@ -8,7 +8,7 @@ import {randomUUID} from 'node:crypto';
 import type {Request} from 'express';
 import {Store} from '../src/store.js';
 import {WebStore} from '../server/web-store.js';
-import {SecretBox, masterKeys, scopeKey} from '../src/security.js';
+import {SecretBox, masterKeys, scopeKey, sha256} from '../src/security.js';
 import {
   jobActorPrefixes,
   rekeyStore,
@@ -72,6 +72,15 @@ function populate(file: string) {
     }
     ids.source = 'src-' + randomUUID();
     store.reserveMediaSource(tenant, ids.source, Date.now() + 600000, {bytes: 1024, member: 'operator'});
+    // A cached fitted copy (MED-03 C): staged bytes and a sealed description in the reservation column.
+    ids.fit = 'fit-' + ids.source + '-0123456789abcdef';
+    store.stageFitCache(
+      tenant,
+      ids.fit,
+      Date.now() + 600000,
+      {sha256: sha256(Buffer.from('fitted'))},
+      Buffer.from('fitted'),
+    );
     // A retained original: its manifest and one chunk.
     store.db
       .prepare('INSERT INTO retained_media VALUES(?,?,?,?)')
@@ -150,6 +159,9 @@ function readEverything(store: Store, web: WebStore, ids: JsonObject) {
     store.keyring!.open<JsonObject>(reservation.reservation, scopeKey(tenant, 'media-reservation', ids.source)).bytes,
     1024,
   );
+  // Regression (wave 2): the fit cache's sealed description was missing from the rekey lists, so after a rotation the
+  // cached copy no longer opened with the new key alone.
+  assert.equal(store.fitCache(tenant, ids.fit)?.metadata.size, 6);
   const manifest = store.db.prepare("SELECT secret FROM retained_media WHERE id='kept'").get() as JsonObject;
   assert.equal(store.openValue(tenant, 'retained-media-manifest', 'kept', manifest.secret).size, 4);
   const chunk = store.db.prepare("SELECT secret FROM retained_media_chunks WHERE id='kept'").get() as JsonObject;
