@@ -2389,6 +2389,10 @@ function bindMeasurementConversions(targets) {
           [r.post_click_days, r.post_view_days].some(
             v => v !== null && (!Number.isSafeInteger(v) || v < 0 || v > 365),
           ) ||
+          // Observed activity (MSR-04): absent from older responses, null when LinkedIn reports none (unknown).
+          [r.last_callback_at, r.latest_first_party_callback_at].some(
+            v => v != null && (!Number.isSafeInteger(v) || v < 1),
+          ) ||
           (r.value !== null &&
             (!r.value ||
               typeof r.value.amount !== 'string' ||
@@ -2411,6 +2415,18 @@ function mountConversionRuleRows(rules, selectionCurrent) {
     unknown = () => esc(uiText('Unknown')),
     nativeMetadata = value => (value == null ? unknown() : '<code dir="ltr">' + esc(value) + '</code>'),
     days = value => (value == null ? unknown() : esc(uiText('{count} days', {count: uiNumber(value)}))),
+    // MSR-04: LinkedIn's last-fired times; a missing time stays Unknown, never "never fired".
+    observed = r =>
+      r.last_callback_at == null && r.latest_first_party_callback_at == null
+        ? unknown()
+        : [
+            r.last_callback_at == null ? '' : esc(uiText('Last fired: {time}', {time: uiDate(r.last_callback_at)})),
+            r.latest_first_party_callback_at == null
+              ? ''
+              : esc(uiText('Latest first-party callback: {time}', {time: uiDate(r.latest_first_party_callback_at)})),
+          ]
+            .filter(Boolean)
+            .join('<br>'),
     attribution = value =>
       value === 'LAST_TOUCH_BY_CAMPAIGN'
         ? uiText('Last touch for each campaign')
@@ -2431,7 +2447,7 @@ function mountConversionRuleRows(rules, selectionCurrent) {
       page = rows.slice(offset, offset + 50);
     root.innerHTML =
       (rows.length
-        ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Conversion settings, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Native conversion rule settings'))}</caption><thead><tr><th scope="col">${esc(uiText('Conversion rule'))}</th><th scope="col">${esc(uiText('Native conversion type'))}</th><th scope="col">${esc(uiText('Registration method'))}</th><th scope="col">${esc(uiText('Reported ownership'))}</th><th scope="col">${esc(uiText('Enabled'))}</th><th scope="col">${esc(uiText('Post-click window'))}</th><th scope="col">${esc(uiText('Post-view window'))}</th><th scope="col">${esc(uiText('Attribution model'))}</th><th scope="col">${esc(uiText('Configured conversion value'))}</th></tr></thead><tbody>${page.map(r => `<tr><th scope="row"><span dir="auto">${esc(r.name || uiText('Unnamed conversion'))}</span><br><code dir="ltr">${esc(r.id)}</code></th><td>${r.type == null ? unknown() : `<code dir="ltr">${esc(r.type)}</code>`}</td><td>${nativeMetadata(r.conversion_method)}</td><td>${nativeMetadata(r.ownership_type)}</td><td>${esc(r.enabled === true ? uiText('Enabled') : r.enabled === false ? uiText('Disabled') : uiText('Unknown'))}</td><td>${days(r.post_click_days)}</td><td>${days(r.post_view_days)}</td><td>${esc(attribution(r.attribution_type))}</td><td>${r.value == null ? unknown() : `<span dir="ltr">${esc(r.value.amount)} ${esc(r.value.currency)}</span>`}<br>${r.value_type == null ? unknown() : `<code dir="ltr">${esc(r.value_type)}</code>`}</td></tr>`).join('')}</tbody></table></div>`
+        ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Conversion settings, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Native conversion rule settings'))}</caption><thead><tr><th scope="col">${esc(uiText('Conversion rule'))}</th><th scope="col">${esc(uiText('Native conversion type'))}</th><th scope="col">${esc(uiText('Registration method'))}</th><th scope="col">${esc(uiText('Reported ownership'))}</th><th scope="col">${esc(uiText('Enabled'))}</th><th scope="col">${esc(uiText('Post-click window'))}</th><th scope="col">${esc(uiText('Post-view window'))}</th><th scope="col">${esc(uiText('Attribution model'))}</th><th scope="col">${esc(uiText('Configured conversion value'))}</th><th scope="col">${esc(uiText('Observed activity'))}</th></tr></thead><tbody>${page.map(r => `<tr><th scope="row"><span dir="auto">${esc(r.name || uiText('Unnamed conversion'))}</span><br><code dir="ltr">${esc(r.id)}</code></th><td>${r.type == null ? unknown() : `<code dir="ltr">${esc(r.type)}</code>`}</td><td>${nativeMetadata(r.conversion_method)}</td><td>${nativeMetadata(r.ownership_type)}</td><td>${esc(r.enabled === true ? uiText('Enabled') : r.enabled === false ? uiText('Disabled') : uiText('Unknown'))}</td><td>${days(r.post_click_days)}</td><td>${days(r.post_view_days)}</td><td>${esc(attribution(r.attribution_type))}</td><td>${r.value == null ? unknown() : `<span dir="ltr">${esc(r.value.amount)} ${esc(r.value.currency)}</span>`}<br>${r.value_type == null ? unknown() : `<code dir="ltr">${esc(r.value_type)}</code>`}</td><td>${observed(r)}</td></tr>`).join('')}</tbody></table></div><p class="form-note" id="conversion-observed-activity-note">${esc(uiText('Observed activity is the last time LinkedIn reports a rule’s URL match fired. LinkedIn may take about 20 minutes to update it. Unknown means LinkedIn reported no time, not that the rule never fired; a time does not verify event delivery.'))}</p>`
         : `<p>${esc(needle ? uiText('No conversion rules match this search') : uiText('No conversion rules were returned for this account.'))}</p>`) +
       `<div class="report-pagination"><p id="conversion-rule-status" role="status" tabindex="-1">${esc(uiText('Showing {shown} of {matched} matching rules; {total} collected', {shown: uiNumber(page.length), matched: uiNumber(rows.length), total: uiNumber(rules.length)}))}</p><div><button class="button small" type="button" id="conversion-rule-previous">${esc(uiText('Previous page'))}</button><button class="button small" type="button" id="conversion-rule-next">${esc(uiText('Next page'))}</button></div></div>`;
     $('#conversion-rule-previous').disabled = offset === 0;
