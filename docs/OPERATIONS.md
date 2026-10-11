@@ -1060,3 +1060,12 @@ read again. Aggregate counts and identifier matches leave consent, deduplication
 unverified. No event sender, snapshot or reviewed-write authority is added by this interface.
 The selected Arabic inventory covers all 34 owned measurement/consent metadata refusals and
 reachable recovery hints; unknown native messages retain their source text.
+
+The measurement evidence ledger (MSR-03, owner direction P8) reads Google Ads, GA4, Meta pixels and datasets,
+Snapchat and TikTok pixels, Search Console sites and Adjust apps read-only; no test event, Conversions API call or
+validate request is sent ([product workflows](PRODUCT-WORKFLOWS.md)). To withdraw an adapter without a release, set
+`AMCP_MEASUREMENT_LEDGER_OFF` to a comma-separated list of gateways (for example `meta_native_action`) and restart;
+the ledger then refuses that gateway with `MEASUREMENT_LEDGER_UNQUALIFIED` before any provider request and lists the
+remaining ones. Meta Dataset Quality needs `ads_management`, or `ads_read` with `business_management`; a login
+without either keeps that layer unknown. Snap asks for review before Signal Readiness data is displayed publicly, so it
+stays on signed-in workspace pages.
