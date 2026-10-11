@@ -454,8 +454,9 @@ reports. Each native row must match its account, exact parent chain, currency, d
 Changed credentials/scopes/access stop collection. Only bounded native cursors on the original account/query are
 reused; continuation URLs and their credentials are never followed or copied. Empty intermediate pages continue
 when another page is advertised. At most 100 pages/10,000 rows share the same request/time/byte bounds. Both account
-checks and every page retain source references. Missing selected actions stay unknown; overlapping action aliases
-are never added. Window completeness remains declared, and complete paging does not prove conversion delivery.
+checks and every page retain source references. On a delivered row (impressions above 0) an absent selected action
+counts as 0 and is named in `omitted_as_zero` (Meta omits zero-valued action entries); a row without delivery keeps
+it unknown. Overlapping action aliases are never added. Window completeness remains declared, and complete paging does not prove conversion delivery.
 See the [Meta evidence qualification](review/DELIVERY-2026-10-02-META-EVIDENCE-INTEGRITY.md); SDK/native fixture evidence
 does not certify live provider acceptance.
 

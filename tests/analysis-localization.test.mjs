@@ -100,3 +100,46 @@ test('report explanation extraction follows only authored explanation positions,
   );
   assert.deepEqual([...r], ['Known proposal']);
 });
+
+test('collector warnings with a count or field name translate through fixed templates and keep the exact value', () => {
+  // Regression (RPT-03/RPT-04 review): these warnings were built dynamically, so the exact-match lookup left them in
+  // English for Arabic users.
+  const ar = fixture(),
+    en = fixture('en');
+  const warnings = [
+    [
+      'Requested native metric metrics.misspelled_field was not returned as a number; formulas that use it stay unavailable. Check the field name for this provider.',
+      'metrics.misspelled_field',
+    ],
+    [
+      '4 X campaigns have no reported activity in this window (X active entities). They are not listed and are never counted as zero.',
+      '4',
+    ],
+    [
+      '1 X campaign has no reported activity in this window (X active entities). They are not listed and are never counted as zero.',
+      '1',
+    ],
+    ['2 active X campaigns are missing from the campaign list; they are shown by ID.', '2'],
+    ['1 active X campaign is missing from the campaign list; it is shown by ID.', '1'],
+    [
+      'TikTok ad group optimization events could not be read, so conversions use one generic result definition and campaigns optimizing for different events are not told apart.',
+      'TikTok',
+    ],
+  ];
+  for (const [warning, value] of warnings) {
+    ar.context.warning = warning;
+    const text = ar.run('uiSourceWarning(warning)');
+    assert.match(text, /[؀-ۿ]/, warning);
+    assert.ok(text.includes(value), text);
+    en.context.warning = warning;
+    assert.equal(en.run('uiSourceWarning(warning)'), warning, 'English keeps the collector sentence');
+  }
+  // Provider text that only resembles a template stays exactly as written.
+  for (const value of ['Requested native metric <img> was not returned', 'Native warning 0012.34']) {
+    ar.context.warning = value;
+    assert.equal(ar.run('uiSourceWarning(warning)'), value);
+  }
+  ar.context.message =
+    'The baseline window is not declared complete; comparisons with it (spend anomaly, creative fatigue) may reflect missing baseline data.';
+  assert.match(ar.run('uiReportExplanation(message)'), /[؀-ۿ]/);
+});

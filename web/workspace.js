@@ -921,7 +921,7 @@ async function renderDecisionReports() {
           ...(v.baseline_id ? {baseline_id: v.baseline_id} : {}),
         },
         out =>
-          `<section class="panel"><div class="panel-header"><h2>${esc(uiText('Recommendations'))}</h2>${badge(out.eligible_for_action ? 'ready' : 'blocked')}</div>${out.recommendations.map(x => `<div class="token-row"><div><strong>${esc(uiAnalysisLabel(x.type))}</strong><p>${esc(uiReportExplanation(x.proposal))}</p><small>${esc(uiText('Confidence:'))} ${esc(uiAnalysisLabel(x.confidence))} ${esc(uiText('· A new review is required before a change.'))}</small>${recordDetails(x.evidence, uiText('Supporting evidence'))}</div></div>`).join('') || blank(uiText('No recommendation met the configured thresholds.'))}${recordDetails(out, uiText('Analysis provenance and limitations'))}</section>`,
+          `<section class="panel"><div class="panel-header"><h2>${esc(uiText('Recommendations'))}</h2>${badge(out.eligible_for_action ? 'ready' : 'blocked')}</div>${(Array.isArray(out.data_quality) ? out.data_quality : []).map(x => `<p class="form-note" role="note">${esc(uiReportExplanation(x))}</p>`).join('')}${out.recommendations.map(x => `<div class="token-row"><div><strong>${esc(uiAnalysisLabel(x.type))}</strong><p>${esc(uiReportExplanation(x.proposal))}</p><small>${esc(uiText('Confidence:'))} ${esc(uiAnalysisLabel(x.confidence))} ${esc(uiText('· A new review is required before a change.'))}</small>${recordDetails(x.evidence, uiText('Supporting evidence'))}</div></div>`).join('') || blank(uiText('No recommendation met the configured thresholds.'))}${recordDetails(out, uiText('Analysis provenance and limitations'))}</section>`,
       );
     });
     workspaceBind('#reconcile-report', async f => {

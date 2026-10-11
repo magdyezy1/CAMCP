@@ -87,6 +87,10 @@ incomplete and its window has closed. Each label holds recommendations; nothing 
   ending on the account's current day is deferred with retryable `REPORT_PENDING` until an hour after that day ends,
   a later end date is refused with `INVALID_REPORT_RANGE`, and Microsoft error 2004 is retried an hour later. This
   changes Microsoft totals for non-UK accounts; a Microsoft job submitted before this change keeps its London days.
+  The deferral holds the whole snapshot: a run stops at its first retryable source error, so the sources after a
+  Microsoft source whose window ends today are collected only when the retry runs (up to about 25 hours later),
+  unlike the other platforms, whose open day is delivered as partial. Set the window's end to yesterday for a
+  same-day snapshot.
 - **Declared incomplete.** A detailed (ad set or ad) source with `complete_window:false` is partial
   (`detail_contract:"overview-detail-v2"`) and its recommendations need review. Snapshots retained earlier keep their
   original labels.

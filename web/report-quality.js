@@ -148,6 +148,7 @@ const reportExplanationMessages = new Set([
   'Set whether higher or lower is better for this target KPI (direction) before recommending a change.',
   'No spend, or less than the minimum spend, in this window. Wait for delivered spend before recommending a change.',
   'Recommendations in this snapshot have expired. Refresh the report before acting on them.',
+  'The baseline window is not declared complete; comparisons with it (spend anomaly, creative fatigue) may reflect missing baseline data.',
 ]);
 /** DEC-01: frozen recommendations show their as-of time, and are flagged expired at display time after 48 hours. */
 function reportRecommendationAsOf(row) {
@@ -173,9 +174,44 @@ const reportSourceWarnings = new Set([
   'Search Console returned the 10,000-row request limit; lower-ranked pages are not included, so this organic context is partial.',
   'Microsoft did not return a recognized account time zone, so report days use GreenwichMeanTimeDublinEdinburghLisbonLondon (Europe/London, including daylight saving).',
   'TikTok campaign reporting covers auction campaigns only (AUCTION_CAMPAIGN); Reach & Frequency and other reserved campaigns are not included.',
+  'TikTok ad group optimization events could not be read, so conversions use one generic result definition and campaigns optimizing for different events are not told apart.',
 ]);
+// Collector notices that carry a count or a field name (RPT-03, RPT-04). English keeps the collector's own sentence;
+// another language fills the same exact value into its translated template.
+const reportSourceWarningTemplates = [
+  [
+    /^Requested native metric (\S{1,150}) was not returned as a number; formulas that use it stay unavailable\. Check the field name for this provider\.$/,
+    m =>
+      uiText(
+        'Requested native metric {name} was not returned as a number; formulas that use it stay unavailable. Check the field name for this provider.',
+        {name: m[1]},
+      ),
+  ],
+  [
+    /^(\d{1,7}) X campaigns? (?:has|have) no reported activity in this window \(X active entities\)\. They are not listed and are never counted as zero\.$/,
+    m =>
+      uiText(
+        'X campaigns with no reported activity in this window (X active entities): {count}. They are not listed and are never counted as zero.',
+        {count: uiNumber(Number(m[1]))},
+      ),
+  ],
+  [
+    /^(\d{1,7}) active X campaigns? (?:is|are) missing from the campaign list; (?:it is|they are) shown by ID\.$/,
+    m =>
+      uiText('Active X campaigns missing from the campaign list, shown by ID: {count}.', {
+        count: uiNumber(Number(m[1])),
+      }),
+  ],
+];
 function uiSourceWarning(value) {
-  return reportSourceWarnings.has(value) ? uiText(value) : String(value ?? '');
+  if (reportSourceWarnings.has(value)) return uiText(value);
+  const text = String(value ?? '');
+  if (typeof uiLocale === 'string' && uiLocale !== 'en')
+    for (const [pattern, translate] of reportSourceWarningTemplates) {
+      const match = pattern.exec(text);
+      if (match) return translate(match);
+    }
+  return text;
 }
 function uiReportExplanation(value) {
   return reportExplanationMessages.has(value) ? uiText(value) : String(value ?? '');

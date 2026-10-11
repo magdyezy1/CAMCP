@@ -164,18 +164,41 @@ const contextKeys = new Set([
   'time_range',
 ]);
 const snake = (k: string) => k.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
-const comparable = (k: string) => k.toLowerCase().replace(/[^a-z0-9]/g, '');
-/** Requested native metrics that no returned row carried as a numeric field (RPT-04: warn instead of a silent null). */
+/** A native field path in one spelling: `metrics.allConversions`, `metrics_all_conversions` → `metrics_all_conversions`. */
+const nativeFieldName = (k: string) => snake(k.replace(/[^a-zA-Z0-9_]/g, '_')).replace(/_+/g, '_');
+/**
+ * The response container a requested field may leave out: TikTok and Google metrics sit under `metrics`, Snapchat
+ * stats under `stats` (TikTok `reach` is returned as `metrics.reach`). No other prefix or suffix is accepted.
+ */
+const nativeMetricContainers: Record<string, string> = {google: 'metrics', tiktok: 'metrics', snapchat: 'stats'};
+/** The paths of action arrays ({action_type, value} entries), whose metrics carry the action type after the path. */
+function nativeActionPaths(data: unknown, prefix: string, out: Set<string>, depth = 0) {
+  if (depth > 4 || !data || typeof data !== 'object' || Array.isArray(data)) return;
+  for (const [k, v] of Object.entries(data)) {
+    const key = (prefix ? prefix + '_' : '') + k;
+    if (Array.isArray(v)) {
+      if (v.some(a => a && typeof a === 'object' && typeof a.action_type === 'string')) out.add(nativeFieldName(key));
+    } else if (v && typeof v === 'object') nativeActionPaths(v, key, out, depth + 1);
+  }
+}
+/**
+ * Requested native metrics that no returned row carried as a numeric field (RPT-04: warn instead of a silent null).
+ * A field counts as returned only under its own name: the exact key numericNative produced, the same key inside the
+ * platform's metrics container, or an action array of that name. `clicks` is not returned by `inline_link_clicks`.
+ */
 export function missingNativeMetrics(platform: string, requested: string[], rows: JsonObject[]): string[] {
   if (!rows.length || ['x', 'apple'].includes(platform)) return [];
   const prefix = 'native_' + platform + '_',
+    container = nativeMetricContainers[platform],
     produced = new Set<string>();
-  for (const row of rows)
+  for (const row of rows) {
     for (const key of Object.keys(row.metrics ?? {}))
-      if (key.startsWith(prefix)) produced.add(comparable(key.slice(prefix.length)));
+      if (key.startsWith(prefix)) produced.add(nativeFieldName(key.slice(prefix.length)));
+    nativeActionPaths(row.native, '', produced);
+  }
   return requested.filter(name => {
-    const wanted = comparable(name);
-    return ![...produced].some(p => p === wanted || p.startsWith(wanted) || p.endsWith(wanted));
+    const wanted = nativeFieldName(name);
+    return !produced.has(wanted) && !(container && produced.has(container + '_' + wanted));
   });
 }
 function numericNative(
@@ -436,7 +459,15 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
 export interface AccountLookupCache {
   data?: JsonObject;
   lineage?: JsonObject;
+  /**
+   * RPT-04: TikTok ad group optimization events per campaign, read once per source per job like the account lookup
+   * (not once per period). `unavailable` records a non-retryable failure of this optional read.
+   */
+  tiktokEvents?: {events: Record<string, string[]>; lineage?: JsonObject; unavailable?: boolean};
 }
+/** Shown when TikTok's ad group read failed, so result definitions fall back to the generic one. */
+export const tiktokEventsUnavailableWarning =
+  'TikTok ad group optimization events could not be read, so conversions use one generic result definition and campaigns optimizing for different events are not told apart.';
 /** Campaign-level sources whose provider segments one request by day (RPT-03, contract campaign-source-v4). */
 export const nativeDailyPlatforms: readonly string[] = ['google', 'meta'];
 export const nativeDailySegmentation = (source: JsonObject) =>
@@ -751,26 +782,52 @@ export class NativeCampaignReports {
         (await run(plan('/v1.3/campaign/get/', {advertiser_id: account, page: 1, page_size: 1000}))).data?.list ?? [],
       );
       // RPT-04: TikTok's `conversion` follows each ad group's optimization event. One bounded ad group inventory read
-      // names the events per campaign, so summaries never add conversions of different events into one result.
-      const adgroups = list(
-        (await run(plan('/v1.3/adgroup/get/', {advertiser_id: account, page: 1, page_size: 1000}), true, 'adgroups'))
-          .data?.list ?? [],
-      );
-      const events = new Map<string, Set<string>>();
-      for (const group of adgroups) {
-        const campaign = String(group.campaign_id ?? '');
-        if (!campaign) continue;
-        const event =
-          [group.optimization_goal, group.optimization_event]
-            .filter(v => typeof v === 'string' && /^[A-Za-z0-9_.]{1,80}$/.test(v))
-            .join(' / ') || 'unknown';
-        events.set(campaign, (events.get(campaign) ?? new Set()).add(event));
+      // per source and job (cached across periods, like the account lookup) names the events per campaign, so
+      // summaries never add conversions of different events into one result. The read is optional: a non-retryable
+      // failure (a refusal, or more pages than the bound) keeps the source with the generic result definition and a
+      // warning; a retryable one retries the job.
+      let adgroupEvents = lookup?.tiktokEvents;
+      if (adgroupEvents?.lineage) lineage.push({...adgroupEvents.lineage, cached: true});
+      if (!adgroupEvents) {
+        try {
+          const adgroups = list(
+            (
+              await run(
+                plan('/v1.3/adgroup/get/', {advertiser_id: account, page: 1, page_size: 1000}),
+                true,
+                'adgroups',
+              )
+            ).data?.list ?? [],
+          );
+          const events = new Map<string, Set<string>>();
+          for (const group of adgroups) {
+            const campaign = String(group.campaign_id ?? '');
+            if (!campaign) continue;
+            const event =
+              [group.optimization_goal, group.optimization_event]
+                .filter(v => typeof v === 'string' && /^[A-Za-z0-9_.]{1,80}$/.test(v))
+                .join(' / ') || 'unknown';
+            events.set(campaign, (events.get(campaign) ?? new Set()).add(event));
+          }
+          adgroupEvents = {
+            events: Object.fromEntries([...events].map(([campaign, set]) => [campaign, [...set].sort()])),
+            lineage: lineage.at(-1),
+          };
+        } catch (e) {
+          if (!(e instanceof MirrorError) || e.retryable) throw e;
+          adgroupEvents = {events: {}, unavailable: true};
+        }
+        if (lookup) lookup.tiktokEvents = adgroupEvents;
       }
+      if (adgroupEvents.unavailable) warnings.push(tiktokEventsUnavailableWarning);
+      const campaignEvents = adgroupEvents.events;
       raw = raw.map(r => ({
         ...r,
         objective_type: inventory.find(c => String(c.campaign_id) === String(r.dimensions?.campaign_id))
           ?.objective_type,
-        optimization_events: [...(events.get(String(r.dimensions?.campaign_id)) ?? [])].sort(),
+        optimization_events: Object.hasOwn(campaignEvents, String(r.dimensions?.campaign_id))
+          ? campaignEvents[String(r.dimensions?.campaign_id)]
+          : [],
       }));
       resultDefinition = 'TikTok conversion metric for the selected optimization goal';
       warnings.push(tiktokAuctionOnlyWarning);

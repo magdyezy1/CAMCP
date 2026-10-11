@@ -4,7 +4,13 @@ import {Store} from '../src/store.js';
 import {Registry} from '../src/catalog.js';
 import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
-import {NativeCampaignReports, normalizeNativeRow} from '../src/report-native.js';
+import {
+  NativeCampaignReports,
+  missingNativeMetrics,
+  normalizeNativeRow,
+  tiktokEventsUnavailableWarning,
+  type AccountLookupCache,
+} from '../src/report-native.js';
 import {assertCompatibleBaseline} from '../src/report-references.js';
 import {MirrorError} from '../src/errors.js';
 import {
@@ -268,6 +274,8 @@ test('RPT-04 item 2: analyze refuses a mismatched baseline and notes an incomple
     const incomplete = await ok(capture(['2026-09-01', '2026-09-07'], campaign, false));
     const noted = await ok({action: 'analyze', id: current.id, baseline_id: incomplete.id});
     assert.match(noted.data_quality.join(' '), /baseline window is not declared complete/);
+    // Review fix: the note is also an analyze limitation, which the website translates (and it renders data_quality).
+    assert.ok(noted.limitations.some((l: string) => /baseline window is not declared complete/.test(l)));
   } finally {
     store.close();
   }
@@ -491,5 +499,121 @@ test('RPT-04 item 6: TikTok conversions of different optimization events split s
     assert.notEqual(single.reason, held.reason);
   } finally {
     f.store.close();
+  }
+});
+
+test('RPT-04 item 1 (review fix): a requested native metric counts as returned only under its own name', () => {
+  // Regression: matching was by prefix or suffix, so `clicks` counted as returned when only `inline_link_clicks` was,
+  // and no warning named it.
+  const meta = normalizeNativeRow('meta', {
+    campaign_id: '101',
+    campaign_name: 'Synthetic',
+    impressions: '10',
+    inline_link_clicks: '4',
+    video_play_actions: [{action_type: 'video_view', value: '3'}],
+  });
+  assert.deepEqual(
+    missingNativeMetrics('meta', ['clicks', 'inline_link_clicks', 'video_play_actions', 'video_play'], [meta]),
+    ['clicks', 'video_play'],
+  );
+  // TikTok metrics sit under `metrics`; that container may be left out, nothing else.
+  const tiktok = normalizeNativeRow('tiktok', {
+    dimensions: {campaign_id: '7'},
+    metrics: {campaign_name: 'Synthetic', reach: '120', video_watched_2s: '9'},
+  });
+  assert.deepEqual(missingNativeMetrics('tiktok', ['reach', 'each', 'video_watched_2s', 'watched_2s'], [tiktok]), [
+    'each',
+    'watched_2s',
+  ]);
+  // Google names keep their `metrics.` path in either spelling.
+  const google = normalizeNativeRow('google', {
+    campaign: {id: '77', name: 'Search'},
+    metrics: {allConversions: 2, interactions: '5'},
+  });
+  assert.deepEqual(
+    missingNativeMetrics(
+      'google',
+      ['metrics.all_conversions', 'metrics.interactions', 'metrics.conversions'],
+      [google],
+    ),
+    ['metrics.conversions'],
+  );
+});
+
+/** A TikTok fixture whose ad group read answers from `adgroups`. */
+function tiktokFixture(adgroups: () => JsonObject) {
+  return nativeFixture('tiktok_native_action', '100', plan => {
+    if (plan.path.endsWith('/advertiser/info/'))
+      return {code: 0, data: {list: [{advertiser_id: '100', currency: 'USD', timezone: 'UTC', name: 'Synthetic'}]}};
+    if (plan.path.endsWith('/report/integrated/get/'))
+      return {
+        code: 0,
+        data: {
+          list: [{dimensions: {campaign_id: '1'}, metrics: {campaign_name: 'One', spend: '9', impressions: '100'}}],
+        },
+      };
+    if (plan.path.endsWith('/campaign/get/'))
+      return {code: 0, data: {list: [{campaign_id: '1', objective_type: 'WEB_CONVERSIONS'}]}};
+    if (plan.path.endsWith('/adgroup/get/')) return adgroups();
+    throw Error('Unexpected route ' + plan.path);
+  });
+}
+
+test('RPT-04 item 6 (review fix): the TikTok ad group read runs once per source and job, not once per period', async () => {
+  // Regression: the read sat inside the per-period collection, so a 31-day daily source made 31 ad group reads.
+  const f = tiktokFixture(() => ({
+    code: 0,
+    data: {list: [{adgroup_id: '11', campaign_id: '1', optimization_goal: 'CONVERT', optimization_event: 'SHOPPING'}]},
+  }));
+  try {
+    const lookup: AccountLookupCache = {},
+      source = {platform: 'tiktok', account_id: '100', connection_id: 'login'};
+    const days: JsonObject[] = [];
+    for (const day of ['2026-08-01', '2026-08-02', '2026-08-03'])
+      days.push(await f.native.collect(source, {since: day, until: day}, actor, {}, () => {}, lookup));
+    assert.equal(f.plans.filter(p => String(p.path).endsWith('/adgroup/get/')).length, 1, 'one ad group read');
+    for (const day of days)
+      assert.equal(day.rows[0].result_definition, 'TikTok conversions for optimization event CONVERT / SHOPPING');
+    assert.equal(
+      days[2]!.lineage.filter((l: JsonObject) => l.stage === 'adgroups' && l.cached === true).length,
+      1,
+      'a later period names the cached read in its lineage',
+    );
+  } finally {
+    f.store.close();
+  }
+});
+
+test('RPT-04 item 6 (review fix): a refused ad group read keeps the TikTok source with the generic definition', async () => {
+  // Regression: a refusal (or more pages than the bound) of this optional read failed the whole TikTok source.
+  const f = tiktokFixture(() => ({code: 40001, message: 'No permission to read ad groups'}));
+  try {
+    const result = await f.native.collect(
+      {platform: 'tiktok', account_id: '100', connection_id: 'login'},
+      {since: '2026-08-01', until: '2026-08-07'},
+      actor,
+    );
+    assert.equal(result.rows.length, 1);
+    assert.equal(result.rows[0].result_definition, undefined, 'no per-campaign event definition');
+    assert.equal(result.result_definition, 'TikTok conversion metric for the selected optimization goal');
+    assert.ok(result.warnings.includes(tiktokEventsUnavailableWarning));
+  } finally {
+    f.store.close();
+  }
+  // A retryable failure still retries the job instead of dropping the events.
+  const retry = tiktokFixture(() => {
+    throw new MirrorError('PROVIDER_RATE_LIMITED', 'Rate limited.', {}, 429, true);
+  });
+  try {
+    await assert.rejects(
+      retry.native.collect(
+        {platform: 'tiktok', account_id: '100', connection_id: 'login'},
+        {since: '2026-08-01', until: '2026-08-07'},
+        actor,
+      ),
+      (e: MirrorError) => e.code === 'PROVIDER_RATE_LIMITED' && e.retryable === true,
+    );
+  } finally {
+    retry.store.close();
   }
 });
