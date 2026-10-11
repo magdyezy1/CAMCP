@@ -696,7 +696,14 @@ export class Store {
   providerMetric(
     tenant: string,
     gateway: string,
-    metric: 'requests' | 'errors' | 'rate_limits' | 'latency_ms' | 'wire_contract_violations',
+    metric:
+      | 'requests'
+      | 'errors'
+      | 'rate_limits'
+      | 'latency_ms'
+      | 'wire_contract_violations'
+      | 'wire_contract_read_violations'
+      | 'wire_contract_check_failures',
     value = 1,
   ) {
     this.transaction(() => {

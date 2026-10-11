@@ -133,6 +133,11 @@ test('assertRefused accepts the named refusal and rejects success, another code,
   assert.throws(() => assertRefused(refusal, 'STATE_CHANGED', {writes: () => 1}), /provider writes sent/);
   assert.throws(() => assertRefused(refusal, 'STATE_CHANGED', {message: /deleted/}), /match/);
   assert.throws(() => assertRefused(new TypeError('boom'), 'INVALID_ARGUMENT'), /refusal code/);
+  // Regression: a requested status was silently ignored for a service result; it is now checked or fails.
+  const withStatus = {success: false, error: {code: 'FORBIDDEN', message: 'No.', status: 403}};
+  assert.equal(assertRefused(withStatus, 'FORBIDDEN', {status: 403}), true);
+  assert.throws(() => assertRefused(withStatus, 'FORBIDDEN', {status: 401}), /refusal status/);
+  assert.throws(() => assertRefused(refusal, 'STATE_CHANGED', {status: 409}), /carries no HTTP status/);
 });
 
 test('the burn-down instruments weak sites, rewrites only named refusals and leaves crashes for review', () => {

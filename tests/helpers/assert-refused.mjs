@@ -7,7 +7,9 @@ import assert from 'node:assert/strict';
  * `result` is a service result ({success:false, error:{code}}), a thrown error with `code` (MirrorError), or a
  * rejected promise's reason. `code` is the expected code, or the list of codes a loop over several refusals may give
  * (each still a named refusal, never a crash). `writes` is a number or a function returning the current count of
- * provider writes. Returns true, so it can be the validator of assert.throws or assert.rejects.
+ * provider writes. `status` is the HTTP status of a thrown refusal, or of a service result whose error names one (a
+ * result without a status fails the assertion rather than ignoring it). Returns true, so it can be the validator of
+ * assert.throws or assert.rejects.
  *
  *   assertRefused(await service.call(...), 'STATE_CHANGED', {writes: () => writes});
  *   assert.throws(() => compile(x), e => assertRefused(e, 'INVALID_ARGUMENT'));
@@ -29,6 +31,14 @@ export function assertRefused(result, code, {writes, status, message} = {}) {
     assert.equal(result.success, false, 'expected a refusal, got success: ' + JSON.stringify(result).slice(0, 500));
     actual = result.error?.code;
     detail = result.error?.message;
+    // A service result carries an HTTP status only when its envelope names one; never ignore a requested status.
+    if (status !== undefined) {
+      assert.ok(
+        result.error && typeof result.error.status === 'number',
+        'refusal status ' + status + ' was requested, but this service result carries no HTTP status',
+      );
+      assert.equal(result.error.status, status, 'refusal status');
+    }
   }
   assert.notEqual(actual, 'INTERNAL_ERROR', 'refused by a crash (INTERNAL_ERROR): ' + detail);
   if (expected.length === 1) assert.equal(actual, expected[0], 'refusal code (' + detail + ')');

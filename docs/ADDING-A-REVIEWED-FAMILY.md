@@ -101,6 +101,9 @@ in a body (`status: DELETED`, `operation_status: DELETE`) belongs in `bodyDeleti
    field between review and execute is `STATE_CHANGED` naming it, a paginated state read is refused, and a partial or
    failed answer is never success and never sent again. A family is never added to
    `tests/fixtures/family-conformance-pending.json`; a backfilled one is removed from it with the ceiling lowered.
+   Backfill order: activation and spend-affecting families of active providers first (Google Ads, Meta, Snapchat,
+   LinkedIn and Microsoft Advertising budgets, bids and statuses), then their other entity writes, and parked
+   providers (Criteo) last.
 6. `tests/reviewed-families.test.mjs` then checks, without changes, that the family owns ledger routes, that no
    ledger route is claimed by two families, that its reader passes foreign reads on, and that no lifecycle module
    names it directly. A new refusal that leaves something paused, busy, uncertain or expired needs its exit test in

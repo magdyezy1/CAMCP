@@ -81,6 +81,9 @@ export function profileStages(profile, {now} = {}) {
     node('test_capture', ['--test', 'tools/catalog/core.test.mjs'], {tests: true}),
     // QA-02: every catalogued mutant must be killed by its named tests (tests/fixtures/mutant-catalogue.json).
     node('mutant_catalogue', ['tools/mutants.mjs']),
+    // PRV-05: every reviewed-family fixture body conforms to its pinned vendor contract or is a listed exception with
+    // vendor evidence; a new unlisted violation or a stale exception fails release qualification.
+    node('wire_contract_sweep', ['tools/wire-contract-sweep.mjs']),
     node('check_web', ['tools/check-web.mjs']),
     node('providers_check', ['dist/tools/provider-drift.js']),
     node('providers_lifecycle', ['dist/tools/provider-lifecycle.js']),

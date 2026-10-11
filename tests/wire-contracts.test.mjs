@@ -20,6 +20,7 @@ import {
   sealedVendorDocument,
   wireContractCheck,
   wireContractMode,
+  wireContractResolver,
 } from '../dist/src/wire-contracts.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
@@ -372,16 +373,72 @@ test('shadow mode sends the request and counts the violation; enforce refuses a 
       assert.equal(transport.metrics.wireContractViolations, 2);
       await transport.request(gtmTag({}), connection, credentials);
       assert.equal(sent, 2);
-      // A read is never refused, only recorded.
+      // A read is never refused, only recorded, and its violation is counted apart from the writes' enforcement gate.
       await transport.request({...bad, readOnly: true, method: 'GET', body: undefined}, connection, credentials);
       await transport.request({...bad, readOnly: true}, connection, credentials);
       assert.equal(sent, 4);
+      assert.equal(transport.metrics.wireContractViolations, 2, 'a read violation is not a write violation');
+      assert.equal(transport.metrics.wireContractReadViolations, 1);
+      const metrics = store.documents('wire', 'provider_metrics')[0];
+      assert.equal(metrics.wire_contract_violations, 2);
+      assert.equal(metrics.wire_contract_read_violations, 1);
     });
     await withMode('off', async () => {
       await transport.request(bad, connection, credentials);
-      assert.equal(transport.metrics.wireContractViolations, 3, 'off checks nothing');
+      assert.equal(transport.metrics.wireContractViolations, 2, 'off checks nothing');
+      assert.equal(transport.metrics.wireContractReadViolations, 1, 'off checks nothing');
     });
   } finally {
+    store.close();
+  }
+});
+
+test('a validator that throws never stops a shadow read or write; an enforced write fails closed (regression)', async () => {
+  // Before: a non-MirrorError of the validator (a Discovery array without items, an unexpected envelope) propagated
+  // out of transport.request and failed every read and write of six gateways, although shadow mode only reports.
+  const store = new Store(':memory:', key);
+  let sent = 0;
+  const transport = new NativeTransport(async () => {
+    sent++;
+    return Response.json({tagId: '4'});
+  });
+  transport.coordination = store;
+  const connection = {id: 'c', tenantId: 'wire', gateway: 'gtm_native_action', accounts: ['1'], enabled: true},
+    credentials = {accessToken: 'synthetic'},
+    original = wireContractResolver.resolve;
+  try {
+    for (const broken of [
+      () => {
+        throw new TypeError("Cannot read properties of undefined (reading '$ref')");
+      },
+      plan => ({...original(plan), check: () => undefined.items}),
+    ]) {
+      wireContractResolver.resolve = broken;
+      const write = gtmTag({}),
+        read = {...write, readOnly: true};
+      await withMode('shadow', async () => {
+        const check = wireContractCheck(write);
+        assert.equal(check.status, 'check_failed');
+        assert.deepEqual(check.issues, [{field: '', reason: 'Wire-contract check failed: TypeError'}]);
+        await transport.request(write, connection, credentials);
+        await transport.request(read, connection, credentials);
+      });
+      await withMode('enforce', async () => {
+        // A read still goes out; an enforced write is refused before anything is sent.
+        await transport.request(read, connection, credentials);
+        const before = sent;
+        await assert.rejects(transport.request(write, connection, credentials), e =>
+          assertRefused(e, 'VENDOR_SCHEMA_UNAVAILABLE'),
+        );
+        assert.equal(sent, before, 'nothing was sent');
+      });
+    }
+    assert.equal(sent, 6);
+    assert.equal(transport.metrics.wireContractViolations, 0, 'a validator defect is not a body violation');
+    assert.equal(transport.metrics.wireContractCheckFailures, 8);
+    assert.equal(store.documents('wire', 'provider_metrics')[0].wire_contract_check_failures, 8);
+  } finally {
+    wireContractResolver.resolve = original;
     store.close();
   }
 });

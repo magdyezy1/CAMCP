@@ -286,7 +286,19 @@ export class NativeTransport {
   >();
   private budgets = new Map<string, {tokens: number; at: number}>();
   private cooldowns = new Map<string, number>();
-  readonly metrics = {requests: 0, retries: 0, errors: 0, rateLimits: 0, totalLatencyMs: 0, wireContractViolations: 0};
+  readonly metrics = {
+    requests: 0,
+    retries: 0,
+    errors: 0,
+    rateLimits: 0,
+    totalLatencyMs: 0,
+    /** Violations of reviewed writes: the enforcement gate (docs/WRITE-OPERATIONS.md) counts these. */
+    wireContractViolations: 0,
+    /** Violations of reads, which are never enforced (a vendor may document aliases its schema does not list). */
+    wireContractReadViolations: 0,
+    /** Checks that failed in the validator itself; the request still went out unless it was an enforced write. */
+    wireContractCheckFailures: 0,
+  };
   diagnostics() {
     return {
       ...this.metrics,
@@ -363,12 +375,20 @@ export class NativeTransport {
   ): Promise<TransportResult> {
     validateGoogleRequest(plan);
     // PRV-05: every route with a pinned request schema is checked here, the last step before anything is sent. A
-    // violation is counted per gateway; AMCP_WIRE_CONTRACTS=enforce also refuses it for a write.
+    // violation is counted per gateway, writes and reads apart; AMCP_WIRE_CONTRACTS=enforce also refuses it for a write.
     const wireMode = wireContractMode(),
       wire = wireContractCheck(plan, wireMode);
-    if (wire?.status === 'violations') {
-      this.metrics.wireContractViolations++;
-      this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'wire_contract_violations');
+    if (wire?.status === 'violations' || wire?.status === 'check_failed') {
+      const metric =
+        wire.status === 'check_failed'
+          ? 'wire_contract_check_failures'
+          : plan.readOnly
+            ? 'wire_contract_read_violations'
+            : 'wire_contract_violations';
+      if (metric === 'wire_contract_check_failures') this.metrics.wireContractCheckFailures++;
+      else if (metric === 'wire_contract_read_violations') this.metrics.wireContractReadViolations++;
+      else this.metrics.wireContractViolations++;
+      this.coordination?.providerMetric(connection.tenantId, connection.gateway, metric);
       recordWireViolation(plan, wire);
     }
     enforceWireContract(plan, wire, wireMode);

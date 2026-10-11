@@ -23,10 +23,15 @@ import type {CompiledRequest, JsonObject} from './types.js';
  * when it was fetched). Validation never grants anything: routes, scopes, reviews and owner policies still decide.
  *
  * AMCP_WIRE_CONTRACTS selects what a violation does: `shadow` (the default) records it in the review's contract
- * evidence, the write_prepared audit entry and the gateway's `wire_contract_violations` provider metric; `enforce` also
- * refuses a reviewed write with INVALID_VENDOR_BODY before anything is sent (reads are never refused); `off` skips the
- * check. Enforcement is switched on only after the fixtures show no false positive and 14 days of deployed shadow
- * mode record none (docs/WRITE-OPERATIONS.md).
+ * evidence, the write_prepared audit entry and a provider metric of the gateway (`wire_contract_violations` for writes,
+ * `wire_contract_read_violations` for reads, which are never enforced); `enforce` also refuses a reviewed write with
+ * INVALID_VENDOR_BODY before anything is sent (reads are never refused); `off` skips the check. Enforcement is switched
+ * on only after the fixtures show no false positive and 14 days of deployed shadow mode record no write violation and
+ * no failed check (docs/WRITE-OPERATIONS.md).
+ *
+ * The check itself never breaks a request outside enforcement: an unexpected exception of the validator (a pinned
+ * document of a shape it does not expect) is reported as `check_failed` and counted as
+ * `wire_contract_check_failures`; only an enforced write fails closed on it (VENDOR_SCHEMA_UNAVAILABLE).
  */
 export type WireContractMode = 'off' | 'shadow' | 'enforce';
 const modes: readonly WireContractMode[] = ['off', 'shadow', 'enforce'];
@@ -159,15 +164,18 @@ export function sealedVendorDocument(name: string): Sealed | null {
 
 /** What one request's wire-contract check found. */
 export interface WireContractCheck {
-  /** `conforms`, `violations`; `unpinned` when the route's contract is not fetched, `unsealed` when its seal broke. */
-  status: 'conforms' | 'violations' | 'unpinned' | 'unsealed';
+  /**
+   * `conforms`, `violations`; `unpinned` when the route's contract is not fetched, `unsealed` when its seal broke,
+   * `check_failed` when the validator itself failed (its issue names the error class, never a value).
+   */
+  status: 'conforms' | 'violations' | 'unpinned' | 'unsealed' | 'check_failed';
   /** The pinned document (or model) the request was checked against. */
   contract: string;
   vendor_method: string;
   document_sha256?: string;
   issues: WireIssue[];
 }
-interface Resolved {
+export interface Resolved {
   contract: string;
   vendor_method: string;
   /** Null when the pinned document is absent; otherwise the check of a body. */
@@ -450,7 +458,7 @@ function microsoftIssues(schemas: Record<string, Node>, element: Node, body: unk
 }
 
 /** The contract of `plan`'s route, or undefined when no pinned request schema covers it. */
-function resolve(plan: CompiledRequest): Resolved | undefined {
+function resolveContract(plan: CompiledRequest): Resolved | undefined {
   if (delegatedGateways.has(plan.gateway)) {
     const r = delegatedRoute(plan);
     return r ? discoveryContract(r.sourceFile, r.vendorMethod, r.requestSchema, 'Google') : undefined;
@@ -473,11 +481,23 @@ function checkResolved(resolved: Resolved, plan: CompiledRequest): WireContractC
   } catch (e) {
     // A body beyond the validation bounds, or a schema reference the pinned document cannot resolve, is a violation
     // like any other: shadow mode records it and never fails the request; enforcement refuses the write.
-    if (!(e instanceof MirrorError)) throw e;
+    if (!(e instanceof MirrorError)) return checkFailed(base, e);
     issues = [{field: '', reason: e.message}];
   }
   return {...base, status: issues.length ? 'violations' : 'conforms', issues};
 }
+/** A validator defect (not a finding about the body): its error class only, never its message or a value. */
+function checkFailed(base: Omit<WireContractCheck, 'status' | 'issues'>, error: unknown): WireContractCheck {
+  const name = error instanceof Error && /^[A-Za-z]{1,40}$/.test(error.name) ? error.name : 'Error';
+  return {...base, status: 'check_failed', issues: [{field: '', reason: 'Wire-contract check failed: ' + name}]};
+}
+/**
+ * The resolver of a route's contract. Tests replace it to prove that a failing validator never breaks a request outside
+ * enforcement; production never changes it.
+ */
+export const wireContractResolver: {resolve: (plan: CompiledRequest) => Resolved | undefined} = {
+  resolve: resolveContract,
+};
 /**
  * The wire-contract check of `plan`, or undefined when its route has no pinned request schema (Google Ads is checked
  * by validateGoogleRequest; Reddit and the two Criteo routes by their compile-time OpenAPI validation).
@@ -487,8 +507,14 @@ export function wireContractCheck(
   mode: WireContractMode = wireContractMode(),
 ): WireContractCheck | undefined {
   if (mode === 'off') return undefined;
-  const resolved = resolve(plan);
-  return resolved ? checkResolved(resolved, plan) : undefined;
+  // Outside enforced writes the check only reports, so nothing it throws may stop a request: every exception becomes
+  // `check_failed` (enforceWireContract refuses an enforced write on it).
+  try {
+    const resolved = wireContractResolver.resolve(plan);
+    return resolved ? checkResolved(resolved, plan) : undefined;
+  } catch (e) {
+    return checkFailed({contract: 'unresolved', vendor_method: plan.action}, e);
+  }
 }
 /** The check as contract evidence shows it, with the mode that decides what a violation does. */
 export function wireContractEvidence(
@@ -543,6 +569,13 @@ export function enforceWireContract(
         next_action: 'Refresh the pinned specification with tools/fetch-vendor-specs.mjs and review the change.',
       },
     );
+  // An enforced write is never sent unchecked: a failed check fails closed.
+  if (check.status === 'check_failed')
+    throw new MirrorError('VENDOR_SCHEMA_UNAVAILABLE', 'The pinned vendor contract could not be checked.', {
+      contract: check.contract,
+      errors: check.issues,
+      next_action: 'Report this to the deployment owner; the request was not sent.',
+    });
 }
 /**
  * The local fixture sweep (tools/wire-contract-sweep.mjs) sets AMCP_WIRE_CONTRACT_LOG to a file: each violation the
@@ -582,6 +615,11 @@ export function assertDataManagerContract(
   if (!resolved) return;
   const check = checkResolved(resolved, plan);
   if (check.status === 'violations') throw violation(plan, check);
+  if (check.status === 'check_failed')
+    throw new MirrorError('VENDOR_SCHEMA_UNAVAILABLE', 'The pinned Data Manager contract could not be checked.', {
+      contract: check.contract,
+      errors: check.issues,
+    });
   if (check.status === 'unsealed')
     throw new MirrorError(
       'VENDOR_SCHEMA_UNAVAILABLE',

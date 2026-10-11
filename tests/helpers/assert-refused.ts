@@ -21,7 +21,7 @@ export function assertRefused(
     message?: string;
     status?: number;
     success?: boolean;
-    error?: {code?: string; message?: string};
+    error?: {code?: string; message?: string; status?: number};
   };
   let actual: string | undefined, detail: string | undefined;
   if (result instanceof Error || (r && typeof r === 'object' && 'code' in r && !('success' in r))) {
@@ -33,6 +33,14 @@ export function assertRefused(
     assert.equal(r.success, false, 'expected a refusal, got success: ' + JSON.stringify(result).slice(0, 500));
     actual = r.error?.code;
     detail = r.error?.message;
+    // A service result carries an HTTP status only when its envelope names one; never ignore a requested status.
+    if (options.status !== undefined) {
+      assert.ok(
+        typeof r.error?.status === 'number',
+        'refusal status ' + options.status + ' was requested, but this service result carries no HTTP status',
+      );
+      assert.equal(r.error?.status, options.status, 'refusal status');
+    }
   }
   assert.notEqual(actual, 'INTERNAL_ERROR', 'refused by a crash (INTERNAL_ERROR): ' + detail);
   if (expected.length === 1) assert.equal(actual, expected[0], 'refusal code (' + detail + ')');

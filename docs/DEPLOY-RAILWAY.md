@@ -71,7 +71,7 @@ Add these service variables:
 | `AMCP_PUBLIC_ORIGIN` | Your generated Railway HTTPS origin initially; later `https://amcp.shop` |
 | `MIRROR_ALLOW_WRITES` | `true` for reviewed write support; `false` for reads and dry runs only |
 | `AMCP_PROVIDER_VALIDATION` | Optional, default `false`. With writes off, `true` allows provider validation (`validate_provider`), which applies nothing but uses write permission; see [WRITE-OPERATIONS](WRITE-OPERATIONS.md#provider-validation) |
-| `AMCP_WIRE_CONTRACTS` | Optional, default `shadow`: pinned vendor request schemas record differences only. Keep `shadow` until 14 days show no `wire_contract_violations`, then `enforce`; see [WRITE-OPERATIONS](WRITE-OPERATIONS.md#pinned-vendor-contracts) |
+| `AMCP_WIRE_CONTRACTS` | Optional, default `shadow`: pinned vendor request schemas record differences only. Keep `shadow` until 14 days show no `wire_contract_violations` (write violations) and no `wire_contract_check_failures`, then `enforce` (`wire_contract_read_violations` does not block it); see [WRITE-OPERATIONS](WRITE-OPERATIONS.md#pinned-vendor-contracts) |
 | `AMCP_RUN_WORKER` | `true` |
 | `AMCP_DATA_MOUNT` | Optional: `/data` when `RAILWAY_VOLUME_MOUNT_PATH` is not supplied; the start-up volume guard requires one of them |
 | `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` | `30`: longer than AMCP's 25-second shutdown grace (`AMCP_SHUTDOWN_GRACE_MS`), so a deploy releases read-only jobs and lets writes settle before Railway stops the container |

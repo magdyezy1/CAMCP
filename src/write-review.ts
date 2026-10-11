@@ -802,7 +802,7 @@ export class WriteReviewService {
         request: plan,
         fingerprint,
         expires_at: expiresAt,
-        ...(wire?.status === 'violations' ? {wire_contract: wire} : {}),
+        ...(wire?.status === 'violations' || wire?.status === 'check_failed' ? {wire_contract: wire} : {}),
       });
       return {
         success: true,

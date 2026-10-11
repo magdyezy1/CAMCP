@@ -111,4 +111,7 @@ test('release qualification runs the mutant catalogue after the suite', () => {
   assert.ok(full.indexOf('mutant_catalogue') > full.indexOf('test_suite'));
   assert.ok(!profileStages('fast').some(s => s.name === 'mutant_catalogue'));
   assert.equal(profileStages('full').find(s => s.name === 'mutant_catalogue').blocking, true);
+  // PRV-05: the wire-contract fixture sweep is a blocking full-qualification stage, never part of the fast gate.
+  assert.equal(profileStages('full').find(s => s.name === 'wire_contract_sweep').blocking, true);
+  assert.ok(!profileStages('fast').some(s => s.name === 'wire_contract_sweep'));
 });
