@@ -65,6 +65,11 @@ const statusLabels = {
   unsubmitted: 'Awaiting approval',
   not_sent: 'Not sent',
   reconciled: 'Accepted as applied',
+  // Operations attention (OPS-06): a failed monitor notice past its 24 hours, and a login's credential health.
+  undelivered: 'Undelivered',
+  reauthorization_required: 'Reauthorization required',
+  refresh_failed: 'Renewal failing',
+  disabled: 'Turned off',
   // Media kinds share the badge.
   image: 'Image',
   video: 'Video',
@@ -114,7 +119,7 @@ async function workspaceCall(tool, args) {
 const recordDetails = (v, title = uiText('Details')) =>
   `<details class="workspace-details"><summary>${esc(uiText(title))}</summary><pre class="code-block" tabindex="0" role="region" aria-label="${esc(uiText(title))}">${esc(JSON.stringify(v, null, 2))}</pre></details>`;
 const badge = (v, label = statusLabel(v)) =>
-  `<span class="status ${['verified', 'verified_with_acceptance', 'complete', 'passed', 'ready', 'resolved'].includes(v) ? 'online' : ['failed', 'mismatch', 'uncertain', 'blocked', 'attention', 'open', 'partial', 'expired'].includes(v) ? 'attention' : 'offline'}">${esc(label)}</span>`;
+  `<span class="status ${['verified', 'verified_with_acceptance', 'complete', 'passed', 'ready', 'resolved'].includes(v) ? 'online' : ['failed', 'mismatch', 'uncertain', 'blocked', 'attention', 'open', 'partial', 'expired', 'reauthorization_required', 'refresh_failed'].includes(v) ? 'attention' : 'offline'}">${esc(label)}</span>`;
 const blank = text => `<div class="empty">${esc(text)}</div>`;
 const controls = (label, type = 'text', value = '', name = label) =>
   `<label>${esc(uiText(label))}<input name="${esc(name)}" type="${type}" ${type === 'number' ? 'step="any"' : ''} value="${esc(value)}"></label>`;
@@ -264,11 +269,23 @@ function readinessAge(check) {
   return date(check.checked_at) + (check.stale ? ' · ' + uiText('Older than 15 minutes; check again') : '');
 }
 async function renderOverview() {
-  const d = await workspaceCall('workspace', {action: 'dashboard', view: 'full'}),
+  // The attention items come from the Operations classifier (OPS-06); a failure there still shows the rest of Home.
+  const [d, attention] = await Promise.all([
+      workspaceCall('workspace', {action: 'dashboard', view: 'full'}),
+      workspaceCall('workspace', {action: 'operations', state: 'attention', limit: 8}).catch(error => ({error})),
+    ]),
     accounts = d.connections.flatMap(c => c.accounts_status.map(a => ({...a, connection: c}))),
-    receipts = accounts.flatMap(a => a.verified_writes);
-  content.innerHTML = workHome(d, accounts);
-  content.innerHTML += `<div class="workspace-metrics"><article><strong>${accounts.length}</strong><span>${esc(uiText('Selected resources'))}</span></article><article><strong>${d.campaigns.length}</strong><span>${esc(uiText('Campaign plans'))}</span></article><article><strong>${receipts.filter(r => r.status === 'verified').length}</strong><span>${esc(uiText('Verified write receipts'))}</span></article></div><section class="panel"><div class="panel-header"><h2>${esc(uiText('Account readiness'))}</h2><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a></div>${accounts.map((a, i) => `<div class="token-row"><div><strong>${esc(a.connection.label)} · ${esc(a.account_id)}</strong><small>${esc(a.connection.gateway)} · ${a.connection.write_accounts.includes(a.account_id) ? uiText('Reviewed writes enabled') : uiText('Read access')} · ${esc(readinessAge(a.check))}</small>${a.check?.checks ? recordDetails(a.check.checks, uiText('Prerequisites')) : ''}</div><div>${readinessBadge(a.check)}${a.check?.readiness === 'not_applicable' ? '' : `<button class="button small" data-check-account="${i}">${esc(uiText('Check account'))}</button>`}</div></div>`).join('') || blank(uiText('Connect a platform and select resources to check readiness.'))}</section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Capabilities and evidence'))}</h2></div><p class="workspace-copy">${esc(uiText(d.capabilities.meaning))}</p>${d.capabilities.features.map(f => `<div class="token-row"><div><strong>${esc(uiText(f.name))}</strong><small>${esc(uiText(f.coverage))}</small><code>${esc(f.tool)}</code></div>${badge(f.implementation)}</div>`).join('')}${recordDetails(d.capabilities.evidence, uiText('Provider evidence by account and action'))}</section>`;
+    receipts = accounts.flatMap(a => a.verified_writes),
+    ready = accounts.filter(a => a.check?.ready).length,
+    blocked = accounts.filter(a => !a.check?.ready && a.check?.blocked).length,
+    accountName = a =>
+      typeof recordAccountLabelHtml === 'function'
+        ? recordAccountLabelHtml(a.connection.gateway, a.connection.id, a.account_id)
+        : esc(a.connection.label) + ' · ' + esc(a.account_id);
+  content.innerHTML = workHome(d, accounts, attention);
+  // Readiness is a summary with its accounts one click away, and capability evidence (tool names, evidence levels) is
+  // technical detail, so Home stays short on a phone (OPS-06 increment 2).
+  content.innerHTML += `<div class="workspace-metrics"><article><strong>${accounts.length}</strong><span>${esc(uiText('Selected resources'))}</span></article><article><strong>${d.campaigns.length}</strong><span>${esc(uiText('Campaign plans'))}</span></article><article><strong>${receipts.filter(r => r.status === 'verified').length}</strong><span>${esc(uiText('Verified write receipts'))}</span></article></div><section class="panel" id="home-readiness"><div class="panel-header"><h2>${esc(uiText('Account readiness'))}</h2><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a></div>${accounts.length ? `<p>${esc(uiText('Ready: {ready} · Blocked: {blocked} · To check: {other}', {ready, blocked, other: accounts.length - ready - blocked}))}</p><details class="workspace-details"><summary>${esc(uiText('Accounts and their readiness'))}</summary>${accounts.map((a, i) => `<div class="token-row"><div><strong>${accountName(a)}</strong><small>${a.connection.write_accounts.includes(a.account_id) ? uiText('Reviewed writes enabled') : uiText('Read access')} · ${esc(readinessAge(a.check))}</small>${a.check?.checks ? recordDetails(a.check.checks, uiText('Prerequisites')) : ''}</div><div>${readinessBadge(a.check)}${a.check?.readiness === 'not_applicable' ? '' : `<button class="button small" data-check-account="${i}">${esc(uiText('Check account'))}</button>`}</div></div>`).join('')}</details>` : blank(uiText('Connect a platform and select resources to check readiness.'))}</section><section class="panel" id="home-capabilities"><div class="panel-header"><h2>${esc(uiText('Capabilities and evidence'))}</h2><a class="button small" href="/capabilities">${esc(uiText('Check capabilities'))}</a></div><p class="workspace-copy">${esc(uiText(d.capabilities.meaning))}</p><details class="workspace-details"><summary>${esc(uiText('Technical details'))}</summary>${d.capabilities.features.map(f => `<div class="token-row"><div><strong>${esc(uiText(f.name))}</strong><small>${esc(uiText(f.coverage))}</small><code>${esc(f.tool)}</code></div>${badge(f.implementation)}</div>`).join('')}${recordDetails(d.capabilities.evidence, uiText('Provider evidence by account and action'))}</details></section>`;
   workspaceBind('[data-check-account]', async b => {
     const a = accounts[Number(b.dataset.checkAccount)];
     await workspaceCall('workspace', {
