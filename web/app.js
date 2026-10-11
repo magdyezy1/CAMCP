@@ -87,6 +87,12 @@ function resetPrivateState() {
       dirty: false,
     };
   if (typeof recipeDrafts !== 'undefined') recipeDrafts.clear();
+  // The palette's workspace search results belong to the previous identity (WEB-09).
+  if (typeof commandSearchCache !== 'undefined') {
+    commandSearchCache.clear();
+    clearTimeout(commandSearchTimer);
+    commandSearchSequence++;
+  }
   if (typeof loginMfaTicket !== 'undefined') loginMfaTicket = null;
   if (typeof deliveryTimer !== 'undefined') clearTimeout(deliveryTimer);
   document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());

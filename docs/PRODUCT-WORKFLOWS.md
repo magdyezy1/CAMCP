@@ -1032,6 +1032,19 @@ the account and drill-down in its address: Back returns to the parent level, and
 waits for *Read inventory*. Google, Snapchat and X micros show the exact account-currency decimal beside the native
 value; Meta and TikTok amounts stay unconverted. `tests/route-registry.test.mjs`, `tests/website-navigation.test.mjs`,
 `tests/website-deep-links.test.mjs` and `tests/portfolio-url-state.test.mjs` cover these.
+
+**Workspace search in the palette (WEB-09, owner opt-in).** Beside the pages, the palette (Ctrl+K, "Search workspace")
+lists, under **In this workspace**, up to five each of the campaign plans, saved reports, report snapshots, uploaded
+media and accounts whose name or ID contains the query (two characters or more, after a short pause). It asks
+`POST /api/workspace-search` (`server/workspace-search.ts`; the search text stays out of addresses): plans, snapshots
+and media come from the same list operations their pages use, as the signed-in person, so another member's unshared
+plan or an inaccessible snapshot never appears; saved reports and accounts are the records the report builder and
+Connections already list. A search sends no provider request and saves nothing (each first-party call only adds to its
+tool timing counters). A result only opens its page (`/campaigns?id=`, `/reporting-overview?view_id=` or
+`?report_id=`, `/media?asset_id=`, `/connections?connection_id=`); nothing runs from the palette. Results belong to
+the identity and the query that asked for them: a newer query wins, and signing out or switching workspace clears
+them. A test account keeps the page list only. `tests/workspace-search.test.ts` and
+`tests/website-entity-search.test.mjs` cover this.
 Monitoring adds `attention_required`, `deferred` and `complete` outcomes without replacing factual incident state.
 The synthetic SDK journey tests measure calls and response bytes; external MCP client acceptance is separate.
 

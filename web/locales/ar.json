@@ -10110,5 +10110,11 @@
   "Check these details and your selections, then try again.": "تحقق من هذه التفاصيل ومن اختياراتك، ثم حاول مجددًا.",
   "The plan approval expired 24 hours after it was given. Review the whole plan again to run it.": "انتهت صلاحية اعتماد الخطة بعد 24 ساعة من منحه. راجع الخطة كاملة مرة أخرى لتشغيلها.",
   "Review whole plan again": "مراجعة الخطة كاملة مرة أخرى",
-  "Another upload is in progress. Wait a moment, then check this upload on the Media page before you try again.": "هناك رفع آخر قيد التنفيذ. انتظر قليلًا، ثم تحقق من هذا الرفع في صفحة الوسائط قبل أن تحاول مجددًا."
+  "Another upload is in progress. Wait a moment, then check this upload on the Media page before you try again.": "هناك رفع آخر قيد التنفيذ. انتظر قليلًا، ثم تحقق من هذا الرفع في صفحة الوسائط قبل أن تحاول مجددًا.",
+  "Saved report": "تقرير محفوظ",
+  "Searching this workspace…": "جارٍ البحث في مساحة العمل هذه…",
+  "Workspace search is unavailable right now. Pages are still listed above.": "البحث في مساحة العمل غير متاح الآن. لا تزال الصفحات معروضة أعلاه.",
+  "Nothing in this workspace matches.": "لا يوجد في مساحة العمل هذه ما يطابق البحث.",
+  "In this workspace": "في مساحة العمل هذه",
+  "Search for 2 to 100 characters.": "ابحث بنص يتراوح بين 2 و100 حرف."
 }

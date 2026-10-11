@@ -594,6 +594,14 @@ main {
   font-size: 11px;
   margin-top: 4px;
 }
+/* WEB-09: this workspace's plans, reports, media and accounts, under the pages. */
+.command-entities h3 {
+  margin: 10px 15px 4px;
+  font-size: 11px;
+}
+.command-entities .form-note {
+  padding: 4px 15px;
+}
 .command-hint {
   display: flex;
   justify-content: space-between;
