@@ -1394,6 +1394,26 @@ Official contracts checked 2026-10-04: [lead generation](https://developers.snap
 [creatives](https://developers.snap.com/marketing-api/Ads-API/creatives) and
 [ads](https://developers.snap.com/marketing-api/Ads-API/ads). Local lifecycle fixtures do not establish live acceptance.
 
+## Guided TikTok website traffic and purchases
+
+Select `tiktok_website_traffic` (clicks) or `tiktok_website_conversions` (a purchase event of a pixel) through
+`amcp_campaign recipes`. Supply the exact numeric advertiser ID and login, the account currency, a decimal daily budget
+(at most two decimal places and never more than the currency has), 1–20 numeric TikTok location IDs from
+`/v1.3/tool/region/`, an existing TikTok post (`tiktok_item_id`) with the TikTok account identity that owns it
+(`TT_USER`, or `BC_AUTH_TT` with its `identity_authorized_bc_id`), an HTTPS landing page, a call to action and an offset
+start time. The purchases pack also takes `pixel_id` and one `optimization_event` (`SHOPPING`, `ON_WEB_ORDER`,
+`INITIATE_ORDER` or `ON_WEB_CART`). The checked examples are `tiktok_traffic_business` and `tiktok_conversion_business`.
+A custom identity is refused: TikTok no longer accepts it for new ads on the TikTok placement.
+
+The plan is three reviewed `tiktok_entities` creates: a `DISABLE` campaign (`TRAFFIC` or `WEB_CONVERSIONS`), an
+`ENABLE` daily-budget ad group under it (`PLACEMENT_TIKTOK`, `BID_TYPE_NO_BID`, `CLICK` or `CONVERT`; schedule times are
+converted exactly to the UTC TikTok reads) and one `ENABLE` Spark Ad. Before anything is created, preflight reads the
+identity (available, may use its posts, not a political account), the post (a video of that identity) and, for
+purchases, the pixel of this advertiser; a dependency TikTok does not return, or reports as unusable, blocks the whole
+plan with `CAMPAIGN_PREREQUISITE_REQUIRED`. Pixel access does not prove event delivery, and ad review, the Spark
+authorization lifetime and TikTok's per-currency budget minimum stay with TikTok: its refusal is a typed error that is
+never retried. Activation is one separate reviewed status change of the campaign (`activation_plan`).
+
 ## Snapchat aggregate native-form submission evidence
 
 Discover amcp_reporting capture_presets and choose snapchat_campaign_leads, snapchat_adsquad_leads or

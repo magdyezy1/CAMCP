@@ -58,16 +58,26 @@ const verifiedResults = {
       ['keywords', {data: {KeywordIds: ['503', '504']}}],
       ['ad', {data: {AdIds: ['505']}}],
     ]),
+  // CMP-07: a TikTok pack's DISABLE campaign holds ENABLE children, so the campaign is the one activation.
+  tiktok: () =>
+    new Map([
+      ['campaign', {data: {code: 0, data: {campaign_id: '601'}}}],
+      ['adgroup', {data: {code: 0, data: {adgroup_id: '602'}}}],
+      ['ad', {data: {code: 0, data: {ad_ids: ['603']}}}],
+    ]),
 };
 const expected = {
   meta: ['activate_campaign'],
   google: ['activate_campaign'],
   snapchat: ['activate_campaign', 'activate_squad', 'activate_ad'],
   microsoft: ['activate_campaign', 'activate_adgroup', 'activate_keywords', 'activate_ad'],
+  tiktok: ['activate_campaign'],
 };
 function business(recipe) {
   return {
     ...examples.recipe_business,
+    ...(recipe.id === 'tiktok_website_traffic' ? examples.tiktok_traffic_business : {}),
+    ...(recipe.id === 'tiktok_website_conversions' ? examples.tiktok_conversion_business : {}),
     ...(recipe.platform === 'snapchat'
       ? recipe.id === 'snapchat_lead_generation'
         ? examples.snapchat_lead_business

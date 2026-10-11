@@ -89,9 +89,13 @@ test('graph dependencies follow compiled recipes and lifecycle actions remain ex
     const b = JSON.parse(
       fs.readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'),
     ).recipe_business;
+    const examples = JSON.parse(fs.readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'));
     const briefs = {
       snapchat_website_traffic: trafficBusiness,
       snapchat_lead_generation: leadBusiness,
+      // CMP-07: the guided TikTok packs.
+      tiktok_website_traffic: examples.tiktok_traffic_business,
+      tiktok_website_conversions: examples.tiktok_conversion_business,
       google_search: b,
       google_search_clicks: {...b, cpc_bid: undefined, cpc_bid_ceiling: '1.37'},
       google_search_conversions: {...b, cpc_bid: undefined, conversion_goal_policy: 'ACCOUNT_DEFAULT'},

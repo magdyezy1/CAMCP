@@ -198,6 +198,8 @@ const recipeEligibilityLabels = {
 function conversionRecipePreview(out) {
   if (['snapchat_website_traffic', 'snapchat_lead_generation'].includes(out.recipe?.id))
     return snapchatTrafficPreview(out);
+  if (['tiktok_website_traffic', 'tiktok_website_conversions'].includes(out.recipe?.id))
+    return tiktokLaunchPreview(out);
   const recipe = out.recipe,
     plan = out.plan,
     valueBidding = ['google_search_conversion_value', 'google_search_target_roas'].includes(recipe?.id),
@@ -351,6 +353,59 @@ function snapchatTrafficPreview(out) {
     row = (label, value, direction = 'auto') =>
       `<div><dt>${esc(uiText(label))}</dt><dd><bdi dir="${direction}">${esc(value)}</bdi></dd></div>`;
   return `<section aria-label="${esc(uiText(leads ? 'Paused Snapchat lead-form preview' : 'Paused Snapchat traffic preview'))}" class="conversion-recipe-preview"><h3>${esc(uiText(leads ? 'Paused Snapchat lead-form preview' : 'Paused Snapchat traffic preview'))}</h3><p>${esc(uiText('Local preview only. No plan is saved and no advertising changes are sent.'))}</p><dl>${row('Campaign name', plan.name)}${row('Advertising login and account', steps[0].connection_id + ' · ' + steps[0].account_id, 'ltr')}${row('Daily budget in account currency', amount, 'ltr')}${row('Native micros', budget, 'ltr')}${row(leads ? 'Existing Snapchat lead creative ID' : 'Existing Snapchat website creative ID', ad.creative_id, 'ltr')}${row('Country targeting', squad.targeting.geos.map(g => String(g.country_code).toUpperCase()).join(', '), 'ltr')}${row('Start timestamp with UTC offset', campaign.start_time, 'ltr')}${campaign.end_time ? row('End timestamp with UTC offset', campaign.end_time, 'ltr') : ''}${row('Bidding strategy', uiText(leads ? 'Automatic bidding' : 'Automatic bidding for swipes'))}${leads ? row('Lead-form optimization goal', uiText(r.optimization_goal === 'SWIPES' ? 'Optimize swipes to the lead form' : 'Optimize submitted lead forms')) : ''}</dl><p class="notice">${esc(uiText(leads ? 'Creates three paused entities using an existing lead creative and its original form. Preflight reads both account-owned dependencies without submitted leads. Provider approval, privacy and consent acceptance and objective eligibility remain unverified.' : 'Creates three paused entities. Existing creative media and destination remain unchanged. Preflight checks current creative ownership, type and destination syntax; provider approval, destination availability and objective acceptance remain unverified.'))}</p><p>${esc(uiText(leads ? 'Automatic bidding uses the daily budget for your chosen optimization goal. It does not guarantee a cost per lead or result. Activation requires a separate review.' : 'Automatic bidding uses the daily budget to optimize swipes. It does not guarantee a cost per result. Activation requires a separate review.'))}</p><p>${esc(uiText('Snapchat does not return automatic placement settings on GET. Native review retains this verification limitation.'))}</p>${details()}</section>`;
+}
+/** The paused TikTok launch preview (CMP-07): shown only when the compiled plan is exactly the pack's three creates. */
+function tiktokLaunchPreview(out) {
+  const r = out.recipe,
+    purchases = r?.id === 'tiktok_website_conversions',
+    plan = out.plan,
+    steps = plan?.steps,
+    details = () => recordDetails(out, uiText('Compiled plan and input provenance'));
+  if (
+    out.ready !== true ||
+    out.provider_mutations !== 0 ||
+    !/^[A-Z]{3}$/.test(r?.currency) ||
+    !Array.isArray(steps) ||
+    steps.length !== 3
+  )
+    return details();
+  const campaign = steps[0]?.arguments?.payload,
+    group = steps[1]?.arguments?.payload,
+    ad = steps[2]?.arguments?.payload?.creatives?.[0];
+  if (
+    steps.map(s => s.id).join(',') !== 'campaign,adgroup,ad' ||
+    steps.map(s => s.arguments?.action).join(',') !== 'tiktok_campaign_create,tiktok_adgroup_create,tiktok_ad_create' ||
+    !steps.every(
+      s =>
+        s.kind === 'write' &&
+        s.gateway === 'tiktok_native_action' &&
+        s.account_id === steps[0].account_id &&
+        s.connection_id === steps[0].connection_id &&
+        s.expected_currency === r.currency,
+    ) ||
+    campaign?.operation_status !== 'DISABLE' ||
+    campaign.objective_type !== (purchases ? 'WEB_CONVERSIONS' : 'TRAFFIC') ||
+    group?.operation_status !== 'ENABLE' ||
+    ad?.operation_status !== 'ENABLE' ||
+    steps[2].arguments.payload.creatives.length !== 1 ||
+    group.budget_mode !== 'BUDGET_MODE_DAY' ||
+    typeof r.daily_budget !== 'string' ||
+    !/^\d{1,9}(?:\.\d{1,2})?$/.test(r.daily_budget) ||
+    group.budget !== Number(r.daily_budget) ||
+    group.bid_type !== 'BID_TYPE_NO_BID' ||
+    group.optimization_goal !== (purchases ? 'CONVERT' : 'CLICK') ||
+    (purchases && (group.pixel_id !== r.pixel_id || group.optimization_event !== r.optimization_event)) ||
+    !Array.isArray(group.location_ids) ||
+    !group.location_ids.length ||
+    group.location_ids.length > 20 ||
+    ad.tiktok_item_id !== r.creative?.tiktok_item_id ||
+    ad.identity_id !== r.creative?.identity_id
+  )
+    return details();
+  const row = (label, value, direction = 'auto') =>
+    `<div><dt>${esc(uiText(label))}</dt><dd><bdi dir="${direction}">${esc(value)}</bdi></dd></div>`;
+  const title = purchases ? 'Paused TikTok website purchases preview' : 'Paused TikTok website traffic preview';
+  return `<section aria-label="${esc(uiText(title))}" class="conversion-recipe-preview"><h3>${esc(uiText(title))}</h3><p>${esc(uiText('Local preview only. No plan is saved and no advertising changes are sent.'))}</p><dl>${row('Campaign name', plan.name)}${row('Advertising login and account', steps[0].connection_id + ' · ' + steps[0].account_id, 'ltr')}${row('Daily budget in account currency', r.daily_budget + ' ' + r.currency, 'ltr')}${row('Existing TikTok post ID', ad.tiktok_item_id, 'ltr')}${row('TikTok account identity', ad.identity_type + ' · ' + ad.identity_id, 'ltr')}${row('TikTok location IDs', group.location_ids.join(', '), 'ltr')}${row('Start time sent to TikTok (UTC)', group.schedule_start_time, 'ltr')}${group.schedule_end_time ? row('End time sent to TikTok (UTC)', group.schedule_end_time, 'ltr') : ''}${row('Call to action', ad.call_to_action, 'ltr')}${purchases ? row('Purchase event to optimize', group.pixel_id + ' · ' + group.optimization_event, 'ltr') : ''}</dl><p class="notice">${esc(uiText(purchases ? 'Creates a disabled campaign with an ad group and Spark Ad under it. Preflight reads the identity, post and pixel of this advertiser; event delivery, ad review and objective acceptance remain unverified.' : 'Creates a disabled campaign with an ad group and Spark Ad under it. Preflight reads the identity and post of this advertiser; ad review and objective acceptance remain unverified.'))}</p><p>${esc(uiText(purchases ? 'Maximum delivery uses the daily budget to seek the chosen purchase event. It does not guarantee a cost per purchase or result. Activation requires a separate review.' : 'Maximum delivery uses the daily budget to seek clicks. It does not guarantee a cost per result. Activation requires a separate review.'))}</p>${details()}</section>`;
 }
 function snapchatCreativeInspectionView(out) {
   if (out.recipe_id === 'snapchat_lead_generation') return snapchatLeadInspectionView(out);

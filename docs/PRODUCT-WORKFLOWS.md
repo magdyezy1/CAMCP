@@ -191,7 +191,8 @@ default (`atomic: false` keeps one step per resource type). A completed recipe p
 For a launch that was continued in a new plan, the IDs come from the earlier plans in its `supersedes` chain
 through the verified links an authorized person recorded; reading them checks each plan's integrity, not the drafting
 person's view right on the earlier plans, and the activation still reads and checks every resource at preflight.
-Meta and Google enable the paused campaign; Snapchat activates campaign, ad squad and ad in that order, each after
+Meta and Google enable the paused campaign; TikTok enables the `DISABLE` campaign its pack created with enabled
+children; Snapchat activates campaign, ad squad and ad in that order, each after
 the one before is verified; Microsoft activation is refused with `LOCATION_CRITERIA_REQUIRED` (owner decision P7:
 AMCP cannot yet read a positive location criterion, so the Microsoft Search pack is labelled "Draft only: set
 locations in Microsoft before activation"). Read-only gates run at preflight before any status write: the Snapchat
@@ -291,6 +292,18 @@ approval, goal entitlement, policy availability and consent acceptance remain un
 no lead exports or webhooks are enabled. Preserve uncertain receipts; activation remains separately reviewed.
 The English/Arabic preview preserves exact native goals, micros, IDs, original title and original policy URL.
 See [contract, SDK and browser qualification](review/DELIVERY-2026-10-04-SNAPCHAT-LEADS.md).
+
+### TikTok website traffic and purchases with an existing post
+
+Choose `tiktok_website_traffic` or `tiktok_website_conversions` (CMP-07, owner direction P7) in Campaigns or MCP. The
+brief names the exact advertiser and login, account currency, a daily budget with at most two decimal places, 1–20
+TikTok location IDs, an existing TikTok post with the `TT_USER` or `BC_AUTH_TT` identity that owns it, an HTTPS
+landing page, a call to action and an offset start time; the purchases pack adds the pixel and one purchase event. It
+saves three reviewed creates: a `DISABLE` campaign and, under it, an `ENABLE` daily-budget ad group on the TikTok
+placement and one `ENABLE` Spark Ad. Preflight reads the identity, the post and, for purchases, the pixel of this
+advertiser before anything is created; ad review, event delivery, budget minimums and objective acceptance stay with
+TikTok. **Prepare activation** enables the verified campaign as one separate reviewed status change. The website
+preview shows the UTC times TikTok receives, in English and Arabic.
 
 ## Creative preparation and durable uploads
 
