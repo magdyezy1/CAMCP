@@ -202,28 +202,29 @@ test('value previews in both languages explain exact budget, native ratio and un
 test('value preview refuses incompatible native strategy, ratio type, value policy, scope or currency', async () => {
   const f = fixture('en');
   await f.mount();
+  // CMP-04: the campaign record sits in the one build step by default, or in its own step with atomic: false.
+  const campaignOf = p =>
+    p.plan.steps[0].id === 'build'
+      ? p.plan.steps[0].arguments.payload.mutate_operations.find(o => o.campaign_operation).campaign_operation.create
+      : p.plan.steps.find(s => s.id === 'campaign').arguments.payload.operations[0].create;
   const changes = [
     p => (p.recipe.conversion_value_policy = 'IMPLICIT'),
-    p =>
-      (p.plan.steps.find(
-        s => s.id === 'campaign',
-      ).arguments.payload.operations[0].create.maximize_conversion_value.target_roas = '3.5'),
-    p =>
-      (p.plan.steps.find(
-        s => s.id === 'campaign',
-      ).arguments.payload.operations[0].create.maximize_conversion_value.target_roas = 2),
-    p => (p.plan.steps.find(s => s.id === 'campaign').arguments.payload.operations[0].create.manual_cpc = {}),
+    p => (campaignOf(p).maximize_conversion_value.target_roas = '3.5'),
+    p => (campaignOf(p).maximize_conversion_value.target_roas = 2),
+    p => (campaignOf(p).manual_cpc = {}),
     p => (p.plan.steps[0].account_id = 'foreign-account'),
     p => (p.plan.steps[0].expected_currency = 'SAR'),
   ];
-  for (const change of changes) {
-    const {recipe, ...plan} = campaignRecipe(valueIds[1], valueBusiness(valueIds[1]));
-    f.context.preview = {ready: true, provider_mutations: 0, recipe, plan};
-    change(f.context.preview);
-    const html = new Script('conversionRecipePreview(preview)').runInContext(f.context);
-    assert.doesNotMatch(html, /<section/);
-    assert.match(html, /<pre>/);
-  }
+  for (const atomic of [true, false])
+    for (const change of changes) {
+      const {recipe, ...plan} = campaignRecipe(valueIds[1], {...valueBusiness(valueIds[1]), atomic});
+      f.context.preview = {ready: true, provider_mutations: 0, recipe, plan};
+      assert.match(new Script('conversionRecipePreview(preview)').runInContext(f.context), /<section/);
+      change(f.context.preview);
+      const html = new Script('conversionRecipePreview(preview)').runInContext(f.context);
+      assert.doesNotMatch(html, /<section/);
+      assert.match(html, /<pre>/);
+    }
 });
 const deferred = () => {
   let resolve;

@@ -661,6 +661,15 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
             : 'Inspect state hashes and changed fields. Preserve previous outcomes and prepare a fresh review only for an unsubmitted or explicitly corrective request.',
       mutation_retry_safe: false,
     };
+  // A provider refusal proven to have applied nothing (CMP-04): the old key is retired, so only a corrected new review helps.
+  if (e.code === 'WRITE_REJECTED')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Nothing was applied and this key is never sent again. Correct what the provider error names and prepare a new review; in a campaign plan, recover_step amends the step.',
+      mutation_retry_safe: false,
+    };
   if (e.code === 'REVIEW_HELD_ELSEWHERE')
     return {
       category: 'state',
@@ -813,6 +822,51 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
       owner: 'operator',
       action:
         'What this request would create already exists, as the message names. Use the existing object, or prepare an update of it instead of another create.',
+      mutation_retry_safe: false,
+    };
+  // CMP-03 (owner decision P7): Microsoft activation waits for a readable positive location criterion.
+  if (e.code === 'LOCATION_CRITERIA_REQUIRED')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Set the campaign’s target locations in Microsoft Advertising and activate it there. Its ad groups, keywords and ads can then be activated through AMCP.',
+      mutation_retry_safe: false,
+    };
+  // CMP-05: campaign plan inventory and team handoff. Local workspace state only; nothing reached a provider.
+  if (e.code === 'PLAN_LIMIT_REACHED')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Archive complete, cancelled or superseded campaign plans (amcp_campaign archive). Archived plans stay readable and no longer count toward the limit.',
+      mutation_retry_safe: true,
+    };
+  if (e.code === 'PLAN_NOT_ARCHIVABLE' || e.code === 'PLAN_ARCHIVED')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        e.code === 'PLAN_ARCHIVED'
+          ? 'Unarchive the plan (amcp_campaign unarchive) to work on it again.'
+          : 'Finish the plan, or cancel what should not run, then archive it.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'DISTINCT_APPROVER_REQUIRED')
+    return {
+      category: 'permission',
+      owner: 'operator',
+      action:
+        'Assign a colleague as this plan’s approver (amcp_campaign assign with role approver); they approve and run it. The workspace owner sets this policy.',
+      mutation_retry_safe: false,
+    };
+  // CMP-03: a read-only activation gate found the launch not ready; nothing was sent.
+  if (e.code === 'ACTIVATION_GATE_BLOCKED')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Resolve what the gate names at the provider (a creative review, a disapproved ad or an unreadable status), then run preflight on the activation plan again. Nothing was activated.',
       mutation_retry_safe: false,
     };
   if (e.code === 'PAUSED_CREATION_REQUIRED')

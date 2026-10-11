@@ -52,6 +52,7 @@ import {WriteReconciler} from './write-reconciliation.js';
 import {principalOf} from './actor-identity.js';
 import {setTimeout as pause} from 'node:timers/promises';
 import {writeOutcome} from './write-outcome.js';
+import {nonAppliedRejection, rejectedError} from './write-rejection.js';
 import {validateState} from './write-state.js';
 import {assertWriteShape} from './write-shape.js';
 import {wireContractCheck} from './wire-contracts.js';
@@ -121,20 +122,9 @@ export const writeTool = {
         type: 'string',
         enum: ['full', 'ref'],
       },
-      accept_applied: {
-        type: 'boolean',
-        description:
-          'reconcile only: the user accepts that an uncertain write was applied, as the latest reconciliation observed (appears_applied). Records the observed result as its receipt; nothing is sent.',
-      },
-      reconciliation_id: {
-        type: 'string',
-        description: 'reconcile with accept_applied: the reconciliation_id the user saw.',
-      },
-      supersedes_review_id: {
-        type: 'string',
-        description:
-          'prepare only: an uncertain review that a reconciliation found not applied (appears_not_applied) and that this new review replaces. The old review is never sent.',
-      },
+      accept_applied: {type: 'boolean'},
+      reconciliation_id: {type: 'string'},
+      supersedes_review_id: {type: 'string'},
     },
     additionalProperties: false,
   },
@@ -1046,6 +1036,12 @@ export class WriteReviewService {
       const saved = {...JSON.parse(previous.result), replayed: true};
       return this.delivered(plan, saved, actor.tenantId, input.review_id);
     }
+    if (previous.state === 'rejected')
+      fail(
+        'WRITE_REJECTED',
+        'The provider refused this review without applying it, so it is never sent again. Correct the request and prepare a new review.',
+        {submission: 'rejected', review_id: input.review_id, key_retired: true},
+      );
     fail(
       'WRITE_OUTCOME_UNCERTAIN',
       'This review was already submitted. Inspect provider state; do not retry with a new key.',
@@ -1244,9 +1240,25 @@ export class WriteReviewService {
           account_id: plan.accountId ?? null,
           connection_id: c.id,
         });
-      if (!completed && !unsent) this.store.uncertain(actor.tenantId, input.idempotency_key);
-      // Scoped like write_not_sent, so a member with access to the account sees it in Activity (WRT-08).
-      if (!unsent)
+      // A definitive refusal the family proves applied nothing (CMP-04) is rejected, not uncertain: the key is retired
+      // and the reservation released (D12). A lost response, timeout, rate limit or 5xx never qualifies.
+      const rejected =
+        !completed &&
+        !unsent &&
+        dispatched &&
+        nonAppliedRejection(plan, e, family) &&
+        this.store.rejected(actor.tenantId, input.idempotency_key, fingerprint, {
+          code,
+          review_id: input.review_id,
+          gateway: plan.gateway,
+          account_id: plan.accountId ?? null,
+          connection_id: c.id,
+          http_status: Number((e as MirrorError).details.http_status),
+        });
+      if (!completed && !unsent && !rejected) this.store.uncertain(actor.tenantId, input.idempotency_key);
+      // Scoped like write_not_sent, so a member with access to the account sees it in Activity (WRT-08). A rejected
+      // write has its own write_rejected audit (Store.rejected) and is never uncertain.
+      if (!unsent && !rejected)
         this.store.appendAudit(actor.tenantId, input.review_id, {
           event: completed ? 'write_result_withheld' : 'write_uncertain',
           code,
@@ -1255,7 +1267,14 @@ export class WriteReviewService {
           connection_id: c.id,
         });
       const raised = family?.safeError ? family.safeError(e) : e,
-        safe = unsent ? notSent(raised, input.review_id) : completed ? raised : uncertainNext(raised, input.review_id);
+        // Uncertain writes name their read-only status call (WRT-08); a rejected one is settled and names its retired key.
+        safe = unsent
+          ? notSent(raised, input.review_id)
+          : rejected
+            ? rejectedError(raised, input.review_id)
+            : completed
+              ? raised
+              : uncertainNext(raised, input.review_id);
       throw record ? scrubError(safe, echoes) : safe;
     }
   }

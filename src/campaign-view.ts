@@ -157,6 +157,17 @@ export function compactPlan(run: JsonObject, current?: string, extra: JsonObject
       revision: run.revision,
       state: run.state,
       plan_hash: run.plan_hash,
+      // Linked plans (CMP-03, CMP-04): a continuation, an activation, and the plans they came from, by ID.
+      ...Object.fromEntries(
+        ['supersedes', 'superseded_by', 'activation_of', 'activation_plan']
+          .filter(k => typeof run[k]?.id === 'string')
+          .map(k => [k, run[k].id]),
+      ),
+      // Inventory and team (CMP-05): when it was archived, and how many colleagues it is shared with.
+      ...(run.archived ? {archived_at: run.archived.at ?? null} : {}),
+      ...(Array.isArray(run.collaborators) && run.collaborators.length
+        ? {collaborators: run.collaborators.length}
+        : {}),
       ...(run.gtm_consent
         ? {gtm_consent: pick(run.gtm_consent, ['workflow', 'preview_id', 'scope', 'source_hash'])}
         : {}),

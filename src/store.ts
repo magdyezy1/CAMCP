@@ -678,6 +678,7 @@ export class Store {
             'report_id',
             'rows',
             'transfer_ms',
+            'http_status',
           ]
             .filter(k => details[k] !== undefined)
             .map(k => [k, details[k]]),
@@ -2279,6 +2280,14 @@ export class Store {
         if (row.fingerprint !== fingerprint)
           throw new MirrorError('IDEMPOTENCY_CONFLICT', 'The same key was used for a different request.', {}, 409);
         if (row.state === 'complete') return {fresh: false, result: JSON.parse(row.result)};
+        // A rejected key (CMP-04) applied nothing and is never sent again: the request is corrected under a new review.
+        if (row.state === 'rejected')
+          throw new MirrorError(
+            'WRITE_REJECTED',
+            'The provider refused this request without applying it, so this key is never sent again. Correct the request and prepare a new review.',
+            {submission: 'rejected', key_retired: true},
+            409,
+          );
         throw new MirrorError(
           'WRITE_OUTCOME_UNCERTAIN',
           'This key is pending or has an uncertain outcome. Read back the platform state before resolving it.',
@@ -2325,6 +2334,34 @@ export class Store {
         .run(tenantId, key, key.length + 1, key + ':');
       this.journal(tenantId, key, 'not_sent', typeof audit.code === 'string' ? {code: audit.code} : {});
       this.appendAudit(tenantId, key, {...audit, event: 'write_not_sent'});
+      return true;
+    });
+  }
+  /**
+   * A definitive provider refusal that a family proves applied nothing (CMP-04): one transaction marks this pending claim
+   * rejected (its key is kept and never reused), releases the daily spend reservations its review took (owner decision
+   * D12: released only for families with a declared non-applied proof), journals rejected and audits write_rejected.
+   * Only a pending claim with this fingerprint changes. Returns whether it did.
+   */
+  rejected(tenantId: string, key: string, fingerprint: string, audit: JsonObject = {}): boolean {
+    return this.transaction(() => {
+      const marked =
+        this.db
+          .prepare(
+            "UPDATE idempotency SET state='rejected' WHERE tenant_id=? AND key=? AND state='pending' AND fingerprint=?",
+          )
+          .run(tenantId, key, fingerprint).changes === 1;
+      if (!marked) return false;
+      this.db
+        .prepare("DELETE FROM documents WHERE tenant_id=? AND kind='spend_reservation' AND (id=? OR substr(id,1,?)=?)")
+        .run(tenantId, key, key.length + 1, key + ':');
+      this.journal(
+        tenantId,
+        key,
+        'rejected',
+        typeof audit.http_status === 'number' ? {http_status: audit.http_status} : {},
+      );
+      this.appendAudit(tenantId, key, {...audit, event: 'write_rejected'});
       return true;
     });
   }

@@ -162,10 +162,16 @@ function conversionRecipePreview(out) {
     !plan.steps.length
   )
     return details();
-  const campaignStep = plan.steps.find(s => s.id === 'campaign'),
+  // A Google recipe is one all-or-nothing build by default (CMP-04), or one step per resource with atomic: false.
+  const build =
+      plan.steps.length === 1 && plan.steps[0].id === 'build'
+        ? plan.steps[0].arguments?.payload?.mutate_operations
+        : undefined,
+    buildCreate = key => (Array.isArray(build) ? build.find(o => o?.[key])?.[key]?.create : undefined),
+    campaignStep = build ? plan.steps[0] : plan.steps.find(s => s.id === 'campaign'),
     budgetStep = plan.steps.find(s => s.id === 'budget'),
-    campaign = campaignStep?.arguments?.payload?.operations?.[0]?.create,
-    budget = budgetStep?.arguments?.payload?.operations?.[0]?.create;
+    campaign = build ? buildCreate('campaign_operation') : campaignStep?.arguments?.payload?.operations?.[0]?.create,
+    budget = build ? buildCreate('campaign_budget_operation') : budgetStep?.arguments?.payload?.operations?.[0]?.create;
   const amount = value =>
     typeof value === 'string' && /^[1-9]\d{0,15}$/.test(value) && BigInt(value) <= BigInt(Number.MAX_SAFE_INTEGER);
   const strategy = valueBidding ? campaign?.maximize_conversion_value : campaign?.maximize_conversions,
@@ -198,6 +204,11 @@ function conversionRecipePreview(out) {
         : !amount(target) || target !== recipe.target_cpa_micros
       : Object.keys(strategy).length !== 0 ||
         (valueBidding ? recipe.target_roas !== undefined : recipe.target_cpa_micros !== undefined)) ||
+    // A build names its account in every temporary resource name; any other customer is not this preview's.
+    (build &&
+      !(JSON.stringify(build).match(/customers\/[^/"]*\//g) ?? []).every(
+        m => m === 'customers/' + String(campaignStep.account_id).replace(/-/g, '') + '/',
+      )) ||
     !plan.steps.every(
       s =>
         s.kind === 'write' &&
@@ -575,7 +586,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
     viewer = session.workspaceRole === 'viewer';
   const section = document.createElement('section');
   section.className = 'panel workspace-form recipe-builder';
-  section.innerHTML = `<h2>${esc(uiText('Build from business inputs'))}</h2><p>${esc(uiText('Choose a workflow, complete the brief, then inspect a paused campaign plan. Each provider change receives its own review.'))}</p><div class="recipe-choice"><label>${esc(uiText('Workflow'))}<select id="recipe-choice">${recipes.map(r => `<option value="${esc(r.id)}">${esc(uiText(r.name))}</option>`).join('')}</select></label><label>${esc(uiText('Approved client profile'))}<select id="recipe-profile"><option value="">${esc(uiText('No profile'))}</option>${profiles.map(p => `<option value="${esc(p.id)}">${esc(p.name)} ${esc(uiText('· revision'))} ${p.revision}</option>`).join('')}</select></label></div><div id="recipe-fields" aria-live="polite"></div><p id="recipe-error" class="error" role="alert"></p><div id="recipe-preview" tabindex="-1"></div>`;
+  section.innerHTML = `<h2>${esc(uiText('Build from business inputs'))}</h2><p>${esc(uiText('Choose a workflow, complete the brief, then inspect a paused campaign plan. Each provider change receives its own review.'))}</p><div class="recipe-choice"><label>${esc(uiText('Workflow'))}<select id="recipe-choice">${recipes.map(r => `<option value="${esc(r.id)}">${esc(uiText(r.name))}${r.availability_label ? ' — ' + esc(uiText(r.availability_label)) : ''}</option>`).join('')}</select></label><label>${esc(uiText('Approved client profile'))}<select id="recipe-profile"><option value="">${esc(uiText('No profile'))}</option>${profiles.map(p => `<option value="${esc(p.id)}">${esc(p.name)} ${esc(uiText('· revision'))} ${p.revision}</option>`).join('')}</select></label></div><div id="recipe-fields" aria-live="polite"></div><p id="recipe-error" class="error" role="alert"></p><div id="recipe-preview" tabindex="-1"></div>`;
   $('#campaign-create > summary').after(section);
   let currentKey = '',
     context = null,

@@ -17,6 +17,9 @@ import {snapchatAllocationData} from './fixtures/snapchat-allocation-data.mjs';
 import {metaPortfolioData} from './fixtures/meta-portfolio-data.mjs';
 import {catalogComparisonData, catalogComparisonInput} from './fixtures/catalog-comparison-data.mjs';
 import {googleConversionBrief, googleRecipeGoalsData} from './fixtures/google-recipe-goals-data.mjs';
+// CMP-04: a saved Google recipe is one all-or-nothing build step; this reads one of its create records.
+const buildCreate = (plan, operation) =>
+  plan.steps[0].arguments.payload.mutate_operations.find(o => o[operation])[operation].create;
 
 test('MCP inspects exact conversion defaults with a read grant, preserves write blockers and saves only an unapproved paused draft', async t => {
   const data = googleRecipeGoalsData({pageSize: 1}),
@@ -55,8 +58,9 @@ test('MCP inspects exact conversion defaults with a read grant, preserves write 
   assert.equal(saved.data.state, 'draft');
   const full = await f.call('amcp_campaign', {action: 'get', id: saved.data.id, detail: 'full'});
   assert.equal(full.success, true, JSON.stringify(full));
-  assert.equal(full.data.steps.find(s => s.id === 'campaign').arguments.payload.operations[0].create.status, 'PAUSED');
-  assert.equal(full.data.steps.length, 6);
+  assert.equal(buildCreate(full.data, 'campaign_operation').status, 'PAUSED');
+  assert.equal(full.data.steps.length, 1);
+  assert.deepEqual(full.data.recipe.build.steps, ['budget', 'campaign', 'targeting', 'adgroup', 'keywords', 'ad']);
   assert.equal(f.store.documents(f.actor.tenantId, 'write_review').length, 0);
   assert.equal(f.metrics().provider_requests, 14);
   f.store.revokeKey(f.key);
@@ -684,13 +688,10 @@ test('MCP discovers, previews and saves a paused Maximize Clicks plan with exact
   assert.equal(saved.success, true, JSON.stringify(saved));
   const full = await f.call('amcp_campaign', {action: 'get', id: saved.data.id, detail: 'full'});
   assert.equal(full.success, true, JSON.stringify(full));
-  const campaign = full.data.steps.find(s => s.id === 'campaign').arguments.payload.operations[0].create;
+  const campaign = buildCreate(full.data, 'campaign_operation');
   assert.equal(campaign.status, 'PAUSED');
   assert.deepEqual(campaign.target_spend, {cpc_bid_ceiling_micros: '1370000'});
-  assert.equal(
-    full.data.steps.find(s => s.id === 'adgroup').arguments.payload.operations[0].create.cpc_bid_micros,
-    undefined,
-  );
+  assert.equal(buildCreate(full.data, 'ad_group_operation').cpc_bid_micros, undefined);
   assert.equal(full.data.recipe.bidding_strategy, 'TARGET_SPEND');
   assert.equal(saved.meta.workflow.website_path, '/campaigns?id=' + encodeURIComponent(saved.data.id));
   assert.equal(f.metrics().provider_requests, 0);
@@ -735,7 +736,7 @@ test('MCP discovers both conversion Search workflows and saves exact CPA through
   assert.equal(saved.success, true, JSON.stringify(saved));
   const full = await f.call('amcp_campaign', {action: 'get', id: saved.data.id, detail: 'full'});
   assert.equal(full.success, true, JSON.stringify(full));
-  const campaign = full.data.steps.find(s => s.id === 'campaign').arguments.payload.operations[0].create;
+  const campaign = buildCreate(full.data, 'campaign_operation');
   assert.equal(campaign.status, 'PAUSED');
   assert.deepEqual(campaign.maximize_conversions, {target_cpa_micros: '15250001'});
   assert.equal(full.data.recipe.conversion_goal_policy, 'ACCOUNT_DEFAULT');

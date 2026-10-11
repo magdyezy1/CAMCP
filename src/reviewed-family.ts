@@ -209,6 +209,14 @@ export interface ReviewedFamily {
   /** The error execute reports, without provider data the family must not disclose. */
   safeError?(error: unknown): unknown;
   /**
+   * True when the provider's definitive refusal (an HTTP 4xx with a parsed error body, never a timeout, rate limit,
+   * 5xx or lost response) proves nothing of the request was applied (CMP-04). The claim then becomes `rejected`: its key
+   * is never sent again, its spend reservation is released (owner decision D12), and a plan step may be amended and
+   * reviewed under a new key. Declare it only with a primary-document or authorized live proof; without it the outcome
+   * stays uncertain.
+   */
+  rejectionIsNonApplied?(plan: CompiledRequest, status: number, body: JsonObject): boolean;
+  /**
    * Reads that show the result after execution; `before` holds the snapshots taken at execute, and `verificationRead`
    * builds a read of the plan's account.
    */

@@ -7,9 +7,12 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {recipeDependencies} from '../dist/src/capability-eligibility.js';
-const {cpc_bid, ...base} = JSON.parse(
+const {cpc_bid, ...shared} = JSON.parse(
   fs.readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'),
 ).recipe_business;
+// CMP-04: a Google recipe is one all-or-nothing build by default; these tests cover its per-resource steps.
+const base = {...shared, atomic: false};
+// WRT-07: a USD ceiling is whole cents (a sub-cent amount is refused at compile).
 const business = {...base, cpc_bid_ceiling: '1.37'},
   recipe = 'google_search_clicks';
 const created = (plan, id) => plan.steps.find(s => s.id === id).arguments.payload.operations[0].create;

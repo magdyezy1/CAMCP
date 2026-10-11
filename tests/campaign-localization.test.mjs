@@ -463,25 +463,34 @@ test('conversion preview with changed target, currency, goal policy or account f
   const {cpc_bid, ...base} = JSON.parse(
     readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'),
   ).recipe_business;
-  const {recipe, ...plan} = campaignRecipe('google_search_target_cpa', {
-    ...base,
-    conversion_goal_policy: 'ACCOUNT_DEFAULT',
-    target_cpa: '15.250001',
-  });
-  const original = {ready: true, provider_mutations: 0, plan, recipe};
-  for (const mutate of [
-    out => (out.recipe.target_cpa_micros = '999'),
-    out => (out.recipe.currency = 'EUR'),
-    out => (out.recipe.conversion_goal_policy = 'CUSTOM'),
-    out => (out.plan.steps[0].account_id = 'foreign'),
-    out => (out.plan.steps.find(s => s.id === 'campaign').arguments.payload.operations[0].create.status = 'ENABLED'),
-  ]) {
-    const f = fixture();
-    f.context.out = structuredClone(original);
-    mutate(f.context.out);
-    const html = f.run('conversionRecipePreview(out)');
-    assert.doesNotMatch(html, /conversion-recipe-preview/);
-    assert.match(html, /Compiled plan and input provenance/);
+  // CMP-04: the campaign record sits in the one build step by default, or in its own step with atomic: false.
+  const campaignOf = out =>
+    out.plan.steps[0].id === 'build'
+      ? out.plan.steps[0].arguments.payload.mutate_operations.find(o => o.campaign_operation).campaign_operation.create
+      : out.plan.steps.find(s => s.id === 'campaign').arguments.payload.operations[0].create;
+  for (const atomic of [true, false]) {
+    const {recipe, ...plan} = campaignRecipe('google_search_target_cpa', {
+      ...base,
+      atomic,
+      conversion_goal_policy: 'ACCOUNT_DEFAULT',
+      target_cpa: '15.250001',
+    });
+    const original = {ready: true, provider_mutations: 0, plan, recipe};
+    for (const mutate of [
+      out => (out.recipe.target_cpa_micros = '999'),
+      out => (out.recipe.currency = 'EUR'),
+      out => (out.recipe.conversion_goal_policy = 'CUSTOM'),
+      out => (out.plan.steps[0].account_id = 'foreign'),
+      out => (campaignOf(out).status = 'ENABLED'),
+    ]) {
+      const f = fixture();
+      f.context.out = structuredClone(original);
+      assert.match(f.run('conversionRecipePreview(out)'), /conversion-recipe-preview/);
+      mutate(f.context.out);
+      const html = f.run('conversionRecipePreview(out)');
+      assert.doesNotMatch(html, /conversion-recipe-preview/);
+      assert.match(html, /Compiled plan and input provenance/);
+    }
   }
 });
 

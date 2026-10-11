@@ -204,6 +204,44 @@ test('reconciliation refusals are fixed sentences with their values in details',
   }
 });
 
+test('a Google per-service write the provider refused without applying it is rejected in Operations and status, never executed again', async () => {
+  // CMP-04 with WRT-08: a rejected claim used to fall through to unsubmitted, listed with an execute next call that the
+  // store then refused with WRITE_REJECTED.
+  const f = googleBudgetFixture();
+  try {
+    const id = (await f.update(100000000)).data.review_id;
+    f.hooks.respond = () =>
+      Response.json(
+        {error: {code: 400, message: 'Request contains an invalid argument.', status: 'INVALID_ARGUMENT'}},
+        {status: 400},
+      );
+    const refused = await f.execute(id);
+    f.hooks.respond = undefined;
+    assert.equal(refused.success, false);
+    assert.equal(refused.error.details.submission, 'rejected', JSON.stringify(refused.error).slice(0, 600));
+    assert.equal(refused.meta.workflow.state, 'attention_required');
+    assert.equal(refused.meta.workflow.source_state, 'rejected');
+    assert.deepEqual(refused.meta.workflow.next_call, {
+      tool: 'amcp_write',
+      arguments: {action: 'status', review_id: id},
+    });
+    assert.equal(f.claim(id).state, 'rejected');
+    const [row] = (await writes(f)).filter(r => r.id === id);
+    assert.equal(row.state, 'rejected');
+    assert.equal(row.category, 'attention');
+    const s = await status(f, id);
+    assert.equal(s.data.state, 'rejected');
+    assert.equal(s.data.claim.state, 'rejected');
+    assert.equal(s.data.next_call.arguments.action, 'prepare', 'a corrected request is prepared again, never executed');
+    assert.equal(s.meta.workflow.state, 'attention_required');
+    assert.equal((await f.write({action: 'reconcile', review_id: id})).error.code, 'RECONCILIATION_UNAVAILABLE');
+    assert.equal((await f.execute(id)).error.code, 'WRITE_REJECTED');
+    assert.equal(f.writes.length, 1, 'sent once');
+  } finally {
+    f.close();
+  }
+});
+
 test('a revoked actor sees no write records', async () => {
   const f = googleBudgetFixture();
   try {

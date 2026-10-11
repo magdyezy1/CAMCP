@@ -76,13 +76,51 @@ export function googleSearchFixture(t, business, options = {}) {
       }
       assert.ok(native);
       const collection = /\/([A-Za-z]+):mutate$/.exec(path)?.[1];
-      assert.ok(kinds[collection], path);
+      assert.ok(kinds[collection] || collection === 'googleAds', path);
       mutations.push({path, body});
+      // A scripted refusal (CMP-04): {status, body} for the first request to a collection, applying nothing.
+      const refusal = options.refuse?.[collection];
+      if (refusal && !refusal.sent) {
+        refusal.sent = true;
+        return Response.json(refusal.body ?? {}, {status: refusal.status});
+      }
+      // An all-or-nothing build (CMP-04): each operation creates its resource; temporary names map to created ones.
+      if (collection === 'googleAds') {
+        const temps = new Map(),
+          operations = body.mutateOperations ?? body.mutate_operations,
+          types = {
+            campaignBudgetOperation: ['campaignBudgets', 'campaignBudgetResult'],
+            campaignOperation: ['campaigns', 'campaignResult'],
+            campaignCriterionOperation: ['campaignCriteria', 'campaignCriterionResult'],
+            adGroupOperation: ['adGroups', 'adGroupResult'],
+            adGroupCriterionOperation: ['adGroupCriteria', 'adGroupCriterionResult'],
+            adGroupAdOperation: ['adGroupAds', 'adGroupAdResult'],
+          };
+        return Response.json({
+          mutateOperationResponses: operations.map(op => {
+            const key = Object.keys(op)[0],
+              camel = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase()),
+              [kind, result] = types[camel],
+              create = structuredClone(op[key].create),
+              temp = create.resourceName ?? create.resource_name;
+            for (const field of ['campaignBudget', 'campaign', 'adGroup'])
+              if (temps.has(create[field])) create[field] = temps.get(create[field]);
+            delete create.resource_name;
+            const resourceName = createResource(kind, create);
+            if (temp) temps.set(temp, resourceName);
+            return {[result]: {resourceName}};
+          }),
+        });
+      }
       return Response.json({
         results: body.operations.map(op => {
           assert.ok(op.create);
+          return {resourceName: createResource(collection, structuredClone(op.create))};
+        }),
+      });
+      function createResource(collection, value) {
+        {
           const id = String(resources.size + 1),
-            value = structuredClone(op.create),
             parent = (value.campaign ?? value.adGroup ?? '').split('/').at(-1);
           const resourceName = `customers/${business.account_id}/${collection}/${['campaignCriteria', 'adGroupCriteria', 'adGroupAds'].includes(collection) ? parent + '~' : ''}${id}`;
           Object.assign(value, {resourceName, id});
@@ -114,9 +152,9 @@ export function googleSearchFixture(t, business, options = {}) {
             if (options.wrongCeiling) value.targetSpend.cpcBidCeilingMicros = '9999999';
           }
           resources.set(resourceName, {kind: kinds[collection], value});
-          return {resourceName};
-        }),
-      });
+          return resourceName;
+        }
+      }
     }),
     undefined,
     {allowWrites: true, requireBeforeState: true, maxBudgetChange: 0},

@@ -70,11 +70,13 @@ const verificationStates: Record<string, string> = {
   unsupported: 'complete',
 };
 /**
- * One write record's state, from its claim, read-back and reconciliation. Uncertain, expired, unsubmitted and not-sent
- * reviews need a person; complete, verified, reconciled and superseded ones do not.
+ * One write record's state, from its claim, read-back and reconciliation. Uncertain, rejected, expired, unsubmitted and
+ * not-sent reviews need a person; complete, verified, reconciled and superseded ones do not. A rejected review (CMP-04)
+ * was refused by the provider without being applied: its key is retired, so it is corrected under a new review.
  */
 export function writeRecordState(p: JsonObject, now = Date.now()): string {
   if (typeof p.superseded_by === 'string' && p.superseded_by) return 'superseded';
+  if (p.claim_state === 'rejected') return 'rejected';
   if (p.claim_state === 'complete') {
     if (p.success === false || p.success === 0) return 'failed';
     if (typeof p.verification === 'string' && verificationStates[p.verification])
@@ -100,7 +102,7 @@ export function writeHandoff(id: string): JsonObject {
 const claimLabel = (state: unknown, phase: unknown) =>
   state === 'pending'
     ? 'claimed'
-    : state === 'uncertain' || state === 'complete'
+    : state === 'uncertain' || state === 'complete' || state === 'rejected'
       ? state
       : phase === 'not_sent'
         ? 'not_sent'
@@ -175,7 +177,8 @@ function nextCall(id: string, review: JsonObject, state: string, actor: Actor): 
       add_after_user_approval: Object.fromEntries(['confirmed', ...flags].map((k: string) => [k, true])),
     };
   }
-  if (state === 'expired') {
+  // An expired review, or one the provider refused without applying it (its key is retired, CMP-04), is prepared again.
+  if (state === 'expired' || state === 'rejected') {
     const input = review.prepare_input as JsonObject | undefined;
     if (!input) return null;
     if (review.user_id === actor.userId) return {tool: 'amcp_write', arguments: {action: 'prepare', ...input}};
@@ -201,6 +204,8 @@ const guidance: Record<string, string> = {
   not_sent:
     'An execute was refused before anything reached the provider and the claim was released. Execute the same review again inside its window once the cause clears.',
   expired: 'Nothing was submitted and the review expired. Prepare the same request again to review it.',
+  rejected:
+    'The provider refused this request without applying it. Its key is retired and never sent again: correct what the provider error named and prepare a new review (next_call).',
   executing: 'The request is being sent now. Read this status again in a moment; never execute it twice.',
   uncertain:
     'The request may have reached the provider and its outcome was not recorded. It is never sent again. Reconcile it with read-only lookups (next_call), or check the provider directly, before any new change.',

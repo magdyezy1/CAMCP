@@ -302,7 +302,19 @@ test('all recipes validate their contracts, including the maximum 30 Google targ
       const preflight = await campaignPreflight(service, actor, steps);
       assert.equal(preflight.status, 'ready', JSON.stringify(preflight));
       if (recipe.platform === 'google') {
-        const chunks = steps.filter(s => s.id.startsWith('targeting'));
+        // The default all-or-nothing build carries all 30 criteria in its one request (CMP-04).
+        assert.deepEqual(
+          steps.map(s => s.id),
+          ['build'],
+        );
+        assert.equal(
+          steps[0].arguments.payload.mutate_operations.filter(o => o.campaign_criterion_operation).length,
+          30,
+        );
+        // One step per resource type keeps the reviewed contract's 25-operation limit per request.
+        const split = campaignRecipe(recipe.id, {...b, atomic: false}).steps;
+        assert.equal((await campaignPreflight(service, actor, split)).status, 'ready');
+        const chunks = split.filter(s => s.id.startsWith('targeting'));
         assert.equal(chunks.length, 2);
         assert.deepEqual(
           chunks.map(s => s.arguments.payload.operations.length),

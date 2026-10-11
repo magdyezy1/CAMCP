@@ -579,10 +579,19 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'save_retention',
-      'Sets how many days (7–365) retained records are kept.',
-      ['days', 'confirmed'],
-      [],
+      'Sets how many days (7–365) report records are kept, and optionally when archived campaign plans are deleted.',
+      ['confirmed'],
+      ['days', 'archived_campaign_plans_days'],
       saves('retention_policy'),
+      'owner',
+      [[W, 'health']],
+    ),
+    row(
+      'save_plan_policy',
+      'Sets whether a plan that changes spending or activates a launch needs an approver other than its owner.',
+      ['require_distinct_approver', 'confirmed'],
+      [],
+      saves('plan_policy'),
       'owner',
       [[W, 'health']],
     ),
@@ -659,7 +668,84 @@ const rows: Record<string, Row[]> = {
       'reader',
       [[C, 'prepare_next']],
     ),
-    row('list', 'Your campaign plans, paged.', [], ['offset', 'limit'], local, 'reader', [[C, 'get']]),
+    row(
+      'list',
+      'Campaign plans you own, administer or collaborate on, newest first, filtered and paged by next_cursor.',
+      [],
+      [
+        'offset',
+        'limit',
+        'cursor',
+        'state',
+        'archived',
+        'awaiting_approval',
+        'search',
+        'gateway',
+        'account_id',
+        'connection_id',
+        'profile_id',
+      ],
+      local,
+      'reader',
+      [[C, 'get']],
+    ),
+    row(
+      'archive',
+      'Sets aside a complete, cancelled or superseded plan; get still returns it and it leaves the 500-plan bound.',
+      ['id', 'confirmed'],
+      [],
+      saves('campaign_run'),
+      'operator',
+      [[C, 'list']],
+    ),
+    row('unarchive', 'Restores an archived plan to the default list.', ['id'], [], saves('campaign_run'), 'operator', [
+      [C, 'get'],
+    ]),
+    row(
+      'assign',
+      'Lists the members a plan can be shared with; with user_id and role names a viewer, editor or approver.',
+      ['id'],
+      ['user_id', 'role'],
+      saves('campaign_run'),
+      'operator',
+      [[C, 'get']],
+    ),
+    row('unassign', 'Removes a collaborator from a plan.', ['id', 'user_id'], [], saves('campaign_run'), 'operator', [
+      [C, 'get'],
+    ]),
+    row(
+      'confirm_absent',
+      'Reads whether a refused step’s resource exists; with confirmed records that it does not, so recover_step may amend it.',
+      ['id', 'step_id'],
+      ['confirmed'],
+      reads('campaign_run'),
+      'operator',
+      [[C, 'recover_step']],
+    ),
+    row(
+      'continue_as_new',
+      'Carries the steps not yet done into a new linked plan that adopts the verified IDs; the original becomes superseded.',
+      ['id', 'confirmed'],
+      [],
+      saves('campaign_run'),
+      'operator',
+      [
+        [C, 'get'],
+        [C, 'approve'],
+      ],
+    ),
+    row(
+      'activation_plan',
+      'Drafts a separate linked plan that activates a completed paused launch, with its own approval and gates.',
+      ['id'],
+      [],
+      saves('campaign_run'),
+      'operator',
+      [
+        [C, 'preflight'],
+        [C, 'approve'],
+      ],
+    ),
     row(
       'prepare_next',
       'Prepares the native review of the next step whose predecessors are verified.',
@@ -1524,6 +1610,10 @@ const rows: Record<string, Row[]> = {
  */
 const argumentNotes: Record<string, Record<string, string>> = {
   [W]: {
+    archived_campaign_plans_days:
+      'save_retention: delete campaign plans archived longer than this many days (7–3650); 0 turns it off.',
+    require_distinct_approver:
+      'save_plan_policy: true makes a plan that changes spending or activates a launch need an approver other than its owner.',
     expected_revision:
       'save_spend_policy: the revision of the stored policy you read (0 when none). A stale one is refused with REVISION_CONFLICT; without it the save replaces the stored policy and says so.',
     state:
@@ -1559,6 +1649,13 @@ const argumentNotes: Record<string, Record<string, string>> = {
       'recover_step: [{path, value}] changes to fields the step already has, as JSON pointers into its arguments ("/payload/adsquads/0/pixel_id"). Instead of arguments.',
     idempotency_key:
       'create, create_from_recipe and clone: an optional stable key (8–100 letters, digits, hyphens or underscores); identical input reuses the original plan. execute_next: the review’s own key.',
+    cursor: 'list: the next_cursor of the previous page, with the same filters.',
+    state: 'list: only plans in this state.',
+    archived: 'list: true lists only archived plans (default: plans not archived).',
+    awaiting_approval: 'list: true lists the plans naming you as approver that wait for an approval.',
+    search: 'list: part of a plan name or account ID, or a plan ID.',
+    user_id: 'assign/unassign: the workspace member (account ID) to name or remove.',
+    role: 'assign: viewer, editor or approver.',
   },
   [M]: {
     source_id:
@@ -1582,6 +1679,11 @@ const argumentNotes: Record<string, Record<string, string>> = {
       'Optional at execute: defaults to the review_id. When given it must equal the review_id returned by prepare.',
   },
   [X]: {
+    accept_applied:
+      'reconcile only: the user accepts that an uncertain write was applied, as the latest reconciliation observed (appears_applied). Records the observed result as its receipt; nothing is sent.',
+    reconciliation_id: 'reconcile with accept_applied: the reconciliation_id the user saw.',
+    supersedes_review_id:
+      'prepare only: an uncertain review that a reconciliation found not applied (appears_not_applied) and that this new review replaces. The old review is never sent.',
     idempotency_key:
       'Optional at execute: defaults to the review_id. When given it must equal the review_id returned by prepare.',
     cap_override_confirmed:

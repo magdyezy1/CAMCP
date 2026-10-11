@@ -147,6 +147,8 @@ test('the real MCP SDK discovers, explains and independently reviews both paused
   for (const recipe of ['google_search_conversion_value', 'google_search_target_roas']) {
     const business = {
       ...search,
+      // CMP-04: one step per resource type (the default is one all-or-nothing build), each reviewed on its own.
+      atomic: false,
       conversion_goal_policy: 'ACCOUNT_DEFAULT',
       conversion_value_policy: 'ACCOUNT_RECORDED_VALUES',
       ...(recipe.endsWith('target_roas') ? {target_roas: '3.5'} : {}),

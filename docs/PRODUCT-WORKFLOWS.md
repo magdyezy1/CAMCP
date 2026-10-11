@@ -143,7 +143,20 @@ delayed inspections, errors and targeting lookups cannot cross form/account, rou
 evidence and input provenance remain inspectable. Plan creation, paused status and each later native review
 retain the existing behavior.
 
-The Campaigns page starts with saved plans and a collapsible composer. The readable review preserves exact native
+The Campaigns page starts with saved plans and a collapsible composer. Plans are listed newest first, 50 at a time
+with **Load more** (`amcp_campaign list`: an SQL projection with one account and platform summary per plan, continued
+with `next_cursor`), filtered by state, name or account, **Awaiting my approval** and **Archived plans**; the filters
+stay in the URL. **Archive plan** (complete, cancelled or superseded plans only) takes a plan out of the default list
+and out of the workspace's bound of 500 plans, which counts only plans that are not archived; `get` still returns it
+and **Unarchive plan** restores it. **Share plan** lets the plan's owner (or an administrator) name a workspace member
+as viewer (reads it), editor (prepares, runs steps one by one, amends, archives) or approver (approves and runs it);
+a collaborator sees the plan only while its accounts are within their access, every step still checks the acting
+person's own account grant, and assignments and approvals are audited with their actors. When the workspace owner
+turns on **A plan that changes spending or activates a launch needs an approver other than its owner** (Settings,
+`save_plan_policy`; off by default; saving either choice asks first), the owner's own approval of such a plan is
+refused with `DISTINCT_APPROVER_REQUIRED` and Review whole plan offers sharing instead; executing its steps one by one
+also needs a current approval by someone other than its owner. Home shows plan counts, the five newest
+plans needing attention and the eight newest plans (CMP-05). The readable review preserves exact native
 units and shows account, request and impact alongside expandable source JSON. Required spend, cap and creative-edit
 acknowledgements come from the server and start unchecked. A confirm-mode cap can be acknowledged; a block-mode cap
 stays blocked.
@@ -155,7 +168,26 @@ A plan blocked at preflight offers **Correct blocked step**: Check prerequisites
 blocked prerequisite with its remedy and open the amendment form, which patches one field or, when the correction
 adds a field, saves the step's corrected native arguments (`recover_step`). Amending voids the plan approval and
 clears the stored preflight, so Check prerequisites inspects the corrected step again. Run/continue resumes a step a restart left executing under its original review and key; a
-completed receipt is replayed and an uncertain one stops the plan, never sent twice. Recipe and clone forms send one
+completed receipt is replayed and an uncertain one stops the plan, never sent twice. A step the provider refused
+without applying it (a Google request refused outright, recorded as `rejected`) is corrected the same way under a new
+review and key. For a refusal AMCP cannot prove applied nothing (Meta), **Confirm the resource does not exist** runs
+`confirm_absent`: a complete read-only list of the step's parent, matched by the step's name and claim time; only a
+complete read with no match, confirmed by the person and audited, unlocks the correction. **Continue in a new linked
+plan** (`continue_as_new`) moves the steps not yet done into a new draft that uses the IDs already created (each
+adopted value records `adopted_from`), and marks the original plan superseded with a link both ways; a step whose
+outcome is still unsettled is never carried. Google Search recipes are one all-or-nothing `googleAds:mutate` build by
+default (`atomic: false` keeps one step per resource type). A completed recipe plan offers **Prepare activation**
+(`activation_plan`, returned as `activation_call`, never `next_call`): a separate linked draft (`activation_of` /
+`activation_plan`) built from the launch's verified IDs, with its own approval, spend confirmation and preflight.
+Meta and Google enable the paused campaign; Snapchat activates campaign, ad squad and ad in that order, each after
+the one before is verified; Microsoft activation is refused with `LOCATION_CRITERIA_REQUIRED` (owner decision P7:
+AMCP cannot yet read a positive location criterion, so the Microsoft Search pack is labelled "Draft only: set
+locations in Microsoft before activation"). Read-only gates run at preflight before any status write: the Snapchat
+ad's creative review must be `APPROVED`; the Meta ad must not be disapproved, have issues or carry review
+feedback, and a Meta conversion launch's pixel must be readable and not unavailable; a Google conversion launch needs a
+biddable account-default goal with an enabled primary action (the reads `recipe_eligibility` makes). A failed or
+unreadable gate blocks with `ACTIVATION_GATE_BLOCKED`, and each activation preflight is audited
+(`campaign_activation_preflight`, with the gates that blocked it). Recipe and clone forms send one
 creation key per exact request, so a retry after a lost response opens the plan already saved instead of a second
 draft. Recipe and clone text is saved literally: `{{...}}` in ad copy is not template syntax there.
 Clone support remains the existing Google Search, Snapchat, TikTok and LinkedIn scope. Guided Meta website

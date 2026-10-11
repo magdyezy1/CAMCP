@@ -22,6 +22,8 @@ export const operationStates = ['all', 'attention', 'active', 'complete', 'defer
  */
 export const attentionStates = [
   'uncertain',
+  // A write the provider refused without applying it (CMP-04): a person corrects it under a new review.
+  'rejected',
   'failed',
   'partial',
   'blocked',
@@ -39,7 +41,16 @@ export const attentionStates = [
   'refresh_failed',
 ];
 /** Every state the campaign runner gives a plan (src/campaign-runner.ts); a test keeps the two in step. */
-export const campaignPlanStates = ['draft', 'awaiting_review', 'in_progress', 'attention', 'complete', 'cancelled'];
+export const campaignPlanStates = [
+  'draft',
+  'awaiting_review',
+  'in_progress',
+  'attention',
+  'complete',
+  'cancelled',
+  // A plan continued in a new linked plan (CMP-04 continue_as_new).
+  'superseded',
+];
 /** The attention category of one operation: attention, active, complete or deferred. */
 export function operationCategory(kind: string, state: string): 'attention' | 'active' | 'complete' | 'deferred' {
   if (attentionStates.includes(state)) return 'attention';
@@ -57,6 +68,8 @@ export function operationCategory(kind: string, state: string): 'attention' | 'a
   if (['complete', 'cancelled', 'verified', 'delivered'].includes(state)) return 'complete';
   // A finished export that wrote nothing (a newer snapshot holds the tab, or policy skipped it) needs no action.
   if (kind === 'export' && ['superseded', 'skipped'].includes(state)) return 'complete';
+  // A campaign plan continued in a new linked plan (CMP-04) needs nothing more; its successor carries the work.
+  if (kind === 'campaign' && state === 'superseded') return 'complete';
   if (['paused', 'snoozed'].includes(state)) return 'deferred';
   return 'active';
 }

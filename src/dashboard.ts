@@ -4,8 +4,8 @@ import {normalizeAccount} from './scope.js';
 import {bad} from './workspace-core.js';
 import {cursorBinding, decodeOffsetCursor, encodeOffsetCursor} from './page-cursor.js';
 import {readinessContract, readinessView} from './readiness.js';
-import {ownsRecord} from './actor-identity.js';
 import {recordedCredentialHealth} from './connection-health.js';
+import {attentionPlanStates, planCounts, recentPlans, visiblePlans} from './campaign-inventory.js';
 import type {Store} from './store.js';
 import type {Actor, Connection, JsonObject} from './types.js';
 
@@ -84,19 +84,29 @@ export function fullDashboard(store: Store, actor: Actor, allowWrites: boolean):
           .map(r => ({review_id: r.id, at: r.checked_at, status: r.status, action: r.action})),
       })),
     })),
-    campaigns: ownCampaigns(store, actor).map(r => ({
-      id: r.id,
-      name: r.name,
-      state: r.state,
-      updated_at: r.updated_at,
-      steps: r.steps.map((s: JsonObject) => ({id: s.id, status: s.status, error: s.error})),
-    })),
+    // Bounded (CMP-05): the five newest plans needing attention and the eight newest plans, with counts in SQL; the
+    // Campaigns page lists the rest.
+    campaigns: homeCampaigns(store, actor),
+    campaign_counts: planCounts(store, actor),
     levels,
     limitations,
   };
 }
-const ownCampaigns = (store: Store, actor: Actor) =>
-  store.documents(actor.tenantId, 'campaign_run').filter(r => ownsRecord(actor, r) || actor.role === 'admin');
+const campaignRow = (r: JsonObject) => ({
+  id: r.id,
+  name: r.name,
+  state: r.state,
+  updated_at: r.updated_at,
+  steps: (r.steps ?? []).map((s: JsonObject) => ({id: s.id, status: s.status, error: s.error})),
+});
+function homeCampaigns(store: Store, actor: Actor): JsonObject[] {
+  const rows = new Map<string, JsonObject>();
+  for (const state of attentionPlanStates) for (const r of recentPlans(store, actor, 5, {state})) rows.set(r.id, r);
+  const attention = [...rows.values()].sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0)).slice(0, 5);
+  const out = new Map(attention.map(r => [r.id, r]));
+  for (const r of recentPlans(store, actor, 8)) out.set(r.id, r);
+  return [...out.values()].map(campaignRow);
+}
 
 /**
  * `amcp_workspace dashboard` (MCP-01). By default a bounded summary: counts per provider, one compact row per account
@@ -258,14 +268,7 @@ export function dashboard(store: Store, actor: Actor, allowWrites: boolean, inpu
       workspaceCapabilities(store, actor).evidence.filter(
         (e: JsonObject) => connections.some(c => c.id === e.connection_id) && matchesAccount(e.gateway, e.account_id),
       ),
-    campaigns: () =>
-      ownCampaigns(store, actor).map(r => ({
-        id: r.id,
-        name: r.name,
-        state: r.state,
-        updated_at: r.updated_at,
-        steps: r.steps.map((s: JsonObject) => ({id: s.id, status: s.status, error: s.error})),
-      })),
+    campaigns: () => visiblePlans(store, actor).map(campaignRow),
     features: () => workspaceCapabilities(store, actor).features,
   };
   const head = {
@@ -282,7 +285,7 @@ export function dashboard(store: Store, actor: Actor, allowWrites: boolean, inpu
       sections: Object.fromEntries(sections.map(name => [name, page(name, builders[name]!())])),
       network_requests: 0,
     };
-  const campaigns = ownCampaigns(store, actor),
+  const campaigns = planCounts(store, actor),
     gateways = [...new Set(connections.map(c => c.gateway))];
   return {
     record_kind: 'dashboard_summary',
@@ -303,10 +306,7 @@ export function dashboard(store: Store, actor: Actor, allowWrites: boolean, inpu
       };
     }),
     accounts: page('accounts', builders.accounts!()),
-    campaigns: {
-      total: campaigns.length,
-      by_state: campaigns.reduce<Record<string, number>>((m, r) => ({...m, [r.state]: (m[r.state] ?? 0) + 1}), {}),
-    },
+    campaigns: {total: campaigns.total, by_state: campaigns.by_state},
     section_call: {
       tool: 'amcp_workspace',
       arguments: {action: 'dashboard', sections: ['verified_writes'], ...filters},

@@ -169,6 +169,10 @@ function writeGuidance(state) {
       return uiText('Nothing reached the provider. Execute the same review again before it expires.');
     case 'expired':
       return uiText('Nothing was submitted and the review expired. Prepare the same change again to review it.');
+    case 'rejected':
+      return uiText(
+        'The provider refused this change without applying it. It is never sent again: correct it and prepare a new review.',
+      );
     case 'executing':
       return uiText('The change is being sent. Refresh in a moment; never execute it twice.');
     case 'uncertain':

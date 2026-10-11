@@ -141,7 +141,9 @@ const dispatched = {
     throw new TypeError('synthetic network failure');
   },
   'a provider 5xx': () => Response.json({error: {code: 500, message: 'Synthetic'}}, {status: 500}),
-  'a provider 4xx': () => Response.json({error: {code: 400, message: 'Synthetic'}}, {status: 400}),
+  // CMP-04: a 4xx is rejected only with the provider's parsed error body; one without it proves nothing.
+  'a provider 4xx without a parsed error body': () =>
+    new Response('<html>Synthetic gateway refusal</html>', {status: 400, headers: {'content-type': 'text/html'}}),
 };
 for (const [name, respond] of Object.entries(dispatched))
   test('a write that was dispatched stays uncertain after ' + name, async () => {
@@ -169,6 +171,37 @@ for (const [name, respond] of Object.entries(dispatched))
       f.close();
     }
   });
+
+// CMP-04 (owner decision D12): this test replaced "stays uncertain after a provider 4xx", whose expectation encoded the
+// dead end. Google documents that a per-service mutate without partial failure applies all of its operations or none,
+// so its definitive refusal is rejected: the key is retired and never sent again, and the reservation is released.
+test('a Google per-service refusal with its error body is rejected: retired key, released reservation, no resend', async () => {
+  const f = googleBudgetFixture();
+  try {
+    f.spendPolicy({max_daily_increase_native: 50000000});
+    const id = (await f.update(100000000)).data.review_id;
+    f.hooks.respond = () =>
+      Response.json({error: {code: 400, message: 'Synthetic', status: 'INVALID_ARGUMENT'}}, {status: 400});
+    const failed = await f.execute(id);
+    assert.equal(failed.success, false);
+    assert.equal(f.writes.length, 1);
+    assert.equal(failed.error.details?.submission, 'rejected');
+    assert.equal(failed.error.details?.key_retired, true);
+    assert.equal(f.claim(id).state, 'rejected');
+    assert.equal(f.reservations().length, 0, 'a proven non-applied refusal releases its reservation');
+    assert.ok(f.audit().some(e => e.event === 'write_rejected' && e.http_status === 400));
+    assert.equal(
+      f.audit().some(e => e.event === 'write_uncertain'),
+      false,
+    );
+    f.hooks.respond = undefined;
+    const again = await f.execute(id);
+    assert.equal(again.error.code, 'WRITE_REJECTED');
+    assert.equal(f.writes.length, 1, 'never sent again');
+  } finally {
+    f.close();
+  }
+});
 
 test('two simultaneous executes of one review still dispatch once, and the later one replays the receipt', async () => {
   const f = googleBudgetFixture();

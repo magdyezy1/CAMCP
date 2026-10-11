@@ -175,7 +175,7 @@ const statusCall = (reviewId: unknown) =>
 export function writeErrorOutcome(
   input: JsonObject,
   error: {code: string; details?: JsonObject},
-  claim: 'none' | 'pending' | 'uncertain' | 'complete' | undefined,
+  claim: 'none' | 'pending' | 'uncertain' | 'complete' | 'rejected' | undefined,
 ): JsonObject | undefined {
   if (input?.action !== 'execute') return;
   const details = error.details ?? {},
@@ -186,6 +186,11 @@ export function writeErrorOutcome(
   if (uncertain) {
     const read = statusCall(reviewId) ?? writeHistory(reviewId);
     return {...base, state: 'attention_required', source_state: 'uncertain', ...(read ? {next_call: read} : {})};
+  }
+  // Refused without being applied (CMP-04): the key is retired; status names the new review to prepare.
+  if (claim === 'rejected' || details.submission === 'rejected') {
+    const read = statusCall(reviewId);
+    return {...base, state: 'attention_required', source_state: 'rejected', ...(read ? {next_call: read} : {})};
   }
   if (claim === 'complete')
     return {
@@ -205,6 +210,8 @@ const writeWorkflowStates: Record<string, (typeof outcomeStates)[number]> = {
   executing: 'running',
   verifying: 'running',
   uncertain: 'attention_required',
+  // Refused by the provider without being applied (CMP-04): corrected under a new review, never sent again.
+  rejected: 'attention_required',
   failed: 'attention_required',
   mismatch: 'attention_required',
   inconclusive: 'attention_required',

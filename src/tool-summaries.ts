@@ -26,13 +26,12 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     help('amcp_workspace'),
   amcp_campaign:
     'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. ' +
-    'It saves a durable campaign dependency plan from a brief and explicit native steps, applies approved profiles and templates, and runs it step by step. ' +
-    'Safety: no fabricated IDs, implicit launch or review bypass; every step is a frozen, read-back native review; a step that reached the provider is never sent again, and accepted or uncertain receipts keep their original recovery. ' +
-    'Core actions: recipes, recipe_context, recipe_eligibility (checks a brief without saving a plan; live:true adds read-only account prerequisites), recipe_lookup, preview_recipe and create_from_recipe; create (optional idempotency_key), get, list, preflight; ' +
-    'prepare_next (the native review of the next step whose predecessors are verified) and execute_next (consumes that exact review and reads the result back); verify; ' +
-    'approve (returns what one approval covers; approve with confirmed and that plan_hash records it) and run (prepares and executes every step under it, stopping for anything that needs a person); ' +
-    'recover_step and reconcile_step for blocked or uncertain steps; clone (an existing Snapchat, Google Search, TikTok or LinkedIn campaign into a paused draft); validate_provider; cancel. ' +
-    'Responses are compact (one row per step); get with step_id, or detail:"full", returns more. ' +
+    'It saves a durable dependency plan from a brief and explicit native steps, or approved profiles and templates, and runs it step by step. ' +
+    'Safety: no fabricated IDs, implicit launch or review bypass; every step is a frozen, read-back native review; a step that reached the provider is never sent again; uncertain receipts keep their recovery. ' +
+    'Core actions: recipes, recipe_context, recipe_eligibility (live:true adds read-only account prerequisites), recipe_lookup, preview_recipe, create_from_recipe; create, get, list (filters, next_cursor), preflight; ' +
+    'prepare_next and execute_next (one reviewed step at a time, read back); verify; approve (what one approval covers; confirmed with that plan_hash records it) and run (every step under it, stopping for anything that needs a person); ' +
+    'recover_step, reconcile_step, confirm_absent and continue_as_new for blocked, refused or uncertain steps; activation_plan; archive, unarchive, assign and unassign; clone (Snapchat, Google Search, TikTok or LinkedIn into a paused draft); validate_provider; cancel. ' +
+    'Responses are compact; get with step_id, or detail:"full", returns more. ' +
     help('amcp_campaign'),
   amcp_reporting:
     'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. ' +

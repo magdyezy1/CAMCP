@@ -28,7 +28,7 @@ test('every state the campaign runner gives a plan has a category, and attention
       ),
       ...[...runner.matchAll(/\{\.\.\.run, state: '([a-z_]+)'\}/g)].map(m => m[1]),
     ]);
-  for (const state of ['attention', 'awaiting_review', 'in_progress', 'complete', 'cancelled', 'draft'])
+  for (const state of ['attention', 'awaiting_review', 'in_progress', 'complete', 'cancelled', 'draft', 'superseded'])
     assert.ok(assigned.has(state), 'the runner assigns ' + state);
   for (const state of assigned) assert.ok(campaignPlanStates.includes(state), state + ' is in campaignPlanStates');
   const categories = Object.fromEntries(campaignPlanStates.map(s => [s, operationCategory('campaign', s)]));
@@ -39,7 +39,11 @@ test('every state the campaign runner gives a plan has a category, and attention
     attention: 'attention',
     complete: 'complete',
     cancelled: 'complete',
+    // Continued in a new linked plan (CMP-04 continue_as_new): its successor carries the work.
+    superseded: 'complete',
   });
+  // A write the provider refused without applying it (CMP-04) needs a person to correct it.
+  assert.equal(operationCategory('write', 'rejected'), 'attention');
   assert.ok(attentionStates.includes('reauthorization_required'));
   assert.deepEqual(operationKinds.slice(-3), ['write', 'notice', 'connection']);
 });

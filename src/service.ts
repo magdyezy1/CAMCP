@@ -659,7 +659,10 @@ export class MirrorService {
     throw unqualifiedUsage(asset);
   }
   /** The state of an execute's idempotency claim after the call (MCP-07): none when nothing was claimed or it was released. */
-  private writeClaim(actor: Actor, input: JsonObject): 'none' | 'pending' | 'uncertain' | 'complete' | undefined {
+  private writeClaim(
+    actor: Actor,
+    input: JsonObject,
+  ): 'none' | 'pending' | 'uncertain' | 'complete' | 'rejected' | undefined {
     if (input?.action !== 'execute') return undefined;
     const key = input.idempotency_key ?? input.review_id;
     if (typeof key !== 'string' || !key) return undefined;
@@ -668,8 +671,8 @@ export class MirrorService {
         .prepare('SELECT state FROM idempotency WHERE tenant_id=? AND key=?')
         .get(actor.tenantId, key) as {state?: string} | undefined;
       if (!row) return 'none';
-      return ['pending', 'uncertain', 'complete'].includes(String(row.state))
-        ? (row.state as 'pending' | 'uncertain' | 'complete')
+      return ['pending', 'uncertain', 'complete', 'rejected'].includes(String(row.state))
+        ? (row.state as 'pending' | 'uncertain' | 'complete' | 'rejected')
         : undefined;
     } catch {
       return undefined;

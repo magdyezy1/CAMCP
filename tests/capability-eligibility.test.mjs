@@ -68,7 +68,8 @@ test('workflow detail resolves executable contract dependencies and an exact acc
     );
     assert.deepEqual(
       w.lifecycle.map(s => s.stage),
-      ['eligibility', 'draft', 'preflight', 'review', 'execute', 'verify', 'recover'],
+      // CMP-03 adds the separate, gated activation stage after a launch is verified.
+      ['eligibility', 'draft', 'preflight', 'review', 'execute', 'verify', 'recover', 'activate'],
     );
     assert.equal(w.accounts[0].provider_evidence.status, 'missing');
     assert.equal(w.accounts[0].next_call.arguments.connection_id, 'meta');
@@ -131,17 +132,19 @@ test('graph dependencies follow compiled recipes and lifecycle actions remain ex
     };
     for (const recipe of campaignRecipes) {
       assert.ok(recipeDependencies[recipe.id], 'Declare dependencies for ' + recipe.id);
-      const compiled = campaignRecipe(
-        recipe.id,
-        briefs[recipe.id] ?? {
-          ...briefs.meta_website_traffic,
-          pixel_id: '456',
-          click_attribution_days: '7',
-          view_attribution_days: '1',
-        },
+      const brief = briefs[recipe.id] ?? {
+        ...briefs.meta_website_traffic,
+        pixel_id: '456',
+        click_attribution_days: '7',
+        view_attribution_days: '1',
+      };
+      // CMP-04: a Google recipe compiles to one build by default and to one step per resource with atomic: false;
+      // the declared actions cover both.
+      const compiled = (recipe.platform === 'google' ? [{atomic: true}, {atomic: false}] : [{}]).flatMap(
+        variant => campaignRecipe(recipe.id, {...brief, ...variant}).steps,
       );
       assert.deepEqual(
-        [...new Set(compiled.steps.filter(s => s.kind === 'write').map(s => s.arguments.action))].sort(),
+        [...new Set(compiled.filter(s => s.kind === 'write').map(s => s.arguments.action))].sort(),
         [...recipeDependencies[recipe.id].actions].sort(),
       );
     }
