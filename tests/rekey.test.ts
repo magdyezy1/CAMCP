@@ -273,7 +273,10 @@ test('SEC-07 S3: v1 backups still verify and restore after a rotation; v2 archiv
       const verified = await verifyEncryptedBackup(archive, ring, dir);
       assert.equal(verified.status, 'verified');
       // The new key alone cannot open an archive the old key wrote.
-      await assert.rejects(verifyEncryptedBackup(archive, newKey, dir));
+      // v1 names no key, so the new key fails to decrypt it; v2 names the old key id, which the new key alone lacks.
+      await assert.rejects(verifyEncryptedBackup(archive, newKey, dir), {
+        code: archive === v1 ? 'BACKUP_DECRYPT_FAILED' : 'BACKUP_KEY_UNKNOWN',
+      });
     }
     await assert.rejects(verifyEncryptedBackup(v2, newKey, dir), {code: 'BACKUP_KEY_UNKNOWN'});
     // A restored pre-rotation copy opens with the ring, and `rekey` moves it to the new key.

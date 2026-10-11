@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {assertRefused} from './helpers/assert-refused.mjs';
 import {Registry} from '../dist/src/catalog.js';
 import {Store} from '../dist/src/store.js';
 import {MirrorService} from '../dist/src/service.js';
@@ -315,7 +316,7 @@ test('a call to the Amazon gateway is refused and nothing reaches Amazon', async
   const f = fixture(t);
   for (const input of [{action: 'LIST_ACTIONS'}, {action: 'LIST_SP_CAMPAIGNS', profile_id: '1'}]) {
     const out = await f.call('amazon_native_action', input);
-    assert.equal(out.success, false, JSON.stringify(input));
+    assertRefused(out, 'GATEWAY_NOT_OFFERED');
   }
   assert.equal(f.requests.length, 0);
 });

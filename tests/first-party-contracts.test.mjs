@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {assertRefused} from './helpers/assert-refused.mjs';
 import {Ajv} from 'ajv';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
@@ -358,7 +359,7 @@ test('amcp_write outcomes: inspect, review_required, running then complete, atte
     assert.equal(prepared.meta.workflow.next_call, undefined, 'a review never suggests its own execute');
     // Refused before anything was sent: blocked, nothing claimed.
     const unconfirmed = await f.call('amcp_write', {action: 'execute', review_id: prepared.data.review_id});
-    assert.equal(unconfirmed.success, false);
+    assertRefused(unconfirmed, 'CONFIRMATION_REQUIRED');
     assert.equal(unconfirmed.meta.workflow.state, 'blocked');
     assert.equal(unconfirmed.meta.workflow.source_state, 'not_sent');
     const executed = await f.execute(prepared);
@@ -377,7 +378,7 @@ test('amcp_write outcomes: inspect, review_required, running then complete, atte
   const failed = fixture({mode: 'error'});
   try {
     const out = await failed.execute(await failed.prepare());
-    assert.equal(out.success, false);
+    assertRefused(out, 'WRITE_PARTIAL_OR_FAILED');
     assert.equal(out.meta.workflow.state, 'attention_required');
     assert.equal(out.meta.workflow.source_state, 'failed');
     assert.equal(out.meta.workflow.next_call.tool, 'amcp_workspace');
@@ -388,7 +389,7 @@ test('amcp_write outcomes: inspect, review_required, running then complete, atte
   try {
     const prepared = await lost.prepare(),
       out = await lost.execute(prepared);
-    assert.equal(out.success, false);
+    assertRefused(out, 'WRITE_OUTCOME_UNCERTAIN');
     assert.equal(out.meta.workflow.state, 'attention_required');
     assert.equal(out.meta.workflow.source_state, 'uncertain');
     assert.equal(out.meta.workflow.automatic_retry_of_mutation, false);

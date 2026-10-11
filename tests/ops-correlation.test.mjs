@@ -84,11 +84,14 @@ test('a tool failure inside an HTTP request names its ingress ID beside the audi
       throw new Error('synthetic private failure text');
     };
     const outside = await f.service.call('amcp_tool_help', {}, owner);
+    // The synthetic crash is the case under test: it is reported as INTERNAL_ERROR, never as its private text.
     assert.equal(outside.success, false);
+    assert.equal(outside.error.code, 'INTERNAL_ERROR');
     assert.equal(currentRequestId(), undefined);
     const ingress = '00000000-0000-4000-8000-000000000001';
     const inside = await runWithRequestId(ingress, () => f.service.call('amcp_tool_help', {}, owner));
     assert.equal(inside.success, false);
+    assert.equal(inside.error.code, 'INTERNAL_ERROR');
     const lines = f.logs.filter(entry => entry.event === 'mcp_tool_failed');
     assert.equal(lines.length, 2);
     assert.equal(Object.hasOwn(lines[0], 'http_request_id'), false);

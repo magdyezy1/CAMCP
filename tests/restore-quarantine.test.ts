@@ -155,7 +155,7 @@ async function fixture() {
     live.revokeKey(key);
     endMcpGrants(live, 'client_id=?', [client.client_id], 'workspace_revoke');
     assert.equal(await s.signedIn(cookie), false);
-    assert.throws(() => live.authenticate(key));
+    assert.throws(() => live.authenticate(key), {code: 'UNAUTHORIZED'});
     return {dir, live, s, archive, tenant, cookie, client, grant, key};
   } catch (e) {
     await s.close();

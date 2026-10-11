@@ -57,7 +57,8 @@ test('one-time owner migration binds verified email to the original workspace wi
     await f.security.finishOwner(f.req(admin), {...link, password});
     const owner = f.store.db.prepare('SELECT * FROM amcp_users WHERE email=?').get('owner@example.test') as JsonObject;
     assert.equal(owner.tenant_id, admin.actor.tenantId);
-    assert.throws(() => f.store.authenticate(legacyKey), {code: 'UNAUTHORIZED'});
+    // The migrated administrator key is refused by name: the owner signs in with the owner account (401).
+    assert.throws(() => f.store.authenticate(legacyKey), {code: 'OWNER_LOGIN_REQUIRED', status: 401});
     assert.throws(() => f.store.restoreJobActor(admin.actor.tenantId, 'legacy-job', legacyJob), /migrated/);
     assert.equal(f.store.document(owner.tenant_id, 'existing-report', 'one').preserved, true);
     await assert.rejects(f.web.signIn(password, '127.0.0.1'), /owner|email/i);

@@ -5,8 +5,8 @@
       "id": "M1-google-manager-routing-ignored",
       "guards": "Google Ads requests carry the account's own manager (login-customer-id), not the login's default manager",
       "file": "src/transport.ts",
-      "find": "(plan.action !== 'AMCP_GOOGLE_DISCOVERY' && plan.accountId ? connection.accountLoginCustomers?.[plan.accountId] : undefined) ?? credentials.loginCustomerId",
-      "replace": "credentials.loginCustomerId",
+      "find": "const loginCustomerId = mapped ?? credentials.loginCustomerId;",
+      "replace": "const loginCustomerId = credentials.loginCustomerId ?? mapped;",
       "tests": ["tests/google-recommendation-dismissal.test.ts", "tests/report-delivery-discovery.test.ts"]
     },
     {

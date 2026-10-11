@@ -202,7 +202,8 @@ test('status refuses connection changes and masks OAuth code/state in audit fail
         {action: 'exchange', code: 'synthetic-auth-code', state: 'synthetic-oauth-state', dry_run: false},
       ]) {
         const out = await f.call(g, o, args);
-        assertRefused(out, ['INVALID_ARGUMENT', 'WORKFLOW_ADAPTER_REQUIRED']);
+        // exchange is listed for catalog compatibility only (MCP-10): CAPABILITY_UNAVAILABLE before any argument check.
+        assertRefused(out, args.action === 'exchange' ? 'CAPABILITY_UNAVAILABLE' : 'INVALID_ARGUMENT');
         assert.equal(JSON.stringify(out).includes('synthetic-auth-code'), false);
         assert.equal(JSON.stringify(out).includes('synthetic-oauth-state'), false);
       }
