@@ -338,7 +338,7 @@ test("the owner's own access row shows You without actions; other rows keep thei
     assert.equal(page.link.hidden, false);
     const html = page.slot.children[0].innerHTML,
       rows = Object.fromEntries(
-        [...html.matchAll(/<tr><td><strong>([^<]+)<\/strong>[\s\S]*?<\/tr>/g)].map(m => [m[1], m[0]]),
+        [...html.matchAll(/<tr><td><strong[^>]*>([^<]+)<\/strong>[\s\S]*?<\/tr>/g)].map(m => [m[1], m[0]]),
       ),
       label = text => (locale === 'ar' ? catalog[text] : text);
     assert.match(rows.Owner, new RegExp(`<span class="status online">${label('You')}</span>`));

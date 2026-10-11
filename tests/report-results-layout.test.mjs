@@ -225,10 +225,11 @@ test('RPT-05: row headers name the entity in at most 40 characters; IDs and acco
   assert.equal(headers.length, 3);
   for (const header of headers) assert.ok(Array.from(header).length <= 40, header);
   assert.equal(headers[0], Array.from(longName).slice(0, 39).join('') + '…');
-  assert.match(html, new RegExp(`<strong dir="auto" title="${longName}">`), 'the full name stays on hover');
+  // QA-03 marks the name as a literal user value (data-native).
+  assert.match(html, new RegExp(`<strong dir="auto" data-native title="${longName}">`), 'the full name stays on hover');
   assert.match(
     html,
-    /<td role="cell" class="report-row-context" data-label="Platform · objective"><span>Meta<\/span><small>Sales<\/small><small><span dir="auto">Autumn retargeting/,
+    /<td role="cell" class="report-row-context" data-label="Platform · objective"><span>Meta<\/span><small>Sales<\/small><small><span dir="auto" data-native>Autumn retargeting/,
   );
   assert.match(
     html,
@@ -243,7 +244,10 @@ test('RPT-05: row headers name the entity in at most 40 characters; IDs and acco
   short.rows = [dailyRow('2026-09-01', 10, {entity_name: 'Spring sale'})];
   const plain = browserFixture({reply: () => short});
   await plain.run("loadOverviewReport('snapshot-daily')");
-  assert.match(plain.root.innerHTML, /<th scope="row" role="rowheader"><strong dir="auto">Spring sale<\/strong><\/th>/);
+  assert.match(
+    plain.root.innerHTML,
+    /<th scope="row" role="rowheader"><strong dir="auto" data-native>Spring sale<\/strong><\/th>/,
+  );
 });
 
 test('RPT-05: daily grain has one Date column with one date; weekly grain keeps its period', async () => {

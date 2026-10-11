@@ -395,7 +395,8 @@ test('report panels and evidence controls use the theme focus colour; the fixed 
 test('names and native values the leak probe met are marked literal where rendered, and step errors are translated', () => {
   const read = file => fs.readFileSync('web/' + file, 'utf8');
   for (const [file, marked] of [
-    ['workspace.js', '<strong dir="auto" data-native>${esc(c.name)}</strong>'],
+    // CMP-05 renders campaign plan rows in campaignPlanRow.
+    ['campaign-workflows.js', '<strong dir="auto" data-native>${esc(c.name)}</strong>'],
     ['report-library.js', '<strong dir="auto" data-native>${esc(overviewLabel(r.config))}</strong>'],
     ['reporting-overview.js', '<h2 dir="auto" data-native>${esc(r.config.name)}</h2>'],
     ['reporting-overview.js', '<caption>${uiBidi(overviewLabel(r.config))}'],

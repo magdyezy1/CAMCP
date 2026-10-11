@@ -222,7 +222,7 @@ test('report rows are announced by campaign, carry their time zone and show date
   // (the earlier expectation encoded a ~110-character row header that screen readers repeated on every cell).
   assert.match(
     html,
-    /<tr role="row"><th scope="row" role="rowheader"><strong dir="auto">Spring sale<\/strong><\/th><td role="cell" class="report-row-context" data-label="Platform · objective"><span>Google Ads<\/span><small>Sales<\/small><small>c-1<br>a-1 · EUR · Europe\/Berlin<\/small>/,
+    /<tr role="row"><th scope="row" role="rowheader"><strong dir="auto" data-native>Spring sale<\/strong><\/th><td role="cell" class="report-row-context" data-label="Platform · objective"><span>Google Ads<\/span><small>Sales<\/small><small>c-1<br>a-1 · EUR · Europe\/Berlin<\/small>/,
   );
   assert.match(html, /<td role="cell" data-label="Period">1 Sept? 2026<br>7 Sept? 2026<\/td>/);
   assert.ok(!html.includes('<td>2026-09-01'), 'no raw ISO period');
