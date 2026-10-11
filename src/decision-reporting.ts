@@ -119,6 +119,8 @@ function captureTarget(store: Store, actor: Actor, input: JsonObject) {
       connection_id: input.connection_id ?? null,
       account_id: input.account_id ?? null,
     });
+  // The same actor and connection authorization as a capture of this account.
+  store.resolveConnection(actor, connection.gateway, accountId, connection.id);
   const meta = recallAccountMetadata(store, actor.tenantId, connection.id, accountId);
   return {
     gateway: connection.gateway,

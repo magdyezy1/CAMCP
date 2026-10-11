@@ -535,6 +535,32 @@ test('RPT-05: capture_presets returns one account target from stored metadata wi
       reporting.handle({action: 'capture_presets', connection_id: 'login-1', account_id: '999'}, actor),
       e => e.code === 'CONNECTION_REQUIRED',
     );
+    // Another workspace cannot read this account's stored currency and timezone.
+    await assert.rejects(
+      reporting.handle(
+        {action: 'capture_presets', connection_id: 'login-1', account_id: '123'},
+        {...actor, tenantId: 'other-workspace'},
+      ),
+      e => e.code === 'CONNECTION_REQUIRED',
+    );
+    // A disabled connection is not a capture target.
+    store.putConnection(
+      actor,
+      {
+        id: 'login-2',
+        tenantId: actor.tenantId,
+        gateway: 'google_ads_native_action',
+        accounts: ['456'],
+        enabled: false,
+        label: 'Disabled',
+        scopes: [],
+      },
+      {accessToken: 'synthetic'},
+    );
+    await assert.rejects(
+      reporting.handle({action: 'capture_presets', connection_id: 'login-2', account_id: '456'}, actor),
+      e => e.code === 'CONNECTION_REQUIRED',
+    );
     assert.equal(calls.length, 0, 'no provider read');
   } finally {
     store.close();
