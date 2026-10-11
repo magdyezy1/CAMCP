@@ -1,5 +1,5 @@
 import {Registry} from './catalog.js';
-import {withheldWriteReason} from './withheld-writes.js';
+import {withheldWriteProgramId, withheldWriteReason} from './withheld-writes.js';
 import {connectionDiagnosticKind, businessQandaRetirement} from './connection-diagnostics.js';
 import {connectionDisconnectKind} from './connection-disconnect.js';
 import {measurementConnectionSyncKind} from './measurement-connection-sync.js';
@@ -71,6 +71,8 @@ export interface ActionContract {
   live_qualification: LiveQualification;
   /** Present when the ledger has a row for this action (accepted, refused or stale); absent means unverified. */
   acceptance?: ContractAcceptance;
+  /** A blocked write that waits on a provider program names its discovery-only entry (ACC-05). */
+  program_id?: string;
 }
 const familyFiles: Record<string, [string, string[]]> = {
   google_entities: ['src/write-review.ts', ['tests/write-review.test.ts', 'tests/review-envelopes.test.ts']],
@@ -286,6 +288,9 @@ function classify(
   const withheld = readOnly === true ? undefined : withheldWriteReason(p.gateway, p.action);
   if (withheld) {
     result.reason = withheld;
+    // The discovery-only program this write waits on, when it waits on one (ACC-05).
+    const program = withheldWriteProgramId(p.gateway, p.action);
+    if (program) result.program_id = program;
     return result;
   }
   result.reason =

@@ -29,6 +29,8 @@ export interface OwnerHealthSources {
   withheldWorkbookRecords?(store: Store, actor: Actor): JsonObject;
   /** The 30-day baseline of legacy Google action names in the audit (MCP-10). */
   legacyAliasUsage?(store: Store, actor: Actor): JsonObject;
+  /** The provider access panel: declarations, stored sync and program results, acceptance counts (ACC-05). */
+  providerAccess?(store: Store, actor: Actor): JsonObject;
 }
 const writePauseId = 'workspace';
 /** Live keys of a workspace that the service, not a person, owns (owner health, SEC-06). Never the token or hash. */
@@ -170,6 +172,8 @@ export function ownerOperations(
       withheld_workbook_records: sources.withheldWorkbookRecords?.(store, actor) ?? null,
       // How often Google requests still use the legacy alias names, before the owner decides on them (MCP-10, Q23).
       google_legacy_aliases: sources.legacyAliasUsage?.(store, actor) ?? null,
+      // What each connected provider has granted, as the owner declared it, beside stored results (ACC-05).
+      provider_access: sources.providerAccess?.(store, actor) ?? null,
       // The cached startup `ffmpeg -version` probe (QA-01): media conversion needs it.
       media_processor: mediaProcessorStatus(),
       retention: store.documents(tenant, 'retention_policy')[0] ?? null,

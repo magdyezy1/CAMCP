@@ -10,6 +10,7 @@ import {mediaPlatforms, mediaPlatformNames, mediaDiscovery} from './media-routin
 import {reportPresets} from './report-presets.js';
 import {enrichCapabilities} from './capability-eligibility.js';
 import {conditionalPrograms, programDiscovery} from './conditional-programs.js';
+import {discoveryOnlyListing, discoveryOnlyPrograms} from './discovery-programs.js';
 import {bad} from './workspace-core.js';
 import {cursorBinding, decodeOffsetCursor, encodeOffsetCursor} from './page-cursor.js';
 import {callEffects, withEffects} from './workflow-outcomes.js';
@@ -152,6 +153,10 @@ export function capabilityGraph(
           ),
       }))
       .map(programDiscovery),
+    // Provider programs AMCP lists but never checks (ACC-05): no account, no next call, zero requests, never a grant.
+    discovery_only_programs: discoveryOnlyPrograms
+      .filter(p => gatewayOffered(p.gateway) && (!gateway || p.gateway === gateway))
+      .map(discoveryOnlyListing),
     // A provider this deployment does not offer is not shown (CON-06, src/provider-offering.ts).
     contracts: actionContractSummary(registry).filter(
       c => gatewayOffered(c.gateway) && (!gateway || c.gateway === gateway),
@@ -296,6 +301,8 @@ export function capabilities(
       blocked: pairs.filter(a => a.local_state === 'blocked').length,
     },
     workflows,
+    // Discovery-only programs by ID (ACC-05): view:"graph" lists their prerequisites; none is ever checked.
+    discovery_only_programs: ((graph.discovery_only_programs ?? []) as JsonObject[]).map(p => p.id),
     ...(accountCalls
       ? {}
       : {

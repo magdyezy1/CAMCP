@@ -221,6 +221,14 @@ function capabilityContractReason(value) {
   }
   return translated.join(' ');
 }
+/**
+ * Programs AMCP lists but never checks (ACC-05): what each would unlock, its prerequisites and the provider's
+ * reference. They have no account and no check, so nothing here makes a request.
+ */
+function capabilityDiscoveryOnly(programs) {
+  if (!Array.isArray(programs) || !programs.length) return '';
+  return `<section class="panel" id="capability-discovery-only"><h2>${esc(uiText('Programs that need provider approval'))}</h2><p>${esc(uiText('AMCP makes no request for these programs and cannot check them. Each waits on an approval the platform grants; the owner records it in the provider access register.'))}</p>${programs.map(p => `<details class="capability-card" data-discovery-program="${esc(p.id)}"><summary><strong>${esc(uiText(p.name))}</strong> · <bdi>${esc(capabilityPlatform(p.gateway))}</bdi></summary><p>${esc(uiText(p.description))}</p><p>${esc(uiText(p.program.access))}</p><h3>${esc(uiText('Prerequisites'))}</h3><ul>${p.prerequisites.map(x => `<li>${esc(uiText(x.text))}</li>`).join('')}</ul>${p.unlocks.length ? `<h3>${esc(uiText('Unlocks'))}</h3><ul>${p.unlocks.map(u => `<li>${esc(uiText(u))}</li>`).join('')}</ul>` : ''}${p.personal_data ? `<p class="notice">${esc(uiText(p.personal_data))}</p>` : ''}<p><a href="${esc(p.program.reference)}" target="_blank" rel="noopener noreferrer">${esc(uiText('Official program requirements'))}</a> · ${esc(uiText('Checked on'))} ${esc(p.program.checked_on)}</p></details>`).join('')}</section>`;
+}
 function capabilityProgramRequirements(w) {
   if (!w.program) return '';
   return `<section><h3>${esc(uiText('Conditional program requirements'))}</h3><p>${esc(uiText(w.program.access))}</p><p class="form-note">${esc(uiText(w.program.limitations))}</p><p><a href="${esc(w.program.reference)}" target="_blank" rel="noopener noreferrer">${esc(uiText('Official program requirements'))}</a> · ${esc(uiText('Checked on'))} ${esc(w.program.checked_on)}</p></section>`;
@@ -663,6 +671,8 @@ async function renderCapabilityCenter() {
     a => a.connection_id === params.get('connection_id') && a.account_id === params.get('account_id'),
   );
   content.innerHTML += `<p class="notice">${esc(uiText(graph.meaning))}</p><section class="panel workspace-form"><h2>${esc(uiText('Find a workflow'))}</h2><form id="capability-filter" class="work-filter"><label>${esc(uiText('Workflow'))}<select name="workflow_id"><option value="">${esc(uiText('All workflows'))}</option>${graph.workflows.map(w => `<option value="${esc(w.id)}" ${w.id === params.get('workflow_id') ? 'selected' : ''}>${esc(uiText(w.name))}</option>`).join('')}</select></label><label>${esc(uiText('Account and login'))}<select name="target"><option value="">${esc(uiText('All selected accounts'))}</option>${targets.map((a, i) => `<option value="${i}" ${i === selected ? 'selected' : ''}>${esc(a.label)} · ${esc(a.account_id)}</option>`).join('')}</select></label><label>${esc(uiText('Search workflows'))}<input name="search" type="search" maxlength="200" value="${esc((params.get('search') ?? '').slice(0, 200))}"></label><button class="button primary" type="submit">${esc(uiText('Check prerequisites'))}</button></form></section><section class="panel" id="capability-results"><p data-page-status role="status">${esc(uiText('Loading workflows…'))}</p></section><section class="panel workspace-form"><h2>${esc(uiText('Action contract reference'))}</h2><form id="contract-filter" class="work-filter"><label>${esc(uiText('Platform'))}<select name="gateway"><option value="">${esc(uiText('All platforms'))}</option>${graph.contracts.map(g => `<option value="${esc(g.gateway)}">${esc(g.gateway.replace('_native_action', ''))}</option>`).join('')}</select></label><label>${esc(uiText('Search action, route or classification'))}<input name="search" type="search" maxlength="200"></label><button type="submit" class="button">${esc(uiText('Search contracts'))}</button></form><div id="contract-results" aria-live="polite"></div></section>`;
+  // ACC-05: the programs listed for discovery only follow the workflows; they have no account and no check.
+  $('#capability-results')?.insertAdjacentHTML('afterend', capabilityDiscoveryOnly(graph.discovery_only_programs));
   const form = $('#capability-filter');
   if (params.get('workflow_id') && !graph.workflows.some(w => w.id === params.get('workflow_id')))
     form.elements.workflow_id.add(new Option(uiText('Unavailable workflow'), params.get('workflow_id'), true, true));

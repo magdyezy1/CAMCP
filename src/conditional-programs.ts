@@ -9,13 +9,17 @@ import {linkedinVersion} from './linkedin-version.js';
 import {storedLogin} from './connection-authority.js';
 import {linkedinPlanningTemplate} from './linkedin-planning-reads.js';
 import {withEffects} from './workflow-outcomes.js';
+import {discoveryOnlyProgram} from './discovery-programs.js';
 
 /** Exact existing read contracts. Product provisioning and customer access are separate prerequisites.
- * The official references were checked on 2026-10-06; discovery never treats them as an entitlement. */
+ * The official references were checked on 2026-10-06; discovery never treats them as an entitlement. Each is mode
+ * live_read: one bounded read can check it. Programs AMCP lists but never checks are discovery_only
+ * (src/discovery-programs.ts, ACC-05). */
 export const conditionalPrograms = [
   {
     id: 'program:linkedin_forecast',
     kind: 'conditional_program',
+    mode: 'live_read',
     name: 'LinkedIn Media Planning forecast',
     gateway: 'linkedin_native_action',
     objective: 'directional_forecast',
@@ -80,6 +84,7 @@ export const conditionalPrograms = [
   {
     id: 'program:linkedin_audience_insights',
     kind: 'conditional_program',
+    mode: 'live_read',
     name: 'LinkedIn Audience Insights',
     gateway: 'linkedin_native_action',
     objective: 'audience_estimate',
@@ -143,6 +148,7 @@ export const conditionalPrograms = [
   {
     id: 'program:dv360_advertiser',
     kind: 'conditional_program',
+    mode: 'live_read',
     name: 'Display & Video 360 advertiser access',
     gateway: 'dv360_native_action',
     objective: 'advertiser_access',
@@ -393,6 +399,12 @@ export async function checkConditionalProgram(
   if (input.live !== undefined && typeof input.live !== 'boolean')
     bad('Choose an explicit live read or local prerequisite inspection.');
   const program = conditionalProgram(input.workflow_id);
+  // A discovery-only program has no request AMCP could make (ACC-05): it is refused before any login is read.
+  if (!program && discoveryOnlyProgram(input.workflow_id))
+    bad(
+      'This program is listed for discovery only: AMCP makes no request for it. Capabilities lists its prerequisites.',
+      'PROGRAM_DISCOVERY_ONLY',
+    );
   if (!program) bad('Choose an exact conditional program returned by capabilities.', 'PROGRAM_NOT_FOUND');
   if (typeof input.account_id !== 'string' || typeof input.connection_id !== 'string')
     bad('Select the exact configured account and login for this program.', 'PROGRAM_ACCOUNT_REQUIRED');
