@@ -144,18 +144,19 @@ async function googleSearch(
       response = await transport.request(plan, authority(), context.auth as never, undefined, {beforeAttempt: authority});
     authority();
     budget.check();
-    const data = response.data;
+    const raw = response.data;
     if (
       response.status !== 200 ||
-      !obj(data) ||
-      Object.keys(data).some(k => !['results', 'nextPageToken', 'totalResultsCount', 'fieldMask', 'queryResourceConsumption'].includes(k)) ||
-      (data.results !== undefined && !Array.isArray(data.results))
+      !obj(raw) ||
+      Object.keys(raw).some(k => !['results', 'nextPageToken', 'totalResultsCount', 'fieldMask', 'queryResourceConsumption'].includes(k)) ||
+      (raw.results !== undefined && !Array.isArray(raw.results))
     )
       invalid('Google Ads returned a failed, partial or unrecognized measurement response.');
-    const items = (data.results ?? []) as unknown[];
+    const data = raw as JsonObject,
+      items = (data.results ?? []) as JsonObject[];
     budget.rows(resource + ':' + page, items.length);
     for (const item of items) {
-      if (!obj(item) || Object.keys(item).length !== 1 || !obj(item[resource]))
+      if (!obj(item) || Object.keys(item).length !== 1 || !obj((item as JsonObject)[resource]))
         invalid('A measurement row was incomplete or mixed with another resource.');
       rows.push(item[resource] as JsonObject);
     }
