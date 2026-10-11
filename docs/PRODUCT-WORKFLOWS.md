@@ -1377,7 +1377,8 @@ After current source comparison, choose the exact observed individual products i
 unchecked per-SKU controls open a second preview of native keys, names and exact current prices. Changed
 evidence requires comparing again. Save unapproved removal draft retains one original campaign plan without
 deleting any product. Every selected key has a separate native review, confirmation, accepted receipt and
-read-back. A feed may restore products it still contains. Products outside the explicit selection stay retained;
+read-back; the review itself checks that the product it reads still matches the selected evidence, at prepare and
+again at execute. A feed may restore products it still contains. Products outside the explicit selection stay retained;
 missing/grouped/unknown records and deleting absent-source inventory are outside this workflow.
 See [delivery](review/DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md).
 

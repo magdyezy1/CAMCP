@@ -317,13 +317,7 @@ export async function createCatalogRemoval(store: Store, call: ToolCall, actor: 
  * own native review compare its state read with the bound product at prepare and again at execute
  * (xCatalogRemovalStateCheck). No separate catalog comparison is read per phase.
  */
-export function assertCatalogRemovalStep(
-  _store: Store,
-  _call: ToolCall,
-  _actor: Actor,
-  run: JsonObject,
-  step: JsonObject,
-): XCatalogRemovalExpectation | undefined {
+export function assertCatalogRemovalStep(run: JsonObject, step: JsonObject): XCatalogRemovalExpectation | undefined {
   const b = run.catalog_removal;
   if (!b || step.status === 'executing') return undefined;
   const i = run.steps.findIndex((s: JsonObject) => s.id === step.id),

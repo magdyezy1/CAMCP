@@ -2142,9 +2142,7 @@ export class CampaignRunner {
       if (run.search_exclusions) await assertSearchExclusionStep(this.store, this.call, actor, run, next);
       if (run.gtm_consent) await assertConsentStep(this.store, this.call, actor, run, next);
       // A selected-removal step is checked by its own native review against the bound product (COM-02 C).
-      const removal = run.catalog_removal
-        ? assertCatalogRemovalStep(this.store, this.call, actor, run, next)
-        : undefined;
+      const removal = run.catalog_removal ? assertCatalogRemovalStep(run, next) : undefined;
       // A resumed or still-valid review keeps the acknowledgements it needs, so run asks for the same ones.
       if (next.status === 'executing')
         return {
@@ -2370,7 +2368,7 @@ export class CampaignRunner {
     if (run.search_exclusions) await assertSearchExclusionStep(this.store, this.call, actor, run, next);
     if (run.gtm_consent) await assertConsentStep(this.store, this.call, actor, run, next);
     const removal: XCatalogRemovalExpectation | undefined = run.catalog_removal
-        ? assertCatalogRemovalStep(this.store, this.call, actor, run, next)
+        ? assertCatalogRemovalStep(run, next)
         : undefined,
       before = {status: next.status, state: run.state};
     next.status = 'executing';
