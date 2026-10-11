@@ -478,8 +478,9 @@ The policy supports these settings, all optional:
   currency convert with the `currency` of the caps and Meta's own currency offsets, pinned from
   Meta's Currencies page on 2026-10-11 (`.mirror/VENDOR/meta-currencies.json`): 100 USD, SAR, AED or
   EGP is 10000, 100 JPY, KRW, CLP or IDR is 100, and 100 BHD is 10000 (Meta's offset, not ISO's).
-  A Meta cap without a currency, or in a currency Meta's page does not list (KWD, OMR), is refused
-  (`INVALID_POLICY`): state it in native units instead.
+  A Meta cap whose currency is neither stated nor known from a live read, or is one Meta's page
+  does not list (KWD, OMR), is refused (`INVALID_POLICY`; `details.currency` names the currency
+  looked up): state it in native units instead. The saved `native_unit` names the offset used.
 - `currency` — the ISO 4217 code the caps are stated in (`USD`, `KWD`, `JPY`), on an account
   policy or per platform under a workspace default's `per_gateway`. An account policy without one
   takes the account's currency from its last live read (`amcp_workspace check live:true`). Caps
