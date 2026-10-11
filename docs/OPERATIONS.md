@@ -186,7 +186,8 @@ set the owner write pause on every workspace that has none; pause every active r
 workspace's audit; and check the audit chain and SQLite integrity again. The receipt's `access` lists the counts.
 After switching to the copy, people sign in again, owners reissue keys and AI-client authorizations, review the
 restored state, then resume writes and schedules. `--preserve-access` is the explicit opt-out, for a benign restore
-(a disk replacement, a drill whose copy will be discarded): the copy keeps every credential it held.
+(a disk replacement, a drill whose copy will be discarded): the copy keeps every credential it held. Before starting
+a restored copy, re-apply the erasures made since the backup (`erasure-reapply`, "Account erasure and retention").
 
 ## Secret rotation
 
@@ -221,6 +222,34 @@ v2 format, whose key is derived from the master key (HKDF) and named in the arch
 key itself) are still read. `AMCP_BACKUP_FORMAT=v1` keeps writing v1 for a release that cannot read v2. Without the
 previous key configured, a rotation looks to the website like an administrator password change made from the
 environment: door sessions and the AI-client access approved from them end.
+
+## Account erasure and retention
+
+Revoking access keeps an account; erasing it (SEC-07) removes the account and its own workspace:
+
+1. `npm run admin -- erase-account <email> --dry-run` prints the plan: per-table counts and the audit records that will
+   be tombstoned, changing nothing. It reports `refused` (exit code 2) for the deployment owner's account (the
+   `AMCP_TENANT_ID` workspace) and for a workspace other active members still use: remove them or move their work
+   first.
+2. `npm run admin -- erase-account <email> --confirm` erases, irreversibly: every session, emailed link, queued e-mail
+   about the person, connector key and AI-client grant ends; the workspace's documents, saved logins, jobs, write
+   claims, media, memberships and the workspace itself are deleted; the person's memberships, invitations, monitor
+   subscriptions and keys in other workspaces go; the account, its sign-in identities and two-step secret are deleted.
+   AMCP does not contact providers: the person removes AMCP's authorization in each provider's own settings.
+3. Audit records of the erased workspace keep their place in the one hash chain with a tombstone instead of their
+   payload; `account_erased` in the deployment's audit names how many and their digest, and `admin audit-verify`
+   accepts a tombstone only with that receipt. Records of other workspaces keep the person's random user id.
+4. Run `npm run admin -- erasure-receipts` and keep its output (random ids only) with the off-host backups. After any
+   restore (an AMCP archive or a Railway volume), run `npm run admin -- erasure-reapply <receipts-file>` with
+   `MIRROR_DB` naming the restored copy, before starting it: it erases again what a receipt names and the copy still
+   holds, and appends `account_erased` with `reapplies`.
+
+The worker erases sign-ups never approved 30 days after they were made (`AMCP_PENDING_ACCOUNT_DAYS`, 1–365, or `off`),
+and, only when the owner sets `AMCP_REVOKED_ACCOUNT_DAYS` (1–3650), accounts revoked that long ago; each is receipted
+like a confirmed erasure (`reason: pending_retention` or `revoked_retention`), at most 100 of each an hour. An unknown
+value stops start-up. Erasure is application retention: older backups, Railway volume snapshots and SQLite free pages
+(zeroed by `secure_delete`) are not rewritten. Self-service deletion waits for the privacy policy review (owner
+decision P3).
 
 ### Backups that complete
 
@@ -272,7 +301,7 @@ and remove it after establishing that no restoration uses it; never sweep active
 operations or delete the original database. The command never publishes an
 unauthenticated or partly verified destination.
 
-The audit chain detects changes to retained records and SQL triggers prevent normal updates/deletes. It has no external checkpoint service and cannot detect rollback to a previously valid backup. Keep independent backup/checkpoint records for a production deployment. Owner-confirmed 7–365-day report retention is implemented for the selected finished report/job and resolved-incident records; active work, open/acknowledged incidents, audit records and write receipts are preserved. General all-record retention, external monitoring and independent checkpoints remain separate.
+The audit chain (one SHA-256 chain across all workspaces) detects changes to retained records and SQL triggers prevent updates/deletes, except an erasure's receipted tombstone ("Account erasure and retention"). It has no external checkpoint service and cannot detect rollback to a previously valid backup. Keep independent backup/checkpoint records for a production deployment. Owner-confirmed 7–365-day report retention is implemented for the selected finished report/job and resolved-incident records; active work, open/acknowledged incidents, audit records and write receipts are preserved. General all-record retention, external monitoring and independent checkpoints remain separate.
 
 Local subprocess tests verified consistent backup while the source database remained open in WAL mode, restoration of encrypted credentials and committed documents, audit verification after restore, and refusal to overwrite an existing backup. Concurrent process startup now serializes database bootstrap/migrations in a transaction. Unsupported schema versions roll back attempted schema changes and close the connection. These tests do not qualify host-level disaster recovery or a production deployment.
 
