@@ -469,7 +469,7 @@ export class MirrorService {
       if (this.registry.tools.get(tool)?.mode === 'delegated') {
         guardInput(input);
         const unavailable = unavailableRefusal(tool, input);
-        if (unavailable) throw unavailable;
+        if (unavailable) throw this.listedAlternatives(unavailable);
       }
       if (catalogListing) guardInput(input);
       else this.validated(tool, input);
@@ -575,6 +575,10 @@ export class MirrorService {
         }
         result = {...result, meta: {...result.meta, audit_recorded: false}};
       }
+      // A refused call keeps its argument findings (MCP-07): an argument the action does not read is most useful to
+      // see exactly when the call failed.
+      const warnings = this.argumentWarnings.get(requestId);
+      if (warnings) result = {...result, meta: {...result.meta, argument_warnings: warnings}};
       // An execute that did not complete says whether anything may have been sent (MCP-07): uncertain writes are
       // attention_required with a read of their history, never a retry.
       if (tool === writeTool.name && refusal instanceof MirrorError) {
@@ -686,6 +690,28 @@ export class MirrorService {
   private listed(name: unknown) {
     this.listedNames ??= new Set(this.listedTools().map(t => t.name));
     return typeof name === 'string' && this.listedNames.has(name);
+  }
+  /**
+   * An unavailable operation's refusal keeps only the alternatives this deployment can run (MCP-10): a website page, or
+   * a call whose tool is listed here and whose action or operation is in that listed tool's enum. On a read-only
+   * deployment amcp_media lists its reads only, so `amcp_media prepare` is not offered there.
+   */
+  private listedAlternatives(error: MirrorError): MirrorError {
+    const alternatives = error.details.alternatives;
+    if (!Array.isArray(alternatives)) return error;
+    const tools = new Map(this.listedTools().map(t => [t.name, t]));
+    error.details.alternatives = alternatives.filter((alternative: JsonObject) => {
+      if (typeof alternative?.tool !== 'string') return true;
+      const tool = tools.get(alternative.tool);
+      if (!tool) return false;
+      const properties = (tool.inputSchema as JsonObject)?.properties ?? {};
+      return ['action', 'operation'].every(key => {
+        const value = alternative.arguments?.[key],
+          values = properties[key]?.enum;
+        return value === undefined || !Array.isArray(values) || values.includes(value);
+      });
+    });
+    return error;
   }
   /**
    * Campaign names, ad copy, creative and media metadata, report rows and account labels are

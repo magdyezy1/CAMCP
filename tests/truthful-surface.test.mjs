@@ -12,7 +12,7 @@ import {googleAdsVersion} from '../dist/src/google-version.js';
 import {metaApiVersion} from '../dist/src/meta-version.js';
 import {rememberAccountMetadata} from '../dist/src/account-metadata.js';
 import {workspaceCapabilities} from '../dist/src/capabilities.js';
-import {legacyAliasUsage} from '../dist/src/legacy-alias-usage.js';
+import {aliasUsageCacheMs, cachedLegacyAliasUsage, legacyAliasUsage} from '../dist/src/legacy-alias-usage.js';
 import {googleLegacyCoverage} from '../dist/src/google-legacy.js';
 import {serverInstructions} from '../dist/src/tool-annotations.js';
 
@@ -276,6 +276,41 @@ test('every alternative an unavailable operation names is a listed tool, operati
       }
 });
 
+test('on a read-only deployment a refusal names only the alternatives that deployment lists and runs (regression)', async t => {
+  const f = fixture(t, {allowWrites: false}),
+    listed = new Map(f.service.listTools().map(tool => [tool.name, tool]));
+  // amcp_media lists its reads only here, so its prepare is no way to upload a finished design on this deployment.
+  assert.ok(!listed.get('amcp_media')?.inputSchema.properties.action.enum.includes('prepare'));
+  const design = await f.call('amcp_native_action', {
+    operation: 'generate_creative_design',
+    arguments: {action: enumOf('amcp_native_action', 'generate_creative_design')[0]},
+  });
+  assert.equal(design.error.code, 'WORKFLOW_UNSUPPORTED');
+  assert.equal(
+    design.error.details.alternatives.some(a => a.tool === 'amcp_media' && a.arguments.action === 'prepare'),
+    false,
+  );
+  for (const [gateway, operations] of Object.entries(unavailableOperations)) {
+    if (!listed.has(gateway)) continue;
+    for (const operation of Object.keys(operations)) {
+      const out = await f.call(gateway, {
+        operation,
+        arguments: {action: operations[operation].actions?.[0] ?? enumOf(gateway, operation)[0]},
+      });
+      for (const alternative of out.error.details.alternatives) {
+        if ('website_path' in alternative) continue;
+        const tool = listed.get(alternative.tool),
+          where = gateway + ' ' + operation + ' -> ' + JSON.stringify(alternative);
+        assert.ok(tool, where);
+        const action = alternative.arguments.action;
+        if (action !== undefined && tool.inputSchema.properties.action?.enum)
+          assert.ok(tool.inputSchema.properties.action.enum.includes(action), where);
+      }
+    }
+  }
+  assert.equal(f.requests.length, 0);
+});
+
 test('a call to the Amazon gateway is refused and nothing reaches Amazon', async t => {
   const f = fixture(t);
   for (const input of [{action: 'LIST_ACTIONS'}, {action: 'LIST_SP_CAMPAIGNS', profile_id: '1'}]) {
@@ -485,4 +520,16 @@ test('the owner’s health carries the legacy alias baseline, counted from the a
   assert.equal(health.data.google_legacy_aliases.complete, true);
   assert.deepEqual(health.data.google_legacy_aliases.top_legacy_actions, [{action: legacy, count: 1}]);
   assert.equal(requests.length, 0);
+  // The baseline is a 30-day figure scanning up to 50,000 audit rows: health reuses it for an hour per workspace.
+  const again = await service.call(
+    'google_ads_native_action',
+    {action: legacy, customer_id: '1234567890', dry_run: true},
+    actor,
+  );
+  assert.equal(again.success, true);
+  const cached = (await service.call('amcp_workspace', {action: 'health'}, actor)).data.google_legacy_aliases;
+  assert.equal(cached.legacy_requests, 1, 'within the hour the computed baseline is reused');
+  assert.equal(cached.computed_at, health.data.google_legacy_aliases.computed_at);
+  const later = Date.parse(cached.computed_at) + aliasUsageCacheMs;
+  assert.equal(cachedLegacyAliasUsage(store, actor, later).legacy_requests, 2, 'after an hour it is computed again');
 });

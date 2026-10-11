@@ -40,7 +40,24 @@ export function legacyAliasUsage(store: Store, actor: Actor, now = Date.now(), d
       .map(([action, count]) => ({action, count})),
     legacy_alias_names: legacyNames.size,
     complete: rows.length <= aliasScanLimit,
+    computed_at: new Date(now).toISOString(),
     meaning:
       'Google Ads requests planned in this window, and how many used a legacy alias name instead of a canonical action. A baseline for deciding whether to hide the aliases from default listings; nothing is hidden yet.',
   };
+}
+/** How long owner health reuses a workspace's baseline: it is a 30-day figure, and each scan reads up to 50,000 rows. */
+export const aliasUsageCacheMs = 3600000;
+const aliasUsageCache = new WeakMap<Store, Map<string, {at: number; value: JsonObject}>>();
+/**
+ * The baseline as owner health shows it: computed at most once an hour per workspace in this process (computed_at says
+ * when), so a busy workspace's health view does not rescan its audit on every load (wave 2 review).
+ */
+export function cachedLegacyAliasUsage(store: Store, actor: Actor, now = Date.now()): JsonObject {
+  let byTenant = aliasUsageCache.get(store);
+  if (!byTenant) aliasUsageCache.set(store, (byTenant = new Map()));
+  const hit = byTenant.get(actor.tenantId);
+  if (hit && now >= hit.at && now - hit.at < aliasUsageCacheMs) return structuredClone(hit.value);
+  const value = legacyAliasUsage(store, actor, now);
+  byTenant.set(actor.tenantId, {at: now, value});
+  return structuredClone(value);
 }

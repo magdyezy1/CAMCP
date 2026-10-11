@@ -153,7 +153,9 @@ const negativeFixtures = [
     ['amcp_workspace', 'check', 'max_pages'],
   ].map(([tool, action, field]) => ({file: 'tests/first-party-contracts.test.mjs', tool, action, field})),
 ];
-test('every literal call of the AMCP tools in the tests, the website and the guides fits its action contract', () => {
+// The scan reads argument names only (tools/first-party-fixtures.mjs does not evaluate values); values are checked when
+// a call runs, by the action itself and by the report-mode ARGUMENT_VALUE_INVALID findings.
+test('every literal call of the AMCP tools in the tests, the website and the guides names only arguments of its action contract (names, not values)', () => {
   const f = fixture();
   try {
     const tools = new Map(f.service.firstPartyTools().map(t => [t.name, t])),
@@ -204,6 +206,16 @@ test('an argument of another action draws a report-only warning; it was accepted
     assert.equal(inspect.meta.argument_warnings?.[0]?.field, 'review_id');
     const media = await f.call('amcp_media', {action: 'list', asset_id: 'x'});
     assert.equal(media.meta.argument_warnings?.[0]?.field, 'asset_id');
+    // A call the action refuses keeps the warning too (regression: only successful calls carried it).
+    const refused = await f.call('amcp_workspace', {
+      action: 'check',
+      connection_id: 'no-such-login',
+      account_id: '123',
+      max_pages: 2,
+    });
+    assert.equal(refused.success, false);
+    assert.equal(refused.meta.argument_warnings?.[0]?.field, 'max_pages');
+    assert.equal(refused.meta.argument_warnings[0].code, 'ARGUMENT_NOT_USED_BY_ACTION');
     assert.equal(f.calls.length, 0);
   } finally {
     f.close();

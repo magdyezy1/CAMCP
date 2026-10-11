@@ -35,7 +35,11 @@ export function toolOutputSchema(tool: string): JsonObject {
     properties: {
       success: {type: 'boolean'},
       data: {},
-      error: {type: 'object', required: ['code', 'message']},
+      error: {
+        type: 'object',
+        properties: {code: {type: 'string'}, message: {type: 'string'}, details: {type: 'object'}},
+        required: ['code', 'message'],
+      },
       meta: workflowTools.includes(tool) ? {type: 'object', properties: {workflow: outcomeSchema}} : {type: 'object'},
     },
     required: ['success'],

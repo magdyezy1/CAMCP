@@ -81,18 +81,26 @@ export const writeTool = {
         type: 'string',
       },
       confirmed: {type: 'boolean'},
-      spend_change_confirmed: {type: 'boolean'},
+      // The flags below record a person's explicit approval; tools/list keeps one line on each (wave 2 review).
+      spend_change_confirmed: {
+        type: 'boolean',
+        description: 'The user approved this spend change as shown; only when execute_requirements lists it.',
+      },
       cap_override_confirmed: {
         type: 'boolean',
+        description: 'The user approved going beyond an owner spending cap; only when execute_requirements lists it.',
       },
       creative_edit_confirmed: {
         type: 'boolean',
+        description:
+          'The user accepted that this X card or Tweet change may disrupt promoted ads; prepare and execute.',
       },
       people: {
         type: 'object',
       },
       personal_data: {
         type: 'object',
+        description: 'prepare only, adding people: the uploader confirms countries, law, consent and platform terms.',
       },
       provider_check: {
         type: 'boolean',
