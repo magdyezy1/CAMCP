@@ -42,8 +42,12 @@ const app = createHttpApp(service, store, {
       enabled: config.mcpClientMetadata.enabled,
       hosts: config.mcpClientMetadata.hosts && [...config.mcpClientMetadata.hosts],
     },
+    // Per-address and per-deployment registration limits (MCP-03 phase 2).
+    mcpRegistrationLimits: {...config.mcpRegistrationLimits},
   },
   mcpAllowedOrigins: config.mcpAllowedOrigins && [...config.mcpAllowedOrigins],
+  // Where MCP 2026-07-28 is served besides the legacy revisions (MCP-03 phase 3); off unless the owner sets it.
+  mcpModernProtocol: config.mcpModernProtocol,
   // AMCP_MCP_BATCH_MAX and the per-actor rate limits (SEC-02); an invalid value stops start-up.
   mcpLimits,
   log: entry => (entry.level === 'error' ? process.stderr : process.stdout).write(JSON.stringify(entry) + '\n'),

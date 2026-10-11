@@ -17,7 +17,16 @@ import {redirectUriMatches} from '@modelcontextprotocol/sdk/server/auth/handlers
 import {WebStore, type WebSession} from './web-store.js';
 import {endMcpGrants, familyEndReason, type GrantEndReason} from './mcp-grants.js';
 import {ClientMetadataDocuments, acceptableRedirectUri, isClientMetadataUrl} from './client-metadata.js';
-import {mcpClientLimit, releaseStaleMcpClients} from '../src/mcp-clients.js';
+import {
+  mcpClientLimit,
+  mcpRecentRegistrations,
+  mcpRegistrationAlarms,
+  mcpRegistrationLimits,
+  mcpRegistrationWindowMs,
+  registerMcpRegistrationLimits,
+  releaseStaleMcpClients,
+  type McpRegistrationLimits,
+} from '../src/mcp-clients.js';
 import {sha256, safeEqual} from '../src/security.js';
 import {MirrorError} from '../src/errors.js';
 import type {Store} from '../src/store.js';
@@ -90,6 +99,17 @@ export interface McpOAuthOptions {
 }
 /** The scope a client gets when it names none: read and reviewed write on a write-enabled deployment, else read. */
 export const defaultClientScope = (allowWrites: boolean) => (allowWrites ? readScope + ' ' + writeScope : readScope);
+/** A registration admitted under the limits; settle it once with whether the client was registered. */
+export interface RegistrationTicket {
+  settle(registered: boolean): void;
+}
+/** A registration refused by a limit: the seconds until it reopens, and whose limit it was. */
+export interface RegistrationRefusal {
+  wait: number;
+  scope: 'address' | 'deployment';
+}
+/** One alarm line per kind per hour at most, so a flood of registrations cannot become a flood of log lines. */
+const alarmIntervalMs = 3600000;
 /** AMCP credentials carry only explicitly consented access. Platform tokens stay on the server. */
 export class McpOAuth implements OAuthServerProvider {
   readonly resource: URL;
@@ -100,6 +120,13 @@ export class McpOAuth implements OAuthServerProvider {
   readonly issuer: string;
   /** Client ID Metadata Documents (MCP-03): an HTTPS client_id is fetched under SSRF guards instead of registered. */
   readonly metadataDocuments?: ClientMetadataDocuments;
+  /** New registrations per client address and per deployment in 24 hours (MCP-03 phase 2). */
+  readonly registrationLimits: McpRegistrationLimits;
+  /** Receives the registration alarm and limit lines (no address, no client data); the HTTP app sets its log. */
+  onRegistrationAlarm?: (entry: JsonObject) => void;
+  /** Registrations admitted on this instance whose response has not been sent yet, counted against the daily limit. */
+  private pendingRegistrations = 0;
+  private readonly alarmedAt = new Map<string, number>();
   constructor(
     readonly web: WebStore,
     readonly allowWrites = false,
@@ -114,6 +141,88 @@ export class McpOAuth implements OAuthServerProvider {
     const metadata = web.options.mcpClientMetadata;
     if (metadata?.enabled !== false)
       this.metadataDocuments = new ClientMetadataDocuments(defaultClientScope(allowWrites), metadata ?? {});
+    this.registrationLimits = mcpRegistrationLimits(web.options.mcpRegistrationLimits);
+    registerMcpRegistrationLimits(web.store, this.registrationLimits);
+  }
+  /** Writes one alarm line of a kind at most once an hour. */
+  private alarm(kind: string, entry: JsonObject) {
+    const now = Date.now(),
+      last = this.alarmedAt.get(kind);
+    if (!this.onRegistrationAlarm || (last !== undefined && now - last < alarmIntervalMs)) return;
+    this.alarmedAt.set(kind, now);
+    try {
+      this.onRegistrationAlarm({...entry, at: new Date(now).toISOString()});
+    } catch {}
+  }
+  /**
+   * Admits one dynamic client registration from a client address (MCP-03 phase 2, with the SEC-01 address), or says
+   * which limit refuses it: `perAddressDaily` successful registrations per address and `daily` per deployment within
+   * 24 hours. The address's count is taken before the client is registered and given back if registration fails, and
+   * registrations still in flight on this instance count against the daily limit, so requests sent together cannot
+   * pass a limit together. Replaces the old global refusal at 1,000 registered clients, which one caller could fill
+   * for everyone.
+   */
+  admitRegistration(address: string): RegistrationTicket | RegistrationRefusal {
+    const db = this.web.store.db,
+      now = Date.now(),
+      limits = this.registrationLimits,
+      key = sha256('mcp-register:' + address);
+    const admitted = this.web.store.transaction((): RegistrationRefusal | undefined => {
+      db.prepare('DELETE FROM amcp_login_limits WHERE until_at<=?').run(now);
+      const row = db.prepare('SELECT attempts,until_at FROM amcp_login_limits WHERE key=?').get(key) as
+        {attempts: number; until_at: number} | undefined;
+      if (row && row.attempts >= limits.perAddressDaily)
+        return {wait: Math.max(1, Math.ceil((row.until_at - now) / 1000)), scope: 'address'};
+      const recent = mcpRecentRegistrations(this.web.store, now);
+      if (recent.count + this.pendingRegistrations >= limits.daily)
+        return {
+          wait:
+            recent.count >= limits.daily && recent.oldestAt !== undefined
+              ? Math.max(1, Math.ceil((recent.oldestAt + mcpRegistrationWindowMs - now) / 1000))
+              : 1,
+          scope: 'deployment',
+        };
+      db.prepare('INSERT INTO amcp_login_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET attempts=attempts+1').run(
+        key,
+        now + mcpRegistrationWindowMs,
+      );
+      return undefined;
+    });
+    if (admitted) {
+      this.alarm('mcp_registration_limited:' + admitted.scope, {
+        level: 'warn',
+        event: 'mcp_registration_limited',
+        scope: admitted.scope,
+        limit: admitted.scope === 'address' ? limits.perAddressDaily : limits.daily,
+        retry_after_seconds: admitted.wait,
+      });
+      return admitted;
+    }
+    this.pendingRegistrations++;
+    let settled = false;
+    return {
+      settle: registered => {
+        if (settled) return;
+        settled = true;
+        this.pendingRegistrations--;
+        if (!registered) {
+          db.prepare('UPDATE amcp_login_limits SET attempts=attempts-1 WHERE key=? AND attempts>0').run(key);
+          return;
+        }
+        const registeredCount = (db.prepare('SELECT count(*) AS n FROM amcp_mcp_clients').get() as {n: number}).n,
+          recent = mcpRecentRegistrations(this.web.store).count;
+        for (const reason of mcpRegistrationAlarms(registeredCount, recent, limits))
+          this.alarm('mcp_registration_alarm:' + reason, {
+            level: 'warn',
+            event: 'mcp_registration_alarm',
+            reason,
+            registered: registeredCount,
+            registered_limit: mcpClientLimit,
+            registered_last_24h: recent,
+            daily_limit: limits.daily,
+          });
+      },
+    };
   }
   /** A client's scope from its metadata document, kept to what this deployment offers; read is required. */
   private documentScope(scope: string | undefined): string {
@@ -161,15 +270,24 @@ export class McpOAuth implements OAuthServerProvider {
               : [readScope]
             : input.scope.split(' '),
         );
-        // Registration is anonymous and the cap is deployment wide, so every registration first releases the clients
+        // Registration is anonymous and the table is deployment wide, so every registration first releases the clients
         // nothing live is left for (MCP-03): before, any grant row kept a client, and pruning keeps each client's newest
-        // refresh row, so the cap filled for good.
+        // refresh row, so the cap filled for good. How fast registrations arrive is limited per address and per
+        // deployment before this point (admitRegistration); the count below is only a storage backstop.
         releaseStaleMcpClients(this.web.store);
         const count = this.web.store.db.prepare('SELECT count(*) AS n FROM amcp_mcp_clients').get() as {n: number};
-        if (count.n >= mcpClientLimit)
+        if (count.n >= mcpClientLimit) {
+          this.alarm('mcp_registration_alarm:registered_clients_full', {
+            level: 'error',
+            event: 'mcp_registration_alarm',
+            reason: 'registered_clients_full',
+            registered: count.n,
+            registered_limit: mcpClientLimit,
+          });
           throw new InvalidClientMetadataError(
             'Client registration limit reached. Contact the workspace administrator.',
           );
+        }
         const client: OAuthClientInformationFull = {
           client_id: randomUUID(),
           client_id_issued_at: Math.floor(Date.now() / 1000),
