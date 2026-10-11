@@ -160,6 +160,7 @@ for (const locale of ['en', 'ar']) {
     await f.run('renderMeasurement()');
     const html = f.node('content').innerHTML,
       notices = [
+        'Connect Google Ads or a GA4 property in Connections to read its measurement evidence ledger.',
         'Connect Google Tag Manager and select an account in Connections to audit its configuration.',
         'Connect a GA4 property in Connections to read recent events.',
         'Connect a GA4 property in Connections to inspect a test identifier.',
@@ -168,7 +169,8 @@ for (const locale of ['en', 'ar']) {
         'Connect Google Ads and select a customer account in Connections to inspect conversion goals.',
         'Connect a GA4 property in Connections to inspect a trace for it.',
       ];
-    // One notice, Connections link and disabled read per task section (MSR-03 added the GA4 configuration task).
+    // One notice, Connections link and disabled read per task section (MSR-03 added the GA4 configuration and
+    // evidence ledger tasks).
     assert.equal((html.match(/class="notice measurement-empty"/g) ?? []).length, notices.length);
     assert.equal((html.match(/<a href="\/connections">/g) ?? []).length, notices.length);
     assert.equal((html.match(/<button[^>]*type="submit"[^>]*\sdisabled>/g) ?? []).length, notices.length);
