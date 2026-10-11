@@ -636,6 +636,14 @@ digest the last build resolved (`base_image.digest`), which is the value to pin 
   pages keep their earlier baseline); inspect `git diff` before committing it. TikTok, Amazon and Adjust are manual
   checks (the TikTok portal blocks automated reads): update `last_checked` in `tools/provider-lifecycle.ts` after
   reading.
+- **Meta currency offsets.** Meta caps stated in account currency convert through
+  `.mirror/VENDOR/meta-currencies.json`, captured on 2026-10-11 from Meta's Marketing API Currencies page
+  (`https://developers.facebook.com/docs/marketing-api/currencies`, 66 currencies). Its `sha256` seals the rows
+  (`JSON.stringify(currencies)`); the server ignores the whole capture when the digest, the Meta source, the date or
+  any row fails, and Meta caps then stay native (owner health: `meta_currency_offsets: not_pinned`). The page is on
+  the documentation watch: when it reports `changed_requires_review`, read the page, update the rows, `captured_at`
+  and `sha256` together, and commit them with the watch baseline. Saved account policies keep the offset that
+  converted them in `native_unit`.
 
 ## Accounts, reporting and operating controls
 

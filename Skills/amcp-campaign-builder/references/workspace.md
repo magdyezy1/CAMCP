@@ -473,11 +473,13 @@ The policy supports these settings, all optional:
 - Caps in account currency: `max_budget_currency`, `max_daily_increase_currency`,
   `max_bid_currency` and `max_total_budget_currency` are converted to native units where AMCP
   documents the platform's unit (Google Ads, DV360, Reddit, Snapchat and X in micros; Microsoft,
-  LinkedIn and Apple in currency units). The saved policy keeps both and names the unit in `native_unit`. Meta, TikTok and Criteo
-  caps are stated in native units, because their unit is not documented in AMCP. Meta caps in
-  currency convert only with a `currency` and a pinned capture of Meta's currency offsets
-  (`.mirror/VENDOR/meta-currencies.json`; 100 USD is 10000, 100 JPY is 100); without it they stay
-  native.
+  LinkedIn and Apple in currency units). The saved policy keeps both and names the unit in `native_unit`. TikTok and
+  Criteo caps are stated in native units, because their unit is not documented in AMCP. Meta caps in
+  currency convert with the `currency` of the caps and Meta's own currency offsets, pinned from
+  Meta's Currencies page on 2026-10-11 (`.mirror/VENDOR/meta-currencies.json`): 100 USD, SAR, AED or
+  EGP is 10000, 100 JPY, KRW, CLP or IDR is 100, and 100 BHD is 10000 (Meta's offset, not ISO's).
+  A Meta cap without a currency, or in a currency Meta's page does not list (KWD, OMR), is refused
+  (`INVALID_POLICY`): state it in native units instead.
 - `currency` — the ISO 4217 code the caps are stated in (`USD`, `KWD`, `JPY`), on an account
   policy or per platform under a workspace default's `per_gateway`. An account policy without one
   takes the account's currency from its last live read (`amcp_workspace check live:true`). Caps
