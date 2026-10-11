@@ -150,6 +150,14 @@ const reportExplanationMessages = new Set([
   'Recommendations in this snapshot have expired. Refresh the report before acting on them.',
   'The baseline window is not declared complete; comparisons with it (spend anomaly, creative fatigue) may reflect missing baseline data.',
   'The paired previous-period baseline could not be used, so no baseline was applied.',
+  // DEC-02: allocation factor provenance and indicators.
+  'The efficiency factors were entered directly, without a retained calibration; they are assumptions with no historical provenance.',
+  'The efficiency factors come from a one-day, spend-conditioned calibration of this report. The allocation applies them to a multi-day period at new spend levels, which that calibration did not test.',
+  'At least one proposed daily average lies outside the daily spend observed in the evidence, so the linear model is extrapolating there.',
+  'Name the calibration the efficiency factors came from, or omit factor_source.',
+  'The named calibration does not match this report’s current evidence. Calibrate again before using its factors.',
+  'The efficiency factors differ from the named calibration. Use its factors unchanged, or omit factor_source.',
+  'Every allocated entity must be one the named calibration evaluated.',
 ]);
 /** DEC-01: frozen recommendations show their as-of time, and are flagged expired at display time after 48 hours. */
 function reportRecommendationAsOf(row) {

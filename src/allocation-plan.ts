@@ -26,6 +26,24 @@ export function roundedDaily(totalMicros: bigint, days: number, unit: bigint): b
   const daily = totalMicros / BigInt(days);
   return (daily / unit) * unit;
 }
+/** DEC-02: below this share of its current daily budget over the evidence days, an entity is marked as under-spending. */
+export const lowBudgetUtilization = 0.8;
+/**
+ * DEC-02 budget utilization: observed spend over the evidence days ÷ (current daily budget × days), six places,
+ * truncated. Descriptive only: the budget in force during the evidence window may have differed from today's.
+ */
+export function budgetUtilization(observedSpend: string, dailyMicros: bigint, days: number) {
+  const [whole, fraction = ''] = observedSpend.split('.'),
+    spendNano = BigInt(whole!) * 1000000000n + BigInt(fraction.padEnd(9, '0').slice(0, 9)),
+    capacityNano = dailyMicros * 1000n * BigInt(days);
+  if (capacityNano <= 0n) return {budget_utilization: null, low_budget_utilization: null};
+  const ppm = (spendNano * 1000000n) / capacityNano,
+    tail = (ppm % 1000000n).toString().padStart(6, '0').replace(/0+$/, '');
+  return {
+    budget_utilization: String(ppm / 1000000n) + (tail ? '.' + tail : ''),
+    low_budget_utilization: ppm < BigInt(lowBudgetUtilization * 1000000),
+  };
+}
 
 async function budgets(
   store: Store,
@@ -57,6 +75,10 @@ function draft(binding: JsonObject, previewId: string) {
       binding.report_id +
       '; model ' +
       binding.model_fingerprint +
+      // DEC-02: where the efficiency factors came from.
+      (binding.options?.factor_source?.kind === 'calibration'
+        ? '; efficiency factors from retained calibration ' + binding.options.factor_source.evidence_fingerprint
+        : '; efficiency factors declared by the operator') +
       '. Equal daily conversion over a comparable ' +
       binding.period_days +
       (snap || linkedin
@@ -266,6 +288,7 @@ export async function previewAllocationPlan(
       represented_period_budget: decimal(daily * BigInt(modeled.period.days)),
       rounding_residual: decimal(total - daily * BigInt(modeled.period.days)),
       minimum_unit_micros: String(unit),
+      ...budgetUtilization(r.observed_spend, BigInt(n.amount_micros), modeled.period.days),
     };
   });
   const binding = {

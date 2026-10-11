@@ -261,3 +261,67 @@ test('explicitly using historical factors invalidates the previous model and its
   assert.equal(calls, 2, 'The old native preview is fenced by the changed model sequence');
   assert.match(f.node('#allocation-calibration-result').innerHTML, /0.75/);
 });
+
+test('DEC-02: a model built on applied historical factors names their calibration; edited factors do not', async () => {
+  let calls = 0;
+  const historical = {
+    account_id: '100',
+    currency: 'USD',
+    semantics: {timezone: 'UTC'},
+    training_days: 7,
+    central_share_percent: 80,
+    period: {test_date_from: '2026-09-27', date_to: '2026-10-03'},
+    entities: [],
+    limitations: [],
+    evidence_fingerprint: 'e'.repeat(64),
+    factor_envelope: {efficiency_low: '0.75', efficiency_high: '1.25', applicable: true},
+  };
+  const modeled = provenance => ({
+    ...result(),
+    assumptions: {factor_provenance: provenance},
+    allocation_indicators: [
+      {
+        entity_id: '10',
+        observed_daily_spend_min: '40',
+        observed_daily_spend_max: '60',
+        proposed_daily_average: '62.5',
+        position: 'above',
+        outside_observed_range: true,
+      },
+    ],
+  });
+  const f = fixture(async args =>
+    ++calls === 1
+      ? historical
+      : modeled(
+          f.input().options.factor_source
+            ? {kind: 'calibration', period: {test_date_from: '2026-09-27', date_to: '2026-10-03'}}
+            : {kind: 'declared'},
+        ),
+  );
+  f.node('#calibration-training-days').value = '7';
+  f.node('#calibration-minimum-conversions').value = '10';
+  f.node('#calibration-central-share').value = '80';
+  await f.bindings.get('#allocation-calibrate')();
+  await f.bindings.get('#allocation-use-calibration')();
+  await f.submit();
+  assert.deepEqual(JSON.parse(JSON.stringify(f.input().options.factor_source)), {
+    kind: 'calibration',
+    evidence_fingerprint: 'e'.repeat(64),
+    ids: ['10', '20'],
+    options: {training_days: 7, minimum_training_conversions: 10, central_share_percent: 80, maximum_age_days: 7},
+  });
+  const html = f.node('#allocation-result').innerHTML;
+  assert.match(html, /Efficiency factors: from the historical calibration of this report \(2026-09-27 — 2026-10-03\)/);
+  assert.match(html, /40–60 a day<small>Proposed 62\.5 a day<\/small>/);
+  assert.match(html, /Above the observed daily range: the model extrapolates here\./);
+  // Editing a factor after applying it drops the provenance: the next model is declared.
+  f.node('#allocation-model').elements.efficiency_high.value = '1.3';
+  f.events.get('#allocation-model:input')();
+  await f.submit();
+  assert.equal(f.input().options.factor_source, undefined);
+  assert.match(
+    f.node('#allocation-result').innerHTML,
+    /Efficiency factors: entered by you, without historical provenance\./,
+  );
+});

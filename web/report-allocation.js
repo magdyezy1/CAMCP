@@ -139,7 +139,8 @@ function mountAllocationModel(report) {
           ? uiText('Select at least two ad squads and enter their floors and caps.')
           : uiText('Select at least two campaigns and enter their floors and caps.'),
       );
-    const request = ++sequence;
+    const request = ++sequence,
+      factorSource = calibration.source();
     const options = {
       budget: form.elements.budget.value.trim(),
       allocations: [...selected.values()].map(row => ({
@@ -153,6 +154,7 @@ function mountAllocationModel(report) {
           Number(form.elements[key].value),
         ]),
       ),
+      ...(factorSource ? {factor_source: factorSource} : {}),
     };
     let out;
     try {
@@ -167,7 +169,7 @@ function mountAllocationModel(report) {
     }
     if (!current() || request !== sequence) return;
     const n = value => esc(uiNumber(value, {maximumFractionDigits: 2}));
-    result.innerHTML = `<h3>${esc(uiText('Proposed period allocation'))}</h3><p><strong>${esc(out.total_budget)} ${esc(out.currency)}</strong> ${esc(uiText(squad ? 'across {count} ad squads for a comparable {days}-day period.' : 'across {count} campaigns for a comparable {days}-day period.', {count: uiNumber(out.allocations.length), days: uiNumber(out.period.days)}))}</p><p>${esc(uiText('Modeled conversions under your assumptions: {low}–{high}. The model assigns remaining budget to higher observed efficiency within your caps.', {low: n(out.modeled_conversions_low), high: n(out.modeled_conversions_high)}))}</p><div class="data-scroll" role="region" aria-label="${esc(uiText(squad ? 'Proposed ad-squad allocation, scroll for all columns' : 'Proposed campaign allocation, scroll for all columns'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Budget floors, caps and modeled outcomes'))}</caption><thead><tr><th scope="col">${esc(uiText(squad ? 'Ad squad' : 'Campaign'))}</th><th scope="col">${esc(uiText('Observed spend'))}</th><th scope="col">${esc(uiText('Floor / cap'))}</th><th scope="col">${esc(uiText('Proposed budget'))}</th><th scope="col">${esc(uiText('Modeled conversions'))}</th></tr></thead><tbody>${out.allocations.map(row => `<tr><th scope="row">${esc(row.name)}<small>${esc(row.entity_id)}</small></th><td>${esc(row.observed_spend)}</td><td>${esc(row.minimum)} / ${esc(row.maximum)}</td><td>${esc(row.proposed_budget)} ${esc(out.currency)}${row.binding_constraints.length ? `<small>${esc(uiText('At {constraints}', {constraints: row.binding_constraints.map(x => (x === 'cap' ? uiText('cap') : x === 'floor' ? uiText('floor') : x)).join(uiText(' and '))}))}</small>` : ''}</td><td>${n(row.modeled_conversions_low)}–${n(row.modeled_conversions_high)}</td></tr>`).join('')}</tbody></table></div><ul>${out.limitations.map(value => `<li>${esc(uiReportExplanation(value))}</li>`).join('')}</ul><button id="allocation-download" class="button" type="button">${esc(uiText('Download proposal and evidence'))}</button>${recordDetails(out, uiText('Exact assumptions and retained evidence'))}`;
+    result.innerHTML = `<h3>${esc(uiText('Proposed period allocation'))}</h3><p><strong>${esc(out.total_budget)} ${esc(out.currency)}</strong> ${esc(uiText(squad ? 'across {count} ad squads for a comparable {days}-day period.' : 'across {count} campaigns for a comparable {days}-day period.', {count: uiNumber(out.allocations.length), days: uiNumber(out.period.days)}))}</p><p>${esc(uiText('Modeled conversions under your assumptions: {low}–{high}. The model assigns remaining budget to higher observed efficiency within your caps.', {low: n(out.modeled_conversions_low), high: n(out.modeled_conversions_high)}))}</p><div class="data-scroll" role="region" aria-label="${esc(uiText(squad ? 'Proposed ad-squad allocation, scroll for all columns' : 'Proposed campaign allocation, scroll for all columns'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Budget floors, caps and modeled outcomes'))}</caption><thead><tr><th scope="col">${esc(uiText(squad ? 'Ad squad' : 'Campaign'))}</th><th scope="col">${esc(uiText('Observed spend'))}</th><th scope="col">${esc(uiText('Observed daily spend'))}</th><th scope="col">${esc(uiText('Floor / cap'))}</th><th scope="col">${esc(uiText('Proposed budget'))}</th><th scope="col">${esc(uiText('Modeled conversions'))}</th></tr></thead><tbody>${out.allocations.map(row => `<tr><th scope="row">${esc(row.name)}<small>${esc(row.entity_id)}</small></th><td>${esc(row.observed_spend)}</td>${allocationIndicatorCell((out.allocation_indicators ?? []).find(i => i.entity_id === row.entity_id))}<td>${esc(row.minimum)} / ${esc(row.maximum)}</td><td>${esc(row.proposed_budget)} ${esc(out.currency)}${row.binding_constraints.length ? `<small>${esc(uiText('At {constraints}', {constraints: row.binding_constraints.map(x => (x === 'cap' ? uiText('cap') : x === 'floor' ? uiText('floor') : x)).join(uiText(' and '))}))}</small>` : ''}</td><td>${n(row.modeled_conversions_low)}–${n(row.modeled_conversions_high)}</td></tr>`).join('')}</tbody></table></div>${allocationProvenanceNote(out.assumptions?.factor_provenance)}<ul>${out.limitations.map(value => `<li>${esc(uiReportExplanation(value))}</li>`).join('')}</ul><button id="allocation-download" class="button" type="button">${esc(uiText('Download proposal and evidence'))}</button>${recordDetails(out, uiText('Exact assumptions and retained evidence'))}`;
     modeled = true;
     if (
       ['google_campaign', 'linkedin_campaign', 'snapchat_adsquad'].includes(report.preset) &&
@@ -192,6 +194,17 @@ function mountAllocationModel(report) {
   });
 }
 
+/** DEC-02: where the efficiency factors came from, in the reader's language. */
+function allocationProvenanceNote(provenance) {
+  return provenance?.kind === 'calibration'
+    ? `<p class="form-note">${esc(uiText('Efficiency factors: from the historical calibration of this report ({period}).', {period: (provenance.period?.test_date_from ?? '') + ' — ' + (provenance.period?.date_to ?? '')}))}</p>`
+    : `<p class="form-note">${esc(uiText('Efficiency factors: entered by you, without historical provenance.'))}</p>`;
+}
+/** DEC-02: the observed daily spend range beside a proposal, and whether the proposal leaves it. */
+function allocationIndicatorCell(indicator) {
+  if (!indicator || indicator.observed_daily_spend_min === null) return `<td>${esc(uiText('Unknown'))}</td>`;
+  return `<td>${esc(uiText('{min}–{max} a day', {min: indicator.observed_daily_spend_min, max: indicator.observed_daily_spend_max}))}<small>${esc(uiText('Proposed {amount} a day', {amount: indicator.proposed_daily_average}))}</small>${indicator.outside_observed_range ? `<small><strong>${esc(uiText(indicator.position === 'above' ? 'Above the observed daily range: the model extrapolates here.' : 'Below the observed daily range: the model extrapolates here.'))}</strong></small>` : ''}</td>`;
+}
 function renderAllocationCalibration(out) {
   const value = v => (v === null || v === undefined ? esc(uiText('Unknown')) : `<bdi dir="ltr">${esc(v)}</bdi>`);
   return `<h3>${esc(uiText('Historical efficiency calibration'))}</h3><p>${esc(uiText('Account'))} ${esc(out.account_id)} · ${esc(out.currency)} · ${esc(out.semantics.timezone)}</p><p class="notice">${esc(uiText('These are one-day historical estimates conditioned on actual test-day spend. They do not forecast future delivery or the effect of changing budgets.'))}</p><p>${esc(uiText('{training} preceding training days · requested central share {share}% · {from} — {through}', {training: uiNumber(out.training_days), share: uiNumber(out.central_share_percent), from: out.period.test_date_from, through: out.period.date_to}))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Historical errors and factors, scroll for all columns'))}"><table class="review-table"><caption>${esc(uiText('Observed errors and empirical efficiency factors'))}</caption><thead><tr><th scope="col">${esc(uiText('Entity'))}</th><th scope="col">${esc(uiText('Known / unknown ratio days'))}</th><th scope="col">${esc(uiText('Mean absolute error (conversions)'))}</th><th scope="col">${esc(uiText('Mean error (observed minus estimate)'))}</th><th scope="col">${esc(uiText('Low / high historical factor'))}</th></tr></thead><tbody>${out.entities.map(row => `<tr><th scope="row">${esc(row.name)}<small>${esc(row.entity_id)}</small></th><td>${esc(uiNumber(row.known_ratio_days))} / ${esc(uiNumber(row.unknown_ratio_days))}<small>${esc(uiText('{inside} of {count} known ratios inside the empirical band', {inside: row.observed_inside_band === null ? uiText('Unknown') : uiNumber(row.observed_inside_band), count: uiNumber(row.observed_band_denominator)}))}</small></td><td>${value(row.mean_absolute_error)}</td><td>${value(row.mean_error)}</td><td>${value(row.efficiency_low)} / ${value(row.efficiency_high)}<small>${esc(uiReportExplanation(row.meaning))}</small></td></tr>`).join('')}</tbody></table></div><p>${esc(uiText('Envelope across the selected entities: {low}–{high}', {low: out.factor_envelope.efficiency_low ?? uiText('Unknown'), high: out.factor_envelope.efficiency_high ?? uiText('Unknown')}))}</p><ul>${out.limitations.map(message => `<li>${esc(uiReportExplanation(message))}</li>`).join('')}</ul>${recordDetails(out, uiText('Exact test dates, estimates and source evidence'))}`;
@@ -205,9 +218,12 @@ function mountAllocationCalibration(report, form, selectedIds, parentCurrent, in
     output = $('#allocation-calibration-result');
   const current = () => parentCurrent() && root.isConnected && output.isConnected;
   let sequence = 0,
-    evaluated = false;
+    evaluated = false,
+    // DEC-02: the calibration the form's factors were copied from, while they stay unchanged.
+    provenance = null;
   const reset = () => {
     sequence++;
+    provenance = null;
     if (evaluated) output.innerHTML = `<p>${esc(uiText('Selection or settings changed. Evaluate history again.'))}</p>`;
     evaluated = false;
   };
@@ -256,6 +272,16 @@ function mountAllocationCalibration(report, form, selectedIds, parentCurrent, in
           form.elements.efficiency_low.value = String(factors.efficiency_low);
           form.elements.efficiency_high.value = String(factors.efficiency_high);
           invalidateModel();
+          provenance = {
+            source: {
+              kind: 'calibration',
+              evidence_fingerprint: out.evidence_fingerprint,
+              ids: args.ids,
+              options: args.options,
+            },
+            low: String(factors.efficiency_low),
+            high: String(factors.efficiency_high),
+          };
           output.insertAdjacentHTML(
             'beforeend',
             `<p class="notice">${esc(uiText('Historical factors applied to this form. Review them and model again; native approval still follows separately.'))}</p>`,
@@ -272,13 +298,20 @@ function mountAllocationCalibration(report, form, selectedIds, parentCurrent, in
       output.focus();
     }
   });
-  return {reset};
+  // The factor source sent with a model: only while the form still holds exactly the applied factors.
+  const source = () =>
+    provenance &&
+    String(Number(form.elements.efficiency_low.value)) === String(Number(provenance.low)) &&
+    String(Number(form.elements.efficiency_high.value)) === String(Number(provenance.high))
+      ? provenance.source
+      : null;
+  return {reset, source};
 }
 
 function allocationPlanPreview(p) {
   const squad = p.gateway === 'snapchat_native_action',
     linkedin = p.gateway === 'linkedin_native_action';
-  return `<h4>${esc(uiText('Current budgets and proposed daily amounts'))}</h4><p>${esc(uiText('Account'))} ${esc(p.account_id)} · ${esc(p.currency)} · ${esc(p.timezone)} · ${esc(uiText('{days} reference days', {days: p.period_days}))}</p><div class="data-scroll" role="region" aria-label="${esc(uiText('Daily budget conversion, scroll for all columns'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Exact period-to-daily conversion in {currency}', {currency: p.currency}))}</caption><thead><tr><th scope="col">${esc(squad ? uiText('Ad squad / parent campaign') : linkedin ? uiText('Campaign / campaign group') : uiText('Campaign / budget'))}</th><th scope="col">${esc(uiText('Current daily'))}</th><th scope="col">${esc(uiText('Proposed period total'))}</th><th scope="col">${esc(uiText(squad || linkedin ? 'Proposed daily budget' : 'Proposed average daily'))}</th><th scope="col">${esc(uiText('Rounding residual'))}</th></tr></thead><tbody>${p.targets.map(t => `<tr><th scope="row">${esc(t.name)}<small>${esc(t.entity_id ?? t.campaign_id)} · ${esc(linkedin ? t.parent?.id : t.budget_resource)}</small></th><td>${esc(t.current_daily_budget)}</td><td>${esc(t.period_budget)}</td><td>${esc(t.daily_budget)}<small>${esc(linkedin ? uiText('Native decimal amount') : uiText('{amount} micros', {amount: t.daily_budget_micros}))}</small></td><td>${esc(t.rounding_residual)}</td></tr>`).join('')}</tbody></table></div><p>${esc(uiReportExplanation(p.meaning))}</p>${squad || linkedin ? recordDetails({source_references: p.native_source_references}, uiText('Native budget ownership evidence')) : ''}<button class="button primary" id="allocation-create-plan" type="button">${esc(uiText('Create unapproved draft'))}</button>`;
+  return `<h4>${esc(uiText('Current budgets and proposed daily amounts'))}</h4><p>${esc(uiText('Account'))} ${esc(p.account_id)} · ${esc(p.currency)} · ${esc(p.timezone)} · ${esc(uiText('{days} reference days', {days: p.period_days}))}</p><div class="data-scroll" role="region" aria-label="${esc(uiText('Daily budget conversion, scroll for all columns'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Exact period-to-daily conversion in {currency}', {currency: p.currency}))}</caption><thead><tr><th scope="col">${esc(squad ? uiText('Ad squad / parent campaign') : linkedin ? uiText('Campaign / campaign group') : uiText('Campaign / budget'))}</th><th scope="col">${esc(uiText('Current daily'))}</th><th scope="col">${esc(uiText('Proposed period total'))}</th><th scope="col">${esc(uiText(squad || linkedin ? 'Proposed daily budget' : 'Proposed average daily'))}</th><th scope="col">${esc(uiText('Rounding residual'))}</th><th scope="col">${esc(uiText('Current budget used'))}</th></tr></thead><tbody>${p.targets.map(t => `<tr><th scope="row">${esc(t.name)}<small>${esc(t.entity_id ?? t.campaign_id)} · ${esc(linkedin ? t.parent?.id : t.budget_resource)}</small></th><td>${esc(t.current_daily_budget)}</td><td>${esc(t.period_budget)}</td><td>${esc(t.daily_budget)}<small>${esc(linkedin ? uiText('Native decimal amount') : uiText('{amount} micros', {amount: t.daily_budget_micros}))}</small></td><td>${esc(t.rounding_residual)}</td><td>${t.budget_utilization == null ? esc(uiText('Unknown')) : esc(uiText('{percent}% over the evidence days', {percent: uiNumber(Number(t.budget_utilization) * 100, {maximumFractionDigits: 1})}))}${t.low_budget_utilization ? `<small>${esc(uiText('Under 80% of the current daily budget was spent. Check what limits delivery before raising it; today’s budget may differ from the budget in force then.'))}</small>` : ''}</td></tr>`).join('')}</tbody></table></div><p>${esc(uiReportExplanation(p.meaning))}</p>${squad || linkedin ? recordDetails({source_references: p.native_source_references}, uiText('Native budget ownership evidence')) : ''}<button class="button primary" id="allocation-create-plan" type="button">${esc(uiText('Create unapproved draft'))}</button>`;
 }
 
 function bindAllocationPlan(report, options, modeled, current) {

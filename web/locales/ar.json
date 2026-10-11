@@ -10085,5 +10085,22 @@
   "Both snapshots must finish collecting before they can be compared.": "يجب أن تنتهي اللقطتان من جمع البيانات قبل مقارنتهما.",
   "{count} entity not compared: measurement definitions differ": "{count} كيان لم تتم مقارنته: تعريفات القياس مختلفة",
   "{count} entity only in this window": "{count} كيان في هذه الفترة فقط",
-  "{count} entity only in the earlier window": "{count} كيان في الفترة السابقة فقط"
+  "{count} entity only in the earlier window": "{count} كيان في الفترة السابقة فقط",
+  "The efficiency factors were entered directly, without a retained calibration; they are assumptions with no historical provenance.": "أُدخلت عوامل الكفاءة مباشرة، دون معايرة محفوظة؛ فهي افتراضات بلا مصدر تاريخي.",
+  "The efficiency factors come from a one-day, spend-conditioned calibration of this report. The allocation applies them to a multi-day period at new spend levels, which that calibration did not test.": "تأتي عوامل الكفاءة من معايرة ليوم واحد لهذا التقرير مشروطة بالإنفاق الفعلي. يطبّقها التوزيع على فترة متعددة الأيام وبمستويات إنفاق جديدة لم تختبرها تلك المعايرة.",
+  "At least one proposed daily average lies outside the daily spend observed in the evidence, so the linear model is extrapolating there.": "يقع متوسط يومي مقترح واحد على الأقل خارج الإنفاق اليومي المرصود في الأدلة، لذلك يستقرئ النموذج الخطي هناك.",
+  "Name the calibration the efficiency factors came from, or omit factor_source.": "حدّد المعايرة التي أُخذت منها عوامل الكفاءة، أو احذف factor_source.",
+  "The named calibration does not match this report’s current evidence. Calibrate again before using its factors.": "المعايرة المحددة لا تطابق الأدلة الحالية لهذا التقرير. أعد المعايرة قبل استخدام عواملها.",
+  "The efficiency factors differ from the named calibration. Use its factors unchanged, or omit factor_source.": "تختلف عوامل الكفاءة عن المعايرة المحددة. استخدم عواملها دون تغيير، أو احذف factor_source.",
+  "Every allocated entity must be one the named calibration evaluated.": "يجب أن يكون كل كيان في التوزيع من الكيانات التي قيّمتها المعايرة المحددة.",
+  "Observed daily spend": "الإنفاق اليومي المرصود",
+  "Efficiency factors: from the historical calibration of this report ({period}).": "عوامل الكفاءة: من المعايرة التاريخية لهذا التقرير ({period}).",
+  "Efficiency factors: entered by you, without historical provenance.": "عوامل الكفاءة: أدخلتها أنت، دون مصدر تاريخي.",
+  "{min}–{max} a day": "{min}–{max} يوميًا",
+  "Proposed {amount} a day": "المقترح {amount} يوميًا",
+  "Above the observed daily range: the model extrapolates here.": "أعلى من النطاق اليومي المرصود: النموذج يستقرئ هنا.",
+  "Below the observed daily range: the model extrapolates here.": "أدنى من النطاق اليومي المرصود: النموذج يستقرئ هنا.",
+  "Current budget used": "المستخدم من الميزانية الحالية",
+  "{percent}% over the evidence days": "{percent}% خلال أيام الأدلة",
+  "Under 80% of the current daily budget was spent. Check what limits delivery before raising it; today’s budget may differ from the budget in force then.": "أُنفق أقل من 80% من الميزانية اليومية الحالية. تحقّق مما يحدّ العرض قبل رفعها؛ قد تختلف ميزانية اليوم عن الميزانية التي كانت سارية آنذاك."
 }
