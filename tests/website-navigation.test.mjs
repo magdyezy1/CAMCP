@@ -215,6 +215,7 @@ function browserFixture(fetcher = async () => response({})) {
   });
   const run = source => new Script(source).runInContext(context);
   run(readFileSync('web/localization.js', 'utf8'));
+  run(readFileSync('web/routes.js', 'utf8'));
   // Omit only the initial page-load IIFE: each test explicitly chooses when it starts a request.
   const app = readFileSync('web/app.js', 'utf8');
   const startup = app.indexOf('(async () => {');
@@ -685,4 +686,224 @@ test('anonymous MCP connectors offer sign-in instead of enabled create-token but
     assert.equal(html.includes('data-create-operator-token="true"'), role === 'operator', String(role));
     assert.equal(html.includes('Sign in to create a token'), !authenticated, String(role));
   }
+});
+
+// WEB-06: titles, breadcrumbs and headings named 11 of 18 pages differently from the navigation ("Creative" opened
+// "Media library", "AI connectors" opened "MCP connectors"). They now come from the route registry.
+test('each page shows its navigation name as tab title, breadcrumb and heading', async () => {
+  const f = browserFixture(async url => response(url === '/api/activity' ? {events: []} : {}));
+  const workspace = readFileSync('web/workspace.js', 'utf8');
+  f.run(workspace.slice(workspace.indexOf('async function workspaceCall(')));
+  for (const [path, label, signedIn] of [
+    ['/activity', 'Audit activity', true],
+    ['/connections', 'Connections', true],
+    ['/settings', 'Workspace settings', true],
+    ['/media', 'Creative', false],
+    ['/report-library', 'Reporting', false],
+    ['/profiles', 'Clients & templates', false],
+  ]) {
+    f.run(signedIn ? 'session = nextIdentity' : 'session = {authenticated: false, csrf: null}');
+    f.updateLocation(path);
+    await f.run('render()');
+    assert.equal(f.context.document.title, label + ' · AMCP', path);
+    assert.equal(f.node('#breadcrumb').textContent, label, path);
+    assert.match(f.node('#content').innerHTML, new RegExp('<h1>' + label + '</h1>'), path);
+  }
+  // A child page names its parent first.
+  f.run('session = nextIdentity');
+  f.updateLocation('/oauth/result');
+  f.context.renderCallback = async () => {};
+  await f.run('render()');
+  assert.equal(f.node('#breadcrumb').textContent, 'Connections / Connection result');
+});
+
+test('a page that is still loading shows its own heading, never the previous page’s controls', async () => {
+  const f = browserFixture(async () => response({platforms: []}));
+  f.updateLocation('/connections');
+  await f.run('render()');
+  assert.match(f.node('#content').innerHTML, /data-action="refresh"/);
+  const gate = deferred();
+  f.context.gate = gate.promise;
+  f.run(
+    "renderActivity = async () => { await gate; content.innerHTML = header(uiText('Audit activity'), '') + '<p>Loaded</p>'; }",
+  );
+  f.context.document.activeElement = null;
+  const pending = f.run("navigate('/activity')");
+  await new Promise(resolve => setImmediate(resolve));
+  const loading = f.node('#content').innerHTML;
+  assert.doesNotMatch(loading, /data-action="refresh"/, 'the previous page is gone at once');
+  assert.match(loading, /<h1>Audit activity<\/h1>/);
+  assert.match(loading, /role="status" aria-busy="true"/);
+  assert.notEqual(f.context.document.activeElement, f.node('h1'), 'focus moves only once the page has rendered');
+  gate.resolve();
+  await pending;
+  assert.match(f.node('#content').innerHTML, /Loaded/);
+  assert.equal(f.context.document.activeElement, f.node('h1'), 'navigation lands on the page heading');
+});
+
+test('Back and Forward land on the page heading after the page renders', async () => {
+  const f = browserFixture(async url => response(url === '/api/activity' ? {events: []} : {platforms: []}));
+  f.updateLocation('/connections');
+  await f.run('render()');
+  const [popstate] = f.windowListeners.get('popstate');
+  f.context.document.activeElement = null;
+  f.updateLocation('/activity');
+  await popstate();
+  assert.equal(f.context.document.activeElement, f.node('h1'));
+  // A Back that is superseded by another navigation leaves focus to the newer page.
+  const gate = deferred();
+  f.context.gate = gate.promise;
+  f.run('renderConnections = async () => { await gate; }');
+  f.context.document.activeElement = null;
+  f.updateLocation('/connections');
+  const back = popstate();
+  f.updateLocation('/activity?later=1');
+  gate.resolve();
+  await back;
+  assert.equal(f.context.document.activeElement, null);
+});
+
+test('a failed shell action stays on screen until the next action, then clears', async () => {
+  let fail = true;
+  const f = browserFixture(async () =>
+    fail
+      ? response({error: {code: 'UNAVAILABLE', message: 'Platforms unavailable'}, meta: {requestId: 'req-1'}}, 503)
+      : response({platforms: []}),
+  );
+  f.updateLocation('/connections');
+  const click = dataset =>
+    f.documentListeners.get('click')[0]({
+      target: {closest: () => ({tagName: 'BUTTON', dataset, isConnected: true, getAttribute: () => null})},
+      button: 0,
+      preventDefault() {},
+    });
+  await click({action: 'refresh'});
+  const alert = f.node('#shell-alert');
+  assert.equal(alert.hidden, false);
+  assert.match(alert.textContent, /Platforms unavailable/);
+  assert.match(alert.textContent, /req-1/);
+  assert.doesNotMatch(f.node('#toast').textContent, /Platforms unavailable/, 'not a six-second toast');
+  fail = false;
+  await click({filter: 'connected'});
+  assert.equal(alert.hidden, true);
+  assert.equal(alert.textContent, '');
+  // Opening another page clears it too.
+  fail = true;
+  await click({action: 'refresh'});
+  assert.equal(alert.hidden, false);
+  fail = false;
+  await f.run("navigate('/activity')");
+  assert.equal(alert.hidden, true);
+});
+
+test('the access line names the person’s role and the deployment, not the deployment alone', async () => {
+  const f = browserFixture(async () => response({platforms: []}));
+  f.updateLocation('/connections');
+  for (const [session, expected] of [
+    [{authenticated: false}, 'Not signed in'],
+    [
+      {authenticated: true, testAccount: true, workspaceRole: 'owner', writesEnabled: true},
+      'Test workspace · read access',
+    ],
+    [{authenticated: true, workspaceRole: 'viewer', writesEnabled: true}, 'Viewer · read-only access'],
+    [{authenticated: true, workspaceRole: 'operator', writesEnabled: true}, 'Operator · read + reviewed writes'],
+    [{authenticated: true, workspaceRole: 'admin', writesEnabled: true}, 'Admin · read + reviewed writes'],
+    [{authenticated: true, workspaceRole: 'owner', writesEnabled: true}, 'Owner · read + reviewed writes'],
+    [{authenticated: true, workspaceRole: 'owner', writesEnabled: false}, 'Owner · read-only workspace'],
+    [
+      {authenticated: true, administrator: true, workspaceRole: 'owner', writesEnabled: true},
+      'Deployment administrator · read + reviewed writes',
+    ],
+  ]) {
+    f.context.nextSession = {...identity(), ...session};
+    f.run('session = nextSession');
+    await f.run('render()');
+    assert.equal(f.node('.readonly-indicator').innerHTML, '<i></i>' + expected, JSON.stringify(session));
+    assert.equal(f.node('.sidebar .brand').href, session.authenticated ? '/dashboard' : '/');
+  }
+});
+
+test('the sidebar workspace card switches workspaces in place and clears the previous workspace’s state', async () => {
+  const requests = [];
+  const f = browserFixture(async (url, options = {}) => {
+    requests.push((options.method ?? 'GET') + ' ' + url);
+    return response(
+      {
+        '/api/workspaces': {
+          workspaces: [
+            {id: 'workspace-a', name: 'Agency <A>', role: 'viewer'},
+            {id: 'workspace-b', name: 'Client B', role: 'operator'},
+          ],
+        },
+        '/api/workspaces/switch': {},
+        '/api/session': {...identity('workspace-b'), workspaceRole: 'operator'},
+        '/api/platforms': {platforms: []},
+      }[url] ?? {},
+    );
+  });
+  f.updateLocation('/campaigns?id=plan-in-a');
+  f.context.renderWorkspacePage = async () => {};
+  await f.run('render()');
+  assert.equal(f.node('#workspace-switch-open').hidden, false);
+  assert.deepEqual(requests, [], 'nothing is read until the switcher opens');
+  const click = el =>
+    f.documentListeners.get('click')[0]({target: {closest: () => el}, button: 0, preventDefault() {}});
+  await click({...f.node('#workspace-switch-open'), tagName: 'BUTTON', id: 'workspace-switch-open', dataset: {}});
+  const menu = f.node('#workspace-switch-menu');
+  assert.equal(menu.hidden, false);
+  assert.match(menu.innerHTML, /data-shell-switch="workspace-b"/);
+  assert.match(menu.innerHTML, /Agency &lt;A&gt;/);
+  assert.match(menu.innerHTML, /data-shell-switch="workspace-a" aria-current="true" disabled/);
+  seedPrivateState(f);
+  await click({tagName: 'BUTTON', dataset: {shellSwitch: 'workspace-b'}, isConnected: true});
+  assert.deepEqual(requests, [
+    'GET /api/workspaces',
+    'POST /api/workspaces/switch',
+    'GET /api/session',
+    'GET /api/platforms',
+  ]);
+  assert.equal(f.run('session.workspaceId'), 'workspace-b');
+  assertPrivateStateCleared(f);
+  assert.equal(f.location.pathname + f.location.search, '/campaigns', 'IDs from the previous workspace are dropped');
+  // A test account has one workspace and no switcher.
+  f.run('session = {...nextIdentity, testAccount: true}');
+  await f.run('render()');
+  assert.equal(f.node('#workspace-switch-open').hidden, true);
+});
+
+// CMP-06: unsaved playbook edits were dropped silently when a navigation link was followed.
+test('an in-app link asks before leaving unsaved edits; render and identity resets clear the guard', async () => {
+  const f = browserFixture();
+  f.updateLocation('/connections');
+  await f.run('render()');
+  const asked = [],
+    pushes = [];
+  let answer = false;
+  f.context.confirmAction = async options => {
+    asked.push(options.title);
+    return answer;
+  };
+  f.context.history.pushState = (_a, _b, url) => pushes.push(url);
+  const link = {
+    tagName: 'A',
+    dataset: {},
+    getAttribute: name => (name === 'href' ? '/profiles' : null),
+    hasAttribute: () => false,
+  };
+  const click = () =>
+    f.documentListeners.get('click')[0]({target: {closest: () => link}, button: 0, preventDefault() {}});
+  // Nothing unsaved: no question.
+  await click();
+  assert.deepEqual(asked, []);
+  assert.deepEqual(pushes, ['/profiles']);
+  f.run('pageLeaveGuard = () => true');
+  await click();
+  assert.deepEqual(asked, ['Leave without saving?']);
+  assert.deepEqual(pushes, ['/profiles'], 'a cancelled leave stays on the page');
+  answer = true;
+  await click();
+  assert.deepEqual(pushes, ['/profiles', '/profiles']);
+  assert.equal(f.run('pageLeaveGuard'), null, 'the next render clears the guard');
+  f.run('pageLeaveGuard = () => true; resetPrivateState()');
+  assert.equal(f.run('pageLeaveGuard'), null, 'signing out or switching workspace is never blocked');
 });

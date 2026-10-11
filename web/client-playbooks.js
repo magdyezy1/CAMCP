@@ -2,11 +2,28 @@
 async function renderClientPlaybooks() {
   const generation = navigationGeneration,
     identity = identityGeneration;
-  const [{profiles}, {recipes}] = await Promise.all([
-    workspaceCall('workspace', {action: 'profiles'}),
-    workspaceCall('campaign', {action: 'recipes'}),
-  ]);
+  // WEB-06: the profiles response names the recipe fields a playbook can default, so this page needs only the workspace
+  // tool, which a test account may use. An older server without them falls back to the campaign recipes; a refusal
+  // there (a test account) hides only the recipe defaults.
+  const profileData = await workspaceCall('workspace', {action: 'profiles'}),
+    {profiles} = profileData;
+  let recipes = Array.isArray(profileData.recipe_defaults)
+    ? profileData.recipe_defaults.map(r => ({id: r.id, name: r.name, required: r.fields ?? []}))
+    : null;
+  if (!recipes)
+    recipes = await workspaceCall('campaign', {action: 'recipes'}).then(
+      r => r.recipes,
+      e => {
+        if (e?.code === 'TEST_ACCOUNT_SCOPE' || e?.code === 'FORBIDDEN') return [];
+        throw e;
+      },
+    );
   if (generation !== navigationGeneration || identity !== identityGeneration) return;
+  // "Build a campaign" opens the composer with this playbook chosen (WEB-06), where the workspace includes Campaigns.
+  const campaignsOpen = typeof routeAvailable !== 'function' || routeAvailable('/campaigns');
+  // Advertising accounts first (CMP-06): a playbook binds the accounts its campaigns use; Drive files, sheets and
+  // properties are listed only when asked for or already bound.
+  const advertising = p => ['ad_accounts', 'advertisers'].includes(p.selectionKind ?? 'ad_accounts');
   const targets = platforms.flatMap(p =>
     p.connections
       .filter(c => c.enabled)
@@ -19,7 +36,21 @@ async function renderClientPlaybooks() {
         })),
       ),
   );
-  content.innerHTML += `<div class="workspace-columns client-playbook-columns"><section class="panel"><h2>${esc(uiText('Clients and approved playbooks'))}</h2>${profiles.map((p, i) => `<div class="token-row"><div><strong>${esc(p.name)}</strong><small>${esc(uiText('Revision {revision} · {date}', {revision: p.revision, date: date(p.approved_at)}))}</small><a href="/campaigns#campaign-create">${esc(uiText('Build a campaign'))}</a></div><button class="button small" data-edit-profile="${i}">${esc(uiText('Open'))}</button></div>`).join('') || blank(uiText('Save a client’s selected accounts, naming, tracking and campaign defaults.'))}<button class="button" id="new-client">${esc(uiText('New client'))}</button></section><section class="panel workspace-form"><h2 id="profile-heading">${esc(uiText('New client playbook'))}</h2><form id="profile-form">${controls(uiText('Client name'), 'text', '', 'name')}${controls(uiText('Naming convention'), 'text', '{{campaign_name}}', 'naming')}<p class="form-note">${esc(uiText('Use named variables such as {{campaign_name}} or {{market}}. Preview the resolved names and tracking URL before approval.'))}</p><fieldset><legend>${esc(uiText('Tracking defaults'))}</legend>${[
+  const platformName = gateway => platforms.find(p => p.gateway === gateway)?.name ?? gateway;
+  // defaults.common (CMP-06): one value every workflow that takes the field starts from; a workflow's own wins.
+  const sharedDefaults = '*common',
+    sharedKeys = [...new Set(recipes.flatMap(r => r.required ?? []))];
+  // The list names what each playbook binds, so a client is recognised without opening it (CMP-06).
+  const bindingSummary = p => {
+    const bound = Array.isArray(p.bindings) ? p.bindings : [];
+    return bound.length
+      ? uiText('{count} bound accounts · {platforms}', {
+          count: uiNumber(bound.length),
+          platforms: [...new Set(bound.map(b => platformName(b.gateway)))].join(', '),
+        })
+      : uiText('No bound accounts: any connected account can be chosen');
+  };
+  content.innerHTML += `<div class="workspace-columns client-playbook-columns"><section class="panel"><h2>${esc(uiText('Clients and approved playbooks'))}</h2>${profiles.length > 1 ? `<label class="work-filter">${esc(uiText('Find a client'))}<input type="search" id="profile-search" data-derived maxlength="100" autocomplete="off"></label><p class="form-note" id="profile-search-empty" role="status" hidden>${esc(uiText('No client matches this search.'))}</p>` : ''}<p class="notice" id="profile-link-missing" role="status" hidden>${esc(uiText('The linked client playbook is not available in this workspace. Choose a playbook.'))}</p><div id="profile-list">${profiles.map((p, i) => `<div class="token-row" data-profile-row="${i}"><div><strong>${esc(p.name)}</strong><small>${esc(uiText('Revision {revision} · {date}', {revision: p.revision, date: date(p.approved_at)}))}</small><small>${esc(bindingSummary(p))}</small>${campaignsOpen ? `<a href="/campaigns?profile_id=${encodeURIComponent(p.id)}#campaign-create">${esc(uiText('Build a campaign'))}</a>` : ''}</div><button class="button small" data-edit-profile="${i}">${esc(uiText('Open'))}</button></div>`).join('') || blank(uiText('Save a client’s selected accounts, naming, tracking and campaign defaults.'))}</div><button class="button" id="new-client">${esc(uiText('New client'))}</button></section><section class="panel workspace-form"><h2 id="profile-heading">${esc(uiText('New client playbook'))}</h2><form id="profile-form">${controls(uiText('Client name'), 'text', '', 'name')}${controls(uiText('Naming convention'), 'text', '{{campaign_name}}', 'naming')}<p class="form-note">${esc(uiText('Use named variables such as {{campaign_name}} or {{market}}. Preview the resolved names and tracking URL before approval.'))}</p><fieldset><legend>${esc(uiText('Tracking defaults'))}</legend>${[
     ['utm_source', uiText('UTM source')],
     ['utm_medium', uiText('UTM medium')],
     ['utm_campaign', uiText('UTM campaign')],
@@ -29,12 +60,18 @@ async function renderClientPlaybooks() {
     .map(([k, label]) => controls(label, 'text', k === 'utm_campaign' ? '{{campaign_name}}' : '', k))
     .join(
       '',
-    )}</fieldset><fieldset><legend>${esc(uiText('Reusable report branding'))}</legend><label class="form-note"><input type="checkbox" name="include_presentation"> ${esc(uiText('Include approved branding for client report packs'))}</label><div id="profile-branding-fields" hidden><div class="work-filter">${controls(uiText('Report brand name'), 'text', '', 'report_brand_name')}<label>${esc(uiText('Report accent color'))}<input type="color" name="report_accent_color" value="#354B67"></label><label>${esc(uiText('Report PDF layout'))}<select name="report_template"><option value="standard">${esc(uiText('Standard spacing'))}</option><option value="compact">${esc(uiText('Compact spacing'))}</option></select></label><label>${esc(uiText('PDF and Excel language'))}<select name="report_artifact_language"><option value="en">${esc(uiText('English'))}</option><option value="ar">${esc(uiText('Arabic'))}</option></select></label></div>${controls(uiText('Report footer'), 'text', '', 'report_footer')}<p class="form-note">${esc(uiText('PDF and Excel language is saved separately from the interface language. Previously stored files keep their original content.'))}</p><p class="form-note">${esc(uiText('Apply an approved profile revision from a report pack. Earlier snapshots keep the branding they received. Bound accounts also restrict where this branding can be applied.'))}</p></div></fieldset><fieldset id="profile-accounts"><legend>${esc(uiText('Bound accounts'))}</legend></fieldset><fieldset><legend>${esc(uiText('Campaign recipe defaults'))}</legend><label>${esc(uiText('Recipe'))}<select id="profile-recipe">${recipes.map(r => `<option value="${esc(r.id)}">${esc(uiText(r.name))}</option>`).join('')}</select></label><div id="profile-default-fields"></div><p class="form-note">${esc(uiText('Blank fields supply no default. Currency, identity, conversion and account choices still require preflight. Existing plans keep their saved revision.'))}</p></fieldset><fieldset id="profile-conversions"><legend>${esc(uiText('Conversion references'))}</legend><p class="form-note">${esc(uiText('Name a conversion goal and enter its exact existing reference as text. These are reusable declarations; provider ownership and event delivery are not verified and campaign preflight is still required.'))}</p><div id="profile-conversion-fields"></div><button type="button" class="button small" id="profile-conversion-add">${esc(uiText('Add conversion reference'))}</button><p class="form-note">${esc(uiText('Edit up to 50 simple text references here. Structured, unusual or additional saved mappings remain in Advanced settings and are preserved.'))}</p></fieldset><details><summary>${esc(uiText('Advanced templates, variables and conversion mappings'))}</summary><label>${esc(uiText('Native campaign templates'))}<textarea name="templates" rows="5">{}</textarea></label><label>${esc(uiText('Additional defaults, named variables and conversion mappings'))}<textarea name="additional" rows="5">{}</textarea></label></details><fieldset><legend>${esc(uiText('Preview a campaign'))}</legend>${controls(uiText('Example campaign name'), 'text', 'Autumn launch', 'example_name')}${controls(uiText('Landing page for tracking preview'), 'url', 'https://example.com/', 'example_url')}<label>${esc(uiText('Saved native template'))}<select name="preview_template"><option value="">${esc(uiText('Naming and tracking only'))}</option></select></label><label>${esc(uiText('Example variable overrides (JSON)'))}<textarea name="example_variables" rows="2">{}</textarea></label><button type="button" class="button" id="preview-profile">${esc(uiText('Preview resolved settings'))}</button></fieldset><div id="profile-preview" aria-live="polite"></div><label class="form-note"><input type="checkbox" name="approve" required> ${esc(uiText('I approve these reusable settings and selected account bindings.'))}</label><div class="dialog-actions"><button class="button primary" type="submit">${esc(uiText('Save approved playbook'))}</button><button type="button" class="button danger" id="delete-profile" hidden>${esc(uiText('Delete playbook'))}</button></div></form></section></div>`;
+    )}</fieldset><fieldset><legend>${esc(uiText('Reusable report branding'))}</legend><label class="form-note"><input type="checkbox" name="include_presentation"> ${esc(uiText('Include approved branding for client report packs'))}</label><div id="profile-branding-fields" hidden><div class="work-filter">${controls(uiText('Report brand name'), 'text', '', 'report_brand_name')}<label>${esc(uiText('Report accent color'))}<input type="color" name="report_accent_color" value="#354B67"></label><label>${esc(uiText('Report PDF layout'))}<select name="report_template"><option value="standard">${esc(uiText('Standard spacing'))}</option><option value="compact">${esc(uiText('Compact spacing'))}</option></select></label><label>${esc(uiText('PDF and Excel language'))}<select name="report_artifact_language"><option value="en">${esc(uiText('English'))}</option><option value="ar">${esc(uiText('Arabic'))}</option></select></label></div>${controls(uiText('Report footer'), 'text', '', 'report_footer')}<p class="form-note">${esc(uiText('PDF and Excel language is saved separately from the interface language. Previously stored files keep their original content.'))}</p><p class="form-note">${esc(uiText('Apply an approved profile revision from a report pack. Earlier snapshots keep the branding they received. Bound accounts also restrict where this branding can be applied.'))}</p></div></fieldset><fieldset id="profile-accounts"><legend>${esc(uiText('Bound accounts'))}</legend></fieldset><fieldset id="profile-recipe-defaults" ${recipes.length ? '' : 'hidden'}><legend>${esc(uiText('Campaign recipe defaults'))}</legend><label>${esc(uiText('Recipe'))}<select id="profile-recipe">${recipes.map(r => `<option value="${esc(r.id)}">${esc(uiText(r.name))}</option>`).join('')}<option value="${sharedDefaults}">${esc(uiText('Shared by every workflow'))}</option></select></label><div id="profile-default-fields"></div><p class="form-note">${esc(uiText('Blank fields supply no default. Currency, identity, conversion and account choices still require preflight. Existing plans keep their saved revision.'))}</p></fieldset><fieldset id="profile-conversions"><legend>${esc(uiText('Conversion references'))}</legend><p class="form-note">${esc(uiText('Name a conversion goal and enter its exact existing reference as text. These are reusable declarations; provider ownership and event delivery are not verified and campaign preflight is still required.'))}</p><div id="profile-conversion-fields"></div><button type="button" class="button small" id="profile-conversion-add">${esc(uiText('Add conversion reference'))}</button><p class="form-note">${esc(uiText('Edit up to 50 simple text references here. Structured, unusual or additional saved mappings remain in Advanced settings and are preserved.'))}</p></fieldset><details><summary>${esc(uiText('Advanced templates, variables and conversion mappings'))}</summary><label>${esc(uiText('Native campaign templates'))}<textarea name="templates" rows="5">{}</textarea></label><label>${esc(uiText('Additional defaults, named variables and conversion mappings'))}<textarea name="additional" rows="5">{}</textarea></label></details><fieldset><legend>${esc(uiText('Preview a campaign'))}</legend>${controls(uiText('Example campaign name'), 'text', 'Autumn launch', 'example_name')}${controls(uiText('Landing page for tracking preview'), 'url', 'https://example.com/', 'example_url')}<label>${esc(uiText('Saved native template'))}<select name="preview_template"><option value="">${esc(uiText('Naming and tracking only'))}</option></select></label><label>${esc(uiText('Example variable overrides (JSON)'))}<textarea name="example_variables" rows="2">{}</textarea></label><button type="button" class="button" id="preview-profile">${esc(uiText('Preview resolved settings'))}</button></fieldset><div id="profile-preview" aria-live="polite"></div><label class="form-note"><input type="checkbox" name="approve" required> ${esc(uiText('I approve these reusable settings and selected account bindings.'))}</label><div class="dialog-actions"><button class="button primary" type="submit">${esc(uiText('Save approved playbook'))}</button><button type="button" class="button" id="duplicate-profile" hidden>${esc(uiText('Duplicate playbook'))}</button><button type="button" class="button danger" id="delete-profile" hidden>${esc(uiText('Delete playbook'))}</button></div></form></section></div>`;
+  // `editing` is the saved playbook a save revises (none for a new or duplicated one); `origin` is what the form was
+  // filled from, whose structured naming and extra UTM keys a save keeps.
   let editing = null,
+    origin = null,
     defaults = {},
     conversionReferences = [],
     conversionGeneration = 0,
-    currentRecipe = recipes[0]?.id;
+    currentRecipe = recipes[0]?.id,
+    showAllAccounts = false,
+    // Unsaved edits since the playbook was opened (CMP-06): leaving asks first.
+    edited = false;
   const form = $('#profile-form'),
     preview = $('#profile-preview');
   let version = 0,
@@ -45,12 +82,31 @@ async function renderClientPlaybooks() {
     const captured = version;
     return () => current() && captured === version;
   };
+  // Choosing which defaults or example to look at changes nothing that a save stores.
+  const viewControls = new Set(['example_name', 'example_url', 'example_variables', 'preview_template']);
   const invalidate = event => {
-    if (!current() || event?.target === form.elements.approve) return;
+    if (!current() || event?.target === form.elements.approve || event?.target?.id === 'profile-accounts-all') return;
+    if (!event || (!viewControls.has(event.target?.name) && event.target?.id !== 'profile-recipe')) edited = true;
     version++;
     previewSequence++;
     form.elements.approve.checked = false;
     preview.innerHTML = '';
+  };
+  const dirty = () => current() && edited;
+  if (typeof pageLeaveGuard !== 'undefined') pageLeaveGuard = dirty;
+  /** Whether the person may replace the form: nothing unsaved, or they chose to discard it. */
+  const discardEdits = async () =>
+    !dirty() ||
+    ((await confirmAction({
+      title: uiText('Discard unsaved edits?'),
+      consequence: uiText('Unsaved edits to this playbook will be lost. Saved playbooks are kept.'),
+      confirmLabel: uiText('Discard edits'),
+    })) &&
+      current());
+  // The open playbook is in the address (CMP-06), so a reload or a shared link reopens it.
+  const showLocation = p => {
+    if (typeof setViewLocation === 'function' && typeof location === 'object' && location?.pathname === '/profiles')
+      setViewLocation('/profiles' + (p?.id ? '?profile_id=' + encodeURIComponent(p.id) : ''));
   };
   form.addEventListener('input', invalidate);
   form.addEventListener('change', invalidate);
@@ -63,7 +119,8 @@ async function renderClientPlaybooks() {
   form.elements.include_presentation.addEventListener('change', toggleBranding);
   const saveDefaults = () => {
     if (!currentRecipe) return;
-    const values = {...defaults.recipes?.[currentRecipe]};
+    const shared = currentRecipe === sharedDefaults,
+      values = {...(shared ? defaults.common : defaults.recipes?.[currentRecipe])};
     $('#profile-default-fields')
       .querySelectorAll('[data-default-field]')
       .forEach(el => {
@@ -78,13 +135,15 @@ async function renderClientPlaybooks() {
                 .filter(Boolean)
             : raw;
       });
-    defaults.recipes = {...defaults.recipes, [currentRecipe]: values};
+    if (shared) defaults.common = values;
+    else defaults.recipes = {...defaults.recipes, [currentRecipe]: values};
   };
   const drawDefaults = () => {
-    const recipe = recipes.find(r => r.id === currentRecipe),
-      values = defaults.recipes?.[currentRecipe] ?? {};
+    const shared = currentRecipe === sharedDefaults,
+      recipe = recipes.find(r => r.id === currentRecipe),
+      values = (shared ? defaults.common : defaults.recipes?.[currentRecipe]) ?? {};
     // Reusable creative and targeting defaults are explicit; regulated declarations and resource IDs stay in the campaign brief.
-    const keys = (recipe?.required ?? []).filter(k =>
+    const keys = (shared ? sharedKeys : (recipe?.required ?? [])).filter(k =>
       [
         'daily_budget',
         'cpc_bid',
@@ -101,33 +160,61 @@ async function renderClientPlaybooks() {
         'language',
       ].includes(k),
     );
-    $('#profile-default-fields').innerHTML = keys
-      .map(
-        k =>
-          `<label>${esc(recipeLabels[k] ? uiText(recipeLabels[k]) : pretty(k))}${recipeArrays.has(k) ? `<textarea data-default-field="${k}" rows="2">${esc((values[k] ?? []).join?.('\n') ?? values[k] ?? '')}</textarea>` : `<input data-default-field="${k}" value="${esc(values[k] ?? '')}">`}</label>`,
-      )
-      .join('');
+    $('#profile-default-fields').innerHTML =
+      (shared
+        ? `<p class="form-note">${esc(uiText('Every workflow that takes one of these fields starts from it. A value set for one workflow wins.'))}</p>`
+        : '') +
+      keys
+        .map(
+          k =>
+            `<label>${esc(recipeLabels[k] ? uiText(recipeLabels[k]) : pretty(k))}${recipeArrays.has(k) ? `<textarea data-default-field="${k}" rows="2">${esc((values[k] ?? []).join?.('\n') ?? values[k] ?? '')}</textarea>` : `<input data-default-field="${k}" value="${esc(values[k] ?? '')}">`}</label>`,
+        )
+        .join('');
   };
+  const sameBinding = (a, b) =>
+    a.gateway === b.gateway && a.connection_id === b.connection_id && a.account_id === b.account_id;
+  // Bound accounts grouped by platform (CMP-06). Files, sheets and properties are listed only on request or when bound.
   const drawAccounts = bindings => {
     const options = [...targets];
     for (const b of bindings)
-      if (
-        !options.some(
-          t => t.gateway === b.gateway && t.connection_id === b.connection_id && t.account_id === b.account_id,
-        )
-      )
+      if (!options.some(t => sameBinding(t, b)))
         options.push({
           ...b,
           label: uiText('Unavailable: {account} · {connection}', {account: b.account_id, connection: b.connection_id}),
         });
+    const isAdvertising = gateway => {
+        const p = platforms.find(p => p.gateway === gateway);
+        return !p || advertising(p);
+      },
+      others = options.some(t => !isAdvertising(t.gateway)),
+      groups = new Map();
+    for (const t of options) {
+      const checked = bindings.some(b => sameBinding(t, b));
+      if (!showAllAccounts && !checked && !isAdvertising(t.gateway)) continue;
+      if (!groups.has(t.gateway)) groups.set(t.gateway, []);
+      groups.get(t.gateway).push({t, checked});
+    }
     $('#profile-accounts').innerHTML =
       `<legend>${esc(uiText('Bound accounts'))}</legend>` +
-      options
-        .map(t => {
-          const {label, ...binding} = t;
-          return `<label class="form-note"><input type="checkbox" data-profile-binding value="${esc(JSON.stringify(binding))}" ${bindings.some(b => b.gateway === t.gateway && b.connection_id === t.connection_id && b.account_id === t.account_id) ? 'checked' : ''}> ${esc(label)}</label>`;
-        })
-        .join('');
+      (others
+        ? `<label class="form-note"><input type="checkbox" id="profile-accounts-all" data-derived ${showAllAccounts ? 'checked' : ''}> ${esc(uiText('Also list files, spreadsheets and properties'))}</label>`
+        : '') +
+      ([...groups]
+        .map(
+          ([gateway, rows]) =>
+            `<fieldset class="profile-account-group"><legend>${esc(platformName(gateway))} · ${esc(uiNumber(rows.length))}</legend>${rows
+              .map(({t, checked}) => {
+                const {label, ...binding} = t;
+                return `<label class="form-note"><input type="checkbox" data-profile-binding value="${esc(JSON.stringify(binding))}" ${checked ? 'checked' : ''}> ${esc(label)}</label>`;
+              })
+              .join('')}</fieldset>`,
+        )
+        .join('') || `<p class="form-note">${esc(uiText('No connected advertising account yet.'))}</p>`);
+    $('#profile-accounts-all')?.addEventListener?.('change', event => {
+      if (!current()) return;
+      showAllAccounts = event.target.checked;
+      drawAccounts([...form.querySelectorAll('[data-profile-binding]:checked')].map(el => JSON.parse(el.value)));
+    });
   };
   const captureConversions = () => {
     conversionReferences = conversionReferences.map((_, i) => ({
@@ -204,23 +291,33 @@ async function renderClientPlaybooks() {
           'Edit recipe defaults in the Campaign recipe defaults fields above. Remove defaults.recipes from advanced settings.',
         ),
       );
+    if (extra.defaults?.common !== undefined)
+      throw Error(
+        uiText(
+          'Edit shared defaults with “Shared by every workflow” in the Campaign recipe defaults fields above. Remove defaults.common from advanced settings.',
+        ),
+      );
     return {
       ...extra,
       conversion_mappings: conversionDraft(extra.conversion_mappings),
       name: form.elements.name.value,
       naming:
-        editing?.naming &&
-        typeof editing.naming === 'object' &&
-        form.elements.naming.value === JSON.stringify(editing.naming)
-          ? editing.naming
+        origin?.naming &&
+        typeof origin.naming === 'object' &&
+        form.elements.naming.value === JSON.stringify(origin.naming)
+          ? origin.naming
           : form.elements.naming.value,
       utm: {
-        ...(editing?.utm ?? {}),
+        ...(origin?.utm ?? {}),
         ...Object.fromEntries(
           ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'].map(k => [k, form.elements[k].value]),
         ),
       },
-      defaults: {...(extra.defaults ?? {}), recipes: defaults.recipes ?? {}},
+      defaults: {
+        ...(extra.defaults ?? {}),
+        ...(defaults.common && Object.keys(defaults.common).length ? {common: defaults.common} : {}),
+        recipes: defaults.recipes ?? {},
+      },
       templates: JSON.parse(form.elements.templates.value),
       ...(form.elements.include_presentation.checked
         ? {
@@ -232,13 +329,16 @@ async function renderClientPlaybooks() {
       bindings: [...form.querySelectorAll('[data-profile-binding]:checked')].map(el => JSON.parse(el.value)),
     };
   };
+  // `p` fills the form: a saved playbook (it has an ID) to revise, a duplicate's unsaved copy (no ID), or null.
   const load = p => {
     if (!current()) return;
+    const saved = p?.id !== undefined ? p : null;
     invalidate();
-    editing = p;
+    editing = saved;
+    origin = p;
     defaults = structuredClone(p?.defaults ?? {});
-    $('#profile-heading').textContent = p
-      ? uiText('Edit {name} · revision {revision}', {name: p.name, revision: p.revision})
+    $('#profile-heading').textContent = saved
+      ? uiText('Edit {name} · revision {revision}', {name: saved.name, revision: saved.revision})
       : uiText('New client playbook');
     form.elements.name.value = p?.name ?? '';
     form.elements.include_presentation.checked = !!p?.report_presentation;
@@ -268,7 +368,9 @@ async function renderClientPlaybooks() {
     drawConversions();
     form.elements.additional.value = JSON.stringify(
       {
-        defaults: Object.fromEntries(Object.entries(p?.defaults ?? {}).filter(([key]) => key !== 'recipes')),
+        defaults: Object.fromEntries(
+          Object.entries(p?.defaults ?? {}).filter(([key]) => key !== 'recipes' && key !== 'common'),
+        ),
         variables: p?.variables ?? {},
         conversion_mappings: advancedMappings,
       },
@@ -281,10 +383,14 @@ async function renderClientPlaybooks() {
         .map(k => `<option value="${esc(k)}">${esc(k)}</option>`)
         .join('');
     form.elements.approve.checked = false;
-    $('#delete-profile').hidden = !p || session.workspaceRole === 'viewer';
+    $('#delete-profile').hidden = !saved || session.workspaceRole === 'viewer';
+    $('#duplicate-profile').hidden = !saved || session.workspaceRole === 'viewer';
     $('#profile-preview').innerHTML = '';
     drawAccounts(p?.bindings ?? []);
     drawDefaults();
+    // A duplicate is not saved yet, so leaving it asks first.
+    edited = !!p && !saved;
+    showLocation(saved);
     // The filled playbook is the form's starting state, so a language switch does not report edits (WEB-05).
     if (typeof uiMarkPristine === 'function') uiMarkPristine(form);
   };
@@ -293,8 +399,43 @@ async function renderClientPlaybooks() {
     currentRecipe = e.target.value;
     drawDefaults();
   });
-  workspaceBind('[data-edit-profile]', b => load(profiles[Number(b.dataset.editProfile)]));
-  workspaceBind('#new-client', () => load(null));
+  // Opening another playbook or a new one asks before discarding unsaved edits (CMP-06).
+  workspaceBind('[data-edit-profile]', async b => {
+    const p = profiles[Number(b.dataset.editProfile)];
+    if (!dirty()) return load(p);
+    if (await discardEdits()) load(p);
+  });
+  workspaceBind('#new-client', async () => {
+    if (!dirty()) return load(null);
+    if (await discardEdits()) load(null);
+  });
+  // A new client from an existing playbook (CMP-06): every setting is copied into an unsaved new playbook, which needs
+  // its own approval. The copy keeps the account bindings, which still grant nothing.
+  workspaceBind('#duplicate-profile', async () => {
+    if (!current() || !editing || !(await discardEdits())) return;
+    const {id, revision, approved_at, approved_by, created_at, updated_at, ...copy} = structuredClone(editing);
+    copy.name = uiText('Copy of {name}', {name: editing.name}).slice(0, 100);
+    load(copy);
+    form.elements.name.focus?.();
+  });
+  // Search narrows the list by client name; it changes nothing saved (CMP-06).
+  $('#profile-search')?.addEventListener?.('input', event => {
+    if (!current()) return;
+    const query = event.target.value.trim().toLocaleLowerCase();
+    let shown = 0;
+    $('#profile-list')
+      .querySelectorAll('[data-profile-row]')
+      .forEach(row => {
+        const match =
+          !query ||
+          String(profiles[Number(row.dataset.profileRow)]?.name ?? '')
+            .toLocaleLowerCase()
+            .includes(query);
+        row.hidden = !match;
+        if (match) shown++;
+      });
+    $('#profile-search-empty').hidden = shown > 0;
+  });
   workspaceBind('#preview-profile', async () => {
     if (!current()) return;
     const selection = selected(),
@@ -339,8 +480,9 @@ async function renderClientPlaybooks() {
   workspaceBind('#profile-form', async () => {
     if (!current()) return;
     const active = selected();
+    let saved;
     try {
-      await workspaceCall('workspace', {
+      saved = await workspaceCall('workspace', {
         action: 'save_profile',
         profile: draft(),
         confirmed: form.elements.approve.checked,
@@ -351,6 +493,9 @@ async function renderClientPlaybooks() {
       return;
     }
     if (!active()) return;
+    // The page reopens on the playbook just saved.
+    edited = false;
+    if (typeof saved?.id === 'string') showLocation(saved);
     await renderWorkspacePage();
     if (generation === navigationGeneration && identity === identityGeneration)
       toast(uiText('Approved playbook saved. Existing campaigns and report packs keep their original settings.'));
@@ -380,9 +525,18 @@ async function renderClientPlaybooks() {
       return;
     }
     if (!active()) return;
+    edited = false;
+    showLocation(null);
     await renderWorkspacePage();
   });
-  load(null);
+  // /profiles?profile_id= reopens that playbook; one this workspace does not have is named, not silently replaced.
+  const linked =
+    typeof URLSearchParams === 'function' && typeof location === 'object' && location
+      ? new URLSearchParams(location.search ?? '').get('profile_id')
+      : null;
+  const linkedProfile = linked ? profiles.find(p => p.id === linked) : null;
+  if (linked && !linkedProfile) $('#profile-link-missing').hidden = false;
+  load(linkedProfile ?? null);
   if (session.workspaceRole === 'viewer') {
     form.elements.approve.disabled = true;
     form.querySelector('button[type="submit"]').disabled = true;

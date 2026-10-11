@@ -910,8 +910,26 @@ function mountCampaignClone(open) {
             .map(id => ({gateway: p.gateway, connection_id: c.id, account_id: id, label: accountLabel(p, c, id)})),
         ),
     );
+  // WEB-06: /campaigns?clone=1&connection_id=&account_id=&source_id=#campaign-clone (Portfolio's "Clone into a draft")
+  // preselects the source; nothing is read until the person submits. An account they cannot clone from is named.
+  const params =
+      typeof URLSearchParams === 'function' && typeof location === 'object' && location
+        ? new URLSearchParams(location.search ?? '')
+        : new Map(),
+    linked = params.get('clone') === '1',
+    linkedIndex = linked
+      ? targets.findIndex(
+          t => t.connection_id === params.get('connection_id') && t.account_id === params.get('account_id'),
+        )
+      : -1,
+    linkedMissing = linked && !!(params.get('connection_id') || params.get('account_id')) && linkedIndex < 0,
+    linkedSource = linked ? (params.get('source_id') ?? '').slice(0, 200) : '';
   $('#campaign-clone').innerHTML =
-    `<summary>${esc(uiText('Clone an existing campaign'))}</summary><p>${esc(uiText('Supported sources: Google Search, Snapchat, TikTok and LinkedIn campaign groups. The source is read into a draft; review the fields omitted from the clone before approval.'))}</p><form id="clone-form"><label>${esc(uiText('Source account'))}<select name="target" required><option value="">${esc(uiText('Choose an account with write access'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Source campaign or group ID'), 'text', '', 'source')}${controls(uiText('New campaign name'), 'text', '', 'name')}<button type="submit" class="button">${esc(uiText('Read source and create draft'))}</button></form>`;
+    `<summary>${esc(uiText('Clone an existing campaign'))}</summary><p>${esc(uiText('Supported sources: Google Search, Snapchat, TikTok and LinkedIn campaign groups. The source is read into a draft; review the fields omitted from the clone before approval.'))}</p>${linkedMissing ? `<p class="notice" role="status">${esc(uiText('The linked account is not available for cloning. Choose an account with write access.'))}</p>` : ''}<form id="clone-form"><label>${esc(uiText('Source account'))}<select name="target" required>${linkedMissing ? `<option value="" selected>${esc(uiText('Previously selected account — check access'))}</option>` : ''}<option value="">${esc(uiText('Choose an account with write access'))}</option>${targets.map((t, i) => `<option value="${i}" ${i === linkedIndex ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Source campaign or group ID'), 'text', linkedSource, 'source')}${controls(uiText('New campaign name'), 'text', '', 'name')}<button type="submit" class="button">${esc(uiText('Read source and create draft'))}</button></form>`;
+  if (linked) {
+    $('#campaign-create').open = true;
+    $('#campaign-clone').open = true;
+  }
   workspaceBind('#clone-form', async form => {
     const target = targets[Number(form.elements.target.value)];
     if (

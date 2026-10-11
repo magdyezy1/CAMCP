@@ -553,6 +553,28 @@ const rows: Record<string, Row[]> = {
       'operator',
       [[W, 'profiles']],
     ),
+    row('briefs', 'Saved client briefs, newest first, with the workspace limit.', [], [], local, 'reader', [
+      [W, 'brief'],
+    ]),
+    row('brief', 'One saved client brief.', ['id'], [], local, 'reader', [[C, 'preview_recipe']]),
+    row(
+      'save_brief',
+      'Saves a client brief ({name, recipe, profile_id?, business}) for recipes to reuse by brief_id.',
+      ['brief'],
+      ['id', 'revision'],
+      saves('client_brief'),
+      'operator',
+      [[C, 'preview_recipe']],
+    ),
+    row(
+      'delete_brief',
+      'Deletes a saved client brief at its current revision.',
+      ['id', 'revision', 'confirmed'],
+      [],
+      saves('client_brief'),
+      'operator',
+      [[W, 'briefs']],
+    ),
     row(
       'history',
       'Bounded audit metadata of changes (never raw requests or receipts), filtered and paged.',
@@ -864,10 +886,20 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'recipe_eligibility',
-      'Checks a brief against a recipe without saving a plan; live:true adds read-only account prerequisites.',
-      ['recipe'],
-      ['business', 'profile_id', 'live', 'account_id', 'connection_id', 'gateway'],
-      reads(),
+      'Checks a brief (recipe or brief_id) without saving a plan; live:true adds read-only account prerequisites.',
+      [],
+      [
+        'recipe',
+        'brief_id',
+        'apply_playbook_rules',
+        'business',
+        'profile_id',
+        'live',
+        'account_id',
+        'connection_id',
+        'gateway',
+      ],
+      reads('recipe_eligibility'),
       'reader',
       [[C, 'preview_recipe']],
     ),
@@ -882,18 +914,28 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'preview_recipe',
-      'Compiles a recipe and brief into steps locally; nothing is saved.',
-      ['recipe'],
-      ['business', 'profile_id'],
+      'Compiles a recipe (or a saved brief_id) and brief into steps locally; nothing is saved.',
+      [],
+      ['recipe', 'brief_id', 'apply_playbook_rules', 'business', 'profile_id'],
       local,
       'reader',
       [[C, 'create_from_recipe']],
     ),
     row(
       'create_from_recipe',
-      'Saves the compiled recipe as a draft plan.',
-      ['recipe'],
-      ['business', 'profile_id', 'idempotency_key', 'detail'],
+      'Saves the compiled recipe (or a saved brief_id) as a draft plan; eligibility_ref reuses a matching live check.',
+      [],
+      [
+        'recipe',
+        'brief_id',
+        'apply_playbook_rules',
+        'eligibility_ref',
+        'business',
+        'profile_id',
+        'idempotency_key',
+        'acknowledge_temporary_sources',
+        'detail',
+      ],
       saves('campaign_run'),
       'operator',
       [[C, 'preflight']],
@@ -1610,6 +1652,8 @@ const rows: Record<string, Row[]> = {
  */
 const argumentNotes: Record<string, Record<string, string>> = {
   [W]: {
+    brief:
+      'save_brief: {name, recipe, profile_id?, business}, a saved client brief that preview_recipe, recipe_eligibility and create_from_recipe reuse with brief_id (amcp_campaign).',
     archived_campaign_plans_days:
       'save_retention: delete campaign plans archived longer than this many days (7–3650); 0 turns it off.',
     require_distinct_approver:
@@ -1649,6 +1693,12 @@ const argumentNotes: Record<string, Record<string, string>> = {
       'recover_step: [{path, value}] changes to fields the step already has, as JSON pointers into its arguments ("/payload/adsquads/0/pixel_id"). Instead of arguments.',
     idempotency_key:
       'create, create_from_recipe and clone: an optional stable key (8–100 letters, digits, hyphens or underscores); identical input reuses the original plan. execute_next: the review’s own key.',
+    brief_id:
+      'preview_recipe, recipe_eligibility, create_from_recipe: a saved client brief (amcp_workspace save_brief) supplying the recipe, profile_id and business inputs; business sent with the call overrides its fields.',
+    apply_playbook_rules:
+      'preview_recipe, recipe_eligibility, create_from_recipe: false compiles the brief without the selected playbook naming and UTM rules (applied by default when profile_id is set; the provenance records either choice).',
+    eligibility_ref:
+      'create_from_recipe: the eligibility_ref of a live recipe_eligibility check of this exact brief; its read-only preflight is reused only while person, playbook revision, inputs, steps, login, account grant and write pause all still match.',
     cursor: 'list: the next_cursor of the previous page, with the same filters.',
     state: 'list: only plans in this state.',
     archived: 'list: true lists only archived plans (default: plans not archived).',

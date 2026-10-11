@@ -216,6 +216,31 @@ Preview resolves the same template function as campaign creation without provide
 limits both recipe choices and generated/native plan steps to those exact accounts and connections. An empty list
 retains the previous behavior of allowing the actor's currently authorized choices. Profiles never grant access.
 
+**Playbook rules, saved briefs and composer state (CMP-06).** With a playbook selected, recipe preview, eligibility
+and plan creation apply its naming template (`{{campaign_name}}` is the name typed) and append its UTM rules to the
+landing page; existing query text and the fragment are kept byte for byte, an equal parameter is kept once, and a
+different value already in the URL is refused (`PLAYBOOK_UTM_CONFLICT`) rather than rewritten. The playbook preview
+uses the same tagging, so both previews show the same URL. Names (1–100) and URLs (2,048) are checked after
+derivation. `provenance.conventions` and the composer's "Your input → Playbook result" table show each change;
+the per-plan checkbox (`apply_playbook_rules:false`) uses the input as typed and is recorded. `defaults.common`
+("Shared by every workflow" in the editor) applies to every recipe that takes the field; a recipe's own default
+wins. Briefs saved with **Save as client brief** (`amcp_workspace save_brief`/`briefs`/`brief`/`delete_brief`, at
+most 200 per workspace) reopen in the composer, and a plan created from one records `client_brief {id, revision}`.
+A live **Check account prerequisites** returns `eligibility_ref`; a plan created from those exact values reuses
+that read-only preflight and opens at plan approval only while person, playbook revision, inputs, compiled steps,
+login, account grant and write pause all match (`eligibility_reuse` names the reason otherwise; `prepare` still
+reads state again). The composer asks for the objective first and lists only workflows for platforms with a
+connected account (Google Search bidding is a sub-choice). Drafts, the last workflow and playbook are kept per tab
+and signed-in identity in `sessionStorage`, restored after in-app navigation or a reload, and forgotten on sign-out
+or workspace switch. A sole eligible account is preselected with its currency; schedule times are picked in the
+account timezone and sent with their offset. Meta image packs take one image source (Drive link, upload ID, public
+HTTPS link or an `image_hash` that preflight reads back from the account) and an optional age range shown as 18–65
+by default. When the selected playbook's bindings leave out every connected account, the composer says so and links
+to the playbook. `/profiles` lists playbooks by name with their binding summary and a search, keeps the open one in
+`?profile_id=`, asks before unsaved edits are discarded (another playbook, a new one or an in-app link), groups bound
+accounts by platform (files, sheets and properties on request) and offers **Duplicate playbook**, which starts an
+unsaved new playbook needing its own approval. The Advanced form lists the chosen profile's saved templates.
+
 ### Snapchat website traffic with an existing creative
 
 Choose the Snapchat traffic workflow in Campaigns or use `amcp_campaign` with
@@ -669,9 +694,15 @@ price, currency, image_url; optional url, availability, condition, brand and des
 and 50 products, with unique stable retailer IDs and HTTPS media/product URLs. `catalog_preview` does no provider
 egress; `catalog_plan` saves one native product step per item. Both require the exact selected account/login/catalog ID
 and an explicit `allow_upsert` boolean. Decimal prices become exact integer hundredths through the existing qualified
-Meta product contract. Every item then gets the normal native ownership, before-state, review, receipt and
+Meta product contract. The precision applies to the value, not the text: `12.500 KWD` is 1250 and `0.10` is 10, while
+`12.345 KWD` is refused with that price and currency named, because Meta counts hundredths; nothing is rounded.
+Every item then gets the normal native ownership, before-state, review, receipt and
 verification path. There is no implicit deletion and no direct write on import. WooCommerce synchronization,
 simultaneous destination fan-out and automatic feed deletion are not implemented.
+
+The page opens with the reviewed import and says that product imports support Meta and X while Snapchat catalogs are
+managed through feeds. With no Meta or X account it links to Connections. WooCommerce store sources follow the
+import; until a source is configured they sit in one collapsed "Connect a store source (administrators)" disclosure.
 
 The native product review and verification require exact account/catalog/business identities and a complete,
 bounded product page for the selected retailer. Malformed rows, foreign retailers, unfinished paging and coerced
@@ -819,6 +850,25 @@ the export or job; a media variant, which no page loads, gets no link. On an HTT
 absolute address on the configured public origin; stdio, which serves no website, returns `website_path` only. A
 `next_call` naming a tool the deployment does not list is withheld. `tests/mcp-handoff-links.test.mjs` opens each
 link for its owner and checks that another workspace is refused.
+
+**Website navigation and deep links (WEB-06).** Every workspace page is listed once in `web/routes.js`: path,
+canonical name (the navigation label, owner decision D27), group, former names, test-account scope and whether a
+sign-in may return to it. Tab title, breadcrumb, heading, command palette, client routing, sign-in returns and
+test-account scope read it; `tools/check-routes.mjs` (part of `check-web`) fails when the navigation in
+`web/index.html`, the lazily loaded page assets or the server's shell pages drift from it. The palette finds a page by
+its navigation name, its former names ("Media library", "MCP connectors", …) and their Arabic translations. The access
+line combines the person's role with the deployment switch; the sidebar workspace card switches workspaces in place
+(private state is reset); a failed shell action stays as an inline alert until the next action. Hand-off links only
+preselect, they never read a provider or save: `/campaigns?recipe=&profile_id=&connection_id=&account_id=
+#campaign-create` (playbook "Build a campaign", Capabilities "Open workflow", a `recipe_eligibility` result's
+`website_path`), `/campaigns?clone=1&connection_id=&account_id=&source_id=#campaign-clone` (Portfolio "Clone into a
+draft", supported gateways with write access) and `/reports?connection_id=&account_id=&campaign_id=#report-capture`
+(Portfolio "Capture evidence for this campaign"; Snapchat opens the parent-scoped ad-squad preset). A value the
+person cannot use is named ("Previously selected account — check access"), never replaced by another. Portfolio keeps
+the account and drill-down in its address: Back returns to the parent level, and a reload restores the selection and
+waits for *Read inventory*. Google, Snapchat and X micros show the exact account-currency decimal beside the native
+value; Meta and TikTok amounts stay unconverted. `tests/route-registry.test.mjs`, `tests/website-navigation.test.mjs`,
+`tests/website-deep-links.test.mjs` and `tests/portfolio-url-state.test.mjs` cover these.
 Monitoring adds `attention_required`, `deferred` and `complete` outcomes without replacing factual incident state.
 The synthetic SDK journey tests measure calls and response bytes; external MCP client acceptance is separate.
 
@@ -1066,12 +1116,21 @@ CSV, choose create-only or explicit upsert, then validate the source. The previe
 exact decimal source prices and native hundredths. Compare current catalog products starts a bounded read of
 only the supplied retailer IDs. New, changed, matching and unknown states stay separate; create-only blocks every
 existing ID. Matching means only submitted fields have matching evidence. Unknown fields need native review.
+For Meta, as for X, each row also notes the native attributes the product holds a value for although the source does
+not send them (`unsent_fields`: for example a sale price, staging visibility or zero inventory), because neither
+provider says whether an update keeps or clears them; the summary counts such products
+(`with_destination_only_values`). The note changes no state, and the native review of an upsert repeats it as a
+warning.
 
 Save only products needing review excludes matching/blocked rows and preserves each selected original source
-product. Save all supplied products keeps the whole import. Both save unapproved local drafts; neither submits
+product. Save all supplied products keeps the whole import; after a comparison it says how many already match. In an
+X plan a product that still matches when the plan reaches it is recorded as unchanged (`skipped_unchanged`) and nothing
+is sent; a matching Meta product is reviewed and sent again. Both save unapproved local drafts; neither submits
 product changes. Execution still requires fresh native reviews, write authority and per-item read-back. Missing
 source items are retained. Revalidate after editing the file, mappings, account or policy. Scoped MCP handoffs
-select only currently accessible account/catalog IDs and ask for the source CSV again, without an automatic read.
+(`/commerce?catalog_comparison=1&gateway=…&connection_id=…&account_id=…&catalog_id=…`) select only a currently
+accessible account of that gateway and its catalog ID, and ask for the source CSV again, without an automatic read. A
+link without `gateway` is a Meta comparison; a gateway that does not match the account selects nothing.
 See [comparison qualification and limits](review/DELIVERY-2026-10-03-CATALOG-COMPARISON.md).
 
 ### Google Search conversion bidding

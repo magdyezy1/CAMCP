@@ -69,7 +69,15 @@ test('catalog comparison uses scoped native price evidence and returns new, chan
     out.items.map(i => i.state),
     ['new', 'changed', 'matching', 'unknown'],
   );
-  assert.deepEqual(out.summary, {new: 1, changed: 1, matching: 1, unknown: 1, blocked: 0, needs_review: 3});
+  assert.deepEqual(out.summary, {
+    new: 1,
+    changed: 1,
+    matching: 1,
+    unknown: 1,
+    blocked: 0,
+    needs_review: 3,
+    with_destination_only_values: 0,
+  });
   assert.deepEqual(out.review_retailer_ids, ['001', '002', '004']);
   assert.equal(out.items[1].product_id, '9007199254740993');
   assert.deepEqual(

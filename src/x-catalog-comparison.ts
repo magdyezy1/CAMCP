@@ -269,10 +269,13 @@ export async function xCatalogComparison(
           unknown: 0,
           blocked: 0,
           needs_review: review_retailer_ids.length,
+          // Additive (COM-01), as for Meta: products holding values for attributes the source does not send.
+          with_destination_only_values: 0,
         };
       for (const item of items) {
         summary[item.state]++;
         if (item.blocked) summary.blocked++;
+        if (item.unsent_fields.length) summary.with_destination_only_values++;
       }
       const captured_at = Date.now();
       return {

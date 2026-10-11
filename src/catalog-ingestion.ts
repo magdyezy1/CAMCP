@@ -32,9 +32,19 @@ export function catalogIngestion(input: JsonObject) {
     if (p.retailer_id.length > 100 || p.name.length > 500 || seen.has(p.retailer_id))
       bad('Product retailer IDs must be unique and at most 100 characters; names at most 500.');
     seen.add(p.retailer_id);
-    if (!/^\d+(\.\d{1,2})?$/.test(p.price) || !/^[A-Z]{3}$/.test(p.currency))
-      bad('Use an explicit currency and nonnegative decimal price with at most two places.');
-    const [whole, fraction = ''] = p.price.split('.'),
+    if (!/^\d+(\.\d+)?$/.test(p.price) || !/^[A-Z]{3}$/.test(p.currency))
+      bad('Use an explicit currency and a nonnegative decimal price.');
+    // Meta counts hundredths (COM-01): the precision applies to the value, not the source text. Digits after the second
+    // decimal place must be zeros, so "12.500 KWD" is exactly 1250 while "12.345 KWD" cannot be represented and is
+    // refused. Nothing is rounded. The refusal names the exact price and currency after its fixed sentence.
+    const [whole, decimals = ''] = p.price.split('.');
+    if (/[1-9]/.test(decimals.slice(2)))
+      bad(
+        'Meta counts prices in hundredths of the currency, so digits after the second decimal place must be zeros; nothing is rounded. This price cannot be represented exactly.',
+        'INVALID_ARGUMENT',
+        {field: p.price + ' ' + p.currency, product: i + 1},
+      );
+    const fraction = decimals.slice(0, 2),
       cents = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, '0'));
     if (cents > BigInt(Number.MAX_SAFE_INTEGER)) bad('Product price exceeds the safe native integer range.');
     for (const key of ['image_url', 'url'])

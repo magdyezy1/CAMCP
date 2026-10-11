@@ -24,6 +24,7 @@ import {
   sharedEvidence,
 } from './readiness.js';
 import {previewPlaybook, validatePlaybook} from './client-playbooks.js';
+import {clientBriefs, recipeDefaultFields} from './recipe-context.js';
 import {monitorActions, monitorOperation} from './report-monitors.js';
 import {portfolioPage} from './portfolio.js';
 import {reconcilePortfolio} from './portfolio-reconciliation.js';
@@ -127,6 +128,10 @@ export const workspaceTool = tool(
     'preview_catalog_removal',
     'create_catalog_removal',
     'delete_profile',
+    'briefs',
+    'brief',
+    'save_brief',
+    'delete_brief',
     'history',
     'health',
     'support_bundle',
@@ -166,6 +171,7 @@ export const workspaceTool = tool(
     live: field.bool,
     id: field.id,
     profile: field.object,
+    brief: field.object,
     preview: field.object,
     preview_id: field.id,
     preview_hash: field.id,
@@ -520,7 +526,18 @@ export class WorkspaceService {
         withheldWorkbookRecords,
         legacyAliasUsage: (store, a) => cachedLegacyAliasUsage(store, a),
       });
-    if (input.action === 'profiles') return {profiles: this.store.documents(actor.tenantId, 'client_profile')};
+    if (input.action === 'profiles')
+      return {
+        // By name, so a client is found in the same place on every load (CMP-06); IDs are random.
+        profiles: this.store
+          .documents(actor.tenantId, 'client_profile')
+          .sort(
+            (a, b) =>
+              String(a.name ?? '').localeCompare(String(b.name ?? ''), 'en', {sensitivity: 'base'}) ||
+              String(a.id).localeCompare(String(b.id)),
+          ),
+        recipe_defaults: recipeDefaultFields(),
+      };
     if (input.action === 'preview_profile') {
       const profile = input.id ? read(this.store, actor, 'client_profile', input.id) : input.profile;
       if (!obj(profile)) bad('Supply a saved profile or a draft profile.');
@@ -581,6 +598,8 @@ export class WorkspaceService {
       audit(this.store, actor, 'client_profile_deleted', {id: p.id});
       return {deleted: true};
     }
+    if (['briefs', 'brief', 'save_brief', 'delete_brief'].includes(input.action))
+      return clientBriefs(this.store, actor, input);
     if (input.action === 'history') return auditHistoryPage(this.store, actor, input);
     if (input.action === 'dashboard') return dashboard(this.store, actor, this.allowWrites, input);
     if (input.action !== 'check') bad('Unknown workspace action.');

@@ -74,14 +74,9 @@ const authErrors = {
   SIGNIN_SETUP_REQUIRED: 'This sign-in provider needs configuration. Choose another available method.',
   SIGNIN_FAILED: 'Sign-in could not be completed. Please try again.',
 };
+/** Sign-in returns only to a workspace page in the route registry (WEB-06); anything else opens Home. */
 function safeReturn(path) {
-  return typeof path === 'string' &&
-    path.length < 10000 &&
-    /^\/(dashboard|connections|campaigns|media|reports|reporting-overview|report-library|report-pack|monitors|portfolio|measurement|commerce|operations|schedules|capabilities|profiles|connectors|account|settings|activity|oauth\/consent)(\?|#|$)/.test(
-      path,
-    )
-    ? path
-    : '/dashboard';
+  return routeReturnable(path) ? path : '/dashboard';
 }
 function afterSignIn() {
   const path = safeReturn(sessionStorage.getItem('amcp.return'));
@@ -278,7 +273,7 @@ async function renderAccountPage() {
     header(uiText('Make it yours.'), uiText('Your profile, your sign-in methods, and the sessions you control.')) +
     `<div class="account-hero"><div class="account-monogram" aria-hidden="true">${esc(account.name[0].toUpperCase())}</div><div><span class="eyebrow">${esc(uiText('YOUR AMCP ACCOUNT'))}</span><h2>${esc(account.name)}</h2><p>${esc(account.email ?? (account.administrator ? uiText('Deployment administrator') : uiText('No verified recovery email yet')))}</p></div><span class="status online">${esc(uiText('Private workspace'))}</span></div><div id="auth-error" class="error" role="alert"></div>${
       account.administrator
-        ? `<section class="panel"><h2>${esc(uiText('Your original workspace'))}</h2><p>${esc(uiText('This account uses the deployment administrator password, which has no two-step verification. Use the owner setup below to move this workspace to an email account that can have it; everything in the workspace stays.'))}</p><a class="button" href="/settings">${esc(uiText('Deployment settings ↗'))}</a></section>`
+        ? `<section class="panel"><h2>${esc(uiText('Your original workspace'))}</h2><p>${esc(uiText('This account uses the deployment administrator password, which has no two-step verification. Use the owner setup below to move this workspace to an email account that can have it; everything in the workspace stays.'))}</p><a class="button" href="/settings">${esc(uiText('Deployment settings'))}</a></section>`
         : `<div class="account-columns"><section class="panel"><div class="panel-header"><h2>${esc(uiText('The essentials'))}</h2>${glyph('profile')}</div><form id="profile-form" class="auth-form">${formField(uiText('Your name'), 'name', 'text', `value="${esc(account.name)}" maxlength="80" autocomplete="name"`)}${formField(uiText('Workspace name'), 'workspaceName', 'text', `value="${esc(account.workspaceName)}" maxlength="80"`)}<button class="button primary">${esc(uiText('Save changes'))}</button></form></section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Your sign-in methods'))}</h2>${glyph('lock')}</div><p class="muted">${esc(uiText('Link accounts while signed in. AMCP never merges accounts just because their emails match.'))}</p>${options.providers
             .filter(p => p.configured || account.identities.some(i => i.provider === p.id))
             .map(p => {
@@ -348,35 +343,14 @@ function closeNavigation() {
 }
 menuMatch.addEventListener('change', closeNavigation);
 closeNavigation();
-const commandPages = [
-  ['Report library', '/report-library', 'Saved client definitions, templates and retained snapshots'],
-  ['Reporting overview', '/reporting-overview', 'Campaign metrics, recommendations and scheduled Sheets exports'],
-  ['Home', '/dashboard', 'Work needing attention and account readiness'],
-  ['Campaigns', '/campaigns', 'Plans, dependencies, reviews'],
-  ['Media library', '/media', 'Drive imports, formats, and reuse'],
-  ['Reports', '/reports', 'Evidence, totals, and recommendations'],
-  ['Client profiles', '/profiles', 'Templates, naming, and defaults'],
-  ['Connections', '/connections', 'Platforms, accounts, and permissions'],
-  ['MCP connectors', '/connectors', 'Codex, Claude, Cursor, and tokens'],
-  ['Live account portfolio', '/portfolio', 'Browse Google and Meta campaigns, ad groups, ad sets and ads'],
-  ['Measurement diagnostics', '/measurement', 'Tag Manager audits and measurement evidence'],
-  ['Commerce', '/commerce', 'Product imports with per-item reviews and receipts'],
-  ['Monitoring inbox', '/monitors', 'Read-only rules and evidence-linked incidents'],
-  ['Operations', '/operations', 'Campaign, media and delivery recovery'],
-  ['Capabilities', '/capabilities', 'Workflow eligibility and native action contracts'],
-  ['Schedules', '/schedules', 'Delivery times, windows and recovery'],
-  ['Activity', '/activity', 'Your workspace audit history'],
-  ['Your account', '/account', 'Profile, social sign-in, and security'],
-  ['Settings', '/settings', 'Platform and deployment setup'],
-];
+// The palette lists the route registry's pages (WEB-06): each is found by its navigation name, its former names and
+// their translations, best match first, and a test account sees only the pages its workspace includes.
 function commandResults() {
-  const q = $('#command-query').value.toLowerCase();
   $('#command-results').innerHTML =
-    commandPages
-      .filter(p => [...p, uiText(p[0]), uiText(p[2])].join(' ').toLowerCase().includes(q))
+    routeMatches($('#command-query').value, text => uiText(text))
       .map(
-        ([name, path, desc]) =>
-          `<button data-command-go="${path}"><span><strong>${esc(uiText(name))}</strong><small>${esc(uiText(desc))}</small></span><span>↗</span></button>`,
+        page =>
+          `<button data-command-go="${esc(page.path)}"><span><strong>${esc(uiText(page.label))}</strong><small>${esc(uiText(page.description))}</small></span><span aria-hidden="true">→</span></button>`,
       )
       .join('') || `<p class="empty">${esc(uiText('No pages match. Try “media” or “connections”.'))}</p>`;
 }

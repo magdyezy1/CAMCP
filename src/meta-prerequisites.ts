@@ -9,6 +9,7 @@ export async function metaPrerequisites(
   plan: CompiledRequest,
   connectionId: string,
   deferredPaths: string[] = [],
+  required: string[] = [],
 ) {
   if (plan.gateway !== 'meta_native_action') return;
   const body = (plan.body ?? {}) as JsonObject,
@@ -59,6 +60,44 @@ export async function metaPrerequisites(
     if (page) await requireAsset('promote_pages', page, 'Facebook Page');
     const instagram = story.instagram_user_id ?? story.instagram_actor_id ?? body.instagram_user_id;
     if (instagram) await requireAsset('instagram_accounts', instagram, 'Instagram account');
+    // An image already in the ad account (CMP-06): when the step asks for it, the account's image list must return
+    // this exact hash.
+    const hash = story.link_data?.image_hash;
+    if (
+      required.includes('meta_image_hash') &&
+      typeof hash === 'string' &&
+      !deferredPaths.some(p => p.endsWith('/image_hash'))
+    ) {
+      if (!/^[A-Za-z0-9]{8,64}$/.test(hash))
+        throw new MirrorError('PREFLIGHT_ID_REQUIRED', 'Use the exact image hash Meta returned for this ad account.');
+      const images = (await service.runPlan(
+        {
+          ...plan,
+          method: 'GET',
+          path: metaPrefix + 'act_' + plan.accountId + '/adimages',
+          body: undefined,
+          query: {hashes: JSON.stringify([hash]), fields: 'hash,account_id'},
+          readOnly: true,
+          destructive: false,
+          requiresConfirmation: false,
+        },
+        {connection_id: connectionId},
+        actor,
+      )) as JsonObject;
+      const found =
+        Array.isArray(images.data?.data) &&
+        images.data.data.some(
+          (v: JsonObject) =>
+            v.hash === hash && (v.account_id === undefined || String(v.account_id) === String(plan.accountId)),
+        );
+      if (!found)
+        throw new MirrorError(
+          'CAMPAIGN_PREREQUISITE_REQUIRED',
+          'The selected account did not return this image hash. Use an image uploaded to this ad account, or choose another image source.',
+          {asset_type: 'Meta image', asset_id: hash, account_id: plan.accountId, missing_fields: ['image_hash']},
+        );
+      checks.push({asset_type: 'Meta image', asset_id: hash, status: 'provider_read_checked'});
+    }
     const link = story.link_data?.link ?? story.video_data?.call_to_action?.value?.link;
     if (link) {
       let url: URL;

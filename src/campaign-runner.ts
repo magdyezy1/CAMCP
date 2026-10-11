@@ -1,5 +1,5 @@
-import {recipeContext, recipeInputs} from './recipe-context.js';
-import {recipeEligibility} from './recipe-eligibility.js';
+import {recipeContext, recipeInputs, resolveBrief} from './recipe-context.js';
+import {eligibilityReuse, recipeEligibility} from './recipe-eligibility.js';
 import {assertAllocationStep, allocationCreationBinding} from './allocation-plan.js';
 import {assertConsentStep, consentCreationBinding} from './gtm-consent-plans.js';
 import {assertCatalogRemovalStep, catalogRemovalCreationBinding} from './x-catalog-removal.js';
@@ -12,7 +12,7 @@ import {expandTemplate as substitute} from './client-playbooks.js';
 import {assertAccountWrite} from './write-access.js';
 import {workspaceOwner} from './spend-policy.js';
 import {normalizeAccount} from './scope.js';
-import {campaignRecipe, campaignRecipes} from './campaign-recipes.js';
+import {campaignRecipe, campaignRecipes, recipeMissing} from './campaign-recipes.js';
 import {verificationContractVersion} from './verification-reads.js';
 import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
@@ -125,6 +125,9 @@ export const campaignTool = tool(
     account_id: field.id,
     recipe: field.id,
     business: field.object,
+    brief_id: field.id,
+    apply_playbook_rules: field.bool,
+    eligibility_ref: field.id,
     live: field.bool,
     step_id: field.id,
     gateway: field.id,
@@ -181,6 +184,7 @@ const structure = (steps: JsonObject[]) =>
         'depends_on',
         'description',
         'expected_currency',
+        'prerequisites',
       ]
         .filter(k => s[k] !== undefined)
         .map(k => [k, s[k]]),
@@ -194,8 +198,26 @@ function creationId(actor: Actor, key: unknown): string {
 }
 const verificationStepStatus = (status: string) =>
   ['verified', 'failed', 'mismatch'].includes(status) ? status : 'verifying';
-/** A step whose result later steps may use: verified, or accepted as observed by the user (Snapchat S5). */
-const settled = (s: JsonObject) => ['verified', 'verified_with_acceptance', 'complete'].includes(s.status);
+/**
+ * A step whose result later steps may use: verified, accepted as observed by the user (Snapchat S5), or found already
+ * current when it was prepared, so nothing was sent (COM-01).
+ */
+const settled = (s: JsonObject) =>
+  ['verified', 'verified_with_acceptance', 'complete', 'skipped_unchanged'].includes(s.status);
+/**
+ * A family's exact-equality evidence that the target already holds every value a write step would send (COM-01): the
+ * step is recorded as skipped_unchanged with that evidence instead of failed. Only a write step, only the refusal a
+ * family raises itself from its frozen read (its prerequisites), never one that carries a provider body. A real
+ * difference never raises it, so it never hides one.
+ */
+const alreadyCurrent = (step: JsonObject, error: JsonObject | undefined) =>
+  step.kind === 'write' &&
+  error?.details?.already_current === true &&
+  !!error.details.no_op_evidence &&
+  typeof error.details.no_op_evidence === 'object' &&
+  !Array.isArray(error.details.no_op_evidence) &&
+  error.details.upstream === undefined &&
+  error.details.response === undefined;
 /**
  * A Google build Google refused outright (HTTP 4xx other than a timeout or rate limit). The pinned v25 contract
  * applies a partialFailure-false googleAds:mutate "if and only if" every operation is valid, so a refused build created
@@ -799,7 +821,10 @@ export class CampaignRunner {
         next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: next.id}},
       });
     }
-    const carried = run.steps.filter((s: JsonObject) => !settled(s));
+    // A step found already current (COM-01) sent nothing and resolved no value to adopt: it is carried and prepared
+    // again in the new plan, so a reference into it never resolves to an empty result.
+    const adoptable = (s: JsonObject) => settled(s) && s.status !== 'skipped_unchanged',
+      carried = run.steps.filter((s: JsonObject) => !adoptable(s));
     if (!carried.length) bad('Every step of this plan is settled; nothing remains to continue.', 'INVALID_ARGUMENT');
     if (run.allocation || run.search_exclusions || run.gtm_consent || run.catalog_removal)
       bad(
@@ -830,7 +855,7 @@ export class CampaignRunner {
         'INVALID_ARGUMENT',
         {field: 'confirmed', carried: carried.map((s: JsonObject) => s.id)},
       );
-    const results = new Map<string, JsonObject>(run.steps.filter(settled).map((s: JsonObject) => [s.id, s.result])),
+    const results = new Map<string, JsonObject>(run.steps.filter(adoptable).map((s: JsonObject) => [s.id, s.result])),
       ids = new Set(carried.map((s: JsonObject) => s.id)),
       adoptedBy = new Map<string, JsonObject[]>();
     const steps = structure(carried).map(s => {
@@ -1130,12 +1155,23 @@ export class CampaignRunner {
       };
     }
     if (input.action === 'recipe_context') return recipeContext(this.store, actor, input.recipe, input.profile_id);
+    if (
+      !['preview_recipe', 'recipe_eligibility', 'create_from_recipe'].includes(input.action) &&
+      (input.brief_id !== undefined || input.apply_playbook_rules !== undefined)
+    )
+      bad('brief_id and apply_playbook_rules apply to preview_recipe, recipe_eligibility and create_from_recipe.');
+    if (input.action !== 'create_from_recipe' && input.eligibility_ref !== undefined)
+      bad('eligibility_ref applies to create_from_recipe only.');
     if (input.action === 'recipe_eligibility')
       return recipeEligibility(this.store, this.call, this.preflight, input, actor, this.inspectConversionGoals);
     if (['preview_recipe', 'create_from_recipe'].includes(input.action)) {
+      input = resolveBrief(this.store, actor, input);
       const context = recipeContext(this.store, actor, input.recipe, input.profile_id),
-        {business, provenance} = recipeInputs(context, input.business ?? {});
-      const missing = context.recipe.required.filter((k: string) => business[k] === undefined || business[k] === '');
+        {business, provenance} = recipeInputs(context, input.business ?? {}, {
+          apply_playbook_rules: input.apply_playbook_rules,
+          client_brief: input.client_brief,
+        });
+      const missing = recipeMissing(context.recipe, business);
       if (input.action === 'preview_recipe' && missing.length)
         return {ready: false, missing_fields: missing, provenance, provider_mutations: 0};
       const {recipe, ...plan} = campaignRecipe(input.recipe, business);
@@ -1153,16 +1189,41 @@ export class CampaignRunner {
         ...plan,
         ...(input.profile_id ? {profile_id: input.profile_id} : {}),
         ...(input.idempotency_key !== undefined ? {idempotency_key: input.idempotency_key} : {}),
+        ...(input.acknowledge_temporary_sources !== undefined
+          ? {acknowledge_temporary_sources: input.acknowledge_temporary_sources}
+          : {}),
         detail: 'full',
       };
-      this.origins.set(create, {recipe: input.recipe, business: input.business ?? {}});
-      const result = await this.handle(create, actor),
-        run = this.owned(actor, result.id);
+      // The playbook-rule choice and the saved brief join the origin, so one creation key names one exact input.
+      this.origins.set(create, {
+        recipe: input.recipe,
+        business: input.business ?? {},
+        ...(input.apply_playbook_rules === false ? {playbook_rules: false} : {}),
+        ...(input.client_brief ? {client_brief: input.client_brief} : {}),
+      });
+      const result = await this.handle(create, actor);
+      let run = this.owned(actor, result.id);
       // A repeated keyed request returns the original plan, whose provenance is already saved.
       if (!run.recipe) {
         run.recipe = {...recipe, provenance};
+        if (input.client_brief) run.client_brief = input.client_brief;
+        // A live eligibility check of this exact brief seeds preflight when every binding still matches (CMP-06).
+        const reuse =
+          input.eligibility_ref === undefined
+            ? undefined
+            : eligibilityReuse(this.store, actor, input.eligibility_ref, run, input.recipe, provenance);
+        if (reuse?.applied && !run.preflight) run.preflight = reuse.preflight;
+        run = this.save(actor, run);
+        const reused = reuse
+          ? {eligibility_reuse: Object.fromEntries(Object.entries(reuse).filter(([key]) => key !== 'preflight'))}
+          : {};
+        // With a reused preflight that blocked nothing, the response carries the approval summary at once.
+        if (reuse?.applied && run.preflight.status !== 'blocked') {
+          const approval = this.approve({id: run.id}, actor, run);
+          return {...approval, recipe: run.recipe, ...reused};
+        }
         // Which value came from the user and which from the approved profile is what a person checks next.
-        return this.respond(input, this.save(actor, run), undefined, {recipe: run.recipe});
+        return this.respond(input, run, undefined, {recipe: run.recipe, ...reused});
       }
       return this.respond(input, run, undefined, {recipe: run.recipe});
     }
@@ -1310,6 +1371,7 @@ export class CampaignRunner {
           'depends_on',
           'description',
           'expected_currency',
+          'prerequisites',
         ]);
         const problems = [
           !/^[A-Za-z][A-Za-z0-9_-]{0,50}$/.test(s.id) &&
@@ -1325,6 +1387,11 @@ export class CampaignRunner {
           s.expected_currency !== undefined &&
             !/^[A-Z]{3}$/.test(s.expected_currency) &&
             'expected_currency must be an ISO code such as "USD", or omitted',
+          s.prerequisites !== undefined &&
+            (!Array.isArray(s.prerequisites) ||
+              s.prerequisites.some((p: unknown) => p !== 'meta_image_hash') ||
+              new Set(s.prerequisites).size !== s.prerequisites.length) &&
+            'prerequisites lists checks preflight must make, currently only "meta_image_hash"',
         ].filter(Boolean);
         if (problems.length)
           bad(
@@ -1973,6 +2040,27 @@ export class CampaignRunner {
           actor,
         );
       }
+      if (!prepared.success && alreadyCurrent(next, prepared.error)) {
+        // Nothing to change: recorded with the read evidence, and the plan moves on to its next step (COM-01).
+        next.status = 'skipped_unchanged';
+        next.submission = 'not_submitted';
+        next.result = {
+          already_current: true,
+          evidence: prepared.error.details.no_op_evidence,
+          checked_at: new Date().toISOString(),
+        };
+        delete next.error;
+        run.state = planState(run, next);
+        run = this.save(actor, run);
+        // The next step is prepared under the same authority: a call run made under the plan's approval stays one, so
+        // an approver collaborator is not refused after a skipped step (CMP-05).
+        const following: JsonObject = {
+          action: 'prepare_next',
+          id: run.id,
+          ...(input.detail ? {detail: input.detail} : {}),
+        };
+        return this.handle(this.underApproval.has(input) ? this.approved(following) : following, actor);
+      }
       if (!prepared.success) {
         next.status = 'failed';
         next.error = prepared.error;
@@ -2162,7 +2250,17 @@ export class CampaignRunner {
           },
       {
         receipt: {
-          verified: run.steps.filter(settled).map((s: JsonObject) => s.id),
+          verified: run.steps
+            .filter((s: JsonObject) => settled(s) && s.status !== 'skipped_unchanged')
+            .map((s: JsonObject) => s.id),
+          // Steps whose target already held every value; nothing was sent for them (COM-01).
+          ...(run.steps.some((s: JsonObject) => s.status === 'skipped_unchanged')
+            ? {
+                skipped_unchanged: run.steps
+                  .filter((s: JsonObject) => s.status === 'skipped_unchanged')
+                  .map((s: JsonObject) => s.id),
+              }
+            : {}),
           remaining: run.steps
             .filter((s: JsonObject) => !settled(s))
             .map((s: JsonObject) => ({id: s.id, status: s.status})),

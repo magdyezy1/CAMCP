@@ -49,12 +49,17 @@ let session = {authenticated: false, csrf: null},
 let navigationGeneration = 0,
   identityGeneration = 0,
   // The path and query the current view was rendered for; a history step that changes only the fragment keeps it.
-  renderedLocation = null;
+  renderedLocation = null,
+  // A page holding unsaved edits answers true here, so an in-app link asks before leaving (CMP-06). Every render of a
+  // different address and every identity reset clears it, so it never blocks signing out or switching workspace.
+  pageLeaveGuard = null;
 const identityKey = value =>
   JSON.stringify([!!value.authenticated, value.id ?? value.userId, value.workspaceId, value.workspaceRole, value.csrf]);
+/** Clears what the previous identity saw. */
 function resetPrivateState() {
   identityGeneration++;
   navigationGeneration++;
+  pageLeaveGuard = null;
   clearTimeout(pollTimer);
   clearTimeout(toastTimer);
   platforms = [];
@@ -88,6 +93,11 @@ function resetPrivateState() {
   content.innerHTML = '';
   $('#toast').textContent = '';
   $('#toast').hidden = true;
+}
+/** Signing out or switching workspace also forgets the drafts this tab kept for the identity (CMP-06). */
+function resetTabState() {
+  resetPrivateState();
+  if (typeof recipeDraftsForget === 'function') recipeDraftsForget();
 }
 function requestError(result, fallback = uiText('This request could not be completed.')) {
   const error = Error(result.error?.message ?? fallback);
@@ -346,8 +356,8 @@ async function api(url, options = {}) {
     throw e;
   }
   if (url === '/api/session' && method === 'GET' && identityKey(session) !== identityKey(data)) resetPrivateState();
-  if (url === '/api/session' && method === 'DELETE') resetPrivateState();
-  if (url === '/api/workspaces/switch') resetPrivateState();
+  if (url === '/api/session' && method === 'DELETE') resetTabState();
+  if (url === '/api/workspaces/switch') resetTabState();
   return data;
 }
 function showLogin() {
@@ -391,38 +401,30 @@ async function navigate(route) {
   if (target) focusFragmentTarget(target);
   else {
     window.scrollTo(0, 0);
-    document.getElementById('main').focus({preventScroll: true});
+    focusPageHeading();
   }
 }
+/**
+ * Records a page's own state (a selection, a drill-down) in the address without re-rendering it, so Back returns to
+ * the previous state and a reload restores it (WEB-06). The view stays rendered for the new address.
+ */
+function setViewLocation(url, push = false) {
+  if (url === location.pathname + location.search + location.hash) return;
+  history[push ? 'pushState' : 'replaceState']({}, '', url);
+  renderedLocation = location.pathname + location.search;
+}
+/** After a page opens, keyboard and screen-reader focus starts on its heading (WEB-06), or on the main region. */
+function focusPageHeading() {
+  const heading = content.querySelector('h1');
+  if (heading) {
+    if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+    heading.focus({preventScroll: true});
+  } else document.getElementById('main').focus({preventScroll: true});
+}
+// The page key comes from the route registry (web/routes.js, WEB-06). Only the connections page and a provider's
+// connection flow belong to Connections; the legal and sign-in pages belong to no section of the navigation (F-43).
 function route() {
-  if (location.pathname === '/account') return 'account';
-  if (
-    [
-      '/dashboard',
-      '/campaigns',
-      '/media',
-      '/reports',
-      '/reporting-overview',
-      '/operations',
-      '/capabilities',
-      '/report-library',
-      '/report-pack',
-      '/monitors',
-      '/portfolio',
-      '/measurement',
-      '/commerce',
-      '/schedules',
-      '/profiles',
-    ].includes(location.pathname)
-  )
-    return location.pathname.slice(1);
-  if (location.pathname === '/connectors') return 'connectors';
-  if (location.pathname === '/activity') return 'activity';
-  if (location.pathname === '/settings') return 'settings';
-  // Only the connections page and a provider's connection flow belong to Connections; the legal and sign-in pages
-  // belong to no section of the navigation (F-43).
-  if (location.pathname === '/connections' || location.pathname.startsWith('/oauth/')) return 'connections';
-  return '';
+  return routeSection(location.pathname);
 }
 function header(title, description, action = '') {
   return `<div class="page-heading"><div><h1>${title}</h1><p>${description}</p></div>${action}</div>`;
@@ -859,7 +861,7 @@ async function renderConnectors() {
         restore_quarantine: uiText('Ended: AMCP was restored from a backup'),
       })[reason] ?? uiText('Ended');
   content.innerHTML =
-    header(uiText('MCP connectors'), uiText('Give your AI tools access to the accounts you select.')) +
+    header(uiText('AI connectors'), uiText('Give your AI tools access to the accounts you select.')) +
     `<section class="connector-hero"><div><span class="status online"><i></i>${session.writesEnabled ? uiText('Write support enabled') : uiText('Read-only deployment')}</span><h2 class="connector-title">${esc(uiText('Your workspace.'))}<br>${esc(uiText('In the tools you already use.'))}</h2><p>${session.writesEnabled ? uiText('Connect your AI tools for reporting and reviewed advertising changes. New connections default to read and reviewed write access.') : uiText('Connect Codex or another MCP client to read advertising data and prepare dry-run requests.')}</p></div><div class="endpoint-box"><small>${esc(uiText('AMCP MCP ENDPOINT'))}</small><div class="copy-row"><code>${esc(session.origin + '/mcp')}</code><button class="button small" data-copy-endpoint="true">${esc(uiText('Copy'))}</button></div></div></section><section class="panel consent-panel"><h2>${esc(uiText('Connect with browser authorization'))}</h2><p>${esc(uiText('In an MCP client that supports OAuth, add the endpoint above and choose Sign in. AMCP requests read and reviewed write access when enabled.'))} ${session.writesEnabled ? `${esc(uiText('New clients default to'))} <code>mcp:read mcp:write</code>${esc(uiText('; the consent screen identifies operator access. Clients can explicitly request'))} <code>mcp:read</code> ${esc(uiText('for read-only access. Existing reader authorizations stay read-only until reauthorized.'))} ${esc(uiText('On the consent screen you can also choose read-only access. Viewers can approve read-only access only.'))}` : uiText('Advertising writes are disabled in this deployment.')}</p><pre class="code-block">codex mcp add amcp --url ${esc(session.origin + '/mcp')}
 codex mcp login amcp</pre><p class="muted">${esc(uiText('For clients using a bearer token, follow the setup below.'))}</p></section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Connect with a token'))}</h2><span class="status">${esc(uiText('Streamable HTTP'))}</span></div><div class="client-tabs"><button class="client-tab ${client === 'codex' ? 'active' : ''}" data-client="codex">${esc(uiText('Codex'))}</button><button class="client-tab ${client === 'cursor' ? 'active' : ''}" data-client="cursor">${esc(uiText('Cursor'))}</button><button class="client-tab ${client === 'other' ? 'active' : ''}" data-client="other">${esc(uiText('Other MCP client'))}</button></div><div class="steps"><div class="step"><div><strong>${esc(uiText('Create a connector token'))}</strong><p class="muted">${esc(uiText('Create a separate token for each tool. Tokens expire after 30 days and can be revoked below.'))}</p></div></div><div class="step"><div><strong>${esc(uiText('Add your token to the tool’s environment'))}</strong><p class="muted">${esc(uiText('Use the environment variable'))} <code>AMCP_MCP_TOKEN</code>${esc(uiText('. Keep the value private.'))}</p></div></div><div class="step"><div class="step-content"><div class="copy-row"><strong>${client === 'codex' ? uiText('Add this to your Codex config.toml') : client === 'cursor' ? uiText('Add this to your Cursor MCP configuration') : uiText('Configure your MCP client')}</strong><button class="button small" data-copy-config="true">${esc(uiText('Copy config'))}</button></div><pre class="code-block">${esc(connectorCode())}</pre><p class="muted">${client === 'codex' ? uiText('Reload your MCP connections, then ask Codex to list the tools available from AMCP.') : uiText('Use a client that supports Streamable HTTP and bearer authentication.')}</p></div></div></div></section><section class="panel"><div class="panel-header"><div><h2>${esc(uiText('Connector tokens'))}</h2><span class="muted token-caption">${esc(uiText('Access follows your current AMCP asset selections.'))}</span></div>${session.authenticated ? `<button class="button" data-create-token="true">${esc(uiText('Create read-only token'))}</button>` : `<a class="button" href="/login">${esc(uiText('Sign in to create a token'))}</a>`}</div>${session.writesEnabled && session.authenticated && !viewer ? `<div class="consent-panel"><p><strong>${esc(uiText('Read + write (default)'))}</strong> ${esc(uiText('Create an operator token for your selected resources, then use'))} <code>amcp_write</code> ${esc(uiText('to prepare and review a change before executing it.'))}</p><label class="form-note"><input type="checkbox" id="operator-token-consent"> ${esc(uiText('I authorize this connector to execute reviewed changes on accounts with write access.'))}</label><p><button class="button primary" data-create-operator-token="true">${esc(uiText('+ Create read + write token'))}</button></p></div>` : ''}<div id="new-token"></div>${tokens.map(t => `<div class="token-row"><div><strong>${uiBidi(t.name)}</strong><small>${t.role === 'operator' ? uiText('Operator · reviewed writes') : uiText('Reader')} ${esc(uiText('· Created'))} ${esc(uiDateZoned(t.createdAt))} ${esc(uiText('· Expires'))} ${esc(uiDateZoned(t.expiresAt))}</small></div>${t.revoked ? `<span class="status offline">${esc(uiText('Revoked'))}</span>` : manages(t) ? `<button class="button small danger" data-revoke-token="${esc(t.id)}">${esc(uiText('Revoke'))}</button>` : ''}</div>`).join('') || `<div class="empty">${session.authenticated ? uiText('No connector tokens yet.') : uiText('Sign in to create and manage connector tokens.')}</div>`}</section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Authorized MCP clients'))}</h2></div>${oauthClients.map(c => `<div class="token-row"><div><strong>${uiBidi(c.name)}</strong><small>${c.role === 'operator' ? uiText('Operator · reviewed writes') : uiText('Reader')} ${esc(uiText('· Authorization expires'))} ${esc(uiDateZoned(c.expiresAt))}${c.ownerName ? ` ${esc(uiText('· Approved by'))} ${uiBidi(c.ownerName)}` : ''}</small></div>${manages(c) ? `<button class="button small danger" data-revoke-client="${esc(c.id)}"${'owner' in c ? ` data-revoke-owner="${esc(c.owner ?? '')}"` : ''}>${esc(uiText('Revoke access'))}</button>` : ''}</div>`).join('') || `<div class="empty">${esc(uiText('No clients authorized through browser sign-in.'))}</div>`}${oauthEnded.length ? `<h3>${esc(uiText('Recently ended connections'))}</h3>${oauthEnded.map(c => `<div class="token-row"><div><strong>${uiBidi(c.name)}</strong><small>${esc(endedReason(c.reason))} · ${esc(uiDateZoned(c.endedAt))}${c.ownerName ? ` ${esc(uiText('· Approved by'))} ${uiBidi(c.ownerName)}` : ''}</small></div></div>`).join('')}` : ''}</section><p class="muted small-text">${esc(uiText('Codex configuration follows'))} <a href="https://learn.chatgpt.com/docs/extend/mcp?surface=cli" target="_blank" rel="noreferrer">${esc(uiText('official OpenAI documentation ↗'))}</a>.</p>`;
 }
@@ -867,11 +869,11 @@ function renderSettings() {
   if (session.authenticated && !session.administrator) {
     content.innerHTML =
       header(uiText('Workspace settings'), uiText('A few thoughtful details make this space yours.')) +
-      `<section class="panel"><h2>${esc(uiText('Your account & security'))}</h2><p>${esc(uiText('Edit your profile, personalize your workspace name, link social accounts, and manage browser sessions.'))}</p><a class="button primary" href="/account">${esc(uiText('Manage your account ↗'))}</a></section><section class="panel"><h2>${esc(uiText('Connected platforms'))}</h2><p>${esc(uiText('Choose the accounts your workspace can access, refresh assets, and manage permissions.'))}</p><a class="button" href="/connections">${esc(uiText('Manage connections ↗'))}</a></section>`;
+      `<section class="panel"><h2>${esc(uiText('Your account & security'))}</h2><p>${esc(uiText('Edit your profile, personalize your workspace name, link social accounts, and manage browser sessions.'))}</p><a class="button primary" href="/account">${esc(uiText('Manage your account →'))}</a></section><section class="panel"><h2>${esc(uiText('Connected platforms'))}</h2><p>${esc(uiText('Choose the accounts your workspace can access, refresh assets, and manage permissions.'))}</p><a class="button" href="/connections">${esc(uiText('Manage connections'))}</a></section>`;
     return;
   }
   content.innerHTML =
-    header(uiText('Settings'), uiText('Register AMCP with your advertising and measurement platforms.')) +
+    header(uiText('Workspace settings'), uiText('Register AMCP with your advertising and measurement platforms.')) +
     `<div class="notice"><span>◈</span><p><strong>${esc(uiText('Keep provider secrets on the server.'))}</strong><br>${esc(uiText('Add API credentials to your server environment. Register each browser OAuth callback exactly as shown below.'))}</p></div><div class="settings-grid">` +
     platforms
       .map(p => {
@@ -937,7 +939,7 @@ function renderSettings() {
 }
 async function renderActivity() {
   content.innerHTML = header(
-    uiText('Activity'),
+    uiText('Audit activity'),
     uiText('Account activity and your workspace events, within current access.'),
   );
   if (!session.authenticated) {
@@ -1140,30 +1142,105 @@ async function renderConsent() {
     ) +
     `</fieldset>${info.capped ? `<p class="notice" role="note">${esc(uiText('The app asked for reviewed changes too. Your workspace role allows read-only access, so it receives read access only.'))}</p>` : ''}<details><summary>${esc(uiText('Return address:'))}</summary><code>${esc(info.redirectUri)}</code></details><p>${esc(uiText('Requested permission:'))} <code>${esc(info.requestedScope ?? info.scope)}</code></p><div class="dialog-actions"><button class="button" data-consent="deny">${esc(uiText('Cancel'))}</button><button class="button primary" data-consent="approve">${esc(uiText('Authorize access'))}</button></div></section>`;
 }
+/**
+ * What this person can do here, from their role and the deployment together (WEB-06). Before, the line showed only the
+ * deployment's write switch, so a viewer read "Read + reviewed writes". The server still decides every request.
+ */
+function accessLine(s) {
+  if (!s?.authenticated) return uiText('Not signed in');
+  if (s.testAccount) return uiText('Test workspace · read access');
+  const role = s.administrator ? uiText('Deployment administrator') : s.workspaceRole ? uiRole(s.workspaceRole) : '';
+  if (s.workspaceRole === 'viewer' || (!s.administrator && !['owner', 'admin', 'operator'].includes(s.workspaceRole)))
+    return role ? uiText('{role} · read-only access', {role}) : uiText('Read-only access');
+  return s.writesEnabled
+    ? uiText('{role} · read + reviewed writes', {role})
+    : uiText('{role} · read-only workspace', {role});
+}
+/** Shell links follow the session: the brand opens Home when signed in, and members get the workspace switcher. */
+function shellLinks() {
+  document.querySelector('.sidebar .brand')?.setAttribute('href', session.authenticated ? '/dashboard' : '/');
+  const toggle = document.getElementById('workspace-switch-open');
+  if (!toggle) return;
+  toggle.hidden = !session.authenticated || !!session.testAccount;
+  if (toggle.hidden || toggle.dataset.identity !== identityKey(session)) closeWorkspaceMenu();
+}
+function closeWorkspaceMenu() {
+  const toggle = document.getElementById('workspace-switch-open'),
+    menu = document.getElementById('workspace-switch-menu');
+  if (toggle) {
+    toggle.setAttribute('aria-expanded', 'false');
+    delete toggle.dataset.identity;
+  }
+  if (menu) {
+    menu.hidden = true;
+    menu.innerHTML = '';
+  }
+}
+/**
+ * The sidebar's workspace card switches workspaces in place (WEB-06): it lists the workspaces this sign-in belongs to,
+ * read when opened, and switches with the account page's endpoint. api() resets private state on a switch.
+ */
+async function openWorkspaceMenu() {
+  const toggle = document.getElementById('workspace-switch-open'),
+    menu = document.getElementById('workspace-switch-menu');
+  if (toggle.getAttribute('aria-expanded') === 'true') return closeWorkspaceMenu();
+  const identity = identityGeneration;
+  toggle.setAttribute('aria-expanded', 'true');
+  toggle.dataset.identity = identityKey(session);
+  menu.hidden = false;
+  menu.innerHTML = `<p role="status">${esc(uiText('Loading your workspaces…'))}</p>`;
+  const {workspaces = []} = await api('/api/workspaces');
+  if (identity !== identityGeneration || toggle.getAttribute('aria-expanded') !== 'true') return;
+  menu.innerHTML =
+    `<p class="workspace-menu-title">${esc(uiText('Your workspaces'))}</p>` +
+    workspaces
+      .map(
+        w =>
+          `<button type="button" data-shell-switch="${esc(w.id)}" ${w.id === session.workspaceId ? 'aria-current="true" disabled' : ''}><bdi>${esc(w.name)}</bdi><small>${esc(w.id === session.workspaceId ? uiText('Current workspace') : uiRole(w.role))}</small></button>`,
+      )
+      .join('') +
+    `<a href="/account">${esc(uiText('Manage your workspaces'))}</a>`;
+  menu.querySelector('button:not([disabled]),a')?.focus();
+}
+async function switchWorkspaceFromShell(id) {
+  if (!id || id === session.workspaceId) return;
+  await api('/api/workspaces/switch', {method: 'POST', body: JSON.stringify({workspaceId: id})});
+  session = await api('/api/session');
+  const platformData = await api('/api/platforms');
+  platforms = platformData.platforms;
+  commerceSources = platformData.commerce_sources ?? [];
+  closeWorkspaceMenu();
+  // Plan, report and account IDs in the address belonged to the previous workspace: keep only the page.
+  navigate(routeEntry(location.pathname) && routeAvailable(location.pathname) ? location.pathname : '/dashboard');
+}
+// WEB-06: a failed shell action stays on screen until the next action or page, instead of a six-second toast.
+function showShellAlert(message) {
+  const alert = document.getElementById('shell-alert');
+  if (!alert || !message) return toast(message);
+  alert.textContent = message;
+  alert.hidden = false;
+}
+function clearShellAlert() {
+  const alert = document.getElementById('shell-alert');
+  if (!alert || alert.hidden) return;
+  alert.textContent = '';
+  alert.hidden = true;
+}
 async function render() {
   const generation = ++navigationGeneration,
     identity = identityGeneration,
-    pathname = location.pathname;
+    pathname = location.pathname,
+    routeChanged = renderedLocation !== location.pathname + location.search;
   renderedLocation = location.pathname + location.search;
   clearTimeout(pollTimer);
-  document.body.classList.toggle(
-    'public-view',
-    ['/', '/login', '/signup', '/forgot-password', '/reset-password', '/verify-email'].includes(location.pathname),
-  );
+  if (routeChanged) clearShellAlert();
+  pageLeaveGuard = null;
+  const page = routeEntry(location.pathname),
+    navigationKey = routeNavigationKey(location.pathname);
+  document.body.classList.toggle('public-view', page?.public === true);
+  // One name per page (WEB-06): the tab title, breadcrumb and heading use the registry's canonical label.
   const pageTitle =
-    {
-      '/': 'Make room for your next move',
-      '/login': 'Sign in',
-      '/signup': 'Create your account',
-      '/forgot-password': 'Password recovery',
-      '/reset-password': 'Reset password',
-      '/verify-email': 'Verify email',
-      '/oauth/consent': 'Authorize access',
-      '/oauth/result': 'Connection result',
-      '/dashboard': 'Home',
-      '/account': 'Your account',
-    }[location.pathname] ??
-    workspaceTitles[route()] ??
+    page?.label ??
     (location.pathname
       .slice(1)
       .replaceAll('-', ' ')
@@ -1173,8 +1250,8 @@ async function render() {
   applyUILocale();
   document.getElementById('workspace-name').textContent = uiWorkspaceName(session.workspaceName, session.name);
   document.getElementById('user-avatar').textContent = (session.name ?? 'A').slice(0, 1).toUpperCase();
-  $('.readonly-indicator').innerHTML =
-    `<i></i>` + esc(uiText(session.writesEnabled ? 'Read + reviewed writes' : 'Read-only workspace'));
+  $('.readonly-indicator').innerHTML = `<i></i>` + esc(accessLine(session));
+  shellLinks();
   const footerAccess = session.writesEnabled
     ? 'Encrypted connections · Reviewed write access'
     : 'Encrypted connections · Read-only access';
@@ -1182,7 +1259,7 @@ async function render() {
   footer.setAttribute('data-ui-text', footerAccess);
   footer.textContent = uiText(footerAccess);
   document.querySelectorAll('[data-route]').forEach(a => {
-    const current = a.dataset.route === route();
+    const current = a.dataset.route === navigationKey;
     a.classList.toggle('active', current);
     if (current) {
       a.setAttribute('aria-current', 'page');
@@ -1190,34 +1267,22 @@ async function render() {
       if (group) group.open = true;
     } else a.removeAttribute('aria-current');
   });
-  $('#breadcrumb').textContent = uiText(
-    location.pathname.startsWith('/oauth')
-      ? 'Connection'
-      : ({
-          dashboard: 'Home',
-          campaigns: 'Campaigns',
-          media: 'Media library',
-          reports: 'Reports',
-          'reporting-overview': 'Reporting overview',
-          profiles: 'Client profiles',
-          connections: 'Connections',
-          connectors: 'MCP connectors',
-          activity: 'Activity',
-          settings: 'Settings',
-          account: 'Your account',
-          terms: 'Terms',
-          'data-deletion': 'Data deletion',
-        }[route() || location.pathname.slice(1)] ??
-          workspaceTitles[route()] ??
-          'Workspace'),
-  );
+  // A child page names its parent first: "Connections / Connection result".
+  $('#breadcrumb').textContent = page
+    ? (page.parent ? uiText(routeLabel(page.parent)) + ' / ' : '') + uiText(page.label)
+    : uiText(
+        {terms: 'Terms', 'data-deletion': 'Data deletion', privacy: 'Privacy'}[location.pathname.slice(1)] ??
+          'Workspace',
+      );
   $('#login-button').hidden = session.authenticated;
   $('#logout-button').hidden = !session.authenticated;
   try {
-    if (pageAssetsPending(pathname)) {
-      content.innerHTML = `<section class="panel" role="status"><h1>${esc(uiText(pageTitle))}</h1><p>${esc(uiText('Loading this page…'))}</p></section>`;
-      await ensurePageAssets(pathname);
-    }
+    // WEB-06: a new page replaces the previous one at once with its heading and a busy placeholder, so the previous
+    // page's controls cannot be used while this one loads its files and data.
+    const pending = pageAssetsPending(pathname);
+    if (pending || (routeChanged && page && !page.public))
+      content.innerHTML = `<div class="page-heading"><div><h1>${esc(uiText(pageTitle))}</h1></div></div><section class="panel" role="status" aria-busy="true" id="route-loading"><p>${esc(uiText('Loading this page…'))}</p></section>`;
+    if (pending) await ensurePageAssets(pathname);
     if (generation !== navigationGeneration || identity !== identityGeneration || pathname !== location.pathname)
       return;
     if (location.pathname === '/') return await renderLanding();
@@ -1285,19 +1350,37 @@ document.addEventListener('click', async event => {
   }
   if (clientNavigation(event, el)) {
     event.preventDefault();
-    navigate(el.getAttribute('href'));
+    const href = el.getAttribute('href');
+    if (
+      typeof pageLeaveGuard === 'function' &&
+      pageLeaveGuard() &&
+      !(await confirmAction({
+        title: uiText('Leave without saving?'),
+        consequence: uiText('Unsaved edits on this page will be lost. Saved work is kept.'),
+        confirmLabel: uiText('Leave page'),
+      }))
+    )
+      return;
+    navigate(href);
     return;
   }
   if (el.dataset.close) {
     $('#' + el.dataset.close).close();
     return;
   }
+  // A shell action's error stays on screen until the person's next action (WEB-06).
+  if (typeof clearShellAlert === 'function') clearShellAlert();
   let disabledHere = false;
   const disableControl = () => {
     disabledHere = true;
     el.disabled = true;
   };
   try {
+    if (el.id === 'workspace-switch-open') return await openWorkspaceMenu();
+    if (el.dataset.shellSwitch) {
+      disableControl();
+      return await switchWorkspaceFromShell(el.dataset.shellSwitch);
+    }
     if (el.dataset.consent) {
       disableControl();
       const approved = el.dataset.consent === 'approve',
@@ -1567,7 +1650,9 @@ document.addEventListener('click', async event => {
       return openManage(el.dataset.callbackManage, el.dataset.connectionId);
     }
   } catch (e) {
-    toast(e.message);
+    // On the page, the error persists above the content until the next action; inside a dialog it stays a toast.
+    if (el.closest?.('dialog')) toast(e.message);
+    else showShellAlert(errorMessage(e));
   } finally {
     if (disabledHere && el.isConnected) el.disabled = false;
   }
@@ -1636,13 +1721,19 @@ $('#confirm-form').addEventListener('submit', async event => {
 });
 // A history step that changes only the fragment (a skip link, an in-page jump, or Back over one) moves focus to its
 // section. Re-rendering would clear what the person typed and repeat the page's requests (WEB-01).
-window.addEventListener('popstate', () => {
+window.addEventListener('popstate', async () => {
   if (renderedLocation === location.pathname + location.search) {
     const target = fragmentTarget(location.hash);
     if (target) focusFragmentTarget(target);
     return;
   }
-  render();
+  // Back and Forward land on the page heading like a link does, once that page has rendered and is still current.
+  const shown = location.pathname + location.search + location.hash;
+  await render();
+  if (location.pathname + location.search + location.hash !== shown) return;
+  const target = fragmentTarget(location.hash);
+  if (target) focusFragmentTarget(target);
+  else focusPageHeading();
 });
 /** A plain activation of a link to a section of the current page, or null. */
 function fragmentLink(event, el) {
@@ -1676,38 +1767,8 @@ function clientNavigation(event, el) {
     return false;
   const href = el.getAttribute('href');
   if (!href?.startsWith('/') || href.startsWith('//')) return false;
-  const path = href.split(/[?#]/)[0];
-  return [
-    '/',
-    '/dashboard',
-    '/campaigns',
-    '/media',
-    '/reports',
-    '/reporting-overview',
-    '/operations',
-    '/capabilities',
-    '/report-library',
-    '/report-pack',
-    '/monitors',
-    '/portfolio',
-    '/measurement',
-    '/commerce',
-    '/schedules',
-    '/profiles',
-    '/connections',
-    '/connectors',
-    '/activity',
-    '/settings',
-    '/account',
-    '/login',
-    '/signup',
-    '/forgot-password',
-    '/reset-password',
-    '/verify-email',
-    '/oauth/consent',
-    '/oauth/result',
-    '/auth/complete',
-  ].includes(path);
+  // Every page in the route registry is client-navigable; anything else is a document (WEB-06).
+  return routeEntry(href.split(/[?#]/)[0]) !== undefined;
 }
 (async () => {
   // All deferred feature scripts must be initialized before a fast local session response can start rendering.

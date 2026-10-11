@@ -1,11 +1,12 @@
 import type {Actor, JsonObject} from './types.js';
 import type {Store} from './store.js';
-import {recipeContext, recipeInputs} from './recipe-context.js';
-import {campaignRecipe} from './campaign-recipes.js';
+import {recipeContext, recipeInputs, resolveBrief} from './recipe-context.js';
+import {campaignRecipe, recipeMissing} from './campaign-recipes.js';
 import {recipeDependencies, readinessBinding} from './capability-eligibility.js';
 import {normalizeAccount} from './scope.js';
 import {MirrorError} from './errors.js';
-import {fingerprint, type ToolCall} from './workspace-core.js';
+import {fingerprint, optional, type ToolCall} from './workspace-core.js';
+import {randomUUID} from 'node:crypto';
 import {writePause} from './owner-operations.js';
 import {storedLogin} from './connection-authority.js';
 
@@ -20,11 +21,16 @@ export async function recipeEligibility(
 ): Promise<JsonObject> {
   if (input.live !== undefined && typeof input.live !== 'boolean')
     throw new MirrorError('INVALID_ARGUMENT', 'live is an explicit boolean; false performs only local inspection.');
+  const original = input;
+  input = resolveBrief(store, actor, input);
   const context = recipeContext(store, actor, input.recipe, input.profile_id),
-    resolved = recipeInputs(context, input.business ?? {}),
+    resolved = recipeInputs(context, input.business ?? {}, {
+      apply_playbook_rules: input.apply_playbook_rules,
+      client_brief: input.client_brief,
+    }),
     business = resolved.business,
     checkedAt = Date.now(),
-    missing = context.recipe.required.filter((key: string) => business[key] === undefined || business[key] === ''),
+    missing = recipeMissing(context.recipe, business),
     base = {
       version: 1,
       record_kind: 'recipe_eligibility',
@@ -278,7 +284,23 @@ export async function recipeEligibility(
   const deferred = native?.deferred ?? [],
     status = blockers.length ? 'blocked' : 'unknown';
   const next =
-    input.live !== true && !blockers.length ? {tool: 'amcp_campaign', arguments: {...input, live: true}} : undefined;
+    input.live !== true && !blockers.length ? {tool: 'amcp_campaign', arguments: {...original, live: true}} : undefined;
+  // A live read-only preflight is kept for five minutes so the plan created from this exact brief can reuse it
+  // instead of reading the provider again (CMP-06); it is applied only when every binding still matches.
+  const eligibilityRef = native
+    ? saveEligibility(store, actor, {
+        recipe: input.recipe,
+        profile: context.profile,
+        business_fingerprint: resolved.provenance.business_fingerprint,
+        steps_hash: eligibilityStepsHash(steps),
+        binding,
+        credential: fingerprint(credentialBinding),
+        pause,
+        preflight: native,
+        checked_at: checkedAt,
+        expires_at: base.expires_at,
+      })
+    : undefined;
   return {
     ...base,
     status,
@@ -294,11 +316,80 @@ export async function recipeEligibility(
     ...(native
       ? {
           preflight: {status: native.status, checked_at: native.checked_at, plan_hash: native.plan_hash},
+          eligibility_ref: eligibilityRef,
           warnings: native.warnings ?? [],
         }
       : {}),
     ...(next ? {next_call: next} : {}),
     meaning:
       'Inspection saves no campaign plan and submits no provider mutation. Ready dependency rows describe only their stated evidence; objective acceptance and verified predecessor IDs remain subject to native preparation and review.',
+  };
+}
+/** The compiled steps as preflight checks them; a plan whose steps hash differently cannot reuse the result. */
+export function eligibilityStepsHash(steps: JsonObject[]): string {
+  return fingerprint(
+    steps.map(s => ({
+      id: s.id,
+      kind: s.kind,
+      gateway: s.gateway ?? null,
+      connection_id: s.connection_id,
+      account_id: s.account_id,
+      arguments: s.arguments,
+      depends_on: s.depends_on ?? [],
+      expected_currency: s.expected_currency ?? null,
+      prerequisites: s.prerequisites ?? [],
+    })),
+  );
+}
+function saveEligibility(store: Store, actor: Actor, record: JsonObject): string {
+  const now = Date.now();
+  for (const old of store.documents(actor.tenantId, 'recipe_eligibility'))
+    if (Number(old.expires_at) <= now)
+      store.db
+        .prepare('DELETE FROM documents WHERE tenant_id=? AND kind=? AND id=?')
+        .run(actor.tenantId, 'recipe_eligibility', old.id);
+  const id = randomUUID();
+  store.putDocument(actor.tenantId, 'recipe_eligibility', id, {...record, user_id: actor.userId});
+  return id;
+}
+/**
+ * Whether a saved plan may start from a live eligibility check instead of running preflight again (CMP-06): the same
+ * person, recipe, playbook revision, resolved business inputs and compiled steps, the same login and account grant,
+ * the same owner write pause, and an unexpired check. Anything else leaves the plan to run its own preflight.
+ */
+export function eligibilityReuse(
+  store: Store,
+  actor: Actor,
+  ref: unknown,
+  run: JsonObject,
+  recipe: string,
+  provenance: JsonObject,
+): JsonObject {
+  const refuse = (reason: string) => ({applied: false, eligibility_ref: ref, reason});
+  if (typeof ref !== 'string') return refuse('unknown_reference');
+  const record = optional(store, actor.tenantId, 'recipe_eligibility', ref);
+  if (!record || record.user_id !== actor.userId) return refuse('unknown_reference');
+  if (Date.now() >= Number(record.expires_at)) return refuse('expired');
+  if (record.recipe !== recipe) return refuse('recipe_changed');
+  const profile = provenance.profile ?? null;
+  if ((record.profile?.id ?? null) !== (profile?.id ?? null)) return refuse('profile_changed');
+  if (profile && optional(store, actor.tenantId, 'client_profile', profile.id)?.revision !== record.profile?.revision)
+    return refuse('profile_revision_changed');
+  if (record.business_fingerprint !== provenance.business_fingerprint) return refuse('brief_changed');
+  if (record.steps_hash !== eligibilityStepsHash(run.steps)) return refuse('steps_changed');
+  const write = run.steps.find((s: JsonObject) => s.kind === 'write');
+  try {
+    const connection = store.resolveConnection(actor, write.gateway, write.account_id, write.connection_id);
+    if (readinessBinding(connection) !== record.binding) return refuse('account_access_changed');
+    if (fingerprint(storedLogin(store, connection)) !== record.credential) return refuse('login_changed');
+  } catch {
+    return refuse('account_access_changed');
+  }
+  if (fingerprint(writePause(store, actor.tenantId)) !== record.pause) return refuse('write_pause_changed');
+  return {
+    applied: true,
+    eligibility_ref: ref,
+    checked_at: record.checked_at,
+    preflight: {...record.preflight, seeded_from: {eligibility_ref: ref, checked_at: record.checked_at}},
   };
 }

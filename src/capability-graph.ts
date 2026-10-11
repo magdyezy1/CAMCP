@@ -38,7 +38,8 @@ export function capabilityGraph(
     required_inputs: recipe.required,
     effects: 'reviewed_provider_writes',
     next_call: {tool: 'amcp_campaign', arguments: {action: 'recipe_context', recipe: recipe.id}},
-    website_path: '/campaigns#campaign-create',
+    // The composer opens on this workflow (WEB-06); the person still chooses the account and inputs.
+    website_path: '/campaigns?recipe=' + encodeURIComponent(recipe.id) + '#campaign-create',
     source: 'src/campaign-recipes.ts',
   }));
   const reports = Object.entries(reportPlatforms).map(([platform, provider]) => ({

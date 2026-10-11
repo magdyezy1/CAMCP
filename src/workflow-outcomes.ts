@@ -310,8 +310,20 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject, acti
     result.advertising_writes = 0;
     result.automatic_retry_of_mutation = false;
   }
-  if (tool === 'amcp_campaign' && data.record_kind === 'recipe_eligibility')
-    result.website_path = '/campaigns#campaign-create';
+  if (tool === 'amcp_campaign' && data.record_kind === 'recipe_eligibility') {
+    // WEB-06: the composer opens with the checked workflow, playbook and account preselected; it reads and saves
+    // nothing until the person acts.
+    const query = [
+      ['recipe', data.recipe_id],
+      ['profile_id', data.provenance?.profile?.id],
+      ['connection_id', data.scope?.connection_id],
+      ['account_id', data.scope?.account_id],
+    ]
+      .filter(([, value]) => typeof value === 'string' && value.length <= 200)
+      .map(([key, value]) => key + '=' + encodeURIComponent(value))
+      .join('&');
+    result.website_path = '/campaigns' + (query ? '?' + query : '') + '#campaign-create';
+  }
   if (
     tool === 'amcp_media' &&
     data.record_kind === 'native_asset_references' &&
@@ -357,7 +369,8 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject, acti
     else if (['portfolio', 'portfolio_reconciliation'].includes(data.record_kind)) result.website_path = '/portfolio';
     else if (data.record_kind === 'audit_history') result.website_path = '/activity';
     else if (data.record_kind === 'catalog_comparison') {
-      const query = ['connection_id', 'account_id', 'catalog_id']
+      // The gateway names the destination (COM-01): an X comparison reopens its X account and catalog, not Meta's.
+      const query = ['gateway', 'connection_id', 'account_id', 'catalog_id']
         .filter(key => typeof data.scope?.[key] === 'string' && data.scope[key].length <= 200)
         .map(key => key + '=' + encodeURIComponent(data.scope[key]))
         .join('&');

@@ -18,7 +18,15 @@ test('X source comparison returns exact supplied new/changed/matching/unknown pr
     out.items.map(i => i.state),
     ['new', 'changed', 'matching', 'unknown'],
   );
-  assert.deepEqual(out.summary, {new: 1, changed: 1, matching: 1, unknown: 1, blocked: 0, needs_review: 3});
+  assert.deepEqual(out.summary, {
+    new: 1,
+    changed: 1,
+    matching: 1,
+    unknown: 1,
+    blocked: 0,
+    needs_review: 3,
+    with_destination_only_values: 3,
+  });
   assert.deepEqual(out.review_retailer_ids, ['sku-4', 'sku-1', 'sku-3']);
   assert.deepEqual(
     out.items[1].changes.map(c => c.field),

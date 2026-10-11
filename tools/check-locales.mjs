@@ -21,6 +21,7 @@ export const shellScripts = new Set([
   'app.js',
   'identity.js',
   'localization.js',
+  'routes.js',
   'workspace.js',
   'account-security.js',
   'account-scope.js',
@@ -41,8 +42,6 @@ export function inspectLocaleSource(source, file = 'script.js') {
   const maps = new Set([
     'authErrors',
     'legalMessages',
-    'commandPages',
-    'workspaceTitles',
     'pageTitle',
     'pageErrorCauses',
     'recipeLabels',
@@ -78,6 +77,11 @@ export function inspectLocaleSource(source, file = 'script.js') {
   const walk = (node, ancestors = []) => {
     if (!node || typeof node !== 'object') return;
     if (node.type === 'VariableDeclarator' && maps.has(node.id?.name)) collectValues(node.init);
+    // WEB-06: the route registry's display names are interface copy; paths, flags and page keys are not.
+    if (node.type === 'VariableDeclarator' && node.id?.name === 'routeRegistry')
+      for (const entry of node.init?.elements ?? [])
+        for (const property of entry.properties ?? [])
+          if (['label', 'group', 'aliases', 'description'].includes(property.key?.name)) collectValues(property.value);
     if (
       node.type === 'VariableDeclarator' &&
       ['app.js', 'capability-center.js', 'workbook-schedules.js'].some(name => file.endsWith(name)) &&

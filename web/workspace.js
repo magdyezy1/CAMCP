@@ -1,20 +1,5 @@
 'use strict';
-const workspaceTitles = {
-  dashboard: 'Overview',
-  campaigns: 'Campaigns',
-  media: 'Media library',
-  reports: 'Reports',
-  profiles: 'Client profiles',
-  operations: 'Operations',
-  capabilities: 'Capabilities',
-  schedules: 'Schedules & deliveries',
-  'report-library': 'Report library',
-  'report-pack': 'Report pack',
-  monitors: 'Monitoring inbox',
-  portfolio: 'Live account portfolio',
-  measurement: 'Measurement diagnostics',
-  commerce: 'Commerce',
-};
+// Page headings use the route registry's canonical names (web/routes.js, WEB-06).
 // First-party labels for the state values AMCP itself assigns (WEB-05). tests/status-labels.test.mjs reads the value
 // lists from src and fails when one lacks a label here or an Arabic entry. Provider values never pass through here.
 const statusLabels = {
@@ -55,6 +40,8 @@ const statusLabels = {
   active: 'Active',
   superseded: 'Superseded',
   skipped: 'Skipped',
+  // A plan step whose target already held every value it would send (COM-01).
+  skipped_unchanged: 'Unchanged, not sent',
   implemented_unverified: 'Implemented, not live-verified',
   recent_complete: 'Recent and complete',
   stale_or_incomplete: 'Stale or incomplete',
@@ -122,7 +109,7 @@ async function workspaceCall(tool, args) {
 const recordDetails = (v, title = uiText('Details')) =>
   `<details class="workspace-details"><summary>${esc(uiText(title))}</summary><pre class="code-block" tabindex="0" role="region" aria-label="${esc(uiText(title))}">${esc(JSON.stringify(v, null, 2))}</pre></details>`;
 const badge = (v, label = statusLabel(v)) =>
-  `<span class="status ${['verified', 'verified_with_acceptance', 'complete', 'passed', 'ready', 'resolved'].includes(v) ? 'online' : ['failed', 'mismatch', 'uncertain', 'blocked', 'attention', 'open', 'partial', 'expired', 'reauthorization_required', 'refresh_failed'].includes(v) ? 'attention' : 'offline'}">${esc(label)}</span>`;
+  `<span class="status ${['verified', 'verified_with_acceptance', 'skipped_unchanged', 'complete', 'passed', 'ready', 'resolved'].includes(v) ? 'online' : ['failed', 'mismatch', 'uncertain', 'blocked', 'attention', 'open', 'partial', 'expired', 'reauthorization_required', 'refresh_failed', 'rejected'].includes(v) ? 'attention' : 'offline'}">${esc(label)}</span>`;
 const blank = text => `<div class="empty">${esc(text)}</div>`;
 const controls = (label, type = 'text', value = '', name = label) =>
   `<label>${esc(uiText(label))}<input name="${esc(name)}" type="${type}" ${type === 'number' ? 'step="any"' : ''} value="${esc(value)}"></label>`;
@@ -238,11 +225,11 @@ function workspaceBind(selector, fn, options = {}) {
 async function renderWorkspacePage() {
   const page = route();
   content.innerHTML = header(
-    uiText(workspaceTitles[page]),
+    uiText(routeLabel('/' + page)),
     uiText('Plan, review and verify work across your selected accounts.'),
   );
   if (!session.authenticated) {
-    content.innerHTML += `<div class="empty"><strong>${esc(uiText('A workspace of your own.'))}</strong><p>${esc(uiText('Sign in to connect your accounts and get started.'))}</p><button class="button primary" data-action="login">${esc(uiText('Sign in to AMCP ↗'))}</button></div>`;
+    content.innerHTML += `<div class="empty"><strong>${esc(uiText('A workspace of your own.'))}</strong><p>${esc(uiText('Sign in to connect your accounts and get started.'))}</p><button class="button primary" data-action="login">${esc(uiText('Sign in →'))}</button></div>`;
     return;
   }
   if (page === 'dashboard') return renderOverview();
@@ -320,7 +307,7 @@ async function renderCampaigns() {
     workspaceCall('campaign', {action: 'list', limit: 50, ...filters}),
     workspaceCall('workspace', {action: 'profiles'}),
   ]);
-  content.innerHTML += `<div class="dialog-actions"><a class="button primary" href="/campaigns#campaign-create">${esc(uiText('New campaign plan'))}</a></div><section class="panel" id="campaign-history"><div class="panel-header"><h2>${esc(uiText('Campaign plans'))}</h2></div>${campaignFilterForm(filters, first.total)}<div id="campaign-rows">${first.campaigns.map(campaignPlanRow).join('') || blank(Object.keys(filters).length ? uiText('No plans match these filters.') : uiText('Start with a saved template or ask your MCP client to turn a brief into a reviewed campaign plan.'))}</div>${first.next_cursor ? `<button id="campaign-more" class="button" type="button">${esc(uiText('Load more'))}</button>` : ''}</section><section id="campaign-detail" class="panel workspace-form"></section><div id="campaign-review"></div><details class="panel" id="campaign-create"><summary>${esc(uiText('New campaign plan'))}</summary><details id="campaign-clone" class="workspace-form"></details><details class="workspace-form"><summary>${esc(uiText('Advanced: native plan or saved template'))}</summary><form id="campaign-form">${controls(uiText('Campaign name'), 'text', '', 'name')}<label>${esc(uiText('Brief'))}<textarea name="brief" rows="3" required></textarea></label><label>${esc(uiText('Client profile'))}<select name="profile_id"><option value="">${esc(uiText('No profile'))}</option>${profiles.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label>${controls(uiText('Saved template name'), 'text', '', 'template')}<label>${esc(uiText('Template variables'))}<textarea name="variables" rows="3">{}</textarea></label><details><summary>${esc(uiText('Native steps supplied by your MCP client'))}</summary><p class="form-note">${esc(uiText('The server resolves explicit steps and verified resource references. It does not invent campaign settings from a brief.'))}</p><textarea name="steps" rows="6" aria-label="${esc(uiText('Native campaign steps'))}"></textarea></details><button class="button primary" type="submit">${esc(uiText('Create plan'))}</button></form></details></details>`;
+  content.innerHTML += `<div class="dialog-actions"><a class="button primary" href="/campaigns#campaign-create">${esc(uiText('New campaign plan'))}</a></div><section class="panel" id="campaign-history"><div class="panel-header"><h2>${esc(uiText('Campaign plans'))}</h2></div>${campaignFilterForm(filters, first.total)}<div id="campaign-rows">${first.campaigns.map(campaignPlanRow).join('') || blank(Object.keys(filters).length ? uiText('No plans match these filters.') : uiText('Start with a saved template or ask your MCP client to turn a brief into a reviewed campaign plan.'))}</div>${first.next_cursor ? `<button id="campaign-more" class="button" type="button">${esc(uiText('Load more'))}</button>` : ''}</section><section id="campaign-detail" class="panel workspace-form"></section><div id="campaign-review"></div><details class="panel" id="campaign-create"><summary>${esc(uiText('New campaign plan'))}</summary><details id="campaign-clone" class="workspace-form"></details><details class="workspace-form"><summary>${esc(uiText('Advanced: native plan or saved template'))}</summary><form id="campaign-form">${controls(uiText('Campaign name'), 'text', '', 'name')}<label>${esc(uiText('Brief'))}<textarea name="brief" rows="3" required></textarea></label><label>${esc(uiText('Client profile'))}<select name="profile_id"><option value="">${esc(uiText('No profile'))}</option>${profiles.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label><label>${esc(uiText('Saved template'))}<select name="template"><option value="">${esc(uiText('No saved template'))}</option></select></label><p class="form-note" id="campaign-template-note">${esc(uiText('Choose a client profile to list its saved templates.'))}</p><label>${esc(uiText('Template variables'))}<textarea name="variables" rows="3">{}</textarea></label><details><summary>${esc(uiText('Native steps supplied by your MCP client'))}</summary><p class="form-note">${esc(uiText('The server resolves explicit steps and verified resource references. It does not invent campaign settings from a brief.'))}</p><textarea name="steps" rows="6" aria-label="${esc(uiText('Native campaign steps'))}"></textarea></details><button class="button primary" type="submit">${esc(uiText('Create plan'))}</button></form></details></details>`;
   let openSequence = 0;
   // `after`: the response that led here; one naming a step to correct opens the amendment form (CMP-02 a).
   const open = async (id, after) => {
@@ -419,6 +406,19 @@ async function renderCampaigns() {
   };
   workspaceBind('[data-run]', b => open(b.dataset.run));
   bindCampaignList(first, filters, open);
+  // The saved templates of the chosen profile, by name (CMP-06): a name no longer has to be remembered and typed.
+  const templateForm = $('#campaign-form');
+  templateForm.elements.profile_id.addEventListener('change', () => {
+    const names = Object.keys(profiles.find(p => p.id === templateForm.elements.profile_id.value)?.templates ?? {});
+    templateForm.elements.template.innerHTML =
+      `<option value="">${esc(uiText('No saved template'))}</option>` +
+      names.map(name => `<option value="${esc(name)}">${esc(name)}</option>`).join('');
+    $('#campaign-template-note').textContent = !templateForm.elements.profile_id.value
+      ? uiText('Choose a client profile to list its saved templates.')
+      : names.length
+        ? ''
+        : uiText('This profile has no saved templates.');
+  });
   workspaceBind('#campaign-form', async f => {
     const v = Object.fromEntries(new FormData(f)),
       r = await workspaceCall('campaign', {

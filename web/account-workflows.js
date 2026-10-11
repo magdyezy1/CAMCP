@@ -277,11 +277,67 @@ function portfolioReconciliationView(out) {
   ];
   return `<h3 tabindex="-1" id="portfolio-comparison-heading">${esc(uiText('Inventory comparison'))}</h3><p>${esc(out.status === 'same_supported_fields' ? uiText('The supported fields matched in both complete reads.') : uiText('The two complete reads contain observed differences.'))}</p><p class="notice">${esc(uiText('Matching reads do not prove an atomic snapshot. A missing row does not establish deletion or authorize removal. Provider visibility rules still apply.'))}</p><p>${esc(uiText('First read: {before} entities. Second read: {after} entities. Unchanged: {same}.', {before: out.observations[0].row_count, after: out.observations[1].row_count, same: out.changes.unchanged_count}))}</p><p>${esc(uiText('Observation window: {start} to {end}.', {start: uiDate(out.observations[0].started_at), end: uiDate(out.observations[1].completed_at)}))}</p>${changes.length ? `<div class="data-scroll" tabindex="0" role="region" aria-label="${esc(uiText('Observed inventory differences'))}"><table class="review-table"><caption>${esc(uiText('Observed inventory differences'))}</caption><thead><tr><th scope="col">${esc(uiText('Native ID'))}</th><th scope="col">${esc(uiText('Observed change'))}</th><th scope="col">${esc(uiText('Before'))}</th><th scope="col">${esc(uiText('After'))}</th></tr></thead><tbody>${changes.map(row => `<tr><th scope="row" dir="ltr">${esc(row.id)}</th><td>${esc(row.label)}</td><td>${row.before ? recordDetails(row.before.native, uiText('Native fields')) : esc(uiText('Not observed'))}</td><td>${row.after ? recordDetails(row.after.native, uiText('Native fields')) : esc(uiText('Not observed'))}</td></tr>`).join('')}</tbody></table></div>` : ''}<details><summary>${esc(uiText('Inventory observation references'))}</summary>${out.observations.map((observation, index) => `<p>${esc(uiText('Read {number}: {pages} complete pages.', {number: index + 1, pages: observation.pages.length}))}</p><code dir="ltr">${esc(observation.content_sha256)}</code>`).join('')}</details>`;
 }
+// WEB-06: the account and drill-down live in the address, so Back returns to the parent level and a reload restores
+// the selection. Restoring never reads the provider; the person chooses Read inventory.
+const portfolioParentKeys = [
+  'campaign_group_id',
+  'campaign_id',
+  'adset_id',
+  'ad_group_id',
+  'ad_squad_id',
+  'adgroup_id',
+  'line_item_id',
+];
+const portfolioEntities = [
+  'campaign_group',
+  'campaign',
+  'adset',
+  'ad_group',
+  'adsquad',
+  'adgroup',
+  'line_item',
+  'ad',
+  'creative',
+  'promoted_tweet',
+];
+function portfolioUrlState() {
+  const params =
+      typeof URLSearchParams === 'function' && typeof location === 'object' && location
+        ? new URLSearchParams(location.search ?? '')
+        : new Map(),
+    config = {};
+  if (portfolioEntities.includes(params.get('entity'))) config.entity = params.get('entity');
+  for (const key of portfolioParentKeys)
+    if (/^[A-Za-z0-9_.:-]{1,200}$/.test(params.get(key) ?? '')) config[key] = params.get(key);
+  return {connection_id: params.get('connection_id'), account_id: params.get('account_id'), config};
+}
+function portfolioUrl(target, config) {
+  return (
+    '/portfolio?' +
+    Object.entries({connection_id: target.connection_id, account_id: target.account_id, ...config})
+      .map(([key, value]) => key + '=' + encodeURIComponent(value))
+      .join('&')
+  );
+}
+/** Exact account-currency amount of a native micros value, without rounding: 9007199254740993 → 9007199254.740993. */
+function portfolioMicrosDecimal(value) {
+  const text = typeof value === 'number' && Number.isSafeInteger(value) ? String(value) : value;
+  if (typeof text !== 'string' || !/^-?\d{1,30}$/.test(text)) return null;
+  const negative = text.startsWith('-'),
+    n = BigInt(negative ? text.slice(1) : text),
+    fraction = (n % 1000000n).toString().padStart(6, '0').replace(/0+$/, '');
+  return (negative ? '-' : '') + (n / 1000000n).toString() + (fraction ? '.' + fraction : '');
+}
 async function renderPortfolio() {
   const targets = accountChoices(['google', 'meta', 'linkedin', 'snapchat', 'tiktok', 'x']),
     generation = navigationGeneration,
-    identity = identityGeneration;
-  content.innerHTML += `<p class="notice">${esc(uiText('Browse current Google Ads, Meta, LinkedIn, Snapchat, TikTok and X inventory. Inventory is read-only; provider changes require a separate review.'))}</p><form id="portfolio-account" class="panel workspace-form"><label>${esc(uiText('Advertising account'))}<select name="target" required><option value="">${esc(uiText('Choose a login and account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label><button class="button primary" type="submit">${esc(uiText('Read inventory'))}</button></form><div id="portfolio-view" aria-live="polite"></div>`;
+    identity = identityGeneration,
+    restored = portfolioUrlState(),
+    restoredIndex = targets.findIndex(
+      t => t.connection_id === restored.connection_id && t.account_id === restored.account_id,
+    ),
+    restoredMissing = !!(restored.connection_id || restored.account_id) && restoredIndex < 0;
+  content.innerHTML += `<p class="notice">${esc(uiText('Browse current Google Ads, Meta, LinkedIn, Snapchat, TikTok and X inventory. Inventory is read-only; provider changes require a separate review.'))}</p><form id="portfolio-account" class="panel workspace-form"><label>${esc(uiText('Advertising account'))}<select name="target" required>${restoredMissing ? `<option value="" selected>${esc(uiText('Previously selected account — check access'))}</option>` : ''}<option value="">${esc(uiText('Choose a login and account'))}</option>${targets.map((t, i) => `<option value="${i}" ${i === restoredIndex ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select></label><button class="button primary" type="submit">${esc(uiText('Read inventory'))}</button></form><div id="portfolio-view" aria-live="polite"></div>`;
   const view = $('#portfolio-view'),
     form = $('#portfolio-account');
   const attached = () =>
@@ -315,6 +371,8 @@ async function renderPortfolio() {
       if (active()) view.setAttribute('aria-busy', 'false');
     }
     if (!active()) return;
+    // A new level gets its own history entry; a refresh or the next page of the same level does not.
+    if (typeof setViewLocation === 'function') setViewLocation(portfolioUrl(selected, config), !next);
     current = config;
     cursor = out.next_cursor;
     const meta = selected.gateway === 'meta_native_action',
@@ -339,6 +397,14 @@ async function renderPortfolio() {
           : x
             ? uiText('Promoted posts')
             : uiText('Ads');
+    // WEB-06: Google, Snapchat and X document their unit as micros of the account currency (src/budget-units.ts), so
+    // the exact decimal amount is shown beside the native value. Meta and TikTok stay unconverted.
+    const exact = (value, currency) => {
+      const decimal = portfolioMicrosDecimal(value);
+      return decimal === null
+        ? ''
+        : ` · <bdi dir="ltr">${esc(decimal)}${/^[A-Z]{3}$/.test(currency ?? '') ? ' ' + esc(currency) : ''}</bdi>`;
+    };
     const money = r => {
       if (r.native_money) {
         const entries = Object.entries(r.native_money).filter(([, v]) => v !== null);
@@ -347,18 +413,45 @@ async function renderPortfolio() {
               entries
                 .map(
                   ([k, v]) =>
-                    `<div>${esc(linkedin || snap || tiktok || x ? portfolioMoneyLabel(k) : k)}: <b>${esc(linkedin ? v.amount + ' ' + v.currencyCode : v)}</b></div>`,
+                    `<div>${esc(linkedin || snap || tiktok || x ? portfolioMoneyLabel(k) : k)}: <b>${esc(linkedin ? v.amount + ' ' + v.currencyCode : v)}</b>${(snap || x) && /_micros?$/.test(k) ? exact(v, r.currency) : ''}</div>`,
                 )
                 .join('') +
-              `<small>${esc(linkedin ? uiText('LinkedIn native decimal amounts · unconverted') : snap ? uiText('Snapchat native micros · unconverted') : x ? uiText('X native micros · unconverted') : tiktok ? uiText('TikTok native account-currency amounts · unconverted') : uiText('Meta native integers · unconverted'))}</small>`
+              `<small>${esc(linkedin ? uiText('LinkedIn native decimal amounts · unconverted') : snap ? uiText('Snapchat native micros · exact amount in account currency shown') : x ? uiText('X native micros · exact amount in account currency shown') : tiktok ? uiText('TikTok native account-currency amounts · unconverted') : uiText('Meta native integers · unconverted'))}</small>`
           : portfolioBudgetContextView(r) + uiText('No amount returned');
       }
       return r.budget_micros != null
-        ? esc(uiText('{amount} budget micros', {amount: r.budget_micros}))
+        ? esc(uiText('{amount} budget micros', {amount: r.budget_micros})) + exact(r.budget_micros, r.currency)
         : r.cpc_bid_micros != null
-          ? esc(uiText('{amount} CPC bid micros', {amount: r.cpc_bid_micros}))
+          ? esc(uiText('{amount} CPC bid micros', {amount: r.cpc_bid_micros})) + exact(r.cpc_bid_micros, r.currency)
           : '—';
     };
+    // Row hand-offs (WEB-06): clone a root entity into a draft where cloning is supported and this account has write
+    // access, and capture evidence for it. Both open a preselected form; nothing is read or saved until submitted.
+    const login = platforms
+        .find(p => p.gateway === selected.gateway)
+        ?.connections.find(c => c.id === selected.connection_id),
+      writable = !!(login?.writeAccounts ?? login?.write_accounts ?? []).includes(selected.account_id),
+      clonable =
+        writable &&
+        [
+          'google_ads_native_action',
+          'snapchat_native_action',
+          'tiktok_native_action',
+          'linkedin_native_action',
+        ].includes(selected.gateway),
+      capturable = selected.gateway !== 'x_ads_native_action',
+      scopeQuery =
+        'connection_id=' +
+        encodeURIComponent(selected.connection_id) +
+        '&account_id=' +
+        encodeURIComponent(selected.account_id);
+    const handoffs = r =>
+      (clonable && config.entity === root
+        ? `<a class="button small" href="/campaigns?clone=1&${scopeQuery}&source_id=${encodeURIComponent(r.id)}#campaign-clone">${esc(uiText('Clone into a draft'))}</a>`
+        : '') +
+      (capturable && config.entity === 'campaign'
+        ? `<a class="button small" href="/reports?${scopeQuery}&campaign_id=${encodeURIComponent(r.id)}#report-capture">${esc(uiText('Capture evidence for this campaign'))}</a>`
+        : '');
     const serving = r =>
       x
         ? config.entity === 'campaign'
@@ -380,12 +473,12 @@ async function renderPortfolio() {
       : config.campaign_id
         ? `<button id="portfolio-parent" class="button">${esc(uiText(meta ? 'Ad sets for {id}' : snap ? 'Ad squads for {id}' : x ? 'Line items for {id}' : 'Ad groups for {id}', {id: config.campaign_id}))}</button>`
         : '';
-    view.innerHTML = `<section class="panel"><div class="dialog-actions"><button id="portfolio-root" class="button">${esc(linkedin ? uiText('Campaign groups') : uiText('Campaigns'))}</button>${parent}<a class="button" href="/campaigns#campaign-create">${esc(uiText('Create or clone a plan'))}</a><a class="button" href="/reports#report-capture">${esc(uiText('Capture performance evidence'))}</a></div>
+    view.innerHTML = `<section class="panel"><div class="dialog-actions"><button id="portfolio-root" class="button">${esc(linkedin ? uiText('Campaign groups') : uiText('Campaigns'))}</button>${parent}<a class="button" href="/campaigns#campaign-create">${esc(uiText('Create or clone a plan'))}</a>${capturable ? `<a class="button" href="/reports?${scopeQuery}#report-capture">${esc(uiText('Capture performance evidence'))}</a>` : ''}</div>
       <h2 id="portfolio-heading" tabindex="-1">${esc(uiText('{entity} inventory', {entity: portfolioEntityLabel(config.entity)}))}</h2>
       <p><strong>${esc(uiText('{platform} · Account {account}', {platform: linkedin ? 'LinkedIn' : meta ? 'Meta' : snap ? 'Snapchat' : tiktok ? 'TikTok' : x ? 'X' : 'Google Ads', account: out.account_id}))}</strong>${config.campaign_group_id ? ' · ' + esc(uiText('Campaign group {id}', {id: config.campaign_group_id})) : ''}${config.campaign_id ? ' · ' + esc(uiText('Campaign {id}', {id: config.campaign_id})) : ''}${config.adset_id || config.ad_group_id || config.ad_squad_id || config.adgroup_id || config.line_item_id ? ' · ' + esc(uiText(meta ? 'Ad set {id}' : snap ? 'Ad squad {id}' : x ? 'Line item {id}' : 'Ad group {id}', {id: config.adset_id ?? config.ad_group_id ?? config.ad_squad_id ?? config.adgroup_id ?? config.line_item_id})) : ''}</p>
       <p>${esc(uiText('Read {date} · Current inventory', {date: date(out.captured_at)}))}</p><details class="workspace-details"><summary>${esc(uiText('Inventory scope and native units'))}</summary><p>${esc(uiAccountExplanation(out.meaning))}</p></details>
       <div class="data-scroll" role="region" aria-label="${esc(uiText('Portfolio entities'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('{entity} inventory', {entity: portfolioEntityLabel(config.entity)}))}</caption><thead><tr><th scope="col">${esc(uiText('Entity'))}</th><th scope="col">${esc(linkedin && config.entity === 'creative' ? uiText('Intended status') : uiText('Native status'))}</th><th scope="col">${esc(uiText('Native money fields'))}</th><th scope="col">${esc(uiText('Next view'))}</th></tr></thead><tbody>
-      ${out.rows.map((r, i) => `<tr><th scope="row">${esc(r.name)}<small>${esc(r.id)}</small></th><td><strong>${esc(r.status ?? uiText('Unknown'))}</strong>${meta ? `<small>${esc(uiText('Effective:'))} ${esc(r.effective_status ?? uiText('Unknown'))}</small>` : ''}${serving(r)}${recordDetails(r.native, uiText('Native fields'))}</td><td>${money(r)}<small>${esc(r.currency ?? uiText('Currency unknown'))} · ${esc(r.timezone ?? uiText('Timezone unknown'))}</small></td><td>${config.entity !== leaf ? `<button class="button small" data-portfolio-child="${i}">${esc(child)}</button>` : esc(linkedin ? uiText('Read-only creative record') : x ? uiText('Read-only promoted-post association') : uiText('Read-only ad record'))}</td></tr>`).join('') || `<tr><td colspan="4">${esc(uiText('No entities in this page. Follow Next page if the provider supplies a continuation.'))}</td></tr>`}
+      ${out.rows.map((r, i) => `<tr><th scope="row">${esc(r.name)}<small>${esc(r.id)}</small></th><td><strong>${esc(r.status ?? uiText('Unknown'))}</strong>${meta ? `<small>${esc(uiText('Effective:'))} ${esc(r.effective_status ?? uiText('Unknown'))}</small>` : ''}${serving(r)}${recordDetails(r.native, uiText('Native fields'))}</td><td>${money(r)}<small>${esc(r.currency ?? uiText('Currency unknown'))} · ${esc(r.timezone ?? uiText('Timezone unknown'))}</small></td><td>${config.entity !== leaf ? `<button class="button small" data-portfolio-child="${i}">${esc(child)}</button>` : esc(linkedin ? uiText('Read-only creative record') : x ? uiText('Read-only promoted-post association') : uiText('Read-only ad record'))}${handoffs(r)}</td></tr>`).join('') || `<tr><td colspan="4">${esc(uiText('No entities in this page. Follow Next page if the provider supplies a continuation.'))}</td></tr>`}
       </tbody></table></div><div class="dialog-actions"><button class="button" id="portfolio-refresh">${esc(uiText('Refresh first page'))}</button><button class="button" id="portfolio-next" ${out.has_more ? '' : 'hidden'}>${esc(uiText('Next page'))}</button><button class="button" id="portfolio-compare">${esc(uiText('Compare two complete reads'))}</button></div><p>${esc(uiText('Compare this hierarchy with two bounded reads of up to 500 entities and 20 pages each.'))}</p><section id="portfolio-comparison" aria-live="polite" aria-atomic="true"></section></section>`;
     workspaceBind('#portfolio-root', () => load({entity: root}));
     workspaceBind('#portfolio-parent', () =>
@@ -448,12 +541,17 @@ async function renderPortfolio() {
     });
     $('#portfolio-heading').focus();
   };
+  // A restored address names the level to reopen; Read inventory reopens it there instead of at the top.
+  let reopen = restoredIndex >= 0 && restored.config.entity ? restored.config : null;
+  if (reopen)
+    view.innerHTML = `<p class="notice" role="status" id="portfolio-restored">${esc(uiText('Read inventory to reopen {entity} inventory for this account.', {entity: portfolioEntityLabel(reopen.entity)}))}${['campaign_group_id', 'campaign_id'].map(key => (reopen[key] ? ' ' + esc(uiText(key === 'campaign_id' ? 'Campaign {id}' : 'Campaign group {id}', {id: reopen[key]})) : '')).join('')}</p>`;
   form.elements.target.addEventListener('change', () => {
     if (!attached()) return;
     sequence++;
     comparisonSequence++;
     target = null;
     cursor = null;
+    reopen = null;
     view.setAttribute('aria-busy', 'false');
     view.innerHTML = blank(uiText('Read inventory to open the selected account.'));
   });
@@ -461,9 +559,12 @@ async function renderPortfolio() {
     if (!attached()) return;
     const t = targets[Number(form.elements.target.value)];
     if (form.elements.target.value === '' || !t) throw Error(uiText('Choose an account.'));
-    const {label, ...binding} = t;
+    const {label, ...binding} = t,
+      rootEntity = binding.gateway === 'linkedin_native_action' ? 'campaign_group' : 'campaign',
+      level = reopen && Number(form.elements.target.value) === restoredIndex ? reopen : {entity: rootEntity};
     target = binding;
-    await load({entity: binding.gateway === 'linkedin_native_action' ? 'campaign_group' : 'campaign'});
+    reopen = null;
+    await load(level);
   });
 }
 function portfolioMoneyLabel(value) {
@@ -1817,6 +1918,43 @@ function catalogImportPreviewMarkup(out, request) {
     );
   return `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Products and exact native price units'))}"><table class="review-table"><caption>${esc(uiText('Products and exact native price units'))}</caption><thead><tr>${titles.map(title => `<th scope="col">${esc(title)}</th>`).join('')}</tr></thead><tbody>${request.products.map((product, index) => `<tr><th scope="row"><strong>${esc(product.name)}</strong><br><code>${esc(product.retailer_id)}</code></th><td><bdi>${esc(product.price + ' ' + product.currency)}</bdi></td><td><bdi>${esc(x ? (out.items?.[index]?.native_price ?? uiText('Unknown')) : Number.isSafeInteger(out.items?.[index]?.price_minor_units) ? out.items[index].price_minor_units : uiText('Unknown'))}</bdi></td>${grouped ? `<td><code dir="ltr">${esc(product.retailer_product_group_id ?? uiText('Not supplied'))}</code></td>` : ''}<td>${esc(policy)}</td></tr>`).join('')}</tbody></table></div>`;
 }
+// The Meta product attributes a comparison may name as held but not sent (src/meta-catalog-products.ts, COM-01).
+const metaCatalogUnsentFieldNames = [
+  'retailer_id',
+  'name',
+  'description',
+  'short_description',
+  'brand',
+  'category',
+  'fb_product_category',
+  'product_type',
+  'color',
+  'size',
+  'material',
+  'pattern',
+  'gtin',
+  'manufacturer_part_number',
+  'retailer_product_group_id',
+  'custom_label_0',
+  'custom_label_1',
+  'custom_label_2',
+  'custom_label_3',
+  'custom_label_4',
+  'availability',
+  'condition',
+  'age_group',
+  'gender',
+  'visibility',
+  'url',
+  'image_url',
+  'mobile_link',
+  'sale_price_start_date',
+  'sale_price_end_date',
+  'additional_image_urls',
+  'inventory',
+  'currency',
+  'sale_price',
+];
 function catalogComparisonMarkup(out, request, preview) {
   if (request.gateway === 'x_ads_native_action') return xCatalogComparisonMarkup(out, request, preview);
   const invalid = () => {
@@ -1839,8 +1977,11 @@ function catalogComparisonMarkup(out, request, preview) {
     invalid();
   const counts = {new: 0, changed: 0, matching: 0, unknown: 0, blocked: 0, needs_review: 0},
     review = [];
+  let withUnsent = 0;
   out.items.forEach((item, index) => {
-    const supplied = request.products[index];
+    const supplied = request.products[index],
+      // COM-01: attributes the destination holds that the source does not send. An older server sends none.
+      unsent = item?.unsent_fields ?? [];
     if (
       !item ||
       item.retailer_id !== supplied.retailer_id ||
@@ -1849,6 +1990,10 @@ function catalogComparisonMarkup(out, request, preview) {
       ![true, false, null].includes(item.price_matches) ||
       !Array.isArray(item.changes) ||
       !Array.isArray(item.unknown_fields) ||
+      !Array.isArray(unsent) ||
+      unsent.some(k => !metaCatalogUnsentFieldNames.includes(k) || Object.hasOwn(supplied, k)) ||
+      new Set(unsent).size !== unsent.length ||
+      (item.state === 'new' && unsent.length) ||
       !item.before ||
       (item.state === 'new'
         ? item.product_id !== null ||
@@ -1886,6 +2031,7 @@ function catalogComparisonMarkup(out, request, preview) {
     )
       invalid();
     counts[item.state]++;
+    if (unsent.length) withUnsent++;
     if (item.blocked) counts.blocked++;
     else if (item.state !== 'matching') review.push(item.retailer_id);
   });
@@ -1893,6 +2039,8 @@ function catalogComparisonMarkup(out, request, preview) {
   if (
     !out.summary ||
     Object.keys(counts).some(k => out.summary[k] !== counts[k]) ||
+    (out.summary.with_destination_only_values !== undefined &&
+      out.summary.with_destination_only_values !== withUnsent) ||
     review.length !== out.review_retailer_ids.length ||
     review.some((id, i) => out.review_retailer_ids[i] !== id)
   )
@@ -1900,6 +2048,7 @@ function catalogComparisonMarkup(out, request, preview) {
   const rows = out.items
     .map((item, index) => {
       const supplied = request.products[index],
+        unsent = item.unsent_fields ?? [],
         details =
           item.changes
             .map(
@@ -1910,7 +2059,7 @@ function catalogComparisonMarkup(out, request, preview) {
           item.unknown_fields
             .map(k => `<li>${esc(catalogFieldLabel(k))}: ${esc(uiText('Current value is unknown'))}</li>`)
             .join('');
-      return `<tr><th scope="row"><strong>${esc(supplied.name)}</strong><br><code>${esc(item.retailer_id)}</code>${item.product_id ? `<br>${esc(uiText('Product ID'))}: <code class="catalog-product-id" dir="ltr">${esc(item.product_id)}</code>` : ''}</th><td>${esc(catalogComparisonState(item.state))}${item.blocked ? `<p class="form-note">${esc(uiText('Existing product; updates are disabled'))}</p>` : ''}</td><td>${esc(uiText('Current'))}: ${esc(item.before.price ?? uiText('Unknown'))}<br>${esc(uiText('Proposed'))}: <bdi>${esc(supplied.price + ' ' + supplied.currency)}</bdi></td><td>${details ? `<ul>${details}</ul>` : esc(item.state === 'new' ? uiText('No current product was returned') : uiText('All supplied fields have matching evidence'))}</td></tr>`;
+      return `<tr><th scope="row"><strong>${esc(supplied.name)}</strong><br><code>${esc(item.retailer_id)}</code>${item.product_id ? `<br>${esc(uiText('Product ID'))}: <code class="catalog-product-id" dir="ltr">${esc(item.product_id)}</code>` : ''}</th><td>${esc(catalogComparisonState(item.state))}${item.blocked ? `<p class="form-note">${esc(uiText('Existing product; updates are disabled'))}</p>` : ''}</td><td>${esc(uiText('Current'))}: ${esc(item.before.price ?? uiText('Unknown'))}<br>${esc(uiText('Proposed'))}: <bdi>${esc(supplied.price + ' ' + supplied.currency)}</bdi></td><td>${details ? `<ul>${details}</ul>` : esc(item.state === 'new' ? uiText('No current product was returned') : uiText('All supplied fields have matching evidence'))}${unsent.length ? `<p class="form-note">${esc(uiText('Other native attributes have values: {fields}. Meta does not establish whether an update preserves omitted attributes.', {fields: unsent.join(', ')}))}</p>` : ''}</td></tr>`;
     })
     .join('');
   return `<h3 id="catalog-comparison-heading" tabindex="-1">${esc(uiText('Compare current catalog products'))}</h3><p>${esc(uiText('Read {date} · {new} new · {changed} changed · {matching} matching · {unknown} unknown · {blocked} blocked', {date: date(out.captured_at), ...counts}))}</p><p class="notice">${esc(uiText('Only supplied retailer IDs are compared. Formatted native prices are display text; equality uses the native price filter. Unknown fields need review. This is current sequential evidence, not a point-in-time inventory snapshot. Missing source products are not deleted.'))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Catalog comparison, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Compare current catalog products'))}</caption><thead><tr>${[uiText('Product'), uiText('Comparison'), uiText('Price'), uiText('Field differences')].map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p>${esc(uiText('{count} products need a fresh native review before execution. Saving a plan does not submit product changes.', {count: review.length}))}</p>${review.length ? `<button type="button" class="button primary" id="save-catalog-changes">${esc(uiText('Save only products needing review'))}</button>` : `<p>${esc(uiText('No eligible product changes need a draft.'))}</p>`}`;
@@ -2540,7 +2689,7 @@ function bindWooCommerceConnections() {
 }
 function wooCommerceSourcePanelMarkup() {
   const sources = typeof commerceSources === 'undefined' ? [] : commerceSources;
-  return `<section class="panel workspace-form"><h2>${esc(uiText('WooCommerce product source'))}</h2><p>${esc(uiText('Read 1–50 explicitly selected published products from a configured store. Choose the intended price field. The first native image is shown; tax, sale activation and variants are not inferred.'))}</p><form id="woo-source">${wooCommerceVariationControlsMarkup()}<label>${esc(uiText('Configured WooCommerce store'))}<select name="target" required><option value="">${esc(uiText('Choose a store'))}</option>${sources.map((item, i) => `<option value="${i}">${esc(item.label)} · ${esc(item.store_origin)}</option>`).join('')}</select></label><label>${esc(uiText('Exact WooCommerce product or variation IDs'))}<textarea name="product_ids" required maxlength="1050" placeholder="101, 102"></textarea></label><label>${esc(uiText('Native source price field'))}<select name="price_field" required><option value="">${esc(uiText('Choose a price field'))}</option><option value="price">${esc(uiText('Current native price'))}</option><option value="regular_price">${esc(uiText('Regular native price'))}</option><option value="sale_price">${esc(uiText('Native sale price field'))}</option></select></label><button class="button" type="submit">${esc(uiText('Read selected source products'))}</button></form>${sources.length ? '' : `<p class="notice">${esc(uiText('No qualified WooCommerce source is configured. Ask a workspace administrator to connect an existing Read key in the store connections section of Commerce.'))}</p>`}<div id="woo-source-result" aria-live="polite"></div></section>`;
+  return `<section class="panel workspace-form"><h2>${esc(uiText('WooCommerce product source'))}</h2><p>${esc(uiText('Read 1–50 explicitly selected published products from a configured store. Choose the intended price field. The first native image is shown; tax, sale activation and variants are not inferred.'))}</p>${sources.length ? '' : `<p class="notice">${esc(uiText('No qualified WooCommerce source is configured. Ask a workspace administrator to connect an existing Read key in the store connections section of Commerce.'))}</p>`}<form id="woo-source">${wooCommerceVariationControlsMarkup()}<label>${esc(uiText('Configured WooCommerce store'))}<select name="target" required><option value="">${esc(uiText('Choose a store'))}</option>${sources.map((item, i) => `<option value="${i}">${esc(item.label)} · ${esc(item.store_origin)}</option>`).join('')}</select></label><label>${esc(uiText('Exact WooCommerce product or variation IDs'))}<textarea name="product_ids" required maxlength="1050" placeholder="101, 102"></textarea></label><label>${esc(uiText('Native source price field'))}<select name="price_field" required><option value="">${esc(uiText('Choose a price field'))}</option><option value="price">${esc(uiText('Current native price'))}</option><option value="regular_price">${esc(uiText('Regular native price'))}</option><option value="sale_price">${esc(uiText('Native sale price field'))}</option></select></label><button class="button" type="submit">${esc(uiText('Read selected source products'))}</button></form><div id="woo-source-result" aria-live="polite"></div></section>`;
 }
 function wooCommerceSourceSelection(out, request) {
   const scope = out?.scope,
@@ -2754,11 +2903,15 @@ function bindWooCommerceSource(useProducts, clearProducts) {
   });
 }
 async function renderCommerce() {
-  content.innerHTML += wooCommerceConnectionsMarkup();
-  content.innerHTML += wooCommerceSourcePanelMarkup();
-  content.innerHTML += wooCommerceInventoryPanelMarkup();
-  const targets = accountChoices(['meta', 'x']);
-  content.innerHTML += `<section class="panel workspace-form"><h2>${esc(uiText('Reviewed catalog product import'))}</h2><p>${esc(uiText('Import up to 50 supplied products for the selected account and catalog. Ownership is checked during native review. Every item keeps a separate review, receipt and read-back in its saved plan. Missing items are retained.'))}</p><form id="catalog-import"><label>${esc(uiText('Meta or X ad account'))}<select name="target" required><option value="">${esc(uiText('Choose an account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Native product catalog ID'), 'text', '', 'catalog_id')}${controls(uiText('Import plan name'), 'text', 'Product catalog import', 'name')}<label>${esc(uiText('Product source'))}<select name="source_mode"><option value="csv">${esc(uiText('Product CSV'))}</option><option value="woocommerce">${esc(uiText('Selected WooCommerce products'))}</option></select></label><div id="catalog-csv-controls"><label>${esc(uiText('Product CSV'))}<input type="file" name="file" accept=".csv,text/csv" required></label></div><div id="catalog-woo-selection" class="form-note" aria-live="polite"></div><div id="catalog-destination-help" class="form-note" aria-live="polite"></div>${catalogMappingMarkup()}<label>${esc(uiText('Existing retailer IDs'))}<select name="allow_upsert"><option value="false">${esc(uiText('Create only — refuse existing IDs'))}</option><option value="true">${esc(uiText('Explicitly update existing IDs after native review'))}</option></select></label><button class="button primary" type="submit">${esc(uiText('Validate and preview products'))}</button></form><div id="catalog-preview"></div></section><p class="notice">${esc(uiText('Mapped supplier and WooCommerce exports use the selected Meta or X reviewed product contract. Choose the intended price, currency, image and destination fields. Live store synchronization and additional destinations require separate qualification.'))}</p>`;
+  // COM-01: the reviewed import comes first; it is the active journey. Store sources follow, collapsed into one
+  // administrator disclosure until a source is configured, so the page no longer opens with forms that cannot run.
+  const targets = accountChoices(['meta', 'x']),
+    storeSources = typeof commerceSources === 'undefined' ? [] : commerceSources,
+    storePanels = wooCommerceConnectionsMarkup() + wooCommerceSourcePanelMarkup() + wooCommerceInventoryPanelMarkup();
+  content.innerHTML += `<section class="panel workspace-form"><h2>${esc(uiText('Reviewed catalog product import'))}</h2><p>${esc(uiText('Import up to 50 supplied products for the selected account and catalog. Ownership is checked during native review. Every item keeps a separate review, receipt and read-back in its saved plan. Missing items are retained.'))}</p><p class="form-note">${esc(uiText('Product imports support Meta and X; Snapchat catalogs are managed through feeds.'))}</p>${targets.length ? '' : `<p class="notice" id="catalog-no-destination">${esc(uiText('Connect a Meta or X ad account to import products.'))} <a href="/connections">${esc(uiText('Manage connections'))}</a></p>`}<form id="catalog-import"><label>${esc(uiText('Meta or X ad account'))}<select name="target" required><option value="">${esc(uiText('Choose an account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Native product catalog ID'), 'text', '', 'catalog_id')}${controls(uiText('Import plan name'), 'text', 'Product catalog import', 'name')}<label>${esc(uiText('Product source'))}<select name="source_mode"><option value="csv">${esc(uiText('Product CSV'))}</option><option value="woocommerce">${esc(uiText('Selected WooCommerce products'))}</option></select></label><div id="catalog-csv-controls"><label>${esc(uiText('Product CSV'))}<input type="file" name="file" accept=".csv,text/csv" required></label></div><div id="catalog-woo-selection" class="form-note" aria-live="polite"></div><div id="catalog-destination-help" class="form-note" aria-live="polite"></div>${catalogMappingMarkup()}<label>${esc(uiText('Existing retailer IDs'))}<select name="allow_upsert"><option value="false">${esc(uiText('Create only — refuse existing IDs'))}</option><option value="true">${esc(uiText('Explicitly update existing IDs after native review'))}</option></select></label><button class="button primary" type="submit">${esc(uiText('Validate and preview products'))}</button></form><div id="catalog-preview"></div></section><p class="notice">${esc(uiText('Mapped supplier and WooCommerce exports use the selected Meta or X reviewed product contract. Choose the intended price, currency, image and destination fields. Live store synchronization and additional destinations require separate qualification.'))}</p>`;
+  content.innerHTML += storeSources.length
+    ? storePanels
+    : `<details class="panel" id="commerce-store-sources"><summary>${esc(uiText('Connect a store source (administrators)'))}</summary>${storePanels}</details>`;
   bindWooCommerceInventory();
   bindWooCommerceConnections();
   const form = $('#catalog-import'),
@@ -2796,7 +2949,7 @@ async function renderCommerce() {
   const destinationHelp = () => {
     const target = form.elements.target.value === '' ? undefined : targets[Number(form.elements.target.value)];
     $('#catalog-destination-help').innerHTML =
-      `<p>${esc(uiText(target?.gateway === 'x_ads_native_action' ? 'This X import requires every mapped product field, including product page, availability, condition, brand and plain text description. It accepts names up to 150 characters and source prices with up to six decimal places. Use exact native availability and condition values. Explicit upsert approval is required.' : target?.gateway === 'meta_native_action' ? 'Required columns: retailer_id, name, price, currency, image_url. Optional: url, availability, condition, brand, description, retailer_product_group_id. Select an exact Meta group column only when your source supplies it; no group is inferred. Price is a decimal amount in the product currency with at most two decimal places. Use HTTPS links.' : 'Choose an account to see the required destination fields.'))}</p>${target?.gateway === 'x_ads_native_action' ? `<p>${esc(uiText('X catalog access requires early-access entitlement. Previewing or saving a draft does not establish eligibility or publish a product.'))}</p>` : ''}`;
+      `<p>${esc(uiText(target?.gateway === 'x_ads_native_action' ? 'This X import requires every mapped product field, including product page, availability, condition, brand and plain text description. It accepts names up to 150 characters and source prices with up to six decimal places. Use exact native availability and condition values. Explicit upsert approval is required.' : target?.gateway === 'meta_native_action' ? 'Required columns: retailer_id, name, price, currency, image_url. Optional: url, availability, condition, brand, description, retailer_product_group_id. Select an exact Meta group column only when your source supplies it; no group is inferred. Price is a decimal amount in the product currency; Meta counts hundredths, so digits beyond two decimal places must be zeros (12.500 KWD is 12.50). Use HTTPS links.' : 'Choose an account to see the required destination fields.'))}</p>${target?.gateway === 'x_ads_native_action' ? `<p>${esc(uiText('X catalog access requires early-access entitlement. Previewing or saving a draft does not establish eligibility or publish a product.'))}</p>` : ''}`;
   };
   form.elements.target.addEventListener('change', () => {
     resetMapping();
@@ -2805,15 +2958,26 @@ async function renderCommerce() {
   destinationHelp();
   const handoff = new URLSearchParams(location.search);
   if (handoff.has('catalog_comparison')) {
+    // The comparison's gateway selects Meta or X (COM-01); an older link without one is a Meta comparison. A gateway
+    // that does not match the account's own platform selects nothing.
     const keys = ['catalog_comparison', 'connection_id', 'account_id', 'catalog_id'],
+      gateway = handoff.has('gateway') ? handoff.get('gateway') : 'meta_native_action',
+      catalogPattern =
+        gateway === 'x_ads_native_action'
+          ? /^[1-9][0-9]{0,24}$/
+          : gateway === 'meta_native_action'
+            ? /^[1-9][0-9]{0,31}$/
+            : null,
       valid =
         keys.every(k => handoff.getAll(k).length === 1) &&
+        handoff.getAll('gateway').length <= 1 &&
         handoff.get('catalog_comparison') === '1' &&
-        /^[1-9][0-9]{0,31}$/.test(handoff.get('catalog_id') ?? ''),
+        catalogPattern !== null &&
+        catalogPattern.test(handoff.get('catalog_id') ?? ''),
       selected = valid
         ? targets.findIndex(
             t =>
-              t.gateway === 'meta_native_action' &&
+              t.gateway === gateway &&
               t.account_id === handoff.get('account_id') &&
               t.connection_id === handoff.get('connection_id'),
           )
@@ -2929,7 +3093,7 @@ async function renderCommerce() {
         ? `<ul>${out.destination_limitations.map(value => `<li>${esc(uiAccountExplanation(value))}</li>`).join('')}</ul>`
         : '') +
       recordDetails({source_hash: out.source_hash}, uiText('Source hash')) +
-      `<div id="catalog-comparison" aria-live="polite"></div><button class="button" id="create-catalog-plan">${esc(uiText('Save all supplied products for native review'))}</button>`;
+      `<div id="catalog-comparison" aria-live="polite"></div><button class="button" id="create-catalog-plan" aria-describedby="create-catalog-plan-note">${esc(uiText('Save all supplied products for native review'))}</button><p class="form-note" id="create-catalog-plan-note"></p>`;
     let comparisonSequence = 0;
     const compareCatalogProducts = async (inspectOther = false) => {
       if (!current()) return;
@@ -2951,6 +3115,24 @@ async function renderCommerce() {
         if (!active()) return;
         comparison.innerHTML = html;
         $('#catalog-comparison-heading').focus();
+        // After a comparison, "Save all" says how many supplied products already match (COM-01). An X plan records
+        // those as unchanged when it reaches them and sends nothing; a Meta plan reviews and sends them again.
+        const unchanged = evidence.items.filter(item => item.state === 'matching').length;
+        $('#create-catalog-plan').textContent = unchanged
+          ? uiText('Save all {count} supplied products ({unchanged} already match)', {
+              count: request.products.length,
+              unchanged,
+            })
+          : uiText('Save all supplied products for native review');
+        $('#create-catalog-plan-note').textContent = !unchanged
+          ? ''
+          : request.gateway === 'x_ads_native_action'
+            ? uiText(
+                'Products that still match when the plan reaches them are recorded as unchanged; nothing is sent for them.',
+              )
+            : uiText(
+                'Meta products that already match are reviewed and sent again; save only products needing review to leave them out.',
+              );
         if (inspectOther) bindCatalogListedInventory(evidence.listed_inventory, active);
         if (request.gateway === 'x_ads_native_action') {
           let removalSequence = 0;

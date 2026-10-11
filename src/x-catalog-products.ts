@@ -1,4 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
+import {sha256, stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {
@@ -315,8 +316,22 @@ export function xCatalogProductPrerequisites(p: CompiledRequest, states: unknown
       'The existing product is grouped or its group status is unknown. Individual-product updates require explicit native group evidence.',
     );
   const sent = sentView(p);
+  // Exact equality of every sent attribute only. The refusal stays for a direct prepare; it also carries the read
+  // evidence, so a saved plan records the step as unchanged instead of failed (COM-01). A real difference never
+  // reaches here.
   if (before && Object.entries(sent).every(([k, v]) => JSON.stringify(v) === JSON.stringify(before[k])))
-    invalid('Product ' + String(product(p).id) + ' already has these values.');
+    fail('INVALID_X_CATALOG_PRODUCT', 'Product ' + String(product(p).id) + ' already has these values.', {
+      source,
+      already_current: true,
+      no_op_evidence: {
+        provider: 'x',
+        product_catalog_id: catalogOf(p),
+        product_id: String(product(p).id),
+        compared_fields: Object.keys(sent).sort(),
+        // A hash of the observed product, not its provider text: the review that read it keeps the values.
+        observed_hash: sha256(stable(before)),
+      },
+    });
 }
 export function xCatalogProductImpact(p: CompiledRequest, state: unknown[]): JsonObject | undefined {
   const kind = xCatalogProductKind(p);

@@ -297,7 +297,7 @@ export async function campaignPreflight(
               'The ad account pixel list could not be read; Snapchat validates pixel ownership when the ad squad is written.',
           });
         const assets = [
-          ...((await metaPrerequisites(service, actor, plan, c.id, refs)) ?? []),
+          ...((await metaPrerequisites(service, actor, plan, c.id, refs, step.prerequisites ?? [])) ?? []),
           ...(await snapAdPrerequisites(service, actor, plan, c.id, refs)),
         ];
         if (assets?.length) checks.push({step: step.id, status: 'prerequisites_checked', assets});

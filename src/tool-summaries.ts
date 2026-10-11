@@ -16,23 +16,28 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
   amcp_workspace:
     'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its change history. ' +
     'Safety: nothing here changes an advertising account. Previews and saves are local; confirmed saves need confirmed:true and the current revision or version; saved drafts still need native review through amcp_write or amcp_campaign. Missing evidence stays unknown, never passed. ' +
-    'Core actions: capabilities (summary of workflows with per-account readiness and blockers, 20 per page, limit up to 25, with next_cursor; filter by workflow_id, connection_id and account_id; view:"graph" for the whole dependency graph), ' +
+    'Core actions: capabilities (workflows with per-account readiness and blockers, paged by next_cursor, filtered by workflow_id, connection_id and account_id; view:"graph" for the dependency graph), ' +
     'check (exact account prerequisites; live:false saves nothing, live:true reads the provider account and saves its read evidence), ' +
     'program_check (one conditional program; live:false makes no provider request, live:true keeps one observation), ' +
     'contracts (read/write/media/blocked classification of every action, no network), ' +
     'operations (metadata feed of retained work with next_call handoffs), history (bounded audit metadata) and ' +
-    'dashboard (counts per provider and account; sections, gateway and account_id select bounded detail). ' +
-    'Other actions: portfolio and portfolio_reconcile (bounded inventory), measurement_audit/events/event_identity/conversions, catalog_sources/source/preview/compare/plan, consent and catalog-removal drafts, workbook report runs, schedules, queries and bindings, incidents and monitors, client profiles, and owner operations (health, support_bundle, spend policy, retention, write pause, personal-data switch). ' +
+    'dashboard (counts per provider and account; sections select bounded detail). ' +
+    'Other actions: portfolio and portfolio_reconcile, measurement_audit/events/event_identity/conversions, catalog_sources/source/preview/compare/plan, consent and catalog-removal drafts, workbook report runs, schedules, queries and bindings, incidents and monitors, client profiles and briefs, and owner operations (health, support_bundle, spend, retention and plan policies, write pause, personal-data switch). ' +
     help('amcp_workspace'),
   amcp_campaign:
     'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. ' +
-    'It saves a durable dependency plan from a brief and explicit native steps, or approved profiles and templates, and runs it step by step. ' +
+    'It saves a durable dependency plan (native steps, approved templates or recipes) and runs it step by step. ' +
     'Safety: no fabricated IDs, implicit launch or review bypass; every step is a frozen, read-back native review; a step that reached the provider is never sent again; uncertain receipts keep their recovery. ' +
     'Core actions: recipes, recipe_context, recipe_eligibility (live:true adds read-only account prerequisites), recipe_lookup, preview_recipe, create_from_recipe; create, get, list (filters, next_cursor), preflight; ' +
     'prepare_next and execute_next (one reviewed step at a time, read back); verify; approve (what one approval covers; confirmed with that plan_hash records it) and run (every step under it, stopping for anything that needs a person); ' +
     'recover_step, reconcile_step, confirm_absent and continue_as_new for blocked, refused or uncertain steps; activation_plan; archive, unarchive, assign and unassign; clone (Snapchat, Google Search, TikTok or LinkedIn into a paused draft); validate_provider; cancel. ' +
     'Responses are compact; get with step_id, or detail:"full", returns more. ' +
     help('amcp_campaign'),
+  amcp_write:
+    'Use this for any single advertising or measurement change; use amcp_campaign when later steps need IDs that earlier steps create. ' +
+    'Safety: inspect needs no credentials or network; prepare reads state and freezes a five-minute, actor-bound review whose execute_requirements name every acknowledgement; execute sends it once after confirmed:true and never retries it; operator role and account write grants apply. ' +
+    'Core actions: inspect, prepare and execute (a Google Ads or Snapchat batch over 25 records is one review of parts of 25), status (a retained review read back without a provider request) and reconcile (read-only checks of an uncertain write; accept_applied with its reconciliation_id records what was observed). ' +
+    help('amcp_write'),
   amcp_reporting:
     'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. ' +
     'For saved client reports across platforms, schedules and Sheets exports, use amcp_reporting_overview. ' +
@@ -65,7 +70,10 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     help('amcp_media'),
 });
 /** The routing summary listed for a first-party tool, or undefined when the tool keeps its own description. */
+/** Tools whose read-only listing is already short and keeps its own text (amcp_write offers inspect only). */
+const ownReadOnlyDescription = new Set(['amcp_write']);
 export function routingSummary(name: string, readOnly = false): string | undefined {
+  if (readOnly && ownReadOnlyDescription.has(name)) return undefined;
   return (readOnly ? routingSummaries[name + ':read_only'] : undefined) ?? routingSummaries[name];
 }
 /**
