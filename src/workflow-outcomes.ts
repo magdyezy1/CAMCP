@@ -268,6 +268,13 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject, acti
           .map(key => key + '=' + encodeURIComponent(values[key]))
           .join('&');
       result.website_path = '/measurement?ga4_config=1' + (query ? '&' + query : '');
+    } else if (data.record_kind === 'measurement_ledger') {
+      // MSR-03: the ledger link names its gateway, because one picker lists Google Ads customers and GA4 properties.
+      const query = ['gateway', 'connection_id', 'account_id']
+        .filter(key => typeof data.scope?.[key] === 'string' && data.scope[key].length <= 200)
+        .map(key => key + '=' + encodeURIComponent(data.scope[key]))
+        .join('&');
+      result.website_path = '/measurement?ledger=1' + (query ? '&' + query : '');
     } else if (data.record_kind === 'measurement_audit') {
       const query = ['connection_id', 'account_id', 'container_id', 'workspace_id']
         .filter(key => typeof data.scope?.[key] === 'string' && data.scope[key].length <= 200)
