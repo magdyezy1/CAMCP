@@ -51,6 +51,8 @@ import {authorizeExecution, readOnlyPolicy, type ExecutionPolicy} from './prefli
 import {redactPlaceActionInput, placeActionSafeError} from './google-place-action-links.js';
 import {connectorReadOnly, errorResult, MirrorError, readOnlyDeployment, untrustedProviderContent} from './errors.js';
 import {recordSqliteFailure, sqliteRefusal} from './sqlite-diagnostics.js';
+import {currentRequestId} from './request-context.js';
+import {runWithQuotaPurpose} from './provider-quota.js';
 import {guardInput, redactUrlSecrets, sha256, stable} from './security.js';
 import {nextPageCall, paginate} from './pagination.js';
 import {legacyLimitDisclosure} from './google-legacy.js';
@@ -544,10 +546,13 @@ export class MirrorService {
       const status = refusal instanceof MirrorError ? refusal.status : 500;
       if (database || !auditRecorded || status >= 500)
         try {
+          const ingress = currentRequestId();
           this.onToolFailure?.({
             level: status >= 500 || !auditRecorded ? 'error' : 'warn',
             event: 'mcp_tool_failed',
             requestId,
+            // The HTTP request's X-AMCP-Request-Id (OPS-08); requestId above is the audit record's request ID.
+            ...(ingress ? {http_request_id: ingress} : {}),
             tool_category: this.timingCategory(tool),
             code: result.error.code,
             status,
@@ -654,9 +659,12 @@ export class MirrorService {
     );
   }
   async verifyWrite(actor: Actor, id: string): Promise<JsonObject> {
-    const groups = this.writeGroups();
-    if (groups.group(actor, id)) return groups.verify(actor, id, part => this.verifyWrite(actor, part));
-    return new WriteVerifier(this.store, this.registry, this.transport, this.credentials).verify(actor, id);
+    // A verification read-back may use the reserved slice of a shared provider app quota (OPS-08).
+    return runWithQuotaPurpose('reserved', () => {
+      const groups = this.writeGroups();
+      if (groups.group(actor, id)) return groups.verify(actor, id, part => this.verifyWrite(actor, part));
+      return new WriteVerifier(this.store, this.registry, this.transport, this.credentials).verify(actor, id);
+    });
   }
   async verificationJob(tenant: string, kind: string, input: JsonObject) {
     if (kind !== 'write_verification') throw new MirrorError('UNKNOWN_JOB_KIND', 'No worker handles this job.');

@@ -4,15 +4,139 @@ import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {Store} from '../dist/src/store.js';
-import {dueSchedules, dueScheduleSQL, scheduleIndexSQL} from '../dist/src/scheduled-work.js';
+import {dueScheduleTenants, dueSchedules, dueScheduleSQL, scheduleIndexSQL} from '../dist/src/scheduled-work.js';
 
 // Fixed synthetic in-memory workload. No database path, credentials or production configuration inputs.
+//   node tools/benchmark-schedules.mjs                       legacy vs indexed selection, 12 tenants x 1,000 per kind
+//   node tools/benchmark-schedules.mjs --sweep [--tenants a,b] tenant-count sweep (OPS-08): 12 tenants with schedules
+//                                                            and the rest empty; one worker selection pass per kind,
+//                                                            asking every tenant (per_workspace_scan, the old worker)
+//                                                            and asking only the tenants the global due index names
 const stage = process.argv[2],
   tenants = 12,
   perKind = 1000,
   kinds = ['reporting_schedule', 'overview_schedule'];
 const digest = value => createHash('sha256').update(value).digest('hex');
-if (stage === undefined) {
+const sweepDefault = [12, 100, 1000, 10000],
+  sweepActive = 12,
+  sweepPerKind = 100;
+if (stage === '--sweep') {
+  const index = process.argv.indexOf('--tenants'),
+    counts = index > 0 ? process.argv[index + 1].split(',').map(Number) : sweepDefault;
+  if (!counts.length || counts.some(n => !Number.isInteger(n) || n < 1 || n > 100000))
+    throw Error('--tenants takes comma-separated counts from 1 to 100000');
+  const results = counts.map(count =>
+    JSON.parse(
+      execFileSync(process.execPath, ['--expose-gc', fileURLToPath(import.meta.url), 'sweep:' + count], {
+        encoding: 'utf8',
+        windowsHide: true,
+        maxBuffer: 2 * 1024 * 1024,
+      }),
+    ),
+  );
+  if (new Set(results.map(r => r.projection_sha256)).size !== 1)
+    throw Error('The selected schedules differ between tenant counts');
+  const largest = results.at(-1);
+  console.log(
+    JSON.stringify(
+      {
+        benchmark: 'due-schedule-tenant-sweep',
+        synthetic: true,
+        created_at: new Date().toISOString(),
+        workload: {
+          tenant_counts: counts,
+          tenants_with_schedules: sweepActive,
+          schedules_per_kind_per_active_tenant: sweepPerKind,
+          kinds,
+          iterations: 7,
+          warmup: 2,
+        },
+        results,
+        // The decision gate (OPS-08): the worker loop pauses one second between idle cycles, so a selection pass that
+        // stays under 10% of that (100 ms) at the largest count is not material; above it, a global due query is due.
+        decision: {
+          threshold_p95_ms: 100,
+          largest_tenant_count: largest.tenants,
+          per_workspace_scan_p95_ms: largest.per_workspace_scan.p95_ms,
+          per_tenant_us: Math.round((largest.per_workspace_scan.p50_ms / largest.tenants) * 1000 * 100) / 100,
+          material: largest.per_workspace_scan.p95_ms > 100,
+          global_due_index_p95_ms: largest.global_due_index.p95_ms,
+          global_due_index_within_threshold: largest.global_due_index.p95_ms <= 100,
+        },
+        provider_requests: 0,
+        advertising_writes: 0,
+        qualification:
+          'Independent local processes and in-memory SQLite on this machine; one selection pass per schedule kind, as the worker runs each cycle, over every tenant (per_workspace_scan) or over the tenants the global due index names (global_due_index), with identical selections. Not a deployed measurement.',
+      },
+      null,
+      2,
+    ),
+  );
+} else if (stage?.startsWith('sweep:')) {
+  const count = Number(stage.slice(6));
+  if (!Number.isInteger(count) || count < 1 || process.argv.length !== 3 || typeof global.gc !== 'function')
+    throw Error('Run the sweep with --sweep');
+  const store = new Store(':memory:', Buffer.alloc(32, 82).toString('base64')),
+    at = Date.now();
+  try {
+    store.transaction(() => {
+      for (let t = 0; t < count; t++) {
+        const tenant = 'sweep-' + String(t).padStart(6, '0');
+        store.ensureTenant(tenant);
+        if (t < sweepActive)
+          for (const kind of kinds)
+            for (let i = 0; i < sweepPerKind; i++)
+              store.putDocument(tenant, kind, 'schedule-' + String(i).padStart(4, '0'), {
+                name: 'Synthetic ' + i,
+                is_active: i % 3 !== 0,
+                next_run_at: i < 8 ? at - 1 : at + 86400000,
+                config: {padding: 'x'.repeat(512)},
+              });
+      }
+    });
+    // Kind by kind, as the worker ticks reporting schedules and the Overview ticks its own.
+    const strategies = {
+      per_workspace_scan: () => store.listTenants(),
+      global_due_index: kind => dueScheduleTenants(store, kind, at),
+    };
+    const measured = {};
+    let original, selected;
+    for (const [name, tenantsFor] of Object.entries(strategies)) {
+      const samples = [];
+      for (let i = 0; i < 9; i++) {
+        global.gc();
+        const started = performance.now(),
+          out = [];
+        for (const kind of kinds)
+          for (const tenant of tenantsFor(kind))
+            out.push(...dueSchedules(store, tenant, kind, at).map(schedule => ({tenant, kind, id: schedule.id})));
+        const elapsed = performance.now() - started,
+          raw = JSON.stringify(out);
+        original ??= raw;
+        if (original !== raw) throw Error('Selected schedules changed');
+        selected = out.length;
+        if (i >= 2) samples.push(elapsed);
+      }
+      const sorted = [...samples].sort((a, b) => a - b);
+      measured[name] = {p50_ms: Math.round(sorted[3] * 1000) / 1000, p95_ms: Math.round(sorted[6] * 1000) / 1000};
+    }
+    console.log(
+      JSON.stringify({
+        tenants: count,
+        ...measured,
+        selected_schedules: selected,
+        projection_sha256: digest(original),
+        environment: {
+          node: process.version,
+          platform: process.platform,
+          sqlite: store.db.prepare('SELECT sqlite_version() v').get().v,
+        },
+      }),
+    );
+  } finally {
+    store.close();
+  }
+} else if (stage === undefined) {
   const stages = {};
   for (const name of ['legacy', 'indexed'])
     stages[name] = JSON.parse(

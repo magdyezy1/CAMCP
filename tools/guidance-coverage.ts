@@ -105,6 +105,8 @@ const operational: [string, string[]][] = [
       'INTERNAL_ERROR',
       'REVIEWED_FAMILY_CONFLICT',
       'SCHEMA_VERSION_MISMATCH',
+      // OPS-08: a database written by a newer release than this one can read; refused at start-up only.
+      'SCHEMA_TOO_NEW',
       'API_VERSION_UNAVAILABLE',
       'DELEGATED_ROUTE_UNAVAILABLE',
       'SPECIAL_TRANSPORT_REQUIRED',
@@ -122,6 +124,8 @@ const operational: [string, string[]][] = [
     [
       'CIRCUIT_OPEN',
       'TENANT_RATE_LIMIT',
+      // OPS-08: an enforced shared provider app quota; refused before egress and retried after the daily reset.
+      'PROVIDER_QUOTA_SHARE_EXHAUSTED',
       'REFRESH_IN_PROGRESS',
       'TOKEN_REFRESH_FAILED',
       'STALE_JOB_LEASE',

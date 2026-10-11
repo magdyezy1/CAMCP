@@ -198,10 +198,18 @@ test('MCP under full storage returns the AMCP STORAGE_FULL envelope with a reque
     token = f.store.createKey(owner),
     s = await serve(f),
     client = new Client({name: 'storage-full-fixture', version: '1'});
+  let toolCallRequestId;
   try {
     await client.connect(
       new StreamableHTTPClientTransport(new URL(s.base + '/mcp'), {
         requestInit: {headers: {Authorization: 'Bearer ' + token}},
+        // OPS-08: remember the tools/call response's X-AMCP-Request-Id, which the failure line must name.
+        fetch: async (url, init) => {
+          const response = await fetch(url, init);
+          if (String(init?.body ?? '').includes('"tools/call"'))
+            toolCallRequestId = response.headers.get('x-amcp-request-id');
+          return response;
+        },
       }),
     );
     pinFull(f.store, [
@@ -227,12 +235,15 @@ test('MCP under full storage returns the AMCP STORAGE_FULL envelope with a reque
     assert.doesNotMatch(text, /disk is full|database or disk|zeroblob|synthetic_storage|-32603/);
     const lines = f.logs.filter(entry => entry.event === 'mcp_tool_failed');
     assert.equal(lines.length, 1);
+    assert.match(toolCallRequestId, /^[0-9a-f-]{36}$/);
     assert.deepEqual(
       {...lines[0], at: undefined},
       {
         level: 'error',
         event: 'mcp_tool_failed',
         requestId: envelope.meta.requestId,
+        // The X-AMCP-Request-Id of the tools/call response (OPS-08); before it the line could not be traced to one.
+        http_request_id: toolCallRequestId,
         tool_category: 'workspace',
         code: 'STORAGE_FULL',
         status: 503,

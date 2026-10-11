@@ -12,9 +12,32 @@ import {SecretBox, sha256, stable, redact, scopeKey, sealedBytesOverhead} from '
 import type {Actor, Connection, Credentials, JsonObject} from './types.js';
 import {recordServiceTiming, type ServiceTimingCategory} from './service-timings.js';
 import {nativeParameterKey} from './parameter-key.js';
-import {scheduleIndexSQL} from './scheduled-work.js';
+import {scheduleGlobalIndexSQL, scheduleIndexSQL} from './scheduled-work.js';
+import {reportPartsCleanupSQL} from './report-checkpoints.js';
 import {WEBSITE_UPLOAD_TTL_MS, WEBSITE_UPLOAD_IDLE_MS, MEDIA_CLEANUP_INTERVAL_MS} from './media-retention.js';
 import {recordSqliteFailure, sqliteDiagnostic} from './sqlite-diagnostics.js';
+import {
+  QUOTA_RETAINED_DAYS,
+  issuerKey,
+  quotaDay,
+  quotaExhausted,
+  quotaPolicyFromEnv,
+  quotaRefusal,
+  type IssuerDay,
+  type IssuerPermit,
+  type QuotaPolicy,
+} from './provider-quota.js';
+import {
+  READER_VERSION,
+  applyMigrationSteps,
+  ledgerSQL,
+  readSchemaState,
+  recordMinimumReader,
+  schemaCompatibility,
+  schemaTooNew,
+  type SchemaCompatibility,
+  type SchemaState,
+} from './schema-migrations.js';
 import {
   CRASH_EXPIRY_LIMIT,
   JOB_SHUTDOWN_MESSAGE,
@@ -60,6 +83,14 @@ function withLogin(connection: Connection, revision: number, loginId: string | u
   const {loginRevision: _revision, loginId: _id, ...rest} = connection;
   return {...rest, ...(revision ? {loginRevision: revision} : {}), ...(loginId ? {loginId} : {})};
 }
+export type StoreBootstrap = {
+  schema_version: number | null;
+  min_reader_version: number | null;
+  reader_version: number;
+  compatibility: SchemaCompatibility;
+  migration_ms: number;
+  migrations_applied: string[];
+};
 export class Store {
   readonly db: DatabaseSync;
   private box?: SecretBox;
@@ -76,6 +107,11 @@ export class Store {
   private recordsCleanupAt = 0;
   /** Set by the production start-up guard (OPS-03): whether the database is on a verified persistent volume. */
   volume?: StorageVolume;
+  /**
+   * What this start's schema bootstrap found and did (OPS-08): versions, how it treated the database, how long the
+   * serialized bootstrap took and which ledger steps it recorded for the first time. The website store adds its own.
+   */
+  bootstrap!: StoreBootstrap;
   /** Reads free space of the database's file system; tests inject synthetic results. */
   statfs: (directory: string) => StatfsResult = fs.statfsSync;
   /**
@@ -147,7 +183,12 @@ export class Store {
         'PRAGMA foreign_keys=ON; PRAGMA secure_delete=ON; PRAGMA journal_size_limit=' + JOURNAL_SIZE_LIMIT_BYTES + ';',
       );
       // Serialize bootstrap and migration together so two starting processes cannot
-      // both observe an old schema and attempt the same ALTER TABLE.
+      // both observe an old schema and attempt the same ALTER TABLE. Every step is idempotent and recorded in the
+      // schema_migrations ledger; a database newer than this release can read is refused (OPS-08).
+      const bootstrapStarted = performance.now();
+      let schema: SchemaState = {version: null, min_reader_version: null},
+        compatibility: SchemaCompatibility = 'invalid',
+        applied: string[] = [];
       this.transaction(() => {
         this.db.exec(`
    CREATE TABLE IF NOT EXISTS schema_version(version INTEGER NOT NULL); INSERT INTO schema_version SELECT 1 WHERE NOT EXISTS(SELECT 1 FROM schema_version);
@@ -173,41 +214,106 @@ export class Store {
    CREATE TABLE IF NOT EXISTS retained_media(tenant_id TEXT NOT NULL,id TEXT NOT NULL,secret TEXT NOT NULL,size_bytes INTEGER NOT NULL,PRIMARY KEY(tenant_id,id));
    CREATE TABLE IF NOT EXISTS retained_media_chunks(tenant_id TEXT NOT NULL,id TEXT NOT NULL,chunk_index INTEGER NOT NULL,secret TEXT NOT NULL,PRIMARY KEY(tenant_id,id,chunk_index));
   `);
-        const version = this.db.prepare('SELECT version FROM schema_version').get() as {version: number};
-        if (version.version === 1)
-          this.db.exec('ALTER TABLE jobs ADD COLUMN lease_token TEXT; UPDATE schema_version SET version=2;');
-        else if (version.version !== 2)
+        this.db.exec(ledgerSQL);
+        schema = readSchemaState(this.db);
+        compatibility = schemaCompatibility(schema.version, schema.min_reader_version);
+        if (compatibility === 'too_new') throw schemaTooNew(schema);
+        if (compatibility === 'invalid')
           throw new MirrorError('SCHEMA_VERSION_MISMATCH', 'Database migration required.', {}, 500);
-        // Additive schema-2 index: workbook authorization repeatedly looks up exact query membership.
-        // Tenant and association are indexed together; current actor/account checks still run for every result.
-        this.db.exec(`CREATE INDEX IF NOT EXISTS reporting_query_workbook
+        if (compatibility === 'upgrade')
+          this.db.exec('ALTER TABLE jobs ADD COLUMN lease_token TEXT; UPDATE schema_version SET version=2;');
+        // A newer, still readable database keeps the minimum reader its own release declared.
+        if (compatibility !== 'newer_compatible') recordMinimumReader(this.db);
+        applied = applyMigrationSteps(this.db, [
+          // Both ran above: the core tables, and the version 1 -> 2 upgrade (jobs.lease_token).
+          {id: 'store-0001-core-tables', run: () => {}},
+          {id: 'store-0002-jobs-lease-token', run: () => {}},
+          // Additive schema-2 index: workbook authorization repeatedly looks up exact query membership.
+          // Tenant and association are indexed together; current actor/account checks still run for every result.
+          {
+            id: 'store-0003-reporting-query-workbook-index',
+            run: db =>
+              db.exec(`CREATE INDEX IF NOT EXISTS reporting_query_workbook
           ON documents(tenant_id,json_extract(data,'$.workbook_binding_id'),id)
-          WHERE kind='reporting_query'`);
-        // Additive schema-2 indexes: inactive/future schedules need not be decoded every worker pass.
-        this.db.exec(scheduleIndexSQL);
-        // The independent expiry timer visits media kinds without scanning report, audit or schedule documents.
-        this.db.exec(`CREATE INDEX IF NOT EXISTS media_documents_by_kind ON documents(kind)
-          WHERE kind IN ('media_source','retained_media_source','media_review','media_variant','upload_session','preview_receipt')`);
-        // Additive schema-2 job columns (OPS-07): the process boot that holds a lease, and how many leases expired.
-        for (const [column, definition] of [
-          ['lease_boot', 'TEXT'],
-          ['lease_expiries', 'INTEGER NOT NULL DEFAULT 0'],
-          ['crash_expiries', 'INTEGER NOT NULL DEFAULT 0'],
-        ] as const)
-          if (!this.db.prepare("SELECT 1 FROM pragma_table_info('jobs') WHERE name=?").get(column))
-            this.db.exec('ALTER TABLE jobs ADD COLUMN ' + column + ' ' + definition);
-        // Additive schema-2 table: one row the health check rewrites with a committed write (OPS-02).
-        this.db.exec(
-          'CREATE TABLE IF NOT EXISTS health_probe(id INTEGER PRIMARY KEY,at INTEGER NOT NULL,payload BLOB NOT NULL)',
-        );
-        // Additive schema-2 column: the encrypted declared size (and member) of an unfinished website upload, so it
-        // reserves what it declared instead of the whole media limit. Absent or unreadable, the full limit applies.
-        if (!this.db.prepare("SELECT 1 FROM pragma_table_info('media_staging') WHERE name='reservation'").get())
-          this.db.exec('ALTER TABLE media_staging ADD COLUMN reservation TEXT');
-        // Additive schema-2 column: when a workspace refused media admission for bytes started waiting (MED-02).
-        if (!this.db.prepare("SELECT 1 FROM pragma_table_info('media_admissions') WHERE name='waiting_since'").get())
-          this.db.exec('ALTER TABLE media_admissions ADD COLUMN waiting_since INTEGER');
+          WHERE kind='reporting_query'`),
+          },
+          // Additive schema-2 indexes: inactive/future schedules need not be decoded every worker pass.
+          {id: 'store-0004-schedule-due-indexes', run: db => db.exec(scheduleIndexSQL)},
+          // The independent expiry timer visits media kinds without scanning report, audit or schedule documents.
+          {
+            id: 'store-0005-media-documents-index',
+            run: db =>
+              db.exec(`CREATE INDEX IF NOT EXISTS media_documents_by_kind ON documents(kind)
+          WHERE kind IN ('media_source','retained_media_source','media_review','media_variant','upload_session','preview_receipt')`),
+          },
+          // Additive schema-2 job columns (OPS-07): the process boot that holds a lease, and how many leases expired.
+          {
+            id: 'store-0006-job-lease-columns',
+            run: db => {
+              for (const [column, definition] of [
+                ['lease_boot', 'TEXT'],
+                ['lease_expiries', 'INTEGER NOT NULL DEFAULT 0'],
+                ['crash_expiries', 'INTEGER NOT NULL DEFAULT 0'],
+              ] as const)
+                if (!db.prepare("SELECT 1 FROM pragma_table_info('jobs') WHERE name=?").get(column))
+                  db.exec('ALTER TABLE jobs ADD COLUMN ' + column + ' ' + definition);
+            },
+          },
+          // Additive schema-2 table: one row the health check rewrites with a committed write (OPS-02).
+          {
+            id: 'store-0007-health-probe',
+            run: db =>
+              db.exec(
+                'CREATE TABLE IF NOT EXISTS health_probe(id INTEGER PRIMARY KEY,at INTEGER NOT NULL,payload BLOB NOT NULL)',
+              ),
+          },
+          // Additive schema-2 column: the encrypted declared size (and member) of an unfinished website upload, so it
+          // reserves what it declared instead of the whole media limit. Absent or unreadable, the full limit applies.
+          {
+            id: 'store-0008-media-staging-reservation',
+            run: db => {
+              if (!db.prepare("SELECT 1 FROM pragma_table_info('media_staging') WHERE name='reservation'").get())
+                db.exec('ALTER TABLE media_staging ADD COLUMN reservation TEXT');
+            },
+          },
+          // Additive schema-2 column: when a workspace refused media admission for bytes started waiting (MED-02).
+          {
+            id: 'store-0009-media-admissions-waiting-since',
+            run: db => {
+              if (!db.prepare("SELECT 1 FROM pragma_table_info('media_admissions') WHERE name='waiting_since'").get())
+                db.exec('ALTER TABLE media_admissions ADD COLUMN waiting_since INTEGER');
+            },
+          },
+          // Additive schema-2 index (OPS-08): owner health's recent job errors read one workspace's newest jobs in
+          // order instead of scanning and sorting every job.
+          {
+            id: 'store-0010-jobs-tenant-updated-index',
+            run: db => db.exec('CREATE INDEX IF NOT EXISTS jobs_tenant_updated ON jobs(tenant_id,updated_at)'),
+          },
+          // Additive schema-2 indexes (OPS-08 sweep): one query names the workspaces with a due schedule instead of
+          // one query per workspace on every worker cycle.
+          {id: 'store-0011-schedule-global-due-indexes', run: db => db.exec(scheduleGlobalIndexSQL)},
+          // Additive schema-2 table (OPS-08): daily provider request counts per hashed issuer and workspace.
+          {
+            id: 'store-0012-provider-issuer-usage',
+            run: db =>
+              db.exec(
+                'CREATE TABLE IF NOT EXISTS provider_issuer_usage(issuer TEXT NOT NULL,day TEXT NOT NULL,tenant_id TEXT NOT NULL,gateway TEXT NOT NULL,requests INTEGER NOT NULL DEFAULT 0,reserved_requests INTEGER NOT NULL DEFAULT 0,operations INTEGER NOT NULL DEFAULT 0,rate_limits INTEGER NOT NULL DEFAULT 0,refused INTEGER NOT NULL DEFAULT 0,would_refuse INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(issuer,day,tenant_id,gateway))',
+              ),
+          },
+          // Additive schema-2 trigger (OPS-08): a report's split budget and checkpoint documents go with the report.
+          {id: 'store-0013-report-parts-cleanup', run: db => db.exec(reportPartsCleanupSQL)},
+        ]);
+        schema = readSchemaState(this.db);
       });
+      this.bootstrap = {
+        schema_version: schema.version,
+        min_reader_version: schema.min_reader_version,
+        reader_version: READER_VERSION,
+        compatibility,
+        migration_ms: Math.round((performance.now() - bootstrapStarted) * 1000) / 1000,
+        migrations_applied: applied,
+      };
       this.cleanupTransient();
       this.transientCleanupTimer = setInterval(() => {
         try {
@@ -659,6 +765,10 @@ export class Store {
         )
         .run(now);
       this.db.prepare('DELETE FROM provider_cooldowns WHERE until_at<=?').run(now);
+      // Issuer quota counters keep the current day and the seven before it (OPS-08 baseline).
+      this.db
+        .prepare('DELETE FROM provider_issuer_usage WHERE day<?')
+        .run(quotaDay(now - (QUOTA_RETAINED_DAYS - 1) * 86400000));
       this.db
         .prepare(
           "DELETE FROM documents WHERE tenant_id='__service_limits__' AND kind IN ('provider_budget','worker_heartbeat','tiktok_report_quota') AND coalesce(json_extract(data,'$.at'),0)<?",
@@ -1472,10 +1582,82 @@ export class Store {
         .run(now + ttl, key, owner, now).changes === 1
     );
   }
+  /** Issuer quota profiles and mode (OPS-08); read from the environment on first use, replaceable in tests. */
+  quotaPolicy?: QuotaPolicy;
   // Shared across processes, so this bucket must use wall-clock time; never let a backward
   // clock correction subtract tokens. Refill pauses until the clock catches up, which is the safe direction.
   // The default budget is 30 burst and one token per 200 ms; a caller may size a smaller shared budget.
-  providerPermit(key: string, budget: {burst: number; refillMs: number} = {burst: 30, refillMs: 200}) {
+  // With an issuer (OPS-08), the workspace bucket and the issuer's daily counters are consumed in one transaction:
+  // an enforced issuer refusal sends nothing and consumes neither.
+  providerPermit(
+    key: string,
+    budget: {burst: number; refillMs: number} = {burst: 30, refillMs: 200},
+    issuer?: IssuerPermit,
+  ) {
+    try {
+      return this.providerPermitOnce(key, budget, issuer);
+    } catch (e) {
+      // A refusal is still counted for owner health, outside the rolled-back permit (best effort, never masking it).
+      if (issuer && e instanceof MirrorError && e.code === 'PROVIDER_QUOTA_SHARE_EXHAUSTED')
+        try {
+          this.issuerCounter(issuer, 'refused');
+        } catch {}
+      throw e;
+    }
+  }
+  private issuerCounter(
+    issuer: Pick<IssuerPermit, 'issuer' | 'tenant' | 'gateway'>,
+    column: 'refused' | 'rate_limits',
+  ) {
+    this.db
+      .prepare(
+        `INSERT INTO provider_issuer_usage(issuer,day,tenant_id,gateway,${column}) VALUES(?,?,?,?,1) ON CONFLICT(issuer,day,tenant_id,gateway) DO UPDATE SET ${column}=${column}+1`,
+      )
+      .run(issuer.issuer, quotaDay(), issuer.tenant, issuer.gateway);
+  }
+  /** One provider 429 against an issuer's daily counters (OPS-08). */
+  providerIssuerRateLimit(issuer: Pick<IssuerPermit, 'issuer' | 'tenant' | 'gateway'>) {
+    this.issuerCounter(issuer, 'rate_limits');
+  }
+  private issuerToday(issuer: string, day: string, tenant?: string): IssuerDay {
+    return this.db
+      .prepare(
+        'SELECT coalesce(sum(requests),0) AS requests,coalesce(sum(reserved_requests),0) AS reserved_requests,coalesce(sum(operations),0) AS operations FROM provider_issuer_usage WHERE issuer=? AND day=?' +
+          (tenant === undefined ? '' : ' AND tenant_id=?'),
+      )
+      .get(...(tenant === undefined ? [issuer, day] : [issuer, day, tenant])) as IssuerDay;
+  }
+  /**
+   * Whether standard work for this connection would be refused right now by an enforced issuer profile (OPS-08): the
+   * refusal scope, or null. Read-only and counts nothing; a report run asks before it starts, so a spent shared quota
+   * defers the whole run instead of stopping it at its first request. Observe mode, no profile, a removed connection
+   * or credentials that name no app give null, leaving every decision to the permit itself.
+   */
+  issuerAdmission(tenantId: string, connectionId: string, now = Date.now()) {
+    const policy = (this.quotaPolicy ??= quotaPolicyFromEnv(process.env));
+    if (policy.mode !== 'enforce') return null;
+    const row = this.db
+      .prepare('SELECT data FROM connections WHERE tenant_id=? AND id=?')
+      .get(tenantId, connectionId) as {data: string} | undefined;
+    const gateway = row ? (JSON.parse(row.data) as Connection).gateway : undefined,
+      profile = gateway ? policy.profiles[gateway] : undefined;
+    if (!gateway || !profile) return null;
+    let issuer: string | null;
+    try {
+      issuer = issuerKey(gateway, this.credentials(tenantId, connectionId));
+    } catch {
+      return null;
+    }
+    if (!issuer) return null;
+    const day = quotaDay(now);
+    return quotaRefusal(
+      profile,
+      {purpose: 'standard'},
+      this.issuerToday(issuer, day),
+      this.issuerToday(issuer, day, tenantId),
+    );
+  }
+  private providerPermitOnce(key: string, budget: {burst: number; refillMs: number}, issuer?: IssuerPermit) {
     return this.transaction(() => {
       const now = Date.now(),
         cooldown = this.db.prepare('SELECT until_at FROM provider_cooldowns WHERE key=?').get(key) as
@@ -1503,6 +1685,33 @@ export class Store {
           429,
           true,
         );
+      if (issuer) {
+        const policy = (this.quotaPolicy ??= quotaPolicyFromEnv(process.env)),
+          profile = policy.profiles[issuer.gateway],
+          day = quotaDay(now),
+          refusal = profile
+            ? quotaRefusal(
+                profile,
+                issuer,
+                this.issuerToday(issuer.issuer, day),
+                this.issuerToday(issuer.issuer, day, issuer.tenant),
+              )
+            : null;
+        if (refusal && policy.mode === 'enforce') throw quotaExhausted(refusal, now);
+        this.db
+          .prepare(
+            'INSERT INTO provider_issuer_usage(issuer,day,tenant_id,gateway,requests,reserved_requests,operations,would_refuse) VALUES(?,?,?,?,1,?,?,?) ON CONFLICT(issuer,day,tenant_id,gateway) DO UPDATE SET requests=requests+1,reserved_requests=reserved_requests+excluded.reserved_requests,operations=operations+excluded.operations,would_refuse=would_refuse+excluded.would_refuse',
+          )
+          .run(
+            issuer.issuer,
+            day,
+            issuer.tenant,
+            issuer.gateway,
+            issuer.purpose === 'reserved' ? 1 : 0,
+            Math.max(1, Math.floor(issuer.operations)),
+            refusal ? 1 : 0,
+          );
+      }
       this.putDocument('__service_limits__', 'provider_budget', sha256(key), {
         tokens: tokens - 1,
         at: Math.max(now, old.at),

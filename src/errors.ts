@@ -167,7 +167,7 @@ function familyRemedy(code: string): {category: string; owner: string; action: s
       'The provider’s pages were inconsistent (a link outside the request or a loop), so AMCP stopped reading rather than return a partial list. Narrow the read or retry later.',
       'provider',
     );
-  if (/^BACKUP_/.test(code) || code === 'SCHEMA_VERSION_MISMATCH')
+  if (/^BACKUP_/.test(code) || code === 'SCHEMA_VERSION_MISMATCH' || code === 'SCHEMA_TOO_NEW')
     return r(
       'deployment',
       'The backup or database does not match what this AMCP expects (the message names the check). Use a backup made by this version, restore to a new path, and keep the original untouched.',

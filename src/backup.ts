@@ -8,6 +8,7 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 import {JOURNAL_SIZE_LIMIT_BYTES, deleteRowsOneByOne} from './media-storage.js';
+import {READER_VERSION, readSchemaState, schemaCompatibility} from './schema-migrations.js';
 
 const magic = Buffer.from('AMCP-BACKUP-1\n');
 function backupKey(key: string | undefined) {
@@ -129,10 +130,17 @@ function inspectSqlite(file: string) {
       )
     )
       throw new MirrorError('BACKUP_SCHEMA_INVALID', 'The authenticated file does not contain an AMCP database.');
-    const versions = db.prepare('SELECT version FROM schema_version').all() as {version: number}[];
-    if (versions.length !== 1 || ![1, 2].includes(versions[0]!.version))
-      throw new MirrorError('SCHEMA_VERSION_MISMATCH', 'The backup schema is not supported by this AMCP release.');
-    return versions[0]!.version;
+    // Versions 1-2, or a newer version whose declared minimum reader this release meets (OPS-08 ledger).
+    const state = readSchemaState(db);
+    if (
+      !['current', 'upgrade', 'newer_compatible'].includes(schemaCompatibility(state.version, state.min_reader_version))
+    )
+      throw new MirrorError('SCHEMA_VERSION_MISMATCH', 'The backup schema is not supported by this AMCP release.', {
+        database_version: state.version,
+        min_reader_version: state.min_reader_version,
+        reader_version: READER_VERSION,
+      });
+    return state.version!;
   } catch (e) {
     if (e instanceof MirrorError) throw e;
     throw new MirrorError(

@@ -87,7 +87,13 @@ test('concurrent administrator startup serializes schema creation and unsupporte
       "CREATE TABLE schema_version(version INTEGER); INSERT INTO schema_version VALUES(999); CREATE TABLE sentinel(value TEXT); INSERT INTO sentinel VALUES('preserved');",
     );
     db.close();
-    assert.throws(() => new Store(future), /migration required/);
+    // OPS-08: a database newer than this release now refuses with the explicit SCHEMA_TOO_NEW code and a recovery
+    // pointer instead of the generic "migration required"; the rollback below is unchanged.
+    assert.throws(
+      () => new Store(future),
+      (e: any) =>
+        e.code === 'SCHEMA_TOO_NEW' && /newer AMCP release/.test(e.message) && e.details.database_version === 999,
+    );
     const after = new DatabaseSync(future);
     try {
       assert.equal((after.prepare('SELECT value FROM sentinel').get() as any).value, 'preserved');

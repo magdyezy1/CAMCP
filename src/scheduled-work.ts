@@ -74,6 +74,30 @@ export const dueScheduleSQL: Record<ScheduleKind, string> = Object.fromEntries(
   ]),
 ) as Record<ScheduleKind, string>;
 
+/**
+ * OPS-08 tenant-count sweep: a selection pass that asks every workspace cost about 40 µs per workspace (p95 517 ms at
+ * 10,000 mostly empty workspaces on the dev machine), so one global partial index by deadline names the workspaces with
+ * a due schedule of a kind and the worker asks only those. Per-workspace selection, its order and every authority
+ * check stay as they were; the coarse prefilter may name a workspace whose schedules the exact predicate then skips.
+ */
+export const scheduleGlobalIndexSQL = kinds
+  .map(
+    kind =>
+      `CREATE INDEX IF NOT EXISTS ${kind}_due_global ON documents(${deadline},tenant_id) WHERE kind='${kind}' AND ${active}`,
+  )
+  .join(';');
+export const dueTenantSQL: Record<ScheduleKind, string> = Object.fromEntries(
+  kinds.map(kind => [
+    kind,
+    // INDEXED BY: otherwise the planner may walk every workspace through the per-workspace index, the cost removed here.
+    `SELECT DISTINCT tenant_id FROM documents INDEXED BY ${kind}_due_global WHERE kind='${kind}' AND ${active} AND ${deadline}<=? AND EXISTS(SELECT 1 FROM tenants WHERE tenants.id=documents.tenant_id) ORDER BY tenant_id`,
+  ]),
+) as Record<ScheduleKind, string>;
+/** The workspaces, in workspace ID order (as `listTenants`), that may have a due schedule of `kind`. */
+export function dueScheduleTenants(store: Store, kind: ScheduleKind, at = Date.now()): string[] {
+  return (store.db.prepare(dueTenantSQL[kind]).all(at) as {tenant_id: string}[]).map(row => row.tenant_id);
+}
+
 /** Worker-internal selection only. No authority is derived from the index; enqueue rechecks the original actor/revision. */
 export function dueSchedules(store: Store, tenant: string, kind: ScheduleKind, at = Date.now()): JsonObject[] {
   return (store.db.prepare(dueScheduleSQL[kind]).all(tenant, at) as JsonObject[])

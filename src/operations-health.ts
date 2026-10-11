@@ -4,6 +4,10 @@ import {serviceTimings} from './service-timings.js';
 import {operationsWorkerHealth} from './operations-worker-health.js';
 import {runtimeDiagnostics, storageDetails} from './storage-health.js';
 import {workerStageHealth} from './worker-loop.js';
+import {providerQuotaHealth, quotaPolicyFromEnv} from './provider-quota.js';
+/** A workspace's newest job errors; the jobs_tenant_updated index serves it in order without a sort (OPS-08). */
+export const recentJobErrorsSQL =
+  "SELECT id,kind,json_extract(error,'$.code') AS code,updated_at FROM jobs WHERE tenant_id=? AND error IS NOT NULL ORDER BY updated_at DESC LIMIT 30";
 /**
  * Aggregate diagnostics only; no request payloads, source URLs, tokens or actor bindings. Storage, release, runtime
  * and recent SQLite failure codes (OPS-02) describe the deployment and are shown to workspace owners only.
@@ -15,11 +19,7 @@ export function operationsHealth(store: Store, tenant: string) {
         "SELECT kind,state,count(*) AS count,min(available_at) AS due FROM jobs WHERE tenant_id=? AND state IN ('queued','running') GROUP BY kind,state",
       )
       .all(tenant) as JsonObject[],
-    errors = store.db
-      .prepare(
-        "SELECT id,kind,json_extract(error,'$.code') AS code,updated_at FROM jobs WHERE tenant_id=? AND error IS NOT NULL ORDER BY updated_at DESC LIMIT 30",
-      )
-      .all(tenant),
+    errors = store.db.prepare(recentJobErrorsSQL).all(tenant),
     media = store.db
       .prepare(
         "SELECT count(*) AS active_operations,coalesce(sum(bytes),0) AS reserved_bytes FROM media_admissions WHERE tenant_id=? AND expires_at>? AND id NOT LIKE 'wait:%'",
@@ -39,6 +39,8 @@ export function operationsHealth(store: Store, tenant: string) {
     version: 1,
     at: now,
     providers: store.documents(tenant, 'provider_metrics'),
+    // Daily requests per hashed provider app identity, and the quota mode and profiles (OPS-08).
+    provider_quota: providerQuotaHealth(store.db, tenant, (store.quotaPolicy ??= quotaPolicyFromEnv(process.env)), now),
     timings: serviceTimings(store, tenant, now),
     // This process's worker stages (OPS-07); null when no worker loop runs in the process answering.
     worker: {...operationsWorkerHealth(store, now), stages: workerStageHealth(now)},

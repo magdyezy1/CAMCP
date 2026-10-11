@@ -5,6 +5,7 @@ import {MirrorError} from './errors.js';
 import type {Actor, JsonObject} from './types.js';
 import {assertReportingConfigCredentials} from './report-query-access.js';
 import {
+  dueScheduleTenants,
   dueSchedules,
   failSchedule,
   followingOccurrence,
@@ -15,6 +16,22 @@ import {
 import {RELEASABLE_JOB_KINDS, WORKER_BOOT_ID} from './job-leases.js';
 /** What a shutdown did with the job this worker was running (OPS-07). */
 export type WorkerDrain = {released: string[]; settling: string[]};
+/** How a leased job ended in this worker (OPS-08). */
+export type JobOutcome = 'complete' | 'retry_scheduled' | 'failed' | 'released' | 'lease_lost';
+export type JobEvent =
+  | {level: 'info'; event: 'job_started'; job_id: string; kind: string; attempt: number; at: string}
+  | {
+      level: 'info' | 'warn' | 'error';
+      event: 'job_finished';
+      job_id: string;
+      kind: string;
+      attempt: number;
+      duration_ms: number;
+      outcome: JobOutcome;
+      code: string | null;
+      at: string;
+    };
+const jobCode = (code: unknown) => (typeof code === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(code) ? code : null);
 /**
  * When a queued media upload met transient contention before any claim (another media operation, another executor of
  * the same review, or a busy processor), the delay before it runs again: the server's retry_after_ms with jitter, so
@@ -45,6 +62,18 @@ export class ReportWorker {
    * example a report's collection budget) stops charging time while the process is down.
    */
   onRelease?: (tenant: string, kind: string, input: JsonObject) => void;
+  /**
+   * Receives one `job_started` and one `job_finished` line per leased job (OPS-08): job ID, kind, attempt, and on
+   * finish the duration, outcome and error code. Metadata only: never the input, result, workspace, message or details.
+   */
+  onJobEvent?: (entry: JobEvent) => void;
+  private jobEvent(entry: JobEvent) {
+    try {
+      this.onJobEvent?.(entry);
+    } catch {
+      // Diagnostic delivery never changes a job's outcome.
+    }
+  }
   heartbeat(state = 'idle') {
     try {
       // The boot ID lets lease expiry tell a live process's stalled job from a crashed one (OPS-07); it is never shown.
@@ -76,7 +105,8 @@ export class ReportWorker {
   ) {}
   tickSchedules() {
     const at = Date.now();
-    for (const tenant of this.store.listTenants())
+    // Only the workspaces the global due index names (OPS-08); each is then selected exactly as before.
+    for (const tenant of dueScheduleTenants(this.store, 'reporting_schedule', at))
       for (const schedule of dueSchedules(this.store, tenant, 'reporting_schedule', at)) {
         try {
           if (schedule.next_run_reevaluate) {
@@ -134,7 +164,12 @@ export class ReportWorker {
     if (this.draining) return false;
     const job = this.store.leaseJob(60000);
     if (!job) return false;
-    const current = (this.current = {job, released: false});
+    const current = (this.current = {job, released: false}),
+      started = performance.now(),
+      identity = {job_id: String(job.id), kind: String(job.kind), attempt: Number(job.attempts)};
+    let outcome: JobOutcome = 'complete',
+      code: string | null = null;
+    this.jobEvent({level: 'info', event: 'job_started', ...identity, at: new Date().toISOString()});
     this.heartbeat('working');
     let lostLease = false;
     const heartbeat = setInterval(() => {
@@ -197,32 +232,40 @@ export class ReportWorker {
           if (job.attempts < 12)
             this.store.retryJob(job.id, job.lease_token, error, Math.min(300000, 5000 * 2 ** job.attempts));
           else this.store.failJob(job.id, job.lease_token, error);
-        } else if (job.kind === 'write_verification' && verification?.status === 'failed')
+          outcome = job.attempts < 12 ? 'retry_scheduled' : 'failed';
+          code = error.code;
+        } else if (job.kind === 'write_verification' && verification?.status === 'failed') {
           this.store.failJob(job.id, job.lease_token, {
             code: 'VERIFICATION_FAILED',
             message:
               'The provider reported failure of the created job. Retain the original receipt; do not repeat its mutation.',
             details: {review_id: job.input.review_id},
           });
-        else this.store.finishJob(job.id, job.lease_token, result);
-      }
+          outcome = 'failed';
+          code = 'VERIFICATION_FAILED';
+        } else this.store.finishJob(job.id, job.lease_token, result);
+      } else outcome = 'lease_lost';
     } catch (e) {
       const error =
         e instanceof MirrorError
           ? {code: e.code, message: e.message, details: e.details}
           : {code: 'REPORT_FAILED', message: 'Report execution failed.'};
+      code = error.code;
+      outcome = 'failed';
       if (!lostLease)
         try {
           const mediaDelay = mediaContentionRetry(job, e);
-          if (mediaDelay !== undefined) this.store.retryJob(job.id, job.lease_token, error, mediaDelay);
-          else if (
+          if (mediaDelay !== undefined) {
+            this.store.retryJob(job.id, job.lease_token, error, mediaDelay);
+            outcome = 'retry_scheduled';
+          } else if (
             e instanceof MirrorError &&
             e.retryable &&
             ['report_overview', 'sheets_export', 'report_file_export'].includes(job.kind) &&
             (job.attempts < 8 ||
               (job.kind === 'report_overview' && e.code === 'REPORT_COLLECTION_YIELD') ||
               sheetsSettleRecheck(job.kind, e))
-          )
+          ) {
             this.store.retryJob(
               job.id,
               job.lease_token,
@@ -231,10 +274,12 @@ export class ReportWorker {
                 ? jitteredRetryDelay(job.attempts, e.details.retry_after_ms)
                 : Number(e.details.retry_after_ms ?? Math.min(300000, 5000 * 2 ** job.attempts)),
             );
-          else this.store.failJob(job.id, job.lease_token, error);
+            outcome = 'retry_scheduled';
+          } else this.store.failJob(job.id, job.lease_token, error);
         } catch {
           lostLease = true;
         }
+      if (lostLease) outcome = 'lease_lost';
       // A job released at shutdown already went back to the queue; its interrupted execution is not a failure.
       if (!current.released)
         this.store.appendAudit(job.tenant_id, job.id, {
@@ -244,6 +289,16 @@ export class ReportWorker {
     } finally {
       clearInterval(heartbeat);
       if (this.current === current) this.current = undefined;
+      if (current.released) outcome = 'released';
+      this.jobEvent({
+        level: outcome === 'failed' ? 'error' : outcome === 'lease_lost' ? 'warn' : 'info',
+        event: 'job_finished',
+        ...identity,
+        duration_ms: Math.max(0, Math.round(performance.now() - started)),
+        outcome,
+        code: jobCode(code),
+        at: new Date().toISOString(),
+      });
       this.heartbeat();
     }
     return true;

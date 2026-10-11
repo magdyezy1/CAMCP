@@ -3,6 +3,7 @@ import {validateRecommendationContext} from './recommendation-context.js';
 import {reportSummary} from './report-summary.js';
 import {cleanupReports} from './owner-operations.js';
 import {
+  dueScheduleTenants,
   dueSchedules,
   failSchedule,
   followingOccurrence,
@@ -50,6 +51,8 @@ import {ReportLibrary} from './report-library.js';
 import {ReportFileDelivery, reportDestination} from './report-file-delivery.js';
 import {collectReportPeriods, reportGrains} from './report-periods.js';
 import {ReportCollectionBudget, reportCollectionLimits} from './report-collection-budget.js';
+import {ReportParts, reportBudgetState, reportBudgetView} from './report-checkpoints.js';
+import {quotaExhausted} from './provider-quota.js';
 import {evaluateMonitors} from './report-monitors.js';
 import {overviewEntityLevels, overviewSourceLevel} from './overview-granularity.js';
 import {
@@ -127,12 +130,16 @@ const optional = (service: MirrorService, tenant: string, kind: string, id: stri
     throw e;
   }
 };
-const publicRecord = (r: JsonObject) => {
+const recordWithBudget = (r: JsonObject, budget: JsonObject | undefined) => {
   const {actor_binding, checkpoints, collection_budget, ...visible} = r;
-  if (!collection_budget) return visible;
-  const {row_counts, active_since, ...usage} = collection_budget;
+  if (!budget) return visible;
+  const {row_counts, active_since, ...usage} = budget;
   return {...visible, collection_budget: usage};
 };
+const publicRecord = (r: JsonObject) => recordWithBudget(r, r.collection_budget);
+/** A report snapshot with its collection counters read from wherever they are kept (OPS-08 split layout). */
+const publicReport = (store: Store, tenant: string, r: JsonObject) =>
+  recordWithBudget(r, reportBudgetView(store, tenant, r));
 /**
  * EXP-03 A: what happened at the destination. A complete job that wrote nothing (a newer snapshot already holds the
  * tab, or the delivery policy skipped it) reports that outcome; `state` keeps the job state for existing clients.
@@ -615,7 +622,7 @@ export class ReportingOverview {
         } catch {
           continue;
         }
-        reports.push(publicRecord(record));
+        reports.push(publicReport(store, tenant, record));
         if (reports.length >= limit) break;
       }
       const hasMore = scanned < candidates.length || candidates.length === 500;
@@ -651,7 +658,7 @@ export class ReportingOverview {
         throw new MirrorError('INVALID_PAGE', 'Use an offset and limit of 1–500 rows.');
       const job = store.job(tenant, r.job_id);
       return {
-        ...publicRecord(r),
+        ...publicReport(store, tenant, r),
         rows: r.rows.slice(offset, offset + limit),
         row_count: r.rows.length,
         offset,
@@ -1155,7 +1162,8 @@ export class ReportingOverview {
     const owner = randomUUID();
     if (store.acquireLock('report-retention', owner, 3600000)) cleanupReports(store);
     const at = Date.now();
-    for (const tenant of store.listTenants())
+    // Only the workspaces the global due index names (OPS-08); each is then selected exactly as before.
+    for (const tenant of dueScheduleTenants(store, 'overview_schedule', at))
       for (const s of dueSchedules(store, tenant, 'overview_schedule', at))
         try {
           store.transaction(() => {
@@ -1210,6 +1218,8 @@ export class ReportingOverview {
     } catch {
       return;
     }
+    // Split counters (OPS-08) are charged in their own document; a legacy report keeps its inline counters.
+    if (new ReportParts(store, tenant, r).releaseBudget()) return;
     const budget = r.collection_budget;
     if (!budget || !Number.isFinite(budget.active_since) || !Number.isFinite(budget.elapsed_ms)) return;
     store.putDocument(tenant, 'overview_report', r.id, {
@@ -1309,21 +1319,29 @@ export class ReportingOverview {
       r = {...r, config: {...r.config, source_contract_version: reportContractVersion}};
       store.putDocument(tenant, 'overview_report', r.id, r);
     }
+    // OPS-08: under an enforced shared app quota, a run (scheduled or not) whose issuer is already spent for today is
+    // deferred before it starts, retryable after the daily reset, instead of stopping at its first provider request.
+    for (const source of r.config.sources) {
+      const refusal = store.issuerAdmission(tenant, source.connection_id);
+      if (refusal) throw quotaExhausted(refusal);
+    }
     store.journal(tenant, r.id, 'collecting', {report_id: r.id});
     store.putDocument(tenant, 'overview_report', r.id, {...r, state: 'running'});
     const results: JsonObject[] = [];
     let retry: MirrorError | undefined;
-    const budget = new ReportCollectionBudget(r.collection_budget, fingerprint(r.config), state => {
-      leaseCheck();
-      const current = store.document(tenant, 'overview_report', r.id);
-      store.putDocument(tenant, 'overview_report', r.id, {...current, collection_budget: state});
-    });
+    // OPS-08: counters and checkpoints are saved in their own small documents, so a save no longer rewrites the whole
+    // report; a report started by an older release resumes from its inline counters and checkpoints.
+    const parts = new ReportParts(store, tenant, r),
+      budget = new ReportCollectionBudget(reportBudgetState(store, tenant, r), fingerprint(r.config), state => {
+        leaseCheck();
+        parts.saveBudget(state);
+      });
     try {
       for (let i = 0; i < r.config.sources.length; i++) {
         access();
         const source = r.config.sources[i],
           key = String(i),
-          checkpoint = r.checkpoints?.[key] ?? {};
+          checkpoint = parts.source(key, r.checkpoints?.[key]);
         if (checkpoint.result) {
           results.push(checkpoint.result);
           continue;
@@ -1344,11 +1362,7 @@ export class ReportingOverview {
               },
               v => {
                 access();
-                const current = store.document(tenant, 'overview_report', r.id);
-                store.putDocument(tenant, 'overview_report', r.id, {
-                  ...current,
-                  checkpoints: {...current.checkpoints, [key]: v},
-                });
+                parts.save(key, v);
               },
             );
             return window.resolution ? {...collected, window_resolution: window.resolution} : collected;
@@ -1356,8 +1370,7 @@ export class ReportingOverview {
           access();
           const result = {...captured, source};
           results.push(result);
-          r = store.document(tenant, 'overview_report', r.id);
-          store.putDocument(tenant, 'overview_report', r.id, {...r, checkpoints: {...r.checkpoints, [key]: {result}}});
+          parts.complete(key, result);
           if (captured.collection_limit) {
             const limited = new MirrorError(
               'REPORT_COLLECTION_LIMIT',

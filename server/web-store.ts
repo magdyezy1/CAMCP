@@ -8,6 +8,7 @@ import type {Actor, JsonObject} from '../src/types.js';
 import {LimitDiagnostics, registerLimitDiagnostics} from '../src/limit-diagnostics.js';
 import {cloudflareIpv4Ranges, cloudflareIpv6Ranges} from './cloudflare-ranges.js';
 import {endMcpGrants} from './mcp-grants.js';
+import {applyMigrationSteps} from '../src/schema-migrations.js';
 import type {ClientMetadataOptions} from './client-metadata.js';
 import {
   derivePassword,
@@ -261,7 +262,10 @@ export class WebStore {
           (options.adminPasswordHash
             ? passwordMatchesSync(options.testPassword, options.adminPasswordHash, doorForms)
             : options.testPassword === options.adminPassword));
-    store.transaction(() =>
+    // The website tables and their later columns in one serialized transaction, recorded in the schema ledger: two
+    // processes starting on a legacy amcp_users cannot both try the same ALTER TABLE (OPS-08).
+    const started = performance.now();
+    const applied = store.transaction(() => {
       store.db.exec(`
    CREATE TABLE IF NOT EXISTS amcp_web_sessions(hash TEXT PRIMARY KEY,actor TEXT NOT NULL,csrf TEXT NOT NULL,expires_at INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS amcp_login_limits(key TEXT PRIMARY KEY,attempts INTEGER NOT NULL,until_at INTEGER NOT NULL);
@@ -275,8 +279,26 @@ export class WebStore {
    CREATE TABLE IF NOT EXISTS amcp_mfa(user_id TEXT PRIMARY KEY,secret TEXT NOT NULL,recovery TEXT NOT NULL,last_step INTEGER NOT NULL DEFAULT -1,enabled_at INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS amcp_web_doors(door TEXT PRIMARY KEY,hash TEXT NOT NULL,changed_at INTEGER NOT NULL);
    INSERT OR IGNORE INTO workspace_memberships(tenant_id,user_id,role,created_at) SELECT tenant_id,id,'owner',created_at FROM amcp_users;
-  `),
-    );
+  `);
+      return applyMigrationSteps(store.db, [
+        // Ran above: the website tables and the owner memberships of existing accounts.
+        {id: 'web-0001-tables', run: () => {}},
+        {
+          id: 'web-0002-amcp-users-approval-columns',
+          run: db => {
+            if (!db.prepare("SELECT 1 FROM pragma_table_info('amcp_users') WHERE name='approved'").get())
+              db.exec('ALTER TABLE amcp_users ADD COLUMN approved INTEGER NOT NULL DEFAULT 1');
+            if (!db.prepare("SELECT 1 FROM pragma_table_info('amcp_users') WHERE name='test_account'").get())
+              db.exec('ALTER TABLE amcp_users ADD COLUMN test_account INTEGER NOT NULL DEFAULT 0');
+          },
+        },
+      ]);
+    });
+    if (store.bootstrap) {
+      store.bootstrap.migrations_applied.push(...applied);
+      store.bootstrap.migration_ms =
+        Math.round((store.bootstrap.migration_ms + performance.now() - started) * 1000) / 1000;
+    }
     this.administratorHash = this.openDoor(
       'workspace-admin',
       this.tenantId,
@@ -294,10 +316,6 @@ export class WebStore {
       testProblem ?? (sharedPassword ? 'AMCP_TEST_PASSWORD must differ from the administrator password.' : undefined);
     if (this.testPasswordProblem)
       process.stderr.write('AMCP: reviewer sign-in is disabled. ' + this.testPasswordProblem + '\n');
-    if (!this.store.db.prepare("SELECT 1 FROM pragma_table_info('amcp_users') WHERE name='approved'").get())
-      this.store.db.exec('ALTER TABLE amcp_users ADD COLUMN approved INTEGER NOT NULL DEFAULT 1');
-    if (!this.store.db.prepare("SELECT 1 FROM pragma_table_info('amcp_users') WHERE name='test_account'").get())
-      this.store.db.exec('ALTER TABLE amcp_users ADD COLUMN test_account INTEGER NOT NULL DEFAULT 0');
   }
   get configured() {
     return !!this.administratorHash;
