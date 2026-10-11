@@ -650,9 +650,9 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'pause_writes',
-      'Pauses every reviewed write of the workspace, with a reason.',
+      'Pauses every reviewed write of the workspace, with a reason; pause_scope narrows it to advertising writes or to provider report and export jobs.',
       ['reason', 'confirmed'],
-      [],
+      ['pause_scope'],
       saves('write_pause'),
       'owner',
       [[W, 'resume_writes']],
