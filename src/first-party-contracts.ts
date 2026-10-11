@@ -502,9 +502,9 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'measurement_ledger',
-      'Six fixed evidence layers for one Google Ads customer or GA4 property; a failed read leaves its layer unknown. Nothing is saved.',
+      'Six fixed evidence layers for one Google Ads, GA4, Meta, Snapchat, TikTok, Search Console or Adjust asset; optional requirements {pixel_id}. A failed read leaves its layer unknown. Nothing is saved.',
       ['gateway', 'account_id'],
-      ['connection_id'],
+      ['connection_id', 'requirements'],
       reads(),
       'reader',
       [

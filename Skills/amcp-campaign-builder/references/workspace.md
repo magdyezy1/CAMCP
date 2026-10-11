@@ -750,16 +750,25 @@ foreign, unpinned, repeated or malformed rows refuse the read. `checks.test_iden
 event-scoped `amcp_test_id` dimension that measurement_event_identity needs is registered. Ads link creator e-mails
 are never returned. Nothing is saved; configuration is not proof of delivery.
 
-`amcp_workspace {action:"measurement_ledger",gateway:"google_ads_native_action"|"ga4_native_action",account_id,
-connection_id}` returns the measurement evidence ledger of one asset: six fixed layers (configuration,
-provider_observed_activity, provider_diagnostics, supplied_runtime_trace, consent, attribution_settings), each
-observed, unknown, unavailable or not_applicable with a `reason` code and its evidence. Google Ads reuses the goals
-read, then offline conversion upload client summaries and the attribution settings of enabled conversion actions;
-GA4 reuses the configuration read, then a 30-minute realtime count of its key events. A failed, partial, foreign or
-thresholded read leaves only its layer unknown (`reason:"read_failed"`, `evidence.error`); an actor, login, access or
-write-pause change refuses the ledger. Never present unknown as healthy or as broken, and never treat an observed
-layer as proof of delivery, deduplication, consent or attribution. Bounded to 96 requests, 8 MiB and 150 seconds;
-nothing is saved. Meta, Snapchat and TikTok pixels have no adapter (owner decision P8 is open).
+`amcp_workspace {action:"measurement_ledger",gateway,account_id,connection_id,requirements?:{pixel_id}}` returns the
+measurement evidence ledger of one asset: six fixed layers (configuration, provider_observed_activity,
+provider_diagnostics, supplied_runtime_trace, consent, attribution_settings), each observed, unknown, unavailable or
+not_applicable with a `reason` code and its evidence. Gateways (owner direction P8 made Measurement the multi-provider
+hub): `google_ads_native_action` reuses the goals read, then offline conversion upload client summaries and the
+attribution settings of enabled conversion actions; `ga4_native_action` reuses the configuration read, then a
+30-minute realtime count of its key events; `meta_native_action` lists the ad account's pixels (which also opens
+their aggregate reads for five minutes), then 24 hours of `/{pixel}/stats` by event and the Dataset Quality API
+(match quality, Conversions API coverage, deduplication keys, freshness; needs ads_management or business_management);
+`snapchat_native_action` lists pixels, then 7-day domain stats and Signal Readiness scores; `tiktok_native_action`
+lists pixels only (pixel event stats have no pinned contract); `google_search_console_native_action` reads the site,
+seven final days of search totals and sitemaps; `adjust_native_action` (app token) reads the event catalog and seven
+UTC days of installs and events. For Meta, Snapchat and TikTok, `requirements.pixel_id` picks one listed pixel or
+dataset; without it only a sole pixel is read and several pixels stay unknown (`pixel_not_selected`). A failed,
+partial, foreign or thresholded read leaves only its layer unknown (`reason:"read_failed"`, `evidence.error`); an
+actor, login, access or write-pause change refuses the ledger. No test event, Conversions API call or validate request
+is ever sent. Never present unknown as healthy or as broken, and never treat an observed layer as proof of delivery,
+deduplication, consent or attribution. Bounded to 96 requests, 8 MiB and 150 seconds; nothing is saved.
+`AMCP_MEASUREMENT_LEDGER_OFF` (comma-separated gateways) withdraws an adapter.
 
 `amcp_workspace {action:"preview_consent_plan",gateway:"gtm_native_action",account_id,connection_id,
 requirements:{container_id,workspace_id,tag_ids,required_types}}` previews additional-consent additions for
@@ -1168,7 +1177,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `measurement_conversions` | Current LinkedIn conversion rule settings of one account; nothing is saved. | **`gateway`**, **`account_id`**, `connection_id`, `requirements` | provider reads | reader |
 | `measurement_google_goals` | Current Google Ads conversion goals of one customer, read twice under one fence; optional requirements {currency}. Nothing is saved. | **`gateway`**, **`account_id`**, `connection_id`, `requirements` | provider reads | reader |
 | `measurement_ga4_config` | One GA4 property configuration (key events, custom definitions, streams, Ads links, retention); optional requirements {sections}. | **`gateway`**, **`account_id`**, `connection_id`, `requirements` | provider reads | reader |
-| `measurement_ledger` | Six fixed evidence layers for one Google Ads customer or GA4 property; a failed read leaves its layer unknown. Nothing is saved. | **`gateway`**, **`account_id`**, `connection_id` | provider reads | reader |
+| `measurement_ledger` | Six fixed evidence layers for one Google Ads, GA4, Meta, Snapchat, TikTok, Search Console or Adjust asset; optional requirements {pixel_id}. A failed read leaves its layer unknown. Nothing is saved. | **`gateway`**, **`account_id`**, `connection_id`, `requirements` | provider reads | reader |
 | `catalog_preview` | Locally validates 1–50 selected Meta or X products with exact source prices. | **`gateway`**, **`account_id`**, **`catalog_id`**, **`products`**, `connection_id`, `allow_upsert`, `name` | no provider request | reader |
 | `catalog_source` | Reads selected WooCommerce products or variations (or, with source_kind:inventory, the published inventory). | **`gateway`**, **`account_id`**, **`connection_id`**, **`requirements`** | provider reads | reader |
 | `catalog_sources` | Lists configured WooCommerce source connections without credentials or network requests. | — | no provider request | reader |
