@@ -325,10 +325,13 @@ AMCP marks its own destination tab and replaces its report cells; other tabs rem
 **Tab contract (version 2).** Row 1 keeps the stable column identifiers (metric IDs such as `spend` and `cpa`);
 new columns are only appended. Each header cell has a note with its label, unit and currency (`Spend. Unit: KWD.`;
 with several currencies the note points to each row's Currency), and metric columns get number formats from the metric
-definitions: the largest currency precision among the rows (KWD three decimals, JPY none), `#,##0` for counts, and
-`2.50%` for a percent value of 2.5. Cell values stay the typed numbers and text. A trailing **Recommendation basis**
+definitions: the largest currency precision among the rows (KWD three decimals, JPY none), `#,##0` for counts, `2.50%`
+for a percent value of 2.5 and `2.50×` for ROAS (RPT-05's number formats are this one pass; there is no second).
+Cell values stay the typed numbers and text. A trailing **Recommendation basis**
 column states what each recommendation rests on (its row or the entity's whole window, as-of time and validity,
-confidence and limitations; advisory only); CSV and Excel include it too. The tab carries `amcp_table_version` developer
+confidence and limitations; advisory only); CSV and Excel include it too, always: the version 1 rollback below covers
+Sheets deliveries only. The basis sentences are English in every artifact, including `?language=ar` Excel files, where
+only the column header is translated (like the recommendation reasons). The tab carries `amcp_table_version` developer
 metadata `"2"` and, once, a warning-only protected range (when AMCP creates the tab, or on the first version 2 delivery
 to an existing tab that has no protection): a collaborator who edits the tab is warned that AMCP replaces it on every
 delivery. A protection its users remove is not added again. A delivery first sent under the earlier unmarked layout
