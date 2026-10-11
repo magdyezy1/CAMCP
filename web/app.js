@@ -45,6 +45,10 @@ let session = {authenticated: false, csrf: null},
   tokens = [],
   oauthClients = [],
   oauthEnded = [],
+  // The working client's profiles with their accounts (SEC-08), loaded once per identity; null until loaded.
+  workingClients = null,
+  // The client access sets this person may limit a token or AI client to (SEC-08).
+  accessSetChoices = [],
   pollTimer;
 let navigationGeneration = 0,
   identityGeneration = 0,
@@ -67,6 +71,8 @@ function resetPrivateState() {
   tokens = [];
   oauthClients = [];
   oauthEnded = [];
+  workingClients = null;
+  accessSetChoices = [];
   currentPlatform = currentConnection = null;
   selected.clear();
   writeSelected.clear();
@@ -98,6 +104,7 @@ function resetPrivateState() {
 function resetTabState() {
   resetPrivateState();
   if (typeof recipeDraftsForget === 'function') recipeDraftsForget();
+  workingClientForget();
 }
 function requestError(result, fallback = uiText('This request could not be completed.')) {
   const error = Error(result.error?.message ?? fallback);
@@ -825,10 +832,24 @@ function connectorCode() {
     2,
   );
 }
+/** "Limit to client" for a new connector token (SEC-08); a member limited to a set hands on that set. */
+function tokenAccessSetControl() {
+  if (!session.authenticated || !accessSetChoices.length) return '';
+  const required = session.accessSet?.id ?? null;
+  return `<label class="form-note token-limit">${esc(uiText('Limit to client'))}<select id="token-access-set">${required ? '' : `<option value="">${esc(uiText('No limit: the accounts I can reach'))}</option>`}${accessSetChoices.map(s => `<option value="${esc(s.id)}" ${s.id === required ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label>`;
+}
+/** " · Limited to {client}" for a token or AI client limited to a client access set. */
+function accessSetNote(id) {
+  if (!id) return '';
+  const set = accessSetChoices.find(s => s.id === id);
+  return ' ' + esc(set ? uiText('· Limited to {client}', {client: set.name}) : uiText('· Limited to one client'));
+}
 async function renderConnectors() {
   if (session.authenticated) {
     try {
       tokens = (await api('/api/connector-tokens')).tokens;
+      // The client access sets a new token may be limited to (SEC-08); none listed, no choice shown.
+      accessSetChoices = (await api('/api/access-sets').catch(() => ({sets: []}))).sets ?? [];
       const authorizations = await api('/api/mcp/authorizations');
       oauthClients = authorizations.clients;
       oauthEnded = authorizations.ended ?? [];
@@ -863,7 +884,7 @@ async function renderConnectors() {
   content.innerHTML =
     header(uiText('AI connectors'), uiText('Give your AI tools access to the accounts you select.')) +
     `<section class="connector-hero"><div><span class="status online"><i></i>${session.writesEnabled ? uiText('Write support enabled') : uiText('Read-only deployment')}</span><h2 class="connector-title">${esc(uiText('Your workspace.'))}<br>${esc(uiText('In the tools you already use.'))}</h2><p>${session.writesEnabled ? uiText('Connect your AI tools for reporting and reviewed advertising changes. New connections default to read and reviewed write access.') : uiText('Connect Codex or another MCP client to read advertising data and prepare dry-run requests.')}</p></div><div class="endpoint-box"><small>${esc(uiText('AMCP MCP ENDPOINT'))}</small><div class="copy-row"><code>${esc(session.origin + '/mcp')}</code><button class="button small" data-copy-endpoint="true">${esc(uiText('Copy'))}</button></div></div></section><section class="panel consent-panel"><h2>${esc(uiText('Connect with browser authorization'))}</h2><p>${esc(uiText('In an MCP client that supports OAuth, add the endpoint above and choose Sign in. AMCP requests read and reviewed write access when enabled.'))} ${session.writesEnabled ? `${esc(uiText('New clients default to'))} <code>mcp:read mcp:write</code>${esc(uiText('; the consent screen identifies operator access. Clients can explicitly request'))} <code>mcp:read</code> ${esc(uiText('for read-only access. Existing reader authorizations stay read-only until reauthorized.'))} ${esc(uiText('On the consent screen you can also choose read-only access. Viewers can approve read-only access only.'))}` : uiText('Advertising writes are disabled in this deployment.')}</p><pre class="code-block">codex mcp add amcp --url ${esc(session.origin + '/mcp')}
-codex mcp login amcp</pre><p class="muted">${esc(uiText('For clients using a bearer token, follow the setup below.'))}</p></section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Connect with a token'))}</h2><span class="status">${esc(uiText('Streamable HTTP'))}</span></div><div class="client-tabs"><button class="client-tab ${client === 'codex' ? 'active' : ''}" data-client="codex">${esc(uiText('Codex'))}</button><button class="client-tab ${client === 'cursor' ? 'active' : ''}" data-client="cursor">${esc(uiText('Cursor'))}</button><button class="client-tab ${client === 'other' ? 'active' : ''}" data-client="other">${esc(uiText('Other MCP client'))}</button></div><div class="steps"><div class="step"><div><strong>${esc(uiText('Create a connector token'))}</strong><p class="muted">${esc(uiText('Create a separate token for each tool. Tokens expire after 30 days and can be revoked below.'))}</p></div></div><div class="step"><div><strong>${esc(uiText('Add your token to the tool’s environment'))}</strong><p class="muted">${esc(uiText('Use the environment variable'))} <code>AMCP_MCP_TOKEN</code>${esc(uiText('. Keep the value private.'))}</p></div></div><div class="step"><div class="step-content"><div class="copy-row"><strong>${client === 'codex' ? uiText('Add this to your Codex config.toml') : client === 'cursor' ? uiText('Add this to your Cursor MCP configuration') : uiText('Configure your MCP client')}</strong><button class="button small" data-copy-config="true">${esc(uiText('Copy config'))}</button></div><pre class="code-block">${esc(connectorCode())}</pre><p class="muted">${client === 'codex' ? uiText('Reload your MCP connections, then ask Codex to list the tools available from AMCP.') : uiText('Use a client that supports Streamable HTTP and bearer authentication.')}</p></div></div></div></section><section class="panel"><div class="panel-header"><div><h2>${esc(uiText('Connector tokens'))}</h2><span class="muted token-caption">${esc(uiText('Access follows your current AMCP asset selections.'))}</span></div>${session.authenticated ? `<button class="button" data-create-token="true">${esc(uiText('Create read-only token'))}</button>` : `<a class="button" href="/login">${esc(uiText('Sign in to create a token'))}</a>`}</div>${session.writesEnabled && session.authenticated && !viewer ? `<div class="consent-panel"><p><strong>${esc(uiText('Read + write (default)'))}</strong> ${esc(uiText('Create an operator token for your selected resources, then use'))} <code>amcp_write</code> ${esc(uiText('to prepare and review a change before executing it.'))}</p><label class="form-note"><input type="checkbox" id="operator-token-consent"> ${esc(uiText('I authorize this connector to execute reviewed changes on accounts with write access.'))}</label><p><button class="button primary" data-create-operator-token="true">${esc(uiText('+ Create read + write token'))}</button></p></div>` : ''}<div id="new-token"></div>${tokens.map(t => `<div class="token-row"><div><strong>${uiBidi(t.name)}</strong><small>${t.role === 'operator' ? uiText('Operator · reviewed writes') : uiText('Reader')} ${esc(uiText('· Created'))} ${esc(uiDateZoned(t.createdAt))} ${esc(uiText('· Expires'))} ${esc(uiDateZoned(t.expiresAt))}</small></div>${t.revoked ? `<span class="status offline">${esc(uiText('Revoked'))}</span>` : manages(t) ? `<button class="button small danger" data-revoke-token="${esc(t.id)}">${esc(uiText('Revoke'))}</button>` : ''}</div>`).join('') || `<div class="empty">${session.authenticated ? uiText('No connector tokens yet.') : uiText('Sign in to create and manage connector tokens.')}</div>`}</section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Authorized MCP clients'))}</h2></div>${oauthClients.map(c => `<div class="token-row"><div><strong>${uiBidi(c.name)}</strong><small>${c.role === 'operator' ? uiText('Operator · reviewed writes') : uiText('Reader')} ${esc(uiText('· Authorization expires'))} ${esc(uiDateZoned(c.expiresAt))}${c.ownerName ? ` ${esc(uiText('· Approved by'))} ${uiBidi(c.ownerName)}` : ''}</small></div>${manages(c) ? `<button class="button small danger" data-revoke-client="${esc(c.id)}"${'owner' in c ? ` data-revoke-owner="${esc(c.owner ?? '')}"` : ''}>${esc(uiText('Revoke access'))}</button>` : ''}</div>`).join('') || `<div class="empty">${esc(uiText('No clients authorized through browser sign-in.'))}</div>`}${oauthEnded.length ? `<h3>${esc(uiText('Recently ended connections'))}</h3>${oauthEnded.map(c => `<div class="token-row"><div><strong>${uiBidi(c.name)}</strong><small>${esc(endedReason(c.reason))} · ${esc(uiDateZoned(c.endedAt))}${c.ownerName ? ` ${esc(uiText('· Approved by'))} ${uiBidi(c.ownerName)}` : ''}</small></div></div>`).join('')}` : ''}</section><p class="muted small-text">${esc(uiText('Codex configuration follows'))} <a href="https://learn.chatgpt.com/docs/extend/mcp?surface=cli" target="_blank" rel="noreferrer">${esc(uiText('official OpenAI documentation ↗'))}</a>.</p>`;
+codex mcp login amcp</pre><p class="muted">${esc(uiText('For clients using a bearer token, follow the setup below.'))}</p></section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Connect with a token'))}</h2><span class="status">${esc(uiText('Streamable HTTP'))}</span></div><div class="client-tabs"><button class="client-tab ${client === 'codex' ? 'active' : ''}" data-client="codex">${esc(uiText('Codex'))}</button><button class="client-tab ${client === 'cursor' ? 'active' : ''}" data-client="cursor">${esc(uiText('Cursor'))}</button><button class="client-tab ${client === 'other' ? 'active' : ''}" data-client="other">${esc(uiText('Other MCP client'))}</button></div><div class="steps"><div class="step"><div><strong>${esc(uiText('Create a connector token'))}</strong><p class="muted">${esc(uiText('Create a separate token for each tool. Tokens expire after 30 days and can be revoked below.'))}</p></div></div><div class="step"><div><strong>${esc(uiText('Add your token to the tool’s environment'))}</strong><p class="muted">${esc(uiText('Use the environment variable'))} <code>AMCP_MCP_TOKEN</code>${esc(uiText('. Keep the value private.'))}</p></div></div><div class="step"><div class="step-content"><div class="copy-row"><strong>${client === 'codex' ? uiText('Add this to your Codex config.toml') : client === 'cursor' ? uiText('Add this to your Cursor MCP configuration') : uiText('Configure your MCP client')}</strong><button class="button small" data-copy-config="true">${esc(uiText('Copy config'))}</button></div><pre class="code-block">${esc(connectorCode())}</pre><p class="muted">${client === 'codex' ? uiText('Reload your MCP connections, then ask Codex to list the tools available from AMCP.') : uiText('Use a client that supports Streamable HTTP and bearer authentication.')}</p></div></div></div></section><section class="panel"><div class="panel-header"><div><h2>${esc(uiText('Connector tokens'))}</h2><span class="muted token-caption">${esc(uiText('Access follows your current AMCP asset selections.'))}</span></div>${session.authenticated ? `<button class="button" data-create-token="true">${esc(uiText('Create read-only token'))}</button>` : `<a class="button" href="/login">${esc(uiText('Sign in to create a token'))}</a>`}</div>${session.writesEnabled && session.authenticated && !viewer ? `<div class="consent-panel"><p><strong>${esc(uiText('Read + write (default)'))}</strong> ${esc(uiText('Create an operator token for your selected resources, then use'))} <code>amcp_write</code> ${esc(uiText('to prepare and review a change before executing it.'))}</p><label class="form-note"><input type="checkbox" id="operator-token-consent"> ${esc(uiText('I authorize this connector to execute reviewed changes on accounts with write access.'))}</label><p><button class="button primary" data-create-operator-token="true">${esc(uiText('+ Create read + write token'))}</button></p></div>` : ''}${tokenAccessSetControl()}<div id="new-token"></div>${tokens.map(t => `<div class="token-row"><div><strong>${uiBidi(t.name)}</strong><small>${t.role === 'operator' ? uiText('Operator · reviewed writes') : uiText('Reader')}${accessSetNote(t.access_set_id)} ${esc(uiText('· Created'))} ${esc(uiDateZoned(t.createdAt))} ${esc(uiText('· Expires'))} ${esc(uiDateZoned(t.expiresAt))}</small></div>${t.revoked ? `<span class="status offline">${esc(uiText('Revoked'))}</span>` : manages(t) ? `<button class="button small danger" data-revoke-token="${esc(t.id)}">${esc(uiText('Revoke'))}</button>` : ''}</div>`).join('') || `<div class="empty">${session.authenticated ? uiText('No connector tokens yet.') : uiText('Sign in to create and manage connector tokens.')}</div>`}</section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Authorized MCP clients'))}</h2></div>${oauthClients.map(c => `<div class="token-row"><div><strong>${uiBidi(c.name)}</strong><small>${c.role === 'operator' ? uiText('Operator · reviewed writes') : uiText('Reader')}${accessSetNote(c.access_set_id)} ${esc(uiText('· Authorization expires'))} ${esc(uiDateZoned(c.expiresAt))}${c.ownerName ? ` ${esc(uiText('· Approved by'))} ${uiBidi(c.ownerName)}` : ''}</small></div>${manages(c) ? `<button class="button small danger" data-revoke-client="${esc(c.id)}"${'owner' in c ? ` data-revoke-owner="${esc(c.owner ?? '')}"` : ''}>${esc(uiText('Revoke access'))}</button>` : ''}</div>`).join('') || `<div class="empty">${esc(uiText('No clients authorized through browser sign-in.'))}</div>`}${oauthEnded.length ? `<h3>${esc(uiText('Recently ended connections'))}</h3>${oauthEnded.map(c => `<div class="token-row"><div><strong>${uiBidi(c.name)}</strong><small>${esc(endedReason(c.reason))} · ${esc(uiDateZoned(c.endedAt))}${c.ownerName ? ` ${esc(uiText('· Approved by'))} ${uiBidi(c.ownerName)}` : ''}</small></div></div>`).join('')}` : ''}</section><p class="muted small-text">${esc(uiText('Codex configuration follows'))} <a href="https://learn.chatgpt.com/docs/extend/mcp?surface=cli" target="_blank" rel="noreferrer">${esc(uiText('official OpenAI documentation ↗'))}</a>.</p>`;
 }
 function renderSettings() {
   if (session.authenticated && !session.administrator) {
@@ -1101,6 +1122,16 @@ function renderLegal() {
   // static page itself instead of the client router (WEB-02 review).
   content.innerHTML = `<section class="panel"><p><a class="button primary" href="${esc(target)}" target="_self">${esc(uiText('Open this page'))}</a></p></section>`;
 }
+/**
+ * "Limit to client" on the consent page (SEC-08): the AI client reaches only one client access set's accounts. A member
+ * limited to a set hands on that set; anyone else may choose one or keep their whole access.
+ */
+function consentAccessSet(info) {
+  const sets = info.access_sets ?? [],
+    required = info.access_set_required ?? null;
+  if (!sets.length) return '';
+  return `<label class="consent-limit">${esc(uiText('Limit to client'))}<select id="consent-access-set">${required ? '' : `<option value="">${esc(uiText('No limit: the accounts I can reach'))}</option>`}${sets.map(s => `<option value="${esc(s.id)}" ${s.id === required ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label><p class="form-note">${esc(uiText('A client limit lets this app reach only that client’s accounts. The app cannot widen it.'))}</p>`;
+}
 async function renderConsent() {
   if (!session.authenticated) {
     content.innerHTML =
@@ -1140,7 +1171,7 @@ async function renderConsent() {
       ),
       !write,
     ) +
-    `</fieldset>${info.capped ? `<p class="notice" role="note">${esc(uiText('The app asked for reviewed changes too. Your workspace role allows read-only access, so it receives read access only.'))}</p>` : ''}<details><summary>${esc(uiText('Return address:'))}</summary><code>${esc(info.redirectUri)}</code></details><p>${esc(uiText('Requested permission:'))} <code>${esc(info.requestedScope ?? info.scope)}</code></p><div class="dialog-actions"><button class="button" data-consent="deny">${esc(uiText('Cancel'))}</button><button class="button primary" data-consent="approve">${esc(uiText('Authorize access'))}</button></div></section>`;
+    `</fieldset>${consentAccessSet(info)}${info.capped ? `<p class="notice" role="note">${esc(uiText('The app asked for reviewed changes too. Your workspace role allows read-only access, so it receives read access only.'))}</p>` : ''}<details><summary>${esc(uiText('Return address:'))}</summary><code>${esc(info.redirectUri)}</code></details><p>${esc(uiText('Requested permission:'))} <code>${esc(info.requestedScope ?? info.scope)}</code></p><div class="dialog-actions"><button class="button" data-consent="deny">${esc(uiText('Cancel'))}</button><button class="button primary" data-consent="approve">${esc(uiText('Authorize access'))}</button></div></section>`;
 }
 /**
  * What this person can do here, from their role and the deployment together (WEB-06). Before, the line showed only the
@@ -1149,6 +1180,11 @@ async function renderConsent() {
 function accessLine(s) {
   if (!s?.authenticated) return uiText('Not signed in');
   if (s.testAccount) return uiText('Test workspace · read access');
+  // A member limited to a client access set (SEC-08) sees which client their access covers.
+  if (s.accessSet)
+    return s.accessSet.removed
+      ? uiText('Access limited to a client that was removed')
+      : uiText('Access limited to {client}', {client: s.accessSet.name ?? ''});
   const role = s.administrator ? uiText('Deployment administrator') : s.workspaceRole ? uiRole(s.workspaceRole) : '';
   if (s.workspaceRole === 'viewer' || (!s.administrator && !['owner', 'admin', 'operator'].includes(s.workspaceRole)))
     return role ? uiText('{role} · read-only access', {role}) : uiText('Read-only access');
@@ -1213,7 +1249,171 @@ async function switchWorkspaceFromShell(id) {
   // Plan, report and account IDs in the address belonged to the previous workspace: keep only the page.
   navigate(routeEntry(location.pathname) && routeAvailable(location.pathname) ? location.pathname : '/dashboard');
 }
-// WEB-06: a failed shell action stays on screen until the next action or page, instead of a six-second toast.
+/**
+ * The working client (SEC-08 phase 1, owner direction P1: many clients per workspace). Choosing a client narrows the
+ * account pickers and lists to the accounts its client profile binds, within this person's current access. It is a
+ * view filter, never access control: the server still decides every request, and only a client access set limits what
+ * a person, token or AI client may reach. It is kept in the address (?client=) and in this tab for this person and
+ * workspace, and forgotten on sign-out and on a workspace switch.
+ */
+const workingClientStore = 'amcp.workingClient';
+const workingClientKey = () =>
+  workingClientStore + ':' + JSON.stringify([session.id ?? session.userId ?? null, session.workspaceId ?? null]);
+function workingClientRemembered() {
+  try {
+    return sessionStorage.getItem(workingClientKey());
+  } catch {
+    return null;
+  }
+}
+function workingClientRemember(id) {
+  try {
+    if (id) sessionStorage.setItem(workingClientKey(), id);
+    else sessionStorage.removeItem(workingClientKey());
+  } catch {}
+}
+/** Forgets every working client this tab remembered (sign-out and workspace switch). */
+function workingClientForget() {
+  workingClients = null;
+  try {
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const key = sessionStorage.key(i);
+      if (key?.startsWith(workingClientStore + ':')) sessionStorage.removeItem(key);
+    }
+  } catch {}
+}
+/** The client profiles with accounts this person can reach, read once per identity. */
+async function loadWorkingClients() {
+  if (!session.authenticated || session.testAccount || session.mfaEnrollmentRequired) return (workingClients = []);
+  if (workingClients) return workingClients;
+  const identity = identityGeneration;
+  let data;
+  try {
+    data = await api('/api/working-clients');
+  } catch (e) {
+    if (e.code === 'REQUEST_SUPERSEDED') throw e;
+    data = {clients: []};
+  }
+  if (identity !== identityGeneration) throw supersededRequest();
+  return (workingClients = Array.isArray(data.clients) ? data.clients : []);
+}
+/** The chosen working client: the address first, then this tab's memory; one no longer listed is no choice. */
+function workingClient() {
+  if (!workingClients?.length) return null;
+  const id = new URLSearchParams(location.search).get('client') ?? workingClientRemembered();
+  return workingClients.find(c => c.profile_id === id) ?? null;
+}
+/** The profile_id argument of a list call: the working client's, or nothing. */
+const workingClientQuery = () => (workingClient() ? {profile_id: workingClient().profile_id} : {});
+const workingAccountKey = (gateway, id) => {
+  const value = String(id ?? '');
+  return gateway === 'meta_native_action'
+    ? value.replace(/^act_/, '')
+    : gateway === 'google_ads_native_action'
+      ? value.replaceAll('-', '')
+      : value;
+};
+/** Whether an account belongs to a client (the working client by default); always true when none is chosen. */
+function inWorkingClient(gateway, accountId, connectionId, client = workingClient()) {
+  if (!client) return true;
+  return client.accounts.some(
+    a =>
+      a.gateway === gateway &&
+      (!connectionId || a.connection_id === connectionId) &&
+      workingAccountKey(gateway, a.account_id) === workingAccountKey(gateway, accountId),
+  );
+}
+/**
+ * The one account-option builder of the pickers (SEC-08): the accounts a picker offers, narrowed to the working client,
+ * and the account to preselect, only when exactly one remains (otherwise the picker shows an explicit placeholder).
+ * describe maps an option to {gateway, account_id, connection_id}.
+ */
+function clientAccountOptions(options, describe = o => o) {
+  const listed = options.filter(o => {
+    const d = describe(o);
+    return inWorkingClient(d.gateway, d.account_id, d.connection_id);
+  });
+  return {options: listed, preselect: listed.length === 1 ? listed[0] : null};
+}
+/** The client names a set of accounts spans. */
+function workingClientsOf(scopes) {
+  return (workingClients ?? [])
+    .filter(c => scopes.some(s => inWorkingClient(s.gateway, s.account_id, s.connection_id, c)))
+    .map(c => c.name);
+}
+/** Work that spans accounts of different clients asks first (SEC-08); true when it does not, or once confirmed. */
+async function confirmCrossClient(scopes, confirmLabel = uiText('Continue')) {
+  const names = workingClientsOf(scopes);
+  if (names.length < 2) return true;
+  return confirmAction({
+    title: uiText('These accounts belong to different clients'),
+    consequence: uiText(
+      'This work spans accounts of {count} clients. Continue only if mixing these clients is intended.',
+      {count: names.length},
+    ),
+    confirmLabel,
+    items: names,
+  });
+}
+/** Keeps ?client= in the address for the chosen client, and drops one this person no longer has. True if changed. */
+function syncWorkingClientLocation() {
+  const url = new URL(location.href),
+    named = url.searchParams.get('client'),
+    current = workingClient();
+  if (current) {
+    workingClientRemember(current.profile_id);
+    if (named === current.profile_id) return false;
+    url.searchParams.set('client', current.profile_id);
+  } else if (named !== null) {
+    workingClientRemember(null);
+    url.searchParams.delete('client');
+  } else return false;
+  history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+  return true;
+}
+/** The top bar's working-client selector, shown when this person has client profiles with accounts. */
+function renderWorkingClientControl() {
+  const actions = document.querySelector('.top-actions');
+  if (!actions) return;
+  let control = document.getElementById('working-client-control');
+  const listed = session.authenticated && !session.testAccount ? (workingClients ?? []) : [];
+  if (!listed.length || routeEntry(location.pathname)?.public === true) {
+    control?.remove();
+    return;
+  }
+  if (!control) {
+    control = document.createElement('label');
+    control.id = 'working-client-control';
+    control.className = 'working-client-control';
+    actions.prepend(control);
+  }
+  const current = workingClient(),
+    note = uiText('A view filter for lists and pickers. It does not limit access.');
+  control.title = note;
+  control.innerHTML = `<span>${esc(uiText('Working client'))}</span><select data-working-client aria-describedby="working-client-note"><option value="">${esc(uiText('All clients'))}</option>${listed.map(c => `<option value="${esc(c.profile_id)}" ${current?.profile_id === c.profile_id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select><small id="working-client-note" hidden>${esc(note)}</small>`;
+}
+document.addEventListener('change', async event => {
+  const select = event.target.closest?.('[data-working-client]');
+  if (!select) return;
+  if (
+    typeof pageLeaveGuard === 'function' &&
+    pageLeaveGuard() &&
+    !(await confirmAction({
+      title: uiText('Leave without saving?'),
+      consequence: uiText('Unsaved edits on this page will be lost. Saved work is kept.'),
+      confirmLabel: uiText('Leave page'),
+    }))
+  ) {
+    select.value = workingClient()?.profile_id ?? '';
+    return;
+  }
+  workingClientRemember(select.value);
+  const url = new URL(location.href);
+  if (select.value) url.searchParams.set('client', select.value);
+  else url.searchParams.delete('client');
+  history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+  await render();
+});// WEB-06: a failed shell action stays on screen until the next action or page, instead of a six-second toast.
 function showShellAlert(message) {
   const alert = document.getElementById('shell-alert');
   if (!alert || !message) return toast(message);
@@ -1283,6 +1483,14 @@ async function render() {
     if (pending || (routeChanged && page && !page.public))
       content.innerHTML = `<div class="page-heading"><div><h1>${esc(uiText(pageTitle))}</h1></div></div><section class="panel" role="status" aria-busy="true" id="route-loading"><p>${esc(uiText('Loading this page…'))}</p></section>`;
     if (pending) await ensurePageAssets(pathname);
+    // The working client (SEC-08): its list loads once per identity, and the address keeps ?client= for this page.
+    if (session.authenticated && page && !page.public) {
+      await loadWorkingClients();
+      if (generation !== navigationGeneration || identity !== identityGeneration || pathname !== location.pathname)
+        return;
+      if (syncWorkingClientLocation()) renderedLocation = location.pathname + location.search;
+    }
+    renderWorkingClientControl();
     if (generation !== navigationGeneration || identity !== identityGeneration || pathname !== location.pathname)
       return;
     if (location.pathname === '/') return await renderLanding();
@@ -1384,13 +1592,15 @@ document.addEventListener('click', async event => {
     if (el.dataset.consent) {
       disableControl();
       const approved = el.dataset.consent === 'approve',
-        scope = approved ? $('input[name="consent-scope"]:checked')?.value : undefined;
+        scope = approved ? $('input[name="consent-scope"]:checked')?.value : undefined,
+        accessSet = approved ? $('#consent-access-set')?.value : undefined;
       const result = await api('/api/mcp/consent', {
         method: 'POST',
         body: JSON.stringify({
           request: new URLSearchParams(location.search).get('request'),
           approved,
           ...(scope ? {scope} : {}),
+          ...(accessSet ? {access_set_id: accessSet} : {}),
         }),
       });
       location.assign(result.url);
@@ -1588,12 +1798,14 @@ document.addEventListener('click', async event => {
         return;
       }
       disableControl();
+      const limit = $('#token-access-set')?.value;
       const result = await api('/api/connector-tokens', {
         method: 'POST',
         body: JSON.stringify({
           name: client === 'codex' ? 'Codex' : client === 'cursor' ? 'Cursor' : 'MCP client',
           role: operator ? 'operator' : 'reader',
           confirmed: operator,
+          ...(limit ? {access_set_id: limit} : {}),
         }),
       });
       await renderConnectors();

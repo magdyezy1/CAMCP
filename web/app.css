@@ -1597,3 +1597,27 @@ dialog::backdrop {
   max-height: 24rem;
   overflow: auto;
 }
+
+/* The working client (SEC-08): a view filter in the top bar, not access control. */
+.working-client-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.working-client-control select {
+  font: inherit;
+  min-height: 32px;
+  max-width: 14rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 4px 7px;
+  color: var(--ink);
+  background: var(--white);
+}
+@container topbar (max-width: 800px) {
+  .top-actions .working-client-control > span {
+    display: none;
+  }
+}
