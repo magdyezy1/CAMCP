@@ -403,7 +403,7 @@ export async function checkConditionalProgram(
   if (!program && discoveryOnlyProgram(input.workflow_id))
     bad(
       'This program is listed for discovery only: AMCP makes no request for it. Capabilities lists its prerequisites.',
-      'PROGRAM_DISCOVERY_ONLY',
+      'PROGRAM_CHECK_UNAVAILABLE',
     );
   if (!program) bad('Choose an exact conditional program returned by capabilities.', 'PROGRAM_NOT_FOUND');
   if (typeof input.account_id !== 'string' || typeof input.connection_id !== 'string')

@@ -161,7 +161,7 @@ test('discovery-only programs make no request: capabilities lists them, program_
       actor,
     );
     assert.equal(refused.success, false);
-    assert.equal(refused.error.code, 'PROGRAM_DISCOVERY_ONLY');
+    assert.equal(refused.error.code, 'PROGRAM_CHECK_UNAVAILABLE');
   }
   assert.equal(requests, 0);
   assert.equal(store.documents(actor.tenantId, 'conditional_program_observation').length, 0);
@@ -414,4 +414,55 @@ test('the Settings panel renders the synthetic panel in English and Arabic witho
   assert.equal(render('en', null), '');
   assert.match(render('en', {providers: []}), /Connect a platform to see its access here\./);
   assert.match(render('en', {register: 'invalid', providers: []}), /register is invalid/);
+});
+
+const center = readFileSync('web/capability-center.js', 'utf8'),
+  discoveryHelper = center.slice(
+    center.indexOf('function capabilityDiscoveryOnly('),
+    center.indexOf('function capabilityProgramRequirements('),
+  );
+function renderDiscovery(locale, programs) {
+  const context = createContext({
+    Intl,
+    document: {addEventListener() {}},
+    esc: text =>
+      String(text).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;'),
+    capabilityPlatform: gateway => String(gateway).replace(/_native_action$/, ''),
+    catalog: JSON.parse(readFileSync('web/locales/ar.json', 'utf8')),
+  });
+  const run = source => new Script(source).runInContext(context);
+  run(readFileSync('web/localization.js', 'utf8'));
+  run(`uiLocale=${JSON.stringify(locale)};uiMessages=new Map(${locale === 'ar' ? 'Object.entries(catalog)' : '[]'});`);
+  run(discoveryHelper);
+  context.value = programs;
+  return run('capabilityDiscoveryOnly(value)');
+}
+
+test('the Capability Center lists the discovery-only programs in English and Arabic, with no check to run', async t => {
+  assert.ok(discoveryHelper.startsWith('function capabilityDiscoveryOnly('), 'the helper is found');
+  const store = new Store(':memory:', Buffer.alloc(32, 34).toString('base64')),
+    actor = {tenantId: 'acc05-center', userId: 'owner', role: 'admin'};
+  t.after(() => store.close());
+  const graph = await new MirrorService(new Registry(), store, new NativeTransport(async () => Response.json({}))).call(
+    'amcp_workspace',
+    {action: 'capabilities', view: 'graph'},
+    actor,
+  );
+  const en = renderDiscovery('en', graph.data.discovery_only_programs);
+  assert.match(
+    en,
+    /<section class="panel" id="capability-discovery-only"><h2>Programs that need provider approval<\/h2>/,
+  );
+  for (const p of discoveryOnlyPrograms) assert.ok(en.includes('data-discovery-program="' + p.id + '"'), p.id);
+  assert.doesNotMatch(en, /data-program-check|<form|<button/);
+  assert.match(en, /AMCP never reads lead responses through this entry/);
+  const ar = renderDiscovery('ar', graph.data.discovery_only_programs);
+  assert.match(ar, /<h2>برامج تحتاج إلى موافقة المنصة<\/h2>/);
+  // Every program text has Arabic; native names stay literal.
+  for (const p of discoveryOnlyPrograms)
+    for (const text of [p.name, p.description, p.program.access, ...p.prerequisites.map(x => x.text), ...p.unlocks])
+      assert.ok(!ar.includes(text), 'untranslated: ' + text);
+  assert.match(ar, /r_marketing_leadgen_automation/);
+  assert.equal(renderDiscovery('en', []), '');
+  assert.equal(renderDiscovery('en', undefined), '');
 });

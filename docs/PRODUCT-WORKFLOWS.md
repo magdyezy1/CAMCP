@@ -133,7 +133,7 @@ These three are `mode: "live_read"`. Five more provider programs are listed for 
 `src/discovery-programs.ts`): LinkedIn Lead Sync, LinkedIn Matched Audiences, LinkedIn saved media plans, X Ads API
 access and Display & Video 360 reporting (Bid Manager). Capabilities lists them under `discovery_only_programs` (by
 ID in the summary, whole in `view:"graph"`) with their prerequisites, reference and what they would unlock; they have no
-account, no next call and `provider_requests: 0`, and `program_check` refuses them with `PROGRAM_DISCOVERY_ONLY` before
+account, no next call and `provider_requests: 0`, and `program_check` refuses them with `PROGRAM_CHECK_UNAVAILABLE` before
 reading a login. The website's Capability Center shows them under "Programs that need provider approval". A blocked
 write that waits on one names it as `program_id` in its refusal details and its action-ledger row, and its reason text
 comes from the program entry. The Lead Sync entry never reads lead responses; they stay behind the personal-data

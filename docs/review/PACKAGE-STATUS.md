@@ -38,7 +38,7 @@ Status as of 2026-10-10. Re-baselined from the 2026-10-08 engineering review (pa
 | B17 | First additional objective launch packs | not met: Microsoft location targeting and activation gating are missing, and no recipe has a verified outcome | none | not_recorded | Launch completion: Microsoft location targeting, activation gating and activation plans → register_item CMP-03<br>Zero-spend live acceptance and one recipe verified outcome → native_acceptance ACC-01<br>Next launch packs chosen from client demand → optional_stretch CMP-07 |
 | B18 | Guided native report capture and richer reconciliation | not met: LinkedIn conversion windows are not verified | none | not_recorded | Verified LinkedIn conversion windows (closes the package) → register_item RPT-07<br>Guided presets for X, Microsoft, Apple and Reddit (the capture bridge already covers them) → optional_stretch RPT-07 |
 | B19 | Read-only monitors and incident lifecycle | met (3 test files, 60ec2cc) | none | not_recorded | Deployed worker configuration and live mailbox acceptance, once a transactional email provider is configured → owner_action D3 |
-| B20 | Measurement diagnostics workspace | not met: Google Ads conversion goals are not reachable from the measurement workspace | none | not_recorded | Google conversion goals in the measurement workspace (closes the package) → register_item MSR-02<br>A re-recorded authorized GA4 recent-events read → native_acceptance ACC-06<br>Raw event tracing and runtime consent, deduplication and attribution diagnosis → conditional_stretch B32<br>MSR-03 is partial: the Meta dataset ledger adapter waits for decision P8 and Meta pixel ownership learned from the ad account (adspixels is not an AMCP read); the Snapchat and TikTok adapters (slice D) are not started → owner_action P8 |
+| B20 | Measurement diagnostics workspace | not met: Google Ads conversion goals are not reachable from the measurement workspace | none | not_recorded | Google conversion goals in the measurement workspace (closes the package) → register_item MSR-02<br>A re-recorded authorized GA4 recent-events read → native_acceptance ACC-06<br>Raw event tracing and runtime consent, deduplication and attribution diagnosis → conditional_stretch B32<br>MSR-03 is partial: decision P8 (2026-10-11) makes Measurement the multi-provider hub; the Meta dataset ledger adapter still needs Meta pixel ownership learned from the ad account (adspixels is not an AMCP read), and the Snapchat and TikTok adapters (slice D) are not started → register_item MSR-03 |
 | B21 | Commerce ingestion and destination reconciliation | met (4 test files, 60ec2cc) | none | not_recorded | Shopify, Salla and WooCommerce store-source adapters → parked PRK-01<br>Criteo Retail Media → parked PRK-02<br>Catalog destination adapter contract for Meta and X → register_item COM-03 |
 | B22 | Controlled bulk jobs and creative performance lineage | met (3 test files, 60ec2cc) | none | not_recorded | LinkedIn creative lineage → finite_package B31 |
 | B23 | Measured scaling, caching and module simplification | met (3 test files, 60ec2cc) | none | not_recorded | Real tenant load tests and shared-quota admission → register_item OPS-08 |
@@ -96,11 +96,11 @@ Status as of 2026-10-10. Re-baselined from the 2026-10-08 engineering review (pa
 | MCP-07 | B15 (register_item) |
 | MED-04 | B10 (optional_stretch) |
 | MSR-02 | B20 (register_item) |
+| MSR-03 | B20 (register_item) |
 | OPS-02 | B13 (register_item) |
 | OPS-05 | B16 (register_item) |
 | OPS-06 | B13 (register_item) |
 | OPS-08 | B11 (register_item), B23 (register_item) |
-| P8 | B20 (owner_action) |
 | PRK-01 | B21 (parked) |
 | PRK-02 | B21 (parked) |
 | QA-04 | B15 (register_item) |

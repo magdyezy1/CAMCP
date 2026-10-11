@@ -9188,7 +9188,6 @@
   "The provider’s program answer was incomplete or did not match the exact request, so AMCP kept no result. Check the same request once more later; if it recurs, report the request ID.": "كانت إجابة المنصة عن البرنامج ناقصة أو لا تطابق الطلب المحدد، لذا لم يحتفظ AMCP بأي نتيجة. تحقق من الطلب نفسه مرة أخرى لاحقًا؛ وإن تكرر ذلك فأبلغ عن معرّف الطلب.",
   "Choose a conditional program that capabilities returns (a workflow_id starting with program:).": "اختر برنامجًا مشروطًا يعيده capabilities (قيمة workflow_id تبدأ بـ program:).",
   "This program is listed for discovery only: AMCP makes no request for it. Capabilities lists its prerequisites.": "هذا البرنامج مُدرج للاطلاع فقط: لا يرسل AMCP أي طلب له. يعرض capabilities متطلباته.",
-  "Follow the prerequisites capabilities lists for this program with the provider. AMCP makes no request for it; nothing was read or changed.": "تابِع مع المنصة المتطلبات التي يعرضها capabilities لهذا البرنامج. لا يرسل AMCP أي طلب له؛ ولم يُقرأ أو يتغيّر أي شيء.",
   "Programs that need provider approval": "برامج تحتاج إلى موافقة المنصة",
   "AMCP makes no request for these programs and cannot check them. Each waits on an approval the platform grants; the owner records it in the provider access register.": "لا يرسل AMCP أي طلب لهذه البرامج ولا يمكنه التحقق منها. ينتظر كلٌّ منها موافقة تمنحها المنصة، ويسجّلها المالك في سجل صلاحيات المنصات.",
   "Unlocks": "ما يتيحه",

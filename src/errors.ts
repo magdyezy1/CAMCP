@@ -118,12 +118,6 @@ function familyRemedy(code: string): {category: string; owner: string; action: s
       'request',
       'Choose a conditional program that capabilities returns (a workflow_id starting with program:).',
     );
-  // ACC-05: a discovery-only program waits on an external approval; no check of it exists.
-  if (code === 'PROGRAM_DISCOVERY_ONLY')
-    return r(
-      'request',
-      'Follow the prerequisites capabilities lists for this program with the provider. AMCP makes no request for it; nothing was read or changed.',
-    );
   if (/_LIMIT$/.test(code))
     return r(
       'request',
