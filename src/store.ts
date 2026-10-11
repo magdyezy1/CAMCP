@@ -56,6 +56,28 @@ const stagedChunkScopes = (tenant: string, id: string, index: number) =>
   [scopeKey(tenant, 'media-chunk', id, String(index)), scopeKey(tenant, 'media-chunk-v2', id, String(index))] as const;
 const busyPause = new Int32Array(new SharedArrayBuffer(4));
 /**
+ * Audit records are append-only, except that an erasure (SEC-07 S4, src/account-erasure.ts) may replace a record's
+ * payload by its tombstone and clear its request id; its workspace, time, previous hash and hash never change, so the
+ * chain stays linked. verifyAudit accepts a tombstone only when a later `account_erased` record names exactly the
+ * records its erasure tombstoned.
+ */
+const auditUpdateTrigger = `CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE ON audit WHEN NOT (NEW.seq=OLD.seq AND NEW.tenant_id=OLD.tenant_id AND NEW.previous_hash=OLD.previous_hash AND NEW.hash=OLD.hash AND NEW.created_at=OLD.created_at AND NEW.request_id='' AND json_valid(NEW.event) AND json_extract(NEW.event,'$.amcp_audit_tombstone')=1 AND json_type(NEW.event,'$.erasure')='text') BEGIN SELECT RAISE(ABORT,'audit is append only'); END;`;
+/** The payload an erased audit record keeps: the id of the erasure, nothing of the original. */
+export const auditTombstone = (erasure: string) => stable({amcp_audit_tombstone: 1, erasure});
+/** The erasure a tombstoned audit record belongs to, or undefined for any other record. */
+function tombstoneErasure(row: JsonObject): string | undefined {
+  if (row.request_id !== '' || typeof row.event !== 'string' || !row.event.startsWith('{"amcp_audit_tombstone":1,'))
+    return;
+  try {
+    const value = JSON.parse(row.event);
+    return Object.keys(value).length === 2 && typeof value.erasure === 'string' && row.event === auditTombstone(value.erasure)
+      ? value.erasure
+      : undefined;
+  } catch {
+    return;
+  }
+}
+/**
  * The record to store: the store's login revision and login id, never a caller's (revision 0 is left implicit, as on
  * older rows, which also have no login id).
  */
@@ -163,7 +185,7 @@ export class Store {
    CREATE TABLE IF NOT EXISTS api_keys(hash TEXT PRIMARY KEY,tenant_id TEXT NOT NULL REFERENCES tenants(id),user_id TEXT NOT NULL,role TEXT NOT NULL,expires_at INTEGER,revoked INTEGER NOT NULL DEFAULT 0);
    CREATE TABLE IF NOT EXISTS connections(id TEXT NOT NULL,tenant_id TEXT NOT NULL REFERENCES tenants(id),data TEXT NOT NULL,secret TEXT NOT NULL,PRIMARY KEY(tenant_id,id));
    CREATE TABLE IF NOT EXISTS audit(seq INTEGER PRIMARY KEY AUTOINCREMENT,tenant_id TEXT NOT NULL,request_id TEXT NOT NULL,event TEXT NOT NULL,previous_hash TEXT NOT NULL,hash TEXT NOT NULL,created_at INTEGER NOT NULL);
-   CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE ON audit BEGIN SELECT RAISE(ABORT,'audit is append only'); END;
+   ${auditUpdateTrigger}
    CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON audit BEGIN SELECT RAISE(ABORT,'audit is append only'); END;
    CREATE TABLE IF NOT EXISTS idempotency(tenant_id TEXT NOT NULL,key TEXT NOT NULL,fingerprint TEXT NOT NULL,state TEXT NOT NULL,result TEXT,created_at INTEGER NOT NULL,PRIMARY KEY(tenant_id,key));
    CREATE TABLE IF NOT EXISTS documents(tenant_id TEXT NOT NULL,kind TEXT NOT NULL,id TEXT NOT NULL,data TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,PRIMARY KEY(tenant_id,kind,id));
@@ -177,6 +199,17 @@ export class Store {
    CREATE TABLE IF NOT EXISTS retained_media(tenant_id TEXT NOT NULL,id TEXT NOT NULL,secret TEXT NOT NULL,size_bytes INTEGER NOT NULL,PRIMARY KEY(tenant_id,id));
    CREATE TABLE IF NOT EXISTS retained_media_chunks(tenant_id TEXT NOT NULL,id TEXT NOT NULL,chunk_index INTEGER NOT NULL,secret TEXT NOT NULL,PRIMARY KEY(tenant_id,id,chunk_index));
   `);
+        // Additive schema-2 change (SEC-07 S4): the audit's update trigger also admits an erasure's tombstone. A
+        // database created before keeps the stricter trigger until this replaces it.
+        if (
+          !String(
+            (
+              this.db.prepare("SELECT sql FROM sqlite_master WHERE type='trigger' AND name='audit_no_update'").get() as
+                {sql?: string} | undefined
+            )?.sql,
+          ).includes('amcp_audit_tombstone')
+        )
+          this.db.exec('DROP TRIGGER IF EXISTS audit_no_update; ' + auditUpdateTrigger);
         const version = this.db.prepare('SELECT version FROM schema_version').get() as {version: number};
         if (version.version === 1)
           this.db.exec('ALTER TABLE jobs ADD COLUMN lease_token TEXT; UPDATE schema_version SET version=2;');
@@ -1947,16 +1980,60 @@ export class Store {
       .prepare('SELECT * FROM audit WHERE tenant_id=? ORDER BY seq DESC LIMIT ?')
       .all(tenantId, Math.min(1000, Math.max(1, limit)));
   }
+  /**
+   * Checks the one hash chain across all workspaces. A record an erasure tombstoned (SEC-07 S4) keeps its link: its
+   * previous hash must be the record before it, and its own hash links the next. Its payload is no longer verifiable,
+   * so every tombstone must be accounted for by a later, verified `account_erased` record of its erasure that names
+   * how many records it tombstoned and the digest of their sequence numbers and hashes.
+   */
   verifyAudit() {
     let previous = 'GENESIS';
+    const erased = new Map<string, string[]>();
     for (const row of this.db.prepare('SELECT * FROM audit ORDER BY seq').iterate() as Iterable<JsonObject>) {
+      const erasure = tombstoneErasure(row);
+      if (erasure !== undefined) {
+        if (row.previous_hash !== previous || typeof row.hash !== 'string') return false;
+        const records = erased.get(erasure) ?? [];
+        records.push(row.seq + ':' + row.hash);
+        erased.set(erasure, records);
+        previous = row.hash;
+        continue;
+      }
       const hash = sha256(
         stable({tenantId: row.tenant_id, requestId: row.request_id, payload: row.event, previous, at: row.created_at}),
       );
       if (row.previous_hash !== previous || row.hash !== hash) return false;
+      if (String(row.event).includes('"account_erased"')) {
+        const receipt = JSON.parse(row.event) as JsonObject;
+        if (receipt.event === 'account_erased' && typeof receipt.erasure === 'string') {
+          const records = erased.get(receipt.erasure) ?? [];
+          if (records.length !== receipt.tombstoned_rows || sha256(records.join('\n')) !== receipt.tombstone_digest)
+            return false;
+          erased.delete(receipt.erasure);
+        }
+      }
       previous = hash;
     }
-    return true;
+    return erased.size === 0;
+  }
+  /**
+   * Replaces the payload of every audit record of one workspace by the tombstone of `erasure` (SEC-07 S4). Returns
+   * what the erasure's `account_erased` record must state for verifyAudit: the count and the digest of the records.
+   * Call it inside the transaction that appends that record.
+   */
+  tombstoneAudit(tenant: string, erasure: string): {tombstoned_rows: number; tombstone_digest: string} {
+    return this.transaction(() => {
+      const tombstone = auditTombstone(erasure),
+        rows = (
+          this.db.prepare('SELECT seq,request_id,event,hash FROM audit WHERE tenant_id=? ORDER BY seq').all(tenant) as JsonObject[]
+        ).filter(row => tombstoneErasure(row) === undefined),
+        update = this.db.prepare("UPDATE audit SET event=?,request_id='' WHERE seq=?");
+      for (const row of rows) update.run(tombstone, row.seq);
+      return {
+        tombstoned_rows: rows.length,
+        tombstone_digest: sha256(rows.map(row => row.seq + ':' + row.hash).join('\n')),
+      };
+    });
   }
   claim(tenantId: string, key: string, fingerprint: string): {fresh: boolean; result?: unknown} {
     return this.transaction(() => {
