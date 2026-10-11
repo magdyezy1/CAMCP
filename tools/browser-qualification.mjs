@@ -39,10 +39,19 @@ export function browserQaArguments(argv, env = {}, knownKinds = []) {
 }
 
 /**
- * The owner's qualification runtime budget (decision D26): the recorded 2026-10-07 runs took about 59 minutes, and the
- * QA-03 kinds add about two minutes at the reduced matrix. A --qualification run over budget exits non-zero.
+ * The qualification runtime budget. 75 minutes is a proposed default, pending the owner's figure in decision D26
+ * (docs/DECISIONS.md): the recorded 2026-10-07 runs took about 59 minutes, and the QA-03 kinds add about two minutes at
+ * the reduced matrix. AMCP_QA_RUNTIME_BUDGET_MINUTES (whole minutes, 1–600) sets another. A --qualification run over
+ * budget exits non-zero.
  */
 export const qualificationRuntimeBudgetMinutes = 75;
+export function runtimeBudgetMinutes(env = process.env) {
+  const value = env.AMCP_QA_RUNTIME_BUDGET_MINUTES;
+  if (value === undefined || value === '') return qualificationRuntimeBudgetMinutes;
+  if (!/^\d{1,3}$/.test(value) || Number(value) < 1 || Number(value) > 600)
+    throw Error('AMCP_QA_RUNTIME_BUDGET_MINUTES is a whole number of minutes from 1 to 600.');
+  return Number(value);
+}
 
 const increment = (map, key, by = 1) => {
   map[key] = (map[key] ?? 0) + by;
@@ -55,7 +64,7 @@ const sorted = map => Object.fromEntries(Object.entries(map).sort(([a], [b]) => 
  * rule and including intermediate dialog and alert states, Arabic leaks per route against the committed ratchet, write
  * journey outcomes, the fixture's own synthetic writes, and focus rings measured.
  */
-export function summarizeBrowserEvidence(evidence, baseline) {
+export function summarizeBrowserEvidence(evidence, baseline, env = process.env) {
   const cases = Array.isArray(evidence?.cases) ? evidence.cases : [],
     scenarios = new Set(),
     kinds = new Set(),
@@ -116,12 +125,13 @@ export function summarizeBrowserEvidence(evidence, baseline) {
     started = Date.parse(evidence?.started_at),
     finished = Date.parse(evidence?.finished_at),
     minutes =
-      Number.isFinite(started) && Number.isFinite(finished) ? Math.round((finished - started) / 600) / 100 : null;
+      Number.isFinite(started) && Number.isFinite(finished) ? Math.round((finished - started) / 600) / 100 : null,
+    budget = runtimeBudgetMinutes(env);
   return {
     total: cases.length,
     duration_minutes: minutes,
-    runtime_budget_minutes: qualificationRuntimeBudgetMinutes,
-    within_runtime_budget: minutes === null ? null : minutes <= qualificationRuntimeBudgetMinutes,
+    runtime_budget_minutes: budget,
+    within_runtime_budget: minutes === null ? null : minutes <= budget,
     passed,
     failed: cases.length - passed,
     distinct_scenarios: scenarios.size,

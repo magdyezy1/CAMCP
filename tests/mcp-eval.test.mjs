@@ -5,9 +5,11 @@
 // server, the loopback website and synthetic providers; any other host is refused and counted as egress.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {
   argumentShape,
   compareWithBaseline,
+  evaluationFixture,
   externalRanges,
   offeredNextCall,
   offersNextStep,
@@ -202,6 +204,58 @@ test('the sanitizer refuses anything that could carry values, provider text or b
     assert.throws(() => sanitizeTranscript([bad]), /MCP_EVAL_TRANSCRIPT_(NOT_SANITIZED|INVALID)/, label);
   assert.throws(() => sanitizeTranscript({}), /MCP_EVAL_TRANSCRIPT_INVALID/);
   assert.deepEqual(sanitizeTranscript([entry({website_path: '/reports?id=r#top'})])[0].website_path, '/reports');
+  // Review fix: a key made of data and a path segment that is an identifier never leave the run.
+  for (const [label, shape] of [
+    ['data-valued key', {'Acme Corp': 'string'}],
+    ['numeric key', {accounts: {123456789: 'number'}}],
+    ['identifier key', {budgets: {act_1234567890: 'number'}}],
+  ])
+    assert.throws(() => sanitizeTranscript([entry({shape})]), /MCP_EVAL_TRANSCRIPT_NOT_SANITIZED/, label);
+  for (const path of ['/reports/act_1234567890', '/campaigns/Acme Corp', '/report-pack/3f2a9c']) {
+    assert.equal(sanitizeTranscript([entry({website_path: path + '?id=x'})])[0].website_path, '<path>', path);
+    assert.doesNotMatch(JSON.stringify(sanitizeTranscript([entry({website_path: path})])), /act_|Acme|3f2a9c/);
+  }
+  assert.equal(sanitizeTranscript([entry({website_path: '/report-pack?report_id=r'})])[0].website_path, '/report-pack');
+});
+
+test('argument shapes replace data-valued keys, and the digest is keyed per run, not a bare hash', () => {
+  // Regression (QA-04 review): argumentShape kept every key verbatim, so accounts, names or metric IDs used as map keys
+  // passed through, and args_digest was an unsalted SHA-256 prefix a reader could brute-force for low-entropy values.
+  const args = {
+    action: 'preview',
+    budgets: {act_1234567890: {daily: 5}, 'Acme Corp': {daily: 6}, 987654321: {daily: 7}},
+  };
+  const shape = argumentShape(args);
+  assert.deepEqual(shape, {action: 'string', budgets: {'<key>': {daily: 'number'}}});
+  assert.doesNotMatch(JSON.stringify(shape), /act_|Acme|987654321/);
+  const [sanitized] = sanitizeRawCalls([{tool: 'amcp_workspace', arguments: args, result: {success: true}}]);
+  assert.deepEqual(sanitized.shape, shape);
+  const again = transcriptEntry({tool: 'amcp_workspace', args, result: {success: true}}),
+    other = transcriptEntry({tool: 'amcp_workspace', args: {...args, action: 'other'}, result: {success: true}});
+  assert.equal(again.args_digest, sanitized.args_digest, 'a repeat within the run is told apart');
+  assert.notEqual(other.args_digest, sanitized.args_digest);
+  const bare = createHash('sha256')
+    .update(JSON.stringify({tool: 'amcp_workspace', args}))
+    .digest('hex')
+    .slice(0, 16);
+  assert.notEqual(sanitized.args_digest, bare, 'the digest is not the unkeyed hash');
+});
+
+test('a direct global fetch outside the loopback website is refused and counted while a fixture is open', async () => {
+  // Review fix: zero egress was asserted only through the injected synthetic fetchers.
+  const original = globalThis.fetch,
+    f = await evaluationFixture();
+  try {
+    await assert.rejects(fetch('https://example.com/'), /refuses egress/);
+    assert.equal(f.globalEgress.refused, 1);
+    // The fixture's own website still answers.
+    const page = await f.web.get('/api/session');
+    assert.equal(typeof page.success, 'boolean');
+    assert.equal(f.globalEgress.refused, 1);
+  } finally {
+    await f.close();
+  }
+  assert.equal(globalThis.fetch, original, 'closing the fixture restores the global fetch');
 });
 
 test('the budget check: rises and worse outcomes regress, falls and added guidance improve', () => {

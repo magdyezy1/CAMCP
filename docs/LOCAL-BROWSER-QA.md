@@ -16,8 +16,9 @@ paused at the owner's 2026-10-04 direction; this command starts no hosted workfl
   lists `selected_kinds`, so a subset is never mistaken for a qualification.
 - `--qualification` is the release mode. It renders every kind and refuses to start, before it creates output or
   launches a browser, when `AMCP_QA_AXE_PATH` is unset. The pinned axe-core result is part of a qualification
-  record. A qualification run that takes longer than the owner's runtime budget (decision D26: 75 minutes, set in
-  `tools/browser-qualification.mjs`) exits non-zero.
+  record. A qualification run that takes longer than the runtime budget exits non-zero. The budget is 75 minutes, a
+  proposed default in `tools/browser-qualification.mjs` until the owner sets it (decision D26 leaves the budget
+  pending); `AMCP_QA_RUNTIME_BUDGET_MINUTES` (whole minutes, 1–600) sets another for a run.
 - `results.json` carries a `summary`: distinct scenarios (a fixture kind on a route), fixture kinds, presentation
   variants, WCAG rules left incomplete or violated per rule (intermediate states included), Arabic leaks per route,
   write-journey outcomes, synthetic and provider writes, focus rings measured, and the run's duration against the
@@ -55,6 +56,14 @@ reported per state. `tools/arabic-leak-baseline.json` holds a per-route limit th
 route without a limit is report-only. After a passing run, `node tools/browser-arabic-leaks.mjs --ratchet
 .runtime/<run>/results.json --write` lowers limits to the measured maximum and adds new routes. It refuses to absorb
 a rise.
+
+Provenance (QA-03 review, 2026-10-11): no recorded browser run backs the committed limits yet, and the new focus and
+leak assertions have not been shown to pass across the existing cases. The first `npm run check:browser --
+--output-dir .runtime/<fresh> --qualification` run after the wave 2 merges must record its `results.json` SHA-256,
+date and summary (distinct scenarios, critical routes at zero, duration) here; until then a limit that fails is a
+finding to investigate, not a regression from a measured state. Two known gaps make the counts a lower bound: the
+allow-list skips `option` elements (closed select options are not visible text nodes, so they are never probed) and
+every `bdi`, not only `bdi[data-native]`.
 
 Every case also focuses the skip link, a sidebar link, a primary button and a form field in its own appearance. It
 requires each focus ring to reach 3:1 against the opaque surface behind it, with the worst gradient stop counting

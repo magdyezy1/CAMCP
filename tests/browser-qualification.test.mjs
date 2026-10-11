@@ -150,11 +150,20 @@ test('the summary reports distinct scenarios, variants, incomplete rules per rul
   };
   const summary = summarizeBrowserEvidence(evidence, {critical_routes: ['/dashboard', '/reports', '/measurement']});
   assert.equal(summary.total, 4);
-  // D26: the run's duration against the owner's qualification runtime budget.
+  // D26: the run's duration against the qualification runtime budget (75 minutes proposed, pending the owner).
   assert.deepEqual(
     [summary.duration_minutes, summary.runtime_budget_minutes, summary.within_runtime_budget],
     [59.5, 75, true],
   );
+  // Review fix: the budget is configurable until the owner sets it; an invalid value is refused, never ignored.
+  const tight = summarizeBrowserEvidence(evidence, {critical_routes: []}, {AMCP_QA_RUNTIME_BUDGET_MINUTES: '50'});
+  assert.deepEqual([tight.runtime_budget_minutes, tight.within_runtime_budget], [50, false]);
+  for (const value of ['0', '75.5', 'ninety', '601'])
+    assert.throws(
+      () => summarizeBrowserEvidence(evidence, {critical_routes: []}, {AMCP_QA_RUNTIME_BUDGET_MINUTES: value}),
+      /AMCP_QA_RUNTIME_BUDGET_MINUTES/,
+      value,
+    );
   assert.equal(summarizeBrowserEvidence({cases: []}).within_runtime_budget, null, 'an unfinished run is not judged');
   assert.equal(summary.passed, 3);
   assert.equal(summary.failed, 1);

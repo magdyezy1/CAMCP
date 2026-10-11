@@ -9,7 +9,7 @@
 // transcripts alone, so tests/mcp-eval.test.mjs checks the arithmetic on hand-written transcripts, and an external
 // client's sanitized transcript (tools/mcp-eval.mjs --transcript) is measured by the same code.
 import assert from 'node:assert/strict';
-import {createHash} from 'node:crypto';
+import {createHmac, randomBytes} from 'node:crypto';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {createMcpServer} from '../../dist/server/mcp.js';
@@ -32,23 +32,33 @@ export const evaluationDestination = 'evaluation-dest';
 export const gtmConnection = 'aaaaaaaa-5555-4555-8555-00000000000d';
 export const gtmWorkspacePath = 'accounts/44/containers/55/workspaces/66';
 const tenantId = 'journey-evaluation';
+// args_digest only tells an identical repeat apart within one run, so it is an HMAC under a random key of this
+// process: a shared transcript cannot be brute-forced back to low-entropy argument values (QA-04 review).
+const digestKey = randomBytes(32);
 const digest = value =>
-  createHash('sha256')
+  createHmac('sha256', digestKey)
     .update(JSON.stringify(value ?? null))
     .digest('hex')
     .slice(0, 16);
 
+/**
+ * A key that names a parameter, never data: a plain identifier of at most 40 characters without a run of four digits.
+ * Keys made of data (account IDs, names or metric IDs used as map keys) become `dataKey` in a shape.
+ */
+export const parameterKey = key => /^[A-Za-z_][A-Za-z0-9_]{0,39}$/.test(key) && !/\d{4}/.test(key);
+export const dataKey = '<key>';
 /** Keys and types of a value, never its contents: {a: 'string', b: ['number'], c: {d: 'boolean'}}. */
 export function argumentShape(value, depth = 0) {
   if (value === null) return 'null';
   if (Array.isArray(value)) return depth > 4 ? 'array' : value.length ? [argumentShape(value[0], depth + 1)] : [];
   if (typeof value === 'object') {
     if (depth > 4) return 'object';
-    return Object.fromEntries(
-      Object.keys(value)
-        .sort()
-        .map(key => [key, argumentShape(value[key], depth + 1)]),
-    );
+    const shape = {};
+    for (const key of Object.keys(value).sort()) {
+      const name = parameterKey(key) ? key : dataKey;
+      if (!Object.hasOwn(shape, name)) shape[name] = argumentShape(value[key], depth + 1);
+    }
+    return shape;
   }
   return typeof value;
 }
@@ -161,7 +171,13 @@ const isShape = (value, depth = 0) =>
     ? shapeLeaves.has(value)
     : Array.isArray(value)
       ? value.length <= 1 && value.every(item => isShape(item, depth + 1))
-      : !!value && typeof value === 'object' && Object.values(value).every(item => isShape(item, depth + 1)));
+      : !!value &&
+        typeof value === 'object' &&
+        Object.entries(value).every(
+          ([key, item]) => (key === dataKey || parameterKey(key)) && isShape(item, depth + 1),
+        ));
+/** A website path a transcript may keep: route segments only, never an identifier; anything else becomes `<path>`. */
+const routePath = /^\/[a-z-]+(?:\/[a-z-]+)*$/;
 
 /**
  * The transcript as it may leave the run: website paths lose their query (identifiers), and an entry with any key
@@ -197,7 +213,7 @@ export function sanitizeTranscript(entries) {
     )
       throw Error('MCP_EVAL_TRANSCRIPT_NOT_SANITIZED at ' + index + ': next_call');
     const path = typeof entry.website_path === 'string' ? entry.website_path.split(/[?#]/)[0] : null;
-    return {...entry, website_path: path};
+    return {...entry, website_path: path === null || path === '<path>' || routePath.test(path) ? path : '<path>'};
   });
 }
 
@@ -571,7 +587,45 @@ async function websiteSurface(store, service, record, requestCount, alter) {
  * client, the loopback website, and the report worker. Every run starts from a new in-memory store, so runs never
  * depend on each other.
  */
-export async function evaluationFixture({fault, role = 'operator'} = {}) {
+export async function evaluationFixture(options = {}) {
+  const egress = guardGlobalFetch();
+  try {
+    return await evaluationWorkspace(options, egress);
+  } catch (error) {
+    egress.restore();
+    throw error;
+  }
+}
+/**
+ * The global fetch is replaced while a fixture is open (QA-04 review), so a code path that calls it directly instead
+ * of the injected synthetic providers is counted and refused too. Only the fixture's loopback website origin passes;
+ * restore() puts the original back when the fixture closes.
+ */
+function guardGlobalFetch() {
+  const original = globalThis.fetch,
+    allowed = new Set(),
+    state = {refused: 0};
+  const guarded = async (input, init) => {
+    let origin = null;
+    try {
+      origin = new URL(input instanceof Request ? input.url : String(input)).origin;
+    } catch {}
+    if (origin && allowed.has(origin)) return original(input, init);
+    state.refused++;
+    throw new TypeError('The journey evaluation refuses egress outside its loopback website: ' + (origin ?? 'no URL'));
+  };
+  globalThis.fetch = guarded;
+  return {
+    get refused() {
+      return state.refused;
+    },
+    allow: origin => allowed.add(origin),
+    restore() {
+      if (globalThis.fetch === guarded) globalThis.fetch = original;
+    },
+  };
+}
+async function evaluationWorkspace({fault, role = 'operator'} = {}, egress) {
   const store = new Store(':memory:', Buffer.alloc(32, 111).toString('base64')),
     identity = {tenantId, userId: 'evaluator', role},
     admin = {...identity, role: 'admin'},
@@ -691,6 +745,7 @@ export async function evaluationFixture({fault, role = 'operator'} = {}) {
     return record({surface: 'mcp', tool, args, result, bytes: Buffer.byteLength(text), before, context});
   };
   const website = await websiteSurface(store, service, record, () => providers.state.requests.length, alter);
+  egress.allow(website.origin);
   let snapshotSequence = 0;
   return {
     store,
@@ -698,6 +753,8 @@ export async function evaluationFixture({fault, role = 'operator'} = {}) {
     admin,
     service,
     providers,
+    /** Direct calls of the global fetch outside the loopback website (refused and counted). */
+    globalEgress: egress,
     discovery,
     transcript,
     call,
@@ -729,10 +786,14 @@ export async function evaluationFixture({fault, role = 'operator'} = {}) {
       return ran;
     },
     close: async () => {
-      await client.close();
-      await server.close();
-      await website.close();
-      store.close();
+      try {
+        await client.close();
+        await server.close();
+        await website.close();
+        store.close();
+      } finally {
+        egress.restore();
+      }
     },
   };
 }

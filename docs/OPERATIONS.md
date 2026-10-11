@@ -579,12 +579,26 @@ in-process fake that refuses and counts any other host.
   that newly "succeeds" is a regression, because a safeguard stopped holding. `--fault strip-next-call` and `--fault
   hide-attention` apply deliberate regressions so the check can be seen to fail. `--write-baseline` is the only way
   to change the baseline, and it refuses a subset or a fault. Re-baseline deliberately after a change to the MCP
-  surface, such as MCP-07, and keep the earlier file for comparison.
+  surface, such as MCP-07, and record the earlier file's git blob and its measures beside the new ones (below).
 - **What the first baseline shows.** All reference runs complete. Guided runs reach the goal for T3, T5 and H2 only.
   AMCP offers no next call from `capabilities` to the live `check` (T1), from `create` to `preflight` (T2), from a
   plan summary to its uncertain step (T4), from the media library to an asset's detail (T6), or from a failed
   export's status to `retry` with the job ID that `retry` needs (H1). These are inputs to MCP-07. The baseline was
   captured after MCP-01 merged, so it is the "before" state for MCP-07 only.
+- **Re-baseline after the wave 2 merges (2026-10-11).** The first baseline is git blob
+  `fbbe59e8c6d4e5b03781d5369badcad381f6587a` (`git cat-file -p fbbe59e8`), captured on the wave 2 base before
+  MCP-07 and the other wave 2 packages. Against the current file only sizes and the tool count differ: 28 → 27 tools
+  (CON-06 no longer offers Amazon Ads), tools/list 108,128 → 97,261 bytes (MCP-07 and MCP-10 descriptions and output
+  schemas), instructions 1,446 bytes in both, and response bytes per run from −4 to +6,136 (J1's four branches grow
+  about 10 % with the wave 2 readiness and attention data). No count, end state, tool choice or handoff changed, so
+  guided runs still reach the goal for T3, T5 and H2 only.
+- **Transcript privacy.** A sanitized transcript keeps argument keys only when they name a parameter (a plain
+  identifier of at most 40 characters without a run of four digits); keys made of data, such as account IDs, names or
+  metric IDs used as map keys, become `<key>`. A website path keeps route segments only and otherwise becomes
+  `<path>`. `args_digest` is an HMAC under a random key of the run, so it tells repeats apart within one transcript
+  and cannot be reversed by hashing guesses. While a fixture is open the global `fetch` is replaced too: only the
+  loopback website passes, and any other call is refused and counted (`globalEgress`), so each run asserts zero
+  egress for direct calls as well as for the synthetic providers.
 - **External clients** (owner decision D14). Run the same task prompts in each must-pass client, repeated so the
   results are ranges. Turn each raw call log into a sanitized transcript locally with `--sanitize <raw.json> --output
   <new file>`, then measure the runs with `--external <runs.json>`. A transcript keeps argument shapes, result codes,

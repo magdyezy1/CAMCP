@@ -21,6 +21,7 @@ async function measured({fault, transcripts}, body) {
   try {
     const outcome = await body(f);
     assert.equal(f.providers.state.egress_refused, 0, 'A journey attempted egress outside the synthetic providers');
+    assert.equal(f.globalEgress.refused, 0, 'A journey called the global fetch outside the loopback website');
     const transcript = f.transcript.slice(0, outcome.measured ?? f.transcript.length);
     return {
       ...transcriptMetrics(transcript, {
