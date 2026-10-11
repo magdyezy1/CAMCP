@@ -1,4 +1,5 @@
-import {audit, bad, fingerprint, optional, read, validate, writer} from './workspace-core.js';
+import {audit, bad, fingerprint, optional, validate, writer} from './workspace-core.js';
+import {visibleProfile} from './client-scope.js';
 import {MirrorError} from './errors.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
@@ -134,7 +135,8 @@ export function applyProfilePresentation(store: Store, actor: Actor, report: Jso
   if (!Number.isSafeInteger(input.profile_revision) || input.profile_revision < 1)
     bad('Supply the exact approved profile_revision.');
   return store.transaction(() => {
-    const profile = read(store, actor, 'client_profile', input.profile_id);
+    // A profile outside the actor's client access set is not found (SEC-08).
+    const profile = visibleProfile(store, actor, input.profile_id);
     if (profile.revision !== input.profile_revision)
       throw new MirrorError(
         'REVISION_CONFLICT',

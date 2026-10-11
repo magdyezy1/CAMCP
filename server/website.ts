@@ -1659,7 +1659,8 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         limit: req.query.limit === undefined ? 100 : Number(req.query.limit),
         ...(req.query.cursor !== undefined ? {cursor: req.query.cursor} : {}),
         ...Object.fromEntries(
-          ['search', 'gateway', 'account_id', 'connection_id']
+          // profile_id: the working client (SEC-08), a view filter within current access.
+          ['search', 'gateway', 'account_id', 'connection_id', 'profile_id']
             .filter(k => req.query[k] !== undefined)
             .map(k => [k, req.query[k]]),
         ),

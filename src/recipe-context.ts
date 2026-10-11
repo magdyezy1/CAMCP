@@ -7,6 +7,7 @@ import {expandTemplate, tagLandingPage} from './client-playbooks.js';
 import type {Actor, JsonObject} from './types.js';
 import {normalizeAccount} from './scope.js';
 import {accountMetadataView, resolveAccountMetadata} from './account-metadata.js';
+import {profileWithinAccess, visibleProfile} from './client-scope.js';
 // Business inputs a client playbook may default per recipe. Regulated declarations, goal policies, resource IDs and
 // currency stay in each brief, where preflight checks them.
 export const profileDefaultKeys = [
@@ -40,7 +41,8 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
   store.assertActorActive(actor);
   const recipe = campaignRecipes.find(r => r.id === recipeId);
   if (!recipe) throw new MirrorError('RECIPE_NOT_FOUND', 'Choose an available campaign recipe.');
-  const profile = profileId ? store.document(actor.tenantId, 'client_profile', profileId) : undefined,
+  // A profile outside the actor's client access set is not found, like one that does not exist (SEC-08).
+  const profile = profileId ? visibleProfile(store, actor, profileId) : undefined,
     gateway =
       (
         {google: 'google_ads', meta: 'meta', microsoft: 'microsoft_ads', snapchat: 'snapchat'} as Record<string, string>
@@ -306,7 +308,7 @@ export function recipeInputs(context: JsonObject, input: JsonObject, options: Js
  */
 export function resolveBrief(store: Store, actor: Actor, input: JsonObject): JsonObject {
   if (input.brief_id === undefined) return input;
-  const brief = read(store, actor, 'client_brief', input.brief_id);
+  const brief = visibleBrief(store, actor, input.brief_id);
   if (input.recipe !== undefined && input.recipe !== brief.recipe)
     throw new MirrorError(
       'BRIEF_RECIPE_MISMATCH',
@@ -322,6 +324,23 @@ export function resolveBrief(store: Store, actor: Actor, input: JsonObject): Jso
     business: {...brief.business, ...(input.business ?? {})},
     client_brief: {id: brief.id, revision: brief.revision, name: brief.name},
   };
+}
+/**
+ * Whether a saved brief is this person's to see (SEC-08): always without a client access set; with one, a brief of a
+ * client profile within the set, or a brief without a profile that the same person saved.
+ */
+function briefVisible(store: Store, actor: Actor, brief: JsonObject): boolean {
+  if (actor.accessSetId === undefined) return true;
+  if (brief.profile_id) {
+    const profile = optional(store, actor.tenantId, 'client_profile', String(brief.profile_id));
+    return !!profile && profileWithinAccess(store, actor, profile);
+  }
+  return brief.created_by === actor.userId || (!!actor.ownerUserId && brief.created_by === actor.ownerUserId);
+}
+function visibleBrief(store: Store, actor: Actor, id: unknown): JsonObject {
+  const brief = read(store, actor, 'client_brief', id as string);
+  if (!briefVisible(store, actor, brief)) throw new MirrorError('NOT_FOUND', 'Document not found in this tenant.', {}, 404);
+  return brief;
 }
 /** At most this many saved client briefs per workspace (CMP-06). */
 export const clientBriefLimit = 200;
@@ -346,14 +365,15 @@ export function clientBriefs(store: Store, actor: Actor, input: JsonObject): Jso
     store.assertActorActive(actor);
     const briefs = store
       .documents(actor.tenantId, 'client_brief')
+      .filter(b => briefVisible(store, actor, b))
       .sort((a, b) => Number(b.updated_at ?? 0) - Number(a.updated_at ?? 0) || String(a.name).localeCompare(b.name));
     return {briefs: briefs.map(briefSummary), total: briefs.length, limit: clientBriefLimit};
   }
-  if (input.action === 'brief') return read(store, actor, 'client_brief', input.id);
+  if (input.action === 'brief') return visibleBrief(store, actor, input.id);
   writer(store, actor);
   if (input.action === 'delete_brief') {
     if (input.confirmed !== true) bad('Confirm brief deletion.');
-    const brief = read(store, actor, 'client_brief', input.id);
+    const brief = visibleBrief(store, actor, input.id);
     if (input.revision !== brief.revision) bad('Reload the current brief.', 'REVISION_CONFLICT');
     store.db
       .prepare('DELETE FROM documents WHERE tenant_id=? AND kind=? AND id=? AND revision=?')
@@ -373,9 +393,12 @@ export function clientBriefs(store: Store, actor: Actor, input: JsonObject): Jso
   const profile =
     b.profile_id === undefined || b.profile_id === null || b.profile_id === ''
       ? undefined
-      : read(store, actor, 'client_profile', b.profile_id);
+      : visibleProfile(store, actor, b.profile_id);
   const id = input.id ?? randomUUID(),
     previous = optional(store, actor.tenantId, 'client_brief', id);
+  // Replacing a brief outside the actor's client access set is refused as if it did not exist (SEC-08).
+  if (previous && !briefVisible(store, actor, previous))
+    throw new MirrorError('NOT_FOUND', 'Document not found in this tenant.', {}, 404);
   if (!previous && store.documents(actor.tenantId, 'client_brief').length >= clientBriefLimit)
     bad('Limit reached: ' + clientBriefLimit + ' saved client briefs.', 'LIMIT_REACHED');
   const record = update(
