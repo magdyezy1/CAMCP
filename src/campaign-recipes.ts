@@ -8,6 +8,7 @@ import {
   buildSnapchatTrafficRecipe,
   buildSnapchatLeadRecipe,
 } from './snapchat-traffic-recipe.js';
+import {tiktokTrafficRecipe, tiktokConversionRecipe, buildTiktokLaunchRecipe} from './tiktok-launch-recipes.js';
 const metaRequired = [
   'name',
   'account_id',
@@ -146,6 +147,9 @@ export const campaignRecipes = [
   },
   snapchatTrafficRecipe,
   snapchatLeadRecipe,
+  // CMP-07 (owner direction P7): guided paused TikTok packs over the reviewed tiktok_entities creates.
+  tiktokTrafficRecipe,
+  tiktokConversionRecipe,
 ];
 function strings(v: unknown, name: string, min = 1, max = 50): string[] {
   if (!Array.isArray(v) || v.length < min || v.length > max || v.some(x => typeof x !== 'string' || !x.trim()))
@@ -173,6 +177,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
     throw new MirrorError('RECIPE_INPUT_INVALID', 'Use a name, explicit account/connection and ISO currency.');
   if (definition.platform === 'snapchat')
     return id === snapchatLeadRecipe.id ? buildSnapchatLeadRecipe(b) : buildSnapchatTrafficRecipe(b);
+  if (definition.platform === 'tiktok') return buildTiktokLaunchRecipe(b, id === tiktokConversionRecipe.id);
   if (b.atomic !== undefined && (definition.platform !== 'google' || typeof b.atomic !== 'boolean'))
     throw new MirrorError(
       'RECIPE_INPUT_INVALID',

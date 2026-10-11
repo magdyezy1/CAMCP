@@ -44,6 +44,37 @@ export const recipeDependencies: Record<string, JsonObject> = {
     effects:
       'Creates a PAUSED auction campaign, daily-budget ad squad and website ad with an existing creative. Destination, creative approval and objective eligibility need native inspection. Activation is separate.',
   },
+  // CMP-07: guided TikTok packs (src/tiktok-launch-recipes.ts). Preflight reads the identity, post and pixel.
+  tiktok_website_traffic: {
+    objective: 'website_traffic',
+    objects: [
+      'tiktok_spark_identity',
+      'existing_tiktok_post',
+      'landing_page',
+      'account_currency',
+      'location_targeting',
+      'automatic_click_bidding',
+    ],
+    actions: ['tiktok_campaign_create', 'tiktok_adgroup_create', 'tiktok_ad_create'],
+    effects:
+      'Creates a DISABLE traffic campaign with an ENABLE daily-budget ad group and Spark Ad under it. Identity and post are read before creation; ad review and objective acceptance remain unverified. Activation is separate.',
+  },
+  tiktok_website_conversions: {
+    objective: 'website_purchases',
+    objects: [
+      'tiktok_spark_identity',
+      'existing_tiktok_post',
+      'landing_page',
+      'account_currency',
+      'location_targeting',
+      'account_owned_pixel',
+      'conversion_event_delivery',
+      'automatic_conversion_bidding',
+    ],
+    actions: ['tiktok_campaign_create', 'tiktok_adgroup_create', 'tiktok_ad_create'],
+    effects:
+      'Creates a DISABLE website conversions campaign with an ENABLE daily-budget ad group optimizing a purchase event of the selected pixel, and a Spark Ad. Pixel access does not establish event delivery. Activation is separate.',
+  },
   meta_website_traffic: {
     objective: 'website_traffic',
     objects: ['page_identity', 'media_receipt', 'landing_page', 'account_currency'],

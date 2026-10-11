@@ -559,7 +559,7 @@ function campaignNeedsAmendment(run) {
 function campaignCanActivate(run) {
   return (
     run.state === 'complete' &&
-    ['meta', 'google', 'snapchat', 'microsoft'].includes(run.recipe?.platform) &&
+    ['meta', 'google', 'snapchat', 'microsoft', 'tiktok'].includes(run.recipe?.platform) &&
     !run.activation_of &&
     !run.activation_plan &&
     !run.archived

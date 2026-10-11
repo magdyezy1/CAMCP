@@ -1,6 +1,7 @@
 import {planReference} from './workspace-core.js';
 import {metaPrerequisites} from './meta-prerequisites.js';
 import {snapAdPrerequisites} from './snapchat-ad-prerequisites.js';
+import {tiktokRecipePrerequisites} from './tiktok-launch-recipes.js';
 import {assertAccountWrite} from './write-access.js';
 import type {MirrorService} from './service.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
@@ -317,6 +318,8 @@ export async function campaignPreflight(
         const assets = [
           ...((await metaPrerequisites(service, actor, plan, c.id, refs, step.prerequisites ?? [])) ?? []),
           ...(await snapAdPrerequisites(service, actor, plan, c.id, refs)),
+          // TikTok launch packs (CMP-07): the Spark identity, post and pixel before any predecessor is created.
+          ...(await tiktokRecipePrerequisites(service, actor, plan, c.id, step.prerequisites ?? [])),
         ];
         if (assets?.length) checks.push({step: step.id, status: 'prerequisites_checked', assets});
       };

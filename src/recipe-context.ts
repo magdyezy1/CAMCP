@@ -43,7 +43,13 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
   const profile = profileId ? store.document(actor.tenantId, 'client_profile', profileId) : undefined,
     gateway =
       (
-        {google: 'google_ads', meta: 'meta', microsoft: 'microsoft_ads', snapchat: 'snapchat'} as Record<string, string>
+        {
+          google: 'google_ads',
+          meta: 'meta',
+          microsoft: 'microsoft_ads',
+          snapchat: 'snapchat',
+          tiktok: 'tiktok',
+        } as Record<string, string>
       )[recipe.platform] + '_native_action';
   const inventory = store.documents(actor.tenantId, 'website_assets'),
     // The one account-metadata resolver (CON-05): the same name and source as list_accounts and capabilities.
@@ -127,25 +133,31 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
           : [
               'Uses an existing WEB_VIEW creative without editing its destination or media. Inspect its exact account, destination and approval before review. Automatic swipe bidding may spend the daily budget; activation is separate.',
             ]
-        : recipe.platform === 'microsoft'
+        : recipe.platform === 'tiktok'
           ? [
-              'Draft only: set locations in Microsoft before activation. This Search recipe sets no geography, and AMCP refuses to activate a Microsoft campaign without a positive location criterion.',
+              recipeId === 'tiktok_website_conversions'
+                ? 'Uses an existing TikTok post as a Spark Ad and optimizes a purchase event of the selected pixel. Preflight reads the identity, post and pixel; event delivery, ad review and objective acceptance remain unverified. Activation is separate.'
+                : 'Uses an existing TikTok post as a Spark Ad on the TikTok placement and optimizes clicks. Preflight reads the identity and post; ad review and objective acceptance remain unverified. Activation is separate.',
             ]
-          : googleConversionRecipes[recipeId]?.value
+          : recipe.platform === 'microsoft'
             ? [
-                'Uses recorded conversion values and account-default goals without editing either. Inspect current primary-action value defaults and reported activity dates, then verify delivered values, conversion history and provider eligibility before activation. A target ROAS is an average ratio, not guaranteed return or a spending cap.',
+                'Draft only: set locations in Microsoft before activation. This Search recipe sets no geography, and AMCP refuses to activate a Microsoft campaign without a positive location criterion.',
               ]
-            : googleConversionRecipes[recipeId]
+            : googleConversionRecipes[recipeId]?.value
               ? [
-                  'Uses account-default conversion goals without changing them. Verify current biddable goals, primary conversion actions, event delivery and provider eligibility before activation. A target CPA is an average optimization target, not a spending cap or guarantee.',
+                  'Uses recorded conversion values and account-default goals without editing either. Inspect current primary-action value defaults and reported activity dates, then verify delivered values, conversion history and provider eligibility before activation. A target ROAS is an average ratio, not guaranteed return or a spending cap.',
                 ]
-              : metaConversionRecipes[recipeId]
+              : googleConversionRecipes[recipeId]
                 ? [
-                    'Uses the selected website pixel with ' +
-                      metaConversionRecipes[recipeId]!.event +
-                      '. Pixel/Page access is checked during preflight; active event delivery, provider objective eligibility and landing-page policy acceptance require separate evidence.',
+                    'Uses account-default conversion goals without changing them. Verify current biddable goals, primary conversion actions, event delivery and provider eligibility before activation. A target CPA is an average optimization target, not a spending cap or guarantee.',
                   ]
-                : [],
+                : metaConversionRecipes[recipeId]
+                  ? [
+                      'Uses the selected website pixel with ' +
+                        metaConversionRecipes[recipeId]!.event +
+                        '. Pixel/Page access is checked during preflight; active event delivery, provider objective eligibility and landing-page policy acceptance require separate evidence.',
+                    ]
+                  : [],
     prerequisites: [
       'current account grant',
       'verified account currency',
@@ -153,7 +165,9 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
         ? recipeId === 'snapchat_lead_generation'
           ? 'existing account-owned lead creative and form with explicit optimization/country/schedule inputs'
           : 'existing account-owned website creative and explicit country/schedule inputs'
-        : 'required Page/media or search inputs',
+        : recipe.platform === 'tiktok'
+          ? 'existing TikTok post and account identity with explicit location/schedule inputs'
+          : 'required Page/media or search inputs',
       'whole-plan preflight',
       'review each resolved mutation',
       'provider read-back',
@@ -397,7 +411,7 @@ export function clientBriefs(store: Store, actor: Actor, input: JsonObject): Jso
 /** The business objective a recipe serves, for grouping briefs and the website's objective-first chooser. */
 export function recipeObjective(id: string): string {
   if (id.includes('lead')) return 'leads';
-  if (id === 'meta_website_sales') return 'sales';
+  if (id === 'meta_website_sales' || id === 'tiktok_website_conversions') return 'sales';
   if (id.endsWith('_traffic')) return 'traffic';
   return 'search';
 }

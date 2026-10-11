@@ -1055,7 +1055,7 @@ export class CampaignRunner {
     const platform = run.recipe?.platform;
     if (typeof run.recipe?.id !== 'string' || !activationPlatforms.includes(platform))
       bad(
-        'Guided activation is for completed Meta, Google, Snapchat and Microsoft recipe plans. Activate other plans through their provider’s reviewed writes.',
+        'Guided activation is for completed Meta, Google, Snapchat, Microsoft and TikTok recipe plans. Activate other plans through their provider’s reviewed writes.',
         'ACTIVATION_UNAVAILABLE',
       );
     if (run.state !== 'complete' || !run.steps.every(settled))
@@ -1509,9 +1509,11 @@ export class CampaignRunner {
             'expected_currency must be an ISO code such as "USD", or omitted',
           s.prerequisites !== undefined &&
             (!Array.isArray(s.prerequisites) ||
-              s.prerequisites.some((p: unknown) => p !== 'meta_image_hash') ||
+              s.prerequisites.some(
+                (p: unknown) => !['meta_image_hash', 'tiktok_spark_post', 'tiktok_pixel'].includes(p as string),
+              ) ||
               new Set(s.prerequisites).size !== s.prerequisites.length) &&
-            'prerequisites lists checks preflight must make, currently only "meta_image_hash"',
+            'prerequisites lists checks preflight must make: "meta_image_hash", "tiktok_spark_post" or "tiktok_pixel"',
         ].filter(Boolean);
         if (problems.length)
           bad(

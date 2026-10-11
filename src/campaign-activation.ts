@@ -11,12 +11,14 @@ import {bad, obj, type ToolCall} from './workspace-core.js';
  *   before it is verified (activating the campaign alone delivers nothing).
  * - Microsoft: campaign, ad group, keywords and ad were all created Paused. The campaign step is refused without a
  *   positive location criterion (owner decision P7, microsoft-native.ts), which stops the whole plan at preflight.
+ * - TikTok (CMP-07): the DISABLE campaign holds ENABLE children, so enabling the campaign through the reviewed
+ *   tiktok_entity_status family is the one step.
  *
  * Read-only gates run at the activation plan's preflight, as one set, before any status write: the Snapchat ad's
  * creative review, the Meta ad's effective status and review feedback, the Meta conversion pixel, and the Google
  * conversion recipes' account-default goals and primary actions (the reads recipe_eligibility makes).
  */
-export const activationPlatforms = ['meta', 'google', 'snapchat', 'microsoft'];
+export const activationPlatforms = ['meta', 'google', 'snapchat', 'microsoft', 'tiktok'];
 
 type Results = Map<string, JsonObject>;
 const gateways: Record<string, string> = {
@@ -24,6 +26,7 @@ const gateways: Record<string, string> = {
   google: 'google_ads_native_action',
   snapchat: 'snapchat_native_action',
   microsoft: 'microsoft_ads_native_action',
+  tiktok: 'tiktok_native_action',
 };
 const numeric = /^[1-9][0-9]{0,31}$/,
   uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -95,6 +98,19 @@ export function activationSteps(platform: string, results: Results, scope: JsonO
           partial_failure: false,
         },
       }),
+    ];
+  }
+  if (platform === 'tiktok') {
+    const campaign = verified(results, 'campaign', r => r.data?.data?.campaign_id, numeric, 'TikTok campaign');
+    return [
+      step(
+        'activate_campaign',
+        'Set campaign ' + campaign + ' ENABLE. Its ad group and ad were created ENABLE under it.',
+        {
+          action: 'tiktok_campaign_status_update',
+          payload: {advertiser_id: String(scope.account_id), campaign_ids: [campaign], operation_status: 'ENABLE'},
+        },
+      ),
     ];
   }
   if (platform === 'snapchat') {

@@ -35,8 +35,16 @@ const recipeLabels = {
   end_time: 'End time in the account timezone',
   age_min: 'Minimum age',
   age_max: 'Maximum age',
+  location_ids: 'TikTok location IDs — one per line',
+  tiktok_item_id: 'Existing TikTok post ID',
+  identity_type: 'TikTok account identity type',
+  identity_id: 'TikTok account identity ID',
+  identity_authorized_bc_id: 'Business Center ID of the identity',
+  call_to_action: 'Call to action',
+  optimization_event: 'Purchase event to optimize',
 };
 const recipeArrays = new Set([
+  'location_ids',
   'country_codes',
   'country_criterion_ids',
   'language_criterion_ids',
@@ -44,6 +52,24 @@ const recipeArrays = new Set([
   'headlines',
   'descriptions',
 ]);
+// The TikTok packs' native call-to-action values and purchase events (src/tiktok-launch-recipes.ts).
+const recipeTiktokCtas = [
+  'LEARN_MORE',
+  'SHOP_NOW',
+  'SIGN_UP',
+  'CONTACT_US',
+  'APPLY_NOW',
+  'BOOK_NOW',
+  'ORDER_NOW',
+  'GET_QUOTE',
+  'SUBSCRIBE',
+];
+const recipeTiktokEvents = [
+  ['SHOPPING', 'Complete payment'],
+  ['ON_WEB_ORDER', 'Place an order'],
+  ['INITIATE_ORDER', 'Initiate checkout'],
+  ['ON_WEB_CART', 'Add to cart'],
+];
 function recipeField(name, value, required, recipeId) {
   const label = uiText(
       name === 'creative_id' && recipeId === 'snapchat_lead_generation'
@@ -53,6 +79,13 @@ function recipeField(name, value, required, recipeId) {
     attr = `name="${name}" ${required ? 'required' : ''}`;
   if (name === 'optimization_goal')
     return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="SWIPES" ${value === 'SWIPES' ? 'selected' : ''}>${esc(uiText('Optimize swipes to the lead form'))}</option><option value="LEAD_FORM_SUBMISSIONS" ${value === 'LEAD_FORM_SUBMISSIONS' ? 'selected' : ''}>${esc(uiText('Optimize submitted lead forms'))}</option></select></label>`;
+  // TikTok launch packs (CMP-07): native values stay literal; only the explanation is translated.
+  if (name === 'identity_type')
+    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="TT_USER" ${value === 'TT_USER' ? 'selected' : ''}>TT_USER — ${esc(uiText('TikTok account linked to this advertiser'))}</option><option value="BC_AUTH_TT" ${value === 'BC_AUTH_TT' ? 'selected' : ''}>BC_AUTH_TT — ${esc(uiText('TikTok account authorized through a Business Center'))}</option></select></label>`;
+  if (name === 'call_to_action')
+    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option>${recipeTiktokCtas.map(v => `<option value="${v}" ${value === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>`;
+  if (name === 'optimization_event')
+    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option>${recipeTiktokEvents.map(([v, text]) => `<option value="${v}" ${value === v ? 'selected' : ''}>${v} — ${esc(uiText(text))}</option>`).join('')}</select></label>`;
   if (name === 'conversion_goal_policy')
     return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="ACCOUNT_DEFAULT" ${value === 'ACCOUNT_DEFAULT' ? 'selected' : ''}>${esc(uiText('Use the account-default conversion goals'))}</option></select></label>`;
   if (name === 'conversion_value_policy')
@@ -150,6 +183,11 @@ const recipeDependencyLabels = {
   existing_lead_form: 'Original account-owned lead form',
   lead_form_policy_acceptance: 'Lead-form privacy and consent acceptance',
   lead_optimization_goal: 'Lead-form optimization goal',
+  tiktok_spark_identity: 'TikTok account identity for Spark Ads',
+  existing_tiktok_post: 'Existing TikTok post of the identity',
+  location_targeting: 'Location targeting',
+  automatic_click_bidding: 'Automatic bidding for clicks',
+  automatic_conversion_bidding: 'Automatic bidding for purchases',
 };
 const recipeEligibilityLabels = {
   ready: 'Confirmed for this check',
@@ -689,7 +727,7 @@ const recipeObjectives = [
 function recipeObjectiveOf(id) {
   return String(id).includes('lead')
     ? 'leads'
-    : id === 'meta_website_sales'
+    : id === 'meta_website_sales' || id === 'tiktok_website_conversions'
       ? 'sales'
       : String(id).endsWith('_traffic')
         ? 'traffic'
@@ -780,6 +818,7 @@ const recipeGateways = {
   meta: 'meta_native_action',
   microsoft: 'microsoft_ads_native_action',
   snapchat: 'snapchat_native_action',
+  tiktok: 'tiktok_native_action',
 };
 /** Whether a recipe's platform has an enabled login with a selected account (no provider request). */
 function recipeHasAccount(recipe) {
@@ -887,7 +926,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
         values = {...defaults, ...(saved?.values ?? {})};
       const required = context.recipe.required.filter(k => !['account_id', 'connection_id', 'currency'].includes(k)),
         optional =
-          context.recipe.platform === 'snapchat'
+          context.recipe.platform === 'snapchat' || context.recipe.platform === 'tiktok'
             ? ['end_time']
             : recipe.startsWith('meta')
               ? ['start_time', 'end_time']
@@ -920,7 +959,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
         const t = context.targets.find(t => targetId(t) === selected);
         if (t?.currency) values.currency = t.currency;
       }
-      const timed = ['meta', 'snapchat'].includes(context.recipe.platform),
+      const timed = ['meta', 'snapchat', 'tiktok'].includes(context.recipe.platform),
         zoneOf = id => context.targets.find(t => targetId(t) === id)?.timezone || '',
         zoneNote = id =>
           zoneOf(id)
@@ -938,7 +977,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
           })
           .join(
             '',
-          )}</select></label><label>${esc(uiText('Account currency'))}<input name="currency" value="${esc(values.currency ?? '')}" pattern="[A-Z]{3}" maxlength="3" required></label>${required.map(k => (k === 'drive_url' && context.recipe.platform === 'meta' ? recipeImageField(values) : recipeField(k, fieldValue(k), true, recipe))).join('')}${recipe.startsWith('meta') ? `<label>${esc(uiText('Private Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public link or resolve a selected login'))}</option>${context.drive_connections.map(c => `<option value="${esc(c.id)}" ${values.drive_connection_id === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>` : ''}</div>${context.recipe.platform === 'google' ? `<details><summary>${esc(uiText('Find Google targeting IDs'))}</summary><label>${esc(uiText('Type'))}<select id="recipe-lookup-kind"><option value="country">${esc(uiText('Country'))}</option><option value="language">${esc(uiText('Language'))}</option></select></label><label>${esc(uiText('Country name/code or language'))}<input id="recipe-lookup-query" maxlength="60"></label><button type="button" class="button" id="recipe-lookup">${esc(uiText('Find targeting'))}</button><div id="recipe-lookup-results" aria-live="polite"></div></details>` : ''}<details><summary>${esc(uiText('Optional schedule'))}</summary><div class="recipe-fields">${optional.map(k => recipeField(k, fieldValue(k), false)).join('')}</div></details>${timed ? `<input type="hidden" name="schedule_timezone" value="${esc(zoneOf(selected))}"><p class="form-note" id="recipe-timezone-note">${esc(zoneNote(selected))}</p>` : ''}${context.recipe.platform === 'meta' ? `<details><summary>${esc(uiText('Audience age'))}</summary><p class="form-note">${esc(uiText('Meta targets ages 18–65 unless you set a range from 13 to 65.'))}</p><div class="recipe-fields">${['age_min', 'age_max'].map(k => recipeField(k, values[k], false)).join('')}</div></details>` : ''}${
+          )}</select></label><label>${esc(uiText('Account currency'))}<input name="currency" value="${esc(values.currency ?? '')}" pattern="[A-Z]{3}" maxlength="3" required></label>${required.map(k => (k === 'drive_url' && context.recipe.platform === 'meta' ? recipeImageField(values) : recipeField(k, fieldValue(k), true, recipe))).join('')}${recipe.startsWith('meta') ? `<label>${esc(uiText('Private Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public link or resolve a selected login'))}</option>${context.drive_connections.map(c => `<option value="${esc(c.id)}" ${values.drive_connection_id === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>` : ''}</div>${context.recipe.platform === 'google' ? `<details><summary>${esc(uiText('Find Google targeting IDs'))}</summary><label>${esc(uiText('Type'))}<select id="recipe-lookup-kind"><option value="country">${esc(uiText('Country'))}</option><option value="language">${esc(uiText('Language'))}</option></select></label><label>${esc(uiText('Country name/code or language'))}<input id="recipe-lookup-query" maxlength="60"></label><button type="button" class="button" id="recipe-lookup">${esc(uiText('Find targeting'))}</button><div id="recipe-lookup-results" aria-live="polite"></div></details>` : ''}<details><summary>${esc(uiText('Optional schedule'))}</summary><div class="recipe-fields">${optional.map(k => recipeField(k, fieldValue(k), false)).join('')}</div></details>${timed ? `<input type="hidden" name="schedule_timezone" value="${esc(zoneOf(selected))}"><p class="form-note" id="recipe-timezone-note">${esc(zoneNote(selected))}</p>` : ''}${context.recipe.platform === 'meta' ? `<details><summary>${esc(uiText('Audience age'))}</summary><p class="form-note">${esc(uiText('Meta targets ages 18–65 unless you set a range from 13 to 65.'))}</p><div class="recipe-fields">${['age_min', 'age_max'].map(k => recipeField(k, values[k], false)).join('')}</div></details>` : ''}${context.recipe.platform === 'tiktok' ? `<details><summary>${esc(uiText('Business Center identity'))}</summary><p class="form-note">${esc(uiText('Needed only for a BC_AUTH_TT identity: the Business Center that authorized the TikTok account.'))}</p><div class="recipe-fields">${recipeField('identity_authorized_bc_id', values.identity_authorized_bc_id, false)}</div></details>` : ''}${
           context.conventions
             ? `<fieldset class="recipe-conventions"><legend>${esc(uiText('Client playbook rules'))}</legend><input type="hidden" name="playbook_rules_seen" value="1"><label class="form-note"><input type="checkbox" name="apply_playbook_rules" value="true" ${rulesOn ? 'checked' : ''}> ${esc(uiText('Apply this playbook’s naming and tracking rules to this plan'))}</label>${context.conventions.naming ? `<p class="form-note">${esc(uiText('Naming rule'))}: <code dir="ltr">${esc(context.conventions.naming)}</code></p>` : ''}${
                 Object.keys(context.conventions.utm ?? {}).length
