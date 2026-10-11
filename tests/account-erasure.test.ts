@@ -359,9 +359,15 @@ test('SEC-07 S4: the retention sweep erases only never-approved sign-ups older t
       oldPending = accounts.newUser('Old pending', 'old-pending@example.test', null, false),
       newPending = accounts.newUser('New pending', 'new-pending@example.test', null, false),
       approved = accounts.newUser('Approved', 'approved@example.test', null, true),
-      revoked = accounts.newUser('Revoked', 'revoked@example.test', null, true);
+      revoked = accounts.newUser('Revoked', 'revoked@example.test', null, true),
+      invitedPending = accounts.newUser('Invited pending', 'invited-pending@example.test', null, false);
     // Signed up 21 days before `later`.
     store.db.prepare('UPDATE amcp_users SET created_at=? WHERE id=?').run(now + 10 * day, newPending.id);
+    // Invited into another workspace by its administrator and still awaiting the owner's approval: kept, since erasing
+    // the account would also remove that membership.
+    store.db
+      .prepare("INSERT INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,'viewer',?)")
+      .run(approved.tenant_id, invitedPending.id, now);
     store.db.prepare('UPDATE amcp_users SET approved=0,disabled=1 WHERE id=?').run(revoked.id);
     store.appendAudit('local', randomUUID(), {event: 'account_access_revoked', user_id: revoked.id});
     assert.deepEqual(accountsDueForErasure(store, 'local', accountRetention({}), later), {
@@ -371,7 +377,7 @@ test('SEC-07 S4: the retention sweep erases only never-approved sign-ups older t
     const sweep = accountLifecycleSweeper(store, {tenantId: 'local', env: {}, now: () => later});
     assert.deepEqual(sweep(), {reviewer_connections: 0, accounts_erased: {pending: 1, revoked: 0, refused: 0}});
     const remaining = rows(store, 'SELECT id FROM amcp_users ORDER BY id').map(r => r.id);
-    assert.deepEqual(remaining, [newPending.id, approved.id, revoked.id].sort());
+    assert.deepEqual(remaining, [newPending.id, approved.id, revoked.id, invitedPending.id].sort());
     assert.equal(rows(store, 'SELECT 1 FROM tenants WHERE id=?', oldPending.tenant_id).length, 0);
     assert.equal(erasureReceipts(store, 'local')[0]!.reason, 'pending_retention');
     // At most once an hour.
@@ -385,7 +391,7 @@ test('SEC-07 S4: the retention sweep erases only never-approved sign-ups older t
     assert.deepEqual(revokedSweep(), {reviewer_connections: 0, accounts_erased: {pending: 0, revoked: 1, refused: 0}});
     assert.deepEqual(
       rows(store, 'SELECT id FROM amcp_users ORDER BY id').map(r => r.id),
-      [newPending.id, approved.id].sort(),
+      [newPending.id, approved.id, invitedPending.id].sort(),
     );
     assert.equal(store.verifyAudit(), true);
   } finally {

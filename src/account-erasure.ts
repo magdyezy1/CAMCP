@@ -353,7 +353,11 @@ export function accountRetention(env: NodeJS.ProcessEnv): {pendingMs: number | n
     revokedMs: period('AMCP_REVOKED_ACCOUNT_DAYS', null, 3650),
   };
 }
-/** Accounts the retention sweep erases now: never approved and older than `pendingMs`, or revoked `revokedMs` ago. */
+/**
+ * Accounts the retention sweep erases now: never approved and older than `pendingMs`, or revoked `revokedMs` ago. A
+ * pending account with a membership in another workspace (invited by that workspace's administrator and still awaiting
+ * the owner's approval) is kept: erasing it would also remove that membership.
+ */
 export function accountsDueForErasure(
   store: Store,
   deploymentTenant: string,
@@ -367,7 +371,7 @@ export function accountsDueForErasure(
         : (
             store.db
               .prepare(
-                'SELECT id FROM amcp_users WHERE approved=0 AND disabled=0 AND created_at<? AND tenant_id<>? ORDER BY created_at LIMIT 100',
+                'SELECT id FROM amcp_users WHERE approved=0 AND disabled=0 AND created_at<? AND tenant_id<>? AND NOT EXISTS (SELECT 1 FROM workspace_memberships m WHERE m.user_id=amcp_users.id AND m.tenant_id<>amcp_users.tenant_id) ORDER BY created_at LIMIT 100',
               )
               .all(now - retention.pendingMs, deploymentTenant) as {id: string}[]
           ).map(r => r.id),

@@ -74,6 +74,18 @@ totals to the deployment administrator is the alternative if that aggregate is c
 `node:24-bookworm-slim` base image by digest (OPS-08 step 1) is a deferred owner step: the digest to pin is the
 `base_image.digest` of the first Railway build evidence record (ACC-04, `docs/DEPLOY-RAILWAY.md`).
 
+Also applied on 2026-10-11 (SEC-06 and SEC-07, P2 and P3; P2 follows its recommendation, the P3 values were chosen
+during implementation and the owner may revise them): the default two-step baseline (`AMCP_REQUIRE_MFA=admins`)
+covers owners and administrators of write-enabled workspaces only (a connection grants write access), with the grace
+period counted from when a workspace was first seen write-enabled; `everyone` stays the stricter explicit choice.
+Sign-ups never approved are erased after 30 days by default (`AMCP_PENDING_ACCOUNT_DAYS`; `off` keeps them), except a
+pending account that holds a membership in another workspace; revoked accounts are kept unless the owner sets
+`AMCP_REVOKED_ACCOUNT_DAYS`. The release notes must call out the 30-day default, since the first sweep after deploy
+erases older pending sign-ups. Erasure keeps the single global audit chain: an erased account's audit rows become
+tombstones that `verifyAudit` accepts only with a matching `account_erased` receipt (SEC-07 S4(b) alternative). The
+per-tenant HMAC-keyed audit chains S4(b) proposed were not built: they would need a migration of every existing chain
+and a key per workspace, while tombstones keep the existing chain verifiable and erase the personal data it held.
+
 Not decided in this round: the review's resource and authorization requests R1–R8 (test accounts, named reads, a
 disposable Sheets destination, declared provider approvals, LinkedIn programs and DV360, reviewers, a staging
 environment, the workload profile) and the product-direction questions P1–P9 (except the parts of P4 and P9 above),

@@ -292,8 +292,11 @@ Revoking access keeps an account; erasing it (SEC-07) removes the account and it
 
 The worker erases sign-ups never approved 30 days after they were made (`AMCP_PENDING_ACCOUNT_DAYS`, 1–365, or `off`),
 and, only when the owner sets `AMCP_REVOKED_ACCOUNT_DAYS` (1–3650), accounts revoked that long ago; each is receipted
-like a confirmed erasure (`reason: pending_retention` or `revoked_retention`), at most 100 of each an hour. An unknown
-value stops start-up. Erasure is application retention: older backups, Railway volume snapshots and SQLite free pages
+like a confirmed erasure (`reason: pending_retention` or `revoked_retention`), at most 100 of each an hour. A pending
+account with a membership in another workspace (invited there, awaiting the owner's approval) is kept. The 30-day
+default was chosen during implementation (docs/DECISIONS.md); set `off` before deploying to keep pending sign-ups until
+the owner decides, since the first hourly sweep after a deploy erases those already older. An unknown value stops
+start-up. Erasure is application retention: older backups, Railway volume snapshots and SQLite free pages
 (zeroed by `secure_delete`) are not rewritten. Self-service deletion waits for the privacy policy review (owner
 decision P3).
 

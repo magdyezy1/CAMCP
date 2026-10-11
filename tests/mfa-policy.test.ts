@@ -95,11 +95,52 @@ test('SEC-06 S3: the deployment baseline requires owners and administrators of a
     join(store, 'local', 'long-standing-admin', 'admin', Date.now() - 60 * day);
     join(store, 'local', 'new-admin', 'admin');
     join(store, 'local', 'viewer', 'viewer', Date.now() - 60 * day);
+    // P2 covers write-enabled workspaces: without a write grant the baseline does not apply (regression: every
+    // self-service owner of a write-enabled deployment was gated).
+    const connection = {
+      id: 'meta-login',
+      tenantId: 'local',
+      gateway: 'meta_native_action',
+      accounts: ['111'],
+      enabled: true,
+      label: 'Synthetic Meta login',
+      scopes: [],
+    };
+    store.putConnection({tenantId: 'local', userId: 'owner', role: 'admin'}, connection, {accessToken: 'synthetic'});
+    assert.deepEqual(mfaRequirement(store, old, 'local', 'long-standing-admin', 'admin'), {
+      required: false,
+      by: null,
+      workspacePolicy: false,
+    });
+    // A write grant makes the workspace write-enabled; its grace period counts from then.
+    store.putConnection(
+      {tenantId: 'local', userId: 'owner', role: 'admin'},
+      {...connection, writeAccounts: ['111']},
+      {accessToken: 'synthetic'},
+    );
+    const fresh = mfaRequirement(store, old, 'local', 'long-standing-admin', 'admin');
+    assert.equal(fresh.required, true);
+    assert.ok(
+      fresh.by! > Date.now() + 13 * day,
+      'a workspace that just became write-enabled has its full grace period',
+    );
+    // Long write-enabled: the grace period is over.
+    store.db
+      .prepare(
+        "UPDATE documents SET data=? WHERE tenant_id='local' AND kind='account_settings' AND id='mfa_write_enabled'",
+      )
+      .run(JSON.stringify({since: Date.now() - 30 * day}));
     const due = mfaRequirement(store, old, 'local', 'long-standing-admin', 'admin');
     assert.equal(due.required, true);
     assert.ok(due.by! < Date.now(), 'its grace period is over');
     assert.ok(mfaRequirement(store, old, 'local', 'new-admin', 'admin').by! > Date.now() + 13 * day);
     assert.equal(mfaRequirement(store, old, 'local', 'viewer', 'viewer').required, false);
+    // An owner of another workspace without write grants is not gated by the baseline.
+    join(store, 'other', 'other-owner', 'owner', Date.now() - 60 * day);
+    assert.equal(mfaRequirement(store, old, 'other', 'other-owner', 'owner').required, false);
+    // `everyone` is the stricter explicit choice: every member of every workspace.
+    const everyone = {...old, scope: 'everyone' as const};
+    assert.equal(mfaRequirement(store, everyone, 'other', 'other-owner', 'owner').required, true);
   } finally {
     store.close();
   }

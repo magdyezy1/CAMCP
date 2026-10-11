@@ -263,6 +263,11 @@ Set these as Railway service variables; AMCP reads them at start-up. This review
 | `AMCP_CLIENT_IP_SOURCE` | `railway+cloudflare` (owner decision D5, 2026-10-08; set after the SEC-01 release) | Sign-in, email and OAuth rate limits then count each client separately instead of everyone together. Railway overwrites `X-Real-IP` with its connecting client, which is a Cloudflare edge address when Cloudflare proxies the request; AMCP then uses `CF-Connecting-IP`, and only from an address in Cloudflare's published ranges. Unset keeps the earlier behavior. See "Client addresses for rate limits" below. |
 | `AMCP_TRUSTED_PROXY_CIDRS` | Empty | Railway publishes no stable proxy range, so the earlier advice to list one cannot be followed. It applies only to `AMCP_CLIENT_IP_SOURCE=xff-cidrs` and is ignored, with a start-up warning, under the Railway profiles. |
 
+**Deployment checklist, passwords (SEC-06).** The built-in check for common passwords is a heuristic. For the NIST
+SP 800-63B requirement to compare new passwords against values known to be commonly used or compromised, set
+`AMCP_PASSWORD_BLOCKLIST_FILE` to a vetted public list (one password per line; only passwords of 15 or more
+characters matter) on the service that serves the website. See [user accounts](USER-ACCOUNTS.md).
+
 ## Provider API versions
 
 AMCP sends Google Ads requests at v25 and Meta requests at Graph API v26.0. Should Meta v26.0 misbehave in production,

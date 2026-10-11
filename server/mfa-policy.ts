@@ -7,8 +7,11 @@ import {MirrorError} from '../src/errors.js';
  * write-enabled workspaces).
  *
  * - The deployment baseline: AMCP_REQUIRE_MFA (`admins` by default when the deployment allows reviewed writes, `off`
- *   otherwise; `everyone` is stricter, `off` is the rollback). Members it covers enroll within AMCP_MFA_GRACE_DAYS
- *   (default 14) of the later of the baseline's start and their membership.
+ *   otherwise; `everyone` is stricter, `off` is the rollback). `admins` covers the owners and administrators of
+ *   write-enabled workspaces only: a workspace with a connection that grants write access to an account (or enables
+ *   it for every selected resource). `everyone` covers every member of every workspace. Members it covers enroll
+ *   within AMCP_MFA_GRACE_DAYS (default 14) of the latest of the baseline's start, their membership and, for
+ *   `admins`, the first time the workspace was seen write-enabled.
  * - A workspace policy (`account_settings/security`), which an owner sets after a recent sign-in and only once their
  *   own account uses two-step verification: `admins` or `everyone`, with its own grace period. While it is on, the
  *   website also requires a two-step-verified session for owner-only changes and personal-data uploads.
@@ -71,6 +74,30 @@ export const defaultInvitationHours = 72;
 const covers = (scope: unknown, role: unknown) =>
   scope === 'everyone' || (scope === 'admins' && (role === 'owner' || role === 'admin'));
 /**
+ * When `tenant` was first seen write-enabled (owner decision P2), or null while it is not: a connection grants write
+ * access to an account, or enables it for every selected resource. The first time is recorded once
+ * (`account_settings/mfa_write_enabled`), so the baseline's grace period starts then, not at the next request.
+ */
+export function writeEnabledSince(store: Store, tenant: string, now = Date.now()): number | null {
+  const enabled = store.db
+    .prepare(
+      "SELECT 1 FROM connections WHERE tenant_id=? AND json_valid(data) AND (json_extract(data,'$.defaultWriteAccess')=1 OR coalesce(json_array_length(json_extract(data,'$.writeAccounts')),0)>0) LIMIT 1",
+    )
+    .get(tenant);
+  if (!enabled) return null;
+  const row = store.db
+    .prepare("SELECT data FROM documents WHERE tenant_id=? AND kind='account_settings' AND id='mfa_write_enabled'")
+    .get(tenant) as {data: string} | undefined;
+  const since = row ? Number(JSON.parse(row.data).since) : NaN;
+  if (Number.isFinite(since)) return since;
+  store.db
+    .prepare(
+      "INSERT INTO documents(tenant_id,kind,id,data) VALUES(?,'account_settings','mfa_write_enabled',?) ON CONFLICT(tenant_id,kind,id) DO UPDATE SET data=excluded.data",
+    )
+    .run(tenant, JSON.stringify({since: now}));
+  return now;
+}
+/**
  * Whether two-step verification is required of a member of `tenant` with membership `role`, and from when it is
  * enforced (`by`: the earliest end of a grace period that applies). `workspacePolicy` is true while the workspace's own
  * policy covers the member.
@@ -86,11 +113,14 @@ export function mfaRequirement(
     times: number[] = [];
   const workspacePolicy = covers(settings.require_mfa, role);
   if (workspacePolicy) times.push(Number(settings.grace_until ?? 0));
-  if (baseline && covers(baseline.scope, role)) {
+  // The `admins` baseline covers write-enabled workspaces only (P2); `everyone` covers every workspace.
+  const writeSince =
+    baseline && baseline.scope === 'admins' && covers(baseline.scope, role) ? writeEnabledSince(store, tenant) : null;
+  if (baseline && covers(baseline.scope, role) && (baseline.scope === 'everyone' || writeSince !== null)) {
     const joined = store.db
       .prepare('SELECT created_at FROM workspace_memberships WHERE tenant_id=? AND user_id=?')
       .get(tenant, userId) as {created_at: number} | undefined;
-    times.push(Math.max(baseline.since, Number(joined?.created_at ?? 0)) + baseline.graceMs);
+    times.push(Math.max(baseline.since, Number(joined?.created_at ?? 0), writeSince ?? 0) + baseline.graceMs);
   }
   return {required: times.length > 0, by: times.length ? Math.min(...times) : null, workspacePolicy};
 }
