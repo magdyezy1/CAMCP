@@ -29,7 +29,21 @@ const row = (extra = {}) => ({
   externalWebsiteConversions: 20,
   ...extra,
 });
-function fixture(response = {elements: [row()]}, account = {id: 100, currency: 'USD', name: 'Synthetic'}) {
+// RPT-07: the Overview reads the reported campaigns' current names and objectives after the analytics response.
+const campaignsPage = url => ({
+  elements: [...url.searchParams.get('search').matchAll(/sponsoredCampaign:(\d+)/g)].map(([, id]) => ({
+    id: Number.isSafeInteger(Number(id)) ? Number(id) : id,
+    account: 'urn:li:sponsoredAccount:100',
+    name: 'Campaign ' + id,
+    objectiveType: 'WEBSITE_CONVERSION',
+  })),
+  metadata: {},
+});
+function fixture(
+  response = {elements: [row()]},
+  account = {id: 100, currency: 'USD', name: 'Synthetic'},
+  campaigns = campaignsPage,
+) {
   const store = new Store(':memory:', Buffer.alloc(32, 74).toString('base64')),
     calls = [];
   const connection = {
@@ -50,7 +64,14 @@ function fixture(response = {elements: [row()]}, account = {id: 100, currency: '
       const url = new URL(raw);
       calls.push(url);
       assert.equal(init.method, 'GET');
-      assert.ok(['/rest/adAccounts/100', '/rest/adAnalytics'].includes(url.pathname));
+      assert.ok(
+        ['/rest/adAccounts/100', '/rest/adAnalytics', '/rest/adAccounts/100/adCampaigns'].includes(url.pathname),
+      );
+      if (url.pathname === '/rest/adAccounts/100/adCampaigns') {
+        const out = campaigns(url);
+        afterRead(url.pathname);
+        return out instanceof Response ? out : Response.json(out);
+      }
       const out =
         url.pathname === '/rest/adAccounts/100' ? account : typeof response === 'function' ? response(url) : response;
       afterRead(url.pathname);
@@ -142,8 +163,15 @@ test('LinkedIn Overview retains native period evidence and unknown attribution i
     assert.equal(report.rows[0].recommendation.decision, 'needs_review');
     assert.equal(report.rows[0].timezone, 'UTC');
     assert.equal(report.sources[0].contract_version, 'campaign-source-v4');
-    assert.equal(report.sources[0].lineage.length, 2);
+    // RPT-07: account lookup, analytics and the campaign metadata read (previously two reads and ID-only rows).
+    assert.deepEqual(
+      report.sources[0].lineage.map(l => l.stage),
+      ['account_lookup', 'campaign_report', 'campaign_metadata'],
+    );
+    assert.equal(report.rows[0].campaign_name, 'Campaign 9007199254740993');
+    assert.equal(report.rows[0].objective, 'WEBSITE_CONVERSION');
     assert.match(report.sources[0].warnings.join(' '), /attribution.*not.*verified/i);
+    assert.match(report.sources[0].warnings.join(' '), /current campaign metadata/);
   } finally {
     f.store.close();
   }
@@ -235,7 +263,78 @@ test('an older queued LinkedIn snapshot with no previous reads adopts the curren
     assert.equal(report.state, 'complete');
     assert.equal(report.config.source_contract_version, 'campaign-source-v4');
     assert.equal(report.sources[0].contract_version, report.config.source_contract_version);
-    assert.equal(f.calls.length, 2);
+    // Account lookup, analytics and (RPT-07) the campaign metadata read.
+    assert.equal(f.calls.length, 3);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('RPT-07: LinkedIn rows carry current campaign names and objectives; foreign or partial metadata is refused', async () => {
+  const f = fixture();
+  try {
+    const result = await f.collect();
+    assert.equal(result.rows[0].campaign_id, '9007199254740993');
+    assert.equal(result.rows[0].campaign_name, 'Campaign 9007199254740993');
+    assert.equal(result.rows[0].objective_group, 'sales');
+    const read = f.calls.find(u => u.pathname === '/rest/adAccounts/100/adCampaigns');
+    assert.equal(read.searchParams.get('q'), 'search');
+    assert.match(read.searchParams.get('search'), /urn:li:sponsoredCampaign:9007199254740993/);
+  } finally {
+    f.store.close();
+  }
+  for (const [campaigns, code] of [
+    [
+      () => ({elements: [{id: '9007199254740993', account: 'urn:li:sponsoredAccount:999', name: 'Foreign'}]}),
+      'REPORT_ACCOUNT_MISMATCH',
+    ],
+    [url => ({...campaignsPage(url), metadata: {nextPageToken: 'more'}}), 'REPORT_INCOMPLETE'],
+    [() => ({elements: 'not a list'}), 'REPORT_INCOMPLETE'],
+    [() => ({elements: [null]}), 'REPORT_SHAPE_CHANGED'],
+  ]) {
+    const g = fixture(undefined, undefined, campaigns);
+    try {
+      await assert.rejects(g.collect(), e => e.code === code, code);
+    } finally {
+      g.store.close();
+    }
+  }
+});
+
+test('RPT-07: a refused or empty LinkedIn campaign metadata read keeps IDs with unknown objectives', async () => {
+  for (const refused of [true, false]) {
+    const f = fixture(undefined, undefined, () =>
+      refused
+        ? new Response(JSON.stringify({status: 403, message: 'Not enough permissions'}), {status: 403})
+        : {elements: [], metadata: {}},
+    );
+    try {
+      const result = await f.collect();
+      assert.equal(result.rows[0].campaign_name, '9007199254740993');
+      assert.equal(result.rows[0].objective_group, 'unknown');
+      assert.equal(
+        /campaign names and objectives could not be read/.test(result.warnings.join(' ')),
+        refused,
+        'only a refused read is reported as unavailable',
+      );
+    } finally {
+      f.store.close();
+    }
+  }
+});
+
+test('RPT-07: grouped LinkedIn periods read each campaign’s metadata once per job', async () => {
+  const f = fixture(url => {
+    const start = url.searchParams.get('dateRange').includes('day:1)') ? dates.since : dates.until;
+    return {elements: [row({dateRange: {start: nativeDate(start), end: nativeDate(start)}})]};
+  });
+  try {
+    const run = await f.overview.handle({action: 'run', config: {...f.config, grain: 'daily'}, confirmed: true}, actor);
+    await f.overview.work(actor.tenantId, 'report_overview', {report_id: run.id});
+    const report = await f.overview.handle({action: 'get', id: run.id}, actor);
+    assert.equal(report.rows.length, 2);
+    assert.ok(report.rows.every(r => r.campaign_name === 'Campaign 9007199254740993'));
+    assert.equal(f.calls.filter(u => u.pathname === '/rest/adAccounts/100/adCampaigns').length, 1);
   } finally {
     f.store.close();
   }

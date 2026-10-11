@@ -92,7 +92,8 @@ export async function linkedInCampaignMetadata(
     )
       throw new MirrorError('REPORT_INCOMPLETE', 'LinkedIn returned incomplete campaign metadata.');
     for (const element of data.elements) {
-      if (!object(element)) throw new MirrorError('REPORT_SHAPE_CHANGED', 'LinkedIn returned malformed campaign metadata.');
+      if (!object(element))
+        throw new MirrorError('REPORT_SHAPE_CHANGED', 'LinkedIn returned malformed campaign metadata.');
       if (element.account !== owner)
         throw new MirrorError(
           'REPORT_ACCOUNT_MISMATCH',

@@ -928,8 +928,16 @@ export class NativeCampaignReports {
           known.lineage.push(...lineage.slice(before));
           for (const urn of missing) known.campaigns[urn] = read.campaigns[urn] ?? {name: null, objective_type: null};
         } catch (e) {
-          // A refused optional read keeps IDs; a foreign account, malformed metadata or a retryable failure does not.
-          if (!(e instanceof MirrorError) || e.retryable || e.code.startsWith('REPORT_')) throw e;
+          // Only a provider refusal of this optional read keeps IDs. A foreign account, malformed or partial metadata,
+          // a retryable failure, or a revoked connection or credential fails the source.
+          if (
+            !(e instanceof MirrorError) ||
+            e.retryable ||
+            e.code.startsWith('REPORT_') ||
+            e.code === 'CONNECTION_REQUIRED' ||
+            ![400, 403, 404].includes(e.status)
+          )
+            throw e;
           known.unavailable = true;
         }
       if (lookup) lookup.linkedinCampaigns = known;
