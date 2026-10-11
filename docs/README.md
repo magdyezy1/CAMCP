@@ -190,6 +190,11 @@ with the [repository README](../README.md) for what AMCP is.
 - [Microsoft Advertising / Bing Ads](MICROSOFT-ADS.md)
 - [Reddit adapter](REDDIT.md)
 
+## Acceptance
+
+- [Provider access register](PROVIDER-ACCESS.md)
+- [Acceptance runbooks](acceptance/README.md)
+
 ## The September 2026 review
 
 - [Findings register](review/FINDINGS.md)

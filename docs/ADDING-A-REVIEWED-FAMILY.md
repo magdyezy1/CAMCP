@@ -109,7 +109,9 @@ in a body (`status: DELETED`, `operation_status: DELETE`) belongs in `bodyDeleti
    ledger route is claimed by two families, that its reader passes foreign reads on, and that no lifecycle module
    names it directly. A new refusal that leaves something paused, busy, uncertain or expired needs its exit test in
    `tests/fixtures/refusal-exits.json` (`node tools/refusal-exits.mjs` lists the missing ones).
-7. Regenerate the ledger, contracts and status report: `npm run contracts:actions`, `npm run contracts:generate`,
+7. Regenerate the ledger, contracts and status report: `npm run contracts:actions`, `npm run contracts:generate`
+   (which moves the provider's `contract_version`, `reviewed_at` and `contract_digest` in
+   `src/provider-contract-manifest.json` when its contract content changed; commit that file too),
    `npm run report`, and after adding the family's record to `docs/implementation/`, the documentation map:
    `npm run docs:index` (`npm run check` fails while any of them is stale). Name any
    new refusal code in a guide (`Skills/amcp-campaign-builder/references/`, listed in `src/guidance.ts`), or

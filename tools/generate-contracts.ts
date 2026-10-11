@@ -157,6 +157,8 @@ lines.push(
   '`amcp_tool_help` returns `amcp_contract`. `amcp_write inspect` and prepare return `contract_evidence`; with `evidence: "ref"` its provider contract is a reference (versions, version end and the `amcp_tool_help` call that returns the whole contract), and `amcp_campaign` keeps its steps that way. Errors include a category, owner and remedy. Destructive operations retain existing explicit review and policy controls; there is no new acknowledgement that could imply schema provenance makes a write safe.',
   '',
   '`generate:vendor:check`, `generate:wsdl:check` and `contracts:check` are deterministic offline checks. The public-provider workflow separately checks remote schemas and documentation. A changed page is a maintenance signal, not proof of a breaking change. No CI job automatically upgrades versions or submits account mutations.',
+  '',
+  'Each provider contract carries `contract_digest`, the SHA-256 of its content at the version AMCP sends (every field except its record metadata and test lists), and compact contract references carry it too (ACC-05). Its `contract_version` and `reviewed_at` come from `src/provider-contract-manifest.json`: when the content changes, `npm run contracts:generate` records the new digest, bumps `contract_version` and sets `reviewed_at` to that day, and `contracts:check` fails until it has. A row of the provider acceptance ledger applies only to the digest and version it ran under ([provider access register](PROVIDER-ACCESS.md)).',
 );
 for (const c of providerContracts) {
   const m = providerMaintenance[c.id],
