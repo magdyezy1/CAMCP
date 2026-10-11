@@ -175,7 +175,7 @@ export async function tiktokLedger({
       layer(
         'provider_observed_activity',
         'unavailable',
-        'unpinned_api',
+        'unpinned_contract',
         null,
         'TikTok pixel event statistics have no primary response contract AMCP could pin, so they are not read.',
       ),

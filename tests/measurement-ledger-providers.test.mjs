@@ -714,7 +714,7 @@ test('MSR-03 TikTok ledger lists the advertiser’s pixels and leaves unpinned p
     consent: 'unavailable',
     attribution_settings: 'not_applicable',
   });
-  assert.equal(reasons(out.data).provider_observed_activity, 'unpinned_api');
+  assert.equal(reasons(out.data).provider_observed_activity, 'unpinned_contract');
   assert.deepEqual(layerOf(out.data, 'configuration').evidence.pixels, [
     {
       pixel_id: '7100000000000000001',

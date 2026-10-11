@@ -253,7 +253,7 @@ for (const locale of ['en', 'ar']) {
           .innerHTML.includes(
             text(
               locale,
-              'The linked account is unavailable. Choose a currently selected Google Ads account or GA4 property.',
+              'The linked account is unavailable. Choose a currently selected account, property, site or app.',
             ),
           ),
         search,
@@ -274,5 +274,336 @@ for (const locale of ['en', 'ar']) {
     scope.events.get('change')({target: {name: 'google'}});
     assert.equal(s.node('#measurement-ledger').elements.target.value, '1', 'clearing Google Ads falls back to GA4');
     assert.deepEqual([...f.calls, ...s.calls], []);
+  });
+}
+
+// Owner direction P8 (2026-10-11): Meta, Snapchat and TikTok ad accounts with their pixels, and Search Console sites,
+// share the same ledger task. A pixel ID is sent only when entered, only for a pixel provider, and the response must
+// name that pixel; native values stay literal and Meta's or Snap's free text is never rendered.
+const otherLayers = (consent = layer('consent', 'unavailable', 'no_provider_source')) => [
+  layer('supplied_runtime_trace', 'unavailable', 'browser_only'),
+  consent,
+  layer('attribution_settings', 'not_applicable', 'not_pixel_setting'),
+];
+function providerReply(gateway, account, layers, pixel) {
+  return {
+    ...googleReply({layers}),
+    scope: {
+      gateway,
+      connection_id: gateway.replace(/_native_action$/, '').replace('google_search_console', 'gsc') + '-login',
+      account_id: account,
+      ...(pixel === undefined ? {} : {pixel_id: pixel}),
+    },
+  };
+}
+function metaReply(pixel = '701') {
+  return providerReply(
+    'meta_native_action',
+    '001',
+    [
+      layer('configuration', 'observed', 'pixels_listed', {
+        pixels: [
+          {
+            id: '701',
+            name: '<b>Store</b> pixel',
+            owner_business: '1001',
+            last_fired_time: '2026-10-11T08:00:00+0000',
+            is_unavailable: false,
+          },
+          {id: '702', name: 'Agency pixel', owner_business: null, last_fired_time: null, is_unavailable: true},
+        ],
+        pixel_count: 2,
+        selected_pixel: pixel,
+      }),
+      layer('provider_observed_activity', 'observed', 'pixel_events_reported', {
+        window_hours: 24,
+        hours_reported: 2,
+        events: [{event_name: 'Purchase', count: '5'}],
+        event_count: 1,
+        last_fired_time: '2026-10-11T08:00:00+0000',
+      }),
+      layer('provider_diagnostics', 'observed', 'dataset_quality', {
+        events: [
+          {
+            event_name: 'Purchase',
+            composite_score: 7.2,
+            match_keys: [],
+            event_coverage_percentage: 60,
+            event_coverage_goal_percentage: 75,
+            dedupe_keys: [{dedupe_key: 'event_id', browser_percentage: 100, server_percentage: 90}],
+            upload_frequency: 'real_time',
+            acr_percentage: 12,
+          },
+        ],
+        event_count: 1,
+      }),
+      ...otherLayers(),
+    ],
+    pixel,
+  );
+}
+function gscReply(extra = {}) {
+  return providerReply(
+    'google_search_console_native_action',
+    'sc-domain:example.test',
+    [
+      layer('configuration', 'observed', 'site_permission', {
+        site_url: 'sc-domain:example.test',
+        permission_level: 'siteOwner',
+      }),
+      layer('provider_observed_activity', 'observed', 'search_totals_reported', {
+        start_date: '2026-10-05',
+        end_date: '2026-10-11',
+        days_reported: 2,
+        clicks: 10,
+        impressions: 220,
+        days: [],
+      }),
+      layer('provider_diagnostics', 'observed', 'sitemaps_listed', {
+        sitemaps: [
+          {
+            path: 'https://example.test/sitemap.xml',
+            errors: '2',
+            warnings: '0',
+            last_downloaded: '2026-10-10T00:00:00Z',
+          },
+        ],
+        sitemap_count: 1,
+        with_errors: 1,
+        with_warnings: 0,
+        pending: 0,
+      }),
+      layer('supplied_runtime_trace', 'unavailable', 'browser_only'),
+      layer('consent', 'not_applicable', 'no_consent_setting'),
+      layer('attribution_settings', 'not_applicable', 'no_attribution'),
+    ],
+    extra.pixel,
+  );
+}
+function setupProviders(locale, search = '') {
+  const f = setup(locale, search);
+  for (const [id, gateway, account] of [
+    ['snapchat', 'snapchat_native_action', '8f1c4a52-0b6e-4d1f-9a27-3c5d7e9f1a20'],
+    ['tiktok', 'tiktok_native_action', '7000000000000000001'],
+    ['gsc', 'google_search_console_native_action', 'sc-domain:example.test'],
+  ])
+    f.context.platforms.push({id, gateway, connections: [{id: id + '-login', enabled: true, accounts: [account]}]});
+  return f;
+}
+// Picker order: Google Ads (0), GA4 (1), then Meta (2), Snapchat (3), TikTok (4) and Search Console (5).
+const pick = (f, index, pixel = '') => {
+  f.node('#measurement-ledger').elements.target.value = String(index);
+  f.node('#measurement-ledger').elements.pixel_id.value = pixel;
+};
+
+for (const locale of ['en', 'ar']) {
+  test(
+    locale +
+      ' MSR-03 P8 a Meta ledger sends the entered pixel and renders pixels, events and dataset quality literally',
+    async () => {
+      const f = setupProviders(locale);
+      await f.run('renderMeasurement()');
+      const html = f.node('content').innerHTML;
+      assert.match(
+        html,
+        /<option value="2" >meta<\/option><option value="3" >snapchat<\/option><option value="4" >tiktok<\/option><option value="5" >gsc<\/option>/,
+      );
+      assert.ok(html.includes(text(locale, 'Pixel or dataset ID (optional)')));
+      assert.ok(html.includes(text(locale, 'Account, property, site or app')));
+      assert.deepEqual(f.calls, []);
+      f.respond(() => metaReply());
+      pick(f, 2, '701');
+      await submit(f);
+      assert.deepEqual(f.calls, [
+        {
+          action: 'measurement_ledger',
+          gateway: 'meta_native_action',
+          connection_id: 'meta-login',
+          account_id: '001',
+          requirements: {pixel_id: '701'},
+        },
+      ]);
+      const out = f.node('#measurement-ledger-result').innerHTML;
+      for (const value of [
+        'The pixels the account lists, read completely from the provider.',
+        'Meta reported pixel events by event name in the last 24 hours.',
+        'Meta dataset quality of web events: match quality, Conversions API coverage, deduplication keys and freshness.',
+        'Attribution windows are chosen per ad set, ad group or report, not on the pixel.',
+        'Selected',
+        'Last fired',
+        'Conversions API coverage',
+      ])
+        assert.ok(out.includes(text(locale, value)), value);
+      assert.ok(out.includes(text(locale, 'Match quality {score} of 10').replace('{score}', '7.2')));
+      assert.ok(out.includes(text(locale, '{count} pixels listed').replace('{count}', '2')));
+      assert.match(out, /<code dir="ltr">701<\/code>/);
+      assert.match(out, /<code dir="ltr">real_time<\/code>/, 'native codes stay literal');
+      assert.match(out, /<code dir="ltr">2026-10-11T08:00:00\+0000<\/code>/);
+      assert.ok(out.includes('&lt;b&gt;Store&lt;/b&gt; pixel'), 'native names stay escaped');
+      assert.match(out, /href="#measurement-section-gtm"/);
+      assert.match(out, /href="#measurement-section-trace"/);
+      assert.deepEqual(f.httpCalls, []);
+    },
+  );
+
+  test(
+    locale + ' MSR-03 P8 a pixel response for another pixel or another provider shape is never rendered',
+    async () => {
+      for (const [name, index, pixel, reply] of [
+        ['another pixel than entered', 2, '702', metaReply('701')],
+        [
+          'pixel provider without a pixel scope',
+          2,
+          '',
+          {...metaReply(), scope: {...metaReply().scope, pixel_id: undefined}},
+        ],
+        ['malformed pixel scope', 2, '', metaReply('70/1')],
+        ['site with a pixel scope', 5, '', gscReply({pixel: '701'})],
+      ]) {
+        const f = setupProviders(locale);
+        await f.run('renderMeasurement()');
+        f.respond(() => reply);
+        pick(f, index, pixel);
+        await assert.rejects(
+          submit(f),
+          error =>
+            error.message.includes(
+              text(
+                locale,
+                'The evidence ledger response is incomplete or belongs to a different selection. Read it again.',
+              ),
+            ),
+          name,
+        );
+        assert.equal(f.node('#measurement-ledger-result').innerHTML, '', name);
+      }
+      // A pixel ID for a site, or a malformed one, is refused before any request.
+      for (const [index, pixel, message] of [
+        [5, '701', 'A pixel ID applies only to a Meta, Snapchat or TikTok account.'],
+        [2, '70/1', 'Use the exact pixel or dataset ID the account lists.'],
+      ]) {
+        const f = setupProviders(locale);
+        await f.run('renderMeasurement()');
+        pick(f, index, pixel);
+        await assert.rejects(submit(f), error => error.message.includes(text(locale, message)), message);
+        assert.deepEqual(f.calls, [], message);
+      }
+    },
+  );
+
+  test(
+    locale + ' MSR-03 P8 Search Console, Snapchat and TikTok ledgers explain their layers without upgrading unknowns',
+    async () => {
+      const f = setupProviders(locale);
+      await f.run('renderMeasurement()');
+      f.respond(() => gscReply());
+      pick(f, 5);
+      await submit(f);
+      assert.deepEqual(f.calls.at(-1), {
+        action: 'measurement_ledger',
+        gateway: 'google_search_console_native_action',
+        connection_id: 'gsc-login',
+        account_id: 'sc-domain:example.test',
+      });
+      let out = f.node('#measurement-ledger-result').innerHTML;
+      for (const value of [
+        'Final daily web search clicks and impressions over the last seven complete days.',
+        'Submitted sitemaps with their errors, warnings and last download.',
+        'This provider has no consent setting.',
+        'This provider attributes no conversions.',
+        'Not applicable',
+      ])
+        assert.ok(out.includes(text(locale, value)), value);
+      assert.match(out, /<code dir="ltr">siteOwner<\/code>/);
+      assert.match(out, /<code dir="ltr">https:\/\/example\.test\/sitemap\.xml<\/code>/);
+      assert.doesNotMatch(out, /href="#measurement-section-gtm"/, 'Search Console has no consent task link');
+      const snap = providerReply(
+        'snapchat_native_action',
+        '8f1c4a52-0b6e-4d1f-9a27-3c5d7e9f1a20',
+        [
+          layer('configuration', 'observed', 'pixels_listed', {
+            pixels: [
+              {id: 'a1', name: 'One', status: 'ACTIVE', effective_status: 'ACTIVE'},
+              {id: 'b2', name: 'Two', status: 'PAUSED', effective_status: 'PAUSED'},
+            ],
+            pixel_count: 2,
+            selected_pixel: null,
+          }),
+          layer('provider_observed_activity', 'unknown', 'pixel_not_selected'),
+          layer('provider_diagnostics', 'unknown', 'pixel_not_selected'),
+          ...otherLayers(),
+        ],
+        null,
+      );
+      f.respond(() => snap);
+      pick(f, 3);
+      await submit(f);
+      out = f.node('#measurement-ledger-result').innerHTML;
+      assert.ok(
+        out.includes(text(locale, 'The account lists several pixels. Enter one pixel ID and read the ledger again.')),
+      );
+      assert.match(out, /<code dir="ltr">PAUSED<\/code>/);
+      assert.ok(!out.includes(text(locale, 'Selected')), 'no pixel is marked selected');
+      const tiktok = providerReply(
+        'tiktok_native_action',
+        '7000000000000000001',
+        [
+          layer('configuration', 'observed', 'pixels_listed', {
+            pixels: [{pixel_id: '7100000000000000001', pixel_name: 'Store', pixel_code: 'CABC', owned: false}],
+            pixel_count: 1,
+            selected_pixel: '7100000000000000001',
+          }),
+          layer('provider_observed_activity', 'unavailable', 'unpinned_contract'),
+          layer('provider_diagnostics', 'unavailable', 'no_provider_source'),
+          ...otherLayers(),
+        ],
+        '7100000000000000001',
+      );
+      f.respond(() => tiktok);
+      pick(f, 4);
+      await submit(f);
+      out = f.node('#measurement-ledger-result').innerHTML;
+      for (const value of [
+        'The provider publishes no response contract AMCP could pin, so this is not read.',
+        'Shared or unbound',
+        'Selected',
+      ])
+        assert.ok(out.includes(text(locale, value)), value);
+      assert.equal(f.calls.length, 3);
+      assert.deepEqual(f.httpCalls, []);
+    },
+  );
+
+  test(locale + ' MSR-03 P8 a ledger link with a pixel preselects the account and pixel without reading', async () => {
+    const f = setupProviders(
+      locale,
+      '?ledger=1&gateway=meta_native_action&connection_id=meta-login&account_id=001&pixel_id=701',
+    );
+    await f.run('renderMeasurement()');
+    assert.equal(f.node('#measurement-ledger').elements.target.value, '2');
+    assert.equal(f.node('#measurement-ledger').elements.pixel_id.value, '701');
+    assert.deepEqual(f.calls, []);
+    for (const search of [
+      '?ledger=1&gateway=google_search_console_native_action&connection_id=gsc-login&account_id=sc-domain%3Aexample.test&pixel_id=701',
+      '?ledger=1&gateway=meta_native_action&connection_id=meta-login&account_id=001&pixel_id=7%2F1',
+      '?ledger=1&gateway=meta_native_action&connection_id=meta-login&account_id=001&pixel_id=701&pixel_id=702',
+    ]) {
+      const g = setupProviders(locale, search);
+      await g.run('renderMeasurement()');
+      assert.equal(g.node('#measurement-ledger').elements.target.value, '', search);
+      assert.equal(g.node('#measurement-ledger').elements.pixel_id.value, '', search);
+      assert.ok(
+        g
+          .node('#measurement-ledger-result')
+          .innerHTML.includes(
+            text(
+              locale,
+              'The linked account is unavailable. Choose a currently selected account, property, site or app.',
+            ),
+          ),
+        search,
+      );
+      assert.deepEqual(g.calls, [], search);
+    }
   });
 }
