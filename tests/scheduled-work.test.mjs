@@ -227,9 +227,18 @@ test('encrypted backup restore retains new indexes and exactly the original due 
       backup = path.join(dir, 'source.amcp'),
       target = path.join(dir, 'restored.sqlite');
     await createEncryptedBackup(store, backup, key);
-    await restoreEncryptedBackup(backup, target, key);
+    // SEC-07 S1: only a restore with --preserve-access keeps schedules active; the default quarantine pauses them.
+    await restoreEncryptedBackup(backup, target, key, {preserveAccess: true});
     restored = new Store(target, key);
     assert.deepEqual(dueSchedules(restored, 'a', kinds[1], 2000), before);
+    for (const kind of kinds)
+      assert.ok(restored.db.prepare("SELECT 1 FROM sqlite_master WHERE type='index' AND name=?").get(kind + '_due'));
+    restored.close();
+    restored = undefined;
+    const quarantined = path.join(dir, 'quarantined.sqlite');
+    await restoreEncryptedBackup(backup, quarantined, key);
+    restored = new Store(quarantined, key);
+    assert.deepEqual(dueSchedules(restored, 'a', kinds[1], 2000), []);
     for (const kind of kinds)
       assert.ok(restored.db.prepare("SELECT 1 FROM sqlite_master WHERE type='index' AND name=?").get(kind + '_due'));
   } finally {
