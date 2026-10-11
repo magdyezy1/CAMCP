@@ -10,6 +10,7 @@ import {gracefulShutdown, jsonLine, loopEventLog} from './shutdown.js';
 import {loadConfig} from './config.js';
 import {logRuntimeStart, startFfmpegVersionProbe} from '../src/storage-health.js';
 import {startEventLoopMonitor} from '../src/runtime-metrics.js';
+import {accountLifecycleSweeper} from './account-lifecycle.js';
 // Configuration and the production preconditions are validated before the database opens (OPS-03).
 const config = loadConfig(process.env, 'http');
 const mcpLimits = validMcpLimits(mcpLimitsFromEnv(process.env));
@@ -27,6 +28,7 @@ const app = createHttpApp(service, store, {
   website: {
     origin: config.origin,
     masterKey: config.masterKey,
+    previousMasterKeys: config.previousMasterKeys,
     adminPassword: config.adminPassword,
     adminPasswordHash: config.adminPasswordHash,
     testPassword: config.testPassword,
@@ -88,8 +90,13 @@ worker.onJobEvent = jsonLine;
 const workerDone = (async () => {
   if (!config.runWorker) return;
   process.stdout.write(JSON.stringify(workerClockEvent()) + '\n');
+  // Hourly account lifecycle sweep (SEC-06 S6) in the schedule stage, after the report schedules.
+  const lifecycle = accountLifecycleSweeper(store, {tenantId: config.tenantId ?? 'local'});
   await runWorkerLoop({
-    schedule: () => overview.tick(),
+    schedule: () => {
+      overview.tick();
+      lifecycle();
+    },
     deliverEmails: () => app.locals.website.accounts.deliverEmails(),
     work: () => worker.once(),
     shouldStop: () => closing,

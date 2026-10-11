@@ -27,6 +27,14 @@ export interface OwnerHealthSources {
   withheldWorkbookRecords?(store: Store, actor: Actor): JsonObject;
 }
 const writePauseId = 'workspace';
+/** Live keys of a workspace that the service, not a person, owns (owner health, SEC-06). Never the token or hash. */
+export function serviceKeys(store: Store, tenant: string): JsonObject[] {
+  return store.db
+    .prepare(
+      "SELECT a.user_id AS label,a.role,a.expires_at,coalesce(o.user_id,'service:legacy') AS owner FROM api_keys a LEFT JOIN credential_owners o ON o.hash=a.hash WHERE a.tenant_id=? AND a.revoked=0 AND (a.expires_at IS NULL OR a.expires_at>?) AND (o.user_id LIKE 'service:%' OR (o.hash IS NULL AND a.user_id NOT LIKE 'connector/%' AND a.user_id NOT LIKE 'oauth/%')) ORDER BY a.expires_at LIMIT 100",
+    )
+    .all(tenant, Date.now()) as JsonObject[];
+}
 /** The owner's pause of every reviewed write of a workspace, or undefined when writes are not paused. */
 export function writePause(store: Store, tenant: string): JsonObject | undefined {
   const row = store.db
@@ -186,6 +194,9 @@ export function ownerOperations(
       // the owner it was migrated to) sees the count and the headroom under the cap (MCP-03), by the same test as the
       // rate-limit attribution above.
       ...(isDeploymentTenant(store, tenant) ? {mcp_clients: mcpClientCapacity(store)} : {}),
+      // Keys created on the server (`admin create-key`, SEC-06): a member's credential change never ends them, so the
+      // owner sees every live one. Older server keys without an owner row are listed as legacy.
+      service_keys: serviceKeys(store, tenant),
       // The LinkedIn-Version configuration (an AMCP_LINKEDIN_API_VERSION override, the reviewed window) and every
       // provider version within 90 days of its recorded sunset (PRV-02).
       linkedin_version: linkedinVersion,

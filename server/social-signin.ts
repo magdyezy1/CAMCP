@@ -100,8 +100,27 @@ export class SocialSignIn {
       throw new MirrorError('SIGNIN_SETUP_REQUIRED', p.name + ' sign-in is not configured yet.', {}, 503);
     if (input.link !== undefined && typeof input.link !== 'boolean')
       throw new MirrorError('INVALID_ARGUMENT', 'link must be a boolean.');
-    const session = input.link ? this.web.requireMutation(req) : this.web.session(req);
-    if (input.link) {
+    if (input.reauth !== undefined && typeof input.reauth !== 'boolean')
+      throw new MirrorError('INVALID_ARGUMENT', 'reauth must be a boolean.');
+    if (input.link && input.reauth)
+      throw new MirrorError('INVALID_ARGUMENT', 'Choose linking or confirming, not both.');
+    const bound = input.link === true || input.reauth === true,
+      session = bound ? this.web.requireMutation(req) : this.web.session(req);
+    if (input.reauth) {
+      // A social step-up (SEC-06) confirms the person with a provider already linked to this account.
+      const user = this.accounts.user(session!.actor.userId);
+      if (
+        !this.web.store.db
+          .prepare('SELECT 1 FROM amcp_identities WHERE user_id=? AND provider=?')
+          .get(user.id, provider)
+      )
+        throw new MirrorError(
+          'SIGNIN_METHOD_UNAVAILABLE',
+          'This sign-in method is not linked to your account. Confirm with your password or a two-step code.',
+          {},
+          400,
+        );
+    } else if (input.link) {
       this.accounts.user(session!.actor.userId);
       this.accounts.fresh(session!);
     } else if (!this.accounts.signupEnabled) {
@@ -120,8 +139,9 @@ export class SocialSignIn {
           clientId: c.clientId,
           callback: c.callback,
           link: input.link === true,
+          ...(input.reauth === true ? {reauth: true} : {}),
           sessionHash: session ? sha256(session.id) : null,
-          userId: input.link ? session!.actor.userId : null,
+          userId: bound ? session!.actor.userId : null,
         },
         600000,
       );
@@ -271,7 +291,7 @@ export class SocialSignIn {
     req: Request,
     id: string,
     input: JsonObject,
-  ): Promise<{session: WebSession; linked: boolean} | {mfaRequired: true; ticket: string}> {
+  ): Promise<{session: WebSession; linked: boolean} | {mfaRequired: true; ticket: string} | {reauthenticated: true}> {
     this.accounts.limit(req, 'social-callback', '', 30);
     const provider = this.provider(id),
       browser = cookieValue(req, this.flowCookie);
@@ -289,6 +309,36 @@ export class SocialSignIn {
       throw new MirrorError('SIGNIN_IDENTITY_INVALID', 'The provider did not return an authorization code.');
     const identity = await this.identity(provider, pending, input.code),
       db = this.web.store.db;
+    if (pending.reauth === true)
+      // A social step-up (SEC-06): the provider identity must be the one linked to the person of the same, unchanged
+      // session that started it. That session keeps its expiry; only its recent-proof time is renewed.
+      return this.web.store.transaction(() => {
+        const row = db
+            .prepare('SELECT actor FROM amcp_web_sessions WHERE hash=? AND expires_at>?')
+            .get(pending.sessionHash, Date.now()) as JsonObject | undefined,
+          actor = row ? JSON.parse(row.actor) : undefined,
+          user = this.accounts.user(pending.userId),
+          linked = db
+            .prepare('SELECT user_id FROM amcp_identities WHERE provider=? AND subject=?')
+            .get(provider, identity.subject) as JsonObject | undefined;
+        if (!actor || actor.userId !== user.id || actor.accountVersion !== user.version)
+          throw new MirrorError('SIGN_IN_REQUIRED', 'The initiating session ended. Start sign-in again.', {}, 401);
+        if (linked?.user_id !== user.id)
+          throw new MirrorError(
+            'SIGNIN_IDENTITY_MISMATCH',
+            'That is not the sign-in linked to your AMCP account. Try again with the linked account.',
+          );
+        const at = Date.now();
+        db.prepare("UPDATE amcp_web_sessions SET actor=json_set(actor,'$.reauthAt',?) WHERE hash=?").run(
+          at,
+          pending.sessionHash,
+        );
+        this.web.store.appendAudit(actor.tenantId, randomUUID(), {
+          event: 'account_reauthenticated',
+          method: provider,
+        });
+        return {reauthenticated: true as const};
+      });
     const result = this.web.store.transaction(() => {
       let user: JsonObject, activeWorkspace: string | undefined;
       if (

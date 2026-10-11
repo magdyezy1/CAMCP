@@ -10,6 +10,7 @@ import {createReportExecutor} from '../src/report-executor.js';
 import {loadConfig} from './config.js';
 import {startEventLoopMonitor} from '../src/runtime-metrics.js';
 import {logRuntimeStart} from '../src/storage-health.js';
+import {accountLifecycleSweeper} from './account-lifecycle.js';
 // The same validated configuration as the HTTP server, with the worker's production preconditions, checked before
 // the database opens (OPS-03); links in delivered e-mail use the same origin.
 const config = loadConfig(process.env, 'worker');
@@ -18,7 +19,12 @@ const {service, store} = createRuntime(config);
 if (!process.argv.includes('--once')) startEventLoopMonitor();
 const overview = new ReportingOverview(service),
   accounts = new UserAccounts(
-    new WebStore(store, {origin: config.origin, masterKey: config.masterKey, tenantId: config.tenantId}),
+    new WebStore(store, {
+      origin: config.origin,
+      masterKey: config.masterKey,
+      previousMasterKeys: config.previousMasterKeys,
+      tenantId: config.tenantId,
+    }),
   );
 const worker = new ReportWorker(store, createReportExecutor(service), (t, k, i) => overview.work(t, k, i));
 worker.onRelease = (t, k, i) => overview.releaseJob(t, k, i);
@@ -37,8 +43,13 @@ if (!process.argv.includes('--once')) {
   process.stdout.write(JSON.stringify(workerClockEvent()) + '\n');
   void logRuntimeStart(store, {level: 'info', event: 'runtime_started', entry: 'worker'}, jsonLine);
 }
+// Hourly account lifecycle sweep (SEC-06 S6) in the schedule stage, after the report schedules.
+const lifecycle = accountLifecycleSweeper(store, {tenantId: config.tenantId ?? 'local'});
 const loop = runWorkerLoop({
-  schedule: () => overview.tick(),
+  schedule: () => {
+    overview.tick();
+    lifecycle();
+  },
   deliverEmails: () => accounts.deliverEmails(),
   work: () => worker.once(),
   shouldStop: () => !running,

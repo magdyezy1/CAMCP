@@ -27,6 +27,8 @@ import {assertDownloadAllowed, downloadsAllowed, saveExportPolicy} from '../src/
 import {UserAccounts} from './user-accounts.js';
 import {SocialSignIn} from './social-signin.js';
 import {accountRoutes} from './account-routes.js';
+import {mfaBaseline, mfaBaselineConfig} from './mfa-policy.js';
+import {connectedAt, reviewerConnectionLifetime} from './account-lifecycle.js';
 import {googleAuthorizationInfo, reauthorizeGoogleConnection} from './google-reauthorization.js';
 import {authorizationRevision, reauthorizationEnabled, reauthorizeConnection} from './connection-reauthorization.js';
 import {clearRefreshFailure, credentialHealth, recordAuthorized} from '../src/connection-health.js';
@@ -34,8 +36,14 @@ import {grantedScopes, publicGrants} from '../src/provider-grants.js';
 import {mcpAuthRouter} from '@modelcontextprotocol/sdk/server/auth/router.js';
 
 export function createWebsite(store: Store, options: WebsiteOptions, allowWrites = false, service?: MirrorService) {
-  const web = new WebStore(store, options),
-    oauth = new PlatformOAuth(web, options.authEnv ?? process.env, options.fetcher, allowWrites),
+  const web = new WebStore(store, options);
+  // Saved logins use the app secrets of this deployment's environment, the one connecting uses (SEC-07 S2).
+  if (options.authEnv || !store.appEnvironment) store.appEnvironment = options.authEnv ?? process.env;
+  // Two-step verification for owners and administrators of write-enabled deployments (SEC-06, owner decision P2).
+  web.mfaBaseline = mfaBaseline(store, web.tenantId, mfaBaselineConfig(options.authEnv ?? process.env, allowWrites));
+  // How long a reviewer workspace login stays before the worker removes it (SEC-06 S6).
+  const reviewerLifetime = reviewerConnectionLifetime(options.authEnv ?? process.env);
+  const oauth = new PlatformOAuth(web, options.authEnv ?? process.env, options.fetcher, allowWrites),
     discovery = new AssetDiscovery(store, options.fetcher),
     router = express.Router({caseSensitive: true});
   router.use((_req, res, next) => {
@@ -50,7 +58,9 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
   });
   const mcpOAuth = new McpOAuth(web, allowWrites);
   const accounts = new UserAccounts(web),
-    social = new SocialSignIn(accounts);
+    social = new SocialSignIn(accounts),
+    // For handlers whose own `accounts` is a list of advertising accounts (recent-proof checks, SEC-06).
+    webAccounts = accounts;
   // A test account is limited to the tabs an evaluator needs. Hiding navigation is presentation
   // only, so every API behind an excluded tab refuses it here, at one chokepoint.
   //
@@ -75,6 +85,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     [/^\/api\/account$/, ['GET']], // Settings: read own profile
     [/^\/api\/account\/(options|delivery|sessions)$/, ['GET']],
     [/^\/api\/account\/sessions\/[^/]+$/, ['DELETE']], // Settings: end one's own sessions
+    [/^\/api\/account\/reauthenticate$/, ['POST']], // "Confirm it's you" before a write grant (SEC-06)
     [/^\/api\/workspaces(\/members)?$/, ['GET']], // Settings: the reviewer's own workspace
   ];
   // Deliberately absent, because the reviewer password is shared: changing the password, email,
@@ -103,6 +114,38 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     const tool = /^\/api\/workspace\/([a-z]+)$/.exec(path)?.[1];
     if (tool && !testAccountTools.has(tool)) return refuse();
     next();
+  });
+  // A member whose two-step grace period ended before they enrolled reaches only sign-in, account and enrollment
+  // routes (SEC-06 S3); the same lower-cased comparison as the test-account gate above.
+  const enrollmentRoutes: [RegExp, string[]][] = [
+    [/^\/api\/session$/, ['GET', 'DELETE']],
+    [/^\/api\/platforms$/, ['GET']], // the shell's start-up read
+    [/^\/api\/account$/, ['GET']],
+    [/^\/api\/account\/(options|sessions)$/, ['GET']],
+    [/^\/api\/account\/sessions\/[^/]+$/, ['DELETE']],
+    [/^\/api\/account\/(reauthenticate|mfa\/start|mfa\/enable)$/, ['POST']],
+    [/^\/api\/workspaces$/, ['GET']],
+    [/^\/api\/workspaces\/switch$/, ['POST']],
+  ];
+  router.use((req, _res, next) => {
+    let session;
+    try {
+      session = web.session(req);
+    } catch {
+      return next();
+    }
+    const path = req.path.toLowerCase(),
+      method = req.method.toUpperCase();
+    if (!session?.actor.mfaEnrollmentRequired || !path.startsWith('/api/')) return next();
+    if (enrollmentRoutes.some(([route, methods]) => route.test(path) && methods.includes(method))) return next();
+    next(
+      new MirrorError(
+        'MFA_ENROLLMENT_REQUIRED',
+        'This workspace requires two-step verification. Set it up in Account to continue.',
+        {},
+        403,
+      ),
+    );
   });
   router.use(accountRoutes(web, accounts, social));
   router.use('/api', (_req, res, next) => {
@@ -259,6 +302,12 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       credentialHealth: health,
       // What the provider confirmed it granted, including declined Meta permissions (CON-03); names and dates only.
       grants: publicGrants(readDocument(tenant, 'website_connection', c.id, {}).grants),
+      // A reviewer workspace login says when it was connected and when it is removed (SEC-06 S6).
+      ...(tenant === web.testTenantId && reviewerLifetime !== null
+        ? (at => ({connectedAt: at || null, reviewerRemovesAt: at ? at + reviewerLifetime : Date.now()}))(
+            connectedAt(store, tenant, c.id),
+          )
+        : {}),
       reauthorizeAvailable: !!renewal(c),
       lastSync: assets.lastSync ?? null,
       error: assets.error ?? null,
@@ -720,6 +769,8 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         (req.body.scope !== undefined && typeof req.body.scope !== 'string')
       )
         throw new MirrorError('INVALID_CONSENT', 'Invalid authorization decision.');
+      // An approval issues a 30-day refresh family, so it needs recent proof of identity (SEC-06); a denial does not.
+      if (req.body.approved) accounts.fresh(s);
       const consent = mcpOAuth.consent(req.body.request, s),
         url = mcpOAuth.decide(req.body.request, s, req.body.approved, req.body.scope),
         scope: string = req.body.approved ? (req.body.scope ?? consent.scope) : consent.scope,
@@ -1159,6 +1210,8 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
                 .map(a => [a.id, a.loginCustomerId!]),
             )
           : c.accountLoginCustomers;
+      // A selection that adds write access needs recent proof of identity (SEC-06); keeping or removing it never does.
+      if (writeAccounts.some(id => !(c.writeAccounts ?? []).includes(id))) webAccounts.fresh(s);
       store.transaction(() => {
         store.updateConnection(s.actor, {
           ...c,
@@ -1230,6 +1283,8 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
           {},
           400,
         );
+      // Adding write access needs recent proof of identity (SEC-06); removing it never does.
+      if (accounts.some(id => !(c.writeAccounts ?? []).includes(id))) webAccounts.fresh(s);
       store.updateConnection(s.actor, {...c, writeAccounts: accounts, defaultWriteAccess: false});
       store.appendAudit(tenant, randomUUID(), {
         event: 'website_write_access_changed',
@@ -1305,6 +1360,8 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
           {},
           400,
         );
+      // A connector token is a 30-day bearer credential that outlives this session: recent proof first (SEC-06).
+      accounts.fresh(s);
       const id = randomUUID(),
         token = store.createKey({...s.actor, userId: 'connector/' + id, role}, 30 * 86400000),
         expiresAt = Date.now() + 30 * 86400000;

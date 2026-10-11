@@ -227,18 +227,98 @@ async function reloadForUpdate(prepare) {
   location.reload();
   return true;
 }
+/**
+ * "Confirm it's you" (SEC-06): a sensitive change made long after sign-in is refused with REAUTH_REQUIRED before it has
+ * any effect. This dialog proves the person again in place, with a password, a two-step code or a linked social
+ * sign-in, so the page and its form keep their state. Resolves true once the server accepted the proof, false when
+ * the person cancels. A social confirmation leaves the page and returns to it afterwards.
+ */
+function confirmIdentity() {
+  const d = $('#reauth-dialog'),
+    form = $('#reauth-form'),
+    password = $('#reauth-password'),
+    code = $('#reauth-code'),
+    error = $('#reauth-error');
+  if (!d || !form) return Promise.resolve(false);
+  const usesPassword = session.hasPassword !== false,
+    usesCode = session.mfaEnabled === true,
+    providers = session.administrator || session.testAccount ? [] : (session.identities ?? []).map(i => i.provider);
+  $('#reauth-password-field').hidden = !usesPassword;
+  $('#reauth-code-field').hidden = !usesCode;
+  $('#reauth-social').innerHTML = providers
+    .map(
+      p =>
+        `<button type="button" class="button" data-reauth-social="${esc(p)}">${esc(uiText('Confirm with {provider}', {provider: p === 'google' ? 'Google' : p === 'apple' ? 'Apple' : p === 'facebook' ? 'Facebook' : p}))}</button>`,
+    )
+    .join('');
+  password.value = code.value = error.textContent = '';
+  return new Promise(resolve => {
+    let settled = false;
+    const finish = value => {
+      if (settled) return;
+      settled = true;
+      form.removeEventListener('submit', submit);
+      $('#reauth-cancel').removeEventListener('click', cancel);
+      $('#reauth-social').removeEventListener('click', social);
+      d.removeEventListener('close', cancel);
+      password.value = code.value = '';
+      if (d.open) d.close();
+      resolve(value);
+    };
+    const cancel = () => finish(false);
+    const submit = async event => {
+      event.preventDefault();
+      const button = $('#reauth-confirm');
+      button.disabled = true;
+      error.textContent = '';
+      try {
+        await api('/api/account/reauthenticate', {
+          method: 'POST',
+          body: JSON.stringify(code.value.trim() ? {code: code.value.trim()} : {password: password.value}),
+        });
+        finish(true);
+      } catch (e) {
+        error.textContent = errorMessage(e);
+      } finally {
+        button.disabled = false;
+      }
+    };
+    const social = async event => {
+      const provider = event.target.closest?.('[data-reauth-social]')?.dataset.reauthSocial;
+      if (!provider) return;
+      try {
+        sessionStorage.setItem('amcp.return', location.pathname + location.search);
+        const r = await api('/api/signin/' + provider + '/start', {
+          method: 'POST',
+          body: JSON.stringify({reauth: true}),
+        });
+        location.assign(r.url);
+      } catch (e) {
+        error.textContent = errorMessage(e);
+      }
+    };
+    form.addEventListener('submit', submit);
+    $('#reauth-cancel').addEventListener('click', cancel);
+    $('#reauth-social').addEventListener('click', social);
+    d.addEventListener('close', cancel);
+    d.showModal();
+    (usesPassword ? password : usesCode ? code : d.querySelector('[data-reauth-social]'))?.focus();
+  });
+}
 async function api(url, options = {}) {
   const generation = navigationGeneration,
     identity = identityGeneration;
-  const method = options.method ?? 'GET',
+  // `reauthRetried` marks the one repeat after "Confirm it's you"; it is not a fetch option.
+  const {reauthRetried, ...init} = options;
+  const method = init.method ?? 'GET',
     headers = {
       'Accept': 'application/json',
       ...(method !== 'GET' ? {'Content-Type': 'application/json', 'X-AMCP-CSRF': session.csrf ?? ''} : {}),
-      ...options.headers,
+      ...init.headers,
     };
   let response, data;
   try {
-    response = await fetch(url, {...options, headers, credentials: 'same-origin'});
+    response = await fetch(url, {...init, headers, credentials: 'same-origin'});
     data = await response.json();
   } catch {
     if (generation !== navigationGeneration || identity !== identityGeneration) throw supersededRequest();
@@ -247,6 +327,12 @@ async function api(url, options = {}) {
   if (generation !== navigationGeneration || identity !== identityGeneration) throw supersededRequest();
   if (!response.ok) {
     const e = requestError(data);
+    // The server refused before any effect; after the person confirms, the same request is sent exactly once more.
+    if (e.code === 'REAUTH_REQUIRED' && !reauthRetried && url !== '/api/account/reauthenticate') {
+      const confirmed = await confirmIdentity();
+      if (generation !== navigationGeneration || identity !== identityGeneration) throw supersededRequest();
+      if (confirmed) return api(url, {...init, reauthRetried: true});
+    }
     if (response.status === 401 && !url.startsWith('/api/account/') && !url.startsWith('/api/session')) {
       resetPrivateState();
       session = {authenticated: false, csrf: null};
@@ -467,6 +553,21 @@ function loginHealthLine(login) {
   if (h.renews_automatically) return uiText('Access renews automatically') + (expiry ? ' · ' + expiry : '');
   return expiry || uiText('Expiry not provided');
 }
+/** A reviewer workspace login's age and automatic removal (SEC-06); empty for every other login. */
+function reviewerLoginLine(login) {
+  if (!login.reviewerRemovesAt) return '';
+  return (
+    ' · ' +
+    esc(
+      login.connectedAt
+        ? uiText('Connected {connected} · removed automatically {date}', {
+            connected: date(login.connectedAt),
+            date: date(login.reviewerRemovesAt),
+          })
+        : uiText('Removed automatically {date}', {date: date(login.reviewerRemovesAt)}),
+    )
+  );
+}
 function renderCredentialHealth(c) {
   const h = c?.credentialHealth;
   if (
@@ -567,7 +668,7 @@ function renderManage() {
   const group = c?.groups.find(g => g.kind === assetKind),
     assets = (group?.assets ?? []).filter(a => (a.name + ' ' + a.id).toLowerCase().includes(assetSearch.toLowerCase()));
   $('#manage-content').innerHTML =
-    `<div class="manage-header"><div class="platform-identity">${logo(p)}<div><h3>${esc(p.name)} ${esc(uiText('assets'))}</h3><div class="platform-kind">${esc(uiText('Manage logins and access inside AMCP'))}</div></div></div><button class="icon-button" data-close="manage-dialog" aria-label="${esc(uiText('Close asset manager'))}">×</button></div><div class="manage-body"><div class="panel-header"><div><h3>${esc(uiText('Connected logins'))}</h3><p class="muted login-caption">${esc(uiText('Each login keeps its own encrypted credentials and permissions.'))}</p></div><button class="button dark small" data-connect="${p.id}">${esc(uiText('+ Connect another'))}</button></div><div class="login-list">${p.connections.map(login => `<div class="oauth-login"><span class="avatar">${esc(login.name.slice(0, 1).toUpperCase())}</span><div><button class="button quiet small" data-select-login="${esc(login.id)}"><strong>${esc(login.name)}</strong></button>${login.isDefault ? `<span class="default-badge">${esc(uiText('Default'))}</span>` : ''}<small>${esc(loginHealthLine(login))} · ${login.enabled ? uiText('Enabled in AMCP') : uiText('Choose assets')}</small></div><div class="actions"><button class="button small" data-sync="${esc(login.id)}">${esc(uiText('↻ Sync'))}</button>${login.reauthorizeAvailable ? `<button class="button small ${login.status === 'reauthorization_required' ? 'primary' : ''}" data-reauthorize="${esc(login.id)}">${esc(uiText('Reauthorize'))}</button>` : ''}${!login.isDefault ? `<button class="button small" data-default="${esc(login.id)}">${esc(uiText('Make default'))}</button>` : ''}<button class="button small danger" data-disconnect="${esc(login.id)}" aria-label="${esc(uiText('Disconnect {name}', {name: login.name}))}">↗</button></div></div>`).join('') || `<div class="empty"><strong>${esc(uiText('No logins connected'))}</strong>${esc(uiText('Connect your account to discover its advertising assets.'))}</div>`}</div>${c ? `${renderCredentialHealth(c)}${renderGrantedPermissions(c)}${renderConnectionSyncStatus(c)}${renderGoogleAuthorization(c)}<div class="notice asset-notice"><span>✓</span><p>${esc(uiText('Select'))} ${esc(uiText(labels[p.selectionKind] ?? p.selectionKind ?? 'Resources').toLowerCase())} ${esc(uiText('to grant MCP access to their data. Other tabs show related asset inventory. Saving this selection changes AMCP access only.'))}</p></div>${session.writesEnabled && p.reviewedWrites !== false ? `<label class="form-note"><input type="checkbox" id="selection-write-access" ${c.defaultWriteAccess ? 'checked' : ''}> ${esc(uiText('Enable read + reviewed write access for all selected resources'))}</label>` : ''}${p.reviewedWrites === false ? '' : writeAccessPanel(c)}<div class="asset-tabs" role="group" aria-label="${esc(uiText('Asset types'))}">${p.assetKinds.map(k => `<button data-asset-kind="${k}" class="${assetKind === k ? 'active' : ''}">${esc(uiText(labels[k] ?? k))} <span class="asset-count">${c.groups.find(g => g.kind === k)?.assets.length ?? '—'}</span></button>`).join('')}</div><div class="asset-toolbar"><label class="search"><span>⌕</span><input id="asset-search" type="search" value="${esc(assetSearch)}" placeholder="${esc(uiText('Search {kind}…', {kind: uiText(labels[assetKind] ?? assetKind)}))}" aria-label="${esc(uiText('Search assets'))}"></label><button class="button small" data-sync-kind="${assetKind}">${esc(uiText('↻ Sync this tab'))}</button></div>${renderAssetSyncDiagnostics(group)}<div id="asset-rows">${assetRows(assets, group)}</div>` : ''}</div><div class="manage-footer"><span class="muted small-text">${esc(c ? uiText('Last sync: {date}', {date: date(c.lastSync)}) : uiText('Your provider opens in a secure authorization flow.'))}</span>${c && selectableKind(assetKind) ? `<div class="platform-actions"><button class="button small" data-select-all="true">${esc(uiText('Select visible'))}</button><button class="button primary" data-save-assets="true">${esc(uiText('Save selection'))}</button></div>` : ''}</div>`;
+    `<div class="manage-header"><div class="platform-identity">${logo(p)}<div><h3>${esc(p.name)} ${esc(uiText('assets'))}</h3><div class="platform-kind">${esc(uiText('Manage logins and access inside AMCP'))}</div></div></div><button class="icon-button" data-close="manage-dialog" aria-label="${esc(uiText('Close asset manager'))}">×</button></div><div class="manage-body"><div class="panel-header"><div><h3>${esc(uiText('Connected logins'))}</h3><p class="muted login-caption">${esc(uiText('Each login keeps its own encrypted credentials and permissions.'))}</p></div><button class="button dark small" data-connect="${p.id}">${esc(uiText('+ Connect another'))}</button></div><div class="login-list">${p.connections.map(login => `<div class="oauth-login"><span class="avatar">${esc(login.name.slice(0, 1).toUpperCase())}</span><div><button class="button quiet small" data-select-login="${esc(login.id)}"><strong>${esc(login.name)}</strong></button>${login.isDefault ? `<span class="default-badge">${esc(uiText('Default'))}</span>` : ''}<small>${esc(loginHealthLine(login))}${reviewerLoginLine(login)} · ${login.enabled ? uiText('Enabled in AMCP') : uiText('Choose assets')}</small></div><div class="actions"><button class="button small" data-sync="${esc(login.id)}">${esc(uiText('↻ Sync'))}</button>${login.reauthorizeAvailable ? `<button class="button small ${login.status === 'reauthorization_required' ? 'primary' : ''}" data-reauthorize="${esc(login.id)}">${esc(uiText('Reauthorize'))}</button>` : ''}${!login.isDefault ? `<button class="button small" data-default="${esc(login.id)}">${esc(uiText('Make default'))}</button>` : ''}<button class="button small danger" data-disconnect="${esc(login.id)}" aria-label="${esc(uiText('Disconnect {name}', {name: login.name}))}">↗</button></div></div>`).join('') || `<div class="empty"><strong>${esc(uiText('No logins connected'))}</strong>${esc(uiText('Connect your account to discover its advertising assets.'))}</div>`}</div>${c ? `${renderCredentialHealth(c)}${renderGrantedPermissions(c)}${renderConnectionSyncStatus(c)}${renderGoogleAuthorization(c)}<div class="notice asset-notice"><span>✓</span><p>${esc(uiText('Select'))} ${esc(uiText(labels[p.selectionKind] ?? p.selectionKind ?? 'Resources').toLowerCase())} ${esc(uiText('to grant MCP access to their data. Other tabs show related asset inventory. Saving this selection changes AMCP access only.'))}</p></div>${session.writesEnabled && p.reviewedWrites !== false ? `<label class="form-note"><input type="checkbox" id="selection-write-access" ${c.defaultWriteAccess ? 'checked' : ''}> ${esc(uiText('Enable read + reviewed write access for all selected resources'))}</label>` : ''}${p.reviewedWrites === false ? '' : writeAccessPanel(c)}<div class="asset-tabs" role="group" aria-label="${esc(uiText('Asset types'))}">${p.assetKinds.map(k => `<button data-asset-kind="${k}" class="${assetKind === k ? 'active' : ''}">${esc(uiText(labels[k] ?? k))} <span class="asset-count">${c.groups.find(g => g.kind === k)?.assets.length ?? '—'}</span></button>`).join('')}</div><div class="asset-toolbar"><label class="search"><span>⌕</span><input id="asset-search" type="search" value="${esc(assetSearch)}" placeholder="${esc(uiText('Search {kind}…', {kind: uiText(labels[assetKind] ?? assetKind)}))}" aria-label="${esc(uiText('Search assets'))}"></label><button class="button small" data-sync-kind="${assetKind}">${esc(uiText('↻ Sync this tab'))}</button></div>${renderAssetSyncDiagnostics(group)}<div id="asset-rows">${assetRows(assets, group)}</div>` : ''}</div><div class="manage-footer"><span class="muted small-text">${esc(c ? uiText('Last sync: {date}', {date: date(c.lastSync)}) : uiText('Your provider opens in a secure authorization flow.'))}</span>${c && selectableKind(assetKind) ? `<div class="platform-actions"><button class="button small" data-select-all="true">${esc(uiText('Select visible'))}</button><button class="button primary" data-save-assets="true">${esc(uiText('Save selection'))}</button></div>` : ''}</div>`;
 }
 function writeAccessPanel(c) {
   const assets = c.groups.find(g => g.kind === 'ad_accounts')?.assets ?? [];
@@ -669,6 +770,7 @@ async function renderConnectors() {
         account_access_revoked: uiText('Ended: account access was removed'),
         owner_migration: uiText('Ended: the workspace moved to its owner account'),
         door_password_change: uiText('Ended: the administrator password changed'),
+        restore_quarantine: uiText('Ended: AMCP was restored from a backup'),
       })[reason] ?? uiText('Ended');
   content.innerHTML =
     header(uiText('MCP connectors'), uiText('Give your AI tools access to the accounts you select.')) +
@@ -1001,6 +1103,12 @@ async function render() {
     if (location.pathname === '/auth/complete') {
       afterSignIn();
       return;
+    }
+    // A member whose workspace now requires two-step verification sets it up first (SEC-06); the server refuses the
+    // other workspace APIs until then, so every other page shows Account instead.
+    if (session.authenticated && session.mfaEnrollmentRequired && location.pathname !== '/account') {
+      history.replaceState({}, '', '/account');
+      return await renderAccountPage();
     }
     if (location.pathname === '/account') return await renderAccountPage();
     if (location.pathname === '/reporting-overview') return await renderReportingOverview();

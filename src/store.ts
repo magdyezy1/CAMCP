@@ -51,6 +51,7 @@ import {
 } from './job-leases.js';
 import type {StorageVolume} from './storage-health.js';
 import {loginRevision, recordLogin} from './connection-authority.js';
+import {storableCredentials, withAppSecrets} from './app-credentials.js';
 import {
   JOURNAL_SIZE_LIMIT_BYTES,
   MEDIA_CHUNK_BYTES,
@@ -61,6 +62,8 @@ import {
   type StatfsResult,
 } from './media-storage.js';
 export const MEDIA_LEASE_MS = 45000;
+/** credential_owners.user_id of a key the service owns (Store.createServiceKey, SEC-06), e.g. `service:cli`. */
+export const serviceOwnerPrefix = 'service:';
 /** One member's unfinished website uploads per workspace: at most this many files and two media limits of bytes. */
 const MEMBER_UNFINISHED_UPLOADS = 10,
   MEMBER_UNFINISHED_BYTES = 2 * MAX_MEDIA_BYTES;
@@ -75,6 +78,30 @@ const orphanStagedChunk =
 const stagedChunkScopes = (tenant: string, id: string, index: number) =>
   [scopeKey(tenant, 'media-chunk', id, String(index)), scopeKey(tenant, 'media-chunk-v2', id, String(index))] as const;
 const busyPause = new Int32Array(new SharedArrayBuffer(4));
+/**
+ * Audit records are append-only, except that an erasure (SEC-07 S4, src/account-erasure.ts) may replace a record's
+ * payload by its tombstone and clear its request id; its workspace, time, previous hash and hash never change, so the
+ * chain stays linked. verifyAudit accepts a tombstone only when a later `account_erased` record names exactly the
+ * records its erasure tombstoned.
+ */
+const auditUpdateTrigger = `CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE ON audit WHEN NOT (NEW.seq=OLD.seq AND NEW.tenant_id=OLD.tenant_id AND NEW.previous_hash=OLD.previous_hash AND NEW.hash=OLD.hash AND NEW.created_at=OLD.created_at AND NEW.request_id='' AND json_valid(NEW.event) AND json_extract(NEW.event,'$.amcp_audit_tombstone')=1 AND json_type(NEW.event,'$.erasure')='text') BEGIN SELECT RAISE(ABORT,'audit is append only'); END;`;
+/** The payload an erased audit record keeps: the id of the erasure, nothing of the original. */
+export const auditTombstone = (erasure: string) => stable({amcp_audit_tombstone: 1, erasure});
+/** The erasure a tombstoned audit record belongs to, or undefined for any other record. */
+function tombstoneErasure(row: JsonObject): string | undefined {
+  if (row.request_id !== '' || typeof row.event !== 'string' || !row.event.startsWith('{"amcp_audit_tombstone":1,'))
+    return;
+  try {
+    const value = JSON.parse(row.event);
+    return Object.keys(value).length === 2 &&
+      typeof value.erasure === 'string' &&
+      row.event === auditTombstone(value.erasure)
+      ? value.erasure
+      : undefined;
+  } catch {
+    return;
+  }
+}
 /**
  * The record to store: the store's login revision and login id, never a caller's (revision 0 is left implicit, as on
  * older rows, which also have no login id).
@@ -157,8 +184,9 @@ export class Store {
   noteServiceTimingFailure() {
     this.timingFailures = Math.min(Number.MAX_SAFE_INTEGER, this.timingFailures + 1);
   }
-  constructor(filename: string, masterKey?: string) {
-    if (masterKey) this.box = new SecretBox(masterKey);
+  /** `previousMasterKeys` (MIRROR_MASTER_KEY_PREVIOUS) still open values sealed before a key rotation (SEC-07 S3). */
+  constructor(filename: string, masterKey?: string, previousMasterKeys: readonly string[] = []) {
+    if (masterKey) this.box = new SecretBox(masterKey, previousMasterKeys);
     if (filename !== ':memory:') fs.mkdirSync(path.dirname(filename), {recursive: true});
     this.db = new DatabaseSync(filename);
     try {
@@ -200,7 +228,7 @@ export class Store {
    CREATE TABLE IF NOT EXISTS api_keys(hash TEXT PRIMARY KEY,tenant_id TEXT NOT NULL REFERENCES tenants(id),user_id TEXT NOT NULL,role TEXT NOT NULL,expires_at INTEGER,revoked INTEGER NOT NULL DEFAULT 0);
    CREATE TABLE IF NOT EXISTS connections(id TEXT NOT NULL,tenant_id TEXT NOT NULL REFERENCES tenants(id),data TEXT NOT NULL,secret TEXT NOT NULL,PRIMARY KEY(tenant_id,id));
    CREATE TABLE IF NOT EXISTS audit(seq INTEGER PRIMARY KEY AUTOINCREMENT,tenant_id TEXT NOT NULL,request_id TEXT NOT NULL,event TEXT NOT NULL,previous_hash TEXT NOT NULL,hash TEXT NOT NULL,created_at INTEGER NOT NULL);
-   CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE ON audit BEGIN SELECT RAISE(ABORT,'audit is append only'); END;
+   ${auditUpdateTrigger}
    CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON audit BEGIN SELECT RAISE(ABORT,'audit is append only'); END;
    CREATE TABLE IF NOT EXISTS idempotency(tenant_id TEXT NOT NULL,key TEXT NOT NULL,fingerprint TEXT NOT NULL,state TEXT NOT NULL,result TEXT,created_at INTEGER NOT NULL,PRIMARY KEY(tenant_id,key));
    CREATE TABLE IF NOT EXISTS documents(tenant_id TEXT NOT NULL,kind TEXT NOT NULL,id TEXT NOT NULL,data TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,PRIMARY KEY(tenant_id,kind,id));
@@ -303,6 +331,18 @@ export class Store {
           },
           // Additive schema-2 trigger (OPS-08): a report's split budget and checkpoint documents go with the report.
           {id: 'store-0013-report-parts-cleanup', run: db => db.exec(reportPartsCleanupSQL)},
+          // Additive schema-2 change (SEC-07 S4): the audit's update trigger also admits an erasure's tombstone. A
+          // database created before keeps the stricter trigger until this replaces it.
+          {
+            id: 'store-0014-audit-tombstone-trigger',
+            run: db => {
+              const trigger = db
+                .prepare("SELECT sql FROM sqlite_master WHERE type='trigger' AND name='audit_no_update'")
+                .get() as {sql?: string} | undefined;
+              if (!String(trigger?.sql).includes('amcp_audit_tombstone'))
+                db.exec('DROP TRIGGER IF EXISTS audit_no_update; ' + auditUpdateTrigger);
+            },
+          },
         ]);
         schema = readSchemaState(this.db);
       });
@@ -350,6 +390,10 @@ export class Store {
   close() {
     clearInterval(this.transientCleanupTimer);
     this.db.close();
+  }
+  /** Store-internal: the keyring, for re-sealing every value under the current key (`admin rekey`, src/rekey.ts). */
+  get keyring(): SecretBox | undefined {
+    return this.box;
   }
   /** Encrypted read continuations are bound to the current tenant, actor and
    * exact workflow selection. They require no database rows and survive workers
@@ -1418,6 +1462,20 @@ export class Store {
     });
     return token;
   }
+  /**
+   * A key created on the server (`admin create-key`, SEC-06): owned by the service, not by a person, so a member's
+   * password, email or two-step change never revokes it. It needs server shell access to create, and owner health
+   * lists the active ones. It acts exactly as before: no person account is checked for it.
+   */
+  createServiceKey(actor: Actor, ttlMs: number = 86400000 * 30, service = 'cli'): string {
+    if (!/^[a-z][a-z0-9-]{0,31}$/.test(service)) throw new MirrorError('INVALID_ARGUMENT', 'Name a valid service.');
+    const {ownerUserId: _owner, ...unowned} = actor;
+    return this.transaction(() => {
+      const token = this.createKey(unowned, ttlMs);
+      this.db.prepare('INSERT INTO credential_owners VALUES(?,?)').run(sha256(token), serviceOwnerPrefix + service);
+      return token;
+    });
+  }
   authenticate(token: string): Actor {
     const row = this.db
       .prepare('SELECT * FROM api_keys WHERE hash=? AND revoked=0 AND (expires_at IS NULL OR expires_at>?)')
@@ -1425,11 +1483,13 @@ export class Store {
     if (!row) throw new MirrorError('UNAUTHORIZED', 'A valid, unexpired API key is required.', {}, 401);
     const owner = this.db.prepare('SELECT user_id FROM credential_owners WHERE hash=?').get(sha256(token)) as
       JsonObject | undefined;
+    // A service-owned key (createServiceKey) belongs to no person account.
+    const person = owner && !String(owner.user_id).startsWith(serviceOwnerPrefix) ? owner.user_id : undefined;
     const actor: Actor = {
       tenantId: row.tenant_id,
       userId: row.user_id,
       role: row.role,
-      ...(owner ? {ownerUserId: owner.user_id} : {}),
+      ...(person ? {ownerUserId: person} : {}),
     };
     this.authenticatedActors.set(actor, sha256(token));
     this.assertActorActive(actor);
@@ -1799,7 +1859,9 @@ export class Store {
           : loginRevision(previous) +
             (previous.gateway === connection.gateway && this.storedSecretEquals(row!, connection, credentials) ? 0 : 1),
         stored = withLogin(connection, revision, previous ? previous.loginId : randomUUID()),
-        secret = 'v2:' + this.box!.seal(credentials, scopeKey(connection.tenantId, connection.id));
+        secret =
+          'v2:' +
+          this.box!.seal(this.storable(connection.gateway, credentials), scopeKey(connection.tenantId, connection.id));
       this.db
         .prepare(
           'INSERT INTO connections(id,tenant_id,data,secret) VALUES(?,?,?,?) ON CONFLICT(tenant_id,id) DO UPDATE SET data=excluded.data,secret=excluded.secret',
@@ -1840,16 +1902,28 @@ export class Store {
       this.invalidateReadiness(connection.tenantId, connection.id);
     });
   }
-  /** Whether a row already holds exactly these credentials; an unreadable secret counts as different. */
+  /** Whether a row already holds exactly these credentials; an unreadable secret counts as different. The deployment's
+   * app secrets are not part of a login (SEC-07 S2), so a copy held or left out never makes two logins differ. */
   private storedSecretEquals(row: {secret: string}, connection: Connection, credentials: Credentials) {
     try {
       const current = row.secret.startsWith('v2:')
         ? this.box!.open<Credentials>(row.secret.slice(3), scopeKey(connection.tenantId, connection.id))
         : this.box!.open<Credentials>(row.secret, connection.tenantId + '/' + connection.id);
-      return stable(current) === stable(credentials);
+      return (
+        stable(this.storable(connection.gateway, current)) === stable(this.storable(connection.gateway, credentials))
+      );
     } catch {
       return false;
     }
+  }
+  /**
+   * The deployment environment app secrets are read from when a login is used (SEC-07 S2): the HTTP server and the
+   * worker set it. Unset (tests, tools), a login is used and stored exactly as given.
+   */
+  appEnvironment?: NodeJS.ProcessEnv;
+  /** What is sealed for a login: without copies of the app secrets the deployment supplies (src/app-credentials.ts). */
+  private storable(gateway: string, credentials: Credentials): Credentials {
+    return storableCredentials(gateway, credentials, this.appEnvironment);
   }
   private assertConnectionShape(actor: Actor, connection: Connection) {
     if (actor.role !== 'admin' || actor.tenantId !== connection.tenantId)
@@ -1927,8 +2001,16 @@ export class Store {
         revision: loginRevision(data),
         login: data.loginId ?? null,
       };
+    // A login is used with the deployment's current app secrets of its own client (SEC-07 S2).
     if (row.secret.startsWith('v2:'))
-      return recordLogin(this.box.open<Credentials>(row.secret.slice(3), scopeKey(tenantId, id)), login);
+      return recordLogin(
+        withAppSecrets(
+          data.gateway,
+          this.box.open<Credentials>(row.secret.slice(3), scopeKey(tenantId, id)),
+          this.appEnvironment,
+        ),
+        login,
+      );
     // Legacy delimiter encoding is migratable only when both components lack that delimiter.
     if (tenantId.includes('/') || id.includes('/'))
       throw new MirrorError(
@@ -1939,7 +2021,7 @@ export class Store {
       );
     const value = this.box.open<Credentials>(row.secret, tenantId + '/' + id);
     this.sealCredentials(tenantId, id, value, 'reseal');
-    return recordLogin(value, login);
+    return recordLogin(withAppSecrets(data.gateway, value, this.appEnvironment), login);
   }
   /**
    * Replace a connection's credentials directly. Different credentials are a different login (CON-01): the login
@@ -1966,7 +2048,7 @@ export class Store {
       this.db
         .prepare('UPDATE connections SET secret=?, data=? WHERE tenant_id=? AND id=?')
         .run(
-          'v2:' + this.box!.seal(value, scopeKey(tenantId, id)),
+          'v2:' + this.box!.seal(this.storable(data.gateway, value), scopeKey(tenantId, id)),
           JSON.stringify(bump ? withLogin(data, loginRevision(data) + 1, data.loginId) : data),
           tenantId,
           id,
@@ -2110,16 +2192,67 @@ export class Store {
       .prepare('SELECT * FROM audit WHERE tenant_id=? ORDER BY seq DESC LIMIT ?')
       .all(tenantId, Math.min(1000, Math.max(1, limit)));
   }
+  /**
+   * Checks the one hash chain across all workspaces. A record an erasure tombstoned (SEC-07 S4) keeps its link: its
+   * previous hash must be the record before it, and its own hash links the next. Its payload is no longer verifiable,
+   * so every tombstone must be accounted for by a later, verified `account_erased` record of its erasure that names
+   * how many records it tombstoned and the digest of their sequence numbers and hashes.
+   */
   verifyAudit() {
     let previous = 'GENESIS';
+    const erased = new Map<string, string[]>();
     for (const row of this.db.prepare('SELECT * FROM audit ORDER BY seq').iterate() as Iterable<JsonObject>) {
+      const erasure = tombstoneErasure(row);
+      if (erasure !== undefined) {
+        if (row.previous_hash !== previous || typeof row.hash !== 'string') return false;
+        const records = erased.get(erasure) ?? [];
+        records.push(row.seq + ':' + row.hash);
+        erased.set(erasure, records);
+        previous = row.hash;
+        continue;
+      }
       const hash = sha256(
         stable({tenantId: row.tenant_id, requestId: row.request_id, payload: row.event, previous, at: row.created_at}),
       );
       if (row.previous_hash !== previous || row.hash !== hash) return false;
+      if (String(row.event).includes('"account_erased"')) {
+        let receipt: JsonObject = {};
+        try {
+          receipt = JSON.parse(row.event);
+        } catch {
+          /* Not a receipt. */
+        }
+        if (receipt?.event === 'account_erased' && typeof receipt.erasure === 'string') {
+          const records = erased.get(receipt.erasure) ?? [];
+          if (records.length !== receipt.tombstoned_rows || sha256(records.join('\n')) !== receipt.tombstone_digest)
+            return false;
+          erased.delete(receipt.erasure);
+        }
+      }
       previous = hash;
     }
-    return true;
+    return erased.size === 0;
+  }
+  /**
+   * Replaces the payload of every audit record of one workspace by the tombstone of `erasure` (SEC-07 S4). Returns
+   * what the erasure's `account_erased` record must state for verifyAudit: the count and the digest of the records.
+   * Call it inside the transaction that appends that record.
+   */
+  tombstoneAudit(tenant: string, erasure: string): {tombstoned_rows: number; tombstone_digest: string} {
+    return this.transaction(() => {
+      const tombstone = auditTombstone(erasure),
+        rows = (
+          this.db
+            .prepare('SELECT seq,request_id,event,hash FROM audit WHERE tenant_id=? ORDER BY seq')
+            .all(tenant) as JsonObject[]
+        ).filter(row => tombstoneErasure(row) === undefined),
+        update = this.db.prepare("UPDATE audit SET event=?,request_id='' WHERE seq=?");
+      for (const row of rows) update.run(tombstone, row.seq);
+      return {
+        tombstoned_rows: rows.length,
+        tombstone_digest: sha256(rows.map(row => row.seq + ':' + row.hash).join('\n')),
+      };
+    });
   }
   claim(tenantId: string, key: string, fingerprint: string): {fresh: boolean; result?: unknown} {
     return this.transaction(() => {

@@ -94,6 +94,8 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
   );
   post('/api/account/resend-verification', async (req, res) => res.json(await accounts.register(req, req.body)));
   post('/api/account/owner-setup', async (req, res) => res.json(await security.beginOwner(req, req.body)));
+  // "Confirm it's you" (SEC-06): a password or two-step code renews this session's recent proof of identity in place.
+  post('/api/account/reauthenticate', async (req, res) => res.json(await security.reauthenticate(req, req.body)));
   post('/api/account/mfa/start', (req, res) => res.json(security.beginMfa(req)));
   post('/api/account/mfa/enable', (req, res) => {
     const r = security.enableMfa(req, req.body);
@@ -101,6 +103,14 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
   });
   post('/api/account/mfa/login', (req, res) => res.json(signed(res, security.finishMfa(req, req.body), true)));
   post('/api/account/mfa/disable', (req, res) => res.json(signed(res, security.disableMfa(req, req.body))));
+  // SEC-06: new recovery codes (recent sign-in and a current code), the AMCP owner's reset of a member's lost two-step
+  // verification, the workspace security policy and withdrawing an invitation.
+  post('/api/account/mfa/recovery-codes', (req, res) => res.json(security.regenerateRecoveryCodes(req, req.body)));
+  post('/api/owner/accounts/mfa-reset', (req, res) => res.json(security.resetMemberMfa(req, req.body)));
+  post('/api/workspaces/security-policy', (req, res) => res.json(security.saveSecurityPolicy(req, req.body)));
+  post('/api/workspaces/invitations/:id/revoke', (req, res) =>
+    res.json(security.revokeInvitation(req, String(req.params.id))),
+  );
   router.get(
     '/api/owner/accounts',
     handle((req, res) =>
@@ -211,6 +221,12 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
       if (!input || Object.values(input).some(v => typeof v !== 'string' || v.length > 16384))
         throw new MirrorError('SIGNIN_IDENTITY_INVALID', 'Invalid sign-in callback.');
       const result = await social.finish(req, String(req.params.provider), input);
+      // A social step-up (SEC-06) renewed the existing session; the page that asked continues where it was.
+      if ('reauthenticated' in result) {
+        res.setHeader('Set-Cookie', social.cookie('', 0));
+        res.redirect(303, '/auth/complete?reauthenticated=true');
+        return;
+      }
       if ('mfaRequired' in result) {
         res.setHeader('Set-Cookie', social.cookie('', 0));
         res.redirect(303, '/login#mfa=' + encodeURIComponent(result.ticket));
@@ -224,6 +240,7 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
         'SIGNIN_CANCELLED',
         'SIGNIN_STATE_INVALID',
         'IDENTITY_ALREADY_LINKED',
+        'SIGNIN_IDENTITY_MISMATCH',
         'SIGNUP_DISABLED',
         'SIGNIN_SETUP_REQUIRED',
         'ACCOUNT_PENDING_APPROVAL',

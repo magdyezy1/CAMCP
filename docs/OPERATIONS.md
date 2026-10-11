@@ -169,7 +169,8 @@ and the SQLite diagnostic), because JSON-RPC responses are HTTP 200 and the `/mc
 ## Backup and recovery
 
 Backups are encrypted only. `npm run admin -- backup <new-file>` (and its older name `backup-encrypted`) takes a
-consistent SQLite snapshot and writes it as one AES-256-GCM archive under `MIRROR_MASTER_KEY`. Verification and
+consistent SQLite snapshot and writes it as one AES-256-GCM archive under a key derived from `MIRROR_MASTER_KEY`
+(format v2; "Secret rotation" below). Verification and
 restoration use private plaintext staging; successful cleanup removes it, while restore deliberately publishes the verified offline copy. Keep the master key separately and back it up in the secret manager: losing it makes
 both the encrypted tokens and the backups unrecoverable. Do not copy only the main SQLite file while WAL writes are
 active.
@@ -196,6 +197,82 @@ database switch; reconcile these changes before enabling workers or advertising
 writes. Restoring an old database alone cannot prove that a lost mutation is safe
 to repeat. Host storage/ACLs, off-host retention, production RPO/RTO and rollback
 qualification remain operational responsibilities requiring a deployment drill.
+
+### Restore quarantine
+
+A backup taken before a compromise still holds the sessions, keys and grants revoked since, so `backup-restore` and
+`backup-drill` quarantine the copy by default (SEC-07). Before publishing it they end every website session, provider
+authorization in progress and emailed link; revoke every API key (connector tokens, AI-client access, service keys);
+end every AI-client grant (`restore_quarantine`, shown to the client and on the MCP page); clear queued e-mail payloads;
+set the owner write pause on every workspace that has none; pause every active report schedule
+(`pause_reason: restore_quarantine`); append `restore_quarantined` with the backup's SHA-256 and the counts to each
+workspace's audit; and check the audit chain and SQLite integrity again. The receipt's `access` lists the counts.
+After switching to the copy, people sign in again, owners reissue keys and AI-client authorizations, review the
+restored state, then resume writes and schedules. `--preserve-access` is the explicit opt-out, for a benign restore
+(a disk replacement, a drill whose copy will be discarded): the copy keeps every credential it held. Before starting
+a restored copy, re-apply the erasures made since the backup (`erasure-reapply`, "Account erasure and retention").
+
+## Secret rotation
+
+**App secrets (`AMCP_<PLATFORM>_CLIENT_SECRET`, `AMCP_MICROSOFT_DEVELOPER_TOKEN`, `AMCP_APPLE_*`).** A saved login keeps
+its own tokens and the client ID it was authorized with; the client secret, developer token and Apple signing key of
+that client are read from the environment whenever the login is used (SEC-07). To rotate one, create the new secret
+at the provider, set it in Railway (both services), redeploy, then revoke the old secret at the provider: no login
+needs reconnecting. Logins saved before this change still hold a copy; the environment's value is used instead, and
+the copy is dropped at the login's next token renewal, reauthorization or `admin rekey`. Changing the client ID itself
+is a new OAuth app: logins of the earlier app keep renewing with the copy of its secret they still hold and show
+`client_changed` until reauthorized; a login with no copy left asks for reauthorization without contacting the
+provider. `AMCP_APP_SECRETS=copy` is the rollback lever: logins written afterwards carry the copies again, which a
+release from before this change needs; set it and let logins renew before rolling back.
+
+**Master key (`MIRROR_MASTER_KEY`).** It seals every stored secret (logins, two-step secrets, AI-client secrets, staged
+and retained media, report files, job authority, e-mail links) and, through a derived key, the backups. To rotate it:
+
+1. Generate a new key (`npm run admin -- keygen`). In Railway, on both services, set `MIRROR_MASTER_KEY_PREVIOUS` to
+   the current key and `MIRROR_MASTER_KEY` to the new one, and redeploy. Every value keeps opening (with either key)
+   and new values are sealed with the new key. Website sessions, AI-client access and known-device cookies stay.
+2. On the service, run `npm run admin -- rekey`. It re-seals every stored value that still opens only with the
+   previous key under the new one (media chunks one per transaction, other tables in pages), drops copies of app
+   secrets the environment supplies, and appends `secrets_rekeyed` to each workspace's audit. The report gives counts
+   per table and the keys by fingerprint (`key_ids`), never the keys. Exit code 2 means something still needs the
+   previous key; `unreadable` values open with no configured key and are left untouched.
+3. Run `npm run admin -- rekey --dry-run` until it reports `complete` (writes during step 2 by an older process are
+   caught here), take a new backup, then remove `MIRROR_MASTER_KEY_PREVIOUS` and redeploy.
+
+Keep the replaced key in the secret manager while older backups are kept: verifying or restoring one needs it in
+`MIRROR_MASTER_KEY_PREVIOUS`, and `rekey` on the restored copy moves it to the current key. Backups are written in the
+v2 format, whose key is derived from the master key (HKDF) and named in the archive header; v1 archives (the master
+key itself) are still read. `AMCP_BACKUP_FORMAT=v1` keeps writing v1 for a release that cannot read v2. Without the
+previous key configured, a rotation looks to the website like an administrator password change made from the
+environment: door sessions and the AI-client access approved from them end.
+
+## Account erasure and retention
+
+Revoking access keeps an account; erasing it (SEC-07) removes the account and its own workspace:
+
+1. `npm run admin -- erase-account <email> --dry-run` prints the plan: per-table counts and the audit records that will
+   be tombstoned, changing nothing. It reports `refused` (exit code 2) for the deployment owner's account (the
+   `AMCP_TENANT_ID` workspace) and for a workspace other active members still use: remove them or move their work
+   first.
+2. `npm run admin -- erase-account <email> --confirm` erases, irreversibly: every session, emailed link, queued e-mail
+   about the person, connector key and AI-client grant ends; the workspace's documents, saved logins, jobs, write
+   claims, media, memberships and the workspace itself are deleted; the person's memberships, invitations, monitor
+   subscriptions and keys in other workspaces go; the account, its sign-in identities and two-step secret are deleted.
+   AMCP does not contact providers: the person removes AMCP's authorization in each provider's own settings.
+3. Audit records of the erased workspace keep their place in the one hash chain with a tombstone instead of their
+   payload; `account_erased` in the deployment's audit names how many and their digest, and `admin audit-verify`
+   accepts a tombstone only with that receipt. Records of other workspaces keep the person's random user id.
+4. Run `npm run admin -- erasure-receipts` and keep its output (random ids only) with the off-host backups. After any
+   restore (an AMCP archive or a Railway volume), run `npm run admin -- erasure-reapply <receipts-file>` with
+   `MIRROR_DB` naming the restored copy, before starting it: it erases again what a receipt names and the copy still
+   holds, and appends `account_erased` with `reapplies`.
+
+The worker erases sign-ups never approved 30 days after they were made (`AMCP_PENDING_ACCOUNT_DAYS`, 1–365, or `off`),
+and, only when the owner sets `AMCP_REVOKED_ACCOUNT_DAYS` (1–3650), accounts revoked that long ago; each is receipted
+like a confirmed erasure (`reason: pending_retention` or `revoked_retention`), at most 100 of each an hour. An unknown
+value stops start-up. Erasure is application retention: older backups, Railway volume snapshots and SQLite free pages
+(zeroed by `secure_delete`) are not rewritten. Self-service deletion waits for the privacy policy review (owner
+decision P3).
 
 ### Backups that complete
 
@@ -247,7 +324,7 @@ and remove it after establishing that no restoration uses it; never sweep active
 operations or delete the original database. The command never publishes an
 unauthenticated or partly verified destination.
 
-The audit chain detects changes to retained records and SQL triggers prevent normal updates/deletes. It has no external checkpoint service and cannot detect rollback to a previously valid backup. Keep independent backup/checkpoint records for a production deployment. Owner-confirmed 7–365-day report retention is implemented for the selected finished report/job and resolved-incident records; active work, open/acknowledged incidents, audit records and write receipts are preserved. General all-record retention, external monitoring and independent checkpoints remain separate.
+The audit chain (one SHA-256 chain across all workspaces) detects changes to retained records and SQL triggers prevent updates/deletes, except an erasure's receipted tombstone ("Account erasure and retention"). It has no external checkpoint service and cannot detect rollback to a previously valid backup. Keep independent backup/checkpoint records for a production deployment. Owner-confirmed 7–365-day report retention is implemented for the selected finished report/job and resolved-incident records; active work, open/acknowledged incidents, audit records and write receipts are preserved. General all-record retention, external monitoring and independent checkpoints remain separate.
 
 Local subprocess tests verified consistent backup while the source database remained open in WAL mode, restoration of encrypted credentials and committed documents, audit verification after restore, and refusal to overwrite an existing backup. Concurrent process startup now serializes database bootstrap/migrations in a transaction. Unsupported schema versions roll back attempted schema changes and close the connection. These tests do not qualify host-level disaster recovery or a production deployment.
 
@@ -366,7 +443,7 @@ they survive a restart, and they are kept for eight days.
 
 ## HTTP deployment
 
-Default bind is loopback. External bind requires MIRROR_PUBLIC_ORIGIN as an HTTPS origin and a TLS reverse proxy. The service validates Host and Origin, authenticates bearer tokens, limits JSON bodies to 4 MiB, and supports stateless POST requests. Provision a distinct mirror key per operator with an appropriate role. Keys expire after 30 days by default; provision replacements and revoke old keys with `npm run admin -- revoke-key <protected-token-file>`.
+Default bind is loopback. External bind requires MIRROR_PUBLIC_ORIGIN as an HTTPS origin and a TLS reverse proxy. The service validates Host and Origin, authenticates bearer tokens, limits JSON bodies to 4 MiB, and supports stateless POST requests. Provision a distinct mirror key per operator with an appropriate role. Keys expire after 30 days by default; provision replacements and revoke old keys with `npm run admin -- revoke-key <protected-token-file>`. A key from `npm run admin -- create-key` is service-owned (SEC-06): no member's password, email or two-step change ends it, unlike the connector tokens and AI-client access the administrator door issued, which the owner account's security changes still end. The owner's health view (`service_keys`) lists every live service key of the workspace by label, role and expiry, including older server keys created before this rule; the owner's security notice says how many connector tokens and AI-client connections a change ended. `npm run admin -- mfa-reset <email>` is the instance owner's offline reset of a member who lost their authenticator and recovery codes: it turns two-step verification off and ends that person's sessions, connector tokens and AI-client connections (audited as `account_mfa_reset`); confirm the person's identity outside AMCP first ([MFA support runbook](USER-ACCOUNTS.md#required-two-step-verification-and-recovery)).
 
 Claude remote clients can dynamically register with `client_secret_post`; public clients retain `none`. Both require S256 PKCE and consent by an active workspace member, capped by that member's role (viewers grant read only). Client secrets are encrypted at rest and must accompany token, refresh and revocation requests. Optional trusted proxy CIDRs affect rate-limit attribution only. See [OAuth hardening](OAUTH-HARDENING.md) for configuration and regression coverage.
 

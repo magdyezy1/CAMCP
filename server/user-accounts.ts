@@ -3,9 +3,12 @@ import type {Request} from 'express';
 import {MirrorError} from '../src/errors.js';
 import {purposeKey, sha256} from '../src/security.js';
 import type {JsonObject} from '../src/types.js';
+import type {Store} from '../src/store.js';
 import {WebStore, cookieValue, type WebSession} from './web-store.js';
 import {endMcpGrants, type GrantEndReason} from './mcp-grants.js';
 import {derivePassword, passwordHashParts} from './password-hashes.js';
+import {mfaRequirement} from './mfa-policy.js';
+import {assertPasswordNotCommon, type PasswordContext} from './password-blocklist.js';
 import {
   authorizeMonitorNotice,
   cancelMonitorNotice,
@@ -18,12 +21,19 @@ const opaque = () => randomBytes(32).toString('base64url');
 /** A known-device cookie lasts 180 days (SEC-03); its value carries the issue time, so the server enforces that too. */
 const deviceLifetimeSeconds = 180 * 86400;
 const userDigest = (id: unknown) => createHash('sha256').update(String(id)).digest();
+/** How long a sign-in or a step-up counts as recent proof of identity (UserAccounts.fresh, SEC-06). */
+export const recentProofMs = 900000;
 /** Shown when an account's own attempt budget is used up; other people's failures can cause it. */
 export const accountLimitMessage =
   'Too many attempts for this account. Try again in 15 minutes, or sign in from a browser you have used with AMCP before, with a linked social sign-in, or after resetting your password.';
-export async function hashUserPassword(password: unknown) {
+/**
+ * Hashes a new password. It must be 15–128 characters and not common or built from the person's own details (SEC-06
+ * S5, `context`: their email and name). `false` skips the blocklist only to rehash an existing password at sign-in.
+ */
+export async function hashUserPassword(password: unknown, context: PasswordContext | false = {}) {
   if (typeof password !== 'string' || password.length < 15 || password.length > 128)
     throw new MirrorError('PASSWORD_LENGTH', 'Use a password between 15 and 128 characters.');
+  if (context !== false) assertPasswordNotCommon(password, context);
   const salt = randomBytes(16).toString('hex');
   return 'scrypt-v3$' + salt + '$' + (await derivePassword(password, salt)).toString('hex');
 }
@@ -35,6 +45,71 @@ export async function verifyPassword(password: unknown, hash?: string | null) {
     'scrypt-v3',
   ]);
   return !!parts && timingSafeEqual(await derivePassword(password, parts.salt, parts.form), parts.key) && !!hash;
+}
+/**
+ * Ends a person's website sessions, keys and AI-client grants (UserAccounts.revokeAccess), without the website: the
+ * `admin mfa-reset` command uses it too. Returns what ended, counted before it ended: live connector tokens and
+ * AI-client connections.
+ */
+export function revokePersonAccess(store: Store, user: JsonObject, reason: GrantEndReason) {
+  const db = store.db,
+    now = Date.now(),
+    // Legacy connectors belonged to the sole owner before memberships existed: connector tokens and AI-client keys the
+    // administrator door issued, which have no owner row. Keys created on the server (`admin create-key`) are not the
+    // owner's to end (SEC-06): service-owned keys have an owner row, and older ones are neither connector/ nor oauth/.
+    keysOf =
+      "(hash IN (SELECT hash FROM credential_owners WHERE user_id=?) OR (tenant_id=? AND (user_id LIKE 'connector/%' OR user_id LIKE 'oauth/%') AND hash NOT IN (SELECT hash FROM credential_owners)))",
+    grantsOf = "(json_extract(data,'$.ownerUserId')=? OR (tenant_id=? AND json_extract(data,'$.ownerUserId') IS NULL))";
+  const ended = {
+    connectorKeys: Number(
+      (
+        db
+          .prepare(
+            "SELECT count(*) AS n FROM api_keys WHERE revoked=0 AND (expires_at IS NULL OR expires_at>?) AND user_id NOT LIKE 'oauth/%' AND " +
+              keysOf,
+          )
+          .get(now, user.id, user.tenant_id) as JsonObject
+      ).n,
+    ),
+    aiClients: Number(
+      (
+        db
+          .prepare(
+            "SELECT count(DISTINCT client_id) AS n FROM amcp_mcp_grants WHERE kind='refresh' AND used=0 AND expires_at>? AND " +
+              grantsOf,
+          )
+          .get(now, user.id, user.tenant_id) as JsonObject
+      ).n,
+    ),
+  };
+  db.prepare("DELETE FROM amcp_web_sessions WHERE json_extract(actor,'$.userId')=?").run(user.id);
+  db.prepare('UPDATE api_keys SET revoked=1 WHERE ' + keysOf).run(user.id, user.tenant_id);
+  endMcpGrants(store, "json_extract(data,'$.ownerUserId')=?", [user.id], reason);
+  endMcpGrants(store, "tenant_id=? AND json_extract(data,'$.ownerUserId') IS NULL", [user.tenant_id], reason);
+  return ended;
+}
+/**
+ * `admin mfa-reset <email>` (SEC-06 S3): the instance owner's offline reset of a member who lost their authenticator
+ * and recovery codes. Turns two-step verification off, ends every session, connector token and AI-client connection
+ * of the person and audits `account_mfa_reset`. No email is sent from the shell; tell the member to set it up again.
+ */
+export function resetTwoStepOffline(store: Store, email: string) {
+  const exists = (name: string) =>
+    !!store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(name);
+  const user =
+    exists('amcp_users') && exists('amcp_mfa')
+      ? (store.db.prepare('SELECT * FROM amcp_users WHERE email=? COLLATE NOCASE').get(accountEmail(email)) as
+          JsonObject | undefined)
+      : undefined;
+  if (!user) throw new MirrorError('NOT_FOUND', 'Account not found.', {}, 404);
+  return store.transaction(() => {
+    if (!store.db.prepare('DELETE FROM amcp_mfa WHERE user_id=?').run(user.id).changes)
+      throw new MirrorError('MFA_NOT_ENABLED', 'This account does not use two-step verification.', {}, 409);
+    store.db.prepare('UPDATE amcp_users SET version=version+1 WHERE id=?').run(user.id);
+    const ended = revokePersonAccess(store, user, 'mfa_change');
+    store.appendAudit(String(user.tenant_id), randomUUID(), {event: 'account_mfa_reset', user_id: user.id, by: 'cli'});
+    return {reset: true, user_id: user.id, ...ended};
+  });
 }
 export function accountEmail(value: unknown): string {
   if (typeof value !== 'string' || value.length > 254 || !/^([^\s@<>]+)@([^\s@<>]+\.[^\s@<>]+)$/.test(value.trim()))
@@ -70,11 +145,14 @@ export class UserAccounts {
   get deviceCookieName() {
     return this.web.secure ? '__Host-amcp_device' : 'amcp_local_device';
   }
-  private deviceKey?: Buffer;
-  /** The MAC covers the account version, so a password or email change invalidates every device cookie. */
-  private deviceMac(user: Buffer, nonce: Buffer, issued: Buffer, version: unknown) {
-    this.deviceKey ??= purposeKey(this.web.options.masterKey!, 'amcp-device-v1');
-    return createHmac('sha256', this.deviceKey)
+  private deviceKeys?: Buffer[];
+  /** The MAC covers the account version, so a password or email change invalidates every device cookie. `key` 0 is the
+   * current master key's; a previous key's (MIRROR_MASTER_KEY_PREVIOUS) still recognizes a device after a rotation. */
+  private deviceMac(user: Buffer, nonce: Buffer, issued: Buffer, version: unknown, key = 0) {
+    this.deviceKeys ??= [this.web.options.masterKey!, ...(this.web.options.previousMasterKeys ?? [])].map(k =>
+      purposeKey(k, 'amcp-device-v1'),
+    );
+    return createHmac('sha256', this.deviceKeys[key]!)
       .update(Buffer.concat([user, nonce, issued, Buffer.from(':' + Number(version))]))
       .digest();
   }
@@ -108,8 +186,10 @@ export class UserAccounts {
     if (age < -300 || age > deviceLifetimeSeconds) return;
     // Another person's cookie fails here: the digest names its own user, and the MAC binds digest and version.
     if (!timingSafeEqual(id, userDigest(user.id))) return;
-    if (!timingSafeEqual(bytes.subarray(56), this.deviceMac(id, nonce, issued, user.version))) return;
-    return nonce.toString('hex');
+    const keys = 1 + (this.web.options.previousMasterKeys?.length ?? 0);
+    for (let key = 0; key < keys; key++)
+      if (timingSafeEqual(bytes.subarray(56), this.deviceMac(id, nonce, issued, user.version, key)))
+        return nonce.toString('hex');
   }
   /**
    * Counts one attempt against the address budget of an action and, with an identity, against that identity's budget.
@@ -230,6 +310,11 @@ export class UserAccounts {
     const membership = this.web.store.db
       .prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
       .get(session.actor.tenantId, u.id) as JsonObject | undefined;
+    const mfaEnabled = this.hasMfa(u.id),
+      // Two-step requirement of this workspace for this member (SEC-06): from when it is enforced, and whether it is.
+      requirement = u.test_account
+        ? {required: false, by: null}
+        : mfaRequirement(this.web.store, this.web.mfaBaseline, session.actor.tenantId, u.id, membership?.role);
     return {
       id: u.id,
       name: u.name,
@@ -240,7 +325,13 @@ export class UserAccounts {
       workspaceName,
       workspaceId: session.actor.tenantId,
       workspaceRole: membership?.role,
-      mfaEnabled: this.hasMfa(u.id),
+      mfaEnabled,
+      mfaRequired: requirement.required,
+      mfaRequiredBy: requirement.by,
+      mfaEnrollmentRequired:
+        requirement.required && !mfaEnabled && requirement.by !== null && requirement.by <= Date.now(),
+      // The AMCP owner (the deployment workspace's owner) manages every account of this instance (SEC-06).
+      instanceOwner: membership?.role === 'owner' && session.actor.tenantId === this.web.tenantId,
       testAccount: !!u.test_account,
     };
   }
@@ -304,6 +395,8 @@ export class UserAccounts {
         membershipRole: m.role,
         role: m.role === 'viewer' ? 'reader' : m.role === 'operator' ? 'operator' : 'admin',
         ...(user.test_account ? {testAccount: true} : {}),
+        // Opened with two-step verification (SEC-06): a workspace's two-step policy can require it for owner changes.
+        ...(mfaVerified && this.hasMfa(user.id) ? {mfaVerified: true} : {}),
       },
       signedInAt,
     );
@@ -332,7 +425,8 @@ export class UserAccounts {
       typeof input.password === 'string' &&
       input.password.length >= 15
     ) {
-      const hash = await hashUserPassword(input.password);
+      // A rehash of the password the person already has: the blocklist applies to new passwords only.
+      const hash = await hashUserPassword(input.password, false);
       const changed = this.web.store.db
         .prepare('UPDATE amcp_users SET password_hash=? WHERE id=? AND version=?')
         .run(hash, current.id, current.version);
@@ -654,24 +748,19 @@ export class UserAccounts {
     return {message: 'If an account uses this email, a password reset link is on its way.'};
   }
   /** Ends a person's sessions, API keys and MCP grants after a security change; `reason` is recorded on each ended
-   * MCP grant and in audit (MCP-08). */
+   * MCP grant and in audit (MCP-08). Returns how many keys and AI-client grants ended, for the security notice. */
   revokeAccess(user: JsonObject, reason: GrantEndReason = 'password_change') {
-    const db = this.web.store.db;
-    db.prepare("DELETE FROM amcp_web_sessions WHERE json_extract(actor,'$.userId')=?").run(user.id);
-    db.prepare('UPDATE api_keys SET revoked=1 WHERE hash IN (SELECT hash FROM credential_owners WHERE user_id=?)').run(
-      user.id,
-    );
-    endMcpGrants(this.web.store, "json_extract(data,'$.ownerUserId')=?", [user.id], reason);
-    // Legacy connectors belonged to the sole owner before memberships existed.
-    db.prepare(
-      'UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash NOT IN (SELECT hash FROM credential_owners)',
-    ).run(user.tenant_id);
-    endMcpGrants(
-      this.web.store,
-      "tenant_id=? AND json_extract(data,'$.ownerUserId') IS NULL",
-      [user.tenant_id],
-      reason,
-    );
+    return revokePersonAccess(this.web.store, user, reason);
+  }
+  /** The security-notice sentence that says what a revocation ended (SEC-06); empty when nothing was live. */
+  revokedSummary(ended: {connectorKeys: number; aiClients: number}) {
+    return ended.connectorKeys || ended.aiClients
+      ? '. This also ended ' +
+          ended.connectorKeys +
+          ' connector token(s) and ' +
+          ended.aiClients +
+          ' AI-client connection(s); server-created service keys were kept'
+      : '';
   }
   async finishEmail(req: Request, input: JsonObject) {
     this.limit(req, 'verify', '', 15);
@@ -681,7 +770,10 @@ export class UserAccounts {
     if (kind === 'register' && !this.signupEnabled)
       throw new MirrorError('SIGNUP_DISABLED', 'New account registration is currently closed.', {}, 403);
     const data = this.readChallenge(input.token, kind);
-    const hash = kind === 'email' ? null : await hashUserPassword(input.password);
+    const hash =
+      kind === 'email'
+        ? null
+        : await hashUserPassword(input.password, kind === 'register' ? data : this.user(data.userId));
     this.web.store.transaction(() => {
       this.readChallenge(input.token, kind, true);
       if (kind === 'register') {
@@ -701,14 +793,17 @@ export class UserAccounts {
           this.web.store.db
             .prepare('UPDATE amcp_users SET email=?,version=version+1 WHERE id=?')
             .run(data.email, user.id);
-          this.securityNotice(user, 'The sign-in email of your AMCP account was changed to ' + data.email);
-        } else {
+        } else
           this.web.store.db
             .prepare('UPDATE amcp_users SET password_hash=?,version=version+1 WHERE id=?')
             .run(hash, user.id);
-          this.securityNotice(user, 'The password of your AMCP account was reset through an emailed link');
-        }
-        this.revokeAccess(user, kind === 'email' ? 'email_change' : 'password_change');
+        const ended = this.revokeAccess(user, kind === 'email' ? 'email_change' : 'password_change');
+        this.securityNotice(
+          user,
+          (kind === 'email'
+            ? 'The sign-in email of your AMCP account was changed to ' + data.email
+            : 'The password of your AMCP account was reset through an emailed link') + this.revokedSummary(ended),
+        );
         this.web.store.appendAudit(user.tenant_id, randomUUID(), {
           event: kind === 'email' ? 'account_email_verified' : 'account_password_reset',
         });
@@ -737,11 +832,23 @@ export class UserAccounts {
         'Check your inbox to verify this email. Confirmation signs out existing sessions and revokes old MCP access.',
     };
   }
+  /**
+   * Recent proof of identity (SEC-06): a sign-in or a "Confirm it's you" step-up within the last 15 minutes, whichever
+   * is later. Account security changes and anything that mints lasting access or grants authority call it first, so a
+   * refusal happens before any effect and the website can retry the same request once the person confirms.
+   */
   fresh(s: WebSession) {
     const data = this.web.store.db.prepare('SELECT actor FROM amcp_web_sessions WHERE hash=?').get(sha256(s.id)) as
       JsonObject | undefined;
-    if (!data || Number(JSON.parse(data.actor).signedInAt ?? s.expiresAt - 8 * 3600000) < Date.now() - 900000)
-      throw new MirrorError('REAUTH_REQUIRED', 'Sign out and sign in again before changing account security.', {}, 403);
+    const actor = data ? JSON.parse(data.actor) : {},
+      proved = Math.max(Number(actor.signedInAt ?? s.expiresAt - 8 * 3600000), Number(actor.reauthAt) || 0);
+    if (!data || !(proved >= Date.now() - recentProofMs))
+      throw new MirrorError(
+        'REAUTH_REQUIRED',
+        'Confirm it’s you to continue: enter your password or a two-step verification code.',
+        {},
+        403,
+      );
   }
   update(req: Request, input: JsonObject) {
     const s = this.web.requireMutation(req),
@@ -766,14 +873,14 @@ export class UserAccounts {
     if (u.password_hash && !(await verifyPassword(input.currentPassword, u.password_hash)))
       throw new MirrorError('INVALID_LOGIN', 'Your current password is incorrect.', {}, 401);
     if (!u.email) throw new MirrorError('EMAIL_REQUIRED', 'Verify an email address before adding a password.');
-    const hash = await hashUserPassword(input.password);
+    const hash = await hashUserPassword(input.password, u);
     this.web.requireMutation(req);
     return this.web.store.transaction(() => {
       if (this.user(u.id).version !== u.version)
         throw new MirrorError('ACCOUNT_CHANGED', 'Sign in again before retrying.');
       this.web.store.db.prepare('UPDATE amcp_users SET password_hash=?,version=version+1 WHERE id=?').run(hash, u.id);
-      this.revokeAccess(u);
-      this.securityNotice(u, 'The password of your AMCP account was changed');
+      const ended = this.revokeAccess(u);
+      this.securityNotice(u, 'The password of your AMCP account was changed' + this.revokedSummary(ended));
       return this.session(this.user(u.id), s.actor.tenantId, true);
     });
   }

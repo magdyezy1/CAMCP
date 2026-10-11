@@ -69,6 +69,7 @@ const authErrors = {
   SIGNIN_CANCELLED: 'You cancelled sign-in. Choose a sign-in method whenever you’re ready.',
   SIGNIN_STATE_INVALID: 'Please finish sign-in in the browser where you started it, or begin again below.',
   IDENTITY_ALREADY_LINKED: 'That social account is already connected to another AMCP account.',
+  SIGNIN_IDENTITY_MISMATCH: 'That is not the sign-in linked to your AMCP account. Try again with the linked account.',
   SIGNUP_DISABLED: 'Registration is currently closed. Existing members can still sign in.',
   SIGNIN_SETUP_REQUIRED: 'This sign-in provider needs configuration. Choose another available method.',
   SIGNIN_FAILED: 'Sign-in could not be completed. Please try again.',

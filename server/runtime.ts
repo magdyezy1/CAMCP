@@ -54,7 +54,9 @@ export function createRuntime(
     const volume = verifyDataVolume(config, log, options.stat);
     stage = 'store_open';
     const registry = new Registry();
-    const store = (opened = new Store(config.databasePath, config.masterKey));
+    const store = (opened = new Store(config.databasePath, config.masterKey, config.previousMasterKeys));
+    // Saved logins use the deployment's current app secrets of their own OAuth client (SEC-07 S2).
+    store.appEnvironment = process.env;
     stage = 'volume_marker';
     if (volume?.persistent)
       volume.marker = checkVolumeMarker(store, path.dirname(path.resolve(config.databasePath)), log);

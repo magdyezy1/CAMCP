@@ -96,6 +96,9 @@ const operational: [string, string[]][] = [
       'SECRET_DECRYPT_FAILED',
       // SEC-04: TikTok lead reads are refused as personal data before any provider request; the message says so.
       'PERSONAL_DATA_READ_FORBIDDEN',
+      // SEC-06: a workspace two-step policy refuses owner changes from a website session not opened with two-step
+      // verification. MCP keys carry no website session flags, so an AI client never receives it.
+      'MFA_STEP_REQUIRED',
     ],
   ],
   [

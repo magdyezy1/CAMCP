@@ -9,6 +9,8 @@ import {LimitDiagnostics, registerLimitDiagnostics} from '../src/limit-diagnosti
 import {cloudflareIpv4Ranges, cloudflareIpv6Ranges} from './cloudflare-ranges.js';
 import {endMcpGrants} from './mcp-grants.js';
 import {applyMigrationSteps} from '../src/schema-migrations.js';
+import {mfaRequirement, type MfaBaseline} from './mfa-policy.js';
+import {purgeReviewerConnections, reviewerTenant} from './account-lifecycle.js';
 import type {ClientMetadataOptions} from './client-metadata.js';
 import {
   derivePassword,
@@ -27,6 +29,8 @@ export interface WebSession {
 export interface WebsiteOptions {
   origin: string;
   masterKey?: string;
+  /** MIRROR_MASTER_KEY_PREVIOUS: keys a rotation replaced, which still open values until `admin rekey` (SEC-07). */
+  previousMasterKeys?: readonly string[];
   adminPassword?: string;
   adminPasswordHash?: string;
   testPassword?: string;
@@ -209,6 +213,8 @@ export class WebStore {
   private reviewerHash?: string;
   readonly testPasswordProblem?: string;
   private box?: SecretBox;
+  /** The deployment's two-step baseline (SEC-06), set by the website once it knows whether writes are allowed. */
+  mfaBaseline?: MfaBaseline;
   constructor(
     readonly store: Store,
     readonly options: WebsiteOptions,
@@ -238,7 +244,7 @@ export class WebStore {
     this.tenantId = options.tenantId ?? 'local';
     this.limitDiagnostics = new LimitDiagnostics(this.clientIpSource, this.tenantId);
     registerLimitDiagnostics(store, this.limitDiagnostics);
-    if (options.masterKey) this.box = new SecretBox(options.masterKey);
+    if (options.masterKey) this.box = new SecretBox(options.masterKey, options.previousMasterKeys);
     if (options.adminPasswordHash) {
       if (!doorHash.test(options.adminPasswordHash)) throw Error('Invalid AMCP administrator password hash.');
     } else if (options.adminPassword && options.adminPassword.length < 16)
@@ -338,7 +344,7 @@ export class WebStore {
   }
   /** Reviewers share one workspace that is not the owner's, so no connection of yours is in reach. */
   get testTenantId() {
-    return this.tenantId + '-test';
+    return reviewerTenant(this.tenantId);
   }
   /**
    * Opens a door configured on the server and returns its hash. A password from the environment is hashed with a salt
@@ -353,9 +359,10 @@ export class WebStore {
       key = door + ':' + tenant,
       stored = (db.prepare('SELECT hash FROM amcp_web_doors WHERE door=?').get(key) as {hash: string} | undefined)
         ?.hash,
+      saltOf = (masterKey: string) => sha256('amcp-door-salt:' + masterKey + ':' + key).slice(0, 32),
       // Without a master key (local development) the recorded salt is reused, so a restart keeps the same hash.
       salt = this.options.masterKey
-        ? sha256('amcp-door-salt:' + this.options.masterKey + ':' + key).slice(0, 32)
+        ? saltOf(this.options.masterKey)
         : stored?.startsWith('scrypt-v3$')
           ? stored.split('$')[1]
           : undefined,
@@ -367,6 +374,20 @@ export class WebStore {
           ' uses the older scrypt parameters. Replace it with the output of `npm run admin -- password-hash`.\n',
       );
     if (hash === stored) return hash;
+    // A master-key rotation (SEC-07 S3) changes the salt of a password from the environment, not the password: when a
+    // previous key's salt gives the recorded hash, the door is re-recorded and its sessions and AI-client access stay.
+    const rekeyed =
+      !configured &&
+      password !== undefined &&
+      stored?.startsWith('scrypt-v3$') &&
+      (this.options.previousMasterKeys ?? []).some(previous => passwordHash(password, saltOf(previous)) === stored);
+    if (rekeyed) {
+      this.store.transaction(() => {
+        db.prepare('UPDATE amcp_web_doors SET hash=?,changed_at=? WHERE door=?').run(hash, Date.now(), key);
+        this.store.appendAudit(tenant, randomUUID(), {event: 'door_rekeyed', door});
+      });
+      return hash;
+    }
     this.store.transaction(() => {
       if (stored !== undefined) {
         const grants = doorGrants[door];
@@ -380,6 +401,8 @@ export class WebStore {
         this.store.appendAudit(tenant, randomUUID(), {
           event: door === 'workspace-admin' ? 'administrator_password_changed' : 'reviewer_password_changed',
         });
+        // A new reviewer password starts a new review: the logins earlier evaluators connected go (SEC-06 S6).
+        if (door === 'workspace-test') purgeReviewerConnections(this.store, tenant, 'reviewer_password_change');
       }
       db.prepare(
         'INSERT INTO amcp_web_doors VALUES(?,?,?) ON CONFLICT(door) DO UPDATE SET hash=excluded.hash,changed_at=excluded.changed_at',
@@ -548,6 +571,33 @@ export class WebStore {
     if (!(await checkPassword(password, hash))) throw new MirrorError('INVALID_LOGIN', wrong, {}, 401);
     db.prepare('DELETE FROM amcp_login_limits WHERE key=?').run(key);
   }
+  /**
+   * Step-up for a door session (SEC-06): the door's own password, counted per door and address like a sign-in. The
+   * session must still be one the door opens; a door whose password changed refuses.
+   */
+  async confirmDoor(subject: unknown, tenant: unknown, password: unknown, address: string) {
+    const door = this.doorFor(subject, tenant),
+      hash = door === 'workspace-admin' ? this.administratorHash : door && this.reviewerHash;
+    if (!door || !hash || !this.doorOpen(subject, tenant))
+      throw new MirrorError(
+        'SIGN_IN_CHANGED',
+        'This sign-in was reconfigured on the server. Reload the page and sign in again.',
+        {},
+        503,
+      );
+    await this.passDoor(
+      hash,
+      typeof password === 'string' ? password : '',
+      'reauth:' + door + ':' + address,
+      'That password is incorrect.',
+    );
+  }
+  /** Records a step-up on a session (SEC-06). Only the recent-proof time changes; the session's expiry never moves. */
+  markReauthenticated(id: string, at = Date.now()) {
+    this.store.db
+      .prepare("UPDATE amcp_web_sessions SET actor=json_set(actor,'$.reauthAt',?) WHERE hash=? AND expires_at>?")
+      .run(at, sha256(id), at);
+  }
   async signIn(password: string, address: string): Promise<WebSession> {
     // Checked again after the password, which takes a while: owner setup may have finished meanwhile.
     const migrated = () => {
@@ -611,6 +661,20 @@ export class WebStore {
       actor.role = membership.role === 'viewer' ? 'reader' : membership.role === 'operator' ? 'operator' : 'admin';
       actor.membershipRole = membership.role;
       actor.ownerUserId = actor.userId;
+      // Two-step requirement (SEC-06): recomputed on every request from the current policy, never stored.
+      delete actor.mfaPolicy;
+      delete actor.mfaEnrollmentRequired;
+      if (!user.test_account) {
+        const required = mfaRequirement(this.store, this.mfaBaseline, actor.tenantId, actor.userId, membership.role);
+        if (required.workspacePolicy) actor.mfaPolicy = true;
+        if (
+          required.required &&
+          required.by !== null &&
+          required.by <= now &&
+          !this.store.db.prepare('SELECT 1 FROM amcp_mfa WHERE user_id=?').get(actor.userId)
+        )
+          actor.mfaEnrollmentRequired = true;
+      }
     }
     return {id, actor, csrf: row.csrf, expiresAt: row.expires_at};
   }

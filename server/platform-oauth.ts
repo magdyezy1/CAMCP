@@ -8,6 +8,7 @@ import {microsoftGateway, microsoftScope} from '../src/microsoft-native.js';
 import {metaDialogUrl, metaGraphUrl} from '../src/meta-version.js';
 import {optionalLifetimeEnd} from '../src/oauth-token-response.js';
 import {requestedScopes} from '../src/provider-grants.js';
+import {appClient} from '../src/app-credentials.js';
 
 /** A platform's default (read) scopes come from the one grant registry (src/provider-grants.ts, CON-03). */
 const requested = (gateway: string) => requestedScopes(gateway, false);
@@ -327,12 +328,8 @@ export class PlatformOAuth {
     return value;
   }
   config(p: PlatformDefinition) {
-    const sharedGoogle =
-      ['ga4', 'gtm', 'gsc', 'drive', 'sheets', 'dv360'].includes(p.id) &&
-      !this.env['AMCP_' + p.env + '_CLIENT_ID'] &&
-      !this.env['AMCP_' + p.env + '_CLIENT_SECRET'];
-    const clientId = this.env['AMCP_' + (sharedGoogle ? 'GOOGLE' : p.env) + '_CLIENT_ID'],
-      clientSecret = this.env['AMCP_' + (sharedGoogle ? 'GOOGLE' : p.env) + '_CLIENT_SECRET'];
+    // The same lookup resolves a saved login's app secrets at use time (src/app-credentials.ts, SEC-07 S2).
+    const {clientId, clientSecret} = appClient(p.env, this.env);
     // Read scopes, plus each platform's write scopes when reviewed writes are allowed (src/provider-grants.ts). Reddit's
     // adsedit is requested only then (owner decision D19).
     const defaults = requestedScopes(p.gateway, this.allowWrites);

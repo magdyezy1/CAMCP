@@ -137,10 +137,44 @@ renderAccountPage = async function () {
       f.reset();
     });
   } else {
+    // A workspace two-step requirement (SEC-06) says when it applies, and that nothing else opens once it does.
+    const mfaNotice =
+      account.mfaRequired && !account.mfaEnabled
+        ? `<p class="notice" role="alert" id="mfa-required-notice">${esc(account.mfaEnrollmentRequired ? uiText('This workspace requires two-step verification. Set it up now to continue using AMCP.') : uiText('This workspace requires two-step verification from {date}. Set it up before then to keep working without interruption.', {date: date(account.mfaRequiredBy)}))}</p>`
+        : '';
     content.insertAdjacentHTML(
       'beforeend',
-      `<section class="panel account-security-panel"><div class="panel-header"><div><span class="eyebrow">${esc(uiText('ANOTHER LAYER OF SECURITY'))}</span><h2>${esc(uiText('Two-step authentication'))}</h2></div><span class="status ${account.mfaEnabled ? 'online' : ''}">${account.mfaEnabled ? uiText('Enabled') : uiText('Available')}</span></div><p>${esc(uiText('Use an authenticator app and keep recovery codes somewhere safe. Enabling or disabling this protection revokes existing sessions and MCP access.'))}</p><div id="mfa-setup">${account.mfaEnabled ? `<form id="mfa-disable" class="auth-form">${formField(uiText('Authenticator or recovery code'), 'code', 'text', 'maxlength="32" autocomplete="one-time-code"')}<button class="button">${esc(uiText('Disable two-step authentication'))}</button></form>` : `<button id="mfa-start" class="button primary">${esc(uiText('Set up authenticator'))}</button>`}</div></section>`,
+      `<section class="panel account-security-panel"><div class="panel-header"><div><span class="eyebrow">${esc(uiText('ANOTHER LAYER OF SECURITY'))}</span><h2>${esc(uiText('Two-step authentication'))}</h2></div><span class="status ${account.mfaEnabled ? 'online' : ''}">${account.mfaEnabled ? uiText('Enabled') : uiText('Available')}</span></div>${mfaNotice}<p>${esc(uiText('Use an authenticator app and keep recovery codes somewhere safe. Enabling or disabling this protection revokes existing sessions and MCP access.'))}</p><div id="mfa-setup">${account.mfaEnabled ? `<form id="mfa-recovery" class="auth-form">${formField(uiText('Authenticator or recovery code'), 'code', 'text', 'maxlength="32" autocomplete="one-time-code"')}<button class="button">${esc(uiText('Create new recovery codes'))}</button><p class="form-note">${esc(uiText('Your previous recovery codes stop working. Your sessions stay signed in.'))}</p></form><form id="mfa-disable" class="auth-form">${formField(uiText('Authenticator or recovery code'), 'code', 'text', 'maxlength="32" autocomplete="one-time-code"')}<button class="button">${esc(uiText('Disable two-step authentication'))}</button></form>` : `<button id="mfa-start" class="button primary">${esc(uiText('Set up authenticator'))}</button>`}</div></section>`,
     );
+    const showRecoveryCodes = recoveryCodes => {
+      const codes = recoveryCodes.join('\n');
+      $('#mfa-setup').innerHTML =
+        `<div class="notice" role="alert"><strong>${esc(uiText('Save these recovery codes now.'))}</strong> ${esc(uiText('Each code works once, if you lose your authenticator. They will not be shown again.'))}</div><pre class="recovery-key">${recoveryCodes.map(esc).join('\n')}</pre><div class="report-actions"><button type="button" class="button" id="mfa-copy-codes">${esc(uiText('Copy codes'))}</button><button type="button" class="button" id="mfa-download-codes">${esc(uiText('Download as a text file'))}</button><a class="button primary" href="/account">${esc(uiText('I’ve saved my codes'))}</a></div>`;
+      $('#mfa-copy-codes').addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(codes);
+          toast(uiText('Recovery codes copied.'));
+        } catch {
+          toast(uiText('Select the codes and copy them.'));
+        }
+      });
+      $('#mfa-download-codes').addEventListener('click', () => {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(
+          new Blob(['AMCP recovery codes. Each works once.\n\n' + codes + '\n'], {type: 'text/plain'}),
+        );
+        link.download = 'AMCP-recovery-codes.txt';
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      });
+    };
+    authBind('#mfa-recovery', async f => {
+      const result = await api('/api/account/mfa/recovery-codes', {
+        method: 'POST',
+        body: JSON.stringify({code: new FormData(f).get('code')}),
+      });
+      showRecoveryCodes(result.recoveryCodes);
+    });
     authBind('#mfa-start', async () => {
       const r = await api('/api/account/mfa/start', {method: 'POST', body: '{}'});
       $('#mfa-setup').innerHTML =
@@ -159,26 +193,7 @@ renderAccountPage = async function () {
           body: JSON.stringify({ticket: r.ticket, code: new FormData(f).get('code')}),
         });
         session = await api('/api/session');
-        const codes = result.recoveryCodes.join('\n');
-        $('#mfa-setup').innerHTML =
-          `<div class="notice" role="alert"><strong>${esc(uiText('Save these recovery codes now.'))}</strong> ${esc(uiText('Each code works once, if you lose your authenticator. They will not be shown again.'))}</div><pre class="recovery-key">${result.recoveryCodes.map(esc).join('\n')}</pre><div class="report-actions"><button type="button" class="button" id="mfa-copy-codes">${esc(uiText('Copy codes'))}</button><button type="button" class="button" id="mfa-download-codes">${esc(uiText('Download as a text file'))}</button><a class="button primary" href="/account">${esc(uiText('I’ve saved my codes'))}</a></div>`;
-        $('#mfa-copy-codes').addEventListener('click', async () => {
-          try {
-            await navigator.clipboard.writeText(codes);
-            toast(uiText('Recovery codes copied.'));
-          } catch {
-            toast(uiText('Select the codes and copy them.'));
-          }
-        });
-        $('#mfa-download-codes').addEventListener('click', () => {
-          const link = document.createElement('a');
-          link.href = URL.createObjectURL(
-            new Blob(['AMCP recovery codes. Each works once.\n\n' + codes + '\n'], {type: 'text/plain'}),
-          );
-          link.download = 'AMCP-recovery-codes.txt';
-          link.click();
-          setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-        });
+        showRecoveryCodes(result.recoveryCodes);
       });
     });
     authBind('#mfa-disable', async f => {
@@ -204,19 +219,85 @@ renderAccountPage = async function () {
       await render();
     });
   }
-  if (['owner', 'admin'].includes(account.workspaceRole)) {
-    const team = await api('/api/workspaces/members');
+  // Until a required two-step setup is done the server refuses the team APIs (SEC-06), so the page shows setup only.
+  if (['owner', 'admin'].includes(account.workspaceRole) && !account.mfaEnrollmentRequired) {
+    const team = await api('/api/workspaces/members'),
+      security = team.security ?? {require_mfa: 'off', invitation_hours: 72},
+      baseline = team.baseline ?? {require_mfa: 'off'},
+      owner = account.workspaceRole === 'owner',
+      // SEC-06: the AMCP owner resets a member's lost two-step verification; workspace owners set the policy.
+      resetButton = m =>
+        account.instanceOwner && m.mfa && m.id !== account.id
+          ? `<button class="button small" data-member-mfa-reset="${esc(m.id)}" data-member-name="${esc(m.name)}">${esc(uiText('Reset two-step'))}</button>`
+          : '',
+      invitations = (team.invitations ?? [])
+        .map(
+          i =>
+            `<div class="identity-row"><div><strong>${esc(uiRole(i.role))}</strong><small>${esc(uiText('Invited {sent} · expires {expires}', {sent: date(i.created_at), expires: date(i.expires_at)}))}</small></div><button class="button small" data-invite-revoke="${esc(i.id)}">${esc(uiText('Withdraw'))}</button></div>`,
+        )
+        .join(''),
+      baselineNote =
+        baseline.require_mfa === 'off'
+          ? ''
+          : `<p class="form-note">${esc(baseline.require_mfa === 'everyone' ? uiText('This deployment requires two-step verification of every member, {days} days after they join or the requirement starts.', {days: baseline.grace_days}) : uiText('This deployment requires two-step verification of owners and administrators, {days} days after they join or the requirement starts.', {days: baseline.grace_days}))}</p>`,
+      policyForm = owner
+        ? `<form id="workspace-security" class="workspace-form"><h3>${esc(uiText('Workspace security'))}</h3><label>${esc(uiText('Require two-step verification'))}<select name="require_mfa"><option value="off" ${security.require_mfa === 'off' ? 'selected' : ''}>${esc(uiText('Not required by this workspace'))}</option><option value="admins" ${security.require_mfa === 'admins' ? 'selected' : ''}>${esc(uiText('Owners and administrators'))}</option><option value="everyone" ${security.require_mfa === 'everyone' ? 'selected' : ''}>${esc(uiText('Everyone'))}</option></select></label><label>${esc(uiText('Grace period before it applies (days)'))}<input name="grace_days" type="number" min="0" max="30" value="7" required></label><label>${esc(uiText('Invitation lifetime (hours)'))}<input name="invitation_hours" type="number" min="1" max="168" value="${esc(security.invitation_hours)}" required></label><button class="button">${esc(uiText('Save security settings'))}</button></form>${security.require_mfa !== 'off' && security.grace_until ? `<p class="form-note">${esc(uiText('Members it covers can use AMCP only after setting up two-step verification from {date}.', {date: date(security.grace_until)}))}</p>` : ''}${baselineNote}`
+        : baselineNote;
     content.insertAdjacentHTML(
       'beforeend',
-      `<section class="panel"><span class="eyebrow">${esc(uiText('PEOPLE & ACCESS'))}</span><h2>${esc(uiText('Workspace members'))}</h2><div class="team-list">${team.members.map(m => `<div class="identity-row"><div><strong>${esc(m.name)}</strong><small>${esc(m.email ?? uiText('Social account'))}</small></div>${account.workspaceRole === 'owner' && m.role !== 'owner' ? `<select aria-label="${esc(uiText('Role for {name}', {name: m.name}))}" data-member-role="${esc(m.id)}"><option value="viewer" ${m.role === 'viewer' ? 'selected' : ''}>${esc(uiText('Viewer'))}</option><option value="operator" ${m.role === 'operator' ? 'selected' : ''}>${esc(uiText('Operator'))}</option><option value="admin" ${m.role === 'admin' ? 'selected' : ''}>${esc(uiText('Admin'))}</option></select><button class="button small" data-member-save="${esc(m.id)}">${esc(uiText('Save role'))}</button><button class="button small danger" data-member-remove="${esc(m.id)}" data-member-name="${esc(m.name)}">${esc(uiText('Remove'))}</button>` : `<span class="status">${esc(uiRole(m.role))}</span>`}</div>`).join('')}</div><form id="invite-member" class="workspace-form">${formField(uiText('Email address'), 'email', 'email', 'maxlength="254"')}<label>${esc(uiText('Role'))}<select name="role"><option value="viewer">${esc(uiText('Viewer · reports and reads'))}</option><option value="operator">${esc(uiText('Operator · reviewed campaign changes'))}</option>${account.workspaceRole === 'owner' ? `<option value="admin">${esc(uiText('Admin · connections and invitations'))}</option>` : ''}</select></label><button class="button primary" ${options.emailEnabled ? '' : 'disabled'}>${esc(uiText('Send invitation'))}</button></form><p class="form-note">${esc(uiText('Invitations expire in 30 minutes. Send another invitation if a link expires.'))}</p></section>`,
+      `<section class="panel"><span class="eyebrow">${esc(uiText('PEOPLE & ACCESS'))}</span><h2>${esc(uiText('Workspace members'))}</h2><div class="team-list">${team.members.map(m => `<div class="identity-row"><div><strong>${esc(m.name)}</strong><small>${esc(m.email ?? uiText('Social account'))}${m.mfa ? ' · ' + esc(uiText('Two-step on')) : ''}</small></div>${owner && m.role !== 'owner' ? `<select aria-label="${esc(uiText('Role for {name}', {name: m.name}))}" data-member-role="${esc(m.id)}"><option value="viewer" ${m.role === 'viewer' ? 'selected' : ''}>${esc(uiText('Viewer'))}</option><option value="operator" ${m.role === 'operator' ? 'selected' : ''}>${esc(uiText('Operator'))}</option><option value="admin" ${m.role === 'admin' ? 'selected' : ''}>${esc(uiText('Admin'))}</option></select><button class="button small" data-member-save="${esc(m.id)}">${esc(uiText('Save role'))}</button>${resetButton(m)}<button class="button small danger" data-member-remove="${esc(m.id)}" data-member-name="${esc(m.name)}">${esc(uiText('Remove'))}</button>` : `<span class="status">${esc(uiRole(m.role))}</span>${resetButton(m)}`}</div>`).join('')}</div>${invitations ? `<h3>${esc(uiText('Pending invitations'))}</h3><div class="team-list" id="pending-invitations">${invitations}</div>` : ''}<form id="invite-member" class="workspace-form">${formField(uiText('Email address'), 'email', 'email', 'maxlength="254"')}<label>${esc(uiText('Role'))}<select name="role"><option value="viewer">${esc(uiText('Viewer · reports and reads'))}</option><option value="operator">${esc(uiText('Operator · reviewed campaign changes'))}</option>${owner ? `<option value="admin">${esc(uiText('Admin · connections and invitations'))}</option>` : ''}</select></label><button class="button primary" ${options.emailEnabled ? '' : 'disabled'}>${esc(uiText('Send invitation'))}</button></form><p class="form-note">${esc(uiText('Invitations expire after {hours} hours. Withdraw one to cancel its link; send a new invitation if a link expires.', {hours: security.invitation_hours}))}</p>${policyForm}</section>`,
     );
     authBind('#invite-member', async f => {
       const r = await api('/api/workspaces/invite', {
         method: 'POST',
         body: JSON.stringify(Object.fromEntries(new FormData(f))),
       });
-      toast(uiText(r.message));
+      toast(
+        r.expires_at
+          ? uiText('A private invitation link is on its way. It expires {date}.', {date: date(r.expires_at)})
+          : uiText(r.message),
+      );
       f.reset();
+      await renderAccountPage();
+    });
+    authBind('[data-invite-revoke]', async b => {
+      await api('/api/workspaces/invitations/' + encodeURIComponent(b.dataset.inviteRevoke) + '/revoke', {
+        method: 'POST',
+        body: '{}',
+      });
+      toast(uiText('Invitation withdrawn. Its link no longer works.'));
+      await renderAccountPage();
+    });
+    authBind('#workspace-security', async f => {
+      const values = Object.fromEntries(new FormData(f));
+      await api('/api/workspaces/security-policy', {
+        method: 'POST',
+        body: JSON.stringify({
+          require_mfa: values.require_mfa,
+          grace_days: Number(values.grace_days),
+          invitation_hours: Number(values.invitation_hours),
+        }),
+      });
+      toast(uiText('Security settings saved.'));
+      await renderAccountPage();
+    });
+    authBind('[data-member-mfa-reset]', async b => {
+      if (
+        !(await confirmAction({
+          title: uiText('Reset two-step verification for {name}?', {name: b.dataset.memberName}),
+          consequence: uiText(
+            'Use this only when they lost their authenticator and recovery codes. Their sessions, connector tokens and AI-client connections end, they are emailed, and they set up two-step verification again at their next sign-in.',
+          ),
+          confirmLabel: uiText('Reset two-step'),
+        }))
+      )
+        return;
+      await api('/api/owner/accounts/mfa-reset', {
+        method: 'POST',
+        body: JSON.stringify({user_id: b.dataset.memberMfaReset}),
+      });
+      toast(uiText('Two-step verification was reset.'));
+      await renderAccountPage();
     });
     authBind('[data-member-save]', async b => {
       const role = document.querySelector('[data-member-role="' + CSS.escape(b.dataset.memberSave) + '"]').value;
