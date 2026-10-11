@@ -143,7 +143,7 @@ test('SEC-07 S2: new logins are stored without app secrets, and AMCP_APP_SECRETS
   }
 });
 
-test('SEC-07 S2: each platform’s deployment secrets resolve by its own client: X consumer secret, Microsoft developer token, Apple signing key, Google login customer', () => {
+test('SEC-07 S2: each platform’s deployment secrets resolve by its own client: X consumer secret, Microsoft developer token, Apple signing key; a Google login customer stays the login’s own', () => {
   const env: NodeJS.ProcessEnv = {
     AMCP_X_CLIENT_ID: 'x-key',
     AMCP_X_CLIENT_SECRET: 'x-secret',
@@ -176,18 +176,24 @@ test('SEC-07 S2: each platform’s deployment secrets resolve by its own client:
   };
   assert.equal(withAppSecrets('apple_ads_native_action', apple, env).applePrivateKey, 'pem-2');
   assert.deepEqual(storableCredentials('apple_ads_native_action', apple, env), {clientId: 'SEARCHADS.synthetic'});
-  // Google's developer token is no longer sent, so a copy is dropped; the login customer resolves from the environment.
+  // Google's developer token is no longer sent, so a copy is dropped. The login customer is per-login routing, not an
+  // app secret: the deployment-wide value is never injected (CON-05) and a login's own value is never stripped.
   const google = {
     clientId: 'g.apps.googleusercontent.com',
     clientSecret: 'g-old',
     developerToken: 'legacy',
     refreshToken: 'r',
   };
-  assert.equal(withAppSecrets('google_ads_native_action', google, env).loginCustomerId, '1234567890');
+  assert.equal(withAppSecrets('google_ads_native_action', google, env).loginCustomerId, undefined);
+  assert.equal(withAppSecrets('google_ads_native_action', google, env).clientSecret, 'g-secret');
   assert.deepEqual(storableCredentials('google_ads_native_action', google, env), {
     clientId: 'g.apps.googleusercontent.com',
     refreshToken: 'r',
   });
+  const routed = {...google, loginCustomerId: '5556667777'};
+  assert.equal(withAppSecrets('google_ads_native_action', routed, env).loginCustomerId, '5556667777');
+  assert.equal(storableCredentials('google_ads_native_action', routed, env).loginCustomerId, '5556667777');
+  assert.equal(deploymentAppSecrets('google_ads_native_action', env)?.secrets.loginCustomerId, undefined);
   // Google surfaces without their own client share the Google one.
   assert.equal(deploymentAppSecrets('ga4_native_action', env)?.clientId, 'g.apps.googleusercontent.com');
   // A gateway the deployment does not configure (WooCommerce keys are the store's own) is untouched.
@@ -197,7 +203,71 @@ test('SEC-07 S2: each platform’s deployment secrets resolve by its own client:
   assert.equal(storableCredentials('x_ads_native_action', x, undefined), x);
 });
 
+test('SEC-07 S2: a provisioned Google Ads login keeps its own login customer after saving and after a refresh (regression: AMCP_GOOGLE_LOGIN_CUSTOMER_ID replaced it)', async () => {
+  const store = new Store(':memory:', key),
+    provisioned: Connection = {
+      id: 'provisioned-google',
+      tenantId: owner.tenantId,
+      gateway: 'google_ads_native_action',
+      accounts: ['1112223333'],
+      enabled: true,
+      label: 'Synthetic Google Ads login',
+      scopes: [],
+    };
+  try {
+    store.appEnvironment = {
+      AMCP_GOOGLE_CLIENT_ID: 'client-g',
+      AMCP_GOOGLE_CLIENT_SECRET: 'secret-g',
+      AMCP_GOOGLE_LOGIN_CUSTOMER_ID: '9999999999',
+    };
+    store.putConnection(
+      owner,
+      provisioned,
+      expired({clientId: 'client-g', clientSecret: 'secret-g', loginCustomerId: '1234567890'}),
+    );
+    assert.equal(raw(store, provisioned).loginCustomerId, '1234567890', 'stored as provisioned');
+    assert.equal(raw(store, provisioned).clientSecret, undefined, 'the app secret is still left out');
+    assert.equal(
+      store.credentials(owner.tenantId, provisioned.id).loginCustomerId,
+      '1234567890',
+      'used as provisioned',
+    );
+    const endpoint = tokenEndpoint();
+    await new CredentialProvider(store, endpoint.fetcher).get(provisioned);
+    assert.deepEqual(endpoint.secrets, ['secret-g'], 'renewed with the environment secret');
+    assert.equal(raw(store, provisioned).loginCustomerId, '1234567890', 'kept after a refresh');
+    assert.equal(store.credentials(owner.tenantId, provisioned.id).loginCustomerId, '1234567890');
+    // A login without its own login customer (a website login routes per account, CON-05) gets none from the
+    // environment.
+    const website = {...provisioned, id: 'website-google'};
+    store.putConnection(owner, website, expired({clientId: 'client-g'}));
+    assert.equal(store.credentials(owner.tenantId, website.id).loginCustomerId, undefined);
+  } finally {
+    store.close();
+  }
+});
+
 test('SEC-07 S2: every website platform’s environment stem resolves the same client the connect flow uses', () => {
   for (const p of platforms) assert.equal(appEnvironmentStems[p.gateway], p.env, p.id);
   assert.equal(Object.keys(appEnvironmentStems).length, platforms.length);
+});
+
+test('CON-06 with SEC-07: Business Profile uses the shared Google client only once its API approval is declared, at connect and at use time', () => {
+  const shared: NodeJS.ProcessEnv = {AMCP_GOOGLE_CLIENT_ID: 'g-client', AMCP_GOOGLE_CLIENT_SECRET: 'g-secret'};
+  assert.equal(deploymentAppSecrets('google_business_native_action', shared), undefined, 'not approved: no client');
+  assert.deepEqual(deploymentAppSecrets('google_business_native_action', {...shared, AMCP_GBP_API_APPROVED: 'true'}), {
+    clientId: 'g-client',
+    secrets: {clientSecret: 'g-secret'},
+  });
+  // A dedicated client applies with or without the declaration.
+  assert.equal(
+    deploymentAppSecrets('google_business_native_action', {
+      ...shared,
+      AMCP_GBP_CLIENT_ID: 'gbp-client',
+      AMCP_GBP_CLIENT_SECRET: 'gbp-secret',
+    })?.clientId,
+    'gbp-client',
+  );
+  // The other Google surfaces keep sharing without any declaration.
+  assert.equal(deploymentAppSecrets('ga4_native_action', shared)?.clientId, 'g-client');
 });

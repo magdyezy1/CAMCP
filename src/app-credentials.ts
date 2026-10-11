@@ -11,6 +11,10 @@ import type {Credentials} from './types.js';
  *
  * `AMCP_APP_SECRETS=copy` is the rollback lever: logins written from then on carry the copies again (a release from
  * before this change needs them). The default, `reference`, leaves them out.
+ *
+ * Google Ads' login customer is not one of these secrets: it is the manager route of one login (an operator provisions
+ * it per login; a website login records a route per account, CON-05), so it is never stripped from, or injected into, a
+ * login from AMCP_GOOGLE_LOGIN_CUSTOMER_ID.
  */
 
 /** The environment-variable stem of each website platform's OAuth app (server/platform-oauth.ts `env`; a test keeps
@@ -49,7 +53,6 @@ export const appSecretFields = [
   'clientSecret',
   'consumerSecret',
   'developerToken',
-  'loginCustomerId',
   'appleTeamId',
   'appleKeyId',
   'applePrivateKey',
@@ -83,7 +86,6 @@ export function deploymentAppSecrets(
       if (value) secrets[field] = value;
     };
   set(gateway === 'x_ads_native_action' ? 'consumerSecret' : 'clientSecret', clientSecret);
-  if (gateway === 'google_ads_native_action') set('loginCustomerId', env.AMCP_GOOGLE_LOGIN_CUSTOMER_ID);
   if (gateway === 'microsoft_ads_native_action') set('developerToken', env.AMCP_MICROSOFT_DEVELOPER_TOKEN);
   if (gateway === 'apple_ads_native_action') {
     set('appleTeamId', env.AMCP_APPLE_TEAM_ID);

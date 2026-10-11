@@ -223,7 +223,9 @@ the copy is dropped at the login's next token renewal, reauthorization or `admin
 is a new OAuth app: logins of the earlier app keep renewing with the copy of its secret they still hold and show
 `client_changed` until reauthorized; a login with no copy left asks for reauthorization without contacting the
 provider. `AMCP_APP_SECRETS=copy` is the rollback lever: logins written afterwards carry the copies again, which a
-release from before this change needs; set it and let logins renew before rolling back.
+release from before this change needs; set it and let logins renew before rolling back. A Google Ads login customer is
+not an app secret: each login keeps its own (provisioned per login, or recorded per account by a website login's sync,
+CON-05), and `AMCP_GOOGLE_LOGIN_CUSTOMER_ID` is never injected into, or stripped from, a saved login.
 
 **Master key (`MIRROR_MASTER_KEY`).** It seals every stored secret (logins, two-step secrets, AI-client secrets, staged
 and retained media, report files, job authority, e-mail links) and, through a derived key, the backups. To rotate it:
