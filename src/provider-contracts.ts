@@ -217,7 +217,7 @@ export const providerContracts: JsonObject[] = [
         ga4: 4,
         gtm: 4,
         gsc: 4,
-        google_business: 11,
+        google_business: 12,
         apple: 3,
       } as Record<string, number>
     )[String(id)] ?? 1,
@@ -242,7 +242,8 @@ export const providerContracts: JsonObject[] = [
                   : '2026-09-12',
   documentation: docs,
   guide: guide ? 'amcp://guides/' + guide : null,
-  website_connection: !!guide && !['criteo', 'adjust', 'google_business'].includes(String(id)),
+  // Business Profile connects on the website since CON-06 (once the owner declares the project's API approval).
+  website_connection: !!guide && !['criteo', 'adjust'].includes(String(id)),
   // Every level is unsupported, or built and tested locally but not proven against a live account (F-87):
   // `…_unverified`. A workspace's own verified writes are its live evidence (capabilities.ts `live_verified`).
   discovery: ['criteo', 'adjust', 'google_business'].includes(String(id))
@@ -535,10 +536,10 @@ export const providerContracts: JsonObject[] = [
   ...(id === 'google_business'
     ? {
         connection_sync:
-          'Administrator-only MCP sync_assets reads complete bounded native account/location groups on a provisioned business.manage identity. Shared locations retain native parent memberships; exact numeric account and locations/{id} selections and write grants remain unchanged. Preview by default, current authority and login checked on every attempt; failed sync retains stale metadata. Website OAuth/discovery remains unavailable.',
+          'Administrator-only MCP sync_assets reads complete bounded native account/location groups on an existing business.manage login (website Connections or operator-provisioned). Shared locations retain native parent memberships; exact numeric account and locations/{id} selections and write grants remain unchanged. Preview by default, current authority and login checked on every attempt; failed sync retains stale metadata. Website Connections runs the same collector.',
         connection_sync_tests: ['tests/google-business-sync.test.ts'],
         place_action_discovery:
-          'Native global/region type metadata or exact location eligibility, bounded complete link lists and exact link reads. Location grants and current business.manage scope remain required; a partial collection carries scoped continuation. Website account discovery remains unavailable.',
+          'Native global/region type metadata or exact location eligibility, bounded complete link lists and exact link reads. Location grants and current business.manage scope remain required; a partial collection carries scoped continuation.',
         place_action_discovery_tests: ['tests/google-place-action-discovery.test.ts'],
       }
     : {}),
@@ -546,7 +547,7 @@ export const providerContracts: JsonObject[] = [
     ? {
         write_guide: 'amcp://guides/dv360-and-measurement',
         place_actions:
-          'Requires an already provisioned business.manage connection and explicit locations/{id} read/write grants. These public links have no paused state; owner activation and deletion controls apply. Website OAuth/discovery remains unavailable.',
+          'Requires a business.manage connection (website Connections or operator-provisioned) and explicit locations/{id} read/write grants. These public links have no paused state; owner activation and deletion controls apply.',
         qanda:
           'Local retirement-status diagnostic only. The provider discontinued Q&A on 2025-11-03 with no replacement API.',
       }

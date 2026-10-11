@@ -5,6 +5,7 @@ import {Store} from '../src/store.js';
 import {NativeTransport} from '../src/transport.js';
 import {MirrorService} from '../src/service.js';
 import {providerContracts} from '../src/provider-contracts.js';
+import {gatewayOffered} from '../src/provider-offering.js';
 import {providerContractView, providerContractReference, ContractMemory} from '../src/contract-evidence.js';
 import type {Actor, JsonObject} from '../src/types.js';
 
@@ -130,11 +131,17 @@ test('every gateway a review can name has a reference that leads to its whole co
       assert.ok(bytes(reference) < 700 && bytes(reference) < bytes(whole), gateway + ': ' + bytes(reference));
       // Drive and Sheets back AMCP's own features; they are no MCP gateway, so no review names them.
       if (!registry.tools.has(gateway)) continue;
+      // Amazon Ads is not offered (CON-06): no review can name it, and its help is refused before anything is read.
+      if (!gatewayOffered(gateway)) {
+        const refused = await x.service.call(reference.full_contract.tool, reference.full_contract.arguments, actor);
+        assert.equal(refused.error?.code, 'GATEWAY_NOT_OFFERED', gateway);
+        continue;
+      }
       const help = await x.service.call(reference.full_contract.tool, reference.full_contract.arguments, actor);
       assert.deepEqual(resultAt(help, reference.full_contract.result_field), whole, gateway);
       followed++;
     }
-    assert.equal(followed, providerContracts.length - 2);
+    assert.equal(followed, providerContracts.length - 3);
     assert.equal(providerContractReference('amcp_native_action'), undefined);
   } finally {
     x.store.close();

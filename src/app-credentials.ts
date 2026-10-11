@@ -31,9 +31,19 @@ export const appEnvironmentStems: Readonly<Record<string, string>> = Object.free
   apple_ads_native_action: 'APPLE',
   dv360_native_action: 'DV360',
   reddit_native_action: 'REDDIT',
+  google_business_native_action: 'GBP',
 });
-/** Google surfaces that share AMCP_GOOGLE_CLIENT_ID/SECRET while both of their own variables are unset. */
-const sharedGoogleStems = ['GA4', 'GTM', 'GSC', 'DRIVE', 'SHEETS', 'DV360'];
+/**
+ * Whether the owner declared that Google approved this deployment's Cloud project for the Business Profile APIs
+ * (CON-06). Without it, and without a dedicated AMCP_GBP_CLIENT_ID/SECRET, Business Profile is not offered for connection.
+ */
+export const businessProfileApproved = (env: NodeJS.ProcessEnv) => env.AMCP_GBP_API_APPROVED === 'true';
+/**
+ * Google surfaces that share AMCP_GOOGLE_CLIENT_ID/SECRET while both of their own variables are unset. Business Profile
+ * (GBP) shares it only once its API approval is declared (CON-06), so the connect flow and a saved login's use-time
+ * secrets resolve the same client.
+ */
+const sharedGoogleStems = ['GA4', 'GTM', 'GSC', 'DRIVE', 'SHEETS', 'DV360', 'GBP'];
 /** Fields a login may hold that belong to the deployment, not to the person who authorized it. */
 export const appSecretFields = [
   'clientSecret',
@@ -48,7 +58,10 @@ export const appSecretFields = [
 /** A platform's OAuth client in the environment, by its stem (`AMCP_<STEM>_CLIENT_ID` and `_CLIENT_SECRET`). */
 export function appClient(stem: string, env: NodeJS.ProcessEnv): {clientId?: string; clientSecret?: string} {
   const shared =
-    sharedGoogleStems.includes(stem) && !env['AMCP_' + stem + '_CLIENT_ID'] && !env['AMCP_' + stem + '_CLIENT_SECRET'];
+    sharedGoogleStems.includes(stem) &&
+    (stem !== 'GBP' || businessProfileApproved(env)) &&
+    !env['AMCP_' + stem + '_CLIENT_ID'] &&
+    !env['AMCP_' + stem + '_CLIENT_SECRET'];
   const name = shared ? 'GOOGLE' : stem;
   return {
     clientId: env['AMCP_' + name + '_CLIENT_ID'] || undefined,

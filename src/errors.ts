@@ -819,6 +819,33 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
         'No enabled connection covers this gateway and account. Connect the provider and select the account on the website’s Connections page, or pass the connection_id of a connection that includes it.',
       mutation_retry_safe: false,
     };
+  if (e.code === 'BUSINESS_PROFILE_API_NOT_APPROVED')
+    return {
+      category: 'deployment',
+      owner: 'deployment_operator',
+      // CON-06: Google answers an unapproved Cloud project with a quota of 0 requests per minute.
+      action:
+        'Google has not approved this deployment’s Google Cloud project for the Business Profile APIs, or the APIs are not enabled in it. The AMCP owner requests Business Profile API access for the project that owns AMCP’s Google OAuth client and enables the Business Profile APIs; reconnecting or retrying does not help. Nothing was changed.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'GATEWAY_NOT_OFFERED')
+    return {
+      category: 'deployment',
+      owner: 'deployment_operator',
+      // CON-06 (owner decision, option b): Amazon Ads has no website login or profile discovery yet.
+      action:
+        'This deployment does not offer this provider: it has no website connection or account discovery yet. Use a tool that tools/list shows. Nothing was sent.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'GOOGLE_LOGIN_CUSTOMER_UNMAPPED')
+    return {
+      category: 'grant',
+      owner: 'workspace_or_account_admin',
+      // CON-05: no deployment-wide manager is guessed for an account whose route was never recorded.
+      action:
+        'Sync this Google Ads login on the website’s Connections page so it records the manager route of each selected account, then retry. Nothing was sent to Google.',
+      mutation_retry_safe: true,
+    };
   if (e.code === 'AMBIGUOUS_CONNECTION')
     return {
       category: 'request',

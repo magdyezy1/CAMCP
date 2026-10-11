@@ -2153,12 +2153,22 @@ export class Store {
         .exec(gateway)?.[1]
         ?.replace(/^google_ads$/, 'google')
         .replace(/^x_ads$/, 'x');
+      // Each candidate also says whether it selects the account and may change it (CON-05), so a caller can choose
+      // without another read. A login whose default flag is set but which is disabled is never a candidate.
+      const writes = (c: Connection) =>
+        accountId
+          ? (c.writeAccounts ?? []).some(a => normalize(a) === normalize(accountId))
+          : (c.writeAccounts ?? []).length > 0;
       throw new MirrorError('AMBIGUOUS_CONNECTION', 'Specify a connection_id to select one connection.', {
         gateway,
         account_id: accountId ?? null,
-        candidates: available
-          .slice(0, 20)
-          .map(c => ({connection_id: c.id, label: c.label, is_default: c.isDefault === true})),
+        candidates: available.slice(0, 20).map(c => ({
+          connection_id: c.id,
+          label: c.label,
+          is_default: c.isDefault === true,
+          account_selected: accountId ? true : c.accounts.length > 0,
+          write_enabled: writes(c),
+        })),
         ...(available.length > 20 ? {candidates_truncated: true} : {}),
         next_call: {
           tool: 'amcp_platform_workspace',

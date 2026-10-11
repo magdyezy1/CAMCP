@@ -8,7 +8,7 @@ export function extendGoogleBusinessTool(original: ToolDefinition): ToolDefiniti
   const connection = tool.operations?.find(o => o.operation === 'gmb_connection_ops');
   if (connection) {
     connection.description =
-      'Local Business Profile connection status, administrator disconnect and native account/location metadata sync on a provisioned identity. Captured start/exchange/refresh actions and website OAuth remain unimplemented.';
+      'Local Business Profile connection status, administrator disconnect and native account/location metadata sync on an existing login. Connect and renew a login in the website’s Connections (CON-06); the captured start/exchange/refresh actions remain unimplemented.';
     connection.argumentsSchema.properties.read_mask.description =
       'sync_assets only: comma-separated name,title,storeCode fields. Identity and title are always included; other native fields require a separate scoped read.';
     connection.argumentsSchema.properties.dry_run.description =
@@ -17,7 +17,7 @@ export function extendGoogleBusinessTool(original: ToolDefinition): ToolDefiniti
       actions: ['sync_assets'],
       guide: 'amcp://guides/dv360-and-measurement',
       authority:
-        'Workspace administrator and recorded business.manage scope on an existing provisioned identity. Explicit connection UUID or sole/unique enabled default login; discovery does not grant account access.',
+        'Workspace administrator and recorded business.manage scope on an existing login (website Connections or operator-provisioned). Explicit connection UUID or sole/unique enabled default login; discovery does not grant account access.',
       dry_run:
         'Defaults to true: identity and bounds only, with no credential access, network requests or persistence. false replaces completely validated metadata groups; existing read/write selections are preserved.',
       selection:
@@ -27,7 +27,7 @@ export function extendGoogleBusinessTool(original: ToolDefinition): ToolDefiniti
       bounds:
         '1–500 accounts, default 50; 1–500 locations per account, default 100. include_locations:false allows a zero location limit and preserves old location timestamps. 50 pages per collection, 250 requests, 8 MiB, 10000 assets and 60 seconds. A limit or invalid page fails without saving partial collections.',
       qualification:
-        'Synthetic execution and concurrency fixtures. Website OAuth/discovery and MCP start/exchange/refresh are separate unimplemented workflows; live access and listing verification are unverified.',
+        'Synthetic execution and concurrency fixtures. Website OAuth and discovery use the same collector; MCP start/exchange/refresh stay unimplemented. Live access, Google project approval and listing verification are unverified.',
     };
   }
   if (op) {

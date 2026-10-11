@@ -7,8 +7,8 @@ import {requestAppleAccessToken} from '../src/apple-auth.js';
 import {microsoftGateway, microsoftScope} from '../src/microsoft-native.js';
 import {metaDialogUrl, metaGraphUrl} from '../src/meta-version.js';
 import {optionalLifetimeEnd} from '../src/oauth-token-response.js';
-import {requestedScopes} from '../src/provider-grants.js';
-import {appClient} from '../src/app-credentials.js';
+import {providerGrant, requestedScopes} from '../src/provider-grants.js';
+import {appClient, businessProfileApproved} from '../src/app-credentials.js';
 
 /** A platform's default (read) scopes come from the one grant registry (src/provider-grants.ts, CON-03). */
 const requested = (gateway: string) => requestedScopes(gateway, false);
@@ -240,6 +240,27 @@ export const platforms: PlatformDefinition[] = [
     selectionKind: 'advertisers',
     reviewedWrites: true,
   },
+  // Business Profile (CON-06) reuses the shared Google OAuth client like the other Google surfaces, but Google approves
+  // each Cloud project for the Business Profile APIs separately: it stays "setup required" until the owner declares
+  // that approval (AMCP_GBP_API_APPROVED=true) or sets its own client. Locations are the primary selection; business
+  // accounts can be selected for account-level reviewed changes (notifications, access).
+  {
+    id: 'google_business',
+    name: 'Google Business Profile',
+    kind: 'Local business listings',
+    description: 'Connect Business Profile accounts and locations: hours, contact details, links and attributes.',
+    logo: '⌂',
+    gateway: 'google_business_native_action',
+    env: 'GBP',
+    authorize: 'https://accounts.google.com/o/oauth2/v2/auth',
+    token: 'https://oauth2.googleapis.com/token',
+    scopes: requested('google_business_native_action'),
+    pkce: true,
+    assetKinds: ['locations', 'business_accounts'],
+    selectionKind: 'locations',
+    alsoSelectable: ['business_accounts'],
+    reviewedWrites: true,
+  },
   // Reddit exchanges and refreshes with HTTP Basic authentication and requires a descriptive
   // User-Agent on every token call; both are applied in exchange() and in src/auth.ts.
   {
@@ -257,6 +278,9 @@ export const platforms: PlatformDefinition[] = [
     reviewedWrites: true,
   },
 ];
+// Whether Business Profile may use the shared Google client (CON-06); src/app-credentials.ts owns the rule, so the
+// connect flow and a saved login's use-time secrets resolve the same client.
+export {businessProfileApproved};
 export function platform(id: string) {
   const p = platforms.find(p => p.id === id);
   if (!p) throw new MirrorError('PLATFORM_NOT_FOUND', 'Unknown advertising platform.', {}, 404);
@@ -308,6 +332,45 @@ export function signOAuth1(
       .join(', ')
   );
 }
+/** A display name the provider stated, bounded and without control characters, or undefined. */
+export function providerDisplayName(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const name = value.replace(/\s+/g, ' ').trim();
+  return name && name.length <= 80 && !/[\u0000-\u001f\u007f]/.test(name) ? name : undefined;
+}
+/** A login's default name (CON-05): "<Platform> · <name>" when the provider stated the user, else "<Platform> login". */
+export function loginLabel(p: Pick<PlatformDefinition, 'name'>, name?: string): string {
+  const shown = providerDisplayName(name);
+  return shown ? p.name + ' · ' + shown : p.name + ' login';
+}
+/**
+ * The Google user an ID token names (CON-05): its subject and display name. The token came straight from Google's token
+ * endpoint over TLS in this exchange, so its issuer and audience are checked and its signature need not be (OpenID
+ * Connect Core 3.1.3.7). Anything unexpected yields no identity; it never fails the connection.
+ */
+export function googleIdentity(
+  token: unknown,
+  clientId: string | undefined,
+): {subject: string; name?: string} | undefined {
+  if (typeof token !== 'string' || token.length > 16384 || !clientId) return undefined;
+  try {
+    const part = token.split('.')[1];
+    if (!part) return undefined;
+    const claims = JSON.parse(Buffer.from(part, 'base64url').toString('utf8')) as JsonObject;
+    if (
+      !['https://accounts.google.com', 'accounts.google.com'].includes(claims.iss) ||
+      (Array.isArray(claims.aud) ? !claims.aud.includes(clientId) : claims.aud !== clientId) ||
+      typeof claims.sub !== 'string' ||
+      !/^[0-9A-Za-z_-]{1,255}$/.test(claims.sub) ||
+      (claims.exp !== undefined && (!Number.isFinite(claims.exp) || claims.exp * 1000 < Date.now() - 300000))
+    )
+      return undefined;
+    const name = providerDisplayName(claims.name);
+    return {subject: claims.sub, ...(name ? {name} : {})};
+  } catch {
+    return undefined;
+  }
+}
 export class PlatformOAuth {
   constructor(
     readonly web: WebStore,
@@ -328,7 +391,8 @@ export class PlatformOAuth {
     return value;
   }
   config(p: PlatformDefinition) {
-    // The same lookup resolves a saved login's app secrets at use time (src/app-credentials.ts, SEC-07 S2).
+    // The same lookup resolves a saved login's app secrets at use time (src/app-credentials.ts, SEC-07 S2). Business
+    // Profile shares the Google client only once the owner declares the project's API approval (CON-06).
     const {clientId, clientSecret} = appClient(p.env, this.env);
     // Read scopes, plus each platform's write scopes when reviewed writes are allowed (src/provider-grants.ts). Reddit's
     // adsedit is requested only then (owner decision D19).
@@ -360,6 +424,8 @@ export class PlatformOAuth {
         authorize: undefined,
         token: undefined,
         configured: c.configured,
+        // Whether one exact live account read can check a selected account (Save and check access, CON-05).
+        accountRead: providerGrant(p.gateway)?.accountReadContract === true,
         callback: p.authType ? null : c.redirectUri,
         scopes: c.scopes,
       };
@@ -532,6 +598,8 @@ export class PlatformOAuth {
     label: string;
     scopes: string[];
     providerId?: string;
+    /** The provider's display name for the user (Google, X), when it states one without another request (CON-05). */
+    displayName?: string;
     loginExpiresAt?: number;
     grants?: JsonObject;
   }> {
@@ -584,6 +652,10 @@ export class PlatformOAuth {
       assertActive();
       if (typeof result.oauth_token !== 'string' || typeof result.oauth_token_secret !== 'string')
         throw new MirrorError('OAUTH_RESPONSE_INVALID', 'X did not return usable user credentials.', {}, 502);
+      const screenName =
+        typeof result.screen_name === 'string' && /^[A-Za-z0-9_]{1,50}$/.test(result.screen_name)
+          ? '@' + result.screen_name
+          : undefined;
       return {
         credentials: {
           consumerKey: c.clientId,
@@ -591,9 +663,11 @@ export class PlatformOAuth {
           accessToken: result.oauth_token,
           tokenSecret: result.oauth_token_secret,
         },
-        label: result.screen_name ? '@' + result.screen_name : 'X login',
+        label: loginLabel(p, screenName),
         scopes: [],
-        providerId: result.user_id,
+        providerId:
+          typeof result.user_id === 'string' && /^[0-9]{1,32}$/.test(result.user_id) ? result.user_id : undefined,
+        ...(screenName ? {displayName: screenName} : {}),
         // OAuth 1.0a states no granted access level; AMCP records the access type it asked for (CON-03).
         grants: {
           source: 'requested_access_type',
@@ -706,12 +780,9 @@ export class PlatformOAuth {
       clientSecret: c.clientSecret,
       redirectUri: stored.redirectUri,
       ...(expires ? {expiresAt: Date.now() + expires * 1000} : {}),
-      ...(id === 'google'
-        ? {
-            developerToken: this.env.AMCP_GOOGLE_DEVELOPER_TOKEN,
-            loginCustomerId: this.env.AMCP_GOOGLE_LOGIN_CUSTOMER_ID,
-          }
-        : {}),
+      // A website login reaches each account through the manager route its discovery recorded (accountLoginCustomers);
+      // the deployment-wide AMCP_GOOGLE_LOGIN_CUSTOMER_ID is no longer copied into every user's login (CON-05).
+      ...(id === 'google' ? {developerToken: this.env.AMCP_GOOGLE_DEVELOPER_TOKEN} : {}),
     };
     if (id === 'microsoft') {
       credentials.developerToken = this.env.AMCP_MICROSOFT_DEVELOPER_TOKEN;
@@ -732,9 +803,13 @@ export class PlatformOAuth {
         : [...p.scopes];
     // LinkedIn states how long its refresh token (the login) lasts; it is recorded for credential health (CON-02).
     const loginExpiresAt = optionalLifetimeEnd(result.refresh_token_expires_in);
+    // Google Ads already asks for openid and profile: its ID token names the Google user, without another request or
+    // scope (CON-05). Other platforms learn the user from discovery (Meta, Microsoft) or the exchange (X).
+    const identity = googleIdentity(result.id_token, c.clientId);
     return {
       credentials,
-      label: p.name + ' login',
+      label: loginLabel(p, identity?.name),
+      ...(identity ? {providerId: identity.subject, ...(identity.name ? {displayName: identity.name} : {})} : {}),
       // Token responses that echo granted scopes are recorded exactly: a string (Google, Microsoft, LinkedIn, Snapchat,
       // Reddit) or TikTok's list, kept verbatim (CON-03). Others fall back to what this authorization requested.
       scopes:

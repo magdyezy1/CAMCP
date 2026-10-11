@@ -269,8 +269,10 @@ test('every listed tool has a title and reviewed annotations in both modes', asy
     const c = await connected(allowWrites);
     try {
       const tools = (await c.client.listTools()).tools;
-      // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09).
-      assert.equal(tools.length, 28);
+      // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09). Amazon Ads is not offered
+      // by default (CON-06); its reviewed annotation stays for a deployment that offers it with AMCP_PROVIDERS=amazon.
+      assert.equal(tools.length, 27);
+      assert.ok(!tools.some(t => t.name === 'amazon_native_action'));
       for (const tool of tools) {
         assert.equal(typeof tool.title, 'string', tool.name);
         assert.ok(tool.title.length > 3 && tool.title.length <= 60, tool.name);

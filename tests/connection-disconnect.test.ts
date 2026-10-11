@@ -11,6 +11,7 @@ import {CredentialProvider} from '../src/auth.js';
 import {connectionDisconnectKind, disconnectLocalConnection} from '../src/connection-disconnect.js';
 import {actionContracts} from '../src/action-contracts.js';
 import {removeTestDirectory} from './temp.js';
+import {recallAccountMetadata, rememberAccountMetadata} from '../src/account-metadata.js';
 import type {Connection, JsonObject} from '../src/types.js';
 
 const cases = [
@@ -389,6 +390,45 @@ test('untrusted labels cannot leak credential-shaped text in previews or durable
       JSON.stringify(f.store.documents(actor.tenantId, 'connection_disconnection')).includes('synthetic-label-secret'),
       false,
     );
+    assert.deepEqual(f.counts(), {egress: 0, credentialReads: 0});
+  } finally {
+    f.restore();
+    f.store.close();
+  }
+});
+
+// CON-05 (8): disconnect left the account names read live, the readiness evidence and the connect progress behind,
+// although its effect text promised to remove saved discovery metadata. They describe only this login.
+test('disconnect purges account metadata, readiness records and connect progress of that login only', async () => {
+  const f = fixture();
+  try {
+    f.provision({id: otherId});
+    rememberAccountMetadata(f.store, actor.tenantId, id, '123', {
+      name: 'Synthetic A',
+      currency: 'USD',
+      timezone: 'UTC',
+    });
+    rememberAccountMetadata(f.store, actor.tenantId, otherId, '123', {name: 'Kept', currency: 'USD', timezone: 'UTC'});
+    f.store.putDocument(actor.tenantId, 'readiness', 'mine', {connection_id: id, account_id: '123'});
+    f.store.putDocument(actor.tenantId, 'readiness', 'other', {connection_id: otherId, account_id: '123'});
+    f.store.putDocument(actor.tenantId, 'oauth_progress', 'attempt-mine', {platform: 'ga4', connectionId: id});
+    f.store.putDocument(actor.tenantId, 'oauth_progress', 'attempt-other', {platform: 'ga4', connectionId: otherId});
+    const out = await f.call({action: 'disconnect', connection_id: id, dry_run: false});
+    assert.equal(out.success, true, JSON.stringify(out.error));
+    assert.equal(out.data.local_changes.account_metadata, 1);
+    assert.equal(out.data.local_changes.readiness_records, 1);
+    assert.equal(out.data.local_changes.connect_progress, 1);
+    assert.equal(recallAccountMetadata(f.store, actor.tenantId, id, '123'), undefined);
+    assert.equal(recallAccountMetadata(f.store, actor.tenantId, otherId, '123')!.name, 'Kept');
+    assert.deepEqual(
+      f.store.documents(actor.tenantId, 'readiness').map(d => d.id),
+      ['other'],
+    );
+    assert.deepEqual(
+      f.store.documents(actor.tenantId, 'oauth_progress').map(d => d.id),
+      ['attempt-other'],
+    );
+    assert.match(out.data.effect, /account names and readiness checks/);
     assert.deepEqual(f.counts(), {egress: 0, credentialReads: 0});
   } finally {
     f.restore();

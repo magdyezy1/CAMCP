@@ -191,13 +191,14 @@ export const providerGrants: readonly ProviderGrant[] = [
   },
   {
     gateway: 'google_business_native_action',
+    platform: 'google_business',
     requestedRead: [businessScope],
     requestedWrite: [],
     read: {all: [businessScope]},
     write: {all: [businessScope]},
     grantSource: 'token_response',
-    // Business Profile resources are locations and accounts with resource-specific reads.
-    accountReadContract: false,
+    // One exact read of the selected location or business account (src/workspace.ts readinessPlan, CON-06).
+    accountReadContract: true,
   },
   {
     gateway: 'criteo_native_action',

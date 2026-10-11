@@ -4,6 +4,7 @@ import {MirrorError} from './errors.js';
 import {noSecrets, fingerprint} from './workspace-core.js';
 import type {Actor, JsonObject} from './types.js';
 import {normalizeAccount} from './scope.js';
+import {accountMetadataView, resolveAccountMetadata} from './account-metadata.js';
 export function recipeContext(store: Store, actor: Actor, recipeId: string, profileId?: string): JsonObject {
   store.assertActorActive(actor);
   const recipe = campaignRecipes.find(r => r.id === recipeId);
@@ -14,6 +15,7 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
         {google: 'google_ads', meta: 'meta', microsoft: 'microsoft_ads', snapchat: 'snapchat'} as Record<string, string>
       )[recipe.platform] + '_native_action';
   const inventory = store.documents(actor.tenantId, 'website_assets'),
+    // The one account-metadata resolver (CON-05): the same name and source as list_accounts and capabilities.
     targets = store
       .listConnections(actor.tenantId)
       .filter(c => c.gateway === gateway && c.enabled)
@@ -30,18 +32,22 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
               ),
           )
           .map(account => {
-            const snapshot = inventory.find(a => a.id === c.id),
-              asset = (snapshot?.groups ?? [])
-                .flatMap((g: JsonObject) => g.assets ?? [])
-                .find((a: JsonObject) => String(a.id).replace(/^act_/, '') === account);
+            const meta = resolveAccountMetadata(store, actor.tenantId, c, account);
             return {
               connection_id: c.id,
               account_id: account,
-              label: c.label + ' · ' + (asset?.name ?? account) + ' · ' + account,
-              currency: asset?.currency ?? null,
-              timezone: asset?.timezone ?? null,
+              name: meta.name,
+              label: c.label + ' · ' + (meta.name ?? account) + ' · ' + account,
+              currency: meta.currency,
+              timezone: meta.timezone,
               write_granted: c.writeAccounts?.includes(account) === true,
-              metadata_source: 'cached discovery; verified again during preflight',
+              metadata: accountMetadataView(meta),
+              metadata_source:
+                meta.source === 'live_account_read'
+                  ? 'live account read; verified again during preflight'
+                  : meta.source === 'cached_discovery'
+                    ? 'cached discovery; verified again during preflight'
+                    : 'not read yet; verified during preflight',
             };
           }),
       );

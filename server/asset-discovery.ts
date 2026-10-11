@@ -9,6 +9,7 @@ import {microsoftCustomerOrigin} from '../src/microsoft-native.js';
 import {googleAccountDiscovery} from './google-account-discovery.js';
 import {assetSyncDiagnostic, assetSyncErrorMessage} from '../src/report-errors.js';
 import {collectMeasurementAssets} from '../src/google-measurement-assets.js';
+import {collectBusinessAssets, type BusinessAsset} from '../src/google-business-assets.js';
 import {metaPrefix} from '../src/meta-version.js';
 import {metaPermissionGrants} from '../src/meta-auth-diagnostic.js';
 import {loginStamp, storedLogin} from '../src/connection-authority.js';
@@ -19,6 +20,8 @@ export interface WorkspaceAsset {
   kind: string;
   name: string;
   parentId?: string;
+  /** Google: the client's depth beneath the login's root manager (1 = direct client); parentId is its direct manager. */
+  level?: number;
   currency?: string;
   timezone?: string;
   status?: string;
@@ -39,6 +42,8 @@ export interface AssetGroup {
   complete: boolean;
   error?: string;
   diagnostics?: JsonObject[];
+  /** Google: false when some sub-manager could not be read, so its clients show the root as their manager. */
+  hierarchyComplete?: boolean;
 }
 /** LinkedIn accounts named by their own read in one sync; the rest (rare) keep their ID as their name. */
 const linkedinNamedAccounts = 200;
@@ -273,6 +278,40 @@ export class AssetDiscovery {
     const pages = (path: string, query: JsonObject, extract: (data: JsonObject) => unknown[], origin?: string) =>
       this.pages(connection, request, path, query, extract, origin);
     const measurementRead = async (plan: CompiledRequest) => (await request(plan)).data;
+    // Business Profile (CON-06): one bounded pass lists the business accounts and, unless only accounts are asked for,
+    // their locations, with the collector the MCP sync_assets workflow uses. Neither listing grants access.
+    if (p.id === 'google_business') {
+      const includeLocations = selected.includes('locations');
+      try {
+        const found = await collectBusinessAssets(measurementRead, {
+            includeLocations,
+            maxAccounts: 100,
+            maxLocationsPerAccount: 500,
+            deadline: performance.now() + 60000,
+          }),
+          asset = (a: BusinessAsset): WorkspaceAsset => ({
+            id: a.id,
+            kind: a.kind,
+            name: a.name,
+            ...(a.parentIds?.length ? {parentId: a.parentIds[0]} : {}),
+            ...(a.role ? {status: a.role} : {}),
+            source: 'vendor',
+          });
+        groups.push({kind: 'business_accounts', assets: found.accounts.map(asset), complete: true});
+        if (includeLocations) groups.push({kind: 'locations', assets: found.locations.map(asset), complete: true});
+      } catch (e) {
+        for (const kind of includeLocations ? ['business_accounts', 'locations'] : ['business_accounts']) {
+          const group = failure(kind, e);
+          // Google's own text names a quota; the owner needs to know the project is not approved (CON-06).
+          if (e instanceof MirrorError && e.code === 'BUSINESS_PROFILE_API_NOT_APPROVED')
+            group.error =
+              'Google has not approved this AMCP project for the Business Profile APIs yet (a quota of 0 requests per minute). The AMCP owner must request access; reconnecting will not help.';
+          groups.push(group);
+        }
+      }
+      check();
+      return {groups};
+    }
     for (const kind of selected) {
       try {
         let assets: WorkspaceAsset[] = [];
@@ -373,6 +412,9 @@ export class AssetDiscovery {
               502,
             );
           identityOf = user.Id;
+          // The authenticated user's own name names the login (CON-05); the website bounds and checks it.
+          const userName = [user.Name?.FirstName, user.Name?.LastName].filter(n => typeof n === 'string').join(' ');
+          if (userName) label = userName;
           const seen = new Set<string>();
           let complete = false;
           for (let page = 0; page < 25; page++) {

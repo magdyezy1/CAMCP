@@ -198,6 +198,24 @@ export function classifyProviderError(input: ProviderErrorInput): ProviderErrorC
             documented: true,
           };
   }
+  // Google answers a Cloud project it has not approved for the Business Profile APIs with a quota of 0 requests per
+  // minute (google.rpc.ErrorInfo metadata quota_limit_value "0"), and one without the APIs enabled with SERVICE_DISABLED
+  // (developers.google.com/my-business/content/prereqs, read 2026-10-08). Retrying or reconnecting cannot help; the
+  // deployment owner must act (CON-06).
+  if (gateway === 'google_business_native_action' && !input.inBody && [403, 429].includes(status))
+    for (const detail of Array.isArray(error.details) ? error.details.slice(0, 10) : []) {
+      const d = object(detail),
+        quota = object(d.metadata).quota_limit_value;
+      if ((status === 429 && quota === '0') || (status === 403 && d.reason === 'SERVICE_DISABLED'))
+        return {
+          ...base,
+          code: 'BUSINESS_PROFILE_API_NOT_APPROVED',
+          layer: 'app_eligibility',
+          retryable: false,
+          providerCode: status === 429 ? 'RESOURCE_EXHAUSTED' : 'SERVICE_DISABLED',
+          documented: true,
+        };
+    }
   if (gateway === 'linkedin_native_action' && !input.inBody && status === 426)
     return {...base, code: 'PROVIDER_VERSION_UNSUPPORTED', layer: 'api_version', retryable: false, documented: true};
   // TikTok reports token and QPS failures inside HTTP 200 bodies. Its official return-code table has not been

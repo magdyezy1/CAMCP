@@ -120,6 +120,8 @@ test('every browser-OAuth platform except Google Ads is covered by in-place reau
     'drive',
     'dv360',
     'ga4',
+    // Business Profile connects on the website since CON-06.
+    'google_business',
     'gsc',
     'gtm',
     'linkedin',

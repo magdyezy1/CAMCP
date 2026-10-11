@@ -45,7 +45,7 @@ function impact(c: Connection): JsonObject {
     selected_account_count: c.accounts.length,
     write_account_count: c.writeAccounts?.length ?? 0,
     effect:
-      'Removes this AMCP connection, its encrypted credentials, saved discovery metadata, resource bindings, its conditional-program observations and the report data read through it (finished report snapshots, captured reports, parsed downloads). Saved report definitions, write reviews, receipts and the audit trail stay. Other connections, provider accounts, advertising entities and provider OAuth grants are unchanged.',
+      'Removes this AMCP connection, its encrypted credentials, saved discovery metadata, account names and readiness checks recorded through it, resource bindings, its conditional-program observations and the report data read through it (finished report snapshots, captured reports, parsed downloads). Saved report definitions, write reviews, receipts and the audit trail stay. Other connections, provider accounts, advertising entities and provider OAuth grants are unchanged.',
     pending_work:
       'Jobs bound to this connection will fail current-access checks. In-flight provider requests may already have completed; retain their reviews, audit history and idempotency claims for reconciliation. This does not cancel a submitted provider mutation.',
     provider_access:
@@ -73,6 +73,14 @@ function purgeReportContent(store: Store, tenant: string, id: string) {
     )
     .run(tenant, id).changes;
   return {report_snapshots: Number(snapshots), captured_reports: Number(captured)};
+}
+/** Deletes this tenant's documents of one kind that name the connection in `field`; returns how many. */
+function purgeConnectionDocuments(store: Store, tenant: string, kind: string, field: string, id: string): number {
+  return Number(
+    store.db
+      .prepare("DELETE FROM documents WHERE tenant_id=? AND kind=? AND json_extract(data,'$.' || ?)=?")
+      .run(tenant, kind, field, id).changes,
+  );
 }
 /** One transaction removes the vault row, related configuration and the report content read through the connection,
  * and records its receipt/audit. Never decrypt credentials or delete mutation/recovery history. */
@@ -110,7 +118,11 @@ export function disconnectLocalConnection(
             "DELETE FROM documents WHERE tenant_id=? AND kind='conditional_program_observation' AND json_extract(data,'$.connection_id')=?",
           )
           .run(actor.tenantId, id).changes,
-      );
+      ),
+      // Account names read live, readiness evidence and the login's connect progress describe only this login (CON-05).
+      metadata = purgeConnectionDocuments(store, actor.tenantId, 'account_metadata', 'connection_id', id),
+      readiness = purgeConnectionDocuments(store, actor.tenantId, 'readiness', 'connection_id', id),
+      progress = purgeConnectionDocuments(store, actor.tenantId, 'oauth_progress', 'connectionId', id);
     store.db.prepare('DELETE FROM connections WHERE tenant_id=? AND id=?').run(actor.tenantId, id);
     const receipt = {
       success: true,
@@ -123,6 +135,9 @@ export function disconnectLocalConnection(
         discovery_documents: Number(documents),
         ...purged,
         ...(observations ? {program_observations: observations} : {}),
+        ...(metadata ? {account_metadata: metadata} : {}),
+        ...(readiness ? {readiness_records: readiness} : {}),
+        ...(progress ? {connect_progress: progress} : {}),
       },
       network_requests: 0,
       provider_changes: 0,

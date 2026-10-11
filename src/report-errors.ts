@@ -159,6 +159,9 @@ export function reportSourceError(error: unknown, source: JsonObject): JsonObjec
   )
     diagnostic.next_action =
       'Ask the AMCP owner to check that Google Ads API is enabled and production access is granted to the Google Cloud project that owns the OAuth client. Legacy developer token errors may describe the old approval model; access now belongs to the Cloud project. Reconnecting the user alone will not fix this restriction.';
+  else if (e.code === 'BUSINESS_PROFILE_API_NOT_APPROVED')
+    diagnostic.next_action =
+      'Google has not approved the Google Cloud project that owns AMCP’s Google OAuth client for the Business Profile APIs (a quota of 0 requests per minute), or the APIs are not enabled in it. Ask the AMCP owner to request Business Profile API access for that project. Reconnecting the login will not fix this.';
   else if (['ACCESS_TOKEN_SCOPE_INSUFFICIENT', 'INSUFFICIENT_PERMISSION'].includes(specific))
     diagnostic.next_action =
       'Reconnect this provider with its required reporting permissions, then sync the selected account and retry.';

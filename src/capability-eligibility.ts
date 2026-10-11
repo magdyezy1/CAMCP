@@ -4,6 +4,7 @@ import type {Registry} from './catalog.js';
 import {actionContracts} from './action-contracts.js';
 import {bad, fingerprint, optional} from './workspace-core.js';
 import {normalizeAccount} from './scope.js';
+import {accountMetadataView, resolveAccountMetadata, type ResolvedAccountMetadata} from './account-metadata.js';
 import {conditionalProgram, programObservation} from './conditional-programs.js';
 import {readinessBinding, readinessLifetimeMs, recordedGrants} from './readiness.js';
 import {dv360Scope, missingScopes, providerGrant, requirementScopes, type ScopeRequirement} from './provider-grants.js';
@@ -316,7 +317,8 @@ export function enrichCapabilities(
     version = capabilityGraphVersion(),
     now = Date.now(),
     connections = new Map(store.listConnections(actor.tenantId).map(c => [c.id, c])),
-    observations = new Map<string, JsonObject | undefined>();
+    observations = new Map<string, JsonObject | undefined>(),
+    names = new Map<string, ResolvedAccountMetadata>();
   if (input.workflow_id && !graph.workflows.some((w: JsonObject) => w.id === input.workflow_id))
     bad('Choose an exact workflow_id returned by capabilities.', 'WORKFLOW_NOT_FOUND');
   const nodes = new Map<string, JsonObject>(),
@@ -432,8 +434,15 @@ export function enrichCapabilities(
                     }),
                   );
           const lastProgramRead = program && programObservation(store, actor.tenantId, w.id, c.id, a.account_id);
+          // The same name and source as list_accounts and recipe context (CON-05), resolved once per account.
+          const metadataKey = c.id + '\n' + a.account_id;
+          if (!names.has(metadataKey))
+            names.set(metadataKey, resolveAccountMetadata(store, actor.tenantId, c, a.account_id));
+          const metadata = names.get(metadataKey)!;
           return {
             ...a,
+            name: metadata.name,
+            metadata: accountMetadataView(metadata),
             blockers,
             local_state: blockers.length ? 'blocked' : 'ready_for_preflight',
             ...(resolved ? {dependencies: resolved} : {}),

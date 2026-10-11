@@ -7,7 +7,15 @@ import path from 'node:path';
 import {reportEvidence} from '../src/report-quality.js';
 import {randomUUID} from 'node:crypto';
 import {WebStore, type WebsiteOptions} from './web-store.js';
-import {PlatformOAuth, platform, platforms, selectableKinds, selectionKind} from './platform-oauth.js';
+import {
+  PlatformOAuth,
+  loginLabel,
+  platform,
+  platforms,
+  providerDisplayName,
+  selectableKinds,
+  selectionKind,
+} from './platform-oauth.js';
 import {AssetDiscovery, type AssetGroup} from './asset-discovery.js';
 import {MirrorService} from '../src/service.js';
 import {MediaUploadService} from '../src/media-upload.js';
@@ -78,7 +86,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     [/^\/api\/oauth\/progress\/[^/]+$/, ['GET']], // Connections: authorization and discovery result
     [/^\/api\/connections\/[^/]+$/, ['GET', 'DELETE']],
     [/^\/api\/connections\/[^/]+\/(reauthorize|sync|default|credential-retry)$/, ['POST']],
-    [/^\/api\/connections\/[^/]+\/(assets|write-access)$/, ['PATCH']],
+    [/^\/api\/connections\/[^/]+\/(assets|write-access|label)$/, ['PATCH']],
     [/^\/api\/activity$/, ['GET']], // Activity tab
     [/^\/api\/reporting-overview\/[^/]+$/, ['GET']], // Reporting overview: CSV export
     [/^\/api\/workspace\/[a-z]+$/, ['POST']], // narrowed further by testAccountTools below
@@ -253,6 +261,26 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       lastSync: null,
     });
   };
+  /**
+   * Another saved login of this platform authorized by the same provider user (CON-05), when the provider states the
+   * user: renewing that login keeps its work, while a second login of one user makes requests ambiguous.
+   */
+  const sameIdentity = (tenant: string, gateway: string, providerId: unknown, except: string) =>
+    typeof providerId === 'string' && providerId
+      ? store
+          .listConnections(tenant)
+          .find(
+            x =>
+              x.gateway === gateway &&
+              x.id !== except &&
+              readDocument(tenant, 'website_connection', x.id, {}).providerId === providerId,
+          )?.id
+      : undefined;
+  /** Only the label changes: the stored login revision and grants stay as they are now (CON-01). */
+  const writeLabel = (tenant: string, id: string, label: string) =>
+    store.db
+      .prepare("UPDATE connections SET data=json_set(data,'$.label',?) WHERE tenant_id=? AND id=?")
+      .run(label, tenant, id);
   /** The platform whose browser OAuth renews this connection in place, when reauthorization is available (CON-02). */
   const renewal = (c: Connection) => {
     const p = platforms.find(p => p.gateway === c.gateway);
@@ -288,10 +316,18 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     // open (its encryption key is missing or changed) needs the deployment administrator, not every person's reconnect.
     if (unreadable === 'reauthorize') health.state = 'reauthorization_required';
     else if (unreadable === 'operator') health.state = 'credentials_unreadable';
-    const dead = health.state === 'reauthorization_required';
+    const dead = health.state === 'reauthorization_required',
+      record = readDocument(tenant, 'website_connection', c.id, {}),
+      duplicateOf =
+        typeof record.duplicateOf === 'string' && store.listConnections(tenant).some(x => x.id === record.duplicateOf)
+          ? record.duplicateOf
+          : null;
     return {
       id: c.id,
       name: c.label,
+      // The provider user's display name, when the provider stated one; never its subject identifier (CON-05).
+      identity: typeof record.displayName === 'string' ? {name: record.displayName} : null,
+      duplicateOf,
       enabled: c.enabled,
       isDefault: c.isDefault === true,
       defaultWriteAccess: c.defaultWriteAccess === true,
@@ -301,7 +337,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       expiresAt: health.login_expires_at,
       credentialHealth: health,
       // What the provider confirmed it granted, including declined Meta permissions (CON-03); names and dates only.
-      grants: publicGrants(readDocument(tenant, 'website_connection', c.id, {}).grants),
+      grants: publicGrants(record.grants),
       // A reviewer workspace login says when it was connected and when it is removed (SEC-06 S6).
       ...(tenant === web.testTenantId && reviewerLifetime !== null
         ? (at => ({connectedAt: at || null, reviewerRemovesAt: at ? at + reviewerLifetime : Date.now()}))(
@@ -343,12 +379,19 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       );
     // The provider user discovery read (Meta, Microsoft) identifies the login for later renewals (D19), and Meta's
     // permissions read records what was actually granted (CON-03).
-    if (result.identity || result.grants) {
-      const record = readDocument(tenant, 'website_connection', c.id, {});
-      if ((result.identity && !record.providerId) || result.grants)
+    // The user's display name is kept with the login, minimal and removed on disconnect (CON-05); a first identity that
+    // another login of this platform already holds is flagged instead of silently adding a second login of one user.
+    const displayName = providerDisplayName(result.label);
+    if (result.identity || result.grants || displayName) {
+      const record = readDocument(tenant, 'website_connection', c.id, {}),
+        first = result.identity && !record.providerId,
+        duplicate = first ? sameIdentity(tenant, c.gateway, result.identity, c.id) : undefined;
+      if (first || result.grants || (displayName && record.displayName !== displayName))
         store.putDocument(tenant, 'website_connection', c.id, {
           ...Object.fromEntries(Object.entries(record).filter(([k]) => !['id', 'revision'].includes(k))),
-          ...(result.identity && !record.providerId ? {providerId: result.identity} : {}),
+          ...(first ? {providerId: result.identity} : {}),
+          ...(duplicate ? {duplicateOf: duplicate} : {}),
+          ...(displayName ? {displayName} : {}),
           ...(result.grants ? {grants: result.grants} : {}),
         });
     }
@@ -380,6 +423,9 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       prefix = selectionKind(c.gateway) + ':',
       selectable = selectableKinds(c.gateway);
     let selection = (previous.selected ?? c.accounts.map(id => prefix + id)) as string[];
+    // The selected accounts and write grants a complete listing no longer shows, recorded with the sync (CON-05).
+    let droppedAccounts: string[] = [],
+      droppedWriteAccounts: string[] = [];
     const accountsGroup = result.groups.find(g => g.kind === selectionKind(c.gateway) && g.complete);
     // Each complete listing of a selectable kind drops the selected assets of that kind it no longer shows. With one
     // selectable kind (every platform but Drive) this keeps exactly the accounts that listing shows.
@@ -421,6 +467,8 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         JSON.stringify(accountCustomers) !== JSON.stringify(c.accountCustomers) ||
         JSON.stringify(accountLoginCustomers) !== JSON.stringify(c.accountLoginCustomers)
       ) {
+        droppedAccounts = c.accounts.filter(id => !accounts.includes(id));
+        droppedWriteAccounts = (c.writeAccounts ?? []).filter(id => c.accounts.includes(id) && !accounts.includes(id));
         c = {
           ...c,
           accounts,
@@ -436,20 +484,24 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       groups,
       selected: selection,
       lastSync: Date.now(),
-      error: failed.length ? failed.map(g => g.error).join(' ') : null,
+      // One refusal that fails several groups (Business Profile accounts and locations, CON-06) is stated once.
+      error: failed.length ? [...new Set(failed.map(g => g.error))].join(' ') : null,
     });
-    if (result.label) {
-      c = {...c, label: result.label};
-      // Only the label changes: the stored login revision and grants stay as they are now (CON-01).
-      store.db
-        .prepare("UPDATE connections SET data=json_set(data,'$.label',?) WHERE tenant_id=? AND id=?")
-        .run(result.label, tenant, c.id);
+    // A login keeps the name an administrator gave it; otherwise it is named "<Platform> · <user>" (CON-05).
+    const named = platforms.find(p => p.gateway === c.gateway);
+    if (displayName && named && readDocument(tenant, 'website_connection', c.id, {}).labelCustom !== true) {
+      const label = loginLabel(named, displayName);
+      c = {...c, label};
+      writeLabel(tenant, c.id, label);
     }
     store.appendAudit(tenant, randomUUID(), {
       event: 'website_asset_sync',
       connection_id: c.id,
       kinds: result.groups.map(g => g.kind),
       complete: failed.length === 0,
+      ...(droppedAccounts.length
+        ? {dropped_accounts: droppedAccounts, dropped_write_accounts: droppedWriteAccounts}
+        : {}),
       vendor_writes: 0,
       ...(failed.length
         ? {
@@ -972,7 +1024,13 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
           allowWrites: allowWrites && pending.requestedWriteAccess === true,
           assertActive,
         };
-        if (id === 'google') await reauthorizeGoogleConnection({...renewalInput, fetcher: options.fetcher});
+        if (id === 'google')
+          await reauthorizeGoogleConnection({
+            ...renewalInput,
+            fetcher: options.fetcher,
+            providerId: result.providerId,
+            displayName: result.displayName,
+          });
         else
           await reauthorizeConnection({
             ...renewalInput,
@@ -1009,12 +1067,16 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         scopes: result.scopes,
         isDefault: !store.listConnections(tenant).some(c => c.gateway === p.gateway && c.isDefault),
       };
+      // The same provider user already has a login here (CON-05): the result page offers to renew that one instead.
+      const duplicate = sameIdentity(tenant, p.gateway, result.providerId, connectionId);
       store.putConnection(session.actor, c, result.credentials);
       securedConnectionId = connectionId;
       store.putDocument(tenant, 'website_connection', connectionId, {
         platform: id,
         expiresAt: result.credentials.expiresAt ?? null,
         providerId: result.providerId ?? null,
+        ...(result.displayName ? {displayName: result.displayName} : {}),
+        ...(duplicate ? {duplicateOf: duplicate} : {}),
         ...(result.grants ? {grants: result.grants} : {}),
         createdAt: Date.now(),
       });
@@ -1023,15 +1085,18 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         event: 'website_oauth_connected',
         platform: id,
         connection_id: connectionId,
+        ...(duplicate ? {same_identity_as: duplicate} : {}),
       });
       progress({state: 'sync', authorization: true, exchange: true, sync: false, connectionId});
-      const synced = await sync(tenant, c, assertActive);
+      const synced = await sync(tenant, c, assertActive),
+        sameAs = readDocument(tenant, 'website_connection', connectionId, {}).duplicateOf;
       progress({
         state: synced.error ? 'sync_attention' : 'complete',
         authorization: true,
         exchange: true,
         sync: !synced.error,
         connectionId,
+        ...(typeof sameAs === 'string' ? {duplicateOf: sameAs} : {}),
         message: synced.error ?? 'Connection secured. Choose the assets AMCP can use.',
       });
     } catch (e) {
@@ -1060,8 +1125,28 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     }
     res.redirect(303, '/oauth/result?attempt=' + encodeURIComponent(attemptId));
   });
-  router.get('/api/auth/:platform/callback', callback);
-  router.get('/api/:platform/callback', callback);
+  // A browser that returns from the provider after its session ended, without administrator rights, with an expired or
+  // reused state or with malformed parameters gets the localized result page instead of raw JSON (CON-05). Only these
+  // fixed codes and a known platform ID reach the page; no provider parameter is echoed. Other callers keep the JSON
+  // refusal.
+  const callbackRefusals = new Set(['SIGN_IN_REQUIRED', 'FORBIDDEN', 'OAUTH_STATE_INVALID', 'OAUTH_CALLBACK_INVALID']);
+  const callbackPage = (req: Request, res: Response, next: NextFunction) =>
+    callback(req, res, (e?: unknown) => {
+      if (
+        !(e instanceof MirrorError) ||
+        !callbackRefusals.has(e.code) ||
+        !/\btext\/html\b/i.test(req.headers.accept ?? '') ||
+        res.headersSent
+      )
+        return next(e);
+      const id = String(req.params.platform),
+        query = new URLSearchParams({error: e.code});
+      if (platforms.some(p => p.id === id)) query.set('platform', id);
+      res.setHeader('Cache-Control', 'no-store');
+      res.redirect(303, '/oauth/result?' + query);
+    });
+  router.get('/api/auth/:platform/callback', callbackPage);
+  router.get('/api/:platform/callback', callbackPage);
   router.get(
     '/api/oauth/progress/:id',
     handler((req, res) => {
@@ -1192,6 +1277,18 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
           : req.body.write_access === false
             ? []
             : (c.writeAccounts ?? []).filter(id => accounts.includes(id));
+      // Every write grant a selection adds needs the same explicit consent as the write-access panel, including accounts
+      // added to an existing login later (owner decision D19, CON-05). Read-only selections and removals need none.
+      const previousWrites = (c.writeAccounts ?? []).filter(id => c.accounts.includes(id)),
+        writeAdded = writeAccounts.filter(id => !previousWrites.includes(id)),
+        writeRemoved = previousWrites.filter(id => !writeAccounts.includes(id));
+      if (writeAdded.length && req.body?.confirmed !== true)
+        throw new MirrorError(
+          'WRITE_ACCESS_CONFIRMATION_REQUIRED',
+          'This selection enables write access for more resources. Confirm that operator connectors may change them.',
+          {added: writeAdded.slice(0, 200), added_count: writeAdded.length},
+          400,
+        );
       const accountCustomers =
         c.gateway === microsoftGateway
           ? Object.fromEntries(
@@ -1233,6 +1330,9 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         connection_id: c.id,
         selected_accounts: accounts,
         selected_assets: selected.length,
+        write_added: writeAdded,
+        write_removed: writeRemoved,
+        ...(writeAdded.length ? {write_confirmed: true} : {}),
         vendor_writes: 0,
       });
       res.json(publicConnection(tenant, connection(tenant, c.id)));
@@ -1302,14 +1402,56 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       const s = web.requireAdminMutation(req),
         tenant = s.actor.tenantId,
         c = connection(tenant, String(req.params.id));
+      // Resolution ignores a disabled login, so a disabled default would be silently ignored (CON-05).
+      if (!c.enabled)
+        throw new MirrorError(
+          'CONNECTION_DISABLED',
+          'Choose assets for this login before making it the default.',
+          {connection_id: c.id},
+          409,
+        );
+      const previous = store
+        .listConnections(tenant)
+        .filter(x => x.gateway === c.gateway && x.isDefault === true && x.id !== c.id)
+        .map(x => x.id);
       store.transaction(() => {
         for (const existing of store.listConnections(tenant).filter(x => x.gateway === c.gateway))
           store.db
             .prepare('UPDATE connections SET data=? WHERE tenant_id=? AND id=?')
             .run(JSON.stringify({...existing, isDefault: existing.id === c.id}), tenant, existing.id);
       });
-      store.appendAudit(tenant, randomUUID(), {event: 'website_default_connection', connection_id: c.id});
+      store.appendAudit(tenant, randomUUID(), {
+        event: 'website_default_connection',
+        connection_id: c.id,
+        previous_default: previous[0] ?? null,
+      });
       res.json({success: true});
+    }),
+  );
+  // An administrator names a login (CON-05). Only the label changes, so the login revision, grants and readiness stay;
+  // later syncs keep the name. The audit records the rename, not the name, which may name a person.
+  router.patch(
+    '/api/connections/:id/label',
+    express.json({limit: '4kb'}),
+    handler((req, res) => {
+      const s = web.requireAdminMutation(req),
+        tenant = s.actor.tenantId,
+        c = connection(tenant, String(req.params.id)),
+        label = typeof req.body?.label === 'string' ? req.body.label.replace(/\s+/g, ' ').trim() : '';
+      if (!label || label.length > 80 || /[\u0000-\u001f\u007f]/.test(label))
+        throw new MirrorError('INVALID_ARGUMENT', 'Use a login name of 1 to 80 characters.');
+      store.transaction(() => {
+        writeLabel(tenant, c.id, label);
+        const {id: _id, revision: _revision, ...record} = readDocument(tenant, 'website_connection', c.id, {});
+        store.putDocument(tenant, 'website_connection', c.id, {...record, labelCustom: true});
+      });
+      store.appendAudit(tenant, randomUUID(), {
+        event: 'website_connection_renamed',
+        connection_id: c.id,
+        gateway: c.gateway,
+        vendor_writes: 0,
+      });
+      res.json(publicConnection(tenant, connection(tenant, c.id)));
     }),
   );
   router.delete(

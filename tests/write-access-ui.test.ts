@@ -364,7 +364,13 @@ test('new connection selections and connector tokens default to read/write, expl
     s.store.putConnection(admin, c, {accessToken: 'synthetic'});
     const assets = '/api/connections/' + c.id + '/assets',
       selection = {selected: ['ad_accounts:111', 'ad_accounts:222']};
-    assert.equal((await s.request(assets, 'PATCH', selection, s.headers)).status, 200);
+    // The pre-checked read + reviewed write option stays (D19 item 3), but the write grants a selection adds now need the
+    // same explicit confirmation as the write-access panel (D19 item 2, CON-05); this test used to expect a silent grant.
+    const unconfirmed = await s.request(assets, 'PATCH', selection, s.headers);
+    assert.equal(unconfirmed.status, 400);
+    assert.equal((await unconfirmed.json()).error.code, 'WRITE_ACCESS_CONFIRMATION_REQUIRED');
+    assert.deepEqual(s.store.listConnections('local')[0]!.writeAccounts ?? [], []);
+    assert.equal((await s.request(assets, 'PATCH', {...selection, confirmed: true}, s.headers)).status, 200);
     assert.deepEqual(s.store.listConnections('local')[0]!.writeAccounts, ['111', '222']);
     const token = await (
       await s.request('/api/connector-tokens', 'POST', {name: 'Default connector', confirmed: true}, s.headers)
@@ -374,11 +380,75 @@ test('new connection selections and connector tokens default to read/write, expl
     assert.deepEqual(s.store.listConnections('local')[0]!.writeAccounts, []);
     await s.request(assets, 'PATCH', selection, s.headers);
     assert.deepEqual(s.store.listConnections('local')[0]!.writeAccounts, []);
-    await s.request(assets, 'PATCH', {...selection, write_access: true}, s.headers);
+    await s.request(assets, 'PATCH', {...selection, write_access: true, confirmed: true}, s.headers);
     assert.deepEqual(s.store.listConnections('local')[0]!.writeAccounts, ['111', '222']);
     await s.request('/api/connections/' + c.id + '/write-access', 'PATCH', {accounts: []}, s.headers);
     await s.request(assets, 'PATCH', selection, s.headers);
     assert.deepEqual(s.store.listConnections('local')[0]!.writeAccounts, []);
+  } finally {
+    await s.close();
+  }
+});
+
+// CON-05 (3), owner decision D19 item 2: saving a selection silently extended write grants to newly added accounts,
+// and the audit named no write change. Additions now need confirmation; removals and read-only selections do not.
+test('a selection that adds write grants is refused without confirmation and audits what it added and removed', async () => {
+  const s = await site(true);
+  try {
+    s.store.putConnection(
+      admin,
+      {...connection, accounts: ['111'], writeAccounts: ['111'], defaultWriteAccess: true},
+      {accessToken: 'synthetic'},
+    );
+    s.store.putDocument('local', 'website_assets', connection.id, {
+      groups: [
+        {
+          kind: 'ad_accounts',
+          complete: true,
+          assets: ['111', '222'].map(id => ({id, kind: 'ad_accounts', name: 'Account ' + id, source: 'vendor'})),
+        },
+      ],
+      selected: ['ad_accounts:111'],
+      lastSync: Date.now(),
+    });
+    const assets = '/api/connections/' + connection.id + '/assets',
+      events = () =>
+        s.store
+          .audit('local', 1000)
+          .map((r: any) => JSON.parse(r.event))
+          .filter((e: any) => e.event === 'website_asset_selection');
+    const refused = await s.request(assets, 'PATCH', {selected: ['ad_accounts:111', 'ad_accounts:222']}, s.headers);
+    assert.equal(refused.status, 400);
+    assert.equal((await refused.json()).error.code, 'WRITE_ACCESS_CONFIRMATION_REQUIRED');
+    assert.deepEqual(s.store.listConnections('local')[0]!.accounts, ['111'], 'nothing is saved before confirmation');
+    assert.equal(events().length, 0);
+    assert.equal(
+      (await s.request(assets, 'PATCH', {selected: ['ad_accounts:111', 'ad_accounts:222'], confirmed: true}, s.headers))
+        .status,
+      200,
+    );
+    assert.deepEqual(s.store.listConnections('local')[0]!.writeAccounts, ['111', '222']);
+    assert.deepEqual(events().at(-1).write_added, ['222']);
+    assert.deepEqual(events().at(-1).write_removed, []);
+    assert.equal(events().at(-1).write_confirmed, true);
+    // Removing a write grant (deselecting) and a read-only selection need no confirmation.
+    assert.equal((await s.request(assets, 'PATCH', {selected: ['ad_accounts:222']}, s.headers)).status, 200);
+    assert.deepEqual(events().at(-1).write_removed, ['111']);
+    assert.deepEqual(events().at(-1).write_added, []);
+    assert.equal(
+      (
+        await s.request(
+          assets,
+          'PATCH',
+          {selected: ['ad_accounts:111', 'ad_accounts:222'], write_access: false},
+          s.headers,
+        )
+      ).status,
+      200,
+    );
+    assert.deepEqual(s.store.listConnections('local')[0]!.writeAccounts, []);
+    assert.equal((await s.request(assets, 'PATCH', {selected: ['ad_accounts:111']}, s.headers)).status, 200);
+    assert.deepEqual(events().at(-1).write_added, []);
   } finally {
     await s.close();
   }

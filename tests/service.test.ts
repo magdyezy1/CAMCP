@@ -21,7 +21,8 @@ test('MCP initialize, list tools and call help work through real SDK transports'
     await client.connect(c);
     const list = await client.listTools();
     // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09).
-    assert.equal(list.tools.length, 28);
+    // Amazon Ads is not offered by default (CON-06).
+    assert.equal(list.tools.length, 27);
     const response = await client.callTool({name: 'amcp_tool_help', arguments: {}});
     const content = response.content as any[];
     const presented = JSON.parse(content[0].text);

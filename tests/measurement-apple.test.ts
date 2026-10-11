@@ -405,7 +405,8 @@ test('website onboarding persists selectable properties/sites and Apple accounts
         'X-AMCP-CSRF': (await login.json()).csrf as string,
       };
     const config = await (await request('/api/platforms')).json();
-    assert.equal(config.platforms.length, 15);
+    // Business Profile is the 16th platform (CON-06).
+    assert.equal(config.platforms.length, 16);
     assert.equal(config.platforms.find((p: JsonObject) => p.id === 'apple').callback, null);
     assert.ok(!JSON.stringify(config).includes('synthetic'));
     for (const [id, selection] of [
