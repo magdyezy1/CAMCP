@@ -332,7 +332,8 @@ export function inspectAccountExplanations(source, file) {
       file.endsWith('catalog-ingestion.ts') &&
       node.type === 'CallExpression' &&
       node.callee?.name === 'bad' &&
-      node.arguments[1]?.value === 'INVALID_X_CATALOG_IMPORT'
+      // INVALID_CATALOG_SALE: the sale refusals every destination shares (COM-02 A).
+      ['INVALID_X_CATALOG_IMPORT', 'INVALID_CATALOG_SALE'].includes(node.arguments[1]?.value)
     )
       collect(node.arguments[0]);
     if (

@@ -30,7 +30,14 @@ function normalize(value) {
   return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, volatile.has(k) ? '<volatile>' : normalize(v)]));
 }
 /** Fields the shared comparison item v2 and its destination contract add (COM-03); their own tests check them. */
-const additive = new Set(['item_schema_version', 'serving_notes', 'blocked_reason']);
+const additive = new Set([
+  'item_schema_version',
+  'serving_notes',
+  'blocked_reason',
+  // COM-02 A: an X product's current sale beside its other compared values.
+  'sale_price',
+  'sale_price_effective_date',
+]);
 /** Every pinned value is unchanged; the current response may only add the fields named above. */
 function assertAdditive(current, pinned, path) {
   if (Array.isArray(pinned)) {

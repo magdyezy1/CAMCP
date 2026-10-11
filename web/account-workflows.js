@@ -116,6 +116,13 @@ const accountExplanationMessages = new Set([
   'X imports require explicit retailer_id, name, price, currency, image_url, url, availability, condition, brand and plain text description.',
   'Product retailer IDs must be unique.',
   'Choose one explicit uppercase three-letter product currency.',
+  'A sale start or end needs a sale price.',
+  'Use a nonnegative decimal sale price, optionally followed by the product currency.',
+  'The sale price must be in the product currency.',
+  'The sale price must be lower than the price.',
+  'A sale start or end is an ISO 8601 date and time with an explicit offset, such as 2026-11-01T00:00:00+03:00.',
+  'The sale must end after it starts.',
+  'X needs both the sale start and the sale end, or neither.',
   'Current evidence for supplied X product IDs only, using repeated bounded native reads and exact supported decimal prices. Grouped or potentially hidden variants are blocked. Missing fields stay unknown. This is sequential evidence, not a point-in-time inventory snapshot. Every saved product still requires a fresh native review and independent read-back; products outside the supplied source are not returned or deleted.',
   'X comparison requires a complete catalog scan of at most 1,000 listed products. No product changes were submitted.',
   'X catalog ownership or supplied-product evidence changed during comparison. Read the source products again; no product changes were submitted.',
@@ -3217,10 +3224,14 @@ const catalogMapFields = [
   'brand',
   'description',
 ];
+// An optional sale for every destination (COM-02 A): a decimal sale price and its literal start and end.
+const catalogSaleFields = ['sale_price', 'sale_price_start_date', 'sale_price_end_date'];
 function catalogSourceFields(gateway = 'meta_native_action') {
   if (!['meta_native_action', 'x_ads_native_action'].includes(gateway))
     throw Error(uiText('Choose the exact account.'));
-  return gateway === 'meta_native_action' ? [...catalogMapFields, 'retailer_product_group_id'] : catalogMapFields;
+  return gateway === 'meta_native_action'
+    ? [...catalogMapFields, 'retailer_product_group_id', ...catalogSaleFields]
+    : [...catalogMapFields, ...catalogSaleFields];
 }
 function catalogFieldLabel(field) {
   switch (field) {
@@ -3246,6 +3257,14 @@ function catalogFieldLabel(field) {
       return uiText('Brand');
     case 'description':
       return uiText('Description');
+    case 'sale_price':
+      return uiText('Sale price');
+    case 'sale_price_start_date':
+      return uiText('Sale start (ISO 8601 with offset)');
+    case 'sale_price_end_date':
+      return uiText('Sale end (ISO 8601 with offset)');
+    case 'sale_price_effective_date':
+      return uiText('Sale period');
     default:
       return field;
   }
@@ -3289,7 +3308,7 @@ function mapProductCSV(table, settings) {
   });
 }
 function catalogMappingMarkup() {
-  return `<fieldset id="catalog-csv-mapping"><legend>${esc(uiText('CSV column mapping'))}</legend><label>${esc(uiText('CSV layout'))}<select name="column_mode"><option value="canonical">${esc(uiText('AMCP product columns'))}</option><option value="mapped">${esc(uiText('Map supplier or WooCommerce export columns'))}</option></select></label><div id="catalog-mapping-controls" hidden><button type="button" class="button" id="catalog-load-columns">${esc(uiText('Load columns from the selected file'))}</button><p class="form-note">${esc(uiText('Choose the exact price column and stable retailer ID. Sale dates, tax, stock and product variants are not inferred. Every source row is included.'))}</p><div id="catalog-mapping"></div><label>${esc(uiText('Fixed currency when no currency column is selected'))}<input type="text" name="fixed_currency" maxlength="3" placeholder="SAR"></label><label>${esc(uiText('Image column handling'))}<select name="image_mode"><option value="single">${esc(uiText('One literal image URL per row'))}</option><option value="first_list">${esc(uiText('Use the first URL in a comma-separated image list'))}</option></select></label><p class="form-note">${esc(uiText('Only selected product columns are sent for preview. Blank optional fields are omitted from the request.'))}</p></div></fieldset>`;
+  return `<fieldset id="catalog-csv-mapping"><legend>${esc(uiText('CSV column mapping'))}</legend><label>${esc(uiText('CSV layout'))}<select name="column_mode"><option value="canonical">${esc(uiText('AMCP product columns'))}</option><option value="mapped">${esc(uiText('Map supplier or WooCommerce export columns'))}</option></select></label><div id="catalog-mapping-controls" hidden><button type="button" class="button" id="catalog-load-columns">${esc(uiText('Load columns from the selected file'))}</button><p class="form-note">${esc(uiText('Choose the exact price column and stable retailer ID. Sale dates, tax, stock and product variants are not inferred. Every source row is included.'))}</p><p class="form-note">${esc(uiText('A sale price and its start and end are optional columns; select them only when your source supplies them.'))}</p><div id="catalog-mapping"></div><label>${esc(uiText('Fixed currency when no currency column is selected'))}<input type="text" name="fixed_currency" maxlength="3" placeholder="SAR"></label><label>${esc(uiText('Image column handling'))}<select name="image_mode"><option value="single">${esc(uiText('One literal image URL per row'))}</option><option value="first_list">${esc(uiText('Use the first URL in a comma-separated image list'))}</option></select></label><p class="form-note">${esc(uiText('Only selected product columns are sent for preview. Blank optional fields are omitted from the request.'))}</p></div></fieldset>`;
 }
 function catalogComparisonState(state) {
   switch (state) {
@@ -3307,18 +3326,35 @@ function catalogComparisonState(state) {
 }
 function catalogImportPreviewMarkup(out, request) {
   const x = request.gateway === 'x_ads_native_action',
-    grouped = !x && request.products.some(product => product.retailer_product_group_id !== undefined);
+    grouped = !x && request.products.some(product => product.retailer_product_group_id !== undefined),
+    // COM-02 A: the supplied sale, its native form and its literal period, only when a product has one.
+    sale = request.products.some(product => product.sale_price !== undefined),
+    saleCell = (product, index) => {
+      if (product.sale_price === undefined) return `<td>${esc(uiText('Not supplied'))}</td>`;
+      const item = out.items?.[index],
+        native = x
+          ? (item?.native_sale_price ?? uiText('Unknown'))
+          : Number.isSafeInteger(item?.sale_price_minor_units)
+            ? item.sale_price_minor_units
+            : uiText('Unknown'),
+        period = ['sale_price_start_date', 'sale_price_end_date']
+          .filter(k => product[k] !== undefined)
+          .map(k => `<br>${esc(catalogFieldLabel(k))}: <bdi dir="ltr">${esc(product[k])}</bdi>`)
+          .join('');
+      return `<td><bdi>${esc(catalogSaleText(product))}</bdi><br><bdi>${esc(native)}</bdi>${period}</td>`;
+    };
   const titles = [
       uiText('Product'),
       uiText('Source price'),
       uiText(x ? 'Native X price' : 'Native hundredths'),
+      ...(sale ? [uiText('Sale price')] : []),
       ...(grouped ? [uiText('Meta product group ID')] : []),
       uiText('Existing retailer IDs'),
     ],
     policy = uiText(
       request.allow_upsert ? 'Explicitly update existing IDs after native review' : 'Create only — refuse existing IDs',
     );
-  return `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Products and exact native price units'))}"><table class="review-table"><caption>${esc(uiText('Products and exact native price units'))}</caption><thead><tr>${titles.map(title => `<th scope="col">${esc(title)}</th>`).join('')}</tr></thead><tbody>${request.products.map((product, index) => `<tr><th scope="row"><strong>${esc(product.name)}</strong><br><code>${esc(product.retailer_id)}</code></th><td><bdi>${esc(product.price + ' ' + product.currency)}</bdi></td><td><bdi>${esc(x ? (out.items?.[index]?.native_price ?? uiText('Unknown')) : Number.isSafeInteger(out.items?.[index]?.price_minor_units) ? out.items[index].price_minor_units : uiText('Unknown'))}</bdi></td>${grouped ? `<td><code dir="ltr">${esc(product.retailer_product_group_id ?? uiText('Not supplied'))}</code></td>` : ''}<td>${esc(policy)}</td></tr>`).join('')}</tbody></table></div>`;
+  return `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Products and exact native price units'))}"><table class="review-table"><caption>${esc(uiText('Products and exact native price units'))}</caption><thead><tr>${titles.map(title => `<th scope="col">${esc(title)}</th>`).join('')}</tr></thead><tbody>${request.products.map((product, index) => `<tr><th scope="row"><strong>${esc(product.name)}</strong><br><code>${esc(product.retailer_id)}</code></th><td><bdi>${esc(product.price + ' ' + product.currency)}</bdi></td><td><bdi>${esc(x ? (out.items?.[index]?.native_price ?? uiText('Unknown')) : Number.isSafeInteger(out.items?.[index]?.price_minor_units) ? out.items[index].price_minor_units : uiText('Unknown'))}</bdi></td>${sale ? saleCell(product, index) : ''}${grouped ? `<td><code dir="ltr">${esc(product.retailer_product_group_id ?? uiText('Not supplied'))}</code></td>` : ''}<td>${esc(policy)}</td></tr>`).join('')}</tbody></table></div>`;
 }
 // The Meta product attributes a comparison may name as held but not sent (src/meta-catalog-products.ts, COM-01).
 const metaCatalogUnsentFieldNames = [
@@ -3405,10 +3441,15 @@ function catalogWebDestination(gateway) {
       unsent: metaCatalogUnsentFieldNames,
       blocked: ['existing_product_create_only'],
       productId: /^[1-9][0-9]{0,31}$/,
-      destinationOnly: 'note',
+      // Owner decision P9: a populated attribute the source does not send puts the product in review as unknown.
+      destinationOnly: 'review',
       removal: false,
     };
   throw Error(uiText('Catalog comparison scope or evidence changed. Validate and read the import again.'));
+}
+/** A supplied sale price as the destination receives it (COM-02 A): the decimal amount and the product currency. */
+function catalogSaleText(product) {
+  return String(product.sale_price).split(' ')[0] + ' ' + product.currency;
 }
 /** An exact X price in one canonical text: no leading zeros in the whole part, no trailing zeros in the fraction. */
 function catalogExactMoney(value) {
@@ -3525,8 +3566,33 @@ function validCatalogComparison(out, request, preview) {
               : catalogExactMoney(item.before.price) === catalogExactMoney(s.price + ' ' + s.currency);
           if (price === null) unknown.push('price', 'currency');
           else if (!price) changes.push('price');
+          // A supplied sale (COM-02 A): the amount compares exactly, the effective period literally; a product without
+          // a current sale shows it as a change.
+          let sale;
+          const native = {
+            sale_price: s.sale_price === undefined ? undefined : catalogSaleText(s),
+            sale_price_effective_date:
+              s.sale_price_start_date === undefined ? undefined : s.sale_price_start_date + '/' + s.sale_price_end_date,
+          };
+          if (native.sale_price !== undefined) {
+            if (item.before.sale_price !== null && !catalogExactMoney(item.before.sale_price)) {
+              sale = null;
+              unknown.push('sale_price');
+            } else {
+              sale =
+                item.before.sale_price !== null &&
+                catalogExactMoney(item.before.sale_price) === catalogExactMoney(native.sale_price);
+              if (!sale) changes.push('sale_price');
+            }
+          }
+          if (
+            native.sale_price_effective_date !== undefined &&
+            item.before.sale_price_effective_date !== native.sale_price_effective_date
+          )
+            changes.push('sale_price_effective_date');
           if (
             item.price_matches !== price ||
+            item.sale_price_matches !== sale ||
             item.unknown_fields.length !== unknown.length ||
             item.unknown_fields.some((k, i) => k !== unknown[i]) ||
             item.changes.length !== changes.length ||
@@ -3535,7 +3601,13 @@ function validCatalogComparison(out, request, preview) {
                 !c ||
                 c.field !== changes[i] ||
                 c.before !== item.before[c.field] ||
-                (c.field === 'price' ? c.after_native_price !== s.price + ' ' + s.currency : c.after !== s[c.field]),
+                (c.field === 'price'
+                  ? c.after_native_price !== s.price + ' ' + s.currency
+                  : c.field === 'sale_price'
+                    ? c.after_native_price !== native.sale_price
+                    : c.field === 'sale_price_effective_date'
+                      ? c.after !== native.sale_price_effective_date
+                      : c.after !== s[c.field]),
             )
           )
             invalid();
@@ -3554,14 +3626,20 @@ function validCatalogComparison(out, request, preview) {
                 typeof c.field !== 'string' ||
                 !Object.hasOwn(s, c.field) ||
                 (c.before !== null && typeof c.before !== 'string') ||
-                (c.field === 'price'
+                (['price', 'sale_price'].includes(c.field)
                   ? !Number.isSafeInteger(c.after_minor_units) ||
-                    c.after_minor_units !== preview.items[index]?.price_minor_units ||
+                    c.after_minor_units !==
+                      preview.items[index]?.[c.field === 'price' ? 'price_minor_units' : 'sale_price_minor_units'] ||
                     c.currency !== s.currency
                   : c.after !== s[c.field]),
             ) ||
             new Set(changes).size !== changes.length ||
-            changes.includes('price') === item.price_matches
+            changes.includes('price') === item.price_matches ||
+            // A supplied sale price is compared with Meta's own sale_price_amount filter (COM-02 A).
+            (s.sale_price === undefined
+              ? item.sale_price_matches !== undefined || changes.includes('sale_price')
+              : typeof item.sale_price_matches !== 'boolean' ||
+                changes.includes('sale_price') === item.sale_price_matches)
           )
             invalid();
         }
@@ -3618,8 +3696,8 @@ function catalogComparisonMarkup(out, request, preview) {
           item.changes
             .map(c =>
               x
-                ? `<li>${esc(catalogFieldLabel(c.field))}: <bdi>${esc(c.before)}</bdi> → <bdi>${esc(c.field === 'price' ? c.after_native_price : c.after)}</bdi></li>`
-                : `<li>${esc(catalogFieldLabel(c.field))}: ${esc(c.before ?? uiText('Unknown'))} → ${esc(c.field === 'price' ? s.price + ' ' + s.currency : c.after)}</li>`,
+                ? `<li>${esc(catalogFieldLabel(c.field))}: <bdi>${esc(c.before ?? uiText('Not set'))}</bdi> → <bdi>${esc(c.after_native_price ?? c.after)}</bdi></li>`
+                : `<li>${esc(catalogFieldLabel(c.field))}: ${esc(c.before ?? uiText('Unknown'))} → ${esc(c.field === 'price' ? s.price + ' ' + s.currency : c.field === 'sale_price' ? catalogSaleText(s) : c.after)}</li>`,
             )
             .join('') +
           item.unknown_fields
@@ -4368,7 +4446,7 @@ async function renderCommerce() {
   const destinationHelp = () => {
     const target = form.elements.target.value === '' ? undefined : targets[Number(form.elements.target.value)];
     $('#catalog-destination-help').innerHTML =
-      `<p>${esc(uiText(target?.gateway === 'x_ads_native_action' ? 'This X import requires every mapped product field, including product page, availability, condition, brand and plain text description. It accepts names up to 150 characters and source prices with up to six decimal places. Use exact native availability and condition values. Explicit upsert approval is required.' : target?.gateway === 'meta_native_action' ? 'Required columns: retailer_id, name, price, currency, image_url. Optional: url, availability, condition, brand, description, retailer_product_group_id. Select an exact Meta group column only when your source supplies it; no group is inferred. Price is a decimal amount in the product currency; Meta counts hundredths, so digits beyond two decimal places must be zeros (12.500 KWD is 12.50). Use HTTPS links.' : 'Choose an account to see the required destination fields.'))}</p>${target?.gateway === 'x_ads_native_action' ? `<p>${esc(uiText('X catalog access requires early-access entitlement. Previewing or saving a draft does not establish eligibility or publish a product.'))}</p>` : ''}`;
+      `<p>${esc(uiText(target?.gateway === 'x_ads_native_action' ? 'This X import requires every mapped product field, including product page, availability, condition, brand and plain text description. It accepts names up to 150 characters and source prices with up to six decimal places. Use exact native availability and condition values. Explicit upsert approval is required.' : target?.gateway === 'meta_native_action' ? 'Required columns: retailer_id, name, price, currency, image_url. Optional: url, availability, condition, brand, description, retailer_product_group_id. Select an exact Meta group column only when your source supplies it; no group is inferred. Price is a decimal amount in the product currency; Meta counts hundredths, so digits beyond two decimal places must be zeros (12.500 KWD is 12.50). Use HTTPS links.' : 'Choose an account to see the required destination fields.'))}</p>${target?.gateway === 'x_ads_native_action' ? `<p>${esc(uiText('X catalog access requires early-access entitlement. Previewing or saving a draft does not establish eligibility or publish a product.'))}</p>` : ''}${target ? `<p>${esc(uiText('Optional sale columns: sale_price (a decimal lower than the price, in the product currency), sale_price_start_date and sale_price_end_date (ISO 8601 with an explicit offset; X needs both or neither). Without them the destination keeps its current sale, which the comparison names.'))}</p>` : ''}`;
   };
   form.elements.target.addEventListener('change', () => {
     resetMapping();

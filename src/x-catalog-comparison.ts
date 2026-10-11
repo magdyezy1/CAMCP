@@ -22,7 +22,12 @@ import {
   fail,
 } from './x-catalogs.js';
 import {assertXCatalogProduct} from './x-catalog-products.js';
-import {catalogItemSchemaVersion, comparisonItemV2, comparisonSummary} from './catalog-destinations.js';
+import {
+  catalogDestinations,
+  catalogItemSchemaVersion,
+  comparisonItemV2,
+  comparisonSummary,
+} from './catalog-destinations.js';
 import type {Store} from './store.js';
 import type {Registry} from './catalog.js';
 import type {NativeTransport} from './transport.js';
@@ -126,15 +131,18 @@ export async function xCatalogComparison(
           keys.add(row.product_key);
           hidden = grouped(row) || hidden;
         }
-        return input.products.map((source: JsonObject) => {
+        return input.products.map((source: JsonObject, index: number) => {
           const row = byId.get(source.retailer_id),
-            before = row ? rowView(row) : {present: hidden ? null : false, price: null};
+            before = row ? rowView(row) : {present: hidden ? null : false, price: null},
+            // The native product this source becomes (its sale included), from the same projection as the plan.
+            native: JsonObject = preview.plan.steps[index]!.arguments.payload.products[0];
           const item: JsonObject = {
             retailer_id: source.retailer_id,
             product_id: row ? row.product_key : null,
             before,
             state: 'new',
             price_matches: null,
+            ...(native.sale_price !== undefined ? {sale_price_matches: null} : {}),
             changes: [],
             unknown_fields: [],
             blocked: false,
@@ -151,7 +159,7 @@ export async function xCatalogComparison(
               });
             return item;
           }
-          item.unsent_fields = xCatalogHeldOptional(row);
+          item.unsent_fields = xCatalogHeldOptional(row, native);
           if (grouped(row)) {
             Object.assign(item, {
               state: 'unknown',
@@ -178,6 +186,31 @@ export async function xCatalogComparison(
               before: row.price,
               after_native_price: source.price + ' ' + source.currency,
             });
+          // A supplied sale (COM-02 A): the amount compares exactly, its effective period literally. A product without a
+          // current sale shows the sale as a change; an unparseable current sale price stays unknown.
+          if (native.sale_price !== undefined) {
+            const current = before.sale_price === null ? undefined : catalogPrice(before.sale_price),
+              sale = catalogPrice(native.sale_price)!;
+            if (before.sale_price !== null && !current) item.unknown_fields.push('sale_price');
+            else {
+              item.sale_price_matches = !!current && current.units === sale.units && current.currency === sale.currency;
+              if (!item.sale_price_matches)
+                item.changes.push({
+                  field: 'sale_price',
+                  before: before.sale_price,
+                  after_native_price: native.sale_price,
+                });
+            }
+          }
+          if (
+            native.sale_price_effective_date !== undefined &&
+            before.sale_price_effective_date !== native.sale_price_effective_date
+          )
+            item.changes.push({
+              field: 'sale_price_effective_date',
+              before: before.sale_price_effective_date,
+              after: native.sale_price_effective_date,
+            });
           item.state = item.changes.length ? 'changed' : item.unknown_fields.length ? 'unknown' : 'matching';
           return item;
         });
@@ -200,7 +233,9 @@ export async function xCatalogComparison(
         repeated = await collect(),
         after = ownedCatalog(await xCatalogOwners(read, fetch), input.catalog_id),
         // The shared item v2 (COM-03) beside X's own evidence, once both scans agree.
-        items = collected.items.map((item: JsonObject, i: number) => comparisonItemV2(item, input.products[i]));
+        items = collected.items.map((item: JsonObject, i: number) =>
+          comparisonItemV2(item, input.products[i], catalogDestinations.x_ads_native_action),
+        );
       if (fingerprint(collected.items) !== fingerprint(repeated.items) || fingerprint(catalog) !== fingerprint(after))
         fail(
           'CATALOG_COMPARISON_CHANGED',

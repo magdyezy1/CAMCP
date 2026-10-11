@@ -344,6 +344,12 @@ export function xCatalogRowView(row: JsonObject): JsonObject {
   }
   out.price = catalogPrice(row.price) ? row.price : null;
   out.currency = catalogPrice(row.price)?.currency ?? null;
+  // The current sale as X returns it (COM-02 A): null when the product has none; an unparseable price stays as text.
+  for (const k of ['sale_price', 'sale_price_effective_date']) {
+    const value = row[k];
+    if (value != null && typeof value !== 'string') unverified('X returned an unrecognized product field.');
+    out[k] = typeof value === 'string' && text(value, 1000) ? value : null;
+  }
   return out;
 }
 /** The optional attributes a listed product holds a value for. */

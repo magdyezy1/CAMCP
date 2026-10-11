@@ -123,6 +123,7 @@ async function metaCatalogComparison(
           comparisonItemV2(
             {...item, blocked_reason: item.blocked ? 'existing_product_create_only' : null},
             plans[i]!.body as JsonObject,
+            catalogDestinations.meta_native_action,
           ),
         ),
         {summary, review_retailer_ids} = comparisonSummary(items);

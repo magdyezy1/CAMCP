@@ -33,21 +33,24 @@ export type CatalogDestination = {
   itemSchemaVersion: typeof catalogItemSchemaVersion;
 };
 const shared = ['retailer_id', 'name', 'price', 'currency', 'image_url'] as const,
-  described = ['url', 'availability', 'condition', 'brand', 'description'] as const;
+  described = ['url', 'availability', 'condition', 'brand', 'description'] as const,
+  // An optional sale in the product currency with literal start and end times (COM-02 A).
+  sale = ['sale_price', 'sale_price_start_date', 'sale_price_end_date'] as const;
 export const catalogDestinations: Readonly<Record<CatalogGateway, CatalogDestination>> = {
   meta_native_action: {
     gateway: 'meta_native_action',
     provider: 'meta',
-    sourceFields: {required: shared, optional: [...described, 'retailer_product_group_id']},
+    sourceFields: {required: shared, optional: [...described, 'retailer_product_group_id', ...sale]},
     catalogId: /^[1-9][0-9]{0,31}$/,
     upsert: 'explicit_choice',
-    destinationOnlyValues: 'note',
+    // Owner decision P9 (2026-10-11): a populated Meta attribute the source does not send needs review.
+    destinationOnlyValues: 'review',
     itemSchemaVersion: catalogItemSchemaVersion,
   },
   x_ads_native_action: {
     gateway: 'x_ads_native_action',
     provider: 'x',
-    sourceFields: {required: [...shared, ...described], optional: []},
+    sourceFields: {required: [...shared, ...described], optional: sale},
     catalogId: /^[1-9][0-9]{0,24}$/,
     upsert: 'required',
     destinationOnlyValues: 'note',
@@ -77,12 +80,20 @@ export function catalogServingNotes(supplied: JsonObject, before: JsonObject): s
     notes.push('staging_visibility');
   return notes;
 }
-/** The shared item v2 fields beside a destination's own: existing fields keep their values. */
-export function comparisonItemV2(item: JsonObject, supplied: JsonObject): JsonObject {
+/**
+ * The shared item v2 fields beside a destination's own: existing fields keep their values. Under the destination's
+ * `review` policy (owner decision P9), a product that matches every supplied field but holds values the source does
+ * not send is `unknown`, so it enters the review set instead of reading as already current.
+ */
+export function comparisonItemV2(item: JsonObject, supplied: JsonObject, destination: CatalogDestination): JsonObject {
+  const unsent: string[] = item.unsent_fields ?? [];
   return {
     ...item,
+    ...(destination.destinationOnlyValues === 'review' && item.state === 'matching' && unsent.length
+      ? {state: 'unknown'}
+      : {}),
     blocked_reason: item.blocked_reason ?? null,
-    unsent_fields: item.unsent_fields ?? [],
+    unsent_fields: unsent,
     serving_notes: catalogServingNotes(supplied, item.before ?? {}),
   };
 }
