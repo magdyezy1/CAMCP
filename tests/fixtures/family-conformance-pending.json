@@ -1,6 +1,6 @@
 {
   "description": "Reviewed write families without a behavioral conformance descriptor (QA-02, tests/reviewed-family-conformance.test.mjs). Remove a family when its descriptor lands in tests/family-descriptors/ and lower the ceiling to the new count; never add a family or raise the ceiling: a new family ships its descriptor. Backfill order: activation and budget-affecting families first (the registry marks spend-affecting families with spendConfirmation), then destructive, then settings.",
-  "ceiling": 123,
+  "ceiling": 121,
   "families": [
     "apple_campaigns",
     "apple_entities",
@@ -30,7 +30,6 @@
     "dv360_line_item_targeting",
     "dv360_lists",
     "dv360_sdf_downloads",
-    "ga4_export_jobs",
     "gtm_entities",
     "gtm_workflows",
     "gtm_workspace",
@@ -74,7 +73,6 @@
     "microsoft_asset_links",
     "microsoft_search",
     "reddit_creatives",
-    "search_console_sites",
     "snapchat_catalogs",
     "snapchat_claim_media",
     "snapchat_custom_conversions",
