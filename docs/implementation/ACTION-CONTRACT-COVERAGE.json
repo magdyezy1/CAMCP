@@ -14793,7 +14793,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-atomic-builds.test.ts"
+        "tests/google-atomic-builds.test.ts",
+        "tests/google-pmax-build.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "google_atomic_builds"
