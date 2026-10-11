@@ -42,7 +42,7 @@ export default {
     sent: [],
   }),
   unpaginated:
-    'both state reads select at most one row by ID (customer LIMIT 1, conversion_action.id = 800), and Google Ads search pages only past 10,000 rows',
+    'both reads select one row at most (customer LIMIT 1, conversion_action.id = 800); Google pages past 10,000',
   isWrite: dm.isWrite,
   provider: request =>
     dm.provider(request, {

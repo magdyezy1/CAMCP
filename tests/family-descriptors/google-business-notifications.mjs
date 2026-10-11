@@ -1,5 +1,5 @@
-// google_business_notifications: PATCH https://mybusinessnotifications.googleapis.com/v1/accounts/{id}/notificationSetting
-// (Business Profile Notifications API, NotificationSetting) through the delegated gmb_notification_ops operation. The
+// google_business_notifications: PATCH /v1/accounts/{id}/notificationSetting (mybusinessnotifications.googleapis.com,
+// Business Profile Notifications API, NotificationSetting) through the delegated gmb_notification_ops operation. The
 // update overwrites the account's `pubsubTopic`, the Pub/Sub topic that receives every review and update notification
 // of the account's locations; the setting's current `pubsubTopic` is the decisive field. Only a workspace
 // administrator may review it.

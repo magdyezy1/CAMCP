@@ -1,5 +1,5 @@
-// microsoft_asset_links: POST /CampaignManagement/v13/AdExtensionsAssociations/Set on campaign.api.bingads.microsoft.com
-// (Microsoft Advertising Campaign Management API v13, SetAdExtensionsAssociations). Associating a sitelink extension
+// microsoft_asset_links: POST /CampaignManagement/v13/AdExtensionsAssociations/Set (campaign.api.bingads.microsoft.com,
+// Microsoft Advertising Campaign Management API v13, SetAdExtensionsAssociations). Associating a sitelink extension
 // with a campaign shows that extension, with its link, on the campaign's ads at once; the review shows the extension
 // being attached, so the extension's `FinalUrls` (where the sitelink leads) is the decisive field.
 const microsoftScope = 'https://ads.microsoft.com/msads.manage',
@@ -34,7 +34,7 @@ export default {
     links: [],
   }),
   unpaginated:
-    'GetAccount, GetCampaignsByIds, GetAdExtensionsByIds and GetAdExtensionsAssociations answer for the named IDs in one response; Microsoft pages none of them',
+    'GetAccount, the Get...ByIds reads and GetAdExtensionsAssociations answer for the named IDs at once, unpaged',
   isWrite: ({path}) => path.endsWith('/AdExtensionsAssociations/Set') || path.endsWith('/AdExtensionsAssociations'),
   provider({path, body, state, mode}) {
     if (path.endsWith('/Account/Query')) return {json: {Account: state.account}};

@@ -16,8 +16,7 @@ export default {
     account: {Id: '123', ParentCustomerId: '456', CurrencyCode: 'USD'},
     campaigns: [{Id: '100', Name: 'Campaign', Status: 'Paused', DailyBudget: 10, BudgetType: 'DailyBudgetStandard'}],
   }),
-  unpaginated:
-    'GetAccount and GetCampaignsByIds return the named entities in one response; neither operation is paged by Microsoft',
+  unpaginated: 'GetAccount and GetCampaignsByIds return the named entities in one response; Microsoft pages neither',
   isWrite: ({path}) => !/\/(Account\/Query|QueryByIds)$/.test(path),
   provider({path, body, state, mode}) {
     if (path.endsWith('/Account/Query')) return {json: {Account: state.account}};

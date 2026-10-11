@@ -35,8 +35,7 @@ export default {
       property: {roomsCount: 120, builtYear: 1998},
     },
   }),
-  unpaginated:
-    'GET /v1/locations/{id} and GET /v1/locations/{id}/lodging each return one resource; neither API pages a single resource',
+  unpaginated: 'GET /v1/locations/{id} and /v1/locations/{id}/lodging each return one resource; neither API pages it',
   isWrite: ({method}) => method !== 'GET',
   provider({method, url, path, body, state, mode}) {
     if (method === 'GET' && url.origin === information && path === '/v1/' + location)

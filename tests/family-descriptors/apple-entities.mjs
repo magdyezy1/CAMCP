@@ -29,7 +29,7 @@ export default {
     },
   }),
   unpaginated:
-    'GET /v1/keywords/{id} and GET /v1/ad-accounts/{id} each return one resource under `result`; Apple pages only find and list calls',
+    'GET /v1/keywords/{id} and /v1/ad-accounts/{id} each return one resource; Apple pages only find and list calls',
   isWrite: ({method}) => method !== 'GET',
   provider({method, url, path, body, state, mode}) {
     if (url.origin !== origin || !state[path]) return;
