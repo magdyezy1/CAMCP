@@ -969,7 +969,9 @@ async function renderActivity() {
   }
   const generation = navigationGeneration,
     identity = identityGeneration;
-  const initial = await api('/api/activity');
+  // The working client narrows the history to its accounts (SEC-08).
+  const client = workingClientQuery(),
+    initial = await api('/api/activity' + (client.profile_id ? '?' + new URLSearchParams(client) : ''));
   if (generation !== navigationGeneration || identity !== identityGeneration) return;
   const rows = result =>
     `${
@@ -989,7 +991,7 @@ async function renderActivity() {
   let page = 0,
     next = initial.next_cursor ?? null,
     cursors = [undefined],
-    filters = {},
+    filters = {...client},
     sequence = 0;
   const markup = result =>
     rows(result) +
@@ -1029,9 +1031,12 @@ async function renderActivity() {
   workspaceBind('#activity-refresh', () => load(0, true));
   workspaceBind('#activity-filter', async () => {
     if (!current()) return;
-    filters = Object.fromEntries(
-      ['search', 'account_id'].map(k => [k, form.elements[k].value.trim()]).filter(([, v]) => v),
-    );
+    filters = {
+      ...client,
+      ...Object.fromEntries(
+        ['search', 'account_id'].map(k => [k, form.elements[k].value.trim()]).filter(([, v]) => v),
+      ),
+    };
     await load(0, true);
   });
   form.addEventListener('input', () => {

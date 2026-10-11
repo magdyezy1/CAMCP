@@ -813,7 +813,10 @@ function recipeStart(recipes, profiles, params = recipeLinkParams()) {
   const last = linked.recipe || linked.profile ? null : recipeStoredDrafts()?.last;
   recipe ??= recipes.find(r => r.id === last?.recipe)?.id;
   recipe ??= (recipes.find(recipeHasAccount) ?? recipes[0])?.id;
-  let profile = profiles.find(p => p.id === (linked.profile ?? last?.profile))?.id ?? '';
+  // The working client's playbook comes before the tab's last one (SEC-08): its bindings narrow the accounts offered,
+  // and its accounts' logins the Page suggestions.
+  const working = typeof workingClient === 'function' ? workingClient()?.profile_id : undefined;
+  let profile = profiles.find(p => p.id === (linked.profile ?? working ?? last?.profile))?.id ?? '';
   if (linked.profile && !profile)
     notices.push(uiText('The linked client playbook is not available in this workspace. Choose a playbook.'));
   const target =

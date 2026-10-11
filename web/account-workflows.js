@@ -250,7 +250,7 @@ function portfolioEntityLabel(value) {
   }
 }
 function accountChoices(ids) {
-  return platforms
+  const all = platforms
     .filter(p => ids.includes(p.id))
     .flatMap(p =>
       p.connections
@@ -264,6 +264,9 @@ function accountChoices(ids) {
           })),
         ),
     );
+  // Every account picker of these workflows follows the working client (SEC-08); the pickers keep their explicit
+  // placeholder and preselect only a sole account.
+  return typeof clientAccountOptions === 'function' ? clientAccountOptions(all).options : all;
 }
 function portfolioReconciliationView(out) {
   const changes = [

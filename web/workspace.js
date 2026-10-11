@@ -262,7 +262,13 @@ async function renderOverview() {
   // The attention items come from the Operations classifier (OPS-06); a failure there still shows the rest of Home.
   const [d, attention] = await Promise.all([
       workspaceCall('workspace', {action: 'dashboard', view: 'full'}),
-      workspaceCall('workspace', {action: 'operations', state: 'attention', limit: 8}).catch(error => ({error})),
+      workspaceCall('workspace', {
+        action: 'operations',
+        state: 'attention',
+        limit: 8,
+        // The working client's attention items only (SEC-08).
+        ...(typeof workingClientQuery === 'function' ? workingClientQuery() : {}),
+      }).catch(error => ({error})),
     ]),
     accounts = d.connections.flatMap(c => c.accounts_status.map(a => ({...a, connection: c}))),
     receipts = accounts.flatMap(a => a.verified_writes),
@@ -427,15 +433,26 @@ async function renderCampaigns() {
   if (templateForm.elements.profile_id.value) templateForm.elements.profile_id.dispatchEvent(new Event('change'));
   workspaceBind('#campaign-form', async f => {
     const v = Object.fromEntries(new FormData(f)),
-      r = await workspaceCall('campaign', {
-        action: 'create',
-        name: v.name,
-        brief: v.brief,
-        ...(v.profile_id ? {profile_id: v.profile_id} : {}),
-        ...(v.template ? {template: v.template} : {}),
-        variables: JSON.parse(v.variables),
-        ...(v.steps.trim() ? {steps: JSON.parse(v.steps)} : {}),
-      });
+      steps = v.steps.trim() ? JSON.parse(v.steps) : undefined;
+    // A plan whose steps span accounts of different clients asks first (SEC-08).
+    if (
+      Array.isArray(steps) &&
+      typeof confirmCrossClient === 'function' &&
+      !(await confirmCrossClient(
+        steps.map(s => ({gateway: s?.gateway, account_id: s?.account_id, connection_id: s?.connection_id})),
+        uiText('Create plan'),
+      ))
+    )
+      return;
+    const r = await workspaceCall('campaign', {
+      action: 'create',
+      name: v.name,
+      brief: v.brief,
+      ...(v.profile_id ? {profile_id: v.profile_id} : {}),
+      ...(v.template ? {template: v.template} : {}),
+      variables: JSON.parse(v.variables),
+      ...(steps ? {steps} : {}),
+    });
     await open(r.id);
     toast(uiText('Plan saved. Each step requires its own review.'));
   });
