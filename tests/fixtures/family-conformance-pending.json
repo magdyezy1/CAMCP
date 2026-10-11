@@ -1,6 +1,6 @@
 {
   "description": "Reviewed write families without a behavioral conformance descriptor (QA-02, tests/reviewed-family-conformance.test.mjs). Remove a family when its descriptor lands in tests/family-descriptors/ and lower the ceiling to the new count; never add a family or raise the ceiling: a new family ships its descriptor. Backfill order: activation and budget-affecting families first (the registry marks spend-affecting families with spendConfirmation), then destructive, then settings.",
-  "ceiling": 141,
+  "ceiling": 137,
   "families": [
     "apple_campaigns",
     "apple_entities",
@@ -110,10 +110,6 @@
     "snapchat_product_sets",
     "snapchat_segment_deletions",
     "snapchat_targeting_specs",
-    "tiktok_audience_edits",
-    "tiktok_blocked_words",
-    "tiktok_change_log_tasks",
-    "tiktok_cta_portfolios",
     "tiktok_custom_conversion_edits",
     "tiktok_custom_conversions",
     "tiktok_deletions",
