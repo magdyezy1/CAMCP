@@ -1,6 +1,6 @@
 {
   "description": "Reviewed write families without a behavioral conformance descriptor (QA-02, tests/reviewed-family-conformance.test.mjs). Remove a family when its descriptor lands in tests/family-descriptors/ and lower the ceiling to the new count; never add a family or raise the ceiling: a new family ships its descriptor. Backfill order: activation and budget-affecting families first (the registry marks spend-affecting families with spendConfirmation), then destructive, then settings.",
-  "ceiling": 135,
+  "ceiling": 133,
   "families": [
     "apple_campaigns",
     "apple_entities",
@@ -37,10 +37,8 @@
     "google_business_lodging",
     "google_business_notifications",
     "google_customer_match",
-    "google_listing_groups",
     "google_offline_conversions",
     "google_place_actions",
-    "google_pmax_brand_guidelines",
     "google_shareable_previews",
     "google_youtube_uploads",
     "gtm_entities",
