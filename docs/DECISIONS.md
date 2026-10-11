@@ -86,6 +86,13 @@ tombstones that `verifyAudit` accepts only with a matching `account_erased` rece
 per-tenant HMAC-keyed audit chains S4(b) proposed were not built: they would need a migration of every existing chain
 and a key per workspace, while tombstones keep the existing chain verifiable and erase the personal data it held.
 
+Remaining fallback (CON-05, recorded 2026-10-11): a website Google Ads login saved before manager routes were recorded
+has no route map, so its requests still use the login customer copied into it at that earlier connect (the
+deployment-wide `AMCP_GOOGLE_LOGIN_CUSTOMER_ID` of that time). The next sync of the login records a route for every
+account and ends the fallback; after the release, sync each existing Google Ads login once in Connections. A login with
+a route map refuses an unmapped account with `GOOGLE_LOGIN_CUSTOMER_UNMAPPED`, and an operator-provisioned login keeps
+its own login customer (it is never replaced from the environment).
+
 Not decided in this round: the review's resource and authorization requests R1–R8 (test accounts, named reads, a
 disposable Sheets destination, declared provider approvals, LinkedIn programs and DV360, reviewers, a staging
 environment, the workload profile) and the product-direction questions P1–P9 (except the parts of P4 and P9 above),

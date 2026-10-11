@@ -5,6 +5,7 @@
 // and Google clients were all shown under the root manager with a deployment-wide login-customer-id fallback.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
@@ -649,7 +650,10 @@ test('check reads up to 20 accounts of one login, four at a time, and keeps a re
       {account_ids: ['111', '111']},
       {account_ids: ['111'], account_id: '111'},
     ];
-    const before = f.requests.length;
+    const before = f.requests.length,
+      // The website shows these refusals too: each has its Arabic translation (wave 2 review).
+      arabic = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8')),
+      translated = refusal => assert.ok(Object.hasOwn(arabic, refusal.error.message), refusal.error.message);
     for (const extra of refusals) {
       const refused = await f.service.call(
         'amcp_workspace',
@@ -657,6 +661,7 @@ test('check reads up to 20 accounts of one login, four at a time, and keeps a re
         owner,
       );
       assert.equal(refused.success, false, JSON.stringify(extra));
+      translated(refused);
     }
     const foreign = await f.service.call(
       'amcp_workspace',
@@ -664,8 +669,17 @@ test('check reads up to 20 accounts of one login, four at a time, and keeps a re
       owner,
     );
     assert.equal(foreign.error.code, 'ACCOUNT_FORBIDDEN');
+    translated(foreign);
+    const missing = await f.service.call(
+      'amcp_workspace',
+      {action: 'check', connection_id: 'no-such-login', account_ids: ['111'], live: true},
+      owner,
+    );
+    assert.equal(missing.success, false);
+    translated(missing);
     const elsewhere = await f.service.call('amcp_workspace', {action: 'dashboard', account_ids: ['111']}, owner);
     assert.equal(elsewhere.success, false);
+    translated(elsewhere);
     assert.equal(f.requests.length, before, 'refused batches read nothing');
   } finally {
     f.close();
