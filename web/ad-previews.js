@@ -58,8 +58,9 @@ function adPreviewsPanel() {
     (targets.length && !preselect
       ? `<option value="" selected disabled>${esc(uiText('Choose an account'))}</option>`
       : '') +
-    targets.map((t, i) => `<option value="${i}" ${t === preselect ? 'selected' : ''}>${esc(t.label)}</option>`).join('') ||
-    `<option value="">${esc(uiText('Connect and select an advertising account first'))}</option>`
+      targets
+        .map((t, i) => `<option value="${i}" ${t === preselect ? 'selected' : ''}>${esc(t.label)}</option>`)
+        .join('') || `<option value="">${esc(uiText('Connect and select an advertising account first'))}</option>`
   }</select></label>
 <label>${esc(uiText('Ad IDs (optional; Snapchat and LinkedIn: creative IDs)'))}<input name="ad_ids" placeholder="${esc(uiText('Leave empty for the first five ads'))}"></label>
 <label id="preview-format" hidden>${esc(uiText('Placement'))}<select name="ad_format">${previewFormats

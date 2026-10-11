@@ -1033,9 +1033,7 @@ async function renderActivity() {
     if (!current()) return;
     filters = {
       ...client,
-      ...Object.fromEntries(
-        ['search', 'account_id'].map(k => [k, form.elements[k].value.trim()]).filter(([, v]) => v),
-      ),
+      ...Object.fromEntries(['search', 'account_id'].map(k => [k, form.elements[k].value.trim()]).filter(([, v]) => v)),
     };
     await load(0, true);
   });
@@ -1418,7 +1416,7 @@ document.addEventListener('change', async event => {
   else url.searchParams.delete('client');
   history.replaceState(history.state, '', url.pathname + url.search + url.hash);
   await render();
-});// WEB-06: a failed shell action stays on screen until the next action or page, instead of a six-second toast.
+}); // WEB-06: a failed shell action stays on screen until the next action or page, instead of a six-second toast.
 function showShellAlert(message) {
   const alert = document.getElementById('shell-alert');
   if (!alert || !message) return toast(message);
