@@ -696,10 +696,11 @@ export class WriteReviewService {
           assertWriteShape(plan);
           familyOf(plan)?.available?.(plan);
           const reads = snapshotPlans(plan, this.registry),
-            // MSR-03: an offline conversion upload also gets its local rehearsal; nothing is sent or reviewed.
-            rehearsal = plan.personalData
-              ? offlineUploadRehearsal(plan, familyOf(plan)!.personalData!, input.people)
-              : undefined;
+            // MSR-03: an offline conversion upload also gets its local rehearsal; nothing is sent or reviewed. A plan whose
+            // family has no personal-data spec has no rehearsal, so this contract check never throws for it.
+            personalSpec = familyOf(plan)?.personalData,
+            rehearsal =
+              plan.personalData && personalSpec ? offlineUploadRehearsal(plan, personalSpec, input.people) : undefined;
           return {
             executed: false,
             network_requests: 0,

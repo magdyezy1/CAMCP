@@ -793,7 +793,7 @@ export function inspectMeasurementFailures(source, file) {
       'src/measurement-events.ts': ['bad', 'invalid'],
       'src/measurement-event-identity.ts': ['bad', 'invalid'],
       'src/linkedin-conversion-evidence.ts': ['bad', 'invalid'],
-      'src/measurement-ledger.ts': ['bad'],
+      'src/measurement-ledger.ts': ['bad', 'invalid'],
       'src/gtm-consent-evidence.ts': [],
     }[file.replaceAll('\\', '/')],
     messages = new Set();

@@ -148,7 +148,7 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   assert.equal(files.length, 517);
   assert.equal(selected.filter(row => row.messages.size).length, 172);
   assert.equal(owned.size, 2679);
-  assert.equal(Object.keys(catalog).length, 10006);
+  assert.equal(Object.keys(catalog).length, 10020);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

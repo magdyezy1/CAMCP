@@ -10004,5 +10004,19 @@
   "Choose a dataLayer export or a HAR file.": "اختر ملف تصدير dataLayer أو ملف HAR.",
   "Choose the GA4 property and enter its exact numeric data stream ID.": "اختر خاصية GA4 وأدخل المعرّف الرقمي الدقيق لمصدر البيانات.",
   "Use a synthetic test identifier that starts with amcp-test- followed by 8–64 letters, digits or hyphens.": "استخدم معرّف اختبار اصطناعيًا يبدأ بـ amcp-test- يليه من 8 إلى 64 حرفًا أو رقمًا أو شرطة.",
-  "The file contains no consent command or event that a trace can use.": "لا يحتوي الملف على أي أمر موافقة أو حدث يمكن للتسلسل استخدامه."
+  "The file contains no consent command or event that a trace can use.": "لا يحتوي الملف على أي أمر موافقة أو حدث يمكن للتسلسل استخدامه.",
+  "A measurement ledger collection exceeded five pages.": "تجاوزت إحدى مجموعات سجل أدلة القياس خمس صفحات.",
+  "Google Ads returned a failed, partial or unrecognized measurement response.": "أرجعت Google Ads استجابة قياس فاشلة أو جزئية أو غير معروفة.",
+  "Google Ads measurement result counts were invalid or changed.": "كانت أعداد نتائج القياس في Google Ads غير صالحة أو تغيّرت.",
+  "A measurement row was incomplete or mixed with another resource.": "كان أحد صفوف القياس ناقصًا أو مختلطًا بمورد آخر.",
+  "A measurement ledger collection exceeded 1000 rows.": "تجاوزت إحدى مجموعات سجل أدلة القياس 1000 صف.",
+  "Measurement pagination was malformed, repeated or incomplete.": "كان ترقيم صفحات القياس مشوّهًا أو مكررًا أو ناقصًا.",
+  "The native count shows the measurement collection is incomplete.": "يُظهر العدد الأصلي أن مجموعة القياس ناقصة.",
+  "An offline upload summary is outside the selected customer or incompletely described.": "يقع ملخص تحميل بلا اتصال خارج العميل المحدد أو أن وصفه ناقص.",
+  "An offline upload alert is malformed.": "أحد تنبيهات التحميل بلا اتصال مشوّه.",
+  "A conversion action attribution setting is outside the selected customer or incompletely described.": "يقع إعداد إسناد أحد إجراءات التحويل خارج العميل المحدد أو أن وصفه ناقص.",
+  "Google Ads returned the same upload summary twice.": "أرجعت Google Ads ملخص التحميل نفسه مرتين.",
+  "Google Ads returned the same conversion action twice.": "أرجعت Google Ads إجراء التحويل نفسه مرتين.",
+  "The GA4 configuration read was incomplete.": "كانت قراءة إعدادات GA4 ناقصة.",
+  "The measurement ledger layers are incomplete.": "طبقات سجل أدلة القياس ناقصة."
 }

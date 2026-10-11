@@ -174,3 +174,19 @@ test('near matching and unknown native measurement diagnostics stay literal and 
     assert.equal(f.run('errorMessage(error)'), '');
   }
 });
+test('MSR-03 review fix: the measurement ledger response refusals are owned sentences with Arabic', () => {
+  // Regression: only bad() was registered for the ledger, so its invalid() refusals (MEASUREMENT_LEDGER_INVALID) reached
+  // the website in English.
+  const messages = inspectMeasurementFailures(
+    readFileSync('src/measurement-ledger.ts', 'utf8'),
+    'src/measurement-ledger.ts',
+  );
+  for (const message of [
+    'The measurement ledger layers are incomplete.',
+    'Measurement pagination was malformed, repeated or incomplete.',
+    'Google Ads returned the same conversion action twice.',
+  ])
+    assert.ok(messages.has(message), message);
+  assert.deepEqual(localeProblems(catalog, messages), []);
+  for (const message of messages) assert.match(catalog[message], /[؀-ۿ]/);
+});
