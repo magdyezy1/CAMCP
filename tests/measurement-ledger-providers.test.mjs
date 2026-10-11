@@ -353,6 +353,30 @@ test('MSR-03 partial, foreign or out-of-contract Meta evidence leaves its layer 
   }
 });
 
+test('MSR-03 Meta pixel stats follow their cursor to the last page and sum every hour', async t => {
+  // Regression: the stats cursor ('after') was not an allowed query of a listed pixel's aggregate read, so any second
+  // page was refused and the activity layer stayed unknown.
+  const f = metaFixture(t, {
+      stats: request =>
+        request.query.after === 'p2'
+          ? {
+              data: [{aggregation: 'event', start_time: metaHour(1), data: [{value: 'Purchase', count: 2}]}],
+              paging: {cursors: {before: 'p1', after: 'p3'}},
+            }
+          : {
+              data: [{aggregation: 'event', start_time: metaHour(2), data: [{value: 'Purchase', count: 3}]}],
+              paging: {cursors: {before: 'p0', after: 'p2'}, next: 'https://graph.facebook.com/next'},
+            },
+    }),
+    out = await ledger(f, 'meta_native_action');
+  assert.equal(out.success, true, JSON.stringify(out));
+  assert.equal(states(out.data).provider_observed_activity, 'observed');
+  assert.deepEqual(layerOf(out.data, 'provider_observed_activity').evidence.events, [
+    {event_name: 'Purchase', count: '5'},
+  ]);
+  assert.deepEqual(metaPaths(f), ['act_123/adspixels', '701/stats', '701/stats', 'dataset_quality']);
+  assertReadOnly(f, out);
+});
 test('MSR-03 Meta dataset quality needs ads_management or business_management; ads_read alone leaves it unknown', async t => {
   const f = metaFixture(t, {scopes: ['ads_read']}),
     out = await ledger(f, 'meta_native_action');

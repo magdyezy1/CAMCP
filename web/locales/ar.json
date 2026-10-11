@@ -10137,5 +10137,6 @@
   "An Adjust event name is malformed.": "اسم حدث في Adjust مشوّه.",
   "Adjust returned no report.": "لم تُعِد Adjust أي تقرير.",
   "An Adjust report day is malformed.": "يوم في تقرير Adjust مشوّه.",
-  "The selected login changed during the read. Read the measurement ledger again.": "تغيّر تسجيل الدخول المحدد أثناء القراءة. اقرأ سجل القياس مرة أخرى."
+  "The selected login changed during the read. Read the measurement ledger again.": "تغيّر تسجيل الدخول المحدد أثناء القراءة. اقرأ سجل القياس مرة أخرى.",
+  "Connect an advertising, analytics or Search Console account in Connections to read its measurement evidence ledger.": "اربط حسابًا إعلانيًا أو حساب تحليلات أو Search Console في الاتصالات لقراءة سجل أدلة القياس الخاص به."
 }

@@ -16,7 +16,8 @@ import {metaRoute} from './meta-version.js';
 const gateway = 'meta_native_action';
 export const metaDatasetResource = (pixel: string) => 'adspixels/' + pixel;
 const numeric = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,31}$/.test(v);
-const statsQuery = ['aggregation', 'start_time', 'end_time', 'event', 'event_source'],
+// The stats edge pages with Graph API cursors, so 'after' continues the same read (MSR-03 review fix).
+const statsQuery = ['aggregation', 'start_time', 'end_time', 'event', 'event_source', 'after'],
   qualityQuery = ['dataset_id', 'fields', 'agent_name'];
 const emptyBody = (body: unknown) =>
   body === undefined ||
