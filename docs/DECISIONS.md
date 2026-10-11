@@ -121,10 +121,12 @@ cites as owner decisions, each the review's recommended or the ticket's proposed
   are frozen with an as-of label (DEC-01); a Meta action absent from a delivered row counts as 0 with
   `provider_omitted`, and Microsoft totals use the account time zone (RPT-04); daily collection uses natively segmented
   requests (RPT-03); schedule times show the delivery time zone first, then the viewer's (EXP-04). An open snapshot is
-  addressable with `?report_id=` under the same authorization as any load (RPT-05). Still open: whether a Sheets
-  destination belongs to a report or a client, whether complete-only gates a manual export, after how many failures a
-  schedule pauses, whether workbook schedules stay or move into Overview (EXP-04's second phase waits for it), period
-  comparison, the decision-grade metric set, the DEC-02 outcome window and causal experiments.
+  addressable with `?report_id=` under the same authorization as any load (RPT-05). Workbook schedules converge into
+  Overview (the review's recommendation, chosen during implementation; owner may revise): each moves only by an explicit,
+  reversible move that keeps its saved query, and a query without an exact Overview equivalent stays local (EXP-04
+  phase 2). Still open: whether a Sheets destination belongs to a report or a client, whether complete-only gates a
+  manual export, after how many failures a schedule pauses, period comparison, the decision-grade metric set, the DEC-02
+  outcome window and causal experiments.
 - **P7.** The Microsoft Search pack is labelled "Draft only: set locations in Microsoft before activation", and
   activation without a positive location criterion is refused with `LOCATION_CRITERIA_REQUIRED` until AMCP can read
   location criteria (CMP-03). UTM parameters versus tracking-suffix fields, mandatory conventions, the next launch

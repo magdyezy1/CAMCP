@@ -47,11 +47,11 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     'calibrate_allocation, allocation_candidates, allocation, preview_allocation_plan and create_allocation_plan, search_exclusion_candidates, preview_search_exclusions and create_search_exclusion_plan. ' +
     help('amcp_reporting'),
   amcp_reporting_overview:
-    'Use this for saved client reports across platforms and accounts, their schedules and Sheets or retained-file exports; to analyse one captured native report, use amcp_reporting. ' +
-    'Safety: no advertising mutations. Sheets exports replace only an AMCP-owned tab and retries never append duplicate rows; destinations, schedules and presentation changes need confirmed:true; missing metrics remain null; GA4 and Search Console are measurement context. ' +
+    'Use this for saved client reports across accounts, their schedules and Sheets or retained-file exports; to analyse one captured native report, use amcp_reporting. ' +
+    'Safety: no advertising mutations. Sheets exports replace only an AMCP-owned tab and retries never append duplicate rows; destinations, schedules and presentation changes need confirmed:true; missing metrics remain null. ' +
     'Core actions: bootstrap (accounts, metrics, entity levels and saved reports), save, get, list and delete_report (named client reports; edits need expected_revision), save_template, delete_template and delete_view, ' +
-    'run (a bounded total, daily, weekly or monthly native report snapshot at campaign, ad-set/ad-group or ad level where qualified), report_pack (snapshot summaries, source evidence and PDF/XLSX download paths), ' +
-    'export, export_status, retry and cancel; schedule, preview_schedule, update_schedule, pause_schedule, resume_schedule, remove_schedule (delete_schedule is a legacy pause alias); ' +
+    'run (a bounded native snapshot, total to monthly, campaign to ad level where qualified), report_pack (summaries, source evidence, PDF/XLSX downloads), ' +
+    'export, export_status, retry and cancel; schedule, preview_schedule, update_schedule, pause_schedule, resume_schedule, remove_schedule (delete_schedule: legacy pause alias); ' +
     'create_spreadsheet, bind_destination (Google Sheets) and bind_file_destination (encrypted local PDF/XLSX files); save_presentation, presentation_profiles and apply_profile_presentation. ' +
     help('amcp_reporting_overview') +
     ' Guide: amcp://guides/reporting-overview.',

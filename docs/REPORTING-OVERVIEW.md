@@ -426,6 +426,16 @@ Collection and delivery are separate jobs. When collection finishes, the snapsho
 
 **Save report & enable schedule** atomically saves a view and an independent schedule with its account selection, objectives, metrics, formulas and destination. Reopen it from **Report library** or **All scheduled reports → Edit report & schedule**. Saving an existing report updates its same identity and linked schedule instead of making a duplicate. Each report can use a separate spreadsheet or a separate AMCP tab in the same spreadsheet. Only one active schedule can use a destination tab, preventing different account reports from replacing one another. Stable creation keys make destination and schedule retries idempotent. Up to 50 schedules can coexist in a workspace.
 
+**Workbook schedules move here (EXP-04).** A local workbook schedule (results kept in AMCP, never written to its
+spreadsheet) can move into this schedule system explicitly: `preview_workbook_move` is a dry run that converts its
+saved campaign query and clock into one report and schedule and lists the report tabs bound for the workbook's
+spreadsheet; `move_workbook_schedule` (with the preview's `move_version` and `confirmed:true`) creates them and pauses
+the local schedule in one transaction; `undo_workbook_move` pauses the new schedule and restores the local one. The
+saved query and its revision never change, and the moved schedule then follows every rule above (tab ownership, one
+active schedule per tab, delivery receipts and pause after repeated failures). Native provider queries, fixed dates,
+ad set or ad levels and settings without an Overview equivalent stay local with their reasons listed
+([product workflows](PRODUCT-WORKFLOWS.md)).
+
 ## Google Ads account discovery
 
 Sync the Google Ads connection to discover directly accessible accounts and all descendant accounts under each accessible manager. Discovery requests account status, name, currency and timezone without active-only or hidden-account filters; cancelled, suspended and closed accounts remain visible and selectable. Each selected child retains its verified login manager for subsequent API requests, and Connections shows it under its direct manager: each sub-manager's direct clients are read through the root manager (at most 200 sub-manager reads per sync; past that, or when one fails, its clients show the root and the group says the hierarchy is incomplete). A website Google Ads login never inherits the deployment-wide `AMCP_GOOGLE_LOGIN_CUSTOMER_ID`: an account without a recorded manager route is refused with `GOOGLE_LOGIN_CUSTOMER_UNMAPPED` and a re-sync step, and no login-customer header is sent (CON-05). Operator-provisioned logins, which record no routes, keep their own provisioned login customer. This does not reactivate accounts, grant provider permissions or promise that Google permits every operation on an inactive account.

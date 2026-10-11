@@ -31,6 +31,27 @@ export const workbookScheduleFeedSQL = `SELECT d.id,'workbook_schedule' AS kind,
     AND q.id=json_extract(d.data,'$.schedule_config.query_id')
   WHERE d.tenant_id=? AND d.kind='reporting_schedule'`;
 
+/** A schedule's move to Reporting overview (EXP-04 D phase 2), without private fields; null when never moved. */
+export const workbookMigrationProjection = (m: JsonObject | null | undefined) =>
+  m && typeof m === 'object'
+    ? {
+        state: m.state === 'reverted' ? 'reverted' : 'migrated',
+        overview_schedule_id: m.overview_schedule_id ?? null,
+        overview_view_id: m.overview_view_id ?? null,
+        destination_id: m.destination_id ?? null,
+        migrated_at: m.migrated_at ?? null,
+        reverted_at: m.reverted_at ?? null,
+      }
+    : null;
+function migrationOf(store: Store, tenant: string, id: string) {
+  const row = store.db
+    .prepare(
+      "SELECT json_extract(data,'$.overview_migration') AS m FROM documents WHERE tenant_id=? AND kind='reporting_schedule' AND id=?",
+    )
+    .get(tenant, id) as JsonObject | undefined;
+  return workbookMigrationProjection(typeof row?.m === 'string' ? JSON.parse(row.m) : null);
+}
+
 /** The next three clock times; dst_shifted marks one moved forward out of a daylight-saving gap (EXP-02). */
 function clockOccurrences(timezone: string, kind: string, calendar: JsonObject) {
   const occurrences: number[] = [],
@@ -101,6 +122,8 @@ export function workbookSchedule(store: Store, actor: Actor, id: unknown): JsonO
     dst_shifted: dstShifted,
     preview_error: previewError,
     last_run: lastRun,
+    // EXP-04 D phase 2: a schedule moved to Reporting overview stays paused here until the move is undone.
+    overview_migration: migrationOf(store, actor.tenantId, id),
     can_edit: actor.role !== 'reader',
     schedule_version: fingerprint({id, revision: row.revision, metadata: p, scope}),
     destination: 'local',
@@ -193,6 +216,13 @@ export function saveWorkbookSchedule(store: Store, actor: Actor, input: JsonObje
       throw new MirrorError(
         'CONFIRMATION_REQUIRED',
         'Confirm the clock settings and whether future reporting runs should be active.',
+      );
+    if (input.active && migrationOf(store, actor.tenantId, current.id)?.state === 'migrated')
+      throw new MirrorError(
+        'WORKBOOK_SCHEDULE_MIGRATED',
+        'This schedule moved to Reporting overview. Undo the move before enabling it here again.',
+        {},
+        409,
       );
     const value = current.schedule;
     const config: JsonObject = {
