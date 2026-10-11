@@ -568,8 +568,8 @@ in-process fake that refuses and counts any other host.
   calls, provider requests and mutations, response bytes, approvals, and its end state. The end state is one of
   success, a handled failure (the last response offered a next step) or a dead end.
 - **B15 tasks** (`tests/journeys/b15-tasks.json`). The six blueprint jobs plus two hold-out tasks that must never be
-  used to tune tool descriptions. Each task runs twice. The _reference_ run is the shortest correct scripted sequence
-  and proves the job can be done. The _guided_ run is a client that knows only the first call and then follows the
+  used to tune tool descriptions. Each task runs twice. The *reference* run is the shortest correct scripted sequence
+  and proves the job can be done. The *guided* run is a client that knows only the first call and then follows the
   next calls AMCP offers. Both are measured on the four B15 measures: correct tool choice, unnecessary calls, repeated
   refused calls and handoff success (the website link opens the same object).
 - **Baseline.** `tests/journeys/baseline.json` is committed. `--check` (the default, and the full qualification's
@@ -577,7 +577,7 @@ in-process fake that refuses and counts any other host.
   tool-list bytes or instruction bytes grow more than 10 % plus 512 bytes, or when the tool count changes. A guided
   run that newly reaches its goal, or a dead end that gains a next step, counts as an improvement. A failure branch
   that newly "succeeds" is a regression, because a safeguard stopped holding. `--fault strip-next-call` and `--fault
-hide-attention` apply deliberate regressions so the check can be seen to fail. `--write-baseline` is the only way
+  hide-attention` apply deliberate regressions so the check can be seen to fail. `--write-baseline` is the only way
   to change the baseline, and it refuses a subset or a fault. Re-baseline deliberately after a change to the MCP
   surface, such as MCP-07, and record the earlier file's git blob and its measures beside the new ones (below).
 - **What the first baseline shows.** All reference runs complete. Guided runs reach the goal for T3, T5 and H2 only.
@@ -601,7 +601,7 @@ hide-attention` apply deliberate regressions so the check can be seen to fail. `
   egress for direct calls as well as for the synthetic providers.
 - **External clients** (owner decision D14). Run the same task prompts in each must-pass client, repeated so the
   results are ranges. Turn each raw call log into a sanitized transcript locally with `--sanitize <raw.json> --output
-<new file>`, then measure the runs with `--external <runs.json>`. A transcript keeps argument shapes, result codes,
+  <new file>`, then measure the runs with `--external <runs.json>`. A transcript keeps argument shapes, result codes,
   states and sizes. It is refused if it carries argument values, provider text or bodies. Record the results with
   [the evaluation record template](review/MCP-EVALUATION-RECORD-TEMPLATE.md).
 
