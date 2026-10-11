@@ -309,7 +309,8 @@ test('builds outside the contract are refused before any request, naming the ope
         {},
         /must be \{create/,
       ],
-      [[{asset_group_operation: {create: {name: 'x'}}}], {}, /must be exactly one of/],
+      // CMP-07 made asset_group_operation part of the Performance Max build; another service stays outside the contract.
+      [[{campaign_asset_operation: {create: {campaign: 'customers/123/campaigns/77'}}}], {}, /must be exactly one of/],
       [[adGroup()], {}, /no earlier operation of this build creates/],
       [
         [
@@ -351,7 +352,7 @@ test('builds outside the contract are refused before any request, naming the ope
           },
         ],
         {},
-        /only budgets, campaigns and ad groups/,
+        /only budgets, campaigns, ad groups, assets and asset groups/,
       ],
       [Array.from({length: 1001}, () => budget), {}, /1–1000 operations/],
     ];

@@ -10225,5 +10225,7 @@
   "Snapchat returned an ad squad outside this launch’s campaign.": "أرجعت Snapchat مجموعة إعلانية خارج حملة هذا الإطلاق.",
   "Snapchat returned another ad account.": "أرجعت Snapchat حسابًا إعلانيًا آخر.",
   "The plan could not be read.": "تعذّرت قراءة الخطة.",
-  "Launch checks need the campaign plan service.": "يحتاج فحص الإطلاق إلى خدمة خطط الحملات."
+  "Launch checks need the campaign plan service.": "يحتاج فحص الإطلاق إلى خدمة خطط الحملات.",
+  "The build links an asset this account does not return.": "يربط البناء مادة عرض لا يُرجعها هذا الحساب.",
+  "The build links an existing asset of another type than its field type needs.": "يربط البناء مادة عرض موجودة من نوع غير النوع الذي يحتاجه نوع حقلها."
 }
