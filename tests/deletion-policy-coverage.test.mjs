@@ -120,6 +120,8 @@ const google = 'google-ads-' + pinnedGoogleAdsVersion();
 /** Every pinned document: how it is read, and the gateway whose writes it describes. */
 const documents = {
   [google]: ['discovery', 'google_ads_native_action'],
+  // Google's Data Manager v1 (PRV-05), whose three upload routes AMCP maps on the Google Ads gateway.
+  'datamanager-v1': ['discovery', 'google_ads_native_action'],
   'dv360-v4': ['discovery', 'dv360_native_action'],
   'ga4-admin-v1beta': ['discovery', 'ga4_native_action'],
   'ga4-data-v1alpha': ['discovery', 'ga4_native_action'],
