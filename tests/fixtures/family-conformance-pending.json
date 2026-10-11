@@ -1,20 +1,9 @@
 {
   "description": "Reviewed write families without a behavioral conformance descriptor (QA-02, tests/reviewed-family-conformance.test.mjs). Remove a family when its descriptor lands in tests/family-descriptors/ and lower the ceiling to the new count; never add a family or raise the ceiling: a new family ships its descriptor. Backfill order: activation and budget-affecting families first (the registry marks spend-affecting families with spendConfirmation), then destructive, then settings.",
-  "ceiling": 156,
+  "ceiling": 145,
   "families": [
     "apple_campaigns",
     "apple_entities",
-    "criteo_auction_line_items",
-    "criteo_audience_segments",
-    "criteo_bid_multipliers",
-    "criteo_campaigns",
-    "criteo_catalog_requests",
-    "criteo_creatives",
-    "criteo_keywords",
-    "criteo_preferred_line_items",
-    "criteo_promoted_products",
-    "criteo_report_jobs",
-    "criteo_targeting",
     "dv360_ad_assets",
     "dv360_ad_group_targeting",
     "dv360_advertiser_settings",
@@ -158,5 +147,22 @@
     "x_scheduled_tweets",
     "x_targeting_batch",
     "x_tracking_tags"
-  ]
+  ],
+  "parked": {
+    "description": "Lifecycle-parked exemptions: families of a provider whose work is parked (PRK-02; parkedProviders in tools/provider-lifecycle.ts, today Criteo). They need no descriptor while the provider stays parked; the test fails once the provider is unparked, and then each one ships a descriptor. Remove an entry when its descriptor lands and lower the ceiling; never add one for an active provider.",
+    "ceiling": 11,
+    "families": [
+      "criteo_auction_line_items",
+      "criteo_audience_segments",
+      "criteo_bid_multipliers",
+      "criteo_campaigns",
+      "criteo_catalog_requests",
+      "criteo_creatives",
+      "criteo_keywords",
+      "criteo_preferred_line_items",
+      "criteo_promoted_products",
+      "criteo_report_jobs",
+      "criteo_targeting"
+    ]
+  }
 }

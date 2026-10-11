@@ -103,8 +103,10 @@ in a body (`status: DELETED`, `operation_status: DELETE`) belongs in `bodyDeleti
    failed answer is never success and never sent again. A family is never added to
    `tests/fixtures/family-conformance-pending.json`; a backfilled one is removed from it with the ceiling lowered.
    Backfill order: activation and spend-affecting families of active providers first (Google Ads, Meta, Snapchat,
-   LinkedIn and Microsoft Advertising budgets, bids and statuses), then their other entity writes, and parked
-   providers (Criteo) last.
+   LinkedIn and Microsoft Advertising budgets, bids and statuses), then their other entity writes. A family of a
+   parked provider (`parkedProviders` in `tools/provider-lifecycle.ts`, today Criteo under PRK-02) may hold a
+   lifecycle-parked exemption in the same file's `parked` list instead; the test fails once the provider is unparked,
+   and then each such family ships its descriptor.
 6. `tests/reviewed-families.test.mjs` then checks, without changes, that the family owns ledger routes, that no
    ledger route is claimed by two families, that its reader passes foreign reads on, and that no lifecycle module
    names it directly. A new refusal that leaves something paused, busy, uncertain or expired needs its exit test in
