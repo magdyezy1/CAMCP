@@ -582,7 +582,12 @@ renderSettings = async function () {
       }))
     )
       return;
-    await ownerCall({action: 'pause_writes', reason, pause_scope: pauseScope, confirmed: true});
+    await ownerCall({
+      action: 'pause_writes',
+      reason,
+      ...(pauseScope !== 'all' ? {pause_scope: pauseScope} : {}),
+      confirmed: true,
+    });
     toast(uiText('Writes are paused.'));
     await renderSettings();
   });

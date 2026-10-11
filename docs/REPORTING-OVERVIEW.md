@@ -96,7 +96,11 @@ incomplete and its window has closed. Each label holds recommendations; nothing 
   (`WRITES_PAUSED`), and recorded as a `provider_job` receipt in the source's checkpoint. A resumed snapshot polls the
   original `ReportRequestId`; when the earlier submission's answer was lost, it is never submitted again
   (`PROVIDER_JOB_UNCERTAIN`; run a new snapshot). Only a definitive refusal that created nothing (such as error 2004)
-  may be submitted again.
+  may be submitted again. Reviewed report and export jobs of the other providers follow the deployment owner's
+  `AMCP_PROVIDER_JOBS` switch and an account's report-job grant (see
+  [write operations](WRITE-OPERATIONS.md#provider-report-and-export-jobs)). An administrator grants report jobs in
+  Connections: `PROVIDER_JOBS_DISABLED` while the switch is off, `WRITE_ACCOUNT_NOT_SELECTED` for an account the login
+  does not select; an invalid `AMCP_PROVIDER_JOB_HOURLY_LIMIT` refuses jobs with `CONFIGURATION_INVALID`.
 - **Declared incomplete.** A detailed (ad set or ad) source with `complete_window:false` is partial
   (`detail_contract:"overview-detail-v2"`) and its recommendations need review. Snapshots retained earlier keep their
   original labels.

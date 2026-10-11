@@ -517,12 +517,15 @@ export const appleCampaignFamily: ReviewedFamily = {
 };
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+/** A report task is a provider job (RPT-06). An audience export lists audience members, so it stays a reviewed write. */
+function ga4ExportEffect(plan: CompiledRequest): 'provider_job' | 'reviewed_write' {
+  return plan.action === 'ga4_create_report_task' ? 'provider_job' : 'reviewed_write';
+}
 export const ga4ExportFamily: ReviewedFamily = {
   name: 'ga4_export_jobs',
   files: ['src/measurement-writes.ts', ['tests/measurement-writes.test.ts']],
   kind: ga4ExportKind,
-  // A report task is a provider job (RPT-06). An audience export lists audience members, so it stays a reviewed write.
-  effect: plan => (plan.action === 'ga4_create_report_task' ? 'provider_job' : 'reviewed_write'),
+  effect: ga4ExportEffect,
   snapshots: measurementSnapshots,
   outcome: measurementOutcome,
   verification: measurementVerification,
