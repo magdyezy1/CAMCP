@@ -1,4 +1,4 @@
-import {pinnedJson} from './pinned-json.js';
+import {optionalPinnedJson} from './pinned-json.js';
 
 /**
  * How a platform's API counts budget and bid amounts, so an owner can state a cap in account currency and the spending
@@ -206,7 +206,8 @@ export function setMetaCurrencyOffsetsForTest(offsets: Record<string, number> | 
 }
 function loadMetaOffsets(): Readonly<Record<string, number>> | null {
   try {
-    const data = pinnedJson('.mirror/VENDOR/meta-currencies.json');
+    // Absent until the owner captures Meta's currency table: Meta caps then stay in native units.
+    const data = optionalPinnedJson('.mirror/VENDOR/meta-currencies.json');
     if (
       typeof data?.source_url !== 'string' ||
       !/^[0-9a-f]{64}$/.test(String(data.sha256)) ||

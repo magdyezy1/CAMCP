@@ -21,3 +21,17 @@ export function pinnedJson<T = any>(path: string): T {
     );
   return cache.get(path) as T;
 }
+/**
+ * A pinned capture that may be absent until the owner records it (Meta's currency offsets, WRT-07): the same parsed and
+ * frozen copy as pinnedJson, or undefined only when the file does not exist. A malformed capture still throws, and the
+ * caller must work without the document. tests/runtime-image-files.test.mjs names every such path, so a required
+ * document cannot quietly become optional.
+ */
+export function optionalPinnedJson<T = any>(path: string): T | undefined {
+  try {
+    return pinnedJson<T>(path);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT') return undefined;
+    throw error;
+  }
+}
