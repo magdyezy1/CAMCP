@@ -47,12 +47,63 @@ export function choices(step: JsonObject, error: JsonObject | undefined): JsonOb
     }));
   return [];
 }
+/** Refusals of a media step that a new file answers: its file expired or changed, or its deadline is too close. */
+const replaceableSource = new Set([
+  'MEDIA_SOURCE_NOT_FOUND',
+  'UPLOAD_DEADLINE_TOO_CLOSE',
+  'MEDIA_CHANGED',
+  'TEMPORARY_SOURCES_EXPIRING',
+]);
+/**
+ * The "replace source" amendment of a media step whose upload is gone, changed or about to go (MED-03 B): upload the
+ * file again (or choose another), plan it for this one destination, then patch source_id and expected_sha256 with what
+ * the plan returns. The step is then prepared as a new review of the new file; the old bytes are never reused.
+ */
+export function replaceSourceCall(runId: string, step: JsonObject, error: JsonObject | undefined) {
+  const a = step.arguments ?? {};
+  if (step.kind !== 'media' || typeof a.source_id !== 'string' || !replaceableSource.has(error?.code)) return;
+  const newSource = '<the new upload’s source_id>';
+  return {
+    tool: 'amcp_campaign',
+    arguments: {action: 'recover_step', id: runId, step_id: step.id, confirmed: true},
+    add_after_user_choice: {
+      patch: [
+        {path: '/source_id', value: newSource},
+        ...(a.expected_sha256 !== undefined
+          ? [{path: '/expected_sha256', value: '<file.sha256 that the plan call returns>'}]
+          : []),
+      ],
+    },
+    replace_source: {
+      current_source_id: a.source_id,
+      how: 'Upload the file again, or choose another upload or retained original; plan it for this destination (plan_call), then patch source_id and expected_sha256 with what the plan returns. Add acknowledge_temporary_sources: true when the new file is a temporary upload. The step is reviewed again before anything is sent; the old file is never reused.',
+      plan_call: {
+        tool: 'amcp_media',
+        arguments: {
+          action: 'plan',
+          source_id: newSource,
+          fit_to_platform: a.fit_to_platform === true,
+          stage_fits: true,
+          destinations: [
+            Object.fromEntries(
+              ['platform', 'account_id', 'connection_id', 'owner_urn', 'dv360_target']
+                .filter(k => a[k] !== undefined)
+                .map(k => [k, a[k]]),
+            ),
+          ],
+        },
+      },
+    },
+  };
+}
 /**
  * The call that amends a blocked or failed step. With named fields, the operator's choice goes into a patch;
  * otherwise the step's arguments are sent back corrected (unchanged arguments are refused, so following this call
- * never returns the same refusal).
+ * never returns the same refusal). A media step whose file expired or changed is given a new file instead.
  */
 export function amendmentCall(runId: string, step: JsonObject, error: JsonObject | undefined): JsonObject {
+  const replace = replaceSourceCall(runId, step, error);
+  if (replace) return replace;
   const fields = choices(step, error),
     call = {tool: 'amcp_campaign', arguments: {action: 'recover_step', id: runId, step_id: step.id, confirmed: true}};
   return fields.length

@@ -29,6 +29,17 @@ export const creativePerformanceCases = [
     ad: '9007199254740993',
     other: '9007199254740995',
   },
+  // MED-04 C: a verified LinkedIn creative-creation step joins its creative × day snapshot by the exact URN.
+  {
+    platform: 'linkedin',
+    gateway: 'linkedin_native_action',
+    preset: 'linkedin_creative',
+    grain: 'creative × day',
+    account: '100',
+    action: 'linkedin_rest_ad_accounts_ad_account_id_creatives_post',
+    ad: 'urn:li:sponsoredCreative:9007199254740993',
+    other: 'urn:li:sponsoredCreative:9007199254740995',
+  },
 ];
 export function seedCreativePerformance(store, actor, spec, suffix = '') {
   const connection = {
@@ -103,7 +114,9 @@ export function seedCreativePerformance(store, actor, spec, suffix = '') {
           ? 'conversion_purchases'
           : spec.platform === 'tiktok'
             ? 'conversion'
-            : 'metrics.conversions',
+            : spec.platform === 'linkedin'
+              ? 'externalWebsiteConversions'
+              : 'metrics.conversions',
       attribution: 'Synthetic declared native definition',
       complete: true,
       source_name: 'Synthetic ' + spec.platform + ' ad evidence',

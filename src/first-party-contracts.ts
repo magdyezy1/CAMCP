@@ -874,6 +874,15 @@ const rows: Record<string, Row[]> = {
         [C, 'get'],
       ],
     ),
+    row(
+      'run_background',
+      'Queues an approved plan of media uploads to run on the server; get shows its progress.',
+      ['id'],
+      ['detail'],
+      mutation('campaign_run', 'media_review', 'media_receipt'),
+      'operator',
+      [[C, 'get']],
+    ),
     row('recipes', 'The guided campaign recipes.', [], [], local, 'reader', [[C, 'recipe_context']]),
     row(
       'recipe_context',
@@ -1494,7 +1503,7 @@ const rows: Record<string, Row[]> = {
       'list',
       'Upload receipts, recovery reviews, variants, presets and website sources.',
       [],
-      ['platform', 'account_id', 'connection_id', 'offset', 'limit'],
+      ['platform', 'account_id', 'connection_id', 'offset', 'limit', 'recovery_offset', 'include_assets'],
       local,
       'reader',
       [[M, 'plan']],
@@ -1503,7 +1512,7 @@ const rows: Record<string, Row[]> = {
       'library',
       'Account-scoped retained media metadata.',
       [],
-      ['platform', 'account_id', 'connection_id', 'search', 'tag', 'cursor', 'limit'],
+      ['platform', 'account_id', 'connection_id', 'search', 'tag', 'original_sha256', 'cursor', 'limit'],
       local,
       'reader',
       [[M, 'asset']],
@@ -1557,7 +1566,7 @@ const rows: Record<string, Row[]> = {
       'plan',
       'Per-account variants and review steps for sending one source to 1–20 accounts.',
       ['source_id', 'destinations'],
-      ['fit_to_platform'],
+      ['fit_to_platform', 'stage_fits'],
       saves('media_variant'),
       'operator',
       [[M, 'prepare']],
@@ -1708,6 +1717,12 @@ const argumentNotes: Record<string, Record<string, string>> = {
     role: 'assign: viewer, editor or approver.',
   },
   [M]: {
+    stage_fits:
+      'plan: keep each changed file as an encrypted copy until its original expires, so the reviews of this push use it instead of converting again. Off by default: plan stages nothing.',
+    original_sha256:
+      'library: only receipts uploaded from this exact original (its SHA-256, the asset’s original_sha256), across accounts.',
+    recovery_offset: 'list: where the page of unfinished-upload recovery reviews starts; defaults to offset.',
+    include_assets: 'list: false leaves the upload receipts out, for a page that shows only recovery and sources.',
     source_id:
       'A website upload/import, or an explicitly owner-retained original; list returns them under sources. Computer uploads and their derived copies share an absolute 30-minute deadline and cannot be retained. Only separately imported link/Drive originals may persist as owner-retained lib- sources.',
     source_url: 'A public HTTPS link to one PNG, JPEG, MP4 or MOV file. AMCP downloads it on the server.',

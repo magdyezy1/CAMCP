@@ -76,6 +76,25 @@ const creativeNativeReferenceMessages = new Set([
 function creativeAssetCard(a) {
   return `<article class="operation-card creative-asset"><div class="operation-heading"><div><h3>${esc(a.name)}</h3><small>${recordAccountLabelHtml(a.platform, a.connection_id, a.account_id)}</small></div>${badge(a.media_type || 'media')}</div><p>${a.tags.map(t => `<span class="creative-tag">${esc(t)}</span>`).join('') || `<span class="form-note">${esc(uiText('No tags yet'))}</span>`}</p><p class="form-note">${esc(uiText('Provider ID'))} <code>${esc(a.media_id)}</code></p><p class="form-note">${a.last_checked_at ? uiText('Last availability check ') + date(a.last_checked_at) : uiText('Availability has not been checked')}${esc(uiText('. Check again before reuse.'))}</p><button class="button small" data-creative-asset="${esc(a.asset_id)}">${esc(uiText('Inspect asset and usage'))}</button></article>`;
 }
+/** The library's filters in the address; the recovery list's own page (MED-05) is kept as it is. */
+function creativeLibraryHref(filters, search = location.search) {
+  const query = new URLSearchParams(Object.entries(filters).filter(([, v]) => v)),
+    recovery = new URLSearchParams(search).get('recovery_page');
+  if (recovery) query.set('recovery_page', recovery);
+  return '/media?' + query;
+}
+/** How an uploaded file reached AMCP, as its receipt labels it (MED-04 B). */
+const creativeSourceKinds = {
+  amcp_upload: 'Uploaded on the website',
+  link_import: 'Imported from a public link',
+  server_drive_import: 'Imported from Google Drive',
+  retained_original: 'An owner-retained original',
+};
+/** The receipt's origin and its original's SHA-256, with the uploads of that same original in other accounts. */
+function creativeLineageFacts(a) {
+  const kind = creativeSourceKinds[a.source_kind];
+  return `${kind ? `<dt>${esc(uiText('How the file reached AMCP'))}</dt><dd>${esc(uiText(kind))}${a.variant_preset ? ' · ' + esc(uiText('preset copy: {preset}', {preset: a.variant_preset})) : ''}</dd>` : ''}${a.original_sha256 ? `<dt>${esc(uiText('Original file SHA-256'))}</dt><dd><code dir="ltr">${esc(a.original_sha256)}</code> <button id="creative-same-original" class="button small" type="button">${esc(uiText('Uploads of this same original'))}</button></dd>` : ''}`;
+}
 function creativeUsageRows(a) {
   return (
     a.usage
@@ -430,7 +449,7 @@ async function bindCreativeLibrary(targets, showStatus) {
     params = new URLSearchParams(location.search);
   root.innerHTML = `<div class="panel-header"><h2>${esc(uiText('Creative library'))}</h2><button id="creative-refresh" class="button small">${esc(uiText('Refresh'))}</button></div><p class="workspace-copy">${esc(uiText('Find uploaded media, organize it with names and tags, and trace its use in campaign plans.'))}</p><form id="creative-filter" class="work-filter"><label>${esc(uiText('Search name or provider ID'))}<input name="search" type="search" maxlength="200" value="${esc(params.get('search'))}"></label><label>${esc(uiText('Tag'))}<input name="tag" maxlength="40" value="${esc(params.get('tag'))}"></label><label>${esc(uiText('Advertising account'))}<select name="target"><option value="">${esc(uiText('All accessible accounts'))}</option>${targets.map((t, i) => `<option value="${i}" ${t.connection_id === params.get('connection_id') && t.account_id === params.get('account_id') ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select></label><button class="button primary" type="submit">${esc(uiText('Find media'))}</button></form><div id="creative-results"><p data-page-status role="status">${esc(uiText('Loading library…'))}</p></div><p class="form-note">${esc(uiText('Metadata remains available after original files expire. Upload receipts are historical; reuse checks provider availability again.'))}</p>`;
   let filters = Object.fromEntries(
-    ['search', 'tag', 'platform', 'account_id', 'connection_id']
+    ['search', 'tag', 'platform', 'account_id', 'connection_id', 'original_sha256']
       .filter(k => params.has(k))
       .map(k => [k, params.get(k)]),
   );
@@ -469,8 +488,16 @@ async function bindCreativeLibrary(targets, showStatus) {
       const a = await workspaceCall('media', {action: 'asset', asset_id: id});
       if (!current(request)) return;
       const readOnly = session.workspaceRole === 'viewer';
-      detail.innerHTML = `<section class="panel workspace-form creative-asset"><div class="panel-header"><h2>${esc(a.name)}</h2><a href="${esc(a.website_path)}">${esc(uiText('Link to this asset'))}</a></div><p>${recordAccountLabelHtml(a.platform, a.connection_id, a.account_id)}</p><div class="workspace-columns"><div><h3>${esc(uiText('File and receipt'))}</h3><dl class="creative-facts"><dt>${esc(uiText('Provider name'))}</dt><dd>${esc(a.provider_name)}</dd><dt>${esc(uiText('Provider ID'))}</dt><dd><code>${esc(a.media_id)}</code></dd><dt>${esc(uiText('Uploaded bytes SHA-256'))}</dt><dd><code>${esc(a.uploaded_sha256)}</code></dd><dt>${esc(uiText('Original file'))}</dt><dd>${a.source.available ? (a.source.retained === true ? uiText('Kept until an owner removes it.') : uiText('Available until ') + date(a.source.expires_at)) : uiText('Unavailable or expired. Import the original file again to create new variants.')}</dd>${a.dimensions_uploaded ? `<dt>${esc(uiText('Uploaded dimensions'))}</dt><dd>${esc(a.dimensions_uploaded.width)} × ${esc(a.dimensions_uploaded.height)}</dd>` : ''}</dl><div class="dialog-actions work-actions"><button id="creative-status" class="button" ${readOnly ? 'disabled' : ''}>${esc(uiText('Check provider status'))}</button><button id="creative-reuse" class="button" ${readOnly ? 'disabled' : ''}>${esc(uiText('Check availability for reuse'))}</button></div><div id="creative-reuse-result" role="status"></div></div><form id="creative-metadata"><h3>${esc(uiText('Library metadata'))}</h3><p class="form-note">${esc(uiText('These labels organize your workspace. They do not rename media at the provider.'))}</p><label>${esc(uiText('Library name'))}<input name="name" maxlength="160" required value="${esc(a.name)}" ${readOnly ? 'disabled' : ''}></label><label>${esc(uiText('Tags, separated by commas'))}<input name="tags" value="${esc(a.tags.join(', '))}" ${readOnly ? 'disabled' : ''}></label><label class="form-note"><input type="checkbox" name="confirmed" required ${readOnly ? 'disabled' : ''}> ${esc(uiText('Save these workspace labels'))}</label><button type="submit" class="button primary" ${readOnly ? 'disabled' : ''}>${esc(uiText('Save metadata'))}</button></form></div><h3>${esc(uiText('Verified campaign usage'))}</h3><p class="form-note">${esc(uiText('Only verified steps linked through actual result references are included here. Current native references are inspected separately and do not establish historical performance attribution.'))}</p><div id="creative-usage"></div></section>`;
+      detail.innerHTML = `<section class="panel workspace-form creative-asset"><div class="panel-header"><h2>${esc(a.name)}</h2><a href="${esc(a.website_path)}">${esc(uiText('Link to this asset'))}</a></div><p>${recordAccountLabelHtml(a.platform, a.connection_id, a.account_id)}</p><div class="workspace-columns"><div><h3>${esc(uiText('File and receipt'))}</h3><dl class="creative-facts"><dt>${esc(uiText('Provider name'))}</dt><dd>${esc(a.provider_name)}</dd><dt>${esc(uiText('Provider ID'))}</dt><dd><code>${esc(a.media_id)}</code></dd><dt>${esc(uiText('Uploaded bytes SHA-256'))}</dt><dd><code>${esc(a.uploaded_sha256)}</code></dd>${creativeLineageFacts(a)}<dt>${esc(uiText('Original file'))}</dt><dd>${a.source.available ? (a.source.retained === true ? uiText('Kept until an owner removes it.') : uiText('Available until ') + date(a.source.expires_at)) : uiText('Unavailable or expired. Import the original file again to create new variants.')}</dd>${a.dimensions_uploaded ? `<dt>${esc(uiText('Uploaded dimensions'))}</dt><dd>${esc(a.dimensions_uploaded.width)} × ${esc(a.dimensions_uploaded.height)}</dd>` : ''}</dl><div class="dialog-actions work-actions"><button id="creative-status" class="button" ${readOnly ? 'disabled' : ''}>${esc(uiText('Check provider status'))}</button><button id="creative-reuse" class="button" ${readOnly ? 'disabled' : ''}>${esc(uiText('Check availability for reuse'))}</button></div><div id="creative-reuse-result" role="status"></div></div><form id="creative-metadata"><h3>${esc(uiText('Library metadata'))}</h3><p class="form-note">${esc(uiText('These labels organize your workspace. They do not rename media at the provider.'))}</p><label>${esc(uiText('Library name'))}<input name="name" maxlength="160" required value="${esc(a.name)}" ${readOnly ? 'disabled' : ''}></label><label>${esc(uiText('Tags, separated by commas'))}<input name="tags" value="${esc(a.tags.join(', '))}" ${readOnly ? 'disabled' : ''}></label><label class="form-note"><input type="checkbox" name="confirmed" required ${readOnly ? 'disabled' : ''}> ${esc(uiText('Save these workspace labels'))}</label><button type="submit" class="button primary" ${readOnly ? 'disabled' : ''}>${esc(uiText('Save metadata'))}</button></form></div><h3>${esc(uiText('Verified campaign usage'))}</h3><p class="form-note">${esc(uiText('Only verified steps linked through actual result references are included here. Current native references are inspected separately and do not establish historical performance attribution.'))}</p><div id="creative-usage"></div></section>`;
       workspaceBind('#creative-status', () => showStatus(id));
+      // The uploads of this one original in every accessible account, by the SHA-256 its reviews recorded (MED-04 B).
+      workspaceBind('#creative-same-original', async () => {
+        filters = {original_sha256: a.original_sha256};
+        history.replaceState(null, '', creativeLibraryHref(filters));
+        ++sequence;
+        detail.innerHTML = '';
+        await pager.load();
+      });
       workspaceBind('#creative-reuse', async () => {
         const r = await workspaceCall('media', {action: 'reuse', asset_id: id});
         if (current(request))
@@ -546,7 +573,7 @@ async function bindCreativeLibrary(targets, showStatus) {
           : {}),
       };
     }
-    history.replaceState(null, '', '/media?' + new URLSearchParams(Object.entries(filters).filter(([, v]) => v)));
+    history.replaceState(null, '', creativeLibraryHref(filters));
     ++sequence;
     detail.innerHTML = '';
     await pager.load();

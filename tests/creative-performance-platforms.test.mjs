@@ -31,6 +31,46 @@ test('an unsafe numeric retained ad receipt cannot acquire another exact TikTok 
     f.store.close();
   }
 });
+// MED-04 C: LinkedIn creatives join only by their exact sponsoredCreative URN on both sides. Whether LinkedIn's
+// x-restli-id and verification read return that URN is unverified live, so any other form is withheld, not converted.
+test('a LinkedIn creative named only by a numeric, encoded or other-entity ID is withheld, never converted', async () => {
+  const f = fixture(creativePerformanceCases.find(spec => spec.platform === 'linkedin'));
+  try {
+    for (const id of [
+      '9007199254740993',
+      'urn%3Ali%3AsponsoredCreative%3A9007199254740993',
+      'urn:li:sponsoredCampaign:9007199254740993',
+      'urn:li:sponsoredCreative:09007199254740993',
+    ]) {
+      f.steps[1].verification.verified_resources[0].resource_id = id;
+      f.put('campaign_run', f.planId, {user_id: actor.userId, steps: f.steps});
+      const detail = await f.call({action: 'asset', asset_id: f.assetId});
+      assert.equal(detail.success, true, JSON.stringify(detail));
+      assert.equal(detail.data.usage[0].linked_performance_available, false, id);
+      const out = await f.call(f.args);
+      assert.equal(out.success, false, id);
+      assert.equal(out.error.code, 'CREATIVE_USAGE_REQUIRED', id);
+    }
+    assert.equal(f.requests(), 0);
+  } finally {
+    f.store.close();
+  }
+});
+test('a LinkedIn snapshot whose pivots are not all exact sponsoredCreative URNs is refused rather than joined', async () => {
+  const f = fixture(creativePerformanceCases.find(spec => spec.platform === 'linkedin'));
+  try {
+    f.put('decision_report', f.reportId, {
+      ...f.report,
+      rows: f.report.rows.map((row, i) => (i === 2 ? {...row, entity_id: '9007199254740995'} : row)),
+    });
+    const out = await f.call(f.args);
+    assert.equal(out.success, false, JSON.stringify(out));
+    assert.equal(out.error.code, 'REPORT_IDENTITY_MISMATCH');
+    assert.equal(f.requests(), 0);
+  } finally {
+    f.store.close();
+  }
+});
 test('real HTTP MCP SDK exposes exact linked performance for all three providers and refuses a revoked key', async () => {
   const store = new Store(':memory:', Buffer.alloc(32, 84).toString('base64'));
   const datasets = creativePerformanceCases.map(spec => ({spec, ...seedCreativePerformance(store, actor, spec)}));

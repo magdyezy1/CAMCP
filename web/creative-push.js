@@ -2,8 +2,11 @@
 // Push creatives: bring in several images and videos at once (uploaded, from a public link, or from Google Drive files
 // and folders selected in a Drive login), choose the advertising accounts they go to (every account of a platform at
 // once, or one by one), and review what each account receives (amcp_media plan: the exact file and every change AMCP
-// makes). After one confirmation each file and account gets an ordinary reviewed amcp_media prepare, bound to the
-// planned file by its SHA-256, and execute, one at a time, so the workspace never holds more than one staged review.
+// makes, and an upload already in the account that can be reused). After one confirmation each file and account gets
+// an ordinary reviewed amcp_media prepare, bound to the planned file by its SHA-256, and execution, one at a time, so
+// the workspace never holds more than one staged review. The push runs on the server (MED-03 B): it is saved as plans
+// of independent uploads, approved with that confirmation and run by the worker, so leaving the page does not stop it.
+// With server runs turned off (AMCP_SERVER_PUSH=false) the page drives each row itself through a durable job.
 
 const pushSize = bytes =>
   bytes >= 1048576 ? (bytes / 1048576).toFixed(1) + ' MiB' : Math.max(1, Math.round(bytes / 1024)) + ' KB';
@@ -19,9 +22,79 @@ const pushFacts = s =>
     .filter(Boolean)
     .join(' · ');
 const pushSourceUrl = id => '/api/media/sources/' + encodeURIComponent(id);
-/** amcp_media plan takes at most 20 destinations; one push reviews at most 200 uploads. */
+/**
+ * A Drive import whose Drive selection is gone (owner decision D23 (4), MED-05): the import is a frozen copy, so
+ * revoking Drive access neither removes nor blocks it; the member is told so.
+ */
+const pushDriveAccessNote = s =>
+  s.drive_access === 'revoked'
+    ? `<p class="form-note">${esc(uiText('Drive access since revoked. This imported copy is frozen and not affected: it can still be pushed until it expires or an owner removes it.'))}</p>`
+    : '';
+/** amcp_media plan takes at most 20 destinations; one push reviews at most 200 uploads, run as plans of 50. */
 const pushPlanChunk = 20,
-  pushMaxUploads = 200;
+  pushMaxUploads = 200,
+  pushPlanSize = 50;
+/** A push must leave this long before an upload is deleted: the server refuses to run a plan with less (MED-03 B). */
+const pushRunByMinimumMs = 5 * 60000;
+/** How often a running push is read back: bounded, and only while the page shows it. */
+const pushPollMs = 4000;
+const pushSleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+/**
+ * Asks the browser to confirm leaving the page while rows still depend on it (MED-03 A): rows the page drives itself,
+ * or a server push whose plans are still being saved. Returns the function that removes the guard.
+ */
+function pushLeaveGuard() {
+  if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return () => {};
+  const guard = event => {
+    event.preventDefault();
+    event.returnValue = '';
+  };
+  window.addEventListener('beforeunload', guard);
+  return () => window.removeEventListener('beforeunload', guard);
+}
+/** "file → platform · account": how a saved or server-run push plan names each upload (MED-03 A). */
+const pushStepDescription = row =>
+  [
+    row.source.filename ?? row.source.source_id,
+    '→',
+    (row.target?.platformName ?? row.destination.platform) + ' ·',
+    row.target?.account ?? row.destination.account_id,
+  ]
+    .join(' ')
+    .slice(0, 300);
+/** One planned row as a plan step: a reviewed upload bound to its planned file, reused when the member chose to. */
+const pushPlanStep = (row, index) => ({
+  id: 'upload-' + (index + 1),
+  kind: 'media',
+  description: pushStepDescription(row),
+  account_id: row.destination.account_id,
+  connection_id: row.destination.connection_id,
+  arguments: {
+    ...row.destination,
+    source_id: row.source.source_id,
+    name: row.name,
+    fit_to_platform: row.fit,
+    expected_sha256: row.file.sha256,
+    ...(row.reuse ? {reuse_existing: true} : {}),
+  },
+  depends_on: [],
+});
+/** A row's state from its plan step while the push runs on the server. */
+function pushStepState(step) {
+  if (step.status === 'pending') return step.waiting ? 'busy' : 'waiting';
+  return (
+    {
+      review_ready: 'pushing',
+      executing: 'pushing',
+      verified: 'uploaded',
+      verified_with_acceptance: 'uploaded',
+      processing: 'processing',
+      failed: 'failed',
+      uncertain: 'failed',
+      mismatch: 'failed',
+    }[step.status] ?? 'waiting'
+  );
+}
 const pushName = filename =>
   filename
     .replace(/\.[A-Za-z0-9]{1,5}$/, '')
@@ -107,6 +180,21 @@ function pushRebindRows(rows, source) {
   return count;
 }
 
+/**
+ * Which moments of a transfer a screen reader hears (MED-05): returns `(done, total) => percent`, the quarter (25, 50,
+ * 75 or 100) a part has just reached, or null in between. Below the first quarter it returns 0 (the start, which the
+ * caller has already announced), so an upload of any number of parts is announced at most four times while it
+ * transfers; a resumed upload is first announced at the quarter its first part sent reaches.
+ */
+function pushProgressAnnouncer() {
+  let last = -1;
+  return (done, total) => {
+    const quarter = total > 0 ? Math.max(0, Math.min(4, Math.floor((done * 4) / total))) : 0;
+    if (quarter === last) return null;
+    last = quarter;
+    return quarter * 25;
+  };
+}
 /** This tab's unfinished uploads (name, size, last change of each file), to offer a resume after a reload. */
 const pushUploadsKey = 'amcp.unfinished-uploads';
 function pushUploads() {
@@ -336,13 +424,14 @@ ${
     ? `<div class="push-recent"><p class="form-note">${esc(uiText('Or add a recent upload or retained original:'))}</p>${recent
         .map(
           s =>
-            `<button class="button small" type="button" data-push-source="${esc(s.source_id)}">${s.retained === true ? esc(uiText('Retained original')) + ' · ' : ''}<bdi dir="auto">${esc(s.filename)}</bdi> · ${esc(pushFacts(s))} · ${esc(uiDate(s.uploaded_at, {hour: '2-digit', minute: '2-digit'}))}</button>`,
+            `<button class="button small" type="button" data-push-source="${esc(s.source_id)}">${s.retained === true ? esc(uiText('Retained original')) + ' · ' : ''}<bdi dir="auto">${esc(s.filename)}</bdi> · ${esc(pushFacts(s))} · ${esc(uiDate(s.uploaded_at, {hour: '2-digit', minute: '2-digit'}))}${s.drive_access === 'revoked' ? ' · ' + esc(uiText('Drive access since revoked')) : ''}</button>`,
         )
         .join('')}</div>`
     : ''
 }
 <div id="push-unfinished" class="push-unfinished">${pushUnfinishedMarkup(unfinished)}</div>
-<progress id="push-bar" class="push-bar" max="1" value="0" hidden></progress>
+<progress id="push-bar" class="push-bar" max="1" value="0" aria-label="${esc(uiText('Upload progress'))}" hidden></progress>
+<p id="push-parts" class="form-note"></p>
 <p id="push-status" class="form-note" role="status"></p>
 <p id="push-deadline-status" class="form-note" role="status"></p>
 <div id="push-file"></div></div>
@@ -374,9 +463,10 @@ ${
 
 /**
  * Wires the panel after it is on the page; `initialUnfinished` are the member's unfinished uploads and `serverTime`
- * the server's clock when they were listed. Returns the countdown's tick, which runs every second while the panel shows.
+ * the server's clock when they were listed. `serverPush` (amcp_media list's server_push) runs a push on the server.
+ * Returns the countdown's tick, which runs every second while the panel shows.
  */
-function bindCreativePush(targets, drives, initialUnfinished = [], serverTime) {
+function bindCreativePush(targets, drives, initialUnfinished = [], serverTime, {serverPush = false} = {}) {
   pushNoteServerTime(serverTime);
   let sources = [],
     rows = [],
@@ -391,11 +481,36 @@ function bindCreativePush(targets, drives, initialUnfinished = [], serverTime) {
     generation === navigationGeneration && identity === identityGeneration && form.isConnected && root.isConnected;
   const status = (text, done, total) => {
     $('#push-status').textContent = text;
+    $('#push-parts').textContent = '';
     $('#push-bar').hidden = total === undefined;
     if (total !== undefined) {
       $('#push-bar').max = total;
       $('#push-bar').value = done;
+      // Not one file's transfer (or not yet): the bar keeps its general name (MED-05).
+      $('#push-bar').setAttribute('aria-label', uiText('Upload progress'));
     }
+  };
+  /**
+   * One file's transfer, part by part (MED-05): the bar, its name and the visible "part N of M" move with every part,
+   * while the status region speaks only at each quarter, so a 128-part upload is announced about six times (start,
+   * 25, 50, 75 and 100 %, then the outcome) instead of 128. `prefix` names the file's place in a batch.
+   */
+  const transferProgress = (filename, prefix = '') => {
+    const announce = pushProgressAnnouncer(),
+      label = uiText('Upload progress of {filename}', {filename});
+    $('#push-bar').setAttribute('aria-label', label);
+    return (done, total, text) => {
+      const bar = $('#push-bar');
+      bar.hidden = false;
+      bar.max = total;
+      bar.value = done;
+      bar.setAttribute('aria-label', label);
+      $('#push-parts').textContent =
+        prefix + (text ?? uiText('{filename}: part {number} of {count}', {filename, number: done, count: total}));
+      const percent = announce(done, total);
+      if (percent)
+        $('#push-status').textContent = prefix + uiText('{filename}: {percent}% uploaded', {filename, percent});
+    };
   };
   let reboundNote = '';
   const outcome = (done, total, failed) =>
@@ -415,7 +530,7 @@ function bindCreativePush(targets, drives, initialUnfinished = [], serverTime) {
         sources
           .map(
             (s, i) =>
-              `<div class="push-file">${s.thumbnail_url ? `<img src="${esc(s.thumbnail_url)}" alt="${esc(uiText('Preview of {filename}', {filename: s.filename}))}">` : ''}<div><strong dir="auto">${esc(s.filename)}</strong><p class="form-note">${esc(pushFacts(s))} ${s.retained === true && s.retention?.mode !== 'temporary' ? esc(uiText('Kept until an owner removes it.')) : esc(uiText('· kept until')) + ' ' + date(s.expires_at) + ` <span id="push-left-${i}" class="push-countdown">${esc(uiText('{time} left', {time: pushRemaining(pushDeadline(s))}))}</span>`}</p><details class="push-source-details"><summary>${esc(uiText('Original file details'))}</summary><p>${esc(uiText('Source ID'))}: <code dir="ltr">${esc(s.source_id)}</code></p><p>${esc(uiText('Original file SHA-256'))}: <code dir="ltr">${esc(s.sha256)}</code></p></details><button class="button small" type="button" data-push-drop="${i}">${esc(uiText('Leave out of this push'))}</button> ${s.can_retain === true ? `<button class="button small" type="button" data-push-retain="${i}">${esc(uiText('Retain this original'))}</button>` : ''} ${s.retained !== true || s.can_remove_retained === true ? `<button class="button small" type="button" data-push-delete="${i}">${esc(uiText(s.retained === true ? 'Delete retained original' : 'Delete the file'))}</button>` : ''}</div></div>`,
+              `<div class="push-file">${s.thumbnail_url ? `<img src="${esc(s.thumbnail_url)}" alt="${esc(uiText('Preview of {filename}', {filename: s.filename}))}">` : ''}<div><strong dir="auto">${esc(s.filename)}</strong><p class="form-note">${esc(pushFacts(s))} ${s.retained === true && s.retention?.mode !== 'temporary' ? esc(uiText('Kept until an owner removes it.')) : esc(uiText('· kept until')) + ' ' + date(s.expires_at) + ` <span id="push-left-${i}" class="push-countdown">${esc(uiText('{time} left', {time: pushRemaining(pushDeadline(s))}))}</span>`}</p>${pushDriveAccessNote(s)}<details class="push-source-details"><summary>${esc(uiText('Original file details'))}</summary><p>${esc(uiText('Source ID'))}: <code dir="ltr">${esc(s.source_id)}</code></p><p>${esc(uiText('Original file SHA-256'))}: <code dir="ltr">${esc(s.sha256)}</code></p></details><button class="button small" type="button" data-push-drop="${i}">${esc(uiText('Leave out of this push'))}</button> ${s.can_retain === true ? `<button class="button small" type="button" data-push-retain="${i}">${esc(uiText('Retain this original'))}</button>` : ''} ${s.retained !== true || s.can_remove_retained === true ? `<button class="button small" type="button" data-push-delete="${i}">${esc(uiText(s.retained === true ? 'Delete retained original' : 'Delete the file'))}</button>` : ''}</div></div>`,
           )
           .join('')
       : '';
@@ -572,13 +687,7 @@ function bindCreativePush(targets, drives, initialUnfinished = [], serverTime) {
     status(uiText('Resuming {filename}…', {filename: u.filename}), u.received_chunks ?? 0, u.chunks || 1);
     let done;
     try {
-      done = await resumeCreativeUpload(u.source_id, file, (sent, total, text) =>
-        status(
-          text ?? uiText('{filename}: part {number} of {count}', {filename: u.filename, number: sent, count: total}),
-          sent,
-          total,
-        ),
-      );
+      done = await resumeCreativeUpload(u.source_id, file, transferProgress(u.filename));
     } catch (e) {
       // Kept to resume again, or gone (discarded, released or expired). A different file changes nothing.
       if (current() && e.unfinished) keepUnfinished(e.unfinished);
@@ -640,14 +749,7 @@ function bindCreativePush(targets, drives, initialUnfinished = [], serverTime) {
           const r = remembered[u.source_id];
           return r && r.name === file.name && r.size === file.size && r.last_modified === file.lastModified;
         }),
-        progress = (done, total, text) =>
-          status(
-            step +
-              (text ??
-                uiText('{filename}: part {number} of {count}', {filename: file.name, number: done, count: total})),
-            done,
-            total,
-          );
+        progress = transferProgress(file.name, step);
       try {
         add(match ? await resumeCreativeUpload(match.source_id, file, progress) : await uploadCreative(file, progress));
         if (match) forgetUnfinished(match.source_id);
@@ -801,12 +903,14 @@ function bindCreativePush(targets, drives, initialUnfinished = [], serverTime) {
           }),
         );
         try {
+          // stage_fits keeps each changed file for the reviews that follow, so they do not convert it again (MED-03 C).
           const plan = await pushRetryBusy(
             () =>
               workspaceCall('media', {
                 action: 'plan',
                 source_id: source.source_id,
                 fit_to_platform: fit,
+                stage_fits: fit,
                 destinations: part.map(t => destination(t, source)),
               }),
             pushRetryUntil(source),
@@ -822,6 +926,10 @@ function bindCreativePush(targets, drives, initialUnfinished = [], serverTime) {
               file: p.file,
               transform: p.transform,
               error: p.error?.message,
+              // The exact file is already in this account: reused after a fresh availability check unless the member
+              // chooses to upload it again (MED-03 D).
+              receipts: p.existing_receipts ?? [],
+              reuse: (p.existing_receipts ?? []).length > 0,
             }),
           );
         } catch (e) {
@@ -861,7 +969,7 @@ function bindCreativePush(targets, drives, initialUnfinished = [], serverTime) {
 <thead><tr><th scope="col">${esc(uiText('Account'))}</th><th scope="col">${esc(uiText('File'))}</th><th scope="col">${esc(uiText('What it receives'))}</th><th scope="col">${esc(uiText('What AMCP changes'))}</th><th scope="col">${esc(uiText('Status'))}</th></tr></thead>
 <tbody>${rows.map(pushRow).join('')}</tbody></table></div>
 ${
-  ready.length && !rows.some(r => ['waiting', 'pushing'].includes(r.state))
+  ready.length && !rows.some(r => ['waiting', 'pushing', 'busy', 'queued'].includes(r.state))
     ? `<p class="form-note">${esc(uiText('Each upload then gets its own review, bound to exactly the file shown; AMCP stops for an upload if anything differs.'))}</p>
 <p class="form-note" id="push-estimate">${esc(uiText('Uploads are pushed in deadline order, the soonest first. Estimated time: about {minutes} minutes.', {minutes}))}${late ? ' ' + esc(uiText('{count} of them would be deleted before their turn and are skipped; upload those files again.', {count: late})) : ''}</p>
 <label class="form-note"><input type="checkbox" id="push-consent"> ${esc(ready.length === 1 ? uiText('I reviewed this upload and authorize sending it to the listed account.') : uiText('I reviewed these {count} uploads and authorize sending them to the listed accounts.', {count: ready.length}))}</label>
@@ -891,17 +999,180 @@ ${
     });
     workspaceBind('#push-execute', async () => {
       if (!$('#push-consent').checked) throw Error(uiText('Confirm that you reviewed the uploads first.'));
-      const generation = navigationGeneration;
       // The soonest deadline goes first; a row whose upload is deleted before it could finish is skipped unsent.
       const pending = pushOrder(rows.filter(r => r.state === 'ready'));
       for (const row of pending) row.state = 'waiting';
       drawRows();
+      if (serverPush) await pushOnServer(pending);
+      else await pushInPage(pending);
+    });
+    // The member's choice for a row whose exact file is already in the account: reuse it or upload it again.
+    $('#push-reviews')
+      ?.querySelectorAll?.('[data-push-reuse]')
+      .forEach(select =>
+        select.addEventListener('change', () => {
+          const row = rows[Number(select.dataset.pushReuse)];
+          if (row?.state === 'ready') row.reuse = select.value === 'reuse';
+        }),
+      );
+  };
+  const skipLate = row => {
+    row.state = 'expired';
+    row.error = uiText(
+      'Its upload is deleted before this push could finish, so nothing was sent. Upload the file again: these rows then use the new upload.',
+    );
+  };
+  const finished = pending => {
+    const done = pending.filter(r => ['queued', 'uploaded', 'processing', 'reused'].includes(r.state)).length;
+    status(
+      uiText('Submitted {done} of {count}. Follow each original upload receipt below.', {
+        done,
+        count: pending.length,
+      }),
+    );
+    if (done) {
+      $('#push-reviews').insertAdjacentHTML(
+        'beforeend',
+        `<button class="button" type="button" id="push-receipts">${esc(uiText('Show the upload receipts in the media library'))}</button>`,
+      );
+      workspaceBind('#push-receipts', () => renderWorkspacePage());
+    }
+  };
+  /**
+   * The push on the server (MED-03 B): the rows are saved as plans of independent uploads (50 at most each), every
+   * plan is approved with the member's confirmation, its exact plan_hash and summary_hash, and queued with
+   * run_background. The worker then prepares, executes and records every upload; this page only reads the plans back,
+   * and leaving it stops nothing. A row whose upload is deleted within five minutes is skipped unsent: the server
+   * refuses a plan that could not run in time.
+   */
+  const pushOnServer = async pending => {
+    const generation = navigationGeneration,
+      now = pushNow(),
+      send = [];
+    for (const row of pending)
+      if (pushDeadline(row.source) - now < pushRunByMinimumMs) skipLate(row);
+      else send.push(row);
+    drawRows();
+    status(uiText('Sending the push to AMCP…'));
+    const plans = [],
+      parts = Math.ceil(send.length / pushPlanSize),
+      // Until every plan is saved and queued the push still needs this page; afterwards it runs without it.
+      release = pushLeaveGuard();
+    try {
+      await sendServerPlans(send, plans, parts, generation);
+    } finally {
+      release();
+    }
+    if (generation !== navigationGeneration) return;
+    if (plans.length)
+      status(uiText('The push runs on AMCP: you can leave this page. Follow each upload below or in its plan.'));
+    await followServerPush(plans, generation);
+    if (generation === navigationGeneration && current()) finished(pending);
+  };
+  /** Saves, approves and queues the rows as plans of at most 50 uploads; a plan that fails marks its rows. */
+  const sendServerPlans = async (send, plans, parts, generation) => {
+    for (let start = 0; start < send.length; start += pushPlanSize) {
+      const part = send.slice(start, start + pushPlanSize),
+        temporary = part.some(r => pushTemporary(r.source));
+      let id;
+      try {
+        const saved = await workspaceCall('campaign', {
+          action: 'create',
+          name:
+            'Creative push · ' +
+            part.length +
+            ' uploads' +
+            (parts > 1 ? ' · ' + (start / pushPlanSize + 1) + '/' + parts : ''),
+          brief:
+            'Upload only the previewed files to the selected accounts. Each source hash, native review and receipt is retained. Temporary sources must still be available when the plan runs.',
+          // The member saw each upload's deadline and countdown before confirming (owner decision D23).
+          ...(temporary ? {acknowledge_temporary_sources: true} : {}),
+          steps: part.map(pushPlanStep),
+        });
+        id = saved.id;
+        part.forEach((row, i) => {
+          row.plan_id = id;
+          row.step_id = 'upload-' + (i + 1);
+        });
+        const summary = await workspaceCall('campaign', {action: 'approve', id});
+        if (!summary.approval)
+          throw Error(
+            summary.missing_requirements?.[0]?.error?.message ??
+              uiText('AMCP could not check this plan. Open it to see why.'),
+          );
+        await workspaceCall('campaign', {
+          action: 'approve',
+          id,
+          plan_hash: summary.approval.plan_hash,
+          summary_hash: summary.approval.summary_hash,
+          confirmed: true,
+        });
+        await workspaceCall('campaign', {action: 'run_background', id});
+        plans.push({id, rows: part});
+      } catch (e) {
+        if (e.code === 'REQUEST_SUPERSEDED') throw e;
+        for (const row of part) {
+          row.state = 'failed';
+          row.error = e.message;
+        }
+      }
+      if (generation !== navigationGeneration) return;
+      drawRows();
+    }
+  };
+  /** Reads the plans of a server push back until no upload is left to move, while this page still shows them. */
+  const followServerPush = async (plans, generation) => {
+    for (let poll = 0; plans.length && poll < 2700; poll++) {
+      await pushSleep(pushPollMs);
+      if (generation !== navigationGeneration || !current()) return;
+      let moving = false;
+      for (const plan of plans) {
+        let view;
+        try {
+          view = await workspaceCall('campaign', {action: 'get', id: plan.id});
+        } catch (e) {
+          if (e.code === 'REQUEST_SUPERSEDED') throw e;
+          moving = true;
+          continue;
+        }
+        // The member left: the server keeps running the plans; this page stops reading them.
+        if (generation !== navigationGeneration || !current()) return;
+        const stopped = ['complete', 'failed', 'unknown'].includes(view.background?.state);
+        for (const row of plan.rows) {
+          // A long plan's view lists its verified uploads by ID only (verified_steps).
+          const step =
+            view.steps?.find(s => s.id === row.step_id) ??
+            (view.verified_steps?.includes(row.step_id) ? {id: row.step_id, status: 'verified'} : undefined);
+          if (!step) continue;
+          row.state = pushStepState(step);
+          if (step.resource_ids?.length) row.result = {media_id: step.resource_ids[0]};
+          if (row.state === 'failed') row.error_code = step.error ?? null;
+          // The background run ended before this row moved: its plan shows why, and Run continues it.
+          if (stopped && ['waiting', 'busy', 'pushing'].includes(row.state)) {
+            row.state = 'failed';
+            row.error =
+              view.background?.error?.message ??
+              uiText('The push stopped before this upload. Open its plan to continue it.');
+          }
+          if (['waiting', 'busy', 'pushing'].includes(row.state)) moving = true;
+        }
+      }
+      drawRows();
+      if (!moving) return;
+    }
+  };
+  /**
+   * The push driven by this page, when the server does not run it (AMCP_SERVER_PUSH=false): one row at a time, each
+   * prepared, queued as a durable job (execute_async) and followed until it ends, so a long upload never waits on one
+   * open request and the workspace never holds two staged reviews. Leaving the page stops the rows not yet started.
+   */
+  const pushInPage = async pending => {
+    const generation = navigationGeneration,
+      release = pushLeaveGuard();
+    try {
       for (const [i, row] of pending.entries()) {
         if (pushNow() + pushRowBudgetMs(row) > pushDeadline(row.source)) {
-          row.state = 'expired';
-          row.error = uiText(
-            'Its upload is deleted before this push could finish, so nothing was sent. Upload the file again: these rows then use the new upload.',
-          );
+          skipLate(row);
           drawRows();
           continue;
         }
@@ -909,49 +1180,67 @@ ${
         row.state = 'pushing';
         drawRows();
         try {
-          const until = pushRetryUntil(row.source),
-            review = await pushRetryBusy(
-              () =>
-                workspaceCall('media', {
-                  action: 'prepare',
-                  ...row.destination,
-                  source_id: row.source.source_id,
-                  name: row.name,
-                  fit_to_platform: row.fit,
-                  expected_sha256: row.file.sha256,
-                }),
-              until,
-            );
-          row.review_id = review.review_id;
-          // A busy refusal comes before the review is claimed, so executing again sends nothing twice.
-          row.result = await pushRetryBusy(
-            () => workspaceCall('media', {action: 'execute', review_id: review.review_id, confirmed: true}),
-            until,
-          );
-          row.state = ['queued', 'processing'].includes(row.result.state) ? row.result.state : 'uploaded';
+          await pushRowInPage(row);
         } catch (e) {
           if (e.code === 'REQUEST_SUPERSEDED') throw e;
           if (generation !== navigationGeneration) return;
           row.state = e.code === 'UPLOAD_DEADLINE_TOO_CLOSE' ? 'expired' : 'failed';
           row.error = e.message;
         }
+        // The page changed while this row's job ran: the rows not yet started stay unsent.
+        if (!current()) return;
         drawRows();
       }
-      const done = pending.filter(r => ['queued', 'uploaded', 'processing'].includes(r.state)).length;
-      status(
-        uiText('Submitted {done} of {count}. Follow each original upload receipt below.', {
-          done,
-          count: pending.length,
-        }),
+    } finally {
+      release();
+    }
+    finished(pending);
+  };
+  /** One row: prepare, reuse or queue it, then follow its durable job to the end. Busy refusals wait and retry. */
+  const pushRowInPage = async row => {
+    const until = pushRetryUntil(row.source),
+      review = await pushRetryBusy(
+        () =>
+          workspaceCall('media', {
+            action: 'prepare',
+            ...row.destination,
+            source_id: row.source.source_id,
+            name: row.name,
+            fit_to_platform: row.fit,
+            expected_sha256: row.file.sha256,
+            ...(row.reuse ? {reuse_existing: true} : {}),
+          }),
+        until,
       );
-      if (done) {
-        $('#push-reviews').insertAdjacentHTML(
-          'beforeend',
-          `<button class="button" type="button" id="push-receipts">${esc(uiText('Show the upload receipts in the media library'))}</button>`,
-        );
-        workspaceBind('#push-receipts', () => renderWorkspacePage());
+    if (review.reused === true) {
+      row.result = review;
+      row.state = 'reused';
+      return;
+    }
+    row.review_id = review.review_id;
+    // A busy refusal comes before the review is claimed, so queueing it again sends nothing twice.
+    await pushRetryBusy(
+      () => workspaceCall('media', {action: 'execute_async', review_id: review.review_id, confirmed: true}),
+      until,
+    );
+    row.state = 'queued';
+    drawRows();
+    // The worker uploads it; this page follows the job at a bounded interval. Leaving the page stops following, not
+    // the upload: the row keeps its queued state and its original review, where recovery shows how it ended.
+    for (let poll = 0; poll < 2700; poll++) {
+      const job = await workspaceCall('media', {action: 'job_status', review_id: review.review_id});
+      if (job.state === 'complete') {
+        row.result = job.result ?? {};
+        row.state = job.result?.ready === false ? 'processing' : 'uploaded';
+        return;
       }
-    });
+      if (['failed', 'cancelled'].includes(job.state))
+        throw Object.assign(Error(job.error?.message ?? uiText('The upload did not finish.')), {
+          code: job.error?.code,
+        });
+      await pushSleep(pushPollMs);
+      if (!current()) return;
+    }
   };
   const pushRow = (row, index) => {
     const transform = row.transform,
@@ -965,25 +1254,34 @@ ${
         ready: 'Ready to push',
         refused: 'Not ready',
         waiting: 'Waiting…',
+        busy: 'Waiting: AMCP is busy with other media work',
         pushing: 'Pushing…',
         queued: 'Queued — follow durable progress',
         uploaded: 'Uploaded',
+        reused: 'Reused after a fresh availability check',
         processing: 'Uploaded; the platform is processing it',
         failed: 'Needs inspection',
         expired: 'Upload again',
       }[row.state],
       detail = row.error
         ? `<p class="form-note">` + esc(row.error) + `</p>`
-        : row.result?.media_id
-          ? `<p class="form-note">${esc(uiText('Media ID'))} ` + esc(row.result.media_id) + `</p>`
+        : row.error_code
+          ? `<p class="form-note"><code dir="ltr">${esc(row.error_code)}</code></p>`
+          : row.result?.media_id
+            ? `<p class="form-note">${esc(uiText('Media ID'))} ` + esc(row.result.media_id) + `</p>`
+            : '',
+      // The exact file is already in this account (MED-03 D): reuse it after a fresh check, or upload it again.
+      reuse =
+        row.state === 'ready' && row.receipts?.length
+          ? `<label class="form-note">${esc(uiText('Already in this account'))}<select data-push-reuse="${index}"><option value="reuse"${row.reuse ? ' selected' : ''}>${esc(uiText('Reuse it (fresh availability check)'))}</option><option value="upload"${row.reuse ? '' : ' selected'}>${esc(uiText('Upload it again'))}</option></select></label>`
           : '',
       left = ['ready', 'waiting'].includes(row.state) ? pushRemaining(pushDeadline(row.source)) : '';
-    const tone = ['uploaded', 'processing', 'ready'].includes(row.state)
+    const tone = ['uploaded', 'processing', 'ready', 'reused'].includes(row.state)
       ? 'online'
       : ['refused', 'failed', 'expired'].includes(row.state)
         ? 'attention'
         : 'offline';
-    return `<tr><th scope="row">${esc(row.target.label)}</th><td>${esc(row.source.filename)}</td><td>${esc(file)}</td><td>${changes}</td><td><span class="status ${tone}">${esc(uiText(state))}</span>${left ? ` <span id="push-row-left-${index}" class="push-countdown">${esc(uiText('{time} left', {time: left}))}</span>` : ''}${detail}${row.review_id ? `<a href="/media?review_id=${encodeURIComponent(row.review_id)}">${esc(uiText('Original upload progress and recovery'))}</a>` : ''}</td></tr>`;
+    return `<tr><th scope="row">${esc(row.target.label)}</th><td>${esc(row.source.filename)}</td><td>${esc(file)}</td><td>${changes}</td><td><span class="status ${tone}">${esc(uiText(state))}</span>${left ? ` <span id="push-row-left-${index}" class="push-countdown">${esc(uiText('{time} left', {time: left}))}</span>` : ''}${reuse}${detail}${row.review_id ? `<a href="/media?review_id=${encodeURIComponent(row.review_id)}">${esc(uiText('Original upload progress and recovery'))}</a>` : row.plan_id ? `<a href="/campaigns?id=${encodeURIComponent(row.plan_id)}">${esc(uiText('Open its push plan'))}</a>` : ''}</td></tr>`;
   };
   // The countdown: every second while the panel shows, on the server's clock. Only the 10-, 5- and 1-minute marks
   // and deletion are announced, through a polite live region.
@@ -1027,19 +1325,7 @@ async function saveCreativePushPlan(rows, acknowledgeTemporary = false) {
       'Upload only the previewed files to the selected accounts. Each source hash, native review and receipt is retained. Temporary sources must still be available when the plan runs.',
     // The member saw and accepted the website uploads' deadlines; each step then records its own (owner decision D23).
     ...(acknowledgeTemporary ? {acknowledge_temporary_sources: true} : {}),
-    steps: ready.map((row, i) => ({
-      id: 'upload-' + (i + 1),
-      kind: 'media',
-      account_id: row.destination.account_id,
-      connection_id: row.destination.connection_id,
-      arguments: {
-        ...row.destination,
-        source_id: row.source.source_id,
-        name: row.name,
-        fit_to_platform: row.fit,
-        expected_sha256: row.file.sha256,
-      },
-      depends_on: [],
-    })),
+    // Each step is named "file → platform · account" and keeps the member's reuse choice (MED-03 A, D).
+    steps: ready.map(pushPlanStep),
   });
 }

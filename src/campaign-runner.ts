@@ -47,6 +47,13 @@ import {
   type PlanRight,
 } from './campaign-inventory.js';
 import {
+  backgroundRunView,
+  enqueueBackgroundRun,
+  independentUploads,
+  nextUpload,
+  serverPushEnabled,
+} from './campaign-background.js';
+import {
   audit,
   bad,
   field,
@@ -64,7 +71,7 @@ import {
 } from './workspace-core.js';
 export const campaignTool = tool(
   'amcp_campaign',
-  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. recipe_eligibility checks the current business brief without saving a plan: local by default; live:true adds exact read-only account prerequisites. The four Google conversion Search recipes inspect current account-default goals and enabled explicit primary actions in a selected client using its own conversion customer; shared tracking stays unknown. Google Search with Maximize Conversion Value and Google Search with a target ROAS explicitly choose ACCOUNT_RECORDED_VALUES, leave goal and value settings unchanged and save a paused parent with a dedicated budget. target_roas is decimal ratio text from 0.01 to 1000 (3.5 means 350%), compiled to the native double; delivered values, conversion history, eligibility and actual return remain unverified. For the two value-bidding recipes, live eligibility also selects current default value, conversion currency and event-value override settings for the same matching primary actions. It also reads the last reported conversion date and last tag-detection time twice in the native account timezone. These optional aggregate dates remain unknown when absent; tag detection may have no attributable conversion, and no event-level records are read. Optional missing settings stay unknown; configuration does not prove received event values. Pending plans reread retired conversion-value proofs through their original accepted receipts before approval or advancing; completed historical runs are not replayed. The Snapchat website traffic recipe reuses an existing WEB_VIEW creative and saves three paused steps with an explicit AUTO_BID/SWIPES budget and offset schedule. Read-only preflight checks its selected-account ownership, creative type and original HTTPS destination syntax; advertising approval and destination availability remain unverified. The Snapchat lead-generation recipe reuses an existing LEAD_GENERATION creative and its original account-owned form, with an explicit SWIPES or LEAD_FORM_SUBMISSIONS goal. Preflight and native review inspect both definitions; no submitted leads are read, and provider eligibility, privacy and consent acceptance remain unverified. Readers can inspect these settings while existing write blockers remain active. Configuration does not prove event delivery, objective acceptance or write approval. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns one step whole, and detail:"full" the whole plan. A step preflight blocked, or one that failed before reaching the provider, is amended in place with recover_step (patch one field, or send corrected arguments), following the next_call its refusal carries; nothing is sent until its new review. A step the provider refused without applying it (a Google request refused outright) is amended the same way under a new key; for a refusal AMCP cannot prove applied nothing (Meta), confirm_absent reads whether a resource of that name exists and, once the user confirms it does not, allows recover_step. continue_as_new {id, confirmed} carries the steps still to write into a new linked plan, adopting verified predecessors’ IDs with their provenance; the original plan becomes superseded. activation_plan {id} on a completed recipe plan creates a separate linked draft that activates its paused launch (Meta, Google: the campaign; Snapchat: campaign, ad squad, ad in order; Microsoft: refused without a positive location criterion), with its own approval and read-only gates at preflight. list returns compact rows newest first (accounts and platforms per plan), filtered by state, archived, gateway, account_id, connection_id, profile_id, search or awaiting_approval, continued with next_cursor. archive {id, confirmed} sets aside a complete, cancelled or superseded plan: get still returns it, the default list and the 500-plan limit leave it out; unarchive restores it. The plan’s owner or an administrator can assign {id, user_id, role} a workspace member as viewer (read), editor (prepare, run steps, amend, archive) or approver (approve and run); assign {id} lists members, unassign removes one; collaborators see a plan only within their current account access and every write still checks the acting person’s own grant. When the owner requires a distinct approver, a plan that changes spending or activates a launch cannot be approved by its own owner, and its steps execute only under another person’s current approval. To approve a whole plan once: approve returns what the approval covers (every step’s action, account, money and status fields, a large step aggregated with truncated: true; approve with its step_id lists every field); approve with confirmed, that plan_hash and its summary_hash records it; run then prepares and executes every step under it, each still a frozen, read-back review, and stops for anything that needs a person. clone reads an existing Snapchat, Google Search, TikTok or LinkedIn campaign (source.campaign_id; a LinkedIn campaign group) into a new draft plan under a new name, with changes applied (set a field, drop a step); a Google copy is one all-or-nothing step (atomic: false for one step per resource type); the new campaign starts PAUSED and nothing is sent until the plan is reviewed or approved. create, create_from_recipe and clone accept an optional stable idempotency_key (8–100 letters, digits, hyphens or underscores); identical creation input reuses the original plan, while different input conflicts. Recipe and clone steps are saved literally; {{variable}} substitution applies only to the explicit and template steps of create. Allocation preview handoffs bind their exact source and budget ownership to the draft; stale source, changed ownership or amended proposal targets require a fresh preview. Search-exclusion preview handoffs similarly preserve exact retained terms and original ad groups; changed source or target arguments require a new preview. Accepted and uncertain receipts retain their original recovery. No fabricated IDs, implicit launch, or review bypass.',
+  'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. recipe_eligibility checks the current business brief without saving a plan: local by default; live:true adds exact read-only account prerequisites. The four Google conversion Search recipes inspect current account-default goals and enabled explicit primary actions in a selected client using its own conversion customer; shared tracking stays unknown. Google Search with Maximize Conversion Value and Google Search with a target ROAS explicitly choose ACCOUNT_RECORDED_VALUES, leave goal and value settings unchanged and save a paused parent with a dedicated budget. target_roas is decimal ratio text from 0.01 to 1000 (3.5 means 350%), compiled to the native double; delivered values, conversion history, eligibility and actual return remain unverified. For the two value-bidding recipes, live eligibility also selects current default value, conversion currency and event-value override settings for the same matching primary actions. It also reads the last reported conversion date and last tag-detection time twice in the native account timezone. These optional aggregate dates remain unknown when absent; tag detection may have no attributable conversion, and no event-level records are read. Optional missing settings stay unknown; configuration does not prove received event values. Pending plans reread retired conversion-value proofs through their original accepted receipts before approval or advancing; completed historical runs are not replayed. The Snapchat website traffic recipe reuses an existing WEB_VIEW creative and saves three paused steps with an explicit AUTO_BID/SWIPES budget and offset schedule. Read-only preflight checks its selected-account ownership, creative type and original HTTPS destination syntax; advertising approval and destination availability remain unverified. The Snapchat lead-generation recipe reuses an existing LEAD_GENERATION creative and its original account-owned form, with an explicit SWIPES or LEAD_FORM_SUBMISSIONS goal. Preflight and native review inspect both definitions; no submitted leads are read, and provider eligibility, privacy and consent acceptance remain unverified. Readers can inspect these settings while existing write blockers remain active. Configuration does not prove event delivery, objective acceptance or write approval. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns one step whole, and detail:"full" the whole plan. A step preflight blocked, or one that failed before reaching the provider, is amended in place with recover_step (patch one field, or send corrected arguments), following the next_call its refusal carries; nothing is sent until its new review. A step the provider refused without applying it (a Google request refused outright) is amended the same way under a new key; for a refusal AMCP cannot prove applied nothing (Meta), confirm_absent reads whether a resource of that name exists and, once the user confirms it does not, allows recover_step. continue_as_new {id, confirmed} carries the steps still to write into a new linked plan, adopting verified predecessors’ IDs with their provenance; the original plan becomes superseded. activation_plan {id} on a completed recipe plan creates a separate linked draft that activates its paused launch (Meta, Google: the campaign; Snapchat: campaign, ad squad, ad in order; Microsoft: refused without a positive location criterion), with its own approval and read-only gates at preflight. list returns compact rows newest first (accounts and platforms per plan), filtered by state, archived, gateway, account_id, connection_id, profile_id, search or awaiting_approval, continued with next_cursor. archive {id, confirmed} sets aside a complete, cancelled or superseded plan: get still returns it, the default list and the 500-plan limit leave it out; unarchive restores it. The plan’s owner or an administrator can assign {id, user_id, role} a workspace member as viewer (read), editor (prepare, run steps, amend, archive) or approver (approve and run); assign {id} lists members, unassign removes one; collaborators see a plan only within their current account access and every write still checks the acting person’s own grant. When the owner requires a distinct approver, a plan that changes spending or activates a launch cannot be approved by its own owner, and its steps execute only under another person’s current approval. To approve a whole plan once: approve returns what the approval covers (every step’s action, account, money and status fields, a large step aggregated with truncated: true; approve with its step_id lists every field); approve with confirmed, that plan_hash and its summary_hash records it; run then prepares and executes every step under it, each still a frozen, read-back review, and stops for anything that needs a person. run_background queues an approved plan whose steps are all media uploads to run on the server: leaving the page or client does not stop it, get shows its progress, and in a plan of independent uploads one failed upload does not hold the others. clone reads an existing Snapchat, Google Search, TikTok or LinkedIn campaign (source.campaign_id; a LinkedIn campaign group) into a new draft plan under a new name, with changes applied (set a field, drop a step); a Google copy is one all-or-nothing step (atomic: false for one step per resource type); the new campaign starts PAUSED and nothing is sent until the plan is reviewed or approved. create, create_from_recipe and clone accept an optional stable idempotency_key (8–100 letters, digits, hyphens or underscores); identical creation input reuses the original plan, while different input conflicts. Recipe and clone steps are saved literally; {{variable}} substitution applies only to the explicit and template steps of create. Allocation preview handoffs bind their exact source and budget ownership to the draft; stale source, changed ownership or amended proposal targets require a fresh preview. Search-exclusion preview handoffs similarly preserve exact retained terms and original ad groups; changed source or target arguments require a new preview. Accepted and uncertain receipts retain their original recovery. No fabricated IDs, implicit launch, or review bypass.',
   [
     'create',
     'get',
@@ -79,6 +86,7 @@ export const campaignTool = tool(
     'reconcile_step',
     'approve',
     'run',
+    'run_background',
     'recipes',
     'recipe_context',
     'recipe_eligibility',
@@ -278,6 +286,42 @@ function independentStep(run: JsonObject): string | undefined {
   }
   return undefined;
 }
+/** The earliest deadline among a plan's temporary files (its run-by time), or null when none has one left. */
+function earliestDeadline(temporary: {expires_at: string | null}[]): string | null {
+  const deadlines = temporary.map(t => t.expires_at).filter((t): t is string => t !== null);
+  return deadlines.length ? deadlines.reduce((a, b) => (a < b ? a : b)) : null;
+}
+/** A plan's run-by time must leave this long to run it (MED-03 B). */
+export const RUN_BY_MINIMUM_MS = 5 * 60000;
+/**
+ * Refuses a plan whose temporary files are deleted too soon to run it: one already gone, or the earliest deadline less
+ * than five minutes away (MED-03 B, owner decision D23). Upload those files again and use the new uploads.
+ */
+function assertRunnableSources(temporary: {step_id: string; source_id: string; expires_at: string | null}[]) {
+  const soon = temporary.filter(
+    t => t.expires_at === null || Date.parse(t.expires_at) - Date.now() < RUN_BY_MINIMUM_MS,
+  );
+  if (soon.length)
+    bad(
+      'Temporary files in this plan are deleted in less than 5 minutes, or already were, which is too soon to run it. Upload those files again and use the new uploads, or import them from a link or Google Drive and have an owner retain them.',
+      'TEMPORARY_SOURCES_EXPIRING',
+      {temporary_sources: soon, minimum_minutes: RUN_BY_MINIMUM_MS / 60000},
+    );
+}
+/** A plan's state after a step of a plan of independent uploads: one that failed or is uncertain still needs a person. */
+function uploadsState(run: JsonObject, step: JsonObject): string {
+  return independentUploads(run) &&
+    !run.steps.every(settled) &&
+    run.steps.some((s: JsonObject) => ['failed', 'uncertain', 'mismatch'].includes(s.status))
+    ? 'attention'
+    : planState(run, step);
+}
+/**
+ * Refusals of a media step's prepare that clear with time (shared media capacity, a busy processor, full review staging,
+ * low storage, a provider rate limit). The step stays pending, nothing is sent, and run waits instead of failing it.
+ */
+const mediaPrepareBusy = (error: JsonObject | undefined) =>
+  error?.retryable === true || ['MEDIA_STAGING_FULL', 'MEDIA_PROCESSOR_BUSY'].includes(error?.code);
 /** Rollback switch for the summary binding (WRT-05): AMCP_PLAN_SUMMARY_HASH=false accepts an approval by plan_hash alone. */
 const summaryHashRequired = () => process.env.AMCP_PLAN_SUMMARY_HASH !== 'false';
 export class CampaignRunner {
@@ -290,6 +334,12 @@ export class CampaignRunner {
   private origins = new WeakMap<JsonObject, JsonObject>();
   /** The prepare and execute calls `run` makes under a plan's approval: an approver may make them (CMP-05). */
   private underApproval = new WeakSet<JsonObject>();
+  /**
+   * The prepare_next and execute_next calls `run` makes for a plan of independent uploads, keyed by that exact input
+   * object so tool input can never claim it: they move past a failed, uncertain or processing upload to the next one
+   * (MED-03 B). A person's own prepare_next and execute_next are unchanged and stop at the first unsettled step.
+   */
+  private pastStopped = new WeakSet<JsonObject>();
   constructor(
     private store: Store,
     private call: ToolCall,
@@ -612,13 +662,40 @@ export class CampaignRunner {
     return input;
   }
   /**
-   * Runs an approved plan: each step is prepared (a frozen review of the state it reads) and executed under the
-   * plan's approval, then read back, exactly as prepare_next and execute_next do one at a time. It stops for anything
-   * that needs a person: a spending acknowledgement the approval did not give, an owner cap override, a creative
-   * edit, a failure, a mismatch, or a read-back still settling. It also stops after about 25 seconds so a response
-   * always arrives; run again to continue. Nothing is rolled back: steps already done stay, as created (paused).
+   * Queues an approved plan of media uploads to run on the server (MED-03 B): the worker runs it exactly as `run` does,
+   * under the same approval and as the same person, so leaving the website or client no longer stops it; `get` shows
+   * its progress and `background`. A run already queued or running is returned, never queued twice.
    */
-  private async runApproved(input: JsonObject, actor: Actor, run: JsonObject): Promise<JsonObject> {
+  private runInBackground(input: JsonObject, actor: Actor, run: JsonObject): JsonObject {
+    if (!serverPushEnabled())
+      bad(
+        'Background runs are turned off in this deployment. Run the plan with run, which continues while you keep this page or client open.',
+        'BACKGROUND_RUN_DISABLED',
+        {next_call: {tool: 'amcp_campaign', arguments: {action: 'run', id: run.id}}},
+      );
+    if (!run.steps.every((s: JsonObject) => s.kind === 'media'))
+      bad(
+        'run_background runs plans whose steps are all media uploads. Run this plan with run.',
+        'BACKGROUND_RUN_UNSUPPORTED',
+        {next_call: {tool: 'amcp_campaign', arguments: {action: 'run', id: run.id}}},
+      );
+    this.assertApproval(actor, run);
+    const get = {tool: 'amcp_campaign', arguments: {action: 'get', id: run.id}};
+    if (run.steps.every(settled)) return this.respond(input, {...run, state: 'complete'}, undefined, {next_call: null});
+    const current = backgroundRunView(this.store, actor.tenantId, run);
+    if (current && ['queued', 'running'].includes(current.state))
+      return this.respond(input, run, undefined, {background: current, next_call: get});
+    const job = enqueueBackgroundRun(this.store, actor, run.id);
+    run.background = {job_id: job, queued_at: Date.now(), by: actor.userId};
+    run = this.save(actor, run);
+    audit(this.store, actor, 'campaign_plan_background_queued', {id: run.id, plan_hash: run.plan_hash, job_id: job});
+    return this.respond(input, run, undefined, {
+      background: backgroundRunView(this.store, actor.tenantId, run),
+      next_call: get,
+    });
+  }
+  /** The plan's current approval, recorded from this person's connection (or an administrator's), within a day. */
+  private assertApproval(actor: Actor, run: JsonObject) {
     if (!run.approval || run.approval.plan_hash !== run.plan_hash || Date.now() - run.approval.at > 86400000)
       bad(
         'This plan has no current approval. Show the user the summary (approve), then approve it with confirmed: true.',
@@ -633,27 +710,52 @@ export class CampaignRunner {
         'APPROVAL_REQUIRED',
         {next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: run.id}}},
       );
+  }
+  /**
+   * Runs an approved plan: each step is prepared (a frozen review of the state it reads) and executed under the
+   * plan's approval, then read back, exactly as prepare_next and execute_next do one at a time. It stops for anything
+   * that needs a person: a spending acknowledgement the approval did not give, an owner cap override, a creative
+   * edit, a failure, a mismatch, or a read-back still settling. It also stops after about 25 seconds so a response
+   * always arrives; run again to continue. Nothing is rolled back: steps already done stay, as created (paused).
+   */
+  private async runApproved(input: JsonObject, actor: Actor, run: JsonObject): Promise<JsonObject> {
+    this.assertApproval(actor, run);
     const started = Date.now(),
       executed: string[] = [];
     const stop = (view: JsonObject, reason: string, extra: JsonObject = {}) => ({
       ...view,
       run: {executed, stopped: reason, ...extra},
     });
+    // In a plan of independent uploads (a creative push) one failed, uncertain or processing upload holds none of the
+    // others: run moves every upload it can, then stops for the rest (MED-03 B). Other plans stop at the first one.
+    const uploads = independentUploads(run);
     for (let i = 0; i < run.steps.length * 3 + 3; i++) {
       if (Date.now() - started > 25000)
         return stop(this.respond({}, this.owned(actor, run.id)), 'time', {
           next_call: {tool: 'amcp_campaign', arguments: {action: 'run', id: run.id}},
         });
-      const prepared = await this.handle(this.approved({action: 'prepare_next', id: run.id}), actor);
+      const ask: JsonObject = this.approved({action: 'prepare_next', id: run.id});
+      if (uploads) this.pastStopped.add(ask);
+      const prepared = await this.handle(ask, actor);
       // A step a crash or restart left executing resumes under its original review and key (CMP-02 c). The same-key
       // claim replays a completed receipt and refuses a pending or uncertain one without sending it again.
       const resume =
         !prepared.review && prepared.next_call?.arguments?.action === 'execute_next'
           ? prepared.next_call.arguments
           : undefined;
+      // Busy media capacity refused the next upload's prepare before anything was staged or sent: run again later.
+      if (prepared.busy === true)
+        return stop(prepared, 'not_sent', {
+          retry_after_ms: prepared.retry_after_ms,
+          next_call: {tool: 'amcp_campaign', arguments: {action: 'run', id: run.id}},
+        });
       if (!prepared.review && !resume) {
         const view = prepared.view ? prepared : this.respond({}, this.owned(actor, run.id));
         if (view.state === 'complete') return stop(view, 'complete');
+        // An upload whose preparation failed (its file expired, for example) holds none of the other uploads; a plan
+        // its preflight blocked still stops as a whole.
+        if (uploads && view.blocked && view.current?.status === 'failed' && nextUpload(this.owned(actor, run.id)))
+          continue;
         return stop(view, view.blocked ? 'needs_attention' : 'waiting');
       }
       // A review still ready from an earlier call carries its requirements inside the review view.
@@ -674,21 +776,21 @@ export class CampaignRunner {
             human +
             ', which the plan approval does not give. Show the user this review; execute_next with it continues the step, then run continues the plan.',
         });
-      const out = await this.handle(
-        this.approved({
-          action: 'execute_next',
-          id: run.id,
-          review_id: resume?.review_id ?? prepared.review.review_id,
-          idempotency_key: resume?.idempotency_key ?? prepared.review.idempotency_key,
-          confirmed: true,
-          ...(needs.spend_change_confirmed ? {spend_change_confirmed: true} : {}),
-        }),
-        actor,
-      );
+      const execute: JsonObject = this.approved({
+        action: 'execute_next',
+        id: run.id,
+        review_id: resume?.review_id ?? prepared.review.review_id,
+        idempotency_key: resume?.idempotency_key ?? prepared.review.idempotency_key,
+        confirmed: true,
+        ...(needs.spend_change_confirmed ? {spend_change_confirmed: true} : {}),
+      });
+      if (uploads) this.pastStopped.add(execute);
+      const out = await this.handle(execute, actor);
       executed.push(prepared.step_id);
       if (out.state === 'complete') return stop(out, 'complete');
       const step = out.steps?.find((s: JsonObject) => s.id === prepared.step_id);
-      if (step && ['failed', 'uncertain', 'mismatch'].includes(step.status)) return stop(out, 'needs_attention');
+      if (step && ['failed', 'uncertain', 'mismatch'].includes(step.status) && !uploads)
+        return stop(out, 'needs_attention');
       // Refused before anything was sent (a pause, a rate limit, a busy target): the review stays ready, and run continues
       // it once the cause clears instead of retrying it at once.
       if (step?.status === 'review_ready' && step.error)
@@ -1265,9 +1367,13 @@ export class CampaignRunner {
           execution_journal: journal([step]),
         };
       }
-      if (input.detail === 'full') return {...run, execution_journal: journal(run.steps)};
+      // A background run's state comes from its job (MED-03 B): queued, running, complete or failed.
+      const background = backgroundRunView(this.store, actor.tenantId, run),
+        running = background ? {background} : {};
+      if (input.detail === 'full') return {...run, execution_journal: journal(run.steps), ...running};
       return compactPlan(run, undefined, {
         ...(run.preflight ? {preflight: preflightView(run.preflight, true)} : {}),
+        ...running,
         ...activationOffer(run),
       });
     }
@@ -1466,14 +1572,14 @@ export class CampaignRunner {
       // Temporary files are deleted 30 minutes after they started: a plan that uses them is saved only with that
       // deadline acknowledged, and it records and shows the deadline (owner decision D23, MED-01).
       const temporary = temporaryMediaSources(this.store, actor.tenantId, steps),
-        deadlines = temporary.map(t => t.expires_at).filter((t): t is string => t !== null),
-        earliest = deadlines.length ? deadlines.reduce((a, b) => (a < b ? a : b)) : null;
+        earliest = earliestDeadline(temporary);
       if (temporary.length && input.acknowledge_temporary_sources !== true)
         bad(
           'This plan uses temporary files (uploads or imports with a source_id src-…), deleted 30 minutes after they started, so it must run before then. Save it with acknowledge_temporary_sources: true, or for a plan that can wait import the files from a link or Google Drive and have an owner retain them.',
           'TEMPORARY_MEDIA_SOURCES',
           {temporary_sources: temporary, earliest_expires_at: earliest},
         );
+      assertRunnableSources(temporary);
       // Archived plans do not count (CMP-05); the refusal names the remedy.
       assertPlanRoom(this.store, actor);
       const run = {
@@ -1520,7 +1626,7 @@ export class CampaignRunner {
     // approval), naming collaborators is the owner's, preflight serves editors and approvers, the rest needs an editor.
     const rights: PlanRight[] = this.underApproval.has(input)
       ? ['approve']
-      : ['approve', 'run'].includes(input.action)
+      : ['approve', 'run', 'run_background'].includes(input.action)
         ? ['approve']
         : ['assign', 'unassign'].includes(input.action)
           ? ['manage']
@@ -1782,6 +1888,43 @@ export class CampaignRunner {
         step.arguments = input.arguments;
       }
       noSecrets(step.arguments);
+      // A media step that now names another file (a replacement upload, MED-03 B) is prepared as a new review of that
+      // file; the old bytes are never reused. A temporary replacement is acknowledged like one in a new plan, must
+      // leave time to run, and moves the plan's run-by time.
+      if (step.kind === 'media') {
+        const a = step.arguments;
+        if (
+          (a.source_id !== undefined &&
+            (typeof a.source_id !== 'string' || !/^(?:src|lib)-[0-9a-f-]{36}$/.test(a.source_id))) ||
+          (a.expected_sha256 !== undefined &&
+            (typeof a.expected_sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(a.expected_sha256)))
+        )
+          bad(
+            'Name the new file by its source_id (src-… or lib-…) and the exact file.sha256 its amcp_media plan returned.',
+            'INVALID_ARGUMENT',
+            {field: 'patch'},
+          );
+        const replaced = temporaryMediaSources(this.store, actor.tenantId, [step]);
+        if (replaced.length && !run.temporary_sources && input.acknowledge_temporary_sources !== true)
+          bad(
+            'The replacement is a temporary file (source_id src-…), deleted 30 minutes after it started, so the plan must run before then. Send acknowledge_temporary_sources: true with this amendment.',
+            'TEMPORARY_MEDIA_SOURCES',
+            {temporary_sources: replaced, earliest_expires_at: earliestDeadline(replaced)},
+          );
+        assertRunnableSources(replaced);
+        const temporary = temporaryMediaSources(
+          this.store,
+          actor.tenantId,
+          run.steps.filter((s: JsonObject) => !settled(s)),
+        );
+        if (temporary.length)
+          run.temporary_sources = {
+            ...(run.temporary_sources ?? {acknowledged_by: actor.userId, acknowledged_at: Date.now()}),
+            earliest_expires_at: earliestDeadline(temporary),
+            sources: temporary,
+          };
+        else delete run.temporary_sources;
+      }
       if (retired) {
         const status = step.error?.details?.http_status ?? null;
         if (retired === 'rejected_build') attempt.rejected_build = {http_status: status, key_retired: step.review_id};
@@ -1806,7 +1949,7 @@ export class CampaignRunner {
         next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
       });
     }
-    if (['prepare_next', 'execute_next', 'approve', 'run'].includes(input.action))
+    if (['prepare_next', 'execute_next', 'approve', 'run', 'run_background'].includes(input.action))
       for (const s of run.steps.filter((s: JsonObject) => !settled(s))) {
         const gateway = s.kind === 'media' ? s.arguments.platform + '_native_action' : s.gateway,
           c = this.store.resolveConnection(actor, gateway, s.account_id, s.connection_id);
@@ -1910,8 +2053,18 @@ export class CampaignRunner {
       }
     if (input.action === 'approve') return this.approve(input, actor, run);
     if (input.action === 'run') return this.runApproved(input, actor, run);
+    if (input.action === 'run_background') return this.runInBackground(input, actor, run);
     let next = run.steps.find((s: JsonObject) => !settled(s));
     if (!next) return this.respond(input, {...run, state: 'complete'}, undefined, activationOffer(run));
+    // In a plan of independent uploads run moves past an upload that needs a person: it prepares the next one, and
+    // executes the exact review it just prepared (MED-03 B).
+    if (this.pastStopped.has(input) && ['uncertain', 'failed', 'processing'].includes(next.status))
+      next =
+        (input.action === 'execute_next'
+          ? run.steps.find(
+              (s: JsonObject) => s.review_id === input.review_id && ['review_ready', 'executing'].includes(s.status),
+            )
+          : nextUpload(run)) ?? next;
     if (['uncertain', 'failed', 'mismatch'].includes(next.status)) {
       // A mismatch holds only its dependants; the user's decision on it can wait while other steps run.
       const other = next.status === 'mismatch' ? independentStep(run) : undefined;
@@ -2061,6 +2214,17 @@ export class CampaignRunner {
         };
         return this.handle(this.underApproval.has(input) ? this.approved(following) : following, actor);
       }
+      if (!prepared.success && next.kind === 'media' && mediaPrepareBusy(prepared.error)) {
+        // Nothing was staged or sent, and the cause clears with time: the step stays pending (MED-03 B).
+        const wait = Math.max(1000, Math.min(60000, Number(prepared.error.details?.retry_after_ms) || 5000));
+        next.busy = {code: prepared.error.code, message: prepared.error.message, retry_after_ms: wait, at: Date.now()};
+        run = this.save(actor, run);
+        return this.respond(input, run, next.id, {
+          busy: true,
+          retry_after_ms: wait,
+          next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
+        });
+      }
       if (!prepared.success) {
         next.status = 'failed';
         next.error = prepared.error;
@@ -2089,6 +2253,7 @@ export class CampaignRunner {
         );
       }
       const review = prepared.data;
+      delete next.busy;
       // An expired review prepared again for the same request over unchanged state says so (WRT-05).
       if (
         typeof next.review?.fingerprint === 'string' &&
@@ -2100,7 +2265,7 @@ export class CampaignRunner {
       if (review.reused === true) {
         next.result = review;
         next.status = 'verified';
-        run.state = planState(run, next);
+        run.state = uploadsState(run, next);
         return this.respond(input, this.save(actor, run), next.id);
       }
       next.review_id = review.review_id;
@@ -2234,7 +2399,7 @@ export class CampaignRunner {
       if (step.status === 'verified' && step.verification.verified_resources)
         step.result = {...step.result, verified_resources: step.verification.verified_resources};
     }
-    run.state = planState(run, step);
+    run.state = uploadsState(run, step);
     run = this.save(actor, run);
     return this.respond(
       input,

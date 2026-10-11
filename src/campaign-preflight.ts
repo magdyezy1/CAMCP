@@ -230,6 +230,24 @@ export async function campaignPreflight(
             'MEDIA_SOURCE_REQUIRED',
             'Provide a file: source_id (an upload), source_url (a public link), a Google Drive link or a staged variant.',
           );
+        // A planned push step is checked against its original and the fitted copy its plan cached, without being
+        // prepared, converted and staged once more only to be discarded (MED-03 C).
+        const planned = await service.plannedMedia(actor, {
+          ...step.arguments,
+          account_id: account,
+          connection_id: c.id,
+        });
+        if (planned) {
+          checks.push({
+            step: step.id,
+            status: 'media_checked',
+            sha256: planned.sha256,
+            size_bytes: planned.size_bytes,
+            meaning:
+              'The planned file was checked against its original and cached copy without preparing it; exact bytes are staged for the execution review.',
+          });
+          continue;
+        }
         const result = await service.call(
           'amcp_media',
           {...step.arguments, action: 'prepare', account_id: account, connection_id: c.id},

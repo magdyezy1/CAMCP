@@ -29,7 +29,7 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     'It saves a durable dependency plan (native steps, approved templates or recipes) and runs it step by step. ' +
     'Safety: no fabricated IDs, implicit launch or review bypass; every step is a frozen, read-back native review; a step that reached the provider is never sent again; uncertain receipts keep their recovery. ' +
     'Core actions: recipes, recipe_context, recipe_eligibility (live:true adds read-only account prerequisites), recipe_lookup, preview_recipe, create_from_recipe; create, get, list (filters, next_cursor), preflight; ' +
-    'prepare_next and execute_next (one reviewed step at a time, read back); verify; approve (what one approval covers; confirmed with that plan_hash records it) and run (every step under it, stopping for anything that needs a person); ' +
+    'prepare_next and execute_next (one reviewed step at a time, read back); verify; approve (what one approval covers; confirmed with that plan_hash records it) and run (every step under it, stopping for anything that needs a person; run_background runs an approved plan of media uploads on the server); ' +
     'recover_step, reconcile_step, confirm_absent and continue_as_new for blocked, refused or uncertain steps; activation_plan; archive, unarchive, assign and unassign; clone (Snapchat, Google Search, TikTok or LinkedIn into a paused draft); validate_provider; cancel. ' +
     'Responses are compact; get with step_id, or detail:"full", returns more. ' +
     help('amcp_campaign'),

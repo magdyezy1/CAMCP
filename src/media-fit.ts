@@ -2,11 +2,14 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {MirrorError} from './errors.js';
 import {MAX_MEDIA_BYTES, mediaType} from './drive-media.js';
-import {jpegOrientation, orientationFilter, pngHasAlpha} from './image-header.js';
+import {pngHasAlpha} from './image-header.js';
 import {
+  assertRightAngle,
   convertibleStream,
   convertMedia,
   ffprobeJson,
+  seenGeometry,
+  VIDEO_CONVERSION_TIMEOUT_MS,
   videoEncoding,
   withMediaFile,
   type MediaFileType,
@@ -25,6 +28,16 @@ export interface FitLimits {
   imageBytes: number;
   /** The platform takes video only as MP4 (X and LinkedIn). */
   mp4Only: boolean;
+}
+/**
+ * The limits that can change the fit of this kind of file: an image's byte limit, or for a video only whether it must be
+ * MP4 (a MOV source). A video ignores image limits and an image ignores MP4, so platforms that differ only there share
+ * one conversion and one cached copy (MED-03 C). `imageBytes` is 0 for a video, where no image limit applies.
+ */
+export function effectiveFitLimits(file: {kind: 'image' | 'video'; mime: string}, limits: FitLimits): FitLimits {
+  return file.kind === 'image'
+    ? {imageBytes: limits.imageBytes, mp4Only: false}
+    : {imageBytes: 0, mp4Only: limits.mp4Only && file.mime === 'video/quicktime'};
 }
 /** One change the fit made; `describeFit` words it for a platform's review. */
 export type FitStep =
@@ -92,19 +105,10 @@ export async function fitMediaToPlatform(bytes: Buffer, limits: FitLimits): Prom
     async (input, directory, type): Promise<FittedMedia> => {
       const metadata = await ffprobeJson(input, type),
         {video, duration} = convertibleStream(metadata, type),
-        orientation = type.mime === 'image/jpeg' ? jpegOrientation(bytes) : 1,
-        rotation =
-          type.kind === 'video'
-            ? Number(
-                video.side_data_list?.find((s: any) => s.rotation !== undefined)?.rotation ?? video.tags?.rotate ?? 0,
-              )
-            : 0;
-      if (rotation % 90)
-        throw new MirrorError('MEDIA_ROTATION_UNSUPPORTED', 'Normalize this media’s rotation before upload.');
-      // Sizes are as the media is seen: after its EXIF orientation or video rotation.
-      const swapped = orientation >= 5 || Math.abs(rotation) % 180 === 90,
-        width: number = swapped ? video.height : video.width,
-        height: number = swapped ? video.width : video.height,
+        // Sizes are as the media is seen: after its EXIF orientation or video rotation (one helper for every step).
+        seen = seenGeometry(bytes, type, video);
+      assertRightAngle(seen);
+      const {orientation, width, height} = seen,
         target = deliveryDimensions(width, height, type.kind),
         overBytes = type.kind === 'image' && bytes.length > limits.imageBytes,
         needsMp4 = type.kind === 'video' && limits.mp4Only && type.mime === 'video/quicktime';
@@ -139,7 +143,7 @@ export async function fitMediaToPlatform(bytes: Buffer, limits: FitLimits): Prom
         await convertMedia(input, type, out, {
           ...(copy ? {} : {filter: `scale=${target.width}:${target.height}:flags=lanczos,setsar=1`}),
           encoding: copy ? ['-c', 'copy', '-movflags', '+faststart', '-f', 'mp4'] : [...videoEncoding, '-f', 'mp4'],
-          timeout: 120000,
+          timeout: VIDEO_CONVERSION_TIMEOUT_MS,
         });
         const converted = await readOutput(out),
           check = convertibleStream(await ffprobeJson(out, mediaType(converted)), mediaType(converted)),
@@ -157,11 +161,7 @@ export async function fitMediaToPlatform(bytes: Buffer, limits: FitLimits): Prom
       }
       // The output carries no metadata, so an EXIF orientation is applied to the pixels instead.
       if (orientation !== 1) steps.push({step: 'oriented', orientation});
-      const filter = [
-          orientationFilter(orientation),
-          `scale=${target.width}:${target.height}:flags=lanczos`,
-          'setsar=1',
-        ]
+      const filter = [seen.filter, `scale=${target.width}:${target.height}:flags=lanczos`, 'setsar=1']
           .filter(Boolean)
           .join(','),
         limit = limits.imageBytes,
@@ -170,7 +170,7 @@ export async function fitMediaToPlatform(bytes: Buffer, limits: FitLimits): Prom
           await convertMedia(input, type, out, {
             filter,
             // FFmpeg 5.1 ignores EXIF orientation and later versions apply it; AMCP applies it itself, once.
-            inputOptions: ['-noautorotate'],
+            inputOptions: seen.inputOptions,
             encoding:
               format === 'png'
                 ? ['-frames:v', '1', '-c:v', 'png', '-f', 'image2']

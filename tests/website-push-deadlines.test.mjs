@@ -110,7 +110,10 @@ function serve(f, listed) {
         })),
       };
     if (input.action === 'prepare') return {review_id: 'review-' + input.source_id};
-    if (input.action === 'execute') return {state: 'uploaded', media_id: 'm-' + input.review_id};
+    // MED-03 A: each row is queued as a durable job and followed until its job completes.
+    if (input.action === 'execute_async') return {state: 'queued', job_id: 'job-' + input.review_id};
+    if (input.action === 'job_status')
+      return {state: 'complete', result: {ready: true, media_id: 'm-' + input.review_id}};
     if (tool === 'campaign') return {id: 'plan-1'};
     throw Error('unexpected ' + input.action);
   };

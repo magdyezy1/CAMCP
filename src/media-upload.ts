@@ -20,9 +20,18 @@ import type {ExecutionPolicy} from './preflight.js';
 import type {Actor, CompiledRequest, Connection, JsonObject} from './types.js';
 import {ownership, ownsRecord} from './actor-identity.js';
 import {mediaImageLimit, mediaPlatformNames, mediaPlatforms, mp4OnlyPlatforms} from './media-routing.js';
-import {describeFit, fitMediaToPlatform, type FittedMedia, type MediaTransform} from './media-fit.js';
+import {
+  describeFit,
+  effectiveFitLimits,
+  fitMediaToPlatform,
+  type FittedMedia,
+  type MediaTransform,
+} from './media-fit.js';
+import {cachedFit, cachedFitFacts, cacheFit, type FitSource} from './media-fit-cache.js';
+import {serverPushEnabled} from './campaign-background.js';
 import {downloadMediaLink, type LinkRequest} from './media-link.js';
 import {MediaSources} from './media-sources.js';
+import {retainedMediaId} from './retained-media.js';
 import {assertAccountWrite} from './write-access.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {assertLinkedInOrganization} from './linkedin-posts.js';
@@ -96,7 +105,7 @@ export const mediaTransferDeadline = (p: Pick<UploadPlan, 'upload_expires_at'>, 
 export const mediaTool = {
   name: 'amcp_media',
   description:
-    'Use this to put an image or video into an ad account as a reviewed upload: a file uploaded on the AMCP website (source_id; list returns them under sources), a public HTTPS link (source_url), or a public or selected private Google Drive file (drive_url). prepare fetches and encrypts the exact file for a five-minute review, capped by the original website upload’s absolute 30-minute deadline; fit_to_platform:true first scales media larger than 1080 on its short side or 1920 on its long side down to fit (never cropped), re-encodes an image above the platform limit and converts MOV to MP4 for X and LinkedIn, and request.transform says what changed; execute uploads those frozen bytes after explicit confirmation. Supports PNG/JPEG and MP4/MOV across Meta, TikTok, Snapchat, Google Ads, LinkedIn, X and DV360 (X/LinkedIn video: MP4). Google videos are uploaded as UNLISTED on the account Google-managed YouTube channel. Normal native media actions and platform_media_upload use this same server transfer; the MCP client never downloads bytes. status reads provider processing state; prepare_library reviews adding an X video to its account library once processing succeeds. Never publishes ads or posts. Uses operator role, account write grants and durable idempotency. Files up to the configured media limit (128 MiB by default) with lower platform image limits. Private files use a separate selected Google Drive connection. variant creates an encrypted, expiring preview with explicit contain/crop presets; prepare accepts variant_id. execute_async queues the frozen confirmed review; job_status shows durable progress. list returns account-scoped receipts and current temporary/retained sources. Website uploads, their thumbnails, variants and review copies expire 30 minutes after upload starts and cannot be retained; provider-hosted assets and metadata receipts are separate. retain_source makes an encrypted durable copy of one separately imported link/Drive original only for a current workspace owner, with source_id, confirmed:true and the exact expected_sha256; it keeps the temporary upload expiry and shares the unchanged file count/byte quota. Returned lib- source IDs work wherever source_id is accepted. remove_source permanently removes a retained original only with current owner authority, confirmed:true and its exact expected_sha256; provider uploads, historical receipts, frozen reviews and existing backups are separate. library searches retained metadata with search/tag/account filters and identity-bound cursors; asset shows exact verified campaign usage and current source expiry. asset_usage reads bounded current Meta v26 scalar image/video references (1–100 ads per page with an exact encrypted cursor) or complete Google v25 original-image asset links (1–1000 links, default 50, no cursor) in the original upload account, including ads outside retained plans. Google requires the exact account asset resource and uploaded SHA-256, adwords and current account access; its default ad_images view covers App, Demand Gen and Responsive Search. Explicit reference_view performance_max separately reads configured Performance Max image asset-group links, with native enabled/paused/removed status and exact group/campaign identity; asset groups are not individual ads. Explicit reference_view performance_max_brand separately inspects campaign-level LOGO/LANDSCAPE_LOGO links with explicitly enabled brand guidelines and exact Performance Max campaign identity; campaign links are not ads or asset groups. Responsive Display, Google video and other associations remain outside these views. Complete repeated collections and bracketed asset/customer reads must match; missing enabled flags/types stay unknown and removed links are counted separately. Meta requires ads_read or ads_management and current account access; reads require no upload write grant. Missing formats, historical assignment, delivery and performance attribution remain unknown. Keep the original asset, identity and login exact. Preserve page size and cursor for Meta; Google requires a fresh complete bounded read. Snapchat image/video asset_usage also supports the original-account snapchat_top_snap view: exact account/media UUIDs and uploaded SHA-256, current Snapchat Marketing API permission, complete repeated creative collections and bracketed original account/media observations. limit bounds all examined creatives at 1–1000 (default 50); each original-media discovery is capped at 1000 media rows. Native page size is 50. One read shares 84 attempts, 4102 rows, 8 MiB and 60 seconds. Any cursor, partial collection, changed source or foreign identity is refused. Only literal creative.top_snap_media_id is inspected; creative packaging/review and media-processing statuses do not establish ad delivery. Nested media, icons, previews, dynamic templates, lead-form media and other associations remain outside this view. It creates no snapshot or ownership/write grant and needs no upload write grant. This creates no plan or provider mutation. asset_performance lists compatible guided Meta, Google Ads, Snapchat or standard TikTok ad snapshots, or joins exact verified ad IDs with asset_id, plan_id and report_id; Google preserves the full customer/ad-group/ad resource identity and Smart+ remains separate; it preserves measurement definitions and does not establish historical creative assignment. save_asset_metadata updates local names/tags with operator role, confirmed:true and current metadata_revision passed as revision (0 when absent); it never changes provider media. recovery exposes safe continuation; resume supports Google video offsets and LinkedIn confirmed-part boundaries within the original review, never an uncertain part or finalization. reuse requires a fresh provider availability check. DV360 uploads creative assets by default; dv360_target ad_asset uploads a PNG/JPEG image (up to 5120 KB) as a Demand Gen image ad asset, optionally labelled with synthetic_content, and returns its assetId. inspect_eligibility checks source dimensions, duration and codec against a placement preset before any provider upload; it does not certify provider policy approval.',
+    'Use this to put an image or video into an ad account as a reviewed upload: a file uploaded on the AMCP website (source_id; list returns them under sources), a public HTTPS link (source_url), or a public or selected private Google Drive file (drive_url). prepare fetches and encrypts the exact file for a five-minute review, capped by the original website upload’s absolute 30-minute deadline; fit_to_platform:true first scales media larger than 1080 on its short side or 1920 on its long side down to fit (never cropped), re-encodes an image above the platform limit and converts MOV to MP4 for X and LinkedIn, and request.transform says what changed; execute uploads those frozen bytes after explicit confirmation. Supports PNG/JPEG and MP4/MOV across Meta, TikTok, Snapchat, Google Ads, LinkedIn, X and DV360 (X/LinkedIn video: MP4). Google videos are uploaded as UNLISTED on the account Google-managed YouTube channel. Normal native media actions and platform_media_upload use this same server transfer; the MCP client never downloads bytes. status reads provider processing state; prepare_library reviews adding an X video to its account library once processing succeeds. Never publishes ads or posts. Uses operator role, account write grants and durable idempotency. Files up to the configured media limit (128 MiB by default) with lower platform image limits. Private files use a separate selected Google Drive connection. variant creates an encrypted, expiring preview with explicit contain/crop presets; prepare accepts variant_id. execute_async queues the frozen confirmed review; job_status shows durable progress. list returns account-scoped receipts and current temporary/retained sources. Website uploads, their thumbnails, variants and review copies expire 30 minutes after upload starts and cannot be retained; provider-hosted assets and metadata receipts are separate. retain_source makes an encrypted durable copy of one separately imported link/Drive original only for a current workspace owner, with source_id, confirmed:true and the exact expected_sha256; it keeps the temporary upload expiry and shares the unchanged file count/byte quota. Returned lib- source IDs work wherever source_id is accepted. remove_source permanently removes a retained original only with current owner authority, confirmed:true and its exact expected_sha256; provider uploads, historical receipts, frozen reviews and existing backups are separate. library searches retained metadata with search/tag/account filters and identity-bound cursors; asset shows exact verified campaign usage and current source expiry. asset_usage reads bounded current Meta v26 scalar image/video references (1–100 ads per page with an exact encrypted cursor) or complete Google v25 original-image asset links (1–1000 links, default 50, no cursor) in the original upload account, including ads outside retained plans. Google requires the exact account asset resource and uploaded SHA-256, adwords and current account access; its default ad_images view covers App, Demand Gen and Responsive Search. Explicit reference_view performance_max separately reads configured Performance Max image asset-group links, with native enabled/paused/removed status and exact group/campaign identity; asset groups are not individual ads. Explicit reference_view performance_max_brand separately inspects campaign-level LOGO/LANDSCAPE_LOGO links with explicitly enabled brand guidelines and exact Performance Max campaign identity; campaign links are not ads or asset groups. Responsive Display, Google video and other associations remain outside these views. Complete repeated collections and bracketed asset/customer reads must match; missing enabled flags/types stay unknown and removed links are counted separately. Meta requires ads_read or ads_management and current account access; reads require no upload write grant. Missing formats, historical assignment, delivery and performance attribution remain unknown. Keep the original asset, identity and login exact. Preserve page size and cursor for Meta; Google requires a fresh complete bounded read. Snapchat image/video asset_usage also supports the original-account snapchat_top_snap view: exact account/media UUIDs and uploaded SHA-256, current Snapchat Marketing API permission, complete repeated creative collections and bracketed original account/media observations. limit bounds all examined creatives at 1–1000 (default 50); each original-media discovery is capped at 1000 media rows. Native page size is 50. One read shares 84 attempts, 4102 rows, 8 MiB and 60 seconds. Any cursor, partial collection, changed source or foreign identity is refused. Only literal creative.top_snap_media_id is inspected; creative packaging/review and media-processing statuses do not establish ad delivery. Nested media, icons, previews, dynamic templates, lead-form media and other associations remain outside this view. It creates no snapshot or ownership/write grant and needs no upload write grant. This creates no plan or provider mutation. asset_performance lists compatible guided Meta, Google Ads, Snapchat or standard TikTok ad snapshots (LinkedIn: creative snapshots), or joins exact verified ad IDs (LinkedIn: exact sponsoredCreative URNs, never converted) with asset_id, plan_id and report_id; Google preserves the full customer/ad-group/ad resource identity and Smart+ remains separate; it preserves measurement definitions and does not establish historical creative assignment. save_asset_metadata updates local names/tags with operator role, confirmed:true and current metadata_revision passed as revision (0 when absent); it never changes provider media. recovery exposes safe continuation; resume supports Google video offsets and LinkedIn confirmed-part boundaries within the original review, never an uncertain part or finalization. reuse requires a fresh provider availability check. DV360 uploads creative assets by default; dv360_target ad_asset uploads a PNG/JPEG image (up to 5120 KB) as a Demand Gen image ad asset, optionally labelled with synthetic_content, and returns its assetId. inspect_eligibility checks source dimensions, duration and codec against a placement preset before any provider upload; it does not certify provider policy approval.',
   inputSchema: {
     type: 'object',
     required: ['action'],
@@ -161,6 +170,7 @@ export const mediaTool = {
       fit_to_platform: {
         type: 'boolean',
       },
+      stage_fits: {type: 'boolean'},
       preset: {type: 'string', enum: Object.keys(variantPresets)},
       fit: {type: 'string', enum: ['contain', 'crop']},
       reuse_existing: {type: 'boolean'},
@@ -177,6 +187,7 @@ export const mediaTool = {
       },
       search: {type: 'string', maxLength: 200},
       tag: {type: 'string', maxLength: 40},
+      original_sha256: {type: 'string'},
       cursor: {
         type: 'string',
         maxLength: 24000,
@@ -192,6 +203,8 @@ export const mediaTool = {
         },
       },
       offset: {type: 'integer', minimum: 0},
+      recovery_offset: {type: 'integer', minimum: 0},
+      include_assets: {type: 'boolean'},
       limit: {
         type: 'integer',
         minimum: 1,
@@ -251,17 +264,125 @@ interface UploadPlan {
   dv360_target?: 'ad_asset';
   synthetic_content?: string;
   library_media?: {id: string; key: string; source_review_id: string};
-  /** Where a file that did not come from Google Drive came from. */
-  origin?: {kind: 'upload'; source_id: string; filename: string} | {kind: 'link'; host: string};
+  /** Where the file's bytes came from: the original's provenance and hash (MED-04 B), or an earlier review's label. */
+  origin?: MediaOrigin | LegacyOrigin;
   upload_expires_at?: number;
   /** How fit_to_platform changed the file, shown for review. */
   transform?: ReviewedTransform;
 }
 /** A fit as its review shows it: the changes, and those changes in words for this platform. */
 type ReviewedTransform = MediaTransform & {reasons: string[]};
-/** The receipt's source label for how the file reached AMCP. */
-const receiptSource = (p: UploadPlan) =>
-  p.origin?.kind === 'upload' ? 'amcp_upload' : p.origin?.kind === 'link' ? 'link_import' : 'server_drive_import';
+/** A fit, and whether its output is kept as a cached copy for later reviews (MED-03 C). */
+type StagedFit = FittedMedia & {staged?: boolean};
+/**
+ * The checks every file a platform receives must pass, on its facts alone, so a plan's preflight can apply them to a
+ * cached copy without reading or preparing it (MED-03 C): the planned SHA-256, MP4 for X and LinkedIn, only images as
+ * DV360 ad assets, a LinkedIn video owner and the platform's image byte limit.
+ */
+function assertPlatformFile(
+  input: JsonObject,
+  file: {sha256: string; size: number; mime: string; kind: 'image' | 'video'},
+  adAsset: boolean,
+) {
+  const imageLimit = mediaImageLimit(input.platform, adAsset),
+    mp4Only = mp4OnlyPlatforms.includes(input.platform);
+  if (input.expected_sha256 !== undefined && input.expected_sha256 !== file.sha256)
+    fail('MEDIA_CHANGED', 'The file to upload is not the one planned (expected_sha256). Plan the push again.', {
+      expected_sha256: input.expected_sha256,
+      actual_sha256: file.sha256,
+    });
+  if (mp4Only && file.mime === 'video/quicktime')
+    fail('MEDIA_TYPE_UNSUPPORTED', 'Use MP4 video for X and LinkedIn, or add fit_to_platform:true to convert it.');
+  if (adAsset && file.kind !== 'image')
+    fail(
+      'MEDIA_TYPE_UNSUPPORTED',
+      'DV360 uploads only images as ad assets; YouTube video ad assets are created by video ID with DV360_ADVERTISERS_AD_ASSETS_CREATE.',
+    );
+  if (
+    input.platform === 'linkedin' &&
+    file.kind === 'video' &&
+    !/^urn:li:(?:organization|person):[A-Za-z0-9_-]+$/.test(input.owner_urn ?? '')
+  )
+    fail(
+      'LINKEDIN_VIDEO_OWNER_REQUIRED',
+      'Specify the organization/person owner and its administrator resource binding for this LinkedIn video.',
+    );
+  if (file.kind === 'image' && file.size > imageLimit)
+    fail(
+      'MEDIA_TOO_LARGE',
+      'Image exceeds the platform import limit.' +
+        (input.fit_to_platform === true ? '' : ' Add fit_to_platform:true to resize and re-encode it.'),
+      {maximum_bytes: imageLimit},
+    );
+}
+/**
+ * Where the bytes a review uploads came from (MED-04 B): the provenance of the original, not only the path AMCP read it
+ * by. A website upload, a link import, a Drive import (direct or a source_id) or an owner-retained original, with the
+ * original's own SHA-256, size and type, so lineage survives the original's expiry and a fitted or variant upload still
+ * names the file it was made from. New reviews carry it in their fingerprint; reviews prepared earlier keep theirs.
+ */
+export interface MediaOrigin {
+  kind: 'website_upload' | 'link_import' | 'drive_import' | 'retained_original';
+  /** The upload or retained original (src-… or lib-…) when the file was named by source_id. */
+  source_id?: string;
+  filename?: string;
+  original_sha256: string;
+  original_size: number;
+  original_mime: string;
+  /** The host a link import came from (never the full link). */
+  link_host?: string;
+  /** How a retained original first reached AMCP, and the import it was retained from. */
+  imported_from?: 'website_upload' | 'link_import' | 'drive_import';
+  original_source_id?: string;
+  /** The preset copy actually uploaded, made from the original above. */
+  variant?: {variant_id: string; preset: string; fit: string; source_sha256: string};
+}
+/** The origin shapes of reviews prepared before MED-04, kept as they were so their fingerprints still hold. */
+type LegacyOrigin = {kind: 'upload'; source_id: string; filename: string} | {kind: 'link'; host: string};
+/** A completed upload or import record as its reviews name its provenance. */
+function sourceOrigin(r: JsonObject): MediaOrigin {
+  const retained = retainedMediaId.test(r.id),
+    imported = r.origin === 'link' ? 'link_import' : r.origin === 'drive' ? 'drive_import' : 'website_upload';
+  return {
+    kind: retained ? 'retained_original' : imported,
+    source_id: r.id,
+    filename: r.filename,
+    original_sha256: r.sha256,
+    original_size: r.size,
+    original_mime: r.mime,
+    ...(typeof r.link_host === 'string' ? {link_host: r.link_host} : {}),
+    ...(retained
+      ? {
+          imported_from: imported,
+          ...(typeof r.original_source_id === 'string' ? {original_source_id: r.original_source_id} : {}),
+        }
+      : {}),
+  };
+}
+/** A file AMCP downloaded itself (a public link or a Drive link) as its review names its provenance. */
+const downloadedOrigin = (kind: 'link_import' | 'drive_import', bytes: Buffer, mime: string, host?: string) =>
+  ({
+    kind,
+    original_sha256: sha256(bytes),
+    original_size: bytes.length,
+    original_mime: mime,
+    ...(host ? {link_host: host} : {}),
+  }) satisfies MediaOrigin;
+/**
+ * The receipt's source label for how the file reached AMCP: `amcp_upload` (a website upload), `link_import`,
+ * `server_drive_import`, or `retained_original` (an owner-retained library copy). Reviews prepared before MED-04 keep
+ * their earlier labels.
+ */
+export const receiptSource = (p: Pick<UploadPlan, 'origin'>) => {
+  const kind = p.origin?.kind;
+  if (kind === 'upload' || kind === 'website_upload') return 'amcp_upload';
+  if (kind === 'link' || kind === 'link_import') return 'link_import';
+  if (kind === 'retained_original') return 'retained_original';
+  return 'server_drive_import';
+};
+/** The original's SHA-256 a receipt keeps for lineage, when its review recorded one (MED-04 B). */
+const receiptLineage = (p: Pick<UploadPlan, 'origin'>) =>
+  p.origin && 'original_sha256' in p.origin ? {original_sha256: p.origin.original_sha256} : {};
 interface UploadResult {
   media_id: string;
   media_key?: string;
@@ -413,7 +534,10 @@ export class MediaUploadService {
         extension,
         source_drive: undefined,
         upload_expires_at,
-        origin: {kind: 'upload' as const, source_id: record.id as string, filename: record.filename as string},
+        // The exact original a fitted copy may be cached from (MED-03 C).
+        fit_source: {id: record.id as string, sha256: record.sha256 as string},
+        // The original's provenance, not only "an upload": a link or Drive import keeps its label (MED-04 B).
+        origin: sourceOrigin(record) as UploadPlan['origin'],
       };
     }
     if (input.source_url !== undefined) {
@@ -428,7 +552,7 @@ export class MediaUploadService {
         extension,
         source_drive: undefined,
         upload_expires_at: undefined,
-        origin: {kind: 'link' as const, host},
+        origin: downloadedOrigin('link_import', bytes, mime, host) as UploadPlan['origin'],
       };
     }
     if (input.variant_id) {
@@ -437,12 +561,20 @@ export class MediaUploadService {
       if (sha256(bytes) !== v.sha256) fail('MEDIA_CHANGED', 'Variant integrity check failed.');
       if (v.upload_expires_at !== undefined)
         this.store.capStagedMediaExpiry(actor.tenantId, stageId, v.upload_expires_at);
+      // A variant names the original it was made from and itself (MED-04 B); one made earlier keeps its label.
+      const origin =
+        v.origin && typeof v.origin.original_sha256 === 'string'
+          ? {
+              ...v.origin,
+              variant: {variant_id: v.id, preset: v.preset, fit: v.fit, source_sha256: v.source_sha256},
+            }
+          : v.origin;
       return {
         bytes,
         ...mediaType(bytes),
         source_drive: v.drive_connection_id ? {connection_id: v.drive_connection_id, url: v.drive_url} : undefined,
         upload_expires_at: v.upload_expires_at,
-        ...(v.origin ? {origin: v.origin as UploadPlan['origin']} : {}),
+        ...(origin ? {origin: origin as UploadPlan['origin']} : {}),
       };
     }
     let selected = input.drive_connection_id;
@@ -459,7 +591,7 @@ export class MediaUploadService {
         );
       selected = matches.length === 1 ? matches[0]!.id : defaults[0]?.id;
     }
-    return selected
+    const downloaded = selected
       ? {
           ...(await downloadPrivateDrive(
             this.store,
@@ -478,35 +610,75 @@ export class MediaUploadService {
           source_drive: undefined,
           upload_expires_at: undefined,
         };
+    return {
+      ...downloaded,
+      origin: downloadedOrigin('drive_import', downloaded.bytes, downloaded.mime) as UploadPlan['origin'],
+    };
   }
   /**
    * The file as one platform receives it: fitted when fit_to_platform asks (`fits` shares one conversion between
    * platforms with the same limits), then refused for anything the platform does not take.
    */
   private async platformFile<
-    F extends {bytes: Buffer; mime: string; kind: 'image' | 'video'; extension: string; upload_expires_at?: number},
+    F extends {
+      bytes: Buffer;
+      mime: string;
+      kind: 'image' | 'video';
+      extension: string;
+      upload_expires_at?: number;
+      fit_source?: FitSource;
+    },
   >(
     input: JsonObject,
     source: F,
     adAsset: boolean,
     actor: Actor,
-    fits = new Map<string, Promise<FittedMedia>>(),
-  ): Promise<{file: F; transform?: ReviewedTransform; width?: number; height?: number}> {
+    fits = new Map<string, Promise<StagedFit>>(),
+    stageFits = false,
+  ): Promise<{file: F; transform?: ReviewedTransform; width?: number; height?: number; fit_staged?: boolean}> {
     const imageLimit = mediaImageLimit(input.platform, adAsset),
       mp4Only = mp4OnlyPlatforms.includes(input.platform);
     let file = source,
       transform: ReviewedTransform | undefined,
-      size: {width?: number; height?: number} = {};
+      size: {width?: number; height?: number} = {},
+      staged = false;
     if (input.fit_to_platform === true) {
-      const key = imageLimit + ':' + mp4Only;
+      // Platforms whose limits differ only where this file is unaffected (an image limit for a video) share one fit.
+      const limits = effectiveFitLimits(source, {imageBytes: imageLimit, mp4Only}),
+        key = limits.imageBytes + ':' + limits.mp4Only;
+      // A copy cached by the plan of this original and limits is used as it is (MED-03 C); otherwise the fit is
+      // converted once per limit group, and a plan that asks for it (stage_fits) keeps the output for its reviews.
       if (!fits.has(key))
         fits.set(
           key,
-          withWebsiteUploadDeadline(source.upload_expires_at, () =>
-            fitMediaToPlatform(source.bytes, {imageBytes: imageLimit, mp4Only}),
-          ),
+          withWebsiteUploadDeadline(source.upload_expires_at, async (): Promise<StagedFit> => {
+            const hit = source.fit_source
+              ? await cachedFit(this.store, actor.tenantId, source.fit_source, limits)
+              : undefined;
+            if (hit) {
+              this.store.noteMedia(actor.tenantId, 'fit_cache_hits');
+              return {...hit, staged: true};
+            }
+            const fitted = await fitMediaToPlatform(source.bytes, limits);
+            if (fitted.transform) this.store.noteMedia(actor.tenantId, 'fit_conversions');
+            return {
+              ...fitted,
+              staged:
+                stageFits &&
+                !!source.fit_source &&
+                (await cacheFit(
+                  this.store,
+                  actor.tenantId,
+                  source.fit_source,
+                  limits,
+                  fitted,
+                  this.fitDeadline(actor, source.fit_source),
+                )),
+            };
+          }),
         );
       const fitted = await fits.get(key)!;
+      staged = fitted.staged === true;
       this.store.assertActorActive(actor);
       size = {width: fitted.width, height: fitted.height};
       if (fitted.transform) {
@@ -535,40 +707,44 @@ export class MediaUploadService {
         actual_mime: file.mime,
         actual_size: file.bytes.length,
       });
-    if (input.expected_sha256 !== undefined && input.expected_sha256 !== sha256(file.bytes))
-      fail('MEDIA_CHANGED', 'The file to upload is not the one planned (expected_sha256). Plan the push again.', {
-        expected_sha256: input.expected_sha256,
-        actual_sha256: sha256(file.bytes),
-      });
-    if (mp4Only && file.mime === 'video/quicktime')
-      fail('MEDIA_TYPE_UNSUPPORTED', 'Use MP4 video for X and LinkedIn, or add fit_to_platform:true to convert it.');
-    if (adAsset && file.kind !== 'image')
-      fail(
-        'MEDIA_TYPE_UNSUPPORTED',
-        'DV360 uploads only images as ad assets; YouTube video ad assets are created by video ID with DV360_ADVERTISERS_AD_ASSETS_CREATE.',
-      );
-    if (
-      input.platform === 'linkedin' &&
-      file.kind === 'video' &&
-      !/^urn:li:(?:organization|person):[A-Za-z0-9_-]+$/.test(input.owner_urn ?? '')
-    )
-      fail(
-        'LINKEDIN_VIDEO_OWNER_REQUIRED',
-        'Specify the organization/person owner and its administrator resource binding for this LinkedIn video.',
-      );
-    if (file.kind === 'image' && file.bytes.length > imageLimit)
-      fail(
-        'MEDIA_TOO_LARGE',
-        'Image exceeds the platform import limit.' +
-          (input.fit_to_platform === true ? '' : ' Add fit_to_platform:true to resize and re-encode it.'),
-        {maximum_bytes: imageLimit},
-      );
-    return {file, transform, ...size};
+    assertPlatformFile(
+      input,
+      {sha256: sha256(file.bytes), size: file.bytes.length, mime: file.mime, kind: file.kind},
+      adAsset,
+    );
+    return {file, transform, ...size, ...(staged ? {fit_staged: true} : {})};
+  }
+  /** When a fitted copy of `source` must lapse: with the original's own staging; a retained original has none. */
+  private fitDeadline(actor: Actor, source: FitSource): number | undefined {
+    return source.id.startsWith('src-') ? (this.store.stagedSourceExpiry(actor.tenantId, source.id) ?? 0) : undefined;
   }
   /**
-   * What pushing an upload to several accounts would do, without staging or calling any platform: for each
-   * destination, access and the exact file it would receive (SHA-256, size, dimensions, every change). Each ready
-   * destination is then prepared with that expected_sha256 and executed as its own review.
+   * Upload receipts that already hold exactly this file in this account (MED-03 D): the same connection, SHA-256,
+   * DV360 target and LinkedIn owner, provider-ready at its last check. Reusing one still requires a fresh check.
+   */
+  private matchingReceipts(
+    actor: Actor,
+    p: Pick<UploadPlan, 'platform' | 'account_id' | 'connection_id' | 'sha256' | 'dv360_target' | 'owner_urn'>,
+  ) {
+    return this.assets(actor, {
+      platform: p.platform,
+      account_id: p.account_id,
+      connection_id: p.connection_id,
+    }).filter(
+      a =>
+        a.sha256 === p.sha256 &&
+        a.ready === true &&
+        (a.dv360_target ?? null) === (p.dv360_target ?? null) &&
+        (a.owner_urn ?? null) ===
+          (p.owner_urn ?? (p.platform === 'linkedin' ? 'urn:li:sponsoredAccount:' + p.account_id : null)),
+    );
+  }
+  /**
+   * What pushing an upload to several accounts would do, without calling any platform: for each destination, access
+   * and the exact file it would receive (SHA-256, size, dimensions, every change), and the upload receipts that already
+   * hold that exact file in that account (MED-03 D). Each ready destination is then prepared with that expected_sha256
+   * (or reused after a fresh check) and executed as its own review. Nothing is staged unless `stage_fits` asks to keep
+   * each changed output for those reviews (MED-03 C), so they do not convert the original again.
    */
   private async planPush(input: JsonObject, actor: Actor) {
     const destinations = input.destinations;
@@ -578,8 +754,15 @@ export class MediaUploadService {
       fail('INVALID_ARGUMENT', 'plan works on an upload: pass its source_id.');
     if (input.fit_to_platform !== undefined && typeof input.fit_to_platform !== 'boolean')
       fail('INVALID_ARGUMENT', 'fit_to_platform is true or false.');
-    const source = this.sources.file(actor, input.source_id),
-      fits = new Map<string, Promise<FittedMedia>>(),
+    if (input.stage_fits !== undefined && typeof input.stage_fits !== 'boolean')
+      fail('INVALID_ARGUMENT', 'stage_fits is true or false.');
+    const original = this.sources.file(actor, input.source_id),
+      source = {
+        ...original,
+        upload_expires_at: websiteUploadDeadline(original.record),
+        fit_source: {id: original.record.id as string, sha256: original.record.sha256 as string},
+      },
+      fits = new Map<string, Promise<StagedFit>>(),
       planned: JsonObject[] = [];
     for (const d of destinations as JsonObject[]) {
       try {
@@ -604,26 +787,45 @@ export class MediaUploadService {
           d.owner_urn.startsWith('urn:li:organization:')
         )
           assertLinkedInOrganization(c, account, d.owner_urn);
-        const {file, transform, width, height} = await this.platformFile(
-          {...d, fit_to_platform: input.fit_to_platform},
-          source,
-          d.dv360_target === 'ad_asset',
-          actor,
-          fits,
-        );
+        const {file, transform, width, height, fit_staged} = await this.platformFile(
+            {...d, fit_to_platform: input.fit_to_platform},
+            source,
+            d.dv360_target === 'ad_asset',
+            actor,
+            fits,
+            input.stage_fits === true,
+          ),
+          digest = sha256(file.bytes),
+          receipts = this.matchingReceipts(actor, {
+            platform: d.platform,
+            account_id: account,
+            connection_id: c.id,
+            sha256: digest,
+            ...(d.dv360_target === 'ad_asset' ? {dv360_target: 'ad_asset' as const} : {}),
+            ...(typeof d.owner_urn === 'string' ? {owner_urn: d.owner_urn} : {}),
+          });
         planned.push({
           platform: d.platform,
           account_id: account,
           connection_id: c.id,
           ready: true,
           file: {
-            sha256: sha256(file.bytes),
+            sha256: digest,
             size: file.bytes.length,
             mime: file.mime,
             width: width ?? source.record.width ?? null,
             height: height ?? source.record.height ?? null,
           },
           transform: transform ?? null,
+          ...(fit_staged ? {fit_staged: true} : {}),
+          // This exact file is already in the account: prepare with reuse_existing:true reuses it after a fresh
+          // availability check instead of uploading it again (MED-03 D).
+          existing_receipts: receipts.slice(0, 5).map(a => ({
+            asset_id: a.id,
+            media_id: a.media_id ?? null,
+            sha256: a.sha256,
+            processing_status: a.processing_status ?? null,
+          })),
         });
       } catch (e) {
         if (!(e instanceof MirrorError)) throw e;
@@ -638,10 +840,79 @@ export class MediaUploadService {
     return {
       source_id: input.source_id,
       fit_to_platform: input.fit_to_platform === true,
+      ...(input.stage_fits === true ? {stage_fits: true} : {}),
       destinations: planned,
       executed: false,
       next_step:
-        'For each ready destination: amcp_media prepare with this source_id, fit_to_platform and expected_sha256 set to its file.sha256, then execute that review.',
+        'For each ready destination: amcp_media prepare with this source_id, fit_to_platform and expected_sha256 set to its file.sha256 (add reuse_existing:true to reuse a listed existing receipt after a fresh availability check), then execute that review.',
+    };
+  }
+  /**
+   * A planned media step checked without preparing it again (MED-03 C), for a plan's preflight: account access and its
+   * write grant, the original's access and integrity, and the exact file the platform would receive (the original, or
+   * the copy its plan cached) against the step's expected_sha256 and every platform check. Nothing is read from a
+   * provider, converted or staged. Undefined when a step cannot be checked this way (another kind of file, no expected
+   * SHA-256, or a fitted file whose cached copy is gone): the caller prepares it as before.
+   */
+  async plannedMedia(actor: Actor, input: JsonObject): Promise<JsonObject | undefined> {
+    if (
+      typeof input.source_id !== 'string' ||
+      typeof input.expected_sha256 !== 'string' ||
+      !platforms.includes(input.platform) ||
+      typeof input.account_id !== 'string' ||
+      [
+        'source_url',
+        'drive_url',
+        'variant_id',
+        'preset',
+        'existing_media_id',
+        'media_type',
+        'expected_mime',
+        'expected_size',
+      ].some(k => input[k] !== undefined)
+    )
+      return undefined;
+    const account = normalizeAccount(input.platform + '_native_action', input.account_id),
+      c = this.access(actor, input.platform, account, input.connection_id),
+      adAsset = input.dv360_target === 'ad_asset';
+    if (
+      input.platform === 'linkedin' &&
+      typeof input.owner_urn === 'string' &&
+      input.owner_urn.startsWith('urn:li:organization:')
+    )
+      assertLinkedInOrganization(c, account, input.owner_urn);
+    const record = this.sources.describe(actor, input.source_id);
+    let file: {sha256: string; size: number; mime: string; kind: 'image' | 'video'} = {
+        sha256: record.sha256,
+        size: record.size,
+        mime: record.mime,
+        kind: record.kind,
+      },
+      cached = false;
+    if (input.fit_to_platform === true) {
+      const facts = await cachedFitFacts(
+        this.store,
+        actor.tenantId,
+        {id: record.id, sha256: record.sha256},
+        effectiveFitLimits(record as {kind: 'image' | 'video'; mime: string}, {
+          imageBytes: mediaImageLimit(input.platform, adAsset),
+          mp4Only: mp4OnlyPlatforms.includes(input.platform),
+        }),
+      );
+      if (facts) {
+        file = facts;
+        cached = true;
+        // A plan that found the original already fitting kept no copy: its expected file is the original itself.
+      } else if (input.expected_sha256 !== record.sha256) return undefined;
+    }
+    assertPlatformFile(input, file, adAsset);
+    return {
+      sha256: file.sha256,
+      size_bytes: file.size,
+      mime: file.mime,
+      source_id: record.id,
+      fit_cached: cached,
+      prepared: false,
     };
   }
   variant(actor: Actor, id: string) {
@@ -896,6 +1167,8 @@ export class MediaUploadService {
     for (const key of Object.keys(input))
       if (!Object.hasOwn(mediaTool.inputSchema.properties, key))
         fail('INVALID_ARGUMENT', 'Unknown media parameter.', {parameter: key});
+    if (input.stage_fits !== undefined && input.action !== 'plan')
+      fail('INVALID_ARGUMENT', 'stage_fits applies to plan only.', {parameter: 'stage_fits'});
     this.store.assertActorActive(actor);
     if (input.action === 'retain_source')
       return this.sources.retain(actor, input.source_id, {
@@ -909,10 +1182,24 @@ export class MediaUploadService {
       });
     if (input.action === 'list') {
       const offset = input.offset ?? 0,
-        limit = input.limit ?? 50;
-      if (!Number.isInteger(offset) || offset < 0 || !Number.isInteger(limit) || limit < 1 || limit > 100)
+        limit = input.limit ?? 50,
+        // Recovery reviews page on their own cursor (MED-05); without one they follow `offset`, as before.
+        recoveryOffset = input.recovery_offset ?? offset;
+      if (
+        !Number.isInteger(offset) ||
+        offset < 0 ||
+        !Number.isInteger(recoveryOffset) ||
+        recoveryOffset < 0 ||
+        !Number.isInteger(limit) ||
+        limit < 1 ||
+        limit > 100
+      )
         fail('INVALID_ARGUMENT', 'Invalid media pagination.');
-      const assets = this.assets(actor, input);
+      if (input.include_assets !== undefined && typeof input.include_assets !== 'boolean')
+        fail('INVALID_ARGUMENT', 'include_assets is true or false.');
+      // A page that shows only recovery and sources (the website's media page) leaves the receipts out.
+      const withAssets = input.include_assets !== false,
+        assets = withAssets ? this.assets(actor, input) : [];
       const reviews = this.store
         .documents(actor.tenantId, 'media_review')
         .filter(r => r.user_id === actor.userId)
@@ -935,12 +1222,16 @@ export class MediaUploadService {
         )
         .sort((a, b) => b.expires_at - a.expires_at);
       return {
-        assets: assets.slice(offset, offset + limit),
-        total: assets.length,
-        has_more: offset + limit < assets.length,
-        recovery_reviews: reviews.slice(offset, offset + limit),
+        ...(withAssets
+          ? {
+              assets: assets.slice(offset, offset + limit),
+              total: assets.length,
+              has_more: offset + limit < assets.length,
+            }
+          : {}),
+        recovery_reviews: reviews.slice(recoveryOffset, recoveryOffset + limit),
         recovery_total: reviews.length,
-        recovery_has_more: offset + limit < reviews.length,
+        recovery_has_more: recoveryOffset + limit < reviews.length,
         variants: this.store
           .documents(actor.tenantId, 'media_variant')
           .filter(v => (ownsRecord(actor, v) || actor.role === 'admin') && v.expires_at > Date.now())
@@ -955,6 +1246,8 @@ export class MediaUploadService {
           .map(({drive_url, ...v}) => v),
         presets: variantPresets,
         sources: this.sources.list(actor),
+        // Whether a push of several uploads runs on the server (amcp_campaign run_background, MED-03 B).
+        server_push: serverPushEnabled(),
       };
     }
     if (['library', 'asset', 'save_asset_metadata', 'asset_performance'].includes(input.action))
@@ -1168,18 +1461,7 @@ export class MediaUploadService {
         }
         if (p.platform === 'dv360' && Buffer.byteLength(p.filename) > 240)
           fail('INVALID_ARGUMENT', 'DV360 filenames must fit in 240 UTF-8 bytes.');
-        const matches = this.assets(actor, {
-          platform: p.platform,
-          account_id: p.account_id,
-          connection_id: p.connection_id,
-        }).filter(
-          a =>
-            a.sha256 === p.sha256 &&
-            a.ready === true &&
-            (a.dv360_target ?? null) === (p.dv360_target ?? null) &&
-            (a.owner_urn ?? null) ===
-              (p.owner_urn ?? (p.platform === 'linkedin' ? 'urn:li:sponsoredAccount:' + p.account_id : null)),
-        );
+        const matches = this.matchingReceipts(actor, p);
         if (input.reuse_existing === true && matches.length) {
           const reused = await this.reuse(actor, matches[0]!);
           this.store.removeStagedMedia(actor.tenantId, reviewId);
@@ -1530,6 +1812,7 @@ export class MediaUploadService {
           mime_type: p.mime,
           size_bytes: p.size,
           source: receiptSource(p),
+          ...receiptLineage(p),
           upload_session_id: input.review_id,
         });
         this.store.removeStagedMedia(actor.tenantId, input.review_id);
@@ -2182,6 +2465,7 @@ export class MediaUploadService {
         mime_type: p.mime,
         size_bytes: p.size,
         source: receiptSource(p),
+        ...receiptLineage(p),
         upload_session_id: receipt.review_id,
       });
       if (failed)

@@ -455,7 +455,15 @@ test('fit_to_platform scales 4500 × 4500 to 1080 × 1080 for LinkedIn, and exec
     );
     assert.equal(prepared.success, true, JSON.stringify(prepared));
     const request = prepared.data.request;
-    assert.deepEqual(request.origin, {kind: 'upload', source_id: source.source_id, filename: 'square.jpg'});
+    // MED-04 B: the review names the original it was fitted from, with the original's own hash, size and type.
+    assert.deepEqual(request.origin, {
+      kind: 'website_upload',
+      source_id: source.source_id,
+      filename: 'square.jpg',
+      original_sha256: source.sha256,
+      original_size: source.size,
+      original_mime: 'image/jpeg',
+    });
     assert.deepEqual(
       {from: request.transform.from.width + '×' + request.transform.from.height, to: request.transform.to},
       {from: '4500×4500', to: {width: 1080, height: 1080, bytes: request.size, mime: 'image/jpeg'}},
@@ -658,7 +666,15 @@ test('native upload actions and platform_media_upload take any public link, not 
     assert.deepEqual(preview.data.request.source_url, 'https://cdn.example.com/a.png');
     const linked = await f.service.call('tiktok_native_action', {...args, dry_run: false}, operator);
     assert.equal(linked.success, true, JSON.stringify(linked));
-    assert.deepEqual(linked.data.request.origin, {kind: 'link', host: 'cdn.example.com'});
+    // MED-04 B: a link's review keeps the host (never the link) and the original's hash, size and type.
+    const linkOrigin = {
+      kind: 'link_import',
+      original_sha256: sha256(png),
+      original_size: png.length,
+      original_mime: 'image/png',
+      link_host: 'cdn.example.com',
+    };
+    assert.deepEqual(linked.data.request.origin, linkOrigin);
     const workflow = await f.service.call(
       'amcp_native_action',
       {
@@ -674,7 +690,7 @@ test('native upload actions and platform_media_upload take any public link, not 
       operator,
     );
     assert.equal(workflow.success, true, JSON.stringify(workflow));
-    assert.deepEqual(workflow.data.request.origin, {kind: 'link', host: 'cdn.example.com'});
+    assert.deepEqual(workflow.data.request.origin, linkOrigin);
   } finally {
     f.store.close();
   }

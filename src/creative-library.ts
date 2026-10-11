@@ -25,6 +25,8 @@ const projection = `SELECT a.id, coalesce(m.revision,0) AS metadata_revision,
     'last_checked_at',json_extract(a.data,'$.provider_availability_checked_at'),
     'created_at',coalesce(json_extract(r.data,'$.created_at'),json_extract(r.data,'$.expires_at')-300000),
     'source_kind',json_extract(a.data,'$.source'),
+    'original_sha256',coalesce(json_extract(a.data,'$.original_sha256'),json_extract(r.data,'$.plan.origin.original_sha256')),
+    'variant_preset',json_extract(r.data,'$.plan.origin.variant.preset'),
     'dimensions_before',json_extract(r.data,'$.plan.transform.from'),
     'dimensions_uploaded',json_extract(r.data,'$.plan.transform.to')) AS metadata,
   json_object('id',s.id,'user_id',json_extract(s.data,'$.user_id'),'principal',json_extract(s.data,'$.principal'),'expires_at',json_extract(s.data,'$.expires_at'),
@@ -212,12 +214,16 @@ export function creativeLibrary(store: Store, actor: Actor, input: JsonObject): 
     if (input[key] !== undefined && (typeof input[key] !== 'string' || input[key].length > 200))
       bad('Use a short exact ' + key + '.');
   if (input.platform && !mediaPlatforms.includes(input.platform)) bad('Choose a supported media platform.');
+  // "Same original" (MED-04 B): the receipts of one original across accounts, by the SHA-256 their reviews recorded.
+  if (input.original_sha256 !== undefined && !/^[0-9a-f]{64}$/.test(input.original_sha256))
+    bad('Use the exact original SHA-256: 64 lowercase hexadecimal characters.');
   const filters = {
     search: (input.search ?? '').trim().toLowerCase(),
     tag: (input.tag ?? '').trim().toLowerCase(),
     platform: input.platform ?? '',
     account_id: input.account_id ?? '',
     connection_id: input.connection_id ?? '',
+    ...(input.original_sha256 ? {original_sha256: input.original_sha256 as string} : {}),
   };
   const bound = binding(store, actor, filters),
     after = cursor(input.cursor, bound);
@@ -247,6 +253,7 @@ export function creativeLibrary(store: Store, actor: Actor, input: JsonObject): 
       (!filters.account_id || p.account_id === normalizeAccount(p.platform + '_native_action', filters.account_id)) &&
       (!filters.connection_id || p.connection_id === filters.connection_id) &&
       (!filters.tag || p.tags.includes(filters.tag)) &&
+      (!filters.original_sha256 || p.original_sha256 === filters.original_sha256) &&
       (!filters.search ||
         [p.name, p.provider_name, p.media_id, row.id, ...p.tags].join(' ').toLowerCase().includes(filters.search));
     if (match && assets.length === limit) {
