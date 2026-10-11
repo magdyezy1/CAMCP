@@ -1,6 +1,6 @@
 {
   "description": "Reviewed write families without a behavioral conformance descriptor (QA-02, tests/reviewed-family-conformance.test.mjs). Remove a family when its descriptor lands in tests/family-descriptors/ and lower the ceiling to the new count; never add a family or raise the ceiling: a new family ships its descriptor. Backfill order: activation and budget-affecting families first (the registry marks spend-affecting families with spendConfirmation), then destructive, then settings.",
-  "ceiling": 117,
+  "ceiling": 116,
   "families": [
     "criteo_auction_line_items",
     "criteo_audience_segments",
@@ -28,7 +28,6 @@
     "dv360_line_item_targeting",
     "dv360_lists",
     "dv360_sdf_downloads",
-    "gtm_workspace",
     "linkedin_ab_tests",
     "linkedin_account_settings",
     "linkedin_audience_templates",
