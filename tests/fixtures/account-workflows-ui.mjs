@@ -88,7 +88,7 @@ export function accountWorkflowFixture(locale = 'en') {
     'measurement-ga4-config': ['target'],
     'measurement-ledger': ['target'],
     'measurement-scope': ['gtm', 'container', 'workspace', 'ga4', 'stream', 'google', 'linkedin'],
-    'measurement-trace': ['target', 'trace'],
+    'measurement-trace': ['target', 'trace', 'import_format', 'import_file', 'import_stream', 'import_test_id'],
     'catalog-import': [
       'target',
       'catalog_id',
@@ -154,7 +154,12 @@ export function accountWorkflowFixture(locale = 'en') {
     structuredClone,
     commerceSources: [],
     session: {authenticated: true, workspaceId: 'synthetic-ui', workspaceRole: 'viewer', csrf: 'synthetic-csrf'},
-    crypto: {randomUUID: () => '12345678-1234-4123-8123-123456789abc'},
+    // MSR-03: the trace converters hash with Web Crypto in the page; nothing else is exposed.
+    crypto: {
+      randomUUID: () => '12345678-1234-4123-8123-123456789abc',
+      getRandomValues: array => globalThis.crypto.getRandomValues(array),
+      subtle: globalThis.crypto.subtle,
+    },
     navigationGeneration: 1,
     identityGeneration: 1,
     document: {addEventListener() {}},
@@ -217,6 +222,7 @@ export function accountWorkflowFixture(locale = 'en') {
   if (identityStart < 0 || identityEnd <= identityStart) throw Error('Actual website identity key unavailable');
   run(appSource.slice(identityStart, identityEnd));
   run(appSource.slice(appStart, appEnd));
+  run(readFileSync('web/measurement-trace-import.js', 'utf8'));
   run(readFileSync(process.env.AMCP_ACCOUNT_UI_SOURCE ?? 'web/account-workflows.js', 'utf8'));
   return {
     context,

@@ -1067,7 +1067,7 @@ function measurementTraceInspect(text, target, streams) {
   };
 }
 function measurementTraceMarkup(targets) {
-  return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-trace', uiText('Inspect a sanitized event trace'))}<p>${esc(uiText('Inspect an explicitly supplied test sequence in this browser. The trace is never sent to AMCP or a provider and is cleared when you leave. This does not certify live consent, deduplication or attribution.'))}</p><form id="measurement-trace">${measurementTargetField(targets, uiText('Selected GA4 property'), 'Connect a GA4 property in Connections to inspect a trace for it.')}<label>${esc(uiText('Sanitized trace JSON'))}<textarea name="trace" rows="12" maxlength="1048576" dir="ltr" required aria-describedby="measurement-trace-help"></textarea></label><p id="measurement-trace-help" class="form-note">${esc(uiText('Use version 1 with scope, coverage and steps. Include only synthetic test IDs, relative times, consent states and hashed purchase keys. Raw URLs, cookies, user IDs and original transaction IDs are refused.'))} ${esc(uiText('Version 2 also declares scope.visitor_region (a region code or null), optional region lists and wait_for_update_ms on consent defaults, and transaction_id_empty for a purchase whose transaction ID was empty.'))}</p><div class="dialog-actions"><button class="button primary" type="submit" ${targets.length ? '' : 'disabled'}>${esc(uiText('Inspect trace locally'))}</button><button class="button" type="button" id="measurement-trace-example" ${targets.length ? '' : 'disabled'}>${esc(uiText('Load a synthetic example'))}</button><button class="button" type="button" id="measurement-trace-clear">${esc(uiText('Clear trace'))}</button></div></form><div id="measurement-trace-result" aria-live="polite"></div></section>`;
+  return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-trace', uiText('Inspect a sanitized event trace'))}<p>${esc(uiText('Inspect an explicitly supplied test sequence in this browser. The trace is never sent to AMCP or a provider and is cleared when you leave. This does not certify live consent, deduplication or attribution.'))}</p><form id="measurement-trace">${measurementTargetField(targets, uiText('Selected GA4 property'), 'Connect a GA4 property in Connections to inspect a trace for it.')}<details class="measurement-trace-import"><summary>${esc(uiText('Convert a dataLayer export or HAR file in this browser'))}</summary><p class="form-note" id="measurement-trace-import-help">${esc(uiText('The file is read only in this browser and is never uploaded or stored. Only consent commands, event names, their order and keyed hashes of purchase transaction IDs are kept; URLs, cookies, user and client IDs, transaction IDs and every other field are left out.'))}</p><label>${esc(uiText('File type'))}<select name="import_format"><option value="datalayer">${esc(uiText('dataLayer export (JSON)'))}</option><option value="har">${esc(uiText('HAR file'))}</option></select></label><label>${esc(uiText('File to convert'))}<input type="file" name="import_file" accept=".json,.har,application/json" aria-describedby="measurement-trace-import-help"></label><label>${esc(uiText('Data stream ID'))}<input name="import_stream" inputmode="numeric" dir="ltr" autocomplete="off"></label><label>${esc(uiText('Synthetic test identifier'))}<input name="import_test_id" dir="ltr" autocomplete="off"></label><button class="button" type="button" id="measurement-trace-convert" ${targets.length ? '' : 'disabled'}>${esc(uiText('Convert locally'))}</button><p id="measurement-trace-import-status" class="form-note" role="status"></p></details><label>${esc(uiText('Sanitized trace JSON'))}<textarea name="trace" rows="12" maxlength="1048576" dir="ltr" required aria-describedby="measurement-trace-help"></textarea></label><p id="measurement-trace-help" class="form-note">${esc(uiText('Use version 1 with scope, coverage and steps. Include only synthetic test IDs, relative times, consent states and hashed purchase keys. Raw URLs, cookies, user IDs and original transaction IDs are refused.'))} ${esc(uiText('Version 2 also declares scope.visitor_region (a region code or null), optional region lists and wait_for_update_ms on consent defaults, and transaction_id_empty for a purchase whose transaction ID was empty.'))}</p><div class="dialog-actions"><button class="button primary" type="submit" ${targets.length ? '' : 'disabled'}>${esc(uiText('Inspect trace locally'))}</button><button class="button" type="button" id="measurement-trace-example" ${targets.length ? '' : 'disabled'}>${esc(uiText('Load a synthetic example'))}</button><button class="button" type="button" id="measurement-trace-clear">${esc(uiText('Clear trace'))}</button></div></form><div id="measurement-trace-result" aria-live="polite"></div></section>`;
 }
 function measurementTraceResult(out, page = 0) {
   const labels = {
@@ -1119,13 +1119,80 @@ function measurementTraceResult(out, page = 0) {
 function bindMeasurementTrace(targets) {
   const form = $('#measurement-trace'),
     result = $('#measurement-trace-result'),
-    begin = accountWorkflowContext(form, result);
+    begin = accountWorkflowContext(form, result),
+    importStatus = $('#measurement-trace-import-status');
   const clear = () => {
     form.elements.trace.value = '';
     result.innerHTML = '';
+    if (form.elements.import_file) form.elements.import_file.value = '';
+    if (importStatus) importStatus.textContent = '';
     form.dispatchEvent(new Event('input', {bubbles: true}));
   };
   workspaceBind('#measurement-trace-clear', clear);
+  // MSR-03: a dataLayer export or HAR file is converted in this page only; nothing is uploaded, stored or sent.
+  // The converter loads with this page (route-assets.js); without it the test identifier is typed.
+  if (
+    form.elements.import_test_id &&
+    !form.elements.import_test_id.value &&
+    typeof measurementTraceImportTestId === 'function'
+  )
+    form.elements.import_test_id.value = measurementTraceImportTestId();
+  workspaceBind('#measurement-trace-convert', async () => {
+    const generation = navigationGeneration,
+      identity = identityGeneration,
+      attached = () => generation === navigationGeneration && identity === identityGeneration && form.isConnected;
+    if (form.elements.target.value === '' && targets.length === 1) form.elements.target.value = '0';
+    const t = targets[Number(form.elements.target.value)];
+    if (form.elements.target.value === '' || !t) throw Error(uiText('Choose a selected GA4 property first.'));
+    const format = form.elements.import_format.value === 'har' ? 'har' : 'datalayer',
+      file = form.elements.import_file.files?.[0];
+    if (!file) throw Error(uiText('Choose a file to convert.'));
+    // The size is checked before anything is read.
+    if (
+      !Number.isSafeInteger(file.size) ||
+      file.size >
+        (format === 'har' ? measurementTraceImportLimits.har_bytes : measurementTraceImportLimits.datalayer_bytes)
+    )
+      throw Error(
+        uiText(
+          format === 'har' ? 'Choose a HAR file of at most 16 MiB.' : 'Choose a dataLayer export of at most 2 MiB.',
+        ),
+      );
+    const streams = measurementInventory('ga4', 'data_streams', t),
+      streamId = form.elements.import_stream.value.trim() || (streams.length === 1 ? streams[0].id : ''),
+      text = await file.text();
+    if (!attached()) return;
+    const out = await measurementTraceImport(text, {
+      format,
+      property_id: t.account_id,
+      stream_id: streamId,
+      test_id: form.elements.import_test_id.value.trim(),
+      measurement_id: streams.find(s => s.id === streamId)?.measurement_id ?? null,
+    });
+    if (!attached()) return;
+    form.elements.import_stream.value = streamId;
+    form.elements.trace.value = out.json;
+    form.dispatchEvent(new Event('input', {bubbles: true}));
+    const s = out.summary;
+    importStatus.textContent = [
+      uiText(
+        'Converted in this browser: {events} events and {consent} consent commands kept, {dropped} entries left out. Times follow the original order; real timing is unknown. Review the trace, then inspect it.',
+        {events: uiNumber(s.events), consent: uiNumber(s.consent), dropped: uiNumber(s.dropped)},
+      ),
+      s.format === 'har'
+        ? uiText('A HAR file establishes no consent state, because GA4 does not document its gcs and gcd parameters.')
+        : '',
+      s.format === 'har' && s.stream_filter === 'none'
+        ? uiText('The measurement ID of this stream is not synchronized, so requests of every GA4 stream were kept.')
+        : '',
+      s.other_streams
+        ? uiText('{count} requests of other streams were left out.', {count: uiNumber(s.other_streams)})
+        : '',
+      s.truncated ? uiText('Only the first {steps} steps were kept.', {steps: uiNumber(s.steps)}) : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+  });
   workspaceBind('#measurement-trace-example', () => {
     // MSR-02: the only property is preselected; otherwise the example explains inline which choice it needs.
     if (form.elements.target.value === '' && targets.length === 1) form.elements.target.value = '0';
@@ -1262,6 +1329,10 @@ function measurementInventory(platformId, kind, target) {
         .filter(v => typeof v === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v))
         .join(' · '),
       type: typeof asset.streamType === 'string' && /^[A-Z_]{1,64}$/.test(asset.streamType) ? asset.streamType : null,
+      measurement_id:
+        typeof asset.measurementId === 'string' && /^G-[A-Z0-9]{4,20}$/.test(asset.measurementId)
+          ? asset.measurementId
+          : null,
     });
   }
   return rows;
@@ -1437,7 +1508,7 @@ function bindMeasurementScope(sets) {
     });
     for (const id of ['measurement-events', 'measurement-event-identity'])
       write(id, {target: index('ga4'), stream_id: dependent('ga4', scope.stream)});
-    write('measurement-trace', {target: index('ga4')});
+    write('measurement-trace', {target: index('ga4'), import_stream: dependent('ga4', scope.stream)});
     write('measurement-ga4-config', {target: index('ga4')});
     write('measurement-conversions', {target: index('linkedin')});
     write('measurement-google-goals', {target: index('google')});
