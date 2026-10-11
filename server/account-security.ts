@@ -19,6 +19,7 @@ import {
 import {endMcpGrants} from './mcp-grants.js';
 import {MirrorError} from '../src/errors.js';
 import {sha256} from '../src/security.js';
+import {accountRetention} from '../src/account-erasure.js';
 import type {JsonObject} from '../src/types.js';
 
 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -123,11 +124,19 @@ export class AccountSecurity {
           .filter(Boolean),
       ],
     }));
+    // Requests left pending this many days are erased by the worker (SEC-07 S4); null when retention is off.
+    let pendingMs: number | null = null;
+    try {
+      pendingMs = accountRetention(this.accounts.env).pendingMs;
+    } catch {
+      /* An unknown value stops the worker at start-up; the list itself still shows. */
+    }
     return {
       accounts,
       pending: accounts.filter(a => a.state === 'pending').length,
       emailEnabled: this.accounts.emailConfigured,
       ownerEmail: this.accounts.ownerEmail() ?? null,
+      pendingRetentionDays: pendingMs === null ? null : pendingMs / 86400000,
     };
   }
   setAccess(req: Request, input: JsonObject) {

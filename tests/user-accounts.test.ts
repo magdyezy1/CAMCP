@@ -583,6 +583,8 @@ test('self-service signups need owner approval, and revoking access ends live se
     const pending = listed.accounts.find((a: any) => a.email === 'member@example.test');
     assert.equal(pending.state, 'pending');
     assert.equal(listed.pending, 1);
+    // SEC-07 S4: the owner is told that requests left pending are erased after 30 days (the default).
+    assert.equal(listed.pendingRetentionDays, 30);
     // The owner needs to know how someone signed up before deciding whether to let them in.
     assert.deepEqual(pending.methods, ['email']);
     assert.equal((await f.request('/api/owner/accounts', 'GET')).status, 401);
@@ -654,12 +656,19 @@ test('self-service signups need owner approval, and revoking access ends live se
 
 test('the owner is told which variables are missing, and verification email can be resent', async () => {
   // Email off: masterKey is present here, so only the two delivery variables are named.
-  const off = await fixture({AMCP_EMAIL_API_KEY: '', AMCP_EMAIL_FROM: '', AMCP_ALLOW_SIGNUP: 'false'});
+  const off = await fixture({
+    AMCP_EMAIL_API_KEY: '',
+    AMCP_EMAIL_FROM: '',
+    AMCP_ALLOW_SIGNUP: 'false',
+    AMCP_PENDING_ACCOUNT_DAYS: 'off',
+  });
   try {
     const owner = off.credentials(
       off.web.createSession({tenantId: off.web.tenantId, userId: 'workspace-admin', role: 'admin'}),
     );
     const data = await (await off.request('/api/owner/accounts', 'GET', undefined, owner)).json();
+    // SEC-07 S4: with retention off, no erasure is announced.
+    assert.equal(data.pendingRetentionDays, null);
     assert.deepEqual(data.setup.email, ['AMCP_EMAIL_API_KEY', 'AMCP_EMAIL_FROM']);
     assert.deepEqual(data.setup.signup, ['AMCP_ALLOW_SIGNUP']);
     assert.ok(data.providers.some((p: any) => p.id === 'google'));
