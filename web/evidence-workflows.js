@@ -768,6 +768,8 @@ function evidencePresetLabel(preset) {
       return uiText('LinkedIn campaign performance');
     case 'linkedin_creative':
       return uiText('LinkedIn creative performance');
+    case 'linkedin_campaign_conversion':
+      return uiText('LinkedIn campaign conversions with verified rule windows');
     case 'tiktok_campaign':
       return uiText('TikTok campaign performance');
     case 'tiktok_adgroup':
@@ -888,10 +890,11 @@ async function mountCaptureWizard(openReport) {
   );
   form.insertAdjacentHTML(
     'beforeend',
-    `<p id="capture-linkedin-measurement" class="form-note" hidden>${esc(uiText('LinkedIn uses UTC daily dates and externalWebsiteConversions. Account identity and currency are verified before and after the complete analytics response. Each read keeps its source reference. Declare the conversion-rule attribution windows, or enter unknown. Empty results cannot prove zero activity. Use the current month or previous five calendar months; narrow large reports.'))}</p>`,
+    `<p id="capture-linkedin-measurement" class="form-note" hidden>${esc(uiText('LinkedIn uses UTC daily dates and externalWebsiteConversions. Account identity and currency are verified before and after the complete analytics response. Each read keeps its source reference. Declare the conversion-rule attribution windows, or enter unknown. Empty results cannot prove zero activity. Use the current month or previous five calendar months; narrow large reports.'))}</p><p id="capture-linkedin-conversion-measurement" class="form-note" hidden>${esc(uiText('Conversions by campaign and conversion rule, with post-click and post-view counts. The account’s current conversion rules are read in the same check and each conversion is joined to its rule’s windows: verified when all rules match, mixed when they differ (no single window), unknown when a rule is missing. Spend, impressions and clicks are not split by conversion and stay unmapped.'))}</p>`,
   );
   let declaredTimezone = form.elements.timezone.value,
-    declaredConversion = form.elements.conversion_definition.value;
+    declaredConversion = form.elements.conversion_definition.value,
+    declaredAttribution = form.elements.attribution.value;
   form.insertAdjacentHTML(
     'beforeend',
     `<p id="capture-tiktok-measurement" class="form-note" hidden>${esc(uiText('TikTok uses advertiser-local daily dates for standard auction campaigns, ad groups and ads. Currency and timezone are verified before and after collection. Choose 1–31 closed days. Native conversion follows each entity optimization goal; goals may differ. Declare attribution windows or enter unknown. Smart+ and GMV Max reports are separate.'))}</p>`,
@@ -924,6 +927,9 @@ async function mountCaptureWizard(openReport) {
     const snapchat = preset.gateway === 'snapchat_native_action';
     const leads = ['snapchat_campaign_leads', 'snapchat_adsquad_leads', 'snapchat_ad_leads'].includes(preset.id);
     const squad = ['snapchat_adsquad', 'snapchat_adsquad_leads', 'snapchat_ad_leads'].includes(preset.id);
+    // RPT-07: rule windows are read and joined by the server; the person never types a LinkedIn window here.
+    const ruleWindows = preset.id === 'linkedin_campaign_conversion';
+    $('#capture-linkedin-conversion-measurement').hidden = !ruleWindows;
     $('#capture-snapchat-parent').hidden = !squad;
     form.elements.campaign_id.required = squad;
     form.elements.campaign_id.disabled = !squad;
@@ -935,25 +941,31 @@ async function mountCaptureWizard(openReport) {
     $('#capture-google-measurement').hidden = !google;
     for (const [key, fixed] of [
       ['timezone', linkedin ? 'UTC' : null],
+      ['attribution', ruleWindows ? 'verified_per_rule' : null],
       [
         'conversion_definition',
-        linkedin
-          ? 'externalWebsiteConversions'
-          : tiktok
-            ? 'conversion (optimization goal)'
-            : google
-              ? 'metrics.conversions'
-              : null,
+        ruleWindows
+          ? 'externalWebsiteConversions by conversion rule'
+          : linkedin
+            ? 'externalWebsiteConversions'
+            : tiktok
+              ? 'conversion (optimization goal)'
+              : google
+                ? 'metrics.conversions'
+                : null,
       ],
     ]) {
       const field = form.elements[key];
       if (fixed !== null) {
         if (!field.readOnly) {
           if (key === 'timezone') declaredTimezone = field.value;
+          else if (key === 'attribution') declaredAttribution = field.value;
           else declaredConversion = field.value;
         }
         field.value = fixed;
-      } else if (field.readOnly) field.value = key === 'timezone' ? declaredTimezone : declaredConversion;
+      } else if (field.readOnly)
+        field.value =
+          key === 'timezone' ? declaredTimezone : key === 'attribution' ? declaredAttribution : declaredConversion;
       field.readOnly = fixed !== null;
     }
     $('#capture-google-keyword-measurement').hidden = form.elements.preset.value !== 'google_keyword';

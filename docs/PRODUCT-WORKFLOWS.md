@@ -480,6 +480,21 @@ Empty responses can mean no activity or missing reporting access, so they cannot
 Narrow an oversized report or resolve access before making a new read. Retained account and analytics request/hash
 references remain available; this does not qualify LinkedIn budget allocation or advertising writes.
 
+**Verified LinkedIn conversion windows (RPT-07, B18).** `linkedin_campaign_conversion` reads campaign × conversion ×
+UTC day evidence with the statistics finder (`q=statistics`, `pivots=List(CAMPAIGN,CONVERSION)`) and the
+`externalWebsiteConversions`, post-click and post-view conversion counts and conversion value. Declare
+`attribution:"verified_per_rule"`; a typed window (or `unknown`) is refused before any read with
+`REPORT_ATTRIBUTION_DECLARED`. After the analytics response, and inside the same authorization bracket, AMCP reads
+the account's current conversion rules (the same account finder as LinkedIn conversion settings) and joins each
+reported conversion URN to its rule's `postClickAttributionWindowSize` and `viewThroughAttributionWindowSize`. The
+result's `conversion_windows.status` is `verified_per_rule` (every conversion's rule has the same windows; the
+semantics attribution names them), `mixed` (rules differ: no single window, and a declared single-window reference is
+refused) or `unknown` (a reported conversion has no current rule, for example a deleted one, or no stated window;
+attribution stays `unknown`). Spend, impressions and clicks are not split by conversion and stay unmapped. The
+15,000-element ceiling, empty responses and malformed or duplicate campaign/conversion/day rows refuse capture as for
+the other LinkedIn presets. Rule windows are today's settings, not a history. A live capture on an owner-designated
+account (559535022) is still an owner acceptance step.
+
 TikTok presets are `tiktok_campaign`, `tiktok_adgroup` and `tiktok_ad`, at native entity × advertiser-local
 day grain. Declare exact advertiser/login, currency, IANA timezone, source name, attribution (or `unknown`),
 dates and `complete:true`. Use 1–31 closed days. Currency/timezone are verified against advertiser metadata

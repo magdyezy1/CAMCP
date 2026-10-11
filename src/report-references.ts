@@ -30,7 +30,11 @@ export function compareDeclaredReference(report: JsonObject, reference: JsonObje
       typeof value !== 'string' ||
       !value.trim() ||
       /^(unknown|unspecified|n\/a)$/i.test(value.trim()) ||
-      value !== report.semantics?.[key]
+      value !== report.semantics?.[key] ||
+      // RPT-07: windows verified per LinkedIn rule are mixed or unknown; no single declared window describes them.
+      (key === 'attribution' &&
+        report.conversion_windows !== undefined &&
+        report.conversion_windows?.status !== 'verified_per_rule')
     )
       mismatch.push(key);
   }
@@ -158,6 +162,12 @@ export function compareReportContext(report: JsonObject, reference: JsonObject) 
       mismatch.push(key);
   }
   if (report.semantics?.complete !== true || reference.semantics?.complete !== true) mismatch.push('complete');
+  // RPT-07: per-rule LinkedIn windows must be the same per conversion, not only the same summary label.
+  if (
+    (report.conversion_windows !== undefined || reference.conversion_windows !== undefined) &&
+    report.conversion_windows?.windows_fingerprint !== reference.conversion_windows?.windows_fingerprint
+  )
+    mismatch.push('conversion windows');
   if (report.source === 'provider_read' && reference.source === 'provider_read')
     mismatch.push(...nativeDefinitionMismatch(report, reference, true));
   else if (report.source === 'overview_snapshot' && reference.source === 'overview_snapshot') {
