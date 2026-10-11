@@ -293,6 +293,16 @@ no lead exports or webhooks are enabled. Preserve uncertain receipts; activation
 The English/Arabic preview preserves exact native goals, micros, IDs, original title and original policy URL.
 See [contract, SDK and browser qualification](review/DELIVERY-2026-10-04-SNAPCHAT-LEADS.md).
 
+### After a launch: launch check and serving diagnostics
+
+`amcp_reporting launch_check {id}` checks a completed guided Meta or Snapchat launch (CMP-07): native reads of its
+verified campaign, ad set or ad squad and account feed the rule-based campaign audit, with an optional retained
+campaign × day capture (`report_id`) for delivery and frequency. Missing evidence stays unknown; delivery is observed
+only from reported impressions, and a paused campaign is never reported as failing. For Google accounts, Inventory
+offers **Why is it serving or not?** (`amcp_reporting serving_diagnostics`): Google's primary status and reasons, policy
+summary and ad strength per campaign, ad group, ad, asset group and asset link, each native symbol shown literally with
+its English or Arabic explanation and any symbol newer than the pinned v25 enums listed as not named. Both are reads.
+
 ### TikTok website traffic and purchases with an existing post
 
 Choose `tiktok_website_traffic` or `tiktok_website_conversions` (CMP-07, owner direction P7) in Campaigns or MCP. The

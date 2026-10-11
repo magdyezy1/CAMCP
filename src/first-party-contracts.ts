@@ -1165,6 +1165,24 @@ const rows: Record<string, Row[]> = {
       'operator',
       [[C, 'approve']],
     ),
+    row(
+      'serving_diagnostics',
+      'Google primary status, reasons, policy summary and ad strength per level; native symbols, unknowns listed.',
+      ['account_id', 'connection_id'],
+      ['gateway', 'campaign_id', 'options'],
+      reads(),
+      'reader',
+      [[W, 'portfolio']],
+    ),
+    row(
+      'launch_check',
+      'Rule checks of a guided Meta or Snapchat launch from native reads and an optional retained capture.',
+      ['id'],
+      ['report_id'],
+      reads(),
+      'reader',
+      [[R, 'capture_preset']],
+    ),
   ],
   [O]: [
     row(

@@ -285,6 +285,136 @@ function portfolioReconciliationView(out) {
 }
 // WEB-06: the account and drill-down live in the address, so Back returns to the parent level and a reload restores
 // the selection. Restoring never reads the provider; the person chooses Read inventory.
+/**
+ * Google serving diagnostics (CMP-07): what each native symbol means, as an explanation beside the literal symbol. Every
+ * symbol of the pinned v25 enums has one (tests/google-serving-diagnostics.test.mjs checks both languages); a symbol a
+ * later version adds is shown as itself and marked as not named here.
+ */
+const servingLabels = {
+  UNSPECIFIED: 'Not specified',
+  UNKNOWN: 'Unknown in this API version',
+  ELIGIBLE: 'Eligible to serve',
+  PAUSED: 'Paused',
+  REMOVED: 'Removed',
+  ENDED: 'Ended',
+  PENDING: 'Pending',
+  MISCONFIGURED: 'Misconfigured',
+  LIMITED: 'Limited',
+  LEARNING: 'Learning',
+  NOT_ELIGIBLE: 'Not eligible',
+  CAMPAIGN_REMOVED: 'The campaign is removed.',
+  CAMPAIGN_PAUSED: 'The campaign is paused.',
+  CAMPAIGN_PENDING: 'The campaign has not started yet.',
+  CAMPAIGN_ENDED: 'The campaign has ended.',
+  CAMPAIGN_DRAFT: 'The campaign is a draft.',
+  BIDDING_STRATEGY_MISCONFIGURED: 'The bid strategy is misconfigured.',
+  BIDDING_STRATEGY_LIMITED: 'The bid strategy is limited.',
+  BIDDING_STRATEGY_LEARNING: 'The bid strategy is learning.',
+  BIDDING_STRATEGY_CONSTRAINED: 'The bid strategy is constrained.',
+  BUDGET_CONSTRAINED: 'The budget limits delivery.',
+  BUDGET_MISCONFIGURED: 'The budget is misconfigured.',
+  SEARCH_VOLUME_LIMITED: 'Search volume is low.',
+  AD_GROUPS_PAUSED: 'All ad groups are paused.',
+  NO_AD_GROUPS: 'There are no ad groups.',
+  KEYWORDS_PAUSED: 'All keywords are paused.',
+  NO_KEYWORDS: 'There are no keywords.',
+  AD_GROUP_ADS_PAUSED: 'All ads are paused.',
+  NO_AD_GROUP_ADS: 'There are no ads.',
+  HAS_ADS_LIMITED_BY_POLICY: 'Some ads are limited by policy.',
+  HAS_ADS_DISAPPROVED: 'Some ads are disapproved.',
+  MOST_ADS_UNDER_REVIEW: 'Most ads are under review.',
+  MISSING_LEAD_FORM_EXTENSION: 'A required lead form asset is missing.',
+  MISSING_CALL_EXTENSION: 'A required call asset is missing.',
+  LEAD_FORM_EXTENSION_UNDER_REVIEW: 'The lead form asset is under review.',
+  LEAD_FORM_EXTENSION_DISAPPROVED: 'The lead form asset is disapproved.',
+  CALL_EXTENSION_UNDER_REVIEW: 'The call asset is under review.',
+  CALL_EXTENSION_DISAPPROVED: 'The call asset is disapproved.',
+  NO_MOBILE_APPLICATION_AD_GROUP_CRITERIA: 'No mobile app category targeting is set.',
+  CAMPAIGN_GROUP_PAUSED: 'The campaign group is paused.',
+  CAMPAIGN_GROUP_ALL_GROUP_BUDGETS_ENDED: 'All budgets of the campaign group have ended.',
+  APP_NOT_RELEASED: 'The app is not released.',
+  APP_PARTIALLY_RELEASED: 'The app is released in only some places.',
+  HAS_ASSET_GROUPS_DISAPPROVED: 'Some asset groups are disapproved.',
+  HAS_ASSET_GROUPS_LIMITED_BY_POLICY: 'Some asset groups are limited by policy.',
+  MOST_ASSET_GROUPS_UNDER_REVIEW: 'Most asset groups are under review.',
+  NO_ASSET_GROUPS: 'There are no asset groups.',
+  ASSET_GROUPS_PAUSED: 'All asset groups are paused.',
+  MISSING_LOCATION_TARGETING: 'Location targeting is missing.',
+  CAMPAIGN_NOT_BOOKED: 'The reservation campaign is not booked.',
+  BOOKING_HOLD_EXPIRING: 'The booking hold is about to expire.',
+  BOOKING_HOLD_EXPIRED: 'The booking hold has expired.',
+  BOOKING_CANCELLED: 'The booking was cancelled.',
+  AD_GROUP_PAUSED: 'The ad group is paused.',
+  AD_GROUP_REMOVED: 'The ad group is removed.',
+  AD_GROUP_INCOMPLETE: 'The ad group is incomplete.',
+  AD_GROUP_PAUSED_DUE_TO_LOW_ACTIVITY: 'Google paused the ad group for low activity.',
+  AD_GROUP_AD_PAUSED: 'The ad is paused.',
+  AD_GROUP_AD_REMOVED: 'The ad is removed.',
+  AD_GROUP_AD_DISAPPROVED: 'The ad is disapproved.',
+  AD_GROUP_AD_UNDER_REVIEW: 'The ad is under review.',
+  AD_GROUP_AD_POOR_QUALITY: 'The ad is of poor quality.',
+  AD_GROUP_AD_NO_ADS: 'Google could not generate ads.',
+  AD_GROUP_AD_APPROVED_LABELED: 'The ad is approved with a policy label.',
+  AD_GROUP_AD_AREA_OF_INTEREST_ONLY: 'The ad serves only to people interested in the targeted area.',
+  AD_GROUP_AD_UNDER_APPEAL: 'The ad is under appeal.',
+  ASSET_GROUP_PAUSED: 'The asset group is paused.',
+  ASSET_GROUP_REMOVED: 'The asset group is removed.',
+  ASSET_GROUP_LIMITED: 'The asset group is limited.',
+  ASSET_GROUP_DISAPPROVED: 'The asset group is disapproved.',
+  ASSET_GROUP_UNDER_REVIEW: 'The asset group is under review.',
+  ASSET_LINK_PAUSED: 'The asset link is paused.',
+  ASSET_LINK_REMOVED: 'The asset link is removed.',
+  ASSET_DISAPPROVED: 'The asset is disapproved.',
+  ASSET_UNDER_REVIEW: 'The asset is under review.',
+  ASSET_APPROVED_LABELED: 'The asset is approved with a policy label.',
+  DISAPPROVED: 'Disapproved',
+  APPROVED_LIMITED: 'Approved with limits',
+  APPROVED: 'Approved',
+  AREA_OF_INTEREST_ONLY: 'Serves only to people interested in the area',
+  REVIEW_IN_PROGRESS: 'Review in progress',
+  REVIEWED: 'Reviewed',
+  UNDER_APPEAL: 'Under appeal',
+  ELIGIBLE_MAY_SERVE: 'Eligible; may serve before review',
+  PROHIBITED: 'Prohibited',
+  FULLY_LIMITED: 'Fully limited',
+  DESCRIPTIVE: 'Descriptive',
+  BROADENING: 'Broadening',
+  NO_ADS: 'No ads',
+  POOR: 'Poor',
+  AVERAGE: 'Average',
+  GOOD: 'Good',
+  EXCELLENT: 'Excellent',
+};
+const servingLevelLabels = {
+  campaign: 'Campaign',
+  ad_group: 'Ad group',
+  ad: 'Ad',
+  asset_group: 'Asset group',
+  asset_group_asset: 'Asset link',
+};
+function servingSymbol(value) {
+  if (typeof value !== 'string' || !value) return esc(uiText('Not returned'));
+  const label = Object.hasOwn(servingLabels, value)
+    ? uiText(servingLabels[value])
+    : uiText('Not named by this version of AMCP');
+  return `<code dir="ltr">${esc(value)}</code> <span>${esc(label)}</span>`;
+}
+function servingDiagnosticsView(out) {
+  const rows = Array.isArray(out?.rows) ? out.rows : [];
+  const policy = p =>
+    p
+      ? `<div>${esc(uiText('Approval'))}: ${servingSymbol(p.approval_status)}</div><div>${esc(uiText('Review'))}: ${servingSymbol(p.review_status)}</div>${(p.topics ?? []).map(t => `<div>${esc(uiText('Policy topic'))}: <code dir="ltr">${esc(t.topic ?? '')}</code> · ${servingSymbol(t.type)}</div>`).join('')}`
+      : '—';
+  const unknown = [...new Set(rows.flatMap(r => r.unknown_symbols ?? []))];
+  return `<h3 tabindex="-1" id="serving-diagnostics-heading">${esc(uiText('Google serving diagnostics'))}</h3><p class="notice">${esc(uiText('Google’s own status and reasons at read time. A status explains serving as Google reports it; it is not delivery or performance evidence, and nothing was changed.'))}</p>${unknown.length ? `<p role="status">${esc(uiText('Google returned symbols this version of AMCP does not name:'))} <code dir="ltr">${esc(unknown.join(', '))}</code></p>` : ''}${out?.has_more ? `<p>${esc(uiText('Some levels have more entities than this page shows. Open a campaign to narrow the read.'))}</p>` : ''}<div class="data-scroll" tabindex="0" role="region" aria-label="${esc(uiText('Google serving diagnostics'))}"><table class="review-table"><caption>${esc(uiText('Google serving diagnostics'))}</caption><thead><tr><th scope="col">${esc(uiText('Entity'))}</th><th scope="col">${esc(uiText('Primary status'))}</th><th scope="col">${esc(uiText('Reasons'))}</th><th scope="col">${esc(uiText('Policy'))}</th><th scope="col">${esc(uiText('Ad strength'))}</th></tr></thead><tbody>${
+    rows
+      .map(
+        r =>
+          `<tr><th scope="row">${esc(uiText(servingLevelLabels[r.level] ?? 'Entity'))}<small>${esc(r.name ?? '')}</small><small dir="ltr">${esc(r.id)}</small></th><td>${servingSymbol(r.primary_status)}</td><td>${(r.primary_status_reasons ?? []).map(s => `<div>${servingSymbol(s)}</div>`).join('') || '—'}</td><td>${policy(r.policy)}</td><td>${r.ad_strength === undefined ? '—' : servingSymbol(r.ad_strength)}${(r.action_items ?? []).length ? `<ul>${r.action_items.map(item => `<li><bdi dir="auto">${esc(item)}</bdi></li>`).join('')}</ul>` : ''}</td></tr>`,
+      )
+      .join('') || `<tr><td colspan="5">${esc(uiText('Google returned no current entities for this read.'))}</td></tr>`
+  }</tbody></table></div>`;
+}
 const portfolioParentKeys = [
   'campaign_group_id',
   'campaign_id',
@@ -386,6 +516,7 @@ async function renderPortfolio() {
       snap = selected.gateway === 'snapchat_native_action',
       tiktok = selected.gateway === 'tiktok_native_action',
       x = selected.gateway === 'x_ads_native_action',
+      google = selected.gateway === 'google_ads_native_action',
       root = linkedin ? 'campaign_group' : 'campaign',
       leaf = linkedin ? 'creative' : x ? 'promoted_tweet' : 'ad',
       child = linkedin
@@ -485,7 +616,7 @@ async function renderPortfolio() {
       <p>${esc(uiText('Read {date} · Current inventory', {date: date(out.captured_at)}))}</p><details class="workspace-details"><summary>${esc(uiText('Inventory scope and native units'))}</summary><p>${esc(uiAccountExplanation(out.meaning))}</p></details>
       <div class="data-scroll" role="region" aria-label="${esc(uiText('Portfolio entities'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('{entity} inventory', {entity: portfolioEntityLabel(config.entity)}))}</caption><thead><tr><th scope="col">${esc(uiText('Entity'))}</th><th scope="col">${esc(linkedin && config.entity === 'creative' ? uiText('Intended status') : uiText('Native status'))}</th><th scope="col">${esc(uiText('Native money fields'))}</th><th scope="col">${esc(uiText('Next view'))}</th></tr></thead><tbody>
       ${out.rows.map((r, i) => `<tr><th scope="row">${esc(r.name)}<small>${esc(r.id)}</small></th><td><strong>${esc(r.status ?? uiText('Unknown'))}</strong>${meta ? `<small>${esc(uiText('Effective:'))} ${esc(r.effective_status ?? uiText('Unknown'))}</small>` : ''}${serving(r)}${recordDetails(r.native, uiText('Native fields'))}</td><td>${money(r)}<small>${esc(r.currency ?? uiText('Currency unknown'))} · ${esc(r.timezone ?? uiText('Timezone unknown'))}</small></td><td>${config.entity !== leaf ? `<button class="button small" data-portfolio-child="${i}">${esc(child)}</button>` : esc(linkedin ? uiText('Read-only creative record') : x ? uiText('Read-only promoted-post association') : uiText('Read-only ad record'))}${handoffs(r)}</td></tr>`).join('') || `<tr><td colspan="4">${esc(uiText('No entities in this page. Follow Next page if the provider supplies a continuation.'))}</td></tr>`}
-      </tbody></table></div><div class="dialog-actions"><button class="button" id="portfolio-refresh">${esc(uiText('Refresh first page'))}</button><button class="button" id="portfolio-next" ${out.has_more ? '' : 'hidden'}>${esc(uiText('Next page'))}</button><button class="button" id="portfolio-compare">${esc(uiText('Compare two complete reads'))}</button></div><p>${esc(uiText('Compare this hierarchy with two bounded reads of up to 500 entities and 20 pages each.'))}</p><section id="portfolio-comparison" aria-live="polite" aria-atomic="true"></section></section>`;
+      </tbody></table></div><div class="dialog-actions"><button class="button" id="portfolio-refresh">${esc(uiText('Refresh first page'))}</button><button class="button" id="portfolio-next" ${out.has_more ? '' : 'hidden'}>${esc(uiText('Next page'))}</button><button class="button" id="portfolio-compare">${esc(uiText('Compare two complete reads'))}</button>${google ? `<button class="button" id="portfolio-serving">${esc(uiText('Why is it serving or not?'))}</button>` : ''}</div><p>${esc(uiText('Compare this hierarchy with two bounded reads of up to 500 entities and 20 pages each.'))}</p><section id="portfolio-comparison" aria-live="polite" aria-atomic="true"></section>${google ? '<section id="portfolio-serving-view" aria-live="polite" aria-atomic="true"></section>' : ''}</section>`;
     workspaceBind('#portfolio-root', () => load({entity: root}));
     workspaceBind('#portfolio-parent', () =>
       load(
@@ -543,6 +674,29 @@ async function renderPortfolio() {
         if (comparisonActive()) section.innerHTML = `<p role="alert">${esc(errorMessage(error))}</p>`;
       } finally {
         if (comparisonActive()) section.setAttribute('aria-busy', 'false');
+      }
+    });
+    // CMP-07: Google's own serving diagnostics for this account, or the campaign in view (one bounded read).
+    workspaceBind('#portfolio-serving', async () => {
+      if (!active()) return;
+      const section = $('#portfolio-serving-view'),
+        servingActive = () => active() && section.isConnected;
+      section.setAttribute('aria-busy', 'true');
+      section.innerHTML = esc(uiText('Reading Google serving diagnostics…'));
+      try {
+        const result = await workspaceCall('reporting', {
+          action: 'serving_diagnostics',
+          connection_id: selected.connection_id,
+          account_id: selected.account_id,
+          ...(config.campaign_id ? {campaign_id: config.campaign_id} : {}),
+        });
+        if (!servingActive()) return;
+        section.innerHTML = servingDiagnosticsView(result);
+        $('#serving-diagnostics-heading').focus();
+      } catch (error) {
+        if (servingActive()) section.innerHTML = `<p role="alert">${esc(errorMessage(error))}</p>`;
+      } finally {
+        if (servingActive()) section.setAttribute('aria-busy', 'false');
       }
     });
     $('#portfolio-heading').focus();

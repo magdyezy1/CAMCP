@@ -364,6 +364,24 @@ not instructions to change access or transmit another client's report.
 See [the reporting guide](../../../docs/REPORTING-OVERVIEW.md) for library controls,
 MCP examples, export limits and reconciliation evidence.
 
+**Why isn't it serving? (Google).** `amcp_reporting serving_diagnostics` with `account_id`, `connection_id`, an
+optional `campaign_id` and `options:{levels, limit}` reads Google's own `primary_status`, `primary_status_reasons`,
+policy approval and review status with topic types, `ad_strength` and `action_items` for campaigns, ad groups, ads,
+asset groups and asset links, one bounded page per level. Report the native symbols as returned; `unknown_symbols`
+lists any this AMCP version does not name, so never guess their meaning. Policy evidence and asset contents are not
+returned: send the person to Google Ads for them. A status is not delivery or performance evidence, and the read
+authorizes no change. `SERVING_DIAGNOSTICS_INCOMPLETE` means Google did not return one complete page (read again or
+narrow by campaign); `SERVING_DIAGNOSTICS_INVALID_RESPONSE` means a row was malformed or foreign and nothing is shown.
+
+**Launch check (Meta and Snapchat).** After a guided Meta or Snapchat launch completes, `amcp_reporting launch_check
+{id: <plan id>}` reads the plan's verified campaign, its ad set or ad squad and the account, and runs the rule checks
+(budget, schedule, bid strategy, frequency, targeting). Add `report_id` of a retained campaign × day `capture_preset` of
+that account to include delivery and frequency. Findings without evidence stay `unknown` and name what is missing.
+Delivery is `observed` only when the capture reports impressions; a paused campaign, a missing capture or a window
+without impressions stays `unknown`, never an alarm. `LAUNCH_CHECK_NOT_READY` waits for the campaign step to be
+verified; `LAUNCH_CHECK_REPORT_MISMATCH` asks for a campaign-level capture of the same account;
+`LAUNCH_CHECK_UNSUPPORTED` names the Google campaign audit workflow instead. Nothing is saved or changed.
+
 `amcp_reporting capture` requires gateway, connection_id, account_id, independently qualified native read arguments, rows_pointer, mapping, and semantics. It never dispatches a mutation. Use the exact native account-path parameter: Meta account insights need `ad_account_id: "act_<ID>"` in addition to the selected account binding.
 
 Example mapping: `{"entity_id":"/campaign_id","spend":{"path":"/cost_micros","divisor":"1000000"},"clicks":"/clicks"}`. Supply paths into each native row. Supported divisors are 1, 100, 1000, 1000000 and 1000000000; decimal totals remain strings. Missing metrics stay null. Reach/frequency are never summed. Metadata and mappings are explicitly caller-declared; independently verify them against the provider account/report.
@@ -1249,6 +1267,8 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `search_exclusion_candidates` | Search terms of a Google report that could be excluded. | **`id`**, `options`, `offset`, `limit` | no provider request | reader |
 | `preview_search_exclusions` | Reads the original ad groups and previews exact-negative exclusions. | **`id`**, **`ids`**, `options` | provider reads; saves search_exclusion_preview | operator |
 | `create_search_exclusion_plan` | Saves the previewed exclusions as an unapproved campaign plan. | **`id`**, **`preview_id`**, **`preview_hash`**, **`confirmed`** | provider reads; saves campaign_run | operator |
+| `serving_diagnostics` | Google primary status, reasons, policy summary and ad strength per level; native symbols, unknowns listed. | **`account_id`**, **`connection_id`**, `gateway`, `campaign_id`, `options` | provider reads | reader |
+| `launch_check` | Rule checks of a guided Meta or Snapchat launch from native reads and an optional retained capture. | **`id`**, `report_id` | provider reads | reader |
 
 ### amcp_reporting_overview
 
