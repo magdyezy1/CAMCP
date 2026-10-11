@@ -133,6 +133,42 @@ Transactions retry only their `BEGIN IMMEDIATE` after `SQLITE_BUSY`, with jitter
 total including SQLite's own wait (the same five seconds a single `BEGIN` could wait before); nothing has run when BEGIN
 fails, so every kind of work may retry it. The wait blocks the HTTP process, so it is not longer than before.
 
+### Video conversion time
+
+`npm run benchmark:media-variants` uses the FFmpeg and ffprobe named by `AMCP_FFMPEG_PATH` and `AMCP_FFPROBE_PATH`. It
+makes a synthetic 180-second 1080p H.264/AAC source (a moving test pattern with camera-like noise, about 98 MiB),
+converts it to five preset variants with the production settings (libx264 veryfast, CRF 23, two threads) and reports
+each time, whether the streams were copied, and the share of `VIDEO_CONVERSION_TIMEOUT_MS`. `-- --check` exits non-zero
+when a conversion takes more than half of the limit; `-- --seconds=N` shortens the source and `-- --source=2160p`
+measures a 4K source, which fit also converts.
+
+Measured on the review workstation (FFmpeg 9.0, i7-12700H), which other builds shared at varying CPU load:
+
+| Run | Landscape contain | Vertical crop | Vertical contain | Portrait contain | Square crop | Fit |
+|---|---|---|---|---|---|---|
+| 2026-10-11, light load | 63.7 s | 46.5 s | 42.6 s | 45.9 s | 42.4 s | no conversion |
+| 2026-10-12, heavy load | 135.6 s | 167.2 s | 97.6 s | 110.8 s | 105.5 s | no conversion |
+| 2026-10-12, after the changes below | 2.9 s (copied) | 147.6 s | 103.2 s | 44.9 s | 41.1 s | no conversion |
+
+A 60-second 2160p source took 113.6 s to fit to 1920 × 1080 and 86.6 s for a vertical crop (2026-10-11).
+
+The first run used 53% of the earlier 120-second limit, so `VIDEO_CONVERSION_TIMEOUT_MS` became 180 seconds, still
+inside the five-minute reservation a variant or review holds while it is prepared (a fit conversion also uses part of
+that review's five minutes). Under heavy load the earlier limit would have refused two variants, and the vertical
+crop used 93% of the new one, so two conversions now do less work instead of the limit growing further (MED-04):
+
+- A video already stored at the preset's exact size as upright H.264 (yuv420p, square pixels) with AAC or no audio is
+  copied into the MP4 variant without re-encoding, as fit already does for media that fits.
+- A crop cuts the centered region of the preset's shape and scales only that region (a 608 × 1080 region of a 1080p
+  frame for vertical), instead of scaling the whole frame up and discarding most of it. On a 30-second clip at the same
+  load this took 21–29 s instead of 31–33 s; the encode, not the scaling, remains most of the time.
+
+What remains: a noisy 180-second 1080p source turned vertical stays the slowest case and kept less than twice its time
+under heavy load; on a host that slow it can reach the limit and is refused with `MEDIA_CONVERSION_TIMEOUT`, never cut
+short. A 180-second 2160p source that fits the 128 MiB media limit needs about three times the 60-second times above,
+so its fit or crop variant is refused the same way. A noisy 1080p variant re-encoded to 1920 × 1080 comes close to the
+128 MiB media limit, and a larger output is refused with `MEDIA_TOO_LARGE`. The production image (FFmpeg 5.1 in the
+Docker build) has not been measured; run the same command in the container before relying on its headroom.
 ## Health and diagnostics
 
 `/healthz` is anonymous and answers at most once per ten seconds. It reports only the state of each check, never
