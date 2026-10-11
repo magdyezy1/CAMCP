@@ -206,7 +206,7 @@ export const mediaTool = {
       offset: {type: 'integer', minimum: 0},
       recovery_offset: {type: 'integer', minimum: 0},
       include_assets: {type: 'boolean'},
-      profile_id: {type: 'string', maxLength: 200},
+      profile_id: {type: 'string'},
       limit: {
         type: 'integer',
         minimum: 1,
