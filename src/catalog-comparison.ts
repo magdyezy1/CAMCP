@@ -1,6 +1,6 @@
 import {catalogIngestion} from './catalog-ingestion.js';
-import {xCatalogComparison} from './x-catalog-comparison.js';
-import {catalogInventoryRequested} from './x-catalog-selection-inventory.js';
+import {xCatalogComparison, xCatalogListedSelection} from './x-catalog-comparison.js';
+import {catalogInventoryRequested, listedSelectionRequested} from './x-catalog-selection-inventory.js';
 import {assertMetaCatalogProduct, metaCatalogProductSnapshots, readMetaCatalogImport} from './meta-catalog-products.js';
 import {metaPrefix} from './meta-version.js';
 import {nativeAuthority} from './native-authority.js';
@@ -44,6 +44,9 @@ export async function catalogComparison(
   input: JsonObject,
 ) {
   catalogInventoryRequested(input);
+  // An explicit selection of listed X products by native key (COM-02 B) reads only those products.
+  const keys = listedSelectionRequested(input);
+  if (keys) return xCatalogListedSelection(store, registry, transport, credentials, actor, input, keys);
   // A gateway that is not a catalog destination keeps the Meta refusal it had before the destination contract.
   const destination = catalogDestination(input.gateway)?.gateway ?? 'meta_native_action';
   return comparisons[destination](store, registry, transport, credentials, actor, input);

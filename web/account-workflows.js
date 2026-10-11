@@ -59,6 +59,16 @@ const accountExplanationMessages = new Set([
   'This step no longer matches its original selected removal proposal.',
   'The original selected source product is unavailable.',
   'The selected product evidence changed after this draft. Read a new removal preview; no products were deleted.',
+  'Listed product selection applies to catalog_compare and preview_catalog_removal; its typed count to create_catalog_removal.',
+  'Inspect the other listed X products first, then select from that listing.',
+  'The listed X products changed since you inspected them. Inspect them again; no products were deleted.',
+  'Type the number of selected products to confirm their removal.',
+  'Current evidence of explicitly selected listed X products only. Nothing is selected because it is absent from a source; products that are not listed, grouped or of unknown group status cannot be removed here. This is sequential evidence, not a point-in-time inventory snapshot.',
+  'Native product keys select listed products only with selection_source listed_inventory.',
+  'Choose supplied_products or listed_inventory as the selection.',
+  'Selection of listed products is qualified for X catalogs only.',
+  'A listed selection takes native product keys, not supplied products or retailer IDs.',
+  'Choose 1–50 distinct listed native product keys.',
   'Preview of explicit additional-consent settings in the selected workspace. Existing required types are preserved. This does not establish built-in checks, runtime consent, event delivery or compliance. Saving creates an unapproved draft; publishing remains separate.',
   'Choose the exact Tag Manager account and login.',
   'Choose the exact container and workspace.',
@@ -3847,10 +3857,10 @@ function catalogListedInventoryMarkup(out, request) {
       'observations_hash',
     ].map(k => [k, inventory[k]]),
   );
-  return `<section aria-labelledby="catalog-inventory-heading"><h4 id="catalog-inventory-heading" tabindex="-1">${esc(uiText('Other listed X products'))}</h4><p>${esc(uiText('{listed} listed products · {selected} supplied products observed · {other} outside this source selection', {listed: inventory.listed_product_count, selected: inventory.supplied_listed_count, other: inventory.outside_selection_count}))}</p><p class="notice">${esc(uiText('Products outside this supplied selection are retained. Their store absence is unverified. X listing can hide other variants, so this is not a complete variant inventory or a point-in-time snapshot.'))}</p><div id="catalog-inventory-view" aria-live="polite">${catalogListedInventoryView(inventory)}</div>${recordDetails(evidence, uiText('Listed inventory evidence'))}</section>`;
+  return `<section aria-labelledby="catalog-inventory-heading"><h4 id="catalog-inventory-heading" tabindex="-1">${esc(uiText('Other listed X products'))}</h4><p>${esc(uiText('{listed} listed products · {selected} supplied products observed · {other} outside this source selection', {listed: inventory.listed_product_count, selected: inventory.supplied_listed_count, other: inventory.outside_selection_count}))}</p><p class="notice">${esc(uiText('Products outside this supplied selection are retained. Their store absence is unverified. X listing can hide other variants, so this is not a complete variant inventory or a point-in-time snapshot.'))}</p><div id="catalog-inventory-view" aria-live="polite">${catalogListedInventoryView(inventory)}</div><p>${esc(uiText('Select only listed products you intend to remove; none is selected for you. A product is never removed because your source lacks it.'))}</p><button type="button" class="button" id="preview-listed-removal">${esc(uiText('Preview removal of selected listed products'))}</button><div id="catalog-listed-removal-preview" aria-live="polite"></div>${recordDetails(evidence, uiText('Listed inventory evidence'))}</section>`;
 }
 
-function catalogListedInventoryView(inventory, query = '', page = 0) {
+function catalogListedInventoryView(inventory, query = '', page = 0, selected = null) {
   const groupLabel = status =>
       status === 'individual'
         ? uiText('Individual product')
@@ -3889,19 +3899,46 @@ function catalogListedInventoryView(inventory, query = '', page = 0) {
               k =>
                 `<br>${esc(k === 'item_group_id' ? uiText('Native group ID') : uiText('Native group key'))}: <bdi>${esc(p[k])}</bdi>`,
             )
-            .join('');
-        return `<tr><th scope="row"><strong><bdi>${esc(p.name ?? uiText('Unknown'))}</bdi></strong><br>${esc(uiText('Retailer ID'))}: <code dir="ltr">${esc(p.retailer_id)}</code><br>${esc(uiText('Product ID'))}: <code dir="ltr">${esc(p.product_id)}</code></th><td><bdi dir="ltr">${esc(p.price ?? uiText('Unknown'))}</bdi></td><td>${esc(group)}${details}</td></tr>`;
+            .join(''),
+          // COM-02 B: only an individual listed product can be selected, and none is selected for you.
+          select = !selected
+            ? ''
+            : `<td>${p.group_status === 'individual' ? `<label><input type="checkbox" id="catalog-listed-remove-${esc(p.product_id)}"${selected.has(p.product_id) ? ' checked' : ''}> ${esc(uiText('Select {retailer_id} for removal', {retailer_id: p.retailer_id}))}</label>` : esc(uiText('Unavailable'))}</td>`;
+        return `<tr><th scope="row"><strong><bdi>${esc(p.name ?? uiText('Unknown'))}</bdi></strong><br>${esc(uiText('Retailer ID'))}: <code dir="ltr">${esc(p.retailer_id)}</code><br>${esc(uiText('Product ID'))}: <code dir="ltr">${esc(p.product_id)}</code></th><td><bdi dir="ltr">${esc(p.price ?? uiText('Unknown'))}</bdi></td><td>${esc(group)}${details}</td>${select}</tr>`;
       })
-      .join('');
-  return `<div class="split"><label for="catalog-inventory-search">${esc(uiText('Find a listed product, native key, group or price'))}<input type="search" id="catalog-inventory-search" value="${esc(query)}"></label><div><button type="button" class="button" id="catalog-inventory-find">${esc(uiText('Search listed products'))}</button><button type="button" class="button" id="catalog-inventory-clear">${esc(uiText('Clear search'))}</button></div></div><p role="status">${esc(uiText('Showing {from}–{through} of {count} other listed products', {from: filtered.length ? from + 1 : 0, through: Math.min(from + size, filtered.length), count: filtered.length}))}</p>${filtered.length ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Other listed products, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Other listed X products'))}</caption><thead><tr>${[uiText('Product'), uiText('Price'), uiText('Product grouping')].map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>` : `<p>${esc(uiText('No other listed products match this view. This does not establish whole-store absence.'))}</p>`}<div class="pagination"><button type="button" class="button" id="catalog-inventory-previous" ${current === 0 ? 'disabled' : ''}>${esc(uiText('Previous'))}</button><span>${esc(uiText('Page {page} of {pages}', {page: current + 1, pages}))}</span><button type="button" class="button" id="catalog-inventory-next" ${current >= pages - 1 ? 'disabled' : ''}>${esc(uiText('Next'))}</button></div>`;
+      .join(''),
+    headers = [
+      uiText('Product'),
+      uiText('Price'),
+      uiText('Product grouping'),
+      ...(selected ? [uiText('Select for removal')] : []),
+    ];
+  return `<div class="split"><label for="catalog-inventory-search">${esc(uiText('Find a listed product, native key, group or price'))}<input type="search" id="catalog-inventory-search" value="${esc(query)}"></label><div><button type="button" class="button" id="catalog-inventory-find">${esc(uiText('Search listed products'))}</button><button type="button" class="button" id="catalog-inventory-clear">${esc(uiText('Clear search'))}</button></div></div><p role="status">${esc(uiText('Showing {from}–{through} of {count} other listed products', {from: filtered.length ? from + 1 : 0, through: Math.min(from + size, filtered.length), count: filtered.length}))}</p>${filtered.length ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Other listed products, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Other listed X products'))}</caption><thead><tr>${headers.map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>` : `<p>${esc(uiText('No other listed products match this view. This does not establish whole-store absence.'))}</p>`}<div class="pagination"><button type="button" class="button" id="catalog-inventory-previous" ${current === 0 ? 'disabled' : ''}>${esc(uiText('Previous'))}</button><span>${esc(uiText('Page {page} of {pages}', {page: current + 1, pages}))}</span><button type="button" class="button" id="catalog-inventory-next" ${current >= pages - 1 ? 'disabled' : ''}>${esc(uiText('Next'))}</button></div>`;
 }
 
-function bindCatalogListedInventory(inventory, active) {
+/**
+ * The listed products of an inspection, searchable and paged, with an explicit removal selection by native key
+ * (COM-02 B): nothing is preselected, a selection survives searching and paging, and changing it clears its preview.
+ */
+function bindCatalogListedInventory(inventory, active, request) {
   let query = '',
-    page = 0;
+    page = 0,
+    removalSequence = 0;
+  const selected = new Set(),
+    order = inventory.items.map(p => p.product_id),
+    invalidate = () => {
+      removalSequence++;
+      const output = $('#catalog-listed-removal-preview');
+      if (output) output.innerHTML = '';
+    };
   const render = focus => {
     if (!active()) return;
-    $('#catalog-inventory-view').innerHTML = catalogListedInventoryView(inventory, query, page);
+    $('#catalog-inventory-view').innerHTML = catalogListedInventoryView(
+      inventory,
+      query,
+      page,
+      request ? selected : null,
+    );
     const find = () => {
       if (!active()) return;
       query = $('#catalog-inventory-search').value;
@@ -3931,9 +3968,120 @@ function bindCatalogListedInventory(inventory, active) {
         find();
       }
     });
+    if (request)
+      for (const p of inventory.items)
+        if (p.group_status === 'individual') {
+          const box = $('#catalog-listed-remove-' + p.product_id);
+          box?.addEventListener('change', () => {
+            if (!active()) return;
+            if (box.checked) selected.add(p.product_id);
+            else selected.delete(p.product_id);
+            invalidate();
+          });
+        }
     if (focus) $(focus).focus();
   };
   render();
+  if (!request) return;
+  workspaceBind('#preview-listed-removal', async () => {
+    if (!active()) return;
+    const product_keys = order.filter(key => selected.has(key));
+    if (!product_keys.length) throw Error(uiText('Select at least one listed individual product to preview removal.'));
+    const sequence = ++removalSequence,
+      output = $('#catalog-listed-removal-preview'),
+      removalActive = () =>
+        active() &&
+        sequence === removalSequence &&
+        JSON.stringify(order.filter(key => selected.has(key))) === JSON.stringify(product_keys);
+    output.innerHTML = `<p role="status">${esc(uiText('Reading selected products for a removal preview. No products are deleted.'))}</p>`;
+    try {
+      const proposed = await workspaceCall('workspace', {
+        action: 'preview_catalog_removal',
+        gateway: request.gateway,
+        account_id: request.account_id,
+        connection_id: request.connection_id,
+        catalog_id: request.catalog_id,
+        selection_source: 'listed_inventory',
+        product_keys,
+        listed_inventory_hash: inventory.material_hash,
+      });
+      if (!removalActive()) return;
+      output.innerHTML = catalogListedRemovalMarkup(proposed, request, inventory, product_keys);
+      $('#catalog-listed-removal-heading').focus();
+      workspaceBind('#save-listed-removal', async () => {
+        if (!removalActive()) return;
+        const typed = $('#catalog-listed-removal-count').value.trim();
+        if (!/^[1-9][0-9]?$/.test(typed) || Number(typed) !== proposed.targets.length)
+          throw Error(uiText('Type the number of selected products to confirm their removal.'));
+        try {
+          const saved = await workspaceCall('workspace', {
+            action: 'create_catalog_removal',
+            preview_id: proposed.preview_id,
+            preview_hash: proposed.preview_hash,
+            confirmed: true,
+            confirmed_count: Number(typed),
+          });
+          if (removalActive()) await navigate('/campaigns?id=' + encodeURIComponent(saved.id));
+        } catch (error) {
+          if (removalActive()) throw error;
+        }
+      });
+    } catch (error) {
+      if (removalActive()) {
+        output.innerHTML = '';
+        throw error;
+      }
+    }
+  });
+}
+
+/** The removal preview of selected listed products, checked against the inspection the person selected from. */
+function catalogListedRemovalMarkup(out, request, inventory, keys) {
+  const listed = new Map(inventory.items.map(p => [p.product_id, p]));
+  if (
+    !out ||
+    out.record_kind !== 'x_catalog_removal_preview' ||
+    out.selection_source !== 'listed_inventory' ||
+    out.confirmation !== 'confirmed_count' ||
+    request.gateway !== 'x_ads_native_action' ||
+    !out.scope ||
+    ['gateway', 'account_id', 'connection_id', 'catalog_id'].some(k => out.scope[k] !== request[k]) ||
+    out.listed_inventory_hash !== inventory.material_hash ||
+    out.source_hash !== null ||
+    !/^[a-f0-9]{64}$/.test(out.preview_hash ?? '') ||
+    typeof out.preview_id !== 'string' ||
+    !out.preview_id ||
+    !Number.isSafeInteger(out.expires_at) ||
+    out.expires_at <= Date.now() ||
+    out.provider_mutations !== 0 ||
+    out.destructive_deletions !== 0 ||
+    !Array.isArray(out.targets) ||
+    !keys.length ||
+    out.targets.length !== keys.length ||
+    out.item_count !== keys.length ||
+    out.targets.some((target, i) => {
+      const p = listed.get(keys[i]);
+      return (
+        !p ||
+        p.group_status !== 'individual' ||
+        !target?.before ||
+        target.product_id !== keys[i] ||
+        target.retailer_id !== p.retailer_id ||
+        target.before.present !== true ||
+        target.before.id !== keys[i] ||
+        (target.before.name ?? null) !== p.name ||
+        (target.before.price ?? null) !== p.price
+      );
+    })
+  )
+    throw Error(uiText('The selected removal preview changed. Inspect the listed products again.'));
+  const rows = out.targets
+    .map(
+      target =>
+        `<tr><th scope="row">${esc(target.before.name ?? target.retailer_id)}<br><code>${esc(target.retailer_id)}</code></th><td><code dir="ltr">${esc(target.product_id)}</code></td><td><bdi>${esc(target.before.price ?? uiText('Unknown'))}</bdi></td></tr>`,
+    )
+    .join('');
+  return `<h4 id="catalog-listed-removal-heading" tabindex="-1">${esc(uiText('Selected listed product removals'))}</h4><p class="notice">${esc(uiText('These listed products are proposed for permanent deletion because you selected them, not because your source lacks them. Saving creates an unapproved draft and deletes no products. Each product requires native review, execution confirmation and read-back. A scheduled feed may restore products it still contains.'))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Selected listed product removals'))}"><table class="review-table"><caption>${esc(uiText('{count} explicitly selected products', {count: out.item_count}))}</caption><thead><tr>${[uiText('Product'), uiText('Product ID'), uiText('Current price')].map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><label for="catalog-listed-removal-count">${esc(uiText('Type the number of products to remove ({count})', {count: out.item_count}))}<input type="text" inputmode="numeric" id="catalog-listed-removal-count" autocomplete="off" maxlength="2"></label><button type="button" class="button" id="save-listed-removal">${esc(uiText('Save unapproved removal draft'))}</button>`;
 }
 
 function catalogRemovalMarkup(out, request, comparison, ids, preview) {
@@ -4630,7 +4778,7 @@ async function renderCommerce() {
             : uiText(
                 'Meta products that already match are reviewed and sent again; save only products needing review to leave them out.',
               );
-        if (inspectOther) bindCatalogListedInventory(evidence.listed_inventory, active);
+        if (inspectOther) bindCatalogListedInventory(evidence.listed_inventory, active, comparisonRequest);
         if (request.gateway === 'x_ads_native_action') {
           let removalSequence = 0;
           const selection = () =>

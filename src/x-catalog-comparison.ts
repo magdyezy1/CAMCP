@@ -33,6 +33,7 @@ import type {Registry} from './catalog.js';
 import type {NativeTransport} from './transport.js';
 import type {CredentialProvider} from './auth.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
+import type {TransportResult} from './transport.js';
 
 function unknown(message: string): never {
   return unverified(message);
@@ -40,40 +41,37 @@ function unknown(message: string): never {
 function grouped(row: JsonObject): boolean {
   return xCatalogProductGrouping(row) !== 'individual';
 }
-/** Read-only supplied-SKU reconciliation. Reuses existing bounded native catalog reads, never their write lifecycle. */
-export async function xCatalogComparison(
+/** One bounded read of an X catalog under the selected account and login: every request rechecks authority. */
+type XCatalogSession = {
+  read: CompiledRequest;
+  scope: JsonObject;
+  requested_at: number;
+  fetch: (page: CompiledRequest) => Promise<TransportResult>;
+  requests: () => number;
+  /** Authority once more after the last read, and the collection limits. */
+  close: () => void;
+};
+/**
+ * The shared read session of the X comparison and of a listed selection (COM-02 B): scope check, credentials, a
+ * 180-attempt, 5,000-row, 4 MiB and 60-second collection allowance, and the authority fence on every attempt.
+ */
+async function xCatalogSession<T>(
   store: Store,
   registry: Registry,
   transport: NativeTransport,
   credentials: CredentialProvider,
   actor: Actor,
   input: JsonObject,
-) {
-  const inspect = catalogInventoryRequested(input),
-    preview = catalogIngestion(input),
-    scope = {
-      gateway: input.gateway,
-      account_id: input.account_id,
-      connection_id: input.connection_id,
-      catalog_id: input.catalog_id,
-    };
-  const first = preview.plan.steps[0]!,
-    plan: CompiledRequest = {
-      gateway: input.gateway,
-      accountId: input.account_id,
-      action: first.arguments.action,
-      method: 'PUT',
-      path: '/12/product_catalogs/' + input.catalog_id + '/products',
-      query: {},
-      headers: {},
-      body: first.arguments.payload,
-      readOnly: false,
-      destructive: false,
-      requiresConfirmation: true,
-      evidence: 'Existing qualified X product contract',
-      warnings: [],
-    };
-  assertXCatalogProduct(plan);
+  plan: CompiledRequest,
+  key: JsonObject,
+  run: (session: XCatalogSession) => Promise<T>,
+): Promise<T> {
+  const scope: JsonObject = {
+    gateway: input.gateway,
+    account_id: input.account_id,
+    connection_id: input.connection_id,
+    catalog_id: input.catalog_id,
+  };
   const read = xCatalogRead(plan, '/12/accounts/' + input.account_id + '/promotable_users', {count: 200}),
     connection = store.resolveConnection(actor, input.gateway, input.account_id, input.connection_id);
   scope.connection_id = connection.id;
@@ -81,7 +79,7 @@ export async function xCatalogComparison(
   const auth = await credentials.get(connection),
     current = store.resolveConnection(actor, input.gateway, input.account_id, connection.id),
     requested_at = Date.now(),
-    budget = new ReportCollectionBudget(undefined, fingerprint({scope, source_hash: preview.source_hash}), () => {}, {
+    budget = new ReportCollectionBudget(undefined, fingerprint({scope, ...key}), () => {}, {
       requests: 180,
       rows: 5000,
       bytes: 4 * 1024 * 1024,
@@ -112,6 +110,69 @@ export async function xCatalogComparison(
         }
         return response;
       };
+      return run({
+        read,
+        scope,
+        requested_at,
+        fetch,
+        requests: () => network_requests,
+        close: () => {
+          nativeAuthority(store, registry, actor, read, current, auth)();
+          budget.check();
+        },
+      });
+    });
+  } catch (error) {
+    if (error instanceof MirrorError && error.code === 'REPORT_COLLECTION_LIMIT')
+      throw new MirrorError(
+        'CATALOG_COMPARISON_LIMIT',
+        'X catalog comparison reached its collection limit. Read a smaller eligible catalog again; no product changes were submitted.',
+        {dimension: error.details.dimension, used: error.details.used, limit: error.details.limit},
+        422,
+      );
+    throw error;
+  } finally {
+    budget.close();
+  }
+}
+/** Read-only supplied-SKU reconciliation. Reuses existing bounded native catalog reads, never their write lifecycle. */
+export async function xCatalogComparison(
+  store: Store,
+  registry: Registry,
+  transport: NativeTransport,
+  credentials: CredentialProvider,
+  actor: Actor,
+  input: JsonObject,
+) {
+  const inspect = catalogInventoryRequested(input),
+    preview = catalogIngestion(input);
+  const first = preview.plan.steps[0]!,
+    plan: CompiledRequest = {
+      gateway: input.gateway,
+      accountId: input.account_id,
+      action: first.arguments.action,
+      method: 'PUT',
+      path: '/12/product_catalogs/' + input.catalog_id + '/products',
+      query: {},
+      headers: {},
+      body: first.arguments.payload,
+      readOnly: false,
+      destructive: false,
+      requiresConfirmation: true,
+      evidence: 'Existing qualified X product contract',
+      warnings: [],
+    };
+  assertXCatalogProduct(plan);
+  return xCatalogSession(
+    store,
+    registry,
+    transport,
+    credentials,
+    actor,
+    input,
+    plan,
+    {source_hash: preview.source_hash},
+    async ({read, scope, requested_at, fetch, requests, close}) => {
       const owners = await xCatalogOwners(read, fetch),
         catalog = ownedCatalog(owners, input.catalog_id);
       const project = (rows: JsonObject[]) => {
@@ -250,8 +311,7 @@ export async function xCatalogComparison(
           {},
           409,
         );
-      nativeAuthority(store, registry, actor, read, current, auth)();
-      budget.check();
+      close();
       const {summary, review_retailer_ids} = comparisonSummary(items);
       const captured_at = Date.now();
       return {
@@ -279,7 +339,7 @@ export async function xCatalogComparison(
         summary,
         items,
         review_retailer_ids,
-        network_requests,
+        network_requests: requests(),
         provider_mutations: 0,
         destructive_deletions: 0,
         ...(inspect
@@ -304,17 +364,126 @@ export async function xCatalogComparison(
           ? 'Products outside this supplied selection are retained. Their store absence is unverified. X listing can hide other variants, so this is not a complete variant inventory or a point-in-time snapshot.'
           : 'Current evidence for supplied X product IDs only, using repeated bounded native reads and exact supported decimal prices. Grouped or potentially hidden variants are blocked. Missing fields stay unknown. This is sequential evidence, not a point-in-time inventory snapshot. Every saved product still requires a fresh native review and independent read-back; products outside the supplied source are not returned or deleted.',
       };
-    });
-  } catch (error) {
-    if (error instanceof MirrorError && error.code === 'REPORT_COLLECTION_LIMIT')
-      throw new MirrorError(
-        'CATALOG_COMPARISON_LIMIT',
-        'X catalog comparison reached its collection limit. Read a smaller eligible catalog again; no product changes were submitted.',
-        {dimension: error.details.dimension, used: error.details.used, limit: error.details.limit},
-        422,
-      );
-    throw error;
-  } finally {
-    budget.close();
-  }
+    },
+  );
+}
+/**
+ * Current evidence of explicitly selected listed X products (COM-02 B): `catalog_compare` with selection_source
+ * listed_inventory and 1–50 native product_keys. Two complete scans must agree on the whole listing (its material hash,
+ * as an inspection shows it) and on the selected products, bracketed by catalog ownership. A key that is not listed,
+ * grouped or of unknown group status is returned blocked; nothing is selected because of a source's absence.
+ */
+export async function xCatalogListedSelection(
+  store: Store,
+  registry: Registry,
+  transport: NativeTransport,
+  credentials: CredentialProvider,
+  actor: Actor,
+  input: JsonObject,
+  keys: string[],
+) {
+  // The deletion contract of the first key authorizes the reads, exactly as a removal review would.
+  const plan: CompiledRequest = {
+    gateway: input.gateway,
+    accountId: input.account_id,
+    action: 'x_product_catalogs_product_catalog_id_products_delete',
+    method: 'DELETE',
+    path: '/12/product_catalogs/' + input.catalog_id + '/products',
+    query: {},
+    headers: {},
+    body: {product_keys: [keys[0]]},
+    readOnly: false,
+    destructive: true,
+    requiresConfirmation: true,
+    evidence: 'Existing qualified X product contract',
+    warnings: [],
+  };
+  assertXCatalogProduct(plan);
+  return xCatalogSession(
+    store,
+    registry,
+    transport,
+    credentials,
+    actor,
+    input,
+    plan,
+    {product_keys: keys},
+    async ({read, scope, requested_at, fetch, requests, close}) => {
+      const catalog = ownedCatalog(await xCatalogOwners(read, fetch), input.catalog_id);
+      const collect = async () => {
+        const scan = await xCatalogProducts(read, fetch, input.catalog_id);
+        if (!scan.complete)
+          fail(
+            'CATALOG_SCAN_LIMIT',
+            'X comparison requires a complete catalog scan of at most 1,000 listed products. No product changes were submitted.',
+            {},
+            409,
+          );
+        const byKey = new Map(scan.rows.map(row => [row.product_key as string, row]));
+        return {
+          material_hash: catalogSelectionInventory(scan.rows, []).material_hash,
+          listed: scan.rows.length,
+          items: keys.map(key => {
+            const row = byKey.get(key);
+            if (!row)
+              return {
+                retailer_id: null,
+                product_id: key,
+                group_status: null,
+                before: null,
+                unsent_fields: [],
+                blocked: true,
+                blocked_reason: 'not_listed',
+              };
+            const grouping = xCatalogProductGrouping(row);
+            return {
+              retailer_id: row.id,
+              product_id: key,
+              group_status: grouping,
+              before: rowView(row),
+              unsent_fields: xCatalogHeldOptional(row),
+              blocked: grouping !== 'individual',
+              blocked_reason:
+                grouping === 'individual' ? null : grouping === 'grouped' ? 'grouped_product' : 'group_status_unknown',
+            };
+          }),
+        };
+      };
+      const collected = await collect(),
+        repeated = await collect(),
+        after = ownedCatalog(await xCatalogOwners(read, fetch), input.catalog_id);
+      if (fingerprint(collected) !== fingerprint(repeated) || fingerprint(catalog) !== fingerprint(after))
+        fail(
+          'CATALOG_COMPARISON_CHANGED',
+          'X listed catalog observations changed during collection. Read them again; no product changes were submitted.',
+          {},
+          409,
+        );
+      close();
+      const captured_at = Date.now();
+      return {
+        record_kind: 'x_catalog_listed_selection',
+        selection_source: 'listed_inventory',
+        scope,
+        complete: true,
+        catalog: {
+          id: catalog.id,
+          user_id: catalog.user_id,
+          name: typeof catalog.name === 'string' && text(catalog.name, 1000) ? catalog.name : null,
+        },
+        listed_inventory_hash: collected.material_hash,
+        listed_product_count: collected.listed,
+        source_absence_established: false,
+        item_count: collected.items.length,
+        items: collected.items,
+        requested_at,
+        captured_at,
+        network_requests: requests(),
+        provider_mutations: 0,
+        destructive_deletions: 0,
+        meaning:
+          'Current evidence of explicitly selected listed X products only. Nothing is selected because it is absent from a source; products that are not listed, grouped or of unknown group status cannot be removed here. This is sequential evidence, not a point-in-time inventory snapshot.',
+      };
+    },
+  );
 }

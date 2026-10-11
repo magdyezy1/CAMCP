@@ -3,6 +3,7 @@ import type {Actor, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import {bad, fingerprint, optional, writer, type ToolCall} from './workspace-core.js';
 import {catalogIngestion} from './catalog-ingestion.js';
+import {listedSelectionRequested} from './x-catalog-selection-inventory.js';
 import {storedLogin} from './connection-authority.js';
 import type {XCatalogRemovalExpectation} from './x-catalog-products.js';
 
@@ -35,6 +36,25 @@ function selection(input: JsonObject) {
     !input.connection_id
   )
     bad('Choose the exact X account, login and catalog.', 'INVALID_CATALOG_REMOVAL');
+  const scope = {
+    gateway,
+    account_id: input.account_id,
+    connection_id: input.connection_id,
+    catalog_id: input.catalog_id,
+  };
+  // COM-02 B: listed products chosen by native key from an inspection, bound to the listing the person saw.
+  const keys = listedSelectionRequested(input);
+  if (keys) {
+    if (typeof input.listed_inventory_hash !== 'string' || !/^[a-f0-9]{64}$/.test(input.listed_inventory_hash))
+      bad('Inspect the other listed X products first, then select from that listing.', 'INVALID_CATALOG_REMOVAL');
+    return {
+      scope,
+      selection_source: 'listed_inventory',
+      product_keys: keys,
+      listed_inventory_hash: input.listed_inventory_hash,
+      source_hash: null,
+    };
+  }
   const source = catalogIngestion(input),
     ids = input.retailer_ids;
   if (
@@ -48,16 +68,26 @@ function selection(input: JsonObject) {
     bad('Choose 1–50 distinct retailer IDs from the validated supplied products.', 'INVALID_CATALOG_REMOVAL');
   const selected = new Set(ids);
   return {
-    scope: {gateway, account_id: input.account_id, connection_id: input.connection_id, catalog_id: input.catalog_id},
+    scope,
     products: input.products.filter((p: JsonObject) => selected.has(p.retailer_id)),
     source_hash: source.source_hash,
   };
 }
-async function collect(store: Store, call: ToolCall, actor: Actor, scope: JsonObject, products: JsonObject[]) {
-  const signature = authorization(store, actor, scope);
+/** The current evidence of a selection: supplied products through the comparison, listed ones by native key. */
+async function collect(store: Store, call: ToolCall, actor: Actor, selected: JsonObject) {
+  const scope = selected.scope,
+    signature = authorization(store, actor, scope),
+    listed = selected.selection_source === 'listed_inventory';
   const result = await call(
     'amcp_workspace',
-    {action: 'catalog_compare', ...scope, products, allow_upsert: true},
+    listed
+      ? {
+          action: 'catalog_compare',
+          ...scope,
+          selection_source: 'listed_inventory',
+          product_keys: selected.product_keys,
+        }
+      : {action: 'catalog_compare', ...scope, products: selected.products, allow_upsert: true},
     actor,
   );
   if (!result.success)
@@ -87,6 +117,7 @@ async function collect(store: Store, call: ToolCall, actor: Actor, scope: JsonOb
     authorization_signature: signature,
     network_requests: observed.network_requests,
     captured_at: observed.captured_at,
+    ...(listed ? {listed_inventory_hash: observed.listed_inventory_hash} : {}),
   };
 }
 function sourceHash(catalog: JsonObject, targets: JsonObject[]) {
@@ -105,7 +136,16 @@ function current(store: Store, actor: Actor, p: JsonObject, input: JsonObject) {
     ['gateway', 'account_id', 'connection_id', 'catalog_id'].some(
       k => input[k] !== undefined && input[k] !== p.binding.scope[k],
     ) ||
-    ['products', 'retailer_ids', 'allow_upsert', 'name', 'requirements'].some(k => input[k] !== undefined)
+    [
+      'products',
+      'retailer_ids',
+      'allow_upsert',
+      'name',
+      'requirements',
+      'selection_source',
+      'product_keys',
+      'listed_inventory_hash',
+    ].some(k => input[k] !== undefined)
   )
     changed('Save the original removal preview. Changed scope, products or selection require a new preview.');
   if (authorization(store, actor, p.binding.scope) !== p.binding.authorization_signature)
@@ -118,10 +158,16 @@ function draft(binding: JsonObject, previewId: string, previewHash: string, nonc
     brief:
       'Explicitly remove ' +
       binding.targets.length +
-      ' selected individual products from X catalog ' +
-      binding.scope.catalog_id +
-      '. Source hash ' +
-      binding.source_hash +
+      (binding.selection_source === 'listed_inventory'
+        ? ' selected listed individual products from X catalog ' +
+          binding.scope.catalog_id +
+          '. Listed inventory hash ' +
+          binding.listed_inventory_hash +
+          '; each was chosen by its native key, not because a source lacks it'
+        : ' selected individual products from X catalog ' +
+          binding.scope.catalog_id +
+          '. Source hash ' +
+          binding.source_hash) +
       '. Each permanent deletion requires independent native review, execution confirmation and read-back. A scheduled feed can restore a product that it still contains.',
     idempotency_key: 'x-catalog-remove-' + previewId,
     catalog_removal_preview_id: previewId,
@@ -147,7 +193,13 @@ function draft(binding: JsonObject, previewId: string, previewHash: string, nonc
 export async function previewCatalogRemoval(store: Store, call: ToolCall, actor: Actor, input: JsonObject) {
   writer(store, actor);
   const selected = selection(input),
-    observed = await collect(store, call, actor, selected.scope, selected.products);
+    observed = await collect(store, call, actor, selected);
+  // A listed selection is bound to the listing the person inspected: any change there needs a new inspection.
+  if (
+    selected.selection_source === 'listed_inventory' &&
+    observed.listed_inventory_hash !== selected.listed_inventory_hash
+  )
+    changed('The listed X products changed since you inspected them. Inspect them again; no products were deleted.');
   const binding = {
     ...selected,
     targets: observed.targets,
@@ -189,6 +241,13 @@ export async function previewCatalogRemoval(store: Store, call: ToolCall, actor:
       expires_at,
       scope: binding.scope,
       source_hash: binding.source_hash,
+      ...(binding.selection_source === 'listed_inventory'
+        ? {
+            selection_source: 'listed_inventory',
+            listed_inventory_hash: binding.listed_inventory_hash,
+            confirmation: 'confirmed_count',
+          }
+        : {}),
       targets: binding.targets,
       item_count: binding.targets.length,
       captured_at: observed.captured_at,
@@ -235,6 +294,12 @@ export async function createCatalogRemoval(store: Store, call: ToolCall, actor: 
     bad('Confirm the displayed selected removals before saving their unapproved draft.', 'CONFIRMATION_REQUIRED');
   const p = store.document(actor.tenantId, 'x_catalog_removal_preview', String(input.preview_id));
   current(store, actor, p, input);
+  // A listed selection saves only with the number of its products typed back (COM-02 B); a supplied one may add it.
+  if (
+    (p.binding.selection_source === 'listed_inventory' || input.confirmed_count !== undefined) &&
+    input.confirmed_count !== p.binding.targets.length
+  )
+    bad('Type the number of selected products to confirm their removal.', 'CONFIRMATION_REQUIRED');
   const key = 'x-catalog-removal:' + actor.tenantId + ':' + p.id,
     owner = randomUUID();
   if (!store.acquireLock(key, owner, 90000))
@@ -273,7 +338,7 @@ export async function createCatalogRemoval(store: Store, call: ToolCall, actor: 
     }
     if (p.plan_id) changed('The original saved removal plan is unavailable.');
     if (p.expires_at <= Date.now()) bad('The removal preview expired. Read a new preview.', 'CATALOG_REMOVAL_EXPIRED');
-    const observed = await collect(store, call, actor, p.binding.scope, p.binding.products);
+    const observed = await collect(store, call, actor, p.binding);
     current(store, actor, p, input);
     if (sourceHash(observed.catalog, observed.targets) !== p.binding.observed_hash)
       changed('Selected catalog evidence changed since preview. Read a new removal preview; no products were deleted.');

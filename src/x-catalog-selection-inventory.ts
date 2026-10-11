@@ -13,6 +13,45 @@ export function catalogInventoryRequested(input: JsonObject): boolean {
   return input.inspect_other_listed_products === true;
 }
 
+/**
+ * An explicit selection of listed X products by native key (COM-02 B): `selection_source: "listed_inventory"` with 1–50
+ * distinct `product_keys`. It reads only the selected products' current evidence; no supplied source is involved, so
+ * nothing is selected because it is absent from one. Returns the keys, or undefined for a supplied-product request.
+ */
+export function listedSelectionRequested(input: JsonObject): string[] | undefined {
+  if (input.selection_source === undefined || input.selection_source === 'supplied_products') {
+    if (input.product_keys !== undefined || input.listed_inventory_hash !== undefined)
+      bad('Native product keys select listed products only with selection_source listed_inventory.');
+    return undefined;
+  }
+  if (input.selection_source !== 'listed_inventory')
+    bad('Choose supplied_products or listed_inventory as the selection.');
+  if (input.gateway !== 'x_ads_native_action') bad('Selection of listed products is qualified for X catalogs only.');
+  if (
+    typeof input.catalog_id !== 'string' ||
+    !/^[1-9][0-9]{0,24}$/.test(input.catalog_id) ||
+    typeof input.account_id !== 'string' ||
+    !input.account_id
+  )
+    bad('Choose an exact X product catalog ID and selected X ad account.');
+  if (
+    ['products', 'retailer_ids', 'allow_upsert', 'inspect_other_listed_products', 'absent_source_policy', 'name'].some(
+      k => input[k] !== undefined,
+    )
+  )
+    bad('A listed selection takes native product keys, not supplied products or retailer IDs.');
+  const keys = input.product_keys;
+  if (
+    !Array.isArray(keys) ||
+    keys.length < 1 ||
+    keys.length > 50 ||
+    keys.some((k: unknown) => typeof k !== 'string' || !/^[1-9][0-9]{0,24}$/.test(k)) ||
+    new Set(keys).size !== keys.length
+  )
+    bad('Choose 1–50 distinct listed native product keys.');
+  return keys as string[];
+}
+
 function observation(row: JsonObject): JsonObject {
   const money = catalogPrice(row.price);
   return {
