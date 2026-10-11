@@ -28,7 +28,10 @@ export function search({body, mode}, rows) {
     own = rows(kind, body) ?? [],
     // The selected customer, unless the descriptor holds its own.
     list = kind === 'customer' && !own.length ? [{customer}] : own,
-    results = list.map(row => (row && typeof row === 'object' && row[key] !== undefined ? row : {[key]: row}));
+    // A family that follows the token gets an empty page naming the same token again.
+    results = (mode.paginate && body?.pageToken ? [] : list).map(row =>
+      row && typeof row === 'object' && row[key] !== undefined ? row : {[key]: row},
+    );
   return {
     json: {
       ...(results.length ? {results: structuredClone(results)} : {}),
@@ -43,21 +46,24 @@ export function search({body, mode}, rows) {
 export const names = query => [...String(query).matchAll(/'(customers\/[^']+)'/g)].map(m => m[1]);
 /**
  * The rows of `list` a query selects: when the query names resources, the rows that are one of them or point at one
- * (a parent filter such as `campaign_asset.campaign IN (...)`); otherwise every row.
+ * (a parent filter such as `campaign_asset.campaign IN (...)`); otherwise every row. A whole result row is matched by
+ * its `kind` resource.
  */
-export function named(list = [], query) {
-  const wanted = names(query);
+export function named(list = [], query, kind = from(query)) {
+  const wanted = names(query),
+    key = camel(kind ?? '');
   return wanted.length
-    ? list.filter(
-        row =>
-          wanted.includes(row.resourceName) ||
-          Object.values(row).some(v => typeof v === 'string' && wanted.includes(v)),
-      )
+    ? list.filter(row => {
+        const own = row[key] && typeof row[key] === 'object' ? row[key] : row;
+        return (
+          wanted.includes(own.resourceName) || Object.values(own).some(v => typeof v === 'string' && wanted.includes(v))
+        );
+      })
     : list;
 }
 /** A search answer from `state[kind]`, filtered by the resource names the query mentions. */
 export const table = (request, state = request.state) =>
-  search(request, kind => named(state[kind], request.body.query));
+  search(request, kind => named(state[kind], request.body.query, kind));
 /** The mutate collection of a `/vNN/customers/123/<collection>:mutate` path. */
 export const mutateOf = path => /\/customers\/\d+\/([A-Za-z]+):mutate$/.exec(path)?.[1];
 /** Google's answer to a request it rejected in part: no results and a partial failure. */
