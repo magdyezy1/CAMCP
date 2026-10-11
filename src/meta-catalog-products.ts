@@ -261,6 +261,21 @@ export function authorizeMetaCatalogProduct(p: CompiledRequest, c: Connection, s
     typeof p.query.filter === 'string'
   );
 }
+/**
+ * The observed attributes a request does not send although the product holds a value for them today (COM-01): a
+ * sale price, a staging visibility or zero inventory a source never mentions. Meta does not document whether an
+ * upsert keeps or clears them, so they are named as a note and in the review; they never change the comparison state.
+ */
+export function metaCatalogUnsentFields(sent: JsonObject, product: JsonObject): string[] {
+  return [...compared, 'sale_price'].filter(
+    field =>
+      sent[field] === undefined &&
+      product[field] !== undefined &&
+      product[field] !== null &&
+      product[field] !== '' &&
+      !(Array.isArray(product[field]) && !product[field].length),
+  );
+}
 const view = (x: JsonObject) => {
   const out: JsonObject = {id: x.id};
   // Unsent review/delivery status is excluded. Sent inventory is observable configuration and must match.
@@ -458,6 +473,8 @@ export async function readMetaCatalogImport(
       before,
       changes,
       unknown_fields: unknown,
+      // Field names only (COM-01): attributes the source does not send while the destination holds a value today.
+      unsent_fields: before.present ? metaCatalogUnsentFields(supplied, before) : [],
     });
   }
   if (stable(state) !== stable(await catalogState(p, s.catalog, fetch)))
@@ -496,10 +513,19 @@ export function metaCatalogProductImpact(p: CompiledRequest, state: unknown[]): 
   delete after.allow_upsert;
   after.price = amount(b.price, b.currency);
   if (b.sale_price !== undefined) after.sale_price = amount(b.sale_price, b.currency);
+  // Attributes the product holds today that this request does not send (COM-01).
+  const notSent = replaces ? metaCatalogUnsentFields(b, existing) : [];
   const warnings = [
     ...(b.sale_price !== undefined && b.sale_price > b.price ? ['The sale price is above the price.'] : []),
     ...(b.availability && b.availability !== 'in stock' && !replaces
       ? ['The new product is "' + b.availability + '": ads show only what Meta considers available.']
+      : []),
+    ...(notSent.length
+      ? [
+          'Not sent, with a value today: ' +
+            notSent.join(', ') +
+            '. Meta does not say whether an upsert keeps or clears them.',
+        ]
       : []),
   ];
   return {
@@ -508,6 +534,7 @@ export function metaCatalogProductImpact(p: CompiledRequest, state: unknown[]): 
     operation: replaces ? 'update' : 'create',
     catalog: s.catalog ?? null,
     ...(replaces ? {before: existing, after} : {creating: after}),
+    ...(notSent.length ? {unsent_fields: notSent} : {}),
     ...(warnings.length ? {warnings} : {}),
     may_affect_serving: replaces,
     effect: replaces

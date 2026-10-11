@@ -495,7 +495,9 @@ After local source validation, choose Compare current catalog products. The read
 most 1,000 listed products, repeats selected evidence and brackets catalog ownership. Grouped/unknown native
 records block ambiguous missing products; unsupported/missing fields remain unknown. Matching/blocked rows
 are excluded from the eligible subset. Each saved product still needs fresh native review; saving all does
-not bypass the same variant guards. Unsent legacy group projections need fresh review; accepted receipts
+not bypass the same variant guards. A saved product that still holds every supplied value when the plan reaches it
+is recorded as `skipped_unchanged` with the read evidence and is not sent, so the plan can complete; it is not a
+failure and needs no correction. Any difference gets an ordinary review. Unsent legacy group projections need fresh review; accepted receipts
 retain original recovery. No inventory deletion or point-in-time/complete variant proof is inferred. See
 [workflow and exact collection bounds](review/DELIVERY-2026-10-04-X-CATALOG-COMPARISON.md).
 

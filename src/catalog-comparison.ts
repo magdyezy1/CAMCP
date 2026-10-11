@@ -88,10 +88,20 @@ export async function catalogComparison(
       budget.check();
       const items = result.items,
         review_retailer_ids = items.filter(i => !i.blocked && i.state !== 'matching').map(i => i.retailer_id),
-        summary = {new: 0, changed: 0, matching: 0, unknown: 0, blocked: 0, needs_review: review_retailer_ids.length};
+        summary = {
+          new: 0,
+          changed: 0,
+          matching: 0,
+          unknown: 0,
+          blocked: 0,
+          needs_review: review_retailer_ids.length,
+          // Additive (COM-01): products holding values for attributes the source does not send.
+          with_destination_only_values: 0,
+        };
       for (const item of items) {
         summary[item.state as 'new' | 'changed' | 'matching' | 'unknown']++;
         if (item.blocked) summary.blocked++;
+        if (item.unsent_fields.length) summary.with_destination_only_values++;
       }
       const captured_at = Date.now();
       return {

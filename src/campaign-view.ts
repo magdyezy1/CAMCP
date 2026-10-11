@@ -11,6 +11,8 @@ import type {JsonObject} from './types.js';
 export const planViewBudget = 11 * 1024; // within 12 KB once the response envelope is added
 const size = (v: unknown) => Buffer.byteLength(JSON.stringify(v));
 const done = (s: JsonObject) => ['verified', 'verified_with_acceptance'].includes(s.status);
+/** A step whose target already held every value it would send; nothing was sent (COM-01). Settled, not verified. */
+const unchanged = (s: JsonObject) => s.status === 'skipped_unchanged';
 const pick = (o: JsonObject, keys: string[]) =>
   Object.fromEntries(keys.filter(k => o[k] !== undefined).map(k => [k, o[k]]));
 /** The resources a step created or changed, as its verification and receipt name them. */
@@ -145,7 +147,7 @@ export function compactPlan(run: JsonObject, current?: string, extra: JsonObject
     const rows =
         level < 4
           ? run.steps.map((s: JsonObject) => row(s, level < 2 ? 3 : 1))
-          : run.steps.filter((s: JsonObject) => !done(s)).map((s: JsonObject) => row(s, 1)),
+          : run.steps.filter((s: JsonObject) => !done(s) && !unchanged(s)).map((s: JsonObject) => row(s, 1)),
       more =
         level >= 3 && Array.isArray(extra.missing_requirements)
           ? {...extra, missing_requirements: grouped(extra.missing_requirements)}
@@ -199,6 +201,9 @@ export function compactPlan(run: JsonObject, current?: string, extra: JsonObject
         : {}),
       steps: rows,
       ...(level >= 4 ? {verified_steps: run.steps.filter(done).map((s: JsonObject) => s.id)} : {}),
+      ...(level >= 4 && run.steps.some(unchanged)
+        ? {skipped_unchanged_steps: run.steps.filter(unchanged).map((s: JsonObject) => s.id)}
+        : {}),
       ...(step ? {current: currentStep(run, step, level)} : {}),
       ...more,
     };

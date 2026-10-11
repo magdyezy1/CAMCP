@@ -635,9 +635,15 @@ price, currency, image_url; optional url, availability, condition, brand and des
 and 50 products, with unique stable retailer IDs and HTTPS media/product URLs. `catalog_preview` does no provider
 egress; `catalog_plan` saves one native product step per item. Both require the exact selected account/login/catalog ID
 and an explicit `allow_upsert` boolean. Decimal prices become exact integer hundredths through the existing qualified
-Meta product contract. Every item then gets the normal native ownership, before-state, review, receipt and
+Meta product contract. The precision applies to the value, not the text: `12.500 KWD` is 1250 and `0.10` is 10, while
+`12.345 KWD` is refused with that price and currency named, because Meta counts hundredths; nothing is rounded.
+Every item then gets the normal native ownership, before-state, review, receipt and
 verification path. There is no implicit deletion and no direct write on import. WooCommerce synchronization,
 simultaneous destination fan-out and automatic feed deletion are not implemented.
+
+The page opens with the reviewed import and says that product imports support Meta and X while Snapchat catalogs are
+managed through feeds. With no Meta or X account it links to Connections. WooCommerce store sources follow the
+import; until a source is configured they sit in one collapsed "Connect a store source (administrators)" disclosure.
 
 The native product review and verification require exact account/catalog/business identities and a complete,
 bounded product page for the selected retailer. Malformed rows, foreign retailers, unfinished paging and coerced
@@ -1026,12 +1032,21 @@ CSV, choose create-only or explicit upsert, then validate the source. The previe
 exact decimal source prices and native hundredths. Compare current catalog products starts a bounded read of
 only the supplied retailer IDs. New, changed, matching and unknown states stay separate; create-only blocks every
 existing ID. Matching means only submitted fields have matching evidence. Unknown fields need native review.
+For Meta, as for X, each row also notes the native attributes the product holds a value for although the source does
+not send them (`unsent_fields`: for example a sale price, staging visibility or zero inventory), because neither
+provider says whether an update keeps or clears them; the summary counts such products
+(`with_destination_only_values`). The note changes no state, and the native review of an upsert repeats it as a
+warning.
 
 Save only products needing review excludes matching/blocked rows and preserves each selected original source
-product. Save all supplied products keeps the whole import. Both save unapproved local drafts; neither submits
+product. Save all supplied products keeps the whole import; after a comparison it says how many already match. In an
+X plan a product that still matches when the plan reaches it is recorded as unchanged (`skipped_unchanged`) and nothing
+is sent; a matching Meta product is reviewed and sent again. Both save unapproved local drafts; neither submits
 product changes. Execution still requires fresh native reviews, write authority and per-item read-back. Missing
 source items are retained. Revalidate after editing the file, mappings, account or policy. Scoped MCP handoffs
-select only currently accessible account/catalog IDs and ask for the source CSV again, without an automatic read.
+(`/commerce?catalog_comparison=1&gateway=…&connection_id=…&account_id=…&catalog_id=…`) select only a currently
+accessible account of that gateway and its catalog ID, and ask for the source CSV again, without an automatic read. A
+link without `gateway` is a Meta comparison; a gateway that does not match the account selects nothing.
 See [comparison qualification and limits](review/DELIVERY-2026-10-03-CATALOG-COMPARISON.md).
 
 ### Google Search conversion bidding

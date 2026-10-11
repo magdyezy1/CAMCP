@@ -214,8 +214,26 @@ function creationId(actor: Actor, key: unknown): string {
 }
 const verificationStepStatus = (status: string) =>
   ['verified', 'failed', 'mismatch'].includes(status) ? status : 'verifying';
-/** A step whose result later steps may use: verified, or accepted as observed by the user (Snapchat S5). */
-const settled = (s: JsonObject) => ['verified', 'verified_with_acceptance', 'complete'].includes(s.status);
+/**
+ * A step whose result later steps may use: verified, accepted as observed by the user (Snapchat S5), or found already
+ * current when it was prepared, so nothing was sent (COM-01).
+ */
+const settled = (s: JsonObject) =>
+  ['verified', 'verified_with_acceptance', 'complete', 'skipped_unchanged'].includes(s.status);
+/**
+ * A family's exact-equality evidence that the target already holds every value a write step would send (COM-01): the
+ * step is recorded as skipped_unchanged with that evidence instead of failed. Only a write step, only the refusal a
+ * family raises itself from its frozen read (its prerequisites), never one that carries a provider body. A real
+ * difference never raises it, so it never hides one.
+ */
+const alreadyCurrent = (step: JsonObject, error: JsonObject | undefined) =>
+  step.kind === 'write' &&
+  error?.details?.already_current === true &&
+  !!error.details.no_op_evidence &&
+  typeof error.details.no_op_evidence === 'object' &&
+  !Array.isArray(error.details.no_op_evidence) &&
+  error.details.upstream === undefined &&
+  error.details.response === undefined;
 /**
  * A Google build Google refused outright (HTTP 4xx other than a timeout or rate limit). The pinned v25 contract
  * applies a partialFailure-false googleAds:mutate "if and only if" every operation is valid, so a refused build created
@@ -1414,6 +1432,23 @@ export class CampaignRunner {
           actor,
         );
       }
+      if (!prepared.success && alreadyCurrent(next, prepared.error)) {
+        // Nothing to change: recorded with the read evidence, and the plan moves on to its next step (COM-01).
+        next.status = 'skipped_unchanged';
+        next.submission = 'not_submitted';
+        next.result = {
+          already_current: true,
+          evidence: prepared.error.details.no_op_evidence,
+          checked_at: new Date().toISOString(),
+        };
+        delete next.error;
+        run.state = planState(run, next);
+        run = this.save(actor, run);
+        return this.handle(
+          {action: 'prepare_next', id: run.id, ...(input.detail ? {detail: input.detail} : {})},
+          actor,
+        );
+      }
       if (!prepared.success) {
         next.status = 'failed';
         next.error = prepared.error;
@@ -1599,7 +1634,17 @@ export class CampaignRunner {
           },
       {
         receipt: {
-          verified: run.steps.filter(settled).map((s: JsonObject) => s.id),
+          verified: run.steps
+            .filter((s: JsonObject) => settled(s) && s.status !== 'skipped_unchanged')
+            .map((s: JsonObject) => s.id),
+          // Steps whose target already held every value; nothing was sent for them (COM-01).
+          ...(run.steps.some((s: JsonObject) => s.status === 'skipped_unchanged')
+            ? {
+                skipped_unchanged: run.steps
+                  .filter((s: JsonObject) => s.status === 'skipped_unchanged')
+                  .map((s: JsonObject) => s.id),
+              }
+            : {}),
           remaining: run.steps
             .filter((s: JsonObject) => !settled(s))
             .map((s: JsonObject) => ({id: s.id, status: s.status})),

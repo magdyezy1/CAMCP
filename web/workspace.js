@@ -39,6 +39,8 @@ const statusLabels = {
   active: 'Active',
   superseded: 'Superseded',
   skipped: 'Skipped',
+  // A plan step whose target already held every value it would send (COM-01).
+  skipped_unchanged: 'Unchanged, not sent',
   implemented_unverified: 'Implemented, not live-verified',
   recent_complete: 'Recent and complete',
   stale_or_incomplete: 'Stale or incomplete',
@@ -95,7 +97,7 @@ async function workspaceCall(tool, args) {
 const recordDetails = (v, title = uiText('Details')) =>
   `<details class="workspace-details"><summary>${esc(uiText(title))}</summary><pre class="code-block" tabindex="0" role="region" aria-label="${esc(uiText(title))}">${esc(JSON.stringify(v, null, 2))}</pre></details>`;
 const badge = (v, label = statusLabel(v)) =>
-  `<span class="status ${['verified', 'verified_with_acceptance', 'complete', 'passed', 'ready', 'resolved'].includes(v) ? 'online' : ['failed', 'mismatch', 'uncertain', 'blocked', 'attention', 'open', 'partial', 'expired'].includes(v) ? 'attention' : 'offline'}">${esc(label)}</span>`;
+  `<span class="status ${['verified', 'verified_with_acceptance', 'skipped_unchanged', 'complete', 'passed', 'ready', 'resolved'].includes(v) ? 'online' : ['failed', 'mismatch', 'uncertain', 'blocked', 'attention', 'open', 'partial', 'expired'].includes(v) ? 'attention' : 'offline'}">${esc(label)}</span>`;
 const blank = text => `<div class="empty">${esc(text)}</div>`;
 const controls = (label, type = 'text', value = '', name = label) =>
   `<label>${esc(uiText(label))}<input name="${esc(name)}" type="${type}" ${type === 'number' ? 'step="any"' : ''} value="${esc(value)}"></label>`;
