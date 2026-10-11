@@ -518,13 +518,13 @@ export class DecisionReporting {
           base = read(this.store, actor, 'overview_report', pairedId);
         } catch (e) {
           if (!(e instanceof MirrorError) || e.code !== 'NOT_FOUND') throw e;
-          pairing = {status: 'unavailable', reason: 'baseline_deleted'};
+          pairing = {status: 'unavailable', code: 'baseline_deleted'};
         }
         if (base && !['complete', 'partial'].includes(base.state))
-          pairing = {status: 'unavailable', reason: 'baseline_not_finished'};
+          pairing = {status: 'unavailable', code: 'baseline_not_finished'};
         else if (base) {
           const baseGroup = this.overviewGroups(actor, base).get(String(input.group_id));
-          if (!baseGroup) pairing = {status: 'unavailable', reason: 'group_not_in_baseline'};
+          if (!baseGroup) pairing = {status: 'unavailable', code: 'group_not_in_baseline'};
           else {
             const paired = this.captureOverviewGroup(actor, base, String(input.group_id), baseGroup);
             pairing = {status: 'paired', baseline_id: paired.id, overview_id: base.id};
@@ -1237,13 +1237,10 @@ export class DecisionReporting {
         // RPT-04: also among the limitations, which every client already reads (the website shows data_quality).
         ...(baseline && baseline.semantics?.complete !== true ? [baselineIncompleteLimitation] : []),
         ...(pairedUnavailable
-          ? [
-              'The paired previous-period baseline could not be used (' +
-                pairedUnavailable +
-                '); no baseline was applied.',
-            ]
+          ? ['The paired previous-period baseline could not be used, so no baseline was applied.']
           : []),
       ],
+      ...(pairedUnavailable ? {paired_baseline_unavailable: pairedUnavailable} : {}),
       ...(baseline && baseline.semantics?.complete !== true ? {data_quality: [baselineIncompleteLimitation]} : {}),
     };
   }

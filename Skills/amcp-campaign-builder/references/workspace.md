@@ -1267,7 +1267,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `delete_report` | Deletes a report snapshot, releasing its unconfirmed Sheets deliveries as resolution says. | **`id`**, **`confirmed`**, `expected_revision`, `resolution` | no provider request; saves overview_report | operator |
 | `update_schedule` | Changes a delivery schedule’s settings. | **`id`**, **`schedule`**, **`confirmed`**, `config`, `destination_id`, `view_id`, `expected_revision`, `expected_view_revision` | no provider request; saves overview_schedule | operator |
 | `remove_schedule` | Removes a delivery schedule; its snapshots stay. | **`id`**, **`confirmed`**, `expected_revision` | no provider request; saves overview_schedule | operator |
-| `run` | Queues a bounded native report snapshot of a saved definition (id) or a config. | **`confirmed`**, `id`, `config` | provider reads; saves overview_report | operator |
+| `run` | Queues a bounded native report snapshot of a saved definition (id) or a config; compare:previous_period also queues the equal previous window as its paired baseline. | **`confirmed`**, `id`, `config`, `compare` | provider reads; saves overview_report | operator |
 | `get` | One snapshot with a page of rows, its exports and deliveries. | **`id`**, `offset`, `limit` | no provider request | reader |
 | `list` | Report snapshots you can access, newest first. | `offset`, `limit` | no provider request | reader |
 | `export` | Exports a snapshot to its Google Sheets tab (replacing only the AMCP-owned tab) or to retained files. | **`report_id`**, **`destination_id`**, **`confirmed`**, `idempotency_key` | no provider request; saves overview_export; Google Sheets write | operator |
@@ -1282,6 +1282,8 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `bind_file_destination` | Binds an encrypted local PDF/XLSX file destination. | **`file_destination`**, **`confirmed`**, `idempotency_key` | no provider request; saves report_file_destination | operator |
 | `export_status` | One export’s state, outcome and retry availability. | **`id`** | no provider request | reader |
 | `resolve_delivery` | Resolves an unconfirmed Sheets delivery after its settle window (release the tab, or keep it). | **`delivery_id`**, **`resolution`**, **`confirmed`** | no provider request; saves sheets_delivery | operator |
+| `compare` | Compares a finished snapshot with an earlier equal-length snapshot (baseline_id, or its previous-period pair): exact deltas for matching entities, with no provider request. | **`id`**, `baseline_id`, `offset`, `limit` | no provider request | reader |
+| `compare_candidates` | Retained snapshots that could be the baseline of a snapshot, each with the rules it fails. | **`id`**, `offset`, `limit` | no provider request | reader |
 
 ### amcp_media
 

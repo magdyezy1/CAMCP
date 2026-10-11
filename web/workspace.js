@@ -823,22 +823,23 @@ async function renderDecisionReports() {
       identity === identityGeneration &&
       detail.isConnected;
     $('#report-detail').innerHTML =
-      `<section class="panel"><div class="panel-header"><h2>${esc(r.semantics.source_name)}</h2>${badge(r.semantics.complete ? 'complete' : 'incomplete')}</div><div class="workspace-metrics">${['spend', 'impressions', 'clicks', 'conversions'].map(k => `<article><strong>${r.totals[k] == null ? esc(uiText('Unknown')) : uiDecimalMarkup(r.totals[k], k === 'spend' ? {minorUnitsOf: r.semantics.currency} : {maximumFractionDigits: k === 'conversions' ? 2 : 0})}</strong><span>${esc(uiText(reportMetricLabels[k]))}${k === 'spend' ? ' · ' + esc(r.semantics.currency) : ''}</span></article>`).join('')}</div>${recordDetails({source_request: r.source_request, source_hash: r.source_hash, mapping: r.mapping, semantics: r.semantics, semantics_source: r.semantics_source, coverage: r.coverage, native_account_evidence: r.native_account_evidence, source_pages: r.source_pages, source_collection: r.source_collection, source_lineage: r.source_lineage, ...(r.conversion_windows ? {conversion_windows: r.conversion_windows} : {})}, uiText('Source and measurement definitions'))}<div id="report-evidence-download"></div><div id="report-native-rows"></div><div id="search-exclusion-workflow"></div></section><div class="workspace-columns"><section class="panel workspace-form"><h2>${esc(uiText('Pacing and recommendations'))}</h2><form id="analyze-report">${controls(uiText('Planned budget'), 'number', '', 'planned_budget')}${controls(uiText('Total days'), 'number', '', 'total_days')}${controls(uiText('Elapsed days'), 'number', '', 'elapsed_days')}${controls(uiText('Target CPA (optional)'), 'number', '', 'target_cpa')}<label>${esc(uiText('Earlier comparison report'))}<select name="baseline_id"><option value="">${esc(uiText('No baseline'))}</option>${reports
-        .filter(x => x.id !== r.id)
-        .map(
-          x => `<option value="${esc(x.id)}">${esc(x.semantics.source_name)} · ${esc(x.semantics.date_from)}</option>`,
-        )
-        .join(
-          '',
-        )}</select></label><button type="submit" class="button primary">${esc(uiText('Analyze evidence'))}</button></form></section><section class="panel workspace-form"><h2>${esc(uiText('Reconcile report totals'))}</h2><form id="reconcile-retained"><label>${esc(uiText('Retained reference report'))}<select name="reference_id" required><option value="">${esc(uiText('Choose a retained report'))}</option>${references.map(x => `<option value="${esc(x.id)}">${esc(x.semantics.source_name)} · ${esc(x.semantics.date_from)} — ${esc(x.semantics.date_to)}</option>`).join('')}</select></label><p class="form-note">${esc(uiText('Both reports must cover the same account, dates, currency, timezone, attribution and native grain. Unknown or incomplete settings cannot establish comparability.'))}</p><button type="submit" class="button">${esc(uiText('Compare retained reports'))}</button></form><details><summary>${esc(uiText('Import a CSV reference'))}</summary><div id="reference-import"></div></details><details><summary>${esc(uiText('Enter reference totals manually'))}</summary><form id="reconcile-report">${controls(uiText('Reference name'), 'text', '', 'label')}${controls(uiText('Reference spend'), 'text', '', 'spend')}${controls(uiText('Reference clicks'), 'text', '', 'clicks')}${controls(uiText('Reference conversions'), 'text', '', 'conversions')}<p class="form-note">${esc(uiText('These are manually supplied reference totals. Use the same account, dates, currency and attribution as this report.'))}</p><button type="submit" class="button">${esc(uiText('Compare totals'))}</button></form></details></section></div><div id="report-result"></div>`;
+      `<section class="panel"><div class="panel-header"><h2>${esc(r.semantics.source_name)}</h2>${badge(r.semantics.complete ? 'complete' : 'incomplete')}</div><div class="workspace-metrics">${['spend', 'impressions', 'clicks', 'conversions'].map(k => `<article><strong>${r.totals[k] == null ? esc(uiText('Unknown')) : uiDecimalMarkup(r.totals[k], k === 'spend' ? {minorUnitsOf: r.semantics.currency} : {maximumFractionDigits: k === 'conversions' ? 2 : 0})}</strong><span>${esc(uiText(reportMetricLabels[k]))}${k === 'spend' ? ' · ' + esc(r.semantics.currency) : ''}</span></article>`).join('')}</div>${recordDetails({source_request: r.source_request, source_hash: r.source_hash, mapping: r.mapping, semantics: r.semantics, semantics_source: r.semantics_source, coverage: r.coverage, native_account_evidence: r.native_account_evidence, source_pages: r.source_pages, source_collection: r.source_collection, source_lineage: r.source_lineage, ...(r.conversion_windows ? {conversion_windows: r.conversion_windows} : {})}, uiText('Source and measurement definitions'))}<div id="report-evidence-download"></div><div id="report-native-rows"></div><div id="search-exclusion-workflow"></div></section><div class="workspace-columns"><section class="panel workspace-form"><h2>${esc(uiText('Pacing and recommendations'))}</h2><form id="analyze-report">${controls(uiText('Planned budget'), 'number', '', 'planned_budget')}${controls(uiText('Total days'), 'number', '', 'total_days')}${controls(uiText('Elapsed days'), 'number', '', 'elapsed_days')}${controls(uiText('Target CPA (optional)'), 'number', '', 'target_cpa')}<label>${esc(uiText('Earlier comparison report'))}<select name="baseline_id">${evidenceBaselineOptions(r, reports)}</select></label><p class="form-note">${esc(uiText('Only an earlier window of the same length, account, report type and measurement definitions can be the baseline.'))}</p><button type="submit" class="button primary">${esc(uiText('Analyze evidence'))}</button></form></section><section class="panel workspace-form"><h2>${esc(uiText('Reconcile report totals'))}</h2><form id="reconcile-retained"><label>${esc(uiText('Retained reference report'))}<select name="reference_id" required><option value="">${esc(uiText('Choose a retained report'))}</option>${references.map(x => `<option value="${esc(x.id)}">${esc(x.semantics.source_name)} · ${esc(x.semantics.date_from)} — ${esc(x.semantics.date_to)}</option>`).join('')}</select></label><p class="form-note">${esc(uiText('Both reports must cover the same account, dates, currency, timezone, attribution and native grain. Unknown or incomplete settings cannot establish comparability.'))}</p><button type="submit" class="button">${esc(uiText('Compare retained reports'))}</button></form><details><summary>${esc(uiText('Import a CSV reference'))}</summary><div id="reference-import"></div></details><details><summary>${esc(uiText('Enter reference totals manually'))}</summary><form id="reconcile-report">${controls(uiText('Reference name'), 'text', '', 'label')}${controls(uiText('Reference spend'), 'text', '', 'spend')}${controls(uiText('Reference clicks'), 'text', '', 'clicks')}${controls(uiText('Reference conversions'), 'text', '', 'conversions')}<p class="form-note">${esc(uiText('These are manually supplied reference totals. Use the same account, dates, currency and attribution as this report.'))}</p><button type="submit" class="button">${esc(uiText('Compare totals'))}</button></form></details></section></div><div id="report-result"></div>`;
     mountEvidenceRows(r, currentSelection);
     mountEvidenceDownload(r, currentSelection);
     let resultSequence = 0;
     const resultNode = $('#report-result');
     syncReferenceChoices = () => {
       if (!currentSelection()) return;
+      const baselineSelect = detail.querySelector('select[name="baseline_id"]');
+      if (baselineSelect) {
+        const previous = baselineSelect.value;
+        baselineSelect.innerHTML = evidenceBaselineOptions(r, reports, previous);
+        if (baselineSelect.value !== previous) {
+          resultSequence++;
+          resultNode.innerHTML = '';
+        }
+      }
       for (const [name, candidates, placeholder] of [
-        ['baseline_id', reports.filter(x => x.id !== r.id), 'No baseline'],
         [
           'reference_id',
           reports.filter(x => x.id !== r.id && x.gateway === r.gateway && x.account_id === r.account_id),
@@ -953,4 +954,40 @@ async function renderDecisionReports() {
   renderList();
   const linked = new URLSearchParams(location.search).get('id');
   if (linked) await openReport(linked);
+}
+/**
+ * RPT-07: why retained evidence `x` cannot be the analyze baseline of `r`, or '' when it can. The server applies the
+ * same rule (and also checks the field mapping); a disabled option shows its reason.
+ */
+function evidenceBaselineReason(r, x) {
+  const s = r.semantics ?? {},
+    b = x.semantics ?? {},
+    days = v => (Date.parse(v.date_to) - Date.parse(v.date_from)) / 86400000 + 1;
+  if (x.gateway !== r.gateway || x.account_id !== r.account_id) return 'Different account or platform';
+  if ((x.source ?? null) !== (r.source ?? null) || (x.preset ?? null) !== (r.preset ?? null))
+    return 'Different report type';
+  if ((x.grain ?? null) !== (r.grain ?? null)) return 'Different grain';
+  if (['currency', 'timezone', 'attribution', 'conversion_definition'].some(k => s[k] !== b[k]))
+    return 'Different currency, time zone, attribution or result definition';
+  if ([s.attribution, s.conversion_definition].includes('unknown')) return 'Unknown attribution or result definition';
+  if (!b.date_from || !b.date_to || days(b) !== days(s)) return 'Different window length';
+  if (b.date_to >= s.date_from) return 'Must end before this report starts';
+  return '';
+}
+/** The analyze baseline choices: compatible evidence first; the rest disabled with the reason. */
+function evidenceBaselineOptions(r, reports, selected = '') {
+  const choices = reports
+    .filter(x => x.id !== r.id)
+    .map(x => ({x, reason: evidenceBaselineReason(r, x)}))
+    .sort((a, b) => Number(!!a.reason) - Number(!!b.reason));
+  const paired = r.paired_baseline_id;
+  return (
+    `<option value="">${esc(uiText(paired ? 'Paired previous window (default)' : 'No baseline'))}</option>` +
+    choices
+      .map(
+        ({x, reason}) =>
+          `<option value="${esc(x.id)}" ${reason ? 'disabled' : ''} ${x.id === selected && !reason ? 'selected' : ''}>${esc(x.semantics.source_name ?? uiText('Untitled evidence'))} · ${esc(x.semantics.date_from ?? uiText('Unknown'))}${x.semantics.date_to ? ' — ' + esc(x.semantics.date_to) : ''}${x.id === paired ? ' · ' + esc(uiText('paired previous window')) : ''}${reason ? ' — ' + esc(uiText(reason)) : ''}</option>`,
+      )
+      .join('')
+  );
 }

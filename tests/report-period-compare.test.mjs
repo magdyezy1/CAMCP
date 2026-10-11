@@ -1,4 +1,4 @@
-﻿// RPT-07: period-over-period comparison of retained Overview snapshots. Synthetic Meta fixtures only; no network.
+// RPT-07: period-over-period comparison of retained Overview snapshots. Synthetic Meta fixtures only; no network.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Store} from '../dist/src/store.js';
@@ -122,7 +122,7 @@ test('exact additive deltas, recomputed ratios, unknowns and entities in one win
     });
   const out = compareSnapshots(current, baseline);
   const c1 = out.rows.find(r => r.entity_id === 'c1');
-  // 120.3 âˆ’ 100.1 is exactly 20.2 (never 20.199999999999989), and 20.2 / 100.1 rounds half to even at nine places.
+  // 120.3 − 100.1 is exactly 20.2 (never 20.199999999999989), and 20.2 / 100.1 rounds half to even at nine places.
   assert.deepEqual(c1.values.spend, {
     current: '120.3',
     baseline: '100.1',
@@ -381,7 +381,7 @@ test('capture_overview keeps the paired group and analyze uses it as the default
     assert.equal(analyzed.success, true, JSON.stringify(analyzed));
     assert.equal(analyzed.data.baseline_id, captured.data.pairing.baseline_id);
     assert.equal(analyzed.data.baseline_source, 'paired_previous_period');
-    // 160.3 is more than 1.5 Ã— 109.1: the pair feeds the existing spend-anomaly heuristic.
+    // 170.3 is more than 1.5 × 109.1: the pair feeds the existing spend-anomaly heuristic.
     assert.ok(analyzed.data.recommendations.some(r => r.type === 'spend_anomaly'));
     // A deleted pair is skipped with a stated limitation instead of failing the analysis.
     f.store.deleteDocument(actor.tenantId, 'decision_report', captured.data.pairing.baseline_id);

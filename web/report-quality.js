@@ -149,6 +149,7 @@ const reportExplanationMessages = new Set([
   'No spend, or less than the minimum spend, in this window. Wait for delivered spend before recommending a change.',
   'Recommendations in this snapshot have expired. Refresh the report before acting on them.',
   'The baseline window is not declared complete; comparisons with it (spend anomaly, creative fatigue) may reflect missing baseline data.',
+  'The paired previous-period baseline could not be used, so no baseline was applied.',
 ]);
 /** DEC-01: frozen recommendations show their as-of time, and are flagged expired at display time after 48 hours. */
 function reportRecommendationAsOf(row) {
@@ -175,6 +176,10 @@ const reportSourceWarnings = new Set([
   'Microsoft did not return a recognized account time zone, so report days use GreenwichMeanTimeDublinEdinburghLisbonLondon (Europe/London, including daylight saving).',
   'TikTok campaign reporting covers auction campaigns only (AUCTION_CAMPAIGN); Reach & Frequency and other reserved campaigns are not included.',
   'TikTok ad group optimization events could not be read, so conversions use one generic result definition and campaigns optimizing for different events are not told apart.',
+  // RPT-07: LinkedIn campaign names and objectives come from a current metadata read.
+  'LinkedIn campaign names and objectives could not be read, so rows show campaign IDs and objectives stay unknown unless confirmed in report settings.',
+  'LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Campaign names and objectives are current campaign metadata, not the values at delivery time.',
+  'LinkedIn conversion-rule attribution windows are not independently verified. Campaign objectives should be confirmed in report settings.',
 ]);
 // Collector notices that carry a count or a field name (RPT-03, RPT-04). English keeps the collector's own sentence;
 // another language fills the same exact value into its translated template.

@@ -289,6 +289,40 @@ Open **Reporting overview** in workspace navigation (/reporting-overview). Selec
 - **Scale**, **hold**, **pull back** and **reconsider/pause** are advisory. Each includes its reason and evidence. Missing objective/result definitions, immature or incomplete data, insufficient volume and ambiguous currency hold the recommendation. Nothing automatically changes campaign status or budget.
 - Summary cards keep platform, account, currency, timezone, attribution and objective groups separate. Ratios use additive components; reach/frequency/users are not blindly summed. AMCP does not deduplicate cross-platform conversions or invent a global currency total.
 
+## Period comparison (RPT-07)
+
+Compare a snapshot with an earlier window of the same report without spreadsheet work. Comparison reads retained
+snapshots only: no provider request and no saved change.
+
+- **Pull a pair.** Tick **Also collect the previous equal window to compare** in the builder, or call `run` with
+  `compare:"previous_period"`. AMCP queues two linked snapshots: the current window and the equal-length window that
+  ends the day before it (a 31-day window compares with the 31 days before it, not the previous calendar month). Each
+  snapshot keeps its own whole-job collection limits and estimate check, so a pair never exceeds the limits of one
+  run per job; both count against the 100 active reporting jobs and are refused together. With
+  `source_timezone:"account"`, each source takes the equal window before its own resolved window.
+- **Compare to.** On a finished snapshot, **Compare periods** lists retained snapshots (`compare_candidates`). An
+  earlier snapshot qualifies when both finished collecting, use the same grouping, have equal-length windows, the
+  baseline ends before the current window starts, and at least one account appears in both. Others stay listed,
+  disabled, with the rule they fail. The previous-period pair is preselected and opened.
+- **What is compared** (`compare {id, baseline_id?}`; without `baseline_id` the pair is used). Entities match on
+  platform, account, entity level and native ID, and are compared only when their compatibility key also matches:
+  currency, time zone, result definition, attribution, entity level and grouping. Additive metrics are summed exactly
+  over each window; ratios (CPA, CTR, ROAS, …) are recomputed from those sums; reach, frequency, users and position are
+  compared only for single-day native values. Each value has this window, the earlier window, Δ and Δ% at nine decimal
+  places, rounded half to even. A zero earlier value has no Δ% (`baseline_zero`); a missing value stays unknown.
+  Custom metrics are compared only when both snapshots use the same formulas and the formula reads standard additive
+  metrics. Entities in only one window, and entities whose definitions differ, are listed with the reason and never
+  counted as zero. Group totals add matched entities only.
+- **Analysis.** `amcp_reporting capture_overview` on the current snapshot of a pair also keeps the same group of its
+  baseline (`pairing`), and `analyze` uses that pair as its default baseline (`baseline_source:
+  "paired_previous_period"`). A pair that was deleted or is no longer compatible is skipped with a limitation; an
+  explicit `baseline_id` is still checked and refused as before.
+- **Limits of meaning.** Deltas are observational: they do not establish causality or adjust for seasonality.
+
+On **Evidence and analysis** (`/reports`), the **Earlier comparison report** select applies the same rule as the server
+(same account, report type, grain and measurement definitions, equal length, ending before this report starts) and
+shows disabled entries with their reason.
+
 ## Coverage
 
 | Source | Reporting behavior |
@@ -297,7 +331,7 @@ Open **Reporting overview** in workspace navigation (/reporting-overview). Selec
 | Meta | Campaign Insights with account attribution (or an explicit attribution profile) and objective-specific result aliases |
 | TikTok | Integrated campaign report plus objective inventory |
 | Snapchat | Campaign totals/inventory and account-local day boundaries |
-| LinkedIn | Campaign adAnalytics with verified account currency, native UTC period/completion checks and explicit unknown conversion attribution; objective override when omitted |
+| LinkedIn | Campaign adAnalytics with verified account currency, native UTC period/completion checks and explicit unknown conversion attribution. Campaign names and objectives come from one bounded read of the account's own campaigns per job (current metadata, not delivery-time values); a campaign of another account refuses the source, a refused read keeps IDs with a warning. Objective override when omitted |
 | X Ads | Active-entities request planning; current documented placements ALL_ON_TWITTER, SPOTLIGHT and TREND; separate web and mobile conversion requests; resumable hourly batches and explicit partial-coverage flags |
 | Microsoft Ads | Durable Submit/Poll campaign report in the account time zone and secure server-side CSV download |
 | Apple Ads | Campaign report with explicit UTC range |

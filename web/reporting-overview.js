@@ -449,7 +449,7 @@ async function renderReportingOverview() {
     })
     .join(
       '',
-    )}</div></details><label class="report-delivery-policy">${esc(uiText('Sheets delivery policy'))}<select name="partial_delivery"><option value="allow_marked" ${c.partial_delivery !== 'complete_only' ? 'selected' : ''}>${esc(uiText('Allow clearly marked partial reports'))}</option><option value="complete_only" ${c.partial_delivery === 'complete_only' ? 'selected' : ''}>${esc(uiText('Deliver complete reports only'))}</option></select></label><div class="report-runbar"><span id="report-selected-count" class="muted">${esc(uiText('Choose your accounts above.'))}</span><div><button type="button" id="overview-save" class="button" ${viewer ? 'disabled' : ''}>${overviewState.selection?.kind === 'template' ? uiText('Save template') : overviewState.selection ? uiText('Save changes') : uiText('Save report')}</button><button type="submit" class="button primary" ${viewer ? 'disabled' : ''}>${glyph('report')} ${esc(uiText('Pull report'))}</button></div></div></section></form><section id="overview-results"></section><section class="panel report-history">${renderOverviewHistory(history.reports, viewer)}</section><dialog id="report-delivery-dialog" class="report-delivery-dialog" aria-label="${esc(uiText('Report delivery'))}"><div id="report-delivery-content"></div></dialog>`;
+    )}</div></details><label class="report-delivery-policy">${esc(uiText('Sheets delivery policy'))}<select name="partial_delivery"><option value="allow_marked" ${c.partial_delivery !== 'complete_only' ? 'selected' : ''}>${esc(uiText('Allow clearly marked partial reports'))}</option><option value="complete_only" ${c.partial_delivery === 'complete_only' ? 'selected' : ''}>${esc(uiText('Deliver complete reports only'))}</option></select></label><div class="report-runbar"><span id="report-selected-count" class="muted">${esc(uiText('Choose your accounts above.'))}</span><label class="check"><input type="checkbox" id="overview-compare-previous"> ${esc(uiText('Also collect the previous equal window to compare'))}</label><div><button type="button" id="overview-save" class="button" ${viewer ? 'disabled' : ''}>${overviewState.selection?.kind === 'template' ? uiText('Save template') : overviewState.selection ? uiText('Save changes') : uiText('Save report')}</button><button type="submit" class="button primary" ${viewer ? 'disabled' : ''}>${glyph('report')} ${esc(uiText('Pull report'))}</button></div></div></section></form><section id="overview-results"></section><section class="panel report-history">${renderOverviewHistory(history.reports, viewer)}</section><dialog id="report-delivery-dialog" class="report-delivery-dialog" aria-label="${esc(uiText('Report delivery'))}"><div id="report-delivery-content"></div></dialog>`;
   bindReportDates();
   // DEC-01: the target card shows the direction derived for the selected KPI.
   document.querySelectorAll('[data-target-kpi]').forEach(el =>
@@ -525,7 +525,13 @@ async function renderReportingOverview() {
     if (overviewState.selection?.kind === 'template')
       throw new Error(uiText('Create a report from this template and choose its client accounts first.'));
     overviewState.config = overviewConfig();
-    const run = await overviewCall({action: 'run', config: overviewState.config, confirmed: true});
+    // RPT-07: the previous equal window is a second, linked snapshot with its own collection limits.
+    const run = await overviewCall({
+      action: 'run',
+      config: overviewState.config,
+      confirmed: true,
+      ...($('#overview-compare-previous')?.checked ? {compare: 'previous_period'} : {}),
+    });
     overviewState.page = 0;
     await loadOverviewReport(run.id);
   });
