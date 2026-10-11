@@ -22,7 +22,7 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     'contracts (read/write/media/blocked classification of every action, no network), ' +
     'operations (metadata feed of retained work with next_call handoffs), history (bounded audit metadata) and ' +
     'dashboard (counts per provider and account; sections select bounded detail). ' +
-    'Other actions: portfolio and portfolio_reconcile, measurement_audit/events/event_identity/conversions, catalog_sources/source/preview/compare/plan, consent and catalog-removal drafts, local workbook report runs and schedules (results stay in AMCP; no spreadsheet writes), queries and bindings, incidents and monitors, client profiles and briefs, and owner operations (health, support_bundle, spend, retention and plan policies, write pause, personal-data switch). ' +
+    'Other actions: portfolio and portfolio_reconcile, measurement_audit/events/event_identity/conversions/google_goals/ga4_config/ledger, catalog_sources/source/preview/compare/plan, consent and catalog-removal drafts, local workbook report runs and schedules (results stay in AMCP; no spreadsheet writes), queries and bindings, incidents and monitors, client profiles and briefs, and owner operations (health, support_bundle, spend, retention and plan policies, write pause, personal-data switch). ' +
     help('amcp_workspace'),
   amcp_campaign:
     'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. ' +

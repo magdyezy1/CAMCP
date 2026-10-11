@@ -398,6 +398,12 @@ Before the first upload, the owner does four things outside AMCP. AMCP does none
   selected customer. An event older than 90 days, or in the future, stops the whole upload. The
   review shows the events in aggregate only, and says a conversion cannot be recalled once
   Google has received it.
+- **Rehearsal.** `amcp_write inspect` of `DATA_MANAGER_INGEST_EVENTS` with `people` also returns
+  `offline_upload_rehearsal`: a local dry run that applies the 90-day and future-time limits, builds
+  the exact request and its `validateOnly: true` form, and reports only their hashes and counts.
+  Nothing is sent, no review is created and it can never be executed. Sending Google's
+  validate-only request would still transmit hashed people, so AMCP does not, until the owner
+  decides the rehearsal policy.
 - **Verification** reads the request status. `pending` means Google is still processing, so
   verify again later. `verified` means Google reports success for every record sent. The
   result carries Google's error counts and, for lists, its match-rate range. It never reads

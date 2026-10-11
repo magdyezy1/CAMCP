@@ -734,13 +734,43 @@ references remain available, but no snapshot is saved. The website handoff prese
 without reading automatically; search/paging is local. Event delivery, deduplication, consent, campaign membership
 and historical report attribution are not established. No event, rule change or campaign association occurs.
 
+`amcp_workspace {action:"measurement_google_goals",gateway:"google_ads_native_action",account_id,connection_id,
+requirements?:{currency}}` reads current Google Ads conversion goals as measurement evidence: account-default goals,
+enabled primary actions with value settings, and the last conversion date and tag detection Google reports. Each
+collection is read twice and must match (64 requests, 4,000 rows, 2 MiB, 60 seconds). Manager or shared-conversion
+customers return complete:false with a reason; incomplete reads never report ready. Without currency the observed
+account currency is reported. A change of actor, account access, stored credential or write pause refuses the
+response. Nothing is saved; delivery, deduplication, consent and attribution stay unverified.
+
+`amcp_workspace {action:"measurement_ga4_config",gateway:"ga4_native_action",account_id,connection_id,
+requirements?:{sections}}` reads one GA4 property's configuration through fixed Admin API v1beta GETs: sections
+key_events, custom_dimensions, custom_metrics, data_streams (type and measurement ID), google_ads_links and
+data_retention (all by default). Every list is read completely (10 pages per list; 60 requests, 4 MiB, 60 seconds);
+foreign, unpinned, repeated or malformed rows refuse the read. `checks.test_identifier_dimension` says whether the
+event-scoped `amcp_test_id` dimension that measurement_event_identity needs is registered. Ads link creator e-mails
+are never returned. Nothing is saved; configuration is not proof of delivery.
+
+`amcp_workspace {action:"measurement_ledger",gateway:"google_ads_native_action"|"ga4_native_action",account_id,
+connection_id}` returns the measurement evidence ledger of one asset: six fixed layers (configuration,
+provider_observed_activity, provider_diagnostics, supplied_runtime_trace, consent, attribution_settings), each
+observed, unknown, unavailable or not_applicable with a `reason` code and its evidence. Google Ads reuses the goals
+read, then offline conversion upload client summaries and the attribution settings of enabled conversion actions;
+GA4 reuses the configuration read, then a 30-minute realtime count of its key events. A failed, partial, foreign or
+thresholded read leaves only its layer unknown (`reason:"read_failed"`, `evidence.error`); an actor, login, access or
+write-pause change refuses the ledger. Never present unknown as healthy or as broken, and never treat an observed
+layer as proof of delivery, deduplication, consent or attribution. Bounded to 96 requests, 8 MiB and 150 seconds;
+nothing is saved. Meta, Snapchat and TikTok pixels have no adapter (owner decision P8 is open).
+
 `amcp_workspace {action:"preview_consent_plan",gateway:"gtm_native_action",account_id,connection_id,
 requirements:{container_id,workspace_id,tag_ids,required_types}}` previews additional-consent additions for
 1–10 explicitly chosen tags in one exact Tag Manager workspace. Supply 1–20 distinct literal type strings;
-never choose a consent policy for the operator or resolve GTM variables. Original tag IDs, existing required
-types, parameters, triggers, names and paused state are preserved. Unknown/future/dynamic native settings,
-partial resources, missing native fingerprints and changed evidence are refused. Already-required tags are
-shown without a write step; an entirely unchanged selection produces no draft.
+never choose a consent policy for the operator or resolve GTM variables. Types other than the documented
+Google consent types (ad_storage, analytics_storage, ad_user_data, ad_personalization, functionality_storage,
+personalization_storage, security_storage) need `custom_types_acknowledged:true` in requirements, confirmed by
+the operator; never set it to get past a typo. They are returned as scope.custom_types and labelled in the draft.
+Original tag IDs, existing required types, parameters, triggers, names and paused state are preserved.
+Unknown/future/dynamic native settings, partial resources, missing native fingerprints and changed evidence are
+refused. Already-required tags are shown without a write step; an entirely unchanged selection produces no draft.
 
 Fresh GET_WORKSPACE/GET_TAG reads bracket the selected resources under unchanged current actor/account/login
 authority. Bounds: 48 transport attempts including retries, 24 resource observations, 2 MiB and 60 seconds.

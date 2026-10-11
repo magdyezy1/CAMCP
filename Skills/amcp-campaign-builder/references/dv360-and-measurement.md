@@ -627,7 +627,12 @@ reads only account IDs already granted to this connection; it does not grant new
 Default output contains counts, identities and findings; opt into include_resources only
 when full configuration is needed. It checks duplicate names, references, conflicts and
 latest/live version state. A trigger absent from the list is **unknown**, because it might
-be provider-managed. No clean audit result proves compiler, browser or consent readiness.
+be provider-managed; the audit reports it once per trigger ID with entity_count, tag_count
+and up to 20 sample_paths. `complete` means every read succeeded; `finding_list:"truncated"`
+only shortens the returned list (errors and warnings first). With versions, the audit adds
+`live_consent_evidence` for the published version and, for a workspace, a per-tag
+`consent_diff` against the draft, with no extra request. No clean audit result proves
+compiler, browser or consent readiness.
 
 `gtm_action_job_status` reads AMCP's verification job using the job_id returned in
 `amcp_write execute`'s `verification`. This is not a Google job or a second mutation.

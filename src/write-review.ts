@@ -68,6 +68,7 @@ import {
   type PersonalDataRecord,
 } from './personal-data.js';
 import {assertPersonalDataAllowed} from './personal-data-access.js';
+import {offlineUploadRehearsal} from './offline-upload-rehearsal.js';
 import {loginStamp} from './connection-authority.js';
 import {
   providerValidationRequest,
@@ -82,7 +83,7 @@ import {reviewSummary} from './review-summary.js';
 export const writeTool = {
   name: 'amcp_write',
   description:
-    'Use this for any single advertising or measurement change; use amcp_campaign when later steps need IDs that earlier steps create. Inspect, prepare and execute a reviewed native mutation. inspect checks local write-contract support without credentials or network calls. Preparation reads account/resource state and returns a five-minute, actor-bound frozen request, with execute_requirements naming every acknowledgement execute will need. Execution requires its review_id and confirmed=true; idempotency_key defaults to the review_id. Operator role and administrator account write grants are required. A Google Ads mutation or Snapchat batch of more than 25 records is prepared as one review of parts of 25 (group: true) and approved and executed once; execution stops at the first part that does not succeed. status {review_id} reads a retained review back without a provider request: its claim, receipt, read-back and next call. reconcile {review_id} checks an uncertain write with read-only provider lookups and never sends it again; with accept_applied=true and its reconciliation_id it records the observed result as the receipt. This is an AMCP extension, not a captured AMCP tool.',
+    'Use this for any single advertising or measurement change; use amcp_campaign when later steps need IDs that earlier steps create. Inspect, prepare and execute a reviewed native mutation. inspect checks local write-contract support without credentials or network calls; for an offline conversion upload it also returns a local rehearsal (provider time limits, request hashes, the provider no-execution flag) that is never sent or executed. Preparation reads account/resource state and returns a five-minute, actor-bound frozen request, with execute_requirements naming every acknowledgement execute will need. Execution requires its review_id and confirmed=true; idempotency_key defaults to the review_id. Operator role and administrator account write grants are required. A Google Ads mutation or Snapchat batch of more than 25 records is prepared as one review of parts of 25 (group: true) and approved and executed once; execution stops at the first part that does not succeed. status {review_id} reads a retained review back without a provider request: its claim, receipt, read-back and next call. reconcile {review_id} checks an uncertain write with read-only provider lookups and never sends it again; with accept_applied=true and its reconciliation_id it records the observed result as the receipt. This is an AMCP extension, not a captured AMCP tool.',
   inputSchema: {
     type: 'object',
     required: ['action'],
@@ -694,7 +695,11 @@ export class WriteReviewService {
           this.people(plan, input, true);
           assertWriteShape(plan);
           familyOf(plan)?.available?.(plan);
-          const reads = snapshotPlans(plan, this.registry);
+          const reads = snapshotPlans(plan, this.registry),
+            // MSR-03: an offline conversion upload also gets its local rehearsal; nothing is sent or reviewed.
+            rehearsal = plan.personalData
+              ? offlineUploadRehearsal(plan, familyOf(plan)!.personalData!, input.people)
+              : undefined;
           return {
             executed: false,
             network_requests: 0,
@@ -724,6 +729,7 @@ export class WriteReviewService {
                   }
                 : {}),
             },
+            ...(rehearsal ? {offline_upload_rehearsal: rehearsal} : {}),
             next_step: 'Use prepare to verify live state and account access.',
           };
         } catch (e) {

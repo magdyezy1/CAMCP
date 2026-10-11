@@ -2,7 +2,7 @@ import {randomUUID} from 'node:crypto';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {bad, fingerprint, noSecrets, obj, validate, writer, type ToolCall} from './workspace-core.js';
-import {gtmConsentEvidence} from './gtm-consent-evidence.js';
+import {gtmConsentEvidence, gtmNonStandardConsentTypes} from './gtm-consent-evidence.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {MirrorError} from './errors.js';
 import {pinnedJson} from './pinned-json.js';
@@ -45,7 +45,7 @@ function selection(input: JsonObject) {
   if (input.gateway !== gateway || !id(input.account_id) || !id(input.connection_id))
     bad('Choose the exact Tag Manager account and login.');
   const r = input.requirements ?? {};
-  validate(r, ['container_id', 'workspace_id', 'tag_ids', 'required_types']);
+  validate(r, ['container_id', 'workspace_id', 'tag_ids', 'required_types', 'custom_types_acknowledged']);
   if (!id(r.container_id) || !id(r.workspace_id)) bad('Choose the exact container and workspace.');
   if (
     !Array.isArray(r.tag_ids) ||
@@ -63,6 +63,17 @@ function selection(input: JsonObject) {
     new Set(r.required_types).size !== r.required_types.length
   )
     bad('Choose 1–20 distinct literal additional-consent types. Variables and duplicate types are refused.');
+  // MSR-01: a type Google does not document (a typo such as analytic_storage) is never granted at runtime, so the
+  // tag would stop firing once published. Each preview must acknowledge every non-standard type it adds.
+  const custom = gtmNonStandardConsentTypes(r.required_types);
+  if (r.custom_types_acknowledged !== undefined && typeof r.custom_types_acknowledged !== 'boolean')
+    bad('custom_types_acknowledged is an explicit boolean.');
+  if (custom.length && r.custom_types_acknowledged !== true)
+    bad(
+      'Some consent types are not documented Google consent types. Check their spelling, or acknowledge that your consent platform grants them.',
+      'CONSENT_CUSTOM_TYPES_UNACKNOWLEDGED',
+      {custom_types: custom},
+    );
   return {
     gateway,
     account_id: input.account_id,
@@ -72,6 +83,7 @@ function selection(input: JsonObject) {
     workspace_path: `accounts/${input.account_id}/containers/${r.container_id}/workspaces/${r.workspace_id}`,
     tag_ids: r.tag_ids,
     required_types: r.required_types,
+    ...(custom.length ? {custom_types: custom, custom_types_acknowledged: true} : {}),
   };
 }
 
@@ -216,7 +228,11 @@ function nativeArguments(scope: JsonObject, tag: JsonObject, payload: JsonObject
     },
   };
 }
+/** Non-standard types this step adds; existing required types were not chosen in this preview (MSR-01). */
+export const consentStepCustomTypes = (scope: JsonObject, target: JsonObject): string[] =>
+  (scope.custom_types ?? []).filter((type: string) => !target.before_required_types.includes(type));
 function draft(binding: JsonObject, previewId: string) {
+  const custom: string[] = binding.scope.custom_types ?? [];
   return {
     action: 'create',
     name: 'Tag consent draft',
@@ -229,7 +245,12 @@ function draft(binding: JsonObject, previewId: string) {
       binding.scope.workspace_path +
       '. Add the explicitly selected additional-consent types: ' +
       binding.scope.required_types.join(', ') +
-      '. Preserve other tag configuration and existing required types. These are unapproved workspace updates; no container version is created or published. Each step still needs native review, execution confirmation and read-back.',
+      '. Preserve other tag configuration and existing required types. These are unapproved workspace updates; no container version is created or published. Each step still needs native review, execution confirmation and read-back.' +
+      (custom.length
+        ? ' Non-standard consent types acknowledged by the requester: ' +
+          custom.join(', ') +
+          '. A consent platform must grant them or the tag will not fire.'
+        : ''),
     steps: binding.targets
       .filter((t: JsonObject) => t.state === 'change')
       .map((t: JsonObject, i: number) => ({
@@ -239,7 +260,14 @@ function draft(binding: JsonObject, previewId: string) {
         account_id: binding.scope.account_id,
         connection_id: binding.scope.connection_id,
         depends_on: [],
-        description: 'Tag ' + t.tag_id + ': require additional consent ' + t.proposed_required_types.join(', '),
+        description:
+          'Tag ' +
+          t.tag_id +
+          ': require additional consent ' +
+          t.proposed_required_types.join(', ') +
+          (consentStepCustomTypes(binding.scope, t).length
+            ? '. Non-standard types acknowledged: ' + consentStepCustomTypes(binding.scope, t).join(', ')
+            : ''),
         arguments: t.native_arguments,
       })),
   };

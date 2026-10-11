@@ -334,6 +334,11 @@ function consentReviewContext(run) {
     new Set(s.tag_ids).size !== s.tag_ids.length ||
     !types(s.required_types) ||
     !s.required_types.length ||
+    (s.custom_types !== undefined &&
+      (!types(s.custom_types) ||
+        !s.custom_types.length ||
+        s.custom_types_acknowledged !== true ||
+        !s.custom_types.every(v => s.required_types.includes(v)))) ||
     !Array.isArray(c.targets) ||
     c.targets.length !== s.tag_ids.length ||
     c.targets.some(
@@ -365,7 +370,7 @@ function consentProposalView(c) {
         return uiText('Additional consent not set');
     }
   };
-  return `<section><h3>${esc(uiText('Saved consent additions'))}</h3><p class="notice">${esc(uiText('These explicit additional-consent requirements apply to workspace tags. Native review and read-back remain required. Publishing is separate; runtime consent and event delivery remain unverified.'))}</p><p><code dir="ltr">${esc(c.scope.workspace_path)}</code></p><div class="data-scroll" role="region" aria-label="${esc(uiText('Consent additions'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Consent additions'))}</caption><thead><tr><th scope="col">${esc(uiText('Tag'))}</th><th scope="col">${esc(uiText('Original consent setting'))}</th><th scope="col">${esc(uiText('Original required types'))}</th><th scope="col">${esc(uiText('Proposed required types'))}</th><th scope="col">${esc(uiText('Draft change'))}</th></tr></thead><tbody>${c.targets.map(t => `<tr><th scope="row"><bdi dir="auto">${esc(t.name ?? t.tag_id)}</bdi><br><code dir="ltr">${esc(t.tag_id)}</code></th><td>${esc(setting(t.before_setting))}</td><td><code dir="ltr">${esc(t.before_required_types.join(', ') || '—')}</code></td><td><code dir="ltr">${esc(t.proposed_required_types.join(', '))}</code></td><td>${esc(uiText(t.state === 'change' ? 'Add required types' : 'Already required; no step'))}</td></tr>`).join('')}</tbody></table></div></section>`;
+  return `<section><h3>${esc(uiText('Saved consent additions'))}</h3><p class="notice">${esc(uiText('These explicit additional-consent requirements apply to workspace tags. Native review and read-back remain required. Publishing is separate; runtime consent and event delivery remain unverified.'))}</p>${c.scope.custom_types?.length ? `<p class="notice warning"><strong>${esc(uiText('Non-standard consent type'))}</strong>: <code dir="ltr">${esc(c.scope.custom_types.join(', '))}</code>. ${esc(uiText('A tag that requires a type your consent platform never grants will not fire after publishing.'))}</p>` : ''}<p><code dir="ltr">${esc(c.scope.workspace_path)}</code></p><div class="data-scroll" role="region" aria-label="${esc(uiText('Consent additions'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Consent additions'))}</caption><thead><tr><th scope="col">${esc(uiText('Tag'))}</th><th scope="col">${esc(uiText('Original consent setting'))}</th><th scope="col">${esc(uiText('Original required types'))}</th><th scope="col">${esc(uiText('Proposed required types'))}</th><th scope="col">${esc(uiText('Draft change'))}</th></tr></thead><tbody>${c.targets.map(t => `<tr><th scope="row"><bdi dir="auto">${esc(t.name ?? t.tag_id)}</bdi><br><code dir="ltr">${esc(t.tag_id)}</code></th><td>${esc(setting(t.before_setting))}</td><td><code dir="ltr">${esc(t.before_required_types.join(', ') || '—')}</code></td><td><code dir="ltr">${esc(t.proposed_required_types.join(', '))}</code></td><td>${esc(uiText(t.state === 'change' ? 'Add required types' : 'Already required; no step'))}</td></tr>`).join('')}</tbody></table></div></section>`;
 }
 function consentStepDescription(step, context) {
   if (
@@ -379,7 +384,9 @@ function consentStepDescription(step, context) {
   const t = context.targets.filter(t => t.state === 'change')[
       Number(step.id?.match(/^consent-([1-9][0-9]*)$/)?.[1]) - 1
     ],
-    a = step.arguments?.arguments;
+    a = step.arguments?.arguments,
+    // MSR-01: non-standard types this step adds were acknowledged in the preview and stay labelled in review.
+    custom = t ? (context.scope.custom_types ?? []).filter(v => !t.before_required_types.includes(v)) : [];
   if (
     !t ||
     step.arguments.operation !== 'gtm_ops' ||
@@ -394,10 +401,15 @@ function consentStepDescription(step, context) {
     JSON.stringify(
       a.payload.consentSettings.consentType?.list?.map(item => (item.type === 'template' ? item.value : null)),
     ) !== JSON.stringify(t.proposed_required_types) ||
-    step.description !== 'Tag ' + t.tag_id + ': require additional consent ' + t.proposed_required_types.join(', ')
+    step.description !==
+      'Tag ' +
+        t.tag_id +
+        ': require additional consent ' +
+        t.proposed_required_types.join(', ') +
+        (custom.length ? '. Non-standard types acknowledged: ' + custom.join(', ') : '')
   )
     return null;
-  return `${esc(uiText('Tag'))} ${campaignNativeValue(t.tag_id)}: ${esc(uiText('Proposed required types'))} <code dir="ltr">${esc(t.proposed_required_types.join(', '))}</code>`;
+  return `${esc(uiText('Tag'))} ${campaignNativeValue(t.tag_id)}: ${esc(uiText('Proposed required types'))} <code dir="ltr">${esc(t.proposed_required_types.join(', '))}</code>${custom.length ? ` · <strong>${esc(uiText('Non-standard consent type'))}</strong> <code dir="ltr">${esc(custom.join(', '))}</code>` : ''}`;
 }
 /**
  * A media step whose file expired, changed or is deleted too soon, whether its prepare failed or preflight blocked it:
