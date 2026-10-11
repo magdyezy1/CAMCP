@@ -439,7 +439,8 @@ test('Arabic rendered snapshot translates known metric labels while preserving c
   f.respond(() => snapshot);
   await f.run("loadOverviewReport('snapshot-001')");
   const html = f.node('#overview-results').innerHTML;
-  assert.match(html, /<th scope="col">الإنفاق<\/th><th scope="col">Home<\/th>/);
+  // RPT-05: column headers carry an explicit role so the phone card layout keeps the table semantics.
+  assert.match(html, /<th scope="col" role="columnheader">الإنفاق<\/th><th scope="col" role="columnheader">Home<\/th>/);
   assert.match(html, /Home &lt;img&gt;/);
   assert.match(html, /0012\.340000/);
   assert.match(html, /Original evidence/);

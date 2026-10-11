@@ -1244,6 +1244,10 @@ h2.report-section-label {
   margin-top: 14px;
   color: var(--iris, #5a43ad);
 }
+/* Time runs from the inline start in both directions. */
+html[dir='rtl'] .report-sparkline {
+  transform: scaleX(-1);
+}
 /* RPT-05: on phones each report row reads as a card: the name, its context, a metric grid and the decision. The column
    headers stay available to assistive technology, and each value is labelled by its column. */
 @media (max-width: 600px) {
@@ -1299,9 +1303,6 @@ h2.report-section-label {
     margin-bottom: 2px;
     font-size: 10px;
     color: var(--muted);
-  }
-  .report-rows-table .report-row-context::before {
-    display: none;
   }
   .report-rows-table td pre {
     max-width: 100%;

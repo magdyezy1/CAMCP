@@ -293,4 +293,5 @@ test('RPT-05: row headers stay visible while scrolling and phones read report ro
     /\.report-rows-table thead \{\n\s+position: absolute;/,
     'column headers stay for assistive technology',
   );
+  assert.match(css, /html\[dir='rtl'\] \.report-sparkline \{\n\s+transform: scaleX\(-1\);/, 'time runs from the start');
 });
