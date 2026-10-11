@@ -20,7 +20,9 @@ import {CredentialProvider} from './auth.js';
 import {NativeTransport, type TransportResult} from './transport.js';
 import {ScopeGuard, normalizeAccount} from './scope.js';
 import {applyExecutionRisk} from './execution-risk.js';
-import {authorizeExecution, type ExecutionPolicy} from './preflight.js';
+import {authorizeExecution, switchedProviderJob, type ExecutionPolicy} from './preflight.js';
+import {effectClass, reviewedProviderJob} from './effect-class.js';
+import {admitProviderJob, assertProviderJobAccount, beginProviderJob, settleProviderJob} from './provider-jobs.js';
 import {guardInput, redact, sha256, stable} from './security.js';
 import type {Actor, CallOptions, CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
 import {nativeAuthority} from './native-authority.js';
@@ -153,6 +155,33 @@ export const readOnlyWriteTool = {
     additionalProperties: false,
   },
 };
+/**
+ * What a read-only deployment lists when its owner turned provider jobs on (AMCP_PROVIDER_JOBS=true, RPT-06, owner
+ * decision D18): inspect for every change, and prepare, execute and status for provider report and export jobs only.
+ * Every other prepare and execute is still refused with LIVE_WRITES_DISABLED, exactly as without the switch.
+ */
+export const providerJobWriteTool = {
+  name: 'amcp_write',
+  description:
+    'Use this to check whether a single advertising or measurement change has a reviewed write contract, and to create a provider report or export job. inspect checks local write-contract support for the exact native arguments, without credentials or network calls, and saves nothing. This deployment is read-only for advertising changes; its owner allows provider report and export jobs (X, TikTok and Meta report jobs, Criteo reports, DV360 SDF exports, TikTok change logs and GA4 report tasks). For a job, prepare reads state and freezes a five-minute review, execute submits it once after confirmed=true and never resubmits it, and status reads a retained review back. A job needs the account’s report-job grant (AMCP Connections). This is an AMCP extension, not a captured AMCP tool.',
+  inputSchema: {
+    type: 'object',
+    required: ['action'],
+    properties: {
+      action: {type: 'string', enum: ['inspect', 'prepare', 'execute', 'status']},
+      gateway: writeTool.inputSchema.properties.gateway,
+      arguments: writeTool.inputSchema.properties.arguments,
+      connection_id: writeTool.inputSchema.properties.connection_id,
+      review_id: writeTool.inputSchema.properties.review_id,
+      idempotency_key: writeTool.inputSchema.properties.idempotency_key,
+      confirmed: writeTool.inputSchema.properties.confirmed,
+      evidence: writeTool.inputSchema.properties.evidence,
+    },
+    additionalProperties: false,
+  },
+};
+/** What an execution is for the owner's write pause (RPT-06): a provider job, or an advertising write. */
+const pauseEffect = (plan: CompiledRequest) => (reviewedProviderJob(plan) ? 'provider_jobs' : 'advertising');
 /** A guarded-reader binding: the connection's login (its revision, not token bytes) must stay the one the first read used. */
 /** What execute accepts; anything else was frozen at prepare (Snapchat S12). */
 const executeFields = [
@@ -293,11 +322,16 @@ export class WriteReviewService {
   private access(actor: Actor, plan: CompiledRequest, connectionId?: string): Connection {
     this.store.assertActorActive(actor);
     familyOf(plan)?.actor?.(plan, actor, false);
-    if (!this.policy.allowWrites) throw readOnlyDeployment();
-    if (actor.role === 'reader') throw connectorReadOnly(actor);
+    // RPT-06 policy matrix: a provider report or export job under the deployment owner's switch is allowed while live
+    // writes are off and for a reader, on an account with a report-job grant (or an operator's write grant while writes
+    // are on). Every other request, advertising writes included, keeps both refusals and the account write grant.
+    const job = switchedProviderJob(plan, this.policy);
+    if (!this.policy.allowWrites && !job) throw readOnlyDeployment();
+    if (actor.role === 'reader' && !job) throw connectorReadOnly(actor);
     const c = this.store.resolveConnection(actor, plan.gateway, plan.accountId, connectionId),
       id = normalizeAccount(plan.gateway, plan.accountId ?? (c.accounts.length === 1 ? c.accounts[0] : ''));
-    assertAccountWrite(this.store, c, id);
+    if (job) assertProviderJobAccount(this.store, actor, c, id, this.policy.allowWrites);
+    else assertAccountWrite(this.store, c, id);
     for (const account of appleSharedAccounts(plan)) {
       this.store.resolveConnection(actor, plan.gateway, account, c.id);
       assertAccountWrite(this.store, c, account);
@@ -711,10 +745,21 @@ export class WriteReviewService {
             live_permissions_verified: false,
             account_capability: accountCapability,
             provider_check_available: providerValidationRequest(plan) !== undefined,
+            // The request's effect class (src/effect-class.ts, RPT-06).
+            effect: effectClass(plan),
             requirements: {
               deployment_writes_enabled: this.policy.allowWrites,
               operator_role: actor.role !== 'reader',
-              account_write_grant_required: true,
+              account_write_grant_required: !switchedProviderJob(plan, this.policy),
+              ...(reviewedProviderJob(plan)
+                ? {
+                    provider_jobs_switch: this.policy.providerJobs === true ? 'on' : 'off',
+                    provider_job_authority:
+                      this.policy.providerJobs === true
+                        ? 'The account’s report-job grant, or while live writes are on an operator’s account write grant.'
+                        : 'A reviewed write: live writes on, an operator role and the account’s write grant.',
+                  }
+                : {}),
               ...(familyOf(plan)?.administratorRequired
                 ? {
                     administrator_role_required: true,
@@ -886,6 +931,7 @@ export class WriteReviewService {
         execute_requirements: requirements,
         ...(supersedes ? {supersedes_uncertain: supersedes} : {}),
         summary: reviewSummary(plan, state),
+        effect: effectClass(plan, state),
         ...(effects ? {effects} : {}),
         ...(creativeImpact ? {creative_impact: creativeImpact} : {}),
         ...(providerCheck
@@ -950,7 +996,7 @@ export class WriteReviewService {
     if (input.idempotency_key !== input.review_id)
       fail('IDEMPOTENCY_REQUIRED', 'Use the exact idempotency_key returned by prepare.');
     authorizeExecution(actor, plan, {...input, dry_run: false}, this.policy, true);
-    assertWritesNotPaused(this.store, actor.tenantId);
+    assertWritesNotPaused(this.store, actor.tenantId, pauseEffect(plan));
     if (review.creative_edit_confirmed === true && input.creative_edit_confirmed !== true)
       fail(
         'CREATIVE_EDIT_CONFIRMATION_REQUIRED',
@@ -1173,10 +1219,29 @@ export class WriteReviewService {
         state: current,
         submittedAt,
       };
+    // RPT-06: a provider job is counted and retained with a receipt keyed by its review, recorded with the claim, before
+    // anything is sent; a job family without its own provider quota check is admitted against the deployment-wide
+    // hourly bound first (PROVIDER_JOB_QUOTA claims and sends nothing).
+    const job = reviewedProviderJob(plan);
     const claim = this.store.transaction(() => {
       checkSpendPolicy(this.store, actor, plan, current, input.review_id, input.cap_override_confirmed === true);
       const claim = this.store.claim(actor.tenantId, input.idempotency_key, fingerprint);
-      if (claim.fresh) family?.admit?.(plan, submission);
+      if (claim.fresh) {
+        family?.admit?.(plan, submission);
+        if (job) {
+          if (!family?.admit) admitProviderJob(this.store, plan.gateway, plan.accountId ?? '');
+          beginProviderJob(this.store, actor.tenantId, {
+            id: input.review_id,
+            gateway: plan.gateway,
+            account_id: plan.accountId ?? '',
+            connection_id: c.id,
+            actor: actor.userId,
+            source: 'reviewed',
+            family: family?.name,
+            review_id: input.review_id,
+          });
+        }
+      }
       return claim;
     });
     if (!claim.fresh) {
@@ -1201,7 +1266,7 @@ export class WriteReviewService {
         () => {
           // Admission may wait. Authority is checked again after that wait, immediately before the unsent write.
           keepTargets();
-          assertWritesNotPaused(this.store, actor.tenantId);
+          assertWritesNotPaused(this.store, actor.tenantId, pauseEffect(plan));
           authorizeExecution(actor, plan, {...input, dry_run: false}, this.policy, true);
           if (record) assertPersonalDataAllowed(this.store, actor, plan, record.direction, true);
           if (review.expires_at <= Date.now())
@@ -1230,6 +1295,9 @@ export class WriteReviewService {
         // A family keeps what the response gives it, such as a report job's receipt (kept even for a failed job, which
         // must still never be resubmitted).
         family?.retain?.(plan, response, result, submission);
+        // A job the provider did not clearly accept stays uncertain: the family's own record refuses a resubmission.
+        if (job)
+          settleProviderJob(this.store, actor.tenantId, input.review_id, result.success ? 'accepted' : 'uncertain');
         if (result.success === true) {
           const job = this.store.enqueue(actor.tenantId, 'write_verification', {
             review_id: input.review_id,
@@ -1286,6 +1354,12 @@ export class WriteReviewService {
           http_status: Number((e as MirrorError).details.http_status),
         });
       if (!completed && !unsent && !rejected) this.store.uncertain(actor.tenantId, input.idempotency_key);
+      // RPT-06: an unsent job leaves no receipt (the same review may run again); a sent one is rejected or uncertain.
+      if (job && !completed) {
+        if (unsent) this.store.deleteDocument(actor.tenantId, 'provider_job', input.review_id);
+        else
+          settleProviderJob(this.store, actor.tenantId, input.review_id, rejected ? 'rejected' : 'uncertain', {code});
+      }
       // Scoped like write_not_sent, so a member with access to the account sees it in Activity (WRT-08). A rejected
       // write has its own write_rejected audit (Store.rejected) and is never uncertain.
       if (!unsent && !rejected)

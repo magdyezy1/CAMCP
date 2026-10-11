@@ -70,6 +70,7 @@ import {redactReportingRecord} from './report-query-access.js';
 import {applyExecutionRisk} from './execution-risk.js';
 import {projectResponse} from './projection.js';
 import {WriteReviewService, providerJobWriteTool, readOnlyWriteTool, writeTool} from './write-review.js';
+import {reviewedProviderJob} from './effect-class.js';
 import type {WriteOrigin} from './write-records.js';
 import {validateAppleResponse} from './apple-native.js';
 import {microsoftGateway, validateMicrosoftResponse} from './microsoft-native.js';
@@ -860,12 +861,27 @@ export class MirrorService {
       throw new MirrorError('CONFLICTING_PARAMETER', 'Connection ID aliases must identify the same connection.');
     return ids[0];
   }
+  /** Whether a retained amcp_write review of this workspace is a provider report or export job (RPT-06). */
+  private providerJobReview(actor: Actor, reviewId: unknown): boolean {
+    if (typeof reviewId !== 'string') return false;
+    const row = this.store.db
+      .prepare("SELECT json_extract(data,'$.plan') AS plan FROM documents WHERE tenant_id=? AND kind=? AND id=?")
+      .get(actor.tenantId, 'write_review', reviewId) as {plan: string | null} | undefined;
+    return !!row?.plan && reviewedProviderJob(JSON.parse(row.plan) as CompiledRequest);
+  }
   private async reviewed(input: JsonObject, actor: Actor): Promise<unknown> {
     // Who may change anything is decided before the payload is checked (MCP-09): a read-only deployment or a read-only
     // client learns that first, instead of after correcting arguments that could never run. Under the owner's
-    // provider-job switch (RPT-06) a reader or a read-only deployment may still prepare a report or export job, so the
-    // review lifecycle decides per compiled request (WriteReviewService.access) before any state is read.
-    if ((input.action === 'prepare' || input.action === 'execute') && this.policy.providerJobs !== true) {
+    // provider-job switch (RPT-06) a reader or a read-only deployment may still prepare and execute a report or export
+    // job: a prepare is decided per compiled request (WriteReviewService.access) before any state is read, and an
+    // execute here only when its retained review is a provider job.
+    if (
+      (input.action === 'prepare' || input.action === 'execute') &&
+      !(
+        this.policy.providerJobs === true &&
+        (input.action === 'prepare' || this.providerJobReview(actor, input.review_id))
+      )
+    ) {
       if (!this.policy.allowWrites)
         throw readOnlyDeployment(
           input.action === 'prepare' &&

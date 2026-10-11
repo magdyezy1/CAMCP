@@ -34,6 +34,12 @@ export type AmcpConfig = Readonly<{
    * without write support. Only true or false is accepted, so an ambiguous opt-in is never guessed.
    */
   providerValidation: boolean;
+  /**
+   * AMCP_PROVIDER_JOBS (RPT-06, owner decision D18): the owner's switch for provider report and export jobs as their own
+   * quota-bounded effect. On, a job is allowed while live writes are off and for a reader with an account report-job
+   * grant; off (the default), jobs stay reviewed writes. Only true or false is accepted.
+   */
+  providerJobs: boolean;
   mode: 'strict' | 'enhanced';
   flags: Readonly<Record<string, unknown>>;
   runWorker: boolean;
@@ -92,6 +98,8 @@ export function loadConfig(env: NodeJS.ProcessEnv, entry: EntryPoint): AmcpConfi
   if (previousKeys.length && !masterKey) throw new Error('MIRROR_MASTER_KEY_PREVIOUS requires MIRROR_MASTER_KEY.');
   if (env.AMCP_PROVIDER_VALIDATION !== undefined && !['true', 'false'].includes(env.AMCP_PROVIDER_VALIDATION))
     throw new Error('AMCP_PROVIDER_VALIDATION must be true or false.');
+  if (env.AMCP_PROVIDER_JOBS !== undefined && !['true', 'false'].includes(env.AMCP_PROVIDER_JOBS))
+    throw new Error('AMCP_PROVIDER_JOBS must be true or false.');
   // Account retention (SEC-07 S4): an unknown AMCP_PENDING_ACCOUNT_DAYS or AMCP_REVOKED_ACCOUNT_DAYS stops start-up.
   if (entry !== 'stdio') accountRetention(env);
   const host = env.MIRROR_HOST ?? (env.PORT ? '0.0.0.0' : '127.0.0.1'),
@@ -158,6 +166,7 @@ export function loadConfig(env: NodeJS.ProcessEnv, entry: EntryPoint): AmcpConfi
     tenantId: env.AMCP_TENANT_ID,
     allowWrites,
     providerValidation: env.AMCP_PROVIDER_VALIDATION === 'true',
+    providerJobs: env.AMCP_PROVIDER_JOBS === 'true',
     mode: env.MIRROR_MODE === 'enhanced' ? 'enhanced' : 'strict',
     flags: Object.freeze(JSON.parse(env.MIRROR_FLAGS ?? '{}')),
     runWorker: env.AMCP_RUN_WORKER !== 'false',

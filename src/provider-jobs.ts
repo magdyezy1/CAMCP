@@ -26,6 +26,7 @@ import type {Actor, Connection, JsonObject} from './types.js';
 /** What each provider job family guarantees; the adapters keep their own code (src/<provider>-report-jobs.ts). */
 export const providerJobContracts: readonly {
   family: string;
+  gateway: string;
   provider: string;
   kind: 'report' | 'export' | 'change_log';
   admission: string;
@@ -34,6 +35,7 @@ export const providerJobContracts: readonly {
 }[] = Object.freeze([
   {
     family: 'x_report_jobs',
+    gateway: 'x_ads_native_action',
     provider: 'x',
     kind: 'report',
     admission: 'At most 100 unresolved jobs per account (admitXReport).',
@@ -42,6 +44,7 @@ export const providerJobContracts: readonly {
   },
   {
     family: 'tiktok_report_jobs',
+    gateway: 'tiktok_native_action',
     provider: 'tiktok',
     kind: 'report',
     admission: 'One per second and 500 per hour per app and account (admitTiktokReport).',
@@ -50,6 +53,7 @@ export const providerJobContracts: readonly {
   },
   {
     family: 'meta_insights_jobs',
+    gateway: 'meta_native_action',
     provider: 'meta',
     kind: 'report',
     admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
@@ -58,6 +62,7 @@ export const providerJobContracts: readonly {
   },
   {
     family: 'dv360_sdf_downloads',
+    gateway: 'dv360_native_action',
     provider: 'dv360',
     kind: 'export',
     admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
@@ -66,6 +71,7 @@ export const providerJobContracts: readonly {
   },
   {
     family: 'criteo_report_jobs',
+    gateway: 'criteo_native_action',
     provider: 'criteo',
     kind: 'report',
     admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
@@ -74,6 +80,7 @@ export const providerJobContracts: readonly {
   },
   {
     family: 'tiktok_change_log_tasks',
+    gateway: 'tiktok_native_action',
     provider: 'tiktok',
     kind: 'change_log',
     admission: 'The deployment-wide hourly bound per account (admitProviderJob).',
@@ -82,6 +89,7 @@ export const providerJobContracts: readonly {
   },
   {
     family: 'ga4_export_jobs',
+    gateway: 'ga4_native_action',
     provider: 'ga4',
     kind: 'report',
     admission: 'The deployment-wide hourly bound per property (admitProviderJob); report tasks only.',
@@ -90,6 +98,7 @@ export const providerJobContracts: readonly {
   },
   {
     family: 'microsoft_reporting_pipeline',
+    gateway: 'microsoft_ads_native_action',
     provider: 'microsoft',
     kind: 'report',
     admission: 'The deployment-wide hourly bound per account (admitProviderJob).',

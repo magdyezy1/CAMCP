@@ -9,7 +9,7 @@ import {ga4AdminConfig} from './ga4-admin-config.js';
 import {measurementLedger} from './measurement-ledger.js';
 import {nativeAuthority} from './native-authority.js';
 import {linkedinVersion} from './linkedin-version.js';
-import {ownerOperations, writePause} from './owner-operations.js';
+import {ownerOperations, writesPausedFor} from './owner-operations.js';
 import {withheldWorkbookRecords} from './withheld-workbook-records.js';
 import {cachedLegacyAliasUsage} from './legacy-alias-usage.js';
 import {actionContractPage} from './action-contracts.js';
@@ -699,7 +699,7 @@ export class WorkspaceService {
       );
       check(
         'writes_not_paused',
-        !writePause(this.store, actor.tenantId),
+        !writesPausedFor(this.store, actor.tenantId, 'advertising'),
         'Owner write pause.',
         'An owner paused reviewed writes of this workspace; ask an owner to resume them.',
       );

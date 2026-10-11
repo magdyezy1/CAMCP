@@ -5,7 +5,48 @@ import {actionContractSummary} from './action-contracts.js';
 import {gatewayOffered} from './provider-offering.js';
 import {campaignRecipes} from './campaign-recipes.js';
 import {reportPlatforms} from './report-metrics.js';
-import {writePause} from './owner-operations.js';
+import {writesPausedFor} from './owner-operations.js';
+import {providerJobContracts, reportJobAccounts} from './provider-jobs.js';
+
+/**
+ * Whether this person may create provider report and export jobs, and what blocks them (RPT-06): the deployment owner's
+ * switch, the owner's pause, the role, and the account grants a job needs. Local prerequisites only, like the graph.
+ */
+export function providerJobCapability(
+  store: Store,
+  actor: Actor,
+  allowWrites: boolean,
+  providerJobs: boolean,
+  gateway?: string,
+): JsonObject {
+  const families = providerJobContracts.filter(
+      j =>
+        j.family !== 'microsoft_reporting_pipeline' && gatewayOffered(j.gateway) && (!gateway || j.gateway === gateway),
+    ),
+    connections = store.listConnections(actor.tenantId).filter(c => families.some(f => f.gateway === c.gateway)),
+    granted = connections.some(c =>
+      providerJobs
+        ? reportJobAccounts(store, c).length > 0 ||
+          (allowWrites && actor.role !== 'reader' && (c.writeAccounts ?? []).some(a => c.accounts.includes(a)))
+        : allowWrites && (c.writeAccounts ?? []).some(a => c.accounts.includes(a)),
+    ),
+    blockers = [
+      ...(!allowWrites && !providerJobs ? ['provider_jobs_disabled'] : []),
+      ...(writesPausedFor(store, actor.tenantId, 'provider_jobs') ? ['workspace_jobs_paused'] : []),
+      ...(actor.role === 'reader' && !providerJobs ? ['operator_required'] : []),
+      ...(!granted ? [providerJobs ? 'report_job_grant_required' : 'account_write_grant_required'] : []),
+    ];
+  return {
+    effect: 'provider_job',
+    switch: providerJobs ? 'on' : 'off',
+    state: blockers.length ? 'blocked' : 'ready_for_preflight',
+    blockers,
+    families: families.map(f => ({family: f.family, gateway: f.gateway, kind: f.kind})),
+    meaning: providerJobs
+      ? 'Report and export jobs create a provider-side processing object and use provider quota; they change no serving configuration or spend. The deployment owner allows them with live writes off: each needs the account’s report-job grant (or an operator’s write grant while writes are on) and a reviewed prepare and execute.'
+      : 'Report and export jobs are reviewed writes here: live writes on, an operator role and the account’s write grant. The deployment owner can allow them in a read-only deployment with AMCP_PROVIDER_JOBS=true.',
+  };
+}
 import {mediaPlatforms, mediaPlatformNames, mediaDiscovery} from './media-routing.js';
 import {reportPresets} from './report-presets.js';
 import {enrichCapabilities} from './capability-eligibility.js';
@@ -23,6 +64,7 @@ export function capabilityGraph(
   allowWrites: boolean,
   gateway?: string,
   selection: JsonObject = {},
+  providerJobs = false,
 ) {
   store.assertActorActive(actor);
   const gateways: Record<string, string> = {
@@ -81,7 +123,8 @@ export function capabilityGraph(
     limits: {rows: preset.max_rows, requests: preset.max_requests},
     source: 'src/report-presets.ts',
   }));
-  const paused = !!writePause(store, actor.tenantId);
+  // A pause scoped to provider jobs alone (RPT-06) leaves advertising writes available.
+  const paused = writesPausedFor(store, actor.tenantId, 'advertising');
   const connections = store.listConnections(actor.tenantId);
   const graph = {
     version: 1,
@@ -156,6 +199,8 @@ export function capabilityGraph(
     contracts: actionContractSummary(registry).filter(
       c => gatewayOffered(c.gateway) && (!gateway || c.gateway === gateway),
     ),
+    // Provider report and export jobs, their own effect class (RPT-06), with the blockers that apply to this person.
+    provider_jobs: providerJobCapability(store, actor, allowWrites, providerJobs, gateway),
     meaning:
       'Workflow discovery is derived from executable recipes, report adapters, capture presets and media routes. Local prerequisites do not authorize a write or establish objective eligibility. Exact native review and account-specific provider evidence remain authoritative.',
   } satisfies JsonObject;
@@ -179,6 +224,7 @@ export function capabilities(
   allowWrites: boolean,
   input: JsonObject,
   graphByDefault = false,
+  providerJobs = false,
 ) {
   const view = input.view ?? (graphByDefault ? 'graph' : 'summary');
   if (view !== 'summary' && view !== 'graph')
@@ -195,7 +241,7 @@ export function capabilities(
           'INVALID_ARGUMENT',
           {field: key},
         );
-    return capabilityGraph(store, registry, actor, allowWrites, input.gateway, input);
+    return capabilityGraph(store, registry, actor, allowWrites, input.gateway, input, providerJobs);
   }
   const limit = input.limit ?? capabilitySummaryPage;
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > capabilitySummaryLimit)
@@ -210,7 +256,7 @@ export function capabilities(
   );
   const binding = cursorBinding(store, actor, {action: 'capabilities', view, limit, ...filters}),
     offset = decodeOffsetCursor(input.cursor, binding, 'capabilities summary'),
-    graph = capabilityGraph(store, registry, actor, allowWrites, input.gateway, input) as JsonObject,
+    graph = capabilityGraph(store, registry, actor, allowWrites, input.gateway, input, providerJobs) as JsonObject,
     all: JsonObject[] = graph.workflows,
     page = all.slice(offset, offset + limit),
     accountCalls =
@@ -296,6 +342,12 @@ export function capabilities(
       blocked: pairs.filter(a => a.local_state === 'blocked').length,
     },
     workflows,
+    // RPT-06: whether report and export jobs are available to this person, and what blocks them.
+    provider_jobs: {
+      switch: graph.provider_jobs.switch,
+      state: graph.provider_jobs.state,
+      blockers: graph.provider_jobs.blockers,
+    },
     ...(accountCalls
       ? {}
       : {
