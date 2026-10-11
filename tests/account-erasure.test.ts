@@ -333,11 +333,17 @@ test('SEC-07 S4: the deployment owner and a workspace other members use are refu
   }
 });
 
-test('SEC-07 S4: the retention sweep erases only never-approved sign-ups older than 30 days, and revoked accounts only when set', () => {
-  assert.deepEqual(accountRetention({}), {pendingMs: 30 * day, revokedMs: null});
-  assert.deepEqual(accountRetention({AMCP_PENDING_ACCOUNT_DAYS: 'off', AMCP_REVOKED_ACCOUNT_DAYS: '90'}), {
+test('SEC-07 S4: the retention sweep erases never-approved sign-ups older than 30 days and revoked accounts after the set period', () => {
+  // Owner decision P3 (2026-10-11): revoked accounts are erased 90 days after revocation by default (was: kept unless
+  // AMCP_REVOKED_ACCOUNT_DAYS was set); `off` keeps them.
+  assert.deepEqual(accountRetention({}), {pendingMs: 30 * day, revokedMs: 90 * day});
+  assert.deepEqual(accountRetention({AMCP_PENDING_ACCOUNT_DAYS: 'off', AMCP_REVOKED_ACCOUNT_DAYS: 'off'}), {
     pendingMs: null,
-    revokedMs: 90 * day,
+    revokedMs: null,
+  });
+  assert.deepEqual(accountRetention({AMCP_PENDING_ACCOUNT_DAYS: 'off', AMCP_REVOKED_ACCOUNT_DAYS: '45'}), {
+    pendingMs: null,
+    revokedMs: 45 * day,
   });
   for (const value of ['0', '366', '1.5', 'never'])
     assert.throws(() => accountRetention({AMCP_PENDING_ACCOUNT_DAYS: value}), /AMCP_PENDING_ACCOUNT_DAYS/);
@@ -375,7 +381,10 @@ test('SEC-07 S4: the retention sweep erases only never-approved sign-ups older t
       revoked: [],
     });
     const sweep = accountLifecycleSweeper(store, {tenantId: 'local', env: {}, now: () => later});
-    assert.deepEqual(sweep(), {reviewer_connections: 0, accounts_erased: {pending: 1, revoked: 0, refused: 0}});
+    assert.deepEqual(sweep(), {
+      reviewer_connections: 0,
+      accounts_erased: {pending: 1, revoked: 0, refused: 0, blocked: 0},
+    });
     const remaining = rows(store, 'SELECT id FROM amcp_users ORDER BY id').map(r => r.id);
     assert.deepEqual(remaining, [newPending.id, approved.id, revoked.id, invitedPending.id].sort());
     assert.equal(rows(store, 'SELECT 1 FROM tenants WHERE id=?', oldPending.tenant_id).length, 0);
@@ -388,7 +397,10 @@ test('SEC-07 S4: the retention sweep erases only never-approved sign-ups older t
       env: {AMCP_REVOKED_ACCOUNT_DAYS: '30'},
       now: () => later,
     });
-    assert.deepEqual(revokedSweep(), {reviewer_connections: 0, accounts_erased: {pending: 0, revoked: 1, refused: 0}});
+    assert.deepEqual(revokedSweep(), {
+      reviewer_connections: 0,
+      accounts_erased: {pending: 0, revoked: 1, refused: 0, blocked: 0},
+    });
     assert.deepEqual(
       rows(store, 'SELECT id FROM amcp_users ORDER BY id').map(r => r.id),
       [newPending.id, approved.id, invitedPending.id].sort(),

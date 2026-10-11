@@ -79,9 +79,20 @@ during implementation and the owner may revise them): the default two-step basel
 covers owners and administrators of write-enabled workspaces only (a connection grants write access), with the grace
 period counted from when a workspace was first seen write-enabled; `everyone` stays the stricter explicit choice.
 Sign-ups never approved are erased after 30 days by default (`AMCP_PENDING_ACCOUNT_DAYS`; `off` keeps them), except a
-pending account that holds a membership in another workspace; revoked accounts are kept unless the owner sets
-`AMCP_REVOKED_ACCOUNT_DAYS`. The release notes must call out the 30-day default, since the first sweep after deploy
-erases older pending sign-ups. Erasure keeps the single global audit chain: an erased account's audit rows become
+pending account that holds a membership in another workspace.
+
+P3 as approved on 2026-10-11 (design to GDPR and the KSA PDPL), applied in wave 3: revoked accounts are erased 90 days
+after revocation by default (`AMCP_REVOKED_ACCOUNT_DAYS`, `off` keeps them; before, they were kept unless set); report
+records follow a retention per document kind with a deployment default of 365 days for workspaces whose owner saved no
+period (`AMCP_REPORT_RETENTION_DAYS`, `off` keeps them; the 365-day value was chosen during implementation and the owner
+may revise it; the kinds move to ARC-02's registry later); people delete their own account in Account, with the typed
+confirmation, "Confirm it's you" and an erasure receipt, refused for a sole owner whose workspace others use
+(`AMCP_ACCOUNT_SELF_DELETION=off` is the rollback). Residual copies (the write-ahead log until the next checkpoint,
+volume snapshots and older backups) are covered by application retention, backup expiry, erasure re-application and
+master-key rotation, and are documented that way, not promised as instant cryptographic erasure. The release notes
+must call out both account defaults, since the first sweep after deploy erases pending sign-ups older than 30 days and
+accounts revoked more than 90 days ago, and the report default, since the first cleanup deletes finished report
+records older than 365 days in workspaces without their own period. Erasure keeps the single global audit chain: an erased account's audit rows become
 tombstones that `verifyAudit` accepts only with a matching `account_erased` receipt (SEC-07 S4(b) alternative). The
 per-tenant HMAC-keyed audit chains S4(b) proposed were not built: they would need a migration of every existing chain
 and a key per workspace, while tombstones keep the existing chain verifiable and erase the personal data it held.

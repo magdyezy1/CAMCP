@@ -37,7 +37,8 @@ test('both full static privacy policies are public without login, content script
           ['<script src="/assets/v/' + publicAssets.version + '/theme.js">'],
         );
         assert.match(body, locale === 'ar' ? /<html lang="ar" dir="rtl">/ : /<html lang="en" dir="ltr">/);
-        assert.match(body, /datetime="2026-10-07"/);
+        // Updated for the retention periods and self-service deletion of owner decision P3 (SEC-07).
+        assert.match(body, /datetime="2026-10-12"/);
         assert.match(body, /<a href="\/privacy\?lang=en"/);
         assert.match(body, /<a href="\/privacy\?lang=ar"/);
       }

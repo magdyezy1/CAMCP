@@ -43,8 +43,8 @@ if (!process.argv.includes('--once')) {
   process.stdout.write(JSON.stringify(workerClockEvent()) + '\n');
   void logRuntimeStart(store, {level: 'info', event: 'runtime_started', entry: 'worker'}, jsonLine);
 }
-// Hourly account lifecycle sweep (SEC-06 S6) in the schedule stage, after the report schedules.
-const lifecycle = accountLifecycleSweeper(store, {tenantId: config.tenantId ?? 'local'});
+// Hourly account lifecycle and retention sweep (SEC-06 S6, SEC-07) in the schedule stage, after the report schedules.
+const lifecycle = accountLifecycleSweeper(store, {tenantId: config.tenantId ?? 'local', log: jsonLine});
 const loop = runWorkerLoop({
   schedule: () => {
     overview.tick();

@@ -2,7 +2,12 @@ import {randomUUID} from 'node:crypto';
 import type {Store} from '../src/store.js';
 import type {Actor, JsonObject} from '../src/types.js';
 import {disconnectLocalConnection} from '../src/connection-disconnect.js';
-import {accountRetention, accountsDueForErasure, eraseAccount} from '../src/account-erasure.js';
+import {
+  accountRetention,
+  accountsDueForErasure,
+  eraseAccount,
+  retentionBlockedAccounts,
+} from '../src/account-erasure.js';
 
 const day = 86400000;
 /** The shared reviewer workspace of a deployment workspace (WebStore.testTenantId). */
@@ -60,19 +65,26 @@ export function purgeReviewerConnections(
   });
 }
 /**
- * Erases the accounts retention makes due (SEC-07 S4): sign-ups never approved for `AMCP_PENDING_ACCOUNT_DAYS` (30 by
- * default) and, when the owner sets `AMCP_REVOKED_ACCOUNT_DAYS`, accounts revoked that long ago. Each is erased like
- * `admin erase-account --confirm` and receipted; one that cannot be erased (its workspace is shared) is counted and
- * kept. At most 100 of each per run.
+ * Erases the accounts retention makes due (SEC-07 S4, owner decision P3): sign-ups never approved for
+ * `AMCP_PENDING_ACCOUNT_DAYS` (30 by default) and accounts revoked `AMCP_REVOKED_ACCOUNT_DAYS` ago (90 by default).
+ * Each is erased like `admin erase-account --confirm` and receipted (`account_erased`); one whose erasure fails is
+ * counted as refused and tried again next run. Accounts whose workspace other active members use are not selected and
+ * are counted as `blocked`. At most 100 of each per run. A run that erased or refused anything appends one
+ * `retention_sweep` record to the deployment's audit with the counts and the periods.
  */
 export function eraseDueAccounts(
   store: Store,
   deploymentTenant: string,
   retention: ReturnType<typeof accountRetention>,
   now = Date.now(),
-): {pending: number; revoked: number; refused: number} {
+): {pending: number; revoked: number; refused: number; blocked: number} {
   const due = accountsDueForErasure(store, deploymentTenant, retention, now),
-    out = {pending: 0, revoked: 0, refused: 0};
+    out = {
+      pending: 0,
+      revoked: 0,
+      refused: 0,
+      blocked: retentionBlockedAccounts(store, deploymentTenant, retention, now),
+    };
   for (const [kind, reason] of [
     ['pending', 'pending_retention'],
     ['revoked', 'revoked_retention'],
@@ -84,16 +96,35 @@ export function eraseDueAccounts(
       } catch {
         out.refused++;
       }
+  if (out.pending || out.revoked || out.refused) {
+    store.ensureTenant(deploymentTenant);
+    store.appendAudit(deploymentTenant, 'retention/' + randomUUID(), {
+      event: 'retention_sweep',
+      pending_erased: out.pending,
+      revoked_erased: out.revoked,
+      refused: out.refused,
+      blocked: out.blocked,
+      pending_days: retention.pendingMs === null ? null : retention.pendingMs / day,
+      revoked_days: retention.revokedMs === null ? null : retention.revokedMs / day,
+    });
+  }
   return out;
 }
 /**
  * The worker's account lifecycle sweep, at most once an hour: logins of the shared reviewer workspace older than their
  * lifetime are removed (SEC-06 S6), and accounts past their retention are erased (SEC-07 S4). Returns what it removed,
- * or undefined when it did not run. An unknown retention or lifetime value stops start-up.
+ * or undefined when it did not run. An unknown retention or lifetime value stops start-up. A run that erased or refused
+ * an account also writes one metadata-only `retention_sweep` line to `log` (counts only, never an account).
  */
 export function accountLifecycleSweeper(
   store: Store,
-  options: {tenantId: string; env?: NodeJS.ProcessEnv; now?: () => number; intervalMs?: number},
+  options: {
+    tenantId: string;
+    env?: NodeJS.ProcessEnv;
+    now?: () => number;
+    intervalMs?: number;
+    log?: (entry: Record<string, unknown>) => void;
+  },
 ) {
   const env = options.env ?? process.env,
     now = options.now ?? Date.now,
@@ -111,8 +142,11 @@ export function accountLifecycleSweeper(
         ? 0
         : purgeReviewerConnections(store, reviewers, 'reviewer_connection_expired', at - reviewerLifetime).connections;
     // A store without website accounts (the stdio server's) has nothing to retain.
-    return store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='amcp_users'").get()
-      ? {reviewer_connections, accounts_erased: eraseDueAccounts(store, options.tenantId, retention, at)}
-      : {reviewer_connections};
+    if (!store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='amcp_users'").get())
+      return {reviewer_connections};
+    const accounts_erased = eraseDueAccounts(store, options.tenantId, retention, at);
+    if (accounts_erased.pending || accounts_erased.revoked || accounts_erased.refused)
+      options.log?.({level: 'info', event: 'retention_sweep', ...accounts_erased});
+    return {reviewer_connections, accounts_erased};
   };
 }

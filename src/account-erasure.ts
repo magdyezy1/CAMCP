@@ -8,9 +8,10 @@ import type {JsonObject} from './types.js';
 /**
  * Account erasure (SEC-07 S4). Revoking access only set approved=0 and disabled=1, and nothing could delete an account,
  * its workspace or what it holds; the audit chain also forbade removing anything. An erasure now removes an account and
- * its own workspace in one step, run by the operator (`admin erase-account <email> --dry-run|--confirm`), by the
- * worker's retention sweep (never-approved sign-ups, and revoked accounts when the owner sets a period) or again on a
- * restored copy from the erasure receipts:
+ * its own workspace in one step, run by the operator (`admin erase-account <email> --dry-run|--confirm`), by the person
+ * (self-service deletion in Account, server/account-deletion.ts), by the worker's retention sweep (never-approved
+ * sign-ups after 30 days and revoked accounts 90 days after revocation, owner decision P3) or again on a restored copy
+ * from the erasure receipts:
  *
  * - every website session, emailed link, queued e-mail about the person, connector key and AI-client grant ends;
  * - every record of the account's own workspace goes: documents, connections (the saved logins; AMCP does not contact
@@ -24,13 +25,18 @@ import type {JsonObject} from './types.js';
  *
  * The deployment owner's account and an account whose workspace has other active members are refused: transfer or
  * remove them first. Audit records of other workspaces keep the person's random user id. Erasure is irreversible.
+ *
+ * After an erasure the write-ahead log is truncated at the store's next maintenance pass (Store.scheduleCheckpoint), so
+ * the erased pages leave it promptly; freed pages are zeroed by `secure_delete`. Backups and volume snapshots taken
+ * before the erasure are not rewritten: they expire on their own schedule (docs/OPERATIONS.md).
  */
-export type ErasureReason = 'operator_request' | 'pending_retention' | 'revoked_retention' | 'restore_reapply';
+export type ErasureReason =
+  'operator_request' | 'self_service' | 'pending_retention' | 'revoked_retention' | 'restore_reapply';
 export interface ErasureOptions {
   /** The deployment's workspace (AMCP_TENANT_ID): its owner is never erased, and it keeps the receipts. */
   deploymentTenant: string;
   reason: ErasureReason;
-  /** Who erased: `cli`, `system:retention` or `system:restore`. */
+  /** Who erased: `cli`, `self` (the person, in Account), `system:retention` or `system:restore`. */
   by: string;
   /** Count what would go; change nothing. */
   dryRun?: boolean;
@@ -239,7 +245,7 @@ export function eraseAccount(store: Store, selector: ErasureSelector, options: E
       'SELECT rowid AS r FROM ' + step.table + ' WHERE ' + step.where + ' LIMIT 1',
       ...step.params.map(String),
     );
-  return store.transaction(() => {
+  const receipt = store.transaction(() => {
     // The rows are selected again inside the transaction, so a key or session created since the plan goes too.
     for (const step of steps(store, user, tenant).filter(s => !s.oneByOne && has(store, s.table)))
       store.db.prepare('DELETE FROM ' + step.table + ' WHERE ' + step.where).run(...step.params);
@@ -272,6 +278,9 @@ export function eraseAccount(store: Store, selector: ErasureSelector, options: E
     });
     return receipt;
   });
+  // The erased pages still sit in the write-ahead log until a checkpoint; truncate it at the next maintenance pass.
+  store.scheduleCheckpoint();
+  return receipt;
 }
 
 /** The erasures recorded in a deployment, oldest first: ids, reason and time only. */
@@ -335,28 +344,79 @@ export function reapplyErasures(store: Store, receipts: unknown, deploymentTenan
 
 const day = 86400000;
 /**
- * Retention of accounts (SEC-07 S4): `AMCP_PENDING_ACCOUNT_DAYS` erases sign-ups never approved after that many days
- * (default 30, 1 to 365, or `off`); `AMCP_REVOKED_ACCOUNT_DAYS` erases accounts whose access was revoked that long ago
- * (off unless the owner sets 1 to 3650). An unknown value stops the worker.
+ * Retention of accounts (SEC-07 S4, owner decision P3 of 2026-10-11, GDPR and KSA PDPL): `AMCP_PENDING_ACCOUNT_DAYS`
+ * erases sign-ups never approved after that many days (default 30, 1 to 365, or `off`); `AMCP_REVOKED_ACCOUNT_DAYS`
+ * erases accounts whose access was revoked that long ago (default 90, 1 to 3650, or `off`). An unknown value stops the
+ * website and the worker.
  */
 export function accountRetention(env: NodeJS.ProcessEnv): {pendingMs: number | null; revokedMs: number | null} {
-  const period = (name: string, fallback: number | null, max: number) => {
+  const period = (name: string, fallback: number, max: number) => {
     const value = env[name]?.trim();
-    if (value === 'off' || (fallback === null && (value === undefined || value === ''))) return null;
-    const days = value === undefined || value === '' ? fallback! : Number(value);
+    if (value === 'off') return null;
+    const days = value === undefined || value === '' ? fallback : Number(value);
     if (!Number.isInteger(days) || days < 1 || days > max)
       throw Error(name + ' must be a whole number of days from 1 to ' + max + ', or off.');
     return days * day;
   };
   return {
     pendingMs: period('AMCP_PENDING_ACCOUNT_DAYS', 30, 365),
-    revokedMs: period('AMCP_REVOKED_ACCOUNT_DAYS', null, 3650),
+    revokedMs: period('AMCP_REVOKED_ACCOUNT_DAYS', 90, 3650),
   };
 }
 /**
- * Accounts the retention sweep erases now: never approved and older than `pendingMs`, or revoked `revokedMs` ago. A
- * pending account with a membership in another workspace (invited by that workspace's administrator and still awaiting
- * the owner's approval) is kept: erasing it would also remove that membership.
+ * `AMCP_ACCOUNT_SELF_DELETION` (owner decision P3): `on` (the default) lets a person delete their own account in
+ * Account; `off` is the rollback, after which deletion is the operator's (`admin erase-account`). Another value stops
+ * the website.
+ */
+export function selfServiceDeletion(env: NodeJS.ProcessEnv): boolean {
+  const value = env.AMCP_ACCOUNT_SELF_DELETION?.trim();
+  if (value === undefined || value === '' || value === 'on') return true;
+  if (value === 'off') return false;
+  throw Error('AMCP_ACCOUNT_SELF_DELETION must be on or off.');
+}
+/** Whether another active member uses the account's own workspace: an erasure of it is refused (eraseAccount). */
+const sharedWorkspace =
+  'EXISTS (SELECT 1 FROM workspace_memberships s WHERE s.tenant_id=u.tenant_id AND s.active=1 AND s.user_id<>u.id)';
+/** The accounts past each retention period, oldest first; `shared` selects those whose workspace others use. */
+function pastRetention(
+  store: Store,
+  deploymentTenant: string,
+  retention: {pendingMs: number | null; revokedMs: number | null},
+  now: number,
+  shared: boolean,
+  limit: number,
+) {
+  const workspace = (shared ? '' : 'NOT ') + sharedWorkspace;
+  const select = (sql: string, ...params: (string | number)[]) =>
+    (store.db.prepare(sql + ' ORDER BY u.created_at LIMIT ' + limit).all(...params) as {id: string}[]).map(r => r.id);
+  return {
+    pending:
+      retention.pendingMs === null
+        ? []
+        : select(
+            'SELECT u.id FROM amcp_users u WHERE u.approved=0 AND u.disabled=0 AND u.created_at<? AND u.tenant_id<>? AND NOT EXISTS (SELECT 1 FROM workspace_memberships m WHERE m.user_id=u.id AND m.tenant_id<>u.tenant_id) AND ' +
+              workspace,
+            now - retention.pendingMs,
+            deploymentTenant,
+          ),
+    revoked:
+      retention.revokedMs === null
+        ? []
+        : select(
+            "SELECT u.id FROM amcp_users u WHERE u.disabled=1 AND u.tenant_id<>? AND coalesce((SELECT max(a.created_at) FROM audit a WHERE a.tenant_id=? AND json_valid(a.event) AND json_extract(a.event,'$.event')='account_access_revoked' AND json_extract(a.event,'$.user_id')=u.id),u.created_at)<? AND " +
+              workspace,
+            deploymentTenant,
+            deploymentTenant,
+            now - retention.revokedMs,
+          ),
+  };
+}
+/**
+ * Accounts the retention sweep erases now: never approved and older than `pendingMs`, or revoked `revokedMs` ago, at
+ * most 100 of each. A pending account with a membership in another workspace (invited by that workspace's administrator
+ * and still awaiting the owner's approval) is kept: erasing it would also remove that membership. An account whose own
+ * workspace other active members use is not selected either (retentionBlockedAccounts counts them): its erasure is
+ * refused, and selecting it again every hour let 100 such accounts hold back every later one.
  */
 export function accountsDueForErasure(
   store: Store,
@@ -365,25 +425,19 @@ export function accountsDueForErasure(
   now = Date.now(),
 ): {pending: string[]; revoked: string[]} {
   if (!has(store, 'amcp_users')) return {pending: [], revoked: []};
-  const pending =
-      retention.pendingMs === null
-        ? []
-        : (
-            store.db
-              .prepare(
-                'SELECT id FROM amcp_users WHERE approved=0 AND disabled=0 AND created_at<? AND tenant_id<>? AND NOT EXISTS (SELECT 1 FROM workspace_memberships m WHERE m.user_id=amcp_users.id AND m.tenant_id<>amcp_users.tenant_id) ORDER BY created_at LIMIT 100',
-              )
-              .all(now - retention.pendingMs, deploymentTenant) as {id: string}[]
-          ).map(r => r.id),
-    revoked =
-      retention.revokedMs === null
-        ? []
-        : (
-            store.db
-              .prepare(
-                "SELECT u.id FROM amcp_users u WHERE u.disabled=1 AND u.tenant_id<>? AND coalesce((SELECT max(a.created_at) FROM audit a WHERE a.tenant_id=? AND json_valid(a.event) AND json_extract(a.event,'$.event')='account_access_revoked' AND json_extract(a.event,'$.user_id')=u.id),u.created_at)<? ORDER BY u.created_at LIMIT 100",
-              )
-              .all(deploymentTenant, deploymentTenant, now - retention.revokedMs) as {id: string}[]
-          ).map(r => r.id);
-  return {pending, revoked};
+  return pastRetention(store, deploymentTenant, retention, now, false, 100);
+}
+/**
+ * How many accounts are past their retention period but kept because other active members use their workspace: the
+ * AMCP owner removes those members (or the account's owner moves their work) before the sweep can erase them.
+ */
+export function retentionBlockedAccounts(
+  store: Store,
+  deploymentTenant: string,
+  retention: {pendingMs: number | null; revokedMs: number | null},
+  now = Date.now(),
+): number {
+  if (!has(store, 'amcp_users')) return 0;
+  const blocked = pastRetention(store, deploymentTenant, retention, now, true, 1000);
+  return blocked.pending.length + blocked.revoked.length;
 }

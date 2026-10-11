@@ -139,3 +139,23 @@ lists them as unqualified reads (`src/personal-data.ts`).
   - Website and app events stay outside: they need browser or device data AMCP does not collect.
 - **Other platforms** stay blocked until each is reviewed; each blocked write says why in the ledger.
 
+## Retention and erasure of AMCP's own records (owner decision P3, 2026-10-11)
+
+The owner chose to design retention and erasure to GDPR and the KSA PDPL. This covers what AMCP itself keeps about
+people (accounts, workspaces and what they hold), not the uploads above, which store nothing about the people.
+
+- **Never-approved sign-ups** are erased 30 days after they were made, with the workspace each created.
+- **Revoked accounts** are erased 90 days after their access was revoked: the account, its own workspace and everything
+  it holds, its memberships and keys elsewhere. Audit records of an erased workspace become receipted tombstones.
+- **Report records** follow a retention per document kind: the workspace owner's period (7–365 days), else the
+  deployment default of 365 days.
+- **Self-service deletion:** a person deletes their own account in Account, after a typed confirmation and a recent
+  proof of identity, and receives an erasure receipt. A sole owner whose workspace other members use removes them
+  first. The operator's `admin erase-account` remains for everyone else.
+- **Residual copies** are covered by application retention, not promised as instant cryptographic erasure: the
+  write-ahead log is truncated at the next maintenance pass after an erasure; older backups and volume snapshots keep a
+  copy until they expire; the erasure receipts are re-applied to any restored copy; and master-key rotation retires the
+  key that opens old copies once they have expired.
+- Periods, switches and the runbook: [operations](../OPERATIONS.md#account-erasure-and-retention). Counsel should
+  confirm the periods for each country served, as for the rules above.
+

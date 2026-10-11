@@ -6,6 +6,7 @@ import {MirrorError} from '../src/errors.js';
 import {sha256} from '../src/security.js';
 import type {JsonObject} from '../src/types.js';
 import {AccountSecurity} from './account-security.js';
+import {AccountDeletion} from './account-deletion.js';
 
 /** Registration is open and at least one method can complete it: verification email or a configured social sign-in. */
 export function registrationAvailable(
@@ -160,6 +161,21 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
     handle((req, res) => res.json(accounts.profile(web.requireSession(req)))),
   );
   post('/api/account/profile', (req, res) => res.json(accounts.update(req, req.body)));
+  // Self-service deletion (SEC-07, owner decision P3): a preview that changes nothing, then the confirmed erasure.
+  const deletion = new AccountDeletion(accounts);
+  router.get(
+    '/api/account/deletion',
+    handle((req, res) => res.json(deletion.preview(req))),
+  );
+  post('/api/account/delete', (req, res) => {
+    const result = deletion.delete(req, req.body);
+    // The erasure ended every session of the person; this browser's session and known-device cookies go too.
+    res.setHeader('Set-Cookie', [
+      web.cookie('', 0),
+      `${accounts.deviceCookieName}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${web.secure ? '; Secure' : ''}`,
+    ]);
+    res.json(result);
+  });
   post('/api/account/password', async (req, res) => {
     // The change invalidated every device cookie of the account; this browser proved the password and gets a new one.
     res.json(signed(res, await accounts.changePassword(req, req.body), true));

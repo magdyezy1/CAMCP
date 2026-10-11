@@ -94,8 +94,8 @@ worker.onJobEvent = jsonLine;
 const workerDone = (async () => {
   if (!config.runWorker) return;
   process.stdout.write(JSON.stringify(workerClockEvent()) + '\n');
-  // Hourly account lifecycle sweep (SEC-06 S6) in the schedule stage, after the report schedules.
-  const lifecycle = accountLifecycleSweeper(store, {tenantId: config.tenantId ?? 'local'});
+  // Hourly account lifecycle and retention sweep (SEC-06 S6, SEC-07) in the schedule stage, after the report schedules.
+  const lifecycle = accountLifecycleSweeper(store, {tenantId: config.tenantId ?? 'local', log: jsonLine});
   await runWorkerLoop({
     schedule: () => {
       overview.tick();
