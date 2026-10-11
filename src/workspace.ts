@@ -5,6 +5,8 @@ import {createConsentPlan, previewConsentPlan} from './gtm-consent-plans.js';
 import {measurementEventIdentity} from './measurement-event-identity.js';
 import {linkedInConversionEvidence} from './linkedin-conversion-evidence.js';
 import {measurementGoogleGoals} from './measurement-google-goals.js';
+import {googleChangeHistory} from './google-change-history.js';
+import {searchOverlap} from './search-overlap.js';
 import {ga4AdminConfig} from './ga4-admin-config.js';
 import {measurementLedger} from './measurement-ledger.js';
 import {nativeAuthority} from './native-authority.js';
@@ -126,6 +128,8 @@ export const workspaceTool = tool(
     'measurement_google_goals',
     'measurement_ga4_config',
     'measurement_ledger',
+    'change_history',
+    'search_overlap',
     'catalog_preview',
     'catalog_source',
     'catalog_sources',
@@ -440,6 +444,9 @@ export class WorkspaceService {
       return ga4AdminConfig(this.store, this.registry, this.transport, this.credentials, actor, input);
     if (input.action === 'measurement_ledger')
       return measurementLedger(this.store, this.registry, this.transport, this.credentials, this.call, actor, input);
+    // PRV-07: bounded read-only diagnosis reads; nothing is saved.
+    if (input.action === 'change_history') return googleChangeHistory(this.store, this.call, actor, input);
+    if (input.action === 'search_overlap') return searchOverlap(this.store, this.call, actor, input);
     if (input.action === 'catalog_compare')
       return catalogComparison(this.store, this.registry, this.transport, this.credentials, actor, input);
     if (input.action === 'catalog_source') {
