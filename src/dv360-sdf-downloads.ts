@@ -293,6 +293,8 @@ export const dv360SdfFamily: ReviewedFamily = {
   name: 'dv360_sdf_downloads',
   files: ['src/dv360-sdf-downloads.ts', ['tests/dv360-sdf-downloads.test.mjs']],
   kind: dv360SdfKind,
+  // A report or export job (RPT-06): a reviewed write unless the owner’s provider-job switch admits it.
+  effect: 'provider_job',
   assert: assertDV360Sdf,
   authorize: (p, c, account, store) => authorizeDV360Sdf(p, c, store, account),
   snapshots: dv360SdfSnapshots,

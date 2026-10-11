@@ -69,7 +69,7 @@ import {ReportingService, reportingOperations} from './reporting.js';
 import {redactReportingRecord} from './report-query-access.js';
 import {applyExecutionRisk} from './execution-risk.js';
 import {projectResponse} from './projection.js';
-import {WriteReviewService, readOnlyWriteTool, writeTool} from './write-review.js';
+import {WriteReviewService, providerJobWriteTool, readOnlyWriteTool, writeTool} from './write-review.js';
 import type {WriteOrigin} from './write-records.js';
 import {validateAppleResponse} from './apple-native.js';
 import {microsoftGateway, validateMicrosoftResponse} from './microsoft-native.js';
@@ -241,14 +241,21 @@ export class MirrorService {
       decisionTool,
       overviewTool,
       previewTool,
-      // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09).
-      ...(this.policy.allowWrites ? [writeTool, mediaTool] : [readOnlyWriteTool, readOnlyMediaTool]),
+      // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09), and with the owner's
+      // provider-job switch also prepare and execute for report and export jobs (RPT-06).
+      ...(this.policy.allowWrites
+        ? [writeTool, mediaTool]
+        : [this.policy.providerJobs === true ? providerJobWriteTool : readOnlyWriteTool, readOnlyMediaTool]),
     ];
   }
   /** tools/list: each tool with its title and reviewed annotations (MCP-06). */
   listTools() {
     const readOnly = !this.policy.allowWrites;
-    return this.listedTools().map(t => ({...t, ...toolPresentation(t.name, readOnly)}));
+    // amcp_write creates provider jobs under the owner's switch (RPT-06), so it is not annotated read-only then.
+    return this.listedTools().map(t => ({
+      ...t,
+      ...toolPresentation(t.name, readOnly && !(t.name === 'amcp_write' && this.policy.providerJobs === true)),
+    }));
   }
   private listedTools() {
     const compact = this.options.flags.compactDescriptions !== false,
@@ -383,6 +390,7 @@ export class MirrorService {
             this.policy.allowWrites,
             this.wooCommerceRequest,
             this.options.flags,
+            this.policy.providerJobs === true,
           ).handle(input, actor),
           requestId,
           start,
@@ -854,8 +862,10 @@ export class MirrorService {
   }
   private async reviewed(input: JsonObject, actor: Actor): Promise<unknown> {
     // Who may change anything is decided before the payload is checked (MCP-09): a read-only deployment or a read-only
-    // client learns that first, instead of after correcting arguments that could never run.
-    if (input.action === 'prepare' || input.action === 'execute') {
+    // client learns that first, instead of after correcting arguments that could never run. Under the owner's
+    // provider-job switch (RPT-06) a reader or a read-only deployment may still prepare a report or export job, so the
+    // review lifecycle decides per compiled request (WriteReviewService.access) before any state is read.
+    if ((input.action === 'prepare' || input.action === 'execute') && this.policy.providerJobs !== true) {
       if (!this.policy.allowWrites)
         throw readOnlyDeployment(
           input.action === 'prepare' &&

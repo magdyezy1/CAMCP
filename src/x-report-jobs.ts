@@ -737,6 +737,8 @@ export const xReportFamily: ReviewedFamily = {
   name: 'x_report_jobs',
   files: ['src/x-report-jobs.ts / src/x-report-download.ts', ['tests/x-report-jobs.test.ts']],
   kind: xReportKind,
+  // A report or export job (RPT-06): a reviewed write unless the owner’s provider-job switch admits it.
+  effect: 'provider_job',
   assert: plan => {
     assertNoMethodOverride(plan);
     assertXReport(plan);

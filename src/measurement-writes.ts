@@ -521,6 +521,8 @@ export const ga4ExportFamily: ReviewedFamily = {
   name: 'ga4_export_jobs',
   files: ['src/measurement-writes.ts', ['tests/measurement-writes.test.ts']],
   kind: ga4ExportKind,
+  // A report task is a provider job (RPT-06). An audience export lists audience members, so it stays a reviewed write.
+  effect: plan => (plan.action === 'ga4_create_report_task' ? 'provider_job' : 'reviewed_write'),
   snapshots: measurementSnapshots,
   outcome: measurementOutcome,
   verification: measurementVerification,

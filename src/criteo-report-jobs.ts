@@ -811,6 +811,8 @@ export const criteoReportFamily: ReviewedFamily = {
   name: 'criteo_report_jobs',
   files: ['src/criteo-report-jobs.ts', ['tests/criteo-report-jobs.test.ts']],
   kind: criteoReportKind,
+  // A report or export job (RPT-06): a reviewed write unless the owner’s provider-job switch admits it.
+  effect: 'provider_job',
   assert: (plan, gateway) => {
     assertNoMethodOverride(plan);
     assertCriteoReport(plan);

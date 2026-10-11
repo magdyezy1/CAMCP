@@ -2,6 +2,7 @@ import type {Actor, CompiledRequest, Connection, Credentials, JsonObject} from '
 import type {TransportResult} from './transport.js';
 import type {Store} from './store.js';
 import type {PersonalDataSpec} from './personal-data.js';
+import type {FamilyEffect} from './effect-class.js';
 
 /** Performs one read. A family reader handles the reads it marked and passes every other read to the next reader. */
 export type Reader = (read: CompiledRequest) => Promise<TransportResult>;
@@ -142,6 +143,13 @@ export interface ReviewedFamily {
   readonly files: readonly [implementation: string, tests: readonly string[]];
   /** Truthy when this family owns the compiled mutation. Must be false for every other family's requests. */
   kind(plan: CompiledRequest): unknown;
+  /**
+   * The family's effect (src/effect-class.ts, RPT-06): `provider_job` for a report, export or change-log job that
+   * creates a provider-side processing object and changes no serving configuration or spend; omitted (or
+   * `reviewed_write`) for every other family, whose requests are classified per request. A provider job stays a
+   * reviewed write unless the deployment owner's switch (AMCP_PROVIDER_JOBS) is on.
+   */
+  readonly effect?: FamilyEffect | ((plan: CompiledRequest) => FamilyEffect);
   /** Refuses a request the provider no longer accepts (a withdrawn feature), at inspect, prepare and execute. */
   available?(plan: CompiledRequest): void;
   /**

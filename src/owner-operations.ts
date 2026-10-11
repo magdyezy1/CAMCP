@@ -21,6 +21,7 @@ import {reviewFriction} from './review-friction.js';
 import {mediaProcessorStatus} from './runtime-toolchain.js';
 import {lastBackupReceipt} from './backup-receipt.js';
 import {planInventory, planPolicy, purgeArchivedPlans, savePlanPolicy} from './campaign-inventory.js';
+import {providerJobSummary, purgeProviderJobReceipts} from './provider-jobs.js';
 /**
  * Parts of the owner's health that need modules a reviewed write must not load (this module is on the write path:
  * `assertWritesNotPaused`). The workspace tool supplies them; the guidance-coverage check stays on the write path.
@@ -29,6 +30,32 @@ export interface OwnerHealthSources {
   withheldWorkbookRecords?(store: Store, actor: Actor): JsonObject;
   /** The 30-day baseline of legacy Google action names in the audit (MCP-10). */
   legacyAliasUsage?(store: Store, actor: Actor): JsonObject;
+  /** The deployment's write and provider-job switches (RPT-06), which only the workspace tool knows. */
+  providerJobs?: {allowWrites: boolean; enabled: boolean};
+}
+/**
+ * The provider-job policy as the owner sees it (RPT-06): whether the deployment owner's switch is on, what a job needs,
+ * and the jobs of the last seven days by provider and outcome from their receipts.
+ */
+function providerJobHealth(store: Store, tenant: string, switches?: {allowWrites: boolean; enabled: boolean}) {
+  const enabled = switches?.enabled === true;
+  return {
+    effect: 'provider_job',
+    switch: enabled ? 'on' : 'off',
+    allowed_with_writes_off: enabled,
+    ...(!enabled && switches && !switches.allowWrites
+      ? {
+          blocker: 'provider_jobs_disabled',
+          reason:
+            'Live writes are off and the deployment owner has not turned provider jobs on (AMCP_PROVIDER_JOBS=true), so report and export jobs are refused.',
+        }
+      : {}),
+    requires: enabled
+      ? 'An account report-job grant (Connections), or while writes are on an operator’s account write grant.'
+      : 'A reviewed write: live writes on, an operator role and the account’s write grant.',
+    paused: pauseCovers(writePause(store, tenant), 'provider_jobs'),
+    receipts: providerJobSummary(store, tenant),
+  };
 }
 const writePauseId = 'workspace';
 /** Live keys of a workspace that the service, not a person, owns (owner health, SEC-06). Never the token or hash. */
@@ -50,16 +77,44 @@ export function writePause(store: Store, tenant: string): JsonObject | undefined
     .get(tenant, writePauseId) as {data: string} | undefined;
   return row ? JSON.parse(row.data) : undefined;
 }
-/** Refuses an execution while an owner has paused writes. Nothing reaches a provider after this refusal. */
-export function assertWritesNotPaused(store: Store, tenant: string): void {
+/**
+ * What a pause stops (RPT-06): `all` (the default, and every pause saved before scopes existed), advertising writes
+ * only, or provider report and export jobs only. Advertising writes are every reviewed write that is not a provider job.
+ */
+export const pauseScopes = ['all', 'advertising', 'provider_jobs'] as const;
+export type PauseScope = (typeof pauseScopes)[number];
+/** Whether a pause stops this effect: advertising writes, or provider jobs. */
+export function pauseCovers(pause: JsonObject | undefined, effect: 'advertising' | 'provider_jobs'): boolean {
+  if (!pause) return false;
+  const scope: PauseScope = pauseScopes.includes(pause.scope) ? pause.scope : 'all';
+  return scope === 'all' || scope === effect;
+}
+/** Whether the owner's pause currently stops this effect. */
+export function writesPausedFor(store: Store, tenant: string, effect: 'advertising' | 'provider_jobs'): boolean {
+  return pauseCovers(writePause(store, tenant), effect);
+}
+/**
+ * Refuses an execution while an owner has paused writes. Nothing reaches a provider after this refusal. `effect` is
+ * what the execution is: an advertising write (the default) or a provider job (RPT-06); a pause scoped to the other
+ * effect lets it run.
+ */
+export function assertWritesNotPaused(
+  store: Store,
+  tenant: string,
+  effect: 'advertising' | 'provider_jobs' = 'advertising',
+): void {
   const pause = writePause(store, tenant);
-  if (pause)
+  if (pause && pauseCovers(pause, effect))
     throw new MirrorError(
       'WRITES_PAUSED',
-      'An owner paused every reviewed write of this workspace: ' +
+      (pause.scope === 'provider_jobs'
+        ? 'An owner paused provider report and export jobs of this workspace: '
+        : pause.scope === 'advertising'
+          ? 'An owner paused advertising writes of this workspace: '
+          : 'An owner paused every reviewed write of this workspace: ') +
         pause.reason +
         '. Nothing was submitted; ask an owner to resume writes.',
-      {paused_at: pause.paused_at, paused_by: pause.paused_by},
+      {paused_at: pause.paused_at, paused_by: pause.paused_by, scope: pause.scope ?? 'all'},
       423,
     );
 }
@@ -177,6 +232,8 @@ export function ownerOperations(
       // Plans against the workspace bound of 500 not archived (CMP-05 baseline), every person's, counted only.
       plan_inventory: planInventory(store, tenant),
       write_pause: writePause(store, tenant) ?? null,
+      // RPT-06: the provider-job switch, what a job needs, and the last seven days of job receipts.
+      provider_jobs: providerJobHealth(store, tenant, sources.providerJobs),
       export_policy: {viewer_downloads: viewerDownloadsAllowed(store, tenant)},
       personal_data_accounts: personalDataAccounts(store, tenant),
       storage: {
@@ -239,13 +296,30 @@ export function ownerOperations(
         'INVALID_ARGUMENT',
         'Give a reason of at most 500 characters and confirmed=true to pause every reviewed write of this workspace.',
       );
-    const pause = {paused: true, reason, paused_by: actor.userId, paused_at: Date.now()};
+    // RPT-06: a pause stops everything unless the owner narrows it to advertising writes or to provider jobs.
+    const scope = input.pause_scope ?? 'all';
+    if (!pauseScopes.includes(scope))
+      throw new MirrorError(
+        'INVALID_ARGUMENT',
+        'pause_scope is all (the default), advertising (advertising writes only) or provider_jobs (report and export jobs only).',
+        {field: 'pause_scope', accepted: [...pauseScopes]},
+      );
+    const pause = {paused: true, scope, reason, paused_by: actor.userId, paused_at: Date.now()};
     store.putDocument(tenant, 'write_pause', writePauseId, pause);
-    store.appendAudit(tenant, 'write_pause/' + writePauseId, {event: 'writes_paused', reason, by: actor.userId});
+    store.appendAudit(tenant, 'write_pause/' + writePauseId, {
+      event: 'writes_paused',
+      reason,
+      scope,
+      by: actor.userId,
+    });
     return {
       ...pause,
       effect:
-        'Every amcp_write and amcp_media execute of this workspace is refused with WRITES_PAUSED until an owner resumes writes. Reads, prepares and verification continue.',
+        scope === 'provider_jobs'
+          ? 'Every provider report and export job of this workspace is refused with WRITES_PAUSED until an owner resumes writes. Advertising writes, reads, prepares and verification continue.'
+          : scope === 'advertising'
+            ? 'Every advertising amcp_write and amcp_media execute of this workspace is refused with WRITES_PAUSED until an owner resumes writes. Provider report and export jobs, reads, prepares and verification continue.'
+            : 'Every amcp_write and amcp_media execute of this workspace is refused with WRITES_PAUSED until an owner resumes writes. Reads, prepares and verification continue.',
     };
   }
   if (input.action === 'resume_writes') {
@@ -317,6 +391,8 @@ export function cleanupReports(store: Store) {
     // because they accrue once per reviewed write and nothing else deletes them. Two days are kept
     // so the current and preceding UTC day survive for inspection. The audit log keeps the
     // durable record of each write independently.
+    // Settled provider-job receipts are kept 90 days (RPT-06); submitting and uncertain ones until a person settles them.
+    purgeProviderJobReceipts(store, tenant, now);
     store.transaction(() => {
       store.db
         .prepare(

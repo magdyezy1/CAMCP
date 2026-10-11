@@ -675,6 +675,8 @@ export const tiktokReportFamily: ReviewedFamily = {
   name: 'tiktok_report_jobs',
   files: ['src/tiktok-report-jobs.ts', ['tests/tiktok-report-jobs.test.ts']],
   kind: tiktokReportKind,
+  // A report or export job (RPT-06): a reviewed write unless the owner’s provider-job switch admits it.
+  effect: 'provider_job',
   assert: (plan, gateway) => {
     assertNoMethodOverride(plan);
     assertTiktokReport(plan);

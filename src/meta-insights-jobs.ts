@@ -668,6 +668,8 @@ export const metaReportFamily: ReviewedFamily = {
   name: 'meta_insights_jobs',
   files: ['src/meta-insights-jobs.ts', ['tests/meta-insights-jobs.test.ts']],
   kind: metaReportKind,
+  // A report or export job (RPT-06): a reviewed write unless the owner’s provider-job switch admits it.
+  effect: 'provider_job',
   assert: (plan, gateway) => {
     assertNoMethodOverride(plan);
     assertMetaReport(plan);

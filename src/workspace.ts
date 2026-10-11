@@ -159,6 +159,7 @@ export const workspaceTool = tool(
     // Per-action argument notes live in src/first-party-contracts.ts, served by amcp_tool_help (MCP-07).
     expected_revision: {type: 'integer', minimum: 0},
     scope: {type: 'string', enum: ['workspace']},
+    pause_scope: {type: 'string', enum: ['all', 'advertising', 'provider_jobs']},
     days: field.integer,
     archived_campaign_plans_days: {type: 'integer', minimum: 0, maximum: 3650},
     require_distinct_approver: field.bool,
@@ -384,6 +385,8 @@ export class WorkspaceService {
     private allowWrites: boolean,
     private wooCommerceRequest?: WooCommerceRequest,
     private flags: EnhancementFlags = {},
+    /** The deployment owner's provider-job switch (AMCP_PROVIDER_JOBS, RPT-06), shown in capabilities and health. */
+    private providerJobs = false,
   ) {}
   async handle(input: JsonObject, actor: Actor): Promise<JsonObject> {
     validate(input, Object.keys(workspaceTool.inputSchema.properties));
@@ -518,6 +521,7 @@ export class WorkspaceService {
         this.allowWrites,
         input,
         this.flags.capabilitiesGraphDefault === true,
+        this.providerJobs,
       );
     if (input.action === 'program_check')
       return checkConditionalProgram(this.store, this.registry, this.call, actor, input);
@@ -537,6 +541,7 @@ export class WorkspaceService {
       return ownerOperations(this.store, input, actor, {
         withheldWorkbookRecords,
         legacyAliasUsage: (store, a) => cachedLegacyAliasUsage(store, a),
+        providerJobs: {allowWrites: this.allowWrites, enabled: this.providerJobs},
       });
     if (input.action === 'profiles')
       return {
