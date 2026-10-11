@@ -688,7 +688,8 @@ function measurementReadFeedback(form) {
     clear,
     show(error) {
       if (!connected()) return;
-      const text = errorMessage(error);
+      // WEB-03: the message, what to do, the provider's facts and the reference each on their own line.
+      const text = errorLines(error);
       if (!text) return;
       message.textContent = text;
       describe(true);

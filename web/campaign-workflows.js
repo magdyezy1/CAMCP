@@ -432,6 +432,14 @@ const campaignReplaceable = (step, run) => {
     )
   );
 };
+/**
+ * What to do about a step's error, as the website words it (WEB-03): a remedy written for an MCP client is never shown.
+ * Without the shell's presentation layer (an isolated page script), nothing is added.
+ */
+function campaignStepRemedy(error) {
+  const remedy = typeof websiteRemedy === 'function' ? websiteRemedy(error) : '';
+  return remedy ? `<p class="form-note">${esc(remedy)}</p>` : '';
+}
 /** What a plan's server run is doing (amcp_campaign run_background, MED-03 B). */
 function campaignBackgroundLabel(background) {
   switch (background.state) {
@@ -494,7 +502,7 @@ function campaignJournal(run) {
   return `<h2 tabindex="-1"><bdi dir="auto">${esc(consent && run.name === 'Tag consent draft' ? uiText('Tag consent draft') : run.name)}</bdi></h2><div class="work-summary">${badge(run.state)}<span>${esc(uiText('Revision'))} ${campaignNativeValue(run.revision)}</span>${runBy}${server}<a href="/campaigns?id=${encodeURIComponent(run.id)}">${esc(uiText('Link to this plan'))}</a></div>${temporary}${linked}${context ? allocationProposalView(context) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : consent ? consentProposalView(consent) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : recipeBrief}<ol class="campaign-steps">${run.steps
     .map(s => {
       const description = allocationStepDescription(s, context) ?? consentStepDescription(s, consent);
-      return `<li><div><strong>${description ?? `<bdi dir="auto">${esc(s.description ?? s.id)}</bdi>`}</strong><small>${campaignNativeValue(campaignProviderNames[s.gateway] ?? s.gateway ?? s.arguments?.platform)} · ${campaignNativeValue(s.account_id)}</small><small>${esc(uiText('Depends on:'))} ${esc(s.depends_on?.join(', ') || uiText('No predecessor'))}</small>${description ? `<details><summary>${esc(uiText('Original step description'))}</summary><p><bdi dir="auto">${esc(s.description ?? s.id)}</bdi></p></details>` : ''}</div>${badge(s.status)}${s.error ? `<p class="error">${esc(uiOwnedError(s.error).message)}</p>${recordDetails(s.error, uiText('Error and remedy'))}` : ''}${s.verification ? `${verificationComparison(s.verification)}${recordDetails(s.verification, uiText('Read-back evidence'))}` : ''}${s.review_id ? `<small>${esc(uiText('Original review:'))} <code dir="ltr">${esc(s.review_id)}</code></small>` : ''}${campaignReplaceable(s, run) ? `<button class="button small" type="button" data-replace-source="${esc(s.id)}">${esc(uiText('Replace the file'))}</button>` : ''}</li>`;
+      return `<li><div><strong>${description ?? `<bdi dir="auto">${esc(s.description ?? s.id)}</bdi>`}</strong><small>${campaignNativeValue(campaignProviderNames[s.gateway] ?? s.gateway ?? s.arguments?.platform)} · ${campaignNativeValue(s.account_id)}</small><small>${esc(uiText('Depends on:'))} ${esc(s.depends_on?.join(', ') || uiText('No predecessor'))}</small>${description ? `<details><summary>${esc(uiText('Original step description'))}</summary><p><bdi dir="auto">${esc(s.description ?? s.id)}</bdi></p></details>` : ''}</div>${badge(s.status)}${s.error ? `<p class="error">${esc(uiOwnedError(s.error).message)}</p>${campaignStepRemedy(s.error)}${recordDetails(s.error, uiText('Error and remedy'))}` : ''}${s.verification ? `${verificationComparison(s.verification)}${recordDetails(s.verification, uiText('Read-back evidence'))}` : ''}${s.review_id ? `<small>${esc(uiText('Original review:'))} <code dir="ltr">${esc(s.review_id)}</code></small>` : ''}${campaignReplaceable(s, run) ? `<button class="button small" type="button" data-replace-source="${esc(s.id)}">${esc(uiText('Replace the file'))}</button>` : ''}</li>`;
     })
     .join(
       '',
@@ -508,9 +516,139 @@ function verificationComparison(verification) {
     ? `<div class="data-scroll" role="region" aria-label="${esc(uiText('Read-back comparison'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Read-back comparison'))}</caption><thead><tr><th>${esc(uiText('Check'))}</th><th>${esc(uiText('Expected'))}</th><th>${esc(uiText('Observed'))}</th><th>${esc(uiText('Result'))}</th></tr></thead><tbody>${checks.map(c => `<tr><th scope="row">${esc(c.field ?? c.name ?? c.path ?? c.id ?? (c.changed_fields ?? []).join(', '))}</th><td>${esc(JSON.stringify(c.expected ?? c.expected_value ?? null))}</td><td>${esc(JSON.stringify(c.actual ?? c.actual_value ?? c.observed ?? null))}</td><td>${badge(c.status ?? (c.matches === true ? 'verified' : 'unknown'))}</td></tr>`).join('')}</tbody></table></div>`
     : '';
 }
-function campaignOutcome(out) {
-  const reason = out.run?.reason ?? out.recovery ?? out.decision ?? out.run?.stopped ?? out.state ?? uiText('Saved');
-  return `<div class="notice" role="status"><p>${esc(reason)}</p></div>${recordDetails(out, uiText('Result, receipts and next safe action'))}`;
+// WEB-03: what a plan run's stop means for a person, and the one control that continues it. Every run.stopped value of
+// src/campaign-runner.ts has an entry (tests/website-presentation.test.mjs fails when one is added without it). The
+// server's reason is written for MCP clients ("execute_next with it continues the step"); it stays under "Result,
+// receipts and next safe action". No control acts without a click, and a review's consents start unchecked.
+const runStopLabels = {
+  complete: 'Every step of this plan is done.',
+  time: 'The run paused to stay responsive. Continue to run the remaining steps.',
+  limit: 'The run paused to stay responsive. Continue to run the remaining steps.',
+  not_sent:
+    'The next step was not sent: a pause, a provider limit or a busy upload held it. Its review stays ready; continue in a moment.',
+  waiting:
+    'The next step waits for an earlier step to settle (a read-back or an upload still processing). Read it back, or continue in a moment.',
+  needs_attention: 'A step needs your attention, so the run stopped. Steps already done stay as they are.',
+  needs_spend_change_confirmed:
+    'This step changes budget, bid or serving beyond what the plan approval covers. Check its review here and authorize it to continue.',
+  needs_cap_override_confirmed:
+    'This step goes beyond a spending cap. Check its review here and authorize the override to continue.',
+  needs_creative_edit_confirmed:
+    'This step edits a creative that existing ads use. Check its review here and authorize the edit to continue.',
+  // A plan its preflight blocked returns the blocked view, not a run (src/campaign-background.ts).
+  blocked: 'A prerequisite blocks this plan. Correct the blocked step, then run the plan again.',
+};
+// A stopped step's way forward, by the call the server names for it (src/campaign-runner.ts stopped()).
+const runRecoveryLabels = {
+  recover_step:
+    'Correct the blocked step. It is reviewed again under a new key, and steps already verified are never sent again.',
+  confirm_absent:
+    'The provider refused this step after it was sent, and AMCP cannot prove nothing was created. Check the provider before you correct it.',
+  reconcile_step:
+    'This step reached the provider and its result is not confirmed, so AMCP never sends it again. Read it back from its receipt.',
+  accept_observed:
+    'The provider holds different values than this step sent. Compare them: accept them if they are right, or correct the step with a new reviewed change.',
+  reconcile:
+    'This step reached the provider without a completed receipt, so AMCP never sends it again. Reconcile it in Operations with read-only provider checks.',
+  unconfirmed:
+    'This step reached the provider and its result is not confirmed, so AMCP never sends it again. Check at the provider whether it exists; anything still to be written needs a new plan.',
+};
+function runRecoveryKind(out) {
+  const call = out?.next_call,
+    action = call?.arguments?.action;
+  if (call?.add_after_user_approval?.accept_observed === true) return 'accept_observed';
+  if (call?.tool === 'amcp_write' && action === 'reconcile') return 'reconcile';
+  if (['recover_step', 'confirm_absent', 'reconcile_step'].includes(action)) return action;
+  return typeof out?.recovery === 'string' || typeof out?.decision === 'string' ? 'unconfirmed' : null;
+}
+/** The submitted step a read-back can settle, from the plan as the page last read it. */
+const campaignReadBackStep = run =>
+  run?.steps?.find(s => s.review_id && ['verifying', 'processing', 'executing'].includes(s.status));
+/**
+ * A response's outcome for a person: what happened, what to do, and the control for it. `run` is the plan as the
+ * page shows it. Controls are bound by bindCampaignWorkflow; each calls what the person could already call.
+ */
+function runOutcomeView(out, run) {
+  const stopped = typeof out?.run?.stopped === 'string' ? out.run.stopped : out?.blocked === true ? 'blocked' : '',
+    recovery = runRecoveryKind(out),
+    executed = Array.isArray(out?.run?.executed) ? out.run.executed.length : 0,
+    lines = [],
+    controls = [];
+  const button = (id, label, primary = false) =>
+    `<button id="${id}" type="button" class="button${primary ? ' primary' : ''}">${esc(label)}</button>`;
+  if (stopped) {
+    lines.push(
+      uiText(
+        Object.hasOwn(runStopLabels, stopped)
+          ? runStopLabels[stopped]
+          : 'The run stopped. Continue to run the remaining steps.',
+      ),
+    );
+    if (out.run && stopped !== 'complete' && executed > 0)
+      lines.push(
+        uiText(executed === 1 ? '{count} step ran before it stopped.' : '{count} steps ran before it stopped.', {
+          count: uiNumber(executed),
+        }),
+      );
+    if (stopped === 'not_sent' && Number.isFinite(out.run?.retry_after_ms))
+      lines.push(
+        uiText('Try again in about {seconds} seconds.', {
+          seconds: uiNumber(Math.max(1, Math.ceil(out.run.retry_after_ms / 1000))),
+        }),
+      );
+  } else if (out?.preflight?.status === 'ready' && out.blocked === false)
+    lines.push(uiText('Prerequisites checked: nothing blocks this plan.'));
+  else if (out?.background?.state) lines.push(campaignBackgroundLabel(out.background));
+  else if (out?.approved) lines.push(uiText('Plan approved. Run it when you are ready; the approval lasts 24 hours.'));
+  else if (!recovery)
+    lines.push(
+      uiText(
+        out?.state === 'complete'
+          ? runStopLabels.complete
+          : out?.next_call?.arguments?.action === 'prepare_next'
+            ? 'Saved. Review the next step when you are ready.'
+            : 'Saved.',
+      ),
+    );
+  if (recovery) lines.push(uiText(runRecoveryLabels[recovery]));
+  // The one control for this outcome.
+  if (/^needs_(spend_change|cap_override|creative_edit)_confirmed$/.test(stopped) && !out.review)
+    controls.push(button('outcome-review-step', uiText('Review the step'), true));
+  else if (recovery === 'recover_step') controls.push(button('outcome-amend', uiText('Correct blocked step'), true));
+  else if (recovery === 'confirm_absent')
+    controls.push(button('outcome-confirm-absent', uiText('Check the provider'), true));
+  else if (recovery === 'reconcile_step') controls.push(button('outcome-read-back', uiText('Read back'), true));
+  else if (recovery === 'accept_observed')
+    controls.push(button('outcome-accept', uiText('Compare observed values'), true));
+  else if (recovery === 'reconcile')
+    controls.push(`<a class="button primary" href="/operations">${esc(uiText('Open Operations'))}</a>`);
+  // An activation gate is checked again once the provider state it names has changed (CMP-03).
+  else if (out?.next_call?.arguments?.action === 'preflight')
+    controls.push(button('outcome-preflight', uiText('Check prerequisites again'), true));
+  else if (stopped === 'waiting' && campaignReadBackStep(run))
+    controls.push(button('outcome-read-back', uiText('Read back'), true));
+  else if (
+    ['time', 'limit', 'not_sent', 'waiting'].includes(stopped) ||
+    (stopped && !Object.hasOwn(runStopLabels, stopped))
+  )
+    controls.push(button('outcome-continue', uiText('Continue the run'), true));
+  else if (out?.approved && out?.next_call?.arguments?.action === 'run')
+    controls.push(button('outcome-continue', uiText('Run the approved plan'), true));
+  else if (!stopped && !recovery && out?.next_call?.arguments?.action === 'prepare_next')
+    controls.push(button('outcome-review-step', uiText('Review next step')));
+  return `<div class="notice run-outcome" role="status">${lines.map(line => `<p>${esc(line)}</p>`).join('')}${controls.length ? `<div class="dialog-actions">${controls.join('')}</div>` : ''}</div>`;
+}
+/** A response's outcome, the prerequisites that block it, and the exact response under its details. */
+function campaignOutcome(out, run) {
+  return `${blockedRequirementsView(out)}${runOutcomeView(out, run)}${recordDetails(out, uiText('Result, receipts and next safe action'))}`;
+}
+/** The campaign plan's approval is for this exact plan and less than a day old (src/campaign-runner.ts assertApproval). */
+function campaignApprovalCurrent(run) {
+  return !!run?.approval && run.approval.plan_hash === run.plan_hash && !(Date.now() - run.approval.at > 86400000);
+}
+/** An approval of this exact plan that is older than a day: the plan is reviewed and approved again (WEB-03). */
+function campaignApprovalExpired(run) {
+  return !!run?.approval && run.approval.plan_hash === run.plan_hash && Date.now() - run.approval.at > 86400000;
 }
 // A step with more money and status fields than the summary lists is aggregated by the server (WRT-05): one row per
 // field pattern. Its complete list is one call away, and approval stays disabled until every such list was opened.
@@ -667,11 +805,17 @@ function bindCampaignList(page, filters, open) {
     if (!cursor) button.remove();
   });
 }
-// Each prerequisite preflight found missing, with the remedy the server gives for it.
+// Each prerequisite preflight found missing, with what to do about it: the server's remedy as the website words it
+// (WEB-03), so a remedy written for an MCP client ("amend the step with recover_step") is never shown to a person.
 function blockedRequirementsView(out) {
-  const missing = out.missing_requirements ?? [];
+  const missing = out?.missing_requirements ?? [];
   return missing.length
-    ? `<section class="notice" role="status"><h3>${esc(uiText('Prerequisites that block this plan'))}</h3><ul>${missing.map(m => `<li><strong><code dir="ltr">${esc(m.step)}</code></strong> ${esc(uiText(m.error?.message ?? m.error?.code ?? ''))}${m.error?.remedy?.action ? `<br><small>${esc(uiText(m.error.remedy.action))}</small>` : ''}</li>`).join('')}</ul></section>`
+    ? `<section class="notice" role="status"><h3>${esc(uiText('Prerequisites that block this plan'))}</h3><ul>${missing
+        .map(m => {
+          const remedy = m.error ? websiteRemedy(m.error) : '';
+          return `<li><strong><code dir="ltr">${esc(m.step)}</code></strong> ${esc(uiText(m.error?.message ?? m.error?.code ?? ''))}${remedy ? `<br><small>${esc(remedy)}</small>` : ''}</li>`;
+        })
+        .join('')}</ul></section>`
     : '';
 }
 /** Loads a truncated step's complete field list when its list is opened; approval unlocks once every list was seen. */
@@ -702,16 +846,97 @@ function bindApprovalFields(id, summary) {
 }
 // All progress actions operate on the original plan, review and key. A run may stop for an additional approval or
 // uncertain result; continuing never invents a new key or replays a submitted mutation. `after` is the response that
-// led to this view: one that names a recover_step call opens the amendment form on it.
+// led to this view: one that names a recover_step call opens the amendment form on it; `{outcome}` is the response of
+// an action on this page, shown with its one control (WEB-03).
 function bindCampaignWorkflow(run, open, current, after) {
   const id = run.id,
     show = html => {
       if (current()) $('#campaign-review').innerHTML = html;
     };
+  // The plan is read again, then the response's outcome is shown with its control (WEB-03) by the new view.
   const refresh = async out => {
-    if (current()) {
-      if (await open(id)) $('#campaign-review').innerHTML = campaignOutcome(out);
+    if (current()) await open(id, {outcome: out});
+  };
+  // A refusal the page can continue from is shown here, next to the plan, with its one control (WEB-03).
+  const recoverable = {
+    APPROVAL_REQUIRED: ['outcome-approve', 'Review plan approval'],
+    PLAN_CHANGED: ['outcome-approve', 'Review plan approval'],
+    REVIEW_EXPIRED: ['outcome-prepare-again', 'Prepare again'],
+    STATE_CHANGED: ['outcome-prepare-again', 'Prepare again'],
+  };
+  const showRefusal = error => {
+    const control = Object.hasOwn(recoverable, error?.code) ? recoverable[error.code] : null;
+    if (!control || !current()) return false;
+    show(
+      `<section class="notice run-outcome" role="alert">${errorBlock(error)}<div class="dialog-actions"><button id="${control[0]}" type="button" class="button primary">${esc(uiText(control[1]))}</button></div></section>`,
+    );
+    workspaceBind('#outcome-approve', () => approvePlan());
+    workspaceBind('#outcome-prepare-again', () => reviewStep());
+    return true;
+  };
+  const guarded = async call => {
+    try {
+      return await call();
+    } catch (error) {
+      if (showRefusal(error)) return undefined;
+      throw error;
     }
+  };
+  const runPlan = async (action = 'run') => {
+    const out = await guarded(() => workspaceCall('campaign', {action, id}));
+    if (out) await refresh(out);
+  };
+  // One step's review, with its consents unchecked, wired to execute_next for exactly that review and key.
+  const showReview = (review, lead = '') => {
+    show(lead + readableReview(review, uiText('Execute reviewed campaign step')));
+    // An expired step review is prepared again by prepare_next, which reads the state again (WRT-05).
+    bindReviewCountdown(review, reviewStep);
+    workspaceBind('#execute-reviewed', async () => {
+      const out = await guarded(() =>
+        workspaceCall('campaign', {
+          action: 'execute_next',
+          id,
+          review_id: review.review_id,
+          idempotency_key: review.idempotency_key,
+          ...readReviewConsents(review),
+        }),
+      );
+      if (out) await refresh(out);
+    });
+  };
+  const reviewStep = async () => {
+    const r = await workspaceCall('campaign', {action: 'prepare_next', id, detail: 'full'});
+    if (!current()) return;
+    if (r.review) showReview(r.review);
+    else await open(id, r);
+  };
+  workspaceBind('#next-campaign', reviewStep);
+  // A response's outcome and its control. A run that stopped for an acknowledgement renders the returned review here.
+  const showOutcome = (out, lead = '') => {
+    if (
+      /^needs_(spend_change|cap_override|creative_edit)_confirmed$/.test(out?.run?.stopped) &&
+      out.review?.review_id
+    ) {
+      showReview(out.review, lead + runOutcomeView(out, run));
+      return;
+    }
+    show(lead + campaignOutcome(out, run));
+    workspaceBind('#outcome-continue', () => runPlan('run'));
+    workspaceBind('#outcome-review-step', reviewStep);
+    workspaceBind('#outcome-amend', async () => amend(out));
+    workspaceBind('#outcome-confirm-absent', async () => confirmAbsent(out));
+    workspaceBind('#outcome-preflight', async () => {
+      const checked = await workspaceCall('campaign', {action: 'preflight', id, detail: 'full'});
+      if (current()) await open(id, checked);
+    });
+    workspaceBind('#outcome-read-back', async () => {
+      const stepId = out.next_call?.arguments?.action === 'reconcile_step' ? out.next_call.arguments.step_id : null,
+        step = stepId ? {id: stepId} : campaignReadBackStep(run);
+      if (!step) throw Error(uiText('No submitted step needs reconciliation.'));
+      const read = await workspaceCall('campaign', {action: 'reconcile_step', id, step_id: step.id});
+      await refresh(read);
+    });
+    workspaceBind('#outcome-accept', async () => acceptObserved(out.next_call?.arguments?.step_id));
   };
   // Sharing with colleagues (CMP-05): the owner names a member as viewer, editor or approver, or removes one.
   const team = async () => {
@@ -752,7 +977,7 @@ function bindCampaignWorkflow(run, open, current, after) {
     await workspaceCall('campaign', {action: 'unarchive', id});
     if (current()) await open(id);
   });
-  workspaceBind('#approve-campaign', async () => {
+  const approvePlan = async () => {
     const out = await workspaceCall('campaign', {action: 'approve', id});
     if (!current()) return;
     // The workspace requires a different approver for this plan: offer sharing instead of the approval form.
@@ -771,26 +996,24 @@ function bindCampaignWorkflow(run, open, current, after) {
       const spending = approvalSpending(out.approval);
       if (spending && !$('#plan-spend-consent').checked)
         throw Error(uiText('Acknowledge the displayed budget and serving changes.'));
-      const approved = await workspaceCall('campaign', {
-        action: 'approve',
-        id,
-        plan_hash: out.approval.plan_hash,
-        summary_hash: out.approval.summary_hash,
-        confirmed: true,
-        ...(spending ? {spend_change_confirmed: true} : {}),
-      });
-      await refresh(approved);
+      // A plan that changed after this summary is refused as PLAN_CHANGED, shown with "Review plan approval" (WEB-03).
+      const approved = await guarded(() =>
+        workspaceCall('campaign', {
+          action: 'approve',
+          id,
+          plan_hash: out.approval.plan_hash,
+          summary_hash: out.approval.summary_hash,
+          confirmed: true,
+          ...(spending ? {spend_change_confirmed: true} : {}),
+        }),
+      );
+      if (approved) await refresh(approved);
     });
-  });
-  workspaceBind('#run-campaign', async () => {
-    const out = await workspaceCall('campaign', {action: 'run', id});
-    await refresh(out);
-  });
+  };
+  workspaceBind('#approve-campaign', approvePlan);
+  workspaceBind('#run-campaign', () => runPlan('run'));
   // An approved plan of uploads runs on the server: leaving the page does not stop it (MED-03 B).
-  workspaceBind('#run-background', async () => {
-    const out = await workspaceCall('campaign', {action: 'run_background', id});
-    await refresh(out);
-  });
+  workspaceBind('#run-background', () => runPlan('run_background'));
   // A step whose file expired or changed gets a new file: planned for its one destination, then amended. The step is
   // reviewed again with the new file; the old bytes are never reused (MED-03 B).
   workspaceBind('[data-replace-source]', async button => {
@@ -847,14 +1070,22 @@ function bindCampaignWorkflow(run, open, current, after) {
   const amend = out => {
     const call = out.next_call;
     if (call?.arguments?.action !== 'recover_step') {
-      show(campaignOutcome(out));
+      showOutcome(out);
       return;
     }
     const step = run.steps.find(s => s.id === call.arguments.step_id);
     if (!step) {
-      show(blockedRequirementsView(out) + campaignOutcome(out));
+      showOutcome(out);
       return;
     }
+    // The server's reason names recover_step and next_call for MCP clients; the page says what the form does (WEB-03).
+    const reason = out.recovery ?? out.decision,
+      lead =
+        typeof reason === 'string' && !agentDirected(reason)
+          ? uiText(reason)
+          : call.correct
+            ? uiText(call.correct)
+            : uiText(runRecoveryLabels.recover_step);
     const fields =
       call.choose ??
       reviewFields(step.arguments).filter(
@@ -862,7 +1093,7 @@ function bindCampaignWorkflow(run, open, current, after) {
       );
     const native = !call.choose && call.add_after_correction?.arguments;
     show(
-      `${blockedRequirementsView(out)}<section class="panel workspace-form"><h2>${esc(uiText('Amend'))} ${esc(step.id)}</h2><p>${esc(out.recovery ?? out.decision ?? (call.correct ? uiText(call.correct) : uiText('Correct the blocked step. It will need a new review.')))}</p>${fields.length ? `<form id="amend-step"><label>${esc(uiText('Field'))}<select name="field">${fields.map((f, i) => `<option value="${i}">${esc(f.path)}</option>`).join('')}</select></label><div id="amend-value"></div><label class="form-note"><input name="confirmed" type="checkbox" required> ${esc(uiText('Save this correction and invalidate the previous plan approval.'))}</label><button type="submit" class="button primary">${esc(uiText('Save amendment'))}</button></form>` : ''}${native ? `<details${fields.length ? '' : ' open'}><summary>${esc(uiText('Correct the native arguments instead'))}</summary><form id="amend-arguments"><label>${esc(uiText('Corrected native arguments'))}<textarea name="arguments" rows="10" dir="ltr" required>${esc(JSON.stringify(step.arguments, null, 2))}</textarea></label><label class="form-note"><input name="confirmed" type="checkbox" required> ${esc(uiText('Save this correction and invalidate the previous plan approval.'))}</label><button type="submit" class="button">${esc(uiText('Save corrected arguments'))}</button></form></details>` : ''}</section>`,
+      `${blockedRequirementsView(out)}<section class="panel workspace-form"><h2>${esc(uiText('Amend'))} ${esc(step.id)}</h2><p>${esc(lead)}</p>${fields.length ? `<form id="amend-step"><label>${esc(uiText('Field'))}<select name="field">${fields.map((f, i) => `<option value="${i}">${esc(f.path)}</option>`).join('')}</select></label><div id="amend-value"></div><label class="form-note"><input name="confirmed" type="checkbox" required> ${esc(uiText('Save this correction and invalidate the previous plan approval.'))}</label><button type="submit" class="button primary">${esc(uiText('Save amendment'))}</button></form>` : ''}${native ? `<details${fields.length ? '' : ' open'}><summary>${esc(uiText('Correct the native arguments instead'))}</summary><form id="amend-arguments"><label>${esc(uiText('Corrected native arguments'))}<textarea name="arguments" rows="10" dir="ltr" required>${esc(JSON.stringify(step.arguments, null, 2))}</textarea></label><label class="form-note"><input name="confirmed" type="checkbox" required> ${esc(uiText('Save this correction and invalidate the previous plan approval.'))}</label><button type="submit" class="button">${esc(uiText('Save corrected arguments'))}</button></form></details>` : ''}</section>`,
     );
     if (native)
       workspaceBind('#amend-arguments', async form => {
@@ -885,7 +1116,7 @@ function bindCampaignWorkflow(run, open, current, after) {
         await refresh(result);
       });
     if (!fields.length) {
-      if (!native) show(blockedRequirementsView(out) + campaignOutcome(out));
+      if (!native) showOutcome(out);
       return;
     }
     const form = $('#amend-step');
@@ -974,14 +1205,9 @@ function bindCampaignWorkflow(run, open, current, after) {
     const next = await workspaceCall('campaign', {action: 'activation_plan', id});
     if (current()) await open(next.id);
   });
-  // Preflight or prepare_next found a step to correct: show what blocked it and the form, not the raw plan state.
-  if (after) {
-    if (after.next_call?.arguments?.action === 'recover_step') amend(after);
-    else if (after.next_call?.arguments?.action === 'confirm_absent') confirmAbsent(after);
-    else show(campaignOutcome(after));
-  }
-  workspaceBind('[data-accept-observed]', async button => {
-    const step = run.steps.find(s => s.id === button.dataset.acceptObserved);
+  // The observed values of a read-back step, for the person to accept or not; nothing is sent (CMP-04).
+  const acceptObserved = stepId => {
+    const step = run.steps.find(s => s.id === stepId);
     if (!step?.verification?.actual_hash) throw Error(uiText('Read back this step before accepting observed values.'));
     show(
       `<section class="panel workspace-form"><h2>${esc(uiText('Accept observed values for'))} ${esc(step.id)}</h2><p>${esc(uiText('This records your acceptance of the values read back from the provider. Dependent steps may then proceed.'))}</p>${verificationComparison(step.verification)}${recordDetails(step.verification, uiText('Complete comparison'))}<label class="form-note"><input id="observed-consent" type="checkbox"> ${esc(uiText('I accept these exact observed values as the result of this step.'))}</label><button id="accept-observed" class="button primary">${esc(uiText('Record acceptance'))}</button></section>`,
@@ -998,7 +1224,16 @@ function bindCampaignWorkflow(run, open, current, after) {
       });
       await refresh(out);
     });
-  });
+  };
+  workspaceBind('[data-accept-observed]', async button => acceptObserved(button.dataset.acceptObserved));
+  // Preflight or prepare_next found a step to correct: show what blocked it and the form, not the raw plan state. The
+  // response of an action on this page shows its outcome and its one control (WEB-03).
+  if (after?.outcome) showOutcome(after.outcome);
+  else if (after) {
+    if (after.next_call?.arguments?.action === 'recover_step') amend(after);
+    else if (after.next_call?.arguments?.action === 'confirm_absent') confirmAbsent(after);
+    else showOutcome(after);
+  }
 }
 function mountCampaignClone(open) {
   const supported = [

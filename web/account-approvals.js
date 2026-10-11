@@ -117,7 +117,7 @@ renderSettings = async function () {
       try {
         await reload();
       } catch (e) {
-        if (error) error.textContent = e.message;
+        if (error) error.textContent = errorMessage(e);
       }
       return;
     }
@@ -143,7 +143,7 @@ renderSettings = async function () {
       await api('/api/owner/accounts/access', {method: 'POST', body: JSON.stringify(body)});
       await reload();
     } catch (e) {
-      if (error) error.textContent = e.message;
+      if (error) error.textContent = errorMessage(e);
       button.disabled = false;
     }
   });
@@ -160,7 +160,7 @@ renderSettings = async function () {
       toast(r.message);
       form.reset();
     } catch (e) {
-      if (error) error.textContent = e.message;
+      if (error) error.textContent = errorMessage(e);
     }
   });
 };

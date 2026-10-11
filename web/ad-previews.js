@@ -84,7 +84,8 @@ function bindAdPreviews() {
       });
       $('#preview-results').innerHTML = previewResults(r);
     } catch (e) {
-      $('#preview-results').innerHTML = `<p class="form-note">${esc(uiText('No previews:'))} ${esc(e.message)}</p>`;
+      $('#preview-results').innerHTML =
+        `<p class="form-note">${esc(uiText('No previews:'))} ${esc(errorMessage(e))}</p>`;
       throw e;
     }
   });

@@ -57,6 +57,9 @@ function page(call: Call, locale: 'en' | 'ar') {
   const run = (source: string) => new Script(source).runInContext(context);
   run(readFileSync('web/localization.js', 'utf8'));
   run('uiLocale = fixtureLocale; uiMessages = new Map(Object.entries(fixtureCatalog));');
+  // The shell's error presentation (WEB-03), which the plan view uses to word a blocked step's remedy.
+  const app = readFileSync('web/app.js', 'utf8');
+  run(app.slice(app.indexOf('function requestError('), app.indexOf("const content = $('#content')")));
   run(readFileSync('web/campaign-workflows.js', 'utf8'));
   return {context, node, bindings, run};
 }
@@ -96,8 +99,13 @@ test('a plan blocked at preflight offers the correction on the website, and its 
         locale === 'ar' ? /المتطلبات المسبقة التي توقف هذه الخطة/ : /Prerequisites that block this plan/,
       );
       assert.match(html, /<code dir="ltr">squad_1<\/code>/);
-      // The remedy names the call that amends the step, with its native name kept in both languages.
-      assert.match(html, /recover_step/);
+      // WEB-03: the server's remedy names recover_step and next_call for MCP clients; the page shows its own wording
+      // for the refusal instead (this assertion used to require the MCP call name on the page).
+      assert.doesNotMatch(html, /recover_step|next_call|details\./);
+      const remedy = p.run(
+        'websiteRemedies.find(([code]) => code.test(preflight.missing_requirements[0].error.code))[1]',
+      ) as string;
+      assert.ok(html.includes(locale === 'ar' ? catalog[remedy] : remedy), remedy);
       assert.match(html, /id="amend-step"/);
       assert.match(html, /\/payload\/adsquads\/0\/pixel_id/);
       assert.doesNotMatch(html, /id="amend-arguments"/, 'a named choice is a patch, not free-form arguments');

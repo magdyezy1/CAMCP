@@ -395,8 +395,11 @@ function ownerReviewFriction(r) {
 }
 const ownerCall = async input => {
   const r = await api('/api/workspace/workspace', {method: 'POST', body: JSON.stringify(input)});
+  // The whole refusal, with its remedy and request reference, so the owner sees what to do and what to quote (WEB-03).
   if (!r.success)
-    throw Object.assign(new Error(r.error?.message ?? uiText('Workspace operation failed.')), {code: r.error?.code});
+    throw Object.assign(new Error(r.error?.message ?? uiText('Workspace operation failed.')), r.error ?? {}, {
+      requestId: r.meta?.requestId ?? r.meta?.request_id,
+    });
   return r.data;
 };
 renderSettings = async function () {
@@ -456,7 +459,8 @@ renderSettings = async function () {
       try {
         await fn(el);
       } catch (e) {
-        $('#owner-error').textContent = e.message;
+        // WEB-03: the reason, what to do and the request reference, not the message alone.
+        $('#owner-error').textContent = errorMessage(e);
         $('#owner-error').scrollIntoView({block: 'center'});
       }
     });

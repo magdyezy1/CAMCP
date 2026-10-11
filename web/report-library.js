@@ -371,7 +371,7 @@ function bindOverviewLibrary() {
       );
       await renderReportingOverview();
     } catch (error) {
-      $('#auth-error').textContent = error.message;
+      $('#auth-error').textContent = errorMessage(error);
     }
   });
   bindOverviewHistory();

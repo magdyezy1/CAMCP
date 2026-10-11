@@ -30,6 +30,23 @@ function uiOwnedError(error) {
     nextAction: typeof error.next_action === 'string' ? uiText(error.next_action) : '',
   };
 }
+/**
+ * A JSON field's value, or a refusal in the interface language that names the field (WEB-03): the browser's parser
+ * text never reaches the page. `kind` 'object' or 'array' also checks the shape; 'any' accepts any JSON value.
+ */
+function parseJsonField(label, text, kind = 'object') {
+  let value;
+  try {
+    value = JSON.parse(String(text ?? ''));
+  } catch {
+    throw Error(uiText('{field} is not valid JSON. Check its braces, quotes and commas.', {field: label}));
+  }
+  if (kind === 'object' && (!value || typeof value !== 'object' || Array.isArray(value)))
+    throw Error(uiText('{field} must be one JSON object in braces.', {field: label}));
+  if (kind === 'array' && !Array.isArray(value))
+    throw Error(uiText('{field} must be a JSON list in square brackets.', {field: label}));
+  return value;
+}
 /** The workspace's name; the unedited default ("<owner>’s workspace") reads in the interface language (WEB-05). */
 function uiWorkspaceName(name, owner) {
   if (typeof name !== 'string' || !name) return uiText('AMCP workspace');
