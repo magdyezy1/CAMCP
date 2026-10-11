@@ -751,6 +751,14 @@ Owner-only support bundle preview/export preserves the backend's sanitized proje
 safe recovery advice and request references survive the website wrapper. First-party MCP envelopes add versioned
 `meta.workflow` state, original `source_state`, exact internal path, permitted next call and required acknowledgements
 when present. Native provider payloads cannot supply these links. `automatic_retry_of_mutation` is always false.
+Its schema is declared under `meta.properties.workflow` in the `outputSchema` of every AMCP tool, so an SDK client
+validates it (MCP-07). `amcp_write` carries it as well: `inspect`; `review_required` after prepare; `running` with the
+`amcp_campaign verify` call after an executed write; `attention_required` for a provider-reported failure or an
+uncertain execute, whose next call reads the review's history instead of sending it again; `blocked` for an execute
+refused before anything was sent. Each action of the AMCP tools has a contract row (`src/first-party-contracts.ts`):
+its arguments as JSON Schema, effects, least role and usual next calls, served by `amcp_tool_help {gateway,
+operation}`. An argument the action does not read draws `meta.argument_warnings`; `MIRROR_FLAGS
+{"actionArguments":"enforce"}` refuses it with `INVALID_ARGUMENT` naming it.
 The path comes from an explicit table by tool and action (MCP-09): a plan opens `/campaigns?id=`, a media review
 `/media?review_id=`, a captured report `/reports?id=` and an Overview snapshot `/reporting-overview?report_id=`.
 Overview `export`, `retry` and `cancel` return the `report_id` they belong to, so their link opens the report and not

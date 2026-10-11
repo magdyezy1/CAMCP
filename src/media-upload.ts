@@ -135,17 +135,13 @@ export const mediaTool = {
       variant_id: {type: 'string'},
       source_id: {
         type: 'string',
-        description:
-          'A website upload/import, or an explicitly owner-retained original; list returns them under sources. Computer uploads and their derived copies share an absolute 30-minute deadline and cannot be retained. Only separately imported link/Drive originals may persist as owner-retained lib- sources.',
       },
       source_url: {
         type: 'string',
-        description: 'A public HTTPS link to one PNG, JPEG, MP4 or MOV file. AMCP downloads it on the server.',
       },
       destinations: {
         type: 'array',
         maxItems: 20,
-        description: 'plan: the accounts an upload (source_id) would go to.',
         items: {
           type: 'object',
           required: ['platform', 'account_id'],
@@ -161,13 +157,9 @@ export const mediaTool = {
       },
       expected_sha256: {
         type: 'string',
-        description:
-          'prepare: refuse unless the file to upload has exactly this SHA-256, as plan returned it. retain_source/remove_source: the exact selected original hash, required with confirmed:true.',
       },
       fit_to_platform: {
         type: 'boolean',
-        description:
-          'Fit the media to the platform before review: scale it down within 1080 × 1920 (never cropped or enlarged), re-encode an image above the platform limit, convert MOV to MP4 for X and LinkedIn.',
       },
       preset: {type: 'string', enum: Object.keys(variantPresets)},
       fit: {type: 'string', enum: ['contain', 'crop']},
@@ -176,25 +168,18 @@ export const mediaTool = {
       reference_view: {
         type: 'string',
         enum: ['ad_images', 'performance_max', 'performance_max_brand', 'snapchat_top_snap'],
-        description:
-          'asset_usage: explicit provider-specific native view. Snapchat original image/video receipts use snapchat_top_snap; it reads only literal creative.top_snap_media_id and refuses Google views. Google images use the following independent views. ad_images is the default App/Demand Gen/Responsive Search ad-asset view. performance_max reads configured image asset-group links, not individual ads or campaign-level brand-guideline logos. performance_max_brand separately reads campaign-level LOGO/LANDSCAPE_LOGO links with explicitly enabled brand guidelines and exact Performance Max campaign identity. Campaign links are not ads or asset groups. Each view is independently complete within the selected 1–1000 limit.',
       },
       plan_id: {
         type: 'string',
-        description: 'asset_performance: the retained verified plan linking this asset to an ad.',
       },
       report_id: {
         type: 'string',
-        description:
-          'asset_performance: an accessible guided Meta ad evidence snapshot from the same account and login. Omit to list compatible snapshots. This joins linked ad IDs, not historical image-level attribution.',
       },
       search: {type: 'string', maxLength: 200},
       tag: {type: 'string', maxLength: 40},
       cursor: {
         type: 'string',
         maxLength: 24000,
-        description:
-          'Opaque exact-view continuation. library/asset retain their 1024-byte cursor limit; Meta asset_usage permits a bounded encrypted native continuation; Google image and Snapchat top-snap asset_usage refuse any cursor and require complete bounded collections.',
       },
       revision: {type: 'integer', minimum: 0},
       metadata: {
@@ -211,8 +196,6 @@ export const mediaTool = {
         type: 'integer',
         minimum: 1,
         maximum: 1000,
-        description:
-          'Google image and Snapchat top-snap asset_usage: complete collection limit 1–1000 (default 50), no cursor. Snapchat counts all examined creatives, with separate 1000-row original-media searches. Meta asset_usage: 1–100 ads per page. Other actions retain their own smaller limits.',
       },
       name: {type: 'string'},
       media_type: {type: 'string', enum: ['image', 'video']},
@@ -225,8 +208,6 @@ export const mediaTool = {
       review_id: {type: 'string'},
       idempotency_key: {
         type: 'string',
-        description:
-          'Optional at execute: defaults to the review_id. When given it must equal the review_id returned by prepare.',
       },
       confirmed: {type: 'boolean'},
     },

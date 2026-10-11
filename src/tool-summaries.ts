@@ -1,4 +1,5 @@
 import type {JsonObject} from './types.js';
+import {actionSummaries, firstPartyContract, type FirstPartyContract} from './first-party-contracts.js';
 
 /**
  * What tools/list shows of each tool (MCP-01). Clients truncate a description at 2,048 characters, and under tool search
@@ -8,9 +9,9 @@ import type {JsonObject} from './types.js';
  */
 export const descriptionBudget = 2000;
 const help = (tool: string) =>
-  'Per-action arguments, limits and rules: amcp_tool_help {gateway:"' +
+  'Per-action arguments and rules: amcp_tool_help {gateway:"' +
   tool +
-  '", operation:"<action>"}; guides: amcp_tool_help {topic:"guides"} or amcp://guides/index.';
+  '", operation:"<action>"}; guides: amcp_tool_help {topic:"guides"}.';
 export const routingSummaries: Readonly<Record<string, string>> = Object.freeze({
   amcp_workspace:
     'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its change history. ' +
@@ -69,13 +70,14 @@ export function routingSummary(name: string, readOnly = false): string | undefin
   return (readOnly ? routingSummaries[name + ':read_only'] : undefined) ?? routingSummaries[name];
 }
 /**
- * A captured description that does not fit the budget keeps its leading sentences verbatim and points to the help call
- * that returns it whole; the AMCP note and media instructions that follow it are kept whole.
+ * A gateway description (AMCP's own, or the accurate captured one, MCP-10) that does not fit the budget keeps its
+ * leading sentences verbatim and points to the help call that returns it whole; the AMCP note and media sentence that
+ * follow it are kept whole.
  */
 export function fitCapturedDescription(name: string, captured: string, tail: string[]): string {
   const full = [captured, ...tail].filter(Boolean).join(' ');
   if (full.length <= descriptionBudget) return full;
-  const pointer = 'The full captured description is returned by amcp_tool_help {gateway:"' + name + '"}.',
+  const pointer = 'The full description is returned by amcp_tool_help {gateway:"' + name + '"}.',
     room = descriptionBudget - [pointer, ...tail].filter(Boolean).join(' ').length - 1;
   let head = '';
   for (const sentence of sentences(captured)) {
@@ -102,14 +104,19 @@ export function actionDetail(description: string, actions: string[], action: str
   }
   return out;
 }
-/** amcp_tool_help for a first-party tool: the routing summary, the full description and, per action, its detail. */
+/**
+ * amcp_tool_help for a first-party tool: the routing summary, the full description, each action's one-line summary and,
+ * per action, its detail and its contract (MCP-07): the arguments it reads as JSON Schema, its effects, the least role
+ * that can call it and the calls that usually follow.
+ */
 export function firstPartyHelp(
   tool: {name: string; description: string; inputSchema: JsonObject},
   listed: string,
   operation?: string,
 ): JsonObject {
   const actions: string[] = tool.inputSchema.properties?.action?.enum ?? [];
-  if (operation === undefined)
+  if (operation === undefined) {
+    const single = actions.length ? undefined : firstPartyContract(tool, null);
     return {
       gateway: tool.name,
       mode: 'amcp_workflow',
@@ -119,28 +126,37 @@ export function firstPartyHelp(
       ...(actions.length
         ? {
             actions,
+            action_summaries: actionSummaries(tool),
             operation_help: {tool: 'amcp_tool_help', arguments: {gateway: tool.name, operation: '<action>'}},
           }
         : {}),
       inputSchema: tool.inputSchema,
+      ...(single ? {contract: contractView(single)} : {}),
     };
+  }
   const detail = actionDetail(tool.description, actions, operation),
-    named = new RegExp('(^|[^A-Za-z0-9_])' + operation + '($|[^A-Za-z0-9_])'),
-    argumentsNamed = Object.entries((tool.inputSchema.properties ?? {}) as JsonObject).filter(
-      ([key, schema]) => key !== 'action' && typeof schema?.description === 'string' && named.test(schema.description),
-    );
+    contract = firstPartyContract(tool, operation);
   return {
     gateway: tool.name,
     operation,
+    ...(contract ? {summary: contract.summary} : {}),
     detail: detail.length ? detail.join(' ') : null,
-    ...(argumentsNamed.length ? {arguments: Object.fromEntries(argumentsNamed)} : {}),
+    ...(contract ? {arguments: contract.argumentsSchema.properties, contract: contractView(contract)} : {}),
     ...(detail.length
       ? {}
       : {
-          meaning:
-            'The tool description has no text specific to this action; its arguments are those of the input schema.',
+          meaning: 'The tool description has no text specific to this action; its contract lists its arguments.',
         }),
     call: {tool: tool.name, arguments: {action: operation}},
     see: {tool: 'amcp_tool_help', arguments: {gateway: tool.name}},
   };
 }
+/** A contract row as help serves it: the arguments as one JSON Schema, effects, role and the usual next calls. */
+const contractView = (c: FirstPartyContract): JsonObject => ({
+  arguments_schema: c.argumentsSchema,
+  effects: c.effects,
+  requires_role: c.requires_role,
+  next: c.next.map(n => ({tool: n.tool, arguments: {action: n.action}})),
+  meaning:
+    'Arguments outside arguments_schema are not read by this action: they draw a meta.argument_warnings entry now and are refused with INVALID_ARGUMENT in a later release. effects are the most a call can do.',
+});

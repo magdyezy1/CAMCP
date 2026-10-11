@@ -79,41 +79,27 @@ export const writeTool = {
       review_id: {type: 'string'},
       idempotency_key: {
         type: 'string',
-        description:
-          'Optional at execute: defaults to the review_id. When given it must equal the review_id returned by prepare.',
       },
       confirmed: {type: 'boolean'},
       spend_change_confirmed: {type: 'boolean'},
       cap_override_confirmed: {
         type: 'boolean',
-        description:
-          'The user approved going beyond a spending cap the owner set. Needed at execute only when prepare lists it in execute_requirements.',
       },
       creative_edit_confirmed: {
         type: 'boolean',
-        description:
-          'Explicitly acknowledge a reviewed X card edit/deletion or Tweet rename that may disrupt promoted ads. Freeze this choice during prepare and repeat it during execute.',
       },
       people: {
         type: 'object',
-        description:
-          'Only for a write that sends data about people (a customer list): {schema: key or keys, rows: one value, or one value per key, per person; hashed: true when every value is already SHA-256 hex}. Sent beside arguments at prepare, and again at execute: AMCP hashes them in memory and keeps only their count and digest.',
       },
       personal_data: {
         type: 'object',
-        description:
-          'prepare only, when adding people: {countries: ISO codes of the people in the list, law (for countries AMCP names no law for), consent_confirmed, platform_terms_confirmed, pdpl (for SA: consent, transfer_abroad, withdrawal_removal)}, confirmed by the uploader.',
       },
       provider_check: {
         type: 'boolean',
-        description:
-          'prepare only: also have the provider validate the request without applying it (Google Ads mutate requests; Meta campaign and ad set creates and edits). The result is in provider_check; a request the provider rejects cannot be executed and is prepared again once corrected.',
       },
       evidence: {
         type: 'string',
         enum: ['full', 'ref'],
-        description:
-          'inspect and prepare: "full" includes the provider contract whole; "ref" only what identifies it (versions, review date, write status, version end), with full_contract naming the amcp_tool_help call that returns the rest. Omitted: whole the first time a session inspects or prepares for a gateway, then "ref".',
       },
     },
     additionalProperties: false,

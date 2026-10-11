@@ -173,7 +173,14 @@ test('captured inputs stay strict and unrelated commerce operations remain unqua
       f.actor,
     );
     assert.equal(out.success, false);
-    assert.equal(out.error.code, 'WORKFLOW_ADAPTER_REQUIRED');
+    // MCP-10: an operation listed only for catalog compatibility names the gap and its alternatives instead of the
+    // generic WORKFLOW_ADAPTER_REQUIRED it answered before.
+    assert.equal(out.error.code, 'CAPABILITY_UNAVAILABLE');
+    assert.equal(out.error.details.status, 'unmapped');
+    assert.deepEqual(
+      out.error.details.alternatives.map(a => a.arguments.action),
+      ['catalog_sources', 'catalog_source'],
+    );
     const rows = actionContracts(f.service.registry).filter(r => r.gateway === 'commerce_native_action');
     assert.equal(rows.length, 31);
     assert.equal(rows.filter(r => r.status === 'local_workflow').length, 1);

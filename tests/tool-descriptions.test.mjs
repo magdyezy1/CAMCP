@@ -57,18 +57,25 @@ test('native tool descriptions say what AMCP does where the captured text names 
     }
     const tools = Object.fromEntries(listed.map(t => [t.name, t]));
     const captured = Object.fromEntries(registry.data.tools.map(t => [t.name, t]));
+    // MCP-10: the captured Meta, TikTok and Snapchat text told callers to "Prefer named tools such as create campaign",
+    // tools that do not exist, with an AMCP note correcting it afterwards. AMCP's own text now replaces it, and gateway
+    // help keeps the captured text under captured_catalog.
     for (const name of ['meta_native_action', 'tiktok_native_action', 'snapchat_native_action']) {
-      // The captured text stays first and verbatim; the note follows it.
-      assert.ok(tools[name].description.startsWith(captured[name].description), name);
+      assert.doesNotMatch(tools[name].description, /Prefer named tools|create campaign, fetch ad account/, name);
       assert.match(
         tools[name].description,
-        /AMCP note: Its named tools are amcp_campaign .*amcp_write .*amcp_media .*amcp_reporting/,
+        /^Run one .* action by name.*amcp_campaign\b.*amcp_write\b.*amcp_media\b.*amcp_reporting\b/,
         name,
       );
+      const gateway = registry.help({gateway: name}, {mode: 'strict', flags: {}});
+      assert.equal(gateway.captured_catalog.description, captured[name].description, name);
     }
-    assert.match(tools.dv360_native_action.description, /There is no dv360_reporting_ops tool/);
+    assert.doesNotMatch(tools.dv360_native_action.description, /dv360_reporting_ops/);
+    assert.match(tools.dv360_native_action.description, /AMCP has no DV360 reporting/);
     assert.match(tools.google_ads_native_action.description, /Requests go to Google Ads API v25/);
-    for (const t of registry.data.tools.filter(t => t.mode === 'direct' && t.inputSchema.properties.dry_run))
+    for (const t of registry.data.tools.filter(
+      t => t.mode === 'direct' && t.inputSchema.properties.dry_run && t.name !== 'amazon_native_action',
+    ))
       // The note said "whatever dry_run says", which was untrue for dry_run:false (it is refused, MCP-09).
       assert.match(
         tools[t.name].description,
@@ -81,10 +88,9 @@ test('native tool descriptions say what AMCP does where the captured text names 
     );
     assert.match(tools.snapchat_native_action.description, /skip_preflight is refused unless false/);
     assert.match(tools.dv360_native_action.description, /allowUnsupportedLineItemTypes is refused unless false/);
-    assert.match(
-      tools.amazon_native_action.description,
-      /region, skip_preflight and override_preflight are refused unless false/,
-    );
+    // Amazon has no executable action: its description says so instead of "Run any Amazon Ads endpoint" (MCP-10).
+    assert.match(tools.amazon_native_action.description, /AMCP has no executable Amazon Ads action yet/);
+    assert.doesNotMatch(tools.amazon_native_action.description, /Run any Amazon Ads endpoint|AMCP note/);
     // Help shows the same description; the listed schema is still the captured one.
     const help = registry.help({gateway: 'meta_native_action'}, {mode: 'strict', flags: {}});
     assert.equal(

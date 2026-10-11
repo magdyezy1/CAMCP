@@ -1,6 +1,7 @@
 import {providerContracts, effectiveProviderContract} from './provider-contracts.js';
 import {gatewayOffered} from './provider-offering.js';
 import {Store} from './store.js';
+import {serverIdentity} from './server-identity.js';
 import type {Actor, JsonObject} from './types.js';
 export function workspaceCapabilities(store: Store, actor: Actor) {
   const checks = store.documents(actor.tenantId, 'readiness'),
@@ -61,8 +62,8 @@ export function workspaceCapabilities(store: Store, actor: Actor) {
     tool,
     coverage,
     implementation: 'implemented_unverified',
-    local_test_evidence:
-      'tests/workspace-operations.test.ts and tests/private-media.test.ts; consult the release CI result',
+    // Hosted CI is waived by the owner, so the evidence is the build's qualification record, named once below (MCP-10).
+    local_test_evidence: 'tests/workspace-operations.test.ts and tests/private-media.test.ts; see qualification',
     live_qualification: 'per account and action evidence below',
   }));
   // A workspace's live evidence is its own: the reviewed writes it verified by reading them back from the provider.
@@ -106,6 +107,14 @@ export function workspaceCapabilities(store: Store, actor: Actor) {
           })),
       })),
     ),
+    // Where this build's tests were recorded (QA-01, MCP-10): the qualification record of its source tree, which the
+    // build identity at /versionz identifies. There is no hosted CI result to consult.
+    qualification: {
+      build: serverIdentity().version,
+      status_url: '/versionz',
+      record:
+        'npm run qualify records the tested source tree in .runtime/qualifications/<source_tree_hash>.json; the operator keeps it (it is not committed) and release notes cite its source_tree_hash.',
+    },
     meaning:
       'Implemented and fixture-tested are not live qualification. Evidence is timestamped and applies only to the listed account, action and fields.',
   };

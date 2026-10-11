@@ -1,4 +1,4 @@
-import {operationKinds, operationStates} from './operation-types.js';
+import {operationKinds} from './operation-types.js';
 import {auditHistoryPage} from './audit-history.js';
 import {measurementEvents} from './measurement-events.js';
 import {createConsentPlan, previewConsentPlan} from './gtm-consent-plans.js';
@@ -8,6 +8,7 @@ import {nativeAuthority} from './native-authority.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {ownerOperations, writePause} from './owner-operations.js';
 import {withheldWorkbookRecords} from './withheld-workbook-records.js';
+import {legacyAliasUsage} from './legacy-alias-usage.js';
 import {actionContractPage} from './action-contracts.js';
 import {capabilities} from './capability-graph.js';
 import {dashboard, dashboardSections} from './dashboard.js';
@@ -143,12 +144,8 @@ export const workspaceTool = tool(
     search: {type: 'string', maxLength: 200},
     offset: {type: 'integer', minimum: 0},
     policy: field.object,
-    expected_revision: {
-      type: 'integer',
-      minimum: 0,
-      description:
-        'save_spend_policy: the revision of the stored policy you read (0 when none). A stale one is refused with REVISION_CONFLICT; without it the save replaces the stored policy and says so.',
-    },
+    // Per-action argument notes live in src/first-party-contracts.ts, served by amcp_tool_help (MCP-07).
+    expected_revision: {type: 'integer', minimum: 0},
     scope: {type: 'string', enum: ['workspace']},
     days: field.integer,
     connection_id: field.id,
@@ -171,14 +168,7 @@ export const workspaceTool = tool(
     preview_hash: field.id,
     monitor: field.object,
     kind: {type: 'string', enum: ['all', ...operationKinds]},
-    state: {
-      type: 'string',
-      maxLength: 40,
-      description:
-        'operations: ' +
-        operationStates.join(', ') +
-        '; incidents: all, open, acknowledged, snoozed, resolved, superseded; monitors: all, active, paused; report_bindings: active (default), retired, all.',
-    },
+    state: {type: 'string', maxLength: 40},
     snooze_hours: {type: 'integer', minimum: 1, maximum: 168},
     enabled: field.bool,
     subscription_version: field.id,
@@ -197,16 +187,8 @@ export const workspaceTool = tool(
       uniqueItems: true,
     },
     allow_upsert: field.bool,
-    inspect_other_listed_products: {
-      type: 'boolean',
-      description:
-        'catalog_compare only: inspect other bounded listed X products without establishing full store or variant absence.',
-    },
-    absent_source_policy: {
-      type: 'string',
-      enum: ['retain'],
-      description: 'catalog_compare only: supplied products do not authorize deleting unselected source inventory.',
-    },
+    inspect_other_listed_products: field.bool,
+    absent_source_policy: {type: 'string', enum: ['retain']},
     name: {type: 'string', maxLength: 100},
     revision: field.integer,
     confirmed: field.bool,
@@ -221,19 +203,8 @@ export const workspaceTool = tool(
     binding: field.object,
     spreadsheet_id: {type: 'string', maxLength: 200},
     limit: {type: 'integer', minimum: 1, maximum: 100},
-    view: {
-      type: 'string',
-      enum: ['summary', 'graph', 'full'],
-      description:
-        'capabilities: summary (default; at most 25 workflows per page) or graph (the whole dependency graph). dashboard: summary (default) or full (unbounded; the website Overview).',
-    },
-    sections: {
-      type: 'array',
-      items: {type: 'string', enum: dashboardSections},
-      minItems: 1,
-      uniqueItems: true,
-      description: 'dashboard only: the bounded detail sections to return instead of the summary.',
-    },
+    view: {type: 'string', enum: ['summary', 'graph', 'full']},
+    sections: {type: 'array', items: {type: 'string', enum: dashboardSections}, minItems: 1, uniqueItems: true},
     max_entities: {type: 'integer', minimum: 1, maximum: 1000},
     max_pages: {type: 'integer', minimum: 1, maximum: 25},
   },
@@ -541,7 +512,7 @@ export class WorkspaceService {
         'disable_personal_data',
       ].includes(input.action)
     )
-      return ownerOperations(this.store, input, actor, {withheldWorkbookRecords});
+      return ownerOperations(this.store, input, actor, {withheldWorkbookRecords, legacyAliasUsage});
     if (input.action === 'profiles') return {profiles: this.store.documents(actor.tenantId, 'client_profile')};
     if (input.action === 'preview_profile') {
       const profile = input.id ? read(this.store, actor, 'client_profile', input.id) : input.profile;

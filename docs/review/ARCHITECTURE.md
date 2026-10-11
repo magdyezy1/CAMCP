@@ -52,7 +52,8 @@ src/service.ts  MirrorService.call(tool, input, actor)
 
 Generated inputs (never hand-edited): `generated/registry.json` (5.5 MB, captured tools and
 actions), `generated/vendor-routes.json` (5.9 MB, routes from pinned vendor documents),
-`generated/microsoft-contracts.json` (6.6 MB, WSDL-derived), `generated/types.ts`.
+`generated/microsoft-contracts.json` (6.6 MB, WSDL-derived). The unused `generated/types.ts` is no longer generated
+(MCP-07); the AMCP tools' per-action contracts are `src/first-party-contracts.ts`.
 Ledgers and `docs/CONTRACTS.md` are produced by `tools/action-contracts.ts` and
 `tools/generate-contracts.ts`.
 

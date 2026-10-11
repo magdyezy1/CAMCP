@@ -307,7 +307,8 @@ function mountCreativeNativeReferences(asset, active) {
     mountCreativeSnapchatReferences(asset, active, root);
     return;
   }
-  root.innerHTML = `<h3>${esc(uiText('Current native media references'))}</h3><p class="form-note">${esc(uiText('Inspect current Meta image-hash or video-ID references in the original upload account. This can find ads outside AMCP plans; it does not attribute historical performance. Other formats and providers remain unknown.'))}</p>${asset.native_usage_supported === true ? `<button id="creative-read-native-references" class="button">${esc(uiText('Read current native references'))}</button><div id="creative-native-reference-pages"></div>` : `<p class="notice">${esc(uiText('Native reference inspection requires a qualified Meta image/video, original Google image or original Snapchat image/video receipt.'))}</p>`}`;
+  // Meta copy only for a Meta asset; any other provider gets the provider-neutral note (MCP-10).
+  root.innerHTML = `<h3>${esc(uiText('Current native media references'))}</h3><p class="form-note">${esc(uiText(asset.platform === 'meta' ? 'Inspect current Meta image-hash or video-ID references in the original upload account. This can find ads outside AMCP plans; it does not attribute historical performance. Other formats and providers remain unknown.' : 'Current use in ads can be read for Meta images and videos, Google images and Snapchat images and videos. For this asset it stays unknown.'))}</p>${asset.native_usage_supported === true ? `<button id="creative-read-native-references" class="button">${esc(uiText('Read current native references'))}</button><div id="creative-native-reference-pages"></div>` : `<p class="notice">${esc(uiText('Native reference inspection requires a qualified Meta image/video, original Google image or original Snapchat image/video receipt.'))}</p>`}`;
   if (asset.native_usage_supported !== true) return;
   const pager = workPageLoader(
     '#creative-native-reference-pages',

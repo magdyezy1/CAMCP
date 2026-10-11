@@ -55,7 +55,7 @@ export const providerMaintenance: Record<string, JsonObject> = {
     sandbox: 'Provider sandbox advertiser and token must be verified before any live fixture.',
     traps: [
       'Native /ad/create/ uses one creatives[] record in each AMCP review. Smart+ differs.',
-      'Discover an authorized existing identity; identity provisioning remains unqualified.',
+      'Discover an authorized existing identity, or create a custom (CUSTOMIZED_USER) identity through amcp_write; TikTok-account identities are authorized, not created.',
       'Pixel, CTA and format prerequisites depend on the endpoint and objective. Keep large IDs as strings.',
     ],
   },

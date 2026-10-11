@@ -16,7 +16,7 @@ import {extendXReportTool} from './x-report-jobs.js';
 import {pinnedJson} from './pinned-json.js';
 import {metaRuleActions} from './meta-rule-routes.js';
 import {dataManagerActions} from './google-data-manager-routes.js';
-import {describedTool} from './tool-notes.js';
+import {describedTool, describesOwnText} from './tool-notes.js';
 import {nameCandidates, searchTerm} from './name-candidates.js';
 const addFormats = addFormatsModule as unknown as (ajv: Ajv) => void;
 /** Gateways whose captured schema lacks LIST_ACTIONS but which AMCP lists from its catalog (MCP-05). */
@@ -349,7 +349,11 @@ export class Registry {
     }
     const out = structuredClone(tool.help);
     if (out.inputSchema) out.inputSchema = this.schema(tool, options);
-    if (typeof out.description === 'string') out.description = describedTool({...tool, description: out.description});
+    if (typeof out.description === 'string') {
+      // AMCP's own text where the captured one is untrue (MCP-10); the captured text stays beside it.
+      if (describesOwnText(tool, out.description)) out.captured_catalog = {description: out.description};
+      out.description = describedTool(tool, out.description);
+    }
     return out;
   }
 }

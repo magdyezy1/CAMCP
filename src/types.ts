@@ -265,6 +265,11 @@ export interface EnhancementFlags {
   compactDescriptions?: boolean;
   /** Rollback only: amcp_workspace capabilities returns the whole graph unless view:"summary" is asked for. */
   capabilitiesGraphDefault?: boolean;
+  /**
+   * Per-action argument checks of the AMCP tools (MCP-07, src/first-party-contracts.ts): "report" (the default) adds a
+   * meta warning for an argument the action does not read; "enforce" refuses it with INVALID_ARGUMENT naming it.
+   */
+  actionArguments?: 'report' | 'enforce';
 }
 export interface CallOptions {
   mode: 'strict' | 'enhanced';

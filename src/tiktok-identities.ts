@@ -7,8 +7,8 @@ import type {CompiledRequest, JsonObject} from './types.js';
 /**
  * TikTok custom identities, per API for Business v1.3 "Create an identity", "Get info about an identity" and
  * "Get info about images" (checked 2026-09-26). A CUSTOMIZED_USER identity supplies the display name and avatar
- * of non-Spark ads; creating one starts no delivery and spends nothing. Deletion and TikTok-account identities
- * (AUTH_CODE, TT_USER, BC_AUTH_TT) are outside this contract.
+ * of non-Spark ads; creating one starts no delivery and spends nothing. TikTok-account identities (AUTH_CODE, TT_USER,
+ * BC_AUTH_TT) are outside this contract; deleting an unused custom identity is tiktok_deletions (src/tiktok-deletions.ts).
  */
 export const tiktokIdentityPath = '/v1.3/identity/create/',
   tiktokImageInfoPath = '/v1.3/file/image/ad/info/';

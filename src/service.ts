@@ -30,9 +30,14 @@ import {checkSnapchatByIdsResult, validateSnapchatByIds} from './snapchat-by-ids
 import {keepResultIds, snapchatResultIds} from './snapchat-result-ids.js';
 import {WriteGroups, groupLimitRefusal, needsGroup} from './write-groups.js';
 import {gtmDiagnosticOperations, gtmDiagnostics} from './gtm-diagnostics.js';
-import {withEffects, workflowOutcome} from './workflow-outcomes.js';
+import {withEffects, workflowOutcome, writeErrorOutcome} from './workflow-outcomes.js';
+import {actionArgumentCheck} from './first-party-contracts.js';
 import {conditionalProgramDescription} from './conditional-programs.js';
-import {amcpNote} from './tool-notes.js';
+import {amcpNote, listedDescription, mediaListing} from './tool-notes.js';
+import {unavailableRefusal} from './unavailable-operations.js';
+import {amcpDescribed} from './execution-status.js';
+import {checkContextOptions, contextOperation} from './context-operations.js';
+import {unqualifiedUsage, usageKind} from './native-usage.js';
 import {fitCapturedDescription, routingSummary} from './tool-summaries.js';
 import {surfaceRevision, toolHelp} from './tool-help.js';
 import {serverIdentity} from './server-identity.js';
@@ -245,9 +250,13 @@ export class MirrorService {
           media = mediaDiscovery(t.name) ? mediaInstructions : undefined;
         if (!compact) return {...t, ...(media ? {description: t.description + ' ' + media} : {})};
         const note = amcpNote(definition);
+        // AMCP's own description where the captured one is untrue, and a short media sentence (MCP-10).
         return {
           ...t,
-          description: fitCapturedDescription(t.name, definition.description, [note ?? '', media ?? '']),
+          description: fitCapturedDescription(t.name, listedDescription(definition), [
+            note ?? '',
+            media ? mediaListing(t.name) : '',
+          ]),
         };
       }),
       ...this.firstPartyTools().map(t => {
@@ -323,6 +332,17 @@ export class MirrorService {
       // A provider this deployment does not offer is refused before its arguments are read (CON-06).
       assertGatewayOffered(tool);
       if (tool === 'amcp_tool_help' || tool === 'amcp_write') assertGatewayOffered(input?.gateway);
+      // Each action of an AMCP tool takes its own arguments (MCP-07): one it does not read is a meta warning, or with
+      // MIRROR_FLAGS {"actionArguments":"enforce"} an INVALID_ARGUMENT naming it, before the action runs.
+      const own = this.firstPartyTools().find(t => t.name === tool);
+      if (own) {
+        const warnings = actionArgumentCheck(
+          own,
+          input,
+          this.options.flags.actionArguments === 'enforce' ? 'enforce' : 'report',
+        );
+        if (warnings.length) this.argumentWarnings.set(requestId, warnings);
+      }
       if (tool === overviewTool.name)
         return this.wrap(
           await new ReportingOverview(this, this.mediaFetcher).handle(input, actor),
@@ -396,11 +416,7 @@ export class MirrorService {
         return this.wrap(
           mediaNext(
             input.action === 'asset_usage'
-              ? creativeAssetView(this.store, actor, input.asset_id).platform === 'google_ads'
-                ? await googleImageUsage(this.store, this.registry, this.transport, this.credentials, actor, input)
-                : creativeAssetView(this.store, actor, input.asset_id).platform === 'snapchat'
-                  ? await snapchatAssetUsage(this.store, this.registry, this.transport, this.credentials, actor, input)
-                  : await metaAssetUsage(this.store, call, actor, input)
+              ? await this.assetUsage(input, actor, call)
               : await this.media().call(input, actor),
           ),
           requestId,
@@ -411,7 +427,7 @@ export class MirrorService {
       if (tool === writeTool.name) {
         const result: any = await this.reviewed(input, actor);
         return {
-          ...this.wrap(result, requestId, start, tool),
+          ...this.wrap(result, requestId, start, tool, input.action),
           ...(result.success === false
             ? {
                 success: false,
@@ -448,6 +464,13 @@ export class MirrorService {
           tool,
         );
       const catalogListing = listsActions.has(tool) && ['LIST_ACTIONS', 'DESCRIBE_ACTION'].includes(input.action);
+      // An operation listed only for catalog compatibility is refused before its arguments are checked, since
+      // correcting them would not help, and before anything is sent (MCP-10).
+      if (this.registry.tools.get(tool)?.mode === 'delegated') {
+        guardInput(input);
+        const unavailable = unavailableRefusal(tool, input);
+        if (unavailable) throw unavailable;
+      }
       if (catalogListing) guardInput(input);
       else this.validated(tool, input);
       if (input.action === 'LIST_ACTIONS')
@@ -468,9 +491,11 @@ export class MirrorService {
             : this.introspection.describe(tool, input),
           media = mediaDiscovery(tool),
           program = conditionalProgramDescription(this.registry, tool, input.target_action);
+        // read_only is AMCP's contract classification and api_version the version sent; captured values that differ
+        // stay under captured_catalog, and amcp_execution says whether AMCP runs the action (MCP-10).
         return this.wrap(
           {
-            ...withoutSuccess(description),
+            ...amcpDescribed(this.registry, tool, String(input.target_action), withoutSuccess(description)),
             ...(program ? {amcp_conditional_program: program} : {}),
             amcp_write_inspection: {
               tool: 'amcp_write',
@@ -550,6 +575,15 @@ export class MirrorService {
         }
         result = {...result, meta: {...result.meta, audit_recorded: false}};
       }
+      // An execute that did not complete says whether anything may have been sent (MCP-07): uncertain writes are
+      // attention_required with a read of their history, never a retry.
+      if (tool === writeTool.name && refusal instanceof MirrorError) {
+        const workflow = writeErrorOutcome(input, refusal, this.writeClaim(actor, input));
+        if (workflow) {
+          if (workflow.next_call && !this.listed(workflow.next_call.tool)) delete workflow.next_call;
+          result = {...result, meta: {...result.meta, workflow}};
+        }
+      }
       const status = refusal instanceof MirrorError ? refusal.status : 500;
       if (database || !auditRecorded || status >= 500)
         try {
@@ -572,6 +606,7 @@ export class MirrorService {
         }
       return result;
     } finally {
+      this.argumentWarnings.delete(requestId);
       if (actorChecked) {
         try {
           this.store.serviceTiming(actor.tenantId, this.timingCategory(tool), performance.now() - timingStart, !failed);
@@ -580,6 +615,42 @@ export class MirrorService {
           this.store.noteServiceTimingFailure();
         }
       }
+    }
+  }
+  /**
+   * amcp_media asset_usage, routed by usage kind (MCP-10): the reader for the asset's provider and media type checks its
+   * own receipt; an asset no reader covers (another provider, or a Google video) gets the provider-neutral refusal
+   * listing what can be read, before any provider request.
+   */
+  private assetUsage(
+    input: JsonObject,
+    actor: Actor,
+    call: (t: string, a: JsonObject, u: Actor) => Promise<JsonObject>,
+  ) {
+    const asset = creativeAssetView(this.store, actor, input.asset_id),
+      kind = usageKind(asset);
+    if (kind === 'google_image_links')
+      return googleImageUsage(this.store, this.registry, this.transport, this.credentials, actor, input);
+    if (kind === 'snapchat_top_snap')
+      return snapchatAssetUsage(this.store, this.registry, this.transport, this.credentials, actor, input);
+    if (kind === 'meta_scalar_references') return metaAssetUsage(this.store, call, actor, input);
+    throw unqualifiedUsage(asset);
+  }
+  /** The state of an execute's idempotency claim after the call (MCP-07): none when nothing was claimed or it was released. */
+  private writeClaim(actor: Actor, input: JsonObject): 'none' | 'pending' | 'uncertain' | 'complete' | undefined {
+    if (input?.action !== 'execute') return undefined;
+    const key = input.idempotency_key ?? input.review_id;
+    if (typeof key !== 'string' || !key) return undefined;
+    try {
+      const row = this.store.db
+        .prepare('SELECT state FROM idempotency WHERE tenant_id=? AND key=?')
+        .get(actor.tenantId, key) as {state?: string} | undefined;
+      if (!row) return 'none';
+      return ['pending', 'uncertain', 'complete'].includes(String(row.state))
+        ? (row.state as 'pending' | 'uncertain' | 'complete')
+        : undefined;
+    } catch {
+      return undefined;
     }
   }
   /** Captured validation; an unknown action also names the surface revision, since stale tool definitions send them. */
@@ -629,8 +700,12 @@ export class MirrorService {
    * this makes the risk legible to the model and to the person approving a plan.
    */
 
+  /** Report-only argument findings of the call in flight, by request ID (MCP-07); wrap puts them under meta. */
+  private argumentWarnings = new Map<string, JsonObject[]>();
   private wrap(data: unknown, requestId: string, start: number, tool?: string, action?: unknown) {
     const meta: JsonObject = {requestId, latencyMs: Date.now() - start};
+    const warnings = this.argumentWarnings.get(requestId);
+    if (warnings) meta.argument_warnings = warnings;
     const workflow = workflowOutcome(tool, data as JsonObject, action);
     if (workflow) {
       if (workflow.next_call && !this.listed(workflow.next_call.tool)) delete workflow.next_call;
@@ -1375,6 +1450,8 @@ export class MirrorService {
     if (gateway === 'amcp_native_action' && reportingOperations.has(operation))
       return new ReportingService(this.store).handle(operation, args, actor);
     if (['get_workspace_context', 'list_accounts', 'list_workspace_assets'].includes(operation)) {
+      // A captured option AMCP does not implement is refused by name instead of being ignored (MCP-10).
+      if (contextOperation(gateway, operation)) checkContextOptions(this.registry, operation, args);
       const connections = this.store.listConnections(actor.tenantId).filter(c => c.enabled);
       if (operation === 'get_workspace_context')
         return {

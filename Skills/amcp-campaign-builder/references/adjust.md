@@ -72,8 +72,11 @@ HTTP 403 alone does not diagnose the exact provider entitlement problem.
 The [executable examples](../examples/adjust-reporting.json) use synthetic IDs.
 Substitute discovered UUIDs/apps and confirmed metric names; examples do not
 authorize provider calls. This is native MCP reporting. Adjust integration into
-the normalized dashboard, saved exports and schedules is separate work. Other
-Adjust operations, including writes, are not made executable by this guide.
+the normalized dashboard, saved exports and schedules is separate work. The
+other four Adjust operations, `adjust_ad_spend`, `adjust_app_automation`,
+`adjust_campaign_api` and `adjust_deeplinks`, are listed only for compatibility
+with the captured catalog: AMCP refuses them with `CAPABILITY_UNAVAILABLE` before
+any request, and `details.alternatives` names the two operations above.
 
 ## Sources and qualification
 

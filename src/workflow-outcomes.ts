@@ -81,16 +81,126 @@ export function withEffects<T extends {tool: string; arguments: JsonObject}>(cal
   return effects ? {...call, effects} : call;
 }
 
+/** The states of meta.workflow (MCP-07). */
+export const outcomeStates = [
+  'complete',
+  'attention_required',
+  'blocked',
+  'running',
+  'review_required',
+  'deferred',
+  'inspect',
+] as const;
+/**
+ * The published schema of meta.workflow (MCP-07), declared in each AMCP tool's outputSchema. Additive: every property
+ * but version, state and automatic_retry_of_mutation is optional, and other properties are allowed.
+ */
+export const outcomeSchema = {
+  type: 'object',
+  properties: {
+    version: {const: 1},
+    state: {enum: [...outcomeStates]},
+    source_state: {},
+    automatic_retry_of_mutation: {const: false},
+    website_path: {type: 'string'},
+    next_call: {type: 'object'},
+  },
+  required: ['version', 'state', 'automatic_retry_of_mutation'],
+};
+/** The tools that carry meta.workflow. */
+export const workflowTools = [
+  'amcp_campaign',
+  'amcp_media',
+  'amcp_reporting',
+  'amcp_reporting_overview',
+  'amcp_workspace',
+  'amcp_write',
+];
+/** Where to look first after an uncertain or failed single write: its own audit events, read locally (MCP-07). */
+const writeHistory = (reviewId: unknown) =>
+  typeof reviewId === 'string' && reviewId.length > 0 && reviewId.length <= 200
+    ? {tool: 'amcp_workspace', arguments: {action: 'history', search: reviewId}}
+    : undefined;
+/**
+ * amcp_write's outcome (MCP-07): inspect → inspect; prepare → review_required with the acknowledgements execute will
+ * need; a sent mutation whose read-back is queued → running, with the verify call; a verified one → complete; one the
+ * provider reported failed → attention_required. Never a retry of the mutation: execute is not suggested.
+ */
+function writeOutcomeState(data: JsonObject, action: unknown): JsonObject {
+  const base = (state: (typeof outcomeStates)[number], source: unknown) => ({
+    version: 1,
+    state,
+    source_state: source ?? null,
+    automatic_retry_of_mutation: false,
+  });
+  if (action === 'inspect')
+    return base('inspect', data.review_contract_supported === true ? 'contract_supported' : 'contract_unsupported');
+  if (action === 'prepare') return base('review_required', data.state ?? 'prepared');
+  const verification = data.verification?.status;
+  if (data.success === false)
+    return {
+      ...base('attention_required', 'failed'),
+      ...(writeHistory(data.review_id) ? {next_call: writeHistory(data.review_id)} : {}),
+    };
+  if (verification === 'verified' || verification === 'verified_with_acceptance') return base('complete', verification);
+  if (['mismatch', 'inconclusive', 'failed'].includes(verification))
+    return {
+      ...base('attention_required', verification),
+      ...(data.verification?.next_call ? {next_call: data.verification.next_call} : {}),
+    };
+  if (data.verification?.next_call)
+    return {...base('running', 'verification_' + (verification ?? 'queued')), next_call: data.verification.next_call};
+  return base(data.success === true ? 'complete' : 'inspect', data.state ?? data.status ?? null);
+}
+/**
+ * The outcome of an amcp_write execute that was refused or failed (MCP-07). `claim` is the state of its idempotency
+ * claim after the call: none (nothing was sent), pending or uncertain (it may have reached the provider), complete.
+ * An uncertain write is attention_required, and its next call reads what happened; it is never sent again.
+ */
+export function writeErrorOutcome(
+  input: JsonObject,
+  error: {code: string; details?: JsonObject},
+  claim: 'none' | 'pending' | 'uncertain' | 'complete' | undefined,
+): JsonObject | undefined {
+  if (input?.action !== 'execute') return;
+  const details = error.details ?? {},
+    reviewId = input.review_id,
+    uncertain = /UNCERTAIN/.test(error.code) || claim === 'pending' || claim === 'uncertain',
+    next = details.next_call && typeof details.next_call === 'object' ? details.next_call : undefined,
+    base = {version: 1, automatic_retry_of_mutation: false};
+  if (uncertain)
+    return {
+      ...base,
+      state: 'attention_required',
+      source_state: 'uncertain',
+      ...(writeHistory(reviewId) ? {next_call: writeHistory(reviewId)} : {}),
+    };
+  if (claim === 'complete')
+    return {
+      ...base,
+      state: 'attention_required',
+      source_state: 'result_withheld',
+      ...(writeHistory(reviewId) ? {next_call: writeHistory(reviewId)} : {}),
+    };
+  if (claim === 'none' || details.submission === 'not_sent')
+    return {...base, state: 'blocked', source_state: 'not_sent', ...(next ? {next_call: next} : {})};
+}
 /** Additive metadata for first-party workflows. Native provider payloads never choose UI routes or next actions. */
 export function workflowOutcome(tool: string | undefined, data: JsonObject, action?: unknown): JsonObject | undefined {
+  if (!workflowTools.includes(tool ?? '') || !data || typeof data !== 'object') return;
+  // A media review executed through amcp_write returns the media receipt, which the general mapping below reads.
   if (
-    !['amcp_campaign', 'amcp_media', 'amcp_reporting', 'amcp_reporting_overview', 'amcp_workspace'].includes(
-      tool ?? '',
-    ) ||
-    !data ||
-    typeof data !== 'object'
-  )
-    return;
+    tool === 'amcp_write' &&
+    (action === 'inspect' || action === 'prepare' || typeof data.success === 'boolean' || data.verification)
+  ) {
+    const result = writeOutcomeState(data, action);
+    if (data.execute_requirements)
+      result.required_acknowledgements = Object.keys(data.execute_requirements).filter(
+        k => data.execute_requirements[k] === true,
+      );
+    if (!result.next_call && data.next_call) result.next_call = data.next_call;
+    return result;
+  }
   const raw = data.attention_state ?? data.state ?? data.status ?? data.decision ?? data.run?.state;
   const state = ['complete', 'verified', 'verified_with_acceptance', 'available', 'resolved'].includes(raw)
     ? 'complete'
