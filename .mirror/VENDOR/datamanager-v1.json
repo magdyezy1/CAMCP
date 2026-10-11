@@ -1,0 +1,4026 @@
+{
+  "source": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+  "captured_at": "2026-10-11T19:15:57.263Z",
+  "evidence": "VENDOR_DOCUMENTED_NOT_AMCP_OBSERVED",
+  "document_sha256": "23172e0c28f6a9e46265e3939ff3c83723049cf59e59ea8293ff6c8865db206f",
+  "document": {
+    "schemas": {
+      "RequestStatusPerDestination": {
+        "type": "object",
+        "properties": {
+          "warningInfo": {
+            "$ref": "WarningInfo"
+          },
+          "requestStatus": {
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            "enum": [
+              "REQUEST_STATUS_UNKNOWN",
+              "SUCCESS",
+              "PROCESSING",
+              "FAILED",
+              "PARTIAL_SUCCESS"
+            ],
+            "type": "string"
+          },
+          "removeAllAudienceMembersStatus": {
+            "$ref": "RemoveAllAudienceMembersStatus"
+          },
+          "destination": {
+            "$ref": "Destination"
+          },
+          "audienceMembersIngestionStatus": {
+            "$ref": "IngestAudienceMembersStatus"
+          },
+          "audienceMembersRemovalStatus": {
+            "$ref": "RemoveAudienceMembersStatus"
+          },
+          "eventsIngestionStatus": {
+            "$ref": "IngestEventsStatus"
+          },
+          "errorInfo": {
+            "$ref": "ErrorInfo"
+          }
+        },
+        "id": "RequestStatusPerDestination"
+      },
+      "Status": {
+        "id": "Status",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "additionalProperties": {
+                "type": "any",
+                "description": "Properties of the object. Contains field @type with type URL."
+              },
+              "type": "object"
+            }
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "RemoveAllAudienceMembersStatus": {
+        "type": "object",
+        "properties": {},
+        "id": "RemoveAllAudienceMembersStatus"
+      },
+      "PartnerLink": {
+        "properties": {
+          "partnerLinkId": {
+            "type": "string",
+            "readOnly": true
+          },
+          "owningAccount": {
+            "$ref": "ProductAccount"
+          },
+          "partnerCustomerAccount": {
+            "$ref": "PartnerCustomerAccount"
+          },
+          "featureSet": {
+            "type": "string",
+            "enum": [
+              "FEATURE_SET_UNSPECIFIED",
+              "FEATURE_SET_AUDIENCE_AND_EVENT_MANAGEMENT",
+              "FEATURE_SET_AD_EVENT_MANAGEMENT"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              ""
+            ]
+          },
+          "partnerLinkMetadata": {
+            "$ref": "PartnerLinkMetadata"
+          },
+          "partnerAccount": {
+            "$ref": "ProductAccount"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "id": "PartnerLink"
+      },
+      "User": {
+        "properties": {
+          "mobileData": {
+            "$ref": "MobileData"
+          },
+          "userData": {
+            "$ref": "UserData"
+          }
+        },
+        "type": "object",
+        "id": "User"
+      },
+      "MarketingDataInsightsAttribute": {
+        "type": "object",
+        "properties": {
+          "lift": {
+            "type": "number",
+            "format": "float"
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "GENDER_UNSPECIFIED",
+              "GENDER_UNKNOWN",
+              "GENDER_MALE",
+              "GENDER_FEMALE"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              ""
+            ]
+          },
+          "ageRange": {
+            "type": "string",
+            "enum": [
+              "AGE_RANGE_UNSPECIFIED",
+              "AGE_RANGE_UNKNOWN",
+              "AGE_RANGE_18_24",
+              "AGE_RANGE_25_34",
+              "AGE_RANGE_35_44",
+              "AGE_RANGE_45_54",
+              "AGE_RANGE_55_64",
+              "AGE_RANGE_65_UP"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          },
+          "userInterestId": {
+            "format": "int64",
+            "type": "string"
+          }
+        },
+        "id": "MarketingDataInsightsAttribute"
+      },
+      "IngestEventsResponse": {
+        "properties": {
+          "requestId": {
+            "type": "string"
+          },
+          "fieldWarnings": {
+            "items": {
+              "$ref": "FieldWarning"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "id": "IngestEventsResponse"
+      },
+      "RemoveCompositeDataStatus": {
+        "type": "object",
+        "id": "RemoveCompositeDataStatus",
+        "properties": {
+          "dataTypeCounts": {
+            "type": "array",
+            "items": {
+              "$ref": "DataTypeCount"
+            }
+          },
+          "recordCount": {
+            "format": "int64",
+            "type": "string"
+          }
+        }
+      },
+      "UserListGlobalLicenseCustomerInfo": {
+        "type": "object",
+        "id": "UserListGlobalLicenseCustomerInfo",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "readOnly": true,
+            "enum": [
+              "USER_LIST_LICENSE_STATUS_UNSPECIFIED",
+              "USER_LIST_LICENSE_STATUS_ENABLED",
+              "USER_LIST_LICENSE_STATUS_DISABLED"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              ""
+            ],
+            "type": "string"
+          },
+          "clientAccountId": {
+            "format": "int64",
+            "readOnly": true,
+            "type": "string"
+          },
+          "historicalPricings": {
+            "items": {
+              "$ref": "UserListLicensePricing"
+            },
+            "readOnly": true,
+            "type": "array"
+          },
+          "userListDisplayName": {
+            "type": "string",
+            "readOnly": true
+          },
+          "metrics": {
+            "$ref": "UserListLicenseMetrics",
+            "readOnly": true
+          },
+          "clientAccountType": {
+            "readOnly": true,
+            "type": "string",
+            "enum": [
+              "USER_LIST_LICENSE_CLIENT_ACCOUNT_TYPE_UNKNOWN",
+              "USER_LIST_LICENSE_CLIENT_ACCOUNT_TYPE_GOOGLE_ADS",
+              "USER_LIST_LICENSE_CLIENT_ACCOUNT_TYPE_DISPLAY_VIDEO_PARTNER",
+              "USER_LIST_LICENSE_CLIENT_ACCOUNT_TYPE_DISPLAY_VIDEO_ADVERTISER",
+              "USER_LIST_LICENSE_CLIENT_ACCOUNT_TYPE_GOOGLE_AD_MANAGER_AUDIENCE_LINK"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          },
+          "clientAccountDisplayName": {
+            "type": "string",
+            "readOnly": true
+          },
+          "licenseType": {
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              ""
+            ],
+            "type": "string",
+            "readOnly": true,
+            "enum": [
+              "USER_LIST_GLOBAL_LICENSE_TYPE_UNSPECIFIED",
+              "USER_LIST_GLOBAL_LICENSE_TYPE_RESELLER",
+              "USER_LIST_GLOBAL_LICENSE_TYPE_DATA_MART_SELL_SIDE",
+              "USER_LIST_GLOBAL_LICENSE_TYPE_DATA_MART_BUY_SIDE"
+            ]
+          },
+          "userListId": {
+            "readOnly": true,
+            "type": "string",
+            "format": "int64"
+          },
+          "pricing": {
+            "$ref": "UserListLicensePricing",
+            "readOnly": true
+          }
+        }
+      },
+      "DataTypeCount": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "DATA_TYPE_UNSPECIFIED",
+              "EMAIL",
+              "PHONE_NUMBER",
+              "ADDRESS",
+              "IP_ADDRESS"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          },
+          "count": {
+            "type": "string",
+            "format": "int64"
+          }
+        },
+        "id": "DataTypeCount"
+      },
+      "IngestedUserListInfo": {
+        "type": "object",
+        "properties": {
+          "userIdInfo": {
+            "$ref": "UserIdInfo"
+          },
+          "pairIdInfo": {
+            "$ref": "PairIdInfo"
+          },
+          "mobileIdInfo": {
+            "$ref": "MobileIdInfo"
+          },
+          "pseudonymousIdInfo": {
+            "$ref": "PseudonymousIdInfo"
+          },
+          "uploadKeyTypes": {
+            "items": {
+              "enumDescriptions": [
+                "",
+                "",
+                "",
+                "",
+                "",
+                ""
+              ],
+              "type": "string",
+              "enum": [
+                "UPLOAD_KEY_TYPE_UNSPECIFIED",
+                "CONTACT_ID",
+                "MOBILE_ID",
+                "USER_ID",
+                "PAIR_ID",
+                "PSEUDONYMOUS_ID"
+              ]
+            },
+            "type": "array"
+          },
+          "contactIdInfo": {
+            "$ref": "ContactIdInfo"
+          },
+          "partnerAudienceInfo": {
+            "$ref": "PartnerAudienceInfo"
+          }
+        },
+        "id": "IngestedUserListInfo"
+      },
+      "TermsOfService": {
+        "properties": {
+          "customerMatchTermsOfServiceStatus": {
+            "enum": [
+              "TERMS_OF_SERVICE_STATUS_UNSPECIFIED",
+              "ACCEPTED",
+              "REJECTED"
+            ],
+            "type": "string",
+            "enumDescriptions": [
+              "",
+              "",
+              ""
+            ]
+          }
+        },
+        "type": "object",
+        "id": "TermsOfService"
+      },
+      "Empty": {
+        "properties": {},
+        "type": "object",
+        "id": "Empty"
+      },
+      "ListUserListsResponse": {
+        "type": "object",
+        "properties": {
+          "nextPageToken": {
+            "type": "string"
+          },
+          "userLists": {
+            "type": "array",
+            "items": {
+              "$ref": "UserList"
+            }
+          }
+        },
+        "id": "ListUserListsResponse"
+      },
+      "UserIdInfo": {
+        "id": "UserIdInfo",
+        "properties": {
+          "dataSourceType": {
+            "type": "string",
+            "enum": [
+              "DATA_SOURCE_TYPE_UNSPECIFIED",
+              "DATA_SOURCE_TYPE_FIRST_PARTY",
+              "DATA_SOURCE_TYPE_THIRD_PARTY_CREDIT_BUREAU",
+              "DATA_SOURCE_TYPE_THIRD_PARTY_VOTER_FILE",
+              "DATA_SOURCE_TYPE_THIRD_PARTY_PARTNER_DATA"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "RemoveAudienceMembersStatus": {
+        "type": "object",
+        "properties": {
+          "pairDataRemovalStatus": {
+            "$ref": "RemovePairDataStatus"
+          },
+          "userIdDataRemovalStatus": {
+            "$ref": "RemoveUserIdDataStatus"
+          },
+          "compositeDataRemovalStatus": {
+            "$ref": "RemoveCompositeDataStatus"
+          },
+          "partnerProvidedIdDataRemovalStatus": {
+            "$ref": "RemovePartnerProvidedIdDataStatus"
+          },
+          "googleUserIdDataRemovalStatus": {
+            "$ref": "RemoveGoogleUserIdDataStatus"
+          },
+          "userDataRemovalStatus": {
+            "$ref": "RemoveUserDataStatus"
+          },
+          "ppidDataRemovalStatus": {
+            "$ref": "RemovePpidDataStatus"
+          },
+          "mobileDataRemovalStatus": {
+            "$ref": "RemoveMobileDataStatus"
+          }
+        },
+        "id": "RemoveAudienceMembersStatus"
+      },
+      "FieldWarning": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "field": {
+            "type": "string"
+          },
+          "reason": {
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            "type": "string",
+            "enum": [
+              "WARNING_REASON_UNSPECIFIED",
+              "WARNING_REASON_CUSTOM_VARIABLE_NOT_ENABLED",
+              "WARNING_REASON_CUSTOM_VARIABLE_NOT_PREDEFINED",
+              "WARNING_REASON_CART_DATA_NOT_SUPPORTED_WITH_GBRAID_OR_WBRAID",
+              "WARNING_REASON_CART_DATA_ITEM_MERCHANT_PRODUCT_ID_MISSING",
+              "WARNING_REASON_CART_DATA_ITEM_UNIT_PRICE_MISSING",
+              "WARNING_REASON_GENERIC",
+              "WARNING_REASON_INVALID_CLIENT_ID",
+              "WARNING_REASON_INVALID_SUBDIVISION_CODE",
+              "WARNING_REASON_INVALID_REGION_CODE",
+              "WARNING_REASON_INVALID_SUBCONTINENT_CODE",
+              "WARNING_REASON_INVALID_CONTINENT_CODE",
+              "WARNING_REASON_INVALID_DEVICE_CATEGORY",
+              "WARNING_REASON_INVALID_DEVICE_SCREEN_RESOLUTION",
+              "WARNING_REASON_INVALID_MERCHANT_ID"
+            ]
+          }
+        },
+        "type": "object",
+        "id": "FieldWarning"
+      },
+      "EncryptedUserId": {
+        "id": "EncryptedUserId",
+        "properties": {
+          "encryptedId": {
+            "type": "string"
+          },
+          "entityId": {
+            "type": "string",
+            "format": "int64"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "ENCRYPTION_SOURCE_UNSPECIFIED",
+              "AD_SERVING",
+              "DATA_TRANSFER"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              ""
+            ]
+          },
+          "entityType": {
+            "enum": [
+              "ENCRYPTION_ENTITY_TYPE_UNSPECIFIED",
+              "CAMPAIGN_MANAGER_ACCOUNT",
+              "CAMPAIGN_MANAGER_ADVERTISER",
+              "DISPLAY_VIDEO_PARTNER",
+              "DISPLAY_VIDEO_ADVERTISER",
+              "GOOGLE_ADS_CUSTOMER",
+              "GOOGLE_AD_MANAGER_NETWORK_CODE"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "WarningInfo": {
+        "properties": {
+          "warningCounts": {
+            "items": {
+              "$ref": "WarningCount"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "id": "WarningInfo"
+      },
+      "MobileData": {
+        "type": "object",
+        "properties": {
+          "mobileIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "id": "MobileData"
+      },
+      "UserProperty": {
+        "type": "object",
+        "properties": {
+          "propertyName": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "id": "UserProperty"
+      },
+      "RetrieveRequestStatusResponse": {
+        "type": "object",
+        "properties": {
+          "requestStatusPerDestination": {
+            "items": {
+              "$ref": "RequestStatusPerDestination"
+            },
+            "type": "array"
+          }
+        },
+        "id": "RetrieveRequestStatusResponse"
+      },
+      "MobileIdInfo": {
+        "properties": {
+          "dataSourceType": {
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            "enum": [
+              "DATA_SOURCE_TYPE_UNSPECIFIED",
+              "DATA_SOURCE_TYPE_FIRST_PARTY",
+              "DATA_SOURCE_TYPE_THIRD_PARTY_CREDIT_BUREAU",
+              "DATA_SOURCE_TYPE_THIRD_PARTY_VOTER_FILE",
+              "DATA_SOURCE_TYPE_THIRD_PARTY_PARTNER_DATA"
+            ],
+            "type": "string"
+          },
+          "appId": {
+            "type": "string"
+          },
+          "keySpace": {
+            "type": "string",
+            "enum": [
+              "KEY_SPACE_UNSPECIFIED",
+              "IOS",
+              "ANDROID"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              ""
+            ]
+          }
+        },
+        "type": "object",
+        "id": "MobileIdInfo"
+      },
+      "CustomVariable": {
+        "id": "CustomVariable",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "destinationReferences": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "variable": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UserListLicenseMetrics": {
+        "type": "object",
+        "id": "UserListLicenseMetrics",
+        "properties": {
+          "revenueUsdMicros": {
+            "format": "int64",
+            "readOnly": true,
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string",
+            "readOnly": true,
+            "format": "int64"
+          },
+          "clickCount": {
+            "format": "int64",
+            "readOnly": true,
+            "type": "string"
+          },
+          "impressionCount": {
+            "readOnly": true,
+            "format": "int64",
+            "type": "string"
+          },
+          "endDate": {
+            "format": "int64",
+            "readOnly": true,
+            "type": "string"
+          }
+        }
+      },
+      "Destination": {
+        "id": "Destination",
+        "type": "object",
+        "properties": {
+          "linkedAccount": {
+            "$ref": "ProductAccount"
+          },
+          "productDestinationId": {
+            "type": "string"
+          },
+          "loginAccount": {
+            "$ref": "ProductAccount"
+          },
+          "operatingAccount": {
+            "$ref": "ProductAccount"
+          },
+          "reference": {
+            "type": "string"
+          }
+        }
+      },
+      "PairData": {
+        "type": "object",
+        "properties": {
+          "pairIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "id": "PairData"
+      },
+      "AwsWrappedKeyInfo": {
+        "id": "AwsWrappedKeyInfo",
+        "properties": {
+          "keyType": {
+            "enumDescriptions": [
+              "",
+              ""
+            ],
+            "enum": [
+              "KEY_TYPE_UNSPECIFIED",
+              "XCHACHA20_POLY1305"
+            ],
+            "type": "string"
+          },
+          "encryptedDek": {
+            "type": "string"
+          },
+          "kekUri": {
+            "type": "string"
+          },
+          "roleArn": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SearchPartnerLinksResponse": {
+        "type": "object",
+        "properties": {
+          "partnerLinks": {
+            "type": "array",
+            "items": {
+              "$ref": "PartnerLink"
+            }
+          },
+          "nextPageToken": {
+            "type": "string"
+          }
+        },
+        "id": "SearchPartnerLinksResponse"
+      },
+      "IngestPairDataStatus": {
+        "id": "IngestPairDataStatus",
+        "properties": {
+          "recordCount": {
+            "type": "string",
+            "format": "int64"
+          },
+          "pairIdCount": {
+            "format": "int64",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ContactIdInfo": {
+        "type": "object",
+        "id": "ContactIdInfo",
+        "properties": {
+          "dataSourceType": {
+            "type": "string",
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            "enum": [
+              "DATA_SOURCE_TYPE_UNSPECIFIED",
+              "DATA_SOURCE_TYPE_FIRST_PARTY",
+              "DATA_SOURCE_TYPE_THIRD_PARTY_CREDIT_BUREAU",
+              "DATA_SOURCE_TYPE_THIRD_PARTY_VOTER_FILE",
+              "DATA_SOURCE_TYPE_THIRD_PARTY_PARTNER_DATA"
+            ]
+          },
+          "matchRatePercentage": {
+            "readOnly": true,
+            "format": "int32",
+            "type": "integer"
+          }
+        }
+      },
+      "AdEvent": {
+        "properties": {
+          "adType": {
+            "enum": [
+              "AD_TYPE_UNSPECIFIED",
+              "AD_TYPE_DISPLAY",
+              "AD_TYPE_TEXT",
+              "AD_TYPE_IMAGE",
+              "AD_TYPE_RICH_MEDIA",
+              "AD_TYPE_HTML",
+              "AD_TYPE_AUDIO",
+              "AD_TYPE_VIDEO"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            "type": "string"
+          },
+          "platformType": {
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            "type": "string",
+            "enum": [
+              "PLATFORM_TYPE_UNSPECIFIED",
+              "PLATFORM_TYPE_MOBILE",
+              "PLATFORM_TYPE_DESKTOP",
+              "PLATFORM_TYPE_CTV",
+              "PLATFORM_TYPE_PHONE",
+              "PLATFORM_TYPE_TABLET"
+            ]
+          },
+          "adTypeString": {
+            "type": "string"
+          },
+          "measurementAllowed": {
+            "type": "boolean"
+          },
+          "eventSubtype": {
+            "enum": [
+              "EVENT_SUBTYPE_UNSPECIFIED",
+              "EVENT_SUBTYPE_IMPRESSION",
+              "EVENT_SUBTYPE_ENGAGED_VIEW",
+              "EVENT_SUBTYPE_ONSITE_CLICK",
+              "EVENT_SUBTYPE_OUTBOUND_CLICK"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            "type": "string"
+          },
+          "regionCode": {
+            "type": "string"
+          },
+          "platformString": {
+            "type": "string"
+          },
+          "adGroupId": {
+            "type": "string"
+          },
+          "advertiserId": {
+            "type": "string"
+          },
+          "adHeight": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "eventType": {
+            "enum": [
+              "EVENT_TYPE_UNSPECIFIED",
+              "EVENT_TYPE_VIEW",
+              "EVENT_TYPE_CLICK"
+            ],
+            "type": "string",
+            "enumDescriptions": [
+              "",
+              "",
+              ""
+            ]
+          },
+          "adPlacementString": {
+            "type": "string"
+          },
+          "medium": {
+            "type": "string"
+          },
+          "attributionHint": {
+            "enum": [
+              "ATTRIBUTION_HINT_UNSPECIFIED",
+              "ATTRIBUTION_HINT_CONVERTED",
+              "ATTRIBUTION_HINT_NOT_CONVERTED"
+            ],
+            "type": "string",
+            "enumDescriptions": [
+              "",
+              "",
+              ""
+            ]
+          },
+          "targetingType": {
+            "enum": [
+              "TARGETING_TYPE_UNSPECIFIED",
+              "TARGETING_TYPE_AUDIENCE",
+              "TARGETING_TYPE_CONTEXTUAL",
+              "TARGETING_TYPE_DEMOGRAPHIC",
+              "TARGETING_TYPE_DEVICE",
+              "TARGETING_TYPE_GEO",
+              "TARGETING_TYPE_INTEREST",
+              "TARGETING_TYPE_PURCHASE_INTENT",
+              "TARGETING_TYPE_REMARKETING"
+            ],
+            "type": "string",
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          },
+          "adWidth": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "targetingTypeString": {
+            "type": "string"
+          },
+          "userData": {
+            "$ref": "UserData"
+          },
+          "adPlacement": {
+            "type": "string",
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            "enum": [
+              "AD_PLACEMENT_UNSPECIFIED",
+              "AD_PLACEMENT_DISCOVER",
+              "AD_PLACEMENT_FEED",
+              "AD_PLACEMENT_FOOTER",
+              "AD_PLACEMENT_HEADER",
+              "AD_PLACEMENT_HOME",
+              "AD_PLACEMENT_IN_CONTENT",
+              "AD_PLACEMENT_PROMOTED",
+              "AD_PLACEMENT_SEARCH",
+              "AD_PLACEMENT_STORY"
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "campaignId": {
+            "type": "string"
+          },
+          "mobileDeviceId": {
+            "type": "string"
+          },
+          "adFormat": {
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            "enum": [
+              "AD_FORMAT_UNSPECIFIED",
+              "AD_FORMAT_AR",
+              "AD_FORMAT_AUDIO",
+              "AD_FORMAT_BANNER",
+              "AD_FORMAT_BUMPER",
+              "AD_FORMAT_CAROUSEL",
+              "AD_FORMAT_COLLECTION",
+              "AD_FORMAT_IMAGE",
+              "AD_FORMAT_INTERACTIVE",
+              "AD_FORMAT_INTERSTITIAL",
+              "AD_FORMAT_IN_FEED",
+              "AD_FORMAT_IN_STREAM",
+              "AD_FORMAT_IN_STREAM_SKIPPABLE",
+              "AD_FORMAT_IN_STREAM_NON_SKIPPABLE",
+              "AD_FORMAT_NATIVE",
+              "AD_FORMAT_SHORTS",
+              "AD_FORMAT_STORY",
+              "AD_FORMAT_SPONSORED",
+              "AD_FORMAT_VIDEO"
+            ],
+            "type": "string"
+          },
+          "platform": {
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              ""
+            ],
+            "type": "string",
+            "enum": [
+              "PLATFORM_UNSPECIFIED",
+              "PLATFORM_IOS",
+              "PLATFORM_ANDROID",
+              "PLATFORM_WEB"
+            ]
+          },
+          "ipAddress": {
+            "type": "string"
+          },
+          "viewabilityInfo": {
+            "$ref": "ViewabilityInfo"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "campaignName": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "platformTypeString": {
+            "type": "string"
+          },
+          "deviceInfo": {
+            "$ref": "DeviceInfo"
+          },
+          "eventSubtypeString": {
+            "type": "string"
+          },
+          "adId": {
+            "type": "string"
+          },
+          "adFormatString": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "id": "AdEvent"
+      },
+      "EventParameter": {
+        "id": "EventParameter",
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "parameterName": {
+            "type": "string"
+          }
+        }
+      },
+      "IngestGoogleUserIdDataStatus": {
+        "type": "object",
+        "id": "IngestGoogleUserIdDataStatus",
+        "properties": {
+          "recordCount": {
+            "format": "int64",
+            "type": "string"
+          },
+          "googleUserIdCount": {
+            "type": "string",
+            "format": "int64"
+          }
+        }
+      },
+      "Location": {
+        "type": "object",
+        "id": "Location",
+        "properties": {
+          "regionCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "PpidData": {
+        "type": "object",
+        "properties": {
+          "ppids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "id": "PpidData"
+      },
+      "ListUserListDirectLicensesResponse": {
+        "properties": {
+          "nextPageToken": {
+            "type": "string"
+          },
+          "userListDirectLicenses": {
+            "type": "array",
+            "items": {
+              "$ref": "UserListDirectLicense"
+            }
+          }
+        },
+        "type": "object",
+        "id": "ListUserListDirectLicensesResponse"
+      },
+      "PairIdInfo": {
+        "type": "object",
+        "properties": {
+          "cleanRoomIdentifier": {
+            "type": "string"
+          },
+          "publisherName": {
+            "type": "string"
+          },
+          "advertiserIdentifierCount": {
+            "format": "int64",
+            "type": "string"
+          },
+          "matchRatePercentage": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "publisherId": {
+            "type": "string",
+            "format": "int64"
+          }
+        },
+        "id": "PairIdInfo"
+      },
+      "RemoveMobileDataStatus": {
+        "id": "RemoveMobileDataStatus",
+        "properties": {
+          "mobileIdCount": {
+            "type": "string",
+            "format": "int64"
+          },
+          "recordCount": {
+            "format": "int64",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "IngestCompositeDataStatus": {
+        "properties": {
+          "recordCount": {
+            "type": "string",
+            "format": "int64"
+          },
+          "uploadMatchRateRange": {
+            "type": "string",
+            "enum": [
+              "MATCH_RATE_RANGE_UNKNOWN",
+              "MATCH_RATE_RANGE_NOT_ELIGIBLE",
+              "MATCH_RATE_RANGE_LESS_THAN_20",
+              "MATCH_RATE_RANGE_20_TO_30",
+              "MATCH_RATE_RANGE_31_TO_40",
+              "MATCH_RATE_RANGE_41_TO_50",
+              "MATCH_RATE_RANGE_51_TO_60",
+              "MATCH_RATE_RANGE_61_TO_70",
+              "MATCH_RATE_RANGE_71_TO_80",
+              "MATCH_RATE_RANGE_81_TO_90",
+              "MATCH_RATE_RANGE_91_TO_100"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          },
+          "dataTypeCounts": {
+            "items": {
+              "$ref": "DataTypeCount"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "id": "IngestCompositeDataStatus"
+      },
+      "Item": {
+        "properties": {
+          "additionalItemParameters": {
+            "items": {
+              "$ref": "ItemParameter"
+            },
+            "type": "array"
+          },
+          "merchantId": {
+            "type": "string"
+          },
+          "itemId": {
+            "type": "string"
+          },
+          "unitPrice": {
+            "type": "number",
+            "format": "double"
+          },
+          "conversionValue": {
+            "format": "double",
+            "type": "number"
+          },
+          "customVariables": {
+            "items": {
+              "$ref": "ItemCustomVariable"
+            },
+            "type": "array"
+          },
+          "merchantFeedLabel": {
+            "type": "string"
+          },
+          "merchantFeedLanguageCode": {
+            "type": "string"
+          },
+          "quantity": {
+            "format": "int64",
+            "type": "string"
+          },
+          "merchantProductId": {
+            "type": "string"
+          }
+        },
+        "id": "Item",
+        "type": "object"
+      },
+      "RemoveUserIdDataStatus": {
+        "id": "RemoveUserIdDataStatus",
+        "type": "object",
+        "properties": {
+          "recordCount": {
+            "type": "string",
+            "format": "int64"
+          },
+          "userIdCount": {
+            "format": "int64",
+            "type": "string"
+          }
+        }
+      },
+      "ErrorInfo": {
+        "type": "object",
+        "properties": {
+          "errorCounts": {
+            "type": "array",
+            "items": {
+              "$ref": "ErrorCount"
+            }
+          }
+        },
+        "id": "ErrorInfo"
+      },
+      "WarningCount": {
+        "type": "object",
+        "properties": {
+          "recordCount": {
+            "type": "string",
+            "format": "int64"
+          },
+          "reason": {
+            "enum": [
+              "PROCESSING_WARNING_REASON_UNSPECIFIED",
+              "PROCESSING_WARNING_REASON_KEK_PERMISSION_DENIED",
+              "PROCESSING_WARNING_REASON_DEK_DECRYPTION_ERROR",
+              "PROCESSING_WARNING_REASON_DECRYPTION_ERROR",
+              "PROCESSING_WARNING_REASON_WIP_AUTH_FAILED",
+              "PROCESSING_WARNING_REASON_INVALID_WIP",
+              "PROCESSING_WARNING_REASON_INVALID_KEK",
+              "PROCESSING_WARNING_REASON_USER_IDENTIFIER_DECRYPTION_ERROR",
+              "PROCESSING_WARNING_REASON_INTERNAL_ERROR",
+              "PROCESSING_WARNING_REASON_AWS_AUTH_FAILED"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            "type": "string"
+          }
+        },
+        "id": "WarningCount"
+      },
+      "IngestAudienceMembersResponse": {
+        "id": "IngestAudienceMembersResponse",
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string"
+          },
+          "fieldWarnings": {
+            "items": {
+              "$ref": "FieldWarning"
+            },
+            "type": "array"
+          }
+        }
+      },
+      "RemoveAllAudienceMembersRequest": {
+        "id": "RemoveAllAudienceMembersRequest",
+        "type": "object",
+        "properties": {
+          "validateOnly": {
+            "type": "boolean"
+          },
+          "removeAsOfTime": {
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "destinations": {
+            "type": "array",
+            "items": {
+              "$ref": "Destination"
+            }
+          }
+        }
+      },
+      "SizeInfo": {
+        "properties": {
+          "displayNetworkMembersCount": {
+            "format": "int64",
+            "readOnly": true,
+            "type": "string"
+          },
+          "gmailMembersCount": {
+            "format": "int64",
+            "readOnly": true,
+            "type": "string"
+          },
+          "searchNetworkMembersCount": {
+            "format": "int64",
+            "readOnly": true,
+            "type": "string"
+          },
+          "youtubeMembersCount": {
+            "format": "int64",
+            "type": "string",
+            "readOnly": true
+          }
+        },
+        "id": "SizeInfo",
+        "type": "object"
+      },
+      "IngestUserIdDataStatus": {
+        "id": "IngestUserIdDataStatus",
+        "type": "object",
+        "properties": {
+          "recordCount": {
+            "type": "string",
+            "format": "int64"
+          },
+          "userIdCount": {
+            "type": "string",
+            "format": "int64"
+          }
+        }
+      },
+      "IngestEventsRequest": {
+        "properties": {
+          "consent": {
+            "$ref": "Consent"
+          },
+          "encryptionInfo": {
+            "$ref": "EncryptionInfo"
+          },
+          "encoding": {
+            "type": "string",
+            "enumDescriptions": [
+              "",
+              "",
+              ""
+            ],
+            "enum": [
+              "ENCODING_UNSPECIFIED",
+              "HEX",
+              "BASE64"
+            ]
+          },
+          "validateOnly": {
+            "type": "boolean"
+          },
+          "destinations": {
+            "type": "array",
+            "items": {
+              "$ref": "Destination"
+            }
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "Event"
+            }
+          }
+        },
+        "id": "IngestEventsRequest",
+        "type": "object"
+      },
+      "ItemCustomVariable": {
+        "properties": {
+          "variable": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "destinationReferences": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "id": "ItemCustomVariable",
+        "type": "object"
+      },
+      "RemoveUserDataStatus": {
+        "type": "object",
+        "id": "RemoveUserDataStatus",
+        "properties": {
+          "recordCount": {
+            "format": "int64",
+            "type": "string"
+          },
+          "userIdentifierCount": {
+            "type": "string",
+            "format": "int64"
+          }
+        }
+      },
+      "RemoveAllAudienceMembersResponse": {
+        "id": "RemoveAllAudienceMembersResponse",
+        "properties": {
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PartnerLinkMetadata": {
+        "id": "PartnerLinkMetadata",
+        "properties": {
+          "implicitAccounts": {
+            "items": {
+              "$ref": "PartnerCustomerAccount"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "PartnerProvidedIdData": {
+        "type": "object",
+        "properties": {
+          "partnerProvidedIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "id": "PartnerProvidedIdData"
+      },
+      "CartData": {
+        "id": "CartData",
+        "type": "object",
+        "properties": {
+          "merchantFeedLanguageCode": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "Item"
+            }
+          },
+          "merchantFeedLabel": {
+            "type": "string"
+          },
+          "couponCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "merchantId": {
+            "type": "string"
+          },
+          "transactionDiscount": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "RemoveUsersResponse": {
+        "type": "object",
+        "id": "RemoveUsersResponse",
+        "properties": {
+          "requestId": {
+            "type": "string"
+          }
+        }
+      },
+      "UserIdData": {
+        "id": "UserIdData",
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          }
+        }
+      },
+      "AddressInfo": {
+        "id": "AddressInfo",
+        "type": "object",
+        "properties": {
+          "givenName": {
+            "type": "string"
+          },
+          "postalCode": {
+            "type": "string"
+          },
+          "familyName": {
+            "type": "string"
+          },
+          "addressLine": {
+            "type": "string"
+          },
+          "administrativeArea": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "regionCode": {
+            "type": "string"
+          }
+        }
+      },
+      "AdIdentifiers": {
+        "properties": {
+          "gbraid": {
+            "type": "string"
+          },
+          "ppid": {
+            "type": "string"
+          },
+          "impressionId": {
+            "type": "string"
+          },
+          "visitorPpid": {
+            "type": "string"
+          },
+          "landingPageDeviceInfo": {
+            "$ref": "DeviceInfo"
+          },
+          "gclid": {
+            "type": "string"
+          },
+          "dclid": {
+            "type": "string"
+          },
+          "sessionAttributes": {
+            "type": "string"
+          },
+          "matchId": {
+            "type": "string"
+          },
+          "wbraid": {
+            "type": "string"
+          },
+          "encryptedUserIds": {
+            "items": {
+              "$ref": "EncryptedUserId"
+            },
+            "type": "array"
+          },
+          "mobileDeviceId": {
+            "type": "string"
+          }
+        },
+        "id": "AdIdentifiers",
+        "type": "object"
+      },
+      "UserProperties": {
+        "id": "UserProperties",
+        "properties": {
+          "customerValueBucket": {
+            "type": "string",
+            "enum": [
+              "CUSTOMER_VALUE_BUCKET_UNSPECIFIED",
+              "LOW",
+              "MEDIUM",
+              "HIGH"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              ""
+            ]
+          },
+          "additionalUserProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "UserProperty"
+            }
+          },
+          "customerType": {
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              ""
+            ],
+            "type": "string",
+            "enum": [
+              "CUSTOMER_TYPE_UNSPECIFIED",
+              "NEW",
+              "RETURNING",
+              "REENGAGED"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "IngestAudienceMembersRequest": {
+        "id": "IngestAudienceMembersRequest",
+        "properties": {
+          "termsOfService": {
+            "$ref": "TermsOfService"
+          },
+          "validateOnly": {
+            "type": "boolean"
+          },
+          "encoding": {
+            "type": "string",
+            "enum": [
+              "ENCODING_UNSPECIFIED",
+              "HEX",
+              "BASE64"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              ""
+            ]
+          },
+          "audienceMembers": {
+            "type": "array",
+            "items": {
+              "$ref": "AudienceMember"
+            }
+          },
+          "destinations": {
+            "items": {
+              "$ref": "Destination"
+            },
+            "type": "array"
+          },
+          "consent": {
+            "$ref": "Consent"
+          },
+          "encryptionInfo": {
+            "$ref": "EncryptionInfo"
+          }
+        },
+        "type": "object"
+      },
+      "DeviceInfo": {
+        "properties": {
+          "operatingSystemVersion": {
+            "type": "string"
+          },
+          "languageCode": {
+            "type": "string"
+          },
+          "screenWidth": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "browser": {
+            "type": "string"
+          },
+          "userAgent": {
+            "type": "string"
+          },
+          "ipAddress": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "screenHeight": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "operatingSystem": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "browserVersion": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "id": "DeviceInfo"
+      },
+      "IngestPartnerProvidedIdDataStatus": {
+        "id": "IngestPartnerProvidedIdDataStatus",
+        "type": "object",
+        "properties": {
+          "partnerProvidedIdCount": {
+            "format": "int64",
+            "type": "string"
+          },
+          "recordCount": {
+            "type": "string",
+            "format": "int64"
+          }
+        }
+      },
+      "ItemParameter": {
+        "properties": {
+          "parameterName": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "id": "ItemParameter"
+      },
+      "ProductAccount": {
+        "id": "ProductAccount",
+        "properties": {
+          "accountId": {
+            "type": "string"
+          },
+          "product": {
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            "type": "string",
+            "deprecated": true,
+            "enum": [
+              "PRODUCT_UNSPECIFIED",
+              "GOOGLE_ADS",
+              "DISPLAY_VIDEO_PARTNER",
+              "DISPLAY_VIDEO_ADVERTISER",
+              "DATA_PARTNER"
+            ]
+          },
+          "accountType": {
+            "enum": [
+              "ACCOUNT_TYPE_UNSPECIFIED",
+              "GOOGLE_ADS",
+              "DISPLAY_VIDEO_PARTNER",
+              "DISPLAY_VIDEO_ADVERTISER",
+              "DATA_PARTNER",
+              "GOOGLE_ANALYTICS_PROPERTY",
+              "GOOGLE_AD_MANAGER_AUDIENCE_LINK",
+              "FLOODLIGHT_CONFIG",
+              "GOOGLE_AD_MANAGER"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PseudonymousIdInfo": {
+        "id": "PseudonymousIdInfo",
+        "type": "object",
+        "properties": {
+          "billableRecordCount": {
+            "format": "int64",
+            "type": "string"
+          },
+          "syncStatus": {
+            "readOnly": true,
+            "type": "string",
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              ""
+            ],
+            "enum": [
+              "SYNC_STATUS_UNSPECIFIED",
+              "CREATED",
+              "READY_FOR_USE",
+              "FAILED"
+            ]
+          }
+        }
+      },
+      "AudienceMember": {
+        "id": "AudienceMember",
+        "properties": {
+          "pairData": {
+            "$ref": "PairData"
+          },
+          "userIdData": {
+            "$ref": "UserIdData"
+          },
+          "googleUserIdData": {
+            "$ref": "GoogleUserIdData"
+          },
+          "consent": {
+            "$ref": "Consent"
+          },
+          "partnerProvidedIdData": {
+            "$ref": "PartnerProvidedIdData"
+          },
+          "userData": {
+            "$ref": "UserData"
+          },
+          "compositeData": {
+            "$ref": "CompositeData"
+          },
+          "destinationReferences": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "mobileData": {
+            "$ref": "MobileData"
+          },
+          "ppidData": {
+            "$ref": "PpidData"
+          }
+        },
+        "type": "object"
+      },
+      "MarketingDataInsight": {
+        "properties": {
+          "attributes": {
+            "items": {
+              "$ref": "MarketingDataInsightsAttribute"
+            },
+            "type": "array"
+          },
+          "dimension": {
+            "type": "string",
+            "enum": [
+              "AUDIENCE_INSIGHTS_DIMENSION_UNSPECIFIED",
+              "AUDIENCE_INSIGHTS_DIMENSION_UNKNOWN",
+              "AFFINITY_USER_INTEREST",
+              "IN_MARKET_USER_INTEREST",
+              "AGE_RANGE",
+              "GENDER"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          }
+        },
+        "type": "object",
+        "id": "MarketingDataInsight"
+      },
+      "IngestAdEventsRequest": {
+        "properties": {
+          "encryptionInfo": {
+            "$ref": "EncryptionInfo"
+          },
+          "validateOnly": {
+            "type": "boolean",
+            "deprecated": true
+          },
+          "adEvents": {
+            "type": "array",
+            "items": {
+              "$ref": "AdEvent"
+            }
+          }
+        },
+        "id": "IngestAdEventsRequest",
+        "type": "object"
+      },
+      "IngestEventsStatus": {
+        "id": "IngestEventsStatus",
+        "type": "object",
+        "properties": {
+          "recordCount": {
+            "type": "string",
+            "format": "int64"
+          }
+        }
+      },
+      "UserData": {
+        "properties": {
+          "userIdentifiers": {
+            "type": "array",
+            "items": {
+              "$ref": "UserIdentifier"
+            }
+          }
+        },
+        "id": "UserData",
+        "type": "object"
+      },
+      "ViewabilityInfo": {
+        "id": "ViewabilityInfo",
+        "type": "object",
+        "properties": {
+          "mediaSkippable": {
+            "type": "boolean"
+          },
+          "mediaVolumePercent": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "mediaQuartile": {
+            "enum": [
+              "MEDIA_QUARTILE_UNSPECIFIED",
+              "MEDIA_QUARTILE_START",
+              "MEDIA_QUARTILE_FIRST_QUARTILE",
+              "MEDIA_QUARTILE_MIDPOINT",
+              "MEDIA_QUARTILE_THIRD_QUARTILE",
+              "MEDIA_QUARTILE_COMPLETE"
+            ],
+            "type": "string",
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          },
+          "viewableDuration": {
+            "type": "string",
+            "format": "google-duration"
+          },
+          "mediaDuration": {
+            "format": "google-duration",
+            "type": "string"
+          },
+          "viewablePercent": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "playbackDuration": {
+            "type": "string",
+            "format": "google-duration"
+          },
+          "viewType": {
+            "enumDescriptions": [
+              "",
+              "",
+              ""
+            ],
+            "type": "string",
+            "enum": [
+              "VIEW_TYPE_UNSPECIFIED",
+              "VIEW_TYPE_MRC_VIEWED",
+              "VIEW_TYPE_MRC_RENDERED"
+            ]
+          }
+        }
+      },
+      "IngestUsersRequest": {
+        "type": "object",
+        "properties": {
+          "encryptionInfo": {
+            "$ref": "EncryptionInfo"
+          },
+          "destinations": {
+            "items": {
+              "$ref": "Destination"
+            },
+            "type": "array"
+          },
+          "encoding": {
+            "type": "string",
+            "enum": [
+              "ENCODING_UNSPECIFIED",
+              "HEX",
+              "BASE64"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              ""
+            ]
+          },
+          "users": {
+            "items": {
+              "$ref": "User"
+            },
+            "type": "array"
+          },
+          "validateOnly": {
+            "type": "boolean"
+          }
+        },
+        "id": "IngestUsersRequest"
+      },
+      "IpData": {
+        "id": "IpData",
+        "properties": {
+          "observeStartTime": {
+            "format": "google-datetime",
+            "type": "string"
+          },
+          "observeEndTime": {
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "ipAddress": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "RemoveAudienceMembersRequest": {
+        "properties": {
+          "encryptionInfo": {
+            "$ref": "EncryptionInfo"
+          },
+          "destinations": {
+            "type": "array",
+            "items": {
+              "$ref": "Destination"
+            }
+          },
+          "encoding": {
+            "enum": [
+              "ENCODING_UNSPECIFIED",
+              "HEX",
+              "BASE64"
+            ],
+            "type": "string",
+            "enumDescriptions": [
+              "",
+              "",
+              ""
+            ]
+          },
+          "validateOnly": {
+            "type": "boolean"
+          },
+          "audienceMembers": {
+            "items": {
+              "$ref": "AudienceMember"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "id": "RemoveAudienceMembersRequest"
+      },
+      "UserList": {
+        "properties": {
+          "sizeInfo": {
+            "readOnly": true,
+            "$ref": "SizeInfo"
+          },
+          "accountAccessStatus": {
+            "type": "string",
+            "enumDescriptions": [
+              "",
+              "",
+              ""
+            ],
+            "enum": [
+              "ACCESS_STATUS_UNSPECIFIED",
+              "ENABLED",
+              "DISABLED"
+            ]
+          },
+          "ingestedUserListInfo": {
+            "$ref": "IngestedUserListInfo"
+          },
+          "readOnly": {
+            "readOnly": true,
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "integrationCode": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "membershipDuration": {
+            "format": "google-duration",
+            "type": "string"
+          },
+          "closingReason": {
+            "enum": [
+              "CLOSING_REASON_UNSPECIFIED",
+              "UNUSED"
+            ],
+            "type": "string",
+            "enumDescriptions": [
+              "",
+              ""
+            ],
+            "readOnly": true
+          },
+          "id": {
+            "readOnly": true,
+            "format": "int64",
+            "type": "string"
+          },
+          "targetNetworkInfo": {
+            "$ref": "TargetNetworkInfo"
+          },
+          "description": {
+            "type": "string"
+          },
+          "membershipStatus": {
+            "enumDescriptions": [
+              "",
+              "",
+              ""
+            ],
+            "enum": [
+              "MEMBERSHIP_STATUS_UNSPECIFIED",
+              "OPEN",
+              "CLOSED"
+            ],
+            "type": "string"
+          },
+          "accessReason": {
+            "readOnly": true,
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            "type": "string",
+            "enum": [
+              "ACCESS_REASON_UNSPECIFIED",
+              "OWNED",
+              "SHARED",
+              "LICENSED",
+              "SUBSCRIBED",
+              "AFFILIATED"
+            ]
+          }
+        },
+        "id": "UserList",
+        "type": "object"
+      },
+      "TargetNetworkInfo": {
+        "id": "TargetNetworkInfo",
+        "properties": {
+          "eligibleForSearch": {
+            "type": "boolean"
+          },
+          "eligibleForDisplay": {
+            "readOnly": true,
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "RemovePairDataStatus": {
+        "type": "object",
+        "id": "RemovePairDataStatus",
+        "properties": {
+          "recordCount": {
+            "format": "int64",
+            "type": "string"
+          },
+          "pairIdCount": {
+            "format": "int64",
+            "type": "string"
+          }
+        }
+      },
+      "RemovePpidDataStatus": {
+        "type": "object",
+        "id": "RemovePpidDataStatus",
+        "properties": {
+          "recordCount": {
+            "type": "string",
+            "format": "int64"
+          },
+          "ppidCount": {
+            "type": "string",
+            "format": "int64"
+          }
+        }
+      },
+      "RemoveUsersRequest": {
+        "id": "RemoveUsersRequest",
+        "type": "object",
+        "properties": {
+          "destinations": {
+            "items": {
+              "$ref": "Destination"
+            },
+            "type": "array"
+          },
+          "userData": {
+            "type": "array",
+            "items": {
+              "$ref": "UserData"
+            }
+          },
+          "encryptionInfo": {
+            "$ref": "EncryptionInfo"
+          },
+          "encoding": {
+            "enum": [
+              "ENCODING_UNSPECIFIED",
+              "HEX",
+              "BASE64"
+            ],
+            "type": "string",
+            "enumDescriptions": [
+              "",
+              "",
+              ""
+            ]
+          },
+          "validateOnly": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RetrieveInsightsRequest": {
+        "properties": {
+          "baseline": {
+            "$ref": "Baseline"
+          },
+          "userListId": {
+            "type": "string"
+          }
+        },
+        "id": "RetrieveInsightsRequest",
+        "type": "object"
+      },
+      "IngestMobileDataStatus": {
+        "properties": {
+          "recordCount": {
+            "type": "string",
+            "format": "int64"
+          },
+          "mobileIdCount": {
+            "type": "string",
+            "format": "int64"
+          }
+        },
+        "id": "IngestMobileDataStatus",
+        "type": "object"
+      },
+      "GcpWrappedKeyInfo": {
+        "properties": {
+          "keyType": {
+            "enumDescriptions": [
+              "",
+              ""
+            ],
+            "type": "string",
+            "enum": [
+              "KEY_TYPE_UNSPECIFIED",
+              "XCHACHA20_POLY1305"
+            ]
+          },
+          "kekUri": {
+            "type": "string"
+          },
+          "wipProvider": {
+            "type": "string"
+          },
+          "encryptedDek": {
+            "type": "string"
+          }
+        },
+        "id": "GcpWrappedKeyInfo",
+        "type": "object"
+      },
+      "ListUserListGlobalLicenseCustomerInfosResponse": {
+        "type": "object",
+        "id": "ListUserListGlobalLicenseCustomerInfosResponse",
+        "properties": {
+          "nextPageToken": {
+            "type": "string"
+          },
+          "userListGlobalLicenseCustomerInfos": {
+            "type": "array",
+            "items": {
+              "$ref": "UserListGlobalLicenseCustomerInfo"
+            }
+          }
+        }
+      },
+      "Consent": {
+        "id": "Consent",
+        "type": "object",
+        "properties": {
+          "adPersonalization": {
+            "type": "string",
+            "enum": [
+              "CONSENT_STATUS_UNSPECIFIED",
+              "CONSENT_GRANTED",
+              "CONSENT_DENIED"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              ""
+            ]
+          },
+          "adUserData": {
+            "enumDescriptions": [
+              "",
+              "",
+              ""
+            ],
+            "type": "string",
+            "enum": [
+              "CONSENT_STATUS_UNSPECIFIED",
+              "CONSENT_GRANTED",
+              "CONSENT_DENIED"
+            ]
+          }
+        }
+      },
+      "CompositeData": {
+        "properties": {
+          "userData": {
+            "$ref": "UserData"
+          },
+          "ipData": {
+            "items": {
+              "$ref": "IpData"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "id": "CompositeData"
+      },
+      "IngestAdEventsResponse": {
+        "properties": {},
+        "id": "IngestAdEventsResponse",
+        "type": "object"
+      },
+      "EventLocation": {
+        "type": "object",
+        "id": "EventLocation",
+        "properties": {
+          "city": {
+            "type": "string"
+          },
+          "regionCode": {
+            "type": "string"
+          },
+          "storeId": {
+            "type": "string"
+          },
+          "subdivisionCode": {
+            "type": "string"
+          },
+          "continentCode": {
+            "type": "string"
+          },
+          "subcontinentCode": {
+            "type": "string"
+          }
+        }
+      },
+      "IngestUsersResponse": {
+        "id": "IngestUsersResponse",
+        "properties": {
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Baseline": {
+        "properties": {
+          "locationAutoDetectionEnabled": {
+            "type": "boolean"
+          },
+          "baselineLocation": {
+            "$ref": "Location"
+          }
+        },
+        "type": "object",
+        "id": "Baseline"
+      },
+      "CoordinatorKeyInfo": {
+        "properties": {
+          "keyId": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "id": "CoordinatorKeyInfo"
+      },
+      "EncryptionInfo": {
+        "id": "EncryptionInfo",
+        "type": "object",
+        "properties": {
+          "awsWrappedKeyInfo": {
+            "$ref": "AwsWrappedKeyInfo"
+          },
+          "gcpWrappedKeyInfo": {
+            "$ref": "GcpWrappedKeyInfo"
+          },
+          "coordinatorKeyInfo": {
+            "$ref": "CoordinatorKeyInfo"
+          }
+        }
+      },
+      "ListUserListGlobalLicensesResponse": {
+        "properties": {
+          "nextPageToken": {
+            "type": "string"
+          },
+          "userListGlobalLicenses": {
+            "items": {
+              "$ref": "UserListGlobalLicense"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "id": "ListUserListGlobalLicensesResponse"
+      },
+      "Event": {
+        "type": "object",
+        "id": "Event",
+        "properties": {
+          "adIdentifiers": {
+            "$ref": "AdIdentifiers"
+          },
+          "eventName": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "additionalEventParameters": {
+            "items": {
+              "$ref": "EventParameter"
+            },
+            "type": "array"
+          },
+          "appInstanceId": {
+            "type": "string"
+          },
+          "destinationReferences": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "transactionId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "eventSource": {
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            "enum": [
+              "EVENT_SOURCE_UNSPECIFIED",
+              "WEB",
+              "APP",
+              "IN_STORE",
+              "PHONE",
+              "MESSAGE",
+              "OTHER"
+            ],
+            "type": "string"
+          },
+          "eventDeviceInfo": {
+            "$ref": "DeviceInfo"
+          },
+          "eventLocation": {
+            "$ref": "EventLocation"
+          },
+          "experimentalFields": {
+            "type": "array",
+            "items": {
+              "$ref": "ExperimentalField"
+            }
+          },
+          "consent": {
+            "$ref": "Consent"
+          },
+          "conversionCount": {
+            "type": "number",
+            "format": "double"
+          },
+          "lastUpdatedTimestamp": {
+            "format": "google-datetime",
+            "type": "string"
+          },
+          "cartData": {
+            "$ref": "CartData"
+          },
+          "userProperties": {
+            "$ref": "UserProperties"
+          },
+          "eventTimestamp": {
+            "type": "string",
+            "format": "google-datetime"
+          },
+          "userData": {
+            "$ref": "UserData"
+          },
+          "conversionValue": {
+            "format": "double",
+            "type": "number"
+          },
+          "customVariables": {
+            "items": {
+              "$ref": "CustomVariable"
+            },
+            "type": "array"
+          },
+          "thirdPartyUserData": {
+            "$ref": "UserData"
+          },
+          "clientId": {
+            "type": "string"
+          }
+        }
+      },
+      "PartnerCustomerAccount": {
+        "properties": {
+          "accountType": {
+            "type": "string"
+          },
+          "accountName": {
+            "type": "string"
+          },
+          "accountId": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "id": "PartnerCustomerAccount"
+      },
+      "GoogleUserIdData": {
+        "type": "object",
+        "properties": {
+          "googleUserIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "id": "GoogleUserIdData"
+      },
+      "UserListLicensePricing": {
+        "properties": {
+          "pricingId": {
+            "format": "int64",
+            "readOnly": true,
+            "type": "string"
+          },
+          "currencyCode": {
+            "type": "string"
+          },
+          "maxCostMicros": {
+            "format": "int64",
+            "type": "string"
+          },
+          "buyerApprovalState": {
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              ""
+            ],
+            "enum": [
+              "USER_LIST_PRICING_BUYER_APPROVAL_STATE_UNSPECIFIED",
+              "PENDING",
+              "APPROVED",
+              "REJECTED"
+            ],
+            "type": "string",
+            "readOnly": true
+          },
+          "endTime": {
+            "format": "google-datetime",
+            "type": "string"
+          },
+          "startTime": {
+            "type": "string",
+            "readOnly": true,
+            "format": "google-datetime"
+          },
+          "costMicros": {
+            "type": "string",
+            "format": "int64"
+          },
+          "pricingActive": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "costType": {
+            "type": "string",
+            "enum": [
+              "USER_LIST_PRICING_COST_TYPE_UNSPECIFIED",
+              "CPC",
+              "CPM",
+              "MEDIA_SHARE"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              ""
+            ]
+          }
+        },
+        "type": "object",
+        "id": "UserListLicensePricing"
+      },
+      "IngestAudienceMembersStatus": {
+        "type": "object",
+        "id": "IngestAudienceMembersStatus",
+        "properties": {
+          "mobileDataIngestionStatus": {
+            "$ref": "IngestMobileDataStatus"
+          },
+          "userIdDataIngestionStatus": {
+            "$ref": "IngestUserIdDataStatus"
+          },
+          "compositeDataIngestionStatus": {
+            "$ref": "IngestCompositeDataStatus"
+          },
+          "partnerProvidedIdDataIngestionStatus": {
+            "$ref": "IngestPartnerProvidedIdDataStatus"
+          },
+          "userDataIngestionStatus": {
+            "$ref": "IngestUserDataStatus"
+          },
+          "googleUserIdDataIngestionStatus": {
+            "$ref": "IngestGoogleUserIdDataStatus"
+          },
+          "pairDataIngestionStatus": {
+            "$ref": "IngestPairDataStatus"
+          },
+          "ppidDataIngestionStatus": {
+            "$ref": "IngestPpidDataStatus"
+          }
+        }
+      },
+      "PartnerAudienceInfo": {
+        "id": "PartnerAudienceInfo",
+        "type": "object",
+        "properties": {
+          "partnerAudienceSource": {
+            "enum": [
+              "PARTNER_AUDIENCE_SOURCE_UNSPECIFIED",
+              "COMMERCE_AUDIENCE",
+              "LINEAR_TV_AUDIENCE",
+              "AGENCY_PROVIDER_AUDIENCE"
+            ],
+            "type": "string",
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              ""
+            ]
+          },
+          "commercePartner": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorCount": {
+        "type": "object",
+        "properties": {
+          "recordCount": {
+            "format": "int64",
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "PROCESSING_ERROR_REASON_UNSPECIFIED",
+              "PROCESSING_ERROR_REASON_INVALID_CUSTOM_VARIABLE",
+              "PROCESSING_ERROR_REASON_CUSTOM_VARIABLE_NOT_ENABLED",
+              "PROCESSING_ERROR_REASON_EVENT_TOO_OLD",
+              "PROCESSING_ERROR_REASON_DENIED_CONSENT",
+              "PROCESSING_ERROR_REASON_NO_CONSENT",
+              "PROCESSING_ERROR_REASON_UNKNOWN_CONSENT",
+              "PROCESSING_ERROR_REASON_DUPLICATE_GCLID",
+              "PROCESSING_ERROR_REASON_DUPLICATE_TRANSACTION_ID",
+              "PROCESSING_ERROR_REASON_INVALID_GBRAID",
+              "PROCESSING_ERROR_REASON_INVALID_GCLID",
+              "PROCESSING_ERROR_REASON_INVALID_MERCHANT_ID",
+              "PROCESSING_ERROR_REASON_INVALID_WBRAID",
+              "PROCESSING_ERROR_REASON_INTERNAL_ERROR",
+              "PROCESSING_ERROR_REASON_DESTINATION_ACCOUNT_ENHANCED_CONVERSIONS_TERMS_NOT_SIGNED",
+              "PROCESSING_ERROR_REASON_INVALID_EVENT",
+              "PROCESSING_ERROR_REASON_INSUFFICIENT_MATCHED_TRANSACTIONS",
+              "PROCESSING_ERROR_REASON_INSUFFICIENT_TRANSACTIONS",
+              "PROCESSING_ERROR_REASON_INVALID_FORMAT",
+              "PROCESSING_ERROR_REASON_DECRYPTION_ERROR",
+              "PROCESSING_ERROR_REASON_DEK_DECRYPTION_ERROR",
+              "PROCESSING_ERROR_REASON_INVALID_WIP",
+              "PROCESSING_ERROR_REASON_INVALID_KEK",
+              "PROCESSING_ERROR_REASON_WIP_AUTH_FAILED",
+              "PROCESSING_ERROR_REASON_KEK_PERMISSION_DENIED",
+              "PROCESSING_ERROR_REASON_AWS_AUTH_FAILED",
+              "PROCESSING_ERROR_REASON_USER_IDENTIFIER_DECRYPTION_ERROR",
+              "PROCESSING_ERROR_OPERATING_ACCOUNT_MISMATCH_FOR_AD_IDENTIFIER",
+              "PROCESSING_ERROR_REASON_ONE_PER_CLICK_CONVERSION_ACTION_NOT_PERMITTED_WITH_BRAID",
+              "PROCESSING_ERROR_REASON_MATCH_ID_NOT_FOUND",
+              "PROCESSING_ERROR_REASON_USER_ID_NOT_FOUND_FOR_MATCH_ID",
+              "PROCESSING_ERROR_REASON_USER_ID_NOT_FOUND_FOR_GCLID",
+              "PROCESSING_ERROR_REASON_USER_ID_NOT_FOUND_FOR_DCLID",
+              "PROCESSING_ERROR_REASON_INVALID_AD_IDENTIFIERS",
+              "PROCESSING_ERROR_REASON_INVALID_MOBILE_ID_FORMAT",
+              "PROCESSING_ERROR_REASON_ORIGINAL_CONVERSIONS_NOT_FOUND",
+              "PROCESSING_ERROR_REASON_EVENT_ID_DECODE_ERROR",
+              "PROCESSING_ERROR_REASON_USER_ID_NOT_FOUND_FOR_IMPRESSION_ID",
+              "PROCESSING_ERROR_REASON_USER_ID_NOT_FOUND",
+              "PROCESSING_ERROR_REASON_CONVERSION_PRECEDES_CLICK",
+              "PROCESSING_ERROR_REASON_TOO_RECENT_CLICK",
+              "PROCESSING_ERROR_REASON_INVALID_CLICK",
+              "PROCESSING_ERROR_REASON_INVALID_OPERATING_ACCOUNT_FOR_CLICK",
+              "PROCESSING_ERROR_REASON_CLICK_NOT_FOUND",
+              "PROCESSING_ERROR_REASON_EXTERNAL_ATTRIBUTION_DATA_MISSING",
+              "PROCESSING_ERROR_REASON_DESTINATION_TOO_RECENTLY_CREATED",
+              "PROCESSING_ERROR_REASON_EXPIRED_CLICK"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            "type": "string"
+          }
+        },
+        "id": "ErrorCount"
+      },
+      "ExperimentalField": {
+        "id": "ExperimentalField",
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "RemovePartnerProvidedIdDataStatus": {
+        "type": "object",
+        "id": "RemovePartnerProvidedIdDataStatus",
+        "properties": {
+          "partnerProvidedIdCount": {
+            "format": "int64",
+            "type": "string"
+          },
+          "recordCount": {
+            "type": "string",
+            "format": "int64"
+          }
+        }
+      },
+      "IngestUserDataStatus": {
+        "id": "IngestUserDataStatus",
+        "type": "object",
+        "properties": {
+          "userIdentifierCount": {
+            "type": "string",
+            "format": "int64"
+          },
+          "recordCount": {
+            "type": "string",
+            "format": "int64"
+          },
+          "uploadMatchRateRange": {
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            "enum": [
+              "MATCH_RATE_RANGE_UNKNOWN",
+              "MATCH_RATE_RANGE_NOT_ELIGIBLE",
+              "MATCH_RATE_RANGE_LESS_THAN_20",
+              "MATCH_RATE_RANGE_20_TO_30",
+              "MATCH_RATE_RANGE_31_TO_40",
+              "MATCH_RATE_RANGE_41_TO_50",
+              "MATCH_RATE_RANGE_51_TO_60",
+              "MATCH_RATE_RANGE_61_TO_70",
+              "MATCH_RATE_RANGE_71_TO_80",
+              "MATCH_RATE_RANGE_81_TO_90",
+              "MATCH_RATE_RANGE_91_TO_100"
+            ],
+            "type": "string"
+          }
+        }
+      },
+      "RemoveAudienceMembersResponse": {
+        "id": "RemoveAudienceMembersResponse",
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string"
+          }
+        }
+      },
+      "RetrieveInsightsResponse": {
+        "type": "object",
+        "properties": {
+          "marketingDataInsights": {
+            "type": "array",
+            "items": {
+              "$ref": "MarketingDataInsight"
+            }
+          }
+        },
+        "id": "RetrieveInsightsResponse"
+      },
+      "UserIdentifier": {
+        "type": "object",
+        "properties": {
+          "phoneNumber": {
+            "type": "string"
+          },
+          "emailAddress": {
+            "type": "string"
+          },
+          "address": {
+            "$ref": "AddressInfo"
+          }
+        },
+        "id": "UserIdentifier"
+      },
+      "RemoveGoogleUserIdDataStatus": {
+        "id": "RemoveGoogleUserIdDataStatus",
+        "type": "object",
+        "properties": {
+          "recordCount": {
+            "type": "string",
+            "format": "int64"
+          },
+          "googleUserIdCount": {
+            "type": "string",
+            "format": "int64"
+          }
+        }
+      },
+      "IngestPpidDataStatus": {
+        "id": "IngestPpidDataStatus",
+        "type": "object",
+        "properties": {
+          "recordCount": {
+            "type": "string",
+            "format": "int64"
+          },
+          "ppidCount": {
+            "format": "int64",
+            "type": "string"
+          }
+        }
+      },
+      "UserListDirectLicense": {
+        "type": "object",
+        "id": "UserListDirectLicense",
+        "properties": {
+          "metrics": {
+            "readOnly": true,
+            "$ref": "UserListLicenseMetrics"
+          },
+          "name": {
+            "type": "string"
+          },
+          "userListId": {
+            "type": "string",
+            "format": "int64"
+          },
+          "historicalPricings": {
+            "items": {
+              "$ref": "UserListLicensePricing"
+            },
+            "type": "array",
+            "readOnly": true
+          },
+          "status": {
+            "enum": [
+              "USER_LIST_LICENSE_STATUS_UNSPECIFIED",
+              "USER_LIST_LICENSE_STATUS_ENABLED",
+              "USER_LIST_LICENSE_STATUS_DISABLED"
+            ],
+            "type": "string",
+            "enumDescriptions": [
+              "",
+              "",
+              ""
+            ]
+          },
+          "clientAccountDisplayName": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "clientAccountId": {
+            "format": "int64",
+            "type": "string"
+          },
+          "userListDisplayName": {
+            "readOnly": true,
+            "type": "string"
+          },
+          "pricing": {
+            "$ref": "UserListLicensePricing"
+          },
+          "clientAccountType": {
+            "enum": [
+              "USER_LIST_LICENSE_CLIENT_ACCOUNT_TYPE_UNKNOWN",
+              "USER_LIST_LICENSE_CLIENT_ACCOUNT_TYPE_GOOGLE_ADS",
+              "USER_LIST_LICENSE_CLIENT_ACCOUNT_TYPE_DISPLAY_VIDEO_PARTNER",
+              "USER_LIST_LICENSE_CLIENT_ACCOUNT_TYPE_DISPLAY_VIDEO_ADVERTISER",
+              "USER_LIST_LICENSE_CLIENT_ACCOUNT_TYPE_GOOGLE_AD_MANAGER_AUDIENCE_LINK"
+            ],
+            "type": "string",
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          }
+        }
+      },
+      "UserListGlobalLicense": {
+        "properties": {
+          "historicalPricings": {
+            "type": "array",
+            "readOnly": true,
+            "items": {
+              "$ref": "UserListLicensePricing"
+            }
+          },
+          "licenseType": {
+            "enum": [
+              "USER_LIST_GLOBAL_LICENSE_TYPE_UNSPECIFIED",
+              "USER_LIST_GLOBAL_LICENSE_TYPE_RESELLER",
+              "USER_LIST_GLOBAL_LICENSE_TYPE_DATA_MART_SELL_SIDE",
+              "USER_LIST_GLOBAL_LICENSE_TYPE_DATA_MART_BUY_SIDE"
+            ],
+            "type": "string",
+            "enumDescriptions": [
+              "",
+              "",
+              "",
+              ""
+            ]
+          },
+          "userListId": {
+            "type": "string",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "pricing": {
+            "$ref": "UserListLicensePricing"
+          },
+          "metrics": {
+            "$ref": "UserListLicenseMetrics",
+            "readOnly": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "USER_LIST_LICENSE_STATUS_UNSPECIFIED",
+              "USER_LIST_LICENSE_STATUS_ENABLED",
+              "USER_LIST_LICENSE_STATUS_DISABLED"
+            ],
+            "enumDescriptions": [
+              "",
+              "",
+              ""
+            ]
+          },
+          "userListDisplayName": {
+            "readOnly": true,
+            "type": "string"
+          }
+        },
+        "id": "UserListGlobalLicense",
+        "type": "object"
+      }
+    },
+    "icons": {
+      "x16": "http://www.google.com/images/icons/product/search-16.gif",
+      "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    },
+    "basePath": "",
+    "description": "A unified ingestion API for data partners, agencies and advertisers to connect first-party data across Google advertising products.",
+    "resources": {
+      "audienceMembers": {
+        "methods": {
+          "removeAll": {
+            "request": {
+              "$ref": "RemoveAllAudienceMembersRequest"
+            },
+            "parameterOrder": [],
+            "id": "datamanager.audienceMembers.removeAll",
+            "description": "",
+            "flatPath": "v1/audienceMembers:removeAll",
+            "response": {
+              "$ref": "RemoveAllAudienceMembersResponse"
+            },
+            "parameters": {},
+            "path": "v1/audienceMembers:removeAll",
+            "httpMethod": "POST",
+            "scopes": [
+              "https://www.googleapis.com/auth/datamanager"
+            ]
+          },
+          "remove": {
+            "parameterOrder": [],
+            "scopes": [
+              "https://www.googleapis.com/auth/datamanager"
+            ],
+            "httpMethod": "POST",
+            "path": "v1/audienceMembers:remove",
+            "parameters": {},
+            "description": "",
+            "id": "datamanager.audienceMembers.remove",
+            "flatPath": "v1/audienceMembers:remove",
+            "response": {
+              "$ref": "RemoveAudienceMembersResponse"
+            },
+            "request": {
+              "$ref": "RemoveAudienceMembersRequest"
+            }
+          },
+          "ingest": {
+            "request": {
+              "$ref": "IngestAudienceMembersRequest"
+            },
+            "id": "datamanager.audienceMembers.ingest",
+            "description": "",
+            "parameters": {},
+            "response": {
+              "$ref": "IngestAudienceMembersResponse"
+            },
+            "parameterOrder": [],
+            "httpMethod": "POST",
+            "flatPath": "v1/audienceMembers:ingest",
+            "scopes": [
+              "https://www.googleapis.com/auth/datamanager"
+            ],
+            "path": "v1/audienceMembers:ingest"
+          }
+        }
+      },
+      "events": {
+        "methods": {
+          "ingest": {
+            "parameters": {},
+            "httpMethod": "POST",
+            "scopes": [
+              "https://www.googleapis.com/auth/datamanager"
+            ],
+            "flatPath": "v1/events:ingest",
+            "path": "v1/events:ingest",
+            "parameterOrder": [],
+            "description": "",
+            "response": {
+              "$ref": "IngestEventsResponse"
+            },
+            "request": {
+              "$ref": "IngestEventsRequest"
+            },
+            "id": "datamanager.events.ingest"
+          }
+        }
+      },
+      "requestStatus": {
+        "methods": {
+          "retrieve": {
+            "flatPath": "v1/requestStatus:retrieve",
+            "response": {
+              "$ref": "RetrieveRequestStatusResponse"
+            },
+            "path": "v1/requestStatus:retrieve",
+            "parameterOrder": [],
+            "id": "datamanager.requestStatus.retrieve",
+            "scopes": [
+              "https://www.googleapis.com/auth/datamanager"
+            ],
+            "httpMethod": "GET",
+            "description": "",
+            "parameters": {
+              "requestId": {
+                "type": "string",
+                "location": "query"
+              }
+            }
+          }
+        }
+      },
+      "accountTypes": {
+        "resources": {
+          "accounts": {
+            "resources": {
+              "userListGlobalLicenses": {
+                "methods": {
+                  "patch": {
+                    "scopes": [
+                      "https://www.googleapis.com/auth/datamanager"
+                    ],
+                    "parameterOrder": [
+                      "name"
+                    ],
+                    "flatPath": "v1/accountTypes/{accountTypesId}/accounts/{accountsId}/userListGlobalLicenses/{userListGlobalLicensesId}",
+                    "path": "v1/{+name}",
+                    "request": {
+                      "$ref": "UserListGlobalLicense"
+                    },
+                    "response": {
+                      "$ref": "UserListGlobalLicense"
+                    },
+                    "description": "",
+                    "parameters": {
+                      "name": {
+                        "pattern": "^accountTypes/[^/]+/accounts/[^/]+/userListGlobalLicenses/[^/]+$",
+                        "type": "string",
+                        "location": "path",
+                        "required": true
+                      },
+                      "updateMask": {
+                        "location": "query",
+                        "format": "google-fieldmask",
+                        "type": "string"
+                      }
+                    },
+                    "httpMethod": "PATCH",
+                    "id": "datamanager.accountTypes.accounts.userListGlobalLicenses.patch"
+                  },
+                  "get": {
+                    "response": {
+                      "$ref": "UserListGlobalLicense"
+                    },
+                    "httpMethod": "GET",
+                    "parameters": {
+                      "name": {
+                        "location": "path",
+                        "required": true,
+                        "pattern": "^accountTypes/[^/]+/accounts/[^/]+/userListGlobalLicenses/[^/]+$",
+                        "type": "string"
+                      }
+                    },
+                    "parameterOrder": [
+                      "name"
+                    ],
+                    "path": "v1/{+name}",
+                    "flatPath": "v1/accountTypes/{accountTypesId}/accounts/{accountsId}/userListGlobalLicenses/{userListGlobalLicensesId}",
+                    "scopes": [
+                      "https://www.googleapis.com/auth/datamanager"
+                    ],
+                    "description": "",
+                    "id": "datamanager.accountTypes.accounts.userListGlobalLicenses.get"
+                  },
+                  "create": {
+                    "parameters": {
+                      "parent": {
+                        "location": "path",
+                        "pattern": "^accountTypes/[^/]+/accounts/[^/]+$",
+                        "required": true,
+                        "type": "string"
+                      }
+                    },
+                    "description": "",
+                    "httpMethod": "POST",
+                    "scopes": [
+                      "https://www.googleapis.com/auth/datamanager"
+                    ],
+                    "parameterOrder": [
+                      "parent"
+                    ],
+                    "request": {
+                      "$ref": "UserListGlobalLicense"
+                    },
+                    "response": {
+                      "$ref": "UserListGlobalLicense"
+                    },
+                    "id": "datamanager.accountTypes.accounts.userListGlobalLicenses.create",
+                    "path": "v1/{+parent}/userListGlobalLicenses",
+                    "flatPath": "v1/accountTypes/{accountTypesId}/accounts/{accountsId}/userListGlobalLicenses"
+                  },
+                  "list": {
+                    "path": "v1/{+parent}/userListGlobalLicenses",
+                    "id": "datamanager.accountTypes.accounts.userListGlobalLicenses.list",
+                    "httpMethod": "GET",
+                    "parameterOrder": [
+                      "parent"
+                    ],
+                    "scopes": [
+                      "https://www.googleapis.com/auth/datamanager"
+                    ],
+                    "parameters": {
+                      "filter": {
+                        "location": "query",
+                        "type": "string"
+                      },
+                      "pageToken": {
+                        "type": "string",
+                        "location": "query"
+                      },
+                      "pageSize": {
+                        "type": "integer",
+                        "location": "query",
+                        "format": "int32"
+                      },
+                      "parent": {
+                        "location": "path",
+                        "pattern": "^accountTypes/[^/]+/accounts/[^/]+$",
+                        "required": true,
+                        "type": "string"
+                      }
+                    },
+                    "response": {
+                      "$ref": "ListUserListGlobalLicensesResponse"
+                    },
+                    "flatPath": "v1/accountTypes/{accountTypesId}/accounts/{accountsId}/userListGlobalLicenses",
+                    "description": ""
+                  }
+                },
+                "resources": {
+                  "userListGlobalLicenseCustomerInfos": {
+                    "methods": {
+                      "list": {
+                        "description": "",
+                        "flatPath": "v1/accountTypes/{accountTypesId}/accounts/{accountsId}/userListGlobalLicenses/{userListGlobalLicensesId}/userListGlobalLicenseCustomerInfos",
+                        "response": {
+                          "$ref": "ListUserListGlobalLicenseCustomerInfosResponse"
+                        },
+                        "path": "v1/{+parent}/userListGlobalLicenseCustomerInfos",
+                        "id": "datamanager.accountTypes.accounts.userListGlobalLicenses.userListGlobalLicenseCustomerInfos.list",
+                        "httpMethod": "GET",
+                        "parameterOrder": [
+                          "parent"
+                        ],
+                        "parameters": {
+                          "pageSize": {
+                            "type": "integer",
+                            "location": "query",
+                            "format": "int32"
+                          },
+                          "parent": {
+                            "pattern": "^accountTypes/[^/]+/accounts/[^/]+/userListGlobalLicenses/[^/]+$",
+                            "type": "string",
+                            "location": "path",
+                            "required": true
+                          },
+                          "pageToken": {
+                            "type": "string",
+                            "location": "query"
+                          },
+                          "filter": {
+                            "location": "query",
+                            "type": "string"
+                          }
+                        },
+                        "scopes": [
+                          "https://www.googleapis.com/auth/datamanager"
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              "userListDirectLicenses": {
+                "methods": {
+                  "patch": {
+                    "httpMethod": "PATCH",
+                    "parameters": {
+                      "name": {
+                        "required": true,
+                        "type": "string",
+                        "location": "path",
+                        "pattern": "^accountTypes/[^/]+/accounts/[^/]+/userListDirectLicenses/[^/]+$"
+                      },
+                      "updateMask": {
+                        "type": "string",
+                        "format": "google-fieldmask",
+                        "location": "query"
+                      }
+                    },
+                    "path": "v1/{+name}",
+                    "scopes": [
+                      "https://www.googleapis.com/auth/datamanager"
+                    ],
+                    "flatPath": "v1/accountTypes/{accountTypesId}/accounts/{accountsId}/userListDirectLicenses/{userListDirectLicensesId}",
+                    "request": {
+                      "$ref": "UserListDirectLicense"
+                    },
+                    "description": "",
+                    "parameterOrder": [
+                      "name"
+                    ],
+                    "id": "datamanager.accountTypes.accounts.userListDirectLicenses.patch",
+                    "response": {
+                      "$ref": "UserListDirectLicense"
+                    }
+                  },
+                  "get": {
+                    "flatPath": "v1/accountTypes/{accountTypesId}/accounts/{accountsId}/userListDirectLicenses/{userListDirectLicensesId}",
+                    "httpMethod": "GET",
+                    "parameters": {
+                      "name": {
+                        "required": true,
+                        "location": "path",
+                        "type": "string",
+                        "pattern": "^accountTypes/[^/]+/accounts/[^/]+/userListDirectLicenses/[^/]+$"
+                      }
+                    },
+                    "response": {
+                      "$ref": "UserListDirectLicense"
+                    },
+                    "parameterOrder": [
+                      "name"
+                    ],
+                    "id": "datamanager.accountTypes.accounts.userListDirectLicenses.get",
+                    "description": "",
+                    "scopes": [
+                      "https://www.googleapis.com/auth/datamanager"
+                    ],
+                    "path": "v1/{+name}"
+                  },
+                  "list": {
+                    "path": "v1/{+parent}/userListDirectLicenses",
+                    "description": "",
+                    "id": "datamanager.accountTypes.accounts.userListDirectLicenses.list",
+                    "httpMethod": "GET",
+                    "scopes": [
+                      "https://www.googleapis.com/auth/datamanager"
+                    ],
+                    "parameters": {
+                      "parent": {
+                        "pattern": "^accountTypes/[^/]+/accounts/[^/]+$",
+                        "type": "string",
+                        "location": "path",
+                        "required": true
+                      },
+                      "pageToken": {
+                        "location": "query",
+                        "type": "string"
+                      },
+                      "filter": {
+                        "location": "query",
+                        "type": "string"
+                      },
+                      "pageSize": {
+                        "type": "integer",
+                        "format": "int32",
+                        "location": "query"
+                      }
+                    },
+                    "flatPath": "v1/accountTypes/{accountTypesId}/accounts/{accountsId}/userListDirectLicenses",
+                    "response": {
+                      "$ref": "ListUserListDirectLicensesResponse"
+                    },
+                    "parameterOrder": [
+                      "parent"
+                    ]
+                  },
+                  "create": {
+                    "flatPath": "v1/accountTypes/{accountTypesId}/accounts/{accountsId}/userListDirectLicenses",
+                    "id": "datamanager.accountTypes.accounts.userListDirectLicenses.create",
+                    "response": {
+                      "$ref": "UserListDirectLicense"
+                    },
+                    "parameters": {
+                      "parent": {
+                        "required": true,
+                        "type": "string",
+                        "location": "path",
+                        "pattern": "^accountTypes/[^/]+/accounts/[^/]+$"
+                      }
+                    },
+                    "httpMethod": "POST",
+                    "description": "",
+                    "scopes": [
+                      "https://www.googleapis.com/auth/datamanager"
+                    ],
+                    "path": "v1/{+parent}/userListDirectLicenses",
+                    "parameterOrder": [
+                      "parent"
+                    ],
+                    "request": {
+                      "$ref": "UserListDirectLicense"
+                    }
+                  }
+                }
+              },
+              "partnerLinks": {
+                "methods": {
+                  "create": {
+                    "parameters": {
+                      "parent": {
+                        "location": "path",
+                        "pattern": "^accountTypes/[^/]+/accounts/[^/]+$",
+                        "required": true,
+                        "type": "string"
+                      }
+                    },
+                    "httpMethod": "POST",
+                    "request": {
+                      "$ref": "PartnerLink"
+                    },
+                    "scopes": [
+                      "https://www.googleapis.com/auth/datamanager",
+                      "https://www.googleapis.com/auth/datamanager.partnerlink"
+                    ],
+                    "path": "v1/{+parent}/partnerLinks",
+                    "id": "datamanager.accountTypes.accounts.partnerLinks.create",
+                    "response": {
+                      "$ref": "PartnerLink"
+                    },
+                    "parameterOrder": [
+                      "parent"
+                    ],
+                    "description": "",
+                    "flatPath": "v1/accountTypes/{accountTypesId}/accounts/{accountsId}/partnerLinks"
+                  },
+                  "delete": {
+                    "response": {
+                      "$ref": "Empty"
+                    },
+                    "httpMethod": "DELETE",
+                    "parameters": {
+                      "name": {
+                        "location": "path",
+                        "required": true,
+                        "pattern": "^accountTypes/[^/]+/accounts/[^/]+/partnerLinks/[^/]+$",
+                        "type": "string"
+                      }
+                    },
+                    "flatPath": "v1/accountTypes/{accountTypesId}/accounts/{accountsId}/partnerLinks/{partnerLinksId}",
+                    "parameterOrder": [
+                      "name"
+                    ],
+                    "description": "",
+                    "id": "datamanager.accountTypes.accounts.partnerLinks.delete",
+                    "path": "v1/{+name}",
+                    "scopes": [
+                      "https://www.googleapis.com/auth/datamanager",
+                      "https://www.googleapis.com/auth/datamanager.partnerlink"
+                    ]
+                  },
+                  "search": {
+                    "response": {
+                      "$ref": "SearchPartnerLinksResponse"
+                    },
+                    "description": "",
+                    "flatPath": "v1/accountTypes/{accountTypesId}/accounts/{accountsId}/partnerLinks:search",
+                    "id": "datamanager.accountTypes.accounts.partnerLinks.search",
+                    "scopes": [
+                      "https://www.googleapis.com/auth/datamanager",
+                      "https://www.googleapis.com/auth/datamanager.partnerlink"
+                    ],
+                    "parameterOrder": [
+                      "parent"
+                    ],
+                    "parameters": {
+                      "parent": {
+                        "type": "string",
+                        "location": "path",
+                        "pattern": "^accountTypes/[^/]+/accounts/[^/]+$",
+                        "required": true
+                      },
+                      "pageToken": {
+                        "location": "query",
+                        "type": "string"
+                      },
+                      "filter": {
+                        "type": "string",
+                        "location": "query"
+                      },
+                      "pageSize": {
+                        "type": "integer",
+                        "location": "query",
+                        "format": "int32"
+                      }
+                    },
+                    "path": "v1/{+parent}/partnerLinks:search",
+                    "httpMethod": "GET"
+                  }
+                }
+              },
+              "insights": {
+                "methods": {
+                  "retrieve": {
+                    "path": "v1/{+parent}/insights:retrieve",
+                    "scopes": [
+                      "https://www.googleapis.com/auth/datamanager"
+                    ],
+                    "description": "",
+                    "parameters": {
+                      "parent": {
+                        "type": "string",
+                        "pattern": "^accountTypes/[^/]+/accounts/[^/]+$",
+                        "required": true,
+                        "location": "path"
+                      }
+                    },
+                    "id": "datamanager.accountTypes.accounts.insights.retrieve",
+                    "httpMethod": "POST",
+                    "flatPath": "v1/accountTypes/{accountTypesId}/accounts/{accountsId}/insights:retrieve",
+                    "parameterOrder": [
+                      "parent"
+                    ],
+                    "request": {
+                      "$ref": "RetrieveInsightsRequest"
+                    },
+                    "response": {
+                      "$ref": "RetrieveInsightsResponse"
+                    }
+                  }
+                }
+              },
+              "userLists": {
+                "methods": {
+                  "patch": {
+                    "request": {
+                      "$ref": "UserList"
+                    },
+                    "response": {
+                      "$ref": "UserList"
+                    },
+                    "parameterOrder": [
+                      "name"
+                    ],
+                    "description": "",
+                    "path": "v1/{+name}",
+                    "scopes": [
+                      "https://www.googleapis.com/auth/datamanager"
+                    ],
+                    "httpMethod": "PATCH",
+                    "flatPath": "v1/accountTypes/{accountTypesId}/accounts/{accountsId}/userLists/{userListsId}",
+                    "parameters": {
+                      "updateMask": {
+                        "type": "string",
+                        "location": "query",
+                        "format": "google-fieldmask"
+                      },
+                      "name": {
+                        "pattern": "^accountTypes/[^/]+/accounts/[^/]+/userLists/[^/]+$",
+                        "type": "string",
+                        "location": "path",
+                        "required": true
+                      },
+                      "validateOnly": {
+                        "type": "boolean",
+                        "location": "query"
+                      }
+                    },
+                    "id": "datamanager.accountTypes.accounts.userLists.patch"
+                  },
+                  "list": {
+                    "response": {
+                      "$ref": "ListUserListsResponse"
+                    },
+                    "flatPath": "v1/accountTypes/{accountTypesId}/accounts/{accountsId}/userLists",
+                    "parameterOrder": [
+                      "parent"
+                    ],
+                    "id": "datamanager.accountTypes.accounts.userLists.list",
+                    "scopes": [
+                      "https://www.googleapis.com/auth/datamanager"
+                    ],
+                    "description": "",
+                    "parameters": {
+                      "pageSize": {
+                        "format": "int32",
+                        "location": "query",
+                        "type": "integer"
+                      },
+                      "pageToken": {
+                        "type": "string",
+                        "location": "query"
+                      },
+                      "parent": {
+                        "type": "string",
+                        "required": true,
+                        "pattern": "^accountTypes/[^/]+/accounts/[^/]+$",
+                        "location": "path"
+                      },
+                      "filter": {
+                        "location": "query",
+                        "type": "string"
+                      }
+                    },
+                    "path": "v1/{+parent}/userLists",
+                    "httpMethod": "GET"
+                  },
+                  "delete": {
+                    "id": "datamanager.accountTypes.accounts.userLists.delete",
+                    "response": {
+                      "$ref": "Empty"
+                    },
+                    "httpMethod": "DELETE",
+                    "scopes": [
+                      "https://www.googleapis.com/auth/datamanager"
+                    ],
+                    "flatPath": "v1/accountTypes/{accountTypesId}/accounts/{accountsId}/userLists/{userListsId}",
+                    "parameters": {
+                      "validateOnly": {
+                        "location": "query",
+                        "type": "boolean"
+                      },
+                      "name": {
+                        "location": "path",
+                        "type": "string",
+                        "pattern": "^accountTypes/[^/]+/accounts/[^/]+/userLists/[^/]+$",
+                        "required": true
+                      }
+                    },
+                    "path": "v1/{+name}",
+                    "description": "",
+                    "parameterOrder": [
+                      "name"
+                    ]
+                  },
+                  "get": {
+                    "parameters": {
+                      "name": {
+                        "type": "string",
+                        "required": true,
+                        "pattern": "^accountTypes/[^/]+/accounts/[^/]+/userLists/[^/]+$",
+                        "location": "path"
+                      }
+                    },
+                    "parameterOrder": [
+                      "name"
+                    ],
+                    "httpMethod": "GET",
+                    "id": "datamanager.accountTypes.accounts.userLists.get",
+                    "flatPath": "v1/accountTypes/{accountTypesId}/accounts/{accountsId}/userLists/{userListsId}",
+                    "response": {
+                      "$ref": "UserList"
+                    },
+                    "path": "v1/{+name}",
+                    "description": "",
+                    "scopes": [
+                      "https://www.googleapis.com/auth/datamanager"
+                    ]
+                  },
+                  "create": {
+                    "scopes": [
+                      "https://www.googleapis.com/auth/datamanager"
+                    ],
+                    "response": {
+                      "$ref": "UserList"
+                    },
+                    "flatPath": "v1/accountTypes/{accountTypesId}/accounts/{accountsId}/userLists",
+                    "request": {
+                      "$ref": "UserList"
+                    },
+                    "parameters": {
+                      "validateOnly": {
+                        "type": "boolean",
+                        "location": "query"
+                      },
+                      "parent": {
+                        "required": true,
+                        "location": "path",
+                        "pattern": "^accountTypes/[^/]+/accounts/[^/]+$",
+                        "type": "string"
+                      }
+                    },
+                    "path": "v1/{+parent}/userLists",
+                    "httpMethod": "POST",
+                    "parameterOrder": [
+                      "parent"
+                    ],
+                    "description": "",
+                    "id": "datamanager.accountTypes.accounts.userLists.create"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "users": {
+        "methods": {
+          "ingest": {
+            "response": {
+              "$ref": "IngestUsersResponse"
+            },
+            "httpMethod": "POST",
+            "parameters": {},
+            "description": "",
+            "flatPath": "v1/users:ingest",
+            "request": {
+              "$ref": "IngestUsersRequest"
+            },
+            "id": "datamanager.users.ingest",
+            "parameterOrder": [],
+            "path": "v1/users:ingest",
+            "scopes": [
+              "https://www.googleapis.com/auth/datamanager"
+            ]
+          },
+          "remove": {
+            "scopes": [
+              "https://www.googleapis.com/auth/datamanager"
+            ],
+            "flatPath": "v1/users:remove",
+            "id": "datamanager.users.remove",
+            "httpMethod": "POST",
+            "request": {
+              "$ref": "RemoveUsersRequest"
+            },
+            "description": "",
+            "parameters": {},
+            "response": {
+              "$ref": "RemoveUsersResponse"
+            },
+            "path": "v1/users:remove",
+            "parameterOrder": []
+          }
+        }
+      },
+      "adEvents": {
+        "methods": {
+          "ingest": {
+            "parameters": {},
+            "httpMethod": "POST",
+            "path": "v1/adEvents:ingest",
+            "parameterOrder": [],
+            "request": {
+              "$ref": "IngestAdEventsRequest"
+            },
+            "id": "datamanager.adEvents.ingest",
+            "response": {
+              "$ref": "IngestAdEventsResponse"
+            },
+            "scopes": [
+              "https://www.googleapis.com/auth/datamanager"
+            ],
+            "description": "",
+            "flatPath": "v1/adEvents:ingest"
+          }
+        }
+      }
+    },
+    "ownerDomain": "google.com",
+    "baseUrl": "https://datamanager.googleapis.com/",
+    "documentationLink": "https://developers.google.com/data-manager",
+    "revision": "20261007",
+    "canonicalName": "Data Manager",
+    "fullyEncodeReservedExpansion": true,
+    "discoveryVersion": "v1",
+    "parameters": {
+      "alt": {
+        "description": "Data format for response.",
+        "enumDescriptions": [
+          "Responses with Content-Type of application/json",
+          "Media download with context-dependent Content-Type",
+          "Responses with Content-Type of application/x-protobuf"
+        ],
+        "location": "query",
+        "type": "string",
+        "default": "json",
+        "enum": [
+          "json",
+          "media",
+          "proto"
+        ]
+      },
+      "key": {
+        "location": "query",
+        "description": "API key. Your API key identifies your project and provides you with API access, quota, and reports. Required unless you provide an OAuth 2.0 token.",
+        "type": "string"
+      },
+      "quotaUser": {
+        "type": "string",
+        "location": "query",
+        "description": "Available to use for quota purposes for server-side applications. Can be any arbitrary string assigned to a user, but should not exceed 40 characters."
+      },
+      "access_token": {
+        "location": "query",
+        "description": "OAuth access token.",
+        "type": "string"
+      },
+      "upload_protocol": {
+        "description": "Upload protocol for media (e.g. \"raw\", \"multipart\").",
+        "location": "query",
+        "type": "string"
+      },
+      "callback": {
+        "description": "JSONP",
+        "type": "string",
+        "location": "query"
+      },
+      "$.xgafv": {
+        "enum": [
+          "1",
+          "2"
+        ],
+        "enumDescriptions": [
+          "v1 error format",
+          "v2 error format"
+        ],
+        "description": "V1 error format.",
+        "location": "query",
+        "type": "string"
+      },
+      "oauth_token": {
+        "location": "query",
+        "type": "string",
+        "description": "OAuth 2.0 token for the current user."
+      },
+      "prettyPrint": {
+        "location": "query",
+        "description": "Returns response with indentations and line breaks.",
+        "type": "boolean",
+        "default": "true"
+      },
+      "fields": {
+        "description": "Selector specifying which fields to include in a partial response.",
+        "location": "query",
+        "type": "string"
+      },
+      "uploadType": {
+        "location": "query",
+        "type": "string",
+        "description": "Legacy upload protocol for media (e.g. \"media\", \"multipart\")."
+      }
+    },
+    "title": "Data Manager API",
+    "kind": "discovery#restDescription",
+    "auth": {
+      "oauth2": {
+        "scopes": {
+          "https://www.googleapis.com/auth/datamanager": {
+            "description": "See, edit, create, import, or delete your customer data in Google Ads, Google Marketing Platform (Campaign Manager 360, Search Ads 360, Display & Video 360), and Google Analytics"
+          },
+          "https://www.googleapis.com/auth/datamanager.partnerlink": {
+            "description": "View, create, or delete your partner links in Google Ads, Marketing Platform (Campaign Manager 360, Search Ads 360, Display & Video 360), and Analytics"
+          }
+        }
+      }
+    },
+    "id": "datamanager:v1",
+    "version_module": true,
+    "rootUrl": "https://datamanager.googleapis.com/",
+    "name": "datamanager",
+    "mtlsRootUrl": "https://datamanager.mtls.googleapis.com/",
+    "version": "v1",
+    "ownerName": "Google",
+    "protocol": "rest",
+    "batchPath": "batch",
+    "servicePath": ""
+  }
+}

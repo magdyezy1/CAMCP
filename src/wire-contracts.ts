@@ -16,8 +16,8 @@ import type {CompiledRequest, JsonObject} from './types.js';
  * - Display & Video 360: the request schema of the pinned v4 Discovery method with the plan's verb and path.
  * - Microsoft Advertising: the operation's request element of the pinned WSDL type model (generated/
  *   microsoft-contracts.json); JSON arrays and the REST `Type` discriminator follow Microsoft Learn's REST templates.
- * - Data Manager: the pinned v1 Discovery document once it is fetched (`datamanager-v1`); until then its routes report
- *   `unpinned` and keep AMCP's own exact-body check (src/google-data-manager.ts).
+ * - Data Manager: the pinned v1 Discovery document (.mirror/VENDOR/datamanager-v1.json), on top of AMCP's own exact-body
+ *   check (src/google-data-manager.ts); its routes report `unpinned` only if that file is removed.
  *
  * Each pinned document is used only while its seal holds (the SHA-256 of the document matches the digest recorded
  * when it was fetched). Validation never grants anything: routes, scopes, reviews and owner policies still decide.
@@ -259,7 +259,7 @@ function dv360Contract(plan: CompiledRequest): Resolved | undefined {
   return discoveryContract('dv360-v4', m.id, m.request, 'Display & Video 360');
 }
 
-// Data Manager v1 (src/google-data-manager-routes.ts): its Discovery methods, once the document is pinned.
+// Data Manager v1 (src/google-data-manager-routes.ts): its methods in the pinned Discovery document.
 const dataManagerMethods: Record<string, string> = {
   DATA_MANAGER_INGEST_AUDIENCE_MEMBERS: 'datamanager.audienceMembers.ingest',
   DATA_MANAGER_REMOVE_AUDIENCE_MEMBERS: 'datamanager.audienceMembers.remove',
@@ -603,7 +603,7 @@ export function recordWireViolation(
 /**
  * Data Manager bodies are built by AMCP from reviewed people (src/google-data-manager.ts), so a difference from the
  * pinned contract means AMCP's builder and Google's contract diverged: refused in every mode but off, before any
- * personal data is sent. Without the pinned document the routes report `unpinned` and nothing changes.
+ * personal data is sent. The committed pin (.mirror/VENDOR/datamanager-v1.json) decides; tests may pass `envelope`.
  */
 export function assertDataManagerContract(
   plan: CompiledRequest,

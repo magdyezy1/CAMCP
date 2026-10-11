@@ -6,6 +6,7 @@ import type {JsonObject} from '../src/types.js';
 const allowedHosts = new Set([
   'www.googleapis.com',
   'googleads.googleapis.com',
+  'datamanager.googleapis.com',
   'analyticsdata.googleapis.com',
   'analyticsadmin.googleapis.com',
   'displayvideo.googleapis.com',
