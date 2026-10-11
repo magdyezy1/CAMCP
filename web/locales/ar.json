@@ -10018,5 +10018,7 @@
   "Google Ads returned the same upload summary twice.": "أرجعت Google Ads ملخص التحميل نفسه مرتين.",
   "Google Ads returned the same conversion action twice.": "أرجعت Google Ads إجراء التحويل نفسه مرتين.",
   "The GA4 configuration read was incomplete.": "كانت قراءة إعدادات GA4 ناقصة.",
-  "The measurement ledger layers are incomplete.": "طبقات سجل أدلة القياس ناقصة."
+  "The measurement ledger layers are incomplete.": "طبقات سجل أدلة القياس ناقصة.",
+  "The provider configuration changed after preparation. Prepare and review a fresh request.": "تغيّر إعداد المنصة بعد التحضير. حضّر طلبًا جديدًا وراجعه.",
+  "The write response was lost. Do not retry with a new key; inspect platform state.": "فُقدت استجابة الكتابة. لا تُعِد المحاولة بمفتاح جديد؛ افحص حالة المنصة."
 }

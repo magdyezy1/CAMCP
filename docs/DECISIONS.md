@@ -182,8 +182,8 @@ Recorded 2026-10-09 under D25.
 | UX §3 | Client profile deletion | Implemented | B14 | — |
 | UX §3 | Per-account personal-data control on the website | Deferred: stays MCP-only (`enable_personal_data`) until the personal-data classification decision | P4 | P4 decided |
 | UX §3 | Support bundle | Implemented (Operations) | B13 | — |
-| D25 list | Success-measure baselines (blueprint) | Accepted: step and call baselines in the journey harness | QA-04 | QA-04 lands |
+| D25 list | Success-measure baselines (blueprint) | Implemented locally: step and call baselines in the journey harness (`tests/journeys/baseline.json`, checked by `tools/mcp-eval.mjs`) | QA-04 | MCP-07 lands (re-baseline) |
 | D25 list | B10's integrated cross-provider usage view | Replaced by per-asset provider readers (Meta, Google image, Snapchat); further adapters are optional stretch | B10, MED-04 | Client demand |
 | D25 list | B13's "complete audit telemetry" | Replaced by a finite list: withheld workbook records by reason (owner health) and feed and job failure counts by code | B13, OPS-02 | — |
-| D25 list | B15's "measured" fewer unnecessary calls | Accepted: measured by the journey and MCP evaluation harness | QA-04 | QA-04 lands |
+| D25 list | B15's "measured" fewer unnecessary calls | Partly implemented: measured by the journey and MCP evaluation harness; the local baseline exists, external-client sessions (D14) remain | QA-04, ACC-02 | External sessions recorded |
 | D25 list | Separate concise entry points for owners, engineers and MCP clients | Accepted: tiered documentation and an owner guide | DOC-03 | DOC-03 lands |

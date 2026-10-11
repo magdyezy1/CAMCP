@@ -493,9 +493,10 @@ The maintained GitHub workflow defines Docker builds and synthetic read-only/wri
 - **Stages.** The deterministic freshness gates run first: TypeScript build, release identity, format check, the
   test-oracle ratchet (`check:oracles`), the `generate:*` checks, `report -- --check`, `contracts:check`,
   `contracts:actions:check` and `docs:index:check`. The full profile then probes FFmpeg and ffprobe, runs the suite
-  with `AMCP_REQUIRE_FFMPEG=true`, the capture tests, the mutant catalogue (`mutant_catalogue`), `check:web` and the
-  provider checks. Each stage records argv, exit code, duration, output SHA-256 and the test
-  totals (total, pass, fail, skipped, cancelled). Any skipped test fails the run unless named with
+  with `AMCP_REQUIRE_FFMPEG=true`, the capture tests, the mutant catalogue (`mutant_catalogue`), `check:web`, the
+  journey and MCP evaluation (`journey_evaluation`, below) and the provider checks. Each stage records argv, exit
+  code, duration, output SHA-256 and the test totals (total, pass, fail, skipped, cancelled). Any skipped test fails
+  the run unless named with
   `--allow-skip "<test name>"`; without FFmpeg the run fails at `ffmpeg_probe` (`FFMPEG_UNAVAILABLE`).
 - **Bytes.** The record holds `source_tree_hash` (equal to a release candidate's manifest for the same tree), revision,
   `worktree_clean` and `differs_from_revision`, the lockfile SHA-256, Node, npm, OS and the FFmpeg version line, the
@@ -552,6 +553,43 @@ The maintained GitHub workflow defines Docker builds and synthetic read-only/wri
 - **Pruning.** `node tools/qualify.mjs --prune --dry-run [--keep-last 5] [--keep-package <sha256>]` lists `.release`
   candidates that no record, deployed package or `.retain` file keeps. It deletes nothing; deletion stays a manual owner
   action after reviewing the list, and `--prune` without `--dry-run` is refused.
+
+### Journey and MCP evaluation (QA-04)
+
+`npm run eval:mcp` (`tools/mcp-eval.mjs`) measures B15's "correct next actions with fewer unnecessary calls". It runs
+locally in about half a minute with zero egress. A real MCP SDK client talks to AMCP's MCP server over an in-memory
+transport. The website API runs on a loopback listener over the same store, and every provider is a synthetic
+in-process fake that refuses and counts any other host.
+
+- **Journeys** (`tests/journeys/journeys.mjs`). J1 first visit to readiness, J2 brief to reviewed outcome, J3 creative
+  source to lineage, J4 evidence to recommendation, J5 snapshot export, receipt and safe retry, J6 measurement repair,
+  J7 failure to resume, and J8 multi-client ownership. Each has four branches: success, failure, unavailable account
+  and incomplete evidence. A run records user actions, website actions, MCP tool calls, refused and repeated refused
+  calls, provider requests and mutations, response bytes, approvals, and its end state. The end state is one of
+  success, a handled failure (the last response offered a next step) or a dead end.
+- **B15 tasks** (`tests/journeys/b15-tasks.json`). The six blueprint jobs plus two hold-out tasks that must never be
+  used to tune tool descriptions. Each task runs twice. The *reference* run is the shortest correct scripted sequence
+  and proves the job can be done. The *guided* run is a client that knows only the first call and then follows the
+  next calls AMCP offers. Both are measured on the four B15 measures: correct tool choice, unnecessary calls, repeated
+  refused calls and handoff success (the website link opens the same object).
+- **Baseline.** `tests/journeys/baseline.json` is committed. `--check` (the default, and the full qualification's
+  `journey_evaluation` stage) fails when a count rises or an outcome gets worse. It also fails when response bytes,
+  tool-list bytes or instruction bytes grow more than 10 % plus 512 bytes, or when the tool count changes. A guided
+  run that newly reaches its goal, or a dead end that gains a next step, counts as an improvement. A failure branch
+  that newly "succeeds" is a regression, because a safeguard stopped holding. `--fault strip-next-call` and `--fault
+  hide-attention` apply deliberate regressions so the check can be seen to fail. `--write-baseline` is the only way
+  to change the baseline, and it refuses a subset or a fault. Re-baseline deliberately after a change to the MCP
+  surface, such as MCP-07, and keep the earlier file for comparison.
+- **What the first baseline shows.** All reference runs complete. Guided runs reach the goal for T3, T5 and H2 only.
+  AMCP offers no next call from `capabilities` to the live `check` (T1), from `create` to `preflight` (T2), from a
+  plan summary to its uncertain step (T4), from the media library to an asset's detail (T6), or from a failed
+  export's status to `retry` with the job ID that `retry` needs (H1). These are inputs to MCP-07. The baseline was
+  captured after MCP-01 merged, so it is the "before" state for MCP-07 only.
+- **External clients** (owner decision D14). Run the same task prompts in each must-pass client, repeated so the
+  results are ranges. Turn each raw call log into a sanitized transcript locally with `--sanitize <raw.json> --output
+  <new file>`, then measure the runs with `--external <runs.json>`. A transcript keeps argument shapes, result codes,
+  states and sizes. It is refused if it carries argument values, provider text or bodies. Record the results with
+  [the evaluation record template](review/MCP-EVALUATION-RECORD-TEMPLATE.md).
 
 The Dockerfile base image `node:24-bookworm-slim` and the apt `ffmpeg` package are tags, not digests. Pinning the base
 image by digest needs the digest from a registry the owner trusts; record it in the Dockerfile with a dated comment

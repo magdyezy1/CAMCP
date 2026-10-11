@@ -255,14 +255,19 @@
       "blueprint_acceptance": "Clients choose correct next actions with fewer unnecessary calls; UI links preserve identity",
       "source": {
         "met": false,
-        "gap": "'Fewer unnecessary calls' has no baseline or harness, and AMCP-authored tools have no typed per-action output schemas",
-        "tests": ["tests/mcp-workflow.test.mjs", "tests/mcp-operations-journey.test.mjs", "tests/tool-descriptions.test.mjs"]
+        "gap": "'Fewer unnecessary calls' has a local journey and task baseline (QA-04) but no external-client runs yet, and AMCP-authored tools have no typed per-action output schemas",
+        "tests": [
+          "tests/mcp-workflow.test.mjs",
+          "tests/mcp-operations-journey.test.mjs",
+          "tests/tool-descriptions.test.mjs",
+          "tests/mcp-eval.test.mjs"
+        ]
       },
       "native": {"state": "none", "evidence": []},
       "manual": {"state": "not_recorded", "evidence": []},
       "remainders": [
         {"text": "Typed per-action contracts and output schemas", "disposition": "register_item", "ref": "MCP-07"},
-        {"text": "Journey and MCP evaluation harness with step and call baselines ('measured')", "disposition": "register_item", "ref": "QA-04"},
+        {"text": "Owner-run external-client sessions against the committed QA-04 baseline, and a re-baseline after MCP-07", "disposition": "register_item", "ref": "QA-04"},
         {"text": "Real AI-client interoperability matrix", "disposition": "native_acceptance", "ref": "ACC-02"}
       ]
     },

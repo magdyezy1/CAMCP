@@ -85,6 +85,8 @@ export function profileStages(profile, {now} = {}) {
     // vendor evidence; a new unlisted violation or a stale exception fails release qualification.
     node('wire_contract_sweep', ['tools/wire-contract-sweep.mjs']),
     node('check_web', ['tools/check-web.mjs']),
+    // QA-04: the journey and MCP evaluation compared with its committed baseline (counts may not rise).
+    node('journey_evaluation', ['tools/mcp-eval.mjs', '--check']),
     node('providers_check', ['dist/tools/provider-drift.js']),
     node('providers_lifecycle', ['dist/tools/provider-lifecycle.js']),
     node('providers_sunsets', ['dist/tools/provider-sunsets.js']),

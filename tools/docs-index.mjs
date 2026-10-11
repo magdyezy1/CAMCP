@@ -172,6 +172,7 @@ const sections = [
       'DEPLOY-RAILWAY.md',
       'OPERATIONS.md',
       'LOCAL-BROWSER-QA.md',
+      'review/MCP-EVALUATION-RECORD-TEMPLATE.md',
       'USER-ACCOUNTS.md',
       'TEST-ACCOUNTS.md',
       'OAUTH-HARDENING.md',

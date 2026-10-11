@@ -28,12 +28,17 @@ import {workerHealthBrowserFixture} from './worker-health-browser.mjs';
 import {reconciliationFixture, reconciliationRows, reconciliationRow} from './portfolio-reconciliation-data.mjs';
 import {conditionalProgramFixture} from './conditional-program-data.mjs';
 import {overviewGranularityFixture} from './overview-granularity-data.mjs';
+import {syntheticWriteJourneyFixture, spendPolicyEditFixture, exportOutcomesFixture} from './synthetic-writes-data.mjs';
+
+/** Fixture kinds whose own fake provider accepts its declared synthetic mutations (QA-03, owner decision D26). */
+export const syntheticWriteKinds = Object.freeze(['write-journey', 'spend-policy-edit', 'export-outcomes']);
 
 /** Owned in-memory website. Every provider response is synthetic; all other egress is refused. */
 export async function browserWorkflowSite(kind) {
   assert.ok(
     [
       'empty',
+      ...syntheticWriteKinds,
       'granular-reporting',
       'conditional-programs',
       'conditional-programs-denied',
@@ -110,6 +115,15 @@ export async function browserWorkflowSite(kind) {
   };
   if (kind === 'granular-reporting') {
     fixture = overviewGranularityFixture();
+    keyByte = fixture.keyByte;
+    cleanup.push(fixture.close);
+  } else if (syntheticWriteKinds.includes(kind)) {
+    fixture =
+      kind === 'write-journey'
+        ? syntheticWriteJourneyFixture()
+        : kind === 'spend-policy-edit'
+          ? spendPolicyEditFixture()
+          : exportOutcomesFixture();
     keyByte = fixture.keyByte;
     cleanup.push(fixture.close);
   } else if (kind.startsWith('conditional-programs')) {
@@ -421,7 +435,8 @@ export async function browserWorkflowSite(kind) {
     {web, accounts} = createWebsite(fixture.store, options, false, fixture.service),
     user = accounts.newUser('Synthetic browser reader', null, null, true),
     role =
-      ['empty', 'worker-health', 'granular-reporting'].includes(kind) || kind.startsWith('woocommerce-connection')
+      ['empty', 'worker-health', 'granular-reporting', ...syntheticWriteKinds].includes(kind) ||
+      kind.startsWith('woocommerce-connection')
         ? 'owner'
         : 'viewer';
   fixture.store.db
@@ -448,10 +463,32 @@ export async function browserWorkflowSite(kind) {
       )
       .join('\n') +
     '\n';
+  // The person the browser signs in as: synthetic journeys seed their plans, policies and snapshots for this actor.
+  const webActor = session.actor;
   return {
     origin,
     tenantId: fixture.actor.tenantId,
     cookie: {name: web.cookieName, value: session.id, url: origin},
+    // For Playwright-free HTTP checks of the same journeys (tests/browser-synthetic-writes.test.mjs).
+    csrf: session.csrf,
+    syntheticWrites: syntheticWriteKinds.includes(kind),
+    writeJourney:
+      kind === 'write-journey'
+        ? {
+            seed: outcome => fixture.seed(webActor, outcome),
+            changeAccountState: () => fixture.changeAccountState(),
+            plan: id => fixture.plan(webActor, id),
+            transport: fixture.transport,
+          }
+        : undefined,
+    spendPolicy:
+      kind === 'spend-policy-edit'
+        ? {reset: () => fixture.reset(webActor), stored: () => fixture.stored(webActor)}
+        : undefined,
+    exportOutcomes:
+      kind === 'export-outcomes'
+        ? {seed: () => fixture.seed(webActor), workOnce: () => fixture.workOnce(), tab: fixture.tab}
+        : undefined,
     workerHealth,
     conditionalProgram: fixture.programGate,
     granular:
@@ -547,7 +584,14 @@ export async function browserWorkflowSite(kind) {
     counts: () => ({
       nativeReads: fixture.requests?.length ?? fixture.calls?.length ?? native.length,
       refused,
-      writes: kind.startsWith('x-catalog-inventory') ? fixture.writes() : writes,
+      writes: kind.startsWith('x-catalog-inventory') || syntheticWriteKinds.includes(kind) ? fixture.writes() : writes,
+      // The fixture's own synthetic mutations, never forwarded (QA-03): the write journeys' creates and the owned
+      // synthetic Sheets batches. Provider writes stay in `writes`, which must remain zero.
+      syntheticWrites: syntheticWriteKinds.includes(kind)
+        ? fixture.syntheticWrites()
+        : kind === 'granular-reporting'
+          ? fixture.requests.filter(r => r.url.hostname === 'sheets.googleapis.com' && r.method === 'POST').length
+          : 0,
     }),
     evidenceCounts: () => ({
       reports: fixture.store.documents(fixture.actor.tenantId, 'decision_report').length,

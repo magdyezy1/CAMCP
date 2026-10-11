@@ -45,6 +45,7 @@
     "check:web": "node tools/check-web.mjs",
     "check:oracles": "node tools/check-test-oracles.mjs",
     "check:browser": "npm run build && node tools/browser-workflow-qa.mjs",
+    "eval:mcp": "npm run build && node tools/mcp-eval.mjs",
     "providers:check": "node dist/tools/provider-drift.js",
     "release:assemble": "node tools/prepare-public-release.mjs",
     "release:verify": "node tools/verify-public-release.mjs",

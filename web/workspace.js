@@ -323,7 +323,7 @@ async function renderCampaigns() {
       row = document.createElement('div');
     row.className = 'token-row';
     row.innerHTML =
-      `<div><strong>` +
+      `<div><strong dir="auto" data-native>` +
       esc(run.name) +
       `</strong><small>` +
       esc(uiText('{count} steps', {count: uiNumber(run.steps.length)})) +
