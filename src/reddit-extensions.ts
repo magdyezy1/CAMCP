@@ -79,10 +79,12 @@ export function redditReadRoutes(): VendorRoute[] {
 }
 const unscopedReads = new Set(['/api/v3/forecasting/bid_suggestions', '/api/v3/targeting/keyword_suggestions']);
 /**
- * Bid and keyword suggestions name no account: they run under the selected bound account and may not carry an
- * account-owned reference (a custom audience ID), so one login cannot ask about another account's audiences.
+ * Bid and keyword suggestions have no account in their path. Bid suggestions name the selected ad account in
+ * data.ad_account_id (the scope guard compares it); keyword suggestions are account-agnostic and run under a selected
+ * bound account. Neither may carry an account-owned reference (a custom audience ID), so one login cannot ask about
+ * another account's audiences.
  */
-export function authorizeRedditPlanningRead(plan: CompiledRequest, _connection: Connection, _account: string): boolean {
+export function authorizeRedditPlanningRead(plan: CompiledRequest, _connection: Connection, account: string): boolean {
   if (plan.gateway !== 'reddit_native_action' || !plan.readOnly || plan.method !== 'POST') return false;
   let path: string;
   try {
@@ -91,7 +93,15 @@ export function authorizeRedditPlanningRead(plan: CompiledRequest, _connection: 
     return false;
   }
   if (!unscopedReads.has(path)) return false;
-  const targeting = (plan.body as JsonObject | undefined)?.data?.targeting;
+  const data = (plan.body as JsonObject | undefined)?.data,
+    targeting = data?.targeting;
+  if (path === '/api/v3/forecasting/bid_suggestions' && data?.ad_account_id !== account)
+    throw new MirrorError(
+      'ACCOUNT_SCOPE_MISMATCH',
+      'Name the selected ad account in data.ad_account_id for bid suggestions.',
+      {},
+      403,
+    );
   if (Array.isArray(targeting?.custom_audience_ids) && targeting.custom_audience_ids.length)
     throw new MirrorError(
       'ACCOUNT_SCOPE_MISMATCH',
