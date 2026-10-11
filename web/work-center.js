@@ -1,33 +1,53 @@
 'use strict';
-// The operation kinds Home names, in the Operations labels (OPS-06). Home does not load the Operations page script.
-const homeOperationKinds = {
-  campaign: 'Campaign plan',
-  upload: 'Media upload',
-  report: 'Report snapshot',
-  export: 'Export job',
-  schedule: 'Report schedule',
-  incident: 'Incident',
-  workbook_report: 'Workbook report',
-  workbook_schedule: 'Workbook schedule',
-  write: 'Reviewed change',
-  notice: 'Monitor email notice',
-  connection: 'Connection login',
-};
+// The operation kinds Home names, with the Operations labels (OPS-06). Home does not load the Operations page script.
+function homeOperationKind(kind) {
+  switch (kind) {
+    case 'campaign':
+      return uiText('Campaign plan');
+    case 'upload':
+      return uiText('Media upload');
+    case 'report':
+      return uiText('Report snapshot');
+    case 'export':
+      return uiText('Export job');
+    case 'schedule':
+      return uiText('Report schedule');
+    case 'incident':
+      return uiText('Incident');
+    case 'workbook_report':
+      return uiText('Workbook report');
+    case 'workbook_schedule':
+      return uiText('Workbook schedule');
+    case 'write':
+      return uiText('Reviewed change');
+    case 'notice':
+      return uiText('Monitor email notice');
+    case 'connection':
+      return uiText('Connection login');
+    default:
+      return uiText('Work');
+  }
+}
 /**
- * Home (OPS-06): what needs a person comes from the Operations feed's own classifier (`attention`, an `operations` page
- * with state attention), so a plan in `attention`, an uncertain upload or write, a failed export, an open incident, a
- * failed notice or a login to reauthorize all appear here; the campaign list stays for continuing recent work.
+ * Home (OPS-06): what needs a person comes from the Operations feed's own classifier (an `operations` page with state
+ * `attention`), so a plan in `attention`, an uncertain upload or write, a failed export, an open incident, a failed
+ * notice or a login to reauthorize all appear here; the campaign list stays for continuing recent work. Before, Home
+ * kept its own list of plan states and missed every plan the runner put in `attention`.
  */
 function workHome(d, accounts, attention) {
   const recent = [...d.campaigns].sort((a, b) => b.updated_at - a.updated_at).slice(0, 8);
   const card = c =>
     `<a href="/campaigns?id=${encodeURIComponent(c.id)}"><strong>${esc(c.name)}</strong><small>${badge(c.state)} · ${date(c.updated_at)}</small></a>`;
+  // The feed's original-record path is internal; anything else opens Operations instead.
   const work = op =>
-    `<a href="${esc(op.website_path)}"><strong>${esc(op.name)}</strong><small>${esc(uiText(homeOperationKinds[op.kind] ?? 'Work'))} · ${badge(op.state)}${op.updated_at ? ' · ' + date(op.updated_at) : ''}</small></a>`;
+    `<a href="${esc(/^\/(?![/\\])/.test(op.website_path ?? '') ? op.website_path : '/operations?state=attention')}"><strong>${esc(op.name)}</strong><small>${esc(homeOperationKind(op.kind))} · ${badge(op.state)}${op.updated_at ? ' · ' + date(op.updated_at) : ''}</small></a>`;
   const empty = `<p>${esc(uiText('Nothing needs attention: no campaign plans, uploads, reports, exports, schedules, incidents, workbook runs, reviewed changes, email notices or connection logins.'))}</p>`;
   const items = Array.isArray(attention?.operations) ? attention.operations : null;
   const attentionBody = items
-    ? items.map(work).join('') || empty
+    ? items.map(work).join('') ||
+      (attention.has_more
+        ? `<p>${esc(uiText('None of the most recent records needs attention. Open Operations to check older ones.'))}</p>`
+        : empty)
     : attention?.error
       ? `<p class="error" role="alert">${esc(uiText('Could not load the work that needs attention. Open Operations to see it.'))}</p>`
       : empty;

@@ -593,6 +593,19 @@ function openManage(id, connectionId) {
   renderManage();
   if (!$('#manage-dialog').open) $('#manage-dialog').showModal();
 }
+/**
+ * An Operations item for a login that needs reauthorization or is turned off links to `/connections?connection_id=`
+ * (OPS-06): open that login's Manage view, where it is reauthorized in place or turned on. Only a login this workspace
+ * lists opens; the link is then cleared so a refresh does not reopen it.
+ */
+function openLinkedConnection() {
+  const id = new URLSearchParams(location.search).get('connection_id'),
+    p = id && session.authenticated ? platforms.find(p => p.connections.some(c => c.id === id)) : undefined;
+  if (!id || !session.authenticated) return;
+  history.replaceState(null, '', '/connections');
+  if (p) openManage(p.id, id);
+  else toast(uiText('That connection is no longer in this workspace.'));
+}
 async function startConnection(id) {
   if (!requireLogin()) return;
   const p = platforms.find(p => p.id === id);
@@ -1031,6 +1044,7 @@ async function render() {
     if (location.pathname === '/settings') return await renderSettings();
     renderConnections();
     if (location.pathname === '/login') showLogin();
+    else if (location.pathname === '/connections') openLinkedConnection();
   } catch (e) {
     if (
       generation === navigationGeneration &&

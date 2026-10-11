@@ -136,15 +136,22 @@ const query = () =>
 /** A failed notice can be recovered only within its 24 hours; afterwards it stays undelivered, for the record. */
 const noticeState = (p: JsonObject, at: number) =>
   p.state === 'expired' || (typeof p.expires_at === 'number' && p.expires_at <= at) ? 'undelivered' : 'failed';
-function handoff(kind: string, id: string, p: JsonObject) {
+function handoff(kind: string, id: string, p: JsonObject, state: string) {
   const encoded = encodeURIComponent(id);
   if (kind === 'write') return writeHandoff(id);
+  // The rule's own email-notice section holds the delivery history and its one confirmed retry; the incident beside it.
   if (kind === 'notice')
     return {
-      website_path: '/monitors?incident_id=' + encodeURIComponent(String(p.incident_id ?? '')),
+      website_path:
+        '/monitors?monitor_id=' +
+        encodeURIComponent(String(p.monitor_id ?? '')) +
+        '&incident_id=' +
+        encodeURIComponent(String(p.incident_id ?? '')),
       next_call: {tool: 'amcp_workspace', arguments: {action: 'monitor_notifications', id: p.monitor_id}},
       next_safe_action:
-        'Inspect this notice on its monitor rule. Where recovery is offered, it resends the original notice once within its 24 hours; the incident itself stays in the monitoring inbox.',
+        state === 'undelivered'
+          ? 'This notice is past its 24 hours and cannot be sent again. The incident itself stays in the monitoring inbox.'
+          : 'Inspect this notice on its monitor rule. Where recovery is offered, it resends the original notice once within its 24 hours; the incident itself stays in the monitoring inbox.',
     };
   if (kind === 'connection')
     return {
@@ -154,9 +161,9 @@ function handoff(kind: string, id: string, p: JsonObject) {
         arguments: {action: 'dashboard', sections: ['connections'], connection_id: id},
       },
       next_safe_action:
-        p.state === 'disabled'
+        state === 'disabled'
           ? 'An administrator turns this connection on again from Connections; reads and reviewed changes through it stop until then.'
-          : p.state === 'refresh_failed'
+          : state === 'refresh_failed'
             ? 'AMCP renews this login again after a back-off. If it keeps failing, an administrator chooses Retry or reauthorizes it in place from Connections.'
             : 'Ask an administrator to reauthorize this login in place from Connections (Manage, then Reauthorize). It keeps the connection, its selections and saved reports; no provider request is sent until then.',
     };
@@ -387,7 +394,7 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
       ...(['schedule', 'workbook_schedule'].includes(k) && ['active', 'attention'].includes(p.state)
         ? {next_run_at: p.next_run_at}
         : {}),
-      ...handoff(k, row.id, p),
+      ...handoff(k, row.id, p, attentionState),
       automatic_retry_of_mutation: false,
     });
   }

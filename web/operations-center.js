@@ -10,6 +10,8 @@ const operationLabels = {
   workbook_report: 'Workbook report',
   workbook_schedule: 'Workbook schedule',
   write: 'Reviewed change',
+  notice: 'Monitor email notice',
+  connection: 'Connection login',
   appears_applied: 'Appears applied',
   appears_not_applied: 'Appears not applied',
   indeterminate: 'Not settled',
@@ -112,6 +114,27 @@ function operationGuidance(value) {
       return uiText(
         'Inspect the original review and its claim. An uncertain write is reconciled with read-only lookups; it is never submitted again automatically.',
       );
+    // Failed monitor email notices and logins that need a person (OPS-06).
+    case 'Inspect this notice on its monitor rule. Where recovery is offered, it resends the original notice once within its 24 hours; the incident itself stays in the monitoring inbox.':
+      return uiText(
+        'Inspect this notice on its monitor rule. Where recovery is offered, it resends the original notice once within its 24 hours; the incident itself stays in the monitoring inbox.',
+      );
+    case 'This notice is past its 24 hours and cannot be sent again. The incident itself stays in the monitoring inbox.':
+      return uiText(
+        'This notice is past its 24 hours and cannot be sent again. The incident itself stays in the monitoring inbox.',
+      );
+    case 'An administrator turns this connection on again from Connections; reads and reviewed changes through it stop until then.':
+      return uiText(
+        'An administrator turns this connection on again from Connections; reads and reviewed changes through it stop until then.',
+      );
+    case 'AMCP renews this login again after a back-off. If it keeps failing, an administrator chooses Retry or reauthorizes it in place from Connections.':
+      return uiText(
+        'AMCP renews this login again after a back-off. If it keeps failing, an administrator chooses Retry or reauthorizes it in place from Connections.',
+      );
+    case 'Ask an administrator to reauthorize this login in place from Connections (Manage, then Reauthorize). It keeps the connection, its selections and saved reports; no provider request is sent until then.':
+      return uiText(
+        'Ask an administrator to reauthorize this login in place from Connections (Manage, then Reauthorize). It keeps the connection, its selections and saved reports; no provider request is sent until then.',
+      );
     default:
       return String(value ?? '');
   }
@@ -133,7 +156,7 @@ function operationGatewayLabel(gateway) {
   }
 }
 function operationCard(op) {
-  return `<article class="operation-card"><div class="operation-heading"><div><small>${esc(operationLabel(op.kind))} · ${op.updated_at ? date(op.updated_at) : uiText('Time unavailable')}</small><h3>${esc(op.name)}</h3></div>${badge(op.state)}</div><p class="form-note">${esc(uiText('Accounts'))} ${op.accounts.map(esc).join(' · ')}</p><p>${esc(operationGuidance(op.next_safe_action))}</p>${op.error_code ? `<p class="error">${esc(op.error_code)}</p>` : ''}${op.snoozed_until ? `<p>${esc(uiText('Attention resumes'))} ${date(op.snoozed_until)}</p>` : ''}${op.next_run_at ? `<p>${esc(uiText('Next delivery'))} ${date(op.next_run_at)}</p>` : ''}<div class="dialog-actions work-actions"><a class="button small" href="${esc(op.website_path)}">${op.kind === 'incident' ? uiText('Inspect incident') : op.kind === 'write' ? uiText('Open original review') : uiText('Open original work')}</a></div>${recordDetails(op.next_call, uiText('Continue in MCP'))}</article>`;
+  return `<article class="operation-card"><div class="operation-heading"><div><small>${esc(operationLabel(op.kind))} · ${op.updated_at ? date(op.updated_at) : uiText('Time unavailable')}</small><h3>${esc(op.name)}</h3></div>${badge(op.state)}</div><p class="form-note">${esc(uiText('Accounts'))} ${op.accounts.map(esc).join(' · ')}</p><p>${esc(operationGuidance(op.next_safe_action))}</p>${op.error_code ? `<p class="error">${esc(op.error_code)}</p>` : ''}${op.snoozed_until ? `<p>${esc(uiText('Attention resumes'))} ${date(op.snoozed_until)}</p>` : ''}${op.next_run_at ? `<p>${esc(uiText('Next delivery'))} ${date(op.next_run_at)}</p>` : ''}<div class="dialog-actions work-actions"><a class="button small" href="${esc(op.website_path)}">${op.kind === 'incident' ? uiText('Inspect incident') : op.kind === 'write' ? uiText('Open original review') : op.kind === 'notice' ? uiText('Open monitor rule') : op.kind === 'connection' ? uiText('Open connection') : uiText('Open original work')}</a></div>${recordDetails(op.next_call, uiText('Continue in MCP'))}</article>`;
 }
 // What a person does next with a retained reviewed change (WRT-08), by its state. AMCP's own copy, localized.
 function writeGuidance(state) {
@@ -425,6 +448,9 @@ async function renderOperationsCenter() {
     'workbook_report',
     'workbook_schedule',
     'write',
+    'notice',
+    // A login's state is listed for administrators only (OPS-06).
+    ...(session.administrator || ['owner', 'admin'].includes(session.workspaceRole) ? ['connection'] : []),
   ];
   const stateOptions = ['all', 'attention', 'active', 'complete', 'deferred'];
   const option = (values, selected) =>
@@ -437,7 +463,7 @@ async function renderOperationsCenter() {
       'Follow work across campaigns, uploads, reports and monitoring. Open the original record to inspect its evidence and continue.',
     ),
   );
-  content.innerHTML += `<div class="dialog-actions work-actions"><a class="button" href="/operations?bindings=1">${esc(uiText('Workbook setup'))}</a><a class="button" href="/monitors">${esc(uiText('Monitoring inbox'))}</a><a class="button" href="/schedules">${esc(uiText('Schedules & deliveries'))}</a><a class="button" href="/activity">${esc(uiText('Audit activity'))}</a><button id="operations-refresh" class="button">${esc(uiText('Refresh'))}</button></div>${params.has('run_id') ? `<section class="panel" id="workbook-run-detail" aria-label="${esc(uiText('Workbook report run'))}"><p role="status">${esc(uiText('Loading original run…'))}</p></section>` : ''}${params.has('workbook_schedule_id') ? `<section class="panel" id="workbook-schedule-detail" aria-label="${esc(uiText('Workbook schedule'))}"><p role="status">${esc(uiText('Loading schedule…'))}</p></section>` : ''}${params.has('write_id') ? `<section class="panel" id="write-record-detail" aria-label="${esc(uiText('Reviewed change'))}"><p role="status">${esc(uiText('Loading original review…'))}</p></section>` : ''}<section class="panel workspace-form"><form id="operations-filter" class="work-filter"><label>${esc(uiText('Work type'))}<select name="kind">${option(kindOptions, params.get('kind') ?? (params.has('run_id') ? 'workbook_report' : params.has('workbook_schedule_id') ? 'workbook_schedule' : params.has('write_id') ? 'write' : 'all'))}</select></label><label>${esc(uiText('Attention'))}<select name="state">${option(stateOptions, params.get('state') ?? 'all')}</select></label><label>${esc(uiText('Search name or ID'))}<input type="search" name="search" maxlength="200" value="${esc(params.get('search'))}"></label><label>${esc(uiText('Account ID'))}<input name="account_id" maxlength="200" value="${esc(params.get('account_id'))}"></label><button class="button primary" type="submit">${esc(uiText('Apply filters'))}</button></form></section><section class="panel" id="operations-results" aria-label="${esc(uiText('Operations results'))}"><p data-page-status role="status">${esc(uiText('Loading operations…'))}</p></section><p class="form-note">${esc(uiText('Includes retained campaign plans, upload reviews, reporting snapshots, export jobs, overview schedules, incidents, workbook report runs, workbook schedules and reviewed changes with identifiable account scope within your current access. Updates can move records between pages; refresh for the latest state.'))}</p>${session.administrator || session.workspaceRole === 'owner' ? `<section class="panel"><h2>${esc(uiText('Owner diagnostics'))}</h2><p>${esc(uiText('Inspect a sanitized support bundle before downloading it.'))}</p><button id="support-bundle" class="button">${esc(uiText('Prepare support bundle'))}</button><div id="support-bundle-result"></div><a class="button owner-settings-link" href="/settings">${esc(uiText('Policies, retention and deployment controls'))}</a></section>` : ''}`;
+  content.innerHTML += `<div class="dialog-actions work-actions"><a class="button" href="/operations?bindings=1">${esc(uiText('Workbook setup'))}</a><a class="button" href="/monitors">${esc(uiText('Monitoring inbox'))}</a><a class="button" href="/schedules">${esc(uiText('Schedules & deliveries'))}</a><a class="button" href="/activity">${esc(uiText('Audit activity'))}</a><button id="operations-refresh" class="button">${esc(uiText('Refresh'))}</button></div>${params.has('run_id') ? `<section class="panel" id="workbook-run-detail" aria-label="${esc(uiText('Workbook report run'))}"><p role="status">${esc(uiText('Loading original run…'))}</p></section>` : ''}${params.has('workbook_schedule_id') ? `<section class="panel" id="workbook-schedule-detail" aria-label="${esc(uiText('Workbook schedule'))}"><p role="status">${esc(uiText('Loading schedule…'))}</p></section>` : ''}${params.has('write_id') ? `<section class="panel" id="write-record-detail" aria-label="${esc(uiText('Reviewed change'))}"><p role="status">${esc(uiText('Loading original review…'))}</p></section>` : ''}<section class="panel workspace-form"><form id="operations-filter" class="work-filter"><label>${esc(uiText('Work type'))}<select name="kind">${option(kindOptions, params.get('kind') ?? (params.has('run_id') ? 'workbook_report' : params.has('workbook_schedule_id') ? 'workbook_schedule' : params.has('write_id') ? 'write' : 'all'))}</select></label><label>${esc(uiText('Attention'))}<select name="state">${option(stateOptions, params.get('state') ?? 'all')}</select></label><label>${esc(uiText('Search name or ID'))}<input type="search" name="search" maxlength="200" value="${esc(params.get('search'))}"></label><label>${esc(uiText('Account ID'))}<input name="account_id" maxlength="200" value="${esc(params.get('account_id'))}"></label><button class="button primary" type="submit">${esc(uiText('Apply filters'))}</button></form></section><section class="panel" id="operations-results" aria-label="${esc(uiText('Operations results'))}"><p data-page-status role="status">${esc(uiText('Loading operations…'))}</p></section><p class="form-note">${esc(uiText('Includes retained campaign plans, upload reviews, reporting snapshots, export jobs, overview schedules, incidents, workbook report runs, workbook schedules, reviewed changes and your failed monitor email notices with identifiable account scope within your current access, and for administrators logins that need reauthorization, keep failing to renew or are turned off. Updates can move records between pages; refresh for the latest state.'))}</p>${session.administrator || session.workspaceRole === 'owner' ? `<section class="panel"><h2>${esc(uiText('Owner diagnostics'))}</h2><p>${esc(uiText('Inspect a sanitized support bundle before downloading it.'))}</p><button id="support-bundle" class="button">${esc(uiText('Prepare support bundle'))}</button><div id="support-bundle-result"></div><a class="button owner-settings-link" href="/settings">${esc(uiText('Policies, retention and deployment controls'))}</a></section>` : ''}`;
   content.innerHTML += `${params.has('query_id') ? `<section id="workbook-query-detail" class="panel workspace-form" aria-label="${esc(uiText('Saved workbook query'))}"><p role="status">${esc(uiText('Loading saved query…'))}</p></section>` : ''}<details class="panel" ${params.has('queries') || params.has('query_id') ? 'open' : ''}><summary>${esc(uiText('Saved workbook queries'))}</summary><p>${esc(uiText('Inspect reusable queries, review their reporting window and follow their original schedules. Outputs stay in this workspace.'))}</p><form id="workbook-query-filter" class="work-filter"><label>${esc(uiText('Query search'))}<input type="search" name="search" maxlength="200"></label><button type="submit" class="button">${esc(uiText('Find queries'))}</button></form><section id="workbook-query-list"><p data-page-status role="status">${esc(uiText('Loading queries…'))}</p></section></details>`;
   let querySearch = '';
   const queryPager = workPageLoader(

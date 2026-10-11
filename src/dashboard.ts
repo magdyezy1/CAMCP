@@ -5,6 +5,7 @@ import {bad} from './workspace-core.js';
 import {cursorBinding, decodeOffsetCursor, encodeOffsetCursor} from './page-cursor.js';
 import {readinessContract, readinessView} from './readiness.js';
 import {ownsRecord} from './actor-identity.js';
+import {recordedCredentialHealth} from './connection-health.js';
 import type {Store} from './store.js';
 import type {Actor, Connection, JsonObject} from './types.js';
 
@@ -231,6 +232,8 @@ export function dashboard(store: Store, actor: Actor, allowWrites: boolean, inpu
         enabled: c.enabled,
         accounts: c.accounts.filter(a => matchesAccount(c.gateway, a)),
         write_accounts: (c.writeAccounts ?? []).filter(a => matchesAccount(c.gateway, a)),
+        // What AMCP's own renewals recorded (CON-02), so an Operations connection item's next call explains it (OPS-06).
+        credential_health: recordedCredentialHealth(store, c),
       })),
     readiness: () =>
       accounts.map(({connection: c, account}) => ({
