@@ -40,6 +40,8 @@ const key = Buffer.alloc(32, 97).toString('base64'),
  *                                             owner's spending policy for the account, execute's extra fields, the
  *                                             resource IDs the account already showed AMCP, and 'admin' for a family
  *                                             whose writes need an administrator
+ *   prepareFields                             optional: amcp_write prepare fields beside `arguments` (people and
+ *                                             personal_data for a family that sends data about people)
  *   paginatedCodes, partialCodes              optional: the refusal codes a family names for those cases
  *   prime({call, connectionId})               optional: reads a caller makes before preparing (discovery)
  *   setup({store, owner, actor, login})       optional: anything else the account already holds
@@ -108,6 +110,8 @@ export function familyFixture(d) {
       connection_id: connectionId,
       // A delegated operation (Criteo, Business Profile) nests its own arguments: the descriptor gives them whole.
       arguments: structuredClone(d.arguments ?? {account_id: d.account, ...d.request}),
+      // Fields a review takes beside its arguments (the people and the personal-data confirmations of an upload).
+      ...structuredClone(d.prepareFields ?? {}),
     })
   );
   const execute = review =>
