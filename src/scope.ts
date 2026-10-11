@@ -73,7 +73,9 @@ export function ownershipReads(
   // A Meta pixel's aggregate reads are opened by the account's pixel list, which the measurement ledger reads (MSR-03).
   if (
     gateway === 'meta_native_action' &&
-    (/^\/v[^/]+\/\{pixel_id\}\/stats$/.test(template ?? '') || /^\/v[^/]+\/dataset_quality$/.test(path))
+    (/^\/v[^/]+\/\{pixel_id\}\/stats$/.test(template ?? '') ||
+      (template === undefined && /^\/v[^/]+\/\d+\/stats$/.test(path)) ||
+      /^\/v[^/]+\/dataset_quality$/.test(path))
   )
     return [
       {

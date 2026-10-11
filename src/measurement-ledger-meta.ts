@@ -33,13 +33,17 @@ import {
  *   (fields id, name, owner_business, creation_time, last_fired_time "Time at which the pixel was last fired",
  *   is_unavailable). The list is the configuration layer and the ownership evidence (meta-dataset-scope.ts).
  * - "Ads Pixel Stats" (GET /{ads_pixel_id}/stats, aggregation=event, start_time, end_time; data "up to seven days from
- *   the request time"; results of {aggregation, data, start_time} per hour, where data is the "Field value and number
- *   of times the pixel fired with the value"). The value/count names of each entry are not spelled out in the
- *   reference; any other entry shape is refused, so the layer stays unknown until a native read under ACC-06 confirms it.
- * - "Dataset Quality API" (GET /dataset_quality?dataset_id=...&fields=web{...}: per web event, event_match_quality
- *   {composite_score out of 10, match_key_feedback}, event_coverage, dedupe_key_feedback, data_freshness and acr).
- *   Only numeric aggregates and native codes are requested; Meta's descriptions and diagnostics texts are not. EMQ covers
- *   web events only, and the API needs basic or full Marketing API access (ACC-05).
+ *   the request time"; AdsPixelStatsResult {aggregation, data, start_time "of the hourly aggregated fires"}, where data
+ *   is the "Field value and number of times the pixel fired with the value"). The reference does not spell out the
+ *   entry; Meta's official Python Business SDK (AdsPixelStats, read 2026-10-12) names value (string), count (int),
+ *   event (string) and diagnostics_hourly_last_timestamp (datetime). Any other entry shape is refused, so the layer stays
+ *   unknown until a native read under ACC-06 confirms it.
+ * - "Dataset Quality API" (GET /dataset_quality?dataset_id=...&fields=web{...}, re-read 2026-10-12: per web event,
+ *   event_match_quality {composite_score out of 10, match_key_feedback}, event_coverage, dedupe_key_feedback,
+ *   data_freshness and acr, each percentage with an optional description). Only numeric aggregates and native codes are
+ *   requested; Meta's descriptions and diagnostics texts are not kept. EMQ covers web events only. Basic access needs
+ *   ads_read with ads_management or business_management, so without either the layer stays unknown and nothing is
+ *   requested; advanced access needs the Marketing API access tier (ACC-05).
  */
 const gateway = 'meta_native_action',
   maxPages = 5,
@@ -72,6 +76,9 @@ const permitted = (c: Connection) => {
   if (!c.scopes.some(s => s === 'ads_read' || s === 'ads_management'))
     bad('Reading Meta pixels requires ads_read or ads_management.', 'INSUFFICIENT_SCOPE');
 };
+/** Dataset Quality API basic access: ads_read with ads_management or business_management (ads_management reads too). */
+const qualityPermitted = (c: Connection) =>
+  c.scopes.includes('ads_management') || (c.scopes.includes('ads_read') && c.scopes.includes('business_management'));
 const percent = (v: unknown) => {
   if (v === undefined) return null;
   if (!obj(v) || !keysWithin(v, ['percentage', 'description']) || !percentage(v.percentage))
@@ -183,7 +190,14 @@ async function stats(context: ReadContext, pixel: string) {
           : typeof e.count === 'string' && /^(?:0|[1-9][0-9]{0,18})$/.test(e.count)
             ? BigInt(e.count)
             : undefined;
-        if (!keysWithin(e, ['value', 'count']) || !text(e.value, 100) || value === undefined || names.has(e.value))
+        if (
+          !keysWithin(e, ['value', 'count', 'event', 'diagnostics_hourly_last_timestamp']) ||
+          !text(e.value, 100) ||
+          value === undefined ||
+          names.has(e.value) ||
+          (e.event !== undefined && !text(e.event, 100)) ||
+          (e.diagnostics_hourly_last_timestamp !== undefined && !metaTime(e.diagnostics_hourly_last_timestamp))
+        )
           invalid('A Meta pixel statistics entry is malformed or repeated.');
         names.add(e.value as string);
         totals.set(e.value as string, (totals.get(e.value as string) ?? 0n) + value!);
@@ -424,26 +438,34 @@ export async function metaLedger({
       );
       fence();
       layers.push(
-        await guarded('provider_diagnostics', fence, ledger, () =>
-          budget.run(async () => {
-            const events = await quality(context, pixel);
-            return events.length
-              ? layer(
-                  'provider_diagnostics',
-                  'observed',
-                  'dataset_quality',
-                  {events: events.slice(0, 20), event_count: events.length},
-                  'Meta dataset quality of web events: match quality, Conversions API coverage, deduplication keys and freshness.',
-                )
-              : layer(
-                  'provider_diagnostics',
-                  'unknown',
-                  'no_quality_data',
-                  {events: [], event_count: 0},
-                  'Meta reported no dataset quality for web events of this dataset.',
-                );
-          }),
-        ),
+        !qualityPermitted(connection)
+          ? layer(
+              'provider_diagnostics',
+              'unknown',
+              'quality_permission_missing',
+              null,
+              'Dataset quality needs ads_management or business_management besides ads_read, so it was not read.',
+            )
+          : await guarded('provider_diagnostics', fence, ledger, () =>
+              budget.run(async () => {
+                const events = await quality(context, pixel);
+                return events.length
+                  ? layer(
+                      'provider_diagnostics',
+                      'observed',
+                      'dataset_quality',
+                      {events: events.slice(0, 20), event_count: events.length},
+                      'Meta dataset quality of web events: match quality, Conversions API coverage, deduplication keys and freshness.',
+                    )
+                  : layer(
+                      'provider_diagnostics',
+                      'unknown',
+                      'no_quality_data',
+                      {events: [], event_count: 0},
+                      'Meta reported no dataset quality for web events of this dataset.',
+                    );
+              }),
+            ),
       );
       fence();
     }
