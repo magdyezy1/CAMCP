@@ -25,6 +25,8 @@ export function clientViews(store: Store, actor: Actor): ClientView[] {
   const reachable = reachableKeys(store, actor);
   return store
     .documents(actor.tenantId, 'client_profile')
+    // Access limited to a client access set sees only the profiles wholly within it, as the profiles action does.
+    .filter(p => profileWithinAccess(store, actor, p, reachable))
     .map(p => view(p, reachable))
     .filter(v => v.accounts.length)
     .sort(
@@ -71,11 +73,19 @@ export function clientsOf(views: ClientView[], scopes: {gateway?: unknown; conne
  * Whether a client profile is within the actor's access (SEC-08): always without a client access set; with one, only a
  * profile whose every binding the set reaches, since a profile's bindings, templates and naming describe its client.
  */
-export function profileWithinAccess(store: Store, actor: Actor, profile: JsonObject): boolean {
-  if (actor.accessSetId === undefined) return true;
-  const reachable = reachableKeys(store, actor);
-  return (Array.isArray(profile.bindings) ? profile.bindings : []).every(
-    (b: JsonObject) =>
+export function profileWithinAccess(
+  store: Store,
+  actor: Actor,
+  profile: JsonObject,
+  reachable = actor.accessSetId === undefined ? undefined : reachableKeys(store, actor),
+): boolean {
+  if (actor.accessSetId === undefined || !reachable) return true;
+  const bindings = Array.isArray(profile.bindings) ? profile.bindings : [];
+  // A profile binding no account names no client this access may work for.
+  return (
+    bindings.length > 0 &&
+    bindings.every(
+      (b: JsonObject) =>
       !!b &&
       typeof b.gateway === 'string' &&
       [...reachable.values()].some(
@@ -84,6 +94,7 @@ export function profileWithinAccess(store: Store, actor: Actor, profile: JsonObj
           (typeof b.connection_id !== 'string' || !b.connection_id || a.connection_id === b.connection_id) &&
           bindingKey(a.gateway, a.connection_id, a.account_id) === bindingKey(b.gateway, a.connection_id, b.account_id),
       ),
+    )
   );
 }
 /** A saved profile the actor may see; one outside a client access set is not found, like one that does not exist. */

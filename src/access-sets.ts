@@ -1,3 +1,4 @@
+import {randomUUID} from 'node:crypto';
 import type {Actor, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
@@ -137,4 +138,145 @@ export function validateAccessSet(input: JsonObject, connections: Connection[]):
     bindings.push({gateway, connection_id: connection, account_id: listed});
   }
   return {name, bindings};
+}
+
+const administrator = (store: Store, actor: Actor) => {
+  store.assertActorActive(actor);
+  if (actor.role !== 'admin')
+    throw new MirrorError('FORBIDDEN', 'A workspace administrator manages client access sets.', {}, 403);
+};
+const publicSet = (record: JsonObject) => ({
+  id: String(record.id),
+  name: String(record.name ?? record.id),
+  bindings: setBindings(record),
+  revision: record.revision,
+  updated_at: record.updated_at ?? null,
+});
+
+/**
+ * The client access sets of a workspace. An administrator sees each set with its bound accounts; anyone else sees the
+ * set names only (to limit their own token or AI client to one), and a person limited to a set sees just that set.
+ */
+export function listAccessSets(store: Store, actor: Actor): JsonObject {
+  store.assertActorActive(actor);
+  const records = store
+    .documents(actor.tenantId, accessSetKind)
+    .sort(
+      (a, b) =>
+        String(a.name ?? '').localeCompare(String(b.name ?? ''), 'en', {sensitivity: 'base'}) ||
+        String(a.id).localeCompare(String(b.id)),
+    );
+  const visible = actor.accessSetId === undefined ? records : records.filter(r => r.id === actor.accessSetId);
+  return {
+    sets: visible.map(r =>
+      actor.role === 'admin'
+        ? publicSet(r)
+        : {id: String(r.id), name: String(r.name ?? r.id), accounts: setBindings(r).length},
+    ),
+    limited_to: accessSetView(store, actor),
+    limit: accessSetLimit,
+  };
+}
+
+/** The set a person may limit a new token or AI client to: their own set when they have one, otherwise any set. */
+export function choosableAccessSet(store: Store, actor: Actor, requested: unknown): string | undefined {
+  if (requested !== undefined && requested !== null && requested !== '' && typeof requested !== 'string')
+    throw new MirrorError('INVALID_ARGUMENT', 'Choose a client access set of this workspace.', {
+      field: 'access_set_id',
+    });
+  const id = typeof requested === 'string' && requested ? requested : undefined;
+  if (actor.accessSetId !== undefined) {
+    // A person limited to a set can only hand on that same limit; nothing they create reaches further than they do.
+    if (id !== undefined && id !== actor.accessSetId)
+      throw accountScopeRestricted(actor.accessSetId, {requested_access_set_id: id});
+    return actor.accessSetId;
+  }
+  if (id === undefined) return undefined;
+  const exists = store.db
+    .prepare('SELECT 1 FROM documents WHERE tenant_id=? AND kind=? AND id=?')
+    .get(actor.tenantId, accessSetKind, id);
+  if (!exists)
+    throw new MirrorError('ACCESS_SET_NOT_FOUND', 'This client access set no longer exists. Choose another one.', {
+      access_set_id: id,
+    });
+  return id;
+}
+
+/**
+ * An administrator creates or replaces a set (with the revision they read). A change applies to every token, AI client
+ * and member limited to it at their next request; nothing is revoked, and nothing outside the workspace is touched.
+ */
+export function saveAccessSet(store: Store, actor: Actor, input: JsonObject): JsonObject {
+  administrator(store, actor);
+  const {name, bindings} = validateAccessSet(input, store.listConnections(actor.tenantId));
+  return store.transaction(() => {
+    const id = input.id === undefined ? randomUUID() : String(input.id);
+    if (!/^[A-Za-z0-9_-]{1,160}$/.test(id))
+      throw new MirrorError('INVALID_ARGUMENT', 'Choose a client access set of this workspace.', {field: 'id'});
+    const previous = store.db
+      .prepare('SELECT data,revision FROM documents WHERE tenant_id=? AND kind=? AND id=?')
+      .get(actor.tenantId, accessSetKind, id) as {data: string; revision: number} | undefined;
+    if (input.id !== undefined && !previous)
+      throw new MirrorError('ACCESS_SET_NOT_FOUND', 'This client access set no longer exists. Choose another one.', {
+        access_set_id: id,
+      });
+    if (previous && input.revision !== previous.revision)
+      throw new MirrorError('REVISION_CONFLICT', 'Reload the client access set before changing it.', {}, 409);
+    if (!previous && store.documents(actor.tenantId, accessSetKind).length >= accessSetLimit)
+      throw new MirrorError('WORKSPACE_QUOTA', 'This workspace has reached its limit of 100 client access sets.');
+    const before = previous ? setBindings(JSON.parse(previous.data)) : [];
+    store.putDocument(
+      actor.tenantId,
+      accessSetKind,
+      id,
+      {name, bindings, updated_at: Date.now(), updated_by: actor.userId},
+      previous?.revision ?? 0,
+    );
+    const keys = (list: AccessBinding[]) => new Set(list.map(b => bindingKey(b.gateway, b.connection_id, b.account_id)));
+    const now = keys(bindings),
+      was = keys(before);
+    store.appendAudit(actor.tenantId, randomUUID(), {
+      event: previous ? 'access_set_changed' : 'access_set_created',
+      actor: actor.userId,
+      access_set_id: id,
+      accounts: bindings.length,
+      added: [...now].filter(k => !was.has(k)).length,
+      removed: [...was].filter(k => !now.has(k)).length,
+      vendor_writes: 0,
+    });
+    return publicSet(store.document(actor.tenantId, accessSetKind, id));
+  });
+}
+
+/**
+ * An administrator removes a set (with the revision they read and confirmed:true). Tokens, AI clients and members
+ * limited to it keep their limit and reach nothing until they are given access again (fail closed).
+ */
+export function deleteAccessSet(store: Store, actor: Actor, input: JsonObject): JsonObject {
+  administrator(store, actor);
+  if (input.confirmed !== true)
+    throw new MirrorError(
+      'CONFIRMATION_REQUIRED',
+      'Confirm removing this client access set. Access limited to it then reaches no account.',
+    );
+  return store.transaction(() => {
+    const id = String(input.id ?? ''),
+      row = store.db
+        .prepare('SELECT revision FROM documents WHERE tenant_id=? AND kind=? AND id=?')
+        .get(actor.tenantId, accessSetKind, id) as {revision: number} | undefined;
+    if (!row)
+      throw new MirrorError('ACCESS_SET_NOT_FOUND', 'This client access set no longer exists. Choose another one.', {
+        access_set_id: id,
+      });
+    if (input.revision !== row.revision)
+      throw new MirrorError('REVISION_CONFLICT', 'Reload the client access set before changing it.', {}, 409);
+    store.deleteDocument(actor.tenantId, accessSetKind, id);
+    store.appendAudit(actor.tenantId, randomUUID(), {
+      event: 'access_set_removed',
+      actor: actor.userId,
+      access_set_id: id,
+      vendor_writes: 0,
+    });
+    return {success: true, id};
+  });
 }

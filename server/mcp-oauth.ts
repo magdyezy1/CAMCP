@@ -29,6 +29,7 @@ import {
 } from '../src/mcp-clients.js';
 import {sha256, safeEqual} from '../src/security.js';
 import {MirrorError} from '../src/errors.js';
+import {choosableAccessSet, listAccessSets} from '../src/access-sets.js';
 import type {Store} from '../src/store.js';
 import type {Actor, JsonObject} from '../src/types.js';
 
@@ -432,6 +433,13 @@ export class McpOAuth implements OAuthServerProvider {
       role: roleOf(scopes),
       choices: scopes.includes(writeScope) ? [readScope, readScope + ' ' + writeScope] : [readScope],
       capped: scopes.length < requested.length,
+      // "Limit to client" (SEC-08): the client access sets the member may limit this AI client to. A member limited to
+      // a set must hand on that limit (ccess_set_required); anyone else may choose one or none.
+      access_sets: (listAccessSets(this.web.store, session.actor).sets as JsonObject[]).map(s => ({
+        id: s.id,
+        name: s.name,
+      })),
+      access_set_required: session.actor.accessSetId ?? null,
       writesEnabled: this.allowWrites,
       // A client identified by its metadata document: the host that published it, which AMCP fetched it from.
       ...(isClientMetadataUrl(row.client_id) ? {clientMetadataHost: new URL(row.client_id).host} : {}),
@@ -439,13 +447,16 @@ export class McpOAuth implements OAuthServerProvider {
   }
   /** Records the member's decision. `scope`, when given, must be one of the consent `choices`; the code carries the
    * chosen scope, so the token response and every refresh stay within it. */
-  decide(request: string, session: WebSession, approved: boolean, scope?: string) {
+  decide(request: string, session: WebSession, approved: boolean, scope?: string, accessSet?: unknown) {
     const consent = this.consent(request, session);
     if (approved && scope !== undefined && !consent.choices.includes(scope))
       throw new InvalidScopeError(
         'Choose read-only access, or read and reviewed changes, within what the client requested and your workspace role allows.',
       );
-    const owner = session.actor.userId !== 'workspace-admin' ? {ownerUserId: session.actor.userId} : {};
+    const owner = session.actor.userId !== 'workspace-admin' ? {ownerUserId: session.actor.userId} : {},
+      // The client access set the AI client is limited to (SEC-08), carried by the code, every token and refresh.
+      accessSetId = approved ? choosableAccessSet(this.web.store, session.actor, accessSet) : undefined,
+      limited = accessSetId !== undefined ? {accessSetId} : {};
     return this.web.store.transaction(() => {
       this.assertUsable(owner.ownerUserId, session.actor.tenantId);
       const row = this.get(request, 'request');
@@ -460,7 +471,7 @@ export class McpOAuth implements OAuthServerProvider {
           code,
           'code',
           row.client_id,
-          {...row.data, scope: scope ?? consent.scope, ...owner},
+          {...row.data, scope: scope ?? consent.scope, ...owner, ...limited},
           300000,
           session.actor.tenantId,
         );
@@ -498,10 +509,15 @@ export class McpOAuth implements OAuthServerProvider {
       scope = scopes.join(' '),
       role = roleOf(scopes);
     const ownership = data.ownerUserId ? {ownerUserId: data.ownerUserId} : {},
+      // An AI client limited to a client access set (SEC-08) keeps that limit for the whole token family.
+      limited = typeof data.accessSetId === 'string' ? {accessSetId: data.accessSetId} : {},
       family = data.family ?? randomUUID(),
       // The name the client gave at authorization, so a client without a registration row (CIMD) is still named.
       named = typeof data.clientName === 'string' ? {clientName: data.clientName.slice(0, 120)} : {},
-      access = this.web.store.createKey({tenantId: tenant, userId: 'oauth/' + client, role, ...ownership}, 3600000),
+      access = this.web.store.createKey(
+        {tenantId: tenant, userId: 'oauth/' + client, role, ...ownership, ...limited},
+        3600000,
+      ),
       refresh = opaque();
     // `pair` names the refresh grant issued with this access grant, so superseding the one ends the other. `resource`
     // is the protected resource the token was issued for; the resource server checks it on every request (SEC-05).
@@ -509,11 +525,11 @@ export class McpOAuth implements OAuthServerProvider {
       access,
       'access',
       client,
-      {family, scope, pair: sha256(refresh), resource: this.resource.href, ...ownership, ...named},
+      {family, scope, pair: sha256(refresh), resource: this.resource.href, ...ownership, ...limited, ...named},
       3600000,
       tenant,
     );
-    this.put(refresh, 'refresh', client, {family, scope, ...ownership, ...named}, 30 * 86400000, tenant);
+    this.put(refresh, 'refresh', client, {family, scope, ...ownership, ...limited, ...named}, 30 * 86400000, tenant);
     return {access_token: access, token_type: 'Bearer', expires_in: 3600, refresh_token: refresh, scope};
   }
   async exchangeAuthorizationCode(
@@ -661,6 +677,7 @@ export class McpOAuth implements OAuthServerProvider {
       'oauth/' + row.client_id !== actor.userId ||
       roleOf((data.scope ?? readScope).split(' ')) !== actor.role ||
       (data.ownerUserId ?? undefined) !== actor.ownerUserId ||
+      (data.accessSetId ?? undefined) !== actor.accessSetId ||
       (data.resource !== undefined && data.resource !== this.resource.href) ||
       !this.web.doorGrantUsable(data.ownerUserId, row.tenant_id)
     )
@@ -744,6 +761,7 @@ export class McpOAuth implements OAuthServerProvider {
         name: row.data ? JSON.parse(row.data).client_name : (grant.clientName ?? 'MCP client'),
         expiresAt: Math.max(row.expires_at, previous?.expiresAt ?? 0),
         role: scopes.includes(writeScope) || previous?.role === 'operator' ? 'operator' : 'reader',
+        access_set_id: typeof grant.accessSetId === 'string' ? grant.accessSetId : null,
         ...(viewer !== undefined ? {yours: owner === viewer} : {}),
         ...(options.owners ? {owner} : {}),
       });
