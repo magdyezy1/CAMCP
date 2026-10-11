@@ -60,6 +60,68 @@ export function linkedInDailyRange(since: string, until: string) {
     );
 }
 
+/**
+ * RPT-07: current names and objectives of the reported LinkedIn campaigns. The analytics response carries only URNs, so
+ * the Overview reads the account's own campaigns by ID (search finder, at most 100 per request) after the analytics read.
+ * A campaign of another advertising account refuses the source; a campaign LinkedIn does not return keeps its ID and an
+ * unknown objective. Names and objectives are current metadata, not the values at delivery time.
+ */
+export async function linkedInCampaignMetadata(
+  account: string,
+  urns: string[],
+  read: (query: JsonObject) => Promise<unknown>,
+): Promise<{campaigns: Record<string, JsonObject>; unmatched: number}> {
+  const owner = 'urn:li:sponsoredAccount:' + account,
+    wanted = [...new Set(urns)],
+    campaigns: Record<string, JsonObject> = {};
+  let unmatched = 0;
+  if (wanted.length > 2000)
+    throw new MirrorError('REPORT_COLLECTION_LIMIT', 'Narrow the LinkedIn report to at most 2000 campaigns.');
+  for (const urn of wanted)
+    if (!/^urn:li:sponsoredCampaign:[1-9][0-9]{0,31}$/.test(urn))
+      throw new MirrorError('REPORT_SHAPE_CHANGED', 'LinkedIn did not return a native campaign URN.');
+  for (let start = 0; start < wanted.length; start += 100) {
+    const batch = wanted.slice(start, start + 100),
+      data = await read({q: 'search', search: {id: {values: batch}}, pageSize: 100});
+    if (
+      !object(data) ||
+      !Array.isArray(data.elements) ||
+      data.elements.length > batch.length ||
+      (data.metadata !== undefined && (!object(data.metadata) || data.metadata.nextPageToken)) ||
+      data.paging?.links?.some?.((link: JsonObject) => link?.rel === 'next')
+    )
+      throw new MirrorError('REPORT_INCOMPLETE', 'LinkedIn returned incomplete campaign metadata.');
+    for (const element of data.elements) {
+      if (!object(element)) throw new MirrorError('REPORT_SHAPE_CHANGED', 'LinkedIn returned malformed campaign metadata.');
+      if (element.account !== owner)
+        throw new MirrorError(
+          'REPORT_ACCOUNT_MISMATCH',
+          'LinkedIn returned campaign metadata from another advertising account. The report was not saved.',
+        );
+      const id =
+        typeof element.id === 'number' && Number.isSafeInteger(element.id) && element.id > 0
+          ? String(element.id)
+          : typeof element.id === 'string' && /^[1-9][0-9]{0,31}$/.test(element.id)
+            ? element.id
+            : undefined;
+      const urn = id && 'urn:li:sponsoredCampaign:' + id;
+      // An inexact or unrequested identity is never matched to a reported row.
+      if (!urn || !batch.includes(urn) || campaigns[urn]) {
+        unmatched++;
+        continue;
+      }
+      campaigns[urn] = {
+        name: typeof element.name === 'string' && element.name.length <= 1000 ? element.name : null,
+        objective_type:
+          typeof element.objectiveType === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(element.objectiveType)
+            ? element.objectiveType
+            : null,
+      };
+    }
+  }
+  return {campaigns, unmatched};
+}
+
 /** ALL grain must describe exactly the requested period, including older requests the provider may round. */
 export function linkedInCampaignPeriod(value: unknown, range: {since: string; until: string}): JsonObject[] {
   const rows = linkedInAnalyticsRows(value),

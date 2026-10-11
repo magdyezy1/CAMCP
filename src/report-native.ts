@@ -12,7 +12,7 @@ import {reportPlatforms, metricNumber, objectiveGroup} from './report-metrics.js
 import {zonedMidnight} from './workflows.js';
 import {googleAdsCustomers} from './google-version.js';
 import {metaPrefix} from './meta-version.js';
-import {linkedInCampaignPeriod} from './linkedin-reporting.js';
+import {linkedInCampaignMetadata, linkedInCampaignPeriod} from './linkedin-reporting.js';
 import {campaignAttributionProfile, overviewSourceLevel, collectDetailedOverview} from './overview-granularity.js';
 import {markReportWindow} from './report-windows.js';
 import {
@@ -464,7 +464,15 @@ export interface AccountLookupCache {
    * (not once per period). `unavailable` records a non-retryable failure of this optional read.
    */
   tiktokEvents?: {events: Record<string, string[]>; lineage?: JsonObject; unavailable?: boolean};
+  /**
+   * RPT-07: current LinkedIn campaign names and objectives by URN, read once per source per job for the URNs reported
+   * so far (later periods read only new URNs). `unavailable` records a non-retryable refusal of this optional read.
+   */
+  linkedinCampaigns?: {campaigns: Record<string, JsonObject>; lineage: JsonObject[]; unavailable?: boolean};
 }
+/** Shown when LinkedIn refused the campaign metadata read, so rows keep campaign IDs and unknown objectives. */
+export const linkedinCampaignsUnavailableWarning =
+  'LinkedIn campaign names and objectives could not be read, so rows show campaign IDs and objectives stay unknown unless confirmed in report settings.';
 /** Shown when TikTok's ad group read failed, so result definitions fall back to the generic one. */
 export const tiktokEventsUnavailableWarning =
   'TikTok ad group optimization events could not be read, so conversions use one generic result definition and campaigns optimizing for different events are not told apart.';
@@ -904,10 +912,42 @@ export class NativeCampaignReports {
         false,
       );
       raw = linkedInCampaignPeriod(d, range);
+      // RPT-07: names and objectives of the reported campaigns, read from the account's own campaigns after the
+      // analytics response (cached per job; a later period reads only campaigns not seen before).
+      const known = lookup?.linkedinCampaigns ?? {campaigns: {}, lineage: []};
+      for (const entry of known.lineage) lineage.push({...entry, cached: true});
+      const missing = known.unavailable
+        ? []
+        : raw.map(r => String(r.pivotValues[0])).filter(urn => !Object.hasOwn(known.campaigns, urn));
+      if (missing.length)
+        try {
+          const before = lineage.length,
+            read = await linkedInCampaignMetadata(account, missing, query =>
+              run(plan('/rest/adAccounts/' + account + '/adCampaigns', query), false, 'campaign_metadata'),
+            );
+          known.lineage.push(...lineage.slice(before));
+          for (const urn of missing) known.campaigns[urn] = read.campaigns[urn] ?? {name: null, objective_type: null};
+        } catch (e) {
+          // A refused optional read keeps IDs; a foreign account, malformed metadata or a retryable failure does not.
+          if (!(e instanceof MirrorError) || e.retryable || e.code.startsWith('REPORT_')) throw e;
+          known.unavailable = true;
+        }
+      if (lookup) lookup.linkedinCampaigns = known;
+      if (known.unavailable) warnings.push(linkedinCampaignsUnavailableWarning);
+      raw = raw.map(r => {
+        const campaign = known.campaigns[String(r.pivotValues[0])];
+        return {
+          ...r,
+          ...(campaign?.name ? {name: campaign.name} : {}),
+          ...(campaign?.objective_type ? {objectiveType: campaign.objective_type} : {}),
+        };
+      });
       attribution = 'unknown';
       resultDefinition = 'Attributed external website conversions';
       warnings.push(
-        'LinkedIn conversion-rule attribution windows are not independently verified. Campaign objectives should be confirmed in report settings.',
+        known.unavailable
+          ? 'LinkedIn conversion-rule attribution windows are not independently verified. Campaign objectives should be confirmed in report settings.'
+          : 'LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Campaign names and objectives are current campaign metadata, not the values at delivery time.',
       );
     } else if (p === 'x') {
       if (!timezone) bad('X account timezone is required.');
