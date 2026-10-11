@@ -401,6 +401,53 @@ h2.report-section-label {
   font-size: 12px;
   margin: 6px 0;
 }
+/* RPT-05: partial snapshot strip, queued time and stall notice. */
+.report-status-strip {
+  margin: 15px 0;
+  padding: 14px 18px;
+  border: 1px solid var(--line-strong);
+  border-inline-start: 4px solid var(--warning-ink);
+  border-radius: 12px;
+  background: var(--warning-bg);
+  color: var(--ink);
+}
+.report-status-strip p {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.report-status-strip code {
+  font-size: 11px;
+}
+.report-queued {
+  margin: -6px 0 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.report-stall .button,
+.report-refresh .button {
+  margin-top: 8px;
+}
+.report-card-footer,
+.report-summary-excludes {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+/* RPT-05: native evidence rows keep their row header visible while scrolling sideways (RTL-aware). */
+#report-native-rows .evidence-rows-table td {
+  min-width: 6rem;
+}
+#report-native-rows .evidence-rows-table th[scope='row'] {
+  position: sticky;
+  inset-inline-start: 0;
+  z-index: 1;
+  background: var(--white);
+}
+.evidence-rows-table .evidence-copy {
+  margin-inline-start: 4px;
+  padding: 2px 6px;
+}
 .report-progress > span:last-child {
   margin-inline-start: auto;
   font-size: 11px;
@@ -482,6 +529,12 @@ h2.report-section-label {
 }
 .report-table td:nth-child(2) {
   text-align: start;
+}
+.report-table .metric-qualifier {
+  margin-inline-start: 2px;
+  color: var(--muted, #756183);
+  text-decoration: none;
+  cursor: help;
 }
 .report-table td strong {
   display: block;
@@ -1117,11 +1170,14 @@ h2.report-section-label {
   letter-spacing: 0.08em;
   margin: 10px 0;
 }
-/* Row headers of the report table keep the look of the first data column. */
+/* Row headers of the report table keep the look of the first data column and stay visible while the metrics scroll
+   sideways (RPT-05; inline-start, so RTL too). */
 .report-table tbody th {
-  position: static;
-  background: transparent;
-  z-index: auto;
+  position: sticky;
+  top: auto;
+  inset-inline-start: 0;
+  background: var(--white);
+  z-index: 1;
   color: inherit;
   font-size: 12px;
   font-weight: 400;
@@ -1130,9 +1186,10 @@ h2.report-section-label {
   border-bottom: 1px solid #eee7f4;
   text-align: start;
   vertical-align: top;
-  min-width: 245px;
-  max-width: 300px;
+  min-width: 9rem;
+  max-width: 15rem;
   white-space: normal;
+  overflow-wrap: anywhere;
 }
 .report-table tbody th strong {
   display: block;
@@ -1155,6 +1212,101 @@ h2.report-section-label {
   max-width: 260px;
   max-height: 200px;
   overflow: auto;
+}
+/* RPT-05: the corner header stays put both ways; the context cell holds the IDs, parents, account and source details. */
+.report-rows-table thead th:first-child {
+  inset-inline-start: 0;
+  z-index: 2;
+}
+.report-rows-table .report-row-context {
+  min-width: 13rem;
+  max-width: 18rem;
+  white-space: normal;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+.report-rows-table .report-row-context > span {
+  display: block;
+}
+.report-window-tile > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+  gap: 12px 18px;
+}
+.report-window-tile strong {
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+.report-sparkline {
+  display: block;
+  width: 100%;
+  height: 36px;
+  margin-top: 14px;
+  color: var(--iris, #5a43ad);
+}
+/* Time runs from the inline start in both directions. */
+html[dir='rtl'] .report-sparkline {
+  transform: scaleX(-1);
+}
+/* RPT-05: on phones each report row reads as a card: the name, its context, a metric grid and the decision. The column
+   headers stay available to assistive technology, and each value is labelled by its column. */
+@media (max-width: 600px) {
+  .report-table-wrap:has(.report-rows-table) {
+    max-height: none;
+  }
+  .report-rows-table,
+  .report-rows-table tbody {
+    display: block;
+    white-space: normal;
+  }
+  .report-rows-table caption {
+    display: block;
+  }
+  .report-rows-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .report-rows-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 14px;
+    padding: 14px;
+    border-bottom: 1px solid #eee7f4;
+  }
+  .report-rows-table tbody th,
+  .report-rows-table tbody td {
+    position: static;
+    display: block;
+    min-width: 0;
+    max-width: none;
+    padding: 4px 0;
+    border-bottom: 0;
+    text-align: start;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .report-rows-table tbody th,
+  .report-rows-table .report-row-context,
+  .report-rows-table .recommendation {
+    grid-column: 1 / -1;
+  }
+  .report-rows-table tbody th strong {
+    font-size: 14px;
+  }
+  .report-rows-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .report-rows-table td pre {
+    max-width: 100%;
+  }
 }
 .mfa-qr {
   display: block;

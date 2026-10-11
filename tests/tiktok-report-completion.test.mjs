@@ -208,6 +208,12 @@ function fixture(t, reportResponse) {
           if (url.pathname.endsWith('/report/integrated/get/')) return Response.json(reportResponse(url));
           if (url.pathname.endsWith('/campaign/get/'))
             return Response.json({code: 0, data: {list: [{campaign_id: '1', objective_type: 'TRAFFIC'}]}});
+          // RPT-04: campaign reports also read ad group optimization events.
+          if (url.pathname.endsWith('/adgroup/get/'))
+            return Response.json({
+              code: 0,
+              data: {list: [{adgroup_id: '11', campaign_id: '1', optimization_goal: 'CLICK'}]},
+            });
           throw Error('Unexpected route');
         },
         async () => {},

@@ -90,6 +90,54 @@ export function compareDeclaredReference(report: JsonObject, reference: JsonObje
   return true;
 }
 
+/**
+ * The preset, grain and mapping part of the definition check. `guided` (reconcile) requires a qualified preset at its
+ * own grain; otherwise (analyze baselines, RPT-04) manual captures qualify when they use the same native action,
+ * grain and mapping.
+ */
+function nativeDefinitionMismatch(report: JsonObject, reference: JsonObject, guided: boolean): string[] {
+  const mismatch: string[] = [];
+  const preset = reportPresets.find(p => p.id === report.preset && p.gateway === report.gateway);
+  if (
+    report.preset !== reference.preset ||
+    report.grain !== reference.grain ||
+    (guided
+      ? !preset || report.grain !== preset.grain
+      : (report.preset !== undefined && !preset) ||
+        (report.preset === undefined && report.source_request?.action !== reference.source_request?.action))
+  )
+    mismatch.push('guided native grain');
+  if (!obj(report.mapping) || !obj(reference.mapping) || fingerprint(report.mapping) !== fingerprint(reference.mapping))
+    mismatch.push('native field mapping');
+  if (
+    ['snapchat_adsquad', 'snapchat_adsquad_leads', 'snapchat_ad_leads'].includes(report.preset) &&
+    (typeof report.source_request?.path_params?.campaign_id !== 'string' ||
+      report.source_request.path_params.campaign_id !== reference.source_request?.path_params?.campaign_id)
+  )
+    mismatch.push('native parent campaign');
+  return mismatch;
+}
+/**
+ * RPT-04: an analyze baseline is another window of the same report definition: the same source type, preset or
+ * native action, grain and mapping (Overview captures: the same grouping and mapping). Windows differ by design, so
+ * dates and the Overview definition fingerprint are not compared here.
+ */
+export function assertCompatibleBaseline(report: JsonObject, baseline: JsonObject) {
+  const mismatch: string[] = [];
+  if (report.source !== baseline.source) mismatch.push('source type');
+  else if (report.source === 'provider_read') mismatch.push(...nativeDefinitionMismatch(report, baseline, false));
+  else if (report.source === 'overview_snapshot') {
+    if (report.source_request?.grain !== baseline.source_request?.grain) mismatch.push('grain');
+    if (fingerprint(report.mapping ?? null) !== fingerprint(baseline.mapping ?? null))
+      mismatch.push('native field mapping');
+  }
+  if (mismatch.length)
+    bad(
+      'The baseline is not another window of the same report: ' + mismatch.join(', ') + '.',
+      'REPORT_SEMANTICS_MISMATCH',
+      {fields: mismatch},
+    );
+}
 /** This checks retained declarations and scope, not an independent audit of a provider's attribution model. */
 export function compareReportContext(report: JsonObject, reference: JsonObject) {
   if (report.id === reference.id) bad('Choose a different retained report.', 'REPORT_REFERENCE_REQUIRED');
@@ -110,28 +158,9 @@ export function compareReportContext(report: JsonObject, reference: JsonObject) 
       mismatch.push(key);
   }
   if (report.semantics?.complete !== true || reference.semantics?.complete !== true) mismatch.push('complete');
-  if (report.source === 'provider_read' && reference.source === 'provider_read') {
-    const preset = reportPresets.find(p => p.id === report.preset && p.gateway === report.gateway);
-    if (
-      !preset ||
-      report.preset !== reference.preset ||
-      report.grain !== preset.grain ||
-      reference.grain !== preset.grain
-    )
-      mismatch.push('guided native grain');
-    if (
-      !obj(report.mapping) ||
-      !obj(reference.mapping) ||
-      fingerprint(report.mapping) !== fingerprint(reference.mapping)
-    )
-      mismatch.push('native field mapping');
-    if (
-      ['snapchat_adsquad', 'snapchat_adsquad_leads', 'snapchat_ad_leads'].includes(report.preset) &&
-      (typeof report.source_request?.path_params?.campaign_id !== 'string' ||
-        report.source_request.path_params.campaign_id !== reference.source_request?.path_params?.campaign_id)
-    )
-      mismatch.push('native parent campaign');
-  } else if (report.source === 'overview_snapshot' && reference.source === 'overview_snapshot') {
+  if (report.source === 'provider_read' && reference.source === 'provider_read')
+    mismatch.push(...nativeDefinitionMismatch(report, reference, true));
+  else if (report.source === 'overview_snapshot' && reference.source === 'overview_snapshot') {
     if (
       !report.source_lineage?.definition_fingerprint ||
       report.source_lineage.definition_fingerprint !== reference.source_lineage?.definition_fingerprint ||

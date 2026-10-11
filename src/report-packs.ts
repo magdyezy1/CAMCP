@@ -188,6 +188,15 @@ export function reportPack(
     grain: report.config.grain ?? 'total',
     row_count: report.rows.length,
     summary: report.summary ?? [],
+    // RPT-05: the pack names platforms as AMCP displays them ("Meta", not "meta").
+    platform_names: Object.fromEntries(
+      [
+        ...(report.summary ?? []).map((s: JsonObject) => s.platform),
+        ...(report.sources ?? []).map((s: JsonObject) => s.source?.platform),
+      ]
+        .filter((p): p is string => typeof p === 'string' && Object.hasOwn(reportPlatforms, p))
+        .map(p => [p, reportPlatforms[p]!.name]),
+    ),
     custom_metrics: report.config.custom_metrics ?? [],
     source_hash: fingerprint({rows: report.rows, config: report.config}),
     sources: (report.sources ?? []).map((s: JsonObject) => ({

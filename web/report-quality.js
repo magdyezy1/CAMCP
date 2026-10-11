@@ -32,6 +32,7 @@ const reportExplanationMessages = new Set([
   'Choose distinct campaign IDs from this retained report.',
   "Choose this session's exact allocation preview.",
   'Confirm attribution and the primary conversion definition before making budget recommendations.',
+  'This campaign’s ad groups optimize for different events, so its conversions are not one result. Review each ad group before acting on cost per result.',
   'Confirm this campaign’s objective and primary result metric.',
   'Confirm this exact conversion before creating its unapproved draft.',
   'Declare a minimum of 1–1,000,000 observed conversions per ad squad and an evidence age of 1–90 days.',
@@ -166,6 +167,12 @@ function reportRecommendationAsOf(row) {
 const reportSourceWarnings = new Set([
   'Includes an in-progress day: the last reporting day has not ended in the source time zone. The source stays partial and recommendations wait until it closes.',
   'The reporting window was declared incomplete. The source stays partial and recommendations are held until a complete window is collected.',
+  // RPT-03 and RPT-04 collection notices.
+  'X refused the active-entities read; every listed campaign was requested instead (at most 100 analytics requests).',
+  'The provider refused one day-segmented request, so each day was requested separately.',
+  'Search Console returned the 10,000-row request limit; lower-ranked pages are not included, so this organic context is partial.',
+  'Microsoft did not return a recognized account time zone, so report days use GreenwichMeanTimeDublinEdinburghLisbonLondon (Europe/London, including daylight saving).',
+  'TikTok campaign reporting covers auction campaigns only (AUCTION_CAMPAIGN); Reach & Frequency and other reserved campaigns are not included.',
 ]);
 function uiSourceWarning(value) {
   return reportSourceWarnings.has(value) ? uiText(value) : String(value ?? '');
@@ -237,10 +244,17 @@ function readTargetContext(objective) {
   if (s.kpi) out.secondary_kpi = s;
   return out;
 }
-function reportQualityDetails(source) {
+function reportQualityDetails(source, report) {
   const q = source.quality;
+  // RPT-05: a failed source records no quality metadata. "Legacy" is kept for snapshots from before source contracts.
   if (!q)
-    return `<p class="form-note">${esc(uiText('Legacy snapshot: measurement-quality metadata was not recorded.'))}</p>`;
+    return `<p class="form-note">${esc(
+      source.error
+        ? uiText('No quality metadata — source failed.')
+        : report?.config?.source_contract_version
+          ? uiText('Measurement-quality metadata was not recorded for this source.')
+          : uiText('Legacy snapshot: measurement-quality metadata was not recorded.'),
+    )}</p>`;
   const labels = [
     q.sampled ? uiText('Sampled') : '',
     q.thresholded ? uiText('Thresholded') : '',
@@ -254,6 +268,9 @@ function reportQualityDetails(source) {
       ? uiText('Scope limit: sessions without a GA4 campaign ID')
       : '',
     q.scope_limitations?.includes('search_console_top_rows') ? uiText('Scope limit: Search Console top rows only') : '',
+    q.omitted_as_zero?.length
+      ? uiText('Counted as 0 where the provider omitted the value: {metrics}', {metrics: q.omitted_as_zero.join(', ')})
+      : '',
   ].filter(Boolean);
   return `<p class="form-note">${esc(labels.join(' · ') || uiText('No additional source-quality flags recorded.'))}</p><details><summary>${esc(uiText('Quality and source evidence'))}</summary><pre>${esc(JSON.stringify({quality: q, lineage: source.lineage, query_fingerprint: source.query_fingerprint}, null, 2))}</pre></details>`;
 }

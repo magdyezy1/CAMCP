@@ -130,24 +130,70 @@ function reportRecommendationBasis(recommendation) {
     ? `<small class="recommendation-as-of">${esc(uiText('Based on the whole window: {from} – {to}', {from: reportDay(e.date_from), to: reportDay(e.date_to)}))}</small>`
     : '';
 }
+/** RPT-04: a value the provider omitted on a delivered row counts as 0; the cell and the legend say so. */
+const reportOmittedNote = '* The provider omitted this value on a row with delivery; it counts as 0.';
+function reportOmittedMarker(row, key) {
+  return row.omitted_as_zero?.includes(key)
+    ? `<abbr class="metric-qualifier" title="${esc(uiText(reportOmittedNote))}">*</abbr>`
+    : '';
+}
+/**
+ * RPT-05: one precision-preserving format. Currency values use the currency's own minor units (KWD 3, JPY 0), exact
+ * decimal strings keep every digit, and ROAS reads as a multiple (×).
+ */
 const metricFormat = (key, n, currency) => {
   if (n == null) return '—';
-  if (typeof n !== 'number') return String(n);
+  if (typeof n !== 'number' && typeof n !== 'string') return String(n);
   const m =
     overviewState.bootstrap.metrics[key] ??
     (overviewState.report?.config.custom_metrics ?? overviewState.custom).find(m => m.id === key) ??
     {};
-  try {
-    return (
-      new Intl.NumberFormat(uiLocale, {
-        maximumFractionDigits: m.format === 'number' ? 0 : 2,
-        ...(m.format === 'currency' && currency ? {style: 'currency', currency} : {}),
-      }).format(n) + (m.format === 'percent' ? '%' : '')
-    );
-  } catch {
-    return String(n);
-  }
+  if (m.format === 'currency' && currency) return uiDecimal(n, {currency});
+  const text = uiDecimal(n, {maximumFractionDigits: m.format === 'number' ? 0 : 2});
+  return text + (m.format === 'percent' ? '%' : key === 'roas' ? '×' : '');
 };
+/** A row's metric: its exact native decimal total when one was retained (detailed rows), otherwise its value. */
+const metricValue = (row, key) => (row.entity_level ? row.native?.exact_totals?.[key] : undefined) ?? row.metrics[key];
+/**
+ * A metric cell: the formatted value, with the exact retained value on hover when formatting shortened it. `label`
+ * names the column on phones, where each row reads as a card (RPT-05).
+ */
+function metricCell(row, key, label) {
+  const value = metricValue(row, key),
+    text = metricFormat(key, value, row.currency);
+  return `<td${label === undefined ? '' : ` role="cell" data-label="${esc(label)}"`}${value != null && String(value) !== text ? ` title="${esc(String(value))}"` : ''}>${esc(text)}${reportOmittedMarker(row, key)}</td>`;
+}
+/** RPT-05: a row header names its entity in at most this many characters, so screen readers repeat a short name. */
+const reportRowHeaderLimit = 40;
+function reportShortName(name) {
+  const chars = Array.from(String(name ?? ''));
+  return chars.length > reportRowHeaderLimit ? chars.slice(0, reportRowHeaderLimit - 1).join('') + '…' : chars.join('');
+}
+/** A metric's column label: AMCP's label, the custom metric's own label, or its identifier. */
+function reportMetricLabel(r, b, key) {
+  return b.metrics[key]
+    ? uiText(b.metrics[key].label)
+    : (r.config.custom_metrics.find(m => m.id === key)?.label ?? pretty(key));
+}
+/**
+ * RPT-05: the results table. The sticky row header holds only the entity name (at most 40 characters); the full name,
+ * IDs, parents, account, time zone and source details sit in the context cell next to it. Daily grain has one Date
+ * column. Below 600 px each row reads as a card; explicit table roles keep the semantics when CSS changes the display.
+ */
+function renderReportTable(r, keys, b) {
+  const grain = r.config.grain ?? 'total',
+    period = grain === 'daily' ? uiText('Date') : grain !== 'total' ? uiText('Period') : null,
+    context = uiText('Platform · objective'),
+    next = uiText('Recommended next move'),
+    labels = Object.fromEntries(keys.map(k => [k, reportMetricLabel(r, b, k)]));
+  const row = row => {
+    const name = String(row.entity_name ?? row.campaign_name ?? row.entity_id ?? row.campaign_id ?? ''),
+      short = reportShortName(name),
+      day = grain === 'daily' && row.date_from === row.date_to;
+    return `<tr role="row"><th scope="row" role="rowheader"><strong dir="auto"${short === name ? '' : ` title="${esc(name)}"`}>${esc(short)}</strong></th><td role="cell" class="report-row-context" data-label="${esc(context)}"><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(row.objective_group))}</small><small>${short === name ? '' : `<span dir="auto">${esc(name)}</span><br>`}${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: reportLevelLabel(b, row)})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>${esc(uiText('Source details'))}</summary><p>${esc(row.result_definition)}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></td>${period ? `<td role="cell" data-label="${esc(period)}">${esc(reportDay(row.date_from))}${day ? '' : '<br>' + esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => metricCell(row, k, labels[k])).join('')}<td role="cell" class="recommendation" data-label="${esc(next)}"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${reportRecommendationAsOf(row)}${reportRecommendationBasis(row.recommendation)}${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`;
+  };
+  return `<table class="report-table report-rows-table" role="table"><caption>${esc(overviewLabel(r.config))} · ${esc(reportWindowLabel(r.config.date_range))} · ${esc(uiText('{grain} grouping', {grain: reportLabel(grain)}))}</caption><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">${esc(uiText('Campaign / ad set / ad / resource'))}</th><th scope="col" role="columnheader">${esc(context)}</th>${period ? `<th scope="col" role="columnheader">${esc(period)}</th>` : ''}${keys.map(k => `<th scope="col" role="columnheader">${esc(labels[k])}</th>`).join('')}<th scope="col" role="columnheader">${esc(next)}</th></tr></thead><tbody role="rowgroup">${r.rows.map(row).join('')}</tbody></table>`;
+}
 /** A delivery failure in the interface language: AMCP's message and next step, a provider message literally. */
 const deliveryErrorText = e => {
   const owned = uiOwnedError(e);
@@ -424,7 +470,9 @@ async function renderReportingOverview() {
     );
   };
   document.querySelectorAll('[data-report-account]').forEach(el => el.addEventListener('change', count));
-  for (const control of document.querySelectorAll('[data-report-level], [data-report-account]'))
+  for (const control of document.querySelectorAll(
+    '[data-report-level], [data-report-account], [data-report-campaign-profile]',
+  ))
     control.addEventListener('change', updateOverviewGranularity);
   updateOverviewGranularity();
   count();
@@ -470,7 +518,7 @@ async function renderReportingOverview() {
     await renderReportDelivery();
   });
   const snapshotId = link.get('report_id');
-  if (snapshotId) {
+  if (snapshotId && overviewState.report?.id !== snapshotId) {
     await loadOverviewReport(snapshotId, 0);
     const result = $('#overview-results');
     result?.setAttribute('tabindex', '-1');
@@ -504,13 +552,17 @@ async function loadOverviewReport(id, page = overviewState.page) {
   if (location.pathname !== '/reporting-overview' || sequence !== overviewState.loadSequence) return;
   overviewState.report = r;
   overviewState.page = page;
+  if (overviewState.watch?.id !== id) overviewState.watch = {id, since: Date.now()};
   refreshRecentReports(r);
+  reportUrlState(r.id);
   const active = ['queued', 'running'].includes(r.job.state),
+    waiting = active || (r.exports ?? []).some(e => ['queued', 'running'].includes(e.state)),
+    pollDelay = waiting ? reportPollDelay(Date.now() - overviewState.watch.since) : null,
     exportable = ['complete', 'partial'].includes(r.state) && r.row_count > 0,
     keys = [...new Set([...r.config.metrics, ...r.config.custom_metrics.map(m => m.id)])],
     b = overviewState.bootstrap,
     root = $('#overview-results');
-  root.innerHTML = `<div class="report-results-heading"><div><span class="eyebrow">${esc(reportRangeLabel(r.config.date_range))}</span><h2>${esc(r.config.name)}</h2><p class="muted">${active ? reportLabel(r.job.state) : reportDisplayState(r)} · ${esc(uiText('{count} entity/resource rows', {count: r.row_count}))} · ${date(r.completed_at ?? r.created_at)}</p></div><div class="report-actions">${active ? `<button class="button" id="report-cancel">${esc(uiText('Cancel run'))}</button>` : exportable ? `${typeof session === 'undefined' || session?.downloadsAllowed !== false ? `<a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.csv" download="AMCP-report.csv">${esc(uiText('Download CSV'))}</a><a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.metadata.json" download="AMCP-report-evidence.json">${esc(uiText('Download source evidence'))}</a>` : ''}<button class="button primary" id="report-export" ${r.rows.length ? '' : 'disabled'}>${esc(uiText('Export now to Google Sheets ↗'))}</button>` : ''}${['failed', 'cancelled'].includes(r.job.state) && r.job.retry_available !== false ? `<button class="button" id="report-retry">${esc(uiText('Retry failed run'))}</button>` : ''}</div></div>${active ? `<div class="report-progress" role="status"><span class="live-dot"></span><div><strong>${r.job.attempts > 1 ? uiText('Retrying the interrupted source') : uiText('Collecting native entity reports')}</strong><p>${esc(uiText('Completed sources are retained. You can leave this page and return to this report.'))}</p></div><span>${esc(uiText('Attempt'))} ${r.job.attempts || 1}</span></div>` : ''}${r.job.error ? `<div class="notice"><strong>${esc(r.job.error.code)}</strong><p>${esc(uiOwnedError(r.job.error).message)}${active ? ' ' + esc(uiText('Next attempt: {date}', {date: date(r.job.available_at)})) : ''}</p></div>` : ''}${renderReportSummary(r)}${renderMetricSources(r, keys, b)}<div class="report-source-health">${(r.sources ?? []).map((s, i) => renderReportSourceHealth(s, b.platforms, i, r.config.date_range)).join('')}</div>${!active && r.rows.length ? `<div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(uiText('Report rows (scrolls sideways)'))}"><table class="report-table"><caption>${esc(overviewLabel(r.config))} · ${esc(reportWindowLabel(r.config.date_range))} · ${esc(uiText('{grain} grouping', {grain: reportLabel(r.config.grain ?? 'total')}))}</caption><thead><tr><th scope="col">${esc(uiText('Campaign / ad set / ad / resource'))}</th><th scope="col">${esc(uiText('Platform · objective'))}</th>${r.config.grain && r.config.grain !== 'total' ? `<th scope="col">${esc(uiText('Period'))}</th>` : ''}${keys.map(k => `<th scope="col">${esc(b.metrics[k] ? uiText(b.metrics[k].label) : (r.config.custom_metrics.find(m => m.id === k)?.label ?? pretty(k)))}</th>`).join('')}<th scope="col">${esc(uiText('Recommended next move'))}</th></tr></thead><tbody>${r.rows.map(row => `<tr><th scope="row"><strong>${esc(row.entity_name ?? row.campaign_name)}</strong><small>${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: reportLevelLabel(b, row)})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>${esc(uiText('Source details'))}</summary><p>${esc(row.result_definition)}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></th><td><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(row.objective_group))}</small></td>${r.config.grain && r.config.grain !== 'total' ? `<td>${esc(reportDay(row.date_from))}<br>${esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => `<td>${esc(metricFormat(k, row.metrics[k], row.currency))}</td>`).join('')}<td class="recommendation"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${reportRecommendationAsOf(row)}${reportRecommendationBasis(row.recommendation)}${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`).join('')}</tbody></table></div><div class="report-pagination"><span>${esc(uiText('Rows {start}–{end} of {total}. A dash means unavailable.', {start: r.offset + 1, end: r.offset + r.rows.length, total: r.row_count}))}</span><div><button id="report-prev" class="button small" ${r.offset ? '' : 'disabled'}>${esc(uiText('← Previous'))}</button><button id="report-next" class="button small" ${r.has_more ? '' : 'disabled'}>${esc(uiText('Next →'))}</button></div></div><details class="panel"><summary>${esc(uiText('Native fields available for custom metrics'))}</summary><p>${esc(uiText('Use these exact identifiers in a formula. Fields from other platforms are blank for this row.'))}</p><div class="native-field-tags">${(r.native_metrics ?? []).map(n => `<code>${esc(n)}</code>`).join('')}</div></details>` : !active ? renderReportEmpty(r) : ''}${renderSheetsDeliveryRecovery(r)}${renderExportHistory(r)}${['skipped', 'failed'].includes(r.export?.state) ? `<p class="notice">${esc(uiOwnedError(r.export).message)}</p>` : ''}${r.export?.url ? `<p class="notice">${esc(uiText('Scheduled export complete.'))} <a href="${esc(r.export.url)}" target="_blank" rel="noopener">${esc(uiText('Open Google Sheets ↗'))}</a></p>` : ''}`;
+  root.innerHTML = `<div class="report-results-heading"><div><span class="eyebrow">${esc(reportRangeLabel(r.config.date_range))}</span><h2>${esc(r.config.name)}</h2><p class="muted">${active ? reportLabel(r.job.state) : reportDisplayState(r)} · ${esc(uiPlural(r.row_count, '{count} entity/resource row', '{count} entity/resource rows'))} · ${date(r.completed_at ?? r.created_at)}</p></div><div class="report-actions">${active ? `<button class="button" id="report-cancel">${esc(uiText('Cancel run'))}</button>` : exportable ? `${typeof session === 'undefined' || session?.downloadsAllowed !== false ? `<a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.csv" download="AMCP-report.csv">${esc(uiText('Download CSV'))}</a><a class="button" href="/api/reporting-overview/${encodeURIComponent(r.id)}.metadata.json" download="AMCP-report-evidence.json">${esc(uiText('Download source evidence'))}</a>` : ''}<button class="button primary" id="report-export" ${r.rows.length ? '' : 'disabled'}>${esc(uiText('Export now to Google Sheets ↗'))}</button>` : ''}${['failed', 'cancelled'].includes(r.job.state) && r.job.retry_available !== false ? `<button class="button" id="report-retry">${esc(uiText('Retry failed run'))}</button>` : ''}</div></div>${renderReportStatusStrip(r, b.platforms)}${active ? `<div class="report-progress" role="status"><span class="live-dot"></span><div><strong>${r.job.attempts > 1 ? uiText('Retrying the interrupted source') : uiText('Collecting native entity reports')}</strong><p>${esc(uiText('Completed sources are retained. You can leave this page and return to this report.'))}</p></div><span>${esc(uiText('Attempt'))} ${r.job.attempts || 1}</span></div>${renderReportWait(r)}` : ''}${waiting && pollDelay === null ? `<div class="notice report-refresh"><p>${esc(uiText('Automatic refresh stopped after 30 minutes. Completed sources are retained.'))}</p><button type="button" class="button small" id="report-refresh">${esc(uiText('Refresh'))}</button></div>` : ''}${r.job.error ? `<div class="notice"><strong>${esc(r.job.error.code)}</strong><p>${esc(uiOwnedError(r.job.error).message)}${active ? ' ' + esc(uiText('Next attempt: {date}', {date: date(r.job.available_at)})) : ''}</p></div>` : ''}${renderReportSummary(r)}${renderMetricSources(r, keys, b)}<div class="report-source-health">${(r.sources ?? []).map((s, i) => renderReportSourceHealth(s, b.platforms, i, r.config.date_range, r)).join('')}</div>${!active && r.rows.length ? `<div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(uiText('Report rows (scrolls sideways)'))}">${renderReportTable(r, keys, b)}</div><div class="report-pagination"><span>${esc(uiText('Rows {start}–{end} of {total}. A dash means unavailable.', {start: r.offset + 1, end: r.offset + r.rows.length, total: r.row_count}))}${r.rows.some(row => row.omitted_as_zero?.length) ? ' ' + esc(uiText(reportOmittedNote)) : ''}</span><div><button id="report-prev" class="button small" ${r.offset ? '' : 'disabled'}>${esc(uiText('← Previous'))}</button><button id="report-next" class="button small" ${r.has_more ? '' : 'disabled'}>${esc(uiText('Next →'))}</button></div></div><details class="panel"><summary>${esc(uiText('Native fields available for custom metrics'))}</summary><p>${esc(uiText('Use these exact identifiers in a formula. Fields from other platforms are blank for this row.'))}</p><div class="native-field-tags">${(r.native_metrics ?? []).map(n => `<code>${esc(n)}</code>`).join('')}</div></details>` : !active ? renderReportEmpty(r) : ''}${renderSheetsDeliveryRecovery(r)}${renderExportHistory(r)}${['skipped', 'failed'].includes(r.export?.state) ? `<p class="notice">${esc(uiOwnedError(r.export).message)}</p>` : ''}${r.export?.url ? `<p class="notice">${esc(uiText('Scheduled export complete.'))} <a href="${esc(r.export.url)}" target="_blank" rel="noopener">${esc(uiText('Open Google Sheets ↗'))}</a></p>` : ''}`;
   bindSnapshotAnalysis(r, root);
   bindSheetsDeliveryRecovery(id);
   authBind('[data-report-diagnostic]', async button => {
@@ -526,10 +578,16 @@ async function loadOverviewReport(id, page = overviewState.page) {
   });
   authBind('#report-cancel', async () => {
     await overviewCall({action: 'cancel', id: r.job_id, confirmed: true});
+    overviewState.watch = null;
     await loadOverviewReport(id);
   });
   authBind('#report-retry', async () => {
     await overviewCall({action: 'retry', id: r.job_id, confirmed: true});
+    overviewState.watch = null;
+    await loadOverviewReport(id);
+  });
+  authBind('#report-refresh', async () => {
+    overviewState.watch = null;
     await loadOverviewReport(id);
   });
   authBind('#report-export', async () => {
@@ -553,10 +611,86 @@ async function loadOverviewReport(id, page = overviewState.page) {
     await overviewCall({action: 'retry', id: b.dataset.exportRetry, confirmed: true});
     await loadOverviewReport(id);
   });
-  if (active || (r.exports ?? []).some(e => ['queued', 'running'].includes(e.state)))
+  if (pollDelay !== null)
     pollTimer = setTimeout(() => {
       void loadOverviewReport(id).catch(e => toast(e.message));
-    }, 3000);
+    }, pollDelay);
+}
+/**
+ * RPT-05: an open snapshot is URL-addressable (`?report_id=`, with the saved report's `view_id`). The ID is opaque;
+ * reopening it runs the same tenant and actor authorization as any other load.
+ */
+function reportUrlState(id) {
+  if (typeof history === 'undefined' || location.pathname !== '/reporting-overview') return;
+  if (new URLSearchParams(location.search ?? '').get('report_id') === id) return;
+  const query = new URLSearchParams();
+  if (overviewState.selection?.kind === 'view') query.set('view_id', overviewState.selection.id);
+  query.set('report_id', id);
+  history.replaceState(history.state ?? {}, '', '/reporting-overview?' + query);
+}
+/** RPT-05: poll every 3 s for the first minute, every 15 s up to 5 minutes, then every 60 s; stop after 30 minutes. */
+function reportPollDelay(elapsed) {
+  return elapsed < 60000 ? 3000 : elapsed < 300000 ? 15000 : elapsed < 1800000 ? 60000 : null;
+}
+/** Waiting time in the interface language: minutes below an hour, then hours and minutes. */
+function reportElapsed(ms) {
+  const minutes = Math.floor(Math.max(0, Number(ms) || 0) / 60000),
+    hours = Math.floor(minutes / 60),
+    rest = minutes % 60;
+  if (minutes < 1) return uiText('less than a minute');
+  if (!hours) return uiPlural(minutes, '{count} minute', '{count} minutes');
+  return uiText('{hours} h {minutes} min', {hours: uiNumber(hours), minutes: uiNumber(rest)});
+}
+/** A queued run waits this long before AMCP says it has not started. */
+const reportStallMs = 10 * 60000;
+/**
+ * RPT-05 stall signal: how long an active run has been queued, and a notice when no worker has started it after the
+ * threshold or no worker has reported recently. Owners get a link to worker health.
+ */
+function renderReportWait(r) {
+  const j = r.job ?? {};
+  if (typeof j.queued_ms !== 'number') return '';
+  const waitingForStart = j.state === 'queued' && !j.started_at,
+    stalled = j.worker_recent === false || (waitingForStart && j.queued_ms >= reportStallMs);
+  const health =
+    typeof session !== 'undefined' && session?.workspaceRole === 'owner'
+      ? `<a class="button small" href="/settings#owner-worker-health">${esc(uiText('Check worker health'))}</a>`
+      : '';
+  return (
+    (waitingForStart
+      ? `<p class="report-queued">${esc(uiText('Queued for {duration}', {duration: reportElapsed(j.queued_ms)}))}</p>`
+      : '') +
+    (stalled
+      ? `<div class="notice report-stall" role="status"><strong>${esc(waitingForStart ? uiText('AMCP has not started this run yet') : uiText('No background worker has reported recently'))}</strong><p>${esc(j.worker_recent === false ? uiText('No background worker has reported in the last few minutes, so collection cannot continue. Completed sources are retained, and the run continues when a worker is available.') : uiText('This run has waited longer than usual for a background worker. It starts when a worker is available; there is no need to pull the report again.'))}</p>${health}</div>`
+      : '')
+  );
+}
+/** RPT-05: a partial snapshot says which sources are missing or limited, with links to their source cards. */
+function renderReportStatusStrip(r, platforms) {
+  const sources = (r.sources ?? []).map((s, i) => [s, i]);
+  if (r.state !== 'partial' || !sources.length) return '';
+  const failed = sources.filter(([s]) => s.error),
+    limited = sources.filter(([s]) => !s.error && !s.complete),
+    total = uiNumber(sources.length),
+    link = ([s, i], code) =>
+      `<a href="#report-source-${i}">${uiBidi((platforms.find(p => p.id === s.source.platform)?.name ?? s.source.platform) + ' · ' + s.source.account_id)}</a>${code ? ` <code>${esc(code)}</code>` : ''}`;
+  const lines = [
+    failed.length
+      ? uiMarkup('{failed} of {total} sources failed: {sources}. Totals exclude them.', {
+          failed: uiNumber(failed.length),
+          total,
+          sources: failed.map(f => link(f, f[0].error.provider?.code ?? f[0].error.code)).join(', '),
+        })
+      : '',
+    limited.length
+      ? uiMarkup('{count} of {total} sources have limited coverage: {sources}. Their totals may be incomplete.', {
+          count: uiNumber(limited.length),
+          total,
+          sources: limited.map(l => link(l)).join(', '),
+        })
+      : '',
+  ].filter(Boolean);
+  return `<section class="report-status-strip" aria-label="${esc(uiText('Snapshot status'))}"><strong>${esc(reportLabel('partial'))}</strong>${lines.map(line => `<p>${line}</p>`).join('')}</section>`;
 }
 function deliveryKey(form, values) {
   const signature = JSON.stringify(values);
@@ -578,7 +712,108 @@ function updateSavedReportChoices(b) {
   if (select) select.innerHTML = overviewLibraryOptions(b);
 }
 
+/** A summary's decision counts, for example "2 Scale · 1 Observe". */
+function reportSummaryDecisions(g) {
+  return Object.entries(g.decisions ?? {})
+    .map(([k, n]) => esc(uiNumber(n) + ' ' + reportLabel(k)))
+    .join(' · ');
+}
+/** RPT-04: how many summed rows count a provider-omitted value as 0, per metric. */
+function reportSummaryOmitted(g) {
+  return g.omitted_as_zero
+    ? `<p class="form-note">${esc(
+        uiText('Counted as 0 where the provider omitted the value on a row with delivery: {metrics}', {
+          metrics: Object.entries(g.omitted_as_zero)
+            .map(
+              ([k, n]) =>
+                (overviewState.bootstrap?.metrics?.[k] ? uiText(overviewState.bootstrap.metrics[k].label) : k) +
+                ' (' +
+                n +
+                ')',
+            )
+            .join(', '),
+        }),
+      )}</p>`
+    : '';
+}
+/**
+ * RPT-05: a small spend line over the window's periods, oldest first. It is an image with a text summary (lowest and
+ * highest period); unknown periods leave a gap rather than reading as zero.
+ */
+function reportSparkline(g) {
+  const series = g.series ?? [],
+    known = series.map((p, i) => [p, i]).filter(([p]) => typeof p.spend === 'number' && Number.isFinite(p.spend));
+  if (series.length < 2 || known.length < 2) return '';
+  const values = known.map(([p]) => p.spend),
+    low = known.reduce((a, b) => (b[0].spend < a[0].spend ? b : a))[0],
+    high = known.reduce((a, b) => (b[0].spend > a[0].spend ? b : a))[0],
+    min = Math.min(...values),
+    span = Math.max(...values) - min,
+    x = i => ((i / (series.length - 1)) * 200).toFixed(1),
+    y = v => (span ? 34 - ((v - min) / span) * 32 : 18).toFixed(1);
+  const segments = [];
+  let segment = [];
+  series.forEach((p, i) => {
+    if (typeof p.spend === 'number' && Number.isFinite(p.spend)) segment.push(x(i) + ',' + y(p.spend));
+    else if (segment.length) segments.push(segment.splice(0));
+  });
+  if (segment.length) segments.push(segment);
+  const label = uiText('Spend per period from {from} to {to}: lowest {low} ({lowDate}), highest {high} ({highDate}).', {
+    from: reportDay(series[0].date_from),
+    to: reportDay(series.at(-1).date_from),
+    low: metricFormat('spend', low.spend, g.currency),
+    lowDate: reportDay(low.date_from),
+    high: metricFormat('spend', high.spend, g.currency),
+    highDate: reportDay(high.date_from),
+  });
+  return `<svg class="report-sparkline" viewBox="0 0 200 36" preserveAspectRatio="none" role="img" aria-label="${esc(label)}">${segments
+    .map(points =>
+      points.length > 1
+        ? `<polyline points="${points.join(' ')}" fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`
+        : `<circle cx="${points[0].split(',')[0]}" cy="${points[0].split(',')[1]}" r="1.5" fill="currentColor"/>`,
+    )
+    .join('')}</svg>`;
+}
+/**
+ * RPT-05: a grouped (daily, weekly or monthly) snapshot opens with one tile per account and measurement definition over
+ * the whole window, keyed without dates, with a spend sparkline, instead of one card per period. The server totals only
+ * additive metrics and recomputes ratios from those totals; every period stays in the table, CSV and Sheets export.
+ */
+function renderReportWindowSummary(r) {
+  const tiles = r.window_summary,
+    platforms = overviewState.bootstrap?.platforms ?? [],
+    tile = g =>
+      `<article class="report-summary-card report-window-tile"><small>${esc(platforms.find(p => p.id === g.platform)?.name ?? pretty(g.platform))} · ${esc(g.account_id)} · ${esc(g.currency ?? uiText('Currency unavailable'))}</small><p>${esc(reportDay(g.date_from))} — ${esc(reportDay(g.date_to))} · ${esc(uiPlural(g.period_count, '{count} period', '{count} periods'))}</p><h3>${esc(reportLabel(g.objective_group))} <span>${esc(
+        g.entity_level
+          ? uiPlural(g.entity_count, '{count} entity/resource', '{count} entities/resources')
+          : uiPlural(g.entity_count, '{count} campaign', '{count} campaigns'),
+      )}</span></h3><div>${[
+        ['spend', uiText('Spend')],
+        ['clicks', uiText('Clicks')],
+        ['cpc', 'CPC'],
+        ['conversions', uiText('Conversions')],
+        ['cpa', 'CPA'],
+        ['roas', 'ROAS'],
+      ]
+        .map(
+          ([k, label]) =>
+            `<span>${esc(label)}<strong>${esc(metricFormat(k, g.metrics?.[k], g.currency))}</strong></span>`,
+        )
+        .join(
+          '',
+        )}</div>${reportSparkline(g)}<p>${reportSummaryDecisions(g)}</p>${reportSummaryOmitted(g)}${reportSummaryCoverage(r, g)}</article>`;
+  return (
+    `<div class="report-summary-grid">` +
+    tiles.slice(0, 12).map(tile).join('') +
+    `</div>` +
+    reportSummaryExcludes(r) +
+    (tiles.length > 12
+      ? `<p class="form-note">${esc(uiText('Showing the first 12 account summaries. Every period is in the paginated table, CSV and Sheets export.'))}</p>`
+      : '')
+  );
+}
 function renderReportSummary(r) {
+  if (Array.isArray(r.window_summary)) return renderReportWindowSummary(r);
   return (
     `<div class="report-summary-grid">` +
     (r.summary ?? [])
@@ -600,8 +835,8 @@ function renderReportSummary(r) {
           ` <span>` +
           esc(
             g.entity_level
-              ? uiText('{count} entity/resource rows', {count: g.entity_count})
-              : uiText('{count} campaigns', {count: g.campaign_count}),
+              ? uiPlural(g.entity_count, '{count} entity/resource row', '{count} entity/resource rows')
+              : uiPlural(g.campaign_count, '{count} campaign', '{count} campaigns'),
           ) +
           `</span></h3><div><span>${esc(uiText('Spend'))}<strong>` +
           esc(metricFormat('spend', g.metrics.spend, g.currency)) +
@@ -610,17 +845,44 @@ function renderReportSummary(r) {
           `</strong></span><span>CPC<strong>` +
           esc(metricFormat('cpc', g.metrics.cpc, g.currency)) +
           `</strong></span></div><p>` +
-          Object.entries(g.decisions)
-            .map(([k, n]) => esc(n + ' ' + reportLabel(k)))
-            .join(' · ') +
-          `</p></article>`,
+          reportSummaryDecisions(g) +
+          `</p>` +
+          reportSummaryOmitted(g) +
+          reportSummaryCoverage(r, g) +
+          `</article>`,
       )
       .join('') +
     `</div>` +
+    reportSummaryExcludes(r) +
     ((r.summary ?? []).length > 12
       ? `<p class="form-note">${esc(uiText('Showing the first 12 account/period summaries. All rows are available in the paginated table, CSV and Sheets export.'))}</p>`
       : '')
   );
+}
+/** RPT-05: a summary card whose source has limited coverage says that its totals may be incomplete. */
+function reportSummaryCoverage(r, g) {
+  const limited = (r.sources ?? []).some(
+    s => !s.error && !s.complete && s.source?.platform === g.platform && s.source?.account_id === g.account_id,
+  );
+  return limited
+    ? `<p class="report-card-footer">${esc(uiText('Limited coverage: these totals may be incomplete.'))}</p>`
+    : '';
+}
+/** RPT-05: summary totals never include a failed source; the footer names each one. */
+function reportSummaryExcludes(r) {
+  const failed = (r.sources ?? []).filter(s => s.error);
+  if (!failed.length || !(r.summary ?? []).length) return '';
+  const platforms = overviewState.bootstrap?.platforms ?? [];
+  return `<p class="report-summary-excludes">${esc(
+    uiText('Excludes: {sources} (source failed).', {
+      sources: uiList(
+        failed.map(
+          s =>
+            (platforms.find(p => p.id === s.source.platform)?.name ?? s.source.platform) + ' · ' + s.source.account_id,
+        ),
+      ),
+    }),
+  )}</p>`;
 }
 /** How each platform in the report measures each selected metric, so columns are compared knowingly across platforms. */
 function renderMetricSources(r, keys, b) {
@@ -1011,8 +1273,8 @@ function renderSourceDiagnostic(error) {
       }[error.request?.stage] ?? uiText('Provider request');
   return `<div class="source-diagnostic"><strong><code>${esc(p.code ?? error.code)}</code>${error.http_status ? ` · HTTP ${esc(error.http_status)}` : ''}</strong><p>${esc(owned.message)}</p>${owned.nextAction ? `<p class="source-next-action">${esc(owned.nextAction)}</p>` : ''}${error.request ? `<small>${esc(phase)} · <code>${esc(error.request.method)} ${esc(error.request.path)}</code></small>` : ''}${Object.hasOwn(error, 'login_customer_id') ? `<small>${esc(uiText('Google login customer ID:'))} ${esc(error.login_customer_id ?? uiText('not sent'))}</small>` : ''}${p.request_id ? `<small>${esc(uiText('Provider request ID:'))} <code>${esc(p.request_id)}</code></small>` : ''}${p.errors?.length > 1 ? `<ul>${p.errors.map(e => `<li><code>${esc(e.code ?? '')}</code> ${esc(e.message ?? '')}${e.field ? ` · ${esc(e.field)}` : ''}</li>`).join('')}</ul>` : ''}</div>`;
 }
-function renderReportSourceHealth(s, platforms, index, range) {
-  return `<details class="source-health ${s.complete ? 'complete' : 'attention'}" ${s.error ? 'open' : ''}><summary><span>${esc(platforms.find(p => p.id === s.source.platform)?.name ?? s.source.platform)}</span><strong>${s.error ? uiText('Source failed') : s.row_count === 0 ? uiText('No rows returned') : s.complete ? uiText('Complete') : uiText('Limited coverage')}</strong></summary>${s.account_name ? `<p><strong>${esc(s.account_name)}</strong></p>` : ''}<p>${esc(s.source.account_id)} · ${esc(s.currency ?? uiText('Currency unavailable'))} · ${esc(s.timezone ?? uiText('Timezone unavailable'))}</p>${s.error ? renderSourceDiagnostic(s.error) : `<p>${esc(s.row_count === 0 ? uiText('The provider returned no campaign rows for {range}. Check the account and year.', {range: reportRangeLabel(s.date_range ?? range)}) + ' ' + (s.warnings?.map(uiSourceWarning).join(' ') ?? '') : s.warnings?.map(uiSourceWarning).join(' ') || uiText('All returned pages captured.'))}</p>`}${s.row_count > 0 ? `<p>${esc(uiText('{count} source rows', {count: s.row_count}))}${s.visible_row_count === undefined ? '' : ' · ' + esc(uiText('{count} shown after objective filters', {count: s.visible_row_count}))}</p>` : ''}<small>${esc(s.attribution ?? '')}</small>${reportQualityDetails(s)}${renderPeriodFailures(s.period_errors ?? s.error?.period_errors ?? [])}${s.error ? `<div class="report-actions"><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a><button type="button" class="button small" data-report-diagnostic="${index}">${esc(uiText('Copy error details'))}</button></div>` : ''}</details>`;
+function renderReportSourceHealth(s, platforms, index, range, report) {
+  return `<details id="report-source-${index}" class="source-health ${s.complete ? 'complete' : 'attention'}" ${s.error ? 'open' : ''}><summary><span>${esc(platforms.find(p => p.id === s.source.platform)?.name ?? s.source.platform)}</span><strong>${s.error ? uiText('Source failed') : s.row_count === 0 ? uiText('No rows returned') : s.complete ? uiText('Complete') : uiText('Limited coverage')}</strong></summary>${s.account_name ? `<p><strong>${esc(s.account_name)}</strong></p>` : ''}<p>${esc(s.source.account_id)} · ${esc(s.currency ?? uiText('Currency unavailable'))} · ${esc(s.timezone ?? uiText('Timezone unavailable'))}</p>${s.error ? renderSourceDiagnostic(s.error) : `<p>${esc(s.row_count === 0 ? uiText('The provider returned no campaign rows for {range}. Check the account and year.', {range: reportRangeLabel(s.date_range ?? range)}) + ' ' + (s.warnings?.map(uiSourceWarning).join(' ') ?? '') : s.warnings?.map(uiSourceWarning).join(' ') || uiText('All returned pages captured.'))}</p>`}${s.row_count > 0 ? `<p>${esc(uiPlural(s.row_count, '{count} source row', '{count} source rows'))}${s.visible_row_count === undefined ? '' : ' · ' + esc(uiText('{count} shown after objective filters', {count: s.visible_row_count}))}</p>` : ''}<small>${esc(s.attribution ?? '')}</small>${reportQualityDetails(s, report)}${renderPeriodFailures(s.period_errors ?? s.error?.period_errors ?? [])}${s.error ? `<div class="report-actions"><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a><button type="button" class="button small" data-report-diagnostic="${index}">${esc(uiText('Copy error details'))}</button></div>` : ''}</details>`;
 }
 function renderPeriodFailures(periods) {
   return periods.length

@@ -91,6 +91,64 @@ export async function collectReportPeriods(
       );
     results.push({...result, date_range: range});
   }
+  return mergeReportPeriods(dates, periods, results);
+}
+
+/** Provider rejections of a day-segmented request that the per-period path may still answer (RPT-03 fallback). */
+const segmentationRefused = (e: unknown) =>
+  e instanceof MirrorError &&
+  !e.retryable &&
+  ((e.code === 'UPSTREAM_ERROR' && [400, 413, 422].includes(e.status)) || e.code === 'PROVIDER_REPORT_FAILED');
+/**
+ * RPT-03 (contract campaign-source-v4): a daily source is collected with one natively day-segmented request instead of
+ * one request per day. The checkpoint definition names the collection mode, so a resumed run never mixes modes. A
+ * provider that refuses the segmented request (for example "reduce the amount of data") falls back to per-day queries,
+ * as does a checkpoint written by that fallback.
+ */
+export async function collectNativeDaily(
+  source: JsonObject,
+  dates: JsonObject,
+  checkpoint: JsonObject,
+  collect: () => Promise<JsonObject[]>,
+  save: (value: JsonObject) => void,
+  legacy: (checkpoint: JsonObject) => Promise<JsonObject>,
+): Promise<JsonObject> {
+  const periods = reportPeriods(dates, 'daily'),
+    definition = fingerprint({source, dates, grain: 'daily', collection: 'native_daily_v1'});
+  if (checkpoint.definition && checkpoint.definition !== definition) return legacy(checkpoint);
+  let days: JsonObject[] | undefined = checkpoint.days;
+  if (!days) {
+    try {
+      days = await collect();
+    } catch (e) {
+      if (!segmentationRefused(e)) throw e;
+      const fallback = await legacy({});
+      return {
+        ...fallback,
+        warnings: [
+          ...fallback.warnings,
+          'The provider refused one day-segmented request, so each day was requested separately.',
+        ],
+      };
+    }
+    if (days.length !== periods.length || days.some((d, i) => d.date_range?.since !== periods[i]!.since))
+      throw new MirrorError('REPORT_DATE_MISMATCH', 'The daily split does not match the requested days.', {}, 502);
+    if (days.reduce((n, d) => n + d.rows.length, 0) > 10000)
+      throw new MirrorError(
+        'REPORT_ROW_LIMIT',
+        'The source exceeds 10,000 rows across its periods. Narrow the dates or accounts.',
+      );
+    save({definition, days});
+  }
+  return {...mergeReportPeriods(dates, periods, days), collection_mode: 'native_daily'};
+}
+
+/** Combines per-period results into one source result (shared by per-period and natively segmented collection). */
+export function mergeReportPeriods(
+  dates: JsonObject,
+  periods: {since: string; until: string}[],
+  results: JsonObject[],
+): JsonObject {
   const successful = results.filter(r => !r.error),
     first = successful[0];
   if (!first)
@@ -164,7 +222,12 @@ export async function collectReportPeriods(
           ]
         : []),
     ],
-    lineage: results.flatMap(r => r.lineage ?? []),
+    // Days split from one segmented request share its lineage; each request is listed once.
+    lineage: [
+      ...new Map(
+        results.flatMap(r => r.lineage ?? []).map((l: JsonObject) => [JSON.stringify(l), l] as const),
+      ).values(),
+    ],
     query_fingerprint: fingerprint(results.map(r => r.query_fingerprint ?? null)),
     rows: results.flatMap((r, i) =>
       r.rows.map((row: JsonObject) => ({...row, report_period: periods[i], period_context: context(r)})),

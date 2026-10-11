@@ -366,7 +366,12 @@ test('Arabic snapshot dates and numeric display follow the chosen language witho
     f.run("metricFormat('spend',12.34,'SAR')"),
     new Intl.NumberFormat('ar', {maximumFractionDigits: 2, style: 'currency', currency: 'SAR'}).format(12.34),
   );
-  assert.equal(f.run("metricFormat('spend','0012.340000','SAR')"), '0012.340000');
+  // RPT-05: an exact decimal string is formatted at its exact value (no binary rounding) instead of being shown raw;
+  // the table keeps the original string on hover.
+  assert.equal(
+    f.run("metricFormat('spend','0012.340000','SAR')"),
+    new Intl.NumberFormat('ar', {numberingSystem: 'latn', style: 'currency', currency: 'SAR'}).format('12.34'),
+  );
   assert.equal(
     f.run("reportDay('2026-09-07')"),
     new Intl.DateTimeFormat('ar', {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'}).format(
@@ -434,7 +439,8 @@ test('Arabic rendered snapshot translates known metric labels while preserving c
   f.respond(() => snapshot);
   await f.run("loadOverviewReport('snapshot-001')");
   const html = f.node('#overview-results').innerHTML;
-  assert.match(html, /<th scope="col">الإنفاق<\/th><th scope="col">Home<\/th>/);
+  // RPT-05: column headers carry an explicit role so the phone card layout keeps the table semantics.
+  assert.match(html, /<th scope="col" role="columnheader">الإنفاق<\/th><th scope="col" role="columnheader">Home<\/th>/);
   assert.match(html, /Home &lt;img&gt;/);
   assert.match(html, /0012\.340000/);
   assert.match(html, /Original evidence/);

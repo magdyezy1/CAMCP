@@ -53,6 +53,59 @@ function uiNumber(value, options = {}) {
     ? new Intl.NumberFormat(uiLocale, {numberingSystem: 'latn', ...options}).format(value)
     : String(value ?? '');
 }
+/** The default minor units of an ISO 4217 currency (KWD 3, JPY 0, SAR 2), or null when the code is not known. */
+function uiCurrencyDigits(currency) {
+  if (typeof currency !== 'string' || !/^[A-Z]{3}$/.test(currency)) return null;
+  try {
+    return new Intl.NumberFormat('en', {style: 'currency', currency}).resolvedOptions().maximumFractionDigits;
+  } catch {
+    return null;
+  }
+}
+/**
+ * One precision-preserving number format (RPT-05). A decimal string is formatted at its exact value: Intl formats the
+ * string itself, never a binary double, so long values keep every digit. `currency` shows the currency in its own
+ * minor units (KWD 3, JPY 0, SAR 2); `minorUnitsOf` rounds to a currency's minor units without its symbol, for columns
+ * whose header names the currency. Anything that is not a number is shown as it is.
+ */
+function uiDecimal(value, {currency, minorUnitsOf, maximumFractionDigits = 2} = {}) {
+  if (value === null || value === undefined || value === '') return '';
+  const exact = typeof value === 'string' ? value.trim() : value,
+    numeric =
+      typeof exact === 'string'
+        ? /^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(exact)
+        : typeof exact === 'bigint' || (typeof exact === 'number' && Number.isFinite(exact));
+  if (!numeric) return String(value);
+  const code = currency ?? minorUnitsOf,
+    digits = uiCurrencyDigits(code),
+    options =
+      digits === null
+        ? {maximumFractionDigits}
+        : currency
+          ? {style: 'currency', currency}
+          : {minimumFractionDigits: digits, maximumFractionDigits: digits};
+  try {
+    const text = new Intl.NumberFormat(uiLocale, {numberingSystem: 'latn', ...options}).format(exact);
+    return currency && digits === null ? text + ' ' + currency : text;
+  } catch {
+    return String(value);
+  }
+}
+/** `uiDecimal` as markup: the exact original value stays available on hover and to assistive technology. */
+function uiDecimalMarkup(value, options) {
+  const text = uiDecimal(value, options);
+  return text === String(value ?? '')
+    ? uiEscape(text)
+    : '<data value="' + uiEscape(value) + '" title="' + uiEscape(value) + '">' + uiEscape(text) + '</data>';
+}
+/**
+ * A counted message in the right plural form (RPT-05): `Intl.PluralRules` picks the English form, and the catalog
+ * translates each form. `{count}` is the count in the interface's digits.
+ */
+function uiPlural(count, one, other, values = {}) {
+  const n = Number(count) || 0;
+  return uiText(new Intl.PluralRules('en-US').select(n) === 'one' ? one : other, {...values, count: uiNumber(n)});
+}
 function uiRole(role) {
   switch (role) {
     case 'owner':

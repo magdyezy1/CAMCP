@@ -36,6 +36,43 @@ export const overviewEntityLevels: Record<string, {id: string; label: string; pr
 function invalid(message: string, code = 'INVALID_REPORT_LEVEL'): never {
   throw new MirrorError(code, message);
 }
+const metaWindowsValid = (windows: unknown) =>
+  Array.isArray(windows) &&
+  windows.length > 0 &&
+  windows.length <= 2 &&
+  new Set(windows).size === windows.length &&
+  windows.every(v => ['1d_click', '7d_click', '1d_view'].includes(String(v))) &&
+  !(windows.includes('1d_click') && windows.includes('7d_click'));
+const snapchatWindowsValid = (options: JsonObject) =>
+  ['1_DAY', '7_DAY', '28_DAY'].includes(options.swipe_up_attribution_window) &&
+  ['none', '1_HOUR', '3_HOUR', '6_HOUR', '1_DAY', '7_DAY'].includes(options.view_attribution_window) &&
+  !(options.view_attribution_window === '7_DAY' && options.swipe_up_attribution_window === '1_DAY');
+/**
+ * RPT-04: an optional campaign-level attribution profile for Meta (`attribution_windows`) and Snapchat (swipe and view
+ * windows), the same settings their detailed presets use, so campaign and detailed rows of one snapshot can share
+ * attribution. Without one, campaign reporting keeps the provider default. Returns the validated profile.
+ */
+export function campaignAttributionProfile(source: JsonObject): JsonObject | undefined {
+  const options = source.report_options;
+  if (options === undefined) return undefined;
+  const keys =
+    source.platform === 'meta' ? ['attribution_windows'] : ['swipe_up_attribution_window', 'view_attribution_window'];
+  if (
+    !options ||
+    typeof options !== 'object' ||
+    Array.isArray(options) ||
+    Object.keys(options).length !== keys.length ||
+    !keys.every(k => Object.hasOwn(options, k))
+  )
+    invalid(
+      'Campaign reporting accepts only an attribution profile: attribution_windows for Meta, or swipe_up_attribution_window and view_attribution_window for Snapchat.',
+    );
+  if (source.platform === 'meta' && !metaWindowsValid(options.attribution_windows))
+    invalid('Choose one click window (1d_click or 7d_click), with optional 1d_view, or 1d_view alone.');
+  if (source.platform === 'snapchat' && !snapchatWindowsValid(options))
+    invalid('Choose supported Snapchat swipe and view windows. Seven-day view requires at least seven-day swipe.');
+  return options;
+}
 export function overviewSourceLevel(source: JsonObject, template = false) {
   const level = source.level ?? 'campaign';
   if (typeof level !== 'string' || !['campaign', 'adset', 'ad'].includes(level))
@@ -47,8 +84,12 @@ export function overviewSourceLevel(source: JsonObject, template = false) {
       'REPORT_LEVEL_UNSUPPORTED',
     );
   if (level === 'campaign') {
-    if (source.report_options !== undefined || source.campaign_id !== undefined)
+    if (
+      source.campaign_id !== undefined ||
+      (source.report_options !== undefined && !['meta', 'snapchat'].includes(source.platform))
+    )
       invalid('Detailed report settings and parent filters require a supported ad or ad set / ad group level.');
+    campaignAttributionProfile(source);
     return selected ?? {id: 'campaign', label: 'Campaign / resource', native_type: 'campaign_or_resource'};
   }
   if (source.native_metrics?.length)
@@ -175,8 +216,11 @@ export function detailedOverviewRows(source: JsonObject, captured: JsonObject) {
     groups.set(row.entity_id, group);
   }
   return [...groups].map(([id, group]) => {
-    const sums = Object.fromEntries(additive.map(key => [key, exactSum(group.mapped.map(row => row[key]))]));
+    const sums = Object.fromEntries(additive.map(key => [key, exactSum(group.mapped.map(row => row[key]))])),
+      // RPT-04: provider-omitted actions counted as 0 on delivered days stay named on the entity total.
+      omitted = additive.filter(key => group.mapped.some(row => row.omitted_as_zero?.includes(key)));
     return {
+      ...(omitted.length ? {omitted_as_zero: omitted} : {}),
       entity_id: id,
       entity_name: group.mapped.find(row => row.entity_name !== null)?.entity_name ?? id,
       entity_level: descriptor.id,

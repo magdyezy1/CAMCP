@@ -1,6 +1,6 @@
 import {fingerprint, formulaVersion, reportContractVersion} from './report-quality.js';
 import {validateRecommendationContext} from './recommendation-context.js';
-import {reportSummary} from './report-summary.js';
+import {reportSummary, reportWindowSummary} from './report-summary.js';
 import {cleanupReports} from './owner-operations.js';
 import {
   dueScheduleTenants,
@@ -18,7 +18,8 @@ import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {BACKGROUND_RUN_KIND, backgroundRunTurn} from './campaign-background.js';
 import {tool, field, writer} from './workspace-core.js';
-import {NativeCampaignReports, nativeMetricExamples, reportRange} from './report-native.js';
+import {NativeCampaignReports, nativeMetricExamples, reportRange, type AccountLookupCache} from './report-native.js';
+import {assertCollectionEstimate, nativeDailyCollection, sourceRequestModel} from './report-request-estimate.js';
 import {
   GoogleSheetsExports,
   sheetsGateway,
@@ -50,11 +51,12 @@ import {sha256} from './security.js';
 import {reportSourceError} from './report-errors.js';
 import {ReportLibrary} from './report-library.js';
 import {ReportFileDelivery, reportDestination} from './report-file-delivery.js';
-import {collectReportPeriods, reportGrains} from './report-periods.js';
+import {collectNativeDaily, collectReportPeriods, reportGrains} from './report-periods.js';
 import {ReportCollectionBudget, reportCollectionLimits} from './report-collection-budget.js';
 import {ReportParts, reportBudgetState, reportBudgetView} from './report-checkpoints.js';
 import {quotaExhausted} from './provider-quota.js';
 import {evaluateMonitors} from './report-monitors.js';
+import {operationsWorkerHealth} from './operations-worker-health.js';
 import {overviewEntityLevels, overviewSourceLevel} from './overview-granularity.js';
 import {
   reportPack,
@@ -65,7 +67,7 @@ import {
 } from './report-packs.js';
 export const overviewTool = tool(
   'amcp_reporting_overview',
-  'Use this for saved client reports across platforms and accounts, their schedules and Sheets or retained-file exports; to analyse one captured native report, use amcp_reporting. Cross-platform campaign, native ad-set/ad-group and ad reporting: bootstrap exposes entity_levels; each source optionally sets level:campaign/adset/ad. Qualified detail supports Google ad groups/ads, Meta ad sets/ads, TikTok auction ad groups/ads, Snapchat ad squads/ads and LinkedIn sponsored creatives; LinkedIn campaigns are its native middle level. Detailed sources require report_options:{complete_window:boolean, attribution:string} for Google/TikTok/LinkedIn; Meta instead requires result_action_type and explicit attribution_windows; Snapchat instead requires swipe_up_attribution_window and view_attribution_window, with exact campaign_id for ad squads. TikTok/Snapchat require complete_window:true and 1–31 closed days; complete_window:false keeps the source partial and holds recommendations. Other providers retain qualified campaign/context rows. Detail retains exact native daily entity/parent identities, sums only additive metrics, keeps missing values unknown and refuses extra native_metrics; multi-day reach/frequency stay unknown. Entity detail is separate from date grouping. Existing campaign configurations keep their original shape. discover account/metric choices, create/edit/delete named client reports and reusable account-free templates, calculate custom arithmetic metrics, collect bounded total/daily/weekly/monthly native reports, inspect objective-aware recommendations, and export/schedule confirmed Google Sheets reports. Daily, weekly, monthly and hourly delivery schedules use independent report destinations. Definition edits/deletes require expected_revision; update_schedule also accepts expected_view_revision. pause_schedule pauses, remove_schedule deletes; delete_schedule remains a legacy pause alias. report_pack returns retained snapshot summaries, source evidence and authenticated PDF/XLSX download paths. save_presentation saves per-snapshot brand_name, accent_color, footer and standard/compact layout with confirmed:true and current presentation_revision (0 when absent). presentation_profiles lists compatible approved client branding for snapshot id with offset/limit. apply_profile_presentation requires profile_id, exact profile_revision, current presentation_revision and confirmed:true; it copies the approved branding without changing earlier snapshots when the profile changes. bind_file_destination requires confirmed:true, a stable idempotency_key and file_destination:{name,formats:[pdf,xlsx],presentation?:{brand_name,accent_color,footer,template}} with at least one format. It saves a local encrypted-file destination, without Sheets login or external recipients. export/schedule accept its destination_id. File jobs freeze branding and retained evidence, return authenticated download paths, and retry only missing formats. Each file is limited to 20 MiB and encrypted workspace storage to 256 MiB; snapshot deletion/retention removes files. Downloads recheck current source access. No advertising mutations. Sheets export jobs replace only an AMCP-owned tab; retries never append duplicate rows. export_status and get exports add outcome (superseded or skipped when nothing was written; state stays the job state) and retry_available. A tab owned by another report (its active schedule or saved reports) refuses export with DESTINATION_OWNED_BY_OTHER_REPORT unless the snapshot comes from that schedule or report or has the same accounts. complete_only refuses partial exports before any job (PARTIAL_DELIVERY_BLOCKED). Scheduled deliveries run as separate export jobs; schedules record last_delivery and pause after repeated blocking delivery failures. An unconfirmed Sheets delivery blocks newer reports to its tab; its retry rechecks the tab marker and resends the identical batch only after a 10-minute settle window. resolve_delivery takes destination_id, optional delivery_id, resolution check|resend|abandon and confirmed:true: check rereads the marker, resend requeues that same report after the window, abandon releases the tab (audited); abandon also releases a tab with a conflicting marker. delete_report of a snapshot with an unconfirmed delivery needs resolution:abandon. Missing metrics remain null. GA4 and Search Console are measurement context; unattributed GA4 sessions and Search Console top rows are scope_limitations, not incompleteness. A period whose last day has not ended in the source time zone (unknown zone: UTC-12) is partial with open_window and its recommendations wait. Rolling date_range may set source_timezone:"account" to resolve each source in its own reporting time zone; preview_schedule lists each source window and when it closes. config.targets keys an objective, objective:CURRENCY (sales:SAR, same target currency) or a campaign key; campaign beats currency beats objective. direction defaults from the KPI (ROAS, CTR, conversion and video completion rates higher; CPC, CPM, CPA, CPL, CPI, CPV lower) and is required for custom, native and additive KPIs. Zero spend, or spend below minimum_spend, returns insufficient_data, never scale. Daily/weekly/monthly rows share one recommendation from each entity’s whole-window additive totals (basis entity_window). Recommendations are frozen at capture with as_of and valid_until (48 hours); exports after valid_until show expired.',
+  'Use this for saved client reports across platforms and accounts, their schedules and Sheets or retained-file exports; to analyse one captured native report, use amcp_reporting. Cross-platform campaign, native ad-set/ad-group and ad reporting: bootstrap exposes entity_levels; each source optionally sets level:campaign/adset/ad. Qualified detail supports Google ad groups/ads, Meta ad sets/ads, TikTok auction ad groups/ads, Snapchat ad squads/ads and LinkedIn sponsored creatives; LinkedIn campaigns are its native middle level. Detailed sources require report_options:{complete_window:boolean, attribution:string} for Google/TikTok/LinkedIn; Meta instead requires result_action_type and explicit attribution_windows; Snapchat instead requires swipe_up_attribution_window and view_attribution_window, with exact campaign_id for ad squads. Campaign-level Meta/Snapchat sources may set report_options to only those attribution windows; otherwise the provider default applies. TikTok/Snapchat require complete_window:true and 1–31 closed days; complete_window:false keeps the source partial and holds recommendations. Other providers retain qualified campaign/context rows. Detail retains exact native daily entity/parent identities, sums only additive metrics, keeps missing values unknown and refuses extra native_metrics; multi-day reach/frequency stay unknown. Entity detail is separate from date grouping. Existing campaign configurations keep their original shape. discover account/metric choices, create/edit/delete named client reports and reusable account-free templates, calculate custom arithmetic metrics, collect bounded total/daily/weekly/monthly native reports, inspect objective-aware recommendations, and export/schedule confirmed Google Sheets reports. Daily, weekly, monthly and hourly delivery schedules use independent report destinations. Definition edits/deletes require expected_revision; update_schedule also accepts expected_view_revision. pause_schedule pauses, remove_schedule deletes; delete_schedule remains a legacy pause alias. report_pack returns retained snapshot summaries, source evidence and authenticated PDF/XLSX download paths. save_presentation saves per-snapshot brand_name, accent_color, footer and standard/compact layout with confirmed:true and current presentation_revision (0 when absent). presentation_profiles lists compatible approved client branding for snapshot id with offset/limit. apply_profile_presentation requires profile_id, exact profile_revision, current presentation_revision and confirmed:true; it copies the approved branding without changing earlier snapshots when the profile changes. bind_file_destination requires confirmed:true, a stable idempotency_key and file_destination:{name,formats:[pdf,xlsx],presentation?:{brand_name,accent_color,footer,template}} with at least one format. It saves a local encrypted-file destination, without Sheets login or external recipients. export/schedule accept its destination_id. File jobs freeze branding and retained evidence, return authenticated download paths, and retry only missing formats. Each file is limited to 20 MiB and encrypted workspace storage to 256 MiB; snapshot deletion/retention removes files. Downloads recheck current source access. No advertising mutations. Sheets export jobs replace only an AMCP-owned tab; retries never append duplicate rows. export_status and get exports add outcome (superseded or skipped when nothing was written; state stays the job state) and retry_available. A tab owned by another report (its active schedule or saved reports) refuses export with DESTINATION_OWNED_BY_OTHER_REPORT unless the snapshot comes from that schedule or report or has the same accounts. complete_only refuses partial exports before any job (PARTIAL_DELIVERY_BLOCKED). Scheduled deliveries run as separate export jobs; schedules record last_delivery and pause after repeated blocking delivery failures. An unconfirmed Sheets delivery blocks newer reports to its tab; its retry rechecks the tab marker and resends the identical batch only after a 10-minute settle window. resolve_delivery takes destination_id, optional delivery_id, resolution check|resend|abandon and confirmed:true: check rereads the marker, resend requeues that same report after the window, abandon releases the tab (audited); abandon also releases a tab with a conflicting marker. delete_report of a snapshot with an unconfirmed delivery needs resolution:abandon. Missing metrics remain null. GA4 and Search Console are measurement context; unattributed GA4 sessions and Search Console top rows are scope_limitations, not incompleteness. A period whose last day has not ended in the source time zone (unknown zone: UTC-12) is partial with open_window and its recommendations wait. Rolling date_range may set source_timezone:"account" to resolve each source in its own reporting time zone; preview_schedule lists each source window and when it closes. config.targets keys an objective, objective:CURRENCY (sales:SAR, same target currency) or a campaign key; campaign beats currency beats objective. direction defaults from the KPI (ROAS, CTR, conversion and video completion rates higher; CPC, CPM, CPA, CPL, CPI, CPV lower) and is required for custom, native and additive KPIs. Zero spend, or spend below minimum_spend, returns insufficient_data, never scale. Daily/weekly/monthly rows share one recommendation from each entity’s whole-window additive totals (basis entity_window). Recommendations are frozen at capture with as_of and valid_until (48 hours); exports after valid_until show expired.',
   [
     'bootstrap',
     'preview_schedule',
@@ -190,6 +192,7 @@ function assertDeliveryPolicy(report: JsonObject) {
       409,
     );
 }
+const linkedinEvidenceContracts = ['campaign-source-v3', reportContractVersion];
 /** A collected snapshot is never collected or re-stamped again (EXP-03 D). */
 const finishedSnapshot = (r: JsonObject) =>
   ['complete', 'partial'].includes(r.state) && typeof r.completed_at === 'number';
@@ -451,9 +454,14 @@ export class ReportingOverview {
     )
       throw new MirrorError('REPORT_QUEUE_FULL', 'This workspace already has 100 active reporting jobs.');
     const id = randomUUID();
-    config = resolveReportConfig(config, at);
+    // A new snapshot has no collection state, so it always starts under the current source contract (RPT-03), even
+    // when a schedule or saved report was defined under an older one.
+    config = {...resolveReportConfig(config, at), source_contract_version: reportContractVersion};
+    // RPT-03: a configuration whose minimum request count exceeds the whole-job budget is refused before any egress.
+    const estimate = assertCollectionEstimate(config);
     store.putDocument(actor.tenantId, 'overview_report', id, {
       config,
+      estimated_requests: estimate.estimated_requests,
       state: 'queued',
       captured_at: at,
       created_at: Date.now(),
@@ -474,7 +482,7 @@ export class ReportingOverview {
       ...store.document(actor.tenantId, 'overview_report', id),
       job_id: jobId,
     });
-    return {id, job_id: jobId, state: 'queued'};
+    return {id, job_id: jobId, state: 'queued', estimated_requests: estimate.estimated_requests};
   }
   async handle(input: JsonObject, actor: Actor): Promise<JsonObject> {
     const store = this.service.store,
@@ -491,6 +499,7 @@ export class ReportingOverview {
           id,
           ...p,
           native_metrics: nativeMetricExamples[id] ?? [],
+          request_model: sourceRequestModel(id),
           entity_levels: overviewEntityLevels[id] ?? [
             {id: 'campaign', label: 'Campaign / resource', native_type: 'campaign_or_resource'},
           ],
@@ -605,7 +614,8 @@ export class ReportingOverview {
         throw new MirrorError('INVALID_PAGE', 'Use an offset >= 0 and 1–100 report snapshots.');
       const candidates = store.db
         .prepare(
-          "SELECT id,revision,json_remove(data,'$.rows','$.checkpoints','$.actor_binding','$.collection_budget.row_counts') AS data,json_array_length(data,'$.rows') AS row_count FROM documents WHERE tenant_id=? AND kind='overview_report' ORDER BY json_extract(data,'$.created_at') DESC,id LIMIT 500 OFFSET ?",
+          // RPT-05: the whole-window summary (with its sparkline series) is returned by get, not by every list page.
+          "SELECT id,revision,json_remove(data,'$.rows','$.checkpoints','$.actor_binding','$.collection_budget.row_counts','$.window_summary') AS data,json_array_length(data,'$.rows') AS row_count FROM documents WHERE tenant_id=? AND kind='overview_report' ORDER BY json_extract(data,'$.created_at') DESC,id LIMIT 500 OFFSET ?",
         )
         .all(tenant, offset) as JsonObject[];
       const reports: JsonObject[] = [];
@@ -657,7 +667,9 @@ export class ReportingOverview {
         limit = input.limit ?? 100;
       if (!Number.isInteger(offset) || offset < 0 || !Number.isInteger(limit) || limit < 1 || limit > 500)
         throw new MirrorError('INVALID_PAGE', 'Use an offset and limit of 1–500 rows.');
-      const job = store.job(tenant, r.job_id);
+      const job = store.job(tenant, r.job_id),
+        now = Date.now(),
+        active = ['queued', 'running'].includes(job.state);
       return {
         ...publicReport(store, tenant, r),
         rows: r.rows.slice(offset, offset + limit),
@@ -692,6 +704,16 @@ export class ReportingOverview {
           error: job.error,
           available_at: job.available_at,
           retry_available: jobRetryAvailable(job),
+          // RPT-05 stall signal: how long an active run waited before a worker started it (until now while it still
+          // waits), and whether any worker process has sent a recent heartbeat. Process liveness only, no identity.
+          ...(active
+            ? {
+                queued_at: job.created_at,
+                started_at: r.started_at ?? null,
+                queued_ms: Math.max(0, (r.started_at ?? now) - job.created_at),
+                worker_recent: operationsWorkerHealth(store, now).status === 'active',
+              }
+            : {}),
         },
       };
     }
@@ -1313,8 +1335,10 @@ export class ReportingOverview {
       store.putDocument(tenant, 'overview_report', r.id, {...r, state: 'failed', error});
       throw new MirrorError(error.code, error.message);
     }
+    // LinkedIn collection state from before its evidence contract (campaign-source-v3) cannot be resumed. The v4 bump
+    // (RPT-03 native daily segmentation) did not change LinkedIn evidence, so v3 state stays resumable.
     if (
-      r.config.source_contract_version !== reportContractVersion &&
+      !linkedinEvidenceContracts.includes(r.config.source_contract_version) &&
       r.config.sources.some((s: JsonObject) => s.platform === 'linkedin')
     ) {
       if (r.collection_budget || Object.keys(r.checkpoints ?? {}).length) {
@@ -1336,7 +1360,12 @@ export class ReportingOverview {
       if (refusal) throw quotaExhausted(refusal);
     }
     store.journal(tenant, r.id, 'collecting', {report_id: r.id});
-    store.putDocument(tenant, 'overview_report', r.id, {...r, state: 'running'});
+    // RPT-05: the first time a worker starts this run (kept across retries) ends its queued time.
+    store.putDocument(tenant, 'overview_report', r.id, {
+      ...r,
+      state: 'running',
+      started_at: r.started_at ?? Date.now(),
+    });
     const results: JsonObject[] = [];
     let retry: MirrorError | undefined;
     // OPS-08: counters and checkpoints are saved in their own small documents, so a save no longer rewrites the whole
@@ -1358,23 +1387,52 @@ export class ReportingOverview {
         }
         try {
           const captured = await budget.run(async () => {
-            const window = await this.sourceWindow(r.config, source, actor);
-            const collected = await collectReportPeriods(
-              source,
-              window.dates,
-              r.config.grain ?? 'total',
-              checkpoint,
-              async (range, native, save) => {
-                budget.nextPeriod();
-                const value = await this.native.collect(source, range, actor, native, save);
-                budget.rows(key + ':' + range.since + ':' + range.until, value.rows.length);
-                return value;
-              },
-              v => {
-                access();
-                parts.save(key, v);
-              },
-            );
+            const window = await this.sourceWindow(r.config, source, actor),
+              grain = r.config.grain ?? 'total',
+              // RPT-03: one account read per source per job, verified again after a multi-period collection.
+              lookup: AccountLookupCache = {};
+            // OPS-08: progress is saved in the source's own checkpoint documents, never by rewriting the report.
+            const saveCheckpoint = (v: JsonObject) => {
+              access();
+              parts.save(key, v);
+            };
+            const periods = (state: JsonObject) =>
+              collectReportPeriods(
+                source,
+                window.dates,
+                grain,
+                state,
+                async (range, native, save) => {
+                  budget.nextPeriod();
+                  const value = await this.native.collect(source, range, actor, native, save, lookup);
+                  budget.rows(key + ':' + range.since + ':' + range.until, value.rows.length);
+                  return value;
+                },
+                saveCheckpoint,
+              );
+            // Snapshots created under the v4 contract collect Google and Meta days natively segmented; older
+            // snapshots keep the per-period path on resume.
+            const collected =
+              grain === 'daily' && nativeDailyCollection(r.config, source)
+                ? await collectNativeDaily(
+                    source,
+                    window.dates,
+                    checkpoint,
+                    async () => {
+                      budget.nextPeriod();
+                      const days = await this.native.collectDaily(source, window.dates, actor, lookup);
+                      for (const day of days)
+                        budget.rows(key + ':' + day.date_range.since + ':' + day.date_range.until, day.rows.length);
+                      return days;
+                    },
+                    saveCheckpoint,
+                    periods,
+                  )
+                : await periods(checkpoint);
+            if (grain !== 'total' && lookup.data) {
+              const verified = await this.native.verifyAccount(source, actor, lookup);
+              if (verified) collected.lineage = [...(collected.lineage ?? []), verified];
+            }
             return window.resolution ? {...collected, window_resolution: window.resolution} : collected;
           });
           access();
@@ -1476,12 +1534,17 @@ export class ReportingOverview {
             date_from: period.since,
             date_to: period.until,
             source_kind: result.source_kind,
-            quality: context.quality ?? {version: 0, status: 'unknown'},
+            // RPT-04: values the provider omitted on a delivered row count as 0 and stay named in quality (exports).
+            quality: {
+              ...(context.quality ?? {version: 0, status: 'unknown'}),
+              ...(row.omitted_as_zero?.length ? {omitted_as_zero: row.omitted_as_zero} : {}),
+            },
             lineage: context.lineage ?? [],
             query_fingerprint: context.query_fingerprint ?? null,
             formula_version: r.config.formula_version ?? 'legacy-unversioned',
             attribution: context.attribution,
-            result_definition: context.result_definition,
+            // RPT-04: a row-level definition (TikTok optimization events) splits summaries by result.
+            result_definition: row.result_definition ?? context.result_definition,
             complete: result.complete,
             captured_at: result.captured_at,
             metrics: calculateMetrics(row.metrics, custom),
@@ -1526,6 +1589,8 @@ export class ReportingOverview {
               : 'no_provider_rows',
         completed_at: Date.now(),
         summary: reportSummary(rows, custom),
+        // RPT-05: grouped snapshots also keep whole-window totals per account (keyed without dates) for KPI tiles.
+        ...((r.config.grain ?? 'total') !== 'total' ? {window_summary: reportWindowSummary(rows, custom)} : {}),
         native_metrics: [...nativeFields],
         row_count: rows.length,
       };

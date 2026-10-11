@@ -1,6 +1,7 @@
 import {fingerprint, reportContractVersion, ga4Quality, summarizeGA4Quality} from './report-quality.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {xCampaignReport} from './x-campaign-report.js';
+import {xActiveEntities, xActiveEntitiesMode, xActiveSet} from './x-active-entities.js';
 import {metaCampaignRows} from './meta-report.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import type {MirrorService} from './service.js';
@@ -12,8 +13,15 @@ import {zonedMidnight} from './workflows.js';
 import {googleAdsCustomers} from './google-version.js';
 import {metaPrefix} from './meta-version.js';
 import {linkedInCampaignPeriod} from './linkedin-reporting.js';
-import {overviewSourceLevel, collectDetailedOverview} from './overview-granularity.js';
+import {campaignAttributionProfile, overviewSourceLevel, collectDetailedOverview} from './overview-granularity.js';
 import {markReportWindow} from './report-windows.js';
+import {
+  assertMicrosoftWindowClosed,
+  microsoftCompleteData,
+  microsoftFallbackReportTimeZone,
+  microsoftFallbackWarning,
+  microsoftReportZone,
+} from './microsoft-timezones.js';
 
 export const nativeMetricExamples: Record<string, string[]> = {
   google: [
@@ -101,6 +109,9 @@ export const nativeMetricExamples: Record<string, string[]> = {
 const bad = (message: string) => {
   throw new MirrorError('INVALID_REPORT_SOURCE', message);
 };
+/** RPT-04: TikTok campaign reporting reads `AUCTION_CAMPAIGN` data only. */
+const tiktokAuctionOnlyWarning =
+  'TikTok campaign reporting covers auction campaigns only (AUCTION_CAMPAIGN); Reach & Frequency and other reserved campaigns are not included.';
 export function reportRange(range: JsonObject) {
   if (
     !range ||
@@ -126,6 +137,47 @@ const value = (v: unknown, divisor = 1) => {
   const n = metricNumber(v);
   return n === null ? null : n / divisor;
 };
+/**
+ * RPT-04: identity and context keys never become metrics. Identifiers and names are excluded by suffix (a numeric ID
+ * or a numeric-looking name must never be summed); dates, currencies and time zones only by exact key, so requested
+ * metrics such as `conversionsByConversionDate` or `costInLocalCurrency` are kept.
+ */
+const identityKey = /(^|_)(ids?|name|urn)$/i;
+const gscRowLimit = 10000;
+const contextKeys = new Set([
+  'date',
+  'day',
+  'date_start',
+  'date_stop',
+  'start_date',
+  'end_date',
+  'stat_time_day',
+  'stat_time_hour',
+  'currency',
+  'currency_code',
+  'account_currency',
+  'timezone',
+  'time_zone',
+  'timezone_name',
+  'account_timezone',
+  'date_range',
+  'time_range',
+]);
+const snake = (k: string) => k.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+const comparable = (k: string) => k.toLowerCase().replace(/[^a-z0-9]/g, '');
+/** Requested native metrics that no returned row carried as a numeric field (RPT-04: warn instead of a silent null). */
+export function missingNativeMetrics(platform: string, requested: string[], rows: JsonObject[]): string[] {
+  if (!rows.length || ['x', 'apple'].includes(platform)) return [];
+  const prefix = 'native_' + platform + '_',
+    produced = new Set<string>();
+  for (const row of rows)
+    for (const key of Object.keys(row.metrics ?? {}))
+      if (key.startsWith(prefix)) produced.add(comparable(key.slice(prefix.length)));
+  return requested.filter(name => {
+    const wanted = comparable(name);
+    return ![...produced].some(p => p === wanted || p.startsWith(wanted) || p.endsWith(wanted));
+  });
+}
 function numericNative(
   platform: string,
   data: JsonObject,
@@ -136,7 +188,8 @@ function numericNative(
   if (depth > 4) return output;
   for (const [k, v] of Object.entries(data)) {
     const key = (prefix ? prefix + '_' : '') + k;
-    if (/(^|_)(id|name|date|currency|timezone|time_zone)$/i.test(k.replace(/([a-z0-9])([A-Z])/g, '$1_$2'))) continue;
+    const s = snake(k);
+    if (identityKey.test(s) || contextKeys.has(s)) continue;
     if (v && typeof v === 'object' && !Array.isArray(v)) numericNative(platform, v, key, output, depth + 1);
     else if (Array.isArray(v)) {
       for (const a of v)
@@ -155,9 +208,12 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
     name: any,
     objective: any,
     metrics: JsonObject = {},
-    currency: any = null;
+    currency: any = null,
+    resultDefinition: string | undefined,
+    mixedResult = false;
   const p = platform,
-    n = (k: string, d = 1) => value(raw[k], d);
+    n = (k: string, d = 1) => value(raw[k], d),
+    omitted = new Set<string>();
   if (p === 'google') {
     id = raw.campaign?.id;
     name = raw.campaign?.name;
@@ -178,18 +234,35 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
     id = raw.campaign_id;
     name = raw.campaign_name;
     objective = raw.objective;
-    const action = (keys: string[], field = 'actions') => {
+    // RPT-04 (owner policy P6): Meta omits zero-valued action entries. A delivered row (impressions above 0) from a
+    // complete page counts an absent requested action as 0 and names it in `omitted_as_zero`; a row without delivery
+    // keeps it unknown.
+    const delivered = (metricNumber(raw.impressions) ?? 0) > 0;
+    const action = (metric: string, keys: string[], field = 'actions') => {
       const a = raw[field];
-      if (!Array.isArray(a)) return null;
-      for (const key of keys) {
-        const found = a.find((v: JsonObject) => v.action_type === key);
-        if (found) return value(found.value);
+      if (Array.isArray(a))
+        for (const key of keys) {
+          const found = a.find((v: JsonObject) => v?.action_type === key);
+          if (found) return value(found.value);
+        }
+      if (delivered && (a === undefined || Array.isArray(a))) {
+        omitted.add(metric);
+        return 0;
       }
       return null;
     };
-    const leads = action(['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead']),
-      purchases = action(['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase']),
-      installs = action(['mobile_app_install', 'app_install']);
+    const leads = action('leads', ['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead']),
+      purchases = action('purchases', ['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase']),
+      installs = action('installs', ['mobile_app_install', 'app_install']),
+      result: [number | null, string] | undefined =
+        objectiveGroup(objective) === 'leads'
+          ? [leads, 'leads']
+          : objectiveGroup(objective) === 'app_installs'
+            ? [installs, 'installs']
+            : objectiveGroup(objective) === 'sales'
+              ? [purchases, 'purchases']
+              : undefined;
+    if (result && omitted.has(result[1])) omitted.add('conversions');
     metrics = {
       spend: n('spend'),
       impressions: n('impressions'),
@@ -199,17 +272,14 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
       leads,
       purchases,
       installs,
-      conversions:
-        objectiveGroup(objective) === 'leads'
-          ? leads
-          : objectiveGroup(objective) === 'app_installs'
-            ? installs
-            : objectiveGroup(objective) === 'sales'
-              ? purchases
-              : null,
-      conversion_value: action(['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase'], 'action_values'),
-      video_views: action(['video_view']),
-      engagements: action(['post_engagement']),
+      conversions: result ? result[0] : null,
+      conversion_value: action(
+        'conversion_value',
+        ['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase'],
+        'action_values',
+      ),
+      video_views: action('video_views', ['video_view']),
+      engagements: action('engagements', ['post_engagement']),
     };
   }
   if (p === 'tiktok') {
@@ -217,6 +287,13 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
     const m = raw.metrics ?? {};
     name = m.campaign_name;
     objective = raw.objective_type;
+    // RPT-04: the result definition names the campaign's ad group optimization events; mixed events are held.
+    const events: string[] = Array.isArray(raw.optimization_events) ? raw.optimization_events : [];
+    if (events.length === 1) resultDefinition = 'TikTok conversions for optimization event ' + events[0];
+    else if (events.length > 1) {
+      resultDefinition = 'TikTok conversions mixing optimization events: ' + events.join(', ');
+      mixedResult = true;
+    }
     metrics = {
       spend: value(m.spend),
       impressions: value(m.impressions),
@@ -346,9 +423,25 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
     objective_group: objectiveGroup(objective),
     currency: currency ?? null,
     metrics: {...metrics, ...numericNative(platform, raw)},
+    ...(omitted.size ? {omitted_as_zero: [...omitted].sort()} : {}),
+    ...(resultDefinition ? {result_definition: resultDefinition} : {}),
+    ...(mixedResult ? {mixed_result_definition: true} : {}),
     native: raw,
   };
 }
+/**
+ * RPT-03: one account lookup per source per job. Later periods reuse the first read (lineage marks it `cached`), and
+ * `verifyAccount` re-reads once after collection so a currency or time-zone change during a long run is still caught.
+ */
+export interface AccountLookupCache {
+  data?: JsonObject;
+  lineage?: JsonObject;
+}
+/** Campaign-level sources whose provider segments one request by day (RPT-03, contract campaign-source-v4). */
+export const nativeDailyPlatforms: readonly string[] = ['google', 'meta'];
+export const nativeDailySegmentation = (source: JsonObject) =>
+  nativeDailyPlatforms.includes(source.platform) && overviewSourceLevel(source).id === 'campaign';
+const accountLookupPlatforms = (platform: string) => !['ga4', 'gsc', 'apple'].includes(platform);
 export class NativeCampaignReports {
   constructor(readonly service: MirrorService) {}
   /** RPT-02: a period whose last day has not ended in the source time zone is partial and marked `open_window`. */
@@ -358,8 +451,83 @@ export class NativeCampaignReports {
     actor: Actor,
     checkpoint: JsonObject = {},
     save: (v: JsonObject) => void = () => {},
+    lookup?: AccountLookupCache,
   ): Promise<JsonObject> {
-    return markReportWindow(await this.collectSource(source, dates, actor, checkpoint, save), Date.now());
+    return markReportWindow(await this.collectSource(source, dates, actor, checkpoint, save, lookup), Date.now());
+  }
+  /**
+   * RPT-03 native daily segmentation: one natively day-segmented request (Google `segments.date`, Meta
+   * `time_increment=1`) split into one result per calendar day. A single-day row is what a per-day query returns,
+   * reach and frequency included. Each day keeps its own open-window state.
+   */
+  async collectDaily(
+    source: JsonObject,
+    dates: JsonObject,
+    actor: Actor,
+    lookup?: AccountLookupCache,
+  ): Promise<JsonObject[]> {
+    if (!nativeDailySegmentation(source)) bad('This source does not support native daily segmentation.');
+    const result = await this.collectSource(source, dates, actor, {}, () => {}, lookup, 'daily'),
+      days = new Map<string, JsonObject[]>();
+    for (const day of eachDay(result.date_range)) days.set(day, []);
+    for (const row of result.rows) {
+      const day = source.platform === 'google' ? row.native?.segments?.date : row.native?.date_start;
+      if (
+        typeof day !== 'string' ||
+        !days.has(day) ||
+        (source.platform === 'meta' && row.native?.date_stop !== undefined && row.native.date_stop !== day)
+      )
+        throw new MirrorError(
+          'REPORT_DATE_MISMATCH',
+          'The provider returned a daily row outside the requested days.',
+          {requested: result.date_range},
+          502,
+        );
+      days.get(day)!.push(row);
+    }
+    const now = Date.now();
+    return [...days].map(([day, rows]) =>
+      markReportWindow({...result, date_range: {since: day, until: day}, rows, native_daily: true}, now),
+    );
+  }
+  /** Re-reads the account once after a multi-period collection and refuses a changed currency or time zone. */
+  async verifyAccount(source: JsonObject, actor: Actor, lookup: AccountLookupCache): Promise<JsonObject | undefined> {
+    const platform = reportPlatforms[source.platform];
+    if (!platform || !lookup.data || !accountLookupPlatforms(source.platform)) return undefined;
+    const account = String(source.account_id),
+      plan = accountPlan(platform.gateway, account),
+      out = (await this.service.runPlan(
+        plan,
+        {connection_id: String(source.connection_id), aggregate_pages: false, max_pages: 25},
+        actor,
+      )) as JsonObject;
+    if (out.dry_run || out.success !== true || !out.data || typeof out.data !== 'object')
+      throw new MirrorError('REPORT_RESPONSE_INVALID', 'The reporting request did not return provider data.', {}, 502);
+    const before = {
+        currency: accountCurrency(platform.gateway, lookup.data),
+        timezone: accountTimezone(platform.gateway, lookup.data),
+      },
+      after = {
+        currency: accountCurrency(platform.gateway, out.data),
+        timezone: accountTimezone(platform.gateway, out.data),
+      };
+    if (before.currency !== after.currency || before.timezone !== after.timezone)
+      throw new MirrorError(
+        'REPORT_ACCOUNT_CHANGED',
+        'The account currency or time zone changed while this report was collected. Run the report again.',
+        {before, after},
+        409,
+      );
+    return {
+      stage: 'account_verify',
+      method: plan.method,
+      path: plan.path,
+      origin: plan.origin ?? null,
+      api_version: plan.path.match(/\/(v?\d+(?:\.\d+)?(?:beta)?)(?:\/|$)/)?.[1] ?? 'native',
+      query_fingerprint: fingerprint({method: plan.method, path: plan.path, query: plan.query, body: plan.body}),
+      response_fingerprint: fingerprint(out.data),
+      captured_at: Date.now(),
+    };
   }
   private async collectSource(
     source: JsonObject,
@@ -367,6 +535,8 @@ export class NativeCampaignReports {
     actor: Actor,
     checkpoint: JsonObject,
     save: (v: JsonObject) => void,
+    lookup?: AccountLookupCache,
+    segment?: 'daily',
   ): Promise<JsonObject> {
     const p = source.platform,
       entityLevel = overviewSourceLevel(source),
@@ -463,10 +633,19 @@ export class NativeCampaignReports {
       resultDefinition = 'unknown',
       complete = true,
       collectionComplete = true;
+    // Source-specific context fields returned with the result (for example X campaigns with no reported activity).
+    const context: JsonObject = {};
     // RPT-02 scope limits: what a source covers by design. They are disclosed, not counted as incompleteness.
     const scopeLimitations: string[] = [];
-    if (!['ga4', 'gsc', 'apple'].includes(p)) {
-      const d = await run(accountPlan(platform!.gateway, account), false, 'account_lookup');
+    if (accountLookupPlatforms(p)) {
+      let d: JsonObject;
+      if (lookup?.data) {
+        d = lookup.data;
+        lineage.push({...lookup.lineage, cached: true});
+      } else {
+        d = await run(accountPlan(platform!.gateway, account), false, 'account_lookup');
+        if (lookup) Object.assign(lookup, {data: d, lineage: lineage.at(-1)});
+      }
       metadata = accountMetadata(platform!.gateway, d);
       currency = accountCurrency(platform!.gateway, d);
       timezone = accountTimezone(platform!.gateway, d);
@@ -486,6 +665,7 @@ export class NativeCampaignReports {
           'metrics.clicks',
           'metrics.conversions',
           'metrics.conversions_value',
+          ...(segment === 'daily' ? ['segments.date'] : []),
           ...extra,
         ]),
       ];
@@ -504,6 +684,11 @@ export class NativeCampaignReports {
       );
       resultDefinition = 'Google primary conversions (conversions column; interaction date)';
     } else if (p === 'meta') {
+      // RPT-04: an optional campaign-level attribution profile uses the detailed preset's explicit windows.
+      const profile = campaignAttributionProfile(source),
+        windows = profile
+          ? ['1d_click', '7d_click', '1d_view'].filter(w => profile.attribution_windows.includes(w))
+          : undefined;
       raw = metaCampaignRows(
         await run(
           plan(metaPrefix + 'act_' + account + '/insights', {
@@ -529,13 +714,23 @@ export class NativeCampaignReports {
               ]),
             ].join(','),
             limit: 500,
-            use_unified_attribution_setting: true,
+            ...(windows
+              ? {
+                  action_report_time: 'impression',
+                  action_attribution_windows: windows,
+                  use_account_attribution_setting: false,
+                  use_unified_attribution_setting: false,
+                }
+              : {use_unified_attribution_setting: true}),
+            ...(segment === 'daily' ? {time_increment: 1} : {}),
           }),
         ),
         account,
         range,
       );
-      attribution = 'ad set unified attribution setting';
+      attribution = windows
+        ? 'Meta ' + windows.join(' + ') + '; impression time'
+        : 'ad set unified attribution setting';
       resultDefinition = 'Objective-mapped lead, purchase or app-install action; aliases are not summed';
     } else if (p === 'tiktok') {
       const d = await run(
@@ -555,14 +750,36 @@ export class NativeCampaignReports {
       const inventory = list(
         (await run(plan('/v1.3/campaign/get/', {advertiser_id: account, page: 1, page_size: 1000}))).data?.list ?? [],
       );
+      // RPT-04: TikTok's `conversion` follows each ad group's optimization event. One bounded ad group inventory read
+      // names the events per campaign, so summaries never add conversions of different events into one result.
+      const adgroups = list(
+        (await run(plan('/v1.3/adgroup/get/', {advertiser_id: account, page: 1, page_size: 1000}), true, 'adgroups'))
+          .data?.list ?? [],
+      );
+      const events = new Map<string, Set<string>>();
+      for (const group of adgroups) {
+        const campaign = String(group.campaign_id ?? '');
+        if (!campaign) continue;
+        const event =
+          [group.optimization_goal, group.optimization_event]
+            .filter(v => typeof v === 'string' && /^[A-Za-z0-9_.]{1,80}$/.test(v))
+            .join(' / ') || 'unknown';
+        events.set(campaign, (events.get(campaign) ?? new Set()).add(event));
+      }
       raw = raw.map(r => ({
         ...r,
         objective_type: inventory.find(c => String(c.campaign_id) === String(r.dimensions?.campaign_id))
           ?.objective_type,
+        optimization_events: [...(events.get(String(r.dimensions?.campaign_id)) ?? [])].sort(),
       }));
       resultDefinition = 'TikTok conversion metric for the selected optimization goal';
+      warnings.push(tiktokAuctionOnlyWarning);
     } else if (p === 'snapchat') {
       if (!timezone) bad('Snapchat account timezone is required.');
+      // RPT-04: an optional campaign-level attribution profile uses the detailed preset's windows and conversion time.
+      const profile = campaignAttributionProfile(source),
+        swipe = profile?.swipe_up_attribution_window ?? '28_DAY',
+        view = profile?.view_attribution_window ?? '1_DAY';
       const start = new Date(zonedMidnight(range.since, timezone!, true)).toISOString(),
         end = new Date(zonedMidnight(nextDay(range.until), timezone!, true)).toISOString();
       const d = await run(
@@ -585,8 +802,9 @@ export class NativeCampaignReports {
               ...extra,
             ]),
           ].join(','),
-          swipe_up_attribution_window: '28_DAY',
-          view_attribution_window: '1_DAY',
+          swipe_up_attribution_window: swipe,
+          view_attribution_window: view,
+          ...(profile ? {action_report_time: 'conversion', conversion_source_types: 'total'} : {}),
           omit_empty: false,
         }),
       );
@@ -599,7 +817,9 @@ export class NativeCampaignReports {
         name: campaigns.find(c => c.id === r.id)?.name,
         objective: campaigns.find(c => c.id === r.id)?.objective,
       }));
-      attribution = '28-day swipe / 1-day view';
+      attribution = profile
+        ? 'Snapchat ' + swipe + ' swipe / ' + view + ' view; conversion time; total sources'
+        : '28-day swipe / 1-day view';
       resultDefinition = 'Objective-specific purchases, sign-ups or installs when explicitly requested';
     } else if (p === 'linkedin') {
       timezone = 'UTC';
@@ -637,78 +857,121 @@ export class NativeCampaignReports {
       const inventory =
         checkpoint.x_inventory ??
         list((await run(plan('/12/accounts/' + account + '/campaigns', {count: 1000, with_deleted: true}))).data ?? []);
-      if (!checkpoint.x_inventory) save({x_inventory: inventory});
+      const start = zonedMidnight(range.since, timezone!),
+        end = zonedMidnight(nextDay(range.until), timezone!),
+        mode = xActiveEntitiesMode();
+      // RPT-03: the inventory names campaigns; X active entities decide which campaigns and windows are requested.
+      let active = xActiveSet(checkpoint.x_active),
+        fallback = checkpoint.x_active_fallback === true;
+      if (mode !== 'off' && !active && !fallback)
+        try {
+          active = await xActiveEntities(start, end, q =>
+            run(plan('/12/stats/accounts/' + account + '/active_entities', q), false, 'active_entities'),
+          );
+        } catch (e) {
+          // A rejected read keeps the bounded inventory path (fails closed above 100 requests); a malformed or
+          // partial response is never narrowed and fails the source.
+          if (!(e instanceof MirrorError) || e.retryable || ![400, 404, 422].includes(e.status)) throw e;
+          fallback = true;
+        }
+      if (fallback)
+        warnings.push(
+          'X refused the active-entities read; every listed campaign was requested instead (at most 100 analytics requests).',
+        );
+      const state = {
+        x_inventory: inventory,
+        ...(active ? {x_active: active} : {}),
+        ...(fallback ? {x_active_fallback: true} : {}),
+      };
+      if (!checkpoint.x_inventory || (active && !checkpoint.x_active) || (fallback && !checkpoint.x_active_fallback))
+        save(state);
       const report = await xCampaignReport(
         inventory,
-        zonedMidnight(range.since, timezone!),
-        zonedMidnight(nextDay(range.until), timezone!),
+        start,
+        end,
         extra,
         q => run(plan('/12/stats/accounts/' + account, q), false),
-        {checkpoint: checkpoint.x_report, save: x_report => save({x_inventory: inventory, x_report})},
+        {
+          checkpoint: checkpoint.x_report,
+          save: x_report => save({...state, x_report}),
+          ...(active ? {active, windows: mode === 'on'} : {}),
+        },
       );
       raw = report.rows;
       complete = report.complete;
       collectionComplete = report.complete;
+      context.no_activity_count = report.no_activity_count;
       warnings.push(...report.warnings);
     } else if (p === 'microsoft') {
-      timezone = 'UTC';
+      // RPT-04 (owner policy P6): report days follow the account time zone. A checkpoint from an earlier London-zone
+      // run keeps its own zone, so a resumed report is never re-labelled.
+      const zone =
+        checkpoint.report_id && checkpoint.report_time_zone === undefined
+          ? microsoftReportZone(microsoftFallbackReportTimeZone)
+          : microsoftReportZone(checkpoint.report_time_zone ?? timezone);
+      timezone = zone.timezone;
       const date = (s: string) => {
         const [Year, Month, Day] = s.split('-').map(Number);
         return {Year, Month, Day};
       };
       let reportId = checkpoint.report_id;
       if (!reportId) {
-        const d = await run(
-          compileMicrosoft({
-            action: 'SubmitGenerateReport',
-            account_id: account,
-            payload: {
-              ReportRequest: {
-                Type: 'CampaignPerformanceReportRequest',
-                Aggregation: 'Summary',
-                Format: 'Csv',
-                ReportName: 'AMCP campaign overview',
-                ReturnOnlyCompleteData: true,
-                Columns: [
-                  ...new Set([
-                    'AccountId',
-                    'CampaignId',
-                    'CampaignName',
-                    'CurrencyCode',
-                    'Spend',
-                    'Impressions',
-                    'Clicks',
-                    'Conversions',
-                    'Revenue',
-                    ...extra,
-                  ]),
-                ],
-                Scope: {AccountIds: [account]},
-                Time: {
-                  CustomDateRangeStart: date(range.since),
-                  CustomDateRangeEnd: date(range.until),
-                  ReportTimeZone: 'GreenwichMeanTimeDublinEdinburghLisbonLondon',
+        assertMicrosoftWindowClosed(range, zone.timezone);
+        const d = await microsoftCompleteData(() =>
+          run(
+            compileMicrosoft({
+              action: 'SubmitGenerateReport',
+              account_id: account,
+              payload: {
+                ReportRequest: {
+                  Type: 'CampaignPerformanceReportRequest',
+                  Aggregation: 'Summary',
+                  Format: 'Csv',
+                  ReportName: 'AMCP campaign overview',
+                  ReturnOnlyCompleteData: true,
+                  Columns: [
+                    ...new Set([
+                      'AccountId',
+                      'CampaignId',
+                      'CampaignName',
+                      'CurrencyCode',
+                      'Spend',
+                      'Impressions',
+                      'Clicks',
+                      'Conversions',
+                      'Revenue',
+                      ...extra,
+                    ]),
+                  ],
+                  Scope: {AccountIds: [account]},
+                  Time: {
+                    CustomDateRangeStart: date(range.since),
+                    CustomDateRangeEnd: date(range.until),
+                    ReportTimeZone: zone.report_time_zone,
+                  },
                 },
               },
-            },
-          }),
-          false,
+            }),
+            false,
+          ),
         );
         reportId = d.ReportRequestId;
-        save({report_id: reportId});
+        save({report_id: reportId, report_time_zone: zone.report_time_zone});
       }
       let offset = 0;
       for (let page = 0; page < 100; page++) {
-        const d = await run(
-          compileMicrosoft({
-            action: 'PollGenerateReport',
-            account_id: account,
-            payload: {ReportRequestId: reportId},
-            download_report: true,
-            offset,
-            limit: 100,
-          }),
-          false,
+        const d = await microsoftCompleteData(() =>
+          run(
+            compileMicrosoft({
+              action: 'PollGenerateReport',
+              account_id: account,
+              payload: {ReportRequestId: reportId},
+              download_report: true,
+              offset,
+              limit: 100,
+            }),
+            false,
+          ),
         );
         if (d.ReportRequestStatus?.Status === 'Pending' || d.status === 'Pending')
           throw new MirrorError(
@@ -728,10 +991,8 @@ export class NativeCampaignReports {
           throw new MirrorError('INCOMPLETE_REPORT', 'Microsoft report exceeded the row limit.');
       }
       resultDefinition = 'Microsoft conversions included in the Conversions column';
-      warnings.push(
-        'Report boundaries use Microsoft GreenwichMeanTimeDublinEdinburghLisbonLondon, including daylight saving.',
-      );
-      timezone = 'Europe/London';
+      context.report_time_zone = zone.report_time_zone;
+      if (zone.fallback) warnings.push(microsoftFallbackWarning);
     } else if (p === 'apple') {
       const m = await run({...plan('/v1/ad-accounts/' + account), origin: 'https://api.ads.apple.com'}, false);
       metadata = m.result ?? m;
@@ -914,7 +1175,8 @@ export class NativeCampaignReports {
             startDate: range.since,
             endDate: range.until,
             dimensions: ['page'],
-            rowLimit: 25000,
+            // RPT-04: request no more rows than one source may hold, so a large site keeps its top pages.
+            rowLimit: gscRowLimit,
             startRow: 0,
             dataState: 'final',
           },
@@ -922,6 +1184,14 @@ export class NativeCampaignReports {
         false,
       );
       raw = list(d.rows ?? []);
+      if (raw.length >= gscRowLimit) {
+        raw = raw.slice(0, gscRowLimit);
+        complete = false;
+        collectionComplete = false;
+        warnings.push(
+          'Search Console returned the 10,000-row request limit; lower-ranked pages are not included, so this organic context is partial.',
+        );
+      }
       // Owner policy P6: top-row coverage with privacy omissions is the scope of this organic source, not a failure.
       scopeLimitations.push('search_console_top_rows');
       warnings.push(
@@ -932,12 +1202,19 @@ export class NativeCampaignReports {
       throw new MirrorError('REPORT_ROW_LIMIT', 'Report exceeds 10,000 rows. Narrow the date range or accounts.');
     this.service.store.assertActorActive(actor);
     this.service.store.resolveConnection(actor, platform!.gateway, account, connection);
+    const rows = raw.map(r => normalizeNativeRow(p, r));
+    for (const name of missingNativeMetrics(p, extra, rows))
+      warnings.push(
+        'Requested native metric ' +
+          name +
+          ' was not returned as a number; formulas that use it stay unavailable. Check the field name for this provider.',
+      );
     return {
       contract_version: reportContractVersion,
       quality: scopeLimitations.length ? {...quality, scope_limitations: scopeLimitations} : quality,
       lineage,
       query_fingerprint: fingerprint(lineage.map(l => l.query_fingerprint)),
-      rows: raw.map(r => normalizeNativeRow(p, r)),
+      rows,
       account_name: metadata.name ?? metadata.displayName ?? null,
       date_range: range,
       metadata,
@@ -945,6 +1222,7 @@ export class NativeCampaignReports {
       timezone,
       complete,
       collection_complete: collectionComplete,
+      ...context,
       ...(scopeLimitations.length ? {scope_limitations: scopeLimitations} : {}),
       attribution,
       result_definition: resultDefinition,
@@ -955,4 +1233,9 @@ export class NativeCampaignReports {
   }
 }
 const nextDay = (date: string) => new Date(Date.parse(date) + 86400000).toISOString().slice(0, 10);
+const eachDay = (range: {since: string; until: string}) => {
+  const days: string[] = [];
+  for (let day = range.since; day <= range.until; day = nextDay(day)) days.push(day);
+  return days;
+};
 const rangeToMeta = (r: {since: string; until: string}) => ({since: r.since, until: r.until});

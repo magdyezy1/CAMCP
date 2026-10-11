@@ -490,6 +490,13 @@ export function campaignRecommendation(row: JsonObject, policy: JsonObject = {},
           ? 10
           : 30),
     lag = p.conversion_lag_days ?? 3;
+  // RPT-04: conversions of different optimization events in one campaign are not one result.
+  if (['sales', 'leads', 'app_installs'].includes(row.objective_group) && row.mixed_result_definition === true)
+    return result(
+      'needs_review',
+      'This campaign’s ad groups optimize for different events, so its conversions are not one result. Review each ad group before acting on cost per result.',
+      {result_definition: row.result_definition ?? null},
+    );
   if (
     ['sales', 'leads', 'app_installs'].includes(row.objective_group) &&
     (row.attribution === 'unknown' || row.result_definition === 'unknown')
@@ -522,7 +529,15 @@ export function campaignRecommendation(row: JsonObject, policy: JsonObject = {},
     return result(
       'reconsider_pause',
       'Spend exceeded three target acquisition costs with no reported results. Check tracking and conversion lag, then consider pausing.',
-      {spend: m.spend, target, results: n},
+      {
+        spend: m.spend,
+        target,
+        results: n,
+        // RPT-04: the zero is the provider omitting the action on a delivered row.
+        ...(Array.isArray(row.omitted_as_zero) && row.omitted_as_zero.includes(resultField)
+          ? {results_basis: 'provider_omitted'}
+          : {}),
+      },
     );
   if (n == null || n < minimum || actual == null)
     return result('insufficient_data', 'Wait for enough results to distinguish a signal from a small sample.', {
@@ -607,6 +622,7 @@ export function windowRecommendations(
     }
     const aggregate = {
       ...group[0],
+      omitted_as_zero: [...new Set(group.flatMap(row => row.omitted_as_zero ?? []))],
       date_from: group.map(row => row.date_from).sort()[0],
       date_to: group
         .map(row => row.date_to)

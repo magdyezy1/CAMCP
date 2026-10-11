@@ -314,7 +314,8 @@ export class ScopeGuard {
       if (
         plan.readOnly &&
         plan.method === 'GET' &&
-        ['/v1.3/report/integrated/get/', '/v1.3/campaign/get/'].includes(decoded) &&
+        // The ad group list is the Overview's optimization-event read (RPT-04), scoped like the campaign list.
+        ['/v1.3/report/integrated/get/', '/v1.3/campaign/get/', '/v1.3/adgroup/get/'].includes(decoded) &&
         plan.query.advertiser_id === id
       )
         return id;

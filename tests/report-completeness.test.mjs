@@ -56,20 +56,26 @@ function metaFixture(timezone = 'UTC') {
         ...(timezone ? {timezone_name: timezone} : {}),
       });
     const range = JSON.parse(url.searchParams.get('time_range'));
+    // RPT-03: a daily source sends one time_increment=1 request; Meta answers with one row per day.
+    const periods = [];
+    if (url.searchParams.get('time_increment') === '1')
+      for (let d = Date.parse(range.since); d <= Date.parse(range.until); d += 86400000) {
+        const day = new Date(d).toISOString().slice(0, 10);
+        periods.push({since: day, until: day});
+      }
+    else periods.push(range);
     return Response.json({
-      data: [
-        {
-          account_id: '100',
-          campaign_id: '101',
-          campaign_name: 'Synthetic traffic',
-          objective: 'OUTCOME_TRAFFIC',
-          date_start: range.since,
-          date_stop: range.until,
-          spend: '10',
-          impressions: '1000',
-          clicks: '100',
-        },
-      ],
+      data: periods.map(period => ({
+        account_id: '100',
+        campaign_id: '101',
+        campaign_name: 'Synthetic traffic',
+        objective: 'OUTCOME_TRAFFIC',
+        date_start: period.since,
+        date_stop: period.until,
+        spend: '10',
+        impressions: '1000',
+        clicks: '100',
+      })),
     });
   };
   const service = new MirrorService(new Registry(), store, new NativeTransport(fetcher, async () => {})),

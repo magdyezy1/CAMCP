@@ -229,24 +229,23 @@ test('one daily fixture reconciles native requests, worker rows, formulas, CSV a
         if (!u.pathname.endsWith('/insights'))
           return Response.json({id: 'act_100', name: 'Fixture', currency: 'USD', timezone_name: 'America/New_York'});
         const range = JSON.parse(u.searchParams.get('time_range')!);
-        ranges.push(range);
-        const first = range.since === '2026-09-01';
+        ranges.push({...range, ...(u.searchParams.has('time_increment') ? {time_increment: '1'} : {})});
+        // RPT-03: a daily source sends one day-segmented request (time_increment=1); Meta returns one row per day.
+        const days = u.searchParams.get('time_increment') === '1' ? ['2026-09-01', '2026-09-02'] : [range.since];
         return Response.json({
-          data: [
-            {
-              campaign_id: '123',
-              account_id: '100',
-              campaign_name: '=Synthetic campaign',
-              objective: 'OUTCOME_TRAFFIC',
-              date_start: range.since,
-              date_stop: range.until,
-              spend: first ? '10' : '30',
-              clicks: first ? '2' : '3',
-              impressions: '100',
-              reach: '80',
-              frequency: '1.25',
-            },
-          ],
+          data: days.map(day => ({
+            campaign_id: '123',
+            account_id: '100',
+            campaign_name: '=Synthetic campaign',
+            objective: 'OUTCOME_TRAFFIC',
+            date_start: day,
+            date_stop: u.searchParams.has('time_increment') ? day : range.until,
+            spend: day === '2026-09-01' ? '10' : '30',
+            clicks: day === '2026-09-01' ? '2' : '3',
+            impressions: '100',
+            reach: '80',
+            frequency: '1.25',
+          })),
         });
       },
       async () => {},
@@ -280,10 +279,8 @@ test('one daily fixture reconciles native requests, worker rows, formulas, CSV a
     const report = await overview.handle({action: 'get', id: queued.id}, actor);
     assert.equal(report.state, 'complete');
     assert.equal(report.row_count, 2);
-    assert.deepEqual(ranges, [
-      {since: '2026-09-01', until: '2026-09-01'},
-      {since: '2026-09-02', until: '2026-09-02'},
-    ]);
+    // RPT-03: one natively day-segmented request replaces one request per day.
+    assert.deepEqual(ranges, [{since: '2026-09-01', until: '2026-09-02', time_increment: '1'}]);
     assert.deepEqual(
       report.rows.map((r: JsonObject) => [
         r.date_from,

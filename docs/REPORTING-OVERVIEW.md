@@ -52,6 +52,24 @@ remain conservative for that incomplete source. Download source evidence for all
 period diagnostics. Limits remain 366 days, 30 sources and 10,000 rows per source
 **across all its periods**. Shorter ranges or fewer accounts reduce quota consumption.
 
+**Request efficiency (RPT-03, source contract `campaign-source-v4`).**
+
+- Each source reads its account once per job; later periods reuse that read (lineage marks it `cached`). A grouped
+  (daily, weekly or monthly) source reads the account once more after collection (`account_verify`). A changed
+  currency or time zone fails the source with `REPORT_ACCOUNT_CHANGED` instead of mixing days.
+- Daily Google and Meta campaign sources send one natively day-segmented request (`segments.date`,
+  `time_increment=1`) and split it by day (`sources[].collection_mode:"native_daily"`). A single-day row is what a
+  per-day query returns, reach and frequency included. If the provider refuses the segmented request, the source falls
+  back to one query per day with a warning. Weekly and monthly grouping, and every other platform, keep one query per
+  period, so reach and frequency are never summed from days.
+- Snapshots started under `campaign-source-v3` keep the per-period path when they resume. Each new snapshot, including
+  a scheduled one, starts under the current contract.
+- `run` returns `estimated_requests`: the fewest provider requests the configuration can need. Pages, retries, polls
+  and X analytics are not counted. A configuration whose estimate already exceeds the 1,200-request job budget is
+  refused with `REPORT_COLLECTION_LIMIT` (`details.estimate`) before any provider request, and nothing is queued.
+  `bootstrap` lists each platform's `request_model`. For example, 30 Meta accounts over a year: weekly needs at least
+  1,650 requests and is refused; daily needs 90.
+
 ## Completeness labels
 
 A source is complete only when every page was collected (`collection_complete`), its measurement is not known to be
@@ -59,12 +77,38 @@ incomplete and its window has closed. Each label holds recommendations; nothing 
 
 - **In-progress day.** A period whose last day has not ended in the source's own day boundary is partial with
   `open_window` and `window_closes_at`, and its recommendations `wait`, whatever the objective. The boundary is the
-  account time zone, or the collector's fixed zone (LinkedIn, Apple and Reddit UTC; Microsoft London; Search Console
-  Los Angeles). An unknown zone uses UTC−12, so the latest day stays open until it has ended everywhere. Future
-  `until` dates are therefore partial, not refused.
+  account time zone, or the collector's fixed zone (LinkedIn, Apple and Reddit UTC; Search Console Los Angeles). An
+  unknown zone uses UTC−12, so the latest day stays open until it has ended everywhere. Future `until` dates are
+  therefore partial, not refused (Microsoft is the exception below).
+- **Microsoft account days (RPT-04, owner policy P6).** Microsoft reports use the account's own `TimeZone`, sent as
+  the matching `ReportTimeZone` (`sources[].report_time_zone`) and labelled with its IANA zone (for example
+  `AbuDhabiMuscat` is `Asia/Dubai`); `src/microsoft-timezones.ts` maps all 75 pinned enum values. An unknown zone falls
+  back to London with a warning. Because `ReturnOnlyCompleteData` is invalid for a period that includes today, a window
+  ending on the account's current day is deferred with retryable `REPORT_PENDING` until an hour after that day ends,
+  a later end date is refused with `INVALID_REPORT_RANGE`, and Microsoft error 2004 is retried an hour later. This
+  changes Microsoft totals for non-UK accounts; a Microsoft job submitted before this change keeps its London days.
 - **Declared incomplete.** A detailed (ad set or ad) source with `complete_window:false` is partial
   (`detail_contract:"overview-detail-v2"`) and its recommendations need review. Snapshots retained earlier keep their
   original labels.
+- **Meta omitted actions (RPT-04, owner policy P6).** Meta leaves zero-valued actions out of `actions` and
+  `action_values`. On a delivered row (impressions above 0) from a complete page, an absent requested action counts
+  as 0 and is named in the row's `omitted_as_zero` (and in its quality, so CSV and Sheets carry it); a row without
+  delivery keeps it unknown. Summaries add these zeros and count them per metric (`summary[].omitted_as_zero`);
+  guided Meta captures mark the metric's coverage `omitted_as_zero`. The website marks each such cell with `*` and a
+  legend, and the zero-result advice names `results_basis:"provider_omitted"`.
+- **TikTok optimization events (RPT-04).** TikTok's `conversion` follows each ad group's optimization event. The
+  campaign source reads the ad group list once (`GET /v1.3/adgroup/get/`, bounded like the campaign list) and gives
+  each row a result definition that names its events, so summaries never add conversions of different events. A
+  campaign whose ad groups use different events is held as `needs_review` for cost-per-result advice. Campaign
+  reporting covers `AUCTION_CAMPAIGN` data only, and a source warning says so.
+- **Campaign attribution profile (RPT-04).** A campaign-level Meta or Snapchat source may set `report_options` to
+  only the attribution windows its detailed presets use (Meta `attribution_windows`; Snapchat
+  `swipe_up_attribution_window` and `view_attribution_window`). Campaign rows then use those windows (Meta at
+  impression time, Snapchat at conversion time with total sources) and the same `attribution` label as ad set and ad
+  rows, so campaign and detailed reports of one profile reconcile. The profile is part of the saved definition and its
+  fingerprint. In the website, **Use explicit attribution windows for campaign rows** sets it. Without one, campaign
+  reporting keeps the provider default (Meta unified setting; Snapchat 28-day swipe / 1-day view). Other platforms
+  still refuse campaign-level `report_options`.
 - **Measurement quality** across periods is tri-state: any known gap is `false`, all known complete is `true`, and
   anything unknown stays `null`.
 - **Scope limits** describe what a source covers by design and do not make a snapshot partial: sessions without a GA4
@@ -78,6 +122,50 @@ whose zone is not fixed); rows and `sources[].date_range` then carry each source
 `sources[].window_resolution` records the zone used. `preview_schedule` lists, per occurrence and source, the zone
 (`provider_fixed`, `last_observed` from retained snapshots, or `unknown`), its window, `window_closes_at` and
 `open_at_delivery`, without a provider request.
+
+## Snapshot state in the website (RPT-05)
+
+- **Partial strip.** A partial snapshot opens with a strip that names each failed source with its error code ("1 of 2
+  sources failed: TikTok · 200 `REPORT_PERIODS_FAILED`. Totals exclude them.") and each limited-coverage source, with
+  links to their source cards. Summary cards end with **Excludes: …** for failed sources, and a card whose source has
+  limited coverage says its totals may be incomplete. A failed source reads **No quality metadata — source failed**;
+  **Legacy snapshot** is kept for snapshots without `source_contract_version`.
+- **Queued and stalled runs.** `get` returns, for a queued or running snapshot, `job.queued_at`, `job.started_at`
+  (the first time a worker started it, also stored as the snapshot's `started_at`), `job.queued_ms` and
+  `job.worker_recent` (any worker heartbeat in the last 90 seconds; process liveness only). The website shows
+  **Queued for N minutes**. After 10 minutes without a start, or when no worker has reported recently, it says **AMCP
+  has not started this run yet**; owners get a link to worker health in Settings.
+- **Polling.** The page refreshes an active snapshot every 3 s for the first minute, every 15 s up to 5 minutes, then
+  every 60 s, and stops after 30 minutes with a **Refresh** button. Cancel, Retry and Refresh start a new watch.
+- **Deep links.** An open snapshot sets `?report_id=` (with the saved report's `view_id`) in the address bar.
+  Reloading reopens it through the same tenant and actor authorization as any other load; the ID is opaque and the
+  URL carries no names or account identifiers. Deleting the open snapshot removes it from the address.
+- **Whole-window tiles.** A daily, weekly or monthly snapshot also stores `window_summary`: one entry per platform,
+  account, currency, timezone, objective and measurement definition, keyed without dates, with additive totals over
+  every period (reach and frequency are never summed), ratios recomputed from those totals, `period_count`,
+  `entity_count`, decisions counted once per entity and a `series` of spend per period (oldest first). `get` returns
+  it; `list` pages leave it out. The website shows one tile per account with a spend sparkline (an image with a text
+  summary; an unknown period leaves a gap) instead of one card per period. Older grouped snapshots keep their
+  per-period cards.
+- **Results table.** The row header is the entity name only, at most 40 characters (the full name stays on hover and
+  in the context cell), and stays visible while the metrics scroll sideways, at the inline start in both directions.
+  IDs, level, parents, account, currency, timezone and source details sit in the **Platform · objective** cell. Daily
+  grain has one **Date** column. Below 600 px each row reads as a card with its values labelled by column; explicit
+  table roles keep the table semantics. Counts use singular and plural forms, and ROAS reads as a multiple (×).
+- **Exact numbers.** Values are formatted from their exact decimal text (never a binary double), currency values in
+  the currency's own minor units (KWD 3, JPY 0, SAR and USD 2), with the exact value on hover. This applies to
+  Overview cells and cards, retained evidence totals and rows, and the client report pack, which also uses platform
+  display names and localized dates. Sheets exports send number formats per metric column in the same batch as the
+  cells (currency columns use the largest minor units among the report's currencies, counts whole numbers,
+  percentages a literal %, ROAS ×); the cell values are unchanged.
+- **Native evidence tables.** Long native resource columns (Google resource names used as entity IDs, geographic
+  resources) are hidden by default behind a per-viewer **Show native IDs** toggle; long IDs are middle-truncated with
+  a copy button, the row header stays visible while scrolling, and location types read as plain labels with the
+  native enum on hover.
+- **Prefilled capture.** `amcp_reporting` `capture_presets` with `connection_id` and `account_id` also returns that
+  account's stored currency, timezone and read time (`target`), without a provider read. The capture wizard prefills
+  both (still editable; the capture still verifies them against the provider, so a mismatch is refused), labels
+  details read more than 7 days ago, and defaults empty dates to the last 7 complete days in the account timezone.
 
 ## X cooldowns and recovery
 
@@ -93,6 +181,25 @@ repeating the call. Completed X analytics batches are checkpointed and are not
 counted twice on resume. Null native metric values mean no reported activity;
 absent metric columns remain unavailable. Native errors inside HTTP 200 are failures.
 No advertising mutation gains permission or automatic retry from these changes.
+
+**Active entities (RPT-03).** X's analytics guide says the Active Entities endpoint should decide which analytics are
+requested. The Overview reads `GET /12/stats/accounts/:id/active_entities` (entity `CAMPAIGN`, whole hours, at most 90
+days per read). The campaign list, including deleted campaigns, is kept only for names and objectives.
+
+- Analytics are requested only for active campaigns, per placement (as X reports it) and only for the 7-day chunks
+  that overlap each activity window.
+- The 100-request ceiling is counted from that plan. A larger active set is refused with `REPORT_RANGE_LIMIT` and
+  `details.planned_requests`.
+- Campaigns with no reported activity are counted (`no_activity_count`) and named in a warning; they are never zero
+  rows.
+- `WEB_CONVERSION` and `MOBILE_CONVERSION` each have their own request, so a rejected conversion request keeps the
+  placement's spend and marks coverage partial.
+- A malformed, paginated or invalid active-entities response fails the source. If X refuses the read (400, 404 or
+  422), the bounded inventory path runs instead, with a warning.
+- The X checkpoint definition (version 3) includes the active-entities response hash, so a resumed run with another
+  active set or an older checkpoint is refused with `REPORT_DEFINITION_CHANGED`.
+- `AMCP_X_ACTIVE_ENTITIES=campaigns` keeps the active IDs but requests the whole window (widening for late conversion
+  updates). `off` restores the inventory path.
 
 The current X endpoint parameter reference lists ALL_ON_TWITTER, SPOTLIGHT and
 TREND; some historical examples on the same page still mention PUBLISHER_NETWORK.
@@ -183,12 +290,12 @@ Open **Reporting overview** in workspace navigation (/reporting-overview). Selec
 | Source | Reporting behavior |
 |---|---|
 | Google Ads | Campaign GAQL and account metadata; micros converted to currency |
-| Meta | Campaign Insights with account attribution and objective-specific result aliases |
+| Meta | Campaign Insights with account attribution (or an explicit attribution profile) and objective-specific result aliases |
 | TikTok | Integrated campaign report plus objective inventory |
 | Snapchat | Campaign totals/inventory and account-local day boundaries |
 | LinkedIn | Campaign adAnalytics with verified account currency, native UTC period/completion checks and explicit unknown conversion attribution; objective override when omitted |
-| X Ads | Current documented placements ALL_ON_TWITTER, SPOTLIGHT and TREND, separate mobile conversions, resumable hourly batches and explicit partial-coverage flags |
-| Microsoft Ads | Durable Submit/Poll campaign report and secure server-side CSV download |
+| X Ads | Active-entities request planning; current documented placements ALL_ON_TWITTER, SPOTLIGHT and TREND; separate web and mobile conversion requests; resumable hourly batches and explicit partial-coverage flags |
+| Microsoft Ads | Durable Submit/Poll campaign report in the account time zone and secure server-side CSV download |
 | Apple Ads | Campaign report with explicit UTC range |
 | Reddit Ads | Campaign metrics/inventory, spend micro-units and explicit native conversion definitions |
 | GA4 | Campaign-attributed analytics context, property currency/timezone and threshold signals |
@@ -270,7 +377,8 @@ not a zero-performance day. Continuation metadata, provider ceilings and duplica
 Older requests may be rounded by LinkedIn; use whole calendar months or recent dates when actual dates differ.
 Conversion-rule windows are not independently read, so attribution remains `unknown` and recommendations remain
 held. A snapshot with successful and failed periods retains marked partial coverage; complete-only delivery stays
-blocked. New snapshots use `campaign-source-v3`. Older LinkedIn runs with collection state require a new snapshot
+blocked. New snapshots use `campaign-source-v4` (v3 LinkedIn state stays resumable). Older LinkedIn runs with
+collection state from before v3 require a new snapshot
 from their saved definition, leaving retained counters/checkpoints intact. Untouched queued runs adopt the new
 version before collection. Completed historical snapshots are not rewritten or retroactively requalified.
 

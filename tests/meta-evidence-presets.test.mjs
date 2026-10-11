@@ -97,15 +97,25 @@ function fixture(rows = [nativeRow()]) {
   };
 }
 test('Meta detailed preset retains exact ad IDs and explicit action/window semantics without adding overlapping actions', async () => {
-  const f = fixture([nativeRow(), nativeRow({ad_id: '31', actions: [], action_values: []})]);
+  const f = fixture([
+    nativeRow(),
+    nativeRow({ad_id: '31', actions: [], action_values: []}),
+    nativeRow({ad_id: '32', impressions: '0', actions: [], action_values: []}),
+  ]);
   try {
     const out = await f.call();
     assert.equal(out.success, true, JSON.stringify(out));
     assert.equal(out.data.rows[0].entity_id, '30');
     assert.equal(out.data.rows[0].conversions, '2');
     assert.equal(out.data.rows[0].conversion_value, '42.51');
-    assert.equal(out.data.rows[1].conversions, null);
-    assert.equal(out.data.totals.spend, '20.25');
+    // RPT-04 (owner policy P6): a delivered row without the selected action counts 0 with the qualifier; this test
+    // previously expected null, which is the defect RPT-04 fixes. A row without delivery stays unknown.
+    assert.equal(out.data.rows[1].conversions, '0');
+    assert.deepEqual(out.data.rows[1].omitted_as_zero, ['conversions', 'conversion_value']);
+    assert.equal(out.data.rows[2].conversions, null);
+    assert.equal(out.data.coverage.conversions, 'partial');
+    assert.deepEqual(out.data.omitted_as_zero, {conversions: 1, conversion_value: 1});
+    assert.equal(out.data.totals.spend, '30.375');
     assert.equal(out.data.totals.conversions, null);
     assert.equal(out.data.totals.reach, null);
     assert.equal(out.data.grain, 'ad × day');

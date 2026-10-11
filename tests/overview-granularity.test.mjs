@@ -115,7 +115,14 @@ test('daily native detail retains single-day reach while total detail never sums
         row => row.metrics.reach === 80 && row.metrics.frequency === 1.25 && row.metrics.conversions === 2,
       ),
     );
+    // RPT-04 (owner policy P6): an absent action on a delivered day counts 0 with the qualifier (this test previously
+    // expected unknown, the defect RPT-04 fixes); on a day without delivery it stays unknown.
     f.mutate(rows => rows.map((row, index) => (index ? {...row, actions: []} : row)));
+    const omitted = await run(f, granularConfig());
+    assert.equal(omitted.rows[0].metrics.conversions, 2);
+    assert.equal(omitted.rows[0].native.exact_totals.conversions, '2');
+    assert.deepEqual(omitted.rows[0].omitted_as_zero, ['conversions']);
+    f.mutate(rows => rows.map((row, index) => (index ? {...row, impressions: '0', actions: []} : row)));
     const missing = await run(f, granularConfig());
     assert.equal(missing.rows[0].metrics.conversions, null);
     assert.equal(missing.rows[0].native.exact_totals.conversions, null);

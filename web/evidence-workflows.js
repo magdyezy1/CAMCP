@@ -439,7 +439,24 @@ function mountEvidenceRows(report, selectionCurrent) {
       Object.hasOwn(report.mapping ?? {}, key) ||
       (key === 'date' && report.source === 'overview_snapshot'),
   );
-  const visible = new Set(columns);
+  // RPT-05: long native resource identities are hidden by default behind a per-viewer "Show native IDs" toggle.
+  const mappedPath = key => {
+      const mapped = report.mapping?.[key];
+      return typeof mapped === 'string' ? mapped : String(mapped?.path ?? '');
+    },
+    nativeIdColumns = columns.filter(
+      key =>
+        key === 'native_geographic_resource' ||
+        (key === 'entity_id' && columns.includes('entity_name') && /resourceName$/.test(mappedPath('entity_id'))),
+    ),
+    nativeIdsPreference = 'amcp.evidence.native_ids';
+  let showNativeIds = false;
+  try {
+    showNativeIds = localStorage.getItem(nativeIdsPreference) === 'shown';
+  } catch {
+    showNativeIds = false;
+  }
+  const visible = new Set(columns.filter(key => showNativeIds || !nativeIdColumns.includes(key)));
   let limit = 50,
     offset = 0,
     busy = false,
@@ -480,16 +497,35 @@ function mountEvidenceRows(report, selectionCurrent) {
             (typeof row[key] === 'number' && Number.isFinite(row[key])),
         ),
     );
+  // RPT-05: metrics use one precision-preserving format with the exact value on hover; long native identities are
+  // middle-truncated with a copy button; location types read as plain labels with the native enum on hover.
+  const metricDigits = {impressions: 0, clicks: 0, reach: 0, conversions: 2, frequency: 2},
+    locationTypes = {
+      LOCATION_OF_PRESENCE: uiText('Physical presence'),
+      AREA_OF_INTEREST: uiText('Area of interest'),
+    },
+    shortId = value => (value.length > 28 ? value.slice(0, 12) + '…' + value.slice(-12) : value);
+  const content = (key, value) => {
+    const text = String(value);
+    if (['spend', 'conversion_value'].includes(key))
+      return uiDecimalMarkup(text, {minorUnitsOf: report.semantics?.currency});
+    if (Object.hasOwn(metricDigits, key)) return uiDecimalMarkup(text, {maximumFractionDigits: metricDigits[key]});
+    if (key === 'native_location_type' && Object.hasOwn(locationTypes, text))
+      return `<abbr title="${esc(text)}">${esc(locationTypes[text])}</abbr>`;
+    if (['entity_id', 'native_geographic_resource'].includes(key) && shortId(text) !== text)
+      return `<code title="${esc(text)}">${esc(shortId(text))}</code> <button type="button" class="button small evidence-copy" data-copy-native="${esc(text)}" aria-label="${esc(uiText('Copy native ID {id}', {id: text}))}">${esc(uiText('Copy'))}</button>`;
+    return esc(text);
+  };
   const cell = (row, key, identityKey) => {
     const tag = key === identityKey ? 'th' : 'td',
       scope = key === identityKey ? ' scope="row"' : '';
     return row[key] == null
       ? `<${tag}${scope}>${esc(uiText('Unknown'))}</${tag}>`
-      : `<${tag}${scope} dir="${['entity_name', 'search_term'].includes(key) ? 'auto' : 'ltr'}">${esc(String(row[key]))}</${tag}>`;
+      : `<${tag}${scope} dir="${['entity_name', 'search_term'].includes(key) ? 'auto' : 'ltr'}">${content(key, row[key])}</${tag}>`;
   };
   const heading = () => `<h3>${esc(uiText('Retained native rows'))}</h3>`;
   const controls = () =>
-    `<form id="evidence-row-search" class="report-pagination"><label>${esc(uiText(Object.hasOwn(report.mapping ?? {}, 'keyword_match_type') ? 'Find a keyword, date or native match type' : Object.hasOwn(report.mapping ?? {}, 'native_device') ? 'Find a campaign, date or native device' : Object.hasOwn(report.mapping ?? {}, 'native_hour') ? 'Find a campaign, date or native hour' : Object.hasOwn(report.mapping ?? {}, 'native_country_criterion_id') ? 'Find a campaign, country ID, location type or date' : 'Find an entity, date or search term'))}<input id="evidence-row-query" type="search" maxlength="150" value="${esc(draft)}"></label><label>${esc(uiText('Rows per page'))}<select id="evidence-rows-page-size">${[10, 25, 50, 100].map(size => `<option value="${size}">${esc(uiNumber(size))}</option>`).join('')}</select></label><div><button type="submit" class="button small" id="evidence-row-apply">${esc(uiText('Search retained rows'))}</button><button type="button" class="button small" id="evidence-row-clear">${esc(uiText('Clear search'))}</button></div></form><p class="form-note">${esc(uiText('Search changes displayed rows only. Totals, analysis and Excel retain the complete report.'))}</p><details id="evidence-columns"${columnsOpen ? ' open' : ''}><summary>${esc(uiText('Visible columns'))}</summary><div class="recipe-fields">${columns.map(key => `<label><input type="checkbox" id="evidence-column-${key}" ${visible.has(key) ? 'checked' : ''}> ${esc(labels[key])}</label>`).join('')}</div><button type="button" class="button small" id="evidence-columns-reset">${esc(uiText('Show all columns'))}</button></details>`;
+    `<form id="evidence-row-search" class="report-pagination"><label>${esc(uiText(Object.hasOwn(report.mapping ?? {}, 'keyword_match_type') ? 'Find a keyword, date or native match type' : Object.hasOwn(report.mapping ?? {}, 'native_device') ? 'Find a campaign, date or native device' : Object.hasOwn(report.mapping ?? {}, 'native_hour') ? 'Find a campaign, date or native hour' : Object.hasOwn(report.mapping ?? {}, 'native_country_criterion_id') ? 'Find a campaign, country ID, location type or date' : 'Find an entity, date or search term'))}<input id="evidence-row-query" type="search" maxlength="150" value="${esc(draft)}"></label><label>${esc(uiText('Rows per page'))}<select id="evidence-rows-page-size">${[10, 25, 50, 100].map(size => `<option value="${size}">${esc(uiNumber(size))}</option>`).join('')}</select></label><div><button type="submit" class="button small" id="evidence-row-apply">${esc(uiText('Search retained rows'))}</button><button type="button" class="button small" id="evidence-row-clear">${esc(uiText('Clear search'))}</button></div></form><p class="form-note">${esc(uiText('Search changes displayed rows only. Totals, analysis and Excel retain the complete report.'))}</p><details id="evidence-columns"${columnsOpen ? ' open' : ''}><summary>${esc(uiText('Visible columns'))}</summary><div class="recipe-fields">${columns.map(key => `<label><input type="checkbox" id="evidence-column-${key}" ${visible.has(key) ? 'checked' : ''}> ${esc(labels[key])}</label>`).join('')}</div><button type="button" class="button small" id="evidence-columns-reset">${esc(uiText('Show all columns'))}</button></details>${nativeIdColumns.length ? `<label class="check"><input type="checkbox" id="evidence-native-ids" ${showNativeIds ? 'checked' : ''}> ${esc(uiText('Show native IDs'))}</label>` : ''}`;
   const bind = () => {
     const field = $('#evidence-row-query'),
       columnDetails = $('#evidence-columns'),
@@ -552,6 +588,34 @@ function mountEvidenceRows(report, selectionCurrent) {
         }
       });
     }
+    const nativeIds = $('#evidence-native-ids');
+    if (nativeIds) {
+      nativeIds.checked = showNativeIds;
+      nativeIds.disabled = !lastPage;
+      nativeIds.addEventListener('change', () => {
+        if (!current() || busy || !lastPage) return;
+        showNativeIds = nativeIds.checked;
+        try {
+          localStorage.setItem(nativeIdsPreference, showNativeIds ? 'shown' : 'hidden');
+        } catch {
+          // A blocked browser store keeps the choice for this page only.
+        }
+        for (const key of nativeIdColumns)
+          if (showNativeIds) visible.add(key);
+          else if (visible.size > 1) visible.delete(key);
+        render(lastPage);
+        $('#evidence-native-ids')?.focus();
+      });
+    }
+    for (const button of root.querySelectorAll?.('[data-copy-native]') ?? [])
+      button.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(button.dataset.copyNative);
+          toast(uiText('Native ID copied.'));
+        } catch {
+          toast(uiText('Copy is unavailable in this browser. Select the ID from its tooltip instead.'));
+        }
+      });
     $('#evidence-columns-reset').disabled = !lastPage;
     $('#evidence-columns-reset').addEventListener('click', () => {
       if (!current() || busy || !lastPage) return;
@@ -600,7 +664,7 @@ function mountEvidenceRows(report, selectionCurrent) {
         : '') +
       `<p class="form-note">${esc(uiText('Values retain native IDs and decimal strings. Missing metrics remain unknown.'))}</p>` +
       (matched
-        ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Native evidence rows, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Mapped native evidence'))}</caption><thead><tr>${shown.map(key => `<th scope="col">${esc(labels[key])}${['spend', 'conversion_value'].includes(key) ? ' · <span dir="ltr">' + esc(report.semantics.currency) + '</span>' : ''}</th>`).join('')}</tr></thead><tbody>${page.rows.map(row => `<tr>${shown.map(key => cell(row, key, identityKey)).join('')}</tr>`).join('')}</tbody></table></div>`
+        ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Native evidence rows, scroll for all fields'))}"><table class="review-table evidence-rows-table"><caption>${esc(uiText('Mapped native evidence'))}</caption><thead><tr>${shown.map(key => `<th scope="col">${esc(labels[key])}${['spend', 'conversion_value'].includes(key) ? ' · <span dir="ltr">' + esc(report.semantics.currency) + '</span>' : ''}</th>`).join('')}</tr></thead><tbody>${page.rows.map(row => `<tr>${shown.map(key => cell(row, key, identityKey)).join('')}</tr>`).join('')}</tbody></table></div>`
         : '') +
       `<div class="report-pagination"><p id="evidence-rows-status" role="status" tabindex="-1">${esc(range)}</p><div><button type="button" class="button small" id="evidence-rows-previous">${esc(uiText('Previous page'))}</button><label>${esc(uiText('Page'))}<select id="evidence-rows-page">${Array.from({length: pages()}, (_, i) => `<option value="${i + 1}">${esc(uiNumber(i + 1))}</option>`).join('')}</select></label><button type="button" class="button small" id="evidence-rows-next">${esc(uiText('Next page'))}</button></div></div>`;
     bind();
@@ -811,7 +875,7 @@ async function mountCaptureWizard(openReport) {
           })),
         ),
     );
-  root.innerHTML = `<summary>${esc(uiText('Capture detailed native evidence'))}</summary><p>${esc(uiText('Choose detailed Google, Meta, LinkedIn, TikTok or Snapchat evidence. Each provider keeps its native reporting levels and measurement definitions. Reading may take up to two minutes.'))}</p><form id="capture-preset"><div class="recipe-fields"><label>${esc(uiText('Report detail'))}<select name="preset">${presets.map(p => `<option value="${esc(p.id)}">${esc(evidencePresetLabel(p))}</option>`).join('')}</select></label><label>${esc(uiText('Account'))}<select name="target" required></select></label>${controls(uiText('Evidence name'), 'text', '', 'source_name')}${controls(uiText('From'), 'date', '', 'date_from')}${controls(uiText('Through'), 'date', '', 'date_to')}${controls(uiText('Native currency'), 'text', '', 'currency')}${controls(uiText('Native IANA timezone'), 'text', '', 'timezone')}</div><div class="recipe-fields" id="capture-generic-measurement">${controls(uiText('Attribution definition'), 'text', '', 'attribution')}${controls(uiText('Conversion definition'), 'text', '', 'conversion_definition')}</div><div class="recipe-fields" id="capture-meta-measurement" hidden><label>${esc(uiText('Exact Meta conversion action type'))}<input name="result_action_type" maxlength="160" list="meta-action-examples" placeholder="offsite_conversion.fb_pixel_purchase"></label><datalist id="meta-action-examples"><option value="offsite_conversion.fb_pixel_purchase"></option><option value="offsite_conversion.fb_pixel_lead"></option></datalist><label>${esc(uiText('Meta attribution window'))}<select name="attribution_windows"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="1d_click">${esc(uiText('1-day click'))}</option><option value="7d_click">${esc(uiText('7-day click'))}</option><option value="1d_click,1d_view">${esc(uiText('1-day click and 1-day view'))}</option><option value="7d_click,1d_view">${esc(uiText('7-day click and 1-day view'))}</option><option value="1d_view">${esc(uiText('1-day view only'))}</option></select></label><p class="form-note">${esc(uiText('Uses impression-time reporting and the exact selected action type. Overlapping purchase aliases are not combined; an absent action remains unknown.'))}</p></div><p class="form-note">${esc(uiText('Match the native account currency, timezone and report window. Search-term visibility can prevent equality with campaign totals. Missing metrics stay unknown.'))}</p><label class="form-note"><input name="complete" type="checkbox"> ${esc(uiText('The selected reporting window is complete under these declared measurement settings.'))}</label><button type="submit" class="button primary">${esc(uiText('Read and retain evidence'))}</button></form>`;
+  root.innerHTML = `<summary>${esc(uiText('Capture detailed native evidence'))}</summary><p>${esc(uiText('Choose detailed Google, Meta, LinkedIn, TikTok or Snapchat evidence. Each provider keeps its native reporting levels and measurement definitions. Reading may take up to two minutes.'))}</p><form id="capture-preset"><div class="recipe-fields"><label>${esc(uiText('Report detail'))}<select name="preset">${presets.map(p => `<option value="${esc(p.id)}">${esc(evidencePresetLabel(p))}</option>`).join('')}</select></label><label>${esc(uiText('Account'))}<select name="target" required></select></label>${controls(uiText('Evidence name'), 'text', '', 'source_name')}${controls(uiText('From'), 'date', '', 'date_from')}${controls(uiText('Through'), 'date', '', 'date_to')}${controls(uiText('Native currency'), 'text', '', 'currency')}${controls(uiText('Native IANA timezone'), 'text', '', 'timezone')}</div><p id="capture-account-metadata" class="form-note" hidden></p><div class="recipe-fields" id="capture-generic-measurement">${controls(uiText('Attribution definition'), 'text', '', 'attribution')}${controls(uiText('Conversion definition'), 'text', '', 'conversion_definition')}</div><div class="recipe-fields" id="capture-meta-measurement" hidden><label>${esc(uiText('Exact Meta conversion action type'))}<input name="result_action_type" maxlength="160" list="meta-action-examples" placeholder="offsite_conversion.fb_pixel_purchase"></label><datalist id="meta-action-examples"><option value="offsite_conversion.fb_pixel_purchase"></option><option value="offsite_conversion.fb_pixel_lead"></option></datalist><label>${esc(uiText('Meta attribution window'))}<select name="attribution_windows"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="1d_click">${esc(uiText('1-day click'))}</option><option value="7d_click">${esc(uiText('7-day click'))}</option><option value="1d_click,1d_view">${esc(uiText('1-day click and 1-day view'))}</option><option value="7d_click,1d_view">${esc(uiText('7-day click and 1-day view'))}</option><option value="1d_view">${esc(uiText('1-day view only'))}</option></select></label><p class="form-note">${esc(uiText('Uses impression-time reporting and the exact selected action type. Overlapping purchase aliases are not combined; an absent action remains unknown.'))}</p></div><p class="form-note">${esc(uiText('Match the native account currency, timezone and report window. Search-term visibility can prevent equality with campaign totals. Missing metrics stay unknown.'))}</p><label class="form-note"><input name="complete" type="checkbox"> ${esc(uiText('The selected reporting window is complete under these declared measurement settings.'))}</label><button type="submit" class="button primary">${esc(uiText('Read and retain evidence'))}</button></form>`;
   const form = $('#capture-preset'),
     feedback = evidenceCaptureFeedback(form, current);
   $('#capture-meta-measurement').insertAdjacentHTML(
@@ -911,8 +975,80 @@ async function mountCaptureWizard(openReport) {
       form.elements[key].disabled = !snapchat || leads;
     }
   };
-  form.elements.preset.addEventListener('change', selectPreset);
+  // One listener: harnesses and browsers alike re-render the accounts, then refresh the account hint (RPT-05).
+  form.elements.preset.addEventListener('change', () => {
+    selectPreset();
+    void prefill();
+  });
   selectPreset();
+  // RPT-05: the selected account's stored currency and timezone prefill the declared fields. They stay editable and
+  // the capture still verifies both against the provider. Empty dates default to the last 7 complete account-local
+  // days. Values the person typed are never replaced.
+  let metadataSequence = 0;
+  const prefilled = {};
+  const localDay = zone => {
+    const options = {year: 'numeric', month: '2-digit', day: '2-digit'};
+    try {
+      return new Intl.DateTimeFormat('en-CA', {...options, timeZone: zone}).format(new Date());
+    } catch {
+      return new Intl.DateTimeFormat('en-CA', options).format(new Date());
+    }
+  };
+  const shiftDay = (day, days) => new Date(Date.parse(day + 'T00:00:00Z') + days * 86400000).toISOString().slice(0, 10);
+  const prefill = async () => {
+    const sequence = ++metadataSequence,
+      t = targets[Number(form.elements.target.value)],
+      hint = $('#capture-account-metadata');
+    if (form.elements.target.value === '' || !t) {
+      hint.hidden = true;
+      hint.textContent = '';
+      return;
+    }
+    let target = null;
+    try {
+      ({target} = await workspaceCall('reporting', {
+        action: 'capture_presets',
+        connection_id: t.connection_id,
+        account_id: t.account_id,
+      }));
+    } catch {
+      target = null;
+    }
+    if (!current() || sequence !== metadataSequence) return;
+    const fill = (key, value) => {
+      const field = form.elements[key];
+      if (typeof value !== 'string' || !value) return;
+      if (field.readOnly) {
+        if (key === 'timezone' && (declaredTimezone === '' || declaredTimezone === prefilled.timezone)) {
+          declaredTimezone = value;
+          prefilled.timezone = value;
+        }
+      } else if (field.value === '' || field.value === prefilled[key]) {
+        field.value = value;
+        prefilled[key] = value;
+      }
+    };
+    fill('currency', target?.currency);
+    fill('timezone', target?.timezone);
+    const today = localDay(target?.timezone ?? undefined);
+    fill('date_to', shiftDay(today, -1));
+    fill('date_from', shiftDay(today, -7));
+    hint.textContent = target?.checked_at
+      ? target.stale
+        ? uiText(
+            'Account details were read on {date}, more than 7 days ago. Check the currency and timezone before capturing.',
+            {date: uiDate(target.checked_at)},
+          )
+        : uiText(
+            'Currency and timezone from the account read on {date}. Edit them if they changed; the capture verifies both.',
+            {date: uiDate(target.checked_at)},
+          )
+      : uiText(
+          'No account read is stored for this account yet. Enter its native currency and timezone; the capture verifies both.',
+        );
+    hint.hidden = false;
+  };
+  form.elements.target.addEventListener('change', () => void prefill());
   // WEB-06: Portfolio's "Capture evidence for this campaign" (/reports?connection_id=&account_id=&campaign_id=
   // #report-capture) preselects the account and, for Snapchat, the parent campaign. Nothing is read until submitted.
   const linked =
@@ -935,6 +1071,8 @@ async function mountCaptureWizard(openReport) {
       form.elements.target.value = String(linkedTarget);
       if (campaign) form.elements.campaign_id.value = campaign;
       root.open = true;
+      // RPT-05: the linked account prefills its stored currency, timezone and dates like a chosen one.
+      void prefill();
     }
   } else if (linked.get('connection_id') || linked.get('account_id'))
     form.elements.target.insertAdjacentHTML(
@@ -1029,23 +1167,29 @@ function mountScenarioModel(report) {
   mountAllocationModel(report);
 }
 function reportPackBody(pack) {
-  const value = x => (x === null || x === undefined ? uiText('Unknown') : esc(uiNumber(x, {maximumFractionDigits: 2})));
+  // RPT-05: platform display names, localized report dates and currency values in their own minor units.
+  const value = x => (x === null || x === undefined ? uiText('Unknown') : esc(uiDecimal(x)));
   const money = (x, currency) =>
-    x === null || x === undefined ? uiText('Unknown') : `${value(x)} ${esc(currency ?? '')}`;
+    x === null || x === undefined ? uiText('Unknown') : esc(uiDecimal(x, currency ? {currency} : {}));
+  const platform = id => pack.platform_names?.[id] ?? pretty(id ?? uiText('Source'));
+  const day = v =>
+    /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? ''))
+      ? uiDate(v + 'T00:00:00Z', {dateStyle: 'medium', timeZone: 'UTC'})
+      : String(v ?? '');
   const context = s =>
-    `${esc(s.platform)} · ${esc(s.account_id)} · ${esc(s.objective_group ? uiText(pretty(s.objective_group)) : uiText('All objectives'))}`;
+    `${esc(platform(s.platform))} · ${esc(s.account_id)} · ${esc(s.objective_group ? uiText(pretty(s.objective_group)) : uiText('All objectives'))}`;
   const charts = pack.summary.filter(s => Number.isFinite(s.metrics.ctr)).slice(0, 30);
   const scale = Math.max(1, ...charts.map(s => s.metrics.ctr));
   return `<article class="report-pack">
     <header><svg viewBox="0 0 1000 5" aria-hidden="true"><rect width="1000" height="5" fill="${esc(pack.presentation?.accent_color || '#354B67')}"/></svg><p class="eyebrow">AMCP · ${esc(pack.presentation?.brand_name || pack.client_name || uiText('Performance report'))}</p>
-      <h1>${esc(pack.title)}</h1><p>${esc(pack.date_range.since)} — ${esc(pack.date_range.until)} · ${esc(uiText('{grain} grouping', {grain: uiText(pretty(pack.grain))}))}</p>
+      <h1>${esc(pack.title)}</h1><p>${esc(day(pack.date_range.since))} — ${esc(day(pack.date_range.until))} · ${esc(uiText('{grain} grouping', {grain: uiText(pretty(pack.grain))}))}</p>
       <p>${esc(uiText('{state} snapshot · {count} source rows · Collected {date}', {state: uiText(pretty(pack.state)), count: uiNumber(pack.row_count), date: date(pack.created_at)}))}</p></header>
     ${pack.state === 'partial' ? `<p class="notice">${esc(uiText('Partial evidence: some sources or periods are incomplete. See source coverage before interpreting results.'))}</p>` : ''}
     <h2>${esc(uiText('Account and measurement summaries'))}</h2><p>${esc(uiText('Each row retains its own currency, timezone, attribution, conversion definition and reporting window.'))}</p>
     <div class="data-scroll" role="region" aria-label="${esc(uiText('Account performance, scroll for all metrics'))}" tabindex="0"><table class="review-table">
       <caption>${esc(uiText('Performance by account, objective and period'))}</caption>
       <thead><tr><th scope="col">${esc(uiText('Account / context'))}</th><th scope="col">${esc(uiText('Period'))}</th><th scope="col">${esc(uiText('Spend'))}</th><th scope="col">${esc(uiText('Impressions'))}</th><th scope="col">${esc(uiText('Clicks'))}</th><th scope="col">${esc(uiText('Conversions'))}</th><th scope="col">CPA</th></tr></thead>
-      <tbody>${pack.summary.map(s => `<tr><th scope="row">${context(s)}<small>${esc(s.timezone)}<br>${esc(s.result_definition)}<br>${esc(s.attribution)} · ${s.complete ? uiText('Complete') : uiText('Incomplete')}</small></th><td>${esc(s.date_from)}<br>${esc(s.date_to)}</td><td class="pack-value">${money(s.metrics.spend, s.currency)}</td><td class="pack-value">${value(s.metrics.impressions)}</td><td class="pack-value">${value(s.metrics.clicks)}</td><td class="pack-value">${value(s.metrics.conversions)}</td><td class="pack-value">${money(s.metrics.cpa, s.currency)}</td></tr>`).join('')}</tbody></table></div>
+      <tbody>${pack.summary.map(s => `<tr><th scope="row">${context(s)}<small>${esc(s.timezone)}<br>${esc(s.result_definition)}<br>${esc(s.attribution)} · ${s.complete ? uiText('Complete') : uiText('Incomplete')}</small></th><td>${esc(day(s.date_from))}<br>${esc(day(s.date_to))}</td><td class="pack-value">${money(s.metrics.spend, s.currency)}</td><td class="pack-value">${value(s.metrics.impressions)}</td><td class="pack-value">${value(s.metrics.clicks)}</td><td class="pack-value">${value(s.metrics.conversions)}</td><td class="pack-value">${money(s.metrics.cpa, s.currency)}</td></tr>`).join('')}</tbody></table></div>
     <h2>${esc(uiText('Click-through rate by account and period'))}</h2><p>${esc(uiText('Each bar uses compatible native totals. The shared scale runs from 0% to {scale}%; accounts are not combined.', {scale: uiNumber(scale, {maximumFractionDigits: 2})}))}${pack.summary.length > 30 ? ' ' + esc(uiText('The first 30 available ratios are shown; the table includes all groups.')) : ''}</p>
     ${
       charts.length
@@ -1053,13 +1197,13 @@ function reportPackBody(pack) {
             .map(s => {
               const rate = s.metrics.ctr,
                 width = Math.max(0, Math.min(100, (rate / scale) * 100));
-              return `<figure><figcaption>${context(s)} · ${esc(s.date_from)} — ${esc(s.date_to)}: ${value(rate)}%</figcaption><svg viewBox="0 0 500 18" role="img" aria-label="${esc(uiText('Click-through rate {rate} percent', {rate: uiNumber(rate, {maximumFractionDigits: 2})}))}"><rect width="500" height="18" fill="#ebe9f6"/><rect width="${width * 5}" height="18" fill="#5a43ad"/></svg></figure>`;
+              return `<figure><figcaption>${context(s)} · ${esc(day(s.date_from))} — ${esc(day(s.date_to))}: ${value(rate)}%</figcaption><svg viewBox="0 0 500 18" role="img" aria-label="${esc(uiText('Click-through rate {rate} percent', {rate: uiNumber(rate, {maximumFractionDigits: 2})}))}"><rect width="500" height="18" fill="#ebe9f6"/><rect width="${width * 5}" height="18" fill="#5a43ad"/></svg></figure>`;
             })
             .join('')
         : `<p>${esc(uiText('Click-through rate is unavailable in this snapshot.'))}</p>`
     }
     <h2>${esc(uiText('Source coverage'))}</h2>
-    ${pack.sources.map(s => `<section class="pack-evidence"><h3>${esc(pretty(s.platform ?? uiText('Source')))} · ${esc(s.account_id ?? uiText('Account'))}</h3><p>${s.complete ? uiText('Complete') : uiText('Incomplete')} · ${esc(uiText('{count} rows', {count: s.row_count == null ? uiText('Unknown') : uiNumber(s.row_count)}))}${s.error ? ' · ' + esc(s.error.code ?? uiText('Source error')) + ': ' + esc(s.error.message ?? uiText('Inspect source evidence for recovery details.')) : ''}</p><details><summary>${esc(uiText('Measurement definitions and source reference'))}</summary><dl><dt>${esc(uiText('Attribution'))}</dt><dd>${esc(s.attribution ?? uiText('Unknown'))}</dd><dt>${esc(uiText('Conversion definition'))}</dt><dd>${esc(s.result_definition ?? uiText('Unknown'))}</dd><dt>${esc(uiText('Query fingerprint'))}</dt><dd><code>${esc(s.query_fingerprint ?? uiText('Not supplied'))}</code></dd></dl></details></section>`).join('')}
+    ${pack.sources.map(s => `<section class="pack-evidence"><h3>${esc(platform(s.platform))} · ${esc(s.account_id ?? uiText('Account'))}</h3><p>${s.complete ? uiText('Complete') : uiText('Incomplete')} · ${esc(uiText('{count} rows', {count: s.row_count == null ? uiText('Unknown') : uiNumber(s.row_count)}))}${s.error ? ' · ' + esc(s.error.code ?? uiText('Source error')) + ': ' + esc(s.error.message ?? uiText('Inspect source evidence for recovery details.')) : ''}</p><details><summary>${esc(uiText('Measurement definitions and source reference'))}</summary><dl><dt>${esc(uiText('Attribution'))}</dt><dd>${esc(s.attribution ?? uiText('Unknown'))}</dd><dt>${esc(uiText('Conversion definition'))}</dt><dd>${esc(s.result_definition ?? uiText('Unknown'))}</dd><dt>${esc(uiText('Query fingerprint'))}</dt><dd><code>${esc(s.query_fingerprint ?? uiText('Not supplied'))}</code></dd></dl></details></section>`).join('')}
     <h2>${esc(uiText('Reading this report'))}</h2><ul>${pack.limitations.map(x => `<li>${esc(uiReportExplanation(x))}</li>`).join('')}</ul>
     <details class="pack-evidence"><summary>${esc(uiText('Snapshot and audit reference'))}</summary><p>${esc(uiText('Snapshot:'))} <code>${esc(pack.snapshot_id)}</code><br>${esc(uiText('Source hash:'))} <code>${esc(pack.source_hash)}</code></p></details>
     ${pack.presentation?.footer ? `<p>${esc(pack.presentation.footer)}</p>` : ''}

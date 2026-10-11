@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import {zonedMidnight} from './workflows.js';
 import {accountPlan, accountTimezone} from './workspace.js';
 import {reportPlatforms} from './report-metrics.js';
+import {microsoftReportZone} from './microsoft-timezones.js';
 import type {MirrorService} from './service.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 
@@ -12,10 +13,12 @@ import type {Actor, CompiledRequest, JsonObject} from './types.js';
  * could still be in progress anywhere.
  */
 export const unknownWindowTimezone = 'Etc/GMT+12';
-/** Report day boundaries fixed by each campaign collector, independent of account metadata. */
+/**
+ * Report day boundaries fixed by each campaign collector, independent of account metadata. Microsoft uses the account
+ * time zone (RPT-04, owner policy P6).
+ */
 export const fixedReportTimezones: Readonly<Record<string, string>> = Object.freeze({
   linkedin: 'UTC',
-  microsoft: 'Europe/London',
   apple: 'UTC',
   reddit: 'UTC',
   gsc: 'America/Los_Angeles',
@@ -108,6 +111,11 @@ export async function sourceReportTimezone(
   )) as JsonObject;
   if (out.dry_run || out.success !== true || !out.data || typeof out.data !== 'object')
     throw new MirrorError('REPORT_RESPONSE_INVALID', 'The reporting request did not return provider data.', {}, 502);
-  const zone = source.platform === 'ga4' ? (out.data.timeZone ?? null) : accountTimezone(platform.gateway, out.data);
+  const zone =
+    source.platform === 'ga4'
+      ? (out.data.timeZone ?? null)
+      : source.platform === 'microsoft'
+        ? microsoftReportZone(accountTimezone(platform.gateway, out.data)).timezone
+        : accountTimezone(platform.gateway, out.data);
   return knownZone(zone) ? zone : null;
 }
