@@ -86,6 +86,19 @@ const percent = (v: unknown) => {
   return (v as JsonObject).percentage as number;
 };
 
+/**
+ * The cursor of the next page, or undefined on the last page. A page that announces more (paging.next) without a usable
+ * cursor is refused, never treated as the last page, so a partial list is never reported complete.
+ */
+function nextCursor(paging: unknown, message: string): string | undefined {
+  if (paging === undefined) return undefined;
+  if (!obj(paging)) invalid(message);
+  const p = paging as JsonObject;
+  if (p.next === undefined) return undefined;
+  const after = obj(p.cursors) ? (p.cursors as JsonObject).after : undefined;
+  if (typeof after !== 'string' || !after || after.length > 1024) invalid(message);
+  return after as string;
+}
 /** Every pixel the ad account lists, from complete pages; ownership of each is learned for this connection. */
 async function pixels(context: ReadContext) {
   const base = plan(context.account, metaPrefix + 'act_' + context.account + '/adspixels', {
@@ -132,14 +145,9 @@ async function pixels(context: ReadContext) {
     pages.push(pageReference(page, (data.data as unknown[]).length, data));
     // Ownership is learned from each validated page of the account's own list (ScopeGuard.observe).
     new ScopeGuard(context.registry, context.store).observe(last, context.connection, data);
-    const paging = data.paging,
-      next =
-        obj(paging) && paging.next !== undefined && obj(paging.cursors)
-          ? (paging.cursors as JsonObject).after
-          : undefined;
-    if (paging !== undefined && !obj(paging)) invalid('Meta pixel pagination is malformed.');
+    const next = nextCursor(data.paging, 'Meta pixel pagination is malformed, repeated or incomplete.');
     if (next === undefined) break;
-    if (typeof next !== 'string' || !next || next.length > 1024 || cursors.has(next) || !(data.data as []).length)
+    if (cursors.has(next) || !(data.data as []).length)
       invalid('Meta pixel pagination is malformed, repeated or incomplete.');
     cursors.add(next);
     after = next;
@@ -205,13 +213,9 @@ async function stats(context: ReadContext, pixel: string) {
     }
     context.budget.rows('stats:' + page, (data.data as unknown[]).length);
     pages.push(pageReference(page, (data.data as unknown[]).length, data));
-    const paging = data.paging,
-      next =
-        obj(paging) && paging.next !== undefined && obj(paging.cursors)
-          ? (paging.cursors as JsonObject).after
-          : undefined;
+    const next = nextCursor(data.paging, 'Meta pixel statistics pagination is malformed, repeated or incomplete.');
     if (next === undefined) break;
-    if (typeof next !== 'string' || !next || next.length > 1024 || cursors.has(next) || !(data.data as []).length)
+    if (cursors.has(next) || !(data.data as []).length)
       invalid('Meta pixel statistics pagination is malformed, repeated or incomplete.');
     cursors.add(next);
     after = next;

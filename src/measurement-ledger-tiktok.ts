@@ -65,13 +65,15 @@ async function pixels(context: ReadContext) {
       d = data.data;
     if (data.code !== 0 || !obj(d) || !Array.isArray(d.pixels) || d.pixels.length > pageSize)
       invalid('TikTok returned a failed, partial or unrecognized pixel list.');
+    // The page totals are required: without them a partial list could not be told from a complete one.
     const info = obj(d.page_info) ? (d.page_info as JsonObject) : {},
-      pagesTotal = info.total_page ?? 1,
+      pagesTotal = info.total_page,
       number = info.total_number;
     if (
       !Number.isSafeInteger(pagesTotal) ||
       pagesTotal < 0 ||
-      (number !== undefined && (!Number.isSafeInteger(number) || number < 0)) ||
+      !Number.isSafeInteger(number) ||
+      number < 0 ||
       (page > 1 && pagesTotal !== total)
     )
       invalid('TikTok returned an invalid or changing page count.');
@@ -102,7 +104,7 @@ async function pixels(context: ReadContext) {
     }
     context.budget.rows('pixels:' + page, (d.pixels as unknown[]).length);
     pages.push(pageReference(page, (d.pixels as unknown[]).length, data));
-    if (page === total && number !== undefined && number !== rows.length)
+    if (page === total && number !== rows.length)
       invalid('The native count shows the TikTok pixel list is incomplete.');
   }
   context.references.push(ledgerReference('pixel_list', plan(context.account, 1), pages, rows.length));

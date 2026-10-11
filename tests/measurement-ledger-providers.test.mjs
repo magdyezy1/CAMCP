@@ -271,6 +271,11 @@ test('MSR-03 partial, foreign or out-of-contract Meta evidence leaves its layer 
       'provider_observed_activity',
     ],
     [
+      'stats announcing more without a cursor',
+      {stats: () => ({data: metaStats().data, paging: {next: 'https://graph.facebook.com/next', cursors: {}}})},
+      'provider_observed_activity',
+    ],
+    [
       'repeated stats cursor',
       {
         stats: () => ({
@@ -331,6 +336,11 @@ test('MSR-03 partial, foreign or out-of-contract Meta evidence leaves its layer 
   for (const [name, list] of [
     ['malformed id', () => ({data: [{id: 'act_9'}]})],
     ['repeated pixel', () => ({data: [metaPixel('701'), metaPixel('701')]})],
+    // Regression: a page announcing more pixels without a cursor was taken as the last page (a partial list as complete).
+    [
+      'more pages without a cursor',
+      () => ({data: [metaPixel('701')], paging: {next: 'https://graph.facebook.com/next'}}),
+    ],
     ['unrequested field', () => ({data: [{...metaPixel('701'), code: '<script>'}]})],
   ]) {
     const f = metaFixture(t, {list}),
@@ -732,6 +742,8 @@ test('MSR-03 TikTok ledger lists the advertiser’s pixels and leaves unpinned p
 test('MSR-03 partial, changing or unsafe TikTok pixel lists are refused, never mapped', async t => {
   for (const [name, list] of [
     ['provider error', () => ({code: 40001, message: 'No permission', data: {}})],
+    // Regression: without page totals a partial list could not be told from a complete one.
+    ['no page totals', () => ({code: 0, message: 'OK', data: {pixels: [tiktokPixel('7100000000000000001')]}})],
     ['count mismatch', () => tiktokPage([tiktokPixel('7100000000000000001')], {total_number: 3})],
     ['unsafe numeric id', () => tiktokPage([tiktokPixel(7100000000000000001)])],
     ['repeated pixel', () => tiktokPage([tiktokPixel('7100000000000000001'), tiktokPixel('7100000000000000001')])],
