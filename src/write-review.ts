@@ -43,6 +43,7 @@ import {setTimeout as pause} from 'node:timers/promises';
 import {writeOutcome} from './write-outcome.js';
 import {validateState} from './write-state.js';
 import {assertWriteShape} from './write-shape.js';
+import {wireContractCheck} from './wire-contracts.js';
 import {snapshotPlans} from './write-snapshots.js';
 import {
   confirmations,
@@ -794,11 +795,14 @@ export class WriteReviewService {
           ...(input.provider_check === true ? {provider_check: true} : {}),
         },
       });
+      // PRV-05 shadow mode: a body that differs from its pinned vendor contract is recorded with the review.
+      const wire = wireContractCheck(plan);
       this.store.appendAudit(actor.tenantId, reviewId, {
         event: 'write_prepared',
         request: plan,
         fingerprint,
         expires_at: expiresAt,
+        ...(wire?.status === 'violations' ? {wire_contract: wire} : {}),
       });
       return {
         success: true,

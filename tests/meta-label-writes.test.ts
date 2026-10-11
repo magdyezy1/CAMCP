@@ -19,6 +19,7 @@ import {Introspection} from '../src/introspection.js';
 import {removeTestDirectory} from './temp.js';
 import type {Connection, JsonObject} from '../src/types.js';
 import {currentMetaRecord} from '../src/meta-version.js';
+import {assertRefused} from './helpers/assert-refused.js';
 
 const gateway = 'meta_native_action',
   registry = new Registry(),
@@ -273,7 +274,7 @@ test('invalid label payloads and native bypasses are blocked before mutation', a
         {action: 'prepare', gateway, arguments: {...arguments_(cases[3]), payload}},
         actor,
       );
-      assert.equal(r.success, false);
+      assertRefused(r, ['META_LABEL_INVALID', 'WRITE_CONTRACT_UNAVAILABLE']);
     }
     for (const row of cases) {
       const r = await f.service.call(
@@ -309,7 +310,7 @@ test('foreign labels, omitted membership, incomplete pagination and failed reads
         {action: 'prepare', gateway, arguments: arguments_(cases[3])},
         actor,
       );
-      assert.equal(r.success, false, mode);
+      assertRefused(r, ['META_LABEL_STATE_UNVERIFIED', 'PLATFORM_ERROR']);
       assert.equal(f.writes(), 0);
     } finally {
       f.store.close();
@@ -329,7 +330,7 @@ test('revoked write grants and Ads scopes block execution including revocation d
           {accessToken: 'synthetic'},
         );
       const e = await f.service.call('amcp_write', execution(r), actor);
-      assert.equal(e.success, false);
+      assertRefused(e, ['WRITE_ACCOUNT_FORBIDDEN', 'INSUFFICIENT_SCOPE']);
       assert.equal(f.writes(), 0);
     } finally {
       f.store.close();
@@ -342,8 +343,14 @@ test('unknown and partial receipts and lost responses retain their single durabl
     try {
       const r = await prepare(f);
       f.mode(mode);
-      assert.equal((await f.service.call('amcp_write', execution(r), actor)).success, false);
-      assert.equal((await f.service.call('amcp_write', execution(r), actor)).success, false);
+      assertRefused(await f.service.call('amcp_write', execution(r), actor), [
+        'WRITE_PARTIAL_OR_FAILED',
+        'WRITE_OUTCOME_UNCERTAIN',
+      ]);
+      assertRefused(await f.service.call('amcp_write', execution(r), actor), [
+        'WRITE_PARTIAL_OR_FAILED',
+        'WRITE_OUTCOME_UNCERTAIN',
+      ]);
       assert.equal(f.writes(), 1);
       assert.equal(f.store.ownsResource(f.c, '123', '43'), false);
     } finally {
@@ -533,7 +540,7 @@ test('label deletion follows current owner policy and reviews remain private to 
     const denied = await f.service.call('amcp_write', execution(r), actor);
     assert.equal(denied.error.code, 'POLICY_DELETION_FORBIDDEN');
     const foreign = await f.service.call('amcp_write', execution(r), {...actor, tenantId: 'unrelated'});
-    assert.equal(foreign.success, false);
+    assertRefused(foreign, 'NOT_FOUND');
     assert.equal(f.writes(), 0);
   } finally {
     f.store.close();
@@ -562,12 +569,12 @@ test('a lost label receipt remains claimed after SQLite reopen', async () => {
   try {
     const r = await prepare(f);
     f.mode('lost');
-    assert.equal((await f.service.call('amcp_write', execution(r), actor)).success, false);
+    assertRefused(await f.service.call('amcp_write', execution(r), actor), 'WRITE_OUTCOME_UNCERTAIN');
     assert.equal(f.writes(), 1);
     f.store.close();
     f = fixture(file);
     const replay = await f.service.call('amcp_write', execution(r), actor);
-    assert.equal(replay.success, false);
+    assertRefused(replay, 'WRITE_OUTCOME_UNCERTAIN');
     assert.equal(f.writes(), 0);
   } finally {
     f.store.close();

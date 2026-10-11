@@ -9,6 +9,7 @@ import {ownerOperations} from '../dist/src/owner-operations.js';
 import {reviewFriction} from '../dist/src/review-friction.js';
 import {capOverrides} from '../dist/src/cap-overrides.js';
 import {MirrorError} from '../dist/src/errors.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 /**
  * WRT-05 Stages D and F. Under enforcement `confirm` any operator could execute over an owner's cap with
@@ -228,7 +229,7 @@ test('a confirmed over-cap execution refused before it was sent is not listed as
         operator,
       );
     const refused = await execute();
-    assert.equal(refused.success, false);
+    assertRefused(refused, 'CIRCUIT_OPEN');
     assert.equal(posts, 0);
     assert.ok(
       store

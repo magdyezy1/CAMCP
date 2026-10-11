@@ -7,6 +7,7 @@ import {NativeTransport} from '../dist/src/transport.js';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
 import {assertWriteShape} from '../dist/src/write-shape.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 /**
  * Meta budget scheduling (high demand periods), opened by the owner on 2026-09-29 on conditions. Meta's references (read
@@ -190,7 +191,7 @@ test('a scheduled increase is reviewed in the account time zone with its maximum
     assert.equal(impact.max_extra_spend_native, 2000);
     assert.match(impact.cancellation, /cannot cancel/i);
     assert.equal(p.data.execute_requirements.spend_change_confirmed, true);
-    assert.equal((await f.execute(p)).success, false);
+    assertRefused(await f.execute(p), 'SPEND_CONFIRMATION_REQUIRED');
     assert.equal(f.writes(), 0);
     ok(await f.execute(p, {spend_change_confirmed: true}));
     assert.equal(f.writes(), 1);

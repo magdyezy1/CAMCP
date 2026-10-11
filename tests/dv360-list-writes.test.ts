@@ -9,6 +9,7 @@ import {saveSpendPolicy} from '../src/spend-policy.js';
 import {dv360ListOutcome, validateDV360ListState} from '../src/dv360-list-writes.js';
 import type {JsonObject} from '../src/types.js';
 import type {CompiledRequest} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 
 const gateway = 'dv360_native_action',
   registry = new Registry(),
@@ -336,7 +337,12 @@ test('foreign rows, failed pages, repeated cursors and grant revocation never pr
       if (mode === 'cycle') f.cycle();
       if (mode === 'revoke') f.revoke();
       const p = await f.prepare('REPLACE', true, {newNegativeKeywords: []});
-      assert.equal(p.success, false, mode + JSON.stringify(p));
+      assertRefused(p, [
+        'STATE_TARGET_MISMATCH',
+        'PROVIDER_ACCESS_DENIED',
+        'INCOMPLETE_STATE',
+        'WRITE_ACCOUNT_FORBIDDEN',
+      ]);
       assert.equal(f.writes(), 0);
       if (mode === 'revoke') assert.equal(f.pages(), 1);
     } finally {
@@ -359,7 +365,7 @@ test('partner overrides, output fields, wrong IDs, oversized names and malformed
   ] as [string, boolean, JsonObject][]) {
     const f = fixture(row);
     try {
-      assert.equal((await f.prepare(verb, child, body)).success, false);
+      assertRefused(await f.prepare(verb, child, body), ['ACCOUNT_SCOPE_MISMATCH', 'INVALID_VENDOR_BODY']);
       assert.equal(f.calls.length, 0);
     } finally {
       f.store.close();
@@ -411,7 +417,7 @@ test('partial bulk receipts are retained as failures and cannot cause automatic 
     assert.equal(p.success, true);
     f.partial();
     const e = await f.execute(p);
-    assert.equal(e.success, false);
+    assertRefused(e, 'WRITE_PARTIAL_OR_FAILED');
     assert.equal((await f.execute(p)).data.replayed, true);
     assert.equal(f.writes(), 1);
   } finally {

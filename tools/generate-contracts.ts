@@ -146,7 +146,7 @@ lines.push(
   '',
   'Google Ads ' +
     googleAdsVersion +
-    ': native RPC mappings are checked against the official Discovery document, with nested field/type/enum request validation. The generated vendor-method inventory identifies the current methods outside the captured catalog. Microsoft: six pinned WSDL documents with namespace-aware type declarations, inheritance, restrictions and operation correspondence. SOAP evidence does not establish JSON wire parity. No new operation gains write permission from ingestion.',
+    ': native RPC mappings are checked against the official Discovery document, with nested field/type/enum request validation. The generated vendor-method inventory identifies the current methods outside the captured catalog. Microsoft: six pinned WSDL documents with namespace-aware type declarations, inheritance, restrictions and operation correspondence. SOAP evidence does not establish JSON wire parity. No new operation gains write permission from ingestion. The same nested request check covers every other route with a pinned request schema (Tag Manager, GA4, Search Console, Business Profile, Display & Video 360, Microsoft and, once pinned, Data Manager), in shadow mode unless `AMCP_WIRE_CONTRACTS=enforce`; see [Pinned vendor contracts](WRITE-OPERATIONS.md#pinned-vendor-contracts).',
   '',
   '## Help and introspection',
   '',

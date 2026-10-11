@@ -45,7 +45,7 @@ Every entry point (HTTP, worker, stdio) reads the environment once through `serv
 
 Set `MIRROR_ALLOW_WRITES=true` to enable `amcp_write` prepare and execute (a read-only deployment lists it with `inspect` only), grant specific accounts, and issue operator access. The review service reads provider state, freezes requests for five minutes, verifies state again before submission, and persists idempotency across restarts. Lost or partial responses are retained and must be reconciled before new submissions. There is no automatic rollback. See [write operations](WRITE-OPERATIONS.md).
 
-Reviewed-write execution switches, each optional and read at call time (`.env.example` lists them with their defaults): `AMCP_WRITE_NOT_SENT_RELEASE=false` records a refusal raised before the request was sent as uncertain again instead of releasing the claim; `AMCP_WRITE_TARGET_LOCK=false` stops serializing executes of one target and `AMCP_WRITE_TARGET_WAIT_MS` (default 10000, at most 60000) bounds how long a second execute waits before `STATE_BUSY`; `AMCP_WRITE_GROUP_PART_SECONDS` (0-120) fixes the time each group part is given; `AMCP_PLAN_SUMMARY_HASH=false` accepts a plan approval by `plan_hash` alone; `AMCP_PROVIDER_VALIDATION` (true or false only) lets a read-only deployment run provider validation. See [write operations](WRITE-OPERATIONS.md).
+Reviewed-write execution switches, each optional and read at call time (`.env.example` lists them with their defaults): `AMCP_WRITE_NOT_SENT_RELEASE=false` records a refusal raised before the request was sent as uncertain again instead of releasing the claim; `AMCP_WRITE_TARGET_LOCK=false` stops serializing executes of one target and `AMCP_WRITE_TARGET_WAIT_MS` (default 10000, at most 60000) bounds how long a second execute waits before `STATE_BUSY`; `AMCP_WRITE_GROUP_PART_SECONDS` (0-120) fixes the time each group part is given; `AMCP_PLAN_SUMMARY_HASH=false` accepts a plan approval by `plan_hash` alone; `AMCP_PROVIDER_VALIDATION` (true or false only) lets a read-only deployment run provider validation; `AMCP_WIRE_CONTRACTS` (`shadow` by default, `enforce` or `off`; anything else stops startup) decides what a request body that differs from its pinned vendor contract does, with violations counted per gateway as `wire_contract_violations` in owner health. See [write operations](WRITE-OPERATIONS.md) and its [pinned vendor contracts](WRITE-OPERATIONS.md#pinned-vendor-contracts).
 
 `MIRROR_FLAGS` takes a JSON object of opt-in enhancements. `{"compactSchemas":true}` lists each action once in the
 tool schemas: the DV360 tool otherwise lists all 173 actions twice, with and without the `DV360_` prefix, and the
@@ -482,9 +482,10 @@ The maintained GitHub workflow defines Docker builds and synthetic read-only/wri
 (owner decision D25 in [decisions](DECISIONS.md)); delivery notes cite its `source_tree_hash` instead of retyping counts.
 
 - **Stages.** The deterministic freshness gates run first: TypeScript build, release identity, format check, the
-  `generate:*` checks, `report -- --check`, `contracts:check`, `contracts:actions:check` and `docs:index:check`. The
-  full profile then probes FFmpeg and ffprobe, runs the suite with `AMCP_REQUIRE_FFMPEG=true`, the capture tests,
-  `check:web` and the provider checks. Each stage records argv, exit code, duration, output SHA-256 and the test
+  test-oracle ratchet (`check:oracles`), the `generate:*` checks, `report -- --check`, `contracts:check`,
+  `contracts:actions:check` and `docs:index:check`. The full profile then probes FFmpeg and ffprobe, runs the suite
+  with `AMCP_REQUIRE_FFMPEG=true`, the capture tests, the mutant catalogue (`mutant_catalogue`), `check:web` and the
+  provider checks. Each stage records argv, exit code, duration, output SHA-256 and the test
   totals (total, pass, fail, skipped, cancelled). Any skipped test fails the run unless named with
   `--allow-skip "<test name>"`; without FFmpeg the run fails at `ffmpeg_probe` (`FFMPEG_UNAVAILABLE`).
 - **Bytes.** The record holds `source_tree_hash` (equal to a release candidate's manifest for the same tree), revision,
@@ -495,6 +496,26 @@ The maintained GitHub workflow defines Docker builds and synthetic read-only/wri
 - **Reuse.** `--reuse` still runs every freshness gate. A later commit whose changes lie outside the package scope and
   `tests/` (for example docs only) and whose rebuilt package digest and asset version are equal is recorded with
   `reuse_of` instead of rerunning the suites; anything else runs the full profile again.
+- **Test oracles (QA-02).** A test that expects a refusal names it: `assertRefused(result, 'CODE', {writes})`
+  (`tests/helpers/assert-refused.mjs`, `.ts`) also fails on `INTERNAL_ERROR` and on any provider write.
+  `npm run check:oracles` (`tools/check-test-oracles.mjs`) counts code-less `success === false` assertions and
+  `assert.throws`/`rejects` without a matcher per test file against `tests/fixtures/test-oracle-allowance.json`: a new
+  one fails, write, auth and export test files are held at zero, and `--update` lowers counts after a burn-down
+  (`tools/oracle-burndown.mjs` rewrites only sites whose observed refusal was named, never a crash).
+  `tools/refusal-exits.mjs` lists every refusal on the write, export and schedule paths that leaves something paused,
+  busy, uncertain or expired, each with its exit test or the reason it is terminal (`tests/fixtures/refusal-exits.json`).
+  `tests/reviewed-family-conformance.test.mjs` drives each family descriptor (`tests/family-descriptors/`) through
+  review, a decisive change (`STATE_CHANGED`), a paginated snapshot and a partial answer; families still without one
+  are listed under a ceiling that only falls. Contract-faithful fakes (`tests/helpers/contract-fakes.mjs`) check a
+  fake's requests against the pinned vendor contracts PRV-05 enforces, with generators for provider doubles and
+  cursor pages; `tests/schedule-timezone-sweep.test.mjs` sweeps every IANA zone over 2026-2027.
+- **Mutant catalogue.** `node tools/mutants.mjs [--only <id>]` copies the candidate (tracked and untracked sources and
+  the built `dist/`) to `.runtime/mutants/`, applies each catalogued defect of `tests/fixtures/mutant-catalogue.json`
+  to its compiled module in turn, and runs the tests named to kill it, then the critical set. Every mutant must be
+  killed: a survivor or an edit that no longer applies fails the full profile. The first full run (33 mutants,
+  2026-10-11) killed 22 and recorded 10 survivors and one timeout; each survivor was then given a killing test or
+  replaced where the guard is redundant by design (a second check refuses the same case), and the catalogue now runs
+  with all 33 killed. Add a mutant together with the test that kills it.
 - **Fast gate.** `npm run check:fast` runs only the freshness gates and writes no record. `tools/pre-push.sample` runs it
   before a push; opt in with `cp tools/pre-push.sample .git/hooks/pre-push` (never installed automatically).
 - **Related tests.** `npm run test:related` selects by import-graph closure, adds the tests that read a changed `web/`

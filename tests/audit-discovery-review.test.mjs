@@ -7,6 +7,7 @@ import {WebStore} from '../dist/server/web-store.js';
 import {reauthorizeGoogleConnection, googleAdsScope} from '../dist/server/google-reauthorization.js';
 import {normalizeSnapshot, reviewStateHash} from '../dist/src/review-state.js';
 import {compileEntityRead} from '../dist/src/workflows.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 const key = Buffer.alloc(32, 65).toString('base64'),
   actor = {tenantId: 'local', userId: 'owner', role: 'admin'};
 const setup = gateway => {
@@ -182,7 +183,10 @@ test('review comparison treats GAQL rows by identity while protecting meaningful
     reviewStateHash(normalizeSnapshot(read, {results: [...rows].reverse()})),
   );
   for (const bad of [[rows[0], rows[0]], [rows[0]], [{campaign: {name: 'Missing identity'}}]])
-    assert.throws(() => normalizeSnapshot(read, {results: bad}));
+    assert.throws(
+      () => normalizeSnapshot(read, {results: bad}),
+      e => assertRefused(e, ['STATE_RESOURCE_INVALID', 'STATE_RESOURCE_MISMATCH']),
+    );
   const changed = structuredClone(rows);
   changed[1].campaign.name = 'Meaningful change';
   assert.notEqual(

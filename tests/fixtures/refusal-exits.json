@@ -1,0 +1,168 @@
+{
+  "description": "QA-02 liveness pairs: every refusal on the reviewed-write, export and schedule paths that leaves something blocked, paused, busy, expired or uncertain names the test that proves its documented way out, or is terminal with the reason. Checked by tools/refusal-exits.mjs (tests/liveness-exits.test.mjs). A new blocking code needs an entry here: write its exit test first. No exit may resend a request whose outcome is unknown without an explicit, audited decision.",
+  "exits": {
+    "CIRCUIT_OPEN": {
+      "exit": "Refused before sending; the claim is released and the same review executes once the circuit closes.",
+      "test": "tests/write-not-sent.test.mjs",
+      "title": "the claim is released when"
+    },
+    "DATABASE_BUSY": {
+      "exit": "Nothing is half-applied; the same action succeeds once the SQLite contention clears.",
+      "test": "tests/health-storage-diagnostics.test.mjs",
+      "title": "SQLite contention becomes DATABASE_BUSY"
+    },
+    "EXPORT_BUSY": {
+      "exit": "Refused before any Sheets request; the export delivers once the other export releases the tab or its lock lapses.",
+      "test": "tests/sheets-authority.test.mjs",
+      "title": "Sheets busy destination refuses before any request, then delivers"
+    },
+    "EXPORT_LEASE_LOST": {
+      "exit": "Nothing is written; the export job's retry delivers under its own lease.",
+      "test": "tests/sheets-authority.test.mjs",
+      "title": "Sheets lost destination lease sends nothing, and the retried export delivers"
+    },
+    "JOB_REAUTHORIZATION_REQUIRED": {
+      "exit": "The job stops before any request; an authorized member's explicit resume binds the job to them and it runs once.",
+      "test": "tests/audit-authority.test.mjs",
+      "title": "explicit authorized resume succeeds once"
+    },
+    "MEDIA_INSPECTION_BUSY": {
+      "exit": "Retryable; the next inspection runs once the workspace's slot is released, also after a failure.",
+      "test": "tests/drive-inspection.test.mjs",
+      "title": "one Drive inspection runs per workspace at a time"
+    },
+    "MEDIA_MEMORY_BUSY": {
+      "exit": "A queued upload waits out the other media work and runs once.",
+      "test": "tests/media-admission.test.ts",
+      "title": "a queued upload waits out another tenant’s media work and runs once"
+    },
+    "MEDIA_PROCESSOR_BUSY": {
+      "exit": "The worker retries pre-claim contention with jitter inside the review window.",
+      "test": "tests/media-admission.test.ts",
+      "title": "the worker retries only pre-claim media contention"
+    },
+    "MEDIA_UPLOAD_BUSY": {
+      "exit": "A concurrent resume shares the durable media lock; the upload completes once.",
+      "test": "tests/linkedin-media-resume.test.mjs",
+      "title": "LinkedIn concurrent resumes share the existing durable media lock"
+    },
+    "MEDIA_UPLOAD_LEASE_LOST": {
+      "exit": "The upload stops at the next boundary and resumes under its original review once the lease is free.",
+      "test": "tests/linkedin-media-resume.test.mjs",
+      "title": "LinkedIn resumes after a real process exit once its short lease expires"
+    },
+    "PARTIAL_DELIVERY_BLOCKED": {
+      "exit": "A complete-only schedule skips a partial run without failing; the schedule stays active for its next complete run.",
+      "test": "tests/sheets-delivery-ownership.test.mjs",
+      "title": "scheduled partial runs are skipped, not failed"
+    },
+    "PLATFORM_RATE_LIMIT": {
+      "exit": "Refused before sending; the claim is released and the same review executes once the cooldown ends.",
+      "test": "tests/write-not-sent.test.mjs",
+      "title": "the claim is released when"
+    },
+    "PROVIDER_COORDINATION_BUSY": {
+      "exit": "Bounded refusal while pacing debt is active; once the entries age out the coordinator accepts work again.",
+      "test": "tests/operations-recovery.test.mjs",
+      "title": "provider pacing maps prune inactive entries and fail boundedly"
+    },
+    "REAUTHORIZATION_REQUIRED": {
+      "exit": "Reconnecting renews the same connection in place, keeping its selections, saved queries, schedules and write grants.",
+      "test": "tests/connection-reauthorization.test.mjs",
+      "title": "renewal keeps the connection id, selections, saved query, schedule and write grants"
+    },
+    "REFRESH_IN_PROGRESS": {
+      "exit": "The saved login is kept; the renewal completes once the refresh releases its lock.",
+      "test": "tests/connection-reauthorization.test.mjs",
+      "title": "concurrent refresh, disconnect, replacement and narrowed selections are fenced"
+    },
+    "REVIEW_EXPIRED": {
+      "exit": "Nothing was sent; the refusal's next_call prepares the same change again, and that review executes once.",
+      "test": "tests/liveness-exits.test.mjs",
+      "title": "an expired review is prepared again from its next_call and executes once"
+    },
+    "REVISION_CONFLICT": {
+      "exit": "Nothing is saved; a save with the current revision succeeds.",
+      "test": "tests/spend-policy-revisions.test.mjs",
+      "title": "a stale expected_revision is refused with 409 and nothing is saved; the current one saves the next revision"
+    },
+    "SCHEDULE_UNRESOLVED": {
+      "exit": "The schedule stays active and its next occurrence is evaluated again later (owner decision D13).",
+      "test": "tests/schedule-dst.test.ts",
+      "title": "an unresolved following occurrence keeps the schedule active and re-evaluates later"
+    },
+    "SHEETS_DELIVERY_UNRESOLVED": {
+      "exit": "After the settle window the older batch is resent identically once; the newer report then delivers.",
+      "test": "tests/sheets-authority.test.mjs",
+      "title": "Sheets newer report delivers once the unresolved delivery settles"
+    },
+    "SHEETS_OUTCOME_UNKNOWN": {
+      "exit": "Polled without a resend inside the settle window, then the identical batch is resent once (owner decision D11).",
+      "test": "tests/sheets-authority.test.mjs",
+      "title": "Sheets unconfirmed delivery resends its identical batch once after the settle window and completes"
+    },
+    "SHEETS_RELEASE_REQUIRED": {
+      "exit": "An audited release frees the tab; Retry is offered after it.",
+      "test": "tests/sheets-delivery-recovery.test.mjs",
+      "title": "a Sheets marker conflict offers Retry only after the tab is released"
+    },
+    "SHEETS_SETTLE_WINDOW": {
+      "exit": "Check again works at once; resend and release open after the settle window.",
+      "test": "tests/sheets-delivery-recovery.test.mjs",
+      "title": "Sheets resolve_delivery check, resend and abandon are audited and refused inside the settle window"
+    },
+    "SHEET_OWNERSHIP_CONFLICT": {
+      "exit": "Duplicate markers block until an audited release, after which one marker remains and delivery continues.",
+      "test": "tests/sheets-delivery-recovery.test.mjs",
+      "title": "Sheets duplicate legacy markers block until an audited release, then one marker remains"
+    },
+    "STALE_JOB_LEASE": {
+      "exit": "The expired worker cannot publish; the current lease generation completes the job.",
+      "test": "tests/multi-worker-queue.test.mjs",
+      "title": "expired actual worker cannot complete the next lease generation"
+    },
+    "STALE_REPORT_SCHEDULE": {
+      "exit": "Refresh the schedule detail and preview again with its current version.",
+      "test": "tests/workbook-schedules.test.mjs",
+      "title": "editing a schedule binds its current query revision and changes only future occurrences"
+    },
+    "STATE_BUSY": {
+      "exit": "Refused unsent with the claim released; the same review executes once the target lock is free.",
+      "test": "tests/write-target-serialization.test.mjs",
+      "title": "a lock lost before dispatch refuses the write unsent and releases its claim"
+    },
+    "STATE_CONFLICT": {
+      "exit": "Once the conflict is resolved in Tag Manager, the same sync reviews normally.",
+      "test": "tests/gtm-workspace-writes.test.ts",
+      "title": "an existing conflict blocks sync or preview"
+    },
+    "TARGETING_PARENT_NOT_PAUSED": {
+      "exit": "Pause the line item with its own reviewed change; the same targeting change then reviews and runs.",
+      "test": "tests/x-targeting-writes.test.ts",
+      "title": "and runs once it is paused"
+    },
+    "TENANT_RATE_LIMIT": {
+      "exit": "Refused before sending; the claim is released and the same review executes once the budget refills.",
+      "test": "tests/write-not-sent.test.mjs",
+      "title": "the claim is released when"
+    },
+    "WRITES_PAUSED": {
+      "exit": "Prepare continues during a pause; resume restores execute of the same review.",
+      "test": "tests/write-not-sent.test.mjs",
+      "title": "the claim is released when"
+    },
+    "WRITE_OUTCOME_UNCERTAIN": {
+      "exit": "The uncertain review is never sent again; after inspecting the account, a new review prepared from the current read executes once.",
+      "test": "tests/liveness-exits.test.mjs",
+      "title": "an uncertain write is never resent, and a new review from the current read executes once"
+    }
+  },
+  "terminal": {
+    "CREATIVE_IDENTITY_CONFLICT": "A creative that names a foreign Page, Instagram account or source is refused for good; the caller prepares it with the account's own identity, as a new request.",
+    "IDEMPOTENCY_CONFLICT": "A key reused with a different request: the original keeps its receipt and is replayed for its own request; a different request takes a new key.",
+    "JOB_CANCELLED": "The job stops because its report or schedule was edited, paused or removed; nothing is written, and the schedule's next run uses its current definition.",
+    "MEDIA_LINK_BLOCKED": "The egress policy refuses the host or address; the caller supplies an approved public HTTPS or Drive source. The policy is never worked around.",
+    "MEDIA_UPLOAD_URL_EXPIRED": "The provider's upload instructions expired before any bytes were sent; the allocated media is retained for amcp_media recovery, and another upload is prepared deliberately, never automatically.",
+    "REVIEWED_FAMILY_CONFLICT": "Two family modules claim the same route: a build-time defect refused at startup, fixed in the registration, never at run time."
+  }
+}

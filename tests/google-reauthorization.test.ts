@@ -19,6 +19,7 @@ import {
   reauthorizeGoogleConnection,
 } from '../server/google-reauthorization.js';
 import type {Actor, Connection, Credentials, JsonObject} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 
 const key = Buffer.alloc(32, 37).toString('base64'),
   origin = 'https://amcp.shop',
@@ -351,15 +352,17 @@ test('reauthorization requires reporting scope and offline access, and coordinat
   try {
     for (const extra of [{scopes: ['openid']}, {credentials: {...fresh, refreshToken: undefined}}]) {
       let calls = 0;
-      await assert.rejects(() =>
-        renew(
-          store,
-          async () => {
-            calls++;
-            throw Error('No egress expected');
-          },
-          extra,
-        ),
+      await assert.rejects(
+        () =>
+          renew(
+            store,
+            async () => {
+              calls++;
+              throw Error('No egress expected');
+            },
+            extra,
+          ),
+        e => assertRefused(e, ['INSUFFICIENT_SCOPE', 'REAUTHORIZATION_REQUIRED']),
       );
       assert.equal(calls, 0);
     }

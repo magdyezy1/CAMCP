@@ -8,6 +8,7 @@ import {MirrorService} from '../dist/src/service.js';
 import {Registry} from '../dist/src/catalog.js';
 import {withheldWorkbookRecords} from '../dist/src/withheld-workbook-records.js';
 import {guidanceCoverage, writePathModules} from '../dist/tools/guidance-coverage.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 const owner = {tenantId: 'withheld-workbooks', userId: 'owner', role: 'admin'},
   connection = '33333333-3333-4333-8333-333333333333',
@@ -94,7 +95,7 @@ test('owner health counts withheld workbook runs and schedules by reason and exp
     }
     // A reader never sees the owner's health.
     const reader = await service.call('amcp_workspace', {action: 'health'}, {...owner, userId: 'r', role: 'reader'});
-    assert.equal(reader.success, false);
+    assertRefused(reader, 'OWNER_REQUIRED');
   } finally {
     store.close();
   }

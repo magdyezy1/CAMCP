@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {gateway, account, budgetAction, budgetName, googleBudgetFixture} from './fixtures/google-budget-writes.mjs';
 import {scopeKey} from '../dist/src/security.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 /**
  * WRT-04 Stage A (owner decision D12): a refusal raised after execute claimed its key but before the mutation left
@@ -150,7 +151,7 @@ for (const [name, respond] of Object.entries(dispatched))
       const id = (await f.update(100000000)).data.review_id;
       f.hooks.respond = respond;
       const failed = await f.execute(id);
-      assert.equal(failed.success, false);
+      assertRefused(failed, ['WRITE_OUTCOME_UNCERTAIN', 'UPSTREAM_ERROR']);
       assert.equal(f.writes.length, 1);
       assert.notEqual(failed.error.details?.submission, 'not_sent');
       assert.equal(f.claim(id).state, 'uncertain');

@@ -3,6 +3,7 @@ import {effectiveProviderContract, providerContracts} from './provider-contracts
 import {criteoDocs} from './criteo-version.js';
 import {providerSunset} from './provider-sunsets.js';
 import {linkedinVersions} from './linkedin-version.js';
+import {wireContractEvidence} from './wire-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 export const providerMaintenance: Record<string, JsonObject> = {
   criteo: {
@@ -176,12 +177,15 @@ export function evidenceForm(value: unknown): EvidenceForm {
   throw new MirrorError('INVALID_ARGUMENT', 'evidence must be "full" or "ref".', {parameter: 'evidence'});
 }
 export function executionEvidence(plan: CompiledRequest, form: EvidenceForm = 'full'): JsonObject {
+  // PRV-05: what the request's pinned vendor contract shows about its body (shadow or enforced), when it has one.
+  const wire = wireContractEvidence(plan);
   return {
     catalog_evidence: plan.evidence,
     ...(plan.contractEvidence ?? {
       route_source: 'AMCP_INDEPENDENT_CONTRACT_OR_CAPTURE',
       live_qualification: 'unverified',
     }),
+    ...(wire ? {wire_contract: wire} : {}),
     provider: form === 'ref' ? providerContractReference(plan.gateway, plan) : providerContractView(plan.gateway, plan),
     review_authorization:
       'Existing deployment, actor, account, resource, review and spending gates remain mandatory; provenance never grants access.',

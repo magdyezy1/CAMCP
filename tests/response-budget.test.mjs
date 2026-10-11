@@ -5,6 +5,7 @@ import {capabilityGraph} from '../dist/src/capability-graph.js';
 import {Registry} from '../dist/src/catalog.js';
 import {Store} from '../dist/src/store.js';
 import {MirrorService} from '../dist/src/service.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 // The default views must fit an AI client's 10,000-token warning, not merely its 25,000-token cap (owner decision D14).
 // Before MCP-01 one Meta connection produced a 301 KB capabilities graph, the dashboard embedded every receipt and six
@@ -112,7 +113,7 @@ test('view:"graph" is the unchanged graph, and summary pages are bound to the ca
       {action: 'operations', view: 'summary'},
     ]) {
       const refused = await f.service.call('amcp_workspace', args, f.actor);
-      assert.equal(refused.success, false, JSON.stringify(args));
+      assertRefused(refused, 'INVALID_ARGUMENT');
       assert.ok(refused.error.details?.field, JSON.stringify(refused.error));
     }
     assert.equal(f.requests.length, 0);

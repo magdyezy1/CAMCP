@@ -58,6 +58,7 @@ export function profileStages(profile, {now} = {}) {
     gate('build_typescript', ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.json']),
     gate('build_release_identity', ['tools/build-release-identity.mjs']),
     gate('format_check', ['node_modules/prettier/bin/prettier.cjs', '--check', ...formatGlobs]),
+    gate('test_oracles_check', ['tools/check-test-oracles.mjs']),
     gate('generate_check', ['codegen/generate.mjs', '--check']),
     gate('generate_vendor_check', ['tools/fetch-vendor-specs.mjs', '--generate-only', '--check']),
     gate('generate_wsdl_check', ['tools/microsoft-specs.mjs', '--generate-only', '--check']),
@@ -78,6 +79,8 @@ export function profileStages(profile, {now} = {}) {
     {name: 'ffmpeg_probe', internal: 'ffmpeg', blocking: true},
     node('test_suite', ['tools/test-suite.mjs'], {tests: true, env: {AMCP_REQUIRE_FFMPEG: 'true'}}),
     node('test_capture', ['--test', 'tools/catalog/core.test.mjs'], {tests: true}),
+    // QA-02: every catalogued mutant must be killed by its named tests (tests/fixtures/mutant-catalogue.json).
+    node('mutant_catalogue', ['tools/mutants.mjs']),
     node('check_web', ['tools/check-web.mjs']),
     node('providers_check', ['dist/tools/provider-drift.js']),
     node('providers_lifecycle', ['dist/tools/provider-lifecycle.js']),

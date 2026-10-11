@@ -5,6 +5,7 @@ import type {CompiledRequest, Connection, Credentials, JsonObject} from './types
 import {redact, scopeKey, sha256} from './security.js';
 import {linkedinQuery} from './linkedin-restli.js';
 import {googleJson, validateGoogleRequest} from './google-contracts.js';
+import {enforceWireContract, recordWireViolation, wireContractCheck, wireContractMode} from './wire-contracts.js';
 import {googleGenerationKind, googleGenerationResult, validateGoogleGeneration} from './google-generation.js';
 import {
   dv360TargetingSearchRoute,
@@ -196,6 +197,8 @@ export interface TransportResult {
   status: number;
   headers: Record<string, string>;
   bodyIntegrity?: {bytes: number; md5: string};
+  /** `data` with each unsafe integer literal as its exact decimal text; only when the body held one (PRV-05). */
+  exactData?: unknown;
 }
 export interface BinaryUpload {
   field: string;
@@ -219,6 +222,33 @@ export function losslessReportNumbers(plan: CompiledRequest, env: Record<string,
     (plan.gateway === 'snapchat_native_action' && /\/stats$/.test(plan.path)) ||
     (plan.gateway === 'linkedin_native_action' && plan.path === '/rest/adAnalytics')
   );
+}
+/**
+ * Lossless unsafe integers on every gateway (PRV-05): JSON.parse rounds an integer beyond 2^53, so a 64-bit ID such as
+ * 1800000000000000001 would be shown as 1800000000000000000, and a caller could then target another entity with it.
+ * `data` keeps JSON's numbers, so every family, evidence and contract check sees what it saw before (a check that
+ * refuses an unsafe numeric identity still refuses it). When the body holds an unsafe integer literal, the result also
+ * carries `exactData`: the same response with each such literal as its exact decimal text, which a native read returns
+ * to its caller (src/service.ts). Only a body with a 16-digit number token takes the second, source-aware parse.
+ */
+const unsafeIntegerToken = /[:[,]\s*-?\d{16,}\s*[,}\]]/;
+export function exactIntegerJson(text: string): unknown {
+  if (!unsafeIntegerToken.test(text)) return undefined;
+  let found = false;
+  const value = JSON.parse(text, ((_key: string, v: unknown, context?: {source: string}) => {
+    if (
+      typeof v === 'number' &&
+      Number.isInteger(v) &&
+      !Number.isSafeInteger(v) &&
+      context &&
+      /^-?\d+$/.test(context.source)
+    ) {
+      found = true;
+      return context.source;
+    }
+    return v;
+  }) as any);
+  return found ? value : undefined;
 }
 export function providerRetryDelay(response: Response, gateway: string, now = Date.now()): number | undefined {
   const header = response.headers.get('retry-after');
@@ -256,7 +286,7 @@ export class NativeTransport {
   >();
   private budgets = new Map<string, {tokens: number; at: number}>();
   private cooldowns = new Map<string, number>();
-  readonly metrics = {requests: 0, retries: 0, errors: 0, rateLimits: 0, totalLatencyMs: 0};
+  readonly metrics = {requests: 0, retries: 0, errors: 0, rateLimits: 0, totalLatencyMs: 0, wireContractViolations: 0};
   diagnostics() {
     return {
       ...this.metrics,
@@ -332,6 +362,16 @@ export class NativeTransport {
     hooks: {beforeAttempt?: () => void; onDispatch?: () => void} = {},
   ): Promise<TransportResult> {
     validateGoogleRequest(plan);
+    // PRV-05: every route with a pinned request schema is checked here, the last step before anything is sent. A
+    // violation is counted per gateway; AMCP_WIRE_CONTRACTS=enforce also refuses it for a write.
+    const wireMode = wireContractMode(),
+      wire = wireContractCheck(plan, wireMode);
+    if (wire?.status === 'violations') {
+      this.metrics.wireContractViolations++;
+      this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'wire_contract_violations');
+      recordWireViolation(plan, wire);
+    }
+    enforceWireContract(plan, wire, wireMode);
     validateGoogleGeneration(plan);
     validateDV360TargetingSearch(plan);
     this.prune();
@@ -765,6 +805,7 @@ export class NativeTransport {
             criteoRoute('/reports/[a-f0-9-]+/output$', 'i').test(plan.path);
           // LinkedIn lead form IDs are 64-bit longs; keep unsafe integers as their exact source text.
           const int64 = plan.gateway === 'linkedin_native_action' && /^\/rest\/leadForms(?:\/|$)/.test(plan.path);
+          let exactData: unknown;
           const data = await this.readBody(
             response,
             (adjustRead && response.status === 204) ||
@@ -785,6 +826,7 @@ export class NativeTransport {
             adjustRead,
             int64,
             losslessReportNumbers(plan),
+            exact => (exactData = exact),
           );
           if (expired()) throw deadlineFailure();
           const fabric =
@@ -901,6 +943,7 @@ export class NativeTransport {
             data,
             status: response.status,
             ...(bodyIntegrity ? {bodyIntegrity} : {}),
+            ...(exactData !== undefined ? {exactData} : {}),
             headers: Object.fromEntries(
               [
                 'request-id',
@@ -1158,6 +1201,7 @@ export class NativeTransport {
     losslessNumbers = false,
     int64 = false,
     fractionalText = false,
+    exact?: (value: unknown) => void,
   ): Promise<unknown> {
     const reader = response.body?.getReader();
     let size = 0;
@@ -1225,6 +1269,10 @@ export class NativeTransport {
                 ? (context?.source ?? String(value))
                 : value) as any)
           : JSON.parse(text);
+      if (exact && !(integrity || losslessNumbers || int64 || fractionalText)) {
+        const twin = exactIntegerJson(text);
+        if (twin !== undefined) exact(twin);
+      }
     } catch {
       if (!response.ok) return {content_type: response.headers.get('content-type'), body: text};
       throw new MirrorError(

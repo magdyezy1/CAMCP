@@ -57,7 +57,7 @@ test('one-time owner migration binds verified email to the original workspace wi
     await f.security.finishOwner(f.req(admin), {...link, password});
     const owner = f.store.db.prepare('SELECT * FROM amcp_users WHERE email=?').get('owner@example.test') as JsonObject;
     assert.equal(owner.tenant_id, admin.actor.tenantId);
-    assert.throws(() => f.store.authenticate(legacyKey));
+    assert.throws(() => f.store.authenticate(legacyKey), {code: 'UNAUTHORIZED'});
     assert.throws(() => f.store.restoreJobActor(admin.actor.tenantId, 'legacy-job', legacyJob), /migrated/);
     assert.equal(f.store.document(owner.tenant_id, 'existing-report', 'one').preserved, true);
     await assert.rejects(f.web.signIn(password, '127.0.0.1'), /owner|email/i);
@@ -81,7 +81,7 @@ test('MFA verifies real TOTP, revokes existing access, blocks password-only sess
     const enabled = f.security.enableMfa(f.req(s), {ticket: setup.ticket, code});
     assert.equal(enabled.recoveryCodes.length, 10);
     assert.equal(f.web.session(f.req(s)), undefined);
-    assert.throws(() => f.store.authenticate(oldKey));
+    assert.throws(() => f.store.authenticate(oldKey), {code: 'UNAUTHORIZED'});
     assert.throws(() => f.store.restoreJobActor(s.actor.tenantId, 'before-mfa', oldJob), /security changed/);
     assert.throws(() => f.accounts.session(u), /Two-step|verification/i);
     const login = await f.accounts.login(f.req(), {email: u.email, password});
@@ -89,10 +89,14 @@ test('MFA verifies real TOTP, revokes existing access, blocks password-only sess
     assert.throws(() => f.security.finishMfa(f.req(), {ticket: login.ticket, code}), /incorrect|already|invalid/i);
     const success = f.security.finishMfa(f.req(), {ticket: login.ticket, code: enabled.recoveryCodes[0]});
     assert.equal(success.actor.userId, u.id);
-    assert.throws(() => f.security.finishMfa(f.req(), {ticket: login.ticket, code: enabled.recoveryCodes[0]}));
+    assert.throws(() => f.security.finishMfa(f.req(), {ticket: login.ticket, code: enabled.recoveryCodes[0]}), {
+      code: 'LINK_EXPIRED',
+    });
     const next = await f.accounts.login(f.req(), {email: u.email, password});
     assert.ok('mfaRequired' in next);
-    assert.throws(() => f.security.finishMfa(f.req(), {ticket: next.ticket, code: enabled.recoveryCodes[0]}));
+    assert.throws(() => f.security.finishMfa(f.req(), {ticket: next.ticket, code: enabled.recoveryCodes[0]}), {
+      code: 'MFA_INVALID',
+    });
     assert.ok(!JSON.stringify(f.store.db.prepare('SELECT * FROM amcp_mfa').all()).includes(setup.secret));
   } finally {
     f.store.close();
@@ -146,7 +150,7 @@ test('invitations attach existing people to a shared workspace; demotion/removal
     assert.ok(f.store.authenticate(token));
     f.security.changeMember(f.req(os), {userId: member.id, role: 'viewer'});
     assert.equal(f.web.session(f.req(shared)), undefined);
-    assert.throws(() => f.store.authenticate(token));
+    assert.throws(() => f.store.authenticate(token), {code: 'UNAUTHORIZED'});
     assert.throws(() => f.store.assertActorActive(shared.actor), /removed or reduced/);
     const viewer = f.accounts.session(member, owner.tenant_id);
     assert.equal(viewer.actor.role, 'reader');

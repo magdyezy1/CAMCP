@@ -8,6 +8,7 @@ import {providerContracts} from '../src/provider-contracts.js';
 import {gatewayOffered} from '../src/provider-offering.js';
 import {providerContractView, providerContractReference, ContractMemory} from '../src/contract-evidence.js';
 import type {Actor, JsonObject} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 
 // F-29: inspect and prepare repeat the provider's whole contract (5-7 KB) unless the caller asks for a reference.
 const registry = new Registry(),
@@ -227,7 +228,7 @@ test('a refused request does not count as having delivered the contract', async 
   try {
     const caller = x.store.authenticate(x.store.createKey({...actor}));
     const refused = await x.service.call('amcp_write', {action: 'prepare', ...write, arguments: {}}, caller);
-    assert.equal(refused.success, false);
+    assertRefused(refused, 'INVALID_ARGUMENT');
     const first = await x.service.call('amcp_write', {action: 'inspect', ...write}, caller);
     assert.ok(first.data.contract_evidence.provider.write_scope);
   } finally {

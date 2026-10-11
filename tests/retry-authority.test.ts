@@ -5,6 +5,7 @@ import {Registry} from '../src/catalog.js';
 import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import type {Actor, Connection, JsonObject} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 const registry = new Registry(),
   owner: Actor = {tenantId: 'retry-authority', userId: 'owner', role: 'admin'},
   id = '336ecb51-2df8-4967-8bd3-cba64d552296';
@@ -122,7 +123,7 @@ for (const [name, gateway, scopes, tool, input] of cases)
           maxBudgetChange: 0.2,
         });
       const r = await service.call(tool, input, actor);
-      assert.equal(r.success, false, JSON.stringify(r));
+      assertRefused(r, 'UNAUTHORIZED');
       assert.equal(calls, 1, 'Revoked actors must not send a second HTTP attempt');
     } finally {
       store.close();
@@ -225,7 +226,7 @@ test('revocation during provider pacing prevents the first native HTTP attempt',
         2000,
       ),
       service = new MirrorService(registry, store, transport);
-    assert.equal((await service.call('meta_native_action', readInput, actor)).success, false);
+    assertRefused(await service.call('meta_native_action', readInput, actor), 'UNAUTHORIZED');
     assert.equal(waits, 1);
     assert.equal(calls, 0);
   } finally {
@@ -275,7 +276,7 @@ test('review preparation stops its retry if write grants or its login change', a
         policy,
       );
       const r = await service.call('amcp_write', cases[4]![4], owner);
-      assert.equal(r.success, false);
+      assertRefused(r, ['WRITE_ACCOUNT_FORBIDDEN', 'CONNECTION_AUTHORITY_CHANGED']);
       assert.equal(calls, 1);
       assert.equal(store.documents(owner.tenantId, 'write_review').length, 0);
     } finally {
@@ -329,7 +330,7 @@ test('revocation during pacing before a reviewed mutation prevents mutation disp
       },
       actor,
     );
-    assert.equal(r.success, false);
+    assertRefused(r, 'UNAUTHORIZED');
     assert.equal(waits, 1);
     assert.equal(writes, 0);
   } finally {
@@ -370,14 +371,14 @@ test('accepted mutations retain a completed receipt before revoked callers are d
       confirmed: true,
       spend_change_confirmed: true,
     };
-    assert.equal((await service.call('amcp_write', execution, actor)).success, false);
+    assertRefused(await service.call('amcp_write', execution, actor), 'UNAUTHORIZED');
     const receipt = store.db
       .prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?')
       .get(owner.tenantId, p.data.idempotency_key) as JsonObject;
     assert.equal(receipt.state, 'complete');
     assert.equal(JSON.parse(receipt.result).success, true);
     assert.equal(writes, 1);
-    assert.equal((await service.call('amcp_write', execution, actor)).success, false);
+    assertRefused(await service.call('amcp_write', execution, actor), 'UNAUTHORIZED');
     assert.equal(writes, 1);
   } finally {
     store.close();
@@ -433,7 +434,7 @@ test('write read-back rechecks authority before retry and retains the accepted w
       true,
     );
     verifying = true;
-    await assert.rejects(service.verifyWrite(actor, p.data.review_id));
+    await assert.rejects(service.verifyWrite(actor, p.data.review_id), {code: 'UNAUTHORIZED'});
     assert.equal(reads, 1);
     assert.equal(writes, 1);
     assert.equal(
@@ -491,7 +492,7 @@ test('media preparation cannot retry an account read after the actor is revoked'
       },
       actor,
     );
-    assert.equal(r.success, false);
+    assertRefused(r, 'UNAUTHORIZED');
     assert.equal(calls, 1);
     assert.equal(downloads, 1);
     assert.equal(store.documents(owner.tenantId, 'media_review').length, 0);
@@ -548,7 +549,7 @@ test('provider validate-only rechecks authorization after native pacing without 
       },
       actor,
     );
-    assert.equal(r.success, false);
+    assertRefused(r, 'UNAUTHORIZED');
     assert.equal(waits, 1);
     assert.equal(calls, 0);
     assert.equal(store.documents(owner.tenantId, 'provider_validation').length, 0);

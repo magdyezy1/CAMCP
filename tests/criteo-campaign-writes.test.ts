@@ -13,6 +13,7 @@ import {criteoCampaignFields} from '../src/criteo-campaign-writes.js';
 import {DelegatedNativeCompiler} from '../src/delegated-native.js';
 import {removeTestDirectory} from './temp.js';
 import type {Connection, JsonObject} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 
 const gateway = 'criteo_native_action',
   prefix = '/2026-07/retail-media',
@@ -447,7 +448,7 @@ test('PUT refuses missing limits and unqualified fields before any provider requ
       change(a);
       const calls = f.calls.length,
         r = await f.prepare('update', a);
-      assert.equal(r.success, false, JSON.stringify(a));
+      assertRefused(r, ['CRITEO_CAMPAIGN_INVALID', 'INVALID_VENDOR_BODY']);
       assert.equal(f.calls.length, calls, JSON.stringify(r));
       assert.equal(f.data.writes, 0);
     } finally {
@@ -482,7 +483,7 @@ test('creation refuses preferred campaigns, guessed balances, wrong resource IDs
       const n = native();
       change(n);
       const r = await f.service.call('amcp_write', {action: 'prepare', gateway, arguments: n}, actor);
-      assert.equal(r.success, false);
+      assertRefused(r, ['CRITEO_CAMPAIGN_INVALID', 'INVALID_ARGUMENT']);
       assert.equal(f.calls.length, 0, JSON.stringify(r));
     } finally {
       f.store.close();
@@ -852,7 +853,7 @@ test('guessed IDs, another login and revoked or replaced credentials do not inhe
         );
       });
       const r = await f.prepare('update');
-      assert.equal(r.success, false, JSON.stringify(mode));
+      assertRefused(r, ['INSUFFICIENT_SCOPE', 'WRITE_ACCOUNT_FORBIDDEN', 'RESOURCE_SCOPE_REQUIRED']);
       assert.equal(f.data.writes, 0);
     } finally {
       f.store.close();
@@ -899,11 +900,11 @@ test('lost and partial receipts survive process restart without permitting a sec
       assert.equal(p.success, true);
       f.mode(mode);
       const r = await f.execute(p);
-      assert.equal(r.success, false, JSON.stringify({mode, r}));
+      assertRefused(r, ['WRITE_OUTCOME_UNCERTAIN', 'WRITE_PARTIAL_OR_FAILED']);
       assert.equal(f.data.writes, 1);
       assert.equal(f.store.ownsResource(f.c, '123', 'criteo-report-target/campaigns/457'), false);
       f.restart();
-      assert.equal((await f.execute(p)).success, false);
+      assertRefused(await f.execute(p), ['WRITE_OUTCOME_UNCERTAIN', 'WRITE_PARTIAL_OR_FAILED']);
       assert.equal(f.data.writes, 1);
     } finally {
       f.store.close();

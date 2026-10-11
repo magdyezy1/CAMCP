@@ -12,6 +12,7 @@ import {actionContracts} from '../src/action-contracts.js';
 import {assertXDraft, xDraftKind, xDraftOutcome, readXDraftState} from '../src/x-draft-writes.js';
 import {removeTestDirectory} from './temp.js';
 import type {Connection, JsonObject, CompiledRequest} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 
 const gateway = 'x_ads_native_action',
   account = 'acct1',
@@ -254,8 +255,8 @@ test('all four X draft routes have closed native contracts and preview is a revi
     {...createBody(), schedule_time: '2030-01-01'},
     {...createBody(), entity_status: 'PAUSED'},
   ])
-    assert.throws(() => assertXDraft(plan('create', payload)));
-  assert.throws(() => assertXDraft({...plan(), query: {method: 'DELETE'}}));
+    assert.throws(() => assertXDraft(plan('create', payload)), {code: 'INVALID_X_DRAFT'});
+  assert.throws(() => assertXDraft({...plan(), query: {method: 'DELETE'}}), {code: 'INVALID_X_DRAFT'});
   assert.equal(xDraftKind({...plan(), origin: 'https://api.x.com'}), undefined);
 });
 
@@ -303,7 +304,7 @@ test('draft updates verify fields and explicit attachment clears, while author t
     const wire = f.calls.find(v => v.method === 'PUT')!;
     assert.equal(wire.body.card_uri, '');
     const bad = await f.prepare('update', {as_user_id: '99'});
-    assert.equal(bad.success, false);
+    assertRefused(bad, 'INVALID_X_DRAFT');
     assert.equal(f.writes(), 1);
   } finally {
     f.store.close();
@@ -384,7 +385,12 @@ test('draft malformed reads, missing author, partial results and cursor loops ca
     try {
       f.seed();
       f.setMode(mode);
-      assert.equal((await f.prepare()).success, false, mode);
+      assertRefused(await f.prepare(), [
+        'X_DRAFT_STATE_UNVERIFIED',
+        'PROVIDER_ACCESS_DENIED',
+        'X_CREATIVE_STATE_UNVERIFIED',
+        'X_DRAFT_DISCOVERY_LIMIT',
+      ]);
       assert.equal(f.writes(), 0);
     } finally {
       f.store.close();
@@ -401,7 +407,11 @@ test('draft cards, media processing and media-type combinations are checked befo
         ...createBody(),
         ...(mode === 'wrong_card' ? {card_uri: card} : {media_keys: mode === 'mixed' ? media + ',' + video : media}),
       };
-      assert.equal((await f.prepare('create', body)).success, false, mode);
+      assertRefused(await f.prepare('create', body), [
+        'X_DRAFT_STATE_UNVERIFIED',
+        'X_CREATIVE_STATE_UNVERIFIED',
+        'INVALID_X_DRAFT',
+      ]);
       assert.equal(f.writes(), 0);
     } finally {
       f.store.close();
@@ -439,7 +449,7 @@ test('a draft or author race while reading dependencies refuses preview and upda
       f.onRead(s => {
         if (s.startsWith('/media_library/')) f.records.get(target)!.text = 'Concurrent new copy';
       });
-      assert.equal((await f.prepare(kind, kind === 'update' ? {name: 'Changed'} : {})).success, false);
+      assertRefused(await f.prepare(kind, kind === 'update' ? {name: 'Changed'} : {}), 'X_DRAFT_STATE_UNVERIFIED');
       assert.equal(f.writes(), 0);
     } finally {
       f.store.close();
@@ -471,7 +481,13 @@ test('current draft grants, disabled connection, confirmation, deletion and read
               {...actor, role: 'reader'},
             )
           : await f.execute(r, mode === 'no_confirm' ? {confirmed: false} : {});
-      assert.equal(out.success, false, mode);
+      assertRefused(out, [
+        'WRITE_ACCOUNT_FORBIDDEN',
+        'CONNECTION_REQUIRED',
+        'CONFIRMATION_REQUIRED',
+        'POLICY_DELETION_FORBIDDEN',
+        'CONNECTOR_READ_ONLY',
+      ]);
       assert.equal(f.writes(), 0);
     } finally {
       f.store.close();
@@ -548,7 +564,7 @@ test('the draft review binds its connection despite duplicate account IDs and ca
     const r = await f.prepare('preview', {});
     f.store.putConnection(owner, {...f.c, id: 'other'}, f.credentials);
     f.store.putConnection(owner, {...f.c, writeAccounts: []}, f.credentials);
-    assert.equal((await f.execute(r)).success, false);
+    assertRefused(await f.execute(r), 'WRITE_ACCOUNT_FORBIDDEN');
     f.store.putConnection(owner, f.c, f.credentials);
     const direct = await f.service.call(
       gateway,
@@ -654,7 +670,7 @@ test('draft read-back rechecks selected account access before returning a cached
     await f.execute(r);
     assert.equal((await f.verify(r)).data.status, 'verified');
     f.store.putConnection(owner, {...f.c, enabled: false}, f.credentials);
-    assert.equal((await f.verify(r)).success, false);
+    assertRefused(await f.verify(r), 'CONNECTION_REQUIRED');
   } finally {
     f.store.close();
   }

@@ -5,6 +5,7 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {ReportingService} from '../dist/src/reporting.js';
 import {NativeTransport} from '../dist/src/transport.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 function fixture(t) {
   const actor = {tenantId: 'rebind-workspace', userId: 'member', role: 'operator'};
@@ -189,8 +190,8 @@ test('confirmed move binds exact versions, preserves configuration, prepares one
     p = await f.preview(),
     oldQuery = f.doc('reporting_query', 'query-001'),
     oldJobs = f.jobs();
-  assert.equal((await f.save(p, {confirmed: false})).success, false);
-  assert.equal((await f.save(p, {}, {...f.actor, role: 'reader'})).success, false);
+  assertRefused(await f.save(p, {confirmed: false}), 'CONFIRMATION_REQUIRED');
+  assertRefused(await f.save(p, {}, {...f.actor, role: 'reader'}), 'FORBIDDEN');
   const result = await f.save(p);
   assert.equal(result.success, true, JSON.stringify(result));
   assert.equal(result.data.workbook_binding_id, 'target');
@@ -202,7 +203,7 @@ test('confirmed move binds exact versions, preserves configuration, prepares one
     f.jobs().filter(j => j.id === f.retained),
     oldJobs,
   );
-  assert.equal((await f.save(p)).success, false);
+  assertRefused(await f.save(p), 'STALE_REPORT_QUERY');
   assert.equal(f.jobs().length, 2);
   const bootstrap = f.reporting.handle('get_reporting_bootstrap', {spreadsheet_id: 'SHEET-target'}, f.actor);
   assert.equal(bootstrap.schedules.length, 2);
@@ -225,7 +226,7 @@ test('changes to query, schedules, either binding or target membership invalidat
       f.store.putDocument(f.actor.tenantId, kind, id, {...f.doc(kind, id), name: 'Changed'});
     }
     const before = f.jobs();
-    assert.equal((await f.save(p)).success, false, change);
+    assertRefused(await f.save(p), ['STALE_REPORT_QUERY', 'STALE_REPORT_REBINDING']);
     assert.equal(f.doc('reporting_query', 'query-001').workbook_binding_id, 'source');
     assert.deepEqual(f.jobs(), before);
   }
@@ -267,7 +268,12 @@ test('current revocation, foreign empty target, target capacity and inconsistent
         f.store.putDocument(f.actor.tenantId, 'reporting_schedule', 'extra-' + i, {
           ...f.doc('reporting_schedule', 'paused'),
         });
-    assert.equal((await f.save(p)).success, false, change);
+    assertRefused(await f.save(p), [
+      'CONNECTION_REQUIRED',
+      'REPORT_BINDING_ACCESS_REQUIRED',
+      'REPORT_BINDING_QUERY_LIMIT',
+      'STALE_REPORT_QUERY',
+    ]);
     assert.equal(f.doc('reporting_query', 'query-001').workbook_binding_id, 'source');
     assert.equal(f.jobs().length, 1);
   }
@@ -292,7 +298,11 @@ test('an audit failure rolls the complete rebind back, including schedules and p
     if (payload.event === 'update_reporting_query') throw Error('synthetic audit failure');
     return audit(tenant, stream, payload);
   };
-  assert.equal((await f.save(p)).success, false);
+  const failed = await f.save(p);
+  // The injected audit failure is a crash by design, so INTERNAL_ERROR is the expected code here; its text stays private.
+  assert.equal(failed.success, false);
+  assert.equal(failed.error.code, 'INTERNAL_ERROR');
+  assert.doesNotMatch(failed.error.message, /synthetic audit failure/);
   assert.deepEqual(f.doc('reporting_query', 'query-001'), query);
   assert.deepEqual(f.doc('reporting_schedule', 'active'), schedule);
   assert.deepEqual(f.jobs(), before);

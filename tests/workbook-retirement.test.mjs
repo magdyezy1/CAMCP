@@ -5,6 +5,7 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {ReportingService} from '../dist/src/reporting.js';
 import {NativeTransport} from '../dist/src/transport.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 function fixture(t) {
   const actor = {tenantId: 'retirement-workspace', userId: 'member', role: 'operator'},
     store = new Store(':memory:', Buffer.alloc(32, 95).toString('base64'));
@@ -119,14 +120,14 @@ test('empty workbook retirement is reviewed, reversible, hidden by default and p
 test('binding lifecycle requires current version, confirmation and creator/admin write access', async t => {
   const f = fixture(t),
     p = await f.preview();
-  assert.equal((await f.save(p, {confirmed: false})).success, false);
-  assert.equal((await f.save(p, {}, {...f.actor, role: 'reader'})).success, false);
-  assert.equal((await f.save(p, {}, {...f.actor, userId: 'different'})).success, false);
-  assert.equal((await f.save(p, {}, {...f.actor, tenantId: 'other'})).success, false);
+  assertRefused(await f.save(p, {confirmed: false}), 'CONFIRMATION_REQUIRED');
+  assertRefused(await f.save(p, {}, {...f.actor, role: 'reader'}), 'FORBIDDEN');
+  assertRefused(await f.save(p, {}, {...f.actor, userId: 'different'}), 'REPORT_BINDING_ACCESS_REQUIRED');
+  assertRefused(await f.save(p, {}, {...f.actor, tenantId: 'other'}), 'NOT_FOUND');
   f.store.putDocument(f.actor.tenantId, 'workbook', 'empty', {...f.doc(), spreadsheet_name: 'Changed'});
-  assert.equal((await f.save(p)).success, false);
+  assertRefused(await f.save(p), 'STALE_REPORT_BINDING');
   assert.equal(f.doc().retired_at, undefined);
-  assert.equal((await f.detail('foreign')).success, false);
+  assertRefused(await f.detail('foreign'), 'REPORT_BINDING_ACCESS_REQUIRED');
   assert.equal((await f.detail('foreign', {...f.actor, role: 'admin'})).success, true);
 });
 test('retirement refuses every linked query or schedule, including orphaned schedules, before mutation', async t => {
@@ -151,7 +152,7 @@ test('retirement refuses every linked query or schedule, including orphaned sche
     private_value: 'WITHHOLD',
   });
   const r = await f.save(p);
-  assert.equal(r.success, false);
+  assertRefused(r, 'REPORT_BINDING_IN_USE');
   assert.doesNotMatch(JSON.stringify(r), /WITHHOLD/);
   assert.equal(f.doc().retired_at, undefined);
   f.store.deleteDocument(f.actor.tenantId, 'reporting_schedule', 'orphan');
@@ -160,7 +161,7 @@ test('retirement refuses every linked query or schedule, including orphaned sche
     workbook_binding_id: 'empty',
     query_config: f.config,
   });
-  assert.equal((await f.save(p)).success, false);
+  assertRefused(await f.save(p), 'STALE_REPORT_BINDING');
   assert.equal(f.doc().retired_at, undefined);
 });
 test('retired associations cannot silently receive new queries, preferences, legacy binds or reviewed moves', async t => {
@@ -205,8 +206,8 @@ test('replay, malformed lifecycle values and invalid state filters cannot create
     p = await f.preview();
   assert.equal((await f.save(p)).success, true);
   const revision = f.doc().revision;
-  assert.equal((await f.save(p)).success, false);
-  for (const active of ['false', null, 0]) assert.equal((await f.save(p, {active})).success, false);
-  assert.equal((await f.call({action: 'report_bindings', state: 'unknown'})).success, false);
+  assertRefused(await f.save(p), 'STALE_REPORT_BINDING');
+  for (const active of ['false', null, 0]) assertRefused(await f.save(p, {active}), 'STALE_REPORT_BINDING');
+  assertRefused(await f.call({action: 'report_bindings', state: 'unknown'}), 'INVALID_ARGUMENT');
   assert.equal(f.doc().revision, revision);
 });

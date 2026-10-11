@@ -326,7 +326,11 @@ for (const c of cases)
           {data: {unrelated: 'value'}, status: 200, headers: {}},
           r.request as CompiledRequest,
         );
+        // A failed outcome, not a refusal: it names the unconfirmed mutation and is never retried.
         assert.equal(malformed.success, false);
+        assert.equal(malformed.outcome, 'partial_or_failed');
+        assert.equal(malformed.retry_safe, false);
+        assert.ok(Array.isArray(malformed.failures) && (malformed.failures as unknown[]).length > 0);
       } finally {
         store.close();
       }

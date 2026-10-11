@@ -127,7 +127,7 @@ test('website operator credentials require explicit confirmation and account gra
     assert.deepEqual(tokens.tokens.map((t: {role: string}) => t.role).sort(), ['operator', 'reader']);
     assert.equal(JSON.stringify(tokens).includes(operator.token), false);
     await s.request('/api/connector-tokens/' + operator.id, 'DELETE', undefined, s.headers);
-    assert.throws(() => s.store.authenticate(operator.token));
+    assert.throws(() => s.store.authenticate(operator.token), {code: 'UNAUTHORIZED'});
     assert.equal(s.store.authenticate(reader.token).role, 'reader');
   } finally {
     await s.close();
@@ -323,17 +323,20 @@ test('OAuth write scope has explicit consent, bound PKCE grants, and refresh can
     const grant = await f.begin(writer, ['mcp:read', 'mcp:write']);
     assert.equal(grant.preview.role, 'operator');
     assert.equal(grant.preview.scope, 'mcp:read mcp:write');
-    await assert.rejects(() =>
-      f.oauth.exchangeAuthorizationCode(reader, grant.code, grant.verifier, grant.redirectUri),
+    await assert.rejects(
+      () => f.oauth.exchangeAuthorizationCode(reader, grant.code, grant.verifier, grant.redirectUri),
+      {name: 'InvalidGrantError'},
     );
-    await assert.rejects(() =>
-      f.oauth.exchangeAuthorizationCode(writer, grant.code, 'wrong'.repeat(16), grant.redirectUri),
+    await assert.rejects(
+      () => f.oauth.exchangeAuthorizationCode(writer, grant.code, 'wrong'.repeat(16), grant.redirectUri),
+      {name: 'InvalidGrantError'},
     );
     const tokens = await f.oauth.exchangeAuthorizationCode(writer, grant.code, grant.verifier, grant.redirectUri);
     assert.equal(f.store.authenticate(tokens.access_token).role, 'operator');
     assert.deepEqual((await f.oauth.verifyAccessToken(tokens.access_token)).scopes, ['mcp:read', 'mcp:write']);
-    await assert.rejects(() =>
-      f.oauth.exchangeAuthorizationCode(writer, grant.code, grant.verifier, grant.redirectUri),
+    await assert.rejects(
+      () => f.oauth.exchangeAuthorizationCode(writer, grant.code, grant.verifier, grant.redirectUri),
+      {name: 'InvalidGrantError'},
     );
     const downgraded = await f.oauth.exchangeRefreshToken(writer, tokens.refresh_token!, ['mcp:read']);
     assert.equal(f.store.authenticate(downgraded.access_token).role, 'reader');
@@ -345,13 +348,15 @@ test('OAuth write scope has explicit consent, bound PKCE grants, and refresh can
     // was replaced by, and the downgraded pair stops working; after the window the same presentation ends the family.
     const reissued = await f.oauth.exchangeRefreshToken(writer, tokens.refresh_token!);
     assert.equal(reissued.scope, 'mcp:read');
-    assert.throws(() => f.store.authenticate(downgraded.access_token));
+    assert.throws(() => f.store.authenticate(downgraded.access_token), {code: 'UNAUTHORIZED'});
     f.store.db
       .prepare("UPDATE amcp_mcp_grants SET data=json_set(data,'$.rotated_at',0) WHERE hash=?")
       .run(createHash('sha256').update(tokens.refresh_token!).digest('hex'));
-    await assert.rejects(() => f.oauth.exchangeRefreshToken(writer, tokens.refresh_token!));
-    assert.throws(() => f.store.authenticate(reissued.access_token));
-    assert.throws(() => f.store.authenticate(tokens.access_token));
+    await assert.rejects(() => f.oauth.exchangeRefreshToken(writer, tokens.refresh_token!), {
+      name: 'InvalidGrantError',
+    });
+    assert.throws(() => f.store.authenticate(reissued.access_token), {code: 'UNAUTHORIZED'});
+    assert.throws(() => f.store.authenticate(tokens.access_token), {code: 'UNAUTHORIZED'});
   } finally {
     f.store.close();
   }
@@ -460,8 +465,9 @@ test('legacy OAuth grant data remains read-only and loopback redirects relax onl
     const client = await f.register(),
       grant = await f.begin(client, [], 'http://127.0.0.1:49152/callback?client=amcp');
     assert.equal(grant.preview.redirectUri, 'http://127.0.0.1:49152/callback?client=amcp');
-    await assert.rejects(() =>
-      f.oauth.exchangeAuthorizationCode(client, grant.code, grant.verifier, client.redirect_uris[0]),
+    await assert.rejects(
+      () => f.oauth.exchangeAuthorizationCode(client, grant.code, grant.verifier, client.redirect_uris[0]),
+      {name: 'InvalidGrantError'},
     );
     // Simulate a reader code stored before scope-bearing grants were introduced.
     const rows = f.store.db.prepare("SELECT hash,data FROM amcp_mcp_grants WHERE kind='code'").all() as {

@@ -10,6 +10,7 @@ import {gtmWorkflowContracts} from '../src/gtm-workflow-writes.js';
 import {redact} from '../src/security.js';
 import {DelegatedNativeCompiler} from '../src/delegated-native.js';
 import type {Actor, JsonObject} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 
 const gateway = 'gtm_native_action',
   registry = new Registry(),
@@ -472,7 +473,12 @@ test('malformed, foreign, unpinned and implicit configuration inputs are refused
   for (const [a, extra] of choices) {
     const f = fixture(scenarios.find(s => s.action === a)!);
     try {
-      assert.equal((await f.prepare(actor, extra)).success, false, a);
+      assertRefused(await f.prepare(actor, extra), [
+        'INVALID_GTM_REQUEST',
+        'ACCOUNT_SCOPE_MISMATCH',
+        'INVALID_PARAMETER',
+        'INVALID_VENDOR_BODY',
+      ]);
       assert.equal(f.calls.length, 0);
     } finally {
       f.store.close();
@@ -537,7 +543,12 @@ test('failed pages, repeated cursors, foreign membership and in-flight grant rev
       if (mode === 'cycle') f.cycle();
       if (mode === 'foreign') f.mode('foreign-read');
       if (mode === 'revoke') f.revoke();
-      assert.equal((await f.prepare()).success, false, mode);
+      assertRefused(await f.prepare(), [
+        'UPSTREAM_ERROR',
+        'INCOMPLETE_STATE',
+        'STATE_TARGET_MISMATCH',
+        'WRITE_ACCOUNT_FORBIDDEN',
+      ]);
       assert.equal(f.writes(), 0);
     } finally {
       f.store.close();
@@ -619,7 +630,7 @@ test('foreign or partial receipts fail durably and unchanged provider state cann
       const p = await f.prepare();
       if (a === 'REVERT_TEMPLATE') f.mode('foreign-receipt');
       else f.partial();
-      assert.equal((await f.execute(p)).success, false);
+      assertRefused(await f.execute(p), 'WRITE_PARTIAL_OR_FAILED');
       assert.equal((await f.execute(p)).data.replayed, true);
       assert.equal(f.writes(), 1);
     } finally {

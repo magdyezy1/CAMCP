@@ -13,6 +13,7 @@ import {readFileSync, mkdtempSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {removeTestDirectory} from './temp.js';
+import {assertRefused} from './helpers/assert-refused.js';
 
 const registry = new Registry(),
   owner = {tenantId: 'measurement-sync', userId: 'owner', role: 'admin' as const},
@@ -352,7 +353,7 @@ test('limited, repeated and malformed GA4 pages retain old rows with visible inc
       });
       f.hook(() => Response.json(body));
       const r = await f.call({max_pages: 1});
-      assert.equal(r.success, false);
+      assertRefused(r, ['ASSET_SYNC_LIMIT', 'ASSET_RESPONSE_INVALID', 'PLATFORM_ERROR']);
       const saved = f.store.document(owner.tenantId, 'website_assets', id);
       assert.deepEqual(saved.groups[0].assets, prior.assets);
       assert.equal(saved.groups[0].complete, false);
@@ -387,7 +388,7 @@ test('wrong or repeated properties and invalid details cannot become successful 
     const f = fixture();
     try {
       f.hook(() => Response.json(body));
-      assert.equal((await f.call()).success, false);
+      assertRefused(await f.call(), 'ASSET_RESPONSE_INVALID');
     } finally {
       f.store.close();
     }
@@ -479,7 +480,7 @@ test('in-flight API-key revocation and scope removal stop the next page and meta
         return Response.json({accountSummaries: [], nextPageToken: 'second'});
       });
       const r = await f.call({}, actor);
-      assert.equal(r.success, false);
+      assertRefused(r, ['UNAUTHORIZED', 'INSUFFICIENT_SCOPE']);
       assert.equal(f.calls.length, 1);
       assert.equal(f.store.documents(owner.tenantId, 'website_assets').length, 0);
     } finally {
@@ -582,7 +583,10 @@ test('failed audit persistence rolls back otherwise successful discovery metadat
     });
   try {
     const r = await f.call();
+    // The injected audit failure is a crash by design, so INTERNAL_ERROR is the expected code; its text stays private.
     assert.equal(r.success, false);
+    assert.equal(r.error.code, 'INTERNAL_ERROR');
+    assert.doesNotMatch(r.error.message, /Synthetic audit failure/);
     const saved = f.store.document(owner.tenantId, 'website_assets', id);
     assert.equal(saved.groups[0].complete, false);
     assert.deepEqual(saved.groups[0].assets, []);
