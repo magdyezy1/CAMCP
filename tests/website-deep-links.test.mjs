@@ -205,7 +205,8 @@ test('Portfolio’s Clone into a draft preselects the account and source and rea
 function capture(search) {
   const nodes = new Map(),
     node = id => fakeNode(nodes, id),
-    calls = [];
+    calls = [],
+    inputs = [];
   const form = node('#capture-preset');
   form.querySelector = () => node('#capture-submit');
   form.elements = new Proxy({}, {get: (_, key) => node('field:' + String(key))});
@@ -229,6 +230,7 @@ function capture(search) {
     workspaceBind() {},
     workspaceCall: async (_tool, input) => {
       calls.push(input.action);
+      inputs.push(input);
       return {
         presets: [
           {id: 'google_campaign', name: 'Google campaigns', gateway: 'google_ads_native_action'},
@@ -247,7 +249,7 @@ function capture(search) {
   run(app.slice(app.indexOf('function requestError('), app.indexOf("const content = $('#content')")));
   const source = readFileSync('web/evidence-workflows.js', 'utf8');
   run(source.slice(source.indexOf('function evidencePresetLabel('), source.indexOf('\nfunction mountScenarioModel(')));
-  return {node, form, calls, mount: () => run('mountCaptureWizard(async () => {})')};
+  return {node, form, calls, inputs, mount: () => run('mountCaptureWizard(async () => {})')};
 }
 
 test('Capture evidence for this campaign preselects the account and Snapchat parent campaign, reading nothing', async () => {
@@ -257,7 +259,13 @@ test('Capture evidence for this campaign preselects the account and Snapchat par
   assert.equal(f.form.elements.target.value, '1');
   assert.equal(f.form.elements.campaign_id.value, 'camp-1');
   assert.equal(f.node('#report-capture').open, true);
-  assert.deepEqual(f.calls, ['capture_presets'], 'only the local preset list');
+  // The local preset list, then (RPT-05) the linked account's stored currency and timezone: no provider read.
+  assert.deepEqual(f.calls, ['capture_presets', 'capture_presets'], 'only local preset and stored-metadata reads');
+  assert.deepEqual(JSON.parse(JSON.stringify(f.inputs[1])), {
+    action: 'capture_presets',
+    connection_id: 's-login',
+    account_id: 'ad-9',
+  });
   const google = capture('?connection_id=g-login&account_id=123&campaign_id=1');
   await google.mount();
   assert.equal(google.form.elements.preset.value, 'google_campaign');

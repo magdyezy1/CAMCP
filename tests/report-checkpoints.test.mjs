@@ -2,6 +2,8 @@
 // checkpoints are saved in their own documents, so a counter or checkpoint save no longer rewrites the whole report.
 // Each test below would fail on the earlier layout, where every save re-read and rewrote `overview_report` with every
 // collected row inline. Synthetic store and a fake fetcher only; no provider request or real credential is involved.
+// Since RPT-03 a daily Meta campaign source is read natively day-segmented in one request, so the per-period path (one
+// document per completed period) is exercised with weekly periods; the native daily path has its own case below.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Store} from '../dist/src/store.js';
@@ -21,7 +23,7 @@ import {
 import {fingerprint} from '../dist/src/report-quality.js';
 
 const key = Buffer.alloc(32, 58).toString('base64');
-function fixture({failDay} = {}) {
+function fixture({failDay, grain = 'weekly'} = {}) {
   const actor = {tenantId: 'checkpoints', userId: 'owner', role: 'admin'},
     store = new Store(':memory:', key),
     source = {platform: 'meta', account_id: '100', connection_id: 'split-meta'};
@@ -48,9 +50,21 @@ function fixture({failDay} = {}) {
         const url = decodeURIComponent(String(raw));
         requests.push(url);
         if (!url.includes('/insights')) return Response.json({id: 'act_100', currency: 'USD', timezone_name: 'UTC'});
-        // Daily periods: each request names one day as its since and until.
+        // Weekly periods: each request names its first day as since. A natively day-segmented request
+        // (time_increment) returns one row per day.
         if (failing && url.includes(failing))
           return Response.json({error: {message: 'Synthetic outage', code: 2}}, {status: 503});
+        if (url.includes('time_increment'))
+          return Response.json({
+            data: ['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04'].map(day => ({
+              campaign_id: 'c1',
+              campaign_name: 'Synthetic',
+              spend: '1.5',
+              impressions: '10',
+              date_start: day,
+              date_stop: day,
+            })),
+          });
         return Response.json({
           data: [{campaign_id: 'c1', campaign_name: 'Synthetic', spend: '1.5', impressions: '10'}],
         });
@@ -67,10 +81,12 @@ function fixture({failDay} = {}) {
     config = {
       name: 'Split checkpoints',
       sources: [source],
-      date_range: {since: '2026-09-01', until: '2026-09-04'},
+      // Four periods: the days 1 to 4 September, or the weeks starting 1, 7, 14 and 21 September.
+      date_range:
+        grain === 'daily' ? {since: '2026-09-01', until: '2026-09-04'} : {since: '2026-09-01', until: '2026-09-27'},
       metrics: ['spend'],
       custom_metrics: [],
-      grain: 'daily',
+      grain,
     };
   return {
     actor,
@@ -107,7 +123,7 @@ test('counters and checkpoints are saved in their own documents; the report is n
     const report = await f.overview.handle({action: 'get', id: queued.id}, f.actor);
     assert.equal(report.state, 'complete');
     assert.equal(report.row_count, 4);
-    // The usage is read from the budget document: one request per account read and per day.
+    // The usage is read from the budget document: one request per account read and per period.
     assert.equal(report.collection_budget.requests, f.requests.length);
     assert.ok(report.collection_budget.requests >= 5);
     assert.equal(report.collection_budget.row_counts, undefined, 'usage only, as before');
@@ -129,16 +145,46 @@ test('counters and checkpoints are saved in their own documents; the report is n
   }
 });
 
-test('a retried run resumes from its split checkpoints: completed days are not read again and counters continue', async () => {
-  const f = fixture({failDay: '2026-09-03'});
+test('a natively day-segmented source saves its progress in the split layout too, never by rewriting the report', async () => {
+  const f = fixture({grain: 'daily'});
+  try {
+    let reportWrites = 0;
+    const put = f.store.putDocument.bind(f.store);
+    f.store.putDocument = (tenant, kind, id, data, revision) => {
+      if (kind === 'overview_report') reportWrites++;
+      return put(tenant, kind, id, data, revision);
+    };
+    const queued = await f.overview.handle({action: 'run', config: f.config, confirmed: true}, f.actor);
+    const before = reportWrites;
+    assert.equal(await f.worker.once(), true);
+    const report = await f.overview.handle({action: 'get', id: queued.id}, f.actor);
+    assert.equal(report.state, 'complete');
+    assert.equal(report.row_count, 4, 'one row per day from one request');
+    assert.equal(f.insights().length, 1, 'RPT-03: the four days are one natively segmented request');
+    assert.equal(report.collection_budget.requests, f.requests.length);
+    const stored = f.store.document(f.actor.tenantId, 'overview_report', queued.id);
+    assert.ok(splitLayout(stored));
+    assert.deepEqual(stored.checkpoints, {}, 'the daily checkpoint is never written inline');
+    assert.ok(reportWrites - before <= 3, 'report writes during collection: ' + (reportWrites - before));
+    assert.deepEqual(parts(f.store, f.actor.tenantId, queued.id), [
+      REPORT_BUDGET_KIND + ' ',
+      REPORT_CHECKPOINT_KIND + ' :0',
+    ]);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a retried run resumes from its split checkpoints: completed periods are not read again and counters continue', async () => {
+  const f = fixture({failDay: '2026-09-14'});
   try {
     const queued = await f.overview.handle({action: 'run', config: f.config, confirmed: true}, f.actor);
     await f.worker.once();
     const job = f.store.db.prepare('SELECT state,error FROM jobs').get();
     assert.equal(job.state, 'queued', 'a retryable provider outage schedules a retry');
-    const first = f.insights().filter(u => !u.includes('2026-09-03')).length;
+    const first = f.insights().filter(u => !u.includes('2026-09-14')).length;
     assert.ok(first >= 2);
-    // Days 1 and 2 are saved as their own period documents.
+    // Weeks 1 and 2 are saved as their own period documents.
     assert.deepEqual(
       parts(f.store, f.actor.tenantId, queued.id).filter(p => p.includes(':0:')),
       [REPORT_CHECKPOINT_KIND + ' :0:0', REPORT_CHECKPOINT_KIND + ' :0:1'],
@@ -157,8 +203,8 @@ test('a retried run resumes from its split checkpoints: completed days are not r
     assert.equal(report.row_count, 4);
     const resumed = f.requests.slice(before).filter(u => u.includes('/insights'));
     assert.ok(
-      resumed.every(u => !u.includes('2026-09-01') && !u.includes('2026-09-02')),
-      'completed days are never read again',
+      resumed.every(u => !u.includes('2026-09-01') && !u.includes('2026-09-07')),
+      'completed periods are never read again',
     );
     assert.ok(report.collection_budget.requests >= counted.requests + resumed.length, 'counters never restart');
   } finally {
@@ -167,7 +213,7 @@ test('a retried run resumes from its split checkpoints: completed days are not r
 });
 
 test('a report started by an older release resumes from its inline counters and checkpoints (legacy layout)', async () => {
-  const f = fixture({failDay: '2026-09-03'});
+  const f = fixture({failDay: '2026-09-14'});
   try {
     const queued = await f.overview.handle({action: 'run', config: f.config, confirmed: true}, f.actor);
     await f.worker.once();
@@ -202,8 +248,8 @@ test('a report started by an older release resumes from its inline counters and 
     assert.equal(done.state, 'complete');
     assert.equal(done.row_count, 4);
     const resumed = f.requests.slice(before).filter(u => u.includes('/insights'));
-    assert.ok(resumed.length >= 1 && resumed.length <= 2, 'only the two unread days: ' + resumed.length);
-    assert.ok(resumed.every(u => !u.includes('2026-09-01') && !u.includes('2026-09-02')));
+    assert.ok(resumed.length >= 1 && resumed.length <= 2, 'only the two unread periods: ' + resumed.length);
+    assert.ok(resumed.every(u => !u.includes('2026-09-01') && !u.includes('2026-09-07')));
     assert.ok(done.collection_budget.requests >= legacyBudget.requests + resumed.length, 'inline counters continue');
     assert.ok(splitLayout(f.store.document(tenant, 'overview_report', queued.id)), 'later saves use the split layout');
   } finally {
