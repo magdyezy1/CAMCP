@@ -313,7 +313,7 @@ The server checks declarations against retained evidence but does not independen
 
 | Action                  | Inputs / result                                                                                                                                               |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `capture_presets`       | Available detailed native mappings and declared limits                                                                                                        |
+| `capture_presets`       | Available detailed native mappings and declared limits; with `connection_id`/`account_id`, also the account's stored currency, timezone and read time         |
 | `capture_preset`        | `preset`, exact `connection_id`/`account_id`, and `semantics`; Meta also requires `result_action_type` and `attribution_windows`                              |
 | `overview_sources`      | `id` of a retained Overview snapshot; lists eligible semantic groups                                                                                          |
 | `capture_overview`      | Snapshot `id` and exact `group_id`; reuses retained evidence                                                                                                  |

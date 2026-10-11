@@ -140,6 +140,32 @@ whose zone is not fixed); rows and `sources[].date_range` then carry each source
 - **Deep links.** An open snapshot sets `?report_id=` (with the saved report's `view_id`) in the address bar.
   Reloading reopens it through the same tenant and actor authorization as any other load; the ID is opaque and the
   URL carries no names or account identifiers. Deleting the open snapshot removes it from the address.
+- **Whole-window tiles.** A daily, weekly or monthly snapshot also stores `window_summary`: one entry per platform,
+  account, currency, timezone, objective and measurement definition, keyed without dates, with additive totals over
+  every period (reach and frequency are never summed), ratios recomputed from those totals, `period_count`,
+  `entity_count`, decisions counted once per entity and a `series` of spend per period (oldest first). `get` returns
+  it; `list` pages leave it out. The website shows one tile per account with a spend sparkline (an image with a text
+  summary; an unknown period leaves a gap) instead of one card per period. Older grouped snapshots keep their
+  per-period cards.
+- **Results table.** The row header is the entity name only, at most 40 characters (the full name stays on hover and
+  in the context cell), and stays visible while the metrics scroll sideways, at the inline start in both directions.
+  IDs, level, parents, account, currency, timezone and source details sit in the **Platform · objective** cell. Daily
+  grain has one **Date** column. Below 600 px each row reads as a card with its values labelled by column; explicit
+  table roles keep the table semantics. Counts use singular and plural forms, and ROAS reads as a multiple (×).
+- **Exact numbers.** Values are formatted from their exact decimal text (never a binary double), currency values in
+  the currency's own minor units (KWD 3, JPY 0, SAR and USD 2), with the exact value on hover. This applies to
+  Overview cells and cards, retained evidence totals and rows, and the client report pack, which also uses platform
+  display names and localized dates. Sheets exports send number formats per metric column in the same batch as the
+  cells (currency columns use the largest minor units among the report's currencies, counts whole numbers,
+  percentages a literal %, ROAS ×); the cell values are unchanged.
+- **Native evidence tables.** Long native resource columns (Google resource names used as entity IDs, geographic
+  resources) are hidden by default behind a per-viewer **Show native IDs** toggle; long IDs are middle-truncated with
+  a copy button, the row header stays visible while scrolling, and location types read as plain labels with the
+  native enum on hover.
+- **Prefilled capture.** `amcp_reporting` `capture_presets` with `connection_id` and `account_id` also returns that
+  account's stored currency, timezone and read time (`target`), without a provider read. The capture wizard prefills
+  both (still editable; the capture still verifies them against the provider, so a mismatch is refused), labels
+  details read more than 7 days ago, and defaults empty dates to the last 7 complete days in the account timezone.
 
 ## X cooldowns and recovery
 
