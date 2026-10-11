@@ -23,7 +23,7 @@ import {dv360TargetingSearchRoute} from './dv360-targeting-search.js';
 import {reviewedWriteFamily} from './reviewed-routes.js';
 import {mediaRoute} from './media-routing.js';
 import {providerContracts} from './provider-contracts.js';
-import {redditAudienceRoutes} from './reddit-extensions.js';
+import {redditAudienceRoutes, redditReadRoutes} from './reddit-extensions.js';
 import {MirrorError} from './errors.js';
 import {assertGatewayOffered, gatewayOffered} from './provider-offering.js';
 import {googleLegacyCoverage} from './google-legacy.js';
@@ -290,7 +290,7 @@ export function actionContracts(registry: Registry): ActionContract[] {
   if (saved) return saved;
   const records = new Map<string, ActionContract>(),
     vendor = new DelegatedNativeCompiler(),
-    vendorRoutes = [...vendor.data.routes, ...redditAudienceRoutes],
+    vendorRoutes = [...vendor.data.routes, ...redditAudienceRoutes, ...redditReadRoutes()],
     legacyCoverage = googleLegacyCoverage();
   const put = (row: ActionContract) => records.set([row.gateway, row.operation ?? '', row.action].join('/'), row);
   const direct = (gateway: string, a: Action) => {

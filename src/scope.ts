@@ -22,6 +22,7 @@ import {reviewedFamilies, familyOf} from './reviewed-families.js';
 import {metaRoute} from './meta-version.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
 import {assertNotPersonalDataRead} from './personal-data.js';
+import {authorizeRedditPlanningRead} from './reddit-extensions.js';
 
 export function normalizeAccount(gateway: string, id: unknown): string {
   const value = String(id);
@@ -234,6 +235,7 @@ export class ScopeGuard {
     if (authorizeDV360TargetingSearch(plan, connection, id)) return id;
     if (authorizeDV360AudienceRead(plan, connection, id)) return id;
     if (authorizeXAudienceEstimate(plan, connection, id)) return id;
+    if (authorizeRedditPlanningRead(plan, connection, id)) return id;
     for (const family of reviewedFamilies()) if (family.authorize?.(plan, connection, id, this.store)) return id;
     if (authorizeLinkedInAdPreview(plan, connection, this.store, id)) return id;
     if (

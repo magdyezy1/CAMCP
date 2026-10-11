@@ -3,7 +3,7 @@ import addFormatsModule from 'ajv-formats';
 import {MirrorError} from './errors.js';
 import {guardInput, stable as stableStringify} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
-import {redditAudienceRoutes} from './reddit-extensions.js';
+import {redditAudienceRoutes, redditReadRoutes} from './reddit-extensions.js';
 import {assertRedditReportRules} from './reddit-report-rules.js';
 import {pinnedJson} from './pinned-json.js';
 import {nativeParameterKey} from './parameter-key.js';
@@ -333,7 +333,8 @@ export class DelegatedNativeCompiler {
       this.routes.set(key, r);
     }
     if (this.data.schemaComponents?.['reddit-v3'])
-      for (const r of redditAudienceRoutes) this.routes.set(this.key(r.gateway, r.operation, r.action), r);
+      for (const r of [...redditAudienceRoutes, ...redditReadRoutes()])
+        this.routes.set(this.key(r.gateway, r.operation, r.action), r);
   }
   private key(gateway: string, operation: string, action: string) {
     return gateway + '/' + operation + '/' + action;
