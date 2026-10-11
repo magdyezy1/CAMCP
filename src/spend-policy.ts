@@ -19,6 +19,7 @@ import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {familyOf} from './reviewed-families.js';
 import {budgetUnits, lifetimeAmount, nativeAmount} from './budget-units.js';
 import {pinnedJson} from './pinned-json.js';
+import {stateCurrency} from './review-summary.js';
 export const spendPolicyKey = (gateway: string, account: string) =>
   sha256(gateway + ':' + normalizeAccount(gateway, account));
 /**
@@ -122,27 +123,50 @@ const invalidPolicy = (message = 'Use explicit activation/deletion permissions a
   new MirrorError('INVALID_POLICY', message);
 const validLimit = (v: unknown) =>
   typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= Number.MAX_SAFE_INTEGER;
-/** Money limits of one platform: native ones as given, currency ones converted to native and kept for display. */
-function moneyLimits(input: JsonObject, gateway: string): JsonObject {
+const currencyCode = (v: unknown): v is string | null => v === null || (typeof v === 'string' && /^[A-Z]{3}$/.test(v));
+/**
+ * Money limits of one platform: native ones as given, currency ones converted to native and kept for display. A
+ * `currency` (WRT-07 Stage C) binds the limits to the currency they were stated in: an account spending in another one
+ * is not compared with them unconverted. Caps stated in currency without one take `observedCurrency`, the account's
+ * currency from its last live read; when that is unknown too they stay unbound, as caps saved before currencies were,
+ * and owner health lists them (policyWarnings).
+ */
+function moneyLimits(input: JsonObject, gateway: string, observedCurrency?: string): JsonObject {
   const out: JsonObject = {};
+  if (Object.hasOwn(input, 'currency') && !currencyCode(input.currency))
+    throw invalidPolicy('currency is the ISO 4217 code the caps are stated in, such as USD or KWD, or null.');
+  const stated = Object.keys(input).some(k => currencyMoneyKeys[k]),
+    currency: string | null | undefined = Object.hasOwn(input, 'currency')
+      ? (input.currency as string | null)
+      : stated
+        ? observedCurrency
+        : undefined;
   for (const [key, value] of Object.entries(input)) {
+    if (key === 'currency') continue;
     if (!validLimit(value)) throw invalidPolicy();
     if (nativeMoneyKeys.includes(key)) out[key] = value;
     else if (currencyMoneyKeys[key]) {
-      const native = nativeAmount(gateway, value as number);
+      const native = nativeAmount(gateway, value as number, currency);
       if (native === undefined)
         throw invalidPolicy(
-          gateway +
-            ' has no documented budget unit in AMCP, so state ' +
-            key +
-            ' in native API units as ' +
-            currencyMoneyKeys[key] +
-            '.',
+          gateway === 'meta_native_action'
+            ? 'Meta counts money in the minor unit of the account currency, and AMCP converts ' +
+                key +
+                ' only with the account currency (currency) and a pinned capture of Meta’s currency offsets that lists it. State it in native units as ' +
+                currencyMoneyKeys[key] +
+                ' (100 USD is 10000).'
+            : gateway +
+                ' has no documented budget unit in AMCP, so state ' +
+                key +
+                ' in native API units as ' +
+                currencyMoneyKeys[key] +
+                '.',
         );
       out[currencyMoneyKeys[key]] = native;
       out[key] = value;
     } else throw invalidPolicy();
   }
+  if (currency !== undefined) out.currency = currency;
   return out;
 }
 /**
@@ -151,11 +175,20 @@ function moneyLimits(input: JsonObject, gateway: string): JsonObject {
  * under `per_gateway`, because one number means micros on one platform and currency units on another (F-04); a native
  * amount at its top level still applies to every platform without its own entry, with a warning.
  */
-function validatePolicy(p: JsonObject, scope: {workspace: true} | {workspace: false; gateway: string}): JsonObject {
+function validatePolicy(
+  p: JsonObject,
+  scope: {workspace: true} | {workspace: false; gateway: string; observedCurrency?: string},
+): JsonObject {
   const out: JsonObject = {};
   const money: JsonObject = {};
   for (const [key, value] of Object.entries(p)) {
-    if (key === 'allow_activation' || key === 'allow_deletion') {
+    if (key === 'currency') {
+      if (scope.workspace)
+        throw invalidPolicy(
+          'A workspace default states the currency of its caps per platform under per_gateway, because accounts spend in different currencies.',
+        );
+      money[key] = value;
+    } else if (key === 'allow_activation' || key === 'allow_deletion') {
       if (typeof value !== 'boolean') throw invalidPolicy();
       out[key] = value;
     } else if (key === 'enforcement') {
@@ -178,7 +211,7 @@ function validatePolicy(p: JsonObject, scope: {workspace: true} | {workspace: fa
     } else throw invalidPolicy();
   }
   if (Object.keys(money).length) {
-    if (!scope.workspace) Object.assign(out, moneyLimits(money, scope.gateway));
+    if (!scope.workspace) Object.assign(out, moneyLimits(money, scope.gateway, scope.observedCurrency));
     else if (Object.keys(money).some(k => currencyMoneyKeys[k]))
       throw invalidPolicy(
         'A workspace default states caps in account currency per platform under per_gateway, because each platform counts money in its own unit.',
@@ -257,7 +290,10 @@ export function saveSpendPolicy(store: Store, actor: Actor, input: JsonObject) {
       applies_to: 'Every gateway and account in this workspace that has no policy of its own.',
     };
     const saved = putPolicy(store, actor, workspaceDefaultPolicyId, data, expected);
-    const warnings = [...policyWarnings(store, actor.tenantId), ...saved.warnings];
+    const warnings = [
+      ...policyWarnings(store, actor.tenantId).filter(w => w.policy_id === workspaceDefaultPolicyId),
+      ...saved.warnings,
+    ];
     return {
       id: workspaceDefaultPolicyId,
       revision: saved.revision,
@@ -273,7 +309,11 @@ export function saveSpendPolicy(store: Store, actor: Actor, input: JsonObject) {
     typeof input.policy !== 'object'
   )
     throw new MirrorError('INVALID_POLICY', 'Confirm an account-specific spending policy.');
-  const p = validatePolicy(input.policy as JsonObject, {workspace: false, gateway: input.gateway});
+  const p = validatePolicy(input.policy as JsonObject, {
+    workspace: false,
+    gateway: input.gateway,
+    observedCurrency: observedAccountCurrency(store, actor.tenantId, input.gateway, input.account_id),
+  });
   store.resolveConnection(actor, input.gateway, input.account_id, input.connection_id);
   const id = spendPolicyKey(input.gateway, input.account_id),
     data = {
@@ -289,22 +329,84 @@ export function saveSpendPolicy(store: Store, actor: Actor, input: JsonObject) {
   return {id, revision: saved.revision, ...data, ...(saved.warnings.length ? {warnings: saved.warnings} : {})};
 }
 /**
+ * The account's currency as its last live read recorded it (amcp_workspace check live:true), through any of this
+ * gateway's connections that read it; undefined when none did or they disagree.
+ */
+export function observedAccountCurrency(
+  store: Store,
+  tenant: string,
+  gateway: string,
+  account: string,
+): string | undefined {
+  const connections = new Set(
+      store
+        .listConnections(tenant)
+        .filter(c => c.gateway === gateway)
+        .map(c => c.id),
+    ),
+    wanted = new Set([account, normalizeAccount(gateway, account)]);
+  const currencies = new Set(
+    (
+      store.db.prepare("SELECT data FROM documents WHERE tenant_id=? AND kind='account_metadata'").all(tenant) as {
+        data: string;
+      }[]
+    )
+      .map(r => JSON.parse(r.data) as JsonObject)
+      .filter(
+        m =>
+          connections.has(m.connection_id) &&
+          (wanted.has(m.account_id) ||
+            normalizeAccount(gateway, String(m.account_id)) === normalizeAccount(gateway, account)),
+      )
+      .map(m => m.currency)
+      .filter((c): c is string => typeof c === 'string' && /^[A-Z]{3}$/.test(c)),
+  );
+  return currencies.size === 1 ? [...currencies][0] : undefined;
+}
+/** The account currency for a reviewed request: the one its state read names, else the last live account read. */
+function accountCurrency(store: Store, tenant: string, plan: CompiledRequest, before: unknown): string | undefined {
+  return stateCurrency(before) ?? observedAccountCurrency(store, tenant, plan.gateway, String(plan.accountId ?? ''));
+}
+/** Caps stated in account currency with no currency recorded: they are compared as before, and the owner is told. */
+function currencyWarnings(id: string, policy: JsonObject): JsonObject[] {
+  const unset = (limits: JsonObject | undefined) =>
+    !!limits && limits.currency == null && Object.keys(limits).some(k => currencyMoneyKeys[k]);
+  const gateways = Object.entries((policy.per_gateway ?? {}) as JsonObject)
+    .filter(([, limits]) => unset(limits as JsonObject))
+    .map(([g]) => g);
+  if (!unset(policy) && !gateways.length) return [];
+  return [
+    {
+      code: 'POLICY_CURRENCY_UNSET',
+      policy_id: id,
+      ...(gateways.length ? {gateways} : {}),
+      message:
+        'These caps are stated in account currency without naming it, so an account spending in another currency is compared with the same number. Save them again with their currency (for example currency: "USD"), or read the account live first so AMCP records it.',
+    },
+  ];
+}
+/**
  * Stored policies that need the owner's attention: a workspace default saved before per-platform limits, whose single
  * native amount means different money on each platform (F-04). It still applies until it is saved again.
  */
 export function policyWarnings(store: Store, tenant: string): JsonObject[] {
-  const row = store.documents(tenant, 'spend_policy').find(p => p.id === workspaceDefaultPolicyId);
+  const policies = store.documents(tenant, 'spend_policy'),
+    row = policies.find(p => p.id === workspaceDefaultPolicyId);
   const legacy = nativeMoneyKeys.filter(k => row?.[k] !== undefined && row[k] !== 0);
-  return legacy.length
-    ? [
-        {
-          policy_id: workspaceDefaultPolicyId,
-          fields: legacy,
-          message:
-            'The workspace default applies one native amount to every platform without its own per_gateway entry, although Google counts micros and LinkedIn currency units. State caps per platform under per_gateway.',
-        },
-      ]
-    : [];
+  return [
+    ...(legacy.length
+      ? [
+          {
+            policy_id: workspaceDefaultPolicyId,
+            fields: legacy,
+            message:
+              'The workspace default applies one native amount to every platform without its own per_gateway entry, although Google counts micros and LinkedIn currency units. State caps per platform under per_gateway.',
+          },
+        ]
+      : []),
+    // Caps stated in currency before policies recorded one (WRT-07 Stage C): they still apply, unbound to a currency.
+    ...policies.flatMap(p => currencyWarnings(String(p.id), p)),
+  ];
 }
 /**
  * Accounts with no policy of their own and no workspace default are financially unprotected.
@@ -328,7 +430,35 @@ export function unprotectedAccounts(store: Store, actor: Actor) {
         rows.push({gateway: c.gateway, account_id: account, connection_id: c.id});
   return rows;
 }
-type Amount = {path: string; key: string; amount: number; decimal?: string; lifetime?: boolean};
+/** `resource`: the identity of the record the amount belongs to, where the gateway names one (WRT-07 Stage B). */
+type Amount = {path: string; key: string; amount: number; decimal?: string; lifetime?: boolean; resource?: string};
+/**
+ * The fields that name the record a budget belongs to, per gateway, in the request and in the reviewed state alike:
+ * Google resourceName, a Snapchat or Microsoft row id, a TikTok ad group (or else campaign) id. The innermost record
+ * that carries one owns the amounts below it. A gateway not listed pairs amounts by field name only, as before.
+ */
+const resourceIdentity: Record<string, readonly string[]> = {
+  google_ads_native_action: ['resource_name'],
+  snapchat_native_action: ['id'],
+  microsoft_ads_native_action: ['id'],
+  tiktok_native_action: ['adgroup_id', 'campaign_id'],
+};
+/**
+ * AMCP_SPEND_POLICY_RESOURCE_BASELINES=false restores pairing a budget with every prior value of the same field (WRT-07
+ * rollback): with several distinct priors the baseline was lost and the whole amount counted as an increase.
+ */
+export const resourceBaselines = () => process.env.AMCP_SPEND_POLICY_RESOURCE_BASELINES !== 'false';
+function resourceOf(record: JsonObject, identity: readonly string[]): string | undefined {
+  for (const name of identity)
+    for (const [k, v] of Object.entries(record))
+      if (
+        policyField(k) === name &&
+        ((typeof v === 'string' && v.length > 0 && v.length <= 300) ||
+          (typeof v === 'number' && Number.isSafeInteger(v)))
+      )
+        return String(v);
+  return undefined;
+}
 /** A money field the policy cannot measure, kept beside the measured amounts as one finding (WRT-01 stage A). */
 type Unsupported = {field: string; message: string};
 const clearedMessage =
@@ -384,6 +514,8 @@ function budgets(
   strict = false,
   depth = 0,
   unsupported: Unsupported[] = [],
+  identity: readonly string[] = [],
+  owner?: string,
 ): Amount[] {
   if (depth > maxPayloadDepth)
     throw new MirrorError(
@@ -394,7 +526,7 @@ function budgets(
     );
   const unquantified = (field: string) => unsupported.push({field, message: clearedMessage});
   if (Array.isArray(v)) {
-    v.forEach((x, i) => budgets(x, path + '/' + i, out, strict, depth + 1, unsupported));
+    v.forEach((x, i) => budgets(x, path + '/' + i, out, strict, depth + 1, unsupported, identity, owner));
     return out;
   }
   if (!v || typeof v !== 'object') return out;
@@ -408,8 +540,9 @@ function budgets(
       return out;
     }
     if (Object.hasOwn(record, 'value'))
-      return budgets({[name]: record.value}, next, out, strict, depth + 1, unsupported);
+      return budgets({[name]: record.value}, next, out, strict, depth + 1, unsupported, identity, owner);
   }
+  const resource = (identity.length ? resourceOf(record, identity) : undefined) ?? owner;
   if (strict && Object.hasOwn(record, '$delete')) {
     // REST.li deletes are field names, not numeric values, including nested patches.
     if (!Array.isArray(record.$delete) || record.$delete.some((key: unknown) => typeof key !== 'string'))
@@ -452,7 +585,7 @@ function budgets(
         continue;
       }
       const decimal = decimalText(exact);
-      out.push({path: next, key: name, amount: Number(decimal), decimal});
+      out.push({path: next, key: name, amount: Number(decimal), decimal, ...(resource ? {resource} : {})});
     } else {
       if (
         strict &&
@@ -463,7 +596,7 @@ function budgets(
         unsupported.push({field: next, message: unmappedMessage});
         continue;
       }
-      budgets(x, next, out, strict, depth + 1, unsupported);
+      budgets(x, next, out, strict, depth + 1, unsupported, identity, resource);
     }
   }
   return out;
@@ -720,6 +853,9 @@ const capRules = new Set([
   'POLICY_BID_LIMIT',
   'POLICY_BASELINE_REQUIRED',
   'POLICY_AMOUNT_UNSUPPORTED',
+  // Caps bound to another or an unknown account currency (WRT-07 Stage C).
+  'POLICY_CURRENCY_MISMATCH',
+  'POLICY_CURRENCY_UNKNOWN',
 ]);
 /** One sentence per exceeded cap, for the confirmation the user sees. */
 export function describeExceeded(exceeded: JsonObject[]): string {
@@ -845,7 +981,8 @@ function checkAccountSpendPolicy(
     let campaignAmounts: ReturnType<typeof familyAmounts>, amounts: Amount[], old: Amount[];
     const unsupported: Unsupported[] = [],
       strict = budgetLimitKeys.some(k => policy[k] !== undefined);
-    const familyAmounts = () => familyPolicyAmounts(plan, before, policy);
+    const familyAmounts = () => familyPolicyAmounts(plan, before, policy),
+      identity = resourceBaselines() ? (resourceIdentity[plan.gateway] ?? []) : [];
     try {
       campaignAmounts = familyAmounts();
       amounts =
@@ -857,10 +994,11 @@ function checkAccountSpendPolicy(
           strict,
           0,
           unsupported,
+          identity,
         );
       for (const u of campaignAmounts?.unsupported ?? [])
         unsupported.push({field: u.field, message: u.reason === 'cleared' ? clearedMessage : unmappedMessage});
-      old = campaignAmounts?.old ?? budgets(appleBudgetState(plan, before));
+      old = campaignAmounts?.old ?? budgets(appleBudgetState(plan, before), '', [], false, 0, [], identity);
     } catch (e) {
       // A family that still refuses an amount it cannot measure: nothing of that request can be shown to fit the caps.
       if (!(e instanceof MirrorError) || !capRules.has(e.code)) throw e;
@@ -893,7 +1031,16 @@ function checkAccountSpendPolicy(
       const creating =
         campaignAmounts?.creating ??
         (!updatesExisting && (/\/create\//.test(b.path) || /create|_post$|^Add/.test(plan.action)));
-      const candidates = [...new Set(old.filter(o => o.key === b.key).map(o => decimalText(exact(o))))];
+      // Per-resource baselines (WRT-07 Stage B): when the amount and every prior value of its field name the record
+      // they belong to, only that record's prior is its baseline, so cutting two budgets is two decreases. An identity
+      // with no matching prior has no baseline (never another record's); without identities the field name pairs them.
+      const sameField = old.filter(o => o.key === b.key),
+        identified = b.resource !== undefined && sameField.length > 0 && sameField.every(o => o.resource !== undefined),
+        candidates = [
+          ...new Set(
+            (identified ? sameField.filter(o => o.resource === b.resource) : sameField).map(o => decimalText(exact(o))),
+          ),
+        ];
       // Lifetime and total amounts (owner decision D7) answer to max_total_budget_native when the owner set it, and
       // lowering one from its single current value is always allowed: it can only reduce what may be spent.
       const lifetime = b.lifetime ?? lifetimeAmount(plan.gateway, b.path, b.key),
@@ -970,30 +1117,82 @@ function checkAccountSpendPolicy(
         );
       increase = addDecimal(increase, delta);
     }
-    if (policy.max_bid_native !== undefined)
-      for (const b of bidAmounts(
-        {body: plan.body, query: plan.query},
-        '',
-        '',
-        [],
-        0,
-        plan.gateway === googleGateway ? googleMoneyFields().bid : [],
-      ))
-        if (compareDecimal(policyDecimal(b.decimal ?? b.amount), policyDecimal(policy.max_bid_native)) > 0)
-          breach(
-            new MirrorError(
-              'POLICY_BID_LIMIT',
-              'The requested bid exceeds the owner’s bid cap.',
-              {
-                field: b.path,
-                requested: b.amount,
-                requested_decimal: b.decimal,
-                limit: policy.max_bid_native,
-                units: 'native',
-              },
-              403,
-            ),
-          );
+    const bids =
+      policy.max_bid_native !== undefined
+        ? bidAmounts(
+            {body: plan.body, query: plan.query},
+            '',
+            '',
+            [],
+            0,
+            plan.gateway === googleGateway ? googleMoneyFields().bid : [],
+          )
+        : [];
+    // Caps bound to a currency (WRT-07 Stage C) compare only an account that spends in it. AMCP never converts
+    // between currencies: another or an unknown account currency is a finding like an exceeded cap.
+    if (typeof policy.currency === 'string' && (amounts.length || bids.length || unsupported.length)) {
+      const observed = accountCurrency(store, actor.tenantId, plan, before);
+      if (!observed) {
+        // The live account check records the currency (account-metadata.ts); it reads through a connection.
+        const account = normalizeAccount(plan.gateway, String(plan.accountId ?? '')),
+          connection = store
+            .listConnections(actor.tenantId)
+            .find(c => c.gateway === plan.gateway && c.accounts.some(a => normalizeAccount(c.gateway, a) === account));
+        breach(
+          new MirrorError(
+            'POLICY_CURRENCY_UNKNOWN',
+            'The owner stated these caps in ' +
+              policy.currency +
+              ', and the account currency is unknown, so they cannot be compared. Read the account live first (next_call).',
+            {
+              policy_currency: policy.currency,
+              ...(connection
+                ? {
+                    next_call: {
+                      tool: 'amcp_workspace',
+                      arguments: {
+                        action: 'check',
+                        connection_id: connection.id,
+                        account_id: plan.accountId,
+                        live: true,
+                      },
+                    },
+                  }
+                : {}),
+            },
+            409,
+          ),
+        );
+      } else if (observed !== policy.currency)
+        breach(
+          new MirrorError(
+            'POLICY_CURRENCY_MISMATCH',
+            'The owner stated these caps in ' +
+              policy.currency +
+              ', but this account spends in ' +
+              observed +
+              '. AMCP never converts between currencies; the owner states caps for this account in its own currency.',
+            {policy_currency: policy.currency, account_currency: observed},
+            403,
+          ),
+        );
+    }
+    for (const b of bids)
+      if (compareDecimal(policyDecimal(b.decimal ?? b.amount), policyDecimal(policy.max_bid_native)) > 0)
+        breach(
+          new MirrorError(
+            'POLICY_BID_LIMIT',
+            'The requested bid exceeds the owner’s bid cap.',
+            {
+              field: b.path,
+              requested: b.amount,
+              requested_decimal: b.decimal,
+              limit: policy.max_bid_native,
+              units: 'native',
+            },
+            403,
+          ),
+        );
     // Keep tenant/account/day filtering in SQLite and stream only matching amounts.
     // SQL SUM on REAL values rounds just like JS addition; lifetime history must not
     // be loaded into JS to fix it. The surrounding IMMEDIATE transaction is unchanged.

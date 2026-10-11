@@ -139,7 +139,8 @@ test('LinkedIn guided allocation shows the independent budget qualification, dec
     assert.match(html, /LinkedIn/);
     assert.match(html, /150%/);
     assert.doesNotMatch(html, /Read current Google|Read current Snapchat/);
-    assert.match(html, locale === 'ar' ? /ست منازل عشرية بعملة الحساب/ : /six decimal places in account currency/);
+    // WRT-07: daily amounts round down to what the currency can be charged, not to six decimal places.
+    assert.match(html, locale === 'ar' ? /أصغر وحدة في عملة الحساب/ : /smallest unit of the account currency/);
     assert.match(
       f.node('#allocation-selection-count').textContent,
       locale === 'ar' ? /20 حملة LinkedIn/ : /2–20 LinkedIn campaigns/,

@@ -401,6 +401,65 @@ export function validateGoogleTargetingState(plan: CompiledRequest, states: unkn
   }
 }
 
+/**
+ * AMCP_GOOGLE_NARROWING_EXEMPT=false restores the spend acknowledgement on every Google targeting write (WRT-07 Stage D
+ * rollback).
+ */
+export const narrowingExempt = () => process.env.AMCP_GOOGLE_NARROWING_EXEMPT !== 'false';
+/**
+ * Whether a Google targeting write can widen delivery, and so needs the spend acknowledgement (WRT-07 Stage D, owner
+ * decision P5). Only an exact negative-only create narrows: every operation creates a campaign or ad-group criterion
+ * with negative: true, or a shared criterion (its list is a negative keyword or placement list, which the review's
+ * state read checks before anything is sent). Any removal, update, positive criterion, list attachment or unrecognised
+ * shape still asks; removing a negative widens delivery.
+ */
+export function googleTargetingWidens(plan: CompiledRequest): boolean {
+  if (!narrowingExempt()) return true;
+  const kind = googleTargetingKind(plan);
+  let body: JsonObject;
+  try {
+    body = normalized(plan.body);
+  } catch {
+    return true;
+  }
+  const ops = object(body) && Array.isArray(body.operations) ? body.operations : [];
+  if (!ops.length) return true;
+  return !ops.every(
+    (op: unknown) =>
+      object(op) &&
+      Object.keys(op).length === 1 &&
+      object(op.create) &&
+      (kind === 'sharedCriteria' ||
+        ((kind === 'campaignCriteria' || kind === 'adGroupCriteria') && op.create.negative === true)),
+  );
+}
+/**
+ * Whether a Google targeting write activates delivery for the owner's "nothing goes live" switch (allow_activation:
+ * false): removing an exclusion widens delivery. A removed campaign or ad-group criterion counts unless the review's
+ * state shows it positive; a removed shared criterion (a negative list's) or a detached list always counts.
+ */
+function googleTargetingActivates(plan: CompiledRequest, before: unknown): boolean {
+  const kind = googleTargetingKind(plan);
+  let body: JsonObject;
+  try {
+    body = normalized(plan.body);
+  } catch {
+    return true;
+  }
+  const removals = (Array.isArray(body?.operations) ? body.operations : [])
+    .filter((op: unknown) => object(op) && typeof (op as JsonObject).remove === 'string')
+    .map((op: JsonObject) => op.remove as string);
+  if (!removals.length) return false;
+  if (kind === 'sharedCriteria' || kind === 'campaignSharedSets') return true;
+  if (kind !== 'campaignCriteria' && kind !== 'adGroupCriteria') return false;
+  const resource = config[kind].resource,
+    rows = (Array.isArray(before) ? before : [before])
+      .flatMap(s => (object(s) && Array.isArray(s.results) ? s.results : []))
+      .map(r => normalized(r)?.[resource])
+      .filter(object);
+  return removals.some(name => rows.find(r => r.resource_name === name)?.negative !== false);
+}
+
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 export const googleTargetingFamily: ReviewedFamily = {
   name: 'google_targeting',
@@ -412,8 +471,9 @@ export const googleTargetingFamily: ReviewedFamily = {
     assertGoogleTargeting(plan);
   },
   snapshots: googleTargetingSnapshots,
+  activates: googleTargetingActivates,
   spendConfirmation: {
-    needed: () => true,
+    needed: googleTargetingWidens,
     message: 'Targeting, serving and shared-list changes require spend_change_confirmed=true.',
   },
 };

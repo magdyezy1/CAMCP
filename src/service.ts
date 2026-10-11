@@ -70,6 +70,7 @@ import {redactReportingRecord} from './report-query-access.js';
 import {applyExecutionRisk} from './execution-risk.js';
 import {projectResponse} from './projection.js';
 import {WriteReviewService, readOnlyWriteTool, writeTool} from './write-review.js';
+import type {WriteOrigin} from './write-records.js';
 import {validateAppleResponse} from './apple-native.js';
 import {microsoftGateway, validateMicrosoftResponse} from './microsoft-native.js';
 import {
@@ -364,7 +365,11 @@ export class MirrorService {
           tool,
           input.action,
         );
-      const call = (t: string, a: JsonObject, u: Actor) => this.call(t, a, u);
+      // A call a workflow makes for the person (a campaign plan preparing its step) is not their standalone review.
+      const call = (t: string, a: JsonObject, u: Actor) => {
+        this.nested.add(a);
+        return this.call(t, a, u);
+      };
       if (tool === previewTool.name)
         return this.wrap(await new AdPreviews(call).handle(input, actor), requestId, start, tool);
       if (tool === workspaceTool.name)
@@ -745,7 +750,12 @@ export class MirrorService {
     const meta: JsonObject = {requestId, latencyMs: Date.now() - start};
     const warnings = this.argumentWarnings.get(requestId);
     if (warnings) meta.argument_warnings = warnings;
-    const workflow = workflowOutcome(tool, data as JsonObject, action);
+    // A media review that amcp_write prepared or executed is no write review: it keeps no write workflow (WRT-08).
+    const workflow = workflowOutcome(
+      tool === writeTool.name && this.mediaResults.has(data as JsonObject) ? undefined : tool,
+      data as JsonObject,
+      action,
+    );
     if (workflow) {
       if (workflow.next_call && !this.listed(workflow.next_call.tool)) delete workflow.next_call;
       const path = workflow.website_path;
@@ -762,10 +772,24 @@ export class MirrorService {
   }
   /** Prepare inputs being tried whole before any split (see reviewed). */
   private ungrouped = new WeakSet<JsonObject>();
+  /** Inputs a first-party workflow sent on the person's behalf, and the parts a group prepares (WRT-08 origin). */
+  private nested = new WeakSet<JsonObject>();
+  private groupParts = new WeakSet<JsonObject>();
+  private mediaResults = new WeakSet<JsonObject>();
+  private media_(result: unknown): unknown {
+    if (result && typeof result === 'object') this.mediaResults.add(result as JsonObject);
+    return result;
+  }
+  private origin(input: JsonObject): WriteOrigin {
+    return this.nested.has(input) ? 'plan' : this.groupParts.has(input) ? 'group_part' : 'standalone';
+  }
   private writeGroups() {
     return new WriteGroups(
       this.store,
-      (input, actor) => this.reviewed(input, actor),
+      (input, actor) => {
+        if (input.action === 'prepare') this.groupParts.add(input);
+        return this.reviewed(input, actor);
+      },
       (actor, id, flags) =>
         new WriteReviewService(
           this.registry,
@@ -856,7 +880,7 @@ export class MirrorService {
         input.spend_change_confirmed !== undefined
       )
         throw new MirrorError('INVALID_ARGUMENT', 'Media execution uses only its frozen review and confirmation.');
-      return this.media().call(input, actor);
+      return this.media_(await this.media().call(input, actor));
     }
     // One approval for a list longer than one native call takes: parts of 25, each an ordinary review (owner item 4).
     const groups = this.writeGroups();
@@ -868,7 +892,7 @@ export class MirrorService {
       try {
         return await this.reviewed(input, actor);
       } catch (e) {
-        if (groupLimitRefusal(e)) return groups.prepare(input, actor);
+        if (groupLimitRefusal(e)) return groups.prepare(input, actor, this.origin(input));
         throw e;
       } finally {
         this.ungrouped.delete(input);
@@ -884,11 +908,13 @@ export class MirrorService {
       const args = input.arguments;
       this.registry.validate(input.gateway, args, this.options);
       if (input.gateway === 'amcp_native_action' && args.operation === 'platform_media_upload')
-        return mediaNext(await this.media().call(workflowMediaInput(args.arguments, input.connection_id), actor));
+        return this.media_(
+          mediaNext(await this.media().call(workflowMediaInput(args.arguments, input.connection_id), actor)),
+        );
       if (this.registry.tools.get(input.gateway)?.mode !== 'delegated') {
         const plan = this.compiler.compile(input.gateway, args, this.options),
           media = nativeMediaInput(plan, this.connectionId(args, input.connection_id));
-        if (media) return mediaNext(await this.media().call(media, actor));
+        if (media) return this.media_(mediaNext(await this.media().call(media, actor)));
       }
     }
     // A caller that does not choose receives each provider contract whole once per session, then a reference to it.
@@ -903,7 +929,12 @@ export class MirrorService {
       this.options,
       this.policy,
       this.delegatedCompiler,
-    ).call(input, actor, gateway ? this.contractMemory.form(session, gateway) : undefined)) as JsonObject;
+    ).call(
+      input,
+      actor,
+      gateway ? this.contractMemory.form(session, gateway) : undefined,
+      this.origin(input),
+    )) as JsonObject;
     if (gateway && result?.contract_evidence?.provider?.write_scope !== undefined)
       this.contractMemory.delivered(session, gateway);
     return result;

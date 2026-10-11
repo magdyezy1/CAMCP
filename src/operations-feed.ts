@@ -1,4 +1,4 @@
-import {operationKinds, operationStates} from './operation-types.js';
+import {operationCategory, operationKinds, operationStates} from './operation-types.js';
 export {operationKinds, operationStates} from './operation-types.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
@@ -11,6 +11,7 @@ import {normalizeAccount} from './scope.js';
 import {incidentAttention} from './report-monitors.js';
 import {reportRunFeedSQL, reportRunScope} from './report-runs.js';
 import {workbookScheduleFeedSQL} from './workbook-schedules.js';
+import {writeFeedSQL, writeHandoff, writeRecordState} from './write-records.js';
 
 const documentKinds = [
   'campaign_run',
@@ -21,7 +22,56 @@ const documentKinds = [
   'report_incident',
 ];
 const scanLimit = 500;
-const feedKinds = [...documentKinds, 'workbook_report', 'workbook_schedule'];
+// In operationKinds order: each feed kind is the record kind of the operation kind at the same index.
+const feedKinds = [
+  ...documentKinds,
+  'workbook_report',
+  'workbook_schedule',
+  'write_review',
+  'monitor_notice',
+  'connection',
+];
+/**
+ * Monitor email notices whose delivery failed or ran out of attempts (OPS-06, owner decision D22). The email worker
+ * records the outcome on the notice (delivery_state, delivery_error); a confirmed recovery clears it. Only the notice's
+ * metadata is projected: never the recipient, the payload or a provider message.
+ */
+const noticeFeedSQL = `SELECT d.id, 'monitor_notice' AS kind, d.revision,
+  coalesce(json_extract(d.data,'$.failed_at'),json_extract(d.data,'$.created_at'),0) AS at,
+  json_object(
+    'name',substr(coalesce(json_extract(m.data,'$.name'),json_extract(d.data,'$.monitor_id')),1,200),
+    'user_id',json_extract(d.data,'$.user_id'),
+    'state',json_extract(d.data,'$.state'),'expires_at',json_extract(d.data,'$.expires_at'),
+    'scopes',json_array(json_object('platform',json_extract(m.data,'$.platform'),
+      'connection_id',json_extract(m.data,'$.connection_id'),'account_id',json_extract(m.data,'$.account_id'))),
+    'error_code',json_extract(d.data,'$.delivery_error'),
+    'incident_id',json_extract(d.data,'$.incident_id'),'monitor_id',json_extract(d.data,'$.monitor_id')
+  ) AS metadata
+  FROM documents d
+  LEFT JOIN documents m ON m.tenant_id=d.tenant_id AND m.kind='report_monitor' AND m.id=json_extract(d.data,'$.monitor_id')
+  WHERE d.tenant_id=? AND d.kind='monitor_notice' AND json_extract(d.data,'$.delivery_state')='failed'
+    AND coalesce(json_extract(d.data,'$.state'),'')<>'cancelled'`;
+/**
+ * Logins that need a person (OPS-06): the provider rejected the login (or it ended), AMCP keeps failing to renew it
+ * (CON-02 credential health of the current login only), or an administrator turned the connection off. Connection
+ * metadata only: label, gateway and accounts, never credentials.
+ */
+const connectionFeedSQL = `SELECT id, kind, revision, at, metadata FROM (SELECT c.id, 'connection' AS kind, coalesce(h.revision,1) AS revision,
+  max(coalesce(json_extract(h.data,'$.updated_at'),0),coalesce(json_extract(c.data,'$.updated_at'),0)) AS at,
+  json_object(
+    'name',substr(coalesce(json_extract(c.data,'$.label'),c.id),1,200),
+    'gateway',json_extract(c.data,'$.gateway'),'accounts',json_extract(c.data,'$.accounts'),
+    'state',CASE WHEN json_extract(c.data,'$.enabled')=0 THEN 'disabled'
+      WHEN h.id IS NULL OR coalesce(json_extract(h.data,'$.login_revision'),0)<>coalesce(json_extract(c.data,'$.loginRevision'),0)
+        OR coalesce(json_extract(h.data,'$.login_id'),'')<>coalesce(json_extract(c.data,'$.loginId'),'') THEN 'healthy'
+      WHEN json_extract(h.data,'$.state') IN ('reauthorization_required','refresh_failed') THEN json_extract(h.data,'$.state')
+      WHEN json_extract(h.data,'$.login_expires_at')<=? THEN 'reauthorization_required'
+      ELSE 'healthy' END,
+    'error_code',json_extract(h.data,'$.last_failure.code')
+  ) AS metadata
+  FROM connections c
+  LEFT JOIN documents h ON h.tenant_id=c.tenant_id AND h.kind='connection_health' AND h.id=c.id
+  WHERE c.tenant_id=?) WHERE json_extract(metadata,'$.state')<>'healthy'`;
 
 // Project only metadata in SQLite. Never load report rows, plan arguments, upload URLs, job inputs/results,
 // encrypted actor bindings, provider receipts or error messages into an operations response.
@@ -76,43 +126,47 @@ const query = () =>
   WHERE d.tenant_id=? AND d.kind IN (${documentKinds.map(() => '?').join(',')})
   UNION ALL ${reportRunFeedSQL}
   UNION ALL ${workbookScheduleFeedSQL}
+  UNION ALL ${writeFeedSQL}
+  UNION ALL ${noticeFeedSQL}
+  UNION ALL ${connectionFeedSQL}
 ) SELECT * FROM feed WHERE (? IS NULL OR kind=?)
   AND (? IS NULL OR at<? OR (at=? AND (kind>? OR (kind=? AND id>?))))
   ORDER BY at DESC,kind,id LIMIT 501`);
 
-function category(kind: string, state: string) {
-  if (
-    [
-      'uncertain',
-      'failed',
-      'partial',
-      'blocked',
-      'attention',
-      'mismatch',
-      'inconclusive',
-      'awaiting_review',
-      'review_ready',
-      'unsubmitted',
-      'expired',
-      'unknown',
-      'prepared',
-    ].includes(state)
-  )
-    return 'attention';
-  if (kind === 'incident')
-    return state === 'resolved'
-      ? 'complete'
-      : state === 'snoozed' || state === 'acknowledged' || state === 'superseded'
-        ? 'deferred'
-        : 'attention';
-  if (['complete', 'cancelled', 'verified', 'delivered'].includes(state)) return 'complete';
-  // A finished export that wrote nothing (a newer snapshot holds the tab, or policy skipped it) needs no action.
-  if (kind === 'export' && ['superseded', 'skipped'].includes(state)) return 'complete';
-  if (['paused', 'snoozed'].includes(state)) return 'deferred';
-  return 'active';
-}
-function handoff(kind: string, id: string, p: JsonObject) {
+/** A failed notice can be recovered only within its 24 hours; afterwards it stays undelivered, for the record. */
+const noticeState = (p: JsonObject, at: number) =>
+  p.state === 'expired' || (typeof p.expires_at === 'number' && p.expires_at <= at) ? 'undelivered' : 'failed';
+function handoff(kind: string, id: string, p: JsonObject, state: string) {
   const encoded = encodeURIComponent(id);
+  if (kind === 'write') return writeHandoff(id);
+  // The rule's own email-notice section holds the delivery history and its one confirmed retry; the incident beside it.
+  if (kind === 'notice')
+    return {
+      website_path:
+        '/monitors?monitor_id=' +
+        encodeURIComponent(String(p.monitor_id ?? '')) +
+        '&incident_id=' +
+        encodeURIComponent(String(p.incident_id ?? '')),
+      next_call: {tool: 'amcp_workspace', arguments: {action: 'monitor_notifications', id: p.monitor_id}},
+      next_safe_action:
+        state === 'undelivered'
+          ? 'This notice is past its 24 hours and cannot be sent again. The incident itself stays in the monitoring inbox.'
+          : 'Inspect this notice on its monitor rule. Where recovery is offered, it resends the original notice once within its 24 hours; the incident itself stays in the monitoring inbox.',
+    };
+  if (kind === 'connection')
+    return {
+      website_path: '/connections?connection_id=' + encoded,
+      next_call: {
+        tool: 'amcp_workspace',
+        arguments: {action: 'dashboard', sections: ['connections'], connection_id: id},
+      },
+      next_safe_action:
+        state === 'disabled'
+          ? 'An administrator turns this connection on again from Connections; reads and reviewed changes through it stop until then.'
+          : state === 'refresh_failed'
+            ? 'AMCP renews this login again after a back-off. If it keeps failing, an administrator chooses Retry or reauthorizes it in place from Connections.'
+            : 'Ask an administrator to reauthorize this login in place from Connections (Manage, then Reauthorize). It keeps the connection, its selections and saved reports; no provider request is sent until then.',
+    };
   if (kind === 'workbook_schedule')
     return {
       website_path: '/operations?workbook_schedule_id=' + encoded,
@@ -212,23 +266,26 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
   }
   const selectedKind = feedKinds[operationKinds.indexOf(kind)] ?? null;
   const at = Date.now();
-  const rows = store.db
-    .prepare(query())
-    .all(
-      at,
-      actor.tenantId,
-      ...documentKinds,
-      actor.tenantId,
-      actor.tenantId,
-      selectedKind,
-      selectedKind,
-      after?.at ?? null,
-      after?.at ?? null,
-      after?.at ?? null,
-      after?.kind ?? null,
-      after?.kind ?? null,
-      after?.id ?? null,
-    ) as JsonObject[];
+  const rows = store.db.prepare(query()).all(
+    at,
+    actor.tenantId,
+    ...documentKinds,
+    actor.tenantId,
+    actor.tenantId,
+    actor.tenantId,
+    // Notices of the tenant; connections, with the time a login that cannot renew itself ends.
+    actor.tenantId,
+    at,
+    actor.tenantId,
+    selectedKind,
+    selectedKind,
+    after?.at ?? null,
+    after?.at ?? null,
+    after?.at ?? null,
+    after?.kind ?? null,
+    after?.kind ?? null,
+    after?.id ?? null,
+  ) as JsonObject[];
   const operations: JsonObject[] = [];
   let last: JsonObject | undefined,
     hasMore = false;
@@ -244,7 +301,20 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
     if (k === 'campaign' && !ownsRecord(actor, p) && actor.role !== 'admin') permitted = false;
     // An upload review stays with the credential that prepared it, like every write review: its recovery refuses others.
     if (k === 'upload' && (p.user_id !== actor.userId || actor.role === 'reader' || !allowWrites)) permitted = false;
+    // A standalone review is its maker's (the credential, or the same person), or an administrator's (WRT-08).
+    if (k === 'write' && p.user_id !== actor.userId && !ownsRecord(actor, p) && actor.role !== 'admin')
+      permitted = false;
+    // A monitor notice is its subscriber's own, like its delivery history (OPS-06).
+    if (k === 'notice' && (!actor.ownerUserId || p.user_id !== actor.ownerUserId)) permitted = false;
     let scopes = typeof p.scopes === 'string' ? JSON.parse(p.scopes) : p.scopes;
+    // A login's state is for administrators only; its accounts name it, without reading them (OPS-06).
+    if (k === 'connection') {
+      const accounts = typeof p.accounts === 'string' ? JSON.parse(p.accounts) : p.accounts;
+      scopes = (Array.isArray(accounts) ? accounts : [])
+        .filter((a: unknown): a is string => typeof a === 'string')
+        .map((account_id: string) => ({gateway: p.gateway, connection_id: row.id, account_id}));
+      if (actor.role !== 'admin') permitted = false;
+    }
     if (['workbook_report', 'workbook_schedule'].includes(k)) {
       try {
         scopes = [reportRunScope(store, actor, p)];
@@ -254,8 +324,8 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
         scopes = [];
       }
     }
-    if (!Array.isArray(scopes) || !scopes.length || scopes.length > 50) permitted = false;
-    if (permitted) {
+    if (k !== 'connection' && (!Array.isArray(scopes) || !scopes.length || scopes.length > 50)) permitted = false;
+    if (permitted && k !== 'connection') {
       try {
         for (const s of scopes) {
           const gateway = s.gateway ?? reportPlatforms[s.platform]?.gateway;
@@ -277,16 +347,24 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
         permitted = false;
       }
     }
-    const attentionState = k === 'incident' ? incidentAttention(p, at) : (p.state ?? 'unknown');
-    const group = category(k, attentionState);
+    const attentionState =
+      k === 'incident'
+        ? incidentAttention(p, at)
+        : k === 'write'
+          ? writeRecordState(p, at)
+          : k === 'notice'
+            ? noticeState(p, at)
+            : (p.state ?? 'unknown');
+    const group = operationCategory(k, attentionState);
     const matches =
       permitted &&
       (state === 'all' || state === group) &&
-      scopes.some(
-        (s: JsonObject) =>
-          (!filters.account_id || s.account_id === filters.account_id) &&
-          (!filters.connection_id || s.connection_id === filters.connection_id),
-      ) &&
+      ((k === 'connection' && !filters.account_id && (!filters.connection_id || filters.connection_id === row.id)) ||
+        scopes.some(
+          (s: JsonObject) =>
+            (!filters.account_id || s.account_id === filters.account_id) &&
+            (!filters.connection_id || s.connection_id === filters.connection_id),
+        )) &&
       (!filters.search ||
         [row.id, p.name, ...scopes.map((s: JsonObject) => s.account_id)]
           .join(' ')
@@ -305,10 +383,10 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
       revision: row.revision,
       name: String(p.name ?? row.id).slice(0, 200),
       state: attentionState,
-      source_state: p.source_state ?? p.state,
+      source_state: k === 'write' ? (p.claim_state ?? 'none') : (p.source_state ?? p.state),
       category: group,
       updated_at: row.at || null,
-      accounts: [...new Set(scopes.map((s: JsonObject) => s.account_id))],
+      accounts: [...new Set(scopes.map((s: JsonObject) => s.account_id))].slice(0, 50),
       ...(typeof p.error_code === 'string' && /^[A-Z0-9_]{1,100}$/.test(p.error_code)
         ? {error_code: p.error_code}
         : {}),
@@ -316,7 +394,7 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
       ...(['schedule', 'workbook_schedule'].includes(k) && ['active', 'attention'].includes(p.state)
         ? {next_run_at: p.next_run_at}
         : {}),
-      ...handoff(k, row.id, p),
+      ...handoff(k, row.id, p, attentionState),
       automatic_retry_of_mutation: false,
     });
   }
@@ -336,6 +414,6 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
     captured_at: at,
     website_path: '/operations',
     meaning:
-      'Retained campaign plans, upload reviews, reporting snapshots, export jobs, overview schedules, incidents and workbook report runs/schedules with identifiable account scope within current access. This is a live metadata feed, not an immutable audit history. Updates can move rows between pages; refresh to see the latest state. An empty page can still have a continuation. Each continuation checks current access again.',
+      'Retained campaign plans, upload reviews, reporting snapshots, export jobs, overview schedules, incidents, workbook report runs/schedules, standalone reviewed writes and your failed monitor email notices with identifiable account scope within current access, and for administrators logins that need reauthorization, keep failing to renew or are turned off. This is a live metadata feed, not an immutable audit history. Updates can move rows between pages; refresh to see the latest state. An empty page can still have a continuation. Each continuation checks current access again.',
   };
 }

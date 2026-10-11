@@ -4,7 +4,8 @@ import {sunsetStatus} from './provider-sunsets.js';
 import {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {policyWarnings, unprotectedAccounts} from './spend-policy.js';
-import {budgetUnits} from './budget-units.js';
+import {budgetUnits, metaCurrencyOffsetsPinned} from './budget-units.js';
+import {recallAccountMetadata} from './account-metadata.js';
 import {mediaLimitProblem} from './drive-media.js';
 import type {Actor, JsonObject} from './types.js';
 import {ownerAccess, saveSpendPolicy, spendPolicyKey, workspaceOwner} from './spend-policy.js';
@@ -37,6 +38,10 @@ export function serviceKeys(store: Store, tenant: string): JsonObject[] {
     )
     .all(tenant, Date.now()) as JsonObject[];
 }
+const accountCurrencyOf = (metadata: JsonObject | undefined) =>
+  typeof metadata?.currency === 'string' && /^[A-Z]{3}$/.test(metadata.currency)
+    ? {account_currency: metadata.currency as string}
+    : {};
 /** The owner's pause of every reviewed write of a workspace, or undefined when writes are not paused. */
 export function writePause(store: Store, tenant: string): JsonObject | undefined {
   const row = store.db
@@ -147,6 +152,8 @@ export function ownerOperations(
           connection_id: c.id,
           account_id: a,
           policy_id: spendPolicyKey(c.gateway, a),
+          // The currency its last live read recorded, which prefills the currency of its caps (WRT-07 Stage C).
+          ...accountCurrencyOf(recallAccountMetadata(store, tenant, c.id, a)),
         })),
       ),
       unprotected_accounts: unprotectedAccounts(store, actor),
@@ -155,6 +162,8 @@ export function ownerOperations(
       cap_overrides: capOverrides(store, tenant),
       review_friction: reviewFriction(store, tenant),
       budget_units: budgetUnits,
+      // Whether Meta caps can be stated in account currency: only with a pinned capture of Meta's offsets (WRT-07).
+      meta_currency_offsets: metaCurrencyOffsetsPinned() ? 'pinned' : 'not_pinned',
       configuration_problems: [mediaLimitProblem, googleDeveloperTokenWarning()].filter(Boolean),
       // Workbook runs and schedules the Operations feed cannot show, counted by reason (B13, DOC-02).
       withheld_workbook_records: sources.withheldWorkbookRecords?.(store, actor) ?? null,

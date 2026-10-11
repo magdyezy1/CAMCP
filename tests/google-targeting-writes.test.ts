@@ -143,8 +143,17 @@ for (const [index, [kind, record]] of creations.entries())
         idempotency_key: p.data.idempotency_key,
         confirmed: true,
       };
-      assert.equal((await x.service.call('amcp_write', args, actor)).error.code, 'SPEND_CONFIRMATION_REQUIRED');
-      const result = await x.service.call('amcp_write', {...args, spend_change_confirmed: true}, actor);
+      // A negative-only create narrows delivery and needs no spend acknowledgement (WRT-07 Stage D); every positive
+      // criterion, list or attachment still does. Before, every targeting create asked.
+      const narrowing = kind === 'sharedCriteria' || record.negative === true;
+      assert.equal(p.data.execute_requirements.spend_change_confirmed, !narrowing);
+      if (!narrowing)
+        assert.equal((await x.service.call('amcp_write', args, actor)).error.code, 'SPEND_CONFIRMATION_REQUIRED');
+      const result = await x.service.call(
+        'amcp_write',
+        narrowing ? args : {...args, spend_change_confirmed: true},
+        actor,
+      );
       assert.equal(result.success, true, JSON.stringify(result));
       assert.equal(x.writes(), 1);
       assert.equal(

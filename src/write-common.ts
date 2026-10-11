@@ -49,6 +49,24 @@ export function notSent(e: unknown, reviewId: string): unknown {
   );
 }
 /**
+ * The same failure of a dispatched write, naming the read-only status call that follows its retained record (WRT-08):
+ * the outcome is uncertain and the request is never sent again; status, then reconcile, read without writing.
+ */
+export function uncertainNext(e: unknown, reviewId: string): unknown {
+  if (!(e instanceof MirrorError) || e.details.next_call !== undefined) return e;
+  return new MirrorError(
+    e.code,
+    e.message,
+    {
+      ...e.details,
+      review_id: reviewId,
+      next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: reviewId}},
+    },
+    e.status,
+    e.retryable,
+  );
+}
+/**
  * Refuses a method override on a reviewed write: an HTTP method override, or a REST.li method other than those the
  * reviewed writes use (CREATE, PARTIAL_UPDATE, DELETE).
  */

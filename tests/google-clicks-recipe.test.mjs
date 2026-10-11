@@ -10,7 +10,7 @@ import {recipeDependencies} from '../dist/src/capability-eligibility.js';
 const {cpc_bid, ...base} = JSON.parse(
   fs.readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'),
 ).recipe_business;
-const business = {...base, cpc_bid_ceiling: '1.250001'},
+const business = {...base, cpc_bid_ceiling: '1.37'},
   recipe = 'google_search_clicks';
 const created = (plan, id) => plan.steps.find(s => s.id === id).arguments.payload.operations[0].create;
 test('Maximize Clicks discovery requires an explicit campaign ceiling and qualified native dependencies', () => {
@@ -25,7 +25,7 @@ test('a paused Search click plan uses exact native ceiling micros and never a ma
   const plan = campaignRecipe(recipe, business),
     campaign = created(plan, 'campaign'),
     group = created(plan, 'adgroup');
-  assert.deepEqual(campaign.target_spend, {cpc_bid_ceiling_micros: '1250001'});
+  assert.deepEqual(campaign.target_spend, {cpc_bid_ceiling_micros: '1370000'});
   assert.equal(campaign.status, 'PAUSED');
   assert.equal(campaign.manual_cpc, undefined);
   assert.equal(campaign.bidding_strategy, undefined);
@@ -38,7 +38,7 @@ test('a paused Search click plan uses exact native ceiling micros and never a ma
     target_partner_search_network: false,
   });
   assert.equal(plan.recipe.bidding_strategy, 'TARGET_SPEND');
-  assert.equal(plan.recipe.cpc_bid_ceiling_micros, '1250001');
+  assert.equal(plan.recipe.cpc_bid_ceiling_micros, '1370000');
   assert.equal(plan.steps.length, 6);
   assert.equal(plan.recipe.geo_warning, null);
 });
@@ -66,8 +66,14 @@ test('click plans refuse absent, rounded, invalid or contradictory bidding input
       field,
     );
   }
-  const p = campaignRecipe(recipe, {...business, cpc_bid_ceiling: '0001.000001'});
-  assert.equal(created(p, 'campaign').target_spend.cpc_bid_ceiling_micros, '1000001');
+  const p = campaignRecipe(recipe, {...business, cpc_bid_ceiling: '0001.01'});
+  assert.equal(created(p, 'campaign').target_spend.cpc_bid_ceiling_micros, '1010000');
+  // WRT-07: Google charges USD in whole cents. A sub-cent ceiling (these tests used 1.250001) used to be sent and was
+  // refused by the provider (BID_TOO_MANY_FRACTIONAL_DIGITS); it is refused at prepare now.
+  assert.throws(
+    () => campaignRecipe(recipe, {...business, cpc_bid_ceiling: '1.250001'}),
+    e => e.code === 'INVALID_RECIPE_MONEY' && e.details.decimal_places === 2 && e.details.currency === 'USD',
+  );
 });
 test('click plans preserve complete split targeting, original copy and account-timezone dates', () => {
   const p = campaignRecipe(recipe, {
@@ -202,7 +208,7 @@ test('context, preview and saved provenance preserve the new recipe with no nati
   f.store.putDocument(f.actor.tenantId, 'client_profile', 'profile', {
     name: 'Client',
     approved_by: 'admin',
-    defaults: {recipes: {[recipe]: {currency: 'USD', cpc_bid_ceiling: '2.000001'}}},
+    defaults: {recipes: {[recipe]: {currency: 'USD', cpc_bid_ceiling: '2.01'}}},
   });
   const context = await f.call({action: 'recipe_context', recipe, profile_id: 'profile'});
   assert.equal(context.success, true, JSON.stringify(context));
@@ -215,7 +221,7 @@ test('context, preview and saved provenance preserve the new recipe with no nati
   assert.equal(saved.success, true, JSON.stringify(saved));
   assert.equal(saved.data.recipe.provenance.fields.cpc_bid_ceiling.source, 'approved_profile');
   const full = await f.call({action: 'get', id: saved.data.id, detail: 'full'});
-  assert.equal(created(full.data, 'campaign').target_spend.cpc_bid_ceiling_micros, '2000001');
+  assert.equal(created(full.data, 'campaign').target_spend.cpc_bid_ceiling_micros, '2010000');
   assert.equal(full.data.state, 'draft');
   assert.equal(f.requests.length, 0);
   assert.equal(
@@ -266,7 +272,7 @@ test('every generated click step compiles through the pinned native gateway with
     );
     assert.equal(out.success, true, step.id + ': ' + JSON.stringify(out));
     if (step.id === 'campaign') {
-      assert.match(JSON.stringify(out), /1250001/);
+      assert.match(JSON.stringify(out), /1370000/);
       assert.doesNotMatch(JSON.stringify(out), /targetSpendMicros|target_spend_micros|manualCpc|manual_cpc/);
     }
   }
@@ -297,7 +303,7 @@ test('a Maximize Clicks draft completes native review, exact execution and read-
   assert.equal(run.state, 'complete');
   const campaign = [...f.resources.values()].find(r => r.kind === 'campaign').value;
   assert.equal(campaign.status, 'PAUSED');
-  assert.deepEqual(campaign.targetSpend, {cpcBidCeilingMicros: '1250001'});
+  assert.deepEqual(campaign.targetSpend, {cpcBidCeilingMicros: '1370000'});
   assert.equal(f.mutations.length, 6);
   const replay = await f.call({
     action: 'execute_next',

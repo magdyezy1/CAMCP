@@ -17,6 +17,10 @@ export function callEffects(call: {tool?: unknown; arguments?: JsonObject}): Jso
       saves,
       advertising_writes: 0,
     });
+  // A retained review read back (AMCP alone), or an uncertain one reconciled with provider reads only (WRT-08).
+  if (call.tool === 'amcp_write' && args.action === 'status') return effects('none', []);
+  if (call.tool === 'amcp_write' && args.action === 'reconcile' && args.accept_applied === undefined)
+    return effects('read_only', ['write_reconciliation']);
   if (call.tool !== 'amcp_workspace') return;
   if (args.action === 'check')
     return effects(live ? 'read_only' : 'none', live ? ['readiness', 'account_metadata'] : []);
@@ -152,10 +156,21 @@ function writeOutcomeState(data: JsonObject, action: unknown): JsonObject {
     return {...base('running', 'verification_' + (verification ?? 'queued')), next_call: data.verification.next_call};
   return base(data.success === true ? 'complete' : 'inspect', data.state ?? data.status ?? null);
 }
+/** The retained record of a standalone review (WRT-08): its ID and the Operations page that shows it. */
+const writeRecord = (reviewId: unknown): JsonObject =>
+  typeof reviewId === 'string' && reviewId.length > 0 && reviewId.length <= 160
+    ? {review_id: reviewId, website_path: '/operations?write_id=' + encodeURIComponent(reviewId)}
+    : {};
+/** The read-only status call of a retained review (WRT-08): AMCP alone, no provider request. */
+const statusCall = (reviewId: unknown) =>
+  typeof reviewId === 'string' && reviewId.length > 0 && reviewId.length <= 160
+    ? {tool: 'amcp_write', arguments: {action: 'status', review_id: reviewId}}
+    : undefined;
 /**
  * The outcome of an amcp_write execute that was refused or failed (MCP-07). `claim` is the state of its idempotency
  * claim after the call: none (nothing was sent), pending or uncertain (it may have reached the provider), complete.
- * An uncertain write is attention_required, and its next call reads what happened; it is never sent again.
+ * An uncertain write is attention_required, and its next call reads what happened without any provider request: the
+ * retained review's status (WRT-08), or its audit history; it is never sent again.
  */
 export function writeErrorOutcome(
   input: JsonObject,
@@ -167,14 +182,11 @@ export function writeErrorOutcome(
     reviewId = input.review_id,
     uncertain = /UNCERTAIN/.test(error.code) || claim === 'pending' || claim === 'uncertain',
     next = details.next_call && typeof details.next_call === 'object' ? details.next_call : undefined,
-    base = {version: 1, automatic_retry_of_mutation: false};
-  if (uncertain)
-    return {
-      ...base,
-      state: 'attention_required',
-      source_state: 'uncertain',
-      ...(writeHistory(reviewId) ? {next_call: writeHistory(reviewId)} : {}),
-    };
+    base = {version: 1, automatic_retry_of_mutation: false, ...writeRecord(reviewId)};
+  if (uncertain) {
+    const read = statusCall(reviewId) ?? writeHistory(reviewId);
+    return {...base, state: 'attention_required', source_state: 'uncertain', ...(read ? {next_call: read} : {})};
+  }
   if (claim === 'complete')
     return {
       ...base,
@@ -185,22 +197,75 @@ export function writeErrorOutcome(
   if (claim === 'none' || details.submission === 'not_sent')
     return {...base, state: 'blocked', source_state: 'not_sent', ...(next ? {next_call: next} : {})};
 }
+/** A retained review's state as a workflow state (WRT-08). */
+const writeWorkflowStates: Record<string, (typeof outcomeStates)[number]> = {
+  unsubmitted: 'review_required',
+  not_sent: 'review_required',
+  expired: 'blocked',
+  executing: 'running',
+  verifying: 'running',
+  uncertain: 'attention_required',
+  failed: 'attention_required',
+  mismatch: 'attention_required',
+  inconclusive: 'attention_required',
+  complete: 'complete',
+  reconciled: 'complete',
+  verified: 'complete',
+  superseded: 'deferred',
+};
+/**
+ * amcp_write's outcome. inspect saves nothing and names no record (MCP-07's inspect state only). A standalone review is
+ * retained work (WRT-08): prepare, execute, status and reconcile name its record and its page, and prepare's next call
+ * is execute with every acknowledgement, confirmed included, left to the user. An executed write keeps MCP-07's
+ * states: running while its read-back is queued (with the verify call), complete once verified, attention_required
+ * when the provider reported it failed or the read-back disagrees.
+ */
+function writeWorkflow(data: JsonObject, action: unknown): JsonObject | undefined {
+  if (action === 'inspect') return writeOutcomeState(data, action);
+  const record = writeRecord(data.review_id);
+  let result: JsonObject;
+  if (action === 'prepare' || action === 'execute' || (!record.review_id && typeof data.success === 'boolean')) {
+    result = writeOutcomeState(data, action);
+    if (action === 'prepare') result.source_state = 'unsubmitted';
+    else if (data.reconciled && result.state === 'complete') result.source_state = 'reconciled';
+  } else if (record.review_id) {
+    const raw = data.record_kind === 'write_reconciliation' ? data.classification : data.state;
+    result = {
+      version: 1,
+      state:
+        data.record_kind === 'write_reconciliation'
+          ? data.classification === 'appears_applied'
+            ? 'review_required'
+            : 'attention_required'
+          : (writeWorkflowStates[raw] ?? 'inspect'),
+      source_state: raw ?? null,
+      automatic_retry_of_mutation: false,
+    };
+  } else if (data.verification) result = writeOutcomeState(data, action);
+  else return;
+  Object.assign(result, record);
+  if (action === 'prepare' && data.execute_requirements) {
+    const flags = Object.keys(data.execute_requirements).filter(
+      k => data.execute_requirements[k] === true && k !== 'confirmed',
+    );
+    if (data.expires_at !== undefined) result.expires_at = data.expires_at;
+    result.required_acknowledgements = ['confirmed', ...flags];
+    if (record.review_id)
+      result.next_call = {
+        tool: 'amcp_write',
+        arguments: {action: 'execute', review_id: record.review_id},
+        add_after_user_approval: Object.fromEntries(['confirmed', ...flags].map(k => [k, true])),
+      };
+  } else if (!result.next_call && data.next_call) result.next_call = data.next_call;
+  else if (!result.next_call && action === 'execute' && data.verification?.next_call)
+    result.next_call = data.verification.next_call;
+  return result;
+}
+
 /** Additive metadata for first-party workflows. Native provider payloads never choose UI routes or next actions. */
 export function workflowOutcome(tool: string | undefined, data: JsonObject, action?: unknown): JsonObject | undefined {
   if (!workflowTools.includes(tool ?? '') || !data || typeof data !== 'object') return;
-  // A media review executed through amcp_write returns the media receipt, which the general mapping below reads.
-  if (
-    tool === 'amcp_write' &&
-    (action === 'inspect' || action === 'prepare' || typeof data.success === 'boolean' || data.verification)
-  ) {
-    const result = writeOutcomeState(data, action);
-    if (data.execute_requirements)
-      result.required_acknowledgements = Object.keys(data.execute_requirements).filter(
-        k => data.execute_requirements[k] === true,
-      );
-    if (!result.next_call && data.next_call) result.next_call = data.next_call;
-    return result;
-  }
+  if (tool === 'amcp_write') return writeWorkflow(data, action);
   const raw = data.attention_state ?? data.state ?? data.status ?? data.decision ?? data.run?.state;
   const state = ['complete', 'verified', 'verified_with_acceptance', 'available', 'resolved'].includes(raw)
     ? 'complete'

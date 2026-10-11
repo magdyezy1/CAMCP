@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {currencyMinorDigits, minimumUnitMicros} from './budget-units.js';
 
 /** Exact native units shared by guided recipes; no floating-point rounding. */
 export function recipeMoney(v: unknown, scale: number, name: string) {
@@ -11,6 +12,28 @@ export function recipeMoney(v: unknown, scale: number, name: string) {
   const n = BigInt(whole!) * BigInt(scale) + BigInt(fraction.slice(0, digits).padEnd(digits, '0') || '0');
   if (n > BigInt(Number.MAX_SAFE_INTEGER)) throw new MirrorError('INVALID_RECIPE_MONEY', 'Budget is too large.');
   return n.toString();
+}
+
+/**
+ * Exact micros of a Google amount in the account currency (WRT-07 Stage A): no more decimal places than the currency
+ * has (JPY none, USD two, KWD three), because Google refuses a budget that is not a multiple of the currency's smallest
+ * unit (NON_MULTIPLE_OF_MINIMUM_CURRENCY_UNIT) and a bid with too many fractional digits. Refused at prepare, before any
+ * provider request.
+ */
+export function recipeCurrencyMicros(v: unknown, currency: unknown, name: string): string {
+  const micros = recipeMoney(v, 1000000, name),
+    unit = minimumUnitMicros(currency),
+    digits = currencyMinorDigits(currency);
+  if (unit === undefined || digits === undefined)
+    throw new MirrorError('INVALID_RECIPE_MONEY', 'Unknown account currency.');
+  // One fixed sentence (translated on the website); the details name the field, the value and the currency's places.
+  if (BigInt(micros) % unit !== 0n)
+    throw new MirrorError(
+      'INVALID_RECIPE_MONEY',
+      'This amount has more decimal places than the account currency, so Google cannot charge it. Round it to the currency’s smallest unit: JPY and CLP take whole amounts, USD two decimal places, KWD three.',
+      {field: name, value: String(v), currency, decimal_places: digits, minimum_unit_micros: String(unit)},
+    );
+  return micros;
 }
 
 /** A declared ROAS ratio, never currency/micros or an inferred percentage. Native Google transport uses a double. */

@@ -13,6 +13,15 @@ management tools. Exact plan, media review, report and evidence IDs are retained
 logout and workspace changes clear private drafts and invalidate pending responses. Ordinary navigation preserves
 an unsaved report setup within the same identity; an explicit new report clears the old selection and destination.
 
+**Needs attention** on Home is the Operations classifier's own page (`amcp_workspace {action:"operations",
+state:"attention", limit:8}`), so Home and Operations agree (OPS-06): a plan in `attention` or awaiting review, an
+uncertain upload or reviewed change, a failed export or schedule, an open incident, a failed monitor email notice and,
+for administrators, a login to reauthorize. Home shows the eight most recent, because each feed page scans a bounded
+number of records; **All operations** opens `/operations?state=attention`. The states that mean attention are
+`attentionStates` in `src/operation-types.ts`, and a test keeps every campaign runner plan state classified. Account
+readiness is a count with the accounts in a disclosure, and capability evidence (tool names, evidence levels) sits
+under **Technical details**, so Home stays short on a phone. **Continue recent work** still lists recent plans.
+
 `amcp_workspace {action:"capabilities", gateway?, workflow_id?, account_id?, connection_id?}` projects executable
 campaign recipes, Overview adapters, detailed capture presets, media routes and conditional programs into workflow cards. Exact workflow
 and account/login filters expose dependencies, lifecycle handoffs, native actions, registered review families and
@@ -726,8 +735,15 @@ creator/admin/operator authority, versions and absence of references. `report_bi
 `state:retired` and `state:all` expose only currently authorized metadata.
 
 Operations (`/operations`) uses `amcp_workspace operations` for paginated campaign plans, upload reviews, Overview
-snapshots, export jobs, Overview schedules, incidents, workbook report runs (`kind:workbook_report`) and workbook
-schedules (`kind:workbook_schedule`). Filter by
+snapshots, export jobs, Overview schedules, incidents, workbook report runs (`kind:workbook_report`), workbook
+schedules (`kind:workbook_schedule`) and standalone reviewed changes (`kind:write`, opened at
+`/operations?write_id=<review_id>` with their state, claim and a read-only provider check; see
+[outcomes and recovery](WRITE-OPERATIONS.md#outcomes-and-recovery)), failed monitor email notices (`kind:notice`, for
+their subscriber only, opened on their rule at `/monitors?monitor_id=<rule>&incident_id=<incident>` where the one
+confirmed retry is offered; past their 24 hours they read `undelivered` and leave attention) and, for workspace
+administrators only, logins that need a person (`kind:connection`: `reauthorization_required`, `refresh_failed`, or
+`disabled`, which is deferred; `/connections?connection_id=<id>` opens that login's Manage view, and the `next_call`,
+`dashboard` with `sections:["connections"]`, reads its recorded credential health). Filter by
 kind, attention category, name/ID and exact account/login.
 Continue with `next_cursor` using the same identity and filters, including after an empty page with `has_more:true`.
 The new feed projects only metadata and checks at most 500 candidates per call. It rechecks current engine ownership
@@ -848,6 +864,13 @@ Snapchat repeats each selected ad-squad budget inside its existing parent/accoun
 LinkedIn retains its independent-budget/group/account consistency checks. Original request/time
 references identify the observations. Matching sequential reads are not an atomic snapshot.
 
+Each daily amount rounds down to the smallest unit of the account currency (USD 0.01, JPY and CLP 1, KWD 0.001),
+which Google requires (`NON_MULTIPLE_OF_MINIMUM_CURRENCY_UNIT`); the preview shows `minimum_unit_micros` and the
+residual, and period floors are checked after rounding. LinkedIn drafts also read the account's daily budget limits
+once (`adBudgetPricing`, priced for the first selected campaign) and refuse a daily amount outside them with
+`ALLOCATION_BUDGET_LIMIT`; when LinkedIn states no exact limits the preview says `daily_budget_limits.status:
+"unavailable"` and LinkedIn checks the amount at execution.
+
 MCP uses `preview_allocation_plan` with report `id`, allocation `options` and `conversion:"equal_daily"`, followed
 by `create_allocation_plan` with the same `id`, exact `preview_id`/`preview_hash` and `confirmed:true`. Preview is
 bound to the current session and lasts ten minutes. Follow its returned `amcp_campaign get` and website link to
@@ -911,9 +934,11 @@ its pending result. Loading page files itself does not change an account or perf
 ## Google Search with Maximize Clicks
 
 Choose **Google Search with Maximize Clicks** in Campaigns, or `google_search_clicks` through `amcp_campaign`.
-Supply an explicit **Campaign CPC ceiling in account currency** as decimal text, such as `"1.250001"`, together
+Supply an explicit **Campaign CPC ceiling in account currency** as decimal text, such as `"1.25"`, together
 with the Search brief. Keep manual bids, CPA/ROAS targets and other bidding strategies out of this recipe. Country
-and language lookup, original copy, currency and the EU political-advertising declaration remain required.
+and language lookup, original copy, currency and the EU political-advertising declaration remain required. Budgets
+and CPC amounts take no more decimal places than the currency has (JPY and CLP none, USD two, KWD three); a finer
+amount such as 500.5 JPY is refused at preview with `INVALID_RECIPE_MONEY`, before any provider request.
 
 Preview shows a dedicated budget and PAUSED campaign with Maximize Clicks; its children are enabled under the paused
 campaign. Save creates an unapproved draft. Review and verify every step before separately approving activation.
@@ -953,7 +978,8 @@ units from this parent, declare total period budget, floors/caps, efficiency ass
 The model is illustrative. Explicitly choose equal daily conversion to read current budgets. Only owned auction
 campaigns with explicit ad-squad pacing and ad squads with daily budgets qualify. The native account currency/timezone,
 parent and ownership collections are checked; lifetime, reserved and Smart Budgets are refused. Proposed daily amounts
-round down to whole micros and must meet the native 5,000,000-micros minimum and your period floor. Inspect current
+round down to the smallest unit of the account currency and must meet the native 5,000,000-micros minimum and your
+period floor. Inspect current
 amounts, residuals and expandable native request/hash/time references.
 
 Confirm only the exact unapproved draft. Reporting sends no advertising change. The daily budgets are ongoing and this

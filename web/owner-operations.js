@@ -73,13 +73,29 @@ function storedAccountPolicy(h, gateway, connectionId, account) {
       bindings.find(x => x.gateway === gateway && x.account_id === account);
   return b ? (h.policies ?? []).find(p => p.id === b.policy_id) : undefined;
 }
+/** The account's currency from its last live check, as the server recorded it for the binding (WRT-07). */
+function bindingCurrency(h, gateway, connectionId, account) {
+  const b = (Array.isArray(h?.spend_policy_bindings) ? h.spend_policy_bindings : []).find(
+    x => x.gateway === gateway && x.connection_id === connectionId && x.account_id === account,
+  );
+  return typeof b?.account_currency === 'string' ? b.account_currency : undefined;
+}
+/** Which policy a stored-policy warning is about, in words: the workspace default or a platform and account. */
+function policyWarningLabel(h, warning) {
+  const p = (h.policies ?? []).find(x => x.id === warning.policy_id);
+  return p?.gateway ? platformName(p.gateway) + ' · ' + p.account_id : uiText('Workspace default');
+}
 const policyText = v => (typeof v === 'number' && Number.isFinite(v) ? String(v) : '');
-/** Form values that show a stored account policy as it is; the earlier defaults for an account without one. */
-function accountPolicyValues(stored) {
+/**
+ * Form values that show a stored account policy as it is; the earlier defaults for an account without one. The currency
+ * of the caps (WRT-07) is the stored one, else the account's currency from its last live check (accountCurrency).
+ */
+function accountPolicyValues(stored, accountCurrency) {
   if (!stored)
     return {
       enforcement: 'confirm',
       unit: 'currency',
+      currency: accountCurrency ?? '',
       max_budget: '',
       max_budget_increase_percent: '20',
       max_daily_increase: '',
@@ -93,6 +109,7 @@ function accountPolicyValues(stored) {
     values = {
       enforcement: stored.enforcement === 'block' ? 'block' : 'confirm',
       unit,
+      currency: typeof stored.currency === 'string' ? stored.currency : (accountCurrency ?? ''),
       max_budget_increase_percent: policyText(stored.max_budget_increase_percent),
       allow_activation: stored.allow_activation !== false,
       allow_deletion: stored.allow_deletion !== false,
@@ -118,6 +135,11 @@ function accountPolicyInput(values, stored) {
     policy.max_budget_increase_percent = Number(values.max_budget_increase_percent);
   for (const [field, [n, c]] of Object.entries(policyMoney))
     if (String(values[field] ?? '') !== '') policy[values.unit === 'native' ? n : c] = Number(values[field]);
+  // The currency the caps are stated in (WRT-07); left empty, the server takes the account's from its last live check.
+  const currency = String(values.currency ?? '')
+    .trim()
+    .toUpperCase();
+  if (currency) policy.currency = currency;
   return policy;
 }
 /** The workspace default a save sends: the settings the form shows over the stored ones it does not show. */
@@ -142,7 +164,15 @@ function workspacePolicyInput(values, stored) {
       limits.max_budget_currency = Number(v);
       delete limits.max_budget_native;
     } else if (limits.max_budget_currency !== undefined) delete limits.max_budget_currency;
-    if (!Object.keys(limits).length) delete per[g];
+    // The currency of this platform's caps (WRT-07): accounts in another currency are asked about or refused.
+    if (values.currencies && Object.hasOwn(values.currencies, g)) {
+      const currency = String(values.currencies[g] ?? '')
+        .trim()
+        .toUpperCase();
+      if (currency) limits.currency = currency;
+      else delete limits.currency;
+    }
+    if (Object.keys(limits).every(k => k === 'currency')) delete per[g];
   }
   if (Object.keys(per).length) policy.per_gateway = per;
   return policy;
@@ -163,6 +193,17 @@ function policyWeakenings(stored, next, platform = g => g) {
       ...Object.entries(policyMoney),
       ['max_budget_increase_percent', ['max_budget_increase_percent', 'max_budget_increase_percent']],
     ];
+    // Caps that no longer name their currency compare an account in any currency with the same number (WRT-07).
+    if (typeof from.currency === 'string' && from.currency !== to.currency)
+      out.push(
+        typeof to.currency === 'string'
+          ? uiText('{prefix}Caps are stated in {now} instead of {was}; check them.', {
+              prefix,
+              was: from.currency,
+              now: to.currency,
+            })
+          : uiText('{prefix}Caps no longer name their currency (was {was}).', {prefix, was: from.currency}),
+      );
     for (const [field, [n, c]] of pairs) {
       const cap = prefix + uiText(policyCapLabels[field]),
         was = from[c] ?? from[n];
@@ -370,17 +411,17 @@ renderSettings = async function () {
     )
     .join(
       '',
-    )}</select></label><label>${esc(uiText('When a change goes beyond a cap'))}<select name="enforcement"><option value="confirm" selected>${esc(uiText('Ask for confirmation (recommended)'))}</option><option value="block">${esc(uiText('Refuse the change'))}</option></select></label><label>${esc(uiText('Amounts are in'))}<select name="unit"><option value="currency">${esc(uiText('Account currency (where the platform unit is documented)'))}</option><option value="native">${esc(uiText('Native API units'))}</option></select></label><p class="form-note" id="owner-policy-unit" aria-live="polite">${policyUnitNote(h, '')}</p><p class="form-note" id="owner-policy-existing" aria-live="polite">${esc(uiText('Choose an account to see its stored policy.'))}</p><label>${esc(uiText('Maximum budget'))}<input name="max_budget" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum increase per change, %'))}<input name="max_budget_increase_percent" type="number" min="0" max="10000" step="any" value="20"></label><label>${esc(uiText('Cumulative daily increases'))}<input name="max_daily_increase" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum bid'))}<input name="max_bid" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum lifetime or total budget'))}<input name="max_total_budget" type="number" min="0" step="any"></label><label class="check"><input name="allow_activation" type="checkbox" checked> ${esc(uiText('Allow activation after review'))}</label><label class="check"><input name="allow_deletion" type="checkbox"> ${esc(uiText('Allow deletion after review'))}</label><p class="form-note">${esc(uiText('Without it, AMCP also refuses deletion sent as a status value (TikTok DELETE, Meta DELETED) and Meta product feed deletion rules: turning feed deletion on, or a new file address or fetch interval for a feed whose deletion is on.'))}</p><p class="form-note">${esc(uiText('With “Ask for confirmation”, a change beyond a cap is still prepared; the reviewer sees which cap and by how much, and it runs only after they confirm. Activation and deletion rules always refuse.'))}</p><button class="button primary">${esc(uiText('Save account policy'))}</button></form><form id="owner-workspace-policy" class="workspace-form"><h4>${esc(uiText('Workspace default'))}</h4><p class="form-note">${esc(workspaceDefault ? uiText('Existing default · revision {revision} · last updated {time}', {revision: workspaceDefault.revision, time: date(workspaceDefault.updated_at)}) : uiText('No workspace default yet; saving creates one.'))}</p><p class="form-note">${esc(uiText('Covers every account without a policy of its own. Budget caps are per platform in account currency, because each platform counts money in its own unit.'))}</p><label>${esc(uiText('When a change goes beyond a cap'))}<select name="enforcement"><option value="confirm"${workspaceDefault?.enforcement === 'block' ? '' : ' selected'}>${esc(uiText('Ask for confirmation (recommended)'))}</option><option value="block"${workspaceDefault?.enforcement === 'block' ? ' selected' : ''}>${esc(uiText('Refuse the change'))}</option></select></label><label>${esc(uiText('Maximum increase per change, %'))}<input name="max_budget_increase_percent" type="number" min="0" max="10000" step="any" value="${esc(policyText(workspaceDefault?.max_budget_increase_percent))}"></label>${Object.entries(
+    )}</select></label><label>${esc(uiText('When a change goes beyond a cap'))}<select name="enforcement"><option value="confirm" selected>${esc(uiText('Ask for confirmation (recommended)'))}</option><option value="block">${esc(uiText('Refuse the change'))}</option></select></label><label>${esc(uiText('Amounts are in'))}<select name="unit"><option value="currency">${esc(uiText('Account currency (where the platform unit is documented)'))}</option><option value="native">${esc(uiText('Native API units'))}</option></select></label><label>${esc(uiText('Currency of these caps'))}<input name="currency" maxlength="3" pattern="[A-Za-z]{3}" autocomplete="off" placeholder="USD"></label><p class="form-note">${esc(uiText('Caps compare only an account that spends in this currency; AMCP never converts between currencies. Left empty, the account’s currency from its last live check is used.'))}</p><p class="form-note" id="owner-policy-unit" aria-live="polite">${policyUnitNote(h, '')}</p><p class="form-note" id="owner-policy-existing" aria-live="polite">${esc(uiText('Choose an account to see its stored policy.'))}</p><label>${esc(uiText('Maximum budget'))}<input name="max_budget" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum increase per change, %'))}<input name="max_budget_increase_percent" type="number" min="0" max="10000" step="any" value="20"></label><label>${esc(uiText('Cumulative daily increases'))}<input name="max_daily_increase" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum bid'))}<input name="max_bid" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum lifetime or total budget'))}<input name="max_total_budget" type="number" min="0" step="any"></label><label class="check"><input name="allow_activation" type="checkbox" checked> ${esc(uiText('Allow activation after review'))}</label><label class="check"><input name="allow_deletion" type="checkbox"> ${esc(uiText('Allow deletion after review'))}</label><p class="form-note">${esc(uiText('Without it, AMCP also refuses deletion sent as a status value (TikTok DELETE, Meta DELETED) and Meta product feed deletion rules: turning feed deletion on, or a new file address or fetch interval for a feed whose deletion is on.'))}</p><p class="form-note">${esc(uiText('With “Ask for confirmation”, a change beyond a cap is still prepared; the reviewer sees which cap and by how much, and it runs only after they confirm. Activation and deletion rules always refuse.'))}</p><button class="button primary">${esc(uiText('Save account policy'))}</button></form><form id="owner-workspace-policy" class="workspace-form"><h4>${esc(uiText('Workspace default'))}</h4><p class="form-note">${esc(workspaceDefault ? uiText('Existing default · revision {revision} · last updated {time}', {revision: workspaceDefault.revision, time: date(workspaceDefault.updated_at)}) : uiText('No workspace default yet; saving creates one.'))}</p><p class="form-note">${esc(uiText('Covers every account without a policy of its own. Budget caps are per platform in account currency, because each platform counts money in its own unit.'))}</p><label>${esc(uiText('When a change goes beyond a cap'))}<select name="enforcement"><option value="confirm"${workspaceDefault?.enforcement === 'block' ? '' : ' selected'}>${esc(uiText('Ask for confirmation (recommended)'))}</option><option value="block"${workspaceDefault?.enforcement === 'block' ? ' selected' : ''}>${esc(uiText('Refuse the change'))}</option></select></label><label>${esc(uiText('Maximum increase per change, %'))}<input name="max_budget_increase_percent" type="number" min="0" max="10000" step="any" value="${esc(policyText(workspaceDefault?.max_budget_increase_percent))}"></label>${Object.entries(
     h.budget_units ?? {},
   )
     .filter(([g]) => platforms.some(p => p.connections.some(c => (c.gateway ?? p.gateway) === g)))
     .map(
       ([g, u]) =>
-        `<label>${esc(platformName(g))} ${esc(uiText('maximum budget, account currency'))}<input name="cap:${esc(g)}" type="number" min="0" step="any" value="${esc(policyText(workspaceDefault?.per_gateway?.[g]?.max_budget_currency))}"><small>${esc(uiText('Stored as'))} ${esc(u.unit)}${workspaceDefault?.per_gateway?.[g]?.max_budget_currency === undefined && workspaceDefault?.per_gateway?.[g]?.max_budget_native !== undefined ? ' · ' + esc(uiText('kept as {amount} native units unless you enter a new cap', {amount: workspaceDefault.per_gateway[g].max_budget_native})) : ''}</small></label>`,
+        `<label>${esc(platformName(g))} ${esc(uiText('maximum budget, account currency'))}<input name="cap:${esc(g)}" type="number" min="0" step="any" value="${esc(policyText(workspaceDefault?.per_gateway?.[g]?.max_budget_currency))}"><small>${esc(uiText('Stored as'))} ${esc(u.unit)}${workspaceDefault?.per_gateway?.[g]?.max_budget_currency === undefined && workspaceDefault?.per_gateway?.[g]?.max_budget_native !== undefined ? ' · ' + esc(uiText('kept as {amount} native units unless you enter a new cap', {amount: workspaceDefault.per_gateway[g].max_budget_native})) : ''}</small></label><label>${esc(platformName(g))} ${esc(uiText('currency of this cap'))}<input name="currency:${esc(g)}" maxlength="3" pattern="[A-Za-z]{3}" autocomplete="off" placeholder="USD" value="${esc(workspaceDefault?.per_gateway?.[g]?.currency ?? '')}"></label>`,
     )
     .join(
       '',
-    )}<button class="button">${esc(uiText('Save workspace default'))}</button></form>${(h.policy_warnings ?? []).map(w => `<div class="notice" role="status"><strong>${esc(uiText('Workspace default'))}</strong><p>${esc(w.message)}</p></div>`).join('')}<div id="owner-policy-list">${h.policies.map(p => `<details><summary>${p.gateway ? esc(platformName(p.gateway)) + ' · ' + esc(p.account_id) : uiText('Workspace default')} · ${p.enforcement === 'block' ? uiText('refuses beyond caps') : uiText('asks beyond caps')}</summary><pre>${esc(JSON.stringify(p, null, 2))}</pre></details>`).join('')}</div></section>`;
+    )}<button class="button">${esc(uiText('Save workspace default'))}</button></form>${(h.policy_warnings ?? []).map(w => `<div class="notice" role="status"><strong>${esc(policyWarningLabel(h, w))}</strong><p>${esc(uiText(w.message))}</p></div>`).join('')}<div id="owner-policy-list">${h.policies.map(p => `<details><summary>${p.gateway ? esc(platformName(p.gateway)) + ' · ' + esc(p.account_id) : uiText('Workspace default')} · ${p.enforcement === 'block' ? uiText('refuses beyond caps') : uiText('asks beyond caps')}</summary><pre>${esc(JSON.stringify(p, null, 2))}</pre></details>`).join('')}</div></section>`;
   if (h.rate_limits)
     area.querySelector('#owner-worker-health')?.insertAdjacentHTML('afterend', ownerRateLimits(h.rate_limits));
   const bind = (selector, fn) =>
@@ -480,7 +521,8 @@ renderSettings = async function () {
     $('#owner-policy-existing').textContent = b[0]
       ? storedPolicyNote(stored)
       : uiText('Choose an account to see its stored policy.');
-    if (b[0]) fillPolicyForm($('#owner-spend-policy'), accountPolicyValues(stored));
+    if (b[0])
+      fillPolicyForm($('#owner-spend-policy'), accountPolicyValues(stored, bindingCurrency(h, b[0], b[1], b[2])));
   };
   picker?.addEventListener('change', showPolicy);
   if (picker && pendingPolicyBinding) {
@@ -497,6 +539,7 @@ renderSettings = async function () {
         [
           'enforcement',
           'unit',
+          'currency',
           'max_budget',
           'max_budget_increase_percent',
           'max_daily_increase',
@@ -540,13 +583,17 @@ renderSettings = async function () {
   });
   bind('#owner-workspace-policy', async f => {
     const d = new FormData(f),
-      caps = {};
-    for (const [k, v] of d.entries()) if (k.startsWith('cap:')) caps[k.slice(4)] = String(v);
+      caps = {},
+      currencies = {};
+    for (const [k, v] of d.entries())
+      if (k.startsWith('cap:')) caps[k.slice(4)] = String(v);
+      else if (k.startsWith('currency:')) currencies[k.slice(9)] = String(v);
     const policy = workspacePolicyInput(
         {
           enforcement: String(d.get('enforcement')),
           max_budget_increase_percent: String(d.get('max_budget_increase_percent') ?? ''),
           caps,
+          currencies,
         },
         workspaceDefault,
       ),

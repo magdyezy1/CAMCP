@@ -1,6 +1,6 @@
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
-import {recipeMoney as money, recipeRoas} from './recipe-values.js';
+import {recipeMoney as money, recipeRoas, recipeCurrencyMicros as currencyMicros} from './recipe-values.js';
 import {
   snapchatTrafficRecipe,
   snapchatLeadRecipe,
@@ -419,12 +419,17 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
           'RECIPE_INPUT_INVALID',
           'This workflow uses Maximize Clicks and cpc_bid_ceiling only; choose a separate workflow for another bidding strategy.',
         );
-      const amount = money(b.daily_budget, 1e6, 'daily budget'),
+      // Budgets and CPC bids in the currency's own precision (WRT-07): Google refuses 500.5 JPY.
+      const amount = currencyMicros(b.daily_budget, b.currency, 'daily budget'),
         bid = conversionSearch
           ? conversionSearch.targetCpa
             ? money(b.target_cpa, 1e6, 'target CPA')
             : undefined
-          : money(clicks ? b.cpc_bid_ceiling : b.cpc_bid, 1e6, clicks ? 'campaign CPC ceiling' : 'CPC bid'),
+          : currencyMicros(
+              clicks ? b.cpc_bid_ceiling : b.cpc_bid,
+              b.currency,
+              clicks ? 'campaign CPC ceiling' : 'CPC bid',
+            ),
         response = '/data/results/0/resourceName';
       add('budget', 'google_ads_v23_campaign_budget_mutate_campaign_budgets', {
         operations: [
@@ -705,7 +710,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
       ...(id === 'google_search_clicks'
         ? {
             bidding_strategy: 'TARGET_SPEND',
-            cpc_bid_ceiling_micros: money(b.cpc_bid_ceiling, 1e6, 'campaign CPC ceiling'),
+            cpc_bid_ceiling_micros: currencyMicros(b.cpc_bid_ceiling, b.currency, 'campaign CPC ceiling'),
             bidding_effect:
               'Maximize Clicks uses the campaign budget and CPC ceiling to seek clicks. It does not optimize conversions or guarantee results. Review provider eligibility before activation.',
           }

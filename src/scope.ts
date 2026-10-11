@@ -281,7 +281,13 @@ export class ScopeGuard {
         return id;
       }
     }
-    if (plan.gateway === 'linkedin_native_action' && ['/rest/adAnalytics', '/rest/audienceCounts'].includes(decoded)) {
+    // adBudgetPricing (read-only) states an account's daily budget limits for allocation drafts (WRT-07); like the
+    // reporting reads it names exactly one sponsored account, which must be the bound one.
+    if (
+      plan.gateway === 'linkedin_native_action' &&
+      (['/rest/adAnalytics', '/rest/audienceCounts'].includes(decoded) ||
+        (plan.readOnly && plan.method === 'GET' && decoded === '/rest/adBudgetPricing'))
+    ) {
       const value = plan.query.accounts ?? plan.query.account;
       if (typeof value === 'string') {
         let decodedValue: string;

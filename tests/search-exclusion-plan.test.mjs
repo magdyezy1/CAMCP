@@ -385,17 +385,9 @@ test('separately reviewed search exclusions execute and verify once, retaining s
   for (let i = 0; i < 2; i++) {
     const prepared = ok(await f.call('amcp_campaign', {action: 'prepare_next', id: created.id}));
     assert.ok(prepared.review?.review_id, JSON.stringify(prepared));
-    const denied = ok(
-      await f.call('amcp_campaign', {
-        action: 'execute_next',
-        id: created.id,
-        review_id: prepared.review.review_id,
-        idempotency_key: prepared.review.review_id,
-        confirmed: true,
-      }),
-    );
-    assert.equal(denied.current.error.code, 'SPEND_CONFIRMATION_REQUIRED');
     assert.equal(f.counts().writes, i);
+    // Exclusions only narrow delivery: they need the review's confirmation, and no spend acknowledgement (WRT-07
+    // Stage D). This test used to expect SPEND_CONFIRMATION_REQUIRED first.
     const result = ok(
       await f.call('amcp_campaign', {
         action: 'execute_next',
@@ -403,11 +395,10 @@ test('separately reviewed search exclusions execute and verify once, retaining s
         review_id: prepared.review.review_id,
         idempotency_key: prepared.review.review_id,
         confirmed: true,
-        spend_change_confirmed: true,
       }),
     );
     assert.equal(result.current.status, 'verified', JSON.stringify(result));
-    assert.equal(result.current.error, undefined, 'successful reviewed retry must clear the earlier refusal');
+    assert.equal(result.current.error, undefined);
   }
   const run = f.store.document(f.actor.tenantId, 'campaign_run', created.id);
   assert.equal(run.state, 'complete');

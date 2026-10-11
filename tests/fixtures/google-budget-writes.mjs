@@ -35,20 +35,35 @@ export function googleBudgetFixture({tenant = 'google-budgets', role = 'admin', 
     {accessToken: 'synthetic', developerToken: 'synthetic'},
   );
   const budgets = new Map([[budgetName(1), '90000000']]),
+    // Each budget's name, for a lookup by name (the reconciliation of a create, WRT-08).
+    names = new Map([[budgetName(1), 'Existing budget']]),
     writes = [],
+    reads = [],
+    // Every request that reached the synthetic provider, as "METHOD /path".
+    requests = [],
     hooks = {};
   let created = 100,
     mutationWaiting = false;
   const fetcher = async (url, init = {}) => {
     const path = new URL(String(url)).pathname,
       body = init.body ? JSON.parse(String(init.body)) : {};
+    requests.push((init.method ?? 'GET') + ' ' + path);
     if (path.endsWith('/googleAds:search')) {
       const hook = hooks.duringRead;
       hooks.duringRead = undefined;
       if (hook) await hook();
       const query = String(body.query);
+      reads.push(query);
       if (/ FROM customer /.test(query + ' '))
         return Response.json({results: [{customer: {id: account, currencyCode: 'USD', timeZone: 'UTC'}}]});
+      if (/ FROM campaign_budget WHERE campaign_budget\.name IN /.test(query)) {
+        const wanted = [...query.matchAll(/'([^']*)'/g)].map(m => m[1]);
+        return Response.json({
+          results: [...names]
+            .filter(([, name]) => wanted.includes(name))
+            .map(([resourceName, name]) => ({campaignBudget: {resourceName, name}})),
+        });
+      }
       if (/ FROM campaign_budget /.test(query + ' '))
         return Response.json({
           results: [...query.matchAll(/'(customers\/[^']+)'/g)]
@@ -76,6 +91,7 @@ export function googleBudgetFixture({tenant = 'google-budgets', role = 'admin', 
           }
           const name = budgetName(++created);
           budgets.set(name, String(op.create.amountMicros ?? op.create.amount_micros));
+          names.set(name, op.create.name);
           return {resourceName: name};
         }),
       });
@@ -152,7 +168,10 @@ export function googleBudgetFixture({tenant = 'google-budgets', role = 'admin', 
     service,
     transport,
     budgets,
+    names,
     writes,
+    reads,
+    requests,
     hooks,
     call,
     write,

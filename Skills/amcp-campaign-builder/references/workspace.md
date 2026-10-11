@@ -97,8 +97,10 @@ retrying never refunds the counters. `REPORT_RESTART_REQUIRED` applies to legacy
 
 `amcp_workspace {action:"operations",kind?,state?,search?,account_id?,connection_id?,cursor?,limit?}` reads the
 local metadata feed for campaign plans, upload reviews, reporting snapshots, export jobs, Overview schedules,
-incidents, scoped workbook report runs and workbook schedules.
-Kinds: `all`, `campaign`, `upload`, `report`, `export`, `schedule`, `incident`, `workbook_report`, `workbook_schedule`. States: `all`, `attention`, `active`,
+incidents, scoped workbook report runs and workbook schedules, standalone reviewed changes, your failed monitor email
+notices and, for administrators, logins that need reauthorization, keep failing to renew or are turned off.
+Kinds: `all`, `campaign`, `upload`, `report`, `export`, `schedule`, `incident`, `workbook_report`, `workbook_schedule`,
+`write`, `notice`, `connection`. States: `all`, `attention`, `active`,
 `complete`, `deferred`. Follow `next_cursor` with the same filters and identity, even after an empty page. Each page
 rechecks current scope and scans at most 500 candidate records; page size is 1–100. Refresh to see records that moved
 after an update. `INVALID_CURSOR` means refresh or restore the original filters. Each row's `next_call` inspects its
@@ -457,7 +459,19 @@ The policy supports these settings, all optional:
   `max_bid_currency` and `max_total_budget_currency` are converted to native units where AMCP
   documents the platform's unit (Google Ads, DV360, Reddit, Snapchat and X in micros; Microsoft,
   LinkedIn and Apple in currency units). The saved policy keeps both and names the unit in `native_unit`. Meta, TikTok and Criteo
-  caps are stated in native units, because their unit is not documented in AMCP.
+  caps are stated in native units, because their unit is not documented in AMCP. Meta caps in
+  currency convert only with a `currency` and a pinned capture of Meta's currency offsets
+  (`.mirror/VENDOR/meta-currencies.json`; 100 USD is 10000, 100 JPY is 100); without it they stay
+  native.
+- `currency` — the ISO 4217 code the caps are stated in (`USD`, `KWD`, `JPY`), on an account
+  policy or per platform under a workspace default's `per_gateway`. An account policy without one
+  takes the account's currency from its last live read (`amcp_workspace check live:true`). Caps
+  bound to a currency compare only an account that spends in it: another currency raises
+  `POLICY_CURRENCY_MISMATCH` and an unknown one `POLICY_CURRENCY_UNKNOWN` (with a `next_call` to
+  the live check). Both ask under `confirm` and refuse under `block`; AMCP never converts between
+  currencies. Caps in account currency saved without a currency still apply as before, and
+  `save_spend_policy` and `amcp_workspace health` warn about them (`POLICY_CURRENCY_UNSET` in
+  `policy_warnings`).
 
 Budget comparisons and cumulative reservations use exact decimal arithmetic in
 the native unit; `33.10 + 33.20` fits a `66.30` ceiling. Native decimal strings
@@ -484,10 +498,19 @@ cap to evade the owner policy. JSON Patch `test` is a precondition and contribut
 no budget increase. Provider acceptance of the patch remains a separate check.
 
 Two behaviours worth planning around. A percentage or daily rule needs exactly one unambiguous
-current budget: a mutation touching several resources at once raises `POLICY_BASELINE_REQUIRED`
-(409), so narrow it to one resource. And a budget field AMCP cannot map to a known native unit
-raises `POLICY_AMOUNT_UNSUPPORTED` rather than being ignored — surface that instead of dropping
-the field.
+current budget per amount. Where the request and the reviewed state name the record each budget
+belongs to (Google `resourceName`, a Snapchat or Microsoft `id`, a TikTok `adgroup_id` or
+`campaign_id`), each amount is compared with its own record's current value, so cutting two
+budgets in one mutation is two decreases. Otherwise a mutation touching several resources at once
+raises `POLICY_BASELINE_REQUIRED` (409), so narrow it to one resource. And a budget field AMCP
+cannot map to a known native unit raises `POLICY_AMOUNT_UNSUPPORTED` rather than being ignored —
+surface that instead of dropping the field.
+
+Google amounts follow the account currency's smallest unit: JPY and CLP budgets are whole
+amounts, USD budgets whole cents, KWD budgets three decimal places. A guided recipe refuses a
+finer amount at prepare (`INVALID_RECIPE_MONEY`), an all-or-nothing build refuses a budget that is
+not a multiple of that unit with `BUDGET_PRECISION_INVALID`, and allocation drafts round each
+daily amount down to it and show the residual.
 
 A policy can be attached to one account, or set once for the whole workspace with
 `scope: 'workspace'` and no gateway or account. The account-specific policy wins where one
@@ -603,7 +626,21 @@ blindly, reshape a request to slip past one, or split a change into smaller piec
 
 - `WRITE_OUTCOME_UNCERTAIN` — the result is unknown and the write may have landed. Stop. Keep the
   review id and the original idempotency key, verify the resource by reading it, and never
-  resubmit under a new key.
+  resubmit under a new key. Its `next_call` is `amcp_write status`, which reads the retained review
+  back without a provider request; `amcp_write reconcile` then checks the provider read-only and
+  classifies it `appears_applied`, `appears_not_applied` or `indeterminate`. Show the user the
+  result: with their agreement, `accept_applied: true` and the shown `reconciliation_id` record
+  the observed result as the receipt; a write found not applied is replaced by a new review
+  prepared with `supersedes_review_id`. Nothing is ever sent again under the original key.
+- `RECONCILIATION_TOO_EARLY` — the claim is younger than the minimum delay (60 seconds by
+  default); the provider may still be applying it. Reconcile after `retry_after_ms`.
+- `RECONCILIATION_UNAVAILABLE` — the review is not uncertain (read its status), is a group (reconcile
+  each part), or was already replaced.
+- `RECONCILIATION_REQUIRED` / `RECONCILIATION_CHANGED` / `RECONCILIATION_STALE` — accepting or
+  replacing needs the latest reconciliation, the one the user saw, at most 15 minutes old.
+  Reconcile again and show the new result; nothing was changed.
+- `RECONCILIATION_UNSUPPORTED` — a reconciliation read was not independently read-only; it is
+  never sent.
 - `IDEMPOTENCY_CONFLICT` — the same key was reused for a different request. That is a bug in the
   caller, not a transient condition.
 - `IDEMPOTENCY_REQUIRED` — execute needs the key returned by prepare.

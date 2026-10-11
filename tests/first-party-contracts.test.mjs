@@ -356,7 +356,14 @@ test('amcp_write outcomes: inspect, review_required, running then complete, atte
     assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 400));
     assert.equal(prepared.meta.workflow.state, 'review_required');
     assert.ok(Array.isArray(prepared.meta.workflow.required_acknowledgements));
-    assert.equal(prepared.meta.workflow.next_call, undefined, 'a review never suggests its own execute');
+    // The next call is the review's execute with every acknowledgement left to the user (WRT-08): its arguments carry
+    // no confirmation, so following it unchanged is refused below.
+    assert.deepEqual(prepared.meta.workflow.next_call.arguments, {
+      action: 'execute',
+      review_id: prepared.data.review_id,
+    });
+    assert.equal(prepared.meta.workflow.next_call.add_after_user_approval.confirmed, true);
+    assert.equal(prepared.meta.workflow.website_path, '/operations?write_id=' + prepared.data.review_id);
     // Refused before anything was sent: blocked, nothing claimed.
     const unconfirmed = await f.call('amcp_write', {action: 'execute', review_id: prepared.data.review_id});
     assertRefused(unconfirmed, 'CONFIRMATION_REQUIRED');
@@ -393,9 +400,10 @@ test('amcp_write outcomes: inspect, review_required, running then complete, atte
     assert.equal(out.meta.workflow.state, 'attention_required');
     assert.equal(out.meta.workflow.source_state, 'uncertain');
     assert.equal(out.meta.workflow.automatic_retry_of_mutation, false);
+    // Its next call reads the retained review's status: no provider request (WRT-08).
     assert.deepEqual(out.meta.workflow.next_call, {
-      tool: 'amcp_workspace',
-      arguments: {action: 'history', search: prepared.data.review_id},
+      tool: 'amcp_write',
+      arguments: {action: 'status', review_id: prepared.data.review_id},
     });
     // The same review is never sent again, and its outcome stays uncertain.
     const posts = lost.calls.filter(c => c.method === 'POST').length,
@@ -403,8 +411,10 @@ test('amcp_write outcomes: inspect, review_required, running then complete, atte
     assert.equal(again.error.code, 'WRITE_OUTCOME_UNCERTAIN');
     assert.equal(again.meta.workflow.state, 'attention_required');
     assert.equal(lost.calls.filter(c => c.method === 'POST').length, posts);
-    const history = await lost.call('amcp_workspace', again.meta.workflow.next_call.arguments);
-    assert.equal(history.success, true);
+    const status = await lost.call('amcp_write', again.meta.workflow.next_call.arguments);
+    assert.equal(status.success, true, JSON.stringify(status).slice(0, 600));
+    assert.equal(status.data.state, 'uncertain');
+    assert.equal(lost.calls.filter(c => c.method === 'POST').length, posts, 'status sends nothing');
   } finally {
     lost.close();
   }

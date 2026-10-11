@@ -38,7 +38,18 @@ import {recordedWriteGrant} from './provider-grants.js';
 import {assertMeasurementScopes, optionalMissingState} from './measurement-writes.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
 import {assertWritesNotPaused} from './owner-operations.js';
-import {object, fail, notSent, releaseUnsentClaims, serializeTargets, targetWaitMs} from './write-common.js';
+import {
+  object,
+  fail,
+  notSent,
+  releaseUnsentClaims,
+  serializeTargets,
+  targetWaitMs,
+  uncertainNext,
+} from './write-common.js';
+import {writeStatus, type WriteOrigin} from './write-records.js';
+import {WriteReconciler} from './write-reconciliation.js';
+import {principalOf} from './actor-identity.js';
 import {setTimeout as pause} from 'node:timers/promises';
 import {writeOutcome} from './write-outcome.js';
 import {validateState} from './write-state.js';
@@ -68,12 +79,12 @@ import {reviewSummary} from './review-summary.js';
 export const writeTool = {
   name: 'amcp_write',
   description:
-    'Use this for any single advertising or measurement change; use amcp_campaign when later steps need IDs that earlier steps create. Inspect, prepare and execute a reviewed native mutation. inspect checks local write-contract support without credentials or network calls. Preparation reads account/resource state and returns a five-minute, actor-bound frozen request, with execute_requirements naming every acknowledgement execute will need. Execution requires its review_id and confirmed=true; idempotency_key defaults to the review_id. Operator role and administrator account write grants are required. A Google Ads mutation or Snapchat batch of more than 25 records is prepared as one review of parts of 25 (group: true) and approved and executed once; execution stops at the first part that does not succeed. This is an AMCP extension, not a captured AMCP tool.',
+    'Use this for any single advertising or measurement change; use amcp_campaign when later steps need IDs that earlier steps create. Inspect, prepare and execute a reviewed native mutation. inspect checks local write-contract support without credentials or network calls. Preparation reads account/resource state and returns a five-minute, actor-bound frozen request, with execute_requirements naming every acknowledgement execute will need. Execution requires its review_id and confirmed=true; idempotency_key defaults to the review_id. Operator role and administrator account write grants are required. A Google Ads mutation or Snapchat batch of more than 25 records is prepared as one review of parts of 25 (group: true) and approved and executed once; execution stops at the first part that does not succeed. status {review_id} reads a retained review back without a provider request: its claim, receipt, read-back and next call. reconcile {review_id} checks an uncertain write with read-only provider lookups and never sends it again; with accept_applied=true and its reconciliation_id it records the observed result as the receipt. This is an AMCP extension, not a captured AMCP tool.',
   inputSchema: {
     type: 'object',
     required: ['action'],
     properties: {
-      action: {type: 'string', enum: ['inspect', 'prepare', 'execute']},
+      action: {type: 'string', enum: ['inspect', 'prepare', 'execute', 'status', 'reconcile']},
       gateway: {type: 'string'},
       arguments: {type: 'object'},
       connection_id: {type: 'string'},
@@ -109,6 +120,20 @@ export const writeTool = {
       evidence: {
         type: 'string',
         enum: ['full', 'ref'],
+      },
+      accept_applied: {
+        type: 'boolean',
+        description:
+          'reconcile only: the user accepts that an uncertain write was applied, as the latest reconciliation observed (appears_applied). Records the observed result as its receipt; nothing is sent.',
+      },
+      reconciliation_id: {
+        type: 'string',
+        description: 'reconcile with accept_applied: the reconciliation_id the user saw.',
+      },
+      supersedes_review_id: {
+        type: 'string',
+        description:
+          'prepare only: an uncertain review that a reconciliation found not applied (appears_not_applied) and that this new review replaces. The old review is never sent.',
       },
     },
     additionalProperties: false,
@@ -568,12 +593,40 @@ export class WriteReviewService {
       );
     return {plan, state: review.state, expiresAt: review.expires_at};
   }
-  /** `evidenceDefault` is the evidence form of a caller that sent none: see ContractMemory. */
-  async call(input: JsonObject, actor: Actor, evidenceDefault?: EvidenceForm): Promise<unknown> {
+  /** A retained review's read-only reconciliation (WRT-08 Stage B), through this service's own guarded reads. */
+  private reconciler() {
+    return new WriteReconciler(this.store, this.registry, this.transport, this.credentials, this.policy);
+  }
+  /**
+   * `evidenceDefault` is the evidence form of a caller that sent none: see ContractMemory. `origin` is who prepares:
+   * the person directly (a retained standalone record, WRT-08), a campaign plan's step, or a group's part.
+   */
+  async call(
+    input: JsonObject,
+    actor: Actor,
+    evidenceDefault?: EvidenceForm,
+    origin: WriteOrigin = 'standalone',
+  ): Promise<unknown> {
     guardInput(input);
     for (const key of Object.keys(input))
       if (!Object.hasOwn(writeTool.inputSchema.properties, key))
         fail('INVALID_ARGUMENT', 'Unknown write-tool parameter.', {parameter: key});
+    // A retained review read back (status: AMCP alone) or reconciled with read-only provider lookups (WRT-08).
+    if (input.action === 'status' || input.action === 'reconcile') {
+      const accepted =
+        input.action === 'status'
+          ? ['action', 'review_id']
+          : ['action', 'review_id', 'accept_applied', 'reconciliation_id'];
+      for (const key of Object.keys(input))
+        if (!accepted.includes(key))
+          fail('INVALID_ARGUMENT', input.action + ' takes ' + accepted.join(', ') + '.', {field: key, accepted});
+      if (input.action === 'status') return writeStatus(this.store, actor, input.review_id);
+      return this.reconciler().call(input, actor);
+    }
+    for (const key of ['accept_applied', 'reconciliation_id'])
+      if (input[key] !== undefined) fail('INVALID_ARGUMENT', key + ' is for reconcile.', {field: key});
+    if (input.supersedes_review_id !== undefined && input.action !== 'prepare')
+      fail('INVALID_ARGUMENT', 'supersedes_review_id is for prepare.', {field: 'supersedes_review_id'});
     if (input.creative_edit_confirmed !== undefined && typeof input.creative_edit_confirmed !== 'boolean')
       fail('INVALID_ARGUMENT', 'creative_edit_confirmed must be a boolean.');
     if (input.provider_check !== undefined && (typeof input.provider_check !== 'boolean' || input.action !== 'prepare'))
@@ -699,6 +752,11 @@ export class WriteReviewService {
       assertWriteShape(plan);
       familyOf(plan)?.available?.(plan);
       const c = this.access(actor, plan, input.connection_id ?? nativeArgs.connection_id);
+      // A replacement of an uncertain review that a reconciliation found not applied (WRT-08 Stage B).
+      const supersedes =
+        input.supersedes_review_id !== undefined
+          ? this.reconciler().replaceable(actor, input.supersedes_review_id, plan, c.id)
+          : undefined;
       if (input.provider_check === true && !providerValidationRequest(plan))
         fail('INVALID_ARGUMENT', 'provider_check is available for ' + providerValidationScope + '.', {
           field: 'provider_check',
@@ -776,6 +834,10 @@ export class WriteReviewService {
         input.provider_check === true ? await this.providerCheck(actor, plan, c.id, reviewId) : undefined;
       this.store.putDocument(actor.tenantId, 'write_review', reviewId, {
         user_id: actor.userId,
+        // The person (MCP-02) and who prepared it: a standalone review is retained work in Operations (WRT-08).
+        principal: principalOf(actor),
+        origin,
+        created_at: Date.now(),
         connection_id: c.id,
         plan,
         reads,
@@ -783,6 +845,8 @@ export class WriteReviewService {
         state_hash: stateHash,
         fingerprint,
         expires_at: expiresAt,
+        required_acknowledgements: Object.keys(requirements).filter(k => requirements[k] === true && k !== 'confirmed'),
+        ...(supersedes ? {supersedes_uncertain: supersedes} : {}),
         ...override,
         ...(providerCheck ? {provider_check: providerCheck} : {}),
         prepare_input: {
@@ -804,6 +868,7 @@ export class WriteReviewService {
         expires_at: expiresAt,
         ...(wire?.status === 'violations' || wire?.status === 'check_failed' ? {wire_contract: wire} : {}),
       });
+      if (supersedes) this.reconciler().supersede(actor, supersedes, reviewId);
       return {
         success: true,
         executed: false,
@@ -820,6 +885,7 @@ export class WriteReviewService {
         confirmation_required: true,
         expires_in_seconds: 300,
         execute_requirements: requirements,
+        ...(supersedes ? {supersedes_uncertain: supersedes} : {}),
         summary: reviewSummary(plan, state),
         ...(effects ? {effects} : {}),
         ...(creativeImpact ? {creative_impact: creativeImpact} : {}),
@@ -1179,13 +1245,17 @@ export class WriteReviewService {
           connection_id: c.id,
         });
       if (!completed && !unsent) this.store.uncertain(actor.tenantId, input.idempotency_key);
+      // Scoped like write_not_sent, so a member with access to the account sees it in Activity (WRT-08).
       if (!unsent)
         this.store.appendAudit(actor.tenantId, input.review_id, {
           event: completed ? 'write_result_withheld' : 'write_uncertain',
           code,
+          gateway: plan.gateway,
+          account_id: plan.accountId ?? null,
+          connection_id: c.id,
         });
       const raised = family?.safeError ? family.safeError(e) : e,
-        safe = unsent ? notSent(raised, input.review_id) : raised;
+        safe = unsent ? notSent(raised, input.review_id) : completed ? raised : uncertainNext(raised, input.review_id);
       throw record ? scrubError(safe, echoes) : safe;
     }
   }

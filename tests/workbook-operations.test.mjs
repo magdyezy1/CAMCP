@@ -72,7 +72,8 @@ test('workbook runs join the bounded metadata feed and their status excludes inp
         };
     const response = await f.call({action: 'operations', kind: 'workbook_report', limit: 1});
     assert.equal(response.success, true, JSON.stringify(response));
-    assert.equal(response.data.coverage.length, 8);
+    // The feed's kinds grew with standalone reviewed writes (WRT-08); this test is about workbook runs.
+    assert.ok(response.data.coverage.includes('workbook_report'));
     assert.equal(response.data.network_requests, 0);
     const next = await f.call({
       action: 'operations',

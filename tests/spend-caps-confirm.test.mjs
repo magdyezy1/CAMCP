@@ -271,7 +271,23 @@ test('caps can be stated in account currency where the platform unit is document
       policy: {per_gateway: {google_ads_native_action: {max_budget_currency: 100}}, max_budget_increase_percent: 50},
     });
     assert.equal(workspace.per_gateway.google_ads_native_action.max_budget_native, 100000000);
-    assert.equal(workspace.warnings, undefined);
+    // WRT-07: a currency cap that names no currency would compare a KWD and a JPY account with the same number. It
+    // still applies, and the owner is told; naming the currency clears the warning.
+    assert.deepEqual(
+      workspace.warnings.map(w => [w.code, w.gateways]),
+      [['POLICY_CURRENCY_UNSET', ['google_ads_native_action']]],
+    );
+    const bound = saveSpendPolicy(f.store, owner, {
+      scope: 'workspace',
+      confirmed: true,
+      expected_revision: workspace.revision,
+      policy: {
+        per_gateway: {google_ads_native_action: {max_budget_currency: 100, currency: 'USD'}},
+        max_budget_increase_percent: 50,
+      },
+    });
+    assert.equal(bound.per_gateway.google_ads_native_action.currency, 'USD');
+    assert.equal(bound.warnings, undefined);
     assert.throws(
       () => saveSpendPolicy(f.store, owner, {scope: 'workspace', confirmed: true, policy: {max_budget_currency: 100}}),
       {code: 'INVALID_POLICY'},

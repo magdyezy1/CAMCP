@@ -92,7 +92,7 @@ test('local eligibility resolves contracts and selected account but preserves un
     assert.equal(response.meta.workflow.website_path, '/campaigns#campaign-create');
     const clicks = ok(
       await f.call({
-        ...input({...base, cpc_bid: undefined, cpc_bid_ceiling: '1.250001'}),
+        ...input({...base, cpc_bid: undefined, cpc_bid_ceiling: '1.37'}),
         recipe: 'google_search_clicks',
       }),
     );

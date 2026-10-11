@@ -312,11 +312,15 @@ export class CampaignRunner {
         ' reached the provider and its outcome is not confirmed, so AMCP never sends it again.' +
         (claim?.state === 'complete'
           ? ' reconcile_step reads the resource back from its original receipt (next_call).'
-          : ' No completed receipt exists: check in the provider whether the resource exists. Steps already verified stay; anything still to be written needs a new plan.'),
+          : step.kind === 'write' && claim
+            ? ' No completed receipt exists: reconcile it with read-only provider lookups (next_call, WRT-08). Once the user accepts it as applied, reconcile_step reads it back and dependent steps continue. Steps already verified stay.'
+            : ' No completed receipt exists: check in the provider whether the resource exists. Steps already verified stay; anything still to be written needs a new plan.'),
       next_call:
         claim?.state === 'complete'
           ? {tool: 'amcp_campaign', arguments: {action: 'reconcile_step', id: run.id, step_id: step.id}}
-          : null,
+          : step.kind === 'write' && claim
+            ? {tool: 'amcp_write', arguments: {action: 'reconcile', review_id: step.review_id}}
+            : null,
     };
   }
   /** What comes after a step's read-back: the next step, another read that can still help, or the user's decision. */

@@ -642,8 +642,15 @@ export class UserAccounts {
                   "UPDATE amcp_email_outbox SET state='failed',attempts=attempts-1,lease_token=NULL,last_error='NOTIFICATION_ATTEMPT_LIMIT' WHERE id=? AND lease_token=?",
                 )
                 .run(row.id, lease);
+              // The outcome is kept on the notice too, so Operations lists it for its subscriber (OPS-06).
               if (changed.changes)
-                this.web.store.putDocument(row.tenant_id, 'monitor_notice', notice!.id, {...notice!, retryable: true});
+                this.web.store.putDocument(row.tenant_id, 'monitor_notice', notice!.id, {
+                  ...notice!,
+                  retryable: true,
+                  delivery_state: 'failed',
+                  delivery_error: 'NOTIFICATION_ATTEMPT_LIMIT',
+                  failed_at: Date.now(),
+                });
             });
             return true;
           }
@@ -685,8 +692,15 @@ export class UserAccounts {
         // Another worker, opt-out or expiry may have fenced this attempt while fetch was pending.
         if (!db.prepare('SELECT 1 FROM amcp_email_outbox WHERE id=? AND lease_token=?').get(row.id, lease)) return;
         const retryable = !(e instanceof MirrorError) || e.retryable;
-        const retry = retryable && (!notice || row.attempts + 1 < notice.attempt_limit);
-        if (notice) this.web.store.putDocument(row.tenant_id, 'monitor_notice', notice.id, {...notice, retryable});
+        const retry = retryable && (!notice || row.attempts + 1 < notice.attempt_limit),
+          code = e instanceof MirrorError ? e.code : 'EMAIL_NETWORK_ERROR';
+        // A notice that will not be attempted again is recorded as failed for Operations (OPS-06): its code only.
+        if (notice)
+          this.web.store.putDocument(row.tenant_id, 'monitor_notice', notice.id, {
+            ...notice,
+            retryable,
+            ...(retry ? {} : {delivery_state: 'failed', delivery_error: code, failed_at: Date.now()}),
+          });
         const seconds = e instanceof MirrorError ? Number(e.details.retryAfter) : NaN,
           wait =
             Number.isFinite(seconds) && seconds > 0
@@ -694,13 +708,7 @@ export class UserAccounts {
               : Math.min(120000, 10000 * 2 ** Math.min(row.attempts, 5));
         db.prepare(
           'UPDATE amcp_email_outbox SET state=?,available_at=?,lease_token=NULL,last_error=? WHERE id=? AND lease_token=?',
-        ).run(
-          retry ? 'queued' : 'failed',
-          Date.now() + wait,
-          e instanceof MirrorError ? e.code : 'EMAIL_NETWORK_ERROR',
-          row.id,
-          lease,
-        );
+        ).run(retry ? 'queued' : 'failed', Date.now() + wait, code, row.id, lease);
         if (notice && !retryable)
           db.prepare("UPDATE amcp_email_outbox SET secret='' WHERE id=? AND state='failed'").run(row.id);
       });

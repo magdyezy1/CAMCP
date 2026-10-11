@@ -92,7 +92,7 @@ test('graph dependencies follow compiled recipes and lifecycle actions remain ex
       snapchat_website_traffic: trafficBusiness,
       snapchat_lead_generation: leadBusiness,
       google_search: b,
-      google_search_clicks: {...b, cpc_bid: undefined, cpc_bid_ceiling: '1.250001'},
+      google_search_clicks: {...b, cpc_bid: undefined, cpc_bid_ceiling: '1.37'},
       google_search_conversions: {...b, cpc_bid: undefined, conversion_goal_policy: 'ACCOUNT_DEFAULT'},
       google_search_target_cpa: {
         ...b,

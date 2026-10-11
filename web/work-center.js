@@ -1,11 +1,57 @@
 'use strict';
-function workHome(d, accounts) {
-  const needsAttention = d.campaigns.filter(c =>
-    ['blocked', 'failed', 'uncertain', 'awaiting_review', 'mismatch'].includes(c.state),
-  );
+// The operation kinds Home names, with the Operations labels (OPS-06). Home does not load the Operations page script.
+function homeOperationKind(kind) {
+  switch (kind) {
+    case 'campaign':
+      return uiText('Campaign plan');
+    case 'upload':
+      return uiText('Media upload');
+    case 'report':
+      return uiText('Report snapshot');
+    case 'export':
+      return uiText('Export job');
+    case 'schedule':
+      return uiText('Report schedule');
+    case 'incident':
+      return uiText('Incident');
+    case 'workbook_report':
+      return uiText('Workbook report');
+    case 'workbook_schedule':
+      return uiText('Workbook schedule');
+    case 'write':
+      return uiText('Reviewed change');
+    case 'notice':
+      return uiText('Monitor email notice');
+    case 'connection':
+      return uiText('Connection login');
+    default:
+      return uiText('Work');
+  }
+}
+/**
+ * Home (OPS-06): what needs a person comes from the Operations feed's own classifier (an `operations` page with state
+ * `attention`), so a plan in `attention`, an uncertain upload or write, a failed export, an open incident, a failed
+ * notice or a login to reauthorize all appear here; the campaign list stays for continuing recent work. Before, Home
+ * kept its own list of plan states and missed every plan the runner put in `attention`.
+ */
+function workHome(d, accounts, attention) {
   const recent = [...d.campaigns].sort((a, b) => b.updated_at - a.updated_at).slice(0, 8);
   const card = c =>
     `<a href="/campaigns?id=${encodeURIComponent(c.id)}"><strong>${esc(c.name)}</strong><small>${badge(c.state)} · ${date(c.updated_at)}</small></a>`;
+  // The feed's original-record path is internal; anything else opens Operations instead.
+  const work = op =>
+    `<a href="${esc(/^\/(?![/\\])/.test(op.website_path ?? '') ? op.website_path : '/operations?state=attention')}"><strong>${esc(op.name)}</strong><small>${esc(homeOperationKind(op.kind))} · ${badge(op.state)}${op.updated_at ? ' · ' + date(op.updated_at) : ''}</small></a>`;
+  const empty = `<p>${esc(uiText('Nothing needs attention: no campaign plans, uploads, reports, exports, schedules, incidents, workbook runs, reviewed changes, email notices or connection logins.'))}</p>`;
+  const items = Array.isArray(attention?.operations) ? attention.operations : null;
+  const attentionBody = items
+    ? items.map(work).join('') ||
+      (attention.has_more
+        ? `<p>${esc(uiText('None of the most recent records needs attention. Open Operations to check older ones.'))}</p>`
+        : empty)
+    : attention?.error
+      ? `<p class="error" role="alert">${esc(uiText('Could not load the work that needs attention. Open Operations to see it.'))}</p>`
+      : empty;
+  const disabled = (d.connections ?? []).filter(c => c.enabled === false).length;
   return (
     header(
       uiText('Home'),
@@ -19,10 +65,13 @@ function workHome(d, accounts) {
     (d.writes_paused
       ? `<div class="notice warning" role="status"><strong>${esc(uiText('Provider writes are paused'))}</strong><p>${esc(d.writes_paused.reason)}</p><a href="/settings#owner-write-pause">${esc(uiText('View operating controls'))}</a></div>`
       : '') +
+    (disabled
+      ? `<div class="notice" role="status"><p>${esc(uiText('Connection logins turned off: {count}. Reads and reviewed changes through them stop until an administrator turns them on.', {count: disabled}))}</p><a href="/connections">${esc(uiText('Manage connections'))}</a></div>`
+      : '') +
     (accounts.length
       ? ''
       : `<section class="panel"><h2>${esc(uiText('Connect your first account'))}</h2><p>${esc(uiText('Choose a platform login and the accounts your workspace can use. Readiness checks will explain the next step.'))}</p><a href="/connections" class="button primary">${esc(uiText('Set up connections'))}</a></section>`) +
-    `<section class="panel"><div class="panel-header"><h2>${esc(uiText('Needs attention'))}</h2><a href="/operations">${esc(uiText('All operations'))}</a></div><div class="work-links">${needsAttention.map(card).join('') || `<p>${esc(uiText('No saved campaign plans currently need attention.'))}</p>`}</div></section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Continue recent work'))}</h2><a href="/campaigns">${esc(uiText('All plans'))}</a></div><div class="work-links">${recent.map(card).join('') || `<p>${esc(uiText('Your saved campaign plans will appear here.'))}</p>`}</div></section><div class="quick-actions"><a href="/media"><span>${glyph('media')}</span><div><strong>${esc(uiText('Prepare creative'))}</strong><small>${esc(uiText('Sources, variants and upload receipts'))}</small></div></a><a href="/reporting-overview"><span>${glyph('report')}</span><div><strong>${esc(uiText('Build a report'))}</strong><small>${esc(uiText('Source evidence and client deliveries'))}</small></div></a><a href="/capabilities"><span>${glyph('connection')}</span><div><strong>${esc(uiText('Check capabilities'))}</strong><small>${esc(uiText('Account prerequisites and action contracts'))}</small></div></a></div>`
+    `<section class="panel"><div class="panel-header"><h2>${esc(uiText('Needs attention'))}</h2><a href="/operations?state=attention">${esc(uiText('All operations'))}</a></div><div class="work-links">${attentionBody}</div>${items?.length ? `<p class="form-note">${esc(uiText('The most recent work that needs attention. Operations reads a bounded number of records per page and lists the rest.'))}</p>` : ''}</section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Continue recent work'))}</h2><a href="/campaigns">${esc(uiText('All plans'))}</a></div><div class="work-links">${recent.map(card).join('') || `<p>${esc(uiText('Your saved campaign plans will appear here.'))}</p>`}</div></section><div class="quick-actions"><a href="/media"><span>${glyph('media')}</span><div><strong>${esc(uiText('Prepare creative'))}</strong><small>${esc(uiText('Sources, variants and upload receipts'))}</small></div></a><a href="/reporting-overview"><span>${glyph('report')}</span><div><strong>${esc(uiText('Build a report'))}</strong><small>${esc(uiText('Source evidence and client deliveries'))}</small></div></a><a href="/capabilities"><span>${glyph('connection')}</span><div><strong>${esc(uiText('Check capabilities'))}</strong><small>${esc(uiText('Account prerequisites and action contracts'))}</small></div></a></div>`
   );
 }
 async function renderScheduleCenter() {
