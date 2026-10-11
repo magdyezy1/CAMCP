@@ -375,6 +375,15 @@ test('MSR-03 a write pause, credential rotation or access withdrawal mid-ledger 
       }),
       out = await f.read();
     assert.equal(out.success, false, name + ': ' + JSON.stringify(out.data ?? null));
+    assert.equal(
+      out.error.code,
+      {
+        'write pause': 'STATE_CHANGED',
+        'credential rotation': 'STATE_CHANGED',
+        'access withdrawal': 'CONNECTION_REQUIRED',
+      }[name],
+      name,
+    );
     assert.equal(out.data, undefined, name);
     assert.equal(f.requests.filter(r => r.kind === 'attribution').length, 0, name + ': no further read starts');
   }
@@ -397,6 +406,7 @@ test('MSR-03 ledger refusals happen before any provider request', async t => {
   const f = googleFixture(t),
     out = await f.read({account_id: '9999999999'});
   assert.equal(out.success, false);
+  assert.equal(out.error.code, 'CONNECTION_REQUIRED');
   assert.equal(f.requests.length, 0, 'a customer not granted to the login is never read');
 });
 
@@ -610,6 +620,7 @@ test('MSR-03 a GA4 login change or missing analytics permission refuses the ledg
     }),
     out = await f.read();
   assert.equal(out.success, false, JSON.stringify(out.data ?? null));
+  assert.equal(out.error.code, 'CONNECTION_AUTHORITY_CHANGED');
   assert.equal(out.data, undefined);
   assert.ok(f.requests.length <= 2);
   const unscoped = ga4Fixture(t, {scopes: ['https://www.googleapis.com/auth/webmasters.readonly']}),
@@ -619,5 +630,6 @@ test('MSR-03 a GA4 login change or missing analytics permission refuses the ledg
   const foreign = ga4Fixture(t),
     other = await foreign.read({account_id: '999'});
   assert.equal(other.success, false);
+  assert.equal(other.error.code, 'CONNECTION_REQUIRED');
   assert.equal(foreign.requests.length, 0);
 });

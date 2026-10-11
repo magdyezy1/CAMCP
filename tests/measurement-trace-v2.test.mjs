@@ -259,7 +259,12 @@ for (const locale of ['en', 'ar']) {
         1,
       );
       change(value);
-      assert.throws(() => inspect(f, value));
+      // An authored refusal of the version 1 trace, never a crash.
+      assert.throws(
+        () => inspect(f, value),
+        error => error.name === 'Error' && !/undefined|Cannot read|is not a function/.test(error.message),
+        JSON.stringify(value),
+      );
     }
     assert.throws(
       () => inspect(f, {...base(), scope: {...base().scope, visitor_region: 'usa'}}),

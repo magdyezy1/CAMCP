@@ -161,5 +161,6 @@ test('MSR-02 refusals happen before any provider request', async t => {
   const f = fixture(t),
     out = await f.goals({account_id: '9999999999'});
   assert.equal(out.success, false);
+  assert.equal(out.error.code, 'CONNECTION_REQUIRED');
   assert.equal(f.data.requests.length, 0, 'an account not granted to the login is never read');
 });

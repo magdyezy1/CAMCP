@@ -345,6 +345,7 @@ test('MSR-03 GA4 configuration refusals happen before any provider request', asy
   const foreign = fixture(t),
     other = await foreign.read({account_id: '999'});
   assert.equal(other.success, false);
+  assert.equal(other.error.code, 'CONNECTION_REQUIRED');
   assert.equal(foreign.requests.length, 0, 'a property not granted to the login is never read');
 });
 
@@ -367,6 +368,11 @@ test('MSR-03 a login replaced or withdrawn during the read refuses the response'
       }),
       out = await f.read();
     assert.equal(out.success, false, name + ': ' + JSON.stringify(out.data ?? null));
+    assert.equal(
+      out.error.code,
+      {'credential rotation': 'CONNECTION_AUTHORITY_CHANGED', 'property withdrawal': 'CONNECTION_REQUIRED'}[name],
+      name,
+    );
     assert.equal(out.data, undefined, name);
     assert.ok(f.requests.length <= 2, name + ': no further read starts');
   }

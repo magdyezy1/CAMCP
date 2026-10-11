@@ -89,7 +89,8 @@ test('the synthetic route guard needs exact anchored mutation routes on one http
     {method: 'POST', origin: 'https://graph.facebook.com', path: /\/x/},
     {method: 'POST', origin: 'https://graph.facebook.com', path: '/x'},
   ])
-    assert.throws(() => syntheticMutationGuard([route]));
+    // The guard's own assertion refuses the route, never a crash.
+    assert.throws(() => syntheticMutationGuard([route]), {code: 'ERR_ASSERTION'});
   const accept = syntheticMutationGuard([{method: 'POST', origin: 'https://graph.facebook.com', path: /^\/x$/}]);
   assert.equal(accept(new URL('https://graph.facebook.com/x'), 'POST'), true);
   assert.equal(accept(new URL('https://graph.facebook.com/x/y'), 'POST'), false);
