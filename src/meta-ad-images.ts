@@ -75,6 +75,8 @@ export async function readMetaImage(
   const r = await fetch({...(p as Read), metaImageState: undefined} as Read),
     d = r.data;
   if (r.status !== 200 || !object(d) || !Array.isArray(d.data)) unverified('Meta did not list the ad images.');
+  // Another page could hold the image: an image missing from this page is not gone (nor absent from the library).
+  if (object(d.paging) && d.paging.next) unverified('Meta listed the ad images on more than one page.');
   const rows = (d.data as unknown[]).filter(x => object(x) && x.hash === s.hash) as JsonObject[];
   if (rows.length > 1) unverified('Meta listed image ' + s.hash + ' more than once.');
   const row = rows[0];

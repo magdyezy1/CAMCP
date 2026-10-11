@@ -248,7 +248,9 @@ export async function readLinkedInDscEdits(
         object(d.metadata) && typeof d.metadata.nextPageToken === 'string' && d.metadata.nextPageToken
           ? d.metadata.nextPageToken
           : undefined;
-      if (!token || (d.elements as unknown[]).length < pageSize) break;
+      // Only a missing nextPageToken ends the list: LinkedIn may return a short page before the last one, and a
+      // creative on a later page must still count (a deletion would otherwise remove a post an ad sponsors).
+      if (!token) break;
     }
     creatives.sort((a, b) => String(a.id).localeCompare(String(b.id)));
   }

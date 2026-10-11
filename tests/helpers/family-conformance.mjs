@@ -4,8 +4,9 @@
 // family's projection code. The runner drives the real review lifecycle (MirrorService, NativeTransport, the store)
 // against that provider and proves, for every described family:
 //   - the request reviews and executes once (the baseline the other checks are measured against);
-//   - a change of the decisive field between review and execute is refused as STATE_CHANGED naming that field, with
-//     nothing sent;
+//   - a change of the decisive field between review and execute is refused as STATE_CHANGED naming that field (or,
+//     where a family prerequisite forbids the changed value, such as a status transition or a resource now in use, by
+//     the family's own refusal naming it), with nothing sent;
 //   - a state read the provider answers with another page is refused before review, with nothing sent;
 //   - a partial or failed provider answer is never reported as success and is never sent again.
 // Nothing leaves the process: the provider is a function of the descriptor's own synthetic state.
@@ -30,11 +31,17 @@ const key = Buffer.alloc(32, 97).toString('base64'),
  *                                             failed answer; returns {json, status?} or a Response
  *   isWrite({method, path})                   true for the provider mutation the request sends
  *   decisive: {change(state), field: RegExp}  the change between review and execute, and the changed_fields path
+ *   decisive.refusal: {code, message: RegExp} optional: where a family prerequisite forbids the changed value (a
+ *                                             status transition, a resource a live campaign now uses), the family's
+ *                                             own refusal of it, raised while the state is read again at execute
+ *                                             (before the comparison); its message names the changed value
  *   connection, credentials, policy, spendPolicy, execute, owned, role
  *                                             optional overrides of the synthetic login, the deployment policy, the
  *                                             owner's spending policy for the account, execute's extra fields, the
  *                                             resource IDs the account already showed AMCP, and 'admin' for a family
  *                                             whose writes need an administrator
+ *   prepareFields                             optional: amcp_write prepare fields beside `arguments` (people and
+ *                                             personal_data for a family that sends data about people)
  *   paginatedCodes, partialCodes              optional: the refusal codes a family names for those cases
  *   prime({call, connectionId})               optional: reads a caller makes before preparing (discovery)
  *   setup({store, owner, actor, login})       optional: anything else the account already holds
@@ -103,6 +110,8 @@ export function familyFixture(d) {
       connection_id: connectionId,
       // A delegated operation (Criteo, Business Profile) nests its own arguments: the descriptor gives them whole.
       arguments: structuredClone(d.arguments ?? {account_id: d.account, ...d.request}),
+      // Fields a review takes beside its arguments (the people and the personal-data confirmations of an upload).
+      ...structuredClone(d.prepareFields ?? {}),
     })
   );
   const execute = review =>
@@ -159,6 +168,12 @@ export async function decisiveChange(d) {
     const review = await prepared(f);
     d.decisive.change(f.state);
     const refused = await f.execute(review);
+    if (d.decisive.refusal) {
+      // The family's prerequisite refuses the changed value as the state is read again, before the comparison.
+      assertRefused(refused, d.decisive.refusal.code, {writes: f.sent.length});
+      assert.match(refused.error.message, d.decisive.refusal.message, 'the refusal names the changed value');
+      return;
+    }
     assertRefused(refused, 'STATE_CHANGED', {writes: f.sent.length});
     const changed = refused.error.details?.changed_fields ?? [];
     assert.ok(
