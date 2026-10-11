@@ -234,10 +234,13 @@ export function compareSnapshots(
   const grain = current.config?.grain ?? 'total',
     singleDay = windowDays(current.config.date_range) === 1 && windowDays(baseline.config.date_range) === 1,
     {custom, excluded} = comparableCustom(current, baseline),
+    customIds = new Set<string>((current.config?.custom_metrics ?? []).map((m: JsonObject) => m.id)),
+    // A provider field (native_*) has no known aggregation; a custom metric is identified by its own ID.
+    nativeField = (k: string) => k.startsWith('native_') && !customIds.has(k),
     requested: string[] = [...new Set<string>([...(current.config?.metrics ?? []), ...custom.map(m => m.id)])].filter(
-      k => !k.startsWith('native_'),
+      k => !nativeField(k),
     ),
-    metrics = [...new Set([...additive.filter(k => requested.includes(k)), ...requested])].filter(
+    metrics = requested.filter(
       k => additive.includes(k) || nonAdditive.includes(k) || ratios.includes(k) || custom.some(m => m.id === k),
     ),
     excludedMetrics = [
@@ -246,7 +249,7 @@ export function compareSnapshots(
         : nonAdditive.filter(k => requested.includes(k)).map(metric => ({metric, reason: 'non_additive_multi_day'}))),
       ...excluded,
       ...(current.config?.metrics ?? [])
-        .filter((k: string) => k.startsWith('native_'))
+        .filter(nativeField)
         .map((metric: string) => ({metric, reason: 'native_field_not_comparable'})),
     ];
   const now = entities(current),
