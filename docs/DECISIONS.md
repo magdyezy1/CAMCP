@@ -132,8 +132,11 @@ cites as owner decisions, each the review's recommended or the ticket's proposed
 - **P9.** A Meta product's populated destination-only attributes are notes (`unsent_fields`); they never put the item
   in the review set as `unknown` (COM-01). The Business Profile and Amazon Ads parts are recorded above.
 
-P8 stays open: the Meta dataset, Search Console and Adjust are not in Measurement, and the measurement ledger has
-Google Ads and GA4 adapters only ([product workflows](PRODUCT-WORKFLOWS.md)).
+P8 (owner-approved 2026-10-11, applied in wave 3; chosen during implementation, the owner may revise): Measurement is
+the multi-provider conversion-health hub. The measurement ledger adds read-only Meta pixel/dataset, Snapchat pixel,
+TikTok pixel, Search Console and Adjust adapters beside Google Ads and GA4; Meta pixel ownership is learned from the
+ad account's pixel list, and no test event, Conversions API call or validate request is sent (MSR-03,
+[product workflows](PRODUCT-WORKFLOWS.md)).
 
 Not decided in this round: the review's resource and authorization requests R1–R8 (test accounts, named reads, a
 disposable Sheets destination, declared provider approvals, LinkedIn programs and DV360, reviewers, a staging

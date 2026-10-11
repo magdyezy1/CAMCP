@@ -365,9 +365,8 @@
       "manual": {"state": "not_recorded", "evidence": []},
       "remainders": [
         {"text": "Google conversion goals in the measurement workspace (closes the package)", "disposition": "register_item", "ref": "MSR-02"},
-        {"text": "A re-recorded authorized GA4 recent-events read", "disposition": "native_acceptance", "ref": "ACC-06"},
-        {"text": "Raw event tracing and runtime consent, deduplication and attribution diagnosis", "disposition": "conditional_stretch", "ref": "B32"},
-        {"text": "MSR-03 is partial: the Meta dataset ledger adapter waits for decision P8 and Meta pixel ownership learned from the ad account (adspixels is not an AMCP read); the Snapchat and TikTok adapters (slice D) are not started", "disposition": "owner_action", "ref": "P8"}
+        {"text": "A re-recorded authorized GA4 recent-events read, and one authorized read-only measurement ledger call per hub adapter applied under P8 (Meta pixel and dataset, Snapchat, TikTok, Search Console, Adjust) on a designated asset; TikTok pixel event statistics stay unavailable until such a read pins their contract", "disposition": "native_acceptance", "ref": "ACC-06"},
+        {"text": "Raw event tracing and runtime consent, deduplication and attribution diagnosis", "disposition": "conditional_stretch", "ref": "B32"}
       ]
     },
     {
