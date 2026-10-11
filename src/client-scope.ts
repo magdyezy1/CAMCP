@@ -67,6 +67,36 @@ export function clientsOf(views: ClientView[], scopes: {gateway?: unknown; conne
   return [...ids];
 }
 
+/**
+ * Whether a client profile is within the actor's access (SEC-08): always without a client access set; with one, only a
+ * profile whose every binding the set reaches, since a profile's bindings, templates and naming describe its client.
+ */
+export function profileWithinAccess(store: Store, actor: Actor, profile: JsonObject): boolean {
+  if (actor.accessSetId === undefined) return true;
+  const reachable = reachableKeys(store, actor);
+  return (Array.isArray(profile.bindings) ? profile.bindings : []).every(
+    (b: JsonObject) =>
+      !!b &&
+      typeof b.gateway === 'string' &&
+      [...reachable.values()].some(
+        a =>
+          a.gateway === b.gateway &&
+          (typeof b.connection_id !== 'string' || !b.connection_id || a.connection_id === b.connection_id) &&
+          bindingKey(a.gateway, a.connection_id, a.account_id) === bindingKey(b.gateway, a.connection_id, b.account_id),
+      ),
+  );
+}
+/** A saved profile the actor may see; one outside a client access set is not found, like one that does not exist. */
+export function visibleProfile(store: Store, actor: Actor, id: unknown): JsonObject {
+  store.assertActorActive(actor);
+  if (typeof id !== 'string' || !id || id.length > 200)
+    throw new MirrorError('NOT_FOUND', 'Document not found in this tenant.', {}, 404);
+  const profile = store.document(actor.tenantId, 'client_profile', id);
+  if (!profileWithinAccess(store, actor, profile))
+    throw new MirrorError('NOT_FOUND', 'Document not found in this tenant.', {}, 404);
+  return profile;
+}
+
 /** A report source names its platform, not its gateway. */
 export const sourceGateway = (s: JsonObject) => s.gateway ?? reportPlatforms[s.platform]?.gateway;
 

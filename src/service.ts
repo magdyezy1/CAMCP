@@ -115,6 +115,7 @@ import {creativeAssetView} from './creative-library.js';
 import {wooCommerceStoreDiscovery, type WooCommerceRequest} from './woocommerce-source.js';
 import {connectWooCommerce} from './woocommerce-connection.js';
 import {sameLogin} from './connection-authority.js';
+import {accessSetView, accountKey} from './access-sets.js';
 export const strictOptions: CallOptions = {mode: 'strict', flags: {}};
 /**
  * The amcp_write inspect call for a change a native gateway will not send (MCP-09): the caller's arguments without the
@@ -200,6 +201,8 @@ export function auditedRead(outcome: JsonObject): JsonObject {
   };
 }
 export const carriesProviderContent = (tool: string) => !localOnlyTools.has(tool);
+/** Audit rows of work done under a client access set name the set (SEC-08). */
+const accessSetAudit = (actor: Actor) => (actor.accessSetId !== undefined ? {access_set_id: actor.accessSetId} : {});
 /** The read that renews a lapsed ownership observation, when AMCP may run it itself: the refused call is a native read
  * or a write's prepare or inspect, and the read is the same gateway's account list narrowed to one ID. */
 function narrowedOwnershipRead(tool: string, input: JsonObject, result: JsonObject) {
@@ -560,6 +563,7 @@ export class MirrorService {
       try {
         this.store.appendAudit(actor.tenantId, requestId, {
           tool,
+          ...accessSetAudit(actor),
           input: redactReportingRecord(
             redactConnectionInput(
               tool,
@@ -993,8 +997,16 @@ export class MirrorService {
     if (googleGenerationKind(plan) && (input.aggregate_pages || input.paginate || input.allPages))
       throw new MirrorError('INVALID_ARGUMENT', 'Google generation is one bounded request, not a paginated query.');
     if (input.dry_run === true || (!plan.readOnly && input.dry_run !== false)) {
+      // Access limited to a client access set prepares nothing for an account outside it, not even a dry run (SEC-08).
+      if (actor.accessSetId !== undefined && plan.accountId)
+        this.store.resolveConnection(actor, plan.gateway, plan.accountId, input.connection_id ?? input.connectionId);
       const result = {success: true, dry_run: true, action: plan.action, request: plan, executed: false};
-      this.store.appendAudit(actor.tenantId, requestId, {event: 'preview', request: plan, outcome: 'not_executed'});
+      this.store.appendAudit(actor.tenantId, requestId, {
+        event: 'preview',
+        ...accessSetAudit(actor),
+        request: plan,
+        outcome: 'not_executed',
+      });
       return result;
     }
     // A native gateway never writes, so a write with dry_run:false is refused first, with the call that reviews it
@@ -1020,7 +1032,12 @@ export class MirrorService {
       scopedId = scope.authorize(plan, connection);
     if (placeActionReadKind(plan) && !plan.accountId) plan = {...plan, accountId: scopedId};
     const credentials = await this.credentials.get(connection);
-    this.store.appendAudit(actor.tenantId, requestId, {event: 'request_started', actor: actor.userId, request: plan});
+    this.store.appendAudit(actor.tenantId, requestId, {
+      event: 'request_started',
+      actor: actor.userId,
+      ...accessSetAudit(actor),
+      request: plan,
+    });
     try {
       const reportAccess = (p: CompiledRequest) => {
         if (p.criteoReportRead || p.tiktokReportRead || p.xReportRead) {
@@ -1176,6 +1193,7 @@ export class MirrorService {
       };
       this.store.appendAudit(actor.tenantId, requestId, {
         event: 'request_completed',
+        ...accessSetAudit(actor),
         request: plan,
         outcome:
           (plan.reportDownload && plan.xReportRead) || plan.tiktokReportRead?.kind === 'download'
@@ -1187,6 +1205,7 @@ export class MirrorService {
       if (placeActionReadKind(plan)) e = placeActionSafeError(e);
       this.store.appendAudit(actor.tenantId, requestId, {
         event: 'request_failed',
+        ...accessSetAudit(actor),
         request: plan,
         error:
           e instanceof MirrorError ? {code: e.code, message: e.message, details: e.details} : {code: 'INTERNAL_ERROR'},
@@ -1535,6 +1554,8 @@ export class MirrorService {
         return {
           workspace: {id: actor.tenantId},
           actor: {id: actor.userId, role: actor.role},
+          // Access limited to a client access set says so, with its name (SEC-08); the connections below are narrowed.
+          ...(actor.accessSetId !== undefined ? {access_set: accessSetView(this.store, actor)} : {}),
           connections: connections.map(c => ({
             id: c.id,
             platform: c.gateway,
@@ -1587,7 +1608,19 @@ export class MirrorService {
             }),
           );
       }
-      return this.store.documents(actor.tenantId, 'workspace_asset');
+      const assets = this.store.documents(actor.tenantId, 'workspace_asset');
+      // A client access set lists only the assets of accounts it reaches (SEC-08); other access lists them all, as before.
+      return actor.accessSetId === undefined
+        ? assets
+        : assets.filter(a =>
+            connections.some(
+              c =>
+                typeof a.platform === 'string' &&
+                c.gateway === a.platform + '_native_action' &&
+                (a.connection_id === undefined || a.connection_id === c.id) &&
+                c.accounts.some(id => accountKey(c.gateway, id) === accountKey(c.gateway, a.account_id)),
+            ),
+          );
     }
     if (operation === 'get_creative_generation_job') return this.store.job(actor.tenantId, String(args.job_id));
     if (gateway === 'amcp_native_action')

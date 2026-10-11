@@ -1,4 +1,5 @@
-import type {Connection, JsonObject} from './types.js';
+import type {Actor, Connection, JsonObject} from './types.js';
+import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
 
 /**
@@ -70,6 +71,23 @@ export function narrowConnections(connections: Connection[], bindings: AccessBin
     if (c.accountLoginCustomers) narrowed.accountLoginCustomers = keep(c.accountLoginCustomers)!;
     return [narrowed];
   });
+}
+
+/** What an actor limited to a set is told about it: its ID, name and how many accounts it binds (never removed: null). */
+export function accessSetView(store: Store, actor: Actor): JsonObject | null {
+  if (actor.accessSetId === undefined) return null;
+  const row = store.db
+    .prepare('SELECT data FROM documents WHERE tenant_id=? AND kind=? AND id=?')
+    .get(actor.tenantId, accessSetKind, actor.accessSetId) as {data: string} | undefined;
+  const record = row ? (JSON.parse(row.data) as JsonObject) : undefined;
+  return {
+    id: actor.accessSetId,
+    name: typeof record?.name === 'string' ? record.name : null,
+    accounts: setBindings(record).length,
+    removed: !record,
+    meaning:
+      'This access is limited to the accounts of one client. Accounts outside the set are refused with ACCOUNT_SCOPE_RESTRICTED.',
+  };
 }
 
 /** The refusal for an account outside the actor's set. It never says whether the account exists in the workspace. */

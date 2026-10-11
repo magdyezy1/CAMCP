@@ -27,6 +27,7 @@ import {
   sharedEvidence,
 } from './readiness.js';
 import {previewPlaybook, validatePlaybook} from './client-playbooks.js';
+import {profileWithinAccess, visibleProfile} from './client-scope.js';
 import {clientBriefs, recipeDefaultFields} from './recipe-context.js';
 import {monitorActions, monitorOperation} from './report-monitors.js';
 import {portfolioPage} from './portfolio.js';
@@ -73,7 +74,6 @@ import {
   noSecrets,
   obj,
   optional,
-  read,
   tool,
   update,
   validate,
@@ -544,6 +544,8 @@ export class WorkspaceService {
         // By name, so a client is found in the same place on every load (CMP-06); IDs are random.
         profiles: this.store
           .documents(actor.tenantId, 'client_profile')
+          // Access limited to a client access set (SEC-08) sees only the profiles whose bindings stay within it.
+          .filter(p => profileWithinAccess(this.store, actor, p))
           .sort(
             (a, b) =>
               String(a.name ?? '').localeCompare(String(b.name ?? ''), 'en', {sensitivity: 'base'}) ||
@@ -552,7 +554,7 @@ export class WorkspaceService {
         recipe_defaults: recipeDefaultFields(),
       };
     if (input.action === 'preview_profile') {
-      const profile = input.id ? read(this.store, actor, 'client_profile', input.id) : input.profile;
+      const profile = input.id ? visibleProfile(this.store, actor, input.id) : input.profile;
       if (!obj(profile)) bad('Supply a saved profile or a draft profile.');
       validatePlaybook(profile);
       for (const binding of profile.bindings ?? [])
@@ -584,6 +586,8 @@ export class WorkspaceService {
         this.store.resolveConnection(actor, binding.gateway, binding.account_id, binding.connection_id);
       }
       const id = input.id ?? randomUUID();
+      if (input.id !== undefined && optional(this.store, actor.tenantId, 'client_profile', id))
+        visibleProfile(this.store, actor, id);
       if (
         !optional(this.store, actor.tenantId, 'client_profile', id) &&
         this.store.documents(actor.tenantId, 'client_profile').length >= 100
@@ -603,7 +607,7 @@ export class WorkspaceService {
     if (input.action === 'delete_profile') {
       writer(this.store, actor);
       if (input.confirmed !== true) bad('Confirm profile deletion.');
-      const p = read(this.store, actor, 'client_profile', input.id);
+      const p = visibleProfile(this.store, actor, input.id);
       if (input.revision !== p.revision) bad('Reload the current profile.', 'REVISION_CONFLICT');
       this.store.db
         .prepare('DELETE FROM documents WHERE tenant_id=? AND kind=? AND id=? AND revision=?')

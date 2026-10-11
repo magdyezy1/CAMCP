@@ -96,6 +96,10 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
     ...own,
   };
   noSecrets(defaults);
+  // Page suggestions come only from the logins that hold an eligible account of this recipe, after the playbook's
+  // bindings (SEC-08): before, every login's Pages were offered, mixing clients. A Page belongs to a login, not an
+  // account, so access limited to a client access set gets none and names its Page explicitly (preflight checks it).
+  const pageLogins = new Set(actor.accessSetId === undefined ? targets.map(t => t.connection_id) : []);
   // Connected accounts the selected playbook's bindings leave out (CMP-06), so an empty account list can say why.
   const connected = store
     .connectionsFor(actor)
@@ -109,7 +113,9 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
     defaults,
     profile: profile ? {id: profile.id, revision: profile.revision, name: profile.name} : null,
     conventions: playbookConventions(profile),
-    pages: inventory.flatMap(i =>
+    pages: inventory
+      .filter(i => pageLogins.has(i.id))
+      .flatMap(i =>
       (i.groups ?? [])
         .filter((g: JsonObject) => g.kind === 'pages')
         .flatMap((g: JsonObject) => g.assets.map((a: JsonObject) => ({id: a.id, name: a.name, connection_id: i.id}))),

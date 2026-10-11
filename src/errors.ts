@@ -885,6 +885,15 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
         'No enabled connection covers this gateway and account. Connect the provider and select the account on the website’s Connections page, or pass the connection_id of a connection that includes it.',
       mutation_retry_safe: false,
     };
+  // SEC-08: the credential or member is limited to one client's accounts; no argument widens it.
+  if (e.code === 'ACCOUNT_SCOPE_RESTRICTED')
+    return {
+      category: 'grant',
+      owner: 'workspace_or_account_admin',
+      action:
+        'This access is limited to a client access set that does not include this account. Work with an account of that client (get_workspace_context lists them), or ask a workspace administrator to add the account to the set or to use access for that client. Nothing was sent.',
+      mutation_retry_safe: false,
+    };
   if (e.code === 'BUSINESS_PROFILE_API_NOT_APPROVED')
     return {
       category: 'deployment',
