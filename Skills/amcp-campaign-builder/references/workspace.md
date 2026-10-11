@@ -675,6 +675,25 @@ customers return complete:false with a reason; incomplete reads never report rea
 account currency is reported. A change of actor, account access, stored credential or write pause refuses the
 response. Nothing is saved; delivery, deduplication, consent and attribution stay unverified.
 
+`amcp_workspace {action:"measurement_ga4_config",gateway:"ga4_native_action",account_id,connection_id,
+requirements?:{sections}}` reads one GA4 property's configuration through fixed Admin API v1beta GETs: sections
+key_events, custom_dimensions, custom_metrics, data_streams (type and measurement ID), google_ads_links and
+data_retention (all by default). Every list is read completely (10 pages per list; 60 requests, 4 MiB, 60 seconds);
+foreign, unpinned, repeated or malformed rows refuse the read. `checks.test_identifier_dimension` says whether the
+event-scoped `amcp_test_id` dimension that measurement_event_identity needs is registered. Ads link creator e-mails
+are never returned. Nothing is saved; configuration is not proof of delivery.
+
+`amcp_workspace {action:"measurement_ledger",gateway:"google_ads_native_action"|"ga4_native_action",account_id,
+connection_id}` returns the measurement evidence ledger of one asset: six fixed layers (configuration,
+provider_observed_activity, provider_diagnostics, supplied_runtime_trace, consent, attribution_settings), each
+observed, unknown, unavailable or not_applicable with a `reason` code and its evidence. Google Ads reuses the goals
+read, then offline conversion upload client summaries and the attribution settings of enabled conversion actions;
+GA4 reuses the configuration read, then a 30-minute realtime count of its key events. A failed, partial, foreign or
+thresholded read leaves only its layer unknown (`reason:"read_failed"`, `evidence.error`); an actor, login, access or
+write-pause change refuses the ledger. Never present unknown as healthy or as broken, and never treat an observed
+layer as proof of delivery, deduplication, consent or attribution. Bounded to 96 requests, 8 MiB and 150 seconds;
+nothing is saved. Meta, Snapchat and TikTok pixels have no adapter (owner decision P8 is open).
+
 `amcp_workspace {action:"preview_consent_plan",gateway:"gtm_native_action",account_id,connection_id,
 requirements:{container_id,workspace_id,tag_ids,required_types}}` previews additional-consent additions for
 1–10 explicitly chosen tags in one exact Tag Manager workspace. Supply 1–20 distinct literal type strings;

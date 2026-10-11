@@ -551,6 +551,32 @@ Clear/navigation/identity changes discard it. Native/runtime consent,
 deduplication and attribution remain unverified. See
 [input shape and actual qualification](review/DELIVERY-2026-10-07-TRACE-RECOVERY.md).
 
+Version 1 stays accepted unchanged. **Trace version 2** (MSR-03) adds `scope.visitor_region` (a region code such as
+`US-CA`, or null), an optional `region` list and `wait_for_update_ms` (0–60,000) on consent defaults, and
+`transaction_id_empty:true` on a purchase. It applies the most specific default that matches the declared visitor
+region and keeps types an earlier default set unless a later one declares them; without a declared visitor region a
+regional default is reported as `default_region_unknown` and only agreeing values survive. Events inside a declared
+wait are consent-unknown (`event_during_consent_wait`), and a default that follows an update of the same type is
+`ordering_ambiguous` (the type becomes unknown), not a conflict, because the documentation does not establish which
+applies. In both versions the hashed empty transaction ID (and `transaction_id_empty`) is flagged as
+`empty_transaction_key`, since GA4 deduplicates every purchase whose transaction ID is empty. Declared storage writes
+have their own columns, and the trace stream is compared with the property's synchronized data streams (listed,
+not listed or not synchronized; a non-web stream notes that transaction-ID deduplication applies to web streams).
+A pasted trace over 128 KiB reports its size, not invalid JSON.
+
+**Convert a dataLayer export or HAR file in this browser** (MSR-03) fills the trace field with a version 2 trace.
+The chosen file's size is checked before it is read (2 MiB for a dataLayer export, 16 MiB for a HAR file), and it is
+read only in the page: nothing is uploaded, stored or sent, and no request is made. A dataLayer export keeps only
+`gtag('consent','default'|'update',…)` commands with the four Google consent types (with `region` and
+`wait_for_update` on defaults), event names from `gtag('event',…)` and pushed `{event}` entries and, for a purchase,
+an HMAC-SHA-256 of its transaction ID under a random key generated in the page and never exported or stored (an empty
+ID becomes `transaction_id_empty`). A HAR file keeps only the event names (`en`) of GA4 `/g/collect` requests whose
+`tid` is the synchronized measurement ID of the chosen stream (every GA4 stream, with a notice, when it is not
+synchronized); GA4 does not document `gcs`/`gcd`, so a HAR import derives no consent. URLs, cookies, user and client
+IDs, raw transaction IDs and every other parameter are left out. Times follow the original order (real timing is
+unknown), coverage is always `partial`, and a session longer than 1,000 steps or 128 KiB keeps its first steps with a
+notice. The synthetic test identifier is generated locally and can be replaced.
+
 A workspace audit includes **Workspace consent settings**: filter additional-consent states, search native tag
 names/IDs/types and page 50 rows at a time. Required literal consent types remain native; unsupported or variable
 settings stay unknown. Omitted settings use the API default, while built-in checks, defaults/updates, runtime
@@ -649,8 +675,52 @@ buttons instead of only raw JSON. Every task with no eligible account shows how 
 Connections link) and disables its read; a single eligible account is preselected, so **Load a synthetic example**
 works without a prior choice and otherwise explains inline which property to choose.
 
+**GA4 property configuration** (MSR-03) reads one property's key events, custom dimensions and metrics, data
+streams (with type and web measurement ID), Google Ads links and data retention through fixed GET routes of the
+pinned Admin API v1beta under the existing analytics read permission. The MCP action is `measurement_ga4_config`
+with `gateway:ga4_native_action`, numeric property `account_id`, `connection_id` and optional
+`requirements:{sections}`. Every list is read completely (ten pages per list; 60 requests, 4 MiB, 60 seconds); a row
+of another property, an unknown enum, an unpinned field, a repeated page token or a duplicate resource refuses the
+read, and the login, permission and actor are rechecked around each request. It reports whether an event-scoped
+`amcp_test_id` dimension exists (the test-identifier task needs it) and how many web streams exist. Google Ads link
+creator e-mail addresses are checked and never returned. The website relates each stream's measurement ID to the
+Google tag IDs of synchronized Tag Manager containers without a request; discovery now keeps each data stream's type
+and web measurement ID and each container's public ID and Google tag IDs. Nothing is saved; configuration is not
+proof of delivery. The scoped website link (`/measurement?ga4_config=1&…`) only preselects the property.
+
+**Measurement evidence ledger** (MSR-03) shows, for one Google Ads account or GA4 property, where the evidence
+stops, in six fixed layers: configuration, provider-observed activity, provider diagnostics, supplied runtime trace,
+consent and attribution settings. Each layer is `observed`, `unknown`, `unavailable` or `not_applicable` with a
+reason code. A layer is observed only from complete evidence of the selected asset; a failed, partial, foreign or
+thresholded read leaves only that layer unknown with its error code and never upgrades it. The MCP action is
+`measurement_ledger` with `gateway` (`google_ads_native_action` or `ga4_native_action`), exact `account_id` and
+`connection_id`, and no requirements.
+
+- **Google Ads** reuses the conversion goals read (configuration; last conversion date and tag detection as activity,
+  observed only when every primary action reports both), then reads `offline_conversion_upload_client_summary`
+  (diagnostics: client, status, event counts, success and pending rates, last upload and alerts; no upload is
+  `not_applicable`) and the attribution model and lookback windows of enabled conversion actions. Enum values are
+  checked against the pinned v25 document. A manager or shared-conversion customer leaves every Google Ads layer
+  unknown and nothing else is read.
+- **GA4** reuses the configuration read, then one 30-minute realtime count of the property's key events (no
+  reported key event stays unknown; a property without key events is not applicable). GA4 offers no diagnostics API,
+  and its attribution settings exist only in the unpinned Admin API alpha (`unavailable`).
+- Supplied traces never reach AMCP (`unavailable`, see the trace task), and neither provider exposes a consent
+  setting to these reads (the Tag Manager audit reports tag consent configuration).
+
+A change of actor, login, account access or (for Google Ads) the owner write pause refuses the whole ledger. One
+allowance bounds it (96 requests, 8,000 rows, 8 MiB, 150 seconds; the ledger's own Google Ads collections 24
+requests, 2,000 rows, 2 MiB, 60 seconds), and `network_requests` counts every request. Nothing is saved,
+`provider_mutations` is 0 and delivery, deduplication, consent and attribution stay unverified. The website task
+lists Google Ads accounts and GA4 properties in one picker, follows the kind last chosen in the scope bar, explains
+each reason in English or Arabic, links each layer to the task that holds its detail and accepts
+`/measurement?ledger=1&gateway=…&connection_id=…&account_id=…` handoffs without reading.
+
 Owner decision P8 remains open: whether the Meta pixel/dataset, Search Console and Adjust join Measurement (B20)
-or are de-scoped. Until it is decided, Measurement covers GA4, Tag Manager, LinkedIn and Google Ads goals.
+or are de-scoped. Until it is decided, Measurement covers GA4, Tag Manager, LinkedIn and Google Ads goals, and the
+ledger has Google Ads and GA4 adapters only. A Meta dataset adapter also needs pixel ownership learned from an ad
+account (`act_{id}/adspixels` is not an AMCP read) and the Dataset Quality API pinned; Snapchat and TikTok pixel
+adapters follow it only if P8 keeps them in scope.
 
 Commerce (`/commerce`) validates explicitly supplied Meta or X product CSV before creating an unapproved plan. The following native hundredths and optional-field rules describe Meta; X requires all ten source fields, exact original price/currency strings and explicit upsert as described below. Fields: retailer_id, name,
 price, currency, image_url; optional url, availability, condition, brand and description. Files are capped at 128 KiB
