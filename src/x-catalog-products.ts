@@ -1,3 +1,4 @@
+import {AsyncLocalStorage} from 'node:async_hooks';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {sha256, stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -18,6 +19,8 @@ import {
   xCatalogProducts,
   xCatalogProductGrouping,
   xCatalogRead,
+  xCatalogRemovalEvidence,
+  xCatalogReviewRemovalEvidence,
   xCatalogSource as source,
   xSnowflake,
   type Fetch,
@@ -426,6 +429,54 @@ export function xCatalogProductObserved(_read: CompiledRequest, data: JsonObject
   return {product: object(data.product) ? data.product : null};
 }
 
+/**
+ * A selected-removal plan step's bound evidence (COM-02 C): the catalog and the observed product the step was saved
+ * for. The plan runner sets it around the step's native prepare and execute, so the review's own state read is the
+ * evidence check, instead of a separate pair of full catalog comparisons per phase.
+ */
+export type XCatalogRemovalExpectation = {catalog: JsonObject; target: JsonObject};
+const removalExpectation = new AsyncLocalStorage<XCatalogRemovalExpectation>();
+export function withXCatalogRemovalExpectation<T>(expected: XCatalogRemovalExpectation, fn: () => Promise<T>) {
+  return removalExpectation.run(expected, fn);
+}
+function removalChanged(): never {
+  return fail(
+    'CATALOG_REMOVAL_CHANGED',
+    'The selected product evidence changed after this draft. Read a new removal preview; no products were deleted.',
+  );
+}
+/** At prepare and execute of a selected-removal step: the review state still shows the bound product, unchanged. */
+export function xCatalogRemovalStateCheck(p: CompiledRequest, state: unknown[]): void {
+  const expected = removalExpectation.getStore();
+  if (!expected || xCatalogProductKind(p) !== 'delete') return;
+  const s = state[0],
+    target = expected.target,
+    bound = expected.catalog;
+  if (!object(s)) return removalChanged();
+  if (
+    !object(target) ||
+    !object(bound) ||
+    catalogOf(p) !== bound.id ||
+    keyOf(p) !== target.product_id ||
+    !object(target.before)
+  )
+    removalChanged();
+  const catalog = (Array.isArray(s.catalogs) ? (s.catalogs as JsonObject[]) : []).find(c => c.id === bound.id),
+    product = object(s.product) ? s.product : undefined;
+  if (
+    !catalog ||
+    catalog.user_id !== bound.user_id ||
+    (typeof catalog.name === 'string' && text(catalog.name, 1000) ? catalog.name : null) !== bound.name ||
+    !product ||
+    product.present !== true ||
+    product.group_status !== 'individual' ||
+    product.product_key !== target.product_id ||
+    stable(xCatalogReviewRemovalEvidence(product)) !==
+      stable(xCatalogRemovalEvidence(target.before as JsonObject, target.unsent_fields))
+  )
+    removalChanged();
+}
+
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 export const xCatalogProductFamily: ReviewedFamily = {
   name: 'x_catalog_products',
@@ -439,6 +490,7 @@ export const xCatalogProductFamily: ReviewedFamily = {
   reader: readXCatalogProducts,
   validateState: validateXCatalogProductState,
   prerequisites: xCatalogProductPrerequisites,
+  stateChecks: (plan, state) => xCatalogRemovalStateCheck(plan, state),
   impact: xCatalogProductImpact,
   outcome: xCatalogProductOutcome,
   verification: xCatalogProductVerification,

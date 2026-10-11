@@ -299,3 +299,87 @@ export function priceView(v: unknown): JsonObject | null {
       ? null
       : {raw: String(v)};
 }
+/** Source field → native X attribute, for the attributes a supplied-source comparison sends and compares. */
+export const xCatalogComparedFields: Record<string, string> = {
+  name: 'title',
+  image_url: 'image_link',
+  url: 'link',
+  availability: 'availability',
+  condition: 'condition',
+  brand: 'brand',
+  description: 'description',
+};
+/** Optional native attributes a product can hold without the import sending them. */
+export const xCatalogOptionalFields = [
+  'gtin',
+  'mpn',
+  'mobile_link',
+  'additional_image_link',
+  'google_product_category',
+  'product_type',
+  'inventory',
+  'sale_price',
+  'sale_price_effective_date',
+  'gender',
+  'color',
+  'size',
+  'age_group',
+  'custom_label_0',
+  'custom_label_1',
+  'custom_label_2',
+  'custom_label_3',
+  'custom_label_4',
+];
+/** A listed product as a comparison shows it: supported plain values, or null for anything AMCP cannot compare. */
+export function xCatalogRowView(row: JsonObject): JsonObject {
+  const out: JsonObject = {present: true, id: row.product_key, retailer_id: row.id};
+  for (const [source, native] of Object.entries(xCatalogComparedFields)) {
+    const value = row[native],
+      max = native === 'title' ? 150 : native === 'description' ? 5000 : native.endsWith('link') ? 2048 : 1000;
+    if (value != null && typeof value !== 'string') unverified('X returned an unrecognized product field.');
+    const plain =
+      typeof value === 'string' &&
+      (native === 'description' ? text(value.replace(/\r?\n/g, ' '), max) : text(value, max));
+    out[source] = plain && (!native.endsWith('link') || httpsUrl(value)) ? value : null;
+  }
+  out.price = catalogPrice(row.price) ? row.price : null;
+  out.currency = catalogPrice(row.price)?.currency ?? null;
+  return out;
+}
+/** The optional attributes a listed product holds a value for. */
+export function xCatalogHeldOptional(row: JsonObject, sent: JsonObject = {}): string[] {
+  return xCatalogOptionalFields.filter(
+    k =>
+      !(k in sent) &&
+      row[k] != null &&
+      row[k] !== '' &&
+      !(Array.isArray(row[k]) && !row[k].length) &&
+      // A review's price view of an empty native value is {raw: ''}: still no value.
+      !(object(row[k]) && row[k].raw === ''),
+  );
+}
+/**
+ * The selected-removal evidence of one product in a form both observations share (COM-02 C): the comparison's row view
+ * and the native review's own product read. Prices compare by exact value, never by their formatted text.
+ */
+export function xCatalogRemovalEvidence(before: JsonObject, unsent: unknown): JsonObject {
+  const money = catalogPrice(before.price);
+  return {
+    product_id: before.id ?? null,
+    retailer_id: before.retailer_id ?? null,
+    ...Object.fromEntries(Object.keys(xCatalogComparedFields).map(k => [k, before[k] ?? null])),
+    price: money ? money.amount + ' ' + money.currency : null,
+    unsent_fields: Array.isArray(unsent) ? [...unsent].map(String).sort() : null,
+  };
+}
+/** The same evidence from a product a native review read (the family's productView, with exact price values). */
+export function xCatalogReviewRemovalEvidence(product: JsonObject): JsonObject {
+  const price = object(product.price) && typeof product.price.amount === 'string' ? product.price : undefined,
+    row: JsonObject = {
+      ...product,
+      id: product.id,
+      product_key: product.product_key,
+      price: price ? price.amount + ' ' + price.currency : null,
+    };
+  return xCatalogRemovalEvidence(xCatalogRowView(row), xCatalogHeldOptional(product));
+}

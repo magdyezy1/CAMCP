@@ -4,6 +4,7 @@ import type {Store} from './store.js';
 import {bad, fingerprint, optional, writer, type ToolCall} from './workspace-core.js';
 import {catalogIngestion} from './catalog-ingestion.js';
 import {storedLogin} from './connection-authority.js';
+import type {XCatalogRemovalExpectation} from './x-catalog-products.js';
 
 const gateway = 'x_ads_native_action',
   workflow = 'x-catalog-selected-removal-v1';
@@ -310,16 +311,21 @@ export async function createCatalogRemoval(store: Store, call: ToolCall, actor: 
     store.releaseLock(key, owner);
   }
 }
-/** Accepted/uncertain requests recover their original native key; only unsent steps check original evidence. */
-export async function assertCatalogRemovalStep(
-  store: Store,
-  call: ToolCall,
-  actor: Actor,
+/**
+ * Accepted/uncertain requests recover their original native key; only unsent steps check original evidence. The check
+ * is local (COM-02 C): the step must still be the exact saved proposal, and the returned expectation makes the step's
+ * own native review compare its state read with the bound product at prepare and again at execute
+ * (xCatalogRemovalStateCheck). No separate catalog comparison is read per phase.
+ */
+export function assertCatalogRemovalStep(
+  _store: Store,
+  _call: ToolCall,
+  _actor: Actor,
   run: JsonObject,
   step: JsonObject,
-) {
+): XCatalogRemovalExpectation | undefined {
   const b = run.catalog_removal;
-  if (!b || step.status === 'executing') return;
+  if (!b || step.status === 'executing') return undefined;
   const i = run.steps.findIndex((s: JsonObject) => s.id === step.id),
     target = b.targets[i];
   const expected = draft(b, b.preview_id, b.preview_hash, '').steps[i];
@@ -330,14 +336,7 @@ export async function assertCatalogRemovalStep(
     fingerprint(cleanStep(step)) !== fingerprint(cleanStep(expected))
   )
     changed('This step no longer matches its original selected removal proposal.');
-  const products = b.products.filter((p: JsonObject) => p.retailer_id === target.retailer_id);
-  if (products.length !== 1) changed('The original selected source product is unavailable.');
-  const observed = await collect(store, call, actor, b.scope, products);
-  if (sourceHash(observed.catalog, observed.targets) !== sourceHash(b.catalog, [target]))
-    changed(
-      'The selected product evidence changed after this draft. Read a new removal preview; no products were deleted.',
-    );
-  const latest = store.document(actor.tenantId, 'campaign_run', run.id);
-  if (latest.revision !== run.revision || latest.state === 'cancelled')
-    bad('The draft changed during its product check. Refresh before continuing.', 'REVISION_CONFLICT');
+  if (!b.catalog || typeof target.product_id !== 'string' || !target.before)
+    changed('The original selected source product is unavailable.');
+  return {catalog: b.catalog, target};
 }

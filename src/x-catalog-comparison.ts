@@ -7,15 +7,17 @@ import {MirrorError} from './errors.js';
 import {fingerprint} from './workspace-core.js';
 import {
   catalogPrice,
-  httpsUrl,
   object,
   ownedCatalog,
   text,
   unverified,
+  xCatalogComparedFields as fields,
+  xCatalogHeldOptional,
   xCatalogOwners,
   xCatalogProducts,
   xCatalogRead,
   xCatalogProductGrouping,
+  xCatalogRowView as rowView,
   xSnowflake,
   fail,
 } from './x-catalogs.js';
@@ -26,55 +28,11 @@ import type {NativeTransport} from './transport.js';
 import type {CredentialProvider} from './auth.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 
-const fields: Record<string, string> = {
-  name: 'title',
-  image_url: 'image_link',
-  url: 'link',
-  availability: 'availability',
-  condition: 'condition',
-  brand: 'brand',
-  description: 'description',
-};
-const optional = [
-  'gtin',
-  'mpn',
-  'mobile_link',
-  'additional_image_link',
-  'google_product_category',
-  'product_type',
-  'inventory',
-  'sale_price',
-  'sale_price_effective_date',
-  'gender',
-  'color',
-  'size',
-  'age_group',
-  'custom_label_0',
-  'custom_label_1',
-  'custom_label_2',
-  'custom_label_3',
-  'custom_label_4',
-];
 function unknown(message: string): never {
   return unverified(message);
 }
 function grouped(row: JsonObject): boolean {
   return xCatalogProductGrouping(row) !== 'individual';
-}
-function rowView(row: JsonObject): JsonObject {
-  const out: JsonObject = {present: true, id: row.product_key, retailer_id: row.id};
-  for (const [source, native] of Object.entries(fields)) {
-    const value = row[native],
-      max = native === 'title' ? 150 : native === 'description' ? 5000 : native.endsWith('link') ? 2048 : 1000;
-    if (value != null && typeof value !== 'string') unknown('X returned an unrecognized product field.');
-    const plain =
-      typeof value === 'string' &&
-      (native === 'description' ? text(value.replace(/\r?\n/g, ' '), max) : text(value, max));
-    out[source] = plain && (!native.endsWith('link') || httpsUrl(value)) ? value : null;
-  }
-  out.price = catalogPrice(row.price) ? row.price : null;
-  out.currency = catalogPrice(row.price)?.currency ?? null;
-  return out;
 }
 /** Read-only supplied-SKU reconciliation. Reuses existing bounded native catalog reads, never their write lifecycle. */
 export async function xCatalogComparison(
@@ -192,9 +150,7 @@ export async function xCatalogComparison(
               });
             return item;
           }
-          item.unsent_fields = optional.filter(
-            k => row[k] != null && row[k] !== '' && !(Array.isArray(row[k]) && !row[k].length),
-          );
+          item.unsent_fields = xCatalogHeldOptional(row);
           if (grouped(row)) {
             Object.assign(item, {
               state: 'unknown',
