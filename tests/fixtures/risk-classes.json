@@ -1,0 +1,221 @@
+{
+  "description": "Risk classes of the qualification plan (QA-02 step 6, I-qualification-measurement-plan section 3.1) and the evidence that covers each one. tools/risk-evidence.mjs turns this into the risk-class by evidence matrix of every qualification record (tools/qualify.mjs, field risk_evidence): fixture = the synthetic test files named here, as the record's test stages ran them; conformance = the reviewed-family descriptors of the listed descriptor risks (tests/family-descriptors); mutants = the catalogued mutants (tests/fixtures/mutant-catalogue.json) whose guard serves the class, as the mutant stage killed them; live = the owner-run acceptance that confirms the class outside the synthetic suite. Every catalogued mutant belongs to at least one class (tests/risk-evidence.test.mjs): classify a new mutant here when it is added.",
+  "classes": [
+    {
+      "id": "R1",
+      "name": "Money and destructive safeguards",
+      "consequence": "Unwanted spend or deletion",
+      "register": ["WRT-01", "WRT-02", "WRT-03", "WRT-07", "CMP-01", "DEC-01"],
+      "fixture": [
+        "tests/write-review.test.ts",
+        "tests/spend-policy.test.ts",
+        "tests/spend-policy-caps.test.ts",
+        "tests/spend-policy-money-coverage.test.mjs",
+        "tests/spend-caps-confirm.test.mjs",
+        "tests/spend-structural-confirmation.test.mjs",
+        "tests/deletion-policy-coverage.test.mjs",
+        "tests/campaign-activation.test.mjs",
+        "tests/idempotency-claims.test.mjs",
+        "tests/write-not-sent.test.mjs",
+        "tests/write-dispatch-authority.test.mjs",
+        "tests/write-group-preflight.test.mjs",
+        "tests/wire-contracts.test.mjs",
+        "tests/reviewed-families.test.mjs",
+        "tests/reviewed-family-conformance.test.mjs"
+      ],
+      "conformance": ["activation", "budget", "destructive"],
+      "mutants": [
+        "M8-state-change-ignored",
+        "M9-tiktok-list-projection-drops-budget",
+        "M10-tiktok-deletion-duplicate-ids",
+        "M11-idempotency-key-reused-for-another-request",
+        "M12-uncertain-claim-resent",
+        "M13-uncertain-claim-released",
+        "M14-paginated-state-accepted",
+        "M15-spend-daily-cap-ignores-this-increase",
+        "M16-spend-increase-percent-unchecked",
+        "M17-spend-bid-cap-unchecked",
+        "M30-writes-pause-ignored",
+        "M32-wire-contract-not-enforced"
+      ],
+      "live": [
+        {"ref": "ACC-01", "what": "zero-spend live acceptance of the reviewed-write loop on an owner test account"},
+        {"ref": "ACC-05", "what": "provider acceptance ledger entries for the reviewed families"}
+      ]
+    },
+    {
+      "id": "R2",
+      "name": "Data truth",
+      "consequence": "Wrong numbers, or partial data labelled complete",
+      "register": ["RPT-01", "RPT-02", "RPT-04", "MCP-04", "EXP-03"],
+      "fixture": [
+        "tests/provider-decimal.test.mjs",
+        "tests/decimal-grammar-sweep.test.mjs",
+        "tests/overview-granularity.test.mjs",
+        "tests/report-completeness.test.mjs",
+        "tests/report-adapter-correctness.test.ts",
+        "tests/reporting-overview.test.ts",
+        "tests/pagination.test.ts",
+        "tests/native-pagination-continuation.test.ts",
+        "tests/contract-faithful-fakes.test.mjs",
+        "tests/sheets-delivery-recovery.test.mjs"
+      ],
+      "conformance": [],
+      "mutants": [
+        "M5-granular-reach-summed-across-days",
+        "M20-tiktok-cursor-ignored",
+        "M21-meta-paging-ignored",
+        "M22-granular-window-assumed-complete",
+        "M23-provider-double-exponent-refused",
+        "M24-provider-rounding-half-up",
+        "M25-provider-unit-divisor-ignored",
+        "M29-sheets-older-overwrites-newer"
+      ],
+      "live": [
+        {"ref": "ACC-06", "what": "authorized read-only acceptance runs against provider accounts"},
+        {"ref": "ACC-03", "what": "live Sheets delivery on a disposable spreadsheet"}
+      ]
+    },
+    {
+      "id": "R3",
+      "name": "Liveness of work",
+      "consequence": "Stuck deliveries, paused schedules, stranded reviews",
+      "register": ["EXP-01", "EXP-02", "WRT-04", "OPS-07", "MED-01"],
+      "fixture": [
+        "tests/liveness-exits.test.mjs",
+        "tests/report-periods.test.ts",
+        "tests/schedule-dst.test.ts",
+        "tests/schedule-timezone-sweep.test.mjs",
+        "tests/schedule-dispatch.test.mjs",
+        "tests/scheduled-work.test.mjs",
+        "tests/sheets-authority.test.mjs",
+        "tests/write-pause.test.mjs",
+        "tests/write-target-serialization.test.mjs",
+        "tests/write-recovery.test.mjs",
+        "tests/website-media-retention.test.mjs"
+      ],
+      "conformance": [],
+      "mutants": [
+        "M4-upload-deadline-boundary",
+        "M6-dst-gap-skipped",
+        "M7-repeated-hour-runs-twice",
+        "M13-uncertain-claim-released",
+        "M26-microsoft-verification-without-adtypes",
+        "M27-sheets-resend-inside-settle-window",
+        "M28-sheets-never-resends",
+        "M31-target-lock-wait-skipped",
+        "M33-sheets-schedule-withdrawal-ignored"
+      ],
+      "live": [
+        {
+          "ref": "ACC-03",
+          "what": "live Sheets delivery: settle window, release and resend on a disposable spreadsheet"
+        },
+        {
+          "ref": "QA-02",
+          "what": "deployed observation of one schedule crossing a daylight-saving change without pausing"
+        }
+      ]
+    },
+    {
+      "id": "R4",
+      "name": "Authority and identity",
+      "consequence": "Wrong person, wrong account, false reconnect prompts, abuse",
+      "register": ["SEC-01", "SEC-02", "SEC-03", "MCP-02", "MCP-08", "CON-01", "CON-03"],
+      "fixture": [
+        "tests/auth-hardening.test.mjs",
+        "tests/claude-oauth.test.ts",
+        "tests/mcp-authorization-lifecycle.test.ts",
+        "tests/mcp-token-validation.test.ts",
+        "tests/mfa-policy.test.ts",
+        "tests/login-revision-fence.test.mjs",
+        "tests/connection-reauthorization.test.mjs",
+        "tests/retry-authority.test.ts",
+        "tests/audit-authority.test.mjs",
+        "tests/sheets-authority.test.mjs"
+      ],
+      "conformance": [],
+      "mutants": [
+        "M1-google-manager-routing-ignored",
+        "M18-same-login-refresh-treated-as-change",
+        "M19-replaced-login-accepted"
+      ],
+      "live": [
+        {"ref": "ACC-02", "what": "real AI-client sessions: discovery, consent, reader refusal and revocation"},
+        {"ref": "ACC-01", "what": "a live reconnect and routine token refresh on an owner test account"}
+      ]
+    },
+    {
+      "id": "R5",
+      "name": "Data handling",
+      "consequence": "Injection or leakage through exports and context",
+      "register": ["SEC-04"],
+      "fixture": [
+        "tests/csv-neutralization.test.mjs",
+        "tests/report-artifacts.test.mjs",
+        "tests/personal-data-redaction.test.mjs",
+        "tests/google-data-manager.test.mjs"
+      ],
+      "conformance": [],
+      "mutants": ["M2-csv-guard-equals-only", "M3-csv-guard-full-width-missed"],
+      "live": [{"ref": "ACC-03", "what": "formula-guarded cells rendered in a live spreadsheet"}]
+    },
+    {
+      "id": "R6",
+      "name": "Operability",
+      "consequence": "Outage or unrecoverable data loss",
+      "register": ["OPS-01", "OPS-02", "OPS-03", "OPS-04"],
+      "fixture": [
+        "tests/backup-recovery.test.mjs",
+        "tests/health-storage-diagnostics.test.mjs",
+        "tests/media-storage-bounds.test.mjs",
+        "tests/operations-worker-health.test.mjs",
+        "tests/ops-scale.test.mjs",
+        "tests/deployment-smoke.test.ts",
+        "tests/qualify.test.mjs"
+      ],
+      "conformance": [],
+      "mutants": [],
+      "live": [
+        {"ref": "ACC-04", "what": "Railway build logs and image digest as Linux and container evidence"},
+        {"ref": "QA-01", "what": "deployed identity observation (check:public-website --expect-record)"}
+      ]
+    },
+    {
+      "id": "R7",
+      "name": "AI-client usability",
+      "consequence": "Wrong or expensive calls, truncated guidance",
+      "register": ["MCP-01", "MCP-05", "MCP-06", "MCP-09"],
+      "fixture": [
+        "tests/mcp-eval.test.mjs",
+        "tests/mcp-client-conformance.test.ts",
+        "tests/mcp-registration-protocol.test.ts",
+        "tests/mcp-request-limits.test.mjs",
+        "tests/mcp-tool-annotations.test.mjs",
+        "tests/mcp-help-introspection.test.mjs",
+        "tests/mcp-refusals-handoffs.test.mjs"
+      ],
+      "conformance": [],
+      "mutants": [],
+      "live": [{"ref": "ACC-02", "what": "real AI-client interoperability matrix on a staging origin"}]
+    },
+    {
+      "id": "R8",
+      "name": "Website accessibility, Arabic and deploy skew",
+      "consequence": "Excluded users, broken tabs after a deploy",
+      "register": ["WEB-01", "WEB-05", "WEB-04"],
+      "fixture": [
+        "tests/asset-version-skew.test.mjs",
+        "tests/browser-accessibility.test.mjs",
+        "tests/browser-wcag.test.mjs",
+        "tests/browser-qualification.test.mjs",
+        "tests/browser-synthetic-writes.test.mjs",
+        "tests/locale-persistence.test.mjs"
+      ],
+      "browser": true,
+      "conformance": [],
+      "mutants": [],
+      "live": [{"ref": "ACC-07", "what": "manual assistive-technology acceptance in both languages"}]
+    }
+  ]
+}
