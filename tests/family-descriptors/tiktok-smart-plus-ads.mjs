@@ -64,7 +64,9 @@ export default {
       return list(
         Object.values(state.ads)
           .filter(a =>
-            f.smart_plus_ad_ids ? f.smart_plus_ad_ids.includes(a.smart_plus_ad_id) : f.adgroup_ids.includes(a.adgroup_id),
+            f.smart_plus_ad_ids
+              ? f.smart_plus_ad_ids.includes(a.smart_plus_ad_id)
+              : f.adgroup_ids.includes(a.adgroup_id),
           )
           .map(a => structuredClone(a)),
       );

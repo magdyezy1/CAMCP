@@ -44,7 +44,12 @@ export default {
       },
     },
     pixels: {
-      7001: {pixel_id: '7001', pixel_code: 'C7001', pixel_name: 'Site pixel', asset_ownership: {ownership_status: true}},
+      7001: {
+        pixel_id: '7001',
+        pixel_code: 'C7001',
+        pixel_name: 'Site pixel',
+        asset_ownership: {ownership_status: true},
+      },
     },
     groups: 0,
   }),
