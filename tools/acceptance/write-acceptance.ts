@@ -140,7 +140,18 @@ const runBusiness = (plan: AcceptancePlan) => ({
 export function dryRun(plan: AcceptancePlan, refusals: string[] = []): JsonObject {
   const problems = validateAcceptancePlan(plan);
   if (problems.length) return {mode: 'dry_run', status: 'invalid_plan', problems, provider_requests: 0};
-  const compiled = campaignRecipe(plan.recipe, runBusiness(plan));
+  let compiled: JsonObject;
+  try {
+    compiled = campaignRecipe(plan.recipe, runBusiness(plan));
+  } catch (e) {
+    // The recipe's own refusal, such as a missing brief input, is a plan problem: nothing was sent.
+    return {
+      mode: 'dry_run',
+      status: 'invalid_plan',
+      problems: [(e as MirrorError).code + ': ' + (e as Error).message],
+      provider_requests: 0,
+    };
+  }
   return {
     mode: 'dry_run',
     status: 'compiled',

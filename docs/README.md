@@ -194,6 +194,7 @@ with the [repository README](../README.md) for what AMCP is.
 
 - [Provider access register](PROVIDER-ACCESS.md)
 - [Acceptance runbooks](acceptance/README.md)
+- [Write acceptance: zero-spend reviewed writes](acceptance/WRITE-ACCEPTANCE.md)
 
 ## The September 2026 review
 

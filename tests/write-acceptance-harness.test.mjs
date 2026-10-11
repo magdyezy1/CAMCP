@@ -225,3 +225,23 @@ test('an account Google does not report as a test account is refused before any 
     assert.equal(google.requests.length, 1);
   }
 });
+
+test('the runbook example plan compiles in the dry run, and an incomplete brief is a plan problem', () => {
+  const markdown = fs.readFileSync('docs/acceptance/WRITE-ACCEPTANCE.md', 'utf8'),
+    example = JSON.parse(
+      markdown
+        .split('```json')[1]
+        .split('```')[0]
+        .replace('REPLACE_WITH_TEST_ACCOUNT_ID', '1234567890')
+        .replace('REPLACE_WITH_TEST_MANAGER_ID', '9876543210')
+        .replace('REPLACE_WITH_VERSIONZ_REVISION', '911bc35')
+        .replace('REPLACE_WITH_PACKAGE_SHA256', 'a'.repeat(64)),
+    );
+  assert.deepEqual(validateAcceptancePlan(example), []);
+  assert.equal(dryRun(example).status, 'compiled');
+  const {keywords: _k, ...incomplete} = example.business,
+    refused = dryRun({...example, business: incomplete});
+  assert.equal(refused.status, 'invalid_plan');
+  assert.match(refused.problems[0], /^RECIPE_INPUT_REQUIRED/);
+  assert.equal(refused.provider_requests, 0);
+});
