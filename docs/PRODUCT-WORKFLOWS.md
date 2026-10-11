@@ -121,7 +121,19 @@ delayed inspections, errors and targeting lookups cannot cross form/account, rou
 evidence and input provenance remain inspectable. Plan creation, paused status and each later native review
 retain the existing behavior.
 
-The Campaigns page starts with saved plans and a collapsible composer. The readable review preserves exact native
+The Campaigns page starts with saved plans and a collapsible composer. Plans are listed newest first, 50 at a time
+with **Load more** (`amcp_campaign list`: an SQL projection with one account and platform summary per plan, continued
+with `next_cursor`), filtered by state, name or account, **Awaiting my approval** and **Archived plans**; the filters
+stay in the URL. **Archive plan** (complete, cancelled or superseded plans only) takes a plan out of the default list
+and out of the workspace's bound of 500 plans, which counts only plans that are not archived; `get` still returns it
+and **Unarchive plan** restores it. **Share plan** lets the plan's owner (or an administrator) name a workspace member
+as viewer (reads it), editor (prepares, runs steps one by one, amends, archives) or approver (approves and runs it);
+a collaborator sees the plan only while its accounts are within their access, every step still checks the acting
+person's own account grant, and assignments and approvals are audited with their actors. When the workspace owner
+turns on **A plan that changes spending or activates a launch needs an approver other than its owner** (Settings,
+`save_plan_policy`; off by default), the owner's own approval of such a plan is refused with
+`DISTINCT_APPROVER_REQUIRED` and Review whole plan offers sharing instead. Home shows plan counts, the five newest
+plans needing attention and the eight newest plans (CMP-05). The readable review preserves exact native
 units and shows account, request and impact alongside expandable source JSON. Required spend, cap and creative-edit
 acknowledgements come from the server and start unchecked. A confirm-mode cap can be acknowledged; a block-mode cap
 stays blocked.
