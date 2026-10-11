@@ -994,8 +994,9 @@ products using the existing complete bounded comparison. Inspect returned `targe
 `create_catalog_removal` accepts only that original preview/hash with `confirmed:true`. Changed products,
 selection, name or scope require a new preview. It repeats selected supported evidence and saves one unapproved
 per-key DELETE campaign plan; no provider deletion occurs. Replays return the original plan and accepted native
-requests retain their original receipts/keys. Unsent steps check the original selected evidence before normal
-prepare/execute. Every deletion needs its own review, confirmation and read-back. X documents permanence and
+requests retain their original receipts/keys. Each unsent step's own native review compares the product it reads with
+the original selected evidence at prepare and again at execute; a difference is `CATALOG_REMOVAL_CHANGED`: nothing is
+sent, the step keeps its state, and a new removal preview is needed. Every deletion needs its own review, confirmation and read-back. X documents permanence and
 additive feeds; a still-present feed product may return. This does not establish early-access entitlement or
 reconcile variants/products absent from the supplied source. No credentials or generated keys are inferred.
 
