@@ -4,7 +4,7 @@ import {sunsetStatus} from './provider-sunsets.js';
 import {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {policyWarnings, unprotectedAccounts} from './spend-policy.js';
-import {budgetUnits, metaCurrencyOffsetsPinned} from './budget-units.js';
+import {budgetUnits, metaBudgetUnit, metaCurrencyOffsetsPinned, metaCurrencySource} from './budget-units.js';
 import {recallAccountMetadata} from './account-metadata.js';
 import {mediaLimitProblem} from './drive-media.js';
 import type {Actor, JsonObject} from './types.js';
@@ -162,9 +162,11 @@ export function ownerOperations(
       // WRT-05: executions over a cap with the user's acknowledgement, and how reviews fare, from the audit.
       cap_overrides: capOverrides(store, tenant),
       review_friction: reviewFriction(store, tenant),
-      budget_units: budgetUnits,
+      // Meta is listed while its pinned currency offsets are loaded, so the settings page offers Meta caps in currency.
+      budget_units: metaBudgetUnit() ? {...budgetUnits, meta_native_action: metaBudgetUnit()} : budgetUnits,
       // Whether Meta caps can be stated in account currency: only with a pinned capture of Meta's offsets (WRT-07).
       meta_currency_offsets: metaCurrencyOffsetsPinned() ? 'pinned' : 'not_pinned',
+      ...(metaCurrencySource() ? {meta_currency_source: metaCurrencySource()} : {}),
       configuration_problems: [mediaLimitProblem, googleDeveloperTokenWarning()].filter(Boolean),
       // Workbook runs and schedules the Operations feed cannot show, counted by reason (B13, DOC-02).
       withheld_workbook_records: sources.withheldWorkbookRecords?.(store, actor) ?? null,

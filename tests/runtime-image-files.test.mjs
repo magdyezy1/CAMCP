@@ -36,9 +36,12 @@ test('each literal pinned path exists in the repository', () => {
 });
 
 test('only a declared capture may be absent, and a present one parses', () => {
-  // Meta's currency offsets (WRT-07 Stage C) exist only once the owner captures Meta's currency table with its source
-  // URL, SHA-256 and date; until then a Meta cap stays in native units. Another optional document needs its own entry.
-  assert.deepEqual([...optionalReads].sort(), ['.mirror/VENDOR/meta-currencies.json']);
+  // Meta's currency offsets (WRT-07 Stage C) were the one optional capture until Meta's currency table was recorded
+  // (2026-10-11). Now that Meta caps stated in account currency depend on it, it is a required read: removing the file
+  // or the Dockerfile copy fails the tests above instead of quietly turning those caps back into refusals. Another
+  // optional document needs its own entry here.
+  assert.ok(reads.has('.mirror/VENDOR/meta-currencies.json'), 'the Meta currency capture is read as required');
+  assert.deepEqual([...optionalReads].sort(), []);
   for (const path of optionalReads) {
     assert.ok(!reads.has(path), path + ' is read both as required and as optional');
     if (fs.existsSync(path)) JSON.parse(fs.readFileSync(path, 'utf8'));

@@ -1,0 +1,348 @@
+{
+  "formatVersion": 1,
+  "source_url": "https://developers.facebook.com/docs/marketing-api/currencies",
+  "source_title": "Currency codes",
+  "captured_at": "2026-10-11",
+  "capture": "Read from Meta’s public Marketing API documentation on 2026-10-11, without an account or credentials, by a documentation fetch that renders the page as text; three independent readings agreed on the 66 rows, the eleven currencies with offset 1 and the Gulf and Arab currencies listed or absent. The page shows no version or last-updated date, and no byte-exact page hash is claimed: sha256 seals the rows as recorded here. The page is on the provider documentation watch (tools/provider-lifecycle.ts), so a change asks for a new capture.",
+  "offset_meaning": "Meta: each currency has an offset that sets how its subdivisions are counted. With offset 100 the smallest amount, 1, is a hundredth of the currency unit (USD cents); with offset 1 it is one whole unit (JPY).",
+  "budget_unit_evidence": {
+    "source_url": "https://developers.facebook.com/docs/marketing-api/bidding/overview/budgets",
+    "captured_at": "2026-10-11",
+    "statement": "Meta’s Budgets guide states that bid and budget amounts are set at the ad account currency’s minimum denomination (cents for USD); its example of a 20-dollar daily budget sends daily_budget=2000. The campaign reference states spend_cap as an integer of the currency subunit."
+  },
+  "differences_from_iso_4217": "Meta’s offsets are not ISO 4217 minor units: COP, CRC, HUF, IDR and TWD have offset 1 (ISO: 2 decimals) and BHD and JOD offset 100 (ISO: 3). KWD, OMR, IQD, LBP, MAD, TND and LYD are not listed, so a Meta cap for an account in one of them stays in native units.",
+  "sha256_scope": "SHA-256 of JSON.stringify(currencies); src/budget-units.ts refuses the whole capture when it does not match.",
+  "sha256": "e563a2856e2e19485893a8fdaee3e1572e3c5a07cfd00328cba90a966db3e003",
+  "currencies": [
+    {
+      "code": "DZD",
+      "name": "Algerian Dinar",
+      "offset": 100
+    },
+    {
+      "code": "ARS",
+      "name": "Argentine Peso",
+      "offset": 100
+    },
+    {
+      "code": "AUD",
+      "name": "Australian Dollar",
+      "offset": 100
+    },
+    {
+      "code": "BHD",
+      "name": "Bahraini Dinar",
+      "offset": 100
+    },
+    {
+      "code": "BDT",
+      "name": "Bangladeshi Taka",
+      "offset": 100
+    },
+    {
+      "code": "BOB",
+      "name": "Bolivian Boliviano",
+      "offset": 100
+    },
+    {
+      "code": "BGN",
+      "name": "Bulgarian Lev",
+      "offset": 100
+    },
+    {
+      "code": "BRL",
+      "name": "Brazilian Real",
+      "offset": 100
+    },
+    {
+      "code": "GBP",
+      "name": "British Pound",
+      "offset": 100
+    },
+    {
+      "code": "CAD",
+      "name": "Canadian Dollar",
+      "offset": 100
+    },
+    {
+      "code": "CLP",
+      "name": "Chilean Peso",
+      "offset": 1
+    },
+    {
+      "code": "CNY",
+      "name": "Chinese Yuan",
+      "offset": 100
+    },
+    {
+      "code": "COP",
+      "name": "Colombian Peso",
+      "offset": 1
+    },
+    {
+      "code": "CRC",
+      "name": "Costa Rican Colón",
+      "offset": 1
+    },
+    {
+      "code": "HRK",
+      "name": "Croatian Kuna",
+      "offset": 100
+    },
+    {
+      "code": "CZK",
+      "name": "Czech Koruna",
+      "offset": 100
+    },
+    {
+      "code": "DKK",
+      "name": "Danish Krone",
+      "offset": 100
+    },
+    {
+      "code": "EGP",
+      "name": "Egyptian Pound",
+      "offset": 100
+    },
+    {
+      "code": "EUR",
+      "name": "Euro",
+      "offset": 100
+    },
+    {
+      "code": "GTQ",
+      "name": "Guatemalan Quetzal",
+      "offset": 100
+    },
+    {
+      "code": "HNL",
+      "name": "Honduran Lempira",
+      "offset": 100
+    },
+    {
+      "code": "HKD",
+      "name": "Hong Kong Dollar",
+      "offset": 100
+    },
+    {
+      "code": "HUF",
+      "name": "Hungarian Forint",
+      "offset": 1
+    },
+    {
+      "code": "ISK",
+      "name": "Iceland Krona",
+      "offset": 1
+    },
+    {
+      "code": "INR",
+      "name": "Indian Rupee",
+      "offset": 100
+    },
+    {
+      "code": "IDR",
+      "name": "Indonesian Rupiah",
+      "offset": 1
+    },
+    {
+      "code": "ILS",
+      "name": "Israeli New Shekel",
+      "offset": 100
+    },
+    {
+      "code": "JPY",
+      "name": "Japanese Yen",
+      "offset": 1
+    },
+    {
+      "code": "JOD",
+      "name": "Jordanian Dinar",
+      "offset": 100
+    },
+    {
+      "code": "KES",
+      "name": "Kenyan Shilling",
+      "offset": 100
+    },
+    {
+      "code": "KRW",
+      "name": "Korean Won",
+      "offset": 1
+    },
+    {
+      "code": "LVL",
+      "name": "Latvian Lats",
+      "offset": 100
+    },
+    {
+      "code": "LTL",
+      "name": "Lithuanian Litas",
+      "offset": 100
+    },
+    {
+      "code": "MOP",
+      "name": "Macau Patacas",
+      "offset": 100
+    },
+    {
+      "code": "MYR",
+      "name": "Malaysian Ringgit",
+      "offset": 100
+    },
+    {
+      "code": "MXN",
+      "name": "Mexican Peso",
+      "offset": 100
+    },
+    {
+      "code": "NZD",
+      "name": "New Zealand Dollar",
+      "offset": 100
+    },
+    {
+      "code": "NIO",
+      "name": "Nicaraguan Cordoba",
+      "offset": 100
+    },
+    {
+      "code": "NGN",
+      "name": "Nigerian Naira",
+      "offset": 100
+    },
+    {
+      "code": "NOK",
+      "name": "Norwegian Krone",
+      "offset": 100
+    },
+    {
+      "code": "PKR",
+      "name": "Pakistani Rupee",
+      "offset": 100
+    },
+    {
+      "code": "PYG",
+      "name": "Paraguayan Guarani",
+      "offset": 1
+    },
+    {
+      "code": "PEN",
+      "name": "Peruvian Nuevo Sol",
+      "offset": 100
+    },
+    {
+      "code": "PHP",
+      "name": "Philippine Peso",
+      "offset": 100
+    },
+    {
+      "code": "PLN",
+      "name": "Polish Zloty",
+      "offset": 100
+    },
+    {
+      "code": "QAR",
+      "name": "Qatari Rials",
+      "offset": 100
+    },
+    {
+      "code": "RON",
+      "name": "Romanian Leu",
+      "offset": 100
+    },
+    {
+      "code": "RUB",
+      "name": "Russian Ruble",
+      "offset": 100
+    },
+    {
+      "code": "SAR",
+      "name": "Saudi Arabian Riyal",
+      "offset": 100
+    },
+    {
+      "code": "RSD",
+      "name": "Serbian Dinar",
+      "offset": 100
+    },
+    {
+      "code": "SGD",
+      "name": "Singapore Dollar",
+      "offset": 100
+    },
+    {
+      "code": "SKK",
+      "name": "Slovak Koruna",
+      "offset": 100
+    },
+    {
+      "code": "ZAR",
+      "name": "South African Rand",
+      "offset": 100
+    },
+    {
+      "code": "SEK",
+      "name": "Swedish Krona",
+      "offset": 100
+    },
+    {
+      "code": "CHF",
+      "name": "Swiss Franc",
+      "offset": 100
+    },
+    {
+      "code": "TWD",
+      "name": "Taiwan Dollar",
+      "offset": 1
+    },
+    {
+      "code": "THB",
+      "name": "Thai Baht",
+      "offset": 100
+    },
+    {
+      "code": "TRY",
+      "name": "Turkish Lira",
+      "offset": 100
+    },
+    {
+      "code": "AED",
+      "name": "UAE Dirham",
+      "offset": 100
+    },
+    {
+      "code": "UAH",
+      "name": "Ukrainian Hryvnia",
+      "offset": 100
+    },
+    {
+      "code": "USD",
+      "name": "US Dollars",
+      "offset": 100
+    },
+    {
+      "code": "UYU",
+      "name": "Uruguay Peso",
+      "offset": 100
+    },
+    {
+      "code": "VEF",
+      "name": "Venezuelan Bolivar",
+      "offset": 100
+    },
+    {
+      "code": "VND",
+      "name": "Vietnamese Dong",
+      "offset": 1
+    },
+    {
+      "code": "FBZ",
+      "name": "credits",
+      "offset": 100
+    },
+    {
+      "code": "VES",
+      "name": "Bolivar Soberano",
+      "offset": 100
+    }
+  ]
+}

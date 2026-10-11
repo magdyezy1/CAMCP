@@ -1,10 +1,12 @@
-import {optionalPinnedJson} from './pinned-json.js';
+import {createHash} from 'node:crypto';
+import {pinnedJson} from './pinned-json.js';
 
 /**
  * How a platform's API counts budget and bid amounts, so an owner can state a cap in account currency and the spending
  * policy compares the native amount (review 2026-09-28, F-04). A platform is listed only where the unit is documented
- * in a pinned vendor document or named by the API's own fields; Meta (minor units by currency offset), TikTok and
- * Criteo are not, so their caps stay in native units.
+ * in a pinned vendor document or named by the API's own fields. Meta counts the account currency's minor unit, which
+ * differs by currency, so it converts per currency through metaCurrencyOffset (WRT-07); TikTok and Criteo are not
+ * documented, so their caps stay in native units.
  */
 export interface BudgetUnit {
   /** Native units per one unit of the account currency. */
@@ -183,47 +185,135 @@ export function currencyText(micros: bigint, currency: string): string {
 }
 
 /**
- * Meta's per-currency offsets (WRT-07 Stage C): native budget amounts are the account currency times its offset (100 for
- * USD cents, 1 for JPY). Only a pinned capture of Meta's currency table may supply them, with its source URL, SHA-256 and
- * capture date, in .mirror/VENDOR/meta-currencies.json ({source_url, sha256, captured_at, offsets: {USD: 100, ...}}).
- * Without that capture, or for a currency it does not list, a Meta cap must be stated natively: a wrong offset would
- * loosen or block a cap a hundredfold.
+ * Meta's per-currency offsets (WRT-07 Stage C): native budget, bid and spend-cap amounts are the account currency times
+ * its offset (100 for USD cents, 1 for JPY). They come only from the pinned capture of Meta's Marketing API Currencies
+ * page, .mirror/VENDOR/meta-currencies.json ({source_url, captured_at, sha256, currencies: [{code, name, offset}]},
+ * captured 2026-10-11), never from ISO 4217: Meta counts COP, HUF, IDR and TWD in whole units and BHD and JOD in
+ * hundredths. A currency the capture does not list (KWD, OMR) has no offset, and a Meta cap for it must be stated
+ * natively: a guessed offset would loosen or block a cap a hundredfold. A capture that fails its checks is not used.
  */
-let metaOffsets: Readonly<Record<string, number>> | null | undefined;
-export function metaCurrencyOffset(currency: string): number | undefined {
-  if (metaOffsets === undefined) metaOffsets = loadMetaOffsets();
-  const offset = metaOffsets?.[currency];
-  return typeof offset === 'number' && [1, 10, 100, 1000].includes(offset) ? offset : undefined;
+export interface MetaCurrencyCapture {
+  source_url: string;
+  captured_at: string;
+  offsets: Readonly<Record<string, number>>;
 }
-/** Whether a pinned Meta currency capture is present (owner health names its absence). */
+const metaOffsetValues = [1, 10, 100, 1000];
+let metaCapture: MetaCurrencyCapture | null | undefined;
+/**
+ * The offsets of a Meta currency capture, or null when any check fails: a Meta developer-documentation source, a
+ * capture date, a SHA-256 that matches JSON.stringify(currencies), and rows each with a distinct ISO-shaped code and an
+ * offset of 1, 10, 100 or 1000. One bad row rejects the whole capture rather than leaving a partial table.
+ */
+export function parseMetaCurrencyCapture(data: unknown): MetaCurrencyCapture | null {
+  if (!data || typeof data !== 'object') return null;
+  const d = data as Record<string, unknown>,
+    rows = d.currencies;
+  if (
+    typeof d.source_url !== 'string' ||
+    !/^https:\/\/developers\.facebook\.com\//.test(d.source_url) ||
+    typeof d.captured_at !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(d.captured_at) ||
+    !Array.isArray(rows) ||
+    !rows.length ||
+    d.sha256 !== createHash('sha256').update(JSON.stringify(rows)).digest('hex')
+  )
+    return null;
+  const offsets: Record<string, number> = {};
+  for (const row of rows as unknown[]) {
+    const r = row as Record<string, unknown> | null;
+    if (
+      !r ||
+      typeof r.code !== 'string' ||
+      !/^[A-Z]{3}$/.test(r.code) ||
+      Object.hasOwn(offsets, r.code) ||
+      typeof r.offset !== 'number' ||
+      !metaOffsetValues.includes(r.offset)
+    )
+      return null;
+    offsets[r.code] = r.offset;
+  }
+  return Object.freeze({source_url: d.source_url, captured_at: d.captured_at, offsets: Object.freeze(offsets)});
+}
+function loadedMetaCapture(): MetaCurrencyCapture | null {
+  if (metaCapture === undefined) {
+    try {
+      metaCapture = parseMetaCurrencyCapture(pinnedJson('.mirror/VENDOR/meta-currencies.json'));
+    } catch {
+      // Missing or unreadable in this image: Meta caps stay native, and owner health says the capture is not pinned.
+      metaCapture = null;
+    }
+  }
+  return metaCapture;
+}
+export function metaCurrencyOffset(currency: string): number | undefined {
+  const offset = loadedMetaCapture()?.offsets[currency];
+  return typeof offset === 'number' && metaOffsetValues.includes(offset) ? offset : undefined;
+}
+/** Whether a valid pinned Meta currency capture is loaded (owner health names its absence). */
 export function metaCurrencyOffsetsPinned(): boolean {
-  if (metaOffsets === undefined) metaOffsets = loadMetaOffsets();
-  return !!metaOffsets;
+  return !!loadedMetaCapture();
+}
+/** The loaded Meta capture's source and date, for owner health and saved policies; undefined without one. */
+export function metaCurrencySource(): {source_url: string; captured_at: string; currencies: number} | undefined {
+  const c = loadedMetaCapture();
+  return c
+    ? {source_url: c.source_url, captured_at: c.captured_at, currencies: Object.keys(c.offsets).length}
+    : undefined;
 }
 /** Tests install a synthetic capture; `undefined` reloads the pinned file. */
 export function setMetaCurrencyOffsetsForTest(offsets: Record<string, number> | null | undefined): void {
-  metaOffsets = offsets === undefined ? undefined : offsets ? Object.freeze({...offsets}) : null;
+  metaCapture =
+    offsets === undefined
+      ? undefined
+      : offsets
+        ? Object.freeze({
+            source_url: 'synthetic test capture',
+            captured_at: 'test',
+            offsets: Object.freeze({...offsets}),
+          })
+        : null;
 }
-function loadMetaOffsets(): Readonly<Record<string, number>> | null {
-  try {
-    // Absent until the owner captures Meta's currency table: Meta caps then stay in native units.
-    const data = optionalPinnedJson('.mirror/VENDOR/meta-currencies.json');
-    if (
-      typeof data?.source_url !== 'string' ||
-      !/^[0-9a-f]{64}$/.test(String(data.sha256)) ||
-      typeof data.captured_at !== 'string' ||
-      !data.offsets ||
-      typeof data.offsets !== 'object'
-    )
-      return null;
-    return Object.freeze(
-      Object.fromEntries(
-        Object.entries(data.offsets as Record<string, unknown>).filter(
-          ([code, offset]) => /^[A-Z]{3}$/.test(code) && typeof offset === 'number',
-        ),
-      ) as Record<string, number>,
-    );
-  } catch {
-    return null;
-  }
+/**
+ * The unit a saved account policy names for its native caps (`native_unit`): the platform's documented unit, or for
+ * Meta the offset of the caps' currency with the capture it came from, so a later capture never reinterprets it.
+ */
+export function policyNativeUnit(gateway: string, currency: unknown): BudgetUnit | undefined {
+  const unit = budgetUnits[gateway];
+  if (unit || gateway !== 'meta_native_action' || typeof currency !== 'string') return unit;
+  const offset = metaCurrencyOffset(currency),
+    source = metaCurrencySource();
+  return offset && source
+    ? {
+        perCurrencyUnit: offset,
+        unit: offset === 1 ? 'whole ' + currency : '1/' + offset + ' ' + currency,
+        evidence:
+          'Meta currency offset ' +
+          offset +
+          ' for ' +
+          currency +
+          ', ' +
+          source.source_url +
+          ' (' +
+          source.captured_at +
+          ')',
+      }
+    : undefined;
+}
+/**
+ * Meta's entry in owner health's budget units when the capture is loaded: the settings page then offers Meta caps in
+ * account currency, which the server converts with the currency of the caps.
+ */
+export function metaBudgetUnit(): {unit: string; evidence: string} | undefined {
+  const source = metaCurrencySource();
+  return source
+    ? {
+        unit: 'account currency minor units (Meta currency offset)',
+        evidence:
+          'offsets of Meta’s Marketing API Currencies page for ' +
+          source.currencies +
+          ' currencies, captured ' +
+          source.captured_at +
+          ': 100 USD is 10000, 100 JPY is 100; state the currency of the caps, and a currency the page does not list, such as KWD, stays in native units',
+      }
+    : undefined;
 }

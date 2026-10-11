@@ -17,7 +17,7 @@ import {sha256} from './security.js';
 import {normalizeAccount} from './scope.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {familyOf} from './reviewed-families.js';
-import {budgetUnits, lifetimeAmount, nativeAmount} from './budget-units.js';
+import {lifetimeAmount, nativeAmount, policyNativeUnit} from './budget-units.js';
 import {pinnedJson} from './pinned-json.js';
 import {stateCurrency} from './review-summary.js';
 export const spendPolicyKey = (gateway: string, account: string) =>
@@ -310,7 +310,9 @@ export function saveSpendPolicy(store: Store, actor: Actor, input: JsonObject) {
     observedCurrency: observedAccountCurrency(store, actor.tenantId, input.gateway, input.account_id),
   });
   store.resolveConnection(actor, input.gateway, input.account_id, input.connection_id);
+  // Meta's unit depends on the currency of the caps, and names the pinned offset that converted them (WRT-07).
   const id = spendPolicyKey(input.gateway, input.account_id),
+    nativeUnit = policyNativeUnit(input.gateway, p.currency),
     data = {
       ...p,
       gateway: input.gateway,
@@ -318,7 +320,7 @@ export function saveSpendPolicy(store: Store, actor: Actor, input: JsonObject) {
       updated_at: Date.now(),
       updated_by: actor.userId,
       money_units: moneyUnits,
-      ...(budgetUnits[input.gateway] ? {native_unit: budgetUnits[input.gateway]} : {}),
+      ...(nativeUnit ? {native_unit: nativeUnit} : {}),
     };
   const saved = putPolicy(store, actor, id, data, expected);
   return {id, revision: saved.revision, ...data, ...(saved.warnings.length ? {warnings: saved.warnings} : {})};

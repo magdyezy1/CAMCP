@@ -23,6 +23,12 @@ const microsoftServices: Record<string, string> = {
   'ad-insight': 'AdInsight',
   'bulk': 'Bulk',
 };
+/** Pinned vendor documents that hold no method inventory, so the vendor denominator leaves them out. */
+export const vendorDocumentsWithoutMethods: readonly string[] = [
+  'lifecycle-pages.json',
+  'microsoft-rest-v13.json',
+  'meta-currencies.json',
+];
 type Method = {id: string; method: string; path: string; origin?: string};
 function methods(d: JsonObject): Method[] {
   if (d.paths) {
@@ -61,10 +67,11 @@ const shape = (path: string) =>
 /** Every method in every pinned official spec, including uncatalogued methods.
  * A schema/WSDL match proves correspondence only, never execution readiness. */
 export function vendorContractInventory(actions: ActionContract[]) {
-  // Not method inventories: lifecycle pages, and the REST pages of Microsoft operations the WSDLs already list.
+  // Not method inventories: lifecycle pages, the REST pages of Microsoft operations the WSDLs already list, and Meta's
+  // currency offsets (a table of units, WRT-07).
   const files = fs
       .readdirSync('.mirror/VENDOR')
-      .filter(f => f.endsWith('.json') && !['lifecycle-pages.json', 'microsoft-rest-v13.json'].includes(f))
+      .filter(f => f.endsWith('.json') && !vendorDocumentsWithoutMethods.includes(f))
       .sort(),
     summary: JsonObject[] = [],
     rows: JsonObject[] = [];
