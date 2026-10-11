@@ -1,5 +1,4 @@
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
-import {pinnedJson} from './pinned-json.js';
 import {ScopeGuard} from './scope.js';
 import {providerGrant, missingScopes} from './provider-grants.js';
 import {bad, obj} from './workspace-core.js';
@@ -21,22 +20,26 @@ import {
 } from './measurement-ledger-core.js';
 
 /**
- * The Search Console adapter of the measurement evidence ledger (MSR-03, owner direction P8). Read-only: three GETs or
- * POST queries the pinned Search Console API v1 document (.mirror/VENDOR/search-console-v1.json) marks read-only.
- * - Configuration: sites.get (WmxSite: siteUrl and the login's permissionLevel; an unverified user has no data access).
+ * The Search Console adapter of the measurement evidence ledger (MSR-03, owner direction P8). Read-only: two GETs and
+ * one POST query the pinned Search Console API v1 document (.mirror/VENDOR/search-console-v1.json) marks read-only.
+ * The wire values follow Google's public reference (sites, sitemaps and searchanalytics.query, re-read 2026-10-12),
+ * which spells them in camelCase ("siteOwner", "sitemap", "byProperty"); the pinned discovery document lists the
+ * proto names (SITE_OWNER...), which the API does not return. AMCP's qualified Search Console reads
+ * (google-measurement-assets.ts, measurement-writes.ts, report-native.ts) use the same wire values.
+ * - Configuration: sites.get (siteUrl and the login's permissionLevel; an unverified user has no data access).
  * - Provider-observed activity: searchAnalytics.query of the last seven complete days in Search Console's time zone
- *   (America/Los_Angeles), grouped by DATE, dataState FINAL and aggregated BY_PROPERTY: clicks and impressions per day.
- *   Final data lags by a few days, so an absent day is not reported as zero.
- * - Provider diagnostics: sitemaps.list (WmxSitemap: errors, warnings, pending state and last download).
+ *   (America/Los_Angeles), grouped by date, dataState final and aggregationType byProperty: clicks and impressions per
+ *   day. Final data lags by a few days, so an absent day is not reported as zero.
+ * - Provider diagnostics: sitemaps.list (errors, warnings, pending state and last download).
  * Search Console has no consent setting and attributes no conversions.
  */
 const gateway = 'google_search_console_native_action',
   origin = 'https://searchconsole.googleapis.com',
   windowDays = 7,
-  pinnedSchemas = () => pinnedJson('.mirror/VENDOR/search-console-v1.json').document.schemas;
-const pinned = (schema: string, field: string, value: unknown) =>
-  typeof value === 'string' && (pinnedSchemas()[schema]?.properties?.[field]?.enum ?? []).includes(value);
-const contentTypes = () => pinnedSchemas().WmxSitemapContent.properties.type.enum as string[];
+  permissionLevels = ['siteOwner', 'siteFullUser', 'siteRestrictedUser', 'siteUnverifiedUser'],
+  sitemapTypes = ['atomFeed', 'notSitemap', 'patternSitemap', 'rssFeed', 'sitemap', 'urlList'],
+  contentTypes = ['androidApp', 'image', 'iosApp', 'mobile', 'news', 'pattern', 'video', 'web'];
+const pinned = (values: string[], value: unknown) => typeof value === 'string' && values.includes(value);
 const int64 = (v: unknown): v is string => typeof v === 'string' && /^(?:0|[1-9][0-9]{0,18})$/.test(v);
 const googleTime = (v: unknown) =>
   typeof v === 'string' &&
@@ -90,8 +93,7 @@ async function site(context: ReadContext) {
   if (
     !keysWithin(data, ['siteUrl', 'permissionLevel']) ||
     data.siteUrl !== context.account ||
-    !pinned('WmxSite', 'permissionLevel', data.permissionLevel) ||
-    data.permissionLevel === 'SITE_PERMISSION_LEVEL_UNSPECIFIED'
+    !pinned(permissionLevels, data.permissionLevel)
   )
     invalid('Search Console returned another site or an unrecognized permission level.');
   context.references.push(ledgerReference('site', read, [pageReference(0, 1, data)], 1));
@@ -104,10 +106,10 @@ async function searchTotals(context: ReadContext) {
     body = {
       startDate: start,
       endDate: end,
-      dimensions: ['DATE'],
-      type: 'WEB',
-      dataState: 'FINAL',
-      aggregationType: 'BY_PROPERTY',
+      dimensions: ['date'],
+      type: 'web',
+      dataState: 'final',
+      aggregationType: 'byProperty',
       rowLimit: 25,
     },
     read = plan(context.account, 'gsc_analytics_ops/QUERY_SEARCH_ANALYTICS', 'POST', '/searchAnalytics/query', body),
@@ -115,7 +117,7 @@ async function searchTotals(context: ReadContext) {
   if (
     !keysWithin(data, ['rows', 'responseAggregationType', 'metadata']) ||
     (data.rows !== undefined && !Array.isArray(data.rows)) ||
-    (data.responseAggregationType !== undefined && data.responseAggregationType !== 'BY_PROPERTY') ||
+    (data.responseAggregationType !== undefined && data.responseAggregationType !== 'byProperty') ||
     (data.metadata !== undefined && !obj(data.metadata))
   )
     invalid('Search Console returned partial or differently aggregated search totals.');
@@ -150,7 +152,7 @@ async function searchTotals(context: ReadContext) {
     start_date: start,
     end_date: end,
     time_zone: 'America/Los_Angeles',
-    data_state: 'FINAL',
+    data_state: 'final',
     days_reported: days.length,
     clicks: days.reduce((n, d) => n + d.clicks, 0),
     impressions: days.reduce((n, d) => n + d.impressions, 0),
@@ -188,7 +190,7 @@ async function sitemaps(context: ReadContext) {
         s.path.length > 2048 ||
         /[\x00-\x20\\]/.test(s.path) ||
         seen.has(s.path) ||
-        (s.type !== undefined && !pinned('WmxSitemap', 'type', s.type)) ||
+        (s.type !== undefined && !pinned(sitemapTypes, s.type)) ||
         ['isPending', 'isSitemapsIndex'].some(k => s[k] !== undefined && typeof s[k] !== 'boolean') ||
         ['lastSubmitted', 'lastDownloaded'].some(k => s[k] !== undefined && !googleTime(s[k])) ||
         ['errors', 'warnings'].some(k => s[k] !== undefined && !int64(s[k])) ||
@@ -198,7 +200,7 @@ async function sitemaps(context: ReadContext) {
               (c: unknown) =>
                 !obj(c) ||
                 !keysWithin(c, ['type', 'submitted', 'indexed']) ||
-                (c.type !== undefined && !contentTypes().includes(c.type)) ||
+                (c.type !== undefined && !pinned(contentTypes, c.type)) ||
                 (c.submitted !== undefined && !int64(c.submitted)) ||
                 (c.indexed !== undefined && !int64(c.indexed)),
             )))
@@ -265,7 +267,7 @@ export async function searchConsoleLedger({
       ),
     );
     fence();
-    if (!permission || permission === 'SITE_UNVERIFIED_USER') {
+    if (!permission || permission === 'siteUnverifiedUser') {
       const reason = permission ? 'site_unverified' : 'configuration_unknown',
         note = permission
           ? 'An unverified user has no access to the site’s data, so nothing else is read.'

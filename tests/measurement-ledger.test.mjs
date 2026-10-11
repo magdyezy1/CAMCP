@@ -391,7 +391,8 @@ test('MSR-03 a write pause, credential rotation or access withdrawal mid-ledger 
 
 test('MSR-03 ledger refusals happen before any provider request', async t => {
   const cases = [
-    [{gateway: 'meta_native_action'}, 'MEASUREMENT_LEDGER_UNQUALIFIED'],
+    // Owner direction P8 qualified Meta, Snapchat, TikTok, Search Console and Adjust; other gateways stay refused.
+    [{gateway: 'reddit_native_action'}, 'MEASUREMENT_LEDGER_UNQUALIFIED'],
     [{gateway: 'linkedin_native_action'}, 'MEASUREMENT_LEDGER_UNQUALIFIED'],
     [{requirements: {sections: ['key_events']}}, 'INVALID_ARGUMENT'],
     [{account_id: 'customers/1'}, 'INVALID_ARGUMENT'],
