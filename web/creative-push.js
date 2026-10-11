@@ -873,6 +873,19 @@ function bindCreativePush(targets, drives, initialUnfinished = [], serverTime, {
     if (!sources.length) throw Error(uiText('Add a file first.'));
     const chosen = [...form.querySelectorAll('input[name=target]:checked')].map(box => targets[Number(box.value)]);
     if (!chosen.length) throw Error(uiText('Choose at least one advertising account.'));
+    // A push to accounts of different clients asks first (SEC-08).
+    if (
+      typeof confirmCrossClient === 'function' &&
+      !(await confirmCrossClient(
+        chosen.map(t => ({
+          gateway: t.gateway ?? t.platform + '_native_action',
+          account_id: t.account_id,
+          connection_id: t.connection_id,
+        })),
+        uiText('Review the push'),
+      ))
+    )
+      return;
     if (sources.length * chosen.length > pushMaxUploads)
       throw Error(
         uiText('One push reviews at most {limit} uploads; this is {count}. Choose fewer files or accounts.', {

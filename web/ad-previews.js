@@ -20,32 +20,45 @@ const previewFormats = [
   ['AUDIENCE_NETWORK_OUTSTREAM_VIDEO', 'Audience Network video'],
 ];
 
-/** The advertising accounts whose ads AMCP can preview, one option each. */
+/**
+ * The advertising accounts whose ads AMCP can preview, one option each, narrowed to the working client (SEC-08), and
+ * the account to preselect only when exactly one remains (before, the first account of any client was).
+ */
 function previewTargets() {
-  return platforms.flatMap(p =>
-    previewGateways[p.gateway]
-      ? p.connections
-          .filter(c => c.enabled)
-          .flatMap(c =>
-            c.accounts.map(a => ({
-              platform: previewGateways[p.gateway],
-              account_id: a,
-              connection_id: c.id,
-              label: accountLabel(p, c, a),
-            })),
-          )
-      : [],
+  const narrow =
+    typeof clientAccountOptions === 'function'
+      ? clientAccountOptions
+      : list => ({options: list, preselect: list.length === 1 ? list[0] : null});
+  return narrow(
+    platforms.flatMap(p =>
+      previewGateways[p.gateway]
+        ? p.connections
+            .filter(c => c.enabled)
+            .flatMap(c =>
+              c.accounts.map(a => ({
+                platform: previewGateways[p.gateway],
+                gateway: p.gateway,
+                account_id: a,
+                connection_id: c.id,
+                label: accountLabel(p, c, a),
+              })),
+            )
+        : [],
+    ),
   );
 }
 
 function adPreviewsPanel() {
-  const targets = previewTargets();
+  const {options: targets, preselect} = previewTargets();
   return `<section class="panel workspace-form ad-previews" aria-labelledby="previews-title">
 <h2 id="previews-title">${esc(uiText('Preview your ads'))}</h2>
 <p class="workspace-copy">${esc(uiText("Get each platform's own preview links for ads that already exist. Anyone with a link can open it, and links expire."))}</p>
 <form id="preview-form">
 <label>${esc(uiText('Advertising account'))}<select name="target" required>${
-    targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('') ||
+    (targets.length && !preselect
+      ? `<option value="" selected disabled>${esc(uiText('Choose an account'))}</option>`
+      : '') +
+    targets.map((t, i) => `<option value="${i}" ${t === preselect ? 'selected' : ''}>${esc(t.label)}</option>`).join('') ||
     `<option value="">${esc(uiText('Connect and select an advertising account first'))}</option>`
   }</select></label>
 <label>${esc(uiText('Ad IDs (optional; Snapchat and LinkedIn: creative IDs)'))}<input name="ad_ids" placeholder="${esc(uiText('Leave empty for the first five ads'))}"></label>
@@ -57,17 +70,20 @@ function adPreviewsPanel() {
 }
 
 function bindAdPreviews() {
-  const targets = previewTargets(),
+  const {options: targets} = previewTargets(),
     form = $('#preview-form');
   if (!form) return;
+  // An empty choice is no account: Number('') would have picked the first one.
+  const chosen = value => (value === '' ? undefined : targets[Number(value)]);
   const syncFormat = () => {
-    $('#preview-format').hidden = targets[Number(form.elements.target.value)]?.platform !== 'meta';
+    $('#preview-format').hidden = chosen(form.elements.target.value)?.platform !== 'meta';
   };
   form.addEventListener('change', syncFormat);
   syncFormat();
   workspaceBind('#preview-form', async f => {
-    const target = targets[Number(f.elements.target.value)];
-    if (!target) throw Error(uiText('Connect and select an advertising account first.'));
+    const target = chosen(f.elements.target.value);
+    if (!targets.length) throw Error(uiText('Connect and select an advertising account first.'));
+    if (!target) throw Error(uiText('Choose the advertising account to preview.'));
     const ids = f.elements.ad_ids.value
       .split(/[\s,]+/)
       .map(s => s.trim())
