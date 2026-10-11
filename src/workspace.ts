@@ -148,6 +148,7 @@ export const workspaceTool = tool(
     'resume_writes',
     'enable_personal_data',
     'disable_personal_data',
+    'save_ga4_test_property',
   ],
   {
     gateway: field.id,
@@ -532,6 +533,7 @@ export class WorkspaceService {
         'resume_writes',
         'enable_personal_data',
         'disable_personal_data',
+        'save_ga4_test_property',
       ].includes(input.action)
     )
       return ownerOperations(this.store, input, actor, {

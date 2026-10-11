@@ -738,6 +738,15 @@ and missing/zero counts can reflect processing lag or filters. Consent, deduplic
 unverified. Original scope handoffs prefill without reading. Edits or generation clear prior evidence and pending
 results cannot overwrite a newer selection. See the [qualification record](review/DELIVERY-2026-10-03-MEASUREMENT-IDENTITY.md).
 
+**Realtime test identity** (MSR-04) is the faster report source of the same task. Choose **Realtime: user scope, test
+properties only** and a window of the last 1–30 minutes instead of dates. It reads a user-scoped
+`customUser:amcp_test_id` through the GA4 Realtime API, which cannot filter event-scoped dimensions, and only on a
+property the workspace owner marked as a test property (`amcp_workspace save_ga4_test_property`; otherwise
+`MEASUREMENT_TEST_PROPERTY_REQUIRED` before any GA4 request). The user-scoped dimension is checked before and after.
+Counts cover every event of the synthetic test user, so a match is user-level, not event-level proof, and realtime
+processing can lag a few minutes. The value persists on the test user: use a fresh identifier and a dedicated test
+browser or device for each test. The GA4 configuration read reports `checks.realtime_identity_dimension`.
+
 **LinkedIn conversion settings** reads current configuration for one selected login/advertising account.
 Inspect native rule IDs, registration method, reported ownership, enabled state, type, attribution model,
 click/view windows and exact configured values. Missing fields remain unknown; provider defaults do not fill
@@ -748,6 +757,10 @@ envelopes without new fields stay readable with unknown metadata. See the
 [method, ownership and scope qualification](review/DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
 The MCP action is `measurement_conversions` with `gateway:linkedin_native_action`, exact `account_id` and
 `connection_id`; it accepts no additional requirements. Its scoped website link only preselects the account.
+The **Observed activity** column (MSR-04) shows LinkedIn's own `lastCallbackAt` (the last time a rule's URL match
+fired) and `latestFirstPartyCallbackAt` as `last_callback_at` and `latest_first_party_callback_at` (epoch
+milliseconds). LinkedIn may take about 20 minutes to update them. A missing time is Unknown, never "never fired",
+and a time does not verify event delivery. The times stay out of conversion-rule write fingerprints.
 
 Collection requires existing `r_ads` or `rw_ads`, verifies native account identity/currency before and after,
 checks current authority around each read and retains source request/hash/time references. Bounds: 1,000 rules,

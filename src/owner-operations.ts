@@ -12,6 +12,7 @@ import {ownerAccess, saveSpendPolicy, spendPolicyKey, workspaceOwner} from './sp
 import {googleAdsVersion, googleDeveloperTokenWarning} from './google-version.js';
 import {metaApiVersion} from './meta-version.js';
 import {disablePersonalData, enablePersonalData, personalDataAccounts} from './personal-data-access.js';
+import {ga4TestProperties, saveGa4TestProperty} from './measurement-test-properties.js';
 import {storageDetails} from './storage-health.js';
 import {isDeploymentTenant, limitDiagnostics} from './limit-diagnostics.js';
 import {mcpClientCapacity} from './mcp-clients.js';
@@ -179,6 +180,8 @@ export function ownerOperations(
       write_pause: writePause(store, tenant) ?? null,
       export_policy: {viewer_downloads: viewerDownloadsAllowed(store, tenant)},
       personal_data_accounts: personalDataAccounts(store, tenant),
+      // GA4 properties the owner marked for the realtime test-identity mode (MSR-04, P4).
+      ga4_test_properties: ga4TestProperties(store, tenant),
       storage: {
         ...storageDetails(store),
         database_bytes:
@@ -232,6 +235,7 @@ export function ownerOperations(
   }
   if (input.action === 'enable_personal_data') return enablePersonalData(store, actor, input);
   if (input.action === 'disable_personal_data') return disablePersonalData(store, actor, input);
+  if (input.action === 'save_ga4_test_property') return saveGa4TestProperty(store, actor, input);
   if (input.action === 'pause_writes') {
     const reason = typeof input.reason === 'string' ? input.reason.trim() : '';
     if (input.confirmed !== true || !reason || reason.length > 500)

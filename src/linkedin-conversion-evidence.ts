@@ -112,7 +112,10 @@ function projectRule(row: unknown, account: string): JsonObject {
   };
 }
 
-/** Current configuration only. No event observations, historical attribution or campaign membership are inferred. */
+/**
+ * Current configuration plus LinkedIn's own last-callback observations, labelled as such (MSR-04). No event delivery,
+ * historical attribution or campaign membership is inferred.
+ */
 export async function linkedInConversionEvidence(store: Store, call: ToolCall, actor: Actor, input: JsonObject) {
   if (input.gateway !== gateway)
     bad('Conversion configuration discovery currently supports LinkedIn.', 'MEASUREMENT_CONVERSIONS_UNQUALIFIED');

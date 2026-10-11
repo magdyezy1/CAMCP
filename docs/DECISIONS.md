@@ -58,6 +58,13 @@ enforces the documented role matrix with an owner Settings toggle that is off by
 before; whether viewers may download stays the owner's choice. P4's other questions (rehearsals that transmit hashed
 personal data, a user-scoped `amcp_test_id` GA4 dimension) are not decided.
 
+Also applied on 2026-10-12 (MSR-04, P4's user-scoped dimension question as approved on 2026-10-11): a user-scoped
+`amcp_test_id` GA4 custom dimension is used only on a property the workspace owner explicitly marks as a test property
+(`amcp_workspace save_ga4_test_property`, owner only, audited, nothing changes in GA4). Only then does
+`measurement_event_identity` accept `mode:"realtime_user_scope"`; unmarking refuses it at once. The owner registers the
+dimension in GA4 themselves, and the value persists on the synthetic test user. Marking stays MCP-only, like the
+personal-data switch.
+
 Also applied on 2026-10-10 (CON-06, the Business Profile and Amazon Ads parts of P9, with the review's proposed
 defaults; the owner may still choose otherwise): Business Profile is a website platform for workspace owners, shipped
 behind `AMCP_GBP_API_APPROVED=true` (or a dedicated `AMCP_GBP_CLIENT_ID`/`AMCP_GBP_CLIENT_SECRET`) because Google's

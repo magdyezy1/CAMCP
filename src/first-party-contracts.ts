@@ -465,7 +465,7 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'measurement_event_identity',
-      'Counts one synthetic GA4 test identifier through an existing amcp_test_id dimension; nothing is saved.',
+      'Counts one synthetic GA4 test identifier through an existing amcp_test_id dimension (core report dates, or mode realtime_user_scope on an owner-marked test property); nothing is saved.',
       [...nativeScope],
       [],
       reads(),
@@ -677,6 +677,15 @@ const rows: Record<string, Row[]> = {
       saves('personal_data_setting'),
       'owner',
       [[W, 'dashboard']],
+    ),
+    row(
+      'save_ga4_test_property',
+      'Marks (enabled true) or unmarks one GA4 property as a test property, which the realtime test-identity read requires; nothing changes in GA4.',
+      ['connection_id', 'account_id', 'enabled', 'confirmed'],
+      [],
+      saves('ga4_test_property'),
+      'owner',
+      [[W, 'measurement_event_identity']],
     ),
   ],
   [C]: [

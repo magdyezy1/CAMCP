@@ -82,6 +82,9 @@ export function accountWorkflowFixture(locale = 'en') {
       'date_to',
       'stream_id',
       'expected_count',
+      // MSR-04: the realtime identity mode.
+      'mode',
+      'minutes',
     ],
     'measurement-conversions': ['target'],
     'measurement-google-goals': ['target'],
