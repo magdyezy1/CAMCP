@@ -6,7 +6,7 @@ export async function exerciseMeasurementNavigation(page, site, options) {
   const {output, id, locale, width, mode, before, beforeEvidence, result} = options,
     catalog = JSON.parse(fs.readFileSync(options.catalogPath ?? 'web/locales/ar.json', 'utf8')),
     translated = text => (locale === 'ar' ? catalog[text] : text),
-    sectionIds = ['gtm', 'events', 'identity', 'ga4config', 'conversions', 'goals', 'trace'],
+    sectionIds = ['ledger', 'gtm', 'events', 'identity', 'ga4config', 'conversions', 'goals', 'trace'],
     headingIds = ['measurement-task-heading', ...sectionIds.map(value => 'measurement-section-' + value)],
     formIds = [
       'measurement-audit',
@@ -143,6 +143,7 @@ export async function exerciseMeasurementNavigation(page, site, options) {
     assert.equal(await navigation.locator('a').count(), sectionIds.length);
     assert.equal(await page.locator('.measurement-task-return').count(), sectionIds.length);
     const targets = [
+      'Measurement evidence ledger',
       'Google Tag Manager configuration audit',
       'Recent GA4 events',
       'Inspect a specific GA4 test identifier',

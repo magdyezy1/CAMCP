@@ -106,6 +106,7 @@ const accountExplanationMessages = new Set([
   'Current Google Ads conversion configuration from two matching bounded reads. Configuration is not proof that conversions are delivered, deduplicated, consented or attributed. Nothing was saved.',
   'The conversion configuration could not be completely inspected; no partial goal or primary-action evidence is reported as ready. Nothing was saved.',
   'Current GA4 property configuration from complete bounded Admin API reads. Configuration is not proof that events are sent, counted, deduplicated, consented or attributed. Nothing was saved.',
+  'Measurement evidence for one asset in six fixed layers. A layer is observed only from complete evidence of the selected asset; everything else stays unknown, unavailable or not applicable. Configuration and reported activity do not prove that conversions are delivered, deduplicated, consented or attributed. Nothing was saved.',
   'Preview is based on supplied product data. Current provider items are read by each native review before execution. Partial or uncertain writes retain per-item receipts in the campaign journal.',
   'Preview uses supplied product data and the existing X product contract. Each product keeps a separate native review, accepted receipt and independent read-back. Matching IDs are updated; missing source items are retained.',
   'X catalog endpoints require early-access entitlement; a local preview does not establish account eligibility.',
@@ -630,6 +631,7 @@ function measurementSectionHeading(id, label) {
 }
 function measurementTaskNavigationMarkup() {
   const tasks = [
+    ['ledger', uiText('Measurement evidence ledger')],
     ['gtm', uiText('Google Tag Manager configuration audit')],
     ['events', uiText('Recent GA4 events')],
     ['identity', uiText('Inspect a specific GA4 test identifier')],
@@ -664,7 +666,7 @@ function bindMeasurementTaskNavigation() {
   const navigation = $('#measurement-task-navigation'),
     generation = navigationGeneration,
     identity = identityGeneration,
-    sections = ['gtm', 'events', 'identity', 'ga4config', 'conversions', 'goals', 'trace'],
+    sections = ['ledger', 'gtm', 'events', 'identity', 'ga4config', 'conversions', 'goals', 'trace'],
     headingIds = ['measurement-task-heading', ...sections.map(id => 'measurement-section-' + id)];
   const attached = () =>
     generation === navigationGeneration && identity === identityGeneration && navigation.isConnected;
@@ -711,8 +713,13 @@ async function renderMeasurement() {
     eventTargets = accountChoices(['ga4']),
     conversionTargets = accountChoices(['linkedin']),
     goalTargets = accountChoices(['google']),
+    // One ledger picker: Google Ads accounts first, then GA4 properties (the scope bar relies on this order).
+    ledgerTargets = [
+      ...goalTargets.map(t => ({...t, gateway: 'google_ads_native_action'})),
+      ...eventTargets.map(t => ({...t, gateway: 'ga4_native_action'})),
+    ],
     scopeSets = {gtm: targets, ga4: eventTargets, google: goalTargets, linkedin: conversionTargets};
-  content.innerHTML += `<section class="panel"><h2>${esc(uiText('Measurement evidence'))}</h2><p>${esc(uiText('Review configured tags, trigger dependencies, workspace conflicts and published-version consistency. Configuration evidence is distinct from observed event delivery and attribution.'))}</p>${measurementTaskNavigationMarkup()}<details class="workspace-details"><summary>${esc(uiText('Related measurement workflows'))}</summary><div class="work-links"><a href="/reporting-overview"><strong>${esc(uiText('GA4 and Search Console context'))}</strong><small>${esc(uiText('Collect measurement reports with source definitions.'))}</small></a><a href="/profiles"><strong>${esc(uiText('Client conversion mappings'))}</strong><small>${esc(uiText('Inspect approved conversion definitions and account bindings.'))}</small></a><a href="/capabilities"><strong>${esc(uiText('Reviewed measurement changes'))}</strong><small>${esc(uiText('Discover exact conversion and tag contracts.'))}</small></a></div></details></section>${measurementScopeMarkup(scopeSets)}<section class="panel workspace-form">${measurementSectionHeading('measurement-section-gtm', uiText('Google Tag Manager configuration audit'))}<p>${esc(uiText('Read the configured tags, triggers, conflicts and published version of one account, container or workspace. Leave the container empty to list containers, or the workspace empty to list workspaces.'))}</p><form id="measurement-audit">${measurementTargetField(targets, uiText('Tag Manager account'), 'Connect Google Tag Manager and select an account in Connections to audit its configuration.')}${controls(uiText('Container ID (optional for account inventory)'), 'text', '', 'container_id')}${controls(uiText('Workspace ID (optional)'), 'text', '', 'workspace_id')}<button class="button primary" type="submit" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read configuration evidence'))}</button></form><div id="measurement-result"></div></section>`;
+  content.innerHTML += `<section class="panel"><h2>${esc(uiText('Measurement evidence'))}</h2><p>${esc(uiText('Review configured tags, trigger dependencies, workspace conflicts and published-version consistency. Configuration evidence is distinct from observed event delivery and attribution.'))}</p>${measurementTaskNavigationMarkup()}<details class="workspace-details"><summary>${esc(uiText('Related measurement workflows'))}</summary><div class="work-links"><a href="/reporting-overview"><strong>${esc(uiText('GA4 and Search Console context'))}</strong><small>${esc(uiText('Collect measurement reports with source definitions.'))}</small></a><a href="/profiles"><strong>${esc(uiText('Client conversion mappings'))}</strong><small>${esc(uiText('Inspect approved conversion definitions and account bindings.'))}</small></a><a href="/capabilities"><strong>${esc(uiText('Reviewed measurement changes'))}</strong><small>${esc(uiText('Discover exact conversion and tag contracts.'))}</small></a></div></details></section>${measurementScopeMarkup(scopeSets)}${measurementLedgerMarkup(ledgerTargets)}<section class="panel workspace-form">${measurementSectionHeading('measurement-section-gtm', uiText('Google Tag Manager configuration audit'))}<p>${esc(uiText('Read the configured tags, triggers, conflicts and published version of one account, container or workspace. Leave the container empty to list containers, or the workspace empty to list workspaces.'))}</p><form id="measurement-audit">${measurementTargetField(targets, uiText('Tag Manager account'), 'Connect Google Tag Manager and select an account in Connections to audit its configuration.')}${controls(uiText('Container ID (optional for account inventory)'), 'text', '', 'container_id')}${controls(uiText('Workspace ID (optional)'), 'text', '', 'workspace_id')}<button class="button primary" type="submit" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read configuration evidence'))}</button></form><div id="measurement-result"></div></section>`;
   content.innerHTML += measurementEventsMarkup(eventTargets);
   content.innerHTML += measurementEventIdentityMarkup(eventTargets);
   content.innerHTML += measurementGa4ConfigMarkup(eventTargets);
@@ -763,6 +770,7 @@ async function renderMeasurement() {
   bindMeasurementGa4Config(eventTargets);
   bindMeasurementConversions(conversionTargets);
   bindMeasurementGoogleGoals(goalTargets);
+  bindMeasurementLedger(ledgerTargets);
   bindMeasurementTrace(eventTargets);
   bindMeasurementTaskNavigation();
 }
@@ -1332,6 +1340,7 @@ function bindMeasurementScope(sets) {
   }
   for (const kind of Object.keys(measurementScopeParams))
     if (scope[kind] === null && sets[kind].length === 1) scope[kind] = 0;
+  let ledgerKind = ['google', 'ga4'].find(kind => chosen.has(kind)) ?? null;
   const options = (select, empty, rows, chosen) => {
     const list = rows.some(r => r.id === chosen) || !chosen ? rows : [...rows, {id: chosen, name: null, detail: ''}];
     select.innerHTML =
@@ -1432,6 +1441,11 @@ function bindMeasurementScope(sets) {
     write('measurement-ga4-config', {target: index('ga4')});
     write('measurement-conversions', {target: index('linkedin')});
     write('measurement-google-goals', {target: index('google')});
+    // The ledger lists Google Ads accounts, then GA4 properties, and follows the kind chosen last (MSR-03).
+    const ledger = [ledgerKind, 'google', 'ga4'].find(kind => kind && scope[kind] !== null);
+    write('measurement-ledger', {
+      target: ledger ? String((ledger === 'ga4' ? sets.google.length : 0) + scope[ledger]) : '',
+    });
   };
   measurementScopeController = {
     attached,
@@ -1471,6 +1485,8 @@ function bindMeasurementScope(sets) {
       scope[name] = index;
       if (index === null) chosen.delete(name);
       else chosen.add(name);
+      if (name === 'google' || name === 'ga4')
+        ledgerKind = index !== null ? name : ledgerKind === name ? null : ledgerKind;
       if (name === 'gtm') scope.container = scope.workspace = '';
       if (name === 'ga4') scope.stream = '';
     } else if (name === 'container') {
@@ -1490,6 +1506,7 @@ function bindMeasurementScope(sets) {
     if (!attached()) return;
     scope = {gtm: null, container: '', workspace: '', ga4: null, stream: '', google: null, linkedin: null};
     chosen.clear();
+    ledgerKind = null;
     status.textContent = uiText('The measurement scope was cleared.');
     choices();
     remember();
@@ -1887,6 +1904,236 @@ function bindMeasurementGa4Config(targets) {
       );
     result.innerHTML = measurementGa4ConfigView(out, target);
     $('#measurement-ga4-config-heading')?.focus();
+  });
+}
+// MSR-03 slice C: the measurement evidence ledger of one Google Ads account or GA4 property. Six fixed layers, each
+// observed, unknown, unavailable or not applicable. The website explains each reason code itself; native values stay
+// literal. Choosing an account never reads; the ledger is read only on submit.
+const measurementLedgerLayers = {
+  configuration: 'Configuration',
+  provider_observed_activity: 'Provider-observed activity',
+  provider_diagnostics: 'Provider diagnostics',
+  supplied_runtime_trace: 'Supplied runtime trace',
+  consent: 'Consent',
+  attribution_settings: 'Attribution settings',
+};
+const measurementLedgerStates = {
+  observed: 'Observed',
+  unknown: 'Unknown',
+  unavailable: 'Unavailable',
+  not_applicable: 'Not applicable',
+};
+const measurementLedgerReasons = {
+  complete_configuration: 'Read completely from the provider.',
+  manager_account: 'This is a manager account. Choose a client account that records its own conversions.',
+  shared_conversion_customer:
+    'This account uses another customer’s conversion tracking. AMCP did not read that customer, so goals stay unknown.',
+  conversion_customer_unknown: 'Google Ads did not report the conversion tracking customer, so goals stay unknown.',
+  configuration_incomplete: 'The configuration could not be completely inspected.',
+  configuration_unknown: 'Not read, because the configuration is unknown.',
+  activity_reported: 'Google Ads reported a last conversion date and a last tag detection for every primary action.',
+  activity_incomplete: 'Google Ads did not report activity for every primary action.',
+  key_events_reported: 'GA4 reported key events in the last 30 minutes.',
+  no_recent_key_events: 'No key event was reported in the last 30 minutes. Absence does not establish a broken tag.',
+  key_events_unreadable: 'No key event name can be read as an exact realtime event name.',
+  no_key_events: 'The property has no key event.',
+  upload_summaries: 'Offline conversion upload summaries by upload client.',
+  no_uploads: 'Google Ads reported no offline conversion upload for this account.',
+  action_settings: 'Attribution model and lookback windows of enabled conversion actions.',
+  no_enabled_actions: 'The account has no enabled conversion action.',
+  read_failed: 'This read failed or was incomplete, so the layer stays unknown.',
+  browser_only: 'Supplied traces are inspected only in this browser and never reach AMCP.',
+  no_provider_source: 'The provider exposes no source for this layer to AMCP.',
+  unpinned_api: 'This is available only in a provider API version AMCP has not pinned.',
+};
+// The related task of a layer, on this page; following it makes no request.
+const measurementLedgerTasks = {
+  google_ads_native_action: {configuration: 'goals', provider_observed_activity: 'goals', consent: 'gtm'},
+  ga4_native_action: {configuration: 'ga4config', provider_observed_activity: 'events', consent: 'gtm'},
+};
+function measurementLedgerMarkup(targets) {
+  return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-ledger', uiText('Measurement evidence ledger'))}<p>${esc(uiText('Collect configuration, provider-observed activity, diagnostics, consent and attribution evidence for one Google Ads account or GA4 property in one view. Each layer says whether it was observed, is unknown, is unavailable or does not apply.'))}</p><form id="measurement-ledger">${measurementTargetField(targets, uiText('Google Ads account or GA4 property'), 'Connect Google Ads or a GA4 property in Connections to read its measurement evidence ledger.')}<button class="button primary" type="submit" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read the evidence ledger'))}</button></form><div id="measurement-ledger-result" aria-live="polite"></div></section>`;
+}
+function measurementLedgerValid(out, target) {
+  const code = v => typeof v === 'string' && /^[a-z_]{1,64}$/.test(v),
+    counts = out?.summary;
+  return (
+    !!out &&
+    out.record_kind === 'measurement_ledger' &&
+    out.provider_mutations === 0 &&
+    out.scope?.gateway === target.gateway &&
+    Object.hasOwn(measurementLedgerTasks, target.gateway) &&
+    out.scope.account_id === target.account_id &&
+    out.scope.connection_id === target.connection_id &&
+    Array.isArray(out.layers) &&
+    out.layers.map(l => l?.layer).join() === Object.keys(measurementLedgerLayers).join() &&
+    out.layers.every(
+      l =>
+        Object.hasOwn(measurementLedgerStates, l.state) &&
+        code(l.reason) &&
+        (l.evidence === null || (typeof l.evidence === 'object' && !Array.isArray(l.evidence))),
+    ) &&
+    !!counts &&
+    Object.keys(measurementLedgerStates).every(s => counts[s] === out.layers.filter(l => l.state === s).length) &&
+    // A failed read carries only its error code, never partial rows.
+    out.layers.every(
+      l =>
+        l.reason !== 'read_failed' ||
+        (l.state === 'unknown' &&
+          !!l.evidence &&
+          Object.keys(l.evidence).join() === 'error' &&
+          /^[A-Z][A-Z0-9_]{0,63}$/.test(l.evidence.error ?? '')),
+    )
+  );
+}
+function measurementLedgerEvidence(l, gateway) {
+  const e = l.evidence ?? {},
+    unknown = esc(uiText('Unknown')),
+    native = v => (v === null || v === undefined || v === '' ? unknown : `<code dir="ltr">${esc(String(v))}</code>`),
+    list = rows => (rows.length ? `<ul class="measurement-ledger-list">${rows.join('')}</ul>` : ''),
+    rows = v => (Array.isArray(v) ? v.slice(0, 5) : []),
+    more = (v, total) =>
+      Number.isSafeInteger(total) && total > Math.min(5, Array.isArray(v) ? v.length : 0)
+        ? `<p class="form-note">${esc(uiText('{shown} of {total} shown.', {shown: Math.min(5, Array.isArray(v) ? v.length : 0), total: uiNumber(total)}))}</p>`
+        : '';
+  if (typeof e.error === 'string') return `${esc(uiText('Error code'))}: ${native(e.error)}`;
+  if (l.state !== 'observed') {
+    if (
+      l.layer === 'provider_observed_activity' &&
+      gateway === 'google_ads_native_action' &&
+      l.reason === 'activity_incomplete'
+    )
+      return esc(
+        uiText(
+          '{conversions} of {actions} primary actions report a last conversion; {tags} report a last tag detection.',
+          {
+            conversions: uiNumber(e.primary_last_conversion_known ?? 0),
+            actions: uiNumber(e.matching_primary_actions ?? 0),
+            tags: uiNumber(e.primary_last_tag_known ?? 0),
+          },
+        ),
+      );
+    if (l.layer === 'provider_observed_activity' && Array.isArray(e.events))
+      return list(
+        rows(e.events).map(
+          v =>
+            `<li><code dir="ltr">${esc(v.event_name)}</code>: ${v.reported_count === null ? esc(uiText('None reported')) : native(v.reported_count)}</li>`,
+        ),
+      );
+    return '';
+  }
+  if (l.layer === 'configuration' && gateway === 'google_ads_native_action')
+    return esc(
+      uiText('{goals} account-default goals · {actions} matching primary actions', {
+        goals: uiNumber(e.summary?.goals ?? 0),
+        actions: uiNumber(e.summary?.matching_primary_actions ?? 0),
+      }),
+    );
+  if (l.layer === 'configuration')
+    return `${esc(uiText('{events} key events · {streams} data streams', {events: uiNumber(e.summary?.key_events ?? 0), streams: uiNumber(e.summary?.data_streams ?? 0)}))}${list(rows(e.data_streams).map(s => `<li><code dir="ltr">${esc(s.stream_id)}</code> ${native(s.type)} ${s.measurement_id ? native(s.measurement_id) : ''}</li>`))}`;
+  if (l.layer === 'provider_observed_activity' && gateway === 'google_ads_native_action')
+    return list(
+      rows(e.primary_actions).map(
+        a =>
+          `<li><bdi dir="auto">${esc(a.name ?? a.resource_name)}</bdi>: ${esc(uiText('Last conversion date'))} ${native(a.last_conversion_date)} · ${esc(uiText('Last tag detected'))} ${native(a.last_tag_received_time)}</li>`,
+      ),
+    );
+  if (l.layer === 'provider_observed_activity')
+    return list(
+      rows(e.events).map(
+        v =>
+          `<li><code dir="ltr">${esc(v.event_name)}</code>: ${v.reported_count === null ? esc(uiText('None reported')) : native(v.reported_count)}</li>`,
+      ),
+    );
+  if (l.layer === 'provider_diagnostics')
+    return (
+      list(
+        rows(e.upload_summaries).map(
+          s =>
+            `<li>${native(s.client)} · ${native(s.status)} · ${esc(uiText('Success rate'))} ${s.success_rate === null ? unknown : `<span dir="ltr">${esc(uiNumber(s.success_rate, {style: 'percent', maximumFractionDigits: 1}))}</span>`} · ${esc(uiText('Last upload'))} ${native(s.last_upload_date_time)}${Number.isSafeInteger(s.alert_count) && s.alert_count ? ` · ${esc(uiText('{count} alerts', {count: uiNumber(s.alert_count)}))}` : ''}</li>`,
+        ),
+      ) + more(e.upload_summaries, e.summary_count)
+    );
+  if (l.layer === 'attribution_settings')
+    return (
+      list(
+        rows(e.actions).map(
+          a =>
+            `<li><bdi dir="auto">${esc(a.name)}</bdi>: ${native(a.attribution_model)} · ${esc(uiText('Click-through window'))} ${a.click_through_lookback_window_days === null ? unknown : esc(uiText('{days} days', {days: uiNumber(a.click_through_lookback_window_days)}))} · ${esc(uiText('View-through window'))} ${a.view_through_lookback_window_days === null ? unknown : esc(uiText('{days} days', {days: uiNumber(a.view_through_lookback_window_days)}))}</li>`,
+        ),
+      ) + more(e.actions, e.action_count)
+    );
+  return '';
+}
+function measurementLedgerView(out, target) {
+  const tasks = measurementLedgerTasks[out.scope.gateway],
+    link = l => {
+      const task = l.layer === 'supplied_runtime_trace' ? 'trace' : tasks[l.layer];
+      return task
+        ? `<a href="#measurement-section-${task}">${esc(uiText(task === 'trace' ? 'Inspect a sanitized event trace' : task === 'gtm' ? 'Google Tag Manager configuration audit' : task === 'goals' ? 'Google Ads conversion goals' : task === 'ga4config' ? 'GA4 property configuration' : 'Recent GA4 events'))}</a>`
+        : '';
+    };
+  const summary = Object.entries(measurementLedgerStates)
+    .map(
+      ([state, label]) =>
+        `<article><strong>${esc(uiNumber(out.summary[state]))}</strong><span>${esc(uiText(label))}</span></article>`,
+    )
+    .join('');
+  const body = out.layers
+    .map(
+      l =>
+        `<tr><th scope="row">${esc(uiText(measurementLedgerLayers[l.layer]))}</th><td><span class="measurement-ledger-state measurement-ledger-${esc(l.state)}">${esc(uiText(measurementLedgerStates[l.state]))}</span></td><td>${esc(Object.hasOwn(measurementLedgerReasons, l.reason) ? uiText(measurementLedgerReasons[l.reason]) : l.reason)}${link(l) ? `<br>${link(l)}` : ''}</td><td>${measurementLedgerEvidence(l, out.scope.gateway)}</td></tr>`,
+    )
+    .join('');
+  return `<h3 id="measurement-ledger-heading" tabindex="-1">${esc(target.label)}</h3><p>${esc(uiText('Requested {requested} · Returned {captured}', {requested: date(out.requested_at), captured: date(out.captured_at)}))}</p><p class="notice">${esc(uiAccountExplanation(out.meaning))}</p><div class="workspace-metrics">${summary}</div><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Evidence layers'))}"><table class="review-table measurement-ledger"><caption>${esc(uiText('Evidence layers'))}</caption><thead><tr><th scope="col">${esc(uiText('Layer'))}</th><th scope="col">${esc(uiText('State'))}</th><th scope="col">${esc(uiText('What this means'))}</th><th scope="col">${esc(uiText('Evidence'))}</th></tr></thead><tbody>${body}</tbody></table></div><p>${esc(uiText('Configuration and reported activity do not prove that conversions are delivered, deduplicated, consented or attributed. Nothing was changed and no snapshot was saved.'))}</p>${recordDetails(out, uiText('Evidence ledger scope, limits and source references'))}`;
+}
+function bindMeasurementLedger(targets) {
+  const form = $('#measurement-ledger'),
+    result = $('#measurement-ledger-result');
+  if (!form?.elements?.target) return;
+  const begin = accountWorkflowContext(form, result);
+  if (typeof location !== 'undefined') {
+    const params = new URLSearchParams(location.search);
+    if (params.has('ledger')) {
+      const index = targets.findIndex(
+          t =>
+            t.gateway === params.get('gateway') &&
+            t.account_id === params.get('account_id') &&
+            t.connection_id === params.get('connection_id'),
+        ),
+        valid =
+          params.get('ledger') === '1' &&
+          ['ledger', 'gateway', 'account_id', 'connection_id'].every(k => params.getAll(k).length === 1) &&
+          index >= 0;
+      form.elements.target.value = valid ? String(index) : '';
+      result.innerHTML = `<p class="form-note" role="status">${esc(valid ? uiText('Account selected from an evidence ledger link. Read the ledger to refresh the evidence.') : uiText('The linked account is unavailable. Choose a currently selected Google Ads account or GA4 property.'))}</p>`;
+    }
+  }
+  workspaceBind('#measurement-ledger', async () => {
+    const current = begin();
+    if (!current()) return;
+    const target = targets[Number(form.elements.target.value)];
+    if (form.elements.target.value === '' || !target)
+      throw Error(uiText('Choose a Google Ads account or GA4 property.'));
+    let out;
+    try {
+      out = await workspaceCall('workspace', {
+        action: 'measurement_ledger',
+        gateway: target.gateway,
+        connection_id: target.connection_id,
+        account_id: target.account_id,
+      });
+    } catch (error) {
+      if (current()) throw error;
+      return;
+    }
+    if (!current()) return;
+    if (!measurementLedgerValid(out, target))
+      throw Error(
+        uiText('The evidence ledger response is incomplete or belongs to a different selection. Read it again.'),
+      );
+    result.innerHTML = measurementLedgerView(out, target);
+    $('#measurement-ledger-heading')?.focus();
   });
 }
 function measurementConversionsMarkup(targets) {

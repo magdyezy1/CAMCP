@@ -785,6 +785,7 @@ export function inspectMeasurementFailures(source, file) {
       'src/measurement-events.ts': ['bad', 'invalid'],
       'src/measurement-event-identity.ts': ['bad', 'invalid'],
       'src/linkedin-conversion-evidence.ts': ['bad', 'invalid'],
+      'src/measurement-ledger.ts': ['bad'],
       'src/gtm-consent-evidence.ts': [],
     }[file.replaceAll('\\', '/')],
     messages = new Set();
@@ -1121,6 +1122,7 @@ export function checkWebLocales(root = process.cwd()) {
     'src/gtm-consent-plans.ts',
     'src/measurement-google-goals.ts',
     'src/ga4-admin-config.ts',
+    'src/measurement-ledger.ts',
   ])
     for (const message of inspectAccountExplanations(fs.readFileSync(path.join(root, file), 'utf8'), file)) {
       accountExplanations.add(message);
@@ -1190,6 +1192,7 @@ export function checkWebLocales(root = process.cwd()) {
     'src/measurement-event-identity.ts',
     'src/gtm-consent-evidence.ts',
     'src/linkedin-conversion-evidence.ts',
+    'src/measurement-ledger.ts',
   ])
     for (const message of inspectMeasurementFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
       required.add(message);

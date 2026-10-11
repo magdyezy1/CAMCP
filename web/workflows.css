@@ -822,6 +822,7 @@
   overflow-wrap: anywhere;
 }
 #measurement-task-heading,
+#measurement-section-ledger,
 #measurement-section-gtm,
 #measurement-section-events,
 #measurement-section-identity,
@@ -867,4 +868,29 @@
 .measurement-task-links a:hover,
 .measurement-task-links a:focus-visible {
   background: #f5f2ff;
+}
+/* MSR-03: the evidence ledger states and short evidence lists wrap inside the table at 320 px. */
+.measurement-ledger td,
+.measurement-ledger th {
+  overflow-wrap: anywhere;
+}
+.measurement-ledger-state {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-subtle);
+  color: var(--ink);
+  white-space: nowrap;
+}
+.measurement-ledger-observed {
+  background: var(--success-bg);
+  color: var(--success-ink);
+}
+.measurement-ledger-unknown {
+  background: var(--warning-bg);
+  color: var(--warning-ink);
+}
+.measurement-ledger-list {
+  margin: 0.25rem 0 0;
+  padding-inline-start: 1.1rem;
 }
