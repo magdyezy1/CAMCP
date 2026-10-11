@@ -263,7 +263,8 @@ test('caps can be stated in account currency where the platform unit is document
     // TikTok's unit is not documented in AMCP, so its caps stay native.
     assert.throws(
       () => f.policy({max_budget_currency: 50}),
-      e => e.code === 'INVALID_POLICY' && /max_budget_native/.test(e.message),
+      // The sentence is fixed (translatable); the native field to use is named in details.
+      e => e.code === 'INVALID_POLICY' && e.details.native_field === 'max_budget_native',
     );
     const workspace = saveSpendPolicy(f.store, owner, {
       scope: 'workspace',

@@ -119,8 +119,10 @@ const budgetLimitKeys = [
 ];
 const moneyUnits =
   'native API budget units for this account; daily cap is cumulative requested positive budget increases, not billed spend; the daily window is the UTC calendar day, so it resets at 00:00 UTC rather than in the account timezone; lifetime and total amounts are held to max_total_budget_native when set (otherwise max_budget_native) and may always decrease';
-const invalidPolicy = (message = 'Use explicit activation/deletion permissions and non-negative numeric limits.') =>
-  new MirrorError('INVALID_POLICY', message);
+const invalidPolicy = (
+  message = 'Use explicit activation/deletion permissions and non-negative numeric limits.',
+  details: JsonObject = {},
+) => new MirrorError('INVALID_POLICY', message, details);
 const validLimit = (v: unknown) =>
   typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= Number.MAX_SAFE_INTEGER;
 const currencyCode = (v: unknown): v is string | null => v === null || (typeof v === 'string' && /^[A-Z]{3}$/.test(v));
@@ -150,17 +152,9 @@ function moneyLimits(input: JsonObject, gateway: string, observedCurrency?: stri
       if (native === undefined)
         throw invalidPolicy(
           gateway === 'meta_native_action'
-            ? 'Meta counts money in the minor unit of the account currency, and AMCP converts ' +
-                key +
-                ' only with the account currency (currency) and a pinned capture of Meta’s currency offsets that lists it. State it in native units as ' +
-                currencyMoneyKeys[key] +
-                ' (100 USD is 10000).'
-            : gateway +
-                ' has no documented budget unit in AMCP, so state ' +
-                key +
-                ' in native API units as ' +
-                currencyMoneyKeys[key] +
-                '.',
+            ? 'Meta counts money in the minor unit of the account currency, and AMCP converts a currency cap (field) only with the account currency (currency) and a pinned capture of Meta’s currency offsets that lists it. State it in native units instead (native_field; 100 USD is 10000).'
+            : 'This platform has no documented budget unit in AMCP, so state this cap (field) in native API units instead (native_field).',
+          {gateway, field: key, native_field: currencyMoneyKeys[key]},
         );
       out[currencyMoneyKeys[key]] = native;
       out[key] = value;
@@ -879,21 +873,29 @@ export function describeExceeded(exceeded: JsonObject[]): string {
               ' (native units' +
               (x.field ? ', ' + x.field : '') +
               ')'
-            : x.rule === 'POLICY_INCREASE_LIMIT'
-              ? 'raising ' +
-                (x.before_decimal ?? x.before) +
-                ' to ' +
-                (x.after_decimal ?? x.after) +
-                ' is more than the ' +
-                x.maximum_percent +
-                '% increase cap'
-              : x.rule === 'POLICY_DAILY_INCREASE_LIMIT'
-                ? "today's budget increases would reach " +
-                  (x.total_decimal ?? x.requested_increase_decimal) +
-                  ', above the daily cap of ' +
-                  x.limit +
-                  ' (native units, UTC day)'
-                : String(x.message),
+            : x.rule === 'POLICY_CURRENCY_MISMATCH'
+              ? 'the caps are in ' +
+                x.policy_currency +
+                ', but this account spends in ' +
+                x.account_currency +
+                ' (never converted)'
+              : x.rule === 'POLICY_CURRENCY_UNKNOWN'
+                ? 'the caps are in ' + x.policy_currency + ' and this account’s currency is unknown'
+                : x.rule === 'POLICY_INCREASE_LIMIT'
+                  ? 'raising ' +
+                    (x.before_decimal ?? x.before) +
+                    ' to ' +
+                    (x.after_decimal ?? x.after) +
+                    ' is more than the ' +
+                    x.maximum_percent +
+                    '% increase cap'
+                  : x.rule === 'POLICY_DAILY_INCREASE_LIMIT'
+                    ? "today's budget increases would reach " +
+                      (x.total_decimal ?? x.requested_increase_decimal) +
+                      ', above the daily cap of ' +
+                      x.limit +
+                      ' (native units, UTC day)'
+                    : String(x.message),
     )
     .join('; ');
 }
@@ -1141,9 +1143,7 @@ function checkAccountSpendPolicy(
         breach(
           new MirrorError(
             'POLICY_CURRENCY_UNKNOWN',
-            'The owner stated these caps in ' +
-              policy.currency +
-              ', and the account currency is unknown, so they cannot be compared. Read the account live first (next_call).',
+            'The owner stated these caps in a currency (policy_currency), and this account’s currency is unknown, so they cannot be compared. Read the account live first (next_call).',
             {
               policy_currency: policy.currency,
               ...(connection
@@ -1167,11 +1167,7 @@ function checkAccountSpendPolicy(
         breach(
           new MirrorError(
             'POLICY_CURRENCY_MISMATCH',
-            'The owner stated these caps in ' +
-              policy.currency +
-              ', but this account spends in ' +
-              observed +
-              '. AMCP never converts between currencies; the owner states caps for this account in its own currency.',
+            'The owner stated these caps in one currency (policy_currency), but this account spends in another (account_currency). AMCP never converts between currencies; the owner states caps for this account in its own currency.',
             {policy_currency: policy.currency, account_currency: observed},
             403,
           ),

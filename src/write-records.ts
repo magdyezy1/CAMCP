@@ -4,6 +4,7 @@ import {MirrorError} from './errors.js';
 import {ownsRecord} from './actor-identity.js';
 import {reviewSummary} from './review-summary.js';
 import {optional} from './workspace-core.js';
+import {workspaceOwner} from './spend-policy.js';
 
 /**
  * Standalone reviewed writes as retained work (WRT-08 Stage A). A review prepared directly through amcp_write, or from
@@ -149,8 +150,21 @@ function recordState(store: Store, tenant: string, id: string, review: JsonObjec
   );
   return {claim, result, journal, verification, reconciliation, state};
 }
-/** The call that moves a write record on from its state; execute never pre-fills an acknowledgement. */
-function nextCall(id: string, review: JsonObject, state: string): JsonObject | null {
+/**
+ * Who may settle an uncertain write's outcome (accept it as applied, or replace it): the credential that prepared it,
+ * the same person through another client, or the workspace owner. An administrator may read any retained review of an
+ * account they can access, but settling a colleague's write lets that colleague's dependent work continue, which is
+ * no more than execute itself allows.
+ */
+export function mayResolve(store: Store, actor: Actor, review: JsonObject): boolean {
+  return review.user_id === actor.userId || ownsRecord(actor, review) || workspaceOwner(store, actor);
+}
+/**
+ * The call that moves a write record on from its state; execute never pre-fills an acknowledgement. An expired review
+ * is prepared again from its original arguments only for the credential that prepared it: anyone else gets the call's
+ * scope without the request body (WRT-08 privacy: request bodies are not shown to other members).
+ */
+function nextCall(id: string, review: JsonObject, state: string, actor: Actor): JsonObject | null {
   if (['unsubmitted', 'not_sent'].includes(state)) {
     const flags = (Array.isArray(review.required_acknowledgements) ? review.required_acknowledgements : []).filter(
       (k: unknown) => typeof k === 'string' && k !== 'confirmed',
@@ -161,8 +175,20 @@ function nextCall(id: string, review: JsonObject, state: string): JsonObject | n
       add_after_user_approval: Object.fromEntries(['confirmed', ...flags].map((k: string) => [k, true])),
     };
   }
-  if (state === 'expired')
-    return review.prepare_input ? {tool: 'amcp_write', arguments: {action: 'prepare', ...review.prepare_input}} : null;
+  if (state === 'expired') {
+    const input = review.prepare_input as JsonObject | undefined;
+    if (!input) return null;
+    if (review.user_id === actor.userId) return {tool: 'amcp_write', arguments: {action: 'prepare', ...input}};
+    return {
+      tool: 'amcp_write',
+      arguments: {
+        action: 'prepare',
+        ...(typeof input.gateway === 'string' ? {gateway: input.gateway} : {}),
+        ...(typeof input.connection_id === 'string' ? {connection_id: input.connection_id} : {}),
+      },
+      arguments_required: 'The original native arguments are shown only to the person who prepared this review.',
+    };
+  }
   if (state === 'uncertain') return {tool: 'amcp_write', arguments: {action: 'reconcile', review_id: id}};
   if (state === 'executing') return {tool: 'amcp_write', arguments: {action: 'status', review_id: id}};
   if (['complete', 'reconciled', 'verified', 'verifying', 'mismatch', 'inconclusive'].includes(state))
@@ -199,7 +225,8 @@ function partSummary(store: Store, tenant: string, id: string, now: number): Jso
 /**
  * `amcp_write status`: a retained review read back from AMCP alone (zero provider requests). Returns what the review
  * does, its claim, receipt, read-back and reconciliation, the review's own state reads as read-only lookups, and the
- * one call that moves it on. Secrets, people and request bodies are never returned.
+ * one call that moves it on. Secrets and people are never returned, and a request body only to the credential that
+ * prepared it (its expired review's prepare call).
  */
 export function writeStatus(store: Store, actor: Actor, reviewId: unknown): JsonObject {
   const {review, group} = retainedReview(store, actor, reviewId),
@@ -210,7 +237,7 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
   const parts = group
     ? (review.parts as string[]).map((part, i) => ({part: i + 1, ...partSummary(store, actor.tenantId, part, now)}))
     : undefined;
-  const call = nextCall(id, review, s.state);
+  const call = nextCall(id, review, s.state, actor);
   store.assertActorActive(actor);
   return {
     record_kind: group ? 'write_review_group' : 'write_review',
@@ -265,6 +292,8 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
       path: r.path,
     })),
     next_safe_action: guidance[s.state] ?? 'Inspect the retained review before any action.',
+    // Whether this reader may settle the outcome (accept_applied, or a replacement): the website shows the action then.
+    may_resolve: mayResolve(store, actor, review),
     next_call: call,
     website_path: writeRecordPath(id),
     network_requests: 0,

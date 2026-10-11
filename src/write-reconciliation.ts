@@ -18,7 +18,7 @@ import {stateRead} from './write-snapshots.js';
 import {googleAdsCustomers} from './google-version.js';
 import {fingerprint, optional} from './workspace-core.js';
 import {ownsRecord} from './actor-identity.js';
-import {pendingUncertainMs, retainedReview, writeStatus} from './write-records.js';
+import {mayResolve, pendingUncertainMs, retainedReview, writeStatus} from './write-records.js';
 import {object} from './write-common.js';
 
 /**
@@ -199,10 +199,11 @@ export class WriteReconciler {
     if (claim?.state !== 'uncertain' && !stalePending)
       fail(
         'RECONCILIATION_UNAVAILABLE',
-        'Only a write whose outcome is uncertain is reconciled; this one is ' +
-          (writeStatus(this.store, actor, review.id).state as string) +
-          '. Read its status (next_call).',
-        {next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: review.id}}},
+        'Only a write whose outcome is uncertain is reconciled, and this one is not (state). Read its status (next_call).',
+        {
+          state: writeStatus(this.store, actor, review.id).state,
+          next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: review.id}},
+        },
       );
     return {review, plan: review.plan as CompiledRequest, claimedAt: Number(claim!.created_at)};
   }
@@ -312,10 +313,12 @@ export class WriteReconciler {
     if (wait > 0)
       fail(
         'RECONCILIATION_TOO_EARLY',
-        'The provider may still be applying this request. Reconcile again in ' +
-          Math.ceil(wait / 1000) +
-          ' seconds; nothing was read or sent.',
-        {retry_after_ms: wait, next_call: {tool: 'amcp_write', arguments: {action: 'reconcile', review_id: id}}},
+        'The provider may still be applying this request. Reconcile again after retry_after_ms; nothing was read or sent.',
+        {
+          retry_after_ms: wait,
+          retry_after_seconds: Math.ceil(wait / 1000),
+          next_call: {tool: 'amcp_write', arguments: {action: 'reconcile', review_id: id}},
+        },
       );
     const {read, count} = this.reader(actor, review),
       rounds: JsonObject[] = [];
@@ -414,18 +417,14 @@ export class WriteReconciler {
         {reconciliation_id: record.reconciliation_id, ...again},
       );
     if (record.superseded_by)
-      fail('RECONCILIATION_UNAVAILABLE', 'This write was already replaced by review ' + record.superseded_by + '.', {
+      fail('RECONCILIATION_UNAVAILABLE', 'This write was already replaced by a new review (superseded_by).', {
         superseded_by: record.superseded_by,
       });
     if (record.classification !== classification)
       fail(
         'RECOVERY_NOT_SAFE',
-        'The latest reconciliation found this write ' +
-          String(record.classification).replaceAll('_', ' ') +
-          ', not ' +
-          classification.replaceAll('_', ' ') +
-          '. Nothing was changed.',
-        {classification: record.classification, ...again},
+        'The latest reconciliation found a different outcome (classification) than this action needs (required). Nothing was changed.',
+        {classification: record.classification, required: classification, ...again},
       );
     if (Date.now() - Number(record.checked_at) > reconciliationFreshMs)
       fail(
@@ -448,8 +447,17 @@ export class WriteReconciler {
     if (typeof input.reconciliation_id !== 'string')
       fail('INVALID_ARGUMENT', 'Send the reconciliation_id the user saw.', {field: 'reconciliation_id'}, 400);
     const {review, plan} = this.uncertain(actor, input.review_id),
-      id = review.id as string,
-      record = this.latest(actor, id, 'appears_applied', input.reconciliation_id),
+      id = review.id as string;
+    // Accepting settles the outcome and lets dependent plan steps continue: no wider than execute (the preparing
+    // credential or the same person), plus the workspace owner. Other administrators read and reconcile only.
+    if (!mayResolve(this.store, actor, review))
+      fail(
+        'FORBIDDEN',
+        'Only the person who prepared this write, or the workspace owner, accepts its outcome.',
+        {next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: id}}},
+        403,
+      );
+    const record = this.latest(actor, id, 'appears_applied', input.reconciliation_id),
       c = this.store.resolveConnection(actor, plan.gateway, plan.accountId, review.connection_id),
       at = Date.now();
     const outcome = {

@@ -199,6 +199,40 @@ function reconciliationGuidance(classification) {
     );
   return uiText('The provider reads did not settle the outcome. Check again later or inspect the provider directly.');
 }
+// The server's review summary of a write record (WRT-08), localized like the review page's (WRT-05): the operation is
+// translated; entity, field names, amounts and statuses stay as the server wrote them.
+const writeSummaryOperations = {
+  create: 'Create',
+  update: 'Update',
+  delete: 'Delete',
+  remove: 'Remove',
+  publish: 'Publish',
+  change: 'Change',
+};
+function writeSummary(summary) {
+  if (!summary || typeof summary !== 'object' || typeof summary.operation !== 'string') return '';
+  const money = (summary.money ?? []).map(
+      m =>
+        `<li><code dir="ltr">${esc(String(m.field).split('/').at(-1))}</code> <bdi dir="ltr">${m.amount !== undefined ? esc(m.amount + (m.currency ? ' ' + m.currency : '')) + ' · ' : ''}${esc(m.native)}${m.native_unit ? ' ' + esc(m.native_unit) : ''}</bdi></li>`,
+    ),
+    status = (summary.status ?? []).map(
+      s =>
+        `<li><code dir="ltr">${esc(String(s.field).split('/').at(-1))}</code> <bdi dir="ltr">${s.from ? esc(s.from) + ' → ' : ''}${esc(s.to)}</bdi></li>`,
+    );
+  return `<p><strong>${esc(uiText(writeSummaryOperations[summary.operation] ?? 'Change'))}</strong> <bdi dir="ltr">${esc(uiNumber(summary.count ?? 1))} × ${esc(summary.entity ?? '')}</bdi></p>${money.length || status.length ? `<ul>${[...money, ...status].join('')}</ul>` : ''}`;
+}
+/** A refusal of the write panel, with the wait a too-early reconciliation names (the server's sentence is fixed). */
+function writeRecordError(e) {
+  const seconds = Number(e?.details?.retry_after_seconds);
+  if (e?.code === 'RECONCILIATION_TOO_EARLY' && Number.isFinite(seconds) && seconds > 0)
+    return uiText(
+      'The provider may still be applying this change. Check again in {seconds} seconds; nothing was read or sent.',
+      {
+        seconds: uiNumber(seconds),
+      },
+    );
+  return errorMessage(e);
+}
 /** The original review behind a write record (WRT-08): its state, claim and read-only reconciliation. */
 function writeRecordController(root, id, onChange = () => {}) {
   const generation = navigationGeneration,
@@ -215,10 +249,12 @@ function writeRecordController(root, id, onChange = () => {}) {
       if (!active()) return;
       const r = w.reconciliation,
         fresh = r && Date.now() - new Date(r.checked_at).getTime() < 15 * 60000,
-        acceptable = w.state === 'uncertain' && fresh && r.classification === 'appears_applied';
-      root.innerHTML = `<div class="operation-heading"><div><small>${esc(uiText('Reviewed change'))} · ${esc(operationGatewayLabel(w.gateway))}</small><h2 id="write-record-heading" tabindex="-1">${esc(w.action ?? w.review_id)}</h2></div>${badge(w.state)}</div><p><strong>${esc(uiText('Account'))} ${esc(w.account_id)}</strong></p>${w.summary?.text ? `<p>${esc(w.summary.text)}</p>` : ''}<p>${esc(writeGuidance(w.state))}</p><p class="form-note">${w.prepared_at ? esc(uiText('Prepared')) + ' ' + date(w.prepared_at) + ' · ' : ''}${esc(uiText('Expires'))} ${date(w.expires_at)}</p>${r ? `<section class="notice" aria-label="${esc(uiText('Read-only provider check'))}"><p><strong>${esc(operationLabel(r.classification))}</strong> · ${date(r.checked_at)}</p><p>${esc(reconciliationGuidance(r.classification))}</p></section>` : ''}<details class="workspace-details"><summary>${esc(uiText('Original review references'))}</summary><p>${esc(uiText('Review'))} <code>${esc(w.review_id)}</code></p><p>${esc(uiText('Connection'))} <code>${esc(w.connection_id)}</code></p>${w.fingerprint ? `<p>${esc(uiText('Fingerprint'))} <code>${esc(w.fingerprint)}</code></p>` : ''}${(w.suggested_reads ?? []).length ? `<p>${esc(uiText('Provider lookups this review read'))}</p><ul>${w.suggested_reads.map(s => `<li><code>${esc(s.method)} ${esc(s.path)}</code></li>`).join('')}</ul>` : ''}</details><div class="dialog-actions work-actions"><button id="write-record-refresh" class="button">${esc(uiText('Refresh'))}</button>${w.state === 'uncertain' && session.workspaceRole !== 'viewer' ? `<button id="write-record-reconcile" class="button">${esc(uiText('Check the provider (read-only)'))}</button>` : ''}${acceptable ? `<button id="write-record-accept" class="button primary">${esc(uiText('Accept as applied'))}</button>` : ''}</div>${recordDetails(w.next_call, uiText('Continue in MCP'))}<p data-write-status role="status"></p>`;
+        // Only the person who prepared it, or the workspace owner, settles its outcome (the server refuses others).
+        acceptable =
+          w.state === 'uncertain' && fresh && r.classification === 'appears_applied' && w.may_resolve !== false;
+      root.innerHTML = `<div class="operation-heading"><div><small>${esc(uiText('Reviewed change'))} · ${esc(operationGatewayLabel(w.gateway))}</small><h2 id="write-record-heading" tabindex="-1">${esc(w.action ?? w.review_id)}</h2></div>${badge(w.state)}</div><p><strong>${esc(uiText('Account'))} ${esc(w.account_id)}</strong></p>${writeSummary(w.summary)}<p>${esc(writeGuidance(w.state))}</p><p class="form-note">${w.prepared_at ? esc(uiText('Prepared')) + ' ' + date(w.prepared_at) + ' · ' : ''}${esc(uiText('Expires'))} ${date(w.expires_at)}</p>${r ? `<section class="notice" aria-label="${esc(uiText('Read-only provider check'))}"><p><strong>${esc(operationLabel(r.classification))}</strong> · ${date(r.checked_at)}</p><p>${esc(reconciliationGuidance(r.classification))}</p></section>` : ''}<details class="workspace-details"><summary>${esc(uiText('Original review references'))}</summary><p>${esc(uiText('Review'))} <code>${esc(w.review_id)}</code></p><p>${esc(uiText('Connection'))} <code>${esc(w.connection_id)}</code></p>${w.fingerprint ? `<p>${esc(uiText('Fingerprint'))} <code>${esc(w.fingerprint)}</code></p>` : ''}${(w.suggested_reads ?? []).length ? `<p>${esc(uiText('Provider lookups this review read'))}</p><ul>${w.suggested_reads.map(s => `<li><code>${esc(s.method)} ${esc(s.path)}</code></li>`).join('')}</ul>` : ''}</details><div class="dialog-actions work-actions"><button id="write-record-refresh" class="button">${esc(uiText('Refresh'))}</button>${w.state === 'uncertain' && session.workspaceRole !== 'viewer' ? `<button id="write-record-reconcile" class="button">${esc(uiText('Check the provider (read-only)'))}</button>` : ''}${acceptable ? `<button id="write-record-accept" class="button primary">${esc(uiText('Accept as applied'))}</button>` : ''}</div>${recordDetails(w.next_call, uiText('Continue in MCP'))}<p data-write-status role="status"></p>`;
       const report = e => {
-        if (active()) root.querySelector('[data-write-status]').textContent = errorMessage(e);
+        if (active()) root.querySelector('[data-write-status]').textContent = writeRecordError(e);
       };
       workspaceBind('#write-record-refresh', load);
       workspaceBind('#write-record-reconcile', async () => {

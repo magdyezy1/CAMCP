@@ -100,7 +100,105 @@ test('standalone reviews are retained work: each state has its category for its 
       {accessToken: 'synthetic', developerToken: 'synthetic'},
     );
     assert.deepEqual(await writes(f), []);
-    assert.equal((await status(f, uncertain)).success, false);
+    // The account left the login, so its review has no connection to read through.
+    assert.equal((await status(f, uncertain)).error.code, 'CONNECTION_REQUIRED');
+  } finally {
+    f.close();
+  }
+});
+
+/** A second administrator of the workspace who signed in on the website: not the workspace owner, not the maker. */
+function colleague(f) {
+  f.store.db.exec(
+    'CREATE TABLE IF NOT EXISTS amcp_users(id TEXT PRIMARY KEY,version INTEGER,approved INTEGER,disabled INTEGER)',
+  );
+  f.store.db.prepare('INSERT INTO amcp_users VALUES(?,1,1,0)').run('colleague-person');
+  f.store.db
+    .prepare('INSERT INTO workspace_memberships VALUES(?,?,?,?,?)')
+    .run(f.actor.tenantId, 'colleague-person', 'admin', 1, Date.now());
+  return {tenantId: f.actor.tenantId, userId: 'colleague', role: 'admin', ownerUserId: 'colleague-person'};
+}
+
+test('an expired review names its original arguments only to the credential that prepared it (regression)', async () => {
+  // Before: status spread prepare_input into next_call for any admin, disclosing a colleague's request body.
+  const f = googleBudgetFixture();
+  try {
+    const id = (await f.update(110000000)).data.review_id;
+    const doc = f.store.document(f.actor.tenantId, 'write_review', id);
+    f.store.putDocument(f.actor.tenantId, 'write_review', id, {...strip(doc), expires_at: Date.now() - 1000});
+    const own = await status(f, id);
+    assert.equal(own.data.state, 'expired');
+    assert.equal(own.data.next_call.arguments.action, 'prepare');
+    assert.ok(own.data.next_call.arguments.arguments, 'the maker can prepare the same request again');
+    const other = await status(f, id, colleague(f));
+    assert.equal(other.success, true, JSON.stringify(other).slice(0, 600));
+    assert.equal(other.data.state, 'expired');
+    assert.deepEqual(other.data.next_call.arguments, {action: 'prepare', gateway, connection_id: 'g'});
+    assert.ok(other.data.next_call.arguments_required);
+    // The request body stays out of the call; the review's own summary line is the record's projection, as before.
+    const call = JSON.stringify(other.data.next_call);
+    for (const leaked of ['payload', 'amountMicros', '110000000', 'operations', 'resourceName'])
+      assert.equal(call.includes(leaked), false, leaked);
+    assert.equal(JSON.stringify(other).includes('"payload"'), false);
+  } finally {
+    f.close();
+  }
+});
+
+test('an administrator who did not prepare an uncertain write cannot accept it as applied; its maker can (regression)', async () => {
+  // Before: retainedReview admitted any administrator, so a colleague could mark a member's uncertain write complete and
+  // let that member's dependent plan steps continue, which execute itself never allowed them.
+  const f = googleBudgetFixture();
+  try {
+    const id = (await f.update(100000000)).data.review_id;
+    f.hooks.respond = body => {
+      const op = body.operations[0].update;
+      f.budgets.set(op.resourceName ?? op.resource_name, String(op.amountMicros ?? op.amount_micros));
+      throw new TypeError('applied, then the response was lost');
+    };
+    await f.execute(id);
+    f.hooks.respond = undefined;
+    const r = await quick(() => f.write({action: 'reconcile', review_id: id}));
+    assert.equal(r.data.classification, 'appears_applied', JSON.stringify(r.data));
+    const admin = colleague(f),
+      seen = await status(f, id, admin);
+    assert.equal(seen.data.may_resolve, false, 'the colleague reads it but cannot settle it');
+    assert.equal((await status(f, id)).data.may_resolve, true);
+    const refused = await f.call(
+      'amcp_write',
+      {action: 'reconcile', review_id: id, accept_applied: true, reconciliation_id: r.data.reconciliation_id},
+      admin,
+    );
+    assert.equal(refused.error.code, 'FORBIDDEN');
+    assert.equal(f.claim(id).state, 'uncertain', 'nothing changed');
+    const accepted = await f.write({
+      action: 'reconcile',
+      review_id: id,
+      accept_applied: true,
+      reconciliation_id: r.data.reconciliation_id,
+    });
+    assert.equal(accepted.success, true, JSON.stringify(accepted).slice(0, 600));
+    assert.equal(f.claim(id).state, 'complete');
+  } finally {
+    f.close();
+  }
+});
+
+test('reconciliation refusals are fixed sentences with their values in details', async () => {
+  const f = googleBudgetFixture();
+  try {
+    const id = (await f.update(100000000)).data.review_id;
+    const unsent = await f.write({action: 'reconcile', review_id: id});
+    assert.equal(unsent.error.code, 'RECONCILIATION_UNAVAILABLE');
+    assert.equal(unsent.error.details.state, 'unsubmitted');
+    assert.doesNotMatch(unsent.error.message, /unsubmitted/);
+    f.hooks.respond = lost;
+    await f.execute(id);
+    f.hooks.respond = undefined;
+    const early = await f.write({action: 'reconcile', review_id: id});
+    assert.equal(early.error.code, 'RECONCILIATION_TOO_EARLY');
+    assert.ok(early.error.details.retry_after_seconds > 0);
+    assert.doesNotMatch(early.error.message, /\d/, 'the wait is in details, not the sentence');
   } finally {
     f.close();
   }
@@ -321,7 +419,7 @@ test('a dispatched write whose response was lost shows uncertain; its next calls
     f.hooks.respond = lost;
     const failed = await f.execute(id);
     f.hooks.respond = undefined;
-    assert.equal(failed.success, false);
+    assert.equal(failed.error.code, 'WRITE_OUTCOME_UNCERTAIN');
     assert.deepEqual(failed.error.details.next_call, {
       tool: 'amcp_write',
       arguments: {action: 'status', review_id: id},
