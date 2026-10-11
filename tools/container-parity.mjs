@@ -139,7 +139,9 @@ export async function containerParity({
       const source = path.join(context.from, file),
         target = path.join(app, file);
       fs.mkdirSync(path.dirname(target), {recursive: true});
-      if (file === sample && !fs.existsSync(source)) fs.writeFileSync(target, '[]\n');
+      // Historical account responses are never copied: the sample is always the empty generated one, as in a release
+      // candidate (tools/prepare-public-release.mjs), and the source file is never read.
+      if (file === sample) fs.writeFileSync(target, '[]\n');
       else fs.copyFileSync(source, target);
       entries.push({path: file, sha256: sha(fs.readFileSync(target))});
     }

@@ -48,7 +48,9 @@ export function createRuntime(
     // the token’s value; owner health repeats it.
     const developerToken = googleDeveloperTokenWarning();
     if (developerToken) log({level: 'warn', event: 'google_developer_token_ignored', message: developerToken});
-    // Issuer quota profiles are validated before the database opens; an invalid profile stops start-up (OPS-08).
+    // Issuer quota profiles are validated before the database opens; an invalid profile stops start-up (OPS-08), and
+    // the startup_failed line names this stage rather than the provider version pins.
+    stage = 'quota_policy';
     const quotaPolicy = quotaPolicyFromEnv(process.env);
     stage = 'volume';
     const volume = verifyDataVolume(config, log, options.stat);
@@ -94,7 +96,7 @@ export function createRuntime(
     throw error;
   }
 }
-type StartupStage = 'provider_versions' | 'volume' | 'store_open' | 'volume_marker' | 'service';
+type StartupStage = 'provider_versions' | 'quota_policy' | 'volume' | 'store_open' | 'volume_marker' | 'service';
 const startupCode = (error: unknown) => {
   const code = error instanceof MirrorError ? error.code : (error as {code?: unknown})?.code;
   return typeof code === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(code) ? code : 'STARTUP_FAILED';

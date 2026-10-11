@@ -65,9 +65,8 @@ export function readSchemaState(db: DatabaseSync): SchemaState {
 export function schemaTooNew(state: SchemaState): MirrorError {
   return new MirrorError(
     'SCHEMA_TOO_NEW',
-    'This database was written by a newer AMCP release that older releases cannot read. Deploy that release (or a newer one) again, or restore a backup made by this release; see ' +
-      SCHEMA_RECOVERY_DOC +
-      '.',
+    // One literal message (it names SCHEMA_RECOVERY_DOC, which a test holds equal), so it has an Arabic translation.
+    'This database was written by a newer AMCP release that older releases cannot read. Deploy that release (or a newer one) again, or restore a backup made by this release; see docs/OPERATIONS.md#schema-migrations-and-rollback.',
     {
       database_version: state.version,
       min_reader_version: state.min_reader_version ?? state.version,

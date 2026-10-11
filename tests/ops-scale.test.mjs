@@ -229,6 +229,52 @@ test('two workspaces share an issuer: A exhausts its share, B and a reserved ver
   }
 });
 
+test('reserved requests beyond the reserved slice draw on the general pool, so nothing exceeds daily_requests in either order (regression)', async () => {
+  const reserved = tenant => runWithQuotaPurpose('reserved', () => plainRequest(tenant));
+  let f = quotaFixture(':memory:');
+  const plainRequest = tenant => f.transport.request(plan, connectionOf(tenant), credentials);
+  try {
+    f.store.quotaPolicy = enforce;
+    // Reserved work first: all 20 of the day's requests are read-backs.
+    for (let i = 0; i < 20; i++) await reserved('tenant-a');
+    assert.equal(f.sent(), 20);
+    // Before the fix a standard request still counted only standard requests against the pool of 18 and was sent.
+    await assert.rejects(
+      plainRequest('tenant-b'),
+      e => e.code === 'PROVIDER_QUOTA_SHARE_EXHAUSTED' && e.details.scope === 'issuer_pool',
+    );
+    await assert.rejects(reserved('tenant-b'), e => e.details?.scope === 'issuer_daily');
+    assert.equal(f.sent(), 20, 'the refusals sent nothing');
+    assert.equal(providerQuotaHealth(f.store.db, 'tenant-a', enforce).issuers[0].general_pool_remaining, 0);
+    f.store.close();
+    // Mixed: 5 read-backs overflow the slice of 2 by 3, which the standard work of two workspaces then cannot use.
+    f = quotaFixture(':memory:');
+    f.store.quotaPolicy = enforce;
+    for (let i = 0; i < 5; i++) await reserved('tenant-a');
+    for (let i = 0; i < 9; i++) await plainRequest('tenant-a');
+    let refusal;
+    for (let i = 0; i < 10 && !refusal; i++)
+      await plainRequest('tenant-b').catch(e => {
+        refusal = e;
+      });
+    assert.equal(refusal?.details.scope, 'issuer_pool');
+    assert.equal(f.sent(), 20, 'standard and reserved requests together stop at daily_requests');
+    await assert.rejects(reserved('tenant-a'), e => e.details?.scope === 'issuer_daily');
+    assert.equal(f.sent(), 20);
+    f.store.close();
+    // Observe mode counts the same refusal without making it.
+    f = quotaFixture(':memory:');
+    f.store.quotaPolicy = {...enforce, mode: 'observe'};
+    for (let i = 0; i < 20; i++) await reserved('tenant-a');
+    await plainRequest('tenant-b');
+    assert.equal(f.sent(), 21);
+    const [issuer] = providerQuotaHealth(f.store.db, 'tenant-b', f.store.quotaPolicy).issuers;
+    assert.deepEqual([issuer.today.would_refuse, issuer.today.refused, issuer.general_pool_remaining], [1, 0, 0]);
+  } finally {
+    f.store.close();
+  }
+});
+
 test('observe mode never refuses; it counts what enforcement would have refused', async () => {
   const f = quotaFixture(':memory:');
   try {

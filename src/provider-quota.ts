@@ -14,7 +14,8 @@ import type {Credentials} from './types.js';
  * exists before any profile is set. Mode `enforce` refuses before egress, with a retryable
  * PROVIDER_QUOTA_SHARE_EXHAUSTED, once a profile's limit for the current UTC day is reached:
  *   - standard requests stop when one workspace reaches its share of the general pool, or the pool is spent;
- *   - reserved requests (write verification read-backs and reauthorization checks) may also use the reserved slice.
+ *   - reserved requests (write verification read-backs and reauthorization checks) may also use the reserved slice;
+ *     those beyond the slice draw on the general pool, so all requests together never exceed daily_requests.
  * Counters live in SQLite, so they are shared between processes and survive a restart.
  */
 export type QuotaPurpose = 'standard' | 'reserved';
@@ -108,6 +109,19 @@ export function quotaPolicyFromEnv(env: NodeJS.ProcessEnv = process.env): QuotaP
   return Object.freeze({mode, profiles: Object.freeze(profiles)});
 }
 export type IssuerDay = {requests: number; reserved_requests: number; operations: number};
+/** A profile's general pool (the daily requests less the reserved slice) and one workspace's share of that pool. */
+export function quotaPool(profile: QuotaProfile): {pool: number; slice: number; share: number} {
+  const pool = Math.floor(profile.daily_requests * (1 - profile.reserved_fraction));
+  return {pool, slice: profile.daily_requests - pool, share: Math.max(1, Math.floor(pool * profile.tenant_share))};
+}
+/**
+ * The general pool an issuer has used today: its standard requests, plus the reserved requests that overflowed the
+ * reserved slice. Reserved work beyond the slice draws on the pool, so standard and reserved requests together never
+ * exceed the profile's daily requests in either order.
+ */
+export function generalPoolUsed(profile: QuotaProfile, issuerToday: IssuerDay): number {
+  return issuerToday.requests - Math.min(issuerToday.reserved_requests, quotaPool(profile).slice);
+}
 /**
  * Whether `permit` fits `profile` given today's counts so far: null when it does, else which limit it reached. The
  * general pool excludes the reserved slice; one workspace's share is a fraction of the general pool.
@@ -118,11 +132,10 @@ export function quotaRefusal(
   issuerToday: IssuerDay,
   workspaceToday: IssuerDay,
 ): 'workspace_share' | 'issuer_pool' | 'issuer_daily' | null {
-  const pool = Math.floor(profile.daily_requests * (1 - profile.reserved_fraction)),
-    share = Math.max(1, Math.floor(pool * profile.tenant_share));
+  const {pool, share} = quotaPool(profile);
   if (permit.purpose === 'reserved') return issuerToday.requests >= profile.daily_requests ? 'issuer_daily' : null;
   if (workspaceToday.requests - workspaceToday.reserved_requests >= share) return 'workspace_share';
-  if (issuerToday.requests - issuerToday.reserved_requests >= pool) return 'issuer_pool';
+  if (generalPoolUsed(profile, issuerToday) >= pool) return 'issuer_pool';
   return null;
 }
 type UsageRow = {
@@ -174,16 +187,16 @@ export function providerQuotaHealth(db: DatabaseSync, tenant: string, policy: Qu
       const [issuer, gateway] = k.split('\0') as [string, string],
         own = rows.filter(r => r.issuer === issuer && r.gateway === gateway),
         todayCounts = counts(own.filter(r => r.day === today)),
-        profile = policy.profiles[gateway] ?? null,
-        pool = profile ? Math.floor(profile.daily_requests * (1 - profile.reserved_fraction)) : null;
+        profile = policy.profiles[gateway] ?? null;
       return {
         issuer,
         gateway,
         profile,
         today: todayCounts,
         workspace_today: counts(mine.filter(r => r.issuer === issuer && r.gateway === gateway)),
-        general_pool_remaining:
-          pool === null ? null : Math.max(0, pool - (todayCounts.requests - todayCounts.reserved_requests)),
+        general_pool_remaining: profile
+          ? Math.max(0, quotaPool(profile).pool - generalPoolUsed(profile, todayCounts))
+          : null,
         days: own.map(r => ({day: r.day, requests: r.requests, operations: r.operations, rate_limits: r.rate_limits})),
       };
     }),

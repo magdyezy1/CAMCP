@@ -5,6 +5,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
 import {containerParity, contextFiles, dockerignore, removeLink} from '../tools/container-parity.mjs';
 
 const repositoryIgnore = fs.readFileSync(new URL('../.dockerignore', import.meta.url), 'utf8');
@@ -108,6 +110,52 @@ test('a copy without Git runs the named tests and is removed, leaving the depend
     assert.equal(scratchCount(), before, 'the copy is removed');
   } finally {
     c.cleanup();
+  }
+});
+
+test('from a checkout, the copy holds the empty generated sample, never the historical one (regression)', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-parity-checkout-')),
+    modules = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-parity-modules-'));
+  try {
+    const files = {
+      'tests/parity.test.mjs': inside,
+      'src/a.ts': 'export const a = 1;\n',
+      '.env.example': 'MIRROR_DB=\n',
+      '.dockerignore': repositoryIgnore,
+      // A checkout's sample may hold historical account responses (synthetic here); they must not reach the copy.
+      '.mirror/RESULTS/live-read-samples.json': '[{"account_id":"synthetic-historical-response"}]\n',
+    };
+    for (const [file, text] of Object.entries(files)) {
+      fs.mkdirSync(path.dirname(path.join(root, file)), {recursive: true});
+      fs.writeFileSync(path.join(root, file), text);
+    }
+    fs.writeFileSync(path.join(modules, 'sentinel.txt'), 'dependency target\n');
+    // A checkout (no release manifest): the release scope comes from Git.
+    execFileSync('git', ['init', '-q'], {cwd: root, stdio: 'ignore', windowsHide: true});
+    const listed = contextFiles(root);
+    assert.ok(listed.files.includes('.mirror/RESULTS/live-read-samples.json'));
+    const record = await containerParity({
+      from: root,
+      nodeModules: modules,
+      tests: ['tests/parity.test.mjs'],
+      build: false,
+    });
+    // The test inside the copy asserts the sample there is exactly "[]\n".
+    assert.equal(record.passed, true, JSON.stringify(record.steps));
+    const sha = text => createHash('sha256').update(text).digest('hex'),
+      entries = listed.files.map(file => ({
+        path: file,
+        sha256: sha(file === '.mirror/RESULTS/live-read-samples.json' ? '[]\n' : files[file]),
+      }));
+    assert.equal(record.source_tree_hash, sha(JSON.stringify(entries)), 'the record hashes the empty sample');
+    assert.equal(
+      fs.readFileSync(path.join(root, '.mirror/RESULTS/live-read-samples.json'), 'utf8'),
+      files['.mirror/RESULTS/live-read-samples.json'],
+      'the checkout itself is untouched',
+    );
+  } finally {
+    fs.rmSync(root, {recursive: true, force: true});
+    fs.rmSync(modules, {recursive: true, force: true});
   }
 });
 

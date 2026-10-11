@@ -66,6 +66,14 @@ approval of the Cloud project for the Business Profile APIs (R4) is not declared
 with `GATEWAY_NOT_OFFERED` before anything is read) until a Login with Amazon onboarding exists; `AMCP_PROVIDERS=amazon`
 reverses it for an operator-provisioned connection. Option (a), building that onboarding, stays the owner's choice.
 
+Also applied on 2026-10-11 (OPS-08, chosen during implementation; the owner may revise): owner health's provider
+quota view shows, beside a workspace's own counts, the deployment-wide daily request, refusal and 429 counts of each
+shared provider app (hashed issuer) that workspace used. Every workspace owner therefore sees aggregate activity of
+other workspaces on AMCP-owned apps: counts per day only, never a workspace, account or person. Restricting the
+totals to the deployment administrator is the alternative if that aggregate is considered sensitive. Pinning the
+`node:24-bookworm-slim` base image by digest (OPS-08 step 1) is a deferred owner step: the digest to pin is the
+`base_image.digest` of the first Railway build evidence record (ACC-04, `docs/DEPLOY-RAILWAY.md`).
+
 Not decided in this round: the review's resource and authorization requests R1–R8 (test accounts, named reads, a
 disposable Sheets destination, declared provider approvals, LinkedIn programs and DV360, reviewers, a staging
 environment, the workload profile) and the product-direction questions P1–P9 (except the parts of P4 and P9 above),

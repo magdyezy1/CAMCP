@@ -78,8 +78,9 @@ export const dueScheduleSQL: Record<ScheduleKind, string> = Object.fromEntries(
 ) as Record<ScheduleKind, string>;
 
 /**
- * OPS-08 tenant-count sweep: a selection pass that asks every workspace cost about 40 µs per workspace (p95 517 ms at
- * 10,000 mostly empty workspaces on the dev machine), so one global partial index by deadline names the workspaces with
+ * OPS-08 tenant-count sweep: a selection pass that asks every workspace grows with the workspace count (the recorded
+ * measurement, with its date and machine, is the one in docs/OPERATIONS.md beside `benchmark-schedules.mjs --sweep`,
+ * which repeats it), so one global partial index by deadline names the workspaces with
  * a due schedule of a kind and the worker asks only those. Per-workspace selection, its order and every authority
  * check stay as they were; the coarse prefilter may name a workspace whose schedules the exact predicate then skips.
  */

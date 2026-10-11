@@ -207,6 +207,29 @@ test('start-up on a too-new database logs one startup_failed line with the stage
   }
 });
 
+test('an invalid issuer quota setting stops start-up with a startup_failed line naming the quota stage (regression: it named provider_versions)', () => {
+  const t = temporary(),
+    before = process.env.AMCP_PROVIDER_QUOTA_MODE;
+  process.env.AMCP_PROVIDER_QUOTA_MODE = 'on';
+  try {
+    const logs = [];
+    assert.throws(
+      () => createRuntime(loadConfig({MIRROR_DB: t.file, MIRROR_MASTER_KEY: key}, 'stdio'), {log: e => logs.push(e)}),
+      /AMCP_PROVIDER_QUOTA_MODE/,
+    );
+    const failed = logs.filter(l => l.event === 'startup_failed');
+    assert.deepEqual(
+      failed.map(l => [l.stage, l.code]),
+      [['quota_policy', 'STARTUP_FAILED']],
+    );
+    assert.equal(fs.existsSync(t.file), false, 'stopped before the database opened');
+  } finally {
+    if (before === undefined) delete process.env.AMCP_PROVIDER_QUOTA_MODE;
+    else process.env.AMCP_PROVIDER_QUOTA_MODE = before;
+    t.remove();
+  }
+});
+
 test('two concurrent starts on a legacy amcp_users both succeed and add each column once', async () => {
   const t = temporary();
   try {
