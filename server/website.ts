@@ -1610,7 +1610,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
             'SELECT count(*) AS n FROM api_keys WHERE tenant_id=? AND access_set_id=? AND revoked=0 AND (expires_at IS NULL OR expires_at>?)',
           ),
           members = store.db.prepare(
-            'SELECT count(*) AS n FROM workspace_memberships WHERE tenant_id=? AND access_set_id=? AND active=1',
+            "SELECT count(*) AS n FROM documents d JOIN workspace_memberships m ON m.tenant_id=d.tenant_id AND m.user_id=d.id AND m.active=1 WHERE d.tenant_id=? AND d.kind='member_access_set' AND json_extract(d.data,'$.access_set_id')=?",
           );
         for (const set of listed.sets as JsonObject[])
           set.in_use = {

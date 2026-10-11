@@ -4,6 +4,7 @@ import {BlockList, isIP} from 'node:net';
 import {Store} from '../src/store.js';
 import {SecretBox, sha256, scopeKey} from '../src/security.js';
 import {MirrorError} from '../src/errors.js';
+import {memberAccessSetId} from '../src/access-sets.js';
 import type {Actor, JsonObject} from '../src/types.js';
 import {LimitDiagnostics, registerLimitDiagnostics} from '../src/limit-diagnostics.js';
 import {cloudflareIpv4Ranges, cloudflareIpv6Ranges} from './cloudflare-ranges.js';
@@ -658,7 +659,7 @@ export class WebStore {
         .get(actor.userId) as JsonObject | undefined;
       if (user) actor.testAccount = !!user.test_account;
       const membership = this.store.db
-        .prepare('SELECT role,access_set_id FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
+        .prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
         .get(actor.tenantId, actor.userId) as JsonObject | undefined;
       if (!user || user.version !== actor.accountVersion || !membership) return;
       actor.role = membership.role === 'viewer' ? 'reader' : membership.role === 'operator' ? 'operator' : 'admin';
@@ -666,8 +667,8 @@ export class WebStore {
       actor.ownerUserId = actor.userId;
       // A member limited to a client access set (SEC-08), read on every request like the role.
       delete actor.accessSetId;
-      if (typeof membership.access_set_id === 'string' && actor.role !== 'admin')
-        actor.accessSetId = membership.access_set_id;
+      const accessSetId = memberAccessSetId(this.store, actor.tenantId, actor.userId);
+      if (accessSetId !== undefined && actor.role !== 'admin') actor.accessSetId = accessSetId;
       // Two-step requirement (SEC-06): recomputed on every request from the current policy, never stored.
       delete actor.mfaPolicy;
       delete actor.mfaEnrollmentRequired;

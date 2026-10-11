@@ -18,6 +18,20 @@ import {MirrorError} from './errors.js';
  * The working client of the website (phase 1) is a different, non-authorizing view filter; see src/client-scope.ts.
  */
 export const accessSetKind = 'access_set';
+/** A member's set is kept beside the membership as a document keyed by the member's user ID. */
+export const memberAccessSetKind = 'member_access_set';
+/** The client access set a member is limited to, or undefined for the whole workspace. */
+export function memberAccessSetId(store: Store, tenant: string, userId: string): string | undefined {
+  const row = store.db
+    .prepare("SELECT json_extract(data,'$.access_set_id') AS id FROM documents WHERE tenant_id=? AND kind=? AND id=?")
+    .get(tenant, memberAccessSetKind, userId) as {id?: unknown} | undefined;
+  return typeof row?.id === 'string' && row.id ? row.id : undefined;
+}
+/** Limits a member to a set, or with none lifts the limit. */
+export function setMemberAccessSet(store: Store, tenant: string, userId: string, accessSetId?: string | null) {
+  if (accessSetId) store.putDocument(tenant, memberAccessSetKind, userId, {access_set_id: accessSetId});
+  else store.deleteDocument(tenant, memberAccessSetKind, userId);
+}
 /** At most this many sets per workspace and bindings per set (profiles are capped at 100 the same way). */
 export const accessSetLimit = 100;
 export const accessSetBindingLimit = 200;

@@ -22,7 +22,7 @@ import {sha256} from '../src/security.js';
 import {accountRetention} from '../src/account-erasure.js';
 import type {Actor, JsonObject} from '../src/types.js';
 import type {Store} from '../src/store.js';
-import {choosableAccessSet} from '../src/access-sets.js';
+import {choosableAccessSet, memberAccessSetId, setMemberAccessSet} from '../src/access-sets.js';
 
 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 export function base32(bytes: Buffer) {
@@ -485,10 +485,15 @@ export class AccountSecurity {
       members: (
         this.db
           .prepare(
-            'SELECT u.id,u.name,u.email,m.role,m.access_set_id,EXISTS(SELECT 1 FROM amcp_mfa f WHERE f.user_id=u.id) AS mfa FROM workspace_memberships m JOIN amcp_users u ON u.id=m.user_id WHERE m.tenant_id=? AND m.active=1',
+            'SELECT u.id,u.name,u.email,m.role,EXISTS(SELECT 1 FROM amcp_mfa f WHERE f.user_id=u.id) AS mfa FROM workspace_memberships m JOIN amcp_users u ON u.id=m.user_id WHERE m.tenant_id=? AND m.active=1',
           )
           .all(s.actor.tenantId) as JsonObject[]
-      ).map(m => ({...m, mfa: !!m.mfa})),
+      ).map(m => ({
+        ...m,
+        mfa: !!m.mfa,
+        // The client access set the member is limited to (SEC-08), or null for the whole workspace.
+        access_set_id: m.role === 'owner' ? null : (memberAccessSetId(this.web.store, s.actor.tenantId, m.id) ?? null),
+      })),
       // Pending invitations that have not expired, newest first; the email and its link stay private (SEC-06 S4).
       invitations: this.web.store
         .documents(s.actor.tenantId, 'workspace_invite')
@@ -751,16 +756,17 @@ export class AccountSecurity {
       if (!current)
         this.db
           .prepare(
-            'INSERT INTO workspace_memberships(tenant_id,user_id,role,active,created_at,access_set_id) VALUES(?,?,?,1,?,?) ON CONFLICT(tenant_id,user_id) DO UPDATE SET active=1,role=excluded.role,access_set_id=excluded.access_set_id',
+            'INSERT INTO workspace_memberships(tenant_id,user_id,role,active,created_at) VALUES(?,?,?,1,?) ON CONFLICT(tenant_id,user_id) DO UPDATE SET active=1,role=excluded.role',
           )
-          // A member invited for one client keeps that limit (SEC-08); a set removed meanwhile reaches nothing.
-          .run(
-            data.tenantId,
-            u.id,
-            data.role,
-            Date.now(),
-            data.role !== 'admin' && typeof data.accessSetId === 'string' ? data.accessSetId : null,
-          );
+          .run(data.tenantId, u.id, data.role, Date.now());
+      // A member invited for one client keeps that limit (SEC-08); a set removed meanwhile reaches nothing.
+      if (!current)
+        setMemberAccessSet(
+          this.web.store,
+          data.tenantId,
+          u.id,
+          data.role !== 'admin' && typeof data.accessSetId === 'string' ? data.accessSetId : null,
+        );
       this.web.store.putDocument(data.tenantId, 'workspace_invite', data.id, {
         ...invitation,
         state: 'accepted',
@@ -787,7 +793,7 @@ export class AccountSecurity {
     if (input.role !== 'remove') this.accounts.fresh(s);
     return this.web.store.transaction(() => {
       const row = this.db
-        .prepare('SELECT role,access_set_id FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
+        .prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
         .get(s.actor.tenantId, input.userId) as JsonObject | undefined;
       if (!row) throw new MirrorError('NOT_FOUND', 'Member not found.', {}, 404);
       if (row.role === 'owner')
@@ -796,22 +802,20 @@ export class AccountSecurity {
       // the current one. An administrator is never limited. Like a role change, it ends the member's sessions and
       // credentials below, so nothing they hold keeps the previous reach.
       const accessSetId =
-        input.role === 'remove'
-          ? (row.access_set_id ?? null)
+        input.role === 'remove' || input.role === 'admin'
+          ? null
           : input.access_set_id === undefined
-            ? input.role === 'admin'
-              ? null
-              : (row.access_set_id ?? null)
+            ? (memberAccessSetId(this.web.store, s.actor.tenantId, input.userId) ?? null)
             : (memberAccessSet(this.web.store, s.actor, input.role, input.access_set_id) ?? null);
       this.db
-        .prepare('UPDATE workspace_memberships SET active=?,role=?,access_set_id=? WHERE tenant_id=? AND user_id=?')
+        .prepare('UPDATE workspace_memberships SET active=?,role=? WHERE tenant_id=? AND user_id=?')
         .run(
           input.role === 'remove' ? 0 : 1,
           input.role === 'remove' ? row.role : input.role,
-          accessSetId,
           s.actor.tenantId,
           input.userId,
         );
+      setMemberAccessSet(this.web.store, s.actor.tenantId, input.userId, accessSetId);
       this.db
         .prepare(
           "DELETE FROM amcp_web_sessions WHERE json_extract(actor,'$.userId')=? AND json_extract(actor,'$.tenantId')=?",

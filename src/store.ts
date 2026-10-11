@@ -54,6 +54,7 @@ import {loginRevision, recordLogin} from './connection-authority.js';
 import {
   accessSetKind,
   accountScopeRestricted,
+  memberAccessSetId,
   narrowConnections,
   setBindings,
   type AccessBinding,
@@ -357,14 +358,13 @@ export class Store {
                 db.exec('DROP TRIGGER IF EXISTS audit_no_update; ' + auditUpdateTrigger);
             },
           },
-          // Additive schema-2 columns (SEC-08): the client access set a key or a membership is limited to. Absent (the
-          // default for every existing row) means the whole workspace, as before.
+          // An additive schema-2 column (SEC-08): the client access set a key is limited to. Absent (the default for
+          // every existing row) means the whole workspace, as before. A member's set is a member_access_set document.
           {
-            id: 'store-0015-access-set-columns',
+            id: 'store-0015-api-key-access-set',
             run: db => {
-              for (const table of ['api_keys', 'workspace_memberships'])
-                if (!db.prepare('SELECT 1 FROM pragma_table_info(?) WHERE name=?').get(table, 'access_set_id'))
-                  db.exec('ALTER TABLE ' + table + ' ADD COLUMN access_set_id TEXT');
+              if (!db.prepare('SELECT 1 FROM pragma_table_info(?) WHERE name=?').get('api_keys', 'access_set_id'))
+                db.exec('ALTER TABLE api_keys ADD COLUMN access_set_id TEXT');
             },
           },
         ]);
@@ -1707,15 +1707,16 @@ export class Store {
     }
     if (actor.ownerUserId) {
       const membership = this.db
-        .prepare('SELECT role,access_set_id FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
+        .prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
         .get(actor.tenantId, actor.ownerUserId) as JsonObject | undefined;
+      const memberSet = membership ? memberAccessSetId(this, actor.tenantId, actor.ownerUserId) : undefined;
       const rank: Record<string, number> = {viewer: 0, reader: 0, operator: 1, admin: 2, owner: 2};
       // A member limited to a client access set (SEC-08) acts only within that set: a token or AI client the person
       // authorized before the limit, or for another set, stops at once instead of keeping wider access.
       if (
         !membership ||
         rank[membership.role]! < rank[actor.role]! ||
-        (typeof membership.access_set_id === 'string' && membership.access_set_id !== actor.accessSetId)
+        (memberSet !== undefined && memberSet !== actor.accessSetId)
       )
         throw new MirrorError(
           'MEMBERSHIP_REVOKED',
