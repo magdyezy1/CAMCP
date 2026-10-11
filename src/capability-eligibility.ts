@@ -170,6 +170,24 @@ export const recipeDependencies: Record<string, JsonObject> = {
       },
     ]),
   ),
+  // CMP-07: one all-or-nothing Performance Max build (src/google-pmax-recipe.ts) with account-default goals.
+  google_performance_max: {
+    objective: 'performance_max_conversions',
+    objects: [
+      'location_criteria',
+      'language_criteria',
+      'landing_page',
+      'account_currency',
+      'existing_image_assets',
+      'pmax_asset_minimums',
+      'account_default_conversion_goals',
+      'primary_conversion_actions',
+      'conversion_event_delivery',
+    ],
+    actions: ['google_ads_v23_google_ads_mutate'],
+    effects:
+      'One all-or-nothing build of a PAUSED Performance Max campaign with Maximize Conversions on account-default goals, a dedicated budget, criteria and one ENABLED asset group with its minimum assets. Linked images and logos are read for their type; goal settings, asset approval and event delivery remain unverified. Activation is separate.',
+  },
   microsoft_search: {
     objective: 'search_acquisition',
     objects: ['location_targeting_before_activation', 'landing_page', 'account_currency'],

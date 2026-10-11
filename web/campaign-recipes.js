@@ -42,6 +42,16 @@ const recipeLabels = {
   identity_authorized_bc_id: 'Business Center ID of the identity',
   call_to_action: 'Call to action',
   optimization_event: 'Purchase event to optimize',
+  business_name: 'Business name (25 characters)',
+  long_headlines: 'Long headlines — one per line (1–5, 90 characters each)',
+  marketing_image_asset_ids: 'Landscape image asset IDs already in the account — one per line',
+  square_image_asset_ids: 'Square image asset IDs already in the account — one per line',
+  logo_asset_ids: 'Logo asset IDs already in the account — one per line (1–5)',
+};
+// The Performance Max pack (CMP-07) takes its own text counts.
+const recipePmaxLabels = {
+  headlines: 'Performance Max headlines — one per line (3–15, 30 characters each)',
+  descriptions: 'Performance Max descriptions — one per line (2–5, 90 characters each)',
 };
 const recipeArrays = new Set([
   'location_ids',
@@ -51,6 +61,10 @@ const recipeArrays = new Set([
   'keywords',
   'headlines',
   'descriptions',
+  'long_headlines',
+  'marketing_image_asset_ids',
+  'square_image_asset_ids',
+  'logo_asset_ids',
 ]);
 // The TikTok packs' native call-to-action values and purchase events (src/tiktok-launch-recipes.ts).
 const recipeTiktokCtas = [
@@ -74,7 +88,9 @@ function recipeField(name, value, required, recipeId) {
   const label = uiText(
       name === 'creative_id' && recipeId === 'snapchat_lead_generation'
         ? 'Existing Snapchat lead creative ID'
-        : (recipeLabels[name] ?? pretty(name)),
+        : recipeId === 'google_performance_max' && recipePmaxLabels[name]
+          ? recipePmaxLabels[name]
+          : (recipeLabels[name] ?? pretty(name)),
     ),
     attr = `name="${name}" ${required ? 'required' : ''}`;
   if (name === 'optimization_goal')
@@ -188,6 +204,8 @@ const recipeDependencyLabels = {
   location_targeting: 'Location targeting',
   automatic_click_bidding: 'Automatic bidding for clicks',
   automatic_conversion_bidding: 'Automatic bidding for purchases',
+  existing_image_assets: 'Existing image and logo assets of the account',
+  pmax_asset_minimums: 'Performance Max asset minimums',
 };
 const recipeEligibilityLabels = {
   ready: 'Confirmed for this check',
@@ -782,7 +800,7 @@ const recipeObjectives = [
 function recipeObjectiveOf(id) {
   return String(id).includes('lead')
     ? 'leads'
-    : id === 'meta_website_sales' || id === 'tiktok_website_conversions'
+    : ['meta_website_sales', 'tiktok_website_conversions', 'google_performance_max'].includes(id)
       ? 'sales'
       : String(id).endsWith('_traffic')
         ? 'traffic'

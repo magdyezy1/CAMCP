@@ -9,6 +9,7 @@ import {
   buildSnapchatLeadRecipe,
 } from './snapchat-traffic-recipe.js';
 import {tiktokTrafficRecipe, tiktokConversionRecipe, buildTiktokLaunchRecipe} from './tiktok-launch-recipes.js';
+import {googlePmaxRecipe, buildGooglePmaxRecipe} from './google-pmax-recipe.js';
 const metaRequired = [
   'name',
   'account_id',
@@ -122,6 +123,8 @@ export const campaignRecipes = [
           ? 'Paused Search campaign, budget, exact keywords, location/language criteria and a responsive search ad. Search network only.'
           : 'Paused Search campaign using Maximize Clicks with an explicit campaign CPC ceiling, dedicated budget, exact keywords and location/language targeting. Optimizes clicks, not conversions. Activation is separate.',
   })),
+  // CMP-07 (owner direction P7): Performance Max as one reviewed all-or-nothing build with its minimum assets.
+  googlePmaxRecipe,
   {
     id: 'microsoft_search',
     name: 'Microsoft Search campaign',
@@ -178,6 +181,7 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
   if (definition.platform === 'snapchat')
     return id === snapchatLeadRecipe.id ? buildSnapchatLeadRecipe(b) : buildSnapchatTrafficRecipe(b);
   if (definition.platform === 'tiktok') return buildTiktokLaunchRecipe(b, id === tiktokConversionRecipe.id);
+  if (id === googlePmaxRecipe.id) return buildGooglePmaxRecipe(b);
   if (b.atomic !== undefined && (definition.platform !== 'google' || typeof b.atomic !== 'boolean'))
     throw new MirrorError(
       'RECIPE_INPUT_INVALID',

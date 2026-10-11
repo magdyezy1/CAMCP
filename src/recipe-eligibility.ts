@@ -285,6 +285,14 @@ export async function recipeEligibility(
           meaning:
             'The explicit ratio passed local validation. Provider acceptance, historical eligibility and actual return remain unverified.',
         });
+      else if (id === 'pmax_asset_minimums')
+        // CMP-07: the counts and text lengths the build compiled passed the pinned Performance Max minimums.
+        Object.assign(out, {
+          status: 'ready',
+          evidence: {kind: 'compiled_explicit_setting', asset_counts: compiled.recipe.asset_counts},
+          meaning:
+            'The asset counts and text lengths meet the pinned Performance Max minimums. Image ratios, policy review and ad strength remain with Google.',
+        });
       else if (id === 'campaign_target_cpa')
         Object.assign(out, {
           status: 'ready',

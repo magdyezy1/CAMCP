@@ -96,6 +96,7 @@ test('graph dependencies follow compiled recipes and lifecycle actions remain ex
       // CMP-07: the guided TikTok packs.
       tiktok_website_traffic: examples.tiktok_traffic_business,
       tiktok_website_conversions: examples.tiktok_conversion_business,
+      google_performance_max: {...b, ...examples.google_pmax_business, cpc_bid: undefined},
       google_search: b,
       google_search_clicks: {...b, cpc_bid: undefined, cpc_bid_ceiling: '1.37'},
       google_search_conversions: {...b, cpc_bid: undefined, conversion_goal_policy: 'ACCOUNT_DEFAULT'},
@@ -144,9 +145,12 @@ test('graph dependencies follow compiled recipes and lifecycle actions remain ex
       };
       // CMP-04: a Google recipe compiles to one build by default and to one step per resource with atomic: false;
       // the declared actions cover both.
-      const compiled = (recipe.platform === 'google' ? [{atomic: true}, {atomic: false}] : [{}]).flatMap(
-        variant => campaignRecipe(recipe.id, {...brief, ...variant}).steps,
-      );
+      // The Performance Max pack (CMP-07) is always one build.
+      const compiled = (
+        recipe.platform === 'google' && recipe.id !== 'google_performance_max'
+          ? [{atomic: true}, {atomic: false}]
+          : [{}]
+      ).flatMap(variant => campaignRecipe(recipe.id, {...brief, ...variant}).steps);
       assert.deepEqual(
         [...new Set(compiled.filter(s => s.kind === 'write').map(s => s.arguments.action))].sort(),
         [...recipeDependencies[recipe.id].actions].sort(),

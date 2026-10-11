@@ -275,6 +275,13 @@ review. Every created resource is read back; the asset group read also returns G
 duplicate-text rules stay with Google, whose refusal leaves nothing behind. Activation is the campaign's own reviewed
 status change.
 
+The guided pack `google_performance_max` (`amcp_campaign recipes`; example `google_pmax_business`) compiles such a build
+from a brief: budget, location and language criterion IDs, landing page, business name, 3–15 headlines, 1–5 long
+headlines, 2–5 descriptions, the numeric IDs of existing landscape, square and logo image assets, explicit
+`conversion_goal_policy: ACCOUNT_DEFAULT` (Maximize Conversions without a target, as the Search conversion packs) and
+the EU political advertising declaration. `recipe_eligibility` with `live:true` reads the account-default goals; the
+activation plan enables the campaign and is gated on them like the Search conversion packs.
+
 ## Performance Max brand guidelines
 
 `google_ads_v23_campaign_enable_p_max_brand_guidelines` (or the `ENABLE_PMAX_BRAND_GUIDELINES`

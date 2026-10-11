@@ -4505,6 +4505,28 @@
     "pixel_id": "456",
     "optimization_event": "SHOPPING"
   },
+  "google_pmax_business": {
+    "name": "Synthetic Performance Max",
+    "account_id": "123",
+    "connection_id": "synthetic-login",
+    "currency": "USD",
+    "daily_budget": "50.00",
+    "country_criterion_ids": ["2840"],
+    "language_criterion_ids": ["1000"],
+    "destination_url": "https://example.test/",
+    "business_name": "Example Store",
+    "headlines": ["Explore the collection", "Find your next pair", "Built for every day"],
+    "long_headlines": ["Explore our latest collection of everyday shoes online"],
+    "descriptions": [
+      "Discover our latest collection online today.",
+      "Explore styles and find a pair that fits your day."
+    ],
+    "marketing_image_asset_ids": ["501"],
+    "square_image_asset_ids": ["502"],
+    "logo_asset_ids": ["503"],
+    "conversion_goal_policy": "ACCOUNT_DEFAULT",
+    "contains_eu_political_advertising": "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING"
+  },
   "recipe_business": {
     "name": "Synthetic website demand",
     "account_id": "123",

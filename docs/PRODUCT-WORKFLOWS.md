@@ -303,6 +303,17 @@ offers **Why is it serving or not?** (`amcp_reporting serving_diagnostics`): Goo
 summary and ad strength per campaign, ad group, ad, asset group and asset link, each native symbol shown literally with
 its English or Arabic explanation and any symbol newer than the pinned v25 enums listed as not named. Both are reads.
 
+### Google Performance Max as one build
+
+`google_performance_max` (CMP-07) compiles a brief into one all-or-nothing Google build, the request Google requires for
+a Performance Max asset group and its minimum assets: a dedicated budget, a PAUSED Performance Max campaign with
+Maximize Conversions on explicitly chosen account-default goals and brand guidelines off, location and language
+criteria, the text assets, one ENABLED asset group and the links to existing image and logo assets. Asset counts and
+text lengths are checked against pinned minimums before any request (`PMAX_ASSET_MINIMUMS`), and the review reads each
+linked image or logo for its type (`PMAX_ASSET_TYPE_MISMATCH`). Image ratios, policy and ad strength stay with Google;
+after the build, **Why is it serving or not?** shows the asset group's status and ad strength. Activation enables the
+campaign as its own reviewed change.
+
 ### TikTok website traffic and purchases with an existing post
 
 Choose `tiktok_website_traffic` or `tiktok_website_conversions` (CMP-07, owner direction P7) in Campaigns or MCP. The

@@ -78,6 +78,7 @@ function business(recipe) {
     ...examples.recipe_business,
     ...(recipe.id === 'tiktok_website_traffic' ? examples.tiktok_traffic_business : {}),
     ...(recipe.id === 'tiktok_website_conversions' ? examples.tiktok_conversion_business : {}),
+    ...(recipe.id === 'google_performance_max' ? {...examples.google_pmax_business, cpc_bid: undefined} : {}),
     ...(recipe.platform === 'snapchat'
       ? recipe.id === 'snapchat_lead_generation'
         ? examples.snapchat_lead_business

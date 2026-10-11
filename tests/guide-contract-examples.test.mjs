@@ -296,6 +296,7 @@ test('all recipes validate their contracts, including the maximum 30 Google targ
           : {}),
         ...(recipe.id === 'tiktok_website_traffic' ? examples.tiktok_traffic_business : {}),
         ...(recipe.id === 'tiktok_website_conversions' ? examples.tiktok_conversion_business : {}),
+        ...(recipe.id === 'google_performance_max' ? {...examples.google_pmax_business, cpc_bid: undefined} : {}),
         ...(recipe.id === 'meta_website_sales' || recipe.id === 'meta_website_leads'
           ? {pixel_id: '456', click_attribution_days: 7, view_attribution_days: 1}
           : {}),
@@ -340,7 +341,9 @@ test('all recipes validate their contracts, including the maximum 30 Google targ
           steps[0].arguments.payload.mutate_operations.filter(o => o.campaign_criterion_operation).length,
           30,
         );
-        // One step per resource type keeps the reviewed contract's 25-operation limit per request.
+        // One step per resource type keeps the reviewed contract's 25-operation limit per request. The Performance Max
+        // pack (CMP-07) is always one build: Google requires its asset group and assets in the same request.
+        if (recipe.id === 'google_performance_max') continue;
         const split = campaignRecipe(recipe.id, {...b, atomic: false}).steps;
         assert.equal((await campaignPreflight(service, actor, split)).status, 'ready');
         const chunks = split.filter(s => s.id.startsWith('targeting'));
