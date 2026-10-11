@@ -14,15 +14,15 @@ const help = (tool: string) =>
   '", operation:"<action>"}; guides: amcp_tool_help {topic:"guides"}.';
 export const routingSummaries: Readonly<Record<string, string>> = Object.freeze({
   amcp_workspace:
-    'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its change history. ' +
+    'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its history. ' +
     'Safety: nothing here changes an advertising account. Previews and saves are local; confirmed saves need confirmed:true and the current revision or version; saved drafts still need native review through amcp_write or amcp_campaign. Missing evidence stays unknown, never passed. ' +
-    'Core actions: capabilities (workflows with per-account readiness and blockers, paged by next_cursor, filtered by workflow_id, connection_id and account_id; view:"graph" for the dependency graph), ' +
-    'check (exact account prerequisites; live:false saves nothing, live:true reads the provider account and saves its read evidence), ' +
-    'program_check (one conditional program; live:false makes no provider request, live:true keeps one observation), ' +
-    'contracts (read/write/media/blocked classification of every action, no network), ' +
-    'operations (metadata feed of retained work with next_call handoffs), history (bounded audit metadata) and ' +
+    'Core actions: capabilities (per-account workflow readiness and blockers, paged by next_cursor, filtered by workflow_id, connection_id or account_id; view:"graph" adds the graph), ' +
+    'check (exact account prerequisites; only live:true reads the account, saving that evidence), ' +
+    'program_check (one conditional program; only live:true reads the provider, keeping one observation), ' +
+    'contracts (read/write/media/blocked class of every action, no network), ' +
+    'operations (feed of retained work with next_call handoffs), history (bounded audit metadata) and ' +
     'dashboard (counts per provider and account; sections select bounded detail). ' +
-    'Other actions: portfolio and portfolio_reconcile, measurement_audit/events/event_identity/conversions/google_goals/ga4_config/ledger, catalog_sources/source/preview/compare/plan, consent and catalog-removal drafts, local workbook report runs and schedules (results stay in AMCP; no spreadsheet writes), queries and bindings, incidents and monitors, client profiles and briefs, and owner operations (health, support_bundle, spend, retention and plan policies, write pause, personal-data switch). ' +
+    'Other actions: portfolio and portfolio_reconcile, measurement_audit/events/event_identity/conversions/google_goals/ga4_config/ledger, catalog_sources/source/preview/compare/plan, consent and catalog-removal drafts, local workbook report runs and schedules (no spreadsheet writes), queries and bindings, incidents and monitors, client profiles and briefs, and owner operations (health, support_bundle, spend, retention and plan policies, write pause, personal-data switch). ' +
     help('amcp_workspace'),
   amcp_campaign:
     'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. ' +

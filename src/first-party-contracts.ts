@@ -481,6 +481,37 @@ const rows: Record<string, Row[]> = {
       'reader',
       [[W, 'check']],
     ),
+    // MSR-02 and MSR-03 measurement reads: bounded provider reads under one fence, nothing saved.
+    row(
+      'measurement_google_goals',
+      'Current Google Ads conversion goals of one customer, read twice under one fence; optional requirements {currency}. Nothing is saved.',
+      ['gateway', 'account_id'],
+      ['connection_id', 'requirements'],
+      reads(),
+      'reader',
+      [[W, 'measurement_ledger']],
+    ),
+    row(
+      'measurement_ga4_config',
+      'One GA4 property configuration (key events, custom definitions, streams, Ads links, retention); optional requirements {sections}.',
+      ['gateway', 'account_id'],
+      ['connection_id', 'requirements'],
+      reads(),
+      'reader',
+      [[W, 'measurement_ledger']],
+    ),
+    row(
+      'measurement_ledger',
+      'Six fixed evidence layers for one Google Ads customer or GA4 property; a failed read leaves its layer unknown. Nothing is saved.',
+      ['gateway', 'account_id'],
+      ['connection_id'],
+      reads(),
+      'reader',
+      [
+        [W, 'measurement_google_goals'],
+        [W, 'measurement_ga4_config'],
+      ],
+    ),
     row(
       'catalog_preview',
       'Locally validates 1–50 selected Meta or X products with exact source prices.',
