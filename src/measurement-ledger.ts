@@ -135,7 +135,15 @@ async function googleSearch(context: GoogleContext, resource: string, query: str
   for (let page = 0; ; page++) {
     if (page >= 5) invalid('A measurement ledger collection exceeded five pages.');
     const plan = {...base, body: {query, ...(token ? {pageToken: token} : {})}},
-      authority = nativeAuthority(store, registry, actor, plan, context.connection, context.auth as never, context.fence),
+      authority = nativeAuthority(
+        store,
+        registry,
+        actor,
+        plan,
+        context.connection,
+        context.auth as never,
+        context.fence,
+      ),
       response = await transport.request(plan, authority(), context.auth as never, undefined, {
         beforeAttempt: authority,
       });
@@ -462,7 +470,18 @@ async function googleLedger(
         () => {},
         measurementLedgerReadLimits,
       ),
-      context: GoogleContext = {store, registry, transport, actor, connection, auth, account, fence, budget, references};
+      context: GoogleContext = {
+        store,
+        registry,
+        transport,
+        actor,
+        connection,
+        auth,
+        account,
+        fence,
+        budget,
+        references,
+      };
     try {
       diagnostics = await guarded('provider_diagnostics', fence, ledger, () =>
         budget.run(async () => {
@@ -752,11 +771,9 @@ export async function measurementLedger(
   input: JsonObject,
 ): Promise<JsonObject> {
   if (!qualified.includes(input.gateway))
-    bad(
-      'The measurement ledger covers a Google Ads customer or a GA4 property.',
-      'MEASUREMENT_LEDGER_UNQUALIFIED',
-      {qualified},
-    );
+    bad('The measurement ledger covers a Google Ads customer or a GA4 property.', 'MEASUREMENT_LEDGER_UNQUALIFIED', {
+      qualified,
+    });
   validate(input.requirements ?? {}, []);
   const requested_at = Date.now(),
     ledger = fingerprint({
@@ -806,7 +823,12 @@ export async function measurementLedger(
     captured_at: Date.now(),
     layers,
     summary: Object.fromEntries(measurementLedgerStates.map(s => [s, layers.filter(l => l.state === s).length])),
-    checks: {event_delivery: 'unverified', deduplication: 'unverified', consent: 'unverified', attribution: 'unverified'},
+    checks: {
+      event_delivery: 'unverified',
+      deduplication: 'unverified',
+      consent: 'unverified',
+      attribution: 'unverified',
+    },
     source_references: out.source_references,
     network_requests: usage.requests ?? 0,
     collection_usage: {requests: usage.requests, rows: usage.rows, bytes: usage.bytes, elapsed_ms: usage.elapsed_ms},
