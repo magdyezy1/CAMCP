@@ -311,6 +311,12 @@ export async function createCatalogRemoval(store: Store, call: ToolCall, actor: 
     store.releaseLock(key, owner);
   }
 }
+/** The refusal of a selected-removal step whose product no longer matches its saved evidence (COM-02 C). */
+export function catalogRemovalChanged(): never {
+  return changed(
+    'The selected product evidence changed after this draft. Read a new removal preview; no products were deleted.',
+  );
+}
 /**
  * Accepted/uncertain requests recover their original native key; only unsent steps check original evidence. The check
  * is local (COM-02 C): the step must still be the exact saved proposal, and the returned expectation makes the step's

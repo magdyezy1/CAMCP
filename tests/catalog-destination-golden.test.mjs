@@ -30,7 +30,7 @@ function normalize(value) {
   return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, volatile.has(k) ? '<volatile>' : normalize(v)]));
 }
 /** Fields the shared comparison item v2 and its destination contract add (COM-03); their own tests check them. */
-const additive = new Set(['item_schema_version', 'destination', 'serving_notes', 'blocked_reason']);
+const additive = new Set(['item_schema_version', 'serving_notes', 'blocked_reason']);
 /** Every pinned value is unchanged; the current response may only add the fields named above. */
 function assertAdditive(current, pinned, path) {
   if (Array.isArray(pinned)) {
@@ -130,4 +130,39 @@ test('COM-03 golden: Meta and X previews and comparisons are unchanged except fo
   const pinned = JSON.parse(fs.readFileSync(goldenFile, 'utf8'));
   assert.deepEqual(Object.keys(current).sort(), Object.keys(pinned).sort());
   for (const key of Object.keys(pinned)) assertAdditive(current[key], pinned[key], key);
+});
+
+test('COM-03 item v2: every destination returns the shared item fields; Meta names its create-only blocker', async () => {
+  const meta = metaService();
+  try {
+    const supplied = structuredClone(catalogComparisonInput);
+    supplied.products[2] = {...supplied.products[2], availability: 'out of stock'};
+    const out = ok(await meta.call({...supplied, allow_upsert: false}));
+    assert.equal(out.item_schema_version, 'catalog-comparison-item-v2');
+    assert.deepEqual(
+      out.items.map(i => i.blocked_reason),
+      [null, 'existing_product_create_only', 'existing_product_create_only', 'existing_product_create_only'],
+    );
+    assert.deepEqual(
+      out.items.map(i => i.serving_notes),
+      [[], [], ['availability_limits_serving'], []],
+    );
+  } finally {
+    meta.store.close();
+  }
+  const f = xCatalogComparisonFixture();
+  try {
+    f.items[9001][1].availability = 'discontinued';
+    const out = ok(await f.call({...f.input, products: f.input.products.map(p => ({...p}))}));
+    assert.equal(out.item_schema_version, 'catalog-comparison-item-v2');
+    for (const item of out.items) {
+      assert.ok(item.blocked_reason === null || typeof item.blocked_reason === 'string');
+      assert.ok(Array.isArray(item.unsent_fields) && Array.isArray(item.serving_notes));
+    }
+    // The source sends "in stock", so the current "discontinued" is a change, not a serving note.
+    assert.deepEqual(out.items[2].serving_notes, []);
+    assert.deepEqual(out.items[2].changes, [{field: 'availability', before: 'discontinued', after: 'in stock'}]);
+  } finally {
+    f.store.close();
+  }
 });

@@ -59,7 +59,6 @@ const accountExplanationMessages = new Set([
   'This step no longer matches its original selected removal proposal.',
   'The original selected source product is unavailable.',
   'The selected product evidence changed after this draft. Read a new removal preview; no products were deleted.',
-  'The draft changed during its product check. Refresh before continuing.',
   'Preview of explicit additional-consent settings in the selected workspace. Existing required types are preserved. This does not establish built-in checks, runtime consent, event delivery or compliance. Saving creates an unapproved draft; publishing remains separate.',
   'Choose the exact Tag Manager account and login.',
   'Choose the exact container and workspace.',
@@ -3358,11 +3357,75 @@ const metaCatalogUnsentFieldNames = [
   'currency',
   'sale_price',
 ];
-function catalogComparisonMarkup(out, request, preview) {
-  if (request.gateway === 'x_ads_native_action') return xCatalogComparisonMarkup(out, request, preview);
-  const invalid = () => {
-    throw Error(uiText('Catalog comparison scope or evidence changed. Validate and read the import again.'));
-  };
+// The X optional attributes a comparison may name as held but not sent (src/x-catalogs.ts, COM-01).
+const xCatalogUnsentFieldNames = [
+  'gtin',
+  'mpn',
+  'mobile_link',
+  'additional_image_link',
+  'google_product_category',
+  'product_type',
+  'inventory',
+  'sale_price',
+  'sale_price_effective_date',
+  'gender',
+  'color',
+  'size',
+  'age_group',
+  'custom_label_0',
+  'custom_label_1',
+  'custom_label_2',
+  'custom_label_3',
+  'custom_label_4',
+];
+// Serving notes of the shared comparison item v2 (src/catalog-destinations.ts, COM-03).
+const catalogServingNoteCodes = ['availability_limits_serving', 'staging_visibility'];
+/**
+ * The commerce destinations this page compares (COM-03): one description each, read by the single comparison validator
+ * and table below. Meta proves price equality with its own native filter, so its prices are checked for consistency;
+ * X returns exact decimal prices, which are compared again here.
+ */
+function catalogWebDestination(gateway) {
+  if (gateway === 'x_ads_native_action')
+    return {
+      gateway,
+      fields: ['name', 'image_url', 'url', 'availability', 'condition', 'brand', 'description'],
+      exactPrice: true,
+      unsent: xCatalogUnsentFieldNames,
+      blocked: ['hidden_variant', 'grouped_product', 'group_status_unknown'],
+      productId: /^[1-9][0-9]{0,24}$/,
+      destinationOnly: 'note',
+      removal: true,
+    };
+  if (gateway === 'meta_native_action')
+    return {
+      gateway,
+      fields: null,
+      exactPrice: false,
+      unsent: metaCatalogUnsentFieldNames,
+      blocked: ['existing_product_create_only'],
+      productId: /^[1-9][0-9]{0,31}$/,
+      destinationOnly: 'note',
+      removal: false,
+    };
+  throw Error(uiText('Catalog comparison scope or evidence changed. Validate and read the import again.'));
+}
+/** An exact X price in one canonical text: no leading zeros in the whole part, no trailing zeros in the fraction. */
+function catalogExactMoney(value) {
+  const m = typeof value === 'string' ? /^(\d{1,12})(?:\.(\d{1,6}))? ([A-Z]{3})$/.exec(value) : null;
+  return m ? m[1].replace(/^0+(?=\d)/, '') + '.' + (m[2] ?? '').replace(/0+$/, '') + ' ' + m[3] : null;
+}
+const catalogIdentityBlocks = ['hidden_variant', 'grouped_product', 'group_status_unknown'];
+/**
+ * Checks a comparison against the request and preview it answers, for every destination (COM-03): its scope and
+ * source, each item's identity, state, blocker, changes and unknown fields recomputed from its own evidence, and the
+ * summary and review set. Any difference refuses the whole comparison.
+ */
+function validCatalogComparison(out, request, preview) {
+  const d = catalogWebDestination(request.gateway),
+    invalid = () => {
+      throw Error(uiText('Catalog comparison scope or evidence changed. Validate and read the import again.'));
+    };
   if (
     !out ||
     out.record_kind !== 'catalog_comparison' ||
@@ -3370,6 +3433,7 @@ function catalogComparisonMarkup(out, request, preview) {
     out.source_hash !== preview.source_hash ||
     !out.scope ||
     ['gateway', 'account_id', 'connection_id', 'catalog_id'].some(k => out.scope[k] !== request[k]) ||
+    (d.exactPrice && request.allow_upsert !== true) ||
     !Number.isSafeInteger(out.captured_at) ||
     out.captured_at <= 0 ||
     !Array.isArray(out.items) ||
@@ -3382,57 +3446,136 @@ function catalogComparisonMarkup(out, request, preview) {
     review = [];
   let withUnsent = 0;
   out.items.forEach((item, index) => {
-    const supplied = request.products[index],
-      // COM-01: attributes the destination holds that the source does not send. An older server sends none.
-      unsent = item?.unsent_fields ?? [];
+    const s = request.products[index],
+      // COM-01: attributes the destination holds that the source does not send. An older Meta server sends none.
+      unsent = d.gateway === 'meta_native_action' ? (item?.unsent_fields ?? []) : item?.unsent_fields;
     if (
       !item ||
-      item.retailer_id !== supplied.retailer_id ||
+      item.retailer_id !== s.retailer_id ||
       !['new', 'changed', 'matching', 'unknown'].includes(item.state) ||
       typeof item.blocked !== 'boolean' ||
       ![true, false, null].includes(item.price_matches) ||
       !Array.isArray(item.changes) ||
       !Array.isArray(item.unknown_fields) ||
       !Array.isArray(unsent) ||
-      unsent.some(k => !metaCatalogUnsentFieldNames.includes(k) || Object.hasOwn(supplied, k)) ||
+      unsent.some(k => !d.unsent.includes(k) || Object.hasOwn(s, k)) ||
       new Set(unsent).size !== unsent.length ||
-      (item.state === 'new' && unsent.length) ||
+      (item.serving_notes !== undefined &&
+        (!Array.isArray(item.serving_notes) || item.serving_notes.some(k => !catalogServingNoteCodes.includes(k)))) ||
+      // The shared blocker (item v2): named exactly when the product is blocked. An older Meta server names none.
+      (item.blocked_reason !== undefined &&
+        (item.blocked_reason === null ? item.blocked : !item.blocked || !d.blocked.includes(item.blocked_reason))) ||
+      (item.blocked_reason === undefined && d.gateway !== 'meta_native_action') ||
       !item.before ||
-      (item.state === 'new'
-        ? item.product_id !== null ||
-          item.before.present !== false ||
-          item.blocked ||
-          item.price_matches !== null ||
-          item.changes.length ||
-          item.unknown_fields.length
-        : typeof item.product_id !== 'string' ||
-          !/^[1-9][0-9]{0,31}$/.test(item.product_id) ||
-          item.before.present !== true ||
-          item.before.id !== item.product_id ||
-          typeof item.price_matches !== 'boolean') ||
-      item.blocked !== (item.state !== 'new' && !request.allow_upsert) ||
-      (item.before.price !== undefined && item.before.price !== null && typeof item.before.price !== 'string') ||
-      item.unknown_fields.some(k => typeof k !== 'string' || !Object.hasOwn(supplied, k)) ||
-      new Set(item.unknown_fields).size !== item.unknown_fields.length ||
-      item.changes.some(
-        c =>
-          !c ||
-          typeof c.field !== 'string' ||
-          !Object.hasOwn(supplied, c.field) ||
-          (c.before !== null && typeof c.before !== 'string') ||
-          (c.field === 'price'
-            ? !Number.isSafeInteger(c.after_minor_units) ||
-              c.after_minor_units !== preview.items[index]?.price_minor_units ||
-              c.currency !== supplied.currency
-            : c.after !== supplied[c.field]),
-      ) ||
-      new Set(item.changes.map(c => c.field)).size !== item.changes.length ||
-      (item.state === 'matching' &&
-        (item.changes.length || item.unknown_fields.length || item.price_matches !== true)) ||
-      (item.state === 'changed' && !item.changes.length) ||
-      (item.state === 'unknown' && (!item.unknown_fields.length || item.changes.length))
+      typeof item.before !== 'object' ||
+      (d.exactPrice
+        ? item.before.price !== null && !catalogExactMoney(item.before.price)
+        : item.before.price !== undefined && item.before.price !== null && typeof item.before.price !== 'string')
     )
       invalid();
+    const present = item.before.present;
+    if (present === true) {
+      if (
+        typeof item.product_id !== 'string' ||
+        !d.productId.test(item.product_id) ||
+        item.before.id !== item.product_id ||
+        (d.exactPrice && item.before.retailer_id !== s.retailer_id) ||
+        (d.fields && d.fields.some(k => item.before[k] !== null && typeof item.before[k] !== 'string'))
+      )
+        invalid();
+    } else if (
+      item.product_id !== null ||
+      ![false, null].includes(present) ||
+      (present === null && item.blocked_reason !== 'hidden_variant') ||
+      (d.exactPrice && item.before.price !== null)
+    )
+      invalid();
+    if (item.blocked && catalogIdentityBlocks.includes(item.blocked_reason)) {
+      // The product's identity is unknown (a grouped or possibly hidden variant): nothing else is compared.
+      if (
+        item.state !== 'unknown' ||
+        item.price_matches !== null ||
+        item.changes.length ||
+        item.unknown_fields.length !== 1 ||
+        item.unknown_fields[0] !== 'retailer_id' ||
+        (present === null ? item.blocked_reason !== 'hidden_variant' : item.blocked_reason === 'hidden_variant')
+      )
+        invalid();
+    } else {
+      // Meta blocks an existing product under a create-only import; X blocks only unknown identities.
+      if (item.blocked !== (d.gateway === 'meta_native_action' && present === true && !request.allow_upsert)) invalid();
+      if (present !== true) {
+        if (
+          item.state !== 'new' ||
+          item.price_matches !== null ||
+          item.changes.length ||
+          item.unknown_fields.length ||
+          unsent.length
+        )
+          invalid();
+      } else {
+        let changes, unknown;
+        if (d.exactPrice) {
+          // X returns every compared value and an exact price: its changes and unknown fields are recomputed here.
+          unknown = d.fields.filter(k => item.before[k] === null);
+          changes = d.fields.filter(k => item.before[k] !== null && item.before[k] !== s[k]);
+          const price =
+            item.before.price === null
+              ? null
+              : catalogExactMoney(item.before.price) === catalogExactMoney(s.price + ' ' + s.currency);
+          if (price === null) unknown.push('price', 'currency');
+          else if (!price) changes.push('price');
+          if (
+            item.price_matches !== price ||
+            item.unknown_fields.length !== unknown.length ||
+            item.unknown_fields.some((k, i) => k !== unknown[i]) ||
+            item.changes.length !== changes.length ||
+            item.changes.some(
+              (c, i) =>
+                !c ||
+                c.field !== changes[i] ||
+                c.before !== item.before[c.field] ||
+                (c.field === 'price' ? c.after_native_price !== s.price + ' ' + s.currency : c.after !== s[c.field]),
+            )
+          )
+            invalid();
+        } else {
+          // Meta proves price equality with its own filter: every change and unknown field names a supplied field, and a
+          // price change carries the preview's exact hundredths.
+          changes = item.changes.map(c => c?.field);
+          unknown = item.unknown_fields;
+          if (
+            typeof item.price_matches !== 'boolean' ||
+            unknown.some(k => typeof k !== 'string' || !Object.hasOwn(s, k)) ||
+            new Set(unknown).size !== unknown.length ||
+            item.changes.some(
+              c =>
+                !c ||
+                typeof c.field !== 'string' ||
+                !Object.hasOwn(s, c.field) ||
+                (c.before !== null && typeof c.before !== 'string') ||
+                (c.field === 'price'
+                  ? !Number.isSafeInteger(c.after_minor_units) ||
+                    c.after_minor_units !== preview.items[index]?.price_minor_units ||
+                    c.currency !== s.currency
+                  : c.after !== s[c.field]),
+            ) ||
+            new Set(changes).size !== changes.length ||
+            changes.includes('price') === item.price_matches
+          )
+            invalid();
+        }
+        if (
+          item.state !==
+          (changes.length
+            ? 'changed'
+            : unknown.length || (d.destinationOnly === 'review' && unsent.length)
+              ? 'unknown'
+              : 'matching')
+        )
+          invalid();
+      }
+    }
     counts[item.state]++;
     if (unsent.length) withUnsent++;
     if (item.blocked) counts.blocked++;
@@ -3448,190 +3591,63 @@ function catalogComparisonMarkup(out, request, preview) {
     review.some((id, i) => out.review_retailer_ids[i] !== id)
   )
     invalid();
-  const rows = out.items
-    .map((item, index) => {
-      const supplied = request.products[index],
-        unsent = item.unsent_fields ?? [],
-        details =
-          item.changes
-            .map(
-              c =>
-                `<li>${esc(catalogFieldLabel(c.field))}: ${esc(c.before ?? uiText('Unknown'))} → ${esc(c.field === 'price' ? supplied.price + ' ' + supplied.currency : c.after)}</li>`,
-            )
-            .join('') +
-          item.unknown_fields
-            .map(k => `<li>${esc(catalogFieldLabel(k))}: ${esc(uiText('Current value is unknown'))}</li>`)
-            .join('');
-      return `<tr><th scope="row"><strong>${esc(supplied.name)}</strong><br><code>${esc(item.retailer_id)}</code>${item.product_id ? `<br>${esc(uiText('Product ID'))}: <code class="catalog-product-id" dir="ltr">${esc(item.product_id)}</code>` : ''}</th><td>${esc(catalogComparisonState(item.state))}${item.blocked ? `<p class="form-note">${esc(uiText('Existing product; updates are disabled'))}</p>` : ''}</td><td>${esc(uiText('Current'))}: ${esc(item.before.price ?? uiText('Unknown'))}<br>${esc(uiText('Proposed'))}: <bdi>${esc(supplied.price + ' ' + supplied.currency)}</bdi></td><td>${details ? `<ul>${details}</ul>` : esc(item.state === 'new' ? uiText('No current product was returned') : uiText('All supplied fields have matching evidence'))}${unsent.length ? `<p class="form-note">${esc(uiText('Other native attributes have values: {fields}. Meta does not establish whether an update preserves omitted attributes.', {fields: unsent.join(', ')}))}</p>` : ''}</td></tr>`;
-    })
-    .join('');
-  return `<h3 id="catalog-comparison-heading" tabindex="-1">${esc(uiText('Compare current catalog products'))}</h3><p>${esc(uiText('Read {date} · {new} new · {changed} changed · {matching} matching · {unknown} unknown · {blocked} blocked', {date: date(out.captured_at), ...counts}))}</p><p class="notice">${esc(uiText('Only supplied retailer IDs are compared. Formatted native prices are display text; equality uses the native price filter. Unknown fields need review. This is current sequential evidence, not a point-in-time inventory snapshot. Missing source products are not deleted.'))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Catalog comparison, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Compare current catalog products'))}</caption><thead><tr>${[uiText('Product'), uiText('Comparison'), uiText('Price'), uiText('Field differences')].map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p>${esc(uiText('{count} products need a fresh native review before execution. Saving a plan does not submit product changes.', {count: review.length}))}</p>${review.length ? `<button type="button" class="button primary" id="save-catalog-changes">${esc(uiText('Save only products needing review'))}</button>` : `<p>${esc(uiText('No eligible product changes need a draft.'))}</p>`}`;
+  return {destination: d, counts, review};
 }
-function xCatalogComparisonMarkup(out, request, preview) {
-  const invalid = () => {
-    throw Error(uiText('Catalog comparison scope or evidence changed. Validate and read the import again.'));
-  };
-  const money = value => {
-    const m = typeof value === 'string' ? /^(\d{1,12})(?:\.(\d{1,6}))? ([A-Z]{3})$/.exec(value) : null;
-    return m ? m[1].replace(/^0+(?=\d)/, '') + '.' + (m[2] ?? '').replace(/0+$/, '') + ' ' + m[3] : null;
-  };
-  if (
-    !out ||
-    out.record_kind !== 'catalog_comparison' ||
-    out.complete !== true ||
-    out.source_hash !== preview.source_hash ||
-    !out.scope ||
-    ['gateway', 'account_id', 'connection_id', 'catalog_id'].some(k => out.scope[k] !== request[k]) ||
-    request.allow_upsert !== true ||
-    !Number.isSafeInteger(out.captured_at) ||
-    out.captured_at <= 0 ||
-    !Array.isArray(out.items) ||
-    out.items.length !== request.products.length ||
-    out.item_count !== out.items.length ||
-    !Array.isArray(out.review_retailer_ids)
-  )
-    invalid();
-  const counts = {new: 0, changed: 0, matching: 0, unknown: 0, blocked: 0, needs_review: 0},
-    review = [],
-    fields = ['name', 'image_url', 'url', 'availability', 'condition', 'brand', 'description'];
-  out.items.forEach((item, index) => {
-    const source = request.products[index];
-    if (
-      !item ||
-      item.retailer_id !== source.retailer_id ||
-      !['new', 'changed', 'matching', 'unknown'].includes(item.state) ||
-      typeof item.blocked !== 'boolean' ||
-      ![true, false, null].includes(item.price_matches) ||
-      !Array.isArray(item.changes) ||
-      !Array.isArray(item.unknown_fields) ||
-      !Array.isArray(item.unsent_fields) ||
-      item.unsent_fields.some(
-        k =>
-          ![
-            'gtin',
-            'mpn',
-            'mobile_link',
-            'additional_image_link',
-            'google_product_category',
-            'product_type',
-            'inventory',
-            'sale_price',
-            'sale_price_effective_date',
-            'gender',
-            'color',
-            'size',
-            'age_group',
-            'custom_label_0',
-            'custom_label_1',
-            'custom_label_2',
-            'custom_label_3',
-            'custom_label_4',
-          ].includes(k),
-      ) ||
-      new Set(item.unsent_fields).size !== item.unsent_fields.length ||
-      !item.before ||
-      (item.before.price !== null && !money(item.before.price))
-    )
-      invalid();
-    const present = item.before.present;
-    if (present === true) {
-      if (
-        typeof item.product_id !== 'string' ||
-        !/^[1-9][0-9]{0,24}$/.test(item.product_id) ||
-        item.before.id !== item.product_id ||
-        item.before.retailer_id !== source.retailer_id ||
-        fields.some(k => item.before[k] !== null && typeof item.before[k] !== 'string')
-      )
-        invalid();
-    } else if (item.product_id !== null || item.before.price !== null || ![false, null].includes(present)) invalid();
-    if (item.blocked) {
-      if (
-        item.state !== 'unknown' ||
-        item.price_matches !== null ||
-        item.changes.length ||
-        item.unknown_fields.length !== 1 ||
-        item.unknown_fields[0] !== 'retailer_id' ||
-        (present === null
-          ? item.blocked_reason !== 'hidden_variant'
-          : present !== true || !['grouped_product', 'group_status_unknown'].includes(item.blocked_reason))
-      )
-        invalid();
-      counts.blocked++;
-    } else {
-      if (item.blocked_reason !== null) invalid();
-      if (present === false) {
-        if (
-          item.state !== 'new' ||
-          item.price_matches !== null ||
-          item.changes.length ||
-          item.unknown_fields.length ||
-          item.unsent_fields.length
-        )
-          invalid();
-      } else {
-        if (present !== true) invalid();
-        const unknown = fields.filter(k => item.before[k] === null),
-          changes = fields.filter(k => item.before[k] !== null && item.before[k] !== source[k]),
-          price =
-            item.before.price === null
-              ? null
-              : money(item.before.price) === money(source.price + ' ' + source.currency);
-        if (price === null) unknown.push('price', 'currency');
-        else if (!price) changes.push('price');
-        if (
-          item.price_matches !== price ||
-          item.unknown_fields.length !== unknown.length ||
-          item.unknown_fields.some((k, i) => k !== unknown[i]) ||
-          item.changes.length !== changes.length ||
-          item.changes.some(
-            (c, i) =>
-              !c ||
-              c.field !== changes[i] ||
-              c.before !== item.before[c.field] ||
-              (c.field === 'price'
-                ? c.after_native_price !== source.price + ' ' + source.currency
-                : c.after !== source[c.field]),
-          ) ||
-          item.state !== (changes.length ? 'changed' : unknown.length ? 'unknown' : 'matching')
-        )
-          invalid();
-      }
-      if (item.state !== 'matching') review.push(item.retailer_id);
-    }
-    counts[item.state]++;
-  });
-  counts.needs_review = review.length;
-  if (
-    !out.summary ||
-    Object.keys(counts).some(k => out.summary[k] !== counts[k]) ||
-    review.length !== out.review_retailer_ids.length ||
-    review.some((id, i) => out.review_retailer_ids[i] !== id)
-  )
-    invalid();
-  const inventoryHtml = catalogListedInventoryMarkup(out, request);
+function catalogServingNote(code) {
+  return code === 'staging_visibility'
+    ? uiText('The current product is in staging, so ads do not show it; the source does not change its visibility.')
+    : uiText('Ads may not show this product with this availability.');
+}
+function catalogComparisonMarkup(out, request, preview) {
+  const {destination: d, counts, review} = validCatalogComparison(out, request, preview),
+    x = d.gateway === 'x_ads_native_action',
+    inventoryHtml = x ? catalogListedInventoryMarkup(out, request) : '';
   const reason = key =>
     key === 'grouped_product'
       ? uiText('Grouped product; native variant updates are outside this import')
       : key === 'hidden_variant'
         ? uiText('Product may be a hidden variant; absence is not established')
-        : uiText('Product-group status is unknown; a native update is withheld');
+        : key === 'group_status_unknown'
+          ? uiText('Product-group status is unknown; a native update is withheld')
+          : uiText('Existing product; updates are disabled');
   const rows = out.items
     .map((item, index) => {
-      const source = request.products[index],
+      const s = request.products[index],
+        unsent = item.unsent_fields ?? [],
         details =
           item.changes
-            .map(
-              c =>
-                `<li>${esc(catalogFieldLabel(c.field))}: <bdi>${esc(c.before)}</bdi> → <bdi>${esc(c.field === 'price' ? c.after_native_price : c.after)}</bdi></li>`,
+            .map(c =>
+              x
+                ? `<li>${esc(catalogFieldLabel(c.field))}: <bdi>${esc(c.before)}</bdi> → <bdi>${esc(c.field === 'price' ? c.after_native_price : c.after)}</bdi></li>`
+                : `<li>${esc(catalogFieldLabel(c.field))}: ${esc(c.before ?? uiText('Unknown'))} → ${esc(c.field === 'price' ? s.price + ' ' + s.currency : c.after)}</li>`,
             )
             .join('') +
           item.unknown_fields
             .map(k => `<li>${esc(catalogFieldLabel(k))}: ${esc(uiText('Current value is unknown'))}</li>`)
-            .join('');
-      return `<tr><th scope="row"><strong>${esc(source.name)}</strong><br><code>${esc(item.retailer_id)}</code>${item.product_id ? `<br>${esc(uiText('Product ID'))}: <code class="catalog-product-id" dir="ltr">${esc(item.product_id)}</code>` : ''}</th><td>${esc(catalogComparisonState(item.state))}${item.blocked ? `<p class="form-note">${esc(reason(item.blocked_reason))}</p>` : ''}</td><td>${esc(uiText('Current'))}: <bdi>${esc(item.before.price ?? uiText('Unknown'))}</bdi><br>${esc(uiText('Proposed'))}: <bdi>${esc(source.price + ' ' + source.currency)}</bdi></td><td>${details ? `<ul>${details}</ul>` : esc(item.state === 'new' ? uiText('No current product was returned') : uiText('All supplied fields have matching evidence'))}${item.unsent_fields.length ? `<p class="form-note">${esc(uiText('Other native attributes have values: {fields}. X does not establish whether an update preserves omitted attributes.', {fields: item.unsent_fields.join(', ')}))}</p>` : ''}</td><td>${!item.blocked && item.before.present === true ? `<label><input type="checkbox" id="catalog-remove-${index}"> ${esc(uiText('Select {retailer_id} for removal', {retailer_id: item.retailer_id}))}</label>` : esc(uiText('Unavailable'))}</td></tr>`;
+            .join(''),
+        current = x
+          ? `<bdi>${esc(item.before.price ?? uiText('Unknown'))}</bdi>`
+          : esc(item.before.price ?? uiText('Unknown')),
+        notes =
+          (unsent.length
+            ? `<p class="form-note">${esc(x ? uiText('Other native attributes have values: {fields}. X does not establish whether an update preserves omitted attributes.', {fields: unsent.join(', ')}) : uiText('Other native attributes have values: {fields}. Meta does not establish whether an update preserves omitted attributes.', {fields: unsent.join(', ')}))}</p>`
+            : '') +
+          (item.serving_notes ?? []).map(code => `<p class="form-note">${esc(catalogServingNote(code))}</p>`).join(''),
+        removal = x
+          ? `<td>${!item.blocked && item.before.present === true ? `<label><input type="checkbox" id="catalog-remove-${index}"> ${esc(uiText('Select {retailer_id} for removal', {retailer_id: item.retailer_id}))}</label>` : esc(uiText('Unavailable'))}</td>`
+          : '';
+      return `<tr><th scope="row"><strong>${esc(s.name)}</strong><br><code>${esc(item.retailer_id)}</code>${item.product_id ? `<br>${esc(uiText('Product ID'))}: <code class="catalog-product-id" dir="ltr">${esc(item.product_id)}</code>` : ''}</th><td>${esc(catalogComparisonState(item.state))}${item.blocked ? `<p class="form-note">${esc(reason(item.blocked_reason))}</p>` : ''}</td><td>${esc(uiText('Current'))}: ${current}<br>${esc(uiText('Proposed'))}: <bdi>${esc(s.price + ' ' + s.currency)}</bdi></td><td>${details ? `<ul>${details}</ul>` : esc(item.state === 'new' ? uiText('No current product was returned') : uiText('All supplied fields have matching evidence'))}${notes}</td>${removal}</tr>`;
     })
     .join('');
-  return `<h3 id="catalog-comparison-heading" tabindex="-1">${esc(uiText('Compare current catalog products'))}</h3><p>${esc(uiText('Read {date} · {new} new · {changed} changed · {matching} matching · {unknown} unknown · {blocked} blocked', {date: date(out.captured_at), ...counts}))}</p><p class="notice">${esc(uiText('Only supplied X product IDs are returned. Supported decimal prices compare exactly. Grouped or hidden variants are blocked; missing fields remain unknown. Repeated reads are sequential evidence, not a point-in-time inventory snapshot. A saved draft still needs fresh native review. Missing source products are not deleted.'))}</p>${inventoryHtml}<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Catalog comparison, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Supplied X product comparison'))}</caption><thead><tr>${[uiText('Product'), uiText('Comparison'), uiText('Price'), uiText('Field differences'), uiText('Select for removal')].map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p>${esc(uiText('{count} products need a fresh native review before execution. Saving a plan does not submit product changes.', {count: review.length}))}</p>${review.length ? `<button type="button" class="button primary" id="save-catalog-changes">${esc(uiText('Save only products needing review'))}</button>` : `<p>${esc(uiText('No eligible product changes need a draft.'))}</p>`}${out.items.some(item => !item.blocked && item.before.present === true) ? `<p>${esc(uiText('Select only the observed products you intend to remove. Products outside this selection are retained.'))}</p><button type="button" class="button" id="preview-catalog-removal">${esc(uiText('Preview selected removals'))}</button><div id="catalog-removal-preview" aria-live="polite"></div>` : ''}`;
+  const headers = [
+    uiText('Product'),
+    uiText('Comparison'),
+    uiText('Price'),
+    uiText('Field differences'),
+    ...(x ? [uiText('Select for removal')] : []),
+  ];
+  const removable = x && out.items.some(item => !item.blocked && item.before.present === true);
+  return `<h3 id="catalog-comparison-heading" tabindex="-1">${esc(uiText('Compare current catalog products'))}</h3><p>${esc(uiText('Read {date} · {new} new · {changed} changed · {matching} matching · {unknown} unknown · {blocked} blocked', {date: date(out.captured_at), ...counts}))}</p><p class="notice">${esc(x ? uiText('Only supplied X product IDs are returned. Supported decimal prices compare exactly. Grouped or hidden variants are blocked; missing fields remain unknown. Repeated reads are sequential evidence, not a point-in-time inventory snapshot. A saved draft still needs fresh native review. Missing source products are not deleted.') : uiText('Only supplied retailer IDs are compared. Formatted native prices are display text; equality uses the native price filter. Unknown fields need review. This is current sequential evidence, not a point-in-time inventory snapshot. Missing source products are not deleted.'))}</p>${inventoryHtml}<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Catalog comparison, scroll for all fields'))}"><table class="review-table"><caption>${esc(x ? uiText('Supplied X product comparison') : uiText('Compare current catalog products'))}</caption><thead><tr>${headers.map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p>${esc(uiText('{count} products need a fresh native review before execution. Saving a plan does not submit product changes.', {count: review.length}))}</p>${review.length ? `<button type="button" class="button primary" id="save-catalog-changes">${esc(uiText('Save only products needing review'))}</button>` : `<p>${esc(uiText('No eligible product changes need a draft.'))}</p>`}${removable ? `<p>${esc(uiText('Select only the observed products you intend to remove. Products outside this selection are retained.'))}</p><button type="button" class="button" id="preview-catalog-removal">${esc(uiText('Preview selected removals'))}</button><div id="catalog-removal-preview" aria-live="polite"></div>` : ''}`;
 }
 function catalogListedInventoryMarkup(out, request) {
   const invalid = () => {

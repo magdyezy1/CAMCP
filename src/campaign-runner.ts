@@ -2,7 +2,7 @@ import {recipeContext, recipeInputs, resolveBrief} from './recipe-context.js';
 import {eligibilityReuse, recipeEligibility} from './recipe-eligibility.js';
 import {assertAllocationStep, allocationCreationBinding} from './allocation-plan.js';
 import {assertConsentStep, consentCreationBinding} from './gtm-consent-plans.js';
-import {assertCatalogRemovalStep, catalogRemovalCreationBinding} from './x-catalog-removal.js';
+import {assertCatalogRemovalStep, catalogRemovalChanged, catalogRemovalCreationBinding} from './x-catalog-removal.js';
 import {withXCatalogRemovalExpectation, type XCatalogRemovalExpectation} from './x-catalog-products.js';
 import {addNativeRequests, meterNativeRequests} from './native-request-meter.js';
 import {
@@ -2224,10 +2224,7 @@ export class CampaignRunner {
       // The review read the selected product and it no longer matches its saved evidence: refused like before COM-02 C,
       // the step unchanged and nothing retained, and the remedy is a new removal preview.
       if (removal && !prepared.success && ['CATALOG_REMOVAL_CHANGED', 'STATE_NOT_FOUND'].includes(prepared.error?.code))
-        bad(
-          'The selected product evidence changed after this draft. Read a new removal preview; no products were deleted.',
-          'CATALOG_REMOVAL_CHANGED',
-        );
+        catalogRemovalChanged();
       if (!prepared.success && alreadyCurrent(next, prepared.error)) {
         // Nothing to change: recorded with the read evidence, and the plan moves on to its next step (COM-01).
         next.status = 'skipped_unchanged';
@@ -2406,10 +2403,7 @@ export class CampaignRunner {
       step.status = before.status;
       run.state = before.state;
       this.save(actor, run);
-      bad(
-        'The selected product evidence changed after this draft. Read a new removal preview; no products were deleted.',
-        'CATALOG_REMOVAL_CHANGED',
-      );
+      catalogRemovalChanged();
     }
     if (!result.success) {
       step.error = result.error; // An expired review was refused before anything was sent: prepare_next prepares it again.

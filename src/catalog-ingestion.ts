@@ -3,20 +3,27 @@ import type {JsonObject} from './types.js';
 import {assertXCatalogProductFields} from './x-catalog-products.js';
 import {xSnowflake} from './x-catalogs.js';
 import {assertMetaCatalogProductFields} from './meta-catalog-products.js';
-const fields = [
-  'retailer_id',
-  'name',
-  'price',
-  'currency',
-  'image_url',
-  'url',
-  'availability',
-  'condition',
-  'brand',
-  'description',
-];
+import {
+  catalogDestination,
+  catalogDestinations,
+  catalogSourceFields,
+  type CatalogGateway,
+} from './catalog-destinations.js';
+
+/** Each catalog destination's projection of supplied products into its native reviewed steps (COM-03). */
+const projections: Record<CatalogGateway, (input: JsonObject) => JsonObject> = {
+  meta_native_action: metaCatalogIngestion,
+  x_ads_native_action: xCatalogIngestion,
+};
 export function catalogIngestion(input: JsonObject) {
-  if (input.gateway === 'x_ads_native_action') return xCatalogIngestion(input);
+  const destination = catalogDestination(input.gateway);
+  // An unknown gateway keeps the refusal it had before the destination contract.
+  if (!destination) return bad('Choose a numeric Meta product catalog ID and selected Meta ad account.');
+  return projections[destination.gateway](input) as ReturnType<typeof metaCatalogIngestion>;
+}
+/** Supplied products → one Meta product create per item; Meta counts prices in hundredths. */
+export function metaCatalogIngestion(input: JsonObject) {
+  const fields = catalogSourceFields(catalogDestinations.meta_native_action);
   if (input.gateway !== 'meta_native_action' || !/^\d+$/.test(input.catalog_id ?? ''))
     bad('Choose a numeric Meta product catalog ID and selected Meta ad account.');
   if (!Array.isArray(input.products) || !input.products.length || input.products.length > 50)
@@ -24,7 +31,7 @@ export function catalogIngestion(input: JsonObject) {
   if (typeof input.allow_upsert !== 'boolean') bad('Explicitly choose whether existing retailer IDs may be updated.');
   const seen = new Set<string>();
   const products = input.products.map((p: JsonObject, i: number) => {
-    validate(p, [...fields, 'retailer_product_group_id'], 16384, 'product field');
+    validate(p, fields, 16384, 'product field');
     if (Object.values(p).some(v => typeof v !== 'string' || /[\x00-\x1f\x7f]/.test(v)))
       bad('Product fields must be plain text without control characters.');
     for (const key of ['retailer_id', 'name', 'price', 'currency', 'image_url'])
@@ -120,7 +127,8 @@ export function catalogIngestion(input: JsonObject) {
 }
 
 /** A bounded local projection into the existing single-product X reviewed contract. No inferred source values. */
-function xCatalogIngestion(input: JsonObject) {
+export function xCatalogIngestion(input: JsonObject) {
+  const fields = catalogSourceFields(catalogDestinations.x_ads_native_action);
   if (typeof input.catalog_id !== 'string' || !xSnowflake.test(input.catalog_id))
     bad('Choose an exact X product catalog ID and selected X ad account.', 'INVALID_X_CATALOG_IMPORT');
   if (!Array.isArray(input.products) || !input.products.length || input.products.length > 50)
@@ -133,7 +141,7 @@ function xCatalogIngestion(input: JsonObject) {
   const seen = new Set<string>();
   const native = input.products.map((p: JsonObject) => {
     validate(p, fields, 16384, 'product field');
-    for (const key of fields)
+    for (const key of catalogDestinations.x_ads_native_action.sourceFields.required)
       if (typeof p[key] !== 'string' || !p[key].trim())
         bad(
           'X imports require explicit retailer_id, name, price, currency, image_url, url, availability, condition, brand and plain text description.',

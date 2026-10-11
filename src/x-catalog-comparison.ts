@@ -22,6 +22,7 @@ import {
   fail,
 } from './x-catalogs.js';
 import {assertXCatalogProduct} from './x-catalog-products.js';
+import {catalogItemSchemaVersion, comparisonItemV2, comparisonSummary} from './catalog-destinations.js';
 import type {Store} from './store.js';
 import type {Registry} from './catalog.js';
 import type {NativeTransport} from './transport.js';
@@ -198,8 +199,9 @@ export async function xCatalogComparison(
       const collected = await collect(),
         repeated = await collect(),
         after = ownedCatalog(await xCatalogOwners(read, fetch), input.catalog_id),
-        items = collected.items;
-      if (fingerprint(items) !== fingerprint(repeated.items) || fingerprint(catalog) !== fingerprint(after))
+        // The shared item v2 (COM-03) beside X's own evidence, once both scans agree.
+        items = collected.items.map((item: JsonObject, i: number) => comparisonItemV2(item, input.products[i]));
+      if (fingerprint(collected.items) !== fingerprint(repeated.items) || fingerprint(catalog) !== fingerprint(after))
         fail(
           'CATALOG_COMPARISON_CHANGED',
           'X catalog ownership or supplied-product evidence changed during comparison. Read the source products again; no product changes were submitted.',
@@ -215,27 +217,11 @@ export async function xCatalogComparison(
         );
       nativeAuthority(store, registry, actor, read, current, auth)();
       budget.check();
-      const review_retailer_ids = items
-          .filter((i: JsonObject) => !i.blocked && i.state !== 'matching')
-          .map((i: JsonObject) => i.retailer_id),
-        summary: JsonObject = {
-          new: 0,
-          changed: 0,
-          matching: 0,
-          unknown: 0,
-          blocked: 0,
-          needs_review: review_retailer_ids.length,
-          // Additive (COM-01), as for Meta: products holding values for attributes the source does not send.
-          with_destination_only_values: 0,
-        };
-      for (const item of items) {
-        summary[item.state]++;
-        if (item.blocked) summary.blocked++;
-        if (item.unsent_fields.length) summary.with_destination_only_values++;
-      }
+      const {summary, review_retailer_ids} = comparisonSummary(items);
       const captured_at = Date.now();
       return {
         record_kind: 'catalog_comparison',
+        item_schema_version: catalogItemSchemaVersion,
         scope,
         complete: true,
         catalog: {
