@@ -2165,7 +2165,7 @@ export class Store {
    * actor goes through here, so a set is enforced in one place. A removed set reaches nothing.
    */
   connectionsFor(actor: Actor): Connection[] {
-    const all = this.connectionsFor(actor);
+    const all = this.listConnections(actor.tenantId);
     if (actor.accessSetId === undefined) return all;
     return narrowConnections(all, this.accessSetBindings(actor));
   }
