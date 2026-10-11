@@ -22,6 +22,61 @@ const pushFacts = s =>
     .filter(Boolean)
     .join(' · ');
 const pushSourceUrl = id => '/api/media/sources/' + encodeURIComponent(id);
+/** A variant preset as people read it; the preset value itself is a protocol value and is never translated. */
+const pushPresetLabel = preset =>
+  ({
+    square: () => uiText('square (1:1)'),
+    portrait: () => uiText('portrait (4:5)'),
+    vertical: () => uiText('vertical (9:16)'),
+    landscape: () => uiText('landscape (16:9)'),
+  })[preset]?.() ?? String(preset);
+/** Why one recorded placement does not take the planned file (MED-06). Shape names stay the provider's own. */
+const pushPlacementIssue = issue =>
+  ({
+    aspect_ratio: () => uiText('shape {actual}; it takes {expected}', issue),
+    min_resolution: () => uiText('{actual} pixels; it needs at least {expected}', issue),
+    min_duration: () => uiText('{actual} s long; it needs at least {expected} s', issue),
+    max_duration: () => uiText('{actual} s long; it takes at most {expected} s', issue),
+    max_bytes: () =>
+      uiText('{actual}; it takes at most {expected}', {
+        actual: pushSize(issue.actual),
+        expected: pushSize(issue.expected),
+      }),
+  })[issue.check]?.() ?? String(issue.check);
+/**
+ * The advisory placement check of one planned upload (MED-06): which placements the provider's recorded
+ * specifications say take the file, why the others do not, and a variant preset when none does. It never blocks the
+ * push; placement names are the provider's own words and stay literal.
+ */
+function pushPlacementNote(check) {
+  if (!check || !Array.isArray(check.placements) || !check.placements.length) return '';
+  const fitting = check.placements.filter(p => p.fits).map(p => p.placement),
+    lines = check.placements
+      .filter(p => !p.fits)
+      .map(p =>
+        uiText('{placement}: {reasons}', {
+          placement: p.placement,
+          reasons: p.issues.map(pushPlacementIssue).join('; '),
+        }),
+      );
+  if (check.suggested_preset)
+    lines.push(
+      uiText('A {preset} variant would match the shape and size these placements take.', {
+        preset: pushPresetLabel(check.suggested_preset),
+      }),
+    );
+  lines.push(
+    check.stale
+      ? uiText(
+          'Advisory: AMCP’s recorded provider specifications are due for review. The platform’s own check decides.',
+        )
+      : uiText('Advisory: AMCP’s recorded provider specifications. The platform’s own check decides.'),
+  );
+  const summary = fitting.length
+    ? uiText('Placements: fits {placements}', {placements: fitting.join(', ')})
+    : uiText('Placements: none of the recorded placements fits');
+  return `<details class="push-placement"${fitting.length ? '' : ' open'}><summary>${esc(summary)}</summary><ul>${lines.map(line => `<li>${esc(line)}</li>`).join('')}</ul></details>`;
+}
 /**
  * A Drive import whose Drive selection is gone (owner decision D23 (4), MED-05): the import is a frozen copy, so
  * revoking Drive access neither removes nor blocks it; the member is told so.
@@ -924,6 +979,8 @@ function bindCreativePush(targets, drives, initialUnfinished = [], serverTime, {
               fit,
               state: p.ready ? 'ready' : 'refused',
               file: p.file,
+              // Advisory only (MED-06): shown under "What it receives", never a reason to hold the row.
+              placement: p.placement_check,
               transform: p.transform,
               error: p.error?.message,
               // The exact file is already in this account: reused after a fresh availability check unless the member
@@ -1281,7 +1338,7 @@ ${
       : ['refused', 'failed', 'expired'].includes(row.state)
         ? 'attention'
         : 'offline';
-    return `<tr><th scope="row">${esc(row.target.label)}</th><td>${esc(row.source.filename)}</td><td>${esc(file)}</td><td>${changes}</td><td><span class="status ${tone}">${esc(uiText(state))}</span>${left ? ` <span id="push-row-left-${index}" class="push-countdown">${esc(uiText('{time} left', {time: left}))}</span>` : ''}${reuse}${detail}${row.review_id ? `<a href="/media?review_id=${encodeURIComponent(row.review_id)}">${esc(uiText('Original upload progress and recovery'))}</a>` : row.plan_id ? `<a href="/campaigns?id=${encodeURIComponent(row.plan_id)}">${esc(uiText('Open its push plan'))}</a>` : ''}</td></tr>`;
+    return `<tr><th scope="row">${esc(row.target.label)}</th><td>${esc(row.source.filename)}</td><td>${esc(file)}${pushPlacementNote(row.placement)}</td><td>${changes}</td><td><span class="status ${tone}">${esc(uiText(state))}</span>${left ? ` <span id="push-row-left-${index}" class="push-countdown">${esc(uiText('{time} left', {time: left}))}</span>` : ''}${reuse}${detail}${row.review_id ? `<a href="/media?review_id=${encodeURIComponent(row.review_id)}">${esc(uiText('Original upload progress and recovery'))}</a>` : row.plan_id ? `<a href="/campaigns?id=${encodeURIComponent(row.plan_id)}">${esc(uiText('Open its push plan'))}</a>` : ''}</td></tr>`;
   };
   // The countdown: every second while the panel shows, on the server's clock. Only the 10-, 5- and 1-minute marks
   // and deletion are announced, through a polite live region.

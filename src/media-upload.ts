@@ -14,6 +14,7 @@ import {validateState} from './write-state.js';
 import {normalizeSnapshot, reviewStateHash, changedStateFields} from './review-state.js';
 import {downloadDriveFile, downloadPrivateDrive, driveAccess, listDriveFolder} from './private-drive.js';
 import {createMediaVariant, variantPresets, inspectMediaPlacement} from './media-variants.js';
+import {placementPreflight} from './media-specs.js';
 import {downloadDriveMedia, mediaType, driveDownloadUrl} from './drive-media.js';
 import {guardInput, sha256, stable} from './security.js';
 import type {ExecutionPolicy} from './preflight.js';
@@ -803,7 +804,22 @@ export class MediaUploadService {
             sha256: digest,
             ...(d.dv360_target === 'ad_asset' ? {dv360_target: 'ad_asset' as const} : {}),
             ...(typeof d.owner_urn === 'string' ? {owner_urn: d.owner_urn} : {}),
-          });
+          }),
+          plannedWidth = width ?? source.record.width ?? null,
+          plannedHeight = height ?? source.record.height ?? null,
+          // Advisory only (MED-06): the file as this destination receives it, against the provider's recorded
+          // placement specifications. It never refuses the destination; the provider's own processing decides.
+          placementCheck = placementPreflight(
+            d.platform,
+            {
+              kind: file.kind,
+              width: plannedWidth,
+              height: plannedHeight,
+              duration: file.kind === 'video' ? (source.record.duration ?? null) : null,
+              size: file.bytes.length,
+            },
+            d.dv360_target === 'ad_asset' ? {target: 'ad_asset'} : {},
+          );
         planned.push({
           platform: d.platform,
           account_id: account,
@@ -813,9 +829,10 @@ export class MediaUploadService {
             sha256: digest,
             size: file.bytes.length,
             mime: file.mime,
-            width: width ?? source.record.width ?? null,
-            height: height ?? source.record.height ?? null,
+            width: plannedWidth,
+            height: plannedHeight,
           },
+          ...(placementCheck ? {placement_check: placementCheck} : {}),
           transform: transform ?? null,
           ...(fit_staged ? {fit_staged: true} : {}),
           // This exact file is already in the account: prepare with reuse_existing:true reuses it after a fresh
