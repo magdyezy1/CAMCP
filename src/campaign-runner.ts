@@ -128,6 +128,7 @@ export const campaignTool = tool(
     spend_change_confirmed: field.bool,
     creative_edit_confirmed: field.bool,
     cap_override_confirmed: field.bool,
+    destructive_confirmed: field.bool,
     expected_revision: field.integer,
     query: field.id,
     lookup_kind: {type: 'string', enum: ['country', 'language']},
@@ -778,9 +779,12 @@ export class CampaignRunner {
         ? 'cap_override_confirmed'
         : needs.creative_edit_confirmed
           ? 'creative_edit_confirmed'
-          : needs.spend_change_confirmed && !run.approval.spend_change_confirmed
-            ? 'spend_change_confirmed'
-            : undefined;
+          : // WRT-09: the owner's destructive_confirmed tier is never given by a plan approval.
+            needs.destructive_confirmed
+            ? 'destructive_confirmed'
+            : needs.spend_change_confirmed && !run.approval.spend_change_confirmed
+              ? 'spend_change_confirmed'
+              : undefined;
       if (human)
         return stop(prepared, 'needs_' + human, {
           reason:
@@ -2307,7 +2311,8 @@ export class CampaignRunner {
           },
           ...(review.execute_requirements?.spend_change_confirmed === true ||
           review.execute_requirements?.cap_override_confirmed === true ||
-          review.execute_requirements?.creative_edit_confirmed === true
+          review.execute_requirements?.creative_edit_confirmed === true ||
+          review.execute_requirements?.destructive_confirmed === true
             ? {
                 add_after_user_approval: {
                   ...(review.execute_requirements.spend_change_confirmed === true
@@ -2319,6 +2324,7 @@ export class CampaignRunner {
                   ...(review.execute_requirements.creative_edit_confirmed === true
                     ? {creative_edit_confirmed: true}
                     : {}),
+                  ...(review.execute_requirements.destructive_confirmed === true ? {destructive_confirmed: true} : {}),
                 },
               }
             : {}),
@@ -2363,6 +2369,7 @@ export class CampaignRunner {
               spend_change_confirmed: input.spend_change_confirmed,
               cap_override_confirmed: input.cap_override_confirmed,
               creative_edit_confirmed: input.creative_edit_confirmed,
+              destructive_confirmed: input.destructive_confirmed,
             }
           : {}),
       },
@@ -2382,6 +2389,10 @@ export class CampaignRunner {
               'SPEND_CONFIRMATION_REQUIRED',
               'CAP_CONFIRMATION_REQUIRED',
               'CREATIVE_EDIT_CONFIRMATION_REQUIRED',
+              // WRT-09: refusals before anything is claimed that leave the review valid until a person acts.
+              'DESTRUCTIVE_CONFIRMATION_REQUIRED',
+              'HUMAN_APPROVAL_REQUIRED',
+              'CAP_OVERRIDE_OWNER_REQUIRED',
               'WRITES_PAUSED',
               'STATE_BUSY',
             ].includes(result.error?.code) ||

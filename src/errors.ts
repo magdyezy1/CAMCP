@@ -519,8 +519,21 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
     CAP_CONFIRMATION_REQUIRED: 'cap_override_confirmed',
     SPEND_CONFIRMATION_REQUIRED: 'spend_change_confirmed',
     CREATIVE_EDIT_CONFIRMATION_REQUIRED: 'creative_edit_confirmed',
+    DESTRUCTIVE_CONFIRMATION_REQUIRED: 'destructive_confirmed',
     CONFIRMATION_REQUIRED: 'confirmed',
   };
+  // WRT-09: a person's approval on the AMCP website, which no AI client can give; the review stays valid meanwhile.
+  if (e.code === 'HUMAN_APPROVAL_REQUIRED' || e.code === 'CAP_OVERRIDE_OWNER_REQUIRED')
+    return {
+      category: 'permission',
+      owner: e.code === 'HUMAN_APPROVAL_REQUIRED' ? 'user' : 'workspace_owner',
+      action:
+        (e.code === 'HUMAN_APPROVAL_REQUIRED'
+          ? 'Ask a member to open details.website_path on the AMCP website and approve this exact review'
+          : 'Ask the workspace owner to execute this review, or to approve it on the AMCP website (details.website_path)') +
+        ', then call execute again with the same review_id before it expires. Nothing was sent; do not prepare again for this.',
+      mutation_retry_safe: false,
+    };
   if (acknowledgements[e.code])
     return {
       category: 'confirmation',

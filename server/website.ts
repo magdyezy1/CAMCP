@@ -43,6 +43,7 @@ import {clearRefreshFailure, credentialHealth, recordAuthorized} from '../src/co
 import {grantedScopes, publicGrants} from '../src/provider-grants.js';
 import {mcpAuthRouter} from '@modelcontextprotocol/sdk/server/auth/router.js';
 import {providerJobGateways, reportJobAccounts, saveReportJobAccess} from '../src/provider-jobs.js';
+import {approvalView, approveReview} from '../src/write-approval.js';
 
 export function createWebsite(store: Store, options: WebsiteOptions, allowWrites = false, service?: MirrorService) {
   const web = new WebStore(store, options);
@@ -1361,6 +1362,26 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       if (Array.isArray(accounts) && accounts.some(id => !previous.includes(id))) webAccounts.fresh(s);
       saveReportJobAccess(store, s.actor, c, req.body ?? {}, providerJobs);
       res.json(publicConnection(tenant, connection(tenant, c.id)));
+    }),
+  );
+  // WRT-09 (owner decisions P1, P5): a signed-in person approves one exact reviewed change on the website, outside any
+  // AI client. Only these routes mint an approval: a session with CSRF and recent sign-in, never an MCP tool.
+  router.get(
+    '/api/write-approvals/:id',
+    handler((req, res) => {
+      const s = web.requireSession(req);
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(approvalView(store, s.actor, String(req.params.id)));
+    }),
+  );
+  router.post(
+    '/api/write-approvals/:id',
+    express.json({limit: '4kb'}),
+    handler((req, res) => {
+      const s = web.requireMutation(req);
+      webAccounts.fresh(s);
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(approveReview(store, s.actor, String(req.params.id), req.body ?? {}));
     }),
   );
   router.patch(

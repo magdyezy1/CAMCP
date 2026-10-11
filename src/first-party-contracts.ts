@@ -817,6 +817,7 @@ const rows: Record<string, Row[]> = {
         'spend_change_confirmed',
         'cap_override_confirmed',
         'creative_edit_confirmed',
+        'destructive_confirmed',
         'detail',
         'expected_revision',
       ],
@@ -1639,6 +1640,7 @@ const rows: Record<string, Row[]> = {
         'spend_change_confirmed',
         'cap_override_confirmed',
         'creative_edit_confirmed',
+        'destructive_confirmed',
         'people',
         'gateway',
         'connection_id',
@@ -1784,6 +1786,8 @@ const argumentNotes: Record<string, Record<string, string>> = {
       'Optional at execute: defaults to the review_id. When given it must equal the review_id returned by prepare.',
     cap_override_confirmed:
       'The user approved going beyond a spending cap the owner set. Needed at execute only when prepare lists it in execute_requirements.',
+    destructive_confirmed:
+      'The user approved this deletion, where the owner requires it (WRT-09). Needed at execute only when prepare lists it in execute_requirements.',
     creative_edit_confirmed:
       'Explicitly acknowledge a reviewed X card edit/deletion or Tweet rename that may disrupt promoted ads. Freeze this choice during prepare and repeat it during execute.',
     people:

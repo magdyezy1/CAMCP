@@ -7,6 +7,7 @@ import {observedHash} from './write-verification.js';
 import {checkGroupSpendPolicy, describeExceeded} from './spend-policy.js';
 import {assertWritesNotPaused} from './owner-operations.js';
 import {groupPartSeconds} from './write-common.js';
+import {approvalNotice, assertCapOverrideOwner} from './write-approval.js';
 
 /**
  * One approval for a request longer than one native call allows (the owner's item 4, 2026-09-29): Google Ads
@@ -189,6 +190,7 @@ export class WriteGroups {
       ...(union('spend_change_confirmed') ? {spend_change_confirmed: true} : {}),
       ...(cap ? {cap_override_confirmed: true} : {}),
       ...(union('creative_edit_confirmed') ? {creative_edit_confirmed: true} : {}),
+      ...(union('destructive_confirmed') ? {destructive_confirmed: true} : {}),
       ...(reasons.length ? {reasons} : {}),
       ...(effects ? {effects} : {}),
     };
@@ -214,6 +216,15 @@ export class WriteGroups {
           }
         : last;
     const first = this.store.document(actor.tenantId, 'write_review', parts[0]!.review_id);
+    // WRT-09: one website approval covers every part, as one acknowledgement does.
+    const approval = approvalNotice(
+      this.store,
+      actor,
+      first.plan,
+      id,
+      Object.keys(requirements).filter(k => requirements[k] === true && k !== 'confirmed'),
+      effects?.destructive === true,
+    );
     this.store.putDocument(actor.tenantId, 'write_review_group', id, {
       user_id: actor.userId,
       principal: first.principal,
@@ -266,6 +277,7 @@ export class WriteGroups {
       contract_evidence: parts[0]!.contract_evidence,
       confirmation_required: true,
       execute_requirements: requirements,
+      ...(approval ? {approval} : {}),
       ...(effects ? {effects} : {}),
       meaning:
         'One approval covers every part. Before the first part is sent, execute checks every part (access, acknowledgements, the owner’s spending caps for the parts together, and the time each part needs); then it sends the parts in order, each checked against the state it was reviewed on, and stops at the first that does not succeed; nothing after it is sent.',
@@ -294,6 +306,7 @@ export class WriteGroups {
       ...(input.spend_change_confirmed !== undefined ? {spend_change_confirmed: input.spend_change_confirmed} : {}),
       ...(input.cap_override_confirmed !== undefined ? {cap_override_confirmed: input.cap_override_confirmed} : {}),
       ...(input.creative_edit_confirmed !== undefined ? {creative_edit_confirmed: input.creative_edit_confirmed} : {}),
+      ...(input.destructive_confirmed !== undefined ? {destructive_confirmed: input.destructive_confirmed} : {}),
     };
     // A group that already ran replays its receipt; one that stopped is never run again. Each part's own claim is
     // what prevents a duplicate send; the group's record is written once its parts have run.
@@ -335,6 +348,8 @@ export class WriteGroups {
             '. Nothing was sent. Show the user and, once they approve, execute again with cap_override_confirmed=true.',
           {exceeded: together.exceeded, group: true},
         );
+      // Owner decision P5 (WRT-09): beyond a cap, only the workspace owner executes, or approves the group on the website.
+      assertCapOverrideOwner(this.store, actor, together.exceeded, id);
       const seconds = groupPartSeconds(group.slowest_prepare_ms),
         now = Date.now(),
         late = seconds ? admitted.findIndex((a, i) => a.expiresAt - now < (i + 1) * seconds * 1000) : -1;
