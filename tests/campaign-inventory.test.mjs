@@ -254,6 +254,12 @@ test('archived-plan retention is opt-in and keeps audit records and write receip
     cleanupReports(f.store);
     assert.equal(f.store.documents(f.tenantId, 'campaign_run').length, 3);
     const owner = f.people.admin;
+    // The owner reads how close the workspace is to the bound (the baseline count), without plan names.
+    assert.deepEqual(ownerOperations(f.store, {action: 'health'}, owner).plan_inventory, {
+      active: 1,
+      archived: 2,
+      limit: 500,
+    });
     assert.throws(() => ownerOperations(f.store, {action: 'save_retention', archived_campaign_plans_days: 3}, owner), {
       code: 'INVALID_RETENTION',
     });
@@ -327,8 +333,16 @@ test('collaborators act by role: a viewer reads, an editor prepares, an approver
     await alice({action: 'assign', id: plan.id, user_id: 'bob', role: 'viewer'});
     assert.equal((await bob({action: 'get', id: plan.id})).id, plan.id);
     assert.equal((await bob({action: 'list'})).campaigns[0].access, 'viewer');
-    // A viewer cannot prepare or approve.
-    await assert.rejects(() => bob({action: 'prepare_next', id: plan.id}), {code: 'FORBIDDEN'});
+    // A viewer cannot prepare or approve; the refusal names the role (a non-collaborator learns nothing more).
+    await assert.rejects(
+      () => bob({action: 'prepare_next', id: plan.id}),
+      e =>
+        e.code === 'FORBIDDEN' && e.details.plan_role === 'viewer' && /Your role on this campaign plan/.test(e.message),
+    );
+    await assert.rejects(
+      () => f.as(f.people.vera)({action: 'get', id: plan.id}),
+      e => e.code === 'FORBIDDEN' && e.details.plan_role === undefined,
+    );
     await assert.rejects(() => bob({action: 'approve', id: plan.id}), {code: 'FORBIDDEN'});
     // An editor prepares under their own identity, but cannot approve.
     await alice({action: 'assign', id: plan.id, user_id: 'bob', role: 'editor'});
@@ -477,9 +491,26 @@ test('the distinct-approver policy refuses self-approval of a spending plan and 
         return true;
       },
     );
+    // Executing step by step does not skip the second person: the owner's own approval (recorded before the policy)
+    // does not cover a new execution, and nothing is sent.
+    const prepared = await alice({action: 'prepare_next', id: plan.id});
+    const execute = () =>
+      alice({
+        action: 'execute_next',
+        id: plan.id,
+        review_id: prepared.review.review_id,
+        idempotency_key: prepared.review.idempotency_key,
+        confirmed: true,
+        spend_change_confirmed: true,
+      });
+    await assert.rejects(execute, {code: 'DISTINCT_APPROVER_REQUIRED'});
+    assert.equal(f.state.executes, 0, 'nothing was sent');
     // A different person approves it.
     await alice({action: 'assign', id: plan.id, user_id: 'carol', role: 'approver'});
     assert.equal((await approve(carol)).out.approved.by, 'carol');
+    // Under that approval the owner's step-by-step execution proceeds with the same review.
+    await execute();
+    assert.equal(f.state.executes, 1);
     assert.ok(events(f.store, f.tenantId).some(e => e.event === 'plan_policy_saved' && e.require_distinct_approver));
   } finally {
     f.store.close();

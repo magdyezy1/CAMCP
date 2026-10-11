@@ -131,8 +131,9 @@ as viewer (reads it), editor (prepares, runs steps one by one, amends, archives)
 a collaborator sees the plan only while its accounts are within their access, every step still checks the acting
 person's own account grant, and assignments and approvals are audited with their actors. When the workspace owner
 turns on **A plan that changes spending or activates a launch needs an approver other than its owner** (Settings,
-`save_plan_policy`; off by default), the owner's own approval of such a plan is refused with
-`DISTINCT_APPROVER_REQUIRED` and Review whole plan offers sharing instead. Home shows plan counts, the five newest
+`save_plan_policy`; off by default; saving either choice asks first), the owner's own approval of such a plan is
+refused with `DISTINCT_APPROVER_REQUIRED` and Review whole plan offers sharing instead; executing its steps one by one
+also needs a current approval by someone other than its owner. Home shows plan counts, the five newest
 plans needing attention and the eight newest plans (CMP-05). The readable review preserves exact native
 units and shows account, request and impact alongside expandable source JSON. Required spend, cap and creative-edit
 acknowledgements come from the server and start unchecked. A confirm-mode cap can be acknowledged; a block-mode cap

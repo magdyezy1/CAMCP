@@ -198,6 +198,35 @@ test('a plan is archived, shared and unarchived from the website through the rea
   }
 });
 
+test('Home lists the plans the bounded dashboard returns as needing attention, including the attention state', () => {
+  // Before CMP-05 Home filtered every plan for older record states and never showed a plan in the attention state.
+  const context = createContext({
+    Intl,
+    document: {addEventListener() {}, querySelector: () => null, querySelectorAll: () => []},
+    session: {name: 'Alice'},
+    esc: value => String(value ?? ''),
+    header: title => `<h1>${title}</h1>`,
+    glyph: () => '',
+    date: () => '',
+    badge: value => value,
+  });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
+  new Script(readFileSync('web/work-center.js', 'utf8')).runInContext(context);
+  context.data = {
+    campaigns: [
+      {id: 'stuck', name: 'Stuck launch', state: 'attention', updated_at: 3},
+      {id: 'waiting', name: 'Waiting launch', state: 'awaiting_review', updated_at: 2},
+      {id: 'drafted', name: 'Draft launch', state: 'draft', updated_at: 1},
+    ],
+    writes_paused: null,
+  };
+  const html = new Script('workHome(data,[{}])').runInContext(context),
+    attention = html.slice(html.indexOf('Needs attention'), html.indexOf('Continue recent work'));
+  assert.match(attention, /campaigns\?id=stuck/);
+  assert.match(attention, /campaigns\?id=waiting/);
+  assert.doesNotMatch(attention, /campaigns\?id=drafted/);
+});
+
 test('with a distinct-approver policy, Review whole plan offers sharing instead of the approval form', async () => {
   for (const locale of ['en', 'ar']) {
     const w = workspace();

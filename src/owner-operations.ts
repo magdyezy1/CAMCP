@@ -19,7 +19,7 @@ import {capOverrides} from './cap-overrides.js';
 import {reviewFriction} from './review-friction.js';
 import {mediaProcessorStatus} from './runtime-toolchain.js';
 import {lastBackupReceipt} from './backup-receipt.js';
-import {planPolicy, purgeArchivedPlans, savePlanPolicy} from './campaign-inventory.js';
+import {planInventory, planPolicy, purgeArchivedPlans, savePlanPolicy} from './campaign-inventory.js';
 /**
  * Parts of the owner's health that need modules a reviewed write must not load (this module is on the write path:
  * `assertWritesNotPaused`). The workspace tool supplies them; the guidance-coverage check stays on the write path.
@@ -153,6 +153,8 @@ export function ownerOperations(
       media_processor: mediaProcessorStatus(),
       retention: store.documents(tenant, 'retention_policy')[0] ?? null,
       plan_policy: planPolicy(store, tenant),
+      // Plans against the workspace bound of 500 not archived (CMP-05 baseline), every person's, counted only.
+      plan_inventory: planInventory(store, tenant),
       write_pause: writePause(store, tenant) ?? null,
       export_policy: {viewer_downloads: viewerDownloadsAllowed(store, tenant)},
       personal_data_accounts: personalDataAccounts(store, tenant),

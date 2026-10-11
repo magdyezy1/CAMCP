@@ -1,7 +1,9 @@
 'use strict';
 function workHome(d, accounts) {
+  // Home receives the newest plans needing attention (plan states attention and awaiting_review) and the newest plans
+  // (CMP-05); the remaining states are those of older records.
   const needsAttention = d.campaigns.filter(c =>
-    ['blocked', 'failed', 'uncertain', 'awaiting_review', 'mismatch'].includes(c.state),
+    ['attention', 'blocked', 'failed', 'uncertain', 'awaiting_review', 'mismatch'].includes(c.state),
   );
   const recent = [...d.campaigns].sort((a, b) => b.updated_at - a.updated_at).slice(0, 8);
   const card = c =>

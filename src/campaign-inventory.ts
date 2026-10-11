@@ -401,6 +401,20 @@ export function activePlanCount(store: Store, tenant: string): number {
     ).n,
   );
 }
+/**
+ * The workspace's plans against the bound, for the owner's health (CMP-05 baseline: how close the workspace is to the
+ * limit). Counts every person's plans; names nothing.
+ */
+export function planInventory(store: Store, tenant: string): JsonObject {
+  const row = store.db
+    .prepare(
+      "SELECT count(*) AS total, sum(json_extract(data,'$.archived') IS NOT NULL) AS archived FROM documents WHERE tenant_id=? AND kind='campaign_run'",
+    )
+    .get(tenant) as JsonObject;
+  const total = Number(row.total ?? 0),
+    archived = Number(row.archived ?? 0);
+  return {active: total - archived, archived, limit: activePlanLimit};
+}
 /** Refuses a new or unarchived plan once the workspace holds the bound of plans that are not archived. */
 export function assertPlanRoom(store: Store, actor: Actor): void {
   const active = activePlanCount(store, actor.tenantId);
