@@ -599,9 +599,9 @@ function openManage(id, connectionId) {
  * lists opens; the link is then cleared so a refresh does not reopen it.
  */
 function openLinkedConnection() {
-  const id = new URLSearchParams(location.search).get('connection_id'),
-    p = id && session.authenticated ? platforms.find(p => p.connections.some(c => c.id === id)) : undefined;
+  const id = new URLSearchParams(location.search).get('connection_id');
   if (!id || !session.authenticated) return;
+  const p = platforms.find(p => p.connections.some(c => c.id === id));
   history.replaceState(null, '', '/connections');
   if (p) openManage(p.id, id);
   else toast(uiText('That connection is no longer in this workspace.'));
