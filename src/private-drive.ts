@@ -10,6 +10,15 @@ const driveId = /^[A-Za-z0-9_-]{10,200}$/,
   folderMime = 'application/vnd.google-apps.folder',
   /** Files listed from one folder at most (five Drive pages). */
   folderLimit = 500;
+/** Whether a Drive login's granted scopes let it download the files it selected. */
+const canDownload = (c: Connection) =>
+  c.scopes.some(s =>
+    [
+      'https://www.googleapis.com/auth/drive.readonly',
+      'https://www.googleapis.com/auth/drive.file',
+      'https://www.googleapis.com/auth/drive',
+    ].includes(s),
+  );
 /**
  * The Drive login that selected this file or folder, with a scope that can download it. Selecting a folder in the
  * login grants the media files directly inside it; each is checked against Drive's own parents before download.
@@ -17,17 +26,22 @@ const driveId = /^[A-Za-z0-9_-]{10,200}$/,
 function selected(store: Store, actor: Actor, connection: string, id: string): Connection {
   store.assertActorActive(actor);
   const c = store.resolveConnection(actor, driveGateway, id, connection);
-  if (
-    !c.scopes.some(s =>
-      [
-        'https://www.googleapis.com/auth/drive.readonly',
-        'https://www.googleapis.com/auth/drive.file',
-        'https://www.googleapis.com/auth/drive',
-      ].includes(s),
-    )
-  )
+  if (!canDownload(c))
     throw new MirrorError('DRIVE_SCOPE_REQUIRED', 'Reconnect Drive with permission to download selected files.');
   return c;
+}
+/**
+ * Whether `connection` still selects `id` (the file, or the folder an import came through) with a scope that can
+ * download it: the check every Drive download makes, without resolving or throwing. It only describes an imported
+ * copy as "Drive access since revoked" (MED-05); the copy itself is frozen and never rechecked (owner decision D23).
+ */
+export function driveSelectionHeld(connection: Connection | undefined, id: string): boolean {
+  return (
+    connection?.gateway === driveGateway &&
+    connection.enabled &&
+    connection.accounts.includes(id) &&
+    canDownload(connection)
+  );
 }
 export function driveAccess(store: Store, actor: Actor, connection: string, url: string) {
   const fileId = driveDownloadUrl(url).searchParams.get('id')!;

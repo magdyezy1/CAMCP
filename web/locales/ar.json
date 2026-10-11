@@ -9180,5 +9180,9 @@
   "Imported from Google Drive": "استُورد من Google Drive",
   "An owner-retained original": "أصل احتفظ به المالك",
   "preset copy: {preset}": "نسخة بمقاس محدد: {preset}",
-  "Uploads of this same original": "عمليات رفع هذا الأصل نفسه"
+  "Uploads of this same original": "عمليات رفع هذا الأصل نفسه",
+  "Upload progress of {filename}": "تقدّم رفع {filename}",
+  "{filename}: {percent}% uploaded": "{filename}: رُفع {percent}%",
+  "Drive access since revoked": "أُلغي الوصول إلى Drive منذ ذلك الحين",
+  "Drive access since revoked. This imported copy is frozen and not affected: it can still be pushed until it expires or an owner removes it.": "أُلغي الوصول إلى Drive منذ ذلك الحين. هذه النسخة المستوردة مجمّدة ولا تتأثر: لا يزال من الممكن دفعها إلى أن تنتهي صلاحيتها أو يزيلها المالك."
 }

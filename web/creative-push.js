@@ -22,6 +22,14 @@ const pushFacts = s =>
     .filter(Boolean)
     .join(' · ');
 const pushSourceUrl = id => '/api/media/sources/' + encodeURIComponent(id);
+/**
+ * A Drive import whose Drive selection is gone (owner decision D23 (4), MED-05): the import is a frozen copy, so
+ * revoking Drive access neither removes nor blocks it; the member is told so.
+ */
+const pushDriveAccessNote = s =>
+  s.drive_access === 'revoked'
+    ? `<p class="form-note">${esc(uiText('Drive access since revoked. This imported copy is frozen and not affected: it can still be pushed until it expires or an owner removes it.'))}</p>`
+    : '';
 /** amcp_media plan takes at most 20 destinations; one push reviews at most 200 uploads, run as plans of 50. */
 const pushPlanChunk = 20,
   pushMaxUploads = 200,
@@ -172,6 +180,21 @@ function pushRebindRows(rows, source) {
   return count;
 }
 
+/**
+ * Which moments of a transfer a screen reader hears (MED-05): returns `(done, total) => percent`, the quarter (25, 50,
+ * 75 or 100) a part has just reached, or null in between. Below the first quarter it returns 0 (the start, which the
+ * caller has already announced), so an upload of any number of parts is announced at most four times while it
+ * transfers; a resumed upload is first announced at the quarter its first part sent reaches.
+ */
+function pushProgressAnnouncer() {
+  let last = -1;
+  return (done, total) => {
+    const quarter = total > 0 ? Math.max(0, Math.min(4, Math.floor((done * 4) / total))) : 0;
+    if (quarter === last) return null;
+    last = quarter;
+    return quarter * 25;
+  };
+}
 /** This tab's unfinished uploads (name, size, last change of each file), to offer a resume after a reload. */
 const pushUploadsKey = 'amcp.unfinished-uploads';
 function pushUploads() {
@@ -401,13 +424,14 @@ ${
     ? `<div class="push-recent"><p class="form-note">${esc(uiText('Or add a recent upload or retained original:'))}</p>${recent
         .map(
           s =>
-            `<button class="button small" type="button" data-push-source="${esc(s.source_id)}">${s.retained === true ? esc(uiText('Retained original')) + ' · ' : ''}<bdi dir="auto">${esc(s.filename)}</bdi> · ${esc(pushFacts(s))} · ${esc(uiDate(s.uploaded_at, {hour: '2-digit', minute: '2-digit'}))}</button>`,
+            `<button class="button small" type="button" data-push-source="${esc(s.source_id)}">${s.retained === true ? esc(uiText('Retained original')) + ' · ' : ''}<bdi dir="auto">${esc(s.filename)}</bdi> · ${esc(pushFacts(s))} · ${esc(uiDate(s.uploaded_at, {hour: '2-digit', minute: '2-digit'}))}${s.drive_access === 'revoked' ? ' · ' + esc(uiText('Drive access since revoked')) : ''}</button>`,
         )
         .join('')}</div>`
     : ''
 }
 <div id="push-unfinished" class="push-unfinished">${pushUnfinishedMarkup(unfinished)}</div>
-<progress id="push-bar" class="push-bar" max="1" value="0" hidden></progress>
+<progress id="push-bar" class="push-bar" max="1" value="0" aria-label="${esc(uiText('Upload progress'))}" hidden></progress>
+<p id="push-parts" class="form-note"></p>
 <p id="push-status" class="form-note" role="status"></p>
 <p id="push-deadline-status" class="form-note" role="status"></p>
 <div id="push-file"></div></div>
@@ -457,11 +481,36 @@ function bindCreativePush(targets, drives, initialUnfinished = [], serverTime, {
     generation === navigationGeneration && identity === identityGeneration && form.isConnected && root.isConnected;
   const status = (text, done, total) => {
     $('#push-status').textContent = text;
+    $('#push-parts').textContent = '';
     $('#push-bar').hidden = total === undefined;
     if (total !== undefined) {
       $('#push-bar').max = total;
       $('#push-bar').value = done;
+      // Not one file's transfer (or not yet): the bar keeps its general name (MED-05).
+      $('#push-bar').setAttribute('aria-label', uiText('Upload progress'));
     }
+  };
+  /**
+   * One file's transfer, part by part (MED-05): the bar, its name and the visible "part N of M" move with every part,
+   * while the status region speaks only at each quarter, so a 128-part upload is announced about six times (start,
+   * 25, 50, 75 and 100 %, then the outcome) instead of 128. `prefix` names the file's place in a batch.
+   */
+  const transferProgress = (filename, prefix = '') => {
+    const announce = pushProgressAnnouncer(),
+      label = uiText('Upload progress of {filename}', {filename});
+    $('#push-bar').setAttribute('aria-label', label);
+    return (done, total, text) => {
+      const bar = $('#push-bar');
+      bar.hidden = false;
+      bar.max = total;
+      bar.value = done;
+      bar.setAttribute('aria-label', label);
+      $('#push-parts').textContent =
+        prefix + (text ?? uiText('{filename}: part {number} of {count}', {filename, number: done, count: total}));
+      const percent = announce(done, total);
+      if (percent)
+        $('#push-status').textContent = prefix + uiText('{filename}: {percent}% uploaded', {filename, percent});
+    };
   };
   let reboundNote = '';
   const outcome = (done, total, failed) =>
@@ -481,7 +530,7 @@ function bindCreativePush(targets, drives, initialUnfinished = [], serverTime, {
         sources
           .map(
             (s, i) =>
-              `<div class="push-file">${s.thumbnail_url ? `<img src="${esc(s.thumbnail_url)}" alt="${esc(uiText('Preview of {filename}', {filename: s.filename}))}">` : ''}<div><strong dir="auto">${esc(s.filename)}</strong><p class="form-note">${esc(pushFacts(s))} ${s.retained === true && s.retention?.mode !== 'temporary' ? esc(uiText('Kept until an owner removes it.')) : esc(uiText('· kept until')) + ' ' + date(s.expires_at) + ` <span id="push-left-${i}" class="push-countdown">${esc(uiText('{time} left', {time: pushRemaining(pushDeadline(s))}))}</span>`}</p><details class="push-source-details"><summary>${esc(uiText('Original file details'))}</summary><p>${esc(uiText('Source ID'))}: <code dir="ltr">${esc(s.source_id)}</code></p><p>${esc(uiText('Original file SHA-256'))}: <code dir="ltr">${esc(s.sha256)}</code></p></details><button class="button small" type="button" data-push-drop="${i}">${esc(uiText('Leave out of this push'))}</button> ${s.can_retain === true ? `<button class="button small" type="button" data-push-retain="${i}">${esc(uiText('Retain this original'))}</button>` : ''} ${s.retained !== true || s.can_remove_retained === true ? `<button class="button small" type="button" data-push-delete="${i}">${esc(uiText(s.retained === true ? 'Delete retained original' : 'Delete the file'))}</button>` : ''}</div></div>`,
+              `<div class="push-file">${s.thumbnail_url ? `<img src="${esc(s.thumbnail_url)}" alt="${esc(uiText('Preview of {filename}', {filename: s.filename}))}">` : ''}<div><strong dir="auto">${esc(s.filename)}</strong><p class="form-note">${esc(pushFacts(s))} ${s.retained === true && s.retention?.mode !== 'temporary' ? esc(uiText('Kept until an owner removes it.')) : esc(uiText('· kept until')) + ' ' + date(s.expires_at) + ` <span id="push-left-${i}" class="push-countdown">${esc(uiText('{time} left', {time: pushRemaining(pushDeadline(s))}))}</span>`}</p>${pushDriveAccessNote(s)}<details class="push-source-details"><summary>${esc(uiText('Original file details'))}</summary><p>${esc(uiText('Source ID'))}: <code dir="ltr">${esc(s.source_id)}</code></p><p>${esc(uiText('Original file SHA-256'))}: <code dir="ltr">${esc(s.sha256)}</code></p></details><button class="button small" type="button" data-push-drop="${i}">${esc(uiText('Leave out of this push'))}</button> ${s.can_retain === true ? `<button class="button small" type="button" data-push-retain="${i}">${esc(uiText('Retain this original'))}</button>` : ''} ${s.retained !== true || s.can_remove_retained === true ? `<button class="button small" type="button" data-push-delete="${i}">${esc(uiText(s.retained === true ? 'Delete retained original' : 'Delete the file'))}</button>` : ''}</div></div>`,
           )
           .join('')
       : '';
@@ -638,13 +687,7 @@ function bindCreativePush(targets, drives, initialUnfinished = [], serverTime, {
     status(uiText('Resuming {filename}…', {filename: u.filename}), u.received_chunks ?? 0, u.chunks || 1);
     let done;
     try {
-      done = await resumeCreativeUpload(u.source_id, file, (sent, total, text) =>
-        status(
-          text ?? uiText('{filename}: part {number} of {count}', {filename: u.filename, number: sent, count: total}),
-          sent,
-          total,
-        ),
-      );
+      done = await resumeCreativeUpload(u.source_id, file, transferProgress(u.filename));
     } catch (e) {
       // Kept to resume again, or gone (discarded, released or expired). A different file changes nothing.
       if (current() && e.unfinished) keepUnfinished(e.unfinished);
@@ -706,14 +749,7 @@ function bindCreativePush(targets, drives, initialUnfinished = [], serverTime, {
           const r = remembered[u.source_id];
           return r && r.name === file.name && r.size === file.size && r.last_modified === file.lastModified;
         }),
-        progress = (done, total, text) =>
-          status(
-            step +
-              (text ??
-                uiText('{filename}: part {number} of {count}', {filename: file.name, number: done, count: total})),
-            done,
-            total,
-          );
+        progress = transferProgress(file.name, step);
       try {
         add(match ? await resumeCreativeUpload(match.source_id, file, progress) : await uploadCreative(file, progress));
         if (match) forgetUnfinished(match.source_id);

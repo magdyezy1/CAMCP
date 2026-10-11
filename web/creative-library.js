@@ -76,6 +76,13 @@ const creativeNativeReferenceMessages = new Set([
 function creativeAssetCard(a) {
   return `<article class="operation-card creative-asset"><div class="operation-heading"><div><h3>${esc(a.name)}</h3><small>${recordAccountLabelHtml(a.platform, a.connection_id, a.account_id)}</small></div>${badge(a.media_type || 'media')}</div><p>${a.tags.map(t => `<span class="creative-tag">${esc(t)}</span>`).join('') || `<span class="form-note">${esc(uiText('No tags yet'))}</span>`}</p><p class="form-note">${esc(uiText('Provider ID'))} <code>${esc(a.media_id)}</code></p><p class="form-note">${a.last_checked_at ? uiText('Last availability check ') + date(a.last_checked_at) : uiText('Availability has not been checked')}${esc(uiText('. Check again before reuse.'))}</p><button class="button small" data-creative-asset="${esc(a.asset_id)}">${esc(uiText('Inspect asset and usage'))}</button></article>`;
 }
+/** The library's filters in the address; the recovery list's own page (MED-05) is kept as it is. */
+function creativeLibraryHref(filters, search = location.search) {
+  const query = new URLSearchParams(Object.entries(filters).filter(([, v]) => v)),
+    recovery = new URLSearchParams(search).get('recovery_page');
+  if (recovery) query.set('recovery_page', recovery);
+  return '/media?' + query;
+}
 /** How an uploaded file reached AMCP, as its receipt labels it (MED-04 B). */
 const creativeSourceKinds = {
   amcp_upload: 'Uploaded on the website',
@@ -485,7 +492,7 @@ async function bindCreativeLibrary(targets, showStatus) {
       // The uploads of this one original in every accessible account, by the SHA-256 its reviews recorded (MED-04 B).
       workspaceBind('#creative-same-original', async () => {
         filters = {original_sha256: a.original_sha256};
-        history.replaceState(null, '', '/media?' + new URLSearchParams(filters));
+        history.replaceState(null, '', creativeLibraryHref(filters));
         ++sequence;
         detail.innerHTML = '';
         await pager.load();
@@ -565,7 +572,7 @@ async function bindCreativeLibrary(targets, showStatus) {
           : {}),
       };
     }
-    history.replaceState(null, '', '/media?' + new URLSearchParams(Object.entries(filters).filter(([, v]) => v)));
+    history.replaceState(null, '', creativeLibraryHref(filters));
     ++sequence;
     detail.innerHTML = '';
     await pager.load();

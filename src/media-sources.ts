@@ -3,6 +3,7 @@ import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {MirrorError} from './errors.js';
 import {MAX_MEDIA_BYTES, mediaType} from './drive-media.js';
+import {driveSelectionHeld} from './private-drive.js';
 import {downloadMediaLink, type LinkRequest} from './media-link.js';
 import {convertMedia, ffprobeJson, seenGeometry, withMediaDirectory, type MediaFileType} from './media-variants.js';
 import {sha256} from './security.js';
@@ -43,6 +44,24 @@ const kind = 'media_source',
   notMedia = 'This file is not a PNG, JPEG, MP4 or MOV file.',
   uploadTypes = ['image/png', 'image/jpeg', 'video/mp4', 'video/quicktime'];
 
+/**
+ * The Drive login and selection an import came through, by IDs only (no file names or links): kept on the import and
+ * on an owner's retained copy of it, so either can show when that Drive access is revoked (MED-05).
+ */
+interface DriveProvenance {
+  connection_id: string;
+  file_id: string;
+  folder_id: string | null;
+}
+const driveProvenance = (r: JsonObject): DriveProvenance | undefined => {
+  const d = r.origin === 'drive' ? r.drive : undefined;
+  return d &&
+    typeof d.connection_id === 'string' &&
+    typeof d.file_id === 'string' &&
+    (d.folder_id === null || d.folder_id === undefined || typeof d.folder_id === 'string')
+    ? {connection_id: d.connection_id, file_id: d.file_id, folder_id: d.folder_id || null}
+    : undefined;
+};
 /** A file name as people see it: its last path segment, without control characters, at most 120 characters. */
 const displayName = (value: unknown) =>
   String(value ?? '')
@@ -109,7 +128,8 @@ export class MediaSources {
   private view(r: JsonObject, actor: Actor): JsonObject {
     const retained = retainedMediaId.test(r.id),
       owner = workspaceOwner(this.store, actor),
-      uploadDeadline = websiteUploadDeadline(r);
+      uploadDeadline = websiteUploadDeadline(r),
+      drive = driveProvenance(r);
     return {
       source_id: r.id,
       filename: r.filename,
@@ -146,6 +166,9 @@ export class MediaSources {
           }
         : {}),
       ...(r.link_host ? {link_host: r.link_host} : {}),
+      // A Drive import is a frozen copy (owner decision D23 (4), MED-05): revoking the Drive login or its selection
+      // neither removes nor blocks it; the list says so once the selection it came through is gone.
+      ...(drive ? {drive_access: this.driveAccess(actor.tenantId, drive)} : {}),
       ...(r.state === 'receiving'
         ? {chunk_bytes: r.chunk_bytes, chunks: r.chunks, ...this.receivingProgress(actor.tenantId, r.id)}
         : {
@@ -162,6 +185,15 @@ export class MediaSources {
               'Add platform and account_id (and connection_id when several logins cover the account) to prepare a reviewed upload.',
           }),
     };
+  }
+  /**
+   * Whether the Drive selection an import came through still stands: the same enabled Drive login, able to download,
+   * still selects the folder it was imported from, or the file itself. `revoked` changes nothing about the copy; it is
+   * shown as "Drive access since revoked" (MED-05).
+   */
+  private driveAccess(tenant: string, drive: DriveProvenance): 'selected' | 'revoked' {
+    const login = this.store.listConnections(tenant).find(c => c.id === drive.connection_id);
+    return driveSelectionHeld(login, drive.folder_id ?? drive.file_id) ? 'selected' : 'revoked';
   }
   /** How far an unfinished upload got: parts received, and when it is released if nothing more arrives. */
   private receivingProgress(tenant: string, id: string): JsonObject {
@@ -433,7 +465,8 @@ export class MediaSources {
           ...ownership(actor),
           filename: displayName(file.name ?? 'drive'),
           origin: 'drive',
-          drive: {connection_id: input.connection_id, file_id: input.file_id, folder_id: input.folder_id ?? null},
+          // The Drive selection it came through, by IDs only (MED-05); no folder ('' or none) means the file itself.
+          drive: {connection_id: input.connection_id, file_id: input.file_id, folder_id: input.folder_id || null},
           size: file.bytes.length,
           created_at: now,
           expires_at: now + SOURCE_TTL_MS,
@@ -636,6 +669,7 @@ export class MediaSources {
         }
         r = this.record(actor, r.id);
         this.confirmation(r, input);
+        const drive = driveProvenance(r);
         this.retained.copy(actor.tenantId, r.id, target, {size: r.size, sha256: r.sha256}, head => {
           const type = mediaType(head, notMedia);
           if (type.mime !== r.mime || type.kind !== r.kind)
@@ -673,6 +707,8 @@ export class MediaSources {
           retained_by: actor.userId,
           original_source_id: r.id,
           ...(r.link_host ? {link_host: r.link_host} : {}),
+          // The Drive selection it came through, by IDs only, so the copy can show when that access is revoked (MED-05).
+          ...(drive ? {drive} : {}),
           ...(thumbnail ? {thumbnail} : {}),
         };
         this.store.putDocument(actor.tenantId, 'retained_media_source', target, record);

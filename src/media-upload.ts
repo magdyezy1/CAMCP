@@ -226,6 +226,15 @@ export const mediaTool = {
         },
       },
       offset: {type: 'integer', minimum: 0},
+      recovery_offset: {
+        type: 'integer',
+        minimum: 0,
+        description: 'list: where the page of unfinished-upload recovery reviews starts; defaults to offset.',
+      },
+      include_assets: {
+        type: 'boolean',
+        description: 'list: false leaves the upload receipts out, for a page that shows only recovery and sources.',
+      },
       limit: {
         type: 'integer',
         minimum: 1,
@@ -1207,10 +1216,24 @@ export class MediaUploadService {
       });
     if (input.action === 'list') {
       const offset = input.offset ?? 0,
-        limit = input.limit ?? 50;
-      if (!Number.isInteger(offset) || offset < 0 || !Number.isInteger(limit) || limit < 1 || limit > 100)
+        limit = input.limit ?? 50,
+        // Recovery reviews page on their own cursor (MED-05); without one they follow `offset`, as before.
+        recoveryOffset = input.recovery_offset ?? offset;
+      if (
+        !Number.isInteger(offset) ||
+        offset < 0 ||
+        !Number.isInteger(recoveryOffset) ||
+        recoveryOffset < 0 ||
+        !Number.isInteger(limit) ||
+        limit < 1 ||
+        limit > 100
+      )
         fail('INVALID_ARGUMENT', 'Invalid media pagination.');
-      const assets = this.assets(actor, input);
+      if (input.include_assets !== undefined && typeof input.include_assets !== 'boolean')
+        fail('INVALID_ARGUMENT', 'include_assets is true or false.');
+      // A page that shows only recovery and sources (the website's media page) leaves the receipts out.
+      const withAssets = input.include_assets !== false,
+        assets = withAssets ? this.assets(actor, input) : [];
       const reviews = this.store
         .documents(actor.tenantId, 'media_review')
         .filter(r => r.user_id === actor.userId)
@@ -1233,12 +1256,16 @@ export class MediaUploadService {
         )
         .sort((a, b) => b.expires_at - a.expires_at);
       return {
-        assets: assets.slice(offset, offset + limit),
-        total: assets.length,
-        has_more: offset + limit < assets.length,
-        recovery_reviews: reviews.slice(offset, offset + limit),
+        ...(withAssets
+          ? {
+              assets: assets.slice(offset, offset + limit),
+              total: assets.length,
+              has_more: offset + limit < assets.length,
+            }
+          : {}),
+        recovery_reviews: reviews.slice(recoveryOffset, recoveryOffset + limit),
         recovery_total: reviews.length,
-        recovery_has_more: offset + limit < reviews.length,
+        recovery_has_more: recoveryOffset + limit < reviews.length,
         variants: this.store
           .documents(actor.tenantId, 'media_variant')
           .filter(v => (ownsRecord(actor, v) || actor.role === 'admin') && v.expires_at > Date.now())

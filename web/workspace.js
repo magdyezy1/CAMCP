@@ -439,9 +439,29 @@ const mediaNotSentNotice = r =>
     : r.can_execute === false
       ? `<p role="status">${esc(uiText('Nothing reached the platform, and queueing this review again would stop the same way. Prepare the upload again.'))}</p>`
       : `<p role="status">${esc(uiText('Not sent — try again. Nothing reached the platform, so submitting this review again is safe while it is valid.'))}</p>`;
+/**
+ * The media page's link to another page of recovery reviews (MED-05): only `recovery_page` changes, so the creative
+ * library's own search and filters in the address stay as they are.
+ */
+function mediaRecoveryHref(search, page) {
+  const query = new URLSearchParams(search);
+  query.delete('page');
+  if (page > 0) query.set('recovery_page', String(page));
+  else query.delete('recovery_page');
+  const text = query.toString();
+  return '/media' + (text ? '?' + text : '');
+}
 async function renderMediaLibrary() {
-  const page = Math.max(0, Number(new URLSearchParams(location.search).get('page')) || 0);
-  const d = await workspaceCall('media', {action: 'list', offset: page * 50, limit: 50}),
+  const params = new URLSearchParams(location.search),
+    // Recovery has its own page (?recovery_page; an older ?page link still opens that page).
+    page = Math.max(0, Number(params.get('recovery_page') ?? params.get('page')) || 0);
+  // Upload receipts are not shown here (the creative library pages them itself), so they are left out of this call.
+  const d = await workspaceCall('media', {
+      action: 'list',
+      include_assets: false,
+      recovery_offset: page * 50,
+      limit: 50,
+    }),
     targets = platforms
       .filter(p => ['meta', 'tiktok', 'snapchat', 'google', 'linkedin', 'x', 'dv360'].includes(p.id))
       .flatMap(p =>
@@ -485,10 +505,10 @@ async function renderMediaLibrary() {
   bindAdPreviews();
   $('#media-review').insertAdjacentHTML(
     'beforebegin',
-    `<div class="dialog-actions"><button id="media-prev" class="button" ${page ? '' : 'disabled'}>${esc(uiText('Previous recovery page'))}</button><span>${esc(uiText('Page'))} ${page + 1}</span><button id="media-next" class="button" ${d.has_more || d.recovery_has_more ? '' : 'disabled'}>${esc(uiText('Next recovery page'))}</button></div>`,
+    `<div class="dialog-actions"><button id="media-prev" class="button" ${page ? '' : 'disabled'}>${esc(uiText('Previous recovery page'))}</button><span>${esc(uiText('Page'))} ${page + 1}</span><button id="media-next" class="button" ${d.recovery_has_more ? '' : 'disabled'}>${esc(uiText('Next recovery page'))}</button></div>`,
   );
-  workspaceBind('#media-prev', () => navigate('/media?page=' + Math.max(0, page - 1)));
-  workspaceBind('#media-next', () => navigate('/media?page=' + (page + 1)));
+  workspaceBind('#media-prev', () => navigate(mediaRecoveryHref(location.search, Math.max(0, page - 1))));
+  workspaceBind('#media-next', () => navigate(mediaRecoveryHref(location.search, page + 1)));
   const showJob = async id => {
     clearTimeout(pollTimer);
     const job = await workspaceCall('media', {action: 'job_status', review_id: id});
