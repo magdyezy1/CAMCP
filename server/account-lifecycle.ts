@@ -2,6 +2,7 @@ import {randomUUID} from 'node:crypto';
 import type {Store} from '../src/store.js';
 import type {Actor, JsonObject} from '../src/types.js';
 import {disconnectLocalConnection} from '../src/connection-disconnect.js';
+import {accountRetention, accountsDueForErasure, eraseAccount} from '../src/account-erasure.js';
 
 const day = 86400000;
 /** The shared reviewer workspace of a deployment workspace (WebStore.testTenantId). */
@@ -59,8 +60,36 @@ export function purgeReviewerConnections(
   });
 }
 /**
+ * Erases the accounts retention makes due (SEC-07 S4): sign-ups never approved for `AMCP_PENDING_ACCOUNT_DAYS` (30 by
+ * default) and, when the owner sets `AMCP_REVOKED_ACCOUNT_DAYS`, accounts revoked that long ago. Each is erased like
+ * `admin erase-account --confirm` and receipted; one that cannot be erased (its workspace is shared) is counted and
+ * kept. At most 100 of each per run.
+ */
+export function eraseDueAccounts(
+  store: Store,
+  deploymentTenant: string,
+  retention: ReturnType<typeof accountRetention>,
+  now = Date.now(),
+): {pending: number; revoked: number; refused: number} {
+  const due = accountsDueForErasure(store, deploymentTenant, retention, now),
+    out = {pending: 0, revoked: 0, refused: 0};
+  for (const [kind, reason] of [
+    ['pending', 'pending_retention'],
+    ['revoked', 'revoked_retention'],
+  ] as const)
+    for (const userId of due[kind])
+      try {
+        eraseAccount(store, {userId}, {deploymentTenant, reason, by: 'system:retention'});
+        out[kind]++;
+      } catch {
+        out.refused++;
+      }
+  return out;
+}
+/**
  * The worker's account lifecycle sweep, at most once an hour: logins of the shared reviewer workspace older than their
- * lifetime are removed (SEC-06 S6). Returns what it removed, or undefined when it did not run.
+ * lifetime are removed (SEC-06 S6), and accounts past their retention are erased (SEC-07 S4). Returns what it removed,
+ * or undefined when it did not run. An unknown retention or lifetime value stops start-up.
  */
 export function accountLifecycleSweeper(
   store: Store,
@@ -70,6 +99,7 @@ export function accountLifecycleSweeper(
     now = options.now ?? Date.now,
     interval = options.intervalMs ?? 3600000,
     reviewerLifetime = reviewerConnectionLifetime(env),
+    retention = accountRetention(env),
     reviewers = reviewerTenant(options.tenantId);
   let next = 0;
   return () => {
@@ -82,6 +112,7 @@ export function accountLifecycleSweeper(
           ? 0
           : purgeReviewerConnections(store, reviewers, 'reviewer_connection_expired', at - reviewerLifetime)
               .connections,
+      accounts_erased: eraseDueAccounts(store, options.tenantId, retention, at),
     };
   };
 }

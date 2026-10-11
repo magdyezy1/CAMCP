@@ -52,10 +52,26 @@ interface Step {
   /** Media chunks go one row per statement, outside the transaction, so the log stays small (OPS-01). */
   oneByOne?: boolean;
 }
-/** Every row of an erasure, in deletion order (keys before their owners and grants; the workspace last). */
-function steps(user: JsonObject | undefined, tenant: string): Step[] {
+/**
+ * Every row of an erasure, in deletion order (the workspace's own rows, then keys and grants, then the account). The
+ * keys are listed first: the workspace's keys, the person's keys in other workspaces and their AI-client access.
+ */
+function steps(store: Store, user: JsonObject | undefined, tenant: string): Step[] {
   const id = String(user?.id ?? ''),
-    emailHash = typeof user?.email === 'string' ? sha256(user.email.toLowerCase()) : '';
+    emailHash = typeof user?.email === 'string' ? sha256(user.email.toLowerCase()) : '',
+    grants = has(store, 'amcp_mcp_grants'),
+    keys = JSON.stringify(
+      (
+        store.db
+          .prepare(
+            'SELECT hash FROM api_keys WHERE tenant_id=? OR hash IN (SELECT hash FROM credential_owners WHERE user_id=?)' +
+              (grants
+                ? " OR hash IN (SELECT hash FROM amcp_mcp_grants WHERE kind='access' AND json_extract(data,'$.ownerUserId')=?)"
+                : ''),
+          )
+          .all(tenant, id, ...(grants ? [id] : [])) as {hash: string}[]
+      ).map(row => row.hash),
+    );
   return [
     {table: 'media_chunks', where: 'tenant_id=?', params: [tenant], oneByOne: true},
     {table: 'retained_media_chunks', where: 'tenant_id=?', params: [tenant], oneByOne: true},
@@ -65,24 +81,15 @@ function steps(user: JsonObject | undefined, tenant: string): Step[] {
     {
       table: 'documents',
       where:
-        "tenant_id=? OR (kind='monitor_subscription' AND json_extract(data,'$.user_id')=?) OR (kind='workspace_invite' AND json_extract(data,'$.emailHash')=?)",
+        "tenant_id=? OR (kind IN ('monitor_subscription','monitor_notice') AND json_extract(data,'$.user_id')=?) OR (kind='workspace_invite' AND json_extract(data,'$.emailHash')=?)",
       params: [tenant, id, emailHash],
     },
     {table: 'jobs', where: 'tenant_id=?', params: [tenant]},
     {table: 'idempotency', where: 'tenant_id=?', params: [tenant]},
     {table: 'resource_ownership', where: 'tenant_id=?', params: [tenant]},
     {table: 'connections', where: 'tenant_id=?', params: [tenant]},
-    {
-      table: 'api_keys',
-      where:
-        "tenant_id=? OR hash IN (SELECT hash FROM credential_owners WHERE user_id=?) OR hash IN (SELECT hash FROM amcp_mcp_grants WHERE kind='access' AND json_extract(data,'$.ownerUserId')=?)",
-      params: [tenant, id, id],
-    },
-    {
-      table: 'credential_owners',
-      where: 'user_id=? OR hash NOT IN (SELECT hash FROM api_keys)',
-      params: [id],
-    },
+    {table: 'api_keys', where: 'hash IN (SELECT value FROM json_each(?))', params: [keys]},
+    {table: 'credential_owners', where: 'user_id=? OR hash IN (SELECT value FROM json_each(?))', params: [id, keys]},
     {table: 'amcp_mcp_grants', where: "tenant_id=? OR json_extract(data,'$.ownerUserId')=?", params: [tenant, id]},
     {table: 'workspace_memberships', where: 'tenant_id=? OR user_id=?', params: [tenant, id]},
     {
@@ -115,10 +122,21 @@ function target(store: Store, selector: ErasureSelector): {user?: JsonObject; te
               .get(String(selector.email).trim().toLowerCase()) as JsonObject | undefined)
           : undefined;
   const tenant = user ? String(user.tenant_id) : selector.tenantId;
-  return {user, tenant: tenant && store.db.prepare('SELECT 1 FROM tenants WHERE id=?').get(tenant) ? tenant : user ? tenant : undefined};
+  return {
+    user,
+    tenant:
+      tenant && store.db.prepare('SELECT 1 FROM tenants WHERE id=?').get(tenant) ? tenant : user ? tenant : undefined,
+  };
 }
-/** Sealed rows about the person that only their content identifies: queued e-mails and emailed links. */
-function sealedRows(store: Store, user: JsonObject | undefined): {outbox: string[]; challenges: string[]; unchecked: number} {
+/**
+ * Sealed rows about the person that only their content identifies: e-mails queued in other workspaces (those of the
+ * erased workspace go with it) and emailed links.
+ */
+function sealedRows(
+  store: Store,
+  user: JsonObject | undefined,
+  tenant: string,
+): {outbox: string[]; challenges: string[]; unchecked: number} {
   const box = store.keyring,
     email = typeof user?.email === 'string' ? user.email.toLowerCase() : undefined,
     out = {outbox: [] as string[], challenges: [] as string[], unchecked: 0};
@@ -135,7 +153,9 @@ function sealedRows(store: Store, user: JsonObject | undefined): {outbox: string
     }
   };
   if (has(store, 'amcp_email_outbox'))
-    for (const row of store.db.prepare("SELECT id,secret FROM amcp_email_outbox WHERE secret<>''").all() as JsonObject[]) {
+    for (const row of store.db
+      .prepare("SELECT id,secret FROM amcp_email_outbox WHERE secret<>'' AND tenant_id<>?")
+      .all(tenant) as JsonObject[]) {
       const payload = open(row.secret, scopeKey('account-auth', 'mail:' + row.id));
       if (payload && email && JSON.stringify(payload).toLowerCase().includes(email)) out.outbox.push(row.id);
     }
@@ -167,7 +187,9 @@ export function eraseAccount(store: Store, selector: ErasureSelector, options: E
           Number(
             (
               store.db
-                .prepare('SELECT count(*) AS n FROM workspace_memberships WHERE tenant_id=? AND active=1 AND user_id<>?')
+                .prepare(
+                  'SELECT count(*) AS n FROM workspace_memberships WHERE tenant_id=? AND active=1 AND user_id<>?',
+                )
                 .get(tenant, String(user?.id ?? '')) as JsonObject
             ).n,
           ) > 0
@@ -178,12 +200,15 @@ export function eraseAccount(store: Store, selector: ErasureSelector, options: E
             409,
           )
         : undefined;
-  const plan = steps(user, tenant).filter(step => has(store, step.table)),
-    sealed = sealedRows(store, user),
+  const plan = steps(store, user, tenant).filter(step => has(store, step.table)),
+    sealed = sealedRows(store, user, tenant),
     count = (step: Step) =>
       Number(
-        (store.db.prepare('SELECT count(*) AS n FROM ' + step.table + ' WHERE ' + step.where).get(...step.params) as JsonObject)
-          .n,
+        (
+          store.db
+            .prepare('SELECT count(*) AS n FROM ' + step.table + ' WHERE ' + step.where)
+            .get(...step.params) as JsonObject
+        ).n,
       ),
     counts: Record<string, number> = {};
   for (const step of plan) counts[step.table] = count(step);
@@ -215,10 +240,12 @@ export function eraseAccount(store: Store, selector: ErasureSelector, options: E
       ...step.params.map(String),
     );
   return store.transaction(() => {
-    for (const step of plan.filter(s => !s.oneByOne))
+    // The rows are selected again inside the transaction, so a key or session created since the plan goes too.
+    for (const step of steps(store, user, tenant).filter(s => !s.oneByOne && has(store, s.table)))
       store.db.prepare('DELETE FROM ' + step.table + ' WHERE ' + step.where).run(...step.params);
     for (const id of sealed.outbox) store.db.prepare('DELETE FROM amcp_email_outbox WHERE id=?').run(id);
-    for (const hash of sealed.challenges) store.db.prepare('DELETE FROM amcp_account_challenges WHERE hash=?').run(hash);
+    for (const hash of sealed.challenges)
+      store.db.prepare('DELETE FROM amcp_account_challenges WHERE hash=?').run(hash);
     store.db.prepare('DELETE FROM tenants WHERE id=?').run(tenant);
     const tombstones = store.tombstoneAudit(tenant, erasure),
       receipt: JsonObject = {
@@ -287,15 +314,21 @@ export function reapplyErasures(store: Store, receipts: unknown, deploymentTenan
     );
   return (receipts as JsonObject[]).map(r => {
     const present =
-      (r.user_id && has(store, 'amcp_users') && store.db.prepare('SELECT 1 FROM amcp_users WHERE id=?').get(r.user_id)) ||
+      (r.user_id &&
+        has(store, 'amcp_users') &&
+        store.db.prepare('SELECT 1 FROM amcp_users WHERE id=?').get(r.user_id)) ||
       store.db.prepare('SELECT 1 FROM tenants WHERE id=?').get(r.tenant_id);
     if (!present) return {erasure_id: r.erasure_id, status: 'absent'};
-    const receipt = eraseAccount(store, r.user_id ? {userId: r.user_id, tenantId: r.tenant_id} : {tenantId: r.tenant_id}, {
-      deploymentTenant,
-      reason: 'restore_reapply',
-      by: 'system:restore',
-      reapplies: r.erasure_id,
-    });
+    const receipt = eraseAccount(
+      store,
+      r.user_id ? {userId: r.user_id, tenantId: r.tenant_id} : {tenantId: r.tenant_id},
+      {
+        deploymentTenant,
+        reason: 'restore_reapply',
+        by: 'system:restore',
+        reapplies: r.erasure_id,
+      },
+    );
     return {erasure_id: r.erasure_id, status: 'reapplied', reapplied_as: receipt.erasure_id};
   });
 }
@@ -315,7 +348,10 @@ export function accountRetention(env: NodeJS.ProcessEnv): {pendingMs: number | n
       throw Error(name + ' must be a whole number of days from 1 to ' + max + ', or off.');
     return days * day;
   };
-  return {pendingMs: period('AMCP_PENDING_ACCOUNT_DAYS', 30, 365), revokedMs: period('AMCP_REVOKED_ACCOUNT_DAYS', null, 3650)};
+  return {
+    pendingMs: period('AMCP_PENDING_ACCOUNT_DAYS', 30, 365),
+    revokedMs: period('AMCP_REVOKED_ACCOUNT_DAYS', null, 3650),
+  };
 }
 /** Accounts the retention sweep erases now: never approved and older than `pendingMs`, or revoked `revokedMs` ago. */
 export function accountsDueForErasure(
@@ -330,7 +366,9 @@ export function accountsDueForErasure(
         ? []
         : (
             store.db
-              .prepare('SELECT id FROM amcp_users WHERE approved=0 AND disabled=0 AND created_at<? AND tenant_id<>? ORDER BY created_at LIMIT 100')
+              .prepare(
+                'SELECT id FROM amcp_users WHERE approved=0 AND disabled=0 AND created_at<? AND tenant_id<>? ORDER BY created_at LIMIT 100',
+              )
               .all(now - retention.pendingMs, deploymentTenant) as {id: string}[]
           ).map(r => r.id),
     revoked =

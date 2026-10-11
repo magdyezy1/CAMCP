@@ -70,7 +70,9 @@ function tombstoneErasure(row: JsonObject): string | undefined {
     return;
   try {
     const value = JSON.parse(row.event);
-    return Object.keys(value).length === 2 && typeof value.erasure === 'string' && row.event === auditTombstone(value.erasure)
+    return Object.keys(value).length === 2 &&
+      typeof value.erasure === 'string' &&
+      row.event === auditTombstone(value.erasure)
       ? value.erasure
       : undefined;
   } catch {
@@ -2004,8 +2006,13 @@ export class Store {
       );
       if (row.previous_hash !== previous || row.hash !== hash) return false;
       if (String(row.event).includes('"account_erased"')) {
-        const receipt = JSON.parse(row.event) as JsonObject;
-        if (receipt.event === 'account_erased' && typeof receipt.erasure === 'string') {
+        let receipt: JsonObject = {};
+        try {
+          receipt = JSON.parse(row.event);
+        } catch {
+          /* Not a receipt. */
+        }
+        if (receipt?.event === 'account_erased' && typeof receipt.erasure === 'string') {
           const records = erased.get(receipt.erasure) ?? [];
           if (records.length !== receipt.tombstoned_rows || sha256(records.join('\n')) !== receipt.tombstone_digest)
             return false;
@@ -2025,7 +2032,9 @@ export class Store {
     return this.transaction(() => {
       const tombstone = auditTombstone(erasure),
         rows = (
-          this.db.prepare('SELECT seq,request_id,event,hash FROM audit WHERE tenant_id=? ORDER BY seq').all(tenant) as JsonObject[]
+          this.db
+            .prepare('SELECT seq,request_id,event,hash FROM audit WHERE tenant_id=? ORDER BY seq')
+            .all(tenant) as JsonObject[]
         ).filter(row => tombstoneErasure(row) === undefined),
         update = this.db.prepare("UPDATE audit SET event=?,request_id='' WHERE seq=?");
       for (const row of rows) update.run(tombstone, row.seq);

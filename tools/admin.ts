@@ -6,6 +6,7 @@ import {Registry} from '../src/catalog.js';
 import {MirrorError} from '../src/errors.js';
 import {guardInput, masterKeyId, previousMasterKeys} from '../src/security.js';
 import {rekeyStore} from '../src/rekey.js';
+import {eraseAccount, erasureReceipts, reapplyErasures} from '../src/account-erasure.js';
 import {passwordHashSync} from '../server/password-hashes.js';
 import {resetTwoStepOffline} from '../server/user-accounts.js';
 import {adminRootRefusal, DEFAULT_DATABASE_PATH} from '../server/config.js';
@@ -16,7 +17,7 @@ const argv = process.argv.slice(2),
   allowRoot = argv.includes('--allow-root');
 const [command, ...args] = argv.filter(arg => arg !== '--allow-root');
 const help =
-  'Usage: admin [--allow-root] keygen | password-hash (reads the password from standard input) | init <tenant> | create-key <tenant> <user> <reader|operator|admin> | revoke-key <file> | mfa-reset <email> | provision <json-file> | status <tenant> | audit-verify | rekey [--dry-run] | restamp-volume | backup <new-encrypted-file> [--allow-same-volume] [--skip-space-check] | backup-encrypted <new-encrypted-file> | backup-verify <encrypted-file> | backup-restore <encrypted-file> <new-sqlite-file> [--preserve-access] | backup-drill <encrypted-file> <new-sqlite-file> [--record <new-json-file>] [--preserve-access]';
+  'Usage: admin [--allow-root] keygen | password-hash (reads the password from standard input) | init <tenant> | create-key <tenant> <user> <reader|operator|admin> | revoke-key <file> | mfa-reset <email> | provision <json-file> | status <tenant> | audit-verify | rekey [--dry-run] | erase-account <email> --dry-run|--confirm | erasure-receipts | erasure-reapply <json-file> | restamp-volume | backup <new-encrypted-file> [--allow-same-volume] [--skip-space-check] | backup-encrypted <new-encrypted-file> | backup-verify <encrypted-file> | backup-restore <encrypted-file> <new-sqlite-file> [--preserve-access] | backup-drill <encrypted-file> <new-sqlite-file> [--record <new-json-file>] [--preserve-access]';
 /** MIRROR_MASTER_KEY, and the keys a rotation replaced (MIRROR_MASTER_KEY_PREVIOUS), from the environment only. */
 const keyring = () => ({
   current: process.env.MIRROR_MASTER_KEY || undefined,
@@ -88,7 +89,8 @@ if (command === 'keygen') {
     }
   })();
   const database = process.env.MIRROR_DB || DEFAULT_DATABASE_PATH,
-    store = new Store(database, keys.current, keys.previous);
+    store = new Store(database, keys.current, keys.previous),
+    deploymentTenant = process.env.AMCP_TENANT_ID || 'local';
   // Saved logins use, and are re-sealed without copies of, this deployment's app secrets (SEC-07 S2).
   store.appEnvironment = process.env;
   try {
@@ -114,6 +116,69 @@ if (command === 'keygen') {
           ) + '\n',
         );
         if (!['rekeyed', 'complete'].includes(String(report.status))) process.exitCode = 2;
+        break;
+      }
+      case 'erase-account': {
+        // Erases one account and its own workspace (SEC-07 S4): --dry-run counts, --confirm erases. Irreversible.
+        const [email, mode, ...extra] = args;
+        if (!email || email.startsWith('--') || !['--dry-run', '--confirm'].includes(mode ?? '') || extra.length)
+          throw Error(help);
+        const receipt = eraseAccount(
+          store,
+          {email},
+          {deploymentTenant, reason: 'operator_request', by: 'cli', dryRun: mode === '--dry-run'},
+        );
+        process.stdout.write(
+          JSON.stringify(
+            {
+              ...receipt,
+              next_steps:
+                receipt.status === 'erased'
+                  ? [
+                      'Saved provider logins were deleted from AMCP only; the person removes AMCP’s access in each provider’s own settings.',
+                      'Run `admin erasure-receipts` and keep its output with your off-host backups: `admin erasure-reapply` re-applies it after a restore.',
+                    ]
+                  : receipt.status === 'planned'
+                    ? ['Nothing changed. Run again with --confirm to erase; it cannot be undone.']
+                    : ['Nothing changed. Resolve the refusal first.'],
+            },
+            null,
+            2,
+          ) + '\n',
+        );
+        if (receipt.status === 'refused') process.exitCode = 2;
+        break;
+      }
+      case 'erasure-receipts':
+        // The erasures of this deployment by random ids only, to keep with backups (SEC-07 S4).
+        if (args.length) throw Error(help);
+        process.stdout.write(JSON.stringify(erasureReceipts(store, deploymentTenant), null, 2) + '\n');
+        break;
+      case 'erasure-reapply': {
+        // After a restore, with MIRROR_DB naming the restored copy: erases again what the receipts name (SEC-07 S4).
+        if (args.length !== 1 || args[0]!.startsWith('--')) throw Error(help);
+        let receipts: unknown;
+        try {
+          receipts = JSON.parse(fs.readFileSync(args[0]!, 'utf8'));
+        } catch {
+          throw new MirrorError(
+            'INVALID_ERASURE_RECEIPTS',
+            'Erasure receipts must be the JSON list `admin erasure-receipts` prints.',
+          );
+        }
+        const results = reapplyErasures(store, receipts, deploymentTenant);
+        process.stdout.write(
+          JSON.stringify(
+            {
+              reapplied: results.filter(r => r.status === 'reapplied').length,
+              absent: results.filter(r => r.status === 'absent').length,
+              results,
+              audit_chain_valid: store.verifyAudit(),
+            },
+            null,
+            2,
+          ) + '\n',
+        );
         break;
       }
       case 'init':
