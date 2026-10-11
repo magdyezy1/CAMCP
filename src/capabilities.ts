@@ -67,7 +67,7 @@ export function workspaceCapabilities(store: Store, actor: Actor) {
     live_qualification: 'per account and action evidence below',
   }));
   // A workspace's live evidence is its own: the reviewed writes it verified by reading them back from the provider.
-  const gatewayOf = new Map(store.listConnections(actor.tenantId).map(c => [c.id, c.gateway]));
+  const gatewayOf = new Map(store.connectionsFor(actor).map(c => [c.id, c.gateway]));
   // A provider this deployment does not offer is not shown (CON-06, src/provider-offering.ts).
   const offered = providerContracts.filter(c => gatewayOffered(c.gateway));
   return {
@@ -84,7 +84,7 @@ export function workspaceCapabilities(store: Store, actor: Actor) {
         })),
     })),
     features,
-    evidence: store.listConnections(actor.tenantId).flatMap(c =>
+    evidence: store.connectionsFor(actor).flatMap(c =>
       c.accounts.map(account => ({
         gateway: c.gateway,
         connection_id: c.id,

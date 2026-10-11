@@ -1530,7 +1530,7 @@ export class MirrorService {
     if (['get_workspace_context', 'list_accounts', 'list_workspace_assets'].includes(operation)) {
       // A captured option AMCP does not implement is refused by name instead of being ignored (MCP-10).
       if (contextOperation(gateway, operation)) checkContextOptions(this.registry, operation, args);
-      const connections = this.store.listConnections(actor.tenantId).filter(c => c.enabled);
+      const connections = this.store.connectionsFor(actor).filter(c => c.enabled);
       if (operation === 'get_workspace_context')
         return {
           workspace: {id: actor.tenantId},

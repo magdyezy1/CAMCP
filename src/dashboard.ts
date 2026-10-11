@@ -66,7 +66,7 @@ export function fullDashboard(store: Store, actor: Actor, allowWrites: boolean):
     at: Date.now(),
     writes_enabled: allowWrites,
     writes_paused: writePause(store, actor.tenantId) ?? null,
-    connections: store.listConnections(actor.tenantId).map(c => ({
+    connections: store.connectionsFor(actor).map(c => ({
       id: c.id,
       gateway: c.gateway,
       label: c.label,
@@ -155,13 +155,13 @@ export function dashboard(store: Store, actor: Actor, allowWrites: boolean, inpu
     ['gateway', 'connection_id', 'account_id'].filter(k => input[k] !== undefined).map(k => [k, input[k]]),
   );
   const connections = store
-      .listConnections(actor.tenantId)
+      .connectionsFor(actor)
       .filter(
         c =>
           (!filters.gateway || c.gateway === filters.gateway) &&
           (!filters.connection_id || c.id === filters.connection_id),
       ),
-    gatewayOf = new Map(store.listConnections(actor.tenantId).map(c => [c.id, c.gateway])),
+    gatewayOf = new Map(store.connectionsFor(actor).map(c => [c.id, c.gateway])),
     matchesAccount = (gateway: string | undefined, id: unknown) =>
       !filters.account_id ||
       (typeof id === 'string' &&

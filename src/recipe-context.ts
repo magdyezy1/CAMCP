@@ -48,7 +48,7 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
   const inventory = store.documents(actor.tenantId, 'website_assets'),
     // The one account-metadata resolver (CON-05): the same name and source as list_accounts and capabilities.
     targets = store
-      .listConnections(actor.tenantId)
+      .connectionsFor(actor)
       .filter(c => c.gateway === gateway && c.enabled)
       .flatMap(c =>
         c.accounts
@@ -98,7 +98,7 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
   noSecrets(defaults);
   // Connected accounts the selected playbook's bindings leave out (CMP-06), so an empty account list can say why.
   const connected = store
-    .listConnections(actor.tenantId)
+    .connectionsFor(actor)
     .filter(c => c.gateway === gateway && c.enabled)
     .reduce((count, c) => count + c.accounts.length, 0);
   return {
@@ -115,7 +115,7 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
         .flatMap((g: JsonObject) => g.assets.map((a: JsonObject) => ({id: a.id, name: a.name, connection_id: i.id}))),
     ),
     drive_connections: store
-      .listConnections(actor.tenantId)
+      .connectionsFor(actor)
       .filter(c => c.gateway === 'google_drive_native_action' && c.enabled)
       .map(c => ({id: c.id, label: c.label, files: c.accounts})),
     limitations:

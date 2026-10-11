@@ -90,7 +90,7 @@ export function connectionDiagnostics(
   )
     invalid('Select an exact connection UUID.');
   const all = store
-    .listConnections(actor.tenantId)
+    .connectionsFor(actor)
     .filter(c => c.gateway === gateway)
     .sort((a, b) => a.id.localeCompare(b.id));
   let selected: Connection | undefined;

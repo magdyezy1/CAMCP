@@ -69,7 +69,7 @@ export function enablePersonalData(store: Store, actor: Actor, input: JsonObject
       'INVALID_ARGUMENT',
       'Give connection_id, account_id and confirmed=true to turn personal-data writes on for one ad account.',
     );
-  const connection = store.listConnections(actor.tenantId).find(c => c.id === input.connection_id);
+  const connection = store.connectionsFor(actor).find(c => c.id === input.connection_id);
   if (!connection) fail('CONNECTION_NOT_FOUND', 'No connection of this workspace has that id.', {}, 404);
   const account = normalizeAccount(connection.gateway, input.account_id);
   if (!connection.accounts.map(a => normalizeAccount(connection.gateway, a)).includes(account))

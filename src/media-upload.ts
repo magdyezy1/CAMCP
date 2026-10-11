@@ -46,6 +46,7 @@ import {assertWritesNotPaused} from './owner-operations.js';
 import {googleAdsCustomers} from './google-version.js';
 import {metaPrefix} from './meta-version.js';
 import {creativeLibrary} from './creative-library.js';
+import {optionalClientView} from './client-scope.js';
 
 const platforms = mediaPlatforms;
 /** Snapchat simple uploads take up to 32 MB; larger files are sent in parts well under the 32 MB part limit (either unit). */
@@ -205,6 +206,7 @@ export const mediaTool = {
       offset: {type: 'integer', minimum: 0},
       recovery_offset: {type: 'integer', minimum: 0},
       include_assets: {type: 'boolean'},
+      profile_id: {type: 'string', maxLength: 200},
       limit: {
         type: 'integer',
         minimum: 1,
@@ -581,7 +583,7 @@ export class MediaUploadService {
     if (!selected) {
       const id = driveDownloadUrl(input.drive_url).searchParams.get('id')!,
         matches = this.store
-          .listConnections(actor.tenantId)
+          .connectionsFor(actor)
           .filter(c => c.gateway === 'google_drive_native_action' && c.enabled && c.accounts.includes(id)),
         defaults = matches.filter(c => c.isDefault);
       if (matches.length > 1 && defaults.length !== 1)
@@ -1197,9 +1199,15 @@ export class MediaUploadService {
         fail('INVALID_ARGUMENT', 'Invalid media pagination.');
       if (input.include_assets !== undefined && typeof input.include_assets !== 'boolean')
         fail('INVALID_ARGUMENT', 'include_assets is true or false.');
-      // A page that shows only recovery and sources (the website's media page) leaves the receipts out.
-      const withAssets = input.include_assets !== false,
-        assets = withAssets ? this.assets(actor, input) : [];
+      // A page that shows only recovery and sources (the website's media page) leaves the receipts out. The working
+      // client (SEC-08) keeps receipts and recovery of the accounts its profile binds, within current access.
+      const client = optionalClientView(this.store, actor, input.profile_id),
+        ofClient = (platform: string, account: unknown, connection: unknown) =>
+          !client || client.has(platform + '_native_action', account, connection),
+        withAssets = input.include_assets !== false,
+        assets = withAssets
+          ? this.assets(actor, input).filter(a => ofClient(a.platform, a.account_id, a.connection_id))
+          : [];
       const reviews = this.store
         .documents(actor.tenantId, 'media_review')
         .filter(r => r.user_id === actor.userId)
@@ -1210,7 +1218,9 @@ export class MediaUploadService {
             return (
               (!input.platform || p.platform === input.platform) &&
               (!input.connection_id || p.connection_id === input.connection_id) &&
-              (!input.account_id || p.account_id === normalizeAccount(p.platform + '_native_action', input.account_id))
+              (!input.account_id ||
+                p.account_id === normalizeAccount(p.platform + '_native_action', input.account_id)) &&
+              ofClient(p.platform, p.account_id, p.connection_id)
             );
           } catch {
             return false;

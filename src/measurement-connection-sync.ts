@@ -57,7 +57,7 @@ export async function syncMeasurementConnection(
       !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.connection_id))
   )
     throw new MirrorError('CONNECTION_ID_REQUIRED', 'Select the connection UUID.');
-  const choices = store.listConnections(actor.tenantId).filter(c => c.gateway === gateway),
+  const choices = store.connectionsFor(actor).filter(c => c.gateway === gateway),
     defaults = choices.filter(c => c.isDefault && c.enabled);
   const connection = input.connection_id
     ? choices.find(c => c.id === input.connection_id)
@@ -76,7 +76,7 @@ export async function syncMeasurementConnection(
   const id = connection.id,
     current = () => {
       authority();
-      const c = store.listConnections(actor.tenantId).find(c => c.id === id && c.gateway === gateway);
+      const c = store.connectionsFor(actor).find(c => c.id === id && c.gateway === gateway);
       if (!c) throw new MirrorError('CONNECTION_CHANGED', 'The selected connection was removed or changed.', {}, 409);
       return c;
     };

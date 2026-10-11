@@ -65,7 +65,7 @@ export async function reauthorizeGoogleConnection(input: {
   const current = () => {
     assertActive();
     if (actor.role !== 'admin') throw new MirrorError('FORBIDDEN', 'A workspace administrator is required.', {}, 403);
-    const c = store.listConnections(actor.tenantId).find(c => c.id === connectionId);
+    const c = store.connectionsFor(actor).find(c => c.id === connectionId);
     if (!c || c.gateway !== 'google_ads_native_action')
       throw new MirrorError(
         'CONNECTION_NOT_FOUND',
@@ -248,7 +248,7 @@ export async function reauthorizeGoogleConnection(input: {
         vendor_writes: 0,
       });
       // The stored record carries the bumped login revision (CON-01); its credential health starts clean (CON-02).
-      const stored = store.listConnections(actor.tenantId).find(x => x.id === connectionId) ?? next;
+      const stored = store.connectionsFor(actor).find(x => x.id === connectionId) ?? next;
       recordAuthorized(store, stored, credentials);
       return stored;
     });

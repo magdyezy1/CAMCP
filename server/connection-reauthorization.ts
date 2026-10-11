@@ -79,7 +79,7 @@ export async function reauthorizeConnection(input: {
   const current = () => {
     assertActive();
     if (actor.role !== 'admin') throw new MirrorError('FORBIDDEN', 'A workspace administrator is required.', {}, 403);
-    const c = store.listConnections(actor.tenantId).find(c => c.id === connectionId);
+    const c = store.connectionsFor(actor).find(c => c.id === connectionId);
     if (!c || c.gateway !== p.gateway)
       throw new MirrorError(
         'CONNECTION_NOT_FOUND',
@@ -232,7 +232,7 @@ export async function reauthorizeConnection(input: {
         },
         removed = (latest.writeAccounts ?? []).filter(id => !(next.writeAccounts ?? []).includes(id));
       store.putConnection(actor, next, credentials);
-      const stored = store.listConnections(actor.tenantId).find(x => x.id === connectionId)!;
+      const stored = store.connectionsFor(actor).find(x => x.id === connectionId)!;
       store.putDocument(actor.tenantId, 'website_connection', connectionId, {
         ...saved,
         platform: p.id,

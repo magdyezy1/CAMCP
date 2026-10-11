@@ -36,6 +36,7 @@ const key = Buffer.alloc(32, 77).toString('base64'),
     'store-0012-provider-issuer-usage',
     'store-0013-report-parts-cleanup',
     'store-0014-audit-tombstone-trigger',
+    'store-0015-access-set-columns',
   ],
   webSteps = ['web-0001-tables', 'web-0002-amcp-users-approval-columns'];
 function temporary() {

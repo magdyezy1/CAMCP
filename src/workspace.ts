@@ -177,6 +177,7 @@ export const workspaceTool = tool(
     live: field.bool,
     id: field.id,
     profile: field.object,
+    profile_id: field.id,
     brief: field.object,
     preview: field.object,
     preview_id: field.id,
@@ -636,7 +637,7 @@ export class WorkspaceService {
       new Set(ids).size !== ids.length
     )
       bad('account_ids takes 1 to 20 distinct account IDs.', 'INVALID_ARGUMENT', {field: 'account_ids'});
-    const c = this.store.listConnections(actor.tenantId).find(c => c.id === input.connection_id);
+    const c = this.store.connectionsFor(actor).find(c => c.id === input.connection_id);
     if (!c) bad('Select a connection in this workspace.', 'CONNECTION_NOT_FOUND');
     const foreign = (ids as string[]).filter(id => !c.accounts.includes(id));
     if (foreign.length)
@@ -662,7 +663,7 @@ export class WorkspaceService {
     };
   }
   private async checkAccount(input: JsonObject, actor: Actor): Promise<JsonObject> {
-    const c = this.store.listConnections(actor.tenantId).find(c => c.id === input.connection_id);
+    const c = this.store.connectionsFor(actor).find(c => c.id === input.connection_id);
     if (!c) bad('Select a connection in this workspace.', 'CONNECTION_NOT_FOUND');
     const id = input.account_id;
     if (typeof id !== 'string' || !c.accounts.includes(id))

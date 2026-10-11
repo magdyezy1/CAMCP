@@ -4,6 +4,7 @@ import {doorPrincipal, ownsRecord, principalOf} from './actor-identity.js';
 import {MirrorError} from './errors.js';
 import {cursorBinding} from './page-cursor.js';
 import {bad} from './workspace-core.js';
+import {clientView} from './client-scope.js';
 
 /**
  * Campaign plan inventory and team handoff (CMP-05).
@@ -72,11 +73,18 @@ function withinAccess(store: Store, actor: Actor, scopes: JsonObject[]): boolean
     throw e;
   }
 }
+/** An own plan as access limited to a client access set sees it (SEC-08): one naming no account yet, or within the set. */
+function scopedOwnPlan(store: Store, actor: Actor, scopes: JsonObject[]): boolean {
+  return !scopes.some(s => s.account_id) || withinAccess(store, actor, scopes);
+}
 /**
  * Whether the actor may act on a plan with this right. Its owner and administrators may do anything their role allows;
  * `manage` (naming collaborators) is theirs alone. A collaborator acts by role, within current account access.
  */
 export function planRight(store: Store, actor: Actor, run: JsonObject, right: PlanRight): boolean {
+  // Access limited to a client access set (SEC-08) reaches even its person's own plans only within the set.
+  if (actor.accessSetId !== undefined && ownsRecord(actor, run))
+    return scopedOwnPlan(store, actor, planScopes(run.steps));
   if (ownsRecord(actor, run) || actor.role === 'admin') return true;
   if (right === 'manage') return false;
   const c = collaboratorOf(run, actor);
@@ -116,9 +124,24 @@ export type PlanFilters = {
   account_id?: string;
   connection_id?: string;
   profile_id?: string;
+  /** The client's bound accounts as `gateway NUL plain account` (set with profile_id; never part of the cursor). */
+  client_accounts?: string[];
   search?: string;
   awaiting_approval?: boolean;
 };
+/** As the plan SQL compares accounts: without act_ and dashes. */
+const plainKey = (gateway: string, account: string) =>
+  gateway + '\u0000' + account.replaceAll('act_', '').replaceAll('-', '');
+/** The accounts of a client profile within current access, or none when the profile no longer exists. */
+function clientAccounts(store: Store, actor: Actor, profileId: string): string[] {
+  try {
+    return clientView(store, actor, profileId).accounts.map(a => plainKey(a.gateway, a.account_id));
+  } catch (e) {
+    // A removed profile still finds the plans recorded with it.
+    if (e instanceof MirrorError && e.code === 'PROFILE_NOT_FOUND') return [];
+    throw e;
+  }
+}
 function filterSQL(actor: Actor, f: PlanFilters): {sql: string[]; params: Param[]} {
   const sql: string[] = [],
     params: Param[] = [];
@@ -128,8 +151,10 @@ function filterSQL(actor: Actor, f: PlanFilters): {sql: string[]; params: Param[
     params.push(f.state);
   }
   if (f.profile_id) {
-    sql.push("json_extract(d.data,'$.profile_id')=?");
-    params.push(f.profile_id);
+    // A client's plans (SEC-08): made with its profile, or naming an account the profile binds within current access.
+    sql.push(`(json_extract(d.data,'$.profile_id')=? OR EXISTS (SELECT 1 FROM json_each(d.data,'$.steps') s
+      WHERE ${stepGateway}||char(0)||${plainAccount("json_extract(s.value,'$.account_id')")} IN (SELECT value FROM json_each(?))))`);
+    params.push(f.profile_id, JSON.stringify(f.client_accounts ?? []));
   }
   if (f.gateway || f.account_id || f.connection_id) {
     sql.push(`EXISTS (SELECT 1 FROM json_each(d.data,'$.steps') s WHERE (? IS NULL OR ${stepGateway}=?)
@@ -241,7 +266,11 @@ function scanPlans(
       break;
     }
     const scopes = planScopes(parse(r.scopes));
-    const own = actor.role === 'admin' || ownsRecord(actor, r);
+    // A client access set (SEC-08) shows its person's own plans too only within the set.
+    const own =
+      actor.accessSetId === undefined
+        ? actor.role === 'admin' || ownsRecord(actor, r)
+        : ownsRecord(actor, r) && scopedOwnPlan(store, actor, scopes);
     const visible = own || withinAccess(store, actor, scopes);
     if (visible && out.length === options.limit) {
       more = true;
@@ -306,6 +335,9 @@ export function listPlans(store: Store, actor: Actor, input: JsonObject): JsonOb
     if (value !== undefined) filters[key] = value;
   }
   const binding = cursorBinding(store, actor, {action: 'campaign_list', limit, ...filters});
+  const query: PlanFilters = filters.profile_id
+    ? {...filters, client_accounts: clientAccounts(store, actor, filters.profile_id)}
+    : filters;
   let after: {at: number; id: string} | undefined;
   if (input.cursor !== undefined) {
     if (input.offset !== undefined)
@@ -335,14 +367,14 @@ export function listPlans(store: Store, actor: Actor, input: JsonObject): JsonOb
   const offset = input.offset ?? 0;
   if (!Number.isSafeInteger(offset) || offset < 0)
     bad('offset is a whole number of plans to skip.', 'INVALID_ARGUMENT', {field: 'offset'});
-  const page = scanPlans(store, actor, filters, {limit, ...(after ? {after} : {}), offset});
+  const page = scanPlans(store, actor, query, {limit, ...(after ? {after} : {}), offset});
   const next =
     page.more && page.last
       ? Buffer.from(JSON.stringify({version: 1, binding, at: page.last.at, id: page.last.id})).toString('base64url')
       : null;
   return {
     campaigns: page.rows,
-    total: countPlans(store, actor, filters),
+    total: countPlans(store, actor, query),
     has_more: page.more,
     next_cursor: next,
     ...(page.more && input.cursor === undefined ? {next_offset: offset + page.scanned} : {}),

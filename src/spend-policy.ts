@@ -419,7 +419,7 @@ export function unprotectedAccounts(store: Store, actor: Actor) {
   );
   if (ids.has(workspaceDefaultPolicyId)) return [];
   const rows: JsonObject[] = [];
-  for (const c of store.listConnections(actor.tenantId))
+  for (const c of store.connectionsFor(actor))
     for (const account of c.accounts)
       if (!ids.has(spendPolicyKey(c.gateway, account)))
         rows.push({gateway: c.gateway, account_id: account, connection_id: c.id});
@@ -1139,7 +1139,7 @@ function checkAccountSpendPolicy(
         // The live account check records the currency (account-metadata.ts); it reads through a connection.
         const account = normalizeAccount(plan.gateway, String(plan.accountId ?? '')),
           connection = store
-            .listConnections(actor.tenantId)
+            .connectionsFor(actor)
             .find(c => c.gateway === plan.gateway && c.accounts.some(a => normalizeAccount(c.gateway, a) === account));
         breach(
           new MirrorError(

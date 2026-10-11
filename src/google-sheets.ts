@@ -493,7 +493,7 @@ export class GoogleSheetsExports {
   }
   private connection(actor: Actor, id: string, creating = false): Connection {
     this.store.assertActorActive(actor);
-    const c = this.store.listConnections(actor.tenantId).find(c => c.id === id && c.gateway === sheetsGateway);
+    const c = this.store.connectionsFor(actor).find(c => c.id === id && c.gateway === sheetsGateway);
     if (!c || (!c.enabled && !(creating && c.accounts.length === 0)))
       throw new MirrorError(
         'SHEETS_CONNECTION_REQUIRED',

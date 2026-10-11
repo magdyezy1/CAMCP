@@ -101,7 +101,7 @@ export function wooCommerceOrigin(input: unknown): URL {
 export function wooCommerceSources(store: Store, actor: Actor, includeDisabled = false) {
   store.assertActorActive(actor);
   const items = store
-    .listConnections(actor.tenantId)
+    .connectionsFor(actor)
     .filter(
       c =>
         (c.enabled || includeDisabled) &&
