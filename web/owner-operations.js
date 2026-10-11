@@ -59,6 +59,36 @@ const policyMeta = [
   'money_units',
   'native_unit',
 ];
+/** What an owner's write pause stops, by its scope (RPT-06): everything, advertising writes only, or report jobs only. */
+function pauseScopeText(scope) {
+  return scope === 'provider_jobs'
+    ? uiText(
+        'Every report and export job of this workspace is refused until you resume. Advertising writes, media uploads, reads, reviews and verification continue.',
+      )
+    : scope === 'advertising'
+      ? uiText(
+          'Every advertising write and media upload of this workspace is refused until you resume. Report and export jobs, reads, reviews and verification continue.',
+        )
+      : uiText(
+          'Every reviewed write and media upload of this workspace is refused until you resume. Reads, reviews and verification continue.',
+        );
+}
+/** The provider-job switch and the jobs created in the last seven days, counted from their receipts (RPT-06). */
+function providerJobsLine(jobs) {
+  if (!jobs) return '';
+  const count = String(jobs.receipts?.created ?? 0);
+  return `<p class="form-note">${esc(
+    jobs.switch === 'on'
+      ? uiText(
+          'Report and export jobs are allowed while live writes are off; each needs an account report-job grant. Jobs created in the last 7 days: {count}.',
+          {count},
+        )
+      : uiText(
+          'Report and export jobs are reviewed writes in this deployment. Jobs created in the last 7 days: {count}.',
+          {count},
+        ),
+  )}</p>`;
+}
 /** What the workspace default sets for one platform: its shared settings under that platform's own limits. */
 function workspaceDefaultFor(stored, gateway) {
   if (!stored) return undefined;
@@ -426,7 +456,7 @@ renderSettings = async function () {
   else content.append(area);
   // WEB-08: Safety first (the emergency stop and spending caps), then Access (account-approvals.js fills it for the
   // instance owner), Health and Retention, each reachable from the sub-navigation in one step.
-  area.innerHTML = `<div class="report-heading"><div><span class="eyebrow">${esc(uiText('WORKSPACE OWNER'))}</span><h2>${esc(uiText('Health & operating controls'))}</h2><p>${esc(uiText('Connection readiness, deliveries and the boundaries you set for your team.'))}</p></div><button class="button" id="owner-refresh">${esc(uiText('Refresh health'))}</button></div><p id="owner-error" class="error" role="alert"></p><nav class="settings-subnav" aria-label="${esc(uiText('Settings sections'))}"><ul><li><a href="#settings-safety">${esc(uiText('Safety'))}</a></li><li data-settings-access hidden><a href="#settings-access">${esc(uiText('Access'))}</a></li><li><a href="#settings-health">${esc(uiText('Health'))}</a></li><li><a href="#settings-retention">${esc(uiText('Retention'))}</a></li><li><a href="#settings-account">${esc(uiText('Account'))}</a></li></ul></nav><section id="settings-safety" class="settings-group" aria-labelledby="settings-safety-heading"><h2 id="settings-safety-heading">${esc(uiText('Safety'))}</h2><section class="panel" id="owner-write-pause"><h3>${esc(uiText('Pause all writes'))}</h3>${h.write_pause ? `<p class="notice"><strong>${esc(uiText('Writes are paused'))}</strong> ${esc(uiText('since'))} ${esc(date(h.write_pause.paused_at))} ${esc(uiText('by'))} ${esc(h.write_pause.paused_by)}: ${esc(h.write_pause.reason)}</p><p>${esc(uiText('Every reviewed write and media upload of this workspace is refused until you resume. Reads, reviews and verification continue.'))}</p><button class="button primary" id="owner-resume-writes">${esc(uiText('Resume writes'))}</button>` : `<p>${esc(uiText('An emergency stop for this workspace: every reviewed write and media upload is refused until an owner resumes. Nothing already submitted is undone.'))}</p><form id="owner-pause-writes"><label>${esc(uiText('Reason (shown to everyone whose write is refused)'))}<input name="reason" maxlength="500" required></label><button class="button">${esc(uiText('Pause all writes'))}</button></form>`}</section><section class="panel"><h3>${esc(uiText('Account spending policy'))}</h3><p>${esc(uiText('Set caps for reviewed changes. These limits govern requested budgets; they do not measure or cap the provider’s billed spend.'))}</p><form id="owner-spend-policy" class="workspace-form"><label>${esc(uiText('Selected account'))}<select name="binding" required><option value="">${esc(uiText('Choose an account'))}</option>${platforms
+  area.innerHTML = `<div class="report-heading"><div><span class="eyebrow">${esc(uiText('WORKSPACE OWNER'))}</span><h2>${esc(uiText('Health & operating controls'))}</h2><p>${esc(uiText('Connection readiness, deliveries and the boundaries you set for your team.'))}</p></div><button class="button" id="owner-refresh">${esc(uiText('Refresh health'))}</button></div><p id="owner-error" class="error" role="alert"></p><nav class="settings-subnav" aria-label="${esc(uiText('Settings sections'))}"><ul><li><a href="#settings-safety">${esc(uiText('Safety'))}</a></li><li data-settings-access hidden><a href="#settings-access">${esc(uiText('Access'))}</a></li><li><a href="#settings-health">${esc(uiText('Health'))}</a></li><li><a href="#settings-retention">${esc(uiText('Retention'))}</a></li><li><a href="#settings-account">${esc(uiText('Account'))}</a></li></ul></nav><section id="settings-safety" class="settings-group" aria-labelledby="settings-safety-heading"><h2 id="settings-safety-heading">${esc(uiText('Safety'))}</h2><section class="panel" id="owner-write-pause"><h3>${esc(uiText('Pause all writes'))}</h3>${h.write_pause ? `<p class="notice"><strong>${esc(uiText('Writes are paused'))}</strong> ${esc(uiText('since'))} ${esc(date(h.write_pause.paused_at))} ${esc(uiText('by'))} ${esc(h.write_pause.paused_by)}: ${esc(h.write_pause.reason)}</p><p>${esc(pauseScopeText(h.write_pause.scope))}</p><button class="button primary" id="owner-resume-writes">${esc(uiText('Resume writes'))}</button>` : `<p>${esc(uiText('An emergency stop for this workspace: every reviewed write and media upload is refused until an owner resumes. Nothing already submitted is undone.'))}</p><form id="owner-pause-writes"><label>${esc(uiText('Reason (shown to everyone whose write is refused)'))}<input name="reason" maxlength="500" required></label><label>${esc(uiText('What to pause'))}<select name="pause_scope"><option value="all">${esc(uiText('Everything: advertising writes, media uploads and report jobs'))}</option><option value="advertising">${esc(uiText('Advertising writes and media uploads only'))}</option><option value="provider_jobs">${esc(uiText('Report and export jobs only'))}</option></select></label><button class="button">${esc(uiText('Pause all writes'))}</button></form>`}${providerJobsLine(h.provider_jobs)}</section><section class="panel"><h3>${esc(uiText('Account spending policy'))}</h3><p>${esc(uiText('Set caps for reviewed changes. These limits govern requested budgets; they do not measure or cap the provider’s billed spend.'))}</p><form id="owner-spend-policy" class="workspace-form"><label>${esc(uiText('Selected account'))}<select name="binding" required><option value="">${esc(uiText('Choose an account'))}</option>${platforms
     .filter(p => p.reviewedWrites !== false)
     .flatMap(p =>
       p.connections.flatMap(c =>
@@ -539,7 +569,9 @@ renderSettings = async function () {
     await renderSettings();
   });
   bind('#owner-pause-writes', async f => {
-    const reason = String(new FormData(f).get('reason') ?? '').trim();
+    const reason = String(new FormData(f).get('reason') ?? '').trim(),
+      // RPT-06: everything (the default), advertising writes only, or report and export jobs only.
+      pauseScope = String(new FormData(f).get('pause_scope') ?? 'all');
     if (
       !(await confirmAction({
         title: uiText('Pause every reviewed write of this workspace?'),
@@ -550,7 +582,7 @@ renderSettings = async function () {
       }))
     )
       return;
-    await ownerCall({action: 'pause_writes', reason, confirmed: true});
+    await ownerCall({action: 'pause_writes', reason, pause_scope: pauseScope, confirmed: true});
     toast(uiText('Writes are paused.'));
     await renderSettings();
   });

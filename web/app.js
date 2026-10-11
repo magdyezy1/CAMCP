@@ -38,6 +38,8 @@ let session = {authenticated: false, csrf: null},
   assetKind = 'ad_accounts',
   selected = new Set(),
   writeSelected = new Set(),
+  // The accounts checked in the report-job panel (RPT-06).
+  reportJobSelected = new Set(),
   // The last Save and check access result of each login, shown inline in the asset manager (CON-05).
   accessChecks = new Map(),
   assetSearch = '',
@@ -70,6 +72,7 @@ function resetPrivateState() {
   currentPlatform = currentConnection = null;
   selected.clear();
   writeSelected.clear();
+  reportJobSelected.clear();
   accessChecks.clear();
   search = assetSearch = '';
   filter = 'all';
@@ -720,7 +723,7 @@ function renderManage() {
   const group = c?.groups.find(g => g.kind === assetKind),
     assets = (group?.assets ?? []).filter(a => (a.name + ' ' + a.id).toLowerCase().includes(assetSearch.toLowerCase()));
   $('#manage-content').innerHTML =
-    `<div class="manage-header"><div class="platform-identity">${logo(p)}<div><h3>${esc(p.name)} ${esc(uiText('assets'))}</h3><div class="platform-kind">${esc(uiText('Manage logins and access inside AMCP'))}</div></div></div><button class="icon-button" data-close="manage-dialog" aria-label="${esc(uiText('Close asset manager'))}">×</button></div><div class="manage-body"><div class="panel-header"><div><h3>${esc(uiText('Connected logins'))}</h3><p class="muted login-caption">${esc(uiText('Each login keeps its own encrypted credentials and permissions.'))}</p></div><button class="button dark small" data-connect="${p.id}">${esc(uiText('+ Connect another'))}</button></div><div class="login-list">${p.connections.map(login => `<div class="oauth-login"><span class="avatar">${esc(login.name.slice(0, 1).toUpperCase())}</span><div><button class="button quiet small" data-select-login="${esc(login.id)}"><strong>${esc(login.name)}</strong></button>${login.isDefault ? `<span class="default-badge">${esc(uiText('Default'))}</span>` : ''}<small>${esc(loginHealthLine(login))}${reviewerLoginLine(login)} · ${login.enabled ? uiText('Enabled in AMCP') : uiText('Choose assets')}${login.duplicateOf ? ' · ' + esc(uiText('Same identity as another login')) : ''}</small></div><div class="actions"><button class="button small" data-sync="${esc(login.id)}">${esc(uiText('↻ Sync'))}</button>${login.reauthorizeAvailable ? `<button class="button small ${login.status === 'reauthorization_required' ? 'primary' : ''}" data-reauthorize="${esc(login.id)}">${esc(uiText('Reauthorize'))}</button>` : ''}${!login.isDefault && login.enabled ? `<button class="button small" data-default="${esc(login.id)}">${esc(uiText('Make default'))}</button>` : ''}<button class="button small danger" data-disconnect="${esc(login.id)}" aria-label="${esc(uiText('Disconnect {name}', {name: login.name}))}">↗</button></div></div>`).join('') || `<div class="empty"><strong>${esc(uiText('No logins connected'))}</strong>${esc(uiText('Connect your account to discover its advertising assets.'))}</div>`}</div>${renderDefaultPrompt(p)}${c ? `${renderLoginIdentity(c)}${renderCredentialHealth(c)}${renderGrantedPermissions(c)}${renderConnectionSyncStatus(c)}${renderAccessChecks(p, c)}${renderGoogleAuthorization(c)}<div class="notice asset-notice"><span>✓</span><p>${esc(uiText('Select'))} ${esc(uiText(labels[p.selectionKind] ?? p.selectionKind ?? 'Resources').toLowerCase())} ${esc(uiText('to grant MCP access to their data. Other tabs show related asset inventory. Saving this selection changes AMCP access only.'))}</p></div>${session.writesEnabled && p.reviewedWrites !== false ? `<label class="form-note"><input type="checkbox" id="selection-write-access" ${c.defaultWriteAccess ? 'checked' : ''}> ${esc(uiText('Enable read + reviewed write access for all selected resources'))}</label>` : ''}${p.reviewedWrites === false ? '' : writeAccessPanel(c)}<div class="asset-tabs" role="group" aria-label="${esc(uiText('Asset types'))}">${p.assetKinds.map(k => `<button data-asset-kind="${k}" class="${assetKind === k ? 'active' : ''}">${esc(uiText(labels[k] ?? k))} <span class="asset-count">${c.groups.find(g => g.kind === k)?.assets.length ?? '—'}</span></button>`).join('')}</div><div class="asset-toolbar"><label class="search"><span>⌕</span><input id="asset-search" type="search" value="${esc(assetSearch)}" placeholder="${esc(uiText('Search {kind}…', {kind: uiText(labels[assetKind] ?? assetKind)}))}" aria-label="${esc(uiText('Search assets'))}"></label><button class="button small" data-sync-kind="${assetKind}">${esc(uiText('↻ Sync this tab'))}</button></div>${renderAssetSyncDiagnostics(group)}<div id="asset-rows">${assetRows(assets, group)}</div>` : ''}</div><div class="manage-footer"><span class="muted small-text">${esc(c ? uiText('Last sync: {date}', {date: date(c.lastSync)}) : uiText('Your provider opens in a secure authorization flow.'))}</span>${c && selectableKind(assetKind) ? `<div class="platform-actions"><button class="button small" data-select-all="true">${esc(uiText('Select visible'))}</button><button class="button primary" data-save-assets="true">${esc(uiText('Save selection'))}</button>${p.accountRead ? `<button class="button" data-save-assets="check">${esc(uiText('Save and check access'))}</button>` : ''}</div>` : ''}</div>`;
+    `<div class="manage-header"><div class="platform-identity">${logo(p)}<div><h3>${esc(p.name)} ${esc(uiText('assets'))}</h3><div class="platform-kind">${esc(uiText('Manage logins and access inside AMCP'))}</div></div></div><button class="icon-button" data-close="manage-dialog" aria-label="${esc(uiText('Close asset manager'))}">×</button></div><div class="manage-body"><div class="panel-header"><div><h3>${esc(uiText('Connected logins'))}</h3><p class="muted login-caption">${esc(uiText('Each login keeps its own encrypted credentials and permissions.'))}</p></div><button class="button dark small" data-connect="${p.id}">${esc(uiText('+ Connect another'))}</button></div><div class="login-list">${p.connections.map(login => `<div class="oauth-login"><span class="avatar">${esc(login.name.slice(0, 1).toUpperCase())}</span><div><button class="button quiet small" data-select-login="${esc(login.id)}"><strong>${esc(login.name)}</strong></button>${login.isDefault ? `<span class="default-badge">${esc(uiText('Default'))}</span>` : ''}<small>${esc(loginHealthLine(login))}${reviewerLoginLine(login)} · ${login.enabled ? uiText('Enabled in AMCP') : uiText('Choose assets')}${login.duplicateOf ? ' · ' + esc(uiText('Same identity as another login')) : ''}</small></div><div class="actions"><button class="button small" data-sync="${esc(login.id)}">${esc(uiText('↻ Sync'))}</button>${login.reauthorizeAvailable ? `<button class="button small ${login.status === 'reauthorization_required' ? 'primary' : ''}" data-reauthorize="${esc(login.id)}">${esc(uiText('Reauthorize'))}</button>` : ''}${!login.isDefault && login.enabled ? `<button class="button small" data-default="${esc(login.id)}">${esc(uiText('Make default'))}</button>` : ''}<button class="button small danger" data-disconnect="${esc(login.id)}" aria-label="${esc(uiText('Disconnect {name}', {name: login.name}))}">↗</button></div></div>`).join('') || `<div class="empty"><strong>${esc(uiText('No logins connected'))}</strong>${esc(uiText('Connect your account to discover its advertising assets.'))}</div>`}</div>${renderDefaultPrompt(p)}${c ? `${renderLoginIdentity(c)}${renderCredentialHealth(c)}${renderGrantedPermissions(c)}${renderConnectionSyncStatus(c)}${renderAccessChecks(p, c)}${renderGoogleAuthorization(c)}<div class="notice asset-notice"><span>✓</span><p>${esc(uiText('Select'))} ${esc(uiText(labels[p.selectionKind] ?? p.selectionKind ?? 'Resources').toLowerCase())} ${esc(uiText('to grant MCP access to their data. Other tabs show related asset inventory. Saving this selection changes AMCP access only.'))}</p></div>${session.writesEnabled && p.reviewedWrites !== false ? `<label class="form-note"><input type="checkbox" id="selection-write-access" ${c.defaultWriteAccess ? 'checked' : ''}> ${esc(uiText('Enable read + reviewed write access for all selected resources'))}</label>` : ''}${p.reviewedWrites === false ? '' : writeAccessPanel(c)}${reportJobPanel(c)}<div class="asset-tabs" role="group" aria-label="${esc(uiText('Asset types'))}">${p.assetKinds.map(k => `<button data-asset-kind="${k}" class="${assetKind === k ? 'active' : ''}">${esc(uiText(labels[k] ?? k))} <span class="asset-count">${c.groups.find(g => g.kind === k)?.assets.length ?? '—'}</span></button>`).join('')}</div><div class="asset-toolbar"><label class="search"><span>⌕</span><input id="asset-search" type="search" value="${esc(assetSearch)}" placeholder="${esc(uiText('Search {kind}…', {kind: uiText(labels[assetKind] ?? assetKind)}))}" aria-label="${esc(uiText('Search assets'))}"></label><button class="button small" data-sync-kind="${assetKind}">${esc(uiText('↻ Sync this tab'))}</button></div>${renderAssetSyncDiagnostics(group)}<div id="asset-rows">${assetRows(assets, group)}</div>` : ''}</div><div class="manage-footer"><span class="muted small-text">${esc(c ? uiText('Last sync: {date}', {date: date(c.lastSync)}) : uiText('Your provider opens in a secure authorization flow.'))}</span>${c && selectableKind(assetKind) ? `<div class="platform-actions"><button class="button small" data-select-all="true">${esc(uiText('Select visible'))}</button><button class="button primary" data-save-assets="true">${esc(uiText('Save selection'))}</button>${p.accountRead ? `<button class="button" data-save-assets="check">${esc(uiText('Save and check access'))}</button>` : ''}</div>` : ''}</div>`;
 }
 /**
  * The resources a selection save would newly enable for writes, as display names, mirroring the server rule: with the
@@ -749,6 +752,17 @@ function writeAccessPanel(c) {
   const assets = [...(c.groups.find(g => g.kind === 'ad_accounts')?.assets ?? []), ...c.groups.flatMap(g => g.assets)];
   return `<section class="panel consent-panel"><h3>${esc(uiText('Resource write access'))}</h3><p>${session.writesEnabled ? uiText('Operator connectors may change only the selected accounts you explicitly enable below. Each change still requires a reviewed request through amcp_write.') : uiText('Write support is disabled in this deployment. You can revoke existing account grants below.')}</p>${c.accounts.length ? c.accounts.map(id => `<label class="token-row"><span>${esc(assets.find(a => a.id === id)?.name ?? id)}<small>${esc(id)}</small></span><input type="checkbox" data-write-account="${esc(id)}" aria-label="${esc(uiText('Allow writes to {id}', {id}))}" ${writeSelected.has(id) ? 'checked' : ''} ${!session.writesEnabled ? 'disabled' : ''}></label>`).join('') : `<p class="muted">${esc(uiText('Save a resource selection before granting write access.'))}</p>`}${session.writesEnabled && c.accounts.length ? `<label class="form-note"><input type="checkbox" id="confirm-write-access"> ${esc(uiText('I authorize operator connectors to change the checked resources.'))}</label>` : ''}<div class="dialog-actions">${c.writeAccounts?.length ? `<button class="button danger" data-revoke-write-access="true">${esc(uiText('Revoke all write access'))}</button>` : ''}${session.writesEnabled && c.accounts.length ? `<button class="button" data-save-write-access="true">${esc(uiText('Save write access'))}</button>` : ''}</div></section>`;
 }
+/**
+ * Report-job access (RPT-06): while the deployment owner allows provider report and export jobs, an administrator
+ * chooses the accounts on which AI clients and members, readers included, may create them. Existing grants can always
+ * be revoked.
+ */
+function reportJobPanel(c) {
+  if (!c.reportJobsAvailable || (!session.providerJobs && !c.reportJobAccounts?.length)) return '';
+  const assets = c.groups.flatMap(g => g.assets),
+    editable = session.providerJobs === true;
+  return `<section class="panel consent-panel"><h3>${esc(uiText('Report jobs'))}</h3><p>${esc(editable ? uiText('Report and export jobs create a processing job at the provider and use its quota; they change no campaign, budget or spend. Choose the accounts on which AI clients and members, readers included, may create them. Each job is still prepared and executed as a review.') : uiText('This deployment does not allow report jobs outside reviewed writes. You can revoke existing report-job grants below.'))}</p>${c.accounts.length ? c.accounts.map(id => `<label class="token-row"><span>${esc(assets.find(a => a.id === id)?.name ?? id)}<small>${esc(id)}</small></span><input type="checkbox" data-report-job-account="${esc(id)}" aria-label="${esc(uiText('Allow report jobs on {id}', {id}))}" ${reportJobSelected.has(id) ? 'checked' : ''} ${editable ? '' : 'disabled'}></label>`).join('') : `<p class="muted">${esc(uiText('Save a resource selection before granting report jobs.'))}</p>`}${editable && c.accounts.length ? `<label class="form-note"><input type="checkbox" id="confirm-report-jobs"> ${esc(uiText('I allow report jobs on the checked accounts.'))}</label>` : ''}<div class="dialog-actions">${c.reportJobAccounts?.length ? `<button class="button danger" data-revoke-report-jobs="true">${esc(uiText('Revoke report jobs'))}</button>` : ''}${editable && c.accounts.length ? `<button class="button" data-save-report-jobs="true">${esc(uiText('Save report jobs'))}</button>` : ''}</div></section>`;
+}
 function assetRows(assets, group) {
   // DV360 discovers advertisers through partners: an empty list names the user profile to set up (CON-04).
   if (!assets.length && group?.complete && currentPlatform === 'dv360')
@@ -765,6 +779,7 @@ function openManage(id, connectionId) {
   currentConnection = connectionId ?? p.connections.find(c => c.isDefault)?.id ?? p.connections[0]?.id ?? null;
   selected = new Set(p.connections.find(c => c.id === currentConnection)?.selected ?? []);
   writeSelected = new Set(p.connections.find(c => c.id === currentConnection)?.writeAccounts ?? []);
+  reportJobSelected = new Set(p.connections.find(c => c.id === currentConnection)?.reportJobAccounts ?? []);
   assetSearch = '';
   renderManage();
   if (!$('#manage-dialog').open) $('#manage-dialog').showModal();
@@ -806,6 +821,7 @@ async function refresh() {
   if (c) {
     selected = new Set(c.selected ?? []);
     writeSelected = new Set(c.writeAccounts ?? []);
+    reportJobSelected = new Set(c.reportJobAccounts ?? []);
   }
   await render();
   if ($('#manage-dialog').open) renderManage();
@@ -1561,6 +1577,25 @@ document.addEventListener('click', async event => {
       );
       return;
     }
+    if (el.dataset.saveReportJobs || el.dataset.revokeReportJobs) {
+      const accounts = el.dataset.revokeReportJobs ? [] : [...reportJobSelected];
+      if (accounts.length && !$('#confirm-report-jobs')?.checked) {
+        toast(uiText('Confirm report-job access before saving.'));
+        return;
+      }
+      disableControl();
+      await api('/api/connections/' + currentConnection + '/report-job-access', {
+        method: 'PATCH',
+        body: JSON.stringify({accounts, confirmed: accounts.length > 0}),
+      });
+      await refresh();
+      toast(
+        accounts.length
+          ? uiText('Report-job access saved. No report job was created.')
+          : uiText('Report-job access revoked for this login.'),
+      );
+      return;
+    }
     if (el.dataset.client) {
       client = el.dataset.client;
       return await renderConnectors();
@@ -1677,6 +1712,12 @@ document.addEventListener('change', event => {
     if (event.target.checked) writeSelected.add(event.target.dataset.writeAccount);
     else writeSelected.delete(event.target.dataset.writeAccount);
     const confirm = $('#confirm-write-access');
+    if (confirm) confirm.checked = false;
+  }
+  if (event.target.dataset.reportJobAccount) {
+    if (event.target.checked) reportJobSelected.add(event.target.dataset.reportJobAccount);
+    else reportJobSelected.delete(event.target.dataset.reportJobAccount);
+    const confirm = $('#confirm-report-jobs');
     if (confirm) confirm.checked = false;
   }
   if (event.target.dataset.assetKey) {

@@ -108,6 +108,10 @@ export const providerJobContracts: readonly {
   },
 ]);
 
+/** The gateways whose reviewed families create provider jobs, which a report-job grant can apply to. */
+export const providerJobGateways: readonly string[] = Object.freeze([
+  ...new Set(providerJobContracts.filter(j => j.family !== 'microsoft_reporting_pipeline').map(j => j.gateway)),
+]);
 /** Settled receipts are kept this long; submitting and uncertain receipts are kept until a person settles them. */
 export const providerJobRetentionDays = 90;
 const hour = 3600000;
@@ -221,6 +225,13 @@ export function saveReportJobAccess(
   const previous = reportJobAccounts(store, connection),
     added = accounts.filter(a => !previous.includes(a)),
     removed = previous.filter(a => !accounts.includes(a));
+  if (added.length && !providerJobGateways.includes(connection.gateway))
+    throw new MirrorError(
+      'REPORT_JOBS_UNAVAILABLE',
+      'This provider has no report or export jobs in AMCP, so there is nothing to grant.',
+      {gateway: connection.gateway},
+      400,
+    );
   if (added.length && !providerJobs)
     throw new MirrorError(
       'PROVIDER_JOBS_DISABLED',

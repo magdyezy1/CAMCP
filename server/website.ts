@@ -42,9 +42,12 @@ import {authorizationRevision, reauthorizationEnabled, reauthorizeConnection} fr
 import {clearRefreshFailure, credentialHealth, recordAuthorized} from '../src/connection-health.js';
 import {grantedScopes, publicGrants} from '../src/provider-grants.js';
 import {mcpAuthRouter} from '@modelcontextprotocol/sdk/server/auth/router.js';
+import {providerJobGateways, reportJobAccounts, saveReportJobAccess} from '../src/provider-jobs.js';
 
 export function createWebsite(store: Store, options: WebsiteOptions, allowWrites = false, service?: MirrorService) {
   const web = new WebStore(store, options);
+  // RPT-06: the deployment owner's switch for provider report and export jobs, as the MCP service applies it.
+  const providerJobs = service?.policy.providerJobs === true;
   // Saved logins use the app secrets of this deployment's environment, the one connecting uses (SEC-07 S2).
   if (options.authEnv || !store.appEnvironment) store.appEnvironment = options.authEnv ?? process.env;
   // Two-step verification for owners and administrators of write-enabled deployments (SEC-06, owner decision P2).
@@ -333,6 +336,9 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       defaultWriteAccess: c.defaultWriteAccess === true,
       accounts: c.accounts,
       writeAccounts: (c.writeAccounts ?? []).filter(id => c.accounts.includes(id)),
+      // RPT-06: whether this provider has report or export job families, and the accounts granted report jobs.
+      reportJobsAvailable: providerJobGateways.includes(c.gateway),
+      reportJobAccounts: reportJobAccounts(store, c),
       // The login's own expiry: null while AMCP renews access automatically (CON-02).
       expiresAt: health.login_expires_at,
       credentialHealth: health,
@@ -743,6 +749,8 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         origin: web.origin,
         readOnly: !allowWrites,
         writesEnabled: allowWrites,
+        // RPT-06: the deployment owner's switch for provider report and export jobs (AMCP_PROVIDER_JOBS).
+        providerJobs,
       });
     }),
   );
@@ -1335,6 +1343,23 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         ...(writeAdded.length ? {write_confirmed: true} : {}),
         vendor_writes: 0,
       });
+      res.json(publicConnection(tenant, connection(tenant, c.id)));
+    }),
+  );
+  // RPT-06: the accounts on which AI clients and members, readers included, may create provider report and export jobs
+  // while the deployment owner's switch (AMCP_PROVIDER_JOBS) is on. A workspace administrator decides; removing a grant
+  // always works, adding one needs the switch, explicit confirmation and recent proof of identity (as write access does).
+  router.patch(
+    '/api/connections/:id/report-job-access',
+    express.json({limit: '256kb'}),
+    handler((req, res) => {
+      const s = web.requireAdminMutation(req),
+        tenant = s.actor.tenantId,
+        c = connection(tenant, String(req.params.id)),
+        accounts = req.body?.accounts,
+        previous = reportJobAccounts(store, c);
+      if (Array.isArray(accounts) && accounts.some(id => !previous.includes(id))) webAccounts.fresh(s);
+      saveReportJobAccess(store, s.actor, c, req.body ?? {}, providerJobs);
       res.json(publicConnection(tenant, connection(tenant, c.id)));
     }),
   );
