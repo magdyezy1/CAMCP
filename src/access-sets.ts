@@ -124,9 +124,13 @@ const text = (value: unknown, max: number) =>
  * A set as an administrator saves it: a name of 1 to 80 characters and 1 to 200 distinct bindings, each naming an
  * account that a login of this workspace currently selects. Bindings are stored as the login lists the account.
  */
-export function validateAccessSet(input: JsonObject, connections: Connection[]): {name: string; bindings: AccessBinding[]} {
+export function validateAccessSet(
+  input: JsonObject,
+  connections: Connection[],
+): {name: string; bindings: AccessBinding[]} {
   const name = text(input?.name, 80);
-  if (!name) throw new MirrorError('INVALID_ARGUMENT', 'Name the client access set in 1 to 80 characters.', {field: 'name'});
+  if (!name)
+    throw new MirrorError('INVALID_ARGUMENT', 'Name the client access set in 1 to 80 characters.', {field: 'name'});
   const raw = input.bindings;
   if (!Array.isArray(raw) || !raw.length || raw.length > accessSetBindingLimit)
     throw new MirrorError('INVALID_ARGUMENT', 'Choose 1 to 200 accounts for this client access set.', {
@@ -246,7 +250,8 @@ export function saveAccessSet(store: Store, actor: Actor, input: JsonObject): Js
       {name, bindings, updated_at: Date.now(), updated_by: actor.userId},
       previous?.revision ?? 0,
     );
-    const keys = (list: AccessBinding[]) => new Set(list.map(b => bindingKey(b.gateway, b.connection_id, b.account_id)));
+    const keys = (list: AccessBinding[]) =>
+      new Set(list.map(b => bindingKey(b.gateway, b.connection_id, b.account_id)));
     const now = keys(bindings),
       was = keys(before);
     store.appendAudit(actor.tenantId, randomUUID(), {

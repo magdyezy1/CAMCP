@@ -23,16 +23,17 @@ export interface ClientView {
 /** The client profiles of this workspace that bind at least one account the actor can reach, with those accounts. */
 export function clientViews(store: Store, actor: Actor): ClientView[] {
   const reachable = reachableKeys(store, actor);
-  return store
-    .documents(actor.tenantId, 'client_profile')
-    // Access limited to a client access set sees only the profiles wholly within it, as the profiles action does.
-    .filter(p => profileWithinAccess(store, actor, p, reachable))
-    .map(p => view(p, reachable))
-    .filter(v => v.accounts.length)
-    .sort(
-      (a, b) =>
-        a.name.localeCompare(b.name, 'en', {sensitivity: 'base'}) || a.profile_id.localeCompare(b.profile_id),
-    );
+  return (
+    store
+      .documents(actor.tenantId, 'client_profile')
+      // Access limited to a client access set sees only the profiles wholly within it, as the profiles action does.
+      .filter(p => profileWithinAccess(store, actor, p, reachable))
+      .map(p => view(p, reachable))
+      .filter(v => v.accounts.length)
+      .sort(
+        (a, b) => a.name.localeCompare(b.name, 'en', {sensitivity: 'base'}) || a.profile_id.localeCompare(b.profile_id),
+      )
+  );
 }
 
 /**
@@ -47,14 +48,17 @@ export function clientView(store: Store, actor: Actor, profileId: unknown): Clie
   const row = store.db
     .prepare("SELECT data FROM documents WHERE tenant_id=? AND kind='client_profile' AND id=?")
     .get(actor.tenantId, profileId) as {data: string} | undefined;
-  if (!row)
+  const reachable = reachableKeys(store, actor),
+    profile = row ? {...JSON.parse(row.data), id: profileId} : undefined;
+  // A profile outside the actor's client access set is not found either, so its name is never shown (SEC-08).
+  if (!profile || !profileWithinAccess(store, actor, profile, reachable))
     throw new MirrorError(
       'PROFILE_NOT_FOUND',
       'This client profile no longer exists in this workspace. Choose another client or show all clients.',
       {profile_id: profileId},
       404,
     );
-  return view({...JSON.parse(row.data), id: profileId}, reachableKeys(store, actor));
+  return view(profile, reachable);
 }
 
 /** An optional filter: undefined when the input names no profile. */
@@ -62,7 +66,10 @@ export const optionalClientView = (store: Store, actor: Actor, profileId: unknow
   profileId === undefined || profileId === null || profileId === '' ? undefined : clientView(store, actor, profileId);
 
 /** The client profiles (by ID) that bind each of these accounts, for a cross-client warning. */
-export function clientsOf(views: ClientView[], scopes: {gateway?: unknown; connection_id?: unknown; account_id?: unknown}[]) {
+export function clientsOf(
+  views: ClientView[],
+  scopes: {gateway?: unknown; connection_id?: unknown; account_id?: unknown}[],
+) {
   const ids = new Set<string>();
   for (const s of scopes)
     for (const v of views) if (v.has(s.gateway, s.account_id, s.connection_id)) ids.add(v.profile_id);
@@ -86,14 +93,15 @@ export function profileWithinAccess(
     bindings.length > 0 &&
     bindings.every(
       (b: JsonObject) =>
-      !!b &&
-      typeof b.gateway === 'string' &&
-      [...reachable.values()].some(
-        a =>
-          a.gateway === b.gateway &&
-          (typeof b.connection_id !== 'string' || !b.connection_id || a.connection_id === b.connection_id) &&
-          bindingKey(a.gateway, a.connection_id, a.account_id) === bindingKey(b.gateway, a.connection_id, b.account_id),
-      ),
+        !!b &&
+        typeof b.gateway === 'string' &&
+        [...reachable.values()].some(
+          a =>
+            a.gateway === b.gateway &&
+            (typeof b.connection_id !== 'string' || !b.connection_id || a.connection_id === b.connection_id) &&
+            bindingKey(a.gateway, a.connection_id, a.account_id) ===
+              bindingKey(b.gateway, a.connection_id, b.account_id),
+        ),
     )
   );
 }

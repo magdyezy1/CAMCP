@@ -385,16 +385,16 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
   const visibleConnection = (actor: Actor, c: Connection) => {
     const view = publicConnection(actor.tenantId, c);
     if (actor.accessSetId === undefined) return view;
-    const kind = selectionKind(c.gateway),
+    const kinds = selectableKinds(c.gateway),
       inSet = (id: unknown) => c.accounts.some(a => accountKey(c.gateway, a) === accountKey(c.gateway, id));
     return {
       ...view,
       duplicateOf: null,
-      selected: view.selected.filter(
-        (s: string) => s.startsWith(kind + ':') && inSet(s.slice(kind.length + 1)),
+      selected: view.selected.filter((s: string) =>
+        kinds.some(kind => s.startsWith(kind + ':') && inSet(s.slice(kind.length + 1))),
       ),
       groups: view.groups
-        .filter((g: JsonObject) => g.kind === kind)
+        .filter((g: JsonObject) => kinds.includes(g.kind))
         .map((g: JsonObject) => ({...g, assets: (g.assets ?? []).filter((a: JsonObject) => inSet(a.id))})),
     };
   };
@@ -934,9 +934,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       res.json({
         platforms: oauth.publicConfig().map(p => ({
           ...p,
-          connections: connections
-            .filter(c => c.gateway === p.gateway)
-            .map(c => visibleConnection(session!.actor, c)),
+          connections: connections.filter(c => c.gateway === p.gateway).map(c => visibleConnection(session!.actor, c)),
         })),
         authenticated: !!session,
         commerce_sources: session ? wooCommerceSources(store, session.actor).items : [],

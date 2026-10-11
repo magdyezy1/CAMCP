@@ -1602,12 +1602,12 @@ export class Store {
     this.db.prepare('INSERT INTO tenants(id,name) VALUES(?,?) ON CONFLICT(id) DO NOTHING').run(id, name);
   }
   createKey(actor: Actor, ttlMs: number = 86400000 * 30): string {
-    this.assertActorActive(actor);
-    this.ensureTenant(actor.tenantId);
-    const token = 'whm_' + randomUUID().replaceAll('-', '') + randomUUID().replaceAll('-', '');
     // A key limited to a client access set keeps it for life (SEC-08); an administrator key is never limited.
     if (actor.accessSetId !== undefined && actor.role === 'admin')
       throw new MirrorError('INVALID_ROLE', 'A client access set limits reader or operator access only.');
+    this.assertActorActive(actor);
+    this.ensureTenant(actor.tenantId);
+    const token = 'whm_' + randomUUID().replaceAll('-', '') + randomUUID().replaceAll('-', '');
     this.transaction(() => {
       this.db
         .prepare('INSERT INTO api_keys(hash,tenant_id,user_id,role,expires_at,access_set_id) VALUES(?,?,?,?,?,?)')

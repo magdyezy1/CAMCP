@@ -118,10 +118,10 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
     pages: inventory
       .filter(i => pageLogins.has(i.id))
       .flatMap(i =>
-      (i.groups ?? [])
-        .filter((g: JsonObject) => g.kind === 'pages')
-        .flatMap((g: JsonObject) => g.assets.map((a: JsonObject) => ({id: a.id, name: a.name, connection_id: i.id}))),
-    ),
+        (i.groups ?? [])
+          .filter((g: JsonObject) => g.kind === 'pages')
+          .flatMap((g: JsonObject) => g.assets.map((a: JsonObject) => ({id: a.id, name: a.name, connection_id: i.id}))),
+      ),
     drive_connections: store
       .connectionsFor(actor)
       .filter(c => c.gateway === 'google_drive_native_action' && c.enabled)
@@ -339,7 +339,8 @@ function briefVisible(store: Store, actor: Actor, brief: JsonObject): boolean {
 }
 function visibleBrief(store: Store, actor: Actor, id: unknown): JsonObject {
   const brief = read(store, actor, 'client_brief', id as string);
-  if (!briefVisible(store, actor, brief)) throw new MirrorError('NOT_FOUND', 'Document not found in this tenant.', {}, 404);
+  if (!briefVisible(store, actor, brief))
+    throw new MirrorError('NOT_FOUND', 'Document not found in this tenant.', {}, 404);
   return brief;
 }
 /** At most this many saved client briefs per workspace (CMP-06). */
