@@ -83,8 +83,10 @@ test('inspect and prepare return the whole provider contract with evidence "full
       // Only the provider contract becomes a reference; the action's own evidence stays.
       assert.deepEqual(same, common);
       assert.deepEqual(reference, providerContractReference('meta_native_action')!);
+      // ACC-05: the reference carries the content digest, so a cached reference to changed content is visibly stale.
       assert.deepEqual(Object.keys(reference).sort(), [
         'api_version',
+        'contract_digest',
         'contract_version',
         'full_contract',
         'gateway',
@@ -128,8 +130,9 @@ test('every gateway a review can name has a reference that leads to its whole co
         reference = providerContractReference(gateway)!;
       for (const field of Object.keys(reference).filter(k => k !== 'full_contract'))
         assert.deepEqual(reference[field], whole[field], gateway + ' ' + field);
-      // Whatever the provider, the reference stays small; the whole contracts are 1.3-6.6 KB.
-      assert.ok(bytes(reference) < 700 && bytes(reference) < bytes(whole), gateway + ': ' + bytes(reference));
+      // Whatever the provider, the reference stays small; the whole contracts are 1.3-6.6 KB. The budget was 700 bytes
+      // before ACC-05 added the 71-character contract_digest every reference now carries.
+      assert.ok(bytes(reference) < 800 && bytes(reference) < bytes(whole), gateway + ': ' + bytes(reference));
       // Drive and Sheets back AMCP's own features; they are no MCP gateway, so no review names them.
       if (!registry.tools.has(gateway)) continue;
       // Amazon Ads is not offered (CON-06): no review can name it, and its help is refused before anything is read.
