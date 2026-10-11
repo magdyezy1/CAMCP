@@ -106,13 +106,13 @@ export function accountLifecycleSweeper(
     const at = now();
     if (at < next) return;
     next = at + interval;
-    return {
-      reviewer_connections:
-        reviewerLifetime === null
-          ? 0
-          : purgeReviewerConnections(store, reviewers, 'reviewer_connection_expired', at - reviewerLifetime)
-              .connections,
-      accounts_erased: eraseDueAccounts(store, options.tenantId, retention, at),
-    };
+    const reviewer_connections =
+      reviewerLifetime === null
+        ? 0
+        : purgeReviewerConnections(store, reviewers, 'reviewer_connection_expired', at - reviewerLifetime).connections;
+    // A store without website accounts (the stdio server's) has nothing to retain.
+    return store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='amcp_users'").get()
+      ? {reviewer_connections, accounts_erased: eraseDueAccounts(store, options.tenantId, retention, at)}
+      : {reviewer_connections};
   };
 }
