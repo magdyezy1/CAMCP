@@ -35,7 +35,7 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     help('amcp_campaign'),
   amcp_write:
     'Use this for any single advertising or measurement change; use amcp_campaign when later steps need IDs that earlier steps create. ' +
-    'Safety: inspect needs no credentials or network; prepare reads state and freezes a five-minute, actor-bound review whose execute_requirements name every acknowledgement; execute sends it once after confirmed:true and never retries it; operator role and account write grants apply. ' +
+    'Safety: inspect needs no credentials or network; prepare reads state and freezes a five-minute, actor-bound review whose execute_requirements name every acknowledgement; execute sends it once after confirmed:true (idempotency_key defaults to the review_id) and never retries it; operator role and account write grants apply. ' +
     'Core actions: inspect, prepare and execute (a Google Ads or Snapchat batch over 25 records is one review of parts of 25), status (a retained review read back without a provider request) and reconcile (read-only checks of an uncertain write; accept_applied with its reconciliation_id records what was observed). ' +
     help('amcp_write'),
   amcp_reporting:
