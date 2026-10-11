@@ -1245,8 +1245,10 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | Action | What it does | Arguments | Effects | Role |
 |---|---|---|---|---|
 | `inspect` | Checks local reviewed-write contract support for the exact native arguments, with no credentials, request or save. | **`gateway`**, **`arguments`**, `connection_id`, `evidence`, `people`, `personal_data` | no provider request | reader |
-| `prepare` | Reads current state and freezes the request into a five-minute, actor-bound review with before_state, impact and spend. | **`gateway`**, **`arguments`**, `connection_id`, `evidence`, `people`, `personal_data`, `provider_check`, `creative_edit_confirmed` | provider reads; saves write_review | operator |
+| `prepare` | Reads current state and freezes the request into a five-minute, actor-bound review with before_state, impact and spend. | **`gateway`**, **`arguments`**, `connection_id`, `evidence`, `people`, `personal_data`, `provider_check`, `creative_edit_confirmed`, `supersedes_review_id` | provider reads; saves write_review | operator |
 | `execute` | Sends the reviewed mutation once, after the user’s explicit approval, and queues its read-back. | **`review_id`**, **`confirmed`**, `idempotency_key`, `spend_change_confirmed`, `cap_override_confirmed`, `creative_edit_confirmed`, `people`, `gateway`, `connection_id` | reviewed provider write; saves write_receipt, write_verification; changes an advertising account | operator |
+| `status` | Reads a retained review back without a provider request: its state, claim, receipt, read-back and next call. | **`review_id`** | no provider request | reader |
+| `reconcile` | Checks an uncertain write with read-only provider lookups, never sending it again; accept_applied records what it saw. | **`review_id`**, `accept_applied`, `reconciliation_id` | provider reads; saves write_reconciliation, write_receipt | operator |
 
 ### amcp_ad_previews
 
