@@ -14,6 +14,7 @@ import {Store} from '../src/store.js';
 import {WebStore} from '../server/web-store.js';
 import {UserAccounts} from '../server/user-accounts.js';
 import {accountLifecycleSweeper} from '../server/account-lifecycle.js';
+import {loadConfig} from '../server/config.js';
 import {
   accountRetention,
   accountsDueForErasure,
@@ -340,6 +341,11 @@ test('SEC-07 S4: the retention sweep erases only never-approved sign-ups older t
   });
   for (const value of ['0', '366', '1.5', 'never'])
     assert.throws(() => accountRetention({AMCP_PENDING_ACCOUNT_DAYS: value}), /AMCP_PENDING_ACCOUNT_DAYS/);
+  // The website and the worker refuse to start with an unknown value; the stdio server keeps no accounts.
+  assert.throws(() => loadConfig({AMCP_PENDING_ACCOUNT_DAYS: '0'}, 'http'), /AMCP_PENDING_ACCOUNT_DAYS/);
+  assert.throws(() => loadConfig({AMCP_REVOKED_ACCOUNT_DAYS: 'soon'}, 'worker'), /AMCP_REVOKED_ACCOUNT_DAYS/);
+  assert.equal(loadConfig({AMCP_PENDING_ACCOUNT_DAYS: '0'}, 'stdio').tenantId, undefined);
+  assert.equal(loadConfig({AMCP_PENDING_ACCOUNT_DAYS: 'off'}, 'http').tenantId, undefined);
   const store = new Store(':memory:', master);
   // An unknown value stops start-up.
   assert.throws(

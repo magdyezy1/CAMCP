@@ -1,5 +1,6 @@
 import path from 'node:path';
 import {previousMasterKeys} from '../src/security.js';
+import {accountRetention} from '../src/account-erasure.js';
 
 /** The process an AMCP configuration starts. */
 export type EntryPoint = 'http' | 'worker' | 'stdio';
@@ -78,6 +79,8 @@ export function loadConfig(env: NodeJS.ProcessEnv, entry: EntryPoint): AmcpConfi
   if (previousKeys.length && !masterKey) throw new Error('MIRROR_MASTER_KEY_PREVIOUS requires MIRROR_MASTER_KEY.');
   if (env.AMCP_PROVIDER_VALIDATION !== undefined && !['true', 'false'].includes(env.AMCP_PROVIDER_VALIDATION))
     throw new Error('AMCP_PROVIDER_VALIDATION must be true or false.');
+  // Account retention (SEC-07 S4): an unknown AMCP_PENDING_ACCOUNT_DAYS or AMCP_REVOKED_ACCOUNT_DAYS stops start-up.
+  if (entry !== 'stdio') accountRetention(env);
   const host = env.MIRROR_HOST ?? (env.PORT ? '0.0.0.0' : '127.0.0.1'),
     port = Number(env.PORT ?? env.MIRROR_PORT ?? 4317);
   if (entry !== 'stdio' && (!Number.isInteger(port) || port < 1 || port > 65535)) throw Error('Invalid MIRROR_PORT.');
