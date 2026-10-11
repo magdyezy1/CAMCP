@@ -216,13 +216,14 @@ test('report rows are announced by campaign, carry their time zone and show date
   const html = f.root.innerHTML;
   assert.match(
     html,
-    /<th scope="col">Campaign \/ ad set \/ ad \/ resource<\/th><th scope="col">Platform · objective<\/th><th scope="col">Period<\/th><th scope="col">Spend<\/th>/,
+    /<th scope="col" role="columnheader">Campaign \/ ad set \/ ad \/ resource<\/th><th scope="col" role="columnheader">Platform · objective<\/th><th scope="col" role="columnheader">Period<\/th><th scope="col" role="columnheader">Spend<\/th>/,
   );
+  // RPT-05: the row header is the campaign name only; IDs, account, currency and time zone moved to the context cell
+  // (the earlier expectation encoded a ~110-character row header that screen readers repeated on every cell).
   assert.match(
     html,
-    /<tr><th scope="row"><strong>Spring sale<\/strong><small>c-1<br>a-1 · EUR · Europe\/Berlin<\/small>/,
+    /<tr role="row"><th scope="row" role="rowheader"><strong dir="auto">Spring sale<\/strong><\/th><td role="cell" class="report-row-context" data-label="Platform · objective"><span>Google Ads<\/span><small>Sales<\/small><small>c-1<br>a-1 · EUR · Europe\/Berlin<\/small>/,
   );
-  assert.match(html, /<\/details><\/th><td><span>Google Ads<\/span>/);
-  assert.match(html, /<td>1 Sept? 2026<br>7 Sept? 2026<\/td>/);
+  assert.match(html, /<td role="cell" data-label="Period">1 Sept? 2026<br>7 Sept? 2026<\/td>/);
   assert.ok(!html.includes('<td>2026-09-01'), 'no raw ISO period');
 });
