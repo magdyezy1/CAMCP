@@ -146,16 +146,19 @@ test('Arabic Home renders the capability block in Arabic; English Home is unchan
       ),
       block = html.slice(start, html.indexOf('</section>', start));
     assert.ok(start > 0, locale);
+    for (const f of server.features)
+      assert.ok(block.includes(locale === 'ar' ? catalog[f.name] : f.name), locale + ' ' + f.name);
     if (locale === 'en') {
       assert.ok(block.includes(server.meaning));
       for (const f of server.features) assert.ok(block.includes('<strong>' + f.name + '</strong><small>' + f.coverage));
       assert.ok(block.includes('>Implemented, not live-verified</span>'));
       continue;
     }
-    // Tool names in <code>, the evidence JSON and product names stay literal; nothing else is Latin.
+    // Tool names in <code>, the evidence JSON and product names stay literal; nothing else is Latin. The feature list is
+    // inside the Technical details disclosure since OPS-06, so only the evidence JSON itself is set aside here.
     const visible = block
       .replace(/<code>[\s\S]*?<\/code>/g, '')
-      .replace(/<details[\s\S]*?<\/details>/g, '')
+      .replace(/<pre[\s\S]*?<\/pre>/g, '')
       .replace(/<[^>]+>/g, ' ')
       .replace(/\b(?:Drive|UTMs?)\b/g, '');
     assert.doesNotMatch(visible, /[A-Za-z]{2,}/, visible);

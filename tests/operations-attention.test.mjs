@@ -141,7 +141,15 @@ test('a monitor notice that ran out of attempts is attention for its subscriber 
   assert.equal(row.category, 'attention');
   assert.equal(row.name, 'Spend ceiling');
   assert.equal(row.error_code, 'EMAIL_PROVIDER_REJECTED');
-  assert.equal(row.website_path, '/monitors?incident_id=' + encodeURIComponent(notice.incident_id));
+  // The rule's email-notice section, where the one confirmed retry is offered, with its incident beside it.
+  assert.equal(
+    row.website_path,
+    '/monitors?monitor_id=' +
+      encodeURIComponent(notice.monitor_id) +
+      '&incident_id=' +
+      encodeURIComponent(notice.incident_id),
+  );
+  assert.match(row.next_safe_action, /resends the original notice once within its 24 hours/);
   assert.deepEqual(row.next_call, {
     tool: 'amcp_workspace',
     arguments: {action: 'monitor_notifications', id: notice.monitor_id},
@@ -176,7 +184,10 @@ test('a monitor notice that ran out of attempts is attention for its subscriber 
     f.feed(f.member).operations.some(o => o.kind === 'notice'),
     false,
   );
-  assert.equal(operationsPage(f.store, f.member, {kind: 'notice'}, true).operations[0].state, 'undelivered');
+  const undelivered = operationsPage(f.store, f.member, {kind: 'notice'}, true).operations[0];
+  assert.equal(undelivered.state, 'undelivered');
+  assert.equal(undelivered.category, 'complete');
+  assert.match(undelivered.next_safe_action, /cannot be sent again/);
 });
 
 function connectionFixture() {
@@ -294,6 +305,15 @@ test('the feed through MCP lists the new kinds within its scan bound and cursor 
     assert.equal(new Set(rows.map(r => r.key)).size, 4);
     // A cursor from one identity is refused for another.
     const first = await service.call('amcp_workspace', {action: 'operations', kind: 'connection', limit: 1}, f.admin);
+    // A connection item's next call reads the login's recorded health: metadata only, no provider request.
+    const item = rows.find(r => r.id === 'google'),
+      next = await service.call(item.next_call.tool, item.next_call.arguments, f.admin);
+    assert.equal(next.success, true, JSON.stringify(next));
+    const login = next.data.sections.connections.items;
+    assert.equal(login.length, 1);
+    assert.equal(login[0].credential_health.state, 'reauthorization_required');
+    assert.equal(login[0].credential_health.last_failure.code, 'INVALID_GRANT');
+    assert.doesNotMatch(JSON.stringify(next.data), /synthetic|refresh_token|access_token/i);
     const refused = await service.call(
       'amcp_workspace',
       {action: 'operations', kind: 'connection', limit: 1, cursor: first.data.next_cursor},
