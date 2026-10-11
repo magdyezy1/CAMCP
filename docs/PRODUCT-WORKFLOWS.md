@@ -146,7 +146,9 @@ retain the existing behavior.
 The Campaigns page starts with saved plans and a collapsible composer. Plans are listed newest first, 50 at a time
 with **Load more** (`amcp_campaign list`: an SQL projection with one account and platform summary per plan, continued
 with `next_cursor`), filtered by state, name or account, **Awaiting my approval** and **Archived plans**; the filters
-stay in the URL. **Archive plan** (complete, cancelled or superseded plans only) takes a plan out of the default list
+stay in the URL. The list's `total` counts the plans that match the filters and that the caller owns, administers or
+collaborates on, before the current account-access check: a shared plan whose accounts the caller can no longer access
+is counted there but its row is withheld. **Archive plan** (complete, cancelled or superseded plans only) takes a plan out of the default list
 and out of the workspace's bound of 500 plans, which counts only plans that are not archived; `get` still returns it
 and **Unarchive plan** restores it. **Share plan** lets the plan's owner (or an administrator) name a workspace member
 as viewer (reads it), editor (prepares, runs steps one by one, amends, archives) or approver (approves and runs it);
@@ -179,6 +181,9 @@ outcome is still unsettled is never carried. Google Search recipes are one all-o
 default (`atomic: false` keeps one step per resource type). A completed recipe plan offers **Prepare activation**
 (`activation_plan`, returned as `activation_call`, never `next_call`): a separate linked draft (`activation_of` /
 `activation_plan`) built from the launch's verified IDs, with its own approval, spend confirmation and preflight.
+For a launch that was continued in a new plan, the IDs come from the earlier plans in its `supersedes` chain
+through the verified links an authorized person recorded; reading them checks each plan's integrity, not the drafting
+person's view right on the earlier plans, and the activation still reads and checks every resource at preflight.
 Meta and Google enable the paused campaign; Snapchat activates campaign, ad squad and ad in that order, each after
 the one before is verified; Microsoft activation is refused with `LOCATION_CRITERIA_REQUIRED` (owner decision P7:
 AMCP cannot yet read a positive location criterion, so the Microsoft Search pack is labelled "Draft only: set

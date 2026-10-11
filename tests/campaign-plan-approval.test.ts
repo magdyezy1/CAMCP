@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import type {JsonObject} from '../src/types.js';
 import {
   actor,
+  admin,
   bytes,
   campaignStep,
   createPlan,
@@ -12,6 +13,7 @@ import {
   squadStep,
 } from './snapchat-plan-fixture.js';
 import {approvalSpends, approvalStep, approvalSummary} from '../src/plan-approval.js';
+import {savePlanPolicy} from '../src/campaign-inventory.js';
 
 /**
  * The owner's item 5 (2026-09-29): a 19-step build needed 19 approvals. A plan can now be approved once: approve
@@ -299,6 +301,43 @@ test('a mismatch stops the run for the user, with the acceptance as the next cal
     assert.equal(next.data.run.stopped, 'needs_attention', JSON.stringify(next.data.run));
     assert.equal(next.data.next_call.add_after_user_approval.accept_observed, true);
     assert.equal(f.writes.length, 2, 'the dependant waits');
+  } finally {
+    f.close();
+  }
+});
+
+test('under the distinct-approver policy a plan step review is not executed directly through amcp_write (regression)', async () => {
+  // Before: the plan owner could prepare_next (edit rights) and then call amcp_write execute on the step's review,
+  // sending a spend-bearing step without the second person's approval that execute_next and run require (CMP-05).
+  const f = fixture();
+  try {
+    // A plan whose ad squad sets a daily budget: it changes spending, so the policy governs it.
+    const id = (await createPlan(f, squadPlan(2))).data.id;
+    savePlanPolicy(f.store, admin, {require_distinct_approver: true, confirmed: true});
+    const prepared = await f.call('amcp_campaign', {action: 'prepare_next', id});
+    assert.equal(prepared.success, true, JSON.stringify(prepared).slice(0, 600));
+    const reviewId = prepared.data.review.review_id;
+    const direct = await f.call('amcp_write', {
+      action: 'execute',
+      review_id: reviewId,
+      confirmed: true,
+      spend_change_confirmed: true,
+    });
+    assert.equal(direct.success, false);
+    assert.equal(direct.error.code, 'DISTINCT_APPROVER_REQUIRED');
+    assert.equal(direct.error.details.plan_id, id);
+    assert.equal(f.writes.length, 0, 'nothing was sent');
+    // The plan's own path still refuses without another person's approval.
+    const next = await f.call('amcp_campaign', {
+      action: 'execute_next',
+      id,
+      review_id: reviewId,
+      idempotency_key: reviewId,
+      confirmed: true,
+      spend_change_confirmed: true,
+    });
+    assert.equal(next.error?.code, 'DISTINCT_APPROVER_REQUIRED', JSON.stringify(next).slice(0, 800));
+    assert.equal(f.writes.length, 0);
   } finally {
     f.close();
   }

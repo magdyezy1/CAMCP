@@ -38,6 +38,8 @@ import {recordedWriteGrant} from './provider-grants.js';
 import {assertMeasurementScopes, optionalMissingState} from './measurement-writes.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
 import {assertWritesNotPaused} from './owner-operations.js';
+import {planPolicy} from './campaign-inventory.js';
+import {approvalSpends, approvalSummary} from './plan-approval.js';
 import {
   object,
   fail,
@@ -962,6 +964,27 @@ export class WriteReviewService {
       fail('REVIEW_CHANGED', 'The stored reviewed request failed its integrity check.');
     const replayed = this.previousOutcome(actor, input, plan, fingerprint);
     if (replayed) return replayed;
+    // Maker-checker (CMP-05): while the owner requires a distinct approver, a step of a plan that changes spending or
+    // activates a launch executes only through its plan (execute_next or run), which checks another person's current
+    // approval; a direct execute would skip it. Checked before anything is claimed or sent; the review stays valid.
+    if (origin !== 'plan' && planPolicy(this.store, actor.tenantId).require_distinct_approver === true) {
+      const held = this.store.db
+        .prepare(
+          "SELECT c.id,c.data FROM documents c, json_each(c.data,'$.steps') s WHERE c.tenant_id=? AND c.kind='campaign_run' AND json_extract(s.value,'$.review_id')=? LIMIT 1",
+        )
+        .get(actor.tenantId, input.review_id) as {id: string; data: string} | undefined;
+      const run = held ? (JSON.parse(held.data) as JsonObject) : undefined;
+      if (run && (run.activation_of || approvalSpends(approvalSummary(run))))
+        fail(
+          'DISTINCT_APPROVER_REQUIRED',
+          'This review is a step of a campaign plan that changes spending or activates a launch, and this workspace requires another person’s approval of such a plan. Execute it through its plan (execute_next or run), which checks that approval.',
+          {
+            policy: 'require_distinct_approver',
+            plan_id: held!.id,
+            next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: held!.id}},
+          },
+        );
+    }
     familyOf(plan)?.available?.(plan);
     if (review.expires_at <= Date.now())
       fail(

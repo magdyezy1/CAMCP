@@ -217,7 +217,7 @@ test('a Google per-service write the provider refused without applying it is rej
       );
     const refused = await f.execute(id);
     f.hooks.respond = undefined;
-    assert.equal(refused.success, false);
+    assert.equal(refused.error.code, 'UPSTREAM_ERROR');
     assert.equal(refused.error.details.submission, 'rejected', JSON.stringify(refused.error).slice(0, 600));
     assert.equal(refused.meta.workflow.state, 'attention_required');
     assert.equal(refused.meta.workflow.source_state, 'rejected');

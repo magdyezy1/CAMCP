@@ -9490,5 +9490,6 @@
   "The provider may still be applying this change. Check again in {seconds} seconds; nothing was read or sent.": "قد تكون المنصة لا تزال تطبّق هذا التغيير. تحقق مرة أخرى بعد {seconds} ثانية؛ لم يُقرأ أو يُرسَل أي شيء.",
   "The provider refused this request without applying it. Its key is retired and never sent again: correct what the provider error named and prepare a new review (next_call).": "رفضت المنصة هذا الطلب دون تطبيقه. سُحب مفتاحه ولن يُرسل مجددًا أبدًا: صحّح ما ذكره خطأ المنصة وجهّز مراجعة جديدة (next_call).",
   "Refused, not applied": "مرفوض، لم يُطبَّق",
-  "The provider refused this change without applying it. It is never sent again: correct it and prepare a new review.": "رفضت المنصة هذا التغيير دون تطبيقه. لن يُرسل مجددًا أبدًا: صحّحه وجهّز مراجعة جديدة."
+  "The provider refused this change without applying it. It is never sent again: correct it and prepare a new review.": "رفضت المنصة هذا التغيير دون تطبيقه. لن يُرسل مجددًا أبدًا: صحّحه وجهّز مراجعة جديدة.",
+  "This review is a step of a campaign plan that changes spending or activates a launch, and this workspace requires another person’s approval of such a plan. Execute it through its plan (execute_next or run), which checks that approval.": "هذه المراجعة خطوة في خطة حملة تغيّر الإنفاق أو تفعّل إطلاقًا، وتتطلب مساحة العمل هذه موافقة شخص آخر على مثل هذه الخطة. نفّذها عبر خطتها (execute_next أو run)، التي تتحقق من تلك الموافقة."
 }
