@@ -42,7 +42,9 @@ export function catalogIngestion(input: JsonObject) {
       bad(
         'Meta counts prices in hundredths of the currency, so digits after the second decimal place must be zeros; nothing is rounded. This price cannot be represented exactly.',
         'INVALID_ARGUMENT',
-        {field: p.price + ' ' + p.currency, product: i + 1},
+        // The suffix after the fixed sentence (message_parts) names the exact value for the website; MCP clients also
+        // read it structured. field carries that value because the message suffix is built from it.
+        {field: p.price + ' ' + p.currency, price: p.price, currency: p.currency, product: i + 1},
       );
     const fraction = decimals.slice(0, 2),
       cents = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, '0'));

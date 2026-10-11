@@ -488,6 +488,35 @@ test('an account image hash passes preflight only when the account returns it', 
   }
 });
 
+test('live eligibility checks keep each person’s newest 20 and drop expired ones in SQL (regression: unbounded per user)', async () => {
+  const f = fixture();
+  try {
+    const kept = () =>
+      f.store.db.prepare("SELECT count(*) AS n FROM documents WHERE kind='recipe_eligibility'").get().n;
+    const refs = [];
+    for (let i = 0; i < 22; i++)
+      refs.push(
+        ok(await f.campaign({action: 'recipe_eligibility', recipe: 'google_search', business: base, live: true}))
+          .eligibility_ref,
+      );
+    assert.equal(kept(), 20, 'the two oldest checks were removed');
+    const ids = f.store.db
+      .prepare("SELECT id FROM documents WHERE kind='recipe_eligibility'")
+      .all()
+      .map(r => r.id);
+    assert.ok(ids.includes(refs.at(-1)) && !ids.includes(refs[0]) && !ids.includes(refs[1]));
+    // An expired check is removed by the next save.
+    const [oldest] = ids.filter(id => id !== refs.at(-1));
+    f.store.db
+      .prepare("UPDATE documents SET data=json_set(data,'$.expires_at',1) WHERE kind='recipe_eligibility' AND id=?")
+      .run(oldest);
+    ok(await f.campaign({action: 'recipe_eligibility', recipe: 'google_search', business: base, live: true}));
+    assert.ok(!f.store.db.prepare('SELECT 1 FROM documents WHERE id=?').get(oldest));
+  } finally {
+    f.store.close();
+  }
+});
+
 test('a plan reuses a live eligibility check of the same brief and starts at approval, with fewer calls and reads', async () => {
   // Before: eligibility → create_from_recipe → approve (preflight reads the account again) → approve confirmed.
   const before = fixture();

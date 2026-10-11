@@ -341,15 +341,31 @@ export function eligibilityStepsHash(steps: JsonObject[]): string {
     })),
   );
 }
+/** Live eligibility checks one person keeps; an older one is removed when a newer one is saved. */
+export const eligibilityRecordsPerUser = 20;
 function saveEligibility(store: Store, actor: Actor, record: JsonObject): string {
-  const now = Date.now();
-  for (const old of store.documents(actor.tenantId, 'recipe_eligibility'))
-    if (Number(old.expires_at) <= now)
-      store.db
-        .prepare('DELETE FROM documents WHERE tenant_id=? AND kind=? AND id=?')
-        .run(actor.tenantId, 'recipe_eligibility', old.id);
   const id = randomUUID();
-  store.putDocument(actor.tenantId, 'recipe_eligibility', id, {...record, user_id: actor.userId});
+  store.transaction(() => {
+    // Expired checks go in one statement (no scan of the workspace's documents in JavaScript).
+    store.db
+      .prepare(
+        "DELETE FROM documents WHERE tenant_id=? AND kind='recipe_eligibility' AND coalesce(json_extract(data,'$.expires_at'),0)<=?",
+      )
+      .run(actor.tenantId, Date.now());
+    store.putDocument(actor.tenantId, 'recipe_eligibility', id, {
+      ...record,
+      user_id: actor.userId,
+      saved_at: Date.now(),
+    });
+    // Each person keeps their newest checks only; each one carries a whole native preflight result.
+    store.db
+      .prepare(
+        `DELETE FROM documents WHERE tenant_id=? AND kind='recipe_eligibility' AND json_extract(data,'$.user_id')=? AND id NOT IN (
+          SELECT id FROM documents WHERE tenant_id=? AND kind='recipe_eligibility' AND json_extract(data,'$.user_id')=?
+          ORDER BY coalesce(json_extract(data,'$.saved_at'),0) DESC, rowid DESC LIMIT ?)`,
+      )
+      .run(actor.tenantId, actor.userId, actor.tenantId, actor.userId, eligibilityRecordsPerUser);
+  });
   return id;
 }
 /**

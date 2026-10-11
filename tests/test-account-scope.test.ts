@@ -162,6 +162,24 @@ test('a reviewer opens Clients & templates and saves a playbook in its own works
       again.profiles.map((p: {id: string}) => p.id),
       [record.id],
     );
+    // Saved client briefs are local workspace documents like playbooks (CMP-06): a reviewer may keep them, while using
+    // one in a recipe needs the campaign tool, which stays refused below.
+    const brief = await s.request(
+      '/api/workspace/workspace',
+      'POST',
+      {
+        action: 'save_brief',
+        brief: {name: 'Reviewer brief', recipe: 'google_search_clicks', business: {daily_budget: '25'}},
+      },
+      s.headers,
+    );
+    assert.equal(brief.status, 200);
+    const briefs = (await (await s.request('/api/workspace/workspace', 'POST', {action: 'briefs'}, s.headers)).json())
+      .data;
+    assert.deepEqual(
+      briefs.briefs.map((b: {name: string}) => b.name),
+      ['Reviewer brief'],
+    );
     for (const args of [{action: 'recipes'}, {action: 'list'}, {action: 'create', name: 'x', brief: 'x', steps: []}]) {
       const refused = await s.request('/api/workspace/campaign', 'POST', args, s.headers);
       assert.equal(refused.status, 403, args.action);

@@ -273,6 +273,17 @@ test('a test account sees no empty group, an in-scope palette, no connectors lin
   assert.equal(f.inserted.length, 1);
 });
 
+test('a test account is redirected from a path the registry does not list (regression: unknown paths were allowed)', async () => {
+  const f = scopedShell({authenticated: true, testAccount: true}, '/not-a-page');
+  assert.equal(f.run("routeAvailable('/not-a-page')"), false);
+  assert.equal(f.run("routeAvailable('/dashboard')"), true);
+  await f.run('render()');
+  assert.equal(f.location.pathname, '/dashboard');
+  // Members keep their own handling of an unknown path.
+  const member = scopedShell({authenticated: true, workspaceRole: 'viewer'}, '/not-a-page');
+  assert.equal(member.run("routeAvailable('/not-a-page')"), true);
+});
+
 test('the scoped redirect notice reads in Arabic', async () => {
   const f = scopedShell({authenticated: true, testAccount: true}, '/media');
   f.run("uiLocale='ar'; uiMessages=new Map(Object.entries(catalog))");

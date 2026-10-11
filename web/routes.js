@@ -259,7 +259,7 @@ function routeMatches(query, translate = text => text) {
 function routeAvailable(path, who = typeof session === 'object' ? session : null) {
   if (!who?.authenticated || !who.testAccount) return true;
   const entry = routeEntry(path);
-  return !entry || entry.public === true || entry.testAccount === true;
+  return !!entry && (entry.public === true || entry.testAccount === true);
 }
 /** A same-origin path a sign-in may return to, or the Home page. */
 function routeReturnable(path) {
