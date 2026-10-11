@@ -151,8 +151,11 @@ export async function searchOverlap(store: Store, call: ToolCall, actor: Actor, 
     !(/^sc-domain:[^/?#]+$/.test(site) || /^https?:\/\/[^/?#]+\/$/.test(site))
   )
     bad('Choose the exact Search Console property: sc-domain:example.com or a URL prefix ending in /.');
-  if (typeof config.gsc_connection_id !== 'string' || !config.gsc_connection_id)
-    bad('Choose the Search Console login (gsc_connection_id) that holds this property.');
+  if (
+    config.gsc_connection_id !== undefined &&
+    (typeof config.gsc_connection_id !== 'string' || !config.gsc_connection_id)
+  )
+    bad('Choose the Search Console login (gsc_connection_id) that holds this property, or omit it.');
   if (from === null || to === null || to < from || to - from > 89 * dayMs || to >= today)
     bad('Choose closed dates (before today) covering at most 90 days.');
   if (!Number.isInteger(rowLimit) || rowLimit < 1 || rowLimit > 25000)
@@ -167,6 +170,12 @@ export async function searchOverlap(store: Store, call: ToolCall, actor: Actor, 
       g = store.resolveConnection(actor, gscGateway, site, gsc.id);
     if (fingerprint([storedLogin(store, a), storedLogin(store, g)]) !== logins)
       bad('A selected login changed. Read the search overlap again.', 'CONNECTION_AUTHORITY_CHANGED');
+    // Search Console reads take no connection_id: they must resolve to this exact login for this property.
+    if (store.resolveConnection(actor, gscGateway, site).id !== gsc.id)
+      bad(
+        'Another Search Console login is the default for this property. Choose that login or make this one the default.',
+        'AMBIGUOUS_CONNECTION',
+      );
   };
   current();
   const window = {date_from: config.date_from as string, date_to: config.date_to as string},
@@ -219,12 +228,7 @@ export async function searchOverlap(store: Store, call: ToolCall, actor: Actor, 
         gscGateway,
         {
           operation: 'gsc_analytics_ops',
-          arguments: {
-            action: 'QUERY_SEARCH_ANALYTICS',
-            site_url: site,
-            connection_id: gsc.id,
-            payload: gscRequest,
-          },
+          arguments: {action: 'QUERY_SEARCH_ANALYTICS', site_url: site, payload: gscRequest},
         },
         'Search Console',
       );
