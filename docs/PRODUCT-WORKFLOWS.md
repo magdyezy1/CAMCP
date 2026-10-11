@@ -297,7 +297,7 @@ See [contract, SDK and browser qualification](review/DELIVERY-2026-10-04-SNAPCHA
 
 `amcp_reporting launch_check {id}` checks a completed guided Meta or Snapchat launch (CMP-07): native reads of its
 verified campaign, ad set or ad squad and account feed the rule-based campaign audit, with an optional retained
-campaign × day capture (`report_id`) for delivery and frequency. Missing evidence stays unknown; delivery is observed
+campaign × day capture (`reference_id`) for delivery and frequency. Missing evidence stays unknown; delivery is observed
 only from reported impressions, and a paused campaign is never reported as failing. For Google accounts, Inventory
 offers **Why is it serving or not?** (`amcp_reporting serving_diagnostics`): Google's primary status and reasons, policy
 summary and ad strength per campaign, ad group, ad, asset group and asset link, each native symbol shown literally with

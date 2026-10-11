@@ -197,7 +197,7 @@ test('an active Meta launch with a retained capture shows observed delivery and 
     },
     {entity_id: '888', date: '2026-11-02', impressions: '5', clicks: '0', spend: '1', conversions: '0', frequency: '1'},
   ]);
-  const out = await f.check({report_id: id});
+  const out = await f.check({reference_id: id});
   assert.equal(out.delivery.status, 'observed');
   assert.equal(out.delivery.impressions, 1900, 'only this campaign’s rows count');
   const finding = c => out.audit.findings.find(x => x.check === c);
@@ -209,7 +209,7 @@ test('an active Meta launch with a retained capture shows observed delivery and 
   assert.equal(out.report_complete, true);
   // A capture without impressions for this campaign is "none reported", which is still unknown, not a fault.
   const quiet = f.report([{entity_id: '888', date: '2026-11-02', impressions: '5'}]);
-  const none = await f.check({report_id: quiet});
+  const none = await f.check({reference_id: quiet});
   assert.equal(none.delivery.status, 'unknown');
   assert.equal(none.delivery.reason, 'none_reported');
   assert.equal(none.audit.findings.find(x => x.check === 'creative_fatigue').status, 'unknown');
@@ -222,10 +222,10 @@ test('an active Meta launch with a retained capture shows observed delivery and 
 test('a capture of another account or grain, a foreign campaign and an unfinished launch are refused', async t => {
   const f = fixture('meta', {status: 'ACTIVE'});
   t.after(f.close);
-  await assert.rejects(f.check({report_id: f.report([], {account_id: '999'})}), e =>
+  await assert.rejects(f.check({reference_id: f.report([], {account_id: '999'})}), e =>
     assertRefused(e, 'LAUNCH_CHECK_REPORT_MISMATCH'),
   );
-  await assert.rejects(f.check({report_id: f.report([], {grain: 'ad set × day'})}), e =>
+  await assert.rejects(f.check({reference_id: f.report([], {grain: 'ad set × day'})}), e =>
     assertRefused(e, 'LAUNCH_CHECK_REPORT_MISMATCH'),
   );
   const foreign = fixture('meta', {campaignId: '9999'});

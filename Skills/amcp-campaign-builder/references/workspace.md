@@ -375,7 +375,7 @@ narrow by campaign); `SERVING_DIAGNOSTICS_INVALID_RESPONSE` means a row was malf
 
 **Launch check (Meta and Snapchat).** After a guided Meta or Snapchat launch completes, `amcp_reporting launch_check
 {id: <plan id>}` reads the plan's verified campaign, its ad set or ad squad and the account, and runs the rule checks
-(budget, schedule, bid strategy, frequency, targeting). Add `report_id` of a retained campaign × day `capture_preset` of
+(budget, schedule, bid strategy, frequency, targeting). Add `reference_id`, the ID of a retained campaign × day `capture_preset` of
 that account to include delivery and frequency. Findings without evidence stay `unknown` and name what is missing.
 Delivery is `observed` only when the capture reports impressions; a paused campaign, a missing capture or a window
 without impressions stays `unknown`, never an alarm. `LAUNCH_CHECK_NOT_READY` waits for the campaign step to be
@@ -1268,7 +1268,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `preview_search_exclusions` | Reads the original ad groups and previews exact-negative exclusions. | **`id`**, **`ids`**, `options` | provider reads; saves search_exclusion_preview | operator |
 | `create_search_exclusion_plan` | Saves the previewed exclusions as an unapproved campaign plan. | **`id`**, **`preview_id`**, **`preview_hash`**, **`confirmed`** | provider reads; saves campaign_run | operator |
 | `serving_diagnostics` | Google primary status, reasons, policy summary and ad strength per level; native symbols, unknowns listed. | **`account_id`**, **`connection_id`**, `gateway`, `campaign_id`, `options` | provider reads | reader |
-| `launch_check` | Rule checks of a guided Meta or Snapchat launch from native reads and an optional retained capture. | **`id`**, `report_id` | provider reads | reader |
+| `launch_check` | Rule checks of a guided Meta or Snapchat launch from native reads and an optional retained capture. | **`id`**, `reference_id` | provider reads | reader |
 
 ### amcp_reporting_overview
 

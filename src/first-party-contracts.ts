@@ -1178,7 +1178,7 @@ const rows: Record<string, Row[]> = {
       'launch_check',
       'Rule checks of a guided Meta or Snapchat launch from native reads and an optional retained capture.',
       ['id'],
-      ['report_id'],
+      ['reference_id'],
       reads(),
       'reader',
       [[R, 'capture_preset']],

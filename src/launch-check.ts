@@ -192,9 +192,9 @@ export async function launchCheck(
       projection[k] = projection[k].replace(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})([+-]\d{2})(\d{2})$/, '$1$2:$3');
   for (const [k, v] of Object.entries(projection)) if (v === null) delete projection[k];
   const retained =
-    input.report_id === undefined
+    input.reference_id === undefined
       ? undefined
-      : retainedReport(store, actor, String(input.report_id), {gateway, ...scope}, campaignId);
+      : retainedReport(store, actor, String(input.reference_id), {gateway, ...scope}, campaignId);
   const audit = auditCampaign({
     platform,
     account_id: scope.account_id,
@@ -244,7 +244,7 @@ export async function launchCheck(
     field_sources: fieldSources,
     delivery,
     audit,
-    report_id: input.report_id ?? null,
+    report_id: input.reference_id ?? null,
     report_complete: retained ? retained.complete : null,
     sources,
     network_requests: sources.length,
