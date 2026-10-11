@@ -48,6 +48,7 @@ import {
 } from './campaign-inventory.js';
 import {
   backgroundRunView,
+  BACKGROUND_RUN_KIND,
   enqueueBackgroundRun,
   independentUploads,
   nextUpload,
@@ -682,15 +683,28 @@ export class CampaignRunner {
     this.assertApproval(actor, run);
     const get = {tool: 'amcp_campaign', arguments: {action: 'get', id: run.id}};
     if (run.steps.every(settled)) return this.respond(input, {...run, state: 'complete'}, undefined, {next_call: null});
-    const current = backgroundRunView(this.store, actor.tenantId, run);
-    if (current && ['queued', 'running'].includes(current.state))
-      return this.respond(input, run, undefined, {background: current, next_call: get});
-    const job = enqueueBackgroundRun(this.store, actor, run.id);
-    run.background = {job_id: job, queued_at: Date.now(), by: actor.userId};
-    run = this.save(actor, run);
-    audit(this.store, actor, 'campaign_plan_background_queued', {id: run.id, plan_hash: run.plan_hash, job_id: job});
-    return this.respond(input, run, undefined, {
-      background: backgroundRunView(this.store, actor.tenantId, run),
+    // Checked and queued in one transaction (SQLite admits one writer at a time, across processes too): two concurrent
+    // calls (two tabs, or the website and an MCP client) cannot both find no active run and queue two jobs.
+    const queued = this.store.transaction(() => {
+      const current = this.owned(actor, run.id),
+        active = this.store.db
+          .prepare(
+            "SELECT id FROM jobs WHERE tenant_id=? AND kind=? AND state IN ('queued','running') AND json_extract(input,'$.plan_id')=? LIMIT 1",
+          )
+          .get(actor.tenantId, BACKGROUND_RUN_KIND, run.id) as {id?: string} | undefined;
+      if (active?.id) return {run: current, queued: false};
+      const job = enqueueBackgroundRun(this.store, actor, run.id);
+      current.background = {job_id: job, queued_at: Date.now(), by: actor.userId};
+      const saved = this.save(actor, current);
+      audit(this.store, actor, 'campaign_plan_background_queued', {
+        id: saved.id,
+        plan_hash: saved.plan_hash,
+        job_id: job,
+      });
+      return {run: saved, queued: true};
+    });
+    return this.respond(input, queued.run, undefined, {
+      background: backgroundRunView(this.store, actor.tenantId, queued.run),
       next_call: get,
     });
   }

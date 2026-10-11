@@ -421,7 +421,11 @@ time for the downtime (`jobs_released`). A job that may be mid-mutation (`sheets
 server run of an approved plan of uploads (`amcp_campaign run_background`, MED-03): it runs as the person who queued
 it, one plan per person at a time (a per-person lock renewed while it runs), yields between uploads about every 20
 seconds or when media capacity is busy (requeued, not failed; `CAMPAIGN_RUN_CONTINUES` while it waits, shown as
-`running`), and stops after 500 turns with `BACKGROUND_RUN_TURN_LIMIT`. `AMCP_SERVER_PUSH=false` refuses new
+`running`), and stops after 500 turns with `BACKGROUND_RUN_TURN_LIMIT`. A background run is never queued twice for one plan: the
+check and the queueing happen in one transaction. Like every job that may be mid-mutation, a `campaign_run` whose
+worker process stopped twice while running it (two crashes or hard restarts during its turns) is set aside as failed
+with `LEASE_EXPIRY_LIMIT` (`crash_quarantine`): the plan shows the push stopped, and the person runs it again; uploads
+already done stay done and each remaining upload keeps its own review and key. `AMCP_SERVER_PUSH=false` refuses new
 background runs (`BACKGROUND_RUN_DISABLED`) and returns the website push to driving each row from the page. It exits 0 (`shutdown_completed`) when everything has
 settled, or 1 (`shutdown_deadline`) after `AMCP_SHUTDOWN_GRACE_MS` (default 25000, from 1000 to 600000). Keep the
 platform's stop window above the grace period: on Railway, set `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` to at least

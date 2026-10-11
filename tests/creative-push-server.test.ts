@@ -255,7 +255,8 @@ test('images convert once per image-limit group; MCP plans stage nothing unless 
     });
     assert.equal(refused.error.code, 'INVALID_ARGUMENT');
     assert.equal(refused.error.details.parameter, 'stage_fits');
-    assert.equal((await f.media({action: 'plan', source_id: source.source_id, stage_fits: 'yes'})).success, false);
+    const wrongType = await f.media({action: 'plan', source_id: source.source_id, stage_fits: 'yes'});
+    assert.equal(wrongType.error.code, 'INVALID_ARGUMENT');
   } finally {
     f.store.close();
   }

@@ -15,6 +15,7 @@ import {ReportWorker} from '../src/worker.js';
 import {SOURCE_CHUNK_BYTES, type MediaSources} from '../src/media-sources.js';
 import {WEBSITE_UPLOAD_TTL_MS} from '../src/media-retention.js';
 import {sha256} from '../src/security.js';
+import {enqueueBackgroundRun} from '../src/campaign-background.js';
 import type {Actor, JsonObject} from '../src/types.js';
 
 const key = Buffer.alloc(32, 59).toString('base64'),
@@ -177,6 +178,27 @@ test('an approved push runs on the server: queued once, run by the worker, and i
     const done = await f.campaign({action: 'run_background', id});
     assert.equal(done.data.state, 'complete');
     assert.equal(f.store.db.prepare("SELECT count(*) AS n FROM jobs WHERE kind='campaign_run'").get()!.n, 1);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a run another process queued for the plan is found by run_background, never queued beside it (regression)', async () => {
+  // Before: the check read the plan's own background reference, and the enqueue happened outside that check. A run
+  // queued by another tab or client whose plan update this call had not seen was queued a second time.
+  const f = fixture();
+  try {
+    const sources = [await upload(f.sources, 'a.png')],
+      id = await approvedPush(f, [pushStep('upload-1', sources[0]!, accounts[0]!)]);
+    const other = enqueueBackgroundRun(f.store, operator, id);
+    const queued = await f.campaign({action: 'run_background', id});
+    assert.equal(queued.success, true, JSON.stringify(queued));
+    assert.equal(f.store.db.prepare("SELECT count(*) AS n FROM jobs WHERE kind='campaign_run'").get()!.n, 1);
+    assert.equal(
+      f.store.db.prepare("SELECT id FROM jobs WHERE kind='campaign_run'").get()!.id,
+      other,
+      'the run already queued is the only one',
+    );
   } finally {
     f.store.close();
   }

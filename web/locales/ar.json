@@ -9638,5 +9638,9 @@
   "Upload progress of {filename}": "تقدّم رفع {filename}",
   "{filename}: {percent}% uploaded": "{filename}: رُفع {percent}%",
   "Drive access since revoked": "أُلغي الوصول إلى Drive منذ ذلك الحين",
-  "Drive access since revoked. This imported copy is frozen and not affected: it can still be pushed until it expires or an owner removes it.": "أُلغي الوصول إلى Drive منذ ذلك الحين. هذه النسخة المستوردة مجمّدة ولا تتأثر: لا يزال من الممكن دفعها إلى أن تنتهي صلاحيتها أو يزيلها المالك."
+  "Drive access since revoked. This imported copy is frozen and not affected: it can still be pushed until it expires or an owner removes it.": "أُلغي الوصول إلى Drive منذ ذلك الحين. هذه النسخة المستوردة مجمّدة ولا تتأثر: لا يزال من الممكن دفعها إلى أن تنتهي صلاحيتها أو يزيلها المالك.",
+  "Use the exact original SHA-256: 64 lowercase hexadecimal characters.": "استخدم قيمة SHA-256 الدقيقة للملف الأصلي: 64 حرفًا ست عشريًا بأحرف صغيرة.",
+  "stage_fits is true or false.": "تكون stage_fits إما true أو false.",
+  "stage_fits applies to plan only.": "تنطبق stage_fits على plan فقط.",
+  "include_assets is true or false.": "تكون include_assets إما true أو false."
 }
