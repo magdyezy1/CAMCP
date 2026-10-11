@@ -233,7 +233,7 @@ export function independentlyReadOnly(plan: CompiledRequest): boolean {
     case 'apple_ads_native_action':
       return (
         plan.origin === 'https://api.ads.apple.com' &&
-        /^\/v1\/(?:campaigns|adgroups|ads|creatives|keywords|negative-keywords|shared-budgets|reports\/apps\/(?:campaigns|adgroups|ads|keywords|searchterms))\/query$/.test(
+        /^\/v1\/(?:campaigns|adgroups|ads|creatives|keywords|negative-keywords|shared-budgets|reports\/apps\/(?:campaigns|adgroups|ads|keywords|searchterms)|eligibilities\/apps|product-pages|insights\/apps\/(?:impression-share|search-term-popularity)|suggestions\/keywords)\/query$/.test(
           pathname,
         )
       );

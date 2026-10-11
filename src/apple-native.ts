@@ -56,7 +56,28 @@ export const appleActions: Action[] = [
     route(singular + '_update', 'PUT', plural + '/{id}', 'write'),
     route(singular + '_delete', 'DELETE', plural + '/{id}', 'write'),
   ]),
+  // PRV-07 B: planning reads of the same pinned SDK revision (generated/apple-platform-v1-models.json `methods`:
+  // searchApps, getAppDetailsByAdamId, eligibilitiesAppsQueryPost, queryProductPages, impressionShareQuery,
+  // searchTermPopularityQuery, queryKeywordSuggestions), each under the X-AP-Context ad account. Change history is not
+  // added: its records name the people who made changes, and the pinned SDK gives no model to project them out.
+  route('apps_search', 'GET', 'search/apps', 'search'),
+  route('app_get', 'GET', 'apps/{id}', 'get'),
+  route('app_eligibilities_query', 'POST', 'eligibilities/apps/query', 'insight'),
+  route('product_pages_query', 'POST', 'product-pages/query', 'insight'),
+  route('impression_share_query', 'POST', 'insights/apps/impression-share/query', 'insight'),
+  route('search_term_popularity_query', 'POST', 'insights/apps/search-term-popularity/query', 'insight'),
+  route('keyword_suggestions_query', 'POST', 'suggestions/keywords/query', 'insight'),
 ];
+/** The pinned SDK method each PRV-07 read route mirrors; tests compare them with the generated evidence. */
+export const applePlanningReadMethods: Readonly<Record<string, string>> = Object.freeze({
+  apple_ads_v1_apps_search: 'searchApps',
+  apple_ads_v1_app_get: 'getAppDetailsByAdamId',
+  apple_ads_v1_app_eligibilities_query: 'eligibilitiesAppsQueryPost',
+  apple_ads_v1_product_pages_query: 'queryProductPages',
+  apple_ads_v1_impression_share_query: 'impressionShareQuery',
+  apple_ads_v1_search_term_popularity_query: 'searchTermPopularityQuery',
+  apple_ads_v1_keyword_suggestions_query: 'queryKeywordSuggestions',
+});
 const actions = new Map(appleActions.map(action => [action.name, action]));
 const object = (value: unknown): value is JsonObject => !!value && typeof value === 'object' && !Array.isArray(value);
 function invalid(message: string): never {
@@ -220,6 +241,18 @@ function reportBody(plan: CompiledRequest, body: JsonObject) {
       invalid('Unsupported includeRows option for this report.');
   }
 }
+/** App search (GET search/apps) takes only its documented URL selectors, bounded. */
+function searchQuery(query: JsonObject) {
+  keys(query, ['query', 'returnOwnedApps', 'limit', 'offset'], 'app search');
+  if (query.query !== undefined && (typeof query.query !== 'string' || !query.query.trim() || query.query.length > 100))
+    invalid('query must be a nonempty app name or ID of at most 100 characters.');
+  if (query.returnOwnedApps !== undefined && !['true', 'false', true, false].includes(query.returnOwnedApps))
+    invalid('returnOwnedApps must be true or false.');
+  const integer = (value: unknown, minimum: number, maximum: number) =>
+    value === undefined || (/^\d{1,7}$/.test(String(value)) && Number(value) >= minimum && Number(value) <= maximum);
+  if (!integer(query.limit, 1, 1000)) invalid('limit must be an integer from 1 to 1000.');
+  if (!integer(query.offset, 0, 1000000)) invalid('offset must be an integer from 0 to 1000000.');
+}
 /** Final validation happens after generic alias merging so hidden scope changes cannot slip through. */
 export function validateApplePlan(plan: CompiledRequest): CompiledRequest {
   if (plan.gateway !== gateway || !actions.has(plan.action)) return plan;
@@ -232,10 +265,14 @@ export function validateApplePlan(plan: CompiledRequest): CompiledRequest {
   const body = plan.body === undefined ? undefined : structuredClone(plan.body);
   for (const bag of [query, object(body) ? body : {}])
     for (const key of ['account_id', 'ad_account_id', 'org_id']) delete bag[key];
-  if (Object.keys(query).length)
-    invalid('These Apple v1 routes do not accept URL query parameters. Put native query selectors in payload.');
   const kind = actions.get(plan.action)!.raw.kind;
-  if (kind === 'query' || kind === 'report') {
+  if (kind === 'search') searchQuery(query);
+  else if (Object.keys(query).length)
+    invalid('These Apple v1 routes do not accept URL query parameters. Put native query selectors in payload.');
+  if (kind === 'insight') {
+    if (!object(body)) invalid('Insight and suggestion payloads must be objects.');
+    if (JSON.stringify(body).length > 65536) invalid('Insight and suggestion payloads are limited to 64 KiB.');
+  } else if (kind === 'query' || kind === 'report') {
     if (!object(body)) invalid('Query and report payloads must be objects.');
     if (kind === 'report') reportBody(plan, body);
     else queryBody(body, false);
@@ -297,18 +334,30 @@ export function validateAppleResponse(plan: CompiledRequest, value: unknown) {
   };
   if (!object(value) || value.result === undefined || value.result === null) fail();
   const data = value as JsonObject,
-    kind = actions.get(plan.action)!.raw.kind;
+    kind = actions.get(plan.action)!.raw.kind,
+    // An app is keyed by its App Store adamId, not an Apple Ads resource id (PRV-07 B).
+    key = plan.action === 'apple_ads_v1_app_get' ? 'adamId' : 'id';
+  // Any returned resource of another ad account is refused first, whatever else is wrong with the envelope.
+  const scoped = Array.isArray(data.result)
+    ? data.result
+    : kind !== 'report' && object(data.result)
+      ? [data.result]
+      : [];
+  for (const row of scoped)
+    if (object(row) && row.adAccountId !== undefined && String(row.adAccountId) !== plan.accountId)
+      throw new MirrorError('ACCOUNT_SCOPE_MISMATCH', 'Apple returned a resource for another ad account.', {}, 502);
   if (
-    (kind === 'query' && !Array.isArray(data.result)) ||
+    ((kind === 'query' || kind === 'search') && !Array.isArray(data.result)) ||
     (kind === 'report' && (!object(data.result) || !Array.isArray(data.result.rows))) ||
-    (kind === 'get' && (!object(data.result) || data.result.id === undefined))
+    (kind === 'get' && (!object(data.result) || data.result[key] === undefined)) ||
+    (kind === 'insight' && !object(data.result) && !Array.isArray(data.result))
   )
     fail();
-  const rows = kind === 'query' ? data.result : kind === 'get' ? [data.result] : [];
-  for (const row of rows) {
-    if (!object(row) || row.id === undefined) fail();
-    if (row.adAccountId !== undefined && String(row.adAccountId) !== plan.accountId)
-      throw new MirrorError('ACCOUNT_SCOPE_MISMATCH', 'Apple returned a resource for another ad account.', {}, 502);
+  if (kind === 'search' || kind === 'insight') {
+    if (Array.isArray(data.result) && data.result.some((row: unknown) => !object(row))) fail();
+    return;
   }
-  if (kind === 'get' && String(data.result.id) !== plan.path.split('/').at(-1)) fail();
+  const rows = kind === 'query' ? data.result : kind === 'get' ? [data.result] : [];
+  for (const row of rows) if (!object(row) || row[key] === undefined) fail();
+  if (kind === 'get' && String(data.result[key]) !== plan.path.split('/').at(-1)) fail();
 }
