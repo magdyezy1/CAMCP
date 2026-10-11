@@ -97,8 +97,10 @@ retrying never refunds the counters. `REPORT_RESTART_REQUIRED` applies to legacy
 
 `amcp_workspace {action:"operations",kind?,state?,search?,account_id?,connection_id?,cursor?,limit?}` reads the
 local metadata feed for campaign plans, upload reviews, reporting snapshots, export jobs, Overview schedules,
-incidents, scoped workbook report runs and workbook schedules.
-Kinds: `all`, `campaign`, `upload`, `report`, `export`, `schedule`, `incident`, `workbook_report`, `workbook_schedule`. States: `all`, `attention`, `active`,
+incidents, scoped workbook report runs and workbook schedules, standalone reviewed changes, your failed monitor email
+notices and, for administrators, logins that need reauthorization, keep failing to renew or are turned off.
+Kinds: `all`, `campaign`, `upload`, `report`, `export`, `schedule`, `incident`, `workbook_report`, `workbook_schedule`,
+`write`, `notice`, `connection`. States: `all`, `attention`, `active`,
 `complete`, `deferred`. Follow `next_cursor` with the same filters and identity, even after an empty page. Each page
 rechecks current scope and scans at most 500 candidate records; page size is 1–100. Refresh to see records that moved
 after an update. `INVALID_CURSOR` means refresh or restore the original filters. Each row's `next_call` inspects its

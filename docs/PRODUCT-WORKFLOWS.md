@@ -13,6 +13,15 @@ management tools. Exact plan, media review, report and evidence IDs are retained
 logout and workspace changes clear private drafts and invalidate pending responses. Ordinary navigation preserves
 an unsaved report setup within the same identity; an explicit new report clears the old selection and destination.
 
+**Needs attention** on Home is the Operations classifier's own page (`amcp_workspace {action:"operations",
+state:"attention", limit:8}`), so Home and Operations agree (OPS-06): a plan in `attention` or awaiting review, an
+uncertain upload or reviewed change, a failed export or schedule, an open incident, a failed monitor email notice and,
+for administrators, a login to reauthorize. Home shows the eight most recent, because each feed page scans a bounded
+number of records; **All operations** opens `/operations?state=attention`. The states that mean attention are
+`attentionStates` in `src/operation-types.ts`, and a test keeps every campaign runner plan state classified. Account
+readiness is a count with the accounts in a disclosure, and capability evidence (tool names, evidence levels) sits
+under **Technical details**, so Home stays short on a phone. **Continue recent work** still lists recent plans.
+
 `amcp_workspace {action:"capabilities", gateway?, workflow_id?, account_id?, connection_id?}` projects executable
 campaign recipes, Overview adapters, detailed capture presets, media routes and conditional programs into workflow cards. Exact workflow
 and account/login filters expose dependencies, lifecycle handoffs, native actions, registered review families and
@@ -716,7 +725,12 @@ Operations (`/operations`) uses `amcp_workspace operations` for paginated campai
 snapshots, export jobs, Overview schedules, incidents, workbook report runs (`kind:workbook_report`), workbook
 schedules (`kind:workbook_schedule`) and standalone reviewed changes (`kind:write`, opened at
 `/operations?write_id=<review_id>` with their state, claim and a read-only provider check; see
-[outcomes and recovery](WRITE-OPERATIONS.md#outcomes-and-recovery)). Filter by
+[outcomes and recovery](WRITE-OPERATIONS.md#outcomes-and-recovery)), failed monitor email notices (`kind:notice`, for
+their subscriber only, opened on their rule at `/monitors?monitor_id=<rule>&incident_id=<incident>` where the one
+confirmed retry is offered; past their 24 hours they read `undelivered` and leave attention) and, for workspace
+administrators only, logins that need a person (`kind:connection`: `reauthorization_required`, `refresh_failed`, or
+`disabled`, which is deferred; `/connections?connection_id=<id>` opens that login's Manage view, and the `next_call`,
+`dashboard` with `sections:["connections"]`, reads its recorded credential health). Filter by
 kind, attention category, name/ID and exact account/login.
 Continue with `next_cursor` using the same identity and filters, including after an empty page with `has_more:true`.
 The new feed projects only metadata and checks at most 500 candidates per call. It rechecks current engine ownership
