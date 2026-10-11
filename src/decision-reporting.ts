@@ -5,6 +5,7 @@ import {
   createSearchExclusionPlan,
 } from './search-exclusion-plan.js';
 import {Store} from './store.js';
+import {MirrorError} from './errors.js';
 import {accountMetadataStaleMs, recallAccountMetadata} from './account-metadata.js';
 import type {Actor, JsonObject} from './types.js';
 import {audit, bad, field, fingerprint, obj, pointer, read, tool, validate, type ToolCall} from './workspace-core.js';
@@ -264,6 +265,109 @@ export class DecisionReporting {
   async collectGuided(input: JsonObject, actor: Actor) {
     return this.handle({action: 'capture', ...reportPreset(input)}, actor, input.preset, true);
   }
+  /** One analysable group per account, entity level, currency, time zone, attribution and result definition. */
+  private overviewGroups(actor: Actor, snapshot: JsonObject) {
+    for (const source of snapshot.config.sources)
+      this.store.resolveConnection(
+        actor,
+        reportPlatforms[source.platform]!.gateway,
+        source.account_id,
+        source.connection_id,
+      );
+    const groups = new Map<string, {semantics: JsonObject; source: JsonObject; rows: JsonObject[]}>();
+    for (const row of snapshot.rows) {
+      const sem = {
+        currency: row.currency,
+        timezone: row.timezone,
+        date_from: snapshot.config.date_range.since,
+        date_to: snapshot.config.date_range.until,
+        attribution: row.attribution ?? 'unknown',
+        conversion_definition: row.result_definition ?? 'unknown',
+        source_name: String(snapshot.config.name).slice(0, 200),
+        complete: row.complete === true && row.quality?.measurement_complete !== false,
+      };
+      const source = {
+        gateway: reportPlatforms[row.platform]!.gateway,
+        account_id: row.account_id,
+        connection_id: row.connection_id,
+        ...(row.entity_level ? {entity_level: row.entity_level, native_entity_type: row.native_entity_type} : {}),
+      };
+      // The key has no dates, so the same group of an earlier window of the report has the same ID (RPT-07 pairs).
+      const key = fingerprint({
+        ...source,
+        currency: sem.currency,
+        timezone: sem.timezone,
+        attribution: sem.attribution,
+        conversion_definition: sem.conversion_definition,
+      });
+      const group: {semantics: JsonObject; source: JsonObject; rows: JsonObject[]} = groups.get(key) ?? {
+        semantics: sem,
+        source,
+        rows: [],
+      };
+      group.rows.push(row);
+      group.semantics.complete &&= sem.complete;
+      groups.set(key, group);
+    }
+    return groups;
+  }
+  /** Keeps one Overview group as analysable evidence; the ID is derived from the snapshot, group and source hash. */
+  private captureOverviewGroup(
+    actor: Actor,
+    snapshot: JsonObject,
+    groupId: string,
+    group: {semantics: JsonObject; source: JsonObject; rows: JsonObject[]},
+    extra: JsonObject = {},
+  ): JsonObject {
+    const sem = semantic(group.semantics);
+    if (!group.rows.length || group.rows.length > 10000) bad('Choose a snapshot group of 1–10,000 rows.');
+    const rounding: Record<string, number> = {};
+    const rows = group.rows.map(row => ({
+      entity_id: String(row.entity_id ?? row.campaign_id),
+      entity_name: row.entity_name ?? row.campaign_name ?? null,
+      date: row.date_from,
+      search_term: null,
+      ...Object.fromEntries(
+        metrics.map(key => [
+          key,
+          row.metrics[key] == null ? null : providerMetric(key, row.metrics[key], 'metrics.' + key, rounding),
+        ]),
+      ),
+    }));
+    const metricRounding = metricRoundingRecord(rounding);
+    const report = {
+      ...group.source,
+      semantics: metricRounding ? {...sem, metric_rounding: metricRounding} : sem,
+      semantics_source: 'retained Overview source definitions; no fresh provider collection',
+      mapping: Object.fromEntries(metrics.map(key => [key, '/metrics/' + key])),
+      source_request: {overview_id: snapshot.id, group_id: groupId, grain: snapshot.config.grain ?? 'total'},
+      source_hash: fingerprint(metricRounding ? {rows: group.rows, metric_rounding: metricRounding} : group.rows),
+      source_lineage: {
+        overview_id: snapshot.id,
+        definition_fingerprint: fingerprint(snapshot.config),
+        row_keys: group.rows.map(row => row.row_key),
+        query_fingerprints: [...new Set(group.rows.map(row => row.query_fingerprint))],
+      },
+      captured_at: Math.min(...group.rows.map(row => row.captured_at ?? snapshot.captured_at)),
+      rows,
+      totals: totals(rows),
+      coverage: Object.fromEntries(
+        metrics.map(key => [key, rows.some(row => row[key as keyof typeof row] == null) ? 'partial' : 'mapped']),
+      ),
+      source: 'overview_snapshot',
+      ...extra,
+    };
+    const id = fingerprint({snapshot: snapshot.id, group: groupId, source_hash: report.source_hash});
+    if (Buffer.byteLength(JSON.stringify(report)) > 8 * 1024 * 1024) bad('Narrow the report to 8 MiB.');
+    this.store.putDocument(actor.tenantId, 'decision_report', id, report);
+    audit(this.store, actor, 'overview_evidence_captured', {
+      id,
+      overview_id: snapshot.id,
+      group_id: groupId,
+      source_hash: report.source_hash,
+    });
+    return {...report, id};
+  }
   async handle(input: JsonObject, actor: Actor, capturePreset?: string, transient = false): Promise<JsonObject> {
     validate(input, Object.keys(decisionTool.inputSchema.properties));
     this.store.assertActorActive(actor);
@@ -387,47 +491,7 @@ export class DecisionReporting {
       const snapshot = read(this.store, actor, 'overview_report', input.id);
       if (!['complete', 'partial'].includes(snapshot.state))
         bad('Use a completed or marked partial snapshot.', 'REPORT_NOT_READY');
-      for (const source of snapshot.config.sources)
-        this.store.resolveConnection(
-          actor,
-          reportPlatforms[source.platform]!.gateway,
-          source.account_id,
-          source.connection_id,
-        );
-      const groups = new Map<string, {semantics: JsonObject; source: JsonObject; rows: JsonObject[]}>();
-      for (const row of snapshot.rows) {
-        const sem = {
-          currency: row.currency,
-          timezone: row.timezone,
-          date_from: snapshot.config.date_range.since,
-          date_to: snapshot.config.date_range.until,
-          attribution: row.attribution ?? 'unknown',
-          conversion_definition: row.result_definition ?? 'unknown',
-          source_name: String(snapshot.config.name).slice(0, 200),
-          complete: row.complete === true && row.quality?.measurement_complete !== false,
-        };
-        const source = {
-          gateway: reportPlatforms[row.platform]!.gateway,
-          account_id: row.account_id,
-          connection_id: row.connection_id,
-          ...(row.entity_level ? {entity_level: row.entity_level, native_entity_type: row.native_entity_type} : {}),
-        };
-        const key = fingerprint({
-          ...source,
-          currency: sem.currency,
-          timezone: sem.timezone,
-          attribution: sem.attribution,
-          conversion_definition: sem.conversion_definition,
-        });
-        const group: {semantics: JsonObject; source: JsonObject; rows: JsonObject[]} = groups.get(key) ?? {
-          semantics: sem,
-          source,
-          rows: [],
-        };
-        group.rows.push(row);
-        group.semantics.complete &&= sem.complete;
-        groups.set(key, group);
-      }
+      const groups = this.overviewGroups(actor, snapshot);
       if (input.action === 'overview_sources')
         return {
           overview_id: snapshot.id,
@@ -444,53 +508,42 @@ export class DecisionReporting {
         };
       const group = groups.get(String(input.group_id));
       if (!group) bad('Choose a group returned by overview_sources for this snapshot.', 'REPORT_GROUP_REQUIRED');
-      const sem = semantic(group.semantics);
-      if (!group.rows.length || group.rows.length > 10000) bad('Choose a snapshot group of 1–10,000 rows.');
-      const rounding: Record<string, number> = {};
-      const rows = group.rows.map(row => ({
-        entity_id: String(row.entity_id ?? row.campaign_id),
-        entity_name: row.entity_name ?? row.campaign_name ?? null,
-        date: row.date_from,
-        search_term: null,
-        ...Object.fromEntries(
-          metrics.map(key => [
-            key,
-            row.metrics[key] == null ? null : providerMetric(key, row.metrics[key], 'metrics.' + key, rounding),
-          ]),
-        ),
-      }));
-      const metricRounding = metricRoundingRecord(rounding);
-      const report = {
-        ...group.source,
-        semantics: metricRounding ? {...sem, metric_rounding: metricRounding} : sem,
-        semantics_source: 'retained Overview source definitions; no fresh provider collection',
-        mapping: Object.fromEntries(metrics.map(key => [key, '/metrics/' + key])),
-        source_request: {overview_id: snapshot.id, group_id: input.group_id, grain: snapshot.config.grain ?? 'total'},
-        source_hash: fingerprint(metricRounding ? {rows: group.rows, metric_rounding: metricRounding} : group.rows),
-        source_lineage: {
-          overview_id: snapshot.id,
-          definition_fingerprint: fingerprint(snapshot.config),
-          row_keys: group.rows.map(row => row.row_key),
-          query_fingerprints: [...new Set(group.rows.map(row => row.query_fingerprint))],
-        },
-        captured_at: Math.min(...group.rows.map(row => row.captured_at ?? snapshot.captured_at)),
-        rows,
-        totals: totals(rows),
-        coverage: Object.fromEntries(
-          metrics.map(key => [key, rows.some(row => row[key as keyof typeof row] == null) ? 'partial' : 'mapped']),
-        ),
-        source: 'overview_snapshot',
+      // RPT-07: a snapshot run with compare:"previous_period" also keeps the same group of its paired baseline, and
+      // analyze uses that pair as its default baseline. A missing or unfinished pair is reported, never guessed.
+      let pairing: JsonObject | undefined;
+      const pairedId = snapshot.comparison?.role === 'current' ? snapshot.comparison.baseline_id : undefined;
+      if (typeof pairedId === 'string') {
+        let base: JsonObject | undefined;
+        try {
+          base = read(this.store, actor, 'overview_report', pairedId);
+        } catch (e) {
+          if (!(e instanceof MirrorError) || e.code !== 'NOT_FOUND') throw e;
+          pairing = {status: 'unavailable', reason: 'baseline_deleted'};
+        }
+        if (base && !['complete', 'partial'].includes(base.state))
+          pairing = {status: 'unavailable', reason: 'baseline_not_finished'};
+        else if (base) {
+          const baseGroup = this.overviewGroups(actor, base).get(String(input.group_id));
+          if (!baseGroup) pairing = {status: 'unavailable', reason: 'group_not_in_baseline'};
+          else {
+            const paired = this.captureOverviewGroup(actor, base, String(input.group_id), baseGroup);
+            pairing = {status: 'paired', baseline_id: paired.id, overview_id: base.id};
+          }
+        }
+      }
+      const captured = this.captureOverviewGroup(
+        actor,
+        snapshot,
+        String(input.group_id),
+        group,
+        pairing?.status === 'paired' ? {paired_baseline_id: pairing.baseline_id} : {},
+      );
+      return {
+        ...view(captured),
+        ...(pairing ? {pairing} : {}),
+        website_path: '/reports?id=' + encodeURIComponent(captured.id),
+        network_requests: 0,
       };
-      const id = fingerprint({snapshot: snapshot.id, group: input.group_id, source_hash: report.source_hash});
-      if (Buffer.byteLength(JSON.stringify(report)) > 8 * 1024 * 1024) bad('Narrow the report to 8 MiB.');
-      this.store.putDocument(actor.tenantId, 'decision_report', id, report);
-      audit(this.store, actor, 'overview_evidence_captured', {
-        id,
-        overview_id: snapshot.id,
-        group_id: input.group_id,
-        source_hash: report.source_hash,
-      });
-      return {...view({...report, id}), website_path: '/reports?id=' + encodeURIComponent(id), network_requests: 0};
     }
     if (input.action === 'capture') {
       const sem = semantic(input.semantics ?? {}),
@@ -1051,19 +1104,29 @@ export class DecisionReporting {
         );
       }
     }
-    let baseline: JsonObject | undefined;
-    if (input.baseline_id) {
-      baseline = read(this.store, actor, 'decision_report', input.baseline_id);
-      this.store.resolveConnection(actor, baseline.gateway, baseline.account_id, baseline.connection_id);
-      compatibility(report, baseline);
-      if (baseline.account_id !== report.account_id || baseline.gateway !== report.gateway)
-        bad('The baseline must use the same account and platform.');
-      // RPT-04: a different preset, grain or mapping would turn a grain difference into spend or fatigue advice.
-      assertCompatibleBaseline(report, baseline);
-      const days = (r: JsonObject) =>
-        (Date.parse(r.semantics.date_to) - Date.parse(r.semantics.date_from)) / 86400000 + 1;
-      if (days(report) !== days(baseline) || baseline.semantics.date_to >= report.semantics.date_from)
-        bad('Compare equal-length, non-overlapping windows.');
+    let baseline: JsonObject | undefined, pairedUnavailable: string | undefined;
+    // RPT-07: without an explicit baseline_id, evidence captured from a previous-period pair uses its paired baseline.
+    // A pair that is gone or no longer compatible is skipped with a stated limitation; an explicit one is refused.
+    const paired = input.baseline_id === undefined && typeof report.paired_baseline_id === 'string',
+      baselineId = input.baseline_id ?? (paired ? report.paired_baseline_id : undefined);
+    if (baselineId) {
+      try {
+        baseline = read(this.store, actor, 'decision_report', baselineId);
+        this.store.resolveConnection(actor, baseline.gateway, baseline.account_id, baseline.connection_id);
+        compatibility(report, baseline);
+        if (baseline.account_id !== report.account_id || baseline.gateway !== report.gateway)
+          bad('The baseline must use the same account and platform.');
+        // RPT-04: a different preset, grain or mapping would turn a grain difference into spend or fatigue advice.
+        assertCompatibleBaseline(report, baseline);
+        const days = (r: JsonObject) =>
+          (Date.parse(r.semantics.date_to) - Date.parse(r.semantics.date_from)) / 86400000 + 1;
+        if (days(report) !== days(baseline) || baseline.semantics.date_to >= report.semantics.date_from)
+          bad('Compare equal-length, non-overlapping windows.');
+      } catch (e) {
+        if (!paired || !(e instanceof MirrorError) || e.code === 'CONNECTION_REQUIRED') throw e;
+        baseline = undefined;
+        pairedUnavailable = e.code;
+      }
     }
     const minClicks = options.minimum_clicks ?? 30,
       minImpressions = options.minimum_impressions ?? 1000;
@@ -1149,6 +1212,7 @@ export class DecisionReporting {
     return {
       report_id: report.id,
       baseline_id: baseline?.id ?? null,
+      baseline_source: baseline ? (paired ? 'paired_previous_period' : 'explicit') : null,
       source_hash: report.source_hash,
       semantics: report.semantics,
       generated_at: Date.now(),
@@ -1172,6 +1236,13 @@ export class DecisionReporting {
         ...(report.semantics.metric_rounding ? [metricRoundingLimitation] : []),
         // RPT-04: also among the limitations, which every client already reads (the website shows data_quality).
         ...(baseline && baseline.semantics?.complete !== true ? [baselineIncompleteLimitation] : []),
+        ...(pairedUnavailable
+          ? [
+              'The paired previous-period baseline could not be used (' +
+                pairedUnavailable +
+                '); no baseline was applied.',
+            ]
+          : []),
       ],
       ...(baseline && baseline.semantics?.complete !== true ? {data_quality: [baselineIncompleteLimitation]} : {}),
     };

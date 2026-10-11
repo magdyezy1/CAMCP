@@ -56,6 +56,7 @@ import {ReportCollectionBudget, reportCollectionLimits} from './report-collectio
 import {ReportParts, reportBudgetState, reportBudgetView} from './report-checkpoints.js';
 import {quotaExhausted} from './provider-quota.js';
 import {evaluateMonitors} from './report-monitors.js';
+import {compareSnapshots, comparisonEligibility, comparisonReasons, previousEqualWindow} from './report-compare.js';
 import {operationsWorkerHealth} from './operations-worker-health.js';
 import {overviewEntityLevels, overviewSourceLevel} from './overview-granularity.js';
 import {
@@ -97,9 +98,13 @@ export const overviewTool = tool(
     'bind_file_destination',
     'export_status',
     'resolve_delivery',
+    'compare',
+    'compare_candidates',
   ],
   {
     id: field.id,
+    baseline_id: field.id,
+    compare: {type: 'string', enum: ['previous_period']},
     view_id: field.id,
     expected_revision: {type: 'integer', minimum: 1},
     expected_view_revision: {type: 'integer', minimum: 1},
@@ -440,6 +445,8 @@ export class ReportingOverview {
     scheduleId?: string,
     at = Date.now(),
     viewId?: string,
+    // RPT-07: the comparison link of a previous-period pair.
+    extra: JsonObject = {},
   ) {
     const store = this.service.store;
     this.access(actor, config);
@@ -476,6 +483,7 @@ export class ReportingOverview {
         ? (store.document(actor.tenantId, 'overview_schedule', scheduleId).definition_version ?? 0)
         : null,
       checkpoints: {},
+      ...extra,
     });
     const jobId = store.enqueue(actor.tenantId, 'report_overview', {report_id: id});
     store.putDocument(actor.tenantId, 'overview_report', id, {
@@ -717,6 +725,7 @@ export class ReportingOverview {
         },
       };
     }
+    if (input.action === 'compare' || input.action === 'compare_candidates') return this.compare(actor, input);
     if (input.action === 'create_spreadsheet') return this.sheets.create(actor, input);
     if (input.action === 'bind_destination') return this.sheets.bind(actor, input);
     writer(store, actor);
@@ -750,6 +759,10 @@ export class ReportingOverview {
       // A saved definition runs as saved; target rules added later apply when it is edited (DEC-01).
       const view = input.config == null ? store.document(tenant, 'overview_view', String(input.id)) : undefined,
         config = this.config(input.config ?? view!.config, actor, false, view !== undefined);
+      if (input.compare !== undefined && input.compare !== 'previous_period')
+        throw new MirrorError('INVALID_REPORT', 'Use compare: previous_period, or omit it.');
+      if (input.compare === 'previous_period')
+        return store.transaction(() => this.queueComparison(actor, config, view?.id));
       return store.transaction(() => this.queue(actor, config, undefined, undefined, Date.now(), view?.id));
     }
     if (input.action === 'export') {
@@ -875,12 +888,130 @@ export class ReportingOverview {
     const rule = config.date_range_rule;
     if (rule?.source_timezone !== 'account') return {dates: config.date_range};
     const timezone = await sourceReportTimezone(this.service, source, actor);
+    // RPT-07: the baseline of a previous-period pair resolves the same rule, then takes the equal window before it.
+    const previous = config.comparison_window === 'previous_equal';
     return timezone
       ? {
-          dates: resolveRollingWindow(rule, rule.resolved_at, timezone),
-          resolution: {basis: 'account_timezone', timezone},
+          dates: previous
+            ? previousEqualWindow(resolveRollingWindow(rule, rule.resolved_at, timezone))
+            : resolveRollingWindow(rule, rule.resolved_at, timezone),
+          resolution: {basis: 'account_timezone', timezone, ...(previous ? {window: 'previous_equal'} : {})},
         }
       : {dates: config.date_range, resolution: {basis: 'report_timezone', timezone: rule.timezone}};
+  }
+  /**
+   * RPT-07: a run with compare:"previous_period" queues two linked snapshots of the same definition: the current window
+   * and the equal-length window that ends the day before it. Each is an ordinary snapshot with its own whole-job
+   * collection budget and estimate check, so the pair never exceeds the limits of a single run per job; the queue
+   * limit counts both, and both are refused together.
+   */
+  private queueComparison(actor: Actor, config: JsonObject, viewId?: string) {
+    const store = this.service.store,
+      tenant = actor.tenantId,
+      at = Date.now(),
+      resolved = resolveReportConfig(config, at),
+      window = previousEqualWindow(reportRange(resolved.date_range)),
+      baselineConfig = {
+        ...resolved,
+        date_range: window,
+        ...(resolved.date_range_rule ? {comparison_window: 'previous_equal'} : {}),
+      };
+    const baseline = this.queue(actor, baselineConfig, undefined, undefined, at, viewId, {
+        comparison: {role: 'baseline', window: 'previous_equal'},
+      }),
+      current = this.queue(actor, resolved, undefined, undefined, at, viewId, {
+        comparison: {role: 'current', baseline_id: baseline.id, window: 'previous_equal'},
+      });
+    store.putDocument(tenant, 'overview_report', baseline.id, {
+      ...store.document(tenant, 'overview_report', baseline.id),
+      comparison: {role: 'baseline', current_id: current.id, window: 'previous_equal'},
+    });
+    return {
+      ...current,
+      comparison: {
+        window: 'previous_equal',
+        baseline_id: baseline.id,
+        baseline_job_id: baseline.job_id,
+        baseline_date_range: window,
+        estimated_requests_total: current.estimated_requests + baseline.estimated_requests,
+      },
+    };
+  }
+  /**
+   * RPT-07: `compare` compares a snapshot with a retained baseline (`baseline_id`, or the snapshot's previous-period
+   * pair); `compare_candidates` lists retained snapshots with whether each may be its baseline and why not. Both are
+   * reads of retained snapshots: no provider request and no saved change.
+   */
+  private compare(actor: Actor, input: JsonObject) {
+    const store = this.service.store,
+      tenant = actor.tenantId,
+      current = store.document(tenant, 'overview_report', String(input.id));
+    this.access(actor, current.config);
+    if (input.action === 'compare_candidates') {
+      const offset = input.offset ?? 0,
+        limit = input.limit ?? 50;
+      if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+        throw new MirrorError('INVALID_PAGE', 'Use an offset >= 0 and 1–100 candidate snapshots.');
+      const candidates = store.db
+        .prepare(
+          "SELECT id,json_remove(data,'$.rows','$.checkpoints','$.actor_binding','$.collection_budget','$.window_summary','$.summary','$.sources') AS data FROM documents WHERE tenant_id=? AND kind='overview_report' AND id<>? ORDER BY json_extract(data,'$.created_at') DESC,id LIMIT 500 OFFSET ?",
+        )
+        .all(tenant, current.id, offset) as JsonObject[];
+      const out: JsonObject[] = [];
+      let scanned = 0;
+      for (const candidate of candidates) {
+        scanned++;
+        const record = {...JSON.parse(candidate.data), id: candidate.id};
+        try {
+          this.access(actor, record.config);
+        } catch {
+          continue;
+        }
+        const eligibility = comparisonEligibility(current, record);
+        out.push({
+          id: record.id,
+          name: record.config?.name ?? null,
+          state: record.state,
+          grain: record.config?.grain ?? 'total',
+          date_range: record.config?.date_range ?? null,
+          created_at: record.created_at ?? null,
+          same_view: !!current.view_id && record.view_id === current.view_id,
+          paired: current.comparison?.baseline_id === record.id,
+          eligible: eligibility.eligible,
+          reasons: eligibility.reasons.map(code => ({code, message: comparisonReasons[code]})),
+        });
+        if (out.length >= limit) break;
+      }
+      const hasMore = scanned < candidates.length || candidates.length === 500;
+      return {
+        id: current.id,
+        paired_baseline_id: current.comparison?.baseline_id ?? null,
+        candidates: out,
+        offset,
+        has_more: hasMore,
+        next_offset: hasMore ? offset + scanned : null,
+        network_requests: 0,
+      };
+    }
+    const baselineId = input.baseline_id ?? current.comparison?.baseline_id;
+    if (typeof baselineId !== 'string')
+      throw new MirrorError(
+        'REPORT_BASELINE_REQUIRED',
+        'Choose a retained snapshot to compare with (compare_candidates lists them), or run the report with compare: previous_period.',
+      );
+    const baseline = store.document(tenant, 'overview_report', baselineId);
+    this.access(actor, baseline.config);
+    if (!finishedSnapshot(baseline) || !finishedSnapshot(current))
+      throw new MirrorError(
+        'REPORT_NOT_READY',
+        'Both snapshots must finish collecting before they can be compared.',
+        {current_state: current.state, baseline_state: baseline.state},
+        409,
+      );
+    return {
+      ...compareSnapshots(current, baseline, {offset: input.offset, limit: input.limit}),
+      paired: baselineId === current.comparison?.baseline_id,
+    };
   }
   /** EXP-03 B: an export cannot replace another report's owned tab (rollback: AMCP_SHEETS_DESTINATION_OWNERSHIP=off). */
   private assertDestinationOwner(tenant: string, report: JsonObject, destinationId: string) {
