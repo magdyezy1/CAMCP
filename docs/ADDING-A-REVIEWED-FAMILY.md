@@ -100,7 +100,12 @@ in a body (`status: DELETED`, `operation_status: DELETE`) belongs in `bodyDeleti
    documented resource (the field the write overwrites or depends on), not from the family's projection.
    `tests/reviewed-family-conformance.test.mjs` drives it through the real review lifecycle: the change of the decisive
    field between review and execute is `STATE_CHANGED` naming it, a paginated state read is refused, and a partial or
-   failed answer is never success and never sent again. A family is never added to
+   failed answer is never success and never sent again. Shared synthetic answers of a provider live in
+   `tests/family-descriptors/_<provider>.mjs` (`_tiktok`, `_snapchat`, `_dv360`). A family whose state reads are single
+   resources states why in `unpaginated`; a reader that follows cursors is shown another page whose cursor repeats,
+   which it refuses at once instead of walking its page bound. The family's prerequisites run again at execute before
+   the comparison, so choose a decisive change they accept (a change they refuse is already a typed refusal, such as
+   `AUDIENCE_IN_USE` or `CONFIGURATION_EXISTS`). A family is never added to
    `tests/fixtures/family-conformance-pending.json`; a backfilled one is removed from it with the ceiling lowered.
    Backfill order: activation and spend-affecting families of active providers first (Google Ads, Meta, Snapchat,
    LinkedIn and Microsoft Advertising budgets, bids and statuses), then their other entity writes. A family of a
