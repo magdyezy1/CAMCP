@@ -17,40 +17,51 @@ import {ScopeGuard, normalizeAccount} from './scope.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {MirrorError} from './errors.js';
 import {bad, fingerprint, obj, validate, type ToolCall} from './workspace-core.js';
+import {
+  guarded,
+  invalid,
+  layer,
+  measurementLedgerLayers,
+  measurementLedgerReadLimits,
+  measurementLedgerStates,
+  trace,
+  type Layer,
+  type LedgerOut,
+} from './measurement-ledger-core.js';
+import {metaLedger} from './measurement-ledger-meta.js';
+import {snapchatLedger} from './measurement-ledger-snapchat.js';
+import {tiktokLedger} from './measurement-ledger-tiktok.js';
+import {searchConsoleLedger} from './measurement-ledger-search-console.js';
+import {adjustLedger} from './measurement-ledger-adjust.js';
 
 /**
- * The provider-neutral measurement evidence ledger (MSR-03 slice C): one selected asset, six fixed layers, each
- * observed, unknown, unavailable or not_applicable with a stable reason code, its evidence and its source references.
+ * The provider-neutral measurement evidence ledger (MSR-03 slice C, and slice D under owner direction P8 of 2026-10-11:
+ * Measurement is the multi-provider conversion-health hub): one selected asset, six fixed layers, each observed,
+ * unknown, unavailable or not_applicable with a stable reason code, its evidence and its source references.
  *
  * Adapters reuse qualified reads. Google Ads: the conversion goals read (configuration and last reported activity),
  * offline conversion upload client summaries (diagnostics) and the attribution settings of enabled conversion actions.
- * GA4: the Admin configuration read and recent realtime counts of the property's key events. A layer is observed only
- * from complete evidence of the selected asset; a failed, partial, foreign or thresholded read leaves that layer unknown
- * and never upgrades it. A change of actor, login, account access or (for Google Ads) the write pause refuses the whole
- * ledger. Every read is bounded by one ledger allowance; nothing is saved and no provider mutation is possible.
- *
- * Meta datasets, Snapchat and TikTok pixels have no adapter: AMCP does not learn pixel ownership from an ad account, the
- * Meta Dataset Quality API is not pinned, and owner decision P8 (the measurement scope) is open.
+ * GA4: the Admin configuration read and recent realtime counts of the property's key events. Meta, Snapchat and TikTok:
+ * the ad account's pixel list, then one selected pixel or dataset (measurement-ledger-meta.ts, -snapchat.ts, -tiktok.ts).
+ * Search Console: the site, its final daily search totals and its sitemaps. Adjust: the app's event catalog and daily
+ * installs and events. A layer is observed only from complete evidence of the selected asset; a failed, partial, foreign
+ * or thresholded read leaves that layer unknown and never upgrades it. A change of actor, login, account access or (for
+ * Google Ads) the write pause refuses the whole ledger. Every read is bounded by one ledger allowance; nothing is saved,
+ * no test event is sent and no provider mutation is possible. AMCP_MEASUREMENT_LEDGER_OFF (a comma-separated list of
+ * gateways) withdraws an adapter without a release.
  */
-export const measurementLedgerLayers = [
-  'configuration',
-  'provider_observed_activity',
-  'provider_diagnostics',
-  'supplied_runtime_trace',
-  'consent',
-  'attribution_settings',
-] as const;
-export const measurementLedgerStates = ['observed', 'unknown', 'unavailable', 'not_applicable'] as const;
-type LayerName = (typeof measurementLedgerLayers)[number];
-type State = (typeof measurementLedgerStates)[number];
-interface Layer extends JsonObject {
-  layer: LayerName;
-  state: State;
-  reason: string;
-  evidence: JsonObject | null;
-  note: string;
-}
-const qualified = ['google_ads_native_action', 'ga4_native_action'];
+export {measurementLedgerLayers, measurementLedgerStates, measurementLedgerReadLimits};
+const qualified = [
+  'google_ads_native_action',
+  'ga4_native_action',
+  'meta_native_action',
+  'snapchat_native_action',
+  'tiktok_native_action',
+  'google_search_console_native_action',
+  'adjust_native_action',
+];
+/** The gateways whose ledger reads one pixel or dataset of the selected account (requirements.pixel_id). */
+const pixelGateways = ['meta_native_action', 'snapchat_native_action', 'tiktok_native_action'];
 /** The whole ledger: the nested goals or configuration read keeps its own tighter bounds inside this allowance. */
 export const measurementLedgerLimits = Object.freeze({
   requests: 96,
@@ -58,31 +69,6 @@ export const measurementLedgerLimits = Object.freeze({
   bytes: 8 * 1024 * 1024,
   elapsed_ms: 150000,
 });
-/** The ledger's own Google Ads collections (upload summaries and attribution settings). */
-export const measurementLedgerReadLimits = Object.freeze({
-  requests: 24,
-  rows: 2000,
-  bytes: 2 * 1024 * 1024,
-  elapsed_ms: 60000,
-});
-const layer = (name: LayerName, state: State, reason: string, evidence: JsonObject | null, note: string): Layer => ({
-  layer: name,
-  state,
-  reason,
-  evidence,
-  note,
-});
-const trace = () =>
-  layer(
-    'supplied_runtime_trace',
-    'unavailable',
-    'browser_only',
-    null,
-    'Supplied traces are inspected only in the browser and never reach AMCP. Use Inspect a sanitized event trace on the Measurement page.',
-  );
-const invalid = (message: string): never => {
-  throw new MirrorError('MEASUREMENT_LEDGER_INVALID', message, {}, 502);
-};
 
 // Pinned Google Ads v25 enums: an unknown value is refused, never mapped.
 const googleSchema = (name: string) =>
@@ -321,27 +307,6 @@ function attribution(row: JsonObject, account: string) {
     attribution_model: settings.attributionModel ?? null,
     data_driven_model_status: settings.dataDrivenModelStatus ?? null,
   };
-}
-
-/**
- * Runs one layer read. A changed actor, login, access or control (the fence), or an exhausted whole-ledger allowance,
- * refuses the ledger; any other provider or evidence failure leaves only this layer unknown with its error code.
- */
-async function guarded(name: LayerName, fence: () => void, ledger: string, run: () => Promise<Layer>) {
-  try {
-    return await run();
-  } catch (error) {
-    fence();
-    if (!(error instanceof MirrorError)) throw error;
-    if (error.code === 'REPORT_COLLECTION_LIMIT' && error.details?.definition === ledger) throw error;
-    return layer(
-      name,
-      'unknown',
-      'read_failed',
-      {error: error.code === 'REPORT_COLLECTION_LIMIT' ? 'MEASUREMENT_LEDGER_READ_LIMIT' : error.code},
-      'This read failed or was incomplete, so the layer stays unknown.',
-    );
-  }
 }
 
 async function googleLedger(
@@ -770,16 +735,31 @@ export async function measurementLedger(
   actor: Actor,
   input: JsonObject,
 ): Promise<JsonObject> {
-  if (!qualified.includes(input.gateway))
-    bad('The measurement ledger covers a Google Ads customer or a GA4 property.', 'MEASUREMENT_LEDGER_UNQUALIFIED', {
-      qualified,
-    });
-  validate(input.requirements ?? {}, []);
+  // A gateway listed in AMCP_MEASUREMENT_LEDGER_OFF is withdrawn without a release (rollback of one adapter).
+  const off = String(process.env.AMCP_MEASUREMENT_LEDGER_OFF ?? '')
+      .split(',')
+      .map(v => v.trim())
+      .filter(Boolean),
+    available = qualified.filter(g => !off.includes(g));
+  if (!available.includes(input.gateway))
+    bad(
+      'The measurement ledger covers a Google Ads customer, a GA4 property, a Meta, Snapchat or TikTok ad account, a Search Console site or an Adjust app.',
+      'MEASUREMENT_LEDGER_UNQUALIFIED',
+      {qualified: available},
+    );
+  const requirements = (input.requirements ?? {}) as JsonObject;
+  validate(requirements, pixelGateways.includes(input.gateway) ? ['pixel_id'] : []);
+  if (
+    requirements.pixel_id !== undefined &&
+    (typeof requirements.pixel_id !== 'string' || !/^[A-Za-z0-9-]{1,64}$/.test(requirements.pixel_id))
+  )
+    bad('Choose the exact pixel or dataset ID the account lists.');
   const requested_at = Date.now(),
     ledger = fingerprint({
       gateway: input.gateway,
       account_id: input.account_id,
       connection_id: input.connection_id ?? null,
+      pixel_id: requirements.pixel_id ?? null,
       requested_at,
     });
   let usage: JsonObject = {};
@@ -791,13 +771,27 @@ export async function measurementLedger(
     },
     measurementLedgerLimits,
   );
-  let out: {scope: JsonObject; layers: Layer[]; source_references: JsonObject[]};
+  let out: LedgerOut;
+  const context = {store, registry, transport, credentials, actor, input, ledger};
   try {
-    out = await budget.run(() =>
-      input.gateway === 'google_ads_native_action'
-        ? googleLedger(store, registry, transport, credentials, actor, input, ledger)
-        : ga4Ledger(store, registry, transport, credentials, call, actor, input, ledger),
-    );
+    out = await budget.run((): Promise<LedgerOut> => {
+      switch (input.gateway) {
+        case 'google_ads_native_action':
+          return googleLedger(store, registry, transport, credentials, actor, input, ledger);
+        case 'ga4_native_action':
+          return ga4Ledger(store, registry, transport, credentials, call, actor, input, ledger);
+        case 'meta_native_action':
+          return metaLedger(context);
+        case 'snapchat_native_action':
+          return snapchatLedger(context);
+        case 'tiktok_native_action':
+          return tiktokLedger(context);
+        case 'google_search_console_native_action':
+          return searchConsoleLedger(context);
+        default:
+          return adjustLedger(context);
+      }
+    });
   } catch (error) {
     if (error instanceof MirrorError && error.code === 'REPORT_COLLECTION_LIMIT')
       throw new MirrorError(
