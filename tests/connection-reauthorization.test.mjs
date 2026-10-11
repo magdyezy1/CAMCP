@@ -314,6 +314,10 @@ test('concurrent refresh, disconnect, replacement and narrowed selections are fe
       assert.equal(store.acquireLock('refresh:' + scopeKey(actor.tenantId, connectionId), 'refresh', 45000), true);
       await assert.rejects(renew(store, p, discovery(keys)), {code: 'REFRESH_IN_PROGRESS'});
       assert.equal(store.credentials(actor.tenantId, connectionId).accessToken, 'old-access');
+      // QA-02 exit: once the refresh lets go of its lock, the same renewal completes.
+      store.releaseLock('refresh:' + scopeKey(actor.tenantId, connectionId), 'refresh');
+      await renew(store, p, discovery(keys));
+      assert.equal(store.credentials(actor.tenantId, connectionId).accessToken, 'fresh-access');
     } finally {
       store.close();
     }

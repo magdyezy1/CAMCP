@@ -16,6 +16,7 @@ import {actionContracts} from '../src/action-contracts.js';
 import {googlePreviewSnapshots, readGooglePreviewState} from '../src/google-preview-writes.js';
 import type {Connection, JsonObject} from '../src/types.js';
 import {removeTestDirectory} from './temp.js';
+import {assertRefused} from './helpers/assert-refused.js';
 
 const gateway = 'google_ads_native_action',
   rpc = 'google_ads_v23_shareable_preview_generate_shareable_previews';
@@ -322,7 +323,7 @@ test('preview inputs enforce native oneofs, exact customer IDs, no invented flag
       [{...ui, publish: true}],
     ]) {
       const r = await f.prepare(previews);
-      assert.equal(r.success, false, JSON.stringify(previews));
+      assertRefused(r, ['INVALID_PREVIEW_REQUEST', 'INVALID_VENDOR_BODY']);
     }
     const payload = (p: JsonObject) =>
       f.service.call('amcp_write', {action: 'prepare', gateway, arguments: {...f.args(), payload: p}}, actor);
@@ -344,7 +345,7 @@ test('preview inputs enforce native oneofs, exact customer IDs, no invented flag
           {action: 'prepare', gateway, arguments: {...f.args([], action), payload: p}},
           actor,
         );
-        assert.equal(old.success, false, action);
+        assertRefused(old, ['MISSING_PARAMETER', 'INVALID_VENDOR_BODY', 'UNKNOWN_GOOGLE_FIELD']);
         assert.match(
           old.error.details.version_change,
           /"operation".*"assetGroup": "customers\/\{customer_id\}\/assetGroups/,
@@ -429,7 +430,7 @@ test('bounded source pagination succeeds; incomplete, foreign, duplicate or fail
     try {
       f.mode(mode);
       const r = await f.prepare();
-      assert.equal(r.success, false, mode);
+      assertRefused(r, ['PREVIEW_STATE_UNVERIFIED', 'INVALID_PREVIEW_REQUEST', 'PROVIDER_ACCESS_DENIED']);
       assert.equal(f.writes(), 0);
     } finally {
       f.store.close();
@@ -453,7 +454,7 @@ test('unsupported Search/Display formats and removed or mismatched parents are r
       if (change === 'wrong_asset_parent') f.groups[0]!.campaign = rn('campaigns', '999');
       if (change === 'wrong_ad_id') f.ads[0]!.ad.id = '999';
       if (change === 'wrong_ad_group') f.ads[0]!.adGroup = rn('adGroups', '999');
-      assert.equal((await f.prepare([ui, video])).success, false, change);
+      assertRefused(await f.prepare([ui, video]), 'PREVIEW_STATE_UNVERIFIED');
       assert.equal(f.writes(), 0);
     } finally {
       f.store.close();
@@ -480,7 +481,15 @@ test('review binding, role, scopes, per-account grants, current login and confir
         },
         mode === 'reader' ? {...actor, role: 'reader'} : mode === 'tenant' ? {...actor, tenantId: 'other'} : actor,
       );
-      assert.equal(e.success, false, mode);
+      assertRefused(e, [
+        'CONNECTOR_READ_ONLY',
+        'INSUFFICIENT_SCOPE',
+        'WRITE_ACCOUNT_FORBIDDEN',
+        'CONNECTION_REQUIRED',
+        'NOT_FOUND',
+        'CONFIRMATION_REQUIRED',
+        'CONNECTION_AUTHORITY_CHANGED',
+      ]);
       assert.equal(f.writes(), 0);
     } finally {
       f.store.close();
@@ -530,7 +539,7 @@ test('rejected requests and malformed or expired receipts keep the original clai
       assert.equal(r.success, true, JSON.stringify(r));
       f.mode(mode);
       const e = await f.execute(r);
-      assert.equal(e.success, false, mode + JSON.stringify(e));
+      assertRefused(e, ['WRITE_PARTIAL_OR_FAILED', 'UPSTREAM_ERROR']);
       assert.equal(f.writes(), 1);
       if (mode !== 'rejected') {
         assert.equal(e.data.retry_safe, false);
@@ -620,7 +629,7 @@ test('revocation during generation withholds URLs but preserves the completed ou
       if (kind === 'submission') f.store.putConnection(owner, {...f.c, writeAccounts: []}, {accessToken: 'synthetic'});
     });
     const e = await f.execute(r);
-    assert.equal(e.success, false);
+    assertRefused(e, 'WRITE_ACCOUNT_FORBIDDEN');
     assert.ok(!JSON.stringify(e).includes('private-preview'));
     assert.equal(f.writes(), 1);
     assert.equal(

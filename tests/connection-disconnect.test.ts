@@ -12,6 +12,7 @@ import {connectionDisconnectKind, disconnectLocalConnection} from '../src/connec
 import {actionContracts} from '../src/action-contracts.js';
 import {removeTestDirectory} from './temp.js';
 import type {Connection, JsonObject} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 
 const cases = [
   ['ga4_native_action', 'ga4_connection_ops'],
@@ -153,7 +154,7 @@ test('disconnect never picks a sole or default login when connection_id is missi
   try {
     for (const bad of [undefined, '123', '', null, '../../connection', otherId]) {
       const out = await f.call({action: 'disconnect', connection_id: bad, dry_run: false});
-      assert.equal(out.success, false);
+      assertRefused(out, ['CONNECTION_ID_REQUIRED', 'INVALID_ARGUMENT', 'CONNECTION_NOT_FOUND']);
       assert.equal(f.store.listConnections(actor.tenantId).length, 1);
     }
     assert.deepEqual(f.counts(), {egress: 0, credentialReads: 0});
@@ -170,7 +171,10 @@ test('reader/operator roles, foreign workspaces and gateway mismatches cannot re
       {...actor, role: 'operator'},
       {...actor, tenantId: 'other'},
     ])
-      assert.equal((await f.call({action: 'disconnect', connection_id: id, dry_run: false}, who)).success, false);
+      assertRefused(await f.call({action: 'disconnect', connection_id: id, dry_run: false}, who), [
+        'FORBIDDEN',
+        'CONNECTION_NOT_FOUND',
+      ]);
     const out = await f.service.call(
       cases[1][0],
       {operation: cases[1][1], arguments: {action: 'disconnect', connection_id: id, dry_run: false}},
@@ -223,7 +227,7 @@ test('unexpected OAuth/refresh/force arguments fail without leaking codes or mod
       {refresh: true},
     ]) {
       const out = await f.call({action: 'disconnect', connection_id: id, dry_run: false, ...extra});
-      assert.equal(out.success, false);
+      assertRefused(out, 'INVALID_ARGUMENT');
     }
     assert.equal(f.store.listConnections(actor.tenantId).length, 1);
     const audit = JSON.stringify(f.store.audit(actor.tenantId));
@@ -246,7 +250,7 @@ test('disconnect retains review claims, submitted jobs, reports and audit eviden
     assert.equal(f.store.document(actor.tenantId, 'write_review', 'submitted').connection_id, id);
     assert.equal(f.store.job(actor.tenantId, job).kind, 'write_verification');
     assert.throws(() => f.store.claim(actor.tenantId, 'submitted', 'fixed-request'), {code: 'WRITE_OUTCOME_UNCERTAIN'});
-    assert.throws(() => f.store.resolveConnection(actor, cases[0][0], '123', id));
+    assert.throws(() => f.store.resolveConnection(actor, cases[0][0], '123', id), {code: 'CONNECTION_REQUIRED'});
     assert.match(out.data.pending_work, /may already have completed/);
   } finally {
     f.restore();

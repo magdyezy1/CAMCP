@@ -6,6 +6,7 @@ import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import type {JsonObject} from '../src/types.js';
 import {redditSnapshots, validateRedditState} from '../src/reddit-writes.js';
+import {assertRefused} from './helpers/assert-refused.js';
 const gateway = 'reddit_native_action',
   actor = {tenantId: 'reddit-writes', userId: 'u', role: 'operator' as const},
   admin = {...actor, role: 'admin' as const},
@@ -202,7 +203,7 @@ test('Reddit mismatched mutation receipts never register resource ownership or r
     const p = await f.prepare('CREATE_CAMPAIGN', campaign);
     assert.equal(p.success, true, JSON.stringify(p));
     const e = await f.execute(p);
-    assert.equal(e.success, false);
+    assertRefused(e, 'WRITE_PARTIAL_OR_FAILED');
     assert.equal(f.store.ownsResource(f.c, 'a2_111', 'campaigns/100'), false);
     assert.equal(f.writes(), 1);
     await f.execute(p);

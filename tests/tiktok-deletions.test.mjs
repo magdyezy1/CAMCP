@@ -6,6 +6,7 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 /**
  * Deleting TikTok saved audiences and custom identities (API for Business v1.3, checked 2026-09-27).
@@ -221,8 +222,8 @@ test('an error reply is never resubmitted, ignored deletions are not verified, a
   const e = fixture('error');
   try {
     const p = ok(await e.prepare(actions.audience, {saved_audience_ids: ['501']}));
-    assert.equal((await e.execute(p)).success, false);
-    assert.equal((await e.execute(p)).success, false);
+    assertRefused(await e.execute(p), 'PLATFORM_ERROR');
+    assertRefused(await e.execute(p), 'WRITE_OUTCOME_UNCERTAIN');
     assert.equal(e.writes(), 1);
   } finally {
     e.store.close();

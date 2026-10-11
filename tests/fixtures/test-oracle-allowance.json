@@ -1,0 +1,1125 @@
+{
+  "description": "Weak refusal oracles each test file may still have (QA-02, tools/check-test-oracles.mjs). Lower a count when a file is converted; never raise one. Write, auth and export test files are held at zero by the tool.",
+  "allowance": {
+    "tests/action-contracts.test.ts": {
+      "codeless": 2,
+      "bare": 2
+    },
+    "tests/adjust-reporting.test.ts": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/allocation-calibration-ui.test.mjs": {
+      "codeless": 0,
+      "bare": 1
+    },
+    "tests/allocation-calibration.test.mjs": {
+      "codeless": 9,
+      "bare": 0
+    },
+    "tests/allocation-plan.test.mjs": {
+      "codeless": 7,
+      "bare": 0
+    },
+    "tests/audit-history-access.test.mjs": {
+      "codeless": 5,
+      "bare": 0
+    },
+    "tests/backup-recovery.test.mjs": {
+      "codeless": 0,
+      "bare": 2
+    },
+    "tests/campaign-audit.test.ts": {
+      "codeless": 0,
+      "bare": 1
+    },
+    "tests/campaign-localization.test.mjs": {
+      "codeless": 0,
+      "bare": 4
+    },
+    "tests/campaign-workflows.test.mjs": {
+      "codeless": 0,
+      "bare": 1
+    },
+    "tests/capability-eligibility.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/catalog-column-mapping.test.mjs": {
+      "codeless": 0,
+      "bare": 2
+    },
+    "tests/catalog-comparison.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/client-address-profiles.test.mjs": {
+      "codeless": 0,
+      "bare": 1
+    },
+    "tests/client-localization.test.mjs": {
+      "codeless": 0,
+      "bare": 2
+    },
+    "tests/client-playbooks.test.ts": {
+      "codeless": 0,
+      "bare": 3
+    },
+    "tests/conditional-programs-ui.test.mjs": {
+      "codeless": 0,
+      "bare": 4
+    },
+    "tests/conditional-programs.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/creative-library.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/creative-performance-platforms.test.mjs": {
+      "codeless": 4,
+      "bare": 1
+    },
+    "tests/creative-performance.test.mjs": {
+      "codeless": 6,
+      "bare": 0
+    },
+    "tests/criteo-audience-segments.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/criteo-catalog-requests.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/criteo-creatives.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/criteo-report-jobs.test.ts": {
+      "codeless": 8,
+      "bare": 0
+    },
+    "tests/dv360-ad-assets.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/dv360-advertiser-settings.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/dv360-audience-edits.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/dv360-custom-bidding-files.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/dv360-custom-bidding.test.mjs": {
+      "codeless": 4,
+      "bare": 0
+    },
+    "tests/dv360-inventory-source-groups.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/dv360-line-item-bulk-update.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/dv360-line-item-duplicate.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/dv360-line-item-targeting.test.ts": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/dv360-sdf-downloads.test.mjs": {
+      "codeless": 4,
+      "bare": 0
+    },
+    "tests/dv360-targeting-search.test.ts": {
+      "codeless": 1,
+      "bare": 2
+    },
+    "tests/evidence-index.test.mjs": {
+      "codeless": 8,
+      "bare": 0
+    },
+    "tests/evidence-row-query.test.mjs": {
+      "codeless": 4,
+      "bare": 0
+    },
+    "tests/google-asset-links.test.ts": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/google-atomic-builds.test.ts": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/google-audiences.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/google-auto-assets.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/google-bid-modifiers.test.ts": {
+      "codeless": 4,
+      "bare": 0
+    },
+    "tests/google-bidding-events.test.ts": {
+      "codeless": 5,
+      "bare": 0
+    },
+    "tests/google-business-access.test.ts": {
+      "codeless": 7,
+      "bare": 1
+    },
+    "tests/google-business-location-attributes.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/google-business-location-edits.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/google-business-lodging.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/google-business-notifications.test.ts": {
+      "codeless": 8,
+      "bare": 1
+    },
+    "tests/google-business-sync.test.ts": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/google-campaign-bid-modifiers.test.ts": {
+      "codeless": 8,
+      "bare": 0
+    },
+    "tests/google-campaign-drafts.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/google-clicks-recipe.test.mjs": {
+      "codeless": 1,
+      "bare": 2
+    },
+    "tests/google-conversion-actions.test.ts": {
+      "codeless": 9,
+      "bare": 1
+    },
+    "tests/google-conversion-activity.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/google-conversion-goals.test.ts": {
+      "codeless": 4,
+      "bare": 6
+    },
+    "tests/google-conversion-recipes.test.mjs": {
+      "codeless": 2,
+      "bare": 2
+    },
+    "tests/google-custom-segments.test.ts": {
+      "codeless": 3,
+      "bare": 4
+    },
+    "tests/google-customer-labels.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/google-customer-settings.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/google-evidence-presets.test.mjs": {
+      "codeless": 4,
+      "bare": 0
+    },
+    "tests/google-experiments.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/google-generation.test.ts": {
+      "codeless": 4,
+      "bare": 0
+    },
+    "tests/google-image-usage.test.mjs": {
+      "codeless": 5,
+      "bare": 0
+    },
+    "tests/google-keyword-evidence.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/google-lifecycle-goals.test.ts": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/google-place-action-discovery.test.ts": {
+      "codeless": 5,
+      "bare": 1
+    },
+    "tests/google-place-action-links.test.ts": {
+      "codeless": 13,
+      "bare": 2
+    },
+    "tests/google-pmax-brand-guidelines.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/google-pmax-brand-image-usage.test.mjs": {
+      "codeless": 5,
+      "bare": 0
+    },
+    "tests/google-pmax-image-usage.test.mjs": {
+      "codeless": 5,
+      "bare": 0
+    },
+    "tests/google-portfolio-strategies.test.ts": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/google-portfolio.test.mjs": {
+      "codeless": 10,
+      "bare": 0
+    },
+    "tests/google-recipe-goals.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/google-recommendation-apply.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/google-recommendation-dismissal.test.ts": {
+      "codeless": 8,
+      "bare": 0
+    },
+    "tests/google-recommendation-subscriptions.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/google-smart-campaign-settings.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/google-user-access.test.ts": {
+      "codeless": 6,
+      "bare": 0
+    },
+    "tests/google-user-list-customer-types.test.mjs": {
+      "codeless": 4,
+      "bare": 0
+    },
+    "tests/google-value-inspection.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/google-value-mcp.test.mjs": {
+      "codeless": 6,
+      "bare": 0
+    },
+    "tests/google-value-recipes.test.mjs": {
+      "codeless": 2,
+      "bare": 4
+    },
+    "tests/google-youtube-uploads.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/gtm-consent-plan-ui.test.mjs": {
+      "codeless": 0,
+      "bare": 1
+    },
+    "tests/gtm-consent-plans.test.mjs": {
+      "codeless": 19,
+      "bare": 0
+    },
+    "tests/gtm-diagnostics.test.ts": {
+      "codeless": 4,
+      "bare": 0
+    },
+    "tests/guidance.test.ts": {
+      "codeless": 0,
+      "bare": 3
+    },
+    "tests/health-storage-diagnostics.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/linkedin-ab-tests.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/linkedin-account-settings.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/linkedin-allocation-plan.test.mjs": {
+      "codeless": 8,
+      "bare": 0
+    },
+    "tests/linkedin-audience-templates.test.mjs": {
+      "codeless": 12,
+      "bare": 0
+    },
+    "tests/linkedin-conversion-evidence.test.mjs": {
+      "codeless": 7,
+      "bare": 0
+    },
+    "tests/linkedin-conversion-links.test.ts": {
+      "codeless": 7,
+      "bare": 0
+    },
+    "tests/linkedin-conversion-metadata-ui.test.mjs": {
+      "codeless": 0,
+      "bare": 2
+    },
+    "tests/linkedin-conversion-metadata.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/linkedin-conversion-rules.test.ts": {
+      "codeless": 7,
+      "bare": 0
+    },
+    "tests/linkedin-dsc-edits.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/linkedin-evidence-presets.test.mjs": {
+      "codeless": 5,
+      "bare": 1
+    },
+    "tests/linkedin-insight-domains.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/linkedin-insight-tags.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/linkedin-lead-form-states.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/linkedin-media-resume.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/linkedin-message-ads.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/linkedin-overview-evidence.test.mjs": {
+      "codeless": 0,
+      "bare": 2
+    },
+    "tests/linkedin-portfolio.test.mjs": {
+      "codeless": 11,
+      "bare": 0
+    },
+    "tests/linkedin-posts.test.ts": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/linkedin-publisher-restrictions.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/linkedin-third-party-tracking.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/mcp-allocation-calibration.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/mcp-concurrent-inventory-http.test.mjs": {
+      "codeless": 1,
+      "bare": 1
+    },
+    "tests/mcp-conditional-programs.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/mcp-google-country-evidence.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/mcp-google-device-evidence.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/mcp-google-hour-evidence.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/mcp-google-image-usage.test.mjs": {
+      "codeless": 6,
+      "bare": 0
+    },
+    "tests/mcp-google-keyword-evidence.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/mcp-gtm-consent.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/mcp-handoff-links.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/mcp-help-introspection.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/mcp-linkedin-allocation.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/mcp-linkedin-conversion-metadata.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/mcp-linkedin-portfolio.test.mjs": {
+      "codeless": 4,
+      "bare": 0
+    },
+    "tests/mcp-measurement-read-refusal.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/mcp-meta-asset-usage.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/mcp-meta-csv-groups.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/mcp-operations-journey.test.mjs": {
+      "codeless": 24,
+      "bare": 0
+    },
+    "tests/mcp-portfolio-reconciliation.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/mcp-provider-capture-refusal.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/mcp-retained-row-bounds.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/mcp-shared-recovery.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/mcp-snapchat-asset-usage.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/mcp-woocommerce-inventory.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/mcp-woocommerce-source.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/mcp-woocommerce-store-discovery.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/mcp-woocommerce-variations.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/mcp-workspace-form-feedback.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/mcp-x-catalog-comparison.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/mcp-x-catalog-identities.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/mcp-x-catalog-import.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/mcp-x-catalog-prices.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/mcp-x-catalog-removal.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/mcp-x-catalog-selection-inventory.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/measurement-apple.test.ts": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/measurement-event-identity.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/measurement-events.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/measurement-trace.test.mjs": {
+      "codeless": 0,
+      "bare": 5
+    },
+    "tests/media-not-sent.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/media-transfer-window.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/media-upload.test.ts": {
+      "codeless": 1,
+      "bare": 3
+    },
+    "tests/meta-account-settings.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/meta-ad-images.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/meta-ad-library.test.ts": {
+      "codeless": 2,
+      "bare": 1
+    },
+    "tests/meta-ad-videos.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/meta-asset-usage.test.mjs": {
+      "codeless": 8,
+      "bare": 0
+    },
+    "tests/meta-catalog-products.test.mjs": {
+      "codeless": 8,
+      "bare": 0
+    },
+    "tests/meta-conversion-recipes.test.mjs": {
+      "codeless": 1,
+      "bare": 2
+    },
+    "tests/meta-creative-ownership.test.ts": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/meta-csv-groups.test.mjs": {
+      "codeless": 0,
+      "bare": 1
+    },
+    "tests/meta-customer-lists.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/meta-evidence-presets.test.mjs": {
+      "codeless": 8,
+      "bare": 0
+    },
+    "tests/meta-existing-posts.test.ts": {
+      "codeless": 6,
+      "bare": 1
+    },
+    "tests/meta-insights-jobs.test.ts": {
+      "codeless": 14,
+      "bare": 0
+    },
+    "tests/meta-object-edits.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/meta-offline-conversions.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/meta-pixels.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/meta-portfolio.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/meta-product-feeds.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/meta-product-sets.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/meta-split-tests.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/microsoft-associations.test.ts": {
+      "codeless": 4,
+      "bare": 8
+    },
+    "tests/microsoft-report-download.test.ts": {
+      "codeless": 0,
+      "bare": 6
+    },
+    "tests/microsoft.test.ts": {
+      "codeless": 4,
+      "bare": 3
+    },
+    "tests/monitor-lifecycle.test.mjs": {
+      "codeless": 0,
+      "bare": 5
+    },
+    "tests/operations-feed.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/operations-recovery.test.mjs": {
+      "codeless": 0,
+      "bare": 1
+    },
+    "tests/overview-granularity.test.mjs": {
+      "codeless": 0,
+      "bare": 2
+    },
+    "tests/parameters.test.ts": {
+      "codeless": 1,
+      "bare": 1
+    },
+    "tests/person-principal.test.ts": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/personal-data-redaction.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/private-media.test.ts": {
+      "codeless": 1,
+      "bare": 2
+    },
+    "tests/product-acceptance.test.ts": {
+      "codeless": 0,
+      "bare": 3
+    },
+    "tests/product-browser-helpers.test.mjs": {
+      "codeless": 0,
+      "bare": 1
+    },
+    "tests/product-workflows.test.ts": {
+      "codeless": 0,
+      "bare": 2
+    },
+    "tests/profile-branding.test.mjs": {
+      "codeless": 4,
+      "bare": 0
+    },
+    "tests/provider-circuit.test.ts": {
+      "codeless": 0,
+      "bare": 1
+    },
+    "tests/provider-lifecycle.test.mjs": {
+      "codeless": 0,
+      "bare": 1
+    },
+    "tests/provider-read-contracts.test.ts": {
+      "codeless": 4,
+      "bare": 0
+    },
+    "tests/provider-validation-gating.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/proxy-transactions.test.ts": {
+      "codeless": 0,
+      "bare": 1
+    },
+    "tests/read-verification.test.ts": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/recipe-eligibility.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/recipe-workflow.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/recommendations-hardening.test.ts": {
+      "codeless": 0,
+      "bare": 1
+    },
+    "tests/reddit-post-creation.test.ts": {
+      "codeless": 5,
+      "bare": 4
+    },
+    "tests/reddit-report-scope.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/reddit.test.ts": {
+      "codeless": 0,
+      "bare": 1
+    },
+    "tests/report-allocation.test.mjs": {
+      "codeless": 0,
+      "bare": 4
+    },
+    "tests/report-artifact-language.test.mjs": {
+      "codeless": 0,
+      "bare": 1
+    },
+    "tests/report-artifacts.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/report-body-scope.test.mjs": {
+      "codeless": 1,
+      "bare": 2
+    },
+    "tests/report-empty-results.test.ts": {
+      "codeless": 0,
+      "bare": 1
+    },
+    "tests/report-file-delivery.test.mjs": {
+      "codeless": 0,
+      "bare": 4
+    },
+    "tests/report-management.test.ts": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/report-parent-scope.test.mjs": {
+      "codeless": 2,
+      "bare": 3
+    },
+    "tests/report-periods.test.ts": {
+      "codeless": 0,
+      "bare": 1
+    },
+    "tests/report-reconciliation-context.test.mjs": {
+      "codeless": 0,
+      "bare": 7
+    },
+    "tests/report-reference-csv.test.mjs": {
+      "codeless": 0,
+      "bare": 6
+    },
+    "tests/report-reference-import-ui.test.mjs": {
+      "codeless": 0,
+      "bare": 3
+    },
+    "tests/report-reference-import.test.mjs": {
+      "codeless": 0,
+      "bare": 2
+    },
+    "tests/report-resource-scope.test.mjs": {
+      "codeless": 2,
+      "bare": 2
+    },
+    "tests/report-source-errors.test.ts": {
+      "codeless": 0,
+      "bare": 2
+    },
+    "tests/reporting-management.test.mjs": {
+      "codeless": 2,
+      "bare": 2
+    },
+    "tests/reporting-overview.test.ts": {
+      "codeless": 0,
+      "bare": 5
+    },
+    "tests/retained-media.test.mjs": {
+      "codeless": 0,
+      "bare": 4
+    },
+    "tests/sandbox-safety.test.mjs": {
+      "codeless": 0,
+      "bare": 2
+    },
+    "tests/search-exclusion-plan.test.mjs": {
+      "codeless": 12,
+      "bare": 0
+    },
+    "tests/service-timings.test.mjs": {
+      "codeless": 2,
+      "bare": 2
+    },
+    "tests/snapchat-allocation-plan.test.mjs": {
+      "codeless": 6,
+      "bare": 0
+    },
+    "tests/snapchat-asset-usage.test.mjs": {
+      "codeless": 4,
+      "bare": 0
+    },
+    "tests/snapchat-catalogs.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/snapchat-chunked-media.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/snapchat-custom-conversions.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/snapchat-dynamic-templates.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/snapchat-event-details.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/snapchat-evidence-presets.test.mjs": {
+      "codeless": 7,
+      "bare": 3
+    },
+    "tests/snapchat-lead-mcp.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/snapchat-media-copy.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/snapchat-native-leads.test.mjs": {
+      "codeless": 4,
+      "bare": 0
+    },
+    "tests/snapchat-nested-updates.test.ts": {
+      "codeless": 10,
+      "bare": 0
+    },
+    "tests/snapchat-offer-disclaimers.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/snapchat-pixel-names.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/snapchat-portfolio.test.mjs": {
+      "codeless": 7,
+      "bare": 0
+    },
+    "tests/snapchat-product-feeds.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/snapchat-product-sets.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/snapchat-traffic-mcp.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/tiktok-audience-edits.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/tiktok-blocked-words.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/tiktok-change-logs.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/tiktok-conversion-edits.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/tiktok-custom-conversions.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/tiktok-evidence-presets.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/tiktok-image-edits.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/tiktok-library-assets.test.mjs": {
+      "codeless": 4,
+      "bare": 0
+    },
+    "tests/tiktok-pixels.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/tiktok-portfolio.test.mjs": {
+      "codeless": 9,
+      "bare": 0
+    },
+    "tests/tiktok-report-jobs.test.ts": {
+      "codeless": 13,
+      "bare": 5
+    },
+    "tests/tiktok-rule-audiences.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/tool-descriptions.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/tool-help-version-http.test.mjs": {
+      "codeless": 0,
+      "bare": 1
+    },
+    "tests/untrusted-content.test.ts": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/user-accounts.test.ts": {
+      "codeless": 0,
+      "bare": 2
+    },
+    "tests/website-catalog-loading.test.mjs": {
+      "codeless": 0,
+      "bare": 2
+    },
+    "tests/website.test.ts": {
+      "codeless": 0,
+      "bare": 9
+    },
+    "tests/woocommerce-inventory.test.mjs": {
+      "codeless": 4,
+      "bare": 0
+    },
+    "tests/woocommerce-source.test.mjs": {
+      "codeless": 5,
+      "bare": 0
+    },
+    "tests/woocommerce-store-discovery.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/woocommerce-variations-invariants.test.mjs": {
+      "codeless": 3,
+      "bare": 0
+    },
+    "tests/workspace-operations.test.ts": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/wsdl-model.test.mjs": {
+      "codeless": 0,
+      "bare": 3
+    },
+    "tests/x-audience-estimate.test.mjs": {
+      "codeless": 6,
+      "bare": 0
+    },
+    "tests/x-catalog-comparison.test.mjs": {
+      "codeless": 5,
+      "bare": 0
+    },
+    "tests/x-catalog-ingestion.test.mjs": {
+      "codeless": 2,
+      "bare": 1
+    },
+    "tests/x-catalog-price-precision.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/x-catalog-products.test.mjs": {
+      "codeless": 1,
+      "bare": 0
+    },
+    "tests/x-catalog-selection-inventory.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/x-catalog-variant-guards.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/x-conversation-cards.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/x-curated-categories.test.mjs": {
+      "codeless": 4,
+      "bare": 0
+    },
+    "tests/x-custom-audiences.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/x-entity-batches.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/x-legacy-card-edits.test.mjs": {
+      "codeless": 4,
+      "bare": 0
+    },
+    "tests/x-line-item-associations.test.mjs": {
+      "codeless": 4,
+      "bare": 0
+    },
+    "tests/x-media-library.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/x-preroll-ctas.test.mjs": {
+      "codeless": 4,
+      "bare": 0
+    },
+    "tests/x-report-jobs.test.ts": {
+      "codeless": 14,
+      "bare": 0
+    },
+    "tests/x-scheduled-tweets.test.mjs": {
+      "codeless": 2,
+      "bare": 0
+    },
+    "tests/x-targeting-batch.test.mjs": {
+      "codeless": 10,
+      "bare": 0
+    },
+    "tests/x-tracking-tags.test.mjs": {
+      "codeless": 4,
+      "bare": 0
+    }
+  }
+}

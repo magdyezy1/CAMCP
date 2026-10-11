@@ -10,8 +10,9 @@ import {mkdtempSync} from 'node:fs';
 import {removeTestDirectory} from '../dist/tests/temp.js';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
-function fixture({change = 'none', at = 'metadata', lost = false, reply, database = ':memory:'} = {}) {
+function fixture({change = 'none', at = 'metadata', lost = false, reply, database = ':memory:', once = false} = {}) {
   const store = new Store(database, Buffer.alloc(32, 53).toString('base64')),
     actor = {tenantId: 't', userId: 'u', role: 'admin'};
   const connection = {
@@ -56,8 +57,16 @@ function fixture({change = 'none', at = 'metadata', lost = false, reply, databas
   const sourceAccess = () => {
     if (revoked) throw new MirrorError('REPORT_SOURCE_REVOKED', 'Synthetic source withdrawal.', {}, 403);
   };
+  let mutations = 0;
   const mutate = () => {
+    // `once`: the change happens on the first request only, so a later attempt shows the documented way out.
+    if (once && mutations++) return;
     if (change === 'login') store.putConnection(actor, connection, {accessToken: 'replacement'});
+    // AMCP's own refresh renews the same login (CON-01); it is not a withdrawal.
+    if (change === 'refresh') {
+      const current = store.connectionCredentials(connection);
+      store.completeCredentialRefresh(connection, current, {...current, accessToken: 'refreshed-by-amcp'});
+    }
     if (change === 'source') revoked = true;
     if (change === 'actor')
       store.bindActorCheck(actor, () => {
@@ -112,7 +121,17 @@ for (const change of ['login', 'source', 'lease', 'destination', 'actor'])
   test('Sheets ' + change + ' withdrawal after metadata prevents delivery', async () => {
     const f = fixture({change});
     try {
-      await assert.rejects(() => f.sheets.write(f.actor, 'dest', f.report, f.sourceAccess));
+      await assert.rejects(
+        () => f.sheets.write(f.actor, 'dest', f.report, f.sourceAccess),
+        e =>
+          assertRefused(e, [
+            'CONNECTION_AUTHORITY_CHANGED',
+            'REPORT_SOURCE_REVOKED',
+            'EXPORT_LEASE_LOST',
+            'SHEETS_DESTINATION_CHANGED',
+            'UNAUTHORIZED',
+          ]),
+      );
       assert.equal(f.counts().writes, 0);
       assert.equal(f.store.document('t', 'sheets_destination', 'dest').last_report_id, undefined);
     } finally {
@@ -131,6 +150,85 @@ test('Sheets unresolved delivery blocks a newer report from overtaking it', asyn
       error => error.code === 'SHEETS_DELIVERY_UNRESOLVED' && error.details.report_id === 'r1',
     );
     assert.deepEqual(f.counts(), {reads: 1, writes: 1});
+  } finally {
+    f.store.close();
+  }
+});
+// QA-02 liveness pairs: each blocked state above has a sibling proving its documented way out.
+test('Sheets newer report delivers once the unresolved delivery settles and its identical batch completes (EXP-01 exit)', async () => {
+  const f = fixture({lost: 'unapplied'}),
+    realNow = Date.now,
+    newer = {...f.report, id: 'r2', captured_at: 101};
+  let now = realNow();
+  Date.now = () => now;
+  try {
+    await assert.rejects(
+      () => f.sheets.write(f.actor, 'dest', f.report, f.sourceAccess),
+      e => assertRefused(e, 'SHEETS_OUTCOME_UNKNOWN'),
+    );
+    await assert.rejects(
+      () => f.sheets.write(f.actor, 'dest', newer, f.sourceAccess),
+      e => assertRefused(e, 'SHEETS_DELIVERY_UNRESOLVED'),
+    );
+    now += 10 * 60 * 1000 + 1000;
+    f.setLost(false);
+    assert.equal((await f.sheets.write(f.actor, 'dest', f.report, f.sourceAccess)).resent, true);
+    const delivered = await f.sheets.write(f.actor, 'dest', newer, f.sourceAccess);
+    assert.equal(delivered.resent, undefined);
+    assert.equal(f.store.document('t', 'sheets_destination', 'dest').last_report_id, 'r2');
+    assert.deepEqual(f.counts().writes, 3, 'the lost batch, its one identical resend, then the newer report');
+  } finally {
+    Date.now = realNow;
+    f.store.close();
+  }
+});
+for (const at of ['metadata', 'write'])
+  test('Sheets delivery continues when AMCP refreshes the same login during ' + at + ' (CON-01 exit)', async () => {
+    const f = fixture({change: 'refresh', at});
+    try {
+      await f.sheets.write(f.actor, 'dest', f.report, f.sourceAccess);
+      assert.equal(f.counts().writes, 1);
+      assert.equal(f.store.document('t', 'sheets_destination', 'dest').last_report_id, 'r1');
+      assert.equal(f.store.documents('t', 'sheets_delivery')[0].state, 'complete');
+    } finally {
+      f.store.close();
+    }
+  });
+test('Sheets busy destination refuses before any request, then delivers once the other export releases it or its lock lapses', async () => {
+  const f = fixture(),
+    lock = 'sheets-export:t:dest';
+  try {
+    assert.equal(f.store.acquireLock(lock, 'another-export', 60000), true);
+    await assert.rejects(
+      () => f.sheets.write(f.actor, 'dest', f.report, f.sourceAccess),
+      e => assertRefused(e, 'EXPORT_BUSY', {status: 503}) && e.retryable === true && e.details.retry_after_ms > 0,
+    );
+    assert.deepEqual(f.counts(), {reads: 0, writes: 0});
+    f.store.releaseLock(lock, 'another-export');
+    await f.sheets.write(f.actor, 'dest', f.report, f.sourceAccess);
+    assert.equal(f.counts().writes, 1);
+    // A holder that died leaves a lock that lapses; the next export takes over without an operator.
+    f.store.db
+      .prepare('INSERT INTO service_locks(key,owner,expires_at) VALUES(?,?,?)')
+      .run(lock, 'dead-export', Date.now() - 1);
+    await f.sheets.write(f.actor, 'dest', {...f.report, id: 'r2', captured_at: 101}, f.sourceAccess);
+    assert.equal(f.store.document('t', 'sheets_destination', 'dest').last_report_id, 'r2');
+  } finally {
+    f.store.close();
+  }
+});
+test('Sheets lost destination lease sends nothing, and the retried export delivers under its own lease', async () => {
+  const f = fixture({change: 'lease', once: true});
+  try {
+    await assert.rejects(
+      () => f.sheets.write(f.actor, 'dest', f.report, f.sourceAccess),
+      e => assertRefused(e, 'EXPORT_LEASE_LOST', {writes: () => f.counts().writes}),
+    );
+    // The other worker finishes and frees the tab; the job's retry then delivers once.
+    f.store.db.prepare('DELETE FROM service_locks WHERE key=?').run('sheets-export:t:dest');
+    await f.sheets.write(f.actor, 'dest', f.report, f.sourceAccess);
+    assert.equal(f.counts().writes, 1);
+    assert.equal(f.store.document('t', 'sheets_destination', 'dest').last_report_id, 'r1');
   } finally {
     f.store.close();
   }
@@ -157,20 +255,31 @@ for (const change of ['source', 'schedule'])
       };
       f.store.putDocument('t', 'overview_report', 'r1', report);
       f.store.putDocument('t', 'overview_schedule', 'schedule', {is_active: true, definition_version: 1});
+      // QA-02: the export names its report, as every queued export does. Without report_id the worker crashed on the
+      // SQLite lookup (ERR_INVALID_ARG_TYPE) and the former bare assert.rejects passed without reaching the check.
       f.store.putDocument('t', 'overview_export', 'export1', {
+        report_id: 'r1',
         destination_id: 'dest',
         actor_binding: f.store.bindJobActor(f.actor, 'export1'),
       });
+      let withdrawn = false;
       const overview = new ReportingOverview(new MirrorService(new Registry(), f.store), async (url, init) => {
         const response = await f.sheets.fetcher(url, init);
-        if (init.method === 'GET') {
+        if (init.method === 'GET' && !withdrawn) {
+          // A real withdrawal: the source login loses account 123. An empty binding is refused by the store, and that
+          // throw inside the fake fetch used to read as a Sheets outage (SHEETS_UNAVAILABLE) instead.
           if (change === 'source')
-            f.store.putConnection(f.actor, {...native, accounts: []}, {accessToken: 'synthetic-source'});
+            f.store.putConnection(f.actor, {...native, accounts: ['999']}, {accessToken: 'synthetic-source'});
           else f.store.putDocument('t', 'overview_schedule', 'schedule', {is_active: false, definition_version: 1});
+          withdrawn = true;
         }
         return response;
       });
-      await assert.rejects(() => overview.work('t', 'sheets_export', {report_id: 'r1', export_id: 'export1'}));
+      await assert.rejects(
+        () => overview.work('t', 'sheets_export', {report_id: 'r1', export_id: 'export1'}),
+        e => assertRefused(e, change === 'source' ? 'CONNECTION_REQUIRED' : 'JOB_CANCELLED'),
+      );
+      assert.equal(withdrawn, true);
       assert.equal(f.counts().writes, 0);
     } finally {
       f.store.close();
@@ -366,7 +475,10 @@ for (const change of ['login', 'source', 'actor'])
   test('Sheets retains accepted delivery before late ' + change + ' denial', async () => {
     const f = fixture({change, at: 'write'});
     try {
-      await assert.rejects(() => f.sheets.write(f.actor, 'dest', f.report, f.sourceAccess));
+      await assert.rejects(
+        () => f.sheets.write(f.actor, 'dest', f.report, f.sourceAccess),
+        e => assertRefused(e, ['CONNECTION_AUTHORITY_CHANGED', 'REPORT_SOURCE_REVOKED', 'UNAUTHORIZED']),
+      );
       assert.equal(f.counts().writes, 1);
       assert.equal(f.store.document('t', 'sheets_destination', 'dest').last_report_id, 'r1');
       const deliveries = f.store.documents('t', 'sheets_delivery');

@@ -7,6 +7,7 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 /**
  * Budget overrides of Criteo Retail Media campaigns and line items, API 2026-07 (pinned OpenAPI document and the "Budget
@@ -463,8 +464,8 @@ test('a response with warnings is a failure that is never resubmitted, an ignore
   try {
     ok(await warn.discover('campaign', '456'));
     const p = ok(await warn.put('campaign', '456', campaignOverrides()));
-    assert.equal((await warn.execute(p)).success, false);
-    assert.equal((await warn.execute(p)).success, false);
+    assertRefused(await warn.execute(p), 'WRITE_PARTIAL_OR_FAILED');
+    assertRefused(await warn.execute(p), 'WRITE_PARTIAL_OR_FAILED');
     assert.equal(warn.writes(), 1);
   } finally {
     warn.store.close();

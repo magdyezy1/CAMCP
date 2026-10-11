@@ -11,6 +11,7 @@ import {saveSpendPolicy} from '../src/spend-policy.js';
 import {ScopeGuard} from '../src/scope.js';
 import type {Connection, JsonObject} from '../src/types.js';
 import {removeTestDirectory} from './temp.js';
+import {assertRefused} from './helpers/assert-refused.js';
 
 const gateway = 'criteo_native_action',
   registry = new Registry(),
@@ -266,7 +267,7 @@ test('Criteo account membership, response completeness and referenced audience o
         mode === 'audience' ? 'APPEND_AUDIENCE_TARGETS_BY_LINE_ITEM_ID' : 'APPEND_STORE_TARGETS_BY_LINE_ITEM_ID',
         {[f.key]: ['40']},
       );
-      assert.equal(p.success, false, mode);
+      assertRefused(p, ['CRITEO_STATE_UNVERIFIED', 'WRITE_ACCOUNT_FORBIDDEN']);
       assert.equal(f.writes(), 0);
       assert.ok(f.calls.every(c => !c.path.includes('untrusted')));
     } finally {
@@ -350,7 +351,7 @@ test('Criteo targeting obeys changed owner policies, grants, scopes, read-only d
     try {
       const p = await f.prepare('DELETE_STORE_TARGET_BY_LINE_ITEM_ID', {storeIds: ['10']});
       if (control === 'deployment') {
-        assert.equal(p.success, false);
+        assertRefused(p, 'LIVE_WRITES_DISABLED');
         continue;
       }
       assert.equal(p.success, true, JSON.stringify(p));
@@ -385,7 +386,7 @@ test('Criteo partial, malformed, empty and lost mutation responses are never aut
       const p = await f.prepare('APPEND_STORE_TARGETS_BY_LINE_ITEM_ID', {storeIds: ['40']});
       assert.equal(p.success, true, JSON.stringify(p));
       f.mode(mode);
-      assert.equal((await f.execute(p)).success, false, mode);
+      assertRefused(await f.execute(p), ['WRITE_PARTIAL_OR_FAILED', 'WRITE_OUTCOME_UNCERTAIN']);
       await f.execute(p);
       assert.equal(f.writes(), 1);
       assert.notEqual((await f.verify(p)).data?.status, 'verified');
@@ -450,7 +451,7 @@ test('guessed Criteo global IDs and caller-injected internal read authority do n
     const n = native('GET_STORE_TARGETS_BY_LINE_ITEM_ID');
     Object.assign(n.arguments, {scopeContext: {criteoVerifiedLineId: '987'}, criteoTargetState: {lineId: '987'}});
     const calls = f.calls.length;
-    assert.equal((await f.service.call(gateway, n, actor)).success, false);
+    assertRefused(await f.service.call(gateway, n, actor), 'INVALID_ARGUMENT');
     assert.equal(f.calls.length, calls);
   } finally {
     f.store.close();
@@ -488,7 +489,7 @@ test('successful Criteo verification cache cannot outlive a revoked recorded rea
     assert.equal((await f.verify(p)).data.status, 'verified');
     f.store.putConnection(owner, {...f.c, scopes: []}, {accessToken: 'synthetic'});
     const n = f.reads();
-    assert.equal((await f.verify(p)).success, false);
+    assertRefused(await f.verify(p), 'INSUFFICIENT_SCOPE');
     assert.equal(f.reads(), n);
   } finally {
     f.store.close();
@@ -503,7 +504,7 @@ test('Criteo native execution cannot bypass review with before_state or skip_pre
       {dry_run: false, skip_preflight: true, before_state: {}},
     ]) {
       Object.assign(n.arguments, extra);
-      assert.equal((await f.service.call(gateway, n, actor)).success, false);
+      assertRefused(await f.service.call(gateway, n, actor), ['WRITE_REVIEW_REQUIRED', 'INVALID_ARGUMENT']);
       assert.equal(f.writes(), 0);
     }
   } finally {

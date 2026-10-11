@@ -5,6 +5,7 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {ReportingService} from '../dist/src/reporting.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 function fixture() {
   const actor = {tenantId: 'workbook', userId: 'operator', role: 'operator'};
@@ -212,7 +213,11 @@ test('native and delegated report scopes use canonical account anchors and malfo
     ].map(query_config => f.enqueue({query_config}));
     const rows = (await f.call({action: 'operations', kind: 'workbook_report'})).data?.operations;
     assert.deepEqual(rows?.map(r => r.id).sort(), [direct, delegated].sort());
-    for (const id of invalid) assert.throws(() => f.direct('get_reporting_run_status', id));
+    for (const id of invalid)
+      assert.throws(
+        () => f.direct('get_reporting_run_status', id),
+        e => assertRefused(e, ['REPORT_SCOPE_UNAVAILABLE', 'CONNECTION_REQUIRED']),
+      );
     const missingConnection = f.enqueue({query_config: {platform: 'meta', account_id: '100'}});
     assert.equal(f.direct('get_reporting_run_status', missingConnection).connection_id, 'meta');
     f.store.putConnection({...f.actor, role: 'admin'}, {...f.connection, id: 'second'}, {accessToken: 'synthetic'});

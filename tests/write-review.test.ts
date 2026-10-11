@@ -12,6 +12,7 @@ import {writeOutcome} from '../src/write-outcome.js';
 import {validateState} from '../src/write-state.js';
 import {removeTestDirectory} from './temp.js';
 import type {Actor, JsonObject} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 const registry = new Registry(),
   key = Buffer.alloc(32, 21).toString('base64'),
   actor: Actor = {tenantId: 't', userId: 'operator', role: 'operator'},
@@ -115,7 +116,7 @@ test('reader, tenant, actor, revoked grants, disabled deployment and direct nati
       {...actor, tenantId: 'other'},
     ]) {
       const result = await x.service.call('amcp_write', execution(r), a);
-      assert.equal(result.success, false);
+      assertRefused(result, ['FORBIDDEN', 'NOT_FOUND']);
     }
     const direct = await x.service.call(
       'meta_native_action',
@@ -178,7 +179,7 @@ test('uncertain writes never retry; partial failures retain details and durable 
     assert.equal(partial.data.executed, true);
     assert.equal(partial.data.failures[0].value[0].message, 'item failed');
     const replay = await x.service.call('amcp_write', execution(p), actor);
-    assert.equal(replay.success, false);
+    assertRefused(replay, 'WRITE_PARTIAL_OR_FAILED');
     assert.equal(replay.data.replayed, true);
     assert.equal(x.calls.filter(c => c.method === 'POST').length, 2);
   } finally {
@@ -241,7 +242,11 @@ test('unsafe creation, batches, mutation pagination, query mutations and unsuppo
         arguments: {action: 'meta_batch_create', batch: [{method: 'POST', relative_url: 'act_999/campaigns'}]},
       },
     ])
-      assert.equal((await x.service.call('amcp_write', {action: 'prepare', ...input}, actor)).success, false);
+      assertRefused(await x.service.call('amcp_write', {action: 'prepare', ...input}, actor), [
+        'INVALID_META_CAMPAIGN',
+        'MUTATION_PAGINATION_FORBIDDEN',
+        'WRITE_CONTRACT_UNAVAILABLE',
+      ]);
     assert.equal(x.calls.length, 0);
   } finally {
     x.store.close();
@@ -267,8 +272,15 @@ test('state response validation rejects missing targets, partial failure and nex
   });
   for (const data of [{paging: {next_link: 'next'}}, {next_cursor: 'x'}, {paging: {links: [{rel: 'next'}]}}])
     assert.throws(() => validateState(plan, result(data)), {code: 'INCOMPLETE_STATE'});
-  assert.equal(writeOutcome(result({results: [{status: 400}]})).success, false);
-  assert.equal(writeOutcome(result({})).success, false);
+  // Failed outcomes, not refusals: each names the path that failed and is never retried.
+  const failed = (data: unknown) => {
+    const outcome = writeOutcome(result(data));
+    assert.equal(outcome.outcome, 'partial_or_failed');
+    assert.equal(outcome.retry_safe, false);
+    return (outcome.failures as JsonObject[]).map(f => f.path);
+  };
+  assert.deepEqual(failed({results: [{status: 400}]}), ['$.results[0].status']);
+  assert.deepEqual(failed({}), ['$']);
 });
 test('Google masks use protobuf JSON casing and LinkedIn empty 201 retains its created ID', async () => {
   let body: any;

@@ -13,6 +13,7 @@ import {AccountSecurity} from '../dist/server/account-security.js';
 import {SocialSignIn} from '../dist/server/social-signin.js';
 import {createHttpApp} from '../dist/server/http-app.js';
 import {sha256} from '../dist/src/security.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 const master = Buffer.alloc(32, 93).toString('base64'),
   origin = 'https://amcp.test';
 function fixture() {
@@ -117,7 +118,7 @@ for (const role of ['viewer', 'operator', 'admin'])
         headers: {Origin: origin, Cookie: f.web.cookie(session.id), 'x-amcp-csrf': session.csrf},
       });
       assert.equal(response.status, role === 'admin' ? 200 : 403);
-      if (role === 'admin') assert.throws(() => f.store.authenticate(token));
+      if (role === 'admin') assert.throws(() => f.store.authenticate(token), {code: 'UNAUTHORIZED'});
       else assert.doesNotThrow(() => f.store.authenticate(token));
     } finally {
       if (server) {
@@ -178,7 +179,7 @@ for (const revoke of ['key', 'connection', 'selection'])
         );
       release();
       const result = await pending;
-      assert.equal(result.success, false);
+      assertRefused(result, ['UNAUTHORIZED', 'CONNECTION_REQUIRED']);
       assert.ok(!JSON.stringify(result).includes('Confidential fixture'));
       assert.equal(store.ownsResource(connection, '123', '789'), false);
     } finally {

@@ -12,6 +12,7 @@ import {
   businessQandaRetirement,
 } from '../src/connection-diagnostics.js';
 import type {Actor, Connection, JsonObject} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 
 const actor: Actor = {tenantId: 'connection-diagnostics', userId: 'reader', role: 'reader'},
   owner: Actor = {...actor, role: 'admin'},
@@ -182,7 +183,7 @@ test('revoked API credentials cannot read cached connection metadata', async () 
     assert.equal((await f.call(g, o, {action: 'status'}, who)).success, true);
     f.store.revokeKey(token);
     const denied = await f.call(g, o, {action: 'status'}, who);
-    assert.equal(denied.success, false);
+    assertRefused(denied, 'UNAUTHORIZED');
     assert.deepEqual(f.counts(), {egress: 0, credentials: 0});
   } finally {
     f.store.close();
@@ -201,7 +202,7 @@ test('status refuses connection changes and masks OAuth code/state in audit fail
         {action: 'exchange', code: 'synthetic-auth-code', state: 'synthetic-oauth-state', dry_run: false},
       ]) {
         const out = await f.call(g, o, args);
-        assert.equal(out.success, false);
+        assertRefused(out, ['INVALID_ARGUMENT', 'WORKFLOW_ADAPTER_REQUIRED']);
         assert.equal(JSON.stringify(out).includes('synthetic-auth-code'), false);
         assert.equal(JSON.stringify(out).includes('synthetic-oauth-state'), false);
       }
@@ -275,7 +276,10 @@ test('Business Profile Q&A status reports the official retirement without a prov
       assert.equal(out.data.replacement_api, null);
       assert.equal(out.data.source, businessQandaRetirement.source);
     }
-    assert.equal((await f.call('google_business_native_action', 'gmb_qanda_ops', {action: 'create'})).success, false);
+    assertRefused(
+      await f.call('google_business_native_action', 'gmb_qanda_ops', {action: 'create'}),
+      'INVALID_ARGUMENT',
+    );
     assert.deepEqual(f.counts(), {egress: 0, credentials: 0});
   } finally {
     f.store.close();

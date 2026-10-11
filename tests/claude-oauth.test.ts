@@ -188,14 +188,14 @@ test('Claude confidential DCR, S256 authorization, consent, code exchange, refre
     const reissuedResponse = await token(refresh);
     assert.equal(reissuedResponse.status, 200);
     const reissued = await reissuedResponse.json();
-    assert.throws(() => s.store.authenticate(rotated.access_token));
+    assert.throws(() => s.store.authenticate(rotated.access_token), {code: 'UNAUTHORIZED'});
     s.store.authenticate(reissued.access_token);
     // Outside the window the same presentation is a replay, and the connection ends.
     s.store.db
       .prepare("UPDATE amcp_mcp_grants SET data=json_set(data,'$.rotated_at',0) WHERE hash=?")
       .run(createHash('sha256').update(credentials.refresh_token).digest('hex'));
     assert.equal((await token(refresh)).status, 400);
-    assert.throws(() => s.store.authenticate(reissued.access_token));
+    assert.throws(() => s.store.authenticate(reissued.access_token), {code: 'UNAUTHORIZED'});
   } finally {
     await mcp.close();
     await s.close();
@@ -239,7 +239,7 @@ test('a replayed authorization code is refused and revokes the tokens its first 
     s.store.authenticate(credentials.access_token);
     // Whoever replays the code, even without the verifier, ends the access the first exchange granted.
     assert.equal((await token({...grant, code_verifier: 'x'.repeat(64)})).status, 400);
-    assert.throws(() => s.store.authenticate(credentials.access_token));
+    assert.throws(() => s.store.authenticate(credentials.access_token), {code: 'UNAUTHORIZED'});
     assert.equal(
       (
         await token({
@@ -415,14 +415,16 @@ test('confidential secrets persist encrypted across restart and are bound to cli
     store = new Store(file, master);
     oauth = new McpOAuth(new WebStore(store, {origin, masterKey: master}));
     await oauth.authenticateClient({client_id: first.client_id, client_secret: first.client_secret});
-    await assert.rejects(oauth.authenticateClient({client_id: first.client_id, client_secret: second.client_secret}));
+    await assert.rejects(oauth.authenticateClient({client_id: first.client_id, client_secret: second.client_secret}), {
+      name: 'InvalidClientError',
+    });
     const wrongKey = new McpOAuth(new WebStore(store, {origin, masterKey: Buffer.alloc(32, 82).toString('base64')}));
-    await assert.rejects(wrongKey.clientsStore.getClient(first.client_id));
+    await assert.rejects(wrongKey.clientsStore.getClient(first.client_id), {code: 'SECRET_DECRYPT_FAILED'});
     const row = (
       store.db.prepare('SELECT data FROM amcp_mcp_clients WHERE id=?').get(first.client_id) as {data: string}
     ).data;
     store.db.prepare('UPDATE amcp_mcp_clients SET data=? WHERE id=?').run(row, second.client_id);
-    await assert.rejects(oauth.clientsStore.getClient(second.client_id));
+    await assert.rejects(oauth.clientsStore.getClient(second.client_id), {code: 'SECRET_DECRYPT_FAILED'});
   } finally {
     store.close();
     removeTestDirectory(directory, 'amcp-client-secret-');

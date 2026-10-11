@@ -110,8 +110,10 @@ test('a new administrator password ends its sessions and the MCP access approved
 
     const after = new WebStore(store, {origin, masterKey: master, adminPassword: second});
     assert.equal(after.session(request(after, session)), undefined);
-    await assert.rejects(new McpOAuth(after).verifyAccessToken(mcp.tokens.access_token));
-    await assert.rejects(new McpOAuth(after).exchangeRefreshToken(mcp.client, mcp.tokens.refresh_token!));
+    await assert.rejects(new McpOAuth(after).verifyAccessToken(mcp.tokens.access_token), {code: 'UNAUTHORIZED'});
+    await assert.rejects(new McpOAuth(after).exchangeRefreshToken(mcp.client, mcp.tokens.refresh_token!), {
+      name: 'InvalidGrantError',
+    });
     assert.equal(
       (store.db.prepare("SELECT used FROM amcp_mcp_grants WHERE hash='owner-grant'").get() as {used: number}).used,
       0,
@@ -142,8 +144,10 @@ test('once a process starts with a new administrator password, one still running
     await assert.rejects(old.signIn(first, 'peer'), /reconfigured/);
     assert.equal(old.session(request(old, early)), undefined);
     await assert.rejects(approveClient(old, early), /expired/);
-    await assert.rejects(new McpOAuth(old).exchangeRefreshToken(mcp.client, mcp.tokens.refresh_token!));
-    await assert.rejects(new McpOAuth(old).verifyAccessToken(mcp.tokens.access_token));
+    await assert.rejects(new McpOAuth(old).exchangeRefreshToken(mcp.client, mcp.tokens.refresh_token!), {
+      name: 'InvalidGrantError',
+    });
+    await assert.rejects(new McpOAuth(old).verifyAccessToken(mcp.tokens.access_token), {code: 'UNAUTHORIZED'});
     const now = await current.signIn(second, 'peer');
     assert.equal(current.session(request(current, now))?.actor.userId, 'workspace-admin');
   } finally {

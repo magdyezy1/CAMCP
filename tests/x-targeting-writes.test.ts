@@ -68,7 +68,15 @@ function setup(lineItemStatus = 'PAUSED') {
   );
   const prepare = (args: JsonObject) =>
     service.call('amcp_write', {action: 'prepare', gateway, arguments: {account_id: '18ce55vrgri', ...args}}, actor);
-  return {store, service, calls, writes: () => writes, reads: () => reads, prepare};
+  return {
+    store,
+    service,
+    calls,
+    writes: () => writes,
+    reads: () => reads,
+    prepare,
+    setLineItemStatus: (status: string) => (lineItemStatus = status),
+  };
 }
 const create = (payload: JsonObject = criterion) => ({
   action: 'x_accounts_account_id_targeting_criteria_post',
@@ -102,7 +110,7 @@ test('X reviewed targeting create reads the parent line item, executes once and 
   }
 });
 
-test('X refuses targeting on a serving line item because criteria apply one at a time', async () => {
+test('X refuses targeting on a serving line item because criteria apply one at a time, and runs once it is paused', async () => {
   const x = setup('ACTIVE');
   try {
     const p = (await x.prepare(create())) as any;
@@ -110,6 +118,22 @@ test('X refuses targeting on a serving line item because criteria apply one at a
     assert.equal(p.error.code, 'TARGETING_PARENT_NOT_PAUSED', JSON.stringify(p));
     assert.equal(p.error.details.entity_status, 'ACTIVE');
     assert.equal(x.writes(), 0);
+    // QA-02 exit: once the line item is paused (its own reviewed change), the same targeting change reviews and runs.
+    x.setLineItemStatus('PAUSED');
+    const paused = (await x.prepare(create())) as any;
+    assert.equal(paused.success, true, JSON.stringify(paused));
+    const run = (await x.service.call(
+      'amcp_write',
+      {
+        action: 'execute',
+        review_id: paused.data.review_id,
+        idempotency_key: paused.data.idempotency_key,
+        confirmed: true,
+      },
+      actor,
+    )) as any;
+    assert.equal(run.success, true, JSON.stringify(run));
+    assert.equal(x.writes(), 1);
   } finally {
     x.store.close();
   }

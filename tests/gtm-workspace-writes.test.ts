@@ -9,6 +9,7 @@ import {DelegatedNativeCompiler} from '../src/delegated-native.js';
 import {saveSpendPolicy} from '../src/spend-policy.js';
 import {gtmWorkspaceContracts} from '../src/gtm-workspace-writes.js';
 import type {Actor, JsonObject} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 
 const actor: Actor = {tenantId: 'gtm-workspace-test', userId: 'owner', role: 'admin'},
   gateway = 'gtm_native_action',
@@ -414,7 +415,12 @@ test('complete collection reads reject failures, foreign or duplicated entities 
     try {
       f.rows.tag!.push(nativeRow('tag', '8', {name: 'Extra', type: 'html'}));
       f.mode(mode);
-      assert.equal((await f.prepare()).success, false, mode);
+      assertRefused(await f.prepare(), [
+        'STATE_TARGET_MISMATCH',
+        'UPSTREAM_ERROR',
+        'INCOMPLETE_STATE',
+        'STATE_CHANGED',
+      ]);
       assert.equal(f.writes(), 0);
     } finally {
       f.store.close();
@@ -453,7 +459,7 @@ test('exact-body validation rejects unknown fields, ambiguous creates, invalid r
   for (const body of invalid) {
     const f = fixture('BULK_UPDATE_WORKSPACE', body);
     try {
-      assert.equal((await f.prepare()).success, false, JSON.stringify(body));
+      assertRefused(await f.prepare(), ['INVALID_GTM_REQUEST', 'INVALID_VENDOR_BODY']);
       assert.equal(f.calls.length, 0);
     } finally {
       f.store.close();
@@ -498,13 +504,13 @@ test('changed, revoked and insufficient grants or native scopes fail before a mu
       }
       if (flag === 'revoke-read') {
         f.revoke();
-        assert.equal((await f.prepare()).success, false);
+        assertRefused(await f.prepare(), 'CONNECTION_REQUIRED');
         assert.equal(f.calls.length, 1);
       }
       if (flag === 'revoke-after-review') {
         const p = await f.prepare();
         f.store.putConnection(actor, {...f.connection, writeAccounts: []}, {accessToken: 'synthetic'});
-        assert.equal((await f.execute(p)).success, false);
+        assertRefused(await f.execute(p), 'WRITE_ACCOUNT_FORBIDDEN');
       }
       assert.equal(f.writes(), 0);
     } finally {
@@ -531,7 +537,7 @@ test('bulk receipts cannot omit, duplicate, reuse existing create IDs or substit
       const p = await f.prepare();
       f.mode(mode);
       const e = await f.execute(p);
-      assert.equal(e.success, false, mode + ' ' + JSON.stringify(e));
+      assertRefused(e, 'WRITE_PARTIAL_OR_FAILED');
       assert.equal((await f.execute(p)).data.replayed, true);
       assert.equal(f.writes(), 1);
     } finally {
@@ -566,7 +572,7 @@ test('sync conflicts retain applied state and explicit recovery instead of succe
     const p = await f.prepare();
     f.mode('conflict');
     const e = await f.execute(p);
-    assert.equal(e.success, false);
+    assertRefused(e, 'WRITE_PARTIAL_OR_FAILED');
     assert.equal(e.data.provider_effect, 'synchronization_returned_conflicts');
     assert.equal(e.data.retry_safe, false);
     assert.equal(f.rows.folder![0]!.name, 'Latest folder');
@@ -583,7 +589,7 @@ test('preview rejects compiler errors, foreign versions and incomplete temporary
     try {
       const p = await f.prepare();
       f.mode(mode);
-      assert.equal((await f.execute(p)).success, false, mode);
+      assertRefused(await f.execute(p), 'WRITE_PARTIAL_OR_FAILED');
       assert.equal(f.writes(), 1);
     } finally {
       f.store.close();
@@ -629,7 +635,7 @@ test('absent latest version is qualified only by 404, while an existing conflict
   const g = fixture('QUICK_PREVIEW');
   try {
     g.mode('denied');
-    assert.equal((await g.prepare()).success, false);
+    assertRefused(await g.prepare(), 'PROVIDER_ACCESS_DENIED');
     assert.equal(g.writes(), 0);
   } finally {
     g.store.close();
@@ -638,6 +644,11 @@ test('absent latest version is qualified only by 404, while an existing conflict
   try {
     h.status.mergeConflict = [{entityInWorkspace: structuredClone(h.status.workspaceChange[0])}];
     assert.equal((await h.prepare()).error.code, 'STATE_CONFLICT');
+    // QA-02 exit: once the conflict is resolved in Tag Manager, the same sync reviews normally.
+    delete h.status.mergeConflict;
+    const resolved = await h.prepare();
+    assert.equal(resolved.success, true, JSON.stringify(resolved));
+    assert.equal(h.writes(), 0);
   } finally {
     h.store.close();
   }

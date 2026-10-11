@@ -15,16 +15,33 @@ import {fileURLToPath} from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 export const allowanceFile = 'tests/fixtures/test-oracle-allowance.json';
-/** Test files whose allowance is zero: the reviewed write, sign-in and authorization, and export paths. */
+/**
+ * Test files whose allowance is zero, by name: the reviewed write paths (writes, reviews, deletions, spend and budget,
+ * idempotency, retry, pause), sign-in, credentials and authorization, connections, and exports (Sheets, workbooks).
+ */
 export const zeroAllowance =
-  /^tests\/(?:write-|review-|grouped-reviews|spend-|auth-|account-security|mcp-authorization|login-|credential-|connection-reauthorization|signin-|security|sheets-|workbook-|export)/;
-const codeCheck = /\.code\b|\bcode\s*:|\bmessage\b|assertRefused|\b[A-Z][A-Z0-9]+_[A-Z0-9_]{2,}\b/;
+  /^tests\/[^/]*(?:write|review|delet|export|sheets|workbook|spend|budget|connection|credential|oauth|login|signin|password|mfa|door|auth|security|session|grant|token|idempot|retry|pause)[^/]*$/;
+// A named failure: an error code or message, the typed helper, or a failed write outcome's own name.
+const codeCheck = /\.code\b|\bcode\s*:|\bmessage\b|assertRefused|partial_or_failed|\b[A-Z][A-Z0-9]+_[A-Z0-9_]{2,}\b/;
 const failed =
   /(?:\.success\s*,\s*false\b|\bsuccess\s*===\s*false\b|\bsuccess\s*!==\s*true\b|false\s*,\s*[^,;]*\.success\b)/;
 
 /** Splits the arguments of the call whose opening parenthesis is at `open`; null when the text ends first. */
 export function callArguments(text, open) {
+  return callSpans(text, open)?.args.map(a => a.text) ?? null;
+}
+/**
+ * The arguments of the call whose opening parenthesis is at `open`, each with its trimmed text and offsets, and the
+ * offset of the closing parenthesis; null when the text ends first. Empty arguments (a trailing comma) are dropped.
+ */
+export function callSpans(text, open) {
   const args = [];
+  const push = (from, to) => {
+    const raw = text.slice(from, to),
+      lead = raw.length - raw.trimStart().length,
+      trimmed = raw.trim();
+    if (trimmed) args.push({text: trimmed, start: from + lead, end: from + lead + trimmed.length});
+  };
   let depth = 0,
     start = open + 1,
     i = open;
@@ -67,11 +84,11 @@ export function callArguments(text, open) {
     else if (')]}'.includes(c)) {
       depth--;
       if (depth === 0) {
-        args.push(text.slice(start, i));
-        return args.map(a => a.trim()).filter(Boolean);
+        push(start, i);
+        return {args, end: i};
       }
     } else if (c === ',' && depth === 1) {
-      args.push(text.slice(start, i));
+      push(start, i);
       start = i + 1;
     }
   }
@@ -87,12 +104,13 @@ export function scan(text) {
     if (!codeCheck.test(window.replace(failed, ''))) sites.push({kind: 'codeless', line: i + 1});
   });
   for (const match of text.matchAll(/\bassert\s*\.\s*(throws|rejects)\s*\(/g)) {
-    const args = callArguments(text, match.index + match[0].length - 1);
+    const open = match.index + match[0].length - 1,
+      args = callArguments(text, open);
     if (!args) continue;
     const matcher = args[1];
     // A second argument that is only a message string does not check the error.
     if (!matcher || /^['"`]/.test(matcher))
-      sites.push({kind: 'bare', line: text.slice(0, match.index).split('\n').length, call: match[1]});
+      sites.push({kind: 'bare', line: text.slice(0, match.index).split('\n').length, call: match[1], open});
   }
   return sites;
 }
@@ -106,7 +124,7 @@ export function testFiles(dir = path.join(root, 'tests')) {
 export function counts(files) {
   const out = {};
   for (const file of files) {
-    const sites = scan(fs.readFileSync(path.join(root, file), 'utf8'));
+    const sites = scan(fs.readFileSync(path.resolve(root, file), 'utf8'));
     const c = {
       codeless: sites.filter(s => s.kind === 'codeless').length,
       bare: sites.filter(s => s.kind === 'bare').length,

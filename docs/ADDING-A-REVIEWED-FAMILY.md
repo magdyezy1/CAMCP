@@ -90,17 +90,27 @@ in a body (`status: DELETED`, `operation_status: DELETE`) belongs in `bodyDeleti
 
 3. Add it to the list in `src/reviewed-families.ts`, in name order.
 4. Test the family end to end with a mock transport (see `tests/google-business-lodging.test.mjs`): the refusal of
-   every unqualified shape, prepare with the impact, `STATE_CHANGED` when a snapshot changes, execute, outcome and
-   verification. Write the failing test first.
-5. `tests/reviewed-families.test.mjs` then checks, without changes, that the family owns ledger routes, that no
+   every unqualified shape, prepare with the impact, `STATE_CHANGED` naming the changed field when a snapshot changes,
+   execute, outcome and verification. Write the failing test first. Name every refusal you assert:
+   `assertRefused(result, 'CODE', {writes})` from `tests/helpers/assert-refused.mjs` (`.ts` for TypeScript tests), never
+   a bare `success, false` or an `assert.throws` without a matcher; `npm run check:oracles` refuses new ones.
+5. Ship a conformance descriptor, `tests/family-descriptors/<family>.mjs` (see `tiktok-budgets.mjs`): one valid
+   request, a synthetic provider holding the target's state, and the decisive field, chosen from the provider's
+   documented resource (the field the write overwrites or depends on), not from the family's projection.
+   `tests/reviewed-family-conformance.test.mjs` drives it through the real review lifecycle: the change of the decisive
+   field between review and execute is `STATE_CHANGED` naming it, a paginated state read is refused, and a partial or
+   failed answer is never success and never sent again. A family is never added to
+   `tests/fixtures/family-conformance-pending.json`; a backfilled one is removed from it with the ceiling lowered.
+6. `tests/reviewed-families.test.mjs` then checks, without changes, that the family owns ledger routes, that no
    ledger route is claimed by two families, that its reader passes foreign reads on, and that no lifecycle module
-   names it directly.
-6. Regenerate the ledger, contracts and status report: `npm run contracts:actions`, `npm run contracts:generate`,
+   names it directly. A new refusal that leaves something paused, busy, uncertain or expired needs its exit test in
+   `tests/fixtures/refusal-exits.json` (`node tools/refusal-exits.mjs` lists the missing ones).
+7. Regenerate the ledger, contracts and status report: `npm run contracts:actions`, `npm run contracts:generate`,
    `npm run report`, and after adding the family's record to `docs/implementation/`, the documentation map:
    `npm run docs:index` (`npm run check` fails while any of them is stale). Name any
    new refusal code in a guide (`Skills/amcp-campaign-builder/references/`, listed in `src/guidance.ts`), or
    declare it in `tools/guidance-coverage.ts` with a reason.
-7. `npm run format`, `npm run test:related`, then the full qualification in a release candidate (`docs/review/PROGRESS.md` shows the
+8. `npm run format`, `npm run test:related`, then the full qualification in a release candidate (`docs/review/PROGRESS.md` shows the
    commands).
 
 ## What the registry guarantees

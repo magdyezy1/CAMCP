@@ -6,6 +6,7 @@ import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import {saveSpendPolicy} from '../src/spend-policy.js';
 import type {JsonObject} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 
 const gateway = 'reddit_native_action',
   account = 'a2_111',
@@ -212,7 +213,13 @@ test('Reddit rejects unknown authors, stale profile associations, missing grants
       if (mode === 'ambiguous') x.profiles([profile, {...profile, id: '999'}]);
       const p = await x.prepare('UPDATE_POST', {allow_comments: true}, {post_id: 't3_abc'});
       if (p.success) assert.equal((await x.execute(p)).success, false);
-      else assert.equal(p.success, false);
+      else
+        assertRefused(p, [
+          'RESOURCE_SCOPE_REQUIRED',
+          'INSUFFICIENT_SCOPE',
+          'WRITE_ACCOUNT_FORBIDDEN',
+          'LIVE_WRITES_DISABLED',
+        ]);
       assert.equal(x.writes(), 0);
     } finally {
       x.store.close();
@@ -282,9 +289,9 @@ test('post metadata changes retain owner activation policy and detect ignored mu
     const p = await y.prepare('UPDATE_POST', {allow_comments: true}, {post_id: 't3_abc'});
     y.ignore();
     const r = await y.execute(p);
-    assert.equal(r.success, false);
+    assertRefused(r, 'WRITE_PARTIAL_OR_FAILED');
     assert.equal(y.writes(), 1);
-    assert.equal((await y.execute(p)).success, false);
+    assertRefused(await y.execute(p), 'WRITE_PARTIAL_OR_FAILED');
     assert.equal(y.writes(), 1);
   } finally {
     y.store.close();
@@ -367,8 +374,12 @@ test('foreign and lost creative responses never resubmit and a grant revoked dur
         });
       if (mode === 'concurrent') await Promise.all([x.execute(p), x.execute(p)]);
       else {
-        assert.equal((await x.execute(p)).success, false);
-        assert.equal((await x.execute(p)).success, false);
+        assertRefused(await x.execute(p), [
+          'UPSTREAM_RESPONSE_INVALID',
+          'WRITE_OUTCOME_UNCERTAIN',
+          'WRITE_ACCOUNT_FORBIDDEN',
+        ]);
+        assertRefused(await x.execute(p), ['WRITE_OUTCOME_UNCERTAIN', 'WRITE_ACCOUNT_FORBIDDEN']);
       }
       assert.equal(x.writes(), mode === 'revoke' ? 0 : 1);
     } finally {

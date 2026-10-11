@@ -9,6 +9,7 @@ import {googleConfigurationContracts} from '../src/google-configuration-writes.j
 import {googleFeedFields} from '../src/google-asset-set-writes.js';
 import {saveSpendPolicy} from '../src/spend-policy.js';
 import type {JsonObject} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 
 const gateway = 'google_ads_native_action',
   registry = new Registry(),
@@ -750,7 +751,7 @@ test('configuration mutations reject foreign references, immutable masks and inc
   for (const [i, op] of invalidCases) {
     const x = fixture(cases[i]);
     try {
-      assert.equal((await x.prepare([op])).success, false, JSON.stringify(op));
+      assertRefused(await x.prepare([op]), ['INVALID_CONFIGURATION_MUTATION', 'INVALID_VENDOR_BODY']);
       assert.equal(x.reads(), 0);
       assert.equal(x.writes(), 0);
     } finally {
@@ -812,7 +813,9 @@ test('foreign and partial receipts cannot succeed; a lost response cannot resubm
         assert.equal(result.success, false);
         assert.equal((await x.execute(p)).error.code, 'WRITE_OUTCOME_UNCERTAIN');
       } else {
+        // A failed outcome, not a refusal: the unconfirmed mutation is named and never resubmitted.
         assert.equal(result.data.success, false, JSON.stringify(result));
+        assert.equal(result.data.outcome, 'partial_or_failed');
         assert.equal(result.data.verification, undefined);
         assert.equal((await x.execute(p)).data.replayed, true);
       }
@@ -895,7 +898,7 @@ test('complete feed membership pagination is consumed; loops, foreign rows, dupl
         assert.ok(x.calls.some(c => c.body.pageToken === 'page-2'));
         assert.equal((await x.execute(p)).success, true);
       } else {
-        assert.equal(p.success, false, JSON.stringify(p));
+        assertRefused(p, ['STATE_READ_FAILED', 'PLATFORM_ERROR', 'RESPONSE_TOO_LARGE']);
         assert.equal(x.writes(), 0);
       }
     } finally {
@@ -918,7 +921,7 @@ test('feed contracts bind the parent, asset type and account and retain policy c
     const x = fixture(cases[i]);
     try {
       const p = await x.prepare([op]);
-      assert.equal(p.success, false, JSON.stringify(p));
+      assertRefused(p, ['INVALID_CONFIGURATION_MUTATION', 'ASSET_SET_VARIANT_UNQUALIFIED']);
       assert.equal(x.writes(), 0);
     } finally {
       x.store.close();
@@ -1057,7 +1060,7 @@ test('revocation inside a feed page and a race during fan-out prevent execution'
         return data;
       });
       const p = await x.prepare([{create: cases[18]!.create}]);
-      assert.equal(p.success, false, JSON.stringify(p));
+      assertRefused(p, ['WRITE_ACCOUNT_FORBIDDEN', 'STATE_CHANGED']);
       assert.equal(x.writes(), 0);
     } finally {
       x.store.close();
@@ -1222,7 +1225,7 @@ test('planning writes reject invalid dates, negative bids, mismatched scope and 
     const x = fixture(cases[index]);
     try {
       const p = await x.prepare([op]);
-      assert.equal(p.success, false, JSON.stringify(p));
+      assertRefused(p, 'INVALID_CONFIGURATION_MUTATION');
       assert.equal(x.writes(), 0);
     } finally {
       x.store.close();
@@ -1237,7 +1240,7 @@ test('planning writes reject invalid dates, negative bids, mismatched scope and 
         updateMask: 'cpcBidMicros',
       },
     ]);
-    assert.equal(p.success, false);
+    assertRefused(p, 'INVALID_CONFIGURATION_MUTATION');
     assert.equal(x.writes(), 0);
   } finally {
     x.store.close();
@@ -1303,7 +1306,7 @@ test('planning bids stay hypothetical while deletion, deployment and account gra
     assert.equal(p.success, true);
     revoked.revoke();
     const r = await revoked.execute(p);
-    assert.equal(r.success, false);
+    assertRefused(r, 'WRITE_ACCOUNT_FORBIDDEN');
     assert.equal(revoked.writes(), 0);
   } finally {
     revoked.store.close();
@@ -1352,7 +1355,7 @@ test('planning context detects a race or revocation while reading paged descenda
         }
         return data;
       });
-      assert.equal((await x.prepare([{create: cases[24]!.create}])).success, false);
+      assertRefused(await x.prepare([{create: cases[24]!.create}]), ['STATE_CHANGED', 'WRITE_ACCOUNT_FORBIDDEN']);
       assert.equal(x.writes(), 0);
     } finally {
       x.store.close();
@@ -1373,10 +1376,10 @@ test('planning receipts and concurrency retain uncertainty without duplicate pro
         await Promise.all([x.execute(p), x.execute(p)]);
         assert.equal(x.writes(), 1);
       } else {
-        assert.equal((await x.execute(p)).success, false);
+        assertRefused(await x.execute(p), ['WRITE_PARTIAL_OR_FAILED', 'WRITE_OUTCOME_UNCERTAIN']);
         assert.equal(x.writes(), 1);
         const replay = await x.execute(p);
-        assert.equal(replay.success, false);
+        assertRefused(replay, ['WRITE_PARTIAL_OR_FAILED', 'WRITE_OUTCOME_UNCERTAIN']);
         assert.equal(x.writes(), 1);
       }
     } finally {

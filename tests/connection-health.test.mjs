@@ -191,7 +191,7 @@ test('a reauthorized login starts clean, and an outcome observed on a replaced l
         return Response.json({error: 'invalid_grant'}, {status: 400});
       }),
       provider = new CredentialProvider(store, fetcher);
-    await assert.rejects(provider.get(current(store)));
+    await assert.rejects(provider.get(current(store)), {code: 'TOKEN_REFRESH_FAILED'});
     assert.equal(storedHealth(store, current(store)).state, 'reauthorization_required');
     // A new login (reauthorization or re-provisioning) bumps the revision; the old rejection no longer applies.
     store.putConnection(owner, linkedin, {
@@ -204,7 +204,7 @@ test('a reauthorized login starts clean, and an outcome observed on a replaced l
     // A rejection of the old login that completes after it was replaced is not recorded against the new one.
     store.putConnection(owner, linkedin, expiring());
     replace = () => store.putConnection(owner, linkedin, {...expiring(), refreshToken: 'newest-refresh'});
-    await assert.rejects(provider.get(current(store)));
+    await assert.rejects(provider.get(current(store)), {code: 'TOKEN_REFRESH_FAILED'});
     assert.equal(storedHealth(store, current(store)), undefined);
   } finally {
     store.close();

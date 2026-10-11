@@ -4,6 +4,7 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 const owner = 'urn:li:organization:500',
   fileId = 'abcdefghijklmno',
@@ -141,7 +142,12 @@ for (const withdraw of ['organization', 'drive', 'login', 'account'])
           confirmed: true,
         };
         const result = await f.call(args);
-        assert.equal(result.success, false);
+        assertRefused(result, [
+          'LINKEDIN_ORGANIZATION_BINDING_REQUIRED',
+          'CONNECTION_REQUIRED',
+          'CONNECTION_AUTHORITY_CHANGED',
+          'WRITE_ACCOUNT_FORBIDDEN',
+        ]);
         assert.equal(f.counts().parts, at === 'initialize' ? 0 : 1);
         assert.equal(f.counts().finalizations, 0);
         assert.equal(
@@ -167,7 +173,12 @@ for (const withdraw of ['organization', 'drive', 'login', 'account'])
       const p = await f.prepare(),
         args = {action: 'execute', review_id: p.data.review_id, idempotency_key: p.data.review_id, confirmed: true},
         result = await f.call(args);
-      assert.equal(result.success, false);
+      assertRefused(result, [
+        'LINKEDIN_ORGANIZATION_BINDING_REQUIRED',
+        'CONNECTION_REQUIRED',
+        'CONNECTION_AUTHORITY_CHANGED',
+        'WRITE_ACCOUNT_FORBIDDEN',
+      ]);
       assert.deepEqual(f.counts(), {initializations: 1, parts: 2, finalizations: 0});
       assert.deepEqual(f.store.uploadSession('t', p.data.review_id).uploaded_part_ids, [
         'private-part-1',

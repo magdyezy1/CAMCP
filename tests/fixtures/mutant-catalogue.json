@@ -1,0 +1,269 @@
+{
+  "description": "Catalogued mutants (QA-02 step 5, tools/mutants.mjs). Each entry is one deliberate defect in a guard: `find` is text of the compiled module dist/<file>.js (whitespace runs match any whitespace) that must occur exactly once, `replace` is the defect, `tests` are the tests named to kill it. Release qualification requires every mutant killed. Add a mutant with the test that kills it; never delete one whose guard still exists.",
+  "mutants": [
+    {
+      "id": "M1-google-manager-routing-ignored",
+      "guards": "Google Ads requests carry the account's own manager (login-customer-id), not the login's default manager",
+      "file": "src/transport.ts",
+      "find": "(plan.action !== 'AMCP_GOOGLE_DISCOVERY' && plan.accountId ? connection.accountLoginCustomers?.[plan.accountId] : undefined) ?? credentials.loginCustomerId",
+      "replace": "credentials.loginCustomerId",
+      "tests": ["tests/google-recommendation-dismissal.test.ts", "tests/report-delivery-discovery.test.ts"]
+    },
+    {
+      "id": "M2-csv-guard-equals-only",
+      "guards": "SEC-04: every OWASP formula prefix (= + - @, tab, CR, LF) is neutralized in CSV and Sheets cells",
+      "file": "src/csv-safety.ts",
+      "find": "const formulaPrefix = /^(?:[\\s\\u0000-\\u001f]*[=+\\-@＝＋－＠]|[\\t\\r\\n])/;",
+      "replace": "const formulaPrefix = /^=/;",
+      "tests": ["tests/csv-neutralization.test.mjs"]
+    },
+    {
+      "id": "M3-csv-guard-full-width-missed",
+      "guards": "SEC-04: full-width formula triggers, which spreadsheets normalize to ASCII, are neutralized",
+      "file": "src/csv-safety.ts",
+      "find": "[=+\\-@＝＋－＠]",
+      "replace": "[=+\\-@]",
+      "tests": ["tests/csv-neutralization.test.mjs"]
+    },
+    {
+      "id": "M4-upload-deadline-boundary",
+      "guards": "A website upload is unavailable exactly at its 30-minute deadline, not one millisecond later",
+      "file": "src/media-sources.ts",
+      "find": "if (uploadDeadline !== undefined && uploadDeadline <= Date.now())",
+      "replace": "if (uploadDeadline !== undefined && uploadDeadline < Date.now())",
+      "tests": ["tests/website-media-retention.test.mjs"]
+    },
+    {
+      "id": "M5-granular-reach-summed-across-days",
+      "guards": "Reach and frequency are never summed across days in detailed Overview rows",
+      "file": "src/overview-granularity.ts",
+      "find": "reach: group.mapped.length === 1 ? metricNumber(group.mapped[0].reach) : null,",
+      "replace": "reach: group.mapped.reduce((n, row) => n + (Number(row.reach) || 0), 0),",
+      "tests": ["tests/overview-granularity.test.mjs"]
+    },
+    {
+      "id": "M6-dst-gap-skipped",
+      "guards": "EXP-02 / D13: a nonexistent local time shifts forward to the first valid time instead of skipping the occurrence",
+      "file": "src/schedule-clock.ts",
+      "find": "const shift = scheduleDstPolicy() === 'shift_forward'",
+      "replace": "const shift = false",
+      "tests": ["tests/report-periods.test.ts", "tests/schedule-timezone-sweep.test.mjs"]
+    },
+    {
+      "id": "M7-repeated-hour-runs-twice",
+      "guards": "A repeated (fall-back) local hour runs a schedule once, not twice",
+      "file": "src/schedule-clock.ts",
+      "find": "if (at > after && format.format(at) !== previous) candidates.push({ at, shifted: false });",
+      "replace": "if (at > after) candidates.push({ at, shifted: false });",
+      "tests": ["tests/report-periods.test.ts", "tests/schedule-timezone-sweep.test.mjs"]
+    },
+    {
+      "id": "M8-state-change-ignored",
+      "guards": "A provider change between review and execute is refused as STATE_CHANGED before anything is sent",
+      "file": "src/write-review.ts",
+      "find": "if (actualHash !== expectedHash)",
+      "replace": "if (false)",
+      "tests": ["tests/reviewed-family-conformance.test.mjs"]
+    },
+    {
+      "id": "M9-tiktok-list-projection-drops-budget",
+      "guards": "A review's TikTok list snapshot keeps the decisive budget field, so a budget change is STATE_CHANGED",
+      "file": "src/review-state.ts",
+      "find": ": { list: d.data.list },",
+      "replace": ": { list: d.data.list.map(row => { const { budget, ...rest } = row ?? {}; return rest; }) },",
+      "tests": ["tests/reviewed-family-conformance.test.mjs"]
+    },
+    {
+      "id": "M10-tiktok-deletion-duplicate-ids",
+      "guards": "A TikTok saved-audience deletion naming an ID twice is refused before any request",
+      "file": "src/tiktok-deletions.ts",
+      "find": "ids.some(x => !numeric(x)) || new Set(ids).size !== ids.length)",
+      "replace": "ids.some(x => !numeric(x)))",
+      "tests": ["tests/tiktok-deletions.test.mjs"]
+    },
+    {
+      "id": "M11-idempotency-key-reused-for-another-request",
+      "guards": "An idempotency key already used for a different request is refused (IDEMPOTENCY_CONFLICT)",
+      "file": "src/store.ts",
+      "find": "if (row.fingerprint !== fingerprint)",
+      "replace": "if (false)",
+      "tests": ["tests/idempotency-claims.test.mjs"]
+    },
+    {
+      "id": "M12-uncertain-claim-resent",
+      "guards": "A pending or uncertain write is never sent again by a later execute",
+      "file": "src/store.ts",
+      "find": "throw new MirrorError('WRITE_OUTCOME_UNCERTAIN', 'This key is pending or has an uncertain outcome.",
+      "replace": "return { fresh: true }; throw new MirrorError('WRITE_OUTCOME_UNCERTAIN', 'This key is pending or has an uncertain outcome.",
+      "tests": ["tests/idempotency-claims.test.mjs", "tests/liveness-exits.test.mjs"]
+    },
+    {
+      "id": "M13-uncertain-claim-released",
+      "guards": "D12: only a pending claim raised before any request is released; a completed or uncertain one never is",
+      "file": "src/store.ts",
+      "find": "DELETE FROM idempotency WHERE tenant_id=? AND key=? AND state='pending' AND fingerprint=?",
+      "replace": "DELETE FROM idempotency WHERE tenant_id=? AND key=? AND fingerprint=?",
+      "tests": ["tests/idempotency-claims.test.mjs"]
+    },
+    {
+      "id": "M14-paginated-state-accepted",
+      "guards": "A state read the provider answers with another page is refused (INCOMPLETE_STATE), never reviewed as complete",
+      "file": "src/write-state.ts",
+      "find": "if (nextPage(read, data)) fail('INCOMPLETE_STATE'",
+      "replace": "if (false) fail('INCOMPLETE_STATE'",
+      "tests": ["tests/reviewed-family-conformance.test.mjs"]
+    },
+    {
+      "id": "M15-spend-daily-cap-ignores-this-increase",
+      "guards": "The owner's daily increase cap counts the increase being executed, not only earlier ones",
+      "file": "src/spend-policy.ts",
+      "find": "compareDecimal(addDecimal(used, increase), policyDecimal(policy.max_daily_increase_native)) > 0)",
+      "replace": "compareDecimal(used, policyDecimal(policy.max_daily_increase_native)) > 0)",
+      "tests": ["tests/spend-policy.test.ts"]
+    },
+    {
+      "id": "M16-spend-increase-percent-unchecked",
+      "guards": "The owner's maximum budget increase percentage refuses a larger increase",
+      "file": "src/spend-policy.ts",
+      "find": "multiplyDecimal(prior, policyDecimal(policy.max_budget_increase_percent))) > 0))",
+      "replace": "multiplyDecimal(prior, policyDecimal(policy.max_budget_increase_percent))) > 0 && false))",
+      "tests": ["tests/reddit-spend-policy.test.mjs", "tests/recommendations-hardening.test.ts"]
+    },
+    {
+      "id": "M17-spend-bid-cap-unchecked",
+      "guards": "The owner's maximum bid refuses a higher bid",
+      "file": "src/spend-policy.ts",
+      "find": "policyDecimal(policy.max_bid_native)) > 0)",
+      "replace": "policyDecimal(policy.max_bid_native)) > 0 && false)",
+      "tests": ["tests/spend-policy-money-coverage.test.mjs", "tests/spend-caps-confirm.test.mjs"]
+    },
+    {
+      "id": "M18-same-login-refresh-treated-as-change",
+      "guards": "CON-01: AMCP’s own refresh of the same login keeps its login stamp, so an export or review continues",
+      "file": "src/connection-authority.ts",
+      "find": "return ref && authorityFence() === 'revision' ? revisionStamp(ref, credentials) : 'credentials:' + sha256(stable(credentials));",
+      "replace": "return 'credentials:' + sha256(stable(credentials));",
+      "tests": ["tests/sheets-authority.test.mjs"]
+    },
+    {
+      "id": "M19-replaced-login-accepted",
+      "guards": "A replaced login changes the login stamp and stops an export before it writes",
+      "file": "src/connection-authority.ts",
+      "find": "return ref && authorityFence() === 'revision' ? revisionStamp(ref, credentials) : 'credentials:' + sha256(stable(credentials));",
+      "replace": "return 'login';",
+      "tests": ["tests/sheets-authority.test.mjs"]
+    },
+    {
+      "id": "M20-tiktok-cursor-ignored",
+      "guards": "TikTok cursor lists ({cursor, has_more}) are followed to their last page instead of being cut at the first",
+      "file": "src/pagination.ts",
+      "find": "if (data.has_more !== true) return null;",
+      "replace": "if (true) return null;",
+      "tests": ["tests/native-pagination-continuation.test.ts", "tests/contract-faithful-fakes.test.mjs"]
+    },
+    {
+      "id": "M21-meta-paging-ignored",
+      "guards": "Meta paging.next with cursors.after is followed instead of truncating the collection",
+      "file": "src/pagination.ts",
+      "find": "if (!d.paging?.next) return null; const cursor = d.paging?.cursors?.after;",
+      "replace": "return null; const cursor = d.paging?.cursors?.after;",
+      "tests": ["tests/pagination.test.ts", "tests/contract-faithful-fakes.test.mjs"]
+    },
+    {
+      "id": "M22-granular-window-assumed-complete",
+      "guards": "RPT-02: a detailed source whose window is not declared complete stays partial",
+      "file": "src/overview-granularity.ts",
+      "find": "complete: options.complete_window === true,",
+      "replace": "complete: true,",
+      "tests": ["tests/report-completeness.test.mjs"]
+    },
+    {
+      "id": "M23-provider-double-exponent-refused",
+      "guards": "RPT-01 / D10: provider doubles in exponent form (1e-7) are read exactly, not refused",
+      "file": "src/provider-decimal.ts",
+      "find": "const grammar = /^(\\d+)(?:\\.(\\d+))?(?:[eE]([+-]?\\d{1,3}))?$/;",
+      "replace": "const grammar = /^(\\d+)(?:\\.(\\d+))?()$/;",
+      "tests": ["tests/provider-decimal.test.mjs", "tests/contract-faithful-fakes.test.mjs"]
+    },
+    {
+      "id": "M24-provider-rounding-half-up",
+      "guards": "D10: provider values beyond nine places round half to even, not half up",
+      "file": "src/provider-decimal.ts",
+      "find": "up = twice > unit || (twice === unit && quotient % 2n === 1n);",
+      "replace": "up = twice >= unit;",
+      "tests": ["tests/provider-decimal.test.mjs", "tests/contract-faithful-fakes.test.mjs"]
+    },
+    {
+      "id": "M25-provider-unit-divisor-ignored",
+      "guards": "A provider value in a native unit (micros) is scaled by its divisor before rounding",
+      "file": "src/provider-decimal.ts",
+      "find": "+ (String(divisor).length - 1),",
+      "replace": ",",
+      "tests": ["tests/provider-decimal.test.mjs"]
+    },
+    {
+      "id": "M26-microsoft-verification-without-adtypes",
+      "guards": "PRV-03: Microsoft AddAds and UpdateAds are verified by a GetAdsByIds read that names AdTypes",
+      "file": "src/microsoft-native.ts",
+      "find": "...(kind === 'Campaigns' ? { CampaignType: 'Search' } : kind === 'Ads' ? { AdTypes: ['ResponsiveSearch'] } : {}),",
+      "replace": "...(kind === 'Campaigns' ? { CampaignType: 'Search' } : {}),",
+      "tests": ["tests/microsoft.test.ts", "tests/contract-faithful-fakes.test.mjs"]
+    },
+    {
+      "id": "M27-sheets-resend-inside-settle-window",
+      "guards": "EXP-01 / D11: an unconfirmed Sheets batch is never resent inside its 10-minute settle window",
+      "file": "src/google-sheets.ts",
+      "find": "if (!recovery || remaining > 0) throw new MirrorError('SHEETS_OUTCOME_UNKNOWN'",
+      "replace": "if (!recovery) throw new MirrorError('SHEETS_OUTCOME_UNKNOWN'",
+      "tests": ["tests/sheets-delivery-recovery.test.mjs"]
+    },
+    {
+      "id": "M28-sheets-never-resends",
+      "guards": "EXP-01 liveness: after the settle window the identical batch is resent once and the tab is released",
+      "file": "src/google-sheets.ts",
+      "find": "if (!recovery || remaining > 0) throw new MirrorError('SHEETS_OUTCOME_UNKNOWN'",
+      "replace": "if (true) throw new MirrorError('SHEETS_OUTCOME_UNKNOWN'",
+      "tests": ["tests/sheets-authority.test.mjs"]
+    },
+    {
+      "id": "M29-sheets-older-overwrites-newer",
+      "guards": "EXP-03: an older snapshot never replaces a newer one in a tab; it is reported superseded",
+      "file": "src/google-sheets.ts",
+      "find": "if (d.last_captured_at > report.captured_at) return superseded(d);",
+      "replace": "",
+      "tests": ["tests/sheets-delivery-recovery.test.mjs"]
+    },
+    {
+      "id": "M30-writes-pause-ignored",
+      "guards": "An owner's pause of reviewed writes refuses every execute before anything is sent",
+      "file": "src/owner-operations.ts",
+      "find": "const pause = writePause(store, tenant); if (pause)",
+      "replace": "const pause = writePause(store, tenant); if (false)",
+      "tests": ["tests/write-dispatch-authority.test.mjs", "tests/write-not-sent.test.mjs"]
+    },
+    {
+      "id": "M31-target-lock-wait-skipped",
+      "guards": "WRT-04: a second execute of one target waits for the first (bounded) instead of failing busy at once",
+      "file": "src/write-review.ts",
+      "find": "const deadline = Date.now() + targetWaitMs();",
+      "replace": "const deadline = Date.now();",
+      "tests": ["tests/write-target-serialization.test.mjs"]
+    },
+    {
+      "id": "M32-wire-contract-not-enforced",
+      "guards": "PRV-05: with AMCP_WIRE_CONTRACTS=enforce a write whose body differs from its pinned contract is refused",
+      "file": "src/wire-contracts.ts",
+      "find": "if (mode !== 'enforce' || plan.readOnly || !check) return;",
+      "replace": "return;",
+      "tests": ["tests/wire-contracts.test.mjs"]
+    },
+    {
+      "id": "M33-sheets-schedule-withdrawal-ignored",
+      "guards": "A queued scheduled export stops when its schedule is paused, edited or removed",
+      "file": "src/reporting-overview.ts",
+      "find": "if (!schedule.is_active || (schedule.definition_version ?? 0) !== (r.schedule_version ?? 0)) throw new MirrorError('JOB_CANCELLED'",
+      "replace": "if (false) throw new MirrorError('JOB_CANCELLED'",
+      "tests": ["tests/sheets-authority.test.mjs"]
+    }
+  ]
+}

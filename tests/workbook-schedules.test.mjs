@@ -6,6 +6,7 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {ReportingService} from '../dist/src/reporting.js';
 import {ReportWorker} from '../dist/src/worker.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 function fixture() {
   const actor = {tenantId: 'schedule-operations', userId: 'operator', role: 'operator'};
@@ -167,12 +168,17 @@ test('schedule mutations require confirmation, an operator, valid calendar field
       {schedule: {...args.schedule, schedule_kind: 'weekly', weekday: 7}},
       {schedule: {...args.schedule, query_id: 'other'}},
     ])
-      assert.equal((await f.call({...args, ...invalid})).success, false);
-    assert.equal((await f.call(args, {...f.actor, role: 'reader'})).success, false);
-    assert.equal((await f.call({action: 'report_schedule', id: f.id}, {...f.actor, tenantId: 'other'})).success, false);
+      assertRefused(await f.call({...args, ...invalid}), [
+        'CONFIRMATION_REQUIRED',
+        'INVALID_SCHEDULE',
+        'INVALID_TIMEZONE',
+        'INVALID_ARGUMENT',
+      ]);
+    assertRefused(await f.call(args, {...f.actor, role: 'reader'}), 'FORBIDDEN');
+    assertRefused(await f.call({action: 'report_schedule', id: f.id}, {...f.actor, tenantId: 'other'}), 'NOT_FOUND');
     assert.equal(f.store.document(f.actor.tenantId, 'reporting_schedule', f.id).revision, 1);
     f.store.putConnection({...f.actor, role: 'admin'}, {...f.connection, enabled: false}, {accessToken: 'synthetic'});
-    assert.equal((await f.call(args)).success, false);
+    assertRefused(await f.call(args), 'CONNECTION_REQUIRED');
     assert.deepEqual((await f.call({action: 'operations', kind: 'workbook_schedule'})).data.operations, []);
   } finally {
     f.store.close();
@@ -219,7 +225,7 @@ test('pausing preserves queued work, resuming binds a new creator and a changed 
       name: 'CANARY',
       query_config: {...f.config, account_id: '200'},
     });
-    assert.equal((await f.call({action: 'report_schedule', id: f.id})).success, false);
+    assertRefused(await f.call({action: 'report_schedule', id: f.id}), 'CONNECTION_REQUIRED');
     assert.deepEqual((await f.call({action: 'operations', kind: 'workbook_schedule'})).data.operations, []);
   } finally {
     f.store.close();

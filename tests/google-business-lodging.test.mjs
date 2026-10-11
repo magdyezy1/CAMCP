@@ -6,6 +6,7 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 /**
  * Business Profile lodging facts (Lodging API v1, pinned Discovery document, checked 2026-09-28).
@@ -243,6 +244,29 @@ test('lodging facts are set, a union switched, a list replaced and a fact cleare
     ok(await f.execute(n));
     assert.equal(ok(await f.verify(n)).data.status, 'verified', 'a location without lodging facts gets them');
     assert.equal(f.writes(), 6);
+  } finally {
+    f.store.close();
+  }
+});
+
+// QA-02: this file is the guide's exemplar (docs/ADDING-A-REVIEWED-FAMILY.md), which had no STATE_CHANGED case.
+test('a lodging fact changed in Business Profile between review and execute is STATE_CHANGED naming it; nothing is sent', async () => {
+  const f = fixture();
+  try {
+    const p = ok(await f.prepare({property: {roomsCount: 124}}, 'property.roomsCount'));
+    const lodging = f.lodgings.get('locations/456/lodging');
+    f.lodgings.set('locations/456/lodging', {...lodging, property: {...lodging.property, roomsCount: 99}});
+    const refused = await f.execute(p);
+    assertRefused(refused, 'STATE_CHANGED', {writes: f.writes});
+    assert.ok(
+      refused.error.details.changed_fields.some(field => /roomsCount/.test(field)),
+      JSON.stringify(refused.error.details.changed_fields),
+    );
+    // The way out: a new review of the current facts executes once.
+    const again = ok(await f.prepare({property: {roomsCount: 124}}, 'property.roomsCount'));
+    ok(await f.execute(again));
+    assert.equal(f.writes(), 1);
+    assert.equal(f.lodgings.get('locations/456/lodging').property.roomsCount, 124);
   } finally {
     f.store.close();
   }

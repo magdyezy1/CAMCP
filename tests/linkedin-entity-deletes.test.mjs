@@ -5,6 +5,7 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 /**
  * Batch deletion of LinkedIn campaign groups and creatives ("Create and Manage Campaign Groups", "Create and Manage
@@ -253,8 +254,8 @@ test('an error or partial reply is never resubmitted, an ignored deletion is not
     const e = fixture({mode});
     try {
       const p = ok(await e.prepare('groups', ['801', '802']));
-      assert.equal((await e.execute(p)).success, false, mode);
-      assert.equal((await e.execute(p)).success, false, mode);
+      assertRefused(await e.execute(p), ['UPSTREAM_ERROR', 'WRITE_PARTIAL_OR_FAILED']);
+      assertRefused(await e.execute(p), ['WRITE_OUTCOME_UNCERTAIN', 'WRITE_PARTIAL_OR_FAILED']);
       assert.equal(e.writes(), 1, mode);
     } finally {
       e.store.close();

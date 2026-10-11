@@ -11,6 +11,7 @@ import {gtmWriteActions, gtmWriteScopes} from '../src/measurement-writes.js';
 import {writeOutcome} from '../src/write-outcome.js';
 import {validateState} from '../src/write-state.js';
 import type {Actor, JsonObject, CompiledRequest} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 const registry = new Registry(),
   key = Buffer.alloc(32, 117).toString('base64'),
   actor: Actor = {tenantId: 'test', userId: 'operator', role: 'operator'},
@@ -381,7 +382,7 @@ test('cross-resource and unqualified inputs fail before reads, including nested 
   for (const s of scenarios) {
     const f = fixture(s);
     try {
-      assert.equal((await prepare(f, s)).success, false);
+      assertRefused(await prepare(f, s), ['ACCOUNT_SCOPE_MISMATCH', 'PAUSED_CREATION_REQUIRED', 'INVALID_SITE_URL']);
       assert.equal(f.calls.length, 0);
     } finally {
       f.store.close();
@@ -417,7 +418,7 @@ test('missing target and false provider receipts cannot be reported as success o
       assert.equal(prepared.success, true, JSON.stringify(prepared));
       f.setOutput({unexpected: 'not a receipt'});
       const out = await execute(f, prepared.data);
-      assert.equal(out.success, false);
+      assertRefused(out, 'WRITE_PARTIAL_OR_FAILED');
       assert.equal(out.data.executed, true);
       const count = f.calls.length;
       assert.equal((await execute(f, prepared.data)).data.replayed, true);
@@ -537,7 +538,7 @@ test('provider scope revocation and direct delegated requests cannot bypass muta
         ? {...s.input, arguments: {...s.input.arguments, dry_run: false, confirmed: true}}
         : {...s.input, dry_run: false, confirmed: true};
       const bypass = await f.service.call(s.gateway, direct, actor);
-      assert.equal(bypass.success, false);
+      assertRefused(bypass, ['INVALID_ARGUMENT', 'WRITE_REVIEW_REQUIRED']);
       assert.equal(f.calls.filter(c => c.method !== 'GET').length, 0);
     } finally {
       f.store.close();
@@ -688,7 +689,7 @@ test('permission errors and revoked grants never verify absence after deletion',
       const c = f.store.listConnections(actor.tenantId)[0]!;
       f.store.putConnection(admin, {...c, enabled: false, accounts: [], writeAccounts: []}, {accessToken: 'synthetic'});
       const calls = f.calls.length;
-      assert.equal((await verify(f, p.data)).success, false);
+      assertRefused(await verify(f, p.data), 'CONNECTION_REQUIRED');
       assert.equal(f.calls.length, calls);
     } finally {
       f.store.close();

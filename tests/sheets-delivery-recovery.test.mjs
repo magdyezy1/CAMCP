@@ -14,6 +14,7 @@ import {ReportWorker} from '../dist/src/worker.js';
 import {MirrorError} from '../dist/src/errors.js';
 import {readFileSync} from 'node:fs';
 import {Script, createContext} from 'node:vm';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 const realNow = Date.now;
 const SETTLE = sheetsDeliveryLimits.settle_ms;
@@ -231,7 +232,10 @@ for (const mode of ['500', 'timeout', 'reset'])
         const r1 = f.report('r1', 100),
           r2 = f.report('r2', 200);
         f.google.plan.push(mode);
-        await assert.rejects(() => f.sheets.write(f.actor, 'dest', r1));
+        await assert.rejects(
+          () => f.sheets.write(f.actor, 'dest', r1),
+          e => assertRefused(e, ['SHEETS_REQUEST_FAILED', 'SHEETS_OUTCOME_UNKNOWN']),
+        );
         assert.equal(f.delivery('r1').state, 'uncertain');
         // The stuck state: polling inside the settle window rereads the marker and never resends.
         for (let i = 0; i < 3; i++) {
@@ -372,7 +376,7 @@ test('Sheets resolve_delivery check, resend and abandon are audited and refused 
       const r1 = f.report('r1', 100),
         r2 = f.report('r2', 200);
       f.google.plan.push('500');
-      await assert.rejects(() => f.sheets.write(f.actor, 'dest', r1));
+      await assert.rejects(() => f.sheets.write(f.actor, 'dest', r1), {code: 'SHEETS_REQUEST_FAILED'});
       const resolve = resolution =>
         f.overview.handle({action: 'resolve_delivery', destination_id: 'dest', resolution, confirmed: true}, f.actor);
       // The bootstrap names the blocked tab and when recovery becomes available.
@@ -438,7 +442,9 @@ test('Sheets operator resend runs the identical batch through the export job aft
         f.actor,
       );
       f.google.plan.push('reset');
-      await assert.rejects(() => f.overview.work('t', 'sheets_export', {report_id: 'r1', export_id: exported.id}));
+      await assert.rejects(() => f.overview.work('t', 'sheets_export', {report_id: 'r1', export_id: exported.id}), {
+        code: 'SHEETS_OUTCOME_UNKNOWN',
+      });
       assert.equal(f.delivery('r1').state, 'uncertain');
       advance(SETTLE + 1000);
       const queued = await f.overview.handle(
@@ -471,7 +477,7 @@ test('Sheets marker continuity records a released batch that landed after a newe
         r3 = f.report('r3', 300);
       await f.sheets.write(f.actor, 'dest', r1);
       f.google.plan.push('timeout');
-      await assert.rejects(() => f.sheets.write(f.actor, 'dest', r2));
+      await assert.rejects(() => f.sheets.write(f.actor, 'dest', r2), {code: 'SHEETS_OUTCOME_UNKNOWN'});
       advance(SETTLE + 1000);
       await f.overview.handle(
         {action: 'resolve_delivery', destination_id: 'dest', resolution: 'abandon', confirmed: true},
@@ -588,7 +594,9 @@ test('Retention keeps a snapshot whose Sheets delivery is unconfirmed and deleti
       });
       f.store.putDocument('t', 'retention_policy', 'reports', {days: 7});
       f.google.plan.push('500');
-      await assert.rejects(() => f.sheets.write(f.actor, 'dest', f.store.document('t', 'overview_report', 'r1')));
+      await assert.rejects(() => f.sheets.write(f.actor, 'dest', f.store.document('t', 'overview_report', 'r1')), {
+        code: 'SHEETS_REQUEST_FAILED',
+      });
       cleanupReports(f.store);
       assert.equal(
         f.store.document('t', 'overview_report', 'r1').id,
@@ -634,7 +642,7 @@ test('Sheets recovery rollback switch keeps an unconfirmed delivery polling with
     await withClock(realNow(), async advance => {
       const r1 = f.report('r1', 100);
       f.google.plan.push('500');
-      await assert.rejects(() => f.sheets.write(f.actor, 'dest', r1));
+      await assert.rejects(() => f.sheets.write(f.actor, 'dest', r1), {code: 'SHEETS_REQUEST_FAILED'});
       advance(SETTLE * 3);
       await assert.rejects(() => f.sheets.write(f.actor, 'dest', r1), {code: 'SHEETS_OUTCOME_UNKNOWN'});
       await assert.rejects(
@@ -715,13 +723,33 @@ test('an older snapshot is superseded, not blocked, while a newer delivery to it
     const r1 = f.report('r1', 100),
       r2 = f.report('r2', 200);
     f.google.plan.push('500');
-    await assert.rejects(() => f.sheets.write(f.actor, 'dest', r2));
+    await assert.rejects(() => f.sheets.write(f.actor, 'dest', r2), {code: 'SHEETS_REQUEST_FAILED'});
     assert.equal(f.delivery('r2').state, 'uncertain');
     const older = await f.sheets.write(f.actor, 'dest', r1);
     assert.equal(older.state, 'superseded');
     assert.equal(older.newer_report_id, 'r2');
     assert.equal(older.newer_captured_at, 200);
     assert.equal(f.google.log.writes, 1, 'the older snapshot sends nothing');
+  } finally {
+    f.store.close();
+  }
+});
+
+// QA-02 (mutant M29): only the destination's own record guards this case. The tab's marker is the newer report's,
+// so no later check notices an older snapshot; without the record check it overwrote the newer data.
+test('an older snapshot exported after a newer delivery completed is superseded and writes nothing (EXP-03)', async () => {
+  const f = fixture();
+  try {
+    const r1 = f.report('r1', 100),
+      r2 = f.report('r2', 200);
+    await f.sheets.write(f.actor, 'dest', r2);
+    assert.equal(f.delivery('r2').state, 'complete');
+    const writes = f.google.log.writes;
+    const older = await f.sheets.write(f.actor, 'dest', r1);
+    assert.equal(older.state, 'superseded');
+    assert.equal(older.newer_report_id, 'r2');
+    assert.equal(f.google.log.writes, writes, 'the older snapshot sends nothing');
+    assert.equal(f.store.document('t', 'sheets_destination', 'dest').last_report_id, 'r2');
   } finally {
     f.store.close();
   }
@@ -817,7 +845,7 @@ test('a refused report deletion releases no unconfirmed Sheets delivery', async 
     await withClock(realNow(), async advance => {
       const r1 = f.report('r1', 100);
       f.google.plan.push('500');
-      await assert.rejects(() => f.sheets.write(f.actor, 'dest', r1));
+      await assert.rejects(() => f.sheets.write(f.actor, 'dest', r1), {code: 'SHEETS_REQUEST_FAILED'});
       advance(SETTLE + 1000);
       const remove = f.overview.library.delete;
       f.overview.library.delete = () => {
@@ -846,7 +874,7 @@ test('AMCP_SHEETS_AUTO_RESEND=off waits for the operator resend after the settle
     await withClock(realNow(), async advance => {
       const r1 = f.report('r1', 100);
       f.google.plan.push('timeout');
-      await assert.rejects(() => f.sheets.write(f.actor, 'dest', r1));
+      await assert.rejects(() => f.sheets.write(f.actor, 'dest', r1), {code: 'SHEETS_OUTCOME_UNKNOWN'});
       advance(SETTLE + 1000);
       await assert.rejects(
         () => f.sheets.write(f.actor, 'dest', r1),

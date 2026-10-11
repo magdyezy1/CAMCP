@@ -4,6 +4,7 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 function fixture(t) {
   const actor = {tenantId: 'binding-workspace', userId: 'member', role: 'operator'};
@@ -122,7 +123,7 @@ test('reviewed binding names save only the displayed local metadata, retaining s
   assert.equal(preview.success, true, JSON.stringify(preview));
   assert.equal(preview.data.changes[0].before, original.spreadsheet_name);
   assert.equal(f.store.document(f.actor.tenantId, 'workbook', 'b-allowed').revision, original.revision);
-  assert.equal((await f.call({action: 'save_report_binding', ...args})).success, false);
+  assertRefused(await f.call({action: 'save_report_binding', ...args}), 'CONFIRMATION_REQUIRED');
   const saved = await f.call({action: 'save_report_binding', ...args, confirmed: true});
   assert.equal(saved.success, true, JSON.stringify(saved));
   const row = f.store.document(f.actor.tenantId, 'workbook', 'b-allowed');
@@ -151,10 +152,10 @@ test('binding edits require the current binding and query membership revisions a
   assert.equal((await f.call(args)).error.code, 'STALE_REPORT_BINDING');
   args.binding_version = (await f.get()).data.binding_version;
   f.query('new-query', 'b-allowed', '200');
-  assert.equal((await f.call(args)).success, false);
-  assert.equal((await f.get()).success, false);
+  assertRefused(await f.call(args), 'CONNECTION_REQUIRED');
+  assertRefused(await f.get(), 'CONNECTION_REQUIRED');
   assert.equal(f.store.document(f.actor.tenantId, 'workbook', 'b-allowed').spreadsheet_name, 'Book b-allowed');
-  assert.equal((await f.call({...args, id: 'b-allowed'}, {...f.actor, tenantId: 'other'})).success, false);
+  assertRefused(await f.call({...args, id: 'b-allowed'}, {...f.actor, tenantId: 'other'}), 'NOT_FOUND');
   assert.equal(f.network(), 0);
 });
 
@@ -175,13 +176,13 @@ test('binding changes reject reader writes, unexpected fields, malformed names a
     {spreadsheet_name: 'Good', spreadsheet_id: 'other'},
     {spreadsheet_name: 'Good', local_config: {password: 'never'}},
   ])
-    assert.equal((await f.call({...args, binding})).success, false);
+    assertRefused(await f.call({...args, binding}), 'INVALID_ARGUMENT');
   assert.equal(
     (await f.call({...args, binding: {spreadsheet_name: 'Good'}}, {...f.actor, role: 'reader'})).success,
     false,
   );
   for (const input of [{limit: 0}, {offset: -1}, {search: 'x'.repeat(201)}])
-    assert.equal((await f.call({action: 'report_bindings', ...input})).success, false);
+    assertRefused(await f.call({action: 'report_bindings', ...input}), 'INVALID_ARGUMENT');
   assert.equal(f.store.document(f.actor.tenantId, 'workbook', 'b-allowed').revision, 1);
 });
 
@@ -189,14 +190,14 @@ test('empty workbook setup remains creator/admin-only and oversized legacy recor
   const f = fixture(t);
   const own = await f.call({action: 'report_binding', id: 'c-empty'});
   assert.equal(own.success, true, JSON.stringify(own));
-  assert.equal((await f.call({action: 'report_binding', id: 'd-foreign-empty'})).success, false);
+  assertRefused(await f.call({action: 'report_binding', id: 'd-foreign-empty'}), 'REPORT_BINDING_ACCESS_REQUIRED');
   assert.equal(
     (await f.call({action: 'report_binding', id: 'd-foreign-empty'}, {...f.actor, role: 'admin'})).success,
     true,
   );
   const row = f.store.document(f.actor.tenantId, 'workbook', 'c-empty');
   f.store.putDocument(f.actor.tenantId, 'workbook', 'c-empty', {...row, padding: 'x'.repeat(70000)});
-  assert.equal((await f.call({action: 'report_binding', id: 'c-empty'})).success, false);
+  assertRefused(await f.call({action: 'report_binding', id: 'c-empty'}), 'REPORT_BINDING_TOO_LARGE');
   const list = await f.call({action: 'report_bindings'});
   assert.equal(list.success, true, JSON.stringify(list));
   assert.deepEqual(

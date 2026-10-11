@@ -8,6 +8,7 @@ import {saveSpendPolicy} from '../src/spend-policy.js';
 import {appleActions} from '../src/apple-native.js';
 import {appleModelEvidence} from '../src/apple-entity-writes.js';
 import type {JsonObject} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 
 const gateway = 'apple_ads_native_action',
   registry = new Registry(),
@@ -346,7 +347,7 @@ test('native schemas reject unknown fields, bad enums, IDs, money, parents and u
     const f = fixture(row);
     try {
       const p = await f.prepare('create', payload);
-      assert.equal(p.success, false, JSON.stringify(payload));
+      assertRefused(p, ['PAUSED_CREATION_REQUIRED', 'INVALID_APPLE_REQUEST']);
       assert.equal(f.calls.length, 0);
     } finally {
       f.store.close();
@@ -362,7 +363,7 @@ test('updates cannot reparent an ad, creative, keyword or ad group', async () =>
   ] as [Scenario, JsonObject][]) {
     const f = fixture(row);
     try {
-      assert.equal((await f.prepare('update', fields)).success, false);
+      assertRefused(await f.prepare('update', fields), 'INVALID_APPLE_REQUEST');
       assert.equal(f.calls.length, 0);
     } finally {
       f.store.close();

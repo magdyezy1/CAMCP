@@ -5,6 +5,7 @@ import {Store} from '../src/store.js';
 import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import type {JsonObject} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 const registry = new Registry(),
   actor = {tenantId: 'targeting', userId: 'u', role: 'operator' as const},
   admin = {...actor, role: 'admin' as const},
@@ -241,7 +242,8 @@ test('Google targeting rejects invalid identities, cross-account parents, unsafe
         {update: {resourceName: name('adGroupCriteria', '100~200'), cpcBidMicros: 123}, updateMask: 'cpcBidMicros'},
       ],
     ];
-    for (const [kind, op] of cases) assert.equal((await x.prepare(kind, [op])).success, false, JSON.stringify(op));
+    for (const [kind, op] of cases)
+      assertRefused(await x.prepare(kind, [op]), ['INVALID_TARGETING_MUTATION', 'INVALID_VENDOR_BODY']);
     assert.equal(x.reads(), 0);
     assert.equal(x.writes(), 0);
   } finally {

@@ -308,6 +308,14 @@ test('SQLite contention becomes DATABASE_BUSY, never retryable as a write; other
     const before = f.logs.length;
     assert.equal((await f.service.call('amcp_workspace', {action: 'unsupported'}, owner)).success, false);
     assert.equal(f.logs.length, before);
+    // QA-02 exit: once the contention clears, the same owner action saves once; nothing was half-applied before.
+    const retried = await f.service.call(
+      'amcp_workspace',
+      {action: 'pause_writes', reason: 'synthetic contention drill', confirmed: true},
+      owner,
+    );
+    assert.equal(retried.success, true, JSON.stringify(retried));
+    assert.equal(f.store.documents(owner.tenantId, 'write_pause').length, 1);
   } finally {
     f.store.close();
     db.remove();

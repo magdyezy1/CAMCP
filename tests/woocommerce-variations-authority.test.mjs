@@ -1,10 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {wooVariationsFixture, wooVariationInput} from './fixtures/woocommerce-variations-data.mjs';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 const run = (f, actor = f.actor) => f.service.call('amcp_workspace', wooVariationInput(), actor);
 const hidden = out => {
-  assert.equal(out.success, false);
+  assertRefused(out, [
+    'WOOCOMMERCE_SOURCE_CHANGED',
+    'CONNECTION_REQUIRED',
+    'UNAUTHORIZED',
+    'WOOCOMMERCE_SOURCE_INCOMPLETE',
+    'WOOCOMMERCE_SOURCE_UNAVAILABLE',
+  ]);
   assert.equal(out.data, undefined);
   assert.doesNotMatch(JSON.stringify(out), /VAR-001|GROUP-001|syntheticsecret|newsecret|PRIVATE-WOO/);
 };

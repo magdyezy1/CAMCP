@@ -6,6 +6,7 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 /**
  * Deleting Snapchat audience segments (Marketing API "Delete a Segment", checked 2026-09-27): segments listed from the
@@ -157,7 +158,7 @@ test('segments that ad squads include or exclude are refused; unlisted and unkno
     assert.equal(used.error?.code, 'AUDIENCE_IN_USE');
     assert.match(used.error?.message ?? '', /sq1/);
     assert.match((await f.prepare('seg3', actions[1])).error?.message ?? '', /sq2/);
-    assert.equal((await f.prepare('seg9')).success, false);
+    assertRefused(await f.prepare('seg9'), 'RESOURCE_SCOPE_REQUIRED');
     assert.equal(f.writes(), 0);
   } finally {
     f.store.close();
@@ -177,8 +178,8 @@ test('an error reply is never resubmitted, an ignored deletion is not verified, 
   try {
     ok(await e.discover());
     const p = ok(await e.prepare('seg1'));
-    assert.equal((await e.execute(p)).success, false);
-    assert.equal((await e.execute(p)).success, false);
+    assertRefused(await e.execute(p), 'PLATFORM_ERROR');
+    assertRefused(await e.execute(p), 'WRITE_OUTCOME_UNCERTAIN');
     assert.equal(e.writes(), 1);
   } finally {
     e.store.close();
