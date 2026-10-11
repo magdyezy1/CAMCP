@@ -104,11 +104,42 @@ registration limit for up to a day; metadata-document clients and existing conne
 stay English, as the existing OAuth descriptions are; no AMCP page displays them, and an AI client that shows one shows
 it as received.
 
+Also applied in waves 1 and 2 (recorded 2026-10-11 at the wave 2 gate; the parts of P5, P6, P7 and P9 that the code
+cites as owner decisions, each the review's recommended or the ticket's proposed option; the owner may revise them):
+
+- **P5.** The 5-minute review window stays until the friction baseline is read (WRT-05). A spending cap may carry an
+  ISO currency: a cap in another currency than the account's is `POLICY_CURRENCY_MISMATCH` (asked under `confirm`,
+  refused under `block`, never converted), and a cap saved without one is compared as before while the owner is
+  warned (`POLICY_CURRENCY_UNSET`) (WRT-07). A negative-only Google targeting create needs no spend acknowledgement, and removing an exclusion
+  counts as activation (`AMCP_GOOGLE_NARROWING_EXEMPT=false` restores the prompt; WRT-07). Standalone `amcp_write`
+  reviews are retained work with a status read and read-only reconciliation (WRT-08). Disclosure only stays
+  implemented: the opt-in `destructive_confirmed` tier, owner-only execution of over-cap reviews under `confirm` and
+  the WRT-09 approval mode are not decided.
+- **P6.** Proposals (1) to (8): rolling windows can resolve per source in the account time zone (opt-in
+  `date_range.source_timezone: "account"`), declared-incomplete detail sources keep a snapshot partial and hold its
+  recommendations, and GA4 `(not set)` and Search Console top-row coverage are scope limits (RPT-02); recommendations
+  are frozen with an as-of label (DEC-01); a Meta action absent from a delivered row counts as 0 with
+  `provider_omitted`, and Microsoft totals use the account time zone (RPT-04); daily collection uses natively segmented
+  requests (RPT-03); schedule times show the delivery time zone first, then the viewer's (EXP-04). An open snapshot is
+  addressable with `?report_id=` under the same authorization as any load (RPT-05). Still open: whether a Sheets
+  destination belongs to a report or a client, whether complete-only gates a manual export, after how many failures a
+  schedule pauses, whether workbook schedules stay or move into Overview (EXP-04's second phase waits for it), period
+  comparison, the decision-grade metric set, the DEC-02 outcome window and causal experiments.
+- **P7.** The Microsoft Search pack is labelled "Draft only: set locations in Microsoft before activation", and
+  activation without a positive location criterion is refused with `LOCATION_CRITERIA_REQUIRED` until AMCP can read
+  location criteria (CMP-03). UTM parameters versus tracking-suffix fields, mandatory conventions, the next launch
+  packs and the PRV-06 order are not decided.
+- **P9.** A Meta product's populated destination-only attributes are notes (`unsent_fields`); they never put the item
+  in the review set as `unknown` (COM-01). The Business Profile and Amazon Ads parts are recorded above.
+
+P8 stays open: the Meta dataset, Search Console and Adjust are not in Measurement, and the measurement ledger has
+Google Ads and GA4 adapters only ([product workflows](PRODUCT-WORKFLOWS.md)).
+
 Not decided in this round: the review's resource and authorization requests R1–R8 (test accounts, named reads, a
 disposable Sheets destination, declared provider approvals, LinkedIn programs and DV360, reviewers, a staging
-environment, the workload profile) and the product-direction questions P1–P9 (except the parts of P4 and P9 above),
-P11 and P12. Each register item that needs one of them stays at the stage the review names, and live acceptance stays
-read-only until R1 is answered.
+environment, the workload profile), the product-direction questions P1, P8, P11 and P12, and the parts of P2–P7 and
+P9 that this record does not name as applied. Each register item that needs one of them stays at the stage the review
+names, and live acceptance stays read-only until R1 is answered.
 
 ## October 2026: earlier owner decisions
 
