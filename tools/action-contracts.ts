@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import {Registry} from '../src/catalog.js';
 import {actionContracts, actionContractSummary} from '../src/action-contracts.js';
+import {acceptanceLayers} from '../src/acceptance-ledger.js';
 import {vendorContractInventory} from './vendor-contract-inventory.js';
 import {withContractsGuide} from '../src/first-party-contracts.js';
 import {workspaceTool} from '../src/workspace.js';
@@ -19,6 +20,8 @@ const artifact = {
     'All local catalog actions, supplemental mappings, independent extensions and delegated action enums. No claim of complete provider APIs or live execution.',
   classification: 'Shared with the execution route gate; exact-payload validation remains mandatory.',
   summary,
+  // Counts per evidence layer, from the provider acceptance ledger for the accepted layers (ACC-05).
+  acceptance_layers: acceptanceLayers(rows),
   actions: rows,
 };
 const json = JSON.stringify(artifact, null, 2) + '\n';
@@ -37,24 +40,17 @@ const columns = [
   'source',
   'tests',
   'live_qualification',
+  // The provider acceptance ledger's status for the current contract (ACC-05): unverified, read_accepted,
+  // write_accepted, refused or stale.
+  'acceptance',
 ];
+const cell = (r: any, k: string) =>
+  k === 'acceptance' ? (r.acceptance?.status ?? 'unverified') : Array.isArray(r[k]) ? r[k].join(';') : (r[k] ?? '');
 // Match .gitattributes so a clean checkout passes the same exact-content check on every OS.
 const csv =
   [
     columns.join(','),
-    ...rows.map(r =>
-      columns
-        .map(
-          k =>
-            '"' +
-            String(Array.isArray((r as any)[k]) ? (r as any)[k].join(';') : ((r as any)[k] ?? '')).replaceAll(
-              '"',
-              '""',
-            ) +
-            '"',
-        )
-        .join(','),
-    ),
+    ...rows.map(r => columns.map(k => '"' + String(cell(r, k)).replaceAll('"', '""') + '"').join(',')),
   ].join('\n') + '\n';
 const vendor = vendorContractInventory(rows);
 // The AMCP tools' action reference in the workspace guide, generated from their per-action contracts (MCP-07).

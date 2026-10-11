@@ -34,6 +34,14 @@ import type {Action, CompiledRequest, JsonObject} from './types.js';
 import {reviewedFamilyFiles} from './reviewed-families.js';
 import {googleAdsCustomers} from './google-version.js';
 import {personalDataRead, personalDataReadReason} from './personal-data.js';
+import {
+  acceptanceLayers,
+  acceptanceMeaning,
+  contractAcceptance,
+  liveQualification,
+  type ContractAcceptance,
+  type LiveQualification,
+} from './acceptance-ledger.js';
 
 export type ContractStatus =
   | 'native_read'
@@ -59,7 +67,10 @@ export interface ActionContract {
   reason: string;
   source: string;
   tests: string[];
-  live_qualification: 'unverified';
+  /** unverified unless the provider acceptance ledger accepted this action's current contract (ACC-05). */
+  live_qualification: LiveQualification;
+  /** Present when the ledger has a row for this action (accepted, refused or stale); absent means unverified. */
+  acceptance?: ContractAcceptance;
 }
 const familyFiles: Record<string, [string, string[]]> = {
   google_entities: ['src/write-review.ts', ['tests/write-review.test.ts', 'tests/review-envelopes.test.ts']],
@@ -529,6 +540,12 @@ export function actionContracts(registry: Registry): ActionContract[] {
       .join('/')
       .localeCompare([b.gateway, b.operation ?? '', b.action].join('/'), 'en'),
   );
+  // Live qualification is the provider acceptance ledger's to state, and only for the current contract (ACC-05).
+  for (const row of rows) {
+    const acceptance = contractAcceptance(row);
+    row.live_qualification = liveQualification(acceptance);
+    if (acceptance.status !== 'unverified') row.acceptance = acceptance;
+  }
   cache.set(registry, rows);
   return rows;
 }
@@ -590,7 +607,12 @@ export function actionContractPage(registry: Registry, input: JsonObject) {
     offset,
     limit,
     has_more: offset + limit < rows.length,
-    actions: rows.slice(offset, offset + limit),
+    // Every row states its acceptance {status, scope, checked_at}; the layers count the whole filtered set (ACC-05).
+    actions: rows
+      .slice(offset, offset + limit)
+      .map(r => ({...r, acceptance: r.acceptance ?? {status: 'unverified' as const}})),
+    acceptance_layers: acceptanceLayers(rows),
+    acceptance_meaning: acceptanceMeaning,
     meaning:
       'Complete local action/enum inventory, not complete vendor API coverage or live qualification. Route membership is conditional on exact-payload inspect, permissions, server-read review and provider validation.',
     next_step:

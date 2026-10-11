@@ -251,6 +251,15 @@
       "live_qualification": "unverified"
     }
   ],
+  "acceptance_layers": {
+    "catalog": 3247,
+    "pinned": 3145,
+    "locally_qualified": 2615,
+    "read_accepted": 0,
+    "write_accepted": 0,
+    "refused": 0,
+    "stale": 0
+  },
   "actions": [
     {
       "gateway": "adjust_native_action",
