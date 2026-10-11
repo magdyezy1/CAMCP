@@ -93,6 +93,17 @@ account and ends the fallback; after the release, sync each existing Google Ads 
 a route map refuses an unmapped account with `GOOGLE_LOGIN_CUSTOMER_UNMAPPED`, and an operator-provisioned login keeps
 its own login customer (it is never replaced from the environment).
 
+MCP-03, recorded 2026-10-11: `AMCP_MCP_MODERN_PROTOCOL` stays `off` by default. `next` serves MCP 2026-07-28 at
+`/mcp/next` for the ACC-02 client checks; `on` waits for that ACC-02 evidence (each must-pass client connects through
+`/mcp/next`). `server/mcp-modern.ts` frames 2026-07-28 by hand and is interim: it is to be replaced by the SDK's v2
+`createMcpHandler` once a v2 dependency is approved ([OAuth hardening](OAUTH-HARDENING.md), "Still open"). Accepted
+residual: the per-address registration key is one IPv6 /64, so a sender with many addresses can hold the daily
+registration limit for up to a day; metadata-document clients and existing connections are unaffected
+([threat model](review/THREAT-MODEL.md), T9). OAuth `error_description` sentences from `/authorize`, `/register`,
+`/token` and `/revoke` (including the two registration-limit sentences) are protocol output for OAuth clients and
+stay English, as the existing OAuth descriptions are; no AMCP page displays them, and an AI client that shows one shows
+it as received.
+
 Not decided in this round: the review's resource and authorization requests R1–R8 (test accounts, named reads, a
 disposable Sheets destination, declared provider approvals, LinkedIn programs and DV360, reviewers, a staging
 environment, the workload profile) and the product-direction questions P1–P9 (except the parts of P4 and P9 above),
