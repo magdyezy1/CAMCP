@@ -277,11 +277,20 @@ test('Google amounts are refused at prepare when the currency cannot be charged 
     () => campaignRecipe('google_search', {...business, currency: 'JPY', daily_budget: '500.5', cpc_bid: '100'}),
     e => e.code === 'INVALID_RECIPE_MONEY' && e.details.field === 'daily budget',
   );
-  const plan = campaignRecipe('google_search', {...business, currency: 'JPY', daily_budget: '500', cpc_bid: '100'});
+  // Per-resource steps (atomic: false) and the default all-or-nothing build (CMP-04) carry the same exact micros.
+  const plan = campaignRecipe('google_search', {
+    ...business,
+    atomic: false,
+    currency: 'JPY',
+    daily_budget: '500',
+    cpc_bid: '100',
+  });
   assert.equal(
     plan.steps.find(s => s.id === 'budget').arguments.payload.operations[0].create.amount_micros,
     '500000000',
   );
+  const build = campaignRecipe('google_search', {...business, currency: 'JPY', daily_budget: '500', cpc_bid: '100'});
+  assert.match(JSON.stringify(build.steps), /"amount_micros":"500000000"/);
 });
 
 test('review summaries show an amount with the account currency’s own places: 500 JPY (500000000 micros)', () => {

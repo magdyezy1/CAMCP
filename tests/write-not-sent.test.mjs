@@ -183,7 +183,7 @@ test('a Google per-service refusal with its error body is rejected: retired key,
     f.hooks.respond = () =>
       Response.json({error: {code: 400, message: 'Synthetic', status: 'INVALID_ARGUMENT'}}, {status: 400});
     const failed = await f.execute(id);
-    assert.equal(failed.success, false);
+    assert.equal(failed.error.code, 'UPSTREAM_ERROR');
     assert.equal(f.writes.length, 1);
     assert.equal(failed.error.details?.submission, 'rejected');
     assert.equal(failed.error.details?.key_retired, true);

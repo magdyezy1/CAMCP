@@ -163,8 +163,12 @@ test('(d) a 5xx after submission stays uncertain: no recovery, no absence probe 
   assert.equal(claimState(f, step.review_id).state, 'uncertain');
   // A 5xx may have reached the provider: its reservation stays taken.
   assert.equal(reservations(f, step.review_id), 1);
+  // The only next call is WRT-08's read-only reconciliation of that review: never a recovery, probe or resend.
   const blocked = await f.call({action: 'prepare_next', id});
-  assert.equal(blocked.data.next_call, null);
+  assert.deepEqual(blocked.data.next_call, {
+    tool: 'amcp_write',
+    arguments: {action: 'reconcile', review_id: step.review_id},
+  });
   for (const action of ['recover_step', 'confirm_absent']) {
     const refused = await f.call({action, id, step_id: 'budget', confirmed: true, arguments: {}});
     assert.equal(refused.error?.code, 'RECOVERY_NOT_SAFE', JSON.stringify(refused));

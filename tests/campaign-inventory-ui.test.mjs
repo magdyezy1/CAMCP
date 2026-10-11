@@ -198,8 +198,10 @@ test('a plan is archived, shared and unarchived from the website through the rea
   }
 });
 
-test('Home lists the plans the bounded dashboard returns as needing attention, including the attention state', () => {
+test('Home lists the plans needing attention, including the attention state, beside the bounded recent plans', () => {
   // Before CMP-05 Home filtered every plan for older record states and never showed a plan in the attention state.
+  // With OPS-06 the attention list is the Operations feed's own classification (state attention); the bounded
+  // dashboard plans feed Continue recent work.
   const context = createContext({
     Intl,
     document: {addEventListener() {}, querySelector: () => null, querySelectorAll: () => []},
@@ -220,11 +222,28 @@ test('Home lists the plans the bounded dashboard returns as needing attention, i
     ],
     writes_paused: null,
   };
-  const html = new Script('workHome(data,[{}])').runInContext(context),
+  // What amcp_workspace operations {state: 'attention'} returns for these plans: the attention and awaiting-review
+  // plans, never the draft.
+  context.feed = {
+    operations: [
+      {kind: 'campaign', id: 'stuck', name: 'Stuck launch', state: 'attention', website_path: '/campaigns?id=stuck'},
+      {
+        kind: 'campaign',
+        id: 'waiting',
+        name: 'Waiting launch',
+        state: 'awaiting_review',
+        website_path: '/campaigns?id=waiting',
+      },
+    ],
+    has_more: false,
+  };
+  const html = new Script('workHome(data,[{}],feed)').runInContext(context),
     attention = html.slice(html.indexOf('Needs attention'), html.indexOf('Continue recent work'));
   assert.match(attention, /campaigns\?id=stuck/);
   assert.match(attention, /campaigns\?id=waiting/);
   assert.doesNotMatch(attention, /campaigns\?id=drafted/);
+  // The draft is still one click away under recent work.
+  assert.match(html.slice(html.indexOf('Continue recent work')), /campaigns\?id=drafted/);
 });
 
 test('with a distinct-approver policy, Review whole plan offers sharing instead of the approval form', async () => {
