@@ -94,14 +94,18 @@ test('Meta offsets are Meta’s own, not ISO 4217: zero-decimal, two-decimal and
   // decimals), BHD and JOD in hundredths (ISO: 3).
   for (const code of ['IDR', 'COP', 'HUF', 'TWD', 'CRC']) assert.equal(metaCurrencyOffset(code), 1, code);
   for (const code of ['BHD', 'JOD']) assert.equal(metaCurrencyOffset(code), 100, code);
-  // Not on Meta's page: no offset, never a guess from ISO (KWD would be 1000 there).
-  for (const code of ['KWD', 'OMR', 'IQD', 'MAD', 'usd', 'XXX'])
+  // Not on Meta's page: no offset, never a guess from ISO (KWD would be 1000 there). Nor an inherited property name.
+  for (const code of ['KWD', 'OMR', 'IQD', 'MAD', 'usd', 'XXX', 'constructor', '__proto__', 'toString'])
     assert.equal(metaCurrencyOffset(code), undefined, code);
   assert.equal(nativeAmount(meta, 100, 'USD'), 10000);
   assert.equal(nativeAmount(meta, 100, 'JPY'), 100);
   assert.equal(nativeAmount(meta, 250.5, 'SAR'), 25050);
+  assert.equal(nativeAmount(meta, 100000, 'IDR'), 100000);
+  assert.equal(nativeAmount(meta, 100, 'BHD'), 10000);
   assert.equal(nativeAmount(meta, 100, 'KWD'), undefined);
   assert.equal(nativeAmount(meta, 100, undefined), undefined);
+  // Another platform's documented unit is unaffected by the Meta table.
+  assert.equal(nativeAmount('google_ads_native_action', 100, 'JPY'), 100000000);
 });
 
 test('a Meta cap in USD is saved as 10000 native and refuses a larger daily budget; JPY as 100', () => {
@@ -136,8 +140,36 @@ test('a Meta cap in USD is saved as 10000 native and refuses a larger daily budg
     assert.throws(() => checkSpendPolicy(yen, actor, metaCampaign('150'), accountState('JPY')), {
       code: 'POLICY_BUDGET_LIMIT',
     });
+    // Where Meta's table differs from ISO 4217 it wins: IDR is counted in whole units (ISO: 2 decimals).
+    const idr = savePolicy(yen, {enforcement: 'block', max_budget_currency: 150000, currency: 'IDR'});
+    assert.equal(idr.max_budget_native, 150000);
+    assert.equal(idr.native_unit.unit, 'whole IDR');
   } finally {
     yen.close();
+  }
+});
+
+test('under confirm, a Meta currency cap asks rather than refuses for another or an unknown account currency', () => {
+  setMetaCurrencyOffsetsForTest(undefined);
+  const s = store();
+  try {
+    savePolicy(s, {enforcement: 'confirm', max_budget_currency: 100, currency: 'SAR'});
+    // Within the converted cap in the same currency: nothing to confirm.
+    assert.equal(checkSpendPolicy(s, actor, metaCampaign('10000'), accountState('SAR')).exceeded, undefined);
+    // Over the converted cap (100 SAR is 10000): asked, with the native cap named.
+    const over = checkSpendPolicy(s, actor, metaCampaign('10001'), accountState('SAR')).exceeded;
+    assert.deepEqual(
+      over.map(x => [x.rule, x.limit]),
+      [['POLICY_BUDGET_LIMIT', 10000]],
+    );
+    // Another currency is never converted: the user is asked about the mismatch.
+    const other = checkSpendPolicy(s, actor, metaCampaign('500'), accountState('AED')).exceeded;
+    assert.ok(other.some(x => x.rule === 'POLICY_CURRENCY_MISMATCH' && x.account_currency === 'AED'));
+    // A review state without the account currency, and no recorded live check: unknown, asked as well.
+    const unknown = checkSpendPolicy(s, actor, metaCampaign('500'), [{id: account, name: 'Synthetic'}]).exceeded;
+    assert.ok(unknown.some(x => x.rule === 'POLICY_CURRENCY_UNKNOWN' && x.policy_currency === 'SAR'));
+  } finally {
+    s.close();
   }
 });
 
@@ -145,13 +177,21 @@ test('a Meta cap in a currency the capture does not list, or with no currency, i
   setMetaCurrencyOffsetsForTest(undefined);
   const s = store();
   try {
-    const refusedForMeta = e =>
-      e.code === 'INVALID_POLICY' && /pinned capture of Meta/.test(e.message) && e.details.gateway === meta;
-    assert.throws(() => savePolicy(s, {max_budget_currency: 100, currency: 'KWD'}), refusedForMeta);
-    assert.throws(() => savePolicy(s, {max_budget_currency: 100}), refusedForMeta);
+    const refusedForMeta =
+      (currency = null) =>
+      e =>
+        e.code === 'INVALID_POLICY' &&
+        /pinned capture of Meta/.test(e.message) &&
+        e.details.gateway === meta &&
+        e.details.native_field === 'max_budget_native' &&
+        // The refusal names the currency it looked up, so a caller sees why (WRT-07).
+        e.details.currency === currency;
+    assert.throws(() => savePolicy(s, {max_budget_currency: 100, currency: 'KWD'}), refusedForMeta('KWD'));
+    assert.throws(() => savePolicy(s, {max_budget_currency: 100, currency: 'OMR'}), refusedForMeta('OMR'));
+    assert.throws(() => savePolicy(s, {max_budget_currency: 100}), refusedForMeta());
     // The account's currency from a live check binds a cap saved without one, and KWD is not on Meta's page either.
     rememberAccountMetadata(s, owner.tenantId, 'meta', account, {name: 'Kuwait', currency: 'KWD', timezone: 'UTC'});
-    assert.throws(() => savePolicy(s, {max_budget_currency: 100}), refusedForMeta);
+    assert.throws(() => savePolicy(s, {max_budget_currency: 100}), refusedForMeta('KWD'));
     // Native caps stay valid for every currency.
     assert.equal(savePolicy(s, {max_budget_native: 5000}).max_budget_native, 5000);
     // A workspace default states the currency per platform; without it a Meta cap cannot convert.
@@ -162,7 +202,7 @@ test('a Meta cap in a currency the capture does not list, or with no currency, i
           confirmed: true,
           policy: {per_gateway: {[meta]: {max_budget_currency: 25}}},
         }),
-      refusedForMeta,
+      refusedForMeta(),
     );
     const workspace = saveSpendPolicy(s, owner, {
       scope: 'workspace',
@@ -233,8 +273,20 @@ test('owner health lists Meta’s unit while the capture is loaded, and the sett
       context.h = JSON.parse(JSON.stringify(health));
       const note = run(`policyUnitNote(h, ${JSON.stringify(meta)})`);
       assert.match(note, /100 USD is 10000, 100 JPY is 100/, locale);
-      if (locale === 'en') assert.match(note, /^Meta counts account currency minor units .*are converted/);
-      else assert.doesNotMatch(note, /has no documented unit|لا توجد وحدة موثقة/);
+      if (locale === 'en') {
+        assert.match(note, /^Meta counts account currency minor units .*are converted/);
+        assert.match(
+          note,
+          /For Meta, AMCP converts with the currency of these caps; .*KWD or OMR.*native API units\.$/,
+        );
+      } else {
+        assert.doesNotMatch(note, /has no documented unit|لا توجد وحدة موثقة/);
+        // The Meta guidance is the website's own sentence, so it is translated; the evidence stays literal.
+        assert.match(note, /بالنسبة إلى Meta، يحوّل AMCP المبالغ وفق عملة هذه السقوف/);
+        assert.doesNotMatch(note, /For Meta, AMCP converts/);
+      }
+      // Another platform's note does not carry the Meta sentence.
+      assert.doesNotMatch(run(`policyUnitNote(h, 'google_ads_native_action')`), /KWD or OMR|KWD أو OMR/, locale);
     }
     // Without the capture, Meta is not offered in currency and health says so.
     setMetaCurrencyOffsetsForTest(null);

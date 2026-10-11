@@ -809,6 +809,7 @@
   "Choose an account to see how its platform counts money.": "اختر حسابًا لمعرفة الوحدات المالية المستخدمة في منصته.",
   "{platform} counts {unit}; amounts in account currency are converted ({evidence}).": "تستخدم {platform} وحدة {unit}؛ وتُحوّل المبالغ من عملة الحساب ({evidence}).",
   "{platform} has no documented unit in AMCP: choose “Native API units” and use the unit of the native request you review.": "لا توجد وحدة موثقة لـ {platform} في AMCP: اختر «وحدات API الأصلية» واستخدم وحدة الطلب الأصلي الذي تراجعه.",
+  "For Meta, AMCP converts with the currency of these caps; a currency Meta does not list, such as KWD or OMR, must be stated in native API units.": "بالنسبة إلى Meta، يحوّل AMCP المبالغ وفق عملة هذه السقوف؛ أما العملة التي لا تدرجها Meta، مثل KWD أو OMR، فحدّد سقوفها بوحدات API الأصلية.",
   "Workspace operation failed.": "فشلت عملية مساحة العمل.",
   "WORKSPACE OWNER": "مالك مساحة العمل",
   "Health & operating controls": "حالة النظام وضوابط التشغيل",

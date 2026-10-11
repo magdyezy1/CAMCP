@@ -155,7 +155,13 @@ function moneyLimits(input: JsonObject, gateway: string, observedCurrency?: stri
           gateway === 'meta_native_action'
             ? 'Meta counts money in the minor unit of the account currency, and AMCP converts a currency cap (field) only with the account currency (currency) and a pinned capture of Meta’s currency offsets that lists it. State it in native units instead (native_field; 100 USD is 10000).'
             : 'This platform has no documented budget unit in AMCP, so state this cap (field) in native API units instead (native_field).',
-          {gateway, field: key, native_field: currencyMoneyKeys[key]},
+          {
+            gateway,
+            field: key,
+            native_field: currencyMoneyKeys[key],
+            // The currency Meta's offsets were looked up for (stated, or the account's observed one), or null (WRT-07).
+            ...(gateway === 'meta_native_action' ? {currency: currency ?? null} : {}),
+          },
         );
       out[currencyMoneyKeys[key]] = native;
       out[key] = value;

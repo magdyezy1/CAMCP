@@ -3,7 +3,8 @@
   "source_url": "https://developers.facebook.com/docs/marketing-api/currencies",
   "source_title": "Currency codes",
   "captured_at": "2026-10-11",
-  "capture": "Read from Meta’s public Marketing API documentation on 2026-10-11, without an account or credentials, by a documentation fetch that renders the page as text; three independent readings agreed on the 66 rows, the eleven currencies with offset 1 and the Gulf and Arab currencies listed or absent. The page shows no version or last-updated date, and no byte-exact page hash is claimed: sha256 seals the rows as recorded here. The page is on the provider documentation watch (tools/provider-lifecycle.ts), so a change asks for a new capture.",
+  "rechecked_at": "2026-10-12",
+  "capture": "Read from Meta’s public Marketing API documentation on 2026-10-11, without an account or credentials, by a documentation fetch that renders the page as text; three independent readings agreed on the 66 rows, the eleven currencies with offset 1 and the Gulf and Arab currencies listed or absent. A further reading on 2026-10-12 matched every row (code, name and offset, in page order), and the Budgets guide statement below. The page shows no version or last-updated date, and no byte-exact page hash is claimed: sha256 seals the rows as recorded here. The page is on the provider documentation watch (tools/provider-lifecycle.ts), so a change asks for a new capture.",
   "offset_meaning": "Meta: each currency has an offset that sets how its subdivisions are counted. With offset 100 the smallest amount, 1, is a hundredth of the currency unit (USD cents); with offset 1 it is one whole unit (JPY).",
   "budget_unit_evidence": {
     "source_url": "https://developers.facebook.com/docs/marketing-api/bidding/overview/budgets",

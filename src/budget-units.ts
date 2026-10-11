@@ -246,7 +246,8 @@ function loadedMetaCapture(): MetaCurrencyCapture | null {
   return metaCapture;
 }
 export function metaCurrencyOffset(currency: string): number | undefined {
-  const offset = loadedMetaCapture()?.offsets[currency];
+  const offsets = loadedMetaCapture()?.offsets,
+    offset = offsets && Object.hasOwn(offsets, currency) ? offsets[currency] : undefined;
   return typeof offset === 'number' && metaOffsetValues.includes(offset) ? offset : undefined;
 }
 /** Whether a valid pinned Meta currency capture is loaded (owner health names its absence). */
@@ -301,7 +302,8 @@ export function policyNativeUnit(gateway: string, currency: unknown): BudgetUnit
 }
 /**
  * Meta's entry in owner health's budget units when the capture is loaded: the settings page then offers Meta caps in
- * account currency, which the server converts with the currency of the caps.
+ * account currency, which the server converts with the currency of the caps. Like the other entries, unit and evidence
+ * are literal source facts; the website words the guidance around them (web/owner-operations.js policyUnitNote).
  */
 export function metaBudgetUnit(): {unit: string; evidence: string} | undefined {
   const source = metaCurrencySource();
@@ -309,11 +311,11 @@ export function metaBudgetUnit(): {unit: string; evidence: string} | undefined {
     ? {
         unit: 'account currency minor units (Meta currency offset)',
         evidence:
-          'offsets of Meta’s Marketing API Currencies page for ' +
+          'Meta Marketing API Currencies page, offsets of ' +
           source.currencies +
-          ' currencies, captured ' +
+          ' currencies captured ' +
           source.captured_at +
-          ': 100 USD is 10000, 100 JPY is 100; state the currency of the caps, and a currency the page does not list, such as KWD, stays in native units',
+          ': 100 USD is 10000, 100 JPY is 100',
       }
     : undefined;
 }
