@@ -322,6 +322,20 @@ Existing selected spreadsheets and creating a new spreadsheet remain available u
 
 AMCP marks its own destination tab and replaces its report cells; other tabs remain intact. Typed cells prevent text from becoming executable formulas. Exports are limited to 200,000 cells and an 8 MiB request. Split larger reports or reduce metrics. A batch may take up to 190 s (Google documents a 180 s processing ceiling) under a renewed destination lock; reads time out after 25 s. Sheets requests share one project budget below 300 per minute across workspaces, a 429 sets a shared cooldown, and export retries use truncated exponential backoff with up to 1 s of jitter. Each delivery records its payload bytes, cell count and duration. A new report replaces the same cells. A confirmed report replay returns its historical receipt without another write; it does not certify that collaborators have left those cells unchanged.
 
+**Tab contract (version 2).** Row 1 keeps the stable column identifiers (metric IDs such as `spend` and `cpa`);
+new columns are only appended. Each header cell has a note with its label, unit and currency (`Spend. Unit: KWD.`;
+with several currencies the note points to each row's Currency), and metric columns get number formats from the metric
+definitions: the largest currency precision among the rows (KWD three decimals, JPY none), `#,##0` for counts, and
+`2.50%` for a percent value of 2.5. Cell values stay the typed numbers and text. A trailing **Recommendation basis**
+column states what each recommendation rests on (its row or the entity's whole window, as-of time and validity,
+confidence and limitations; advisory only); CSV and Excel include it too. The tab carries `amcp_table_version` developer
+metadata `"2"` and, once, a warning-only protected range (when AMCP creates the tab, or on the first version 2 delivery
+to an existing tab that has no protection): a collaborator who edits the tab is warned that AMCP replaces it on every
+delivery. A protection its users remove is not added again. A delivery first sent under the earlier unmarked layout
+(version 1) keeps that layout for its resend and replay, so its fingerprint is unchanged. `AMCP_SHEETS_TABLE_VERSION=1`
+rolls new deliveries back to version 1 (no notes, formats, basis column, marker or protection; a version marker is
+removed). Delivery receipts report `table_version`.
+
 Each batch carries one delivery marker. A definitive refusal (400, 401, 403, 404, 413, 429, or a 5xx whose Google
 error status is `UNAVAILABLE`) is recorded `rejected`: nothing was applied and the export retries normally. Any
 other 5xx, a timeout or a lost connection leaves the delivery `uncertain`. Retries of that same report reread the
@@ -362,6 +376,13 @@ export job completes without writing and reports `outcome:'superseded'` (with `n
 written** with **Export to a new tab**. `state` keeps the job state, so MCP clients that read `state` keep working;
 read `outcome` for what happened at the tab. The dialog warns before exporting a snapshot older than the tab's.
 
+**Delivery dialog feedback.** Results appear in a status bar at the foot of the dialog, beside the actions, which takes
+focus and has a success, warning, error or progress tone. AMCP's own refusals read in the interface language with
+their next step and request reference; a provider's message stays literal. A finished Sheets export states its rows,
+tab, spreadsheet and time and the snapshot's capture time. Choosing a tab for **Export now** does not change the
+report's saved destination or mark the setup as changed, so opening another snapshot afterwards asks nothing; leaving
+real unsaved setup edits asks in AMCP's own confirmation.
+
 **Tab ownership.** A Sheets tab belongs to the report whose active schedule uses it, or otherwise to the saved
 reports that deliver to it. **Export now** to such a tab is refused with `DESTINATION_OWNED_BY_OTHER_REPORT` (409,
 naming the owning report and client) unless the snapshot comes from that schedule or saved report, or covers the
@@ -389,6 +410,14 @@ version before collection. Completed historical snapshots are not rewritten or r
 ## Scheduled delivery
 
 Choose daily/weekly/monthly/hourly delivery, an IANA timezone, a rolling/calendar window and destination. Monthly day 29–31 clamps to the last day in shorter months. Calendar windows can select the previous complete Monday–Sunday week or calendar month; recent-day exclusion applies to complete-day windows. Each occurrence collects fresh data and replaces the destination tab. Clock times use the chosen timezone: a time that a daylight-saving change skips runs at the first valid time after it (Cairo weekly Friday 00:30 runs at 01:30 on the change day) and `preview_schedule` marks it `dst_shifted`; a repeated time runs once. A missing following occurrence never pauses the schedule or drops the due run: when no valid local time is found, the schedule stays active with the warning `SCHEDULE_UNRESOLVED` and its clock is checked again after 6 hours. The UI shows next run, pause state, report progress and delivery history, with retry for failed exports.
+
+Every schedule time names its zone: the delivery time zone first (`Mon, Oct 12, 2026, 8:00 AM GMT+3 (Asia/Riyadh)`),
+then the viewer's own time when the viewer is elsewhere (owner policy P6). While the schedule form is edited, **Next 3
+deliveries** previews the unsaved settings through `preview_schedule` (debounced; no provider request): the delivery
+time in its zone, the viewer's time, and the dates collected in the window's zone, with times moved by a
+daylight-saving gap labeled. The Schedules page shows the same three-column table and a localized frequency. Hourly
+delivery with complete-day windows shows a warning, because each run repeats the same complete days until the next day
+ends.
 
 Collection and delivery are separate jobs. When collection finishes, the snapshot is complete (or partial) and its Sheets delivery is queued as its own export job with a delivery-history receipt; a delivery failure never fails, recollects or re-stamps the snapshot (`completed_at` is written once, and a retry of a finished snapshot only completes its delivery, without provider requests). Each schedule records `last_delivery` (state, time, snapshot, error code, Retry availability) and `consecutive_delivery_failures`. A failed or retrying delivery marks the schedule **attention** in Operations and on the Schedules page; a successful delivery clears it. After `AMCP_SCHEDULE_DELIVERY_PAUSE_AFTER` (default 3; 0 disables) consecutive non-retryable delivery failures, such as a revoked Sheets permission, an owned tab or an unavailable destination, the schedule pauses with `SCHEDULE_DELIVERY_FAILED` and an Operations attention item. Only the schedule revision that produced the snapshot is changed; resuming starts a new count. `AMCP_SCHEDULED_SHEETS_DELIVERY=inline` restores writing scheduled Sheets inside the collection job.
 
@@ -480,7 +509,7 @@ References: [Sheets batch updates](https://developers.google.com/workspace/sheet
 
 New snapshots freeze the source and formula versions, custom formula fingerprint, query fingerprints and measurement-quality metadata. GA4 sampled, thresholded, aggregated or restricted results are visibly limited; restricted metrics and their formulas stay unknown. Apple v1 uses official `metadata` and `totalMetrics` fields, including tap-plus-view total installs. Native metric definitions and attribution remain provider specific.
 
-CSV and Sheets use the same typed table. New trailing columns carry report ID/state, all selected-source statuses (on the first data row), compact per-row quality and formula/query fingerprints. Existing metric columns keep their positions. Full authenticated evidence is downloadable at `/api/reporting-overview/<report-id>.metadata.json`, including source failures; it excludes worker authority and private checkpoints. Consumers must not assume appended columns imply compatible mixed-currency totals. Legacy snapshots remain unversioned/unknown rather than being silently recalculated.
+CSV and Sheets use the same typed table. New trailing columns carry report ID/state, all selected-source statuses (on the first data row), compact per-row quality, formula/query fingerprints and the recommendation basis. Existing metric columns keep their positions. Full authenticated evidence is downloadable at `/api/reporting-overview/<report-id>.metadata.json`, including source failures; it excludes worker authority and private checkpoints. Consumers must not assume appended columns imply compatible mixed-currency totals. Legacy snapshots remain unversioned/unknown rather than being silently recalculated.
 
 The Sheets delivery policy can allow clearly marked partial reports or require complete reports. Complete-only deliveries fail visibly and leave the destination unchanged. Empty reports still leave existing tabs unchanged. Independent schedules and destination ownership retain their original behavior. Recommendations now accept explicit seasonal/recent-change/tracking, secondary-KPI and business-budget/capacity context, explain conflicting evidence and hold when those gates fail. These are observational recommendations, not causal predictions or automatic budget changes.
 

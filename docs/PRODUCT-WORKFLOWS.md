@@ -47,6 +47,13 @@ with a `next_cursor` bound to the caller, session and filters. A summary never u
 (MCP-09); the website's Capability Center asks for it. Filtering by `workflow_id`, or by `connection_id` and
 `account_id`, fills each account's next call in.
 
+The Capability Center (`/capabilities`) loads with one graph request: the graph that fills the filter choices also
+answers the first page (WEB-08). It lists **Available to me** first (workflows with a selected account on their
+platform), grouped by objective with counts and naming each group's platforms, and keeps the others discoverable in
+a collapsed **Not available yet** group. The workflow, account and search filters stay in the address, so a reload or
+a shared link shows the same view. Choosing an account asks the server again, because account-scoped prerequisites
+resolve only when exactly one account is in view; a workflow link shows that workflow as it is.
+
 Each suggested `check` or `program_check` call (in `capabilities`, the graph, `program_check` results and
 `list_accounts`) carries `effects {provider_requests, saves, advertising_writes:0}` (MCP-09). `check` with
 `live:false` makes no provider request and saves nothing; with `live:true` it reads the provider account and saves the
@@ -904,7 +911,9 @@ leases and raw errors are absent from status and the feed. Legacy workbook bindi
 this view does not establish a live Google Sheets destination. See the
 [workbook Operations delivery record](review/DELIVERY-2026-10-01-WORKBOOK-OPERATIONS.md).
 
-Workbook schedules open `/operations?workbook_schedule_id=<original-id>`, also reachable from Schedules.
+Workbook schedules, shown as **Local report schedules**, open `/operations?workbook_schedule_id=<original-id>`, also
+reachable from Schedules. Their runs (shown as **Local report runs**) keep results in AMCP and never write to the saved
+spreadsheet; the page says so and links to Reporting overview, where a schedule delivers to Google Sheets.
 Inspect the current saved query revision/account and the next three clock occurrences, then edit the name,
 hourly/daily/weekly/monthly clock and explicit IANA timezone. The saved query still controls report date windows;
 changing the clock timezone does not change the query timezone. Before confirmation, a server preview validates
@@ -1112,6 +1121,15 @@ and supports keyboard access. A successful response may contain a blocked/pendin
 time excludes timing storage and response delivery; it does not measure end-to-end network latency.
 Current in-flight calls appear in a later health refresh. Empty intervals and unavailable evidence stay explicit.
 See [operating details](OPERATIONS.md#owner-tool-timings) and [delivery evidence](review/DELIVERY-2026-10-03-TOOL-TIMINGS.md).
+
+### Owner Settings sections
+
+An owner's Settings open with a sub-navigation (WEB-08): **Safety** first (Pause all writes, the account spending
+policy and workspace default, executions over a cap and review friction), then **Access** (the instance owner's list of
+who can use AMCP), **Health**, **Retention** (report snapshots and file downloads) and **Account** (platform setup).
+Each link moves to its section. The command palette (Ctrl+K) offers owners **Pause all writes**, which only opens that
+control; pausing still asks for confirmation and a reason. In the access list the owner's own row shows **You** and no
+actions, because AMCP never changes the caller's own access; every other row keeps its controls.
 
 ### Recovering encoded workbook definitions
 
@@ -1579,8 +1597,10 @@ Inventory does not create a draft, establish unpublished-parent coverage or appr
 
 Owners can inspect shared process observations in Settings and refresh explicitly. The capped,
 bilingual table distinguishes unavailable, uncertain, stale and recently observed processes while
-explaining that queue progression, capacity, provider acceptance and delivery are separate. Current
-request/session/identity/navigation checks prevent old health from replacing another view.
+explaining that queue progression, capacity, provider acceptance and delivery are separate. A verdict leads
+(WEB-08): the newest report's age in human terms (for example "98 minutes"), the 90-second threshold and the
+working/idle counts of the observations shown; the table itself starts collapsed and gives each exact age in seconds
+on hover. Current request/session/identity/navigation checks prevent old health from replacing another view.
 [Worker scope, measured tradeoff and simultaneous-client tasks](review/DELIVERY-2026-10-06-WORKER-HEALTH.md).
 
 ## Administrator store connections — batch 184

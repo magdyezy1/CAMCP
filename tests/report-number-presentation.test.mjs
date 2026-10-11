@@ -7,7 +7,7 @@ import {createContext, Script} from 'node:vm';
 import {Store} from '../dist/src/store.js';
 import {DecisionReporting} from '../dist/src/decision-reporting.js';
 import {rememberAccountMetadata} from '../dist/src/account-metadata.js';
-import {reportTable, sheetsNumberFormats} from '../dist/src/google-sheets.js';
+import {reportTable, sheetsPresentationRequests} from '../dist/src/google-sheets.js';
 import {granularConfig, granularSource, overviewGranularityFixture} from './fixtures/overview-granularity-data.mjs';
 
 const arabic = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
@@ -124,7 +124,9 @@ test('RPT-05: Overview values keep Gulf-currency precision, show ROAS as a multi
 });
 
 test('RPT-05: a Sheets export sends number formats per metric column in the same batch, with values unchanged', async () => {
-  // Before RPT-05 Sheets cells held raw doubles and no numberFormat request was sent.
+  // Before RPT-05 Sheets cells held raw doubles and no numberFormat request was sent. Since the merge with EXP-04 the
+  // formats are part of the version 2 tab contract (sheetsPresentationRequests): each column is found by its name, so
+  // the trailing Recommendation basis column cannot shift them, and a version 1 delivery sends none.
   const report = {
     id: 'r',
     state: 'complete',
@@ -137,13 +139,21 @@ test('RPT-05: a Sheets export sends number formats per metric column in the same
   };
   const table = reportTable(report, 0),
     header = table[0],
-    requests = sheetsNumberFormats(report, table, 9, 100),
+    formats = (r, t) =>
+      sheetsPresentationRequests(r, t, 9, 100, t[0].length).filter(
+        x => x.repeatCell?.fields === 'userEnteredFormat.numberFormat',
+      ),
+    requests = formats(report, table),
     pattern = key =>
-      requests.find(r => r.repeatCell.range.startColumnIndex === header.indexOf(key))?.repeatCell.cell.userEnteredFormat
-        .numberFormat.pattern;
+      requests.find(
+        r =>
+          r.repeatCell.range.startColumnIndex === header.indexOf(key) &&
+          r.repeatCell.range.endColumnIndex === header.indexOf(key) + 1,
+      )?.repeatCell.cell.userEnteredFormat?.numberFormat?.pattern;
+  assert.equal(header.at(-1), 'Recommendation basis', 'a version 2 table');
   assert.deepEqual(requests[0].repeatCell, {
-    range: {sheetId: 9, startRowIndex: 1, endRowIndex: 100},
-    cell: {userEnteredFormat: {}},
+    range: {sheetId: 9, startRowIndex: 1, endRowIndex: 100, startColumnIndex: 0, endColumnIndex: header.length},
+    cell: {},
     fields: 'userEnteredFormat.numberFormat',
   });
   assert.equal(pattern('spend'), '#,##0.000', 'KWD needs three decimals');
@@ -155,8 +165,10 @@ test('RPT-05: a Sheets export sends number formats per metric column in the same
   assert.ok(requests.every(r => r.repeatCell.fields === 'userEnteredFormat.numberFormat'));
   const jpy = {...report, rows: [{...report.rows[0], currency: 'JPY'}]};
   assert.equal(
-    sheetsNumberFormats(jpy, reportTable(jpy, 0), 9, 100).find(
-      r => r.repeatCell.range.startColumnIndex === header.indexOf('spend'),
+    formats(jpy, reportTable(jpy, 0)).find(
+      r =>
+        r.repeatCell.range.startColumnIndex === header.indexOf('spend') &&
+        r.repeatCell.range.endColumnIndex === header.indexOf('spend') + 1,
     ).repeatCell.cell.userEnteredFormat.numberFormat.pattern,
     '#,##0',
   );

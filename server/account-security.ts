@@ -104,7 +104,7 @@ export class AccountSecurity {
     };
   }
   accessRequests(req: Request) {
-    this.instanceOwner(req, false);
+    const s = this.instanceOwner(req, false);
     const rows = this.db
       .prepare(
         'SELECT u.id,u.email,u.name,u.approved,u.disabled,u.test_account,u.created_at,(SELECT group_concat(provider) FROM amcp_identities i WHERE i.user_id=u.id) AS providers,u.password_hash IS NOT NULL AS has_password FROM amcp_users u ORDER BY u.approved ASC,u.created_at DESC LIMIT 500',
@@ -123,6 +123,9 @@ export class AccountSecurity {
           .split(',')
           .filter(Boolean),
       ],
+      // WEB-08: the caller's own row, whose access setAccess always refuses to change, is marked so the list offers
+      // no action on it.
+      self: r.id === s.actor.userId,
     }));
     // Requests left pending this many days are erased by the worker (SEC-07 S4); null when retention is off.
     let pendingMs: number | null = null;

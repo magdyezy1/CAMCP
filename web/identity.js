@@ -345,9 +345,31 @@ menuMatch.addEventListener('change', closeNavigation);
 closeNavigation();
 // The palette lists the route registry's pages (WEB-06): each is found by its navigation name, its former names and
 // their translations, best match first, and a test account sees only the pages its workspace includes.
+// WEB-08: beside the pages, the workspace owner reaches the emergency stop in one step. The entry only opens the
+// control (pausing still asks first) and is listed only for the owner role, whose Settings page renders that control.
+const ownerCommands = [
+  {
+    path: '/settings#owner-write-pause',
+    label: 'Pause all writes',
+    description: 'Opens the owner emergency stop; pausing asks first',
+  },
+];
 function commandResults() {
+  const query = $('#command-query').value,
+    q = String(query ?? '')
+      .trim()
+      .toLowerCase(),
+    commands =
+      session.workspaceRole === 'owner'
+        ? ownerCommands.filter(command =>
+            [command.label, command.description, uiText(command.label), uiText(command.description)]
+              .join(' ')
+              .toLowerCase()
+              .includes(q),
+          )
+        : [];
   $('#command-results').innerHTML =
-    routeMatches($('#command-query').value, text => uiText(text))
+    [...routeMatches(query, text => uiText(text)), ...commands]
       .map(
         page =>
           `<button data-command-go="${esc(page.path)}"><span><strong>${esc(uiText(page.label))}</strong><small>${esc(uiText(page.description))}</small></span><span aria-hidden="true">→</span></button>`,

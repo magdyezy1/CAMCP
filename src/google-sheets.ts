@@ -95,6 +95,7 @@ export function deliveryProjection(delivery: JsonObject | undefined) {
     payload_bytes: delivery.payload_bytes ?? null,
     cells: delivery.cells ?? null,
     duration_ms: delivery.duration_ms ?? null,
+    table_version: delivery.table_version === 2 ? 2 : 1,
     ...(unresolved
       ? {
           unconfirmed_since: delivery.sent_at ?? null,
@@ -212,80 +213,52 @@ function destinationTabName(value: unknown) {
     throw new MirrorError('INVALID_TAB_NAME', 'Use a report tab name of 1–80 characters without : \\ / ? * [ or ].');
   return value.trim();
 }
-/** The metric columns of an export, in table order: selected metrics, then custom metrics. */
-const reportFields = (report: JsonObject) => {
+/**
+ * The Sheets tab contract (EXP-04 C). Version 2 keeps row 1 as the stable column identifiers and adds a trailing
+ * "Recommendation basis" column, header notes (labels, units, currency), per-column number formats, an
+ * `amcp_table_version` marker on the tab and a warning-only protection of the AMCP-owned tab. Version 1 is the earlier,
+ * unmarked layout: a delivery first sent under it keeps it, so its resend stays the identical batch.
+ * AMCP_SHEETS_TABLE_VERSION=1 is the rollback for new deliveries.
+ */
+export const sheetsTableVersion = (): 1 | 2 => (process.env.AMCP_SHEETS_TABLE_VERSION === '1' ? 1 : 2);
+export const sheetsTableVersionKey = 'amcp_table_version';
+export const sheetsTabProtection =
+  'AMCP report tab. AMCP replaces this tab on every delivery, so edits made here are overwritten. Copy the data to another tab to keep changes.';
+const isoTime = (value: unknown) =>
+  typeof value === 'number' && Number.isFinite(value) ? new Date(value).toISOString() : null;
+/**
+ * What a row's recommendation rests on (EXP-04 C): its period, as-of time, validity, confidence and limitations. A row
+ * without a recommendation has no basis (empty cell).
+ */
+export function recommendationBasis(row: JsonObject): string {
+  if (!row.recommendation || typeof row.recommendation !== 'object' || Array.isArray(row.recommendation)) return '';
+  const r: JsonObject = row.recommendation,
+    e: JsonObject = r.evidence ?? {},
+    asOf = isoTime(r.as_of),
+    validUntil = isoTime(r.valid_until),
+    parts = [
+      r.basis === 'entity_window' && e.date_from && e.date_to
+        ? `Based on the entity's whole window ${e.date_from} to ${e.date_to}; every period row of the entity shares it.`
+        : 'Based on this row.',
+      asOf ? `As of ${asOf}${validUntil ? `; valid until ${validUntil}` : ''}.` : '',
+      typeof r.confidence === 'string' ? `Confidence: ${r.confidence}.` : '',
+      ...(Array.isArray(r.limitations) ? r.limitations.filter((l: unknown) => typeof l === 'string') : []),
+      'Advisory only; AMCP never applies it automatically.',
+    ];
+  return parts.filter(Boolean).join(' ');
+}
+/** The metric columns of a report table: selected metrics, then custom metrics, each once. */
+function reportTableFields(report: JsonObject): string[] {
   const keys = report.config.metrics ?? ['spend', 'impressions', 'clicks', 'conversions', 'cpa', 'roas'];
   return [...new Set<string>([...keys, ...(report.config.custom_metrics ?? []).map((m: JsonObject) => m.id)])];
-};
-/** The default minor units of an ISO 4217 currency (KWD 3, JPY 0, USD 2); null when the code is unknown. */
-function currencyDigits(currency: unknown) {
-  if (typeof currency !== 'string' || !/^[A-Z]{3}$/.test(currency)) return null;
-  try {
-    return new Intl.NumberFormat('en', {style: 'currency', currency}).resolvedOptions().maximumFractionDigits ?? null;
-  } catch {
-    return null;
-  }
 }
 /**
- * RPT-05: Sheets number formats for the metric columns of a report table, sent in the same batch as the cells; the
- * cell values are unchanged. Currency columns use the largest minor units among the report's currencies (KWD 3, JPY
- * 0; the Currency column names each row's currency), counts show whole numbers, ratios two decimals, percentages a
- * literal % (values are already percentages) and ROAS ×. Native fields stay unformatted. Earlier formats in the data
- * area are cleared first, so a column that moved keeps no stale format.
+ * `now` decides whether frozen recommendations are still current or render as expired (DEC-01). `version` is the
+ * Sheets tab contract the table follows; CSV and Excel use the current one.
  */
-export function sheetsNumberFormats(report: JsonObject, table: unknown[][], sheetId: number, rowCount: number) {
-  const header = table[0] as string[],
-    fields = reportFields(report),
-    start = header.length - fields.length - 13,
-    custom = new Map<string, JsonObject>((report.config.custom_metrics ?? []).map((m: JsonObject) => [m.id, m])),
-    known = (report.rows as JsonObject[]).map(r => currencyDigits(r.currency)).filter(d => d !== null) as number[],
-    money = known.length ? Math.max(...known) : 2,
-    decimals = (n: number) => (n ? '#,##0.' + '0'.repeat(n) : '#,##0');
-  const requests: JsonObject[] = [
-    {
-      repeatCell: {
-        range: {sheetId, startRowIndex: 1, endRowIndex: rowCount},
-        cell: {userEnteredFormat: {}},
-        fields: 'userEnteredFormat.numberFormat',
-      },
-    },
-  ];
-  fields.forEach((key, i) => {
-    const definition = metricDefinitions[key] ?? custom.get(key),
-      format = definition?.format,
-      pattern =
-        format === 'currency'
-          ? decimals(money)
-          : format === 'number'
-            ? decimals(0)
-            : format === 'percent'
-              ? '#,##0.00"%"'
-              : key === 'roas'
-                ? '#,##0.00"×"'
-                : format === 'decimal'
-                  ? decimals(2)
-                  : null;
-    if (!pattern || header[start + i] !== key) return;
-    requests.push({
-      repeatCell: {
-        range: {
-          sheetId,
-          startRowIndex: 1,
-          endRowIndex: table.length,
-          startColumnIndex: start + i,
-          endColumnIndex: start + i + 1,
-        },
-        cell: {userEnteredFormat: {numberFormat: {type: 'NUMBER', pattern}}},
-        fields: 'userEnteredFormat.numberFormat',
-      },
-    });
-  });
-  return requests;
-}
-/** `now` decides whether frozen recommendations are still current or render as expired (DEC-01). */
-export function reportTable(report: JsonObject, now = Date.now()) {
+export function reportTable(report: JsonObject, now = Date.now(), version: 1 | 2 = 2) {
   const status = JSON.stringify(exportSourceStatus(report));
-  const fields = reportFields(report);
+  const fields = reportTableFields(report);
   const detailed = report.rows.some((row: JsonObject) => row.entity_level && row.entity_level !== 'campaign');
   const values: any[][] = [
     [
@@ -315,6 +288,7 @@ export function reportTable(report: JsonObject, now = Date.now()) {
       'Query fingerprint',
       'Formula version',
       'Formula fingerprint',
+      ...(version >= 2 ? ['Recommendation basis'] : []),
     ],
   ];
   for (const r of report.rows)
@@ -351,6 +325,7 @@ export function reportTable(report: JsonObject, now = Date.now()) {
       r.query_fingerprint ?? '',
       report.config.formula_version ?? 'legacy-unversioned',
       report.config.formula_fingerprint ?? '',
+      ...(version >= 2 ? [recommendationBasis(r)] : []),
     ]);
   if (values.some(row => row.some(v => typeof v === 'string' && v.length > 48000)))
     throw new MirrorError(
@@ -367,6 +342,146 @@ export function exportCsv(report: JsonObject) {
       .map(row => row.map(csvField).join(','))
       .join('\r\n')
   );
+}
+// EXP-04 C: header notes for the fixed columns. Metric columns get theirs from the metric definitions.
+const sheetsColumnNotes: Record<string, string> = {
+  Platform: 'Platform of the row\u2019s source.',
+  'Account ID': 'Native account ID, exactly as the platform reports it.',
+  'Campaign ID': 'Native campaign or resource ID, kept as text.',
+  Currency: 'ISO 4217 currency of every money column in this row. Rows in different currencies are not added together.',
+  Timezone: 'The account\u2019s reporting time zone; the row\u2019s dates are days in this zone.',
+  'Date from': 'First report day (YYYY-MM-DD, kept as text) in the row\u2019s time zone.',
+  'Date to': 'Last report day (YYYY-MM-DD, kept as text) in the row\u2019s time zone.',
+  Recommendation:
+    'Advisory decision frozen when the data was captured; \u201Cexpired\u201D once it is no longer current. Never applied automatically.',
+  'Recommendation basis':
+    'What the recommendation rests on: its period, as-of time, validity, confidence and limitations.',
+  Complete: 'Yes when the row\u2019s reporting window and measurement are complete.',
+  'Captured at': 'When AMCP collected the row from the platform (UTC, ISO 8601 text).',
+  'Report state': 'complete, or partial when some sources or periods failed; failures stay marked in the evidence.',
+  'Source status JSON': 'Every selected source\u2019s status, on the first data row only.',
+};
+/** The display decimals of the rows' currencies (KWD and BHD have three, JPY none); unknown or absent codes use two. */
+function currencyDecimals(rows: JsonObject[]) {
+  const currencies = [...new Set(rows.map(r => r.currency).filter(c => typeof c === 'string' && c))];
+  if (!currencies.length) return 2;
+  return Math.max(
+    ...currencies.map(currency => {
+      try {
+        return new Intl.NumberFormat('en', {style: 'currency', currency}).resolvedOptions().maximumFractionDigits ?? 2;
+      } catch {
+        return 2;
+      }
+    }),
+  );
+}
+/**
+ * A metric column's header note and display pattern (EXP-04 C, with RPT-05's rules). Cell values stay the typed numbers
+ * AMCP wrote. Money uses the largest minor units among the rows' currencies (KWD 3, JPY 0; the Currency column names
+ * each row's), counts show whole numbers when every value is whole, ratios two decimals, percentages a literal % (the
+ * values are already percentages) and ROAS \u00d7. Native fields keep the general format.
+ */
+function sheetsMetricColumn(key: string, report: JsonObject): {note: string; pattern?: string} {
+  const rows: JsonObject[] = report.rows,
+    custom = (report.config.custom_metrics ?? []).find((m: JsonObject) => m.id === key),
+    definition = Object.hasOwn(metricDefinitions, key) ? metricDefinitions[key] : undefined,
+    format: unknown = custom?.format ?? definition?.format,
+    roas = !custom && key === 'roas',
+    currencies = [...new Set(rows.map(r => r.currency).filter(c => typeof c === 'string' && c))],
+    numbers = rows.map(r => r.metrics?.[key]).filter(v => typeof v === 'number' && Number.isFinite(v)),
+    unit =
+      format === 'currency'
+        ? currencies.length === 1
+          ? `Unit: ${currencies[0]}.`
+          : 'Unit: each row\u2019s Currency; rows in different currencies are not added together.'
+        : format === 'percent'
+          ? 'Unit: percent (2.5 means 2.5%).'
+          : format === 'number'
+            ? 'Unit: count.'
+            : roas
+              ? 'Unit: conversion value per unit of spend (2.5\u00d7 returns 2.5 for each 1 spent).'
+              : format === 'decimal'
+                ? 'Unit: decimal ratio.'
+                : '';
+  const decimals = currencyDecimals(rows),
+    pattern =
+      format === 'currency'
+        ? '#,##0' + (decimals ? '.' + '0'.repeat(decimals) : '')
+        : format === 'percent'
+          ? '#,##0.00"%"'
+          : format === 'number'
+            ? numbers.every(Number.isInteger)
+              ? '#,##0'
+              : '#,##0.00'
+            : roas
+              ? '#,##0.00"\u00d7"'
+              : format === 'decimal'
+                ? '#,##0.00'
+                : undefined;
+  const note = custom
+    ? `${custom.label}. Custom formula: ${custom.formula}. ${unit}`
+    : definition
+      ? `${definition.label}. ${unit}${definition.formula ? ` Formula: ${definition.formula}.` : ''}`
+      : `Native field \u201C${key}\u201D as the platform reports it; its unit and definition follow the platform.`;
+  return {note: note.trim(), ...(pattern ? {pattern} : {})};
+}
+/**
+ * The presentation requests of the Sheets tab contract (EXP-04 C): per-column number formats over the data rows and
+ * header notes with labels, units and currency, each clearing what an earlier layout left. Values are untouched.
+ */
+export function sheetsPresentationRequests(
+  report: JsonObject,
+  table: unknown[][],
+  sheetId: number,
+  rowCount: number,
+  columnCount: number,
+): JsonObject[] {
+  const header = table[0] as string[],
+    height = table.length,
+    metrics = new Set(reportTableFields(report)),
+    columns = header.map(name =>
+      metrics.has(name) ? sheetsMetricColumn(name, report) : {note: sheetsColumnNotes[name]},
+    );
+  const tab =
+    'AMCP report tab, table version 2. AMCP replaces this tab on every delivery, so edits made here are overwritten. Row 1 holds stable column identifiers; these notes give labels and units.';
+  const requests: JsonObject[] = [
+    {
+      repeatCell: {
+        range: {sheetId, startRowIndex: 1, endRowIndex: rowCount, startColumnIndex: 0, endColumnIndex: columnCount},
+        cell: {},
+        fields: 'userEnteredFormat.numberFormat',
+      },
+    },
+  ];
+  columns.forEach((column: JsonObject, index) => {
+    if (column.pattern && height > 1)
+      requests.push({
+        repeatCell: {
+          range: {sheetId, startRowIndex: 1, endRowIndex: height, startColumnIndex: index, endColumnIndex: index + 1},
+          cell: {userEnteredFormat: {numberFormat: {type: 'NUMBER', pattern: column.pattern}}},
+          fields: 'userEnteredFormat.numberFormat',
+        },
+      });
+  });
+  requests.push({
+    repeatCell: {
+      range: {sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: columnCount},
+      cell: {},
+      fields: 'note',
+    },
+  });
+  columns.forEach((column: JsonObject, index) => {
+    const note = index === 0 ? [tab, column.note].filter(Boolean).join('\n\n') : column.note;
+    if (note)
+      requests.push({
+        repeatCell: {
+          range: {sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: index, endColumnIndex: index + 1},
+          cell: {note},
+          fields: 'note',
+        },
+      });
+  });
+  return requests;
 }
 export class GoogleSheetsExports {
   readonly credentials: CredentialProvider;
@@ -867,7 +982,7 @@ export class GoogleSheetsExports {
     const meta = await this.request(
       actor,
       d.connection_id,
-      url + '?fields=sheets(properties,developerMetadata)',
+      url + '?fields=sheets(properties,developerMetadata,protectedRanges)',
       undefined,
       false,
       undefined,
@@ -938,6 +1053,11 @@ export class GoogleSheetsExports {
           last_marker: marker,
           ...(!(latest.last_captured_at > record.captured_at)
             ? {last_captured_at: record.captured_at, last_report_id: record.report_id, last_export_at: now}
+            : {}),
+          // EXP-04 C: the tab's warning-only protection is settled once (added by AMCP, or already present); a later
+          // removal by its users is respected.
+          ...(['added', 'existing'].includes(record.tab_protection) && !latest.tab_protection_at
+            ? {tab_protection_at: now, tab_protection: record.tab_protection}
             : {}),
         });
       }
@@ -1049,7 +1169,17 @@ export class GoogleSheetsExports {
         owner,
       );
       check();
-      const table = reportTable(report),
+      const deliveryId = sheetsDeliveryId(destinationId, report.id);
+      let prior: JsonObject | undefined;
+      try {
+        prior = this.store.document(actor.tenantId, 'sheets_delivery', deliveryId);
+      } catch (e) {
+        if (!(e instanceof MirrorError && e.code === 'NOT_FOUND')) throw e;
+      }
+      // EXP-04 C: a delivery keeps the tab contract it was first sent with, so a replay is recognized and a resend of
+      // an unconfirmed batch stays identical across an upgrade; a new delivery uses the current contract.
+      const tableVersion: 1 | 2 = prior ? (prior.table_version === 2 ? 2 : 1) : sheetsTableVersion();
+      const table = reportTable(report, Date.now(), tableVersion),
         width = table[0]!.length,
         height = table.length,
         cells = height * width;
@@ -1060,23 +1190,16 @@ export class GoogleSheetsExports {
         );
       const fingerprint = sha256(
           stable({
-            version: 1,
+            version: tableVersion,
             destination: frozenBinding,
             report_id: report.id,
             captured_at: report.captured_at,
             // Delivery identity uses the snapshot as captured, so a retry or replay after its recommendations
             // expire is still the same delivery; the written cells show the expiry at write time (DEC-01).
-            table: reportTable(report, report.captured_at),
+            table: reportTable(report, report.captured_at, tableVersion),
           }),
         ),
-        deliveryId = sheetsDeliveryId(destinationId, report.id),
         marker = deliveryId + ':' + fingerprint;
-      let prior: JsonObject | undefined;
-      try {
-        prior = this.store.document(actor.tenantId, 'sheets_delivery', deliveryId);
-      } catch (e) {
-        if (!(e instanceof MirrorError && e.code === 'NOT_FOUND')) throw e;
-      }
       if (prior && prior.fingerprint !== fingerprint)
         throw new MirrorError(
           'IDEMPOTENCY_CONFLICT',
@@ -1144,6 +1267,13 @@ export class GoogleSheetsExports {
           'This tab has conflicting delivery metadata. Inspect the destination before exporting.',
           {destination_id: destinationId, release_available: true},
         );
+      // EXP-04 C: the owned tab is protected (warning only) when AMCP creates it, and once for a tab created earlier;
+      // a tab that already carries protection, or whose protection was settled before, is left as its users keep it.
+      const protectionSettled = tableVersion !== 2 || !!d.tab_protection_at,
+        protectedAlready = (existing?.protectedRanges ?? []).some(
+          (p: JsonObject) => (p.range?.sheetId ?? d.sheet_id) === d.sheet_id,
+        ),
+        protect = !protectionSettled && !protectedAlready;
       const record = {
         destination_id: destinationId,
         report_id: report.id,
@@ -1153,6 +1283,8 @@ export class GoogleSheetsExports {
         cells,
         spreadsheet_id: d.spreadsheet_id,
         sheet_id: d.sheet_id,
+        table_version: tableVersion,
+        ...(protectionSettled ? {} : {tab_protection: protect ? 'added' : 'existing'}),
       };
       let sentAt = 0;
       const accepted = () =>
@@ -1254,7 +1386,6 @@ export class GoogleSheetsExports {
             fields: 'userEnteredFormat',
           },
         },
-        ...sheetsNumberFormats(report, table, d.sheet_id, rowCount),
         {
           setBasicFilter: {
             filter: {
@@ -1269,6 +1400,8 @@ export class GoogleSheetsExports {
           },
         },
       );
+      if (tableVersion === 2)
+        requests.push(...sheetsPresentationRequests(report, table, d.sheet_id, rowCount, columnCount));
       if (markers.length === 1 && !released) {
         if (!Number.isSafeInteger(markers[0]!.metadataId) || markers[0]!.metadataId < 0)
           throw new MirrorError(
@@ -1306,6 +1439,39 @@ export class GoogleSheetsExports {
           },
         });
       }
+      // EXP-04 C: the tab names the contract its cells follow (`amcp_table_version` "2"), so a reader can tell layouts
+      // apart. The unmarked version 1 layout (a delivery first sent under it, or the rollback) carries no marker, so a
+      // marker a version 2 delivery left is removed in the same atomic batch.
+      const versions: JsonObject[] = (existing?.developerMetadata ?? []).filter(
+        (m: JsonObject) => m.metadataKey === sheetsTableVersionKey,
+      );
+      if (!(tableVersion === 2 && versions.length === 1 && versions[0]!.metadataValue === '2')) {
+        if (versions.length)
+          requests.push({
+            deleteDeveloperMetadata: {
+              dataFilter: {
+                developerMetadataLookup: {metadataKey: sheetsTableVersionKey, metadataLocation: {sheetId: d.sheet_id}},
+              },
+            },
+          });
+        if (tableVersion === 2)
+          requests.push({
+            createDeveloperMetadata: {
+              developerMetadata: {
+                metadataKey: sheetsTableVersionKey,
+                metadataValue: '2',
+                location: {sheetId: d.sheet_id},
+                visibility: 'DOCUMENT',
+              },
+            },
+          });
+      }
+      if (protect)
+        requests.push({
+          addProtectedRange: {
+            protectedRange: {range: {sheetId: d.sheet_id}, description: sheetsTabProtection, warningOnly: true},
+          },
+        });
       const payloadBytes = Buffer.byteLength(JSON.stringify({requests}));
       if (payloadBytes > sheetsDeliveryLimits.payload_bytes)
         throw new MirrorError('EXPORT_TOO_LARGE', 'Split this report into smaller exports.');

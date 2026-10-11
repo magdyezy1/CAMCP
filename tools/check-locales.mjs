@@ -78,7 +78,8 @@ export function inspectLocaleSource(source, file = 'script.js') {
     if (!node || typeof node !== 'object') return;
     if (node.type === 'VariableDeclarator' && maps.has(node.id?.name)) collectValues(node.init);
     // WEB-06: the route registry's display names are interface copy; paths, flags and page keys are not.
-    if (node.type === 'VariableDeclarator' && node.id?.name === 'routeRegistry')
+    // WEB-08: the palette's owner commands (identity.js) carry the same display fields.
+    if (node.type === 'VariableDeclarator' && ['routeRegistry', 'ownerCommands'].includes(node.id?.name))
       for (const entry of node.init?.elements ?? [])
         for (const property of entry.properties ?? [])
           if (['label', 'group', 'aliases', 'description'].includes(property.key?.name)) collectValues(property.value);

@@ -990,3 +990,36 @@ test('SEC-06: a social-only member confirms it is them with their linked provide
     await f.close();
   }
 });
+
+// WEB-08: the access list marks the caller's own row, so the page offers no action the server always refuses.
+test("the instance owner's own access row is marked self, and changing it is still refused", async () => {
+  const f = await fixture({AMCP_OWNER_EMAIL: 'owner@example.test'});
+  try {
+    const me = await f.create('owner@example.test'),
+      member = await f.create('member@example.test');
+    // A migrated owner account: an AMCP user who owns the instance workspace.
+    f.store.db
+      .prepare('INSERT INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,?,?)')
+      .run(f.web.tenantId, me.id, 'owner', Date.now());
+    const owner = f.credentials(f.accounts.session(me, f.web.tenantId));
+    const listed = await f.request('/api/owner/accounts', 'GET', undefined, owner);
+    assert.equal(listed.status, 200);
+    const accounts = (await listed.json()).accounts as JsonObject[];
+    assert.equal(accounts.find(a => a.id === me.id)!.self, true);
+    assert.equal(accounts.find(a => a.id === member.id)!.self, false);
+    assert.equal(accounts.filter(a => a.self === true).length, 1);
+    // The flag only describes the list; the server keeps refusing a change to the caller's own access.
+    const own = await f.request('/api/owner/accounts/access', 'POST', {user_id: me.id, grant: false}, owner);
+    assert.equal(own.status, 403);
+    // The administrator door is not an account row, so nothing is marked self for it.
+    const door = f.credentials(
+      f.web.createSession({tenantId: f.web.tenantId, userId: 'workspace-admin', role: 'admin'}),
+    );
+    const doorRows = (await (await f.request('/api/owner/accounts', 'GET', undefined, door)).json())
+      .accounts as JsonObject[];
+    assert.ok(doorRows.length >= 2);
+    assert.ok(doorRows.every(a => a.self === false));
+  } finally {
+    await f.close();
+  }
+});

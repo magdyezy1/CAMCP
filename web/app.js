@@ -1778,6 +1778,12 @@ function clientNavigation(event, el) {
     await initializeUILocale();
     session = await api('/api/session');
     await refresh();
+    // A fresh load at a section of a workspace page opens there once the page has its data, as an in-app link does
+    // (WEB-08: the palette's /settings#owner-write-pause). The browser found nothing there while the page was empty.
+    if (globalThis.location?.hash && !document.body.classList.contains('public-view')) {
+      const section = fragmentTarget(location.hash);
+      if (section) focusFragmentTarget(section);
+    }
   } catch (e) {
     content.innerHTML =
       header('AMCP', uiText('Your advertising workspace')) + `<div class="notice warning">${esc(e.message)}</div>`;

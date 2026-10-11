@@ -138,6 +138,46 @@ function uiDateZoned(value) {
     timeZoneName: 'short',
   });
 }
+/** The viewer's own IANA time zone, or UTC when the runtime does not report one. */
+function uiViewerTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+/** A wall-clock time in `timeZone` with that zone's abbreviation for that date (EDT or EST, for example). */
+function uiZonedTime(value, timeZone) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return uiText('Date unavailable');
+  try {
+    return new Intl.DateTimeFormat(uiLocale, {
+      numberingSystem: 'latn',
+      timeZone,
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZoneName: 'short',
+    }).format(date);
+  } catch {
+    return uiDateZoned(value);
+  }
+}
+/**
+ * A schedule time (EXP-04, owner policy P6): the delivery time zone first, named, then the viewer's own time when the
+ * viewer is elsewhere. A time shown without its zone made an 08:00 Riyadh delivery read as 06:00 in London.
+ */
+function uiScheduleTime(value, timeZone) {
+  if (typeof timeZone !== 'string' || !timeZone) return uiDateZoned(value);
+  const zoned = uiZonedTime(value, timeZone) + ' (' + timeZone + ')',
+    viewer = uiViewerTimeZone();
+  return viewer === timeZone
+    ? zoned
+    : uiText('{time} · your time: {local}', {time: zoned, local: uiZonedTime(value, viewer)});
+}
 const uiEscape = value =>
   String(value).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c]);
 /**

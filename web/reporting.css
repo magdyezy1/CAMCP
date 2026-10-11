@@ -795,15 +795,50 @@ h2.report-section-label {
   border-radius: 7px;
   background: var(--white);
 }
-#delivery-status {
-  color: #3c7869;
+/* EXP-04 A: the delivery status bar stays at the foot of the dialog, beside the actions, in its tone. */
+.report-delivery-dialog .delivery-status {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin-top: 18px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
   font-size: 13px;
   line-height: 1.7;
+  color: var(--ink);
+  background: var(--surface-accent);
+  box-shadow: 0 -6px 16px #1b103b1f;
+  overflow-wrap: anywhere;
 }
-#delivery-status:not(:empty) {
-  padding: 15px;
-  background: #e7f4ed;
-  border-radius: 10px;
+.report-delivery-dialog .delivery-status[hidden] {
+  display: none;
+}
+.report-delivery-dialog .delivery-status.success {
+  color: var(--success-ink);
+  background: var(--success-bg);
+}
+.report-delivery-dialog .delivery-status.warning {
+  color: var(--warning-ink);
+  background: var(--warning-bg);
+}
+.report-delivery-dialog .delivery-status.error {
+  color: var(--danger);
+  background: var(--danger-bg);
+  border-color: var(--danger);
+}
+.report-delivery-dialog .delivery-status a {
+  color: inherit;
+}
+.delivery-preview {
+  margin-top: 14px;
+}
+.delivery-preview h4 {
+  margin: 0;
+}
+.schedule-preview-table th small {
+  display: block;
+  font-weight: 400;
 }
 @media (max-width: 1100px) {
   .report-heading {
@@ -950,6 +985,45 @@ h2.report-section-label {
 }
 .owner-operations .workspace-form p {
   grid-column: 1/-1;
+}
+/* WEB-08: owner Settings sub-navigation (Safety first) and its groups. */
+.settings-subnav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 24px;
+  padding: 0;
+  list-style: none;
+}
+.settings-subnav li[hidden] {
+  display: none;
+}
+.settings-subnav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  background: var(--surface-subtle);
+  text-decoration: none;
+}
+.settings-group {
+  margin-block-end: 32px;
+  scroll-margin-block-start: 16px;
+}
+.settings-group[hidden] {
+  display: none;
+}
+.settings-group > h2,
+.settings-group-heading {
+  margin-block: 0 14px;
+  scroll-margin-block-start: 16px;
+}
+.worker-health-details > summary {
+  min-height: 44px;
+  cursor: pointer;
 }
 
 .report-actions > select {

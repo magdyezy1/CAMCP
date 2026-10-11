@@ -58,6 +58,12 @@ export async function exerciseWorkerHealth({page, site, locale, output, id, resu
     observations = [];
   await panel.waitFor();
   assert.equal((await panel.locator('strong').innerText()).trim(), translated(labels.active));
+  // WEB-08: a verdict leads (the newest report's age and the threshold); the raw observations start collapsed.
+  assert.match(
+    await panel.locator('.worker-health-verdict').innerText(),
+    locale === 'ar' ? /أحدث تقرير قبل/ : /Newest report .+ ago; reports older than 90 seconds are not recent\./,
+  );
+  assert.equal(await panel.locator('details.worker-health-details').evaluate(node => node.open), false);
   assert.equal(await panel.locator('tbody tr').count(), 100);
   assert.equal(await panel.locator('input,button,select').count(), 0);
   assert.match(await panel.innerText(), locale === 'ar' ? /لا تؤكد/ : /do not confirm workspace jobs/);
@@ -102,6 +108,8 @@ export async function exerciseWorkerHealth({page, site, locale, output, id, resu
       has_more: observed.has_more,
     });
   }
+  // Opening the collapsed observations shows the same keyboard-scrollable table.
+  await panel.locator('details.worker-health-details > summary').click();
   await checks.tables(page, result);
   const region = panel.locator('.data-scroll');
   await region.focus();
