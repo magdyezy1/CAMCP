@@ -22,12 +22,15 @@ const gateways = new Set(['amcp_platform_workspace', 'amcp_native_action']);
 /** Whether this gateway's operation is one AMCP describes with its own contract here. */
 export const contextOperation = (gateway: string, operation: unknown): operation is string =>
   gateways.has(gateway) && typeof operation === 'string' && Object.hasOwn(contextOptionDefaults, operation);
-/** The platform names list_accounts filters by: each provider gateway, plus the captured google and x spellings. */
+/**
+ * The platform names list_accounts filters by: each provider gateway, the captured google and x spellings, and the
+ * sheets and drive spellings that list report destinations and media sources (CON-05; src/service.ts maps them).
+ */
 export function accountPlatforms(registry: Registry): string[] {
   const names = [...registry.tools.keys()]
     .filter(n => n.endsWith('_native_action') && n !== 'amcp_native_action')
     .map(n => n.slice(0, -'_native_action'.length));
-  return [...new Set([...names, 'google', 'x'])].sort();
+  return [...new Set([...names, 'google', 'x', 'sheets', 'drive'])].sort();
 }
 /** Refuses an option AMCP does not implement, naming it; a captured default is accepted and changes nothing. */
 export function checkContextOptions(registry: Registry, operation: string, args: JsonObject): void {

@@ -288,9 +288,9 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'check',
-      'Exact account prerequisites: live:false saves nothing; live:true reads the account and saves its read evidence.',
-      ['connection_id', 'account_id'],
-      ['live', 'requirements'],
+      'Exact account prerequisites of account_id, or of account_ids (1 to 20 accounts of one login, read four at a time): live:false saves nothing; live:true reads each account and saves its read evidence.',
+      ['connection_id'],
+      ['account_id', 'account_ids', 'live', 'requirements'],
       reads('readiness', 'account_metadata'),
       'reader',
       [[W, 'capabilities']],

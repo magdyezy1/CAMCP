@@ -143,6 +143,8 @@ test('every action of every AMCP tool has a contract row, and every row names ar
 const negativeFixtures = [
   // execute takes the frozen review; arguments sent with it are refused.
   {file: 'tests/google-recommendation-dismissal.test.ts', tool: 'amcp_write', action: 'execute', field: 'arguments'},
+  // account_ids applies to check only (CON-05); the dashboard call asserts that refusal.
+  {file: 'tests/connection-management.test.mjs', tool: 'amcp_workspace', action: 'dashboard', field: 'account_ids'},
   // This file's own report-only and enforce cases.
   ...[
     ['amcp_workspace', 'contracts', 'live'],

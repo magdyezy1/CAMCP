@@ -185,13 +185,26 @@ test('descriptions are AMCP-owned: no tool that does not exist, Amazon says noth
         assert.ok(names.has(m[1]), where + ': ' + m[1]);
     }
     const byName = Object.fromEntries(listed.map(t => [t.name, t.description]));
-    assert.match(byName.amazon_native_action, /AMCP has no executable Amazon Ads action yet/);
+    // Amazon Ads is not offered by default (CON-06, owner decision option b); see the offered case below.
+    assert.equal(byName.amazon_native_action, undefined);
     assert.match(byName.commerce_native_action, /Shopify and Salla have no AMCP connection/);
     assert.match(byName.commerce_native_action, /Shopify, Salla and WooCommerce expansion is parked/);
     assert.match(byName.adjust_native_action, /adjust_deeplinks/);
     assert.match(byName.amcp_native_action, /WORKFLOW_UNSUPPORTED.*generate_ad_content/);
     assert.doesNotMatch(byName.apple_ads_native_action, /legacy Campaign Management API v5 endpoint/);
     assert.match(byName.apple_ads_native_action, /Legacy Campaign Management API v5 routes are unavailable/);
+  }
+  // Where an operator offers Amazon Ads again (AMCP_PROVIDERS=amazon), its description says nothing runs.
+  const providers = process.env.AMCP_PROVIDERS;
+  process.env.AMCP_PROVIDERS = 'amazon';
+  try {
+    const amazon = fixture(t)
+      .service.listTools()
+      .find(tool => tool.name === 'amazon_native_action');
+    assert.match(amazon?.description ?? '', /AMCP has no executable Amazon Ads action yet/);
+  } finally {
+    if (providers === undefined) delete process.env.AMCP_PROVIDERS;
+    else process.env.AMCP_PROVIDERS = providers;
   }
   // The captured text stays available, beside AMCP's own.
   const help = registry.help({gateway: 'commerce_native_action'}, {mode: 'strict', flags: {}});
