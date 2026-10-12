@@ -519,7 +519,8 @@ const rows: Record<string, Row[]> = {
       ['connection_id'],
       reads(),
       'reader',
-      [[W, 'search_overlap']],
+      // The current value of a changed resource is in the inventory; change history names only the field.
+      [[W, 'portfolio']],
     ),
     row(
       'search_overlap',
@@ -528,7 +529,11 @@ const rows: Record<string, Row[]> = {
       ['connection_id'],
       reads(),
       'reader',
-      [[R, 'search_exclusion_candidates']],
+      // Exact negative keywords come from a retained guided search-term report, through the reviewed exclusion plan.
+      [
+        [R, 'capture_preset'],
+        [R, 'search_exclusion_candidates'],
+      ],
     ),
     row(
       'catalog_preview',
