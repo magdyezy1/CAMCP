@@ -1031,10 +1031,11 @@ async function renderActivity() {
   workspaceBind('#activity-refresh', () => load(0, true));
   workspaceBind('#activity-filter', async () => {
     if (!current()) return;
-    filters = {
-      ...client,
-      ...Object.fromEntries(['search', 'account_id'].map(k => [k, form.elements[k].value.trim()]).filter(([, v]) => v)),
-    };
+    const typed = Object.fromEntries(
+      ['search', 'account_id'].map(k => [k, form.elements[k].value.trim()]).filter(([, v]) => v),
+    );
+    // An account typed here is an explicit choice: the working client does not narrow it further (SEC-08).
+    filters = {...(typed.account_id ? {} : client), ...typed};
     await load(0, true);
   });
   form.addEventListener('input', () => {

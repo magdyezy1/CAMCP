@@ -447,7 +447,7 @@ async function bindCreativeLibrary(targets, showStatus) {
   const root = $('#creative-library'),
     generation = navigationGeneration,
     params = new URLSearchParams(location.search);
-  root.innerHTML = `<div class="panel-header"><h2>${esc(uiText('Creative library'))}</h2><button id="creative-refresh" class="button small">${esc(uiText('Refresh'))}</button></div><p class="workspace-copy">${esc(uiText('Find uploaded media, organize it with names and tags, and trace its use in campaign plans.'))}</p><form id="creative-filter" class="work-filter"><label>${esc(uiText('Search name or provider ID'))}<input name="search" type="search" maxlength="200" value="${esc(params.get('search'))}"></label><label>${esc(uiText('Tag'))}<input name="tag" maxlength="40" value="${esc(params.get('tag'))}"></label><label>${esc(uiText('Advertising account'))}<select name="target"><option value="">${esc(uiText('All accessible accounts'))}</option>${targets.map((t, i) => `<option value="${i}" ${t.connection_id === params.get('connection_id') && t.account_id === params.get('account_id') ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select></label><button class="button primary" type="submit">${esc(uiText('Find media'))}</button></form><div id="creative-results"><p data-page-status role="status">${esc(uiText('Loading library…'))}</p></div><p class="form-note">${esc(uiText('Metadata remains available after original files expire. Upload receipts are historical; reuse checks provider availability again.'))}</p>`;
+  root.innerHTML = `<div class="panel-header"><h2>${esc(uiText('Creative library'))}</h2><button id="creative-refresh" class="button small">${esc(uiText('Refresh'))}</button></div><p class="workspace-copy">${esc(uiText('Find uploaded media, organize it with names and tags, and trace its use in campaign plans.'))}</p><form id="creative-filter" class="work-filter"><label>${esc(uiText('Search name or provider ID'))}<input name="search" type="search" maxlength="200" value="${esc(params.get('search'))}"></label><label>${esc(uiText('Tag'))}<input name="tag" maxlength="40" value="${esc(params.get('tag'))}"></label><label>${esc(uiText('Advertising account'))}<select name="target"><option value="">${esc(typeof workingClient === 'function' && workingClient() ? uiText('All accounts of {client}', {client: workingClient().name}) : uiText('All accessible accounts'))}</option>${targets.map((t, i) => `<option value="${i}" ${t.connection_id === params.get('connection_id') && t.account_id === params.get('account_id') ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select></label><button class="button primary" type="submit">${esc(uiText('Find media'))}</button></form><div id="creative-results"><p data-page-status role="status">${esc(uiText('Loading library…'))}</p></div><p class="form-note">${esc(uiText('Metadata remains available after original files expire. Upload receipts are historical; reuse checks provider availability again.'))}</p>`;
   let filters = Object.fromEntries(
     ['search', 'tag', 'platform', 'account_id', 'connection_id', 'original_sha256']
       .filter(k => params.has(k))
@@ -466,7 +466,15 @@ async function bindCreativeLibrary(targets, showStatus) {
   const pager = workPageLoader(
     '#creative-results',
     uiText('Uploaded media'),
-    cursor => workspaceCall('media', {action: 'library', ...filters, limit: 12, ...(cursor ? {cursor} : {})}),
+    cursor =>
+      workspaceCall('media', {
+        action: 'library',
+        ...filters,
+        // Without a chosen account, the working client's media only (SEC-08); a chosen account is explicit.
+        ...(typeof workingClientQuery === 'function' && !filters.account_id ? workingClientQuery() : {}),
+        limit: 12,
+        ...(cursor ? {cursor} : {}),
+      }),
     r =>
       r.assets.map(creativeAssetCard).join('') ||
       blank(

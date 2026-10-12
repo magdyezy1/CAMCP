@@ -351,6 +351,43 @@ test('the media page follows the working client, and a Drive import needs an exp
   assert.match(all.importSelect(), /<option value="" selected disabled>/);
 });
 
+test('the report library offers the working client’s saved reports and keeps the open one', async () => {
+  const f = shell({search: '?client=profile-b'});
+  await f.run('loadWorkingClients()');
+  const source = readFileSync('web/report-library.js', 'utf8');
+  new Script(
+    source.slice(source.indexOf('function overviewLabel('), source.indexOf('function renderOverviewLibrary(')),
+  ).runInContext(f.context);
+  const meta = account => ({platform: 'meta', connection_id: 'meta', account_id: account});
+  f.context.overviewState = {selection: null};
+  f.context.b = {
+    platforms: [
+      {id: 'meta', gateway: 'meta_native_action'},
+      {id: 'google', gateway: 'google_ads_native_action'},
+    ],
+    views: [
+      {id: 'of-a', config: {name: 'Report of A', sources: [meta('100')]}},
+      {id: 'of-b', config: {name: 'Report of B', sources: [meta('200')]}},
+      {id: 'mixed', config: {name: 'Mixed report', sources: [meta('100'), meta('200')]}},
+    ],
+    templates: [{id: 'blank', config: {name: 'Blank template', sources: []}}],
+  };
+  const offered = f.run('overviewLibraryOptions(b)');
+  assert.match(offered, /Report of B/);
+  assert.match(offered, /Blank template/, 'a template without accounts suits any client');
+  assert.doesNotMatch(
+    offered,
+    /Report of A|Mixed report/,
+    'another client’s report, or one mixing clients, is not offered',
+  );
+  f.context.overviewState = {selection: {kind: 'view', id: 'mixed'}};
+  assert.match(f.run('overviewLibraryOptions(b)'), /value="view:mixed" selected>Mixed report/, 'the open report stays');
+  // All clients: every saved report, as before.
+  f.run("history.replaceState(null, '', '/reporting-overview')");
+  f.run('workingClientRemember(null)');
+  assert.match(f.run('overviewLibraryOptions(b)'), /Report of A[\s\S]*Report of B|Report of B[\s\S]*Report of A/);
+});
+
 test('reviewer test accounts load no working clients', async () => {
   const f = shell({session: {authenticated: true, testAccount: true, id: 'workspace-test', workspaceId: 't'}});
   assert.deepEqual(JSON.parse(JSON.stringify(await f.run('loadWorkingClients()'))), []);

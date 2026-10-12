@@ -3,6 +3,18 @@
 function overviewLabel(config) {
   return [config.client_name, config.name].filter(Boolean).join(' · ');
 }
+/**
+ * Whether the working client covers a saved report or template (SEC-08): every account it reads is one of the client's,
+ * so a report that mixes clients is not offered while one client is chosen. One without accounts suits any client.
+ */
+function overviewInWorkingClient(record, b) {
+  return (
+    typeof inWorkingClient !== 'function' ||
+    (record.config?.sources ?? []).every(s =>
+      inWorkingClient(b.platforms.find(p => p.id === s.platform)?.gateway, s.account_id, s.connection_id),
+    )
+  );
+}
 function overviewLibraryOptions(b) {
   const selected = overviewState.selection;
   return (
@@ -13,7 +25,9 @@ function overviewLibraryOptions(b) {
     ]
       .map(
         ([kind, label, records]) =>
-          `<optgroup label="${label}">${[...records]
+          `<optgroup label="${label}">${records
+            // The open report stays listed whatever the working client.
+            .filter(r => (selected?.kind === kind && selected.id === r.id) || overviewInWorkingClient(r, b))
             .sort((a, b) => overviewLabel(a.config).localeCompare(overviewLabel(b.config)))
             .map(
               r =>
