@@ -146,6 +146,13 @@ for (const locale of ['en', 'ar']) {
       await f.run('renderMeasurement()');
       const testId = f.node('measurement-trace:import_test_id').value;
       assert.match(testId, /^amcp-test-import-[0-9a-f]{12}$/, 'a synthetic identifier is generated locally');
+      // WEB-05 regression (browser QA wave 2): the generated identifier is the field's starting value, so a fresh
+      // /measurement reports no unsaved edits and a language switch asks nothing.
+      assert.equal(
+        f.node('measurement-trace:import_test_id').defaultValue,
+        testId,
+        'the generated identifier is not an unsaved edit',
+      );
       choose(f, 'datalayer', JSON.stringify(dataLayer));
       await convert(f);
       const json = f.node('measurement-trace:trace').value;

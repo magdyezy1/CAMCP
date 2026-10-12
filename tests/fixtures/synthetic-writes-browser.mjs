@@ -9,6 +9,23 @@ import {spendPolicyConnection, spendPolicySeed} from './synthetic-writes-data.mj
 const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
 const translate = locale => key => (locale === 'ar' ? (catalog[key] ?? key) : key);
 const pattern = text => new RegExp(text.replace(/[.?*+^$()[\]{}|\\]/g, '\\$&'));
+/** EXP-04 A: a finished export states a receipt (rows, tab, spreadsheet, time) instead of "Export complete.". */
+const receiptPattern = text =>
+  new RegExp(
+    [
+      'Exported {rows} row to the tab “{tab}” in “{spreadsheet}” at {time}.',
+      'Exported {rows} rows to the tab “{tab}” in “{spreadsheet}” at {time}.',
+    ]
+      .map(key =>
+        text(key)
+          .replace(/[.?*+^$()[\]|\\]/g, '\\$&')
+          .replace('{rows}', '[0-9]+')
+          .replace('{tab}', '[^”]+')
+          .replace('{spreadsheet}', '[^”]+')
+          .replace('{time}', '.+?'),
+      )
+      .join('|'),
+  );
 const workspaceResponse = (page, tool, action) =>
   page.waitForResponse(
     response =>
@@ -207,14 +224,15 @@ export async function exerciseExportOutcomes({page, site, locale, result, checks
     await dialog.locator('#report-export-now').click();
     assert.equal((await (await exported).json()).success, true);
     assert.equal(await site.exportOutcomes.workOnce(), true);
-    const expected = outcome === 'complete' ? text('Export complete.') : text('Export to a new tab');
+    const expected = outcome === 'complete' ? receiptPattern(text).source : pattern(text('Export to a new tab')).source;
     await page.waitForFunction(
-      expected => document.getElementById('delivery-status')?.textContent.includes(expected),
+      expected => new RegExp(expected).test(document.getElementById('delivery-status')?.textContent ?? ''),
       expected,
       {timeout: 10000},
     );
     if (outcome === 'superseded') {
       assert.doesNotMatch(await status.innerText(), pattern(text('Export complete.')));
+      assert.doesNotMatch(await status.innerText(), receiptPattern(text), 'A superseded export states no receipt');
       assert.equal(await status.locator('#delivery-new-tab').isVisible(), true);
     } else assert.equal(await status.locator('a[href*="docs.google.com"]').count(), 1);
     await checks.intermediate('export-' + outcome);

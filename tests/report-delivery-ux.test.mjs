@@ -280,6 +280,45 @@ test('EXP-04 A: a finished export states a receipt with rows, tab, spreadsheet a
   assert.equal(f.focused.at(-1), '#delivery-status');
 });
 
+// Browser QA wave 2 regression: a one-row export read "Exported 1 rows" and its snapshot notice "1 rows" (RPT-05
+// plural rule); the singular has its own message, in English and Arabic.
+test('a one-row export receipt and snapshot notice use the singular row', async () => {
+  const f = fixture();
+  f.context.snap = {...snapshot(f.config), row_count: 1};
+  f.run('overviewState.report = snap');
+  await f.run("renderReportDelivery('sheets_now')");
+  assert.match(f.node('#report-delivery-content').innerHTML, /<bdi[^>]*>[^<]*<\/bdi>” · 1 row · /);
+  f.node('#report-destination').value = 'tab-a';
+  f.node('#report-export-confirm').checked = true;
+  f.respond(args =>
+    args.action === 'export'
+      ? {id: 'export-1', state: 'queued'}
+      : args.action === 'export_status'
+        ? {
+            id: 'export-1',
+            report_id: 'snap-1',
+            destination_id: 'tab-a',
+            state: 'complete',
+            outcome: 'complete',
+            rows: 1,
+            completed_at: Date.UTC(2026, 9, 9, 6, 30),
+            url: 'https://docs.google.com/spreadsheets/d/sheet1/edit#gid=7',
+            job: {state: 'complete'},
+          }
+        : f.bootstrap,
+  );
+  await f.bindings.get('#report-export-now')();
+  const bar = f.node('#delivery-status');
+  assert.match(bar.innerHTML, /Exported 1 row to the tab “Client A” in “Client sheet” at /);
+  assert.doesNotMatch(bar.innerHTML, /1 rows/);
+  const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
+  for (const key of [
+    'Exported {rows} row to the tab “{tab}” in “{spreadsheet}” at {time}.',
+    'Snapshot “{name}” · {count} row · {state}',
+  ])
+    assert.ok(catalog[key], 'Arabic for ' + key);
+});
+
 test('EXP-04 A regression: choosing a tab for an export-only action is not a setup edit and raises no prompt', async () => {
   const f = fixture();
   f.context.snap = snapshot(f.config);
