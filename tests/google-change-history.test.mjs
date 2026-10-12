@@ -137,9 +137,11 @@ test('change history reads one fixed change_event projection without user_email 
 test('windows over 30 days, older than retention, in the future or unbounded are refused before any request', async t => {
   const f = fixture(t);
   for (const requirements of [
-    // 31 days, all within retention: refused for the window alone.
+    // 31 days: refused for the window alone.
     {date_from: isoDay(-30), date_to: isoDay(0)},
     {date_from: isoDay(-31), date_to: isoDay(-25)},
+    // 30 days, but its first day starts more than 30 days ago (Google: START_DATE_TOO_OLD).
+    {date_from: isoDay(-30), date_to: isoDay(-1)},
     {date_from: isoDay(-2), date_to: isoDay(3)},
     {date_from: to, date_to: from},
     {date_from: '2026-02-30', date_to: to},

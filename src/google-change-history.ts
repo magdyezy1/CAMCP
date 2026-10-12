@@ -56,13 +56,14 @@ export async function googleChangeHistory(store: Store, call: ToolCall, actor: A
     to = day(config.date_to),
     limit = config.limit ?? 1000,
     today = day(new Date().toISOString().slice(0, 10))!;
-  // Account time zones run up to a day ahead of UTC; Google refuses anything older than its 30-day retention.
+  // The last 30 days are today and the 29 days before it (UTC). A start day 30 days back begins more than 30 days ago,
+  // which Google refuses (START_DATE_TOO_OLD). Account time zones run up to a day ahead of UTC, hence tomorrow's end.
   if (
     from === null ||
     to === null ||
     to < from ||
     to - from > 29 * dayMs ||
-    from < today - 30 * dayMs ||
+    from < today - 29 * dayMs ||
     to > today + dayMs
   )
     bad(
