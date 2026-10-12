@@ -237,6 +237,8 @@ export class WriteGroups {
       expires_at: expires,
       slowest_prepare_ms: Math.round(slowest),
       created_at: Date.now(),
+      // What a person approving the group on the website is shown (WRT-09): the reasons and effects of every part.
+      approval_context: {reasons, effects: effects ?? null},
       prepare_input: {
         gateway: input.gateway,
         arguments: input.arguments,

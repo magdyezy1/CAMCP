@@ -38,25 +38,39 @@ import type {Actor, CompiledRequest, JsonObject} from './types.js';
 export {approvalModes};
 export type ApprovalMode = (typeof approvalModes)[number];
 export type ApprovalClass = 'spend_affecting' | 'cap_override' | 'destructive';
-/** The approval policy of an account: its own spending policy, otherwise the workspace default. */
+/** How strict an approval mode is, in the order approvalModes lists them; an unknown value counts as the default. */
+const modeRank = (mode: unknown) => Math.max(0, approvalModes.indexOf(mode as ApprovalMode));
+/**
+ * The approval policy of an account: the stricter of its own spending policy and the workspace default, setting by
+ * setting. Unlike caps, where an account's own policy replaces the default, an account policy saved for its caps never
+ * drops the approval the owner set for every account: it can only add to it. `policy_id` names the policy that turned
+ * the destructive tier on.
+ */
 export function reviewApprovalPolicy(
   store: Store,
   tenant: string,
   gateway: string,
   account: string,
 ): {approval_mode: ApprovalMode; require_destructive_confirmation: boolean; policy_id: string | null} {
-  const read = (id: string) =>
-    store.db
+  const read = (id: string) => {
+    const row = store.db
       .prepare("SELECT data FROM documents WHERE tenant_id=? AND kind='spend_policy' AND id=?")
       .get(tenant, id) as {data: string} | undefined;
+    return row ? (JSON.parse(row.data) as JsonObject) : undefined;
+  };
   const accountKey = spendPolicyKey(gateway, account),
-    own = read(accountKey),
-    row = own ?? read(workspaceDefaultPolicyId),
-    data = row ? (JSON.parse(row.data) as JsonObject) : {};
+    policies: [string, JsonObject | undefined][] = [
+      [accountKey, read(accountKey)],
+      [workspaceDefaultPolicyId, read(workspaceDefaultPolicyId)],
+    ],
+    mode = policies
+      .map(([, p]) => p?.approval_mode)
+      .reduce<ApprovalMode>((a, b) => (modeRank(b) > modeRank(a) ? b : a), 'assistant_ack'),
+    destructive = policies.find(([, p]) => p?.require_destructive_confirmation === true);
   return {
-    approval_mode: approvalModes.includes(data.approval_mode) ? data.approval_mode : 'assistant_ack',
-    require_destructive_confirmation: data.require_destructive_confirmation === true,
-    policy_id: row ? (own ? accountKey : workspaceDefaultPolicyId) : null,
+    approval_mode: mode,
+    require_destructive_confirmation: !!destructive,
+    policy_id: destructive?.[0] ?? null,
   };
 }
 /** The website page where a person approves a review or group. */
@@ -78,6 +92,8 @@ const approverText = (mode: ApprovalMode) =>
   mode === 'distinct_approver'
     ? 'Another member than the one who prepared it, or the workspace owner, approves it on the AMCP website.'
     : 'A signed-in member with write access approves it on the AMCP website.';
+const ownerCapText =
+  'Only the workspace owner executes a change beyond a spending cap, or approves it on the AMCP website first.';
 /**
  * What prepare says about approval (WRT-09, P5): undefined when nothing beyond the acknowledgements is needed. A review
  * beyond a cap prepared by anyone but the owner names the owner; an approval mode names its classes and approver.
@@ -100,13 +116,20 @@ export function approvalNotice(
     mode: policy.approval_mode,
     classes,
     ...(ownerCap ? {owner_required: 'cap_override'} : {}),
-    approver: byMode
-      ? approverText(policy.approval_mode)
-      : 'Only the workspace owner executes a change beyond a spending cap, or approves it on the AMCP website first.',
+    approver: [...(byMode ? [approverText(policy.approval_mode)] : []), ...(ownerCap ? [ownerCapText] : [])].join(' '),
     website_path: approvalPath(reviewId),
     meaning:
       'Execute is refused until a person approves this exact review on the AMCP website (open website_path); the approval is bound to this review’s fingerprint and expires with it. The acknowledgement flags are still needed.',
   };
+}
+/** The id a person approves for a review: its group's when it is a part of one (a group is approved once, as a whole). */
+function approvalSubjectId(store: Store, tenant: string, reviewId: string): string {
+  const row = store.db
+    .prepare(
+      "SELECT d.id FROM documents d, json_each(d.data,'$.parts') p WHERE d.tenant_id=? AND d.kind='write_review_group' AND p.value=? LIMIT 1",
+    )
+    .get(tenant, reviewId) as {id: string} | undefined;
+  return row?.id ?? reviewId;
 }
 /** A group's fingerprint for approval: its id and every part's own fingerprint, in order. */
 function groupFingerprint(store: Store, tenant: string, group: JsonObject): string {
@@ -132,6 +155,9 @@ function approvalSubject(store: Store, tenant: string, id: string) {
     ...new Set(parts.flatMap(p => (Array.isArray(p.required_acknowledgements) ? p.required_acknowledgements : []))),
   ];
   const destructive = parts.some(p => destructiveRequest(p.plan as CompiledRequest, p.state));
+  const claimed = (key: unknown) =>
+    typeof key === 'string' &&
+    !!store.db.prepare('SELECT 1 FROM idempotency WHERE tenant_id=? AND key=?').get(tenant, key);
   return {
     id,
     review,
@@ -141,6 +167,9 @@ function approvalSubject(store: Store, tenant: string, id: string) {
     acknowledgements,
     destructive,
     fingerprint: group ? groupFingerprint(store, tenant, group) : (review.fingerprint as string),
+    // Claimed: being sent, sent or settled (a group by its own record or any part's claim). A refusal before anything
+    // was sent releases its claim (D12), so such a review can still be approved and executed.
+    executed: claimed(id) || (!!group && parts.some(p => claimed(p.id))),
   };
 }
 /**
@@ -152,17 +181,43 @@ export function approvalFor(
   tenant: string,
   reviewId: string,
 ): {approval?: JsonObject; subject: string; mismatch: boolean} {
-  const row = store.db
-    .prepare(
-      "SELECT d.id FROM documents d, json_each(d.data,'$.parts') p WHERE d.tenant_id=? AND d.kind='write_review_group' AND p.value=? LIMIT 1",
-    )
-    .get(tenant, reviewId) as {id: string} | undefined;
-  const subject = row?.id ?? reviewId,
+  const subject = approvalSubjectId(store, tenant, reviewId),
     approval = optional(store, tenant, 'write_approval', subject);
   if (!approval) return {subject, mismatch: false};
   const expected = approvalSubject(store, tenant, subject).fingerprint;
   return approval.fingerprint === expected ? {approval, subject, mismatch: false} : {subject, mismatch: true};
 }
+/**
+ * What `amcp_write status` says about a review's website approval (WRT-09): undefined when it needs none, otherwise
+ * whether a person has approved this exact review and where. It reads AMCP alone.
+ */
+export function approvalStatus(store: Store, actor: Actor, reviewId: string): JsonObject | undefined {
+  const subject = approvalSubjectId(store, actor.tenantId, reviewId);
+  let s: ReturnType<typeof approvalSubject>;
+  try {
+    s = approvalSubject(store, actor.tenantId, subject);
+  } catch {
+    return undefined;
+  }
+  const policy = reviewApprovalPolicy(store, actor.tenantId, s.plan.gateway, s.plan.accountId ?? ''),
+    classes = approvalClasses(s.acknowledgements, s.destructive),
+    byMode = policy.approval_mode !== 'assistant_ack' && classes.length > 0,
+    // As at prepare: the owner executes a change beyond a cap without an approval; anyone else needs the owner's.
+    ownerCap = s.acknowledgements.includes('cap_override_confirmed') && !workspaceOwner(store, actor);
+  if (!byMode && !ownerCap) return undefined;
+  const found = optional(store, actor.tenantId, 'write_approval', subject),
+    current = found?.fingerprint === s.fingerprint ? found : undefined;
+  return {
+    mode: policy.approval_mode,
+    classes,
+    ...(ownerCap ? {owner_required: 'cap_override'} : {}),
+    approved: !!current,
+    ...(current ? {approver_is_owner: current.approver_is_owner === true, approved_at: iso(current.approved_at)} : {}),
+    ...(found && !current ? {approval_fingerprint_mismatch: true} : {}),
+    website_path: approvalPath(subject),
+  };
+}
+const iso = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? new Date(v).toISOString() : null);
 const humanApprovalRequired = (subject: string, details: JsonObject, message: string) =>
   new MirrorError(
     'HUMAN_APPROVAL_REQUIRED',
@@ -258,65 +313,99 @@ function assertApprover(store: Store, actor: Actor): void {
   if (actor.role === 'reader' || actor.membershipRole === 'viewer' || actor.testAccount === true)
     throw new MirrorError('FORBIDDEN', 'Only a member who can approve changes may open or approve reviews.', {}, 403);
 }
-/** A review or group as a person sees it before approving (website). Nothing is sent; the request body is not shown. */
+/** A member's name for the approval page, when the workspace keeps one; the person's ID otherwise. */
+function personName(store: Store, tenant: string, principal: unknown): string | null {
+  if (typeof principal !== 'string' || !principal) return null;
+  const users = !!store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='amcp_users'").get(),
+    row = users
+      ? (store.db
+          .prepare(
+            'SELECT u.name AS name FROM workspace_memberships m JOIN amcp_users u ON u.id=m.user_id WHERE m.tenant_id=? AND m.user_id=? AND m.active=1',
+          )
+          .get(tenant, principal) as {name?: unknown} | undefined)
+      : undefined;
+  return typeof row?.name === 'string' && row.name.trim() ? row.name.trim().slice(0, 200) : null;
+}
+/**
+ * A review or group as a person sees it before approving (website). Nothing is sent; the request body is not shown. A
+ * part of a group opens its group, which is approved as a whole.
+ */
 export function approvalView(store: Store, actor: Actor, reviewId: unknown): JsonObject {
   assertApprover(store, actor);
   if (typeof reviewId !== 'string' || !/^[A-Za-z0-9_-]{1,160}$/.test(reviewId))
     throw new MirrorError('INVALID_ARGUMENT', 'Send the review_id that prepare returned.', {field: 'review_id'});
-  const s = approvalSubject(store, actor.tenantId, reviewId);
+  const id = approvalSubjectId(store, actor.tenantId, reviewId),
+    s = approvalSubject(store, actor.tenantId, id);
   store.resolveConnection(actor, s.plan.gateway, s.plan.accountId, s.review.connection_id);
   const policy = reviewApprovalPolicy(store, actor.tenantId, s.plan.gateway, s.plan.accountId ?? ''),
     classes = approvalClasses(s.acknowledgements, s.destructive),
     byMode = policy.approval_mode !== 'assistant_ack' && classes.length > 0,
     capOwner = s.acknowledgements.includes('cap_override_confirmed'),
     owner = workspaceOwner(store, actor),
-    found = optional(store, actor.tenantId, 'write_approval', reviewId),
-    executed = !!store.db
-      .prepare('SELECT 1 FROM idempotency WHERE tenant_id=? AND key=?')
-      .get(actor.tenantId, s.group ? s.parts[0]?.id : reviewId);
-  const refusal = approvalRefusal(store, actor, s, policy.approval_mode, byMode, capOwner, owner, executed);
+    found = optional(store, actor.tenantId, 'write_approval', id),
+    current = found?.fingerprint === s.fingerprint ? found : undefined,
+    context = s.review.approval_context ?? s.parts[0]?.approval_context,
+    preparedBy = s.review.principal ?? s.review.user_id ?? null,
+    // Whether the approval given meets the owner's approval mode now (the mode may have changed since it was given).
+    meetsMode =
+      !!current &&
+      (policy.approval_mode !== 'distinct_approver' ||
+        current.approver_is_owner === true ||
+        current.approver_principal !== preparedBy);
+  const refusal = approvalRefusal(actor, s, policy.approval_mode, byMode, capOwner, owner, current, meetsMode);
   return {
-    review_id: reviewId,
+    review_id: id,
     group: s.group,
-    ...(s.group ? {parts: s.parts.length} : {}),
+    ...(s.group
+      ? {
+          parts: s.parts.length,
+          records: Array.isArray(s.review.records)
+            ? s.review.records.reduce((a: number, n: unknown) => a + (typeof n === 'number' ? n : 0), 0)
+            : null,
+        }
+      : {}),
     gateway: s.plan.gateway,
     account_id: s.plan.accountId ?? null,
     connection_id: s.review.connection_id,
     action: s.plan.action,
     summary: reviewSummary(s.plan, Array.isArray(s.parts[0]?.state) ? s.parts[0]!.state : []),
-    reasons: s.parts[0]?.approval_context?.reasons ?? [],
-    effects: s.parts[0]?.approval_context?.effects ?? null,
-    prepared_by: s.review.principal ?? s.review.user_id ?? null,
+    reasons: Array.isArray(context?.reasons) ? context.reasons : [],
+    effects: context?.effects ?? null,
+    prepared_by: preparedBy,
+    prepared_by_name: personName(store, actor.tenantId, preparedBy),
     prepared_at: typeof s.review.created_at === 'number' ? new Date(s.review.created_at).toISOString() : null,
     expires_at: new Date(Number(s.review.expires_at)).toISOString(),
     fingerprint: s.fingerprint,
     mode: policy.approval_mode,
     classes,
     owner_required: capOwner,
-    approval:
-      found && found.fingerprint === s.fingerprint
-        ? {
-            approver: found.approver_principal,
-            approver_is_owner: found.approver_is_owner,
-            approved_at: found.approved_at,
-          }
-        : null,
+    approval: current
+      ? {
+          approver: current.approver_principal,
+          approver_name: personName(store, actor.tenantId, current.approver_principal),
+          approver_is_owner: current.approver_is_owner === true,
+          approved_at: current.approved_at,
+        }
+      : null,
+    // Whether a member other than the owner still cannot execute it: no approval yet, one that no longer meets the mode,
+    // or, beyond a cap, a member's approval where the owner's is needed.
+    approval_pending: (byMode && !meetsMode) || (capOwner && current?.approver_is_owner !== true),
     may_approve: !refusal,
     ...(refusal ? {refusal} : {}),
     network_requests: 0,
   };
 }
 function approvalRefusal(
-  store: Store,
   actor: Actor,
   s: ReturnType<typeof approvalSubject>,
   mode: ApprovalMode,
   byMode: boolean,
   capOwner: boolean,
   owner: boolean,
-  executed: boolean,
+  current: JsonObject | undefined,
+  meetsMode: boolean,
 ): JsonObject | undefined {
-  if (executed) return {code: 'REVIEW_ALREADY_EXECUTED', message: 'This review was already executed.'};
+  if (s.executed) return {code: 'REVIEW_ALREADY_EXECUTED', message: 'This review was already executed.'};
   if (Number(s.review.expires_at) <= Date.now())
     return {code: 'REVIEW_EXPIRED', message: 'This review expired. Prepare it again and approve the new review.'};
   if (!byMode && !capOwner)
@@ -324,6 +413,10 @@ function approvalRefusal(
       code: 'APPROVAL_NOT_REQUIRED',
       message: 'This review needs no approval on the website: the user’s acknowledgements in the AI client suffice.',
     };
+  // One approval of each review. It is replaced only when it no longer meets the owner's approval mode (the mode changed
+  // since it was given), or by the owner's own where a change beyond a cap needs the owner.
+  if (meetsMode && (current?.approver_is_owner === true || !owner || !capOwner))
+    return {code: 'REVIEW_ALREADY_APPROVED', message: 'This review is already approved.'};
   if (!byMode && capOwner && !owner)
     return {code: 'OWNER_REQUIRED', message: 'Only the workspace owner approves a change beyond a spending cap.'};
   if (mode === 'distinct_approver' && !owner && principalOf(actor) === (s.review.principal ?? s.review.user_id))
@@ -335,54 +428,63 @@ function approvalRefusal(
 }
 /**
  * A person approves a review or group on the website (WRT-09): bound to the fingerprint the page showed, to the
- * approver and to the review's window. Audited; nothing is sent to any provider.
+ * approver and to the review's window. Checked and recorded in one transaction; audited; nothing is sent to any
+ * provider.
  */
 export function approveReview(store: Store, actor: Actor, reviewId: unknown, input: JsonObject): JsonObject {
   assertApprover(store, actor);
   assertTwoStepSession(actor, 'approve_review');
-  const view = approvalView(store, actor, reviewId);
   if (input.confirmed !== true)
     throw new MirrorError('APPROVAL_CONFIRMATION_REQUIRED', 'Confirm that you approve this exact review.', {}, 400);
-  if (input.fingerprint !== view.fingerprint)
-    throw new MirrorError(
-      'REVIEW_CHANGED',
-      'This review is not the one shown: its fingerprint differs. Open it again and approve what you see.',
-      {},
-      409,
-    );
-  if (!view.may_approve)
-    throw new MirrorError(
-      view.refusal.code,
-      view.refusal.message,
-      {review_id: reviewId},
-      view.refusal.code === 'APPROVAL_NOT_REQUIRED' ? 400 : 409,
-    );
-  const owner = workspaceOwner(store, actor),
-    approval = {
-      review_id: reviewId,
-      fingerprint: view.fingerprint,
+  return store.transaction(() => {
+    const view = approvalView(store, actor, reviewId);
+    if (input.fingerprint !== view.fingerprint)
+      throw new MirrorError(
+        'REVIEW_CHANGED',
+        'This review is not the one shown: its fingerprint differs. Open it again and approve what you see.',
+        {},
+        409,
+      );
+    if (!view.may_approve)
+      throw new MirrorError(
+        view.refusal.code,
+        view.refusal.message,
+        {review_id: view.review_id},
+        view.refusal.code === 'APPROVAL_NOT_REQUIRED' ? 400 : 409,
+      );
+    const owner = workspaceOwner(store, actor),
+      approval = {
+        review_id: view.review_id,
+        fingerprint: view.fingerprint,
+        approver: actor.userId,
+        approver_principal: principalOf(actor),
+        approver_is_owner: owner,
+        approved_at: Date.now(),
+        expires_at: Date.parse(view.expires_at),
+        classes: view.classes,
+      };
+    store.putDocument(actor.tenantId, 'write_approval', view.review_id, approval);
+    store.appendAudit(actor.tenantId, view.review_id, {
+      event: 'write_approved',
       approver: actor.userId,
-      approver_principal: principalOf(actor),
       approver_is_owner: owner,
-      approved_at: Date.now(),
-      expires_at: Date.parse(view.expires_at),
+      fingerprint: view.fingerprint,
       classes: view.classes,
+      gateway: view.gateway,
+      account_id: view.account_id,
+      connection_id: view.connection_id,
+      vendor_writes: 0,
+    });
+    return {
+      ...view,
+      approval: {
+        approver: approval.approver_principal,
+        approver_name: personName(store, actor.tenantId, approval.approver_principal),
+        approver_is_owner: owner,
+        approved_at: approval.approved_at,
+      },
+      approval_pending: view.owner_required === true && !owner,
+      may_approve: false,
     };
-  store.putDocument(actor.tenantId, 'write_approval', reviewId as string, approval);
-  store.appendAudit(actor.tenantId, reviewId as string, {
-    event: 'write_approved',
-    approver: actor.userId,
-    approver_is_owner: owner,
-    fingerprint: view.fingerprint,
-    classes: view.classes,
-    gateway: view.gateway,
-    account_id: view.account_id,
-    connection_id: view.connection_id,
-    vendor_writes: 0,
   });
-  return {
-    ...view,
-    approval: {approver: approval.approver_principal, approver_is_owner: owner, approved_at: approval.approved_at},
-    may_approve: false,
-  };
 }

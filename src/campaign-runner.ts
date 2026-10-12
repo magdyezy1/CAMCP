@@ -263,6 +263,15 @@ const activationOffer = (run: JsonObject): JsonObject =>
         },
       }
     : {};
+/**
+ * Refusals of a step that wait for a person's decision a plan approval never gives (WRT-09, owner decisions P1 and P5),
+ * and the stop `run` names for each. Each is raised before anything is claimed or sent.
+ */
+const personDecisions: Record<string, string> = {
+  HUMAN_APPROVAL_REQUIRED: 'needs_website_approval',
+  CAP_OVERRIDE_OWNER_REQUIRED: 'needs_owner_approval',
+  DESTRUCTIVE_CONFIRMATION_REQUIRED: 'needs_destructive_confirmed',
+};
 /** The call that lists the members who can be named a plan's approver (CMP-05 distinct-approver policy). */
 const distinctApproverCall = (run: JsonObject): JsonObject => ({
   tool: 'amcp_campaign',
@@ -809,6 +818,39 @@ export class CampaignRunner {
       const step = out.steps?.find((s: JsonObject) => s.id === prepared.step_id);
       if (step && ['failed', 'uncertain', 'mismatch'].includes(step.status) && !uploads)
         return stop(out, 'needs_attention');
+      // WRT-09: refused before anything was sent for a person's decision the plan approval cannot give: a member's
+      // approval of this step on the website (website_path), the owner's beyond a cap, or the destructive acknowledgement.
+      // The review stays ready; run continues once the person has acted.
+      const waiting = step?.status === 'review_ready' ? personDecisions[step.error?.code] : undefined;
+      if (waiting)
+        return stop(out, waiting, {
+          reason:
+            'Step ' +
+            prepared.step_id +
+            ' waits for a person: ' +
+            String(step.error.message ?? '') +
+            ' Nothing was sent; the review stays ready until it expires.',
+          ...(typeof step.error.details?.website_path === 'string'
+            ? {website_path: step.error.details.website_path}
+            : {}),
+          next_call:
+            waiting === 'needs_destructive_confirmed'
+              ? {
+                  tool: 'amcp_campaign',
+                  arguments: {
+                    action: 'execute_next',
+                    id: run.id,
+                    review_id: execute.review_id,
+                    idempotency_key: execute.idempotency_key,
+                    confirmed: true,
+                  },
+                  add_after_user_approval: {
+                    destructive_confirmed: true,
+                    ...(needs.spend_change_confirmed ? {spend_change_confirmed: true} : {}),
+                  },
+                }
+              : {tool: 'amcp_campaign', arguments: {action: 'run', id: run.id}},
+        });
       // Refused before anything was sent (a pause, a rate limit, a busy target): the review stays ready, and run continues
       // it once the cause clears instead of retrying it at once.
       if (step?.status === 'review_ready' && step.error)

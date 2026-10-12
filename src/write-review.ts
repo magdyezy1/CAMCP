@@ -1064,17 +1064,6 @@ export class WriteReviewService {
       fail('REVIEW_CHANGED', 'The stored reviewed request failed its integrity check.');
     const replayed = this.previousOutcome(actor, input, plan, fingerprint);
     if (replayed) return replayed;
-    // WRT-09 (owner decisions P1, P5): the destructive tier's acknowledgement and, under an approval mode, a person's
-    // website approval of this exact review. Checked before anything is claimed or sent; the review stays valid.
-    const approved = assertExecutionApproval(this.store, actor, review, input.review_id, input);
-    if (approved)
-      this.store.appendAudit(actor.tenantId, input.review_id, {
-        event: 'write_approval_presented',
-        approver: approved.approver,
-        approver_is_owner: approved.approver_is_owner === true,
-        approved_at: approved.approved_at,
-        actor: actor.userId,
-      });
     // Maker-checker (CMP-05): while the owner requires a distinct approver, a step of a plan that changes spending or
     // activates a launch executes only through its plan (execute_next or run), which checks another person's current
     // approval; a direct execute would skip it. Checked before anything is claimed or sent; the review stays valid.
@@ -1103,6 +1092,18 @@ export class WriteReviewService {
         'Nothing was submitted. Prepare the same request again and review it.',
         expiredNext(review),
       );
+    // WRT-09 (owner decisions P1, P5): the destructive tier's acknowledgement and, under an approval mode, a person's
+    // website approval of this exact review. Checked after expiry (an expired review is prepared again, not approved)
+    // and before anything is claimed or sent; the review stays valid.
+    const approved = assertExecutionApproval(this.store, actor, review, input.review_id, input);
+    if (approved)
+      this.store.appendAudit(actor.tenantId, input.review_id, {
+        event: 'write_approval_presented',
+        approver: approved.approver,
+        approver_is_owner: approved.approver_is_owner === true,
+        approved_at: approved.approved_at,
+        actor: actor.userId,
+      });
     // A personal-data review kept only counts and a digest: the people come again, hashed again in memory, and must be
     // the reviewed ones. The switch is read again: turning an account off stops reviews already prepared.
     const record = plan.personalData as PersonalDataRecord | undefined;
