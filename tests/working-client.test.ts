@@ -170,6 +170,57 @@ test('choosing a working client narrows plans, operations, history, media and th
   }
 });
 
+test('a playbook’s Page suggestions come only from the logins holding its accounts (regression: every login’s Pages)', async () => {
+  const {store, service} = await fixture();
+  try {
+    // A second Meta login that only client B uses, with client B's Page.
+    store.putConnection(
+      admin,
+      {
+        id: 'meta-login-b',
+        tenantId: tenant,
+        gateway: 'meta_native_action',
+        accounts: ['1300000003'],
+        writeAccounts: ['1300000003'],
+        enabled: true,
+        label: 'meta-login-b',
+        scopes: [],
+      },
+      {accessToken: 'synthetic'},
+    );
+    for (const [login, page] of [
+      ['meta-login', 'Page of A'],
+      ['meta-login-b', 'Page of B'],
+    ] as const)
+      store.putDocument(tenant, 'website_assets', login, {
+        groups: [{kind: 'pages', complete: true, assets: [{id: page.replaceAll(' ', '-'), kind: 'pages', name: page}]}],
+        selected: [],
+        lastSync: Date.now(),
+      });
+    store.putDocument(tenant, 'client_profile', 'profile-a-meta', {
+      name: 'Client A Meta',
+      bindings: [{gateway: 'meta_native_action', connection_id: 'meta-login', account_id: A1}],
+    });
+    const pages = async (profile?: string) =>
+      (
+        data(
+          await service.call(
+            'amcp_campaign',
+            {action: 'recipe_context', recipe: 'meta_website_traffic', ...(profile ? {profile_id: profile} : {})},
+            admin,
+          ),
+        ).pages as JsonObject[]
+      )
+        .map(p => p.name)
+        .sort();
+    assert.deepEqual(await pages('profile-a-meta'), ['Page of A']);
+    // Without a playbook every login with an eligible account still offers its Pages, as before.
+    assert.deepEqual(await pages(), ['Page of A', 'Page of B']);
+  } finally {
+    store.close();
+  }
+});
+
 test('a stale or foreign working client is refused rather than silently showing every client', async () => {
   const {store, service} = await fixture();
   try {

@@ -211,6 +211,11 @@ test('a token limited to client A cannot list, read, report on or prepare for cl
     const read = await f.service.call('meta_native_action', directReads.meta_native_action!(B), f.scoped);
     assert.equal(read.success, false);
     assert.equal((read.error as JsonObject).code, 'ACCOUNT_SCOPE_RESTRICTED');
+    // The refusal is a grant matter with its own next step, and never says whether the account exists here.
+    assert.equal((read.error as JsonObject).category, 'grant');
+    assert.match(String(((read.error as JsonObject).remedy as JsonObject).action), /get_workspace_context/);
+    const unknown = await f.service.call('meta_native_action', directReads.meta_native_action!('7999999999'), f.scoped);
+    assert.equal((unknown.error as JsonObject).code, 'ACCOUNT_SCOPE_RESTRICTED', 'an unknown account reads the same');
     assert.equal(f.requests.length, 0);
     // prepare: neither a reviewed write nor a native dry run is prepared for B.
     const prepared = await f.service.call(

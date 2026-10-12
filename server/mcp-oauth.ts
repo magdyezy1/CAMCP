@@ -434,7 +434,7 @@ export class McpOAuth implements OAuthServerProvider {
       choices: scopes.includes(writeScope) ? [readScope, readScope + ' ' + writeScope] : [readScope],
       capped: scopes.length < requested.length,
       // "Limit to client" (SEC-08): the client access sets the member may limit this AI client to. A member limited to
-      // a set must hand on that limit (ccess_set_required); anyone else may choose one or none.
+      // a set must hand on that limit (access_set_required); anyone else may choose one or none.
       access_sets: (listAccessSets(this.web.store, session.actor).sets as JsonObject[]).map(s => ({
         id: s.id,
         name: s.name,
