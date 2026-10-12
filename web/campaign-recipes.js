@@ -47,6 +47,11 @@ const recipeLabels = {
   marketing_image_asset_ids: 'Landscape image asset IDs already in the account — one per line',
   square_image_asset_ids: 'Square image asset IDs already in the account — one per line',
   logo_asset_ids: 'Logo asset IDs already in the account — one per line (1–5)',
+  location_urns: 'LinkedIn location URNs — one per line',
+  locale: 'Campaign locale (language_COUNTRY)',
+  post_urn: 'Existing post URN to sponsor',
+  lead_form_id: 'Existing lead form ID of this ad account',
+  political_intent: 'Political advertising declaration',
 };
 // The Performance Max pack (CMP-07) takes its own text counts.
 const recipePmaxLabels = {
@@ -65,6 +70,7 @@ const recipeArrays = new Set([
   'marketing_image_asset_ids',
   'square_image_asset_ids',
   'logo_asset_ids',
+  'location_urns',
 ]);
 // The TikTok packs' native call-to-action values and purchase events (src/tiktok-launch-recipes.ts).
 const recipeTiktokCtas = [
@@ -77,6 +83,19 @@ const recipeTiktokCtas = [
   'ORDER_NOW',
   'GET_QUOTE',
   'SUBSCRIBE',
+];
+// The LinkedIn lead pack's lead form calls to action (src/linkedin-lead-recipe.ts).
+const recipeLinkedinCtas = [
+  'APPLY',
+  'DOWNLOAD',
+  'LEARN_MORE',
+  'SIGN_UP',
+  'SUBSCRIBE',
+  'REGISTER',
+  'REQUEST_DEMO',
+  'VIEW_QUOTE',
+  'JOIN',
+  'ATTEND',
 ];
 const recipeTiktokEvents = [
   ['SHOPPING', 'Complete payment'],
@@ -99,9 +118,12 @@ function recipeField(name, value, required, recipeId) {
   if (name === 'identity_type')
     return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="TT_USER" ${value === 'TT_USER' ? 'selected' : ''}>TT_USER — ${esc(uiText('TikTok account linked to this advertiser'))}</option><option value="BC_AUTH_TT" ${value === 'BC_AUTH_TT' ? 'selected' : ''}>BC_AUTH_TT — ${esc(uiText('TikTok account authorized through a Business Center'))}</option></select></label>`;
   if (name === 'call_to_action')
-    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option>${recipeTiktokCtas.map(v => `<option value="${v}" ${value === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>`;
+    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option>${(recipeId === 'linkedin_lead_generation' ? recipeLinkedinCtas : recipeTiktokCtas).map(v => `<option value="${v}" ${value === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>`;
   if (name === 'optimization_event')
     return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option>${recipeTiktokEvents.map(([v, text]) => `<option value="${v}" ${value === v ? 'selected' : ''}>${v} — ${esc(uiText(text))}</option>`).join('')}</select></label>`;
+  // LinkedIn lead generation (CMP-07): the explicit political-advertising declaration; NOT_POLITICAL is the only choice.
+  if (name === 'political_intent')
+    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="NOT_POLITICAL" ${value === 'NOT_POLITICAL' ? 'selected' : ''}>NOT_POLITICAL — ${esc(uiText('Not political advertising'))}</option></select><small>${esc(uiText('Political advertising needs a tailored native plan.'))}</small></label>`;
   if (name === 'conversion_goal_policy')
     return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="ACCOUNT_DEFAULT" ${value === 'ACCOUNT_DEFAULT' ? 'selected' : ''}>${esc(uiText('Use the account-default conversion goals'))}</option></select></label>`;
   if (name === 'conversion_value_policy')
@@ -206,6 +228,9 @@ const recipeDependencyLabels = {
   automatic_conversion_bidding: 'Automatic bidding for purchases',
   existing_image_assets: 'Existing image and logo assets of the account',
   pmax_asset_minimums: 'Performance Max asset minimums',
+  existing_linkedin_post: 'Existing post to sponsor',
+  linkedin_lead_form: 'Account-owned LinkedIn lead form',
+  automatic_lead_bidding: 'Maximum delivery for leads',
 };
 const recipeEligibilityLabels = {
   ready: 'Confirmed for this check',
@@ -892,6 +917,7 @@ const recipeGateways = {
   microsoft: 'microsoft_ads_native_action',
   snapchat: 'snapchat_native_action',
   tiktok: 'tiktok_native_action',
+  linkedin: 'linkedin_native_action',
 };
 /** Whether a recipe's platform has an enabled login with a selected account (no provider request). */
 function recipeHasAccount(recipe) {
@@ -999,7 +1025,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
         values = {...defaults, ...(saved?.values ?? {})};
       const required = context.recipe.required.filter(k => !['account_id', 'connection_id', 'currency'].includes(k)),
         optional =
-          context.recipe.platform === 'snapchat' || context.recipe.platform === 'tiktok'
+          ['snapchat', 'tiktok', 'linkedin'].includes(context.recipe.platform)
             ? ['end_time']
             : recipe.startsWith('meta')
               ? ['start_time', 'end_time']
@@ -1032,7 +1058,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
         const t = context.targets.find(t => targetId(t) === selected);
         if (t?.currency) values.currency = t.currency;
       }
-      const timed = ['meta', 'snapchat', 'tiktok'].includes(context.recipe.platform),
+      const timed = ['meta', 'snapchat', 'tiktok', 'linkedin'].includes(context.recipe.platform),
         zoneOf = id => context.targets.find(t => targetId(t) === id)?.timezone || '',
         zoneNote = id =>
           zoneOf(id)

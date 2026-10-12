@@ -242,6 +242,17 @@ export async function recipeEligibility(
               a.status === 'provider_read_checked',
           );
         if (proof) Object.assign(out, {status: 'ready', evidence: proof, meaning: proof.meaning});
+      } else if (id === 'linkedin_lead_form') {
+        // The LinkedIn lead generation pack (CMP-07): the owner-finder read of this exact form.
+        const proof = assets.find(
+          a =>
+            a.asset_type === 'LinkedIn lead form' &&
+            a.asset_id === business.lead_form_id &&
+            a.account_id === scope.account_id &&
+            a.connection_id === scope.connection_id &&
+            a.status === 'provider_read_checked',
+        );
+        if (proof) Object.assign(out, {status: 'ready', evidence: proof, meaning: proof.meaning});
       } else if (['page_identity', 'account_owned_pixel'].includes(id)) {
         const proof = assets.find(
           a =>

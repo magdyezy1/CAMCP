@@ -4505,6 +4505,20 @@
     "pixel_id": "456",
     "optimization_event": "SHOPPING"
   },
+  "linkedin_lead_business": {
+    "name": "Synthetic LinkedIn leads",
+    "account_id": "123",
+    "connection_id": "33333333-3333-4333-8333-333333333333",
+    "currency": "USD",
+    "daily_budget": "50.00",
+    "location_urns": ["urn:li:geo:103644278"],
+    "locale": "en_US",
+    "post_urn": "urn:li:share:9001",
+    "lead_form_id": "4242",
+    "call_to_action": "SIGN_UP",
+    "political_intent": "NOT_POLITICAL",
+    "start_time": "2026-11-01T10:00:00+03:00"
+  },
   "google_pmax_business": {
     "name": "Synthetic Performance Max",
     "account_id": "123",

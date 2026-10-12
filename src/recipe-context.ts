@@ -49,6 +49,7 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
           microsoft: 'microsoft_ads',
           snapchat: 'snapchat',
           tiktok: 'tiktok',
+          linkedin: 'linkedin',
         } as Record<string, string>
       )[recipe.platform] + '_native_action';
   const inventory = store.documents(actor.tenantId, 'website_assets'),
@@ -139,6 +140,10 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
                 ? 'Uses an existing TikTok post as a Spark Ad and optimizes a purchase event of the selected pixel. Preflight reads the identity, post and pixel; event delivery, ad review and objective acceptance remain unverified. Activation is separate.'
                 : 'Uses an existing TikTok post as a Spark Ad on the TikTok placement and optimizes clicks. Preflight reads the identity and post; ad review and objective acceptance remain unverified. Activation is separate.',
             ]
+          : recipe.platform === 'linkedin'
+            ? [
+                'Sponsors an existing post with the account’s existing lead form and maximum-delivery bidding. Preflight reads the account’s lead forms; post eligibility, privacy-policy acceptance, ad review and objective acceptance remain unverified. Activation is separate.',
+              ]
           : recipe.platform === 'microsoft'
             ? [
                 'Draft only: set locations in Microsoft before activation. This Search recipe sets no geography, and AMCP refuses to activate a Microsoft campaign without a positive location criterion.',
@@ -171,7 +176,9 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
           : 'existing account-owned website creative and explicit country/schedule inputs'
         : recipe.platform === 'tiktok'
           ? 'existing TikTok post and account identity with explicit location/schedule inputs'
-          : recipeId === 'google_performance_max'
+          : recipe.platform === 'linkedin'
+            ? 'existing post and account-owned lead form with explicit location, locale and schedule inputs'
+            : recipeId === 'google_performance_max'
             ? 'existing account image and logo assets with explicit text assets, location and language inputs'
             : 'required Page/media or search inputs',
       'whole-plan preflight',

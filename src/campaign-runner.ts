@@ -1510,10 +1510,11 @@ export class CampaignRunner {
           s.prerequisites !== undefined &&
             (!Array.isArray(s.prerequisites) ||
               s.prerequisites.some(
-                (p: unknown) => !['meta_image_hash', 'tiktok_spark_post', 'tiktok_pixel'].includes(p as string),
+                (p: unknown) =>
+                  !['meta_image_hash', 'tiktok_spark_post', 'tiktok_pixel', 'linkedin_lead_form'].includes(p as string),
               ) ||
               new Set(s.prerequisites).size !== s.prerequisites.length) &&
-            'prerequisites lists checks preflight must make: "meta_image_hash", "tiktok_spark_post" or "tiktok_pixel"',
+            'prerequisites lists checks preflight must make: "meta_image_hash", "tiktok_spark_post", "tiktok_pixel" or "linkedin_lead_form"',
         ].filter(Boolean);
         if (problems.length)
           bad(

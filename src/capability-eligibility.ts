@@ -170,6 +170,25 @@ export const recipeDependencies: Record<string, JsonObject> = {
       },
     ]),
   ),
+  // CMP-07: LinkedIn lead generation (src/linkedin-lead-recipe.ts). Preflight reads the account's lead forms.
+  linkedin_lead_generation: {
+    objective: 'lead_generation',
+    objects: [
+      'existing_linkedin_post',
+      'linkedin_lead_form',
+      'lead_form_policy_acceptance',
+      'account_currency',
+      'location_targeting',
+      'automatic_lead_bidding',
+    ],
+    actions: [
+      'linkedin_rest_ad_accounts_ad_account_id_ad_campaign_groups_post',
+      'linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_post',
+      'linkedin_rest_ad_accounts_ad_account_id_creatives_post',
+    ],
+    effects:
+      'Creates a PAUSED campaign group, a PAUSED lead generation campaign with maximum delivery and a PAUSED creative sponsoring an existing post with the account’s lead form. The form is read before creation; post eligibility, ad review and objective acceptance remain unverified. Activation is separate.',
+  },
   // CMP-07: one all-or-nothing Performance Max build (src/google-pmax-recipe.ts) with account-default goals.
   google_performance_max: {
     objective: 'performance_max_conversions',
