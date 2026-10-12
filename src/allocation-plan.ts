@@ -6,8 +6,9 @@ import {reportAllocation} from './report-allocation.js';
 import {googleAllocationBudgets} from './google-allocation-budgets.js';
 import {snapchatAllocationBudgets} from './snapchat-allocation-budgets.js';
 import {linkedinAllocationBudgets} from './linkedin-allocation-budgets.js';
+import {metaAllocationBudgets} from './meta-allocation-budgets.js';
 import {linkedinStoredVersion} from './linkedin-version.js';
-import {currencyText, minimumUnitMicros} from './budget-units.js';
+import {currencyText, metaCurrencyOffset, minimumUnitMicros} from './budget-units.js';
 
 const gateway = 'google_ads_native_action';
 const decimal = (n: bigint) => {
@@ -56,12 +57,14 @@ async function budgets(
   if (source.gateway === 'snapchat_native_action') return snapchatAllocationBudgets(store, call, actor, source, ids);
   if (source.gateway === 'linkedin_native_action')
     return linkedinAllocationBudgets(store, call, actor, source, ids, pricing);
+  if (source.gateway === 'meta_native_action') return metaAllocationBudgets(store, call, actor, source, ids);
   return googleAllocationBudgets(store, call, actor, source, ids);
 }
 
 function draft(binding: JsonObject, previewId: string) {
   const snap = binding.gateway === 'snapchat_native_action',
     linkedin = binding.gateway === 'linkedin_native_action',
+    meta = binding.gateway === 'meta_native_action',
     targetGateway = binding.gateway ?? gateway;
   return {
     action: 'create',
@@ -81,7 +84,7 @@ function draft(binding: JsonObject, previewId: string) {
         : '; efficiency factors declared by the operator') +
       '. Equal daily conversion over a comparable ' +
       binding.period_days +
-      (snap || linkedin
+      (snap || linkedin || meta
         ? '-day period. Daily budgets remain in effect until separately changed; this draft sets no end date. Every step still needs native review, spending acknowledgement and read-back.'
         : '-day period. Average daily budgets remain in effect until separately changed; this draft sets no end date. Every step still needs native review, spending acknowledgement and read-back.'),
     steps: binding.targets.map((t: JsonObject, i: number) => ({
@@ -95,36 +98,51 @@ function draft(binding: JsonObject, previewId: string) {
       description:
         (snap ? 'Ad squad ' : 'Campaign ') +
         (t.entity_id ?? t.campaign_id) +
-        (snap || linkedin ? ': daily budget ' : ': average daily budget ') +
+        (meta && t.budget_owner === 'ad_set' ? ' (ad set ' + t.adset_id + ')' : '') +
+        (snap || linkedin || meta ? ': daily budget ' : ': average daily budget ') +
         decimal(BigInt(t.daily_budget_micros)) +
         ' ' +
-        binding.currency,
-      arguments: snap
-        ? {
-            action: 'snapchat_adsquad_update',
-            path_params: {campaign_id: binding.parent_campaign_id, ad_squad_id: t.entity_id},
-            payload: [{op: 'replace', path: '/daily_budget_micro', value: Number(t.daily_budget_micros)}],
-          }
-        : linkedin
+        binding.currency +
+        (meta ? ' (' + t.daily_budget_native + ' in Meta minor units)' : ''),
+      arguments: meta
+        ? // DEC-02: the budget owner's own reviewed Meta update; the amount is exact Meta minor units.
+          t.budget_owner === 'ad_set'
           ? {
-              action: 'linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_campaign_id_post',
-              api_version: binding.api_version,
-              restli_method: 'PARTIAL_UPDATE',
-              path_params: {ad_account_id: binding.account_id, campaign_id: t.campaign_id},
-              payload: {patch: {$set: {dailyBudget: {amount: t.daily_budget, currencyCode: binding.currency}}}},
+              action: 'meta_ad_set_id_update',
+              path_params: {ad_set_id: t.adset_id},
+              payload: {daily_budget: t.daily_budget_native},
             }
           : {
-              action: 'google_ads_v23_campaign_budget_mutate_campaign_budgets',
-              payload: {
-                operations: [
-                  {
-                    update: {resource_name: t.budget_resource, amount_micros: t.daily_budget_micros},
-                    update_mask: 'amount_micros',
-                  },
-                ],
-                partial_failure: false,
+              action: 'meta_campaign_id_update',
+              path_params: {campaign_id: t.campaign_id},
+              payload: {daily_budget: t.daily_budget_native},
+            }
+        : snap
+          ? {
+              action: 'snapchat_adsquad_update',
+              path_params: {campaign_id: binding.parent_campaign_id, ad_squad_id: t.entity_id},
+              payload: [{op: 'replace', path: '/daily_budget_micro', value: Number(t.daily_budget_micros)}],
+            }
+          : linkedin
+            ? {
+                action: 'linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_campaign_id_post',
+                api_version: binding.api_version,
+                restli_method: 'PARTIAL_UPDATE',
+                path_params: {ad_account_id: binding.account_id, campaign_id: t.campaign_id},
+                payload: {patch: {$set: {dailyBudget: {amount: t.daily_budget, currencyCode: binding.currency}}}},
+              }
+            : {
+                action: 'google_ads_v23_campaign_budget_mutate_campaign_budgets',
+                payload: {
+                  operations: [
+                    {
+                      update: {resource_name: t.budget_resource, amount_micros: t.daily_budget_micros},
+                      update_mask: 'amount_micros',
+                    },
+                  ],
+                  partial_failure: false,
+                },
               },
-            },
     })),
   };
 }
@@ -199,10 +217,11 @@ export async function previewAllocationPlan(
 ) {
   writer(store, actor);
   const snap = report.gateway === 'snapchat_native_action' && report.preset === 'snapchat_adsquad',
-    linkedin = report.gateway === 'linkedin_native_action' && report.preset === 'linkedin_campaign';
-  if (!snap && !linkedin && (report.gateway !== gateway || report.preset !== 'google_campaign'))
+    linkedin = report.gateway === 'linkedin_native_action' && report.preset === 'linkedin_campaign',
+    meta = report.gateway === 'meta_native_action' && report.preset === 'meta_campaign';
+  if (!snap && !linkedin && !meta && (report.gateway !== gateway || report.preset !== 'google_campaign'))
     bad(
-      'Native allocation drafts qualify Google dedicated campaign budgets, LinkedIn independent campaign daily budgets and Snapchat ad-squad daily budgets. Other budget modes need their separate native planning flow.',
+      'Native allocation drafts qualify Google dedicated campaign budgets, LinkedIn independent campaign daily budgets, Meta campaign or single-ad-set daily budgets and Snapchat ad-squad daily budgets. Other budget modes need their separate native planning flow.',
       'ALLOCATION_PLAN_UNQUALIFIED',
     );
   if (input.conversion !== 'equal_daily')
@@ -223,12 +242,22 @@ export async function previewAllocationPlan(
   };
   // The smallest amount the account currency can be charged (WRT-07 Stage A): 10000 micros for USD, 1000000 for JPY
   // and CLP, 1000 for KWD. A daily budget that is not a multiple of it is refused by the provider.
-  const unit = minimumUnitMicros(modeled.currency);
+  let unit = minimumUnitMicros(modeled.currency);
   if (unit === undefined)
     bad(
       'The report names no ISO currency, so daily budgets cannot be rounded to an amount the account can be charged.',
       'ALLOCATION_PRECISION',
     );
+  // DEC-02: Meta counts budgets in whole minor units of its pinned per-currency offset; refused before any read without
+  // one. A daily amount is a whole number of those units and of the ISO minor unit.
+  const offset = meta ? metaCurrencyOffset(modeled.currency) : undefined;
+  if (meta && offset === undefined)
+    bad(
+      'Meta budgets count in the account currency’s minor unit, and AMCP has no pinned Meta offset for this currency. Pin Meta’s currency table before converting an allocation; nothing was read or saved.',
+      'ALLOCATION_PRECISION',
+      {currency: modeled.currency},
+    );
+  if (offset !== undefined && 1000000n / BigInt(offset) > unit!) unit = 1000000n / BigInt(offset);
   const native = await budgets(
     store,
     call,
@@ -288,6 +317,7 @@ export async function previewAllocationPlan(
       represented_period_budget: decimal(daily * BigInt(modeled.period.days)),
       rounding_residual: decimal(total - daily * BigInt(modeled.period.days)),
       minimum_unit_micros: String(unit),
+      ...(offset !== undefined ? {daily_budget_native: String((daily * BigInt(offset)) / 1000000n)} : {}),
       ...budgetUtilization(r.observed_spend, BigInt(n.amount_micros), modeled.period.days),
     };
   });
@@ -338,11 +368,13 @@ export async function previewAllocationPlan(
       expires_at,
       ...binding,
       advertising_writes: 0,
-      meaning: linkedin
-        ? 'Preview only. LinkedIn native daily budgets use decimal account-currency amounts, rounded down to the smallest unit of the currency and checked against LinkedIn’s daily budget limits for the account when it states them. Rounding residuals are shown. Daily settings remain in effect until changed, and LinkedIn can charge up to 150% of a daily budget on a day with strong auction opportunities. Existing group caps are preserved. This draft sets no end date or automatic period spending cap, and does not approve or execute any change.'
-        : binding.gateway === 'snapchat_native_action'
-          ? 'Preview only. Daily amounts round down to the smallest unit of the account currency; residuals are shown. These are ongoing daily budgets, not a scheduled period spending cap. Creating a draft does not approve or execute it.'
-          : 'Preview only. Daily amounts round down to the smallest unit of the account currency; residuals are shown. These are ongoing average daily budgets, not a scheduled period spending cap. Creating a draft does not approve or execute it.',
+      meaning: meta
+        ? 'Preview only. Each Meta daily budget is set on its current owner: the campaign when it has a campaign daily budget, otherwise its one spending ad set. Amounts are whole Meta minor units of the account currency, rounded down; residuals are shown. Meta can spend up to 75% more than a daily budget on a day with better opportunities and at most seven times it over a calendar week. Daily budgets remain in effect until changed; this draft sets no end date and does not approve or execute any change.'
+        : linkedin
+          ? 'Preview only. LinkedIn native daily budgets use decimal account-currency amounts, rounded down to the smallest unit of the currency and checked against LinkedIn’s daily budget limits for the account when it states them. Rounding residuals are shown. Daily settings remain in effect until changed, and LinkedIn can charge up to 150% of a daily budget on a day with strong auction opportunities. Existing group caps are preserved. This draft sets no end date or automatic period spending cap, and does not approve or execute any change.'
+          : binding.gateway === 'snapchat_native_action'
+            ? 'Preview only. Daily amounts round down to the smallest unit of the account currency; residuals are shown. These are ongoing daily budgets, not a scheduled period spending cap. Creating a draft does not approve or execute it.'
+            : 'Preview only. Daily amounts round down to the smallest unit of the account currency; residuals are shown. These are ongoing average daily budgets, not a scheduled period spending cap. Creating a draft does not approve or execute it.',
     };
   });
 }
