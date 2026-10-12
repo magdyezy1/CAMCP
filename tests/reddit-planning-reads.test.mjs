@@ -205,6 +205,16 @@ test('account history keeps each change and its time but never who made it', asy
   const foreign = await f.read('GET_ACCOUNT_HISTORY', {params: {ad_account_id: 't2_other'}, payload: {data: {}}});
   assert.equal(foreign.success, false);
   assert.equal(f.requests.length, 1);
+  // A member filter would say who made the listed changes, so it is refused before any request.
+  for (const member_ids of [['t2_person'], []]) {
+    const byMember = await f.read('GET_ACCOUNT_HISTORY', {
+      params: {ad_account_id: 't2_allowed'},
+      payload: {data: {member_ids}},
+    });
+    assert.equal(byMember.success, false);
+    assert.equal(byMember.error.code, 'PERSONAL_DATA_READ_FORBIDDEN');
+  }
+  assert.equal(f.requests.length, 1);
 });
 
 test('account history pages are bounded by page.size and every page stays projected', async t => {

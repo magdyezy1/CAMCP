@@ -92,6 +92,17 @@ export function authorizeRedditPlanningRead(plan: CompiledRequest, _connection: 
   } catch {
     return false;
   }
+  // Account history never shows who made a change (projectRedditAccountHistory); a member filter would name them.
+  if (
+    redditAccountHistoryRead({...plan, path}) &&
+    (plan.body as JsonObject | undefined)?.data?.member_ids !== undefined
+  )
+    throw new MirrorError(
+      'PERSONAL_DATA_READ_FORBIDDEN',
+      'Personal data: account history here takes no member_ids, because who made a change is not shown. Remove member_ids.',
+      {gateway: plan.gateway, policy: 'personal_data'},
+      403,
+    );
   if (!unscopedReads.has(path)) return false;
   const data = (plan.body as JsonObject | undefined)?.data,
     targeting = data?.targeting;
