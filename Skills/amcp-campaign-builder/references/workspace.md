@@ -440,10 +440,15 @@ spending, go beyond a cap or delete. Prepare returns `approval` with `classes` a
 execute without that approval is refused with `HUMAN_APPROVAL_REQUIRED` (`details.website_path`;
 `reason: "approval_fingerprint_mismatch"` when the approval was for another version of the review).
 You cannot approve: give the user `website_path`, then execute the same review once a person has
-approved it. `require_destructive_confirmation: true` adds the `destructive_confirmed` acknowledgement
-to every deletion on the account: prepare lists it in `execute_requirements`, and execute without it
-is refused with `DESTRUCTIVE_CONFIRMATION_REQUIRED`. On the website the approver confirms what they
-approve (`APPROVAL_CONFIRMATION_REQUIRED` otherwise).
+approved it; `amcp_write status` shows `approval.approved` without a provider request. A group is
+approved once as a whole. In a plan each such step is its own review with its own approval: `run`
+stops with `needs_website_approval` (or `needs_owner_approval`) and `website_path`, and `run` again
+continues once a person has approved; nothing was sent. The stricter of an account's own policy and
+the workspace default applies. `require_destructive_confirmation: true` adds the
+`destructive_confirmed` acknowledgement to every deletion on the account: prepare lists it in
+`execute_requirements`, and execute without it is refused with `DESTRUCTIVE_CONFIRMATION_REQUIRED`.
+On the website the approver confirms what they approve (`APPROVAL_CONFIRMATION_REQUIRED`
+otherwise).
 
 With `enforcement: 'block'` a cap refuses instead, as below. A refusal is a deliberate owner
 decision, not a provider error: do not retry a `POLICY_*` refusal, reshape the request to evade it,

@@ -705,8 +705,11 @@ The same health view reads two 30-day summaries back from the audit: `cap_overri
 went beyond a spending cap with `cap_override_confirmed` (count, then the latest 20 with account, rules, actor, role
 and review id), and `review_friction`, prepare-to-execute latency and the rates of expired reviews, changed state,
 acknowledgement refusals, uncertain outcomes and requests not sent per 100 prepares (codes, counts and field paths,
-never values). Keep the five-minute review window until this baseline has been recorded. Details are in
-[WRITE-OPERATIONS](WRITE-OPERATIONS.md).
+never values). Its `approvals` block (WRT-09) counts approvals given on the website, those by the owner, the time from
+prepare to approval and the refusals that waited for a person (`HUMAN_APPROVAL_REQUIRED`,
+`CAP_OVERRIDE_OWNER_REQUIRED`, `DESTRUCTIVE_CONFIRMATION_REQUIRED`), to compare an approval mode against this baseline.
+Keep the five-minute review window until this baseline has been recorded. Details are in
+[WRITE-OPERATIONS](WRITE-OPERATIONS.md#human-approval-and-the-destructive-tier).
 
 ### Encoded native reporting definitions
 

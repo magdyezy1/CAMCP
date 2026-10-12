@@ -116,7 +116,10 @@ cites as owner decisions, each the review's recommended or the ticket's proposed
   2026-10-11 and implemented in wave 3 (WRT-09): the opt-in `destructive_confirmed` tier
   (`require_destructive_confirmation`), owner-only execution of over-cap reviews under `confirm` (or the owner's website
   approval of that review), and the optional `approval_mode` (`assistant_ack` by default, `website_approval`,
-  `distinct_approver`, which P1's distinct approver for spending plans uses).
+  `distinct_approver`). Under `distinct_approver` each plan step or review that changes spending needs another
+  member's (or the owner's) approval on the website: P1's distinct approver for spending plans, beside the CMP-05 plan
+  policy `require_distinct_approver`. Each approval setting applies as the stricter of the account's own policy and
+  the workspace default.
 - **P6.** Proposals (1) to (8): rolling windows can resolve per source in the account time zone (opt-in
   `date_range.source_timezone: "account"`), declared-incomplete detail sources keep a snapshot partial and hold its
   recommendations, and GA4 `(not set)` and Search Console top-row coverage are scope limits (RPT-02); recommendations
