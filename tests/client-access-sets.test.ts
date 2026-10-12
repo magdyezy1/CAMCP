@@ -320,6 +320,10 @@ test('every MCP tool entry point with a client A token leaves client B unseen an
         !text.includes(marker),
         tool + ' ' + JSON.stringify(input) + ' revealed client B: ' + text.slice(0, 600),
       );
+      // A call that does not name client B's account never names it back either: a listing names no account outside
+      // the set, not even by ID. (A refusal may echo an ID the caller sent; that reveals nothing.)
+      if (!JSON.stringify(input).includes(B))
+        assert.ok(!text.includes(B), tool + ' ' + JSON.stringify(input) + ' listed client B: ' + text.slice(0, 600));
       for (const request of f.requests.slice(before))
         assert.ok(!request.includes(B), tool + ' sent a request for client B: ' + request);
       return result;
@@ -365,6 +369,28 @@ test('every MCP tool entry point with a client A token leaves client B unseen an
         revealing.has(expected),
         expected + ' shows client B to an unscoped token: ' + [...revealing].join(', '),
       );
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a login read through a client access set is never saved back (it would drop every other account)', async () => {
+  const f = await fixture();
+  try {
+    const narrowed = f.store.connectionsFor(f.scoped).find(c => c.id === 'meta-login')!;
+    assert.deepEqual(narrowed.accounts, [A]);
+    // Even under an administrator actor, and from a copy of the narrowed view.
+    assert.throws(() => f.store.updateConnection(admin, {...narrowed, label: 'Renamed'}), {code: 'CONNECTION_CHANGED'});
+    assert.throws(() => f.store.putConnection(admin, {...narrowed}, {accessToken: 'synthetic'}), {
+      code: 'CONNECTION_CHANGED',
+    });
+    assert.deepEqual(f.store.listConnections(tenant).find(c => c.id === 'meta-login')!.accounts, [A, B]);
+    // The whole login, as an administrator reads it, still saves as before.
+    const whole = f.store.connectionsFor(admin).find(c => c.id === 'meta-login')!;
+    f.store.updateConnection(admin, {...whole, label: 'Renamed'});
+    const stored = f.store.listConnections(tenant).find(c => c.id === 'meta-login')!;
+    assert.equal(stored.label, 'Renamed');
+    assert.deepEqual(stored.accounts, [A, B]);
   } finally {
     f.store.close();
   }

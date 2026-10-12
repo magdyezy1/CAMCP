@@ -1007,7 +1007,7 @@ function mountCampaignClone(open) {
     'tiktok_native_action',
     'linkedin_native_action',
   ];
-  const targets = platforms
+  const writable = platforms
     .filter(p => supported.includes(p.gateway))
     .flatMap(p =>
       p.connections
@@ -1018,6 +1018,8 @@ function mountCampaignClone(open) {
             .map(id => ({gateway: p.gateway, connection_id: c.id, account_id: id, label: accountLabel(p, c, id)})),
         ),
     );
+  // The source picker follows the working client (SEC-08); an account a link names stays listed.
+  const targets = typeof clientAccountOptions === 'function' ? clientAccountOptions(writable).options : writable;
   // WEB-06: /campaigns?clone=1&connection_id=&account_id=&source_id=#campaign-clone (Portfolio's "Clone into a draft")
   // preselects the source; nothing is read until the person submits. An account they cannot clone from is named.
   const params =

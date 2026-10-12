@@ -54,6 +54,7 @@ import {loginRevision, recordLogin} from './connection-authority.js';
 import {
   accessSetKind,
   accountScopeRestricted,
+  isNarrowedConnection,
   memberAccessSetId,
   narrowConnections,
   setBindings,
@@ -2100,6 +2101,15 @@ export class Store {
   private assertConnectionShape(actor: Actor, connection: Connection) {
     if (actor.role !== 'admin' || actor.tenantId !== connection.tenantId)
       throw new MirrorError('FORBIDDEN', 'Only a tenant administrator can provision a connection.', {}, 403);
+    // A login as a client access set shows it (SEC-08) holds only that set's accounts: storing it would remove every
+    // other account and grant from the login. Read the login with listConnections before changing it.
+    if (isNarrowedConnection(connection))
+      throw new MirrorError(
+        'CONNECTION_CHANGED',
+        'This connection was read through a client access set and cannot be saved from that view. Reload it as a workspace administrator.',
+        {connection_id: connection.id},
+        409,
+      );
     if (!this.box)
       throw new MirrorError('ENCRYPTION_REQUIRED', 'Configure MIRROR_MASTER_KEY before storing credentials.', {}, 503);
     if (

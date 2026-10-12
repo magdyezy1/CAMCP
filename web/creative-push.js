@@ -451,7 +451,13 @@ ${
           )
           .join('')}</fieldset>`,
     )
-    .join('') || `<p class="form-note">${esc(uiText('Connect an advertising account and select it first.'))}</p>`
+    .join('') ||
+  `<p class="form-note">${esc(
+    // The working client hid every account (SEC-08), or none is connected and selected yet.
+    targets.hiddenByClient && typeof workingClientEmptyNotice === 'function'
+      ? workingClientEmptyNotice()
+      : uiText('Connect an advertising account and select it first.'),
+  )}</p>`
 }
 <label id="push-owner" hidden>${esc(uiText('LinkedIn video owner: the organization URN of the page that posts it'))}<input name="owner_urn" placeholder="urn:li:organization:123"></label>
 <label id="push-name">${esc(uiText('Media name'))}<input name="name" maxlength="80"></label>

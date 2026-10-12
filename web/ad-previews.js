@@ -48,8 +48,14 @@ function previewTargets() {
   );
 }
 
+/** No account to offer: the working client hid them all (SEC-08), or none is connected and selected yet. */
+const previewNoTarget = hidden =>
+  hidden && typeof workingClientEmptyNotice === 'function'
+    ? workingClientEmptyNotice()
+    : uiText('Connect and select an advertising account first.');
+
 function adPreviewsPanel() {
-  const {options: targets, preselect} = previewTargets();
+  const {options: targets, preselect, hidden} = previewTargets();
   return `<section class="panel workspace-form ad-previews" aria-labelledby="previews-title">
 <h2 id="previews-title">${esc(uiText('Preview your ads'))}</h2>
 <p class="workspace-copy">${esc(uiText("Get each platform's own preview links for ads that already exist. Anyone with a link can open it, and links expire."))}</p>
@@ -60,7 +66,10 @@ function adPreviewsPanel() {
       : '') +
       targets
         .map((t, i) => `<option value="${i}" ${t === preselect ? 'selected' : ''}>${esc(t.label)}</option>`)
-        .join('') || `<option value="">${esc(uiText('Connect and select an advertising account first'))}</option>`
+        .join('') ||
+    (hidden
+      ? `<option value="">${esc(previewNoTarget(hidden))}</option>`
+      : `<option value="">${esc(uiText('Connect and select an advertising account first'))}</option>`)
   }</select></label>
 <label>${esc(uiText('Ad IDs (optional; Snapchat and LinkedIn: creative IDs)'))}<input name="ad_ids" placeholder="${esc(uiText('Leave empty for the first five ads'))}"></label>
 <label id="preview-format" hidden>${esc(uiText('Placement'))}<select name="ad_format">${previewFormats
@@ -71,7 +80,7 @@ function adPreviewsPanel() {
 }
 
 function bindAdPreviews() {
-  const {options: targets} = previewTargets(),
+  const {options: targets, hidden} = previewTargets(),
     form = $('#preview-form');
   if (!form) return;
   // An empty choice is no account: Number('') would have picked the first one.
@@ -83,7 +92,7 @@ function bindAdPreviews() {
   syncFormat();
   workspaceBind('#preview-form', async f => {
     const target = chosen(f.elements.target.value);
-    if (!targets.length) throw Error(uiText('Connect and select an advertising account first.'));
+    if (!targets.length) throw Error(previewNoTarget(hidden));
     if (!target) throw Error(uiText('Choose the advertising account to preview.'));
     const ids = f.elements.ad_ids.value
       .split(/[\s,]+/)

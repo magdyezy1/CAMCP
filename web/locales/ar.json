@@ -10074,5 +10074,7 @@
   "This workspace has reached its limit of 100 client access sets.": "بلغت مساحة العمل هذه حدها الأقصى البالغ 100 مجموعة وصول للعملاء.",
   "Confirm removing this client access set. Access limited to it then reaches no account.": "أكّد إزالة مجموعة وصول العميل هذه. عندها لن يصل الوصول المقيّد بها إلى أي حساب.",
   "Use the ID of a client profile of this workspace.": "استخدم معرّف ملف عميل من مساحة العمل هذه.",
-  "This client profile no longer exists in this workspace. Choose another client or show all clients.": "لم يعد ملف العميل هذا موجودًا في مساحة العمل. اختر عميلًا آخر أو اعرض كل العملاء."
+  "This client profile no longer exists in this workspace. Choose another client or show all clients.": "لم يعد ملف العميل هذا موجودًا في مساحة العمل. اختر عميلًا آخر أو اعرض كل العملاء.",
+  "The working client has no account for this. Choose All clients in the top bar to see every account.": "ليس لدى العميل الحالي حساب لهذا. اختر «كل العملاء» في الشريط العلوي لعرض كل الحسابات.",
+  "This connection was read through a client access set and cannot be saved from that view. Reload it as a workspace administrator.": "قُرئ هذا الاتصال عبر مجموعة وصول عميل ولا يمكن حفظه من هذا العرض. أعد تحميله بصفتك مسؤول مساحة العمل."
 }

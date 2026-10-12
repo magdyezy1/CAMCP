@@ -509,7 +509,11 @@ async function renderMediaLibrary() {
     // The accounts media can go to, narrowed to the working client (SEC-08); one remaining is preselected for a Drive
     // import, more need an explicit choice (before, the first account of any client was silently selected).
     // (Without the shell, as in a page test, there is no working client and nothing is narrowed.)
-    {options: targets, preselect: onlyTarget} = (
+    {
+      options: targets,
+      preselect: onlyTarget,
+      hidden: targetsHidden,
+    } = (
       typeof clientAccountOptions === 'function'
         ? clientAccountOptions
         : list => ({options: list, preselect: list.length === 1 ? list[0] : null})
@@ -536,7 +540,8 @@ async function renderMediaLibrary() {
   content.innerHTML +=
     `<section class="panel workspace-form" id="creative-library"></section><div id="creative-detail"></div>` +
     creativePushPanel(
-      targets,
+      // How many accounts the working client hid, so an empty push says so (SEC-08).
+      Object.assign(targets, {hiddenByClient: targetsHidden ?? 0}),
       (d.sources ?? []).filter(s => s.state === 'complete'),
       pushDrives(),
       (d.sources ?? []).filter(s => s.state === 'receiving'),
@@ -699,7 +704,12 @@ async function renderMediaLibrary() {
       source = Object.fromEntries(new FormData($('#media-source'))),
       // An empty choice is no account: Number('') would have picked the first one.
       target = v.target === undefined || v.target === '' ? undefined : targets[Number(v.target)];
-    if (!targets.length) throw Error(uiText('Connect and select an advertising account first.'));
+    if (!targets.length)
+      throw Error(
+        targetsHidden && typeof workingClientEmptyNotice === 'function'
+          ? workingClientEmptyNotice()
+          : uiText('Connect and select an advertising account first.'),
+      );
     if (!target) throw Error(uiText('Choose the advertising account for this import.'));
     const request = {
         action: 'prepare',

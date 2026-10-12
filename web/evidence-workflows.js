@@ -861,7 +861,7 @@ async function mountCaptureWizard(openReport) {
     tiktok: 'tiktok_native_action',
     snapchat: 'snapchat_native_action',
   };
-  const targets = platforms
+  const connected = platforms
     .filter(p => presets.some(s => s.gateway === gateways[p.id]))
     .flatMap(p =>
       p.connections
@@ -875,6 +875,8 @@ async function mountCaptureWizard(openReport) {
           })),
         ),
     );
+  // The account picker follows the working client (SEC-08); an account a link names stays listed.
+  const targets = typeof clientAccountOptions === 'function' ? clientAccountOptions(connected).options : connected;
   root.innerHTML = `<summary>${esc(uiText('Capture detailed native evidence'))}</summary><p>${esc(uiText('Choose detailed Google, Meta, LinkedIn, TikTok or Snapchat evidence. Each provider keeps its native reporting levels and measurement definitions. Reading may take up to two minutes.'))}</p><form id="capture-preset"><div class="recipe-fields"><label>${esc(uiText('Report detail'))}<select name="preset">${presets.map(p => `<option value="${esc(p.id)}">${esc(evidencePresetLabel(p))}</option>`).join('')}</select></label><label>${esc(uiText('Account'))}<select name="target" required></select></label>${controls(uiText('Evidence name'), 'text', '', 'source_name')}${controls(uiText('From'), 'date', '', 'date_from')}${controls(uiText('Through'), 'date', '', 'date_to')}${controls(uiText('Native currency'), 'text', '', 'currency')}${controls(uiText('Native IANA timezone'), 'text', '', 'timezone')}</div><p id="capture-account-metadata" class="form-note" hidden></p><div class="recipe-fields" id="capture-generic-measurement">${controls(uiText('Attribution definition'), 'text', '', 'attribution')}${controls(uiText('Conversion definition'), 'text', '', 'conversion_definition')}</div><div class="recipe-fields" id="capture-meta-measurement" hidden><label>${esc(uiText('Exact Meta conversion action type'))}<input name="result_action_type" maxlength="160" list="meta-action-examples" placeholder="offsite_conversion.fb_pixel_purchase"></label><datalist id="meta-action-examples"><option value="offsite_conversion.fb_pixel_purchase"></option><option value="offsite_conversion.fb_pixel_lead"></option></datalist><label>${esc(uiText('Meta attribution window'))}<select name="attribution_windows"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="1d_click">${esc(uiText('1-day click'))}</option><option value="7d_click">${esc(uiText('7-day click'))}</option><option value="1d_click,1d_view">${esc(uiText('1-day click and 1-day view'))}</option><option value="7d_click,1d_view">${esc(uiText('7-day click and 1-day view'))}</option><option value="1d_view">${esc(uiText('1-day view only'))}</option></select></label><p class="form-note">${esc(uiText('Uses impression-time reporting and the exact selected action type. Overlapping purchase aliases are not combined; an absent action remains unknown.'))}</p></div><p class="form-note">${esc(uiText('Match the native account currency, timezone and report window. Search-term visibility can prevent equality with campaign totals. Missing metrics stay unknown.'))}</p><label class="form-note"><input name="complete" type="checkbox"> ${esc(uiText('The selected reporting window is complete under these declared measurement settings.'))}</label><button type="submit" class="button primary">${esc(uiText('Read and retain evidence'))}</button></form>`;
   const form = $('#capture-preset'),
     feedback = evidenceCaptureFeedback(form, current);

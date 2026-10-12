@@ -167,6 +167,190 @@ test('a push or plan that spans clients asks first; one client does not', async 
   assert.deepEqual(plain(f.confirmations[0].items), ['Client A', 'Client B']);
 });
 
+test('an account the address names stays listed, so a link to another client’s account still opens it', async () => {
+  const f = shell({search: '?client=profile-b&connection_id=meta&account_id=100'});
+  await f.run('loadWorkingClients()');
+  f.context.accounts = accounts;
+  const linked = f.run('clientAccountOptions(accounts)');
+  assert.deepEqual(plain(linked.options.map(a => a.label)), ['A Meta', 'B Meta']);
+  assert.equal(linked.hidden, 1, 'A Google is still hidden by the working client');
+  // A client with no account among these: an empty picker that says the filter hid them.
+  f.run("history.replaceState(null, '', '/media?client=profile-c')");
+  f.context.workingClients = [
+    ...f.context.workingClients,
+    {
+      profile_id: 'profile-c',
+      name: 'Client C',
+      accounts: [{gateway: 'tiktok_native_action', connection_id: 'tiktok', account_id: '900'}],
+    },
+  ];
+  const none = f.run('clientAccountOptions(accounts)');
+  assert.equal(none.options.length, 0);
+  assert.equal(none.hidden, 3);
+  assert.match(f.run('workingClientEmptyNotice()'), /Choose All clients in the top bar/);
+});
+
+/**
+ * The media page (web/workspace.js) with the working-client functions of the shell, as the browser loads them. Its
+ * account list has the three accounts of `accounts` above; `respond` answers workspace calls.
+ */
+function mediaPage(search) {
+  const nodes = new Map(),
+    bindings = new Map(),
+    calls = [],
+    pushed = [];
+  const node = id => {
+    if (!nodes.has(id))
+      nodes.set(id, {
+        id,
+        innerHTML: '',
+        isConnected: true,
+        data: {},
+        addEventListener() {},
+        insertAdjacentHTML() {},
+        setAttribute() {},
+        focus() {},
+      });
+    return nodes.get(id);
+  };
+  node('#media-source').data = {drive_url: 'https://drive.google.com/file/d/synthetic/view'};
+  const location = {href: 'https://amcp.test/media' + search, search, pathname: '/media', hash: ''};
+  const context = createContext({
+    document: {addEventListener() {}, querySelector: () => null, getElementById: () => null},
+    content: node('#content'),
+    $: node,
+    session: {authenticated: true, id: 'person-1', workspaceId: 'w1'},
+    sessionStorage: {getItem: () => null, setItem() {}, removeItem() {}, key: () => null, length: 0},
+    history: {state: null, replaceState() {}},
+    identityGeneration: 1,
+    workingClients: [
+      ...clients,
+      {
+        profile_id: 'profile-c',
+        name: 'Client C',
+        accounts: [{gateway: 'tiktok_native_action', connection_id: 'tiktok', account_id: '900'}],
+      },
+    ],
+    accessSetChoices: [],
+    routeEntry: () => ({public: false}),
+    platforms: [
+      {
+        id: 'meta',
+        gateway: 'meta_native_action',
+        name: 'Meta',
+        connections: [{id: 'meta', enabled: true, accounts: ['act_100', '200']}],
+      },
+      {
+        id: 'google',
+        gateway: 'google_ads_native_action',
+        name: 'Google Ads',
+        connections: [{id: 'google', enabled: true, accounts: ['123-456-7890']}],
+      },
+    ],
+    accountLabel: (_p, _c, a) => 'Account ' + a,
+    accountText: (_p, _c, a) => a,
+    creativePushPanel: targets => {
+      pushed.push(targets);
+      return '';
+    },
+    pushDrives: () => [],
+    adPreviewsPanel: () => '',
+    bindCreativePush() {},
+    bindAdPreviews() {},
+    bindCreativeLibrary: async () => {},
+    workspaceCall: async (tool, args) => {
+      calls.push({tool, args: JSON.parse(JSON.stringify(args))});
+      return args.action === 'list' ? {presets: {}, sources: [], recovery_reviews: []} : {review_id: 'review'};
+    },
+    workspaceBind: (selector, fn) => bindings.set(selector, fn),
+    reviewView: () => '',
+    bindReviewCountdown() {},
+    readReviewConsents: () => ({confirmed: true}),
+    FormData: function (form) {
+      return Object.entries(form.data ?? {});
+    },
+    Object,
+    JSON,
+    Number,
+    String,
+    Math,
+    URL,
+    URLSearchParams,
+    encodeURIComponent,
+    location,
+    esc: value => String(value ?? ''),
+    date: String,
+    badge: String,
+    blank: String,
+    recordDetails: () => '',
+    controls: () => '',
+    toast() {},
+    navigate() {},
+    clearTimeout() {},
+    setTimeout() {},
+    pollTimer: undefined,
+  });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
+  const app = readFileSync('web/app.js', 'utf8'),
+    page = readFileSync('web/workspace.js', 'utf8');
+  new Script(
+    app.slice(app.indexOf('const workingClientStore'), app.indexOf("document.addEventListener('change'")),
+  ).runInContext(context);
+  new Script(
+    page.slice(page.indexOf('function mediaJobPanel('), page.indexOf('async function renderDecisionReports()')),
+  ).runInContext(context);
+  return {
+    node,
+    bindings,
+    calls,
+    pushed,
+    render: () => new Script('renderMediaLibrary()').runInContext(context),
+    importSelect: () => {
+      const html = node('#content').innerHTML;
+      return html.slice(
+        html.indexOf('<form id="media-import">'),
+        html.indexOf('</select>', html.indexOf('<form id="media-import">')),
+      );
+    },
+  };
+}
+
+test('the media page follows the working client, and a Drive import needs an explicit account (regression: the first account of any client was preselected)', async () => {
+  const two = mediaPage('?client=profile-a');
+  await two.render();
+  // The working client's recovery list, push targets and import accounts only.
+  assert.equal(two.calls[0].args.profile_id, 'profile-a');
+  assert.deepEqual(plain(two.pushed[0].map(t => t.account_id)), ['act_100', '123-456-7890']);
+  const select = two.importSelect();
+  assert.match(select, /<option value="" selected disabled>/, 'two accounts remain: an explicit placeholder');
+  assert.doesNotMatch(select, /Account 200/, 'client B’s account is not offered');
+  assert.doesNotMatch(select, /value="0" selected/);
+  // Submitting the placeholder is refused before anything is prepared.
+  two.node('#media-import').data = {target: '', name: 'Synthetic media', reuse: 'on'};
+  await assert.rejects(two.bindings.get('#media-import')(two.node('#media-import')), /Choose the advertising account/);
+  assert.ok(two.calls.every(c => c.args.action !== 'prepare'));
+  // One account remaining is preselected, and the import prepares for it.
+  const one = mediaPage('?client=profile-b');
+  await one.render();
+  assert.match(one.importSelect(), /<option value="0" selected>Account 200<\/option>/);
+  assert.doesNotMatch(one.importSelect(), /selected disabled/);
+  one.node('#media-import').data = {target: '0', name: 'Synthetic media', reuse: 'on'};
+  await one.bindings.get('#media-import')(one.node('#media-import'));
+  const prepared = one.calls.find(c => c.args.action === 'prepare');
+  assert.equal(prepared.args.account_id, '200');
+  // A client with no account here: the import says the working client hid them, not "connect an account".
+  const none = mediaPage('?client=profile-c');
+  await none.render();
+  none.node('#media-import').data = {target: '', name: 'Synthetic media', reuse: 'on'};
+  await assert.rejects(none.bindings.get('#media-import')(none.node('#media-import')), /Choose All clients/);
+  // No working client: every account, still with an explicit choice.
+  const all = mediaPage('');
+  await all.render();
+  assert.equal(all.calls[0].args.profile_id, undefined);
+  assert.equal(all.pushed[0].length, 3);
+  assert.match(all.importSelect(), /<option value="" selected disabled>/);
+});
+
 test('reviewer test accounts load no working clients', async () => {
   const f = shell({session: {authenticated: true, testAccount: true, id: 'workspace-test', workspaceId: 't'}});
   assert.deepEqual(JSON.parse(JSON.stringify(await f.run('loadWorkingClients()'))), []);

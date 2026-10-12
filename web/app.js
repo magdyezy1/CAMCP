@@ -1326,18 +1326,37 @@ function inWorkingClient(gateway, accountId, connectionId, client = workingClien
       workingAccountKey(gateway, a.account_id) === workingAccountKey(gateway, accountId),
   );
 }
+/** Whether the address names this account (?account_id=, with ?connection_id= when given), as a link to it does. */
+function workingClientLinked(gateway, accountId, connectionId) {
+  const params = new URLSearchParams(location.search),
+    linked = params.get('account_id'),
+    login = params.get('connection_id');
+  return (
+    !!linked &&
+    workingAccountKey(gateway, linked) === workingAccountKey(gateway, accountId) &&
+    (!login || !connectionId || login === connectionId)
+  );
+}
 /**
  * The one account-option builder of the pickers (SEC-08): the accounts a picker offers, narrowed to the working client,
  * and the account to preselect, only when exactly one remains (otherwise the picker shows an explicit placeholder).
+ * An account the address names stays listed, so a link to another client's account still opens it. `hidden` counts
+ * the accounts the working client left out, so an empty picker can say so instead of asking to connect one.
  * describe maps an option to {gateway, account_id, connection_id}.
  */
 function clientAccountOptions(options, describe = o => o) {
   const listed = options.filter(o => {
     const d = describe(o);
-    return inWorkingClient(d.gateway, d.account_id, d.connection_id);
+    return (
+      inWorkingClient(d.gateway, d.account_id, d.connection_id) ||
+      workingClientLinked(d.gateway, d.account_id, d.connection_id)
+    );
   });
-  return {options: listed, preselect: listed.length === 1 ? listed[0] : null};
+  return {options: listed, preselect: listed.length === 1 ? listed[0] : null, hidden: options.length - listed.length};
 }
+/** The notice of a picker the working client left empty, instead of asking to connect an account that is connected. */
+const workingClientEmptyNotice = () =>
+  uiText('The working client has no account for this. Choose All clients in the top bar to see every account.');
 /** The client names a set of accounts spans. */
 function workingClientsOf(scopes) {
   return (workingClients ?? [])
