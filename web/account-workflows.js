@@ -745,8 +745,9 @@ function changeHistoryView(out, target, page) {
     [
       [uiText('Campaign'), r.campaign],
       [uiText('Ad group'), r.ad_group],
+      [uiText('Asset'), r.asset],
     ]
-      .filter(([, value]) => value !== null)
+      .filter(([, value]) => value !== null && value !== (r.resource_name ?? r.asset))
       .map(([label, value]) => `<small>${esc(label)}: <code dir="ltr">${esc(value)}</code></small>`)
       .join('');
   html += `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Change events'))}"><table class="review-table"><caption>${esc(uiText('Change events'))}</caption><thead><tr><th scope="col">${esc(uiText('Changed at'))}</th><th scope="col">${esc(uiText('Resource type'))}</th><th scope="col">${esc(uiText('Operation'))}</th><th scope="col">${esc(uiText('Changed through'))}</th><th scope="col">${esc(uiText('Changed fields'))}</th><th scope="col">${esc(uiText('Changed resource'))}</th></tr></thead><tbody>${out.rows

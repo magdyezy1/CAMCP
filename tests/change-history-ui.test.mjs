@@ -83,7 +83,13 @@ for (const locale of ['en', 'ar'])
           ad_group: 'customers/001/adGroups/5',
         }),
         row(1),
-        row(3, {operation: null, client_type: null}),
+        row(3, {
+          resource_type: 'CAMPAIGN_ASSET',
+          resource_name: 'customers/001/campaignAssets/77~888~SITELINK',
+          asset: 'customers/001/assets/888',
+          operation: null,
+          client_type: null,
+        }),
       ];
       const {f, submit} = await page(locale, () => history(rows));
       const markup = f.node('content').innerHTML;
@@ -125,6 +131,9 @@ for (const locale of ['en', 'ar'])
           [from, '2'],
         ],
       );
+      // A changed link names its campaign and asset; a changed campaign does not repeat itself as its own context.
+      assert.ok(html.includes((locale === 'ar' ? 'الأصل' : 'Asset') + ': <code dir="ltr">customers/001/assets/888'));
+      assert.equal(html.split('customers/001/campaigns/77').length - 1, 2, 'once as a resource, once as context');
       assert.equal(f.node('#change-history-heading').focused, true);
       assert.doesNotMatch(html, /change-history-next/, 'three rows need no paging');
     },
