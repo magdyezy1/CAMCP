@@ -22,6 +22,14 @@ number of records; **All operations** opens `/operations?state=attention`. The s
 readiness is a count with the accounts in a disclosure, and capability evidence (tool names, evidence levels) sits
 under **Technical details**, so Home stays short on a phone. **Continue recent work** still lists recent plans.
 
+**Working client (SEC-08).** In a workspace that serves several clients, the top bar's **Working client** narrows
+pickers and lists to the accounts one approved playbook binds: plans, operations and Home's attention items, activity,
+media, Drive import, push, previews, the report builder, capabilities, the composer, clone and capture sources,
+Portfolio, Measurement and Commerce. It is a view filter kept in `?client=`, never access control; a push or plan
+that spans clients asks first, and pickers preselect only a sole remaining account. MCP callers pass the same filter
+as `profile_id`. Limiting what a member, token or AI client may reach is a separate, optional client access set; see
+[clients in one workspace](USER-ACCOUNTS.md#clients-in-one-workspace-working-client-and-client-access-sets).
+
 `amcp_workspace {action:"capabilities", gateway?, workflow_id?, account_id?, connection_id?}` projects executable
 campaign recipes, Overview adapters, detailed capture presets, media routes and conditional programs into workflow cards. Exact workflow
 and account/login filters expose dependencies, lifecycle handoffs, native actions, registered review families and
