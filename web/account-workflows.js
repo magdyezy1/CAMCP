@@ -59,7 +59,7 @@ const accountExplanationMessages = new Set([
   'This step no longer matches its original selected removal proposal.',
   'The original selected source product is unavailable.',
   'The selected product evidence changed after this draft. Read a new removal preview; no products were deleted.',
-  'Listed product selection applies to catalog_compare and preview_catalog_removal; its typed count to create_catalog_removal.',
+  'Listed product selection applies to catalog_compare and preview_catalog_removal; its typed count to create_catalog_removal; a retirement to catalog_preview, catalog_compare and catalog_plan.',
   'Inspect the other listed X products first, then select from that listing.',
   'The listed X products changed since you inspected them. Inspect them again; no products were deleted.',
   'Type the number of selected products to confirm their removal.',
@@ -133,6 +133,9 @@ const accountExplanationMessages = new Set([
   'A sale start or end is an ISO 8601 date and time with an explicit offset, such as 2026-11-01T00:00:00+03:00.',
   'The sale must end after it starts.',
   'X needs both the sale start and the sale end, or neither.',
+  'Retire products as "out of stock" or "discontinued".',
+  'Choose 1–50 distinct retailer IDs of the supplied products to retire.',
+  'Retiring updates existing products: explicitly allow updates to existing retailer IDs.',
   'Current evidence for supplied X product IDs only, using repeated bounded native reads and exact supported decimal prices. Grouped or potentially hidden variants are blocked. Missing fields stay unknown. This is sequential evidence, not a point-in-time inventory snapshot. Every saved product still requires a fresh native review and independent read-back; products outside the supplied source are not returned or deleted.',
   'X comparison requires a complete catalog scan of at most 1,000 listed products. No product changes were submitted.',
   'X catalog ownership or supplied-product evidence changed during comparison. Read the source products again; no product changes were submitted.',
@@ -3438,7 +3441,7 @@ function catalogWebDestination(gateway) {
       fields: ['name', 'image_url', 'url', 'availability', 'condition', 'brand', 'description'],
       exactPrice: true,
       unsent: xCatalogUnsentFieldNames,
-      blocked: ['hidden_variant', 'grouped_product', 'group_status_unknown'],
+      blocked: ['hidden_variant', 'grouped_product', 'group_status_unknown', 'retire_absent'],
       productId: /^[1-9][0-9]{0,24}$/,
       destinationOnly: 'note',
       removal: true,
@@ -3449,7 +3452,7 @@ function catalogWebDestination(gateway) {
       fields: null,
       exactPrice: false,
       unsent: metaCatalogUnsentFieldNames,
-      blocked: ['existing_product_create_only'],
+      blocked: ['existing_product_create_only', 'retire_absent'],
       productId: /^[1-9][0-9]{0,31}$/,
       // Owner decision P9: a populated attribute the source does not send puts the product in review as unknown.
       destinationOnly: 'review',
@@ -3494,10 +3497,13 @@ function validCatalogComparison(out, request, preview) {
   )
     invalid();
   const counts = {new: 0, changed: 0, matching: 0, unknown: 0, blocked: 0, needs_review: 0},
-    review = [];
+    review = [],
+    // COM-02 B: a retirement sends the supplied row with the retirement availability.
+    retiring = new Set(request.retire_retailer_ids ?? []);
   let withUnsent = 0;
   out.items.forEach((item, index) => {
-    const s = request.products[index],
+    const retire = retiring.has(request.products[index].retailer_id),
+      s = retire ? {...request.products[index], availability: request.retire_availability} : request.products[index],
       // COM-01: attributes the destination holds that the source does not send. An older Meta server sends none.
       unsent = d.gateway === 'meta_native_action' ? (item?.unsent_fields ?? []) : item?.unsent_fields;
     if (
@@ -3553,8 +3559,16 @@ function validCatalogComparison(out, request, preview) {
       )
         invalid();
     } else {
-      // Meta blocks an existing product under a create-only import; X blocks only unknown identities.
-      if (item.blocked !== (d.gateway === 'meta_native_action' && present === true && !request.allow_upsert)) invalid();
+      // Meta blocks an existing product under a create-only import, and a retirement blocks a missing product (it
+      // would be created); X otherwise blocks only unknown identities.
+      const createOnly = d.gateway === 'meta_native_action' && present === true && !request.allow_upsert,
+        absent = retire && present !== true;
+      if (
+        item.blocked !== (createOnly || absent) ||
+        (item.blocked_reason !== undefined &&
+          item.blocked_reason !== (absent ? 'retire_absent' : createOnly ? 'existing_product_create_only' : null))
+      )
+        invalid();
       if (present !== true) {
         if (
           item.state !== 'new' ||
@@ -3689,7 +3703,11 @@ function catalogServingNote(code) {
 function catalogComparisonMarkup(out, request, preview) {
   const {destination: d, counts, review} = validCatalogComparison(out, request, preview),
     x = d.gateway === 'x_ads_native_action',
-    inventoryHtml = x ? catalogListedInventoryMarkup(out, request) : '';
+    inventoryHtml = x ? catalogListedInventoryMarkup(out, request) : '',
+    // COM-02 B: an existing product can be retired (kept, with an availability that keeps it out of ads) instead of
+    // deleted; offered after an upsert comparison that is not already a retirement.
+    retirable = request.allow_upsert === true && request.retire_retailer_ids === undefined,
+    eligible = item => !item.blocked && item.before.present === true;
   const reason = key =>
     key === 'grouped_product'
       ? uiText('Grouped product; native variant updates are outside this import')
@@ -3697,7 +3715,9 @@ function catalogComparisonMarkup(out, request, preview) {
         ? uiText('Product may be a hidden variant; absence is not established')
         : key === 'group_status_unknown'
           ? uiText('Product-group status is unknown; a native update is withheld')
-          : uiText('Existing product; updates are disabled');
+          : key === 'retire_absent'
+            ? uiText('Not in the catalog; retiring would create it')
+            : uiText('Existing product; updates are disabled');
   const rows = out.items
     .map((item, index) => {
       const s = request.products[index],
@@ -3723,8 +3743,11 @@ function catalogComparisonMarkup(out, request, preview) {
           (item.serving_notes ?? []).map(code => `<p class="form-note">${esc(catalogServingNote(code))}</p>`).join(''),
         removal = x
           ? `<td>${!item.blocked && item.before.present === true ? `<label><input type="checkbox" id="catalog-remove-${index}"> ${esc(uiText('Select {retailer_id} for removal', {retailer_id: item.retailer_id}))}</label>` : esc(uiText('Unavailable'))}</td>`
+          : '',
+        retire = retirable
+          ? `<td>${eligible(item) ? `<label><input type="checkbox" id="catalog-retire-${index}"> ${esc(uiText('Retire {retailer_id}', {retailer_id: item.retailer_id}))}</label>` : esc(uiText('Unavailable'))}</td>`
           : '';
-      return `<tr><th scope="row"><strong>${esc(s.name)}</strong><br><code>${esc(item.retailer_id)}</code>${item.product_id ? `<br>${esc(uiText('Product ID'))}: <code class="catalog-product-id" dir="ltr">${esc(item.product_id)}</code>` : ''}</th><td>${esc(catalogComparisonState(item.state))}${item.blocked ? `<p class="form-note">${esc(reason(item.blocked_reason))}</p>` : ''}</td><td>${esc(uiText('Current'))}: ${current}<br>${esc(uiText('Proposed'))}: <bdi>${esc(s.price + ' ' + s.currency)}</bdi></td><td>${details ? `<ul>${details}</ul>` : esc(item.state === 'new' ? uiText('No current product was returned') : uiText('All supplied fields have matching evidence'))}${notes}</td>${removal}</tr>`;
+      return `<tr><th scope="row"><strong>${esc(s.name)}</strong><br><code>${esc(item.retailer_id)}</code>${item.product_id ? `<br>${esc(uiText('Product ID'))}: <code class="catalog-product-id" dir="ltr">${esc(item.product_id)}</code>` : ''}</th><td>${esc(catalogComparisonState(item.state))}${item.blocked ? `<p class="form-note">${esc(reason(item.blocked_reason))}</p>` : ''}</td><td>${esc(uiText('Current'))}: ${current}<br>${esc(uiText('Proposed'))}: <bdi>${esc(s.price + ' ' + s.currency)}</bdi></td><td>${details ? `<ul>${details}</ul>` : esc(item.state === 'new' ? uiText('No current product was returned') : uiText('All supplied fields have matching evidence'))}${notes}</td>${removal}${retire}</tr>`;
     })
     .join('');
   const headers = [
@@ -3733,9 +3756,14 @@ function catalogComparisonMarkup(out, request, preview) {
     uiText('Price'),
     uiText('Field differences'),
     ...(x ? [uiText('Select for removal')] : []),
+    ...(retirable ? [uiText('Retire')] : []),
   ];
-  const removable = x && out.items.some(item => !item.blocked && item.before.present === true);
-  return `<h3 id="catalog-comparison-heading" tabindex="-1">${esc(uiText('Compare current catalog products'))}</h3><p>${esc(uiText('Read {date} · {new} new · {changed} changed · {matching} matching · {unknown} unknown · {blocked} blocked', {date: date(out.captured_at), ...counts}))}</p><p class="notice">${esc(x ? uiText('Only supplied X product IDs are returned. Supported decimal prices compare exactly. Grouped or hidden variants are blocked; missing fields remain unknown. Repeated reads are sequential evidence, not a point-in-time inventory snapshot. A saved draft still needs fresh native review. Missing source products are not deleted.') : uiText('Only supplied retailer IDs are compared. Formatted native prices are display text; equality uses the native price filter. Unknown fields need review. This is current sequential evidence, not a point-in-time inventory snapshot. Missing source products are not deleted.'))}</p>${inventoryHtml}<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Catalog comparison, scroll for all fields'))}"><table class="review-table"><caption>${esc(x ? uiText('Supplied X product comparison') : uiText('Compare current catalog products'))}</caption><thead><tr>${headers.map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p>${esc(uiText('{count} products need a fresh native review before execution. Saving a plan does not submit product changes.', {count: review.length}))}</p>${review.length ? `<button type="button" class="button primary" id="save-catalog-changes">${esc(uiText('Save only products needing review'))}</button>` : `<p>${esc(uiText('No eligible product changes need a draft.'))}</p>`}${removable ? `<p>${esc(uiText('Select only the observed products you intend to remove. Products outside this selection are retained.'))}</p><button type="button" class="button" id="preview-catalog-removal">${esc(uiText('Preview selected removals'))}</button><div id="catalog-removal-preview" aria-live="polite"></div>` : ''}`;
+  const removable = x && out.items.some(eligible),
+    retirement =
+      retirable && out.items.some(eligible)
+        ? `<p>${esc(uiText('Retiring keeps a product and its history but sets its availability so ads stop showing it; nothing is deleted. Each product still gets its own native review.'))}</p><label for="catalog-retire-availability">${esc(uiText('Retire as'))}<select id="catalog-retire-availability"><option value="discontinued">discontinued</option><option value="out of stock">out of stock</option></select></label><button type="button" class="button" id="save-catalog-retirement">${esc(uiText('Save retirement draft for selected products'))}</button>`
+        : '';
+  return `<h3 id="catalog-comparison-heading" tabindex="-1">${esc(uiText('Compare current catalog products'))}</h3><p>${esc(uiText('Read {date} · {new} new · {changed} changed · {matching} matching · {unknown} unknown · {blocked} blocked', {date: date(out.captured_at), ...counts}))}</p><p class="notice">${esc(x ? uiText('Only supplied X product IDs are returned. Supported decimal prices compare exactly. Grouped or hidden variants are blocked; missing fields remain unknown. Repeated reads are sequential evidence, not a point-in-time inventory snapshot. A saved draft still needs fresh native review. Missing source products are not deleted.') : uiText('Only supplied retailer IDs are compared. Formatted native prices are display text; equality uses the native price filter. Unknown fields need review. This is current sequential evidence, not a point-in-time inventory snapshot. Missing source products are not deleted.'))}</p>${inventoryHtml}<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Catalog comparison, scroll for all fields'))}"><table class="review-table"><caption>${esc(x ? uiText('Supplied X product comparison') : uiText('Compare current catalog products'))}</caption><thead><tr>${headers.map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p>${esc(uiText('{count} products need a fresh native review before execution. Saving a plan does not submit product changes.', {count: review.length}))}</p>${review.length ? `<button type="button" class="button primary" id="save-catalog-changes">${esc(uiText('Save only products needing review'))}</button>` : `<p>${esc(uiText('No eligible product changes need a draft.'))}</p>`}${removable ? `<p>${esc(uiText('Select only the observed products you intend to remove. Products outside this selection are retained.'))}</p><button type="button" class="button" id="preview-catalog-removal">${esc(uiText('Preview selected removals'))}</button><div id="catalog-removal-preview" aria-live="polite"></div>` : ''}${retirement}`;
 }
 function catalogListedInventoryMarkup(out, request) {
   const invalid = () => {
@@ -4838,6 +4866,30 @@ async function renderCommerce() {
               }
             });
         }
+        // COM-02 B: retire the selected existing products through the reviewed upsert; nothing is deleted.
+        const retirable = item => !item.blocked && item.before.present === true;
+        if (comparisonRequest.allow_upsert === true && evidence.items.some(retirable))
+          workspaceBind('#save-catalog-retirement', async () => {
+            if (!active()) return;
+            const retire_retailer_ids = evidence.items
+              .filter((item, i) => retirable(item) && $('#catalog-retire-' + i).checked)
+              .map(item => item.retailer_id);
+            if (!retire_retailer_ids.length) throw Error(uiText('Select at least one existing product to retire.'));
+            const retire_availability = $('#catalog-retire-availability').value,
+              products = request.products.filter(p => retire_retailer_ids.includes(p.retailer_id));
+            try {
+              const plan = await workspaceCall('workspace', {
+                action: 'catalog_plan',
+                ...request,
+                products,
+                retire_retailer_ids,
+                retire_availability,
+              });
+              if (active()) await navigate('/campaigns?id=' + encodeURIComponent(plan.id));
+            } catch (error) {
+              if (active()) throw error;
+            }
+          });
         if (evidence.review_retailer_ids.length)
           workspaceBind('#save-catalog-changes', async () => {
             if (!active()) return;

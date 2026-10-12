@@ -215,6 +215,15 @@ export const workspaceTool = tool(
     },
     listed_inventory_hash: field.id,
     confirmed_count: {type: 'integer', minimum: 1, maximum: 50},
+    // COM-02 B: a non-destructive retirement of supplied products through the reviewed upsert.
+    retire_retailer_ids: {
+      type: 'array',
+      items: {type: 'string', maxLength: 100},
+      minItems: 1,
+      maxItems: 50,
+      uniqueItems: true,
+    },
+    retire_availability: {type: 'string', enum: ['out of stock', 'discontinued']},
     name: {type: 'string', maxLength: 100},
     revision: field.integer,
     confirmed: field.bool,
@@ -410,10 +419,12 @@ export class WorkspaceService {
       (!['catalog_compare', 'preview_catalog_removal'].includes(input.action) &&
         (input.selection_source !== undefined || input.product_keys !== undefined)) ||
       (input.action !== 'preview_catalog_removal' && input.listed_inventory_hash !== undefined) ||
-      (input.action !== 'create_catalog_removal' && input.confirmed_count !== undefined)
+      (input.action !== 'create_catalog_removal' && input.confirmed_count !== undefined) ||
+      (!['catalog_preview', 'catalog_compare', 'catalog_plan'].includes(input.action) &&
+        (input.retire_retailer_ids !== undefined || input.retire_availability !== undefined))
     )
       bad(
-        'Listed product selection applies to catalog_compare and preview_catalog_removal; its typed count to create_catalog_removal.',
+        'Listed product selection applies to catalog_compare and preview_catalog_removal; its typed count to create_catalog_removal; a retirement to catalog_preview, catalog_compare and catalog_plan.',
         'INVALID_CATALOG_INVENTORY',
       );
     if (

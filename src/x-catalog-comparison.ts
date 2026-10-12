@@ -1,4 +1,4 @@
-import {catalogIngestion} from './catalog-ingestion.js';
+import {catalogIngestion, catalogRetirement, retired} from './catalog-ingestion.js';
 import {catalogInventoryRequested, catalogSelectionInventory} from './x-catalog-selection-inventory.js';
 import {nativeAuthority} from './native-authority.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
@@ -145,7 +145,8 @@ export async function xCatalogComparison(
   input: JsonObject,
 ) {
   const inspect = catalogInventoryRequested(input),
-    preview = catalogIngestion(input);
+    preview = catalogIngestion(input),
+    retire = catalogRetirement(input);
   const first = preview.plan.steps[0]!,
     plan: CompiledRequest = {
       gateway: input.gateway,
@@ -192,8 +193,10 @@ export async function xCatalogComparison(
           keys.add(row.product_key);
           hidden = grouped(row) || hidden;
         }
-        return input.products.map((source: JsonObject, index: number) => {
-          const row = byId.get(source.retailer_id),
+        return input.products.map((supplied: JsonObject, index: number) => {
+          // A retired product is compared with its retirement availability (COM-02 B).
+          const source = retired(supplied, retire),
+            row = byId.get(source.retailer_id),
             before = row ? rowView(row) : {present: hidden ? null : false, price: null},
             // The native product this source becomes (its sale included), from the same projection as the plan.
             native: JsonObject = preview.plan.steps[index]!.arguments.payload.products[0];
@@ -295,7 +298,12 @@ export async function xCatalogComparison(
         after = ownedCatalog(await xCatalogOwners(read, fetch), input.catalog_id),
         // The shared item v2 (COM-03) beside X's own evidence, once both scans agree.
         items = collected.items.map((item: JsonObject, i: number) =>
-          comparisonItemV2(item, input.products[i], catalogDestinations.x_ads_native_action),
+          comparisonItemV2(
+            item,
+            retired(input.products[i], retire),
+            catalogDestinations.x_ads_native_action,
+            !!retire?.ids.has(item.retailer_id),
+          ),
         );
       if (fingerprint(collected.items) !== fingerprint(repeated.items) || fingerprint(catalog) !== fingerprint(after))
         fail(

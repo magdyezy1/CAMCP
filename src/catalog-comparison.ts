@@ -1,4 +1,4 @@
-import {catalogIngestion} from './catalog-ingestion.js';
+import {catalogIngestion, catalogRetirement} from './catalog-ingestion.js';
 import {xCatalogComparison, xCatalogListedSelection} from './x-catalog-comparison.js';
 import {catalogInventoryRequested, listedSelectionRequested} from './x-catalog-selection-inventory.js';
 import {assertMetaCatalogProduct, metaCatalogProductSnapshots, readMetaCatalogImport} from './meta-catalog-products.js';
@@ -63,6 +63,7 @@ async function metaCatalogComparison(
   if (typeof input.catalog_id !== 'string' || !catalogDestinations.meta_native_action.catalogId.test(input.catalog_id))
     bad('Choose an exact positive numeric Meta product catalog ID.');
   const preview = catalogIngestion(input),
+    retire = catalogRetirement(input),
     plans: CompiledRequest[] = preview.plan.steps.map(step => ({
       gateway: input.gateway,
       accountId: input.account_id,
@@ -127,6 +128,7 @@ async function metaCatalogComparison(
             {...item, blocked_reason: item.blocked ? 'existing_product_create_only' : null},
             plans[i]!.body as JsonObject,
             catalogDestinations.meta_native_action,
+            !!retire?.ids.has(item.retailer_id),
           ),
         ),
         {summary, review_retailer_ids} = comparisonSummary(items);

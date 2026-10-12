@@ -93,9 +93,41 @@ function catalogSale(p: JsonObject, index: number, x: boolean): {amount: string}
     bad('X needs both the sale start and the sale end, or neither.', 'INVALID_CATALOG_SALE', {product});
   return {amount: m[1]!};
 }
+/**
+ * A non-destructive retirement of supplied products (COM-02 B): their availability becomes "out of stock" or
+ * "discontinued" through the same reviewed upsert, so ads stop showing them while the product, its history and its sets
+ * stay. Nothing is deleted, and a comparison blocks retiring a product the catalog does not have (it would be created).
+ */
+export function catalogRetirement(input: JsonObject): {ids: Set<string>; availability: string} | undefined {
+  if (input.retire_retailer_ids === undefined && input.retire_availability === undefined) return undefined;
+  const ids = input.retire_retailer_ids;
+  if (!['out of stock', 'discontinued'].includes(input.retire_availability))
+    bad('Retire products as "out of stock" or "discontinued".', 'INVALID_CATALOG_RETIREMENT');
+  if (
+    !Array.isArray(ids) ||
+    !ids.length ||
+    ids.length > 50 ||
+    ids.some((v: unknown) => typeof v !== 'string') ||
+    new Set(ids).size !== ids.length ||
+    !Array.isArray(input.products) ||
+    ids.some((v: string) => !input.products.some((p: JsonObject) => p?.retailer_id === v))
+  )
+    bad('Choose 1–50 distinct retailer IDs of the supplied products to retire.', 'INVALID_CATALOG_RETIREMENT');
+  if (input.allow_upsert !== true)
+    bad(
+      'Retiring updates existing products: explicitly allow updates to existing retailer IDs.',
+      'INVALID_CATALOG_RETIREMENT',
+    );
+  return {ids: new Set(ids), availability: input.retire_availability};
+}
+/** A retired product's projection source: the supplied row with the retirement availability. */
+export function retired(p: JsonObject, retire: ReturnType<typeof catalogRetirement>): JsonObject {
+  return retire?.ids.has(p.retailer_id) ? {...p, availability: retire.availability} : p;
+}
 /** Supplied products → one Meta product create per item; Meta counts prices in hundredths. */
 export function metaCatalogIngestion(input: JsonObject) {
-  const fields = catalogSourceFields(catalogDestinations.meta_native_action);
+  const fields = catalogSourceFields(catalogDestinations.meta_native_action),
+    retire = catalogRetirement(input);
   if (input.gateway !== 'meta_native_action' || !/^\d+$/.test(input.catalog_id ?? ''))
     bad('Choose a numeric Meta product catalog ID and selected Meta ad account.');
   if (!Array.isArray(input.products) || !input.products.length || input.products.length > 50)
@@ -144,6 +176,7 @@ export function metaCatalogIngestion(input: JsonObject) {
       !['in stock', 'out of stock', 'preorder', 'available for order', 'discontinued'].includes(p.availability)
     )
       bad('Use a supported product availability.');
+    const q = retired(p, retire);
     if (p.condition && !['new', 'used', 'refurbished'].includes(p.condition))
       bad('Use new, used or refurbished condition.');
     // An optional sale in the same hundredths (COM-02 A); its dates stay literal.
@@ -156,7 +189,7 @@ export function metaCatalogIngestion(input: JsonObject) {
         {field: sale.amount + ' ' + p.currency, price: sale.amount, currency: p.currency, product: i + 1},
       );
     const payload = {
-      ...p,
+      ...q,
       price: Number(cents),
       ...(saleCents !== undefined ? {sale_price: Number(saleCents)} : {}),
       allow_upsert: input.allow_upsert,
@@ -188,6 +221,7 @@ export function metaCatalogIngestion(input: JsonObject) {
       ...(p.retailer_product_group_id !== undefined ? {retailer_product_group_id: p.retailer_product_group_id} : {}),
       price_minor_units: p.price,
       ...(p.sale_price !== undefined ? {sale_price_minor_units: p.sale_price} : {}),
+      ...(retire?.ids.has(p.retailer_id) ? {retire_availability: retire.availability} : {}),
       currency: p.currency,
       existing_item_policy: input.allow_upsert
         ? 'explicit upsert after native review'
@@ -203,7 +237,10 @@ export function metaCatalogIngestion(input: JsonObject) {
         input.catalog_id +
         '. Source hash ' +
         source_hash +
-        '. Each item requires native before-state review and independent read-back. Missing source items are not deleted.',
+        '. Each item requires native before-state review and independent read-back. Missing source items are not deleted.' +
+        (retire
+          ? ' Retires ' + retire.ids.size + ' existing products as "' + retire.availability + '"; nothing is deleted.'
+          : ''),
       steps,
     },
     network_requests: 0,
@@ -215,7 +252,8 @@ export function metaCatalogIngestion(input: JsonObject) {
 
 /** A bounded local projection into the existing single-product X reviewed contract. No inferred source values. */
 export function xCatalogIngestion(input: JsonObject) {
-  const fields = catalogSourceFields(catalogDestinations.x_ads_native_action);
+  const fields = catalogSourceFields(catalogDestinations.x_ads_native_action),
+    retire = catalogRetirement(input);
   if (typeof input.catalog_id !== 'string' || !xSnowflake.test(input.catalog_id))
     bad('Choose an exact X product catalog ID and selected X ad account.', 'INVALID_X_CATALOG_IMPORT');
   if (!Array.isArray(input.products) || !input.products.length || input.products.length > 50)
@@ -250,6 +288,7 @@ export function xCatalogIngestion(input: JsonObject) {
       condition: p.condition,
       brand: p.brand,
       description: p.description,
+      ...(retire?.ids.has(p.retailer_id) ? {availability: retire.availability} : {}),
       ...(sale ? {sale_price: sale.amount + ' ' + p.currency} : {}),
       ...(p.sale_price_start_date !== undefined
         ? {sale_price_effective_date: p.sale_price_start_date + '/' + p.sale_price_end_date}
@@ -282,6 +321,7 @@ export function xCatalogIngestion(input: JsonObject) {
       native_price: p.price,
       ...(p.sale_price !== undefined ? {native_sale_price: p.sale_price} : {}),
       ...(p.sale_price_effective_date !== undefined ? {sale_price_effective_date: p.sale_price_effective_date} : {}),
+      ...(retire?.ids.has(p.id) ? {retire_availability: retire.availability} : {}),
       currency: input.products[i]!.currency,
       existing_item_policy: 'explicit upsert after native review',
     })),
@@ -295,7 +335,10 @@ export function xCatalogIngestion(input: JsonObject) {
         input.catalog_id +
         '. Source hash ' +
         source_hash +
-        '. Each item requires native before-state review and independent read-back. Matching IDs are updated; missing source items are not deleted.',
+        '. Each item requires native before-state review and independent read-back. Matching IDs are updated; missing source items are not deleted.' +
+        (retire
+          ? ' Retires ' + retire.ids.size + ' existing products as "' + retire.availability + '"; nothing is deleted.'
+          : ''),
       steps,
     },
     network_requests: 0,

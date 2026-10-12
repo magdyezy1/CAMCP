@@ -85,7 +85,12 @@ export function catalogServingNotes(supplied: JsonObject, before: JsonObject): s
  * `review` policy (owner decision P9), a product that matches every supplied field but holds values the source does
  * not send is `unknown`, so it enters the review set instead of reading as already current.
  */
-export function comparisonItemV2(item: JsonObject, supplied: JsonObject, destination: CatalogDestination): JsonObject {
+export function comparisonItemV2(
+  item: JsonObject,
+  supplied: JsonObject,
+  destination: CatalogDestination,
+  retiring = false,
+): JsonObject {
   const unsent: string[] = item.unsent_fields ?? [];
   return {
     ...item,
@@ -93,6 +98,10 @@ export function comparisonItemV2(item: JsonObject, supplied: JsonObject, destina
       ? {state: 'unknown'}
       : {}),
     blocked_reason: item.blocked_reason ?? null,
+    // A retirement (COM-02 B) only updates an existing product: retiring a missing one would create it.
+    ...(retiring && !item.blocked && item.before?.present !== true
+      ? {blocked: true, blocked_reason: 'retire_absent'}
+      : {}),
     unsent_fields: unsent,
     serving_notes: catalogServingNotes(supplied, item.before ?? {}),
   };
