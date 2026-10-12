@@ -14,6 +14,7 @@ import {authorizeQualifiedProviderRead} from './provider-read-contracts.js';
 import {authorizeDV360TargetingSearch} from './dv360-targeting-search.js';
 import {authorizeDV360AudienceRead} from './dv360-audiences.js';
 import {authorizeXAudienceEstimate} from './x-audience-estimate.js';
+import {authorizeSnapCatalogComparisonRead} from './snapchat-catalog-reads.js';
 import {assertGoogleGenerationScope} from './google-generation.js';
 import {assertMetaLabelScope, metaLabelIdentities} from './meta-label-writes.js';
 import {authorizeLinkedInAdPreview, observeLinkedInCreatives} from './linkedin-ad-previews.js';
@@ -234,6 +235,7 @@ export class ScopeGuard {
     if (authorizeDV360TargetingSearch(plan, connection, id)) return id;
     if (authorizeDV360AudienceRead(plan, connection, id)) return id;
     if (authorizeXAudienceEstimate(plan, connection, id)) return id;
+    if (authorizeSnapCatalogComparisonRead(plan, connection, id)) return id;
     for (const family of reviewedFamilies()) if (family.authorize?.(plan, connection, id, this.store)) return id;
     if (authorizeLinkedInAdPreview(plan, connection, this.store, id)) return id;
     if (

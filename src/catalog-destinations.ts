@@ -3,9 +3,11 @@ import {bad} from './workspace-core.js';
 
 /**
  * Catalog destinations (COM-03): one contract for the commerce destinations a supplied product source can be compared
- * with or imported into. Each destination names its source fields, its catalog identity and how it accepts product
- * changes; its projection (src/catalog-ingestion.ts) and its comparison (src/catalog-comparison.ts) are registered
- * under the same gateway, so adding a destination is one entry here plus its two adapters, checked at compile time.
+ * with or imported into. Each destination names its source fields, its item identity, how it accepts product changes
+ * (explicit upsert intent, explicit removal intent, per-item receipts, or feeds only); its projection
+ * (src/catalog-ingestion.ts) and its comparison (src/catalog-comparison.ts) are registered under the same gateway, so
+ * adding a destination is one entry here plus its two adapters, checked at compile time. Product sources plug in on the
+ * other side (src/catalog-mapping.ts): whatever produced the products, a destination sees the same supplied rows.
  *
  * Every destination returns the shared comparison item (`catalog-comparison-item-v2`): `state`, `changes`,
  * `unknown_fields`, `unsent_fields`, `blocked`/`blocked_reason` and `serving_notes`, beside its own evidence. The v2
@@ -15,16 +17,34 @@ import {bad} from './workspace-core.js';
  * destination infers a deletion from a product's absence in the source.
  */
 export const catalogItemSchemaVersion = 'catalog-comparison-item-v2';
-export type CatalogGateway = 'meta_native_action' | 'x_ads_native_action';
+export type CatalogGateway = 'meta_native_action' | 'x_ads_native_action' | 'snapchat_native_action';
 export type CatalogDestination = {
   gateway: CatalogGateway;
-  provider: 'meta' | 'x';
+  provider: 'meta' | 'x' | 'snapchat';
   /** Source columns a product may carry; required first. Unknown columns are refused. */
   sourceFields: {required: readonly string[]; optional: readonly string[]};
   /** The destination's native catalog ID. */
   catalogId: RegExp;
+  /**
+   * Item identity: the source's retailer_id names a product, and `native` is the destination's own key of that product
+   * in a comparison item's product_id (Meta's product ID, X's product key, Snapchat's product ID, which is the
+   * retailer_id itself).
+   */
+  identity: {source: 'retailer_id'; native: 'product_id' | 'product_key' | 'retailer_id'; pattern: RegExp};
+  /**
+   * How product changes reach the destination: one reviewed native step per product, each with its own receipt and
+   * read-back (`reviewed_steps`), or only through the destination's own product feeds (`feed_only`: a comparison names
+   * what to fix in the feed and no draft is saved).
+   */
+  writes: 'reviewed_steps' | 'feed_only';
   /** How an existing retailer ID is treated: Meta asks for an explicit choice, X always updates matching IDs. */
-  upsert: 'explicit_choice' | 'required';
+  upsert: 'explicit_choice' | 'required' | 'none';
+  /**
+   * Explicit removal intent the destination supports: a non-destructive retirement of supplied products through the
+   * reviewed update (`retire`), also an explicit deletion of selected individual products by native key
+   * (`retire_and_selected_deletion`), or nothing (`none`). Absence from a source never selects anything.
+   */
+  removal: 'retire' | 'retire_and_selected_deletion' | 'none';
   /**
    * What a populated attribute the source does not send means for the comparison (owner decision P9): `review` puts
    * an otherwise matching product in the review set as `unknown`; `note` names it without changing the state.
@@ -42,7 +62,11 @@ export const catalogDestinations: Readonly<Record<CatalogGateway, CatalogDestina
     provider: 'meta',
     sourceFields: {required: shared, optional: [...described, 'retailer_product_group_id', ...sale]},
     catalogId: /^[1-9][0-9]{0,31}$/,
+    identity: {source: 'retailer_id', native: 'product_id', pattern: /^[1-9][0-9]{0,31}$/},
+    writes: 'reviewed_steps',
     upsert: 'explicit_choice',
+    // Meta has no product delete contract: a discontinued product is retired (COM-02 B).
+    removal: 'retire',
     // Owner decision P9 (2026-10-11): a populated Meta attribute the source does not send needs review.
     destinationOnlyValues: 'review',
     itemSchemaVersion: catalogItemSchemaVersion,
@@ -52,7 +76,24 @@ export const catalogDestinations: Readonly<Record<CatalogGateway, CatalogDestina
     provider: 'x',
     sourceFields: {required: [...shared, ...described], optional: sale},
     catalogId: /^[1-9][0-9]{0,24}$/,
+    identity: {source: 'retailer_id', native: 'product_key', pattern: /^[1-9][0-9]{0,24}$/},
+    writes: 'reviewed_steps',
     upsert: 'required',
+    removal: 'retire_and_selected_deletion',
+    destinationOnlyValues: 'note',
+    itemSchemaVersion: catalogItemSchemaVersion,
+  },
+  // COM-02 D: Snapchat products change only through product feeds, so its comparison is read-only and names what to fix
+  // in the feed. Its sale is a sale price only: the read format of Snapchat sale dates is not qualified.
+  snapchat_native_action: {
+    gateway: 'snapchat_native_action',
+    provider: 'snapchat',
+    sourceFields: {required: shared, optional: [...described, 'sale_price']},
+    catalogId: /^[A-Za-z0-9-]{1,64}$/,
+    identity: {source: 'retailer_id', native: 'retailer_id', pattern: /^[^\u0000-\u001f\u007f]{1,100}$/},
+    writes: 'feed_only',
+    upsert: 'none',
+    removal: 'none',
     destinationOnlyValues: 'note',
     itemSchemaVersion: catalogItemSchemaVersion,
   },

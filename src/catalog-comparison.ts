@@ -1,5 +1,6 @@
 import {catalogIngestion, catalogRetirement} from './catalog-ingestion.js';
 import {xCatalogComparison, xCatalogListedSelection} from './x-catalog-comparison.js';
+import {snapchatCatalogComparison} from './snapchat-catalog-comparison.js';
 import {catalogInventoryRequested, listedSelectionRequested} from './x-catalog-selection-inventory.js';
 import {assertMetaCatalogProduct, metaCatalogProductSnapshots, readMetaCatalogImport} from './meta-catalog-products.js';
 import {metaPrefix} from './meta-version.js';
@@ -34,6 +35,8 @@ type Comparison = (
 const comparisons: Record<CatalogGateway, Comparison> = {
   meta_native_action: metaCatalogComparison,
   x_ads_native_action: xCatalogComparison,
+  // COM-02 D: Snapchat changes products only through feeds, so its comparison names what to fix there.
+  snapchat_native_action: snapchatCatalogComparison,
 };
 export async function catalogComparison(
   store: Store,

@@ -35,11 +35,12 @@ test('E: with only a Meta connection the reviewed import is the first section an
     assert.equal(details[1], locale === 'ar' ? 'ربط مصدر متجر (للمسؤولين)' : 'Connect a store source (administrators)');
     assert.ok(html.indexOf('id="commerce-store-sources"') < html.indexOf('id="woo-connections"'));
     assert.ok(html.indexOf('id="commerce-store-sources"') < html.indexOf('id="woo-inventory"'));
+    // COM-02 D: Snapchat products are now compared read-only, so the note says so instead of only "managed through feeds".
     assert.match(
       html,
       locale === 'ar'
-        ? /يدعم استيراد المنتجات Meta وX؛ أما كتالوجات Snapchat فتُدار عبر الخلاصات\./
-        : /Product imports support Meta and X; Snapchat catalogs are managed through feeds\./,
+        ? /يدعم استيراد المنتجات Meta وX\. أما كتالوجات Snapchat فلا تتغير إلا عبر الخلاصات؛ ويقارن AMCP منتجاتها للقراءة فقط\./
+        : /Product imports support Meta and X\. Snapchat catalogs change only through feeds; AMCP compares their products read-only\./,
     );
     assert.doesNotMatch(html, /id="catalog-no-destination"/, 'a Meta account is connected');
     // The empty-source note comes before the disabled form it explains.

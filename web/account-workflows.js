@@ -121,6 +121,9 @@ const accountExplanationMessages = new Set([
   'X catalog endpoints require early-access entitlement; a local preview does not establish account eligibility.',
   'X updates matching product IDs. Ownership and existing values are checked during each native review.',
   'Product variants, live store synchronization and deletion of missing source items are outside this import.',
+  'Preview validates supplied product data for a read-only Snapchat comparison. Exact decimal prices are kept as written. No review, draft or provider change is created.',
+  'Snapchat changes catalog products only through product feeds. AMCP compares supplied products read-only and saves no draft; fix differences in the feed.',
+  'Feed processing can take time, so a comparison shows current catalog evidence, not the next feed result.',
   'Choose an exact X product catalog ID and selected X ad account.',
   'X imports require explicit upsert approval: X updates matching product IDs. Create-only imports are not qualified.',
   'X imports require explicit retailer_id, name, price, currency, image_url, url, availability, condition, brand and plain text description.',
@@ -3240,11 +3243,14 @@ const catalogMapFields = [
 // An optional sale for every destination (COM-02 A): a decimal sale price and its literal start and end.
 const catalogSaleFields = ['sale_price', 'sale_price_start_date', 'sale_price_end_date'];
 function catalogSourceFields(gateway = 'meta_native_action') {
-  if (!['meta_native_action', 'x_ads_native_action'].includes(gateway))
+  if (!['meta_native_action', 'x_ads_native_action', 'snapchat_native_action'].includes(gateway))
     throw Error(uiText('Choose the exact account.'));
+  // COM-02 D: a Snapchat comparison compares a sale price only; the read format of Snapchat sale dates is unqualified.
   return gateway === 'meta_native_action'
     ? [...catalogMapFields, 'retailer_product_group_id', ...catalogSaleFields]
-    : [...catalogMapFields, ...catalogSaleFields];
+    : gateway === 'snapchat_native_action'
+      ? [...catalogMapFields, 'sale_price']
+      : [...catalogMapFields, ...catalogSaleFields];
 }
 function catalogFieldLabel(field) {
   switch (field) {
@@ -3339,13 +3345,16 @@ function catalogComparisonState(state) {
 }
 function catalogImportPreviewMarkup(out, request) {
   const x = request.gateway === 'x_ads_native_action',
-    grouped = !x && request.products.some(product => product.retailer_product_group_id !== undefined),
+    // COM-02 D: a Snapchat preview keeps the exact decimal "amount CUR" of each product, like X.
+    snapchat = request.gateway === 'snapchat_native_action',
+    exact = x || snapchat,
+    grouped = !exact && request.products.some(product => product.retailer_product_group_id !== undefined),
     // COM-02 A: the supplied sale, its native form and its literal period, only when a product has one.
     sale = request.products.some(product => product.sale_price !== undefined),
     saleCell = (product, index) => {
       if (product.sale_price === undefined) return `<td>${esc(uiText('Not supplied'))}</td>`;
       const item = out.items?.[index],
-        native = x
+        native = exact
           ? (item?.native_sale_price ?? uiText('Unknown'))
           : Number.isSafeInteger(item?.sale_price_minor_units)
             ? item.sale_price_minor_units
@@ -3359,15 +3368,19 @@ function catalogImportPreviewMarkup(out, request) {
   const titles = [
       uiText('Product'),
       uiText('Source price'),
-      uiText(x ? 'Native X price' : 'Native hundredths'),
+      uiText(x ? 'Native X price' : snapchat ? 'Native Snapchat price' : 'Native hundredths'),
       ...(sale ? [uiText('Sale price')] : []),
       ...(grouped ? [uiText('Meta product group ID')] : []),
       uiText('Existing retailer IDs'),
     ],
     policy = uiText(
-      request.allow_upsert ? 'Explicitly update existing IDs after native review' : 'Create only — refuse existing IDs',
+      snapchat
+        ? 'Compared read-only; fix differences in the product feed'
+        : request.allow_upsert
+          ? 'Explicitly update existing IDs after native review'
+          : 'Create only — refuse existing IDs',
     );
-  return `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Products and exact native price units'))}"><table class="review-table"><caption>${esc(uiText('Products and exact native price units'))}</caption><thead><tr>${titles.map(title => `<th scope="col">${esc(title)}</th>`).join('')}</tr></thead><tbody>${request.products.map((product, index) => `<tr><th scope="row"><strong>${esc(product.name)}</strong><br><code>${esc(product.retailer_id)}</code></th><td><bdi>${esc(product.price + ' ' + product.currency)}</bdi></td><td><bdi>${esc(x ? (out.items?.[index]?.native_price ?? uiText('Unknown')) : Number.isSafeInteger(out.items?.[index]?.price_minor_units) ? out.items[index].price_minor_units : uiText('Unknown'))}</bdi></td>${sale ? saleCell(product, index) : ''}${grouped ? `<td><code dir="ltr">${esc(product.retailer_product_group_id ?? uiText('Not supplied'))}</code></td>` : ''}<td>${esc(policy)}</td></tr>`).join('')}</tbody></table></div>`;
+  return `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Products and exact native price units'))}"><table class="review-table"><caption>${esc(uiText('Products and exact native price units'))}</caption><thead><tr>${titles.map(title => `<th scope="col">${esc(title)}</th>`).join('')}</tr></thead><tbody>${request.products.map((product, index) => `<tr><th scope="row"><strong>${esc(product.name)}</strong><br><code>${esc(product.retailer_id)}</code></th><td><bdi>${esc(product.price + ' ' + product.currency)}</bdi></td><td><bdi>${esc(exact ? (out.items?.[index]?.native_price ?? uiText('Unknown')) : Number.isSafeInteger(out.items?.[index]?.price_minor_units) ? out.items[index].price_minor_units : uiText('Unknown'))}</bdi></td>${sale ? saleCell(product, index) : ''}${grouped ? `<td><code dir="ltr">${esc(product.retailer_product_group_id ?? uiText('Not supplied'))}</code></td>` : ''}<td>${esc(policy)}</td></tr>`).join('')}</tbody></table></div>`;
 }
 // The Meta product attributes a comparison may name as held but not sent (src/meta-catalog-products.ts, COM-01).
 const metaCatalogUnsentFieldNames = [
@@ -3427,36 +3440,78 @@ const xCatalogUnsentFieldNames = [
   'custom_label_3',
   'custom_label_4',
 ];
+// The Snapchat optional attributes a comparison may name as held but not sent (src/snapchat-catalog-comparison.ts).
+const snapCatalogUnsentFieldNames = [
+  'sale_price',
+  'item_group_id',
+  'google_product_category',
+  'product_type',
+  'additional_image_link',
+  'mobile_link',
+  'color',
+  'size',
+  'gender',
+  'age_group',
+  'material',
+  'pattern',
+  'custom_label_0',
+  'custom_label_1',
+  'custom_label_2',
+  'custom_label_3',
+  'custom_label_4',
+];
 // Serving notes of the shared comparison item v2 (src/catalog-destinations.ts, COM-03).
 const catalogServingNoteCodes = ['availability_limits_serving', 'staging_visibility'];
 /**
  * The commerce destinations this page compares (COM-03): one description each, read by the single comparison validator
  * and table below. Meta proves price equality with its own native filter, so its prices are checked for consistency;
- * X returns exact decimal prices, which are compared again here.
+ * X and Snapchat return exact decimal prices, which are compared again here. Snapchat changes products only through
+ * product feeds (feedOnly): its comparison names what to fix there and nothing is saved.
  */
 function catalogWebDestination(gateway) {
+  const fields = ['name', 'image_url', 'url', 'availability', 'condition', 'brand', 'description'];
   if (gateway === 'x_ads_native_action')
     return {
       gateway,
-      fields: ['name', 'image_url', 'url', 'availability', 'condition', 'brand', 'description'],
+      fields,
       exactPrice: true,
+      upsertRequired: true,
       unsent: xCatalogUnsentFieldNames,
       blocked: ['hidden_variant', 'grouped_product', 'group_status_unknown', 'retire_absent'],
       productId: /^[1-9][0-9]{0,24}$/,
       destinationOnly: 'note',
       removal: true,
+      retire: true,
+      feedOnly: false,
     };
   if (gateway === 'meta_native_action')
     return {
       gateway,
       fields: null,
       exactPrice: false,
+      upsertRequired: false,
       unsent: metaCatalogUnsentFieldNames,
       blocked: ['existing_product_create_only', 'retire_absent'],
       productId: /^[1-9][0-9]{0,31}$/,
       // Owner decision P9: a populated attribute the source does not send puts the product in review as unknown.
       destinationOnly: 'review',
       removal: false,
+      retire: true,
+      feedOnly: false,
+    };
+  if (gateway === 'snapchat_native_action')
+    return {
+      gateway,
+      fields,
+      exactPrice: true,
+      upsertRequired: false,
+      unsent: snapCatalogUnsentFieldNames,
+      blocked: [],
+      productId: /^[^\u0000-\u001f\u007f]{1,100}$/,
+      destinationOnly: 'note',
+      removal: false,
+      retire: false,
+      feedOnly: true,
     };
   throw Error(uiText('Catalog comparison scope or evidence changed. Validate and read the import again.'));
 }
@@ -3487,7 +3542,10 @@ function validCatalogComparison(out, request, preview) {
     out.source_hash !== preview.source_hash ||
     !out.scope ||
     ['gateway', 'account_id', 'connection_id', 'catalog_id'].some(k => out.scope[k] !== request[k]) ||
-    (d.exactPrice && request.allow_upsert !== true) ||
+    (d.upsertRequired && request.allow_upsert !== true) ||
+    // A feed-only destination says so, and names the feed as the remedy (COM-02 D).
+    (d.feedOnly && (out.writes !== 'feed_only' || out.remedy !== 'fix_in_feed')) ||
+    (!d.feedOnly && (out.writes !== undefined || out.remedy !== undefined)) ||
     !Number.isSafeInteger(out.captured_at) ||
     out.captured_at <= 0 ||
     !Array.isArray(out.items) ||
@@ -3583,9 +3641,11 @@ function validCatalogComparison(out, request, preview) {
       } else {
         let changes, unknown;
         if (d.exactPrice) {
-          // X returns every compared value and an exact price: its changes and unknown fields are recomputed here.
-          unknown = d.fields.filter(k => item.before[k] === null);
-          changes = d.fields.filter(k => item.before[k] !== null && item.before[k] !== s[k]);
+          // X and Snapchat return every compared value and an exact price: changes and unknown fields are recomputed
+          // here over the fields the source supplied (X requires them all; Snapchat's are partly optional).
+          const supplied = d.fields.filter(k => s[k] !== undefined);
+          unknown = supplied.filter(k => item.before[k] === null);
+          changes = supplied.filter(k => item.before[k] !== null && item.before[k] !== s[k]);
           const price =
             item.before.price === null
               ? null
@@ -3680,6 +3740,8 @@ function validCatalogComparison(out, request, preview) {
           invalid();
       }
     }
+    // A feed-only destination names the feed as the fix for every product that differs (COM-02 D).
+    if (d.feedOnly ? item.fix_in !== (item.state === 'matching' ? null : 'feed') : item.fix_in !== undefined) invalid();
     counts[item.state]++;
     if (unsent.length) withUnsent++;
     if (item.blocked) counts.blocked++;
@@ -3705,10 +3767,12 @@ function catalogServingNote(code) {
 function catalogComparisonMarkup(out, request, preview) {
   const {destination: d, counts, review} = validCatalogComparison(out, request, preview),
     x = d.gateway === 'x_ads_native_action',
+    // COM-02 D: Snapchat shows exact native values like X, but changes products only through feeds.
+    exact = d.exactPrice,
     inventoryHtml = x ? catalogListedInventoryMarkup(out, request) : '',
     // COM-02 B: an existing product can be retired (kept, with an availability that keeps it out of ads) instead of
     // deleted; offered after an upsert comparison that is not already a retirement.
-    retirable = request.allow_upsert === true && request.requirements?.retire_retailer_ids === undefined,
+    retirable = d.retire && request.allow_upsert === true && request.requirements?.retire_retailer_ids === undefined,
     eligible = item => !item.blocked && item.before.present === true;
   const reason = key =>
     key === 'grouped_product'
@@ -3727,7 +3791,7 @@ function catalogComparisonMarkup(out, request, preview) {
         details =
           item.changes
             .map(c =>
-              x
+              exact
                 ? `<li>${esc(catalogFieldLabel(c.field))}: <bdi>${esc(c.before ?? uiText('Not set'))}</bdi> → <bdi>${esc(c.after_native_price ?? c.after)}</bdi></li>`
                 : `<li>${esc(catalogFieldLabel(c.field))}: ${esc(c.before ?? uiText('Unknown'))} → ${esc(c.field === 'price' ? s.price + ' ' + s.currency : c.field === 'sale_price' ? catalogSaleText(s) : c.after)}</li>`,
             )
@@ -3735,14 +3799,17 @@ function catalogComparisonMarkup(out, request, preview) {
           item.unknown_fields
             .map(k => `<li>${esc(catalogFieldLabel(k))}: ${esc(uiText('Current value is unknown'))}</li>`)
             .join(''),
-        current = x
+        current = exact
           ? `<bdi>${esc(item.before.price ?? uiText('Unknown'))}</bdi>`
           : esc(item.before.price ?? uiText('Unknown')),
         notes =
           (unsent.length
-            ? `<p class="form-note">${esc(x ? uiText('Other native attributes have values: {fields}. X does not establish whether an update preserves omitted attributes.', {fields: unsent.join(', ')}) : uiText('Other native attributes have values: {fields}. Meta does not establish whether an update preserves omitted attributes.', {fields: unsent.join(', ')}))}</p>`
+            ? `<p class="form-note">${esc(d.feedOnly ? uiText('Other native attributes have values: {fields}. Your feed keeps or changes them; this comparison does not.', {fields: unsent.join(', ')}) : x ? uiText('Other native attributes have values: {fields}. X does not establish whether an update preserves omitted attributes.', {fields: unsent.join(', ')}) : uiText('Other native attributes have values: {fields}. Meta does not establish whether an update preserves omitted attributes.', {fields: unsent.join(', ')}))}</p>`
             : '') +
-          (item.serving_notes ?? []).map(code => `<p class="form-note">${esc(catalogServingNote(code))}</p>`).join(''),
+          (item.serving_notes ?? []).map(code => `<p class="form-note">${esc(catalogServingNote(code))}</p>`).join('') +
+          (item.fix_in === 'feed'
+            ? `<p class="form-note">${esc(uiText('Fix this product in the product feed.'))}</p>`
+            : ''),
         removal = x
           ? `<td>${!item.blocked && item.before.present === true ? `<label><input type="checkbox" id="catalog-remove-${index}"> ${esc(uiText('Select {retailer_id} for removal', {retailer_id: item.retailer_id}))}</label>` : esc(uiText('Unavailable'))}</td>`
           : '',
@@ -3765,7 +3832,11 @@ function catalogComparisonMarkup(out, request, preview) {
       retirable && out.items.some(eligible)
         ? `<p>${esc(uiText('Retiring keeps a product and its history but sets its availability so ads stop showing it; nothing is deleted. Each product still gets its own native review.'))}</p><label for="catalog-retire-availability">${esc(uiText('Retire as'))}<select id="catalog-retire-availability"><option value="discontinued">discontinued</option><option value="out of stock">out of stock</option></select></label><button type="button" class="button" id="save-catalog-retirement">${esc(uiText('Save retirement draft for selected products'))}</button>`
         : '';
-  return `<h3 id="catalog-comparison-heading" tabindex="-1">${esc(uiText('Compare current catalog products'))}</h3><p>${esc(uiText('Read {date} · {new} new · {changed} changed · {matching} matching · {unknown} unknown · {blocked} blocked', {date: date(out.captured_at), ...counts}))}</p><p class="notice">${esc(x ? uiText('Only supplied X product IDs are returned. Supported decimal prices compare exactly. Grouped or hidden variants are blocked; missing fields remain unknown. Repeated reads are sequential evidence, not a point-in-time inventory snapshot. A saved draft still needs fresh native review. Missing source products are not deleted.') : uiText('Only supplied retailer IDs are compared. Formatted native prices are display text; equality uses the native price filter. Unknown fields need review. This is current sequential evidence, not a point-in-time inventory snapshot. Missing source products are not deleted.'))}</p>${inventoryHtml}<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Catalog comparison, scroll for all fields'))}"><table class="review-table"><caption>${esc(x ? uiText('Supplied X product comparison') : uiText('Compare current catalog products'))}</caption><thead><tr>${headers.map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div><p>${esc(uiText('{count} products need a fresh native review before execution. Saving a plan does not submit product changes.', {count: review.length}))}</p>${review.length ? `<button type="button" class="button primary" id="save-catalog-changes">${esc(uiText('Save only products needing review'))}</button>` : `<p>${esc(uiText('No eligible product changes need a draft.'))}</p>`}${removable ? `<p>${esc(uiText('Select only the observed products you intend to remove. Products outside this selection are retained.'))}</p><button type="button" class="button" id="preview-catalog-removal">${esc(uiText('Preview selected removals'))}</button><div id="catalog-removal-preview" aria-live="polite"></div>` : ''}${retirement}`;
+  // A feed-only destination saves nothing: it names how many products to fix in the feed (COM-02 D).
+  const next = d.feedOnly
+    ? `<p class="notice">${esc(review.length ? uiText('Snapchat changes products only through product feeds. Fix the {count} products that differ in your feed; AMCP saves no draft for Snapchat.', {count: review.length}) : uiText('Every supplied product matches its Snapchat product. Nothing needs a fix in the feed.'))}</p>`
+    : `<p>${esc(uiText('{count} products need a fresh native review before execution. Saving a plan does not submit product changes.', {count: review.length}))}</p>${review.length ? `<button type="button" class="button primary" id="save-catalog-changes">${esc(uiText('Save only products needing review'))}</button>` : `<p>${esc(uiText('No eligible product changes need a draft.'))}</p>`}`;
+  return `<h3 id="catalog-comparison-heading" tabindex="-1">${esc(uiText('Compare current catalog products'))}</h3><p>${esc(uiText('Read {date} · {new} new · {changed} changed · {matching} matching · {unknown} unknown · {blocked} blocked', {date: date(out.captured_at), ...counts}))}</p><p class="notice">${esc(x ? uiText('Only supplied X product IDs are returned. Supported decimal prices compare exactly. Grouped or hidden variants are blocked; missing fields remain unknown. Repeated reads are sequential evidence, not a point-in-time inventory snapshot. A saved draft still needs fresh native review. Missing source products are not deleted.') : d.feedOnly ? uiText('Only supplied Snapchat product IDs are read, twice. Supported decimal prices compare exactly; missing fields remain unknown. Feed processing can take time, so this is current evidence, not a point-in-time inventory snapshot. Missing source products are not read or deleted.') : uiText('Only supplied retailer IDs are compared. Formatted native prices are display text; equality uses the native price filter. Unknown fields need review. This is current sequential evidence, not a point-in-time inventory snapshot. Missing source products are not deleted.'))}</p>${inventoryHtml}<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Catalog comparison, scroll for all fields'))}"><table class="review-table"><caption>${esc(x ? uiText('Supplied X product comparison') : d.feedOnly ? uiText('Supplied Snapchat product comparison') : uiText('Compare current catalog products'))}</caption><thead><tr>${headers.map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>${next}${removable ? `<p>${esc(uiText('Select only the observed products you intend to remove. Products outside this selection are retained.'))}</p><button type="button" class="button" id="preview-catalog-removal">${esc(uiText('Preview selected removals'))}</button><div id="catalog-removal-preview" aria-live="polite"></div>` : ''}${retirement}`;
 }
 function catalogListedInventoryMarkup(out, request) {
   const invalid = () => {
@@ -4582,10 +4653,11 @@ function bindWooCommerceSource(useProducts, clearProducts) {
 async function renderCommerce() {
   // COM-01: the reviewed import comes first; it is the active journey. Store sources follow, collapsed into one
   // administrator disclosure until a source is configured, so the page no longer opens with forms that cannot run.
-  const targets = accountChoices(['meta', 'x']),
+  // COM-02 D: Snapchat accounts are offered for a read-only comparison; their products change only through feeds.
+  const targets = accountChoices(['meta', 'x', 'snapchat']),
     storeSources = typeof commerceSources === 'undefined' ? [] : commerceSources,
     storePanels = wooCommerceConnectionsMarkup() + wooCommerceSourcePanelMarkup() + wooCommerceInventoryPanelMarkup();
-  content.innerHTML += `<section class="panel workspace-form"><h2>${esc(uiText('Reviewed catalog product import'))}</h2><p>${esc(uiText('Import up to 50 supplied products for the selected account and catalog. Ownership is checked during native review. Every item keeps a separate review, receipt and read-back in its saved plan. Missing items are retained.'))}</p><p class="form-note">${esc(uiText('Product imports support Meta and X; Snapchat catalogs are managed through feeds.'))}</p>${targets.length ? '' : `<p class="notice" id="catalog-no-destination">${esc(uiText('Connect a Meta or X ad account to import products.'))} <a href="/connections">${esc(uiText('Manage connections'))}</a></p>`}<form id="catalog-import"><label>${esc(uiText('Meta or X ad account'))}<select name="target" required><option value="">${esc(uiText('Choose an account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Native product catalog ID'), 'text', '', 'catalog_id')}${controls(uiText('Import plan name'), 'text', 'Product catalog import', 'name')}<label>${esc(uiText('Product source'))}<select name="source_mode"><option value="csv">${esc(uiText('Product CSV'))}</option><option value="woocommerce">${esc(uiText('Selected WooCommerce products'))}</option></select></label><div id="catalog-csv-controls"><label>${esc(uiText('Product CSV'))}<input type="file" name="file" accept=".csv,text/csv" required></label></div><div id="catalog-woo-selection" class="form-note" aria-live="polite"></div><div id="catalog-destination-help" class="form-note" aria-live="polite"></div>${catalogMappingMarkup()}<label>${esc(uiText('Existing retailer IDs'))}<select name="allow_upsert"><option value="false">${esc(uiText('Create only — refuse existing IDs'))}</option><option value="true">${esc(uiText('Explicitly update existing IDs after native review'))}</option></select></label><button class="button primary" type="submit">${esc(uiText('Validate and preview products'))}</button></form><div id="catalog-preview"></div></section><p class="notice">${esc(uiText('Mapped supplier and WooCommerce exports use the selected Meta or X reviewed product contract. Choose the intended price, currency, image and destination fields. Live store synchronization and additional destinations require separate qualification.'))}</p>`;
+  content.innerHTML += `<section class="panel workspace-form"><h2>${esc(uiText('Reviewed catalog product import'))}</h2><p>${esc(uiText('Import up to 50 supplied products for the selected account and catalog. Ownership is checked during native review. Every item keeps a separate review, receipt and read-back in its saved plan. Missing items are retained.'))}</p><p class="form-note">${esc(uiText('Product imports support Meta and X. Snapchat catalogs change only through feeds; AMCP compares their products read-only.'))}</p>${targets.length ? '' : `<p class="notice" id="catalog-no-destination">${esc(uiText('Connect a Meta or X ad account to import products.'))} <a href="/connections">${esc(uiText('Manage connections'))}</a></p>`}<form id="catalog-import"><label>${esc(uiText('Meta, X or Snapchat ad account'))}<select name="target" required><option value="">${esc(uiText('Choose an account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Native product catalog ID'), 'text', '', 'catalog_id')}${controls(uiText('Import plan name'), 'text', 'Product catalog import', 'name')}<label>${esc(uiText('Product source'))}<select name="source_mode"><option value="csv">${esc(uiText('Product CSV'))}</option><option value="woocommerce">${esc(uiText('Selected WooCommerce products'))}</option></select></label><div id="catalog-csv-controls"><label>${esc(uiText('Product CSV'))}<input type="file" name="file" accept=".csv,text/csv" required></label></div><div id="catalog-woo-selection" class="form-note" aria-live="polite"></div><div id="catalog-destination-help" class="form-note" aria-live="polite"></div>${catalogMappingMarkup()}<label>${esc(uiText('Existing retailer IDs'))}<select name="allow_upsert"><option value="false">${esc(uiText('Create only — refuse existing IDs'))}</option><option value="true">${esc(uiText('Explicitly update existing IDs after native review'))}</option></select></label><button class="button primary" type="submit">${esc(uiText('Validate and preview products'))}</button></form><div id="catalog-preview"></div></section><p class="notice">${esc(uiText('Mapped supplier and WooCommerce exports use the selected Meta or X reviewed product contract. Choose the intended price, currency, image and destination fields. Live store synchronization and additional destinations require separate qualification.'))}</p>`;
   content.innerHTML += storeSources.length
     ? storePanels
     : `<details class="panel" id="commerce-store-sources"><summary>${esc(uiText('Connect a store source (administrators)'))}</summary>${storePanels}</details>`;
@@ -4625,8 +4697,9 @@ async function renderCommerce() {
   );
   const destinationHelp = () => {
     const target = form.elements.target.value === '' ? undefined : targets[Number(form.elements.target.value)];
+    const snapchat = target?.gateway === 'snapchat_native_action';
     $('#catalog-destination-help').innerHTML =
-      `<p>${esc(uiText(target?.gateway === 'x_ads_native_action' ? 'This X import requires every mapped product field, including product page, availability, condition, brand and plain text description. It accepts names up to 150 characters and source prices with up to six decimal places. Use exact native availability and condition values. Explicit upsert approval is required.' : target?.gateway === 'meta_native_action' ? 'Required columns: retailer_id, name, price, currency, image_url. Optional: url, availability, condition, brand, description, retailer_product_group_id. Select an exact Meta group column only when your source supplies it; no group is inferred. Price is a decimal amount in the product currency; Meta counts hundredths, so digits beyond two decimal places must be zeros (12.500 KWD is 12.50). Use HTTPS links.' : 'Choose an account to see the required destination fields.'))}</p>${target?.gateway === 'x_ads_native_action' ? `<p>${esc(uiText('X catalog access requires early-access entitlement. Previewing or saving a draft does not establish eligibility or publish a product.'))}</p>` : ''}${target ? `<p>${esc(uiText('Optional sale columns: sale_price (a decimal lower than the price, in the product currency), sale_price_start_date and sale_price_end_date (ISO 8601 with an explicit offset; X needs both or neither). Without them the destination keeps its current sale, which the comparison names.'))}</p>` : ''}`;
+      `<p>${esc(uiText(target?.gateway === 'x_ads_native_action' ? 'This X import requires every mapped product field, including product page, availability, condition, brand and plain text description. It accepts names up to 150 characters and source prices with up to six decimal places. Use exact native availability and condition values. Explicit upsert approval is required.' : target?.gateway === 'meta_native_action' ? 'Required columns: retailer_id, name, price, currency, image_url. Optional: url, availability, condition, brand, description, retailer_product_group_id. Select an exact Meta group column only when your source supplies it; no group is inferred. Price is a decimal amount in the product currency; Meta counts hundredths, so digits beyond two decimal places must be zeros (12.500 KWD is 12.50). Use HTTPS links.' : snapchat ? 'Snapchat changes catalog products only through product feeds, so AMCP compares them read-only and saves no draft. Required columns: retailer_id, name, price, currency, image_url. Optional: url, availability, condition, brand, description, sale_price. Prices are exact decimals.' : 'Choose an account to see the required destination fields.'))}</p>${target?.gateway === 'x_ads_native_action' ? `<p>${esc(uiText('X catalog access requires early-access entitlement. Previewing or saving a draft does not establish eligibility or publish a product.'))}</p>` : ''}${target && !snapchat ? `<p>${esc(uiText('Optional sale columns: sale_price (a decimal lower than the price, in the product currency), sale_price_start_date and sale_price_end_date (ISO 8601 with an explicit offset; X needs both or neither). Without them the destination keeps its current sale, which the comparison names.'))}</p>` : ''}`;
   };
   form.elements.target.addEventListener('change', () => {
     resetMapping();
@@ -4644,7 +4717,9 @@ async function renderCommerce() {
           ? /^[1-9][0-9]{0,24}$/
           : gateway === 'meta_native_action'
             ? /^[1-9][0-9]{0,31}$/
-            : null,
+            : gateway === 'snapchat_native_action'
+              ? /^[A-Za-z0-9-]{1,64}$/
+              : null,
       valid =
         keys.every(k => handoff.getAll(k).length === 1) &&
         handoff.getAll('gateway').length <= 1 &&
@@ -4752,6 +4827,8 @@ async function renderCommerce() {
       return;
     }
     if (!current()) return;
+    // COM-02 D: Snapchat products change only through feeds, so a Snapchat preview leads to a comparison and nothing else.
+    const feedOnly = request.gateway === 'snapchat_native_action';
     result.innerHTML =
       `<button type="button" class="button primary" id="compare-catalog-products">${esc(uiText('Compare current catalog products'))}</button>` +
       (request.gateway === 'x_ads_native_action'
@@ -4770,7 +4847,10 @@ async function renderCommerce() {
         ? `<ul>${out.destination_limitations.map(value => `<li>${esc(uiAccountExplanation(value))}</li>`).join('')}</ul>`
         : '') +
       recordDetails({source_hash: out.source_hash}, uiText('Source hash')) +
-      `<div id="catalog-comparison" aria-live="polite"></div><button class="button" id="create-catalog-plan" aria-describedby="create-catalog-plan-note">${esc(uiText('Save all supplied products for native review'))}</button><p class="form-note" id="create-catalog-plan-note"></p>`;
+      `<div id="catalog-comparison" aria-live="polite"></div>` +
+      (feedOnly
+        ? ''
+        : `<button class="button" id="create-catalog-plan" aria-describedby="create-catalog-plan-note">${esc(uiText('Save all supplied products for native review'))}</button><p class="form-note" id="create-catalog-plan-note"></p>`);
     let comparisonSequence = 0;
     const compareCatalogProducts = async (inspectOther = false) => {
       if (!current()) return;
@@ -4795,21 +4875,23 @@ async function renderCommerce() {
         // After a comparison, "Save all" says how many supplied products already match (COM-01). An X plan records
         // those as unchanged when it reaches them and sends nothing; a Meta plan reviews and sends them again.
         const unchanged = evidence.items.filter(item => item.state === 'matching').length;
-        $('#create-catalog-plan').textContent = unchanged
-          ? uiText('Save all {count} supplied products ({unchanged} already match)', {
-              count: request.products.length,
-              unchanged,
-            })
-          : uiText('Save all supplied products for native review');
-        $('#create-catalog-plan-note').textContent = !unchanged
-          ? ''
-          : request.gateway === 'x_ads_native_action'
-            ? uiText(
-                'Products that still match when the plan reaches them are recorded as unchanged; nothing is sent for them.',
-              )
-            : uiText(
-                'Meta products that already match are reviewed and sent again; save only products needing review to leave them out.',
-              );
+        if (!feedOnly) {
+          $('#create-catalog-plan').textContent = unchanged
+            ? uiText('Save all {count} supplied products ({unchanged} already match)', {
+                count: request.products.length,
+                unchanged,
+              })
+            : uiText('Save all supplied products for native review');
+          $('#create-catalog-plan-note').textContent = !unchanged
+            ? ''
+            : request.gateway === 'x_ads_native_action'
+              ? uiText(
+                  'Products that still match when the plan reaches them are recorded as unchanged; nothing is sent for them.',
+                )
+              : uiText(
+                  'Meta products that already match are reviewed and sent again; save only products needing review to leave them out.',
+                );
+        }
         if (inspectOther) bindCatalogListedInventory(evidence.listed_inventory, active, comparisonRequest);
         if (request.gateway === 'x_ads_native_action') {
           let removalSequence = 0;
@@ -4872,7 +4954,7 @@ async function renderCommerce() {
         }
         // COM-02 B: retire the selected existing products through the reviewed upsert; nothing is deleted.
         const retirable = item => !item.blocked && item.before.present === true;
-        if (comparisonRequest.allow_upsert === true && evidence.items.some(retirable))
+        if (!feedOnly && comparisonRequest.allow_upsert === true && evidence.items.some(retirable))
           workspaceBind('#save-catalog-retirement', async () => {
             if (!active()) return;
             const retire_retailer_ids = evidence.items
@@ -4893,7 +4975,7 @@ async function renderCommerce() {
               if (active()) throw error;
             }
           });
-        if (evidence.review_retailer_ids.length)
+        if (!feedOnly && evidence.review_retailer_ids.length)
           workspaceBind('#save-catalog-changes', async () => {
             if (!active()) return;
             const selected = new Set(evidence.review_retailer_ids),
@@ -4920,15 +5002,16 @@ async function renderCommerce() {
     workspaceBind('#compare-catalog-products', () => compareCatalogProducts(false));
     if (request.gateway === 'x_ads_native_action')
       workspaceBind('#inspect-catalog-inventory', () => compareCatalogProducts(true));
-    workspaceBind('#create-catalog-plan', async () => {
-      if (!current()) return;
-      try {
-        const plan = await workspaceCall('workspace', {action: 'catalog_plan', ...request});
-        if (current()) await navigate('/campaigns?id=' + encodeURIComponent(plan.id));
-      } catch (error) {
-        if (current()) throw error;
-      }
-    });
+    if (!feedOnly)
+      workspaceBind('#create-catalog-plan', async () => {
+        if (!current()) return;
+        try {
+          const plan = await workspaceCall('workspace', {action: 'catalog_plan', ...request});
+          if (current()) await navigate('/campaigns?id=' + encodeURIComponent(plan.id));
+        } catch (error) {
+          if (current()) throw error;
+        }
+      });
   });
 }
 

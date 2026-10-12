@@ -36,6 +36,7 @@ import {wooCommerceSource, wooCommerceSources, type WooCommerceRequest} from './
 import {wooCommerceInventory} from './woocommerce-inventory.js';
 import {catalogComparison} from './catalog-comparison.js';
 import {assertCatalogRequirements} from './catalog-requirements.js';
+import {catalogDestination} from './catalog-destinations.js';
 import {createCatalogRemoval, previewCatalogRemoval} from './x-catalog-removal.js';
 import {operationsPage} from './operations-feed.js';
 import {reportRunStatus, resumeReportRun} from './report-runs.js';
@@ -476,6 +477,12 @@ export class WorkspaceService {
       this.store.resolveConnection(actor, input.gateway, input.account_id, input.connection_id);
       const result = catalogIngestion(input);
       if (input.action === 'catalog_preview') return result;
+      // COM-02 D: a feed-only destination (Snapchat) is compared read-only; nothing can be saved for it.
+      if (catalogDestination(input.gateway)?.writes === 'feed_only')
+        bad(
+          'Snapchat products change only through product feeds. Compare them, then fix differences in the feed; no draft is saved.',
+          'CATALOG_FEED_ONLY',
+        );
       const created = await this.call('amcp_campaign', result.plan, actor);
       if (!created.success)
         bad(created.error?.message ?? 'Catalog plan failed.', created.error?.code ?? 'CATALOG_PLAN_FAILED');
