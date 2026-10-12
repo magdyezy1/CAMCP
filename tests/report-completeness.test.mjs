@@ -404,7 +404,8 @@ test('a declared-incomplete detail window is partial, held, skipped by complete-
     const complete = await granularRun(f, detailed(true));
     assert.equal(complete.state, 'complete', JSON.stringify(complete.sources));
     assert.equal(complete.rows[0].recommendation.decision, 'scale');
-    assert.equal(complete.sources[0].detail_contract, 'overview-detail-v2');
+    // v3 (RPT-07) keeps v2's declared-incomplete rule and adds native parents to detailed rows.
+    assert.equal(complete.sources[0].detail_contract, 'overview-detail-v3');
     const row = complete.rows[0];
     monitorOperation(f.store, f.actor, {
       action: 'save_monitor',

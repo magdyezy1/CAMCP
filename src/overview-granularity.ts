@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import {DecisionReporting} from './decision-reporting.js';
 import {fingerprint, reportContractVersion} from './report-quality.js';
 import {metricNumber} from './report-metrics.js';
+import {detailParents, type DetailParentCache} from './overview-parents.js';
 import type {MirrorService} from './service.js';
 import type {Actor, JsonObject} from './types.js';
 
@@ -155,8 +156,11 @@ export function overviewSourceLevel(source: JsonObject, template = false) {
   return selected!;
 }
 
-/** v2: a declared-incomplete reporting window makes the detailed source partial (RPT-02). */
-export const detailContractVersion = 'overview-detail-v2';
+/**
+ * v2: a declared-incomplete reporting window makes the detailed source partial (RPT-02). v3: TikTok ad group and ad,
+ * Snapchat ad and LinkedIn creative rows carry their native parents from a bounded parent read (RPT-07).
+ */
+export const detailContractVersion = 'overview-detail-v3';
 const declaredIncompleteWarning =
   'The reporting window was declared incomplete. The source stays partial and recommendations are held until a complete window is collected.';
 const additive = ['spend', 'impressions', 'clicks', 'conversions', 'conversion_value'];
@@ -174,7 +178,15 @@ function exactSum(values: unknown[]) {
     (sum % 1000000000n ? '.' + (sum % 1000000000n).toString().padStart(9, '0').replace(/0+$/, '') : '');
   return {exact, display: metricNumber(exact)};
 }
-export function detailedOverviewRows(source: JsonObject, captured: JsonObject) {
+/**
+ * `nativeParents` holds the parents a bounded parent read returned for levels whose report rows carry none (RPT-07);
+ * an entity it does not name keeps unknown parents.
+ */
+export function detailedOverviewRows(
+  source: JsonObject,
+  captured: JsonObject,
+  nativeParents: Record<string, JsonObject> = {},
+) {
   const descriptor = overviewSourceLevel(source),
     groups = new Map<string, {mapped: JsonObject[]; raw: JsonObject[]; parents: JsonObject}>();
   if (
@@ -206,7 +218,7 @@ export function detailedOverviewRows(source: JsonObject, captured: JsonObject) {
             }
           : source.platform === 'snapchat' && source.campaign_id
             ? {campaign_id: source.campaign_id}
-            : {};
+            : (nativeParents[row.entity_id] ?? {});
     const prior = groups.get(row.entity_id);
     if (prior && fingerprint(prior.parents) !== fingerprint(parents))
       invalid('The detailed entity changed native parents during collection.', 'REPORT_ACCOUNT_MISMATCH');
@@ -254,6 +266,8 @@ export async function collectDetailedOverview(
   metadata: JsonObject,
   currency: string | null,
   timezone: string | null,
+  // RPT-07: the job's per-source cache, so each entity's parents are read once across periods.
+  lookup: {detailParents?: DetailParentCache} = {},
 ) {
   const descriptor = overviewSourceLevel(source),
     options = source.report_options;
@@ -290,7 +304,26 @@ export async function collectDetailedOverview(
   );
   service.store.assertActorActive(actor);
   service.store.resolveConnection(actor, captured.gateway, source.account_id, source.connection_id);
-  const lineage = [...(captured.native_account_evidence?.checks ?? []), ...(captured.source_pages ?? [])];
+  // RPT-07: parents of the reported entities where the report rows carry none (TikTok, Snapchat ads, LinkedIn
+  // creatives), read after the report under the same login; IDs stay exact and an unread parent stays unknown.
+  lookup.detailParents ??= {parents: {}, lineage: []};
+  const parents = await detailParents(
+    service,
+    source,
+    descriptor.id,
+    (Array.isArray(captured.rows) ? captured.rows : [])
+      .map((row: JsonObject) => row.entity_id)
+      .filter((id: unknown): id is string => typeof id === 'string' && !!id),
+    actor,
+    lookup.detailParents,
+  );
+  service.store.assertActorActive(actor);
+  service.store.resolveConnection(actor, captured.gateway, source.account_id, source.connection_id);
+  const lineage = [
+    ...(captured.native_account_evidence?.checks ?? []),
+    ...(captured.source_pages ?? []),
+    ...parents.lineage,
+  ];
   return {
     contract_version: reportContractVersion,
     quality: {
@@ -304,7 +337,7 @@ export async function collectDetailedOverview(
     },
     lineage,
     query_fingerprint: fingerprint(captured.source_request),
-    rows: detailedOverviewRows(source, captured),
+    rows: detailedOverviewRows(source, captured, parents.parents),
     metadata,
     account_name: metadata.name ?? metadata.displayName ?? null,
     currency,
@@ -320,6 +353,7 @@ export async function collectDetailedOverview(
     warnings: [
       'Detailed rows retain the original native entity level and exact additive daily totals. Reach and frequency are unavailable for multi-day totals; missing days are not filled with zero. Reporting-window completeness and attribution remain explicitly declared unless native finalization proves them.',
       ...(options.complete_window === true ? [] : [declaredIncompleteWarning]),
+      ...parents.warnings,
     ],
     native_account_evidence: captured.native_account_evidence,
     metric_mapping: captured.mapping,

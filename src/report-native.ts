@@ -14,6 +14,7 @@ import {googleAdsCustomers} from './google-version.js';
 import {metaPrefix} from './meta-version.js';
 import {linkedInCampaignMetadata, linkedInCampaignPeriod} from './linkedin-reporting.js';
 import {campaignAttributionProfile, overviewSourceLevel, collectDetailedOverview} from './overview-granularity.js';
+import type {DetailParentCache} from './overview-parents.js';
 import {markReportWindow} from './report-windows.js';
 import {
   assertMicrosoftWindowClosed,
@@ -469,6 +470,8 @@ export interface AccountLookupCache {
    * so far (later periods read only new URNs). `unavailable` records a non-retryable refusal of this optional read.
    */
   linkedinCampaigns?: {campaigns: Record<string, JsonObject>; lineage: JsonObject[]; unavailable?: boolean};
+  /** RPT-07: native parents of detailed entities, read once per entity per source per job (overview-parents.ts). */
+  detailParents?: DetailParentCache;
 }
 /** Shown when LinkedIn refused the campaign metadata read, so rows keep campaign IDs and unknown objectives. */
 export const linkedinCampaignsUnavailableWarning =
@@ -690,7 +693,7 @@ export class NativeCampaignReports {
       timezone = accountTimezone(platform!.gateway, d);
     }
     if (entityLevel.id !== 'campaign')
-      return collectDetailedOverview(this.service, source, range, actor, metadata, currency, timezone);
+      return collectDetailedOverview(this.service, source, range, actor, metadata, currency, timezone, lookup);
     if (p === 'google') {
       const fields = [
         ...new Set([

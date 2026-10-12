@@ -211,6 +211,9 @@ const reportSourceWarnings = new Set([
   'LinkedIn campaign names and objectives could not be read, so rows show campaign IDs and objectives stay unknown unless confirmed in report settings.',
   'LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Campaign names and objectives are current campaign metadata, not the values at delivery time.',
   'LinkedIn conversion-rule attribution windows are not independently verified. Campaign objectives should be confirmed in report settings.',
+  // RPT-07: native parents of detailed TikTok, Snapchat-ad and LinkedIn-creative rows (overview-parents.ts).
+  'Native parents could not be read for this source, so its rows show entity IDs without parent campaigns or ad groups.',
+  'This source reports more than 1000 entities, so the parents of entities beyond that bound stay unknown.',
 ]);
 // Collector notices that carry a count or a field name (RPT-03, RPT-04). English keeps the collector's own sentence;
 // another language fills the same exact value into its translated template.
