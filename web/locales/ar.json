@@ -9557,6 +9557,7 @@
   "With approval on the website, a reviewed change to spending, beyond a cap or deleting something runs only after a member approves that exact review on the Operations page. This applies to every account, also one with a policy of its own.": "مع الموافقة في الموقع، لا يُنفَّذ تغيير مراجَع يمس الإنفاق أو يتجاوز حدًا للإنفاق أو يحذف شيئًا إلا بعد أن يوافق عضو على تلك المراجعة بعينها في صفحة العمليات. ينطبق هذا على كل حساب، بما في ذلك الحساب الذي له سياسة خاصة به.",
   "This review is already approved.": "تمت الموافقة على هذه المراجعة بالفعل.",
   "Approvals on the website": "الموافقات في الموقع",
+  "This change now goes beyond a spending cap it did not cross when it was prepared, and only the workspace owner executes a change beyond a cap. Nothing was sent. Prepare it again: the new review names the cap, and the owner executes it or approves it on the AMCP website.": "يتجاوز هذا التغيير الآن حدًا للإنفاق لم يكن يتجاوزه عند تحضيره، ولا ينفّذ تغييرًا يتجاوز حدًا إلا مالك مساحة العمل. لم يُرسَل أي شيء. حضّره مرة أخرى: تذكر المراجعة الجديدة الحد، وينفّذها المالك أو يوافق عليها في موقع AMCP.",
   "Time from prepare to a person’s approval on the website (ms): median {p50}, 90th percentile {p90}.": "الوقت من التجهيز إلى موافقة شخص في الموقع (بالمللي ثانية): الوسيط {p50}، والشريحة المئوية 90 {p90}.",
   "Fingerprint": "البصمة",
   "Provider lookups this review read": "عمليات البحث في المنصة التي قرأتها هذه المراجعة",

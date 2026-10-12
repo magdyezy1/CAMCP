@@ -326,12 +326,27 @@ function modeApproval(
 }
 /**
  * The P5 rule: only the workspace owner executes a change beyond a spending cap under `confirm`, or the owner approved
- * this exact review on the website. Checked with the caps exceeded now, before anything is claimed or sent.
+ * this exact review on the website. Checked with the caps exceeded now, before anything is claimed or sent. `named`:
+ * prepare already named the cap; a cap crossed only since (another change used the day's allowance) is not one the
+ * owner could approve for this review, so it is prepared again.
  */
-export function assertCapOverrideOwner(store: Store, actor: Actor, exceeded: JsonObject[], reviewId: string): void {
+export function assertCapOverrideOwner(
+  store: Store,
+  actor: Actor,
+  exceeded: JsonObject[],
+  reviewId: string,
+  named = true,
+): void {
   if (!exceeded.length || workspaceOwner(store, actor)) return;
   const found = approvalFor(store, actor.tenantId, reviewId);
   if (found.approval?.approver_is_owner === true) return;
+  if (!named)
+    throw new MirrorError(
+      'CAP_OVERRIDE_OWNER_REQUIRED',
+      'This change now goes beyond a spending cap it did not cross when it was prepared, and only the workspace owner executes a change beyond a cap. Nothing was sent. Prepare it again: the new review names the cap, and the owner executes it or approves it on the AMCP website.',
+      {review_id: found.subject, exceeded, prepare_again: true, submission: 'not_sent'},
+      403,
+    );
   throw new MirrorError(
     'CAP_OVERRIDE_OWNER_REQUIRED',
     'Only the workspace owner executes a change beyond a spending cap the owner set. Nothing was sent. The owner executes this review, or approves it on the AMCP website first (website_path); then execute it again with cap_override_confirmed=true.',

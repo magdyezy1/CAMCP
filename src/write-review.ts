@@ -1286,6 +1286,8 @@ export class WriteReviewService {
         actor,
         exceededCaps(checkSpendPolicy(this.store, actor, plan, current)),
         input.review_id,
+        Array.isArray(review.required_acknowledgements) &&
+          review.required_acknowledgements.includes('cap_override_confirmed'),
       );
     // RPT-06: a provider job is counted and retained with a receipt keyed by its review, recorded with the claim, before
     // anything is sent; a job family without its own provider quota check is admitted against the deployment-wide

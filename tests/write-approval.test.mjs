@@ -271,6 +271,31 @@ test('P5: only the workspace owner executes beyond a cap under confirm, or appro
   }
 });
 
+test('P5: a cap crossed only after prepare is refused for anyone but the owner, and the change is prepared again', async () => {
+  // The review did not name the cap, so the approval page has nothing for the owner to approve: the refusal says to
+  // prepare again instead of pointing at an approval that cannot be given.
+  const f = tiktok();
+  try {
+    f.accountPolicy({max_budget_native: 5000});
+    const r = await f.prepare(1100);
+    assert.equal(r.data.approval, undefined);
+    f.accountPolicy({max_budget_native: 1050});
+    const refused = await f.execute(r.data.review_id, {cap_override_confirmed: true});
+    assert.equal(refused.error.code, 'CAP_OVERRIDE_OWNER_REQUIRED', JSON.stringify(refused.error));
+    assert.equal(refused.error.details.prepare_again, true);
+    assert.equal(refused.error.details.website_path, undefined);
+    assert.equal(f.writes.length, 0);
+    const again = await f.prepare(1100);
+    assert.equal(again.data.approval.owner_required, 'cap_override');
+    approveReview(f.store, owner, again.data.review_id, {fingerprint: again.data.fingerprint, confirmed: true});
+    const done = await f.execute(again.data.review_id, {cap_override_confirmed: true});
+    assert.equal(done.success, true, JSON.stringify(done.error));
+    assert.equal(f.writes.length, 1);
+  } finally {
+    f.store.close();
+  }
+});
+
 test('P5: the opt-in destructive_confirmed tier is named at prepare and required at execute; off, nothing changes', async () => {
   const store = new Store(':memory:', key),
     xGateway = 'x_ads_native_action',

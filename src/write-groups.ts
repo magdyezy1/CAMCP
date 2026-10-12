@@ -347,7 +347,15 @@ export class WriteGroups {
           {exceeded: together.exceeded, group: true},
         );
       // Owner decision P5 (WRT-09): beyond a cap, only the workspace owner executes, or approves the group on the website.
-      assertCapOverrideOwner(this.store, actor, together.exceeded, id);
+      // A group kept before groups recorded their acknowledgements counts as having named the cap.
+      assertCapOverrideOwner(
+        this.store,
+        actor,
+        together.exceeded,
+        id,
+        !Array.isArray(group.required_acknowledgements) ||
+          group.required_acknowledgements.includes('cap_override_confirmed'),
+      );
       // WRT-09: under an approval mode, a person's website approval of the whole group, a cap only the parts together
       // cross included (each part's own check sees only its own acknowledgements).
       const approved = assertGroupApproval(this.store, actor, id, together.exceeded.length > 0);
