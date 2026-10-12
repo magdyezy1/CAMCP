@@ -532,8 +532,7 @@ export class ReportingOverview {
                 .map(account => ({
                   account_id: account,
                   connection_id: c.id,
-                  label:
-                    assets.find((a: JsonObject) => String(a.id).replace(/^act_/, '') === account)?.name ?? account,
+                  label: assets.find((a: JsonObject) => String(a.id).replace(/^act_/, '') === account)?.name ?? account,
                   connection_label: c.label,
                 }));
             }),
@@ -549,13 +548,13 @@ export class ReportingOverview {
           .documents(tenant, 'sheets_destination')
           .filter(d => actor.accessSetId === undefined || connections.some(c => c.id === d.connection_id))
           .map(d => ({
-          ...d,
-          unresolved_delivery: deliveryProjection(unresolvedSheetsDelivery(store, tenant, d.id)),
-          // The owning report(s) of the tab and the capture time of the snapshot it holds (EXP-03 A/B).
-          last_captured_at: d.last_captured_at ?? null,
-          last_report_id: d.last_report_id ?? null,
-          owners: destinationOwnershipEnforced() ? destinationOwners(store, tenant, d.id, ownerRecords) : [],
-        })),
+            ...d,
+            unresolved_delivery: deliveryProjection(unresolvedSheetsDelivery(store, tenant, d.id)),
+            // The owning report(s) of the tab and the capture time of the snapshot it holds (EXP-03 A/B).
+            last_captured_at: d.last_captured_at ?? null,
+            last_report_id: d.last_report_id ?? null,
+            owners: destinationOwnershipEnforced() ? destinationOwners(store, tenant, d.id, ownerRecords) : [],
+          })),
         file_destinations: store.documents(tenant, 'report_file_destination'),
         sheets_connections: connections
           .filter(c => c.gateway === sheetsGateway)
