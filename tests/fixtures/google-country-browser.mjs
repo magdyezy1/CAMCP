@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import ExcelJS from 'exceljs';
 import {googleCountryInput, googleCountryRows} from './google-country-evidence-data.mjs';
+import {exactMetrics, nativeCellValue, showNativeIds} from './evidence-rows-browser.mjs';
 
 /** Exercise only the owned semantic-read fixture; retained search/export cannot call providers. */
 export async function exerciseGoogleCountry({page, site, workflow, locale, output, id, result, before, checks}) {
@@ -170,7 +171,12 @@ export async function exerciseGoogleCountry({page, site, workflow, locale, outpu
   assert.equal(report.native_account_evidence.checks.length, 2);
   await page.waitForFunction(() => document.querySelectorAll('#report-native-rows tbody tr').length === 8);
   const expected = googleCountryRows(),
-    rows = page.locator('#report-native-rows tbody tr');
+    rows = page.locator('#report-native-rows tbody tr'),
+    text = value => (locale === 'ar' ? catalog[value] : value),
+    // RPT-05: location types read as plain labels; the native enum stays exact in the label's tooltip.
+    locationLabels = {LOCATION_OF_PRESENCE: text('Physical presence'), AREA_OF_INTEREST: text('Area of interest')};
+  // RPT-05: the campaign and geographic resource names start hidden; the reader shows them with the native-ID toggle.
+  result.native_id_toggle = await showNativeIds(page, [text('Entity ID'), text('Native geographic resource')]);
   for (let i = 0; i < expected.length; i++) {
     assert.equal((await rows.nth(i).locator('th[scope=row]').innerText()).trim(), expected[i].campaign.name);
     for (const [index, value] of [
@@ -180,7 +186,12 @@ export async function exerciseGoogleCountry({page, site, workflow, locale, outpu
       expected[i].campaign.resourceName,
       expected[i].geographicView.resourceName,
     ].entries())
-      assert.equal((await rows.nth(i).locator('td').nth(index).innerText()).trim(), String(value));
+      assert.equal(await nativeCellValue(rows.nth(i).locator('td').nth(index)), String(value));
+    assert.equal(
+      (await rows.nth(i).locator('td').nth(1).innerText()).trim(),
+      locationLabels[expected[i].geographicView.locationType] ?? expected[i].geographicView.locationType,
+      'A location type reads as its plain label',
+    );
     for (const index of [0, 1, 3, 4])
       assert.equal(await rows.nth(i).locator('td').nth(index).getAttribute('dir'), 'ltr');
   }
@@ -191,11 +202,12 @@ export async function exerciseGoogleCountry({page, site, workflow, locale, outpu
   await checks.tables(page, result);
   await page.locator('#report-native-rows').screenshot({path: path.join(output, id + '-complete.png')});
   const metrics = await page.locator('.workspace-metrics').innerText();
+  assert.ok((await exactMetrics(page)).includes('72057594037.927944'), 'The exact total stays in the summary');
   await page.locator('#evidence-row-query').fill('AREA_OF_INTEREST');
   await page.locator('#evidence-row-apply').click();
   await page.waitForFunction(() => document.querySelectorAll('#report-native-rows tbody tr').length === 2);
   assert.equal((await rows.first().locator('td').nth(0).innerText()).trim(), '2222');
-  assert.equal((await rows.first().locator('td').nth(1).innerText()).trim(), 'AREA_OF_INTEREST');
+  assert.equal(await nativeCellValue(rows.first().locator('td').nth(1)), 'AREA_OF_INTEREST');
   assert.equal(await page.locator('.workspace-metrics').innerText(), metrics);
   await page.locator('#evidence-download-language').selectOption(locale);
   const [download] = await Promise.all([

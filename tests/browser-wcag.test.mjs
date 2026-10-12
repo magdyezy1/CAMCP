@@ -4,6 +4,7 @@ import {
   readPinnedWcagEngine,
   summarizeWcagResult,
   inspectBrowserWcag,
+  atDocumentStart,
   wcagEngineVersion,
   wcagEngineSha256,
 } from '../tools/browser-wcag.mjs';
@@ -105,4 +106,46 @@ test('forged engine ownership or an unbounded deadline is refused before any pag
       /bounded local deadline/,
     );
   assert.equal(calls, 0);
+});
+// Browser QA wave 2: target-size reported a control half beneath the sticky phone top bar wherever the last automated
+// scroll happened to leave it. The inspection runs at the document start and gives the reader's position back, also
+// when the inspection fails.
+test('a page-level inspection runs at the document start and restores the scroll position, also on failure', async () => {
+  const window = {scrollX: 3, scrollY: 4891},
+    log = [];
+  const page = {
+    evaluate: async (fn, arg) => {
+      const saved = Object.fromEntries(['scrollX', 'scrollY', 'scrollTo'].map(key => [key, globalThis[key]]));
+      Object.assign(globalThis, {
+        scrollX: window.scrollX,
+        scrollY: window.scrollY,
+        scrollTo: (x, y) => {
+          window.scrollX = x;
+          window.scrollY = y;
+          log.push('scroll ' + x + ',' + y);
+        },
+      });
+      try {
+        return fn(arg);
+      } finally {
+        for (const [key, value] of Object.entries(saved))
+          if (value === undefined) delete globalThis[key];
+          else globalThis[key] = value;
+      }
+    },
+  };
+  const evidence = await atDocumentStart(page, async () => {
+    log.push('inspect at ' + window.scrollX + ',' + window.scrollY);
+    return {automated_passed: true};
+  });
+  assert.deepEqual(evidence, {automated_passed: true});
+  assert.deepEqual(log, ['scroll 0,0', 'inspect at 0,0', 'scroll 3,4891']);
+  log.length = 0;
+  await assert.rejects(
+    atDocumentStart(page, async () => {
+      throw Error('WCAG inspection exceeded its local deadline.');
+    }),
+    /local deadline/,
+  );
+  assert.deepEqual(log, ['scroll 0,0', 'scroll 3,4891'], 'A failed inspection still restores the position');
 });

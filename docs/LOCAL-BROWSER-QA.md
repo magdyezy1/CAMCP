@@ -72,6 +72,49 @@ requires each focus ring to reach 3:1 against the opaque surface behind it, with
 write journeys. Report panels and evidence controls use the theme focus colour. The fixed purple they used measured
 2.57:1 on the dark panel.
 
+## Wave 2 qualification regressions (2026-10-12)
+
+The first full rendered run after the wave 1 and 2 merges (revision `40ed7a5`: 1,248 cases, 933 passed, 315 failed,
+80.87 minutes; `results.json` SHA-256 `c6645de83f11b9989b83810f618b18d89d516fd1bccdcf82ee3abc301391e147`) was
+triaged by failure group. It is a failed run, not the leak baseline's provenance. Product defects were fixed; an
+expectation changed only where a wave 2 change was intended and stays correct and accessible:
+
+- **Product fixes.** The sign-in page people see is `web/account-security.js`'s renderer, which had dropped WEB-02's
+  About link and closed-registration state (only the replaced `identity.js` page had them). A fresh `/measurement`
+  reported unsaved edits because MSR-03's generated synthetic test identifier was set as a typed value. The open
+  report delivery dialog's text was `#897593`, 3.57–4.11:1 (axe, intermediate state); it uses the muted ink token.
+  The dated program read chip ("Provider refused · <time>") kept the status badge's `nowrap` and widened a 320-pixel
+  page to 345; it wraps inside its card. A one-row export said "Exported 1 rows" and its snapshot notice "1 rows".
+- **Intended changes the expectations now follow.** RPT-05 hides long native resource names behind **Show native
+  IDs**, middle-truncates them with a copy button, formats decimals with the exact value in a `<data value>` element
+  and labels location types with the native enum in an `<abbr title>`: the Google and retained-evidence cases assert
+  the hidden default, show the IDs with the keyboard and read exact values from those carriers
+  (`tests/fixtures/evidence-rows-browser.mjs`); "one line" counts visual lines of text, since a `<data>` carrier adds
+  an element box on the same line. MSR-03 added four trace converter fields (21 named fields, not 17). WEB-01 moves
+  focus on a hash-only change without re-rendering: the linked measurement case now asserts that a hash-only change
+  to an unknown fragment keeps the rendered page and leaves focus where it was, then reloads to open that fragment as
+  a fresh deep link. COM-01 parks the WooCommerce panels in a collapsed administrator disclosure until the page knows
+  a store; the setup case opens it with the keyboard, and so does the stale case after its silent result, since only
+  the explicit store-list refresh tells the page about the new store. SEC-05 lets viewers download report files only
+  when the owner allows it; the retained-evidence and Google evidence fixtures record that permission. EXP-04 A
+  replaced "Export complete." with a receipt naming rows, tab, spreadsheet and time. Status badges are set in capitals
+  with CSS, so the program chip is read from its DOM text.
+- **WCAG inspections run at the document start.** `atDocumentStart` (`tools/browser-wcag.mjs`) scrolls to the top for
+  each initial, intermediate and final axe run and restores the position. axe evaluates the whole document at any
+  scroll position (the same color-contrast and target-size node counts were measured at both), but the sticky phone
+  top bar overlapped whichever control the last automated click left beneath it, and target-size reported it as
+  partially obscured (`measurement-identity-*` at 375 pixels). No rule or tag is excluded.
+- **Runner.** The wave 2 run took 80.87 minutes against the proposed 75-minute budget, and one of its two fixture
+  lanes sat idle for 33 of them, waiting behind adjacent kinds that share a tenant identity. `runFixtureLanes`
+  (`tools/browser-qualification.mjs`) parks a fixture whose tenant is busy and runs another kind; fixtures of one
+  tenant still never overlap. A browser promise that rejects after its case closed (the other half of a
+  `Promise.all`) is kept in `unhandled_rejections` and fails the run instead of ending it without a record. Each axe
+  inspection records `elapsed_ms` and its `deadline_ms`, and the summary names the slowest
+  (`wcag_slowest_inspection`). One wave 2 case (Arabic `/capabilities` at 768 pixels) failed only on the 10-second
+  deadline. With the machine fully loaded, the same Arabic inspections then measured 1.4 to 1.8 seconds and the
+  slowest of a 208-case run 6.1 seconds; the deadline, which bounds a hung engine and asserts nothing about the page,
+  is now 20 seconds (the bound stays at most 30).
+
 ## What it exercises
 
 The runner creates disposable loopback applications with encrypted in-memory stores, synthetic users

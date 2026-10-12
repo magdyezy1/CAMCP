@@ -59,8 +59,10 @@ export async function exerciseConditionalPrograms({page, site, workflow, locale,
       for (const literal of ['403', 'ACCESS_DENIED', 'li-uuid-browser-1']) assert.ok(text.includes(literal), literal);
       assert.equal(envelope.data.next_call, null);
       assert.equal(envelope.data.owner_action.kind, 'request_provisioning');
+      // The chip is a status badge, which every page sets in capitals with CSS; innerText follows that transform,
+      // while the label people and assistive technology get is the DOM text.
       assert.match(
-        await card.locator('[data-program-status]').first().innerText(),
+        await card.locator('[data-program-status]').first().textContent(),
         locale === 'ar' ? /رفضت المنصة/ : /Provider refused/,
       );
     }

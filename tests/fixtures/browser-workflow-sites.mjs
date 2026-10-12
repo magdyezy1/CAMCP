@@ -442,6 +442,15 @@ export async function browserWorkflowSite(kind) {
   fixture.store.db
     .prepare('INSERT INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,?,?)')
     .run(fixture.actor.tenantId, user.id, role, Date.now());
+  // SEC-05: report files are for operators unless the workspace owner allows viewer downloads. The retained-evidence
+  // and Google evidence journeys download the evidence workbook as this viewer, so their synthetic owner has allowed
+  // it (the account_settings/exports record that saveExportPolicy writes).
+  if (kind === 'retained-evidence' || kind.startsWith('google-'))
+    fixture.store.putDocument(fixture.actor.tenantId, 'account_settings', 'exports', {
+      viewer_downloads: true,
+      updated_at: Date.now(),
+      updated_by: 'synthetic-owner',
+    });
   const session = accounts.session(user, fixture.actor.tenantId);
   const workerHealth =
     kind === 'worker-health' ? workerHealthBrowserFixture(fixture.store, fixture.actor.tenantId) : undefined;

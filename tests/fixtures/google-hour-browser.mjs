@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import ExcelJS from 'exceljs';
 import {googleHourInput, googleHourRows} from './google-hour-evidence-data.mjs';
+import {exactMetrics, nativeCellValue, showNativeIds} from './evidence-rows-browser.mjs';
 
 /** Exercise only the owned semantic-read fixture; retained search/export cannot call providers. */
 export async function exerciseGoogleHour({page, site, workflow, locale, output, id, result, before, checks}) {
@@ -171,6 +172,8 @@ export async function exerciseGoogleHour({page, site, workflow, locale, output, 
   await page.waitForFunction(() => document.querySelectorAll('#report-native-rows tbody tr').length === 24);
   const expected = googleHourRows(),
     rows = page.locator('#report-native-rows tbody tr');
+  // RPT-05: the campaign resource name starts hidden; the reader shows it with the native-ID toggle.
+  result.native_id_toggle = await showNativeIds(page, [locale === 'ar' ? catalog['Entity ID'] : 'Entity ID']);
   for (let i = 0; i < expected.length; i++) {
     assert.equal((await rows.nth(i).locator('th[scope=row]').innerText()).trim(), expected[i].campaign.name);
     for (const [index, value] of [
@@ -178,7 +181,7 @@ export async function exerciseGoogleHour({page, site, workflow, locale, output, 
       expected[i].segments.date,
       expected[i].campaign.resourceName,
     ].entries())
-      assert.equal((await rows.nth(i).locator('td').nth(index).innerText()).trim(), String(value));
+      assert.equal(await nativeCellValue(rows.nth(i).locator('td').nth(index)), String(value));
     for (const index of [0, 2]) assert.equal(await rows.nth(i).locator('td').nth(index).getAttribute('dir'), 'ltr');
   }
   assert.equal(await rows.locator('img').count(), 0);
@@ -188,6 +191,7 @@ export async function exerciseGoogleHour({page, site, workflow, locale, output, 
   await checks.tables(page, result);
   await page.locator('#report-native-rows').screenshot({path: path.join(output, id + '-complete.png')});
   const metrics = await page.locator('.workspace-metrics').innerText();
+  assert.ok((await exactMetrics(page)).includes('276'), 'The exact total stays in the summary');
   await page.locator('#evidence-row-query').fill('21');
   await page.locator('#evidence-row-apply').click();
   await page.waitForFunction(() => document.querySelectorAll('#report-native-rows tbody tr').length === 1);

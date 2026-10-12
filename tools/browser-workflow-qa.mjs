@@ -29,15 +29,22 @@ import {
   focusIndicatorContrast,
   focusIndicatorProblems,
 } from './browser-accessibility.mjs';
-import {readPinnedWcagEngine, inspectBrowserWcag, wcagTags} from './browser-wcag.mjs';
+import {readPinnedWcagEngine, inspectBrowserWcag, wcagTags, atDocumentStart} from './browser-wcag.mjs';
 import {inputMapDigest, moduleClosure, releaseIdentityBinding} from './qualification-inputs.mjs';
-import {browserQaArguments, summarizeBrowserEvidence} from './browser-qualification.mjs';
+import {browserQaArguments, runFixtureLanes, summarizeBrowserEvidence} from './browser-qualification.mjs';
 import {arabicLeakProbe, leakRatchet, readLeakAllowlist, readLeakBaseline} from './browser-arabic-leaks.mjs';
 import {
   exerciseWriteJourney,
   exerciseSpendPolicyEdit,
   exerciseExportOutcomes,
 } from '../tests/fixtures/synthetic-writes-browser.mjs';
+import {
+  exactMetrics,
+  exactRowValues,
+  nativeCellValue,
+  nativeTextLines,
+  showNativeIds,
+} from '../tests/fixtures/evidence-rows-browser.mjs';
 
 const fixtureKinds = [
   'empty',
@@ -115,6 +122,9 @@ const syntheticJourneyRoutes = {
 };
 
 const root = fs.realpathSync(fileURLToPath(new URL('..', import.meta.url))),
+  arabicCatalog = JSON.parse(fs.readFileSync(path.join(root, 'web/locales/ar.json'), 'utf8')),
+  /** A website-owned English message as the case's locale shows it. */
+  arabicOr = (locale, text) => (locale === 'ar' ? arabicCatalog[text] : text),
   options = browserQaArguments(process.argv.slice(2), process.env, fixtureKinds),
   configuredModule = process.env.AMCP_QA_PLAYWRIGHT_MODULE,
   executablePath = process.env.AMCP_QA_BROWSER_PATH,
@@ -197,8 +207,20 @@ const require = createRequire(import.meta.url),
     ),
     provider_mutations: 0,
     external_provider_requests: 0,
+    unhandled_rejections: [],
     cases: [],
   };
+// A Playwright promise left pending when a step fails (the other half of a Promise.all, for example) can reject after
+// its case closed the browser context. Node then ended the whole run without finishing the record (browser QA wave 2,
+// during the version-skew cases). Such a rejection is kept in the record instead, and a run with any still fails.
+process.on('unhandledRejection', error => {
+  evidence.unhandled_rejections.push(
+    String(error?.message ?? error)
+      .split('\n')[0]
+      .slice(0, 300),
+  );
+  console.error('Unhandled rejection kept in the record:', error);
+});
 // The summary reports what the run covered (distinct scenarios, presentation variants, WCAG rules left incomplete per
 // rule, Arabic leaks per route, synthetic writes) instead of a headline case count (QA-03).
 const save = () =>
@@ -569,7 +591,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       'Initial browser accessibility semantics refused',
     );
     if (wcagEngine) {
-      result.wcag_initial = await inspectBrowserWcag(page, wcagEngine);
+      result.wcag_initial = await atDocumentStart(page, () => inspectBrowserWcag(page, wcagEngine));
       assert.equal(
         result.wcag_initial.automated_passed,
         true,
@@ -643,7 +665,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         'Intermediate state ' + state + ': accessibility semantics refused',
       );
       if (wcagEngine) {
-        entry.wcag = await inspectBrowserWcag(page, wcagEngine);
+        entry.wcag = await atDocumentStart(page, () => inspectBrowserWcag(page, wcagEngine));
         assert.equal(
           entry.wcag.automated_passed,
           true,
@@ -858,11 +880,13 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       assert.equal(site.counts().nativeReads - before.nativeReads, 4);
       const rows = page.locator('#report-native-rows tbody tr'),
         original = googleDeviceRows();
+      // RPT-05: the campaign resource name starts hidden; the reader shows it with the native-ID toggle.
+      result.native_id_toggle = await showNativeIds(page, [arabicOr(locale, 'Entity ID')]);
       for (let i = 0; i < original.length; i++) {
         assert.equal((await rows.nth(i).locator('th[scope=row]').innerText()).trim(), original[i].campaign.name);
         assert.equal((await rows.nth(i).locator('td').nth(0).innerText()).trim(), original[i].segments.device);
         assert.equal((await rows.nth(i).locator('td').nth(1).innerText()).trim(), original[i].segments.date);
-        assert.equal((await rows.nth(i).locator('td').nth(2).innerText()).trim(), original[i].campaign.resourceName);
+        assert.equal(await nativeCellValue(rows.nth(i).locator('td').nth(2)), original[i].campaign.resourceName);
         assert.equal(await rows.nth(i).locator('td').nth(0).getAttribute('dir'), 'ltr');
         assert.equal(await rows.nth(i).locator('td').nth(2).getAttribute('dir'), 'ltr');
       }
@@ -873,7 +897,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await checkTables(page, result);
       await page.locator('#report-native-rows').screenshot({path: path.join(output, id + '-complete.png')});
       const metrics = await page.locator('.workspace-metrics').innerText();
-      assert.ok(metrics.includes('9007199257.740993'));
+      assert.ok((await exactMetrics(page)).includes('9007199257.740993'), 'The exact total stays in the summary');
       await page.locator('#evidence-row-query').fill('CONNECTED_TV');
       await page.locator('#evidence-row-apply').click();
       await page.waitForFunction(() => document.querySelectorAll('#report-native-rows tbody tr').length === 1);
@@ -1209,6 +1233,8 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       }
       const rows = page.locator('#report-native-rows tbody tr'),
         original = googleKeywordRows();
+      // RPT-05: the keyword view resource name starts hidden; the reader shows it with the native-ID toggle.
+      result.native_id_toggle = await showNativeIds(page, [arabicOr(locale, 'Entity ID')]);
       for (let i = 0; i < original.length; i++) {
         assert.equal(
           (await rows.nth(i).locator('th[scope=row]').innerText()).trim(),
@@ -1218,7 +1244,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
           (await rows.nth(i).locator('td').nth(0).innerText()).trim(),
           original[i].adGroupCriterion.keyword.matchType,
         );
-        assert.equal((await rows.nth(i).locator('td').nth(2).innerText()).trim(), original[i].keywordView.resourceName);
+        assert.equal(await nativeCellValue(rows.nth(i).locator('td').nth(2)), original[i].keywordView.resourceName);
         assert.equal(await rows.nth(i).locator('td').nth(0).getAttribute('dir'), 'ltr');
         assert.equal(await rows.nth(i).locator('td').nth(2).getAttribute('dir'), 'ltr');
       }
@@ -1229,7 +1255,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await checkTables(page, result);
       await page.locator('#report-native-rows').screenshot({path: path.join(output, id + '-complete.png')});
       const metrics = await page.locator('.workspace-metrics').innerText();
-      assert.ok(metrics.includes('9007199257.740993'));
+      assert.ok((await exactMetrics(page)).includes('9007199257.740993'), 'The exact total stays in the summary');
       await page.locator('#evidence-row-query').fill('PHRASE');
       await page.locator('#evidence-row-apply').click();
       await page.waitForFunction(() => document.querySelectorAll('#report-native-rows tbody tr').length === 1);
@@ -1282,13 +1308,9 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         original = retainedEvidence();
       await rows.first().waitFor();
       assert.equal(await rows.count(), 50);
-      const nativeLines = await page.locator('#report-native-rows tbody [dir=ltr]').evaluateAll(cells =>
-        cells.map(cell => {
-          const range = document.createRange();
-          range.selectNodeContents(cell);
-          return {value: cell.textContent, lines: range.getClientRects().length};
-        }),
-      );
+      // RPT-05 wraps formatted decimals in <data> carriers, which add an element box on the same line; lines are
+      // counted as vertically separate groups of text, which is what "one line" means.
+      const nativeLines = await nativeTextLines(page.locator('#report-native-rows tbody [dir=ltr]'));
       assert.ok(
         nativeLines.every(cell => cell.lines === 1),
         'Exact native IDs, dates and numeric text must remain on one line',
@@ -1323,9 +1345,9 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await search('Home <img> 100');
       assert.equal(await rows.count(), 1);
       assert.equal((await rows.first().locator('th[scope=row]').innerText()).trim(), original.rows[100].entity_id);
-      assert.ok((await page.locator('#report-native-rows').innerText()).includes(original.rows[100].spend));
+      assert.ok((await exactRowValues(page))[0].includes(original.rows[100].spend), 'The exact spend stays in the row');
       const metrics = await page.locator('.workspace-metrics').innerText();
-      assert.ok(metrics.includes(original.totals.spend));
+      assert.ok((await exactMetrics(page)).includes(original.totals.spend), 'The exact total stays in the summary');
       const language = page.locator('#evidence-download-language');
       await language.selectOption(locale);
       const [download] = await Promise.all([
@@ -2227,7 +2249,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       'Completed browser controls or ID references refused',
     );
     if (wcagEngine) {
-      result.wcag_final = await inspectBrowserWcag(page, wcagEngine);
+      result.wcag_final = await atDocumentStart(page, () => inspectBrowserWcag(page, wcagEngine));
       assert.equal(
         result.wcag_final.automated_passed,
         true,
@@ -2461,15 +2483,13 @@ async function shellChromeCase(site, route, locale, width) {
 // The kinds this run renders: every kind, or a development subset chosen with --kinds (never a qualification).
 const selectedKinds = options.kinds ? fixtureKinds.filter(kind => options.kinds.includes(kind)) : fixtureKinds;
 
-const pendingFixtureTenants = new Map();
-async function runFixture(kind) {
+async function openFixture(kind) {
   const site = await browserWorkflowSite(kind);
   assert.equal(typeof site.tenantId, 'string', 'Each isolated fixture exposes its actual tenant identity');
-  const previous = pendingFixtureTenants.get(site.tenantId);
-  let releaseTenant;
-  const done = new Promise(resolve => (releaseTenant = resolve));
-  pendingFixtureTenants.set(site.tenantId, done);
-  await previous;
+  return site;
+}
+// runFixtureLanes starts a fixture only while no other fixture of its tenant identity runs.
+async function runFixture(kind, site) {
   const fixtureWindow = {kind, tenant_id: site.tenantId, started_at: new Date().toISOString()};
   evidence.fixture_windows.push(fixtureWindow);
   try {
@@ -2562,21 +2582,19 @@ async function runFixture(kind) {
       await site.close();
     } finally {
       fixtureWindow.finished_at = new Date().toISOString();
-      releaseTenant();
-      if (pendingFixtureTenants.get(site.tenantId) === done) pendingFixtureTenants.delete(site.tenantId);
     }
   }
 }
 
 try {
-  // Shared tenant identities retain the real per-tenant artifact limit; cases remain sequential within a fixture.
-  let nextFixture = 0;
-  const outcomes = await Promise.allSettled(
-    Array.from({length: 2}, async () => {
-      while (nextFixture < selectedKinds.length) await runFixture(selectedKinds[nextFixture++]);
-    }),
-  );
-  for (const outcome of outcomes) if (outcome.status === 'rejected') throw outcome.reason;
+  // Shared tenant identities retain the real per-tenant artifact limit; cases remain sequential within a fixture. A
+  // lane never idles behind a busy tenant while another kind can run (browser QA wave 3, runtime budget).
+  await runFixtureLanes(selectedKinds, {
+    lanes: evidence.fixture_concurrency,
+    open: openFixture,
+    run: runFixture,
+    discard: site => site.close(),
+  });
 } finally {
   await browser.close();
   evidence.finished_at = new Date().toISOString();
@@ -2588,7 +2606,7 @@ try {
 console.log(
   JSON.stringify({total: evidence.total, passed: evidence.passed, failed: evidence.failed, browser: evidence.browser}),
 );
-if (evidence.failed) process.exitCode = 1;
+if (evidence.failed || evidence.unhandled_rejections.length) process.exitCode = 1;
 // D26: a qualification record shows the run within the owner's runtime budget; a development run only reports it.
 const {duration_minutes: minutes, runtime_budget_minutes: budget} = summarizeBrowserEvidence(evidence, leakBaseline);
 if (options.qualification && minutes > budget) {
