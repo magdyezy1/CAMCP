@@ -721,6 +721,109 @@ test('WRT-09: the owner friction report counts website approvals, their latency 
   }
 });
 
+test('WRT-09 approval page: it posts back the fingerprint it showed, after the person confirms, and says what is pending', async () => {
+  const requests = [],
+    confirmations = [],
+    bindings = new Map();
+  const status = {textContent: ''},
+    root = {innerHTML: '', isConnected: true, setAttribute() {}, removeAttribute() {}, querySelector: () => status};
+  const escape = v =>
+    String(v ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('"', '&quot;');
+  const c = createContext({
+    document: {addEventListener() {}},
+    $: () => ({focus() {}}),
+    navigationGeneration: 1,
+    identityGeneration: 1,
+    session: {workspaceRole: 'owner'},
+    esc: escape,
+    pretty: String,
+    date: String,
+    badge: escape,
+    errorMessage: e => e.message,
+    recordDetails: () => '',
+    toast() {},
+    workspaceBind: (s, fn) => bindings.set(s, fn),
+    api: (url, options = {}) => new Promise((resolve, reject) => requests.push({url, options, resolve, reject})),
+    confirmAction: () => new Promise(resolve => confirmations.push(resolve)),
+    root,
+  });
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(c);
+  new Script(readFileSync('web/operations-center.js', 'utf8')).runInContext(c);
+  const controller = new Script("writeApprovalController(root, 'review-1')").runInContext(c);
+  const settle = () => new Promise(resolve => setImmediate(resolve));
+  const view = {
+    review_id: 'review-1',
+    group: false,
+    gateway: 'tiktok_native_action',
+    account_id: '123',
+    action: '<img onerror=bad>',
+    summary: null,
+    classes: ['spend_affecting', 'cap_override'],
+    reasons: [],
+    prepared_by: 'operator',
+    prepared_by_name: 'Operator Name',
+    expires_at: '2026-10-13T10:05:00.000Z',
+    fingerprint: 'f'.repeat(64),
+    owner_required: true,
+    approval: null,
+    approval_pending: true,
+    may_approve: true,
+  };
+  let loaded = controller.load();
+  assert.equal(requests[0].url, '/api/write-approvals/review-1');
+  requests[0].resolve(view);
+  await loaded;
+  assert.match(root.innerHTML, /id="write-approval-approve"/);
+  assert.match(root.innerHTML, /Prepared by Operator Name/);
+  assert.match(root.innerHTML, /&lt;img/);
+  assert.doesNotMatch(root.innerHTML, /<img/);
+  // Nothing is posted until the person confirms, and then only the fingerprint the page showed.
+  const cancelled = bindings.get('#write-approval-approve')();
+  confirmations[0](false);
+  await cancelled;
+  assert.equal(requests.length, 1);
+  const approving = bindings.get('#write-approval-approve')();
+  confirmations[1](true);
+  await settle();
+  assert.equal(requests[1].options.method, 'POST');
+  assert.deepEqual(JSON.parse(requests[1].options.body), {fingerprint: view.fingerprint, confirmed: true});
+  requests[1].resolve({});
+  await settle();
+  // A member's approval of a change beyond a cap: shown, with the owner's approval still pending.
+  requests[2].resolve({
+    ...view,
+    approval: {approver: 'colleague', approver_name: 'Colleague Name', approver_is_owner: false, approved_at: 1},
+  });
+  await approving;
+  assert.match(root.innerHTML, /Approved by Colleague Name/);
+  assert.match(root.innerHTML, /the workspace owner’s approval is still needed/);
+  assert.match(root.innerHTML, /id="write-approval-approve"/);
+  // Approved and nothing pending: no button and no refusal text; an expired review says so.
+  loaded = controller.load();
+  requests[3].resolve({
+    ...view,
+    approval: {approver: 'owner', approver_is_owner: true, approved_at: 1},
+    approval_pending: false,
+    may_approve: false,
+    refusal: {code: 'REVIEW_ALREADY_APPROVED', message: 'This review is already approved.'},
+  });
+  await loaded;
+  assert.match(root.innerHTML, /The AI client can now execute this exact review/);
+  assert.doesNotMatch(root.innerHTML, /write-approval-approve|This review is already approved/);
+  loaded = controller.load();
+  requests[4].resolve({
+    ...view,
+    may_approve: false,
+    refusal: {code: 'REVIEW_EXPIRED', message: 'This review expired. Prepare it again and approve the new review.'},
+  });
+  await loaded;
+  assert.match(root.innerHTML, /This review expired/);
+  assert.doesNotMatch(root.innerHTML, /write-approval-approve/);
+});
+
 test('WRT-09 website review: the destructive acknowledgement is asked for and the approval page is linked only on this site', () => {
   const nodes = new Map();
   const node = id => {
