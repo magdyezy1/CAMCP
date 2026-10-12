@@ -177,12 +177,13 @@ function accountPolicyInput(values, stored) {
 }
 /**
  * WRT-09 (owner decisions P1 and P5): who approves spending, cap and deletion changes, and the opt-in acknowledgement
- * before deletions, as the workspace default sets them. An account policy keeps its own values (set over MCP).
+ * before deletions, as the workspace default sets them. They apply to every account; an account policy (set over MCP)
+ * can only add to them.
  */
 function approvalPolicyControls(stored) {
   const mode = stored?.approval_mode ?? 'assistant_ack',
     option = (value, label) => `<option value="${value}"${mode === value ? ' selected' : ''}>${esc(label)}</option>`;
-  return `<label>${esc(uiText('Who approves spending, cap and deletion changes'))}<select name="approval_mode">${option('assistant_ack', uiText('The user, in the AI client (default)'))}${option('website_approval', uiText('A member, on the AMCP website'))}${option('distinct_approver', uiText('Another member than the preparer, or the owner'))}</select></label><label class="check"><input name="require_destructive_confirmation" type="checkbox"${stored?.require_destructive_confirmation === true ? ' checked' : ''}> ${esc(uiText('Require an explicit acknowledgement before deletions'))}</label>`;
+  return `<label>${esc(uiText('Who approves spending, cap and deletion changes'))}<select name="approval_mode">${option('assistant_ack', uiText('The user, in the AI client (default)'))}${option('website_approval', uiText('A member, on the AMCP website'))}${option('distinct_approver', uiText('Another member than the preparer, or the owner'))}</select></label><p class="form-note">${esc(uiText('With approval on the website, a reviewed change to spending, beyond a cap or deleting something runs only after a member approves that exact review on the Operations page. This applies to every account, also one with a policy of its own.'))}</p><label class="check"><input name="require_destructive_confirmation" type="checkbox"${stored?.require_destructive_confirmation === true ? ' checked' : ''}> ${esc(uiText('Require an explicit acknowledgement before deletions'))}</label><p class="form-note">${esc(uiText('Only the workspace owner executes a change beyond a spending cap, or approves it on the AMCP website first.'))}</p>`;
 }
 const approvalModeRank = mode =>
   ['assistant_ack', 'website_approval', 'distinct_approver'].indexOf(mode ?? 'assistant_ack');
