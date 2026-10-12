@@ -690,10 +690,15 @@ h2.report-section-label {
   margin-top: 22px;
   padding-top: 12px;
 }
+/* WEB-01: #897593 measured 4.11:1 on the dialog, 3.69:1 on the report context and 3.57:1 on a notice (axe, browser
+   QA wave 2); the themed muted ink reaches 4.5:1 on each, and a notice keeps its own ink. */
 .report-delivery-dialog p {
   font-size: 13px;
   line-height: 1.7;
-  color: #897593;
+  color: var(--muted);
+}
+.report-delivery-dialog p.notice {
+  color: var(--ink);
 }
 .report-delivery-dialog label {
   display: grid;

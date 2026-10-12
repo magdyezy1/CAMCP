@@ -91,7 +91,23 @@ export async function exerciseMeasurementNavigation(page, site, options) {
         known.push(target);
       }
       for (const fragment of ['#not-a-measurement-task', '#measurement-section-gtm%00']) {
+        // WEB-01: in an open page a hash-only change moves focus to a known target without re-rendering; an unknown
+        // fragment keeps the rendered page and leaves focus where it was.
+        const focusedBefore = await page.evaluate(() => document.activeElement.id);
+        await page.locator('#measurement-task-navigation').evaluate(node => (node.dataset.qaRender = 'kept'));
         await page.goto(site.origin + '/measurement' + query + fragment, {waitUntil: 'networkidle'});
+        assert.equal(
+          await page.locator('#measurement-task-navigation').getAttribute('data-qa-render'),
+          'kept',
+          'A hash-only change does not re-render the route',
+        );
+        assert.equal(
+          await page.evaluate(() => document.activeElement.id),
+          focusedBefore,
+          'An unknown fragment leaves focus where it was',
+        );
+        // A deep link opens a fresh document: the reload opens the unknown fragment as a new page.
+        await page.reload({waitUntil: 'networkidle'});
         await page.locator('#measurement-task-navigation').waitFor();
         assert.equal(headingIds.includes(await page.evaluate(() => document.activeElement.id)), false);
         assert.equal(new URL(page.url()).search, query);
@@ -210,7 +226,8 @@ export async function exerciseMeasurementNavigation(page, site, options) {
     const fields = await fieldSnapshot(),
       originalUrl = page.url(),
       originalHistory = await page.evaluate(() => history.length);
-    assert.equal(fields.length, 17);
+    // MSR-03 added four named trace converter fields (format, file, stream, synthetic test identifier) to the 17.
+    assert.equal(fields.length, 21);
     let jumps = 0,
       returns = 0;
     const jump = async section => {
