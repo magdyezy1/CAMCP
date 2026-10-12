@@ -15,8 +15,8 @@ const help = (tool: string) =>
 export const routingSummaries: Readonly<Record<string, string>> = Object.freeze({
   amcp_workspace:
     'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its history. ' +
-    'Safety: nothing here changes an advertising account. Previews and saves are local; confirmed saves need confirmed:true and the current revision or version; saved drafts still need native review through amcp_write or amcp_campaign. Missing evidence stays unknown, never passed. ' +
-    'Core actions: capabilities (per-account workflow readiness and blockers, paged by next_cursor, filtered by workflow_id, connection_id or account_id; view:"graph" adds the graph), ' +
+    'Safety: nothing here changes an advertising account. Previews and saves are local; confirmed saves need confirmed:true and the current revision or version; saved drafts still need native review (amcp_write, amcp_campaign). Missing evidence stays unknown, never passed. ' +
+    'Core actions: capabilities (per-account workflow readiness and blockers, paged by next_cursor, filtered by workflow, connection or account; view:"graph" adds the graph), ' +
     'check (exact account prerequisites; only live:true reads the account, saving that evidence), ' +
     'program_check (one conditional program; only live:true reads the provider, keeping one observation), ' +
     'contracts (read/write/media/blocked class of every action, no network), ' +

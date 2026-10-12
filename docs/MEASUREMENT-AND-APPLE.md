@@ -51,6 +51,15 @@ Click Connect, then select an Apple **ad account ID** from the returned ACL inve
 
 The independent v1 adapter supports query/get operations for campaigns, ad groups, ads, creatives, keywords, negative keywords and shared budgets; ad-account get; and App Store campaign/ad-group/ad/keyword/search-term reports. Campaign create/update/delete support local previews and reviewed live execution through amcp_write. New campaigns must explicitly use status PAUSED; activation or budget changes require spend_change_confirmed=true. These 23 routes are documented AMCP extensions, separate from the unenumerated source catalog. Legacy v5 routing and other Apple mutation routes remain unavailable. Source: [Apple's official Platform API SDK](https://github.com/apple/apple-ads-platform-api-node).
 
+Planning reads (PRV-07) mirror seven further methods of the same pinned SDK revision
+(`generated/apple-platform-v1-models.json`), each under the selected ad account's `X-AP-Context`:
+`apple_ads_v1_apps_search` (GET `search/apps` with only `query`, `returnOwnedApps`, `limit` 1–1000 and `offset`),
+`apple_ads_v1_app_get` (an app by adamId), and the POST queries `apple_ads_v1_app_eligibilities_query`,
+`apple_ads_v1_product_pages_query`, `apple_ads_v1_impression_share_query`, `apple_ads_v1_search_term_popularity_query`
+and `apple_ads_v1_keyword_suggestions_query` (an object payload of at most 64 KiB; the SDK pins no request model for
+them, so Apple's own validation decides the fields). A returned resource of another ad account is refused. Change
+history is not added: its records name the people who made changes, and the pinned SDK has no model to project them out.
+
 Call `amcp_tool_help` with `{"gateway":"apple_ads_native_action"}` to enumerate these local routes; pass an action name as `operation` for its route description. Example arguments for `apple_ads_native_action`:
 
 ```json
