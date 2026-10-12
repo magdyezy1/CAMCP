@@ -1,7 +1,7 @@
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
-import {bindingKey} from './access-sets.js';
+import {accountKey, bindingKey} from './access-sets.js';
 import {reportPlatforms} from './report-metrics.js';
 
 /**
@@ -19,10 +19,19 @@ export interface ClientView {
   /** Whether an account (on this gateway, through this login when one is named) is one of the client's. */
   has(gateway: unknown, account: unknown, connection?: unknown): boolean;
 }
+type Reached = {gateway: string; connection_id: string; account_id: string};
+/**
+ * The accounts the actor can reach, indexed by login and account (as Store.resolveConnection compares accounts) and by
+ * account alone, so each profile binding is one lookup however many accounts the workspace has.
+ */
+interface Reachable {
+  byLogin: Map<string, Reached>;
+  byAccount: Map<string, Reached[]>;
+}
 
 /** The client profiles of this workspace that bind at least one account the actor can reach, with those accounts. */
 export function clientViews(store: Store, actor: Actor): ClientView[] {
-  const reachable = reachableKeys(store, actor);
+  const reachable = reachableAccounts(store, actor);
   return (
     store
       .documents(actor.tenantId, 'client_profile')
@@ -48,7 +57,7 @@ export function clientView(store: Store, actor: Actor, profileId: unknown): Clie
   const row = store.db
     .prepare("SELECT data FROM documents WHERE tenant_id=? AND kind='client_profile' AND id=?")
     .get(actor.tenantId, profileId) as {data: string} | undefined;
-  const reachable = reachableKeys(store, actor),
+  const reachable = reachableAccounts(store, actor),
     profile = row ? {...JSON.parse(row.data), id: profileId} : undefined;
   // A profile outside the actor's client access set is not found either, so its name is never shown (SEC-08).
   if (!profile || !profileWithinAccess(store, actor, profile, reachable))
@@ -84,26 +93,12 @@ export function profileWithinAccess(
   store: Store,
   actor: Actor,
   profile: JsonObject,
-  reachable = actor.accessSetId === undefined ? undefined : reachableKeys(store, actor),
+  reachable = actor.accessSetId === undefined ? undefined : reachableAccounts(store, actor),
 ): boolean {
   if (actor.accessSetId === undefined || !reachable) return true;
   const bindings = Array.isArray(profile.bindings) ? profile.bindings : [];
   // A profile binding no account names no client this access may work for.
-  return (
-    bindings.length > 0 &&
-    bindings.every(
-      (b: JsonObject) =>
-        !!b &&
-        typeof b.gateway === 'string' &&
-        [...reachable.values()].some(
-          a =>
-            a.gateway === b.gateway &&
-            (typeof b.connection_id !== 'string' || !b.connection_id || a.connection_id === b.connection_id) &&
-            bindingKey(a.gateway, a.connection_id, a.account_id) ===
-              bindingKey(b.gateway, a.connection_id, b.account_id),
-        ),
-    )
-  );
+  return bindings.length > 0 && bindings.every((b: unknown) => bound(reachable, b).length > 0);
 }
 /** A saved profile the actor may see; one outside a client access set is not found, like one that does not exist. */
 export function visibleProfile(store: Store, actor: Actor, id: unknown): JsonObject {
@@ -119,31 +114,35 @@ export function visibleProfile(store: Store, actor: Actor, id: unknown): JsonObj
 /** A report source names its platform, not its gateway. */
 export const sourceGateway = (s: JsonObject) => s.gateway ?? reportPlatforms[s.platform]?.gateway;
 
-function reachableKeys(store: Store, actor: Actor) {
-  const keys = new Map<string, {gateway: string; connection_id: string; account_id: string}>();
+const accountIndex = (gateway: string, account: unknown) => gateway + '\u0000' + accountKey(gateway, account);
+function reachableAccounts(store: Store, actor: Actor): Reachable {
+  const reachable: Reachable = {byLogin: new Map(), byAccount: new Map()};
   for (const c of store.connectionsFor(actor))
     if (c.enabled)
-      for (const account of c.accounts)
-        keys.set(bindingKey(c.gateway, c.id, account), {gateway: c.gateway, connection_id: c.id, account_id: account});
-  return keys;
+      for (const account of c.accounts) {
+        const value = {gateway: c.gateway, connection_id: c.id, account_id: account},
+          key = accountIndex(c.gateway, account);
+        reachable.byLogin.set(bindingKey(c.gateway, c.id, account), value);
+        reachable.byAccount.set(key, [...(reachable.byAccount.get(key) ?? []), value]);
+      }
+  return reachable;
+}
+/** The reachable accounts a profile binding covers: through its login, or through any login when it names none. */
+function bound(reachable: Reachable, b: unknown): Reached[] {
+  const binding = b as JsonObject | null;
+  if (!binding || typeof binding.gateway !== 'string' || typeof binding.account_id !== 'string') return [];
+  if (typeof binding.connection_id === 'string' && binding.connection_id) {
+    const one = reachable.byLogin.get(bindingKey(binding.gateway, binding.connection_id, binding.account_id));
+    return one ? [one] : [];
+  }
+  return reachable.byAccount.get(accountIndex(binding.gateway, binding.account_id)) ?? [];
 }
 
-function view(
-  profile: JsonObject,
-  reachable: Map<string, {gateway: string; connection_id: string; account_id: string}>,
-): ClientView {
-  const accounts = new Map<string, {gateway: string; connection_id: string; account_id: string}>();
-  for (const b of Array.isArray(profile.bindings) ? profile.bindings : []) {
-    if (!b || typeof b.gateway !== 'string' || typeof b.account_id !== 'string') continue;
-    // A binding without a login covers the account through any login that selects it.
-    for (const [key, value] of reachable)
-      if (
-        value.gateway === b.gateway &&
-        (typeof b.connection_id !== 'string' || !b.connection_id || value.connection_id === b.connection_id) &&
-        key === bindingKey(value.gateway, value.connection_id, b.account_id)
-      )
-        accounts.set(key, value);
-  }
+function view(profile: JsonObject, reachable: Reachable): ClientView {
+  const accounts = new Map<string, Reached>();
+  for (const b of Array.isArray(profile.bindings) ? profile.bindings : [])
+    for (const value of bound(reachable, b))
+      accounts.set(bindingKey(value.gateway, value.connection_id, value.account_id), value);
   const list = [...accounts.values()];
   return {
     profile_id: String(profile.id),
