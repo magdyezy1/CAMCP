@@ -107,6 +107,25 @@ const accountExplanationMessages = new Set([
   'The conversion configuration could not be completely inspected; no partial goal or primary-action evidence is reported as ready. Nothing was saved.',
   'Current GA4 property configuration from complete bounded Admin API reads. Configuration is not proof that events are sent, counted, deduplicated, consented or attributed. Nothing was saved.',
   'Measurement evidence for one asset in six fixed layers. A layer is observed only from complete evidence of the selected asset; everything else stays unknown, unavailable or not applicable. Configuration and reported activity do not prove that conversions are delivered, deduplicated, consented or attributed. Nothing was saved.',
+  // PRV-07 A: the change history explanation and refusals (src/google-change-history.ts).
+  'Google Ads change events of the selected customer in the requested account-local dates, newest first. Who made a change is personal data and was not requested; client_type names the tool used. Changed field paths name what changed, not its old or new value. limit_reached means older changes in the window may exist. Change history explains configuration changes; it does not prove their effect on performance. Nothing was saved or changed.',
+  'Change history reads a selected Google Ads customer (gateway google_ads_native_action).',
+  'Choose the exact numeric Google Ads customer ID.',
+  'Choose explicit dates covering at most 30 days within the last 30 days. Google Ads keeps change history for 30 days.',
+  'Choose a limit of 1–10,000 change events.',
+  'Use 1–20 distinct native Google Ads change resource types, such as CAMPAIGN or AD_GROUP_AD.',
+  'This Google Ads login changed. Read the change history again.',
+  'Google Ads returned more change history pages than this bounded read takes.',
+  'Google Ads did not return a complete change history response.',
+  'Google Ads returned more change events than the requested limit.',
+  'Google Ads returned a change for another customer or a malformed resource name.',
+  'Google Ads returned an unrecognized change value.',
+  'Google Ads returned a change history row mixed with another resource.',
+  'Google Ads returned unselected change event fields.',
+  'Google Ads returned a missing or repeated change event.',
+  'Google Ads returned a change outside the requested window.',
+  'Google Ads returned a change of a resource type outside the request.',
+  'Google Ads returned malformed changed field paths.',
   'Preview is based on supplied product data. Current provider items are read by each native review before execution. Partial or uncertain writes retain per-item receipts in the campaign journal.',
   'Preview uses supplied product data and the existing X product contract. Each product keeps a separate native review, accepted receipt and independent read-back. Matching IDs are updated; missing source items are retained.',
   'X catalog endpoints require early-access entitlement; a local preview does not establish account eligibility.',
@@ -342,8 +361,11 @@ async function renderPortfolio() {
     restoredIndex = targets.findIndex(
       t => t.connection_id === restored.connection_id && t.account_id === restored.account_id,
     ),
-    restoredMissing = !!(restored.connection_id || restored.account_id) && restoredIndex < 0;
+    restoredMissing = !!(restored.connection_id || restored.account_id) && restoredIndex < 0,
+    historyTargets = accountChoices(['google']);
   content.innerHTML += `<p class="notice">${esc(uiText('Browse current Google Ads, Meta, LinkedIn, Snapchat, TikTok and X inventory. Inventory is read-only; provider changes require a separate review.'))}</p><form id="portfolio-account" class="panel workspace-form"><label>${esc(uiText('Advertising account'))}<select name="target" required>${restoredMissing ? `<option value="" selected>${esc(uiText('Previously selected account — check access'))}</option>` : ''}<option value="">${esc(uiText('Choose a login and account'))}</option>${targets.map((t, i) => `<option value="${i}" ${i === restoredIndex ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select></label><button class="button primary" type="submit">${esc(uiText('Read inventory'))}</button></form><div id="portfolio-view" aria-live="polite"></div>`;
+  // PRV-07 A: a Google Ads account's change history, read separately from the inventory above.
+  content.innerHTML += changeHistoryMarkup(historyTargets);
   const view = $('#portfolio-view'),
     form = $('#portfolio-account');
   const attached = () =>
@@ -571,6 +593,220 @@ async function renderPortfolio() {
     target = binding;
     reopen = null;
     await load(level);
+  });
+  bindChangeHistory(historyTargets);
+}
+// PRV-07 A: one Google Ads customer's change history (src/google-change-history.ts), read only on submit and never
+// saved. Who made a change is not requested. Resource types, operations, tools, field paths and resource names are
+// native values and stay literal; the timeline is counted here from the validated rows.
+const changeHistoryPageSize = 50,
+  changeHistoryDayMs = 86400000;
+function changeHistoryDay(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value ?? '')) return null;
+  const time = Date.parse(value + 'T00:00:00Z');
+  return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value ? time : null;
+}
+function changeHistoryShift(days) {
+  const today = changeHistoryDay(new Date().toISOString().slice(0, 10));
+  return new Date(today + days * changeHistoryDayMs).toISOString().slice(0, 10);
+}
+/** The same window the server accepts: at most 30 days, starting no earlier than 29 days before today (UTC). */
+function changeHistoryWindow(from, to) {
+  const first = changeHistoryDay(from),
+    last = changeHistoryDay(to),
+    today = changeHistoryDay(changeHistoryShift(0));
+  return (
+    first !== null &&
+    last !== null &&
+    last >= first &&
+    last - first <= 29 * changeHistoryDayMs &&
+    first >= today - 29 * changeHistoryDayMs &&
+    last <= today + changeHistoryDayMs
+  );
+}
+function changeHistoryMarkup(targets) {
+  const earliest = changeHistoryShift(-29),
+    latest = changeHistoryShift(1);
+  return `<section class="panel workspace-form" aria-labelledby="change-history-title"><h2 id="change-history-title">${esc(uiText('Google Ads change history'))}</h2><p>${esc(uiText('See what changed in one Google Ads account, newest first, from the change history Google keeps for 30 days. Who made each change is not requested. Nothing is saved or changed.'))}</p><form id="change-history">${targets.length ? '' : `<p class="notice">${esc(uiText('Connect Google Ads and select a customer account in Connections to read its change history.'))} <a href="/connections">${esc(uiText('Connections'))}</a></p>`}<label>${esc(uiText('Google Ads account'))}<select name="target" required ${targets.length ? '' : 'disabled'}><option value="">${esc(uiText('Choose a selected account'))}</option>${targets.map((t, i) => `<option value="${i}" ${targets.length === 1 ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select></label><label>${esc(uiText('From date'))}<input name="date_from" type="date" required min="${earliest}" max="${latest}" value="${changeHistoryShift(-6)}"></label><label>${esc(uiText('To date'))}<input name="date_to" type="date" required min="${earliest}" max="${latest}" value="${changeHistoryShift(0)}"></label><p class="form-note">${esc(uiText('Dates are days in the account time zone. Choose at most 30 days within the last 30 days.'))}</p><button class="button primary" type="submit" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read change history'))}</button></form><div id="change-history-result" aria-live="polite"></div></section>`;
+}
+const changeHistoryRowKeys = [
+  'change_date_time',
+  'resource_type',
+  'operation',
+  'client_type',
+  'resource_name',
+  'changed_fields',
+  'campaign',
+  'ad_group',
+  'asset',
+  'change_event',
+].sort();
+/** The response belongs to this account, login and window, and every row carries only the selected native fields. */
+function changeHistoryValid(out, target, requested) {
+  const code = v => typeof v === 'string' && /^[A-Z][A-Z0-9_]{0,63}$/.test(v),
+    prefix = 'customers/' + target.account_id + '/',
+    resource = (v, kind = '') =>
+      typeof v === 'string' && v.length <= 512 && v.startsWith(prefix + kind) && !/[\x00-\x20\x7f]/.test(v);
+  if (
+    !out ||
+    out.record_kind !== 'change_history' ||
+    out.provider_mutations !== 0 ||
+    out.retained_snapshot !== false ||
+    out.scope?.gateway !== 'google_ads_native_action' ||
+    out.scope.account_id !== target.account_id ||
+    out.scope.connection_id !== target.connection_id ||
+    out.scope.date_from !== requested.date_from ||
+    out.scope.date_to !== requested.date_to ||
+    out.scope.limit !== requested.limit ||
+    out.personal_data?.user_email !== 'not_requested' ||
+    typeof out.meaning !== 'string' ||
+    !Array.isArray(out.rows) ||
+    out.rows.length !== out.row_count ||
+    out.rows.length > requested.limit ||
+    out.limit_reached !== (out.rows.length === requested.limit) ||
+    out.complete !== !out.limit_reached
+  )
+    return false;
+  const days = new Map();
+  for (const r of out.rows) {
+    if (
+      !r ||
+      typeof r !== 'object' ||
+      Object.keys(r).sort().join() !== changeHistoryRowKeys.join() ||
+      typeof r.change_date_time !== 'string' ||
+      !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d{1,6})?$/.test(r.change_date_time) ||
+      r.change_date_time.slice(0, 10) < requested.date_from ||
+      r.change_date_time.slice(0, 10) > requested.date_to ||
+      !code(r.resource_type) ||
+      !(r.operation === null || code(r.operation)) ||
+      !(r.client_type === null || code(r.client_type)) ||
+      !Array.isArray(r.changed_fields) ||
+      r.changed_fields.length > 1000 ||
+      !r.changed_fields.every(f => typeof f === 'string' && /^[A-Za-z0-9_.]{1,256}$/.test(f)) ||
+      !(r.resource_name === null || resource(r.resource_name)) ||
+      !(r.campaign === null || resource(r.campaign, 'campaigns/')) ||
+      !(r.ad_group === null || resource(r.ad_group, 'adGroups/')) ||
+      !(r.asset === null || resource(r.asset, 'assets/')) ||
+      !resource(r.change_event, 'changeEvents/')
+    )
+      return false;
+    const day = r.change_date_time.slice(0, 10);
+    days.set(day, (days.get(day) ?? 0) + 1);
+  }
+  const reported = out.timeline?.by_day;
+  return (
+    !!reported &&
+    typeof reported === 'object' &&
+    Object.keys(reported).length === days.size &&
+    [...days].every(([day, count]) => reported[day] === count)
+  );
+}
+function changeHistoryView(out, target, page) {
+  const notReported = esc(uiText('Not reported')),
+    native = v => (v === null || v === undefined ? notReported : `<code dir="ltr">${esc(v)}</code>`),
+    pages = Math.max(1, Math.ceil(out.rows.length / changeHistoryPageSize)),
+    start = page * changeHistoryPageSize,
+    footer = `<p>${esc(uiText('Who made each change was not requested. Changed field paths name what changed, not the old or new values. Times are in the account time zone. Nothing was saved or changed.'))}</p>${recordDetails({scope: out.scope, source_references: out.source_references}, uiText('Change history scope and source references'))}`;
+  let html = `<h3 id="change-history-heading" tabindex="-1">${esc(target.label)}</h3><p>${esc(uiText('Requested {requested} · Returned {captured}', {requested: date(out.requested_at), captured: date(out.captured_at)}))}</p>${badge(out.complete ? 'complete' : 'incomplete')}<p class="notice">${esc(uiAccountExplanation(out.meaning))}</p>`;
+  if (out.limit_reached)
+    html += `<p class="notice" role="status">${esc(uiText('Only the newest {count} changes in these dates were read. Older changes may exist; choose fewer days to read them.', {count: uiNumber(out.rows.length)}))}</p>`;
+  if (!out.rows.length)
+    return html + `<p>${esc(uiText('Google Ads reported no changes in these dates.'))}</p>` + footer;
+  // Counts per value, most frequent first; equal counts keep the native value order.
+  const tally = key => {
+    const counts = new Map();
+    for (const r of out.rows) counts.set(r[key], (counts.get(r[key]) ?? 0) + 1);
+    return [...counts].sort(([a, x], [b, y]) => y - x || String(a).localeCompare(String(b)));
+  };
+  const table = (caption, header, rows) =>
+    `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(caption)}"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr><th scope="col">${esc(header)}</th><th scope="col">${esc(uiText('Changes'))}</th></tr></thead><tbody>${rows.map(([value, count]) => `<tr><th scope="row">${value}</th><td>${esc(uiNumber(count))}</td></tr>`).join('')}</tbody></table></div>`;
+  const days = new Map();
+  for (const r of out.rows)
+    days.set(r.change_date_time.slice(0, 10), (days.get(r.change_date_time.slice(0, 10)) ?? 0) + 1);
+  html += `<div class="workspace-metrics"><article><strong>${esc(uiNumber(out.rows.length))}</strong><span>${esc(uiText('Changes read'))}</span></article><article><strong>${esc(uiNumber(days.size))}</strong><span>${esc(uiText('Days with changes'))}</span></article></div>`;
+  html += table(
+    uiText('Changes per day'),
+    uiText('Day'),
+    [...days]
+      .sort(([a], [b]) => (a < b ? 1 : a > b ? -1 : 0))
+      .map(([day, count]) => [`<bdi dir="ltr">${esc(day)}</bdi>`, count]),
+  );
+  for (const [caption, header, key] of [
+    [uiText('Changes by resource type'), uiText('Resource type'), 'resource_type'],
+    [uiText('Changes by operation'), uiText('Operation'), 'operation'],
+    [uiText('Changes by tool used'), uiText('Changed through'), 'client_type'],
+  ])
+    html += table(
+      caption,
+      header,
+      tally(key).map(([value, count]) => [native(value), count]),
+    );
+  const context = r =>
+    [
+      [uiText('Campaign'), r.campaign],
+      [uiText('Ad group'), r.ad_group],
+    ]
+      .filter(([, value]) => value !== null)
+      .map(([label, value]) => `<small>${esc(label)}: <code dir="ltr">${esc(value)}</code></small>`)
+      .join('');
+  html += `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Change events'))}"><table class="review-table"><caption>${esc(uiText('Change events'))}</caption><thead><tr><th scope="col">${esc(uiText('Changed at'))}</th><th scope="col">${esc(uiText('Resource type'))}</th><th scope="col">${esc(uiText('Operation'))}</th><th scope="col">${esc(uiText('Changed through'))}</th><th scope="col">${esc(uiText('Changed fields'))}</th><th scope="col">${esc(uiText('Changed resource'))}</th></tr></thead><tbody>${out.rows
+    .slice(start, start + changeHistoryPageSize)
+    .map(
+      r =>
+        `<tr><th scope="row"><bdi dir="ltr">${esc(r.change_date_time)}</bdi></th><td>${native(r.resource_type)}</td><td>${native(r.operation)}</td><td>${native(r.client_type)}</td><td>${r.changed_fields.length ? r.changed_fields.map(f => `<code dir="ltr">${esc(f)}</code>`).join(' ') : notReported}</td><td>${native(r.resource_name ?? r.asset)}${context(r)}</td></tr>`,
+    )
+    .join('')}</tbody></table></div>`;
+  if (pages > 1)
+    html += `<div class="dialog-actions"><button class="button" type="button" id="change-history-previous" ${page > 0 ? '' : 'disabled'}>${esc(uiText('Previous page'))}</button><span>${esc(uiText('Page {page} of {pages}', {page: uiNumber(page + 1), pages: uiNumber(pages)}))}</span><button class="button" type="button" id="change-history-next" ${page < pages - 1 ? '' : 'disabled'}>${esc(uiText('Next page'))}</button></div>`;
+  return html + footer;
+}
+function bindChangeHistory(targets) {
+  const form = $('#change-history'),
+    result = $('#change-history-result');
+  if (!form?.elements?.target || !result) return;
+  const begin = accountWorkflowContext(form, result);
+  workspaceBind('#change-history', async () => {
+    const current = begin();
+    if (!current()) return;
+    const target = targets[Number(form.elements.target.value)];
+    if (form.elements.target.value === '' || !target) throw Error(uiText('Choose a Google Ads account.'));
+    const requested = {date_from: form.elements.date_from.value, date_to: form.elements.date_to.value, limit: 1000};
+    // A window Google cannot answer is refused here, before any request.
+    if (!changeHistoryWindow(requested.date_from, requested.date_to))
+      throw Error(
+        uiText(
+          'Choose explicit dates covering at most 30 days within the last 30 days. Google Ads keeps change history for 30 days.',
+        ),
+      );
+    let out;
+    try {
+      out = await workspaceCall('workspace', {
+        action: 'change_history',
+        gateway: 'google_ads_native_action',
+        connection_id: target.connection_id,
+        account_id: target.account_id,
+        requirements: requested,
+      });
+    } catch (error) {
+      if (current()) throw error;
+      return;
+    }
+    if (!current()) return;
+    if (!changeHistoryValid(out, target, requested))
+      throw Error(
+        uiText('The change history response is incomplete or belongs to a different selection. Read it again.'),
+      );
+    const pages = Math.max(1, Math.ceil(out.rows.length / changeHistoryPageSize));
+    // Paging shows rows already read; it never reads Google Ads again.
+    const show = page => {
+      if (!current()) return;
+      const shown = Math.min(Math.max(page, 0), pages - 1);
+      result.innerHTML = changeHistoryView(out, target, shown);
+      workspaceBind('#change-history-previous', () => show(shown - 1));
+      workspaceBind('#change-history-next', () => show(shown + 1));
+    };
+    show(0);
+    $('#change-history-heading')?.focus();
   });
 }
 function portfolioMoneyLabel(value) {

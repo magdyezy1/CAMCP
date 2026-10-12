@@ -302,6 +302,7 @@ export function inspectAccountExplanations(source, file) {
         'x-catalog-selection-inventory.ts',
         'woocommerce-source.ts',
         'woocommerce-inventory.ts',
+        'google-change-history.ts',
       ].some(name => file.endsWith(name)) &&
       node.type === 'CallExpression' &&
       ['bad', 'invalid', ...(file.endsWith('x-catalog-removal.ts') ? ['changed'] : [])].includes(node.callee?.name)
@@ -1131,6 +1132,7 @@ export function checkWebLocales(root = process.cwd()) {
     'src/measurement-google-goals.ts',
     'src/ga4-admin-config.ts',
     'src/measurement-ledger.ts',
+    'src/google-change-history.ts',
   ])
     for (const message of inspectAccountExplanations(fs.readFileSync(path.join(root, file), 'utf8'), file)) {
       accountExplanations.add(message);

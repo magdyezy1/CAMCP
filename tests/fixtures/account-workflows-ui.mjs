@@ -104,6 +104,8 @@ export function accountWorkflowFixture(locale = 'en') {
       'source_mode',
     ],
     'portfolio-account': ['target'],
+    // PRV-07 A: the Google Ads change history form on the Live portfolio page.
+    'change-history': ['target', 'date_from', 'date_to'],
     'woo-source': ['target', 'product_ids', 'price_field', 'source_kind', 'parent_product_id'],
     'woo-inventory': ['target', 'price_field'],
     'woo-connect': ['label', 'store_origin', 'consumer_key', 'consumer_secret', 'confirmed'],
