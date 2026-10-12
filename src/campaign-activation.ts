@@ -13,12 +13,15 @@ import {bad, obj, type ToolCall} from './workspace-core.js';
  *   positive location criterion (owner decision P7, microsoft-native.ts), which stops the whole plan at preflight.
  * - TikTok (CMP-07): the DISABLE campaign holds ENABLE children, so enabling the campaign through the reviewed
  *   tiktok_entity_status family is the one step.
+ * - LinkedIn (CMP-07): campaign group, campaign and creative were all created PAUSED, so all three are activated
+ *   through REST.li PARTIAL_UPDATE reviews, each after the one before it is verified; the creative is the last switch.
  *
  * Read-only gates run at the activation plan's preflight, as one set, before any status write: the Snapchat ad's
- * creative review, the Meta ad's effective status and review feedback, the Meta conversion pixel, and the Google
- * conversion recipes' account-default goals and primary actions (the reads recipe_eligibility makes).
+ * creative review, the Meta ad's effective status and review feedback, the Meta conversion pixel, the Google
+ * conversion recipes' account-default goals and primary actions (the reads recipe_eligibility makes), and the state of
+ * the LinkedIn lead form a lead launch uses.
  */
-export const activationPlatforms = ['meta', 'google', 'snapchat', 'microsoft', 'tiktok'];
+export const activationPlatforms = ['meta', 'google', 'snapchat', 'microsoft', 'tiktok', 'linkedin'];
 
 type Results = Map<string, JsonObject>;
 const gateways: Record<string, string> = {
@@ -27,7 +30,19 @@ const gateways: Record<string, string> = {
   snapchat: 'snapchat_native_action',
   microsoft: 'microsoft_ads_native_action',
   tiktok: 'tiktok_native_action',
+  linkedin: 'linkedin_native_action',
 };
+/** The numeric ID of a LinkedIn create receipt (x-restli-id): a bare ID, or the entity's URN (possibly encoded). */
+function linkedinCreated(value: unknown, kind: string): string | undefined {
+  if (typeof value !== 'string' && typeof value !== 'number') return undefined;
+  let text = String(value);
+  try {
+    text = decodeURIComponent(text);
+  } catch {
+    return undefined;
+  }
+  return new RegExp('^(?:urn:li:' + kind + ':)?([1-9][0-9]{0,19})$').exec(text)?.[1];
+}
 const numeric = /^[1-9][0-9]{0,31}$/,
   uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function unavailable(what: string): never {
@@ -110,6 +125,38 @@ export function activationSteps(platform: string, results: Results, scope: JsonO
           action: 'tiktok_campaign_status_update',
           payload: {advertiser_id: String(scope.account_id), campaign_ids: [campaign], operation_status: 'ENABLE'},
         },
+      ),
+    ];
+  }
+  if (platform === 'linkedin') {
+    const id = (step: string, kind: string, what: string) =>
+        verified(results, step, r => linkedinCreated(r.created_id, kind), numeric, what),
+      group = id('group', 'sponsoredCampaignGroup', 'LinkedIn campaign group'),
+      campaign = id('campaign', 'sponsoredCampaign', 'LinkedIn campaign'),
+      creative = 'urn:li:sponsoredCreative:' + id('creative', 'sponsoredCreative', 'LinkedIn creative'),
+      update = (action: string, path_params: JsonObject, field: string) => ({
+        action: 'linkedin_rest_ad_accounts_ad_account_id_' + action,
+        restli_method: 'PARTIAL_UPDATE',
+        path_params,
+        payload: {patch: {$set: {[field]: 'ACTIVE'}}},
+      });
+    return [
+      step(
+        'activate_group',
+        'Set campaign group ' + group + ' ACTIVE.',
+        update('ad_campaign_groups_campaign_group_id_post', {campaign_group_id: group}, 'status'),
+      ),
+      step(
+        'activate_campaign',
+        'Set campaign ' + campaign + ' ACTIVE, after its campaign group.',
+        update('ad_campaigns_campaign_id_post', {campaign_id: campaign}, 'status'),
+        ['activate_group'],
+      ),
+      step(
+        'activate_creative',
+        'Set creative ' + creative + ' ACTIVE, after its campaign.',
+        update('creatives_creative_id_post', {creative_id: creative}, 'intendedStatus'),
+        ['activate_campaign'],
       ),
     ];
   }
@@ -312,6 +359,56 @@ export async function activationGates(
         ),
       );
     else checks.push({step: step.id, status: 'gate_passed', gate: 'meta_pixel', pixel_id: activation.meta_pixel_id});
+  }
+  // A LinkedIn lead launch (CMP-07): the form's state decides whether its creative serves, so the account's forms are
+  // read through the owner finder (the launch preflight's read) and anything but a PUBLISHED form blocks activation.
+  if (activation.platform === 'linkedin' && typeof activation.linkedin_lead_form_id === 'string') {
+    const step = steps.find(s => s.id === 'activate_creative') ?? steps[0]!,
+      form = activation.linkedin_lead_form_id,
+      out = await call(
+        'linkedin_native_action',
+        {
+          action: 'linkedin_rest_lead_forms_get',
+          ...scope,
+          query: {q: 'owner', owner: {sponsoredAccount: 'urn:li:sponsoredAccount:' + scope.account_id}, count: 100},
+          aggregate_pages: true,
+        },
+        actor,
+      );
+    current();
+    const rows =
+        out.success && !out.data?.truncated && Array.isArray(out.data?.data?.elements)
+          ? (out.data.data.elements as unknown[])
+          : undefined,
+      row = rows?.find(f => obj(f) && String(f.id) === form) as JsonObject | undefined;
+    if (!rows)
+      checks.push(
+        blocked(
+          step.id,
+          'linkedin_lead_form',
+          'AMCP could not completely read the ad account’s lead forms, so activation is not shown to be safe.',
+          {lead_form_id: form, read_error: out.success ? null : (out.error?.code ?? null)},
+        ),
+      );
+    else if (!row)
+      checks.push(
+        blocked(
+          step.id,
+          'linkedin_lead_form',
+          'LinkedIn no longer returns this lead form for the ad account. Choose a form of this account before activating.',
+          {lead_form_id: form},
+        ),
+      );
+    else if (row.state !== 'PUBLISHED')
+      checks.push(
+        blocked(
+          step.id,
+          'linkedin_lead_form',
+          'The lead form is not published, and its state decides whether the creative serves. Publish it with its own reviewed state change before activating.',
+          {lead_form_id: form, state: typeof row.state === 'string' ? row.state : null},
+        ),
+      );
+    else checks.push({step: step.id, status: 'gate_passed', gate: 'linkedin_lead_form', lead_form_id: form});
   }
   // A Google conversion launch bids on account-default goals: the same bounded reads recipe_eligibility makes.
   if (activation.platform === 'google' && obj(activation.conversion_goals)) {

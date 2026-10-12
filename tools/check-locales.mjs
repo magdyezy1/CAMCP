@@ -1013,6 +1013,10 @@ export function checkWebLocales(root = process.cwd()) {
   for (const file of [
     'src/campaign-recipes.ts',
     'src/snapchat-traffic-recipe.ts',
+    // CMP-07: the guided packs defined in their own modules.
+    'src/tiktok-launch-recipes.ts',
+    'src/google-pmax-recipe.ts',
+    'src/linkedin-lead-recipe.ts',
     'src/capability-eligibility.ts',
     'src/capability-graph.ts',
     'src/conditional-programs.ts',

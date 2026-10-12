@@ -12,7 +12,9 @@ import {currencyMinorDigits} from './budget-units.js';
  * with the account's existing lead form as its call to action. LinkedIn returns each new ID in x-restli-id, and each
  * child names its parent by URN reference, as the clone does. Before anything is created, preflight reads the
  * account's lead forms through the owner finder: a form this account does not own, or an archived one, blocks the
- * plan. Activation (the group, campaign and creative statuses) stays separately reviewed in LinkedIn's own writes.
+ * plan. A form's state decides whether its creative serves ("Lead Syncing", Updating Form Status), so the separate
+ * activation plan (campaign-activation.ts) reads it again and activates group, campaign and creative only once the
+ * form is PUBLISHED, each status change under its own review.
  */
 export const linkedinLeadSource =
   'https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/create-and-manage-campaigns?view=li-lms-2026-05';
@@ -56,13 +58,20 @@ function invalid(message: string, field: string, code = 'RECIPE_INPUT_INVALID', 
   throw new MirrorError(code, message, {field, ...details});
 }
 const numeric = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,18}$/.test(v);
+/** An ISO timestamp with an explicit UTC offset, as the epoch milliseconds LinkedIn's runSchedule takes. */
 function epoch(value: unknown, field: string): number {
-  const ok =
-    typeof value === 'string' &&
-    /^(\d{4}-\d{2}-\d{2})T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(value) &&
-    new Date(value.slice(0, 10) + 'T00:00:00Z').toISOString().slice(0, 10) === value.slice(0, 10);
-  const t = typeof value === 'string' ? Date.parse(value) : NaN;
-  if (!ok || !Number.isFinite(t))
+  const m =
+      typeof value === 'string' &&
+      /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.exec(value),
+    t = typeof value === 'string' ? Date.parse(value) : NaN;
+  if (
+    !m ||
+    !Number.isFinite(t) ||
+    Number(m[2]) > 23 ||
+    Number(m[3]) > 59 ||
+    Number(m[4]) > 59 ||
+    new Date(m[1] + 'T00:00:00Z').toISOString().slice(0, 10) !== m[1]
+  )
     invalid('Use a valid timestamp with an explicit UTC offset.', field, 'RECIPE_DATE_INVALID');
   return t;
 }
@@ -74,7 +83,11 @@ function amount(v: unknown, currency: string): string {
     invalid('Use a positive decimal daily budget in account currency.', 'daily_budget', 'INVALID_RECIPE_MONEY');
   const [whole, fraction = ''] = String(v).split('.');
   if (fraction.length > digits! && /[1-9]/.test(fraction.slice(digits)))
-    invalid('The daily budget has more decimal places than the account currency.', 'daily_budget', 'INVALID_RECIPE_MONEY');
+    invalid(
+      'The daily budget has more decimal places than the account currency.',
+      'daily_budget',
+      'INVALID_RECIPE_MONEY',
+    );
   const kept = fraction.slice(0, digits).replace(/0+$/, ''),
     text = String(BigInt(whole!)) + (kept ? '.' + kept : '');
   if (Number(text) <= 0)
@@ -85,7 +98,8 @@ function amount(v: unknown, currency: string): string {
 /** Compiles a LinkedIn lead generation brief; existing reviewed routes only, nothing is read or sent. */
 export function buildLinkedinLeadRecipe(b: JsonObject): JsonObject {
   if (!numeric(b.account_id)) invalid('Use the exact numeric LinkedIn ad account ID.', 'account_id');
-  if (/\p{Extended_Pictographic}/u.test(b.name)) invalid('Use a campaign name without emoji.', 'name');
+  if (!b.name.trim() || /\p{Extended_Pictographic}/u.test(b.name))
+    invalid('Use a campaign name without emoji.', 'name');
   const locations = b.location_urns;
   if (
     !Array.isArray(locations) ||
@@ -115,7 +129,13 @@ export function buildLinkedinLeadRecipe(b: JsonObject): JsonObject {
   if (end !== undefined && end <= start) invalid('End time must follow start time.', 'end_time', 'RECIPE_DATE_INVALID');
   const account = 'urn:li:sponsoredAccount:' + b.account_id,
     schedule = {start, ...(end !== undefined ? {end} : {})};
-  const step = (id: string, action: string, payload: JsonObject, depends_on: string[] = [], prerequisites?: string[]) => ({
+  const step = (
+    id: string,
+    action: string,
+    payload: JsonObject,
+    depends_on: string[] = [],
+    prerequisites?: string[],
+  ) => ({
     id,
     kind: 'write',
     gateway,
@@ -202,6 +222,8 @@ export function buildLinkedinLeadRecipe(b: JsonObject): JsonObject {
       political_intent: 'NOT_POLITICAL',
       bidding_effect:
         'Maximum delivery uses the daily budget to seek lead form submissions. It does not guarantee a cost per lead or result; LinkedIn may spend up to 150% of a daily budget on a day. Activation is separate.',
+      budget_acceptance:
+        'LinkedIn sets a minimum daily campaign budget per currency and refuses a smaller one when the campaign is created.',
       creative_acceptance:
         'Preflight reads the account’s lead forms for this exact form. Post sponsorship eligibility, ad review and objective acceptance stay with LinkedIn until it reviews the creative.',
       source: linkedinLeadSource,
@@ -237,7 +259,13 @@ export async function linkedinRecipePrerequisites(
     query = {q: 'owner', owner: {sponsoredAccount: 'urn:li:sponsoredAccount:' + account}, count: 100};
   const out = await service.call(
     gateway,
-    {action: 'linkedin_rest_lead_forms_get', account_id: account, connection_id: connectionId, query, aggregate_pages: true},
+    {
+      action: 'linkedin_rest_lead_forms_get',
+      account_id: account,
+      connection_id: connectionId,
+      query,
+      aggregate_pages: true,
+    },
     actor,
   );
   if (!out.success) throw new MirrorError(out.error.code, out.error.message, out.error.details);
@@ -246,10 +274,14 @@ export async function linkedinRecipePrerequisites(
     throw new MirrorError('INCOMPLETE_STATE', 'LinkedIn did not return the complete lead form list of this account.');
   const row = data.elements.find((f: unknown) => obj(f) && String(f.id) === form);
   if (!row || !obj(row.owner) || row.owner.sponsoredAccount !== 'urn:li:sponsoredAccount:' + account)
-    throw new MirrorError('CAMPAIGN_PREREQUISITE_REQUIRED', 'LinkedIn did not return this lead form for the selected ad account.', {
-      lead_form_id: form,
-      field: 'lead_form_id',
-    });
+    throw new MirrorError(
+      'CAMPAIGN_PREREQUISITE_REQUIRED',
+      'LinkedIn did not return this lead form for the selected ad account.',
+      {
+        lead_form_id: form,
+        field: 'lead_form_id',
+      },
+    );
   if (row.state === 'ARCHIVED')
     throw new MirrorError('CAMPAIGN_PREREQUISITE_REQUIRED', 'The lead form is archived; choose an active form.', {
       lead_form_id: form,
@@ -271,7 +303,7 @@ export async function linkedinRecipePrerequisites(
         captured_at: Date.now(),
       },
       meaning:
-        'LinkedIn returned this lead form for the selected ad account. A DRAFT form is published when a reviewed ad uses it; ad review and objective acceptance remain unverified.',
+        'LinkedIn returned this lead form for the selected ad account. The creative serves only while the form is published, which the activation plan reads again; ad review and objective acceptance remain unverified.',
     },
   ];
 }

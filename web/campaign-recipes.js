@@ -243,6 +243,8 @@ function conversionRecipePreview(out) {
     return snapchatTrafficPreview(out);
   if (['tiktok_website_traffic', 'tiktok_website_conversions'].includes(out.recipe?.id))
     return tiktokLaunchPreview(out);
+  if (out.recipe?.id === 'linkedin_lead_generation') return linkedinLeadPreview(out);
+  if (out.recipe?.id === 'google_performance_max') return pmaxLaunchPreview(out);
   const recipe = out.recipe,
     plan = out.plan,
     valueBidding = ['google_search_conversion_value', 'google_search_target_roas'].includes(recipe?.id),
@@ -449,6 +451,124 @@ function tiktokLaunchPreview(out) {
     `<div><dt>${esc(uiText(label))}</dt><dd><bdi dir="${direction}">${esc(value)}</bdi></dd></div>`;
   const title = purchases ? 'Paused TikTok website purchases preview' : 'Paused TikTok website traffic preview';
   return `<section aria-label="${esc(uiText(title))}" class="conversion-recipe-preview"><h3>${esc(uiText(title))}</h3><p>${esc(uiText('Local preview only. No plan is saved and no advertising changes are sent.'))}</p><dl>${row('Campaign name', plan.name)}${row('Advertising login and account', steps[0].connection_id + ' · ' + steps[0].account_id, 'ltr')}${row('Daily budget in account currency', r.daily_budget + ' ' + r.currency, 'ltr')}${row('Existing TikTok post ID', ad.tiktok_item_id, 'ltr')}${row('TikTok account identity', ad.identity_type + ' · ' + ad.identity_id, 'ltr')}${row('TikTok location IDs', group.location_ids.join(', '), 'ltr')}${row('Start time sent to TikTok (UTC)', group.schedule_start_time, 'ltr')}${group.schedule_end_time ? row('End time sent to TikTok (UTC)', group.schedule_end_time, 'ltr') : ''}${row('Call to action', ad.call_to_action, 'ltr')}${purchases ? row('Purchase event to optimize', group.pixel_id + ' · ' + group.optimization_event, 'ltr') : ''}</dl><p class="notice">${esc(uiText(purchases ? 'Creates a disabled campaign with an ad group and Spark Ad under it. Preflight reads the identity, post and pixel of this advertiser; event delivery, ad review and objective acceptance remain unverified.' : 'Creates a disabled campaign with an ad group and Spark Ad under it. Preflight reads the identity and post of this advertiser; ad review and objective acceptance remain unverified.'))}</p><p>${esc(uiText(purchases ? 'Maximum delivery uses the daily budget to seek the chosen purchase event. It does not guarantee a cost per purchase or result. Activation requires a separate review.' : 'Maximum delivery uses the daily budget to seek clicks. It does not guarantee a cost per result. Activation requires a separate review.'))}</p>${details()}</section>`;
+}
+/** The paused LinkedIn lead generation preview (CMP-07): shown only when the compiled plan is exactly the pack. */
+function linkedinLeadPreview(out) {
+  const r = out.recipe,
+    plan = out.plan,
+    steps = plan?.steps,
+    details = () => recordDetails(out, uiText('Compiled plan and input provenance'));
+  if (
+    out.ready !== true ||
+    out.provider_mutations !== 0 ||
+    !/^[A-Z]{3}$/.test(r?.currency) ||
+    !Array.isArray(steps) ||
+    steps.length !== 3
+  )
+    return details();
+  const [group, campaign, creative] = steps.map(s => s?.arguments?.payload),
+    locations = campaign?.targetingCriteria?.include?.and?.[0]?.or?.['urn:li:adTargetingFacet:locations'],
+    schedule = campaign?.runSchedule ?? {};
+  if (
+    steps.map(s => s.id).join(',') !== 'group,campaign,creative' ||
+    steps.map(s => s.arguments?.action).join(',') !==
+      'linkedin_rest_ad_accounts_ad_account_id_ad_campaign_groups_post,linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_post,linkedin_rest_ad_accounts_ad_account_id_creatives_post' ||
+    !steps.every(
+      s =>
+        s.kind === 'write' &&
+        s.gateway === 'linkedin_native_action' &&
+        s.account_id === steps[0].account_id &&
+        s.connection_id === steps[0].connection_id &&
+        s.expected_currency === r.currency,
+    ) ||
+    group?.status !== 'PAUSED' ||
+    campaign?.status !== 'PAUSED' ||
+    creative?.intendedStatus !== 'PAUSED' ||
+    creative.status !== undefined ||
+    campaign.objectiveType !== 'LEAD_GENERATION' ||
+    campaign.optimizationTargetType !== 'MAX_LEAD' ||
+    campaign.politicalIntent !== 'NOT_POLITICAL' ||
+    campaign.totalBudget !== undefined ||
+    group.totalBudget !== undefined ||
+    typeof r.daily_budget !== 'string' ||
+    campaign.dailyBudget?.amount !== r.daily_budget ||
+    campaign.dailyBudget?.currencyCode !== r.currency ||
+    !Array.isArray(locations) ||
+    !locations.length ||
+    locations.length > 50 ||
+    !Number.isSafeInteger(schedule.start) ||
+    (schedule.end !== undefined && !Number.isSafeInteger(schedule.end)) ||
+    creative.content?.reference !== r.post_urn ||
+    creative.leadgenCallToAction?.destination !== 'urn:li:adForm:' + r.lead_form_id ||
+    creative.leadgenCallToAction?.label !== r.call_to_action
+  )
+    return details();
+  const row = (label, value, direction = 'auto') =>
+      `<div><dt>${esc(uiText(label))}</dt><dd><bdi dir="${direction}">${esc(value)}</bdi></dd></div>`,
+    utc = ms => new Date(ms).toISOString().replace(/\.000Z$/, 'Z'),
+    title = 'Paused LinkedIn lead generation preview';
+  return `<section aria-label="${esc(uiText(title))}" class="conversion-recipe-preview"><h3>${esc(uiText(title))}</h3><p>${esc(uiText('Local preview only. No plan is saved and no advertising changes are sent.'))}</p><dl>${row('Campaign name', plan.name)}${row('Advertising login and account', steps[0].connection_id + ' · ' + steps[0].account_id, 'ltr')}${row('Daily budget in account currency', r.daily_budget + ' ' + r.currency, 'ltr')}${row('Existing post URN', creative.content.reference, 'ltr')}${row('Existing lead form ID', r.lead_form_id, 'ltr')}${row('Call to action', creative.leadgenCallToAction.label, 'ltr')}${row('LinkedIn location URNs', locations.join(', '), 'ltr')}${row('Campaign locale', String(campaign.locale?.language) + '_' + String(campaign.locale?.country), 'ltr')}${row('Start time sent to LinkedIn (UTC)', utc(schedule.start), 'ltr')}${schedule.end !== undefined ? row('End time sent to LinkedIn (UTC)', utc(schedule.end), 'ltr') : ''}</dl><p class="notice">${esc(uiText('Creates a paused campaign group, campaign and creative. Preflight reads the account’s lead forms; post eligibility, ad review and objective acceptance remain unverified. The creative serves only once its form is published.'))}</p><p>${esc(uiText('Maximum delivery uses the daily budget to seek lead form submissions. It does not guarantee a cost per lead or result; LinkedIn may spend up to 150% of a daily budget on a day. Activation requires a separate review.'))}</p>${details()}</section>`;
+}
+/** The paused Performance Max preview (CMP-07): shown only when the compiled plan is exactly the pack's one build. */
+function pmaxLaunchPreview(out) {
+  const r = out.recipe,
+    plan = out.plan,
+    step = Array.isArray(plan?.steps) && plan.steps.length === 1 ? plan.steps[0] : undefined,
+    details = () => recordDetails(out, uiText('Compiled plan and input provenance'));
+  const ops = step?.arguments?.payload?.mutate_operations;
+  if (
+    out.ready !== true ||
+    out.provider_mutations !== 0 ||
+    !/^[A-Z]{3}$/.test(r?.currency) ||
+    !step ||
+    !Array.isArray(ops)
+  )
+    return details();
+  const creates = key => ops.filter(o => o?.[key]).map(o => o[key].create),
+    [campaign] = creates('campaign_operation'),
+    [budget] = creates('campaign_budget_operation'),
+    groups = creates('asset_group_operation'),
+    links = creates('asset_group_asset_operation'),
+    criteria = creates('campaign_criterion_operation'),
+    account = String(step.account_id ?? '').replace(/-/g, ''),
+    counts = r.asset_counts && typeof r.asset_counts === 'object' ? Object.entries(r.asset_counts) : [];
+  if (
+    step.id !== 'build' ||
+    step.kind !== 'write' ||
+    step.gateway !== 'google_ads_native_action' ||
+    step.expected_currency !== r.currency ||
+    step.arguments.action !== 'google_ads_v23_google_ads_mutate' ||
+    step.arguments.payload.partial_failure !== false ||
+    campaign?.status !== 'PAUSED' ||
+    campaign.advertising_channel_type !== 'PERFORMANCE_MAX' ||
+    JSON.stringify(campaign.maximize_conversions) !== '{}' ||
+    ['maximize_conversion_value', 'target_cpa', 'target_roas', 'manual_cpc', 'target_spend', 'bidding_strategy'].some(
+      key => campaign[key] !== undefined,
+    ) ||
+    r.conversion_goal_policy !== 'ACCOUNT_DEFAULT' ||
+    typeof budget?.amount_micros !== 'string' ||
+    !/^[1-9]\d{0,15}$/.test(budget.amount_micros) ||
+    budget.amount_micros !== r.daily_budget_micros ||
+    budget.explicitly_shared !== false ||
+    groups.length !== 1 ||
+    groups[0]?.status !== 'ENABLED' ||
+    groups[0].campaign !== campaign.resource_name ||
+    !Array.isArray(groups[0].final_urls) ||
+    groups[0].final_urls.length !== 1 ||
+    !counts.length ||
+    counts.some(([type, n]) => links.filter(l => l?.field_type === type).length !== n) ||
+    links.length !== counts.reduce((sum, [, n]) => sum + n, 0) ||
+    // A build names its account in every resource; any other customer is not this preview's.
+    !(JSON.stringify(ops).match(/customers\/[^/"]*\//g) ?? []).every(m => m === 'customers/' + account + '/')
+  )
+    return details();
+  const n = BigInt(budget.amount_micros),
+    fraction = (n % 1000000n).toString().padStart(6, '0').replace(/0+$/, ''),
+    amount = (n / 1000000n).toString() + (fraction ? '.' + fraction : '') + ' ' + r.currency,
+    row = (label, value, direction = 'auto') =>
+      `<div><dt>${esc(uiText(label))}</dt><dd><bdi dir="${direction}">${esc(value)}</bdi></dd></div>`,
+    title = 'Paused Performance Max preview';
+  return `<section aria-label="${esc(uiText(title))}" class="conversion-recipe-preview"><h3>${esc(uiText(title))}</h3><p>${esc(uiText('Local preview only. No plan is saved and no advertising changes are sent.'))}</p><dl>${row('Campaign name', plan.name)}${row('Advertising login and account', step.connection_id + ' · ' + step.account_id, 'ltr')}${row('Daily budget in account currency', amount, 'ltr')}${row('Native micros', budget.amount_micros, 'ltr')}${row('Bidding strategy', uiText('Maximize Conversions'))}${row('Conversion goals for this campaign', uiText('Use the account-default conversion goals'))}${row('Landing page URL', groups[0].final_urls[0], 'ltr')}${row('Asset group assets', counts.map(([type, count]) => type + ' ' + count).join(' · '), 'ltr')}${row('Location and language criteria', String(criteria.length), 'ltr')}${row('EU political advertising declaration', campaign.contains_eu_political_advertising, 'ltr')}</dl><p class="notice">${esc(uiText('One all-or-nothing build: Google creates the paused campaign, its asset group and every asset link together or not at all. Images and logos are existing account assets read for their type; asset approval, ad strength and event delivery remain unverified.'))}</p><p>${esc(uiText('Maximize Conversions uses the daily budget to seek conversions across Google’s channels. It does not guarantee a cost per conversion or result. Activation requires a separate review.'))}</p>${details()}</section>`;
 }
 function snapchatCreativeInspectionView(out) {
   if (out.recipe_id === 'snapchat_lead_generation') return snapchatLeadInspectionView(out);
@@ -848,10 +968,11 @@ function recipeOptions(recipes, objective, selected) {
     // A recipe the deployment offers as a draft only (CMP-03) says so beside its name.
     option = r =>
       `<option value="${esc(r.id)}" ${r.id === selected ? 'selected' : ''}>${esc(uiText(r.name))}${r.availability_label ? ' — ' + esc(uiText(r.availability_label)) : ''}</option>`,
-    google = list.filter(r => r.platform === 'google');
+    // Only the Google Search packs share the bidding sub-choice; Performance Max is its own workflow (CMP-07).
+    google = list.filter(r => r.platform === 'google' && String(r.id).startsWith('google_search'));
   return (
     list
-      .filter(r => r.platform !== 'google')
+      .filter(r => !google.includes(r))
       .map(option)
       .join('') +
     (google.length
@@ -1024,12 +1145,11 @@ async function mountRecipeBuilder(profiles, openCampaign) {
         defaults = context.defaults ?? {},
         values = {...defaults, ...(saved?.values ?? {})};
       const required = context.recipe.required.filter(k => !['account_id', 'connection_id', 'currency'].includes(k)),
-        optional =
-          ['snapchat', 'tiktok', 'linkedin'].includes(context.recipe.platform)
-            ? ['end_time']
-            : recipe.startsWith('meta')
-              ? ['start_time', 'end_time']
-              : ['start_date', 'end_date'];
+        optional = ['snapchat', 'tiktok', 'linkedin'].includes(context.recipe.platform)
+          ? ['end_time']
+          : recipe.startsWith('meta')
+            ? ['start_time', 'end_time']
+            : ['start_date', 'end_date'];
       // A linked account is a hint checked against the current choices; one this person cannot use is named, not
       // replaced by another account (WEB-06).
       const linked = linkedTarget;
