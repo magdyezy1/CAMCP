@@ -8,6 +8,7 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {approvalView, approveReview} from '../dist/src/write-approval.js';
+import {reviewFriction} from '../dist/src/review-friction.js';
 import {createHttpApp} from '../dist/server/http-app.js';
 import {listenForFetch} from '../dist/tests/http-listener.js';
 import {googleBudgetFixture} from './fixtures/google-budget-writes.mjs';
@@ -672,6 +673,26 @@ test('WRT-09: run stops at a plan step that needs a website approval, names its 
     assert.equal(f.writes.length, 2);
   } finally {
     f.close();
+  }
+});
+
+test('WRT-09: the owner friction report counts website approvals, their latency and the refusals that waited', async () => {
+  const f = tiktok();
+  try {
+    f.workspacePolicy({approval_mode: 'website_approval'});
+    const r = await f.prepare(1100);
+    assert.equal((await f.execute(r.data.review_id)).error.code, 'HUMAN_APPROVAL_REQUIRED');
+    approveReview(f.store, colleague, r.data.review_id, {fingerprint: r.data.fingerprint, confirmed: true});
+    assert.equal((await f.execute(r.data.review_id)).success, true);
+    const report = reviewFriction(f.store, tenant);
+    assert.equal(report.approvals.approved, 1);
+    assert.equal(report.approvals.by_owner, 0);
+    assert.equal(report.approvals.latency_ms.count, 1);
+    assert.equal(report.approvals.refusals.HUMAN_APPROVAL_REQUIRED, 1);
+    assert.equal(report.approvals.refusals.CAP_OVERRIDE_OWNER_REQUIRED, 0);
+    assert.equal(report.approvals.per_100_prepares, 100);
+  } finally {
+    f.store.close();
   }
 });
 

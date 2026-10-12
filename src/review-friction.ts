@@ -15,6 +15,8 @@ const acknowledgementCodes = [
   'CREATIVE_EDIT_CONFIRMATION_REQUIRED',
 ];
 const counted = ['REVIEW_EXPIRED', 'STATE_CHANGED', ...acknowledgementCodes, 'WRITE_OUTCOME_UNCERTAIN'];
+/** Refusals that wait for a person's decision outside the AI client (WRT-09), reported with the approvals. */
+const approvalCodes = ['HUMAN_APPROVAL_REQUIRED', 'CAP_OVERRIDE_OWNER_REQUIRED', 'DESTRUCTIVE_CONFIRMATION_REQUIRED'];
 /** Rows read at most; a busier window reports `complete: false`. */
 export const frictionScanLimit = 50000;
 const percentile = (sorted: number[], p: number) =>
@@ -35,10 +37,16 @@ export function reviewFriction(store: Store, tenant: string, days = 30, now = Da
     latencies: number[] = [],
     codes: Record<string, number> = Object.fromEntries(counted.map(c => [c, 0])),
     notSent: Record<string, number> = {},
-    changedPaths = new Map<string, number>();
+    changedPaths = new Map<string, number>(),
+    // WRT-09: website approvals, the time from prepare to a person's approval, and the refusals that wait for one.
+    groupPrepared = new Map<string, number>(),
+    approvalLatencies: number[] = [],
+    approvalRefusals: Record<string, number> = Object.fromEntries(approvalCodes.map(c => [c, 0]));
   let prepares = 0,
     executes = 0,
-    notSentTotal = 0;
+    notSentTotal = 0,
+    approvals = 0,
+    ownerApprovals = 0;
   for (const row of rows.slice(0, frictionScanLimit)) {
     let event: JsonObject;
     try {
@@ -49,6 +57,12 @@ export function reviewFriction(store: Store, tenant: string, days = 30, now = Da
     if (event.event === 'write_prepared') {
       prepares++;
       prepared.set(row.request_id, row.created_at);
+    } else if (event.event === 'write_group_prepared') groupPrepared.set(row.request_id, row.created_at);
+    else if (event.event === 'write_approved') {
+      approvals++;
+      if (event.approver_is_owner === true) ownerApprovals++;
+      const at = prepared.get(row.request_id) ?? groupPrepared.get(row.request_id);
+      if (at !== undefined) approvalLatencies.push(row.created_at - at);
     } else if (event.event === 'write_started') {
       executes++;
       const at = prepared.get(row.request_id);
@@ -59,6 +73,7 @@ export function reviewFriction(store: Store, tenant: string, days = 30, now = Da
       notSent[code] = (notSent[code] ?? 0) + 1;
     } else if (event.tool === 'amcp_write' && event.outcome?.success === false) {
       const code = event.outcome.error?.code;
+      if (typeof code === 'string' && Object.hasOwn(approvalRefusals, code)) approvalRefusals[code]!++;
       if (typeof code !== 'string' || !Object.hasOwn(codes, code)) continue;
       codes[code]!++;
       if (code === 'STATE_CHANGED')
@@ -71,6 +86,7 @@ export function reviewFriction(store: Store, tenant: string, days = 30, now = Da
     }
   }
   latencies.sort((a, b) => a - b);
+  approvalLatencies.sort((a, b) => a - b);
   const acknowledgements = acknowledgementCodes.reduce((n, c) => n + codes[c]!, 0);
   return {
     window_days: days,
@@ -96,6 +112,19 @@ export function reviewFriction(store: Store, tenant: string, days = 30, now = Da
       write_not_sent: rate(notSentTotal, prepares),
     },
     not_sent_codes: notSent,
+    // WRT-09: a person's approvals on the website and the refusals that waited for one, against the baseline above.
+    approvals: {
+      approved: approvals,
+      by_owner: ownerApprovals,
+      per_100_prepares: rate(approvals, prepares),
+      latency_ms: {
+        count: approvalLatencies.length,
+        p50: percentile(approvalLatencies, 50),
+        p90: percentile(approvalLatencies, 90),
+        max: approvalLatencies.at(-1) ?? null,
+      },
+      refusals: approvalRefusals,
+    },
     state_changed_paths: [...changedPaths]
       .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
       .slice(0, 10)
