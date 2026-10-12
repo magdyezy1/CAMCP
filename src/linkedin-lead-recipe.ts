@@ -225,7 +225,7 @@ export function buildLinkedinLeadRecipe(b: JsonObject): JsonObject {
       budget_acceptance:
         'LinkedIn sets a minimum daily campaign budget per currency and refuses a smaller one when the campaign is created.',
       creative_acceptance:
-        'Preflight reads the account’s lead forms for this exact form. Post sponsorship eligibility, ad review and objective acceptance stay with LinkedIn until it reviews the creative.',
+        'Preflight reads the account’s lead forms for this exact form. Post sponsorship eligibility, ad review and objective acceptance remain unverified until LinkedIn reviews the creative; the activation plan reads the form’s state again.',
       source: linkedinLeadSource,
     },
   };
