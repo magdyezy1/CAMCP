@@ -6,6 +6,13 @@ import type {JsonObject} from './types.js';
 import {xAnalyticsTime} from './x-report-jobs.js';
 import {xReportPlacements, type XActiveSet} from './x-active-entities.js';
 
+/** X's publisher-network placement, which line items may use but these reports do not request (ACC-06). */
+export const xPublisherNetwork = 'PUBLISHER_NETWORK';
+export const xPublisherNetworkWarning = (count: number) =>
+  count +
+  ' X campaign' +
+  (count === 1 ? ' has' : 's have') +
+  ' activity on the publisher network (PUBLISHER_NETWORK), which this report does not request yet; that delivery and its spend are not in these totals.';
 /** The synchronous analytics ceiling per X source (X allows 250 requests per 15 minutes per user). */
 export const xAnalyticsRequestLimit = 100;
 /**
@@ -102,6 +109,10 @@ export async function xCampaignReport(
     warnings.add(
       'X reports whole UTC hours. Boundary hours are assigned by their midpoint so adjacent local periods do not overlap; exact fractional-hour totals are unavailable.',
     );
+  // ACC-06 interim: X documents a fourth placement, PUBLISHER_NETWORK, that these reports do not request. Until an
+  // authorized read shows whether it returns data, activity X reports there is named, never silently left out.
+  const publisher = (active?.entities ?? []).filter(e => e.placements?.includes(xPublisherNetwork)).length;
+  if (publisher) warnings.add(xPublisherNetworkWarning(publisher));
   let complete = saved.complete ?? true,
     successful = saved.successful ?? 0,
     index = 0;
