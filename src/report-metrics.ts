@@ -113,6 +113,14 @@ const sourceField = (from: string, path = from, divisor?: number, note?: string)
 const sourceRule = (from: string, note?: string): MetricSource => ({from, ...(note ? {note} : {})});
 const metaActionSource = (types: string, field = 'actions') => sourceRule(field + ': the first reported of ' + types);
 /**
+ * ACC-06: AMCP reads Reddit's CONVERSION_PURCHASE_TOTAL_VALUE as cents, while SPEND is in micros (1e6). No primary
+ * Reddit field reference or closed-week read against the Reddit UI confirms that unit yet, so a report that reads it
+ * carries redditValueUnitWarning (report-native.ts). This one constant is the divisor of both sites, normalizeNativeRow
+ * and metricSources; the authorized check (docs/acceptance/READ-ACCEPTANCE.md) confirms or corrects it, and a
+ * correction applies to new snapshots only.
+ */
+export const redditConversionValueDivisor = 100;
+/**
  * Where each platform's value of a shared metric comes from, exactly as normalizeNativeRow (report-native.ts) and, for
  * X, xCampaignReport compute it. "Conversions" is a different native measure on every platform, so the reporting view
  * shows this next to the numbers. A metric a platform does not list stays empty for it.
@@ -208,7 +216,11 @@ export const metricSources: Record<string, Record<string, MetricSource>> = {
     impressions: sourceField('impressions'),
     clicks: sourceField('clicks'),
     purchases: sourceField('conversion_purchase_total_items'),
-    conversion_value: sourceField('conversion_purchase_total_value', 'conversion_purchase_total_value', 100),
+    conversion_value: sourceField(
+      'conversion_purchase_total_value',
+      'conversion_purchase_total_value',
+      redditConversionValueDivisor,
+    ),
   },
   ga4: {
     sessions: sourceField('sessions'),

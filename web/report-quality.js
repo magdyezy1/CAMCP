@@ -175,6 +175,8 @@ const reportSourceWarnings = new Set([
   'Microsoft did not return a recognized account time zone, so report days use GreenwichMeanTimeDublinEdinburghLisbonLondon (Europe/London, including daylight saving).',
   'TikTok campaign reporting covers auction campaigns only (AUCTION_CAMPAIGN); Reach & Frequency and other reserved campaigns are not included.',
   'TikTok ad group optimization events could not be read, so conversions use one generic result definition and campaigns optimizing for different events are not told apart.',
+  // ACC-06 interim notice: the Reddit conversion value unit is unverified until the authorized closed-week check.
+  'Reddit conversion value and ROAS are unverified: AMCP reads CONVERSION_PURCHASE_TOTAL_VALUE as cents (divided by 100), a unit not yet checked against Reddit. Compare them with Reddit Ads Manager before relying on them.',
 ]);
 // Collector notices that carry a count or a field name (RPT-03, RPT-04). English keeps the collector's own sentence;
 // another language fills the same exact value into its translated template.
@@ -201,6 +203,15 @@ const reportSourceWarningTemplates = [
       uiText('Active X campaigns missing from the campaign list, shown by ID: {count}.', {
         count: uiNumber(Number(m[1])),
       }),
+  ],
+  // ACC-06 interim notice: X reported activity on a placement these reports do not request yet.
+  [
+    /^(\d{1,7}) X campaigns? (?:has|have) activity on the publisher network \(PUBLISHER_NETWORK\), which this report does not request yet\. That delivery and its spend are not in these totals, so coverage is partial and budget guidance is withheld\.$/,
+    m =>
+      uiText(
+        'X campaigns with activity on the publisher network (PUBLISHER_NETWORK), which this report does not request yet: {count}. That delivery and its spend are not in these totals, so coverage is partial and budget guidance is withheld.',
+        {count: uiNumber(Number(m[1]))},
+      ),
   ],
 ];
 function uiSourceWarning(value) {

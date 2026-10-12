@@ -6,13 +6,18 @@ import type {JsonObject} from './types.js';
 import {xAnalyticsTime} from './x-report-jobs.js';
 import {xReportPlacements, type XActiveSet} from './x-active-entities.js';
 
-/** X's publisher-network placement, which line items may use but these reports do not request (ACC-06). */
+/**
+ * X's publisher-network placement (ACC-06). AMCP's line-item writes accept it, X's analytics guide lists it, but the
+ * current parameter reference names only xReportPlacements, so these reports do not request it until an authorized read
+ * shows whether X returns data for it (docs/acceptance/READ-ACCEPTANCE.md). Until then a campaign X reports as active
+ * there is named and the source is partial, never a silently smaller total.
+ */
 export const xPublisherNetwork = 'PUBLISHER_NETWORK';
 export const xPublisherNetworkWarning = (count: number) =>
   count +
   ' X campaign' +
   (count === 1 ? ' has' : 's have') +
-  ' activity on the publisher network (PUBLISHER_NETWORK), which this report does not request yet; that delivery and its spend are not in these totals.';
+  ' activity on the publisher network (PUBLISHER_NETWORK), which this report does not request yet. That delivery and its spend are not in these totals, so coverage is partial and budget guidance is withheld.';
 /** The synchronous analytics ceiling per X source (X allows 250 requests per 15 minutes per user). */
 export const xAnalyticsRequestLimit = 100;
 /**
@@ -109,13 +114,16 @@ export async function xCampaignReport(
     warnings.add(
       'X reports whole UTC hours. Boundary hours are assigned by their midpoint so adjacent local periods do not overlap; exact fractional-hour totals are unavailable.',
     );
-  // ACC-06 interim: X documents a fourth placement, PUBLISHER_NETWORK, that these reports do not request. Until an
-  // authorized read shows whether it returns data, activity X reports there is named, never silently left out.
-  const publisher = (active?.entities ?? []).filter(e => e.placements?.includes(xPublisherNetwork)).length;
-  if (publisher) warnings.add(xPublisherNetworkWarning(publisher));
   let complete = saved.complete ?? true,
     successful = saved.successful ?? 0,
     index = 0;
+  // ACC-06 interim: X documents a fourth placement, PUBLISHER_NETWORK, that these reports do not request. Until an
+  // authorized read shows whether it returns data, activity X reports there is named and the totals are partial.
+  const publisher = (active?.entities ?? []).filter(e => e.placements?.includes(xPublisherNetwork)).length;
+  if (publisher) {
+    warnings.add(xPublisherNetworkWarning(publisher));
+    complete = false;
+  }
   const failures: JsonObject[] = saved.failures ?? [];
   const checkpoint = () =>
     options.save?.({
