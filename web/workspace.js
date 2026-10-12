@@ -834,6 +834,10 @@ async function renderDecisionReports() {
       if (baselineSelect) {
         const previous = baselineSelect.value;
         baselineSelect.innerHTML = evidenceBaselineOptions(r, reports, previous);
+        // A choice stays selected only while it is still listed and compatible; otherwise the default applies.
+        baselineSelect.value = reports.some(x => x.id === previous && x.id !== r.id && !evidenceBaselineReason(r, x))
+          ? previous
+          : '';
         if (baselineSelect.value !== previous) {
           resultSequence++;
           resultNode.innerHTML = '';

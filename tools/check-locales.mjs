@@ -202,6 +202,7 @@ export function inspectReportExplanations(source, file) {
         'allocation-plan.ts',
         'google-allocation-budgets.ts',
         'linkedin-allocation-budgets.ts',
+        'meta-allocation-budgets.ts',
         'allocation-calibration.ts',
       ].some(name => file.endsWith(name))
     )
@@ -1080,6 +1081,7 @@ export function checkWebLocales(root = process.cwd()) {
     'src/allocation-plan.ts',
     'src/google-allocation-budgets.ts',
     'src/linkedin-allocation-budgets.ts',
+    'src/meta-allocation-budgets.ts',
     'src/provider-decimal.ts',
   ])
     for (const message of inspectReportExplanations(fs.readFileSync(path.join(root, file), 'utf8'), file)) {

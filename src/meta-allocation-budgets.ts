@@ -8,10 +8,9 @@ import {storedLogin} from './connection-authority.js';
 import {MirrorError} from './errors.js';
 
 const gateway = 'meta_native_action';
-const changed = (message: string): never => bad(message, 'ALLOCATION_BUDGET_CHANGED');
+const invalid = (message: string): never => bad(message, 'ALLOCATION_BUDGET_CHANGED');
 /** DEC-02: a budget ownership AMCP does not bind (lifetime, mixed, split, shared or unknown) is refused, never guessed. */
-const unqualified = (message: string, details: JsonObject = {}): never =>
-  bad(message, 'ALLOCATION_BUDGET_MODE', details);
+const mode = 'ALLOCATION_BUDGET_MODE';
 const nativeId = (value: unknown): value is string => typeof value === 'string' && /^[1-9][0-9]{0,31}$/.test(value);
 
 /** A Meta budget amount: an exact nonnegative integer in the account currency's minor unit, or null when absent. */
@@ -19,7 +18,7 @@ function nativeMoney(value: unknown): bigint | null {
   if (value === undefined || value === null || value === '') return null;
   if (typeof value === 'string' && /^(0|[1-9][0-9]{0,15})$/.test(value)) return BigInt(value);
   if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) return BigInt(value);
-  return changed('Retain exact nonnegative Meta budget amounts in the account currency’s minor unit.');
+  return invalid('Retain exact nonnegative Meta budget amounts in the account currency’s minor unit.');
 }
 const positive = (value: bigint | null) => value !== null && value > 0n;
 /**
@@ -60,7 +59,7 @@ export async function metaAllocationBudgets(
     new Set(ids).size !== ids.length ||
     ids.some(id => !nativeId(id))
   )
-    changed('Select at most 20 exact Meta campaign IDs from this account’s verified report.');
+    invalid('Select at most 20 exact Meta campaign IDs from this account’s verified report.');
   const offset = metaCurrencyOffset(source.currency);
   if (offset === undefined)
     bad(
@@ -118,7 +117,7 @@ export async function metaAllocationBudgets(
       d.error !== undefined ||
       Buffer.byteLength(JSON.stringify(d), 'utf8') > 262144
     )
-      changed('Meta returned failed, incomplete or oversized budget evidence.');
+      invalid('Meta returned failed, incomplete or oversized budget evidence.');
     references.push({source_request: args, source_hash: fingerprint(d), requested_at, captured_at: Date.now()});
     return d as JsonObject;
   };
@@ -139,22 +138,22 @@ export async function metaAllocationBudgets(
         {limit: 100, ...(after ? {after} : {})},
       );
       if (!Array.isArray(d.data) || d.data.length > 100 || (d.paging !== undefined && !obj(d.paging)))
-        changed('Meta returned a malformed account collection.');
+        invalid('Meta returned a malformed account collection.');
       bound.rows(collection + '-' + page, d.data.length);
       for (const row of d.data as JsonObject[]) {
-        if (!obj(row) || !nativeId(row.id)) changed('Meta returned a malformed account collection.');
+        if (!obj(row) || !nativeId(row.id)) invalid('Meta returned a malformed account collection.');
         if (row.account_id !== undefined && row.account_id !== account)
-          changed('Meta returned an object from another account.');
+          invalid('Meta returned an object from another account.');
         missing.delete(row.id);
       }
       const next = d.paging?.cursors?.after;
       if (!missing.size || d.paging?.next === undefined) break;
       if (typeof next !== 'string' || !next || cursors.has(next) || page === 100)
-        changed('Meta ownership lookup repeated or exceeded its bounded pages.');
+        invalid('Meta ownership lookup repeated or exceeded its bounded pages.');
       cursors.add(next);
       after = next;
     }
-    if (missing.size) changed('Every selected Meta object must be observed in this account’s own collection.');
+    if (missing.size) invalid('Every selected Meta object must be observed in this account’s own collection.');
   };
   const accountState = async () => {
     const row = await read('meta_ad_account_id_get', {ad_account_id: account}, [
@@ -171,7 +170,7 @@ export async function metaAllocationBudgets(
       row.timezone_name !== source.timezone ||
       Number(row.account_status) !== 1
     )
-      changed('Use an active Meta account with the exact report identity, currency and time zone.');
+      invalid('Use an active Meta account with the exact report identity, currency and time zone.');
     return {id: account, currency: row.currency, timezone: row.timezone_name, account_status: 1};
   };
   const campaignState = async (id: string) => {
@@ -192,9 +191,9 @@ export async function metaAllocationBudgets(
       !['ACTIVE', 'PAUSED'].includes(row.status) ||
       (row.name !== undefined && (typeof row.name !== 'string' || row.name.length > 1000))
     )
-      changed('Use an owned active or paused Meta campaign in the report account.');
+      invalid('Use an owned active or paused Meta campaign in the report account.');
     if (row.buying_type !== 'AUCTION')
-      unqualified('Only auction Meta campaigns qualify; reserved buying needs its own planning flow.', {
+      bad('Only auction Meta campaigns qualify; reserved buying needs its own planning flow.', mode, {
         campaign_id: id,
         buying_type: row.buying_type ?? null,
       });
@@ -210,19 +209,16 @@ export async function metaAllocationBudgets(
       (listing.paging !== undefined && !obj(listing.paging)) ||
       listing.paging?.next !== undefined
     )
-      unqualified(
-        'This Meta campaign has more ad sets than one bounded read covers; its budget ownership is unknown.',
-        {
-          campaign_id: id,
-        },
-      );
+      bad('This Meta campaign has more ad sets than one bounded read covers; its budget ownership is unknown.', mode, {
+        campaign_id: id,
+      });
     bound.rows('adsets-' + references.length, listing.data.length);
     const seen = new Set<string>();
     const adsets = (listing.data as JsonObject[]).map(adset => {
       if (!obj(adset) || !nativeId(adset.id) || seen.has(adset.id) || adset.campaign_id !== id)
-        changed('Meta returned a malformed, repeated or foreign ad set.');
+        invalid('Meta returned a malformed, repeated or foreign ad set.');
       if (adset.account_id !== undefined && adset.account_id !== account)
-        changed('Meta returned an ad set from another account.');
+        invalid('Meta returned an ad set from another account.');
       seen.add(adset.id);
       return {
         id: adset.id,
@@ -233,9 +229,9 @@ export async function metaAllocationBudgets(
     });
     const spending = adsets.filter(spendingAdSet),
       withBudget = spending.filter(a => positive(a.daily_budget) || positive(a.lifetime_budget));
-    let mode = metaCampaignBudgetMode(row);
+    let ownership = metaCampaignBudgetMode(row);
     // The campaign owns the budget, yet an ad set reports its own: Meta's ownership is ambiguous here.
-    if (mode !== 'ad_set' && withBudget.length) mode = 'mixed';
+    if (ownership !== 'ad_set' && withBudget.length) ownership = 'mixed';
     const daily = nativeMoney(row.daily_budget);
     const state: JsonObject = {
       id,
@@ -243,7 +239,7 @@ export async function metaAllocationBudgets(
       account_id: account,
       status: row.status,
       buying_type: row.buying_type,
-      mode,
+      mode: ownership,
       daily_budget: daily === null ? null : String(daily),
       lifetime_budget: row.lifetime_budget == null ? null : String(nativeMoney(row.lifetime_budget)),
       spend_cap: row.spend_cap == null ? null : String(nativeMoney(row.spend_cap)),
@@ -256,32 +252,30 @@ export async function metaAllocationBudgets(
         lifetime_budget: a.lifetime_budget === null ? null : String(a.lifetime_budget),
       })),
     };
-    if (mode === 'campaign_daily') return {...state, owner: 'campaign', native_daily: String(daily)};
-    if (mode === 'campaign_lifetime')
-      unqualified('This Meta campaign has a lifetime campaign budget; lifetime budgets need their own planning flow.', {
+    if (ownership === 'campaign_daily') return {...state, owner: 'campaign', native_daily: String(daily)};
+    if (ownership === 'campaign_lifetime')
+      bad('This Meta campaign has a lifetime campaign budget; lifetime budgets need their own planning flow.', mode, {
         campaign_id: id,
       });
-    if (mode === 'mixed')
-      unqualified(
+    if (ownership === 'mixed')
+      bad(
         'This Meta campaign reports a campaign budget and ad-set budgets at once; its budget ownership is ambiguous.',
-        {
-          campaign_id: id,
-        },
+        mode,
+        {campaign_id: id},
       );
     // Ad-set budgets: exactly one spending ad set may own the whole campaign's budget, as a daily budget.
     if (withBudget.length !== 1 || spending.length !== 1)
-      unqualified(
+      bad(
         'This Meta campaign keeps its budget on several ad sets (or none). Allocating between ad sets needs ad-set evidence; no budget was chosen for you.',
+        mode,
         {campaign_id: id, spending_adsets: spending.length},
       );
     const owner = withBudget[0]!;
     if (!positive(owner.daily_budget) || positive(owner.lifetime_budget))
-      unqualified(
+      bad(
         'The ad set that owns this Meta campaign’s budget uses a lifetime budget; it needs its own planning flow.',
-        {
-          campaign_id: id,
-          adset_id: owner.id,
-        },
+        mode,
+        {campaign_id: id, adset_id: owner.id},
       );
     return {...state, owner: 'ad_set', adset_id: owner.id, native_daily: String(owner.daily_budget)};
   };
@@ -301,14 +295,14 @@ export async function metaAllocationBudgets(
         } catch (e) {
           // A budget mode that stops qualifying between the two observations is a change, not a new refusal.
           if (e instanceof MirrorError && e.code === 'ALLOCATION_BUDGET_MODE')
-            changed('Meta budget ownership changed during allocation inspection. Preview again.');
+            invalid('Meta budget ownership changed during allocation inspection. Preview again.');
           throw e;
         }
         if (fingerprint(again) !== fingerprint(campaign))
-          changed('Meta campaign or ad-set budgets changed during allocation inspection. Preview again.');
+          invalid('Meta campaign or ad-set budgets changed during allocation inspection. Preview again.');
       }
       if (fingerprint(await accountState()) !== fingerprint(accountBefore))
-        changed('Meta account metadata changed during allocation inspection. Preview again.');
+        invalid('Meta account metadata changed during allocation inspection. Preview again.');
       current();
       const targets = campaigns.map(campaign => {
         const {native_daily, ...observed} = campaign,
