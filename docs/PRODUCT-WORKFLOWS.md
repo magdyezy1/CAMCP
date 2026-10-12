@@ -192,13 +192,15 @@ For a launch that was continued in a new plan, the IDs come from the earlier pla
 through the verified links an authorized person recorded; reading them checks each plan's integrity, not the drafting
 person's view right on the earlier plans, and the activation still reads and checks every resource at preflight.
 Meta and Google enable the paused campaign; TikTok enables the `DISABLE` campaign its pack created with enabled
-children; Snapchat activates campaign, ad squad and ad in that order, each after
-the one before is verified; Microsoft activation is refused with `LOCATION_CRITERIA_REQUIRED` (owner decision P7:
+children; Snapchat activates campaign, ad squad and ad, and LinkedIn campaign group, campaign and creative, in that
+order, each after the one before is verified; Microsoft activation is refused with `LOCATION_CRITERIA_REQUIRED` (owner decision P7:
 AMCP cannot yet read a positive location criterion, so the Microsoft Search pack is labelled "Draft only: set
 locations in Microsoft before activation"). Read-only gates run at preflight before any status write: the Snapchat
 ad's creative review must be `APPROVED`; the Meta ad must not be disapproved, have issues or carry review
 feedback, and a Meta conversion launch's pixel must be readable and not unavailable; a Google conversion launch needs a
-biddable account-default goal with an enabled primary action (the reads `recipe_eligibility` makes). A failed or
+biddable account-default goal with an enabled primary action (the reads `recipe_eligibility` makes); a LinkedIn lead
+launch's form must be `PUBLISHED` (the account's forms are read again), since the form's state decides whether the
+creative serves. A failed or
 unreadable gate blocks with `ACTIVATION_GATE_BLOCKED`, and each activation preflight is audited
 (`campaign_activation_preflight`, with the gates that blocked it). Recipe and clone forms send one
 creation key per exact request, so a retry after a lost response opens the plan already saved instead of a second
@@ -325,6 +327,22 @@ placement and one `ENABLE` Spark Ad. Preflight reads the identity, the post and,
 advertiser before anything is created; ad review, event delivery, budget minimums and objective acceptance stay with
 TikTok. **Prepare activation** enables the verified campaign as one separate reviewed status change. The website
 preview shows the UTC times TikTok receives, in English and Arabic.
+
+### LinkedIn lead generation with an existing post and form
+
+Choose `linkedin_lead_generation` (CMP-07, owner direction P7) in Campaigns or MCP. The brief names the exact ad
+account and login, account currency, a daily budget in the account currency, 1–50 LinkedIn location URNs
+(`urn:li:geo:…`), the campaign locale (`en_US`), an existing post to sponsor (`urn:li:share:…` or `urn:li:ugcPost:…`),
+the numeric ID of one of the account's lead forms, a lead form call to action, an explicit `NOT_POLITICAL`
+declaration (political advertising needs a tailored native plan) and an offset start time. It saves three reviewed
+creates, all `PAUSED`: a campaign group, a `LEAD_GENERATION` campaign with maximum delivery (`MAX_LEAD`, no bid) and a
+daily budget, and a creative that sponsors the post with the form as its call to action. Preflight reads the
+account's lead forms through the owner finder before anything is created: a form LinkedIn does not return for this
+account, or an archived one, blocks the plan (`CAMPAIGN_PREREQUISITE_REQUIRED`). Post eligibility, privacy-policy
+acceptance, ad review and objective acceptance stay with LinkedIn, which may spend up to 150% of a daily budget on a
+day. **Prepare activation** activates the group, the campaign and the creative in that order, each as its own REST.li
+`PARTIAL_UPDATE` review; its preflight reads the form again and blocks until it is `PUBLISHED` (publish a draft form
+with its own reviewed state change). The website preview shows the UTC start LinkedIn receives, in English and Arabic.
 
 ## Creative preparation and durable uploads
 
