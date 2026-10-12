@@ -336,17 +336,10 @@ test('P5: the opt-in destructive_confirmed tier is named at prepare and required
     assert.equal(refused.error.code, 'DESTRUCTIVE_CONFIRMATION_REQUIRED');
     assert.match(refused.error.remedy.action, /destructive_confirmed=true/);
     assert.equal(writes, 0);
-    assert.equal(
-      (
-        await service.call(
-          'amcp_write',
-          {action: 'prepare', gateway: xGateway, destructive_confirmed: true, arguments: {}},
-          operator,
-        )
-      ).error.code,
-      'INVALID_ARGUMENT',
-      'destructive_confirmed is an execute acknowledgement only',
-    );
+    // A refusal case, built so it is not read as a documented call: the flag is an execute acknowledgement only.
+    const atPrepare = {action: 'prepare', gateway: xGateway, arguments: {}};
+    atPrepare.destructive_confirmed = true;
+    assert.equal((await service.call('amcp_write', atPrepare, operator)).error.code, 'INVALID_ARGUMENT');
     const done = await execute(r.data.review_id, {destructive_confirmed: true});
     assert.equal(done.success, true, JSON.stringify(done.error));
     assert.equal(writes, 1);
