@@ -151,9 +151,10 @@ function approvalSubject(store: Store, tenant: string, id: string) {
     : [review];
   const plan = parts[0]?.plan as CompiledRequest | undefined;
   if (!plan) throw new MirrorError('NOT_FOUND', 'This review has no retained request.', {}, 404);
-  const acknowledgements = [
-    ...new Set(parts.flatMap(p => (Array.isArray(p.required_acknowledgements) ? p.required_acknowledgements : []))),
-  ];
+  const listed = (r: JsonObject | undefined): unknown[] =>
+    Array.isArray(r?.required_acknowledgements) ? r.required_acknowledgements : [];
+  // A group's own acknowledgements include a cap only its parts together cross (write-groups.ts).
+  const acknowledgements = [...new Set([...listed(group), ...parts.flatMap(listed)])];
   const destructive = parts.some(p => destructiveRequest(p.plan as CompiledRequest, p.state));
   const claimed = (key: unknown) =>
     typeof key === 'string' &&
@@ -259,30 +260,66 @@ export function assertExecutionApproval(
       'The owner requires an explicit acknowledgement before anything is deleted on this account. Nothing was sent. Show the user what this review deletes, and execute again with destructive_confirmed=true once they approve.',
       {review_id: reviewId, policy_id: policy.policy_id, submission: 'not_sent'},
     );
-  const classes = approvalClasses(acknowledgements, destructive);
-  if (policy.approval_mode === 'assistant_ack' || !classes.length) return undefined;
+  return modeApproval(
+    store,
+    actor,
+    reviewId,
+    policy.approval_mode,
+    approvalClasses(acknowledgements, destructive),
+    review.principal ?? review.user_id,
+  );
+}
+/**
+ * A group's own check before its first part is sent (WRT-09): its approval mode applies to what the parts do together,
+ * a cap only the whole group crosses now included, which no part's own check sees. Returns the approval used, or
+ * undefined.
+ */
+export function assertGroupApproval(
+  store: Store,
+  actor: Actor,
+  groupId: string,
+  capExceeded: boolean,
+): JsonObject | undefined {
+  const s = approvalSubject(store, actor.tenantId, groupId),
+    policy = reviewApprovalPolicy(store, actor.tenantId, s.plan.gateway, s.plan.accountId ?? ''),
+    acknowledgements = capExceeded ? [...s.acknowledgements, 'cap_override_confirmed'] : s.acknowledgements;
+  return modeApproval(
+    store,
+    actor,
+    groupId,
+    policy.approval_mode,
+    approvalClasses(acknowledgements, s.destructive),
+    s.review.principal ?? s.review.user_id,
+  );
+}
+/** The website approval an approval mode needs for these classes: present, of this exact review, by an eligible person. */
+function modeApproval(
+  store: Store,
+  actor: Actor,
+  reviewId: string,
+  mode: ApprovalMode,
+  classes: ApprovalClass[],
+  preparer: unknown,
+): JsonObject | undefined {
+  if (mode === 'assistant_ack' || !classes.length) return undefined;
   const found = approvalFor(store, actor.tenantId, reviewId);
   if (found.mismatch)
     throw humanApprovalRequired(
       found.subject,
-      {mode: policy.approval_mode, classes, reason: 'approval_fingerprint_mismatch'},
+      {mode, classes, reason: 'approval_fingerprint_mismatch'},
       'The website approval of this review is bound to another request: the review changed after it was approved. Nothing was sent; a person approves this exact review on the AMCP website.',
     );
   const approval = found.approval;
   if (!approval)
     throw humanApprovalRequired(
       found.subject,
-      {mode: policy.approval_mode, classes},
+      {mode, classes},
       'The owner requires a person’s approval on the AMCP website before this change is executed. Nothing was sent. Ask a member to open website_path and approve this exact review, then execute it again.',
     );
-  if (
-    policy.approval_mode === 'distinct_approver' &&
-    approval.approver_is_owner !== true &&
-    approval.approver_principal === (review.principal ?? review.user_id)
-  )
+  if (mode === 'distinct_approver' && approval.approver_is_owner !== true && approval.approver_principal === preparer)
     throw humanApprovalRequired(
       found.subject,
-      {mode: policy.approval_mode, classes, reason: 'approver_prepared_it'},
+      {mode, classes, reason: 'approver_prepared_it'},
       'The owner requires the approval of another member than the one who prepared this review. Nothing was sent.',
     );
   return approval;

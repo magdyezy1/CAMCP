@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createContext, Script} from 'node:vm';
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
@@ -8,6 +10,13 @@ import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {approvalView, approveReview} from '../dist/src/write-approval.js';
 import {createHttpApp} from '../dist/server/http-app.js';
 import {listenForFetch} from '../dist/tests/http-listener.js';
+import {googleBudgetFixture} from './fixtures/google-budget-writes.mjs';
+import {
+  admin as snapAdmin,
+  createPlan,
+  fixture as snapchatPlan,
+  squadPlan,
+} from '../dist/tests/snapchat-plan-fixture.js';
 
 /**
  * WRT-09 (owner decisions P1 and P5): an owner-selectable human approval mode for spending, cap-override and deletion
@@ -470,4 +479,242 @@ test('WRT-09 website: only a signed-in session with CSRF approves; the MCP tool 
     await new Promise(resolve => listener.close(() => resolve()));
     store.close();
   }
+});
+
+test('WRT-09: an account policy saved for its caps keeps the workspace default approval mode; an account can add to it', async () => {
+  // Regression: an account's own spending policy used to replace the workspace default, so setting caps on an account
+  // silently turned the owner's website approval off for it.
+  const f = tiktok();
+  try {
+    f.workspacePolicy({approval_mode: 'website_approval'});
+    f.accountPolicy({max_budget_native: 5000});
+    const r = await f.prepare(1100);
+    assert.equal(r.success, true, JSON.stringify(r.error));
+    assert.equal(r.data.approval.mode, 'website_approval');
+    assert.equal((await f.execute(r.data.review_id)).error.code, 'HUMAN_APPROVAL_REQUIRED');
+    assert.equal(f.writes.length, 0);
+    // The stricter setting wins in both directions: an account may require more than the default, never less.
+    f.accountPolicy({max_budget_native: 5000, approval_mode: 'distinct_approver'});
+    assert.equal((await f.prepare(1150)).data.approval.mode, 'distinct_approver');
+    f.accountPolicy({max_budget_native: 5000, approval_mode: 'assistant_ack'});
+    assert.equal((await f.prepare(1160)).data.approval.mode, 'website_approval');
+  } finally {
+    f.store.close();
+  }
+});
+
+test('WRT-09: an expired review is refused as expired, not sent to a person for approval', async () => {
+  // Regression: the approval check ran before the expiry check, so an expired review asked for a website approval the
+  // approval page then refused.
+  const f = tiktok();
+  try {
+    f.workspacePolicy({approval_mode: 'website_approval'});
+    const r = await f.prepare(1100);
+    f.store.db
+      .prepare("UPDATE documents SET data=json_set(data,'$.expires_at',?) WHERE kind='write_review' AND id=?")
+      .run(Date.now() - 1000, r.data.review_id);
+    assert.equal((await f.execute(r.data.review_id)).error.code, 'REVIEW_EXPIRED');
+    assert.equal(approvalView(f.store, colleague, r.data.review_id).refusal.code, 'REVIEW_EXPIRED');
+    assert.throws(
+      () => approveReview(f.store, colleague, r.data.review_id, {fingerprint: r.data.fingerprint, confirmed: true}),
+      e => e.code === 'REVIEW_EXPIRED',
+    );
+    assert.equal(f.writes.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('WRT-09: a review is approved once; only the owner replaces a member approval where a cap needs the owner', async () => {
+  const f = tiktok();
+  try {
+    f.accountPolicy({max_budget_native: 950, approval_mode: 'website_approval'});
+    const r = await f.prepare(1200);
+    assert.deepEqual(r.data.approval.classes, ['spend_affecting', 'cap_override']);
+    assert.equal(r.data.approval.owner_required, 'cap_override');
+    approveReview(f.store, colleague, r.data.review_id, {fingerprint: r.data.fingerprint, confirmed: true});
+    // A second member cannot replace it.
+    const second = {...colleague, userId: 'second'};
+    assert.equal(approvalView(f.store, second, r.data.review_id).refusal.code, 'REVIEW_ALREADY_APPROVED');
+    assert.throws(
+      () => approveReview(f.store, second, r.data.review_id, {fingerprint: r.data.fingerprint, confirmed: true}),
+      e => e.code === 'REVIEW_ALREADY_APPROVED',
+    );
+    // The member's approval meets the mode, not the owner rule beyond a cap.
+    const refused = await f.execute(r.data.review_id, {cap_override_confirmed: true});
+    assert.equal(refused.error.code, 'CAP_OVERRIDE_OWNER_REQUIRED', JSON.stringify(refused.error));
+    assert.equal(f.writes.length, 0);
+    const forOwner = approvalView(f.store, owner, r.data.review_id);
+    assert.equal(forOwner.may_approve, true);
+    assert.equal(forOwner.approval_pending, true);
+    assert.equal(forOwner.approval.approver, 'colleague');
+    approveReview(f.store, owner, r.data.review_id, {fingerprint: r.data.fingerprint, confirmed: true});
+    assert.equal(approvalView(f.store, owner, r.data.review_id).refusal.code, 'REVIEW_ALREADY_APPROVED');
+    const done = await f.execute(r.data.review_id, {cap_override_confirmed: true});
+    assert.equal(done.success, true, JSON.stringify(done.error));
+    assert.equal(f.writes.length, 1);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('WRT-09: an approval that no longer meets the mode is refused at execute and may be replaced by another member', async () => {
+  const f = tiktok();
+  try {
+    f.workspacePolicy({approval_mode: 'website_approval'});
+    const r = await f.prepare(1100);
+    // Under website_approval the person who prepared it may approve it on the website.
+    approveReview(f.store, operator, r.data.review_id, {fingerprint: r.data.fingerprint, confirmed: true});
+    f.workspacePolicy({approval_mode: 'distinct_approver'});
+    const refused = await f.execute(r.data.review_id);
+    assert.equal(refused.error.details.reason, 'approver_prepared_it');
+    assert.equal(f.writes.length, 0);
+    const view = approvalView(f.store, colleague, r.data.review_id);
+    assert.equal(view.may_approve, true);
+    assert.equal(view.approval_pending, true);
+    approveReview(f.store, colleague, r.data.review_id, {fingerprint: r.data.fingerprint, confirmed: true});
+    assert.equal((await f.execute(r.data.review_id)).success, true);
+    assert.equal(f.writes.length, 1);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('WRT-09: amcp_write status says whether a person has approved the review, without a provider request', async () => {
+  const f = tiktok();
+  try {
+    f.workspacePolicy({approval_mode: 'website_approval'});
+    const r = await f.prepare(1100);
+    const status = id => f.service.call('amcp_write', {action: 'status', review_id: id}, operator);
+    const before = await status(r.data.review_id);
+    assert.equal(before.success, true, JSON.stringify(before.error));
+    assert.equal(before.data.approval.approved, false);
+    assert.equal(before.data.approval.website_path, '/operations?approve=' + r.data.review_id);
+    assert.deepEqual(before.data.approval.classes, ['spend_affecting']);
+    approveReview(f.store, colleague, r.data.review_id, {fingerprint: r.data.fingerprint, confirmed: true});
+    const after = await status(r.data.review_id);
+    assert.equal(after.data.approval.approved, true);
+    assert.equal(after.data.approval.approver_is_owner, false);
+    assert.equal(after.data.network_requests, 0);
+    // Without an approval mode the status names none.
+    f.workspacePolicy({approval_mode: 'assistant_ack'});
+    assert.equal((await status((await f.prepare(1200)).data.review_id)).data.approval, undefined);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('WRT-09: a group is approved once as a whole; a part opens its group and the approval covers every part', async () => {
+  // Regression: a cap only the parts together cross is the group's own acknowledgement, which no part's check saw, so
+  // such a group ran under website_approval without any approval.
+  const f = googleBudgetFixture();
+  try {
+    saveSpendPolicy(f.store, f.actor, {
+      scope: 'workspace',
+      confirmed: true,
+      policy: {approval_mode: 'website_approval'},
+    });
+    f.spendPolicy({max_daily_increase_native: 1400000000});
+    const review = await f.creates(30, 50000000);
+    assert.equal(review.success, true, JSON.stringify(review).slice(0, 800));
+    assert.equal(review.data.group, true);
+    const group = review.data.review_id;
+    assert.deepEqual(review.data.approval.classes, ['cap_override']);
+    assert.equal(review.data.approval.website_path, '/operations?approve=' + group);
+    const refused = await f.execute(group, {cap_override_confirmed: true});
+    assert.equal(refused.error.code, 'HUMAN_APPROVAL_REQUIRED', JSON.stringify(refused.error));
+    assert.equal(refused.error.details.review_id, group);
+    assert.equal(f.writes.length, 0);
+    // A part's own page is its group's: one approval, bound to every part's fingerprint.
+    const view = approvalView(f.store, f.actor, review.data.parts[1].review_id);
+    assert.equal(view.review_id, group);
+    assert.equal(view.group, true);
+    assert.equal(view.parts, 2);
+    assert.equal(view.records, 30);
+    assert.deepEqual(view.classes, ['cap_override']);
+    approveReview(f.store, f.actor, review.data.parts[0].review_id, {fingerprint: view.fingerprint, confirmed: true});
+    assert.equal(f.store.document(f.actor.tenantId, 'write_approval', group).fingerprint, view.fingerprint);
+    const done = await f.execute(group, {cap_override_confirmed: true});
+    assert.equal(done.success, true, JSON.stringify(done).slice(0, 800));
+    assert.ok(f.audit().some(e => e.event === 'write_approval_presented'));
+    assert.deepEqual(
+      f.writes.map(w => w.operations.length),
+      [25, 5],
+    );
+  } finally {
+    f.close();
+  }
+});
+
+test('WRT-09: run stops at a plan step that needs a website approval, names its page, and continues once approved', async () => {
+  const f = snapchatPlan();
+  try {
+    saveSpendPolicy(f.store, snapAdmin, {
+      scope: 'workspace',
+      confirmed: true,
+      policy: {approval_mode: 'website_approval'},
+    });
+    const id = (await createPlan(f, squadPlan(3))).data.id;
+    const summary = (await f.call('amcp_campaign', {action: 'approve', id})).data;
+    await f.call('amcp_campaign', {...summary.next_call.arguments, ...summary.next_call.add_after_user_approval});
+    const ran = await f.call('amcp_campaign', {action: 'run', id});
+    assert.equal(ran.success, true, JSON.stringify(ran).slice(0, 800));
+    assert.equal(ran.data.run.stopped, 'needs_website_approval', JSON.stringify(ran.data.run));
+    assert.equal(f.writes.length, 1, 'the campaign, which changes no spending, ran; the ad squad was not sent');
+    const step = f.store.document('snap-plan', 'campaign_run', id).steps.find(s => s.id === 'squad_1');
+    assert.equal(ran.data.run.website_path, '/operations?approve=' + step.review_id);
+    assert.equal(ran.data.run.next_call.arguments.action, 'run');
+    const view = approvalView(f.store, snapAdmin, step.review_id);
+    approveReview(f.store, snapAdmin, step.review_id, {fingerprint: view.fingerprint, confirmed: true});
+    const next = await f.call('amcp_campaign', {action: 'run', id});
+    // squad_1 ran under its approval; squad_2 is its own review and waits for its own.
+    assert.equal(next.data.run.stopped, 'needs_website_approval', JSON.stringify(next.data.run));
+    assert.equal(f.writes.length, 2);
+  } finally {
+    f.close();
+  }
+});
+
+test('WRT-09 website review: the destructive acknowledgement is asked for and the approval page is linked only on this site', () => {
+  const nodes = new Map();
+  const node = id => {
+    if (!nodes.has(id)) nodes.set(id, {checked: false, innerHTML: ''});
+    return nodes.get(id);
+  };
+  const context = createContext({
+    document: {addEventListener() {}},
+    $: node,
+    Object,
+    Date,
+    JSON,
+    encodeURIComponent,
+    esc: value =>
+      String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('"', '&quot;'),
+    badge: String,
+    date: String,
+    blank: String,
+    recordDetails: () => '',
+    workspaceBind() {},
+  });
+  const run = source => new Script(source).runInContext(context);
+  run(readFileSync('web/localization.js', 'utf8'));
+  run(readFileSync('web/campaign-workflows.js', 'utf8'));
+  const review = path =>
+    `({execute_requirements:{destructive_confirmed:true}, approval:{required:true, mode:'distinct_approver', classes:['destructive'], owner_required:'cap_override', website_path:${JSON.stringify(path)}}})`;
+  const html = run(`readableReview(${review('/operations?approve=r-1')}, 'Execute')`);
+  assert.match(html, /id="destructive-consent"/);
+  assert.match(html, /href="\/operations\?approve=r-1"/);
+  assert.match(html, /Another member than the one who prepared it/);
+  assert.match(html, /Only the workspace owner executes a change beyond a spending cap/);
+  assert.throws(() => run(`readReviewConsents(${review('/operations?approve=r-1')})`));
+  node('#review-consent').checked = true;
+  node('#destructive-consent').checked = true;
+  assert.equal(run(`readReviewConsents(${review('/operations?approve=r-1')}).destructive_confirmed`), true);
+  // A path that leaves this site is not linked.
+  assert.doesNotMatch(run(`readableReview(${review('//elsewhere.example/approve')}, 'Execute')`), /href="\/\//);
+  // A review that needs no approval shows no notice.
+  assert.doesNotMatch(run("readableReview({execute_requirements:{}}, 'Execute')"), /approval page/);
 });

@@ -7,7 +7,7 @@ import {observedHash} from './write-verification.js';
 import {checkGroupSpendPolicy, describeExceeded} from './spend-policy.js';
 import {assertWritesNotPaused} from './owner-operations.js';
 import {groupPartSeconds} from './write-common.js';
-import {approvalNotice, assertCapOverrideOwner} from './write-approval.js';
+import {approvalNotice, assertCapOverrideOwner, assertGroupApproval} from './write-approval.js';
 
 /**
  * One approval for a request longer than one native call allows (the owner's item 4, 2026-09-29): Google Ads
@@ -217,14 +217,8 @@ export class WriteGroups {
         : last;
     const first = this.store.document(actor.tenantId, 'write_review', parts[0]!.review_id);
     // WRT-09: one website approval covers every part, as one acknowledgement does.
-    const approval = approvalNotice(
-      this.store,
-      actor,
-      first.plan,
-      id,
-      Object.keys(requirements).filter(k => requirements[k] === true && k !== 'confirmed'),
-      effects?.destructive === true,
-    );
+    const acknowledgements = Object.keys(requirements).filter(k => requirements[k] === true && k !== 'confirmed'),
+      approval = approvalNotice(this.store, actor, first.plan, id, acknowledgements, effects?.destructive === true);
     this.store.putDocument(actor.tenantId, 'write_review_group', id, {
       user_id: actor.userId,
       principal: first.principal,
@@ -237,8 +231,10 @@ export class WriteGroups {
       expires_at: expires,
       slowest_prepare_ms: Math.round(slowest),
       created_at: Date.now(),
-      // What a person approving the group on the website is shown (WRT-09): the reasons and effects of every part.
+      // What a person approving the group on the website is shown (WRT-09): the reasons and effects of every part, and
+      // the acknowledgements of the whole group (a cap only the parts together cross included).
       approval_context: {reasons, effects: effects ?? null},
+      required_acknowledgements: acknowledgements,
       prepare_input: {
         gateway: input.gateway,
         arguments: input.arguments,
@@ -352,6 +348,17 @@ export class WriteGroups {
         );
       // Owner decision P5 (WRT-09): beyond a cap, only the workspace owner executes, or approves the group on the website.
       assertCapOverrideOwner(this.store, actor, together.exceeded, id);
+      // WRT-09: under an approval mode, a person's website approval of the whole group, a cap only the parts together
+      // cross included (each part's own check sees only its own acknowledgements).
+      const approved = assertGroupApproval(this.store, actor, id, together.exceeded.length > 0);
+      if (approved)
+        this.store.appendAudit(actor.tenantId, id, {
+          event: 'write_approval_presented',
+          approver: approved.approver,
+          approver_is_owner: approved.approver_is_owner === true,
+          approved_at: approved.approved_at,
+          actor: actor.userId,
+        });
       const seconds = groupPartSeconds(group.slowest_prepare_ms),
         now = Date.now(),
         late = seconds ? admitted.findIndex((a, i) => a.expiresAt - now < (i + 1) * seconds * 1000) : -1;

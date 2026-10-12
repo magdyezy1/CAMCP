@@ -820,19 +820,22 @@ export class CampaignRunner {
         return stop(out, 'needs_attention');
       // WRT-09: refused before anything was sent for a person's decision the plan approval cannot give: a member's
       // approval of this step on the website (website_path), the owner's beyond a cap, or the destructive acknowledgement.
-      // The review stays ready; run continues once the person has acted.
-      const waiting = step?.status === 'review_ready' ? personDecisions[step.error?.code] : undefined;
-      if (waiting)
+      // The review stays ready; run continues once the person has acted. A compact row names only the error code.
+      const waiting =
+        step?.status === 'review_ready'
+          ? personDecisions[typeof step.error === 'string' ? step.error : step.error?.code]
+          : undefined;
+      if (waiting) {
+        const refusal: JsonObject =
+          this.owned(actor, run.id).steps.find((s: JsonObject) => s.id === prepared.step_id)?.error ?? {};
         return stop(out, waiting, {
           reason:
             'Step ' +
             prepared.step_id +
             ' waits for a person: ' +
-            String(step.error.message ?? '') +
+            String(refusal.message ?? '') +
             ' Nothing was sent; the review stays ready until it expires.',
-          ...(typeof step.error.details?.website_path === 'string'
-            ? {website_path: step.error.details.website_path}
-            : {}),
+          ...(typeof refusal.details?.website_path === 'string' ? {website_path: refusal.details.website_path} : {}),
           next_call:
             waiting === 'needs_destructive_confirmed'
               ? {
@@ -851,6 +854,7 @@ export class CampaignRunner {
                 }
               : {tool: 'amcp_campaign', arguments: {action: 'run', id: run.id}},
         });
+      }
       // Refused before anything was sent (a pause, a rate limit, a busy target): the review stays ready, and run continues
       // it once the cause clears instead of retrying it at once.
       if (step?.status === 'review_ready' && step.error)
