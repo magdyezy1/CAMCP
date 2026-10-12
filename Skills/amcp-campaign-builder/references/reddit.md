@@ -21,7 +21,7 @@ response schemas, run as POST reads with `adsread` on the selected bound account
 - `GET_ACCOUNT_HISTORY` (`params.ad_account_id`, optional `page.size` up to 1,000 and `page.token`) lists recent
   changes. Who made each change is personal data: AMCP drops member IDs, usernames, e-mails and full names before
   the response leaves the service, keeping the change, `changed_at`, any partner business name and `changed_by`
-  (`member_not_shown` or `not_reported`).
+  (`member_not_shown` or `not_reported`). Filtering by `member_ids` is refused for the same reason.
 
 Suggestions refuse `custom_audience_ids`, because an audience belongs to one ad account. Estimates and
 suggestions are Reddit's forecasts, not commitments; quote them as ranges with their inputs. The Conversions API

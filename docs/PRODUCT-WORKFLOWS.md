@@ -639,6 +639,20 @@ Signed continuation binds current actor/login/permissions and hierarchy for five
 repeated tokens and adjacent overlaps fail. Eight requests including retries, 103 parent/inventory rows, 8 MiB
 and 60 seconds bound a page. Provider-order pagination is not a fixed snapshot.
 
+### Google Ads change history
+
+Below the inventory, **Google Ads change history** reads what changed in one selected Google Ads account (PRV-07).
+Choose account-local dates: at most 30 days, starting no earlier than 29 days before today, because Google keeps
+change events for 30 days. A wider or older window is refused in the page and again by the server, before any
+request. One fixed `change_event` query (at most 1,000 events from the page, 10,000 over MCP, newest first) returns
+the native resource type, operation, the tool used (`client_type`), changed field paths and the changed resource,
+campaign, ad group or asset. Who made a change (`user_email`) is personal data and is never requested; old and new
+values are not requested either. The page shows a timeline per day and counts by resource type, operation and tool
+in English or Arabic; native values stay literal, and rows page 50 at a time without another read. A full read is
+labelled: older changes in the window may exist. A response for another account, login or window, or with any
+unselected field, is refused rather than shown. Nothing is saved. MCP: `amcp_workspace {action:"change_history",
+gateway:"google_ads_native_action",account_id,connection_id?,requirements:{date_from,date_to,limit?,resource_types?}}`.
+
 Measurement (`/measurement`) connects the existing Google Tag Manager configuration audit with GA4/Search Console
 reporting, client conversion mappings and reviewed contract discovery. `measurement_audit` takes an exact GTM
 account/login and optional container/workspace requirements. It establishes configuration evidence; actual event
@@ -1163,6 +1177,22 @@ MCP: `amcp_decision_report {action:"search_exclusion_candidates",id,options:{min
 follow `next_offset` and explicitly select native row IDs. Then call `preview_search_exclusions` with the same
 report, options and `ids`. Use its exact `preview_id`/`preview_hash` with `create_search_exclusion_plan`,
 report `id` and `confirmed:true`. Candidate reads support readers; preview/save require an operator/admin.
+
+## Organic and paid search overlap
+
+`amcp_workspace {action:"search_overlap",gateway:"google_ads_native_action",account_id,connection_id?,
+requirements:{site_url,gsc_connection_id?,date_from,date_to,row_limit?,max_rows?}}` (PRV-07, MCP only) reads the
+Search Console property's queries (`searchAnalytics.query`, dimension `query`, web, `dataState: final`) and the
+customer's `search_term_view` for the same closed dates (at most 90 days, before today; 1–25,000 rows per source),
+and joins them locally on normalized text (NFKC, lower case, collapsed spaces). Every match is labelled
+`approximate_normalized_text`: the products match queries differently, Search Console omits anonymized queries,
+both report top rows (`top_rows_only`, `complete:false`) and their days use different time zones. The table
+classifies each query as `both`, `paid_only` or `organic_only`, keeps exact paid micros, clicks and conversions and
+an impression-weighted organic position, and sorts deterministically. `review_hint` marks a strong organic
+position with paid spend, or a converting paid-only term; it is a prompt for review, never a change. Findings feed
+the reviewed paths above (exact negative keywords from a retained search-term report) or a keyword prepared through
+`amcp_write`. Both sources stay in scope: the Search Console login must hold the exact property and be its default,
+and a foreign site, customer, search term or malformed row refuses the whole read. Nothing is saved.
 
 ## Opening website pages
 

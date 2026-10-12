@@ -59,8 +59,9 @@ Use amcp_write inspect/prepare with gateway reddit_native_action and the native 
   `page.token`). Suggestions refuse `custom_audience_ids`, which belong to one account. Account history names the
   people who made changes, so AMCP drops member IDs, usernames, e-mails and full names before the response leaves the
   service: each row keeps the change, `changed_at`, any partner business name and `changed_by`
-  (`member_not_shown` or `not_reported`). The Conversions API stays a separate, later step under the personal-data
-  policy.
+  (`member_not_shown` or `not_reported`). A `member_ids` filter would name them too, so it is refused
+  (`PERSONAL_DATA_READ_FORBIDDEN`) before any request. The Conversions API stays a separate, later step under the
+  personal-data policy.
 - Saved audiences are REDDIT_AUDIENCE targeting definitions; updates support name/targeting or status: DELETED. No customer lists are uploaded.
 - Classic ad groups require an existing campaign and conversion_pixel_id; CBO campaigns also require conversion_pixel_id under the current provider contract. Ads require an existing ad_group_id and post_id. Reddit Max/dynamic creative templates remain outside this contract. [Campaign contract](https://ads-api.reddit.com/docs/v3/api/create-campaign), [ad-group contract](https://ads-api.reddit.com/docs/v3/api/create-ad-group).
 - The guard reads the same exact parent/target at both steps. Successful create responses must identify the selected account and referenced parent; their IDs are immediately bound to that connection/account for follow-up prepares. Existing posts/profiles need account ownership evidence or an exact administrator binding.

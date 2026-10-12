@@ -65,6 +65,15 @@ Also applied on 2026-10-12 (MSR-04, P4's user-scoped dimension question as appro
 dimension in GA4 themselves, and the value persists on the synthetic test user. Marking stays MCP-only, like the
 personal-data switch.
 
+Also applied on 2026-10-13 (PRV-07, accepted under the owner's instruction to implement every ticket; chosen during
+implementation, owner may revise): the optional native reads ship read-only and bounded. Google Ads change history
+never requests `user_email` (omitted rather than hashed, so no person is identifiable), and the website shows it on
+Live portfolio. Reddit account history drops member IDs, usernames, e-mails and full names before any response
+leaves the service and refuses `member_ids` filters. Apple's change history is not added, because the pinned SDK has
+no model to project the people out. The organic/paid overlap is MCP-only, labelled approximate and feeds only the
+existing reviewed keyword and negative-keyword paths. The Reddit Conversions API stays a later, separate step under
+the personal-data policy; the Apple legacy-origin and `orgId` cleanup stays with PRV-04's dated table.
+
 Also applied on 2026-10-10 (CON-06, the Business Profile and Amazon Ads parts of P9, with the review's proposed
 defaults; the owner may still choose otherwise): Business Profile is a website platform for workspace owners, shipped
 behind `AMCP_GBP_API_APPROVED=true` (or a dedicated `AMCP_GBP_CLIENT_ID`/`AMCP_GBP_CLIENT_SECRET`) because Google's

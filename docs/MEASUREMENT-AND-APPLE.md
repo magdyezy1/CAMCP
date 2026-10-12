@@ -59,6 +59,9 @@ Planning reads (PRV-07) mirror seven further methods of the same pinned SDK revi
 and `apple_ads_v1_keyword_suggestions_query` (an object payload of at most 64 KiB; the SDK pins no request model for
 them, so Apple's own validation decides the fields). A returned resource of another ad account is refused. Change
 history is not added: its records name the people who made changes, and the pinned SDK has no model to project them out.
+Before a campaign is prepared, the campaign guide (`amcp://guides/dv360-and-measurement`) has the assistant confirm
+the promoted app's adamId with app search or lookup and its countries or regions with the eligibility read; the
+reviewed campaign write itself still freezes and re-reads only its own account state.
 
 Call `amcp_tool_help` with `{"gateway":"apple_ads_native_action"}` to enumerate these local routes; pass an action name as `operation` for its route description. Example arguments for `apple_ads_native_action`:
 
