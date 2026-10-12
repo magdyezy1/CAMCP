@@ -38,13 +38,17 @@ function world(t, options = {}) {
         absent_source_policy: 'retain',
       }),
     ).listed_inventory;
-  const preview = (keys, hash, extra = {}) =>
+  // The listed selection rides in requirements (the tools/list schema stays within its budget).
+  const preview = (keys, hash, extra = {}, requirements = {}) =>
     call({
       action: 'preview_catalog_removal',
       ...scope,
-      selection_source: 'listed_inventory',
-      product_keys: keys,
-      listed_inventory_hash: hash,
+      requirements: {
+        selection_source: 'listed_inventory',
+        product_keys: keys,
+        listed_inventory_hash: hash,
+        ...requirements,
+      },
       ...extra,
     });
   const save = (p, extra = {}) =>
@@ -136,8 +140,7 @@ test('grouped, unknown and unlisted products are refused; a listed selection tak
     await f.call({
       action: 'catalog_compare',
       ...f.scope,
-      selection_source: 'listed_inventory',
-      product_keys: ['5000099'],
+      requirements: {selection_source: 'listed_inventory', product_keys: ['5000099']},
     }),
   );
   assert.equal(read.record_kind, 'x_catalog_listed_selection');
@@ -146,14 +149,31 @@ test('grouped, unknown and unlisted products are refused; a listed selection tak
     [['5000099', true, 'not_listed']],
   );
   assert.equal(read.source_absence_established, false);
-  for (const extra of [
-    {products: f.source},
-    {retailer_ids: ['sku-3']},
-    {allow_upsert: true},
+  for (const extra of [{products: f.source}, {retailer_ids: ['sku-3']}, {allow_upsert: true}])
+    assert.equal((await f.preview(['5000003'], inventory.material_hash, extra)).success, false, JSON.stringify(extra));
+  for (const requirements of [
     {product_keys: ['5000003', '5000003']},
     {product_keys: ['sku-3']},
+    {retire_retailer_ids: ['sku-3']},
+    {listed_inventory_hash: 'not-a-hash'},
   ])
-    assert.equal((await f.preview(['5000003'], inventory.material_hash, extra)).success, false, JSON.stringify(extra));
+    assert.equal(
+      (await f.preview(['5000003'], inventory.material_hash, {}, requirements)).success,
+      false,
+      JSON.stringify(requirements),
+    );
+  // Top-level selection arguments are not arguments of amcp_workspace (refused by the tool schema).
+  assert.equal(
+    (
+      await f.call({
+        action: 'preview_catalog_removal',
+        ...f.scope,
+        selection_source: 'listed_inventory',
+        product_keys: ['5000003'],
+      })
+    ).success,
+    false,
+  );
   assert.equal(f.writes(), 0);
   assert.equal(f.store.documents(f.actor.tenantId, 'x_catalog_removal_preview').length, 0);
 });

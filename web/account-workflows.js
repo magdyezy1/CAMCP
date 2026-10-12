@@ -59,7 +59,7 @@ const accountExplanationMessages = new Set([
   'This step no longer matches its original selected removal proposal.',
   'The original selected source product is unavailable.',
   'The selected product evidence changed after this draft. Read a new removal preview; no products were deleted.',
-  'Listed product selection applies to catalog_compare and preview_catalog_removal; its typed count to create_catalog_removal; a retirement to catalog_preview, catalog_compare and catalog_plan.',
+  'The typed product count applies to create_catalog_removal only.',
   'Inspect the other listed X products first, then select from that listing.',
   'The listed X products changed since you inspected them. Inspect them again; no products were deleted.',
   'Type the number of selected products to confirm their removal.',
@@ -3499,11 +3499,13 @@ function validCatalogComparison(out, request, preview) {
   const counts = {new: 0, changed: 0, matching: 0, unknown: 0, blocked: 0, needs_review: 0},
     review = [],
     // COM-02 B: a retirement sends the supplied row with the retirement availability.
-    retiring = new Set(request.retire_retailer_ids ?? []);
+    retiring = new Set(request.requirements?.retire_retailer_ids ?? []);
   let withUnsent = 0;
   out.items.forEach((item, index) => {
     const retire = retiring.has(request.products[index].retailer_id),
-      s = retire ? {...request.products[index], availability: request.retire_availability} : request.products[index],
+      s = retire
+        ? {...request.products[index], availability: request.requirements.retire_availability}
+        : request.products[index],
       // COM-01: attributes the destination holds that the source does not send. An older Meta server sends none.
       unsent = d.gateway === 'meta_native_action' ? (item?.unsent_fields ?? []) : item?.unsent_fields;
     if (
@@ -3706,7 +3708,7 @@ function catalogComparisonMarkup(out, request, preview) {
     inventoryHtml = x ? catalogListedInventoryMarkup(out, request) : '',
     // COM-02 B: an existing product can be retired (kept, with an availability that keeps it out of ads) instead of
     // deleted; offered after an upsert comparison that is not already a retirement.
-    retirable = request.allow_upsert === true && request.retire_retailer_ids === undefined,
+    retirable = request.allow_upsert === true && request.requirements?.retire_retailer_ids === undefined,
     eligible = item => !item.blocked && item.before.present === true;
   const reason = key =>
     key === 'grouped_product'
@@ -4029,9 +4031,11 @@ function bindCatalogListedInventory(inventory, active, request) {
         account_id: request.account_id,
         connection_id: request.connection_id,
         catalog_id: request.catalog_id,
-        selection_source: 'listed_inventory',
-        product_keys,
-        listed_inventory_hash: inventory.material_hash,
+        requirements: {
+          selection_source: 'listed_inventory',
+          product_keys,
+          listed_inventory_hash: inventory.material_hash,
+        },
       });
       if (!removalActive()) return;
       output.innerHTML = catalogListedRemovalMarkup(proposed, request, inventory, product_keys);
@@ -4882,8 +4886,7 @@ async function renderCommerce() {
                 action: 'catalog_plan',
                 ...request,
                 products,
-                retire_retailer_ids,
-                retire_availability,
+                requirements: {retire_retailer_ids, retire_availability},
               });
               if (active()) await navigate('/campaigns?id=' + encodeURIComponent(plan.id));
             } catch (error) {

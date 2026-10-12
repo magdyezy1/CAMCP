@@ -516,7 +516,7 @@ const rows: Record<string, Row[]> = {
       'catalog_preview',
       'Locally validates 1–50 selected Meta or X products with exact source prices.',
       ['gateway', 'account_id', 'catalog_id', 'products'],
-      ['connection_id', 'allow_upsert', 'name'],
+      ['connection_id', 'allow_upsert', 'name', 'requirements'],
       local,
       'reader',
       [[W, 'catalog_compare']],
@@ -542,8 +542,16 @@ const rows: Record<string, Row[]> = {
     row(
       'catalog_compare',
       'Compares supplied products with the current Meta or X catalog: new, changed, matching or unknown.',
-      ['gateway', 'account_id', 'catalog_id', 'products'],
-      ['connection_id', 'allow_upsert', 'inspect_other_listed_products', 'absent_source_policy', 'name'],
+      ['gateway', 'account_id', 'catalog_id'],
+      [
+        'connection_id',
+        'products',
+        'allow_upsert',
+        'inspect_other_listed_products',
+        'absent_source_policy',
+        'name',
+        'requirements',
+      ],
       reads(),
       'reader',
       [[W, 'catalog_plan']],
@@ -552,25 +560,25 @@ const rows: Record<string, Row[]> = {
       'catalog_plan',
       'Saves the supplied product subset as an unapproved campaign plan; absent products are never deleted.',
       ['gateway', 'account_id', 'catalog_id', 'products'],
-      ['connection_id', 'allow_upsert', 'name'],
+      ['connection_id', 'allow_upsert', 'name', 'requirements'],
       saves('campaign_run'),
       'operator',
       [[C, 'approve']],
     ),
     row(
       'preview_catalog_removal',
-      'Reads 1–50 explicit X products and previews their removal for ten minutes.',
-      ['gateway', 'account_id', 'catalog_id', 'retailer_ids', 'products'],
-      ['connection_id', 'allow_upsert', 'name'],
+      'Reads 1–50 explicit X products (supplied retailer_ids, or listed product_keys in requirements) and previews their removal for ten minutes.',
+      ['gateway', 'account_id', 'catalog_id'],
+      ['connection_id', 'retailer_ids', 'products', 'allow_upsert', 'name', 'requirements'],
       reads('x_catalog_removal_preview'),
       'operator',
       [[W, 'create_catalog_removal']],
     ),
     row(
       'create_catalog_removal',
-      'Saves one unapproved single-product DELETE step per previewed product; saving deletes nothing.',
+      'Saves one unapproved single-product DELETE step per previewed product; saving deletes nothing. A listed selection also needs confirmed_count.',
       ['preview_id', 'preview_hash', 'confirmed'],
-      [],
+      ['confirmed_count'],
       reads('campaign_run'),
       'operator',
       [[C, 'approve']],
@@ -695,9 +703,7 @@ const rows: Record<string, Row[]> = {
         'allocation_preview_hash',
         'consent_preview_id',
         'consent_preview_hash',
-        'catalog_removal_preview_id',
-        'catalog_removal_preview_hash',
-        'catalog_removal_save_nonce',
+        'catalog_binding',
         'search_exclusion_preview_id',
         'search_exclusion_preview_hash',
         'id',
@@ -1711,7 +1717,11 @@ const argumentNotes: Record<string, Record<string, string>> = {
     view: 'capabilities: summary (default; at most 25 workflows per page) or graph (the whole dependency graph). dashboard: summary (default) or full (unbounded; the website Overview).',
     sections: 'dashboard only: the bounded detail sections to return instead of the summary.',
     requirements:
-      'check: {write, assets, destination_url, native_request}. program_check live:true: the program’s native request (live:false returns requirements_template). portfolio and portfolio_reconcile: the parent IDs of the entity read. measurement_audit: {container_id, workspace_id}. measurement_events, measurement_event_identity, catalog_source and preview_consent_plan: the inputs their summaries name.',
+      'check: {write, assets, destination_url, native_request}. program_check live:true: the program’s native request (live:false returns requirements_template). portfolio and portfolio_reconcile: the parent IDs of the entity read. measurement_audit: {container_id, workspace_id}. measurement_events, measurement_event_identity, catalog_source and preview_consent_plan: the inputs their summaries name. ' +
+      'catalog_preview, catalog_compare, catalog_plan: {retire_retailer_ids: 1–50 supplied retailer IDs, retire_availability: "out of stock"|"discontinued"} retires existing products through the reviewed update (nothing is deleted). ' +
+      'catalog_compare (X): {selection_source:"listed_inventory", product_keys: 1–50 listed native keys} reads only those products; preview_catalog_removal adds the listed_inventory_hash of the inspection they were chosen from. Nothing is ever selected because a source lacks it.',
+    confirmed_count:
+      'create_catalog_removal: the number of products in the preview, typed back by the person; required for a listed selection.',
   },
   [C]: {
     acknowledge_temporary_sources:
@@ -1719,6 +1729,8 @@ const argumentNotes: Record<string, Record<string, string>> = {
     detail:
       'compact (default): the plan header, one row per step, the step this call acted on and the next call, within 12 KB. full: the whole stored plan, as get returns it with this value.',
     plan_hash: 'approve with confirmed: the plan_hash of the summary the user approved.',
+    catalog_binding:
+      'create, internal: set only by the guarded catalog saves of amcp_workspace (create_catalog_removal and catalog_plan), naming the binding they just stored; any other value is refused.',
     summary_hash:
       'approve with confirmed: the summary_hash of the summary the user was shown. A step with many fields is aggregated (truncated: true); approve with its step_id lists every field.',
     accept_observed:

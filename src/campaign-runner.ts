@@ -121,9 +121,9 @@ export const campaignTool = tool(
     allocation_preview_hash: field.id,
     consent_preview_id: field.id,
     consent_preview_hash: field.id,
-    catalog_removal_preview_id: field.id,
-    catalog_removal_preview_hash: field.id,
-    catalog_removal_save_nonce: field.id,
+    // The guarded saves of the catalog workflows (COM-02, COM-03): {kind: "removal", preview_id, preview_hash,
+    // save_nonce} or {kind: "lineage", id, hash, save_nonce}. Only the workflow that just stored the binding can name it.
+    catalog_binding: field.object,
     search_exclusion_preview_id: field.id,
     search_exclusion_preview_hash: field.id,
     confirmed: field.bool,

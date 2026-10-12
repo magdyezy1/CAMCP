@@ -4,6 +4,7 @@ import type {Store} from './store.js';
 import {bad, fingerprint, optional, writer, type ToolCall} from './workspace-core.js';
 import {catalogIngestion} from './catalog-ingestion.js';
 import {listedSelectionRequested} from './x-catalog-selection-inventory.js';
+import {catalogRequirement} from './catalog-requirements.js';
 import {storedLogin} from './connection-authority.js';
 import type {XCatalogRemovalExpectation} from './x-catalog-products.js';
 
@@ -43,15 +44,16 @@ function selection(input: JsonObject) {
     catalog_id: input.catalog_id,
   };
   // COM-02 B: listed products chosen by native key from an inspection, bound to the listing the person saw.
-  const keys = listedSelectionRequested(input);
+  const keys = listedSelectionRequested(input),
+    listing = catalogRequirement(input, 'listed_inventory_hash');
   if (keys) {
-    if (typeof input.listed_inventory_hash !== 'string' || !/^[a-f0-9]{64}$/.test(input.listed_inventory_hash))
+    if (typeof listing !== 'string' || !/^[a-f0-9]{64}$/.test(listing))
       bad('Inspect the other listed X products first, then select from that listing.', 'INVALID_CATALOG_REMOVAL');
     return {
       scope,
       selection_source: 'listed_inventory',
       product_keys: keys,
-      listed_inventory_hash: input.listed_inventory_hash,
+      listed_inventory_hash: listing,
       source_hash: null,
     };
   }
@@ -84,8 +86,7 @@ async function collect(store: Store, call: ToolCall, actor: Actor, selected: Jso
       ? {
           action: 'catalog_compare',
           ...scope,
-          selection_source: 'listed_inventory',
-          product_keys: selected.product_keys,
+          requirements: {selection_source: 'listed_inventory', product_keys: selected.product_keys},
         }
       : {action: 'catalog_compare', ...scope, products: selected.products, allow_upsert: true},
     actor,
@@ -136,16 +137,7 @@ function current(store: Store, actor: Actor, p: JsonObject, input: JsonObject) {
     ['gateway', 'account_id', 'connection_id', 'catalog_id'].some(
       k => input[k] !== undefined && input[k] !== p.binding.scope[k],
     ) ||
-    [
-      'products',
-      'retailer_ids',
-      'allow_upsert',
-      'name',
-      'requirements',
-      'selection_source',
-      'product_keys',
-      'listed_inventory_hash',
-    ].some(k => input[k] !== undefined)
+    ['products', 'retailer_ids', 'allow_upsert', 'name', 'requirements'].some(k => input[k] !== undefined)
   )
     changed('Save the original removal preview. Changed scope, products or selection require a new preview.');
   if (authorization(store, actor, p.binding.scope) !== p.binding.authorization_signature)
@@ -170,9 +162,7 @@ function draft(binding: JsonObject, previewId: string, previewHash: string, nonc
           binding.source_hash) +
       '. Each permanent deletion requires independent native review, execution confirmation and read-back. A scheduled feed can restore a product that it still contains.',
     idempotency_key: 'x-catalog-remove-' + previewId,
-    catalog_removal_preview_id: previewId,
-    catalog_removal_preview_hash: previewHash,
-    catalog_removal_save_nonce: nonce,
+    catalog_binding: {kind: 'removal', preview_id: previewId, preview_hash: previewHash, save_nonce: nonce},
     confirmed: true,
     steps: binding.targets.map((target: JsonObject, i: number) => ({
       id: 'remove-' + (i + 1),
@@ -261,19 +251,22 @@ export async function previewCatalogRemoval(store: Store, call: ToolCall, actor:
 }
 /** Only the current guarded save can bind this exact local campaign creation. */
 export function catalogRemovalCreationBinding(store: Store, actor: Actor, input: JsonObject, steps: JsonObject[]) {
+  const b = input.catalog_binding;
+  if (b === undefined || b?.kind === 'lineage') return undefined;
   if (
-    input.catalog_removal_preview_id === undefined &&
-    input.catalog_removal_preview_hash === undefined &&
-    input.catalog_removal_save_nonce === undefined
+    !b ||
+    typeof b !== 'object' ||
+    b.kind !== 'removal' ||
+    Object.keys(b).some(k => !['kind', 'preview_id', 'preview_hash', 'save_nonce'].includes(k))
   )
-    return undefined;
-  const p = store.document(actor.tenantId, 'x_catalog_removal_preview', String(input.catalog_removal_preview_id));
-  current(store, actor, p, {preview_hash: input.catalog_removal_preview_hash});
+    changed('Save the current exact removal preview through its guarded workflow.');
+  const p = store.document(actor.tenantId, 'x_catalog_removal_preview', String(b.preview_id));
+  current(store, actor, p, {preview_hash: b.preview_hash});
   if (
     input.confirmed !== true ||
     p.expires_at <= Date.now() ||
     typeof p.save_nonce !== 'string' ||
-    p.save_nonce !== input.catalog_removal_save_nonce ||
+    p.save_nonce !== b.save_nonce ||
     p.save_until <= Date.now()
   )
     changed('Save the current exact removal preview through its guarded workflow.');

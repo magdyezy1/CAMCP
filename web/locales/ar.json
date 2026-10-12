@@ -3902,7 +3902,7 @@
   "This step no longer matches its original selected removal proposal.": "لم تعد هذه الخطوة تتطابق مع اقتراح الإزالة المحدد الأصلي.",
   "The original selected source product is unavailable.": "منتج المصدر الأصلي المحدد غير متاح.",
   "The selected product evidence changed after this draft. Read a new removal preview; no products were deleted.": "تغيرت أدلة المنتج المحدد بعد هذه المسودة. اقرأ معاينة إزالة جديدة؛ لم يتم حذف أي منتج.",
-  "Listed product selection applies to catalog_compare and preview_catalog_removal; its typed count to create_catalog_removal; a retirement to catalog_preview, catalog_compare and catalog_plan.": "ينطبق اختيار المنتجات المدرجة على catalog_compare وpreview_catalog_removal، وينطبق العدد المكتوب لتأكيده على create_catalog_removal، وينطبق الإيقاف على catalog_preview وcatalog_compare وcatalog_plan.",
+  "The typed product count applies to create_catalog_removal only.": "ينطبق عدد المنتجات المكتوب على create_catalog_removal فقط.",
   "Inspect the other listed X products first, then select from that listing.": "افحص منتجات X المدرجة الأخرى أولًا، ثم اختر من تلك القائمة.",
   "The listed X products changed since you inspected them. Inspect them again; no products were deleted.": "تغيرت منتجات X المدرجة منذ فحصتها. افحصها مرة أخرى؛ لم يتم حذف أي منتج.",
   "Type the number of selected products to confirm their removal.": "اكتب عدد المنتجات المحددة لتأكيد إزالتها.",

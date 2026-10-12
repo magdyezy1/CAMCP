@@ -9,6 +9,7 @@ import {
   catalogSourceFields,
   type CatalogGateway,
 } from './catalog-destinations.js';
+import {catalogRequirement} from './catalog-requirements.js';
 
 /** Each catalog destination's projection of supplied products into its native reviewed steps (COM-03). */
 const projections: Record<CatalogGateway, (input: JsonObject) => JsonObject> = {
@@ -97,11 +98,13 @@ function catalogSale(p: JsonObject, index: number, x: boolean): {amount: string}
  * A non-destructive retirement of supplied products (COM-02 B): their availability becomes "out of stock" or
  * "discontinued" through the same reviewed upsert, so ads stop showing them while the product, its history and its sets
  * stay. Nothing is deleted, and a comparison blocks retiring a product the catalog does not have (it would be created).
+ * The inputs are requirements.retire_retailer_ids and requirements.retire_availability.
  */
 export function catalogRetirement(input: JsonObject): {ids: Set<string>; availability: string} | undefined {
-  if (input.retire_retailer_ids === undefined && input.retire_availability === undefined) return undefined;
-  const ids = input.retire_retailer_ids;
-  if (!['out of stock', 'discontinued'].includes(input.retire_availability))
+  const ids = catalogRequirement(input, 'retire_retailer_ids'),
+    availability = catalogRequirement(input, 'retire_availability');
+  if (ids === undefined && availability === undefined) return undefined;
+  if (!['out of stock', 'discontinued'].includes(availability))
     bad('Retire products as "out of stock" or "discontinued".', 'INVALID_CATALOG_RETIREMENT');
   if (
     !Array.isArray(ids) ||
@@ -118,7 +121,7 @@ export function catalogRetirement(input: JsonObject): {ids: Set<string>; availab
       'Retiring updates existing products: explicitly allow updates to existing retailer IDs.',
       'INVALID_CATALOG_RETIREMENT',
     );
-  return {ids: new Set(ids), availability: input.retire_availability};
+  return {ids: new Set(ids), availability};
 }
 /** A retired product's projection source: the supplied row with the retirement availability. */
 export function retired(p: JsonObject, retire: ReturnType<typeof catalogRetirement>): JsonObject {

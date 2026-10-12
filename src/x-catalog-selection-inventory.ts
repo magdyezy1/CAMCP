@@ -1,6 +1,7 @@
 import type {JsonObject} from './types.js';
 import {bad, fingerprint} from './workspace-core.js';
 import {catalogPrice, text, xCatalogProductGrouping} from './x-catalogs.js';
+import {catalogRequirement} from './catalog-requirements.js';
 
 /** Explicit read-only inspection; a supplied selection never establishes whole-store absence. */
 export function catalogInventoryRequested(input: JsonObject): boolean {
@@ -14,18 +15,22 @@ export function catalogInventoryRequested(input: JsonObject): boolean {
 }
 
 /**
- * An explicit selection of listed X products by native key (COM-02 B): `selection_source: "listed_inventory"` with 1–50
- * distinct `product_keys`. It reads only the selected products' current evidence; no supplied source is involved, so
- * nothing is selected because it is absent from one. Returns the keys, or undefined for a supplied-product request.
+ * An explicit selection of listed X products by native key (COM-02 B): requirements `selection_source:
+ * "listed_inventory"` with 1–50 distinct `product_keys`. It reads only the selected products' current evidence; no
+ * supplied source is involved, so nothing is selected because it is absent from one. Returns the keys, or undefined for
+ * a supplied-product request.
  */
 export function listedSelectionRequested(input: JsonObject): string[] | undefined {
-  if (input.selection_source === undefined || input.selection_source === 'supplied_products') {
-    if (input.product_keys !== undefined || input.listed_inventory_hash !== undefined)
+  const selection = catalogRequirement(input, 'selection_source');
+  if (selection === undefined || selection === 'supplied_products') {
+    if (
+      catalogRequirement(input, 'product_keys') !== undefined ||
+      catalogRequirement(input, 'listed_inventory_hash') !== undefined
+    )
       bad('Native product keys select listed products only with selection_source listed_inventory.');
     return undefined;
   }
-  if (input.selection_source !== 'listed_inventory')
-    bad('Choose supplied_products or listed_inventory as the selection.');
+  if (selection !== 'listed_inventory') bad('Choose supplied_products or listed_inventory as the selection.');
   if (input.gateway !== 'x_ads_native_action') bad('Selection of listed products is qualified for X catalogs only.');
   if (
     typeof input.catalog_id !== 'string' ||
@@ -37,10 +42,11 @@ export function listedSelectionRequested(input: JsonObject): string[] | undefine
   if (
     ['products', 'retailer_ids', 'allow_upsert', 'inspect_other_listed_products', 'absent_source_policy', 'name'].some(
       k => input[k] !== undefined,
-    )
+    ) ||
+    ['retire_retailer_ids', 'retire_availability', 'source'].some(k => catalogRequirement(input, k) !== undefined)
   )
     bad('A listed selection takes native product keys, not supplied products or retailer IDs.');
-  const keys = input.product_keys;
+  const keys = catalogRequirement(input, 'product_keys');
   if (
     !Array.isArray(keys) ||
     keys.length < 1 ||

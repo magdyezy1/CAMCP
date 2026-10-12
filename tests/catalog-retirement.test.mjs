@@ -11,7 +11,10 @@ import {actor, ok, metaWorld, metaInput, metaShoe, runPlan} from './fixtures/met
  * availability "discontinued" or "out of stock" through the same reviewed upsert: the product, its history and its sets
  * stay, nothing is deleted, and retiring a product the catalog does not have (it would be created) is blocked.
  */
-const retire = (extra = {}) => ({retire_retailer_ids: ['SKU-1'], retire_availability: 'discontinued', ...extra});
+// The retirement rides in requirements (the tools/list schema stays within its budget).
+const retire = (extra = {}) => ({
+  requirements: {retire_retailer_ids: ['SKU-1'], retire_availability: 'discontinued', ...extra},
+});
 const existing = [
   {
     retailer_id: 'SKU-1',
@@ -81,8 +84,7 @@ test('X: a retirement is the non-destructive alternative to removal: one reviewe
         description: 'Synthetic product 1',
       },
     ],
-    retire_retailer_ids: ['sku-1'],
-    retire_availability: 'out of stock',
+    requirements: {retire_retailer_ids: ['sku-1'], retire_availability: 'out of stock'},
   };
   const call = args => world.service.call('amcp_workspace', args, world.actor);
   const compared = ok(await call({action: 'catalog_compare', ...input}));
@@ -109,7 +111,7 @@ test('a retirement needs a qualified availability, supplied retailer IDs and exp
   };
   const base = metaInput([metaShoe()]);
   refused({...base, ...retire({retire_availability: 'mark_as_sold'})}, /out of stock" or "discontinued/);
-  refused({...base, retire_availability: 'discontinued'}, /1–50 distinct retailer IDs/);
+  refused({...base, requirements: {retire_availability: 'discontinued'}}, /1–50 distinct retailer IDs/);
   refused({...base, ...retire({retire_retailer_ids: ['SKU-9']})}, /1–50 distinct retailer IDs/);
   refused({...base, ...retire({retire_retailer_ids: ['SKU-1', 'SKU-1']})}, /1–50 distinct retailer IDs/);
   refused({...base, allow_upsert: false, ...retire()}, /explicitly allow updates/);
@@ -120,7 +122,10 @@ test('a retirement needs a qualified availability, supplied retailer IDs and exp
     {action: 'preview_catalog_removal', ...metaInput([metaShoe()]), retailer_ids: ['SKU-1'], ...retire()},
     actor,
   );
+  // A removal preview does not read a retirement: the unread requirements are named before anything is read.
   assert.equal(misplaced.success, false);
-  assert.equal(misplaced.error.code, 'INVALID_CATALOG_INVENTORY');
+  assert.equal(misplaced.error.code, 'INVALID_ARGUMENT');
+  assert.deepEqual(misplaced.error.details.fields, ['retire_retailer_ids', 'retire_availability']);
   assert.equal(f.writes(), 0);
+  assert.equal(f.calls.length, 0);
 });

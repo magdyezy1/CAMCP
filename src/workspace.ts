@@ -35,6 +35,7 @@ import {catalogIngestion} from './catalog-ingestion.js';
 import {wooCommerceSource, wooCommerceSources, type WooCommerceRequest} from './woocommerce-source.js';
 import {wooCommerceInventory} from './woocommerce-inventory.js';
 import {catalogComparison} from './catalog-comparison.js';
+import {assertCatalogRequirements} from './catalog-requirements.js';
 import {createCatalogRemoval, previewCatalogRemoval} from './x-catalog-removal.js';
 import {operationsPage} from './operations-feed.js';
 import {reportRunStatus, resumeReportRun} from './report-runs.js';
@@ -204,26 +205,9 @@ export const workspaceTool = tool(
     allow_upsert: field.bool,
     inspect_other_listed_products: field.bool,
     absent_source_policy: {type: 'string', enum: ['retain']},
-    // COM-02 B: an explicit selection of listed X products by native key, and the typed count that saves its removal.
-    selection_source: {type: 'string', enum: ['supplied_products', 'listed_inventory']},
-    product_keys: {
-      type: 'array',
-      items: {type: 'string', maxLength: 25},
-      minItems: 1,
-      maxItems: 50,
-      uniqueItems: true,
-    },
-    listed_inventory_hash: field.id,
-    confirmed_count: {type: 'integer', minimum: 1, maximum: 50},
-    // COM-02 B: a non-destructive retirement of supplied products through the reviewed upsert.
-    retire_retailer_ids: {
-      type: 'array',
-      items: {type: 'string', maxLength: 100},
-      minItems: 1,
-      maxItems: 50,
-      uniqueItems: true,
-    },
-    retire_availability: {type: 'string', enum: ['out of stock', 'discontinued']},
+    // COM-02 B: the typed number of products that saves a listed removal. The other catalog inputs (a listed selection,
+    // a retirement, a mapped CSV source, a comparison for lineage) ride in requirements (src/catalog-requirements.ts).
+    confirmed_count: field.integer,
     name: {type: 'string', maxLength: 100},
     revision: field.integer,
     confirmed: field.bool,
@@ -415,18 +399,10 @@ export class WorkspaceService {
       (input.inspect_other_listed_products !== undefined || input.absent_source_policy !== undefined)
     )
       bad('Catalog inventory inspection arguments apply only to catalog_compare.', 'INVALID_CATALOG_INVENTORY');
-    if (
-      (!['catalog_compare', 'preview_catalog_removal'].includes(input.action) &&
-        (input.selection_source !== undefined || input.product_keys !== undefined)) ||
-      (input.action !== 'preview_catalog_removal' && input.listed_inventory_hash !== undefined) ||
-      (input.action !== 'create_catalog_removal' && input.confirmed_count !== undefined) ||
-      (!['catalog_preview', 'catalog_compare', 'catalog_plan'].includes(input.action) &&
-        (input.retire_retailer_ids !== undefined || input.retire_availability !== undefined))
-    )
-      bad(
-        'Listed product selection applies to catalog_compare and preview_catalog_removal; its typed count to create_catalog_removal; a retirement to catalog_preview, catalog_compare and catalog_plan.',
-        'INVALID_CATALOG_INVENTORY',
-      );
+    if (input.action !== 'create_catalog_removal' && input.confirmed_count !== undefined)
+      bad('The typed product count applies to create_catalog_removal only.', 'INVALID_CATALOG_INVENTORY');
+    // Catalog inputs in requirements (COM-02, COM-03): each catalog action reads only its own keys.
+    assertCatalogRequirements(input);
     if (
       (input.view !== undefined && !['capabilities', 'dashboard'].includes(input.action)) ||
       (input.sections !== undefined && input.action !== 'dashboard')

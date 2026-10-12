@@ -57,9 +57,9 @@ test('an individual listed product is selected explicitly, previewed against its
       await ui.bindings.get('#preview-listed-removal')();
       const request = plain(ui.calls[before]);
       assert.equal(request.action, 'preview_catalog_removal');
-      assert.equal(request.selection_source, 'listed_inventory');
-      assert.deepEqual(request.product_keys, ['5000003']);
-      assert.match(request.listed_inventory_hash, /^[a-f0-9]{64}$/);
+      assert.equal(request.requirements.selection_source, 'listed_inventory');
+      assert.deepEqual(request.requirements.product_keys, ['5000003']);
+      assert.match(request.requirements.listed_inventory_hash, /^[a-f0-9]{64}$/);
       assert.equal(request.products, undefined, 'no supplied source rows are invented');
       const preview = ui.node('#catalog-listed-removal-preview').innerHTML;
       assert.match(preview, /5000003/);
@@ -117,9 +117,11 @@ test('changing the selection clears its preview, and a preview that differs from
           account_id: 'acct1',
           connection_id: 'x',
           catalog_id: '9001',
-          selection_source: 'listed_inventory',
-          product_keys: ['5000003'],
-          listed_inventory_hash: inventory.material_hash,
+          requirements: {
+            selection_source: 'listed_inventory',
+            product_keys: ['5000003'],
+            listed_inventory_hash: inventory.material_hash,
+          },
         },
         native.actor,
       )
