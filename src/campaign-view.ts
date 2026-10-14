@@ -178,6 +178,8 @@ export function compactPlan(run: JsonObject, current?: string, extra: JsonObject
       ...(run.catalog_removal
         ? {catalog_removal: pick(run.catalog_removal, ['workflow', 'preview_id', 'scope', 'source_hash'])}
         : {}),
+      // Where a catalog plan's products came from: source, mapping, comparison and plan group (COM-03).
+      ...(run.catalog_lineage ? {catalog_lineage: run.catalog_lineage} : {}),
       // Temporary files the plan uses are deleted at their deadline; the plan must run before it (owner decision D23).
       ...(run.temporary_sources
         ? {

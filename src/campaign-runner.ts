@@ -3,6 +3,7 @@ import {eligibilityReuse, recipeEligibility} from './recipe-eligibility.js';
 import {assertAllocationStep, allocationCreationBinding} from './allocation-plan.js';
 import {assertConsentStep, consentCreationBinding} from './gtm-consent-plans.js';
 import {assertCatalogRemovalStep, catalogRemovalChanged, catalogRemovalCreationBinding} from './x-catalog-removal.js';
+import {catalogLineageCreationBinding} from './catalog-lineage.js';
 import {withXCatalogRemovalExpectation, type XCatalogRemovalExpectation} from './x-catalog-products.js';
 import {addNativeRequests, meterNativeRequests} from './native-request-meter.js';
 import {
@@ -1564,6 +1565,8 @@ export class CampaignRunner {
       const search_exclusions = searchExclusionCreationBinding(this.store, actor, input, steps);
       const gtm_consent = consentCreationBinding(this.store, actor, input, steps);
       const catalog_removal = catalogRemovalCreationBinding(this.store, actor, input, steps);
+      // Where a catalog plan's products came from (COM-03): set only by amcp_workspace catalog_plan.
+      const catalog_lineage = catalogLineageCreationBinding(this.store, actor, input, steps);
       const creation_fingerprint = fingerprint({
         name: input.name,
         brief: input.brief,
@@ -1576,6 +1579,7 @@ export class CampaignRunner {
         ...(search_exclusions ? {search_exclusions} : {}),
         ...(gtm_consent ? {gtm_consent} : {}),
         ...(catalog_removal ? {catalog_removal} : {}),
+        ...(catalog_lineage ? {catalog_lineage} : {}),
         ...(origin ? {origin} : {}),
       });
       const id = input.idempotency_key ? creationId(actor, input.idempotency_key) : randomUUID();
@@ -1616,6 +1620,7 @@ export class CampaignRunner {
         ...(search_exclusions ? {search_exclusions} : {}),
         ...(gtm_consent ? {gtm_consent} : {}),
         ...(catalog_removal ? {catalog_removal} : {}),
+        ...(catalog_lineage ? {catalog_lineage} : {}),
         ...(temporary.length
           ? {
               temporary_sources: {

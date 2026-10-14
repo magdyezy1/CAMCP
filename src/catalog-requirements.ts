@@ -6,8 +6,10 @@ import {bad} from './workspace-core.js';
  * whose size is budgeted (MCP-07), so the per-action catalog inputs are named here and documented by amcp_tool_help:
  *
  * - catalog_preview, catalog_compare, catalog_plan: `retire_retailer_ids` and `retire_availability` (a non-destructive
- *   retirement of supplied products), `source` (a CSV projected on the server by a saved mapping profile);
- * - catalog_plan: `comparison_hash` (the comparison the plan's products come from, recorded in its lineage);
+ *   retirement of supplied products), `source` (a CSV projected on the server, src/catalog-sources.ts);
+ * - catalog_plan: `select_retailer_ids` (a subset of the source rows), `comparison_token` (the comparison the plan's
+ *   products come from, recorded in its lineage) and `chunked` (51–500 source products as plans of at most 50 with one
+ *   lineage group, src/catalog-lineage.ts);
  * - catalog_compare and preview_catalog_removal: `selection_source: "listed_inventory"` with native `product_keys`, and
  *   for the preview the `listed_inventory_hash` of the inspection they were chosen from;
  * - save_catalog_mapping: `columns`, `fixed_currency`, `image_mode` and `replace_identity_column`.
@@ -17,7 +19,14 @@ import {bad} from './workspace-core.js';
 const catalogKeys: Readonly<Record<string, readonly string[]>> = {
   catalog_preview: ['retire_retailer_ids', 'retire_availability', 'source'],
   catalog_compare: ['retire_retailer_ids', 'retire_availability', 'source', 'selection_source', 'product_keys'],
-  catalog_plan: ['retire_retailer_ids', 'retire_availability', 'source', 'comparison_hash'],
+  catalog_plan: [
+    'retire_retailer_ids',
+    'retire_availability',
+    'source',
+    'select_retailer_ids',
+    'comparison_token',
+    'chunked',
+  ],
   preview_catalog_removal: ['selection_source', 'product_keys', 'listed_inventory_hash'],
   save_catalog_mapping: ['columns', 'fixed_currency', 'image_mode', 'replace_identity_column'],
 };

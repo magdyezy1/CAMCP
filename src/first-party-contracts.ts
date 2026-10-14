@@ -514,9 +514,9 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'catalog_preview',
-      'Locally validates 1–50 selected Meta, X or Snapchat products with exact source prices.',
-      ['gateway', 'account_id', 'catalog_id', 'products'],
-      ['connection_id', 'allow_upsert', 'name', 'requirements'],
+      'Locally validates 1–50 selected Meta, X or Snapchat products (or a CSV source) with exact source prices.',
+      ['gateway', 'account_id', 'catalog_id'],
+      ['connection_id', 'products', 'allow_upsert', 'name', 'requirements'],
       local,
       'reader',
       [[W, 'catalog_compare']],
@@ -558,12 +558,30 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'catalog_plan',
-      'Saves the supplied product subset as an unapproved campaign plan; absent products are never deleted.',
-      ['gateway', 'account_id', 'catalog_id', 'products'],
-      ['connection_id', 'allow_upsert', 'name', 'requirements'],
+      'Saves the supplied products as an unapproved plan with their lineage (51–500 as a plan group); absent products are never deleted.',
+      ['gateway', 'account_id', 'catalog_id'],
+      ['connection_id', 'products', 'allow_upsert', 'name', 'requirements'],
       saves('campaign_run'),
       'operator',
       [[C, 'approve']],
+    ),
+    row(
+      'catalog_mapping',
+      'Reads the saved, versioned CSV column mapping of one Meta, X or Snapchat catalog.',
+      ['gateway', 'account_id', 'catalog_id'],
+      ['connection_id'],
+      local,
+      'reader',
+      [[W, 'save_catalog_mapping']],
+    ),
+    row(
+      'save_catalog_mapping',
+      'Saves the next version of a catalog CSV column mapping; its retailer ID column changes only explicitly.',
+      ['gateway', 'account_id', 'catalog_id', 'requirements'],
+      ['connection_id', 'revision'],
+      saves('catalog_mapping_profile'),
+      'operator',
+      [[W, 'catalog_preview']],
     ),
     row(
       'preview_catalog_removal',
@@ -1719,7 +1737,12 @@ const argumentNotes: Record<string, Record<string, string>> = {
     requirements:
       'check: {write, assets, destination_url, native_request}. program_check live:true: the program’s native request (live:false returns requirements_template). portfolio and portfolio_reconcile: the parent IDs of the entity read. measurement_audit: {container_id, workspace_id}. measurement_events, measurement_event_identity, catalog_source and preview_consent_plan: the inputs their summaries name. ' +
       'catalog_preview, catalog_compare, catalog_plan: {retire_retailer_ids: 1–50 supplied retailer IDs, retire_availability: "out of stock"|"discontinued"} retires existing products through the reviewed update (nothing is deleted). ' +
-      'catalog_compare (X): {selection_source:"listed_inventory", product_keys: 1–50 listed native keys} reads only those products; preview_catalog_removal adds the listed_inventory_hash of the inspection they were chosen from. Nothing is ever selected because a source lacks it.',
+      'catalog_compare (X): {selection_source:"listed_inventory", product_keys: 1–50 listed native keys} reads only those products; preview_catalog_removal adds the listed_inventory_hash of the inspection they were chosen from. Nothing is ever selected because a source lacks it. ' +
+      'catalog_preview, catalog_compare, catalog_plan: {source: {kind:"csv", text, columns:"canonical"|"profile", profile_version?}} instead of products: a CSV of at most 192 KiB and 500 rows that AMCP projects with its own product columns or the catalog’s saved mapping (save_catalog_mapping); the preview returns the supplied_products. ' +
+      'catalog_plan: {select_retailer_ids: 1–50 source rows to keep}, {comparison_token: the lineage_token of the catalog_compare its products come from (same person, 15 minutes)}, {chunked: true} saves 51–500 source products as plans of at most 50 in one lineage group. ' +
+      'save_catalog_mapping: {columns: {field: CSV header}, fixed_currency: "" or one ISO code when no currency column, image_mode: "single"|"first_list", replace_identity_column?: true to change the retailer_id column}.',
+    revision:
+      'The current revision of the record the action changes, as last read. save_catalog_mapping: the mapping version read (0 before the first save); another current version is refused with CATALOG_MAPPING_CHANGED.',
     confirmed_count:
       'create_catalog_removal: the number of products in the preview, typed back by the person; required for a listed selection.',
   },
