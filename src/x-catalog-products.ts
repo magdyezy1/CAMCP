@@ -21,7 +21,10 @@ import {
   xCatalogRead,
   xCatalogRemovalEvidence,
   xCatalogReviewRemovalEvidence,
+  xCatalogGroupExpansion,
   xCatalogSource as source,
+  xGroupAbsenceEstablished,
+  xGroupEvidence,
   xSnowflake,
   type Fetch,
 } from './x-catalogs.js';
@@ -234,7 +237,8 @@ export async function readXCatalogProducts(p: CompiledRequest, fetch: Fetch): Pr
     found = owners.catalogs.some(c => c.id === s.catalog);
   let match: JsonObject | undefined,
     hiddenVariants = false,
-    complete = true;
+    complete = true,
+    groups: JsonObject | undefined;
   if (found) {
     const scan = await xCatalogProducts(p, fetch, s.catalog),
       rows = scan.rows.filter(r => (s.key ? r.product_key === s.key : r.id === s.id));
@@ -242,6 +246,14 @@ export async function readXCatalogProducts(p: CompiledRequest, fetch: Fetch): Pr
     match = rows[0];
     complete = scan.complete;
     hiddenVariants = scan.rows.some(row => xCatalogProductGrouping(row) !== 'individual');
+    // COM-02 E: an upsert of a SKU that is not listed reads the listed groups, when that read is qualified. Its absence
+    // is established only when every group was read in full; a group member is a grouped product.
+    if (!match && hiddenVariants && complete && !s.key) {
+      const expansion = await xCatalogGroupExpansion(p, fetch, s.catalog, scan.rows);
+      match = expansion.members.get(String(s.id));
+      hiddenVariants = !xGroupAbsenceEstablished(expansion);
+      groups = xGroupEvidence(expansion);
+    }
   }
   const view = match ? {present: true, product_key: match.product_key, ...productView(match)} : undefined;
   if (s.verify) {
@@ -264,6 +276,8 @@ export async function readXCatalogProducts(p: CompiledRequest, fetch: Fetch): Pr
                   products_complete: complete,
                   products_grouped_or_unknown: hiddenVariants,
                 }),
+            // The variant-group evidence of the read (COM-02 E): which records hide the SKU, or the groups read in full.
+            ...(groups ? {variant_groups: groups} : {}),
           }
         : {}),
     },
@@ -310,9 +324,22 @@ export function xCatalogProductPrerequisites(p: CompiledRequest, states: unknown
       );
     return;
   }
+  // The refusal names the grouped records that hide the SKU and the path for variants: the catalog's scheduled feed.
   if (!before && s.products_grouped_or_unknown === true)
-    invalid(
+    fail(
+      'INVALID_X_CATALOG_PRODUCT',
       'Grouped or unrecognized product records can hide the supplied SKU. AMCP cannot establish its absence for an individual-product update.',
+      {
+        source,
+        ...(object(s.variant_groups)
+          ? {
+              grouped_records: s.variant_groups.grouped_records,
+              grouped_record_count: s.variant_groups.grouped_record_count,
+              group_expansion: s.variant_groups.expansion,
+              remedy: 'scheduled_feed',
+            }
+          : {}),
+      },
     );
   if (before && before.group_status !== 'individual')
     invalid(

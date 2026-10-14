@@ -18,8 +18,12 @@ import {
   xCatalogRead,
   xCatalogProductGrouping,
   xCatalogRowView as rowView,
+  xCatalogGroupExpansion,
+  xGroupAbsenceEstablished,
+  xGroupEvidence,
   xSnowflake,
   fail,
+  type XGroupExpansion,
 } from './x-catalogs.js';
 import {assertXCatalogProduct} from './x-catalog-products.js';
 import {
@@ -176,10 +180,9 @@ export async function xCatalogComparison(
     async ({read, scope, requested_at, fetch, requests, close}) => {
       const owners = await xCatalogOwners(read, fetch),
         catalog = ownedCatalog(owners, input.catalog_id);
-      const project = (rows: JsonObject[]) => {
+      const project = (rows: JsonObject[], groups: XGroupExpansion) => {
         const byId = new Map<string, JsonObject>(),
           keys = new Set<string>();
-        let hidden = false;
         for (const row of rows) {
           if (
             !text(row.id, 100) ||
@@ -191,12 +194,14 @@ export async function xCatalogComparison(
             unknown('X returned an unrecognized or repeated product identity.');
           byId.set(row.id, row);
           keys.add(row.product_key);
-          hidden = grouped(row) || hidden;
         }
+        // A grouped record can hide a SKU (COM-02 E): its absence is established only without grouped records, or
+        // when every listed group was read in full; a SKU found among a group's members is a grouped product.
+        const hidden = !xGroupAbsenceEstablished(groups);
         return input.products.map((supplied: JsonObject, index: number) => {
           // A retired product is compared with its retirement availability (COM-02 B).
           const source = retired(supplied, retire),
-            row = byId.get(source.retailer_id),
+            row = byId.get(source.retailer_id) ?? groups.members.get(source.retailer_id),
             before = row ? rowView(row) : {present: hidden ? null : false, price: null},
             // The native product this source becomes (its sale included), from the same projection as the plan.
             native: JsonObject = preview.plan.steps[index]!.arguments.payload.products[0];
@@ -288,14 +293,18 @@ export async function xCatalogComparison(
             {},
             409,
           );
+        const groups = await xCatalogGroupExpansion(read, fetch, input.catalog_id, scan.rows);
         return {
-          items: project(scan.rows),
+          items: project(scan.rows, groups),
+          groups: xGroupEvidence(groups),
           inventory: inspect ? catalogSelectionInventory(scan.rows, input.products) : null,
         };
       };
       const collected = await collect(),
         repeated = await collect(),
         after = ownedCatalog(await xCatalogOwners(read, fetch), input.catalog_id),
+        // The variant-group evidence beside the items when the catalog lists grouped records (COM-02 E).
+        variant_groups = collected.groups.expansion === 'not_needed' ? undefined : collected.groups,
         // The shared item v2 (COM-03) beside X's own evidence, once both scans agree.
         items = collected.items.map((item: JsonObject, i: number) =>
           comparisonItemV2(
@@ -305,7 +314,11 @@ export async function xCatalogComparison(
             !!retire?.ids.has(item.retailer_id),
           ),
         );
-      if (fingerprint(collected.items) !== fingerprint(repeated.items) || fingerprint(catalog) !== fingerprint(after))
+      if (
+        fingerprint({items: collected.items, groups: collected.groups}) !==
+          fingerprint({items: repeated.items, groups: repeated.groups}) ||
+        fingerprint(catalog) !== fingerprint(after)
+      )
         fail(
           'CATALOG_COMPARISON_CHANGED',
           'X catalog ownership or supplied-product evidence changed during comparison. Read the source products again; no product changes were submitted.',
@@ -340,6 +353,7 @@ export async function xCatalogComparison(
           requested_at,
           captured_at,
           ...(inspect ? {listed_inventory_hash: collected.inventory!.material_hash} : {}),
+          ...(variant_groups ? {variant_groups} : {}),
         }),
         requested_at,
         captured_at,
@@ -347,6 +361,7 @@ export async function xCatalogComparison(
         summary,
         items,
         review_retailer_ids,
+        ...(variant_groups ? {variant_groups} : {}),
         network_requests: requests(),
         provider_mutations: 0,
         destructive_deletions: 0,

@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {sha256, stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
@@ -106,7 +107,9 @@ export function authorizeXCatalogRead(p: CompiledRequest, account: string): bool
       m &&
       r.xCatalogId === m[1] &&
       !r.xCatalogUser &&
-      only(...(m[2] === 'products' ? ['count', 'cursor'] : ['cursor']))
+      // A product group's members are read by its key (COM-02 E).
+      only(...(m[2] === 'products' ? ['count', 'cursor', 'item_group_key'] : ['cursor'])) &&
+      (p.query.item_group_key === undefined || text(p.query.item_group_key, 100))
     )
       return true;
   }
@@ -376,6 +379,97 @@ export function xCatalogRemovalEvidence(before: JsonObject, unsent: unknown): Js
     ...Object.fromEntries(Object.keys(xCatalogComparedFields).map(k => [k, before[k] ?? null])),
     price: money ? money.amount + ' ' + money.currency : null,
     unsent_fields: Array.isArray(unsent) ? [...unsent].map(String).sort() : null,
+  };
+}
+/**
+ * X variant groups (COM-02 E). X lists only the first product of a group ("only the product that you submitted first"),
+ * so a grouped listed record can hide a supplied SKU and its absence is not established. GET products accepts
+ * item_group_key, but X does not document whether that filter returns every member of a group. Per-group expansion
+ * therefore runs only after an owner-authorized read has shown complete membership listing and the owner has set
+ * AMCP_X_CATALOG_GROUP_EXPANSION=qualified (docs/OPERATIONS.md). Until then the block stays and names its records.
+ */
+export const xGroupExpansionLimits = {groups: 10, pages: 3, named: 10} as const;
+export function xGroupExpansionQualified(): boolean {
+  return process.env.AMCP_X_CATALOG_GROUP_EXPANSION === 'qualified';
+}
+export type XGroupExpansion = {
+  /** not_needed: no grouped record; complete: every group read in full; otherwise absence stays unestablished. */
+  state: 'not_needed' | 'not_qualified' | 'complete' | 'incomplete';
+  reason: null | 'group_status_unknown' | 'group_limit' | 'page_limit';
+  /** Every member of every expanded group, by SKU. */
+  members: Map<string, JsonObject>;
+  membership_hash: string | null;
+  grouped_record_count: number;
+  /** The listed grouped records that can hide a SKU, named for the explanation (at most ten). */
+  grouped_records: JsonObject[];
+};
+/** Whether an expansion establishes that a SKU outside the listing and its groups is absent. */
+export const xGroupAbsenceEstablished = (e: XGroupExpansion): boolean =>
+  e.state === 'not_needed' || e.state === 'complete';
+export async function xCatalogGroupExpansion(
+  p: CompiledRequest,
+  fetch: Fetch,
+  id: string,
+  rows: JsonObject[],
+): Promise<XGroupExpansion> {
+  const grouped = rows.filter(row => xCatalogProductGrouping(row) !== 'individual'),
+    named = grouped.slice(0, xGroupExpansionLimits.named).map(row => ({
+      retailer_id: row.id,
+      product_id: row.product_key,
+      group_status: xCatalogProductGrouping(row),
+      item_group_id: text(row.item_group_id, 100) ? row.item_group_id : null,
+      item_group_key: text(row.item_group_key, 100) ? row.item_group_key : null,
+    })),
+    base = {members: new Map<string, JsonObject>(), grouped_record_count: grouped.length, grouped_records: named};
+  if (!grouped.length) return {...base, state: 'not_needed', reason: null, membership_hash: null, grouped_records: []};
+  if (!xGroupExpansionQualified()) return {...base, state: 'not_qualified', reason: null, membership_hash: null};
+  // A group can be read only by its key: an unknown group status or a group without a key stays unexpanded.
+  if (grouped.some(row => xCatalogProductGrouping(row) !== 'grouped' || !text(row.item_group_key, 100)))
+    return {...base, state: 'incomplete', reason: 'group_status_unknown', membership_hash: null};
+  const keys = [...new Set(grouped.map(row => row.item_group_key as string))].sort();
+  if (keys.length > xGroupExpansionLimits.groups)
+    return {...base, state: 'incomplete', reason: 'group_limit', membership_hash: null};
+  const members = new Map<string, JsonObject>(),
+    productKeys = new Set<string>(),
+    membership: [string, string[]][] = [];
+  for (const key of keys) {
+    const group = await xList(
+      fetch,
+      xCatalogRead(p, catalogPath(id, 'products'), {count: 100, item_group_key: key}, {xCatalogId: id}),
+      xGroupExpansionLimits.pages,
+      'products',
+    );
+    if (!group.complete) return {...base, state: 'incomplete', reason: 'page_limit', membership_hash: null};
+    // Every member has its own identity, belongs to this group and appears once across all groups.
+    for (const row of group.rows)
+      if (
+        !text(row.id, 100) ||
+        typeof row.product_key !== 'string' ||
+        !xSnowflake.test(row.product_key) ||
+        row.item_group_key !== key ||
+        members.has(row.id) ||
+        productKeys.has(row.product_key)
+      )
+        unverified('X returned a malformed, repeated or foreign member of a product group.');
+      else {
+        members.set(row.id, row);
+        productKeys.add(row.product_key);
+      }
+    membership.push([key, group.rows.map(row => row.product_key as string).sort()]);
+  }
+  return {...base, state: 'complete', reason: null, members, membership_hash: sha256(stable(membership))};
+}
+/** The variant-group evidence a comparison or review shows: no members, only their count and hash. */
+export function xGroupEvidence(e: XGroupExpansion): JsonObject {
+  return {
+    expansion: e.state,
+    reason: e.reason,
+    grouped_record_count: e.grouped_record_count,
+    grouped_records: e.grouped_records,
+    member_count: e.members.size,
+    membership_hash: e.membership_hash,
+    // Variants are added or changed through the catalog's scheduled feed while their absence is not established.
+    remedy: xGroupAbsenceEstablished(e) ? null : 'scheduled_feed',
   };
 }
 /** The same evidence from a product a native review read (the family's productView, with exact price values). */
