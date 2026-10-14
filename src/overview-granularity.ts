@@ -34,6 +34,22 @@ export const overviewEntityLevels: Record<string, {id: string; label: string; pr
       {id: 'campaign', label: 'Campaign', native_type: 'sponsoredCampaign'},
       {id: 'ad', label: 'Creative (ad)', preset: 'linkedin_creative', native_type: 'sponsoredCreative'},
     ],
+    // RPT-07 granular parity: native report collectors in overview-native-detail.ts (window totals per entity).
+    microsoft: [
+      {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
+      {id: 'adset', label: 'Ad group', preset: 'microsoft_ad_group', native_type: 'ad_group'},
+      {id: 'ad', label: 'Ad', preset: 'microsoft_ad', native_type: 'ad'},
+    ],
+    reddit: [
+      {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
+      {id: 'adset', label: 'Ad group', preset: 'reddit_ad_group', native_type: 'ad_group'},
+      {id: 'ad', label: 'Ad', preset: 'reddit_ad', native_type: 'ad'},
+    ],
+    apple: [
+      {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
+      {id: 'adset', label: 'Ad group', preset: 'apple_adgroup', native_type: 'adgroup'},
+      {id: 'ad', label: 'Ad', preset: 'apple_ad', native_type: 'ad'},
+    ],
   };
 function invalid(message: string, code = 'INVALID_REPORT_LEVEL'): never {
   throw new MirrorError(code, message);

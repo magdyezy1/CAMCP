@@ -15,7 +15,16 @@ import {metaPrefix} from './meta-version.js';
 import {metaWindowsOrdered} from './meta-attribution-windows.js';
 import {linkedInCampaignMetadata, linkedInCampaignPeriod} from './linkedin-reporting.js';
 import {campaignAttributionProfile, overviewSourceLevel, collectDetailedOverview} from './overview-granularity.js';
-import type {DetailParentCache} from './overview-parents.js';
+import {detailParentsUnavailableWarning, type DetailParentCache} from './overview-parents.js';
+import {
+  appleDetail,
+  microsoftDetail,
+  nativeDetailLookupLimit,
+  nativeDetailLookupLimitedWarning,
+  nativeDetailPlatforms,
+  nativeDetailResult,
+  redditDetail,
+} from './overview-native-detail.js';
 import {markReportWindow} from './report-windows.js';
 import {
   assertMicrosoftWindowClosed,
@@ -693,8 +702,12 @@ export class NativeCampaignReports {
       currency = accountCurrency(platform!.gateway, d);
       timezone = accountTimezone(platform!.gateway, d);
     }
-    if (entityLevel.id !== 'campaign')
+    // RPT-07: Microsoft, Reddit and Apple detail levels reuse their native report paths below.
+    const detail = entityLevel.id === 'campaign' ? undefined : entityLevel.id;
+    if (detail && !nativeDetailPlatforms.includes(p))
       return collectDetailedOverview(this.service, source, range, actor, metadata, currency, timezone, lookup);
+    const detailRounding: Record<string, number> = {};
+    let detailRows: {rows: JsonObject[]; parents: Record<string, JsonObject>} | undefined;
     if (p === 'google') {
       const fields = [
         ...new Set([
@@ -1031,16 +1044,29 @@ export class NativeCampaignReports {
               account_id: account,
               payload: {
                 ReportRequest: {
-                  Type: 'CampaignPerformanceReportRequest',
+                  // RPT-07: ad group and ad levels use the native performance reports that name their parents.
+                  Type:
+                    detail === 'adset'
+                      ? 'AdGroupPerformanceReportRequest'
+                      : detail === 'ad'
+                        ? 'AdPerformanceReportRequest'
+                        : 'CampaignPerformanceReportRequest',
                   Aggregation: 'Summary',
                   Format: 'Csv',
-                  ReportName: 'AMCP campaign overview',
+                  ReportName:
+                    detail === 'adset'
+                      ? 'AMCP ad group overview'
+                      : detail === 'ad'
+                        ? 'AMCP ad overview'
+                        : 'AMCP campaign overview',
                   ReturnOnlyCompleteData: true,
                   Columns: [
                     ...new Set([
                       'AccountId',
                       'CampaignId',
                       'CampaignName',
+                      ...(detail ? ['AdGroupId', 'AdGroupName'] : []),
+                      ...(detail === 'ad' ? ['AdId', 'AdTitle'] : []),
                       'CurrencyCode',
                       'Spend',
                       'Impressions',
@@ -1100,30 +1126,106 @@ export class NativeCampaignReports {
       resultDefinition = 'Microsoft conversions included in the Conversions column';
       context.report_time_zone = zone.report_time_zone;
       if (zone.fallback) warnings.push(microsoftFallbackWarning);
+      if (detail) detailRows = microsoftDetail(detail, account, currency, raw, detailRounding);
     } else if (p === 'apple') {
       const m = await run({...plan('/v1/ad-accounts/' + account), origin: 'https://api.ads.apple.com'}, false);
       metadata = m.result ?? m;
       currency = metadata.currency ?? null;
       timezone = 'UTC';
-      const d = await run({
-        ...plan(
-          '/v1/reports/apps/campaigns/query',
-          {},
+      if (detail) {
+        // RPT-07: one bounded ad group or ad report page, then the account's own records for exact parents.
+        const entity = detail === 'ad' ? 'ads' : 'adgroups',
+          apple = (path: string, body: JsonObject, action: string, stage?: string) =>
+            run({...plan(path, {}, body, 'https://api.ads.apple.com'), action}, false, stage);
+        const d = await apple(
+          '/v1/reports/apps/' + entity + '/query',
           {
             timeRange: {start: range.since, end: range.until, timeZone: 'UTC'},
-            pagination: {offset: 0, pageSize: 100},
+            pagination: {offset: 0, pageSize: 1000},
             options: {},
           },
-          'https://api.ads.apple.com',
-        ),
-        action: 'apple_ads_v1_reports_apps_campaigns',
-      });
-      raw = list(d.result?.rows ?? d.result ?? []);
-      resultDefinition = 'Apple total attributed installs (tap + view); totalMetrics';
-      if (extra.length)
-        warnings.push(
-          'Apple report returns native metric columns; arbitrary field selection is not supported by this endpoint.',
+          'apple_ads_v1_reports_apps_' + entity,
         );
+        raw = list(d.result?.rows ?? []);
+        const total = d.pagination?.totalResults ?? d.result?.pagination?.totalResults;
+        if (raw.length >= 1000 || (total !== undefined && Number(total) !== raw.length))
+          throw new MirrorError(
+            'INCOMPLETE_REPORT',
+            'Report reached a pagination limit. Split the date range or accounts.',
+          );
+        // Apple IDs are JSON numbers; only safe integers can be requested and matched exactly.
+        const safeId = (id: string) => /^[1-9][0-9]{0,15}$/.test(id) && Number.isSafeInteger(Number(id)),
+          lists = {campaigns: [] as JsonObject[], adGroups: [] as JsonObject[], ads: [] as JsonObject[]},
+          ids = [...new Set(raw.map(r => String(r.metadata?.id ?? '')))].filter(safeId);
+        if (ids.length > nativeDetailLookupLimit) warnings.push(nativeDetailLookupLimitedWarning);
+        const query = async (kind: 'campaigns' | 'adgroups' | 'ads', wanted: string[]) => {
+          if (!wanted.length) return [];
+          const rows = list(
+            (
+              await apple(
+                '/v1/' + kind + '/query',
+                {
+                  filters: [{field: 'id', operator: 'IN', value: wanted.map(Number)}],
+                  pagination: {offset: 0, pageSize: 1000},
+                },
+                'apple_ads_v1_' + kind + '_query',
+                'detail_parents',
+              )
+            ).result ?? [],
+          );
+          if (rows.length > wanted.length || rows.some(r => !wanted.includes(String(r.id))))
+            throw new MirrorError(
+              'REPORT_SHAPE_CHANGED',
+              'Apple returned an unrequested or repeated parent record.',
+              {},
+              502,
+            );
+          return rows;
+        };
+        const parentIds = (rows: JsonObject[], key: string) =>
+          [...new Set(rows.map(r => String(r[key] ?? '')))].filter(safeId);
+        try {
+          const wanted = ids.slice(0, nativeDetailLookupLimit);
+          if (detail === 'ad') lists.ads = await query('ads', wanted);
+          lists.adGroups = await query('adgroups', detail === 'ad' ? parentIds(lists.ads, 'adGroupId') : wanted);
+          lists.campaigns = await query('campaigns', [
+            ...new Set([...parentIds(lists.adGroups, 'campaignId'), ...parentIds(lists.ads, 'campaignId')]),
+          ]);
+        } catch (e) {
+          // Only a provider refusal of these reads keeps the rows with unknown parents (as for other detail levels).
+          if (
+            !(e instanceof MirrorError) ||
+            e.retryable ||
+            e.code.startsWith('REPORT_') ||
+            ![400, 403, 404].includes(e.status)
+          )
+            throw e;
+          lists.campaigns = lists.adGroups = lists.ads = [];
+          warnings.push(detailParentsUnavailableWarning);
+        }
+        resultDefinition = 'Apple total attributed installs (tap + view); totalMetrics';
+        detailRows = appleDetail(detail, raw, lists, currency, detailRounding);
+      } else {
+        const d = await run({
+          ...plan(
+            '/v1/reports/apps/campaigns/query',
+            {},
+            {
+              timeRange: {start: range.since, end: range.until, timeZone: 'UTC'},
+              pagination: {offset: 0, pageSize: 100},
+              options: {},
+            },
+            'https://api.ads.apple.com',
+          ),
+          action: 'apple_ads_v1_reports_apps_campaigns',
+        });
+        raw = list(d.result?.rows ?? d.result ?? []);
+        resultDefinition = 'Apple total attributed installs (tap + view); totalMetrics';
+        if (extra.length)
+          warnings.push(
+            'Apple report returns native metric columns; arbitrary field selection is not supported by this endpoint.',
+          );
+      }
     } else if (p === 'reddit') {
       timezone = 'UTC';
       const d = await run(
@@ -1135,13 +1237,63 @@ export class NativeCampaignReports {
               starts_at: range.since + 'T00:00:00Z',
               ends_at: nextDay(range.until) + 'T00:00:00Z',
               fields: [...new Set(['SPEND', 'IMPRESSIONS', 'CLICKS', ...extra])],
-              breakdowns: ['CAMPAIGN_ID'],
+              // RPT-07: ad group and ad levels break down by their parents too (Reddit allows up to three).
+              breakdowns:
+                detail === 'adset'
+                  ? ['CAMPAIGN_ID', 'AD_GROUP_ID']
+                  : detail === 'ad'
+                    ? ['CAMPAIGN_ID', 'AD_GROUP_ID', 'AD_ID']
+                    : ['CAMPAIGN_ID'],
             },
           },
         ),
       );
       raw = list(d.data?.metrics ?? []);
       const campaigns = list((await run(plan('/api/v3/ad_accounts/' + account + '/campaigns'))).data ?? []);
+      if (detail) {
+        // Current names from the account's own ad group and ad lists (200 IDs per request, bounded); the report rows
+        // already name the parents, and a listed record that disagrees refuses the source.
+        const lists = {campaigns, adGroups: [] as JsonObject[], ads: [] as JsonObject[]},
+          wanted = (key: string) =>
+            [...new Set(raw.map(r => String(r[key] ?? '')))].filter(id => /^[1-9][0-9]{0,31}$/.test(id));
+        const named = async (kind: 'ad_groups' | 'ads', ids: string[]) => {
+          if (ids.length > nativeDetailLookupLimit) warnings.push(nativeDetailLookupLimitedWarning);
+          const out: JsonObject[] = [];
+          for (let at = 0; at < Math.min(ids.length, nativeDetailLookupLimit); at += 200) {
+            const batch = ids.slice(at, Math.min(at + 200, nativeDetailLookupLimit));
+            const rows = list(
+              (
+                await run(
+                  plan('/api/v3/ad_accounts/' + account + '/' + kind, {id: batch.join(','), 'page.size': 200}),
+                  true,
+                  'detail_names',
+                )
+              ).data ?? [],
+            );
+            if (rows.some(r => !batch.includes(String(r.id))))
+              throw new MirrorError('REPORT_SHAPE_CHANGED', 'Reddit returned an unrequested entity.', {}, 502);
+            out.push(...rows);
+          }
+          return out;
+        };
+        try {
+          lists.adGroups = await named('ad_groups', wanted('ad_group_id'));
+          if (detail === 'ad') lists.ads = await named('ads', wanted('ad_id'));
+        } catch (e) {
+          if (
+            !(e instanceof MirrorError) ||
+            e.retryable ||
+            e.code.startsWith('REPORT_') ||
+            ![400, 403, 404].includes(e.status)
+          )
+            throw e;
+          lists.adGroups = lists.ads = [];
+          warnings.push(
+            'Reddit ad group and ad names could not be read, so rows show IDs; parents still come from the report.',
+          );
+        }
+        detailRows = redditDetail(detail, raw, lists, account, detailRounding);
+      }
       raw = raw.map(r => ({
         ...r,
         campaign_name: campaigns.find(c => c.id === r.campaign_id)?.name,
@@ -1309,6 +1461,19 @@ export class NativeCampaignReports {
       throw new MirrorError('REPORT_ROW_LIMIT', 'Report exceeds 10,000 rows. Narrow the date range or accounts.');
     this.service.store.assertActorActive(actor);
     this.service.store.resolveConnection(actor, platform!.gateway, account, connection);
+    if (detail)
+      return nativeDetailResult(source, detailRows!, raw, {
+        lineage,
+        metadata,
+        currency,
+        timezone,
+        range,
+        providerComplete: complete,
+        resultDefinition,
+        warnings,
+        context,
+        rounding: detailRounding,
+      });
     const rows = raw.map(r => normalizeNativeRow(p, r));
     for (const name of missingNativeMetrics(p, extra, rows))
       warnings.push(

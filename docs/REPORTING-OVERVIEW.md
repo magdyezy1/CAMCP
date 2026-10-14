@@ -94,6 +94,16 @@ incomplete and its window has closed. Each label holds recommendations; nothing 
 - **Declared incomplete.** A detailed (ad set or ad) source with `complete_window:false` is partial
   (`detail_contract:"overview-detail-v2"`) and its recommendations need review. Snapshots retained earlier keep their
   original labels.
+- **Native parents and more detailed providers (RPT-07, `overview-detail-v3`).** TikTok ad groups and ads, Snapchat
+  ads and LinkedIn creatives carry their exact native parents from one bounded parent read per entity and job (drift,
+  foreign or repeated parents refuse the source; a refused read keeps unknown parents with a warning). Microsoft,
+  Reddit and Apple now offer ad-group and ad levels with the same `report_options:{complete_window, attribution}` as
+  Google: Microsoft uses its ad group and ad performance reports (rows name their campaign and ad group), Reddit breaks
+  its report down by `CAMPAIGN_ID`, `AD_GROUP_ID` (and `AD_ID`) and reads current names from the account's ad group and
+  ad lists (a listed record naming other parents refuses the source), and Apple reads `reports/apps/adgroups` or
+  `ads` (one page of at most 999 rows) with parents from the account's own ad group, ad and campaign records. These
+  rows are window totals per entity: additive values are exact (nine places, half to even), reach and frequency stay
+  unknown, and names and parents beyond 1000 entities per source stay unknown with a warning.
 - **Meta omitted actions (RPT-04, owner policy P6).** Meta leaves zero-valued actions out of `actions` and
   `action_values`. On a delivered row (impressions above 0) from a complete page, an absent requested action counts
   as 0 and is named in the row's `omitted_as_zero` (and in its quality, so CSV and Sheets carry it); a row without
@@ -333,9 +343,9 @@ shows disabled entries with their reason.
 | Snapchat | Campaign totals/inventory and account-local day boundaries |
 | LinkedIn | Campaign adAnalytics with verified account currency, native UTC period/completion checks and explicit unknown conversion attribution. Campaign names and objectives come from one bounded read of the account's own campaigns per job (current metadata, not delivery-time values); a campaign of another account refuses the source, a refused read keeps IDs with a warning. Objective override when omitted |
 | X Ads | Active-entities request planning; current documented placements ALL_ON_TWITTER, SPOTLIGHT and TREND; separate web and mobile conversion requests; resumable hourly batches and explicit partial-coverage flags |
-| Microsoft Ads | Durable Submit/Poll campaign report in the account time zone and secure server-side CSV download |
-| Apple Ads | Campaign report with explicit UTC range |
-| Reddit Ads | Campaign metrics/inventory, spend micro-units and explicit native conversion definitions |
+| Microsoft Ads | Durable Submit/Poll campaign, ad group or ad report in the account time zone and secure server-side CSV download |
+| Apple Ads | Campaign, ad group or ad report with explicit UTC range; detailed parents from the account's own records |
+| Reddit Ads | Campaign, ad group or ad metrics/inventory, spend micro-units and explicit native conversion definitions |
 | GA4 | Campaign-attributed analytics context, property currency/timezone and threshold signals |
 | Search Console | Organic page context with limited top-row coverage; no paid-budget advice |
 
