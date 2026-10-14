@@ -199,6 +199,35 @@ test('synthetic Search Console and Google Ads rows give a deterministic, approxi
   assert.equal(capped.summary.queries, 4);
 });
 
+test('every input order gives the same table, even where order-dependent float sums would round apart', () => {
+  // (3.55·1 + 5.26·2 + 9.38·3) / 6 = 7.035. Summed in input order, the weighted position rounded to 7.03 for some
+  // orders and 7.04 for others; the table now sums in one canonical order.
+  const rows = [
+      {query: 'Trail Shoes', clicks: 1, impressions: 1, position: 3.55},
+      {query: 'trail shoes ', clicks: 2, impressions: 2, position: 5.26},
+      {query: 'TRAIL SHOES', clicks: 3, impressions: 3, position: 9.38},
+    ],
+    orders = [
+      [0, 1, 2],
+      [0, 2, 1],
+      [1, 0, 2],
+      [1, 2, 0],
+      [2, 0, 1],
+      [2, 1, 0],
+    ].map(order => order.map(i => rows[i])),
+    tables = orders.map(order =>
+      searchOverlapTable(
+        order,
+        [],
+        200,
+        order.map(r => ({...r, page: 'https://example.com/trail'})),
+      ),
+    );
+  for (const table of tables) assert.deepEqual(table, tables[0]);
+  const trail = tables[0].rows[0].organic;
+  assert.equal(trail.average_position, trail.top_pages[0].average_position);
+});
+
 test('page rows rank at most three landing pages per query, deterministically, without changing query totals', () => {
   const o = organic.map(r => ({query: r.keys[0], clicks: r.clicks, impressions: r.impressions, position: r.position})),
     pages = pageRows.map(r => ({

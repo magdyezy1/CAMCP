@@ -74,6 +74,12 @@ type Paid = {
 type Page = {clicks: number; impressions: number; weighted: number};
 const round = (value: number, places: number) => Number(value.toFixed(places));
 const byText = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+/** Rows in one canonical order. Floating-point sums depend on their order, so every sum here is taken in this one. */
+const canonical = <T>(rows: T[], key: (row: T) => unknown[]): T[] =>
+  rows
+    .map(row => [JSON.stringify(key(row)), row] as const)
+    .sort(([a], [b]) => byText(a, b))
+    .map(([, row]) => row);
 
 /**
  * The deterministic overlap table of already-read rows: the same inputs, in any order, give the same output.
@@ -89,7 +95,7 @@ export function searchOverlapTable(
   const o = new Map<string, Organic>(),
     p = new Map<string, Paid>(),
     landing = new Map<string, Map<string, Page>>();
-  for (const r of pages ?? []) {
+  for (const r of canonical(pages ?? [], r => [r.query, r.page, r.clicks, r.impressions, r.position])) {
     const key = normalizeSearchQuery(r.query);
     if (!key) continue;
     const list = landing.get(key) ?? new Map<string, Page>(),
@@ -110,7 +116,7 @@ export function searchOverlapTable(
       }))
       .sort((x, y) => y.clicks - x.clicks || y.impressions - x.impressions || byText(x.page, y.page))
       .slice(0, pagesPerQuery);
-  for (const r of organic) {
+  for (const r of canonical(organic, r => [r.query, r.clicks, r.impressions, r.position])) {
     const key = normalizeSearchQuery(r.query);
     if (!key) continue;
     const v = o.get(key) ?? {clicks: 0, impressions: 0, weighted: 0, variants: new Set<string>()};
@@ -120,7 +126,14 @@ export function searchOverlapTable(
     v.variants.add(r.query);
     o.set(key, v);
   }
-  for (const r of paid) {
+  for (const r of canonical(paid, r => [
+    r.search_term,
+    r.resource_name ?? '',
+    r.impressions,
+    r.clicks,
+    r.cost_micros,
+    r.conversions,
+  ])) {
     const key = normalizeSearchQuery(r.search_term);
     if (!key) continue;
     const v = p.get(key) ?? {
