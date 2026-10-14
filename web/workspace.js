@@ -259,18 +259,32 @@ function readinessAge(check) {
   return date(check.checked_at) + (check.stale ? ' · ' + uiText('Older than 15 minutes; check again') : '');
 }
 async function renderOverview() {
+  // The working client (SEC-08) narrows Home to its attention items, recent plans and accounts.
+  const client = typeof workingClientQuery === 'function' ? workingClientQuery() : {};
   // The attention items come from the Operations classifier (OPS-06); a failure there still shows the rest of Home.
-  const [d, attention] = await Promise.all([
+  const [full, attention, clientPlans] = await Promise.all([
       workspaceCall('workspace', {action: 'dashboard', view: 'full'}),
-      workspaceCall('workspace', {
-        action: 'operations',
-        state: 'attention',
-        limit: 8,
-        // The working client's attention items only (SEC-08).
-        ...(typeof workingClientQuery === 'function' ? workingClientQuery() : {}),
-      }).catch(error => ({error})),
+      workspaceCall('workspace', {action: 'operations', state: 'attention', limit: 8, ...client}).catch(error => ({
+        error,
+      })),
+      // The client's newest plans for "Continue recent work"; without them Home keeps the workspace's own.
+      client.profile_id
+        ? workspaceCall('campaign', {action: 'list', limit: 8, ...client}).catch(() => null)
+        : Promise.resolve(null),
     ]),
-    accounts = d.connections.flatMap(c => c.accounts_status.map(a => ({...a, connection: c}))),
+    d = Array.isArray(clientPlans?.campaigns)
+      ? {
+          ...full,
+          campaigns: clientPlans.campaigns,
+          campaign_counts: {...full.campaign_counts, total: clientPlans.total ?? clientPlans.campaigns.length},
+        }
+      : full,
+    accounts = d.connections
+      .flatMap(c => c.accounts_status.map(a => ({...a, connection: c})))
+      .filter(
+        a =>
+          typeof inWorkingClient !== 'function' || inWorkingClient(a.connection.gateway, a.account_id, a.connection.id),
+      ),
     receipts = accounts.flatMap(a => a.verified_writes),
     // Counted as the badges show them: a stale check is to be checked again, and a login with no account read is left out.
     checked = accounts.filter(a => a.check?.readiness !== 'not_applicable'),
@@ -283,7 +297,12 @@ async function renderOverview() {
   content.innerHTML = workHome(d, accounts, attention);
   // Readiness is a summary with its accounts one click away, and capability evidence (tool names, evidence levels) is
   // technical detail, so Home stays short on a phone (OPS-06 increment 2).
-  content.innerHTML += `<div class="workspace-metrics"><article><strong>${accounts.length}</strong><span>${esc(uiText('Selected resources'))}</span></article><article><strong>${d.campaign_counts?.total ?? d.campaigns.length}</strong><span>${esc(uiText('Campaign plans'))}</span></article><article><strong>${receipts.filter(r => r.status === 'verified').length}</strong><span>${esc(uiText('Verified write receipts'))}</span></article></div><section class="panel" id="home-readiness"><div class="panel-header"><h2>${esc(uiText('Account readiness'))}</h2><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a></div>${accounts.length ? `<p>${esc(uiText('Ready: {ready} · Blocked: {blocked} · To check: {other}', {ready, blocked, other: checked.length - ready - blocked}))}</p><details class="workspace-details"><summary>${esc(uiText('Accounts and their readiness'))}</summary>${accounts.map((a, i) => `<div class="token-row"><div><strong>${accountName(a)}</strong><small>${a.connection.write_accounts.includes(a.account_id) ? uiText('Reviewed writes enabled') : uiText('Read access')} · ${esc(readinessAge(a.check))}</small>${a.check?.checks ? recordDetails(a.check.checks, uiText('Prerequisites')) : ''}</div><div>${readinessBadge(a.check)}${a.check?.readiness === 'not_applicable' ? '' : `<button class="button small" data-check-account="${i}">${esc(uiText('Check account'))}</button>`}</div></div>`).join('')}</details>` : blank(uiText('Connect a platform and select resources to check readiness.'))}</section><section class="panel" id="home-capabilities"><div class="panel-header"><h2>${esc(uiText('Capabilities and evidence'))}</h2><a class="button small" href="/capabilities">${esc(uiText('Check capabilities'))}</a></div><p class="workspace-copy">${esc(uiText(d.capabilities.meaning))}</p><details class="workspace-details"><summary>${esc(uiText('Technical details'))}</summary>${d.capabilities.features.map(f => `<div class="token-row"><div><strong>${esc(uiText(f.name))}</strong><small>${esc(uiText(f.coverage))}</small><code>${esc(f.tool)}</code></div>${badge(f.implementation)}</div>`).join('')}${recordDetails(d.capabilities.evidence, uiText('Provider evidence by account and action'))}</details></section>`;
+  content.innerHTML += `<div class="workspace-metrics"><article><strong>${accounts.length}</strong><span>${esc(uiText('Selected resources'))}</span></article><article><strong>${d.campaign_counts?.total ?? d.campaigns.length}</strong><span>${esc(uiText('Campaign plans'))}</span></article><article><strong>${receipts.filter(r => r.status === 'verified').length}</strong><span>${esc(uiText('Verified write receipts'))}</span></article></div><section class="panel" id="home-readiness"><div class="panel-header"><h2>${esc(uiText('Account readiness'))}</h2><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a></div>${accounts.length ? `<p>${esc(uiText('Ready: {ready} · Blocked: {blocked} · To check: {other}', {ready, blocked, other: checked.length - ready - blocked}))}</p><details class="workspace-details"><summary>${esc(uiText('Accounts and their readiness'))}</summary>${accounts.map((a, i) => `<div class="token-row"><div><strong>${accountName(a)}</strong><small>${a.connection.write_accounts.includes(a.account_id) ? uiText('Reviewed writes enabled') : uiText('Read access')} · ${esc(readinessAge(a.check))}</small>${a.check?.checks ? recordDetails(a.check.checks, uiText('Prerequisites')) : ''}</div><div>${readinessBadge(a.check)}${a.check?.readiness === 'not_applicable' ? '' : `<button class="button small" data-check-account="${i}">${esc(uiText('Check account'))}</button>`}</div></div>`).join('')}</details>` : blank(uiText('Connect a platform and select resources to check readiness.'))}</section><section class="panel" id="home-capabilities"><div class="panel-header"><h2>${esc(uiText('Capabilities and evidence'))}</h2><a class="button small" href="/capabilities">${esc(uiText('Check capabilities'))}</a></div><p class="workspace-copy">${esc(uiText(d.capabilities.meaning))}</p><details class="workspace-details"><summary>${esc(uiText('Technical details'))}</summary>${d.capabilities.features.map(f => `<div class="token-row"><div><strong>${esc(uiText(f.name))}</strong><small>${esc(uiText(f.coverage))}</small><code>${esc(f.tool)}</code></div>${badge(f.implementation)}</div>`).join('')}${recordDetails(
+    d.capabilities.evidence.filter(
+      e => typeof inWorkingClient !== 'function' || inWorkingClient(e.gateway, e.account_id, e.connection_id),
+    ),
+    uiText('Provider evidence by account and action'),
+  )}</details></section>`;
   workspaceBind('[data-check-account]', async b => {
     const a = accounts[Number(b.dataset.checkAccount)];
     await workspaceCall('workspace', {

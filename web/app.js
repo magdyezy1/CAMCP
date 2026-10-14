@@ -45,8 +45,6 @@ let session = {authenticated: false, csrf: null},
   tokens = [],
   oauthClients = [],
   oauthEnded = [],
-  // The working client's profiles with their accounts (SEC-08), loaded once per identity; null until loaded.
-  workingClients = null,
   // The client access sets this person may limit a token or AI client to (SEC-08).
   accessSetChoices = [],
   pollTimer;
@@ -71,7 +69,6 @@ function resetPrivateState() {
   tokens = [];
   oauthClients = [];
   oauthEnded = [];
-  workingClients = null;
   accessSetChoices = [];
   currentPlatform = currentConnection = null;
   selected.clear();
@@ -399,9 +396,12 @@ function focusFragmentTarget(target) {
   target.focus({preventScroll: true});
 }
 async function navigate(route) {
+  // The next page keeps the working client in its address (SEC-08).
+  route = withWorkingClient(route);
   history.pushState({}, '', route);
   await render();
-  if (location.pathname + location.search + location.hash !== route) return;
+  // render() keeps the working client in the address, or drops a stale one: that is still the page opened here.
+  if (!sameAddressIgnoringClient(location.pathname + location.search + location.hash, route)) return;
   let target = fragmentTarget(location.hash);
   if (!target && location.pathname === '/reporting-overview' && new URLSearchParams(location.search).has('report_id'))
     target = document.getElementById('overview-results');
@@ -416,6 +416,8 @@ async function navigate(route) {
  * the previous state and a reload restores it (WEB-06). The view stays rendered for the new address.
  */
 function setViewLocation(url, push = false) {
+  // A page's own state keeps the working client in the address (SEC-08).
+  url = withWorkingClient(url);
   if (url === location.pathname + location.search + location.hash) return;
   history[push ? 'pushState' : 'replaceState']({}, '', url);
   renderedLocation = location.pathname + location.search;
@@ -970,7 +972,7 @@ async function renderActivity() {
   const generation = navigationGeneration,
     identity = identityGeneration;
   // The working client narrows the history to its accounts (SEC-08).
-  const client = workingClientQuery(),
+  const client = typeof workingClientQuery === 'function' ? workingClientQuery() : {},
     initial = await api('/api/activity' + (client.profile_id ? '?' + new URLSearchParams(client) : ''));
   if (generation !== navigationGeneration || identity !== identityGeneration) return;
   const rows = result =>
@@ -1258,7 +1260,8 @@ async function switchWorkspaceFromShell(id) {
  * account pickers and lists to the accounts its client profile binds, within this person's current access. It is a
  * view filter, never access control: the server still decides every request, and only a client access set limits what
  * a person, token or AI client may reach. It is kept in the address (?client=) and in this tab for this person and
- * workspace, and forgotten on sign-out and on a workspace switch.
+ * workspace, and forgotten on sign-out and on a workspace switch. The choices come with the session (/api/session
+ * workingClients), so a page never waits for another request before it renders.
  */
 const workingClientStore = 'amcp.workingClient';
 const workingClientKey = () =>
@@ -1278,7 +1281,6 @@ function workingClientRemember(id) {
 }
 /** Forgets every working client this tab remembered (sign-out and workspace switch). */
 function workingClientForget() {
-  workingClients = null;
   try {
     for (let i = sessionStorage.length - 1; i >= 0; i--) {
       const key = sessionStorage.key(i);
@@ -1286,26 +1288,24 @@ function workingClientForget() {
     }
   } catch {}
 }
-/** The client profiles with accounts this person can reach, read once per identity. */
-async function loadWorkingClients() {
-  if (!session.authenticated || session.testAccount || session.mfaEnrollmentRequired) return (workingClients = []);
-  if (workingClients) return workingClients;
-  const identity = identityGeneration;
-  let data;
-  try {
-    data = await api('/api/working-clients');
-  } catch (e) {
-    if (e.code === 'REQUEST_SUPERSEDED') throw e;
-    data = {clients: []};
-  }
-  if (identity !== identityGeneration) throw supersededRequest();
-  return (workingClients = Array.isArray(data.clients) ? data.clients : []);
+/**
+ * The client profiles with accounts this person can reach, as the session lists them; none for a reviewer test account
+ * or while a required two-step setup is pending.
+ */
+function workingClientList() {
+  return session.authenticated &&
+    !session.testAccount &&
+    !session.mfaEnrollmentRequired &&
+    Array.isArray(session.workingClients)
+    ? session.workingClients
+    : [];
 }
 /** The chosen working client: the address first, then this tab's memory; one no longer listed is no choice. */
 function workingClient() {
-  if (!workingClients?.length) return null;
+  const listed = workingClientList();
+  if (!listed.length) return null;
   const id = new URLSearchParams(location.search).get('client') ?? workingClientRemembered();
-  return workingClients.find(c => c.profile_id === id) ?? null;
+  return listed.find(c => c.profile_id === id) ?? null;
 }
 /** The profile_id argument of a list call: the working client's, or nothing. */
 const workingClientQuery = () => (workingClient() ? {profile_id: workingClient().profile_id} : {});
@@ -1358,11 +1358,16 @@ function clientAccountOptions(options, describe = o => o) {
 /** The notice of a picker the working client left empty, instead of asking to connect an account that is connected. */
 const workingClientEmptyNotice = () =>
   uiText('The working client has no account for this. Choose All clients in the top bar to see every account.');
-/** The client names a set of accounts spans. */
+/**
+ * The names of the clients a set of accounts spans, or none when one client holds every account a playbook binds: an
+ * account two playbooks share, or one no playbook binds, mixes no clients.
+ */
 function workingClientsOf(scopes) {
-  return (workingClients ?? [])
-    .filter(c => scopes.some(s => inWorkingClient(s.gateway, s.account_id, s.connection_id, c)))
-    .map(c => c.name);
+  const clients = workingClientList(),
+    holds = (c, s) => inWorkingClient(s.gateway, s.account_id, s.connection_id, c),
+    bound = scopes.filter(s => clients.some(c => holds(c, s))),
+    touched = clients.filter(c => bound.some(s => holds(c, s)));
+  return touched.some(c => bound.every(s => holds(c, s))) ? [] : touched.map(c => c.name);
 }
 /** Work that spans accounts of different clients asks first (SEC-08); true when it does not, or once confirmed. */
 async function confirmCrossClient(scopes, confirmLabel = uiText('Continue')) {
@@ -1378,9 +1383,49 @@ async function confirmCrossClient(scopes, confirmLabel = uiText('Continue')) {
     items: names,
   });
 }
+/**
+ * The pages the working client applies to: signed-in workspace pages. Sign-in and authorization steps are left alone,
+ * so their addresses stay as the provider or sign-in flow wrote them and the consent page shows only its own client
+ * limit, never the view filter beside it.
+ */
+const workingClientSkipped = ['/auth/complete', '/oauth/consent', '/oauth/result'];
+function workingClientApplies(path) {
+  const entry = routeEntry(path);
+  return !!entry && entry.public !== true && !workingClientSkipped.includes(path);
+}
+/** Addresses are compared and rewritten as path, query and fragment only, on a fixed placeholder origin. */
+const addressOrigin = 'https://amcp.invalid';
+const currentAddress = () => new URL(location.pathname + location.search + location.hash, addressOrigin);
+/** An address that keeps the chosen working client (?client=), as render() keeps it; unchanged when none is chosen. */
+function withWorkingClient(address) {
+  const current = workingClient();
+  if (!current) return address;
+  try {
+    const url = new URL(address, addressOrigin + location.pathname);
+    if (url.origin !== addressOrigin || url.searchParams.has('client') || !workingClientApplies(url.pathname))
+      return address;
+    url.searchParams.set('client', current.profile_id);
+    return url.pathname + url.search + url.hash;
+  } catch {
+    return address;
+  }
+}
+/** Whether two addresses show the same page, whichever working client either names. */
+function sameAddressIgnoringClient(a, b) {
+  try {
+    const plain = address => {
+      const url = new URL(address, addressOrigin);
+      url.searchParams.delete('client');
+      return url.pathname + url.search + url.hash;
+    };
+    return plain(a) === plain(b);
+  } catch {
+    return a === b;
+  }
+}
 /** Keeps ?client= in the address for the chosen client, and drops one this person no longer has. True if changed. */
 function syncWorkingClientLocation() {
-  const url = new URL(location.href),
+  const url = currentAddress(),
     named = url.searchParams.get('client'),
     current = workingClient();
   if (current) {
@@ -1399,9 +1444,9 @@ function renderWorkingClientControl() {
   const actions = document.querySelector('.top-actions');
   if (!actions) return;
   let control = document.getElementById('working-client-control');
-  const listed = session.authenticated && !session.testAccount ? (workingClients ?? []) : [];
-  if (!listed.length || routeEntry(location.pathname)?.public === true) {
-    control?.remove();
+  const listed = workingClientList();
+  if (!listed.length || !workingClientApplies(location.pathname)) {
+    control?.remove?.();
     return;
   }
   if (!control) {
@@ -1431,12 +1476,30 @@ document.addEventListener('change', async event => {
     return;
   }
   workingClientRemember(select.value);
-  const url = new URL(location.href);
+  const url = currentAddress();
   if (select.value) url.searchParams.set('client', select.value);
   else url.searchParams.delete('client');
   history.replaceState(history.state, '', url.pathname + url.search + url.hash);
   await render();
-}); // WEB-06: a failed shell action stays on screen until the next action or page, instead of a six-second toast.
+});
+/**
+ * After a client playbook is saved or deleted, the selector lists the playbooks as they are now; a working client
+ * whose playbook was deleted is dropped from the address and from this tab's memory. A failed read keeps the list as
+ * it was: the playbook itself was saved.
+ */
+async function workingClientsChanged() {
+  let data;
+  try {
+    data = await api('/api/working-clients');
+  } catch (e) {
+    if (e.code === 'REQUEST_SUPERSEDED') throw e;
+    return;
+  }
+  session.workingClients = Array.isArray(data.clients) ? data.clients : [];
+  if (syncWorkingClientLocation()) renderedLocation = location.pathname + location.search;
+  renderWorkingClientControl();
+}
+// WEB-06: a failed shell action stays on screen until the next action or page, instead of a six-second toast.
 function showShellAlert(message) {
   const alert = document.getElementById('shell-alert');
   if (!alert || !message) return toast(message);
@@ -1506,13 +1569,9 @@ async function render() {
     if (pending || (routeChanged && page && !page.public))
       content.innerHTML = `<div class="page-heading"><div><h1>${esc(uiText(pageTitle))}</h1></div></div><section class="panel" role="status" aria-busy="true" id="route-loading"><p>${esc(uiText('Loading this page…'))}</p></section>`;
     if (pending) await ensurePageAssets(pathname);
-    // The working client (SEC-08): its list loads once per identity, and the address keeps ?client= for this page.
-    if (session.authenticated && page && !page.public) {
-      await loadWorkingClients();
-      if (generation !== navigationGeneration || identity !== identityGeneration || pathname !== location.pathname)
-        return;
-      if (syncWorkingClientLocation()) renderedLocation = location.pathname + location.search;
-    }
+    // The working client (SEC-08): the session lists the choices, and the address keeps ?client= for this page.
+    if (session.authenticated && workingClientApplies(location.pathname) && syncWorkingClientLocation())
+      renderedLocation = location.pathname + location.search;
     renderWorkingClientControl();
     if (generation !== navigationGeneration || identity !== identityGeneration || pathname !== location.pathname)
       return;
@@ -1965,7 +2024,8 @@ window.addEventListener('popstate', async () => {
   // Back and Forward land on the page heading like a link does, once that page has rendered and is still current.
   const shown = location.pathname + location.search + location.hash;
   await render();
-  if (location.pathname + location.search + location.hash !== shown) return;
+  // An older entry gains the working client in its address as it renders (SEC-08); it is still the page shown.
+  if (!sameAddressIgnoringClient(location.pathname + location.search + location.hash, shown)) return;
   const target = fragmentTarget(location.hash);
   if (target) focusFragmentTarget(target);
   else focusPageHeading();

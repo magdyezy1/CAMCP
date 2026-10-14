@@ -496,6 +496,8 @@ async function renderClientPlaybooks() {
     // The page reopens on the playbook just saved.
     edited = false;
     if (typeof saved?.id === 'string') showLocation(saved);
+    // The top bar's working clients list the playbook as saved (SEC-08).
+    if (typeof workingClientsChanged === 'function') await workingClientsChanged();
     await renderWorkspacePage();
     if (generation === navigationGeneration && identity === identityGeneration)
       toast(uiText('Approved playbook saved. Existing campaigns and report packs keep their original settings.'));
@@ -527,6 +529,8 @@ async function renderClientPlaybooks() {
     if (!active()) return;
     edited = false;
     showLocation(null);
+    // A deleted playbook leaves the top bar's working clients, and stops being the working client (SEC-08).
+    if (typeof workingClientsChanged === 'function') await workingClientsChanged();
     await renderWorkspacePage();
   });
   // /profiles?profile_id= reopens that playbook; one this workspace does not have is named, not silently replaced.

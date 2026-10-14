@@ -377,6 +377,14 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
    * the login (Store.connectionsFor) and only those discovered assets; Pages, catalogs and other accounts stay out.
    */
   const actorConnections = (actor: Actor) => store.connectionsFor(actor);
+  /**
+   * The working clients a person may choose (SEC-08 phase 1): client profiles with their accounts within current
+   * access. None for a reviewer test account, or while a required two-step setup is pending (SEC-06).
+   */
+  const workingClientChoices = (actor: Actor): JsonObject[] =>
+    actor.testAccount === true || actor.mfaEnrollmentRequired === true
+      ? []
+      : clientViews(store, actor).map(({has: _has, ...client}) => client);
   const actorConnection = (actor: Actor, id: string) => {
     const c = actorConnections(actor).find(c => c.id === id);
     if (!c) throw new MirrorError('CONNECTION_NOT_FOUND', 'The connection was not found in this workspace.', {}, 404);
@@ -777,6 +785,8 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         ...(session ? {downloadsAllowed: downloadsAllowed(store, session.actor)} : {}),
         // The client access set this member is limited to (SEC-08), or null for the whole workspace.
         ...(session ? {accessSet: accessSetView(store, session.actor)} : {}),
+        // The working client's choices (SEC-08), so no page waits for another request to narrow its pickers.
+        ...(session ? {workingClients: workingClientChoices(session.actor)} : {}),
         origin: web.origin,
         readOnly: !allowWrites,
         writesEnabled: allowWrites,
@@ -1638,15 +1648,13 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     }),
   );
   // The working client (SEC-08 phase 1): client profiles with their accounts within this person's current access. It
-  // is a view filter for pickers and lists, never a grant.
+  // is a view filter for pickers and lists, never a grant. The session lists them too; this reads them again after a
+  // playbook changes.
   router.get(
     '/api/working-clients',
     handler((req, res) => {
       const s = web.requireSession(req);
-      res.json({
-        clients: clientViews(store, s.actor).map(({has: _has, ...client}) => client),
-        access_set: accessSetView(store, s.actor),
-      });
+      res.json({clients: workingClientChoices(s.actor), access_set: accessSetView(store, s.actor)});
     }),
   );
   router.get(
