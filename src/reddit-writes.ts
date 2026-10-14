@@ -285,7 +285,9 @@ export function validateRedditPixelState(read: CompiledRequest, result: Transpor
 function lastFired(report: JsonObject): string | null {
   const times = [
     ...pixelEvents.map(k => report[k]),
-    ...(Array.isArray(report.custom_events) ? report.custom_events.map((e: unknown) => object(e) && e.last_fired_at) : []),
+    ...(Array.isArray(report.custom_events)
+      ? report.custom_events.map((e: unknown) => object(e) && e.last_fired_at)
+      : []),
     ...(object(report.breakdown) ? Object.values(report.breakdown) : []),
   ].filter((v): v is string => typeof v === 'string' && Number.isFinite(Date.parse(v)));
   return times.length ? times.reduce((a, b) => (Date.parse(b) > Date.parse(a) ? b : a)) : null;
@@ -305,7 +307,11 @@ export function redditPixelSnapshot(read: CompiledRequest, data: JsonObject): Js
     reddit_pixel_activity: {
       pixel_id: r.redditPixelId,
       last_fired_at: at,
-      freshness: !at ? 'never_fired' : Date.now() - Date.parse(at) > redditPixelStaleDays * 86400000 ? 'stale' : 'recent',
+      freshness: !at
+        ? 'never_fired'
+        : Date.now() - Date.parse(at) > redditPixelStaleDays * 86400000
+          ? 'stale'
+          : 'recent',
     },
   };
 }

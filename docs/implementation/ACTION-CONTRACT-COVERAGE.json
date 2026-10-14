@@ -51896,7 +51896,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
-        "tests/reddit-writes.test.ts"
+        "tests/reddit-writes.test.ts",
+        "tests/reddit-pixel-check.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "reddit_classic"
@@ -52199,7 +52200,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
-        "tests/reddit-writes.test.ts"
+        "tests/reddit-writes.test.ts",
+        "tests/reddit-pixel-check.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "reddit_classic"
@@ -52255,7 +52257,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
-        "tests/reddit-writes.test.ts"
+        "tests/reddit-writes.test.ts",
+        "tests/reddit-pixel-check.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "reddit_classic"
@@ -52273,7 +52276,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
-        "tests/reddit-writes.test.ts"
+        "tests/reddit-writes.test.ts",
+        "tests/reddit-pixel-check.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "reddit_classic"
@@ -52291,7 +52295,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
-        "tests/reddit-writes.test.ts"
+        "tests/reddit-writes.test.ts",
+        "tests/reddit-pixel-check.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "reddit_classic"
@@ -52499,7 +52504,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
-        "tests/reddit-writes.test.ts"
+        "tests/reddit-writes.test.ts",
+        "tests/reddit-pixel-check.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "reddit_classic"
@@ -52517,7 +52523,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
-        "tests/reddit-writes.test.ts"
+        "tests/reddit-writes.test.ts",
+        "tests/reddit-pixel-check.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "reddit_classic"
@@ -52535,7 +52542,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
-        "tests/reddit-writes.test.ts"
+        "tests/reddit-writes.test.ts",
+        "tests/reddit-pixel-check.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "reddit_classic"

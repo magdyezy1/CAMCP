@@ -134,7 +134,10 @@ test('a fresh account pixel passes: the list is read before the activity, and th
   g.state.fired = {page_visit: new Date(Date.now() - 60 * day).toISOString()};
   const refused = await g.execute(q);
   assertRefused(refused, 'STATE_CHANGED', {writes: g.writes()});
-  assert.ok(refused.error.details.changed_fields.some(p => /freshness/.test(p)), JSON.stringify(refused.error));
+  assert.ok(
+    refused.error.details.changed_fields.some(p => /freshness/.test(p)),
+    JSON.stringify(refused.error),
+  );
 });
 
 test('a pixel the account does not list is refused before its activity is read and before anything is sent (regression)', async t => {
@@ -149,17 +152,18 @@ test('a pixel the account does not list is refused before its activity is read a
       p.error.details.account_pixel_ids,
       pixels.map(x => x.id),
     );
-    assert.ok(
-      !f.calls.some(call => call.includes('/last_fired_at')),
-      'a pixel outside the account is never read',
-    );
+    assert.ok(!f.calls.some(call => call.includes('/last_fired_at')), 'a pixel outside the account is never read');
   }
 });
 
 test('a pixel that never fired, or not within the stale window, is reviewable with a warning', async t => {
   for (const [fired, freshness, warning] of [
     [{page_visit: null, purchase: null}, 'never_fired', /no event from this pixel yet/],
-    [{purchase: new Date(Date.now() - (redditPixelStaleDays + 3) * day).toISOString()}, 'stale', /not fired in the last 7 days/],
+    [
+      {purchase: new Date(Date.now() - (redditPixelStaleDays + 3) * day).toISOString()},
+      'stale',
+      /not fired in the last 7 days/,
+    ],
     [{custom_events: [{name: 'Signup', last_fired_at: new Date(Date.now() - day).toISOString()}]}, 'recent', undefined],
   ]) {
     const f = fixture({fired});
@@ -213,6 +217,56 @@ test('read-back compares conversion_pixel_id: an ad group Reddit shows with anot
   }
 });
 
+test('a CBO campaign and an ad group update that changes the pixel are checked against the account list too (regression)', async t => {
+  // A CBO campaign requires a pixel like an ad group; its impact names the campaign kind.
+  const f = fixture();
+  t.after(f.close);
+  const campaign = await f.call('amcp_write', {
+    action: 'prepare',
+    gateway,
+    arguments: {
+      operation: 'reddit_campaign_ops',
+      arguments: {
+        action: 'CREATE_CAMPAIGN',
+        account_id: 'a2_111',
+        payload: {
+          data: {
+            name: 'CBO',
+            configured_status: 'PAUSED',
+            objective: 'CONVERSIONS',
+            is_campaign_budget_optimization: true,
+            conversion_pixel_id: 't2_pixel1',
+          },
+        },
+      },
+    },
+  });
+  assert.equal(campaign.success, true, JSON.stringify(campaign).slice(0, 800));
+  assert.ok(f.calls.includes('GET /api/v3/ad_accounts/a2_111/pixels'), f.calls.join(', '));
+  assert.equal(campaign.data.creative_impact.conversion_pixel.listed_for_account, true);
+  assert.match(campaign.data.creative_impact.effect, /^The CBO campaign /);
+  // Moving an existing ad group to a pixel of another account is refused before anything is sent.
+  const g = fixture({pixels: [{id: 't2_pixel1', name: 'Store pixel'}]});
+  t.after(g.close);
+  g.store.rememberResource({id: 'r', tenantId: actor.tenantId, gateway}, 'a2_111', 'ad_groups/200');
+  g.state.groups.set('200', {...group, id: '200', ad_account_id: 'a2_111'});
+  const moved = await g.call('amcp_write', {
+    action: 'prepare',
+    gateway,
+    arguments: {
+      operation: 'reddit_campaign_ops',
+      arguments: {
+        action: 'UPDATE_AD_GROUP',
+        account_id: 'a2_111',
+        payload: {data: {conversion_pixel_id: 't2_foreign'}},
+        params: {ad_group_id: '200'},
+      },
+    },
+  });
+  assertRefused(moved, 'REDDIT_PIXEL_NOT_IN_ACCOUNT', {writes: g.writes()});
+  assert.deepEqual(moved.error.details.account_pixel_ids, ['t2_pixel1']);
+});
+
 test('an ad group update that does not name a pixel reads no pixel', async t => {
   const f = fixture();
   t.after(f.close);
@@ -223,7 +277,12 @@ test('an ad group update that does not name a pixel reads no pixel', async t => 
     gateway,
     arguments: {
       operation: 'reddit_campaign_ops',
-      arguments: {action: 'UPDATE_AD_GROUP', account_id: 'a2_111', payload: {data: {name: 'Renamed'}}, params: {ad_group_id: '200'}},
+      arguments: {
+        action: 'UPDATE_AD_GROUP',
+        account_id: 'a2_111',
+        payload: {data: {name: 'Renamed'}},
+        params: {ad_group_id: '200'},
+      },
     },
   });
   assert.equal(p.success, true, JSON.stringify(p).slice(0, 800));
