@@ -609,7 +609,7 @@ evidence under the existing disconnect workflow.
 
 ## Portfolio, measurement and commerce
 
-Live portfolio (`/portfolio`) supports Google Ads, Meta, LinkedIn, Snapchat, TikTok and X. Google campaigns, ad groups and ads use validated
+Live portfolio (`/portfolio`) supports Google Ads, Meta, LinkedIn, Snapchat, TikTok, X and Microsoft Advertising. Google campaigns, ad groups and ads use validated
 signed keyset continuation bound to current actor/login/permissions, account, hierarchy, native version and page size,
 with a five-minute expiry and 100-page limit. Exact customer, parent and resource identities are verified in the
 account-scoped query. Duplicate, out-of-order, foreign, unsafe-integer and partial rows are refused. Each page is
@@ -676,6 +676,20 @@ exact. Configured/effective status, servability and approval remain independent 
 Signed continuation binds current actor/login/permissions and hierarchy for five minutes, at most 100 pages;
 repeated tokens and adjacent overlaps fail. Eight requests including retries, 103 parent/inventory rows, 8 MiB
 and 60 seconds bound a page. Provider-order pagination is not a fixed snapshot.
+
+Microsoft Advertising (RPT-07, B27) uses `gateway:microsoft_ads_native_action` with `entity:campaign`, then
+`entity:ad_group,campaign_id`, then `entity:ad,campaign_id,ad_group_id` (the Google hierarchy, so the website
+drill-down is the same). Microsoft does not page `GetCampaignsByAccountId`, `GetAdGroupsByCampaignId` or
+`GetAdsByAdGroupId`, so each page reads the complete collection and serves an ascending native-ID slice: campaigns are
+requested with every documented `CampaignType` (the API returns only Search campaigns by default) and ads with every
+documented `AdType`. A collection above 1000 entities is refused with `PORTFOLIO_COLLECTION_LIMIT`, never truncated.
+The signed five-minute cursor binds the actor, login, account, hierarchy, page size and the collection's content; a
+collection that changes between pages is refused with `PORTFOLIO_CHANGED` so a reader restarts instead of merging two
+states. Parents must be observed in the same login's portfolio first, and each child page re-reads its current parent
+campaign (and ad group) by ID. Money (`DailyBudget`, `CpcBid`) stays unconverted decimal account currency; undocumented
+campaign or ad types, repeated or malformed IDs and negative amounts refuse the page. `portfolio_reconcile` compares
+two complete Microsoft observations like the other providers. There is no Microsoft guided evidence capture, so the
+page offers no capture link.
 
 Measurement (`/measurement`) connects the existing Google Tag Manager configuration audit with GA4/Search Console
 reporting, client conversion mappings and reviewed contract discovery. `measurement_audit` takes an exact GTM
