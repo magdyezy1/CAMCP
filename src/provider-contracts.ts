@@ -43,7 +43,7 @@ export const providerContracts: JsonObject[] = [
     'v1',
     'tiktok-snapchat',
     'tiktok-snapchat',
-    'campaigns, ad squads, creatives, ads; lead generation form creation with owned banner/form dependency reads (lead reports and webhooks stay unqualified); creative updates that change top-snap media or the lead form must reference owned resources; customer-list and lookalike segment creation with owned seeds, and segment name/description/retention updates (user uploads and pixel/mobile/engagement rule audiences stay unqualified; audience segment deletion is listed below); reviewed creative collection PUT and existing JSON Patch; exact nested ad/ad-squad PATCH and complete collection PUT with parent ownership, native budget policy and read-back; reserved/Smart Budgets and targeting/identity edits need separate contracts; planning reads (audience insights and reach and frequency forecasts) that estimate and create nothing; media copy from other ad accounts of the same organization with source account and media reads, receipt ownership and read-back; offer disclaimers created and deleted with account disclaimer reads, name checks and read-back; audience segment deletion with segment and ad squad targeting reads and read-back; custom conversions of pixels of the account (create, delete) with pixel and conversion reads and read-back; product sets of the catalogs of the organization of the account (create, update, delete) with organization, catalog, set, ad squad and creative reads and read-back; COMMERCE catalogs of the organization of the account (create, whole-object update with pixels of the account as event sources, deletion of empty catalogs only) with organization, catalog, pixel, feed and set reads and read-back (catalog roles and Snap App event sources stay unqualified); the product feed of a catalog (create, whole update, delete) with HTTPS schedules checked against the interval table and no credentials, and read-back (supplemental feeds and feed uploads stay unqualified); dynamic templates (create, update) with template, media and creative reads and read-back; event details for Reminder creatives (create, delete) with event and creative reads and read-back; pixel renames at account and organization level with account and pixel reads and read-back; claiming an organic Snap into the ad account media library by its Snap ID, with account read and media read-back (claims by ad code stay unqualified); the GEO targeting spec of ad squads with more than 500 criteria (up to 4,000) replaced with ad squad, campaign and spec reads, spending confirmation and read-back in any order and case',
+    'campaigns, ad squads, creatives, ads; lead generation form creation with owned banner/form dependency reads (lead reports and webhooks stay unqualified); creative updates that change top-snap media or the lead form must reference owned resources; customer-list and lookalike segment creation with owned seeds, and segment name/description/retention updates (user uploads and pixel/mobile/engagement rule audiences stay unqualified; audience segment deletion is listed below); reviewed creative collection PUT and existing JSON Patch; exact nested ad/ad-squad PATCH and complete collection PUT with parent ownership, native budget policy and read-back; the targeting of ad squads with 500 criteria or fewer replaced as one replace /targeting JSON Patch with account, campaign, ad squad and segment list reads (added segments of the account, included ones READY), a per-dimension diff, spending confirmation, widening of an active ad squad counted as activation, and read-back in any order and case; reserved/Smart Budgets and identity edits need separate contracts; planning reads (audience insights and reach and frequency forecasts) that estimate and create nothing; media copy from other ad accounts of the same organization with source account and media reads, receipt ownership and read-back; offer disclaimers created and deleted with account disclaimer reads, name checks and read-back; audience segment deletion with segment and ad squad targeting reads and read-back; custom conversions of pixels of the account (create, delete) with pixel and conversion reads and read-back; product sets of the catalogs of the organization of the account (create, update, delete) with organization, catalog, set, ad squad and creative reads and read-back; COMMERCE catalogs of the organization of the account (create, whole-object update with pixels of the account as event sources, deletion of empty catalogs only) with organization, catalog, pixel, feed and set reads and read-back (catalog roles and Snap App event sources stay unqualified); the product feed of a catalog (create, whole update, delete) with HTTPS schedules checked against the interval table and no credentials, and read-back (supplemental feeds and feed uploads stay unqualified); dynamic templates (create, update) with template, media and creative reads and read-back; event details for Reminder creatives (create, delete) with event and creative reads and read-back; pixel renames at account and organization level with account and pixel reads and read-back; claiming an organic Snap into the ad account media library by its Snap ID, with account read and media read-back (claims by ad code stay unqualified); the GEO targeting spec of ad squads with more than 500 criteria (up to 4,000) replaced with ad squad, campaign and spec reads, spending confirmation and read-back in any order and case',
     'snapchat-writes',
     'https://developers.snap.com/marketing-api/Ads-API/introduction',
   ],
@@ -93,7 +93,7 @@ export const providerContracts: JsonObject[] = [
     'v3',
     'reddit',
     null,
-    'classic campaigns, ad groups, existing-post ads, saved audiences; scoped legacy and asynchronous structured posts, community promotion and comment updates; onsite lead-form creation ended with Reddit’s 2026-09-21 withdrawal and is refused (Reddit pauses ads using those forms on 2026-09-30)',
+    'classic campaigns, ad groups, existing-post ads, saved audiences; the conversion pixel of ad groups and CBO campaigns checked against the pixel list of the ad account, with its last event shown and a warning when it never fired or is stale; scoped legacy and asynchronous structured posts, community promotion and comment updates; onsite lead-form creation ended with Reddit’s 2026-09-21 withdrawal and is refused (Reddit pauses ads using those forms on 2026-09-30)',
     'reddit-writes',
     'https://ads-api.reddit.com/docs/v3/',
   ],
@@ -205,12 +205,12 @@ export const providerContracts: JsonObject[] = [
       {
         adjust: 2,
         google: 27,
-        reddit: 3,
+        reddit: 4,
         criteo: 12,
         dv360: 19,
         meta: 17,
         microsoft: 3,
-        snapchat: 17,
+        snapchat: 18,
         linkedin: 18,
         x: 16,
         tiktok: 32,
@@ -223,23 +223,27 @@ export const providerContracts: JsonObject[] = [
     )[String(id)] ?? 1,
   api_version: version,
   owner_role: 'AMCP integration maintainer',
-  reviewed_at: ['criteo', 'dv360', 'snapchat', 'linkedin', 'google', 'x', 'tiktok'].includes(String(id))
-    ? '2026-09-27'
-    : ['snapchat', 'tiktok', 'meta', 'google', 'linkedin', 'dv360'].includes(String(id))
-      ? '2026-09-26'
-      : ['adjust', 'google_business', 'x', 'google', 'linkedin'].includes(String(id))
-        ? '2026-09-25'
-        : ['meta', 'google', 'criteo'].includes(String(id))
-          ? '2026-09-24'
-          : ['google', 'ga4', 'gsc', 'google_business'].includes(String(id))
-            ? '2026-09-20'
-            : ['apple', 'gtm', 'reddit', 'criteo', 'linkedin', 'x'].includes(String(id))
-              ? '2026-09-19'
-              : ['microsoft', 'snapchat', 'linkedin'].includes(String(id))
-                ? '2026-09-18'
-                : ['x', 'tiktok'].includes(String(id))
-                  ? '2026-09-14'
-                  : '2026-09-12',
+  // PRV-06 (2026-10-15): the Reddit pixel check, Snapchat ad squad targeting, TikTok ad comment status and Meta
+  // Advantage+ creative feature choices.
+  reviewed_at: ['reddit', 'snapchat', 'tiktok', 'meta'].includes(String(id))
+    ? '2026-10-15'
+    : ['criteo', 'dv360', 'snapchat', 'linkedin', 'google', 'x', 'tiktok'].includes(String(id))
+      ? '2026-09-27'
+      : ['snapchat', 'tiktok', 'meta', 'google', 'linkedin', 'dv360'].includes(String(id))
+        ? '2026-09-26'
+        : ['adjust', 'google_business', 'x', 'google', 'linkedin'].includes(String(id))
+          ? '2026-09-25'
+          : ['meta', 'google', 'criteo'].includes(String(id))
+            ? '2026-09-24'
+            : ['google', 'ga4', 'gsc', 'google_business'].includes(String(id))
+              ? '2026-09-20'
+              : ['apple', 'gtm', 'reddit', 'criteo', 'linkedin', 'x'].includes(String(id))
+                ? '2026-09-19'
+                : ['microsoft', 'snapchat', 'linkedin'].includes(String(id))
+                  ? '2026-09-18'
+                  : ['x', 'tiktok'].includes(String(id))
+                    ? '2026-09-14'
+                    : '2026-09-12',
   documentation: docs,
   guide: guide ? 'amcp://guides/' + guide : null,
   // Business Profile connects on the website since CON-06 (once the owner declares the project's API approval).

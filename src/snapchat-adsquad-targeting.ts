@@ -173,7 +173,7 @@ function entry(dimension: string, v: unknown, i: number): number {
     for (const k of ['os_version_min', 'os_version_max'])
       if (v[k] !== undefined && (typeof v[k] !== 'string' || !/^\d{1,3}(?:\.\d{1,3}){0,2}$/.test(v[k] as string)))
         invalid('os_version_min and os_version_max are versions such as "16.0".', {field: at + '.' + k});
-    return n + (v.os_type !== undefined || v.connection_type !== undefined ? 1 : 0);
+    return n + (v.os_type !== undefined ? 1 : 0) + (v.connection_type !== undefined ? 1 : 0);
   }
   return n;
 }
@@ -245,9 +245,7 @@ export function assertSnapTargeting(p: CompiledRequest): void {
     invalid('Select one account and the exact ad squad route, without query or header overrides.');
   const op = (p.body as JsonObject[])[0]!;
   if (Object.keys(op).sort().join() !== 'op,path,value')
-    invalid(
-      'A targeting edit is one operation: {op: "replace", path: "/targeting", value: <the complete new targeting>}.',
-    );
+    invalid('A targeting edit is exactly one replace /targeting operation whose value is the complete new targeting.');
   validateSnapTargeting(op.value);
 }
 

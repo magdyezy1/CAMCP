@@ -959,10 +959,54 @@ itself. Snap documents only GEO specs, with at most 4,000 criteria.
   needs `spend_change_confirmed`.
 - Verification reads the spec again and compares its locations in any order and case.
 
-Ad squads with 500 criteria or fewer keep targeting in the ad squad, and AMCP does not review changes
-to it yet. `INVALID_SNAPCHAT_TARGETING_SPEC` names what to correct.
+Ad squads with 500 criteria or fewer keep targeting in the ad squad itself; change it as the next
+section says. `INVALID_SNAPCHAT_TARGETING_SPEC` names what to correct.
 
 Reference: Snap's Audience Targeting page, "Targeting Specs - Greater than 500 rows", read 2026-09-30.
+
+## Snapchat ad squad targeting (500 criteria or fewer)
+
+Change an ad squad's targeting with `snapchat_adsquad_patch` under its campaign
+(`path_params: {campaign_id, ad_squad_id}`) and exactly one operation:
+`payload: [{"op": "replace", "path": "/targeting", "value": {...}}]`. The value is the complete new
+targeting: it replaces every dimension, and a dimension you leave out is removed (the review says
+so). Read the ad squad first and restate what should stay. Never combine it with a name, budget,
+status or date edit; those are separate reviews.
+
+- Dimensions: `regulated_content` (true or false), `geos` (required; at least one INCLUDE),
+  `segments`, `interests`, `demographics`, `devices` and `auto_expansion_options`
+  (`interest_expansion_option` and `custom_audience_expansion_option`, each `{enabled}`).
+- `geos` entries are `{country_code, operation}` with at most one of `region_id`, `metro_id` or
+  `postal_code`; `segments` entries are `{segment_id: [...], operation}`; `interests` entries are
+  `{category_id: [...], operation}`. Every location, segment and interest entry states `operation`
+  INCLUDE or EXCLUDE. `demographics` take `age_groups` (13-17, 18-20, 21-24, 25-34, 35+) or a
+  `min_age`/`max_age` range, `gender` (MALE or FEMALE), `languages` and `advanced_demographics`;
+  `devices` take `os_type` (iOS, ANDROID, WEB), `os_version_min`/`os_version_max`,
+  `connection_type` (WIFI, CELL), `carrier_id` and `marketing_name`. Other keys are refused.
+- At most 500 criteria (each listed value, and each country, gender, age range, OS or connection
+  setting, counts one). Larger GEO targeting and ad squads that show `separated_types` use the
+  targeting spec above; `separated_types` itself is read-only.
+- AMCP reads the account, the campaign (it must belong to the selected account), the ad squad (active
+  or paused, in that campaign) and, when segments are named, the account's segment list (up to 5,000).
+  A segment the edit adds must be the account's own (`SNAPCHAT_SEGMENT_UNAVAILABLE`, with
+  `details.reason` `foreign` or `not_listed`); an included one must be `READY` (`not_targetable`). A
+  segment the ad squad already targets is kept as it is and shown. Ask the user before choosing a
+  segment; never guess one. Current targeting with settings AMCP cannot show (for example radius
+  `locations`) is refused rather than dropped: change it in Snapchat Ads Manager.
+- The same targeting in another order or case is refused as unchanged.
+- The review lists, per dimension, the criteria added and removed (for example `INCLUDE kw`,
+  `EXCLUDE segment_id …`) and whether the edit widens the audience. Execution always needs
+  `spend_change_confirmed`. Under an owner policy with `allow_activation: false`, an edit of an
+  active ad squad that is not provably narrowing (fewer included or more excluded criteria) is
+  refused as widening delivery.
+- To estimate the audience first, use the read-only
+  `snapchat_adaccounts_ad_account_id_audience_size_v2_get` with the new targeting.
+- Verification reads the ad squad again and compares the targeting in any order and case; a key
+  Snapchat adds by itself is reported as `provider_added`, and any other difference stays
+  inconclusive. `INVALID_SNAPCHAT_TARGETING` names the field to correct.
+
+Reference: Snap's Marketing API Audience Targeting and Ad Squads pages; local fixtures verify the
+contract, not live acceptance on a paused test ad squad.
 
 ## Snapchat offer disclaimers
 
@@ -1239,7 +1283,8 @@ Prefer PATCH for a precise field edit. Ad fields cover name, status, start/end
 and the two current third-party tracking URL arrays. Ad-squad edits additionally
 cover finite native budgets, qualified auction bids, pacing and content-category
 sets. The current family requires an AUCTION campaign with ad-squad budget
-ownership. Reserved/Smart Budgets need a joint parent-budget contract. Targeting,
+ownership. Reserved/Smart Budgets need a joint parent-budget contract. Targeting
+changes alone, as one replace /targeting PATCH (see "Snapchat ad squad targeting");
 pixel/app identities, placement, frequency caps and scheduling structures cannot
 be changed by this family; preserve them in a complete PUT. MIN_ROAS is retired.
 Do not infer campaign approval or ad delivery from a successful configuration edit.

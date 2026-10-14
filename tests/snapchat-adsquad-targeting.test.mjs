@@ -437,10 +437,9 @@ test('a read-back that differs is not verified, a key Snap adds by itself is rep
   t.after(failed.close);
   const q = await failed.prepare('sq-paused', value);
   reviewed(q);
-  const first = await failed.execute(q),
-    again = await failed.execute(q);
-  for (const out of [first, again])
-    assert.ok(out.success === false || out.data?.success === false, JSON.stringify(out).slice(0, 600));
+  // Snapchat refused the ad squad: a provider error, and the claimed review is never sent again.
+  assertRefused(await failed.execute(q), 'PLATFORM_ERROR');
+  assertRefused(await failed.execute(q), 'WRITE_OUTCOME_UNCERTAIN');
   assert.equal(failed.writes(), 1, 'never sent again');
 });
 

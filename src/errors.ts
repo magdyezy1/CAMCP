@@ -502,6 +502,14 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
         'Nothing was submitted. Ask the user which pixel in details.account_pixel_ids to use and prepare a new review with that conversion_pixel_id; in a saved plan, amend the step with amcp_campaign recover_step. Or associate the pixel with this ad account in Reddit Events Manager, then prepare again.',
       mutation_retry_safe: false,
     };
+  if (e.code === 'SNAPCHAT_SEGMENT_UNAVAILABLE')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Nothing was submitted. Ask the user to choose segments of the selected ad account (details.reason says why this one is refused): a foreign or unlisted segment cannot be added, and one that is not ready can be included once Snapchat lists it as READY. Then prepare the targeting edit again.',
+      mutation_retry_safe: false,
+    };
   // An operation listed for compatibility with the captured catalog that AMCP cannot run (MCP-10).
   if (
     (e.code === 'WORKFLOW_UNSUPPORTED' || e.code === 'CAPABILITY_UNAVAILABLE') &&

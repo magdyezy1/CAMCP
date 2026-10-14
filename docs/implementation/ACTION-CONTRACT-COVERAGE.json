@@ -53411,12 +53411,13 @@
       "method": "PATCH",
       "path": "/v1/adsquads/{ad_squad_id}/ads/{ad_id}",
       "status": "reviewed_write_family",
-      "implementation": "src/snapchat-nested-updates.ts",
+      "implementation": "src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-nested-updates.test.ts",
-        "tests/snapchat-allocation-plan.test.mjs"
+        "tests/snapchat-allocation-plan.test.mjs",
+        "tests/snapchat-adsquad-targeting.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -53430,12 +53431,13 @@
       "method": "PUT",
       "path": "/v1/adsquads/{ad_squad_id}/ads",
       "status": "reviewed_write_family",
-      "implementation": "src/snapchat-nested-updates.ts",
+      "implementation": "src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-nested-updates.test.ts",
-        "tests/snapchat-allocation-plan.test.mjs"
+        "tests/snapchat-allocation-plan.test.mjs",
+        "tests/snapchat-adsquad-targeting.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -53609,12 +53611,13 @@
       "method": "PATCH",
       "path": "/v1/adsquads/{ad_squad_id}/ads/{ad_id}",
       "status": "reviewed_write_family",
-      "implementation": "src/snapchat-nested-updates.ts",
+      "implementation": "src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-nested-updates.test.ts",
-        "tests/snapchat-allocation-plan.test.mjs"
+        "tests/snapchat-allocation-plan.test.mjs",
+        "tests/snapchat-adsquad-targeting.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -55868,12 +55871,13 @@
       "method": "PATCH",
       "path": "/v1/campaigns/{campaign_id}/adsquads/{ad_squad_id}",
       "status": "reviewed_write_family",
-      "implementation": "src/snapchat-nested-updates.ts",
+      "implementation": "src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-nested-updates.test.ts",
-        "tests/snapchat-allocation-plan.test.mjs"
+        "tests/snapchat-allocation-plan.test.mjs",
+        "tests/snapchat-adsquad-targeting.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -55887,12 +55891,13 @@
       "method": "PUT",
       "path": "/v1/campaigns/{campaign_id}/adsquads",
       "status": "reviewed_write_family",
-      "implementation": "src/snapchat-nested-updates.ts",
+      "implementation": "src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-nested-updates.test.ts",
-        "tests/snapchat-allocation-plan.test.mjs"
+        "tests/snapchat-allocation-plan.test.mjs",
+        "tests/snapchat-adsquad-targeting.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -56066,12 +56071,13 @@
       "method": "PATCH",
       "path": "/v1/campaigns/{campaign_id}/adsquads/{ad_squad_id}",
       "status": "reviewed_write_family",
-      "implementation": "src/snapchat-nested-updates.ts",
+      "implementation": "src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-nested-updates.test.ts",
-        "tests/snapchat-allocation-plan.test.mjs"
+        "tests/snapchat-allocation-plan.test.mjs",
+        "tests/snapchat-adsquad-targeting.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -56156,12 +56162,13 @@
       "method": "PATCH",
       "path": "/v1/adsquads/{ad_squad_id}/ads/{ad_id}",
       "status": "reviewed_write_family",
-      "implementation": "src/snapchat-nested-updates.ts",
+      "implementation": "src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-nested-updates.test.ts",
-        "tests/snapchat-allocation-plan.test.mjs"
+        "tests/snapchat-allocation-plan.test.mjs",
+        "tests/snapchat-adsquad-targeting.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -56222,12 +56229,13 @@
       "method": "PUT",
       "path": "/v1/adsquads/{ad_squad_id}/ads",
       "status": "reviewed_write_family",
-      "implementation": "src/snapchat-nested-updates.ts",
+      "implementation": "src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-nested-updates.test.ts",
-        "tests/snapchat-allocation-plan.test.mjs"
+        "tests/snapchat-allocation-plan.test.mjs",
+        "tests/snapchat-adsquad-targeting.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -57339,12 +57347,13 @@
       "method": "PATCH",
       "path": "/v1/campaigns/{campaign_id}/adsquads/{ad_squad_id}",
       "status": "reviewed_write_family",
-      "implementation": "src/snapchat-nested-updates.ts",
+      "implementation": "src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-nested-updates.test.ts",
-        "tests/snapchat-allocation-plan.test.mjs"
+        "tests/snapchat-allocation-plan.test.mjs",
+        "tests/snapchat-adsquad-targeting.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -57405,12 +57414,13 @@
       "method": "PUT",
       "path": "/v1/campaigns/{campaign_id}/adsquads",
       "status": "reviewed_write_family",
-      "implementation": "src/snapchat-nested-updates.ts",
+      "implementation": "src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-nested-updates.test.ts",
-        "tests/snapchat-allocation-plan.test.mjs"
+        "tests/snapchat-allocation-plan.test.mjs",
+        "tests/snapchat-adsquad-targeting.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
