@@ -3,6 +3,15 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import {changedStateFields} from './review-state.js';
+import {
+  snapTargetingKind,
+  assertSnapTargeting,
+  readSnapTargetingState,
+  snapTargetingImpact,
+  snapTargetingActivates,
+  verifySnapTargeting,
+  snapTargetingSpendMessage,
+} from './snapchat-adsquad-targeting.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
@@ -242,6 +251,11 @@ export function assertSnapUpdate(p: CompiledRequest) {
           'Use top-level add, remove, replace or test; array indexes, copy, move and nested rewrites are not qualified.',
         );
       const field = op.path.slice(1);
+      // A targeting edit is its own reviewed contract (src/snapchat-adsquad-targeting.ts), never part of another edit.
+      if (k.collection === 'adsquads' && field === 'targeting' && op.op !== 'test')
+        fail(
+          'Change targeting alone: send exactly one replace /targeting operation that holds the complete new targeting.',
+        );
       if (
         !fields(k).includes(field) ||
         (op.op !== 'test' && (!mutable(k).includes(field) || preserved.includes(field)))
@@ -645,49 +659,62 @@ export const snapUpdateImpact = {
   effect:
     'Edits existing ads or auction ad squads under the exact reviewed parent. Status, bidding, dates and budget changes may affect current delivery immediately.',
   limits:
-    '1–25 complete PUT records or one target with 1–25 top-level PATCH operations. Requires explicit AUCTION and ad-squad budget ownership; reserved/Smart Budgets need separate contracts. Targeting, pixel/app identities, placement and scheduling structures may be preserved in PUT but need separate dependency contracts to change. Tracking URLs remain subject to provider-approved domains. No automatic field merging or array-index patching.',
+    '1–25 complete PUT records or one target with 1–25 top-level PATCH operations. Requires explicit AUCTION and ad-squad budget ownership; reserved/Smart Budgets need separate contracts. Targeting changes alone, as one replace /targeting PATCH of the ad squad. Pixel/app identities, placement and scheduling structures may be preserved in PUT but need separate dependency contracts to change. Tracking URLs remain subject to provider-approved domains. No automatic field merging or array-index patching.',
   recovery:
     'Re-use the original review/key after a lost client response. A partial or uncertain provider result never permits resubmission. Read-back checks the parent chain and requested configuration, not editorial approval, impressions or delivery.',
 };
 
-/** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
+/**
+ * Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). One request shape of its ad squad
+ * PATCH route, a single replace /targeting operation, is the ad squad targeting contract (PRV-06 A,
+ * src/snapchat-adsquad-targeting.ts): each hook below hands it to that contract, which has its own checks, state, impact,
+ * activation rule and read-back. The ledger names one family per route, so the contract cannot be a family of its own.
+ */
 export const snapUpdateFamily: ReviewedFamily = {
   name: 'snapchat_nested_updates',
   files: [
-    'src/snapchat-nested-updates.ts',
-    ['tests/snapchat-nested-updates.test.ts', 'tests/snapchat-allocation-plan.test.mjs'],
+    'src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts',
+    [
+      'tests/snapchat-nested-updates.test.ts',
+      'tests/snapchat-allocation-plan.test.mjs',
+      'tests/snapchat-adsquad-targeting.test.mjs',
+    ],
   ],
   kind: snapUpdateKind,
   assert: plan => {
     assertNoMethodOverride(plan);
-    assertSnapUpdate(plan);
+    if (snapTargetingKind(plan)) assertSnapTargeting(plan);
+    else assertSnapUpdate(plan);
   },
   snapshots: snapUpdateSnapshots,
-  state: (plan, readers) =>
-    readSnapUpdateState(
-      plan,
-      readers.guarded(
-        'Snapchat prerequisites must remain read-only.',
-        readers.sameLogin('The selected login changed during Snapchat checks. Prepare again with the current login.'),
-      ).read,
-    ),
-  impact: () => snapUpdateImpact,
+  state: (plan, readers) => {
+    const read = readers.guarded(
+      'Snapchat prerequisites must remain read-only.',
+      readers.sameLogin('The selected login changed during Snapchat checks. Prepare again with the current login.'),
+    ).read;
+    return snapTargetingKind(plan) ? readSnapTargetingState(plan, read) : readSnapUpdateState(plan, read);
+  },
+  impact: (plan, state) => (snapTargetingKind(plan) ? snapTargetingImpact(plan, state) : snapUpdateImpact),
   outcome: snapUpdateOutcome,
-  verify: (plan, v) =>
-    verifySnapUpdate(
-      plan,
-      v.state,
-      v.guarded('Snapchat verification must remain read-only.', {
-        binding: v.sameLogin('The selected login changed during Snapchat verification.'),
-      }),
-    ).then(o => ({status: o.status, checks: o.checks})),
+  verify: (plan, v) => {
+    const read = v.guarded('Snapchat verification must remain read-only.', {
+      binding: v.sameLogin('The selected login changed during Snapchat verification.'),
+    });
+    return (
+      snapTargetingKind(plan) ? verifySnapTargeting(plan, v.state, read) : verifySnapUpdate(plan, v.state, read)
+    ).then(o => ({status: o.status, checks: o.checks}));
+  },
   verifyEveryTime: true,
   spendConfirmation: {
     needed: () => true,
-    message:
-      'Snapchat entity updates can change current delivery, dates, bidding and spending. Review the exact effects and provide spend_change_confirmed=true.',
+    message: plan =>
+      snapTargetingKind(plan)
+        ? snapTargetingSpendMessage
+        : 'Snapchat entity updates can change current delivery, dates, bidding and spending. Review the exact effects and provide spend_change_confirmed=true.',
   },
-  activates: (plan, before) => snapUpdateActivates(plan, before) === true,
+  activates: (plan, before) =>
+    snapTargetingKind(plan) ? snapTargetingActivates(plan, before) : snapUpdateActivates(plan, before) === true,
   exemptFromActivationScan: true,
-  policyAmounts: (plan, before) => snapUpdateAmounts(plan, before),
+  // A targeting edit names no budget or bid; the owner's amount caps have nothing to measure in it.
+  policyAmounts: (plan, before) => (snapTargetingKind(plan) ? undefined : snapUpdateAmounts(plan, before)),
 };
