@@ -175,6 +175,7 @@ short. A 180-second 2160p source that fits the 128 MiB media limit needs about t
 so its fit or crop variant is refused the same way. A noisy 1080p variant re-encoded to 1920 × 1080 comes close to the
 128 MiB media limit, and a larger output is refused with `MEDIA_TOO_LARGE`. The production image (FFmpeg 5.1 in the
 Docker build) has not been measured; run the same command in the container before relying on its headroom.
+
 ## Health and diagnostics
 
 `/healthz` is anonymous and answers at most once per ten seconds. It reports only the state of each check, never
