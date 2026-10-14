@@ -379,6 +379,168 @@ test('every MCP tool entry point with a client A token leaves client B unseen an
   }
 });
 
+test('records of a login the set shares stay with their client (regression: receipts, uploads and report tabs matched by login only)', async () => {
+  const f = await fixture();
+  try {
+    // A Sheets login holding one spreadsheet of each client, with a report tab in each.
+    f.store.putConnection(
+      admin,
+      {
+        id: 'sheets-login',
+        tenantId: tenant,
+        gateway: 'google_sheets_native_action',
+        accounts: ['sheet-a', 'sheet-b'],
+        enabled: true,
+        label: 'Agency Sheets',
+        scopes: ['https://www.googleapis.com/auth/drive.file'],
+      },
+      {accessToken: 'synthetic', refreshToken: 'synthetic'},
+    );
+    for (const [id, sheet, tab] of [
+      ['dest-a', 'sheet-a', 'Client A tab'],
+      ['dest-b', 'sheet-b', marker + ' tab'],
+    ] as const)
+      f.store.putDocument(tenant, 'sheets_destination', id, {
+        connection_id: 'sheets-login',
+        spreadsheet_id: sheet,
+        requested_tab_name: tab,
+        tab_name: tab,
+      });
+    // A verified write receipt for each client's Meta account, both through the one Meta login the set shares.
+    for (const [id, account] of [
+      ['receipt-a', A],
+      ['receipt-b', B],
+    ] as const)
+      f.store.putDocument(tenant, 'write_verification', id, {
+        review_id: id,
+        connection_id: 'meta-login',
+        account_id: account,
+        action: 'meta_campaign_update',
+        status: 'verified',
+        checks: [],
+        checked_at: Date.now(),
+      });
+    // An upload of each client on LinkedIn, the platform of the campaign-structure probe below.
+    for (const [id, account, name] of [
+      ['linkedin-a', A, 'Client A LinkedIn upload'],
+      ['linkedin-b', B, marker + ' LinkedIn upload'],
+    ] as const)
+      f.store.putDocument(tenant, 'workspace_asset', id, {
+        platform: 'linkedin',
+        connection_id: 'linkedin-login',
+        account_id: account,
+        name,
+      });
+    const set = saveAccessSet(f.store, admin, {
+        name: 'Client A with Sheets',
+        bindings: [
+          {gateway: 'meta_native_action', connection_id: 'meta-login', account_id: A},
+          {gateway: 'linkedin_native_action', connection_id: 'linkedin-login', account_id: A},
+          {gateway: 'google_sheets_native_action', connection_id: 'sheets-login', account_id: 'sheet-a'},
+        ],
+      }),
+      scoped = f.store.authenticate(
+        f.store.createKey({
+          tenantId: tenant,
+          userId: 'connector/sheets-a',
+          role: 'reader',
+          accessSetId: String(set.id),
+        }),
+      );
+    const probes: [string, JsonObject][] = [
+      ['amcp_workspace', {action: 'dashboard', sections: ['accounts', 'providers', 'verified_writes', 'evidence']}],
+      ['amcp_workspace', {action: 'dashboard', view: 'full'}],
+      ['amcp_reporting_overview', {action: 'bootstrap'}],
+      ['amcp_native_action', {operation: 'list_media_assets', arguments: {source: 'uploaded'}}],
+      [
+        'amcp_native_action',
+        {
+          operation: 'plan_campaign_structure',
+          arguments: {
+            platform: 'linkedin',
+            account_id: A,
+            objective: 'traffic',
+            product_description: 'A synthetic product for this test',
+          },
+        },
+      ],
+    ];
+    for (const [tool, input] of probes) {
+      const limited = await f.service.call(tool, input, scoped),
+        text = JSON.stringify(limited);
+      assert.equal(limited.success, true, tool + ' ' + text.slice(0, 400));
+      assert.ok(!text.includes(B) && !text.includes(marker), tool + ' revealed client B: ' + text.slice(0, 800));
+    }
+    // What the limited token does see, and the same records shown to whole-workspace access (so the probes can see).
+    const sections = (actor: Actor) =>
+      f.service.call('amcp_workspace', {action: 'dashboard', sections: ['verified_writes']}, actor);
+    const receipts = (r: JsonObject) =>
+      ((r.data as JsonObject).sections.verified_writes.items as JsonObject[]).map(w => w.account_id);
+    assert.deepEqual(receipts(await sections(scoped)), [A]);
+    assert.deepEqual(receipts(await sections(f.open)).sort(), [A, B]);
+    const tabs = async (actor: Actor) =>
+      (
+        ((await f.service.call('amcp_reporting_overview', {action: 'bootstrap'}, actor)).data as JsonObject)
+          .destinations as JsonObject[]
+      ).map(d => d.id);
+    assert.deepEqual(await tabs(scoped), ['dest-a']);
+    assert.deepEqual((await tabs(f.open)).sort(), ['dest-a', 'dest-b']);
+    const uploads = await f.service.call(
+      'amcp_native_action',
+      {operation: 'list_media_assets', arguments: {source: 'uploaded'}},
+      f.open,
+    );
+    assert.ok(JSON.stringify(uploads).includes(marker + ' asset'), 'whole-workspace access lists client B’s upload');
+    const structure = async (actor: Actor) =>
+      JSON.stringify(await f.service.call('amcp_native_action', probes[4]![1], actor));
+    assert.ok((await structure(scoped)).includes('Client A LinkedIn upload'));
+    assert.ok((await structure(f.open)).includes(marker + ' LinkedIn upload'));
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a token limited to client A cannot delete or overwrite client B’s saved report by its ID', async () => {
+  const f = await fixture();
+  try {
+    const view = f.store.document(tenant, 'overview_view', f.reportId);
+    for (const input of [
+      {action: 'delete_view', id: f.reportId, expected_revision: view.revision, confirmed: true},
+      {
+        action: 'save',
+        id: f.reportId,
+        expected_revision: view.revision,
+        confirmed: true,
+        config: {
+          name: 'Replaced',
+          sources: [{platform: 'meta', connection_id: 'meta-login', account_id: A}],
+          date_range: {preset: 'last_complete_days', days: 7, timezone: 'UTC'},
+          metrics: ['spend'],
+          custom_metrics: [],
+          targets: {},
+          objectives: [],
+        },
+      },
+    ]) {
+      const refused = await f.service.call('amcp_reporting_overview', input, f.scoped);
+      assert.equal(refused.success, false, input.action);
+      assert.equal((refused.error as JsonObject).code, 'ACCOUNT_SCOPE_RESTRICTED', input.action);
+    }
+    const kept = f.store.document(tenant, 'overview_view', f.reportId);
+    assert.equal(kept.revision, view.revision);
+    assert.equal(kept.config.name, marker + ' weekly');
+    // Whole-workspace access still deletes it, as before.
+    const removed = await f.service.call(
+      'amcp_reporting_overview',
+      {action: 'delete_view', id: f.reportId, expected_revision: view.revision, confirmed: true},
+      f.open,
+    );
+    assert.equal(removed.success, true, JSON.stringify(removed));
+  } finally {
+    f.store.close();
+  }
+});
+
 test('a login read through a client access set is never saved back (it would drop every other account)', async () => {
   const f = await fixture();
   try {
