@@ -103,7 +103,11 @@ export const assistiveLanguages = ['en', 'ar'];
  */
 export const assistiveCheckpoints = [
   {id: 'C1', always: true, text: 'On arrival the page title and main heading name the page in the session language.'},
-  {id: 'C2', always: true, text: 'The skip link and the banner, navigation and main landmarks are reachable.'},
+  {
+    id: 'C2',
+    always: true,
+    text: 'The skip link and the banner, navigation and main landmarks are reachable (NVDA landmarks list, VoiceOver rotor).',
+  },
   {id: 'C3', text: 'The headings list matches the sections the journey uses.'},
   {
     id: 'C4',

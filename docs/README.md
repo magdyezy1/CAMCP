@@ -198,6 +198,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [AI-client interoperability matrix](acceptance/CLIENT-INTEROP.md)
 - [Sheets delivery acceptance on a disposable spreadsheet](acceptance/SHEETS-DELIVERY.md)
 - [Read acceptance: measurement, TikTok, Reddit value unit, X placement](acceptance/READ-ACCEPTANCE.md)
+- [Assistive-technology acceptance: screen readers and touch, English and Arabic](acceptance/ASSISTIVE-TECHNOLOGY.md)
 
 ## The September 2026 review
 

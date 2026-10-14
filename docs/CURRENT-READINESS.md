@@ -131,7 +131,9 @@ is qualified separately before push; that earlier healthy snapshot is not its de
 About Us, the complete standalone privacy languages, principal workspace navigation and selected
 populated report/measurement/commerce workflows are implemented. English/Arabic keyboard/reflow
 checks use an owned isolated Chromium browser. Their evidence does not replace other-browser,
-touch-device, screen-reader or editorial acceptance.
+touch-device, screen-reader or editorial acceptance. Screen-reader and touch acceptance is now a finite manual protocol:
+seven journeys with NVDA and VoiceOver in English and Arabic, 28 sessions
+([assistive-technology acceptance](acceptance/ASSISTIVE-TECHNOLOGY.md), ACC-07). None is recorded yet.
 
 ## Complete deployment acceptance
 

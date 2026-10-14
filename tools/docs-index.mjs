@@ -203,6 +203,7 @@ const sections = [
       'acceptance/CLIENT-INTEROP.md',
       'acceptance/SHEETS-DELIVERY.md',
       'acceptance/READ-ACCEPTANCE.md',
+      'acceptance/ASSISTIVE-TECHNOLOGY.md',
     ],
   ],
   [
