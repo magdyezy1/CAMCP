@@ -11,6 +11,7 @@ import {approvalView, approveReview} from '../dist/src/write-approval.js';
 import {reviewFriction} from '../dist/src/review-friction.js';
 import {createHttpApp} from '../dist/server/http-app.js';
 import {listenForFetch} from '../dist/tests/http-listener.js';
+import {assertRefused} from './helpers/assert-refused.mjs';
 import {googleBudgetFixture} from './fixtures/google-budget-writes.mjs';
 import {
   admin as snapAdmin,
@@ -482,9 +483,9 @@ test('WRT-09 website: only a signed-in session with CSRF approves; the MCP tool 
     );
     assert.equal(prepared.success, true, JSON.stringify(prepared.error));
     const id = prepared.data.review_id;
-    // An AI client cannot approve: amcp_write has no such action.
-    const viaTool = await service.call('amcp_write', {action: 'approve', review_id: id}, admin);
-    assert.equal(viaTool.success, false);
+    // An AI client cannot approve: amcp_write has no such action, and nothing is recorded.
+    assertRefused(await service.call('amcp_write', {action: 'approve', review_id: id}, admin), 'INVALID_ARGUMENT');
+    assert.equal(store.db.prepare("SELECT 1 FROM documents WHERE kind='write_approval'").get(), undefined);
     const login = await request('/api/session', 'POST', {password}),
       session = await login.json();
     const headers = {Cookie: login.headers.get('set-cookie').split(';')[0], 'X-AMCP-CSRF': session.csrf};
@@ -858,8 +859,12 @@ test('WRT-09 website review: the destructive acknowledgement is asked for and th
   assert.match(html, /href="\/operations\?approve=r-1"/);
   assert.match(html, /Another member than the one who prepared it/);
   assert.match(html, /Only the workspace owner executes a change beyond a spending cap/);
-  assert.throws(() => run(`readReviewConsents(${review('/operations?approve=r-1')})`));
+  // With the review consent given, the deletion still needs its own checkbox: the read names that acknowledgement.
   node('#review-consent').checked = true;
+  assert.throws(
+    () => run(`readReviewConsents(${review('/operations?approve=r-1')})`),
+    /I authorize the deletion shown in this review/,
+  );
   node('#destructive-consent').checked = true;
   assert.equal(run(`readReviewConsents(${review('/operations?approve=r-1')}).destructive_confirmed`), true);
   // A path that leaves this site is not linked.
