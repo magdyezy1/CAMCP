@@ -1,14 +1,16 @@
 // CMP-03: launch completion. A completed recipe plan offers a separate, linked activation plan built from its verified
 // IDs (Meta and Google: the campaign; Snapchat: campaign, then ad squad, then ad; Microsoft: four steps), with its own
-// approval and read-only gates at preflight. Microsoft activation is refused without a positive location criterion,
-// which AMCP cannot read yet (owner decision P7), and the Microsoft Search pack is labelled draft only.
+// approval and read-only gates at preflight. Microsoft activation is refused without a positive location criterion
+// (owner decision P7): the activation gate and the campaign step's own review read the campaign's location criteria,
+// and the Microsoft Search pack sets them from the brief's location IDs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {createContext, Script} from 'node:vm';
 import {Store} from '../dist/src/store.js';
 import {CampaignRunner} from '../dist/src/campaign-runner.js';
 import {campaignRecipe, campaignRecipes} from '../dist/src/campaign-recipes.js';
-import {activationSteps} from '../dist/src/campaign-activation.js';
+import {activationGates, activationSteps} from '../dist/src/campaign-activation.js';
 import {compileMicrosoft, assertMicrosoftWrite} from '../dist/src/microsoft-native.js';
 import {campaignPreflight} from '../dist/src/campaign-preflight.js';
 import {MirrorService} from '../dist/src/service.js';
@@ -166,39 +168,60 @@ test('the activation steps set only the status, in dependency order, with the ve
     assert.throws(() => activationSteps(platform, results, scope), {code: 'ACTIVATION_UNAVAILABLE'});
 });
 
-test('Microsoft campaign activation is refused without a readable positive location criterion (owner decision P7)', () => {
-  const compile = payload => compileMicrosoft({action: 'UpdateCampaigns', account_id: '123', payload});
-  const refused = compile({Campaigns: [{Id: '501', Status: 'Active'}]});
-  assert.throws(
-    () => assertMicrosoftWrite(refused),
-    e => {
-      assert.equal(e.code, 'LOCATION_CRITERIA_REQUIRED');
-      assert.deepEqual(e.details.campaign_ids, ['501']);
-      assert.match(errorRemedy(e).action, /Microsoft Advertising/);
-      return true;
-    },
+// The interim guard refused every Microsoft campaign activation before any read, because AMCP could not read location
+// criteria, and the pack was draft only. These expectations change with the location-criterion family: the pack sets
+// geography and an activation is checked against the campaign's criteria (tests/microsoft-campaign-criteria.test.ts).
+test('the Microsoft Search pack targets the brief’s location IDs on the paused campaign and is no longer draft only', () => {
+  const pack = campaignRecipes.find(r => r.id === 'microsoft_search');
+  assert.equal(pack.availability, undefined);
+  assert.ok(pack.required.includes('location_ids'));
+  const plan = campaignRecipe('microsoft_search', examples.recipe_business);
+  assert.deepEqual(
+    plan.steps.map(s => [s.id, s.arguments.action, s.depends_on]),
+    [
+      ['campaign', 'AddCampaigns', []],
+      ['targets', 'AddCampaignCriterions', ['campaign']],
+      ['adgroup', 'AddAdGroups', ['campaign']],
+      ['keywords', 'AddKeywords', ['adgroup', 'campaign']],
+      ['ad', 'AddAds', ['adgroup', 'campaign']],
+    ],
   );
-  // Pausing, budgets and the children's status stay available.
+  assert.deepEqual(plan.steps[1].arguments.payload, {
+    CriterionType: 'Targets',
+    CampaignCriterions: [
+      {
+        Type: 'BiddableCampaignCriterion',
+        CampaignId: {$ref: 'campaign#/data/CampaignIds/0'},
+        Criterion: {Type: 'LocationCriterion', LocationId: '190'},
+      },
+    ],
+  });
+  assert.equal(plan.recipe.geo_warning, null);
+  assert.deepEqual(plan.recipe.location_ids, ['190']);
+  assert.equal(plan.recipe.availability, undefined);
+  // An existing draft brief without location IDs is refused with the missing input named; malformed IDs are refused.
+  const {location_ids: _ids, ...withoutLocations} = examples.recipe_business;
+  assert.throws(
+    () => campaignRecipe('microsoft_search', withoutLocations),
+    e => e.code === 'RECIPE_INPUT_REQUIRED' && e.details.missing_fields.includes('location_ids'),
+  );
+  for (const location_ids of [['US'], ['190', '190'], ['0']])
+    assert.throws(
+      () => campaignRecipe('microsoft_search', {...examples.recipe_business, location_ids}),
+      e => e.code === 'RECIPE_INPUT_INVALID',
+    );
+  // Activation is no longer refused by the contract check alone: the review reads the campaign's criteria.
+  const compile = payload => compileMicrosoft({action: 'UpdateCampaigns', account_id: '123', payload});
+  assertMicrosoftWrite(compile({Campaigns: [{Id: '501', Status: 'Active'}]}));
   assertMicrosoftWrite(compile({Campaigns: [{Id: '501', Status: 'Paused'}]}));
   assertMicrosoftWrite(compile({Campaigns: [{Id: '501', DailyBudget: 30}]}));
-  assertMicrosoftWrite(
-    compileMicrosoft({
-      action: 'UpdateAdGroups',
-      account_id: '123',
-      payload: {CampaignId: '501', AdGroups: [{Id: '502', Status: 'Active'}]},
-    }),
-  );
-  // The Microsoft pack says it is draft only.
-  const pack = campaignRecipes.find(r => r.id === 'microsoft_search');
-  assert.equal(pack.availability, 'draft_only');
-  assert.equal(pack.availability_label, 'Draft only: set locations in Microsoft before activation');
-  assert.equal(campaignRecipe('microsoft_search', examples.recipe_business).recipe.availability, 'draft_only');
+  assert.match(errorRemedy(new MirrorError('LOCATION_CRITERIA_REQUIRED', 'x')).action, /AddCampaignCriterions/);
 });
 
-test('amcp_write refuses a Microsoft campaign activation before any provider request', async () => {
+test('amcp_write reads the campaign’s location criteria before a Microsoft activation and refuses without one', async () => {
   const store = new Store(':memory:', Buffer.alloc(32, 31).toString('base64')),
     actor = {tenantId: 'ms-activation', userId: 'owner', role: 'admin'};
-  let requests = 0;
+  const requests = [];
   try {
     store.putConnection(
       actor,
@@ -218,9 +241,15 @@ test('amcp_write refuses a Microsoft campaign activation before any provider req
     const service = new MirrorService(
       new Registry(),
       store,
-      new NativeTransport(async () => {
-        requests++;
-        throw Error('Unexpected provider call');
+      new NativeTransport(async (url, init) => {
+        const path = new URL(String(url)).pathname;
+        requests.push((init?.method ?? 'GET') + ' ' + path);
+        if (path.endsWith('/Account/Query')) return Response.json({Account: {Id: '123'}});
+        if (path.endsWith('/Campaigns/QueryByIds'))
+          return Response.json({Campaigns: [{Id: '501', Status: 'Paused', CampaignType: 'Search'}]});
+        if (path.endsWith('/CampaignCriterions/QueryByIds'))
+          return Response.json({CampaignCriterions: [], PartialErrors: null});
+        throw Error('Unexpected provider call ' + path);
       }),
       undefined,
       {allowWrites: true, requireBeforeState: true, maxBudgetChange: 0},
@@ -241,13 +270,17 @@ test('amcp_write refuses a Microsoft campaign activation before any provider req
     );
     assert.equal(out.success, false);
     assert.equal(out.error.code, 'LOCATION_CRITERIA_REQUIRED', JSON.stringify(out.error));
-    assert.equal(requests, 0);
+    assert.ok(requests.includes('POST /CampaignManagement/v13/CampaignCriterions/QueryByIds'), requests.join());
+    assert.ok(
+      requests.every(r => r.startsWith('POST ') && /\/(Query|QueryByIds)$/.test(r)),
+      'only reads: ' + requests.join(),
+    );
   } finally {
     store.close();
   }
 });
 
-test('a Microsoft activation plan is blocked at preflight by the location rule, with a remedy and no amendment', async () => {
+test('a Microsoft activation plan’s location gate blocks preflight with a remedy and passes with Microsoft’s names', async () => {
   const store = new Store(':memory:', Buffer.alloc(32, 32).toString('base64')),
     actor = {tenantId: 'ms-preflight', userId: 'owner', role: 'admin'};
   try {
@@ -280,15 +313,69 @@ test('a Microsoft activation plan is blocked at preflight by the location rule, 
       ...s,
       status: 'pending',
     }));
+    // Every step's contract checks locally; the location rule is the gate's (and each review's) to decide.
     const preflight = await campaignPreflight(service, actor, steps);
-    assert.equal(preflight.status, 'blocked');
-    const campaign = preflight.checks.find(c => c.step === 'activate_campaign');
-    assert.equal(campaign.error.code, 'LOCATION_CRITERIA_REQUIRED');
     assert.deepEqual(
-      preflight.checks.filter(c => c.step !== 'activate_campaign').map(c => c.status),
-      ['contract_checked', 'contract_checked', 'contract_checked'],
+      preflight.checks.map(c => c.status),
+      ['contract_checked', 'contract_checked', 'contract_checked', 'contract_checked'],
     );
     assert.equal(preflight.provider_mutations, 0);
+    const reads = [];
+    let answer;
+    const call = async (gateway, input) => (reads.push([gateway, input.action, input.payload]), answer());
+    const gate = async () => (await activationGates(call, actor, {platform: 'microsoft'}, steps))[0];
+    answer = () => ({success: true, data: {data: {CampaignCriterions: []}}});
+    const none = await gate();
+    assert.equal(none.status, 'blocked');
+    assert.equal(none.gate, 'microsoft_location_criteria');
+    assert.equal(none.step, 'activate_campaign');
+    assert.equal(none.error.code, 'ACTIVATION_GATE_BLOCKED');
+    assert.match(none.error.message, /no positive location criterion/);
+    assert.deepEqual(reads[0], [
+      'microsoft_ads_native_action',
+      'GetCampaignCriterionsByIds',
+      {CampaignId: '501', CriterionType: 'Location', CampaignCriterionIds: null},
+    ]);
+    // An exclusion alone is not geography; an unreadable answer is not shown to be safe.
+    answer = () => ({
+      success: true,
+      data: {
+        data: {
+          CampaignCriterions: [
+            {
+              Id: '9',
+              Type: 'NegativeCampaignCriterion',
+              CampaignId: '501',
+              Criterion: {Type: 'LocationCriterion', LocationId: '32'},
+            },
+          ],
+        },
+      },
+    });
+    assert.equal((await gate()).status, 'blocked');
+    answer = () => ({success: false, error: {code: 'PROVIDER_ERROR', message: 'Refused.'}});
+    const unreadable = await gate();
+    assert.equal(unreadable.status, 'blocked');
+    assert.equal(unreadable.error.details.read_error, 'PROVIDER_ERROR');
+    answer = () => ({
+      success: true,
+      data: {
+        data: {
+          CampaignCriterions: [
+            {
+              Id: '8',
+              Type: 'BiddableCampaignCriterion',
+              CampaignId: '501',
+              Status: 'Active',
+              Criterion: {Type: 'LocationCriterion', LocationId: '190', DisplayName: 'Synthetic location 190'},
+            },
+          ],
+        },
+      },
+    });
+    const passed = await gate();
+    assert.equal(passed.status, 'gate_passed', JSON.stringify(passed));
+    assert.deepEqual(passed.locations, [{location_id: '190', name: 'Synthetic location 190'}]);
   } finally {
     store.close();
   }
@@ -723,5 +810,72 @@ test('the activation gate error and the location refusal carry remedies', () => 
     const remedy = errorRemedy(new MirrorError(code, 'Synthetic.'));
     assert.equal(remedy.mutation_retry_safe, false);
     assert.ok(remedy.action.length > 20);
+  }
+});
+
+test('the website lists the locations a Microsoft activation gate read, literal and escaped, in English and Arabic', () => {
+  const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
+  for (const locale of ['en', 'ar']) {
+    const node = () => ({
+      innerHTML: '',
+      dataset: {},
+      addEventListener() {},
+      querySelector: node,
+      querySelectorAll: () => [],
+      append() {},
+      remove() {},
+    });
+    const context = createContext({
+      catalog,
+      Intl,
+      Date,
+      URLSearchParams,
+      location: {search: ''},
+      history: {replaceState() {}},
+      document: {addEventListener() {}, querySelector: node, querySelectorAll: () => [], createElement: node},
+      $: node,
+      esc: value =>
+        String(value ?? '')
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;'),
+      date: String,
+      toast() {},
+      confirmAction: async () => true,
+      session: {id: 'owner'},
+      navigationGeneration: 1,
+      identityGeneration: 1,
+    });
+    const run = source => new Script(source).runInContext(context);
+    run(readFileSync('web/localization.js', 'utf8'));
+    run(
+      `uiLocale=${JSON.stringify(locale)};uiMessages=new Map(${locale === 'ar' ? 'Object.entries(catalog)' : '[]'});`,
+    );
+    run(readFileSync('web/workspace.js', 'utf8'));
+    run(readFileSync('web/campaign-workflows.js', 'utf8'));
+    const html = context.activationLocationsView({
+      preflight: {
+        activation_gates: [
+          {
+            gate: 'microsoft_location_criteria',
+            step: 'activate_campaign',
+            status: 'gate_passed',
+            locations: [
+              {location_id: '190', name: '<b>Synthetic location</b>'},
+              {location_id: '32', name: null},
+            ],
+          },
+        ],
+      },
+    });
+    assert.match(html, /&lt;b&gt;Synthetic location&lt;\/b&gt;/);
+    assert.match(html, /<code dir="ltr">190<\/code>/);
+    assert.match(html, /<code dir="ltr">32<\/code>/);
+    assert.match(html, locale === 'ar' ? /المواقع التي تستهدفها Microsoft/ : /Locations Microsoft targets/);
+    assert.equal(
+      context.activationLocationsView({preflight: {activation_gates: [{gate: 'snapchat_creative_review'}]}}),
+      '',
+    );
   }
 });

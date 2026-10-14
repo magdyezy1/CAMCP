@@ -12,7 +12,7 @@ import {expandTemplate as substitute} from './client-playbooks.js';
 import {assertAccountWrite} from './write-access.js';
 import {workspaceOwner} from './spend-policy.js';
 import {normalizeAccount} from './scope.js';
-import {campaignRecipe, campaignRecipes, recipeMissing} from './campaign-recipes.js';
+import {assertRecipeDraftCurrent, campaignRecipe, campaignRecipes, recipeMissing} from './campaign-recipes.js';
 import {verificationContractVersion} from './verification-reads.js';
 import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
@@ -1969,8 +1969,10 @@ export class CampaignRunner {
           c = this.store.resolveConnection(actor, gateway, s.account_id, s.connection_id);
         assertAccountWrite(this.store, c, normalizeAccount(gateway, s.account_id));
       }
-    if (['preflight', 'prepare_next', 'execute_next', 'approve', 'run'].includes(input.action))
+    if (['preflight', 'prepare_next', 'execute_next', 'approve', 'run'].includes(input.action)) {
       assertNewSearchExclusionDraft(this.store, actor, run);
+      assertRecipeDraftCurrent(run);
+    }
     // Each blocked step says what refused it, what to do (its remedy) and the call that amends it (Snapchat S2).
     const blockedBy = (r: JsonObject) => {
       const missing = r.preflight.checks
@@ -1981,13 +1983,14 @@ export class CampaignRunner {
                 ? {...c.error, remedy: errorRemedy(new MirrorError(c.error.code, c.error.message, c.error.details))}
                 : c.error,
               // An activation gate or the Microsoft location rule is settled at the provider, not by amending the step
-              // (CMP-03): a gate is checked again by preflight; a missing location criterion has no AMCP next call.
+              // (CMP-03): both are checked again by preflight once the campaign holds a positive location criterion (a
+              // preflight saved under the interim rule, which refused every Microsoft activation, included).
               settledElsewhere = c.gate || c.error?.code === 'LOCATION_CRITERIA_REQUIRED';
             return {
               ...c,
               error,
               ...(step && !settledElsewhere ? {next_call: amendmentCall(r.id, step, c.error)} : {}),
-              ...(c.gate
+              ...(settledElsewhere
                 ? {
                     next_call: {
                       tool: 'amcp_campaign',
@@ -2030,7 +2033,13 @@ export class CampaignRunner {
           ...run.preflight,
           checks,
           status: checks.some((c: JsonObject) => c.status === 'blocked') ? 'blocked' : run.preflight.status,
-          activation_gates: gates.map(g => ({gate: g.gate, step: g.step, status: g.status})),
+          // A Microsoft location gate also names the locations Microsoft returned, for the operator to confirm.
+          activation_gates: gates.map(g => ({
+            gate: g.gate,
+            step: g.step,
+            status: g.status,
+            ...(Array.isArray(g.locations) ? {locations: g.locations} : {}),
+          })),
         };
         // Counts activation preflights and the gates that blocked them (the ticket's measurable outcome).
         audit(this.store, actor, 'campaign_activation_preflight', {

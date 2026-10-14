@@ -137,16 +137,38 @@ export const campaignRecipes = [
       'destination_url',
       'cpc_bid',
       'language',
+      'location_ids',
     ],
+    // Owner decision P7 (CMP-03): the pack targets the Microsoft location IDs of the brief with positive location
+    // criteria on the paused campaign; activation stays separate and is refused without a positive location criterion.
     description:
-      'Paused Microsoft Search campaign, ad group, exact keywords and responsive search ad. Draft only: it sets no locations, so set them in Microsoft before activation; AMCP refuses to activate it without a positive location criterion.',
-    // Owner decision P7 (CMP-03): labelled draft-only until AMCP can create and read Microsoft location criteria.
-    availability: 'draft_only',
-    availability_label: 'Draft only: set locations in Microsoft before activation',
+      'Paused Microsoft Search campaign targeting the Microsoft location IDs you enter, with an ad group, exact keywords and a responsive search ad. Activation is a separate plan, refused without a positive location criterion.',
   },
   snapchatTrafficRecipe,
   snapchatLeadRecipe,
 ];
+/**
+ * CMP-03 compatibility: a microsoft_search plan drafted before the recipe set location targets has no `targets` step, so
+ * it would create a campaign Microsoft could serve in any location it supports. While nothing of it has been prepared
+ * it is refused with the new required input named, and is drafted again from the recipe. A plan that already prepared
+ * a step, or continues another, keeps its recovery: its campaign is still activated only with a positive location
+ * criterion (microsoft-native.ts).
+ */
+export function assertRecipeDraftCurrent(run: JsonObject): void {
+  if (
+    run.recipe?.id !== 'microsoft_search' ||
+    run.activation_of ||
+    run.supersedes ||
+    !Array.isArray(run.steps) ||
+    run.steps.some((s: JsonObject) => s.id === 'targets' || s.status !== 'pending')
+  )
+    return;
+  throw new MirrorError(
+    'RECIPE_INPUT_REQUIRED',
+    'This Microsoft Search plan was drafted before the recipe set location targets, so it would create a campaign Microsoft could serve in any location it supports. Draft it again from the recipe with location_ids.',
+    {missing_fields: ['location_ids'], recipe: 'microsoft_search'},
+  );
+}
 function strings(v: unknown, name: string, min = 1, max = 50): string[] {
   if (!Array.isArray(v) || v.length < min || v.length > max || v.some(x => typeof x !== 'string' || !x.trim()))
     throw new MirrorError('RECIPE_INPUT_REQUIRED', 'Provide ' + name + ' (' + min + '–' + max + ' nonempty items).', {
@@ -627,6 +649,15 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
     } else {
       money(b.daily_budget, 1e6, 'daily budget');
       money(b.cpc_bid, 1e6, 'CPC bid');
+      // Microsoft location IDs come from its geographical locations file; each becomes one positive location criterion.
+      const locations = strings(b.location_ids, 'location_ids', 1, 100);
+      if (
+        locations.some(id => !/^[1-9][0-9]{0,18}$/.test(id) || BigInt(id) > 9223372036854775807n) ||
+        new Set(locations).size !== locations.length
+      )
+        throw new MirrorError('RECIPE_INPUT_INVALID', 'Use 1–100 different numeric Microsoft location IDs.', {
+          field: 'location_ids',
+        });
       add('campaign', 'AddCampaigns', {
         AccountId: b.account_id,
         Campaigns: [
@@ -639,6 +670,20 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
           },
         ],
       });
+      // The campaign's geography, set while it is paused (CMP-03): Microsoft's default location intent applies.
+      add(
+        'targets',
+        'AddCampaignCriterions',
+        {
+          CriterionType: 'Targets',
+          CampaignCriterions: locations.map(LocationId => ({
+            Type: 'BiddableCampaignCriterion',
+            CampaignId: ref('campaign', '/data/CampaignIds/0'),
+            Criterion: {Type: 'LocationCriterion', LocationId},
+          })),
+        },
+        ['campaign'],
+      );
       add(
         'adgroup',
         'AddAdGroups',
@@ -681,8 +726,10 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
         },
         ['adgroup'],
       );
-      for (const step of steps.slice(2)) step.arguments.campaign_id = ref('campaign', '/data/CampaignIds/0');
-      for (const step of steps.slice(2)) step.depends_on.push('campaign');
+      for (const step of steps.filter(s => ['keywords', 'ad'].includes(s.id))) {
+        step.arguments.campaign_id = ref('campaign', '/data/CampaignIds/0');
+        step.depends_on.push('campaign');
+      }
     }
   }
   // The maximum recipe permits 30 geo/language criteria. Keep every supplied criterion
@@ -819,15 +866,14 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
               'Pixel access is checked during preflight; actual event delivery and provider objective acceptance remain unverified.',
           }
         : {}),
-      geo_warning:
-        id === 'microsoft_search'
-          ? 'Set geographical targeting in Microsoft before activation; this recipe does not create location criteria.'
-          : null,
+      geo_warning: null,
       ...(id === 'microsoft_search'
         ? {
-            availability: 'draft_only',
+            location_ids: b.location_ids,
+            location_targeting:
+              'Positive location criteria on the paused campaign, each read back by ID. Activation preflight lists each location with the name Microsoft gives it. Microsoft’s default location intent applies: people in, searching for or viewing pages about these locations.',
             activation:
-              'AMCP refuses to activate this campaign without a positive location criterion (owner decision P7). Set its locations and activate it in Microsoft Advertising.',
+              'Activation is a separate plan. AMCP refuses to activate this campaign without a positive location criterion (owner decision P7).',
           }
         : {}),
     },

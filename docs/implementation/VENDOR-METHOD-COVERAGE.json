@@ -196,8 +196,8 @@
       "captured_at": "2026-09-17T22:24:03.672Z",
       "sha256": "8119d6465ba72bb72062c5ad7b91ffeeedbda3a713359e7f110150d5c3ade1d1",
       "methods": 194,
-      "mapped": 25,
-      "no_mapped_action": 169,
+      "mapped": 28,
+      "no_mapped_action": 166,
       "meaning": "Complete for this pinned document, not all provider APIs or account access."
     },
     {
@@ -21106,8 +21106,15 @@
       "id": "AddCampaignCriterions",
       "method": "SOAP",
       "path": "AddCampaignCriterions",
-      "mapped_actions": [],
-      "mapping_status": "no_mapped_action",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "AddCampaignCriterions",
+          "status": "reviewed_write_family",
+          "family": "microsoft_location_targets"
+        }
+      ],
+      "mapping_status": "mapped",
       "qualification": "unverified",
       "wire_caveat": "WSDL is SOAP evidence; mapping names to JSON adapters does not establish wire parity."
     },
@@ -21726,8 +21733,15 @@
       "id": "DeleteCampaignCriterions",
       "method": "SOAP",
       "path": "DeleteCampaignCriterions",
-      "mapped_actions": [],
-      "mapping_status": "no_mapped_action",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "DeleteCampaignCriterions",
+          "status": "reviewed_write_family",
+          "family": "microsoft_location_targets"
+        }
+      ],
+      "mapping_status": "mapped",
       "qualification": "unverified",
       "wire_caveat": "WSDL is SOAP evidence; mapping names to JSON adapters does not establish wire parity."
     },
@@ -22361,8 +22375,15 @@
       "id": "GetCampaignCriterionsByIds",
       "method": "SOAP",
       "path": "GetCampaignCriterionsByIds",
-      "mapped_actions": [],
-      "mapping_status": "no_mapped_action",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "GetCampaignCriterionsByIds",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
       "qualification": "unverified",
       "wire_caveat": "WSDL is SOAP evidence; mapping names to JSON adapters does not establish wire parity."
     },

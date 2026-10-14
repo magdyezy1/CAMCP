@@ -1,13 +1,14 @@
 {
   "source": "https://learn.microsoft.com/en-us/advertising/",
-  "captured_at": "2026-09-29T10:44:16.533Z",
+  "captured_at": "2026-10-14T22:24:54.498Z",
   "evidence": "VENDOR_DOCUMENTED_NOT_AMCP_OBSERVED",
-  "document_sha256": "9da557154b26e396c6b6a60ee7487d9e4d4582d3d6b33a2e7ca13549dfadf359",
+  "document_sha256": "3b1f04e4cf2dc4327f538c8733d54d6775ed4706293a81c3c9d2b0f51682be12",
   "document": {
     "version": "v13",
     "operations": {
       "AddAdGroups": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/addadgroups?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "POST",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/AdGroups",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/AdGroups",
@@ -16,14 +17,29 @@
       },
       "AddAds": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/addads?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "POST",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/Ads",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/Ads",
         "request_json": "{\n  \"AdGroupId\": \"LongValueHere\",\n  \"Ads\": [\n    {\n      \"AdFormatPreference\": \"ValueHere\",\n      \"DevicePreference\": \"LongValueHere\",\n      \"EditorialStatus\": \"ValueHere\",\n      \"FinalAppUrls\": [\n        {\n          \"OsType\": \"ValueHere\",\n          \"Url\": \"ValueHere\"\n        }\n      ],\n      \"FinalMobileUrls\": [\n        \"ValueHere\"\n      ],\n      \"FinalUrls\": [\n        \"ValueHere\"\n      ],\n      \"FinalUrlSuffix\": \"ValueHere\",\n      \"ForwardCompatibilityMap\": [\n        {\n          \"key\": \"ValueHere\",\n          \"value\": \"ValueHere\"\n        }\n      ],\n      \"Id\": \"LongValueHere\",\n      \"Status\": \"ValueHere\",\n      \"TrackingUrlTemplate\": \"ValueHere\",\n      \"Type\": \"AppInstall\",\n      \"UrlCustomParameters\": {\n        \"Parameters\": [\n          {\n            \"Key\": \"ValueHere\",\n            \"Value\": \"ValueHere\"\n          }\n        ]\n      },\n      \"AppPlatform\": \"ValueHere\",\n      \"AppStoreId\": \"ValueHere\",\n      \"Text\": \"ValueHere\",\n      \"Title\": \"ValueHere\"\n    }\n  ]\n}",
         "response_json": "{\n  \"AdIds\": [\n    \"LongValueHere\"\n  ],\n  \"PartialErrors\": [\n    {\n      \"Code\": IntValueHere,\n      \"Details\": \"ValueHere\",\n      \"ErrorCode\": \"ValueHere\",\n      \"FieldPath\": \"ValueHere\",\n      \"ForwardCompatibilityMap\": [\n        {\n          \"key\": \"ValueHere\",\n          \"value\": \"ValueHere\"\n        }\n      ],\n      \"Index\": IntValueHere,\n      \"Message\": \"ValueHere\",\n      \"Type\": \"EditorialError\",\n      \"Appealable\": \"ValueHere\",\n      \"DisapprovedText\": \"ValueHere\",\n      \"Location\": \"ValueHere\",\n      \"PublisherCountry\": \"ValueHere\",\n      \"ReasonCode\": IntValueHere\n    }\n  ]\n}"
       },
+      "AddCampaignCriterions": {
+        "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/addcampaigncriterions?view=bingads-13",
+        "read_at": "2026-10-12T21:45:31.357Z",
+        "relies_on": [
+          "Location criteria are added with CriterionType Targets, at most 100 criteria per request.",
+          "CampaignCriterionIds follows the request rows, null where a row was not added; NestedPartialErrors lists the failures, not aligned with the rows, and can be empty when none failed."
+        ],
+        "method": "POST",
+        "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/CampaignCriterions",
+        "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/CampaignCriterions",
+        "request_json": "{\n  \"CampaignCriterions\": [\n    {\n      \"CampaignId\": \"LongValueHere\",\n      \"Criterion\": {\n        \"Type\": \"AgeCriterion\",\n        \"AgeRange\": \"ValueHere\"\n      },\n      \"ForwardCompatibilityMap\": [\n        {\n          \"key\": \"ValueHere\",\n          \"value\": \"ValueHere\"\n        }\n      ],\n      \"Id\": \"LongValueHere\",\n      \"Status\": \"ValueHere\",\n      \"Type\": \"BiddableCampaignCriterion\",\n      \"CriterionBid\": {\n        \"Type\": \"BidMultiplier\",\n        \"Multiplier\": DoubleValueHere\n      },\n      \"CriterionCashback\": {\n        \"Type\": \"CashbackAdjustment\",\n        \"CashbackPercent\": DoubleValueHere\n      }\n    }\n  ],\n  \"CriterionType\": \"ValueHere\"\n}",
+        "response_json": "{\n  \"CampaignCriterionIds\": [\n    \"LongValueHere\"\n  ],\n  \"NestedPartialErrors\": [\n    {\n      \"BatchErrors\": [\n        {\n          \"Code\": IntValueHere,\n          \"Details\": \"ValueHere\",\n          \"ErrorCode\": \"ValueHere\",\n          \"FieldPath\": \"ValueHere\",\n          \"ForwardCompatibilityMap\": [\n            {\n              \"key\": \"ValueHere\",\n              \"value\": \"ValueHere\"\n            }\n          ],\n          \"Index\": IntValueHere,\n          \"Message\": \"ValueHere\",\n          \"Type\": \"EditorialError\",\n          \"Appealable\": \"ValueHere\",\n          \"DisapprovedText\": \"ValueHere\",\n          \"Location\": \"ValueHere\",\n          \"PublisherCountry\": \"ValueHere\",\n          \"ReasonCode\": IntValueHere\n        }\n      ],\n      \"Code\": IntValueHere,\n      \"Details\": \"ValueHere\",\n      \"ErrorCode\": \"ValueHere\",\n      \"FieldPath\": \"ValueHere\",\n      \"ForwardCompatibilityMap\": [\n        {\n          \"key\": \"ValueHere\",\n          \"value\": \"ValueHere\"\n        }\n      ],\n      \"Index\": IntValueHere,\n      \"Message\": \"ValueHere\",\n      \"Type\": \"EditorialErrorCollection\",\n      \"Appealable\": \"ValueHere\",\n      \"DisapprovedText\": \"ValueHere\",\n      \"Location\": \"ValueHere\",\n      \"PublisherCountry\": \"ValueHere\",\n      \"ReasonCode\": IntValueHere\n    }\n  ]\n}"
+      },
       "AddCampaigns": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/addcampaigns?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "POST",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/Campaigns",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/Campaigns",
@@ -32,6 +48,7 @@
       },
       "AddKeywords": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/addkeywords?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "POST",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/Keywords",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/Keywords",
@@ -40,6 +57,7 @@
       },
       "DeleteAdExtensionsAssociations": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/deleteadextensionsassociations?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "DELETE",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/AdExtensionsAssociations",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/AdExtensionsAssociations",
@@ -48,6 +66,7 @@
       },
       "DeleteAdGroups": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/deleteadgroups?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "DELETE",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/AdGroups",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/AdGroups",
@@ -56,14 +75,28 @@
       },
       "DeleteAds": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/deleteads?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "DELETE",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/Ads",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/Ads",
         "request_json": "{\n  \"AdGroupId\": \"LongValueHere\",\n  \"AdIds\": [\n    \"LongValueHere\"\n  ]\n}",
         "response_json": "{\n  \"PartialErrors\": [\n    {\n      \"Code\": IntValueHere,\n      \"Details\": \"ValueHere\",\n      \"ErrorCode\": \"ValueHere\",\n      \"FieldPath\": \"ValueHere\",\n      \"ForwardCompatibilityMap\": [\n        {\n          \"key\": \"ValueHere\",\n          \"value\": \"ValueHere\"\n        }\n      ],\n      \"Index\": IntValueHere,\n      \"Message\": \"ValueHere\",\n      \"Type\": \"EditorialError\",\n      \"Appealable\": \"ValueHere\",\n      \"DisapprovedText\": \"ValueHere\",\n      \"Location\": \"ValueHere\",\n      \"PublisherCountry\": \"ValueHere\",\n      \"ReasonCode\": IntValueHere\n    }\n  ]\n}"
       },
+      "DeleteCampaignCriterions": {
+        "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/deletecampaigncriterions?view=bingads-13",
+        "read_at": "2026-10-12T21:45:31.674Z",
+        "relies_on": [
+          "Location criteria are deleted with CriterionType Targets, by CampaignId and at most 100 CampaignCriterionIds."
+        ],
+        "method": "DELETE",
+        "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/CampaignCriterions",
+        "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/CampaignCriterions",
+        "request_json": "{\n  \"CampaignCriterionIds\": [\n    \"LongValueHere\"\n  ],\n  \"CampaignId\": \"LongValueHere\",\n  \"CriterionType\": \"ValueHere\"\n}",
+        "response_json": "{\n  \"PartialErrors\": [\n    {\n      \"Code\": IntValueHere,\n      \"Details\": \"ValueHere\",\n      \"ErrorCode\": \"ValueHere\",\n      \"FieldPath\": \"ValueHere\",\n      \"ForwardCompatibilityMap\": [\n        {\n          \"key\": \"ValueHere\",\n          \"value\": \"ValueHere\"\n        }\n      ],\n      \"Index\": IntValueHere,\n      \"Message\": \"ValueHere\",\n      \"Type\": \"EditorialError\",\n      \"Appealable\": \"ValueHere\",\n      \"DisapprovedText\": \"ValueHere\",\n      \"Location\": \"ValueHere\",\n      \"PublisherCountry\": \"ValueHere\",\n      \"ReasonCode\": IntValueHere\n    }\n  ]\n}"
+      },
       "DeleteCampaigns": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/deletecampaigns?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "DELETE",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/Campaigns",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/Campaigns",
@@ -72,6 +105,7 @@
       },
       "DeleteKeywords": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/deletekeywords?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "DELETE",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/Keywords",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/Keywords",
@@ -80,6 +114,7 @@
       },
       "GetAccount": {
         "page": "https://learn.microsoft.com/en-us/advertising/customer-management-service/getaccount?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "POST",
         "url": "https://clientcenter.api.bingads.microsoft.com/CustomerManagement/v13/Account/Query",
         "sandbox_url": "https://clientcenter.api.sandbox.bingads.microsoft.com/CustomerManagement/v13/Account/Query",
@@ -88,6 +123,7 @@
       },
       "GetAdExtensionsAssociations": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/getadextensionsassociations?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "POST",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/AdExtensionsAssociations/Query",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/AdExtensionsAssociations/Query",
@@ -96,6 +132,7 @@
       },
       "GetAdExtensionsByIds": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/getadextensionsbyids?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "POST",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/AdExtensions/QueryByIds",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/AdExtensions/QueryByIds",
@@ -104,6 +141,7 @@
       },
       "GetAdGroupsByCampaignId": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/getadgroupsbycampaignid?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "POST",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/AdGroups/QueryByCampaignId",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/AdGroups/QueryByCampaignId",
@@ -112,6 +150,7 @@
       },
       "GetAdGroupsByIds": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/getadgroupsbyids?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "POST",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/AdGroups/QueryByIds",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/AdGroups/QueryByIds",
@@ -120,6 +159,7 @@
       },
       "GetAdsByAdGroupId": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/getadsbyadgroupid?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "POST",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/Ads/QueryByAdGroupId",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/Ads/QueryByAdGroupId",
@@ -128,6 +168,7 @@
       },
       "GetAdsByIds": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/getadsbyids?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "POST",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/Ads/QueryByIds",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/Ads/QueryByIds",
@@ -136,14 +177,29 @@
       },
       "GetBudgetsByIds": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/getbudgetsbyids?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "POST",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/Budgets/QueryByIds",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/Budgets/QueryByIds",
         "request_json": "{\n  \"BudgetIds\": [\n    \"LongValueHere\"\n  ]\n}",
         "response_json": "{\n  \"Budgets\": [\n    {\n      \"Amount\": DecimalValueHere,\n      \"AssociationCount\": IntValueHere,\n      \"BudgetType\": \"ValueHere\",\n      \"Id\": \"LongValueHere\",\n      \"Name\": \"ValueHere\"\n    }\n  ],\n  \"PartialErrors\": [\n    {\n      \"Code\": IntValueHere,\n      \"Details\": \"ValueHere\",\n      \"ErrorCode\": \"ValueHere\",\n      \"FieldPath\": \"ValueHere\",\n      \"ForwardCompatibilityMap\": [\n        {\n          \"key\": \"ValueHere\",\n          \"value\": \"ValueHere\"\n        }\n      ],\n      \"Index\": IntValueHere,\n      \"Message\": \"ValueHere\",\n      \"Type\": \"EditorialError\",\n      \"Appealable\": \"ValueHere\",\n      \"DisapprovedText\": \"ValueHere\",\n      \"Location\": \"ValueHere\",\n      \"PublisherCountry\": \"ValueHere\",\n      \"ReasonCode\": IntValueHere\n    }\n  ]\n}"
       },
+      "GetCampaignCriterionsByIds": {
+        "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/getcampaigncriterionsbyids?view=bingads-13",
+        "read_at": "2026-10-12T21:45:30.756Z",
+        "relies_on": [
+          "Targets is not allowed on this read: location criteria are read with CriterionType Location.",
+          "CampaignCriterionIds null returns every criterion of that type of the campaign; listed IDs return their criteria in order, null where one was not returned."
+        ],
+        "method": "POST",
+        "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/CampaignCriterions/QueryByIds",
+        "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/CampaignCriterions/QueryByIds",
+        "request_json": "{\n  \"CampaignCriterionIds\": [\n    \"LongValueHere\"\n  ],\n  \"CampaignId\": \"LongValueHere\",\n  \"CriterionType\": \"ValueHere\",\n  \"ReturnAdditionalFields\": \"ValueHere\"\n}",
+        "response_json": "{\n  \"CampaignCriterions\": [\n    {\n      \"CampaignId\": \"LongValueHere\",\n      \"Criterion\": {\n        \"Type\": \"AgeCriterion\",\n        \"AgeRange\": \"ValueHere\"\n      },\n      \"ForwardCompatibilityMap\": [\n        {\n          \"key\": \"ValueHere\",\n          \"value\": \"ValueHere\"\n        }\n      ],\n      \"Id\": \"LongValueHere\",\n      \"Status\": \"ValueHere\",\n      \"Type\": \"BiddableCampaignCriterion\",\n      \"CriterionBid\": {\n        \"Type\": \"BidMultiplier\",\n        \"Multiplier\": DoubleValueHere\n      },\n      \"CriterionCashback\": {\n        \"Type\": \"CashbackAdjustment\",\n        \"CashbackPercent\": DoubleValueHere\n      }\n    }\n  ],\n  \"PartialErrors\": [\n    {\n      \"Code\": IntValueHere,\n      \"Details\": \"ValueHere\",\n      \"ErrorCode\": \"ValueHere\",\n      \"FieldPath\": \"ValueHere\",\n      \"ForwardCompatibilityMap\": [\n        {\n          \"key\": \"ValueHere\",\n          \"value\": \"ValueHere\"\n        }\n      ],\n      \"Index\": IntValueHere,\n      \"Message\": \"ValueHere\",\n      \"Type\": \"EditorialError\",\n      \"Appealable\": \"ValueHere\",\n      \"DisapprovedText\": \"ValueHere\",\n      \"Location\": \"ValueHere\",\n      \"PublisherCountry\": \"ValueHere\",\n      \"ReasonCode\": IntValueHere\n    }\n  ]\n}"
+      },
       "GetCampaignsByAccountId": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/getcampaignsbyaccountid?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "POST",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/Campaigns/QueryByAccountId",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/Campaigns/QueryByAccountId",
@@ -152,6 +208,7 @@
       },
       "GetCampaignsByIds": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/getcampaignsbyids?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "POST",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/Campaigns/QueryByIds",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/Campaigns/QueryByIds",
@@ -160,6 +217,7 @@
       },
       "GetKeywordsByAdGroupId": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/getkeywordsbyadgroupid?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "POST",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/Keywords/QueryByAdGroupId",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/Keywords/QueryByAdGroupId",
@@ -168,6 +226,7 @@
       },
       "GetKeywordsByIds": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/getkeywordsbyids?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "POST",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/Keywords/QueryByIds",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/Keywords/QueryByIds",
@@ -176,6 +235,7 @@
       },
       "PollGenerateReport": {
         "page": "https://learn.microsoft.com/en-us/advertising/reporting-service/pollgeneratereport?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "POST",
         "url": "https://reporting.api.bingads.microsoft.com/Reporting/v13/GenerateReport/Poll",
         "sandbox_url": "https://reporting.api.sandbox.bingads.microsoft.com/Reporting/v13/GenerateReport/Poll",
@@ -184,6 +244,7 @@
       },
       "SetAdExtensionsAssociations": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/setadextensionsassociations?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "POST",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/AdExtensionsAssociations/Set",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/AdExtensionsAssociations/Set",
@@ -192,6 +253,7 @@
       },
       "SubmitGenerateReport": {
         "page": "https://learn.microsoft.com/en-us/advertising/reporting-service/submitgeneratereport?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "POST",
         "url": "https://reporting.api.bingads.microsoft.com/Reporting/v13/GenerateReport/Submit",
         "sandbox_url": "https://reporting.api.sandbox.bingads.microsoft.com/Reporting/v13/GenerateReport/Submit",
@@ -200,6 +262,7 @@
       },
       "UpdateAdGroups": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/updateadgroups?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "PUT",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/AdGroups",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/AdGroups",
@@ -208,6 +271,7 @@
       },
       "UpdateAds": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/updateads?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "PUT",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/Ads",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/Ads",
@@ -216,6 +280,7 @@
       },
       "UpdateCampaigns": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/updatecampaigns?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "PUT",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/Campaigns",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/Campaigns",
@@ -224,11 +289,102 @@
       },
       "UpdateKeywords": {
         "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/updatekeywords?view=bingads-13",
+        "read_at": "2026-09-29T10:44:16.533Z",
         "method": "PUT",
         "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/Keywords",
         "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/Keywords",
         "request_json": "{\n  \"AdGroupId\": \"LongValueHere\",\n  \"Keywords\": [\n    {\n      \"Bid\": {\n        \"Amount\": DoubleValueHere\n      },\n      \"BiddingScheme\": {\n        \"Type\": \"CommissionBiddingScheme\",\n        \"CommissionRate\": DoubleValueHere\n      },\n      \"DestinationUrl\": \"ValueHere\",\n      \"EditorialStatus\": \"ValueHere\",\n      \"FinalAppUrls\": [\n        {\n          \"OsType\": \"ValueHere\",\n          \"Url\": \"ValueHere\"\n        }\n      ],\n      \"FinalMobileUrls\": [\n        \"ValueHere\"\n      ],\n      \"FinalUrls\": [\n        \"ValueHere\"\n      ],\n      \"FinalUrlSuffix\": \"ValueHere\",\n      \"ForwardCompatibilityMap\": [\n        {\n          \"key\": \"ValueHere\",\n          \"value\": \"ValueHere\"\n        }\n      ],\n      \"Id\": \"LongValueHere\",\n      \"MatchType\": \"ValueHere\",\n      \"Param1\": \"ValueHere\",\n      \"Param2\": \"ValueHere\",\n      \"Param3\": \"ValueHere\",\n      \"Status\": \"ValueHere\",\n      \"Text\": \"ValueHere\",\n      \"TrackingUrlTemplate\": \"ValueHere\",\n      \"UrlCustomParameters\": {\n        \"Parameters\": [\n          {\n            \"Key\": \"ValueHere\",\n            \"Value\": \"ValueHere\"\n          }\n        ]\n      }\n    }\n  ],\n  \"ReturnInheritedBidStrategyTypes\": \"ValueHere\",\n  \"AssetGroupId\": \"LongValueHere\"\n}",
         "response_json": "{\n  \"InheritedBidStrategyTypes\": [\n    \"ValueHere\"\n  ],\n  \"PartialErrors\": [\n    {\n      \"Code\": IntValueHere,\n      \"Details\": \"ValueHere\",\n      \"ErrorCode\": \"ValueHere\",\n      \"FieldPath\": \"ValueHere\",\n      \"ForwardCompatibilityMap\": [\n        {\n          \"key\": \"ValueHere\",\n          \"value\": \"ValueHere\"\n        }\n      ],\n      \"Index\": IntValueHere,\n      \"Message\": \"ValueHere\",\n      \"Type\": \"EditorialError\",\n      \"Appealable\": \"ValueHere\",\n      \"DisapprovedText\": \"ValueHere\",\n      \"Location\": \"ValueHere\",\n      \"PublisherCountry\": \"ValueHere\",\n      \"ReasonCode\": IntValueHere\n    }\n  ]\n}"
+      }
+    },
+    "references": {
+      "BiddableCampaignCriterion": {
+        "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/biddablecampaigncriterion?view=bingads-13",
+        "read_at": "2026-10-12T21:45:31.932Z",
+        "relies_on": [
+          "A targeted (positive) criterion is a BiddableCampaignCriterion; CampaignId and Criterion are required on add, Id and Status are read-only, and Active is its only status.",
+          "CriterionBid is optional on add for a location criterion: without it the bid multiplier is 0, no adjustment."
+        ],
+        "title": "BiddableCampaignCriterion Data Object - Campaign Management",
+        "characters": 5084,
+        "content_sha256": "b9e1a5e07f07ee7408e2b16d47917f5e33724cf71fa4d0497216068a95ea08e1"
+      },
+      "BidMultiplier": {
+        "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/bidmultiplier?view=bingads-13",
+        "read_at": "2026-10-12T21:45:33.747Z",
+        "relies_on": [
+          "Multiplier is a percentage adjustment of the bid, -90 through 900 for most criterion types."
+        ],
+        "title": "BidMultiplier Data Object - Campaign Management",
+        "characters": 3373,
+        "content_sha256": "97f3e86e80bb4532cd2335fe7bcaf4467d44d38087d51dc674ceec22ed3f6840"
+      },
+      "CampaignCriterionType": {
+        "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/campaigncriteriontype?view=bingads-13",
+        "read_at": "2026-10-12T21:45:34.051Z",
+        "relies_on": [
+          "Targets adds, updates and deletes location criteria; reads name the specific type, Location.",
+          "A location may be targeted (BiddableCampaignCriterion) or excluded (NegativeCampaignCriterion)."
+        ],
+        "title": "CampaignCriterionType Value Set - Campaign Management",
+        "characters": 16382,
+        "content_sha256": "41c00e4aed493f727cd96e54f519d0ac896aa0b1ee723cbb3d59291a7baa7ae8"
+      },
+      "GeographicalLocationCodes": {
+        "page": "https://learn.microsoft.com/en-us/advertising/guides/geographical-location-codes?view=bingads-13",
+        "read_at": "2026-10-14T22:24:54.484Z",
+        "relies_on": [
+          "A location criterion takes the Location Id column of the geographical locations file (GetGeoLocationsFileUrl); the Bing Display Name is for presentation only, and several IDs can share one.",
+          "This guide says a Pending Deprecation location still targets until it is deprecated within 30 days, while the LocationCriterion page says PendingDeprecation already stops targeting; both say a deprecated location criterion can still be read but no longer targets or excludes."
+        ],
+        "title": "Geographical Location Codes",
+        "characters": 8324,
+        "content_sha256": "5d096dac9721e02b1f685ab399a3078d6d8a3d85b766287b7c86e2d5e117a512"
+      },
+      "LocationCriterion": {
+        "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/locationcriterion?view=bingads-13",
+        "read_at": "2026-10-12T21:45:32.887Z",
+        "relies_on": [
+          "LocationId, required on add, is a Location Id of the geographical locations file (GetGeoLocationsFileUrl); DisplayName, EnclosedLocationIds and LocationType are read-only.",
+          "A location the file marks PendingDeprecation no longer targets or excludes; a deprecated location cannot be added.",
+          "Read back, the criterion type is Location.",
+          "An ad group with any location, negative location or radius criterion of its own does not inherit the campaign’s."
+        ],
+        "title": "LocationCriterion Data Object - Campaign Management",
+        "characters": 6094,
+        "content_sha256": "2b8860e3e6f7ef76ae67d5f790b48efbfab6423c50cad32958232ba510ccb251"
+      },
+      "LocationIntentCriterion": {
+        "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/locationintentcriterion?view=bingads-13",
+        "read_at": "2026-10-12T21:45:33.483Z",
+        "relies_on": [
+          "The first criterion of a campaign adds a location intent of PeopleInOrSearchingForOrViewingPages (people in, searching for or viewing pages about the locations); PeopleIn targets people in them only.",
+          "A location intent criterion cannot be deleted and takes no bid."
+        ],
+        "title": "LocationIntentCriterion Data Object - Campaign Management",
+        "characters": 4839,
+        "content_sha256": "f266e8e2c951b90240e734ae093394acd0b74b5c7fe318cd26237e33a94ce4d2"
+      },
+      "NegativeCampaignCriterion": {
+        "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/negativecampaigncriterion?view=bingads-13",
+        "read_at": "2026-10-12T21:45:32.307Z",
+        "relies_on": [
+          "An excluded criterion is a NegativeCampaignCriterion: excluding a location targets no location."
+        ],
+        "title": "NegativeCampaignCriterion Data Object - Campaign Management",
+        "characters": 3370,
+        "content_sha256": "5d68465ccf8401cc2cd9db8675c0b3b4932917109806d0adfdf855c0de436ede"
+      },
+      "ShowAdsToYourTargetAudience": {
+        "page": "https://learn.microsoft.com/en-us/advertising/guides/show-ads-target-audience?view=bingads-13",
+        "read_at": "2026-10-14T22:24:54.198Z",
+        "relies_on": [
+          "A campaign or ad group created through the API has no criteria, and effectively targets all locations (and all ages, days, hours, devices and genders) until criteria are added; Microsoft advises at least a campaign location criterion for the customer’s market.",
+          "Location, negative location and radius criteria are one set of geo criteria: an ad group with any of its own inherits none of the campaign’s, and one with none inherits all of them."
+        ],
+        "title": "Show Ads to Your Target Audience",
+        "characters": 26585,
+        "content_sha256": "134f98c662c0af7760c852d83ee358b6e8459d9af0d83280bc073bbdc3be598e"
       }
     }
   }

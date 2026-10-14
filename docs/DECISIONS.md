@@ -125,10 +125,13 @@ cites as owner decisions, each the review's recommended or the ticket's proposed
   destination belongs to a report or a client, whether complete-only gates a manual export, after how many failures a
   schedule pauses, whether workbook schedules stay or move into Overview (EXP-04's second phase waits for it), period
   comparison, the decision-grade metric set, the DEC-02 outcome window and causal experiments.
-- **P7.** The Microsoft Search pack is labelled "Draft only: set locations in Microsoft before activation", and
-  activation without a positive location criterion is refused with `LOCATION_CRITERIA_REQUIRED` until AMCP can read
-  location criteria (CMP-03). UTM parameters versus tracking-suffix fields, mandatory conventions, the next launch
-  packs and the PRV-06 order are not decided.
+- **P7.** Activation of a Microsoft campaign without a positive location criterion is refused with
+  `LOCATION_CRITERIA_REQUIRED` (CMP-03). The "Draft only" label applied until the location-criterion family shipped
+  (`microsoft_location_targets`): the Microsoft Search pack now takes `location_ids` and targets them on the paused
+  campaign, and the refusal reads the campaign's location criteria instead of refusing every activation. Its premise,
+  that a campaign created through the API targets every location until it has location criteria, is pinned from
+  Microsoft's targeting guide (docs/MICROSOFT-ADS.md). UTM parameters versus tracking-suffix fields, mandatory
+  conventions, the next launch packs and the PRV-06 order are not decided.
 - **P9.** A Meta product's populated destination-only attributes are notes (`unsent_fields`); they never put the item
   in the review set as `unknown` (COM-01). The Business Profile and Amazon Ads parts are recorded above.
 

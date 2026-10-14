@@ -106,6 +106,7 @@ import {metaPixelFamily} from './meta-pixels.js';
 import {metaSplitTestFamily} from './meta-split-tests.js';
 import {metaValueRuleFamily} from './meta-value-rules.js';
 import {microsoftAssociationFamily} from './microsoft-associations.js';
+import {microsoftCriterionFamily} from './microsoft-campaign-criteria.js';
 import {microsoftSearchFamily} from './microsoft-native.js';
 import {redditWriteFamily} from './reddit-writes.js';
 import {redditCreativeFamily} from './reddit-creative-writes.js';
@@ -287,6 +288,7 @@ export function reviewedFamilies(): readonly ReviewedFamily[] {
     metaSplitTestFamily, // meta_split_tests
     metaValueRuleFamily, // meta_value_rules
     microsoftAssociationFamily, // microsoft_asset_links
+    microsoftCriterionFamily, // microsoft_location_targets
     microsoftSearchFamily, // microsoft_search
     redditWriteFamily, // reddit_classic
     redditCreativeFamily, // reddit_creatives

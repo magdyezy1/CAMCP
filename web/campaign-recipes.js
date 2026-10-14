@@ -14,6 +14,7 @@ const recipeLabels = {
   country_codes: 'Country codes — one per line',
   country_criterion_ids: 'Google location criterion IDs — one per line',
   language_criterion_ids: 'Google language criterion IDs — one per line',
+  location_ids: 'Microsoft location IDs — one per line',
   page_id: 'Facebook Page ID',
   pixel_id: 'Website pixel ID assigned to this account',
   click_attribution_days: 'Click attribution window',
@@ -40,6 +41,7 @@ const recipeArrays = new Set([
   'country_codes',
   'country_criterion_ids',
   'language_criterion_ids',
+  'location_ids',
   'keywords',
   'headlines',
   'descriptions',
@@ -129,7 +131,7 @@ const recipeDependencyLabels = {
   account_owned_pixel: 'Account-owned pixel',
   conversion_event_delivery: 'Conversion event delivery',
   attribution_window: 'Attribution window',
-  location_criteria: 'Google location targeting',
+  location_criteria: 'Location targeting',
   language_criteria: 'Google language targeting',
   campaign_cpc_ceiling: 'Campaign CPC ceiling',
   account_default_conversion_goals: 'Current account-default conversion goals',
@@ -141,7 +143,6 @@ const recipeDependencyLabels = {
   conversion_value_delivery: 'Delivered conversion values',
   conversion_history_eligibility: 'Conversion history for value bidding',
   campaign_target_roas: 'Campaign target return on ad spend',
-  location_targeting_before_activation: 'Location targeting before activation',
   provider_objective_acceptance: 'Provider objective acceptance',
   existing_website_creative: 'Existing account-owned website creative',
   country_targeting: 'Country targeting',
@@ -938,7 +939,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
           })
           .join(
             '',
-          )}</select></label><label>${esc(uiText('Account currency'))}<input name="currency" value="${esc(values.currency ?? '')}" pattern="[A-Z]{3}" maxlength="3" required></label>${required.map(k => (k === 'drive_url' && context.recipe.platform === 'meta' ? recipeImageField(values) : recipeField(k, fieldValue(k), true, recipe))).join('')}${recipe.startsWith('meta') ? `<label>${esc(uiText('Private Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public link or resolve a selected login'))}</option>${context.drive_connections.map(c => `<option value="${esc(c.id)}" ${values.drive_connection_id === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>` : ''}</div>${context.recipe.platform === 'google' ? `<details><summary>${esc(uiText('Find Google targeting IDs'))}</summary><label>${esc(uiText('Type'))}<select id="recipe-lookup-kind"><option value="country">${esc(uiText('Country'))}</option><option value="language">${esc(uiText('Language'))}</option></select></label><label>${esc(uiText('Country name/code or language'))}<input id="recipe-lookup-query" maxlength="60"></label><button type="button" class="button" id="recipe-lookup">${esc(uiText('Find targeting'))}</button><div id="recipe-lookup-results" aria-live="polite"></div></details>` : ''}<details><summary>${esc(uiText('Optional schedule'))}</summary><div class="recipe-fields">${optional.map(k => recipeField(k, fieldValue(k), false)).join('')}</div></details>${timed ? `<input type="hidden" name="schedule_timezone" value="${esc(zoneOf(selected))}"><p class="form-note" id="recipe-timezone-note">${esc(zoneNote(selected))}</p>` : ''}${context.recipe.platform === 'meta' ? `<details><summary>${esc(uiText('Audience age'))}</summary><p class="form-note">${esc(uiText('Meta targets ages 18–65 unless you set a range from 13 to 65.'))}</p><div class="recipe-fields">${['age_min', 'age_max'].map(k => recipeField(k, values[k], false)).join('')}</div></details>` : ''}${
+          )}</select></label><label>${esc(uiText('Account currency'))}<input name="currency" value="${esc(values.currency ?? '')}" pattern="[A-Z]{3}" maxlength="3" required></label>${required.map(k => (k === 'drive_url' && context.recipe.platform === 'meta' ? recipeImageField(values) : recipeField(k, fieldValue(k), true, recipe))).join('')}${recipe.startsWith('meta') ? `<label>${esc(uiText('Private Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public link or resolve a selected login'))}</option>${context.drive_connections.map(c => `<option value="${esc(c.id)}" ${values.drive_connection_id === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>` : ''}</div>${context.recipe.platform === 'google' ? `<details><summary>${esc(uiText('Find Google targeting IDs'))}</summary><label>${esc(uiText('Type'))}<select id="recipe-lookup-kind"><option value="country">${esc(uiText('Country'))}</option><option value="language">${esc(uiText('Language'))}</option></select></label><label>${esc(uiText('Country name/code or language'))}<input id="recipe-lookup-query" maxlength="60"></label><button type="button" class="button" id="recipe-lookup">${esc(uiText('Find targeting'))}</button><div id="recipe-lookup-results" aria-live="polite"></div></details>` : ''}${context.recipe.platform === 'microsoft' ? `<p class="form-note" id="recipe-location-note">${esc(uiText('Microsoft location IDs come from the Location Id column of its geographical locations file; use locations it lists as Active. Each becomes a positive location criterion of the paused campaign, read back by ID; activation preflight lists each location with the name Microsoft gives it, for you to confirm before approving.'))}</p>` : ''}<details><summary>${esc(uiText('Optional schedule'))}</summary><div class="recipe-fields">${optional.map(k => recipeField(k, fieldValue(k), false)).join('')}</div></details>${timed ? `<input type="hidden" name="schedule_timezone" value="${esc(zoneOf(selected))}"><p class="form-note" id="recipe-timezone-note">${esc(zoneNote(selected))}</p>` : ''}${context.recipe.platform === 'meta' ? `<details><summary>${esc(uiText('Audience age'))}</summary><p class="form-note">${esc(uiText('Meta targets ages 18–65 unless you set a range from 13 to 65.'))}</p><div class="recipe-fields">${['age_min', 'age_max'].map(k => recipeField(k, values[k], false)).join('')}</div></details>` : ''}${
           context.conventions
             ? `<fieldset class="recipe-conventions"><legend>${esc(uiText('Client playbook rules'))}</legend><input type="hidden" name="playbook_rules_seen" value="1"><label class="form-note"><input type="checkbox" name="apply_playbook_rules" value="true" ${rulesOn ? 'checked' : ''}> ${esc(uiText('Apply this playbook’s naming and tracking rules to this plan'))}</label>${context.conventions.naming ? `<p class="form-note">${esc(uiText('Naming rule'))}: <code dir="ltr">${esc(context.conventions.naming)}</code></p>` : ''}${
                 Object.keys(context.conventions.utm ?? {}).length

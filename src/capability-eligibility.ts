@@ -141,10 +141,11 @@ export const recipeDependencies: Record<string, JsonObject> = {
   ),
   microsoft_search: {
     objective: 'search_acquisition',
-    objects: ['location_targeting_before_activation', 'landing_page', 'account_currency'],
-    actions: ['AddCampaigns', 'AddAdGroups', 'AddKeywords', 'AddAds'],
+    // CMP-03: the brief's Microsoft location IDs become positive location criteria of the paused campaign.
+    objects: ['location_criteria', 'landing_page', 'account_currency'],
+    actions: ['AddCampaigns', 'AddCampaignCriterions', 'AddAdGroups', 'AddKeywords', 'AddAds'],
     effects:
-      'Draft only: creates a paused Search campaign without location criteria. Set locations in Microsoft before activation; AMCP refuses to activate a Microsoft campaign without a positive location criterion.',
+      'Creates a paused Search campaign with positive location criteria (Microsoft’s default location intent), a paused ad group, exact keywords and a responsive search ad. Activation is separate and refused without a positive location criterion.',
   },
 };
 const campaignLifecycle = [

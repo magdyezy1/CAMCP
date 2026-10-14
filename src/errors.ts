@@ -830,7 +830,15 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
       category: 'state',
       owner: 'operator',
       action:
-        'Set the campaign’s target locations in Microsoft Advertising and activate it there. Its ad groups, keywords and ads can then be activated through AMCP.',
+        'While the campaign is paused, add its target locations with a reviewed AddCampaignCriterions (CriterionType Targets) or in Microsoft Advertising, then prepare the activation again. Nothing was activated.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'LOCATION_PARENT_NOT_PAUSED')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Pause the campaign with a reviewed UpdateCampaigns (Status Paused), then review the location change; or change its locations in Microsoft Advertising. Nothing was sent.',
       mutation_retry_safe: false,
     };
   // CMP-05: campaign plan inventory and team handoff. Local workspace state only; nothing reached a provider.

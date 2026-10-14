@@ -2907,6 +2907,26 @@
       }
     },
     {
+      "gateway": "microsoft_ads_native_action",
+      "arguments": {
+        "action": "AddCampaignCriterions",
+        "account_id": "123",
+        "payload": {
+          "CriterionType": "Targets",
+          "CampaignCriterions": [
+            {
+              "Type": "BiddableCampaignCriterion",
+              "CampaignId": "456",
+              "Criterion": {
+                "Type": "LocationCriterion",
+                "LocationId": "190"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
       "gateway": "google_ads_native_action",
       "arguments": {
         "action": "google_ads_v23_label_mutate_labels",
@@ -4499,6 +4519,7 @@
     ],
     "destination_url": "https://example.test/",
     "language": "English",
+    "location_ids": ["190"],
     "contains_eu_political_advertising": "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
     "special_ad_categories": [],
     "start_date": "2026-10-01",

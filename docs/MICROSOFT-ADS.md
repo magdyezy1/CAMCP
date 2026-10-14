@@ -23,7 +23,7 @@ Authorization and token endpoints are Microsoft's `https://login.microsoftonline
 
 ## Discover and read
 
-Use `microsoft_ads_native_action` with `action: LIST_ACTIONS` or `action: DESCRIBE_ACTION` and `target_action`. AMCP exposes 24 actions:
+Use `microsoft_ads_native_action` with `action: LIST_ACTIONS` or `action: DESCRIBE_ACTION` and `target_action`. AMCP exposes 31 actions:
 
 | Area | Actions |
 | --- | --- |
@@ -32,6 +32,8 @@ Use `microsoft_ads_native_action` with `action: LIST_ACTIONS` or `action: DESCRI
 | Ad groups | `GetAdGroupsByCampaignId`, `GetAdGroupsByIds`, `AddAdGroups`, `UpdateAdGroups`, `DeleteAdGroups` |
 | Ads | `GetAdsByAdGroupId`, `GetAdsByIds`, `AddAds`, `UpdateAds`, `DeleteAds` |
 | Keywords | `GetKeywordsByAdGroupId`, `GetKeywordsByIds`, `AddKeywords`, `UpdateKeywords`, `DeleteKeywords` |
+| Campaign location criteria | `GetCampaignCriterionsByIds`, `AddCampaignCriterions`, `DeleteCampaignCriterions` |
+| Extension links | `GetAdExtensionsByIds`, `GetAdExtensionsAssociations`, `SetAdExtensionsAssociations`, `DeleteAdExtensionsAssociations` |
 | Shared budget reads | `GetBudgetsByIds` |
 | Reports | `SubmitGenerateReport`, `PollGenerateReport` |
 
@@ -51,7 +53,7 @@ List responses preserve native entities and any native null results. A child res
 
 The 12 Add/Update/Delete actions qualify **Search campaigns, their ad groups, responsive search ads and keywords**. Campaign review reads explicitly request Search, including when reviewing a child. Other campaign/ad formats require additional contracts. New serving entities must use `Status: "Paused"`. Updates and deletes read every exact target; stale mutable configuration blocks submission. Native partial failures remain visible and are retained under the original idempotency key.
 
-Activation needs a positive location criterion (CMP-03, owner decision P7): without location targets Microsoft can serve a campaign in any location it supports. AMCP has no qualified campaign-criterion contract yet (`AddCampaignCriterions` and `GetCampaignCriterionsByIds` exist in the pinned WSDL, but their REST requests are not pinned in `.mirror/VENDOR/microsoft-rest-v13.json`), so `UpdateCampaigns` with `Status: "Active"` is refused with `LOCATION_CRITERIA_REQUIRED` before any read or request. Set locations and activate the campaign in Microsoft Advertising. The guided `microsoft_search` recipe is labelled draft only. Ad groups, keywords and ads can still be activated; a guided activation plan for this recipe stops at preflight on its campaign step. Remaining steps to lift the refusal: (1) pin the REST pages of `AddCampaignCriterions`, `GetCampaignCriterionsByIds` and `DeleteCampaignCriterions` (`node tools/microsoft-rest.mjs`, which reads Microsoft Learn); (2) add a reviewed campaign-criterion family (`CriterionType: Targets`, positive `LocationCriterion` rows only, the parent campaign read for account ownership, `NestedPartialErrors` handled, no bid multipliers, read-back by ID, no replay of an uncertain add); (3) replace this refusal with a read of the campaign's criteria; (4) give `microsoft_search` a required `location_ids` input and a `targets` step after `campaign`, and drop the draft-only label. Native acceptance needs the owner's authorization on a non-serving account.
+Campaign activation reads the campaign's location criteria first: see [Location criteria and activation](#location-criteria-and-activation-cmp-03-owner-decision-p7).
 
 Use `amcp_write` with `action: inspect` first for a local contract check, then `prepare` for live state review. The following is a preparation request, using a synthetic account ID:
 
@@ -81,6 +83,33 @@ Use returned campaign IDs in `payload.CampaignId` for ad groups. Ad and keyword 
 
 `amcp_campaign` `verify` (and every `microsoft_search` plan step) reads each written campaign, ad group, responsive search ad or keyword back by exact ID. The review snapshot and the verification read use one `Get{Kind}ByIds` builder, so campaign reads always send `CampaignType: "Search"` and ad reads always send `AdTypes: ["ResponsiveSearch"]`. When a written record sets something Microsoft returns only on request (for example `AdScheduleUseSearcherTimeZone`, a `TargetSetting` entry in `Settings`, `MaxConversionValueBiddingScheme` or a MaxConversions `TargetCpa`), the read names it in `ReturnAdditionalFields` (comma-separated, values from the pinned v13 WSDL), so the field is compared instead of the result ending inconclusive. Deletions have no read that shows them. Sandbox acceptance of the RSA read-back is still owner-run. Native contracts follow Microsoft's [AddCampaigns](https://learn.microsoft.com/en-us/advertising/campaign-management-service/addcampaigns?view=bingads-13) and [UpdateCampaigns](https://learn.microsoft.com/en-us/advertising/campaign-management-service/updatecampaigns?view=bingads-13) documentation.
 
+### Location criteria and activation (CMP-03, owner decision P7)
+
+A campaign created through the API has no criteria and effectively targets every location until a location criterion is added (Microsoft's targeting guide, pinned below), so AMCP activates a Microsoft campaign only when it holds a positive location criterion. `UpdateCampaigns` with `Status: "Active"` reads each activated campaign's location criteria (`GetCampaignCriterionsByIds` with `CriterionType: "Location"` and `CampaignCriterionIds: null`, the whole set) at prepare and again at execute, and is refused with `LOCATION_CRITERIA_REQUIRED` when none is a positive `LocationCriterion`; an exclusion alone does not count, and nothing is sent. Only location criteria count: a campaign targeted by radius alone (`RadiusCriterion`) is refused too, so activate it in Microsoft Advertising, or add locations knowing they widen its targeting. Pausing, budgets and the children's status need no location read.
+
+The reviewed family `microsoft_location_targets` (`src/microsoft-campaign-criteria.ts`) adds and removes those locations:
+
+```json
+{
+  "action": "AddCampaignCriterions",
+  "account_id": "123",
+  "payload": {
+    "CriterionType": "Targets",
+    "CampaignCriterions": [
+      {"Type": "BiddableCampaignCriterion", "CampaignId": "501", "Criterion": {"Type": "LocationCriterion", "LocationId": "190"}}
+    ]
+  }
+}
+```
+
+- **Shape.** 1–100 rows of one campaign, each exactly a `BiddableCampaignCriterion` holding a `LocationCriterion` with a numeric `LocationId` string, and `CriterionType: "Targets"` (Microsoft adds and deletes target criteria with `Targets` but reads them with `Location`). Negative criteria, radius, location intent and other criterion types, `Id`, `Status` and bid or cashback adjustments are refused (`INVALID_MICROSOFT_REQUEST`): a bid multiplier changes what is paid, and Microsoft applies none when `CriterionBid` is omitted.
+- **Review.** The parent campaign is read by exact ID under the account header (a campaign of another account is not returned: `STATE_TARGET_MISMATCH`) and must be paused by the advertiser (`Paused` or `BudgetAndManualPaused`), so the change can neither start nor widen delivery (`LOCATION_PARENT_NOT_PAUSED`). Its current location criteria are part of the reviewed state: a location it already targets or excludes is refused (`CONFIGURATION_EXISTS`), and a change between prepare and execute is `STATE_CHANGED`. `DeleteCampaignCriterions` (`CampaignId`, `CampaignCriterionIds`, `CriterionType: "Targets"`) removes only an existing positive location criterion of that campaign (`STATE_NOT_FOUND` otherwise) and follows the owner's deletion policy.
+- **Outcome and read-back.** An add is confirmed only by an ID for every row and no `NestedPartialErrors` entry (Microsoft lists failures there without aligning them to the rows; an empty list, or null entries only, means none failed); a partial or lost answer is never resent under the same key. Each added criterion is read back by ID and compared (campaign, location, positive, bid multiplier 0); the activation gate below lists each location with the `DisplayName` Microsoft gives it. A deletion is verified by the criterion's absence from the campaign's location set.
+- **What Microsoft documents.** Pinned in `.mirror/VENDOR/microsoft-rest-v13.json` by `node tools/microsoft-rest.mjs`: the REST pages of the three operations; the `BiddableCampaignCriterion`, `NegativeCampaignCriterion`, `LocationCriterion`, `LocationIntentCriterion`, `BidMultiplier` and `CampaignCriterionType` pages; and the guides [Show Ads to Your Target Audience](https://learn.microsoft.com/en-us/advertising/guides/show-ads-target-audience?view=bingads-13) and [Geographical Location Codes](https://learn.microsoft.com/en-us/advertising/guides/geographical-location-codes?view=bingads-13), each by content digest. Every pinned page records when it was read (`read_at`: the operation and data-object pages were first read on 2026-10-11 and read again, unchanged, on 2026-10-12; the guides on 2026-10-14, UTC), and each records the rules AMCP takes from it (`relies_on`); `--check` holds them to the tool's list, and a page whose rules change is read again. The rules: a campaign created through the API has no criteria and effectively targets all locations (P7's premise, which the review had only from a search result); the first criterion adds a location intent of `PeopleInOrSearchingForOrViewingPages` (people in, searching for or viewing pages about the locations), which AMCP leaves unchanged, so set "people in" in Microsoft Advertising when that is the intent; location, negative location and radius criteria are one set of geo criteria, and an ad group with any of its own inherits none of the campaign's, even when its own are exclusions only (AMCP neither reads nor writes ad-group criteria, and recipe ad groups have none).
+- **Location IDs.** They come from the `Location Id` column of Microsoft's geographical locations file (`GetGeoLocationsFileUrl`); its display names are for presentation only, and several IDs can share one, so the activation gate lists each ID with its name. A deprecated location cannot be added, and a deprecated location criterion can still be read but no longer targets. Microsoft's pages disagree on a location the file marks Pending Deprecation: the guide says it still targets for up to 30 days, the `LocationCriterion` page says it no longer does. AMCP cannot see a location's status in that file, so a campaign whose only locations are deprecated or pending deprecation passes the location rule yet may serve anywhere: enter locations the current file lists as Active, and confirm the names the activation gate shows. AMCP has no name-to-ID lookup.
+
+The guided `microsoft_search` recipe takes a required `location_ids` input (one ID per line on the website) and adds a `targets` step after `campaign`, so every compiled plan targets the brief's locations on the paused campaign. A brief saved before this change fails the recipe input check with `location_ids` named, and a plan drafted before it (no `targets` step) is refused at preflight, prepare and approval with `RECIPE_INPUT_REQUIRED` (`location_ids`) while none of its steps has been prepared: draft it again from the recipe. Its activation plan's preflight runs the `microsoft_location_criteria` gate: it reads the campaign's location criteria, blocks with `ACTIVATION_GATE_BLOCKED` when none is positive or the read fails, and otherwise lists each location ID with Microsoft's name for the operator to confirm before approving; the campaign step's own review then reads them again. Native acceptance (one paused campaign with location criteria on a non-serving account, read back) needs the owner's authorization.
+
 ## Reports
 
 ```json
@@ -104,9 +133,9 @@ Choose an Account, Campaign, AdGroup, Ad, Keyword or SearchQuery performance rep
 
 ## Qualification limits
 
-This adapter does not implement the whole Microsoft API. Microsoft media imports, Bulk API, budget CRUD, targeting/criterion writes, negative keyword lists, Shopping, Performance Max, asset groups, Audience campaigns, billing and customer-wide UET/conversion management are not qualified execution contracts. A native read may support formats beyond the tested Search workflow; that does not extend the write contract. Provider-required fields and account eligibility still need Microsoft validation.
+This adapter does not implement the whole Microsoft API. Microsoft media imports, Bulk API, budget CRUD, targeting and criterion writes other than positive campaign location criteria, negative keyword lists, Shopping, Performance Max, asset groups, Audience campaigns, billing and customer-wide UET/conversion management are not qualified execution contracts. A native read may support formats beyond the tested Search workflow; that does not extend the write contract. Provider-required fields and account eligibility still need Microsoft validation.
 
-No Microsoft production credential or live mutation was used for this release. Tests cover OAuth, rotating refresh tokens, paginated discovery, selection and customer mapping, all 12 qualified mutation routes, exact state reads, stale budgets, partial failures, no retry after uncertain submission, report scope, reader/operator grants and the website callback. Configure your app and use live reads before qualifying production execution.
+No Microsoft production credential or live mutation was used for this release. Tests cover OAuth, rotating refresh tokens, paginated discovery, selection and customer mapping, all 14 qualified mutation routes (12 Search routes and the two location-criterion routes), exact state reads, stale budgets, partial failures, no retry after uncertain submission, report scope, reader/operator grants and the website callback. Configure your app and use live reads before qualifying production execution.
 
 ### Server download example
 

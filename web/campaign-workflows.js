@@ -667,6 +667,15 @@ function bindCampaignList(page, filters, open) {
     if (!cursor) button.remove();
   });
 }
+// The locations a Microsoft activation gate read (CMP-03): Microsoft's names stay literal, for the operator to confirm.
+function activationLocationsView(out) {
+  const gate = (out.preflight?.activation_gates ?? []).find(
+    g => g.gate === 'microsoft_location_criteria' && Array.isArray(g.locations),
+  );
+  return gate?.locations.length
+    ? `<section class="notice" role="status"><h3>${esc(uiText('Locations Microsoft targets for this campaign'))}</h3><p>${esc(uiText('Confirm these are the intended locations before approving the activation.'))}</p><ul>${gate.locations.map(l => `<li><bdi dir="auto">${esc(l.name ?? uiText('Not returned'))}</bdi> · <code dir="ltr">${esc(l.location_id)}</code></li>`).join('')}</ul></section>`
+    : '';
+}
 // Each prerequisite preflight found missing, with the remedy the server gives for it.
 function blockedRequirementsView(out) {
   const missing = out.missing_requirements ?? [];
@@ -978,7 +987,7 @@ function bindCampaignWorkflow(run, open, current, after) {
   if (after) {
     if (after.next_call?.arguments?.action === 'recover_step') amend(after);
     else if (after.next_call?.arguments?.action === 'confirm_absent') confirmAbsent(after);
-    else show(campaignOutcome(after));
+    else show(activationLocationsView(after) + campaignOutcome(after));
   }
   workspaceBind('[data-accept-observed]', async button => {
     const step = run.steps.find(s => s.id === button.dataset.acceptObserved);

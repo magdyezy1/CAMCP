@@ -8,6 +8,15 @@ import {
   validateMicrosoftAssociations,
   extensionTypes,
 } from './microsoft-associations.js';
+import {
+  microsoftCriterionContracts,
+  microsoftCriterionWrite,
+  assertMicrosoftCriteria,
+  microsoftCriterionSnapshots,
+  validateMicrosoftCriteria,
+  positiveLocation,
+  locationCriteriaPayload,
+} from './microsoft-campaign-criteria.js';
 import type {Action, CompiledRequest, Connection, JsonObject, ToolDefinition} from './types.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
@@ -89,6 +98,8 @@ for (const [kind, parent] of [
 }
 contracts.push(
   ...microsoftAssociationContracts,
+  // Campaign location criteria (CMP-03): their own reviewed family, src/microsoft-campaign-criteria.ts.
+  ...microsoftCriterionContracts(),
   {
     name: 'GetBudgetsByIds',
     method: 'POST',
@@ -129,6 +140,7 @@ export function microsoftSearchKind(p: CompiledRequest): boolean {
     c.path === p.path &&
     c.method === p.method &&
     !microsoftAssociationWrite(p) &&
+    !microsoftCriterionWrite(p) &&
     /^(Add|Update|Delete)/.test(c.name)
   );
 }
@@ -164,7 +176,9 @@ export const microsoftTool: ToolDefinition = {
   mode: 'direct',
   schema_evidence: 'INDEPENDENT_MICROSOFT_V13_EXTENSION',
   description:
-    'Microsoft Advertising (Bing Ads) v13 JSON API. Discover LIST_ACTIONS / DESCRIBE_ACTION; provide account_id and native PascalCase payload. Reads include campaign hierarchy, budgets and account-bound asynchronous reporting. Use amcp_write for reviewed Add/Update/Delete Search campaigns, their ad groups, responsive search ads and keywords. New serving entities must be Paused. campaign_id supplies parent context for ads, keywords and ad-group extension associations. Set/DeleteAdExtensionsAssociations links existing extensions to the account or Search hierarchy; provide discovered ad_extension_types. Linking can activate serving. Money is decimal account currency, not Google micros. Independent AMCP extension; live qualification requires your own developer token and OAuth connection.',
+    // tools/list of a writes deployment must stay within 95 KB (tests/first-party-contracts.test.mjs): the location-criterion
+    // rules live in the guide (amcp://guides/microsoft-ads) and the refusals' remedies, not here.
+    'Microsoft Advertising (Bing Ads) v13 JSON API. Discover LIST_ACTIONS / DESCRIBE_ACTION; provide account_id and native PascalCase payload. Reads include campaign hierarchy, budgets and account-bound async reports. Use amcp_write for reviewed Add/Update/Delete Search campaigns, ad groups, responsive search ads, keywords and campaign location targets. New serving entities must be Paused. campaign_id supplies parent context for ads, keywords and ad-group extension associations. Set/DeleteAdExtensionsAssociations links existing extensions to the account or Search hierarchy; provide discovered ad_extension_types. Linking can activate serving. Money is decimal account currency, not Google micros. Independent AMCP extension; live use requires your own developer token and OAuth connection.',
   inputSchema: {
     type: 'object',
     required: ['action'],
@@ -364,6 +378,13 @@ export function assertMicrosoftWrite(plan: CompiledRequest) {
     assertMicrosoftAssociation(plan);
     return;
   }
+  if (microsoftCriterionWrite(plan)) {
+    const c = microsoftContracts.get(plan.action);
+    if (!c || plan.path !== c.path || plan.method !== c.method)
+      throw new MirrorError('WRITE_CONTRACT_UNAVAILABLE', 'This Microsoft operation has no reviewed write contract.');
+    assertMicrosoftCriteria(plan);
+    return;
+  }
   const c = microsoftContracts.get(plan.action);
   if (!c || !/^(Add|Update|Delete)/.test(c.name) || plan.path !== c.path || plan.method !== c.method)
     throw new MirrorError('WRITE_CONTRACT_UNAVAILABLE', 'This Microsoft operation has no reviewed write contract.');
@@ -413,17 +434,8 @@ export function assertMicrosoftWrite(plan: CompiledRequest) {
     }
     if (plan.method === 'PUT' && new Set(rows.map(r => r.Id)).size !== rows.length)
       fail('Each updated resource ID must be unique.');
-    // Owner decision P7 (CMP-03): without location targets Microsoft can serve a campaign in any location it supports,
-    // so AMCP activates one only with a positive location criterion. It cannot read campaign criteria yet (no pinned
-    // campaign-criterion contract), so it refuses every campaign activation, before any read or provider request.
-    const activating = c.kind === 'Campaigns' && plan.method === 'PUT' ? rows.filter(r => r.Status === 'Active') : [];
-    if (activating.length)
-      throw new MirrorError(
-        'LOCATION_CRITERIA_REQUIRED',
-        'AMCP activates a Microsoft campaign only with a positive location criterion, because without location targets Microsoft can serve its ads in any location it supports. AMCP cannot read campaign location criteria yet: set the campaign’s locations and activate it in Microsoft Advertising.',
-        {campaign_ids: activating.map(r => r.Id), owner_decision: 'P7'},
-        409,
-      );
+    // Owner decision P7 (CMP-03): a campaign activation is refused without a positive location criterion. The review
+    // reads each activated campaign's location criteria (microsoftSnapshots) and microsoftLocationGuard decides.
   }
   if (b.AdGroupId && !plan.scopeContext?.campaignId)
     fail('Ad and keyword write reviews need campaign_id to read the exact parent ad group.');
@@ -497,8 +509,37 @@ export function getByIdsPayload(kind: string, parent: unknown, ids: unknown[], w
     ...(extra.length ? {ReturnAdditionalFields: extra.join(',')} : {}),
   };
 }
+/** The campaigns an UpdateCampaigns request sets Active (owner decision P7 reads their location criteria first). */
+function activatedCampaigns(plan: CompiledRequest): string[] {
+  const b = plan.body as JsonObject;
+  return plan.action === 'UpdateCampaigns' && Array.isArray(b?.Campaigns)
+    ? b.Campaigns.filter((r: unknown) => object(r) && r.Status === 'Active').map((r: JsonObject) => r.Id)
+    : [];
+}
+/**
+ * Owner decision P7 (CMP-03): without location targets Microsoft can serve a campaign in any location it supports, so a
+ * campaign is activated only when the review's read of its location criteria (taken at prepare and again at execute)
+ * holds a positive one. Runs before anything is sent; the remedy adds one with AddCampaignCriterions.
+ */
+export function microsoftLocationGuard(plan: CompiledRequest, state: unknown[], reads: CompiledRequest[]): void {
+  const missing = activatedCampaigns(plan).filter(campaign => {
+    const at = reads.findIndex(
+        r => r.action === 'GetCampaignCriterionsByIds' && (r.body as JsonObject)?.CampaignId === campaign,
+      ),
+      rows = at < 0 ? undefined : (state[at] as JsonObject | undefined)?.CampaignCriterions;
+    return !Array.isArray(rows) || !rows.some(r => positiveLocation(r, campaign));
+  });
+  if (missing.length)
+    throw new MirrorError(
+      'LOCATION_CRITERIA_REQUIRED',
+      'AMCP activates a Microsoft campaign only with a positive location criterion, because without location targets Microsoft can serve its ads in any location it supports. Add the campaign’s target locations while it is paused, then prepare the activation again.',
+      {campaign_ids: missing, owner_decision: 'P7'},
+      409,
+    );
+}
 export function microsoftSnapshots(plan: CompiledRequest): CompiledRequest[] {
   if (microsoftAssociationWrite(plan)) return microsoftAssociationSnapshots(plan, compileMicrosoft);
+  if (microsoftCriterionWrite(plan)) return microsoftCriterionSnapshots(plan);
   const c = microsoftContracts.get(plan.action)!,
     b = plan.body as JsonObject,
     read = (action: string, payload: JsonObject) => compileMicrosoft({action, account_id: plan.accountId, payload});
@@ -517,6 +558,8 @@ export function microsoftSnapshots(plan: CompiledRequest): CompiledRequest[] {
     ...new Set((b.Campaigns ?? []).filter((r: JsonObject) => r.BudgetId).map((r: JsonObject) => r.BudgetId)),
   ];
   if (budgetIds.length) reads.push(read('GetBudgetsByIds', {BudgetIds: budgetIds}));
+  for (const campaign of activatedCampaigns(plan))
+    reads.push(read('GetCampaignCriterionsByIds', locationCriteriaPayload(campaign)));
   return reads;
 }
 export function validateMicrosoftResponse(plan: CompiledRequest, result: TransportResult, state = false) {
@@ -525,12 +568,14 @@ export function validateMicrosoftResponse(plan: CompiledRequest, result: Transpo
   const d = result.data;
   if (
     !object(d) ||
-    ['Errors', 'OperationErrors', 'PartialErrors'].some(
+    // NestedPartialErrors (AddCampaignCriterions) lists the rows that failed, like PartialErrors: an empty list, or one of
+    // null entries only, means nothing failed (Microsoft documents that neither list is aligned with the request).
+    ['Errors', 'OperationErrors', 'PartialErrors', 'NestedPartialErrors'].some(
       key =>
         d[key] !== undefined &&
         d[key] !== null &&
         (!Array.isArray(d[key]) ||
-          (key === 'PartialErrors' ? d[key].some((error: unknown) => error !== null) : d[key].length > 0)),
+          (key.endsWith('PartialErrors') ? d[key].some((error: unknown) => error !== null) : d[key].length > 0)),
     )
   )
     throw new MirrorError(
@@ -560,6 +605,13 @@ export function validateMicrosoftResponse(plan: CompiledRequest, result: Transpo
       throw new MirrorError('STATE_TARGET_MISMATCH', 'Microsoft returned a different account.', {}, 502);
     return;
   }
+  // A campaign without location criteria may answer its whole-set read (no IDs asked) with null: an empty set.
+  if (
+    c.name === 'GetCampaignCriterionsByIds' &&
+    value === null &&
+    (plan.body as JsonObject).CampaignCriterionIds == null
+  )
+    return;
   if (
     !Array.isArray(value) ||
     value.some(v => v !== null && (!object(v) || typeof v.Id !== 'string' || !/^[1-9][0-9]*$/.test(v.Id)))
@@ -570,6 +622,7 @@ export function validateMicrosoftResponse(plan: CompiledRequest, result: Transpo
       {},
       502,
     );
+  if (c.name === 'GetCampaignCriterionsByIds') validateMicrosoftCriteria(plan, d);
   if (state && c.kind === 'Campaigns' && value.some(v => v?.CampaignType !== undefined && v.CampaignType !== 'Search'))
     throw new MirrorError(
       'STATE_TARGET_MISMATCH',
@@ -638,6 +691,7 @@ export const microsoftSearchFamily: ReviewedFamily = {
   files: ['src/microsoft-native.ts', ['tests/microsoft.test.ts']],
   kind: microsoftSearchKind,
   snapshots: microsoftSnapshots,
+  prerequisites: microsoftLocationGuard,
   outcome: microsoftOutcome,
   verification: microsoftSearchVerification,
 };

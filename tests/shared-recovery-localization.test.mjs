@@ -25,12 +25,13 @@ test('shared recovery ownership includes only literal hints in the three exact a
   assert.equal(inspectProviderCaptureRemedies(source, 'src/errors.ts').size, 8);
   assert.equal(inspectMeasurementRemedies(source, 'src/errors.ts').size, 12);
 });
-test('all 156 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
-  assert.equal(hints.size, 157);
+test('all 157 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
+  // 158 since CMP-03 added LOCATION_PARENT_NOT_PAUSED's remedy (Microsoft location criteria of a campaign not paused).
+  assert.equal(hints.size, 158);
   const inventoryHint = errorResult(new MirrorError('PORTFOLIO_INVALID_RESPONSE', 'Fixture'), 'ref', 0).error
     .next_action;
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 156);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 157);
   assert.deepEqual(localeProblems(catalog, hints), []);
   for (const hint of hints) {
     assert.match(catalog[hint], /[\u0600-\u06ff]/);

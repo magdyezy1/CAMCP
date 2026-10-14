@@ -20,7 +20,7 @@ export function writeOutcome(result: TransportResult, plan?: CompiledRequest, be
       if (
         plan?.gateway === microsoftGateway &&
         path === '$' &&
-        key === 'PartialErrors' &&
+        (key === 'PartialErrors' || key === 'NestedPartialErrors') &&
         Array.isArray(v) &&
         v.every(item => item === null)
       )

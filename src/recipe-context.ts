@@ -18,6 +18,7 @@ export const profileDefaultKeys = [
   'country_codes',
   'country_criterion_ids',
   'language_criterion_ids',
+  'location_ids',
   'destination_url',
   'keywords',
   'headlines',
@@ -129,7 +130,7 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
             ]
         : recipe.platform === 'microsoft'
           ? [
-              'Draft only: set locations in Microsoft before activation. This Search recipe sets no geography, and AMCP refuses to activate a Microsoft campaign without a positive location criterion.',
+              'Enter Microsoft location IDs of Active locations from its geographical locations file, one per line: each becomes a positive location criterion of the paused campaign, read back by ID, and activation preflight lists each location with the name Microsoft gives it. Microsoft’s default location intent applies (people in, searching for or viewing pages about these locations). Activation is a separate plan, refused without a positive location criterion.',
             ]
           : googleConversionRecipes[recipeId]?.value
             ? [
