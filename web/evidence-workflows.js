@@ -379,6 +379,13 @@ function mountEvidenceRows(report, selectionCurrent) {
     native_country_criterion_id: uiText('Native country criterion ID'),
     native_location_type: uiText('Native location type'),
     native_geographic_resource: uiText('Native geographic resource'),
+    // RPT-07 dimension packs: literal native breakdown values.
+    native_ad_network: uiText('Native ad network'),
+    native_age: uiText('Native age'),
+    native_gender: uiText('Native gender'),
+    native_country: uiText('Native country'),
+    native_publisher_platform: uiText('Native publisher platform'),
+    native_platform_position: uiText('Native placement'),
     spend: uiText('Spend'),
     impressions: uiText('Impressions'),
     clicks: uiText('Clicks'),
@@ -387,6 +394,14 @@ function mountEvidenceRows(report, selectionCurrent) {
     reach: uiText('Reach'),
     frequency: uiText('Frequency'),
   };
+  const breakdowns = [
+    'native_ad_network',
+    'native_age',
+    'native_gender',
+    'native_country',
+    'native_publisher_platform',
+    'native_platform_position',
+  ].filter(key => Object.hasOwn(report.mapping ?? {}, key));
   const order =
     report.preset === 'google_keyword'
       ? [
@@ -432,7 +447,17 @@ function mountEvidenceRows(report, selectionCurrent) {
                     ].includes(key),
                 ),
               ]
-            : Object.keys(labels);
+            : breakdowns.length
+              ? [
+                  'entity_name',
+                  ...breakdowns,
+                  'date',
+                  'entity_id',
+                  ...Object.keys(labels).filter(
+                    key => !['entity_name', ...breakdowns, 'date', 'entity_id'].includes(key),
+                  ),
+                ]
+              : Object.keys(labels);
   const columns = order.filter(
     key =>
       ['entity_id', 'entity_name'].includes(key) ||
@@ -525,7 +550,7 @@ function mountEvidenceRows(report, selectionCurrent) {
   };
   const heading = () => `<h3>${esc(uiText('Retained native rows'))}</h3>`;
   const controls = () =>
-    `<form id="evidence-row-search" class="report-pagination"><label>${esc(uiText(Object.hasOwn(report.mapping ?? {}, 'keyword_match_type') ? 'Find a keyword, date or native match type' : Object.hasOwn(report.mapping ?? {}, 'native_device') ? 'Find a campaign, date or native device' : Object.hasOwn(report.mapping ?? {}, 'native_hour') ? 'Find a campaign, date or native hour' : Object.hasOwn(report.mapping ?? {}, 'native_country_criterion_id') ? 'Find a campaign, country ID, location type or date' : 'Find an entity, date or search term'))}<input id="evidence-row-query" type="search" maxlength="150" value="${esc(draft)}"></label><label>${esc(uiText('Rows per page'))}<select id="evidence-rows-page-size">${[10, 25, 50, 100].map(size => `<option value="${size}">${esc(uiNumber(size))}</option>`).join('')}</select></label><div><button type="submit" class="button small" id="evidence-row-apply">${esc(uiText('Search retained rows'))}</button><button type="button" class="button small" id="evidence-row-clear">${esc(uiText('Clear search'))}</button></div></form><p class="form-note">${esc(uiText('Search changes displayed rows only. Totals, analysis and Excel retain the complete report.'))}</p><details id="evidence-columns"${columnsOpen ? ' open' : ''}><summary>${esc(uiText('Visible columns'))}</summary><div class="recipe-fields">${columns.map(key => `<label><input type="checkbox" id="evidence-column-${key}" ${visible.has(key) ? 'checked' : ''}> ${esc(labels[key])}</label>`).join('')}</div><button type="button" class="button small" id="evidence-columns-reset">${esc(uiText('Show all columns'))}</button></details>${nativeIdColumns.length ? `<label class="check"><input type="checkbox" id="evidence-native-ids" ${showNativeIds ? 'checked' : ''}> ${esc(uiText('Show native IDs'))}</label>` : ''}`;
+    `<form id="evidence-row-search" class="report-pagination"><label>${esc(uiText(Object.hasOwn(report.mapping ?? {}, 'keyword_match_type') ? 'Find a keyword, date or native match type' : Object.hasOwn(report.mapping ?? {}, 'native_device') ? 'Find a campaign, date or native device' : Object.hasOwn(report.mapping ?? {}, 'native_hour') ? 'Find a campaign, date or native hour' : Object.hasOwn(report.mapping ?? {}, 'native_country_criterion_id') ? 'Find a campaign, country ID, location type or date' : breakdowns.length ? 'Find a campaign, date or native breakdown value' : 'Find an entity, date or search term'))}<input id="evidence-row-query" type="search" maxlength="150" value="${esc(draft)}"></label><label>${esc(uiText('Rows per page'))}<select id="evidence-rows-page-size">${[10, 25, 50, 100].map(size => `<option value="${size}">${esc(uiNumber(size))}</option>`).join('')}</select></label><div><button type="submit" class="button small" id="evidence-row-apply">${esc(uiText('Search retained rows'))}</button><button type="button" class="button small" id="evidence-row-clear">${esc(uiText('Clear search'))}</button></div></form><p class="form-note">${esc(uiText('Search changes displayed rows only. Totals, analysis and Excel retain the complete report.'))}</p><details id="evidence-columns"${columnsOpen ? ' open' : ''}><summary>${esc(uiText('Visible columns'))}</summary><div class="recipe-fields">${columns.map(key => `<label><input type="checkbox" id="evidence-column-${key}" ${visible.has(key) ? 'checked' : ''}> ${esc(labels[key])}</label>`).join('')}</div><button type="button" class="button small" id="evidence-columns-reset">${esc(uiText('Show all columns'))}</button></details>${nativeIdColumns.length ? `<label class="check"><input type="checkbox" id="evidence-native-ids" ${showNativeIds ? 'checked' : ''}> ${esc(uiText('Show native IDs'))}</label>` : ''}`;
   const bind = () => {
     const field = $('#evidence-row-query'),
       columnDetails = $('#evidence-columns'),
@@ -756,8 +781,18 @@ function evidencePresetLabel(preset) {
       return uiText('Google campaign country performance');
     case 'google_search_terms':
       return uiText('Google search term evidence');
+    case 'google_pmax_search_terms':
+      return uiText('Google Performance Max search terms');
+    case 'google_campaign_network':
+      return uiText('Google campaign network performance');
     case 'meta_campaign':
       return uiText('Meta campaign performance');
+    case 'meta_campaign_age_gender':
+      return uiText('Meta campaign age and gender');
+    case 'meta_campaign_country':
+      return uiText('Meta campaign country');
+    case 'meta_campaign_placement':
+      return uiText('Meta campaign placement');
     case 'meta_adset':
       return uiText('Meta ad set performance');
     case 'meta_ad':
@@ -877,7 +912,7 @@ async function mountCaptureWizard(openReport) {
           })),
         ),
     );
-  root.innerHTML = `<summary>${esc(uiText('Capture detailed native evidence'))}</summary><p>${esc(uiText('Choose detailed Google, Meta, LinkedIn, TikTok or Snapchat evidence. Each provider keeps its native reporting levels and measurement definitions. Reading may take up to two minutes.'))}</p><form id="capture-preset"><div class="recipe-fields"><label>${esc(uiText('Report detail'))}<select name="preset">${presets.map(p => `<option value="${esc(p.id)}">${esc(evidencePresetLabel(p))}</option>`).join('')}</select></label><label>${esc(uiText('Account'))}<select name="target" required></select></label>${controls(uiText('Evidence name'), 'text', '', 'source_name')}${controls(uiText('From'), 'date', '', 'date_from')}${controls(uiText('Through'), 'date', '', 'date_to')}${controls(uiText('Native currency'), 'text', '', 'currency')}${controls(uiText('Native IANA timezone'), 'text', '', 'timezone')}</div><p id="capture-account-metadata" class="form-note" hidden></p><div class="recipe-fields" id="capture-generic-measurement">${controls(uiText('Attribution definition'), 'text', '', 'attribution')}${controls(uiText('Conversion definition'), 'text', '', 'conversion_definition')}</div><div class="recipe-fields" id="capture-meta-measurement" hidden><label>${esc(uiText('Exact Meta conversion action type'))}<input name="result_action_type" maxlength="160" list="meta-action-examples" placeholder="offsite_conversion.fb_pixel_purchase"></label><datalist id="meta-action-examples"><option value="offsite_conversion.fb_pixel_purchase"></option><option value="offsite_conversion.fb_pixel_lead"></option></datalist><label>${esc(uiText('Meta attribution window'))}<select name="attribution_windows"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="1d_click">${esc(uiText('1-day click'))}</option><option value="7d_click">${esc(uiText('7-day click'))}</option><option value="1d_click,1d_view">${esc(uiText('1-day click and 1-day view'))}</option><option value="7d_click,1d_view">${esc(uiText('7-day click and 1-day view'))}</option><option value="1d_view">${esc(uiText('1-day view only'))}</option></select></label><p class="form-note">${esc(uiText('Uses impression-time reporting and the exact selected action type. Overlapping purchase aliases are not combined; an absent action remains unknown.'))}</p></div><p class="form-note">${esc(uiText('Match the native account currency, timezone and report window. Search-term visibility can prevent equality with campaign totals. Missing metrics stay unknown.'))}</p><label class="form-note"><input name="complete" type="checkbox"> ${esc(uiText('The selected reporting window is complete under these declared measurement settings.'))}</label><button type="submit" class="button primary">${esc(uiText('Read and retain evidence'))}</button></form>`;
+  root.innerHTML = `<summary>${esc(uiText('Capture detailed native evidence'))}</summary><p>${esc(uiText('Choose detailed Google, Meta, LinkedIn, TikTok or Snapchat evidence. Each provider keeps its native reporting levels and measurement definitions. Reading may take up to two minutes.'))}</p><form id="capture-preset"><div class="recipe-fields"><label>${esc(uiText('Report detail'))}<select name="preset">${presets.map(p => `<option value="${esc(p.id)}">${esc(evidencePresetLabel(p))}</option>`).join('')}</select></label><label>${esc(uiText('Account'))}<select name="target" required></select></label>${controls(uiText('Evidence name'), 'text', '', 'source_name')}${controls(uiText('From'), 'date', '', 'date_from')}${controls(uiText('Through'), 'date', '', 'date_to')}${controls(uiText('Native currency'), 'text', '', 'currency')}${controls(uiText('Native IANA timezone'), 'text', '', 'timezone')}</div><p id="capture-account-metadata" class="form-note" hidden></p><div class="recipe-fields" id="capture-generic-measurement">${controls(uiText('Attribution definition'), 'text', '', 'attribution')}${controls(uiText('Conversion definition'), 'text', '', 'conversion_definition')}</div><div class="recipe-fields" id="capture-meta-measurement" hidden><label>${esc(uiText('Exact Meta conversion action type'))}<input name="result_action_type" maxlength="160" list="meta-action-examples" placeholder="offsite_conversion.fb_pixel_purchase"></label><datalist id="meta-action-examples"><option value="offsite_conversion.fb_pixel_purchase"></option><option value="offsite_conversion.fb_pixel_lead"></option></datalist><label>${esc(uiText('Meta attribution window'))}<select name="attribution_windows"><option value="">${esc(uiText('Choose explicitly'))}</option><option value="1d_click">${esc(uiText('1-day click'))}</option><option value="7d_click">${esc(uiText('7-day click'))}</option><option value="1d_click,1d_view">${esc(uiText('1-day click and 1-day view'))}</option><option value="7d_click,1d_view">${esc(uiText('7-day click and 1-day view'))}</option><option value="7d_click,1d_view,1d_ev">${esc(uiText('7-day click, 1-day view and 1-day engaged view'))}</option><option value="28d_click">${esc(uiText('28-day click'))}</option><option value="28d_click,1d_view">${esc(uiText('28-day click and 1-day view'))}</option><option value="1d_view">${esc(uiText('1-day view only'))}</option></select></label><p class="form-note">${esc(uiText('Uses impression-time reporting and the exact selected action type. Overlapping purchase aliases are not combined; an absent action remains unknown.'))}</p></div><p class="form-note">${esc(uiText('Match the native account currency, timezone and report window. Search-term visibility can prevent equality with campaign totals. Missing metrics stay unknown.'))}</p><label class="form-note"><input name="complete" type="checkbox"> ${esc(uiText('The selected reporting window is complete under these declared measurement settings.'))}</label><button type="submit" class="button primary">${esc(uiText('Read and retain evidence'))}</button></form>`;
   const form = $('#capture-preset'),
     feedback = evidenceCaptureFeedback(form, current);
   $('#capture-meta-measurement').insertAdjacentHTML(

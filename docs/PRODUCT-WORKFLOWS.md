@@ -453,8 +453,9 @@ remain declarations; search-term visibility can prevent reconciliation to campai
 
 Meta presets are `meta_campaign`, `meta_adset` and `meta_ad`, each at entity × day grain. Supply currency, IANA
 timezone, dates, source name and completeness. Select the exact native `result_action_type` (for example,
-`offsite_conversion.fb_pixel_purchase`) and `attribution_windows`: one of `1d_click`/`7d_click`, optional `1d_view`,
-or `1d_view` alone. Both click windows together are refused. The request explicitly uses impression time and
+`offsite_conversion.fb_pixel_purchase`) and `attribution_windows`: at most one of `1d_click`/`7d_click`/`28d_click`,
+optional `1d_view` and `1d_ev` (one-day engaged view), or view windows alone (RPT-07). Two click windows together, and
+the `7d_view`/`28d_view` windows Meta removed on 2026-01-12, are refused. The request explicitly uses impression time and
 disables account/unified attribution overrides; the saved attribution/result definitions are derived from that query.
 Account identity, currency and timezone are verified before and after complete Insights pages, including empty
 reports. Each native row must match its account, exact parent chain, currency, dates and unique entity/day grain.
@@ -466,6 +467,28 @@ counts as 0 and is named in `omitted_as_zero` (Meta omits zero-valued action ent
 it unknown. Overlapping action aliases are never added. Window completeness remains declared, and complete paging does not prove conversion delivery.
 See the [Meta evidence qualification](review/DELIVERY-2026-10-02-META-EVIDENCE-INTEGRITY.md); SDK/native fixture evidence
 does not certify live provider acceptance.
+
+**Dimension packs (RPT-07).** Five presets answer audience, placement, network and Performance Max questions that
+campaign rows cannot, through the same verified collectors:
+
+| Preset                     | Grain                                                 | Native dimension columns                                |
+| -------------------------- | ----------------------------------------------------- | ------------------------------------------------------- |
+| `google_pmax_search_terms` | Performance Max campaign × search term (window total) | `search_term` from `campaign_search_term_view`          |
+| `google_campaign_network`  | campaign × ad network × day                           | `native_ad_network` (`segments.ad_network_type`)        |
+| `meta_campaign_age_gender` | campaign × age × gender × day                         | `native_age`, `native_gender`                           |
+| `meta_campaign_country`    | campaign × country × day                              | `native_country`                                        |
+| `meta_campaign_placement`  | campaign × publisher platform × placement × day       | `native_publisher_platform`, `native_platform_position` |
+
+Values stay the literal provider values (never translated or merged) in the table, row search and English and Arabic
+Excel exports. A value outside the documented native set (Google's AdNetworkType enum; Meta's age buckets, genders,
+publisher platforms, ISO country codes or `unknown`, and lower-case placement names), a duplicate bucket/day row, an
+unrequested breakdown field, an extra segment or a Performance Max term outside a `PERFORMANCE_MAX` campaign or under a
+different `campaignSearchTermViews/{campaign}~{base64 term}` resource refuses capture and saves nothing. Saved evidence
+carries `breakdown {dimensions, observed_values, absent_buckets:"unknown", reconciles_with_parent_totals:false}`: a
+bucket the provider did not return is unknown, never zero, and bucket totals can differ from campaign totals (privacy
+thresholds, unknown buckets). Reach and frequency stay per bucket and are never added together; Meta omits reach for
+breakdown reports that start more than 13 months ago. The Google search-term view without keyword segments includes
+Performance Max data; these terms do not qualify negative keywords, brand exclusions or budget changes.
 
 LinkedIn presets are `linkedin_campaign_group`, `linkedin_campaign` and `linkedin_creative`, at the native
 entity × UTC day grain. Supply the native account currency, `timezone:"UTC"`, dates, source name, attribution

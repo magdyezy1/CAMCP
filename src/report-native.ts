@@ -12,6 +12,7 @@ import {reportPlatforms, metricNumber, objectiveGroup} from './report-metrics.js
 import {zonedMidnight} from './workflows.js';
 import {googleAdsCustomers} from './google-version.js';
 import {metaPrefix} from './meta-version.js';
+import {metaWindowsOrdered} from './meta-attribution-windows.js';
 import {linkedInCampaignMetadata, linkedInCampaignPeriod} from './linkedin-reporting.js';
 import {campaignAttributionProfile, overviewSourceLevel, collectDetailedOverview} from './overview-granularity.js';
 import type {DetailParentCache} from './overview-parents.js';
@@ -728,9 +729,7 @@ export class NativeCampaignReports {
     } else if (p === 'meta') {
       // RPT-04: an optional campaign-level attribution profile uses the detailed preset's explicit windows.
       const profile = campaignAttributionProfile(source),
-        windows = profile
-          ? ['1d_click', '7d_click', '1d_view'].filter(w => profile.attribution_windows.includes(w))
-          : undefined;
+        windows = profile ? metaWindowsOrdered(profile.attribution_windows) : undefined;
       raw = metaCampaignRows(
         await run(
           plan(metaPrefix + 'act_' + account + '/insights', {

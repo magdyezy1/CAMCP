@@ -3,6 +3,7 @@ import {collectionCheckpoint} from './report-collection-budget.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {storedLogin} from './connection-authority.js';
+import {googleReportAdNetworks} from './report-breakdowns.js';
 
 const gateway = 'google_ads_native_action';
 export const googleReportDevices = Object.freeze([
@@ -60,7 +61,14 @@ function validateRows(preset: string, account: string, semantics: JsonObject, ro
     resource(row.campaign.resourceName, `customers/${account}/campaigns/${row.campaign.id}`);
     let identity = row.campaign.resourceName;
     if (
-      !['google_campaign', 'google_campaign_device', 'google_campaign_hour', 'google_campaign_country'].includes(preset)
+      ![
+        'google_campaign',
+        'google_campaign_device',
+        'google_campaign_hour',
+        'google_campaign_country',
+        'google_campaign_network',
+        'google_pmax_search_terms',
+      ].includes(preset)
     ) {
       if (!obj(row.adGroup) || !googleReportId(row.adGroup.id))
         bad('Google did not return the requested native ad group.', 'REPORT_SHAPE_CHANGED');
@@ -110,6 +118,7 @@ function validateRows(preset: string, account: string, semantics: JsonObject, ro
     }
     let date = '',
       device = '',
+      network = '',
       hour = -1,
       geographic = '';
     if (preset === 'google_campaign_country') {
@@ -140,8 +149,32 @@ function validateRows(preset: string, account: string, semantics: JsonObject, ro
       identity = name;
       if (row.segments !== undefined && (!obj(row.segments) || Object.keys(row.segments).length))
         bad('Google returned an unexpected search-term reporting dimension.', 'REPORT_SHAPE_CHANGED');
+    } else if (preset === 'google_pmax_search_terms') {
+      // RPT-07: a Performance Max campaign's search term over the window, with its exact campaign search term view.
+      const term = row.campaignSearchTermView?.searchTerm,
+        name = row.campaignSearchTermView?.resourceName;
+      if (row.campaign.advertisingChannelType !== 'PERFORMANCE_MAX')
+        bad('Google returned a search term outside a Performance Max campaign.', 'REPORT_SHAPE_CHANGED');
+      if (typeof term !== 'string' || !term || term.length > 1000 || typeof name !== 'string' || name.length > 1000)
+        bad('Google did not return a bounded native search term identity.', 'REPORT_SHAPE_CHANGED');
+      const encoded = Buffer.from(term, 'utf8').toString('base64url'),
+        expected = `customers/${account}/campaignSearchTermViews/${row.campaign.id}~${encoded}`;
+      if (name !== expected && name !== expected + '='.repeat((4 - (encoded.length % 4)) % 4))
+        bad('Google returned a search term under a different native identity.', 'REPORT_ACCOUNT_MISMATCH');
+      identity = name;
+      if (row.segments !== undefined && (!obj(row.segments) || Object.keys(row.segments).length))
+        bad('Google returned an unexpected search-term reporting dimension.', 'REPORT_SHAPE_CHANGED');
     } else {
-      if (preset === 'google_campaign_device') {
+      if (preset === 'google_campaign_network') {
+        if (
+          !obj(row.segments) ||
+          Object.keys(row.segments).length !== 2 ||
+          typeof row.segments.adNetworkType !== 'string' ||
+          !googleReportAdNetworks.includes(row.segments.adNetworkType)
+        )
+          bad('Google did not return the requested native ad network/day reporting grain.', 'REPORT_SHAPE_CHANGED');
+        network = row.segments.adNetworkType;
+      } else if (preset === 'google_campaign_device') {
         if (
           !obj(row.segments) ||
           Object.keys(row.segments).length !== 2 ||
@@ -177,13 +210,17 @@ function validateRows(preset: string, account: string, semantics: JsonObject, ro
     const key =
       preset === 'google_search_terms'
         ? JSON.stringify([row.campaign.id, row.adGroup.id, row.searchTermView.searchTerm])
-        : preset === 'google_campaign_device'
-          ? JSON.stringify([identity, device, date])
-          : preset === 'google_campaign_hour'
-            ? JSON.stringify([identity, hour, date])
-            : preset === 'google_campaign_country'
-              ? JSON.stringify([identity, geographic, date])
-              : JSON.stringify([identity, date]);
+        : preset === 'google_pmax_search_terms'
+          ? JSON.stringify([row.campaign.id, row.campaignSearchTermView.searchTerm])
+          : preset === 'google_campaign_device'
+            ? JSON.stringify([identity, device, date])
+            : preset === 'google_campaign_network'
+              ? JSON.stringify([identity, network, date])
+              : preset === 'google_campaign_hour'
+                ? JSON.stringify([identity, hour, date])
+                : preset === 'google_campaign_country'
+                  ? JSON.stringify([identity, geographic, date])
+                  : JSON.stringify([identity, date]);
     if (seen.has(key)) bad('Google returned duplicate rows for the requested native grain.', 'REPORT_DUPLICATE_ROWS');
     seen.add(key);
   }

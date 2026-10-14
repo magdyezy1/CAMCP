@@ -37,9 +37,9 @@ plan runs its own preflight (`eligibility_reuse.reason` says why). Meta image pa
 `drive_url`, `source_id` (an upload), `source_url` (public HTTPS) or `image_hash` (an image already in the ad
 account, read back by preflight); `age_min`/`age_max` default to 18 and 65.
 
-`amcp_reporting {action:"capture_presets"}` lists 16 detailed capture mappings: four Google, three Meta, three LinkedIn, three TikTok and three Snapchat. `capture_preset` needs
+`amcp_reporting {action:"capture_presets"}` lists 29 detailed capture mappings: ten Google, six Meta, four LinkedIn, three TikTok and six Snapchat, including the dimension packs (Performance Max search terms, Google ad network, Meta age/gender, country and placement). `capture_preset` needs
 the returned preset ID, exact account/login and declared measurement semantics. Meta also requires one exact
-`result_action_type` and explicit `attribution_windows` (one of `1d_click`/`7d_click`, optional `1d_view`, or view only).
+`result_action_type` and explicit `attribution_windows` (at most one of `1d_click`/`7d_click`/`28d_click`, optional `1d_view` and `1d_ev`, or view only).
 Its generated GET uses impression time with account/unified overrides disabled; attribution/result definitions
 come from that request. Meta account currency/timezone are checked before and after bounded native pages; measurement setup and historical conversion processing remain separate. Never add overlapping action aliases;
 an absent selected action is unknown. Scope, currency, date/grain mismatch, duplicate selected actions and partial

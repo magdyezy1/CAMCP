@@ -3,6 +3,7 @@ import {DecisionReporting} from './decision-reporting.js';
 import {fingerprint, reportContractVersion} from './report-quality.js';
 import {metricNumber} from './report-metrics.js';
 import {detailParents, type DetailParentCache} from './overview-parents.js';
+import {metaWindowsMessage, metaWindowsValid} from './meta-attribution-windows.js';
 import type {MirrorService} from './service.js';
 import type {Actor, JsonObject} from './types.js';
 
@@ -37,13 +38,6 @@ export const overviewEntityLevels: Record<string, {id: string; label: string; pr
 function invalid(message: string, code = 'INVALID_REPORT_LEVEL'): never {
   throw new MirrorError(code, message);
 }
-const metaWindowsValid = (windows: unknown) =>
-  Array.isArray(windows) &&
-  windows.length > 0 &&
-  windows.length <= 2 &&
-  new Set(windows).size === windows.length &&
-  windows.every(v => ['1d_click', '7d_click', '1d_view'].includes(String(v))) &&
-  !(windows.includes('1d_click') && windows.includes('7d_click'));
 const snapchatWindowsValid = (options: JsonObject) =>
   ['1_DAY', '7_DAY', '28_DAY'].includes(options.swipe_up_attribution_window) &&
   ['none', '1_HOUR', '3_HOUR', '6_HOUR', '1_DAY', '7_DAY'].includes(options.view_attribution_window) &&
@@ -68,8 +62,7 @@ export function campaignAttributionProfile(source: JsonObject): JsonObject | und
     invalid(
       'Campaign reporting accepts only an attribution profile: attribution_windows for Meta, or swipe_up_attribution_window and view_attribution_window for Snapchat.',
     );
-  if (source.platform === 'meta' && !metaWindowsValid(options.attribution_windows))
-    invalid('Choose one click window (1d_click or 7d_click), with optional 1d_view, or 1d_view alone.');
+  if (source.platform === 'meta' && !metaWindowsValid(options.attribution_windows)) invalid(metaWindowsMessage);
   if (source.platform === 'snapchat' && !snapchatWindowsValid(options))
     invalid('Choose supported Snapchat swipe and view windows. Seven-day view requires at least seven-day swipe.');
   return options;
@@ -117,14 +110,11 @@ export function overviewSourceLevel(source: JsonObject, template = false) {
     source.platform === 'meta' &&
     (typeof options.result_action_type !== 'string' ||
       !/^[a-z][a-z0-9_.]{0,159}$/.test(options.result_action_type) ||
-      !Array.isArray(options.attribution_windows) ||
-      !options.attribution_windows.length ||
-      options.attribution_windows.length > 2 ||
-      new Set(options.attribution_windows).size !== options.attribution_windows.length ||
-      options.attribution_windows.some((v: unknown) => !['1d_click', '7d_click', '1d_view'].includes(String(v))) ||
-      (options.attribution_windows.includes('1d_click') && options.attribution_windows.includes('7d_click')))
+      !metaWindowsValid(options.attribution_windows))
   )
-    invalid('Choose one exact Meta result action and one click window, optional one-day view, or one-day view alone.');
+    invalid(
+      'Choose one exact Meta result action and at most one click window (1d_click, 7d_click or 28d_click), with optional 1d_view and 1d_ev (engaged view), or view windows alone.',
+    );
   if (source.platform === 'snapchat') {
     if (
       !['1_DAY', '7_DAY', '28_DAY'].includes(options.swipe_up_attribution_window) ||

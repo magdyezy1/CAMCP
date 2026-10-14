@@ -7,6 +7,8 @@ import {tiktokDailyRange} from './tiktok-reporting.js';
 import {googleReportId} from './google-reporting.js';
 import {snapchatDailyRange, snapchatReportId} from './snapchat-evidence.js';
 import {linkedInConversionUrn, linkedInConversionWindowSentinel} from './linkedin-conversion-windows.js';
+import {metaBreakdownKey, metaBreakdownPresets} from './report-breakdowns.js';
+import {metaWindowsMessage, metaWindowsOrdered, metaWindowsValid} from './meta-attribution-windows.js';
 const googlePresets = [
   {id: 'google_campaign', name: 'Google campaign performance', level: 'campaign', grain: 'campaign × day'},
   {id: 'google_adset', name: 'Google ad group performance', level: 'adset', grain: 'ad group × day'},
@@ -36,6 +38,19 @@ const googlePresets = [
     level: 'search_term',
     grain: 'campaign × ad group × search term',
   },
+  // RPT-07 P1 dimension packs.
+  {
+    id: 'google_pmax_search_terms',
+    name: 'Google Performance Max search terms',
+    level: 'pmax_search_term',
+    grain: 'Performance Max campaign × search term',
+  },
+  {
+    id: 'google_campaign_network',
+    name: 'Google campaign network performance',
+    level: 'campaign_network',
+    grain: 'campaign × native ad network × day',
+  },
 ].map(p => ({
   ...p,
   gateway: 'google_ads_native_action',
@@ -50,7 +65,11 @@ const googlePresets = [
           ? 'Campaign performance by original provider-reported hour 0–23 and date, without hour or status filtering. Exact customer/campaign resources, currency, timezone, requested date/hour grain, counts and duplicates are checked under unchanged authorization. Explicit hour zero is retained; absent hours do not establish zero activity. No timestamp, timezone conversion or daylight-saving split is inferred. Conversions use metrics.conversions; attribution and window completeness remain declared. This grain does not qualify delivery schedules, bid, campaign budget or search-exclusion changes.'
           : p.id === 'google_campaign_country'
             ? 'Campaign performance by original native country criterion, location type and account-local day from geographic_view. Location presence and location interest remain distinct native categories; country IDs are not inferred country names or audience identities. Exact customer/campaign/geographic resources, currency, timezone, counts and duplicate grain are checked under unchanged authorization. Missing countries do not establish zero activity. Conversions use metrics.conversions; attribution and window completeness remain declared. This grain does not qualify geographic targeting, campaign budgets or search exclusions.'
-            : 'Native customer currency and timezone checked before and after complete Search pages. Exact account/resource identity, requested grain, dates, counts and duplicate rows are checked. Ads and search terms retain full resource identities. Conversions use metrics.conversions; attribution and window completeness remain declared. Search term visibility and attribution can prevent equality with campaign totals; search_term_view excludes Performance Max.',
+            : p.id === 'google_pmax_search_terms'
+              ? 'Performance Max search terms over the selected window from campaign_search_term_view (no keyword segments, so Performance Max data is included). Each row keeps its exact campaign search term view resource, the original search term and its PERFORMANCE_MAX campaign. Customer currency and timezone are checked before and after complete bounded pages; counts and duplicate campaign/term grain are checked. Search-term visibility thresholds mean terms need not add up to campaign totals, and an absent term is unknown, not zero. Conversions use metrics.conversions; attribution and window completeness remain declared. This grain does not qualify negative keywords, brand exclusions or budget changes.'
+              : p.id === 'google_campaign_network'
+                ? 'Campaign performance by original native ad network type (segments.ad_network_type: SEARCH, SEARCH_PARTNERS, CONTENT, YOUTUBE, MIXED and the other documented values) and account-local day, without network or status filtering. Exact customer/campaign resources, currency, timezone, network/day grain, counts and duplicates are checked under unchanged authorization. Network values stay literal; an absent network is unknown, not zero. Conversions use metrics.conversions; attribution and window completeness remain declared. This grain does not qualify network targeting, bid or budget changes.'
+                : 'Native customer currency and timezone checked before and after complete Search pages. Exact account/resource identity, requested grain, dates, counts and duplicate rows are checked. Ads and search terms retain full resource identities. Conversions use metrics.conversions; attribution and window completeness remain declared. Search term visibility and attribution can prevent equality with campaign totals; search_term_view excludes Performance Max.',
 }));
 export const reportPresets = [
   ...googlePresets,
@@ -126,6 +145,29 @@ export const reportPresets = [
     max_requests: 120,
     meaning:
       'Daily native Insights with an exact action type, explicit attribution windows and impression-time reporting. Pixel and aggregate purchase aliases are never added together. Missing action values remain unknown. Currency and timezone are verified against the account before and after complete pages; each account/page read retains a source reference.',
+  })),
+  // RPT-07 P1 dimension packs: campaign Insights by one native breakdown set.
+  ...[
+    {
+      id: 'meta_campaign_age_gender',
+      name: 'Meta campaign age and gender',
+      grain: 'campaign × age × gender × day',
+    },
+    {id: 'meta_campaign_country', name: 'Meta campaign country', grain: 'campaign × country × day'},
+    {
+      id: 'meta_campaign_placement',
+      name: 'Meta campaign placement',
+      grain: 'campaign × publisher platform × placement × day',
+    },
+  ].map(p => ({
+    ...p,
+    level: 'campaign',
+    breakdowns: metaBreakdownPresets[p.id]!.breakdowns,
+    gateway: 'meta_native_action',
+    max_rows: 10000,
+    max_requests: 120,
+    meaning:
+      'Daily campaign Insights by the native breakdown values Meta returns (literal age, gender, country, publisher platform or placement), with an exact action type, explicit attribution windows and impression-time reporting. Account, currency, timezone, breakdown values and the campaign/breakdown/day grain are checked around complete pages. Buckets Meta does not return (privacy thresholds, no delivery) stay unknown and bucket totals need not equal campaign totals. Reach and frequency stay per bucket; Meta omits reach for breakdown reports that start more than 13 months ago.',
   })),
 ];
 
@@ -205,7 +247,8 @@ export function validatePresetRows(preset: string | undefined, input: JsonObject
       date > input.semantics.date_to
     )
       bad('Meta returned a different reporting period or grain.', 'REPORT_DATE_MISMATCH');
-    const key = row[level + '_id'] + ':' + date;
+    // RPT-07: a breakdown pack's grain is the entity, its breakdown values and the day.
+    const key = JSON.stringify([row[level + '_id'], ...metaBreakdownKey(preset, row), date]);
     if (seen.has(key)) bad('Meta returned duplicate entity/day rows.', 'REPORT_DUPLICATE_ROWS');
     seen.add(key);
   }
@@ -405,16 +448,10 @@ export function reportPreset(input: JsonObject): JsonObject {
     if (typeof input.result_action_type !== 'string' || !/^[a-z][a-z0-9_.]{0,159}$/.test(input.result_action_type))
       bad('Choose the exact native Meta result action_type; overlapping aliases are never combined.');
     const windows = input.attribution_windows;
-    if (
-      !Array.isArray(windows) ||
-      !windows.length ||
-      windows.length > 2 ||
-      new Set(windows).size !== windows.length ||
-      windows.some(w => !['1d_click', '7d_click', '1d_view'].includes(w)) ||
-      (windows.includes('1d_click') && windows.includes('7d_click'))
-    )
-      bad('Choose one click window (1d_click or 7d_click), with optional 1d_view, or 1d_view alone.');
-    const selected = ['1d_click', '7d_click', '1d_view'].filter(w => windows.includes(w));
+    // RPT-07: 28d_click and 1d_ev are explicit Meta windows too (central rule in meta-attribution-windows.ts).
+    if (!metaWindowsValid(windows)) bad(metaWindowsMessage);
+    const selected = metaWindowsOrdered(windows),
+      pack = metaBreakdownPresets[preset.id];
     return {
       gateway: preset.gateway,
       account_id: account,
@@ -441,6 +478,7 @@ export function reportPreset(input: JsonObject): JsonObject {
             'action_values',
           ].join(','),
           level: preset.level,
+          ...(pack ? {breakdowns: pack.breakdowns} : {}),
           time_range: range,
           time_increment: 1,
           action_report_time: 'impression',
@@ -461,6 +499,7 @@ export function reportPreset(input: JsonObject): JsonObject {
       mapping: {
         entity_id: '/' + preset.level + '_id',
         entity_name: '/' + preset.level + '_name',
+        ...(pack ? Object.fromEntries(Object.entries(pack.dimensions).map(([key, field]) => [key, '/' + field])) : {}),
         date: '/date_start',
         spend: '/spend',
         impressions: '/impressions',
@@ -479,7 +518,15 @@ export function reportPreset(input: JsonObject): JsonObject {
     platform: 'google',
     account_id: account,
     date_range: range,
-    level: ['search_term', 'keyword', 'campaign_device', 'campaign_hour', 'campaign_country'].includes(preset.level)
+    level: [
+      'search_term',
+      'keyword',
+      'campaign_device',
+      'campaign_hour',
+      'campaign_country',
+      'campaign_network',
+      'pmax_search_term',
+    ].includes(preset.level)
       ? 'campaign'
       : preset.level,
     granularity: 'day',
@@ -494,15 +541,28 @@ export function reportPreset(input: JsonObject): JsonObject {
     native.input.payload.query = `SELECT customer.currency_code, customer.time_zone, campaign.id, campaign.name, segments.date, segments.hour, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '${range.since}' AND '${range.until}'`;
   if (preset.level === 'campaign_country')
     native.input.payload.query = `SELECT customer.currency_code, customer.time_zone, campaign.id, campaign.name, geographic_view.resource_name, geographic_view.country_criterion_id, geographic_view.location_type, segments.date, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM geographic_view WHERE segments.date BETWEEN '${range.since}' AND '${range.until}'`;
+  // RPT-07 P1 packs: network by day from campaign, and Performance Max terms (no keyword segment keeps PMax data).
+  if (preset.level === 'campaign_network')
+    native.input.payload.query = `SELECT customer.currency_code, customer.time_zone, campaign.id, campaign.name, segments.date, segments.ad_network_type, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM campaign WHERE segments.date BETWEEN '${range.since}' AND '${range.until}'`;
+  if (preset.level === 'pmax_search_term')
+    native.input.payload.query = `SELECT customer.currency_code, customer.time_zone, campaign.id, campaign.name, campaign.advertising_channel_type, campaign_search_term_view.search_term, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value FROM campaign_search_term_view WHERE segments.date BETWEEN '${range.since}' AND '${range.until}' AND campaign.advertising_channel_type = 'PERFORMANCE_MAX'`;
   const identity = [
     'customer.id',
     'customer.resource_name',
     'campaign.resource_name',
-    ...(!['campaign', 'campaign_device', 'campaign_hour', 'campaign_country'].includes(preset.level)
+    ...(![
+      'campaign',
+      'campaign_device',
+      'campaign_hour',
+      'campaign_country',
+      'campaign_network',
+      'pmax_search_term',
+    ].includes(preset.level)
       ? ['ad_group.resource_name']
       : []),
     ...(preset.level === 'ad' ? ['ad_group_ad.resource_name', 'ad_group_ad.ad.resource_name'] : []),
     ...(preset.level === 'search_term' ? ['search_term_view.resource_name'] : []),
+    ...(preset.level === 'pmax_search_term' ? ['campaign_search_term_view.resource_name'] : []),
     ...(preset.level === 'keyword' ? ['keyword_view.resource_name'] : []),
   ];
   native.input.payload.query = native.input.payload.query.replace(/^SELECT /, 'SELECT ' + identity.join(', ') + ', ');
@@ -527,16 +587,19 @@ export function reportPreset(input: JsonObject): JsonObject {
           ? '/adGroupAd/resourceName'
           : preset.level === 'search_term'
             ? '/searchTermView/resourceName'
-            : preset.level === 'keyword'
-              ? '/keywordView/resourceName'
-              : ['campaign_device', 'campaign_hour', 'campaign_country'].includes(preset.level)
-                ? '/campaign/resourceName'
-                : `/${entity}/id`,
+            : preset.level === 'pmax_search_term'
+              ? '/campaignSearchTermView/resourceName'
+              : preset.level === 'keyword'
+                ? '/keywordView/resourceName'
+                : ['campaign_device', 'campaign_hour', 'campaign_country', 'campaign_network'].includes(preset.level)
+                  ? '/campaign/resourceName'
+                  : `/${entity}/id`,
       ...(preset.level === 'ad'
         ? {}
         : {entity_name: preset.level === 'keyword' ? '/adGroupCriterion/keyword/text' : `/${entity}/name`}),
       ...(preset.level === 'keyword' ? {keyword_match_type: '/adGroupCriterion/keyword/matchType'} : {}),
       ...(preset.level === 'campaign_device' ? {native_device: '/segments/device'} : {}),
+      ...(preset.level === 'campaign_network' ? {native_ad_network: '/segments/adNetworkType'} : {}),
       ...(preset.level === 'campaign_hour' ? {native_hour: '/segments/hour'} : {}),
       ...(preset.level === 'campaign_country'
         ? {
@@ -545,7 +608,11 @@ export function reportPreset(input: JsonObject): JsonObject {
             native_geographic_resource: '/geographicView/resourceName',
           }
         : {}),
-      ...(preset.level === 'search_term' ? {search_term: '/searchTermView/searchTerm'} : {date: '/segments/date'}),
+      ...(preset.level === 'search_term'
+        ? {search_term: '/searchTermView/searchTerm'}
+        : preset.level === 'pmax_search_term'
+          ? {search_term: '/campaignSearchTermView/searchTerm'}
+          : {date: '/segments/date'}),
       spend: {path: '/metrics/costMicros', divisor: 1000000},
       impressions: '/metrics/impressions',
       clicks: '/metrics/clicks',

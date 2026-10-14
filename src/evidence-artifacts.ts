@@ -4,6 +4,7 @@ import {setImmediate} from 'node:timers/promises';
 import {MirrorError} from './errors.js';
 import {withReportArtifactBudget} from './report-artifacts.js';
 import {artifactLocale} from './report-localization.js';
+import {breakdownDimensionKeys} from './report-breakdowns.js';
 import type {JsonObject} from './types.js';
 
 const fields = [
@@ -64,6 +65,8 @@ export async function evidenceWorkbook(report: JsonObject, language = 'en') {
       ...['native_country_criterion_id', 'native_location_type', 'native_geographic_resource'].filter(key =>
         Object.hasOwn(report.mapping, key),
       ),
+      // RPT-07 dimension packs: literal native breakdown values.
+      ...breakdownDimensionKeys.filter(key => Object.hasOwn(report.mapping, key)),
     ],
     locale = artifactLocale({artifact_language: language}),
     t = locale.text;
