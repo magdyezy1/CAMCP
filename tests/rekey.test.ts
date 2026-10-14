@@ -394,6 +394,8 @@ test('SEC-07 S3: the rekey lists cover every sealed purpose, job-actor prefix an
     'x-rate',
     'tiktok-report-create',
     'x-report-processing',
+    // RPT-06: the deployment-wide hourly admission of provider report and export jobs (src/provider-jobs.ts).
+    'provider-job',
   ]);
   for (const kind of found(/scopeKey\(\s*[\w.!]+\s*,\s*'([a-z0-9-]+)'/g))
     assert.ok(known.has(kind), 'scope kind ' + kind);
