@@ -1,6 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import {MirrorError} from './errors.js';
 import {sha256, stable, redact} from './security.js';
+import {loginRevision} from './connection-authority.js';
 import type {Store} from './store.js';
 import type {Actor, Connection, JsonObject} from './types.js';
 
@@ -35,6 +36,8 @@ function previous(store: Store, actor: Actor, gateway: string, id: string): Json
     throw e;
   }
 }
+const removedEffect =
+  'Removes this AMCP connection, its encrypted credentials, saved discovery metadata, account names and readiness checks recorded through it, resource bindings, its conditional-program observations and the report data read through it (finished report snapshots, captured reports, parsed downloads). Saved report definitions, write reviews, receipts and the audit trail stay.';
 function impact(c: Connection): JsonObject {
   return redact({
     gateway: c.gateway,
@@ -45,7 +48,8 @@ function impact(c: Connection): JsonObject {
     selected_account_count: c.accounts.length,
     write_account_count: c.writeAccounts?.length ?? 0,
     effect:
-      'Removes this AMCP connection, its encrypted credentials, saved discovery metadata, account names and readiness checks recorded through it, resource bindings, its conditional-program observations and the report data read through it (finished report snapshots, captured reports, parsed downloads). Saved report definitions, write reviews, receipts and the audit trail stay. Other connections, provider accounts, advertising entities and provider OAuth grants are unchanged.',
+      removedEffect +
+      ' Other connections, provider accounts, advertising entities and provider OAuth grants are unchanged.',
     pending_work:
       'Jobs bound to this connection will fail current-access checks. In-flight provider requests may already have completed; retain their reviews, audit history and idempotency claims for reconciliation. This does not cancel a submitted provider mutation.',
     provider_access:
@@ -82,6 +86,15 @@ function purgeConnectionDocuments(store: Store, tenant: string, kind: string, fi
       .run(tenant, kind, field, id).changes,
   );
 }
+/**
+ * A provider revocation the administrator confirmed before this disconnect (CON-05 sub-item 10,
+ * provider-revocation.ts): the provider's answer, and the login revision and id whose token was sent.
+ */
+export interface ConfirmedRevocation {
+  result: JsonObject;
+  revision: number;
+  login: string | null;
+}
 /** One transaction removes the vault row, related configuration and the report content read through the connection,
  * and records its receipt/audit. Never decrypt credentials or delete mutation/recovery history. */
 export function disconnectLocalConnection(
@@ -90,6 +103,7 @@ export function disconnectLocalConnection(
   gateway: string,
   id: string,
   source: 'website' | 'mcp',
+  revocation?: ConfirmedRevocation,
 ): JsonObject {
   return store.transaction(() => {
     access(store, actor);
@@ -99,6 +113,15 @@ export function disconnectLocalConnection(
       if (replay) return {...replay, replayed: true, already_disconnected: true};
       throw new MirrorError('CONNECTION_NOT_FOUND', 'No matching connection exists in this workspace.', {}, 404);
     }
+    // The revoked token was read from one login revision (CON-01). A login reauthorized meanwhile holds another token
+    // that was not sent, so it stays and the administrator decides again.
+    if (revocation && (loginRevision(c) !== revocation.revision || (c.loginId ?? null) !== revocation.login))
+      throw new MirrorError(
+        'CONNECTION_CHANGED',
+        'This login was reauthorized while AMCP asked the provider to revoke its previous token, so AMCP kept it. Check the login, then disconnect it again if you still intend to.',
+        {provider_revocation: revocation.result},
+        409,
+      );
     const details = impact(c),
       bindings = store.db
         .prepare('DELETE FROM resource_ownership WHERE tenant_id=? AND connection_id=?')
@@ -139,8 +162,18 @@ export function disconnectLocalConnection(
         ...(readiness ? {readiness_records: readiness} : {}),
         ...(progress ? {connect_progress: progress} : {}),
       },
-      network_requests: 0,
-      provider_changes: 0,
+      ...(revocation
+        ? {
+            effect:
+              removedEffect +
+              ' The provider was also asked to revoke this login’s OAuth grant (provider_revocation); other logins of the same person that share its OAuth client may lose access too. Provider accounts and advertising entities are unchanged.',
+            provider_access:
+              'The provider was asked to revoke this login’s token at the administrator’s explicit request; see provider_revocation.',
+            provider_revocation: revocation.result,
+          }
+        : {}),
+      network_requests: revocation ? 1 : 0,
+      provider_changes: revocation?.result.outcome === 'revoked' ? 1 : 0,
       disconnected_at: Date.now(),
       disconnected_by: actor.userId,
     };
@@ -152,6 +185,7 @@ export function disconnectLocalConnection(
       source,
       local_changes: receipt.local_changes,
       vendor_writes: 0,
+      ...(revocation ? {provider_revocation: revocation.result.outcome} : {}),
     });
     return receipt;
   });

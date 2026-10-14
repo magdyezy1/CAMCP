@@ -1484,7 +1484,13 @@ document.addEventListener('click', async event => {
       return;
     }
     if (el.dataset.disconnect) {
+      // CON-05 sub-item 10: provider revocation is offered only where the deployment owner turned it on.
+      const offer = platforms.find(p => p.connections?.some(c => c.id === el.dataset.disconnect))?.provider_revocation;
       $('#confirm-form').dataset.connectionId = el.dataset.disconnect;
+      $('#confirm-revoke').hidden = !(offer?.available && offer.provider === 'google');
+      $('#confirm-revoke-provider').checked = false;
+      $('#confirm-error').textContent = '';
+      $('#confirm-submit').disabled = false;
       $('#confirm-dialog').showModal();
       return;
     }
@@ -1709,14 +1715,37 @@ $('#login-form').addEventListener('submit', async event => {
 });
 $('#confirm-form').addEventListener('submit', async event => {
   event.preventDefault();
+  // One request at a time: a second click while Google answers would send the token again. A refusal is shown inside
+  // the dialog, which stays open so the administrator can retry or disconnect without revocation (CON-05).
+  const button = $('#confirm-submit'),
+    error = $('#confirm-error'),
+    id = event.currentTarget.dataset.connectionId;
+  if (button.disabled) return;
+  button.disabled = true;
+  error.textContent = '';
   try {
-    await api('/api/connections/' + event.currentTarget.dataset.connectionId, {method: 'DELETE'});
+    const revoke = !$('#confirm-revoke').hidden && $('#confirm-revoke-provider').checked;
+    const result = await api('/api/connections/' + encodeURIComponent(id), {
+      method: 'DELETE',
+      ...(revoke ? {body: JSON.stringify({revoke_at_provider: true})} : {}),
+    });
     $('#confirm-dialog').close();
     currentConnection = null;
     await refresh();
-    toast(uiText('Login disconnected from AMCP.'));
+    toast(
+      !revoke
+        ? uiText('Login disconnected from AMCP.')
+        : result.provider_revocation?.outcome === 'token_already_invalid'
+          ? uiText(
+              'Login disconnected. Google reported that its token no longer worked, so AMCP’s access through it had already ended.',
+            )
+          : uiText('Login disconnected from AMCP and its access revoked at Google.'),
+    );
   } catch (e) {
-    toast(e.message);
+    if ($('#confirm-dialog').open) error.textContent = errorMessage(e);
+    else toast(errorMessage(e));
+  } finally {
+    button.disabled = false;
   }
 });
 // A history step that changes only the fragment (a skip link, an in-page jump, or Back over one) moves focus to its
