@@ -58,7 +58,8 @@ test('selected Google refusal copy excludes native fragments, fallback expressio
 });
 
 test('every selected Google collector refusal has authored Arabic and no native fallback is newly required', () => {
-  assert.equal(messages.size, 30);
+  // RPT-07 added the Performance Max campaign and ad-network/day grain refusals.
+  assert.equal(messages.size, 32);
   assert.deepEqual(localeProblems(catalog, messages), []);
   assert.equal(messages.has('Google report read failed.'), false);
   assert.equal(messages.has('REPORT_SHAPE_CHANGED'), false);

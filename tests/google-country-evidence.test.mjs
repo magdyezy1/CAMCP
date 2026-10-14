@@ -24,7 +24,8 @@ test('country preset requests country, location type and day without filters tha
     native = reportPreset(input),
     query = native.arguments.payload.query;
   assert.equal(preset.grain, 'campaign × native country × native location type × day');
-  assert.equal(choices.filter(p => p.gateway === 'google_ads_native_action').length, 8);
+  // RPT-07 added the Performance Max search-term and ad-network packs.
+  assert.equal(choices.filter(p => p.gateway === 'google_ads_native_action').length, 10);
   assert.match(query, /FROM geographic_view WHERE segments.date BETWEEN '2026-09-01' AND '2026-09-02'$/);
   for (const field of [
     'customer.id',
