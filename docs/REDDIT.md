@@ -56,7 +56,8 @@ Use amcp_write inspect/prepare with gateway reddit_native_action and the native 
   response schemas; POST reads under adsread): GET_DELIVERY_ESTIMATES (`params.ad_account_id`), GET_BID_SUGGESTIONS
   (`payload.data.ad_account_id` must name the selected account), LIST_KEYWORD_SUGGESTIONS (account-agnostic, run under
   a selected bound account) and GET_ACCOUNT_HISTORY (`params.ad_account_id`, optional `page.size` up to 1,000 and
-  `page.token`). Suggestions refuse `custom_audience_ids`, which belong to one account. Account history names the
+  `page.token`). Bid suggestions refuse `custom_audience_ids` and `excluded_custom_audience_ids`, which belong to one
+  account. Account history names the
   people who made changes, so AMCP drops member IDs, usernames, e-mails and full names before the response leaves the
   service: each row keeps the change, `changed_at`, any partner business name and `changed_by`
   (`member_not_shown` or `not_reported`). A `member_ids` filter would name them too, so it is refused

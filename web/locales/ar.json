@@ -5951,7 +5951,7 @@
   "sorting.order must be ASC or DESC.": "يجب أن تكون قيمة sorting.order إما ASC أو DESC.",
   "Unsupported filter operator.": "عامل التصفية غير مدعوم.",
   "Name the selected ad account in data.ad_account_id for bid suggestions.": "حدّد الحساب الإعلاني المختار في data.ad_account_id لاقتراحات المزايدة.",
-  "Bid suggestions here take no custom audience IDs: an audience belongs to one ad account. Remove custom_audience_ids.": "لا تقبل اقتراحات المزايدة هنا معرّفات جماهير مخصصة: فالجمهور يتبع حسابًا إعلانيًا واحدًا. احذف custom_audience_ids.",
+  "Bid suggestions here take no custom audience IDs: an audience belongs to one ad account. Remove custom_audience_ids and excluded_custom_audience_ids.": "لا تقبل اقتراحات المزايدة هنا معرّفات جماهير مخصصة: فالجمهور يتبع حسابًا إعلانيًا واحدًا. احذف custom_audience_ids وexcluded_custom_audience_ids.",
   "Personal data: account history here takes no member_ids, because who made a change is not shown. Remove member_ids.": "بيانات شخصية: لا يقبل سجل الحساب هنا member_ids، لأن هوية من أجرى التغيير لا تُعرض. احذف member_ids.",
   "ignoreCase must be boolean.": "يجب أن تكون قيمة ignoreCase منطقية (boolean).",
   "Reports require an explicit timeRange with start and end dates.": "تتطلب التقارير timeRange محددة صراحةً مع تاريخي بداية ونهاية.",

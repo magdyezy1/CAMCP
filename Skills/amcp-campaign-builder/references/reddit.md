@@ -23,7 +23,8 @@ response schemas, run as POST reads with `adsread` on the selected bound account
   the response leaves the service, keeping the change, `changed_at`, any partner business name and `changed_by`
   (`member_not_shown` or `not_reported`). Filtering by `member_ids` is refused for the same reason.
 
-Suggestions refuse `custom_audience_ids`, because an audience belongs to one ad account. Estimates and
+Bid suggestions refuse `custom_audience_ids` and `excluded_custom_audience_ids`, because an audience belongs to
+one ad account. Estimates and
 suggestions are Reddit's forecasts, not commitments; quote them as ranges with their inputs. The Conversions API
 is not available: it is a later, separate step under the personal-data policy.
 

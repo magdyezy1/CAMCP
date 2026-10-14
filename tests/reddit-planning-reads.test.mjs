@@ -159,6 +159,21 @@ test('bid and keyword suggestions run under a bound account and refuse account-o
   });
   assert.equal(audience.success, false);
   assert.equal(audience.error.code, 'ACCOUNT_SCOPE_MISMATCH');
+  // An excluded audience is just as account-owned as an included one (it once passed: only custom_audience_ids was
+  // checked).
+  const excluded = await f.read('GET_BID_SUGGESTIONS', {
+    account_id: 't2_allowed',
+    payload: {
+      data: {
+        ad_account_id: 't2_allowed',
+        duration,
+        targeting: {excluded_custom_audience_ids: ['aud_from_another_account']},
+      },
+    },
+  });
+  assert.equal(excluded.success, false);
+  assert.equal(excluded.error.code, 'ACCOUNT_SCOPE_MISMATCH');
+  assert.match(excluded.error.message, /excluded_custom_audience_ids/);
   // Bid suggestions must name the selected account; another account or none is refused.
   for (const ad_account_id of ['t2_other', undefined]) {
     const r = await f.read('GET_BID_SUGGESTIONS', {
