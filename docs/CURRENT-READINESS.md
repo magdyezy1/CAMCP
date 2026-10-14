@@ -180,6 +180,9 @@ A locally reproduced LinkedIn multi-field projection defect is corrected
 in source and separately gated for release. These results do not establish that the current
 checkout is deployed or authorize writes/exports. See the
 [actual read results, retained failures and transport correction](review/DELIVERY-2026-10-06-LINKEDIN-FIELD-PROJECTIONS.md).
+The measurement reads, TikTok's core reads, Reddit's purchase-value unit and X's publisher-network placement have an
+owner-run read harness that is dry by default ([read acceptance](acceptance/READ-ACCEPTANCE.md), ACC-06). None has
+been run, so TikTok is not in the list above, and Reddit reports say their conversion value unit is unverified.
 
 Build an acceptance matrix from the actual customer/app entitlement and explicitly allowed
 accounts, objectives, assets, stores and destinations. For each supported workflow retain its
