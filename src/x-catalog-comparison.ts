@@ -314,11 +314,7 @@ export async function xCatalogComparison(
             !!retire?.ids.has(item.retailer_id),
           ),
         );
-      if (
-        fingerprint({items: collected.items, groups: collected.groups}) !==
-          fingerprint({items: repeated.items, groups: repeated.groups}) ||
-        fingerprint(catalog) !== fingerprint(after)
-      )
+      if (fingerprint(collected.items) !== fingerprint(repeated.items) || fingerprint(catalog) !== fingerprint(after))
         fail(
           'CATALOG_COMPARISON_CHANGED',
           'X catalog ownership or supplied-product evidence changed during comparison. Read the source products again; no product changes were submitted.',
@@ -329,6 +325,15 @@ export async function xCatalogComparison(
         fail(
           'CATALOG_COMPARISON_CHANGED',
           'X listed catalog observations changed during collection. Read them again; no product changes were submitted.',
+          {},
+          409,
+        );
+      // The variant-group evidence must agree too (COM-02 E): it decides whether a supplied SKU's absence holds. A
+      // listed grouping change is named above when the listing was inspected.
+      if (fingerprint(collected.groups) !== fingerprint(repeated.groups))
+        fail(
+          'CATALOG_COMPARISON_CHANGED',
+          'X catalog ownership or supplied-product evidence changed during comparison. Read the source products again; no product changes were submitted.',
           {},
           409,
         );

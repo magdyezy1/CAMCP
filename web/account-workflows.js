@@ -3554,6 +3554,28 @@ function validCatalogComparison(out, request, preview) {
     !Array.isArray(out.review_retailer_ids)
   )
     invalid();
+  // COM-02 E: the grouped records that keep a supplied SKU's absence unestablished (X only), named for the person. A
+  // possible hidden variant always comes with them, and a fully read set of groups leaves none.
+  const groups = out.variant_groups;
+  if (
+    (groups !== undefined &&
+      (d.gateway !== 'x_ads_native_action' ||
+        !groups ||
+        typeof groups !== 'object' ||
+        !['not_qualified', 'complete', 'incomplete'].includes(groups.expansion) ||
+        !Number.isSafeInteger(groups.grouped_record_count) ||
+        !Array.isArray(groups.grouped_records) ||
+        groups.grouped_records.length > 10 ||
+        groups.grouped_record_count < Math.max(1, groups.grouped_records.length) ||
+        groups.grouped_records.some(
+          r => !r || typeof r.retailer_id !== 'string' || !/^[1-9][0-9]{0,24}$/.test(r.product_id ?? ''),
+        ) ||
+        groups.remedy !== (groups.expansion === 'complete' ? null : 'scheduled_feed'))) ||
+    (out.items.some(item => item?.blocked_reason === 'hidden_variant') &&
+      groups !== undefined &&
+      groups.remedy !== 'scheduled_feed')
+  )
+    invalid();
   const counts = {new: 0, changed: 0, matching: 0, unknown: 0, blocked: 0, needs_review: 0},
     review = [],
     // COM-02 B: a retirement sends the supplied row with the retirement availability.
@@ -3770,6 +3792,22 @@ function catalogComparisonMarkup(out, request, preview) {
     // COM-02 D: Snapchat shows exact native values like X, but changes products only through feeds.
     exact = d.exactPrice,
     inventoryHtml = x ? catalogListedInventoryMarkup(out, request) : '',
+    // COM-02 E: why a supplied product may be a hidden variant, naming the grouped records that can hide it.
+    groups = out.variant_groups,
+    variantHtml =
+      x && groups?.remedy === 'scheduled_feed' && out.items.some(item => item.blocked_reason === 'hidden_variant')
+        ? `<p class="notice">${esc(
+            uiText(
+              'X lists only the first product of each group, so {count} grouped records can hide the supplied products marked as possible hidden variants: {records}. Add or change product variants through the catalog’s scheduled feed.',
+              {
+                count: groups.grouped_record_count,
+                records:
+                  groups.grouped_records.map(r => r.retailer_id).join(', ') +
+                  (groups.grouped_record_count > groups.grouped_records.length ? ', …' : ''),
+              },
+            ),
+          )}</p>`
+        : '',
     // COM-02 B: an existing product can be retired (kept, with an availability that keeps it out of ads) instead of
     // deleted; offered after an upsert comparison that is not already a retirement.
     retirable = d.retire && request.allow_upsert === true && request.requirements?.retire_retailer_ids === undefined,
@@ -3836,7 +3874,7 @@ function catalogComparisonMarkup(out, request, preview) {
   const next = d.feedOnly
     ? `<p class="notice">${esc(review.length ? uiText('Snapchat changes products only through product feeds. Fix the {count} products that differ in your feed; AMCP saves no draft for Snapchat.', {count: review.length}) : uiText('Every supplied product matches its Snapchat product. Nothing needs a fix in the feed.'))}</p>`
     : `<p>${esc(uiText('{count} products need a fresh native review before execution. Saving a plan does not submit product changes.', {count: review.length}))}</p>${review.length ? `<button type="button" class="button primary" id="save-catalog-changes">${esc(uiText('Save only products needing review'))}</button>` : `<p>${esc(uiText('No eligible product changes need a draft.'))}</p>`}`;
-  return `<h3 id="catalog-comparison-heading" tabindex="-1">${esc(uiText('Compare current catalog products'))}</h3><p>${esc(uiText('Read {date} · {new} new · {changed} changed · {matching} matching · {unknown} unknown · {blocked} blocked', {date: date(out.captured_at), ...counts}))}</p><p class="notice">${esc(x ? uiText('Only supplied X product IDs are returned. Supported decimal prices compare exactly. Grouped or hidden variants are blocked; missing fields remain unknown. Repeated reads are sequential evidence, not a point-in-time inventory snapshot. A saved draft still needs fresh native review. Missing source products are not deleted.') : d.feedOnly ? uiText('Only supplied Snapchat product IDs are read, twice. Supported decimal prices compare exactly; missing fields remain unknown. Feed processing can take time, so this is current evidence, not a point-in-time inventory snapshot. Missing source products are not read or deleted.') : uiText('Only supplied retailer IDs are compared. Formatted native prices are display text; equality uses the native price filter. Unknown fields need review. This is current sequential evidence, not a point-in-time inventory snapshot. Missing source products are not deleted.'))}</p>${inventoryHtml}<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Catalog comparison, scroll for all fields'))}"><table class="review-table"><caption>${esc(x ? uiText('Supplied X product comparison') : d.feedOnly ? uiText('Supplied Snapchat product comparison') : uiText('Compare current catalog products'))}</caption><thead><tr>${headers.map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>${next}${removable ? `<p>${esc(uiText('Select only the observed products you intend to remove. Products outside this selection are retained.'))}</p><button type="button" class="button" id="preview-catalog-removal">${esc(uiText('Preview selected removals'))}</button><div id="catalog-removal-preview" aria-live="polite"></div>` : ''}${retirement}`;
+  return `<h3 id="catalog-comparison-heading" tabindex="-1">${esc(uiText('Compare current catalog products'))}</h3><p>${esc(uiText('Read {date} · {new} new · {changed} changed · {matching} matching · {unknown} unknown · {blocked} blocked', {date: date(out.captured_at), ...counts}))}</p><p class="notice">${esc(x ? uiText('Only supplied X product IDs are returned. Supported decimal prices compare exactly. Grouped or hidden variants are blocked; missing fields remain unknown. Repeated reads are sequential evidence, not a point-in-time inventory snapshot. A saved draft still needs fresh native review. Missing source products are not deleted.') : d.feedOnly ? uiText('Only supplied Snapchat product IDs are read, twice. Supported decimal prices compare exactly; missing fields remain unknown. Feed processing can take time, so this is current evidence, not a point-in-time inventory snapshot. Missing source products are not read or deleted.') : uiText('Only supplied retailer IDs are compared. Formatted native prices are display text; equality uses the native price filter. Unknown fields need review. This is current sequential evidence, not a point-in-time inventory snapshot. Missing source products are not deleted.'))}</p>${variantHtml}${inventoryHtml}<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Catalog comparison, scroll for all fields'))}"><table class="review-table"><caption>${esc(x ? uiText('Supplied X product comparison') : d.feedOnly ? uiText('Supplied Snapchat product comparison') : uiText('Compare current catalog products'))}</caption><thead><tr>${headers.map(k => `<th scope="col">${esc(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>${next}${removable ? `<p>${esc(uiText('Select only the observed products you intend to remove. Products outside this selection are retained.'))}</p><button type="button" class="button" id="preview-catalog-removal">${esc(uiText('Preview selected removals'))}</button><div id="catalog-removal-preview" aria-live="polite"></div>` : ''}${retirement}`;
 }
 function catalogListedInventoryMarkup(out, request) {
   const invalid = () => {

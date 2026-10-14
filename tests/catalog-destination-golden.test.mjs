@@ -37,6 +37,8 @@ const additive = new Set([
   // COM-02 A: an X product's current sale beside its other compared values.
   'sale_price',
   'sale_price_effective_date',
+  // COM-02 E: the grouped records that keep a supplied SKU's absence unestablished, named beside the items.
+  'variant_groups',
 ]);
 /** Every pinned value is unchanged; the current response may only add the fields named above. */
 function assertAdditive(current, pinned, path) {

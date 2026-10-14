@@ -395,7 +395,12 @@ export function xGroupExpansionQualified(): boolean {
 export type XGroupExpansion = {
   /** not_needed: no grouped record; complete: every group read in full; otherwise absence stays unestablished. */
   state: 'not_needed' | 'not_qualified' | 'complete' | 'incomplete';
-  reason: null | 'group_status_unknown' | 'group_limit' | 'page_limit';
+  /**
+   * Why an expansion is incomplete: a grouped record without a readable group key, more groups or member pages than
+   * one read takes, or a group read that does not return the listed record of its own group (the filter did not list
+   * every member).
+   */
+  reason: null | 'group_status_unknown' | 'group_limit' | 'page_limit' | 'listed_member_missing';
   /** Every member of every expanded group, by SKU. */
   members: Map<string, JsonObject>;
   membership_hash: string | null;
@@ -431,7 +436,9 @@ export async function xCatalogGroupExpansion(
     return {...base, state: 'incomplete', reason: 'group_limit', membership_hash: null};
   const members = new Map<string, JsonObject>(),
     productKeys = new Set<string>(),
-    membership: [string, string[]][] = [];
+    listedById = new Map(rows.map(row => [row.id as string, row])),
+    listedByKey = new Map(rows.map(row => [row.product_key as string, row])),
+    membership: [string, [string, string][]][] = [];
   for (const key of keys) {
     const group = await xList(
       fetch,
@@ -440,22 +447,30 @@ export async function xCatalogGroupExpansion(
       'products',
     );
     if (!group.complete) return {...base, state: 'incomplete', reason: 'page_limit', membership_hash: null};
-    // Every member has its own identity, belongs to this group and appears once across all groups.
-    for (const row of group.rows)
+    // Every member has its own identity, belongs to this group and appears once across all groups; a member that is
+    // also listed is that same listed record of this group, never another product.
+    for (const row of group.rows) {
+      const listed = listedById.get(row.id) ?? listedByKey.get(row.product_key);
       if (
         !text(row.id, 100) ||
         typeof row.product_key !== 'string' ||
         !xSnowflake.test(row.product_key) ||
         row.item_group_key !== key ||
         members.has(row.id) ||
-        productKeys.has(row.product_key)
+        productKeys.has(row.product_key) ||
+        (listed && (listed.id !== row.id || listed.product_key !== row.product_key || listed.item_group_key !== key))
       )
         unverified('X returned a malformed, repeated or foreign member of a product group.');
-      else {
-        members.set(row.id, row);
-        productKeys.add(row.product_key);
-      }
-    membership.push([key, group.rows.map(row => row.product_key as string).sort()]);
+      members.set(row.id, row);
+      productKeys.add(row.product_key);
+    }
+    // The listed record of a group is one of its members: a group read without it did not list every member.
+    if (grouped.some(row => row.item_group_key === key && !productKeys.has(row.product_key)))
+      return {...base, state: 'incomplete', reason: 'listed_member_missing', membership_hash: null};
+    membership.push([
+      key,
+      group.rows.map(row => [row.product_key as string, row.id as string] as [string, string]).sort(),
+    ]);
   }
   return {...base, state: 'complete', reason: null, members, membership_hash: sha256(stable(membership))};
 }
