@@ -7,13 +7,20 @@ import {normalizeAccount} from './scope.js';
 
 /**
  * Organic/paid search overlap (PRV-07 D): Search Console queries (searchAnalytics.query, dimension query, dataState
- * final) and Google Ads search terms (search_term_view) for the same dates, joined locally on normalized query text.
- * Normalization differs from either provider's own matching, so every match is labelled approximate. The output is
- * evidence for the existing reviewed keyword and negative-keyword plans; it never changes an account by itself.
+ * final; optionally query × page for each query's top landing pages) and Google Ads search terms (search_term_view)
+ * for the same dates, joined locally on normalized query text. Normalization differs from either provider's own
+ * matching, so every match is labelled approximate. The output is evidence for the existing reviewed keyword and
+ * negative-keyword plans: paid rows name their native search_term_view resources, the ids the reviewed exclusion
+ * preview takes. It never changes an account by itself.
  */
 const adsGateway = 'google_ads_native_action',
   gscGateway = 'google_search_console_native_action',
-  dayMs = 86400000;
+  dayMs = 86400000,
+  // Search Console final data usually trails by two to three days.
+  finalDataLagDays = 3,
+  pagesPerQuery = 3,
+  // preview_search_exclusions takes at most 20 ids.
+  viewsPerQuery = 20;
 const invalid = (message: string): never => bad(message, 'SEARCH_OVERLAP_INVALID');
 function day(value: unknown): number | null {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
@@ -24,25 +31,85 @@ function day(value: unknown): number | null {
 export function normalizeSearchQuery(value: string): string {
   return value.normalize('NFKC').toLowerCase().trim().replace(/\s+/gu, ' ');
 }
+/** Whether a Search Console page URL belongs to the property: its domain (and subdomains) or its URL prefix. */
+export function searchConsolePageInProperty(site: string, page: unknown): boolean {
+  if (typeof page !== 'string' || page.length > 2048) return false;
+  let url: URL;
+  try {
+    url = new URL(page);
+  } catch {
+    return false;
+  }
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return false;
+  if (!site.startsWith('sc-domain:')) return page.startsWith(site);
+  let domain: string;
+  try {
+    domain = new URL('https://' + site.slice('sc-domain:'.length) + '/').hostname;
+  } catch {
+    return false;
+  }
+  return url.hostname === domain || url.hostname.endsWith('.' + domain);
+}
 export type OrganicRow = {query: string; clicks: number; impressions: number; position: number};
+/** A Search Console query × page row. Its metrics are aggregated by page, so they only rank pages within a query. */
+export type OrganicPageRow = OrganicRow & {page: string};
 export type PaidRow = {
   search_term: string;
   impressions: string;
   clicks: string;
   cost_micros: string;
   conversions: number;
+  /** The native search_term_view (campaign~ad group~term), an id the reviewed exclusion preview accepts. */
+  resource_name?: string;
 };
 type Organic = {clicks: number; impressions: number; weighted: number; variants: Set<string>};
-type Paid = {impressions: bigint; clicks: bigint; cost: bigint; conversions: number; variants: Set<string>};
+type Paid = {
+  impressions: bigint;
+  clicks: bigint;
+  cost: bigint;
+  conversions: number;
+  variants: Set<string>;
+  views: Set<string>;
+};
+type Page = {clicks: number; impressions: number; weighted: number};
 const round = (value: number, places: number) => Number(value.toFixed(places));
+const byText = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
  * The deterministic overlap table of already-read rows: the same inputs, in any order, give the same output.
- * Rows sort by class (both, paid_only, organic_only), then paid cost, organic clicks and normalized text.
+ * Rows sort by class (both, paid_only, organic_only), then paid cost, organic clicks and normalized text. With page
+ * rows, each organic query lists its top landing pages by clicks; query totals still come from the query rows.
  */
-export function searchOverlapTable(organic: OrganicRow[], paid: PaidRow[], maxRows = 200): JsonObject {
+export function searchOverlapTable(
+  organic: OrganicRow[],
+  paid: PaidRow[],
+  maxRows = 200,
+  pages?: OrganicPageRow[],
+): JsonObject {
   const o = new Map<string, Organic>(),
-    p = new Map<string, Paid>();
+    p = new Map<string, Paid>(),
+    landing = new Map<string, Map<string, Page>>();
+  for (const r of pages ?? []) {
+    const key = normalizeSearchQuery(r.query);
+    if (!key) continue;
+    const list = landing.get(key) ?? new Map<string, Page>(),
+      v = list.get(r.page) ?? {clicks: 0, impressions: 0, weighted: 0};
+    v.clicks += r.clicks;
+    v.impressions += r.impressions;
+    v.weighted += r.position * r.impressions;
+    list.set(r.page, v);
+    landing.set(key, list);
+  }
+  const topPages = (key: string) =>
+    [...(landing.get(key) ?? new Map<string, Page>())]
+      .map(([page, v]) => ({
+        page,
+        clicks: v.clicks,
+        impressions: v.impressions,
+        average_position: v.impressions > 0 ? round(v.weighted / v.impressions, 2) : null,
+      }))
+      .sort((x, y) => y.clicks - x.clicks || y.impressions - x.impressions || byText(x.page, y.page))
+      .slice(0, pagesPerQuery);
   for (const r of organic) {
     const key = normalizeSearchQuery(r.query);
     if (!key) continue;
@@ -56,12 +123,20 @@ export function searchOverlapTable(organic: OrganicRow[], paid: PaidRow[], maxRo
   for (const r of paid) {
     const key = normalizeSearchQuery(r.search_term);
     if (!key) continue;
-    const v = p.get(key) ?? {impressions: 0n, clicks: 0n, cost: 0n, conversions: 0, variants: new Set<string>()};
+    const v = p.get(key) ?? {
+      impressions: 0n,
+      clicks: 0n,
+      cost: 0n,
+      conversions: 0,
+      variants: new Set<string>(),
+      views: new Set<string>(),
+    };
     v.impressions += BigInt(r.impressions);
     v.clicks += BigInt(r.clicks);
     v.cost += BigInt(r.cost_micros);
     v.conversions += r.conversions;
     v.variants.add(r.search_term);
+    if (r.resource_name) v.views.add(r.resource_name);
     p.set(key, v);
   }
   const classOrder = {both: 0, paid_only: 1, organic_only: 2} as const;
@@ -81,6 +156,7 @@ export function searchOverlapTable(organic: OrganicRow[], paid: PaidRow[], maxRo
             impressions: a.impressions,
             average_position: position,
             source_variants: [...a.variants].sort(),
+            top_pages: pages ? topPages(key) : null,
           }
         : null,
       paid: b
@@ -90,6 +166,8 @@ export function searchOverlapTable(organic: OrganicRow[], paid: PaidRow[], maxRo
             cost_micros: String(b.cost),
             conversions,
             source_variants: [...b.variants].sort(),
+            search_term_views: [...b.views].sort().slice(0, viewsPerQuery),
+            search_term_view_count: b.views.size,
           }
         : null,
       // Review prompts only; nothing is applied. Strong organic rank with paid spend may make paid coverage optional;
@@ -111,7 +189,7 @@ export function searchOverlapTable(organic: OrganicRow[], paid: PaidRow[], maxRo
           ? -1
           : 0) ||
       (y.organic?.clicks ?? 0) - (x.organic?.clicks ?? 0) ||
-      (x.normalized_query < y.normalized_query ? -1 : x.normalized_query > y.normalized_query ? 1 : 0),
+      byText(x.normalized_query, y.normalized_query),
   );
   const count = (c: string) => rows.filter(r => r.overlap === c).length;
   return {
@@ -137,12 +215,13 @@ export async function searchOverlap(store: Store, call: ToolCall, actor: Actor, 
   if (typeof input.account_id !== 'string' || !/^\d{1,32}$/.test(account))
     bad('Choose the exact numeric Google Ads customer ID.');
   const config = input.requirements ?? {};
-  validate(config, ['site_url', 'gsc_connection_id', 'date_from', 'date_to', 'row_limit', 'max_rows']);
+  validate(config, ['site_url', 'gsc_connection_id', 'date_from', 'date_to', 'row_limit', 'max_rows', 'include_pages']);
   const site = config.site_url,
     from = day(config.date_from),
     to = day(config.date_to),
     rowLimit = config.row_limit ?? 5000,
     maxRows = config.max_rows ?? 200,
+    includePages = config.include_pages ?? false,
     today = day(new Date().toISOString().slice(0, 10))!;
   if (
     typeof site !== 'string' ||
@@ -161,6 +240,7 @@ export async function searchOverlap(store: Store, call: ToolCall, actor: Actor, 
   if (!Number.isInteger(rowLimit) || rowLimit < 1 || rowLimit > 25000)
     bad('Choose a row limit of 1–25,000 per source.');
   if (!Number.isInteger(maxRows) || maxRows < 1 || maxRows > 1000) bad('Choose 1–1,000 overlap rows to return.');
+  if (typeof includePages !== 'boolean') bad('include_pages must be true or false.');
   const ads = store.resolveConnection(actor, adsGateway, account, input.connection_id),
     gsc = store.resolveConnection(actor, gscGateway, site, config.gsc_connection_id),
     logins = fingerprint([storedLogin(store, ads), storedLogin(store, gsc)]);
@@ -180,7 +260,7 @@ export async function searchOverlap(store: Store, call: ToolCall, actor: Actor, 
   current();
   const window = {date_from: config.date_from as string, date_to: config.date_to as string},
     adsQuery =
-      'SELECT search_term_view.search_term, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions FROM search_term_view WHERE segments.date BETWEEN ' +
+      'SELECT search_term_view.resource_name, search_term_view.search_term, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions FROM search_term_view WHERE segments.date BETWEEN ' +
       "'" +
       window.date_from +
       "' AND '" +
@@ -196,6 +276,8 @@ export async function searchOverlap(store: Store, call: ToolCall, actor: Actor, 
       rowLimit,
       startRow: 0,
     },
+    // Aggregated by page, so its metrics only rank the pages of one query; totals come from gscRequest.
+    pageRequest = includePages ? {...gscRequest, dimensions: ['query', 'page']} : null,
     scope = {
       gateway: adsGateway,
       connection_id: ads.id,
@@ -204,10 +286,12 @@ export async function searchOverlap(store: Store, call: ToolCall, actor: Actor, 
       gsc_connection_id: gsc.id,
       ...window,
       row_limit: rowLimit,
+      include_pages: includePages,
     },
+    // One or two Search Console reads and up to three Google Ads pages, with room for two retries.
     budget = new ReportCollectionBudget(undefined, fingerprint(scope), () => {}, {
-      requests: 4,
-      rows: 50000,
+      requests: (includePages ? 2 : 1) + 3 + 2,
+      rows: (includePages ? 3 : 2) * 25000,
       bytes: 16 * 1024 * 1024,
       elapsed_ms: 60000,
     }),
@@ -222,23 +306,21 @@ export async function searchOverlap(store: Store, call: ToolCall, actor: Actor, 
       invalid(label + ' did not return a complete bounded response.');
     return response.data.data as JsonObject;
   };
-  try {
-    return await budget.run(async () => {
-      const gscData = await read(
-        gscGateway,
-        {
-          operation: 'gsc_analytics_ops',
-          arguments: {action: 'QUERY_SEARCH_ANALYTICS', site_url: site, payload: gscRequest},
-        },
-        'Search Console',
-      );
-      if (gscData.rows !== undefined && !Array.isArray(gscData.rows))
-        invalid('Search Console returned a malformed query table.');
-      const organic: OrganicRow[] = ((gscData.rows ?? []) as unknown[]).map(r => {
+  // Search Console rows of one request: `keys` holds exactly the requested dimensions, in order.
+  const searchConsoleRows = async (request: JsonObject) => {
+    const data = await read(
+      gscGateway,
+      {operation: 'gsc_analytics_ops', arguments: {action: 'QUERY_SEARCH_ANALYTICS', site_url: site, payload: request}},
+      'Search Console',
+    );
+    if (data.rows !== undefined && !Array.isArray(data.rows))
+      invalid('Search Console returned a malformed query table.');
+    const width = (request.dimensions as string[]).length,
+      rows = ((data.rows ?? []) as unknown[]).map(r => {
         if (
           !obj(r) ||
           !Array.isArray(r.keys) ||
-          r.keys.length !== 1 ||
+          r.keys.length !== width ||
           typeof r.keys[0] !== 'string' ||
           r.keys[0].length > 2048 ||
           ['clicks', 'impressions'].some(k => !Number.isSafeInteger(r[k]) || r[k] < 0) ||
@@ -248,10 +330,25 @@ export async function searchOverlap(store: Store, call: ToolCall, actor: Actor, 
         )
           invalid('Search Console returned a malformed query row.');
         const row = r as JsonObject;
-        return {query: row.keys[0], clicks: row.clicks, impressions: row.impressions, position: row.position};
+        if (width === 2 && !searchConsolePageInProperty(site, row.keys[1]))
+          invalid('Search Console returned a page outside the selected property.');
+        return {
+          query: row.keys[0] as string,
+          clicks: row.clicks as number,
+          impressions: row.impressions as number,
+          position: row.position as number,
+          ...(width === 2 ? {page: row.keys[1] as string} : {}),
+        };
       });
-      if (organic.length > rowLimit) invalid('Search Console returned more rows than requested.');
+    if (rows.length > rowLimit) invalid('Search Console returned more rows than requested.');
+    return rows;
+  };
+  try {
+    return await budget.run(async () => {
+      const organic: OrganicRow[] = await searchConsoleRows(gscRequest);
       budget.rows('organic', organic.length);
+      const pages = pageRequest ? ((await searchConsoleRows(pageRequest)) as OrganicPageRow[]) : undefined;
+      if (pages) budget.rows('organic_pages', pages.length);
       const adsData = await read(
         adsGateway,
         {
@@ -266,7 +363,10 @@ export async function searchOverlap(store: Store, call: ToolCall, actor: Actor, 
       );
       if (adsData.results !== undefined && !Array.isArray(adsData.results))
         invalid('Google Ads returned a malformed search term table.');
-      const prefix = 'customers/' + account + '/searchTermViews/';
+      // campaign~ad group~base64url term of the selected customer: the grain the reviewed exclusion path checks.
+      const view = new RegExp(
+        '^customers/' + account + '/searchTermViews/[1-9][0-9]{0,19}~[1-9][0-9]{0,19}~[A-Za-z0-9_-]+={0,2}$',
+      );
       const paid: PaidRow[] = ((adsData.results ?? []) as unknown[]).map(r => {
         const v = obj(r) ? r.searchTermView : undefined,
           m = obj(r) ? r.metrics : undefined;
@@ -276,8 +376,10 @@ export async function searchOverlap(store: Store, call: ToolCall, actor: Actor, 
           !obj(v) ||
           typeof v.searchTerm !== 'string' ||
           v.searchTerm.length > 2048 ||
-          (v.resourceName !== undefined &&
-            (typeof v.resourceName !== 'string' || !v.resourceName.startsWith(prefix))) ||
+          typeof v.resourceName !== 'string' ||
+          // The base64url of a 2,048-character term is at most 8,192 characters.
+          v.resourceName.length > 8400 ||
+          !view.test(v.resourceName) ||
           !obj(m) ||
           [m.impressions, m.clicks, m.costMicros].some(
             x => x !== undefined && (typeof x !== 'string' || !/^\d{1,19}$/.test(x)),
@@ -293,15 +395,19 @@ export async function searchOverlap(store: Store, call: ToolCall, actor: Actor, 
           clicks: metrics.clicks ?? '0',
           cost_micros: metrics.costMicros ?? '0',
           conversions: metrics.conversions ?? 0,
+          resource_name: (v as JsonObject).resourceName,
         };
       });
       if (paid.length > rowLimit) invalid('Google Ads returned more rows than requested.');
+      if (new Set(paid.map(r => r.resource_name)).size !== paid.length)
+        invalid('Google Ads repeated a search term view.');
       budget.rows('paid', paid.length);
       current();
       budget.check();
-      const table = searchOverlapTable(organic, paid, maxRows),
+      const table = searchOverlapTable(organic, paid, maxRows, pages),
         capturedAt = Date.now(),
         organicTop = organic.length >= rowLimit,
+        pagesTop = !!pages && pages.length >= rowLimit,
         paidTop = paid.length >= rowLimit;
       return {
         record_kind: 'search_overlap',
@@ -317,7 +423,19 @@ export async function searchOverlap(store: Store, call: ToolCall, actor: Actor, 
             dates: 'Search Console reporting days (Pacific Time)',
             rows: organic.length,
             top_rows_only: organicTop,
+            // Final data usually trails by two to three days, so the last days may have no organic rows yet.
+            recent_days_may_be_missing: to! >= today - finalDataLagDays * dayMs,
           },
+          organic_pages: pages
+            ? {
+                provider: 'search_console',
+                dimensions: ['query', 'page'],
+                aggregation: 'by_page',
+                rows: pages.length,
+                top_rows_only: pagesTop,
+                pages_per_query: pagesPerQuery,
+              }
+            : null,
           paid: {
             provider: 'google_ads',
             resource: 'search_term_view',
@@ -326,25 +444,26 @@ export async function searchOverlap(store: Store, call: ToolCall, actor: Actor, 
             top_rows_only: paidTop,
           },
         },
-        complete: !organicTop && !paidTop,
+        complete: !organicTop && !pagesTop && !paidTop,
         ...table,
         source_references: [
           {provider: 'search_console', request: gscRequest, source_hash: fingerprint(organic)},
+          ...(pages ? [{provider: 'search_console', request: pageRequest, source_hash: fingerprint(pages)}] : []),
           {
             provider: 'google_ads',
             request: {resource: 'customers/' + account + '/googleAds:search', query: adsQuery},
             source_hash: fingerprint(paid),
           },
         ],
-        source_hash: fingerprint({scope, organic, paid, requestedAt, capturedAt}),
+        source_hash: fingerprint({scope, organic, pages: pages ?? null, paid, requestedAt, capturedAt}),
         next_steps: [
-          'Exact negative keywords: amcp_reporting search_exclusion_candidates and preview_search_exclusions (reviewed plan).',
+          'Exact negative keywords: capture a guided Google search-term report for these dates (amcp_reporting capture_preset google_search_terms), then search_exclusion_candidates and preview_search_exclusions with search_term_views as ids (reviewed plan).',
           'New keywords: prepare them through amcp_write with native review.',
         ],
         provider_mutations: 0,
         retained_snapshot: false,
         meaning:
-          'Search Console queries and Google Ads search terms for the same dates, joined on normalized text. Matching is approximate: the providers match queries differently, Search Console omits anonymized queries and both report top rows, and their days use different time zones. review_hint marks rows worth reviewing, never a change to make. Nothing was saved or changed.',
+          'Search Console queries and Google Ads search terms for the same dates, joined on normalized text. Matching is approximate: the providers match queries differently, Search Console omits anonymized queries and both report top rows, and their days use different time zones. Search Console final data may still lack the most recent days. Top pages rank the landing pages of a query; their by-page metrics do not add up to the query totals. review_hint marks rows worth reviewing, never a change to make. Nothing was saved or changed.',
       };
     });
   } finally {
