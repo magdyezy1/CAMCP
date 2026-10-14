@@ -113,10 +113,15 @@ export function authorizeRedditPlanningRead(plan: CompiledRequest, _connection: 
       {},
       403,
     );
-  if (Array.isArray(targeting?.custom_audience_ids) && targeting.custom_audience_ids.length)
+  // Included and excluded audiences alike are account-owned references.
+  if (
+    ['custom_audience_ids', 'excluded_custom_audience_ids'].some(
+      key => Array.isArray(targeting?.[key]) && targeting[key].length,
+    )
+  )
     throw new MirrorError(
       'ACCOUNT_SCOPE_MISMATCH',
-      'Bid suggestions here take no custom audience IDs: an audience belongs to one ad account. Remove custom_audience_ids.',
+      'Bid suggestions here take no custom audience IDs: an audience belongs to one ad account. Remove custom_audience_ids and excluded_custom_audience_ids.',
       {},
       403,
     );
