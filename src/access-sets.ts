@@ -97,6 +97,41 @@ export function narrowConnections(connections: Connection[], bindings: AccessBin
   });
 }
 
+/**
+ * Whether a stored record of one login and account (a write receipt, a report destination) is within these logins, as
+ * Store.connectionsFor(actor) returns them. Without a client access set the login decides, as before; with one, the
+ * account must also be one the set reaches through that login: a login stays listed when the set binds any of its
+ * accounts, so the login alone would let another client's records through.
+ */
+export function recordWithinAccess(
+  actor: Actor,
+  connections: Connection[],
+  record: {connection_id?: unknown; account_id?: unknown},
+): boolean {
+  const c = connections.find(c => c.id === record.connection_id);
+  if (!c) return false;
+  if (actor.accessSetId === undefined) return true;
+  return c.accounts.some(a => accountKey(c.gateway, a) === accountKey(c.gateway, record.account_id));
+}
+/**
+ * The uploaded media receipts (workspace_asset documents) an actor may list: every one without a client access set, as
+ * before; with one, only those of accounts the set reaches (a receipt names its platform, login and account).
+ */
+export function assetsWithinAccess(store: Store, actor: Actor, assets: JsonObject[]): JsonObject[] {
+  if (actor.accessSetId === undefined) return assets;
+  const connections = store.connectionsFor(actor).filter(c => c.enabled);
+  return assets.filter(
+    a =>
+      typeof a.platform === 'string' &&
+      connections.some(
+        c =>
+          c.gateway === a.platform + '_native_action' &&
+          (a.connection_id === undefined || a.connection_id === c.id) &&
+          c.accounts.some(id => accountKey(c.gateway, id) === accountKey(c.gateway, a.account_id)),
+      ),
+  );
+}
+
 /** What an actor limited to a set is told about it: its ID, name and how many accounts it binds (never removed: null). */
 export function accessSetView(store: Store, actor: Actor): JsonObject | null {
   if (actor.accessSetId === undefined) return null;

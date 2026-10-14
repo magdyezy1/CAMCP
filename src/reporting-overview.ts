@@ -49,6 +49,7 @@ import {fixedReportTimezones, reportWindowState, sourceReportTimezone} from './r
 import {normalizeAccount} from './scope.js';
 import {sha256} from './security.js';
 import {optionalClientView} from './client-scope.js';
+import {recordWithinAccess} from './access-sets.js';
 import {reportSourceError} from './report-errors.js';
 import {ReportLibrary} from './report-library.js';
 import {ReportFileDelivery, reportDestination} from './report-file-delivery.js';
@@ -256,7 +257,11 @@ export class ReportingOverview {
   ) {
     this.native = new NativeCampaignReports(service);
     this.sheets = new GoogleSheetsExports(service.store, fetcher);
-    this.library = new ReportLibrary(service.store, (c, a, t, legacy) => this.config(c, a, t, legacy));
+    this.library = new ReportLibrary(
+      service.store,
+      (c, a, t, legacy) => this.config(c, a, t, legacy),
+      (a, c) => this.access(a, c),
+    );
     this.files = new ReportFileDelivery(
       service.store,
       (a, c) => this.access(a, c),
@@ -546,7 +551,12 @@ export class ReportingOverview {
         schedules: ownerRecords.schedules.map(publicRecord),
         destinations: store
           .documents(tenant, 'sheets_destination')
-          .filter(d => actor.accessSetId === undefined || connections.some(c => c.id === d.connection_id))
+          // A report tab of a spreadsheet outside a client access set stays out, as reportDestination refuses it.
+          .filter(
+            d =>
+              actor.accessSetId === undefined ||
+              recordWithinAccess(actor, connections, {connection_id: d.connection_id, account_id: d.spreadsheet_id}),
+          )
           .map(d => ({
             ...d,
             unresolved_delivery: deliveryProjection(unresolvedSheetsDelivery(store, tenant, d.id)),

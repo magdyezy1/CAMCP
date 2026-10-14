@@ -13,6 +13,14 @@ in Advanced JSON. Preview includes exact recipe defaults and every mapping, but 
 and do not verify provider ownership/event delivery or replace preflight. Existing approved revisions stay fixed
 in saved plans and report packs. Google Maximize Clicks defaults expose the existing exact CPC ceiling.
 
+One workspace may serve several clients. To see one client's work, pass its client profile's `profile_id` to
+`amcp_campaign list`, `amcp_workspace operations` and `history`, `amcp_media list` and `library`, and
+`amcp_reporting_overview bootstrap`: they keep only the accounts that profile binds, within current access (the
+website's working client). This is a view filter that only hides and never grants; a removed profile, or one outside
+current access, is refused with `PROFILE_NOT_FOUND` rather than showing every client. A token, AI client or member
+limited to a client access set is different: that limit is enforced (`ACCOUNT_SCOPE_RESTRICTED`, below), and
+`get_workspace_context` names it.
+
 For a complete campaign brief, call `amcp_campaign {action:"recipe_eligibility",recipe,business,profile_id?}`
 before saving a plan. This local assessment shares the native recipe compiler and profile provenance. Follow
 its `next_call` with explicit `live:true` to add the existing read-only native preflight. No provider mutation
@@ -606,6 +614,11 @@ blindly, reshape a request to slip past one, or split a change into smaller piec
 - `ACCOUNT_REQUIRED` / `CONNECTION_REQUIRED` / `AMBIGUOUS_CONNECTION` — the account or connection
   could not be resolved, or more than one matched. Ask the user which account they mean rather
   than guessing.
+- `ACCOUNT_SCOPE_RESTRICTED` — this token, AI client or member is limited to one client's
+  accounts (a client access set), and the account named is not one of them. Nothing was read,
+  prepared or sent, and the refusal does not say whether the account exists in the workspace.
+  `get_workspace_context` names the set (`access_set`) and lists the accounts it reaches; work
+  with those, or ask a workspace administrator to change the set. No argument widens it.
 - `PROVIDER_WRITE_SCOPE_REQUIRED` / `INSUFFICIENT_SCOPE` — the connection lacks a scope the write
   needs. Reconnecting is the user's decision.
 - `PAUSED_CREATION_REQUIRED` — a new serving entity must be created paused. Set the provider's

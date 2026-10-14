@@ -12,8 +12,10 @@ import {incidentAttention} from './report-monitors.js';
 import {reportRunFeedSQL, reportRunScope} from './report-runs.js';
 import {workbookScheduleFeedSQL} from './workbook-schedules.js';
 import {writeFeedSQL, writeHandoff, writeRecordState} from './write-records.js';
-import {optionalClientView, sourceGateway} from './client-scope.js';
+import {optionalClientView} from './client-scope.js';
 
+/** A report source names its platform rather than its gateway. */
+const sourceGateway = (s: JsonObject) => s.gateway ?? reportPlatforms[s.platform]?.gateway;
 const documentKinds = [
   'campaign_run',
   'media_review',
@@ -332,7 +334,7 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
     if (permitted && k !== 'connection') {
       try {
         for (const s of scopes) {
-          const gateway = s.gateway ?? reportPlatforms[s.platform]?.gateway;
+          const gateway = sourceGateway(s);
           if (
             !gateway ||
             typeof s.account_id !== 'string' ||

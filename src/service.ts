@@ -115,7 +115,7 @@ import {creativeAssetView} from './creative-library.js';
 import {wooCommerceStoreDiscovery, type WooCommerceRequest} from './woocommerce-source.js';
 import {connectWooCommerce} from './woocommerce-connection.js';
 import {sameLogin} from './connection-authority.js';
-import {accessSetView, accountKey} from './access-sets.js';
+import {accessSetView, assetsWithinAccess} from './access-sets.js';
 export const strictOptions: CallOptions = {mode: 'strict', flags: {}};
 /**
  * The amcp_write inspect call for a change a native gateway will not send (MCP-09): the caller's arguments without the
@@ -1608,19 +1608,8 @@ export class MirrorService {
             }),
           );
       }
-      const assets = this.store.documents(actor.tenantId, 'workspace_asset');
       // A client access set lists only the assets of accounts it reaches (SEC-08); other access lists them all, as before.
-      return actor.accessSetId === undefined
-        ? assets
-        : assets.filter(a =>
-            connections.some(
-              c =>
-                typeof a.platform === 'string' &&
-                c.gateway === a.platform + '_native_action' &&
-                (a.connection_id === undefined || a.connection_id === c.id) &&
-                c.accounts.some(id => accountKey(c.gateway, id) === accountKey(c.gateway, a.account_id)),
-            ),
-          );
+      return assetsWithinAccess(this.store, actor, this.store.documents(actor.tenantId, 'workspace_asset'));
     }
     if (operation === 'get_creative_generation_job') return this.store.job(actor.tenantId, String(args.job_id));
     if (gateway === 'amcp_native_action')

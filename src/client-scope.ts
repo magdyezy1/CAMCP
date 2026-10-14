@@ -2,7 +2,6 @@ import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {accountKey, bindingKey} from './access-sets.js';
-import {reportPlatforms} from './report-metrics.js';
 
 /**
  * The working client (SEC-08 phase 1, owner direction P1): a view filter that narrows lists and pickers to the accounts
@@ -74,17 +73,6 @@ export function clientView(store: Store, actor: Actor, profileId: unknown): Clie
 export const optionalClientView = (store: Store, actor: Actor, profileId: unknown) =>
   profileId === undefined || profileId === null || profileId === '' ? undefined : clientView(store, actor, profileId);
 
-/** The client profiles (by ID) that bind each of these accounts, for a cross-client warning. */
-export function clientsOf(
-  views: ClientView[],
-  scopes: {gateway?: unknown; connection_id?: unknown; account_id?: unknown}[],
-) {
-  const ids = new Set<string>();
-  for (const s of scopes)
-    for (const v of views) if (v.has(s.gateway, s.account_id, s.connection_id)) ids.add(v.profile_id);
-  return [...ids];
-}
-
 /**
  * Whether a client profile is within the actor's access (SEC-08): always without a client access set; with one, only a
  * profile whose every binding the set reaches, since a profile's bindings, templates and naming describe its client.
@@ -110,9 +98,6 @@ export function visibleProfile(store: Store, actor: Actor, id: unknown): JsonObj
     throw new MirrorError('NOT_FOUND', 'Document not found in this tenant.', {}, 404);
   return profile;
 }
-
-/** A report source names its platform, not its gateway. */
-export const sourceGateway = (s: JsonObject) => s.gateway ?? reportPlatforms[s.platform]?.gateway;
 
 const accountIndex = (gateway: string, account: unknown) => gateway + '\u0000' + accountKey(gateway, account);
 function reachableAccounts(store: Store, actor: Actor): Reachable {

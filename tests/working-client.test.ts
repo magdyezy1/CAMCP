@@ -9,7 +9,7 @@ import {Registry} from '../src/catalog.js';
 import {MirrorService} from '../src/service.js';
 import {NativeTransport} from '../src/transport.js';
 import {saveAccessSet} from '../src/access-sets.js';
-import {clientView, clientViews, clientsOf} from '../src/client-scope.js';
+import {clientView, clientViews} from '../src/client-scope.js';
 import type {Actor, JsonObject} from '../src/types.js';
 
 const tenant = 'agency-view',
@@ -156,14 +156,6 @@ test('choosing a working client narrows plans, operations, history, media and th
       (all.platforms as JsonObject[]).flatMap(p => p.accounts as JsonObject[]).length,
       4,
       'no filter: all four accounts',
-    );
-    // A cross-client plan names both profiles, so the website can ask for confirmation.
-    assert.deepEqual(
-      clientsOf(views, [
-        {gateway: 'meta_native_action', connection_id: 'meta-login', account_id: A1},
-        {gateway: 'google_ads_native_action', account_id: B2},
-      ]).sort(),
-      ['profile-a', 'profile-b'],
     );
   } finally {
     store.close();
