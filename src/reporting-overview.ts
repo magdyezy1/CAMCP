@@ -438,6 +438,56 @@ export class ReportingOverview {
     for (const s of config.sources)
       this.service.store.resolveConnection(actor, reportPlatforms[s.platform]!.gateway, s.account_id, s.connection_id);
   }
+  /**
+   * RPT-07: the campaigns of the newest finished snapshot (among the 50 newest) with a campaign-level Snapchat source
+   * for this login and account, offered as parent choices for ad-squad detail. Only snapshots the actor can read are
+   * used; nothing is read from the provider, and a choice still passes the collector's exact parent checks.
+   */
+  private parentCampaigns(actor: Actor, connectionId: string, account: string) {
+    const store = this.service.store,
+      tenant = actor.tenantId,
+      uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const candidates = store.db
+      .prepare(
+        "SELECT id,json_extract(data,'$.config') AS config,json_extract(data,'$.completed_at') AS completed_at FROM documents WHERE tenant_id=? AND kind='overview_report' AND json_extract(data,'$.state') IN ('complete','partial') ORDER BY json_extract(data,'$.completed_at') DESC,id LIMIT 50",
+      )
+      .all(tenant) as JsonObject[];
+    for (const candidate of candidates) {
+      let config: JsonObject;
+      try {
+        config = JSON.parse(String(candidate.config));
+        if (
+          !Array.isArray(config?.sources) ||
+          !config.sources.some(
+            (s: JsonObject) =>
+              s?.platform === 'snapchat' &&
+              s.connection_id === connectionId &&
+              String(s.account_id) === account &&
+              (s.level ?? 'campaign') === 'campaign',
+          )
+        )
+          continue;
+        this.access(actor, config);
+      } catch {
+        continue;
+      }
+      const campaigns = new Map<string, string | null>();
+      for (const row of store.db
+        .prepare(
+          "SELECT json_extract(r.value,'$.campaign_id') AS id,json_extract(r.value,'$.campaign_name') AS name FROM documents d,json_each(d.data,'$.rows') r WHERE d.tenant_id=? AND d.id=? AND json_extract(r.value,'$.platform')='snapchat' AND json_extract(r.value,'$.connection_id')=? AND json_extract(r.value,'$.account_id')=? AND json_extract(r.value,'$.entity_level') IS NULL LIMIT 2000",
+        )
+        .all(tenant, candidate.id, connectionId, account) as JsonObject[])
+        if (typeof row.id === 'string' && uuid.test(row.id) && !campaigns.has(row.id))
+          campaigns.set(row.id, typeof row.name === 'string' ? row.name.slice(0, 200) : null);
+      if (!campaigns.size) continue;
+      return {
+        snapshot_id: candidate.id,
+        completed_at: typeof candidate.completed_at === 'number' ? candidate.completed_at : null,
+        campaigns: [...campaigns].slice(0, 200).map(([id, name]) => ({id, name})),
+      };
+    }
+    return null;
+  }
   queue(
     actor: Actor,
     config: JsonObject,
@@ -523,6 +573,8 @@ export class ReportingOverview {
                 connection_id: c.id,
                 label: assets.find((a: JsonObject) => String(a.id).replace(/^act_/, '') === account)?.name ?? account,
                 connection_label: c.label,
+                // RPT-07: Snapchat ad-squad detail names its exact parent campaign; offer the retained ones.
+                ...(id === 'snapchat' ? {parent_campaigns: this.parentCampaigns(actor, c.id, account)} : {}),
               }));
             }),
         })),

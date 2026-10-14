@@ -10144,5 +10144,6 @@
   "LinkedIn returned malformed or incomplete creative parents.": "أرجع LinkedIn عناصر أم للإعلانات الإبداعية غير صالحة البنية أو غير مكتملة.",
   "LinkedIn returned an unrequested or repeated creative.": "أرجع LinkedIn إعلانًا إبداعيًا غير مطلوب أو مكررًا.",
   "LinkedIn returned a creative of another advertising account.": "أرجع LinkedIn إعلانًا إبداعيًا تابعًا لحساب إعلاني آخر.",
-  "LinkedIn returned a creative without its exact campaign.": "أرجع LinkedIn إعلانًا إبداعيًا دون حملته الدقيقة."
+  "LinkedIn returned a creative without its exact campaign.": "أرجع LinkedIn إعلانًا إبداعيًا دون حملته الدقيقة.",
+  "Choose a campaign from the report of {date}, or enter its UUID.": "اختر حملة من تقرير {date}، أو أدخل معرّف UUID الخاص بها."
 }

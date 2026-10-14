@@ -414,7 +414,7 @@ async function renderReportingOverview() {
                     c.sources.find(
                       s => s.platform === p.id && s.connection_id === a.connection_id && s.account_id === a.account_id,
                     )?.campaign_id ?? '';
-                return `<label class="report-account"><input type="checkbox" data-report-account="${p.id}" value="${esc(key)}" ${selected.has(key) ? 'checked' : ''}><span>${esc(a.label)}<small>${esc(a.account_id)}</small><small>${esc(uiText('Login:'))} ${esc(a.connection_label ?? a.label)}</small></span></label>${p.id === 'snapchat' ? `<label data-report-parent-field hidden>${esc(uiText('Parent campaign UUID for ad squads'))}<input data-report-parent="${esc(key)}" value="${esc(parent)}" maxlength="36" disabled></label>` : ''}`;
+                return `<label class="report-account"><input type="checkbox" data-report-account="${p.id}" value="${esc(key)}" ${selected.has(key) ? 'checked' : ''}><span>${esc(a.label)}<small>${esc(a.account_id)}</small><small>${esc(uiText('Login:'))} ${esc(a.connection_label ?? a.label)}</small></span></label>${p.id === 'snapchat' ? reportParentField(key, parent, a) : ''}`;
               })
               .join('')}`
           : `<p class="muted">${esc(uiText('Connect and select an account to include {platform}.', {platform: p.name}))}</p><a href="/connections" class="text-link">${esc(uiText('Manage connections'))}</a>`
@@ -1310,6 +1310,19 @@ function reportLevelLabel(b, row) {
     level => level.id === row.entity_level,
   )?.label;
   return label ? uiText(label) : String(row.native_entity_type ?? '');
+}
+/**
+ * RPT-07: the exact parent campaign of Snapchat ad-squad detail. The campaigns of the newest retained campaign-level
+ * snapshot of this login and account are offered as choices; any UUID can still be entered, and collection checks it.
+ */
+function reportParentField(key, parent, account) {
+  const choices = account.parent_campaigns?.campaigns ?? [],
+    list = 'report-parents-' + account.connection_id + '-' + account.account_id;
+  return `<label data-report-parent-field hidden>${esc(uiText('Parent campaign UUID for ad squads'))}<input data-report-parent="${esc(key)}" value="${esc(parent)}" maxlength="36" disabled${choices.length ? ` list="${esc(list)}"` : ''}>${
+    choices.length
+      ? `<datalist id="${esc(list)}">${choices.map(c => `<option value="${esc(c.id)}" label="${esc(c.name ?? c.id)}"></option>`).join('')}</datalist><small>${esc(uiText('Choose a campaign from the report of {date}, or enter its UUID.', {date: reportDay(new Date(account.parent_campaigns.completed_at ?? 0).toISOString().slice(0, 10))}))}</small>`
+      : ''
+  }</label>`;
 }
 /** RPT-07: a native parent's name beside its ID, kept literal (current provider metadata, never translated). */
 function reportParentName(name) {
