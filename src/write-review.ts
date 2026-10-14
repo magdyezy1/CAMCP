@@ -994,7 +994,7 @@ export class WriteReviewService {
     if (input.arguments !== undefined)
       fail(
         'INVALID_ARGUMENT',
-        'Remove arguments: execute takes review_id, idempotency_key, confirmed and, when execute_requirements lists them, spend_change_confirmed, cap_override_confirmed or creative_edit_confirmed. The request was frozen at prepare; prepare a new review to change it.',
+        'Remove arguments: execute takes review_id, idempotency_key, confirmed and, when execute_requirements lists them, spend_change_confirmed, cap_override_confirmed, creative_edit_confirmed or destructive_confirmed. The request was frozen at prepare; prepare a new review to change it.',
         {field: 'arguments', accepted: executeFields},
       );
     if (input.personal_data !== undefined)

@@ -3,7 +3,8 @@ import type {JsonObject} from './types.js';
 
 /**
  * Executions that went beyond an owner's spending cap with the user's acknowledgement (WRT-05 Stage D). Under
- * enforcement `confirm` any operator may execute over a cap with cap_override_confirmed; the audit records it
+ * enforcement `confirm` the workspace owner executes over a cap with cap_override_confirmed, or another member does once
+ * the owner approved that exact review on the website (owner decision P5, WRT-09); the audit records it
  * (spend_cap_exceeded_with_confirmation) and the owner's health view reads it back here: how many in the window and the
  * latest ones, with the account, the rules exceeded, who executed it and their role, and the review. Read-only.
  */
