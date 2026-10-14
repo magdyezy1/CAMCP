@@ -166,6 +166,8 @@ function reportRecommendationAsOf(row) {
 }
 // Collector warnings AMCP authors for a source's reporting window (RPT-02); other warnings stay as written.
 const reportSourceWarnings = new Set([
+  // ACC-06 interim notice: the Reddit conversion value unit is unverified until the authorized closed-week check.
+  'Reddit conversion value and ROAS are unverified: AMCP reads CONVERSION_PURCHASE_TOTAL_VALUE as cents (divided by 100), a unit not yet checked against Reddit. Compare them with Reddit Ads Manager before relying on them.',
   'Includes an in-progress day: the last reporting day has not ended in the source time zone. The source stays partial and recommendations wait until it closes.',
   'The reporting window was declared incomplete. The source stays partial and recommendations are held until a complete window is collected.',
   // RPT-03 and RPT-04 collection notices.
@@ -175,8 +177,6 @@ const reportSourceWarnings = new Set([
   'Microsoft did not return a recognized account time zone, so report days use GreenwichMeanTimeDublinEdinburghLisbonLondon (Europe/London, including daylight saving).',
   'TikTok campaign reporting covers auction campaigns only (AUCTION_CAMPAIGN); Reach & Frequency and other reserved campaigns are not included.',
   'TikTok ad group optimization events could not be read, so conversions use one generic result definition and campaigns optimizing for different events are not told apart.',
-  // ACC-06 interim notice: the Reddit conversion value unit is unverified until the authorized closed-week check.
-  'Reddit conversion value and ROAS are unverified: AMCP reads CONVERSION_PURCHASE_TOTAL_VALUE as cents (divided by 100), a unit not yet checked against Reddit. Compare them with Reddit Ads Manager before relying on them.',
 ]);
 // Collector notices that carry a count or a field name (RPT-03, RPT-04). English keeps the collector's own sentence;
 // another language fills the same exact value into its translated template.
