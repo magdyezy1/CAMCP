@@ -24,6 +24,10 @@ Live acceptance results enter through the ledger, never by hand: each harness in
 whose rows `node tools/acceptance/ledger.mjs add <record.json>` validates and appends ([acceptance
 runbooks](acceptance/README.md)).
 
+For the LinkedIn Media Planning and Audience Insights products and the Display & Video 360 user profile, an
+owner-authorized recheck (`tools/acceptance/program-recheck.mjs`, [provider programs](acceptance/PROVIDER-PROGRAMS.md))
+prints the dated value to declare: the literal provider code of each refusal, or that the read was observed (ACC-08).
+
 ## Evidence layers
 
 Counts over every action of the [action ledger](implementation/ACTION-CONTRACT-COVERAGE.json). Each layer is

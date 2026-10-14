@@ -234,7 +234,7 @@ The table is a completion checklist, not a claim that these rows are finished.
 | B22     | Historical creative assignment and more provider usage formats                          | Exact owned usage formats, immutable identifiers, attribution/processing boundaries and refusal coverage                |
 | B23     | Real tenant capacity, cache/fan-out and multi-worker limits                             | Measured representative workloads and provider quotas; original tenant/authority/lease isolation must survive           |
 | B24     | Provider-specific/static and dynamic reason copy, full Arabic/assistive acceptance      | Authored ownership inventory, literal native preservation, editorial review and actual assistive/browser tests          |
-| B25     | Positive private-program entitlement; selected LinkedIn is denied, DV360 not configured | Existing approved app/account and exact bounded native acceptance; three implemented program workflows remain available |
+| B25     | Positive private-program entitlement; selected LinkedIn is denied, DV360 not configured | Existing approved app/account and exact bounded native acceptance; three implemented program workflows remain available; requirements and the owner-authorized recheck are in [provider programs](acceptance/PROVIDER-PROGRAMS.md) (ACC-08) |
 | B26     | Forecast calibration and other native budget bindings                                   | Observed outcome calibration, explicit uncertainty, qualified native bindings and spending-policy tests                 |
 | B27     | Additional inventory providers/dimensions and point-in-time reconciliation              | Bounded complete/change-aware native collection and accurate observation-time claims                                    |
 

@@ -199,6 +199,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Sheets delivery acceptance on a disposable spreadsheet](acceptance/SHEETS-DELIVERY.md)
 - [Read acceptance: measurement, TikTok, Reddit value unit, X placement](acceptance/READ-ACCEPTANCE.md)
 - [Assistive-technology acceptance: screen readers and touch, English and Arabic](acceptance/ASSISTIVE-TECHNOLOGY.md)
+- [Provider programs: LinkedIn Media Planning, Audience Insights and Display & Video 360](acceptance/PROVIDER-PROGRAMS.md)
 
 ## The September 2026 review
 

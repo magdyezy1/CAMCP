@@ -204,6 +204,7 @@ const sections = [
       'acceptance/SHEETS-DELIVERY.md',
       'acceptance/READ-ACCEPTANCE.md',
       'acceptance/ASSISTIVE-TECHNOLOGY.md',
+      'acceptance/PROVIDER-PROGRAMS.md',
     ],
   ],
   [
