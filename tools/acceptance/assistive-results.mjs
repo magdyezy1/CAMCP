@@ -70,16 +70,20 @@ export const assistiveJourneys = [
     controls: ['Pause', 'Resume'],
     boundary: 'Pause and resume of one schedule.',
     fixture: 'granular-reporting',
+    // One daily delivery of a synthetic report to a local file destination, saved through the fixture's own website.
+    seed: 'schedule',
   },
   {
     id: 'operations-recovery',
     title: 'An Operations recovery item',
     route: '/operations',
     page: 'Operations',
-    controls: ['Check the provider (read-only)'],
+    // A plan step's read-back, or a standalone reviewed change's provider check: both are read-only.
+    controls: ['Review next step', 'Read back submitted step', 'Check the provider (read-only)'],
     boundary: 'The read-only check of one recovery item; nothing is accepted as applied or sent again.',
     fixture: 'write-journey',
-    // The fixture's next synthetic create loses its response, so running the seeded plan leaves an uncertain change.
+    // The fixture's next synthetic create loses its response, so running the seeded plan leaves its step uncertain and
+    // the plan in Operations as needing attention.
     seed: 'uncertain',
   },
   {
@@ -529,6 +533,52 @@ export function localRelease() {
 }
 
 /**
+ * Saves the schedule-pause journey's schedule as the signed-in owner, through the fixture's own website API exactly as
+ * the report builder would: a local file destination (no Sheets login) and one daily delivery of a synthetic Meta
+ * report. Its ID is returned; nothing leaves the fixture.
+ */
+async function seedSchedule(site) {
+  const call = async body => {
+    const response = await fetch(site.origin + '/api/workspace/overview', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        origin: site.origin,
+        'x-amcp-csrf': site.csrf,
+        cookie: site.cookie.name + '=' + site.cookie.value,
+      },
+      body: JSON.stringify(body),
+    });
+    const out = await response.json().catch(() => ({}));
+    if (!out.success)
+      throw Error('The synthetic schedule could not be saved: ' + (out.error?.code ?? 'HTTP ' + response.status));
+    return out.data;
+  };
+  const {granularConfig} = await import(
+    pathToFileURL(path.join(root, 'tests/fixtures/overview-granularity-data.mjs')).href
+  );
+  const destination = await call({
+    action: 'bind_file_destination',
+    idempotency_key: 'acc07-file-destination',
+    confirmed: true,
+    file_destination: {name: 'Synthetic client pack', formats: ['xlsx']},
+  });
+  const scheduled = await call({
+    action: 'schedule',
+    idempotency_key: 'acc07-daily-schedule',
+    config: {
+      ...granularConfig(),
+      name: 'Synthetic weekly report',
+      date_range: {preset: 'last_complete_days', days: 7, timezone: 'UTC'},
+      partial_delivery: 'allow_marked',
+    },
+    schedule: {schedule_kind: 'daily', timezone: 'UTC', schedule_config: {hour: 8}, destination_id: destination.id},
+    confirmed: true,
+  });
+  return scheduled.id;
+}
+
+/**
  * Starts the synthetic fixture host of one journey, as the automated browser matrix uses it (an in-memory workspace on
  * 127.0.0.1 whose provider answers are synthetic and which refuses every other request), and a second loopback server
  * whose one-time link signs a browser in to it. Kinds with a report worker have it run every few seconds, as the worker
@@ -550,7 +600,8 @@ export async function serveJourney(id, options = {}) {
     helper,
     timer;
   try {
-    if (journey.seed) seeded = await site.writeJourney.seed(journey.seed);
+    if (journey.seed === 'schedule') seeded = await seedSchedule(site);
+    else if (journey.seed) seeded = await site.writeJourney.seed(journey.seed);
     const token = randomBytes(24).toString('base64url'),
       signIn = '/sign-in/' + token;
     let used = false;

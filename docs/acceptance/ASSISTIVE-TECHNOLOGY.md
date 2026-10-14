@@ -34,8 +34,8 @@ their Arabic text, which `template` lists under `listen_for`.
 search for one (C4, C7). (3) On a platform that is not connected, choose its connect control: on the fixture host it
 says administrator setup is required; on staging the provider sign-in page opens, so stop there and do not sign in
 (C12). (4) On a connected platform choose **Manage**: the asset manager opens (C6). (5) Move through the logins and asset
-tabs, select one account and clear another, then choose **Save selection** (C4, C7, C8). (6) Close the dialog; focus
-returns to Manage (C6). On staging, do not choose Sync or Save and check access (they read the provider); on the
+tabs, clear the selected account and choose **Save selection**, then select it again and save (C4, C7, C8). (6) Close
+the dialog; focus returns to Manage (C6). On staging, do not choose Sync or Save and check access (they read the provider); on the
 fixture host they are refused and the refusal must be announced (C7).
 
 **`recipe-draft`.** (1) Open Campaigns and find the guided recipes (C1, C3). (2) Choose Meta website traffic with image
@@ -55,16 +55,17 @@ the Google Sheets export, choose the destination: on the fixture host its synthe
 ACC-03 disposable spreadsheet, under that authorization. (5) Confirm the export authorization and choose
 **Export this snapshot now**: "Export complete." is announced (C7, C12).
 
-**`schedule-pause`.** (1) On the fixture host, first schedule the delivery of the report from `report-export` (daily)
-in Report builder. (2) Open Schedules and find the schedule and its next deliveries (C1, C8). (3) Choose **Pause**: the
-pause and the Paused state are announced (C4, C7). (4) Choose **Resume**: the resume is announced (C7, C12).
+**`schedule-pause`.** (1) On the fixture host one daily schedule, "Synthetic weekly report" to a local file
+destination, is already saved; on staging use a schedule of the synthetic workspace. (2) Open Schedules and find the
+schedule and its next deliveries (C1, C8). (3) Choose **Pause**: the pause and the Paused state are announced (C4, C7).
+(4) Choose **Resume**: the resume is announced (C7, C12).
 
-**`operations-recovery`.** (1) On the fixture host, open Campaigns and the plan "Synthetic uncertain journey", prepare
-its review, give consent and run it: the fixture loses the provider's answer, so the step ends uncertain (synthetic;
-nothing leaves the computer; C6, C7). (2) Open Operations, filter to Needs attention and open the item (C4, C8). (3)
-Read its guidance and choose its read-only check, **Check the provider (read-only)** or the plan's read-back (C7). (4)
-The outcome is announced; do not choose Accept as applied and send nothing again (C12). On staging, use whichever item
-Operations lists as needing attention.
+**`operations-recovery`.** (1) On the fixture host, open Campaigns and the plan "Synthetic uncertain journey", choose
+**Review next step**, give consent and run it: the fixture loses the provider's answer, so the step ends uncertain
+(synthetic; nothing leaves the computer; C6, C7). (2) Open Operations, filter to Needs attention and open the plan's
+item (C4, C8). (3) Read its guidance and choose its read-only check: **Read back submitted step** for a plan step, or
+**Check the provider (read-only)** for a standalone reviewed change (C7). (4) The outcome is announced; do not choose
+Accept as applied and send nothing again (C12). On staging, use whichever item Operations lists as needing attention.
 
 **`ga4-events`.** (1) Open Measurement and go to **Recent GA4 events** (C1, C3). (2) Choose the GA4 property and enter
 an invalid event name: the validation is announced (C4, C7). (3) Enter `purchase` and a recent window, then choose
@@ -106,7 +107,8 @@ it; a non-blocking issue leaves it passed.
   Every provider request is answered by the fixture's own synthetic provider or refused; reports and exports finish
   because it runs the report worker. `creative-review` needs `AMCP_FFMPEG_PATH` and `AMCP_FFPROBE_PATH`, as the media
   tests do. Ctrl+C ends it and prints its request counts: `provider_writes` must be 0. Each start is a fresh workspace,
-  and a used link answers 410.
+  and a used link answers 410. If a journey cannot reach its boundary on the fixture host, run that session on
+  staging instead: a limit of the synthetic fixture that a deployment does not have is not an accessibility issue.
 - **Staging with synthetic data (owner request R7).** Every VoiceOver session (an iPhone cannot reach the fixture host)
   and any NVDA session. Only synthetic workspace data and assets the owner designated for acceptance: `report-export`
   exports only to the ACC-03 disposable spreadsheet under its authorization, and `ga4-events` reads only a GA4 test

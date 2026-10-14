@@ -374,5 +374,42 @@ test('ACC-07 fixture host: a one-time loopback link signs in to the journey page
   } finally {
     await recovery.close();
   }
+  // The schedule journey starts with one active daily schedule that the signed-in owner can pause and resume.
+  const scheduled = await serveJourney('schedule-pause');
+  try {
+    const first = await fetch(scheduled.link, {redirect: 'manual'}),
+      cookie = first.headers.get('set-cookie').split(';')[0],
+      {csrf} = await fetch(scheduled.origin + '/api/session', {headers: {cookie}}).then(r => r.json());
+    const overview = body =>
+      fetch(scheduled.origin + '/api/workspace/overview', {
+        method: 'POST',
+        headers: {cookie, origin: scheduled.origin, 'x-amcp-csrf': csrf, 'content-type': 'application/json'},
+        body: JSON.stringify(body),
+      }).then(r => r.json());
+    const listed = async () =>
+      (await overview({action: 'bootstrap'})).data.schedules.find(s => s.id === scheduled.seeded);
+    const before = await listed();
+    assert.equal(before.is_active, true);
+    const paused = await overview({
+      action: 'pause_schedule',
+      id: before.id,
+      expected_revision: before.revision,
+      confirmed: true,
+    });
+    assert.equal(paused.success, true, JSON.stringify(paused.error));
+    const between = await listed();
+    assert.equal(between.is_active, false);
+    const resumed = await overview({
+      action: 'resume_schedule',
+      id: between.id,
+      expected_revision: between.revision,
+      confirmed: true,
+    });
+    assert.equal(resumed.success, true, JSON.stringify(resumed.error));
+    assert.equal((await listed()).is_active, true);
+    assert.deepEqual(scheduled.counts(), {nativeReads: 0, refused: 0, writes: 0, syntheticWrites: 0});
+  } finally {
+    await scheduled.close();
+  }
   await assert.rejects(() => serveJourney('checkout'), /Name a journey/);
 });
