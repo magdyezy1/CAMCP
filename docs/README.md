@@ -197,6 +197,7 @@ with the [repository README](../README.md) for what AMCP is.
 - [Write acceptance: zero-spend reviewed writes](acceptance/WRITE-ACCEPTANCE.md)
 - [AI-client interoperability matrix](acceptance/CLIENT-INTEROP.md)
 - [Sheets delivery acceptance on a disposable spreadsheet](acceptance/SHEETS-DELIVERY.md)
+- [Read acceptance: measurement, TikTok, Reddit value unit, X placement](acceptance/READ-ACCEPTANCE.md)
 
 ## The September 2026 review
 

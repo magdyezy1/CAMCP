@@ -211,6 +211,12 @@ The adapter follows the current parameter enum. Official references checked
 2026-09-24: [analytics](https://docs.x.com/x-ads-api/analytics) and
 [rate limiting](https://docs.x.com/x-ads-api/fundamentals/rate-limiting).
 
+AMCP's line-item writes still accept `PUBLISHER_NETWORK`, and X's analytics summary (2026-10-08) lists it as a fourth
+placement. Until the authorized ACC-06 probe ([read acceptance](acceptance/READ-ACCEPTANCE.md)) shows whether X returns
+data for it, reports do not request it, and a campaign the active-entities answer lists on `PUBLISHER_NETWORK` makes the
+source partial (budget guidance is withheld) with a warning naming the count. Its delivery and spend are not in the
+totals, and a campaign active only there is not a zero row.
+
 ## Provider error layers and throttles
 
 A provider refusal is classified from the provider's documented codes before its
@@ -298,10 +304,10 @@ Open **Reporting overview** in workspace navigation (/reporting-overview). Selec
 | TikTok | Integrated campaign report plus objective inventory |
 | Snapchat | Campaign totals/inventory and account-local day boundaries |
 | LinkedIn | Campaign adAnalytics with verified account currency, native UTC period/completion checks and explicit unknown conversion attribution; objective override when omitted |
-| X Ads | Active-entities request planning; current documented placements ALL_ON_TWITTER, SPOTLIGHT and TREND; separate web and mobile conversion requests; resumable hourly batches and explicit partial-coverage flags |
+| X Ads | Active-entities request planning; current documented placements ALL_ON_TWITTER, SPOTLIGHT and TREND (activity X lists on PUBLISHER_NETWORK makes the source partial with a warning); separate web and mobile conversion requests; resumable hourly batches and explicit partial-coverage flags |
 | Microsoft Ads | Durable Submit/Poll campaign report in the account time zone and secure server-side CSV download |
 | Apple Ads | Campaign report with explicit UTC range |
-| Reddit Ads | Campaign metrics/inventory, spend micro-units and explicit native conversion definitions |
+| Reddit Ads | Campaign metrics/inventory in UTC and spend micro-units; the purchase value is read as cents, a unit not yet verified against Reddit, so a report that reads it says so; no result definition is claimed (`unknown`), so sales recommendations ask for review ([ACC-06](acceptance/READ-ACCEPTANCE.md)) |
 | GA4 | Campaign-attributed analytics context, property currency/timezone and threshold signals |
 | Search Console | Organic page context with limited top-row coverage; no paid-budget advice |
 

@@ -194,7 +194,17 @@ const sections = [
   ],
   ['Platforms', ['review/PLATFORMS.md', 'MEASUREMENT-AND-APPLE.md', 'MICROSOFT-ADS.md', 'REDDIT.md']],
   // ACC-01 to ACC-08: the owner-run acceptance runbooks and the provider access register they record into.
-  ['Acceptance', ['PROVIDER-ACCESS.md', 'acceptance/README.md', 'acceptance/WRITE-ACCEPTANCE.md', 'acceptance/CLIENT-INTEROP.md', 'acceptance/SHEETS-DELIVERY.md']],
+  [
+    'Acceptance',
+    [
+      'PROVIDER-ACCESS.md',
+      'acceptance/README.md',
+      'acceptance/WRITE-ACCEPTANCE.md',
+      'acceptance/CLIENT-INTEROP.md',
+      'acceptance/SHEETS-DELIVERY.md',
+      'acceptance/READ-ACCEPTANCE.md',
+    ],
+  ],
   [
     'The September 2026 review',
     [

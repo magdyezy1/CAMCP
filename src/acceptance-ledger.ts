@@ -60,6 +60,7 @@ const keys = new Set([
     'receipt_refs',
     'readback_sha256',
     'provider_request_ids',
+    'provider_codes',
     'status_codes',
     'shape_sha256',
   ]);
@@ -145,6 +146,15 @@ export function validateAcceptanceLedger(data: unknown): string[] {
       for (const key of ['readback_sha256', 'shape_sha256'])
         if (e[key] !== undefined && (typeof e[key] !== 'string' || !hex64.test(e[key])))
           at('evidence.' + key + ' is a SHA-256 hex digest');
+      // The provider's own code as a closed-set token (a TikTok envelope code, an X or LinkedIn error code), never its
+      // message (ACC-06, ACC-08).
+      if (
+        e.provider_codes !== undefined &&
+        (!Array.isArray(e.provider_codes) ||
+          e.provider_codes.length > 20 ||
+          !e.provider_codes.every((c: unknown) => typeof c === 'string' && /^[A-Z0-9_]{1,64}$/.test(c)))
+      )
+        at('evidence.provider_codes is a list of provider code tokens');
       if (
         e.status_codes !== undefined &&
         (!Array.isArray(e.status_codes) ||
