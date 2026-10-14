@@ -449,7 +449,7 @@ export class ReportingOverview {
       uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const candidates = store.db
       .prepare(
-        "SELECT id,json_extract(data,'$.config') AS config,json_extract(data,'$.completed_at') AS completed_at FROM documents WHERE tenant_id=? AND kind='overview_report' AND json_extract(data,'$.state') IN ('complete','partial') ORDER BY json_extract(data,'$.completed_at') DESC,id LIMIT 50",
+        "SELECT id,json_extract(data,'$.config') AS config,json_extract(data,'$.completed_at') AS completed_at FROM documents WHERE tenant_id=? AND kind='overview_report' AND json_extract(data,'$.state') IN ('complete','partial') AND json_type(data,'$.completed_at') IN ('integer','real') ORDER BY json_extract(data,'$.completed_at') DESC,id LIMIT 50",
       )
       .all(tenant) as JsonObject[];
     for (const candidate of candidates) {
@@ -482,7 +482,7 @@ export class ReportingOverview {
       if (!campaigns.size) continue;
       return {
         snapshot_id: candidate.id,
-        completed_at: typeof candidate.completed_at === 'number' ? candidate.completed_at : null,
+        completed_at: Number(candidate.completed_at),
         campaigns: [...campaigns].slice(0, 200).map(([id, name]) => ({id, name})),
       };
     }

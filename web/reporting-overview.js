@@ -1317,10 +1317,15 @@ function reportLevelLabel(b, row) {
  */
 function reportParentField(key, parent, account) {
   const choices = account.parent_campaigns?.campaigns ?? [],
+    completed = account.parent_campaigns?.completed_at,
     list = 'report-parents-' + account.connection_id + '-' + account.account_id;
   return `<label data-report-parent-field hidden>${esc(uiText('Parent campaign UUID for ad squads'))}<input data-report-parent="${esc(key)}" value="${esc(parent)}" maxlength="36" disabled${choices.length ? ` list="${esc(list)}"` : ''}>${
     choices.length
-      ? `<datalist id="${esc(list)}">${choices.map(c => `<option value="${esc(c.id)}" label="${esc(c.name ?? c.id)}"></option>`).join('')}</datalist><small>${esc(uiText('Choose a campaign from the report of {date}, or enter its UUID.', {date: reportDay(new Date(account.parent_campaigns.completed_at ?? 0).toISOString().slice(0, 10))}))}</small>`
+      ? `<datalist id="${esc(list)}">${choices.map(c => `<option value="${esc(c.id)}" label="${esc(c.name ?? c.id)}"></option>`).join('')}</datalist>${
+          Number.isFinite(completed)
+            ? `<small>${esc(uiText('Choose a campaign from the report of {date}, or enter its UUID.', {date: reportDay(new Date(completed).toISOString().slice(0, 10))}))}</small>`
+            : ''
+        }`
       : ''
   }</label>`;
 }

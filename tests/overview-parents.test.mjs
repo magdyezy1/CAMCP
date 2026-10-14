@@ -1,6 +1,8 @@
 // RPT-07: native parent identity on detailed Overview rows whose report response carries none. Synthetic fixtures only.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createContext, Script} from 'node:vm';
 import {reportTable} from '../dist/src/google-sheets.js';
 import {
   detailParents,
@@ -13,8 +15,9 @@ import {
   granularSource,
   granularConfig,
   granularParents,
+  granularRange,
 } from './fixtures/overview-granularity-data.mjs';
-import {snapchatEvidenceCampaign} from './fixtures/snapchat-evidence-data.mjs';
+import {snapchatEvidenceAccount, snapchatEvidenceCampaign} from './fixtures/snapchat-evidence-data.mjs';
 
 async function run(f, config) {
   const queued = await f.overview.handle({action: 'run', config, confirmed: true}, f.actor);
@@ -264,4 +267,132 @@ test('RPT-07: parents are read for at most the bounded number of entities per so
   // Levels whose report rows carry their own parents read nothing.
   const none = await detailParents(service, {...source, platform: 'meta'}, 'ad', ids, actor);
   assert.deepEqual(none, {parents: {}, lineage: [], warnings: []});
+});
+
+test('RPT-07: Snapchat ad-squad detail offers the campaigns of the newest readable retained campaign-level snapshot of the same login and account', async () => {
+  const f = overviewGranularityFixture();
+  try {
+    const login = granularSource('snapchat').connection_id,
+      account = snapchatEvidenceAccount,
+      campaign = i => '33333333-3333-4333-8333-' + String(i).padStart(12, '0'),
+      source = {platform: 'snapchat', connection_id: login, account_id: account, level: 'campaign'};
+    const snapchatAccount = async () =>
+      (await f.overview.handle({action: 'bootstrap'}, f.actor)).platforms
+        .find(p => p.id === 'snapchat')
+        .accounts.find(a => a.account_id === account && a.connection_id === login);
+    // No retained campaign-level snapshot yet: nothing is offered and the UUID stays typed.
+    assert.equal((await snapchatAccount()).parent_campaigns, null);
+    const row = (id, name, extra = {}) => ({
+      platform: 'snapchat',
+      connection_id: login,
+      account_id: account,
+      campaign_id: id,
+      campaign_name: name,
+      ...extra,
+    });
+    const put = (id, state, completed_at, sources, rows) =>
+      f.store.putDocument(f.actor.tenantId, 'overview_report', id, {
+        state,
+        ...(completed_at === undefined ? {} : {completed_at}),
+        config: {name: 'Retained ' + id, sources, date_range: granularRange, grain: 'total'},
+        rows,
+      });
+    put('older', 'complete', 1000, [source], [row(campaign(1), 'Older campaign')]);
+    put(
+      'newer',
+      'partial',
+      2000,
+      [source],
+      [
+        row(campaign(2), 'Spring <launch>'),
+        row(campaign(2), 'Spring <launch>'),
+        row(campaign(3), null),
+        // Only exact campaign-level rows become choices: no malformed IDs, detailed rows or other accounts.
+        row('not-a-uuid', 'Malformed'),
+        row(campaign(4), 'Ad squad row', {entity_level: 'adset'}),
+        row(campaign(5), 'Other account', {account_id: '11111111-1111-4111-8111-000000000999'}),
+      ],
+    );
+    // Newer, but unreadable (a login the actor has no access to), unfinished or without a completion time.
+    put(
+      'foreign',
+      'complete',
+      3000,
+      [source, {...source, connection_id: 'not-a-login-of-this-workspace'}],
+      [row(campaign(6), 'Foreign')],
+    );
+    put('queued', 'queued', 4000, [source], [row(campaign(7), 'Queued')]);
+    put('untimed', 'complete', undefined, [source], [row(campaign(8), 'Untimed')]);
+    assert.deepEqual((await snapchatAccount()).parent_campaigns, {
+      snapshot_id: 'newer',
+      completed_at: 2000,
+      campaigns: [
+        {id: campaign(2), name: 'Spring <launch>'},
+        {id: campaign(3), name: null},
+      ],
+    });
+    // Other platforms' accounts carry no parent choices, and nothing was read from a provider.
+    const bootstrap = await f.overview.handle({action: 'bootstrap'}, f.actor);
+    assert.ok(
+      bootstrap.platforms
+        .filter(p => p.id !== 'snapchat')
+        .every(p => p.accounts.every(a => !Object.hasOwn(a, 'parent_campaigns'))),
+    );
+    assert.equal(f.requests.length, 0);
+  } finally {
+    f.close();
+  }
+});
+
+test('RPT-07: the parent campaign field lists retained campaigns as choices, escaped, in English and Arabic', () => {
+  const html = (locale, account) => {
+    const ctx = createContext({
+      document: {addEventListener() {}},
+      esc: value =>
+        String(value ?? '')
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;'),
+      reportDay: day => 'DAY(' + day + ')',
+    });
+    new Script(readFileSync('web/localization.js', 'utf8')).runInContext(ctx);
+    if (locale === 'ar') {
+      ctx.catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
+      new Script("uiLocale='ar';uiMessages=new Map(Object.entries(catalog))").runInContext(ctx);
+    }
+    const source = readFileSync('web/reporting-overview.js', 'utf8'),
+      start = source.indexOf('function reportParentField(');
+    new Script(source.slice(start, source.indexOf('\n}\n', start) + 3)).runInContext(ctx);
+    ctx.account = account;
+    return new Script("reportParentField('snapchat|c|a', '', account)").runInContext(ctx);
+  };
+  const account = {
+    connection_id: 'c',
+    account_id: 'a',
+    parent_campaigns: {
+      snapshot_id: 's',
+      completed_at: Date.parse('2026-09-03T10:00:00Z'),
+      campaigns: [
+        {id: '33333333-3333-4333-8333-000000000002', name: 'Spring <launch>'},
+        {id: '33333333-3333-4333-8333-000000000003', name: null},
+      ],
+    },
+  };
+  const en = html('en', account);
+  assert.match(
+    en,
+    /<input data-report-parent="snapchat\|c\|a" value="" maxlength="36" disabled list="report-parents-c-a">/,
+  );
+  assert.match(en, /<option value="33333333-3333-4333-8333-000000000002" label="Spring &lt;launch&gt;"><\/option>/);
+  assert.match(
+    en,
+    /<option value="33333333-3333-4333-8333-000000000003" label="33333333-3333-4333-8333-000000000003"><\/option>/,
+  );
+  assert.match(en, /Choose a campaign from the report of DAY\(2026-09-03\), or enter its UUID\./);
+  assert.match(html('ar', account), /اختر حملة من تقرير DAY\(2026-09-03\)، أو أدخل معرّف UUID الخاص بها\./);
+  // Without retained choices the field stays a plain UUID input, as before.
+  const plain = html('en', {connection_id: 'c', account_id: 'a', parent_campaigns: null});
+  assert.doesNotMatch(plain, /datalist|list=/);
+  assert.match(plain, /Parent campaign UUID for ad squads/);
 });
