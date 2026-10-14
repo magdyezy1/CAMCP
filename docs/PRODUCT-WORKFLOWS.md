@@ -1181,18 +1181,22 @@ report `id` and `confirmed:true`. Candidate reads support readers; preview/save 
 ## Organic and paid search overlap
 
 `amcp_workspace {action:"search_overlap",gateway:"google_ads_native_action",account_id,connection_id?,
-requirements:{site_url,gsc_connection_id?,date_from,date_to,row_limit?,max_rows?}}` (PRV-07, MCP only) reads the
-Search Console property's queries (`searchAnalytics.query`, dimension `query`, web, `dataState: final`) and the
-customer's `search_term_view` for the same closed dates (at most 90 days, before today; 1–25,000 rows per source),
-and joins them locally on normalized text (NFKC, lower case, collapsed spaces). Every match is labelled
-`approximate_normalized_text`: the products match queries differently, Search Console omits anonymized queries,
-both report top rows (`top_rows_only`, `complete:false`) and their days use different time zones. The table
-classifies each query as `both`, `paid_only` or `organic_only`, keeps exact paid micros, clicks and conversions and
-an impression-weighted organic position, and sorts deterministically. `review_hint` marks a strong organic
-position with paid spend, or a converting paid-only term; it is a prompt for review, never a change. Findings feed
-the reviewed paths above (exact negative keywords from a retained search-term report) or a keyword prepared through
-`amcp_write`. Both sources stay in scope: the Search Console login must hold the exact property and be its default,
-and a foreign site, customer, search term or malformed row refuses the whole read. Nothing is saved.
+requirements:{site_url,gsc_connection_id?,date_from,date_to,row_limit?,max_rows?,include_pages?}}` (PRV-07, MCP
+only) reads the Search Console property's queries (`searchAnalytics.query`, dimension `query`, web,
+`dataState: final`) and the customer's `search_term_view` for the same closed dates (at most 90 days, before today;
+1–25,000 rows per source), and joins them locally on normalized text (NFKC, lower case, collapsed spaces). Every
+match is labelled `approximate_normalized_text`: the products match queries differently, Search Console omits
+anonymized queries, both report top rows (`top_rows_only`, `complete:false`), their days use different time zones,
+and final Search Console data trails by two to three days (`recent_days_may_be_missing`). The table classifies each
+query as `both`, `paid_only` or `organic_only`, keeps exact paid micros, clicks and conversions and an
+impression-weighted organic position, and sorts deterministically. `include_pages:true` adds one `query × page`
+read and lists each organic query's top three landing pages; those by-page metrics rank pages within a query and do
+not add up to its totals. `review_hint` marks a strong organic position with paid spend, or a converting paid-only
+term; it is a prompt for review, never a change. Findings feed the reviewed paths above: each paid row lists its
+native `search_term_views` (up to 20, with `search_term_view_count`), the ids `preview_search_exclusions` takes from
+a retained `google_search_terms` report of the same dates; a keyword is prepared through `amcp_write`. Both sources
+stay in scope: the Search Console login must hold the exact property and be its default, and a foreign site,
+customer, page, search term view or malformed row refuses the whole read. Nothing is saved.
 
 ## Opening website pages
 

@@ -1415,16 +1415,20 @@ Nothing is saved. The website shows the same read with a bilingual timeline unde
 ## Organic and paid search overlap
 
 `amcp_workspace {action:"search_overlap", gateway:"google_ads_native_action", account_id, connection_id?,
-requirements:{site_url, gsc_connection_id?, date_from, date_to, row_limit?, max_rows?}}` reads Search Console
-queries (`dataState: final`, web search) for the exact property (`sc-domain:example.com` or a URL prefix ending in
-`/`) and the customer's `search_term_view` for the same closed dates (at most 90, before today), then joins them on
-normalized text (NFKC, lower case, collapsed spaces). Every match is `approximate_normalized_text`: the products
-match queries differently, Search Console omits anonymized queries, both report top rows (`top_rows_only`) and
-their days use different time zones. Rows are `both`, `paid_only` or `organic_only` with exact paid micros and
-conversions and impression-weighted organic position. `review_hint` marks rows worth discussing
-(`organic_strong_with_paid_spend`, `paid_only_converting`); it is never an instruction to change bids, keywords
-or budgets. Act on a finding only through the existing reviewed paths: exact negative keywords from a retained
-guided search-term report (`amcp_reporting` `capture_preset`, then `search_exclusion_candidates`,
-`preview_search_exclusions` and `create_search_exclusion_plan`), new keywords through `amcp_write` with native
-review. When two Search Console logins hold the property, choose
-`gsc_connection_id` and make it the property's default; an ambiguous default is refused. Nothing is saved.
+requirements:{site_url, gsc_connection_id?, date_from, date_to, row_limit?, max_rows?, include_pages?}}` reads
+Search Console queries (`dataState: final`, web search) for the exact property (`sc-domain:example.com` or a URL
+prefix ending in `/`) and the customer's `search_term_view` for the same closed dates (at most 90, before today),
+then joins them on normalized text (NFKC, lower case, collapsed spaces). Every match is
+`approximate_normalized_text`: the products match queries differently, Search Console omits anonymized queries,
+both report top rows (`top_rows_only`), their days use different time zones and final Search Console data trails
+by two to three days (`recent_days_may_be_missing`; end the window earlier for a fair comparison). Rows are `both`,
+`paid_only` or `organic_only` with exact paid micros and conversions and impression-weighted organic position.
+`include_pages:true` also lists each organic query's top three landing pages (by-page metrics rank pages; they do
+not add up to the query totals). `review_hint` marks rows worth discussing (`organic_strong_with_paid_spend`,
+`paid_only_converting`); it is never an instruction to change bids, keywords or budgets. Act on a finding only
+through the existing reviewed paths: exact negative keywords from a retained guided search-term report
+(`amcp_reporting` `capture_preset` `google_search_terms` for the same dates, then `search_exclusion_candidates`,
+`preview_search_exclusions` with the row's `search_term_views` as `ids`, and `create_search_exclusion_plan`; only
+terms that qualify there can be excluded), new keywords through `amcp_write` with native review. When two Search
+Console logins hold the property, choose `gsc_connection_id` and make it the property's default; an ambiguous
+default is refused. Nothing is saved.

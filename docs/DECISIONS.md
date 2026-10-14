@@ -70,8 +70,10 @@ implementation, owner may revise): the optional native reads ship read-only and 
 never requests `user_email` (omitted rather than hashed, so no person is identifiable), and the website shows it on
 Live portfolio. Reddit account history drops member IDs, usernames, e-mails and full names before any response
 leaves the service and refuses `member_ids` filters. Apple's change history is not added, because the pinned SDK has
-no model to project the people out. The organic/paid overlap is MCP-only, labelled approximate and feeds only the
-existing reviewed keyword and negative-keyword paths. The Reddit Conversions API stays a later, separate step under
+no model to project the people out. Apple app lookup and eligibility are planning reads the campaign guide uses
+before a campaign is prepared; the reviewed campaign write does not freeze them as state, because the pinned SDK has
+no eligibility response model to verify. The organic/paid overlap is MCP-only, labelled approximate and feeds only
+the existing reviewed keyword and negative-keyword paths (paid rows name their `search_term_view` ids). The Reddit Conversions API stays a later, separate step under
 the personal-data policy; the Apple legacy-origin and `orgId` cleanup stays with PRV-04's dated table.
 
 Also applied on 2026-10-10 (CON-06, the Business Profile and Amazon Ads parts of P9, with the review's proposed
