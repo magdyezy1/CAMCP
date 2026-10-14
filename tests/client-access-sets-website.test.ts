@@ -310,6 +310,11 @@ test('a member invited for one client sees only that client on the website and h
       cookie = {Cookie: web.cookie(member.id).split(';')[0]!, 'X-AMCP-CSRF': member.csrf};
     const session = (await (await s.request('/api/session', 'GET', undefined, cookie)).json()) as JsonObject;
     assert.equal((session.accessSet as JsonObject).name, 'Client A');
+    // The working client's choices come with the session, within the member's access: client A only.
+    assert.deepEqual(
+      (session.workingClients as JsonObject[]).map(c => [c.name, (c.accounts as JsonObject[]).map(a => a.account_id)]),
+      [['Client A', [A]]],
+    );
     // Connections, a connection's own page and the working clients show client A only.
     const platforms = JSON.stringify(await (await s.request('/api/platforms', 'GET', undefined, cookie)).json());
     assert.ok(platforms.includes('Client A account'), platforms.slice(0, 400));
@@ -327,6 +332,11 @@ test('a member invited for one client sees only that client on the website and h
     ).json()) as JsonObject;
     assert.deepEqual(
       (adminClients.clients as JsonObject[]).map(c => c.name),
+      ['Client A', 'Client B'],
+    );
+    const adminSession = (await (await s.request('/api/session', 'GET', undefined, s.headers)).json()) as JsonObject;
+    assert.deepEqual(
+      (adminSession.workingClients as JsonObject[]).map(c => c.name),
       ['Client A', 'Client B'],
     );
     // The member's own sets list names only their set.
