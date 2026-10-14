@@ -138,9 +138,9 @@ cites as owner decisions, each the review's recommended or the ticket's proposed
 
 The owner approved these choices on 2026-10-11: P8 as the multi-provider hub, P3 designed to GDPR and KSA PDPL, and
 every other proposal as written in the review handoff. Where the handoff gave a recommendation it is the choice; where
-it gave none, the choice implements the fuller scope and keeps every existing safeguard. Each was chosen during
-implementation and the owner may revise it. A decision records the direction only: the Implementation column says
-where the code stands, and a choice that differs from a default already shipped says so.
+it gave none, the choice implements the fuller scope and keeps every existing safeguard. The owner may revise any of
+them. A decision records the direction only: the Implementation column says where the code stands, and a choice that
+differs from a default already shipped says so.
 
 | ID | Decision | Outcome | Implementation | Governs |
 |---|---|---|---|---|
@@ -157,10 +157,23 @@ where the code stands, and a choice that differs from a default already shipped 
 | P11 | Architecture end state | Accepted: in-repo registries only, no per-provider packages; ledger family `files` paths may change for directory moves; retention per document kind as ARC-02 defines it; `docs/review/ARCHITECTURE.md` becomes partly generated. | Follows in ARC-01, ARC-02 and ARC-04 | ARC-01, ARC-02, ARC-04 |
 | P12 | Documentation audience | Accepted: the primary audience is workspace owners at agencies and in-house teams; owner documentation is bilingual (English first, then the Arabic translation); the delivery records move to `docs/records/` and `docs/archive/` with links preserved; signed-in visitors to `/` go to `/dashboard`. | Follows in DOC-03 and WEB-06 | DOC-03, WEB-06 |
 
+Questions in the handoff that these choices do not answer stay with the owner: P6's open questions (listed above), P7
+whether GMV Max or TikTok Shop is on the roadmap, and P9 whether a read-only Snapchat item comparison is wanted and
+whether a non-destructive retire is preferred over a Meta delete contract.
+
 The review's resource and authorization requests R1–R8 (test accounts, named reads, a disposable Sheets destination,
 declared provider approvals, LinkedIn programs and DV360, reviewers, a staging environment, the workload profile) are
 owner actions, not decisions, and remain open. The [acceptance runbooks](acceptance/README.md) prepare each of them,
 and live acceptance stays read-only until R1 is answered.
+
+## 2026-10-13: Zoho CRM scope
+
+The owner set the scope of the Zoho CRM source on 2026-10-13. Zoho CRM is not one of the review's register items; it is
+planned with the parked providers.
+
+| Decision | Outcome | Implementation | Revisit trigger | Governs |
+|---|---|---|---|---|
+| Zoho CRM scope | Accepted: CRM to ads only. AMCP reads Zoho CRM leads, contacts and deals read-only, to build offline conversion uploads and customer-list audiences, and sends what it builds to Meta, Google, TikTok, LinkedIn or Snapchat only through the existing reviewed write engine (review, spending policy, idempotency and read-back unchanged). Nothing is written to Zoho. Leads and contacts are personal data, so their reads and uploads follow the [personal-data policy](review/PERSONAL-DATA-POLICY.md) (P4). | Not started: planned for wave 5 with the parked providers (Zoho OAuth with its data-center domains, bounded paginated reads of leads, contacts and deals, mapped to offline conversion events and customer-list audiences of existing reviewed families) | The owner wants AMCP to write to Zoho (for example a lead status), or another CRM | The Zoho CRM source (wave 5), SEC-04 |
 
 ## October 2026: earlier owner decisions
 
