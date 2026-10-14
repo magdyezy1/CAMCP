@@ -401,6 +401,34 @@ test('WRT-09: approval_mode accepts only its three modes', () => {
   }
 });
 
+test('WRT-09: an approval needs two-step verification where the workspace requires it, and stays in its workspace', async () => {
+  // Refusals of the approval itself: a session without two-step under a workspace two-step policy (P2), and a member
+  // of another workspace, who can neither see nor approve the review. Neither records an approval or sends anything.
+  const f = tiktok();
+  try {
+    f.workspacePolicy({approval_mode: 'website_approval'});
+    const r = await f.prepare(1100);
+    const approve = as => () =>
+      approveReview(f.store, as, r.data.review_id, {fingerprint: r.data.fingerprint, confirmed: true});
+    assert.throws(approve({...colleague, mfaPolicy: true}), e => assertRefused(e, 'MFA_STEP_REQUIRED', {status: 403}));
+    const elsewhere = {...colleague, tenantId: 'another-workspace'};
+    assert.throws(
+      () => approvalView(f.store, elsewhere, r.data.review_id),
+      e => assertRefused(e, 'NOT_FOUND', {status: 404}),
+    );
+    assert.throws(approve(elsewhere), e => assertRefused(e, 'NOT_FOUND', {status: 404}));
+    assert.equal(f.store.db.prepare("SELECT 1 FROM documents WHERE kind='write_approval'").get(), undefined);
+    assertRefused(await f.execute(r.data.review_id), 'HUMAN_APPROVAL_REQUIRED', {writes: () => f.writes.length});
+    // With two-step verified the same member approves, and the review runs once.
+    approve({...colleague, mfaPolicy: true, mfaVerified: true})();
+    const done = await f.execute(r.data.review_id);
+    assert.equal(done.success, true, JSON.stringify(done.error));
+    assert.equal(f.writes.length, 1);
+  } finally {
+    f.store.close();
+  }
+});
+
 test('WRT-09 website: only a signed-in session with CSRF approves; the MCP tool has no approve action', async () => {
   const origin = 'https://amcp.shop',
     master = Buffer.alloc(32, 59).toString('base64'),
