@@ -3798,7 +3798,7 @@ function catalogComparisonMarkup(out, request, preview) {
       x && groups?.remedy === 'scheduled_feed' && out.items.some(item => item.blocked_reason === 'hidden_variant')
         ? `<p class="notice">${esc(
             uiText(
-              'X lists only the first product of each group, so {count} grouped records can hide the supplied products marked as possible hidden variants: {records}. Add or change product variants through the catalog’s scheduled feed.',
+              'X lists only the first product of each group, so grouped records can hide the supplied products marked as possible hidden variants ({count} in this catalog: {records}). Add or change product variants through the catalog’s scheduled feed.',
               {
                 count: groups.grouped_record_count,
                 records:

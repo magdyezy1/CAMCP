@@ -813,6 +813,20 @@ failure and needs no correction. Any difference gets an ordinary review. Unsent 
 retain original recovery. No inventory deletion or point-in-time/complete variant proof is inferred. See
 [workflow and exact collection bounds](review/DELIVERY-2026-10-04-X-CATALOG-COMPARISON.md).
 
+**Variant groups (COM-02 E).** X lists only the first product of a group, so a grouped record can hide a supplied SKU.
+When the catalog lists grouped records, the comparison returns `variant_groups` (the grouped record count, up to ten
+named records, `expansion` and `remedy: scheduled_feed`), the website names those records beside a possible hidden
+variant, and the native review's refusal carries the same records: add or change variants through the catalog's
+scheduled feed. X does not document whether `GET products?item_group_key=` lists every member of a group, so AMCP reads
+group members only after an owner-authorized read-only qualification read on a catalog with a known group (owner
+resource R2, item 7) shows complete membership and the owner sets `AMCP_X_CATALOG_GROUP_EXPANSION=qualified`. Then each
+listed group is read by its key, at most 10 groups and 3 pages of 100 members per group and scan, and a supplied SKU's
+absence is established only when every group was read completely: each member belongs to its group once, never
+collides with another listed product, and the listed record of each group is among its members. A member SKU is a
+grouped product, never a new one; anything else (`group_status_unknown`, `group_limit`, `page_limit`,
+`listed_member_missing`) keeps the block. Both scans must agree on the membership hash. Unset, nothing changes but the
+named records; members are never returned, only counted and hashed.
+
 ### Original X identities and verification upgrade
 
 Catalog/product/set/feed evidence must retain exact native string IDs and literal manual membership. Numeric,
@@ -837,6 +851,48 @@ down from about 130). Every campaign step records its native request attempts pe
 retain original keys and read-only recovery. Deletion is permanent and a scheduled feed may restore a product
 it still contains. No source-absence deletion policy or feed rewrite is inferred.
 See [workflow, exact limits and synthetic qualification](review/DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md).
+
+**Listed products outside the source (COM-02 B, owner decision P9).** A discontinued SKU that is no longer in the
+source can be removed only by explicit intent: inspect the other listed X products, select individual products by
+their native key (nothing is preselected, a selection survives search and paging), preview them
+(`preview_catalog_removal` with `requirements: {selection_source: "listed_inventory", product_keys, listed_inventory_hash}`)
+and type the number of products back to save (`create_catalog_removal` with `confirmed_count`). The preview refuses a
+listing that changed since the inspection; grouped, unknown and unlisted keys are refused; 1–50 keys. No source row is
+invented, so the saved plan's brief and removal binding name the listing hash instead of a source hash. Each step keeps the single-key native
+review, the owner's `allow_deletion` policy (a `false` policy refuses the step before anything is deleted) and
+read-back. Nothing is ever selected because a source lacks it.
+
+### Catalog sale prices and retirement (COM-02 A, B)
+
+Meta and X imports accept an optional `sale_price`: a decimal lower than `price`, in the product currency (an explicit
+currency suffix must be that currency), with optional `sale_price_start_date` and `sale_price_end_date` in ISO 8601
+with an explicit offset, kept exactly as written (X needs both or neither and receives them as one
+`sale_price_effective_date` `start/end`). Meta receives the sale in hundredths, so digits beyond the second decimal
+place must be zeros; X receives `amount CUR`. The comparison uses Meta's own `sale_price_amount` filter and X's exact
+decimal value, and the native review and read-back check the sale that was sent. A source without a sale sends none:
+the destination keeps its current sale and the comparison names it as a value the source does not send. For Meta that
+puts the product in the review set as `unknown` (owner decision P9); for X it is a note. Clearing a destination sale is
+not offered.
+
+Retirement is the non-destructive way to stop advertising a discontinued product, for Meta (which has no product
+delete contract) and X. `requirements: {retire_retailer_ids, retire_availability: "out of stock" | "discontinued"}` on
+`catalog_preview`, `catalog_compare` and `catalog_plan` sends those supplied products through the same reviewed update
+with that availability, so ads stop showing them while the product, its history and its sets stay. It needs
+`allow_upsert: true`, and a comparison blocks retiring a product the catalog does not have (`retire_absent`: the update
+would create it). On the website an update comparison offers Retire checkboxes for existing products; nothing is
+deleted.
+
+### Read-only Snapchat catalog comparison (COM-02 D)
+
+Snapchat changes catalog products only through product feeds, so Commerce offers Snapchat ad accounts a read-only
+comparison and saves nothing (`catalog_plan` refuses `CATALOG_FEED_ONLY`). AMCP reads the selected ad account's
+organization, the catalog (it must belong to that organization), then the 1–50 supplied IDs in one `products/search`
+request with an `ID IS_ANY` filter (pages of 1,000, at most three; a repeated, empty-but-continued, foreign or
+duplicated page is refused) twice, and the account and catalog again; both scans must agree. Prices stay exact decimal
+strings and a supplied `sale_price` compares exactly. Every product that differs carries `fix_in: "feed"` and the
+response `remedy: "fix_in_feed"`. Limits: 30 attempts, 9,000 rows, 4 MiB and 60 seconds. Feed processing takes time, so
+this is current evidence, not the next feed result. The search body follows the documented product-set filter grammar;
+its live acceptance is an owner-authorized read on a selected catalog, which has not run yet.
 
 ### Verify the committed release source
 

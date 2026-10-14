@@ -172,8 +172,8 @@ minutes. Native Meta money stays exact and unconverted, absent values stay unkno
 from configured status. Inventory is current provider order/default visibility, not a point-in-time reconciliation
 or write approval. `measurement_audit`
 delegates the existing GTM configuration read and does not prove event delivery. `catalog_preview` validates up to
-50 Meta or X products with explicit upsert and exact prices, while `catalog_plan` saves native per-item steps for normal
-review. Neither catalog action executes changes. `amcp_reporting_overview {action:"report_pack",id}` returns a
+50 Meta or X products with explicit upsert and exact prices (Snapchat products for a read-only comparison), while
+`catalog_plan` saves native per-item steps for normal review. Neither catalog action executes changes. `amcp_reporting_overview {action:"report_pack",id}` returns a
 retained-snapshot presentation with separate measurement groups, coverage and raw-evidence paths. The website at
 `/report-pack?report_id=<id>` offers HTML preview/download, generated PDF/Excel and print controls.
 Approved client profiles can include optional `report_presentation` with `brand_name`, six-digit hex
@@ -957,7 +957,8 @@ single-product JSON contract. Supply all ten source fields explicitly: retailer_
 image_url, url, availability, condition, brand and plain text description. IDs and price text retain leading zeros;
 currency must be an explicit uppercase three-letter code. This importer accepts names up to 150 characters,
 descriptions up to 5,000, and the existing bounded 12-digit/six-fraction native price syntax. Source links use HTTPS
-without credentials. No sale selection, stock/condition conversion, tax treatment, variants or currency is inferred.
+without credentials. A sale is only what the source supplies (see sale prices below); no stock/condition conversion,
+tax treatment, variants or currency is inferred.
 Choose the intended source price and native availability/condition values before previewing. Arbitrary extra source
 fields and HTML descriptions are refused. Only selected local export columns are sent.
 
@@ -974,6 +975,40 @@ not reset an accepted/uncertain key or make repeating a mutation safe. An exact-
 receipt and requires investigation or a new reviewed correction. Existing X product/group scan bounds remain.
 Meta source validation, hundredths, explicit create-only policy and current-product comparison remain unchanged;
 catalog_compare now also qualifies bounded supplied X products. It repeats complete scans of at most 1,000 listed products, brackets current FULL-promotable-user catalog ownership and compares supported decimal prices exactly. Grouped/unknown records block potentially hidden absent variants. Save only eligible original source rows as an unapproved catalog_plan; no review, product mutation or deletion occurs during comparison. Native review independently retains both group fields and withholds grouped/unknown upserts. Limits: 180 attempts including retries, 5,000 collected rows, 4 MiB and 60 seconds. Changed/partial evidence is refused; this is sequential evidence, not an atomic or complete variant inventory.
+
+**Sale prices (COM-02 A).** Meta and X products accept optional `sale_price` (a decimal below `price` in the product
+currency; an explicit suffix must be that currency), `sale_price_start_date` and `sale_price_end_date` (ISO 8601 with an
+explicit offset, literal; X needs both or neither and receives `sale_price_effective_date` `start/end`). Meta receives
+hundredths (digits beyond the second place must be zeros), X `amount CUR`. `catalog_compare` returns
+`sale_price_matches` beside `price_matches`, from Meta's `sale_price_amount` filter or X's exact value; native review
+and read-back check the sent sale. Refusals are `INVALID_CATALOG_SALE`. Without a supplied sale the destination keeps
+its own; it appears in `unsent_fields`, and a Meta product with populated values the source does not send is `unknown`
+and in `review_retailer_ids` (owner decision P9). Clearing a destination sale is not offered.
+
+**Retirement (COM-02 B).** `requirements: {retire_retailer_ids: [1–50 supplied IDs], retire_availability: "out of
+stock" | "discontinued"}` on catalog_preview, catalog_compare and catalog_plan updates those supplied products with that
+availability through the same reviewed upsert; nothing is deleted (Meta has no delete contract). It needs
+`allow_upsert:true` (`INVALID_CATALOG_RETIREMENT` otherwise), and a comparison blocks a product the catalog lacks with
+`blocked_reason: "retire_absent"`.
+
+**Variant groups (COM-02 E).** A comparison of a catalog with grouped records returns `variant_groups`
+(`grouped_record_count`, up to ten `grouped_records`, `expansion`, `reason`, `member_count`, `membership_hash`,
+`remedy`). While `expansion` is `not_qualified` or `incomplete`, absent supplied SKUs stay `hidden_variant` with
+`remedy: "scheduled_feed"`, and the native review refusal carries the same records. When the owner has qualified X's
+`item_group_key` listing (`AMCP_X_CATALOG_GROUP_EXPANSION=qualified`), every listed group is read in full (at most 10
+groups, 3 pages each); only a `complete` expansion establishes absence, and a SKU found among a group's members is a
+`grouped_product`.
+
+**Shared comparison item (COM-03).** Every destination returns `item_schema_version: "catalog-comparison-item-v2"`;
+each item carries `state`, `changes`, `unknown_fields`, `unsent_fields`, `blocked`, `blocked_reason` (null when not
+blocked) and `serving_notes` (`availability_limits_serving`, `staging_visibility`) beside its own evidence.
+
+**Snapchat (COM-02 D, read-only).** `catalog_preview` and `catalog_compare` with `gateway:"snapchat_native_action"`
+take 1–50 products (retailer_id, name, price, currency, image_url; optional url, availability, condition, brand,
+description, sale_price) and compare them with the catalog through two agreeing `products/search` `ID IS_ANY` scans
+bracketed by the account's organization and catalog ownership. Prices stay exact decimal strings. The response has
+`writes:"feed_only"` and `remedy:"fix_in_feed"`, and every differing item `fix_in:"feed"`. `catalog_plan` refuses
+`CATALOG_FEED_ONLY`; retirement is refused. Limits: 30 attempts, 9,000 rows, 4 MiB, 60 seconds.
 
 ## Exact X catalog identity and receipt evidence
 
@@ -999,6 +1034,16 @@ the original selected evidence at prepare and again at execute; a difference is 
 sent, the step keeps its state, and a new removal preview is needed. Every deletion needs its own review, confirmation and read-back. X documents permanence and
 additive feeds; a still-present feed product may return. This does not establish early-access entitlement or
 reconcile variants/products absent from the supplied source. No credentials or generated keys are inferred.
+
+**Listed products outside the source (COM-02 B).** First read `catalog_compare` with
+`inspect_other_listed_products:true`; then `preview_catalog_removal {gateway, account_id, connection_id, catalog_id,
+requirements: {selection_source: "listed_inventory", product_keys: [1–50 native keys from that listing],
+listed_inventory_hash: <listed_inventory.material_hash>}}` (no products, retailer_ids or allow_upsert). A listing that
+changed since the inspection is `CATALOG_REMOVAL_CHANGED`; grouped, unknown and unlisted keys are refused. Save with
+`create_catalog_removal {preview_id, preview_hash, confirmed:true, confirmed_count: <number of targets>}`; the count
+is required for a listed selection. Nothing is selected because a source lacks it, and the owner's `allow_deletion`
+policy still governs each step. `catalog_compare` with the same `requirements` (without the hash) returns the current
+evidence of those keys only (`record_kind: "x_catalog_listed_selection"`).
 
 ## Google Search recorded-value workflows
 
@@ -1170,13 +1215,13 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `measurement_google_goals` | Current Google Ads conversion goals of one customer, read twice under one fence; optional requirements {currency}. Nothing is saved. | **`gateway`**, **`account_id`**, `connection_id`, `requirements` | provider reads | reader |
 | `measurement_ga4_config` | One GA4 property configuration (key events, custom definitions, streams, Ads links, retention); optional requirements {sections}. | **`gateway`**, **`account_id`**, `connection_id`, `requirements` | provider reads | reader |
 | `measurement_ledger` | Six fixed evidence layers for one Google Ads customer or GA4 property; a failed read leaves its layer unknown. Nothing is saved. | **`gateway`**, **`account_id`**, `connection_id` | provider reads | reader |
-| `catalog_preview` | Locally validates 1–50 selected Meta or X products with exact source prices. | **`gateway`**, **`account_id`**, **`catalog_id`**, **`products`**, `connection_id`, `allow_upsert`, `name` | no provider request | reader |
+| `catalog_preview` | Locally validates 1–50 selected Meta, X or Snapchat products with exact source prices. | **`gateway`**, **`account_id`**, **`catalog_id`**, **`products`**, `connection_id`, `allow_upsert`, `name`, `requirements` | no provider request | reader |
 | `catalog_source` | Reads selected WooCommerce products or variations (or, with source_kind:inventory, the published inventory). | **`gateway`**, **`account_id`**, **`connection_id`**, **`requirements`** | provider reads | reader |
 | `catalog_sources` | Lists configured WooCommerce source connections without credentials or network requests. | — | no provider request | reader |
-| `catalog_compare` | Compares supplied products with the current Meta or X catalog: new, changed, matching or unknown. | **`gateway`**, **`account_id`**, **`catalog_id`**, **`products`**, `connection_id`, `allow_upsert`, `inspect_other_listed_products`, `absent_source_policy`, `name` | provider reads | reader |
-| `catalog_plan` | Saves the supplied product subset as an unapproved campaign plan; absent products are never deleted. | **`gateway`**, **`account_id`**, **`catalog_id`**, **`products`**, `connection_id`, `allow_upsert`, `name` | no provider request; saves campaign_run | operator |
-| `preview_catalog_removal` | Reads 1–50 explicit X products and previews their removal for ten minutes. | **`gateway`**, **`account_id`**, **`catalog_id`**, **`retailer_ids`**, **`products`**, `connection_id`, `allow_upsert`, `name` | provider reads; saves x_catalog_removal_preview | operator |
-| `create_catalog_removal` | Saves one unapproved single-product DELETE step per previewed product; saving deletes nothing. | **`preview_id`**, **`preview_hash`**, **`confirmed`** | provider reads; saves campaign_run | operator |
+| `catalog_compare` | Compares supplied products with the current Meta, X or Snapchat (read-only) catalog: new, changed, matching or unknown. | **`gateway`**, **`account_id`**, **`catalog_id`**, `connection_id`, `products`, `allow_upsert`, `inspect_other_listed_products`, `absent_source_policy`, `name`, `requirements` | provider reads | reader |
+| `catalog_plan` | Saves the supplied product subset as an unapproved campaign plan; absent products are never deleted. | **`gateway`**, **`account_id`**, **`catalog_id`**, **`products`**, `connection_id`, `allow_upsert`, `name`, `requirements` | no provider request; saves campaign_run | operator |
+| `preview_catalog_removal` | Reads 1–50 explicit X products (supplied retailer_ids, or listed product_keys in requirements) and previews their removal for ten minutes. | **`gateway`**, **`account_id`**, **`catalog_id`**, `connection_id`, `retailer_ids`, `products`, `allow_upsert`, `name`, `requirements` | provider reads; saves x_catalog_removal_preview | operator |
+| `create_catalog_removal` | Saves one unapproved single-product DELETE step per previewed product; saving deletes nothing. A listed selection also needs confirmed_count. | **`preview_id`**, **`preview_hash`**, **`confirmed`**, `confirmed_count` | provider reads; saves campaign_run | operator |
 | `delete_profile` | Deletes a client profile at its current revision. | **`id`**, **`revision`**, **`confirmed`** | no provider request; saves client_profile | operator |
 | `briefs` | Saved client briefs, newest first, with the workspace limit. | — | no provider request | reader |
 | `brief` | One saved client brief. | **`id`** | no provider request | reader |
@@ -1197,7 +1242,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 
 | Action | What it does | Arguments | Effects | Role |
 |---|---|---|---|---|
-| `create` | Saves a campaign dependency plan from a name, a brief and explicit native steps or an approved template. | **`name`**, **`brief`**, `steps`, `profile_id`, `template`, `variables`, `idempotency_key`, `acknowledge_temporary_sources`, `allocation_preview_id`, `allocation_preview_hash`, `consent_preview_id`, `consent_preview_hash`, `catalog_removal_preview_id`, `catalog_removal_preview_hash`, `catalog_removal_save_nonce`, `search_exclusion_preview_id`, `search_exclusion_preview_hash`, `id`, `expected_revision`, `confirmed`, `detail` | no provider request; saves campaign_run | operator |
+| `create` | Saves a campaign dependency plan from a name, a brief and explicit native steps or an approved template. | **`name`**, **`brief`**, `steps`, `profile_id`, `template`, `variables`, `idempotency_key`, `acknowledge_temporary_sources`, `allocation_preview_id`, `allocation_preview_hash`, `consent_preview_id`, `consent_preview_hash`, `catalog_binding`, `search_exclusion_preview_id`, `search_exclusion_preview_hash`, `id`, `expected_revision`, `confirmed`, `detail` | no provider request; saves campaign_run | operator |
 | `get` | One plan, compact; step_id returns one step whole, detail:"full" the whole plan. | **`id`**, `step_id`, `detail` | no provider request | reader |
 | `list` | Campaign plans you own, administer or collaborate on, newest first, filtered and paged by next_cursor. | `offset`, `limit`, `cursor`, `state`, `archived`, `awaiting_approval`, `search`, `gateway`, `account_id`, `connection_id`, `profile_id` | no provider request | reader |
 | `prepare_next` | Prepares the native review of the next step whose predecessors are verified. | **`id`**, `detail` | provider reads; saves campaign_run, write_review | operator |

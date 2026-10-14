@@ -838,8 +838,9 @@ Every item then gets the normal native ownership, before-state, review, receipt 
 verification path. There is no implicit deletion and no direct write on import. WooCommerce synchronization,
 simultaneous destination fan-out and automatic feed deletion are not implemented.
 
-The page opens with the reviewed import and says that product imports support Meta and X while Snapchat catalogs are
-managed through feeds. With no Meta or X account it links to Connections. WooCommerce store sources follow the
+The page opens with the reviewed import and says that product imports support Meta and X, while Snapchat catalogs
+change only through feeds and their products are compared read-only (COM-02 D). With no Meta, X or Snapchat account
+it links to Connections. WooCommerce store sources follow the
 import; until a source is configured they sit in one collapsed "Connect a store source (administrators)" disclosure.
 
 The native product review and verification require exact account/catalog/business identities and a complete,
@@ -1382,6 +1383,23 @@ again at execute. A feed may restore products it still contains. Products outsid
 missing/grouped/unknown records and deleting absent-source inventory are outside this workflow.
 See [delivery](review/DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md).
 
+### Sale prices, retirement, variant groups and Snapchat comparisons
+
+- **Sale prices (Meta and X).** Add optional `sale_price`, `sale_price_start_date` and `sale_price_end_date` columns (or
+  map them). The sale is a decimal lower than the price in the product currency; the start and end are ISO 8601 times
+  with an explicit offset, kept as written (X needs both or neither). The preview shows the native sale and the
+  comparison checks it exactly. Without sale columns the destination keeps its current sale; the comparison names it,
+  and a Meta product holding values your source does not send needs review (owner decision P9).
+- **Retire instead of delete.** After an update comparison, tick **Retire** for existing products you stopped selling
+  and save a retirement draft: each product is updated to "discontinued" or "out of stock", so ads stop showing it
+  while the product stays. This is the only removal path for Meta, which has no product deletion.
+- **X variant groups.** When a supplied product may be a hidden variant, the comparison names the grouped records that
+  can hide it; add or change variants through the catalog's scheduled feed. After the owner qualifies X's group
+  listing, AMCP reads the groups and new products outside them are no longer blocked.
+- **Snapchat (read-only).** Choose a Snapchat ad account to compare supplied products with a Snapchat catalog. Exact
+  prices and fields are compared twice; products that differ say **Fix this product in the product feed**, because
+  Snapchat changes products only through feeds. Nothing is saved for Snapchat.
+
 ### Current primary conversion value settings
 
 For either value-bidding Search recipe, Check account prerequisites now reads the matching primary actions'
@@ -1577,7 +1595,12 @@ campaign budgets or exclusions. See [scope and qualification](review/DELIVERY-20
 After validating your supplied products for X, choose **Inspect other listed X products**.
 The result shows listed products outside that source selection, original price strings, IDs
 and group information. Search and page through this already collected view without another
-provider read. Other listed products stay retained and cannot be selected for removal here.
+provider read. Other listed products stay retained unless you select them: tick individual
+listed products (none is selected for you; grouped and unknown products cannot be ticked), choose
+**Preview removal of selected listed products**, check the native keys and current prices, and
+type the number of products to save an unapproved removal draft. A listing that changed since
+the inspection needs a new inspection. Each removal still has its own native review, the owner's
+deletion policy and read-back; nothing is selected because your source lacks it (owner decision P9).
 X listings may hide variants, and your supplied selection does not establish full-store
 absence. Changed native observations require a new explicit read. A current failure stays
 visible with its request reference; editing the form clears old evidence and suppresses late

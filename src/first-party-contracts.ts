@@ -514,7 +514,7 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'catalog_preview',
-      'Locally validates 1–50 selected Meta or X products with exact source prices.',
+      'Locally validates 1–50 selected Meta, X or Snapchat products with exact source prices.',
       ['gateway', 'account_id', 'catalog_id', 'products'],
       ['connection_id', 'allow_upsert', 'name', 'requirements'],
       local,
@@ -541,7 +541,7 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'catalog_compare',
-      'Compares supplied products with the current Meta or X catalog: new, changed, matching or unknown.',
+      'Compares supplied products with the current Meta, X or Snapchat (read-only) catalog: new, changed, matching or unknown.',
       ['gateway', 'account_id', 'catalog_id'],
       [
         'connection_id',
