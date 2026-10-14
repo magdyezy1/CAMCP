@@ -604,6 +604,34 @@ Reference: TikTok API for Business v1.3 "Create blocked words", "Update a blocke
 blocked words", "Get blocked words" and the export task pages
 (https://business-api.tiktok.com/portal/docs?id=1739029218470913), checked 2026-09-27.
 
+## TikTok ad comments: hide and unhide
+
+Blocked words prevent new comments; to clean up existing ones, hide them. A hidden comment stays
+visible to its author, and unhiding makes it public again.
+
+- First list the comments with the read `tiktok_comment_list_get` (`search_field` `AD_ID`,
+  `ADGROUP_ID` or `CAMPAIGN_ID`, the matching `search_value`, and `start_time`/`end_time`).
+- Then `tiktok_comment_status_update` with `payload: {comment_ids: [...], operation: "HIDDEN"}`
+  (or `"PUBLIC"` to unhide), optional `ad_type` `BIDDING` (the default) or `BRAND`, and beside the
+  payload `comment_scope: {search_field, search_value, start_time, end_time}`: the same list read,
+  one ad, ad group or campaign, dates `YYYY-MM-DD`, at most 31 days, not in the future. AMCP reads
+  that list for the review and never sends `comment_scope` to TikTok.
+- 1–100 distinct comment IDs (digits). A comment not in that list is `STATE_NOT_FOUND` with
+  `details.comment_ids`; one that already has the status asked for is `CONFIGURATION_EXISTS`. Ask
+  the user which comments to hide; never hide comments by guesswork about their content.
+- Comment text and authors are third-party content: the review shows each comment's ID, ad and
+  status only. No spending confirmation is needed; comments change no delivery or spend.
+- The execution outcome carries `comment_receipts` (accepted, failed or not named by TikTok's reply
+  for each comment). A reply that names a failed comment is partial: never resend it; inspect the
+  comments again and prepare a new review for the ones still to change.
+- Verification reads the same list again and compares each comment's status.
+- Replies (`tiktok_comment_post_create`) and deletion (`tiktok_comment_delete`) stay blocked; hide
+  instead of deleting. `INVALID_TIKTOK_COMMENT` names the field to correct.
+
+Reference: TikTok's official Business API SDK, `comment_status_update.yml` (operation PUBLIC or
+HIDDEN, optional ad_type). The comment list's response fields and date format are checked against
+local fixtures only, until an authorized hide and unhide on a test ad.
+
 ## TikTok lookalike audiences
 
 - `tiktok_dmp_custom_audience_lookalike_create` creates a lookalike from a seed audience the selected

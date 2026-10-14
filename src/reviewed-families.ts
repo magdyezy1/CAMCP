@@ -123,6 +123,7 @@ import {snapProductSetFamily} from './snapchat-product-sets.js';
 import {snapProductFeedFamily} from './snapchat-product-feeds.js';
 import {snapCatalogFamily} from './snapchat-catalogs.js';
 import {snapSegmentDeleteFamily} from './snapchat-segment-deletions.js';
+import {tiktokCommentFamily} from './tiktok-ad-comments.js';
 import {tiktokAudienceEditFamily} from './tiktok-audience-edits.js';
 import {tiktokBlockedWordFamily} from './tiktok-blocked-words.js';
 import {tiktokBrandSafetyFamily} from './tiktok-brand-safety.js';
@@ -304,6 +305,7 @@ export function reviewedFamilies(): readonly ReviewedFamily[] {
     snapProductFeedFamily, // snapchat_product_feeds
     snapCatalogFamily, // snapchat_catalogs
     snapSegmentDeleteFamily, // snapchat_segment_deletions
+    tiktokCommentFamily, // tiktok_ad_comments
     tiktokAudienceEditFamily, // tiktok_audience_edits
     tiktokBlockedWordFamily, // tiktok_blocked_words
     tiktokBrandSafetyFamily, // tiktok_brand_safety
