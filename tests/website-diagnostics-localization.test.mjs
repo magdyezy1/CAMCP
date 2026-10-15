@@ -6,7 +6,7 @@ import {MirrorError, errorResult} from '../dist/src/errors.js';
 import {accountWorkflowFixture} from './fixtures/account-workflows-ui.mjs';
 const counts = {
   'server/account-routes.ts': 4,
-  'server/account-security.ts': 44,
+  'server/account-security.ts': 45,
   'server/asset-discovery.ts': 49,
   'server/google-account-discovery.ts': 8,
   'server/google-reauthorization.ts': 12,
@@ -65,7 +65,7 @@ test('website diagnostic ownership excludes unrelated source, unresolved constru
 test('all thirteen selected website sources have exact authored diagnostic coverage with native tokens and limits preserved', () => {
   for (const [file, count] of Object.entries(counts))
     assert.equal(inspectWebsiteFailures(fs.readFileSync(file, 'utf8'), file).size, count, file);
-  assert.equal(owned.size, 257);
+  assert.equal(owned.size, 258);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];
