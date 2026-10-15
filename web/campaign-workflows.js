@@ -144,6 +144,7 @@ const campaignNativeValue = value => `<bdi dir="ltr">${esc(value ?? uiText('Unkn
 const campaignProviderNames = {
   google_ads_native_action: 'Google Ads',
   snapchat_native_action: 'Snapchat',
+  meta_native_action: 'Meta',
 };
 const allocationReviewLabels = {
   provider: 'Provider',
@@ -160,6 +161,9 @@ const allocationReviewLabels = {
   proposedAverage: 'Proposed average daily budget',
   micros: 'Native budget in micros',
   periodBudget: 'Reference-period allocation',
+  // DEC-02: Meta budgets sit on the campaign or on its one spending ad set, in whole Meta minor units.
+  owner: 'Budget owner',
+  minorUnits: 'Native budget in Meta minor units',
 };
 function allocationAmountMatches(amount, micros) {
   if (typeof amount !== 'string' || !/^\d+(?:\.\d{1,6})?$/.test(amount)) return false;
@@ -168,10 +172,16 @@ function allocationAmountMatches(amount, micros) {
 }
 function allocationReviewContext(run) {
   const a = run.allocation;
-  if (!a || !['google_ads_native_action', 'linkedin_native_action', 'snapchat_native_action'].includes(a.gateway))
+  if (
+    !a ||
+    !['google_ads_native_action', 'linkedin_native_action', 'snapchat_native_action', 'meta_native_action'].includes(
+      a.gateway,
+    )
+  )
     return null;
   const snap = a.gateway === 'snapchat_native_action',
-    linkedin = a.gateway === 'linkedin_native_action';
+    linkedin = a.gateway === 'linkedin_native_action',
+    meta = a.gateway === 'meta_native_action';
   if (
     typeof a.account_id !== 'string' ||
     !a.account_id ||
@@ -197,15 +207,22 @@ function allocationReviewContext(run) {
         !/^\d+$/.test(t.daily_budget_micros) ||
         !allocationAmountMatches(t.daily_budget, t.daily_budget_micros) ||
         (linkedin &&
-          (!/^[1-9][0-9]{0,19}$/.test(t.campaign_id) || t.entity_id !== 'urn:li:sponsoredCampaign:' + t.campaign_id)),
+          (!/^[1-9][0-9]{0,19}$/.test(t.campaign_id) || t.entity_id !== 'urn:li:sponsoredCampaign:' + t.campaign_id)) ||
+        (meta &&
+          (!/^[1-9][0-9]{0,31}$/.test(t.campaign_id) ||
+            t.entity_id !== t.campaign_id ||
+            !['campaign', 'ad_set'].includes(t.budget_owner) ||
+            (t.budget_owner === 'ad_set' && !/^[1-9][0-9]{0,31}$/.test(t.adset_id ?? '')) ||
+            typeof t.daily_budget_native !== 'string' ||
+            !/^[1-9][0-9]*$/.test(t.daily_budget_native))),
     )
   )
     return null;
-  return {allocation: a, snap, linkedin};
+  return {allocation: a, snap, linkedin, meta};
 }
 function allocationProposalView(context) {
   if (!context) return '';
-  const {allocation: a, snap, linkedin} = context;
+  const {allocation: a, snap, linkedin, meta} = context;
   const caption = uiText(snap ? 'Retained ad-squad budgets' : 'Retained campaign budgets');
   const fields = [
     [allocationReviewLabels.provider, campaignNativeValue(campaignProviderNames[a.gateway])],
@@ -215,11 +232,13 @@ function allocationProposalView(context) {
     [allocationReviewLabels.period, esc(uiText('Days: {count}', {count: uiNumber(a.period_days)}))],
     ...(snap ? [[allocationReviewLabels.parent, campaignNativeValue(a.parent_campaign_id)]] : []),
   ];
+  const daily = snap || linkedin || meta;
   const headers = [
     snap ? allocationReviewLabels.squad : allocationReviewLabels.campaign,
-    snap || linkedin ? allocationReviewLabels.currentDaily : allocationReviewLabels.currentAverage,
-    snap || linkedin ? allocationReviewLabels.proposedDaily : allocationReviewLabels.proposedAverage,
-    ...(linkedin ? [] : [allocationReviewLabels.micros]),
+    ...(meta ? [allocationReviewLabels.owner] : []),
+    daily ? allocationReviewLabels.currentDaily : allocationReviewLabels.currentAverage,
+    daily ? allocationReviewLabels.proposedDaily : allocationReviewLabels.proposedAverage,
+    ...(linkedin ? [] : [meta ? allocationReviewLabels.minorUnits : allocationReviewLabels.micros]),
     allocationReviewLabels.periodBudget,
   ];
   return `<section class="allocation-proposal" aria-label="${esc(uiText('Retained budget proposal'))}"><h3>${esc(uiText('Retained budget proposal'))}</h3><p class="form-note">${esc(uiText('These are the saved preview amounts. Current provider settings must be checked again before review and execution.'))}</p><dl>${fields.map(([label, value]) => `<div><dt>${esc(uiText(label))}</dt><dd>${value}</dd></div>`).join('')}</dl><div class="data-scroll" role="region" aria-label="${esc(caption)}" tabindex="0"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr>${headers.map(label => `<th scope="col">${esc(uiText(label))}</th>`).join('')}</tr></thead><tbody>${a.targets
@@ -229,15 +248,18 @@ function allocationProposalView(context) {
         t.name && t.name !== id
           ? `<bdi dir="auto">${esc(t.name)}</bdi><small>${campaignNativeValue(id)}</small>`
           : campaignNativeValue(id);
-      return `<tr><th scope="row">${name}</th><td>${campaignNativeValue(t.current_daily_budget)} ${campaignNativeValue(a.currency)}</td><td>${campaignNativeValue(t.daily_budget)} ${campaignNativeValue(a.currency)}</td>${linkedin ? '' : `<td>${campaignNativeValue(t.daily_budget_micros)}</td>`}<td>${campaignNativeValue(t.period_budget)} ${campaignNativeValue(a.currency)}</td></tr>`;
+      const owner = meta
+        ? `<td>${t.budget_owner === 'ad_set' ? `${esc(uiText('Ad set'))} ${campaignNativeValue(t.adset_id)}` : esc(uiText('Campaign budget'))}</td>`
+        : '';
+      return `<tr><th scope="row">${name}</th>${owner}<td>${campaignNativeValue(t.current_daily_budget)} ${campaignNativeValue(a.currency)}</td><td>${campaignNativeValue(t.daily_budget)} ${campaignNativeValue(a.currency)}</td>${linkedin ? '' : `<td>${campaignNativeValue(meta ? t.daily_budget_native : t.daily_budget_micros)}</td>`}<td>${campaignNativeValue(t.period_budget)} ${campaignNativeValue(a.currency)}</td></tr>`;
     })
     .join(
       '',
-    )}</tbody></table></div><p class="form-note">${esc(uiText(linkedin ? 'LinkedIn native budgets are decimal amounts in account currency. Daily settings can spend up to 150% on a day with strong auction opportunities. Existing group caps are preserved; this proposal sets no end date or automatic period cap.' : snap ? 'Daily budgets remain in effect until separately changed; this proposal sets no end date or period spending cap.' : 'Average daily budgets remain in effect until separately changed; this proposal sets no end date or period spending cap.'))} <a href="/reports?id=${encodeURIComponent(a.report_id)}">${esc(uiText('Inspect original report'))}</a></p></section>`;
+    )}</tbody></table></div><p class="form-note">${esc(uiText(linkedin ? 'LinkedIn native budgets are decimal amounts in account currency. Daily settings can spend up to 150% on a day with strong auction opportunities. Existing group caps are preserved; this proposal sets no end date or automatic period cap.' : meta ? 'Each Meta daily budget is set on its current owner in whole Meta minor units. Meta can spend up to 75% more than a daily budget on a day with better opportunities, and at most seven times it over a calendar week. This proposal sets no end date or automatic period cap.' : snap ? 'Daily budgets remain in effect until separately changed; this proposal sets no end date or period spending cap.' : 'Average daily budgets remain in effect until separately changed; this proposal sets no end date or period spending cap.'))} <a href="/reports?id=${encodeURIComponent(a.report_id)}">${esc(uiText('Inspect original report'))}</a></p></section>`;
 }
 function allocationStepDescription(step, context) {
   if (!context || step.kind !== 'write') return null;
-  const {allocation: a, snap, linkedin} = context,
+  const {allocation: a, snap, linkedin, meta} = context,
     args = step.arguments;
   // A readable description is only a projection of this exact saved budget request. Additional or changed
   // native fields fall back to the original description; this helper never validates or authorizes execution.
@@ -256,11 +278,24 @@ function allocationStepDescription(step, context) {
       args,
       linkedin
         ? ['action', 'api_version', 'restli_method', 'path_params', 'payload']
-        : ['action', 'path_params', 'payload'].filter(key => snap || key !== 'path_params'),
+        : ['action', 'path_params', 'payload'].filter(key => snap || meta || key !== 'path_params'),
     )
   )
     return null;
   const target = a.targets.find(t => {
+    if (meta) {
+      // DEC-02: the budget owner's own reviewed update, with the exact Meta minor-unit amount.
+      const p = args.payload,
+        path = args.path_params,
+        adSet = t.budget_owner === 'ad_set';
+      return (
+        args.action === (adSet ? 'meta_ad_set_id_update' : 'meta_campaign_id_update') &&
+        keysAre(path, [adSet ? 'ad_set_id' : 'campaign_id']) &&
+        (adSet ? path.ad_set_id === t.adset_id : path.campaign_id === t.campaign_id) &&
+        keysAre(p, ['daily_budget']) &&
+        p.daily_budget === t.daily_budget_native
+      );
+    }
     if (linkedin) {
       const p = args.payload,
         path = args.path_params,
@@ -314,7 +349,7 @@ function allocationStepDescription(step, context) {
     );
   });
   if (!target) return null;
-  return `${esc(uiText(snap ? 'Ad squad' : 'Campaign'))} ${campaignNativeValue(snap || linkedin ? target.entity_id : target.campaign_id)}: ${esc(uiText(snap || linkedin ? 'Proposed daily budget' : 'Proposed average daily budget'))} ${campaignNativeValue(target.daily_budget)} ${campaignNativeValue(a.currency)}`;
+  return `${esc(uiText(snap ? 'Ad squad' : 'Campaign'))} ${campaignNativeValue(snap || linkedin ? target.entity_id : target.campaign_id)}${meta && target.budget_owner === 'ad_set' ? ` · ${esc(uiText('Ad set'))} ${campaignNativeValue(target.adset_id)}` : ''}: ${esc(uiText(snap || linkedin || meta ? 'Proposed daily budget' : 'Proposed average daily budget'))} ${campaignNativeValue(target.daily_budget)} ${campaignNativeValue(a.currency)}`;
 }
 function consentReviewContext(run) {
   const c = run.gtm_consent,
@@ -498,7 +533,7 @@ function campaignJournal(run) {
     })
     .join(
       '',
-    )}</ol>${run.clone ? reviewTable(run.clone.not_copied ?? [], uiText('Source fields not copied')) : ''}${run.allocation && !context ? `<p class="notice">${esc(uiText('This budget plan came from a retained allocation.'))} <a href="/reports?id=${encodeURIComponent(run.allocation.report_id)}">${esc(uiText('Inspect original report'))}</a>${esc(uiText('. Daily budgets remain in effect until separately changed; the reference period sets no end date.'))}</p>` : ''}${recordDetails({allocation: run.allocation, gtm_consent: run.gtm_consent, plan_hash: run.plan_hash, profile_id: run.profile_id, profile_revision: run.profile_revision, recipe: run.recipe, clone: run.clone, execution_journal: run.execution_journal}, uiText('Plan provenance and execution journal'))}`;
+    )}</ol>${run.clone ? reviewTable(run.clone.not_copied ?? [], uiText('Source fields not copied')) : ''}${run.allocation && !context ? `<p class="notice">${esc(uiText('This budget plan came from a retained allocation.'))} <a href="/reports?id=${encodeURIComponent(run.allocation.report_id)}">${esc(uiText('Inspect original report'))}</a>${esc(uiText('. Daily budgets remain in effect until separately changed; the reference period sets no end date.'))}</p>` : ''}${run.allocation ? '<section id="allocation-outcome" class="allocation-outcome" aria-live="polite"></section>' : ''}${recordDetails({allocation: run.allocation, gtm_consent: run.gtm_consent, plan_hash: run.plan_hash, profile_id: run.profile_id, profile_revision: run.profile_revision, recipe: run.recipe, clone: run.clone, execution_journal: run.execution_journal}, uiText('Plan provenance and execution journal'))}`;
 }
 function verificationComparison(verification) {
   const checks = (verification.checks ?? []).flatMap(check =>
@@ -708,6 +743,8 @@ function bindCampaignWorkflow(run, open, current, after) {
     show = html => {
       if (current()) $('#campaign-review').innerHTML = html;
     };
+  // DEC-02: an allocation plan shows its outcome review (a local read; capturing it is a separate choice).
+  if (run.allocation) void mountAllocationOutcome(run, current);
   const refresh = async out => {
     if (current()) {
       if (await open(id)) $('#campaign-review').innerHTML = campaignOutcome(out);
@@ -1066,4 +1103,93 @@ function mountCampaignClone(open) {
     await open(out.id);
     toast(uiText('Clone saved as a draft. Review omitted fields and approve the exact plan.'));
   });
+}
+
+/** DEC-02: first-party labels for an outcome review's codes; provider values and amounts stay literal. */
+const allocationOutcomePositions = {
+  within: 'Within the modeled range',
+  below: 'Below the modeled range',
+  above: 'Above the modeled range',
+  unknown: 'Unknown',
+};
+const allocationOutcomeReasons = {
+  plan_not_complete: 'The plan has not finished: every budget step must be executed and verified first.',
+  steps_not_verified: 'Not every budget step was verified by read-back.',
+  not_an_allocation_plan: 'This plan did not come from an allocation proposal.',
+  source_report_deleted: 'The proposal’s evidence report was deleted.',
+  source_report_changed: 'The proposal’s evidence report changed after the plan was created.',
+  proposal_not_reproducible: 'The proposal can no longer be reproduced from its evidence.',
+  preset_unqualified: 'The proposal’s evidence report type does not qualify.',
+  measurement_definition_changed: 'The outcome report used different measurement settings than the proposal.',
+};
+const allocationOutcomeText = (labels, code) => (Object.hasOwn(labels, code) ? uiText(labels[code]) : String(code));
+/** An exact range of decimal strings, or Unknown. */
+function allocationOutcomeRange(low, high) {
+  return low === null || high === null
+    ? esc(uiText('Unknown'))
+    : `${campaignNativeValue(low)}–${campaignNativeValue(high)}`;
+}
+/** One row of the comparison: never coloured as good or bad, every amount as AMCP retained it. */
+function allocationOutcomeRow(row, currency, heading) {
+  const share =
+    row.spend_to_proposed === null
+      ? ''
+      : `<small>${esc(uiText('{percent}% of the proposed budget', {percent: uiNumber(Number(row.spend_to_proposed) * 100, {maximumFractionDigits: 1})}))}</small>`;
+  return `<tr><th scope="row">${heading}</th><td>${campaignNativeValue(row.proposed_budget)} ${campaignNativeValue(currency)}</td><td>${row.realized_spend === null ? esc(uiText('Unknown')) : `${campaignNativeValue(row.realized_spend)} ${campaignNativeValue(currency)}`}${share}</td><td>${allocationOutcomeRange(row.modeled_conversions_low, row.modeled_conversions_high)}</td><td>${row.realized_conversions === null ? esc(uiText('Unknown')) : campaignNativeValue(row.realized_conversions)}<small>${esc(allocationOutcomeText(allocationOutcomePositions, row.position))}</small></td><td>${allocationOutcomeRange(row.spend_conditioned_low, row.spend_conditioned_high)}<small>${esc(allocationOutcomeText(allocationOutcomePositions, row.spend_conditioned_position))}</small></td><td>${row.realized_factor === null ? esc(uiText('Unknown')) : campaignNativeValue(row.realized_factor)}</td></tr>`;
+}
+function allocationOutcomeView(out, viewer) {
+  const heading = `<h3>${esc(uiText('Outcome review'))}</h3>`,
+    period = out.window
+      ? `<p>${esc(uiText('Outcome window: {since} – {until} ({days} days, {timezone}).', {since: out.window.since, until: out.window.until, days: uiNumber(out.window.days), timezone: out.window.timezone}))}</p>`
+      : '';
+  if (out.state === 'not_scheduled')
+    return `${heading}<p class="form-note">${esc(allocationOutcomeText(allocationOutcomeReasons, out.reason))} ${esc(uiText(out.meaning))}</p>`;
+  if (out.state === 'unavailable')
+    return `${heading}<p class="notice">${esc(uiText('This outcome cannot be compared with the proposal: {reason}', {reason: allocationOutcomeText(allocationOutcomeReasons, out.reason)}))}</p>`;
+  if (out.state === 'scheduled')
+    return `${heading}${period}<p>${esc(uiText('After the window closes, AMCP captures the same entities with the proposal’s report settings and shows them beside the proposal. Nothing is read before then.'))}</p><p class="form-note">${esc(uiText('The window closes {time}.', {time: uiDate(out.due_at)}))}${out.automatic ? '' : ' ' + esc(uiText('Open this plan after it closes to review the outcome.'))}</p>`;
+  if (out.state === 'due')
+    return `${heading}${period}<p>${esc(uiText('The outcome window has closed.'))}</p>${out.last_error ? `<p class="notice">${esc(uiText('The automatic review could not finish ({code}). You can review the outcome now.', {code: out.last_error.code}))}</p>` : ''}${viewer ? '' : `<button id="allocation-outcome-capture" class="button" type="button">${esc(uiText('Review the outcome now'))}</button>`}`;
+  const entity = out.entity_kind === 'ad_squad' ? uiText('Ad squad') : uiText('Campaign'),
+    caption = uiText('Outcome beside the proposal');
+  return `${heading}${period}<p class="notice">${esc(uiText(out.limitations[0]))}</p><div class="data-scroll" role="region" aria-label="${esc(uiText('Outcome beside the proposal, scroll for all columns'))}" tabindex="0"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr><th scope="col">${esc(entity)}</th><th scope="col">${esc(uiText('Proposed budget'))}</th><th scope="col">${esc(uiText('Realized spend'))}</th><th scope="col">${esc(uiText('Modeled conversions at the proposed budget'))}</th><th scope="col">${esc(uiText('Realized conversions'))}</th><th scope="col">${esc(uiText('Modeled at the realized spend'))}</th><th scope="col">${esc(uiText('Realized factor'))}</th></tr></thead><tbody>${out.entities
+    .map(row =>
+      allocationOutcomeRow(
+        row,
+        out.currency,
+        row.name && row.name !== row.entity_id
+          ? `<bdi dir="auto">${esc(row.name)}</bdi><small>${campaignNativeValue(row.entity_id)}</small>`
+          : campaignNativeValue(row.entity_id),
+      ),
+    )
+    .join(
+      '',
+    )}${allocationOutcomeRow(out.totals, out.currency, esc(uiText('Total')))}</tbody></table></div><ul class="form-note">${out.limitations
+    .slice(1)
+    .map(message => `<li>${esc(uiText(message))}</li>`)
+    .join(
+      '',
+    )}</ul><p class="form-note">${esc(uiText(out.calibration_evidence.meaning))} <a href="${esc(out.calibration_evidence.website_path)}">${esc(uiText('Inspect the outcome evidence'))}</a></p>`;
+}
+/** Loads the outcome review of an allocation plan; capturing it after the window closes is an explicit choice. */
+async function mountAllocationOutcome(run, current) {
+  const root = $('#allocation-outcome'),
+    alive = () => current() && root?.isConnected,
+    viewer = typeof session === 'object' && session.workspaceRole === 'viewer',
+    paint = out => {
+      if (!alive()) return;
+      root.innerHTML = allocationOutcomeView(out, viewer);
+      // workspaceBind keeps the button disabled while the capture runs and shows a refusal as a notice.
+      workspaceBind('#allocation-outcome-capture', async () => {
+        if (!alive()) return;
+        paint(await workspaceCall('reporting', {action: 'capture_allocation_outcome', id: run.id}));
+      });
+    };
+  if (!root) return;
+  try {
+    paint(await workspaceCall('reporting', {action: 'allocation_outcome', id: run.id}));
+  } catch (e) {
+    if (alive())
+      root.innerHTML = `<h3>${esc(uiText('Outcome review'))}</h3><p class="notice">${esc(errorMessage(e))}</p>`;
+  }
 }

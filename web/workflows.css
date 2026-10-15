@@ -496,7 +496,8 @@
   color: var(--muted);
   font-weight: 400;
 }
-.allocation-proposal {
+.allocation-proposal,
+.allocation-outcome {
   margin-block: 1.25rem;
   min-width: 0;
 }
@@ -513,14 +514,17 @@
   margin: 0.25rem 0 0;
   overflow-wrap: anywhere;
 }
-.allocation-proposal .review-table {
+.allocation-proposal .review-table,
+.allocation-outcome .review-table {
   min-width: 48rem;
 }
-.allocation-proposal .review-table th:first-child {
+.allocation-proposal .review-table th:first-child,
+.allocation-outcome .review-table th:first-child {
   min-width: 12rem;
   overflow-wrap: anywhere;
 }
-.allocation-proposal small {
+.allocation-proposal small,
+.allocation-outcome small {
   display: block;
   margin-block-start: 0.25rem;
   color: var(--muted);

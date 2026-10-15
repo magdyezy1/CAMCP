@@ -50,6 +50,16 @@ const partialDaysLimitation =
   'At least one entity has rows on fewer days than the outcome window; days without rows are not counted as zero.';
 const calibrationMeaning =
   'The outcome capture is retained guided evidence: a new proposal can use it, and calibrate_allocation can when it covers 14–31 closed days. The realized factor is where realized conversions fell on the efficiency scale the proposal used (1.0 is the evidence period’s conversions per unit of spend).';
+const notScheduledMeaning =
+  'The outcome review is scheduled once every budget step of the plan has been executed and verified by read-back.';
+/** Every authored sentence an outcome record carries to the website, which shows it in English or Arabic. */
+export const allocationOutcomeCopy = Object.freeze([
+  ...allocationOutcomeLimitations,
+  missingRowsLimitation,
+  partialDaysLimitation,
+  calibrationMeaning,
+  notScheduledMeaning,
+]);
 
 const dateText = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 const addDays = (date: string, days: number) => dateText(Date.parse(date + 'T00:00:00Z') + days * day);
@@ -212,11 +222,11 @@ function bound(store: Store, tenant: string) {
     store.deleteDocument(tenant, allocationOutcomeKind, String(row.id));
     excess--;
   }
+  // A static sentence (allocationOutcomeLimit is 500), so the website can translate it.
   if (excess > 0)
-    bad(
-      'This workspace already has ' + allocationOutcomeLimit + ' pending allocation outcome reviews.',
-      'ALLOCATION_OUTCOME_LIMIT',
-    );
+    bad('This workspace already has 500 pending allocation outcome reviews.', 'ALLOCATION_OUTCOME_LIMIT', {
+      limit: allocationOutcomeLimit,
+    });
 }
 
 /**
@@ -325,8 +335,7 @@ export function allocationOutcomeView(store: Store, actor: Actor, planId: string
     plan_id: run.id,
     state: 'not_scheduled',
     reason: 'reason' in execution ? execution.reason : 'not_recorded',
-    meaning:
-      'The outcome review is scheduled once every budget step of the plan has been executed and verified by read-back.',
+    meaning: notScheduledMeaning,
     network_requests: 0,
   };
 }

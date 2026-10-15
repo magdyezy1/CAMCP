@@ -169,6 +169,24 @@ test('Snapchat retained report exposes ad-squad allocation and the qualified dra
   assert.match(f.node('#allocation-result').innerHTML, /Only auction campaigns with ad-squad pacing/);
   assert.ok(f.bindings.has('#allocation-preview-plan'));
 });
+test('DEC-02: a Meta campaign report offers the native budget draft with Meta’s owner and overspend rules in both languages', async () => {
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(async () => result(), 'meta_campaign', locale);
+    await f.submit();
+    const html = f.node('#allocation-result').innerHTML;
+    assert.ok(f.bindings.has('#allocation-preview-plan'), 'the Meta draft handoff is offered');
+    assert.match(
+      html,
+      locale === 'en' ? /one spending ad set; lifetime, mixed and split budgets/ : /مجموعة الإعلانات الوحيدة التي تنفق/,
+    );
+    assert.match(html, /75%/);
+    assert.match(html, /20/);
+  }
+  const viewer = fixture(async () => result(), 'meta_campaign');
+  viewer.context.session.workspaceRole = 'viewer';
+  await viewer.submit();
+  assert.equal(viewer.bindings.has('#allocation-preview-plan'), false, 'viewers are not offered a draft');
+});
 test('allocation results name the selected native unit in English and Arabic', async () => {
   const twoUnits = () => ({
     ...result(),
