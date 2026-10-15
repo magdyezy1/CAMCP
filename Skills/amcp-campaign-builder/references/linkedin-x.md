@@ -713,6 +713,31 @@ Reference: Microsoft Learn "Audience Insights" and "Media Planning" (li-lms-2026
 Sources: Microsoft Learn "Campaign Groups", "Campaigns" and "Creatives" schema and finder pages
 (li-lms-2026-05), checked 2026-09-29.
 
+## Guided LinkedIn lead generation
+
+- Select `linkedin_lead_generation` through `amcp_campaign recipes` (checked example:
+  `linkedin_lead_business`). Supply the numeric ad account ID and login, the account currency, a decimal
+  `daily_budget` (never more places than the currency has), 1–50 distinct `location_urns`
+  (`urn:li:geo:…`), `locale` as `language_COUNTRY`, `post_urn` (`urn:li:share:…` or `urn:li:ugcPost:…`),
+  the numeric `lead_form_id` of one of the account's forms, a lead form `call_to_action` (`APPLY`,
+  `DOWNLOAD`, `LEARN_MORE`, `SIGN_UP`, `SUBSCRIBE`, `REGISTER`, `REQUEST_DEMO`, `VIEW_QUOTE`, `JOIN` or
+  `ATTEND`), `political_intent: "NOT_POLITICAL"` and an offset `start_time`. Political advertising is
+  refused: it needs a tailored native plan.
+- The plan is three reviewed creates, all PAUSED: a campaign group, a `SPONSORED_UPDATES` campaign with
+  `objectiveType: LEAD_GENERATION`, `optimizationTargetType: MAX_LEAD` (maximum delivery, `costType: CPM`,
+  no bid), the daily budget, location and interface-locale targeting, and a creative sponsoring the post
+  with `leadgenCallToAction: {destination: "urn:li:adForm:<id>", label}`. Children reference their
+  parent by URN prefix, as the clone does.
+- Before anything is created, preflight lists the account's lead forms (`q=owner`): a form LinkedIn does
+  not return for the selected account, or an `ARCHIVED` one, blocks the whole plan with
+  `CAMPAIGN_PREREQUISITE_REQUIRED`. Post eligibility, privacy-policy acceptance, ad review, LinkedIn's
+  minimum daily budget and objective acceptance stay with LinkedIn; LinkedIn may spend up to 150% of a
+  daily budget on a day.
+- `activation_plan` activates the group, then the campaign, then the creative (`intendedStatus`), each a
+  `PARTIAL_UPDATE` with its own review and spend confirmation. Its preflight reads the account's forms
+  again and blocks with `ACTIVATION_GATE_BLOCKED` until the form is `PUBLISHED`: the form's state decides
+  whether the creative serves, so publish a draft form with its reviewed state change first.
+
 ## X targeting is a separate resource, not a line-item field
 
 X has **no** `targeting` field on a line item or any other entity. Targeting lives in its own

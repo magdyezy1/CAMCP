@@ -56,6 +56,11 @@ function fixture(options: {scopes?: readonly string[]; grant?: boolean; badRecei
             data: [{id: '123', reddit_user_id: 't2_123', business_id: 'business'}],
             pagination: {next_url: null},
           });
+        // PRV-06 D: an ad group's conversion pixel is read from the account's pixel list, then its activity.
+        if (path === '/api/v3/ad_accounts/a2_111/pixels')
+          return Response.json({data: [{id: 'pixel123', name: 'Pixel'}], pagination: {next_url: null}});
+        if (path === '/api/v3/pixels/pixel123/last_fired_at')
+          return reply({page_visit: new Date(Date.now() - 3600000).toISOString(), purchase: null});
         const d = state.get(path);
         assert.ok(d, 'Missing fixture state ' + path);
         return reply(d);

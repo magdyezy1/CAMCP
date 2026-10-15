@@ -17,6 +17,7 @@ import {bad, fingerprint, obj} from './workspace-core.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {familyOf, familyOfRead} from './reviewed-families.js';
 import {metaPrefix} from './meta-version.js';
+import {metaCreativeFeaturesObserved} from './meta-creative-features.js';
 
 // Snapchat records whose read-back adds provider fields or renames sent ones are compared as projections.
 export const snapProjections: Record<string, (row: unknown) => unknown> = {
@@ -74,6 +75,8 @@ export function verificationReads(
   /** Sent fields the read may omit: when it does, they are compared with the write response instead (inconclusive
    * when that has no echo), never passed silently and never failed for the omission alone. */
   readOptional?: string[];
+  /** What the read shows beyond the expected fields, reported in the check and never compared. */
+  observe?: (actual: unknown) => JsonObject | undefined;
 }[] {
   const b = (plan.body ?? {}) as JsonObject,
     d = result.data ?? {},
@@ -165,15 +168,21 @@ export function verificationReads(
     delete expected.execution_options;
     if (expected.creative?.creative_id) expected.creative = {id: expected.creative.creative_id};
     // Meta's reference does not say whether a creative read returns destination_spec (the owner's condition of
-    // 2026-09-29: verify it on read-back, else against the write response, never silently).
-    const readOptional =
-      /\/adcreatives$/.test(plan.path) && Object.hasOwn(expected, 'destination_spec') ? ['destination_spec'] : [];
+    // 2026-09-29: verify it on read-back, else against the write response, never silently). The Advantage+ creative
+    // feature choices (PRV-06 C) are compared the same way, and the features Meta shows on its own are reported.
+    const creative = /\/adcreatives$/.test(plan.path),
+      readOptional = creative
+        ? ['destination_spec', 'degrees_of_freedom_spec'].filter(field => Object.hasOwn(expected, field))
+        : [];
     return [
       {
         read: base(metaPrefix + id, {fields: ['id', ...Object.keys(expected)].join(',')}),
         expected,
         id,
         ...(readOptional.length ? {readOptional} : {}),
+        ...(creative && Object.hasOwn(expected, 'degrees_of_freedom_spec')
+          ? {observe: (actual: unknown) => metaCreativeFeaturesObserved(expected, actual)}
+          : {}),
       },
     ];
   }

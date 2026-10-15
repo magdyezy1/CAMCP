@@ -134,6 +134,11 @@ export interface CompiledRequest {
   metaReportRead?: JsonObject;
   /** What a review keeps of a personal-data write: counts, digest and confirmations, never the people. */
   personalData?: JsonObject;
+  /**
+   * The comment list read a TikTok comment status update is reviewed against (PRV-06 B, src/tiktok-ad-comments.ts):
+   * the caller's comment_scope, validated by that family and never sent with the update.
+   */
+  tiktokCommentScope?: JsonObject;
   /** Server-derived original TikTok task binding and process-local deadline. */
   tiktokReportRead?: JsonObject;
   tiktokReportDeadline?: number;

@@ -224,6 +224,35 @@ export async function recipeEligibility(
             a.status === 'provider_read_checked',
         );
         if (proof) Object.assign(out, {status: 'ready', evidence: proof, meaning: proof.meaning});
+      } else if (
+        ['tiktok_spark_identity', 'existing_tiktok_post'].includes(id) ||
+        (id === 'account_owned_pixel' && gateway === 'tiktok_native_action')
+      ) {
+        // TikTok launch packs (CMP-07): the identity, post and pixel preflight read for this exact advertiser.
+        const type = {
+            tiktok_spark_identity: 'TikTok identity',
+            existing_tiktok_post: 'TikTok post',
+            account_owned_pixel: 'TikTok pixel',
+          }[id as 'tiktok_spark_identity'],
+          proof = assets.find(
+            a =>
+              a.asset_type === type &&
+              a.account_id === scope.account_id &&
+              a.connection_id === scope.connection_id &&
+              a.status === 'provider_read_checked',
+          );
+        if (proof) Object.assign(out, {status: 'ready', evidence: proof, meaning: proof.meaning});
+      } else if (id === 'linkedin_lead_form') {
+        // The LinkedIn lead generation pack (CMP-07): the owner-finder read of this exact form.
+        const proof = assets.find(
+          a =>
+            a.asset_type === 'LinkedIn lead form' &&
+            a.asset_id === business.lead_form_id &&
+            a.account_id === scope.account_id &&
+            a.connection_id === scope.connection_id &&
+            a.status === 'provider_read_checked',
+        );
+        if (proof) Object.assign(out, {status: 'ready', evidence: proof, meaning: proof.meaning});
       } else if (['page_identity', 'account_owned_pixel'].includes(id)) {
         const proof = assets.find(
           a =>
@@ -266,6 +295,14 @@ export async function recipeEligibility(
           evidence: {kind: 'compiled_explicit_setting', ratio: compiled.recipe.target_roas},
           meaning:
             'The explicit ratio passed local validation. Provider acceptance, historical eligibility and actual return remain unverified.',
+        });
+      else if (id === 'pmax_asset_minimums')
+        // CMP-07: the counts and text lengths the build compiled passed the pinned Performance Max minimums.
+        Object.assign(out, {
+          status: 'ready',
+          evidence: {kind: 'compiled_explicit_setting', asset_counts: compiled.recipe.asset_counts},
+          meaning:
+            'The asset counts and text lengths meet the pinned Performance Max minimums. Image ratios, policy review and ad strength remain with Google.',
         });
       else if (id === 'campaign_target_cpa')
         Object.assign(out, {

@@ -36,8 +36,31 @@ const recipeLabels = {
   end_time: 'End time in the account timezone',
   age_min: 'Minimum age',
   age_max: 'Maximum age',
+  location_ids: 'TikTok location IDs — one per line',
+  tiktok_item_id: 'Existing TikTok post ID',
+  identity_type: 'TikTok account identity type',
+  identity_id: 'TikTok account identity ID',
+  identity_authorized_bc_id: 'Business Center ID of the identity',
+  call_to_action: 'Call to action',
+  optimization_event: 'Purchase event to optimize',
+  business_name: 'Business name (25 characters)',
+  long_headlines: 'Long headlines — one per line (1–5, 90 characters each)',
+  marketing_image_asset_ids: 'Landscape image asset IDs already in the account — one per line',
+  square_image_asset_ids: 'Square image asset IDs already in the account — one per line',
+  logo_asset_ids: 'Logo asset IDs already in the account — one per line (1–5)',
+  location_urns: 'LinkedIn location URNs — one per line',
+  locale: 'Campaign locale (language_COUNTRY)',
+  post_urn: 'Existing post URN to sponsor',
+  lead_form_id: 'Existing lead form ID of this ad account',
+  political_intent: 'Political advertising declaration',
+};
+// The Performance Max pack (CMP-07) takes its own text counts.
+const recipePmaxLabels = {
+  headlines: 'Performance Max headlines — one per line (3–15, 30 characters each)',
+  descriptions: 'Performance Max descriptions — one per line (2–5, 90 characters each)',
 };
 const recipeArrays = new Set([
+  'location_ids',
   'country_codes',
   'country_criterion_ids',
   'language_criterion_ids',
@@ -45,16 +68,64 @@ const recipeArrays = new Set([
   'keywords',
   'headlines',
   'descriptions',
+  'long_headlines',
+  'marketing_image_asset_ids',
+  'square_image_asset_ids',
+  'logo_asset_ids',
+  'location_urns',
 ]);
+// The TikTok packs' native call-to-action values and purchase events (src/tiktok-launch-recipes.ts).
+const recipeTiktokCtas = [
+  'LEARN_MORE',
+  'SHOP_NOW',
+  'SIGN_UP',
+  'CONTACT_US',
+  'APPLY_NOW',
+  'BOOK_NOW',
+  'ORDER_NOW',
+  'GET_QUOTE',
+  'SUBSCRIBE',
+];
+// The LinkedIn lead pack's lead form calls to action (src/linkedin-lead-recipe.ts).
+const recipeLinkedinCtas = [
+  'APPLY',
+  'DOWNLOAD',
+  'LEARN_MORE',
+  'SIGN_UP',
+  'SUBSCRIBE',
+  'REGISTER',
+  'REQUEST_DEMO',
+  'VIEW_QUOTE',
+  'JOIN',
+  'ATTEND',
+];
+const recipeTiktokEvents = [
+  ['SHOPPING', 'Complete payment'],
+  ['ON_WEB_ORDER', 'Place an order'],
+  ['INITIATE_ORDER', 'Initiate checkout'],
+  ['ON_WEB_CART', 'Add to cart'],
+];
 function recipeField(name, value, required, recipeId) {
   const label = uiText(
       name === 'creative_id' && recipeId === 'snapchat_lead_generation'
         ? 'Existing Snapchat lead creative ID'
-        : (recipeLabels[name] ?? pretty(name)),
+        : recipeId === 'google_performance_max' && recipePmaxLabels[name]
+          ? recipePmaxLabels[name]
+          : (recipeLabels[name] ?? pretty(name)),
     ),
     attr = `name="${name}" ${required ? 'required' : ''}`;
   if (name === 'optimization_goal')
     return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="SWIPES" ${value === 'SWIPES' ? 'selected' : ''}>${esc(uiText('Optimize swipes to the lead form'))}</option><option value="LEAD_FORM_SUBMISSIONS" ${value === 'LEAD_FORM_SUBMISSIONS' ? 'selected' : ''}>${esc(uiText('Optimize submitted lead forms'))}</option></select></label>`;
+  // TikTok launch packs (CMP-07): native values stay literal; only the explanation is translated.
+  if (name === 'identity_type')
+    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="TT_USER" ${value === 'TT_USER' ? 'selected' : ''}>TT_USER — ${esc(uiText('TikTok account linked to this advertiser'))}</option><option value="BC_AUTH_TT" ${value === 'BC_AUTH_TT' ? 'selected' : ''}>BC_AUTH_TT — ${esc(uiText('TikTok account authorized through a Business Center'))}</option></select></label>`;
+  if (name === 'call_to_action')
+    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option>${(recipeId === 'linkedin_lead_generation' ? recipeLinkedinCtas : recipeTiktokCtas).map(v => `<option value="${v}" ${value === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>`;
+  if (name === 'optimization_event')
+    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option>${recipeTiktokEvents.map(([v, text]) => `<option value="${v}" ${value === v ? 'selected' : ''}>${v} — ${esc(uiText(text))}</option>`).join('')}</select></label>`;
+  // LinkedIn lead generation (CMP-07): the explicit political-advertising declaration; NOT_POLITICAL is the only choice.
+  if (name === 'political_intent')
+    return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="NOT_POLITICAL" ${value === 'NOT_POLITICAL' ? 'selected' : ''}>NOT_POLITICAL — ${esc(uiText('Not political advertising'))}</option></select><small>${esc(uiText('Political advertising needs a tailored native plan.'))}</small></label>`;
   if (name === 'conversion_goal_policy')
     return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="ACCOUNT_DEFAULT" ${value === 'ACCOUNT_DEFAULT' ? 'selected' : ''}>${esc(uiText('Use the account-default conversion goals'))}</option></select></label>`;
   if (name === 'conversion_value_policy')
@@ -151,6 +222,16 @@ const recipeDependencyLabels = {
   existing_lead_form: 'Original account-owned lead form',
   lead_form_policy_acceptance: 'Lead-form privacy and consent acceptance',
   lead_optimization_goal: 'Lead-form optimization goal',
+  tiktok_spark_identity: 'TikTok account identity for Spark Ads',
+  existing_tiktok_post: 'Existing TikTok post of the identity',
+  location_targeting: 'Location targeting',
+  automatic_click_bidding: 'Automatic bidding for clicks',
+  automatic_conversion_bidding: 'Automatic bidding for purchases',
+  existing_image_assets: 'Existing image and logo assets of the account',
+  pmax_asset_minimums: 'Performance Max asset minimums',
+  existing_linkedin_post: 'Existing post to sponsor',
+  linkedin_lead_form: 'Account-owned LinkedIn lead form',
+  automatic_lead_bidding: 'Maximum delivery for leads',
 };
 const recipeEligibilityLabels = {
   ready: 'Confirmed for this check',
@@ -161,6 +242,10 @@ const recipeEligibilityLabels = {
 function conversionRecipePreview(out) {
   if (['snapchat_website_traffic', 'snapchat_lead_generation'].includes(out.recipe?.id))
     return snapchatTrafficPreview(out);
+  if (['tiktok_website_traffic', 'tiktok_website_conversions'].includes(out.recipe?.id))
+    return tiktokLaunchPreview(out);
+  if (out.recipe?.id === 'linkedin_lead_generation') return linkedinLeadPreview(out);
+  if (out.recipe?.id === 'google_performance_max') return pmaxLaunchPreview(out);
   const recipe = out.recipe,
     plan = out.plan,
     valueBidding = ['google_search_conversion_value', 'google_search_target_roas'].includes(recipe?.id),
@@ -314,6 +399,177 @@ function snapchatTrafficPreview(out) {
     row = (label, value, direction = 'auto') =>
       `<div><dt>${esc(uiText(label))}</dt><dd><bdi dir="${direction}">${esc(value)}</bdi></dd></div>`;
   return `<section aria-label="${esc(uiText(leads ? 'Paused Snapchat lead-form preview' : 'Paused Snapchat traffic preview'))}" class="conversion-recipe-preview"><h3>${esc(uiText(leads ? 'Paused Snapchat lead-form preview' : 'Paused Snapchat traffic preview'))}</h3><p>${esc(uiText('Local preview only. No plan is saved and no advertising changes are sent.'))}</p><dl>${row('Campaign name', plan.name)}${row('Advertising login and account', steps[0].connection_id + ' · ' + steps[0].account_id, 'ltr')}${row('Daily budget in account currency', amount, 'ltr')}${row('Native micros', budget, 'ltr')}${row(leads ? 'Existing Snapchat lead creative ID' : 'Existing Snapchat website creative ID', ad.creative_id, 'ltr')}${row('Country targeting', squad.targeting.geos.map(g => String(g.country_code).toUpperCase()).join(', '), 'ltr')}${row('Start timestamp with UTC offset', campaign.start_time, 'ltr')}${campaign.end_time ? row('End timestamp with UTC offset', campaign.end_time, 'ltr') : ''}${row('Bidding strategy', uiText(leads ? 'Automatic bidding' : 'Automatic bidding for swipes'))}${leads ? row('Lead-form optimization goal', uiText(r.optimization_goal === 'SWIPES' ? 'Optimize swipes to the lead form' : 'Optimize submitted lead forms')) : ''}</dl><p class="notice">${esc(uiText(leads ? 'Creates three paused entities using an existing lead creative and its original form. Preflight reads both account-owned dependencies without submitted leads. Provider approval, privacy and consent acceptance and objective eligibility remain unverified.' : 'Creates three paused entities. Existing creative media and destination remain unchanged. Preflight checks current creative ownership, type and destination syntax; provider approval, destination availability and objective acceptance remain unverified.'))}</p><p>${esc(uiText(leads ? 'Automatic bidding uses the daily budget for your chosen optimization goal. It does not guarantee a cost per lead or result. Activation requires a separate review.' : 'Automatic bidding uses the daily budget to optimize swipes. It does not guarantee a cost per result. Activation requires a separate review.'))}</p><p>${esc(uiText('Snapchat does not return automatic placement settings on GET. Native review retains this verification limitation.'))}</p>${details()}</section>`;
+}
+/** The paused TikTok launch preview (CMP-07): shown only when the compiled plan is exactly the pack's three creates. */
+function tiktokLaunchPreview(out) {
+  const r = out.recipe,
+    purchases = r?.id === 'tiktok_website_conversions',
+    plan = out.plan,
+    steps = plan?.steps,
+    details = () => recordDetails(out, uiText('Compiled plan and input provenance'));
+  if (
+    out.ready !== true ||
+    out.provider_mutations !== 0 ||
+    !/^[A-Z]{3}$/.test(r?.currency) ||
+    !Array.isArray(steps) ||
+    steps.length !== 3
+  )
+    return details();
+  const campaign = steps[0]?.arguments?.payload,
+    group = steps[1]?.arguments?.payload,
+    ad = steps[2]?.arguments?.payload?.creatives?.[0];
+  if (
+    steps.map(s => s.id).join(',') !== 'campaign,adgroup,ad' ||
+    steps.map(s => s.arguments?.action).join(',') !== 'tiktok_campaign_create,tiktok_adgroup_create,tiktok_ad_create' ||
+    !steps.every(
+      s =>
+        s.kind === 'write' &&
+        s.gateway === 'tiktok_native_action' &&
+        s.account_id === steps[0].account_id &&
+        s.connection_id === steps[0].connection_id &&
+        s.expected_currency === r.currency,
+    ) ||
+    campaign?.operation_status !== 'DISABLE' ||
+    campaign.objective_type !== (purchases ? 'WEB_CONVERSIONS' : 'TRAFFIC') ||
+    group?.operation_status !== 'ENABLE' ||
+    ad?.operation_status !== 'ENABLE' ||
+    steps[2].arguments.payload.creatives.length !== 1 ||
+    group.budget_mode !== 'BUDGET_MODE_DAY' ||
+    typeof r.daily_budget !== 'string' ||
+    !/^\d{1,9}(?:\.\d{1,2})?$/.test(r.daily_budget) ||
+    group.budget !== Number(r.daily_budget) ||
+    group.bid_type !== 'BID_TYPE_NO_BID' ||
+    group.optimization_goal !== (purchases ? 'CONVERT' : 'CLICK') ||
+    (purchases && (group.pixel_id !== r.pixel_id || group.optimization_event !== r.optimization_event)) ||
+    !Array.isArray(group.location_ids) ||
+    !group.location_ids.length ||
+    group.location_ids.length > 20 ||
+    ad.tiktok_item_id !== r.creative?.tiktok_item_id ||
+    ad.identity_id !== r.creative?.identity_id
+  )
+    return details();
+  const row = (label, value, direction = 'auto') =>
+    `<div><dt>${esc(uiText(label))}</dt><dd><bdi dir="${direction}">${esc(value)}</bdi></dd></div>`;
+  const title = purchases ? 'Paused TikTok website purchases preview' : 'Paused TikTok website traffic preview';
+  return `<section aria-label="${esc(uiText(title))}" class="conversion-recipe-preview"><h3>${esc(uiText(title))}</h3><p>${esc(uiText('Local preview only. No plan is saved and no advertising changes are sent.'))}</p><dl>${row('Campaign name', plan.name)}${row('Advertising login and account', steps[0].connection_id + ' · ' + steps[0].account_id, 'ltr')}${row('Daily budget in account currency', r.daily_budget + ' ' + r.currency, 'ltr')}${row('Existing TikTok post ID', ad.tiktok_item_id, 'ltr')}${row('TikTok account identity', ad.identity_type + ' · ' + ad.identity_id, 'ltr')}${row('TikTok location IDs', group.location_ids.join(', '), 'ltr')}${row('Start time sent to TikTok (UTC)', group.schedule_start_time, 'ltr')}${group.schedule_end_time ? row('End time sent to TikTok (UTC)', group.schedule_end_time, 'ltr') : ''}${row('Call to action', ad.call_to_action, 'ltr')}${purchases ? row('Purchase event to optimize', group.pixel_id + ' · ' + group.optimization_event, 'ltr') : ''}</dl><p class="notice">${esc(uiText(purchases ? 'Creates a disabled campaign with an ad group and Spark Ad under it. Preflight reads the identity, post and pixel of this advertiser; event delivery, ad review and objective acceptance remain unverified.' : 'Creates a disabled campaign with an ad group and Spark Ad under it. Preflight reads the identity and post of this advertiser; ad review and objective acceptance remain unverified.'))}</p><p>${esc(uiText(purchases ? 'Maximum delivery uses the daily budget to seek the chosen purchase event. It does not guarantee a cost per purchase or result. Activation requires a separate review.' : 'Maximum delivery uses the daily budget to seek clicks. It does not guarantee a cost per result. Activation requires a separate review.'))}</p>${details()}</section>`;
+}
+/** The paused LinkedIn lead generation preview (CMP-07): shown only when the compiled plan is exactly the pack. */
+function linkedinLeadPreview(out) {
+  const r = out.recipe,
+    plan = out.plan,
+    steps = plan?.steps,
+    details = () => recordDetails(out, uiText('Compiled plan and input provenance'));
+  if (
+    out.ready !== true ||
+    out.provider_mutations !== 0 ||
+    !/^[A-Z]{3}$/.test(r?.currency) ||
+    !Array.isArray(steps) ||
+    steps.length !== 3
+  )
+    return details();
+  const [group, campaign, creative] = steps.map(s => s?.arguments?.payload),
+    locations = campaign?.targetingCriteria?.include?.and?.[0]?.or?.['urn:li:adTargetingFacet:locations'],
+    schedule = campaign?.runSchedule ?? {};
+  if (
+    steps.map(s => s.id).join(',') !== 'group,campaign,creative' ||
+    steps.map(s => s.arguments?.action).join(',') !==
+      'linkedin_rest_ad_accounts_ad_account_id_ad_campaign_groups_post,linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_post,linkedin_rest_ad_accounts_ad_account_id_creatives_post' ||
+    !steps.every(
+      s =>
+        s.kind === 'write' &&
+        s.gateway === 'linkedin_native_action' &&
+        s.account_id === steps[0].account_id &&
+        s.connection_id === steps[0].connection_id &&
+        s.expected_currency === r.currency,
+    ) ||
+    group?.status !== 'PAUSED' ||
+    campaign?.status !== 'PAUSED' ||
+    creative?.intendedStatus !== 'PAUSED' ||
+    creative.status !== undefined ||
+    campaign.objectiveType !== 'LEAD_GENERATION' ||
+    campaign.optimizationTargetType !== 'MAX_LEAD' ||
+    campaign.politicalIntent !== 'NOT_POLITICAL' ||
+    campaign.totalBudget !== undefined ||
+    group.totalBudget !== undefined ||
+    typeof r.daily_budget !== 'string' ||
+    campaign.dailyBudget?.amount !== r.daily_budget ||
+    campaign.dailyBudget?.currencyCode !== r.currency ||
+    !Array.isArray(locations) ||
+    !locations.length ||
+    locations.length > 50 ||
+    !Number.isSafeInteger(schedule.start) ||
+    (schedule.end !== undefined && !Number.isSafeInteger(schedule.end)) ||
+    creative.content?.reference !== r.post_urn ||
+    creative.leadgenCallToAction?.destination !== 'urn:li:adForm:' + r.lead_form_id ||
+    creative.leadgenCallToAction?.label !== r.call_to_action
+  )
+    return details();
+  const row = (label, value, direction = 'auto') =>
+      `<div><dt>${esc(uiText(label))}</dt><dd><bdi dir="${direction}">${esc(value)}</bdi></dd></div>`,
+    utc = ms => new Date(ms).toISOString().replace(/\.000Z$/, 'Z'),
+    title = 'Paused LinkedIn lead generation preview';
+  return `<section aria-label="${esc(uiText(title))}" class="conversion-recipe-preview"><h3>${esc(uiText(title))}</h3><p>${esc(uiText('Local preview only. No plan is saved and no advertising changes are sent.'))}</p><dl>${row('Campaign name', plan.name)}${row('Advertising login and account', steps[0].connection_id + ' · ' + steps[0].account_id, 'ltr')}${row('Daily budget in account currency', r.daily_budget + ' ' + r.currency, 'ltr')}${row('Existing post URN', creative.content.reference, 'ltr')}${row('Existing lead form ID', r.lead_form_id, 'ltr')}${row('Call to action', creative.leadgenCallToAction.label, 'ltr')}${row('LinkedIn location URNs', locations.join(', '), 'ltr')}${row('Campaign locale', String(campaign.locale?.language) + '_' + String(campaign.locale?.country), 'ltr')}${row('Start time sent to LinkedIn (UTC)', utc(schedule.start), 'ltr')}${schedule.end !== undefined ? row('End time sent to LinkedIn (UTC)', utc(schedule.end), 'ltr') : ''}</dl><p class="notice">${esc(uiText('Creates a paused campaign group, campaign and creative. Preflight reads the account’s lead forms; post eligibility, ad review and objective acceptance remain unverified. The creative serves only once its form is published.'))}</p><p>${esc(uiText('Maximum delivery uses the daily budget to seek lead form submissions. It does not guarantee a cost per lead or result; LinkedIn may spend up to 150% of a daily budget on a day. Activation requires a separate review.'))}</p>${details()}</section>`;
+}
+/** The paused Performance Max preview (CMP-07): shown only when the compiled plan is exactly the pack's one build. */
+function pmaxLaunchPreview(out) {
+  const r = out.recipe,
+    plan = out.plan,
+    step = Array.isArray(plan?.steps) && plan.steps.length === 1 ? plan.steps[0] : undefined,
+    details = () => recordDetails(out, uiText('Compiled plan and input provenance'));
+  const ops = step?.arguments?.payload?.mutate_operations;
+  if (
+    out.ready !== true ||
+    out.provider_mutations !== 0 ||
+    !/^[A-Z]{3}$/.test(r?.currency) ||
+    !step ||
+    !Array.isArray(ops)
+  )
+    return details();
+  const creates = key => ops.filter(o => o?.[key]).map(o => o[key].create),
+    [campaign] = creates('campaign_operation'),
+    [budget] = creates('campaign_budget_operation'),
+    groups = creates('asset_group_operation'),
+    links = creates('asset_group_asset_operation'),
+    criteria = creates('campaign_criterion_operation'),
+    account = String(step.account_id ?? '').replace(/-/g, ''),
+    counts = r.asset_counts && typeof r.asset_counts === 'object' ? Object.entries(r.asset_counts) : [];
+  if (
+    step.id !== 'build' ||
+    step.kind !== 'write' ||
+    step.gateway !== 'google_ads_native_action' ||
+    step.expected_currency !== r.currency ||
+    step.arguments.action !== 'google_ads_v23_google_ads_mutate' ||
+    step.arguments.payload.partial_failure !== false ||
+    campaign?.status !== 'PAUSED' ||
+    campaign.advertising_channel_type !== 'PERFORMANCE_MAX' ||
+    JSON.stringify(campaign.maximize_conversions) !== '{}' ||
+    ['maximize_conversion_value', 'target_cpa', 'target_roas', 'manual_cpc', 'target_spend', 'bidding_strategy'].some(
+      key => campaign[key] !== undefined,
+    ) ||
+    r.conversion_goal_policy !== 'ACCOUNT_DEFAULT' ||
+    typeof budget?.amount_micros !== 'string' ||
+    !/^[1-9]\d{0,15}$/.test(budget.amount_micros) ||
+    budget.amount_micros !== r.daily_budget_micros ||
+    budget.explicitly_shared !== false ||
+    groups.length !== 1 ||
+    groups[0]?.status !== 'ENABLED' ||
+    groups[0].campaign !== campaign.resource_name ||
+    !Array.isArray(groups[0].final_urls) ||
+    groups[0].final_urls.length !== 1 ||
+    !counts.length ||
+    counts.some(([type, n]) => links.filter(l => l?.field_type === type).length !== n) ||
+    links.length !== counts.reduce((sum, [, n]) => sum + n, 0) ||
+    // A build names its account in every resource; any other customer is not this preview's.
+    !(JSON.stringify(ops).match(/customers\/[^/"]*\//g) ?? []).every(m => m === 'customers/' + account + '/')
+  )
+    return details();
+  const n = BigInt(budget.amount_micros),
+    fraction = (n % 1000000n).toString().padStart(6, '0').replace(/0+$/, ''),
+    amount = (n / 1000000n).toString() + (fraction ? '.' + fraction : '') + ' ' + r.currency,
+    row = (label, value, direction = 'auto') =>
+      `<div><dt>${esc(uiText(label))}</dt><dd><bdi dir="${direction}">${esc(value)}</bdi></dd></div>`,
+    title = 'Paused Performance Max preview';
+  return `<section aria-label="${esc(uiText(title))}" class="conversion-recipe-preview"><h3>${esc(uiText(title))}</h3><p>${esc(uiText('Local preview only. No plan is saved and no advertising changes are sent.'))}</p><dl>${row('Campaign name', plan.name)}${row('Advertising login and account', step.connection_id + ' · ' + step.account_id, 'ltr')}${row('Daily budget in account currency', amount, 'ltr')}${row('Native micros', budget.amount_micros, 'ltr')}${row('Bidding strategy', uiText('Maximize Conversions'))}${row('Conversion goals for this campaign', uiText('Use the account-default conversion goals'))}${row('Landing page URL', groups[0].final_urls[0], 'ltr')}${row('Asset group assets', counts.map(([type, count]) => type + ' ' + count).join(' · '), 'ltr')}${row('Location and language criteria', String(criteria.length), 'ltr')}${row('EU political advertising declaration', campaign.contains_eu_political_advertising, 'ltr')}</dl><p class="notice">${esc(uiText('One all-or-nothing build: Google creates the paused campaign, its asset group and every asset link together or not at all. Images and logos are existing account assets read for their type; asset approval, ad strength and event delivery remain unverified.'))}</p><p>${esc(uiText('Maximize Conversions uses the daily budget to seek conversions across Google’s channels. It does not guarantee a cost per conversion or result. Activation requires a separate review.'))}</p>${details()}</section>`;
 }
 function snapchatCreativeInspectionView(out) {
   if (out.recipe_id === 'snapchat_lead_generation') return snapchatLeadInspectionView(out);
@@ -690,7 +946,7 @@ const recipeObjectives = [
 function recipeObjectiveOf(id) {
   return String(id).includes('lead')
     ? 'leads'
-    : id === 'meta_website_sales'
+    : ['meta_website_sales', 'tiktok_website_conversions', 'google_performance_max'].includes(id)
       ? 'sales'
       : String(id).endsWith('_traffic')
         ? 'traffic'
@@ -713,10 +969,11 @@ function recipeOptions(recipes, objective, selected) {
     // A recipe the deployment offers as a draft only (CMP-03) says so beside its name.
     option = r =>
       `<option value="${esc(r.id)}" ${r.id === selected ? 'selected' : ''}>${esc(uiText(r.name))}${r.availability_label ? ' — ' + esc(uiText(r.availability_label)) : ''}</option>`,
-    google = list.filter(r => r.platform === 'google');
+    // Only the Google Search packs share the bidding sub-choice; Performance Max is its own workflow (CMP-07).
+    google = list.filter(r => r.platform === 'google' && String(r.id).startsWith('google_search'));
   return (
     list
-      .filter(r => r.platform !== 'google')
+      .filter(r => !google.includes(r))
       .map(option)
       .join('') +
     (google.length
@@ -781,6 +1038,8 @@ const recipeGateways = {
   meta: 'meta_native_action',
   microsoft: 'microsoft_ads_native_action',
   snapchat: 'snapchat_native_action',
+  tiktok: 'tiktok_native_action',
+  linkedin: 'linkedin_native_action',
 };
 /** Whether a recipe's platform has an enabled login with a selected account (no provider request). */
 function recipeHasAccount(recipe) {
@@ -890,12 +1149,11 @@ async function mountRecipeBuilder(profiles, openCampaign) {
         defaults = context.defaults ?? {},
         values = {...defaults, ...(saved?.values ?? {})};
       const required = context.recipe.required.filter(k => !['account_id', 'connection_id', 'currency'].includes(k)),
-        optional =
-          context.recipe.platform === 'snapchat'
-            ? ['end_time']
-            : recipe.startsWith('meta')
-              ? ['start_time', 'end_time']
-              : ['start_date', 'end_date'];
+        optional = ['snapchat', 'tiktok', 'linkedin'].includes(context.recipe.platform)
+          ? ['end_time']
+          : recipe.startsWith('meta')
+            ? ['start_time', 'end_time']
+            : ['start_date', 'end_date'];
       // A linked account is a hint checked against the current choices; one this person cannot use is named, not
       // replaced by another account (WEB-06).
       const linked = linkedTarget;
@@ -924,7 +1182,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
         const t = context.targets.find(t => targetId(t) === selected);
         if (t?.currency) values.currency = t.currency;
       }
-      const timed = ['meta', 'snapchat'].includes(context.recipe.platform),
+      const timed = ['meta', 'snapchat', 'tiktok', 'linkedin'].includes(context.recipe.platform),
         zoneOf = id => context.targets.find(t => targetId(t) === id)?.timezone || '',
         zoneNote = id =>
           zoneOf(id)
@@ -942,7 +1200,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
           })
           .join(
             '',
-          )}</select></label><label>${esc(uiText('Account currency'))}<input name="currency" value="${esc(values.currency ?? '')}" pattern="[A-Z]{3}" maxlength="3" required></label>${required.map(k => (k === 'drive_url' && context.recipe.platform === 'meta' ? recipeImageField(values) : recipeField(k, fieldValue(k), true, recipe))).join('')}${recipe.startsWith('meta') ? `<label>${esc(uiText('Private Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public link or resolve a selected login'))}</option>${context.drive_connections.map(c => `<option value="${esc(c.id)}" ${values.drive_connection_id === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>` : ''}</div>${context.recipe.platform === 'google' ? `<details><summary>${esc(uiText('Find Google targeting IDs'))}</summary><label>${esc(uiText('Type'))}<select id="recipe-lookup-kind"><option value="country">${esc(uiText('Country'))}</option><option value="language">${esc(uiText('Language'))}</option></select></label><label>${esc(uiText('Country name/code or language'))}<input id="recipe-lookup-query" maxlength="60"></label><button type="button" class="button" id="recipe-lookup">${esc(uiText('Find targeting'))}</button><div id="recipe-lookup-results" aria-live="polite"></div></details>` : ''}${context.recipe.platform === 'microsoft' ? `<p class="form-note" id="recipe-location-note">${esc(uiText('Microsoft location IDs come from the Location Id column of its geographical locations file; use locations it lists as Active. Each becomes a positive location criterion of the paused campaign, read back by ID; activation preflight lists each location with the name Microsoft gives it, for you to confirm before approving.'))}</p>` : ''}<details><summary>${esc(uiText('Optional schedule'))}</summary><div class="recipe-fields">${optional.map(k => recipeField(k, fieldValue(k), false)).join('')}</div></details>${timed ? `<input type="hidden" name="schedule_timezone" value="${esc(zoneOf(selected))}"><p class="form-note" id="recipe-timezone-note">${esc(zoneNote(selected))}</p>` : ''}${context.recipe.platform === 'meta' ? `<details><summary>${esc(uiText('Audience age'))}</summary><p class="form-note">${esc(uiText('Meta targets ages 18–65 unless you set a range from 13 to 65.'))}</p><div class="recipe-fields">${['age_min', 'age_max'].map(k => recipeField(k, values[k], false)).join('')}</div></details>` : ''}${
+          )}</select></label><label>${esc(uiText('Account currency'))}<input name="currency" value="${esc(values.currency ?? '')}" pattern="[A-Z]{3}" maxlength="3" required></label>${required.map(k => (k === 'drive_url' && context.recipe.platform === 'meta' ? recipeImageField(values) : recipeField(k, fieldValue(k), true, recipe))).join('')}${recipe.startsWith('meta') ? `<label>${esc(uiText('Private Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public link or resolve a selected login'))}</option>${context.drive_connections.map(c => `<option value="${esc(c.id)}" ${values.drive_connection_id === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>` : ''}</div>${context.recipe.platform === 'google' ? `<details><summary>${esc(uiText('Find Google targeting IDs'))}</summary><label>${esc(uiText('Type'))}<select id="recipe-lookup-kind"><option value="country">${esc(uiText('Country'))}</option><option value="language">${esc(uiText('Language'))}</option></select></label><label>${esc(uiText('Country name/code or language'))}<input id="recipe-lookup-query" maxlength="60"></label><button type="button" class="button" id="recipe-lookup">${esc(uiText('Find targeting'))}</button><div id="recipe-lookup-results" aria-live="polite"></div></details>` : ''}${context.recipe.platform === 'microsoft' ? `<p class="form-note" id="recipe-location-note">${esc(uiText('Microsoft location IDs come from the Location Id column of its geographical locations file; use locations it lists as Active. Each becomes a positive location criterion of the paused campaign, read back by ID; activation preflight lists each location with the name Microsoft gives it, for you to confirm before approving.'))}</p>` : ''}<details><summary>${esc(uiText('Optional schedule'))}</summary><div class="recipe-fields">${optional.map(k => recipeField(k, fieldValue(k), false)).join('')}</div></details>${timed ? `<input type="hidden" name="schedule_timezone" value="${esc(zoneOf(selected))}"><p class="form-note" id="recipe-timezone-note">${esc(zoneNote(selected))}</p>` : ''}${context.recipe.platform === 'meta' ? `<details><summary>${esc(uiText('Audience age'))}</summary><p class="form-note">${esc(uiText('Meta targets ages 18–65 unless you set a range from 13 to 65.'))}</p><div class="recipe-fields">${['age_min', 'age_max'].map(k => recipeField(k, values[k], false)).join('')}</div></details>` : ''}${context.recipe.platform === 'tiktok' ? `<details><summary>${esc(uiText('Business Center identity'))}</summary><p class="form-note">${esc(uiText('Needed only for a BC_AUTH_TT identity: the Business Center that authorized the TikTok account.'))}</p><div class="recipe-fields">${recipeField('identity_authorized_bc_id', values.identity_authorized_bc_id, false)}</div></details>` : ''}${
           context.conventions
             ? `<fieldset class="recipe-conventions"><legend>${esc(uiText('Client playbook rules'))}</legend><input type="hidden" name="playbook_rules_seen" value="1"><label class="form-note"><input type="checkbox" name="apply_playbook_rules" value="true" ${rulesOn ? 'checked' : ''}> ${esc(uiText('Apply this playbook’s naming and tracking rules to this plan'))}</label>${context.conventions.naming ? `<p class="form-note">${esc(uiText('Naming rule'))}: <code dir="ltr">${esc(context.conventions.naming)}</code></p>` : ''}${
                 Object.keys(context.conventions.utm ?? {}).length

@@ -202,10 +202,22 @@ test('all recipes validate their contracts, including the maximum 30 Google targ
   try {
     for (const recipe of campaignRecipes) {
       const gateway =
-        {meta: 'meta', google: 'google_ads', microsoft: 'microsoft_ads', snapchat: 'snapchat'}[recipe.platform] +
-        '_native_action';
+        {
+          meta: 'meta',
+          google: 'google_ads',
+          microsoft: 'microsoft_ads',
+          snapchat: 'snapchat',
+          tiktok: 'tiktok',
+          linkedin: 'linkedin',
+        }[recipe.platform] + '_native_action';
       const login =
-        recipe.platform === 'snapchat' ? examples.snapchat_traffic_business.connection_id : 'synthetic-login';
+        recipe.platform === 'snapchat'
+          ? examples.snapchat_traffic_business.connection_id
+          : recipe.platform === 'tiktok'
+            ? examples.tiktok_traffic_business.connection_id
+            : recipe.platform === 'linkedin'
+              ? examples.linkedin_lead_business.connection_id
+              : 'synthetic-login';
       store.putConnection(
         actor,
         {
@@ -220,44 +232,76 @@ test('all recipes validate their contracts, including the maximum 30 Google targ
         },
         {accessToken: 'synthetic'},
       );
+      // CMP-07: a TikTok pack's preflight reads the advertiser, the Spark identity and post, and the pixel.
+      const tiktok = p =>
+        p.path === '/v1.3/advertiser/info/'
+          ? {code: 0, data: {list: [{advertiser_id: '123', currency: 'USD', timezone: 'Etc/GMT'}]}}
+          : p.path === '/v1.3/identity/info/'
+            ? {
+                code: 0,
+                data: {
+                  identity_info: {
+                    identity_id: p.query.identity_id,
+                    identity_type: p.query.identity_type,
+                    available_status: 'AVAILABLE',
+                    can_pull_video: true,
+                    is_gpppa: false,
+                  },
+                },
+              }
+            : p.path === '/v1.3/identity/video/info/'
+              ? {code: 0, data: {video_details: [{item_id: '7300000000000000001', item_type: 'VIDEO'}]}}
+              : {code: 0, data: {pixels: [{pixel_id: '456', asset_ownership: {asset_relation_status: 'OWNER'}}]}};
+      // CMP-07: the LinkedIn lead pack's preflight reads the ad account and its lead forms (owner finder).
+      const linkedin = p =>
+        p.path === '/rest/leadForms'
+          ? {
+              elements: [{id: 4242, owner: {sponsoredAccount: 'urn:li:sponsoredAccount:123'}, state: 'PUBLISHED'}],
+              paging: {start: 0, count: 100, total: 1},
+            }
+          : {id: 123, currency: 'USD', status: 'ACTIVE', type: 'BUSINESS'};
       service.runPlan = async p => ({
         data:
-          p.gateway === 'snapchat_native_action'
-            ? p.path.includes('/lead_generation_forms')
-              ? {
-                  lead_generation_forms: [
-                    {
-                      lead_generation_form: {
-                        id: 'form1',
-                        ad_account_id: '123',
-                        title: 'Synthetic form',
-                        form_fields: [{type: 'EMAIL'}],
-                      },
-                    },
-                  ],
-                }
-              : p.path.includes('/creatives')
-                ? {
-                    creatives: [
-                      {
-                        creative: {
-                          id: '33333333-3333-4333-8333-333333333333',
-                          ad_account_id: '123',
-                          type: recipe.id === 'snapchat_lead_generation' ? 'LEAD_GENERATION' : 'WEB_VIEW',
-                          ...(recipe.id === 'snapchat_lead_generation' ? {lead_generation_form_id: 'form1'} : {}),
-                          web_view_properties: {url: 'https://example.com/synthetic-snapchat'},
+          p.gateway === 'tiktok_native_action'
+            ? tiktok(p)
+            : p.gateway === 'linkedin_native_action'
+              ? linkedin(p)
+              : p.gateway === 'snapchat_native_action'
+                ? p.path.includes('/lead_generation_forms')
+                  ? {
+                      lead_generation_forms: [
+                        {
+                          lead_generation_form: {
+                            id: 'form1',
+                            ad_account_id: '123',
+                            title: 'Synthetic form',
+                            form_fields: [{type: 'EMAIL'}],
+                          },
                         },
-                      },
-                    ],
-                  }
-                : {adaccounts: [{adaccount: {id: '123', currency: 'USD'}}]}
-            : p.path.endsWith('/promote_pages') || p.path.endsWith('/adspixels')
-              ? {data: [{id: '456'}]}
-              : p.gateway === 'google_ads_native_action'
-                ? {results: [{customer: {id: '123', currencyCode: 'USD'}}]}
-                : p.gateway === 'microsoft_ads_native_action'
-                  ? {Account: {Id: 123, CurrencyCode: 'USD'}}
-                  : {id: 'act_123', account_id: '123', currency: 'USD'},
+                      ],
+                    }
+                  : p.path.includes('/creatives')
+                    ? {
+                        creatives: [
+                          {
+                            creative: {
+                              id: '33333333-3333-4333-8333-333333333333',
+                              ad_account_id: '123',
+                              type: recipe.id === 'snapchat_lead_generation' ? 'LEAD_GENERATION' : 'WEB_VIEW',
+                              ...(recipe.id === 'snapchat_lead_generation' ? {lead_generation_form_id: 'form1'} : {}),
+                              web_view_properties: {url: 'https://example.com/synthetic-snapchat'},
+                            },
+                          },
+                        ],
+                      }
+                    : {adaccounts: [{adaccount: {id: '123', currency: 'USD'}}]}
+                : p.path.endsWith('/promote_pages') || p.path.endsWith('/adspixels')
+                  ? {data: [{id: '456'}]}
+                  : p.gateway === 'google_ads_native_action'
+                    ? {results: [{customer: {id: '123', currencyCode: 'USD'}}]}
+                    : p.gateway === 'microsoft_ads_native_action'
+                      ? {Account: {Id: 123, CurrencyCode: 'USD'}}
+                      : {id: 'act_123', account_id: '123', currency: 'USD'},
       });
       const b = {
         ...examples.recipe_business,
@@ -267,6 +311,10 @@ test('all recipes validate their contracts, including the maximum 30 Google targ
             ? examples.snapchat_lead_business
             : examples.snapchat_traffic_business
           : {}),
+        ...(recipe.id === 'tiktok_website_traffic' ? examples.tiktok_traffic_business : {}),
+        ...(recipe.id === 'tiktok_website_conversions' ? examples.tiktok_conversion_business : {}),
+        ...(recipe.id === 'linkedin_lead_generation' ? examples.linkedin_lead_business : {}),
+        ...(recipe.id === 'google_performance_max' ? {...examples.google_pmax_business, cpc_bid: undefined} : {}),
         ...(recipe.id === 'meta_website_sales' || recipe.id === 'meta_website_leads'
           ? {pixel_id: '456', click_attribution_days: 7, view_attribution_days: 1}
           : {}),
@@ -311,7 +359,9 @@ test('all recipes validate their contracts, including the maximum 30 Google targ
           steps[0].arguments.payload.mutate_operations.filter(o => o.campaign_criterion_operation).length,
           30,
         );
-        // One step per resource type keeps the reviewed contract's 25-operation limit per request.
+        // One step per resource type keeps the reviewed contract's 25-operation limit per request. The Performance Max
+        // pack (CMP-07) is always one build: Google requires its asset group and assets in the same request.
+        if (recipe.id === 'google_performance_max') continue;
         const split = campaignRecipe(recipe.id, {...b, atomic: false}).steps;
         assert.equal((await campaignPreflight(service, actor, split)).status, 'ready');
         const chunks = split.filter(s => s.id.startsWith('targeting'));

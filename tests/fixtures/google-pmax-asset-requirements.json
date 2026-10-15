@@ -1,0 +1,22 @@
+{
+  "source": "https://developers.google.com/google-ads/api/performance-max/asset-requirements",
+  "accessed": "2026-10-08",
+  "meaning": "Asset count and text-length minimums of a non-retail Performance Max asset group with brand guidelines off, as read from Google's Performance Max asset requirements page during the 2026-10-08 engineering review (finding R13-google-family:pmax-bulk-build-gap) and pinned here. Transcribed, not re-fetched in this environment: recheck against the page before live qualification. Image ratios and sizes, policy and duplicate-text rules stay with Google.",
+  "fields": {
+    "HEADLINE": {"min": 3, "max": 15, "max_length": 30, "asset_type": "TEXT"},
+    "LONG_HEADLINE": {"min": 1, "max": 5, "max_length": 90, "asset_type": "TEXT"},
+    "DESCRIPTION": {"min": 2, "max": 5, "max_length": 90, "asset_type": "TEXT"},
+    "BUSINESS_NAME": {"min": 1, "max": 1, "max_length": 25, "asset_type": "TEXT"},
+    "MARKETING_IMAGE": {"min": 1, "max": 20, "asset_type": "IMAGE"},
+    "SQUARE_MARKETING_IMAGE": {"min": 1, "max": 20, "asset_type": "IMAGE"},
+    "PORTRAIT_MARKETING_IMAGE": {"min": 0, "max": 20, "asset_type": "IMAGE"},
+    "LOGO": {"min": 1, "max": 5, "asset_type": "IMAGE"},
+    "LANDSCAPE_LOGO": {"min": 0, "max": 5, "asset_type": "IMAGE"},
+    "YOUTUBE_VIDEO": {"min": 0, "max": 5, "asset_type": "YOUTUBE_VIDEO"},
+    "CALL_TO_ACTION_SELECTION": {"min": 0, "max": 1, "asset_type": "CALL_TO_ACTION"}
+  },
+  "combined": [
+    {"fields": ["MARKETING_IMAGE", "SQUARE_MARKETING_IMAGE", "PORTRAIT_MARKETING_IMAGE"], "max": 20},
+    {"fields": ["LOGO", "LANDSCAPE_LOGO"], "max": 5}
+  ]
+}

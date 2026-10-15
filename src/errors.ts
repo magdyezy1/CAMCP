@@ -494,6 +494,39 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
         'Nothing was submitted. Ask the user which pixel in details.owned_pixel_ids to use and amend the step with amcp_campaign recover_step, as the refusal’s next_call shows (a patch of the named pixel_id); the next prepare_next checks it again. Or have the pixel’s owner share it to this ad account in Snapchat Business Manager, then run preflight.',
       mutation_retry_safe: false,
     };
+  if (e.code === 'REDDIT_PIXEL_NOT_IN_ACCOUNT')
+    return {
+      category: 'grant',
+      owner: 'provider_or_account_admin',
+      action:
+        'Nothing was submitted. Ask the user which pixel in details.account_pixel_ids to use and prepare a new review with that conversion_pixel_id; in a saved plan, amend the step with amcp_campaign recover_step. Or associate the pixel with this ad account in Reddit Events Manager, then prepare again.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'SNAPCHAT_SEGMENT_UNAVAILABLE')
+    return {
+      category: 'state',
+      owner: 'operator',
+      action:
+        'Nothing was submitted. Ask the user to choose segments of the selected ad account (details.reason says why this one is refused): a foreign or unlisted segment cannot be added, and one that is not ready can be included once Snapchat lists it as READY. Then prepare the targeting edit again.',
+      mutation_retry_safe: false,
+    };
+  // PRV-06 C: Advantage+ creative features are the user's choice, one explicit enroll_status per listed feature.
+  if (e.code === 'META_ADVANTAGE_CREATIVE_CHOICE_REQUIRED')
+    return {
+      category: 'request',
+      owner: 'operator',
+      action:
+        'Nothing was sent. Ask the user, for each Advantage+ creative feature in details.features, whether Meta may apply it to this creative: set its enroll_status to OPT_IN or OPT_OUT, or leave the feature out, and prepare a new review. Never choose for them.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'META_ADVANTAGE_CREATIVE_FEATURE_UNAVAILABLE')
+    return {
+      category: 'request',
+      owner: 'operator',
+      action:
+        'Nothing was sent. Choose Advantage+ creative features from details.supported_features, the single features AMCP reviews against Meta’s SDK 26.0.2; since Marketing API v22.0 a bundle such as standard_enhancements is chosen feature by feature. Leave out any other feature, then prepare a new review.',
+      mutation_retry_safe: false,
+    };
   // An operation listed for compatibility with the captured catalog that AMCP cannot run (MCP-10).
   if (
     (e.code === 'WORKFLOW_UNSUPPORTED' || e.code === 'CAPABILITY_UNAVAILABLE') &&

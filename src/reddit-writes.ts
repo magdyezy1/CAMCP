@@ -176,6 +176,183 @@ export function assertRedditWriteScopes(connection: Connection) {
       403,
     );
 }
+/**
+ * The conversion pixel an ad group or CBO campaign names (PRV-06 D). The pinned Reddit Ads API v3 OpenAPI requires a
+ * pixel for every ad group and CBO campaign from 2026-07-13 ("List Pixels By Ad Account"), and until now only the
+ * pixel ID's format was checked. The review reads the pixels associated with the ad account
+ * (GET /api/v3/ad_accounts/{id}/pixels): a pixel the account does not list is refused before anything is sent. Only then
+ * is the listed pixel's activity read (GET /api/v3/pixels/{id}/last_fired_at): the impact names the pixel and its last
+ * firing and warns when it never fired, or not within redditPixelStaleDays. Activity warns and never refuses: a new
+ * pixel has no history yet, and a quiet one may be seasonal.
+ *
+ * The activity read is created only by followUps, after the account's own list named the pixel; that marked, server-built
+ * read is what authorizes reading a pixel outside the ad-account path. Its exact time is shown but not compared at
+ * execute (`last_fired_at` is volatile review state); whether the pixel ever fired, and how recently, is.
+ */
+const pixelAction = 'AMCP_REDDIT_PIXEL_READ';
+type PixelRead = CompiledRequest & {redditPixelState?: 'membership' | 'activity'; redditPixelId?: string};
+/** A pixel that has not fired within this many days is shown as stale (a local warning threshold). */
+export const redditPixelStaleDays = 7;
+/** The standard events of Reddit's last-fired report; `custom` covers custom conversion events. */
+const pixelEvents = [
+  'add_to_cart',
+  'add_to_wishlist',
+  'custom',
+  'lead',
+  'page_visit',
+  'purchase',
+  'search',
+  'sign_up',
+  'view_content',
+];
+const pixelRead = (plan: CompiledRequest, state: 'membership' | 'activity', pixel: string): PixelRead => ({
+  ...plan,
+  action: pixelAction,
+  path:
+    state === 'membership'
+      ? '/api/v3/ad_accounts/' + plan.accountId + '/pixels'
+      : '/api/v3/pixels/' + pixel + '/last_fired_at',
+  method: 'GET',
+  body: undefined,
+  // One page holds every pixel an account can have in practice; another page is refused as incomplete state.
+  query: state === 'membership' ? {'page.size': 1000} : {},
+  headers: {},
+  readOnly: true,
+  destructive: false,
+  requiresConfirmation: false,
+  redditPixelState: state,
+  redditPixelId: pixel,
+});
+export const isRedditPixelRead = (read: CompiledRequest): boolean =>
+  read.gateway === 'reddit_native_action' && read.action === pixelAction && !!(read as PixelRead).redditPixelState;
+/** The marked activity read of a pixel the account's list named, for the selected account only. */
+export function authorizeRedditPixelRead(read: CompiledRequest, connection: Connection, account: string): boolean {
+  const r = read as PixelRead;
+  if (!isRedditPixelRead(read) || r.redditPixelState !== 'activity') return false;
+  return (
+    read.method === 'GET' &&
+    read.readOnly &&
+    read.accountId === account &&
+    identifier(r.redditPixelId) &&
+    read.path === '/api/v3/pixels/' + r.redditPixelId + '/last_fired_at' &&
+    !Object.keys(read.query).length &&
+    connection.scopes.includes('adsread')
+  );
+}
+/** The account's pixel list must name the pixel; the activity report must be readable. */
+export function validateRedditPixelState(read: CompiledRequest, result: TransportResult): void {
+  const r = read as PixelRead,
+    d = (result.data as JsonObject)?.data;
+  if (r.redditPixelState === 'membership') {
+    if (result.status !== 200 || !Array.isArray(d) || d.some(p => !object(p) || !identifier(p.id)))
+      throw new MirrorError(
+        'STATE_READ_FAILED',
+        'Reddit did not return a complete pixel list for the selected ad account.',
+        {},
+        502,
+      );
+    if (!d.some(p => p.id === r.redditPixelId))
+      throw new MirrorError(
+        'REDDIT_PIXEL_NOT_IN_ACCOUNT',
+        'Reddit does not list this conversion pixel for the selected ad account. Choose one of the account’s pixels, or associate this pixel with the account in Reddit Events Manager first.',
+        {
+          field: 'conversion_pixel_id',
+          conversion_pixel_id: r.redditPixelId,
+          account_pixel_ids: d.map(p => p.id).slice(0, 50),
+        },
+      );
+    return;
+  }
+  if (
+    result.status !== 200 ||
+    !object(d) ||
+    Object.entries(d).some(
+      ([k, v]) =>
+        pixelEvents.includes(k) &&
+        v !== null &&
+        v !== undefined &&
+        (typeof v !== 'string' || !Number.isFinite(Date.parse(v))),
+    )
+  )
+    throw new MirrorError(
+      'STATE_READ_FAILED',
+      'Reddit did not return a readable last-fired report for this pixel.',
+      {},
+      502,
+    );
+}
+/** The latest firing of any event of the report, or null when none fired. */
+function lastFired(report: JsonObject): string | null {
+  const times = [
+    ...pixelEvents.map(k => report[k]),
+    ...(Array.isArray(report.custom_events)
+      ? report.custom_events.map((e: unknown) => object(e) && e.last_fired_at)
+      : []),
+    ...(object(report.breakdown) ? Object.values(report.breakdown) : []),
+  ].filter((v): v is string => typeof v === 'string' && Number.isFinite(Date.parse(v)));
+  return times.length ? times.reduce((a, b) => (Date.parse(b) > Date.parse(a) ? b : a)) : null;
+}
+/** What a review keeps of the pixel reads: the selected pixel, and its activity (its exact time is volatile). */
+export function redditPixelSnapshot(read: CompiledRequest, data: JsonObject): JsonObject | undefined {
+  if (!isRedditPixelRead(read)) return undefined;
+  const r = read as PixelRead;
+  if (r.redditPixelState === 'membership') {
+    const pixel = (data.data as JsonObject[]).find(p => p.id === r.redditPixelId)!;
+    return {
+      reddit_pixel: {id: pixel.id, name: typeof pixel.name === 'string' ? pixel.name : null},
+    };
+  }
+  const at = lastFired(object(data.data) ? data.data : {});
+  return {
+    reddit_pixel_activity: {
+      pixel_id: r.redditPixelId,
+      last_fired_at: at,
+      freshness: !at
+        ? 'never_fired'
+        : Date.now() - Date.parse(at) > redditPixelStaleDays * 86400000
+          ? 'stale'
+          : 'recent',
+    },
+  };
+}
+/** The pixel the request names, its last firing and a warning when it never fired or is stale. */
+export function redditPixelImpact(plan: CompiledRequest, state: unknown[]): JsonObject | undefined {
+  const pixel = object(plan.body) && object(plan.body.data) ? plan.body.data.conversion_pixel_id : undefined;
+  if (!redditWriteKind(plan) || !identifier(pixel)) return undefined;
+  const of = (key: string) =>
+      (state as JsonObject[]).map(s => (object(s) ? s[key] : undefined)).find(v => object(v)) as JsonObject | undefined,
+    listed = of('reddit_pixel'),
+    activity = of('reddit_pixel_activity'),
+    freshness = activity?.freshness ?? 'unknown';
+  return {
+    provider: 'reddit',
+    conversion_pixel: {
+      id: pixel,
+      name: listed?.name ?? null,
+      listed_for_account: listed?.id === pixel,
+      last_fired_at: activity?.last_fired_at ?? null,
+      freshness,
+    },
+    effect:
+      'The ' +
+      (redditWriteKind(plan)!.kind === 'campaigns' ? 'CBO campaign' : 'ad group') +
+      ' measures and optimizes conversions with this pixel of the selected ad account.',
+    ...(freshness === 'never_fired'
+      ? {
+          warning:
+            'Reddit reports no event from this pixel yet. Conversion optimization and reporting need events; check the pixel installation before activating.',
+        }
+      : freshness === 'stale'
+        ? {
+            warning:
+              'This pixel has not fired in the last ' +
+              redditPixelStaleDays +
+              ' days. Check that it is still installed before activating.',
+          }
+        : {}),
+    source: 'https://ads-api.reddit.com/api/v3/openapi.json (List Pixels By Ad Account; Get Last Fired At)',
+  };
+}
 export function redditSnapshots(plan: CompiledRequest): CompiledRequest[] {
   if (redditCreativeKind(plan)) return redditCreativeSnapshots(plan);
   const route = redditWriteKind(plan)!,
@@ -210,6 +387,8 @@ export function redditSnapshots(plan: CompiledRequest): CompiledRequest[] {
       ...read('/api/v3/ad_accounts/' + plan.accountId + '/funding_instruments'),
       query: {funding_instrument_ids: d.funding_instrument_id, mode: 'ALL'},
     });
+  // PRV-06 D: the account's pixel list must name the pixel; its activity is a follow-up of that list (followUps).
+  if (identifier(d.conversion_pixel_id)) reads.push(pixelRead(plan, 'membership', d.conversion_pixel_id));
   return reads;
 }
 export function validateRedditState(plan: CompiledRequest, result: TransportResult) {
@@ -272,10 +451,20 @@ export function redditOutcome(plan: CompiledRequest, result: TransportResult) {
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 export const redditWriteFamily: ReviewedFamily = {
   name: 'reddit_classic',
-  files: ['src/reddit-writes.ts', ['tests/reddit-writes.test.ts']],
+  files: ['src/reddit-writes.ts', ['tests/reddit-writes.test.ts', 'tests/reddit-pixel-check.test.mjs']],
   kind: redditWriteKind,
   snapshots: redditSnapshots,
+  // PRV-06 D: the conversion pixel's account membership and activity.
+  authorize: (read, connection, account) => authorizeRedditPixelRead(read, connection, account),
+  isRead: isRedditPixelRead,
+  validateState: (read, result, gateway) => gateway(validateRedditPixelState),
+  snapshotValue: (plan, read, data) => redditPixelSnapshot(read, data),
+  followUps: (plan, read) =>
+    isRedditPixelRead(read) && (read as PixelRead).redditPixelState === 'membership'
+      ? [pixelRead(plan, 'activity', (read as PixelRead).redditPixelId!)]
+      : [],
   prerequisites: (plan, state) => validateRedditCreativePrerequisites(plan, state),
+  impact: redditPixelImpact,
   outcome: redditOutcome,
   policyAmounts: redditPolicyAmounts,
 };

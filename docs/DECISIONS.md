@@ -152,8 +152,9 @@ cites as owner decisions, each the review's recommended or the ticket's proposed
   (`microsoft_location_targets`): the Microsoft Search pack now takes `location_ids` and targets them on the paused
   campaign, and the refusal reads the campaign's location criteria instead of refusing every activation. Its premise,
   that a campaign created through the API targets every location until it has location criteria, is pinned from
-  Microsoft's targeting guide (docs/MICROSOFT-ADS.md). UTM parameters versus tracking-suffix fields, mandatory
-  conventions, the next launch packs and the PRV-06 order are not decided.
+  Microsoft's targeting guide (docs/MICROSOFT-ADS.md). UTM parameters versus tracking-suffix fields and mandatory
+  conventions are not decided here; the next launch packs and the PRV-06 order are recorded in the
+  [campaign pack demand record](#campaign-pack-demand-record-cmp-07-p7-prv-06).
 - **P9.** A Meta product's populated destination-only attributes are notes (`unsent_fields`); they never put the item
   in the review set as `unknown` (COM-01). The Business Profile and Amazon Ads parts are recorded above.
 
@@ -181,6 +182,20 @@ disposable Sheets destination, declared provider approvals, LinkedIn programs an
 environment, the workload profile), the product-direction questions P1 (the isolation model and the parts of P1
 above), P8, P11 and P12, and the parts of P2–P7 and P9 that this record does not name as applied. Each register item that needs one of them stays at the stage the review
 names, and live acceptance stays read-only until R1 is answered.
+
+### Campaign pack demand record (CMP-07, P7, PRV-06)
+
+Recorded 2026-10-12 from the owner's product direction of 2026-10-11 (P7, chosen during implementation; the owner may
+revise it). No per-client usage data exists in the repository, so this record names the platforms the owner directed,
+not measured demand; the measurable outcome (plans per recipe per month, launch checks per launch) starts at zero.
+
+| Direction | Applied as | Revisit trigger |
+|---|---|---|
+| Next guided packs: TikTok website traffic and website purchases | `tiktok_website_traffic` and `tiktok_website_conversions` (manual campaigns, existing post as a Spark Ad, campaign created `DISABLE`) | Plans per recipe after a quarter; a client asks for Smart+ |
+| LinkedIn lead generation | `linkedin_lead_generation` (paused group, campaign and sponsored-post creative with an existing lead form) | The owner names another LinkedIn objective |
+| Google Performance Max where contracts allow, before Demand Gen | A reviewed all-or-nothing PMax build with locally checked asset minimums; serving diagnostics first (read-only) | Google changes the asset minimums, or Demand Gen is named |
+| Post-launch check and serving diagnostics | `amcp_reporting launch_check` for guided Meta and Snapchat launches (Google keeps its campaign audit workflow); read-only `serving_diagnostics` for Google | Owner asks for scheduled checks |
+| PRV-06 order | Reddit conversion-pixel check first, then Snapchat ad-squad targeting, TikTok comment hide/unhide and Meta Advantage+ creative feature choices | The owner declines a sub-item (closed as declined) |
 
 ## October 2026: earlier owner decisions
 

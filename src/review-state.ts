@@ -62,6 +62,8 @@ const volatile = new Set([
   'delivery_pacing',
   'spend_to_date',
   'last_synced_at',
+  // A pixel's last event (Reddit last_fired_at, PRV-06 D) is telemetry; a review keeps whether and how recently it fired.
+  'last_fired_at',
 ]);
 const fieldName = (key: string) => key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
 const scalar = (value: unknown) => value === null || ['string', 'number', 'boolean'].includes(typeof value);

@@ -93,7 +93,7 @@ export function writeImpact(
     /^\/v1\/adaccounts\/[^/]+\/segments$/.test(plan.path)
   )
     return snapSegmentImpact(plan, state);
-  return metaShopDestinationImpact(plan);
+  return metaCreativeImpact(plan);
 }
 import {familyOf} from './reviewed-families.js';
-import {metaShopDestinationImpact} from './meta-contracts.js';
+import {metaCreativeImpact} from './meta-creative-features.js';

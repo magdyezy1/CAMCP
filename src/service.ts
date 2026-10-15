@@ -436,6 +436,7 @@ export class MirrorService {
               return this.wrap(await this.runPlan(p, a.operation ? a.arguments : a, u), requestId, start, tool);
             },
             (plan, u) => call('amcp_campaign', {...plan, action: 'create'}, u),
+            (id, u) => call('amcp_campaign', {action: 'get', id, detail: 'full'}, u),
           ).handle(input, actor),
           requestId,
           start,

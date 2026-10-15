@@ -44,6 +44,37 @@ export const recipeDependencies: Record<string, JsonObject> = {
     effects:
       'Creates a PAUSED auction campaign, daily-budget ad squad and website ad with an existing creative. Destination, creative approval and objective eligibility need native inspection. Activation is separate.',
   },
+  // CMP-07: guided TikTok packs (src/tiktok-launch-recipes.ts). Preflight reads the identity, post and pixel.
+  tiktok_website_traffic: {
+    objective: 'website_traffic',
+    objects: [
+      'tiktok_spark_identity',
+      'existing_tiktok_post',
+      'landing_page',
+      'account_currency',
+      'location_targeting',
+      'automatic_click_bidding',
+    ],
+    actions: ['tiktok_campaign_create', 'tiktok_adgroup_create', 'tiktok_ad_create'],
+    effects:
+      'Creates a DISABLE traffic campaign with an ENABLE daily-budget ad group and Spark Ad under it. Identity and post are read before creation; ad review and objective acceptance remain unverified. Activation is separate.',
+  },
+  tiktok_website_conversions: {
+    objective: 'website_purchases',
+    objects: [
+      'tiktok_spark_identity',
+      'existing_tiktok_post',
+      'landing_page',
+      'account_currency',
+      'location_targeting',
+      'account_owned_pixel',
+      'conversion_event_delivery',
+      'automatic_conversion_bidding',
+    ],
+    actions: ['tiktok_campaign_create', 'tiktok_adgroup_create', 'tiktok_ad_create'],
+    effects:
+      'Creates a DISABLE website conversions campaign with an ENABLE daily-budget ad group optimizing a purchase event of the selected pixel, and a Spark Ad. Pixel access does not establish event delivery. Activation is separate.',
+  },
   meta_website_traffic: {
     objective: 'website_traffic',
     objects: ['page_identity', 'media_receipt', 'landing_page', 'account_currency'],
@@ -139,6 +170,43 @@ export const recipeDependencies: Record<string, JsonObject> = {
       },
     ]),
   ),
+  // CMP-07: LinkedIn lead generation (src/linkedin-lead-recipe.ts). Preflight reads the account's lead forms.
+  linkedin_lead_generation: {
+    objective: 'lead_generation',
+    objects: [
+      'existing_linkedin_post',
+      'linkedin_lead_form',
+      'lead_form_policy_acceptance',
+      'account_currency',
+      'location_targeting',
+      'automatic_lead_bidding',
+    ],
+    actions: [
+      'linkedin_rest_ad_accounts_ad_account_id_ad_campaign_groups_post',
+      'linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_post',
+      'linkedin_rest_ad_accounts_ad_account_id_creatives_post',
+    ],
+    effects:
+      'Creates a PAUSED campaign group, a PAUSED lead generation campaign with maximum delivery and a PAUSED creative sponsoring an existing post with the account’s lead form. The form is read before creation; post eligibility, ad review and objective acceptance remain unverified. Activation is separate.',
+  },
+  // CMP-07: one all-or-nothing Performance Max build (src/google-pmax-recipe.ts) with account-default goals.
+  google_performance_max: {
+    objective: 'performance_max_conversions',
+    objects: [
+      'location_criteria',
+      'language_criteria',
+      'landing_page',
+      'account_currency',
+      'existing_image_assets',
+      'pmax_asset_minimums',
+      'account_default_conversion_goals',
+      'primary_conversion_actions',
+      'conversion_event_delivery',
+    ],
+    actions: ['google_ads_v23_google_ads_mutate'],
+    effects:
+      'One all-or-nothing build of a PAUSED Performance Max campaign with Maximize Conversions on account-default goals, a dedicated budget, criteria and one ENABLED asset group with its minimum assets. Linked images and logos are read for their type; goal settings, asset approval and event delivery remain unverified. Activation is separate.',
+  },
   microsoft_search: {
     objective: 'search_acquisition',
     // CMP-03: the brief's Microsoft location IDs become positive location criteria of the paused campaign.

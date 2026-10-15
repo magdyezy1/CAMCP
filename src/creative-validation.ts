@@ -1,5 +1,6 @@
 import type {JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
+import {validateMetaCreativeFeatures} from './meta-creative-features.js';
 const numeric = (v: unknown) => typeof v === 'string' && /^[1-9][0-9]*$/.test(v);
 export const metaCreativeFields = [
   'name',
@@ -9,6 +10,8 @@ export const metaCreativeFields = [
   'instagram_user_id',
   'url_tags',
   'destination_spec',
+  // Advantage+ creative feature choices, one explicit enroll_status per listed feature (PRV-06 C).
+  'degrees_of_freedom_spec',
 ];
 /**
  * The one destination a creative may choose (the owner's decision of 2026-09-29). Meta's v26.0 changelog
@@ -49,6 +52,7 @@ export function validateMetaCreative(body: JsonObject, path?: string) {
       "destination_spec WEBSITE_AND_SHOP_OPT_OUT is documented from Graph API v26.0 only (Meta's v26.0 changelog); this request goes to an earlier version.",
       {field: 'destination_spec', source: metaShopChangelog},
     );
+  validateMetaCreativeFeatures(body.degrees_of_freedom_spec, path);
   const story =
     body.object_story_spec && typeof body.object_story_spec === 'object' && !Array.isArray(body.object_story_spec)
       ? body.object_story_spec

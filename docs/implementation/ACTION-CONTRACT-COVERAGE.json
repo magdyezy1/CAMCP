@@ -226,10 +226,10 @@
       "gateway": "tiktok_native_action",
       "actions": 561,
       "counts": {
-        "blocked_write": 165,
+        "blocked_write": 164,
         "media_workflow": 4,
         "native_read": 313,
-        "reviewed_write_family": 70,
+        "reviewed_write_family": 71,
         "unqualified_read": 9
       },
       "captured_catalog_complete": true,
@@ -14793,7 +14793,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
-        "tests/google-atomic-builds.test.ts"
+        "tests/google-atomic-builds.test.ts",
+        "tests/google-pmax-build.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "google_atomic_builds"
@@ -51947,7 +51948,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
-        "tests/reddit-writes.test.ts"
+        "tests/reddit-writes.test.ts",
+        "tests/reddit-pixel-check.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "reddit_classic"
@@ -52250,7 +52252,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
-        "tests/reddit-writes.test.ts"
+        "tests/reddit-writes.test.ts",
+        "tests/reddit-pixel-check.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "reddit_classic"
@@ -52306,7 +52309,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
-        "tests/reddit-writes.test.ts"
+        "tests/reddit-writes.test.ts",
+        "tests/reddit-pixel-check.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "reddit_classic"
@@ -52324,7 +52328,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
-        "tests/reddit-writes.test.ts"
+        "tests/reddit-writes.test.ts",
+        "tests/reddit-pixel-check.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "reddit_classic"
@@ -52342,7 +52347,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
-        "tests/reddit-writes.test.ts"
+        "tests/reddit-writes.test.ts",
+        "tests/reddit-pixel-check.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "reddit_classic"
@@ -52550,7 +52556,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
-        "tests/reddit-writes.test.ts"
+        "tests/reddit-writes.test.ts",
+        "tests/reddit-pixel-check.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "reddit_classic"
@@ -52568,7 +52575,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
-        "tests/reddit-writes.test.ts"
+        "tests/reddit-writes.test.ts",
+        "tests/reddit-pixel-check.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "reddit_classic"
@@ -52586,7 +52594,8 @@
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "https://ads-api.reddit.com/api/v3/openapi.json",
       "tests": [
-        "tests/reddit-writes.test.ts"
+        "tests/reddit-writes.test.ts",
+        "tests/reddit-pixel-check.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "reddit_classic"
@@ -53454,12 +53463,13 @@
       "method": "PATCH",
       "path": "/v1/adsquads/{ad_squad_id}/ads/{ad_id}",
       "status": "reviewed_write_family",
-      "implementation": "src/snapchat-nested-updates.ts",
+      "implementation": "src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-nested-updates.test.ts",
-        "tests/snapchat-allocation-plan.test.mjs"
+        "tests/snapchat-allocation-plan.test.mjs",
+        "tests/snapchat-adsquad-targeting.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -53473,12 +53483,13 @@
       "method": "PUT",
       "path": "/v1/adsquads/{ad_squad_id}/ads",
       "status": "reviewed_write_family",
-      "implementation": "src/snapchat-nested-updates.ts",
+      "implementation": "src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-nested-updates.test.ts",
-        "tests/snapchat-allocation-plan.test.mjs"
+        "tests/snapchat-allocation-plan.test.mjs",
+        "tests/snapchat-adsquad-targeting.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -53652,12 +53663,13 @@
       "method": "PATCH",
       "path": "/v1/adsquads/{ad_squad_id}/ads/{ad_id}",
       "status": "reviewed_write_family",
-      "implementation": "src/snapchat-nested-updates.ts",
+      "implementation": "src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-nested-updates.test.ts",
-        "tests/snapchat-allocation-plan.test.mjs"
+        "tests/snapchat-allocation-plan.test.mjs",
+        "tests/snapchat-adsquad-targeting.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -55911,12 +55923,13 @@
       "method": "PATCH",
       "path": "/v1/campaigns/{campaign_id}/adsquads/{ad_squad_id}",
       "status": "reviewed_write_family",
-      "implementation": "src/snapchat-nested-updates.ts",
+      "implementation": "src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-nested-updates.test.ts",
-        "tests/snapchat-allocation-plan.test.mjs"
+        "tests/snapchat-allocation-plan.test.mjs",
+        "tests/snapchat-adsquad-targeting.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -55930,12 +55943,13 @@
       "method": "PUT",
       "path": "/v1/campaigns/{campaign_id}/adsquads",
       "status": "reviewed_write_family",
-      "implementation": "src/snapchat-nested-updates.ts",
+      "implementation": "src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-nested-updates.test.ts",
-        "tests/snapchat-allocation-plan.test.mjs"
+        "tests/snapchat-allocation-plan.test.mjs",
+        "tests/snapchat-adsquad-targeting.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -56109,12 +56123,13 @@
       "method": "PATCH",
       "path": "/v1/campaigns/{campaign_id}/adsquads/{ad_squad_id}",
       "status": "reviewed_write_family",
-      "implementation": "src/snapchat-nested-updates.ts",
+      "implementation": "src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-nested-updates.test.ts",
-        "tests/snapchat-allocation-plan.test.mjs"
+        "tests/snapchat-allocation-plan.test.mjs",
+        "tests/snapchat-adsquad-targeting.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -56199,12 +56214,13 @@
       "method": "PATCH",
       "path": "/v1/adsquads/{ad_squad_id}/ads/{ad_id}",
       "status": "reviewed_write_family",
-      "implementation": "src/snapchat-nested-updates.ts",
+      "implementation": "src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-nested-updates.test.ts",
-        "tests/snapchat-allocation-plan.test.mjs"
+        "tests/snapchat-allocation-plan.test.mjs",
+        "tests/snapchat-adsquad-targeting.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -56265,12 +56281,13 @@
       "method": "PUT",
       "path": "/v1/adsquads/{ad_squad_id}/ads",
       "status": "reviewed_write_family",
-      "implementation": "src/snapchat-nested-updates.ts",
+      "implementation": "src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-nested-updates.test.ts",
-        "tests/snapchat-allocation-plan.test.mjs"
+        "tests/snapchat-allocation-plan.test.mjs",
+        "tests/snapchat-adsquad-targeting.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -57382,12 +57399,13 @@
       "method": "PATCH",
       "path": "/v1/campaigns/{campaign_id}/adsquads/{ad_squad_id}",
       "status": "reviewed_write_family",
-      "implementation": "src/snapchat-nested-updates.ts",
+      "implementation": "src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-nested-updates.test.ts",
-        "tests/snapchat-allocation-plan.test.mjs"
+        "tests/snapchat-allocation-plan.test.mjs",
+        "tests/snapchat-adsquad-targeting.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -57448,12 +57466,13 @@
       "method": "PUT",
       "path": "/v1/campaigns/{campaign_id}/adsquads",
       "status": "reviewed_write_family",
-      "implementation": "src/snapchat-nested-updates.ts",
+      "implementation": "src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts",
       "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
       "tests": [
         "tests/snapchat-nested-updates.test.ts",
-        "tests/snapchat-allocation-plan.test.mjs"
+        "tests/snapchat-allocation-plan.test.mjs",
+        "tests/snapchat-adsquad-targeting.test.mjs"
       ],
       "live_qualification": "unverified",
       "family": "snapchat_nested_updates"
@@ -68674,7 +68693,7 @@
       "path": "/v1.3/comment/delete/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Blocked: deleting a comment cannot be undone, and the TikTok sources AMCP read give it no state to verify. Hide the comment with the reviewed tiktok_comment_status_update (operation HIDDEN), which unhides with PUBLIC.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -68715,7 +68734,7 @@
       "path": "/v1.3/comment/post/",
       "status": "blocked_write",
       "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "reason": "Not reviewed yet: a reply publishes text on the advertiser's ad under one of its identities. AMCP reviews hiding and unhiding comments first (tiktok_comment_status_update); reply in TikTok Ads Manager.",
       "source": "OBSERVED",
       "tests": [],
       "live_qualification": "unverified"
@@ -68754,12 +68773,15 @@
       "aliases": [],
       "method": "POST",
       "path": "/v1.3/comment/status/update/",
-      "status": "blocked_write",
-      "implementation": "src/reviewed-routes.ts",
-      "reason": "Mapping exists, but there is no reviewed write family. Add exact scope, prerequisites, state projection, spending rules, receipt, recovery and negative tests before execution.",
+      "status": "reviewed_write_family",
+      "implementation": "src/tiktok-ad-comments.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
       "source": "OBSERVED",
-      "tests": [],
-      "live_qualification": "unverified"
+      "tests": [
+        "tests/tiktok-ad-comments.test.mjs"
+      ],
+      "live_qualification": "unverified",
+      "family": "tiktok_ad_comments"
     },
     {
       "gateway": "tiktok_native_action",

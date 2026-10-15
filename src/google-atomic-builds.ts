@@ -9,6 +9,13 @@ import {snake} from './write-common.js';
 import {assertWriteShape} from './write-shape.js';
 import {currencyText, minimumUnitMicros} from './budget-units.js';
 import {googleRejectionIsNonApplied} from './write-rejection.js';
+import {
+  assertPmaxBuild,
+  assertPmaxExistingAssets,
+  pmaxExistingAssets,
+  pmaxImpact,
+  type PmaxOp,
+} from './google-pmax-build.js';
 
 /**
  * All-or-nothing Google builds (the owner's item 5 and decision 1, 2026-09-29): one reviewed `googleAds:mutate` that
@@ -22,7 +29,8 @@ import {googleRejectionIsNonApplied} from './write-rejection.js';
  * with temporary names standing in as positive IDs for those checks only; the request Google receives is the one
  * reviewed. Existing parents are read at prepare and execute. A new campaign starts PAUSED; its children may start
  * ENABLED under it. Every created resource is read back and compared with what was sent, temporary names replaced by
- * the names Google returned. Only creates of six resource types are accepted.
+ * the names Google returned. Only creates of ten resource types are accepted: the six of a Search build, and text assets,
+ * asset groups, asset-group asset links and signals of a Performance Max build (google-pmax-build.ts, CMP-07).
  */
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 interface OpType {
@@ -83,6 +91,38 @@ const types: Record<string, OpType> = {
     result: 'adGroupAdResult',
     action: 'ad_group_ad_mutate_ad_group_ads',
     refs: {ad_group: 'adGroups'},
+  },
+  // Performance Max (CMP-07, google-pmax-build.ts): text assets, an asset group under the build's own PMax campaign,
+  // the links to its minimum assets and its signals, all in the one request Google requires for them.
+  asset_operation: {
+    kind: 'assets',
+    resource: 'asset',
+    result: 'assetResult',
+    action: 'asset_mutate_assets',
+    temp: true,
+    refs: {},
+  },
+  asset_group_operation: {
+    kind: 'assetGroups',
+    resource: 'asset_group',
+    result: 'assetGroupResult',
+    action: 'asset_group_mutate_asset_groups',
+    temp: true,
+    refs: {campaign: 'campaigns'},
+  },
+  asset_group_asset_operation: {
+    kind: 'assetGroupAssets',
+    resource: 'asset_group_asset',
+    result: 'assetGroupAssetResult',
+    action: 'asset_group_asset_mutate_asset_group_assets',
+    refs: {asset_group: 'assetGroups', asset: 'assets'},
+  },
+  asset_group_signal_operation: {
+    kind: 'assetGroupSignals',
+    resource: 'asset_group_signal',
+    result: 'assetGroupSignalResult',
+    action: 'asset_group_signal_mutate_asset_group_signals',
+    refs: {asset_group: 'assetGroups'},
   },
 };
 const maxOperations = 1000;
@@ -171,7 +211,7 @@ function operations(plan: CompiledRequest): Op[] {
             '/' +
             type.kind +
             '/-N' +
-            (type.temp ? '' : ', and only budgets, campaigns and ad groups take one') +
+            (type.temp ? '' : ', and only budgets, campaigns, ad groups, assets and asset groups take one') +
             '.',
           where + '.create.resource_name',
         );
@@ -253,8 +293,13 @@ function single(plan: CompiledRequest, op: Op): CompiledRequest {
     body: {operations: [{create}]},
   };
 }
+const pmaxOps = (ops: Op[]): PmaxOp[] =>
+  ops.map(o => ({index: o.index, kind: o.type.kind, create: o.create, ...(o.temp ? {temp: o.temp} : {})}));
 export function assertGoogleAtomicBuild(plan: CompiledRequest) {
-  for (const op of operations(plan)) {
+  const ops = operations(plan);
+  // Performance Max minimums and structure, before any request (CMP-07).
+  assertPmaxBuild(pmaxOps(ops));
+  for (const op of ops) {
     try {
       assertWriteShape(single(plan, op));
     } catch (e) {
@@ -296,11 +341,13 @@ const resourceOf: Record<string, string> = {
 /** The customer (currency and time zone), and every existing parent the build names. */
 export function googleAtomicSnapshots(plan: CompiledRequest): CompiledRequest[] {
   const reads = [search(plan, 'SELECT customer.id, customer.currency_code, customer.time_zone FROM customer LIMIT 1')],
-    seen = new Set<string>();
-  for (const op of operations(plan))
+    seen = new Set<string>(),
+    ops = operations(plan);
+  for (const op of ops)
     for (const [field, kind] of Object.entries(op.type.refs)) {
       const ref = op.create[field];
-      if (typeof ref !== 'string' || /\/-\d+$/.test(ref) || seen.has(ref)) continue;
+      // Existing assets are read together below; an existing asset group is refused before any read.
+      if (typeof ref !== 'string' || /\/-\d+$/.test(ref) || seen.has(ref) || !resourceOf[kind]) continue;
       seen.add(ref);
       const resource = resourceOf[kind]!;
       reads.push(
@@ -318,6 +365,17 @@ export function googleAtomicSnapshots(plan: CompiledRequest): CompiledRequest[] 
         ),
       );
     }
+  // The existing images, logos and videos a Performance Max build links: each must exist with the type its link needs.
+  const assets = [...pmaxExistingAssets(pmaxOps(ops)).keys()].sort();
+  if (assets.length)
+    reads.push(
+      search(
+        plan,
+        'SELECT asset.resource_name, asset.type FROM asset WHERE asset.resource_name IN (' +
+          assets.map(a => "'" + a + "'").join(', ') +
+          ')',
+      ),
+    );
   return reads;
 }
 /**
@@ -371,6 +429,7 @@ export function googleAtomicPrerequisites(plan: CompiledRequest, state: unknown[
           );
       }
     }
+  assertPmaxExistingAssets(pmaxOps(ops), rows);
   const states = [...state, {results: built}];
   for (const op of ops) {
     const one = single(plan, op);
@@ -403,6 +462,7 @@ export function googleAtomicImpact(plan: CompiledRequest): JsonObject {
         .filter(o => o.type.kind === 'campaigns')
         .map(o => ({name: o.create.name, status: o.create.status})),
       enabled: ops.filter(o => o.create.status === 'ENABLED').length,
+      ...(ops.some(o => o.type.kind === 'assetGroups') ? {asset_groups: pmaxImpact(pmaxOps(ops))} : {}),
     },
     meaning:
       'One request: Google creates every resource or none. Each resource is checked as its own service would check it; children may start ENABLED under the new PAUSED campaign, which stays the one activation.',
@@ -455,7 +515,12 @@ export function googleAtomicVerification(plan: CompiledRequest, result: JsonObje
       id = String(object(r) && object(r[op.type.result]) ? r[op.type.result].resourceName : ''),
       {resource_name: _, ...sent} = real(op.create) as JsonObject,
       fields = [
-        ...new Set([op.type.resource + '.resource_name', ...leaves(sent).map(f => op.type.resource + '.' + f)]),
+        ...new Set([
+          op.type.resource + '.resource_name',
+          ...leaves(sent).map(f => op.type.resource + '.' + f),
+          // A new asset group is read back with Google's own status and ad strength (CMP-07); only sent fields compare.
+          ...(op.type.kind === 'assetGroups' ? ['asset_group.primary_status', 'asset_group.ad_strength'] : []),
+        ]),
       ];
     return {
       read: search(
@@ -591,7 +656,7 @@ export function composeGoogleBuild(steps: JsonObject[], account: string): JsonOb
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 export const googleAtomicFamily: ReviewedFamily = {
   name: 'google_atomic_builds',
-  files: ['src/google-atomic-builds.ts', ['tests/google-atomic-builds.test.ts']],
+  files: ['src/google-atomic-builds.ts', ['tests/google-atomic-builds.test.ts', 'tests/google-pmax-build.test.mjs']],
   kind: googleAtomicKind,
   assert: assertGoogleAtomicBuild,
   snapshots: googleAtomicSnapshots,

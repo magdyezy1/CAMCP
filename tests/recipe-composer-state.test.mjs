@@ -185,10 +185,15 @@ test('with only Snapchat connected, the objective step offers only Snapchat work
     g.node('section').innerHTML,
     /<optgroup label="Google Search — choose the bidding"><option value="google_search"/,
   );
+  // CMP-07: a Google-only workspace also offers the Performance Max pack, under website purchases, on its own.
   assert.equal(
     options(/<select id="recipe-objective">(.*?)<\/select>/.exec(g.node('section').innerHTML)[1]).join(),
-    'search',
+    'sales,search',
   );
+  g.node('#recipe-objective').value = 'sales';
+  await g.node('#recipe-objective').events.get('change')();
+  assert.deepEqual(options(g.node('#recipe-choice').innerHTML), ['google_performance_max']);
+  assert.doesNotMatch(g.node('#recipe-choice').innerHTML, /<optgroup/);
 });
 
 test('a sole eligible account is preselected with its currency and timezone', async () => {

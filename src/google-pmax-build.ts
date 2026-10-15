@@ -1,0 +1,250 @@
+import {MirrorError} from './errors.js';
+import type {JsonObject} from './types.js';
+
+/**
+ * Performance Max inside an all-or-nothing Google build (CMP-07, owner direction P7). For a non-retail Performance Max
+ * campaign Google requires the asset group and the links to its minimum assets in the same mutate request
+ * (AssetGroupService cannot create them alone), which the atomic build provides (google-atomic-builds.ts). This module
+ * holds the local rules a build must meet before anything is sent:
+ *
+ * - The asset group belongs to a Performance Max campaign this build creates, PAUSED, with brand guidelines off
+ *   (`brand_guidelines_enabled: false`), so the business name and logos link to the asset group and every minimum can
+ *   be counted here. Brand-guideline campaigns (business name and logos as campaign assets) are not this contract.
+ * - Each new asset group links its minimum assets in the same build: the pinned requirements below, sourced from
+ *   Google's "Performance Max asset requirements" page as read in the engineering review (accessed 2026-10-08) and
+ *   pinned in tests/fixtures/google-pmax-asset-requirements.json. A missing minimum is refused before any request;
+ *   finer rules (image ratios and sizes, policy, duplicate text) stay with Google, whose refusal leaves nothing.
+ * - Text assets may be created in the build; images, logos and videos are existing assets of the account (uploaded
+ *   with amcp_media first), whose type the review reads before sending.
+ */
+export const pmaxAssetRequirements: {
+  source: string;
+  accessed: string;
+  fields: Record<string, {min: number; max: number; max_length?: number; asset_type: string}>;
+  combined: {fields: string[]; max: number}[];
+} = {
+  source: 'https://developers.google.com/google-ads/api/performance-max/asset-requirements',
+  accessed: '2026-10-08',
+  fields: {
+    HEADLINE: {min: 3, max: 15, max_length: 30, asset_type: 'TEXT'},
+    LONG_HEADLINE: {min: 1, max: 5, max_length: 90, asset_type: 'TEXT'},
+    DESCRIPTION: {min: 2, max: 5, max_length: 90, asset_type: 'TEXT'},
+    BUSINESS_NAME: {min: 1, max: 1, max_length: 25, asset_type: 'TEXT'},
+    MARKETING_IMAGE: {min: 1, max: 20, asset_type: 'IMAGE'},
+    SQUARE_MARKETING_IMAGE: {min: 1, max: 20, asset_type: 'IMAGE'},
+    PORTRAIT_MARKETING_IMAGE: {min: 0, max: 20, asset_type: 'IMAGE'},
+    LOGO: {min: 1, max: 5, asset_type: 'IMAGE'},
+    LANDSCAPE_LOGO: {min: 0, max: 5, asset_type: 'IMAGE'},
+    YOUTUBE_VIDEO: {min: 0, max: 5, asset_type: 'YOUTUBE_VIDEO'},
+    CALL_TO_ACTION_SELECTION: {min: 0, max: 1, asset_type: 'CALL_TO_ACTION'},
+  },
+  combined: [
+    {fields: ['MARKETING_IMAGE', 'SQUARE_MARKETING_IMAGE', 'PORTRAIT_MARKETING_IMAGE'], max: 20},
+    {fields: ['LOGO', 'LANDSCAPE_LOGO'], max: 5},
+  ],
+};
+/** The build's view of one operation (google-atomic-builds.ts). */
+export interface PmaxOp {
+  index: number;
+  kind: string;
+  create: JsonObject;
+  temp?: string;
+}
+const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
+function invalid(message: string, field: string, extra: JsonObject = {}): never {
+  throw new MirrorError('INVALID_GOOGLE_BUILD', message, {field, ...extra});
+}
+function minimums(message: string, details: JsonObject): never {
+  throw new MirrorError('PMAX_ASSET_MINIMUMS', message, details);
+}
+const where = (op: PmaxOp) => 'mutate_operations[' + op.index + ']';
+/** Characters as Google counts them for these limits (code points; a wider count stays Google's refusal). */
+const length = (text: string) => [...text].length;
+
+/** Local Performance Max rules of a build; no-op for a build without assets or asset groups. */
+export function assertPmaxBuild(ops: PmaxOp[]) {
+  const assets = ops.filter(o => o.kind === 'assets'),
+    groups = ops.filter(o => o.kind === 'assetGroups'),
+    links = ops.filter(o => o.kind === 'assetGroupAssets'),
+    signals = ops.filter(o => o.kind === 'assetGroupSignals');
+  if (!assets.length && !groups.length && !links.length && !signals.length) return;
+  for (const op of assets) {
+    const keys = Object.keys(op.create).filter(k => k !== 'resource_name');
+    const text = op.create.text_asset?.text;
+    if (
+      keys.join() !== 'text_asset' ||
+      !object(op.create.text_asset) ||
+      Object.keys(op.create.text_asset).join() !== 'text'
+    )
+      invalid(
+        where(op) +
+          ': a build creates text assets only ({text_asset: {text}}). Link images, logos and videos that already exist in the account; upload them with amcp_media first.',
+        where(op) + '.asset_operation.create',
+      );
+    if (typeof text !== 'string' || !text.trim() || /[\x00-\x1f\x7f]/.test(text))
+      invalid(where(op) + ': a text asset needs plain text.', where(op) + '.asset_operation.create.text_asset.text');
+    if (!op.temp)
+      invalid(
+        where(op) + ': a text asset of a build needs a temporary resource_name, so its asset group can link it.',
+        where(op) + '.asset_operation.create.resource_name',
+      );
+  }
+  const campaigns = new Map(ops.filter(o => o.kind === 'campaigns' && o.temp).map(o => [o.temp!, o]));
+  for (const group of groups) {
+    const campaign = campaigns.get(group.create.campaign);
+    if (!campaign)
+      invalid(
+        where(group) +
+          ': a build creates an asset group only under a Performance Max campaign the same build creates, so its minimum assets can be checked. Link assets to an existing asset group with its own reviewed asset-link change.',
+        where(group) + '.asset_group_operation.create.campaign',
+      );
+    if (campaign!.create.advertising_channel_type !== 'PERFORMANCE_MAX')
+      invalid(
+        where(group) + ': asset groups belong to a PERFORMANCE_MAX campaign.',
+        where(campaign!) + '.campaign_operation.create.advertising_channel_type',
+      );
+    if (campaign!.create.brand_guidelines_enabled !== false)
+      invalid(
+        where(campaign!) +
+          ': set brand_guidelines_enabled: false. This build links the business name and logos to the asset group; brand-guideline campaigns link them as campaign assets, which a build does not create.',
+        where(campaign!) + '.campaign_operation.create.brand_guidelines_enabled',
+      );
+    const urls = group.create.final_urls;
+    if (
+      !Array.isArray(urls) ||
+      !urls.length ||
+      urls.some((u: unknown) => typeof u !== 'string' || !/^https:\/\/[^\s/?#@]+\.[^\s/?#@]+(?:[/?#]\S*)?$/.test(u))
+    )
+      invalid(
+        where(group) + ': an asset group needs final_urls of public HTTPS pages.',
+        where(group) + '.asset_group_operation.create.final_urls',
+      );
+    if (typeof group.create.name !== 'string' || !group.create.name.trim())
+      invalid(where(group) + ': name the asset group.', where(group) + '.asset_group_operation.create.name');
+    if (!group.temp)
+      invalid(
+        where(group) + ': an asset group of a build needs a temporary resource_name, so its assets can link to it.',
+        where(group) + '.asset_group_operation.create.resource_name',
+      );
+  }
+  const groupNames = new Set(groups.map(g => g.temp));
+  for (const op of [...links, ...signals])
+    if (!groupNames.has(op.create.asset_group))
+      invalid(
+        where(op) +
+          ': in a build, asset links and signals name an asset group the same build creates. Change an existing asset group with its own reviewed asset-link or signal change.',
+        where(op) + '.create.asset_group',
+      );
+  const textOf = new Map(assets.map(a => [a.temp!, a.create.text_asset.text as string]));
+  for (const link of links) {
+    const rule = pmaxAssetRequirements.fields[link.create.field_type];
+    if (!rule)
+      invalid(
+        where(link) +
+          ': a build links the Performance Max asset field types ' +
+          Object.keys(pmaxAssetRequirements.fields).join(', ') +
+          '.',
+        where(link) + '.asset_group_asset_operation.create.field_type',
+        {allowed: Object.keys(pmaxAssetRequirements.fields)},
+      );
+    const asset = link.create.asset;
+    const text = textOf.get(asset);
+    if (textOf.has(asset) && rule!.asset_type !== 'TEXT')
+      invalid(
+        where(link) +
+          ': ' +
+          link.create.field_type +
+          ' links an existing ' +
+          rule!.asset_type.toLowerCase() +
+          ' asset, not text.',
+        where(link) + '.asset_group_asset_operation.create.asset',
+      );
+    if (rule!.asset_type === 'TEXT' && !textOf.has(asset) && typeof asset === 'string' && /\/-\d+$/.test(asset))
+      invalid(where(link) + ': this text asset is not created by the build.', where(link) + '.create.asset');
+    if (text !== undefined && rule!.max_length !== undefined && length(text) > rule!.max_length)
+      minimums(
+        'A ' +
+          link.create.field_type +
+          ' has at most ' +
+          rule!.max_length +
+          ' characters; Google would refuse the whole build. Shorten it.',
+        {operation: link.index, field_type: link.create.field_type, max_length: rule!.max_length, length: length(text)},
+      );
+  }
+  for (const group of groups) {
+    const own = links.filter(l => l.create.asset_group === group.temp),
+      counts: Record<string, number> = {};
+    for (const l of own) counts[l.create.field_type] = (counts[l.create.field_type] ?? 0) + 1;
+    const seen = new Set<string>();
+    for (const l of own) {
+      const key = l.create.field_type + '|' + l.create.asset;
+      if (seen.has(key))
+        invalid(where(l) + ': this asset is linked twice with the same field type.', where(l) + '.create.asset');
+      seen.add(key);
+    }
+    const missing = Object.entries(pmaxAssetRequirements.fields)
+      .filter(([type, rule]) => (counts[type] ?? 0) < rule.min || (counts[type] ?? 0) > rule.max)
+      .map(([type, rule]) => ({field_type: type, min: rule.min, max: rule.max, found: counts[type] ?? 0}));
+    const over = pmaxAssetRequirements.combined
+      .map(c => ({fields: c.fields, max: c.max, found: c.fields.reduce((n, f) => n + (counts[f] ?? 0), 0)}))
+      .filter(c => c.found > c.max);
+    if (missing.length || over.length)
+      minimums(
+        'Asset group ' +
+          group.create.name +
+          ' does not link the asset counts Performance Max requires in the same request; Google would refuse the whole build. Add or remove the listed assets.',
+        {
+          operation: group.index,
+          asset_group: group.temp,
+          counts,
+          ...(missing.length ? {outside_range: missing} : {}),
+          ...(over.length ? {combined_over: over} : {}),
+          source: pmaxAssetRequirements.source,
+        },
+      );
+  }
+}
+/** The existing assets a build links, with the asset type each link needs. */
+export function pmaxExistingAssets(ops: PmaxOp[]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const l of ops.filter(o => o.kind === 'assetGroupAssets')) {
+    const asset = l.create.asset,
+      rule = pmaxAssetRequirements.fields[l.create.field_type];
+    if (typeof asset === 'string' && !/\/-\d+$/.test(asset) && rule) out.set(asset, rule.asset_type);
+  }
+  return out;
+}
+/** Checks the read existing assets: each exists in the account with the type its link needs. */
+export function assertPmaxExistingAssets(ops: PmaxOp[], rows: JsonObject[]) {
+  for (const [name, type] of pmaxExistingAssets(ops)) {
+    const row = rows.find(r => object(r.asset) && (r.asset.resourceName ?? r.asset.resource_name) === name);
+    if (!row)
+      throw new MirrorError('PMAX_ASSET_TYPE_MISMATCH', 'The build links an asset this account does not return.', {
+        asset: name,
+        expected_type: type,
+      });
+    if (row.asset.type !== type)
+      throw new MirrorError(
+        'PMAX_ASSET_TYPE_MISMATCH',
+        'The build links an existing asset of another type than its field type needs.',
+        {asset: name, expected_type: type, actual_type: row.asset.type ?? null},
+      );
+  }
+}
+/** The impact summary of the build's asset groups: their asset counts per field type. */
+export function pmaxImpact(ops: PmaxOp[]): JsonObject[] {
+  return ops
+    .filter(o => o.kind === 'assetGroups')
+    .map(g => {
+      const counts: Record<string, number> = {};
+      for (const l of ops.filter(o => o.kind === 'assetGroupAssets' && o.create.asset_group === g.temp))
+        counts[l.create.field_type] = (counts[l.create.field_type] ?? 0) + 1;
+      return {
+        name: g.create.name,
+        status: g.create.status ?? null,
+        final_urls: g.create.final_urls,
+        assets: counts,
+        signals: ops.filter(o => o.kind === 'assetGroupSignals' && o.create.asset_group === g.temp).length,
+      };
+    });
+}

@@ -200,16 +200,20 @@ default (`atomic: false` keeps one step per resource type). A completed recipe p
 For a launch that was continued in a new plan, the IDs come from the earlier plans in its `supersedes` chain
 through the verified links an authorized person recorded; reading them checks each plan's integrity, not the drafting
 person's view right on the earlier plans, and the activation still reads and checks every resource at preflight.
-Meta and Google enable the paused campaign; Snapchat activates campaign, ad squad and ad in that order, each after
-the one before is verified; Microsoft sets campaign, ad group, keywords and ad Active, and the campaign needs a positive
-location criterion (owner decision P7): the Microsoft Search pack adds the brief's `location_ids` as positive location
-criteria of the paused campaign (a plan drafted before it did is refused with `RECIPE_INPUT_REQUIRED` until drafted
-again), and `UpdateCampaigns` with `Status: Active` is refused with `LOCATION_CRITERIA_REQUIRED` when the campaign's
-location criteria read holds none. Read-only gates run at preflight before any status write: the Microsoft campaign
-must hold a positive location criterion, and the gate lists each location with the name Microsoft gives it; the
-Snapchat ad's creative review must be `APPROVED`; the Meta ad must not be disapproved, have issues or carry review
+Meta and Google enable the paused campaign; TikTok enables the `DISABLE` campaign its pack created with enabled
+children; Snapchat activates campaign, ad squad and ad, and LinkedIn campaign group, campaign and creative, in that
+order, each after the one before is verified; Microsoft sets campaign, ad group, keywords and ad Active, and the
+campaign needs a positive location criterion (owner decision P7): the Microsoft Search pack adds the brief's
+`location_ids` as positive location criteria of the paused campaign (a plan drafted before it did is refused with
+`RECIPE_INPUT_REQUIRED` until drafted again), and `UpdateCampaigns` with `Status: Active` is refused with
+`LOCATION_CRITERIA_REQUIRED` when the campaign's location criteria read holds none. Read-only gates run at preflight
+before any status write: the Microsoft campaign must hold a positive location criterion, and the gate lists each
+location with the name Microsoft gives it; the Snapchat ad's creative review must be `APPROVED`; the Meta ad must not
+be disapproved, have issues or carry review
 feedback, and a Meta conversion launch's pixel must be readable and not unavailable; a Google conversion launch needs a
-biddable account-default goal with an enabled primary action (the reads `recipe_eligibility` makes). A failed or
+biddable account-default goal with an enabled primary action (the reads `recipe_eligibility` makes); a LinkedIn lead
+launch's form must be `PUBLISHED` (the account's forms are read again), since the form's state decides whether the
+creative serves. A failed or
 unreadable gate blocks with `ACTIVATION_GATE_BLOCKED`, and each activation preflight is audited
 (`campaign_activation_preflight`, with the gates that blocked it). Recipe and clone forms send one
 creation key per exact request, so a retry after a lost response opens the plan already saved instead of a second
@@ -303,6 +307,55 @@ approval, goal entitlement, policy availability and consent acceptance remain un
 no lead exports or webhooks are enabled. Preserve uncertain receipts; activation remains separately reviewed.
 The English/Arabic preview preserves exact native goals, micros, IDs, original title and original policy URL.
 See [contract, SDK and browser qualification](review/DELIVERY-2026-10-04-SNAPCHAT-LEADS.md).
+
+### After a launch: launch check and serving diagnostics
+
+`amcp_reporting launch_check {id}` checks a completed guided Meta or Snapchat launch (CMP-07): native reads of its
+verified campaign, ad set or ad squad and account feed the rule-based campaign audit, with an optional retained
+campaign × day capture (`reference_id`) for delivery and frequency. Missing evidence stays unknown; delivery is observed
+only from reported impressions, and a paused campaign is never reported as failing. For Google accounts, Inventory
+offers **Why is it serving or not?** (`amcp_reporting serving_diagnostics`): Google's primary status and reasons, policy
+summary and ad strength per campaign, ad group, ad, asset group and asset link, each native symbol shown literally with
+its English or Arabic explanation and any symbol newer than the pinned v25 enums listed as not named. Both are reads.
+
+### Google Performance Max as one build
+
+`google_performance_max` (CMP-07) compiles a brief into one all-or-nothing Google build, the request Google requires for
+a Performance Max asset group and its minimum assets: a dedicated budget, a PAUSED Performance Max campaign with
+Maximize Conversions on explicitly chosen account-default goals and brand guidelines off, location and language
+criteria, the text assets, one ENABLED asset group and the links to existing image and logo assets. Asset counts and
+text lengths are checked against pinned minimums before any request (`PMAX_ASSET_MINIMUMS`), and the review reads each
+linked image or logo for its type (`PMAX_ASSET_TYPE_MISMATCH`). Image ratios, policy and ad strength stay with Google;
+after the build, **Why is it serving or not?** shows the asset group's status and ad strength. Activation enables the
+campaign as its own reviewed change.
+
+### TikTok website traffic and purchases with an existing post
+
+Choose `tiktok_website_traffic` or `tiktok_website_conversions` (CMP-07, owner direction P7) in Campaigns or MCP. The
+brief names the exact advertiser and login, account currency, a daily budget with at most two decimal places, 1–20
+TikTok location IDs, an existing TikTok post with the `TT_USER` or `BC_AUTH_TT` identity that owns it, an HTTPS
+landing page, a call to action and an offset start time; the purchases pack adds the pixel and one purchase event. It
+saves three reviewed creates: a `DISABLE` campaign and, under it, an `ENABLE` daily-budget ad group on the TikTok
+placement and one `ENABLE` Spark Ad. Preflight reads the identity, the post and, for purchases, the pixel of this
+advertiser before anything is created; ad review, event delivery, budget minimums and objective acceptance stay with
+TikTok. **Prepare activation** enables the verified campaign as one separate reviewed status change. The website
+preview shows the UTC times TikTok receives, in English and Arabic.
+
+### LinkedIn lead generation with an existing post and form
+
+Choose `linkedin_lead_generation` (CMP-07, owner direction P7) in Campaigns or MCP. The brief names the exact ad
+account and login, account currency, a daily budget in the account currency, 1–50 LinkedIn location URNs
+(`urn:li:geo:…`), the campaign locale (`en_US`), an existing post to sponsor (`urn:li:share:…` or `urn:li:ugcPost:…`),
+the numeric ID of one of the account's lead forms, a lead form call to action, an explicit `NOT_POLITICAL`
+declaration (political advertising needs a tailored native plan) and an offset start time. It saves three reviewed
+creates, all `PAUSED`: a campaign group, a `LEAD_GENERATION` campaign with maximum delivery (`MAX_LEAD`, no bid) and a
+daily budget, and a creative that sponsors the post with the form as its call to action. Preflight reads the
+account's lead forms through the owner finder before anything is created: a form LinkedIn does not return for this
+account, or an archived one, blocks the plan (`CAMPAIGN_PREREQUISITE_REQUIRED`). Post eligibility, privacy-policy
+acceptance, ad review and objective acceptance stay with LinkedIn, which may spend up to 150% of a daily budget on a
+day. **Prepare activation** activates the group, the campaign and the creative in that order, each as its own REST.li
+`PARTIAL_UPDATE` review; its preflight reads the form again and blocks until it is `PUBLISHED` (publish a draft form
+with its own reviewed state change). The website preview shows the UTC start LinkedIn receives, in English and Arabic.
 
 ## Creative preparation and durable uploads
 

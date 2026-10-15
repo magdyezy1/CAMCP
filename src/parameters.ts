@@ -72,7 +72,7 @@ const unsupported: Record<string, string> = {
 const platformControls: Record<string, string[]> = {
   x_ads_native_action: ['download_report'],
   meta_native_action: ['business_id', 'page_id', 'report_run_id', 'batch', 'adbatch', 'include_headers'],
-  tiktok_native_action: ['lead_region'],
+  tiktok_native_action: ['lead_region', 'comment_scope'],
   linkedin_native_action: ['restli_method', 'http_method_override', 'body_format', 'api_version'],
   dv360_native_action: ['resource', 'method'],
 };

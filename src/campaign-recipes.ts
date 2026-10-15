@@ -8,6 +8,9 @@ import {
   buildSnapchatTrafficRecipe,
   buildSnapchatLeadRecipe,
 } from './snapchat-traffic-recipe.js';
+import {tiktokTrafficRecipe, tiktokConversionRecipe, buildTiktokLaunchRecipe} from './tiktok-launch-recipes.js';
+import {googlePmaxRecipe, buildGooglePmaxRecipe} from './google-pmax-recipe.js';
+import {linkedinLeadRecipe, buildLinkedinLeadRecipe} from './linkedin-lead-recipe.js';
 const metaRequired = [
   'name',
   'account_id',
@@ -121,6 +124,8 @@ export const campaignRecipes = [
           ? 'Paused Search campaign, budget, exact keywords, location/language criteria and a responsive search ad. Search network only.'
           : 'Paused Search campaign using Maximize Clicks with an explicit campaign CPC ceiling, dedicated budget, exact keywords and location/language targeting. Optimizes clicks, not conversions. Activation is separate.',
   })),
+  // CMP-07 (owner direction P7): Performance Max as one reviewed all-or-nothing build with its minimum assets.
+  googlePmaxRecipe,
   {
     id: 'microsoft_search',
     name: 'Microsoft Search campaign',
@@ -146,6 +151,11 @@ export const campaignRecipes = [
   },
   snapchatTrafficRecipe,
   snapchatLeadRecipe,
+  // CMP-07 (owner direction P7): guided paused TikTok packs over the reviewed tiktok_entities creates.
+  tiktokTrafficRecipe,
+  tiktokConversionRecipe,
+  // CMP-07 (owner direction P7): LinkedIn lead generation with an existing post and lead form.
+  linkedinLeadRecipe,
 ];
 /**
  * CMP-03 compatibility: a microsoft_search plan drafted before the recipe set location targets has no `targets` step, so
@@ -195,6 +205,9 @@ export function campaignRecipe(id: string, b: JsonObject): JsonObject {
     throw new MirrorError('RECIPE_INPUT_INVALID', 'Use a name, explicit account/connection and ISO currency.');
   if (definition.platform === 'snapchat')
     return id === snapchatLeadRecipe.id ? buildSnapchatLeadRecipe(b) : buildSnapchatTrafficRecipe(b);
+  if (definition.platform === 'tiktok') return buildTiktokLaunchRecipe(b, id === tiktokConversionRecipe.id);
+  if (id === googlePmaxRecipe.id) return buildGooglePmaxRecipe(b);
+  if (definition.platform === 'linkedin') return buildLinkedinLeadRecipe(b);
   if (b.atomic !== undefined && (definition.platform !== 'google' || typeof b.atomic !== 'boolean'))
     throw new MirrorError(
       'RECIPE_INPUT_INVALID',

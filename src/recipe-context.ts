@@ -46,7 +46,14 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
   const profile = profileId ? visibleProfile(store, actor, profileId) : undefined,
     gateway =
       (
-        {google: 'google_ads', meta: 'meta', microsoft: 'microsoft_ads', snapchat: 'snapchat'} as Record<string, string>
+        {
+          google: 'google_ads',
+          meta: 'meta',
+          microsoft: 'microsoft_ads',
+          snapchat: 'snapchat',
+          tiktok: 'tiktok',
+          linkedin: 'linkedin',
+        } as Record<string, string>
       )[recipe.platform] + '_native_action';
   const inventory = store.documents(actor.tenantId, 'website_assets'),
     // The one account-metadata resolver (CON-05): the same name and source as list_accounts and capabilities.
@@ -136,25 +143,39 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
           : [
               'Uses an existing WEB_VIEW creative without editing its destination or media. Inspect its exact account, destination and approval before review. Automatic swipe bidding may spend the daily budget; activation is separate.',
             ]
-        : recipe.platform === 'microsoft'
+        : recipe.platform === 'tiktok'
           ? [
-              'Enter Microsoft location IDs of Active locations from its geographical locations file, one per line: each becomes a positive location criterion of the paused campaign, read back by ID, and activation preflight lists each location with the name Microsoft gives it. Microsoft’s default location intent applies (people in, searching for or viewing pages about these locations). Activation is a separate plan, refused without a positive location criterion.',
+              recipeId === 'tiktok_website_conversions'
+                ? 'Uses an existing TikTok post as a Spark Ad and optimizes a purchase event of the selected pixel. Preflight reads the identity, post and pixel; event delivery, ad review and objective acceptance remain unverified. Activation is separate.'
+                : 'Uses an existing TikTok post as a Spark Ad on the TikTok placement and optimizes clicks. Preflight reads the identity and post; ad review and objective acceptance remain unverified. Activation is separate.',
             ]
-          : googleConversionRecipes[recipeId]?.value
+          : recipe.platform === 'linkedin'
             ? [
-                'Uses recorded conversion values and account-default goals without editing either. Inspect current primary-action value defaults and reported activity dates, then verify delivered values, conversion history and provider eligibility before activation. A target ROAS is an average ratio, not guaranteed return or a spending cap.',
+                'Sponsors an existing post with the account’s existing lead form and maximum-delivery bidding. Preflight reads the account’s lead forms; post eligibility, privacy-policy acceptance, ad review and objective acceptance remain unverified. Activation is separate.',
               ]
-            : googleConversionRecipes[recipeId]
+            : recipe.platform === 'microsoft'
               ? [
-                  'Uses account-default conversion goals without changing them. Verify current biddable goals, primary conversion actions, event delivery and provider eligibility before activation. A target CPA is an average optimization target, not a spending cap or guarantee.',
+                  'Enter Microsoft location IDs of Active locations from its geographical locations file, one per line: each becomes a positive location criterion of the paused campaign, read back by ID, and activation preflight lists each location with the name Microsoft gives it. Microsoft’s default location intent applies (people in, searching for or viewing pages about these locations). Activation is a separate plan, refused without a positive location criterion.',
                 ]
-              : metaConversionRecipes[recipeId]
+              : recipeId === 'google_performance_max'
                 ? [
-                    'Uses the selected website pixel with ' +
-                      metaConversionRecipes[recipeId]!.event +
-                      '. Pixel/Page access is checked during preflight; active event delivery, provider objective eligibility and landing-page policy acceptance require separate evidence.',
+                    'One all-or-nothing build: Google creates the paused campaign, its asset group and every asset link together or not at all. Images and logos are existing account assets read for their type; uses account-default conversion goals without changing them. Asset approval, ad strength, event delivery and provider eligibility remain unverified before activation.',
                   ]
-                : [],
+                : googleConversionRecipes[recipeId]?.value
+                  ? [
+                      'Uses recorded conversion values and account-default goals without editing either. Inspect current primary-action value defaults and reported activity dates, then verify delivered values, conversion history and provider eligibility before activation. A target ROAS is an average ratio, not guaranteed return or a spending cap.',
+                    ]
+                  : googleConversionRecipes[recipeId]
+                    ? [
+                        'Uses account-default conversion goals without changing them. Verify current biddable goals, primary conversion actions, event delivery and provider eligibility before activation. A target CPA is an average optimization target, not a spending cap or guarantee.',
+                      ]
+                    : metaConversionRecipes[recipeId]
+                      ? [
+                          'Uses the selected website pixel with ' +
+                            metaConversionRecipes[recipeId]!.event +
+                            '. Pixel/Page access is checked during preflight; active event delivery, provider objective eligibility and landing-page policy acceptance require separate evidence.',
+                        ]
+                      : [],
     prerequisites: [
       'current account grant',
       'verified account currency',
@@ -162,7 +183,13 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
         ? recipeId === 'snapchat_lead_generation'
           ? 'existing account-owned lead creative and form with explicit optimization/country/schedule inputs'
           : 'existing account-owned website creative and explicit country/schedule inputs'
-        : 'required Page/media or search inputs',
+        : recipe.platform === 'tiktok'
+          ? 'existing TikTok post and account identity with explicit location/schedule inputs'
+          : recipe.platform === 'linkedin'
+            ? 'existing post and account-owned lead form with explicit location, locale and schedule inputs'
+            : recipeId === 'google_performance_max'
+              ? 'existing account image and logo assets with explicit text assets, location and language inputs'
+              : 'required Page/media or search inputs',
       'whole-plan preflight',
       'review each resolved mutation',
       'provider read-back',
@@ -428,7 +455,7 @@ export function clientBriefs(store: Store, actor: Actor, input: JsonObject): Jso
 /** The business objective a recipe serves, for grouping briefs and the website's objective-first chooser. */
 export function recipeObjective(id: string): string {
   if (id.includes('lead')) return 'leads';
-  if (id === 'meta_website_sales') return 'sales';
+  if (['meta_website_sales', 'tiktok_website_conversions', 'google_performance_max'].includes(id)) return 'sales';
   if (id.endsWith('_traffic')) return 'traffic';
   return 'search';
 }

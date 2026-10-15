@@ -60,16 +60,36 @@ const verifiedResults = {
       ['keywords', {data: {KeywordIds: ['503', '504']}}],
       ['ad', {data: {AdIds: ['505']}}],
     ]),
+  // CMP-07: a TikTok pack's DISABLE campaign holds ENABLE children, so the campaign is the one activation.
+  tiktok: () =>
+    new Map([
+      ['campaign', {data: {code: 0, data: {campaign_id: '601'}}}],
+      ['adgroup', {data: {code: 0, data: {adgroup_id: '602'}}}],
+      ['ad', {data: {code: 0, data: {ad_ids: ['603']}}}],
+    ]),
+  // CMP-07: LinkedIn returns each new ID in x-restli-id (the receipt's created_id); a creative's is its URN.
+  linkedin: () =>
+    new Map([
+      ['group', {status: 201, created_id: '801'}],
+      ['campaign', {status: 201, created_id: '802'}],
+      ['creative', {status: 201, created_id: 'urn:li:sponsoredCreative:803'}],
+    ]),
 };
 const expected = {
   meta: ['activate_campaign'],
   google: ['activate_campaign'],
   snapchat: ['activate_campaign', 'activate_squad', 'activate_ad'],
   microsoft: ['activate_campaign', 'activate_adgroup', 'activate_keywords', 'activate_ad'],
+  tiktok: ['activate_campaign'],
+  linkedin: ['activate_group', 'activate_campaign', 'activate_creative'],
 };
 function business(recipe) {
   return {
     ...examples.recipe_business,
+    ...(recipe.id === 'tiktok_website_traffic' ? examples.tiktok_traffic_business : {}),
+    ...(recipe.id === 'tiktok_website_conversions' ? examples.tiktok_conversion_business : {}),
+    ...(recipe.id === 'linkedin_lead_generation' ? examples.linkedin_lead_business : {}),
+    ...(recipe.id === 'google_performance_max' ? {...examples.google_pmax_business, cpc_bid: undefined} : {}),
     ...(recipe.platform === 'snapchat'
       ? recipe.id === 'snapchat_lead_generation'
         ? examples.snapchat_lead_business
@@ -164,8 +184,49 @@ test('the activation steps set only the status, in dependency order, with the ve
     ['snapchat', new Map([['campaign', {data: {campaigns: [{campaign: {id: 'not-a-uuid'}}]}}]])],
     ['microsoft', new Map([...verifiedResults.microsoft()].filter(([k]) => k !== 'keywords'))],
     ['tiktok', new Map()],
+    ['linkedin', new Map([...verifiedResults.linkedin()].filter(([k]) => k !== 'creative'))],
+    // A receipt naming another entity type is not this launch's creative.
+    ['linkedin', new Map([...verifiedResults.linkedin(), ['creative', {created_id: 'urn:li:sponsoredCampaign:803'}]])],
   ])
     assert.throws(() => activationSteps(platform, results, scope), {code: 'ACTIVATION_UNAVAILABLE'});
+  // LinkedIn: group, then campaign, then creative, each a REST.li PARTIAL_UPDATE of its status alone (CMP-07).
+  const linkedin = activationSteps('linkedin', verifiedResults.linkedin(), scope);
+  assert.deepEqual(
+    linkedin.map(s => [s.id, s.depends_on, s.arguments.action, s.arguments.path_params, s.arguments.payload]),
+    [
+      [
+        'activate_group',
+        [],
+        'linkedin_rest_ad_accounts_ad_account_id_ad_campaign_groups_campaign_group_id_post',
+        {campaign_group_id: '801'},
+        {patch: {$set: {status: 'ACTIVE'}}},
+      ],
+      [
+        'activate_campaign',
+        ['activate_group'],
+        'linkedin_rest_ad_accounts_ad_account_id_ad_campaigns_campaign_id_post',
+        {campaign_id: '802'},
+        {patch: {$set: {status: 'ACTIVE'}}},
+      ],
+      [
+        'activate_creative',
+        ['activate_campaign'],
+        'linkedin_rest_ad_accounts_ad_account_id_creatives_creative_id_post',
+        {creative_id: 'urn:li:sponsoredCreative:803'},
+        {patch: {$set: {intendedStatus: 'ACTIVE'}}},
+      ],
+    ],
+  );
+  assert.ok(linkedin.every(s => s.arguments.restli_method === 'PARTIAL_UPDATE'));
+  // An encoded creative URN receipt names the same creative.
+  assert.equal(
+    activationSteps(
+      'linkedin',
+      new Map([...verifiedResults.linkedin(), ['creative', {created_id: 'urn%3Ali%3AsponsoredCreative%3A803'}]]),
+      scope,
+    )[2].arguments.path_params.creative_id,
+    'urn:li:sponsoredCreative:803',
+  );
 });
 
 // The interim guard refused every Microsoft campaign activation before any read, because AMCP could not read location

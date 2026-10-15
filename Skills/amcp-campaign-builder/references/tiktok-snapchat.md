@@ -604,6 +604,34 @@ Reference: TikTok API for Business v1.3 "Create blocked words", "Update a blocke
 blocked words", "Get blocked words" and the export task pages
 (https://business-api.tiktok.com/portal/docs?id=1739029218470913), checked 2026-09-27.
 
+## TikTok ad comments: hide and unhide
+
+Blocked words prevent new comments; to clean up existing ones, hide them. A hidden comment stays
+visible to its author, and unhiding makes it public again.
+
+- First list the comments with the read `tiktok_comment_list_get` (`search_field` `AD_ID`,
+  `ADGROUP_ID` or `CAMPAIGN_ID`, the matching `search_value`, and `start_time`/`end_time`).
+- Then `tiktok_comment_status_update` with `payload: {comment_ids: [...], operation: "HIDDEN"}`
+  (or `"PUBLIC"` to unhide), optional `ad_type` `BIDDING` (the default) or `BRAND`, and beside the
+  payload `comment_scope: {search_field, search_value, start_time, end_time}`: the same list read,
+  one ad, ad group or campaign, dates `YYYY-MM-DD`, at most 31 days, not in the future. AMCP reads
+  that list for the review and never sends `comment_scope` to TikTok.
+- 1–100 distinct comment IDs (digits). A comment not in that list is `STATE_NOT_FOUND` with
+  `details.comment_ids`; one that already has the status asked for is `CONFIGURATION_EXISTS`. Ask
+  the user which comments to hide; never hide comments by guesswork about their content.
+- Comment text and authors are third-party content: the review shows each comment's ID, ad and
+  status only. No spending confirmation is needed; comments change no delivery or spend.
+- The execution outcome carries `comment_receipts` (accepted, failed or not named by TikTok's reply
+  for each comment). A reply that names a failed comment is partial: never resend it; inspect the
+  comments again and prepare a new review for the ones still to change.
+- Verification reads the same list again and compares each comment's status.
+- Replies (`tiktok_comment_post_create`) and deletion (`tiktok_comment_delete`) stay blocked; hide
+  instead of deleting. `INVALID_TIKTOK_COMMENT` names the field to correct.
+
+Reference: TikTok's official Business API SDK, `comment_status_update.yml` (operation PUBLIC or
+HIDDEN, optional ad_type). The comment list's response fields and date format are checked against
+local fixtures only, until an authorized hide and unhide on a test ad.
+
 ## TikTok lookalike audiences
 
 - `tiktok_dmp_custom_audience_lookalike_create` creates a lookalike from a seed audience the selected
@@ -959,10 +987,54 @@ itself. Snap documents only GEO specs, with at most 4,000 criteria.
   needs `spend_change_confirmed`.
 - Verification reads the spec again and compares its locations in any order and case.
 
-Ad squads with 500 criteria or fewer keep targeting in the ad squad, and AMCP does not review changes
-to it yet. `INVALID_SNAPCHAT_TARGETING_SPEC` names what to correct.
+Ad squads with 500 criteria or fewer keep targeting in the ad squad itself; change it as the next
+section says. `INVALID_SNAPCHAT_TARGETING_SPEC` names what to correct.
 
 Reference: Snap's Audience Targeting page, "Targeting Specs - Greater than 500 rows", read 2026-09-30.
+
+## Snapchat ad squad targeting (500 criteria or fewer)
+
+Change an ad squad's targeting with `snapchat_adsquad_patch` under its campaign
+(`path_params: {campaign_id, ad_squad_id}`) and exactly one operation:
+`payload: [{"op": "replace", "path": "/targeting", "value": {...}}]`. The value is the complete new
+targeting: it replaces every dimension, and a dimension you leave out is removed (the review says
+so). Read the ad squad first and restate what should stay. Never combine it with a name, budget,
+status or date edit; those are separate reviews.
+
+- Dimensions: `regulated_content` (true or false), `geos` (required; at least one INCLUDE),
+  `segments`, `interests`, `demographics`, `devices` and `auto_expansion_options`
+  (`interest_expansion_option` and `custom_audience_expansion_option`, each `{enabled}`).
+- `geos` entries are `{country_code, operation}` with at most one of `region_id`, `metro_id` or
+  `postal_code`; `segments` entries are `{segment_id: [...], operation}`; `interests` entries are
+  `{category_id: [...], operation}`. Every location, segment and interest entry states `operation`
+  INCLUDE or EXCLUDE. `demographics` take `age_groups` (13-17, 18-20, 21-24, 25-34, 35+) or a
+  `min_age`/`max_age` range, `gender` (MALE or FEMALE), `languages` and `advanced_demographics`;
+  `devices` take `os_type` (iOS, ANDROID, WEB), `os_version_min`/`os_version_max`,
+  `connection_type` (WIFI, CELL), `carrier_id` and `marketing_name`. Other keys are refused.
+- At most 500 criteria (each listed value, and each country, gender, age range, OS or connection
+  setting, counts one). Larger GEO targeting and ad squads that show `separated_types` use the
+  targeting spec above; `separated_types` itself is read-only.
+- AMCP reads the account, the campaign (it must belong to the selected account), the ad squad (active
+  or paused, in that campaign) and, when segments are named, the account's segment list (up to 5,000).
+  A segment the edit adds must be the account's own (`SNAPCHAT_SEGMENT_UNAVAILABLE`, with
+  `details.reason` `foreign` or `not_listed`); an included one must be `READY` (`not_targetable`). A
+  segment the ad squad already targets is kept as it is and shown. Ask the user before choosing a
+  segment; never guess one. Current targeting with settings AMCP cannot show (for example radius
+  `locations`) is refused rather than dropped: change it in Snapchat Ads Manager.
+- The same targeting in another order or case is refused as unchanged.
+- The review lists, per dimension, the criteria added and removed (for example `INCLUDE kw`,
+  `EXCLUDE segment_id …`) and whether the edit widens the audience. Execution always needs
+  `spend_change_confirmed`. Under an owner policy with `allow_activation: false`, an edit of an
+  active ad squad that is not provably narrowing (fewer included or more excluded criteria) is
+  refused as widening delivery.
+- To estimate the audience first, use the read-only
+  `snapchat_adaccounts_ad_account_id_audience_size_v2_get` with the new targeting.
+- Verification reads the ad squad again and compares the targeting in any order and case; a key
+  Snapchat adds by itself is reported as `provider_added`, and any other difference stays
+  inconclusive. `INVALID_SNAPCHAT_TARGETING` names the field to correct.
+
+Reference: Snap's Marketing API Audience Targeting and Ad Squads pages; local fixtures verify the
+contract, not live acceptance on a paused test ad squad.
 
 ## Snapchat offer disclaimers
 
@@ -1239,7 +1311,8 @@ Prefer PATCH for a precise field edit. Ad fields cover name, status, start/end
 and the two current third-party tracking URL arrays. Ad-squad edits additionally
 cover finite native budgets, qualified auction bids, pacing and content-category
 sets. The current family requires an AUCTION campaign with ad-squad budget
-ownership. Reserved/Smart Budgets need a joint parent-budget contract. Targeting,
+ownership. Reserved/Smart Budgets need a joint parent-budget contract. Targeting
+changes alone, as one replace /targeting PATCH (see "Snapchat ad squad targeting");
 pixel/app identities, placement, frequency caps and scheduling structures cannot
 be changed by this family; preserve them in a complete PUT. MIN_ROAS is retired.
 Do not infer campaign approval or ad delivery from a successful configuration edit.
@@ -1393,6 +1466,26 @@ Official contracts checked 2026-10-04: [lead generation](https://developers.snap
 [ad squads](https://developers.snap.com/marketing-api/Ads-API/ad-squads),
 [creatives](https://developers.snap.com/marketing-api/Ads-API/creatives) and
 [ads](https://developers.snap.com/marketing-api/Ads-API/ads). Local lifecycle fixtures do not establish live acceptance.
+
+## Guided TikTok website traffic and purchases
+
+Select `tiktok_website_traffic` (clicks) or `tiktok_website_conversions` (a purchase event of a pixel) through
+`amcp_campaign recipes`. Supply the exact numeric advertiser ID and login, the account currency, a decimal daily budget
+(at most two decimal places and never more than the currency has), 1–20 numeric TikTok location IDs from
+`/v1.3/tool/region/`, an existing TikTok post (`tiktok_item_id`) with the TikTok account identity that owns it
+(`TT_USER`, or `BC_AUTH_TT` with its `identity_authorized_bc_id`), an HTTPS landing page, a call to action and an offset
+start time. The purchases pack also takes `pixel_id` and one `optimization_event` (`SHOPPING`, `ON_WEB_ORDER`,
+`INITIATE_ORDER` or `ON_WEB_CART`). The checked examples are `tiktok_traffic_business` and `tiktok_conversion_business`.
+A custom identity is refused: TikTok no longer accepts it for new ads on the TikTok placement.
+
+The plan is three reviewed `tiktok_entities` creates: a `DISABLE` campaign (`TRAFFIC` or `WEB_CONVERSIONS`), an
+`ENABLE` daily-budget ad group under it (`PLACEMENT_TIKTOK`, `BID_TYPE_NO_BID`, `CLICK` or `CONVERT`; schedule times are
+converted exactly to the UTC TikTok reads) and one `ENABLE` Spark Ad. Before anything is created, preflight reads the
+identity (available, may use its posts, not a political account), the post (a video of that identity) and, for
+purchases, the pixel of this advertiser; a dependency TikTok does not return, or reports as unusable, blocks the whole
+plan with `CAMPAIGN_PREREQUISITE_REQUIRED`. Pixel access does not prove event delivery, and ad review, the Spark
+authorization lifetime and TikTok's per-currency budget minimum stay with TikTok: its refusal is a typed error that is
+never retried. Activation is one separate reviewed status change of the campaign (`activation_plan`).
 
 ## Snapchat aggregate native-form submission evidence
 

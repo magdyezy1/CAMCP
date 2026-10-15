@@ -35,6 +35,28 @@ Meta's v26.0 changelog (read 2026-09-29) adds behavior the SDK comparison cannot
 - Delivery estimates no longer return `daily_outcomes_curve`, `budget_guardrail` or `estimate_dau`; `date_format` and
   root `?ids=` requests are refused. Most of these reach every version on 2026-10-27.
 
+Advantage+ creative features (Meta's Standard Enhancements page, read 2026-10-08): from Marketing API v22.0 the
+`standard_enhancements` bundle is no longer switched on or off as a whole; a creative opts in to or out of each
+feature. Meta does not document what a creative made through the API gets for a feature it does not list, so the
+review of a new creative that chooses none says so (`creative_impact.creative_features.chosen: false`).
+
+- **Ask the user** which features Meta may apply before you create a creative. Never choose for them, and leave out a
+  feature they have no view on. Set each answer as `degrees_of_freedom_spec: {creative_features_spec: {<feature>:
+  {enroll_status: "OPT_IN" | "OPT_OUT"}}}`; the review lists `opted_in` and `opted_out`.
+- The contract reviews these single features of Meta's SDK 26.0.2 (`tests/fixtures/meta-creative-features-sdk-v26.json`),
+  at Graph API v26.0 only (a deployment moved back to v25.0 refuses the field): `adapt_to_placement`,
+  `add_text_overlay`, `audio`, `description_automation`, `enhance_cta`, `image_animation`, `image_background_gen`,
+  `image_brightness_and_contrast`, `image_templates`, `image_touchups`, `image_uncrop`, `inline_comment`,
+  `reveal_details_over_time`, `site_extensions`, `text_optimizations` and `video_auto_crop`.
+- Refusals, before any read: another feature or a bundle (`standard_enhancements`, `standard_enhancements_catalog`,
+  `advantage_plus_creative`) is `META_ADVANTAGE_CREATIVE_FEATURE_UNAVAILABLE` (`details.supported_features` lists the
+  reviewed ones); a listed feature without exactly `{enroll_status: "OPT_IN"}` or `{enroll_status: "OPT_OUT"}`
+  (customizations included) is `META_ADVANTAGE_CREATIVE_CHOICE_REQUIRED` (ask the user about `details.features`); any
+  other `degrees_of_freedom_spec` key is `WRITE_CONTRACT_UNAVAILABLE`.
+- Verification reads the creative back and compares every choice. `provider_creative_features` in the check shows what
+  Meta reports for the features the request left out (Meta's own setting). A read that leaves out
+  `degrees_of_freedom_spec` is inconclusive with it in `unacknowledged_fields`, never verified.
+
 ## Public Ad Library research
 
 Use `amcp_native_action` with `operation: "search_ads_library"` and
@@ -335,8 +357,10 @@ binding. `META_CREATIVE_STATE_UNVERIFIED` means the identity read was incomplete
 malformed; do not assume permission. Third-party partnership/creator posts and
 placement-specific eligibility still need separately qualified contracts/evidence.
 The qualified top-level creative fields are `name`, `object_story_spec`,
-`object_story_id`, `source_instagram_media_id`, `instagram_user_id`, `url_tags` and
-`destination_spec` (only `{destination_type: "WEBSITE_AND_SHOP_OPT_OUT"}`; see API version).
+`object_story_id`, `source_instagram_media_id`, `instagram_user_id`, `url_tags`,
+`destination_spec` (only `{destination_type: "WEBSITE_AND_SHOP_OPT_OUT"}`; see API version) and
+`degrees_of_freedom_spec` (only `creative_features_spec` with the user's explicit choices; see Advantage+ creative
+features under API version).
 Alternate source/actor overrides, partnership fields and advanced creative modes
 return `WRITE_CONTRACT_UNAVAILABLE`; inspect the exact payload before planning a
 dependent ad. Add image/video/link configuration within the verified Page story.

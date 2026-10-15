@@ -239,6 +239,7 @@ export class WriteVerifier {
                     'Neither the write response nor any native read returns these sent fields, so they cannot be compared.',
                 }
               : {}),
+            ...(item.observe?.(actual) ?? {}),
           });
           family?.afterReadBack?.(
             plan,

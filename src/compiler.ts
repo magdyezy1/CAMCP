@@ -9,6 +9,7 @@ import {linkedinDomainPlan} from './linkedin-insight-domains.js';
 import {linkedinTrackingPlan} from './linkedin-tracking-parameters.js';
 import {linkedinMessagePlan} from './linkedin-message-ads.js';
 import {tiktokPreviewPlan, tiktokPreviewVariantPath} from './tiktok-preview-reads.js';
+import {tiktokCommentScope} from './tiktok-ad-comments.js';
 import type {CallOptions, CompiledRequest, JsonObject} from './types.js';
 import {Registry} from './catalog.js';
 import {guardInput} from './security.js';
@@ -281,6 +282,9 @@ export class Compiler {
       else if (!Array.isArray(body)) body = {advertiser_id: accountId, ...object(body)};
       if (input.lead_region) headers['X-Lead-Region'] = input.lead_region;
     }
+    // The comment list read a comment status update is reviewed against; it rides beside the request, never in it.
+    const commentScope =
+      gateway === 'tiktok_native_action' ? tiktokCommentScope(action.path, input.comment_scope) : undefined;
     if (gateway === 'google_ads_native_action') {
       const desc = this.registry.data.descriptions[gateway + '/' + action.name];
       if (desc?.body_mapping && desc.body_mapping !== '*') body = object(body)[desc.body_mapping] ?? body;
@@ -362,6 +366,7 @@ export class Compiler {
                                 ],
                                 specialTransport: action.raw.special_transport ?? undefined,
                                 ...(projection ? {responseControls: projection} : {}),
+                                ...(commentScope ? {tiktokCommentScope: commentScope} : {}),
                               }),
                             ),
                           ),

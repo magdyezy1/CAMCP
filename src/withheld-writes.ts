@@ -7,6 +7,11 @@
 const evidenceWithheld: Record<string, string> = {
   'tiktok_native_action tiktok_creative_portfolio_delete':
     "Blocked on evidence: TikTok's official SDK (tiktok/tiktok-business-api-sdk, 2026-02-28) defines portfolio create, get and list but no delete, and TikTok's documentation pages render only in a browser, so which portfolios can be deleted and what becomes of ads using them is unread.",
+  // PRV-06 B: comment moderation starts with hiding and unhiding, which can be undone.
+  'tiktok_native_action tiktok_comment_post_create':
+    "Not reviewed yet: a reply publishes text on the advertiser's ad under one of its identities. AMCP reviews hiding and unhiding comments first (tiktok_comment_status_update); reply in TikTok Ads Manager.",
+  'tiktok_native_action tiktok_comment_delete':
+    'Blocked: deleting a comment cannot be undone, and the TikTok sources AMCP read give it no state to verify. Hide the comment with the reviewed tiktok_comment_status_update (operation HIDDEN), which unhides with PUBLIC.',
   'x_ads_native_action x_accounts_account_id_targeting_criteria_targeting_criterion_id_put':
     "Not documented: docs.x.com's Campaign Management reference (read 2026-09-29) gives targeting criteria a read, a create, a batch create and a delete, and no update. To change a criterion, delete it and create the new one with the reviewed targeting writes.",
   'meta_native_action meta_ad_account_id_campaigns_delete':

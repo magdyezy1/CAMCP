@@ -42,7 +42,7 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. ' +
     'For saved client reports across platforms, schedules and Sheets exports, use amcp_reporting_overview. ' +
     'Safety: no advertising writes. A saved plan is an unapproved draft that still needs native review, spending acknowledgement and read-back. Missing metrics stay unknown; attribution windows and completeness remain declared; partial or changed evidence is refused rather than presented as complete. ' +
-    'Core actions: capture_presets (guided Google, Meta, LinkedIn, TikTok and Snapchat reports), capture_preset and capture (bounded native reads kept with source hashes), overview_sources and capture_overview, list and get (source-linked metadata pages; get takes row_query and returns an xlsx_path), ' +
+    'Core actions: capture_presets (guided reports), capture_preset and capture (bounded native reads kept with source hashes), overview_sources and capture_overview, list and get (source-linked metadata pages; get takes row_query and returns an xlsx_path), ' +
     'analyze (pacing, anomaly, fatigue and search-waste recommendations), reconcile_report and reconcile (against a retained or declared reference), combine, scenarios, ' +
     'calibrate_allocation, allocation_candidates, allocation, preview_allocation_plan and create_allocation_plan, search_exclusion_candidates, preview_search_exclusions and create_search_exclusion_plan. ' +
     help('amcp_reporting'),

@@ -1106,7 +1106,7 @@ export class CampaignRunner {
     const platform = run.recipe?.platform;
     if (typeof run.recipe?.id !== 'string' || !activationPlatforms.includes(platform))
       bad(
-        'Guided activation is for completed Meta, Google, Snapchat and Microsoft recipe plans. Activate other plans through their provider’s reviewed writes.',
+        'Guided activation is for completed Meta, Google, Snapchat, Microsoft, TikTok and LinkedIn recipe plans. Activate other plans through their provider’s reviewed writes.',
         'ACTIVATION_UNAVAILABLE',
       );
     if (run.state !== 'complete' || !run.steps.every(settled))
@@ -1126,6 +1126,9 @@ export class CampaignRunner {
       steps = activationSteps(platform, results, {connection_id: write.connection_id, account_id: write.account_id});
     const metaAd = platform === 'meta' ? results.get('ad')?.data?.id : undefined,
       metaPixel = platform === 'meta' && typeof run.recipe.pixel_id === 'string' ? run.recipe.pixel_id : undefined,
+      // A LinkedIn lead launch is gated on its form's state (CMP-07).
+      leadForm =
+        platform === 'linkedin' && typeof run.recipe.lead_form_id === 'string' ? run.recipe.lead_form_id : undefined,
       // A Google conversion launch is gated on the reads recipe_eligibility makes for it (CMP-03).
       declared: string[] = recipeDependencies[run.recipe.id]?.objects ?? [],
       conversionGoals =
@@ -1162,6 +1165,7 @@ export class CampaignRunner {
         platform,
         ...(typeof metaAd === 'string' ? {meta_ad_id: metaAd} : {}),
         ...(metaPixel ? {meta_pixel_id: metaPixel} : {}),
+        ...(leadForm ? {linkedin_lead_form_id: leadForm} : {}),
         ...(conversionGoals ? {conversion_goals: conversionGoals} : {}),
       };
       // A colleague's activation keeps the team in view (CMP-05).
@@ -1561,9 +1565,12 @@ export class CampaignRunner {
             'expected_currency must be an ISO code such as "USD", or omitted',
           s.prerequisites !== undefined &&
             (!Array.isArray(s.prerequisites) ||
-              s.prerequisites.some((p: unknown) => p !== 'meta_image_hash') ||
+              s.prerequisites.some(
+                (p: unknown) =>
+                  !['meta_image_hash', 'tiktok_spark_post', 'tiktok_pixel', 'linkedin_lead_form'].includes(p as string),
+              ) ||
               new Set(s.prerequisites).size !== s.prerequisites.length) &&
-            'prerequisites lists checks preflight must make, currently only "meta_image_hash"',
+            'prerequisites lists checks preflight must make: "meta_image_hash", "tiktok_spark_post", "tiktok_pixel" or "linkedin_lead_form"',
         ].filter(Boolean);
         if (problems.length)
           bad(
