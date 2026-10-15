@@ -267,6 +267,7 @@ export function scheduleAllocationOutcome(store: Store, actor: Actor, run: JsonO
         window: {since: window.since, until: window.until, days: window.days, timezone: window.timezone},
         due_at: window.due_at,
         modeled: modeledSnapshot(proposal.modeled),
+        capture: captureSettings(proposal.source),
         automatic: binding !== null,
         attempts: 0,
         actor_binding: binding,
@@ -330,51 +331,58 @@ export function allocationOutcomeView(store: Store, actor: Actor, planId: string
   };
 }
 
-/** The guided capture of the outcome window: the proposal's preset and measurement settings, other dates. */
-function captureInput(source: JsonObject, window: JsonObject): JsonObject {
+/**
+ * The guided capture the outcome repeats, frozen when the review is scheduled: the proposal evidence's preset, login,
+ * account and measurement settings (Meta's action and windows, Snapchat's parent and windows).
+ */
+function captureSettings(source: JsonObject): JsonObject {
   const sem = source.semantics ?? {},
-    request = source.source_request ?? {},
-    input: JsonObject = {
-      action: 'capture_preset',
-      preset: source.preset,
-      account_id: source.account_id,
-      connection_id: source.connection_id,
-      semantics: {
-        currency: sem.currency,
-        timezone: sem.timezone,
-        date_from: window.since,
-        date_to: window.until,
-        attribution: sem.attribution,
-        conversion_definition: sem.conversion_definition,
-        source_name: ('Allocation outcome · ' + String(sem.source_name ?? source.preset)).slice(0, 200),
-        complete: true,
-      },
-    };
-  if (source.preset === 'meta_campaign')
-    return {
-      ...input,
-      result_action_type: sem.conversion_definition,
-      attribution_windows: request.query?.action_attribution_windows,
-    };
-  if (source.preset === 'snapchat_adsquad')
-    return {
-      ...input,
-      campaign_id: request.path_params?.campaign_id,
-      swipe_up_attribution_window: request.query?.swipe_up_attribution_window,
-      view_attribution_window: request.query?.view_attribution_window,
-    };
-  return input;
+    request = source.source_request ?? {};
+  return {
+    preset: source.preset,
+    gateway: source.gateway,
+    account_id: source.account_id,
+    connection_id: source.connection_id,
+    semantics: {
+      currency: sem.currency,
+      timezone: sem.timezone,
+      attribution: sem.attribution,
+      conversion_definition: sem.conversion_definition,
+      source_name: ('Allocation outcome · ' + String(sem.source_name ?? source.preset)).slice(0, 200),
+    },
+    ...(source.preset === 'meta_campaign'
+      ? {
+          result_action_type: sem.conversion_definition,
+          attribution_windows: request.query?.action_attribution_windows,
+        }
+      : {}),
+    ...(source.preset === 'snapchat_adsquad'
+      ? {
+          campaign_id: request.path_params?.campaign_id,
+          swipe_up_attribution_window: request.query?.swipe_up_attribution_window,
+          view_attribution_window: request.query?.view_attribution_window,
+        }
+      : {}),
+  };
 }
-/** Measurement settings the outcome must share with the proposal's evidence to be compared at all. */
-function definitionChanges(source: JsonObject, outcome: JsonObject, doc: JsonObject) {
+/** The guided capture of the closed outcome window, declared complete because the window has closed. */
+function captureInput(settings: JsonObject, window: JsonObject): JsonObject {
+  const {gateway: _gateway, semantics, ...rest} = settings;
+  return {
+    action: 'capture_preset',
+    ...rest,
+    semantics: {...semantics, date_from: window.since, date_to: window.until, complete: true},
+  };
+}
+/** Settings the outcome must share with the proposal's evidence to be compared at all (never compared otherwise). */
+function definitionChanges(settings: JsonObject, outcome: JsonObject) {
   return [
-    ...['gateway', 'account_id', 'connection_id', 'preset'].filter(k => outcome[k] !== source[k]),
+    ...['gateway', 'account_id', 'connection_id', 'preset'].filter(k => outcome[k] !== settings[k]),
     ...['currency', 'timezone', 'attribution', 'conversion_definition'].filter(
-      k => outcome.semantics?.[k] !== source.semantics?.[k],
+      k => outcome.semantics?.[k] !== settings.semantics[k],
     ),
-    ...(doc.parent_campaign_id !== undefined &&
-    outcome.source_request?.path_params?.campaign_id !== doc.parent_campaign_id
-      ? ['parent_campaign_id']
+    ...(settings.campaign_id !== undefined && outcome.source_request?.path_params?.campaign_id !== settings.campaign_id
+      ? ['campaign_id']
       : []),
   ];
 }
@@ -513,18 +521,12 @@ export async function captureAllocationOutcome(
       409,
     );
   try {
-    const source = optional(store, actor.tenantId, 'decision_report', String(doc.report_id));
-    if (!source) {
-      const unavailable = {...doc, state: 'unavailable', reason: 'source_report_deleted', updated_at: Date.now()};
-      store.putDocument(actor.tenantId, allocationOutcomeKind, run.id, unavailable);
-      return view(unavailable);
-    }
-    const captured = await capture(captureInput(source, doc.window));
+    const captured = await capture(captureInput(doc.capture, doc.window));
     store.assertActorActive(actor);
     const outcome = read(store, actor, 'decision_report', String(captured.id)),
       latest = store.document(actor.tenantId, allocationOutcomeKind, run.id);
     if (latest.state === 'complete') return view(latest);
-    const changed = definitionChanges(source, outcome, latest),
+    const changed = definitionChanges(latest.capture, outcome),
       base = {
         ...latest,
         outcome_report_id: outcome.id,
