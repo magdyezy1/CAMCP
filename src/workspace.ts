@@ -695,7 +695,8 @@ export class WorkspaceService {
   /**
    * catalog_plan with requirements.chunked (COM-03 Phase 3): 51–500 source products saved as consecutive unapproved
    * plans of at most 50, one lineage group. Every part is validated before the first is saved; each part has its own
-   * creation key, so repeating the same request after a failure saves only the parts that are missing.
+   * creation key, so repeating the same request after a failure saves only the parts that are missing. catalog_preview
+   * with the same requirements validates the same parts and saves nothing.
    */
   private async catalogPlanGroup(
     actor: Actor,
@@ -703,7 +704,8 @@ export class WorkspaceService {
     connectionId: string,
     source: CatalogSource,
   ): Promise<JsonObject> {
-    writer(this.store, actor);
+    const save = input.action === 'catalog_plan';
+    if (save) writer(this.store, actor);
     if (catalogDestination(input.gateway)?.writes === 'feed_only')
       bad(
         'Snapchat products change only through product feeds. Compare them, then fix differences in the feed; no draft is saved.',
@@ -739,8 +741,33 @@ export class WorkspaceService {
         name: input.name ?? null,
       });
     // Every part is projected and validated first, so a refused product saves no part.
-    const projections = parts.map(part => catalogIngestion({...input, products: part})),
-      keys = parts.map((_, i) => 'catalog-plan-' + lineage_group_id.slice(0, 40) + '-' + (i + 1)),
+    const projections = parts.map(part => catalogIngestion({...input, products: part}));
+    if (!save)
+      return {
+        record_kind: 'catalog_plan_group_preview',
+        lineage_group_id,
+        parts: parts.length,
+        item_count: products.length,
+        group_source_hash,
+        source,
+        // One row per part (its products are listed by the plan it becomes), in source order.
+        plans: parts.map((part, i) => ({
+          part: i + 1,
+          item_count: part.length,
+          source_hash: projections[i]!.source_hash,
+          first_retailer_id: part[0]!.retailer_id,
+          last_retailer_id: part.at(-1)!.retailer_id,
+        })),
+        ...((projections[0] as JsonObject).destination_limitations
+          ? {destination_limitations: (projections[0] as JsonObject).destination_limitations}
+          : {}),
+        network_requests: 0,
+        provider_mutations: 0,
+        destructive_deletions: 0,
+        meaning:
+          'Preview validates every product of this plan group from the source; nothing is saved. Saving creates one unapproved plan of at most 50 products per part, and every product still needs its own native review and read-back. Products the source lacks are never deleted.',
+      };
+    const keys = parts.map((_, i) => 'catalog-plan-' + lineage_group_id.slice(0, 40) + '-' + (i + 1)),
       saved = keys.filter(key =>
         optional(
           this.store,

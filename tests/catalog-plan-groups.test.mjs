@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {actor, ok, metaWorld} from './fixtures/meta-catalog-world.mjs';
+import {xCatalogComparisonFixture} from './fixtures/x-catalog-comparison.mjs';
 
 /**
  * COM-03 Phase 3: one source of more than 50 products. Before, catalog_plan took 1–50 products and a larger store had
@@ -75,6 +76,68 @@ test('120 source products become three unapproved plans of at most 50 in one lin
     group.plans.map(p => p.id),
   );
   assert.equal(f.runs().length, 3, 'the same request saves no further plan');
+});
+
+test('a group preview validates every part and saves nothing, and the save that follows is the same group', async t => {
+  const f = world(t),
+    text = csv(120);
+  const preview = (requirements = {}, as = actor) =>
+    f.service.call(
+      'amcp_workspace',
+      {
+        action: 'catalog_preview',
+        ...scope,
+        allow_upsert: true,
+        name: 'Spring store import',
+        requirements: {source: {kind: 'csv', text, columns: 'canonical'}, chunked: true, ...requirements},
+      },
+      as,
+    );
+  // A reader may preview a group: nothing is saved and nothing reaches Meta.
+  const out = ok(await preview({}, {...actor, role: 'reader'}));
+  assert.equal(out.record_kind, 'catalog_plan_group_preview');
+  assert.equal(out.parts, 3);
+  assert.equal(out.item_count, 120);
+  assert.deepEqual(
+    out.plans.map(p => [p.part, p.item_count, p.first_retailer_id, p.last_retailer_id]),
+    [
+      [1, 50, 'SKU-1', 'SKU-50'],
+      [2, 50, 'SKU-51', 'SKU-100'],
+      [3, 20, 'SKU-101', 'SKU-120'],
+    ],
+  );
+  assert.equal(out.source.source_kind, 'csv');
+  assert.equal(out.destructive_deletions, 0);
+  assert.equal(f.runs().length, 0, 'a preview saves no plan');
+  assert.equal(f.store.documents(actor.tenantId, 'catalog_lineage_binding').length, 0);
+  assert.equal(f.calls.length, 0);
+  // A refused product is refused at preview, before anything could be saved.
+  const refused = await f.service.call(
+    'amcp_workspace',
+    {
+      action: 'catalog_preview',
+      ...scope,
+      allow_upsert: true,
+      requirements: {
+        source: {
+          kind: 'csv',
+          text: csv(80, i => `SKU-${i},Product ${i},${i === 70 ? 'free' : '1'},SAR,https://cdn.example.test/${i}.jpg`),
+          columns: 'canonical',
+        },
+        chunked: true,
+      },
+    },
+    actor,
+  );
+  assert.equal(refused.success, false);
+  assert.match(refused.error.message, /decimal price/);
+  // Saving the previewed source creates exactly the previewed parts, under the same group.
+  const group = ok(await f.plan(text));
+  assert.equal(group.lineage_group_id, out.lineage_group_id);
+  assert.deepEqual(
+    group.plans.map(p => [p.part, p.item_count, p.source_hash]),
+    out.plans.map(p => [p.part, p.item_count, p.source_hash]),
+  );
 });
 
 test('a group is refused before any part is saved: an invalid product, a repeated ID, too few or too many products', async t => {
@@ -184,4 +247,29 @@ test('a source of at most 50 products stays one plan, more than 50 needs an expl
     actor,
   );
   assert.match(tooMany.error.message, /1–50 products per reviewed plan/, 'more than 50 needs an explicit group');
+});
+
+test('an X source never removes the listed products it lacks: its single plan and its plan group hold only its own upserts', async t => {
+  // X has a product delete contract, so this guards the destination contract's rule that absence from a source never
+  // selects a removal: removals exist only as explicit selections (preview_catalog_removal).
+  const f = xCatalogComparisonFixture({writable: true});
+  t.after(() => f.store.close());
+  const scope = {gateway: 'x_ads_native_action', account_id: 'acct1', connection_id: 'x', catalog_id: '9001'},
+    listed = f.items[9001].map(p => p.id),
+    header = 'retailer_id,name,price,currency,image_url,url,availability,condition,brand,description',
+    row = i =>
+      `new-${i},Product ${i},${i}.25,SAR,https://shop.example.test/i/${i}.jpg,https://shop.example.test/p/${i},in stock,new,Brand,Plain text ${i}`,
+    text = n => [header, ...Array.from({length: n}, (_, i) => row(i + 1))].join('\n'),
+    plan = requirements =>
+      f.service.call('amcp_workspace', {action: 'catalog_plan', ...scope, allow_upsert: true, requirements}, f.actor);
+  assert.ok(listed.length > 0, 'the catalog lists products the source lacks');
+  ok(await plan({source: {kind: 'csv', text: text(2), columns: 'canonical'}}));
+  const group = ok(await plan({source: {kind: 'csv', text: text(60), columns: 'canonical'}, chunked: true}));
+  assert.equal(group.parts, 2);
+  const steps = f.store.documents(f.actor.tenantId, 'campaign_run').flatMap(run => run.steps);
+  assert.equal(steps.length, 62);
+  assert.ok(steps.every(s => s.arguments.action === 'x_product_catalogs_product_catalog_id_products_put'));
+  const keys = steps.map(s => s.arguments.payload.products[0].id);
+  for (const id of listed) assert.equal(keys.includes(id), false, id + ' is not touched');
+  assert.equal(f.writes(), 0, 'saving plans sends nothing to X');
 });

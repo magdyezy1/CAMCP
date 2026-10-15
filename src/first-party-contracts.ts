@@ -514,7 +514,7 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'catalog_preview',
-      'Locally validates 1–50 selected Meta, X or Snapchat products (or a CSV source) with exact source prices.',
+      'Locally validates 1–50 selected Meta, X or Snapchat products, or a CSV source (51–500 as a plan group), with exact source prices.',
       ['gateway', 'account_id', 'catalog_id'],
       ['connection_id', 'products', 'allow_upsert', 'name', 'requirements'],
       local,
@@ -1739,7 +1739,7 @@ const argumentNotes: Record<string, Record<string, string>> = {
       'catalog_preview, catalog_compare, catalog_plan: {retire_retailer_ids: 1–50 supplied retailer IDs, retire_availability: "out of stock"|"discontinued"} retires existing products through the reviewed update (nothing is deleted). ' +
       'catalog_compare (X): {selection_source:"listed_inventory", product_keys: 1–50 listed native keys} reads only those products; preview_catalog_removal adds the listed_inventory_hash of the inspection they were chosen from. Nothing is ever selected because a source lacks it. ' +
       'catalog_preview, catalog_compare, catalog_plan: {source: {kind:"csv", text, columns:"canonical"|"profile", profile_version?}} instead of products: a CSV of at most 192 KiB and 500 rows that AMCP projects with its own product columns or the catalog’s saved mapping (save_catalog_mapping); the preview returns the supplied_products. ' +
-      'catalog_plan: {select_retailer_ids: 1–50 source rows to keep}, {comparison_token: the lineage_token of the catalog_compare its products come from (same person, 15 minutes)}, {chunked: true} saves 51–500 source products as plans of at most 50 in one lineage group. ' +
+      'catalog_plan: {select_retailer_ids: 1–50 source rows to keep}, {comparison_token: the lineage_token of the catalog_compare its products come from (same person, 15 minutes)}, {chunked: true} saves 51–500 source products as plans of at most 50 in one lineage group (catalog_preview with it validates the parts and saves nothing). ' +
       'save_catalog_mapping: {columns: {field: CSV header}, fixed_currency: "" or one ISO code when no currency column, image_mode: "single"|"first_list", replace_identity_column?: true to change the retailer_id column}.',
     revision:
       'The current revision of the record the action changes, as last read. save_catalog_mapping: the mapping version read (0 before the first save); another current version is refused with CATALOG_MAPPING_CHANGED.',
