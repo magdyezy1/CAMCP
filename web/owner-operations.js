@@ -59,6 +59,36 @@ const policyMeta = [
   'money_units',
   'native_unit',
 ];
+/** What an owner's write pause stops, by its scope (RPT-06): everything, advertising writes only, or report jobs only. */
+function pauseScopeText(scope) {
+  return scope === 'provider_jobs'
+    ? uiText(
+        'Every report and export job of this workspace is refused until you resume. Advertising writes, media uploads, reads, reviews and verification continue.',
+      )
+    : scope === 'advertising'
+      ? uiText(
+          'Every advertising write and media upload of this workspace is refused until you resume. Report and export jobs, reads, reviews and verification continue.',
+        )
+      : uiText(
+          'Every reviewed write and media upload of this workspace is refused until you resume. Reads, reviews and verification continue.',
+        );
+}
+/** The provider-job switch and the jobs created in the last seven days, counted from their receipts (RPT-06). */
+function providerJobsLine(jobs) {
+  if (!jobs) return '';
+  const count = String(jobs.receipts?.created ?? 0);
+  return `<p class="form-note">${esc(
+    jobs.switch === 'on'
+      ? uiText(
+          'Report and export jobs are allowed while live writes are off; each needs an account report-job grant. Jobs created in the last 7 days: {count}.',
+          {count},
+        )
+      : uiText(
+          'Report and export jobs are reviewed writes in this deployment. Jobs created in the last 7 days: {count}.',
+          {count},
+        ),
+  )}</p>`;
+}
 /** What the workspace default sets for one platform: its shared settings under that platform's own limits. */
 function workspaceDefaultFor(stored, gateway) {
   if (!stored) return undefined;
@@ -140,8 +170,23 @@ function accountPolicyInput(values, stored) {
     .trim()
     .toUpperCase();
   if (currency) policy.currency = currency;
+  // WRT-09: the account's own approval settings have no control here, so a save keeps them as they are.
+  for (const key of ['approval_mode', 'require_destructive_confirmation'])
+    if (stored?.[key] !== undefined) policy[key] = stored[key];
   return policy;
 }
+/**
+ * WRT-09 (owner decisions P1 and P5): who approves spending, cap and deletion changes, and the opt-in acknowledgement
+ * before deletions, as the workspace default sets them. They apply to every account; an account policy (set over MCP)
+ * can only add to them.
+ */
+function approvalPolicyControls(stored) {
+  const mode = stored?.approval_mode ?? 'assistant_ack',
+    option = (value, label) => `<option value="${value}"${mode === value ? ' selected' : ''}>${esc(label)}</option>`;
+  return `<label>${esc(uiText('Who approves spending, cap and deletion changes'))}<select name="approval_mode">${option('assistant_ack', uiText('The user, in the AI client (default)'))}${option('website_approval', uiText('A member, on the AMCP website'))}${option('distinct_approver', uiText('Another member than the preparer, or the owner'))}</select></label><p class="form-note">${esc(uiText('With approval on the website, a reviewed change to spending, beyond a cap or deleting something runs only after a member approves that exact review on the Operations page. This applies to every account, also one with a policy of its own.'))}</p><label class="check"><input name="require_destructive_confirmation" type="checkbox"${stored?.require_destructive_confirmation === true ? ' checked' : ''}> ${esc(uiText('Require an explicit acknowledgement before deletions'))}</label><p class="form-note">${esc(uiText('Only the workspace owner executes a change beyond a spending cap, or approves it on the AMCP website first.'))}</p>`;
+}
+const approvalModeRank = mode =>
+  ['assistant_ack', 'website_approval', 'distinct_approver'].indexOf(mode ?? 'assistant_ack');
 /** The workspace default a save sends: the settings the form shows over the stored ones it does not show. */
 function workspacePolicyInput(values, stored) {
   const policy = {};
@@ -152,6 +197,17 @@ function workspacePolicyInput(values, stored) {
     policy.enforcement = values.enforcement === 'block' ? 'block' : 'confirm';
   if (String(values.max_budget_increase_percent ?? '') !== '')
     policy.max_budget_increase_percent = Number(values.max_budget_increase_percent);
+  // WRT-09: the approval settings the form shows; a default left at its meaning is not stored.
+  if (values.approval_mode !== undefined) {
+    if (values.approval_mode !== 'assistant_ack' || stored?.approval_mode !== undefined)
+      policy.approval_mode = values.approval_mode;
+    else delete policy.approval_mode;
+  }
+  if (values.require_destructive_confirmation !== undefined) {
+    if (values.require_destructive_confirmation || stored?.require_destructive_confirmation !== undefined)
+      policy.require_destructive_confirmation = !!values.require_destructive_confirmation;
+    else delete policy.require_destructive_confirmation;
+  }
   const per = {};
   for (const [g, limits] of Object.entries(stored?.per_gateway ?? {})) {
     per[g] = {...limits};
@@ -188,6 +244,11 @@ function policyWeakenings(stored, next, platform = g => g) {
     out.push(uiText('Activation after review becomes allowed.'));
   if (stored.allow_deletion === false && next.allow_deletion !== false)
     out.push(uiText('Deletion after review becomes allowed, feed deletion rules included.'));
+  // WRT-09: fewer people approve, or deletions no longer need their own acknowledgement.
+  if (approvalModeRank(next.approval_mode) < approvalModeRank(stored.approval_mode))
+    out.push(uiText('Fewer approvals are needed before spending, cap and deletion changes are executed.'));
+  if (stored.require_destructive_confirmation === true && next.require_destructive_confirmation !== true)
+    out.push(uiText('Deletions no longer need an explicit acknowledgement.'));
   const caps = (from, to, prefix) => {
     const pairs = [
       ...Object.entries(policyMoney),
@@ -405,8 +466,12 @@ function ownerReviewFriction(r) {
       ['Acknowledgement refusals', r.counts.acknowledgement_refusals, r.per_100_prepares.acknowledgement_refusals],
       ['Uncertain outcomes', r.counts.WRITE_OUTCOME_UNCERTAIN, r.per_100_prepares.write_outcome_uncertain],
       ['Not sent', r.counts.write_not_sent, r.per_100_prepares.write_not_sent],
+      // WRT-09: a person's approvals on the website, while an approval mode is on.
+      ...(r.approvals?.approved
+        ? [['Approvals on the website', r.approvals.approved, r.approvals.per_100_prepares]]
+        : []),
     ];
-  return `<p>${esc(uiText('In the last {days} days: {prepares} reviews prepared, {executes} executed.', {days: n(r.window_days), prepares: n(r.prepares), executes: n(r.executes)}))}</p><p>${esc(uiText('Time from prepare to execute (ms): median {p50}, 90th percentile {p90}, 99th percentile {p99}.', {p50: n(r.latency_ms.p50), p90: n(r.latency_ms.p90), p99: n(r.latency_ms.p99)}))}</p>${r.complete ? '' : `<p class="notice">${esc(uiText('More audit rows than one read covers; these counts are partial.'))}</p>`}<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Review friction'))}"><table class="review-table"><caption>${esc(uiText('Review friction'))}</caption><thead><tr>${['Outcome', 'Count', 'Per 100 prepares'].map(label => `<th scope="col">${esc(uiText(label))}</th>`).join('')}</tr></thead><tbody>${rows.map(([label, count, rate]) => `<tr><th scope="row">${esc(uiText(label))}</th><td>${esc(n(count))}</td><td>${esc(n(rate))}</td></tr>`).join('')}</tbody></table></div>${r.state_changed_paths?.length ? `<h4>${esc(uiText('Most changed fields (paths only)'))}</h4><ul>${r.state_changed_paths.map(p => `<li><code dir="ltr">${esc(p.path)}</code> · ${esc(n(p.count))}</li>`).join('')}</ul>` : ''}`;
+  return `<p>${esc(uiText('In the last {days} days: {prepares} reviews prepared, {executes} executed.', {days: n(r.window_days), prepares: n(r.prepares), executes: n(r.executes)}))}</p><p>${esc(uiText('Time from prepare to execute (ms): median {p50}, 90th percentile {p90}, 99th percentile {p99}.', {p50: n(r.latency_ms.p50), p90: n(r.latency_ms.p90), p99: n(r.latency_ms.p99)}))}</p>${r.approvals?.latency_ms?.count ? `<p>${esc(uiText('Time from prepare to a person’s approval on the website (ms): median {p50}, 90th percentile {p90}.', {p50: n(r.approvals.latency_ms.p50), p90: n(r.approvals.latency_ms.p90)}))}</p>` : ''}${r.complete ? '' : `<p class="notice">${esc(uiText('More audit rows than one read covers; these counts are partial.'))}</p>`}<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Review friction'))}"><table class="review-table"><caption>${esc(uiText('Review friction'))}</caption><thead><tr>${['Outcome', 'Count', 'Per 100 prepares'].map(label => `<th scope="col">${esc(uiText(label))}</th>`).join('')}</tr></thead><tbody>${rows.map(([label, count, rate]) => `<tr><th scope="row">${esc(uiText(label))}</th><td>${esc(n(count))}</td><td>${esc(n(rate))}</td></tr>`).join('')}</tbody></table></div>${r.state_changed_paths?.length ? `<h4>${esc(uiText('Most changed fields (paths only)'))}</h4><ul>${r.state_changed_paths.map(p => `<li><code dir="ltr">${esc(p.path)}</code> · ${esc(n(p.count))}</li>`).join('')}</ul>` : ''}`;
 }
 const ownerCall = async input => {
   const r = await api('/api/workspace/workspace', {method: 'POST', body: JSON.stringify(input)});
@@ -441,7 +506,7 @@ renderSettings = async function () {
   else content.append(area);
   // WEB-08: Safety first (the emergency stop and spending caps), then Access (account-approvals.js fills it for the
   // instance owner), Health and Retention, each reachable from the sub-navigation in one step.
-  area.innerHTML = `<div class="report-heading"><div><span class="eyebrow">${esc(uiText('WORKSPACE OWNER'))}</span><h2>${esc(uiText('Health & operating controls'))}</h2><p>${esc(uiText('Connection readiness, deliveries and the boundaries you set for your team.'))}</p></div><button class="button" id="owner-refresh">${esc(uiText('Refresh health'))}</button></div><p id="owner-error" class="error" role="alert"></p><nav class="settings-subnav" aria-label="${esc(uiText('Settings sections'))}"><ul><li><a href="#settings-safety">${esc(uiText('Safety'))}</a></li><li data-settings-access hidden><a href="#settings-access">${esc(uiText('Access'))}</a></li><li><a href="#settings-health">${esc(uiText('Health'))}</a></li><li><a href="#settings-retention">${esc(uiText('Retention'))}</a></li><li><a href="#settings-account">${esc(uiText('Account'))}</a></li></ul></nav><section id="settings-safety" class="settings-group" aria-labelledby="settings-safety-heading"><h2 id="settings-safety-heading">${esc(uiText('Safety'))}</h2><section class="panel" id="owner-write-pause"><h3>${esc(uiText('Pause all writes'))}</h3>${h.write_pause ? `<p class="notice"><strong>${esc(uiText('Writes are paused'))}</strong> ${esc(uiText('since'))} ${esc(date(h.write_pause.paused_at))} ${esc(uiText('by'))} ${esc(h.write_pause.paused_by)}: ${esc(h.write_pause.reason)}</p><p>${esc(uiText('Every reviewed write and media upload of this workspace is refused until you resume. Reads, reviews and verification continue.'))}</p><button class="button primary" id="owner-resume-writes">${esc(uiText('Resume writes'))}</button>` : `<p>${esc(uiText('An emergency stop for this workspace: every reviewed write and media upload is refused until an owner resumes. Nothing already submitted is undone.'))}</p><form id="owner-pause-writes"><label>${esc(uiText('Reason (shown to everyone whose write is refused)'))}<input name="reason" maxlength="500" required></label><button class="button">${esc(uiText('Pause all writes'))}</button></form>`}</section><section class="panel"><h3>${esc(uiText('Account spending policy'))}</h3><p>${esc(uiText('Set caps for reviewed changes. These limits govern requested budgets; they do not measure or cap the provider’s billed spend.'))}</p><form id="owner-spend-policy" class="workspace-form"><label>${esc(uiText('Selected account'))}<select name="binding" required><option value="">${esc(uiText('Choose an account'))}</option>${platforms
+  area.innerHTML = `<div class="report-heading"><div><span class="eyebrow">${esc(uiText('WORKSPACE OWNER'))}</span><h2>${esc(uiText('Health & operating controls'))}</h2><p>${esc(uiText('Connection readiness, deliveries and the boundaries you set for your team.'))}</p></div><button class="button" id="owner-refresh">${esc(uiText('Refresh health'))}</button></div><p id="owner-error" class="error" role="alert"></p><nav class="settings-subnav" aria-label="${esc(uiText('Settings sections'))}"><ul><li><a href="#settings-safety">${esc(uiText('Safety'))}</a></li><li data-settings-access hidden><a href="#settings-access">${esc(uiText('Access'))}</a></li><li><a href="#settings-health">${esc(uiText('Health'))}</a></li><li><a href="#settings-retention">${esc(uiText('Retention'))}</a></li><li><a href="#settings-account">${esc(uiText('Account'))}</a></li></ul></nav><section id="settings-safety" class="settings-group" aria-labelledby="settings-safety-heading"><h2 id="settings-safety-heading">${esc(uiText('Safety'))}</h2><section class="panel" id="owner-write-pause"><h3>${esc(uiText('Pause all writes'))}</h3>${h.write_pause ? `<p class="notice"><strong>${esc(uiText('Writes are paused'))}</strong> ${esc(uiText('since'))} ${esc(date(h.write_pause.paused_at))} ${esc(uiText('by'))} ${esc(h.write_pause.paused_by)}: ${esc(h.write_pause.reason)}</p><p>${esc(pauseScopeText(h.write_pause.scope))}</p><button class="button primary" id="owner-resume-writes">${esc(uiText('Resume writes'))}</button>` : `<p>${esc(uiText('An emergency stop for this workspace: every reviewed write and media upload is refused until an owner resumes. Nothing already submitted is undone.'))}</p><form id="owner-pause-writes"><label>${esc(uiText('Reason (shown to everyone whose write is refused)'))}<input name="reason" maxlength="500" required></label><label>${esc(uiText('What to pause'))}<select name="pause_scope"><option value="all">${esc(uiText('Everything: advertising writes, media uploads and report jobs'))}</option><option value="advertising">${esc(uiText('Advertising writes and media uploads only'))}</option><option value="provider_jobs">${esc(uiText('Report and export jobs only'))}</option></select></label><button class="button">${esc(uiText('Pause all writes'))}</button></form>`}${providerJobsLine(h.provider_jobs)}</section><section class="panel"><h3>${esc(uiText('Account spending policy'))}</h3><p>${esc(uiText('Set caps for reviewed changes. These limits govern requested budgets; they do not measure or cap the provider’s billed spend.'))}</p><form id="owner-spend-policy" class="workspace-form"><label>${esc(uiText('Selected account'))}<select name="binding" required><option value="">${esc(uiText('Choose an account'))}</option>${platforms
     .filter(p => p.reviewedWrites !== false)
     .flatMap(p =>
       p.connections.flatMap(c =>
@@ -453,7 +518,7 @@ renderSettings = async function () {
     )
     .join(
       '',
-    )}</select></label><label>${esc(uiText('When a change goes beyond a cap'))}<select name="enforcement"><option value="confirm" selected>${esc(uiText('Ask for confirmation (recommended)'))}</option><option value="block">${esc(uiText('Refuse the change'))}</option></select></label><label>${esc(uiText('Amounts are in'))}<select name="unit"><option value="currency">${esc(uiText('Account currency (where the platform unit is documented)'))}</option><option value="native">${esc(uiText('Native API units'))}</option></select></label><label>${esc(uiText('Currency of these caps'))}<input name="currency" maxlength="3" pattern="[A-Za-z]{3}" autocomplete="off" placeholder="USD"></label><p class="form-note">${esc(uiText('Caps compare only an account that spends in this currency; AMCP never converts between currencies. Left empty, the account’s currency from its last live check is used.'))}</p><p class="form-note" id="owner-policy-unit" aria-live="polite">${policyUnitNote(h, '')}</p><p class="form-note" id="owner-policy-existing" aria-live="polite">${esc(uiText('Choose an account to see its stored policy.'))}</p><label>${esc(uiText('Maximum budget'))}<input name="max_budget" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum increase per change, %'))}<input name="max_budget_increase_percent" type="number" min="0" max="10000" step="any" value="20"></label><label>${esc(uiText('Cumulative daily increases'))}<input name="max_daily_increase" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum bid'))}<input name="max_bid" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum lifetime or total budget'))}<input name="max_total_budget" type="number" min="0" step="any"></label><label class="check"><input name="allow_activation" type="checkbox" checked> ${esc(uiText('Allow activation after review'))}</label><label class="check"><input name="allow_deletion" type="checkbox"> ${esc(uiText('Allow deletion after review'))}</label><p class="form-note">${esc(uiText('Without it, AMCP also refuses deletion sent as a status value (TikTok DELETE, Meta DELETED) and Meta product feed deletion rules: turning feed deletion on, or a new file address or fetch interval for a feed whose deletion is on.'))}</p><p class="form-note">${esc(uiText('With “Ask for confirmation”, a change beyond a cap is still prepared; the reviewer sees which cap and by how much, and it runs only after they confirm. Activation and deletion rules always refuse.'))}</p><button class="button primary">${esc(uiText('Save account policy'))}</button></form><form id="owner-workspace-policy" class="workspace-form"><h4>${esc(uiText('Workspace default'))}</h4><p class="form-note">${esc(workspaceDefault ? uiText('Existing default · revision {revision} · last updated {time}', {revision: workspaceDefault.revision, time: date(workspaceDefault.updated_at)}) : uiText('No workspace default yet; saving creates one.'))}</p><p class="form-note">${esc(uiText('Covers every account without a policy of its own. Budget caps are per platform in account currency, because each platform counts money in its own unit.'))}</p><label>${esc(uiText('When a change goes beyond a cap'))}<select name="enforcement"><option value="confirm"${workspaceDefault?.enforcement === 'block' ? '' : ' selected'}>${esc(uiText('Ask for confirmation (recommended)'))}</option><option value="block"${workspaceDefault?.enforcement === 'block' ? ' selected' : ''}>${esc(uiText('Refuse the change'))}</option></select></label><label>${esc(uiText('Maximum increase per change, %'))}<input name="max_budget_increase_percent" type="number" min="0" max="10000" step="any" value="${esc(policyText(workspaceDefault?.max_budget_increase_percent))}"></label>${Object.entries(
+    )}</select></label><label>${esc(uiText('When a change goes beyond a cap'))}<select name="enforcement"><option value="confirm" selected>${esc(uiText('Ask for confirmation (recommended)'))}</option><option value="block">${esc(uiText('Refuse the change'))}</option></select></label><label>${esc(uiText('Amounts are in'))}<select name="unit"><option value="currency">${esc(uiText('Account currency (where the platform unit is documented)'))}</option><option value="native">${esc(uiText('Native API units'))}</option></select></label><label>${esc(uiText('Currency of these caps'))}<input name="currency" maxlength="3" pattern="[A-Za-z]{3}" autocomplete="off" placeholder="USD"></label><p class="form-note">${esc(uiText('Caps compare only an account that spends in this currency; AMCP never converts between currencies. Left empty, the account’s currency from its last live check is used.'))}</p><p class="form-note" id="owner-policy-unit" aria-live="polite">${policyUnitNote(h, '')}</p><p class="form-note" id="owner-policy-existing" aria-live="polite">${esc(uiText('Choose an account to see its stored policy.'))}</p><label>${esc(uiText('Maximum budget'))}<input name="max_budget" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum increase per change, %'))}<input name="max_budget_increase_percent" type="number" min="0" max="10000" step="any" value="20"></label><label>${esc(uiText('Cumulative daily increases'))}<input name="max_daily_increase" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum bid'))}<input name="max_bid" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum lifetime or total budget'))}<input name="max_total_budget" type="number" min="0" step="any"></label><label class="check"><input name="allow_activation" type="checkbox" checked> ${esc(uiText('Allow activation after review'))}</label><label class="check"><input name="allow_deletion" type="checkbox"> ${esc(uiText('Allow deletion after review'))}</label><p class="form-note">${esc(uiText('Without it, AMCP also refuses deletion sent as a status value (TikTok DELETE, Meta DELETED) and Meta product feed deletion rules: turning feed deletion on, or a new file address or fetch interval for a feed whose deletion is on.'))}</p><p class="form-note">${esc(uiText('With “Ask for confirmation”, a change beyond a cap is still prepared; the reviewer sees which cap and by how much, and it runs only after they confirm. Activation and deletion rules always refuse.'))}</p><button class="button primary">${esc(uiText('Save account policy'))}</button></form><form id="owner-workspace-policy" class="workspace-form"><h4>${esc(uiText('Workspace default'))}</h4><p class="form-note">${esc(workspaceDefault ? uiText('Existing default · revision {revision} · last updated {time}', {revision: workspaceDefault.revision, time: date(workspaceDefault.updated_at)}) : uiText('No workspace default yet; saving creates one.'))}</p><p class="form-note">${esc(uiText('Covers every account without a policy of its own. Budget caps are per platform in account currency, because each platform counts money in its own unit.'))}</p><label>${esc(uiText('When a change goes beyond a cap'))}<select name="enforcement"><option value="confirm"${workspaceDefault?.enforcement === 'block' ? '' : ' selected'}>${esc(uiText('Ask for confirmation (recommended)'))}</option><option value="block"${workspaceDefault?.enforcement === 'block' ? ' selected' : ''}>${esc(uiText('Refuse the change'))}</option></select></label><label>${esc(uiText('Maximum increase per change, %'))}<input name="max_budget_increase_percent" type="number" min="0" max="10000" step="any" value="${esc(policyText(workspaceDefault?.max_budget_increase_percent))}"></label>${approvalPolicyControls(workspaceDefault)}${Object.entries(
     h.budget_units ?? {},
   )
     .filter(([g]) => platforms.some(p => p.connections.some(c => (c.gateway ?? p.gateway) === g)))
@@ -554,7 +619,9 @@ renderSettings = async function () {
     await renderSettings();
   });
   bind('#owner-pause-writes', async f => {
-    const reason = String(new FormData(f).get('reason') ?? '').trim();
+    const reason = String(new FormData(f).get('reason') ?? '').trim(),
+      // RPT-06: everything (the default), advertising writes only, or report and export jobs only.
+      pauseScope = String(new FormData(f).get('pause_scope') ?? 'all');
     if (
       !(await confirmAction({
         title: uiText('Pause every reviewed write of this workspace?'),
@@ -565,7 +632,12 @@ renderSettings = async function () {
       }))
     )
       return;
-    await ownerCall({action: 'pause_writes', reason, confirmed: true});
+    await ownerCall({
+      action: 'pause_writes',
+      reason,
+      ...(pauseScope !== 'all' ? {pause_scope: pauseScope} : {}),
+      confirmed: true,
+    });
     toast(uiText('Writes are paused.'));
     await renderSettings();
   });
@@ -676,6 +748,8 @@ renderSettings = async function () {
           max_budget_increase_percent: String(d.get('max_budget_increase_percent') ?? ''),
           caps,
           currencies,
+          approval_mode: String(d.get('approval_mode') ?? 'assistant_ack'),
+          require_destructive_confirmation: d.has('require_destructive_confirmation'),
         },
         workspaceDefault,
       ),

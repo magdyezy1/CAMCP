@@ -323,6 +323,8 @@ export const tiktokChangeLogFamily: ReviewedFamily = {
   name: 'tiktok_change_log_tasks',
   files: ['src/tiktok-change-logs.ts', ['tests/tiktok-change-logs.test.mjs']],
   kind: tiktokChangeLogKind,
+  // A report or export job (RPT-06): a reviewed write unless the owner’s provider-job switch admits it.
+  effect: 'provider_job',
   assert: assertTiktokChangeLog,
   snapshots: tiktokChangeLogSnapshots,
   isRead: isTiktokChangeLogRead,

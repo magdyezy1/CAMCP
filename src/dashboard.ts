@@ -1,5 +1,5 @@
 import {workspaceCapabilities} from './capabilities.js';
-import {writePause} from './owner-operations.js';
+import {writePause, writesPausedFor} from './owner-operations.js';
 import {normalizeAccount} from './scope.js';
 import {bad} from './workspace-core.js';
 import {cursorBinding, decodeOffsetCursor, encodeOffsetCursor} from './page-cursor.js';
@@ -60,7 +60,7 @@ export function readinessState(view: JsonObject): string {
 /** The whole dashboard as the website's Overview reads it (view:"full"). Unbounded: one record per receipt. */
 export function fullDashboard(store: Store, actor: Actor, allowWrites: boolean): JsonObject {
   const receipts = store.documents(actor.tenantId, 'write_verification'),
-    paused = !!writePause(store, actor.tenantId),
+    paused = writesPausedFor(store, actor.tenantId, 'advertising'),
     readinessOf = accountReadiness(store, actor, allowWrites, paused);
   return {
     capabilities: workspaceCapabilities(store, actor),
@@ -171,7 +171,7 @@ export function dashboard(store: Store, actor: Actor, allowWrites: boolean, inpu
     inScope = (r: JsonObject) =>
       recordWithinAccess(actor, connections, r) && matchesAccount(gatewayOf.get(r.connection_id), r.account_id);
   const receipts = store.documents(actor.tenantId, 'write_verification').filter(inScope),
-    paused = !!writePause(store, actor.tenantId),
+    paused = writesPausedFor(store, actor.tenantId, 'advertising'),
     readinessOf = accountReadiness(store, actor, allowWrites, paused),
     accounts = connections.flatMap(c =>
       c.accounts.filter(a => matchesAccount(c.gateway, a)).map(account => ({connection: c, account})),

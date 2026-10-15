@@ -433,6 +433,31 @@ only the whole group crosses is named at prepare, and execute checks it for ever
 first is sent. The audit records every confirmed override. Never set the flag on the
 user's behalf, and never split a change into smaller writes to stay under a cap.
 
+**Only the owner goes beyond a cap (owner decision P5).** Executing beyond a cap is the workspace
+owner's: the owner executes the review (the owner may execute one a member prepared), or approves
+that exact review on the AMCP website first. Anyone else's execute is refused with
+`CAP_OVERRIDE_OWNER_REQUIRED` and nothing is sent; prepare already names it in `approval`
+(`owner_required: "cap_override"`, `website_path`). Ask the owner; the review stays valid until it
+expires.
+
+**Website approval (WRT-09, opt-in).** A spending policy may set `approval_mode`:
+`assistant_ack` (the default: the user's acknowledgements in this client suffice),
+`website_approval` (a member approves the exact review on the AMCP website) or `distinct_approver`
+(another member than the one who prepared it, or the owner). It applies to reviews that change
+spending, go beyond a cap or delete. Prepare returns `approval` with `classes` and `website_path`;
+execute without that approval is refused with `HUMAN_APPROVAL_REQUIRED` (`details.website_path`;
+`reason: "approval_fingerprint_mismatch"` when the approval was for another version of the review).
+You cannot approve: give the user `website_path`, then execute the same review once a person has
+approved it; `amcp_write status` shows `approval.approved` without a provider request. A group is
+approved once as a whole. In a plan each such step is its own review with its own approval: `run`
+stops with `needs_website_approval` (or `needs_owner_approval`) and `website_path`, and `run` again
+continues once a person has approved; nothing was sent. The stricter of an account's own policy and
+the workspace default applies. `require_destructive_confirmation: true` adds the
+`destructive_confirmed` acknowledgement to every deletion on the account: prepare lists it in
+`execute_requirements`, and execute without it is refused with `DESTRUCTIVE_CONFIRMATION_REQUIRED`.
+On the website the approver confirms what they approve (`APPROVAL_CONFIRMATION_REQUIRED`
+otherwise).
+
 With `enforcement: 'block'` a cap refuses instead, as below. A refusal is a deliberate owner
 decision, not a provider error: do not retry a `POLICY_*` refusal, reshape the request to evade it,
 or split one change into smaller writes to fit under a limit. Report it to the user and ask them
@@ -609,7 +634,8 @@ blindly, reshape a request to slip past one, or split a change into smaller piec
 - `WRITES_PAUSED` — an owner paused every reviewed write of this workspace (`amcp_workspace`
   `pause_writes`, with a reason the message repeats). Nothing was submitted and the review stays
   valid until it expires. Tell the user; only an owner can `resume_writes`. Reads, `prepare` and
-  verification continue while writes are paused.
+  verification continue while writes are paused. A pause may be scoped (`details.scope`):
+  `advertising` leaves provider report and export jobs running, `provider_jobs` stops only them.
 - `MUTATION_REQUIRED` — a read was sent to the write path. Use the native gateway instead.
 - `ACCOUNT_REQUIRED` / `CONNECTION_REQUIRED` / `AMBIGUOUS_CONNECTION` — the account or connection
   could not be resolved, or more than one matched. Ask the user which account they mean rather
@@ -1200,7 +1226,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `save_spend_policy` | Saves the owner spending policy for the workspace or one account (expected_revision guards against a stale read). | **`policy`**, **`confirmed`**, `scope`, `gateway`, `account_id`, `connection_id`, `expected_revision` | no provider request; saves spend_policy | owner |
 | `save_retention` | Sets how many days (7–365) report records are kept, and optionally when archived campaign plans are deleted. | **`confirmed`**, `days`, `archived_campaign_plans_days` | no provider request; saves retention_policy | owner |
 | `save_plan_policy` | Sets whether a plan that changes spending or activates a launch needs an approver other than its owner. | **`require_distinct_approver`**, **`confirmed`** | no provider request; saves plan_policy | owner |
-| `pause_writes` | Pauses every reviewed write of the workspace, with a reason. | **`reason`**, **`confirmed`** | no provider request; saves write_pause | owner |
+| `pause_writes` | Pauses every reviewed write of the workspace, with a reason; pause_scope narrows it to advertising writes or to provider report and export jobs. | **`reason`**, **`confirmed`**, `pause_scope` | no provider request; saves write_pause | owner |
 | `resume_writes` | Resumes reviewed writes. | **`confirmed`** | no provider request; saves write_pause | owner |
 | `enable_personal_data` | Turns personal-data writes (customer lists) on for one ad account. | **`gateway`**, **`account_id`**, **`confirmed`**, `connection_id` | no provider request; saves personal_data_setting | owner |
 | `disable_personal_data` | Turns personal-data writes off for one ad account. | **`gateway`**, **`account_id`**, **`confirmed`**, `connection_id` | no provider request; saves personal_data_setting | owner |
@@ -1213,7 +1239,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `get` | One plan, compact; step_id returns one step whole, detail:"full" the whole plan. | **`id`**, `step_id`, `detail` | no provider request | reader |
 | `list` | Campaign plans you own, administer or collaborate on, newest first, filtered and paged by next_cursor. | `offset`, `limit`, `cursor`, `state`, `archived`, `awaiting_approval`, `search`, `gateway`, `account_id`, `connection_id`, `profile_id` | no provider request | reader |
 | `prepare_next` | Prepares the native review of the next step whose predecessors are verified. | **`id`**, `detail` | provider reads; saves campaign_run, write_review | operator |
-| `execute_next` | Executes that exact review after the user’s approval and reads the result back. | **`id`**, **`review_id`**, **`confirmed`**, `idempotency_key`, `spend_change_confirmed`, `cap_override_confirmed`, `creative_edit_confirmed`, `detail`, `expected_revision` | reviewed provider write; saves campaign_run, write_receipt; changes an advertising account | operator |
+| `execute_next` | Executes that exact review after the user’s approval and reads the result back. | **`id`**, **`review_id`**, **`confirmed`**, `idempotency_key`, `spend_change_confirmed`, `cap_override_confirmed`, `creative_edit_confirmed`, `destructive_confirmed`, `detail`, `expected_revision` | reviewed provider write; saves campaign_run, write_receipt; changes an advertising account | operator |
 | `verify` | Reads back a completed write (a plan step’s or a single reviewed write’s review_id). | **`review_id`** | provider reads; saves write_verification | reader |
 | `cancel` | Cancels a plan; steps already sent stay as created. | **`id`**, `confirmed`, `detail` | no provider request; saves campaign_run | operator |
 | `validate_provider` | Has the provider validate one native request without applying it (where the provider offers validate-only). | **`gateway`**, **`arguments`**, `connection_id`, `id`, `step_id` | provider reads | operator |
@@ -1328,7 +1354,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 |---|---|---|---|---|
 | `inspect` | Checks local reviewed-write contract support for the exact native arguments, with no credentials, request or save. | **`gateway`**, **`arguments`**, `connection_id`, `evidence`, `people`, `personal_data` | no provider request | reader |
 | `prepare` | Reads current state and freezes the request into a five-minute, actor-bound review with before_state, impact and spend. | **`gateway`**, **`arguments`**, `connection_id`, `evidence`, `people`, `personal_data`, `provider_check`, `creative_edit_confirmed`, `supersedes_review_id` | provider reads; saves write_review | operator |
-| `execute` | Sends the reviewed mutation once, after the user’s explicit approval, and queues its read-back. | **`review_id`**, **`confirmed`**, `idempotency_key`, `spend_change_confirmed`, `cap_override_confirmed`, `creative_edit_confirmed`, `people`, `gateway`, `connection_id` | reviewed provider write; saves write_receipt, write_verification; changes an advertising account | operator |
+| `execute` | Sends the reviewed mutation once, after the user’s explicit approval, and queues its read-back. | **`review_id`**, **`confirmed`**, `idempotency_key`, `spend_change_confirmed`, `cap_override_confirmed`, `creative_edit_confirmed`, `destructive_confirmed`, `people`, `gateway`, `connection_id` | reviewed provider write; saves write_receipt, write_verification; changes an advertising account | operator |
 | `status` | Reads a retained review back without a provider request: its state, claim, receipt, read-back and next call. | **`review_id`** | no provider request | reader |
 | `reconcile` | Checks an uncertain write with read-only provider lookups, never sending it again; accept_applied records what it saw. | **`review_id`**, `accept_applied`, `reconciliation_id` | provider reads; saves write_reconciliation, write_receipt | operator |
 

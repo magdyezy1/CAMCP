@@ -98,6 +98,8 @@ export function ownerAccess(store: Store, actor: Actor, action?: string) {
  * of its own, which makes the safeguard the standing case rather than an opt-in one.
  */
 export const workspaceDefaultPolicyId = 'workspace_default';
+/** The approval modes a spending policy may set (WRT-09; enforced in src/write-approval.ts). */
+export const approvalModes = ['assistant_ack', 'website_approval', 'distinct_approver'] as const;
 /**
  * Native money limits. Each platform counts them in its own unit, so a workspace default states them per platform.
  * max_total_budget_native caps lifetime and custom-period total amounts (owner decision D7, budget-units.ts
@@ -183,8 +185,20 @@ function validatePolicy(
           'A workspace default states the currency of its caps per platform under per_gateway, because accounts spend in different currencies.',
         );
       money[key] = value;
-    } else if (key === 'allow_activation' || key === 'allow_deletion') {
+    } else if (
+      key === 'allow_activation' ||
+      key === 'allow_deletion' ||
+      // WRT-09 (owner decision P5): the opt-in destructive_confirmed tier.
+      key === 'require_destructive_confirmation'
+    ) {
       if (typeof value !== 'boolean') throw invalidPolicy();
+      out[key] = value;
+    } else if (key === 'approval_mode') {
+      // WRT-09 (owner decisions P1, P5): who approves spend, cap and deletion executions (src/write-approval.ts).
+      if (!approvalModes.includes(value))
+        throw invalidPolicy(
+          'approval_mode is assistant_ack (the user approves in the AI client, the default), website_approval (a member approves on the AMCP website) or distinct_approver (another member than the preparer, or the owner).',
+        );
       out[key] = value;
     } else if (key === 'enforcement') {
       if (value !== 'confirm' && value !== 'block')

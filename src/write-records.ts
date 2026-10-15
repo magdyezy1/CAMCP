@@ -5,6 +5,7 @@ import {ownsRecord} from './actor-identity.js';
 import {reviewSummary} from './review-summary.js';
 import {optional} from './workspace-core.js';
 import {workspaceOwner} from './spend-policy.js';
+import {approvalStatus} from './write-approval.js';
 
 /**
  * Standalone reviewed writes as retained work (WRT-08 Stage A). A review prepared directly through amcp_write, or from
@@ -242,7 +243,9 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
   const parts = group
     ? (review.parts as string[]).map((part, i) => ({part: i + 1, ...partSummary(store, actor.tenantId, part, now)}))
     : undefined;
-  const call = nextCall(id, review, s.state, actor);
+  const call = nextCall(id, review, s.state, actor),
+    // WRT-09: whether a person has approved this review on the website, while it can still be executed.
+    approval = s.state === 'unsubmitted' || s.state === 'not_sent' ? approvalStatus(store, actor, id) : undefined;
   store.assertActorActive(actor);
   return {
     record_kind: group ? 'write_review_group' : 'write_review',
@@ -292,6 +295,7 @@ export function writeStatus(store: Store, actor: Actor, reviewId: unknown): Json
       : null,
     ...(review.supersedes_uncertain ? {supersedes_uncertain: review.supersedes_uncertain} : {}),
     required_acknowledgements: review.required_acknowledgements ?? null,
+    ...(approval ? {approval} : {}),
     suggested_reads: (Array.isArray(review.reads) ? review.reads : []).slice(0, 20).map((r: CompiledRequest) => ({
       method: r.method,
       path: r.path,

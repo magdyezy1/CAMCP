@@ -28,13 +28,45 @@ const reviewConsentLabels = {
   spend_change_confirmed: 'I authorize the budget, bid or serving change shown in this review.',
   cap_override_confirmed: 'I authorize the specific spending-policy override shown in this review.',
   creative_edit_confirmed: 'I authorize the creative edit and its stated impact on existing ads.',
+  // WRT-09: the owner's opt-in acknowledgement before a deletion.
+  destructive_confirmed: 'I authorize the deletion shown in this review. It cannot be undone.',
 };
 const reviewConsentIds = {
   confirmed: 'review-consent',
   spend_change_confirmed: 'spend-consent',
   cap_override_confirmed: 'cap-consent',
   creative_edit_confirmed: 'creative-consent',
+  destructive_confirmed: 'destructive-consent',
 };
+/**
+ * A person's approval on the website that a review needs before it runs (WRT-09): who approves, and the approval page.
+ * The server's path is followed only when it is this site's own.
+ */
+function reviewApprovalNotice(approval) {
+  if (!approval || approval.required !== true) return '';
+  const path = typeof approval.website_path === 'string' ? approval.website_path : '',
+    own = /^\/(?![/\\])/.test(path),
+    byMode = Array.isArray(approval.classes) && approval.classes.length > 0,
+    who = [
+      ...(byMode && approval.mode === 'distinct_approver'
+        ? [
+            uiText(
+              'Another member than the one who prepared it, or the workspace owner, approves it on the AMCP website.',
+            ),
+          ]
+        : byMode && approval.mode === 'website_approval'
+          ? [uiText('A signed-in member with write access approves it on the AMCP website.')]
+          : []),
+      ...(approval.owner_required
+        ? [
+            uiText(
+              'Only the workspace owner executes a change beyond a spending cap, or approves it on the AMCP website first.',
+            ),
+          ]
+        : []),
+    ];
+  return `<div class="notice" role="note"><p><strong>${esc(uiText('This change needs a person’s approval on the AMCP website before it runs.'))}</strong></p>${who.map(text => `<p class="form-note">${esc(text)}</p>`).join('')}${own ? `<a class="button small" href="${esc(path)}">${esc(uiText('Open the approval page'))}</a>` : ''}</div>`;
+}
 function requiredReviewConsents(review) {
   return Object.keys(reviewConsentLabels).filter(
     key => key === 'confirmed' || review.execute_requirements?.[key] === true,
@@ -129,7 +161,7 @@ function readableReview(review, buttonLabel) {
   const request = review.request ?? {},
     needs = review.execute_requirements ?? {},
     sharing = reviewFields(request).find(f => f.path.endsWith('/is_adset_budget_sharing_enabled'));
-  return `<section class="panel workspace-form review-panel"><div class="panel-header"><h2>${esc(uiText('Review this change'))}</h2>${badge('awaiting_review')}</div><p>${esc(uiText('Expires'))} ${date(review.expires_at)}${esc(uiText('. Approval applies to this frozen request only.'))}</p><p class="form-note" id="review-countdown" role="timer"></p><div id="review-expired" role="status" hidden><p class="notice">${esc(uiText('This review expired before it was executed. Nothing was sent. Prepare it again: the current state is read again and a new review is created.'))}</p><button id="prepare-again" class="button" type="button">${esc(uiText('Prepare again'))}</button></div>${review.unchanged_since_review ? `<p class="form-note">${esc(uiText('Nothing changed since the expired review: the request and the state it read are the same.'))}</p>` : ''}${reviewSummaryLine(review.summary)}${effectBadges(review.effects ?? needs.effects, needs.reasons)}${reviewTable(request, uiText('Request to submit — exact native fields'), {native: path => !path.startsWith('/warnings')})}${sharing ? budgetSharingNote(sharing.value) : ''}${review.creative_impact ? reviewTable(review.creative_impact, uiText('Creative impact')) : ''}${review.spend_policy ? reviewTable(review.spend_policy, uiText('Spending-policy effects')) : ''}${review.before_state ? `<details><summary>${esc(uiText('Current state read from the provider'))}</summary>${reviewTable(review.before_state, uiText('Observed before preparation'), {native: true})}</details>` : ''}${needs.reasons ? reviewTable(needs.reasons, uiText('Why acknowledgement is required')) : ''}${recordDetails(review, uiText('Complete request, state, prerequisites and evidence'))}<fieldset class="review-consents"><legend>${esc(uiText('Authorize this request'))}</legend>${requiredReviewConsents(
+  return `<section class="panel workspace-form review-panel"><div class="panel-header"><h2>${esc(uiText('Review this change'))}</h2>${badge('awaiting_review')}</div><p>${esc(uiText('Expires'))} ${date(review.expires_at)}${esc(uiText('. Approval applies to this frozen request only.'))}</p><p class="form-note" id="review-countdown" role="timer"></p><div id="review-expired" role="status" hidden><p class="notice">${esc(uiText('This review expired before it was executed. Nothing was sent. Prepare it again: the current state is read again and a new review is created.'))}</p><button id="prepare-again" class="button" type="button">${esc(uiText('Prepare again'))}</button></div>${review.unchanged_since_review ? `<p class="form-note">${esc(uiText('Nothing changed since the expired review: the request and the state it read are the same.'))}</p>` : ''}${reviewSummaryLine(review.summary)}${effectBadges(review.effects ?? needs.effects, needs.reasons)}${reviewTable(request, uiText('Request to submit — exact native fields'), {native: path => !path.startsWith('/warnings')})}${sharing ? budgetSharingNote(sharing.value) : ''}${review.creative_impact ? reviewTable(review.creative_impact, uiText('Creative impact')) : ''}${review.spend_policy ? reviewTable(review.spend_policy, uiText('Spending-policy effects')) : ''}${review.before_state ? `<details><summary>${esc(uiText('Current state read from the provider'))}</summary>${reviewTable(review.before_state, uiText('Observed before preparation'), {native: true})}</details>` : ''}${needs.reasons ? reviewTable(needs.reasons, uiText('Why acknowledgement is required')) : ''}${reviewApprovalNotice(review.approval)}${recordDetails(review, uiText('Complete request, state, prerequisites and evidence'))}<fieldset class="review-consents"><legend>${esc(uiText('Authorize this request'))}</legend>${requiredReviewConsents(
     review,
   )
     .map(

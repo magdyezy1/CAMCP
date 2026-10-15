@@ -20,7 +20,16 @@ import {CredentialProvider} from './auth.js';
 import {NativeTransport, type TransportResult} from './transport.js';
 import {ScopeGuard, normalizeAccount} from './scope.js';
 import {applyExecutionRisk} from './execution-risk.js';
-import {authorizeExecution, type ExecutionPolicy} from './preflight.js';
+import {authorizeExecution, switchedProviderJob, type ExecutionPolicy} from './preflight.js';
+import {effectClass, reviewedProviderJob} from './effect-class.js';
+import {admitProviderJob, assertProviderJobAccount, beginProviderJob, settleProviderJob} from './provider-jobs.js';
+import {
+  approvalNotice,
+  assertCapOverrideOwner,
+  assertExecutionApproval,
+  destructiveRequest,
+  reviewApprovalPolicy,
+} from './write-approval.js';
 import {guardInput, redact, sha256, stable} from './security.js';
 import type {Actor, CallOptions, CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
 import {nativeAuthority} from './native-authority.js';
@@ -100,17 +109,18 @@ export const writeTool = {
       // The flags below record a person's explicit approval; tools/list keeps one line on each (wave 2 review).
       spend_change_confirmed: {
         type: 'boolean',
-        description: 'The user approved this spend change as shown; only when execute_requirements lists it.',
+        description: 'User approved this spend change.',
       },
       cap_override_confirmed: {
         type: 'boolean',
-        description: 'The user approved going beyond an owner spending cap; only when execute_requirements lists it.',
+        description: 'User approved exceeding an owner cap.',
       },
       creative_edit_confirmed: {
         type: 'boolean',
-        description:
-          'The user accepted that this X card or Tweet change may disrupt promoted ads; prepare and execute.',
+        description: 'User accepted that this X card or Tweet change may disrupt promoted ads; prepare and execute.',
       },
+      // WRT-09 (owner decision P5): the opt-in tier; only when execute_requirements lists it.
+      destructive_confirmed: {type: 'boolean'},
       people: {
         type: 'object',
       },
@@ -153,6 +163,33 @@ export const readOnlyWriteTool = {
     additionalProperties: false,
   },
 };
+/**
+ * What a read-only deployment lists when its owner turned provider jobs on (AMCP_PROVIDER_JOBS=true, RPT-06, owner
+ * decision D18): inspect for every change, and prepare, execute and status for provider report and export jobs only.
+ * Every other prepare and execute is still refused with LIVE_WRITES_DISABLED, exactly as without the switch.
+ */
+export const providerJobWriteTool = {
+  name: 'amcp_write',
+  description:
+    'Use this to check whether a single advertising or measurement change has a reviewed write contract, and to create a provider report or export job. inspect checks local write-contract support for the exact native arguments, without credentials or network calls, and saves nothing. This deployment is read-only for advertising changes; its owner allows provider report and export jobs (X, TikTok and Meta report jobs, Criteo reports, DV360 SDF exports, TikTok change logs and GA4 report tasks). For a job, prepare reads state and freezes a five-minute review, execute submits it once after confirmed=true and never resubmits it, and status reads a retained review back. A job needs the account’s report-job grant (AMCP Connections). This is an AMCP extension, not a captured AMCP tool.',
+  inputSchema: {
+    type: 'object',
+    required: ['action'],
+    properties: {
+      action: {type: 'string', enum: ['inspect', 'prepare', 'execute', 'status']},
+      gateway: writeTool.inputSchema.properties.gateway,
+      arguments: writeTool.inputSchema.properties.arguments,
+      connection_id: writeTool.inputSchema.properties.connection_id,
+      review_id: writeTool.inputSchema.properties.review_id,
+      idempotency_key: writeTool.inputSchema.properties.idempotency_key,
+      confirmed: writeTool.inputSchema.properties.confirmed,
+      evidence: writeTool.inputSchema.properties.evidence,
+    },
+    additionalProperties: false,
+  },
+};
+/** What an execution is for the owner's write pause (RPT-06): a provider job, or an advertising write. */
+const pauseEffect = (plan: CompiledRequest) => (reviewedProviderJob(plan) ? 'provider_jobs' : 'advertising');
 /** A guarded-reader binding: the connection's login (its revision, not token bytes) must stay the one the first read used. */
 /** What execute accepts; anything else was frozen at prepare (Snapchat S12). */
 const executeFields = [
@@ -163,6 +200,7 @@ const executeFields = [
   'spend_change_confirmed',
   'cap_override_confirmed',
   'creative_edit_confirmed',
+  'destructive_confirmed',
   'people (the same people, for a review that sends data about people)',
   'gateway (the review’s own)',
   'connection_id (the review’s own)',
@@ -204,6 +242,7 @@ export function executeRequirements(
   reviewId: string,
   creativeEdit: boolean,
   exceeded: JsonObject[] = [],
+  destructiveTier = false,
 ): JsonObject {
   const reasons: JsonObject[] = [];
   let spend = false;
@@ -233,15 +272,23 @@ export function executeRequirements(
       reason:
         'This review acknowledges a potentially disruptive creative edit; repeat creative_edit_confirmed=true at execute.',
     });
+  // WRT-09 (owner decision P5): the owner's opt-in tier for deletions on this account.
+  if (destructiveTier)
+    reasons.push({
+      flag: 'destructive_confirmed',
+      reason:
+        'The owner requires an explicit acknowledgement before anything is deleted on this account. Show the user what this review deletes, and set destructive_confirmed=true only after they approve.',
+    });
   return {
     confirmed: true,
     idempotency_key: reviewId,
     spend_change_confirmed: spend,
     cap_override_confirmed: exceeded.length > 0,
     creative_edit_confirmed: creativeEdit,
+    ...(destructiveTier ? {destructive_confirmed: true} : {}),
     reasons,
     user_approval:
-      spend || creativeEdit || exceeded.length
+      spend || creativeEdit || exceeded.length || destructiveTier
         ? 'Show the user before_state, the impact and the reasons, and set these flags only after they approve.'
         : 'Execute after the user approves this review.',
   };
@@ -293,11 +340,16 @@ export class WriteReviewService {
   private access(actor: Actor, plan: CompiledRequest, connectionId?: string): Connection {
     this.store.assertActorActive(actor);
     familyOf(plan)?.actor?.(plan, actor, false);
-    if (!this.policy.allowWrites) throw readOnlyDeployment();
-    if (actor.role === 'reader') throw connectorReadOnly(actor);
+    // RPT-06 policy matrix: a provider report or export job under the deployment owner's switch is allowed while live
+    // writes are off and for a reader, on an account with a report-job grant (or an operator's write grant while writes
+    // are on). Every other request, advertising writes included, keeps both refusals and the account write grant.
+    const job = switchedProviderJob(plan, this.policy);
+    if (!this.policy.allowWrites && !job) throw readOnlyDeployment();
+    if (actor.role === 'reader' && !job) throw connectorReadOnly(actor);
     const c = this.store.resolveConnection(actor, plan.gateway, plan.accountId, connectionId),
       id = normalizeAccount(plan.gateway, plan.accountId ?? (c.accounts.length === 1 ? c.accounts[0] : ''));
-    assertAccountWrite(this.store, c, id);
+    if (job) assertProviderJobAccount(this.store, actor, c, id, this.policy.allowWrites);
+    else assertAccountWrite(this.store, c, id);
     for (const account of appleSharedAccounts(plan)) {
       this.store.resolveConnection(actor, plan.gateway, account, c.id);
       assertAccountWrite(this.store, c, account);
@@ -584,6 +636,8 @@ export class WriteReviewService {
         'CREATIVE_EDIT_CONFIRMATION_REQUIRED',
         'This review permits a potentially destructive creative edit. Also provide creative_edit_confirmed=true to execute.',
       );
+    // WRT-09: a part needs the destructive tier's acknowledgement and its group's website approval like a review.
+    assertExecutionApproval(this.store, actor, review, reviewId, flags);
     return {plan, state: review.state, expiresAt: review.expires_at};
   }
   /** A retained review's read-only reconciliation (WRT-08 Stage B), through this service's own guarded reads. */
@@ -624,6 +678,13 @@ export class WriteReviewService {
       fail('INVALID_ARGUMENT', 'creative_edit_confirmed must be a boolean.');
     if (input.provider_check !== undefined && (typeof input.provider_check !== 'boolean' || input.action !== 'prepare'))
       fail('INVALID_ARGUMENT', 'provider_check is a boolean that prepare takes.', {field: 'provider_check'});
+    if (
+      input.destructive_confirmed !== undefined &&
+      (typeof input.destructive_confirmed !== 'boolean' || input.action !== 'execute')
+    )
+      fail('INVALID_ARGUMENT', 'destructive_confirmed is a boolean that execute takes.', {
+        field: 'destructive_confirmed',
+      });
     const evidence = input.evidence === undefined ? (evidenceDefault ?? 'full') : evidenceForm(input.evidence);
     if (input.action === 'prepare' || input.action === 'inspect') {
       if (
@@ -711,10 +772,21 @@ export class WriteReviewService {
             live_permissions_verified: false,
             account_capability: accountCapability,
             provider_check_available: providerValidationRequest(plan) !== undefined,
+            // The request's effect class (src/effect-class.ts, RPT-06).
+            effect: effectClass(plan),
             requirements: {
               deployment_writes_enabled: this.policy.allowWrites,
               operator_role: actor.role !== 'reader',
-              account_write_grant_required: true,
+              account_write_grant_required: !switchedProviderJob(plan, this.policy),
+              ...(reviewedProviderJob(plan)
+                ? {
+                    provider_jobs_switch: this.policy.providerJobs === true ? 'on' : 'off',
+                    provider_job_authority:
+                      this.policy.providerJobs === true
+                        ? 'The account’s report-job grant, or while live writes are on an operator’s account write grant.'
+                        : 'A reviewed write: live writes on, an operator role and the account’s write grant.',
+                  }
+                : {}),
               ...(familyOf(plan)?.administratorRequired
                 ? {
                     administrator_role_required: true,
@@ -796,6 +868,12 @@ export class WriteReviewService {
       const reviewId = randomUUID(),
         fingerprint = sha256(stable({tenant: actor.tenantId, user: actor.userId, connection: c.id, plan, ...override})),
         expiresAt = Date.now() + 300000;
+      // WRT-09 (owner decision P5): a deletion on an account whose owner turned the destructive_confirmed tier on.
+      const destructive = destructiveRequest(plan, state),
+        destructiveTier =
+          destructive &&
+          reviewApprovalPolicy(this.store, actor.tenantId, plan.gateway, plan.accountId ?? '')
+            .require_destructive_confirmation;
       const stateHash = reviewStateHash(state),
         spendPolicy = checkSpendPolicy(this.store, actor, plan, state),
         requirements = executeRequirements(
@@ -805,6 +883,7 @@ export class WriteReviewService {
           reviewId,
           input.creative_edit_confirmed === true,
           exceededCaps(spendPolicy),
+          destructiveTier,
         );
       if (plan.personalData)
         Object.assign(requirements, {
@@ -831,6 +910,9 @@ export class WriteReviewService {
       }
       const providerCheck =
         input.provider_check === true ? await this.providerCheck(actor, plan, c.id, reviewId) : undefined;
+      const acknowledgements = Object.keys(requirements).filter(k => requirements[k] === true && k !== 'confirmed'),
+        // WRT-09: the owner's approval mode or the owner-only cap override (P5) names the website approval it needs.
+        approval = approvalNotice(this.store, actor, plan, reviewId, acknowledgements, destructive);
       this.store.putDocument(actor.tenantId, 'write_review', reviewId, {
         user_id: actor.userId,
         // The person (MCP-02) and who prepared it: a standalone review is retained work in Operations (WRT-08).
@@ -844,7 +926,9 @@ export class WriteReviewService {
         state_hash: stateHash,
         fingerprint,
         expires_at: expiresAt,
-        required_acknowledgements: Object.keys(requirements).filter(k => requirements[k] === true && k !== 'confirmed'),
+        required_acknowledgements: acknowledgements,
+        // What a person approving on the website is shown (WRT-09): the reasons and effects, never the request body.
+        approval_context: {reasons: requirements.reasons, effects: effects ?? null},
         ...(supersedes ? {supersedes_uncertain: supersedes} : {}),
         ...override,
         ...(providerCheck ? {provider_check: providerCheck} : {}),
@@ -884,8 +968,10 @@ export class WriteReviewService {
         confirmation_required: true,
         expires_in_seconds: 300,
         execute_requirements: requirements,
+        ...(approval ? {approval} : {}),
         ...(supersedes ? {supersedes_uncertain: supersedes} : {}),
         summary: reviewSummary(plan, state),
+        effect: effectClass(plan, state),
         ...(effects ? {effects} : {}),
         ...(creativeImpact ? {creative_impact: creativeImpact} : {}),
         ...(providerCheck
@@ -908,7 +994,7 @@ export class WriteReviewService {
     if (input.arguments !== undefined)
       fail(
         'INVALID_ARGUMENT',
-        'Remove arguments: execute takes review_id, idempotency_key, confirmed and, when execute_requirements lists them, spend_change_confirmed, cap_override_confirmed or creative_edit_confirmed. The request was frozen at prepare; prepare a new review to change it.',
+        'Remove arguments: execute takes review_id, idempotency_key, confirmed and, when execute_requirements lists them, spend_change_confirmed, cap_override_confirmed, creative_edit_confirmed or destructive_confirmed. The request was frozen at prepare; prepare a new review to change it.',
         {field: 'arguments', accepted: executeFields},
       );
     if (input.personal_data !== undefined)
@@ -919,8 +1005,15 @@ export class WriteReviewService {
       );
     const review = this.store.document(actor.tenantId, 'write_review', input.review_id);
     // An upload of people is prepared by an operator and approved by the owner executing it (personal-data policy,
-    // rule 3): the workspace owner may execute a personal-data review another member prepared. No other review moves.
-    if (review.user_id !== actor.userId && !(review.plan?.personalData && workspaceOwner(this.store, actor)))
+    // rule 3): the workspace owner may execute a personal-data review another member prepared. Likewise a review beyond
+    // a spending cap, which only the owner executes (owner decision P5, WRT-09). No other review moves.
+    if (
+      review.user_id !== actor.userId &&
+      !(
+        (review.plan?.personalData || review.required_acknowledgements?.includes?.('cap_override_confirmed')) &&
+        workspaceOwner(this.store, actor)
+      )
+    )
       throw new MirrorError('FORBIDDEN', 'The review belongs to a different actor.', {}, 403);
     const plan = review.plan as CompiledRequest;
     assertWriteShape(plan);
@@ -950,7 +1043,7 @@ export class WriteReviewService {
     if (input.idempotency_key !== input.review_id)
       fail('IDEMPOTENCY_REQUIRED', 'Use the exact idempotency_key returned by prepare.');
     authorizeExecution(actor, plan, {...input, dry_run: false}, this.policy, true);
-    assertWritesNotPaused(this.store, actor.tenantId);
+    assertWritesNotPaused(this.store, actor.tenantId, pauseEffect(plan));
     if (review.creative_edit_confirmed === true && input.creative_edit_confirmed !== true)
       fail(
         'CREATIVE_EDIT_CONFIRMATION_REQUIRED',
@@ -999,6 +1092,18 @@ export class WriteReviewService {
         'Nothing was submitted. Prepare the same request again and review it.',
         expiredNext(review),
       );
+    // WRT-09 (owner decisions P1, P5): the destructive tier's acknowledgement and, under an approval mode, a person's
+    // website approval of this exact review. Checked after expiry (an expired review is prepared again, not approved)
+    // and before anything is claimed or sent; the review stays valid.
+    const approved = assertExecutionApproval(this.store, actor, review, input.review_id, input);
+    if (approved)
+      this.store.appendAudit(actor.tenantId, input.review_id, {
+        event: 'write_approval_presented',
+        approver: approved.approver,
+        approver_is_owner: approved.approver_is_owner === true,
+        approved_at: approved.approved_at,
+        actor: actor.userId,
+      });
     // A personal-data review kept only counts and a digest: the people come again, hashed again in memory, and must be
     // the reviewed ones. The switch is read again: turning an account off stops reviews already prepared.
     const record = plan.personalData as PersonalDataRecord | undefined;
@@ -1173,10 +1278,40 @@ export class WriteReviewService {
         state: current,
         submittedAt,
       };
+    // Owner decision P5 (WRT-09): beyond a cap under `confirm`, only the workspace owner executes, or the owner approved
+    // this exact review on the website. Checked with the caps exceeded now; nothing is reserved, claimed or sent.
+    if (input.cap_override_confirmed === true)
+      assertCapOverrideOwner(
+        this.store,
+        actor,
+        exceededCaps(checkSpendPolicy(this.store, actor, plan, current)),
+        input.review_id,
+        Array.isArray(review.required_acknowledgements) &&
+          review.required_acknowledgements.includes('cap_override_confirmed'),
+      );
+    // RPT-06: a provider job is counted and retained with a receipt keyed by its review, recorded with the claim, before
+    // anything is sent; a job family without its own provider quota check is admitted against the deployment-wide
+    // hourly bound first (PROVIDER_JOB_QUOTA claims and sends nothing).
+    const job = reviewedProviderJob(plan);
     const claim = this.store.transaction(() => {
       checkSpendPolicy(this.store, actor, plan, current, input.review_id, input.cap_override_confirmed === true);
       const claim = this.store.claim(actor.tenantId, input.idempotency_key, fingerprint);
-      if (claim.fresh) family?.admit?.(plan, submission);
+      if (claim.fresh) {
+        family?.admit?.(plan, submission);
+        if (job) {
+          if (!family?.admit) admitProviderJob(this.store, plan.gateway, plan.accountId ?? '');
+          beginProviderJob(this.store, actor.tenantId, {
+            id: input.review_id,
+            gateway: plan.gateway,
+            account_id: plan.accountId ?? '',
+            connection_id: c.id,
+            actor: actor.userId,
+            source: 'reviewed',
+            family: family?.name,
+            review_id: input.review_id,
+          });
+        }
+      }
       return claim;
     });
     if (!claim.fresh) {
@@ -1201,7 +1336,7 @@ export class WriteReviewService {
         () => {
           // Admission may wait. Authority is checked again after that wait, immediately before the unsent write.
           keepTargets();
-          assertWritesNotPaused(this.store, actor.tenantId);
+          assertWritesNotPaused(this.store, actor.tenantId, pauseEffect(plan));
           authorizeExecution(actor, plan, {...input, dry_run: false}, this.policy, true);
           if (record) assertPersonalDataAllowed(this.store, actor, plan, record.direction, true);
           if (review.expires_at <= Date.now())
@@ -1230,6 +1365,9 @@ export class WriteReviewService {
         // A family keeps what the response gives it, such as a report job's receipt (kept even for a failed job, which
         // must still never be resubmitted).
         family?.retain?.(plan, response, result, submission);
+        // A job the provider did not clearly accept stays uncertain: the family's own record refuses a resubmission.
+        if (job)
+          settleProviderJob(this.store, actor.tenantId, input.review_id, result.success ? 'accepted' : 'uncertain');
         if (result.success === true) {
           const job = this.store.enqueue(actor.tenantId, 'write_verification', {
             review_id: input.review_id,
@@ -1286,6 +1424,12 @@ export class WriteReviewService {
           http_status: Number((e as MirrorError).details.http_status),
         });
       if (!completed && !unsent && !rejected) this.store.uncertain(actor.tenantId, input.idempotency_key);
+      // RPT-06: an unsent job leaves no receipt (the same review may run again); a sent one is rejected or uncertain.
+      if (job && !completed) {
+        if (unsent) this.store.deleteDocument(actor.tenantId, 'provider_job', input.review_id);
+        else
+          settleProviderJob(this.store, actor.tenantId, input.review_id, rejected ? 'rejected' : 'uncertain', {code});
+      }
       // Scoped like write_not_sent, so a member with access to the account sees it in Activity (WRT-08). A rejected
       // write has its own write_rejected audit (Store.rejected) and is never uncertain.
       if (!unsent && !rejected)

@@ -237,6 +237,73 @@ function writeRecordError(e) {
     );
   return errorMessage(e);
 }
+/** What an approval covers (WRT-09), in the words a person approving reads. */
+function approvalClassLabel(value) {
+  return value === 'spend_affecting'
+    ? uiText('Changes spending, bids or delivery')
+    : value === 'cap_override'
+      ? uiText('Goes beyond a spending cap the owner set')
+      : value === 'destructive'
+        ? uiText('Deletes or removes something')
+        : value;
+}
+/**
+ * A person approves one reviewed change on the website (WRT-09, owner decisions P1 and P5), outside any AI client: the
+ * page shows what the review does and posts back the fingerprint it showed, so the approval covers exactly this review.
+ */
+function writeApprovalController(root, id) {
+  const generation = navigationGeneration,
+    identity = identityGeneration;
+  let busy = false;
+  const present = () => generation === navigationGeneration && identity === identityGeneration && root.isConnected;
+  const load = async () => {
+    root.setAttribute('aria-busy', 'true');
+    try {
+      const a = await api('/api/write-approvals/' + encodeURIComponent(id));
+      if (!present()) return;
+      const approver = a.approval ? (a.approval.approver_name ?? a.approval.approver ?? '') : '',
+        approved = a.approval
+          ? a.approval_pending
+            ? `<p class="notice">${esc(uiText('Approved by {person} at {time}.', {person: approver, time: date(a.approval.approved_at)}))}</p><p class="form-note">${esc(a.owner_required && !a.approval.approver_is_owner ? uiText('Beyond a spending cap, the workspace owner’s approval is still needed before another member executes it.') : uiText('This approval no longer meets the owner’s approval setting: another member than the one who prepared it approves it.'))}</p>`
+            : `<p class="notice">${esc(uiText('Approved by {person} at {time}. The AI client can now execute this exact review before it expires.', {person: approver, time: date(a.approval.approved_at)}))}</p>`
+          : '',
+        // An approval that is already there needs no second one; any other refusal says why this person cannot approve.
+        refused =
+          !a.may_approve && a.refusal && a.refusal.code !== 'REVIEW_ALREADY_APPROVED'
+            ? `<p class="notice">${esc(uiText(String(a.refusal.message ?? '')))}</p>`
+            : '';
+      root.innerHTML = `<div class="operation-heading"><div><small>${esc(uiText('Approve a reviewed change'))} · ${esc(operationGatewayLabel(a.gateway))}</small><h2 id="write-approval-heading" tabindex="-1">${esc(a.action ?? a.review_id)}</h2></div>${badge(a.approval && !a.approval_pending ? 'complete' : 'attention')}</div><p><strong>${esc(uiText('Account'))} ${esc(a.account_id)}</strong></p>${a.group ? `<p class="form-note">${esc(uiText('One approval covers all {parts} parts of this change ({records} records).', {parts: uiNumber(a.parts ?? 0), records: uiNumber(a.records ?? 0)}))}</p>` : ''}${writeSummary(a.summary)}${a.classes.length ? `<ul>${a.classes.map(c => `<li>${esc(approvalClassLabel(c))}</li>`).join('')}</ul>` : ''}${(a.reasons ?? []).map(r => `<p class="form-note">${esc(uiText(String(r.reason ?? '')))}</p>`).join('')}<p class="form-note">${esc(uiText('Prepared by {person}', {person: a.prepared_by_name ?? a.prepared_by ?? ''}))} · ${esc(uiText('Expires'))} ${date(a.expires_at)}</p><details class="workspace-details"><summary>${esc(uiText('Original review references'))}</summary><p>${esc(uiText('Review'))} <code>${esc(a.review_id)}</code></p><p>${esc(uiText('Fingerprint'))} <code>${esc(a.fingerprint)}</code></p></details>${approved}${a.may_approve ? `<div class="dialog-actions work-actions"><button id="write-approval-approve" class="button primary">${esc(uiText('Approve this change'))}</button></div>` : ''}${refused}<p data-approval-status role="status"></p>`;
+      workspaceBind('#write-approval-approve', async () => {
+        if (!present() || busy) return;
+        busy = true;
+        try {
+          const confirmed = await confirmAction({
+            title: uiText('Approve this change?'),
+            consequence: uiText(
+              'Your approval lets this exact review be executed once before it expires. Nothing is sent now; the AI client still executes it with the user’s acknowledgements.',
+            ),
+            confirmLabel: uiText('Approve this change'),
+          });
+          if (!confirmed || !present()) return;
+          await api('/api/write-approvals/' + encodeURIComponent(id), {
+            method: 'POST',
+            body: JSON.stringify({fingerprint: a.fingerprint, confirmed: true}),
+          });
+          if (present()) await load();
+        } catch (e) {
+          if (present()) root.querySelector('[data-approval-status]').textContent = errorMessage(e);
+        } finally {
+          busy = false;
+        }
+      });
+    } catch (e) {
+      if (present()) root.innerHTML = `<p class="error" role="alert">${esc(errorMessage(e))}</p>`;
+    } finally {
+      root.removeAttribute('aria-busy');
+    }
+  };
+  return {load};
+}
 /** The original review behind a write record (WRT-08): its state, claim and read-only reconciliation. */
 function writeRecordController(root, id, onChange = () => {}) {
   const generation = navigationGeneration,
@@ -503,7 +570,7 @@ async function renderOperationsCenter() {
       'Follow work across campaigns, uploads, reports and monitoring. Open the original record to inspect its evidence and continue.',
     ),
   );
-  content.innerHTML += `<div class="dialog-actions work-actions"><a class="button" href="/operations?bindings=1">${esc(uiText('Workbook setup'))}</a><a class="button" href="/monitors">${esc(uiText('Monitoring inbox'))}</a><a class="button" href="/schedules">${esc(uiText('Schedules & deliveries'))}</a><a class="button" href="/activity">${esc(uiText('Audit activity'))}</a><button id="operations-refresh" class="button">${esc(uiText('Refresh'))}</button></div>${params.has('run_id') ? `<section class="panel" id="workbook-run-detail" aria-label="${esc(uiText('Local report run'))}"><p role="status">${esc(uiText('Loading original run…'))}</p></section>` : ''}${params.has('workbook_schedule_id') ? `<section class="panel" id="workbook-schedule-detail" aria-label="${esc(uiText('Local report schedule'))}"><p role="status">${esc(uiText('Loading schedule…'))}</p></section>` : ''}${params.has('write_id') ? `<section class="panel" id="write-record-detail" aria-label="${esc(uiText('Reviewed change'))}"><p role="status">${esc(uiText('Loading original review…'))}</p></section>` : ''}<section class="panel workspace-form"><form id="operations-filter" class="work-filter"><label>${esc(uiText('Work type'))}<select name="kind">${option(kindOptions, params.get('kind') ?? (params.has('run_id') ? 'workbook_report' : params.has('workbook_schedule_id') ? 'workbook_schedule' : params.has('write_id') ? 'write' : 'all'))}</select></label><label>${esc(uiText('Attention'))}<select name="state">${option(stateOptions, params.get('state') ?? 'all')}</select></label><label>${esc(uiText('Search name or ID'))}<input type="search" name="search" maxlength="200" value="${esc(params.get('search'))}"></label><label>${esc(uiText('Account ID'))}<input name="account_id" maxlength="200" value="${esc(params.get('account_id'))}"></label><button class="button primary" type="submit">${esc(uiText('Apply filters'))}</button></form></section><section class="panel" id="operations-results" aria-label="${esc(uiText('Operations results'))}"><p data-page-status role="status">${esc(uiText('Loading operations…'))}</p></section><p class="form-note">${esc(uiText('Includes retained campaign plans, upload reviews, reporting snapshots, export jobs, overview schedules, incidents, workbook report runs, workbook schedules, reviewed changes and your failed monitor email notices with identifiable account scope within your current access, and for administrators logins that need reauthorization, keep failing to renew or are turned off. Updates can move records between pages; refresh for the latest state.'))}</p>${session.administrator || session.workspaceRole === 'owner' ? `<section class="panel"><h2>${esc(uiText('Owner diagnostics'))}</h2><p>${esc(uiText('Inspect a sanitized support bundle before downloading it.'))}</p><button id="support-bundle" class="button">${esc(uiText('Prepare support bundle'))}</button><div id="support-bundle-result"></div><a class="button owner-settings-link" href="/settings">${esc(uiText('Policies, retention and deployment controls'))}</a></section>` : ''}`;
+  content.innerHTML += `<div class="dialog-actions work-actions"><a class="button" href="/operations?bindings=1">${esc(uiText('Workbook setup'))}</a><a class="button" href="/monitors">${esc(uiText('Monitoring inbox'))}</a><a class="button" href="/schedules">${esc(uiText('Schedules & deliveries'))}</a><a class="button" href="/activity">${esc(uiText('Audit activity'))}</a><button id="operations-refresh" class="button">${esc(uiText('Refresh'))}</button></div>${params.has('run_id') ? `<section class="panel" id="workbook-run-detail" aria-label="${esc(uiText('Local report run'))}"><p role="status">${esc(uiText('Loading original run…'))}</p></section>` : ''}${params.has('workbook_schedule_id') ? `<section class="panel" id="workbook-schedule-detail" aria-label="${esc(uiText('Local report schedule'))}"><p role="status">${esc(uiText('Loading schedule…'))}</p></section>` : ''}${params.has('write_id') ? `<section class="panel" id="write-record-detail" aria-label="${esc(uiText('Reviewed change'))}"><p role="status">${esc(uiText('Loading original review…'))}</p></section>` : ''}${params.has('approve') ? `<section class="panel" id="write-approval-detail" aria-label="${esc(uiText('Approve a reviewed change'))}"><p role="status">${esc(uiText('Loading original review…'))}</p></section>` : ''}<section class="panel workspace-form"><form id="operations-filter" class="work-filter"><label>${esc(uiText('Work type'))}<select name="kind">${option(kindOptions, params.get('kind') ?? (params.has('run_id') ? 'workbook_report' : params.has('workbook_schedule_id') ? 'workbook_schedule' : params.has('write_id') ? 'write' : 'all'))}</select></label><label>${esc(uiText('Attention'))}<select name="state">${option(stateOptions, params.get('state') ?? 'all')}</select></label><label>${esc(uiText('Search name or ID'))}<input type="search" name="search" maxlength="200" value="${esc(params.get('search'))}"></label><label>${esc(uiText('Account ID'))}<input name="account_id" maxlength="200" value="${esc(params.get('account_id'))}"></label><button class="button primary" type="submit">${esc(uiText('Apply filters'))}</button></form></section><section class="panel" id="operations-results" aria-label="${esc(uiText('Operations results'))}"><p data-page-status role="status">${esc(uiText('Loading operations…'))}</p></section><p class="form-note">${esc(uiText('Includes retained campaign plans, upload reviews, reporting snapshots, export jobs, overview schedules, incidents, workbook report runs, workbook schedules, reviewed changes and your failed monitor email notices with identifiable account scope within your current access, and for administrators logins that need reauthorization, keep failing to renew or are turned off. Updates can move records between pages; refresh for the latest state.'))}</p>${session.administrator || session.workspaceRole === 'owner' ? `<section class="panel"><h2>${esc(uiText('Owner diagnostics'))}</h2><p>${esc(uiText('Inspect a sanitized support bundle before downloading it.'))}</p><button id="support-bundle" class="button">${esc(uiText('Prepare support bundle'))}</button><div id="support-bundle-result"></div><a class="button owner-settings-link" href="/settings">${esc(uiText('Policies, retention and deployment controls'))}</a></section>` : ''}`;
   content.innerHTML += `${params.has('query_id') ? `<section id="workbook-query-detail" class="panel workspace-form" aria-label="${esc(uiText('Saved workbook query'))}"><p role="status">${esc(uiText('Loading saved query…'))}</p></section>` : ''}<details class="panel" ${params.has('queries') || params.has('query_id') ? 'open' : ''}><summary>${esc(uiText('Saved workbook queries'))}</summary><p>${esc(uiText('Inspect reusable queries, review their reporting window and follow their original schedules. Outputs stay in this workspace.'))}</p><form id="workbook-query-filter" class="work-filter"><label>${esc(uiText('Query search'))}<input type="search" name="search" maxlength="200"></label><button type="submit" class="button">${esc(uiText('Find queries'))}</button></form><section id="workbook-query-list"><p data-page-status role="status">${esc(uiText('Loading queries…'))}</p></section></details>`;
   let querySearch = '';
   const queryPager = workPageLoader(
@@ -556,6 +623,7 @@ async function renderOperationsCenter() {
     if (params.has('workbook_schedule_id')) query.set('workbook_schedule_id', params.get('workbook_schedule_id'));
     if (params.has('query_id')) query.set('query_id', params.get('query_id'));
     if (params.has('write_id')) query.set('write_id', params.get('write_id'));
+    if (params.has('approve')) query.set('approve', params.get('approve'));
     history.replaceState(null, '', '/operations' + (query.size ? '?' + query : ''));
     return pager.load();
   });
@@ -568,6 +636,9 @@ async function renderOperationsCenter() {
   const write = params.has('write_id')
     ? writeRecordController($('#write-record-detail'), params.get('write_id'), () => pager.load())
     : null;
+  const approval = params.has('approve')
+    ? writeApprovalController($('#write-approval-detail'), params.get('approve'))
+    : null;
   workspaceBind('#operations-refresh', () =>
     Promise.all([
       pager.load(),
@@ -576,6 +647,7 @@ async function renderOperationsCenter() {
       ...(run ? [run.load()] : []),
       ...(schedule ? [schedule.load()] : []),
       ...(write ? [write.load()] : []),
+      ...(approval ? [approval.load()] : []),
     ]),
   );
   workspaceBind('#support-bundle', async () => {
@@ -599,6 +671,7 @@ async function renderOperationsCenter() {
     ...(run ? [run.load()] : []),
     ...(schedule ? [schedule.load()] : []),
     ...(write ? [write.load()] : []),
+    ...(approval ? [approval.load()] : []),
   ]);
 }
 function incidentCard(i, detail = false) {

@@ -7,7 +7,15 @@ import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import type {MirrorService} from './service.js';
 import {MirrorError} from './errors.js';
 import {accountPlan, accountMetadata, accountCurrency, accountTimezone} from './workspace.js';
-import {compileMicrosoft} from './microsoft-native.js';
+import {compileMicrosoft, microsoftGateway} from './microsoft-native.js';
+import {
+  admitProviderJob,
+  beginProviderJob,
+  failedJobState,
+  providerJobReceipt,
+  settleProviderJob,
+} from './provider-jobs.js';
+import {assertWritesNotPaused} from './owner-operations.js';
 import {reportPlatforms, metricNumber, objectiveGroup} from './report-metrics.js';
 import {zonedMidnight} from './workflows.js';
 import {googleAdsCustomers} from './google-version.js';
@@ -974,46 +982,82 @@ export class NativeCampaignReports {
       let reportId = checkpoint.report_id;
       if (!reportId) {
         assertMicrosoftWindowClosed(range, zone.timezone);
-        const d = await microsoftCompleteData(() =>
-          run(
-            compileMicrosoft({
-              action: 'SubmitGenerateReport',
-              account_id: account,
-              payload: {
-                ReportRequest: {
-                  Type: 'CampaignPerformanceReportRequest',
-                  Aggregation: 'Summary',
-                  Format: 'Csv',
-                  ReportName: 'AMCP campaign overview',
-                  ReturnOnlyCompleteData: true,
-                  Columns: [
-                    ...new Set([
-                      'AccountId',
-                      'CampaignId',
-                      'CampaignName',
-                      'CurrencyCode',
-                      'Spend',
-                      'Impressions',
-                      'Clicks',
-                      'Conversions',
-                      'Revenue',
-                      ...extra,
-                    ]),
-                  ],
-                  Scope: {AccountIds: [account]},
-                  Time: {
-                    CustomDateRangeStart: date(range.since),
-                    CustomDateRangeEnd: date(range.until),
-                    ReportTimeZone: zone.report_time_zone,
+        // RPT-06: the report submission is the reporting pipeline's provider job. It is admitted against the hourly
+        // bound and recorded with a receipt in the checkpoint before it is sent; a resume whose earlier submission may
+        // have reached Microsoft never submits again (only a definitive refusal, which created nothing, may).
+        const store = this.service.store,
+          tenant = actor.tenantId,
+          earlier = checkpoint.provider_job_receipt;
+        if (earlier !== undefined && providerJobReceipt(store, tenant, earlier)?.state !== 'rejected')
+          throw new MirrorError(
+            'PROVIDER_JOB_UNCERTAIN',
+            'Microsoft may have received this report request, but its answer was lost. AMCP never submits a report job again automatically; run a new snapshot.',
+            {receipt_id: earlier, submission_started: true, resubmission: 'never_automatic'},
+            409,
+          );
+        assertWritesNotPaused(store, tenant, 'provider_jobs');
+        admitProviderJob(store, microsoftGateway, account);
+        const receipt = beginProviderJob(store, tenant, {
+          gateway: microsoftGateway,
+          account_id: account,
+          connection_id: connection,
+          actor: actor.userId,
+          source: 'reporting_pipeline',
+        });
+        save({provider_job_receipt: receipt});
+        let d: JsonObject;
+        try {
+          d = await microsoftCompleteData(() =>
+            run(
+              compileMicrosoft({
+                action: 'SubmitGenerateReport',
+                account_id: account,
+                payload: {
+                  ReportRequest: {
+                    Type: 'CampaignPerformanceReportRequest',
+                    Aggregation: 'Summary',
+                    Format: 'Csv',
+                    ReportName: 'AMCP campaign overview',
+                    ReturnOnlyCompleteData: true,
+                    Columns: [
+                      ...new Set([
+                        'AccountId',
+                        'CampaignId',
+                        'CampaignName',
+                        'CurrencyCode',
+                        'Spend',
+                        'Impressions',
+                        'Clicks',
+                        'Conversions',
+                        'Revenue',
+                        ...extra,
+                      ]),
+                    ],
+                    Scope: {AccountIds: [account]},
+                    Time: {
+                      CustomDateRangeStart: date(range.since),
+                      CustomDateRangeEnd: date(range.until),
+                      ReportTimeZone: zone.report_time_zone,
+                    },
                   },
                 },
-              },
-            }),
-            false,
-          ),
-        );
+              }),
+              false,
+            ),
+          );
+        } catch (e) {
+          // Microsoft's "complete data not yet available" (2004) is a refusal that created no report job.
+          const refused = e instanceof MirrorError && e.code === 'REPORT_PENDING' && e.details.provider_code === '2004';
+          settleProviderJob(store, tenant, receipt, refused ? 'rejected' : failedJobState(e), {
+            code: e instanceof MirrorError ? e.code : 'INTERNAL_ERROR',
+          });
+          throw e;
+        }
         reportId = d.ReportRequestId;
-        save({report_id: reportId, report_time_zone: zone.report_time_zone});
+        settleProviderJob(store, tenant, receipt, reportId ? 'accepted' : 'uncertain', {
+          job_id: reportId ? String(reportId) : null,
+        });
+        save({report_id: reportId, report_time_zone: zone.report_time_zone, provider_job_receipt: receipt});
       }
       let offset = 0;
       for (let page = 0; page < 100; page++) {

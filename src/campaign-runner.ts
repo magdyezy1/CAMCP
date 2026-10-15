@@ -129,6 +129,7 @@ export const campaignTool = tool(
     spend_change_confirmed: field.bool,
     creative_edit_confirmed: field.bool,
     cap_override_confirmed: field.bool,
+    destructive_confirmed: field.bool,
     expected_revision: field.integer,
     query: field.id,
     lookup_kind: {type: 'string', enum: ['country', 'language']},
@@ -263,6 +264,15 @@ const activationOffer = (run: JsonObject): JsonObject =>
         },
       }
     : {};
+/**
+ * Refusals of a step that wait for a person's decision a plan approval never gives (WRT-09, owner decisions P1 and P5),
+ * and the stop `run` names for each. Each is raised before anything is claimed or sent.
+ */
+const personDecisions: Record<string, string> = {
+  HUMAN_APPROVAL_REQUIRED: 'needs_website_approval',
+  CAP_OVERRIDE_OWNER_REQUIRED: 'needs_owner_approval',
+  DESTRUCTIVE_CONFIRMATION_REQUIRED: 'needs_destructive_confirmed',
+};
 /** The call that lists the members who can be named a plan's approver (CMP-05 distinct-approver policy). */
 const distinctApproverCall = (run: JsonObject): JsonObject => ({
   tool: 'amcp_campaign',
@@ -779,9 +789,12 @@ export class CampaignRunner {
         ? 'cap_override_confirmed'
         : needs.creative_edit_confirmed
           ? 'creative_edit_confirmed'
-          : needs.spend_change_confirmed && !run.approval.spend_change_confirmed
-            ? 'spend_change_confirmed'
-            : undefined;
+          : // WRT-09: the owner's destructive_confirmed tier is never given by a plan approval.
+            needs.destructive_confirmed
+            ? 'destructive_confirmed'
+            : needs.spend_change_confirmed && !run.approval.spend_change_confirmed
+              ? 'spend_change_confirmed'
+              : undefined;
       if (human)
         return stop(prepared, 'needs_' + human, {
           reason:
@@ -806,6 +819,43 @@ export class CampaignRunner {
       const step = out.steps?.find((s: JsonObject) => s.id === prepared.step_id);
       if (step && ['failed', 'uncertain', 'mismatch'].includes(step.status) && !uploads)
         return stop(out, 'needs_attention');
+      // WRT-09: refused before anything was sent for a person's decision the plan approval cannot give: a member's
+      // approval of this step on the website (website_path), the owner's beyond a cap, or the destructive acknowledgement.
+      // The review stays ready; run continues once the person has acted. A compact row names only the error code.
+      const waiting =
+        step?.status === 'review_ready'
+          ? personDecisions[typeof step.error === 'string' ? step.error : step.error?.code]
+          : undefined;
+      if (waiting) {
+        const refusal: JsonObject =
+          this.owned(actor, run.id).steps.find((s: JsonObject) => s.id === prepared.step_id)?.error ?? {};
+        return stop(out, waiting, {
+          reason:
+            'Step ' +
+            prepared.step_id +
+            ' waits for a person: ' +
+            String(refusal.message ?? '') +
+            ' Nothing was sent; the review stays ready until it expires.',
+          ...(typeof refusal.details?.website_path === 'string' ? {website_path: refusal.details.website_path} : {}),
+          next_call:
+            waiting === 'needs_destructive_confirmed'
+              ? {
+                  tool: 'amcp_campaign',
+                  arguments: {
+                    action: 'execute_next',
+                    id: run.id,
+                    review_id: execute.review_id,
+                    idempotency_key: execute.idempotency_key,
+                    confirmed: true,
+                  },
+                  add_after_user_approval: {
+                    destructive_confirmed: true,
+                    ...(needs.spend_change_confirmed ? {spend_change_confirmed: true} : {}),
+                  },
+                }
+              : {tool: 'amcp_campaign', arguments: {action: 'run', id: run.id}},
+        });
+      }
       // Refused before anything was sent (a pause, a rate limit, a busy target): the review stays ready, and run continues
       // it once the cause clears instead of retrying it at once.
       if (step?.status === 'review_ready' && step.error)
@@ -2309,7 +2359,8 @@ export class CampaignRunner {
           },
           ...(review.execute_requirements?.spend_change_confirmed === true ||
           review.execute_requirements?.cap_override_confirmed === true ||
-          review.execute_requirements?.creative_edit_confirmed === true
+          review.execute_requirements?.creative_edit_confirmed === true ||
+          review.execute_requirements?.destructive_confirmed === true
             ? {
                 add_after_user_approval: {
                   ...(review.execute_requirements.spend_change_confirmed === true
@@ -2321,6 +2372,7 @@ export class CampaignRunner {
                   ...(review.execute_requirements.creative_edit_confirmed === true
                     ? {creative_edit_confirmed: true}
                     : {}),
+                  ...(review.execute_requirements.destructive_confirmed === true ? {destructive_confirmed: true} : {}),
                 },
               }
             : {}),
@@ -2365,6 +2417,7 @@ export class CampaignRunner {
               spend_change_confirmed: input.spend_change_confirmed,
               cap_override_confirmed: input.cap_override_confirmed,
               creative_edit_confirmed: input.creative_edit_confirmed,
+              destructive_confirmed: input.destructive_confirmed,
             }
           : {}),
       },
@@ -2384,6 +2437,10 @@ export class CampaignRunner {
               'SPEND_CONFIRMATION_REQUIRED',
               'CAP_CONFIRMATION_REQUIRED',
               'CREATIVE_EDIT_CONFIRMATION_REQUIRED',
+              // WRT-09: refusals before anything is claimed that leave the review valid until a person acts.
+              'DESTRUCTIVE_CONFIRMATION_REQUIRED',
+              'HUMAN_APPROVAL_REQUIRED',
+              'CAP_OVERRIDE_OWNER_REQUIRED',
               'WRITES_PAUSED',
               'STATE_BUSY',
             ].includes(result.error?.code) ||

@@ -9,7 +9,7 @@ import {convertMedia, ffprobeJson, seenGeometry, withMediaDirectory, type MediaF
 import {sha256} from './security.js';
 import {RetainedMedia, retainedMediaId} from './retained-media.js';
 import {ownerAccess, workspaceOwner} from './spend-policy.js';
-import {assertWritesNotPaused, writePause} from './owner-operations.js';
+import {assertWritesNotPaused, writesPausedFor} from './owner-operations.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {ownership, ownsRecord, principalOf} from './actor-identity.js';
@@ -150,7 +150,7 @@ export class MediaSources {
         r.state === 'complete' &&
         owner &&
         this.allowWrites &&
-        !writePause(this.store, actor.tenantId),
+        !writesPausedFor(this.store, actor.tenantId, 'advertising'),
       can_remove_retained: retained && owner,
       ...(r.origin === 'upload'
         ? {retention: {mode: 'temporary', lifetime_minutes: 30, copies_share_deadline: true}}

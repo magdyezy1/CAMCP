@@ -236,7 +236,14 @@ export function reviewView(review: JsonObject, runId: string, stepId: string): J
         ...pick(p, ['part', 'review_id', 'records', 'state_hash']),
         request: pick(p.request ?? {}, ['method', 'path']),
       })),
-      ...pick(review, ['time_budget', 'execute_requirements', 'contract_evidence', 'confirmation_required', 'meaning']),
+      ...pick(review, [
+        'time_budget',
+        'execute_requirements',
+        'approval',
+        'contract_evidence',
+        'confirmation_required',
+        'meaning',
+      ]),
       detail: {tool: 'amcp_campaign', arguments: {action: 'get', id: runId, step_id: stepId}},
     };
   const reads: JsonObject[] = review.state_reads ?? [],
@@ -260,6 +267,8 @@ export function reviewView(review: JsonObject, runId: string, stepId: string): J
     ...pick(review, [
       'spend_policy',
       'execute_requirements',
+      // A person's website approval the step needs (WRT-09), with its website_path.
+      'approval',
       'creative_impact',
       'contract_evidence',
       'confirmation_required',

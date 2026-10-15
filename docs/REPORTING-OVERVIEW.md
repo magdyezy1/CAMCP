@@ -91,6 +91,16 @@ incomplete and its window has closed. Each label holds recommendations; nothing 
   Microsoft source whose window ends today are collected only when the retry runs (up to about 25 hours later),
   unlike the other platforms, whose open day is delivered as partial. Set the window's end to yesterday for a
   same-day snapshot.
+- **Microsoft report jobs (RPT-06).** `SubmitGenerateReport` creates a provider job. Before it is sent it is admitted
+  against the hourly bound per account (`PROVIDER_JOB_QUOTA`), refused while an owner's pause covers provider jobs
+  (`WRITES_PAUSED`), and recorded as a `provider_job` receipt in the source's checkpoint. A resumed snapshot polls the
+  original `ReportRequestId`; when the earlier submission's answer was lost, it is never submitted again
+  (`PROVIDER_JOB_UNCERTAIN`; run a new snapshot). Only a definitive refusal that created nothing (such as error 2004)
+  may be submitted again. Reviewed report and export jobs of the other providers follow the deployment owner's
+  `AMCP_PROVIDER_JOBS` switch and an account's report-job grant (see
+  [write operations](WRITE-OPERATIONS.md#provider-report-and-export-jobs)). An administrator grants report jobs in
+  Connections: `PROVIDER_JOBS_DISABLED` while the switch is off, `WRITE_ACCOUNT_NOT_SELECTED` for an account the login
+  does not select; an invalid `AMCP_PROVIDER_JOB_HOURLY_LIMIT` refuses jobs with `CONFIGURATION_INVALID`.
 - **Declared incomplete.** A detailed (ad set or ad) source with `complete_window:false` is partial
   (`detail_contract:"overview-detail-v2"`) and its recommendations need review. Snapshots retained earlier keep their
   original labels.
