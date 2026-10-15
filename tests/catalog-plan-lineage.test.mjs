@@ -181,7 +181,7 @@ test('only catalog_plan can set a lineage: a direct create naming an unknown or 
     assert.equal(refused.success, false);
     assert.equal(refused.error.code, 'CATALOG_LINEAGE_UNBOUND');
   }
-  // A real binding for these steps works once; the same binding for other steps does not.
+  // A real binding is accepted for exactly the steps it names; the same binding for other steps is refused.
   const lineage = {lineage_version: 'catalog-plan-lineage-v1', source_kind: 'supplied_products'};
   const other = storeCatalogLineageBinding(f.store, f.actor, preview, lineage);
   const mismatched = await create({catalog_binding: other, steps: preview.steps.slice(0, 1)});

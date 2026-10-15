@@ -7,7 +7,9 @@ import {bad} from './workspace-core.js';
  * (explicit upsert intent, explicit removal intent, per-item receipts, or feeds only); its projection
  * (src/catalog-ingestion.ts) and its comparison (src/catalog-comparison.ts) are registered under the same gateway, so
  * adding a destination is one entry here plus its two adapters, checked at compile time. Product sources plug in on the
- * other side (src/catalog-mapping.ts): whatever produced the products, a destination sees the same supplied rows.
+ * other side (src/catalog-sources.ts, with column mappings in src/catalog-mapping.ts): whatever produced the products,
+ * a destination sees the same supplied rows. tests/catalog-destination-contract.test.mjs holds each projection and the
+ * website to this contract.
  *
  * Every destination returns the shared comparison item (`catalog-comparison-item-v2`): `state`, `changes`,
  * `unknown_fields`, `unsent_fields`, `blocked`/`blocked_reason` and `serving_notes`, beside its own evidence. The v2
