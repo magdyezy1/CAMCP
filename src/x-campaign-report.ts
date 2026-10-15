@@ -8,6 +8,38 @@ import {xReportPlacements, type XActiveSet} from './x-active-entities.js';
 
 /** The synchronous analytics ceiling per X source (X allows 250 requests per 15 minutes per user). */
 export const xAnalyticsRequestLimit = 100;
+/** RPT-07: shown when X refused the line item read, so campaign objectives stay unknown. */
+export const xObjectivesUnavailableWarning =
+  'X line item objectives could not be read, so campaign objectives stay unknown unless set in report settings.';
+/** RPT-07: shown when a campaign's line items use different objectives. */
+export const xObjectivesMixedWarning =
+  'Some X campaigns run line items with different objectives; their objective stays unknown unless set in report settings.';
+/**
+ * RPT-07: X campaigns carry no objective; their line items do. A listed campaign whose line items share one objective
+ * takes it (current line item metadata); different objectives give `null` (unknown, never a guess). Line items of
+ * campaigns outside the listed inventory are ignored; a malformed line item refuses the source.
+ */
+export function xCampaignObjectives(inventory: JsonObject[], lineItems: JsonObject[]) {
+  const listed = new Set(inventory.map(c => String(c.id))),
+    objectives = new Map<string, Set<string>>();
+  for (const item of lineItems) {
+    if (
+      !item ||
+      typeof item !== 'object' ||
+      typeof item.campaign_id !== 'string' ||
+      (item.objective != null && (typeof item.objective !== 'string' || !/^[A-Z][A-Z_]{0,63}$/.test(item.objective)))
+    )
+      throw new MirrorError('REPORT_SHAPE_CHANGED', 'X returned a malformed line item.', {}, 502);
+    if (!listed.has(item.campaign_id) || !item.objective) continue;
+    const set = objectives.get(item.campaign_id) ?? new Set<string>();
+    objectives.set(item.campaign_id, set.add(item.objective));
+  }
+  return {
+    campaigns: Object.fromEntries(
+      [...objectives].map(([id, set]) => [id, set.size === 1 ? [...set][0]! : null]),
+    ) as Record<string, string | null>,
+  };
+}
 /**
  * X requires a separate request for every placement. Conversion groups are requested apart from engagement and
  * billing (RPT-03), so a rejected conversion request cannot remove the placement's spend.

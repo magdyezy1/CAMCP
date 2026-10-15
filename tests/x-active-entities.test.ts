@@ -246,6 +246,8 @@ function xService(active: (q: JsonObject) => JsonObject) {
     runPlan: async (p: CompiledRequest) => {
       requests.push(p);
       if (p.path.endsWith('/campaigns')) return {success: true, data: {data: campaigns(300)}};
+      // RPT-07: the Overview also reads line items for campaign objectives (none here, so objectives stay unknown).
+      if (p.path.endsWith('/line_items')) return {success: true, data: {data: []}};
       if (p.path.endsWith('/active_entities')) return {success: true, data: active(p.query as JsonObject)};
       if (p.path.startsWith('/12/stats/accounts/'))
         return {success: true, data: await analytics([])(p.query as JsonObject)};

@@ -1,6 +1,11 @@
 import {fingerprint, reportContractVersion, ga4Quality, summarizeGA4Quality} from './report-quality.js';
 import {linkedinVersion} from './linkedin-version.js';
-import {xCampaignReport} from './x-campaign-report.js';
+import {
+  xCampaignObjectives,
+  xCampaignReport,
+  xObjectivesMixedWarning,
+  xObjectivesUnavailableWarning,
+} from './x-campaign-report.js';
 import {xActiveEntities, xActiveEntitiesMode, xActiveSet} from './x-active-entities.js';
 import {metaCampaignRows} from './meta-report.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
@@ -998,12 +1003,46 @@ export class NativeCampaignReports {
         warnings.push(
           'X refused the active-entities read; every listed campaign was requested instead (at most 100 analytics requests).',
         );
+      // RPT-07: objectives come from the account's line items (one bounded read, kept with the checkpoint so a resumed
+      // run uses the same answer). A refused or oversized read keeps objectives unknown with a warning.
+      let objectives: JsonObject | undefined = checkpoint.x_objectives;
+      if (!objectives)
+        try {
+          objectives = xCampaignObjectives(
+            inventory,
+            list(
+              (
+                await run(
+                  plan('/12/accounts/' + account + '/line_items', {count: 1000, with_deleted: true}),
+                  true,
+                  'line_item_objectives',
+                )
+              ).data ?? [],
+            ),
+          );
+        } catch (e) {
+          if (
+            !(e instanceof MirrorError) ||
+            e.retryable ||
+            (e.code !== 'INCOMPLETE_REPORT' && ![400, 403, 404].includes(e.status))
+          )
+            throw e;
+          objectives = {unavailable: true, campaigns: {}};
+        }
+      if (objectives.unavailable) warnings.push(xObjectivesUnavailableWarning);
+      else if (Object.values(objectives.campaigns ?? {}).includes(null)) warnings.push(xObjectivesMixedWarning);
       const state = {
         x_inventory: inventory,
         ...(active ? {x_active: active} : {}),
         ...(fallback ? {x_active_fallback: true} : {}),
+        x_objectives: objectives,
       };
-      if (!checkpoint.x_inventory || (active && !checkpoint.x_active) || (fallback && !checkpoint.x_active_fallback))
+      if (
+        !checkpoint.x_inventory ||
+        (active && !checkpoint.x_active) ||
+        (fallback && !checkpoint.x_active_fallback) ||
+        !checkpoint.x_objectives
+      )
         save(state);
       const report = await xCampaignReport(
         inventory,
@@ -1017,7 +1056,7 @@ export class NativeCampaignReports {
           ...(active ? {active, windows: mode === 'on'} : {}),
         },
       );
-      raw = report.rows;
+      raw = report.rows.map(row => ({...row, objective: objectives!.campaigns?.[row.id] ?? row.objective}));
       complete = report.complete;
       collectionComplete = report.complete;
       context.no_activity_count = report.no_activity_count;
