@@ -22,6 +22,7 @@ import {MediaUploadService} from '../src/media-upload.js';
 import {mediaType} from '../src/drive-media.js';
 import {Store} from '../src/store.js';
 import {disconnectLocalConnection} from '../src/connection-disconnect.js';
+import {disconnectWithProviderRevocation, providerRevocationOffer} from '../src/provider-revocation.js';
 import {MirrorError} from '../src/errors.js';
 import {sha256, stable} from '../src/security.js';
 import type {Actor, Connection, Credentials, JsonObject} from '../src/types.js';
@@ -953,6 +954,10 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       res.json({
         platforms: oauth.publicConfig().map(p => ({
           ...p,
+          // CON-05 sub-item 10: whether this session's disconnect dialog may offer revocation at the provider.
+          ...(session
+            ? {provider_revocation: providerRevocationOffer(p.gateway, options.authEnv ?? process.env, session.actor)}
+            : {}),
           connections: connections.filter(c => c.gateway === p.gateway).map(c => visibleConnection(session!.actor, c)),
         })),
         authenticated: !!session,
@@ -1554,10 +1559,24 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
   );
   router.delete(
     '/api/connections/:id',
-    handler((req, res) => {
+    express.json({limit: '1kb'}),
+    handler(async (req, res) => {
       const s = web.requireAdminMutation(req),
         tenant = s.actor.tenantId,
-        c = connection(tenant, String(req.params.id));
+        c = connection(tenant, String(req.params.id)),
+        revoke = req.body?.revoke_at_provider;
+      if (revoke !== undefined && typeof revoke !== 'boolean')
+        throw new MirrorError('INVALID_ARGUMENT', 'revoke_at_provider is true or false.');
+      // CON-05 sub-item 10: an explicitly confirmed provider-side revocation, only where the owner turned it on.
+      if (revoke) {
+        const receipt = await disconnectWithProviderRevocation(store, s.actor, c.gateway, c.id, {
+          fetcher: options.fetcher,
+          env: options.authEnv ?? process.env,
+          recheck: () => web.requireAdminMutation(req),
+        });
+        res.json({success: true, provider_revocation: receipt.provider_revocation ?? null});
+        return;
+      }
       disconnectLocalConnection(store, s.actor, c.gateway, c.id, 'website');
       res.json({success: true});
     }),

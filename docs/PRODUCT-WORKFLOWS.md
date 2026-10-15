@@ -1057,6 +1057,26 @@ The server rechecks current scope, operator access, schedule revision and saved 
 keeps query identity and workbook binding intact and does not configure external spreadsheet delivery.
 See the [workbook schedule delivery record](review/DELIVERY-2026-10-01-WORKBOOK-SCHEDULES.md).
 
+**Move to Reporting overview (EXP-04, owner policy P6).** A local schedule can move into Reporting overview, which
+delivers to the workbook's own spreadsheet. The move is explicit and reversible, and it never changes the saved query
+or its revision. *Check whether it can move* (`amcp_reporting_overview preview_workbook_move` with the schedule `id`)
+is a dry run: it saves nothing, makes no network request, converts the saved campaign query into one Overview report
+source (platform, account, login, rolling window, native metrics; compileReport's day, month and all grouping become
+daily, monthly and total rows) with the schedule's own clock, and lists the Google Sheets report tabs that Reporting
+overview bound for the workbook's spreadsheet (`bind_destination` verified each with an authenticated read). A query
+without an exact equivalent is refused with its reasons and stays local: a native provider request, fixed dates, an
+ad set or ad level, another grouping, campaign filters or other settings, or unusable metric names. With a tab chosen
+(`destination_id`), the preview returns `move_version`; *Move to Reporting overview*
+(`move_workbook_schedule` with `move_version` and `confirmed:true`, operator role) creates the report and its schedule
+on that tab and pauses the local schedule in the same transaction (`pause_reason: migrated_to_overview`). A paused
+local schedule moves as a paused Overview schedule; an active one delivers at its next occurrence under the mover's
+current access. While moved, the local schedule cannot be enabled (`WORKBOOK_SCHEDULE_MIGRATED`). *Undo the move*
+(`undo_workbook_move`, `confirmed:true`) pauses the Overview schedule, keeping its report and snapshots, and restores
+the local schedule as it was; one whose saved query changed meanwhile stays paused for review
+(`query_definition_changed`). A changed schedule, query or tab after the preview is `STALE_WORKBOOK_MIGRATION`; a tab
+of another spreadsheet is `WORKBOOK_DESTINATION_MISMATCH`. Moves and undos are audited
+(`workbook_schedule_migrated`, `workbook_migration_reverted`).
+
 Operations also lists **Saved workbook queries**, with search and continuation through authorized records.
 Open a query directly at `/operations?query_id=<id>` or follow its original run/schedule link. Edit its name and
 explicit dates, complete-day window or last complete calendar week/month. Rolling windows use the specified

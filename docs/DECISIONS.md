@@ -36,7 +36,7 @@ recommendation, that part is recorded as **pending owner**.
 | D16 | AI-client authorization and identity | Accepted: (1) a 30–60 s refresh-token reuse window with family revocation; (2) operators and viewers connect their own AI clients, scope capped by role; (3) keep the recorded write-by-default consent once a read-only choice exists; (4) person-scoped uploads, originals, plans and variants follow the person across the website and their AI clients. | MCP-08, MCP-02, MED-03 | — | MCP-08, MCP-02, MED-03 |
 | D17 | Captured-catalog parity | Accepted: keep the captured schema byte-identical, route first-party help through special cases, keep the captured catalog frozen as the compatibility denominator, declare withheld raw captures as withheld, and annotate unmapped captured operations `CAPABILITY_UNAVAILABLE` rather than hiding them. Which Adjust operations become optional stretch: pending owner. | MCP-05, MCP-10, ARC-03 | — | MCP-05, MCP-10, ARC-03 |
 | D18 | Effects allowed in read-only mode | Accepted: `validate_provider` runs only through an explicit owner opt-in, audited before send; provider report and export jobs become a quota-bounded `provider_job` effect under an owner switch; no provider-side report jobs under read-only acceptance until RPT-06 lands. Wave 3 implemented RPT-06: `AMCP_PROVIDER_JOBS` (default `false`) and per-account report-job grants. | WRT-06, RPT-06, ACC-06 | RPT-06 lands | WRT-06, RPT-06, ACC-06 |
-| D19 | Provider login lifecycle | Accepted: (1) a renewal by a different provider identity is refused where the identity is available; (2) every write-grant change needs confirmation and audit; (3) the pre-checked "read + reviewed write" selection on new connections is intended (recorded decision); (4) offer provider-side revocation on disconnect as an option, after checking the effect on other Google logins sharing the OAuth client; (5) request Reddit `adsedit` only when writes are enabled. | CON-02, CON-05 | — | CON-02, CON-05 |
+| D19 | Provider login lifecycle | Accepted: (1) a renewal by a different provider identity is refused where the identity is available; (2) every write-grant change needs confirmation and audit; (3) the pre-checked "read + reviewed write" selection on new connections is intended (recorded decision); (4) offer provider-side revocation on disconnect as an option, after checking the effect on other Google logins sharing the OAuth client; (5) request Reddit `adsedit` only when writes are enabled. | CON-02, CON-05; (4) ships off behind `AMCP_PROVIDER_REVOCATION` (Google logins, an unchecked choice in the disconnect dialog) until the owner answers Q25 with disposable logins ([operations](OPERATIONS.md#configuration)) | Q25 answered | CON-02, CON-05 |
 | D20 | Conditional-program observations | Accepted: retain them as timestamped "not a grant" records with a time-to-live, purged on disconnect. | CON-04 | — | CON-04, ACC-05, ACC-08 |
 | D21 | Error detail on the website | Accepted: show the sanitized provider status and request ID, never tokens or bodies. | WEB-03, PRV-02 | — | WEB-03, PRV-02 |
 | D22 | Operations attention feed | Accepted: include uncertain standalone writes, failed monitor emails and reauthorization-required connections. | OPS-06 | — | OPS-06 |
@@ -137,10 +137,12 @@ cites as owner decisions, each the review's recommended or the ticket's proposed
   are frozen with an as-of label (DEC-01); a Meta action absent from a delivered row counts as 0 with
   `provider_omitted`, and Microsoft totals use the account time zone (RPT-04); daily collection uses natively segmented
   requests (RPT-03); schedule times show the delivery time zone first, then the viewer's (EXP-04). An open snapshot is
-  addressable with `?report_id=` under the same authorization as any load (RPT-05). Still open: whether a Sheets
-  destination belongs to a report or a client, whether complete-only gates a manual export, after how many failures a
-  schedule pauses, whether workbook schedules stay or move into Overview (EXP-04's second phase waits for it), period
-  comparison, the decision-grade metric set, the DEC-02 outcome window and causal experiments.
+  addressable with `?report_id=` under the same authorization as any load (RPT-05). Workbook schedules converge into
+  Overview (the review's recommendation, chosen during implementation; owner may revise): each moves only by an explicit,
+  reversible move that keeps its saved query, and a query without an exact Overview equivalent stays local (EXP-04
+  phase 2). Still open: whether a Sheets destination belongs to a report or a client, whether complete-only gates a
+  manual export, after how many failures a schedule pauses, period comparison, the decision-grade metric set, the DEC-02
+  outcome window and causal experiments.
 - **P7.** The Microsoft Search pack is labelled "Draft only: set locations in Microsoft before activation", and
   activation without a positive location criterion is refused with `LOCATION_CRITERIA_REQUIRED` until AMCP can read
   location criteria (CMP-03). UTM parameters versus tracking-suffix fields, mandatory conventions, the next launch

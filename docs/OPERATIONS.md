@@ -14,6 +14,12 @@ Provider OAuth grants live in one registry, `src/provider-grants.ts` (CON-03): p
 
 Credential health is a `connection_health` document per connection, bound to its login revision and removed on disconnect. Token refresh records success (access and, for LinkedIn, login expiry), a documented grant rejection (`invalid_grant`, `invalid_token`: `reauthorization_required`, after which refresh fails fast with `REAUTHORIZATION_REQUIRED` and no token request until the login is reauthorized or an administrator chooses Retry renewal), or another failure (`refresh_failed`, bounded back-off from 30 seconds to 15 minutes). A dead login therefore costs one token-endpoint call and one `token_refresh_failed` audit row. MCP `connection_ops status` and the `amcp_workspace dashboard` `connections` section return the stored record with zero network requests. Operations lists a login whose current record is `reauthorization_required` or `refresh_failed` (or one that cannot renew itself and has ended), and a turned-off connection as deferred, to workspace administrators only as `kind:connection` (OPS-06). Every browser-OAuth platform can reauthorize in place from Connections; set `AMCP_REAUTHORIZATION_DISABLED=meta,linkedin` (or `all`) to return a platform to "Connect another" only. Credentials are replaced only after verification, so the flag is always safe to set.
 
+Disconnect is local by default: AMCP deletes its copy of a login, and the provider grant stays until it is removed in the provider's settings. `AMCP_PROVIDER_REVOCATION=on` (owner decision D19 (4), CON-05; any other value or unset is off) adds an unchecked **Also revoke AMCP's access at Google** to the disconnect dialog of a Google login. Checked, AMCP audits `provider_revocation_requested` (with the login revision), sends the login's token once in the form body to `https://oauth2.googleapis.com/revoke`, audits `provider_revocation_result`, and disconnects only after a 200 or `invalid_token`; any other answer or a lost response keeps the login (`PROVIDER_REVOCATION_FAILED`), and so does a reauthorization that lands meanwhile (`CONNECTION_CHANGED`). Other providers have no revocation wired, test accounts (the shared reviewer password and invited test accounts) are never offered it, and MCP disconnects stay local. Google revokes the grant of one OAuth client for a Google account as a whole, and every Google surface uses the `AMCP_GOOGLE_CLIENT_ID` client unless it names its own, so the owner answers **Q25** before turning it on:
+
+1. With a disposable Google account, connect two Google surfaces that share the client (for example Google Ads and Sheets) in one workspace and one of them in a second workspace.
+2. On a deployment with `AMCP_PROVIDER_REVOCATION=on`, disconnect one login with the revocation checked; the message says its access was revoked at Google (audit outcome `revoked`).
+3. Sync each other login right away and again after an hour (an access token AMCP already holds is used until it nears its expiry, at most an hour, and Google says revocation can take time). A sync that Google refuses, or a login that then shows **Reauthorization required**, means the grant is shared as the dialog warns; record the result with Q25 and keep the flag on only if that effect is acceptable.
+
 Media execution locks and shared byte reservations use 45-second leases renewed
 every 15 seconds and at transfer boundaries. After a worker crash, wait for lease
 expiry and inspect `amcp_media recovery` for the original review. Do not delete
@@ -132,6 +138,43 @@ lower the floor deliberately.
 Transactions retry only their `BEGIN IMMEDIATE` after `SQLITE_BUSY`, with jittered pauses, for at most 5 seconds in
 total including SQLite's own wait (the same five seconds a single `BEGIN` could wait before); nothing has run when BEGIN
 fails, so every kind of work may retry it. The wait blocks the HTTP process, so it is not longer than before.
+
+### Video conversion time
+
+`npm run benchmark:media-variants` uses the FFmpeg and ffprobe named by `AMCP_FFMPEG_PATH` and `AMCP_FFPROBE_PATH`. It
+makes a synthetic 180-second 1080p H.264/AAC source (a moving test pattern with camera-like noise, about 98 MiB),
+converts it to five preset variants with the production settings (libx264 veryfast, CRF 23, two threads) and reports
+each time, whether the streams were copied, and the share of `VIDEO_CONVERSION_TIMEOUT_MS`. `-- --check` exits non-zero
+when a conversion takes more than half of the limit; `-- --seconds=N` shortens the source and `-- --source=2160p`
+measures a 4K source, which fit also converts.
+
+Measured on the review workstation (FFmpeg 9.0, i7-12700H), which other builds shared at varying CPU load:
+
+| Run | Landscape contain | Vertical crop | Vertical contain | Portrait contain | Square crop | Fit |
+|---|---|---|---|---|---|---|
+| 2026-10-11, light load | 63.7 s | 46.5 s | 42.6 s | 45.9 s | 42.4 s | no conversion |
+| 2026-10-12, heavy load | 135.6 s | 167.2 s | 97.6 s | 110.8 s | 105.5 s | no conversion |
+| 2026-10-12, after the changes below | 2.9 s (copied) | 147.6 s | 103.2 s | 44.9 s | 41.1 s | no conversion |
+
+A 60-second 2160p source took 113.6 s to fit to 1920 × 1080 and 86.6 s for a vertical crop (2026-10-11).
+
+The first run used 53% of the earlier 120-second limit, so `VIDEO_CONVERSION_TIMEOUT_MS` became 180 seconds, still
+inside the five-minute reservation a variant or review holds while it is prepared (a fit conversion also uses part of
+that review's five minutes). Under heavy load the earlier limit would have refused two variants, and the vertical
+crop used 93% of the new one, so two conversions now do less work instead of the limit growing further (MED-04):
+
+- A video already stored at the preset's exact size as upright H.264 (yuv420p, square pixels) with AAC or no audio is
+  copied into the MP4 variant without re-encoding, as fit already does for media that fits.
+- A crop cuts the centered region of the preset's shape and scales only that region (a 608 × 1080 region of a 1080p
+  frame for vertical), instead of scaling the whole frame up and discarding most of it. On a 30-second clip at the same
+  load this took 21–29 s instead of 31–33 s; the encode, not the scaling, remains most of the time.
+
+What remains: a noisy 180-second 1080p source turned vertical stays the slowest case and kept less than twice its time
+under heavy load; on a host that slow it can reach the limit and is refused with `MEDIA_CONVERSION_TIMEOUT`, never cut
+short. A 180-second 2160p source that fits the 128 MiB media limit needs about three times the 60-second times above,
+so its fit or crop variant is refused the same way. A noisy 1080p variant re-encoded to 1920 × 1080 comes close to the
+128 MiB media limit, and a larger output is refused with `MEDIA_TOO_LARGE`. The production image (FFmpeg 5.1 in the
+Docker build) has not been measured; run the same command in the container before relying on its headroom.
 
 ## Health and diagnostics
 

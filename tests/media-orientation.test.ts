@@ -194,7 +194,9 @@ test('seenGeometry turns a JPEG by its EXIF orientation and a video by its rotat
     seenGeometry(Buffer.alloc(8), type('video/mp4'), {width: 1920, height: 1080, tags: {rotate: '45'}}).rotation,
     45,
   );
-  assert.equal(VIDEO_CONVERSION_TIMEOUT_MS, 120000);
+  // 180 s since the 2026-10-11 measurement (tests/media-variant-timing.test.mjs): 120 s left under twice the time a
+  // 180-second 1080p landscape variant took.
+  assert.equal(VIDEO_CONVERSION_TIMEOUT_MS, 180000);
 });
 
 test('orientation 1/3/6/8 photos have one displayed size in record, eligibility, fit and variant, turned alike', async t => {

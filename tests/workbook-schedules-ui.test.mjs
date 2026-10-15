@@ -150,3 +150,117 @@ test('schedule editor refuses old results and confirmation after identity or rou
   await loading;
   assert.doesNotMatch(other.root.innerHTML, /private error/);
 });
+
+test('move to Reporting overview: the check, the chosen tab and the confirmation precede the move; undo is confirmed too (EXP-04)', async () => {
+  const f = fixture(),
+    load = f.controller.load();
+  f.requests[0].resolve({...f.schedule, overview_migration: null});
+  await load;
+  assert.match(f.root.innerHTML, /Move to Reporting overview/);
+  assert.match(f.root.innerHTML, /id="workbook-move-check"/);
+  // A query that cannot move lists its reasons and sends no move.
+  const blocked = f.bindings.get('#workbook-move-check')();
+  assert.deepEqual(JSON.parse(JSON.stringify(f.requests[1].args)), {action: 'preview_workbook_move', id: 'original'});
+  assert.equal(f.requests[1].tool, 'overview');
+  f.requests[1].resolve({
+    migratable: false,
+    destinations: [],
+    blockers: [{code: 'unsupported_fields', fields: ['campaign_ids']}, {code: 'destination_required'}],
+  });
+  await blocked;
+  assert.match(f.status.innerHTML, /This schedule cannot move yet/);
+  assert.match(
+    f.status.innerHTML,
+    /no equivalent for these query settings\. <code dir="ltr" data-native>campaign_ids<\/code>/,
+  );
+  assert.equal(f.bindings.has('#workbook-move-form'), false);
+  // A movable query offers the workbook's report tabs; a tab with another active schedule cannot be chosen.
+  const checking = f.bindings.get('#workbook-move-check')();
+  f.requests[2].resolve({
+    migratable: false,
+    blockers: [{code: 'destination_required'}],
+    destinations: [
+      {id: 'tab-1', tab_name: '<b>Client tab</b>', in_use: false},
+      {id: 'tab-2', tab_name: 'Busy tab', in_use: true},
+    ],
+  });
+  await checking;
+  assert.match(f.status.innerHTML, /<option value="tab-1" >&lt;b>Client tab&lt;\/b><\/option>/);
+  assert.match(f.status.innerHTML, /<option value="tab-2" disabled>Busy tab · has another active schedule<\/option>/);
+  const moving = f.bindings.get('#workbook-move-form')({elements: {destination_id: {value: 'tab-1'}}});
+  assert.deepEqual(JSON.parse(JSON.stringify(f.requests[3].args)), {
+    action: 'preview_workbook_move',
+    id: 'original',
+    destination_id: 'tab-1',
+  });
+  f.requests[3].resolve({
+    migratable: true,
+    blockers: [],
+    active: true,
+    destination_id: 'tab-1',
+    move_version: 'move-v1',
+    query_revision: 2,
+    overview_report: {name: 'Weekly sales', grain: 'daily'},
+    overview_schedule: {timezone: 'Asia/Riyadh'},
+  });
+  await new Promise(r => setImmediate(r));
+  const consequence = f.confirmationOptions[0].consequence;
+  assert.match(consequence, /Weekly sales · Account 100 · Query revision 2/);
+  assert.match(consequence, /\(Daily rows\)/);
+  assert.match(consequence, /same clock \(Asia\/Riyadh\), delivering to the report tab <b>Client tab<\/b>/);
+  assert.match(consequence, /Its next delivery uses your current access\./);
+  f.confirmations[0](true);
+  await new Promise(r => setImmediate(r));
+  assert.deepEqual(JSON.parse(JSON.stringify(f.requests[4].args)), {
+    action: 'move_workbook_schedule',
+    id: 'original',
+    destination_id: 'tab-1',
+    move_version: 'move-v1',
+    confirmed: true,
+  });
+  f.requests[4].resolve({});
+  await new Promise(r => setImmediate(r));
+  f.requests[5].resolve({
+    ...f.schedule,
+    active: false,
+    state: 'paused',
+    overview_migration: {state: 'migrated', migrated_at: Date.UTC(2026, 9, 12, 9)},
+  });
+  await moving;
+  assert.match(f.root.innerHTML, /Moved to Reporting overview/);
+  assert.match(f.root.innerHTML, /id="workbook-move-undo"/);
+  // Undo asks first; cancelling sends nothing.
+  const cancelled = f.bindings.get('#workbook-move-undo')();
+  await new Promise(r => setImmediate(r));
+  f.confirmations[1](false);
+  await cancelled;
+  assert.equal(f.requests.length, 6);
+  const undoing = f.bindings.get('#workbook-move-undo')();
+  await new Promise(r => setImmediate(r));
+  assert.match(f.confirmationOptions[2].consequence, /its report and snapshots stay/);
+  f.confirmations[2](true);
+  await new Promise(r => setImmediate(r));
+  assert.deepEqual(JSON.parse(JSON.stringify(f.requests[6].args)), {
+    action: 'undo_workbook_move',
+    id: 'original',
+    confirmed: true,
+  });
+  f.requests[6].resolve({});
+  await new Promise(r => setImmediate(r));
+  f.requests[7].resolve({...f.schedule, overview_migration: {state: 'reverted', reverted_at: Date.now()}});
+  await undoing;
+  assert.match(f.root.innerHTML, /An earlier move was undone/);
+});
+
+test('viewers see the move state without move or undo controls', async () => {
+  const f = fixture(),
+    load = f.controller.load();
+  f.requests[0].resolve({
+    ...f.schedule,
+    can_edit: false,
+    overview_migration: {state: 'migrated', migrated_at: Date.now()},
+  });
+  await load;
+  assert.match(f.root.innerHTML, /Moved to Reporting overview/);
+  assert.doesNotMatch(f.root.innerHTML, /workbook-move-undo|workbook-move-check/);
+});

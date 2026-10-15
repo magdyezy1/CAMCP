@@ -1324,6 +1324,9 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `bind_file_destination` | Binds an encrypted local PDF/XLSX file destination. | **`file_destination`**, **`confirmed`**, `idempotency_key` | no provider request; saves report_file_destination | operator |
 | `export_status` | One export’s state, outcome and retry availability. | **`id`** | no provider request | reader |
 | `resolve_delivery` | Resolves an unconfirmed Sheets delivery after its settle window (release the tab, or keep it). | **`delivery_id`**, **`resolution`**, **`confirmed`** | no provider request; saves sheets_delivery | operator |
+| `preview_workbook_move` | Dry run of moving a local workbook schedule into an Overview report and schedule, with usable report tabs and blockers. | **`id`**, `destination_id` | no provider request | reader |
+| `move_workbook_schedule` | Creates the previewed Overview report and schedule and pauses the local workbook schedule; its query is unchanged. | **`id`**, **`destination_id`**, **`move_version`**, **`confirmed`** | no provider request; saves overview_view, overview_schedule, workbook_schedule | operator |
+| `undo_workbook_move` | Pauses the Overview schedule a workbook move created and restores the local workbook schedule. | **`id`**, **`confirmed`** | no provider request; saves overview_schedule, workbook_schedule | operator |
 
 ### amcp_media
 

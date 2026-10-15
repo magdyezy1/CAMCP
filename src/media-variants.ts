@@ -89,8 +89,14 @@ export async function runMediaProcess(binary: string, args: string[], timeout = 
   });
 }
 export type MediaFileType = ReturnType<typeof mediaType>;
-/** How long one video conversion (fit or variant) may run, always within a website upload's deadline (MED-04). */
-export const VIDEO_CONVERSION_TIMEOUT_MS = 120000;
+/**
+ * How long one video conversion (fit or variant) may run, always within a website upload's deadline (MED-04). Measured
+ * with `npm run benchmark:media-variants` (docs/OPERATIONS.md): a 180-second 1080p source took up to 64 seconds per
+ * variant on a lightly loaded workstation with the production settings (two threads), more than half of the earlier
+ * 120-second limit, and up to 167 seconds under heavy load. 180 seconds stays inside the five-minute reservation a
+ * variant or review holds while it is prepared; the costliest conversions were made cheaper rather than the limit longer.
+ */
+export const VIDEO_CONVERSION_TIMEOUT_MS = 180000;
 /** How a picture is seen, and how to decode it that way. */
 export interface SeenGeometry {
   /** A JPEG's EXIF orientation (1 to 8), read from its own header; 1 for anything else. */
@@ -353,11 +359,59 @@ export async function convertMedia(
 }
 /** A still image saved as JPEG: FFmpeg's best quality step (2), the same encoder settings a fit starts with. */
 const jpegEncoding = ['-frames:v', '1', '-c:v', 'mjpeg', '-q:v', '2', '-pix_fmt', 'yuvj420p', '-f', 'image2'];
+const evenFloor = (n: number) => Math.max(2, 2 * Math.floor(n / 2)),
+  /** The nearest even size of the preset's shape, never larger than the picture. */
+  evenWithin = (n: number, limit: number) => Math.min(Math.max(2, 2 * Math.round(n / 2)), evenFloor(limit));
+/**
+ * The preset filter for media seen at `seen`'s size. A crop cuts the centered region of the preset's shape first and
+ * then scales only that region (MED-04): the same picture as scaling the whole frame up to cover the preset and
+ * cropping afterwards, without scaling pixels that are thrown away. For a 1080p source the vertical crop scales a
+ * 608 × 1080 region instead of a 3413 × 1920 frame, the slowest variant measured before (167 s of 180 s on a loaded host).
+ */
+export function variantFilter(seen: Pick<SeenGeometry, 'width' | 'height' | 'filter'>, preset: string, fit: string) {
+  const [width, height] = variantPresets[preset]!,
+    wider = seen.width * height > seen.height * width,
+    cropWidth = wider ? evenWithin((seen.height * width) / height, seen.width) : evenFloor(seen.width),
+    cropHeight = wider ? evenFloor(seen.height) : evenWithin((seen.width * height) / width, seen.height);
+  return [
+    seen.filter,
+    fit === 'crop'
+      ? `crop=${cropWidth}:${cropHeight},scale=${width}:${height},setsar=1`
+      : `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1`,
+  ]
+    .filter(Boolean)
+    .join(',');
+}
+/**
+ * A video already stored at the preset's exact size, upright, as H.264 (yuv420p, square pixels) with AAC or no audio
+ * is copied into the MP4 variant without re-encoding, as fit copies media that already fits (MED-04): re-encoding a
+ * 1080p landscape source to the same 1920 × 1080 took 64–136 s of the 180-second limit and changed nothing visible.
+ */
+export function variantCopiesStreams(
+  type: MediaFileType,
+  metadata: any,
+  video: any,
+  seen: Pick<SeenGeometry, 'rotation'>,
+  preset: string,
+) {
+  const [width, height] = variantPresets[preset]!;
+  return (
+    type.kind === 'video' &&
+    seen.rotation === 0 &&
+    video.width === width &&
+    video.height === height &&
+    video.codec_name === 'h264' &&
+    video.pix_fmt === 'yuv420p' &&
+    [undefined, '1:1', '0:1'].includes(video.sample_aspect_ratio) &&
+    (metadata.streams ?? []).every((s: any) => s.codec_type !== 'audio' || s.codec_name === 'aac')
+  );
+}
 /**
  * A preset-sized copy of the media (MED-04): turned the way it is seen (a JPEG's EXIF orientation applied once, with
  * automatic rotation off, as fit and upload inspection do), then contained with black padding or center-cropped. A JPEG
  * stays JPEG, so a photo variant is not a PNG many times its size; a PNG stays PNG and a video becomes H.264 MP4 within
- * the fit's time limit, bounded by a website upload's deadline.
+ * the fit's time limit, bounded by a website upload's deadline. A crop scales only the region it keeps, and a video
+ * already at the preset's size as H.264 and AAC is copied without re-encoding (see variantFilter, variantCopiesStreams).
  */
 export async function createMediaVariant(bytes: Buffer, preset: string, fit = 'contain') {
   if (!Object.hasOwn(variantPresets, preset) || !['contain', 'crop'].includes(fit))
@@ -369,21 +423,22 @@ export async function createMediaVariant(bytes: Buffer, preset: string, fit = 'c
     async (input, directory, type) => {
       const jpeg = type.mime === 'image/jpeg',
         output = path.join(directory, type.kind === 'image' ? (jpeg ? 'output.jpg' : 'output.png') : 'output.mp4');
-      const {video, duration} = convertibleStream(await ffprobeJson(input, type), type),
+      const metadata = await ffprobeJson(input, type),
+        {video, duration} = convertibleStream(metadata, type),
         seen = seenGeometry(bytes, type, video);
       assertRightAngle(seen);
-      const filter = [
-        seen.filter,
-        fit === 'crop'
-          ? `scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},setsar=1`
-          : `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1`,
-      ]
-        .filter(Boolean)
-        .join(',');
+      const copy = variantCopiesStreams(type, metadata, video, seen, preset);
       await convertMedia(input, type, output, {
-        filter,
+        ...(copy ? {} : {filter: variantFilter(seen, preset, fit)}),
         inputOptions: seen.inputOptions,
-        encoding: type.kind === 'image' ? (jpeg ? jpegEncoding : ['-frames:v', '1', '-c:v', 'png']) : videoEncoding,
+        encoding:
+          type.kind === 'image'
+            ? jpeg
+              ? jpegEncoding
+              : ['-frames:v', '1', '-c:v', 'png']
+            : copy
+              ? ['-c', 'copy', '-movflags', '+faststart', '-f', 'mp4']
+              : videoEncoding,
         ...(type.kind === 'video' ? {timeout: VIDEO_CONVERSION_TIMEOUT_MS} : {}),
       });
       const stat = await fs.stat(output);

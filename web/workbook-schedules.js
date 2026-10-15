@@ -1,4 +1,39 @@
 'use strict';
+/** Why a workbook schedule cannot move to Reporting overview yet (EXP-04 D phase 2), worded by its server code. */
+function workbookMoveReason(b) {
+  const text =
+    {
+      native_request: uiText(
+        'This saved query is a native provider request. Reporting overview collects campaign reports; recreate it there.',
+      ),
+      unsupported_fields: uiText('Reporting overview has no equivalent for these query settings.'),
+      entity_level: uiText(
+        'Only campaign-level queries move automatically. Recreate ad set or ad detail in Reporting overview with its detail options.',
+      ),
+      granularity: uiText('Reporting overview groups by total, day, week or month; this query uses another grouping.'),
+      fixed_dates: uiText(
+        'Scheduled Overview reports need a rolling window. This query uses fixed dates, so every run repeats the same days.',
+      ),
+      metrics: uiText('Use at most 30 native metric names, without query expressions.'),
+      report_settings: uiText('Reporting overview refused the converted report settings.'),
+      destination_required: uiText(
+        'Choose a Google Sheets report tab bound to this workbook’s spreadsheet. Bind one in Reporting overview first.',
+      ),
+      destination_in_use: uiText('This report tab has another active schedule. Choose a separate report tab.'),
+      already_migrated: uiText('This schedule already moved to Reporting overview.'),
+    }[b.code] ?? b.code;
+  // Native field names and error codes stay literal.
+  const detail = b.fields?.length ? b.fields.join(', ') : (b.error_code ?? '');
+  return `<li>${esc(text)}${detail ? ` <code dir="ltr" data-native>${esc(detail)}</code>` : ''}</li>`;
+}
+/** The move to Reporting overview: its state, or the explicit check that starts it. */
+function workbookMoveSection(s) {
+  const m = s.overview_migration,
+    when = at => new Intl.DateTimeFormat(uiLocale, {dateStyle: 'medium', timeStyle: 'short'}).format(at);
+  if (m?.state === 'migrated')
+    return `<section class="workspace-details" aria-labelledby="workbook-move-heading"><h3 id="workbook-move-heading">${esc(uiText('Moved to Reporting overview'))}</h3><p>${esc(uiText('Moved on {date}. This schedule stays paused here while the Reporting overview schedule delivers to its Google Sheets report tab.', {date: when(m.migrated_at)}))}</p><div class="dialog-actions work-actions"><a class="button" href="/reporting-overview">${esc(uiText('Open Reporting overview'))}</a>${s.can_edit ? `<button class="button" type="button" id="workbook-move-undo">${esc(uiText('Undo the move'))}</button>` : ''}</div><p data-move-status role="status"></p></section>`;
+  return `<section class="workspace-details" aria-labelledby="workbook-move-heading"><h3 id="workbook-move-heading">${esc(uiText('Move to Reporting overview'))}</h3><p>${esc(uiText('Moving creates one Reporting overview report and schedule with this clock, delivering to a Google Sheets report tab of this workbook’s spreadsheet, and pauses this schedule. The saved query stays unchanged, and the move can be undone.'))}</p>${m?.state === 'reverted' ? `<p class="form-note">${esc(uiText('An earlier move was undone on {date}; its Reporting overview schedule stays paused there.', {date: when(m.reverted_at)}))}</p>` : ''}${s.can_edit ? `<button class="button" type="button" id="workbook-move-check">${esc(uiText('Check whether it can move'))}</button>` : ''}<div data-move-result></div><p data-move-status role="status"></p></section>`;
+}
 function workbookScheduleController(root, id, onChange = () => {}) {
   const generation = navigationGeneration,
     identity = identityGeneration;
@@ -21,7 +56,7 @@ function workbookScheduleController(root, id, onChange = () => {}) {
           .join('');
       const localTime = at =>
         new Intl.DateTimeFormat(uiLocale, {timeZone: s.timezone, dateStyle: 'medium', timeStyle: 'short'}).format(at);
-      root.innerHTML = `<div class="operation-heading"><div><small>${esc(uiText('Local report schedule · Results stay in AMCP'))}</small><h2 id="workbook-schedule-heading" tabindex="-1">${esc(s.name)}</h2></div>${badge(s.state)}</div><p><strong>${esc(uiText('Account'))} ${esc(s.account_id)}</strong> ${esc(uiText('· Query revision'))} ${esc(s.query_revision)}</p>${s.error_code ? `<p class="error">${esc(s.error_code)}</p>` : ''}<p>${esc(s.meaning)}</p><p class="notice">${esc(uiText('This schedule keeps its results in AMCP and never writes to the saved spreadsheet. To deliver a report to Google Sheets on a schedule, use Reporting overview.'))} <a href="/reporting-overview">${esc(uiText('Schedule a Google Sheets delivery'))}</a></p><details class="workspace-details"><summary>${esc(uiText('Current saved clock ·'))} ${esc(s.timezone)}</summary>${s.preview_error ? `<p class="error">${esc(s.preview_error)}${esc(uiText('. Correct the clock settings below.'))}</p>` : `<ol>${s.occurrences.map((at, i) => `<li>${esc(localTime(at))}${s.dst_shifted?.[i] ? ' · ' + esc(uiText('Moved forward by the daylight-saving change')) : ''}</li>`).join('')}</ol>`}<p>${esc(uiText('Preview of future clock times, including while paused. Already queued runs keep their state.'))}</p></details><form id="workbook-schedule-form" class="workspace-form"><fieldset ${s.can_edit ? '' : 'disabled'}><legend>${esc(uiText('Future reporting runs'))}</legend><div class="work-filter"><label>${esc(uiText('Schedule name'))}<input name="name" maxlength="100" required value="${esc(s.name)}"></label><label>${esc(uiText('Clock timezone'))}<input name="timezone" maxlength="80" required value="${esc(s.timezone)}" placeholder="Africa/Cairo"></label><label>${esc(uiText('Frequency'))}<select name="schedule_kind">${options(
+      root.innerHTML = `<div class="operation-heading"><div><small>${esc(uiText('Local report schedule · Results stay in AMCP'))}</small><h2 id="workbook-schedule-heading" tabindex="-1">${esc(s.name)}</h2></div>${badge(s.state)}</div><p><strong>${esc(uiText('Account'))} ${esc(s.account_id)}</strong> ${esc(uiText('· Query revision'))} ${esc(s.query_revision)}</p>${s.error_code ? `<p class="error">${esc(s.error_code)}</p>` : ''}<p>${esc(s.meaning)}</p><p class="notice">${esc(uiText('This schedule keeps its results in AMCP and never writes to the saved spreadsheet. To deliver a report to Google Sheets on a schedule, use Reporting overview.'))} <a href="/reporting-overview">${esc(uiText('Schedule a Google Sheets delivery'))}</a></p>${workbookMoveSection(s)}<details class="workspace-details"><summary>${esc(uiText('Current saved clock ·'))} ${esc(s.timezone)}</summary>${s.preview_error ? `<p class="error">${esc(s.preview_error)}${esc(uiText('. Correct the clock settings below.'))}</p>` : `<ol>${s.occurrences.map((at, i) => `<li>${esc(localTime(at))}${s.dst_shifted?.[i] ? ' · ' + esc(uiText('Moved forward by the daylight-saving change')) : ''}</li>`).join('')}</ol>`}<p>${esc(uiText('Preview of future clock times, including while paused. Already queued runs keep their state.'))}</p></details><form id="workbook-schedule-form" class="workspace-form"><fieldset ${s.can_edit ? '' : 'disabled'}><legend>${esc(uiText('Future reporting runs'))}</legend><div class="work-filter"><label>${esc(uiText('Schedule name'))}<input name="name" maxlength="100" required value="${esc(s.name)}"></label><label>${esc(uiText('Clock timezone'))}<input name="timezone" maxlength="80" required value="${esc(s.timezone)}" placeholder="Africa/Cairo"></label><label>${esc(uiText('Frequency'))}<select name="schedule_kind">${options(
         [
           ['hourly', uiText('Hourly')],
           ['daily', uiText('Daily')],
@@ -158,6 +193,110 @@ function workbookScheduleController(root, id, onChange = () => {}) {
           if (active())
             root.querySelector('[data-schedule-status]').textContent =
               errorMessage(e) + ' ' + uiText('Refresh the schedule before trying again.');
+        } finally {
+          saving = false;
+        }
+      });
+      // EXP-04 D phase 2: an explicit, reviewed move to Reporting overview, and its undo.
+      const moveStatus = () => root.querySelector('[data-move-status]');
+      workspaceBind('#workbook-move-check', async () => {
+        if (!active() || saving || !s.can_edit) return;
+        saving = true;
+        try {
+          moveStatus().textContent = uiText('Checking whether this schedule can move…');
+          const preview = await workspaceCall('overview', {action: 'preview_workbook_move', id: s.id});
+          if (!active()) return;
+          moveStatus().textContent = '';
+          const result = root.querySelector('[data-move-result]'),
+            blockers = preview.blockers.filter(b => b.code !== 'destination_required');
+          if (blockers.length) {
+            result.innerHTML = `<p>${esc(uiText('This schedule cannot move yet:'))}</p><ul>${blockers.map(workbookMoveReason).join('')}</ul>`;
+            return;
+          }
+          if (!preview.destinations.length) {
+            result.innerHTML = `<p>${esc(uiText('Bind a Google Sheets report tab of this workbook’s spreadsheet in Reporting overview first.'))} <a href="/reporting-overview">${esc(uiText('Open Reporting overview'))}</a></p>`;
+            return;
+          }
+          result.innerHTML = `<form id="workbook-move-form" class="workspace-form"><label>${esc(uiText('Google Sheets report tab'))}<select name="destination_id">${preview.destinations.map(d => `<option value="${esc(d.id)}" ${d.in_use ? 'disabled' : ''}>${esc(d.tab_name ?? d.id)}${d.in_use ? ' · ' + esc(uiText('has another active schedule')) : ''}</option>`).join('')}</select></label><div class="dialog-actions work-actions"><button class="button primary" type="submit">${esc(uiText('Review the move'))}</button></div></form>`;
+          workspaceBind('#workbook-move-form', async form => {
+            if (!active() || saving) return;
+            saving = true;
+            try {
+              const reviewed = await workspaceCall('overview', {
+                action: 'preview_workbook_move',
+                id: s.id,
+                destination_id: form.elements.destination_id.value,
+              });
+              if (!active()) return;
+              if (!reviewed.migratable) {
+                result.innerHTML = `<p>${esc(uiText('This schedule cannot move yet:'))}</p><ul>${reviewed.blockers.map(workbookMoveReason).join('')}</ul>`;
+                return;
+              }
+              const tab = preview.destinations.find(d => d.id === reviewed.destination_id),
+                grain = {total: 'Total', daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly'}[
+                  reviewed.overview_report.grain
+                ];
+              const confirmed = await confirmAction({
+                title: uiText('Move this schedule to Reporting overview?'),
+                consequence: uiText(
+                  '{name} · Account {account} · Query revision {revision}. Creates a Reporting overview report ({grain} rows) and a schedule with the same clock ({timezone}), delivering to the report tab {tab}, and pauses this local schedule. {effect} The saved query is unchanged, and Undo the move restores this schedule.',
+                  {
+                    name: reviewed.overview_report.name,
+                    account: s.account_id,
+                    revision: reviewed.query_revision,
+                    grain: uiText(grain ?? reviewed.overview_report.grain),
+                    timezone: reviewed.overview_schedule.timezone,
+                    tab: tab?.tab_name ?? reviewed.destination_id,
+                    effect: reviewed.active
+                      ? uiText('Its next delivery uses your current access.')
+                      : uiText('The new schedule starts paused, as this one is.'),
+                  },
+                ),
+                confirmLabel: uiText('Move to Reporting overview'),
+              });
+              if (!confirmed || !active()) return;
+              await workspaceCall('overview', {
+                action: 'move_workbook_schedule',
+                id: s.id,
+                destination_id: reviewed.destination_id,
+                move_version: reviewed.move_version,
+                confirmed: true,
+              });
+              if (!active()) return;
+              await load();
+              if (present()) await onChange();
+            } catch (e) {
+              if (active())
+                moveStatus().textContent = errorMessage(e) + ' ' + uiText('Refresh the schedule before trying again.');
+            } finally {
+              saving = false;
+            }
+          });
+        } catch (e) {
+          if (active()) moveStatus().textContent = errorMessage(e);
+        } finally {
+          saving = false;
+        }
+      });
+      workspaceBind('#workbook-move-undo', async () => {
+        if (!active() || saving || !s.can_edit) return;
+        saving = true;
+        try {
+          const confirmed = await confirmAction({
+            title: uiText('Undo the move to Reporting overview?'),
+            consequence: uiText(
+              'Pauses the Reporting overview schedule (its report and snapshots stay) and restores this schedule as it was before the move. If its saved query changed since the move, this schedule stays paused for review.',
+            ),
+            confirmLabel: uiText('Undo the move'),
+          });
+          if (!confirmed || !active()) return;
+          await workspaceCall('overview', {action: 'undo_workbook_move', id: s.id, confirmed: true});
+          if (!active()) return;
+          await load();
+          if (present()) await onChange();
+        } catch (e) {
+          if (active())
+            moveStatus().textContent = errorMessage(e) + ' ' + uiText('Refresh the schedule before trying again.');
         } finally {
           saving = false;
         }

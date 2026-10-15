@@ -1,5 +1,6 @@
 // CON-05, website side: the provider callback refusal page, write-grant confirmation on selection saves, login rename,
-// the default-login prompt and Save and check access. Runs web/app.js in a small fake DOM, in English and Arabic.
+// the default-login prompt, Save and check access and the optional revocation at Google on disconnect. Runs web/app.js
+// in a small fake DOM, in English and Arabic.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -26,7 +27,10 @@ function fixture(locale, {authenticated = true} = {}) {
           return null;
         },
         setAttribute() {},
-        addEventListener() {},
+        listeners: {},
+        addEventListener(event, fn) {
+          this.listeners[event] = fn;
+        },
         querySelector: node,
         querySelectorAll: () => [],
         append() {},
@@ -281,4 +285,123 @@ test('Save and check access saves, then checks only the newly selected accounts 
   const p = platform();
   p.accountRead = false;
   assert.doesNotMatch(manage(fixture('en'), p), /data-save-assets="check"/);
+});
+
+// CON-05 sub-item 10 (owner decision D19 (4)): revocation at Google is a separate choice in the disconnect dialog,
+// offered only where the deployment owner turned it on, never pre-checked, and sent only when checked.
+test('the disconnect dialog offers revocation at Google only where it is on, unchecked, and sends it only when checked', async () => {
+  const google = available => ({
+    ...platform(),
+    id: 'google',
+    name: 'Google Ads',
+    gateway: 'google_ads_native_action',
+    provider_revocation: {
+      available,
+      reason: available ? null : 'deployment_off',
+      provider: 'google',
+      shared_client: true,
+    },
+    connections: [{...platform().connections[0], id: 'login-g1', name: 'Google Ads · Person'}],
+  });
+  const meta = {...platform(), provider_revocation: {available: false, reason: 'provider_not_supported'}};
+  // The shipped dialog: the choice is hidden until offered, never checked, and its warning is read with it.
+  const shipped = readFileSync('web/index.html', 'utf8').match(/<div id="confirm-revoke" hidden>.*?<\/div>/)?.[0] ?? '';
+  assert.match(
+    shipped,
+    /<input type="checkbox" id="confirm-revoke-provider" aria-describedby="confirm-revoke-warning">/,
+  );
+  assert.doesNotMatch(shipped, /checked/);
+  assert.match(shipped, /id="confirm-revoke-warning" class="notice warning"/);
+  for (const locale of ['en', 'ar']) {
+    const f = fixture(locale),
+      text = message => (locale === 'ar' ? catalog[message] : message),
+      form = f.node('#confirm-form'),
+      submit = () => form.listeners.submit({preventDefault() {}, currentTarget: form});
+    let answer = {success: true};
+    f.context.api = async (url, args) => {
+      f.calls.push({url, method: args.method, body: args.body ? JSON.parse(args.body) : undefined});
+      if (answer instanceof Error) throw answer;
+      return answer;
+    };
+    f.context.list = [google(true), meta];
+    f.run('platforms=list');
+    // Offered and unchecked, even after an earlier opening left it checked: a plain disconnect stays local.
+    f.node('#confirm-revoke-provider').checked = true;
+    await f.click({disconnect: 'login-g1'});
+    assert.equal(f.node('#confirm-dialog').open, true);
+    assert.equal(f.node('#confirm-revoke').hidden, false);
+    assert.equal(f.node('#confirm-revoke-provider').checked, false);
+    await submit();
+    assert.deepEqual(f.calls.at(-1), {url: '/api/connections/login-g1', method: 'DELETE', body: undefined});
+    assert.equal(f.node('#toast').textContent, text('Login disconnected from AMCP.'));
+    // Checked: the request asks for it, and the message says what Google answered.
+    for (const [outcome, message] of [
+      ['revoked', 'Login disconnected from AMCP and its access revoked at Google.'],
+      [
+        'token_already_invalid',
+        'Login disconnected. Google reported that its token no longer worked, so AMCP’s access through it had already ended.',
+      ],
+    ]) {
+      answer = {success: true, provider_revocation: {provider: 'google', outcome}};
+      await f.click({disconnect: 'login-g1'});
+      f.node('#confirm-revoke-provider').checked = true;
+      await submit();
+      assert.deepEqual(f.calls.at(-1), {
+        url: '/api/connections/login-g1',
+        method: 'DELETE',
+        body: {revoke_at_provider: true},
+      });
+      assert.equal(f.node('#toast').textContent, text(message));
+      assert.equal(f.node('#confirm-dialog').open, false);
+    }
+    // A refusal keeps the dialog open with the reason inside it (a toast would sit behind the modal dialog, outside
+    // what assistive technology reads), so the administrator can retry or disconnect locally.
+    const refusal =
+      'The provider did not confirm the revocation, so AMCP kept this login. Try again, or disconnect it without provider revocation and remove AMCP in the provider’s own settings.';
+    answer = Object.assign(Error(refusal), {code: 'PROVIDER_REVOCATION_FAILED', requestId: 'synthetic-reference'});
+    f.node('#toast').textContent = '';
+    await f.click({disconnect: 'login-g1'});
+    f.node('#confirm-revoke-provider').checked = true;
+    await submit();
+    assert.equal(f.node('#confirm-dialog').open, true);
+    assert.equal(
+      f.node('#confirm-error').textContent,
+      text(refusal) +
+        ' ' +
+        (locale === 'ar' ? catalog['Reference: {id}'] : 'Reference: {id}').replace('{id}', 'synthetic-reference'),
+    );
+    assert.equal(f.node('#toast').textContent, '', 'not behind the dialog');
+    assert.equal(f.node('#confirm-submit').disabled, false, 'the administrator can retry');
+    // Opening the dialog again starts without the earlier reason.
+    await f.click({disconnect: 'login-g1'});
+    assert.equal(f.node('#confirm-error').textContent, '');
+    // One request at a time: a second Disconnect while Google answers sends nothing more.
+    let settle;
+    answer = new Promise(resolve => (settle = resolve));
+    f.node('#confirm-revoke-provider').checked = true;
+    const sent = f.calls.length,
+      first = submit();
+    assert.equal(f.node('#confirm-submit').disabled, true);
+    await submit();
+    assert.equal(f.calls.length, sent + 1);
+    settle({success: true, provider_revocation: {provider: 'google', outcome: 'revoked'}});
+    await first;
+    assert.equal(f.node('#confirm-submit').disabled, false);
+    assert.equal(f.node('#confirm-dialog').open, false);
+    assert.equal(f.node('#toast').textContent, text('Login disconnected from AMCP and its access revoked at Google.'));
+    // Not offered where the owner left it off, or for a provider without a documented endpoint; nothing is sent.
+    answer = {success: true};
+    for (const [platforms, id] of [
+      [[google(false)], 'login-g1'],
+      [[meta], 'login-001'],
+    ]) {
+      f.context.list = platforms;
+      f.run('platforms=list');
+      await f.click({disconnect: id});
+      assert.equal(f.node('#confirm-revoke').hidden, true, id);
+      f.node('#confirm-revoke-provider').checked = true;
+      await submit();
+      assert.deepEqual(f.calls.at(-1), {url: '/api/connections/' + id, method: 'DELETE', body: undefined});
+    }
+  }
 });
