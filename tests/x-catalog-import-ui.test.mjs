@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {catalogIngestion} from '../dist/src/catalog-ingestion.js';
+import {mappedCatalogRows, parseCatalogCsv} from '../dist/src/catalog-sources.js';
+import {catalogDestinations} from '../dist/src/catalog-destinations.js';
 import {accountWorkflowFixture} from './fixtures/account-workflows-ui.mjs';
 import {xImportProduct, xImportInput} from './fixtures/x-catalog-import-data.mjs';
 const plain = value => JSON.parse(JSON.stringify(value));
@@ -70,12 +72,20 @@ test('X source mapping requires explicit native fields and keeps unused supplier
     table,
     {gateway: 'x_ads_native_action', columns, fixed_currency: 'SAR', image_mode: 'single'},
   ];
-  const products = plain(f.run('mapProductCSV(...mappingArgs)'));
+  // COM-03: the browser sends only the selected columns and AMCP projects them with the catalog's saved mapping
+  // profile (this called the browser-only mapProductCSV before the projection moved to the server).
+  const selected = plain(f.run('selectedCatalogSource(...mappingArgs)'));
+  assert.doesNotMatch(selected.text, /UNUSED-PRIVATE-X|Private notes/);
+  const products = mappedCatalogRows(parseCatalogCsv(selected.text), catalogDestinations.x_ads_native_action, {
+    columns: selected.columns,
+    fixed_currency: 'SAR',
+    image_mode: 'single',
+  });
   assert.deepEqual(products, [f.product]);
   assert.doesNotMatch(JSON.stringify(products), /UNUSED-PRIVATE-X/);
   for (const field of ['description', 'url', 'availability', 'condition', 'brand']) {
     f.context.mappingArgs[1].columns = {...columns, [field]: ''};
-    assert.throws(() => f.run('mapProductCSV(...mappingArgs)'), /source column/);
+    assert.throws(() => f.run('selectedCatalogSource(...mappingArgs)'), /source column/);
   }
 });
 
