@@ -23,7 +23,7 @@ export const providerContracts: JsonObject[] = [
     metaApiVersion,
     'meta',
     'meta',
-    'campaigns, ad sets, creatives, ads; paused native copies of campaigns and ad sets (with at most three children) and ads into owned targets, with copied campaign and ad set budgets checked as new budgets (override and asynchronous copies stay unqualified); lookalike audiences from an owned, unflagged seed audience (customer-file, website, engagement and conversion lookalikes stay unqualified); creative creation rechecks advertiser/Page/Instagram identity and existing native content ownership at prepare and execute; complete account-label creation, renaming, deletion and existing-label attachment to ads, campaigns and creatives; bounded asynchronous account/campaign/ad-set Insights jobs with scoped polling and result retrieval; value rule sets (create, complete update, delete) checked against the account list; Advantage+ account controls and empty publisher block list creation; renaming and deleting ad creatives and custom audiences of the account with object reads and read-back; deleting unused library images and creating custom conversions on account pixels with list reads and read-back; removing library videos no creative of the account uses, with complete video and creative list reads and read-back; creating an account pixel and renaming pixels of its own business with pixel list reads and read-back (matching and data use settings stay unqualified); ad account name, EU payor and beneficiary defaults and notifications with account read-back (spending caps stay unqualified); split tests of ad sets or campaigns of the selected account on its business, and study name, description and end changes, with account, object, study and cell reads, spending confirmation and read-back (lift studies and creative tests stay unqualified); scheduled budget increases (high demand periods) of daily-budget campaigns and ad sets on accounts with a spending policy, with the full increase held against its caps, account time zone and maximum extra spend in the review, spending confirmation and read-back of the schedule list (Meta documents no API update or deletion of a period); creatives that opt out of the v26.0 WEBSITE_AND_SHOP destination only when asked, verified on read-back or against the write response; product sets of catalogs of the account business (create, change, delete) with the documented filter grammar, a check with Meta that the filter selects at least one product, the account ad sets and creatives that use a set (a set in use is not deleted, and one live ad sets use is not emptied) and read-back (shop publishing and collection metadata stay unqualified); catalog products one at a time with the documented fields, an existing retailer_id replaced only with an explicit allow_upsert and shown before and after, and the price read back through the numeric price filter (shops, checkout, app links, variants and item batches stay unqualified); scheduled product feeds (create, change, delete) of catalogs of the account business with an explicit deletion choice, HTTPS schedules without credentials, the documented effect of deleting a feed on its ads, and read-back (supplementary and localized feeds, feed rules, file uploads and moving items stay unqualified); commerce catalogs of the account business (create, change name, display settings and images, delete with the live product set block of Meta kept) with account, catalog, set and feed reads and read-back (partner integrations, segments and other verticals stay unqualified); automated rules (create, full or status-only update and delete through the documented rule routes AMCP maps) with the rule and named-object reads: rules that raise budgets, bids or delivery name their objects of the account, carry a limit, need a spending policy whose caps bound the worst case of each object, and spending confirmation, with read-back (webhook pings stay unqualified); customer lists under the approved personal-data policy: empty CUSTOM lists created, and people added and removed up to 10,000 per request, hashed in memory with only counts and a digest kept, on accounts the owner turned on, uploads executed by the owner, with the terms and list read first and verification by Meta counts (value-based lists and whole-list replacement stay unqualified); offline conversions through the Conversions API under the same policy: up to 1,000 standard events per request from email, phone, chat, store, system or messaging sources, the people hashed in memory and the events shown in aggregate, to a pixel of the account read first, within 7 days (62 for store events), stated as not recallable, executed by the owner and verified by the count Meta received (website and app events stay unqualified)',
+    'campaigns, ad sets, creatives, ads; paused native copies of campaigns and ad sets (with at most three children) and ads into owned targets, with copied campaign and ad set budgets checked as new budgets (override and asynchronous copies stay unqualified); lookalike audiences from an owned, unflagged seed audience (customer-file, website, engagement and conversion lookalikes stay unqualified); creative creation rechecks advertiser/Page/Instagram identity and existing native content ownership at prepare and execute; complete account-label creation, renaming, deletion and existing-label attachment to ads, campaigns and creatives; bounded asynchronous account/campaign/ad-set Insights jobs with scoped polling and result retrieval; value rule sets (create, complete update, delete) checked against the account list; Advantage+ account controls and empty publisher block list creation; renaming and deleting ad creatives and custom audiences of the account with object reads and read-back; deleting unused library images and creating custom conversions on account pixels with list reads and read-back; removing library videos no creative of the account uses, with complete video and creative list reads and read-back; creating an account pixel and renaming pixels of its own business with pixel list reads and read-back (matching and data use settings stay unqualified); ad account name, EU payor and beneficiary defaults and notifications with account read-back (spending caps stay unqualified); split tests of ad sets or campaigns of the selected account on its business, and study name, description and end changes, with account, object, study and cell reads, spending confirmation and read-back (lift studies and creative tests stay unqualified); scheduled budget increases (high demand periods) of daily-budget campaigns and ad sets on accounts with a spending policy, with the full increase held against its caps, account time zone and maximum extra spend in the review, spending confirmation and read-back of the schedule list (Meta documents no API update or deletion of a period); creatives that opt out of the v26.0 WEBSITE_AND_SHOP destination only when asked, verified on read-back or against the write response; creatives that choose Advantage+ creative features one by one (an explicit OPT_IN or OPT_OUT for each listed single feature of Meta’s SDK 26.0.2 in degrees_of_freedom_spec.creative_features_spec, at v26.0 only, never chosen by AMCP), with the choices in the review and compared on read-back (bundles, feature customizations and catalog features stay unqualified); product sets of catalogs of the account business (create, change, delete) with the documented filter grammar, a check with Meta that the filter selects at least one product, the account ad sets and creatives that use a set (a set in use is not deleted, and one live ad sets use is not emptied) and read-back (shop publishing and collection metadata stay unqualified); catalog products one at a time with the documented fields, an existing retailer_id replaced only with an explicit allow_upsert and shown before and after, and the price read back through the numeric price filter (shops, checkout, app links, variants and item batches stay unqualified); scheduled product feeds (create, change, delete) of catalogs of the account business with an explicit deletion choice, HTTPS schedules without credentials, the documented effect of deleting a feed on its ads, and read-back (supplementary and localized feeds, feed rules, file uploads and moving items stay unqualified); commerce catalogs of the account business (create, change name, display settings and images, delete with the live product set block of Meta kept) with account, catalog, set and feed reads and read-back (partner integrations, segments and other verticals stay unqualified); automated rules (create, full or status-only update and delete through the documented rule routes AMCP maps) with the rule and named-object reads: rules that raise budgets, bids or delivery name their objects of the account, carry a limit, need a spending policy whose caps bound the worst case of each object, and spending confirmation, with read-back (webhook pings stay unqualified); customer lists under the approved personal-data policy: empty CUSTOM lists created, and people added and removed up to 10,000 per request, hashed in memory with only counts and a digest kept, on accounts the owner turned on, uploads executed by the owner, with the terms and list read first and verification by Meta counts (value-based lists and whole-list replacement stay unqualified); offline conversions through the Conversions API under the same policy: up to 1,000 standard events per request from email, phone, chat, store, system or messaging sources, the people hashed in memory and the events shown in aggregate, to a pixel of the account read first, within 7 days (62 for store events), stated as not recallable, executed by the owner and verified by the count Meta received (website and app events stay unqualified)',
     'meta-provision',
     'https://developers.facebook.com/docs/marketing-apis/',
   ],
@@ -208,7 +208,7 @@ export const providerContracts: JsonObject[] = [
         reddit: 4,
         criteo: 12,
         dv360: 19,
-        meta: 17,
+        meta: 18,
         microsoft: 3,
         snapchat: 18,
         linkedin: 18,
@@ -223,27 +223,30 @@ export const providerContracts: JsonObject[] = [
     )[String(id)] ?? 1,
   api_version: version,
   owner_role: 'AMCP integration maintainer',
-  // PRV-06 (2026-10-15): the Reddit pixel check, Snapchat ad squad targeting, TikTok ad comment status and Meta
-  // Advantage+ creative feature choices.
-  reviewed_at: ['reddit', 'snapchat', 'tiktok', 'meta'].includes(String(id))
-    ? '2026-10-15'
-    : ['criteo', 'dv360', 'snapchat', 'linkedin', 'google', 'x', 'tiktok'].includes(String(id))
-      ? '2026-09-27'
-      : ['snapchat', 'tiktok', 'meta', 'google', 'linkedin', 'dv360'].includes(String(id))
-        ? '2026-09-26'
-        : ['adjust', 'google_business', 'x', 'google', 'linkedin'].includes(String(id))
-          ? '2026-09-25'
-          : ['meta', 'google', 'criteo'].includes(String(id))
-            ? '2026-09-24'
-            : ['google', 'ga4', 'gsc', 'google_business'].includes(String(id))
-              ? '2026-09-20'
-              : ['apple', 'gtm', 'reddit', 'criteo', 'linkedin', 'x'].includes(String(id))
-                ? '2026-09-19'
-                : ['microsoft', 'snapchat', 'linkedin'].includes(String(id))
-                  ? '2026-09-18'
-                  : ['x', 'tiktok'].includes(String(id))
-                    ? '2026-09-14'
-                    : '2026-09-12',
+  // PRV-06: the Reddit pixel check, Snapchat ad squad targeting and TikTok ad comment status (2026-10-15), and Meta
+  // Advantage+ creative feature choices (2026-10-16).
+  reviewed_at:
+    String(id) === 'meta'
+      ? '2026-10-16'
+      : ['reddit', 'snapchat', 'tiktok'].includes(String(id))
+        ? '2026-10-15'
+        : ['criteo', 'dv360', 'snapchat', 'linkedin', 'google', 'x', 'tiktok'].includes(String(id))
+          ? '2026-09-27'
+          : ['snapchat', 'tiktok', 'meta', 'google', 'linkedin', 'dv360'].includes(String(id))
+            ? '2026-09-26'
+            : ['adjust', 'google_business', 'x', 'google', 'linkedin'].includes(String(id))
+              ? '2026-09-25'
+              : ['meta', 'google', 'criteo'].includes(String(id))
+                ? '2026-09-24'
+                : ['google', 'ga4', 'gsc', 'google_business'].includes(String(id))
+                  ? '2026-09-20'
+                  : ['apple', 'gtm', 'reddit', 'criteo', 'linkedin', 'x'].includes(String(id))
+                    ? '2026-09-19'
+                    : ['microsoft', 'snapchat', 'linkedin'].includes(String(id))
+                      ? '2026-09-18'
+                      : ['x', 'tiktok'].includes(String(id))
+                        ? '2026-09-14'
+                        : '2026-09-12',
   documentation: docs,
   guide: guide ? 'amcp://guides/' + guide : null,
   // Business Profile connects on the website since CON-06 (once the owner declares the project's API approval).

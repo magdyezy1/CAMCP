@@ -71,7 +71,7 @@ export function validateMetaCreativeFeatures(value: unknown, path?: string): voi
   if (!isObject(value) || Object.keys(value).join() !== 'creative_features_spec')
     throw new MirrorError(
       'WRITE_CONTRACT_UNAVAILABLE',
-      'A reviewed creative may set degrees_of_freedom_spec only to {creative_features_spec: {<feature>: {enroll_status: OPT_IN or OPT_OUT}}}.',
+      'A reviewed creative may set degrees_of_freedom_spec only to creative_features_spec, with an enroll_status of OPT_IN or OPT_OUT for each listed feature.',
       {
         field: 'degrees_of_freedom_spec',
         ...(isObject(value)

@@ -145,10 +145,11 @@ test('spread forwarding helpers cannot qualify their static callers through unkn
 });
 
 test('all actual qualified wrapper reasons have Arabic while native fields, limits and examples remain exact', () => {
-  assert.equal(files.length, 525);
+  // PRV-06 C adds src/meta-creative-features.ts (no wrapper reasons) and seven catalog messages.
+  assert.equal(files.length, 526);
   assert.equal(selected.filter(row => row.messages.size).length, 177);
   assert.equal(owned.size, 2789);
-  assert.equal(Object.keys(catalog).length, 10377);
+  assert.equal(Object.keys(catalog).length, 10384);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

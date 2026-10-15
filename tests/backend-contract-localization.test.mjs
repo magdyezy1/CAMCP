@@ -118,10 +118,11 @@ test('source discovery automatically includes future nested TypeScript files and
 });
 
 test('all actual directly owned backend reasons have Arabic with original native fields and numeric limits preserved', () => {
-  assert.equal(files.length, 525);
-  assert.equal(selected.filter(row => row.messages.size).length, 214);
-  assert.equal(owned.size, 1482);
-  assert.equal(Object.keys(catalog).length, 10377);
+  // PRV-06 C: src/meta-creative-features.ts and its five reasons; the catalog also holds its two remedies.
+  assert.equal(files.length, 526);
+  assert.equal(selected.filter(row => row.messages.size).length, 215);
+  assert.equal(owned.size, 1487);
+  assert.equal(Object.keys(catalog).length, 10384);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

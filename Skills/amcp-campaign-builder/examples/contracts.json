@@ -1061,6 +1061,26 @@
       }
     },
     {
+      "gateway": "meta_native_action",
+      "arguments": {
+        "action": "meta_creative_create",
+        "account_id": "123",
+        "payload": {
+          "name": "Synthetic creative with the user's Advantage+ choices",
+          "object_story_spec": {
+            "page_id": "500",
+            "link_data": {"link": "https://shop.example/", "message": "New season"}
+          },
+          "degrees_of_freedom_spec": {
+            "creative_features_spec": {
+              "image_touchups": {"enroll_status": "OPT_OUT"},
+              "text_optimizations": {"enroll_status": "OPT_IN"}
+            }
+          }
+        }
+      }
+    },
+    {
       "gateway": "google_ads_native_action",
       "arguments": {
         "action": "google_ads_v23_campaign_mutate_campaigns",
