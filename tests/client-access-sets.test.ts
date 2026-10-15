@@ -563,6 +563,104 @@ test('a login read through a client access set is never saved back (it would dro
   }
 });
 
+test('a missing write grant under a client access set names only the set’s logins (regression: every login of the account)', async () => {
+  const f = await fixture();
+  try {
+    // A second Meta login outside the set may change client A's account; the set's own login may not.
+    f.store.putConnection(
+      admin,
+      {
+        id: 'meta-login-other',
+        tenantId: tenant,
+        gateway: 'meta_native_action',
+        accounts: [A],
+        writeAccounts: [A],
+        enabled: true,
+        label: 'Other Meta login',
+        scopes: ['ads_management'],
+      },
+      {accessToken: 'synthetic'},
+    );
+    const whole = f.store.listConnections(tenant).find(c => c.id === 'meta-login')!;
+    f.store.updateConnection(admin, {...whole, writeAccounts: [B]});
+    const prepare = (actor: Actor) =>
+      f.service.call(
+        'amcp_write',
+        {
+          action: 'prepare',
+          gateway: 'meta_native_action',
+          connection_id: 'meta-login',
+          arguments: {
+            action: 'meta_campaign_create',
+            account_id: A,
+            payload: {
+              name: 'Draft',
+              status: 'PAUSED',
+              objective: 'OUTCOME_TRAFFIC',
+              special_ad_categories: [],
+              is_adset_budget_sharing_enabled: false,
+            },
+          },
+        },
+        actor,
+      );
+    const candidates = (r: JsonObject) => {
+      assert.equal((r.error as JsonObject)?.code, 'WRITE_ACCOUNT_FORBIDDEN', JSON.stringify(r).slice(0, 600));
+      return (((r.error as JsonObject).details as JsonObject).connections as JsonObject[]).map(c => c.connection_id);
+    };
+    // The limited token is not pointed at a login it cannot use, and never learns that login exists.
+    const limited = await prepare(f.scoped);
+    assert.deepEqual(candidates(limited), ['meta-login']);
+    assert.ok(!JSON.stringify(limited).includes('meta-login-other'), JSON.stringify(limited).slice(0, 600));
+    // Whole-workspace access is still shown the login that may change the account, as before.
+    assert.deepEqual(candidates(await prepare(f.open)).sort(), ['meta-login', 'meta-login-other']);
+    assert.equal(f.requests.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('a job is found by ID under a client access set only when that set started it (regression: any job of the workspace)', async () => {
+  const f = await fixture();
+  try {
+    const run = async (actor: Actor, account: string) => {
+      const r = await f.service.call(
+        'amcp_reporting_overview',
+        {
+          action: 'run',
+          confirmed: true,
+          config: {
+            name: account === B ? marker + ' run' : 'Client A run',
+            sources: [{platform: 'meta', connection_id: 'meta-login', account_id: account}],
+            date_range: {preset: 'last_complete_days', days: 7, timezone: 'UTC'},
+            metrics: ['spend'],
+            custom_metrics: [],
+            targets: {},
+            objectives: [],
+          },
+        },
+        actor,
+      );
+      assert.equal(r.success, true, JSON.stringify(r).slice(0, 600));
+      return (r.data as JsonObject).job_id as string;
+    };
+    const jobB = await run(f.open, B),
+      jobA = await run(f.scoped, A);
+    const get = (actor: Actor, id: string) =>
+      f.service.call('amcp_native_action', {operation: 'get_creative_generation_job', arguments: {job_id: id}}, actor);
+    const refused = await get(f.scoped, jobB),
+      text = JSON.stringify(refused);
+    assert.equal((refused.error as JsonObject)?.code, 'NOT_FOUND', text.slice(0, 600));
+    assert.ok(!text.includes(B) && !text.includes(marker), text.slice(0, 600));
+    assert.equal((await get(f.scoped, jobA)).success, true, 'the set’s own job is found');
+    // Whole-workspace access reads either job, as before.
+    for (const id of [jobA, jobB]) assert.equal((await get(f.open, id)).success, true);
+    assert.equal(f.requests.length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
 test('access set lifecycle: changes apply at the next request, removal fails closed, administrators are never limited', async () => {
   const f = await fixture();
   try {

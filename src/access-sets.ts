@@ -68,19 +68,28 @@ export function setBindings(record: JsonObject | undefined): AccessBinding[] {
 }
 
 /**
- * Marks a login narrowed to a client access set. Object spread keeps an enumerable symbol key (JSON never stores it),
- * so a copy made from a narrowed view is still recognised, and Store refuses to write one back (SEC-08): saving it
- * would drop every account outside the set from the login itself.
+ * Marks a login narrowed to a client access set with the set's ID. Object spread keeps an enumerable symbol key (JSON
+ * never stores it), so a copy made from a narrowed view is still recognised (SEC-08): Store refuses to write one back,
+ * since saving it would drop every account outside the set from the login itself, and a refusal about the login lists
+ * only the logins of the same set.
  */
 export const narrowedConnection = Symbol('amcp.narrowedConnection');
-export const isNarrowedConnection = (c: Connection) =>
-  (c as Connection & {[narrowedConnection]?: true})[narrowedConnection] === true;
+/** The client access set a login was read through, or undefined for a login as the workspace stores it. */
+export function narrowedAccessSetId(c: Connection): string | undefined {
+  const id = (c as Connection & {[narrowedConnection]?: unknown})[narrowedConnection];
+  return typeof id === 'string' ? id : undefined;
+}
+export const isNarrowedConnection = (c: Connection) => narrowedAccessSetId(c) !== undefined;
 
 /**
  * The logins a set reaches: each bound login with only its bound accounts, and only those accounts' write grants,
  * resource bindings and recorded manager routes. A login without a bound account is left out entirely.
  */
-export function narrowConnections(connections: Connection[], bindings: AccessBinding[]): Connection[] {
+export function narrowConnections(
+  connections: Connection[],
+  bindings: AccessBinding[],
+  accessSetId: string,
+): Connection[] {
   const keys = new Set(bindings.map(b => bindingKey(b.gateway, b.connection_id, b.account_id)));
   return connections.flatMap(c => {
     const inSet = (account: string) => keys.has(bindingKey(c.gateway, c.id, account));
@@ -88,7 +97,7 @@ export function narrowConnections(connections: Connection[], bindings: AccessBin
     if (!accounts.length) return [];
     const keep = (record: Record<string, string> | undefined) =>
       record ? Object.fromEntries(Object.entries(record).filter(([account]) => inSet(account))) : undefined;
-    const narrowed: Connection = {...c, accounts, [narrowedConnection]: true} as Connection;
+    const narrowed: Connection = {...c, accounts, [narrowedConnection]: accessSetId} as Connection;
     if (c.writeAccounts) narrowed.writeAccounts = c.writeAccounts.filter(inSet);
     if (c.resourceBindings) narrowed.resourceBindings = c.resourceBindings.filter(b => inSet(b.accountId));
     if (c.accountCustomers) narrowed.accountCustomers = keep(c.accountCustomers)!;

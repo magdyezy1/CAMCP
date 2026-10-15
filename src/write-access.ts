@@ -1,5 +1,6 @@
 import {MirrorError} from './errors.js';
 import {normalizeAccount} from './scope.js';
+import {narrowedAccessSetId} from './access-sets.js';
 import type {Store} from './store.js';
 import type {Connection} from './types.js';
 
@@ -11,8 +12,10 @@ export function accountWriteGranted(c: Connection, account: string): boolean {
 /** An account grant applies equally to campaigns, ads, creatives and media. */
 export function assertAccountWrite(store: Store, c: Connection, account: string): void {
   if (c.writeAccounts?.some(id => normalizeAccount(c.gateway, id) === account)) return;
+  // The logins to choose from, as the caller reaches them: for a login read through a client access set, only that
+  // set's logins, never one the caller would be refused or should not learn of (SEC-08).
   const candidates = store
-    .listConnections(c.tenantId)
+    .connectionsWithin(c.tenantId, narrowedAccessSetId(c))
     .filter(
       other =>
         other.enabled &&

@@ -2176,16 +2176,22 @@ export class Store {
    * actor goes through here, so a set is enforced in one place. A removed set reaches nothing.
    */
   connectionsFor(actor: Actor): Connection[] {
-    const all = this.listConnections(actor.tenantId);
-    if (actor.accessSetId === undefined) return all;
-    return narrowConnections(all, this.accessSetBindings(actor));
+    return this.connectionsWithin(actor.tenantId, actor.accessSetId);
   }
-  /** The bindings of the actor's client access set; none when the set was removed. */
-  accessSetBindings(actor: Actor): AccessBinding[] {
-    if (actor.accessSetId === undefined) return [];
+  /**
+   * The logins of a workspace as a client access set narrows them, or every login without one. A login read through a
+   * set remembers it (narrowedAccessSetId), so a refusal about that login lists only the same set's logins.
+   */
+  connectionsWithin(tenantId: string, accessSetId?: string): Connection[] {
+    const all = this.listConnections(tenantId);
+    if (accessSetId === undefined) return all;
+    return narrowConnections(all, this.accessSetBindings(tenantId, accessSetId), accessSetId);
+  }
+  /** The bindings of a client access set; none when the set was removed. */
+  private accessSetBindings(tenantId: string, accessSetId: string): AccessBinding[] {
     const row = this.db
       .prepare('SELECT data FROM documents WHERE tenant_id=? AND kind=? AND id=?')
-      .get(actor.tenantId, accessSetKind, actor.accessSetId) as {data: string} | undefined;
+      .get(tenantId, accessSetKind, accessSetId) as {data: string} | undefined;
     return row ? setBindings(JSON.parse(row.data)) : [];
   }
   /** Decrypt a login. The result remembers its login revision (read atomically with it) for authority fences. */
@@ -2861,5 +2867,42 @@ export class Store {
       result: row.result ? JSON.parse(row.result) : null,
       error: row.error ? JSON.parse(row.error) : null,
     };
+  }
+  /**
+   * A job as this actor may read it by ID (SEC-08): any job of the workspace, or under a client access set only a job
+   * started under that same set, as its sealed authority records; any other is not found, like one that does not exist.
+   */
+  jobFor(actor: Actor, id: string): JsonObject {
+    this.assertActorActive(actor);
+    const job = this.job(actor.tenantId, id);
+    if (actor.accessSetId !== undefined && this.jobAccessSet(actor.tenantId, id) !== actor.accessSetId)
+      throw new MirrorError('NOT_FOUND', 'Job not found in this tenant.', {}, 404);
+    return job;
+  }
+  /**
+   * The client access set a job's creator was limited to, from the sealed authority: the job's own, or for a job that
+   * runs or delivers a report snapshot, the snapshot's. Undefined when there is none or it cannot be read (fail closed).
+   */
+  private jobAccessSet(tenantId: string, id: string): string | undefined {
+    const row = this.db.prepare('SELECT input FROM jobs WHERE tenant_id=? AND id=?').get(tenantId, id) as
+      {input: string} | undefined;
+    const input = row ? (JSON.parse(row.input) as JsonObject) : undefined;
+    let binding: unknown = input?.authority?.binding,
+      scope = 'job:' + id;
+    if (typeof binding !== 'string' && typeof input?.report_id === 'string') {
+      const report = this.db
+        .prepare(
+          "SELECT json_extract(data,'$.actor_binding') AS binding FROM documents WHERE tenant_id=? AND kind=? AND id=?",
+        )
+        .get(tenantId, 'overview_report', input.report_id) as {binding?: unknown} | undefined;
+      binding = report?.binding;
+      scope = input.report_id;
+    }
+    if (typeof binding !== 'string' || !this.box) return undefined;
+    try {
+      return this.box.open<{actor: Actor}>(binding, scopeKey(tenantId, 'job-actor', scope)).actor.accessSetId;
+    } catch {
+      return undefined;
+    }
   }
 }

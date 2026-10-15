@@ -1611,7 +1611,8 @@ export class MirrorService {
       // A client access set lists only the assets of accounts it reaches (SEC-08); other access lists them all, as before.
       return assetsWithinAccess(this.store, actor, this.store.documents(actor.tenantId, 'workspace_asset'));
     }
-    if (operation === 'get_creative_generation_job') return this.store.job(actor.tenantId, String(args.job_id));
+    // Under a client access set only the set's own jobs are found by ID (SEC-08); elsewhere any job, as before.
+    if (operation === 'get_creative_generation_job') return this.store.jobFor(actor, String(args.job_id));
     if (gateway === 'amcp_native_action')
       return new WorkflowEngine({
         registry: this.registry,
