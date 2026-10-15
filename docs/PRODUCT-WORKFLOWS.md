@@ -828,8 +828,10 @@ account (`act_{id}/adspixels` is not an AMCP read) and the Dataset Quality API p
 adapters follow it only if P8 keeps them in scope.
 
 Commerce (`/commerce`) validates explicitly supplied Meta or X product CSV before creating an unapproved plan. The following native hundredths and optional-field rules describe Meta; X requires all ten source fields, exact original price/currency strings and explicit upsert as described below. Fields: retailer_id, name,
-price, currency, image_url; optional url, availability, condition, brand and description. Files are capped at 128 KiB
-and 50 products, with unique stable retailer IDs and HTTPS media/product URLs. `catalog_preview` does no provider
+price, currency, image_url; optional url, availability, condition, brand and description. Files are capped at 192 KiB
+and 500 products (more than 50 are saved as one plan group, see
+[large stores](#large-stores-saved-column-mappings-and-plan-lineage)), with unique stable retailer IDs and HTTPS
+media/product URLs. `catalog_preview` does no provider
 egress; `catalog_plan` saves one native product step per item. Both require the exact selected account/login/catalog ID
 and an explicit `allow_upsert` boolean. Decimal prices become exact integer hundredths through the existing qualified
 Meta product contract. The precision applies to the value, not the text: `12.500 KWD` is 1250 and `0.10` is 10, while
@@ -853,8 +855,10 @@ For supplier or WooCommerce CSV exports, select **Map supplier or WooCommerce ex
 Choose source columns for the stable retailer ID, name, decimal price and image URL. Use either a currency column
 or one explicit currency for all rows. Regular/sale price choice is explicit; sale dates, tax, stock and variants
 are not interpreted. Select the first-URL image mode only when the source contains a comma-separated list.
-All source rows are mapped, up to 50. Only selected fields are sent; inspect **Exact product fields sent for review**
-before saving the draft. Changing a file clears its mapping, and changing any input invalidates its preview/save.
+All source rows are mapped, up to 500. Only the selected columns leave the browser: AMCP saves the mapping as this
+account catalog's versioned column mapping and maps the rows on the server, so a later import of the same catalog
+starts from the saved columns. Inspect **Exact product fields sent for review** before saving the draft. Changing a
+file clears its mapping, and changing any input invalidates its preview/save.
 Header names must be unique/nonempty (1–100 columns, up to 200 characters each). Use UTF-8 CSV; a leading BOM is
 accepted. This is a local export-import workflow, not a connection to a live store. See the
 [mapping delivery record](review/DELIVERY-2026-10-02-CATALOG-MAPPING.md).
@@ -1399,6 +1403,22 @@ See [delivery](review/DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md).
 - **Snapchat (read-only).** Choose a Snapchat ad account to compare supplied products with a Snapchat catalog. Exact
   prices and fields are compared twice; products that differ say **Fix this product in the product feed**, because
   Snapchat changes products only through feeds. Nothing is saved for Snapchat.
+
+### Large stores, saved column mappings and plan lineage
+
+- **More than 50 products.** A CSV of 51–500 products is validated part by part and shown as a plan group: how many
+  products, how many plans of at most 50, and the first and last retailer ID of each part. **Save … products as …
+  plans** saves one unapproved plan per part, and the page links to each. Approve and run each part separately; every
+  product still gets its own native review and read-back. Compare at most 50 products at a time (a plan group is saved
+  from its whole source), and a Snapchat comparison takes at most 50. Nothing is ever deleted because the file lacks a
+  product.
+- **Saved column mappings.** A supplier mapping is saved for the selected account and catalog, with a version.
+  Loading the next file fills the saved columns and names the version and the retailer ID column. The retailer ID
+  column decides which product each row is, so choosing another one needs **Identify products by another retailer ID
+  column from now on**; without it the import is refused before anything is sent.
+- **Where a plan came from.** Every catalog plan records its source (the file's hash, row count and mapping version)
+  and, when it was saved after a comparison, that comparison. A part of a plan group says which part of which import
+  it is. Open **Plan provenance and execution journal** on the plan to inspect it.
 
 ### Current primary conversion value settings
 

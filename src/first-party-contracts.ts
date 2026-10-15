@@ -567,7 +567,7 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'catalog_mapping',
-      'Reads the saved, versioned CSV column mapping of one Meta, X or Snapchat catalog.',
+      'Reads the saved, versioned CSV column mapping of one account’s Meta, X or Snapchat catalog.',
       ['gateway', 'account_id', 'catalog_id'],
       ['connection_id'],
       local,
@@ -576,7 +576,7 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'save_catalog_mapping',
-      'Saves the next version of a catalog CSV column mapping; its retailer ID column changes only explicitly.',
+      'Saves the next version of an account catalog’s CSV column mapping; its retailer ID column changes only explicitly.',
       ['gateway', 'account_id', 'catalog_id', 'requirements'],
       ['connection_id', 'revision'],
       saves('catalog_mapping_profile'),

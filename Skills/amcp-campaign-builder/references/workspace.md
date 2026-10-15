@@ -172,8 +172,9 @@ minutes. Native Meta money stays exact and unconverted, absent values stay unkno
 from configured status. Inventory is current provider order/default visibility, not a point-in-time reconciliation
 or write approval. `measurement_audit`
 delegates the existing GTM configuration read and does not prove event delivery. `catalog_preview` validates up to
-50 Meta or X products with explicit upsert and exact prices (Snapchat products for a read-only comparison), while
-`catalog_plan` saves native per-item steps for normal review. Neither catalog action executes changes. `amcp_reporting_overview {action:"report_pack",id}` returns a
+50 Meta or X products with explicit upsert and exact prices (Snapchat products for a read-only comparison), or a CSV
+source of up to 500 as a plan group, while `catalog_plan` saves native per-item steps for normal review. Neither
+catalog action executes changes. `amcp_reporting_overview {action:"report_pack",id}` returns a
 retained-snapshot presentation with separate measurement groups, coverage and raw-evidence paths. The website at
 `/report-pack?report_id=<id>` offers HTML preview/download, generated PDF/Excel and print controls.
 Approved client profiles can include optional `report_presentation` with `brand_name`, six-digit hex
@@ -1003,6 +1004,25 @@ groups, 3 pages each); only a `complete` expansion establishes absence, and a SK
 each item carries `state`, `changes`, `unknown_fields`, `unsent_fields`, `blocked`, `blocked_reason` (null when not
 blocked) and `serving_notes` (`availability_limits_serving`, `staging_visibility`) beside its own evidence.
 
+**CSV sources and mapping profiles (COM-03).** Instead of `products`, send a merchant export as
+`requirements: {source: {kind:"csv", text, columns:"canonical"|"profile", profile_version?}}` on catalog_preview,
+catalog_compare and catalog_plan (at most 192 KiB and 500 rows). `canonical` reads AMCP's own product columns;
+`profile` maps the export with the account catalog's saved mapping: read it with `catalog_mapping {gateway, account_id,
+connection_id, catalog_id}` (its `required_fields` and `accepted_fields` say what a mapping names), save it with
+`save_catalog_mapping` and `requirements: {columns: {field: CSV header}, fixed_currency, image_mode}` and the `revision`
+you read (0 before the first save), then pass its `profile_version`. The retailer_id column changes only with
+`replace_identity_column: true`. The preview returns the projected `supplied_products` and the `source`; unmapped
+columns never reach a product. catalog_plan may keep `requirements.select_retailer_ids` (1–50 rows of the source).
+
+**Plan lineage and plan groups (COM-03).** A catalog_compare that a plan can be saved from returns `lineage_token`
+(15 minutes, only for you); pass it as `requirements.comparison_token` to catalog_plan with exactly compared products,
+and the plan's `catalog_lineage` (in the response and in `amcp_campaign get`) names that comparison beside its source,
+hashes and mapping version. For 51–500 source products add `requirements.chunked: true`: catalog_preview validates
+every part and saves nothing (`catalog_plan_group_preview`, one row per part); catalog_plan saves one unapproved plan of
+at most 50 per part in one `lineage_group` (`catalog_plan_group` with each plan's id). Repeating the same request saves
+only missing parts. Approve and run each part separately. Groups take no retirement or comparison token, and absence
+from a source never deletes anything.
+
 **Snapchat (COM-02 D, read-only).** `catalog_preview` and `catalog_compare` with `gateway:"snapchat_native_action"`
 take 1–50 products (retailer_id, name, price, currency, image_url; optional url, availability, condition, brand,
 description, sale_price) and compare them with the catalog through two agreeing `products/search` `ID IS_ANY` scans
@@ -1215,11 +1235,13 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `measurement_google_goals` | Current Google Ads conversion goals of one customer, read twice under one fence; optional requirements {currency}. Nothing is saved. | **`gateway`**, **`account_id`**, `connection_id`, `requirements` | provider reads | reader |
 | `measurement_ga4_config` | One GA4 property configuration (key events, custom definitions, streams, Ads links, retention); optional requirements {sections}. | **`gateway`**, **`account_id`**, `connection_id`, `requirements` | provider reads | reader |
 | `measurement_ledger` | Six fixed evidence layers for one Google Ads customer or GA4 property; a failed read leaves its layer unknown. Nothing is saved. | **`gateway`**, **`account_id`**, `connection_id` | provider reads | reader |
-| `catalog_preview` | Locally validates 1–50 selected Meta, X or Snapchat products with exact source prices. | **`gateway`**, **`account_id`**, **`catalog_id`**, **`products`**, `connection_id`, `allow_upsert`, `name`, `requirements` | no provider request | reader |
+| `catalog_preview` | Locally validates 1–50 selected Meta, X or Snapchat products, or a CSV source (51–500 as a plan group), with exact source prices. | **`gateway`**, **`account_id`**, **`catalog_id`**, `connection_id`, `products`, `allow_upsert`, `name`, `requirements` | no provider request | reader |
 | `catalog_source` | Reads selected WooCommerce products or variations (or, with source_kind:inventory, the published inventory). | **`gateway`**, **`account_id`**, **`connection_id`**, **`requirements`** | provider reads | reader |
 | `catalog_sources` | Lists configured WooCommerce source connections without credentials or network requests. | — | no provider request | reader |
 | `catalog_compare` | Compares supplied products with the current Meta, X or Snapchat (read-only) catalog: new, changed, matching or unknown. | **`gateway`**, **`account_id`**, **`catalog_id`**, `connection_id`, `products`, `allow_upsert`, `inspect_other_listed_products`, `absent_source_policy`, `name`, `requirements` | provider reads | reader |
-| `catalog_plan` | Saves the supplied product subset as an unapproved campaign plan; absent products are never deleted. | **`gateway`**, **`account_id`**, **`catalog_id`**, **`products`**, `connection_id`, `allow_upsert`, `name`, `requirements` | no provider request; saves campaign_run | operator |
+| `catalog_plan` | Saves the supplied products as an unapproved plan with their lineage (51–500 as a plan group); absent products are never deleted. | **`gateway`**, **`account_id`**, **`catalog_id`**, `connection_id`, `products`, `allow_upsert`, `name`, `requirements` | no provider request; saves campaign_run | operator |
+| `catalog_mapping` | Reads the saved, versioned CSV column mapping of one account’s Meta, X or Snapchat catalog. | **`gateway`**, **`account_id`**, **`catalog_id`**, `connection_id` | no provider request | reader |
+| `save_catalog_mapping` | Saves the next version of an account catalog’s CSV column mapping; its retailer ID column changes only explicitly. | **`gateway`**, **`account_id`**, **`catalog_id`**, **`requirements`**, `connection_id`, `revision` | no provider request; saves catalog_mapping_profile | operator |
 | `preview_catalog_removal` | Reads 1–50 explicit X products (supplied retailer_ids, or listed product_keys in requirements) and previews their removal for ten minutes. | **`gateway`**, **`account_id`**, **`catalog_id`**, `connection_id`, `retailer_ids`, `products`, `allow_upsert`, `name`, `requirements` | provider reads; saves x_catalog_removal_preview | operator |
 | `create_catalog_removal` | Saves one unapproved single-product DELETE step per previewed product; saving deletes nothing. A listed selection also needs confirmed_count. | **`preview_id`**, **`preview_hash`**, **`confirmed`**, `confirmed_count` | provider reads; saves campaign_run | operator |
 | `delete_profile` | Deletes a client profile at its current revision. | **`id`**, **`revision`**, **`confirmed`** | no provider request; saves client_profile | operator |

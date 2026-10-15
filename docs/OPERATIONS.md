@@ -384,6 +384,9 @@ Policy for later changes (expand, then contract):
 
 - **Additive** (a new table, a nullable or defaulted column, an index, a trigger): a new ledger step; `schema_version`
   and `MIN_READER_VERSION` stay, so a rolled-back image still starts.
+- **Document fields** (a new document kind or field inside the existing documents table, such as COM-03's
+  `catalog_lineage` on campaign_run and `catalog_mapping_profile`): no SQL change and no ledger step; older releases
+  ignore them. Record them in the change's own documentation instead.
 - **Contracting** (a drop, a rename, a changed meaning): ship the expand step and readers of both forms first; in a
   later release bump `SCHEMA_VERSION` and raise `MIN_READER_VERSION` together (`src/schema-migrations.ts`), so older
   images refuse instead of misreading.
@@ -893,6 +896,43 @@ strings and a supplied `sale_price` compares exactly. Every product that differs
 response `remedy: "fix_in_feed"`. Limits: 30 attempts, 9,000 rows, 4 MiB and 60 seconds. Feed processing takes time, so
 this is current evidence, not the next feed result. The search body follows the documented product-set filter grammar;
 its live acceptance is an owner-authorized read on a selected catalog, which has not run yet.
+
+### Catalog destinations, sources, mappings, lineage and plan groups (COM-03)
+
+- **One destination contract.** `src/catalog-destinations.ts` registers Meta, X and Snapchat once: source fields, item
+  identity, how changes reach the catalog (one reviewed native step per product with its own receipt and read-back, or
+  feeds only), upsert intent (Meta asks, X always updates), removal intent (Meta retires; X also deletes explicitly
+  selected products by key; Snapchat none) and what a destination-only value means (P9). The projection and comparison
+  of each destination are registered under the same gateway, every comparison returns the shared item
+  (`catalog-comparison-item-v2`) and the website checks it with one validator. Native write contracts are unchanged.
+- **Product sources.** `src/catalog-sources.ts` turns a source into supplied rows: the caller's `products`, or
+  `requirements.source = {kind: "csv", text, columns: "canonical" | "profile", profile_version?}` (at most 192 KiB and
+  500 rows; `INVALID_CATALOG_SOURCE`, `CATALOG_SOURCE_LIMIT`) on `catalog_preview`, `catalog_compare` and `catalog_plan`.
+  The parked store sources (WooCommerce, Shopify, Salla) plug in as further adapters there. No source establishes
+  absence: a product it lacks is retained.
+- **Mapping profiles.** `catalog_mapping` reads and `save_catalog_mapping` saves the column mapping of one account's
+  catalog (`requirements: {columns, fixed_currency, image_mode, replace_identity_column?}`, optional `revision`). Each
+  change is a new version (20 kept), audited as `catalog_mapping_saved`; an unchanged mapping keeps its version; a save
+  from an older read is refused with `CATALOG_MAPPING_CHANGED`, and another retailer ID column without
+  `replace_identity_column: true` with `CATALOG_MAPPING_IDENTITY`. `columns: "profile"` needs a saved mapping
+  (`CATALOG_MAPPING_MISSING`). Access to the account is checked before a profile is read.
+- **Plan lineage.** Every `catalog_plan` stores `catalog_lineage` on its campaign_run (and in `amcp_campaign get`):
+  source kind, `source_hash`, `catalog_source_hash`, row counts, column mode, mapping profile and version, and, when
+  `requirements.comparison_token` names the `lineage_token` a `catalog_compare` returned to the same person within 15
+  minutes, that `comparison_hash` and time. A token for other products or another scope is refused
+  (`CATALOG_LINEAGE_MISMATCH`, `CATALOG_LINEAGE_EXPIRED`); a deployment without the encryption key returns no token.
+  Only `catalog_plan` can set a lineage: a direct `amcp_campaign create` naming one is refused
+  (`CATALOG_LINEAGE_UNBOUND`). Lineage changes no native request, review or approval.
+- **Plan groups.** `requirements.chunked: true` with a source of 51–500 products: `catalog_preview` validates every
+  part and saves nothing (`catalog_plan_group_preview`); `catalog_plan` saves one unapproved plan of at most 50 per
+  part with one `lineage_group` (`catalog_plan_group`). A refused product saves no part; each part has its own creation
+  key, so repeating the same request saves only missing parts; the parts count toward the 500-plan limit. Retirement,
+  a comparison token and Snapchat are refused in a group (`INVALID_CATALOG_PLAN_GROUP`, `CATALOG_FEED_ONLY`).
+- **Storage and rollback.** These are new documents (`catalog_mapping_profile`, the 90-second
+  `catalog_lineage_binding`) and an additive campaign_run field, with no SQL change and no ledger step; an older release
+  ignores them. Release the website and the server together: the website's mapped import and plan groups use these
+  actions and inputs. Each phase can be reverted on its own (the destination registry, then profiles, sources and
+  lineage, then plan groups).
 
 ### Verify the committed release source
 
