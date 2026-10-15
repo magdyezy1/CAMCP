@@ -40,6 +40,10 @@ function fixture(groupState) {
       configured_status: 'PAUSED',
       ...groupState,
     },
+    // An ad group that names a conversion pixel is reviewed against the account's pixel list and the pixel's
+    // activity (PRV-06 D, tests/reddit-pixel-check.test.mjs); this pixel is listed and fired recently.
+    '/api/v3/ad_accounts/a2_111/pixels': [{id: 'pixel123', name: 'Synthetic pixel'}],
+    '/api/v3/pixels/pixel123/last_fired_at': {page_visit: new Date().toISOString()},
   };
   const service = new MirrorService(
     registry,
