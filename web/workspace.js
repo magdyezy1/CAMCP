@@ -259,12 +259,32 @@ function readinessAge(check) {
   return date(check.checked_at) + (check.stale ? ' · ' + uiText('Older than 15 minutes; check again') : '');
 }
 async function renderOverview() {
+  // The working client (SEC-08) narrows Home to its attention items, recent plans and accounts.
+  const client = typeof workingClientQuery === 'function' ? workingClientQuery() : {};
   // The attention items come from the Operations classifier (OPS-06); a failure there still shows the rest of Home.
-  const [d, attention] = await Promise.all([
+  const [full, attention, clientPlans] = await Promise.all([
       workspaceCall('workspace', {action: 'dashboard', view: 'full'}),
-      workspaceCall('workspace', {action: 'operations', state: 'attention', limit: 8}).catch(error => ({error})),
+      workspaceCall('workspace', {action: 'operations', state: 'attention', limit: 8, ...client}).catch(error => ({
+        error,
+      })),
+      // The client's newest plans for "Continue recent work"; without them Home keeps the workspace's own.
+      client.profile_id
+        ? workspaceCall('campaign', {action: 'list', limit: 8, ...client}).catch(() => null)
+        : Promise.resolve(null),
     ]),
-    accounts = d.connections.flatMap(c => c.accounts_status.map(a => ({...a, connection: c}))),
+    d = Array.isArray(clientPlans?.campaigns)
+      ? {
+          ...full,
+          campaigns: clientPlans.campaigns,
+          campaign_counts: {...full.campaign_counts, total: clientPlans.total ?? clientPlans.campaigns.length},
+        }
+      : full,
+    accounts = d.connections
+      .flatMap(c => c.accounts_status.map(a => ({...a, connection: c})))
+      .filter(
+        a =>
+          typeof inWorkingClient !== 'function' || inWorkingClient(a.connection.gateway, a.account_id, a.connection.id),
+      ),
     receipts = accounts.flatMap(a => a.verified_writes),
     // Counted as the badges show them: a stale check is to be checked again, and a login with no account read is left out.
     checked = accounts.filter(a => a.check?.readiness !== 'not_applicable'),
@@ -277,7 +297,12 @@ async function renderOverview() {
   content.innerHTML = workHome(d, accounts, attention);
   // Readiness is a summary with its accounts one click away, and capability evidence (tool names, evidence levels) is
   // technical detail, so Home stays short on a phone (OPS-06 increment 2).
-  content.innerHTML += `<div class="workspace-metrics"><article><strong>${accounts.length}</strong><span>${esc(uiText('Selected resources'))}</span></article><article><strong>${d.campaign_counts?.total ?? d.campaigns.length}</strong><span>${esc(uiText('Campaign plans'))}</span></article><article><strong>${receipts.filter(r => r.status === 'verified').length}</strong><span>${esc(uiText('Verified write receipts'))}</span></article></div><section class="panel" id="home-readiness"><div class="panel-header"><h2>${esc(uiText('Account readiness'))}</h2><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a></div>${accounts.length ? `<p>${esc(uiText('Ready: {ready} · Blocked: {blocked} · To check: {other}', {ready, blocked, other: checked.length - ready - blocked}))}</p><details class="workspace-details"><summary>${esc(uiText('Accounts and their readiness'))}</summary>${accounts.map((a, i) => `<div class="token-row"><div><strong>${accountName(a)}</strong><small>${a.connection.write_accounts.includes(a.account_id) ? uiText('Reviewed writes enabled') : uiText('Read access')} · ${esc(readinessAge(a.check))}</small>${a.check?.checks ? recordDetails(a.check.checks, uiText('Prerequisites')) : ''}</div><div>${readinessBadge(a.check)}${a.check?.readiness === 'not_applicable' ? '' : `<button class="button small" data-check-account="${i}">${esc(uiText('Check account'))}</button>`}</div></div>`).join('')}</details>` : blank(uiText('Connect a platform and select resources to check readiness.'))}</section><section class="panel" id="home-capabilities"><div class="panel-header"><h2>${esc(uiText('Capabilities and evidence'))}</h2><a class="button small" href="/capabilities">${esc(uiText('Check capabilities'))}</a></div><p class="workspace-copy">${esc(uiText(d.capabilities.meaning))}</p><details class="workspace-details"><summary>${esc(uiText('Technical details'))}</summary>${d.capabilities.features.map(f => `<div class="token-row"><div><strong>${esc(uiText(f.name))}</strong><small>${esc(uiText(f.coverage))}</small><code>${esc(f.tool)}</code></div>${badge(f.implementation)}</div>`).join('')}${recordDetails(d.capabilities.evidence, uiText('Provider evidence by account and action'))}</details></section>`;
+  content.innerHTML += `<div class="workspace-metrics"><article><strong>${accounts.length}</strong><span>${esc(uiText('Selected resources'))}</span></article><article><strong>${d.campaign_counts?.total ?? d.campaigns.length}</strong><span>${esc(uiText('Campaign plans'))}</span></article><article><strong>${receipts.filter(r => r.status === 'verified').length}</strong><span>${esc(uiText('Verified write receipts'))}</span></article></div><section class="panel" id="home-readiness"><div class="panel-header"><h2>${esc(uiText('Account readiness'))}</h2><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a></div>${accounts.length ? `<p>${esc(uiText('Ready: {ready} · Blocked: {blocked} · To check: {other}', {ready, blocked, other: checked.length - ready - blocked}))}</p><details class="workspace-details"><summary>${esc(uiText('Accounts and their readiness'))}</summary>${accounts.map((a, i) => `<div class="token-row"><div><strong>${accountName(a)}</strong><small>${a.connection.write_accounts.includes(a.account_id) ? uiText('Reviewed writes enabled') : uiText('Read access')} · ${esc(readinessAge(a.check))}</small>${a.check?.checks ? recordDetails(a.check.checks, uiText('Prerequisites')) : ''}</div><div>${readinessBadge(a.check)}${a.check?.readiness === 'not_applicable' ? '' : `<button class="button small" data-check-account="${i}">${esc(uiText('Check account'))}</button>`}</div></div>`).join('')}</details>` : blank(uiText('Connect a platform and select resources to check readiness.'))}</section><section class="panel" id="home-capabilities"><div class="panel-header"><h2>${esc(uiText('Capabilities and evidence'))}</h2><a class="button small" href="/capabilities">${esc(uiText('Check capabilities'))}</a></div><p class="workspace-copy">${esc(uiText(d.capabilities.meaning))}</p><details class="workspace-details"><summary>${esc(uiText('Technical details'))}</summary>${d.capabilities.features.map(f => `<div class="token-row"><div><strong>${esc(uiText(f.name))}</strong><small>${esc(uiText(f.coverage))}</small><code>${esc(f.tool)}</code></div>${badge(f.implementation)}</div>`).join('')}${recordDetails(
+    d.capabilities.evidence.filter(
+      e => typeof inWorkingClient !== 'function' || inWorkingClient(e.gateway, e.account_id, e.connection_id),
+    ),
+    uiText('Provider evidence by account and action'),
+  )}</details></section>`;
   workspaceBind('[data-check-account]', async b => {
     const a = accounts[Number(b.dataset.checkAccount)];
     await workspaceCall('workspace', {
@@ -302,12 +327,16 @@ function reviewView(review, buttonLabel = uiText('Execute reviewed request')) {
 }
 /** The Campaigns list (CMP-05): newest first, one page at a time, with its filters in the URL. */
 async function renderCampaigns() {
-  const filters = campaignListFilters();
+  // The working client narrows the plan list (SEC-08); "Load more" keeps the same filter.
+  const filters = {
+    ...campaignListFilters(),
+    ...(typeof workingClientQuery === 'function' ? workingClientQuery() : {}),
+  };
   const [first, {profiles}] = await Promise.all([
     workspaceCall('campaign', {action: 'list', limit: 50, ...filters}),
     workspaceCall('workspace', {action: 'profiles'}),
   ]);
-  content.innerHTML += `<div class="dialog-actions"><a class="button primary" href="/campaigns#campaign-create">${esc(uiText('New campaign plan'))}</a></div><section class="panel" id="campaign-history"><div class="panel-header"><h2>${esc(uiText('Campaign plans'))}</h2></div>${campaignFilterForm(filters, first.total)}<div id="campaign-rows">${first.campaigns.map(campaignPlanRow).join('') || blank(Object.keys(filters).length ? uiText('No plans match these filters.') : uiText('Start with a saved template or ask your MCP client to turn a brief into a reviewed campaign plan.'))}</div>${first.next_cursor ? `<button id="campaign-more" class="button" type="button">${esc(uiText('Load more'))}</button>` : ''}</section><section id="campaign-detail" class="panel workspace-form"></section><div id="campaign-review"></div><details class="panel" id="campaign-create"><summary>${esc(uiText('New campaign plan'))}</summary><details id="campaign-clone" class="workspace-form"></details><details class="workspace-form"><summary>${esc(uiText('Advanced: native plan or saved template'))}</summary><form id="campaign-form">${controls(uiText('Campaign name'), 'text', '', 'name')}<label>${esc(uiText('Brief'))}<textarea name="brief" rows="3" required></textarea></label><label>${esc(uiText('Client profile'))}<select name="profile_id"><option value="">${esc(uiText('No profile'))}</option>${profiles.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label><label>${esc(uiText('Saved template'))}<select name="template"><option value="">${esc(uiText('No saved template'))}</option></select></label><p class="form-note" id="campaign-template-note">${esc(uiText('Choose a client profile to list its saved templates.'))}</p><label>${esc(uiText('Template variables'))}<textarea name="variables" rows="3">{}</textarea></label><details><summary>${esc(uiText('Native steps supplied by your MCP client'))}</summary><p class="form-note">${esc(uiText('The server resolves explicit steps and verified resource references. It does not invent campaign settings from a brief.'))}</p><textarea name="steps" rows="6" aria-label="${esc(uiText('Native campaign steps'))}"></textarea></details><button class="button primary" type="submit">${esc(uiText('Create plan'))}</button></form></details></details>`;
+  content.innerHTML += `<div class="dialog-actions"><a class="button primary" href="/campaigns#campaign-create">${esc(uiText('New campaign plan'))}</a></div><section class="panel" id="campaign-history"><div class="panel-header"><h2>${esc(uiText('Campaign plans'))}</h2></div>${campaignFilterForm(filters, first.total)}<div id="campaign-rows">${first.campaigns.map(campaignPlanRow).join('') || blank(Object.keys(filters).length ? uiText('No plans match these filters.') : uiText('Start with a saved template or ask your MCP client to turn a brief into a reviewed campaign plan.'))}</div>${first.next_cursor ? `<button id="campaign-more" class="button" type="button">${esc(uiText('Load more'))}</button>` : ''}</section><section id="campaign-detail" class="panel workspace-form"></section><div id="campaign-review"></div><details class="panel" id="campaign-create"><summary>${esc(uiText('New campaign plan'))}</summary><details id="campaign-clone" class="workspace-form"></details><details class="workspace-form"><summary>${esc(uiText('Advanced: native plan or saved template'))}</summary><form id="campaign-form">${controls(uiText('Campaign name'), 'text', '', 'name')}<label>${esc(uiText('Brief'))}<textarea name="brief" rows="3" required></textarea></label><label>${esc(uiText('Client profile'))}<select name="profile_id"><option value="">${esc(uiText('No profile'))}</option>${profiles.map(p => `<option value="${esc(p.id)}" ${typeof workingClient === 'function' && p.id === workingClient()?.profile_id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label><label>${esc(uiText('Saved template'))}<select name="template"><option value="">${esc(uiText('No saved template'))}</option></select></label><p class="form-note" id="campaign-template-note">${esc(uiText('Choose a client profile to list its saved templates.'))}</p><label>${esc(uiText('Template variables'))}<textarea name="variables" rows="3">{}</textarea></label><details><summary>${esc(uiText('Native steps supplied by your MCP client'))}</summary><p class="form-note">${esc(uiText('The server resolves explicit steps and verified resource references. It does not invent campaign settings from a brief.'))}</p><textarea name="steps" rows="6" aria-label="${esc(uiText('Native campaign steps'))}"></textarea></details><button class="button primary" type="submit">${esc(uiText('Create plan'))}</button></form></details></details>`;
   let openSequence = 0;
   // `after`: the response that led here; one naming a step to correct opens the amendment form (CMP-02 a).
   const open = async (id, after) => {
@@ -419,17 +448,30 @@ async function renderCampaigns() {
         ? ''
         : uiText('This profile has no saved templates.');
   });
+  // A working client starts the form with its profile, and so with its templates (SEC-08).
+  if (templateForm.elements.profile_id.value) templateForm.elements.profile_id.dispatchEvent(new Event('change'));
   workspaceBind('#campaign-form', async f => {
     const v = Object.fromEntries(new FormData(f)),
-      r = await workspaceCall('campaign', {
-        action: 'create',
-        name: v.name,
-        brief: v.brief,
-        ...(v.profile_id ? {profile_id: v.profile_id} : {}),
-        ...(v.template ? {template: v.template} : {}),
-        variables: JSON.parse(v.variables),
-        ...(v.steps.trim() ? {steps: JSON.parse(v.steps)} : {}),
-      });
+      steps = v.steps.trim() ? JSON.parse(v.steps) : undefined;
+    // A plan whose steps span accounts of different clients asks first (SEC-08).
+    if (
+      Array.isArray(steps) &&
+      typeof confirmCrossClient === 'function' &&
+      !(await confirmCrossClient(
+        steps.map(s => ({gateway: s?.gateway, account_id: s?.account_id, connection_id: s?.connection_id})),
+        uiText('Create plan'),
+      ))
+    )
+      return;
+    const r = await workspaceCall('campaign', {
+      action: 'create',
+      name: v.name,
+      brief: v.brief,
+      ...(v.profile_id ? {profile_id: v.profile_id} : {}),
+      ...(v.template ? {template: v.template} : {}),
+      variables: JSON.parse(v.variables),
+      ...(steps ? {steps} : {}),
+    });
     await open(r.id);
     toast(uiText('Plan saved. Each step requires its own review.'));
   });
@@ -480,28 +522,45 @@ async function renderMediaLibrary() {
       include_assets: false,
       recovery_offset: page * 50,
       limit: 50,
+      // Recovery of the working client's accounts only (SEC-08).
+      ...(typeof workingClientQuery === 'function' ? workingClientQuery() : {}),
     }),
-    targets = platforms
-      .filter(p => ['meta', 'tiktok', 'snapchat', 'google', 'linkedin', 'x', 'dv360'].includes(p.id))
-      .flatMap(p =>
-        p.connections
-          .filter(c => c.enabled)
-          .flatMap(c =>
-            c.accounts.map(a => ({
-              platform: p.gateway.replace(/_native_action$/, ''),
-              account_id: a,
-              connection_id: c.id,
-              label: accountLabel(p, c, a),
-              platformName: p.name,
-              account: accountText(p, c, a),
-            })),
-          ),
-      ),
+    // The accounts media can go to, narrowed to the working client (SEC-08); one remaining is preselected for a Drive
+    // import, more need an explicit choice (before, the first account of any client was silently selected).
+    // (Without the shell, as in a page test, there is no working client and nothing is narrowed.)
+    {
+      options: targets,
+      preselect: onlyTarget,
+      hidden: targetsHidden,
+    } = (
+      typeof clientAccountOptions === 'function'
+        ? clientAccountOptions
+        : list => ({options: list, preselect: list.length === 1 ? list[0] : null})
+    )(
+      platforms
+        .filter(p => ['meta', 'tiktok', 'snapchat', 'google', 'linkedin', 'x', 'dv360'].includes(p.id))
+        .flatMap(p =>
+          p.connections
+            .filter(c => c.enabled)
+            .flatMap(c =>
+              c.accounts.map(a => ({
+                platform: p.gateway.replace(/_native_action$/, ''),
+                gateway: p.gateway,
+                account_id: a,
+                connection_id: c.id,
+                label: accountLabel(p, c, a),
+                platformName: p.name,
+                account: accountText(p, c, a),
+              })),
+            ),
+        ),
+    ),
     drive = platforms.find(p => p.id === 'drive')?.connections.filter(c => c.enabled) ?? [];
   content.innerHTML +=
     `<section class="panel workspace-form" id="creative-library"></section><div id="creative-detail"></div>` +
     creativePushPanel(
-      targets,
+      // How many accounts the working client hid, so an empty push says so (SEC-08).
+      Object.assign(targets, {hiddenByClient: targetsHidden ?? 0}),
       (d.sources ?? []).filter(s => s.state === 'complete'),
       pushDrives(),
       (d.sources ?? []).filter(s => s.state === 'receiving'),
@@ -513,7 +572,7 @@ async function renderMediaLibrary() {
       .map(p => `<option value="${p}">${p} · ${d.presets[p].join(' × ')}</option>`)
       .join(
         '',
-      )}</select></label><label>${esc(uiText('Fit'))}<select name="fit"><option value="contain">${esc(uiText('Full frame with padding'))}</option><option value="crop">${esc(uiText('Center crop — review content loss'))}</option></select></label><button class="button" type="submit">${esc(uiText('Preview variant'))}</button></form><div id="variant-preview"></div><form id="media-import"><label>${esc(uiText('Advertising account'))}<select name="target" required>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Media name'), 'text', 'AMCP media', 'name')}<label class="form-note"><input name="reuse" type="checkbox" checked> ${esc(uiText('Reuse a matching available upload receipt when one exists.'))}</label><button class="button primary" type="submit">${esc(uiText('Prepare upload'))}</button></form></details><section class="panel workspace-form"><h2>${esc(uiText('Unfinished uploads and recovery'))}</h2>${(d.recovery_reviews ?? []).map(r => `<div class="token-row"><div><strong>${esc(r.request.name)}</strong><small>${recordAccountLabelHtml(r.request.platform, r.request.connection_id, r.request.account_id)} ${esc(uiText('· Review expires'))} ${date(r.expires_at)}</small></div>${badge(r.state)}<button class="button small" data-media-recovery="${esc(r.review_id)}">${esc(uiText('Inspect recovery'))}</button></div>`).join('') || blank(uiText('No unfinished uploads in your currently authorized accounts.'))}<p class="form-note">${esc(uiText('Showing'))} ${(d.recovery_reviews ?? []).length} ${esc(uiText('of'))} ${d.recovery_total ?? 0}${esc(uiText('. Submitted uploads retain their original request and key.'))}</p></section><div id="media-review"></div>`;
+      )}</select></label><label>${esc(uiText('Fit'))}<select name="fit"><option value="contain">${esc(uiText('Full frame with padding'))}</option><option value="crop">${esc(uiText('Center crop — review content loss'))}</option></select></label><button class="button" type="submit">${esc(uiText('Preview variant'))}</button></form><div id="variant-preview"></div><form id="media-import"><label>${esc(uiText('Advertising account'))}<select name="target" required>${onlyTarget ? '' : `<option value="" selected disabled>${esc(uiText('Choose an account'))}</option>`}${targets.map((t, i) => `<option value="${i}" ${t === onlyTarget ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Media name'), 'text', 'AMCP media', 'name')}<label class="form-note"><input name="reuse" type="checkbox" checked> ${esc(uiText('Reuse a matching available upload receipt when one exists.'))}</label><button class="button primary" type="submit">${esc(uiText('Prepare upload'))}</button></form></details><section class="panel workspace-form"><h2>${esc(uiText('Unfinished uploads and recovery'))}</h2>${(d.recovery_reviews ?? []).map(r => `<div class="token-row"><div><strong>${esc(r.request.name)}</strong><small>${recordAccountLabelHtml(r.request.platform, r.request.connection_id, r.request.account_id)} ${esc(uiText('· Review expires'))} ${date(r.expires_at)}</small></div>${badge(r.state)}<button class="button small" data-media-recovery="${esc(r.review_id)}">${esc(uiText('Inspect recovery'))}</button></div>`).join('') || blank(uiText('No unfinished uploads in your currently authorized accounts.'))}<p class="form-note">${esc(uiText('Showing'))} ${(d.recovery_reviews ?? []).length} ${esc(uiText('of'))} ${d.recovery_total ?? 0}${esc(uiText('. Submitted uploads retain their original request and key.'))}</p></section><div id="media-review"></div>`;
   bindCreativePush(
     targets,
     pushDrives(),
@@ -662,8 +721,15 @@ async function renderMediaLibrary() {
   workspaceBind('#media-import', async f => {
     const v = Object.fromEntries(new FormData(f)),
       source = Object.fromEntries(new FormData($('#media-source'))),
-      target = targets[Number(v.target)];
-    if (!target) throw Error(uiText('Connect and select an advertising account first.'));
+      // An empty choice is no account: Number('') would have picked the first one.
+      target = v.target === undefined || v.target === '' ? undefined : targets[Number(v.target)];
+    if (!targets.length)
+      throw Error(
+        targetsHidden && typeof workingClientEmptyNotice === 'function'
+          ? workingClientEmptyNotice()
+          : uiText('Connect and select an advertising account first.'),
+      );
+    if (!target) throw Error(uiText('Choose the advertising account for this import.'));
     const request = {
         action: 'prepare',
         platform: target.platform,

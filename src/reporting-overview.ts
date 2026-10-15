@@ -48,6 +48,8 @@ import {resolveReportConfig, resolveRollingWindow, nextScheduleDetail} from './r
 import {fixedReportTimezones, reportWindowState, sourceReportTimezone} from './report-windows.js';
 import {normalizeAccount} from './scope.js';
 import {sha256} from './security.js';
+import {optionalClientView} from './client-scope.js';
+import {recordWithinAccess} from './access-sets.js';
 import {reportSourceError} from './report-errors.js';
 import {ReportLibrary} from './report-library.js';
 import {ReportFileDelivery, reportDestination} from './report-file-delivery.js';
@@ -255,7 +257,11 @@ export class ReportingOverview {
   ) {
     this.native = new NativeCampaignReports(service);
     this.sheets = new GoogleSheetsExports(service.store, fetcher);
-    this.library = new ReportLibrary(service.store, (c, a, t, legacy) => this.config(c, a, t, legacy));
+    this.library = new ReportLibrary(
+      service.store,
+      (c, a, t, legacy) => this.config(c, a, t, legacy),
+      (a, c) => this.access(a, c),
+    );
     this.files = new ReportFileDelivery(
       service.store,
       (a, c) => this.access(a, c),
@@ -489,10 +495,26 @@ export class ReportingOverview {
       tenant = actor.tenantId;
     store.assertActorActive(actor);
     if (input.action === 'bootstrap') {
-      const connections = store.listConnections(tenant),
+      // Accounts within current access (SEC-08: a client access set narrows them); profile_id, the working client,
+      // narrows them further to the accounts that client profile binds. Neither grants anything.
+      const client = optionalClientView(store, actor, input.profile_id),
+        connections = store.connectionsFor(actor),
+        ofClient = (gateway: string, account: string, connection: string) =>
+          !client || client.has(gateway, account, connection),
+        // A credential limited to a client access set sees only saved reports and schedules within it.
+        reachable = (record: JsonObject) => {
+          if (actor.accessSetId === undefined) return true;
+          try {
+            this.access(actor, record.config ?? {sources: []});
+            return true;
+          } catch (e) {
+            if (e instanceof MirrorError) return false;
+            throw e;
+          }
+        },
         ownerRecords = {
-          schedules: store.documents(tenant, 'overview_schedule'),
-          views: store.documents(tenant, 'overview_view'),
+          schedules: store.documents(tenant, 'overview_schedule').filter(reachable),
+          views: store.documents(tenant, 'overview_view').filter(reachable),
         };
       return {
         platforms: Object.entries(reportPlatforms).map(([id, p]) => ({
@@ -510,28 +532,39 @@ export class ReportingOverview {
                 assets = (optional(this.service, tenant, 'website_assets', c.id)?.groups ?? [])
                   .filter((g: JsonObject) => g.kind === kind)
                   .flatMap((g: JsonObject) => g.assets ?? []);
-              return c.accounts.map(account => ({
-                account_id: account,
-                connection_id: c.id,
-                label: assets.find((a: JsonObject) => String(a.id).replace(/^act_/, '') === account)?.name ?? account,
-                connection_label: c.label,
-              }));
+              return c.accounts
+                .filter(account => ofClient(c.gateway, account, c.id))
+                .map(account => ({
+                  account_id: account,
+                  connection_id: c.id,
+                  label: assets.find((a: JsonObject) => String(a.id).replace(/^act_/, '') === account)?.name ?? account,
+                  connection_label: c.label,
+                }));
             }),
         })),
+        ...(client ? {client: {profile_id: client.profile_id, name: client.name}} : {}),
         metrics: metricDefinitions,
         metric_sources: metricSources,
         objectives: objectiveGroups,
         views: ownerRecords.views.map(publicRecord),
-        templates: store.documents(tenant, 'overview_template').map(publicRecord),
+        templates: store.documents(tenant, 'overview_template').filter(reachable).map(publicRecord),
         schedules: ownerRecords.schedules.map(publicRecord),
-        destinations: store.documents(tenant, 'sheets_destination').map(d => ({
-          ...d,
-          unresolved_delivery: deliveryProjection(unresolvedSheetsDelivery(store, tenant, d.id)),
-          // The owning report(s) of the tab and the capture time of the snapshot it holds (EXP-03 A/B).
-          last_captured_at: d.last_captured_at ?? null,
-          last_report_id: d.last_report_id ?? null,
-          owners: destinationOwnershipEnforced() ? destinationOwners(store, tenant, d.id, ownerRecords) : [],
-        })),
+        destinations: store
+          .documents(tenant, 'sheets_destination')
+          // A report tab of a spreadsheet outside a client access set stays out, as reportDestination refuses it.
+          .filter(
+            d =>
+              actor.accessSetId === undefined ||
+              recordWithinAccess(actor, connections, {connection_id: d.connection_id, account_id: d.spreadsheet_id}),
+          )
+          .map(d => ({
+            ...d,
+            unresolved_delivery: deliveryProjection(unresolvedSheetsDelivery(store, tenant, d.id)),
+            // The owning report(s) of the tab and the capture time of the snapshot it holds (EXP-03 A/B).
+            last_captured_at: d.last_captured_at ?? null,
+            last_report_id: d.last_report_id ?? null,
+            owners: destinationOwnershipEnforced() ? destinationOwners(store, tenant, d.id, ownerRecords) : [],
+          })),
         file_destinations: store.documents(tenant, 'report_file_destination'),
         sheets_connections: connections
           .filter(c => c.gateway === sheetsGateway)

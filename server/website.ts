@@ -24,7 +24,7 @@ import {Store} from '../src/store.js';
 import {disconnectLocalConnection} from '../src/connection-disconnect.js';
 import {MirrorError} from '../src/errors.js';
 import {sha256, stable} from '../src/security.js';
-import type {Connection, Credentials, JsonObject} from '../src/types.js';
+import type {Actor, Connection, Credentials, JsonObject} from '../src/types.js';
 import {McpOAuth} from './mcp-oauth.js';
 import {mcpOAuthProtocolRoutes} from './mcp-oauth-routes.js';
 import {microsoftGateway} from '../src/microsoft-native.js';
@@ -32,6 +32,15 @@ import {ReportingOverview} from '../src/reporting-overview.js';
 import {auditHistoryPage} from '../src/audit-history.js';
 import {exportCsv} from '../src/google-sheets.js';
 import {assertDownloadAllowed, downloadsAllowed, saveExportPolicy} from '../src/export-policy.js';
+import {
+  accessSetView,
+  accountKey,
+  choosableAccessSet,
+  deleteAccessSet,
+  listAccessSets,
+  saveAccessSet,
+} from '../src/access-sets.js';
+import {clientViews} from '../src/client-scope.js';
 import {UserAccounts} from './user-accounts.js';
 import {SocialSignIn} from './social-signin.js';
 import {accountRoutes} from './account-routes.js';
@@ -361,6 +370,40 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       ...(c.gateway === 'google_ads_native_action'
         ? {authorization: googleAuthorizationInfo(store, c, oauth.config(platform('google')).clientId)}
         : {}),
+    };
+  };
+  /**
+   * A login as this person may see it (SEC-08): for access limited to a client access set, only the set's accounts of
+   * the login (Store.connectionsFor) and only those discovered assets; Pages, catalogs and other accounts stay out.
+   */
+  const actorConnections = (actor: Actor) => store.connectionsFor(actor);
+  /**
+   * The working clients a person may choose (SEC-08 phase 1): client profiles with their accounts within current
+   * access. None for a reviewer test account, or while a required two-step setup is pending (SEC-06).
+   */
+  const workingClientChoices = (actor: Actor): JsonObject[] =>
+    actor.testAccount === true || actor.mfaEnrollmentRequired === true
+      ? []
+      : clientViews(store, actor).map(({has: _has, ...client}) => client);
+  const actorConnection = (actor: Actor, id: string) => {
+    const c = actorConnections(actor).find(c => c.id === id);
+    if (!c) throw new MirrorError('CONNECTION_NOT_FOUND', 'The connection was not found in this workspace.', {}, 404);
+    return c;
+  };
+  const visibleConnection = (actor: Actor, c: Connection) => {
+    const view = publicConnection(actor.tenantId, c);
+    if (actor.accessSetId === undefined) return view;
+    const kinds = selectableKinds(c.gateway),
+      inSet = (id: unknown) => c.accounts.some(a => accountKey(c.gateway, a) === accountKey(c.gateway, id));
+    return {
+      ...view,
+      duplicateOf: null,
+      selected: view.selected.filter((s: string) =>
+        kinds.some(kind => s.startsWith(kind + ':') && inSet(s.slice(kind.length + 1))),
+      ),
+      groups: view.groups
+        .filter((g: JsonObject) => kinds.includes(g.kind))
+        .map((g: JsonObject) => ({...g, assets: (g.assets ?? []).filter((a: JsonObject) => inSet(a.id))})),
     };
   };
   const sync = async (tenant: string, c: Connection, assertActive: () => void, kinds?: string[]) => {
@@ -740,6 +783,10 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         ...(session ? accounts.profile(session) : {name: null}),
         // Whether this person may download report files (SEC-05); the download routes enforce it.
         ...(session ? {downloadsAllowed: downloadsAllowed(store, session.actor)} : {}),
+        // The client access set this member is limited to (SEC-08), or null for the whole workspace.
+        ...(session ? {accessSet: accessSetView(store, session.actor)} : {}),
+        // The working client's choices (SEC-08), so no page waits for another request to narrow its pickers.
+        ...(session ? {workingClients: workingClientChoices(session.actor)} : {}),
         origin: web.origin,
         readOnly: !allowWrites,
         writesEnabled: allowWrites,
@@ -818,13 +865,18 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       if (
         typeof req.body?.request !== 'string' ||
         typeof req.body?.approved !== 'boolean' ||
-        (req.body.scope !== undefined && typeof req.body.scope !== 'string')
+        (req.body.scope !== undefined && typeof req.body.scope !== 'string') ||
+        (req.body.access_set_id !== undefined &&
+          req.body.access_set_id !== null &&
+          typeof req.body.access_set_id !== 'string')
       )
         throw new MirrorError('INVALID_CONSENT', 'Invalid authorization decision.');
       // An approval issues a 30-day refresh family, so it needs recent proof of identity (SEC-06); a denial does not.
       if (req.body.approved) accounts.fresh(s);
       const consent = mcpOAuth.consent(req.body.request, s),
-        url = mcpOAuth.decide(req.body.request, s, req.body.approved, req.body.scope),
+        url = mcpOAuth.decide(req.body.request, s, req.body.approved, req.body.scope, req.body.access_set_id),
+        // The client access set the approval limited the AI client to (SEC-08), as decide chose it.
+        accessSetId = req.body.approved ? (s.actor.accessSetId ?? (req.body.access_set_id || undefined)) : undefined,
         scope: string = req.body.approved ? (req.body.scope ?? consent.scope) : consent.scope,
         owner = grantOwner(s);
       // Approvals and denials name the client, so they join the later mcp_oauth_family_revoked rows (MCP-08).
@@ -837,6 +889,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         scope,
         role: scope.split(' ').includes('mcp:write') ? 'operator' : 'reader',
         ...(owner ? {owner_user_id: owner} : {}),
+        ...(accessSetId ? {access_set_id: accessSetId} : {}),
       });
       res.json({url});
     }),
@@ -886,13 +939,12 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     '/api/platforms',
     handler((req, res) => {
       const session = web.session(req),
-        connections = session ? store.listConnections(session.actor.tenantId) : [];
+        // The logins this person may reach (SEC-08): narrowed to a client access set when the person has one.
+        connections = session ? actorConnections(session.actor) : [];
       res.json({
         platforms: oauth.publicConfig().map(p => ({
           ...p,
-          connections: connections
-            .filter(c => c.gateway === p.gateway)
-            .map(c => publicConnection(session!.actor.tenantId, c)),
+          connections: connections.filter(c => c.gateway === p.gateway).map(c => visibleConnection(session!.actor, c)),
         })),
         authenticated: !!session,
         commerce_sources: session ? wooCommerceSources(store, session.actor).items : [],
@@ -1158,7 +1210,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     '/api/connections/:id',
     handler((req, res) => {
       const s = web.requireSession(req);
-      res.json(publicConnection(s.actor.tenantId, connection(s.actor.tenantId, String(req.params.id))));
+      res.json(visibleConnection(s.actor, actorConnection(s.actor, String(req.params.id))));
     }),
   );
   router.post(
@@ -1502,10 +1554,17 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
           {},
           400,
         );
+      // "Limit to client" (SEC-08): the token reaches only one client access set's accounts. A member limited to a set
+      // always hands on that same limit.
+      const accessSetId = choosableAccessSet(store, s.actor, req.body?.access_set_id);
       // A connector token is a 30-day bearer credential that outlives this session: recent proof first (SEC-06).
       accounts.fresh(s);
-      const id = randomUUID(),
-        token = store.createKey({...s.actor, userId: 'connector/' + id, role}, 30 * 86400000),
+      const {accessSetId: _member, ...actor} = s.actor,
+        id = randomUUID(),
+        token = store.createKey(
+          {...actor, userId: 'connector/' + id, role, ...(accessSetId !== undefined ? {accessSetId} : {})},
+          30 * 86400000,
+        ),
         expiresAt = Date.now() + 30 * 86400000;
       store.putDocument(s.actor.tenantId, 'website_mcp_token', id, {
         name,
@@ -1515,14 +1574,16 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         expiresAt,
         revoked: false,
         created_by: grantOwner(s) ?? 'workspace-admin',
+        access_set_id: accessSetId ?? null,
       });
       store.appendAudit(s.actor.tenantId, id, {
         event: 'website_mcp_token_created',
         name,
         role,
         ...(grantOwner(s) ? {owner_user_id: grantOwner(s)} : {}),
+        ...(accessSetId !== undefined ? {access_set_id: accessSetId} : {}),
       });
-      res.json({id, token, role, expiresAt});
+      res.json({id, token, role, expiresAt, access_set_id: accessSetId ?? null});
     }),
   );
   router.delete(
@@ -1544,6 +1605,58 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       res.json({success: true});
     }),
   );
+  // Client access sets (SEC-08 phase 2): an administrator names the accounts of one client, and a connector token, an
+  // AI client or a member can be limited to them. Administrators also see how much access each set limits.
+  router.get(
+    '/api/access-sets',
+    handler((req, res) => {
+      const s = web.requireSession(req),
+        listed = listAccessSets(store, s.actor);
+      if (s.actor.role === 'admin') {
+        const now = Date.now(),
+          tokens = store.db.prepare(
+            'SELECT count(*) AS n FROM api_keys WHERE tenant_id=? AND access_set_id=? AND revoked=0 AND (expires_at IS NULL OR expires_at>?)',
+          ),
+          members = store.db.prepare(
+            "SELECT count(*) AS n FROM documents d JOIN workspace_memberships m ON m.tenant_id=d.tenant_id AND m.user_id=d.id AND m.active=1 WHERE d.tenant_id=? AND d.kind='member_access_set' AND json_extract(d.data,'$.access_set_id')=?",
+          );
+        for (const set of listed.sets as JsonObject[])
+          set.in_use = {
+            credentials: (tokens.get(s.actor.tenantId, set.id, now) as JsonObject).n,
+            members: (members.get(s.actor.tenantId, set.id) as JsonObject).n,
+          };
+      }
+      res.json(listed);
+    }),
+  );
+  router.post(
+    '/api/access-sets',
+    express.json({limit: '64kb'}),
+    handler((req, res) => {
+      const s = web.requireAdminMutation(req);
+      // A set decides what limited access reaches, so a change needs recent proof of identity (SEC-06).
+      accounts.fresh(s);
+      res.json(saveAccessSet(store, s.actor, req.body && typeof req.body === 'object' ? req.body : {}));
+    }),
+  );
+  router.delete(
+    '/api/access-sets/:id',
+    express.json({limit: '4kb'}),
+    handler((req, res) => {
+      const s = web.requireAdminMutation(req);
+      res.json(deleteAccessSet(store, s.actor, {...(req.body ?? {}), id: String(req.params.id)}));
+    }),
+  );
+  // The working client (SEC-08 phase 1): client profiles with their accounts within this person's current access. It
+  // is a view filter for pickers and lists, never a grant. The session lists them too; this reads them again after a
+  // playbook changes.
+  router.get(
+    '/api/working-clients',
+    handler((req, res) => {
+      const s = web.requireSession(req);
+      res.json({clients: workingClientChoices(s.actor), access_set: accessSetView(store, s.actor)});
+    }),
+  );
   router.get(
     '/api/activity',
     handler((req, res) => {
@@ -1552,7 +1665,8 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
         limit: req.query.limit === undefined ? 100 : Number(req.query.limit),
         ...(req.query.cursor !== undefined ? {cursor: req.query.cursor} : {}),
         ...Object.fromEntries(
-          ['search', 'gateway', 'account_id', 'connection_id']
+          // profile_id: the working client (SEC-08), a view filter within current access.
+          ['search', 'gateway', 'account_id', 'connection_id', 'profile_id']
             .filter(k => req.query[k] !== undefined)
             .map(k => [k, req.query[k]]),
         ),

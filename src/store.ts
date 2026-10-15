@@ -51,6 +51,15 @@ import {
 } from './job-leases.js';
 import type {StorageVolume} from './storage-health.js';
 import {loginRevision, recordLogin} from './connection-authority.js';
+import {
+  accessSetKind,
+  accountScopeRestricted,
+  isNarrowedConnection,
+  memberAccessSetId,
+  narrowConnections,
+  setBindings,
+  type AccessBinding,
+} from './access-sets.js';
 import {storableCredentials, withAppSecrets} from './app-credentials.js';
 import {
   JOURNAL_SIZE_LIMIT_BYTES,
@@ -348,6 +357,15 @@ export class Store {
                 .get() as {sql?: string} | undefined;
               if (!String(trigger?.sql).includes('amcp_audit_tombstone'))
                 db.exec('DROP TRIGGER IF EXISTS audit_no_update; ' + auditUpdateTrigger);
+            },
+          },
+          // An additive schema-2 column (SEC-08): the client access set a key is limited to. Absent (the default for
+          // every existing row) means the whole workspace, as before. A member's set is a member_access_set document.
+          {
+            id: 'store-0015-api-key-access-set',
+            run: db => {
+              if (!db.prepare('SELECT 1 FROM pragma_table_info(?) WHERE name=?').get('api_keys', 'access_set_id'))
+                db.exec('ALTER TABLE api_keys ADD COLUMN access_set_id TEXT');
             },
           },
         ]);
@@ -1589,13 +1607,16 @@ export class Store {
     this.db.prepare('INSERT INTO tenants(id,name) VALUES(?,?) ON CONFLICT(id) DO NOTHING').run(id, name);
   }
   createKey(actor: Actor, ttlMs: number = 86400000 * 30): string {
+    // A key limited to a client access set keeps it for life (SEC-08); an administrator key is never limited.
+    if (actor.accessSetId !== undefined && actor.role === 'admin')
+      throw new MirrorError('INVALID_ROLE', 'A client access set limits reader or operator access only.');
     this.assertActorActive(actor);
     this.ensureTenant(actor.tenantId);
     const token = 'whm_' + randomUUID().replaceAll('-', '') + randomUUID().replaceAll('-', '');
     this.transaction(() => {
       this.db
-        .prepare('INSERT INTO api_keys(hash,tenant_id,user_id,role,expires_at) VALUES(?,?,?,?,?)')
-        .run(sha256(token), actor.tenantId, actor.userId, actor.role, Date.now() + ttlMs);
+        .prepare('INSERT INTO api_keys(hash,tenant_id,user_id,role,expires_at,access_set_id) VALUES(?,?,?,?,?,?)')
+        .run(sha256(token), actor.tenantId, actor.userId, actor.role, Date.now() + ttlMs, actor.accessSetId ?? null);
       if (actor.ownerUserId)
         this.db.prepare('INSERT INTO credential_owners VALUES(?,?)').run(sha256(token), actor.ownerUserId);
     });
@@ -1629,6 +1650,7 @@ export class Store {
       userId: row.user_id,
       role: row.role,
       ...(person ? {ownerUserId: person} : {}),
+      ...(typeof row.access_set_id === 'string' ? {accessSetId: row.access_set_id} : {}),
     };
     this.authenticatedActors.set(actor, sha256(token));
     this.assertActorActive(actor);
@@ -1654,6 +1676,9 @@ export class Store {
   }
   assertActorActive(actor: Actor): void {
     this.actorChecks.get(actor)?.();
+    // A client access set limits reader and operator access only (SEC-08); an administrator is never limited by one.
+    if (actor.accessSetId !== undefined && actor.role === 'admin')
+      throw new MirrorError('MEMBERSHIP_REVOKED', 'Workspace access changed. Sign in again.', {}, 403);
     if (
       actor.userId === 'workspace-admin' &&
       this.db
@@ -1689,8 +1714,15 @@ export class Store {
       const membership = this.db
         .prepare('SELECT role FROM workspace_memberships WHERE tenant_id=? AND user_id=? AND active=1')
         .get(actor.tenantId, actor.ownerUserId) as JsonObject | undefined;
+      const memberSet = membership ? memberAccessSetId(this, actor.tenantId, actor.ownerUserId) : undefined;
       const rank: Record<string, number> = {viewer: 0, reader: 0, operator: 1, admin: 2, owner: 2};
-      if (!membership || rank[membership.role]! < rank[actor.role]!)
+      // A member limited to a client access set (SEC-08) acts only within that set: a token or AI client the person
+      // authorized before the limit, or for another set, stops at once instead of keeping wider access.
+      if (
+        !membership ||
+        rank[membership.role]! < rank[actor.role]! ||
+        (memberSet !== undefined && memberSet !== actor.accessSetId)
+      )
         throw new MirrorError(
           'MEMBERSHIP_REVOKED',
           'Workspace access was removed or reduced. Sign in or authorize the connector again.',
@@ -1702,10 +1734,16 @@ export class Store {
     if (!hash) return; // Trusted local/stdio actors have no bearer credential.
     const row = this.db
       .prepare(
-        'SELECT tenant_id,user_id,role FROM api_keys WHERE hash=? AND revoked=0 AND (expires_at IS NULL OR expires_at>?)',
+        'SELECT tenant_id,user_id,role,access_set_id FROM api_keys WHERE hash=? AND revoked=0 AND (expires_at IS NULL OR expires_at>?)',
       )
       .get(hash, Date.now()) as JsonObject | undefined;
-    if (!row || row.tenant_id !== actor.tenantId || row.user_id !== actor.userId || row.role !== actor.role)
+    if (
+      !row ||
+      row.tenant_id !== actor.tenantId ||
+      row.user_id !== actor.userId ||
+      row.role !== actor.role ||
+      (row.access_set_id ?? undefined) !== actor.accessSetId
+    )
       throw new MirrorError(
         'UNAUTHORIZED',
         'Connector access expired, changed or was revoked during this request.',
@@ -2067,6 +2105,15 @@ export class Store {
   private assertConnectionShape(actor: Actor, connection: Connection) {
     if (actor.role !== 'admin' || actor.tenantId !== connection.tenantId)
       throw new MirrorError('FORBIDDEN', 'Only a tenant administrator can provision a connection.', {}, 403);
+    // A login as a client access set shows it (SEC-08) holds only that set's accounts: storing it would remove every
+    // other account and grant from the login. Read the login with listConnections before changing it.
+    if (isNarrowedConnection(connection))
+      throw new MirrorError(
+        'CONNECTION_CHANGED',
+        'This connection was read through a client access set and cannot be saved from that view. Reload it as a workspace administrator.',
+        {connection_id: connection.id},
+        409,
+      );
     if (!this.box)
       throw new MirrorError('ENCRYPTION_REQUIRED', 'Configure MIRROR_MASTER_KEY before storing credentials.', {}, 503);
     if (
@@ -2121,10 +2168,35 @@ export class Store {
           'Resource bindings require an exact safe path prefix and a configured account.',
         );
   }
+  /** Every login of a workspace. For what a person or credential may reach, use connectionsFor(actor). */
   listConnections(tenantId: string): Connection[] {
     return (this.db.prepare('SELECT data FROM connections WHERE tenant_id=?').all(tenantId) as {data: string}[]).map(
       x => JSON.parse(x.data),
     );
+  }
+  /**
+   * The logins this actor may reach (SEC-08): the whole workspace, or for an actor limited to a client access set, each
+   * bound login narrowed to its bound accounts (src/access-sets.ts). Every listing and resolution of accounts for an
+   * actor goes through here, so a set is enforced in one place. A removed set reaches nothing.
+   */
+  connectionsFor(actor: Actor): Connection[] {
+    return this.connectionsWithin(actor.tenantId, actor.accessSetId);
+  }
+  /**
+   * The logins of a workspace as a client access set narrows them, or every login without one. A login read through a
+   * set remembers it (narrowedAccessSetId), so a refusal about that login lists only the same set's logins.
+   */
+  connectionsWithin(tenantId: string, accessSetId?: string): Connection[] {
+    const all = this.listConnections(tenantId);
+    if (accessSetId === undefined) return all;
+    return narrowConnections(all, this.accessSetBindings(tenantId, accessSetId), accessSetId);
+  }
+  /** The bindings of a client access set; none when the set was removed. */
+  private accessSetBindings(tenantId: string, accessSetId: string): AccessBinding[] {
+    const row = this.db
+      .prepare('SELECT data FROM documents WHERE tenant_id=? AND kind=? AND id=?')
+      .get(tenantId, accessSetKind, accessSetId) as {data: string} | undefined;
+    return row ? setBindings(JSON.parse(row.data)) : [];
   }
   /** Decrypt a login. The result remembers its login revision (read atomically with it) for authority fences. */
   credentials(tenantId: string, id: string): Credentials {
@@ -2269,13 +2341,16 @@ export class Store {
         : gateway === 'meta_native_action'
           ? id.replace(/^act_/, '')
           : id;
-    const available = this.listConnections(actor.tenantId).filter(
+    const available = this.connectionsFor(actor).filter(
       c =>
         c.enabled &&
         c.gateway === gateway &&
         (!connectionId || c.id === connectionId) &&
         (!accountId || c.accounts.some(a => normalize(a) === normalize(accountId))),
     );
+    // Outside a client access set, whether the account exists in the workspace stays unsaid (SEC-08).
+    if (!available.length && actor.accessSetId !== undefined)
+      throw accountScopeRestricted(actor.accessSetId, {gateway, account_id: accountId ?? null});
     if (!available.length)
       throw new MirrorError(
         'CONNECTION_REQUIRED',
@@ -2796,5 +2871,42 @@ export class Store {
       result: row.result ? JSON.parse(row.result) : null,
       error: row.error ? JSON.parse(row.error) : null,
     };
+  }
+  /**
+   * A job as this actor may read it by ID (SEC-08): any job of the workspace, or under a client access set only a job
+   * started under that same set, as its sealed authority records; any other is not found, like one that does not exist.
+   */
+  jobFor(actor: Actor, id: string): JsonObject {
+    this.assertActorActive(actor);
+    const job = this.job(actor.tenantId, id);
+    if (actor.accessSetId !== undefined && this.jobAccessSet(actor.tenantId, id) !== actor.accessSetId)
+      throw new MirrorError('NOT_FOUND', 'Job not found in this tenant.', {}, 404);
+    return job;
+  }
+  /**
+   * The client access set a job's creator was limited to, from the sealed authority: the job's own, or for a job that
+   * runs or delivers a report snapshot, the snapshot's. Undefined when there is none or it cannot be read (fail closed).
+   */
+  private jobAccessSet(tenantId: string, id: string): string | undefined {
+    const row = this.db.prepare('SELECT input FROM jobs WHERE tenant_id=? AND id=?').get(tenantId, id) as
+      {input: string} | undefined;
+    const input = row ? (JSON.parse(row.input) as JsonObject) : undefined;
+    let binding: unknown = input?.authority?.binding,
+      scope = 'job:' + id;
+    if (typeof binding !== 'string' && typeof input?.report_id === 'string') {
+      const report = this.db
+        .prepare(
+          "SELECT json_extract(data,'$.actor_binding') AS binding FROM documents WHERE tenant_id=? AND kind=? AND id=?",
+        )
+        .get(tenantId, 'overview_report', input.report_id) as {binding?: unknown} | undefined;
+      binding = report?.binding;
+      scope = input.report_id;
+    }
+    if (typeof binding !== 'string' || !this.box) return undefined;
+    try {
+      return this.box.open<{actor: Actor}>(binding, scopeKey(tenantId, 'job-actor', scope)).actor.accessSetId;
+    } catch {
+      return undefined;
+    }
   }
 }

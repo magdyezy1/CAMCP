@@ -57,6 +57,11 @@ export interface Actor {
   mfaPolicy?: boolean;
   /** Website sessions only (SEC-06): a two-step requirement's grace period ended before this member enrolled. */
   mfaEnrollmentRequired?: boolean;
+  /**
+   * A client access set (SEC-08): this credential or member reaches only the accounts the set binds. Absent means the
+   * whole workspace, as before. Never on an administrator or owner role.
+   */
+  accessSetId?: string;
 }
 export interface Connection {
   id: string;

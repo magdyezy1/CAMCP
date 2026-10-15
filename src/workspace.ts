@@ -27,6 +27,7 @@ import {
   sharedEvidence,
 } from './readiness.js';
 import {previewPlaybook, validatePlaybook} from './client-playbooks.js';
+import {profileWithinAccess, visibleProfile} from './client-scope.js';
 import {clientBriefs, recipeDefaultFields} from './recipe-context.js';
 import {monitorActions, monitorOperation} from './report-monitors.js';
 import {portfolioPage} from './portfolio.js';
@@ -73,7 +74,6 @@ import {
   noSecrets,
   obj,
   optional,
-  read,
   tool,
   update,
   validate,
@@ -177,6 +177,7 @@ export const workspaceTool = tool(
     live: field.bool,
     id: field.id,
     profile: field.object,
+    profile_id: field.id,
     brief: field.object,
     preview: field.object,
     preview_id: field.id,
@@ -543,6 +544,8 @@ export class WorkspaceService {
         // By name, so a client is found in the same place on every load (CMP-06); IDs are random.
         profiles: this.store
           .documents(actor.tenantId, 'client_profile')
+          // Access limited to a client access set (SEC-08) sees only the profiles whose bindings stay within it.
+          .filter(p => profileWithinAccess(this.store, actor, p))
           .sort(
             (a, b) =>
               String(a.name ?? '').localeCompare(String(b.name ?? ''), 'en', {sensitivity: 'base'}) ||
@@ -551,7 +554,7 @@ export class WorkspaceService {
         recipe_defaults: recipeDefaultFields(),
       };
     if (input.action === 'preview_profile') {
-      const profile = input.id ? read(this.store, actor, 'client_profile', input.id) : input.profile;
+      const profile = input.id ? visibleProfile(this.store, actor, input.id) : input.profile;
       if (!obj(profile)) bad('Supply a saved profile or a draft profile.');
       validatePlaybook(profile);
       for (const binding of profile.bindings ?? [])
@@ -583,6 +586,8 @@ export class WorkspaceService {
         this.store.resolveConnection(actor, binding.gateway, binding.account_id, binding.connection_id);
       }
       const id = input.id ?? randomUUID();
+      if (input.id !== undefined && optional(this.store, actor.tenantId, 'client_profile', id))
+        visibleProfile(this.store, actor, id);
       if (
         !optional(this.store, actor.tenantId, 'client_profile', id) &&
         this.store.documents(actor.tenantId, 'client_profile').length >= 100
@@ -602,7 +607,7 @@ export class WorkspaceService {
     if (input.action === 'delete_profile') {
       writer(this.store, actor);
       if (input.confirmed !== true) bad('Confirm profile deletion.');
-      const p = read(this.store, actor, 'client_profile', input.id);
+      const p = visibleProfile(this.store, actor, input.id);
       if (input.revision !== p.revision) bad('Reload the current profile.', 'REVISION_CONFLICT');
       this.store.db
         .prepare('DELETE FROM documents WHERE tenant_id=? AND kind=? AND id=? AND revision=?')
@@ -636,7 +641,7 @@ export class WorkspaceService {
       new Set(ids).size !== ids.length
     )
       bad('account_ids takes 1 to 20 distinct account IDs.', 'INVALID_ARGUMENT', {field: 'account_ids'});
-    const c = this.store.listConnections(actor.tenantId).find(c => c.id === input.connection_id);
+    const c = this.store.connectionsFor(actor).find(c => c.id === input.connection_id);
     if (!c) bad('Select a connection in this workspace.', 'CONNECTION_NOT_FOUND');
     const foreign = (ids as string[]).filter(id => !c.accounts.includes(id));
     if (foreign.length)
@@ -662,7 +667,7 @@ export class WorkspaceService {
     };
   }
   private async checkAccount(input: JsonObject, actor: Actor): Promise<JsonObject> {
-    const c = this.store.listConnections(actor.tenantId).find(c => c.id === input.connection_id);
+    const c = this.store.connectionsFor(actor).find(c => c.id === input.connection_id);
     if (!c) bad('Select a connection in this workspace.', 'CONNECTION_NOT_FOUND');
     const id = input.account_id;
     if (typeof id !== 'string' || !c.accounts.includes(id))

@@ -20,7 +20,9 @@ import {endMcpGrants} from './mcp-grants.js';
 import {MirrorError} from '../src/errors.js';
 import {sha256} from '../src/security.js';
 import {accountRetention, retentionBlockedAccounts} from '../src/account-erasure.js';
-import type {JsonObject} from '../src/types.js';
+import type {Actor, JsonObject} from '../src/types.js';
+import type {Store} from '../src/store.js';
+import {choosableAccessSet, memberAccessSetId, setMemberAccessSet} from '../src/access-sets.js';
 
 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 export function base32(bytes: Buffer) {
@@ -57,6 +59,15 @@ export function totp(secret: string, step = Math.floor(Date.now() / 30000)) {
   const h = createHmac('sha1', Buffer.from(bytes)).update(counter).digest(),
     offset = h[h.length - 1]! & 15;
   return String((h.readUInt32BE(offset) & 0x7fffffff) % 1000000).padStart(6, '0');
+}
+/** The client access set a viewer or operator membership is limited to (SEC-08); an administrator never has one. */
+function memberAccessSet(store: Store, actor: Actor, role: unknown, requested: unknown): string | undefined {
+  if (requested === undefined || requested === null || requested === '') return undefined;
+  if (role === 'admin')
+    throw new MirrorError('INVALID_ARGUMENT', 'A client access set limits viewer or operator access only.', {
+      field: 'access_set_id',
+    });
+  return choosableAccessSet(store, actor, requested);
 }
 const equal = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 export class AccountSecurity {
@@ -481,7 +492,12 @@ export class AccountSecurity {
             'SELECT u.id,u.name,u.email,m.role,EXISTS(SELECT 1 FROM amcp_mfa f WHERE f.user_id=u.id) AS mfa FROM workspace_memberships m JOIN amcp_users u ON u.id=m.user_id WHERE m.tenant_id=? AND m.active=1',
           )
           .all(s.actor.tenantId) as JsonObject[]
-      ).map(m => ({...m, mfa: !!m.mfa})),
+      ).map(m => ({
+        ...m,
+        mfa: !!m.mfa,
+        // The client access set the member is limited to (SEC-08), or null for the whole workspace.
+        access_set_id: m.role === 'owner' ? null : (memberAccessSetId(this.web.store, s.actor.tenantId, m.id) ?? null),
+      })),
       // Pending invitations that have not expired, newest first; the email and its link stay private (SEC-06 S4).
       invitations: this.web.store
         .documents(s.actor.tenantId, 'workspace_invite')
@@ -644,6 +660,8 @@ export class AccountSecurity {
       (role === 'admin' && s.actor.userId !== 'workspace-admin' && s.actor.membershipRole !== 'owner')
     )
       throw new MirrorError('FORBIDDEN', 'Only owners can invite administrators.', {}, 403);
+    // "Limit to client" (SEC-08): a viewer or operator may be invited for one client access set's accounts only.
+    const accessSetId = memberAccessSet(this.web.store, s.actor, role, input.access_set_id);
     // An invitation grants workspace access, so it needs recent proof of identity (SEC-06).
     this.accounts.fresh(s);
     const email = accountEmail(input.email);
@@ -658,7 +676,7 @@ export class AccountSecurity {
       createdAt = Date.now(),
       token = this.accounts.challenge(
         'invite',
-        {tenantId: s.actor.tenantId, email, role, id, inviter: s.actor.userId},
+        {tenantId: s.actor.tenantId, email, role, id, inviter: s.actor.userId, accessSetId: accessSetId ?? null},
         lifetime,
       );
     this.web.store.putDocument(s.actor.tenantId, 'workspace_invite', id, {
@@ -666,6 +684,7 @@ export class AccountSecurity {
       // The link's hash, so withdrawing the invitation deletes the link itself; never shown.
       challengeHash: sha256(token),
       role,
+      access_set_id: accessSetId ?? null,
       state: 'pending',
       created_at: createdAt,
       expires_at: createdAt + lifetime,
@@ -744,6 +763,14 @@ export class AccountSecurity {
             'INSERT INTO workspace_memberships(tenant_id,user_id,role,active,created_at) VALUES(?,?,?,1,?) ON CONFLICT(tenant_id,user_id) DO UPDATE SET active=1,role=excluded.role',
           )
           .run(data.tenantId, u.id, data.role, Date.now());
+      // A member invited for one client keeps that limit (SEC-08); a set removed meanwhile reaches nothing.
+      if (!current)
+        setMemberAccessSet(
+          this.web.store,
+          data.tenantId,
+          u.id,
+          data.role !== 'admin' && typeof data.accessSetId === 'string' ? data.accessSetId : null,
+        );
       this.web.store.putDocument(data.tenantId, 'workspace_invite', data.id, {
         ...invitation,
         state: 'accepted',
@@ -775,6 +802,15 @@ export class AccountSecurity {
       if (!row) throw new MirrorError('NOT_FOUND', 'Member not found.', {}, 404);
       if (row.role === 'owner')
         throw new MirrorError('OWNER_REQUIRED', 'The workspace owner cannot be removed or demoted.');
+      // The member's client access set (SEC-08): access_set_id names one, null lifts the limit, and leaving it out keeps
+      // the current one. An administrator is never limited. Like a role change, it ends the member's sessions and
+      // credentials below, so nothing they hold keeps the previous reach.
+      const accessSetId =
+        input.role === 'remove' || input.role === 'admin'
+          ? null
+          : input.access_set_id === undefined
+            ? (memberAccessSetId(this.web.store, s.actor.tenantId, input.userId) ?? null)
+            : (memberAccessSet(this.web.store, s.actor, input.role, input.access_set_id) ?? null);
       this.db
         .prepare('UPDATE workspace_memberships SET active=?,role=? WHERE tenant_id=? AND user_id=?')
         .run(
@@ -783,6 +819,7 @@ export class AccountSecurity {
           s.actor.tenantId,
           input.userId,
         );
+      setMemberAccessSet(this.web.store, s.actor.tenantId, input.userId, accessSetId);
       this.db
         .prepare(
           "DELETE FROM amcp_web_sessions WHERE json_extract(actor,'$.userId')=? AND json_extract(actor,'$.tenantId')=?",
@@ -803,6 +840,7 @@ export class AccountSecurity {
         event: 'workspace_member_changed',
         user_id: input.userId,
         role: input.role,
+        ...(input.role !== 'remove' ? {access_set_id: accessSetId} : {}),
       });
       return {success: true};
     });

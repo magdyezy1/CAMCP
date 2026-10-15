@@ -138,7 +138,7 @@ export async function adjustReporting(
     if (input.include_disconnected !== undefined && typeof input.include_disconnected !== 'boolean')
       invalid('include_disconnected must be a boolean.');
     const connections = store
-      .listConnections(actor.tenantId)
+      .connectionsFor(actor)
       .filter(c => c.gateway === gateway && (input.include_disconnected === true || c.enabled))
       .map(c => ({
         connection_id: c.id,
@@ -160,7 +160,7 @@ export async function adjustReporting(
   keys(input, ['action', 'label', 'payload']);
   const action = String(input.action);
   if (!actions.includes(action)) invalid('Choose a supported Adjust reporting action.');
-  const configured = store.listConnections(actor.tenantId).filter(c => c.gateway === gateway),
+  const configured = store.connectionsFor(actor).filter(c => c.gateway === gateway),
     exact = configured.find(c => c.id === input.label),
     matches = exact ? [exact] : configured.filter(c => c.label === input.label);
   if (matches.length !== 1)
@@ -324,7 +324,7 @@ export async function adjustReporting(
   }
   const access = () => {
     store.assertActorActive(actor);
-    const c = store.listConnections(actor.tenantId).find(c => c.gateway === gateway && c.id === connection.id);
+    const c = store.connectionsFor(actor).find(c => c.gateway === gateway && c.id === connection.id);
     if (!c || !c.enabled)
       throw new MirrorError('CONNECTION_REQUIRED', 'The selected Adjust connection is disabled or removed.', {}, 403);
     if (apps.some(a => !c.accounts.includes(a)))

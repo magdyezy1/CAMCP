@@ -113,7 +113,7 @@ function captureTarget(store: Store, actor: Actor, input: JsonObject) {
   const gateways = new Set(reportPresets.map(p => p.gateway)),
     accountId = String(input.account_id ?? ''),
     connection = store
-      .listConnections(actor.tenantId)
+      .connectionsFor(actor)
       .find(
         c => c.enabled && c.id === input.connection_id && gateways.has(c.gateway) && c.accounts.includes(accountId),
       );

@@ -110,8 +110,11 @@ test('every reviewed contract status has a capability label with an Arabic entry
   assert.equal(page('en').run("uiList(['A', 'B', 'C'])"), 'A, B, and C');
 });
 
+// An empty workspace as src/capabilities.ts reads it: documents and the logins this actor reaches (connectionsFor,
+// the account resolver every listing uses since SEC-08).
+const fakeStore = {documents: () => [], listConnections: () => [], connectionsFor: () => []};
 test('the Home capability vocabulary and reporting workflow names match the server and have Arabic entries', () => {
-  const server = workspaceCapabilities({documents: () => [], listConnections: () => []}, {tenantId: 'tenant-a'}),
+  const server = workspaceCapabilities(fakeStore, {tenantId: 'tenant-a'}),
     english = page('en', {capabilityCenter: true}),
     features = JSON.parse(english.run('JSON.stringify(capabilityFeatureLabels)')),
     capabilityLabels = JSON.parse(english.run('JSON.stringify(capabilityLabels)'));
@@ -134,7 +137,7 @@ test('the Home capability vocabulary and reporting workflow names match the serv
 });
 
 test('Arabic Home renders the capability block in Arabic; English Home is unchanged', async () => {
-  const server = workspaceCapabilities({documents: () => [], listConnections: () => []}, {tenantId: 'tenant-a'}),
+  const server = workspaceCapabilities(fakeStore, {tenantId: 'tenant-a'}),
     dashboard = {connections: [], campaigns: [], capabilities: server};
   for (const locale of ['ar', 'en']) {
     const view = page(locale);

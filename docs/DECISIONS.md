@@ -146,9 +146,21 @@ cites as owner decisions, each the review's recommended or the ticket's proposed
 P8 stays open: the Meta dataset, Search Console and Adjust are not in Measurement, and the measurement ledger has
 Google Ads and GA4 adapters only ([product workflows](PRODUCT-WORKFLOWS.md)).
 
+Also applied on 2026-10-13 (P1, agency isolation; owner-approved 2026-10-11, SEC-08): many clients per workspace.
+The website's working client is a non-authorizing view filter (top bar, `?client=`, `profile_id` on the list
+actions), and client access sets are the optional authorizing boundary for members, connector tokens and AI clients,
+enforced where accounts are resolved and refused with `ACCOUNT_SCOPE_RESTRICTED`
+([clients in one workspace](USER-ACCOUNTS.md#clients-in-one-workspace-working-client-and-client-access-sets)).
+Chosen during implementation (the owner may revise): only viewer and operator access can be limited, never owners or
+administrators; a removed set reaches nothing rather than the whole workspace; a limited credential gets no Facebook
+Page suggestions, since a Page belongs to a login rather than an account. Owner-created additional workspaces
+(SEC-08 phase 2(b)) are not built. P1's other parts are outside SEC-08: the distinct approver is WRT-09's opt-in
+approval mode (off by default), and the read-only handover of colleagues' plans and stuck uploads is team-handoff work
+(CMP-05).
+
 Not decided in this round: the review's resource and authorization requests R1–R8 (test accounts, named reads, a
 disposable Sheets destination, declared provider approvals, LinkedIn programs and DV360, reviewers, a staging
-environment, the workload profile), the product-direction questions P1, P8, P11 and P12, and the parts of P2–P7 and
+environment, the workload profile), the product-direction questions P8, P11 and P12, and the parts of P2–P7 and
 P9 that this record does not name as applied. Each register item that needs one of them stays at the stage the review
 names, and live acceptance stays read-only until R1 is answered.
 

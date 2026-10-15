@@ -763,6 +763,41 @@ test('Back and Forward land on the page heading after the page renders', async (
   assert.equal(f.context.document.activeElement, null);
 });
 
+// SEC-08: a chosen working client stays in the address of the next page (?client=), and that page still receives focus.
+// Before, render() added ?client= after a link had pushed its address, so the link's own check no longer matched the
+// address, and focus and scrolling were skipped on every page while a client was chosen (Back likewise).
+test('with a working client chosen, links and Back keep ?client= and still land on the page heading', async () => {
+  const f = browserFixture(async url => response(url.startsWith('/api/activity') ? {events: []} : {platforms: []}));
+  const memory = new Map();
+  f.context.sessionStorage = {
+    getItem: key => memory.get(key) ?? null,
+    setItem: (key, value) => memory.set(key, String(value)),
+    removeItem: key => memory.delete(key),
+    key: index => [...memory.keys()][index] ?? null,
+    get length() {
+      return memory.size;
+    },
+  };
+  f.run(
+    "session = {...nextIdentity, workingClients: [{profile_id: 'profile-a', name: 'Client A', accounts: [{gateway: 'meta_native_action', connection_id: 'meta', account_id: '100'}]}]}",
+  );
+  f.updateLocation('/connections?client=profile-a');
+  await f.run('render()');
+  f.context.document.activeElement = null;
+  f.scrolls.length = 0;
+  await f.run("navigate('/activity')");
+  assert.equal(f.location.pathname + f.location.search, '/activity?client=profile-a');
+  assert.equal(f.context.document.activeElement, f.node('h1'), 'navigation lands on the page heading');
+  assert.deepEqual(f.scrolls, ['top']);
+  // An older history entry without ?client= gains it from this tab's memory as it renders, and still gets focus.
+  const [popstate] = f.windowListeners.get('popstate');
+  f.context.document.activeElement = null;
+  f.updateLocation('/connections');
+  await popstate();
+  assert.equal(f.location.pathname + f.location.search, '/connections?client=profile-a');
+  assert.equal(f.context.document.activeElement, f.node('h1'));
+});
+
 test('a failed shell action stays on screen until the next action, then clears', async () => {
   let fail = true;
   const f = browserFixture(async () =>

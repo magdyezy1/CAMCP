@@ -451,7 +451,13 @@ ${
           )
           .join('')}</fieldset>`,
     )
-    .join('') || `<p class="form-note">${esc(uiText('Connect an advertising account and select it first.'))}</p>`
+    .join('') ||
+  `<p class="form-note">${esc(
+    // The working client hid every account (SEC-08), or none is connected and selected yet.
+    targets.hiddenByClient && typeof workingClientEmptyNotice === 'function'
+      ? workingClientEmptyNotice()
+      : uiText('Connect an advertising account and select it first.'),
+  )}</p>`
 }
 <label id="push-owner" hidden>${esc(uiText('LinkedIn video owner: the organization URN of the page that posts it'))}<input name="owner_urn" placeholder="urn:li:organization:123"></label>
 <label id="push-name">${esc(uiText('Media name'))}<input name="name" maxlength="80"></label>
@@ -873,6 +879,19 @@ function bindCreativePush(targets, drives, initialUnfinished = [], serverTime, {
     if (!sources.length) throw Error(uiText('Add a file first.'));
     const chosen = [...form.querySelectorAll('input[name=target]:checked')].map(box => targets[Number(box.value)]);
     if (!chosen.length) throw Error(uiText('Choose at least one advertising account.'));
+    // A push to accounts of different clients asks first (SEC-08).
+    if (
+      typeof confirmCrossClient === 'function' &&
+      !(await confirmCrossClient(
+        chosen.map(t => ({
+          gateway: t.gateway ?? t.platform + '_native_action',
+          account_id: t.account_id,
+          connection_id: t.connection_id,
+        })),
+        uiText('Review the push'),
+      ))
+    )
+      return;
     if (sources.length * chosen.length > pushMaxUploads)
       throw Error(
         uiText('One push reviews at most {limit} uploads; this is {count}. Choose fewer files or accounts.', {

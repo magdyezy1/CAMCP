@@ -12,6 +12,7 @@ import {
   linkedPlanAdIds,
 } from './creative-performance.js';
 import {retainedMediaId} from './retained-media.js';
+import {optionalClientView} from './client-scope.js';
 
 // Select metadata in SQLite: never materialize upload requests, Drive URLs, provider responses or credentials.
 const projection = `SELECT a.id, coalesce(m.revision,0) AS metadata_revision,
@@ -217,6 +218,8 @@ export function creativeLibrary(store: Store, actor: Actor, input: JsonObject): 
   // "Same original" (MED-04 B): the receipts of one original across accounts, by the SHA-256 their reviews recorded.
   if (input.original_sha256 !== undefined && !/^[0-9a-f]{64}$/.test(input.original_sha256))
     bad('Use the exact original SHA-256: 64 lowercase hexadecimal characters.');
+  // The working client (SEC-08): only media of the accounts the client profile binds, within current access.
+  const client = optionalClientView(store, actor, input.profile_id);
   const filters = {
     search: (input.search ?? '').trim().toLowerCase(),
     tag: (input.tag ?? '').trim().toLowerCase(),
@@ -224,6 +227,7 @@ export function creativeLibrary(store: Store, actor: Actor, input: JsonObject): 
     account_id: input.account_id ?? '',
     connection_id: input.connection_id ?? '',
     ...(input.original_sha256 ? {original_sha256: input.original_sha256 as string} : {}),
+    ...(client ? {profile_id: client.profile_id} : {}),
   };
   const bound = binding(store, actor, filters),
     after = cursor(input.cursor, bound);
@@ -252,6 +256,7 @@ export function creativeLibrary(store: Store, actor: Actor, input: JsonObject): 
       (!filters.platform || p.platform === filters.platform) &&
       (!filters.account_id || p.account_id === normalizeAccount(p.platform + '_native_action', filters.account_id)) &&
       (!filters.connection_id || p.connection_id === filters.connection_id) &&
+      (!client || client.has(p.platform + '_native_action', p.account_id, p.connection_id)) &&
       (!filters.tag || p.tags.includes(filters.tag)) &&
       (!filters.original_sha256 || p.original_sha256 === filters.original_sha256) &&
       (!filters.search ||

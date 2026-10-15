@@ -13,6 +13,14 @@ in Advanced JSON. Preview includes exact recipe defaults and every mapping, but 
 and do not verify provider ownership/event delivery or replace preflight. Existing approved revisions stay fixed
 in saved plans and report packs. Google Maximize Clicks defaults expose the existing exact CPC ceiling.
 
+One workspace may serve several clients. To see one client's work, pass its client profile's `profile_id` to
+`amcp_campaign list`, `amcp_workspace operations` and `history`, `amcp_media list` and `library`, and
+`amcp_reporting_overview bootstrap`: they keep only the accounts that profile binds, within current access (the
+website's working client). This is a view filter that only hides and never grants; a removed profile, or one outside
+current access, is refused with `PROFILE_NOT_FOUND` rather than showing every client. A token, AI client or member
+limited to a client access set is different: that limit is enforced (`ACCOUNT_SCOPE_RESTRICTED`, below), and
+`get_workspace_context` names it.
+
 For a complete campaign brief, call `amcp_campaign {action:"recipe_eligibility",recipe,business,profile_id?}`
 before saving a plan. This local assessment shares the native recipe compiler and profile provenance. Follow
 its `next_call` with explicit `live:true` to add the existing read-only native preflight. No provider mutation
@@ -606,6 +614,11 @@ blindly, reshape a request to slip past one, or split a change into smaller piec
 - `ACCOUNT_REQUIRED` / `CONNECTION_REQUIRED` / `AMBIGUOUS_CONNECTION` — the account or connection
   could not be resolved, or more than one matched. Ask the user which account they mean rather
   than guessing.
+- `ACCOUNT_SCOPE_RESTRICTED` — this token, AI client or member is limited to one client's
+  accounts (a client access set), and the account named is not one of them. Nothing was read,
+  prepared or sent, and the refusal does not say whether the account exists in the workspace.
+  `get_workspace_context` names the set (`access_set`) and lists the accounts it reaches; work
+  with those, or ask a workspace administrator to change the set. No argument widens it.
 - `PROVIDER_WRITE_SCOPE_REQUIRED` / `INSUFFICIENT_SCOPE` — the connection lacks a scope the write
   needs. Reconnecting is the user's decision.
 - `PAUSED_CREATION_REQUIRED` — a new serving entity must be created paused. Set the provider's
@@ -1120,7 +1133,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | Action | What it does | Arguments | Effects | Role |
 |---|---|---|---|---|
 | `dashboard` | Counts per provider and account; sections with gateway, connection_id and account_id return bounded detail. | `view`, `sections`, `gateway`, `connection_id`, `account_id`, `limit`, `cursor` | no provider request | reader |
-| `operations` | Metadata-only feed of retained work across engines, each with a read-only next_call to its record. | `kind`, `state`, `search`, `account_id`, `connection_id`, `limit`, `cursor` | no provider request | reader |
+| `operations` | Metadata-only feed of retained work across engines, each with a read-only next_call to its record. | `kind`, `state`, `search`, `account_id`, `connection_id`, `profile_id`, `limit`, `cursor` | no provider request | reader |
 | `report_run` | One workbook report run: its bounded, currently scoped status. | **`id`** | no provider request | reader |
 | `resume_report_run` | Requeues a prepared, failed or cancelled read-only workbook report under its original run ID. | **`id`**, **`run_version`**, **`confirmed`** | provider reads; saves report_run | operator |
 | `report_schedule` | One workbook schedule with its next three clock times and schedule_version. | **`id`** | no provider request | reader |
@@ -1181,7 +1194,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `brief` | One saved client brief. | **`id`** | no provider request | reader |
 | `save_brief` | Saves a client brief ({name, recipe, profile_id?, business}) for recipes to reuse by brief_id. | **`brief`**, `id`, `revision` | no provider request; saves client_brief | operator |
 | `delete_brief` | Deletes a saved client brief at its current revision. | **`id`**, **`revision`**, **`confirmed`** | no provider request; saves client_brief | operator |
-| `history` | Bounded audit metadata of changes (never raw requests or receipts), filtered and paged. | `search`, `gateway`, `connection_id`, `account_id`, `limit`, `cursor` | no provider request | reader |
+| `history` | Bounded audit metadata of changes (never raw requests or receipts), filtered and paged. | `search`, `gateway`, `connection_id`, `account_id`, `profile_id`, `limit`, `cursor` | no provider request | reader |
 | `health` | Owner (or administrator) health summary of jobs, storage and deliveries. | — | no provider request | admin |
 | `support_bundle` | The owner’s metadata-only operations bundle for support. | — | no provider request | owner |
 | `save_spend_policy` | Saves the owner spending policy for the workspace or one account (expected_revision guards against a stale read). | **`policy`**, **`confirmed`**, `scope`, `gateway`, `account_id`, `connection_id`, `expected_revision` | no provider request; saves spend_policy | owner |
@@ -1254,7 +1267,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 
 | Action | What it does | Arguments | Effects | Role |
 |---|---|---|---|---|
-| `bootstrap` | Accounts, metrics, entity levels, saved reports, schedules and destinations for building a report. | — | no provider request | reader |
+| `bootstrap` | Accounts, metrics, entity levels, saved reports, schedules and destinations for building a report. | `profile_id` | no provider request | reader |
 | `preview_schedule` | The next three deliveries of a saved or proposed schedule, with each source’s window. | `id`, `schedule`, `config` | no provider request | reader |
 | `report_pack` | A snapshot’s summary, source evidence and PDF/XLSX download paths. | **`id`** | no provider request | reader |
 | `save_presentation` | Saves a snapshot’s presentation (labels, order, notes). | **`id`**, **`presentation`**, **`confirmed`**, `presentation_revision` | no provider request; saves report_presentation | operator |
@@ -1300,8 +1313,8 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `inspect_eligibility` | Checks a file against a placement preset before any upload; nothing is kept. | **`preset`**, `source_id`, `source_url`, `drive_url`, `drive_connection_id`, `variant_id` | no provider request | operator |
 | `retain_source` | Keeps an imported link or Drive original beyond its 30-minute window (workspace owner). | **`source_id`**, **`expected_sha256`**, **`confirmed`** | no provider request; saves media_source | owner |
 | `remove_source` | Removes a retained original (workspace owner). | **`source_id`**, **`expected_sha256`**, **`confirmed`** | no provider request; saves media_source | owner |
-| `list` | Upload receipts, recovery reviews, variants, presets and website sources. | `platform`, `account_id`, `connection_id`, `offset`, `limit`, `recovery_offset`, `include_assets` | no provider request | reader |
-| `library` | Account-scoped retained media metadata. | `platform`, `account_id`, `connection_id`, `search`, `tag`, `original_sha256`, `cursor`, `limit` | no provider request | reader |
+| `list` | Upload receipts, recovery reviews, variants, presets and website sources. | `platform`, `account_id`, `connection_id`, `profile_id`, `offset`, `limit`, `recovery_offset`, `include_assets` | no provider request | reader |
+| `library` | Account-scoped retained media metadata. | `platform`, `account_id`, `connection_id`, `profile_id`, `search`, `tag`, `original_sha256`, `cursor`, `limit` | no provider request | reader |
 | `asset` | One retained asset with its versions and verified plan usage. | **`asset_id`**, `cursor`, `limit` | no provider request | reader |
 | `save_asset_metadata` | Saves an asset’s name, tags and notes at its revision. | **`asset_id`**, **`metadata`**, **`revision`**, **`confirmed`** | no provider request; saves creative_asset | operator |
 | `asset_performance` | Retained ad performance compatible with an asset (plan_id, report_id). | **`asset_id`**, `plan_id`, `report_id`, `cursor`, `offset`, `limit` | no provider request | reader |

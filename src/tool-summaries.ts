@@ -9,9 +9,9 @@ import {actionSummaries, firstPartyContract, type FirstPartyContract} from './fi
  */
 export const descriptionBudget = 2000;
 const help = (tool: string) =>
-  'Per-action arguments and rules: amcp_tool_help {gateway:"' +
+  'Arguments and rules per action, and guides: amcp_tool_help {gateway:"' +
   tool +
-  '", operation:"<action>"}; guides: amcp_tool_help {topic:"guides"}.';
+  '",operation:"<action>"} or {topic:"guides"}.';
 export const routingSummaries: Readonly<Record<string, string>> = Object.freeze({
   amcp_workspace:
     'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its history. ' +
@@ -56,7 +56,7 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     help('amcp_reporting_overview') +
     ' Guide: amcp://guides/reporting-overview.',
   amcp_media:
-    'Use this to put an image or video into an ad account as a reviewed upload: a file uploaded on the AMCP website (source_id; list returns them under sources), a public HTTPS link (source_url), or a public or selected private Google Drive file (drive_url). ' +
+    'Use this to put an image or video into an ad account as a reviewed upload: a file uploaded on the website (source_id; list returns them under sources), a public HTTPS link (source_url), or a public or selected private Google Drive file (drive_url). ' +
     'Safety: the MCP client never downloads bytes; nothing publishes ads or posts; operator role, account write grants and durable idempotency apply; website uploads expire 30 minutes after the upload starts. ' +
     'prepare fetches and encrypts the exact file for a five-minute review (fit_to_platform:true scales or converts it; request.transform says what changed); execute uploads those frozen bytes after explicit confirmation; execute_async and job_status queue and follow it; status reads provider processing; recovery and resume continue an interrupted upload within its original review, never an uncertain part. ' +
     'Other actions: plan (per-account variants), variant, inspect_eligibility (checks a file against a placement before any upload), prepare_library, reuse, cancel, list, library, asset, asset_usage (current Meta, Google and Snapchat references to an uploaded asset, with reference_view), asset_performance, save_asset_metadata, and retain_source and remove_source (workspace owner only). ' +

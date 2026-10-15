@@ -4,6 +4,7 @@ import {BlockList, isIP} from 'node:net';
 import {Store} from '../src/store.js';
 import {SecretBox, sha256, scopeKey} from '../src/security.js';
 import {MirrorError} from '../src/errors.js';
+import {memberAccessSetId} from '../src/access-sets.js';
 import type {Actor, JsonObject} from '../src/types.js';
 import {LimitDiagnostics, registerLimitDiagnostics} from '../src/limit-diagnostics.js';
 import {cloudflareIpv4Ranges, cloudflareIpv6Ranges} from './cloudflare-ranges.js';
@@ -664,6 +665,10 @@ export class WebStore {
       actor.role = membership.role === 'viewer' ? 'reader' : membership.role === 'operator' ? 'operator' : 'admin';
       actor.membershipRole = membership.role;
       actor.ownerUserId = actor.userId;
+      // A member limited to a client access set (SEC-08), read on every request like the role.
+      delete actor.accessSetId;
+      const accessSetId = memberAccessSetId(this.store, actor.tenantId, actor.userId);
+      if (accessSetId !== undefined && actor.role !== 'admin') actor.accessSetId = accessSetId;
       // Two-step requirement (SEC-06): recomputed on every request from the current policy, never stored.
       delete actor.mfaPolicy;
       delete actor.mfaEnrollmentRequired;

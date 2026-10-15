@@ -99,6 +99,10 @@ const operational: [string, string[]][] = [
       // SEC-06: a workspace two-step policy refuses owner changes from a website session not opened with two-step
       // verification. MCP keys carry no website session flags, so an AI client never receives it.
       'MFA_STEP_REQUIRED',
+      // SEC-08: managing client access sets (src/access-sets.ts, on the path through the store) is website-only work of
+      // owners and administrators: a removed set chosen for a token, consent or invitation, and the 100-set limit.
+      'ACCESS_SET_NOT_FOUND',
+      'WORKSPACE_QUOTA',
     ],
   ],
   [

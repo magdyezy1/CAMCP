@@ -98,7 +98,13 @@ export function update(store: Store, actor: Actor, kind: string, id: string, dat
   });
 }
 export function audit(store: Store, actor: Actor, event: string, data: JsonObject) {
-  store.appendAudit(actor.tenantId, randomUUID(), {event, actor: actor.userId, ...data});
+  store.appendAudit(actor.tenantId, randomUUID(), {
+    event,
+    actor: actor.userId,
+    // Work done under a client access set names the set (SEC-08).
+    ...(actor.accessSetId !== undefined ? {access_set_id: actor.accessSetId} : {}),
+    ...data,
+  });
 }
 export function fingerprint(value: unknown) {
   return sha256(stable(value));

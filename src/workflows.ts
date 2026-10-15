@@ -7,6 +7,7 @@ import {guardInput, stable} from './security.js';
 import {csvField} from './csv-safety.js';
 import {auditCampaign, optimizationSuggestions, type CampaignAuditInput} from './campaign-audit.js';
 import {unavailableOperation} from './unavailable-operations.js';
+import {assetsWithinAccess} from './access-sets.js';
 
 /** Independently implemented workflow semantics. Captured action routes are evidence,
  * not evidence that these composite response envelopes match AMCP byte-for-byte. */
@@ -1163,9 +1164,11 @@ export class WorkflowEngine {
         {platform: args.platform, account_id: args.account_id, limit: args.max_recent_campaigns ?? 5},
         actor,
       );
-      const assets = this.dependencies.store
-        .documents(actor.tenantId, 'workspace_asset')
-        .filter(a => !a.platform || a.platform === args.platform);
+      // Access limited to a client access set lists only its own accounts' uploads (SEC-08).
+      const store = this.dependencies.store,
+        assets = assetsWithinAccess(store, actor, store.documents(actor.tenantId, 'workspace_asset')).filter(
+          a => !a.platform || a.platform === args.platform,
+        );
       return {
         evidence: workflowEvidence,
         source_campaigns: existing,
@@ -1253,11 +1256,12 @@ export class WorkflowEngine {
     const alias = (p: string) =>
       (({google: 'google_ads', x: 'x_ads', twitter: 'x_ads'}) as Record<string, string>)[p] ?? p;
     const source = args.source ?? 'all',
+      store = this.dependencies.store,
       uploaded =
         source === 'platform'
           ? []
-          : this.dependencies.store
-              .documents(actor.tenantId, 'workspace_asset')
+          : // Access limited to a client access set lists only its own accounts' uploads (SEC-08).
+            assetsWithinAccess(store, actor, store.documents(actor.tenantId, 'workspace_asset'))
               .filter(
                 a =>
                   (!args.platform || alias(a.platform) === alias(args.platform)) &&

@@ -222,6 +222,14 @@ renderAccountPage = async function () {
   // Until a required two-step setup is done the server refuses the team APIs (SEC-06), so the page shows setup only.
   if (['owner', 'admin'].includes(account.workspaceRole) && !account.mfaEnrollmentRequired) {
     const team = await api('/api/workspaces/members'),
+      // Client access sets (SEC-08): what a member, token or AI client may be limited to.
+      sets = (await api('/api/access-sets').catch(() => ({sets: []}))).sets ?? [],
+      setName = id => sets.find(s => s.id === id)?.name ?? uiText('a removed client'),
+      setOptions = (selectedId, none) =>
+        `<option value="">${esc(none)}</option>` +
+        sets
+          .map(s => `<option value="${esc(s.id)}" ${s.id === selectedId ? 'selected' : ''}>${esc(s.name)}</option>`)
+          .join(''),
       security = team.security ?? {require_mfa: 'off', invitation_hours: 72},
       baseline = team.baseline ?? {require_mfa: 'off'},
       owner = account.workspaceRole === 'owner',
@@ -233,7 +241,7 @@ renderAccountPage = async function () {
       invitations = (team.invitations ?? [])
         .map(
           i =>
-            `<div class="identity-row"><div><strong>${esc(uiRole(i.role))}</strong><small>${esc(uiText('Invited {sent} · expires {expires}', {sent: date(i.created_at), expires: date(i.expires_at)}))}</small></div><button class="button small" data-invite-revoke="${esc(i.id)}">${esc(uiText('Withdraw'))}</button></div>`,
+            `<div class="identity-row"><div><strong>${esc(uiRole(i.role))}</strong><small>${esc(uiText('Invited {sent} · expires {expires}', {sent: date(i.created_at), expires: date(i.expires_at)}))}${i.access_set_id ? ' · ' + esc(uiText('Limited to {client}', {client: setName(i.access_set_id)})) : ''}</small></div><button class="button small" data-invite-revoke="${esc(i.id)}">${esc(uiText('Withdraw'))}</button></div>`,
         )
         .join(''),
       baselineNote =
@@ -245,12 +253,15 @@ renderAccountPage = async function () {
         : baselineNote;
     content.insertAdjacentHTML(
       'beforeend',
-      `<section class="panel"><span class="eyebrow">${esc(uiText('PEOPLE & ACCESS'))}</span><h2>${esc(uiText('Workspace members'))}</h2><div class="team-list">${team.members.map(m => `<div class="identity-row"><div><strong dir="auto" data-native>${esc(m.name)}</strong><small>${esc(m.email ?? uiText('Social account'))}${m.mfa ? ' · ' + esc(uiText('Two-step on')) : ''}</small></div>${owner && m.role !== 'owner' ? `<select aria-label="${esc(uiText('Role for {name}', {name: m.name}))}" data-member-role="${esc(m.id)}"><option value="viewer" ${m.role === 'viewer' ? 'selected' : ''}>${esc(uiText('Viewer'))}</option><option value="operator" ${m.role === 'operator' ? 'selected' : ''}>${esc(uiText('Operator'))}</option><option value="admin" ${m.role === 'admin' ? 'selected' : ''}>${esc(uiText('Admin'))}</option></select><button class="button small" data-member-save="${esc(m.id)}">${esc(uiText('Save role'))}</button>${resetButton(m)}<button class="button small danger" data-member-remove="${esc(m.id)}" data-member-name="${esc(m.name)}">${esc(uiText('Remove'))}</button>` : `<span class="status">${esc(uiRole(m.role))}</span>${resetButton(m)}`}</div>`).join('')}</div>${invitations ? `<h3>${esc(uiText('Pending invitations'))}</h3><div class="team-list" id="pending-invitations">${invitations}</div>` : ''}<form id="invite-member" class="workspace-form">${formField(uiText('Email address'), 'email', 'email', 'maxlength="254"')}<label>${esc(uiText('Role'))}<select name="role"><option value="viewer">${esc(uiText('Viewer · reports and reads'))}</option><option value="operator">${esc(uiText('Operator · reviewed campaign changes'))}</option>${owner ? `<option value="admin">${esc(uiText('Admin · connections and invitations'))}</option>` : ''}</select></label><button class="button primary" ${options.emailEnabled ? '' : 'disabled'}>${esc(uiText('Send invitation'))}</button></form><p class="form-note">${esc(uiText('Invitations expire after {hours} hours. Withdraw one to cancel its link; send a new invitation if a link expires.', {hours: security.invitation_hours}))}</p>${policyForm}</section>`,
+      `<section class="panel"><span class="eyebrow">${esc(uiText('PEOPLE & ACCESS'))}</span><h2>${esc(uiText('Workspace members'))}</h2><div class="team-list">${team.members.map(m => `<div class="identity-row"><div><strong dir="auto" data-native>${esc(m.name)}</strong><small>${esc(m.email ?? uiText('Social account'))}${m.mfa ? ' · ' + esc(uiText('Two-step on')) : ''}${m.access_set_id ? ' · ' + esc(uiText('Limited to {client}', {client: setName(m.access_set_id)})) : ''}</small></div>${owner && m.role !== 'owner' ? `<select aria-label="${esc(uiText('Role for {name}', {name: m.name}))}" data-member-role="${esc(m.id)}"><option value="viewer" ${m.role === 'viewer' ? 'selected' : ''}>${esc(uiText('Viewer'))}</option><option value="operator" ${m.role === 'operator' ? 'selected' : ''}>${esc(uiText('Operator'))}</option><option value="admin" ${m.role === 'admin' ? 'selected' : ''}>${esc(uiText('Admin'))}</option></select>${sets.length ? `<select aria-label="${esc(uiText('Client limit for {name}', {name: m.name}))}" data-member-set="${esc(m.id)}">${setOptions(m.access_set_id, uiText('No client limit'))}</select>` : ''}<button class="button small" data-member-save="${esc(m.id)}">${esc(uiText('Save role'))}</button>${resetButton(m)}<button class="button small danger" data-member-remove="${esc(m.id)}" data-member-name="${esc(m.name)}">${esc(uiText('Remove'))}</button>` : `<span class="status">${esc(uiRole(m.role))}</span>${resetButton(m)}`}</div>`).join('')}</div>${invitations ? `<h3>${esc(uiText('Pending invitations'))}</h3><div class="team-list" id="pending-invitations">${invitations}</div>` : ''}<form id="invite-member" class="workspace-form">${formField(uiText('Email address'), 'email', 'email', 'maxlength="254"')}<label>${esc(uiText('Role'))}<select name="role"><option value="viewer">${esc(uiText('Viewer · reports and reads'))}</option><option value="operator">${esc(uiText('Operator · reviewed campaign changes'))}</option>${owner ? `<option value="admin">${esc(uiText('Admin · connections and invitations'))}</option>` : ''}</select></label>${sets.length ? `<label>${esc(uiText('Limit to client'))}<select name="access_set_id">${setOptions(null, uiText('No client limit'))}</select></label>` : ''}<button class="button primary" ${options.emailEnabled ? '' : 'disabled'}>${esc(uiText('Send invitation'))}</button></form><p class="form-note">${esc(uiText('Invitations expire after {hours} hours. Withdraw one to cancel its link; send a new invitation if a link expires.', {hours: security.invitation_hours}))}</p>${policyForm}</section>`,
     );
+    content.insertAdjacentHTML('beforeend', accessSetSection(sets));
+    bindAccessSets(sets);
     authBind('#invite-member', async f => {
+      const {access_set_id: limit, ...invitation} = Object.fromEntries(new FormData(f));
       const r = await api('/api/workspaces/invite', {
         method: 'POST',
-        body: JSON.stringify(Object.fromEntries(new FormData(f))),
+        body: JSON.stringify({...invitation, ...(limit ? {access_set_id: limit} : {})}),
       });
       toast(
         r.expires_at
@@ -300,8 +311,17 @@ renderAccountPage = async function () {
       await renderAccountPage();
     });
     authBind('[data-member-save]', async b => {
-      const role = document.querySelector('[data-member-role="' + CSS.escape(b.dataset.memberSave) + '"]').value;
-      await api('/api/workspaces/member', {method: 'POST', body: JSON.stringify({userId: b.dataset.memberSave, role})});
+      const role = document.querySelector('[data-member-role="' + CSS.escape(b.dataset.memberSave) + '"]').value,
+        // The member's client limit (SEC-08): one set, or none for the whole workspace. Administrators have none.
+        limit = document.querySelector('[data-member-set="' + CSS.escape(b.dataset.memberSave) + '"]');
+      await api('/api/workspaces/member', {
+        method: 'POST',
+        body: JSON.stringify({
+          userId: b.dataset.memberSave,
+          role,
+          ...(limit ? {access_set_id: role === 'admin' ? null : limit.value || null} : {}),
+        }),
+      });
       toast(uiText('Role saved.'));
       await renderAccountPage();
     });
@@ -433,6 +453,91 @@ function showAccountDeletionReceipt(result, names) {
     setTimeout(() => URL.revokeObjectURL(link.href), 1000);
   });
   content.querySelector('h1').focus();
+}
+/**
+ * Client access sets (SEC-08 phase 2, owner direction P1): an administrator names the accounts of one client, then
+ * limits a member (above), a connector token or an AI client (AI connectors page) to them. Unlike the working client in
+ * the top bar, a set is access control: limited access reaches nothing else, and a removed set reaches nothing.
+ */
+function accessSetAccounts() {
+  return platforms.flatMap(p =>
+    (p.connections ?? [])
+      .filter(c => c.enabled)
+      .flatMap(c =>
+        c.accounts.map(account => ({
+          gateway: p.gateway,
+          connection_id: c.id,
+          account_id: account,
+          label: p.name + ' · ' + accountText(p, c, account),
+        })),
+      ),
+  );
+}
+function accessSetSection(sets, editing = null) {
+  const accounts = accessSetAccounts(),
+    bound = new Set((editing?.bindings ?? []).map(b => JSON.stringify([b.gateway, b.connection_id, b.account_id])));
+  return `<section class="panel" id="access-sets"><span class="eyebrow">${esc(uiText('CLIENT ACCESS'))}</span><h2>${esc(uiText('Client access sets'))}</h2><p>${esc(uiText('Name the accounts of one client, then limit a member, connector token or AI client to them. Limited access reaches no other account. The working client in the top bar is only a view filter.'))}</p><div class="team-list">${
+    sets
+      .map(
+        s =>
+          `<div class="identity-row"><div><strong dir="auto" data-native>${esc(s.name)}</strong><small>${esc(uiText('{count} accounts', {count: (s.bindings ?? []).length}))}${s.in_use ? ' · ' + esc(uiText('{members} members and {credentials} tokens or AI clients limited to it', {members: s.in_use.members, credentials: s.in_use.credentials})) : ''}</small></div><button class="button small" data-access-set-edit="${esc(s.id)}">${esc(uiText('Edit'))}</button><button class="button small danger" data-access-set-remove="${esc(s.id)}">${esc(uiText('Remove'))}</button></div>`,
+      )
+      .join('') || `<div class="empty">${esc(uiText('No client access sets yet.'))}</div>`
+  }</div><form id="access-set-form" class="workspace-form"><h3>${esc(editing ? uiText('Edit {client}', {client: editing.name}) : uiText('New client access set'))}</h3>${editing ? `<input type="hidden" name="id" value="${esc(editing.id)}"><input type="hidden" name="revision" value="${esc(editing.revision)}">` : ''}<label>${esc(uiText('Client name'))}<input name="name" maxlength="80" required value="${esc(editing?.name ?? '')}"></label><fieldset class="access-set-accounts"><legend>${esc(uiText('Accounts of this client'))}</legend>${
+    accounts
+      .map((a, i) => {
+        const key = JSON.stringify([a.gateway, a.connection_id, a.account_id]);
+        return `<label class="check"><input type="checkbox" name="account" value="${i}" ${bound.has(key) ? 'checked' : ''}> <bdi dir="auto">${esc(a.label)}</bdi></label>`;
+      })
+      .join('') || `<p class="form-note">${esc(uiText('Connect and select accounts first.'))}</p>`
+  }</fieldset><button class="button primary">${esc(editing ? uiText('Save client access set') : uiText('Create client access set'))}</button>${editing ? ` <button class="button" type="button" data-access-set-cancel>${esc(uiText('Cancel'))}</button>` : ''}</form></section>`;
+}
+function bindAccessSets(sets) {
+  const redraw = editing => {
+    $('#access-sets').outerHTML = accessSetSection(sets, editing);
+    bindAccessSets(sets);
+  };
+  authBind('[data-access-set-edit]', b => redraw(sets.find(s => s.id === b.dataset.accessSetEdit) ?? null));
+  authBind('[data-access-set-cancel]', () => redraw(null));
+  authBind('#access-set-form', async f => {
+    const accounts = accessSetAccounts(),
+      values = new FormData(f),
+      bindings = values.getAll('account').map(i => {
+        const {gateway, connection_id, account_id} = accounts[Number(i)];
+        return {gateway, connection_id, account_id};
+      });
+    if (!bindings.length) throw Error(uiText('Choose at least one account for this client.'));
+    await api('/api/access-sets', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: String(values.get('name') ?? '').trim(),
+        bindings,
+        ...(values.get('id') ? {id: values.get('id'), revision: Number(values.get('revision'))} : {}),
+      }),
+    });
+    toast(uiText('Client access set saved. Limited access follows it from the next request.'));
+    await renderAccountPage();
+  });
+  authBind('[data-access-set-remove]', async b => {
+    const set = sets.find(s => s.id === b.dataset.accessSetRemove);
+    if (!set) return;
+    if (
+      !(await confirmAction({
+        title: uiText('Remove the client access set {client}?', {client: set.name}),
+        consequence: uiText(
+          'Members, connector tokens and AI clients limited to it then reach no account until an administrator gives them access again.',
+        ),
+        confirmLabel: uiText('Remove client access set'),
+      }))
+    )
+      return;
+    await api('/api/access-sets/' + encodeURIComponent(set.id), {
+      method: 'DELETE',
+      body: JSON.stringify({confirmed: true, revision: set.revision}),
+    });
+    toast(uiText('Client access set removed.'));
+    await renderAccountPage();
+  });
 }
 // Reviewer sign-in. Same shape as the administrator door, a different destination.
 document.addEventListener('click', event => {

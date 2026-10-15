@@ -20,7 +20,16 @@ export class ReportLibrary {
     readonly store: Store,
     // legacyTargets: a stored definition re-checked without edits keeps target rules added after it was saved.
     readonly validate: (config: JsonObject, actor: Actor, template?: boolean, legacyTargets?: boolean) => JsonObject,
+    // Whether the actor may read every source of a definition (ReportingOverview.access); throws when not.
+    readonly access: (actor: Actor, config: JsonObject) => void = () => {},
   ) {}
+  /**
+   * Access limited to a client access set (SEC-08) changes, deletes or pauses only the saved reports, templates,
+   * snapshots and schedules whose accounts it reaches; it never lists the others, and here it cannot alter one by ID.
+   */
+  private changeable(actor: Actor, record: JsonObject | undefined) {
+    if (record && actor.accessSetId !== undefined) this.access(actor, record.config ?? {sources: []});
+  }
   private revision(input: JsonObject, record: JsonObject, required = true) {
     if ((required || input.expected_revision !== undefined) && input.expected_revision !== record.revision)
       throw new MirrorError(
@@ -55,6 +64,7 @@ export class ReportLibrary {
       const tenant = actor.tenantId,
         kind = template ? 'overview_template' : 'overview_view',
         old = input.id ? this.store.document(tenant, kind, String(input.id)) : undefined;
+      this.changeable(actor, old);
       if (old) this.revision(input, old);
       if (!old && this.store.documents(tenant, kind).length >= 100)
         throw new MirrorError('REPORT_LIMIT', 'Use at most 100 saved reports and 100 templates.');
@@ -167,9 +177,11 @@ export class ReportLibrary {
       )
         throw new MirrorError('INVALID_SCHEDULE', 'Choose frequency, timezone and a saved reporting destination.');
       const old = update ? this.store.document(tenant, 'overview_schedule', String(input.id)) : undefined;
+      this.changeable(actor, old);
       if (old) this.revision(input, old);
       const viewId = old?.view_id ?? input.view_id ?? (input.config ? undefined : input.id),
         view = viewId ? this.store.document(tenant, 'overview_view', String(viewId)) : undefined;
+      this.changeable(actor, view);
       if (view && !old && input.expected_revision !== undefined) this.revision(input, view);
       if (view && old && input.expected_view_revision !== undefined)
         this.revision({expected_revision: input.expected_view_revision}, view);
@@ -291,6 +303,7 @@ export class ReportLibrary {
     return this.store.transaction(() => {
       const tenant = actor.tenantId,
         s = this.store.document(tenant, 'overview_schedule', String(input.id));
+      this.changeable(actor, s);
       this.revision(input, s, remove);
       this.cancelRuns(tenant, s.id);
       if (remove) {
@@ -346,6 +359,7 @@ export class ReportLibrary {
     return this.store.transaction(() => {
       const tenant = actor.tenantId,
         r = this.store.document(tenant, kind, String(input.id));
+      this.changeable(actor, r);
       this.revision(input, r, kind !== 'overview_report');
       if (kind === 'overview_view' && r.schedule_id) {
         const s = this.store.document(tenant, 'overview_schedule', r.schedule_id);

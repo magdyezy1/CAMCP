@@ -12,7 +12,10 @@ import {incidentAttention} from './report-monitors.js';
 import {reportRunFeedSQL, reportRunScope} from './report-runs.js';
 import {workbookScheduleFeedSQL} from './workbook-schedules.js';
 import {writeFeedSQL, writeHandoff, writeRecordState} from './write-records.js';
+import {optionalClientView} from './client-scope.js';
 
+/** A report source names its platform rather than its gateway. */
+const sourceGateway = (s: JsonObject) => s.gateway ?? reportPlatforms[s.platform]?.gateway;
 const documentKinds = [
   'campaign_run',
   'media_review',
@@ -231,12 +234,15 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
   for (const key of ['account_id', 'connection_id'])
     if (input[key] !== undefined && (typeof input[key] !== 'string' || input[key].length > 200))
       bad('Use an exact ' + key + '.');
+  // The working client (SEC-08): only work naming an account the client profile binds, within current access.
+  const client = optionalClientView(store, actor, input.profile_id);
   const filters = {
     kind,
     state,
     search: search.trim().toLowerCase(),
     account_id: input.account_id ?? '',
     connection_id: input.connection_id ?? '',
+    ...(client ? {profile_id: client.profile_id} : {}),
   };
   const binding = fingerprint({
     tenant: actor.tenantId,
@@ -328,7 +334,7 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
     if (permitted && k !== 'connection') {
       try {
         for (const s of scopes) {
-          const gateway = s.gateway ?? reportPlatforms[s.platform]?.gateway;
+          const gateway = sourceGateway(s);
           if (
             !gateway ||
             typeof s.account_id !== 'string' ||
@@ -359,11 +365,15 @@ export function operationsPage(store: Store, actor: Actor, input: JsonObject, al
     const matches =
       permitted &&
       (state === 'all' || state === group) &&
-      ((k === 'connection' && !filters.account_id && (!filters.connection_id || filters.connection_id === row.id)) ||
+      ((k === 'connection' &&
+        !filters.account_id &&
+        !client &&
+        (!filters.connection_id || filters.connection_id === row.id)) ||
         scopes.some(
           (s: JsonObject) =>
             (!filters.account_id || s.account_id === filters.account_id) &&
-            (!filters.connection_id || s.connection_id === filters.connection_id),
+            (!filters.connection_id || s.connection_id === filters.connection_id) &&
+            (!client || client.has(sourceGateway(s), s.account_id, s.connection_id)),
         )) &&
       (!filters.search ||
         [row.id, p.name, ...scopes.map((s: JsonObject) => s.account_id)]

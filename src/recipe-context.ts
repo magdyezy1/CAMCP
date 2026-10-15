@@ -7,6 +7,7 @@ import {expandTemplate, tagLandingPage} from './client-playbooks.js';
 import type {Actor, JsonObject} from './types.js';
 import {normalizeAccount} from './scope.js';
 import {accountMetadataView, resolveAccountMetadata} from './account-metadata.js';
+import {profileWithinAccess, visibleProfile} from './client-scope.js';
 // Business inputs a client playbook may default per recipe. Regulated declarations, goal policies, resource IDs and
 // currency stay in each brief, where preflight checks them.
 export const profileDefaultKeys = [
@@ -40,7 +41,8 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
   store.assertActorActive(actor);
   const recipe = campaignRecipes.find(r => r.id === recipeId);
   if (!recipe) throw new MirrorError('RECIPE_NOT_FOUND', 'Choose an available campaign recipe.');
-  const profile = profileId ? store.document(actor.tenantId, 'client_profile', profileId) : undefined,
+  // A profile outside the actor's client access set is not found, like one that does not exist (SEC-08).
+  const profile = profileId ? visibleProfile(store, actor, profileId) : undefined,
     gateway =
       (
         {google: 'google_ads', meta: 'meta', microsoft: 'microsoft_ads', snapchat: 'snapchat'} as Record<string, string>
@@ -48,7 +50,7 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
   const inventory = store.documents(actor.tenantId, 'website_assets'),
     // The one account-metadata resolver (CON-05): the same name and source as list_accounts and capabilities.
     targets = store
-      .listConnections(actor.tenantId)
+      .connectionsFor(actor)
       .filter(c => c.gateway === gateway && c.enabled)
       .flatMap(c =>
         c.accounts
@@ -96,9 +98,13 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
     ...own,
   };
   noSecrets(defaults);
+  // Page suggestions come only from the logins that hold an eligible account of this recipe, after the playbook's
+  // bindings (SEC-08): before, every login's Pages were offered, mixing clients. A Page belongs to a login, not an
+  // account, so access limited to a client access set gets none and names its Page explicitly (preflight checks it).
+  const pageLogins = new Set(actor.accessSetId === undefined ? targets.map(t => t.connection_id) : []);
   // Connected accounts the selected playbook's bindings leave out (CMP-06), so an empty account list can say why.
   const connected = store
-    .listConnections(actor.tenantId)
+    .connectionsFor(actor)
     .filter(c => c.gateway === gateway && c.enabled)
     .reduce((count, c) => count + c.accounts.length, 0);
   return {
@@ -109,13 +115,15 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
     defaults,
     profile: profile ? {id: profile.id, revision: profile.revision, name: profile.name} : null,
     conventions: playbookConventions(profile),
-    pages: inventory.flatMap(i =>
-      (i.groups ?? [])
-        .filter((g: JsonObject) => g.kind === 'pages')
-        .flatMap((g: JsonObject) => g.assets.map((a: JsonObject) => ({id: a.id, name: a.name, connection_id: i.id}))),
-    ),
+    pages: inventory
+      .filter(i => pageLogins.has(i.id))
+      .flatMap(i =>
+        (i.groups ?? [])
+          .filter((g: JsonObject) => g.kind === 'pages')
+          .flatMap((g: JsonObject) => g.assets.map((a: JsonObject) => ({id: a.id, name: a.name, connection_id: i.id}))),
+      ),
     drive_connections: store
-      .listConnections(actor.tenantId)
+      .connectionsFor(actor)
       .filter(c => c.gateway === 'google_drive_native_action' && c.enabled)
       .map(c => ({id: c.id, label: c.label, files: c.accounts})),
     limitations:
@@ -300,7 +308,7 @@ export function recipeInputs(context: JsonObject, input: JsonObject, options: Js
  */
 export function resolveBrief(store: Store, actor: Actor, input: JsonObject): JsonObject {
   if (input.brief_id === undefined) return input;
-  const brief = read(store, actor, 'client_brief', input.brief_id);
+  const brief = visibleBrief(store, actor, input.brief_id);
   if (input.recipe !== undefined && input.recipe !== brief.recipe)
     throw new MirrorError(
       'BRIEF_RECIPE_MISMATCH',
@@ -316,6 +324,24 @@ export function resolveBrief(store: Store, actor: Actor, input: JsonObject): Jso
     business: {...brief.business, ...(input.business ?? {})},
     client_brief: {id: brief.id, revision: brief.revision, name: brief.name},
   };
+}
+/**
+ * Whether a saved brief is this person's to see (SEC-08): always without a client access set; with one, a brief of a
+ * client profile within the set, or a brief without a profile that the same person saved.
+ */
+function briefVisible(store: Store, actor: Actor, brief: JsonObject): boolean {
+  if (actor.accessSetId === undefined) return true;
+  if (brief.profile_id) {
+    const profile = optional(store, actor.tenantId, 'client_profile', String(brief.profile_id));
+    return !!profile && profileWithinAccess(store, actor, profile);
+  }
+  return brief.created_by === actor.userId || (!!actor.ownerUserId && brief.created_by === actor.ownerUserId);
+}
+function visibleBrief(store: Store, actor: Actor, id: unknown): JsonObject {
+  const brief = read(store, actor, 'client_brief', id as string);
+  if (!briefVisible(store, actor, brief))
+    throw new MirrorError('NOT_FOUND', 'Document not found in this tenant.', {}, 404);
+  return brief;
 }
 /** At most this many saved client briefs per workspace (CMP-06). */
 export const clientBriefLimit = 200;
@@ -340,14 +366,15 @@ export function clientBriefs(store: Store, actor: Actor, input: JsonObject): Jso
     store.assertActorActive(actor);
     const briefs = store
       .documents(actor.tenantId, 'client_brief')
+      .filter(b => briefVisible(store, actor, b))
       .sort((a, b) => Number(b.updated_at ?? 0) - Number(a.updated_at ?? 0) || String(a.name).localeCompare(b.name));
     return {briefs: briefs.map(briefSummary), total: briefs.length, limit: clientBriefLimit};
   }
-  if (input.action === 'brief') return read(store, actor, 'client_brief', input.id);
+  if (input.action === 'brief') return visibleBrief(store, actor, input.id);
   writer(store, actor);
   if (input.action === 'delete_brief') {
     if (input.confirmed !== true) bad('Confirm brief deletion.');
-    const brief = read(store, actor, 'client_brief', input.id);
+    const brief = visibleBrief(store, actor, input.id);
     if (input.revision !== brief.revision) bad('Reload the current brief.', 'REVISION_CONFLICT');
     store.db
       .prepare('DELETE FROM documents WHERE tenant_id=? AND kind=? AND id=? AND revision=?')
@@ -367,9 +394,12 @@ export function clientBriefs(store: Store, actor: Actor, input: JsonObject): Jso
   const profile =
     b.profile_id === undefined || b.profile_id === null || b.profile_id === ''
       ? undefined
-      : read(store, actor, 'client_profile', b.profile_id);
+      : visibleProfile(store, actor, b.profile_id);
   const id = input.id ?? randomUUID(),
     previous = optional(store, actor.tenantId, 'client_brief', id);
+  // Replacing a brief outside the actor's client access set is refused as if it did not exist (SEC-08).
+  if (previous && !briefVisible(store, actor, previous))
+    throw new MirrorError('NOT_FOUND', 'Document not found in this tenant.', {}, 404);
   if (!previous && store.documents(actor.tenantId, 'client_brief').length >= clientBriefLimit)
     bad('Limit reached: ' + clientBriefLimit + ' saved client briefs.', 'LIMIT_REACHED');
   const record = update(

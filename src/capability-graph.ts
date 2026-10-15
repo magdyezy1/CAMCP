@@ -82,7 +82,7 @@ export function capabilityGraph(
     source: 'src/report-presets.ts',
   }));
   const paused = !!writePause(store, actor.tenantId);
-  const connections = store.listConnections(actor.tenantId);
+  const connections = store.connectionsFor(actor);
   const graph = {
     version: 1,
     network_requests: 0,

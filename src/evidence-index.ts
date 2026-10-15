@@ -61,7 +61,7 @@ export function evidenceIndex(store: Store, actor: Actor, input: JsonObject) {
       session: store.sessionIdentity(actor) ?? null,
       filters,
       connections: store
-        .listConnections(actor.tenantId)
+        .connectionsFor(actor)
         .map(c => ({
           id: c.id,
           gateway: c.gateway,

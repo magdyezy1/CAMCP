@@ -7,6 +7,7 @@ import {reportPlatforms} from './report-metrics.js';
 import {normalizeAccount} from './scope.js';
 import {activityReportErrors} from './report-errors.js';
 import {redact} from './security.js';
+import {optionalClientView} from './client-scope.js';
 
 const stringField = (path: string, limit = 201) => `CASE
  WHEN json_type(a.event,'${path}') IS NULL OR json_type(a.event,'${path}')='null' THEN NULL
@@ -165,11 +166,14 @@ export function auditHistoryPage(store: Store, actor: Actor, input: JsonObject):
   for (const key of ['gateway', 'account_id', 'connection_id'])
     if (input[key] !== undefined && !safeText(input[key], key === 'gateway' ? 100 : 200))
       bad('Use an exact ' + key + '.');
+  // The working client (SEC-08): only events naming an account the client profile binds, within current access.
+  const client = optionalClientView(store, actor, input.profile_id);
   const filters = {
       search: search.trim().toLowerCase(),
       gateway: input.gateway ?? '',
       account_id: input.account_id ?? '',
       connection_id: input.connection_id ?? '',
+      ...(client ? {profile_id: client.profile_id} : {}),
     },
     owner = workspaceOwner(store, actor),
     binding = fingerprint({
@@ -241,6 +245,7 @@ export function auditHistoryPage(store: Store, actor: Actor, input: JsonObject):
       (filters.gateway && s.gateway !== filters.gateway) ||
       (filters.account_id && (!s.gateway || s.account_id !== normalizeAccount(s.gateway, filters.account_id))) ||
       (filters.connection_id && s.connection_id !== filters.connection_id) ||
+      (client && !client.has(s.gateway, s.account_id, s.connection_id)) ||
       (filters.search && ![name, action, requestId].filter(Boolean).join(' ').toLowerCase().includes(filters.search))
     ) {
       last = row.seq;

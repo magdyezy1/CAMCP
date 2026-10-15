@@ -2,6 +2,7 @@ import {providerContracts, effectiveProviderContract} from './provider-contracts
 import {gatewayOffered} from './provider-offering.js';
 import {Store} from './store.js';
 import {serverIdentity} from './server-identity.js';
+import {recordWithinAccess} from './access-sets.js';
 import type {Actor, JsonObject} from './types.js';
 export function workspaceCapabilities(store: Store, actor: Actor) {
   const checks = store.documents(actor.tenantId, 'readiness'),
@@ -67,7 +68,8 @@ export function workspaceCapabilities(store: Store, actor: Actor) {
     live_qualification: 'per account and action evidence below',
   }));
   // A workspace's live evidence is its own: the reviewed writes it verified by reading them back from the provider.
-  const gatewayOf = new Map(store.listConnections(actor.tenantId).map(c => [c.id, c.gateway]));
+  const reachable = store.connectionsFor(actor),
+    gatewayOf = new Map(reachable.map(c => [c.id, c.gateway]));
   // A provider this deployment does not offer is not shown (CON-06, src/provider-offering.ts).
   const offered = providerContracts.filter(c => gatewayOffered(c.gateway));
   return {
@@ -75,7 +77,13 @@ export function workspaceCapabilities(store: Store, actor: Actor) {
     providers: offered.map(c => ({
       ...effectiveProviderContract(c.id),
       live_verified: writes
-        .filter(w => w.status === 'verified' && gatewayOf.get(w.connection_id) === c.gateway)
+        // Within a client access set, only its own accounts' receipts, even through a login it shares (SEC-08).
+        .filter(
+          w =>
+            w.status === 'verified' &&
+            gatewayOf.get(w.connection_id) === c.gateway &&
+            recordWithinAccess(actor, reachable, w),
+        )
         .map(w => ({
           action: w.action,
           account_id: w.account_id,
@@ -84,7 +92,7 @@ export function workspaceCapabilities(store: Store, actor: Actor) {
         })),
     })),
     features,
-    evidence: store.listConnections(actor.tenantId).flatMap(c =>
+    evidence: reachable.flatMap(c =>
       c.accounts.map(account => ({
         gateway: c.gateway,
         connection_id: c.id,

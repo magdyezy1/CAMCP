@@ -250,7 +250,7 @@ function portfolioEntityLabel(value) {
   }
 }
 function accountChoices(ids) {
-  return platforms
+  const all = platforms
     .filter(p => ids.includes(p.id))
     .flatMap(p =>
       p.connections
@@ -264,6 +264,21 @@ function accountChoices(ids) {
           })),
         ),
     );
+  // Every account picker of these workflows follows the working client (SEC-08); the pickers keep their explicit
+  // placeholder and preselect only a sole account. hiddenByClient lets an empty picker name the filter instead of
+  // asking to connect an account that is connected.
+  if (typeof clientAccountOptions !== 'function') return all;
+  const {options, hidden} = clientAccountOptions(all);
+  return Object.assign(options, {hiddenByClient: hidden});
+}
+/**
+ * An empty account picker's notice (markup): the working client hid every account, or none is connected yet. `notice`
+ * and `linkText` are already in the interface language.
+ */
+function accountChoicesEmptyNotice(targets, notice, linkText = uiText('Connections')) {
+  return targets.hiddenByClient && typeof workingClientEmptyNotice === 'function'
+    ? esc(workingClientEmptyNotice())
+    : `${esc(notice)} <a href="/connections">${esc(linkText)}</a>`;
 }
 function portfolioReconciliationView(out) {
   const changes = [
@@ -815,10 +830,14 @@ async function renderMeasurement() {
     conversionTargets = accountChoices(['linkedin']),
     goalTargets = accountChoices(['google']),
     // One ledger picker: Google Ads accounts first, then GA4 properties (the scope bar relies on this order).
-    ledgerTargets = [
-      ...goalTargets.map(t => ({...t, gateway: 'google_ads_native_action'})),
-      ...eventTargets.map(t => ({...t, gateway: 'ga4_native_action'})),
-    ],
+    ledgerTargets = Object.assign(
+      [
+        ...goalTargets.map(t => ({...t, gateway: 'google_ads_native_action'})),
+        ...eventTargets.map(t => ({...t, gateway: 'ga4_native_action'})),
+      ],
+      // What the working client hid of either (SEC-08), for the empty picker's notice.
+      {hiddenByClient: (goalTargets.hiddenByClient ?? 0) + (eventTargets.hiddenByClient ?? 0)},
+    ),
     scopeSets = {gtm: targets, ga4: eventTargets, google: goalTargets, linkedin: conversionTargets};
   content.innerHTML += `<section class="panel"><h2>${esc(uiText('Measurement evidence'))}</h2><p>${esc(uiText('Review configured tags, trigger dependencies, workspace conflicts and published-version consistency. Configuration evidence is distinct from observed event delivery and attribution.'))}</p>${measurementTaskNavigationMarkup()}<details class="workspace-details"><summary>${esc(uiText('Related measurement workflows'))}</summary><div class="work-links"><a href="/reporting-overview"><strong>${esc(uiText('GA4 and Search Console context'))}</strong><small>${esc(uiText('Collect measurement reports with source definitions.'))}</small></a><a href="/profiles"><strong>${esc(uiText('Client conversion mappings'))}</strong><small>${esc(uiText('Inspect approved conversion definitions and account bindings.'))}</small></a><a href="/capabilities"><strong>${esc(uiText('Reviewed measurement changes'))}</strong><small>${esc(uiText('Discover exact conversion and tag contracts.'))}</small></a></div></details></section>${measurementScopeMarkup(scopeSets)}${measurementLedgerMarkup(ledgerTargets)}<section class="panel workspace-form">${measurementSectionHeading('measurement-section-gtm', uiText('Google Tag Manager configuration audit'))}<p>${esc(uiText('Read the configured tags, triggers, conflicts and published version of one account, container or workspace. Leave the container empty to list containers, or the workspace empty to list workspaces.'))}</p><form id="measurement-audit">${measurementTargetField(targets, uiText('Tag Manager account'), 'Connect Google Tag Manager and select an account in Connections to audit its configuration.')}${controls(uiText('Container ID (optional for account inventory)'), 'text', '', 'container_id')}${controls(uiText('Workspace ID (optional)'), 'text', '', 'workspace_id')}<button class="button primary" type="submit" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read configuration evidence'))}</button></form><div id="measurement-result"></div></section>`;
   content.innerHTML += measurementEventsMarkup(eventTargets);
@@ -1402,7 +1421,7 @@ function prefillMeasurementAudit(form, result, targets) {
 // MSR-02: every measurement form uses one target field. Without an eligible account it says how to connect one (and
 // the caller disables submit); with exactly one it is preselected. Preselection never starts a read.
 function measurementTargetField(targets, label, emptyNotice, choose = uiText('Choose a selected account')) {
-  return `${targets.length ? '' : `<p class="notice measurement-empty">${esc(uiText(emptyNotice))} <a href="/connections">${esc(uiText('Connections'))}</a></p>`}<label>${esc(label)}<select name="target" required ${targets.length ? '' : 'disabled'}><option value="">${esc(choose)}</option>${targets.map((t, i) => `<option value="${i}" ${targets.length === 1 ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select></label>`;
+  return `${targets.length ? '' : `<p class="notice measurement-empty">${accountChoicesEmptyNotice(targets, uiText(emptyNotice))}</p>`}<label>${esc(label)}<select name="target" required ${targets.length ? '' : 'disabled'}><option value="">${esc(choose)}</option>${targets.map((t, i) => `<option value="${i}" ${targets.length === 1 ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select></label>`;
 }
 const measurementId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 // Synchronized inventory this login already holds (no request): GTM containers and GA4 data streams of one account.
@@ -4311,7 +4330,7 @@ async function renderCommerce() {
   const targets = accountChoices(['meta', 'x']),
     storeSources = typeof commerceSources === 'undefined' ? [] : commerceSources,
     storePanels = wooCommerceConnectionsMarkup() + wooCommerceSourcePanelMarkup() + wooCommerceInventoryPanelMarkup();
-  content.innerHTML += `<section class="panel workspace-form"><h2>${esc(uiText('Reviewed catalog product import'))}</h2><p>${esc(uiText('Import up to 50 supplied products for the selected account and catalog. Ownership is checked during native review. Every item keeps a separate review, receipt and read-back in its saved plan. Missing items are retained.'))}</p><p class="form-note">${esc(uiText('Product imports support Meta and X; Snapchat catalogs are managed through feeds.'))}</p>${targets.length ? '' : `<p class="notice" id="catalog-no-destination">${esc(uiText('Connect a Meta or X ad account to import products.'))} <a href="/connections">${esc(uiText('Manage connections'))}</a></p>`}<form id="catalog-import"><label>${esc(uiText('Meta or X ad account'))}<select name="target" required><option value="">${esc(uiText('Choose an account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Native product catalog ID'), 'text', '', 'catalog_id')}${controls(uiText('Import plan name'), 'text', 'Product catalog import', 'name')}<label>${esc(uiText('Product source'))}<select name="source_mode"><option value="csv">${esc(uiText('Product CSV'))}</option><option value="woocommerce">${esc(uiText('Selected WooCommerce products'))}</option></select></label><div id="catalog-csv-controls"><label>${esc(uiText('Product CSV'))}<input type="file" name="file" accept=".csv,text/csv" required></label></div><div id="catalog-woo-selection" class="form-note" aria-live="polite"></div><div id="catalog-destination-help" class="form-note" aria-live="polite"></div>${catalogMappingMarkup()}<label>${esc(uiText('Existing retailer IDs'))}<select name="allow_upsert"><option value="false">${esc(uiText('Create only — refuse existing IDs'))}</option><option value="true">${esc(uiText('Explicitly update existing IDs after native review'))}</option></select></label><button class="button primary" type="submit">${esc(uiText('Validate and preview products'))}</button></form><div id="catalog-preview"></div></section><p class="notice">${esc(uiText('Mapped supplier and WooCommerce exports use the selected Meta or X reviewed product contract. Choose the intended price, currency, image and destination fields. Live store synchronization and additional destinations require separate qualification.'))}</p>`;
+  content.innerHTML += `<section class="panel workspace-form"><h2>${esc(uiText('Reviewed catalog product import'))}</h2><p>${esc(uiText('Import up to 50 supplied products for the selected account and catalog. Ownership is checked during native review. Every item keeps a separate review, receipt and read-back in its saved plan. Missing items are retained.'))}</p><p class="form-note">${esc(uiText('Product imports support Meta and X; Snapchat catalogs are managed through feeds.'))}</p>${targets.length ? '' : `<p class="notice" id="catalog-no-destination">${accountChoicesEmptyNotice(targets, uiText('Connect a Meta or X ad account to import products.'), uiText('Manage connections'))}</p>`}<form id="catalog-import"><label>${esc(uiText('Meta or X ad account'))}<select name="target" required><option value="">${esc(uiText('Choose an account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Native product catalog ID'), 'text', '', 'catalog_id')}${controls(uiText('Import plan name'), 'text', 'Product catalog import', 'name')}<label>${esc(uiText('Product source'))}<select name="source_mode"><option value="csv">${esc(uiText('Product CSV'))}</option><option value="woocommerce">${esc(uiText('Selected WooCommerce products'))}</option></select></label><div id="catalog-csv-controls"><label>${esc(uiText('Product CSV'))}<input type="file" name="file" accept=".csv,text/csv" required></label></div><div id="catalog-woo-selection" class="form-note" aria-live="polite"></div><div id="catalog-destination-help" class="form-note" aria-live="polite"></div>${catalogMappingMarkup()}<label>${esc(uiText('Existing retailer IDs'))}<select name="allow_upsert"><option value="false">${esc(uiText('Create only — refuse existing IDs'))}</option><option value="true">${esc(uiText('Explicitly update existing IDs after native review'))}</option></select></label><button class="button primary" type="submit">${esc(uiText('Validate and preview products'))}</button></form><div id="catalog-preview"></div></section><p class="notice">${esc(uiText('Mapped supplier and WooCommerce exports use the selected Meta or X reviewed product contract. Choose the intended price, currency, image and destination fields. Live store synchronization and additional destinations require separate qualification.'))}</p>`;
   content.innerHTML += storeSources.length
     ? storePanels
     : `<details class="panel" id="commerce-store-sources"><summary>${esc(uiText('Connect a store source (administrators)'))}</summary>${storePanels}</details>`;

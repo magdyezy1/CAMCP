@@ -531,7 +531,16 @@ async function renderOperationsCenter() {
   const pager = workPageLoader(
     '#operations-results',
     uiText('Work and attention'),
-    cursor => workspaceCall('workspace', {action: 'operations', ...filters, limit: 20, ...(cursor ? {cursor} : {})}),
+    cursor =>
+      workspaceCall('workspace', {
+        action: 'operations',
+        ...filters,
+        // The working client narrows the feed to its accounts' work (SEC-08); an account typed in the filter is an
+        // explicit choice it does not narrow further.
+        ...(typeof workingClientQuery === 'function' && !filters.account_id ? workingClientQuery() : {}),
+        limit: 20,
+        ...(cursor ? {cursor} : {}),
+      }),
     result =>
       result.operations.map(operationCard).join('') ||
       blank(

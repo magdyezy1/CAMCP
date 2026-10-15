@@ -326,7 +326,7 @@ export function enrichCapabilities(
   const allContracts = actionContracts(registry),
     version = capabilityGraphVersion(),
     now = Date.now(),
-    connections = new Map(store.listConnections(actor.tenantId).map(c => [c.id, c])),
+    connections = new Map(store.connectionsFor(actor).map(c => [c.id, c])),
     observations = new Map<string, JsonObject | undefined>(),
     names = new Map<string, ResolvedAccountMetadata>();
   if (input.workflow_id && !graph.workflows.some((w: JsonObject) => w.id === input.workflow_id))

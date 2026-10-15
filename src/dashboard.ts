@@ -6,6 +6,7 @@ import {cursorBinding, decodeOffsetCursor, encodeOffsetCursor} from './page-curs
 import {readinessContract, readinessView} from './readiness.js';
 import {recordedCredentialHealth} from './connection-health.js';
 import {attentionPlanStates, planCounts, recentPlans, visiblePlans} from './campaign-inventory.js';
+import {recordWithinAccess} from './access-sets.js';
 import type {Store} from './store.js';
 import type {Actor, Connection, JsonObject} from './types.js';
 
@@ -66,7 +67,7 @@ export function fullDashboard(store: Store, actor: Actor, allowWrites: boolean):
     at: Date.now(),
     writes_enabled: allowWrites,
     writes_paused: writePause(store, actor.tenantId) ?? null,
-    connections: store.listConnections(actor.tenantId).map(c => ({
+    connections: store.connectionsFor(actor).map(c => ({
       id: c.id,
       gateway: c.gateway,
       label: c.label,
@@ -155,19 +156,20 @@ export function dashboard(store: Store, actor: Actor, allowWrites: boolean, inpu
     ['gateway', 'connection_id', 'account_id'].filter(k => input[k] !== undefined).map(k => [k, input[k]]),
   );
   const connections = store
-      .listConnections(actor.tenantId)
+      .connectionsFor(actor)
       .filter(
         c =>
           (!filters.gateway || c.gateway === filters.gateway) &&
           (!filters.connection_id || c.id === filters.connection_id),
       ),
-    gatewayOf = new Map(store.listConnections(actor.tenantId).map(c => [c.id, c.gateway])),
+    gatewayOf = new Map(store.connectionsFor(actor).map(c => [c.id, c.gateway])),
     matchesAccount = (gateway: string | undefined, id: unknown) =>
       !filters.account_id ||
       (typeof id === 'string' &&
         normalizeAccount(gateway ?? '', id) === normalizeAccount(gateway ?? '', filters.account_id)),
+    // A receipt of an account outside a client access set stays out even through a login the set shares (SEC-08).
     inScope = (r: JsonObject) =>
-      connections.some(c => c.id === r.connection_id) && matchesAccount(gatewayOf.get(r.connection_id), r.account_id);
+      recordWithinAccess(actor, connections, r) && matchesAccount(gatewayOf.get(r.connection_id), r.account_id);
   const receipts = store.documents(actor.tenantId, 'write_verification').filter(inScope),
     paused = !!writePause(store, actor.tenantId),
     readinessOf = accountReadiness(store, actor, allowWrites, paused),
