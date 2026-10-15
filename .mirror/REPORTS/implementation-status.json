@@ -26,11 +26,11 @@
     "coverage": {
       "guides": 13,
       "reviewed_write_gateways": 15,
-      "modules": 332,
-      "write_path_codes": 474,
-      "documented_codes": 307,
-      "family_codes": 129,
-      "listed_codes": 38,
+      "modules": 334,
+      "write_path_codes": 479,
+      "documented_codes": 309,
+      "family_codes": 130,
+      "listed_codes": 40,
       "missing_gateways": [],
       "undeclared_codes": [],
       "stale_allowlist": []
