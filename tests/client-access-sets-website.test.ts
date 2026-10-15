@@ -353,3 +353,42 @@ test('a member invited for one client sees only that client on the website and h
     await s.close();
   }
 });
+
+test('removing a client access set needs a recent sign-in, like saving one, and removes nothing before it', async () => {
+  // Regression (wave 3a review): POST /api/access-sets asked for a recent proof of identity, but DELETE did not, although
+  // removing a set cuts off every member, token and AI client limited to it at once.
+  const s = await site();
+  try {
+    const created = await s.request(
+      '/api/access-sets',
+      'POST',
+      {name: 'Client A', bindings: [{gateway: 'meta_native_action', connection_id: 'meta-login', account_id: A}]},
+      s.headers,
+    );
+    assert.equal(created.status, 200, await created.clone().text());
+    const set = (await created.json()) as JsonObject;
+    // The door session signed in 16 minutes ago.
+    const session = s.headers.Cookie.slice(s.headers.Cookie.indexOf('=') + 1);
+    s.store.db
+      .prepare("UPDATE amcp_web_sessions SET actor=json_set(actor,'$.signedInAt',?) WHERE hash=?")
+      .run(Date.now() - 16 * 60000, createHash('sha256').update(session).digest('hex'));
+    const remove = () =>
+      s.request(
+        '/api/access-sets/' + encodeURIComponent(set.id as string),
+        'DELETE',
+        {confirmed: true, revision: set.revision},
+        s.headers,
+      );
+    const stale = await remove();
+    assert.equal(stale.status, 403);
+    assert.equal(((await stale.json()) as JsonObject).error.code, 'REAUTH_REQUIRED');
+    assert.equal(s.store.documents('local', 'access_set').length, 1, 'the set is still there');
+    const confirmed = await s.request('/api/account/reauthenticate', 'POST', {password}, s.headers);
+    assert.equal(confirmed.status, 200, await confirmed.clone().text());
+    const removed = await remove();
+    assert.equal(removed.status, 200, await removed.clone().text());
+    assert.equal(s.store.documents('local', 'access_set').length, 0);
+  } finally {
+    await s.close();
+  }
+});

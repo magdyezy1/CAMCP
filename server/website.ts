@@ -1709,6 +1709,9 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
     express.json({limit: '4kb'}),
     handler((req, res) => {
       const s = web.requireAdminMutation(req);
+      // Removing a set cuts off every member, token and AI client limited to it at once: an authority change of the same
+      // weight as editing it, so it needs the same recent proof of identity (SEC-06).
+      accounts.fresh(s);
       res.json(deleteAccessSet(store, s.actor, {...(req.body ?? {}), id: String(req.params.id)}));
     }),
   );
