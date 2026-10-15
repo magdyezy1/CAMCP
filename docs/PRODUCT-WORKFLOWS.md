@@ -1156,6 +1156,63 @@ bound to the current session and lasts ten minutes. Follow its returned `amcp_ca
 inspect the original draft. Lost responses reuse the same plan. `amcp_campaign create` also supports optional
 stable creation keys. See the [native budget-draft record](review/DELIVERY-2026-10-01-ALLOCATION-PLANS.md).
 
+### Factor provenance and indicators (DEC-02)
+
+**Use these historical factors** copies a retained calibration's envelope into the model and sends
+`factor_source {kind:"calibration", evidence_fingerprint, ids, options}` with it. The server recomputes that
+calibration and refuses `ALLOCATION_FACTOR_PROVENANCE` when the fingerprint, the factors or the entities differ, so
+a proposal never claims history it does not have. The provenance is part of `model_fingerprint` (the same numbers with
+and without it are different proposals), `assumptions.factor_provenance`, the limitations and the draft brief. Typed
+factors say they have no historical provenance; calibrated ones say the calibration was one-day and spend-conditioned.
+
+`allocation_indicators` compare each proposed daily average with the entity's observed daily spend range
+(`proposed_to_observed_spend`; `outside_observed_range` means the linear model extrapolates there). The native budget
+preview shows `budget_utilization` (observed spend ÷ today's daily budget × evidence days; below 80% is flagged, and
+today's budget may differ from the one in force then) and, for Google, each campaign's Search budget-lost impression
+share over the evidence period from one extra read after the two budget observations (`search_budget_lost_impression_share`:
+`read`, `not_search`, `not_reported` or `unavailable`; Google reports shares above 90% as 0.9001, shown as "more than
+90%"). Indicators are descriptive and never gate a proposal; a refused indicator read leaves it unavailable.
+
+### Meta budget drafts (DEC-02)
+
+A guided `meta_campaign` report can become a native draft of at most 20 campaigns. Inside one bounded bracket AMCP
+reads the account (identity, currency, time zone, active status), observes every campaign in the account's own
+collection, reads each campaign with its ad sets twice, and refuses anything it cannot bind exactly
+(`ALLOCATION_BUDGET_MODE`): lifetime campaign or ad-set budgets, a campaign and ad-set budget at once, ad-set budgets
+split across several spending ad sets, reserved buying, more ad sets than one bounded read, or a mode that changes
+between observations. A campaign daily budget (Advantage campaign budget) is drafted with `meta_campaign_id_update`;
+a campaign whose budget sits on its one spending ad set is drafted on that ad set with `meta_ad_set_id_update`. Amounts
+are whole Meta minor units of the pinned currency offset (`daily_budget_native`), rounded down and never converted;
+a currency without a pinned offset is refused before any read. The draft is unapproved and source-bound like the other
+providers; every step still needs native review, spend acknowledgement, owner caps and read-back. On the website,
+**Prepare a native budget draft** names the owner (campaign budget or ad set) and the minor units, and the saved plan
+shows them in English and Arabic.
+
+### Outcome review (DEC-02)
+
+When every budget step of an allocation plan has been executed and verified by read-back, AMCP schedules its outcome
+review. The outcome window is the plan's reference length (the evidence period's days), starting on the first
+account-local day after the last verified step, so the new budgets were in force all day; it is complete once its
+last day has ended in the account time zone. Nothing is read before then: `capture_allocation_outcome` refuses with
+`ALLOCATION_OUTCOME_NOT_DUE`. After the window closes, a background job (as the person whose verified execution
+completed the plan) repeats the proposal's own guided preset on the same login, account, currency, time zone,
+attribution and result definition, and retains it as ordinary guided evidence. A provider that has not finalized the
+window (Snapchat) or a rate limit is retried up to six times with growing delays; any other refusal is recorded and an
+authorized member can review the outcome from the plan page (**Review the outcome now**) or with
+`capture_allocation_outcome {id}`.
+
+`allocation_outcome {id}` (the campaign plan ID) shows the window, state and results: per entity and in total, the
+proposed budget, realized spend and its share of the proposal, realized conversions beside the range the proposal
+modeled at the proposed budget, the same range at the realized spend, and a realized factor on the proposal's
+efficiency scale (1.0 is the evidence period's conversions per unit of spend), all exact at nine places, half to even.
+An entity without outcome rows stays unknown and partial days are named; nothing is counted as zero. These are
+observational comparisons: they do not show that the budget change caused a difference, are not forecast accuracy and
+are not adjusted for seasonality, auctions, creatives, tracking or attribution changes. The outcome capture is offered
+as calibration evidence (`calibrate_allocation` when it covers 14–31 closed days). A plan whose evidence was deleted
+or changed, or whose proposal can no longer be reproduced exactly, is recorded `unavailable`. At most 500 outcome
+records are kept per workspace; the oldest finished ones are removed first. Causal experiments (Google experiments,
+LinkedIn lift tests) stay separate workflows.
+
 ## Interface language
 
 Choose **English** or **العربية (جزئي)** in the top bar, public navigation or sign-in screen. The choice is saved
@@ -1268,8 +1325,8 @@ review also freezes native delivery mode so a change prevents dispatch.
 
 For MCP use `allocation_candidates`, `allocation`, `preview_allocation_plan` with `conversion:"equal_daily"`,
 then `create_allocation_plan` with that session's `preview_id`, `preview_hash` and `confirmed:true`. Retain exact
-report and account scope. Other providers remain unqualified for this handoff; Google retains its dedicated-budget
-flow. See [qualification and limits](review/DELIVERY-2026-10-03-SNAPCHAT-ALLOCATION.md).
+report and account scope. Google retains its dedicated-budget flow, LinkedIn its independent-budget flow and Meta its
+owner-bound flow (above); other providers remain unqualified for this handoff. See [qualification and limits](review/DELIVERY-2026-10-03-SNAPCHAT-ALLOCATION.md).
 
 ### Allocation selection and browser review
 

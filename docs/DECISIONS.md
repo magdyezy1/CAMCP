@@ -123,8 +123,13 @@ cites as owner decisions, each the review's recommended or the ticket's proposed
   requests (RPT-03); schedule times show the delivery time zone first, then the viewer's (EXP-04). An open snapshot is
   addressable with `?report_id=` under the same authorization as any load (RPT-05). Still open: whether a Sheets
   destination belongs to a report or a client, whether complete-only gates a manual export, after how many failures a
-  schedule pauses, whether workbook schedules stay or move into Overview (EXP-04's second phase waits for it), period
-  comparison, the decision-grade metric set, the DEC-02 outcome window and causal experiments.
+  schedule pauses, whether workbook schedules stay or move into Overview (EXP-04's second phase waits for it), the
+  decision-grade metric set and causal experiments. Applied in wave 3 with the review's proposed options (RPT-07,
+  DEC-02): Overview period comparison against the previous equal window or a retained snapshot, matched on platform,
+  account, currency, time zone, result definition, attribution, level and grain, with exact deltas (nine places, half
+  to even), recomputed ratios and reach/frequency only for single days; and the DEC-02 outcome window, the plan's
+  reference length from the first account-local day after its last verified budget step, captured only after it has
+  closed, observational and never a causal claim.
 - **P7.** The Microsoft Search pack is labelled "Draft only: set locations in Microsoft before activation", and
   activation without a positive location criterion is refused with `LOCATION_CRITERIA_REQUIRED` until AMCP can read
   location criteria (CMP-03). UTM parameters versus tracking-suffix fields, mandatory conventions, the next launch

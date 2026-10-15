@@ -223,15 +223,15 @@ The table is a completion checklist, not a claim that these rows are finished.
 | B15     | Measured task evaluations (fewer unnecessary calls) with external MCP clients           | Runs by the D14 clients compared with the local journey/task baseline (QA-04), and typed per-action outputs (MCP-07)    |
 | B16     | Linux/Docker, deployed/live and full accessibility acceptance                           | Same-source host/image proofs and actual browser/assistive results; hosted Actions remain waived                        |
 | B17     | Additional objective launch packs and live eligibility/events                           | Qualified recipe/native prerequisites, paused reviewed drafts and authorized native read-back                           |
-| B18     | More provider/dimension evidence and LinkedIn conversion windows                        | Official schema/meaning, scope/period/completeness checks and provider reconciliation                                   |
+| B18     | LinkedIn conversion-window live capture; more packs by demand (source done, RPT-07)     | Official schema/meaning, scope/period/completeness checks and provider reconciliation                                   |
 | B20     | Raw tracing, runtime consent/deduplication/attribution and further repairs              | Event-level authoritative inputs and independently tested claim-specific contracts; aggregates are insufficient         |
 | B21     | Live store acceptance, additional destinations/source scopes and absence policies       | Native selected-store acceptance, qualified bounded snapshots and explicit independently verified absence policy        |
 | B22     | Historical creative assignment and more provider usage formats                          | Exact owned usage formats, immutable identifiers, attribution/processing boundaries and refusal coverage                |
 | B23     | Real tenant capacity, cache/fan-out and multi-worker limits                             | Measured representative workloads and provider quotas; original tenant/authority/lease isolation must survive           |
 | B24     | Provider-specific/static and dynamic reason copy, full Arabic/assistive acceptance      | Authored ownership inventory, literal native preservation, editorial review and actual assistive/browser tests          |
 | B25     | Positive private-program entitlement; selected LinkedIn is denied, DV360 not configured | Existing approved app/account and exact bounded native acceptance; three implemented program workflows remain available |
-| B26     | Forecast calibration and other native budget bindings                                   | Observed outcome calibration, explicit uncertainty, qualified native bindings and spending-policy tests                 |
-| B27     | Additional inventory providers/dimensions and point-in-time reconciliation              | Bounded complete/change-aware native collection and accurate observation-time claims                                    |
+| B26     | Live post-period outcome capture and Meta budget observation (source done, DEC-02)      | Authorized post-period capture and read-only Meta budget read; marketer review of the English and Arabic wording        |
+| B27     | Point-in-time reconciliation; live Microsoft portfolio read (adapter done, RPT-07)      | Bounded complete/change-aware native collection and accurate observation-time claims                                    |
 
 The implemented B01–B07/B09/B11/B12/B14/B19/B28 packages still retain their documented external
 acceptance limits. Existing synthetic/real-SDK tests demonstrate their controlled local contracts.
