@@ -923,3 +923,46 @@ test('report family membership never qualifies alternate origins, methods or tra
     f.store.close();
   }
 });
+
+test('RPT-06: a Meta insights job is admitted against the hourly bound in its claim; a full hour claims, records and sends nothing', async () => {
+  // Regression (wave 3a review): families without their own admission (Meta insights among them) are admitted with
+  // admitProviderJob inside the execute claim, and no test covered that path; the job-family matrix uses X, which admits
+  // on its own.
+  const previous = process.env.AMCP_PROVIDER_JOB_HOURLY_LIMIT;
+  process.env.AMCP_PROVIDER_JOB_HOURLY_LIMIT = '1';
+  const f = fixture();
+  try {
+    const first = await f.prepare();
+    assert.equal(first.success, true, JSON.stringify(first.error));
+    const done = await f.execute(first);
+    assert.equal(done.success, true, JSON.stringify(done.error));
+    assert.equal(f.data.writes, 1);
+    const receipt = f.store.document(actor.tenantId, 'provider_job', first.data.review_id);
+    assert.equal(receipt.state, 'accepted');
+    assert.equal(receipt.source, 'reviewed');
+    assert.equal(receipt.gateway, gateway);
+    const second = await f.prepare();
+    assert.equal(second.success, true, JSON.stringify(second.error));
+    const refused = await f.execute(second);
+    assert.equal(refused.success, false);
+    assert.equal(refused.error.code, 'PROVIDER_JOB_QUOTA', JSON.stringify(refused.error));
+    assert.equal(refused.error.details.submission_started, false);
+    assert.equal(f.data.writes, 1, 'nothing was sent');
+    assert.equal(
+      f.store.db
+        .prepare('SELECT 1 FROM idempotency WHERE tenant_id=? AND key=?')
+        .get(actor.tenantId, second.data.idempotency_key),
+      undefined,
+      'the claim was not kept',
+    );
+    assert.equal(
+      f.store.documents(actor.tenantId, 'provider_job').some(r => r.id === second.data.review_id),
+      false,
+      'no receipt for a job that was not sent',
+    );
+  } finally {
+    f.store.close();
+    if (previous === undefined) delete process.env.AMCP_PROVIDER_JOB_HOURLY_LIMIT;
+    else process.env.AMCP_PROVIDER_JOB_HOURLY_LIMIT = previous;
+  }
+});

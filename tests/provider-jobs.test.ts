@@ -8,7 +8,14 @@ import {NativeCampaignReports} from '../src/report-native.js';
 import {MirrorError} from '../src/errors.js';
 import {reviewedFamilies} from '../src/reviewed-families.js';
 import {effectClass, familyEffect, familyEffects} from '../src/effect-class.js';
-import {providerJobContracts, saveReportJobAccess} from '../src/provider-jobs.js';
+import {
+  beginProviderJob,
+  providerJobContracts,
+  providerJobRetentionDays,
+  purgeProviderJobReceipts,
+  saveReportJobAccess,
+  settleProviderJob,
+} from '../src/provider-jobs.js';
 import {ownerOperations, pauseCovers} from '../src/owner-operations.js';
 import {loadConfig} from '../server/config.js';
 import {createHttpApp} from '../server/http-app.js';
@@ -399,6 +406,50 @@ test('RPT-06: report-job grants need an administrator, the switch, the selected 
     );
   } finally {
     f.store.close();
+  }
+});
+
+test('RPT-06: submitting and uncertain receipts are kept a bounded time too, measured from their creation', () => {
+  // Regression (wave 3a review): only accepted and rejected receipts were ever purged, so submitting and uncertain ones,
+  // which name the account, login and actor of a job, were kept forever.
+  const store = new Store(':memory:', Buffer.alloc(32, 79).toString('base64')),
+    day = 86400000,
+    now = Date.now();
+  try {
+    store.ensureTenant(tenant);
+    const job = (id: string) =>
+      beginProviderJob(store, tenant, {
+        id,
+        gateway,
+        account_id: account,
+        connection_id: 'login',
+        actor: 'operator',
+        source: 'reviewed',
+      });
+    const age = (id: string, days: number) => {
+      const {id: _id, revision: _revision, ...data} = store.document(tenant, 'provider_job', id);
+      store.putDocument(tenant, 'provider_job', id, {...data, created_at: now - days * day});
+    };
+    for (const id of ['old-submitting', 'old-uncertain', 'recent-uncertain', 'old-accepted']) job(id);
+    settleProviderJob(store, tenant, 'old-uncertain', 'uncertain');
+    settleProviderJob(store, tenant, 'recent-uncertain', 'uncertain');
+    settleProviderJob(store, tenant, 'old-accepted', 'accepted');
+    for (const id of ['old-submitting', 'old-uncertain', 'old-accepted']) age(id, providerJobRetentionDays + 1);
+    age('recent-uncertain', providerJobRetentionDays - 1);
+    assert.equal(purgeProviderJobReceipts(store, tenant, now), 2);
+    assert.deepEqual(
+      store
+        .documents(tenant, 'provider_job')
+        .map(r => String(r.id))
+        .sort(),
+      ['old-accepted', 'recent-uncertain'],
+      'an accepted receipt follows its own retain_until; an unsettled one younger than the period stays',
+    );
+    // Settled receipts still go once their own retention has passed.
+    assert.equal(purgeProviderJobReceipts(store, tenant, now + (providerJobRetentionDays + 1) * day), 2);
+    assert.equal(store.documents(tenant, 'provider_job').length, 0);
+  } finally {
+    store.close();
   }
 });
 

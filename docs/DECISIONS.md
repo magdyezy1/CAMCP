@@ -123,14 +123,18 @@ cites as owner decisions, each the review's recommended or the ticket's proposed
   refused under `block`, never converted), and a cap saved without one is compared as before while the owner is
   warned (`POLICY_CURRENCY_UNSET`) (WRT-07). A negative-only Google targeting create needs no spend acknowledgement, and removing an exclusion
   counts as activation (`AMCP_GOOGLE_NARROWING_EXEMPT=false` restores the prompt; WRT-07). Standalone `amcp_write`
-  reviews are retained work with a status read and read-only reconciliation (WRT-08). Decided by the owner on
-  2026-10-11 and implemented in wave 3 (WRT-09): the opt-in `destructive_confirmed` tier
-  (`require_destructive_confirmation`), owner-only execution of over-cap reviews under `confirm` (or the owner's website
-  approval of that review), and the optional `approval_mode` (`assistant_ack` by default, `website_approval`,
+  reviews are retained work with a status read and read-only reconciliation (WRT-08). Not decided by the owner: P5's
+  disclosure-only versus `destructive_confirmed` choice, whether only the owner executes over-cap reviews under
+  `confirm`, and the optional approval mode stay open. Wave 3 (WRT-09) built each as an owner-selectable setting that is
+  off by default, so behaviour is unchanged until the owner turns one on: the `destructive_confirmed` tier
+  (`require_destructive_confirmation`), owner-only execution of over-cap reviews (`cap_override_owner_only`, the owner
+  executes or approves that review on the website; off, a member with write access executes beyond a cap with
+  `cap_override_confirmed` as before), and `approval_mode` (`assistant_ack` by default, `website_approval`,
   `distinct_approver`). Under `distinct_approver` each plan step or review that changes spending needs another
-  member's (or the owner's) approval on the website: P1's distinct approver for spending plans, beside the CMP-05 plan
-  policy `require_distinct_approver`. Each approval setting applies as the stricter of the account's own policy and
-  the workspace default.
+  member's (or the owner's) approval on the website, and a review prepared through a door sign-in or a key approved
+  from one needs the owner's (AMCP cannot tell its person apart); this would serve P1's distinct approver for spending
+  plans, beside the CMP-05 plan policy `require_distinct_approver`. Each approval setting applies as the stricter of
+  the account's own policy and the workspace default.
 - **P6.** Proposals (1) to (8): rolling windows can resolve per source in the account time zone (opt-in
   `date_range.source_timezone: "account"`), declared-incomplete detail sources keep a snapshot partial and hold its
   recommendations, and GA4 `(not set)` and Search Console top-row coverage are scope limits (RPT-02); recommendations

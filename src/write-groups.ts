@@ -346,11 +346,13 @@ export class WriteGroups {
             '. Nothing was sent. Show the user and, once they approve, execute again with cap_override_confirmed=true.',
           {exceeded: together.exceeded, group: true},
         );
-      // Owner decision P5 (WRT-09): beyond a cap, only the workspace owner executes, or approves the group on the website.
-      // A group kept before groups recorded their acknowledgements counts as having named the cap.
+      // WRT-09 (P5, the owner's opt-in cap_override_owner_only): beyond a cap, only the workspace owner executes, or
+      // approves the group on the website. A group kept before groups recorded their acknowledgements counts as having
+      // named the cap. The first part's account is the group's, as for its approval (write-approval.ts).
       assertCapOverrideOwner(
         this.store,
         actor,
+        admitted[0]!.plan,
         together.exceeded,
         id,
         !Array.isArray(group.required_acknowledgements) ||

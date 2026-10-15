@@ -5,7 +5,6 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {saveSpendPolicy, checkSpendPolicy} from '../dist/src/spend-policy.js';
-import {approveReview} from '../dist/src/write-approval.js';
 
 /**
  * Owner decision (2026-09-28): a spending cap asks the user instead of refusing. `enforcement: 'confirm'` is the
@@ -116,9 +115,6 @@ test('a budget above the cap is prepared with a warning and runs once the user c
     assert.equal(refused.error.category, 'confirmation');
     assert.match(refused.error.remedy.action, /cap_override_confirmed=true/);
     assert.equal(f.writes.length, 0);
-    // Owner decision P5 (WRT-09): beyond a cap, the owner approves the review on the website before an operator executes
-    // it; this test used to let the operator go beyond the cap on the acknowledgement alone.
-    approveReview(f.store, owner, r.data.review_id, {fingerprint: r.data.fingerprint, confirmed: true});
     const done = await f.execute(r.data.review_id, {cap_override_confirmed: true});
     assert.equal(done.success, true, JSON.stringify(done.error));
     assert.equal(f.writes.length, 1);

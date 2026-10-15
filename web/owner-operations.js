@@ -68,16 +68,17 @@ const policyMeta = [
 ];
 /** What an owner's write pause stops, by its scope (RPT-06): everything, advertising writes only, or report jobs only. */
 function pauseScopeText(scope) {
+  // The Microsoft report submission of a Reporting overview snapshot is a provider job: the scopes covering jobs stop it.
   return scope === 'provider_jobs'
     ? uiText(
-        'Every report and export job of this workspace is refused until you resume. Advertising writes, media uploads, reads, reviews and verification continue.',
+        'Every report and export job of this workspace, Microsoft report submissions of Reporting overview included, is refused until you resume. Advertising writes, media uploads, other reads, reviews and verification continue.',
       )
     : scope === 'advertising'
       ? uiText(
           'Every advertising write and media upload of this workspace is refused until you resume. Report and export jobs, reads, reviews and verification continue.',
         )
       : uiText(
-          'Every reviewed write and media upload of this workspace is refused until you resume. Reads, reviews and verification continue.',
+          'Every reviewed write and media upload of this workspace, and every Microsoft report submission of Reporting overview, is refused until you resume. Other reads, reviews and verification continue.',
         );
 }
 /** The provider-job switch and the jobs created in the last seven days, counted from their receipts (RPT-06). */
@@ -178,19 +179,19 @@ function accountPolicyInput(values, stored) {
     .toUpperCase();
   if (currency) policy.currency = currency;
   // WRT-09: the account's own approval settings have no control here, so a save keeps them as they are.
-  for (const key of ['approval_mode', 'require_destructive_confirmation'])
+  for (const key of ['approval_mode', 'require_destructive_confirmation', 'cap_override_owner_only'])
     if (stored?.[key] !== undefined) policy[key] = stored[key];
   return policy;
 }
 /**
- * WRT-09 (owner decisions P1 and P5): who approves spending, cap and deletion changes, and the opt-in acknowledgement
- * before deletions, as the workspace default sets them. They apply to every account; an account policy (set over MCP)
- * can only add to them.
+ * WRT-09 (owner questions P1 and P5, open): who approves spending, cap and deletion changes, the opt-in acknowledgement
+ * before deletions and the opt-in owner-only execution beyond a cap, as the workspace default sets them. Each is off by
+ * default. They apply to every account; an account policy (set over MCP) can only add to them.
  */
 function approvalPolicyControls(stored) {
   const mode = stored?.approval_mode ?? 'assistant_ack',
     option = (value, label) => `<option value="${value}"${mode === value ? ' selected' : ''}>${esc(label)}</option>`;
-  return `<label>${esc(uiText('Who approves spending, cap and deletion changes'))}<select name="approval_mode">${option('assistant_ack', uiText('The user, in the AI client (default)'))}${option('website_approval', uiText('A member, on the AMCP website'))}${option('distinct_approver', uiText('Another member than the preparer, or the owner'))}</select></label><p class="form-note">${esc(uiText('With approval on the website, a reviewed change to spending, beyond a cap or deleting something runs only after a member approves that exact review on the Operations page. This applies to every account, also one with a policy of its own.'))}</p><label class="check"><input name="require_destructive_confirmation" type="checkbox"${stored?.require_destructive_confirmation === true ? ' checked' : ''}> ${esc(uiText('Require an explicit acknowledgement before deletions'))}</label><p class="form-note">${esc(uiText('Only the workspace owner executes a change beyond a spending cap, or approves it on the AMCP website first.'))}</p>`;
+  return `<label>${esc(uiText('Who approves spending, cap and deletion changes'))}<select name="approval_mode">${option('assistant_ack', uiText('The user, in the AI client (default)'))}${option('website_approval', uiText('A member, on the AMCP website'))}${option('distinct_approver', uiText('Another member than the preparer, or the owner'))}</select></label><p class="form-note">${esc(uiText('With approval on the website, a reviewed change to spending, beyond a cap or deleting something runs only after a member approves that exact review on the Operations page. This applies to every account, also one with a policy of its own.'))}</p><label class="check"><input name="require_destructive_confirmation" type="checkbox"${stored?.require_destructive_confirmation === true ? ' checked' : ''}> ${esc(uiText('Require an explicit acknowledgement before deletions'))}</label><label class="check"><input name="cap_override_owner_only" type="checkbox"${stored?.cap_override_owner_only === true ? ' checked' : ''}> ${esc(uiText('Only the workspace owner executes a change beyond a spending cap'))}</label><p class="form-note">${esc(uiText('When this is on, anyone else executes a change beyond a cap only after the owner approves that exact review on the AMCP website. When it is off, the user’s acknowledgement in the AI client is enough.'))}</p>`;
 }
 const approvalModeRank = mode =>
   ['assistant_ack', 'website_approval', 'distinct_approver'].indexOf(mode ?? 'assistant_ack');
@@ -214,6 +215,11 @@ function workspacePolicyInput(values, stored) {
     if (values.require_destructive_confirmation || stored?.require_destructive_confirmation !== undefined)
       policy.require_destructive_confirmation = !!values.require_destructive_confirmation;
     else delete policy.require_destructive_confirmation;
+  }
+  if (values.cap_override_owner_only !== undefined) {
+    if (values.cap_override_owner_only || stored?.cap_override_owner_only !== undefined)
+      policy.cap_override_owner_only = !!values.cap_override_owner_only;
+    else delete policy.cap_override_owner_only;
   }
   const per = {};
   for (const [g, limits] of Object.entries(stored?.per_gateway ?? {})) {
@@ -256,6 +262,10 @@ function policyWeakenings(stored, next, platform = g => g) {
     out.push(uiText('Fewer approvals are needed before spending, cap and deletion changes are executed.'));
   if (stored.require_destructive_confirmation === true && next.require_destructive_confirmation !== true)
     out.push(uiText('Deletions no longer need an explicit acknowledgement.'));
+  if (stored.cap_override_owner_only === true && next.cap_override_owner_only !== true)
+    out.push(
+      uiText('Members other than the owner may execute a change beyond a spending cap on the user’s acknowledgement.'),
+    );
   const caps = (from, to, prefix) => {
     const pairs = [
       ...Object.entries(policyMoney),
@@ -757,6 +767,7 @@ renderSettings = async function () {
           currencies,
           approval_mode: String(d.get('approval_mode') ?? 'assistant_ack'),
           require_destructive_confirmation: d.has('require_destructive_confirmation'),
+          cap_override_owner_only: d.has('cap_override_owner_only'),
         },
         workspaceDefault,
       ),

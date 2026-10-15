@@ -106,21 +106,25 @@ export const writeTool = {
         type: 'string',
       },
       confirmed: {type: 'boolean'},
-      // The flags below record a person's explicit approval; tools/list keeps one line on each (wave 2 review).
+      // The flags below record a person's explicit approval; tools/list keeps one line on each (wave 2 review), and
+      // each says the client never sets it on its own: only when execute_requirements lists it (wave 3a review).
       spend_change_confirmed: {
         type: 'boolean',
-        description: 'User approved this spend change.',
+        description: 'Only if execute_requirements lists it: user approved this spend change.',
       },
       cap_override_confirmed: {
         type: 'boolean',
-        description: 'User approved exceeding an owner cap.',
+        description: 'Only if execute_requirements lists it: user approved exceeding an owner cap.',
       },
       creative_edit_confirmed: {
         type: 'boolean',
         description: 'User accepted that this X card or Tweet change may disrupt promoted ads; prepare and execute.',
       },
-      // WRT-09 (owner decision P5): the opt-in tier; only when execute_requirements lists it.
-      destructive_confirmed: {type: 'boolean'},
+      // WRT-09 (P5): the owner's opt-in tier.
+      destructive_confirmed: {
+        type: 'boolean',
+        description: 'Only if execute_requirements lists it: user approved this deletion.',
+      },
       people: {
         type: 'object',
       },
@@ -1006,11 +1010,19 @@ export class WriteReviewService {
     const review = this.store.document(actor.tenantId, 'write_review', input.review_id);
     // An upload of people is prepared by an operator and approved by the owner executing it (personal-data policy,
     // rule 3): the workspace owner may execute a personal-data review another member prepared. Likewise a review beyond
-    // a spending cap, which only the owner executes (owner decision P5, WRT-09). No other review moves.
+    // a spending cap where the owner turned on cap_override_owner_only, under which only the owner executes it (WRT-09,
+    // opt-in pending the owner's P5 answer). No other review moves.
     if (
       review.user_id !== actor.userId &&
       !(
-        (review.plan?.personalData || review.required_acknowledgements?.includes?.('cap_override_confirmed')) &&
+        (review.plan?.personalData ||
+          (review.required_acknowledgements?.includes?.('cap_override_confirmed') &&
+            reviewApprovalPolicy(
+              this.store,
+              actor.tenantId,
+              String(review.plan?.gateway ?? ''),
+              String(review.plan?.accountId ?? ''),
+            ).cap_override_owner_only)) &&
         workspaceOwner(this.store, actor)
       )
     )
@@ -1278,12 +1290,14 @@ export class WriteReviewService {
         state: current,
         submittedAt,
       };
-    // Owner decision P5 (WRT-09): beyond a cap under `confirm`, only the workspace owner executes, or the owner approved
-    // this exact review on the website. Checked with the caps exceeded now; nothing is reserved, claimed or sent.
+    // WRT-09 (P5, the owner's opt-in cap_override_owner_only): beyond a cap under `confirm`, only the workspace owner
+    // executes, or the owner approved this exact review on the website. Checked with the caps exceeded now; nothing is
+    // reserved, claimed or sent. Without the opt-in the acknowledgement suffices, as before.
     if (input.cap_override_confirmed === true)
       assertCapOverrideOwner(
         this.store,
         actor,
+        plan,
         exceededCaps(checkSpendPolicy(this.store, actor, plan, current)),
         input.review_id,
         Array.isArray(review.required_acknowledgements) &&

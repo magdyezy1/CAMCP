@@ -93,7 +93,8 @@ incomplete and its window has closed. Each label holds recommendations; nothing 
   same-day snapshot.
 - **Microsoft report jobs (RPT-06).** `SubmitGenerateReport` creates a provider job. Before it is sent it is admitted
   against the hourly bound per account (`PROVIDER_JOB_QUOTA`), refused while an owner's pause covers provider jobs
-  (`WRITES_PAUSED`), and recorded as a `provider_job` receipt in the source's checkpoint. A resumed snapshot polls the
+  (`WRITES_PAUSED`; the default pause scope `all` and the `provider_jobs` scope both cover it, so such a pause stops
+  Microsoft sources of Overview snapshots while other reads continue), and recorded as a `provider_job` receipt in the source's checkpoint. A resumed snapshot polls the
   original `ReportRequestId`; when the earlier submission's answer was lost, it is never submitted again
   (`PROVIDER_JOB_UNCERTAIN`; run a new snapshot). Only a definitive refusal that created nothing (such as error 2004)
   may be submitted again. Reviewed report and export jobs of the other providers follow the deployment owner's

@@ -194,8 +194,9 @@ function validatePolicy(
     } else if (
       key === 'allow_activation' ||
       key === 'allow_deletion' ||
-      // WRT-09 (owner decision P5): the opt-in destructive_confirmed tier.
-      key === 'require_destructive_confirmation'
+      // WRT-09 (P5, open with the owner): the opt-in destructive_confirmed tier, and owner-only execution beyond a cap.
+      key === 'require_destructive_confirmation' ||
+      key === 'cap_override_owner_only'
     ) {
       if (typeof value !== 'boolean') throw invalidPolicy();
       out[key] = value;

@@ -10,7 +10,6 @@ import {reviewFriction} from '../dist/src/review-friction.js';
 import {capOverrides} from '../dist/src/cap-overrides.js';
 import {MirrorError} from '../dist/src/errors.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
-import {approveReview} from '../dist/src/write-approval.js';
 
 /**
  * WRT-05 Stages D and F. Under enforcement `confirm` any operator could execute over an owner's cap with
@@ -95,9 +94,6 @@ test('an operator execution over a cap appears in the owner health view, and onl
       operator,
     );
     assert.equal(prepared.success, true, JSON.stringify(prepared.error));
-    // Owner decision P5 (WRT-09): an operator executes beyond a cap only after the owner approved the review on the
-    // website (this test used to let any operator go beyond the cap on the acknowledgement alone).
-    approveReview(store, owner, prepared.data.review_id, {fingerprint: prepared.data.fingerprint, confirmed: true});
     const done = await service.call(
       'amcp_write',
       {
@@ -220,8 +216,6 @@ test('a confirmed over-cap execution refused before it was sent is not listed as
       operator,
     );
     assert.equal(prepared.success, true, JSON.stringify(prepared.error));
-    // Owner decision P5 (WRT-09): the owner approves the over-cap review on the website before an operator executes it.
-    approveReview(store, owner, prepared.data.review_id, {fingerprint: prepared.data.fingerprint, confirmed: true});
     const execute = () =>
       service.call(
         'amcp_write',

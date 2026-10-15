@@ -322,12 +322,14 @@ export function ownerOperations(
     });
     return {
       ...pause,
+      // A Reporting overview snapshot's Microsoft report submission is a provider job (report-native.ts), so the scopes
+      // that cover provider jobs stop it too (wave 3a review).
       effect:
         scope === 'provider_jobs'
-          ? 'Every provider report and export job of this workspace is refused with WRITES_PAUSED until an owner resumes writes. Advertising writes, reads, prepares and verification continue.'
+          ? 'Every provider report and export job of this workspace, the Microsoft report submission of a Reporting overview snapshot included, is refused with WRITES_PAUSED until an owner resumes writes. Advertising writes, other reads, prepares and verification continue.'
           : scope === 'advertising'
-            ? 'Every advertising amcp_write and amcp_media execute of this workspace is refused with WRITES_PAUSED until an owner resumes writes. Provider report and export jobs, reads, prepares and verification continue.'
-            : 'Every amcp_write and amcp_media execute of this workspace is refused with WRITES_PAUSED until an owner resumes writes. Reads, prepares and verification continue.',
+            ? 'Every advertising amcp_write and amcp_media execute of this workspace is refused with WRITES_PAUSED until an owner resumes writes. Provider report and export jobs (Microsoft report submissions of Reporting overview included), reads, prepares and verification continue.'
+            : 'Every amcp_write and amcp_media execute of this workspace, and the Microsoft report submission of a Reporting overview snapshot, is refused with WRITES_PAUSED until an owner resumes writes. Other reads, prepares and verification continue.',
     };
   }
   if (input.action === 'resume_writes') {
@@ -413,7 +415,8 @@ export function cleanupReports(store: Store, defaultDays: number | null = report
     // because they accrue once per reviewed write and nothing else deletes them. Two days are kept
     // so the current and preceding UTC day survive for inspection. The audit log keeps the
     // durable record of each write independently.
-    // Settled provider-job receipts are kept 90 days (RPT-06); submitting and uncertain ones until a person settles them.
+    // Provider-job receipts (RPT-06) are kept 90 days: settled ones from when they settled, submitting and uncertain
+    // ones from when they were created.
     purgeProviderJobReceipts(store, tenant, now);
     store.transaction(() => {
       store.db

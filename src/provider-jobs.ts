@@ -112,7 +112,12 @@ export const providerJobContracts: readonly {
 export const providerJobGateways: readonly string[] = Object.freeze([
   ...new Set(providerJobContracts.filter(j => j.family !== 'microsoft_reporting_pipeline').map(j => j.gateway)),
 ]);
-/** Settled receipts are kept this long; submitting and uncertain receipts are kept until a person settles them. */
+/**
+ * Settled receipts are kept this long after they settle; submitting and uncertain receipts this long after they were
+ * created. A receipt names the account, login and actor of its job, so none is kept without bound (wave 3a review): a
+ * provider keeps a report or export job for days to weeks, and its review expired after five minutes, so after 90 days
+ * an unsettled receipt protects no resubmission AMCP could still make.
+ */
 export const providerJobRetentionDays = 90;
 const hour = 3600000;
 /** Jobs admitted per provider account and rolling hour across the deployment (AMCP_PROVIDER_JOB_HOURLY_LIMIT). */
@@ -353,11 +358,20 @@ export function providerJobSummary(store: Store, tenant: string, days = 7): Json
     .all(tenant, since) as JsonObject[];
   return {days, created: rows.reduce((n, r) => n + Number(r.count), 0), by_gateway_and_state: rows};
 }
-/** Deletes settled receipts past their retention; submitting and uncertain receipts stay until a person settles them. */
-export function purgeProviderJobReceipts(store: Store, tenant: string, now = Date.now()): void {
-  store.db
-    .prepare(
-      "DELETE FROM documents WHERE tenant_id=? AND kind='provider_job' AND json_extract(data,'$.state') IN ('accepted','rejected') AND coalesce(json_extract(data,'$.retain_until'),0)<?",
-    )
-    .run(tenant, now);
+/**
+ * Deletes settled receipts past their retention, and submitting or uncertain receipts created more than
+ * providerJobRetentionDays ago (a receipt without a creation time counts as that old). Returns how many went.
+ */
+export function purgeProviderJobReceipts(store: Store, tenant: string, now = Date.now()): number {
+  const settled = store.db
+      .prepare(
+        "DELETE FROM documents WHERE tenant_id=? AND kind='provider_job' AND json_extract(data,'$.state') IN ('accepted','rejected') AND coalesce(json_extract(data,'$.retain_until'),0)<?",
+      )
+      .run(tenant, now).changes,
+    unsettled = store.db
+      .prepare(
+        "DELETE FROM documents WHERE tenant_id=? AND kind='provider_job' AND coalesce(json_extract(data,'$.state'),'') NOT IN ('accepted','rejected') AND coalesce(json_extract(data,'$.created_at'),0)<?",
+      )
+      .run(tenant, now - providerJobRetentionDays * 86400000).changes;
+  return Number(settled) + Number(unsettled);
 }

@@ -9,19 +9,19 @@ import {actionSummaries, firstPartyContract, type FirstPartyContract} from './fi
  */
 export const descriptionBudget = 2000;
 const help = (tool: string) =>
-  'Arguments and rules per action, and guides: amcp_tool_help {gateway:"' +
+  'Per-action arguments, rules and guides: amcp_tool_help {gateway:"' +
   tool +
   '",operation:"<action>"} or {topic:"guides"}.';
 export const routingSummaries: Readonly<Record<string, string>> = Object.freeze({
   amcp_workspace:
     'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its history. ' +
     'Safety: nothing here changes an advertising account. Previews and saves are local; confirmed saves need confirmed:true and the current revision or version; saved drafts still need native review through amcp_write or amcp_campaign. Missing evidence stays unknown, never passed. ' +
-    'Core actions: capabilities (per-account workflow readiness and blockers, paged by next_cursor, filtered by workflow_id, connection_id or account_id; view:"graph" adds the graph), ' +
+    'Core actions: capabilities (per-account readiness and blockers, paged by next_cursor, filtered by workflow_id, connection_id or account_id; view:"graph" adds the graph), ' +
     'check (exact account prerequisites; only live:true reads the account, saving that evidence), ' +
-    'program_check (one conditional program; only live:true reads the provider, keeping one observation), ' +
+    'program_check (one conditional program; only live:true reads the provider), ' +
     'contracts (read/write/media/blocked class of every action, no network), ' +
     'operations (feed of retained work with next_call handoffs), history (bounded audit metadata) and ' +
-    'dashboard (counts per provider and account; sections select bounded detail). ' +
+    'dashboard (bounded counts per provider and account). ' +
     'Other actions: portfolio and portfolio_reconcile, measurement_audit/events/event_identity/conversions/google_goals/ga4_config/ledger, catalog_sources/source/preview/compare/plan, consent and catalog-removal drafts, local workbook report runs and schedules (no spreadsheet writes), queries and bindings, incidents and monitors, client profiles and briefs, and owner operations (health, support_bundle, spend, retention and plan policies, write pause, personal-data switch). ' +
     help('amcp_workspace'),
   amcp_campaign:
@@ -31,7 +31,7 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     'Core actions: recipes, recipe_context, recipe_eligibility (live:true adds read-only account prerequisites), recipe_lookup, preview_recipe, create_from_recipe; create, get, list (filters, next_cursor), preflight; ' +
     'prepare_next and execute_next (one reviewed step at a time, read back); verify; approve (what one approval covers; confirmed with that plan_hash records it) and run (every step under it, stopping for anything that needs a person; run_background runs an approved plan of media uploads on the server); ' +
     'recover_step, reconcile_step, confirm_absent and continue_as_new for blocked, refused or uncertain steps; activation_plan; archive, unarchive, assign and unassign; clone (Snapchat, Google Search, TikTok or LinkedIn into a paused draft); validate_provider; cancel. ' +
-    'Responses are compact; get with step_id, or detail:"full", returns more. ' +
+    'Get with step_id or detail:"full" returns more. ' +
     help('amcp_campaign'),
   amcp_write:
     'Use this for any single advertising or measurement change; use amcp_campaign when later steps need IDs that earlier steps create. ' +
@@ -41,7 +41,7 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
   amcp_reporting:
     'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. ' +
     'For saved client reports across platforms, schedules and Sheets exports, use amcp_reporting_overview. ' +
-    'Safety: no advertising writes from reporting. A saved plan is an unapproved draft that still needs native review, spending acknowledgement and read-back. Missing metrics stay unknown; attribution windows and completeness remain declared; partial or changed evidence is refused rather than presented as complete. ' +
+    'Safety: no advertising writes. A saved plan is an unapproved draft that still needs native review, spending acknowledgement and read-back. Missing metrics stay unknown; attribution windows and completeness remain declared; partial or changed evidence is refused rather than presented as complete. ' +
     'Core actions: capture_presets (guided Google, Meta, LinkedIn, TikTok and Snapchat reports), capture_preset and capture (bounded native reads kept with source hashes), overview_sources and capture_overview, list and get (source-linked metadata pages; get takes row_query and returns an xlsx_path), ' +
     'analyze (pacing, anomaly, fatigue and search-waste recommendations), reconcile_report and reconcile (against a retained or declared reference), combine, scenarios, ' +
     'calibrate_allocation, allocation_candidates, allocation, preview_allocation_plan and create_allocation_plan, search_exclusion_candidates, preview_search_exclusions and create_search_exclusion_plan. ' +
@@ -59,7 +59,7 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     'Use this to put an image or video into an ad account as a reviewed upload: a file uploaded on the website (source_id; list returns them under sources), a public HTTPS link (source_url), or a public or selected private Google Drive file (drive_url). ' +
     'Safety: the MCP client never downloads bytes; nothing publishes ads or posts; operator role, account write grants and durable idempotency apply; website uploads expire 30 minutes after the upload starts. ' +
     'prepare fetches and encrypts the exact file for a five-minute review (fit_to_platform:true scales or converts it; request.transform says what changed); execute uploads those frozen bytes after explicit confirmation; execute_async and job_status queue and follow it; status reads provider processing; recovery and resume continue an interrupted upload within its original review, never an uncertain part. ' +
-    'Other actions: plan (per-account variants), variant, inspect_eligibility (checks a file against a placement before any upload), prepare_library, reuse, cancel, list, library, asset, asset_usage (current Meta, Google and Snapchat references to an uploaded asset, with reference_view), asset_performance, save_asset_metadata, and retain_source and remove_source (workspace owner only). ' +
+    'Other actions: plan (per-account variants), variant, inspect_eligibility (checks a file against a placement before any upload), prepare_library, reuse, cancel, list, library, asset, asset_usage (current Meta, Google and Snapchat references to an uploaded asset), asset_performance, save_asset_metadata, and retain_source and remove_source (workspace owner only). ' +
     'Supports PNG/JPEG and MP4/MOV for Meta, TikTok, Snapchat, Google Ads, LinkedIn, X and DV360. ' +
     help('amcp_media'),
   'amcp_media:read_only':

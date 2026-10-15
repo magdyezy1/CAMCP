@@ -433,12 +433,13 @@ only the whole group crosses is named at prepare, and execute checks it for ever
 first is sent. The audit records every confirmed override. Never set the flag on the
 user's behalf, and never split a change into smaller writes to stay under a cap.
 
-**Only the owner goes beyond a cap (owner decision P5).** Executing beyond a cap is the workspace
-owner's: the owner executes the review (the owner may execute one a member prepared), or approves
-that exact review on the AMCP website first. Anyone else's execute is refused with
-`CAP_OVERRIDE_OWNER_REQUIRED` and nothing is sent; prepare already names it in `approval`
-(`owner_required: "cap_override"`, `website_path`). Ask the owner; the review stays valid until it
-expires.
+**Only the owner goes beyond a cap (opt-in, `cap_override_owner_only`).** Off by default: the
+user's acknowledgement above is enough. Where the owner turned it on, executing beyond a cap is the
+workspace owner's: the owner executes the review (the owner may then execute one a member
+prepared), or approves that exact review on the AMCP website first. Anyone else's execute is
+refused with `CAP_OVERRIDE_OWNER_REQUIRED` and nothing is sent; prepare already names it in
+`approval` (`owner_required: "cap_override"`, `website_path`). Ask the owner; the review stays
+valid until it expires.
 
 **Website approval (WRT-09, opt-in).** A spending policy may set `approval_mode`:
 `assistant_ack` (the default: the user's acknowledgements in this client suffice),
@@ -446,7 +447,9 @@ expires.
 (another member than the one who prepared it, or the owner). It applies to reviews that change
 spending, go beyond a cap or delete. Prepare returns `approval` with `classes` and `website_path`;
 execute without that approval is refused with `HUMAN_APPROVAL_REQUIRED` (`details.website_path`;
-`reason: "approval_fingerprint_mismatch"` when the approval was for another version of the review).
+`reason: "approval_fingerprint_mismatch"` when the approval was for another version of the review,
+`reason: "preparer_unidentified"` when a review prepared through a door sign-in or a key approved
+from one needs the owner's approval under `distinct_approver`).
 You cannot approve: give the user `website_path`, then execute the same review once a person has
 approved it; `amcp_write status` shows `approval.approved` without a provider request. A group is
 approved once as a whole. In a plan each such step is its own review with its own approval: `run`
