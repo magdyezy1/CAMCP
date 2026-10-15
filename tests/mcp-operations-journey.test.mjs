@@ -1394,29 +1394,33 @@ test('MCP Snapchat portfolio follows qualified parents and keeps money and deliv
 test('MCP mapped supplier products keep exact prices and source hash through a draft and require separate native review', async t => {
   const f = await fixture();
   try {
-    const context = createContext({uiText: (s, vars = {}) => s.replace(/\{(\w+)\}/g, (_, k) => vars[k])});
-    new Script(readFileSync('web/account-workflows.js', 'utf8')).runInContext(context);
-    context.csv =
+    // COM-03: the MCP client sends the supplier export as it is; AMCP projects it with the catalog's saved, versioned
+    // mapping profile (this journey ran the browser-only mapping function before the projection moved to the server).
+    const csv =
       'SKU,Name,Regular price,Images,Private\n001,Home,0012.34,https://example.test/image.png,UNUSED-PRIVATE\n';
-    const products = JSON.parse(
-      JSON.stringify(
-        new Script(
-          "mapProductCSV(parseProductCSVTable(csv), {columns: {retailer_id:'SKU',name:'Name',price:'Regular price',image_url:'Images'},fixed_currency:'SAR',image_mode:'single'})",
-        ).runInContext(context),
-      ),
-    );
+    const scope = {gateway: 'meta_native_action', connection_id: 'meta', account_id: '100', catalog_id: '500'};
+    const mapping = await f.call('amcp_workspace', {
+      action: 'save_catalog_mapping',
+      ...scope,
+      revision: 0,
+      requirements: {
+        columns: {retailer_id: 'SKU', name: 'Name', price: 'Regular price', image_url: 'Images'},
+        fixed_currency: 'SAR',
+        image_mode: 'single',
+      },
+    });
+    assert.equal(mapping.success, true, JSON.stringify(mapping));
+    assert.equal(mapping.data.profile.version, 1);
     const args = {
-      gateway: 'meta_native_action',
-      connection_id: 'meta',
-      account_id: '100',
-      catalog_id: '500',
+      ...scope,
       name: 'Mapped products',
       allow_upsert: false,
-      products,
+      requirements: {source: {kind: 'csv', text: csv, columns: 'profile', profile_version: 1}},
     };
     const preview = await f.call('amcp_workspace', {action: 'catalog_preview', ...args});
     assert.equal(preview.success, true, JSON.stringify(preview));
     assert.equal(preview.data.items[0].price_minor_units, 1234);
+    assert.doesNotMatch(JSON.stringify(preview.data.supplied_products), /UNUSED-PRIVATE/);
     const saved = await f.call('amcp_workspace', {action: 'catalog_plan', ...args});
     assert.equal(saved.success, true, JSON.stringify(saved));
     assert.equal(saved.data.state, 'draft');
@@ -1429,12 +1433,16 @@ test('MCP mapped supplier products keep exact prices and source hash through a d
     assert.equal(detail.data.steps[0].arguments.payload.price, 1234);
     assert.equal(detail.data.steps[0].arguments.payload.allow_upsert, false);
     assert.doesNotMatch(JSON.stringify(detail), /UNUSED-PRIVATE/);
+    // The plan names the CSV and the mapping version that produced it.
+    assert.equal(detail.data.catalog_lineage.source_kind, 'csv');
+    assert.equal(detail.data.catalog_lineage.mapping_profile_version, 1);
     assert.equal(f.metrics().provider_requests, 0);
     t.diagnostic(
       JSON.stringify({
         journey: 'mapped-catalog-draft',
         ...f.metrics(),
-        qualification: 'real SDK with browser mapping function and synthetic store; no provider requests or mutations',
+        qualification:
+          'real SDK with the server-side mapping profile and synthetic store; no provider requests or mutations',
       }),
     );
   } finally {

@@ -76,8 +76,11 @@ test('CSV parsing rejects duplicate or blank headers and malformed widths, with 
     Array.from({length: 101}, (_, i) => 'h' + i).join(',') + '\n1',
   ])
     assert.throws(() => call('parseProductCSVTable', invalid));
-  assert.throws(() => call('parseProductCSVTable', 'SKU\n' + Array(51).fill('1').join('\n')), /50/);
-  assert.throws(() => call('parseProductCSVTable', 'SKU\n' + 'a'.repeat(131073)), /128/);
+  // COM-03: a CSV holds at most 500 products in 192 KiB (more than 50 become one plan group); before, the website
+  // refused a 51st product and had no way to save a larger store except by splitting it by hand.
+  assert.equal(call('parseProductCSVTable', 'SKU\n' + Array(500).fill('1').join('\n')).rows.length, 500);
+  assert.throws(() => call('parseProductCSVTable', 'SKU\n' + Array(501).fill('1').join('\n')), /500 products/);
+  assert.throws(() => call('parseProductCSVTable', 'SKU\n' + 'a'.repeat(196609)), /192 KiB/);
   const table = call('parseProductCSVTable', '\ufeffSKU,Name\r\n001,"عرض, خاص ""جديد"""\r\n');
   assert.equal(table.rows[0].Name, 'عرض, خاص "جديد"');
   assert.equal(table.rows[0].SKU, '001');

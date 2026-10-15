@@ -125,6 +125,7 @@ const accountExplanationMessages = new Set([
   'Snapchat changes catalog products only through product feeds. AMCP compares supplied products read-only and saves no draft; fix differences in the feed.',
   'Feed processing can take time, so a comparison shows current catalog evidence, not the next feed result.',
   'Each part is its own unapproved plan of at most 50 products in one lineage group; approve and run each part separately. Every product still needs its own native review and read-back, and products the source lacks are never deleted.',
+  'Preview validates every product of this plan group from the source; nothing is saved. Saving creates one unapproved plan of at most 50 products per part, and every product still needs its own native review and read-back. Products the source lacks are never deleted.',
   'Choose an exact X product catalog ID and selected X ad account.',
   'X imports require explicit upsert approval: X updates matching product IDs. Create-only imports are not qualified.',
   'X imports require explicit retailer_id, name, price, currency, image_url, url, availability, condition, brand and plain text description.',
@@ -3164,8 +3165,12 @@ function parseProductCSV(text, gateway = 'meta_native_action') {
     );
   return table.rows;
 }
+// A product CSV holds at most 500 products in 192 KiB, the bounds of AMCP's CSV source (src/catalog-sources.ts): more
+// than 50 are saved as one plan group (COM-03), and AMCP checks the exact byte size again.
+const catalogCsvMaxRows = 500,
+  catalogCsvMaxBytes = 196608;
 function parseProductCSVTable(text) {
-  if (text.length > 131072) throw Error(uiText('Use a CSV smaller than 128 KiB and at most 50 products.'));
+  if (text.length > catalogCsvMaxBytes) throw Error(uiText('Use a CSV source of at most 192 KiB and 500 products.'));
   text = text.replace(/^\uFEFF/, '');
   const rows = [];
   let row = [],
@@ -3220,7 +3225,7 @@ function parseProductCSVTable(text) {
     new Set(headers).size !== headers.length
   )
     throw Error(uiText('Use 1–100 unique named CSV columns, each up to 200 characters.'));
-  if (rows.length > 50) throw Error(uiText('Import at most 50 products in each reviewed plan.'));
+  if (rows.length > catalogCsvMaxRows) throw Error(uiText('Use a CSV source of at most 192 KiB and 500 products.'));
   return {
     headers,
     rows: rows.map(r => {
@@ -3399,6 +3404,60 @@ function catalogImportPreviewMarkup(out, request) {
           : 'Create only — refuse existing IDs',
     );
   return `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Products and exact native price units'))}"><table class="review-table"><caption>${esc(uiText('Products and exact native price units'))}</caption><thead><tr>${titles.map(title => `<th scope="col">${esc(title)}</th>`).join('')}</tr></thead><tbody>${request.products.map((product, index) => `<tr><th scope="row"><strong>${esc(product.name)}</strong><br><code>${esc(product.retailer_id)}</code></th><td><bdi>${esc(product.price + ' ' + product.currency)}</bdi></td><td><bdi>${esc(exact ? (out.items?.[index]?.native_price ?? uiText('Unknown')) : Number.isSafeInteger(out.items?.[index]?.price_minor_units) ? out.items[index].price_minor_units : uiText('Unknown'))}</bdi></td>${sale ? saleCell(product, index) : ''}${grouped ? `<td><code dir="ltr">${esc(product.retailer_product_group_id ?? uiText('Not supplied'))}</code></td>` : ''}<td>${esc(policy)}</td></tr>`).join('')}</tbody></table></div>`;
+}
+/**
+ * A plan group of 51–500 source products (COM-03): AMCP's part-by-part validation of the CSV the website sent, checked
+ * against that source (its row count, column mode and mapping version) before it can be saved. Nothing is saved yet;
+ * the products of each part are listed by the plan it becomes.
+ */
+function catalogPlanGroupMarkup(out, expected) {
+  const plans = Array.isArray(out?.plans) ? out.plans : [],
+    text = value => typeof value === 'string' && value.length > 0 && value.length <= 100;
+  if (
+    out?.record_kind !== 'catalog_plan_group_preview' ||
+    out.item_count !== expected.rows ||
+    out.parts !== Math.ceil(expected.rows / 50) ||
+    plans.length !== out.parts ||
+    plans.some(
+      (plan, i) =>
+        plan?.part !== i + 1 ||
+        !Number.isSafeInteger(plan.item_count) ||
+        plan.item_count < 1 ||
+        plan.item_count > 50 ||
+        !text(plan.first_retailer_id) ||
+        !text(plan.last_retailer_id),
+    ) ||
+    plans.reduce((sum, plan) => sum + plan.item_count, 0) !== out.item_count ||
+    out.source?.source_kind !== 'csv' ||
+    out.source.columns !== expected.columns ||
+    (expected.version !== undefined && out.source.mapping_profile?.version !== expected.version) ||
+    typeof out.lineage_group_id !== 'string' ||
+    out.provider_mutations !== 0 ||
+    out.destructive_deletions !== 0
+  )
+    throw Error(uiText('The plan group could not be confirmed. Validate the source again.'));
+  const counts = {count: uiNumber(out.item_count), parts: uiNumber(out.parts)};
+  return `<h3 id="catalog-plan-group-heading" tabindex="-1">${esc(uiText('{count} products in {parts} plans of at most 50', counts))}</h3><p>${esc(uiAccountExplanation(out.meaning))}</p><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Plan group parts'))}"><table class="review-table"><caption>${esc(uiText('Plan group parts'))}</caption><thead><tr><th scope="col">${esc(uiText('Part'))}</th><th scope="col">${esc(uiText('Products'))}</th><th scope="col">${esc(uiText('First retailer ID'))}</th><th scope="col">${esc(uiText('Last retailer ID'))}</th></tr></thead><tbody>${plans.map(plan => `<tr><th scope="row">${esc(uiNumber(plan.part))}</th><td>${esc(uiNumber(plan.item_count))}</td><td><code dir="ltr">${esc(plan.first_retailer_id)}</code></td><td><code dir="ltr">${esc(plan.last_retailer_id)}</code></td></tr>`).join('')}</tbody></table></div>${Array.isArray(out.destination_limitations) && out.destination_limitations.length ? `<ul>${out.destination_limitations.map(value => `<li>${esc(uiAccountExplanation(value))}</li>`).join('')}</ul>` : ''}<p class="form-note" id="create-catalog-plan-group-note">${esc(uiText('A plan group is saved from its whole source. Compare at most 50 products at a time; each part is its own unapproved plan that you approve and run separately.'))}</p>${recordDetails({lineage_group_id: out.lineage_group_id, group_source_hash: out.group_source_hash, source: out.source, plans}, uiText('Plan group source and hashes'))}<button type="button" class="button primary" id="create-catalog-plan-group" aria-describedby="create-catalog-plan-group-note">${esc(uiText('Save {count} products as {parts} plans', counts))}</button>`;
+}
+/** The saved plan group: one link per part's unapproved plan, which must be exactly the previewed parts. */
+function catalogPlanGroupSavedMarkup(saved, preview) {
+  const plans = Array.isArray(saved?.plans) ? saved.plans : [];
+  if (
+    saved?.record_kind !== 'catalog_plan_group' ||
+    saved.lineage_group_id !== preview.lineage_group_id ||
+    saved.parts !== preview.parts ||
+    saved.item_count !== preview.item_count ||
+    plans.length !== preview.parts ||
+    plans.some(
+      (plan, i) =>
+        plan?.part !== i + 1 ||
+        typeof plan.id !== 'string' ||
+        !plan.id ||
+        plan.item_count !== preview.plans[i].item_count,
+    )
+  )
+    throw Error(uiText('The saved plan group could not be confirmed. Open Campaigns to review the saved plans.'));
+  return `<h3 id="catalog-plan-group-saved-heading" tabindex="-1">${esc(uiText('{parts} unapproved plans saved', {parts: uiNumber(saved.parts)}))}</h3><p>${esc(uiAccountExplanation(saved.meaning))}</p><ol>${plans.map(plan => `<li><a href="/campaigns?id=${encodeURIComponent(plan.id)}">${esc(uiText('Part {part} of {parts}: {count} products', {part: uiNumber(plan.part), parts: uiNumber(saved.parts), count: uiNumber(plan.item_count)}))}</a></li>`).join('')}</ol>`;
 }
 // The Meta product attributes a comparison may name as held but not sent (src/meta-catalog-products.ts, COM-01).
 const metaCatalogUnsentFieldNames = [
@@ -4713,7 +4772,7 @@ async function renderCommerce() {
   const targets = accountChoices(['meta', 'x', 'snapchat']),
     storeSources = typeof commerceSources === 'undefined' ? [] : commerceSources,
     storePanels = wooCommerceConnectionsMarkup() + wooCommerceSourcePanelMarkup() + wooCommerceInventoryPanelMarkup();
-  content.innerHTML += `<section class="panel workspace-form"><h2>${esc(uiText('Reviewed catalog product import'))}</h2><p>${esc(uiText('Import up to 50 supplied products for the selected account and catalog. Ownership is checked during native review. Every item keeps a separate review, receipt and read-back in its saved plan. Missing items are retained.'))}</p><p class="form-note">${esc(uiText('Product imports support Meta and X. Snapchat catalogs change only through feeds; AMCP compares their products read-only.'))}</p>${targets.length ? '' : `<p class="notice" id="catalog-no-destination">${esc(uiText('Connect a Meta or X ad account to import products.'))} <a href="/connections">${esc(uiText('Manage connections'))}</a></p>`}<form id="catalog-import"><label>${esc(uiText('Meta, X or Snapchat ad account'))}<select name="target" required><option value="">${esc(uiText('Choose an account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Native product catalog ID'), 'text', '', 'catalog_id')}${controls(uiText('Import plan name'), 'text', 'Product catalog import', 'name')}<label>${esc(uiText('Product source'))}<select name="source_mode"><option value="csv">${esc(uiText('Product CSV'))}</option><option value="woocommerce">${esc(uiText('Selected WooCommerce products'))}</option></select></label><div id="catalog-csv-controls"><label>${esc(uiText('Product CSV'))}<input type="file" name="file" accept=".csv,text/csv" required></label></div><div id="catalog-woo-selection" class="form-note" aria-live="polite"></div><div id="catalog-destination-help" class="form-note" aria-live="polite"></div>${catalogMappingMarkup()}<label>${esc(uiText('Existing retailer IDs'))}<select name="allow_upsert"><option value="false">${esc(uiText('Create only — refuse existing IDs'))}</option><option value="true">${esc(uiText('Explicitly update existing IDs after native review'))}</option></select></label><button class="button primary" type="submit">${esc(uiText('Validate and preview products'))}</button></form><div id="catalog-preview"></div></section><p class="notice">${esc(uiText('Mapped supplier and WooCommerce exports use the selected Meta or X reviewed product contract. Choose the intended price, currency, image and destination fields. Live store synchronization and additional destinations require separate qualification.'))}</p>`;
+  content.innerHTML += `<section class="panel workspace-form"><h2>${esc(uiText('Reviewed catalog product import'))}</h2><p>${esc(uiText('Import up to 500 supplied products for the selected account and catalog; more than 50 are saved as one group of plans of at most 50 products each. Ownership is checked during native review. Every item keeps a separate review, receipt and read-back in its saved plan. Missing items are retained.'))}</p><p class="form-note">${esc(uiText('Product imports support Meta and X. Snapchat catalogs change only through feeds; AMCP compares their products read-only.'))}</p>${targets.length ? '' : `<p class="notice" id="catalog-no-destination">${esc(uiText('Connect a Meta or X ad account to import products.'))} <a href="/connections">${esc(uiText('Manage connections'))}</a></p>`}<form id="catalog-import"><label>${esc(uiText('Meta, X or Snapchat ad account'))}<select name="target" required><option value="">${esc(uiText('Choose an account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Native product catalog ID'), 'text', '', 'catalog_id')}${controls(uiText('Import plan name'), 'text', 'Product catalog import', 'name')}<label>${esc(uiText('Product source'))}<select name="source_mode"><option value="csv">${esc(uiText('Product CSV'))}</option><option value="woocommerce">${esc(uiText('Selected WooCommerce products'))}</option></select></label><div id="catalog-csv-controls"><label>${esc(uiText('Product CSV'))}<input type="file" name="file" accept=".csv,text/csv" required></label></div><div id="catalog-woo-selection" class="form-note" aria-live="polite"></div><div id="catalog-destination-help" class="form-note" aria-live="polite"></div>${catalogMappingMarkup()}<label>${esc(uiText('Existing retailer IDs'))}<select name="allow_upsert"><option value="false">${esc(uiText('Create only — refuse existing IDs'))}</option><option value="true">${esc(uiText('Explicitly update existing IDs after native review'))}</option></select></label><button class="button primary" type="submit">${esc(uiText('Validate and preview products'))}</button></form><div id="catalog-preview"></div></section><p class="notice">${esc(uiText('Mapped supplier and WooCommerce exports use the selected Meta or X reviewed product contract. Choose the intended price, currency, image and destination fields. Live store synchronization and additional destinations require separate qualification.'))}</p>`;
   content.innerHTML += storeSources.length
     ? storePanels
     : `<details class="panel" id="commerce-store-sources"><summary>${esc(uiText('Connect a store source (administrators)'))}</summary>${storePanels}</details>`;
@@ -4815,7 +4874,7 @@ async function renderCommerce() {
     const target = form.elements.target.value === '' ? undefined : targets[Number(form.elements.target.value)];
     if (!target) throw Error(uiText('Choose the exact account.'));
     const fields = catalogSourceFields(target.gateway);
-    if (!file || file.size > 131072) throw Error(uiText('Choose a CSV smaller than 128 KiB.'));
+    if (!file || file.size > catalogCsvMaxBytes) throw Error(uiText('Choose a CSV of at most 192 KiB.'));
     let table;
     try {
       const text = await file.text();
@@ -4883,7 +4942,7 @@ async function renderCommerce() {
     if (form.elements.target.value === '' || !target) throw Error(uiText('Choose the exact account.'));
     const file = form.elements.file.files[0],
       useWoo = form.elements.source_mode.value === 'woocommerce';
-    if (!useWoo && (!file || file.size > 131072)) throw Error(uiText('Choose a CSV smaller than 128 KiB.'));
+    if (!useWoo && (!file || file.size > catalogCsvMaxBytes)) throw Error(uiText('Choose a CSV of at most 192 KiB.'));
     const {label, ...binding} = target;
     const settings = {
       ...binding,
@@ -4891,7 +4950,15 @@ async function renderCommerce() {
       name: form.elements.name.value.trim(),
       allow_upsert: form.elements.allow_upsert.value === 'true',
     };
-    let request, out, source;
+    // COM-03: a CSV of 51–500 products is validated and saved as one plan group of plans of at most 50 (`group`: the
+    // source the preview must confirm). A Snapchat comparison reads at most 50 products, and saves nothing.
+    let request, out, source, group;
+    const grouped = rows => {
+      if (rows <= 50) return false;
+      if (binding.gateway === 'snapchat_native_action')
+        throw Error(uiText('Compare at most 50 Snapchat products at a time.'));
+      return true;
+    };
     try {
       let products;
       if (useWoo) {
@@ -4915,6 +4982,7 @@ async function renderCommerce() {
           fixed_currency: form.elements.fixed_currency.value.trim(),
           image_mode: form.elements.image_mode.value,
         });
+        const many = grouped(loaded.table.rows.length);
         // COM-03: the mapping is saved as the catalog's versioned profile and AMCP projects the selected columns with
         // it, so the preview, comparison and saved plan all name the same source and mapping version.
         const mapping = await workspaceCall('workspace', {
@@ -4936,29 +5004,69 @@ async function renderCommerce() {
           throw Error(uiText('The column mapping could not be confirmed. Load the CSV columns again.'));
         loaded.mapping = {catalog_id: settings.catalog_id, version: mapping.profile.version};
         source = {kind: 'csv', text: selected.text, columns: 'profile', profile_version: mapping.profile.version};
-        out = await workspaceCall('workspace', {action: 'catalog_preview', ...settings, requirements: {source}});
+        if (many) group = {rows: loaded.table.rows.length, columns: 'profile', version: mapping.profile.version};
+        out = await workspaceCall('workspace', {
+          action: 'catalog_preview',
+          ...settings,
+          requirements: {source, ...(group ? {chunked: true} : {})},
+        });
         if (!current()) return;
         products = out?.supplied_products;
         if (
-          !Array.isArray(products) ||
-          !products.length ||
-          products.some(p => !p || typeof p !== 'object' || typeof p.retailer_id !== 'string') ||
-          out.source?.columns !== 'profile' ||
-          out.source?.mapping_profile?.version !== mapping.profile.version
+          !group &&
+          (!Array.isArray(products) ||
+            !products.length ||
+            products.some(p => !p || typeof p !== 'object' || typeof p.retailer_id !== 'string') ||
+            out.source?.columns !== 'profile' ||
+            out.source?.mapping_profile?.version !== mapping.profile.version)
         )
           throw Error(uiText('The column mapping could not be confirmed. Load the CSV columns again.'));
       } else {
         const text = await file.text();
         if (!current()) return;
         products = parseProductCSV(text, binding.gateway);
+        // More than 50 products: the whole CSV (its columns are AMCP product fields) is the plan group's source.
+        if (grouped(products.length)) {
+          group = {rows: products.length, columns: 'canonical'};
+          source = {kind: 'csv', text, columns: 'canonical'};
+          out = await workspaceCall('workspace', {
+            action: 'catalog_preview',
+            ...settings,
+            requirements: {source, chunked: true},
+          });
+          if (!current()) return;
+        }
       }
-      request = {...settings, products};
-      if (!source) out = await workspaceCall('workspace', {action: 'catalog_preview', ...request});
+      if (group) result.innerHTML = catalogPlanGroupMarkup(out, group);
+      else {
+        request = {...settings, products};
+        if (!source) out = await workspaceCall('workspace', {action: 'catalog_preview', ...request});
+      }
     } catch (error) {
       if (current()) throw error;
       return;
     }
     if (!current()) return;
+    if (group) {
+      // Each part becomes its own unapproved plan; the saved group must be the previewed one.
+      $('#catalog-plan-group-heading').focus();
+      workspaceBind('#create-catalog-plan-group', async () => {
+        if (!current()) return;
+        try {
+          const saved = await workspaceCall('workspace', {
+            action: 'catalog_plan',
+            ...settings,
+            requirements: {source, chunked: true},
+          });
+          if (!current()) return;
+          result.innerHTML = catalogPlanGroupSavedMarkup(saved, out);
+          $('#catalog-plan-group-saved-heading').focus();
+        } catch (error) {
+          if (current()) throw error;
+        }
+      });
+      return;
+    }
     // A mapped CSV reaches AMCP as its source; the server projects it again for every comparison and plan (COM-03).
     const sourced = (extra = {}, requirements = {}) =>
       source
@@ -5143,8 +5251,16 @@ async function renderCommerce() {
               const plan = await workspaceCall(
                 'workspace',
                 source
-                  ? sourced({action: 'catalog_plan'}, {select_retailer_ids: products.map(p => p.retailer_id), ...lineage})
-                  : {action: 'catalog_plan', ...request, products, ...(lineage.comparison_token ? {requirements: lineage} : {})},
+                  ? sourced(
+                      {action: 'catalog_plan'},
+                      {select_retailer_ids: products.map(p => p.retailer_id), ...lineage},
+                    )
+                  : {
+                      action: 'catalog_plan',
+                      ...request,
+                      products,
+                      ...(lineage.comparison_token ? {requirements: lineage} : {}),
+                    },
               );
               if (active()) await navigate('/campaigns?id=' + encodeURIComponent(plan.id));
             } catch (error) {
