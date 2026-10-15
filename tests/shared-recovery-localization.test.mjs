@@ -25,12 +25,13 @@ test('shared recovery ownership includes only literal hints in the three exact a
   assert.equal(inspectProviderCaptureRemedies(source, 'src/errors.ts').size, 8);
   assert.equal(inspectMeasurementRemedies(source, 'src/errors.ts').size, 12);
 });
-test('all 156 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
-  assert.equal(hints.size, 157);
+test('all 158 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
+  // PRV-06 added the REDDIT_PIXEL_NOT_IN_ACCOUNT and SNAPCHAT_SEGMENT_UNAVAILABLE remedies.
+  assert.equal(hints.size, 159);
   const inventoryHint = errorResult(new MirrorError('PORTFOLIO_INVALID_RESPONSE', 'Fixture'), 'ref', 0).error
     .next_action;
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 156);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 158);
   assert.deepEqual(localeProblems(catalog, hints), []);
   for (const hint of hints) {
     assert.match(catalog[hint], /[\u0600-\u06ff]/);
