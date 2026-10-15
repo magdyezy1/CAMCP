@@ -91,6 +91,17 @@
       "meaning": "Complete for this pinned document, not all provider APIs or account access."
     },
     {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "captured_at": "2026-10-11T19:15:57.263Z",
+      "sha256": "a664debfecf28a633cb5d969f88ac8e8b35040dc109686002e776a92e0121eae",
+      "methods": 26,
+      "mapped": 4,
+      "no_mapped_action": 22,
+      "meaning": "Complete for this pinned document, not all provider APIs or account access."
+    },
+    {
       "gateway": "dv360_native_action",
       "source_file": ".mirror/VENDOR/dv360-v4.json",
       "source_url": "https://displayvideo.googleapis.com/$discovery/rest?version=v4",
@@ -185,8 +196,8 @@
       "captured_at": "2026-09-17T22:24:03.672Z",
       "sha256": "8119d6465ba72bb72062c5ad7b91ffeeedbda3a713359e7f110150d5c3ade1d1",
       "methods": 194,
-      "mapped": 25,
-      "no_mapped_action": 169,
+      "mapped": 28,
+      "no_mapped_action": 166,
       "meaning": "Complete for this pinned document, not all provider APIs or account access."
     },
     {
@@ -3656,6 +3667,372 @@
         }
       ],
       "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.audienceMembers.removeAll",
+      "method": "POST",
+      "path": "/v1/audienceMembers:removeAll",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.audienceMembers.remove",
+      "method": "POST",
+      "path": "/v1/audienceMembers:remove",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "DATA_MANAGER_REMOVE_AUDIENCE_MEMBERS",
+          "status": "reviewed_write_family",
+          "family": "google_customer_match"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.audienceMembers.ingest",
+      "method": "POST",
+      "path": "/v1/audienceMembers:ingest",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "DATA_MANAGER_INGEST_AUDIENCE_MEMBERS",
+          "status": "reviewed_write_family",
+          "family": "google_customer_match"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.events.ingest",
+      "method": "POST",
+      "path": "/v1/events:ingest",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "DATA_MANAGER_INGEST_EVENTS",
+          "status": "reviewed_write_family",
+          "family": "google_offline_conversions"
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.requestStatus.retrieve",
+      "method": "GET",
+      "path": "/v1/requestStatus:retrieve",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "DATA_MANAGER_RETRIEVE_REQUEST_STATUS",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.accountTypes.accounts.userListGlobalLicenses.patch",
+      "method": "PATCH",
+      "path": "/v1/{+name}",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.accountTypes.accounts.userListGlobalLicenses.get",
+      "method": "GET",
+      "path": "/v1/{+name}",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.accountTypes.accounts.userListGlobalLicenses.create",
+      "method": "POST",
+      "path": "/v1/{+parent}/userListGlobalLicenses",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.accountTypes.accounts.userListGlobalLicenses.list",
+      "method": "GET",
+      "path": "/v1/{+parent}/userListGlobalLicenses",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.accountTypes.accounts.userListGlobalLicenses.userListGlobalLicenseCustomerInfos.list",
+      "method": "GET",
+      "path": "/v1/{+parent}/userListGlobalLicenseCustomerInfos",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.accountTypes.accounts.userListDirectLicenses.patch",
+      "method": "PATCH",
+      "path": "/v1/{+name}",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.accountTypes.accounts.userListDirectLicenses.get",
+      "method": "GET",
+      "path": "/v1/{+name}",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.accountTypes.accounts.userListDirectLicenses.list",
+      "method": "GET",
+      "path": "/v1/{+parent}/userListDirectLicenses",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.accountTypes.accounts.userListDirectLicenses.create",
+      "method": "POST",
+      "path": "/v1/{+parent}/userListDirectLicenses",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.accountTypes.accounts.partnerLinks.create",
+      "method": "POST",
+      "path": "/v1/{+parent}/partnerLinks",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.accountTypes.accounts.partnerLinks.delete",
+      "method": "DELETE",
+      "path": "/v1/{+name}",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.accountTypes.accounts.partnerLinks.search",
+      "method": "GET",
+      "path": "/v1/{+parent}/partnerLinks:search",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.accountTypes.accounts.insights.retrieve",
+      "method": "POST",
+      "path": "/v1/{+parent}/insights:retrieve",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.accountTypes.accounts.userLists.patch",
+      "method": "PATCH",
+      "path": "/v1/{+name}",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.accountTypes.accounts.userLists.list",
+      "method": "GET",
+      "path": "/v1/{+parent}/userLists",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.accountTypes.accounts.userLists.delete",
+      "method": "DELETE",
+      "path": "/v1/{+name}",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.accountTypes.accounts.userLists.get",
+      "method": "GET",
+      "path": "/v1/{+name}",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.accountTypes.accounts.userLists.create",
+      "method": "POST",
+      "path": "/v1/{+parent}/userLists",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.users.ingest",
+      "method": "POST",
+      "path": "/v1/users:ingest",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.users.remove",
+      "method": "POST",
+      "path": "/v1/users:remove",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
+      "qualification": "unverified"
+    },
+    {
+      "gateway": "google_ads_native_action",
+      "source_file": ".mirror/VENDOR/datamanager-v1.json",
+      "source_url": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "api_version": "v1",
+      "id": "datamanager.adEvents.ingest",
+      "method": "POST",
+      "path": "/v1/adEvents:ingest",
+      "origin": "https://datamanager.googleapis.com",
+      "mapped_actions": [],
+      "mapping_status": "no_mapped_action",
       "qualification": "unverified"
     },
     {
@@ -20729,8 +21106,15 @@
       "id": "AddCampaignCriterions",
       "method": "SOAP",
       "path": "AddCampaignCriterions",
-      "mapped_actions": [],
-      "mapping_status": "no_mapped_action",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "AddCampaignCriterions",
+          "status": "reviewed_write_family",
+          "family": "microsoft_location_targets"
+        }
+      ],
+      "mapping_status": "mapped",
       "qualification": "unverified",
       "wire_caveat": "WSDL is SOAP evidence; mapping names to JSON adapters does not establish wire parity."
     },
@@ -21349,8 +21733,15 @@
       "id": "DeleteCampaignCriterions",
       "method": "SOAP",
       "path": "DeleteCampaignCriterions",
-      "mapped_actions": [],
-      "mapping_status": "no_mapped_action",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "DeleteCampaignCriterions",
+          "status": "reviewed_write_family",
+          "family": "microsoft_location_targets"
+        }
+      ],
+      "mapping_status": "mapped",
       "qualification": "unverified",
       "wire_caveat": "WSDL is SOAP evidence; mapping names to JSON adapters does not establish wire parity."
     },
@@ -21984,8 +22375,15 @@
       "id": "GetCampaignCriterionsByIds",
       "method": "SOAP",
       "path": "GetCampaignCriterionsByIds",
-      "mapped_actions": [],
-      "mapping_status": "no_mapped_action",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "GetCampaignCriterionsByIds",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
       "qualification": "unverified",
       "wire_caveat": "WSDL is SOAP evidence; mapping names to JSON adapters does not establish wire parity."
     },

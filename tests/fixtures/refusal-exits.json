@@ -26,6 +26,11 @@
       "test": "tests/audit-authority.test.mjs",
       "title": "explicit authorized resume succeeds once"
     },
+    "LOCATION_PARENT_NOT_PAUSED": {
+      "exit": "Pause the Microsoft campaign with its own reviewed UpdateCampaigns (Status Paused); the same location change then reviews and runs once.",
+      "test": "tests/microsoft-campaign-criteria.test.ts",
+      "title": "reviews and runs once the campaign is paused"
+    },
     "MEDIA_INSPECTION_BUSY": {
       "exit": "Retryable; the next inspection runs once the workspace's slot is released, also after a failure.",
       "test": "tests/drive-inspection.test.mjs",

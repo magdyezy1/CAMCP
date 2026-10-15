@@ -201,10 +201,13 @@ For a launch that was continued in a new plan, the IDs come from the earlier pla
 through the verified links an authorized person recorded; reading them checks each plan's integrity, not the drafting
 person's view right on the earlier plans, and the activation still reads and checks every resource at preflight.
 Meta and Google enable the paused campaign; Snapchat activates campaign, ad squad and ad in that order, each after
-the one before is verified; Microsoft activation is refused with `LOCATION_CRITERIA_REQUIRED` (owner decision P7:
-AMCP cannot yet read a positive location criterion, so the Microsoft Search pack is labelled "Draft only: set
-locations in Microsoft before activation"). Read-only gates run at preflight before any status write: the Snapchat
-ad's creative review must be `APPROVED`; the Meta ad must not be disapproved, have issues or carry review
+the one before is verified; Microsoft sets campaign, ad group, keywords and ad Active, and the campaign needs a positive
+location criterion (owner decision P7): the Microsoft Search pack adds the brief's `location_ids` as positive location
+criteria of the paused campaign (a plan drafted before it did is refused with `RECIPE_INPUT_REQUIRED` until drafted
+again), and `UpdateCampaigns` with `Status: Active` is refused with `LOCATION_CRITERIA_REQUIRED` when the campaign's
+location criteria read holds none. Read-only gates run at preflight before any status write: the Microsoft campaign
+must hold a positive location criterion, and the gate lists each location with the name Microsoft gives it; the
+Snapchat ad's creative review must be `APPROVED`; the Meta ad must not be disapproved, have issues or carry review
 feedback, and a Meta conversion launch's pixel must be readable and not unavailable; a Google conversion launch needs a
 biddable account-default goal with an enabled primary action (the reads `recipe_eligibility` makes). A failed or
 unreadable gate blocks with `ACTIVATION_GATE_BLOCKED`, and each activation preflight is audited

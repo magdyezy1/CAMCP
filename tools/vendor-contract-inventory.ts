@@ -6,6 +6,8 @@ import {appleModelEvidence} from '../src/apple-entity-writes.js';
 
 const gateways: Record<string, string> = {
   'google-ads': 'google_ads',
+  // Google's Data Manager API v1 (PRV-05), whose routes AMCP maps on the Google Ads gateway.
+  'datamanager-': 'google_ads',
   'ga4-': 'ga4',
   'gtm-': 'gtm',
   'search-console': 'google_search_console',

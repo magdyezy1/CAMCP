@@ -23,8 +23,10 @@ import {
   microsoftAdditionalFields,
   microsoftReturnFields,
 } from '../src/microsoft-native.js';
+import {campaignRecipe} from '../src/campaign-recipes.js';
 import fs from 'node:fs';
 import type {Connection, JsonObject} from '../src/types.js';
+import {assertRefused} from './helpers/assert-refused.js';
 const admin = {tenantId: 't', userId: 'u', role: 'admin' as const},
   operator = {...admin, role: 'operator' as const};
 const key = Buffer.alloc(32, 56).toString('base64');
@@ -43,7 +45,8 @@ const policy = {allowWrites: true, maxBudgetChange: 0, requireBeforeState: true}
 
 test('Microsoft v13 catalog compiles exact native contracts, IDs and cross-account report scope', () => {
   const registry = new Registry();
-  assert.equal(microsoftActions.length, 28);
+  // 31 with the three campaign location-criterion operations (CMP-03).
+  assert.equal(microsoftActions.length, 31);
   assert.ok(registry.listTools({mode: 'strict', flags: {}}).some(t => t.name === gateway));
   for (const input of [
     {action: 'GetCampaignsByAccountId', account_id: '123', payload: {AccountId: '999'}},
@@ -753,6 +756,38 @@ function statefulMicrosoft() {
       body = JSON.parse(String(init?.body ?? '{}'));
     if (path.endsWith('/Account/Query'))
       return Response.json({Account: {Id: '123', ParentCustomerId: '456', CurrencyCode: 'USD'}});
+    // Location criteria (CMP-03): the microsoft_search pack adds the brief's locations after its campaign.
+    if (path.endsWith('/CampaignCriterions/QueryByIds')) {
+      reads.push({kind: 'CampaignCriterions', body});
+      const own = [...records.entries()]
+        .filter(([k, r]) => k.startsWith('CampaignCriterions:') && r.CampaignId === body.CampaignId)
+        .map(([, r]) => structuredClone(r));
+      return Response.json({
+        CampaignCriterions:
+          body.CampaignCriterionIds === null
+            ? own
+            : body.CampaignCriterionIds.map((id: string) => own.find(r => r.Id === id) ?? null),
+        PartialErrors: null,
+      });
+    }
+    if (path.endsWith('/CampaignCriterions') && init?.method === 'POST') {
+      writes.push({kind: 'CampaignCriterions', method: 'POST', body});
+      return Response.json({
+        CampaignCriterionIds: body.CampaignCriterions.map((r: JsonObject) => {
+          const Id = String(next++);
+          // Like the provider: Status Active, a 0 bid multiplier when none was sent, and the location's name.
+          records.set('CampaignCriterions:' + Id, {
+            ...structuredClone(r),
+            Id,
+            Status: 'Active',
+            CriterionBid: {Type: 'BidMultiplier', Multiplier: 0},
+            Criterion: {...r.Criterion, DisplayName: 'Synthetic location ' + r.Criterion.LocationId},
+          });
+          return Id;
+        }),
+        NestedPartialErrors: [],
+      });
+    }
     const kind = /\/CampaignManagement\/v13\/(Campaigns|AdGroups|Ads|Keywords)(?:\/QueryByIds)?$/.exec(path)?.[1];
     assert.ok(kind, path);
     if (path.endsWith('/QueryByIds')) {
@@ -1025,10 +1060,12 @@ test('PRV-03: a microsoft_search plan reaches complete with synthetic read-back 
         headlines: ['Explore the collection', 'Find your next pair', 'Built for every day'],
         descriptions: ['Discover our latest collection online today.', 'Explore styles and find a pair today.'],
         destination_url: 'https://example.test/',
+        location_ids: ['190'],
       },
     });
     assert.equal(saved.success, true, JSON.stringify(saved));
-    for (let i = 0; i < 4; i++) {
+    // Five steps since CMP-03: the pack sets the campaign's locations (targets) before its ad group.
+    for (let i = 0; i < 5; i++) {
       const prepared = await call({action: 'prepare_next', id: saved.data.id});
       assert.equal(prepared.success, true, JSON.stringify(prepared));
       assert.ok(prepared.data.review?.review_id, JSON.stringify(prepared));
@@ -1047,6 +1084,7 @@ test('PRV-03: a microsoft_search plan reaches complete with synthetic read-back 
       store.document(operator.tenantId, 'campaign_run', saved.data.id).steps.map((s: JsonObject) => [s.id, s.status]),
       [
         ['campaign', 'verified'],
+        ['targets', 'verified'],
         ['adgroup', 'verified'],
         ['keywords', 'verified'],
         ['ad', 'verified'],
@@ -1054,9 +1092,190 @@ test('PRV-03: a microsoft_search plan reaches complete with synthetic read-back 
     );
     const run = store.document(operator.tenantId, 'campaign_run', saved.data.id);
     assert.equal(run.state, 'complete');
-    assert.equal(ms.writes.length, 4);
+    assert.equal(ms.writes.length, 5);
     assert.ok(ms.writes.every(w => w.method === 'POST'));
-    assert.ok([...ms.records.values()].every(r => r.Status === 'Paused'));
+    // Every serving entity stays paused; the location criterion targets the paused campaign.
+    const entries = [...ms.records.entries()];
+    assert.ok(entries.filter(([k]) => !k.startsWith('CampaignCriterions:')).every(([, r]) => r.Status === 'Paused'));
+    assert.deepEqual(
+      entries.filter(([k]) => k.startsWith('CampaignCriterions:')).map(([, r]) => r.Criterion),
+      [{Type: 'LocationCriterion', LocationId: '190', DisplayName: 'Synthetic location 190'}],
+    );
+    // The targets step reads the criterion back by ID: a positive location of this campaign, with no bid adjustment.
+    const targets = run.steps.find((s: JsonObject) => s.id === 'targets');
+    assert.deepEqual(
+      targets.verification.checks.map((c: JsonObject) => [c.status, c.checked_fields]),
+      [['verified', ['present', 'positive', 'campaign_id', 'location_id', 'bid_multiplier']]],
+    );
+  } finally {
+    store.close();
+  }
+});
+
+const microsoftBrief = {
+  name: 'Synthetic Microsoft demand',
+  account_id: '123',
+  connection_id: connection.id,
+  currency: 'USD',
+  daily_budget: '25.00',
+  cpc_bid: '1.25',
+  language: 'English',
+  keywords: ['running shoes'],
+  headlines: ['Explore the collection', 'Find your next pair', 'Built for every day'],
+  descriptions: ['Discover our latest collection online today.', 'Explore styles and find a pair today.'],
+  destination_url: 'https://example.test/',
+  location_ids: ['190'],
+};
+/** Prepares and executes the next `count` steps of a plan, confirming each reviewed spending effect (all synthetic). */
+async function runSteps(call: (input: JsonObject) => Promise<JsonObject>, id: string, count: number) {
+  for (let i = 0; i < count; i++) {
+    const prepared = await call({action: 'prepare_next', id});
+    assert.equal(prepared.success, true, JSON.stringify(prepared));
+    assert.ok(prepared.data.review?.review_id, JSON.stringify(prepared));
+    const executed = await call({
+      action: 'execute_next',
+      id,
+      review_id: prepared.data.review.review_id,
+      idempotency_key: prepared.data.review.review_id,
+      confirmed: true,
+      spend_change_confirmed: true,
+    });
+    assert.equal(executed.success, true, JSON.stringify(executed));
+    assert.equal(executed.data.current.status, 'verified', JSON.stringify(executed.data.current));
+  }
+}
+
+test('CMP-03: a completed microsoft_search launch is activated by its own plan only while a positive location is read', async () => {
+  const store = new Store(':memory:', key);
+  store.putConnection(admin, connection, {accessToken: 'synthetic', developerToken: 'synthetic-developer'});
+  const ms = statefulMicrosoft(),
+    service = new MirrorService(new Registry(), store, ms.transport, undefined, policy),
+    call = (input: JsonObject) => service.call('amcp_campaign', input, operator);
+  try {
+    const saved = await call({action: 'create_from_recipe', recipe: 'microsoft_search', business: microsoftBrief});
+    assert.equal(saved.success, true, JSON.stringify(saved));
+    await runSteps(call, saved.data.id, 5);
+    const launch = await call({action: 'get', id: saved.data.id});
+    assert.equal(launch.data.state, 'complete');
+    assert.deepEqual(launch.data.activation_call.arguments, {action: 'activation_plan', id: saved.data.id});
+    const drafted = await call({action: 'activation_plan', id: saved.data.id, detail: 'full'});
+    assert.equal(drafted.success, true, JSON.stringify(drafted));
+    const activation = drafted.data.id;
+    assert.deepEqual(
+      drafted.data.steps.map((s: JsonObject) => s.id),
+      ['activate_campaign', 'activate_adgroup', 'activate_keywords', 'activate_ad'],
+    );
+    const writes = ms.writes.length,
+      criterion = [...ms.records.keys()].find(k => k.startsWith('CampaignCriterions:'))!,
+      location = ms.records.get(criterion)!;
+    // The location removed in Microsoft: the gate blocks preflight, with a remedy, and nothing is prepared or sent.
+    ms.records.delete(criterion);
+    const blocked = await call({action: 'preflight', id: activation});
+    assert.equal(blocked.data.blocked, true, JSON.stringify(blocked));
+    const gate = blocked.data.missing_requirements[0];
+    assert.equal(gate.gate, 'microsoft_location_criteria');
+    assert.equal(gate.step, 'activate_campaign');
+    assert.equal(gate.error.code, 'ACTIVATION_GATE_BLOCKED');
+    assert.match(gate.error.remedy.action, /Nothing was activated/);
+    assert.deepEqual(blocked.data.next_call.arguments, {action: 'preflight', id: activation});
+    assert.equal((await call({action: 'prepare_next', id: activation})).data.blocked, true);
+    assert.equal(ms.writes.length, writes);
+    // With the location back, the gate passes and lists the name Microsoft gives it, for the operator to confirm.
+    ms.records.set(criterion, location);
+    const ready = await call({action: 'preflight', id: activation, detail: 'full'});
+    assert.equal(ready.data.preflight.status, 'ready', JSON.stringify(ready.data.preflight));
+    assert.deepEqual(ready.data.preflight.activation_gates, [
+      {
+        gate: 'microsoft_location_criteria',
+        step: 'activate_campaign',
+        status: 'gate_passed',
+        locations: [{location_id: '190', name: 'Synthetic location 190'}],
+      },
+    ]);
+    // The campaign step's own review reads the campaign's location criteria again before anything is sent.
+    const reads = ms.reads.length;
+    const first = await call({action: 'prepare_next', id: activation});
+    assert.equal(first.data.step_id, 'activate_campaign', JSON.stringify(first));
+    assert.ok(
+      ms.reads
+        .slice(reads)
+        .some(r => r.kind === 'CampaignCriterions' && r.body.CampaignCriterionIds === null && r.body.CampaignId),
+      'the activation review read the location criteria',
+    );
+    // Removed after that review: execution reads again and refuses before sending anything. Nothing was sent, so the
+    // step is recovered and prepared again once the location is back.
+    ms.records.delete(criterion);
+    const stale = await call({
+      action: 'execute_next',
+      id: activation,
+      review_id: first.data.review.review_id,
+      idempotency_key: first.data.review.review_id,
+      confirmed: true,
+      spend_change_confirmed: true,
+    });
+    assert.equal(stale.data.current.status, 'failed', JSON.stringify(stale.data));
+    assert.equal(stale.data.current.error.code, 'LOCATION_CRITERIA_REQUIRED', JSON.stringify(stale.data.current));
+    assert.match(stale.data.current.error.remedy.action, /AddCampaignCriterions/);
+    assert.equal(ms.writes.length, writes);
+    ms.records.set(criterion, location);
+    const recovered = await call({
+      action: 'recover_step',
+      id: activation,
+      step_id: 'activate_campaign',
+      confirmed: true,
+    });
+    assert.equal(recovered.success, true, JSON.stringify(recovered));
+    await runSteps(call, activation, 4);
+    // Campaign, ad group, keywords and ad were set Active, in that order; the location criterion was not touched.
+    assert.deepEqual(
+      ms.writes.slice(writes).map(w => [w.kind, w.method]),
+      [
+        ['Campaigns', 'PUT'],
+        ['AdGroups', 'PUT'],
+        ['Keywords', 'PUT'],
+        ['Ads', 'PUT'],
+      ],
+    );
+    for (const [k, r] of ms.records) if (!k.startsWith('CampaignCriterions:')) assert.equal(r.Status, 'Active', k);
+    assert.equal((await call({action: 'get', id: activation})).data.state, 'complete');
+  } finally {
+    store.close();
+  }
+});
+
+test('CMP-03 compatibility: a microsoft_search draft compiled without location targets is refused, location_ids named', async () => {
+  const store = new Store(':memory:', key);
+  store.putConnection(admin, connection, {accessToken: 'synthetic', developerToken: 'synthetic-developer'});
+  const ms = statefulMicrosoft(),
+    service = new MirrorService(new Registry(), store, ms.transport, undefined, policy),
+    call = (input: JsonObject) => service.call('amcp_campaign', input, operator);
+  try {
+    // The plan the pack compiled before CMP-03 (campaign, ad group, keywords, ad), with its recipe record.
+    const compiled = campaignRecipe('microsoft_search', microsoftBrief),
+      legacy = compiled.steps.filter((s: JsonObject) => s.id !== 'targets');
+    const created = await call({action: 'create', name: 'Legacy Microsoft draft', brief: 'Synthetic.', steps: legacy});
+    assert.equal(created.success, true, JSON.stringify(created));
+    const id = created.data.id,
+      saved = store.document(operator.tenantId, 'campaign_run', id);
+    store.putDocument(
+      operator.tenantId,
+      'campaign_run',
+      id,
+      {...saved, recipe: {...compiled.recipe, location_ids: undefined, availability: 'draft_only'}},
+      saved.revision,
+    );
+    for (const action of ['preflight', 'prepare_next', 'approve']) {
+      const refused = await call({action, id});
+      assertRefused(refused, 'RECIPE_INPUT_REQUIRED', {writes: () => ms.writes.length});
+      assert.deepEqual(refused.error.details.missing_fields, ['location_ids'], action);
+      assert.match(refused.error.remedy.action, /recipe_context/);
+    }
+    // The plan the recipe compiles now carries its targets step, and its preflight is not refused for it.
+    const current = await call({action: 'create_from_recipe', recipe: 'microsoft_search', business: microsoftBrief});
+    const checked = await call({action: 'preflight', id: current.data.id, detail: 'full'});
+    assert.equal(checked.success, true, JSON.stringify(checked));
+    assert.equal(checked.data.preflight.status, 'ready', JSON.stringify(checked.data.preflight));
+    assert.equal(ms.writes.length, 0);
   } finally {
     store.close();
   }

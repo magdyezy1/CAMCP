@@ -68,6 +68,11 @@
       "document_sha256": "0137b2f14b18a9aa64e231e9c2a996d72bc982118691f83e92647b9ff29bb277",
       "revision": "20260902"
     },
+    "datamanager-v1": {
+      "source": "https://datamanager.googleapis.com/$discovery/rest?version=v1",
+      "document_sha256": "23172e0c28f6a9e46265e3939ff3c83723049cf59e59ea8293ff6c8865db206f",
+      "revision": "20261007"
+    },
     "criteo-retail-2026-07": {
       "source": "https://api.criteo.com/2026-07/retailmedia/open-api-specifications.json",
       "document_sha256": "7f3e140be8b35e5d13acb49439f9848413a2a2ff7ec9b267788c0d1823c55e7e",

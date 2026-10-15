@@ -1,10 +1,11 @@
 import type {Action} from './types.js';
 
 /**
- * Google's Data Manager API v1 (discovery revision 20260929; reference pages read 2026-09-30), which replaces Customer
- * Match and offline conversion uploads through the Google Ads API for projects new to them. AMCP maps the three writes
- * its reviewed families use and the status read that verifies them, on the Google Ads connection with the datamanager
- * scope the owner approved on 2026-09-30.
+ * Google's Data Manager API v1 (reference pages read 2026-09-30), which replaces Customer Match and offline conversion
+ * uploads through the Google Ads API for projects new to them. AMCP maps the three writes its reviewed families use and
+ * the status read that verifies them, on the Google Ads connection with the datamanager scope the owner approved on
+ * 2026-09-30. Each route is a method of the Discovery document pinned in .mirror/VENDOR/datamanager-v1.json (revision
+ * 20261007, read 2026-10-11; tests/wire-contracts.test.mjs keeps them equal), which checks every write body (PRV-05).
  */
 const gateway = 'google_ads_native_action',
   origin = 'https://datamanager.googleapis.com',

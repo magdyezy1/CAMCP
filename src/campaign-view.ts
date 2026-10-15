@@ -123,6 +123,8 @@ export function preflightView(p: JsonObject, brief = false): JsonObject {
     ...(checks.some(c => c.assets)
       ? {prerequisites: checks.filter(c => c.assets).map(c => pick(c, ['step', 'assets']))}
       : {}),
+    // An activation plan's gates (CMP-03), with the locations a Microsoft gate read, for the operator to confirm.
+    ...(Array.isArray(p.activation_gates) && p.activation_gates.length ? {activation_gates: p.activation_gates} : {}),
   };
 }
 /** Identical refusals of several steps, stated once. */

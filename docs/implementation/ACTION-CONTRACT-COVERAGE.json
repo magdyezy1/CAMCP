@@ -188,10 +188,10 @@
     },
     {
       "gateway": "microsoft_ads_native_action",
-      "actions": 28,
+      "actions": 31,
       "counts": {
-        "native_read": 14,
-        "reviewed_write_family": 14
+        "native_read": 15,
+        "reviewed_write_family": 16
       },
       "captured_catalog_complete": false,
       "provider_api_coverage": "unknown",
@@ -51428,6 +51428,23 @@
     },
     {
       "gateway": "microsoft_ads_native_action",
+      "action": "AddCampaignCriterions",
+      "aliases": [],
+      "method": "POST",
+      "path": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/CampaignCriterions",
+      "status": "reviewed_write_family",
+      "implementation": "src/microsoft-campaign-criteria.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
+      "source": "INDEPENDENT_MICROSOFT_V13_EXTENSION",
+      "tests": [
+        "tests/microsoft-campaign-criteria.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "origin": "https://campaign.api.bingads.microsoft.com",
+      "family": "microsoft_location_targets"
+    },
+    {
+      "gateway": "microsoft_ads_native_action",
       "action": "AddCampaigns",
       "aliases": [],
       "method": "POST",
@@ -51510,6 +51527,23 @@
       "live_qualification": "unverified",
       "origin": "https://campaign.api.bingads.microsoft.com",
       "family": "microsoft_search"
+    },
+    {
+      "gateway": "microsoft_ads_native_action",
+      "action": "DeleteCampaignCriterions",
+      "aliases": [],
+      "method": "DELETE",
+      "path": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/CampaignCriterions",
+      "status": "reviewed_write_family",
+      "implementation": "src/microsoft-campaign-criteria.ts",
+      "reason": "Route belongs to a reviewed family. Only amcp_write inspect with the exact payload can establish request support; family fixtures do not test every field or variant.",
+      "source": "INDEPENDENT_MICROSOFT_V13_EXTENSION",
+      "tests": [
+        "tests/microsoft-campaign-criteria.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "origin": "https://campaign.api.bingads.microsoft.com",
+      "family": "microsoft_location_targets"
     },
     {
       "gateway": "microsoft_ads_native_action",
@@ -51677,6 +51711,24 @@
       "aliases": [],
       "method": "POST",
       "path": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/Budgets/QueryByIds",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
+      "source": "INDEPENDENT_MICROSOFT_V13_EXTENSION",
+      "tests": [
+        "tests/microsoft.test.ts",
+        "tests/wsdl-model.test.mjs",
+        "tests/microsoft-associations.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "origin": "https://campaign.api.bingads.microsoft.com"
+    },
+    {
+      "gateway": "microsoft_ads_native_action",
+      "action": "GetCampaignCriterionsByIds",
+      "aliases": [],
+      "method": "POST",
+      "path": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/CampaignCriterions/QueryByIds",
       "status": "native_read",
       "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",

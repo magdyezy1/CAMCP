@@ -153,6 +153,7 @@ async function renderClientPlaybooks() {
         'country_codes',
         'country_criterion_ids',
         'language_criterion_ids',
+        'location_ids',
         'destination_url',
         'keywords',
         'headlines',

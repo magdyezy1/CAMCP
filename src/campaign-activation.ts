@@ -1,5 +1,6 @@
 import type {Actor, JsonObject} from './types.js';
 import {bad, obj, type ToolCall} from './workspace-core.js';
+import {locationCriteriaPayload, positiveLocation} from './microsoft-campaign-criteria.js';
 
 /**
  * Launch activation (CMP-03). A recipe creates its campaign paused; activation is a separate, linked plan with its own
@@ -9,12 +10,14 @@ import {bad, obj, type ToolCall} from './workspace-core.js';
  * - Meta and Google: the paused campaign holds ACTIVE/ENABLED children, so enabling the campaign is the one step.
  * - Snapchat: campaign, ad squad and ad were all created PAUSED, so all three are activated, each after the one
  *   before it is verified (activating the campaign alone delivers nothing).
- * - Microsoft: campaign, ad group, keywords and ad were all created Paused. The campaign step is refused without a
- *   positive location criterion (owner decision P7, microsoft-native.ts), which stops the whole plan at preflight.
+ * - Microsoft: campaign, ad group, keywords and ad were all created Paused. The campaign needs a positive location
+ *   criterion (owner decision P7): the gate below reads its location criteria, and the campaign step's own review
+ *   reads them again (microsoft-native.ts) before anything is sent.
  *
  * Read-only gates run at the activation plan's preflight, as one set, before any status write: the Snapchat ad's
- * creative review, the Meta ad's effective status and review feedback, the Meta conversion pixel, and the Google
- * conversion recipes' account-default goals and primary actions (the reads recipe_eligibility makes).
+ * creative review, the Meta ad's effective status and review feedback, the Meta conversion pixel, the Google
+ * conversion recipes' account-default goals and primary actions (the reads recipe_eligibility makes), and the
+ * Microsoft campaign's positive location criteria, whose names Microsoft returns are listed for the operator.
  */
 export const activationPlatforms = ['meta', 'google', 'snapchat', 'microsoft'];
 
@@ -134,7 +137,7 @@ export function activationSteps(platform: string, results: Results, scope: JsonO
   if (!Array.isArray(keywords) || !keywords.length || keywords.some(k => typeof k !== 'string' || !numeric.test(k)))
     unavailable('Microsoft keywords');
   return [
-    step('activate_campaign', 'Set campaign ' + campaign + ' Active (needs a positive location criterion).', {
+    step('activate_campaign', 'Set campaign ' + campaign + ' Active (its positive location criteria are read first).', {
       action: 'UpdateCampaigns',
       payload: {Campaigns: [{Id: campaign, Status: 'Active'}]},
     }),
@@ -338,6 +341,49 @@ export async function activationGates(
         complete: inspection.complete === true,
         dependency_statuses: statuses,
         ...(inspection.reason ? {reason: inspection.reason} : {}),
+      });
+  }
+  // Owner decision P7: a Microsoft campaign is activated only with a positive location criterion. The gate lists the
+  // locations Microsoft names, so the operator can confirm the geography before approving the activation.
+  const campaignStep = steps.find(s => s.id === 'activate_campaign'),
+    campaign = campaignStep?.arguments?.payload?.Campaigns?.[0]?.Id;
+  if (activation.platform === 'microsoft' && campaignStep && typeof campaign === 'string') {
+    const out = await call(
+      'microsoft_ads_native_action',
+      {action: 'GetCampaignCriterionsByIds', ...scope, payload: locationCriteriaPayload(campaign)},
+      actor,
+    );
+    current();
+    const rows = out.success ? out.data?.data?.CampaignCriterions : undefined,
+      readable = out.success && (rows === null || Array.isArray(rows)),
+      locations = (Array.isArray(rows) ? rows : []).filter(r => positiveLocation(r, campaign));
+    if (!readable)
+      checks.push(
+        blocked(
+          campaignStep.id,
+          'microsoft_location_criteria',
+          'AMCP could not read the Microsoft campaign’s location criteria, so activation is not shown to be safe.',
+          {campaign_id: campaign, read_error: out.success ? null : (out.error?.code ?? null)},
+        ),
+      );
+    else if (!locations.length)
+      checks.push(
+        blocked(
+          campaignStep.id,
+          'microsoft_location_criteria',
+          'The Microsoft campaign has no positive location criterion, so Microsoft could serve it in any location it supports. Add its target locations while it is paused, then run preflight again.',
+          {campaign_id: campaign, owner_decision: 'P7'},
+        ),
+      );
+    else
+      checks.push({
+        step: campaignStep.id,
+        status: 'gate_passed',
+        gate: 'microsoft_location_criteria',
+        locations: locations.map((r: JsonObject) => ({
+          location_id: String(r.Criterion.LocationId),
+          name: r.Criterion.DisplayName ?? null,
+        })),
       });
   }
   return checks;

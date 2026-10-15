@@ -427,3 +427,34 @@ test('a status still processing leaves verification pending; the ledger records 
       action,
     );
 });
+
+test('PRV-05 every Data Manager write AMCP builds conforms to the committed v1 pin and is sent under enforcement', async () => {
+  // Before the Data Manager v1 Discovery document was pinned these routes reported `unpinned`: no request AMCP built
+  // from reviewed people was ever checked against Google's contract. Under AMCP_WIRE_CONTRACTS=enforce a differing body
+  // would be refused before the upload (INVALID_VENDOR_BODY); these are sent, so each one conforms.
+  const previous = process.env.AMCP_WIRE_CONTRACTS;
+  process.env.AMCP_WIRE_CONTRACTS = 'enforce';
+  try {
+    const f = fixture();
+    await enable(f);
+    const cases = [
+      [ingest, {user_list_id: '42', consent: granted}, people, saudi, 'datamanager.audienceMembers.ingest'],
+      [removal, {user_list_id: '42'}, people, undefined, 'datamanager.audienceMembers.remove'],
+      [conversions, {conversion_action_id: '800', consent: granted}, events, saudi, 'datamanager.events.ingest'],
+    ];
+    for (const [action, payload, peopleArg, personal, method] of cases) {
+      const p = ok(await f.prepare(action, payload, peopleArg, personal));
+      const wire = p.data.contract_evidence.wire_contract;
+      assert.equal(wire.status, 'conforms', action + ' ' + JSON.stringify(wire.issues));
+      assert.equal(wire.contract, 'datamanager-v1');
+      assert.equal(wire.vendor_method, method);
+      assert.match(wire.document_sha256, /^[0-9a-f]{64}$/);
+      assert.equal(wire.enforced, true);
+      ok(await f.execute(p, peopleArg));
+    }
+    assert.equal(f.writes(), 3);
+  } finally {
+    if (previous === undefined) delete process.env.AMCP_WIRE_CONTRACTS;
+    else process.env.AMCP_WIRE_CONTRACTS = previous;
+  }
+});

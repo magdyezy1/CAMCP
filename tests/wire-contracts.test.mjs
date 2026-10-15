@@ -14,6 +14,7 @@ import {compileMicrosoft, microsoftContracts} from '../dist/src/microsoft-native
 import {validateGoogleRequest} from '../dist/src/google-contracts.js';
 import {NativeTransport, exactIntegerJson, vendorOrigins} from '../dist/src/transport.js';
 import {microsoftOrigin} from '../dist/src/microsoft-native.js';
+import {dataManagerActions} from '../dist/src/google-data-manager-routes.js';
 import {
   assertDataManagerContract,
   assertWireContractMode,
@@ -526,74 +527,20 @@ test('inspect and prepare show the wire contract in evidence; enforce refuses th
   }
 });
 
-/** A synthetic Discovery document in Data Manager's shape: only what this test needs, sealed like a pinned one. */
-function syntheticDataManager() {
-  const document = {
-    name: 'datamanager',
-    version: 'v1',
-    schemas: {
-      IngestAudienceMembersRequest: {
-        id: 'IngestAudienceMembersRequest',
-        type: 'object',
-        properties: {
-          destinations: {type: 'array', items: {$ref: 'Destination'}},
-          audienceMembers: {type: 'array', items: {$ref: 'AudienceMember'}},
-          consent: {$ref: 'Consent'},
-          encoding: {type: 'string', enum: ['ENCODING_UNSPECIFIED', 'HEX', 'BASE64']},
-          termsOfService: {type: 'object', properties: {customerMatchTermsOfServiceStatus: {type: 'string'}}},
-          validateOnly: {type: 'boolean'},
-        },
-      },
-      Destination: {
-        id: 'Destination',
-        type: 'object',
-        properties: {
-          operatingAccount: {type: 'object', properties: {accountType: {type: 'string'}, accountId: {type: 'string'}}},
-          productDestinationId: {type: 'string'},
-        },
-      },
-      AudienceMember: {
-        id: 'AudienceMember',
-        type: 'object',
-        properties: {
-          userData: {
-            type: 'object',
-            properties: {
-              userIdentifiers: {
-                type: 'array',
-                items: {type: 'object', properties: {emailAddress: {type: 'string'}, phoneNumber: {type: 'string'}}},
-              },
-            },
-          },
-        },
-      },
-      Consent: {
-        id: 'Consent',
-        type: 'object',
-        properties: {adUserData: {type: 'string'}, adPersonalization: {type: 'string'}},
-      },
-    },
-    resources: {
-      audienceMembers: {
-        methods: {
-          ingest: {
-            id: 'datamanager.audienceMembers.ingest',
-            httpMethod: 'POST',
-            path: 'v1/audienceMembers:ingest',
-            request: {$ref: 'IngestAudienceMembersRequest'},
-          },
-        },
-      },
-    },
-  };
-  return {document, document_sha256: createHash('sha256').update(JSON.stringify(document)).digest('hex')};
-}
-const dataManagerPlan = body => ({
+// Data Manager (PRV-05): Google's Data Manager API v1 Discovery document is pinned in .mirror/VENDOR/datamanager-v1.json
+// (fetched with `node tools/fetch-vendor-specs.mjs --refresh datamanager-v1`). These cases read that committed pin;
+// before it existed they could only inject a synthetic envelope, and the routes reported `unpinned`.
+const dataManagerDiscovery = 'https://datamanager.googleapis.com/$discovery/rest?version=v1';
+const dataManagerPlan = (
+  body,
+  action = 'DATA_MANAGER_INGEST_AUDIENCE_MEMBERS',
+  path = '/v1/audienceMembers:ingest',
+) => ({
   gateway: 'google_ads_native_action',
-  action: 'DATA_MANAGER_INGEST_AUDIENCE_MEMBERS',
+  action,
   method: 'POST',
   origin: 'https://datamanager.googleapis.com',
-  path: '/v1/audienceMembers:ingest',
+  path,
   query: {},
   headers: {},
   readOnly: false,
@@ -606,43 +553,118 @@ const dataManagerPlan = body => ({
     ...body,
   },
 });
+const unknownField =
+  (field, method = 'datamanager.audienceMembers.ingest') =>
+  e => {
+    assertRefused(e, 'INVALID_VENDOR_BODY');
+    assert.equal(e.details.contract, 'datamanager-v1');
+    assert.equal(e.details.vendor_method, method);
+    assert.deepEqual(e.details.errors, [{field, reason: 'Field absent from the pinned vendor request schema'}]);
+    return true;
+  };
 
-test('a Data Manager body that differs from the pinned contract is refused with INVALID_VENDOR_BODY', () => {
-  const envelope = syntheticDataManager();
-  assertDataManagerContract(dataManagerPlan({}), envelope, 'shadow');
+test('the Data Manager v1 Discovery document is pinned, sealed and the source of the generated route integrity', () => {
+  const pinned = sealedVendorDocument('datamanager-v1');
+  // Regression (PRV-05): before the pin this was null and every Data Manager route reported `unpinned`.
+  assert.ok(pinned, 'commit .mirror/VENDOR/datamanager-v1.json');
+  assert.equal(pinned.sealed, true);
+  const raw = JSON.parse(fs.readFileSync('.mirror/VENDOR/datamanager-v1.json', 'utf8'));
+  // Provenance: the public Discovery URL, when it was read, and the SHA-256 of the document as fetched.
+  assert.equal(raw.source, dataManagerDiscovery);
+  assert.match(raw.captured_at, /^\d{4}-\d{2}-\d{2}T/);
+  assert.equal(raw.evidence, 'VENDOR_DOCUMENTED_NOT_AMCP_OBSERVED');
+  assert.equal(createHash('sha256').update(JSON.stringify(raw.document)).digest('hex'), raw.document_sha256);
+  assert.equal(raw.document.name, 'datamanager');
+  assert.equal(raw.document.version, 'v1');
+  const integrity = JSON.parse(fs.readFileSync('generated/vendor-routes.json', 'utf8')).sourceIntegrity[
+    'datamanager-v1'
+  ];
+  assert.deepEqual(integrity, {
+    source: dataManagerDiscovery,
+    document_sha256: raw.document_sha256,
+    revision: raw.document.revision,
+  });
+  // Each AMCP Data Manager route is one method of the pinned document, with the same verb and path.
+  const methods = [];
+  const visit = r => {
+    for (const m of Object.values(r.methods ?? {})) methods.push(m);
+    for (const nested of Object.values(r.resources ?? {})) visit(nested);
+  };
+  visit(raw.document);
+  const expected = {
+    DATA_MANAGER_INGEST_AUDIENCE_MEMBERS: 'datamanager.audienceMembers.ingest',
+    DATA_MANAGER_REMOVE_AUDIENCE_MEMBERS: 'datamanager.audienceMembers.remove',
+    DATA_MANAGER_INGEST_EVENTS: 'datamanager.events.ingest',
+    DATA_MANAGER_RETRIEVE_REQUEST_STATUS: 'datamanager.requestStatus.retrieve',
+  };
+  assert.deepEqual(dataManagerActions.map(a => a.name).sort(), Object.keys(expected).sort());
+  for (const action of dataManagerActions) {
+    const m = methods.find(x => x.id === expected[action.name]);
+    assert.ok(m, action.name);
+    assert.equal(m.httpMethod, action.method, action.name);
+    assert.equal(new URL(raw.document.rootUrl + m.path).href, action.path, action.name);
+    // A write carries its request schema; the status read takes none.
+    assert.equal(!!m.request, !action.read_only, action.name);
+  }
+});
+
+test('a Data Manager body that differs from the committed pin is refused with INVALID_VENDOR_BODY', () => {
+  const pinned = sealedVendorDocument('datamanager-v1');
+  // The body AMCP's Customer Match builder sends conforms to the committed pin, in every mode.
+  for (const mode of ['shadow', 'enforce']) {
+    const live = wireContractCheck(dataManagerPlan({}), mode);
+    assert.equal(live.status, 'conforms', JSON.stringify(live.issues));
+    assert.equal(live.contract, 'datamanager-v1');
+    assert.equal(live.vendor_method, 'datamanager.audienceMembers.ingest');
+    assert.equal(live.document_sha256, pinned.envelope.document_sha256);
+    assertDataManagerContract(dataManagerPlan({}), undefined, mode);
+  }
+  // An unknown nested field is refused before any personal data is sent, in shadow mode as well as enforce (the default
+  // mode, without an injected envelope: the committed pin decides).
+  const misspelt = dataManagerPlan({audienceMembers: [{userData: {userIdentifiers: [{emailAdress: 'a'.repeat(64)}]}}]});
+  for (const mode of [undefined, 'shadow', 'enforce'])
+    assert.throws(
+      () => withMode(mode, () => assertDataManagerContract(misspelt)),
+      unknownField('/audienceMembers/0/userData/userIdentifiers/0/emailAdress'),
+    );
+  // Each write is checked against its own method: a removal takes no terms of service, an event no unknown click field.
+  const removal = dataManagerPlan({}, 'DATA_MANAGER_REMOVE_AUDIENCE_MEMBERS', '/v1/audienceMembers:remove');
+  delete removal.body.consent;
   assert.throws(
-    () =>
-      assertDataManagerContract(
-        dataManagerPlan({audienceMembers: [{userData: {userIdentifiers: [{emailAdress: 'a'.repeat(64)}]}}]}),
-        envelope,
-        'shadow',
-      ),
-    e => {
-      assertRefused(e, 'INVALID_VENDOR_BODY');
-      assert.deepEqual(e.details.errors, [
-        {
-          field: '/audienceMembers/0/userData/userIdentifiers/0/emailAdress',
-          reason: 'Field absent from the pinned vendor request schema',
-        },
-      ]);
-      return true;
-    },
+    () => assertDataManagerContract(removal, undefined, 'shadow'),
+    unknownField('/termsOfService', 'datamanager.audienceMembers.remove'),
   );
-  // The pinned hash check: an edited document no longer matches its recorded digest and is not used.
-  const edited = structuredClone(envelope);
+  delete removal.body.termsOfService;
+  assertDataManagerContract(removal, undefined, 'shadow');
+  const event = adIdentifiers => {
+    const plan = dataManagerPlan({}, 'DATA_MANAGER_INGEST_EVENTS', '/v1/events:ingest');
+    delete plan.body.audienceMembers;
+    delete plan.body.termsOfService;
+    plan.body.events = [
+      {
+        adIdentifiers,
+        eventTimestamp: '2026-10-01T00:00:00Z',
+        conversionValue: 250,
+        currency: 'SAR',
+        eventSource: 'WEB',
+      },
+    ];
+    return plan;
+  };
+  assertDataManagerContract(event({gclid: 'Cj0KCQiA'}), undefined, 'shadow');
+  assert.throws(
+    () => assertDataManagerContract(event({gclidd: 'Cj0KCQiA'}), undefined, 'shadow'),
+    unknownField('/events/0/adIdentifiers/gclidd', 'datamanager.events.ingest'),
+  );
+  // The pinned hash check: an edited copy of the committed document no longer matches its digest and is not used.
+  const edited = structuredClone(pinned.envelope);
   edited.document.schemas.Consent.properties.extra = {type: 'string'};
   assert.throws(
     () => assertDataManagerContract(dataManagerPlan({}), edited, 'shadow'),
     e => assertRefused(e, 'VENDOR_SCHEMA_UNAVAILABLE'),
   );
-  assertDataManagerContract(dataManagerPlan({bogus: 1}), envelope, 'off');
-  // Until Google's document is pinned (tools/fetch-vendor-specs.mjs --refresh datamanager-v1), the route says so.
-  const live = wireContractCheck(dataManagerPlan({}), 'shadow');
-  if (sealedVendorDocument('datamanager-v1') === null) {
-    assert.equal(live.status, 'unpinned');
-    assert.equal(live.contract, 'datamanager-v1');
-    assertDataManagerContract(dataManagerPlan({bogus: 1}));
-  } else assert.equal(live.status, 'conforms');
+  // `off` skips the check.
+  assertDataManagerContract(dataManagerPlan({bogus: 1}), undefined, 'off');
 });
 
 const unsafeText =

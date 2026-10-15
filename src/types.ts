@@ -156,6 +156,8 @@ export interface CompiledRequest {
     linkedinPostReviewId?: string;
     microsoftExtensionTypes?: string[];
     microsoftAssociationPairs?: {entityId: string; extensionId: string}[];
+    /** The campaign criterion a Microsoft location-criterion verification read looks for (CMP-03). */
+    microsoftCriterionId?: string;
     appleSharedAccountIds?: string[];
     appleSharedResultAccounts?: string[];
     appleSharedOrgId?: string;
