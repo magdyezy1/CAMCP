@@ -5120,7 +5120,10 @@ async function renderCommerce() {
       (feedOnly
         ? ''
         : `<button class="button" id="create-catalog-plan" aria-describedby="create-catalog-plan-note">${esc(uiText('Save all supplied products for native review'))}</button><p class="form-note" id="create-catalog-plan-note"></p>`);
-    let comparisonSequence = 0;
+    let comparisonSequence = 0,
+      // The latest validated comparison of these products and when it was read: "Save all" names it in the plan's
+      // lineage while AMCP still accepts its reference (15 minutes), and saves without it afterwards (COM-03).
+      compared = null;
     const compareCatalogProducts = async (inspectOther = false) => {
       if (!current()) return;
       const comparisonRequest = inspectOther
@@ -5129,6 +5132,7 @@ async function renderCommerce() {
         sequence = ++comparisonSequence,
         comparison = $('#catalog-comparison'),
         active = () => current() && sequence === comparisonSequence;
+      compared = null;
       if (request.gateway === 'x_ads_native_action') {
         $('#catalog-inspection-feedback').hidden = true;
         $('#catalog-inspection-feedback').innerHTML = '';
@@ -5153,6 +5157,7 @@ async function renderCommerce() {
         const html = catalogComparisonMarkup(evidence, comparisonRequest, out);
         if (!active()) return;
         comparison.innerHTML = html;
+        compared = lineage.comparison_token ? {lineage, at: Date.now()} : null;
         $('#catalog-comparison-heading').focus();
         // After a comparison, "Save all" says how many supplied products already match (COM-01). An X plan records
         // those as unchanged when it reaches them and sends nothing; a Meta plan reviews and sends them again.
@@ -5305,7 +5310,10 @@ async function renderCommerce() {
       workspaceBind('#create-catalog-plan', async () => {
         if (!current()) return;
         try {
-          const plan = await workspaceCall('workspace', sourced({action: 'catalog_plan'}));
+          const plan = await workspaceCall(
+            'workspace',
+            sourced({action: 'catalog_plan'}, compared && Date.now() - compared.at < 840000 ? compared.lineage : {}),
+          );
           if (current()) await navigate('/campaigns?id=' + encodeURIComponent(plan.id));
         } catch (error) {
           if (current()) throw error;
