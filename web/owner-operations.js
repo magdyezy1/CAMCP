@@ -24,7 +24,14 @@ const policyUnitNote = (h, g) => {
         platform: platformName(g),
         unit: u.unit,
         evidence: u.evidence,
-      })
+      }) +
+        // Meta's unit depends on the currency (WRT-07): name it, and a currency Meta does not list stays native.
+        (g === 'meta_native_action'
+          ? ' ' +
+            uiText(
+              'For Meta, AMCP converts with the currency of these caps; a currency Meta does not list, such as KWD or OMR, must be stated in native API units.',
+            )
+          : '')
     : uiText(
         '{platform} has no documented unit in AMCP: choose “Native API units” and use the unit of the native request you review.',
         {platform: platformName(g)},

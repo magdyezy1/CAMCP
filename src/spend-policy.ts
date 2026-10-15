@@ -17,7 +17,7 @@ import {sha256} from './security.js';
 import {normalizeAccount} from './scope.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {familyOf} from './reviewed-families.js';
-import {budgetUnits, lifetimeAmount, nativeAmount} from './budget-units.js';
+import {lifetimeAmount, nativeAmount, policyNativeUnit} from './budget-units.js';
 import {pinnedJson} from './pinned-json.js';
 import {stateCurrency} from './review-summary.js';
 export const spendPolicyKey = (gateway: string, account: string) =>
@@ -157,7 +157,13 @@ function moneyLimits(input: JsonObject, gateway: string, observedCurrency?: stri
           gateway === 'meta_native_action'
             ? 'Meta counts money in the minor unit of the account currency, and AMCP converts a currency cap (field) only with the account currency (currency) and a pinned capture of Meta’s currency offsets that lists it. State it in native units instead (native_field; 100 USD is 10000).'
             : 'This platform has no documented budget unit in AMCP, so state this cap (field) in native API units instead (native_field).',
-          {gateway, field: key, native_field: currencyMoneyKeys[key]},
+          {
+            gateway,
+            field: key,
+            native_field: currencyMoneyKeys[key],
+            // The currency Meta's offsets were looked up for (stated, or the account's observed one), or null (WRT-07).
+            ...(gateway === 'meta_native_action' ? {currency: currency ?? null} : {}),
+          },
         );
       out[currencyMoneyKeys[key]] = native;
       out[key] = value;
@@ -324,7 +330,9 @@ export function saveSpendPolicy(store: Store, actor: Actor, input: JsonObject) {
     observedCurrency: observedAccountCurrency(store, actor.tenantId, input.gateway, input.account_id),
   });
   store.resolveConnection(actor, input.gateway, input.account_id, input.connection_id);
+  // Meta's unit depends on the currency of the caps, and names the pinned offset that converted them (WRT-07).
   const id = spendPolicyKey(input.gateway, input.account_id),
+    nativeUnit = policyNativeUnit(input.gateway, p.currency),
     data = {
       ...p,
       gateway: input.gateway,
@@ -332,7 +340,7 @@ export function saveSpendPolicy(store: Store, actor: Actor, input: JsonObject) {
       updated_at: Date.now(),
       updated_by: actor.userId,
       money_units: moneyUnits,
-      ...(budgetUnits[input.gateway] ? {native_unit: budgetUnits[input.gateway]} : {}),
+      ...(nativeUnit ? {native_unit: nativeUnit} : {}),
     };
   const saved = putPolicy(store, actor, id, data, expected);
   return {id, revision: saved.revision, ...data, ...(saved.warnings.length ? {warnings: saved.warnings} : {})};

@@ -148,6 +148,7 @@ const notRequestDocuments = {
   'microsoft-rest-v13':
     'An index of REST operation URLs and pages, with no schemas: the SOAP documents above carry them.',
   'lifecycle-pages': 'Hashes of provider release-note pages, not an API document.',
+  'meta-currencies': 'Meta’s currency offsets (a table of money units, WRT-07), not an API document.',
 };
 /** Deletion values of pinned documents that are not deletions AMCP sends, each with its reason. */
 const exempt = {

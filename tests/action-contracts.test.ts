@@ -20,8 +20,13 @@ test('vendor denominator includes uncatalogued operations from every pinned spec
   const expectedSources = [
     ...fs
       .readdirSync('.mirror/VENDOR')
-      // Lifecycle pages and the REST pages of Microsoft operations the WSDLs already list hold no method inventory.
-      .filter(f => f.endsWith('.json') && !['lifecycle-pages.json', 'microsoft-rest-v13.json'].includes(f))
+      // Lifecycle pages, the REST pages of Microsoft operations the WSDLs already list and Meta's currency offsets
+      // (WRT-07) hold no method inventory.
+      .filter(
+        f =>
+          f.endsWith('.json') &&
+          !['lifecycle-pages.json', 'microsoft-rest-v13.json', 'meta-currencies.json'].includes(f),
+      )
       .map(f => '.mirror/VENDOR/' + f),
     'generated/apple-platform-v1-models.json',
   ].sort();

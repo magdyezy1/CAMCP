@@ -33,6 +33,8 @@ export const additionalLifecycleSources: {provider: string; url: string}[] = [
   {provider: 'drive', url: 'https://developers.google.com/workspace/drive/release-notes'},
   {provider: 'google_business', url: 'https://developers.google.com/my-business/content/sunset-dates'},
   {provider: 'apple', url: 'https://github.com/apple/apple-ads-platform-api-node'},
+  // Meta's currency offsets, pinned in .mirror/VENDOR/meta-currencies.json (WRT-07): a change asks for a new capture.
+  {provider: 'meta', url: 'https://developers.facebook.com/docs/marketing-api/currencies'},
   {provider: 'reddit', url: 'https://ads-api.reddit.com/docs/v3/'},
   {
     provider: 'reddit',
