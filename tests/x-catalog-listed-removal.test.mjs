@@ -150,29 +150,34 @@ test('grouped, unknown and unlisted products are refused; a listed selection tak
   );
   assert.equal(read.source_absence_established, false);
   for (const extra of [{products: f.source}, {retailer_ids: ['sku-3']}, {allow_upsert: true}])
-    assert.equal((await f.preview(['5000003'], inventory.material_hash, extra)).success, false, JSON.stringify(extra));
-  for (const requirements of [
-    {product_keys: ['5000003', '5000003']},
-    {product_keys: ['sku-3']},
-    {retire_retailer_ids: ['sku-3']},
-    {listed_inventory_hash: 'not-a-hash'},
+    assert.match(
+      refused(await f.preview(['5000003'], inventory.material_hash, extra), 'INVALID_ARGUMENT').message,
+      /A listed selection takes native product keys, not supplied products or retailer IDs/,
+      JSON.stringify(extra),
+    );
+  for (const [requirements, code, message] of [
+    [{product_keys: ['5000003', '5000003']}, 'INVALID_ARGUMENT', /distinct listed native product keys/],
+    [{product_keys: ['sku-3']}, 'INVALID_ARGUMENT', /distinct listed native product keys/],
+    [{retire_retailer_ids: ['sku-3']}, 'INVALID_ARGUMENT', /does not read these requirements: retire_retailer_ids/],
+    [{listed_inventory_hash: 'not-a-hash'}, 'INVALID_CATALOG_REMOVAL', /select from that listing/],
   ])
-    assert.equal(
-      (await f.preview(['5000003'], inventory.material_hash, {}, requirements)).success,
-      false,
+    assert.match(
+      refused(await f.preview(['5000003'], inventory.material_hash, {}, requirements), code).message,
+      message,
       JSON.stringify(requirements),
     );
   // Top-level selection arguments are not arguments of amcp_workspace (refused by the tool schema).
-  assert.equal(
-    (
+  assert.match(
+    refused(
       await f.call({
         action: 'preview_catalog_removal',
         ...f.scope,
         selection_source: 'listed_inventory',
         product_keys: ['5000003'],
-      })
-    ).success,
-    false,
+      }),
+      'INVALID_ARGUMENT',
+    ).message,
+    /Unsupported arguments: selection_source, product_keys/,
   );
   assert.equal(f.writes(), 0);
   assert.equal(f.store.documents(f.actor.tenantId, 'x_catalog_removal_preview').length, 0);

@@ -129,6 +129,8 @@ test('AMCP columns need no profile; a source is refused for other columns, missi
     requirements: {source: {kind: 'csv', text: canonical, columns: 'canonical'}, select_retailer_ids: ['001']},
   });
   assert.equal(selected.success, false);
+  assert.equal(selected.error.code, 'INVALID_ARGUMENT', 'catalog_preview does not read a row selection');
+  assert.match(selected.error.message, /does not read these requirements: select_retailer_ids/);
   assert.equal(f.calls.length, 0);
 });
 

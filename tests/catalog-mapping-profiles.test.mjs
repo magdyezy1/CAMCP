@@ -114,7 +114,7 @@ test('a profile belongs to one account: another account of the same catalog has 
     actor,
   );
   assert.equal(foreign.success, false);
-  assert.notEqual(foreign.error.code, 'CATALOG_MAPPING_MISSING');
+  assert.equal(foreign.error.code, 'CONNECTION_REQUIRED', 'access is refused before any profile is read');
 });
 
 test('the retailer ID column changes only explicitly, and a concurrent change is refused instead of overwritten', async t => {
@@ -167,11 +167,13 @@ test('a mapping is refused for unknown fields, missing required columns, unclear
     actor,
   );
   assert.equal(foreign.success, false);
+  assert.equal(foreign.error.code, 'CONNECTION_REQUIRED', 'an account without access saves no profile');
   const badCatalog = await f.service.call(
     'amcp_workspace',
     {action: 'catalog_mapping', ...scope, catalog_id: '../555'},
     actor,
   );
   assert.equal(badCatalog.success, false);
+  assert.equal(badCatalog.error.code, 'INVALID_CATALOG_MAPPING');
   assert.equal(ok(await f.read()).profile, null, 'no refused save left a profile');
 });

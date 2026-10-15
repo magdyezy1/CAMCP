@@ -161,6 +161,7 @@ test('qualified: a group read beyond its bounds, an unreadable group or a group 
     // The native review withholds the absent SKU the same way.
     const refused = await f.prepare(action, {products: [native(product(4))]}, {product_catalog_id: '9001'});
     assert.equal(refused.success, false, reason);
+    assert.equal(refused.error.code, 'INVALID_X_CATALOG_PRODUCT', reason);
     assert.equal(refused.error.details.group_expansion, 'incomplete', reason);
     assert.equal(f.writes(), 0, reason);
   }
