@@ -714,6 +714,11 @@ digest the last build resolved (`base_image.digest`), which is the value to pin 
   next owner-run `--refresh` records one. When it reports `changed_requires_review`, read the page, update the rows,
   `captured_at` and `sha256` together, and commit them with the watch baseline. Saved account policies keep the
   offset that converted them in `native_unit`.
+  The rows were read from Meta’s public documentation during implementation (`capture` describes the readings), not
+  from a byte-exact page copy: `sha256` seals the rows as recorded, so it cannot prove them against the page. Before
+  release the owner checks the 66 rows against Meta’s Currencies page, or records that such public documentation
+  reads were allowed, and runs the documentation watch’s `--refresh` to set its baseline; until then treat the
+  offsets as awaiting owner verification.
 
 ## Accounts, reporting and operating controls
 

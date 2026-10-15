@@ -10,23 +10,22 @@ import {applyExecutionRisk} from '../src/execution-risk.js';
 import {Compiler} from '../src/compiler.js';
 import {strictOptions} from '../src/service.js';
 import {reviewedWriteFamily} from '../src/reviewed-routes.js';
-import {vendorContractInventory} from '../tools/vendor-contract-inventory.js';
+import {vendorContractInventory, vendorDocumentsWithoutMethods} from '../tools/vendor-contract-inventory.js';
 import type {CompiledRequest} from '../src/types.js';
 const registry = new Registry(),
   rows = actionContracts(registry);
 
 test('vendor denominator includes uncatalogued operations from every pinned spec', () => {
-  const inventory = vendorContractInventory(rows);
+  const inventory = vendorContractInventory(rows),
+    withoutMethods = ['lifecycle-pages.json', 'microsoft-rest-v13.json', 'meta-currencies.json'];
+  // The inventory's own list is this one: a new pinned document without methods is named in both (wave 3a review).
+  assert.deepEqual([...vendorDocumentsWithoutMethods].sort(), [...withoutMethods].sort());
   const expectedSources = [
     ...fs
       .readdirSync('.mirror/VENDOR')
       // Lifecycle pages, the REST pages of Microsoft operations the WSDLs already list and Meta's currency offsets
       // (WRT-07) hold no method inventory.
-      .filter(
-        f =>
-          f.endsWith('.json') &&
-          !['lifecycle-pages.json', 'microsoft-rest-v13.json', 'meta-currencies.json'].includes(f),
-      )
+      .filter(f => f.endsWith('.json') && !withoutMethods.includes(f))
       .map(f => '.mirror/VENDOR/' + f),
     'generated/apple-platform-v1-models.json',
   ].sort();
