@@ -10268,5 +10268,9 @@
   "This workspace already has 500 pending allocation outcome reviews.": "توجد في مساحة العمل هذه بالفعل 500 مراجعة معلّقة لنتائج التوزيع.",
   "This campaign plan did not come from an allocation proposal.": "لم تنشأ خطة الحملة هذه من مقترح توزيع.",
   "The outcome review starts after every budget step of this plan has been executed and verified by read-back.": "تبدأ مراجعة النتيجة بعد تنفيذ كل خطوة ميزانية في هذه الخطة والتحقق منها بقراءة لاحقة.",
-  "This plan’s outcome cannot be compared with its proposal: the proposal or its evidence changed or is gone.": "لا يمكن مقارنة نتيجة هذه الخطة بمقترحها: تغيّر المقترح أو بياناته أو لم يعودا موجودين."
+  "This plan’s outcome cannot be compared with its proposal: the proposal or its evidence changed or is gone.": "لا يمكن مقارنة نتيجة هذه الخطة بمقترحها: تغيّر المقترح أو بياناته أو لم يعودا موجودين.",
+  "Search impressions lost to budget: more than 90%": "مرات ظهور البحث المفقودة بسبب الميزانية: أكثر من 90%",
+  "Search impressions lost to budget: {percent}%": "مرات ظهور البحث المفقودة بسبب الميزانية: {percent}%",
+  "Search impressions lost to budget: not a Search campaign": "مرات ظهور البحث المفقودة بسبب الميزانية: ليست حملة بحث",
+  "Search impressions lost to budget: not reported": "مرات ظهور البحث المفقودة بسبب الميزانية: لم يُبلَغ عنها"
 }

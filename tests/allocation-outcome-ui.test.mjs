@@ -277,6 +277,79 @@ test('scheduled, due, unavailable and not-scheduled reviews say what happens nex
   }
 });
 
+test('the budget preview names the Meta owner and minor units and Google’s Search budget-lost share in both languages', () => {
+  for (const locale of ['en', 'ar']) {
+    const c = createContext({
+      document: {addEventListener() {}},
+      recordDetails: (_value, title) => '<details>' + title + '</details>',
+      esc: v =>
+        String(v ?? '')
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('"', '&quot;'),
+    });
+    new Script(readFileSync('web/localization.js', 'utf8')).runInContext(c);
+    if (locale === 'ar') {
+      c.catalog = catalog;
+      new Script("uiLocale='ar';uiMessages=new Map(Object.entries(catalog))").runInContext(c);
+    }
+    new Script(readFileSync('web/report-quality.js', 'utf8')).runInContext(c);
+    new Script(readFileSync('web/report-allocation.js', 'utf8')).runInContext(c);
+    const base = {account_id: '100', currency: 'USD', timezone: 'UTC', period_days: 2, meaning: 'Preview only.'},
+      target = extra => ({
+        name: 'Campaign',
+        entity_id: '10',
+        campaign_id: '10',
+        current_daily_budget: '20',
+        period_budget: '125',
+        daily_budget: '62.5',
+        daily_budget_micros: '62500000',
+        rounding_residual: '0',
+        budget_utilization: '0.25',
+        low_budget_utilization: true,
+        ...extra,
+      });
+    const meta = run(c, 'allocationPlanPreview(p)', {
+      p: {
+        ...base,
+        gateway: 'meta_native_action',
+        targets: [target({budget_owner: 'ad_set', adset_id: '456', daily_budget_native: '6250'})],
+      },
+    });
+    assert.match(meta, locale === 'en' ? /Ad set 456/ : /مجموعة الإعلانات 456/);
+    assert.match(meta, locale === 'en' ? /6250 in Meta minor units/ : /6250 بالوحدات الصغرى في Meta/);
+    assert.doesNotMatch(meta, /62500000 micros/);
+    const google = run(c, 'allocationPlanPreview(p)', {
+      p: {
+        ...base,
+        gateway: 'google_ads_native_action',
+        targets: [
+          target({
+            budget_resource: 'customers/1/campaignBudgets/1',
+            search_budget_lost_impression_share: {status: 'read', share: '0.25', above_90_percent: false},
+          }),
+          target({
+            budget_resource: 'customers/1/campaignBudgets/2',
+            search_budget_lost_impression_share: {status: 'read', share: '0.9001', above_90_percent: true},
+          }),
+          target({
+            budget_resource: 'customers/1/campaignBudgets/3',
+            search_budget_lost_impression_share: {status: 'not_search'},
+          }),
+          target({
+            budget_resource: 'customers/1/campaignBudgets/4',
+            search_budget_lost_impression_share: {status: 'unavailable'},
+          }),
+        ],
+      },
+    });
+    assert.match(google, locale === 'en' ? /lost to budget: 25%/ : /بسبب الميزانية: 25%/);
+    assert.match(google, locale === 'en' ? /lost to budget: more than 90%/ : /أكثر من 90%/);
+    assert.match(google, locale === 'en' ? /not a Search campaign/ : /ليست حملة بحث/);
+    assert.match(google, locale === 'en' ? /not reported/ : /لم يُبلَغ عنها/);
+  }
+});
+
 test('the panel loads the review, captures only on an explicit click and never repaints a page that was left', async () => {
   const root = {innerHTML: '', isConnected: true},
     calls = [],

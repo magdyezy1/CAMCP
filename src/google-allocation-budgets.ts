@@ -4,15 +4,22 @@ import {ReportCollectionBudget} from './report-collection-budget.js';
 import type {Actor, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import {storedLogin} from './connection-authority.js';
+import {MirrorError} from './errors.js';
+import {accessRefusalCodes} from './overview-parents.js';
 
 const gateway = 'google_ads_native_action';
-/** Two complete observations of the selected dedicated budgets; not an atomic account snapshot. */
+/**
+ * Two complete observations of the selected dedicated budgets; not an atomic account snapshot. With `window` (the
+ * allocation evidence period, preview only) it also reads each campaign's Search budget-lost impression share over that
+ * window once (DEC-02 indicator): descriptive, never a gate, and unavailable rather than failing when Google refuses it.
+ */
 export async function googleAllocationBudgets(
   store: Store,
   call: ToolCall,
   actor: Actor,
   source: JsonObject,
   ids: string[],
+  window?: {since: string; until: string},
 ) {
   const account = normalizeAccount(gateway, source.account_id),
     connection = store.resolveConnection(actor, gateway, account, source.connection_id),
@@ -128,6 +135,71 @@ export async function googleAllocationBudgets(
     references.push({source_request: args, source_hash: fingerprint(data), requested_at, captured_at: Date.now()});
     return targets;
   };
+  /**
+   * Google reports search_budget_lost_impression_share from 0 to 0.9 and any higher share as 0.9001. A campaign Google
+   * omits (no impressions in the window) or that is not a Search campaign has no value; nothing is guessed.
+   */
+  const budgetLost = async (period: {since: string; until: string}) => {
+    if (![period.since, period.until].every(d => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)))
+      return {status: 'unavailable', campaigns: {}, reference: null};
+    const indicator = {
+        ...args,
+        payload: {
+          query:
+            'SELECT campaign.id, campaign.advertising_channel_type, metrics.search_budget_lost_impression_share FROM campaign WHERE campaign.id IN (' +
+            ids.join(',') +
+            ") AND segments.date BETWEEN '" +
+            period.since +
+            "' AND '" +
+            period.until +
+            "'",
+        },
+      },
+      requested_at = Date.now();
+    current();
+    let response: JsonObject;
+    try {
+      response = await call(gateway, indicator, actor);
+    } catch (e) {
+      // A provider refusal or failure leaves this descriptive indicator unavailable; AMCP's own access refusals do not.
+      if (!(e instanceof MirrorError) || accessRefusalCodes.has(e.code)) throw e;
+      current();
+      return {status: 'unavailable', campaigns: {}, reference: null};
+    }
+    current();
+    const data = response.data?.data,
+      rows = data?.results,
+      reference = {
+        source_request: indicator,
+        source_hash: fingerprint(data ?? null),
+        requested_at,
+        captured_at: Date.now(),
+      },
+      unavailable = {status: 'unavailable', campaigns: {}, reference: response.success ? reference : null};
+    if (
+      !response.success ||
+      !obj(data) ||
+      !Array.isArray(rows) ||
+      rows.length > ids.length ||
+      response.data?.truncated ||
+      data.nextPageToken
+    )
+      return unavailable;
+    const campaigns: Record<string, JsonObject> = {};
+    for (const row of rows) {
+      const c = row?.campaign,
+        share = row?.metrics?.searchBudgetLostImpressionShare;
+      if (!obj(c) || typeof c.id !== 'string' || !ids.includes(c.id) || campaigns[c.id]) return unavailable;
+      campaigns[c.id] =
+        c.advertisingChannelType !== 'SEARCH'
+          ? {status: c.advertisingChannelType === undefined ? 'not_reported' : 'not_search'}
+          : typeof share === 'number' && Number.isFinite(share) && share >= 0 && share <= 1
+            ? {status: 'read', share: String(share), above_90_percent: share > 0.9}
+            : {status: 'not_reported'};
+    }
+    for (const id of ids) campaigns[id] ??= {status: 'not_reported'};
+    return {status: 'read', campaigns, reference};
+  };
   try {
     return await bound.run(async () => {
       const first = await read(1),
@@ -144,7 +216,8 @@ export async function googleAllocationBudgets(
           'ALLOCATION_BUDGET_CHANGED',
         );
       current();
-      return {targets: first, source_references: references};
+      const indicators = window ? await budgetLost(window) : undefined;
+      return {targets: first, source_references: references, ...(indicators ? {search_budget_lost: indicators} : {})};
     });
   } finally {
     bound.close();

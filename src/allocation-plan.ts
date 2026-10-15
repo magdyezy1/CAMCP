@@ -53,12 +53,19 @@ async function budgets(
   source: JsonObject,
   ids: string[],
   pricing = true,
-): Promise<{targets: JsonObject[]; source_references?: JsonObject[]; daily_budget_limits?: JsonObject}> {
+  // DEC-02: the evidence period, given only by the preview, for Google's Search budget-lost impression share.
+  window?: {since: string; until: string},
+): Promise<{
+  targets: JsonObject[];
+  source_references?: JsonObject[];
+  daily_budget_limits?: JsonObject;
+  search_budget_lost?: JsonObject;
+}> {
   if (source.gateway === 'snapchat_native_action') return snapchatAllocationBudgets(store, call, actor, source, ids);
   if (source.gateway === 'linkedin_native_action')
     return linkedinAllocationBudgets(store, call, actor, source, ids, pricing);
   if (source.gateway === 'meta_native_action') return metaAllocationBudgets(store, call, actor, source, ids);
-  return googleAllocationBudgets(store, call, actor, source, ids);
+  return googleAllocationBudgets(store, call, actor, source, ids, window);
 }
 
 function draft(binding: JsonObject, previewId: string) {
@@ -264,6 +271,8 @@ export async function previewAllocationPlan(
     actor,
     source,
     modeled.allocations.map((r: JsonObject) => r.entity_id),
+    true,
+    {since: modeled.semantics.date_from, until: modeled.semantics.date_to},
   );
   const targets = modeled.allocations.map((r: JsonObject) => {
     const n = native.targets.find(n => (n.entity_id ?? n.campaign_id) === r.entity_id)!,
@@ -319,6 +328,15 @@ export async function previewAllocationPlan(
       minimum_unit_micros: String(unit),
       ...(offset !== undefined ? {daily_budget_native: String((daily * BigInt(offset)) / 1000000n)} : {}),
       ...budgetUtilization(r.observed_spend, BigInt(n.amount_micros), modeled.period.days),
+      // DEC-02: Google Search budget-lost impression share over the evidence period (descriptive, never a gate).
+      ...(native.search_budget_lost
+        ? {
+            search_budget_lost_impression_share:
+              native.search_budget_lost.status === 'read'
+                ? (native.search_budget_lost.campaigns[r.entity_id] ?? {status: 'not_reported'})
+                : {status: 'unavailable'},
+          }
+        : {}),
     };
   });
   const binding = {
@@ -335,6 +353,9 @@ export async function previewAllocationPlan(
     targets,
     ...(native.source_references ? {native_source_references: native.source_references} : {}),
     ...(native.daily_budget_limits ? {daily_budget_limits: native.daily_budget_limits} : {}),
+    ...(native.search_budget_lost?.reference
+      ? {indicator_source_references: [native.search_budget_lost.reference]}
+      : {}),
   };
   sourceCurrent(store, actor, binding);
   return store.transaction(() => {
