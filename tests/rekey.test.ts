@@ -105,6 +105,10 @@ function populate(file: string) {
     store.putDocument(tenant, 'media_review', 'review-2', {
       actor_binding: store.bindJobActor(actor, 'media-job:review-2'),
     });
+    // DEC-02: the background outcome review of an allocation plan.
+    store.putDocument(tenant, 'allocation_outcome', 'plan-1', {
+      actor_binding: store.bindJobActor(actor, 'allocation-outcome:plan-1'),
+    });
     // Sealed values inside documents, including one nested in a list entry with its own id.
     store.putDocument(tenant, 'report_file', 'file', {
       sealed: store.sealValue(tenant, 'report-file', 'file', {bytes: 'UEs='}),
@@ -179,6 +183,7 @@ function readEverything(store: Store, web: WebStore, ids: JsonObject) {
     ['report_monitor', 'watch', 'monitor:watch'],
     ['monitor_subscription', 'sub', 'monitor-subscription:sub'],
     ['media_review', 'review-2', 'media-job:review-2'],
+    ['allocation_outcome', 'plan-1', 'allocation-outcome:plan-1'],
   ])
     assert.equal(
       store.restoreJobActor(tenant, scope!, store.document(tenant, kind!, id!).actor_binding).userId,
