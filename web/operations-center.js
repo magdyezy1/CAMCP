@@ -248,7 +248,7 @@ function approvalClassLabel(value) {
         : value;
 }
 /**
- * A person approves one reviewed change on the website (WRT-09, owner decisions P1 and P5), outside any AI client: the
+ * A person approves one reviewed change on the website (WRT-09, opt-in; P1 and P5 are open), outside any AI client: the
  * page shows what the review does and posts back the fingerprint it showed, so the approval covers exactly this review.
  */
 function writeApprovalController(root, id) {

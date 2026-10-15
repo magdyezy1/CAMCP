@@ -201,7 +201,7 @@ function validatePolicy(
       if (typeof value !== 'boolean') throw invalidPolicy();
       out[key] = value;
     } else if (key === 'approval_mode') {
-      // WRT-09 (owner decisions P1, P5): who approves spend, cap and deletion executions (src/write-approval.ts).
+      // WRT-09 (opt-in; P1 and P5 are open): who approves spend, cap and deletion executions (src/write-approval.ts).
       if (!approvalModes.includes(value))
         throw invalidPolicy(
           'approval_mode is assistant_ack (the user approves in the AI client, the default), website_approval (a member approves on the AMCP website) or distinct_approver (another member than the preparer, or the owner).',

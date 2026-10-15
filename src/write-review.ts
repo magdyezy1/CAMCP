@@ -276,7 +276,7 @@ export function executeRequirements(
       reason:
         'This review acknowledges a potentially disruptive creative edit; repeat creative_edit_confirmed=true at execute.',
     });
-  // WRT-09 (owner decision P5): the owner's opt-in tier for deletions on this account.
+  // WRT-09 (P5, open): the owner's opt-in tier for deletions on this account.
   if (destructiveTier)
     reasons.push({
       flag: 'destructive_confirmed',
@@ -872,7 +872,7 @@ export class WriteReviewService {
       const reviewId = randomUUID(),
         fingerprint = sha256(stable({tenant: actor.tenantId, user: actor.userId, connection: c.id, plan, ...override})),
         expiresAt = Date.now() + 300000;
-      // WRT-09 (owner decision P5): a deletion on an account whose owner turned the destructive_confirmed tier on.
+      // WRT-09 (P5, open): a deletion on an account whose owner turned the destructive_confirmed tier on.
       const destructive = destructiveRequest(plan, state),
         destructiveTier =
           destructive &&
@@ -1104,9 +1104,9 @@ export class WriteReviewService {
         'Nothing was submitted. Prepare the same request again and review it.',
         expiredNext(review),
       );
-    // WRT-09 (owner decisions P1, P5): the destructive tier's acknowledgement and, under an approval mode, a person's
-    // website approval of this exact review. Checked after expiry (an expired review is prepared again, not approved)
-    // and before anything is claimed or sent; the review stays valid.
+    // WRT-09 (opt-in; P1 and P5 are open): the destructive tier's acknowledgement and, under an approval mode, a
+    // person's website approval of this exact review. Checked after expiry (an expired review is prepared again, not
+    // approved) and before anything is claimed or sent; the review stays valid.
     const approved = assertExecutionApproval(this.store, actor, review, input.review_id, input);
     if (approved)
       this.store.appendAudit(actor.tenantId, input.review_id, {
