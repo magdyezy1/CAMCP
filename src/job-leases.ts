@@ -41,4 +41,6 @@ export const RELEASABLE_JOB_KINDS: ReadonlySet<string> = new Set([
   'report_overview',
   'report_file_export',
   'write_verification',
+  // DEC-02 outcome review: a guided capture and a local comparison; a rerun captures again.
+  'allocation_outcome',
 ]);

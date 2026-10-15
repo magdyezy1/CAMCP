@@ -57,6 +57,7 @@ import {ReportParts, reportBudgetState, reportBudgetView} from './report-checkpo
 import {quotaExhausted} from './provider-quota.js';
 import {evaluateMonitors} from './report-monitors.js';
 import {compareSnapshots, comparisonEligibility, comparisonReasons, previousEqualWindow} from './report-compare.js';
+import {allocationOutcomeJob, allocationOutcomeKind} from './allocation-outcome.js';
 import {operationsWorkerHealth} from './operations-worker-health.js';
 import {overviewEntityLevels, overviewSourceLevel} from './overview-granularity.js';
 import {
@@ -1479,6 +1480,15 @@ export class ReportingOverview {
     // An approved plan of media uploads run on the server (MED-03 B), one worker turn at a time.
     if (kind === BACKGROUND_RUN_KIND)
       return backgroundRunTurn(
+        store,
+        (tool, args, actor) => this.service.call(tool, args, actor),
+        tenant,
+        input,
+        leaseCheck,
+      );
+    // DEC-02: the outcome review of a verified allocation plan, once its window has closed (read-only).
+    if (kind === allocationOutcomeKind)
+      return allocationOutcomeJob(
         store,
         (tool, args, actor) => this.service.call(tool, args, actor),
         tenant,

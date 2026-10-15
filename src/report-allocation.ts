@@ -203,12 +203,15 @@ export function allocationCandidates(report: JsonObject, input: JsonObject) {
     network_requests: 0,
   };
 }
-/** The same closed-period, source/grain/identity and freshness gates used by allocation and its diagnostics. */
-export function allocationEvidence(report: JsonObject, age: number) {
+/**
+ * The same closed-period, source/grain/identity and freshness gates used by allocation and its diagnostics. `now` is
+ * the instant the gates are evaluated at: the current time, except when the outcome review (DEC-02) recomputes the
+ * model a saved plan was created from, as of that plan's creation.
+ */
+export function allocationEvidence(report: JsonObject, age: number, now = Date.now()) {
   if (!Number.isInteger(age) || age < 1 || age > 90)
     bad('Declare an evidence age of 1–90 days.', 'SCENARIO_EVIDENCE_REQUIRED');
-  const sem = report.semantics,
-    now = Date.now();
+  const sem = report.semantics;
   if (
     sem.complete !== true ||
     !/^[A-Z]{3}$/.test(sem.currency) ||
@@ -260,7 +263,7 @@ export const calibratedFactorsLimitation =
  * calibration the factors were copied from. The calibration is recomputed here; a fingerprint, factor or entity that does
  * not match is refused, so a proposal can never claim historical provenance it does not have.
  */
-function factorProvenance(report: JsonObject, input: JsonObject, entityIds: string[]): JsonObject {
+function factorProvenance(report: JsonObject, input: JsonObject, entityIds: string[], now: number): JsonObject {
   const source = input.factor_source;
   if (source === undefined) return {kind: 'declared'};
   const code = 'ALLOCATION_FACTOR_PROVENANCE';
@@ -269,7 +272,7 @@ function factorProvenance(report: JsonObject, input: JsonObject, entityIds: stri
   validate(source, ['kind', 'evidence_fingerprint', 'ids', 'options'], undefined, 'factor source');
   if (source.kind !== 'calibration' || typeof source.evidence_fingerprint !== 'string')
     bad('Name the calibration the efficiency factors came from, or omit factor_source.', code);
-  const calibration = calibrateAllocation(report, source.ids, source.options ?? {});
+  const calibration = calibrateAllocation(report, source.ids, source.options ?? {}, now);
   if (calibration.evidence_fingerprint !== source.evidence_fingerprint)
     bad(
       'The named calibration does not match this report’s current evidence. Calibrate again before using its factors.',
@@ -312,8 +315,11 @@ export const outsideRangeLimitation =
 const ratioText = (a: bigint, aPlaces: number, b: bigint, bPlaces: number, places: number) =>
   decimal((a * 10n ** BigInt(bPlaces + places)) / (b * 10n ** BigInt(aPlaces)), places);
 
-/** A linear constrained sensitivity model, never a native budget change or delivery forecast. */
-export function reportAllocation(report: JsonObject, input: JsonObject) {
+/**
+ * A linear constrained sensitivity model, never a native budget change or delivery forecast. `now` is the instant the
+ * evidence gates are evaluated at (allocationEvidence); the model itself does not depend on it.
+ */
+export function reportAllocation(report: JsonObject, input: JsonObject, now = Date.now()) {
   validate(input, [
     'budget',
     'allocations',
@@ -339,7 +345,7 @@ export function reportAllocation(report: JsonObject, input: JsonObject) {
         ? 'Declare a minimum of 1–1,000,000 observed conversions per ad squad and an evidence age of 1–90 days.'
         : 'Declare a minimum of 1–1,000,000 observed conversions per campaign and an evidence age of 1–90 days.',
     );
-  const {semantics: sem, start, end, evidence} = allocationEvidence(report, age);
+  const {semantics: sem, start, end, evidence} = allocationEvidence(report, age, now);
   const budget = amount(input.budget, 6, 'total budget');
   if (budget <= 0n || budget > 1000000000000000000n) bad('Use a positive total budget up to 1 trillion.');
   if (!Array.isArray(input.allocations) || input.allocations.length < 2 || input.allocations.length > 50)
@@ -407,6 +413,7 @@ export function reportAllocation(report: JsonObject, input: JsonObject) {
       report,
       input,
       rows.map(row => row.id),
+      now,
     );
   // DEC-02 indicators (descriptive, never a gate): how far each proposal moves from what was observed. The observed
   // daily range covers days with a row; a proposed daily average outside it extrapolates the linear model.
