@@ -934,6 +934,10 @@ export class Store {
     }
     return removed;
   }
+  /** Asks the next maintenance pass to truncate the write-ahead log, as after an account erasure (SEC-07). */
+  scheduleCheckpoint() {
+    this.checkpointPending = true;
+  }
   /**
    * After large deletions, truncates the write-ahead log when no job holds a lease. It never waits: a busy result is
    * harmless and the next maintenance tick tries again (OPS-01).

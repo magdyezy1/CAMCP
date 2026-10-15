@@ -49,6 +49,13 @@ test('the full privacy policy is public HTML without redirects, login, JavaScrip
       assert.match(body, /scrypt/);
       assert.match(body, /Limited Use/);
       assert.match(body, /Retention and deletion/);
+      // SEC-07, owner decision P3: the periods and self-service deletion, with no promise of instant backup erasure.
+      // The policy used to say no age-based deletion period applied.
+      assert.doesNotMatch(body, /does not currently apply an automatic age-based deletion period/);
+      assert.match(body, /erased after 30 days/);
+      assert.match(body, /erased 90 days later/);
+      assert.match(body, /under Delete your account/);
+      assert.match(body, /We do not promise immediate erasure from all backups/);
       // Customer lists and offline conversions (personal-data policy of 2026-09-30) and the Data Manager permission.
       assert.match(body, /datamanager/);
       assert.match(body, /hashed with SHA-256 in memory/);

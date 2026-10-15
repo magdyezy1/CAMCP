@@ -85,7 +85,11 @@ test('Terms and Data deletion are complete static pages in English and Arabic wi
           assert.match(body, locale === 'ar' ? /<html lang="ar" dir="rtl">/ : /<html lang="en" dir="ltr">/);
           // The contact the privacy policy already publishes, and a dated document.
           assert.match(body, /mailto:privacy@amcp\.shop/);
-          assert.match(body, /<time datetime="2026-10-09">/);
+          // Data deletion was updated for self-service deletion and the P3 retention periods (SEC-07).
+          assert.match(
+            body,
+            name === 'data-deletion' ? /<time datetime="2026-10-12">/ : /<time datetime="2026-10-09">/,
+          );
           assert.match(body, new RegExp('href="' + route + '\\?lang=en"'));
           assert.match(body, new RegExp('href="' + route + '\\?lang=ar"'));
           assert.match(body, /href="\/about"/);
@@ -120,6 +124,11 @@ test('the Terms state both deployment modes, independent of any session, and bot
   // Meta asks for data deletion instructions: the page names each step and how to request account deletion.
   for (const step of ['Disconnect', 'revoke', 'Delete your account or workspace', 'backup'])
     assert.ok(deletion.includes(step), step);
+  // SEC-07, owner decision P3: the page used to say no self-service deletion existed; it now leads to Account and
+  // states the retention periods.
+  assert.doesNotMatch(deletion, /does not yet have a self-service delete/);
+  for (const text of ['<a href="/account">Account</a>', 'erased after 30 days', 'erased 90 days later', '365 days'])
+    assert.ok(deletion.includes(text), text);
 });
 
 test('robots.txt, security.txt and favicon.ico answer with their own types; security.txt takes the owner contact', async () => {

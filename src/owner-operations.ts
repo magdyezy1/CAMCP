@@ -21,6 +21,7 @@ import {reviewFriction} from './review-friction.js';
 import {mediaProcessorStatus} from './runtime-toolchain.js';
 import {lastBackupReceipt} from './backup-receipt.js';
 import {planInventory, planPolicy, purgeArchivedPlans, savePlanPolicy} from './campaign-inventory.js';
+import {reportRetention, reportRetentionDefault, reportRetentionKinds} from './data-retention.js';
 /**
  * Parts of the owner's health that need modules a reviewed write must not load (this module is on the write path:
  * `assertWritesNotPaused`). The workspace tool supplies them; the guidance-coverage check stays on the write path.
@@ -173,6 +174,11 @@ export function ownerOperations(
       // The cached startup `ffmpeg -version` probe (QA-01): media conversion needs it.
       media_processor: mediaProcessorStatus(),
       retention: store.documents(tenant, 'retention_policy')[0] ?? null,
+      // The report retention in force (SEC-07, owner decision P3): this workspace's period or the deployment default.
+      report_retention: {
+        ...reportRetention(store.documents(tenant, 'retention_policy')[0], deploymentReportRetention()),
+        kinds: reportRetentionKinds,
+      },
       plan_policy: planPolicy(store, tenant),
       // Plans against the workspace bound of 500 not archived (CMP-05 baseline), every person's, counted only.
       plan_inventory: planInventory(store, tenant),
@@ -309,7 +315,21 @@ export function ownerOperations(
   }
   throw new MirrorError('INVALID_ARGUMENT', 'Unknown owner operation.');
 }
-export function cleanupReports(store: Store) {
+/** The deployment's report retention default for health; an unknown value (it stops start-up) reads as off here. */
+function deploymentReportRetention() {
+  try {
+    return reportRetentionDefault(process.env);
+  } catch {
+    return null;
+  }
+}
+/**
+ * The hourly report cleanup. Report records past the retention period are deleted per document kind
+ * (src/data-retention.ts): the workspace owner's own period, else the deployment default `defaultDays`
+ * (AMCP_REPORT_RETENTION_DAYS, 365 days unless `off`). Each workspace where it deleted anything gets one
+ * `report_retention_applied` audit record with the period, its source and the count per kind.
+ */
+export function cleanupReports(store: Store, defaultDays: number | null = reportRetentionDefault(process.env)) {
   const now = Date.now();
   for (const tenant of store.listTenants()) {
     // Spend reservations are only readable for the current UTC day, so older rows are unreachable
@@ -330,45 +350,70 @@ export function cleanupReports(store: Store) {
       )
       .run(tenant);
     const policy = store.documents(tenant, 'retention_policy')[0];
-    if (!policy) continue;
     // Opt-in purge of archived campaign plans (CMP-05); audit and write receipts are separate records and stay.
-    if (Number.isInteger(policy.archived_campaign_plans_days) && policy.archived_campaign_plans_days > 0)
-      purgeArchivedPlans(store, tenant, now - policy.archived_campaign_plans_days * 86400000);
-    if (!Number.isInteger(policy.days)) continue;
-    const cutoff = now - policy.days * 86400000;
-    store.transaction(() => {
-      store.db
-        .prepare(
-          "DELETE FROM documents WHERE tenant_id=? AND ((kind='report_incident' AND (json_extract(data,'$.state')='resolved' OR json_extract(data,'$.superseded_by_version') IS NOT NULL) AND json_extract(data,'$.updated_at')<?) OR (kind='decision_report' AND json_extract(data,'$.captured_at')<?))",
-        )
-        .run(tenant, cutoff, cutoff);
-      store.db
-        .prepare(
-          "DELETE FROM documents WHERE tenant_id=? AND kind='overview_report' AND json_extract(data,'$.created_at')<? AND json_extract(data,'$.state') IN ('complete','partial','failed','cancelled') AND NOT EXISTS (SELECT 1 FROM jobs WHERE jobs.tenant_id=documents.tenant_id AND json_extract(jobs.input,'$.report_id')=documents.id AND jobs.state IN ('queued','running')) AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.tenant_id=documents.tenant_id AND d.kind='sheets_delivery' AND json_extract(d.data,'$.report_id')=documents.id AND json_extract(d.data,'$.state') IN ('pending','uncertain'))",
-        )
-        .run(tenant, cutoff);
+    if (Number.isInteger(policy?.archived_campaign_plans_days) && policy!.archived_campaign_plans_days > 0)
+      purgeArchivedPlans(store, tenant, now - policy!.archived_campaign_plans_days * 86400000);
+    // The workspace's own period, else the deployment default (SEC-07, owner decision P3); `off` keeps everything.
+    const retention = reportRetention(policy, defaultDays);
+    if (retention.days === null) continue;
+    const cutoff = now - retention.days * 86400000;
+    const deleted = store.transaction(() => {
+      const counts: Record<string, number> = {};
+      const remove = (kind: string, sql: string, ...params: (string | number)[]) => {
+        const changes = Number(store.db.prepare(sql).run(...params).changes);
+        if (changes) counts[kind] = (counts[kind] ?? 0) + changes;
+      };
+      remove(
+        'report_incident',
+        "DELETE FROM documents WHERE tenant_id=? AND kind='report_incident' AND (json_extract(data,'$.state')='resolved' OR json_extract(data,'$.superseded_by_version') IS NOT NULL) AND json_extract(data,'$.updated_at')<?",
+        tenant,
+        cutoff,
+      );
+      remove(
+        'decision_report',
+        "DELETE FROM documents WHERE tenant_id=? AND kind='decision_report' AND json_extract(data,'$.captured_at')<?",
+        tenant,
+        cutoff,
+      );
+      remove(
+        'overview_report',
+        "DELETE FROM documents WHERE tenant_id=? AND kind='overview_report' AND json_extract(data,'$.created_at')<? AND json_extract(data,'$.state') IN ('complete','partial','failed','cancelled') AND NOT EXISTS (SELECT 1 FROM jobs WHERE jobs.tenant_id=documents.tenant_id AND json_extract(jobs.input,'$.report_id')=documents.id AND jobs.state IN ('queued','running')) AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.tenant_id=documents.tenant_id AND d.kind='sheets_delivery' AND json_extract(d.data,'$.report_id')=documents.id AND json_extract(d.data,'$.state') IN ('pending','uncertain'))",
+        tenant,
+        cutoff,
+      );
       // A snapshot with an unconfirmed Sheets delivery is kept above (its recovery needs the identical report).
       // Only terminal receipts of removed snapshots are deleted, once they are older than the retention period.
-      store.db
-        .prepare(
-          "DELETE FROM documents WHERE tenant_id=? AND kind='sheets_delivery' AND json_extract(data,'$.state') IN ('complete','rejected','abandoned') AND coalesce(json_extract(data,'$.abandoned_at'),json_extract(data,'$.completed_at'),json_extract(data,'$.sent_at'),0)<? AND NOT EXISTS (SELECT 1 FROM documents r WHERE r.tenant_id=documents.tenant_id AND r.kind='overview_report' AND r.id=json_extract(documents.data,'$.report_id'))",
-        )
-        .run(tenant, cutoff);
-      store.db
-        .prepare(
-          "DELETE FROM documents WHERE tenant_id=? AND kind='report_presentation' AND NOT EXISTS (SELECT 1 FROM documents r WHERE r.tenant_id=documents.tenant_id AND r.kind='overview_report' AND r.id=documents.id)",
-        )
-        .run(tenant);
-      store.db
-        .prepare(
-          "DELETE FROM documents WHERE tenant_id=? AND kind='report_file' AND NOT EXISTS (SELECT 1 FROM documents r WHERE r.tenant_id=documents.tenant_id AND r.kind='overview_report' AND r.id=json_extract(documents.data,'$.report_id'))",
-        )
-        .run(tenant);
-      store.db
-        .prepare(
-          "DELETE FROM jobs WHERE tenant_id=? AND kind IN ('report_overview','sheets_export','report_file_export','report') AND state IN ('complete','failed','cancelled') AND updated_at<? AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.tenant_id=jobs.tenant_id AND d.kind='sheets_delivery' AND json_extract(d.data,'$.report_id')=json_extract(jobs.input,'$.report_id') AND json_extract(d.data,'$.state') IN ('pending','uncertain'))",
-        )
-        .run(tenant, cutoff);
+      remove(
+        'sheets_delivery',
+        "DELETE FROM documents WHERE tenant_id=? AND kind='sheets_delivery' AND json_extract(data,'$.state') IN ('complete','rejected','abandoned') AND coalesce(json_extract(data,'$.abandoned_at'),json_extract(data,'$.completed_at'),json_extract(data,'$.sent_at'),0)<? AND NOT EXISTS (SELECT 1 FROM documents r WHERE r.tenant_id=documents.tenant_id AND r.kind='overview_report' AND r.id=json_extract(documents.data,'$.report_id'))",
+        tenant,
+        cutoff,
+      );
+      remove(
+        'report_presentation',
+        "DELETE FROM documents WHERE tenant_id=? AND kind='report_presentation' AND NOT EXISTS (SELECT 1 FROM documents r WHERE r.tenant_id=documents.tenant_id AND r.kind='overview_report' AND r.id=documents.id)",
+        tenant,
+      );
+      remove(
+        'report_file',
+        "DELETE FROM documents WHERE tenant_id=? AND kind='report_file' AND NOT EXISTS (SELECT 1 FROM documents r WHERE r.tenant_id=documents.tenant_id AND r.kind='overview_report' AND r.id=json_extract(documents.data,'$.report_id'))",
+        tenant,
+      );
+      remove(
+        'jobs',
+        "DELETE FROM jobs WHERE tenant_id=? AND kind IN ('report_overview','sheets_export','report_file_export','report') AND state IN ('complete','failed','cancelled') AND updated_at<? AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.tenant_id=jobs.tenant_id AND d.kind='sheets_delivery' AND json_extract(d.data,'$.report_id')=json_extract(jobs.input,'$.report_id') AND json_extract(d.data,'$.state') IN ('pending','uncertain'))",
+        tenant,
+        cutoff,
+      );
+      if (Object.keys(counts).length)
+        store.appendAudit(tenant, 'retention_policy/reports', {
+          event: 'report_retention_applied',
+          days: retention.days,
+          source: retention.source,
+          deleted: counts,
+        });
+      return counts;
     });
+    if (Object.keys(deleted).length) store.scheduleCheckpoint();
   }
 }

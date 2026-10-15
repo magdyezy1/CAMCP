@@ -19,7 +19,7 @@ import {
 import {endMcpGrants} from './mcp-grants.js';
 import {MirrorError} from '../src/errors.js';
 import {sha256} from '../src/security.js';
-import {accountRetention} from '../src/account-erasure.js';
+import {accountRetention, retentionBlockedAccounts} from '../src/account-erasure.js';
 import type {JsonObject} from '../src/types.js';
 
 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -127,10 +127,12 @@ export class AccountSecurity {
       // no action on it.
       self: r.id === s.actor.userId,
     }));
-    // Requests left pending this many days are erased by the worker (SEC-07 S4); null when retention is off.
-    let pendingMs: number | null = null;
+    // Requests left pending, and accounts revoked, this many days are erased by the worker (SEC-07 S4, owner decision
+    // P3); null when that retention is off. `retentionBlocked` counts accounts past it that the sweep keeps because
+    // other active members use their workspace.
+    let retention: ReturnType<typeof accountRetention> = {pendingMs: null, revokedMs: null};
     try {
-      pendingMs = accountRetention(this.accounts.env).pendingMs;
+      retention = accountRetention(this.accounts.env);
     } catch {
       /* An unknown value stops the worker at start-up; the list itself still shows. */
     }
@@ -139,7 +141,9 @@ export class AccountSecurity {
       pending: accounts.filter(a => a.state === 'pending').length,
       emailEnabled: this.accounts.emailConfigured,
       ownerEmail: this.accounts.ownerEmail() ?? null,
-      pendingRetentionDays: pendingMs === null ? null : pendingMs / 86400000,
+      pendingRetentionDays: retention.pendingMs === null ? null : retention.pendingMs / 86400000,
+      revokedRetentionDays: retention.revokedMs === null ? null : retention.revokedMs / 86400000,
+      retentionBlocked: retentionBlockedAccounts(this.web.store, this.web.tenantId, retention),
     };
   }
   setAccess(req: Request, input: JsonObject) {

@@ -290,15 +290,41 @@ Revoking access keeps an account; erasing it (SEC-07) removes the account and it
    `MIRROR_DB` naming the restored copy, before starting it: it erases again what a receipt names and the copy still
    holds, and appends `account_erased` with `reapplies`.
 
-The worker erases sign-ups never approved 30 days after they were made (`AMCP_PENDING_ACCOUNT_DAYS`, 1–365, or `off`),
-and, only when the owner sets `AMCP_REVOKED_ACCOUNT_DAYS` (1–3650), accounts revoked that long ago; each is receipted
-like a confirmed erasure (`reason: pending_retention` or `revoked_retention`), at most 100 of each an hour. A pending
-account with a membership in another workspace (invited there, awaiting the owner's approval) is kept. The 30-day
-default was chosen during implementation (docs/DECISIONS.md); set `off` before deploying to keep pending sign-ups until
-the owner decides, since the first hourly sweep after a deploy erases those already older. An unknown value stops
-start-up. Erasure is application retention: older backups, Railway volume snapshots and SQLite free pages
-(zeroed by `secure_delete`) are not rewritten. Self-service deletion waits for the privacy policy review (owner
-decision P3).
+Retention follows owner decision P3 (2026-10-11: designed to GDPR and the KSA PDPL). The worker's hourly sweep erases
+sign-ups never approved 30 days after they were made (`AMCP_PENDING_ACCOUNT_DAYS`, 1–365, or `off`) and accounts
+revoked 90 days after their revocation (`AMCP_REVOKED_ACCOUNT_DAYS`, 1–3650, or `off`); each is receipted like a
+confirmed erasure (`reason: pending_retention` or `revoked_retention`, `by: system:retention`), at most 100 of each an
+hour. A pending account with a membership in another workspace (invited there, awaiting the owner's approval) is
+kept, and so is an account whose own workspace other active members still use: the owner's access list counts those
+(`retentionBlocked`) until the members are removed or the account is erased by hand. A run that erased or refused
+anything appends one `retention_sweep` record (counts and periods) to the deployment's audit and writes a
+`retention_sweep` log line with the counts only. The first hourly sweep after deploying this release erases pending
+sign-ups older than 30 days and accounts revoked more than 90 days ago; set either variable to `off` beforehand to keep
+them. An unknown value stops start-up.
+
+People delete their own account in Account → Delete your account (`GET /api/account/deletion` previews,
+`POST /api/account/delete` erases; `reason: self_service`, `by: self`). It needs the account's email address (or name,
+without one) typed exactly and a sign-in or "Confirm it's you" from the last 15 minutes. It is refused for the
+administrator and reviewer sign-ins and reviewer test accounts, the AMCP owner, an account whose workspace other active
+members use (AMCP cannot transfer a workspace: remove them first), and while a job or a reviewed write is running in
+the workspace. The answer is the erasure receipt, which the page offers as a download, and a confirmation e-mail is
+queued when e-mail is configured. `AMCP_ACCOUNT_SELF_DELETION=off` turns it off (the rollback); deletion is then the
+operator's `erase-account`. Add self-service erasures to the receipts kept with the backups like any other.
+
+Report records follow a retention per document kind (`src/data-retention.ts`, until ARC-02's registry owns it):
+finished Overview snapshots with their presentations and files, analyses, resolved incidents, terminal Sheets delivery
+receipts and finished report jobs are deleted once older than the workspace owner's period (Settings → Storage &
+retention, 7–365 days) or, without one, the deployment default `AMCP_REPORT_RETENTION_DAYS` (365 days; 7–3650, or `off`
+to keep them). Before this, a workspace without a saved period kept them forever. Each hourly cleanup that deleted
+something appends `report_retention_applied` (period, its source and counts per kind) to that workspace's audit.
+Audit records, write receipts, active work and archived plans (their own opt-in period) are not covered.
+
+Erasure and retention are application retention, not instant cryptographic erasure of every copy. The rows go from the
+live database at once; SQLite zeroes freed pages (`secure_delete`), and an erasure asks the next maintenance pass to
+truncate the write-ahead log. Copies made before then remain until they expire: AMCP backups and Railway volume
+snapshots are not rewritten, and leave only by their own retention (keep it bounded, for example 35 days, and delete
+older archives), by re-applying the erasure receipts to any restored copy, and, for a suspected leak of old copies, by
+rotating the master key ("Secret rotation") and removing the previous key once the backups it opens have expired.
 
 ### Backups that complete
 
@@ -350,7 +376,7 @@ and remove it after establishing that no restoration uses it; never sweep active
 operations or delete the original database. The command never publishes an
 unauthenticated or partly verified destination.
 
-The audit chain (one SHA-256 chain across all workspaces) detects changes to retained records and SQL triggers prevent updates/deletes, except an erasure's receipted tombstone ("Account erasure and retention"). It has no external checkpoint service and cannot detect rollback to a previously valid backup. Keep independent backup/checkpoint records for a production deployment. Owner-confirmed 7–365-day report retention is implemented for the selected finished report/job and resolved-incident records; active work, open/acknowledged incidents, audit records and write receipts are preserved. Archived campaign plans are deleted only when the owner opts in (`save_retention` with `archived_campaign_plans_days` 7–3650, `0` turns it off; Settings → Campaign plans): the cleanup deletes the plan documents archived longer than that, audits `campaign_plans_purged`, and keeps audit records, write receipts and reviews; plans that are not archived are never deleted (CMP-05). Owner `health` reports `plan_inventory` (`active` plans against the `limit` of 500, and `archived` plans that do not count), the read-only baseline for how close a workspace is to the bound; Settings → Campaign plans shows the same counts. General all-record retention, external monitoring and independent checkpoints remain separate.
+The audit chain (one SHA-256 chain across all workspaces) detects changes to retained records and SQL triggers prevent updates/deletes, except an erasure's receipted tombstone ("Account erasure and retention"). It has no external checkpoint service and cannot detect rollback to a previously valid backup. Keep independent backup/checkpoint records for a production deployment. Report retention applies to the selected finished report/job and resolved-incident records: the workspace owner's 7–365-day period, else the deployment default (`AMCP_REPORT_RETENTION_DAYS`, 365 days; owner `health` shows the period in force as `report_retention`, see "Account erasure and retention"); active work, open/acknowledged incidents, audit records and write receipts are preserved. Archived campaign plans are deleted only when the owner opts in (`save_retention` with `archived_campaign_plans_days` 7–3650, `0` turns it off; Settings → Campaign plans): the cleanup deletes the plan documents archived longer than that, audits `campaign_plans_purged`, and keeps audit records, write receipts and reviews; plans that are not archived are never deleted (CMP-05). Owner `health` reports `plan_inventory` (`active` plans against the `limit` of 500, and `archived` plans that do not count), the read-only baseline for how close a workspace is to the bound; Settings → Campaign plans shows the same counts. General all-record retention, external monitoring and independent checkpoints remain separate.
 
 Local subprocess tests verified consistent backup while the source database remained open in WAL mode, restoration of encrypted credentials and committed documents, audit verification after restore, and refusal to overwrite an existing backup. Concurrent process startup now serializes database bootstrap/migrations in a transaction. Unsupported schema versions roll back attempted schema changes and close the connection. These tests do not qualify host-level disaster recovery or a production deployment.
 

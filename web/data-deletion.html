@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="How to remove your data from AMCP: disconnect platform logins, revoke AI-tool access, and request deletion of your account or workspace.">
+  <meta name="description" content="How to remove your data from AMCP: disconnect platform logins, revoke AI-tool access, delete your account, and request deletion of a workspace.">
   <meta name="theme-color" content="#201c32">
   <title>Data deletion · AMCP</title>
   <link rel="canonical" href="https://amcp.shop/data-deletion">
@@ -22,11 +22,11 @@
     <label class="theme-control"><span>Appearance</span><select data-theme-select aria-label="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
   </header>
   <main id="deletion" tabindex="-1">
-    <div class="policy-heading"><p class="eyebrow">Your data, your choice.</p><h1>Data deletion<span aria-hidden="true">✳</span></h1><p>How to remove what AMCP holds about you and your connected accounts.</p><p class="updated">Last updated: <time datetime="2026-10-09">9 October 2026</time></p></div>
+    <div class="policy-heading"><p class="eyebrow">Your data, your choice.</p><h1>Data deletion<span aria-hidden="true">✳</span></h1><p>How to remove what AMCP holds about you and your connected accounts.</p><p class="updated">Last updated: <time datetime="2026-10-12">12 October 2026</time></p></div>
     <div class="policy-layout">
       <nav class="contents" aria-label="Data deletion sections"><strong>On this page</strong><a href="#logins">Disconnect a platform login</a><a href="#tools">Remove AI-tool access</a><a href="#providers">Revoke at the platform</a><a href="#request">Delete your account or workspace</a><a href="#kept">What is kept</a><a href="#outside">Copies outside AMCP</a></nav>
       <article>
-        <p class="intro">You can remove most of your data from AMCP yourself, in a few steps. For your account or a whole workspace, send a request and we delete it for you. Nothing here deletes data inside the advertising platforms themselves.</p>
+        <p class="intro">You can remove your data from AMCP yourself, in a few steps, including your account. For anything else, send a request and we delete it for you. Nothing here deletes data inside the advertising platforms themselves.</p>
         <section id="logins"><h2>1. Disconnect a platform login</h2>
           <p>Sign in, open <a href="/connections">Connections</a>, choose Manage on the platform, then Disconnect. AMCP removes that login's stored credentials, its synchronized asset inventory and its account selections from its active database straight away.</p>
         </section>
@@ -37,15 +37,15 @@
           <p>You can remove AMCP's authorization in each platform's own settings, for example in your Google account at <a href="https://myaccount.google.com/connections">Google connections</a>, or in the business or app settings of Meta, TikTok and the other platforms you connected. Revoking stops further requests once it takes effect; it does not itself remove data already saved in AMCP.</p>
         </section>
         <section id="request"><h2>4. Delete your account or workspace</h2>
-          <p>AMCP does not yet have a self-service delete button for accounts or workspaces. To request deletion, write to <!--email_off--><a href="mailto:privacy@amcp.shop">privacy@amcp.shop</a><!--/email_off--> from the email address on your AMCP account, or ask the administrator who manages your workspace.</p>
+          <p>To delete your own account, sign in, open <a href="/account">Account</a> and choose Delete your account. Review what will be deleted, type your email address to confirm, and confirm it is you if asked. Your account, your own workspace and everything that workspace holds are erased at once, your memberships in other workspaces end, and you receive an erasure receipt. If other members still use your workspace, remove them first: a workspace cannot be handed to another owner. To delete a whole workspace that others use, or if you cannot sign in, write to <!--email_off--><a href="mailto:privacy@amcp.shop">privacy@amcp.shop</a><!--/email_off--> from the email address on your AMCP account, or ask the administrator who manages your workspace.</p>
           <ul><li><strong>Say what to delete:</strong> your own account, or a whole workspace (only its owner can ask for that), and the workspace name.</li>
           <li><strong>We confirm it is you:</strong> before deleting, we check the request against the account's verified email or the workspace owner.</li>
           <li><strong>We confirm when it is done:</strong> we reply once the records are removed from AMCP's active database, and tell you about anything we must keep.</li>
           <li><strong>Never send secrets:</strong> do not include passwords, access tokens or client secrets.</li></ul>
         </section>
         <section id="kept"><h2>5. What is kept, and for how long</h2>
-          <p>Files uploaded from your computer expire 30 minutes after the upload starts. Saved reports, settings, export destinations, schedules and audit history can remain after you disconnect a login, until they or the workspace are deleted through the request above. Protected audit history may need administrative handling, and applicable legal retention requirements still apply.</p>
-          <p>Backups are handled through the operator's backup retention and deletion process, so a deleted record can remain in an older backup until that backup expires. We do not promise immediate erasure from all backups. The <a href="/privacy?lang=en">privacy policy</a> explains retention in full.</p>
+          <p>Files uploaded from your computer expire 30 minutes after the upload starts. Finished report records are deleted after your workspace owner's period, or after 365 days. Account requests never approved are erased after 30 days, and an account whose access was removed is erased 90 days later. Otherwise, saved reports, settings, export destinations, schedules and audit history can remain after you disconnect a login, until they or the workspace are deleted. An erased workspace's audit records keep only a placeholder, and applicable legal retention requirements still apply.</p>
+          <p>Backups are handled through the operator's backup retention and deletion process, so a deleted record can remain in an older backup or storage snapshot until it expires; a deletion is applied again to any copy that is restored. We do not promise immediate erasure from all backups. The <a href="/privacy?lang=en">privacy policy</a> explains retention in full.</p>
         </section>
         <section id="outside"><h2>6. Copies outside AMCP</h2>
           <p>Deleting data in AMCP does not delete source data in the advertising and analytics platforms, CSV files you downloaded, or reports already written to your Google Sheets. You control those copies and their sharing or deletion separately.</p>
