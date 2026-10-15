@@ -5,8 +5,8 @@
   "independent_extensions": [
     {
       "gateway": "microsoft_ads_native_action",
-      "actions": 28,
-      "reviewed_mutation_actions": 14,
+      "actions": 31,
+      "reviewed_mutation_actions": 16,
       "write_scope": "Search campaigns, ad groups, responsive search ads and keywords",
       "reporting": "Native account-bound submit/poll with optional server CSV/TSV ZIP parsing and cached bounded pages; campaign overview normalizes Spend, Impressions, Clicks, Conversions and Revenue while retaining native metrics",
       "live_qualified": false
@@ -26,9 +26,9 @@
     "coverage": {
       "guides": 13,
       "reviewed_write_gateways": 15,
-      "modules": 337,
-      "write_path_codes": 491,
-      "documented_codes": 318,
+      "modules": 338,
+      "write_path_codes": 492,
+      "documented_codes": 319,
       "family_codes": 133,
       "listed_codes": 40,
       "missing_gateways": [],

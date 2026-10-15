@@ -28,7 +28,7 @@ Google has 285 independently specified legacy adapters. They preserve native res
 
 ## Independent extensions
 
-Microsoft Advertising: 28 actions, including 12 reviewed Search mutation routes. Live qualification remains incomplete; these actions are not part of the captured AMCP denominator.
+Microsoft Advertising: 31 actions, including 12 reviewed Search mutation routes. Live qualification remains incomplete; these actions are not part of the captured AMCP denominator.
 
 Campaign guidance: 13 MCP resources and the amcp_build_campaign prompt. amcp_write inspect checks local execution contracts without network calls.
 
