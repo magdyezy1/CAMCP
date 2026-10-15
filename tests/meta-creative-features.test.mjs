@@ -283,10 +283,18 @@ test('the review lists each choice, a creative without choices says so, and AMCP
 });
 
 test('read-back compares every choice and reports the features Meta shows on its own', async () => {
-  // Meta keeps both choices and shows one more feature the request did not list.
+  // Meta keeps both choices and shows one more feature the request did not list. Provider text is bounded before it
+  // is kept in the receipt: a key that is not a feature name is dropped, and a setting that is not an enum is null.
   const f = fixture(sentSpec =>
     sentSpec
-      ? {creative_features_spec: {...sentSpec.creative_features_spec, inline_comment: choice('OPT_IN')}}
+      ? {
+          creative_features_spec: {
+            ...sentSpec.creative_features_spec,
+            inline_comment: choice('OPT_IN'),
+            'Not a feature name!': choice('OPT_IN'),
+            video_highlight: choice('opt in please'),
+          },
+        }
       : sentSpec,
   );
   try {
@@ -295,7 +303,7 @@ test('read-back compares every choice and reports the features Meta shows on its
     const v = ok(await f.verify(p));
     assert.equal(v.data.status, 'verified', JSON.stringify(v).slice(0, 900));
     assert.ok(f.reads.at(-1).split(',').includes('degrees_of_freedom_spec'), f.reads.at(-1));
-    assert.deepEqual(v.data.checks[0].provider_creative_features, {inline_comment: 'OPT_IN'});
+    assert.deepEqual(v.data.checks[0].provider_creative_features, {inline_comment: 'OPT_IN', video_highlight: null});
   } finally {
     f.store.close();
   }

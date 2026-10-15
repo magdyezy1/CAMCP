@@ -189,13 +189,15 @@ export function metaCreativeFeaturesObserved(expected: JsonObject, actual: unkno
   const asked = choices(expected.degrees_of_freedom_spec),
     read = isObject(actual) ? choices(actual.degrees_of_freedom_spec) : undefined;
   if (!asked || !read) return undefined;
+  // The read is provider text kept in the receipt: only feature-shaped names and enum-shaped settings are kept.
   const others = Object.keys(read)
-    .filter(key => !Object.hasOwn(asked, key))
+    .filter(key => !Object.hasOwn(asked, key) && /^[a-z][a-z0-9_]{0,63}$/.test(key))
     .sort()
     .slice(0, 100)
     .map(key => {
-      const choice = read[key];
-      return [key, isObject(choice) && typeof choice.enroll_status === 'string' ? choice.enroll_status : null];
+      const choice = read[key],
+        status = isObject(choice) ? choice.enroll_status : undefined;
+      return [key, typeof status === 'string' && /^[A-Z][A-Z_]{0,31}$/.test(status) ? status : null];
     });
   return others.length
     ? {
