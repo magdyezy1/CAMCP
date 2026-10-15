@@ -4917,7 +4917,9 @@ async function renderCommerce() {
       file,
       table,
       target_key: JSON.stringify([target.gateway, target.account_id, target.connection_id]),
-      mapping: saved ? {catalog_id: catalog, version: saved.version} : null,
+      mapping: saved
+        ? {catalog_id: catalog, version: saved.version, identity: saved.columns?.retailer_id ?? null}
+        : null,
     };
     const profile = saved?.version ? saved : null,
       identity = profile?.columns.retailer_id;
@@ -4983,6 +4985,20 @@ async function renderCommerce() {
           image_mode: form.elements.image_mode.value,
         });
         const many = grouped(loaded.table.rows.length);
+        // The catalog's products keep the retailer ID column its saved mapping names unless the person explicitly
+        // chooses another one; AMCP refuses an implicit change too.
+        if (
+          loaded.mapping?.catalog_id === settings.catalog_id &&
+          loaded.mapping.identity &&
+          selected.columns.retailer_id !== loaded.mapping.identity &&
+          !$('#catalog-replace-identity')?.checked
+        )
+          throw Error(
+            uiText(
+              'This catalog’s products are identified by the column {column}. Keep it, or choose to identify products by another retailer ID column from now on.',
+              {column: loaded.mapping.identity},
+            ),
+          );
         // COM-03: the mapping is saved as the catalog's versioned profile and AMCP projects the selected columns with
         // it, so the preview, comparison and saved plan all name the same source and mapping version.
         const mapping = await workspaceCall('workspace', {
@@ -5002,7 +5018,11 @@ async function renderCommerce() {
         if (!current()) return;
         if (mapping?.record_kind !== 'catalog_mapping' || !Number.isSafeInteger(mapping.profile?.version))
           throw Error(uiText('The column mapping could not be confirmed. Load the CSV columns again.'));
-        loaded.mapping = {catalog_id: settings.catalog_id, version: mapping.profile.version};
+        loaded.mapping = {
+          catalog_id: settings.catalog_id,
+          version: mapping.profile.version,
+          identity: mapping.profile.columns?.retailer_id ?? null,
+        };
         source = {kind: 'csv', text: selected.text, columns: 'profile', profile_version: mapping.profile.version};
         if (many) group = {rows: loaded.table.rows.length, columns: 'profile', version: mapping.profile.version};
         out = await workspaceCall('workspace', {

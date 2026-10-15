@@ -3891,6 +3891,7 @@
   "Product may be a hidden variant; absence is not established": "قد يكون المنتج متغيرًا مخفيًا؛ لم يثبت غيابه",
   "Saved mapping version {version} of this catalog filled the columns it names. Products are identified by the column {column}.": "ملأ الإصدار {version} المحفوظ من تعيين أعمدة هذا الكتالوج الأعمدةَ التي يسميها. تُعرَّف المنتجات بالعمود {column}.",
   "Identify products by another retailer ID column from now on": "عرِّف المنتجات بعمود آخر لمعرّف بائع التجزئة من الآن فصاعدًا",
+  "This catalog’s products are identified by the column {column}. Keep it, or choose to identify products by another retailer ID column from now on.": "تُعرَّف منتجات هذا الكتالوج بالعمود {column}. أبقِ هذا العمود، أو اختر تعريف المنتجات بعمود آخر لمعرّف بائع التجزئة من الآن فصاعدًا.",
   "The column mapping could not be confirmed. Load the CSV columns again.": "تعذّر تأكيد تعيين الأعمدة. حمّل أعمدة ملف CSV مرة أخرى.",
   "Each part is its own unapproved plan of at most 50 products in one lineage group; approve and run each part separately. Every product still needs its own native review and read-back, and products the source lacks are never deleted.": "كل جزء خطة مستقلة غير معتمدة تضم 50 منتجًا كحد أقصى ضمن مجموعة نسب واحدة؛ اعتمد كل جزء وشغّله على حدة. يظل كل منتج بحاجة إلى مراجعته الأصلية الخاصة وقراءة التحقق، ولا تُحذف أبدًا المنتجات التي يفتقدها المصدر.",
   "The comparison this plan names expired or was read by someone else. Compare the products again, then save.": "انتهت صلاحية المقارنة التي تسميها هذه الخطة أو قرأها شخص آخر. قارن المنتجات مرة أخرى ثم احفظ.",

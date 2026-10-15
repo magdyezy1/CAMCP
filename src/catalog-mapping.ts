@@ -7,15 +7,17 @@ import {catalogRequirement} from './catalog-requirements.js';
 
 /**
  * Catalog mapping profiles (COM-03 Phase 2): which column of a merchant's product export supplies each destination
- * field, saved once per workspace and destination catalog and versioned. The profile fixes the column that supplies
- * retailer_id, so a product's identity cannot drift between imports: choosing another identity column needs an
- * explicit `replace_identity_column: true`. A CSV source projected with a profile (src/catalog-sources.ts) records the
- * profile and its version in the lineage of the plans it produces. Saving a profile changes nothing at a provider.
+ * field, saved once per workspace, destination account and catalog, and versioned. The account is part of the scope, so
+ * only people with access to that account read or change its profile (several clients may share one workspace, owner
+ * decision P1). The profile fixes the column that supplies retailer_id, so a product's identity cannot drift between
+ * imports: choosing another identity column needs an explicit `replace_identity_column: true`. A CSV source projected
+ * with a profile (src/catalog-sources.ts) records the profile and its version in the lineage of the plans it produces.
+ * Saving a profile changes nothing at a provider.
  *
- * Actions: `catalog_mapping` reads the current profile of {gateway, catalog_id} (reader); `save_catalog_mapping` saves
- * requirements {columns, fixed_currency, image_mode, replace_identity_column?} as the next version (operator), with the
- * optional `revision` the caller read (0 before the first save) so a concurrent change is refused instead of
- * overwritten. An unchanged mapping keeps its version.
+ * Actions: `catalog_mapping` reads the current profile of {gateway, account_id, catalog_id} (reader);
+ * `save_catalog_mapping` saves requirements {columns, fixed_currency, image_mode, replace_identity_column?} as the next
+ * version (operator), with the optional `revision` the caller read (0 before the first save) so a concurrent change is
+ * refused instead of overwritten. An unchanged mapping keeps its version.
  */
 export const catalogMappingKind = 'catalog_mapping_profile';
 /** Previous versions kept with a profile, so the version a plan's lineage names stays readable. */
@@ -44,8 +46,8 @@ function mappingDestination(input: JsonObject): CatalogDestination {
     refuse('INVALID_CATALOG_MAPPING', 'Choose a catalog destination account and its exact native catalog ID.');
   return d;
 }
-export function catalogMappingId(gateway: string, catalog: string): string {
-  return fingerprint({kind: catalogMappingKind, gateway, catalog_id: catalog});
+export function catalogMappingId(gateway: string, account: string, catalog: string): string {
+  return fingerprint({kind: catalogMappingKind, gateway, account_id: account, catalog_id: catalog});
 }
 /** The destination fields a mapping must name a column for; currency may instead be one fixed code. */
 export function catalogMappingRequired(d: CatalogDestination): string[] {
@@ -106,17 +108,17 @@ const settingsOf = (doc: JsonObject): CatalogMappingSettings => ({
   fixed_currency: doc.fixed_currency,
   image_mode: doc.image_mode,
 });
-/** The saved profile of a catalog, or undefined. */
-export function currentCatalogMapping(store: Store, tenant: string, gateway: string, catalog: string) {
-  return optional(store, tenant, catalogMappingKind, catalogMappingId(gateway, catalog));
+/** The saved profile of an account's catalog, or undefined. */
+export function currentCatalogMapping(store: Store, tenant: string, gateway: string, account: string, catalog: string) {
+  return optional(store, tenant, catalogMappingKind, catalogMappingId(gateway, account, catalog));
 }
 export function catalogMappingRef(doc: JsonObject): CatalogMappingRef {
   return {profile_id: doc.profile_id, version: doc.version, profile_hash: doc.profile_hash};
 }
-function view(doc: JsonObject | undefined, d: CatalogDestination, catalog: string): JsonObject {
+function view(doc: JsonObject | undefined, d: CatalogDestination, input: JsonObject): JsonObject {
   return {
     record_kind: 'catalog_mapping',
-    scope: {gateway: d.gateway, catalog_id: catalog},
+    scope: {gateway: d.gateway, account_id: input.account_id, catalog_id: input.catalog_id},
     profile: doc
       ? {
           profile_id: doc.profile_id,
@@ -138,12 +140,12 @@ function view(doc: JsonObject | undefined, d: CatalogDestination, catalog: strin
     provider_mutations: 0,
   };
 }
-/** catalog_mapping: the current mapping profile of one destination catalog (none before the first save). */
+/** catalog_mapping: the current mapping profile of one account's catalog (none before the first save). */
 export function catalogMapping(store: Store, actor: Actor, input: JsonObject) {
   validate(input, ['action', 'gateway', 'account_id', 'connection_id', 'catalog_id']);
   const d = mappingDestination(input);
   store.resolveConnection(actor, d.gateway, input.account_id, input.connection_id);
-  return view(currentCatalogMapping(store, actor.tenantId, d.gateway, input.catalog_id), d, input.catalog_id);
+  return view(currentCatalogMapping(store, actor.tenantId, d.gateway, input.account_id, input.catalog_id), d, input);
 }
 /** save_catalog_mapping: the next version of a catalog's mapping profile; an unchanged mapping keeps its version. */
 export function saveCatalogMapping(store: Store, actor: Actor, input: JsonObject) {
@@ -157,7 +159,7 @@ export function saveCatalogMapping(store: Store, actor: Actor, input: JsonObject
     refuse('INVALID_CATALOG_MAPPING', 'Choose true or false for replacing the retailer ID column.');
   if (input.revision !== undefined && (!Number.isSafeInteger(input.revision) || input.revision < 0))
     refuse('INVALID_CATALOG_MAPPING', 'Send the mapping version you read: 0 before the first save.');
-  const id = catalogMappingId(d.gateway, input.catalog_id),
+  const id = catalogMappingId(d.gateway, input.account_id, input.catalog_id),
     profile_hash = fingerprint(settings);
   const saved = store.transaction(() => {
     const current = optional(store, actor.tenantId, catalogMappingKind, id),
@@ -186,6 +188,7 @@ export function saveCatalogMapping(store: Store, actor: Actor, input: JsonObject
     const doc = {
       profile_id: id,
       gateway: d.gateway,
+      account_id: input.account_id,
       catalog_id: input.catalog_id,
       ...entry,
       versions: [...((current?.versions as JsonObject[]) ?? []), entry].slice(-historyLimit),
@@ -203,10 +206,5 @@ export function saveCatalogMapping(store: Store, actor: Actor, input: JsonObject
       account_id: input.account_id,
       identity_column_replaced: saved.replaced !== null,
     });
-  return {...view(saved.doc, d, input.catalog_id), changed: saved.changed};
-}
-/** The settings of one saved version, for a projection that names it. */
-export function catalogMappingVersion(doc: JsonObject, version: number): CatalogMappingSettings | undefined {
-  const v = (doc.versions as JsonObject[]).find(entry => entry.version === version);
-  return v ? settingsOf(v) : undefined;
+  return {...view(saved.doc, d, input), changed: saved.changed};
 }

@@ -18,14 +18,15 @@ import {
  * adapter turns its input into supplied product rows and their lineage; the destination contract
  * (src/catalog-destinations.ts) then treats the rows the same whatever produced them.
  *
- * - `supplied_products`: the `products` the caller sent (the website's AMCP-column CSV and WooCommerce selections).
- * - `csv`: `requirements.source = {kind: "csv", text, columns: "canonical" | "profile", profile_version?}`, a CSV the
- *   server projects, with AMCP's own product columns or with the catalog's saved mapping profile
- *   (src/catalog-mapping.ts). The website sends only the columns a profile selects, so unselected columns of a
+ * - `supplied_products`: the `products` the caller sent (the website's AMCP-column CSV of at most 50 products and
+ *   WooCommerce selections).
+ * - `csv`: `requirements.source = {kind: "csv", text, columns: "canonical" | "profile", profile_version?}`, a CSV of at
+ *   most 500 products the server projects, with AMCP's own product columns or with the account catalog's saved mapping
+ *   profile (src/catalog-mapping.ts). The website sends only the columns a profile selects, so unselected columns of a
  *   supplier export never leave the browser; MCP clients send their own export.
  *
- * Parked store sources (WooCommerce, Shopify, Salla) plug in here later as further kinds with their own read and a
- * `catalog_source_hash`. A source never establishes absence: products it lacks are retained, never deleted.
+ * Parked store sources (WooCommerce, Shopify, Salla) plug in as further adapters (`sourceAdapters`) with their own read
+ * and `catalog_source_hash`. A source never establishes absence: products it lacks are retained, never deleted.
  */
 export const catalogCsvLimits = {bytes: 196608, rows: 500, columns: 100, header: 200} as const;
 export type CatalogSourceKind = 'supplied_products' | 'csv';
@@ -162,6 +163,60 @@ export function mappedCatalogRows(
     return product;
   });
 }
+/** What a source adapter read: the rows it holds for one destination, and how it read them. */
+type SourceRead = {
+  rows: JsonObject[];
+  catalog_source_hash: string;
+  columns: CatalogSource['columns'];
+  mapping_profile: CatalogMappingRef | null;
+};
+/**
+ * A product source adapter: it turns its `requirements.source` input into the rows a destination compares or imports.
+ * `accepts` refuses a malformed input before anything is read; `read` returns every row the source holds. An adapter
+ * never returns a removal: a product the source lacks is retained by every destination.
+ */
+type CatalogSourceAdapter = {
+  accepts(source: JsonObject): boolean;
+  read(store: Store, actor: Actor, source: JsonObject, d: CatalogDestination, input: JsonObject): SourceRead;
+};
+/** A CSV the server projects, with AMCP's own product columns or the account catalog's saved mapping profile. */
+const csvSource: CatalogSourceAdapter = {
+  accepts: s =>
+    Object.keys(s).every(k => ['kind', 'text', 'columns', 'profile_version'].includes(k)) &&
+    typeof s.text === 'string' &&
+    ['canonical', 'profile'].includes(s.columns) &&
+    (s.profile_version === undefined || (s.columns === 'profile' && Number.isSafeInteger(s.profile_version))),
+  read(store, actor, s, d, input) {
+    const table = parseCatalogCsv(s.text);
+    let mapping: CatalogMappingRef | null = null,
+      rows: JsonObject[];
+    if (s.columns === 'profile') {
+      const profile = currentCatalogMapping(store, actor.tenantId, d.gateway, input.account_id, input.catalog_id);
+      if (!profile) refuse('CATALOG_MAPPING_MISSING', 'Save a column mapping for this catalog first.', {}, 409);
+      // The version the caller saw: a mapping changed in between would project other columns.
+      if (s.profile_version !== undefined && s.profile_version !== profile.version)
+        refuse(
+          'CATALOG_MAPPING_CHANGED',
+          'The saved column mapping changed since it was read. Read it again before saving.',
+          {version: profile.version},
+          409,
+        );
+      mapping = catalogMappingRef(profile);
+      rows = mappedCatalogRows(table, d, {
+        columns: profile.columns,
+        fixed_currency: profile.fixed_currency,
+        image_mode: profile.image_mode,
+      });
+    } else rows = canonicalRows(table, d);
+    return {rows, catalog_source_hash: sha256(s.text), columns: s.columns, mapping_profile: mapping};
+  },
+};
+/**
+ * The registered product source adapters, by `requirements.source.kind`. The parked store sources (WooCommerce,
+ * Shopify, Salla; PRK-01) register here when the owner activates them, each with its own bounded read and its own
+ * `catalog_source_hash`; the destination contract (src/catalog-destinations.ts) and the plan lineage stay as they are.
+ */
+const sourceAdapters: Readonly<Record<string, CatalogSourceAdapter>> = {csv: csvSource};
 /**
  * The products of a catalog action's `requirements.source`, or undefined when the caller supplied `products`.
  * catalog_plan may also keep a subset of the source rows with `requirements.select_retailer_ids`.
@@ -175,16 +230,15 @@ export function resolveCatalogSource(store: Store, actor: Actor, input: JsonObje
     return undefined;
   }
   if (input.products !== undefined) refuse('INVALID_CATALOG_SOURCE', 'Send products or a CSV source, not both.');
-  if (
-    !s ||
-    typeof s !== 'object' ||
-    Array.isArray(s) ||
-    Object.keys(s).some(k => !['kind', 'text', 'columns', 'profile_version'].includes(k)) ||
-    s.kind !== 'csv' ||
-    typeof s.text !== 'string' ||
-    !['canonical', 'profile'].includes(s.columns) ||
-    (s.profile_version !== undefined && (s.columns !== 'profile' || !Number.isSafeInteger(s.profile_version)))
-  )
+  const adapter =
+    s &&
+    typeof s === 'object' &&
+    !Array.isArray(s) &&
+    typeof s.kind === 'string' &&
+    Object.hasOwn(sourceAdapters, s.kind)
+      ? sourceAdapters[s.kind]
+      : undefined;
+  if (!adapter || !adapter.accepts(s))
     refuse(
       'INVALID_CATALOG_SOURCE',
       'A CSV source names kind "csv", its text, columns "canonical" or "profile" and an optional profile_version.',
@@ -192,27 +246,10 @@ export function resolveCatalogSource(store: Store, actor: Actor, input: JsonObje
   const d = catalogDestination(input.gateway);
   if (!d || typeof input.catalog_id !== 'string' || !catalogKey.test(input.catalog_id))
     refuse('INVALID_CATALOG_SOURCE', 'Choose a catalog destination account and its exact native catalog ID.');
-  const table = parseCatalogCsv(s.text);
-  let mapping: CatalogMappingRef | null = null,
-    rows: JsonObject[];
-  if (s.columns === 'profile') {
-    const profile = currentCatalogMapping(store, actor.tenantId, d.gateway, input.catalog_id);
-    if (!profile) refuse('CATALOG_MAPPING_MISSING', 'Save a column mapping for this catalog first.', {}, 409);
-    // The version the caller saw: a mapping changed in between would project other columns.
-    if (s.profile_version !== undefined && s.profile_version !== profile.version)
-      refuse(
-        'CATALOG_MAPPING_CHANGED',
-        'The saved column mapping changed since it was read. Read it again before saving.',
-        {version: profile.version},
-        409,
-      );
-    mapping = catalogMappingRef(profile);
-    rows = mappedCatalogRows(table, d, {
-      columns: profile.columns,
-      fixed_currency: profile.fixed_currency,
-      image_mode: profile.image_mode,
-    });
-  } else rows = canonicalRows(table, d);
+  // The caller's access to the account comes first: its mapping profiles are read only for that account.
+  store.resolveConnection(actor, d.gateway, input.account_id, input.connection_id);
+  const read = adapter.read(store, actor, s, d, input),
+    rows = read.rows;
   if (!rows.length) refuse('INVALID_CATALOG_SOURCE', 'The CSV has no product rows.');
   let products = rows;
   if (select !== undefined) {
@@ -237,11 +274,11 @@ export function resolveCatalogSource(store: Store, actor: Actor, input: JsonObje
   return {
     products,
     source: {
-      source_kind: 'csv',
-      catalog_source_hash: sha256(s.text),
+      source_kind: s.kind as CatalogSourceKind,
+      catalog_source_hash: read.catalog_source_hash,
       source_rows: rows.length,
-      columns: s.columns,
-      mapping_profile: mapping,
+      columns: read.columns,
+      mapping_profile: read.mapping_profile,
       selected_rows: select === undefined ? null : products.length,
     },
   };

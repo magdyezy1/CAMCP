@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {actor, ok, metaWorld} from './fixtures/meta-catalog-world.mjs';
+import {actor, owner, ok, metaWorld} from './fixtures/meta-catalog-world.mjs';
 
 /**
  * COM-03 Phase 2: versioned catalog mapping profiles. Before, the supplier-column mapping existed only in one browser
@@ -62,6 +62,59 @@ test('a saved mapping round-trips by version; an unchanged save keeps its versio
     await f.service.call('amcp_workspace', {action: 'catalog_mapping', ...scope, catalog_id: '556'}, actor),
   );
   assert.equal(other.profile, null);
+});
+
+test('a profile belongs to one account: another account of the same catalog has its own, and no access reads none', async t => {
+  // Several clients may share one workspace (owner decision P1): a profile is read and changed only through the
+  // account it was saved for, so access to one client's account never changes how another client's export is read.
+  const f = world(t);
+  f.store.putConnection(
+    owner,
+    {
+      id: 'm2',
+      tenantId: actor.tenantId,
+      gateway: 'meta_native_action',
+      accounts: ['124'],
+      writeAccounts: ['124'],
+      enabled: true,
+      label: 'Second client',
+      scopes: ['ads_management', 'catalog_management'],
+    },
+    {accessToken: 'synthetic-2'},
+  );
+  const second = {...scope, account_id: '124', connection_id: 'm2'};
+  const saved = ok(await f.save(mapping()));
+  assert.deepEqual(saved.scope, {gateway: 'meta_native_action', account_id: '123', catalog_id: '555'});
+  const elsewhere = ok(await f.service.call('amcp_workspace', {action: 'catalog_mapping', ...second}, actor));
+  assert.equal(elsewhere.profile, null, 'the same catalog under another account has no profile yet');
+  const own = ok(
+    await f.service.call(
+      'amcp_workspace',
+      {
+        action: 'save_catalog_mapping',
+        ...second,
+        requirements: mapping({columns: {...columns, retailer_id: 'Barcode'}}),
+      },
+      actor,
+    ),
+  );
+  assert.equal(own.profile.version, 1, 'its own first version, with its own identity column');
+  assert.notEqual(own.profile.profile_id, saved.profile.profile_id);
+  assert.equal(ok(await f.read()).profile.columns.retailer_id, 'SKU', 'the first account keeps its identity column');
+  // A source for an account the person cannot use is refused before any profile is read.
+  const foreign = await f.service.call(
+    'amcp_workspace',
+    {
+      action: 'catalog_preview',
+      ...scope,
+      account_id: '999',
+      allow_upsert: false,
+      requirements: {source: {kind: 'csv', text: 'SKU,Name\n1,A', columns: 'profile'}},
+    },
+    actor,
+  );
+  assert.equal(foreign.success, false);
+  assert.notEqual(foreign.error.code, 'CATALOG_MAPPING_MISSING');
 });
 
 test('the retailer ID column changes only explicitly, and a concurrent change is refused instead of overwritten', async t => {
