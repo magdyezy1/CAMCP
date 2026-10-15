@@ -48,13 +48,12 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     help('amcp_reporting'),
   amcp_reporting_overview:
     'Use this for saved client reports across accounts, their schedules and Sheets or retained-file exports; to analyse one captured native report, use amcp_reporting. ' +
-    'Safety: no advertising mutations. Sheets exports replace only an AMCP-owned tab and retries never append duplicate rows; destinations, schedules and presentation changes need confirmed:true; missing metrics remain null. ' +
+    'Safety: no advertising mutations. Sheets exports replace only an AMCP-owned tab and retries never append duplicate rows; destinations, schedules and presentation changes need confirmed:true; missing metrics remain null; GA4 and Search Console are measurement context. ' +
     'Core actions: bootstrap (accounts, metrics, entity levels and saved reports), save, get, list and delete_report (named client reports; edits need expected_revision), save_template, delete_template and delete_view, ' +
     'run (a bounded native snapshot, total to monthly, campaign to ad level where qualified), report_pack (summaries, source evidence, PDF/XLSX downloads), ' +
     'export, export_status, retry and cancel; schedule, preview_schedule, update_schedule, pause_schedule, resume_schedule, remove_schedule (delete_schedule: legacy pause alias); ' +
-    'create_spreadsheet, bind_destination (Google Sheets) and bind_file_destination (encrypted local PDF/XLSX files); save_presentation, presentation_profiles and apply_profile_presentation. ' +
-    help('amcp_reporting_overview') +
-    ' Guide: amcp://guides/reporting-overview.',
+    'create_spreadsheet, bind_destination (Google Sheets) and bind_file_destination (encrypted local PDF/XLSX); save_presentation, presentation_profiles and apply_profile_presentation. ' +
+    help('amcp_reporting_overview'),
   amcp_media:
     'Use this to put an image or video into an ad account as a reviewed upload: a file uploaded on the website (source_id; list returns them under sources), a public HTTPS link (source_url), or a public or selected private Google Drive file (drive_url). ' +
     'Safety: the MCP client never downloads bytes; nothing publishes ads or posts; operator role, account write grants and durable idempotency apply; website uploads expire 30 minutes after the upload starts. ' +

@@ -198,6 +198,51 @@ test('the move creates one Overview report and schedule on the verified tab and 
   }
 });
 
+test('the legacy update_reporting_schedule cannot enable a moved schedule or rewrite its move record', async () => {
+  // Regression (wave 3a review): only saveWorkbookSchedule refused enabling a moved schedule. The legacy native
+  // operation merged its arguments over the stored schedule, so is_active:true ran the local schedule beside the
+  // Overview one while the move still read as done, and overview_migration or pause_reason could be overwritten.
+  const f = await fixture();
+  try {
+    const preview = await f.call({action: 'preview_workbook_move', id: f.scheduleId, destination_id: f.destination.id});
+    await f.call({
+      action: 'move_workbook_schedule',
+      id: f.scheduleId,
+      destination_id: f.destination.id,
+      move_version: preview.move_version,
+      confirmed: true,
+    });
+    const reporting = new ReportingService(f.store),
+      update = args => reporting.handle('update_reporting_schedule', {schedule_id: f.scheduleId, ...args}, f.actor);
+    const before = f.store.document(f.tenant, 'reporting_schedule', f.scheduleId);
+    for (const dryRun of [true, false])
+      assert.throws(
+        () => update({is_active: true, dry_run: dryRun}),
+        e => assertRefused(e, 'WORKBOOK_SCHEDULE_MIGRATED', {status: 409}),
+      );
+    // Rewriting the move record, or the pause reason it set, is ignored; the schedule stays moved and paused.
+    assert.throws(
+      () => update({overview_migration: {state: 'reverted'}, pause_reason: null, is_active: true, dry_run: false}),
+      e => assertRefused(e, 'WORKBOOK_SCHEDULE_MIGRATED', {status: 409}),
+    );
+    update({overview_migration: {state: 'reverted'}, pause_reason: null, name: 'Renamed while moved', dry_run: false});
+    const after = f.store.document(f.tenant, 'reporting_schedule', f.scheduleId);
+    assert.equal(after.is_active, false);
+    assert.equal(after.name, 'Renamed while moved', 'other settings still update');
+    assert.equal(after.pause_reason, 'migrated_to_overview');
+    assert.deepEqual(after.overview_migration, before.overview_migration);
+    assert.equal(workbookSchedule(f.store, f.actor, f.scheduleId).active, false);
+    // Undo still restores it, after which the legacy operation may pause and enable it again.
+    await f.call({action: 'undo_workbook_move', id: f.scheduleId, confirmed: true});
+    update({is_active: false, dry_run: false});
+    assert.equal(f.store.document(f.tenant, 'reporting_schedule', f.scheduleId).is_active, false);
+    update({is_active: true, dry_run: false});
+    assert.equal(f.store.document(f.tenant, 'reporting_schedule', f.scheduleId).is_active, true);
+  } finally {
+    f.close();
+  }
+});
+
 test('undo pauses the Overview schedule and restores the local one; a query edited meanwhile stays paused', async () => {
   const f = await fixture();
   try {

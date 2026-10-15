@@ -18,6 +18,7 @@ import {
   revocationTarget,
 } from '../src/provider-revocation.js';
 import {disconnectLocalConnection} from '../src/connection-disconnect.js';
+import {MirrorError} from '../src/errors.js';
 import {assertRefused} from './helpers/assert-refused.js';
 import type {Connection} from '../src/types.js';
 
@@ -517,4 +518,56 @@ test('an oversized provider answer is read only to its first 4 KB', async () => 
     ),
     {outcome: 'token_already_invalid', status: 400},
   );
+});
+
+test('a session check that fails after Google answered keeps the login and reports what Google did', async () => {
+  // Regression (wave 3a review): the session and CSRF recheck after Google's answer threw its own error, which dropped
+  // provider_revocation; the login was kept while its access at Google was already gone, and only the audit said so.
+  const store = new Store(':memory:', master),
+    env = {AMCP_PROVIDER_REVOCATION: 'on'},
+    sent: string[] = [];
+  try {
+    store.putConnection(owner, google, {accessToken, refreshToken});
+    const fetcher = (answer: () => Response): typeof fetch =>
+      (async (url: unknown) => {
+        sent.push(String(url));
+        return answer();
+      }) as typeof fetch;
+    const stale = () => {
+      throw new MirrorError('REAUTH_REQUIRED', 'Confirm it’s you to continue.', {}, 403);
+    };
+    await assert.rejects(
+      disconnectWithProviderRevocation(store, owner, google.gateway, google.id, {
+        env,
+        fetcher: fetcher(() => new Response('', {status: 200})),
+        recheck: stale,
+      }),
+      (e: MirrorError) => {
+        assertRefused(e, 'REAUTH_REQUIRED', {status: 403});
+        assert.deepEqual(e.details.provider_revocation, {
+          provider: 'google',
+          shared_client: true,
+          outcome: 'revoked',
+          status: 200,
+        });
+        return true;
+      },
+    );
+    assert.deepEqual(
+      store.listConnections('local').map(c => c.id),
+      [google.id],
+      'the login is kept, as for any refusal',
+    );
+    // Signed in again, the retry finds the token already invalid at Google and disconnects.
+    const retried = await disconnectWithProviderRevocation(store, owner, google.gateway, google.id, {
+      env,
+      fetcher: fetcher(() => Response.json({error: 'invalid_token'}, {status: 400})),
+      recheck: () => {},
+    });
+    assert.equal((retried.provider_revocation as {outcome: string}).outcome, 'token_already_invalid');
+    assert.deepEqual(store.listConnections('local'), []);
+    assert.equal(sent.length, 2);
+  } finally {
+    store.close();
+  }
 });

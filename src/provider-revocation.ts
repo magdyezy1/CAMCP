@@ -202,8 +202,17 @@ export async function disconnectWithProviderRevocation(
     outcome: result.outcome,
     status: result.status,
   });
-  options.recheck?.();
   const revocation = {provider: target.provider, shared_client: target.shared_client, ...result};
+  // The provider has answered by now. A session or CSRF check that fails afterwards keeps the login, as any refusal
+  // does, but its error carries the provider's answer so the person learns what happened at the provider: after a
+  // revocation, a retry once they are signed in again finds the token already invalid and disconnects.
+  try {
+    options.recheck?.();
+  } catch (e) {
+    if (e instanceof MirrorError)
+      throw new MirrorError(e.code, e.message, {...e.details, provider_revocation: revocation}, e.status, e.retryable);
+    throw e;
+  }
   if (result.outcome === 'refused' || result.outcome === 'unknown')
     throw new MirrorError(
       'PROVIDER_REVOCATION_FAILED',

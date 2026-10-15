@@ -195,6 +195,12 @@ export class ReportingService {
     }
     const id = previous?.id ?? randomUUID(),
       {dry_run, ...changes} = args;
+    // EXP-04: a schedule's move to Reporting overview (its move record and the pause reason it set) is AMCP's own
+    // state; a legacy settings update never writes it, so it cannot mark a moved schedule as not moved.
+    if (kind === 'reporting_schedule') {
+      delete changes.overview_migration;
+      delete changes.pause_reason;
+    }
     noSecrets(changes);
     if (fingerprint(changes) !== fingerprint(redact(changes)))
       bad('Store credentials in Connections, not reporting settings.');
@@ -237,6 +243,15 @@ export class ReportingService {
       if (query.workbook_binding_id !== value.workbook_binding_id)
         throw new MirrorError('REPORT_BINDING_MISMATCH', 'Query and schedule must use the same workbook binding.');
       value.is_active ??= true;
+      // EXP-04: a schedule moved to Reporting overview stays paused here until the move is undone, so the local and the
+      // Overview schedule never run together (saveWorkbookSchedule refuses the same on the website).
+      if (previous?.overview_migration?.state === 'migrated' && value.is_active !== false)
+        throw new MirrorError(
+          'WORKBOOK_SCHEDULE_MIGRATED',
+          'This schedule moved to Reporting overview. Undo the move before enabling it here again.',
+          {},
+          409,
+        );
       Object.assign(value, scheduleClockFields(value));
     }
     bound();

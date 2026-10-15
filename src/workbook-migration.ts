@@ -224,7 +224,10 @@ export function migrateWorkbookSchedule(
           timezone: preview.overview_schedule.timezone,
           destination_id: preview.destination_id,
         },
-        // One creation key per move, so a repeated request after a lost response finds the same schedule.
+        // One creation key per move attempt. The move commits its record and the Overview schedule in this one
+        // transaction, so a repeated request after a lost response does not replay: it finds the schedule already moved
+        // (the already_migrated blocker, WORKBOOK_MIGRATION_UNSUPPORTED) and creates nothing; the schedule shows the move.
+        // Each undo and move again creates another Overview report (attempt-keyed), which counts toward its limit.
         idempotency_key: 'wbm' + sha256(tenant + ':' + preview.id + ':' + attempt).slice(0, 48),
       });
     // A paused local schedule moves as a paused Overview schedule; the owner resumes it there.

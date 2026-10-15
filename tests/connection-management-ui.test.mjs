@@ -354,6 +354,20 @@ test('the disconnect dialog offers revocation at Google only where it is on, unc
       assert.equal(f.node('#toast').textContent, text(message));
       assert.equal(f.node('#confirm-dialog').open, false);
     }
+    // Regression (wave 3a review): an answer without Google's outcome said the access was revoked at Google. It now says
+    // the revocation was not confirmed.
+    for (const unconfirmed of [{success: true}, {success: true, provider_revocation: null}]) {
+      answer = unconfirmed;
+      await f.click({disconnect: 'login-g1'});
+      f.node('#confirm-revoke-provider').checked = true;
+      await submit();
+      assert.equal(
+        f.node('#toast').textContent,
+        text(
+          'Login disconnected from AMCP. AMCP could not confirm that Google revoked its access; remove AMCP in the Google Account’s third-party connections.',
+        ),
+      );
+    }
     // A refusal keeps the dialog open with the reason inside it (a toast would sit behind the modal dialog, outside
     // what assistive technology reads), so the administrator can retry or disconnect locally.
     const refusal =

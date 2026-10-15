@@ -2067,14 +2067,21 @@ $('#confirm-form').addEventListener('submit', async event => {
     $('#confirm-dialog').close();
     currentConnection = null;
     await refresh();
+    // Only the outcome Google gave is claimed: an answer without one (say the server took the local path) never reads
+    // as a revocation that may not have happened.
+    const outcome = result?.provider_revocation?.outcome;
     toast(
       !revoke
         ? uiText('Login disconnected from AMCP.')
-        : result.provider_revocation?.outcome === 'token_already_invalid'
-          ? uiText(
-              'Login disconnected. Google reported that its token no longer worked, so AMCP’s access through it had already ended.',
-            )
-          : uiText('Login disconnected from AMCP and its access revoked at Google.'),
+        : outcome === 'revoked'
+          ? uiText('Login disconnected from AMCP and its access revoked at Google.')
+          : outcome === 'token_already_invalid'
+            ? uiText(
+                'Login disconnected. Google reported that its token no longer worked, so AMCP’s access through it had already ended.',
+              )
+            : uiText(
+                'Login disconnected from AMCP. AMCP could not confirm that Google revoked its access; remove AMCP in the Google Account’s third-party connections.',
+              ),
     );
   } catch (e) {
     if ($('#confirm-dialog').open) error.textContent = errorMessage(e);
