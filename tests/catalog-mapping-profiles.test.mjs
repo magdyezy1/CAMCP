@@ -116,7 +116,7 @@ test('a mapping is refused for unknown fields, missing required columns, unclear
   assert.equal(foreign.success, false);
   const badCatalog = await f.service.call(
     'amcp_workspace',
-    {action: 'catalog_mapping', ...scope, catalog_id: 'not-a-catalog'},
+    {action: 'catalog_mapping', ...scope, catalog_id: '../555'},
     actor,
   );
   assert.equal(badCatalog.success, false);

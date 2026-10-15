@@ -93,8 +93,8 @@ test('AMCP columns need no profile; a source is refused for other columns, missi
   const refusals = [
     [{kind: 'csv', text: csv, columns: 'canonical'}, /AMCP columns accept only product fields/],
     [{kind: 'csv', text: csv, columns: 'profile'}, /Save a column mapping for this catalog first/],
-    [{kind: 'csv', text: canonical, columns: 'canonical', profile_version: 1}, /A CSV source is/],
-    [{kind: 'json', text: canonical, columns: 'canonical'}, /A CSV source is/],
+    [{kind: 'csv', text: canonical, columns: 'canonical', profile_version: 1}, /A CSV source names kind/],
+    [{kind: 'json', text: canonical, columns: 'canonical'}, /A CSV source names kind/],
     [{kind: 'csv', text: 'SKU,SKU\n1,2', columns: 'canonical'}, /unique named CSV columns/],
     [{kind: 'csv', text: 'SKU,Name\n1', columns: 'canonical'}, /match the header columns/],
     [{kind: 'csv', text: 'SKU\n"unclosed', columns: 'canonical'}, /not closed/],

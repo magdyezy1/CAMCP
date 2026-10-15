@@ -5,6 +5,7 @@ import {sha256} from './security.js';
 import {catalogDestination, catalogSourceFields, type CatalogDestination} from './catalog-destinations.js';
 import {catalogRequirement} from './catalog-requirements.js';
 import {
+  catalogKey,
   catalogMappingRef,
   catalogMappingRequired,
   currentCatalogMapping,
@@ -186,10 +187,10 @@ export function resolveCatalogSource(store: Store, actor: Actor, input: JsonObje
   )
     refuse(
       'INVALID_CATALOG_SOURCE',
-      'A CSV source is {kind: "csv", text, columns: "canonical" or "profile", profile_version?}.',
+      'A CSV source names kind "csv", its text, columns "canonical" or "profile" and an optional profile_version.',
     );
   const d = catalogDestination(input.gateway);
-  if (!d || typeof input.catalog_id !== 'string' || !d.catalogId.test(input.catalog_id))
+  if (!d || typeof input.catalog_id !== 'string' || !catalogKey.test(input.catalog_id))
     refuse('INVALID_CATALOG_SOURCE', 'Choose a catalog destination account and its exact native catalog ID.');
   const table = parseCatalogCsv(s.text);
   let mapping: CatalogMappingRef | null = null,

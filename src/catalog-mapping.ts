@@ -32,10 +32,15 @@ export type CatalogMappingRef = {profile_id: string; version: number; profile_ha
 function refuse(code: string, message: string, details: JsonObject = {}, status = 400): never {
   throw new MirrorError(code, message, details, status);
 }
+/**
+ * A native catalog ID as a profile key: the destination's own projection still checks the ID before anything is read
+ * or saved for it (Meta accepts any digits, X a snowflake, Snapchat letters, digits and hyphens).
+ */
+export const catalogKey = /^[A-Za-z0-9-]{1,64}$/;
 /** The destination and catalog a profile belongs to; the caller's access to the account is checked by its action. */
 function mappingDestination(input: JsonObject): CatalogDestination {
   const d = catalogDestination(input.gateway);
-  if (!d || typeof input.catalog_id !== 'string' || !d.catalogId.test(input.catalog_id))
+  if (!d || typeof input.catalog_id !== 'string' || !catalogKey.test(input.catalog_id))
     refuse('INVALID_CATALOG_MAPPING', 'Choose a catalog destination account and its exact native catalog ID.');
   return d;
 }

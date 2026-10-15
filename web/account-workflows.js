@@ -124,6 +124,7 @@ const accountExplanationMessages = new Set([
   'Preview validates supplied product data for a read-only Snapchat comparison. Exact decimal prices are kept as written. No review, draft or provider change is created.',
   'Snapchat changes catalog products only through product feeds. AMCP compares supplied products read-only and saves no draft; fix differences in the feed.',
   'Feed processing can take time, so a comparison shows current catalog evidence, not the next feed result.',
+  'Each part is its own unapproved plan of at most 50 products in one lineage group; approve and run each part separately. Every product still needs its own native review and read-back, and products the source lacks are never deleted.',
   'Choose an exact X product catalog ID and selected X ad account.',
   'X imports require explicit upsert approval: X updates matching product IDs. Create-only imports are not qualified.',
   'X imports require explicit retailer_id, name, price, currency, image_url, url, availability, condition, brand and plain text description.',
@@ -3288,7 +3289,12 @@ function catalogFieldLabel(field) {
       return field;
   }
 }
-function mapProductCSV(table, settings) {
+/**
+ * A supplier export reduced to the columns a mapping selects (COM-03): AMCP projects it on the server with the saved
+ * mapping profile, so only selected columns leave the browser (and, for an image list read by its first URL, only that
+ * URL). Incomplete selections and rows without a required value are refused here, before anything is sent.
+ */
+function selectedCatalogSource(table, settings) {
   const {columns, fixed_currency, image_mode} = settings,
     fields = catalogSourceFields(settings.gateway);
   if (
@@ -3312,22 +3318,34 @@ function mapProductCSV(table, settings) {
   for (const key of required)
     if (!columns[key]) throw Error(uiText('Select a source column for {field}.', {field: catalogFieldLabel(key)}));
   if (!table.rows.length) throw Error(uiText('The CSV has no product rows.'));
-  return table.rows.map((row, index) => {
-    const product = Object.fromEntries(
-      fields
-        .filter(key => columns[key] && row[columns[key]] !== undefined && row[columns[key]] !== '')
-        .map(key => [key, row[columns[key]]]),
-    );
-    if (!columns.currency) product.currency = fixed_currency;
-    if (image_mode === 'first_list' && product.image_url) product.image_url = product.image_url.split(',')[0].trim();
-    for (const key of [...required, 'currency'])
-      if (!product[key]?.trim())
+  const chosen = Object.fromEntries(Object.entries(columns).filter(([, header]) => header)),
+    headers = [...new Set(Object.values(chosen))],
+    // Only the image column read by its first URL is shortened, and only when no other field reads that column.
+    image =
+      image_mode === 'first_list' && Object.values(chosen).filter(header => header === chosen.image_url).length === 1
+        ? chosen.image_url
+        : undefined,
+    encode = value => (/[",\r\n]/.test(value) ? '"' + value.replaceAll('"', '""') + '"' : value);
+  table.rows.forEach((row, index) => {
+    for (const key of [...required, ...(columns.currency ? ['currency'] : [])])
+      if (!row[chosen[key]]?.trim())
         throw Error(uiText('CSV row {row} has no value for {field}.', {row: index + 1, field: catalogFieldLabel(key)}));
-    return product;
   });
+  const lines = [
+    headers.map(encode).join(','),
+    ...table.rows.map(row =>
+      headers
+        .map(header => {
+          const value = row[header] ?? '';
+          return encode(header === image && value ? value.split(',')[0].trim() : value);
+        })
+        .join(','),
+    ),
+  ];
+  return {columns: chosen, text: lines.join('\n')};
 }
 function catalogMappingMarkup() {
-  return `<fieldset id="catalog-csv-mapping"><legend>${esc(uiText('CSV column mapping'))}</legend><label>${esc(uiText('CSV layout'))}<select name="column_mode"><option value="canonical">${esc(uiText('AMCP product columns'))}</option><option value="mapped">${esc(uiText('Map supplier or WooCommerce export columns'))}</option></select></label><div id="catalog-mapping-controls" hidden><button type="button" class="button" id="catalog-load-columns">${esc(uiText('Load columns from the selected file'))}</button><p class="form-note">${esc(uiText('Choose the exact price column and stable retailer ID. Sale dates, tax, stock and product variants are not inferred. Every source row is included.'))}</p><p class="form-note">${esc(uiText('A sale price and its start and end are optional columns; select them only when your source supplies them.'))}</p><div id="catalog-mapping"></div><label>${esc(uiText('Fixed currency when no currency column is selected'))}<input type="text" name="fixed_currency" maxlength="3" placeholder="SAR"></label><label>${esc(uiText('Image column handling'))}<select name="image_mode"><option value="single">${esc(uiText('One literal image URL per row'))}</option><option value="first_list">${esc(uiText('Use the first URL in a comma-separated image list'))}</option></select></label><p class="form-note">${esc(uiText('Only selected product columns are sent for preview. Blank optional fields are omitted from the request.'))}</p></div></fieldset>`;
+  return `<fieldset id="catalog-csv-mapping"><legend>${esc(uiText('CSV column mapping'))}</legend><label>${esc(uiText('CSV layout'))}<select name="column_mode"><option value="canonical">${esc(uiText('AMCP product columns'))}</option><option value="mapped">${esc(uiText('Map supplier or WooCommerce export columns'))}</option></select></label><div id="catalog-mapping-controls" hidden><button type="button" class="button" id="catalog-load-columns">${esc(uiText('Load columns from the selected file'))}</button><p class="form-note">${esc(uiText('Choose the exact price column and stable retailer ID. Sale dates, tax, stock and product variants are not inferred. Every source row is included.'))}</p><p class="form-note">${esc(uiText('A sale price and its start and end are optional columns; select them only when your source supplies them.'))}</p><div id="catalog-mapping"></div><label>${esc(uiText('Fixed currency when no currency column is selected'))}<input type="text" name="fixed_currency" maxlength="3" placeholder="SAR"></label><label>${esc(uiText('Image column handling'))}<select name="image_mode"><option value="single">${esc(uiText('One literal image URL per row'))}</option><option value="first_list">${esc(uiText('Use the first URL in a comma-separated image list'))}</option></select></label><p class="form-note">${esc(uiText('Only the selected columns are sent. AMCP maps them with this catalog’s saved, versioned column mapping, and blank optional values stay out of the products.'))}</p></div></fieldset>`;
 }
 function catalogComparisonState(state) {
   switch (state) {
@@ -4809,10 +4827,54 @@ async function renderCommerce() {
     }
     if (!current()) return;
     if (!table.rows.length) throw Error(uiText('The CSV has no product rows.'));
-    loaded = {file, table, target_key: JSON.stringify([target.gateway, target.account_id, target.connection_id])};
+    // COM-03: the catalog's saved mapping fills the columns it names; only the mapping is read, never the file's rows.
+    const catalog = form.elements.catalog_id.value.trim();
+    let saved = null;
+    if (/^[A-Za-z0-9-]{1,64}$/.test(catalog)) {
+      try {
+        const read = await workspaceCall('workspace', {
+          action: 'catalog_mapping',
+          gateway: target.gateway,
+          account_id: target.account_id,
+          connection_id: target.connection_id,
+          catalog_id: catalog,
+        });
+        if (!current()) return;
+        saved =
+          read?.record_kind === 'catalog_mapping' && read.profile === null
+            ? {version: 0}
+            : read?.record_kind === 'catalog_mapping' &&
+                Number.isSafeInteger(read.profile?.version) &&
+                read.profile.columns &&
+                typeof read.profile.columns === 'object'
+              ? read.profile
+              : null;
+      } catch (error) {
+        if (current()) throw error;
+        return;
+      }
+    }
+    loaded = {
+      file,
+      table,
+      target_key: JSON.stringify([target.gateway, target.account_id, target.connection_id]),
+      mapping: saved ? {catalog_id: catalog, version: saved.version} : null,
+    };
+    const profile = saved?.version ? saved : null,
+      identity = profile?.columns.retailer_id;
     $('#catalog-mapping').innerHTML =
-      `<p>${esc(uiText('{rows} product rows loaded. Review each selected source column.', {rows: table.rows.length}))}</p><div class="work-filter">${fields.map(field => `<label>${esc(catalogFieldLabel(field))}<select id="catalog-map-${field}"><option value="">${esc(uiText('No column selected'))}</option>${table.headers.map(header => `<option value="${esc(header)}">${esc(header)}</option>`).join('')}</select></label>`).join('')}</div>`;
-    for (const key of fields) $('#catalog-map-' + key).value = table.headers.includes(key) ? key : '';
+      `<p>${esc(uiText('{rows} product rows loaded. Review each selected source column.', {rows: table.rows.length}))}</p>${profile ? `<p class="form-note">${esc(uiText('Saved mapping version {version} of this catalog filled the columns it names. Products are identified by the column {column}.', {version: profile.version, column: identity}))}</p>` : ''}<div class="work-filter">${fields.map(field => `<label>${esc(catalogFieldLabel(field))}<select id="catalog-map-${field}"><option value="">${esc(uiText('No column selected'))}</option>${table.headers.map(header => `<option value="${esc(header)}">${esc(header)}</option>`).join('')}</select></label>`).join('')}</div>${profile ? `<label><input type="checkbox" id="catalog-replace-identity"> ${esc(uiText('Identify products by another retailer ID column from now on'))}</label>` : ''}`;
+    for (const key of fields)
+      $('#catalog-map-' + key).value =
+        profile && table.headers.includes(profile.columns[key])
+          ? profile.columns[key]
+          : !profile && table.headers.includes(key)
+            ? key
+            : '';
+    if (profile) {
+      form.elements.fixed_currency.value = profile.fixed_currency;
+      form.elements.image_mode.value = profile.image_mode;
+    }
   });
   workspaceBind('#catalog-import', async form => {
     const current = begin();
@@ -4829,7 +4891,7 @@ async function renderCommerce() {
       name: form.elements.name.value.trim(),
       allow_upsert: form.elements.allow_upsert.value === 'true',
     };
-    let request, out;
+    let request, out, source;
     try {
       let products;
       if (useWoo) {
@@ -4847,24 +4909,65 @@ async function renderCommerce() {
           loaded.target_key !== JSON.stringify([binding.gateway, binding.account_id, binding.connection_id])
         )
           throw Error(uiText('Load the selected CSV columns before previewing mapped products.'));
-        products = mapProductCSV(loaded.table, {
+        const selected = selectedCatalogSource(loaded.table, {
           gateway: binding.gateway,
           columns: Object.fromEntries(catalogSourceFields(binding.gateway).map(k => [k, $('#catalog-map-' + k).value])),
           fixed_currency: form.elements.fixed_currency.value.trim(),
           image_mode: form.elements.image_mode.value,
         });
+        // COM-03: the mapping is saved as the catalog's versioned profile and AMCP projects the selected columns with
+        // it, so the preview, comparison and saved plan all name the same source and mapping version.
+        const mapping = await workspaceCall('workspace', {
+          action: 'save_catalog_mapping',
+          gateway: binding.gateway,
+          account_id: binding.account_id,
+          connection_id: binding.connection_id,
+          catalog_id: settings.catalog_id,
+          ...(loaded.mapping?.catalog_id === settings.catalog_id ? {revision: loaded.mapping.version} : {}),
+          requirements: {
+            columns: selected.columns,
+            fixed_currency: form.elements.fixed_currency.value.trim(),
+            image_mode: form.elements.image_mode.value,
+            ...($('#catalog-replace-identity')?.checked ? {replace_identity_column: true} : {}),
+          },
+        });
+        if (!current()) return;
+        if (mapping?.record_kind !== 'catalog_mapping' || !Number.isSafeInteger(mapping.profile?.version))
+          throw Error(uiText('The column mapping could not be confirmed. Load the CSV columns again.'));
+        loaded.mapping = {catalog_id: settings.catalog_id, version: mapping.profile.version};
+        source = {kind: 'csv', text: selected.text, columns: 'profile', profile_version: mapping.profile.version};
+        out = await workspaceCall('workspace', {action: 'catalog_preview', ...settings, requirements: {source}});
+        if (!current()) return;
+        products = out?.supplied_products;
+        if (
+          !Array.isArray(products) ||
+          !products.length ||
+          products.some(p => !p || typeof p !== 'object' || typeof p.retailer_id !== 'string') ||
+          out.source?.columns !== 'profile' ||
+          out.source?.mapping_profile?.version !== mapping.profile.version
+        )
+          throw Error(uiText('The column mapping could not be confirmed. Load the CSV columns again.'));
       } else {
         const text = await file.text();
         if (!current()) return;
         products = parseProductCSV(text, binding.gateway);
       }
       request = {...settings, products};
-      out = await workspaceCall('workspace', {action: 'catalog_preview', ...request});
+      if (!source) out = await workspaceCall('workspace', {action: 'catalog_preview', ...request});
     } catch (error) {
       if (current()) throw error;
       return;
     }
     if (!current()) return;
+    // A mapped CSV reaches AMCP as its source; the server projects it again for every comparison and plan (COM-03).
+    const sourced = (extra = {}, requirements = {}) =>
+      source
+        ? {
+            ...Object.fromEntries(Object.entries(request).filter(([key]) => key !== 'products')),
+            ...extra,
+            requirements: {source, ...requirements},
+          }
+        : {...request, ...extra, ...(Object.keys(requirements).length ? {requirements} : {})};
     // COM-02 D: Snapchat products change only through feeds, so a Snapchat preview leads to a comparison and nothing else.
     const feedOnly = request.gateway === 'snapchat_native_action';
     result.innerHTML =
@@ -4904,8 +5007,21 @@ async function renderCommerce() {
       }
       comparison.innerHTML = `<p role="status">${esc(inspectOther ? uiText('Reading other listed X products. No product changes are submitted.') : uiText('Reading supplied retailer IDs. No product changes are submitted.'))}</p>`;
       try {
-        const evidence = await workspaceCall('workspace', {action: 'catalog_compare', ...comparisonRequest});
+        const evidence = await workspaceCall(
+          'workspace',
+          sourced({
+            action: 'catalog_compare',
+            ...(inspectOther ? {inspect_other_listed_products: true, absent_source_policy: 'retain'} : {}),
+          }),
+        );
         if (!active()) return;
+        // The comparison a plan saved from it names in its lineage (COM-03); a stale reference is refused by AMCP.
+        const lineage =
+          typeof evidence?.lineage_token === 'string' &&
+          evidence.lineage_token.startsWith('v1.') &&
+          evidence.lineage_token.length <= 32768
+            ? {comparison_token: evidence.lineage_token}
+            : {};
         const html = catalogComparisonMarkup(evidence, comparisonRequest, out);
         if (!active()) return;
         comparison.innerHTML = html;
@@ -5000,14 +5116,18 @@ async function renderCommerce() {
               .map(item => item.retailer_id);
             if (!retire_retailer_ids.length) throw Error(uiText('Select at least one existing product to retire.'));
             const retire_availability = $('#catalog-retire-availability').value,
-              products = request.products.filter(p => retire_retailer_ids.includes(p.retailer_id));
+              products = request.products.filter(p => retire_retailer_ids.includes(p.retailer_id)),
+              retirement = {retire_retailer_ids, retire_availability, ...lineage};
             try {
-              const plan = await workspaceCall('workspace', {
-                action: 'catalog_plan',
-                ...request,
-                products,
-                requirements: {retire_retailer_ids, retire_availability},
-              });
+              const plan = await workspaceCall(
+                'workspace',
+                source
+                  ? sourced(
+                      {action: 'catalog_plan'},
+                      {select_retailer_ids: products.map(p => p.retailer_id), ...retirement},
+                    )
+                  : {action: 'catalog_plan', ...request, products, requirements: retirement},
+              );
               if (active()) await navigate('/campaigns?id=' + encodeURIComponent(plan.id));
             } catch (error) {
               if (active()) throw error;
@@ -5020,7 +5140,12 @@ async function renderCommerce() {
               products = request.products.filter(p => selected.has(p.retailer_id));
             if (!products.length) return;
             try {
-              const plan = await workspaceCall('workspace', {action: 'catalog_plan', ...request, products});
+              const plan = await workspaceCall(
+                'workspace',
+                source
+                  ? sourced({action: 'catalog_plan'}, {select_retailer_ids: products.map(p => p.retailer_id), ...lineage})
+                  : {action: 'catalog_plan', ...request, products, ...(lineage.comparison_token ? {requirements: lineage} : {})},
+              );
               if (active()) await navigate('/campaigns?id=' + encodeURIComponent(plan.id));
             } catch (error) {
               if (active()) throw error;
@@ -5044,7 +5169,7 @@ async function renderCommerce() {
       workspaceBind('#create-catalog-plan', async () => {
         if (!current()) return;
         try {
-          const plan = await workspaceCall('workspace', {action: 'catalog_plan', ...request});
+          const plan = await workspaceCall('workspace', sourced({action: 'catalog_plan'}));
           if (current()) await navigate('/campaigns?id=' + encodeURIComponent(plan.id));
         } catch (error) {
           if (current()) throw error;

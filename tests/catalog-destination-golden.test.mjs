@@ -39,6 +39,8 @@ const additive = new Set([
   'sale_price_effective_date',
   // COM-02 E: the grouped records that keep a supplied SKU's absence unestablished, named beside the items.
   'variant_groups',
+  // COM-03 Phase 2: the sealed reference a plan saved from this comparison names in its lineage.
+  'lineage_token',
 ]);
 /** Every pinned value is unchanged; the current response may only add the fields named above. */
 function assertAdditive(current, pinned, path) {
