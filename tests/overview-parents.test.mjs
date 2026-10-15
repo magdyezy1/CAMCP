@@ -9,7 +9,9 @@ import {
   detailParentLimit,
   detailParentsLimitedWarning,
   detailParentsUnavailableWarning,
+  optionalReadRefused,
 } from '../dist/src/overview-parents.js';
+import {MirrorError} from '../dist/src/errors.js';
 import {
   overviewGranularityFixture,
   granularSource,
@@ -395,4 +397,32 @@ test('RPT-07: the parent campaign field lists retained campaigns as choices, esc
   const plain = html('en', {connection_id: 'c', account_id: 'a', parent_campaigns: null});
   assert.doesNotMatch(plain, /datalist|list=/);
   assert.match(plain, /Parent campaign UUID for ad squads/);
+});
+
+test('RPT-07: only a provider refusal skips an optional metadata read; AMCP access refusals and malformed answers fail the source', () => {
+  // Regression: the LinkedIn, Apple and Reddit metadata reads judged a refusal by HTTP status alone, so an AMCP scope or
+  // account refusal (HTTP 403) kept collecting with unknown names or parents instead of failing the source.
+  for (const [code, status] of [
+    ['PLATFORM_ERROR', 403],
+    ['PROVIDER_PERMISSION_MISSING', 400],
+    ['INSUFFICIENT_SCOPE', 403],
+    ['NOT_FOUND', 404],
+    ['INCOMPLETE_REPORT', 400],
+  ])
+    assert.equal(optionalReadRefused(new MirrorError(code, 'Synthetic', {}, status)), true, code);
+  for (const error of [
+    new MirrorError('CONNECTION_REQUIRED', 'Synthetic', {}, 403),
+    new MirrorError('ACCOUNT_SCOPE_MISMATCH', 'Synthetic', {}, 403),
+    new MirrorError('ACCOUNT_REQUIRED', 'Synthetic', {}, 403),
+    new MirrorError('RESOURCE_SCOPE_REQUIRED', 'Synthetic', {}, 403),
+    new MirrorError('CONNECTION_AUTHORITY_CHANGED', 'Synthetic'),
+    new MirrorError('MEMBERSHIP_REVOKED', 'Synthetic', {}, 403),
+    new MirrorError('REPORT_SHAPE_CHANGED', 'Synthetic', {}, 400),
+    new MirrorError('REPORT_ACCOUNT_MISMATCH', 'Synthetic', {}, 403),
+    new MirrorError('PLATFORM_RATE_LIMIT', 'Synthetic', {}, 429, true),
+    new MirrorError('PLATFORM_ERROR', 'Synthetic', {}, 403, true),
+    new MirrorError('PLATFORM_ERROR', 'Synthetic', {}, 500),
+    new Error('Synthetic'),
+  ])
+    assert.equal(optionalReadRefused(error), false, error.code ?? error.message);
 });

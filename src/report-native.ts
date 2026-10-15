@@ -20,7 +20,7 @@ import {metaPrefix} from './meta-version.js';
 import {metaWindowsOrdered} from './meta-attribution-windows.js';
 import {linkedInCampaignMetadata, linkedInCampaignPeriod} from './linkedin-reporting.js';
 import {campaignAttributionProfile, overviewSourceLevel, collectDetailedOverview} from './overview-granularity.js';
-import {detailParentsUnavailableWarning, type DetailParentCache} from './overview-parents.js';
+import {detailParentsUnavailableWarning, optionalReadRefused, type DetailParentCache} from './overview-parents.js';
 import {
   appleDetail,
   microsoftDetail,
@@ -949,15 +949,8 @@ export class NativeCampaignReports {
           for (const urn of missing) known.campaigns[urn] = read.campaigns[urn] ?? {name: null, objective_type: null};
         } catch (e) {
           // Only a provider refusal of this optional read keeps IDs. A foreign account, malformed or partial metadata,
-          // a retryable failure, or a revoked connection or credential fails the source.
-          if (
-            !(e instanceof MirrorError) ||
-            e.retryable ||
-            e.code.startsWith('REPORT_') ||
-            e.code === 'CONNECTION_REQUIRED' ||
-            ![400, 403, 404].includes(e.status)
-          )
-            throw e;
+          // a retryable failure, or a revoked connection, changed login or scope refusal fails the source.
+          if (!optionalReadRefused(e)) throw e;
           known.unavailable = true;
         }
       if (lookup) lookup.linkedinCampaigns = known;
@@ -1021,11 +1014,10 @@ export class NativeCampaignReports {
             ),
           );
         } catch (e) {
-          if (
-            !(e instanceof MirrorError) ||
-            e.retryable ||
-            (e.code !== 'INCOMPLETE_REPORT' && ![400, 403, 404].includes(e.status))
-          )
+          // Only a provider refusal (HTTP 400/403/404) or a line item collection above the page bound
+          // (INCOMPLETE_REPORT) keeps objectives unknown. A malformed line item, a retryable failure, or a removed
+          // connection, changed login or scope refusal fails the source, as for the LinkedIn campaign metadata read.
+          if (!(e instanceof MirrorError && e.code === 'INCOMPLETE_REPORT' && !e.retryable) && !optionalReadRefused(e))
             throw e;
           objectives = {unavailable: true, campaigns: {}};
         }
@@ -1232,13 +1224,7 @@ export class NativeCampaignReports {
           ]);
         } catch (e) {
           // Only a provider refusal of these reads keeps the rows with unknown parents (as for other detail levels).
-          if (
-            !(e instanceof MirrorError) ||
-            e.retryable ||
-            e.code.startsWith('REPORT_') ||
-            ![400, 403, 404].includes(e.status)
-          )
-            throw e;
+          if (!optionalReadRefused(e)) throw e;
           lists.campaigns = lists.adGroups = lists.ads = [];
           warnings.push(detailParentsUnavailableWarning);
         }
@@ -1319,13 +1305,8 @@ export class NativeCampaignReports {
           lists.adGroups = await named('ad_groups', wanted('ad_group_id'));
           if (detail === 'ad') lists.ads = await named('ads', wanted('ad_id'));
         } catch (e) {
-          if (
-            !(e instanceof MirrorError) ||
-            e.retryable ||
-            e.code.startsWith('REPORT_') ||
-            ![400, 403, 404].includes(e.status)
-          )
-            throw e;
+          // As for Apple: only a provider refusal keeps IDs; AMCP access refusals and malformed lists fail the source.
+          if (!optionalReadRefused(e)) throw e;
           lists.adGroups = lists.ads = [];
           warnings.push(
             'Reddit ad group and ad names could not be read, so rows show IDs; parents still come from the report.',

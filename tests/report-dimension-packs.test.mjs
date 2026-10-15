@@ -11,7 +11,7 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {reportPreset, reportPresets} from '../dist/src/report-presets.js';
 import {campaignAttributionProfile, overviewSourceLevel} from '../dist/src/overview-granularity.js';
-import {metaWindowsValid} from '../dist/src/meta-attribution-windows.js';
+import {metaWindowsMessage, metaWindowsValid} from '../dist/src/meta-attribution-windows.js';
 import {evidenceWorkbook} from '../dist/src/evidence-artifacts.js';
 import {googleEvidenceCustomer} from './fixtures/google-evidence-data.mjs';
 
@@ -428,6 +428,11 @@ test('Meta windows: 28d_click and 1d_ev are explicit choices; two click windows 
     () => campaignAttributionProfile({platform: 'meta', report_options: {attribution_windows: ['7d_view']}}),
     /at most one click window/,
   );
+  // The refusal is one shared constant, which the static Arabic inspectors cannot see; its translation is pinned here.
+  const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
+  assert.match(catalog[metaWindowsMessage], /[؀-ۿ]/u);
+  for (const token of ['1d_click', '7d_click', '28d_click', '1d_view', '1d_ev'])
+    assert.ok(catalog[metaWindowsMessage].includes(token), token);
 });
 
 test('the website names the packs and offers the new Meta windows in English and Arabic', () => {

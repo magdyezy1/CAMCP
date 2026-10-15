@@ -342,7 +342,7 @@ shows disabled entries with their reason.
 | TikTok | Integrated campaign report plus objective inventory |
 | Snapchat | Campaign totals/inventory and account-local day boundaries |
 | LinkedIn | Campaign adAnalytics with verified account currency, native UTC period/completion checks and explicit unknown conversion attribution. Campaign names and objectives come from one bounded read of the account's own campaigns per job (current metadata, not delivery-time values); a campaign of another account refuses the source, a refused read keeps IDs with a warning. Objective override when omitted |
-| X Ads | Active-entities request planning; current documented placements ALL_ON_TWITTER, SPOTLIGHT and TREND; separate web and mobile conversion requests; resumable hourly batches and explicit partial-coverage flags |
+| X Ads | Active-entities request planning; current documented placements ALL_ON_TWITTER, SPOTLIGHT and TREND; separate web and mobile conversion requests; resumable hourly batches and explicit partial-coverage flags. Campaign objectives come from one bounded read of the account's line items per job (current metadata): a campaign whose line items share one objective takes it, mixed objectives stay unknown with a warning, and a refused or oversized read keeps every objective unknown |
 | Microsoft Ads | Durable Submit/Poll campaign, ad group or ad report in the account time zone and secure server-side CSV download |
 | Apple Ads | Campaign, ad group or ad report with explicit UTC range; detailed parents from the account's own records |
 | Reddit Ads | Campaign, ad group or ad metrics/inventory, spend micro-units and explicit native conversion definitions |

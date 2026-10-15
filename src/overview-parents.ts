@@ -63,6 +63,32 @@ const refused = (message: string): never => {
 };
 const batches = <T>(values: T[], size: number) =>
   Array.from({length: Math.ceil(values.length / size)}, (_, i) => values.slice(i * size, i * size + size));
+/** AMCP's own access and binding refusals: they fail the source, since only the provider can refuse an optional read. */
+export const accessRefusalCodes: ReadonlySet<string> = new Set([
+  'CONNECTION_REQUIRED',
+  'CONNECTION_AUTHORITY_CHANGED',
+  'RESOURCE_SCOPE_REQUIRED',
+  'ACCOUNT_SCOPE_MISMATCH',
+  'ACCOUNT_REQUIRED',
+  'UNAUTHORIZED',
+  'FORBIDDEN',
+  'MEMBERSHIP_REVOKED',
+  'ACCOUNT_ACCESS_REVOKED',
+]);
+/**
+ * Whether `e` is a provider refusal (HTTP 400, 403 or 404) of an optional metadata read (names, objectives, parents),
+ * after which the rows stay with unknown values and a warning. A malformed or partial response (REPORT_*), a retryable
+ * failure, or a removed connection, changed login or scope refusal (accessRefusalCodes) fails the source instead.
+ */
+export function optionalReadRefused(e: unknown): e is MirrorError {
+  return (
+    e instanceof MirrorError &&
+    !e.retryable &&
+    !e.code.startsWith('REPORT_') &&
+    !accessRefusalCodes.has(e.code) &&
+    [400, 403, 404].includes(e.status)
+  );
+}
 
 /**
  * Reads the parents of `ids` not yet in `cache` and returns the parents of every requested ID, the lineage of the
@@ -336,11 +362,8 @@ export async function detailParents(
       if (
         !(e instanceof MirrorError) ||
         e.retryable ||
-        (e.code !== 'DETAIL_PARENTS_REFUSED' &&
-          e.code !== 'PLATFORM_ERROR' &&
-          (e.code.startsWith('REPORT_') ||
-            ['CONNECTION_REQUIRED', 'CONNECTION_AUTHORITY_CHANGED', 'RESOURCE_SCOPE_REQUIRED'].includes(e.code) ||
-            ![400, 403, 404].includes(e.status)))
+        accessRefusalCodes.has(e.code) ||
+        (e.code !== 'DETAIL_PARENTS_REFUSED' && e.code !== 'PLATFORM_ERROR' && !optionalReadRefused(e))
       )
         throw e;
       cache.unavailable = true;
