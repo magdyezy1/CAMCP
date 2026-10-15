@@ -258,7 +258,7 @@ test('a token limited to client A cannot list, read, report on or prepare for cl
     assert.equal(plans.success, true);
     assert.ok(!JSON.stringify(plans).includes(marker), JSON.stringify(plans));
     const plan = await f.service.call('amcp_campaign', {action: 'get', id: f.planId}, f.scoped);
-    assert.equal(plan.success, false, 'B’s plan is not readable through a client A token');
+    assert.equal((plan.error as JsonObject)?.code, 'FORBIDDEN', 'B’s plan is not readable through a client A token');
     assert.equal(f.requests.length, 0);
     // Audit rows of the limited token name its set.
     const audited = f.store.db
