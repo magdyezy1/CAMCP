@@ -1246,6 +1246,8 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `allocation` | A constrained allocation proposal; never a budget change. | **`id`**, **`options`** | no provider request | reader |
 | `preview_allocation_plan` | Reads current budgets and previews the allocation as draft steps. | **`id`**, **`options`**, `conversion` | provider reads; saves allocation_preview | operator |
 | `create_allocation_plan` | Saves the previewed allocation as an unapproved campaign plan. | **`id`**, **`preview_id`**, **`preview_hash`**, **`confirmed`** | provider reads; saves campaign_run | operator |
+| `allocation_outcome` | The outcome review of a verified allocation plan (id): its closed-period window, state and, once captured, realized results beside the proposal. | **`id`** | no provider request; saves allocation_outcome | reader |
+| `capture_allocation_outcome` | After the outcome window closes, captures the same entities with the proposal’s guided preset and saves the observational comparison. | **`id`** | provider reads; saves decision_report, allocation_outcome | reader |
 | `search_exclusion_candidates` | Search terms of a Google report that could be excluded. | **`id`**, `options`, `offset`, `limit` | no provider request | reader |
 | `preview_search_exclusions` | Reads the original ad groups and previews exact-negative exclusions. | **`id`**, **`ids`**, `options` | provider reads; saves search_exclusion_preview | operator |
 | `create_search_exclusion_plan` | Saves the previewed exclusions as an unapproved campaign plan. | **`id`**, **`preview_id`**, **`preview_hash`**, **`confirmed`** | provider reads; saves campaign_run | operator |

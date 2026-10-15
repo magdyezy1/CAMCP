@@ -41,16 +41,16 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
   amcp_reporting:
     'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. ' +
     'For saved client reports across platforms, schedules and Sheets exports, use amcp_reporting_overview. ' +
-    'Safety: no advertising writes from reporting. A saved plan is an unapproved draft that still needs native review, spending acknowledgement and read-back. Missing metrics stay unknown; most attribution windows and completeness remain declared; partial or changed evidence is refused rather than presented as complete. ' +
-    'Core actions: capture_presets (guided provider reports), capture_preset and capture (bounded native reads kept with source hashes), overview_sources and capture_overview, list and get (metadata pages; get takes row_query and returns an xlsx_path), ' +
-    'analyze (pacing, anomaly, fatigue and search-waste recommendations), reconcile_report and reconcile (against a retained or declared reference), combine, scenarios, ' +
-    'calibrate_allocation, allocation_candidates, allocation, preview_allocation_plan and create_allocation_plan, search_exclusion_candidates, preview_search_exclusions and create_search_exclusion_plan. ' +
+    'Safety: no advertising writes from reporting. A saved plan is an unapproved draft that still needs native review, spending acknowledgement and read-back. Missing metrics stay unknown; most attribution windows and completeness remain declared; partial or changed evidence is refused. ' +
+    'Core actions: capture_presets, capture_preset and capture (bounded, source-hashed native reads), overview_sources and capture_overview, list and get (row_query, xlsx_path), ' +
+    'analyze (pacing, anomaly, fatigue and search-waste recommendations), reconcile_report and reconcile, combine, scenarios, ' +
+    'calibrate_allocation, allocation_candidates, allocation, preview_allocation_plan and create_allocation_plan, allocation_outcome and capture_allocation_outcome (a verified plan’s next closed period), search_exclusion_candidates, preview_search_exclusions and create_search_exclusion_plan. ' +
     help('amcp_reporting'),
   amcp_reporting_overview:
     'Use this for saved client reports across platforms and accounts, their schedules and Sheets or file exports; to analyse one captured native report, use amcp_reporting. ' +
     'Safety: no advertising mutations. Sheets exports replace only an AMCP-owned tab and never append duplicate rows; destinations, schedules and presentation changes need confirmed:true; missing metrics remain null; GA4 and Search Console are measurement context. ' +
     'Core actions: bootstrap (accounts, metrics, levels and saved reports), save, get, list and delete_report (client reports; edits need expected_revision), save_template, delete_template and delete_view, ' +
-    'run (a bounded total, daily, weekly or monthly snapshot at campaign, ad-set/ad-group or ad level), compare and compare_candidates (deltas against an earlier equal window; run compare:"previous_period" pairs one), report_pack (summaries, evidence and PDF/XLSX), ' +
+    'run (a bounded total, daily, weekly or monthly snapshot at campaign, ad-set/ad-group or ad level), compare and compare_candidates (deltas against an earlier equal window), report_pack (summaries, evidence and PDF/XLSX), ' +
     'export, export_status, retry and cancel; schedule, preview_schedule, update_schedule, pause_schedule, resume_schedule, remove_schedule; ' +
     'create_spreadsheet, bind_destination (Google Sheets) and bind_file_destination (encrypted files); save_presentation, presentation_profiles and apply_profile_presentation. ' +
     help('amcp_reporting_overview') +
