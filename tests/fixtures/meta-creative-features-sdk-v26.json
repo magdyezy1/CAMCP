@@ -1,0 +1,65 @@
+{
+  "api_version": "v26.0",
+  "sdk_tag": "26.0.2",
+  "evidence": "transcribed",
+  "checked_at": null,
+  "pin": "node tools/meta-creative-features.mjs --source-dir <directory with the facebook-python-business-sdk 26.0.2 adobjects files>",
+  "sources": {
+    "adcreativefeaturesspec": {
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/adcreativefeaturesspec.py",
+      "sha256": null
+    },
+    "adcreativefeaturedetails": {
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/adcreativefeaturedetails.py",
+      "sha256": null
+    },
+    "adcreativedegreesoffreedomspec": {
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/adcreativedegreesoffreedomspec.py",
+      "sha256": null
+    },
+    "adcreative": {
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/adcreative.py",
+      "sha256": null
+    },
+    "adaccount": {
+      "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/adaccount.py",
+      "sha256": null
+    }
+  },
+  "routes": {
+    "write": {
+      "method": "POST",
+      "edge": "/adcreatives"
+    },
+    "read": {
+      "class": "AdCreative",
+      "field": "degrees_of_freedom_spec"
+    }
+  },
+  "types": {
+    "AdAccount.create_ad_creative degrees_of_freedom_spec": "Object",
+    "AdCreative.degrees_of_freedom_spec": "AdCreativeDegreesOfFreedomSpec",
+    "AdCreativeDegreesOfFreedomSpec.creative_features_spec": "AdCreativeFeaturesSpec",
+    "AdCreativeFeatureDetails.enroll_status": "string"
+  },
+  "accepted": [
+    "adapt_to_placement",
+    "add_text_overlay",
+    "audio",
+    "description_automation",
+    "enhance_cta",
+    "image_animation",
+    "image_background_gen",
+    "image_brightness_and_contrast",
+    "image_templates",
+    "image_touchups",
+    "image_uncrop",
+    "inline_comment",
+    "reveal_details_over_time",
+    "site_extensions",
+    "text_optimizations",
+    "video_auto_crop"
+  ],
+  "enroll_status": ["OPT_IN", "OPT_OUT"],
+  "meaning": "Transcribed from the SDK classes named in sources; the files are not hashed yet. The pin command checks every accepted feature against the 26.0.2 files and replaces this record with hashed SDK evidence (evidence: sdk_files, with sdk_features listing every feature of the release). Until then the list only narrows what AMCP sends: a feature it omits is refused locally, and a choice Meta does not keep is not read back, so verification never reports it as verified."
+}

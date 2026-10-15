@@ -1,0 +1,408 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {Store} from '../dist/src/store.js';
+import {Registry} from '../dist/src/catalog.js';
+import {MirrorService} from '../dist/src/service.js';
+import {NativeTransport} from '../dist/src/transport.js';
+import {assertWriteShape} from '../dist/src/write-shape.js';
+import {writeImpact} from '../dist/src/write-impact.js';
+import {MirrorError, errorResult} from '../dist/src/errors.js';
+import {metaApiVersion} from '../dist/src/meta-version.js';
+import {
+  metaCreativeFeatureBundles,
+  metaCreativeFeatureSdkTag,
+  metaCreativeFeatures,
+  metaEnrollStatuses,
+} from '../dist/src/meta-creative-features.js';
+import {metaSdkTag} from '../tools/meta-sdk.mjs';
+import {creativeFeatureEvidence, sdkModules} from '../tools/meta-creative-features.mjs';
+
+/**
+ * Advantage+ creative features chosen one by one (PRV-06 C). Meta's Standard Enhancements page (read 2026-10-08 by
+ * the engineering review): from Marketing API v22.0 the bundle is no longer toggled; each Advantage+ creative feature is
+ * opted in or out in degrees_of_freedom_spec.creative_features_spec, and the page does not say what a creative made
+ * through the API gets for a feature it does not list. The creative contract accepts explicit choices for the features
+ * of Meta's SDK 26.0.2 it reviews, says them in the review, never chooses for the user, and compares them on read-back.
+ * Before PRV-06 the contract refused degrees_of_freedom_spec as an unsupported field.
+ */
+const actor = {tenantId: 'meta-features', userId: 'operator', role: 'operator'},
+  admin = {...actor, role: 'admin'},
+  gateway = 'meta_native_action';
+const story = {page_id: '500', link_data: {link: 'https://example.test/', message: 'Hello'}};
+const spec = features => ({creative_features_spec: features});
+const choice = enroll_status => ({enroll_status});
+const chosen = spec({image_touchups: choice('OPT_OUT'), text_optimizations: choice('OPT_IN')});
+const plan = (path, body, action = 'meta_ad_account_id_adcreatives_create') => ({
+  gateway,
+  accountId: '123',
+  action,
+  method: 'POST',
+  path,
+  query: {},
+  headers: {},
+  body,
+  readOnly: false,
+  destructive: false,
+  requiresConfirmation: true,
+  evidence: 'synthetic',
+  warnings: [],
+});
+const creative = (extra, version = 'v26.0') =>
+  plan('/' + version + '/act_123/adcreatives', {name: 'Creative', object_story_spec: story, ...extra});
+const refused = (p, code, check = () => true) =>
+  assert.throws(
+    () => assertWriteShape(p),
+    e => e instanceof MirrorError && e.code === code && check(e),
+    JSON.stringify(p.body),
+  );
+
+test('explicit Advantage+ creative feature choices are accepted at Graph API v26.0 (regression: the field was refused)', () => {
+  assertWriteShape(creative({degrees_of_freedom_spec: chosen}));
+  // Every reviewed feature takes either choice, and one request may choose all of them.
+  assertWriteShape(
+    creative({
+      degrees_of_freedom_spec: spec(
+        Object.fromEntries(metaCreativeFeatures.map((f, i) => [f, choice(metaEnrollStatuses[i % 2])])),
+      ),
+    }),
+  );
+  // The shop opt-out and the feature choices are independent fields of one creative.
+  assertWriteShape(
+    creative({degrees_of_freedom_spec: chosen, destination_spec: {destination_type: 'WEBSITE_AND_SHOP_OPT_OUT'}}),
+  );
+});
+
+test('a feature the contract does not review, or a bundle, is refused naming it before anything is read', () => {
+  refused(
+    creative({degrees_of_freedom_spec: spec({image_touchups: choice('OPT_OUT'), not_a_feature: choice('OPT_OUT')})}),
+    'META_ADVANTAGE_CREATIVE_FEATURE_UNAVAILABLE',
+    e =>
+      e.details.field === 'degrees_of_freedom_spec.creative_features_spec.not_a_feature' &&
+      e.details.unsupported_features.join() === 'not_a_feature' &&
+      e.details.supported_features.length === metaCreativeFeatures.length &&
+      e.details.sdk_tag === '26.0.2',
+  );
+  for (const bundle of metaCreativeFeatureBundles)
+    refused(
+      creative({degrees_of_freedom_spec: spec({[bundle]: choice('OPT_OUT')})}),
+      'META_ADVANTAGE_CREATIVE_FEATURE_UNAVAILABLE',
+      e => e.details.bundles.join() === bundle,
+    );
+  // Case matters: Meta's field names are lowercase.
+  refused(
+    creative({degrees_of_freedom_spec: spec({IMAGE_TOUCHUPS: choice('OPT_OUT')})}),
+    'META_ADVANTAGE_CREATIVE_FEATURE_UNAVAILABLE',
+  );
+});
+
+test('every listed feature needs an explicit OPT_IN or OPT_OUT and nothing else; the remedy says to ask the user', () => {
+  for (const value of [
+    {},
+    choice('opt_out'),
+    choice('DEFAULT'),
+    choice(null),
+    'OPT_OUT',
+    null,
+    [choice('OPT_OUT')],
+    {enroll_status: 'OPT_IN', customizations: {text_extraction: {enroll_status: 'OPT_IN'}}},
+  ])
+    refused(
+      creative({degrees_of_freedom_spec: spec({image_touchups: choice('OPT_OUT'), inline_comment: value})}),
+      'META_ADVANTAGE_CREATIVE_CHOICE_REQUIRED',
+      e =>
+        e.details.features.join() === 'inline_comment' &&
+        e.details.field === 'degrees_of_freedom_spec.creative_features_spec.inline_comment.enroll_status' &&
+        e.details.allowed.join() === 'OPT_IN,OPT_OUT',
+    );
+  const out = errorResult(new MirrorError('META_ADVANTAGE_CREATIVE_CHOICE_REQUIRED', 'Fixture'), 'ref', 0).error;
+  assert.match(out.next_action, /Ask the user/);
+  assert.match(out.next_action, /never choose for them/i);
+  assert.equal(out.remedy.mutation_retry_safe, false);
+  const unknown = errorResult(
+    new MirrorError('META_ADVANTAGE_CREATIVE_FEATURE_UNAVAILABLE', 'Fixture'),
+    'ref',
+    0,
+  ).error;
+  assert.match(unknown.next_action, /details\.supported_features/);
+});
+
+test('degrees_of_freedom_spec holds only a non-empty creative_features_spec, and only at the version the SDK pins', () => {
+  for (const value of [
+    {degrees_of_freedom_type: 'USER_ENROLLED_NON_DCO'},
+    {...chosen, image_transformation_types: ['CROPPING']},
+    {...chosen, text_transformation_types: ['TEXT_LIQUIDITY']},
+    spec({}),
+    spec([]),
+    {},
+    JSON.stringify(chosen),
+    [chosen],
+  ])
+    refused(creative({degrees_of_freedom_spec: value}), 'WRITE_CONTRACT_UNAVAILABLE', e =>
+      e.details.field.startsWith('degrees_of_freedom_spec'),
+    );
+  refused(
+    creative({degrees_of_freedom_spec: {...chosen, degrees_of_freedom_type: 'X'}}),
+    'WRITE_CONTRACT_UNAVAILABLE',
+    e => e.details.unsupported_fields.join() === 'degrees_of_freedom_spec.degrees_of_freedom_type',
+  );
+  // A deployment moved back to v25.0 sends to a version whose feature names the pinned SDK does not describe.
+  refused(creative({degrees_of_freedom_spec: chosen}, 'v25.0'), 'WRITE_CONTRACT_UNAVAILABLE', e =>
+    /v26\.0/.test(e.message),
+  );
+  // An ad still names an existing creative: an inline creative cannot carry choices past the creative contract.
+  refused(
+    plan(
+      '/v26.0/act_123/ads',
+      {
+        name: 'Ad',
+        adset_id: '222',
+        status: 'PAUSED',
+        creative: {object_story_spec: story, degrees_of_freedom_spec: chosen},
+      },
+      'meta_ad_account_id_ads_create',
+    ),
+    'WRITE_CONTRACT_UNAVAILABLE',
+  );
+});
+
+test('the impact of a creative without choices says Meta applies its own setting and how to choose', () => {
+  const plain = writeImpact(creative({}), [], false, 'c1');
+  assert.equal(plain.creative_features.chosen, false);
+  assert.match(plain.creative_features.note, /ask the user/);
+  assert.match(plain.creative_features.note, /does not document/);
+  // The shop destination warning stays.
+  assert.match(plain.warning, /WEBSITE_AND_SHOP_OPT_OUT/);
+  const both = writeImpact(creative({degrees_of_freedom_spec: chosen}), [], false, 'c1').creative_features;
+  assert.deepEqual([both.chosen, both.opted_in, both.opted_out], [true, ['text_optimizations'], ['image_touchups']]);
+  // Below v26.0 the field is refused, and the review adds nothing about it.
+  assert.equal(writeImpact(creative({}, 'v25.0'), [], false, 'c1'), undefined);
+});
+
+function fixture(read) {
+  const store = new Store(':memory:', Buffer.alloc(32, 73).toString('base64')),
+    connection = {
+      id: 'features-login',
+      tenantId: actor.tenantId,
+      gateway,
+      accounts: ['123'],
+      writeAccounts: ['123'],
+      enabled: true,
+      label: 'Synthetic',
+      scopes: ['ads_management', 'pages_show_list', 'pages_read_engagement'],
+    };
+  store.putConnection(admin, connection, {accessToken: 'synthetic-user-token'});
+  const sent = [],
+    reads = [];
+  const service = new MirrorService(
+    new Registry(),
+    store,
+    new NativeTransport(async (url, init) => {
+      const u = new URL(String(url)),
+        path = u.pathname;
+      if (init?.method !== 'GET') {
+        const raw = String(init.body);
+        let body;
+        try {
+          body = JSON.parse(raw);
+        } catch {
+          body = Object.fromEntries(
+            [...new URLSearchParams(raw)].map(([k, v]) => {
+              try {
+                return [k, JSON.parse(v)];
+              } catch {
+                return [k, v];
+              }
+            }),
+          );
+        }
+        sent.push(body);
+        return Response.json({id: '900'});
+      }
+      if (path === '/v26.0/act_123') return Response.json({id: 'act_123', currency: 'USD', account_status: 1});
+      if (path.endsWith('/promote_pages')) return Response.json({data: [{id: '500'}]});
+      if (path === '/v26.0/900') {
+        reads.push(u.searchParams.get('fields'));
+        const last = sent.at(-1),
+          freedom = read(last.degrees_of_freedom_spec);
+        return Response.json({
+          id: '900',
+          name: last.name,
+          object_story_spec: last.object_story_spec,
+          ...(freedom === undefined ? {} : {degrees_of_freedom_spec: freedom}),
+        });
+      }
+      throw Error('Unexpected synthetic route ' + path);
+    }),
+    undefined,
+    {allowWrites: true, maxBudgetChange: 0, requireBeforeState: true},
+  );
+  const call = (action, extra) => service.call('amcp_write', {action, ...extra}, actor);
+  const prepare = payload =>
+    call('prepare', {
+      gateway,
+      connection_id: connection.id,
+      arguments: {action: 'meta_creative_create', account_id: '123', payload},
+    });
+  const execute = r =>
+    call('execute', {review_id: r.data.review_id, idempotency_key: r.data.idempotency_key, confirmed: true});
+  const verify = r => service.call('amcp_campaign', {action: 'verify', review_id: r.data.review_id}, actor);
+  return {store, sent, reads, prepare, execute, verify};
+}
+const ok = r => {
+  assert.equal(r.success, true, JSON.stringify(r).slice(0, 900));
+  return r;
+};
+
+test('the review lists each choice, a creative without choices says so, and AMCP never adds a choice', async () => {
+  const f = fixture(sentSpec => sentSpec);
+  try {
+    const p = ok(await f.prepare({name: 'Creative', object_story_spec: story, degrees_of_freedom_spec: chosen}));
+    const impact = p.data.creative_impact.creative_features;
+    assert.deepEqual(impact.opted_in, ['text_optimizations']);
+    assert.deepEqual(impact.opted_out, ['image_touchups']);
+    assert.match(impact.unlisted, /verification reports/);
+    ok(await f.execute(p));
+    assert.deepEqual(f.sent[0].degrees_of_freedom_spec, chosen);
+    const plain = ok(await f.prepare({name: 'Plain', object_story_spec: story}));
+    assert.equal(plain.data.creative_impact.creative_features.chosen, false);
+    ok(await f.execute(plain));
+    assert.equal(Object.hasOwn(f.sent[1], 'degrees_of_freedom_spec'), false);
+    // A refused choice never reaches Meta.
+    const bad = await f.prepare({
+      name: 'Bad',
+      object_story_spec: story,
+      degrees_of_freedom_spec: spec({image_touchups: {}}),
+    });
+    assert.equal(bad.success, false);
+    assert.equal(bad.error.code, 'META_ADVANTAGE_CREATIVE_CHOICE_REQUIRED');
+    assert.equal(f.sent.length, 2);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('read-back compares every choice and reports the features Meta shows on its own', async () => {
+  // Meta keeps both choices and shows one more feature the request did not list.
+  const f = fixture(sentSpec =>
+    sentSpec
+      ? {creative_features_spec: {...sentSpec.creative_features_spec, inline_comment: choice('OPT_IN')}}
+      : sentSpec,
+  );
+  try {
+    const p = ok(await f.prepare({name: 'Creative', object_story_spec: story, degrees_of_freedom_spec: chosen}));
+    ok(await f.execute(p));
+    const v = ok(await f.verify(p));
+    assert.equal(v.data.status, 'verified', JSON.stringify(v).slice(0, 900));
+    assert.ok(f.reads.at(-1).split(',').includes('degrees_of_freedom_spec'), f.reads.at(-1));
+    assert.deepEqual(v.data.checks[0].provider_creative_features, {inline_comment: 'OPT_IN'});
+  } finally {
+    f.store.close();
+  }
+  // Meta reads back another choice than the one sent: never verified, and the changed choice is named.
+  const g = fixture(sentSpec =>
+    sentSpec
+      ? {creative_features_spec: {...sentSpec.creative_features_spec, text_optimizations: choice('OPT_OUT')}}
+      : sentSpec,
+  );
+  try {
+    const p = ok(await g.prepare({name: 'Creative', object_story_spec: story, degrees_of_freedom_spec: chosen}));
+    ok(await g.execute(p));
+    const v = await g.verify(p);
+    assert.notEqual(v.data?.status, 'verified', JSON.stringify(v).slice(0, 900));
+    assert.ok(
+      v.data.checks[0].changed_fields.includes(
+        '/degrees_of_freedom_spec/creative_features_spec/text_optimizations/enroll_status',
+      ),
+      JSON.stringify(v.data.checks[0]),
+    );
+  } finally {
+    g.store.close();
+  }
+  // Meta's read leaves the field out: inconclusive with the field named, never verified or failed for the omission.
+  const h = fixture(() => undefined);
+  try {
+    const p = ok(await h.prepare({name: 'Creative', object_story_spec: story, degrees_of_freedom_spec: chosen}));
+    ok(await h.execute(p));
+    const v = ok(await h.verify(p));
+    assert.equal(v.data.status, 'inconclusive', JSON.stringify(v).slice(0, 900));
+    assert.deepEqual(v.data.checks[0].unacknowledged_fields, ['/degrees_of_freedom_spec']);
+    assert.equal(v.data.checks[0].changed_fields.length, 0);
+  } finally {
+    h.store.close();
+  }
+});
+
+test('the accepted features are the pinned SDK 26.0.2 list, tied to the Graph API version AMCP sends', t => {
+  const evidence = JSON.parse(readFileSync('tests/fixtures/meta-creative-features-sdk-v26.json', 'utf8'));
+  assert.equal(evidence.api_version, metaApiVersion);
+  assert.equal(evidence.sdk_tag, metaSdkTag);
+  assert.equal(metaCreativeFeatureSdkTag, metaSdkTag);
+  assert.deepEqual(evidence.accepted, [...metaCreativeFeatures].sort());
+  assert.deepEqual(evidence.enroll_status, [...metaEnrollStatuses]);
+  assert.deepEqual(Object.keys(evidence.sources).sort(), [...sdkModules].sort());
+  for (const source of Object.values(evidence.sources)) assert.ok(source.url.includes('/' + metaSdkTag + '/'));
+  for (const bundle of metaCreativeFeatureBundles) assert.ok(!metaCreativeFeatures.includes(bundle), bundle);
+  if (evidence.evidence === 'sdk_files') {
+    for (const source of Object.values(evidence.sources)) assert.match(source.sha256, /^[0-9a-f]{64}$/);
+    for (const feature of metaCreativeFeatures) assert.ok(evidence.sdk_features.includes(feature), feature);
+  } else {
+    assert.equal(evidence.evidence, 'transcribed');
+    for (const source of Object.values(evidence.sources)) assert.equal(source.sha256, null);
+    t.diagnostic('transcribed, not hashed yet: run ' + evidence.pin);
+  }
+});
+
+/** Synthetic modules in the generated SDK's layout, for the pin tool's parser. */
+function sdkText(features, {detailType = 'string', freedomType = 'AdCreativeFeaturesSpec'} = {}) {
+  const klass = (name, fields, types) =>
+    'from facebook_business.adobjects.abstractobject import AbstractObject\n\nclass ' +
+    name +
+    '(\n    AbstractObject,\n):\n\n    def __init__(self, api=None):\n        super(' +
+    name +
+    ', self).__init__()\n        self._api = api\n\n    class Field(AbstractObject.Field):\n' +
+    fields.map(f => '        ' + f + " = '" + f + "'\n").join('') +
+    '\n    _field_types = {\n' +
+    fields.map(f => "        '" + f + "': '" + types(f) + "',\n").join('') +
+    '    }\n    @classmethod\n    def _get_field_enum_info(cls):\n        field_enum_info = {}\n        return field_enum_info\n';
+  return {
+    sources: Object.fromEntries(sdkModules.map(name => [name, {url: 'synthetic/' + name, sha256: '0'.repeat(64)}])),
+    text: {
+      adcreativefeaturesspec: klass('AdCreativeFeaturesSpec', features, () => 'AdCreativeFeatureDetails'),
+      adcreativefeaturedetails: klass('AdCreativeFeatureDetails', ['customizations', 'enroll_status'], f =>
+        f === 'enroll_status' ? detailType : 'AdCreativeFeatureCustomizations',
+      ),
+      adcreativedegreesoffreedomspec: klass(
+        'AdCreativeDegreesOfFreedomSpec',
+        ['creative_features_spec'],
+        () => freedomType,
+      ),
+      adcreative: klass('AdCreative', ['degrees_of_freedom_spec', 'name'], f =>
+        f === 'name' ? 'string' : 'AdCreativeDegreesOfFreedomSpec',
+      ),
+      adaccount:
+        "class AdAccount(\n    AbstractObject,\n):\n\n    def create_ad_creative(self, fields=None, params=None, batch=None, success=None, failure=None, pending=False):\n        param_types = {\n            'degrees_of_freedom_spec': 'Object',\n            'name': 'string',\n        }\n        enums = {\n        }\n        request = FacebookRequest(\n            node_id=self['id'],\n            method='POST',\n            endpoint='/adcreatives',\n            api=self._api,\n        )\n\n    def get_ads(self, fields=None):\n        return None\n",
+    },
+  };
+}
+
+test('the pin tool reads the SDK classes and refuses a feature or type the release does not have', () => {
+  const all = [...metaCreativeFeatures, 'standard_enhancements', 'video_highlight'];
+  const evidence = creativeFeatureEvidence(sdkText(all), metaCreativeFeatures, '2026-10-16');
+  assert.equal(evidence.evidence, 'sdk_files');
+  assert.deepEqual(evidence.accepted, [...metaCreativeFeatures].sort());
+  assert.deepEqual(evidence.sdk_features, [...all].sort());
+  assert.equal(evidence.types['AdCreativeFeatureDetails.enroll_status'], 'string');
+  assert.throws(
+    () => creativeFeatureEvidence(sdkText(metaCreativeFeatures.slice(1)), metaCreativeFeatures, '2026-10-16'),
+    new RegExp(metaCreativeFeatures[0]),
+  );
+  assert.throws(
+    () => creativeFeatureEvidence(sdkText(all, {detailType: 'int'}), metaCreativeFeatures, '2026-10-16'),
+    /enroll_status/,
+  );
+  assert.throws(
+    () => creativeFeatureEvidence(sdkText(all, {freedomType: 'Object'}), metaCreativeFeatures, '2026-10-16'),
+    /creative_features_spec/,
+  );
+});
