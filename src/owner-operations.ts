@@ -480,12 +480,16 @@ export function cleanupReports(store: Store, defaultDays: number | null = report
         "DELETE FROM documents WHERE tenant_id=? AND kind='report_file' AND NOT EXISTS (SELECT 1 FROM documents r WHERE r.tenant_id=documents.tenant_id AND r.kind='overview_report' AND r.id=json_extract(documents.data,'$.report_id'))",
         tenant,
       );
-      remove(
-        'jobs',
-        "DELETE FROM jobs WHERE tenant_id=? AND kind IN ('report_overview','sheets_export','report_file_export','report') AND state IN ('complete','failed','cancelled') AND updated_at<? AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.tenant_id=jobs.tenant_id AND d.kind='sheets_delivery' AND json_extract(d.data,'$.report_id')=json_extract(jobs.input,'$.report_id') AND json_extract(d.data,'$.state') IN ('pending','uncertain'))",
-        tenant,
-        cutoff,
-      );
+      // Counted per job kind under the job:<kind> keys data-retention.ts declares, so the audit matches the kinds owner
+      // health lists (wave 3a review: they were one `jobs` count).
+      for (const job of ['report_overview', 'sheets_export', 'report_file_export', 'report'])
+        remove(
+          'job:' + job,
+          "DELETE FROM jobs WHERE tenant_id=? AND kind=? AND state IN ('complete','failed','cancelled') AND updated_at<? AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.tenant_id=jobs.tenant_id AND d.kind='sheets_delivery' AND json_extract(d.data,'$.report_id')=json_extract(jobs.input,'$.report_id') AND json_extract(d.data,'$.state') IN ('pending','uncertain'))",
+          tenant,
+          job,
+          cutoff,
+        );
       if (Object.keys(counts).length)
         store.appendAudit(tenant, 'retention_policy/reports', {
           event: 'report_retention_applied',

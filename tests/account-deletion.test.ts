@@ -228,6 +228,76 @@ test('P3: a sole owner whose workspace other members use, the AMCP owner, the do
     const admin = await f.web.signIn(door, '127.0.0.1');
     assert.throws(() => f.deletion.preview(f.req(admin)), {code: 'ACCOUNT_DELETION_UNAVAILABLE', status: 403});
     assert.throws(() => f.deletion.delete(f.req(admin), {confirm: 'anything'}), {code: 'ACCOUNT_DELETION_UNAVAILABLE'});
+    // Regression (wave 3a review): an invited reviewer test account is the owner's (or the retention sweep's) to
+    // erase, as the docs say; only the website hid the panel, so the routes deleted it.
+    const reviewer = f.accounts.newUser('Invited Reviewer', 'invited.reviewer@example.test', null, true, true),
+      r = f.accounts.session(reviewer);
+    assert.equal(f.deletion.preview(f.req(r)).available, false);
+    assert.equal(refusal(r), 'ACCOUNT_DELETION_UNAVAILABLE');
+    assert.throws(() => f.deletion.delete(f.req(r), {confirm: 'invited.reviewer@example.test'}), {
+      code: 'ACCOUNT_DELETION_UNAVAILABLE',
+      status: 403,
+    });
+    assert.equal(userExists(f.store, reviewer.id), true);
+    assert.equal(auditEvents(f.store, 'local', 'account_erased').length, 0);
+  } finally {
+    f.store.close();
+  }
+});
+
+test('P3: a member who joins, or work leased, after the deletion checks still stops the erasure before anything goes', async () => {
+  // Regression (wave 3a review): the shared-workspace and running-work checks ran before the erasure transaction, so a
+  // member who accepted an invitation (or a job leased) in between lost their membership, or the job its workspace.
+  const f = fixture();
+  try {
+    const person = f.accounts.newUser('Racing Person', 'racing.person@example.test', null, true),
+      teammate = f.accounts.newUser('Late Teammate', 'late.teammate@example.test', null, true),
+      tenant = String(person.tenant_id),
+      s = f.accounts.session(person);
+    f.store.putDocument(tenant, 'report_snapshot', 'kept', {title: 'Racing Person report'});
+    /**
+     * Runs `between` once, just before eraseAccount's own transaction starts: after every check the request and the
+     * erasure made before it (a transaction called from anywhere else passes through untouched).
+     */
+    const raceWith = (between: () => void) => {
+      const transaction = f.store.transaction.bind(f.store);
+      f.store.transaction = (fn => {
+        if (new Error().stack?.includes('eraseAccount')) {
+          f.store.transaction = transaction;
+          between();
+        }
+        return transaction(fn);
+      }) as typeof f.store.transaction;
+    };
+    raceWith(() => member(f.store, tenant, teammate.id, 'operator'));
+    assert.throws(() => f.deletion.delete(f.req(s), {confirm: 'racing.person@example.test'}), {
+      code: 'ERASURE_WORKSPACE_SHARED',
+      status: 409,
+    });
+    assert.equal(userExists(f.store, person.id), true);
+    assert.ok(f.store.db.prepare('SELECT 1 FROM tenants WHERE id=?').get(tenant), 'the workspace stays');
+    assert.ok(
+      f.store.db
+        .prepare('SELECT 1 FROM workspace_memberships WHERE tenant_id=? AND user_id=?')
+        .get(tenant, teammate.id),
+      'the new member keeps their membership',
+    );
+    assert.equal(f.store.documents(tenant, 'report_snapshot').length, 1);
+    f.store.db.prepare('DELETE FROM workspace_memberships WHERE tenant_id=? AND user_id=?').run(tenant, teammate.id);
+    // A job leased in between stops a self-service deletion the same way.
+    const now = Date.now();
+    raceWith(() =>
+      f.store.db
+        .prepare(
+          "INSERT INTO jobs(id,tenant_id,kind,input,state,available_at,lease_until,created_at,updated_at) VALUES(?,?,'report','{}','running',?,?,?,?)",
+        )
+        .run(randomUUID(), tenant, now, now + 60000, now, now),
+    );
+    assert.throws(() => f.deletion.delete(f.req(s), {confirm: 'racing.person@example.test'}), {
+      code: 'ACCOUNT_DELETION_BUSY',
+      retryable: true,
+    });
+    assert.equal(userExists(f.store, person.id), true);
     assert.equal(auditEvents(f.store, 'local', 'account_erased').length, 0);
   } finally {
     f.store.close();

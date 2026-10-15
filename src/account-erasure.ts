@@ -174,6 +174,47 @@ function sealedRows(
   return out;
 }
 
+/** Writes that may still be in flight in a workspace this long after their claim was taken. */
+const claimWindowMs = 15 * 60000;
+/**
+ * Whether work is still running in a workspace: a leased job, or a reviewed write claimed in the last 15 minutes. A
+ * self-service deletion waits for it (ACCOUNT_DELETION_BUSY).
+ */
+export function workspaceBusy(store: Store, tenant: string, now = Date.now()): boolean {
+  return !!(
+    store.db
+      .prepare("SELECT 1 FROM jobs WHERE tenant_id=? AND state='running' AND lease_until>? LIMIT 1")
+      .get(tenant, now) ||
+    store.db
+      .prepare("SELECT 1 FROM idempotency WHERE tenant_id=? AND state='pending' AND created_at>? LIMIT 1")
+      .get(tenant, now - claimWindowMs)
+  );
+}
+export const workspaceBusyError = () =>
+  new MirrorError(
+    'ACCOUNT_DELETION_BUSY',
+    'Work is still running in your workspace. Try again in a few minutes; nothing was deleted.',
+    {retry_after_ms: 60000},
+    409,
+    true,
+  );
+/** Whether another active member uses the account's own workspace (its erasure is refused then). */
+const sharedWith = (store: Store, tenant: string, user: JsonObject | undefined) =>
+  Number(
+    (
+      store.db
+        .prepare('SELECT count(*) AS n FROM workspace_memberships WHERE tenant_id=? AND active=1 AND user_id<>?')
+        .get(tenant, String(user?.id ?? '')) as JsonObject
+    ).n,
+  ) > 0;
+const sharedError = () =>
+  new MirrorError(
+    'ERASURE_WORKSPACE_SHARED',
+    'Other active members use this account’s workspace. Remove them or move their work first; nothing was erased.',
+    {},
+    409,
+  );
+
 /**
  * Plans (with `dryRun`) or carries out the erasure of one account and its workspace. The plan counts the rows of each
  * table that would go and the audit records that would be tombstoned; nothing is changed. Returns the receipt.
@@ -189,23 +230,16 @@ export function eraseAccount(store: Store, selector: ErasureSelector, options: E
           {},
           409,
         )
-      : !options.reapplies &&
-          Number(
-            (
-              store.db
-                .prepare(
-                  'SELECT count(*) AS n FROM workspace_memberships WHERE tenant_id=? AND active=1 AND user_id<>?',
-                )
-                .get(tenant, String(user?.id ?? '')) as JsonObject
-            ).n,
-          ) > 0
-        ? new MirrorError(
-            'ERASURE_WORKSPACE_SHARED',
-            'Other active members use this account’s workspace. Remove them or move their work first; nothing was erased.',
-            {},
-            409,
-          )
+      : !options.reapplies && sharedWith(store, tenant, user)
+        ? sharedError()
         : undefined;
+  // The refusals that can change while the erasure runs (a member accepts an invitation, a job is leased) are checked
+  // again just before the first deletion and inside the erasure transaction, so nothing is deleted from a workspace
+  // that became shared or busy after the checks above (a self-service deletion makes that race the person's own).
+  const recheck = () => {
+    if (!options.reapplies && sharedWith(store, tenant, user)) throw sharedError();
+    if (options.reason === 'self_service' && workspaceBusy(store, tenant)) throw workspaceBusyError();
+  };
   const plan = steps(store, user, tenant).filter(step => has(store, step.table)),
     sealed = sealedRows(store, user, tenant),
     count = (step: Step) =>
@@ -237,6 +271,7 @@ export function eraseAccount(store: Store, selector: ErasureSelector, options: E
   if (refusal) throw refusal;
   const erasure = randomUUID(),
     at = Date.now();
+  recheck();
   // Media chunks first, one per statement; a failure after them leaves an account the next erasure finishes.
   for (const step of plan.filter(s => s.oneByOne))
     deleteRowsOneByOne(
@@ -246,6 +281,7 @@ export function eraseAccount(store: Store, selector: ErasureSelector, options: E
       ...step.params.map(String),
     );
   const receipt = store.transaction(() => {
+    recheck();
     // The rows are selected again inside the transaction, so a key or session created since the plan goes too.
     for (const step of steps(store, user, tenant).filter(s => !s.oneByOne && has(store, s.table)))
       store.db.prepare('DELETE FROM ' + step.table + ' WHERE ' + step.where).run(...step.params);
@@ -402,8 +438,10 @@ function pastRetention(
     revoked:
       retention.revokedMs === null
         ? []
-        : select(
-            "SELECT u.id FROM amcp_users u WHERE u.disabled=1 AND u.tenant_id<>? AND coalesce((SELECT max(a.created_at) FROM audit a WHERE a.tenant_id=? AND json_valid(a.event) AND json_extract(a.event,'$.event')='account_access_revoked' AND json_extract(a.event,'$.user_id')=u.id),u.created_at)<? AND " +
+        : // Each account's latest revocation is read in one grouped pass over the deployment's audit, not once per
+          // disabled account (the owner's access page runs this on every render; wave 3a review).
+          select(
+            "WITH revoked AS (SELECT json_extract(a.event,'$.user_id') AS uid,max(a.created_at) AS at FROM audit a WHERE a.tenant_id=? AND json_valid(a.event) AND json_extract(a.event,'$.event')='account_access_revoked' GROUP BY 1) SELECT u.id FROM amcp_users u LEFT JOIN revoked r ON r.uid=u.id WHERE u.disabled=1 AND u.tenant_id<>? AND coalesce(r.at,u.created_at)<? AND " +
               workspace,
             deploymentTenant,
             deploymentTenant,

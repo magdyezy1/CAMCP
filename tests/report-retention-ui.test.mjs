@@ -36,4 +36,11 @@ test('P3: Settings names the report retention in force: the workspace period, th
   // The form's note no longer claims that saving is what turns cleanup on.
   assert.doesNotMatch(source, /Saving enables automatic cleanup after this period/);
   assert.match(source, /Saving sets this workspace’s own period in place of the deployment default\./);
+  // Regression (wave 3a review): without a saved period the field was prefilled with the deployment default capped at
+  // 365 days, so saving the form unchanged shortened a longer deployment default. It starts empty (and required) now.
+  assert.doesNotMatch(source, /Math\.min\(365, h\.report_retention/);
+  assert.match(
+    source,
+    /name="days" type="number" min="7" max="365" value="\$\{Number\.isInteger\(h\.retention\?\.days\) \? h\.retention\.days : ''\}" required/,
+  );
 });

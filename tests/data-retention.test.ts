@@ -22,7 +22,12 @@ import {
   eraseAccount,
   retentionBlockedAccounts,
 } from '../src/account-erasure.js';
-import {DEFAULT_REPORT_RETENTION_DAYS, reportRetention, reportRetentionDefault} from '../src/data-retention.js';
+import {
+  DEFAULT_REPORT_RETENTION_DAYS,
+  reportRetention,
+  reportRetentionDefault,
+  reportRetentionKinds,
+} from '../src/data-retention.js';
 import {cleanupReports, ownerOperations} from '../src/owner-operations.js';
 import type {JsonObject} from '../src/types.js';
 import {removeTestDirectory} from './temp.js';
@@ -211,7 +216,21 @@ test('P3: report records follow the deployment default (365 days) without a work
       put(tenant, 'decision_report', 'old-analysis', {captured_at: now - 400 * day});
       put(tenant, 'report_incident', 'old-open', {state: 'open', updated_at: now - 400 * day});
       put(tenant, 'report_incident', 'old-resolved', {state: 'resolved', updated_at: now - 400 * day});
+      // Finished report jobs of two kinds past the period, and one inside it.
+      const job = (id: string, kind: string, state: string, at: number) =>
+        store.db
+          .prepare(
+            "INSERT INTO jobs(id,tenant_id,kind,input,state,available_at,created_at,updated_at) VALUES(?,?,?,'{}',?,?,?,?)",
+          )
+          .run(tenant + ':' + id, tenant, kind, state, at, at, at);
+      job('old-overview', 'report_overview', 'complete', now - 400 * day);
+      job('old-export', 'sheets_export', 'failed', now - 400 * day);
+      job('recent-overview', 'report_overview', 'complete', now - 10 * day);
     };
+    const jobs = (tenant: string) =>
+      (store.db.prepare('SELECT id FROM jobs WHERE tenant_id=? ORDER BY id').all(tenant) as {id: string}[]).map(r =>
+        r.id.slice(tenant.length + 1),
+      );
     const ids = (tenant: string, kind: string) =>
       store
         .documents(tenant, kind)
@@ -234,8 +253,19 @@ test('P3: report records follow the deployment default (365 days) without a work
         event: 'report_retention_applied',
         days: 365,
         source: 'deployment_default',
-        deleted: {report_incident: 1, decision_report: 1, overview_report: 1, report_presentation: 1},
+        deleted: {
+          report_incident: 1,
+          decision_report: 1,
+          overview_report: 1,
+          report_presentation: 1,
+          'job:report_overview': 1,
+          'job:sheets_export': 1,
+        },
       });
+      // Regression (wave 3a review): jobs were counted under one `jobs` key that matched no declared kind.
+      for (const kind of Object.keys(record!.deleted as JsonObject))
+        assert.ok(reportRetentionKinds.includes(kind), kind + ' is a declared retention kind');
+      assert.deepEqual(jobs(tenant), ['recent-overview'], tenant);
     }
     // The workspace's own period wins over the default.
     assert.deepEqual(ids('own-period', 'overview_report'), ['old-running']);

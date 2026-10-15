@@ -1,12 +1,10 @@
 import type {Request} from 'express';
 import {MirrorError} from '../src/errors.js';
-import {eraseAccount, selfServiceDeletion} from '../src/account-erasure.js';
+import {eraseAccount, selfServiceDeletion, workspaceBusy, workspaceBusyError} from '../src/account-erasure.js';
 import type {JsonObject} from '../src/types.js';
 import type {UserAccounts} from './user-accounts.js';
 import type {WebSession} from './web-store.js';
 
-/** Writes that may still be in flight in a workspace this long after their claim was taken. */
-const claimWindowMs = 15 * 60000;
 /**
  * Self-service account deletion (SEC-07 S4(d), owner decision P3 of 2026-10-11: design to GDPR and KSA PDPL and offer
  * self-service deletion). Before it, a person could only ask the operator, who ran `admin erase-account`. The person now
@@ -17,10 +15,12 @@ const claimWindowMs = 15 * 60000;
  * - `POST /api/account/delete` with `confirm` (the account's email address, or its name when it has none) erases the
  *   account, its own workspace and everything it holds, after a recent proof of identity ("Confirm it's you", SEC-06).
  *
- * Refused, before anything is deleted: door and reviewer sign-ins (no personal account), the AMCP owner's account, an
- * account whose workspace other active members use (AMCP cannot hand a workspace to another owner, so the person removes
- * those members first), work still running in the workspace (a leased job, or a write claimed in the last 15 minutes),
- * and every deletion while `AMCP_ACCOUNT_SELF_DELETION=off`. The answer is the erasure receipt (random ids, time and
+ * Refused, before anything is deleted: door and reviewer sign-ins (no personal account), invited reviewer test accounts
+ * (the AMCP owner or the retention sweep erases those), the AMCP owner's account, an account whose workspace other
+ * active members use (AMCP cannot hand a workspace to another owner, so the person removes those members first), work
+ * still running in the workspace (a leased job, or a write claimed in the last 15 minutes), and every deletion while
+ * `AMCP_ACCOUNT_SELF_DELETION=off`. The erasure checks the shared workspace and running work again inside its own
+ * transaction, so a member who joins or a job leased after these checks still stops it. The answer is the erasure receipt (random ids, time and
  * counts) and the platforms whose AMCP access the person should also remove; when e-mail is configured, a confirmation
  * naming the erasure id is queued to the deleted address (its sealed copy leaves the outbox once delivered or after 24
  * hours).
@@ -48,6 +48,15 @@ export class AccountDeletion {
         {},
         403,
       );
+    // An invited reviewer test account is the owner's to erase (or the retention sweep's), as the docs promise; only
+    // the website hid the panel before (wave 3a review).
+    if (user.test_account)
+      return new MirrorError(
+        'ACCOUNT_DELETION_UNAVAILABLE',
+        'A reviewer test account is erased by the AMCP owner, or by the retention sweep after its access is removed, not from Account. Ask the owner to remove it.',
+        {},
+        403,
+      );
     if (String(user.tenant_id) === this.web.tenantId || (plan.refusal as JsonObject)?.code === 'ERASURE_REFUSED')
       return new MirrorError(
         'ACCOUNT_DELETION_OWNER',
@@ -62,23 +71,7 @@ export class AccountDeletion {
         {},
         409,
       );
-    const now = Date.now(),
-      tenant = String(user.tenant_id);
-    if (
-      this.store.db
-        .prepare("SELECT 1 FROM jobs WHERE tenant_id=? AND state='running' AND lease_until>? LIMIT 1")
-        .get(tenant, now) ||
-      this.store.db
-        .prepare("SELECT 1 FROM idempotency WHERE tenant_id=? AND state='pending' AND created_at>? LIMIT 1")
-        .get(tenant, now - claimWindowMs)
-    )
-      return new MirrorError(
-        'ACCOUNT_DELETION_BUSY',
-        'Work is still running in your workspace. Try again in a few minutes; nothing was deleted.',
-        {retry_after_ms: 60000},
-        409,
-        true,
-      );
+    if (workspaceBusy(this.store, String(user.tenant_id))) return workspaceBusyError();
   }
   private plan(user: JsonObject) {
     return eraseAccount(
