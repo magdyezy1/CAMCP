@@ -44,11 +44,10 @@ review of a new creative that chooses none says so (`creative_impact.creative_fe
   feature they have no view on. Set each answer as `degrees_of_freedom_spec: {creative_features_spec: {<feature>:
   {enroll_status: "OPT_IN" | "OPT_OUT"}}}`; the review lists `opted_in` and `opted_out`.
 - The contract reviews these single features of Meta's SDK 26.0.2 (`tests/fixtures/meta-creative-features-sdk-v26.json`,
-  transcribed from the SDK classes until the release files are hashed; release qualification fails until then),
-  at Graph API v26.0 only (a deployment moved back to v25.0 refuses the field): `adapt_to_placement`,
-  `add_text_overlay`, `audio`, `description_automation`, `enhance_cta`, `image_animation`, `image_background_gen`,
-  `image_brightness_and_contrast`, `image_templates`, `image_touchups`, `image_uncrop`, `inline_comment`,
-  `reveal_details_over_time`, `site_extensions`, `text_optimizations` and `video_auto_crop`.
+  pinned from the hashed release files), at Graph API v26.0 only (a deployment moved back to v25.0 refuses the field):
+  `adapt_to_placement`, `add_text_overlay`, `audio`, `description_automation`, `enhance_cta`, `image_animation`,
+  `image_background_gen`, `image_brightness_and_contrast`, `image_templates`, `image_touchups`, `image_uncrop`,
+  `inline_comment`, `reveal_details_over_time`, `site_extensions`, `text_optimizations` and `video_auto_crop`.
 - Refusals, before any read: another feature or a bundle (`standard_enhancements`, `standard_enhancements_catalog`,
   `advantage_plus_creative`) is `META_ADVANTAGE_CREATIVE_FEATURE_UNAVAILABLE` (`details.supported_features` lists the
   reviewed ones); a listed feature without exactly `{enroll_status: "OPT_IN"}` or `{enroll_status: "OPT_OUT"}`

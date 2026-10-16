@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
@@ -16,7 +18,12 @@ import {
   metaEnrollStatuses,
 } from '../dist/src/meta-creative-features.js';
 import {metaSdkTag} from '../tools/meta-sdk.mjs';
-import {creativeFeatureEvidence, pinnedEvidenceProblems, sdkModules} from '../tools/meta-creative-features.mjs';
+import {
+  creativeFeatureEvidence,
+  fixturePath,
+  pinnedEvidenceProblems,
+  sdkModules,
+} from '../tools/meta-creative-features.mjs';
 import {profileStages} from '../tools/qualify.mjs';
 import {spawnSync} from 'node:child_process';
 
@@ -343,8 +350,13 @@ test('read-back compares every choice and reports the features Meta shows on its
   }
 });
 
-test('the accepted features are the pinned SDK 26.0.2 list, tied to the Graph API version AMCP sends', t => {
-  const evidence = JSON.parse(readFileSync('tests/fixtures/meta-creative-features-sdk-v26.json', 'utf8'));
+const committedEvidence = () => JSON.parse(readFileSync(fixturePath, 'utf8'));
+
+// PRV-06 C: until 2026-10-16 the allowlist was transcribed from the SDK classes (evidence "transcribed", every sha256
+// null, and the create parameter's type mistyped as Object). It is now pinned from the hashed 26.0.2 release files, and
+// these tests fail if the committed record goes back to anything else.
+test('the accepted features are the pinned SDK 26.0.2 list, hashed from the release files and tied to the Graph API version AMCP sends', () => {
+  const evidence = committedEvidence();
   assert.equal(evidence.api_version, metaApiVersion);
   assert.equal(evidence.sdk_tag, metaSdkTag);
   assert.equal(metaCreativeFeatureSdkTag, metaSdkTag);
@@ -353,17 +365,43 @@ test('the accepted features are the pinned SDK 26.0.2 list, tied to the Graph AP
   assert.deepEqual(Object.keys(evidence.sources).sort(), [...sdkModules].sort());
   for (const source of Object.values(evidence.sources)) assert.ok(source.url.includes('/' + metaSdkTag + '/'));
   for (const bundle of metaCreativeFeatureBundles) assert.ok(!metaCreativeFeatures.includes(bundle), bundle);
-  if (evidence.evidence === 'sdk_files') {
-    for (const source of Object.values(evidence.sources)) assert.match(source.sha256, /^[0-9a-f]{64}$/);
-    for (const feature of metaCreativeFeatures) assert.ok(evidence.sdk_features.includes(feature), feature);
-  } else {
-    assert.equal(evidence.evidence, 'transcribed');
-    for (const source of Object.values(evidence.sources)) assert.equal(source.sha256, null);
-    t.diagnostic('transcribed, not hashed yet: run ' + evidence.pin);
-  }
+  assert.equal(evidence.evidence, 'sdk_files');
+  assert.match(evidence.checked_at, /^\d{4}-\d{2}-\d{2}$/);
+  for (const source of Object.values(evidence.sources)) assert.match(source.sha256, /^[0-9a-f]{64}$/);
+  // Every accepted name is a field of AdCreativeFeaturesSpec at the release, and so is every bundle the contract
+  // refuses: the bundles are refused by choice, not because the release lacks them.
+  for (const feature of [...metaCreativeFeatures, ...metaCreativeFeatureBundles])
+    assert.ok(evidence.sdk_features.includes(feature), feature);
+  // The types the contract relies on, as the release declares them (the transcription had Object for the parameter).
+  assert.deepEqual(evidence.types, {
+    'AdAccount.create_ad_creative degrees_of_freedom_spec': 'map',
+    'AdCreative.degrees_of_freedom_spec': 'AdCreativeDegreesOfFreedomSpec',
+    'AdCreativeDegreesOfFreedomSpec.creative_features_spec': 'AdCreativeFeaturesSpec',
+    'AdCreativeFeatureDetails.enroll_status': 'string',
+  });
 });
 
-/** Synthetic modules in the generated SDK's layout, for the pin tool's parser. */
+test('the pinned files are the SDK 26.0.2 files the other Meta evidence hashed (regression: their sha256 was null)', () => {
+  const evidence = committedEvidence(),
+    others = [];
+  // Every other v26 fixture that hashed one of the same modules at 26.0.2: the pin read the same bytes.
+  for (const file of readdirSync('tests/fixtures').filter(f => /^meta-.*-v26\.json$/.test(f))) {
+    if ('tests/fixtures/' + file === fixturePath) continue;
+    const fixture = JSON.parse(readFileSync('tests/fixtures/' + file, 'utf8')),
+      // meta-sdk-changes-v26.json hashes both releases: its `to` is 26.0.2.
+      atRelease = fixture.to?.sdk_tag === metaSdkTag ? 'to' : fixture.sdk_tag === metaSdkTag ? 'sha256' : undefined;
+    for (const name of sdkModules) {
+      const hash = fixture.sources?.[name]?.[atRelease];
+      if (atRelease && typeof hash === 'string') others.push([file, name, hash]);
+    }
+  }
+  // adaccount is hashed by the Insights, post, portfolio and website recipe evidence and the SDK changes record, and
+  // adcreative by the SDK changes record; the three feature classes are hashed only here.
+  assert.ok(others.some(([, name]) => name === 'adaccount') && others.some(([, name]) => name === 'adcreative'));
+  for (const [file, name, hash] of others) assert.equal(evidence.sources[name].sha256, hash, file + ' ' + name);
+});
+
+/** Synthetic modules in the generated SDK's layout (and its parameter type, map), for the pin tool's parser. */
 function sdkText(features, {detailType = 'string', freedomType = 'AdCreativeFeaturesSpec'} = {}) {
   const klass = (name, fields, types) =>
     'from facebook_business.adobjects.abstractobject import AbstractObject\n\nclass ' +
@@ -391,7 +429,7 @@ function sdkText(features, {detailType = 'string', freedomType = 'AdCreativeFeat
         f === 'name' ? 'string' : 'AdCreativeDegreesOfFreedomSpec',
       ),
       adaccount:
-        "class AdAccount(\n    AbstractObject,\n):\n\n    def create_ad_creative(self, fields=None, params=None, batch=None, success=None, failure=None, pending=False):\n        param_types = {\n            'degrees_of_freedom_spec': 'Object',\n            'name': 'string',\n        }\n        enums = {\n        }\n        request = FacebookRequest(\n            node_id=self['id'],\n            method='POST',\n            endpoint='/adcreatives',\n            api=self._api,\n        )\n\n    def get_ads(self, fields=None):\n        return None\n",
+        "class AdAccount(\n    AbstractObject,\n):\n\n    def create_ad_creative(self, fields=None, params=None, batch=None, success=None, failure=None, pending=False):\n        param_types = {\n            'degrees_of_freedom_spec': 'map',\n            'name': 'string',\n        }\n        enums = {\n        }\n        request = FacebookRequest(\n            node_id=self['id'],\n            method='POST',\n            endpoint='/adcreatives',\n            api=self._api,\n        )\n\n    def get_ads(self, fields=None):\n        return None\n",
     },
   };
 }
@@ -403,6 +441,8 @@ test('the pin tool reads the SDK classes and refuses a feature or type the relea
   assert.deepEqual(evidence.accepted, [...metaCreativeFeatures].sort());
   assert.deepEqual(evidence.sdk_features, [...all].sort());
   assert.equal(evidence.types['AdCreativeFeatureDetails.enroll_status'], 'string');
+  // The parameter type is read from the release, not transcribed.
+  assert.equal(evidence.types['AdAccount.create_ad_creative degrees_of_freedom_spec'], 'map');
   assert.throws(
     () => creativeFeatureEvidence(sdkText(metaCreativeFeatures.slice(1)), metaCreativeFeatures, '2026-10-16'),
     new RegExp(metaCreativeFeatures[0]),
@@ -417,20 +457,46 @@ test('the pin tool reads the SDK classes and refuses a feature or type the relea
   );
 });
 
-// PRV-06 C review: the allowlist is transcribed from the SDK classes until the owner pins the 26.0.2 files, so release
-// qualification fails on it (a blocking full-profile stage); npm run check and the fast gate do not run that stage.
-test('release qualification fails while the allowlist is transcribed and passes once the SDK files are pinned', () => {
-  const committed = JSON.parse(readFileSync('tests/fixtures/meta-creative-features-sdk-v26.json', 'utf8')),
-    problems = pinnedEvidenceProblems(committed);
-  if (committed.evidence === 'sdk_files') assert.deepEqual(problems, []);
-  else {
-    assert.ok(problems.includes('evidence is "transcribed", not sdk_files'), problems.join('; '));
-    assert.ok(problems.includes('checked_at holds no pin date'), problems.join('; '));
-    for (const name of sdkModules) assert.ok(problems.includes(name + ' has no SHA-256'), name);
-  }
+// PRV-06 C: release qualification (a blocking full-profile stage; npm run check and the fast gate do not run it) passes on
+// the committed allowlist, which is now pinned from the hashed 26.0.2 files, and still fails on a transcribed record
+// such as the one committed before the pin.
+test('release qualification passes on the pinned allowlist and still fails on a transcribed one (regression: it was transcribed)', () => {
+  const committed = committedEvidence();
+  assert.deepEqual(pinnedEvidenceProblems(committed), []);
   const cli = spawnSync(process.execPath, ['tools/meta-creative-features.mjs', '--require-pinned'], {encoding: 'utf8'});
-  assert.equal(cli.status, problems.length ? 1 : 0, cli.stderr);
-  if (problems.length) assert.match(cli.stderr, /PRV-06 C stays partial until the owner runs/);
+  assert.equal(cli.status, 0, cli.stderr);
+  assert.match(cli.stdout, /pinned from SDK 26\.0\.2 files/);
+  // The record committed before the pin: transcribed, no pin date, no hashes and no list of the release's features.
+  const {sdk_features, ...transcribed} = {
+    ...committed,
+    evidence: 'transcribed',
+    checked_at: null,
+    sources: Object.fromEntries(
+      Object.entries(committed.sources).map(([name, s]) => [name, {url: s.url, sha256: null}]),
+    ),
+  };
+  assert.ok(sdk_features.length > metaCreativeFeatures.length);
+  assert.deepEqual(pinnedEvidenceProblems(transcribed), [
+    'evidence is "transcribed", not sdk_files',
+    'checked_at holds no pin date',
+    ...sdkModules.map(name => name + ' has no SHA-256'),
+    'sdk_features does not list the release features',
+  ]);
+  // The qualification command refuses it: run where the fixture path holds the transcribed record.
+  const directory = mkdtempSync(path.join(tmpdir(), 'amcp-meta-features-'));
+  try {
+    mkdirSync(path.join(directory, path.dirname(fixturePath)), {recursive: true});
+    writeFileSync(path.join(directory, fixturePath), JSON.stringify(transcribed, null, 2) + '\n');
+    const transcribedRun = spawnSync(
+      process.execPath,
+      [path.resolve('tools/meta-creative-features.mjs'), '--require-pinned'],
+      {cwd: directory, encoding: 'utf8'},
+    );
+    assert.equal(transcribedRun.status, 1, transcribedRun.stdout);
+    assert.match(transcribedRun.stderr, /PRV-06 C stays partial until the owner runs/);
+  } finally {
+    rmSync(directory, {recursive: true, force: true});
+  }
   // The pin command's own output passes: hashed files, a pin date and the release's features.
   const pinned = creativeFeatureEvidence(
     sdkText([...metaCreativeFeatures, 'video_highlight']),
