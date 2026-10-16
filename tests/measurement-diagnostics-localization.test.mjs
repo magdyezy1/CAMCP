@@ -11,6 +11,7 @@ import {
 } from '../tools/check-locales.mjs';
 import {MirrorError, errorResult} from '../dist/src/errors.js';
 import {accountWorkflowFixture} from './fixtures/account-workflows-ui.mjs';
+import {assertWebsiteRemedy} from './fixtures/website-remedy.mjs';
 const files = ['src/measurement-events.ts', 'src/measurement-event-identity.ts', 'src/gtm-consent-evidence.ts'],
   catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
 function ownedCodes() {
@@ -138,7 +139,13 @@ test('all 40 source occurrences format bilingual authored reasons and reachable 
       f.context.error = error;
       const display = f.run('errorMessage(error)');
       assert.ok(display.includes(locale === 'ar' ? catalog[message] : message));
-      assert.ok(display.includes(locale === 'ar' ? catalog[response.error.next_action] : response.error.next_action));
+      // WEB-03: a hint written for an MCP client gives way to the website's own wording.
+      assertWebsiteRemedy(
+        f,
+        display,
+        response.error.next_action,
+        locale === 'ar' ? catalog[response.error.next_action] : response.error.next_action,
+      );
       assert.ok(display.includes('synthetic-measurement-reference'));
       assert.equal(JSON.stringify(response), before);
     }

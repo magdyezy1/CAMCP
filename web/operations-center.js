@@ -448,7 +448,9 @@ function workbookQueryController(root, id) {
   const values = (form, q) => {
     const e = form.elements;
     let config = q.query_config;
-    if (config.gateway || q.configuration_redacted) config = JSON.parse(e.configuration.value);
+    // WEB-03: a JSON mistake names its field instead of showing the browser's parser text.
+    if (config.gateway || q.configuration_redacted)
+      config = parseJsonField(uiText('Complete query JSON'), e.configuration.value);
     else {
       const kind = e.window.value;
       config = {

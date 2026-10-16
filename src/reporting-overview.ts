@@ -153,6 +153,23 @@ const recordWithBudget = (r: JsonObject, budget: JsonObject | undefined) => {
   return {...visible, collection_budget: usage};
 };
 const publicRecord = (r: JsonObject) => recordWithBudget(r, r.collection_budget);
+/**
+ * Whether a saved report, template or schedule is listed to this actor, as bootstrap lists them (SEC-08): every one
+ * without a client access set; with one, only a record each of whose sources resolves within the set. The website's
+ * workspace search (WEB-09, server/workspace-search.ts) lists saved reports by this same rule.
+ */
+export function overviewRecordListed(store: Store, actor: Actor, record: JsonObject): boolean {
+  if (actor.accessSetId === undefined) return true;
+  try {
+    store.assertActorActive(actor);
+    for (const s of (record.config ?? {sources: []}).sources)
+      store.resolveConnection(actor, reportPlatforms[s.platform]!.gateway, s.account_id, s.connection_id);
+    return true;
+  } catch (e) {
+    if (e instanceof MirrorError) return false;
+    throw e;
+  }
+}
 /** A report snapshot with its collection counters read from wherever they are kept (OPS-08 split layout). */
 const publicReport = (store: Store, tenant: string, r: JsonObject) =>
   recordWithBudget(r, reportBudgetView(store, tenant, r));
@@ -566,16 +583,7 @@ export class ReportingOverview {
         ofClient = (gateway: string, account: string, connection: string) =>
           !client || client.has(gateway, account, connection),
         // A credential limited to a client access set sees only saved reports and schedules within it.
-        reachable = (record: JsonObject) => {
-          if (actor.accessSetId === undefined) return true;
-          try {
-            this.access(actor, record.config ?? {sources: []});
-            return true;
-          } catch (e) {
-            if (e instanceof MirrorError) return false;
-            throw e;
-          }
-        },
+        reachable = (record: JsonObject) => overviewRecordListed(store, actor, record),
         ownerRecords = {
           schedules: store.documents(tenant, 'overview_schedule').filter(reachable),
           views: store.documents(tenant, 'overview_view').filter(reachable),

@@ -129,10 +129,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // COM-02 and COM-03 add the catalog destination, lineage, mapping, requirement, source, native request meter and Snapchat
   // catalog comparison and read modules; the review fixes add src/catalog-retirement.ts (a retirement of a missing product)
   // and the refusal of an unrecognized Reddit account history.
-  assert.equal(files.length, 565);
-  assert.equal(selected.filter(row => row.messages.size).length, 233);
-  assert.equal(owned.size, 1577);
-  assert.equal(Object.keys(catalog).length, 11218);
+  // WEB-09 adds server/workspace-search.ts (its query refusal); WEB-03 adds the website presentation copy.
+  assert.equal(files.length, 566);
+  assert.equal(selected.filter(row => row.messages.size).length, 234);
+  assert.equal(owned.size, 1578);
+  assert.equal(Object.keys(catalog).length, 11314);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

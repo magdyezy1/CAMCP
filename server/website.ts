@@ -2,6 +2,7 @@ import {compressedAssets} from './compressed-assets.js';
 import {createPublicAssets, robotsTxt, securityTxt, type PublicPage} from './public-assets.js';
 import {wooCommerceSources} from '../src/woocommerce-source.js';
 import {mediaSourceRoutes} from './media-source-routes.js';
+import {workspaceSearch} from './workspace-search.js';
 import express, {type Request, type Response, type NextFunction} from 'express';
 import path from 'node:path';
 import {reportEvidence} from '../src/report-quality.js';
@@ -697,6 +698,30 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
           web.requireMutation(req);
         });
         const result = await service.call(tool, req.body, actor);
+        web.requireMutation(req);
+        res.setHeader('Cache-Control', 'no-store');
+        res.json(result);
+      }),
+    );
+    // WEB-09: the command palette's workspace search, as the signed-in person; local reads only, never a provider
+    // request. A POST keeps the search text out of addresses. The test-account allow-list above does not include it.
+    // The session's client access set applies to every source (SEC-08), and profile_id, the working client, narrows it.
+    router.post(
+      '/api/workspace-search',
+      express.json({limit: '1kb'}),
+      handler(async (req, res) => {
+        const session = web.requireMutation(req),
+          actor = {...session.actor};
+        store.bindActorCheck(actor, () => {
+          web.requireMutation(req);
+        });
+        const result = await workspaceSearch(
+          store,
+          actor,
+          req.body?.q,
+          (tool, input) => service.call(tool, input, actor),
+          req.body?.profile_id,
+        );
         web.requireMutation(req);
         res.setHeader('Cache-Control', 'no-store');
         res.json(result);

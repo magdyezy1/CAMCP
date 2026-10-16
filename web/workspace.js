@@ -131,11 +131,22 @@ function workspaceFormFeedback(form) {
       '</strong><p id="' +
       esc(id + '-message') +
       '"></p><p>' +
-      esc(uiText('Review the message below before continuing.')) +
-      '</p></div>',
+      // WEB-03: the message, what to do, the provider's facts and the reference are above this line, each on its own.
+      esc(uiText('Check these details and your selections, then try again.')) +
+      '</p><details class="error-technical" id="' +
+      esc(id + '-technical') +
+      '" hidden><summary>' +
+      esc(uiText('Technical details')) +
+      '</summary><pre class="code-block" dir="ltr" tabindex="0" role="region" aria-label="' +
+      esc(uiText('Technical details')) +
+      '" id="' +
+      esc(id + '-technical-text') +
+      '"></pre></details></div>',
   );
   const region = document.getElementById(id),
     message = document.getElementById(id + '-message'),
+    technical = document.getElementById(id + '-technical'),
+    technicalText = document.getElementById(id + '-technical-text'),
     viewCurrent = () => navigation === navigationGeneration && identity === identityGeneration,
     connected = () => viewCurrent() && form.isConnected && region.isConnected;
   let version = 0,
@@ -154,6 +165,10 @@ function workspaceFormFeedback(form) {
     if (!connected()) return;
     region.hidden = true;
     message.textContent = '';
+    if (technical) {
+      technical.hidden = true;
+      technicalText.textContent = '';
+    }
     describe(false);
   };
   form.addEventListener('input', clear);
@@ -172,9 +187,16 @@ function workspaceFormFeedback(form) {
         current,
         show(error) {
           if (!current()) return;
-          const text = errorMessage(error);
+          // WEB-03: the message, what to do, the provider's facts and the reference each on their own line.
+          const text = errorLines(error);
           if (!text) return;
           message.textContent = text;
+          // The server's exact text, for support: never a provider body (WEB-03).
+          const exact = errorTechnical(error);
+          if (technical) {
+            technical.hidden = !exact;
+            technicalText.textContent = exact ? JSON.stringify(exact, null, 2) : '';
+          }
           describe(true);
           region.hidden = false;
         },
@@ -371,7 +393,11 @@ async function renderCampaigns() {
     }
     $('#campaign-detail').innerHTML =
       campaignRows(run) +
-      `<div class="dialog-actions">${run.steps.some(s => s.review_id && ['executing', 'uncertain', 'failed', 'verifying', 'mismatch', 'processing'].includes(s.status)) ? `<button id="reconcile-campaign" class="button">${esc(uiText('Read back submitted step'))}</button>` : ''}<button id="preflight-campaign" class="button">${esc(uiText('Check prerequisites'))}</button><button id="next-campaign" class="button">${esc(uiText('Review next step'))}</button><button id="approve-campaign" class="button">${esc(uiText('Review whole plan'))}</button>${run.approval?.plan_hash === run.plan_hash ? `<button id="run-campaign" class="button primary">${esc(uiText('Run approved plan / continue'))}</button>${run.steps.every(s => s.kind === 'media') && !['queued', 'running'].includes(run.background?.state) ? `<button id="run-background" class="button">${esc(uiText('Run on the AMCP server'))}</button>` : ''}` : ''}${campaignNeedsAmendment(run) ? `<button id="amend-campaign" class="button">${esc(uiText('Correct blocked step'))}</button>` : ''}${['attention', 'cancelled'].includes(run.state) && run.steps.some(s => !['verified', 'verified_with_acceptance', 'complete'].includes(s.status)) ? `<button id="continue-campaign" class="button">${esc(uiText('Continue in a new linked plan'))}</button>` : ''}${campaignCanActivate(run) ? `<button id="activate-campaign" class="button">${esc(uiText('Prepare activation'))}</button>` : ''}${run.steps
+      // WEB-03: an approval lasts 24 hours; an expired one offers the review again instead of a Run that fails.
+      (campaignApprovalExpired(run)
+        ? `<p class="notice" role="note">${esc(uiText('The plan approval expired 24 hours after it was given. Review the whole plan again to run it.'))}</p>`
+        : '') +
+      `<div class="dialog-actions">${run.steps.some(s => s.review_id && ['executing', 'uncertain', 'failed', 'verifying', 'mismatch', 'processing'].includes(s.status)) ? `<button id="reconcile-campaign" class="button">${esc(uiText('Read back submitted step'))}</button>` : ''}<button id="preflight-campaign" class="button">${esc(uiText('Check prerequisites'))}</button><button id="next-campaign" class="button">${esc(uiText('Review next step'))}</button><button id="approve-campaign" class="button">${esc(uiText(campaignApprovalExpired(run) ? 'Review whole plan again' : 'Review whole plan'))}</button>${campaignApprovalCurrent(run) ? `<button id="run-campaign" class="button primary">${esc(uiText('Run approved plan / continue'))}</button>${run.steps.every(s => s.kind === 'media') && !['queued', 'running'].includes(run.background?.state) ? `<button id="run-background" class="button">${esc(uiText('Run on the AMCP server'))}</button>` : ''}` : ''}${campaignNeedsAmendment(run) ? `<button id="amend-campaign" class="button">${esc(uiText('Correct blocked step'))}</button>` : ''}${['attention', 'cancelled'].includes(run.state) && run.steps.some(s => !['verified', 'verified_with_acceptance', 'complete'].includes(s.status)) ? `<button id="continue-campaign" class="button">${esc(uiText('Continue in a new linked plan'))}</button>` : ''}${campaignCanActivate(run) ? `<button id="activate-campaign" class="button">${esc(uiText('Prepare activation'))}</button>` : ''}${run.steps
         .filter(s => ['mismatch', 'verifying'].includes(s.status) && s.verification?.actual_hash)
         .map(
           s =>
@@ -387,8 +413,9 @@ async function renderCampaigns() {
           s.review_id && ['executing', 'uncertain', 'failed', 'verifying', 'mismatch', 'processing'].includes(s.status),
       );
       if (!step) throw Error(uiText('No submitted step needs reconciliation.'));
-      await workspaceCall('campaign', {action: 'reconcile_step', id, step_id: step.id});
-      if (current()) await open(id);
+      const read = await workspaceCall('campaign', {action: 'reconcile_step', id, step_id: step.id});
+      // WEB-03: the read-back's outcome and its next control are shown with the plan read again.
+      if (current()) await open(id, {outcome: read});
     });
     workspaceBind('#preflight-campaign', async () => {
       const out = await workspaceCall('campaign', {action: 'preflight', id, detail: 'full'});
@@ -408,29 +435,8 @@ async function renderCampaigns() {
       await workspaceCall('campaign', {action: 'cancel', id, confirmed: true});
       if (current()) await open(id);
     });
-    const reviewNext = async () => {
-      const r = await workspaceCall('campaign', {action: 'prepare_next', id, detail: 'full'});
-      if (!current()) return;
-      if (r.review) {
-        $('#campaign-review').innerHTML = reviewView(r.review, uiText('Execute reviewed campaign step'));
-        // An expired step review is prepared again by prepare_next, which reads the state again (WRT-05).
-        bindReviewCountdown(r.review, reviewNext);
-        workspaceBind('#execute-reviewed', async () => {
-          const out = await workspaceCall('campaign', {
-            action: 'execute_next',
-            id,
-            review_id: r.review.review_id,
-            idempotency_key: r.review.idempotency_key,
-            ...readReviewConsents(r.review),
-          });
-          if (current()) {
-            await open(id);
-            $('#campaign-review').innerHTML = campaignOutcome(out);
-          }
-        });
-      } else await open(id, r);
-    };
-    workspaceBind('#next-campaign', reviewNext);
+    // Review next step and its execution are bound by bindCampaignWorkflow (WEB-03: a run that stops for an
+    // acknowledgement renders the same review inline).
     return sequence === openSequence;
   };
   workspaceBind('[data-run]', b => open(b.dataset.run));
@@ -452,7 +458,9 @@ async function renderCampaigns() {
   if (templateForm.elements.profile_id.value) templateForm.elements.profile_id.dispatchEvent(new Event('change'));
   workspaceBind('#campaign-form', async f => {
     const v = Object.fromEntries(new FormData(f)),
-      steps = v.steps.trim() ? JSON.parse(v.steps) : undefined;
+      // A JSON field that does not parse is refused by its name (WEB-03), before anything is asked or sent.
+      variables = parseJsonField(uiText('Template variables'), v.variables),
+      steps = v.steps.trim() ? parseJsonField(uiText('Native campaign steps'), v.steps, 'array') : undefined;
     // A plan whose steps span accounts of different clients asks first (SEC-08).
     if (
       Array.isArray(steps) &&
@@ -469,7 +477,7 @@ async function renderCampaigns() {
       brief: v.brief,
       ...(v.profile_id ? {profile_id: v.profile_id} : {}),
       ...(v.template ? {template: v.template} : {}),
-      variables: JSON.parse(v.variables),
+      variables,
       ...(steps ? {steps} : {}),
     });
     await open(r.id);
@@ -491,7 +499,7 @@ function mediaJobPanel(job, id) {
     // would repeat offers no Try again.
     busy = notSent && ['MEDIA_MEMORY_BUSY', 'MEDIA_UPLOAD_BUSY', 'MEDIA_PROCESSOR_BUSY'].includes(job.error?.code),
     again = notSent && job.retry_available !== false;
-  return `<section class="panel"><h2>${esc(uiText('Upload progress'))}</h2>${notSent ? badge('not_submitted', uiText(again ? 'Not sent — try again' : 'Not sent')) : badge(job.state)}<p>${esc(uiText('The original review and upload key are retained. You can leave and return to this job.'))}</p>${busy ? `<p role="status">${esc(uiText('Nothing reached the platform: AMCP was busy with other media work. Try again while the review is valid; the same reviewed file is queued again.'))}</p>` : notSent && !again ? `<p role="status">${esc(uiText('Nothing reached the platform, and queueing this review again would stop the same way. Prepare the upload again.'))}</p>` : ''}${reviewTable(job.progress, uiText('Transfer progress'))}${job.error ? `<p class="error">${esc(uiOwnedError(job.error).message)}</p>` : ''}${recordDetails(job, uiText('Job, original receipt and journal'))}<a href="/media?review_id=${encodeURIComponent(id)}">${esc(uiText('Link to this upload'))}</a><button class="button" id="inspect-media-job">${esc(uiText(again ? 'Try again' : 'Inspect recovery'))}</button></section>`;
+  return `<section class="panel"><h2>${esc(uiText('Upload progress'))}</h2>${notSent ? badge('not_submitted', uiText(again ? 'Not sent — try again' : 'Not sent')) : badge(job.state)}<p>${esc(uiText('The original review and upload key are retained. You can leave and return to this job.'))}</p>${busy ? `<p role="status">${esc(uiText('Nothing reached the platform: AMCP was busy with other media work. Try again while the review is valid; the same reviewed file is queued again.'))}</p>` : notSent && !again ? `<p role="status">${esc(uiText('Nothing reached the platform, and queueing this review again would stop the same way. Prepare the upload again.'))}</p>` : ''}${reviewTable(job.progress, uiText('Transfer progress'))}${job.error ? `<p class="error">${esc(uiOwnedError(job.error).message)}</p>${!notSent && typeof websiteRemedy === 'function' && websiteRemedy(job.error) ? `<p class="form-note">${esc(websiteRemedy(job.error))}</p>` : ''}` : ''}${recordDetails(job, uiText('Job, original receipt and journal'))}<a href="/media?review_id=${encodeURIComponent(id)}">${esc(uiText('Link to this upload'))}</a><button class="button" id="inspect-media-job">${esc(uiText(again ? 'Try again' : 'Inspect recovery'))}</button></section>`;
 }
 /** The recovery note of a review whose background job failed before any claim; empty otherwise. */
 const mediaNotSentNotice = r =>

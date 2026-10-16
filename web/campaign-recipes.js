@@ -2,6 +2,9 @@
  * memory and in sessionStorage, so in-app navigation and a reload restore them; signing out or switching workspace
  * forgets them. Provider labels and profile text are rendered as data, never HTML or instructions. */
 const recipeDrafts = new Map();
+// WEB-03: a refusal shows its reason, what to do and its request reference (the shell's errorMessage), not the message
+// alone; without the shell (an isolated page script), the message.
+const recipeErrorText = e => (typeof errorMessage === 'function' ? errorMessage(e) : String(e?.message ?? ''));
 const recipeLabels = {
   name: 'Campaign name',
   daily_budget: 'Daily budget in account currency',
@@ -1299,7 +1302,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
                 }),
               );
           } catch (e) {
-            if (current()) $('#recipe-error').textContent = e.message;
+            if (current()) $('#recipe-error').textContent = recipeErrorText(e);
           } finally {
             if (formCurrent()) b.disabled = false;
           }
@@ -1361,7 +1364,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
             $('#recipe-preview').focus();
           }
         } catch (e) {
-          if (current()) $('#recipe-error').textContent = e.message;
+          if (current()) $('#recipe-error').textContent = recipeErrorText(e);
         }
       };
       f.addEventListener('submit', async e => {
@@ -1401,7 +1404,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
           briefsLoaded = false;
           toast(uiText('Client brief saved. Plans created from it record its revision.'));
         } catch (e) {
-          if (formCurrent()) $('#recipe-error').textContent = e.message;
+          if (formCurrent()) $('#recipe-error').textContent = recipeErrorText(e);
         } finally {
           if (formCurrent()) button.disabled = viewer;
         }
@@ -1424,7 +1427,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
     } catch (e) {
       if (sequence === loading && mounted()) {
         $('#recipe-fields').textContent = '';
-        $('#recipe-error').textContent = e.message;
+        $('#recipe-error').textContent = recipeErrorText(e);
       }
     }
   };
@@ -1478,13 +1481,13 @@ async function mountRecipeBuilder(profiles, openCampaign) {
       list.querySelectorAll('[data-recipe-brief]').forEach(el =>
         el.addEventListener('click', () =>
           useBrief(briefs[Number(el.dataset.recipeBrief)]).catch(e => {
-            if (mounted()) $('#recipe-error').textContent = e.message;
+            if (mounted()) $('#recipe-error').textContent = recipeErrorText(e);
           }),
         ),
       );
     } catch (e) {
       briefsLoaded = false;
-      if (mounted()) list.textContent = e.message;
+      if (mounted()) list.textContent = recipeErrorText(e);
     }
   });
   await renderFields();

@@ -281,9 +281,11 @@ async function renderClientPlaybooks() {
   };
   const draft = () => {
     saveDefaults();
-    const extra = JSON.parse(form.elements.additional.value);
-    if (!extra || typeof extra !== 'object' || Array.isArray(extra))
-      throw Error(uiText('Additional settings must be a JSON object.'));
+    // WEB-03: a JSON mistake names its field instead of showing the browser's parser text.
+    const extra = parseJsonField(
+      uiText('Additional defaults, named variables and conversion mappings'),
+      form.elements.additional.value,
+    );
     if (Object.keys(extra).some(k => !['defaults', 'variables', 'conversion_mappings'].includes(k)))
       throw Error(uiText('Additional settings accept defaults, variables and conversion_mappings.'));
     if (extra.defaults?.recipes !== undefined)
@@ -319,7 +321,7 @@ async function renderClientPlaybooks() {
         ...(defaults.common && Object.keys(defaults.common).length ? {common: defaults.common} : {}),
         recipes: defaults.recipes ?? {},
       },
-      templates: JSON.parse(form.elements.templates.value),
+      templates: parseJsonField(uiText('Native campaign templates'), form.elements.templates.value),
       ...(form.elements.include_presentation.checked
         ? {
             report_presentation: Object.fromEntries(
@@ -451,7 +453,7 @@ async function renderClientPlaybooks() {
         preview: {
           variables: {
             campaign_name: form.elements.example_name.value,
-            ...JSON.parse(form.elements.example_variables.value),
+            ...parseJsonField(uiText('Example variable overrides (JSON)'), form.elements.example_variables.value),
           },
           destination_url: form.elements.example_url.value,
           ...(form.elements.preview_template.value ? {template: form.elements.preview_template.value} : {}),

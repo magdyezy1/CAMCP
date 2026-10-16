@@ -368,13 +368,85 @@ function commandResults() {
               .includes(q),
           )
         : [];
-  $('#command-results').innerHTML =
-    [...routeMatches(query, text => uiText(text)), ...commands]
+  const searchable = commandSearchable(String(query ?? '').trim()),
+    pages = [...routeMatches(query, text => uiText(text)), ...commands]
       .map(
         page =>
           `<button data-command-go="${esc(page.path)}"><span><strong>${esc(uiText(page.label))}</strong><small>${esc(uiText(page.description))}</small></span><span aria-hidden="true">→</span></button>`,
       )
-      .join('') || `<p class="empty">${esc(uiText('No pages match. Try “media” or “connections”.'))}</p>`;
+      .join('');
+  $('#command-results').innerHTML =
+    (pages ||
+      (searchable ? '' : `<p class="empty">${esc(uiText('No pages match. Try “media” or “connections”.'))}</p>`)) +
+    // WEB-09: the workspace's own entities follow the pages; commandEntitySearch fills them in.
+    (searchable
+      ? `<section class="command-entities" aria-labelledby="command-entities-heading"><h3 id="command-entities-heading" class="form-note">${esc(uiText('In this workspace'))}</h3><div id="command-entities" role="status" aria-live="polite"></div></section>`
+      : '');
+}
+// WEB-09 (owner opt-in): beside the pages, the palette finds this workspace's campaign plans, saved reports, report
+// snapshots, uploaded media and accounts by name or ID (POST /api/workspace-search: local reads as the signed-in
+// person, at most five of each, never a provider request). A result only opens its page; nothing runs from here.
+// Results belong to the identity and the query that asked for them; resetPrivateState clears the cache.
+const commandSearchCache = new Map();
+let commandSearchTimer,
+  commandSearchSequence = 0;
+const commandEntityKinds = {
+  plan: 'Campaign plan',
+  report: 'Saved report',
+  snapshot: 'Report snapshot',
+  media: 'Uploaded media',
+  account: 'Account',
+};
+/** Whether this session searches the workspace: a signed-in member, not a test account (whose areas are limited). */
+const commandSearchable = q => session.authenticated === true && session.testAccount !== true && q.length >= 2;
+function commandEntityView(found) {
+  if (found === 'loading') return `<p class="form-note">${esc(uiText('Searching this workspace…'))}</p>`;
+  if (found === 'unavailable')
+    return `<p class="form-note">${esc(uiText('Workspace search is unavailable right now. Pages are still listed above.'))}</p>`;
+  const hits = (found.results ?? []).filter(hit => Object.hasOwn(commandEntityKinds, hit.kind));
+  if (!hits.length) return `<p class="form-note">${esc(uiText('Nothing in this workspace matches.'))}</p>`;
+  return hits
+    .map(hit => {
+      const detail =
+        ['plan', 'snapshot'].includes(hit.kind) && hit.detail && typeof statusLabel === 'function'
+          ? statusLabel(hit.detail)
+          : hit.detail;
+      return `<button data-command-go="${esc(hit.href)}"><span><strong><bdi dir="auto">${esc(hit.label)}</bdi></strong><small>${esc(uiText(commandEntityKinds[hit.kind]))}${detail ? ` · <bdi dir="auto">${esc(detail)}</bdi>` : ''}${hit.label !== hit.id ? ` · <bdi dir="ltr">${esc(hit.id)}</bdi>` : ''}</small></span><span aria-hidden="true">→</span></button>`;
+    })
+    .join('');
+}
+/**
+ * Searches the workspace for the palette's current query after a short pause. A newer query, a shorter one or another
+ * identity wins: an older pause sends nothing, and an older answer is not shown.
+ */
+function commandEntitySearch() {
+  const q = String($('#command-query').value ?? '').trim(),
+    // The working client (SEC-08) narrows the search as it narrows every list; answers are kept per client and query.
+    client = typeof workingClientQuery === 'function' ? workingClientQuery() : {},
+    key = JSON.stringify([client.profile_id ?? null, q]),
+    sequence = ++commandSearchSequence,
+    identity = identityGeneration,
+    current = () => sequence === commandSearchSequence && identity === identityGeneration,
+    show = found => {
+      const region = $('#command-entities');
+      if (current() && region) region.innerHTML = commandEntityView(found);
+    };
+  if (!commandSearchable(q)) return;
+  if (commandSearchCache.has(key)) return show(commandSearchCache.get(key));
+  show('loading');
+  commandSearchTimer = setTimeout(async () => {
+    if (!current()) return;
+    try {
+      const found = await api('/api/workspace-search', {method: 'POST', body: JSON.stringify({q, ...client})});
+      if (identity !== identityGeneration) return;
+      // Bounded: the most recent queries of this identity only.
+      if (commandSearchCache.size >= 20) commandSearchCache.delete(commandSearchCache.keys().next().value);
+      commandSearchCache.set(key, found);
+      show(found);
+    } catch (error) {
+      if (error?.code !== 'REQUEST_SUPERSEDED') show('unavailable');
+    }
+  }, 250);
 }
 function openCommand() {
   if (document.body.classList.contains('menu-open')) {
@@ -382,10 +454,14 @@ function openCommand() {
     $('#menu-toggle').focus();
   }
   commandResults();
+  commandEntitySearch();
   $('#command-dialog').showModal();
   $('#command-query').focus();
 }
-$('#command-query').addEventListener('input', commandResults);
+$('#command-query').addEventListener('input', () => {
+  commandResults();
+  commandEntitySearch();
+});
 document.addEventListener('click', e => {
   const b = e.target.closest('button,a');
   if (!b) return;

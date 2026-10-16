@@ -5,6 +5,7 @@ import {createContext, Script} from 'node:vm';
 import {parsers} from 'prettier/plugins/babel';
 import {inspectReportingFailures, inspectProviderCaptureRemedies, localeProblems} from '../tools/check-locales.mjs';
 import {MirrorError, errorResult} from '../dist/src/errors.js';
+import {assertWebsiteRemedy} from './fixtures/website-remedy.mjs';
 const collectors = {
   'src/meta-evidence.ts': 16,
   'src/linkedin-evidence.ts': 6,
@@ -136,7 +137,13 @@ test('all actual selected refusal codes format in English and Arabic with author
       f.context.error = error;
       const display = f.run('errorMessage(error)');
       assert.ok(display.includes(locale === 'ar' ? catalog[message] : message));
-      assert.ok(display.includes(locale === 'ar' ? catalog[response.error.next_action] : response.error.next_action));
+      // WEB-03: a hint written for an MCP client ("send the call again") gives way to the website's own wording.
+      assertWebsiteRemedy(
+        f,
+        display,
+        response.error.next_action,
+        locale === 'ar' ? catalog[response.error.next_action] : response.error.next_action,
+      );
       assert.ok(display.includes('synthetic-provider-reference'));
       assert.equal(JSON.stringify(response), before);
     }

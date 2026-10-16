@@ -206,6 +206,44 @@ const deliveryErrorText = e => {
       .join(' ');
   return errorMessage(e);
 };
+/**
+ * The report builder's Pull and Save (WEB-03): a refusal is shown next to the run bar, not at the top of a long page,
+ * and takes focus so it is in view and read out. Its message, what to do and the reference each start a new line.
+ */
+function reportRunBind(selector, fn) {
+  authBind(selector, async (el, event) => {
+    const generation = navigationGeneration,
+      identity = identityGeneration,
+      alert = $('#report-run-error');
+    if (alert) {
+      alert.hidden = true;
+      alert.textContent = '';
+    }
+    try {
+      await fn(el, event);
+    } catch (error) {
+      const text = alert?.isConnected ? errorLines(error) : '';
+      // An obsolete view or a superseded request stays silent; without the slot the shared handler shows it.
+      if (generation !== navigationGeneration || identity !== identityGeneration) return;
+      if (!text) throw error;
+      alert.textContent = text;
+      alert.hidden = false;
+      alert.focus();
+      alert.scrollIntoView?.({block: 'nearest'});
+    }
+  });
+}
+/** What stops a Pull before anything is sent (WEB-03): no account chosen, or a custom range that ends before it starts. */
+function reportRunPreflight() {
+  if (!document.querySelectorAll('[data-report-account]:checked').length)
+    return uiText('Choose at least one account above, then pull the report.');
+  const mode = $('#report-range-mode')?.value,
+    since = $('[name="since"]')?.value,
+    until = $('[name="until"]')?.value;
+  if (mode === 'custom' && since && until && since > until)
+    return uiText('The start date is after the end date. Correct the dates, then pull the report.');
+  return '';
+}
 function deliveryBind(selector, fn) {
   const generation = navigationGeneration,
     identity = identityGeneration;
@@ -459,7 +497,7 @@ async function renderReportingOverview() {
     })
     .join(
       '',
-    )}</div></details><label class="report-delivery-policy">${esc(uiText('Sheets delivery policy'))}<select name="partial_delivery"><option value="allow_marked" ${c.partial_delivery !== 'complete_only' ? 'selected' : ''}>${esc(uiText('Allow clearly marked partial reports'))}</option><option value="complete_only" ${c.partial_delivery === 'complete_only' ? 'selected' : ''}>${esc(uiText('Deliver complete reports only'))}</option></select></label><div class="report-runbar"><span id="report-selected-count" class="muted">${esc(uiText('Choose your accounts above.'))}</span><label class="check"><input type="checkbox" id="overview-compare-previous"> ${esc(uiText('Also collect the previous equal window to compare'))}</label><div><button type="button" id="overview-save" class="button" ${viewer ? 'disabled' : ''}>${overviewState.selection?.kind === 'template' ? uiText('Save template') : overviewState.selection ? uiText('Save changes') : uiText('Save report')}</button><button type="submit" class="button primary" ${viewer ? 'disabled' : ''}>${glyph('report')} ${esc(uiText('Pull report'))}</button></div></div></section></form><section id="overview-results"></section><section class="panel report-history">${renderOverviewHistory(history.reports, viewer)}</section><dialog id="report-delivery-dialog" class="report-delivery-dialog" aria-label="${esc(uiText('Report delivery'))}"><div id="report-delivery-content"></div></dialog>`;
+    )}</div></details><label class="report-delivery-policy">${esc(uiText('Sheets delivery policy'))}<select name="partial_delivery"><option value="allow_marked" ${c.partial_delivery !== 'complete_only' ? 'selected' : ''}>${esc(uiText('Allow clearly marked partial reports'))}</option><option value="complete_only" ${c.partial_delivery === 'complete_only' ? 'selected' : ''}>${esc(uiText('Deliver complete reports only'))}</option></select></label><p id="report-run-error" class="error report-run-error" role="alert" tabindex="-1" hidden></p><div class="report-runbar"><span id="report-selected-count" class="muted">${esc(uiText('Choose your accounts above.'))}</span><label class="check"><input type="checkbox" id="overview-compare-previous"> ${esc(uiText('Also collect the previous equal window to compare'))}</label><div><button type="button" id="overview-save" class="button" ${viewer ? 'disabled' : ''}>${overviewState.selection?.kind === 'template' ? uiText('Save template') : overviewState.selection ? uiText('Save changes') : uiText('Save report')}</button><button type="submit" class="button primary" ${viewer ? 'disabled' : ''}>${glyph('report')} ${esc(uiText('Pull report'))}</button></div></div></section></form><section id="overview-results"></section><section class="panel report-history">${renderOverviewHistory(history.reports, viewer)}</section><dialog id="report-delivery-dialog" class="report-delivery-dialog" aria-label="${esc(uiText('Report delivery'))}"><div id="report-delivery-content"></div></dialog>`;
   bindReportDates();
   // DEC-01: the target card shows the direction derived for the selected KPI.
   document.querySelectorAll('[data-target-kpi]').forEach(el =>
@@ -531,9 +569,11 @@ async function renderReportingOverview() {
     renderCustomMetrics();
     $('#custom-metric-editor').hidden = true;
   });
-  authBind('#overview-config', async () => {
+  reportRunBind('#overview-config', async () => {
     if (overviewState.selection?.kind === 'template')
       throw new Error(uiText('Create a report from this template and choose its client accounts first.'));
+    const blocked = reportRunPreflight();
+    if (blocked) throw new Error(blocked);
     overviewState.config = overviewConfig();
     // RPT-07: the previous equal window is a second, linked snapshot with its own collection limits.
     const run = await overviewCall({
@@ -545,7 +585,16 @@ async function renderReportingOverview() {
     overviewState.page = 0;
     await loadOverviewReport(run.id);
   });
-  authBind('#overview-save', async () => saveOverviewDefinition());
+  reportRunBind('#overview-save', async () => saveOverviewDefinition());
+  // Editing the setup clears a refusal shown at the run bar (WEB-03).
+  for (const type of ['input', 'change'])
+    $('#overview-config').addEventListener(type, () => {
+      const alert = $('#report-run-error');
+      if (alert && !alert.hidden) {
+        alert.hidden = true;
+        alert.textContent = '';
+      }
+    });
   bindOverviewLibrary();
   authBind('#overview-delivery', async () => {
     if (overviewState.selection?.kind === 'template')
@@ -649,7 +698,7 @@ async function loadOverviewReport(id, page = overviewState.page) {
   });
   if (pollDelay !== null)
     pollTimer = setTimeout(() => {
-      void loadOverviewReport(id).catch(e => toast(e.message));
+      void loadOverviewReport(id).catch(e => toast(errorMessage(e)));
     }, pollDelay);
 }
 /**

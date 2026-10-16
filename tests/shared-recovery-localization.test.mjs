@@ -10,6 +10,7 @@ import {
 } from '../tools/check-locales.mjs';
 import {MirrorError, errorResult} from '../dist/src/errors.js';
 import {accountWorkflowFixture} from './fixtures/account-workflows-ui.mjs';
+import {assertWebsiteRemedy} from './fixtures/website-remedy.mjs';
 const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8')),
   source = readFileSync('src/errors.ts', 'utf8'),
   hints = inspectSharedRecoveryHints(source, 'src/errors.ts');
@@ -70,7 +71,8 @@ test('the actual formatter displays every shared hint in both languages without 
       f.context.error = f.run('requestError(response)');
       const display = f.run('errorMessage(error)');
       assert.ok(display.includes('Original <img> diagnostic 00123'));
-      assert.ok(display.includes(locale === 'ar' ? catalog[hint] : hint));
+      // WEB-03: a hint written for an MCP client gives way to the website's own wording.
+      assertWebsiteRemedy(f, display, hint, locale === 'ar' ? catalog[hint] : hint);
       assert.ok(display.includes('shared-recovery-reference'));
       assert.equal(f.context.error.code, 'NATIVE_CODE');
       assert.equal(f.context.error.details, response.error.details);
@@ -120,10 +122,12 @@ test('actual safety-critical remedy branches remain distinct and never change su
       assert.ok(hints.has(response.error.remedy.action), code + ' remedy');
       f.context.response = response;
       f.context.error = f.run('requestError(response)');
-      assert.ok(
-        f
-          .run('errorMessage(error)')
-          .includes(locale === 'ar' ? catalog[response.error.next_action] : response.error.next_action),
+      // WEB-03: a hint written for an MCP client gives way to the website's own wording.
+      assertWebsiteRemedy(
+        f,
+        f.run('errorMessage(error)'),
+        response.error.next_action,
+        locale === 'ar' ? catalog[response.error.next_action] : response.error.next_action,
       );
       assert.equal(JSON.stringify(response), before);
     }

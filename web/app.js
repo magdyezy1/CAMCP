@@ -93,6 +93,12 @@ function resetPrivateState() {
       dirty: false,
     };
   if (typeof recipeDrafts !== 'undefined') recipeDrafts.clear();
+  // The palette's workspace search results belong to the previous identity (WEB-09).
+  if (typeof commandSearchCache !== 'undefined') {
+    commandSearchCache.clear();
+    clearTimeout(commandSearchTimer);
+    commandSearchSequence++;
+  }
   if (typeof loginMfaTicket !== 'undefined') loginMfaTicket = null;
   if (typeof deliveryTimer !== 'undefined') clearTimeout(deliveryTimer);
   document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
@@ -121,27 +127,262 @@ function requestError(result, fallback = uiText('This request could not be compl
   return error;
 }
 const supersededRequest = () => Object.assign(Error(''), {code: 'REQUEST_SUPERSEDED'});
-function errorMessage(error) {
-  if (error?.code === 'REQUEST_SUPERSEDED') return '';
-  const parts = error?.messageParts,
-    split =
-      parts &&
-      typeof parts.base === 'string' &&
-      typeof parts.suffix === 'string' &&
-      error.message === parts.base.replace(/\.?$/, '') + ': ' + parts.suffix;
-  const remedy =
+// WEB-03: one presentation layer for errors. The server writes its messages and remedies for MCP clients as well as
+// people; a remedy written for an MCP client ("execute_next", "details.next_call", "send the call again") is replaced by
+// what to do on the page, and the server's exact text stays under Technical details. A remedy written for people is
+// shown as the server wrote it, in the interface language. tests/website-presentation.test.mjs fails when a remedy
+// category, provider layer or run stop has no website wording.
+// Text that addresses an MCP client: tool, action and argument names, envelope paths, consent flags, "the call" and
+// "the user" (on the website, the person reading is the user).
+const agentDirectedText =
+  /\b[a-z][a-z0-9]*_[a-z0-9_]+\b|\b(?:details|current)\.[a-z]|\b[a-z_]+:\s*(?:true|false)\b|=true\b|tools\/list|\b(?:the|this|corrected) call\b|\bcall again\b|\(a write is prepared again\)|\bthe user\b/;
+/** Whether server text addresses an MCP client rather than the person on the page. */
+const agentDirected = text => typeof text === 'string' && agentDirectedText.test(text);
+// The website's wording, by error code, for a refusal whose server remedy addresses an MCP client. First match wins.
+const websiteRemedies = [
+  [
+    /^REVIEW_EXPIRED$/,
+    'Nothing was sent. Prepare the change again: AMCP reads the current state again and shows you a new review to check.',
+  ],
+  [
+    /^APPROVAL_REQUIRED$/,
+    'Open Review whole plan, check every step and approve the plan, then run it again. An approval lasts 24 hours and covers this exact plan only.',
+  ],
+  [
+    /^PLAN_CHANGED$/,
+    'The plan changed after you opened its summary. Review the whole plan again and approve the current version.',
+  ],
+  [
+    /^REVIEW_HELD_ELSEWHERE$/,
+    'Continue this step where its review was prepared (an AI client or another sign-in). A review that is never executed expires after five minutes, and the step can then be prepared again here.',
+  ],
+  [
+    /^DISTINCT_APPROVER_REQUIRED$/,
+    'Share the plan with a colleague as its approver; they approve and run it. The workspace owner sets this rule in Settings.',
+  ],
+  [
+    /^STATE_CHANGED$/,
+    'Nothing was sent: the account changed after this review was prepared. Prepare the change again and check the new review.',
+  ],
+  [
+    /^(?:CAP_|SPEND_|CREATIVE_EDIT_)?CONFIRMATION_REQUIRED$/,
+    'The review is still valid. Tick the authorization it asks for, then execute it again; there is no need to prepare it again.',
+  ],
+  [
+    /^RESOURCE_SCOPE_REQUIRED$/,
+    'AMCP could not confirm that this object belongs to the selected account. Check the account and the object, then try again.',
+  ],
+  [
+    /^CONNECTOR_READ_ONLY$/,
+    'Your access to this workspace is read-only. Ask a workspace administrator for a role that makes reviewed changes.',
+  ],
+  [
+    /^AMBIGUOUS_CONNECTION$/,
+    'More than one login covers this account. Choose the login on this page, or set a default login on the Connections page.',
+  ],
+  [
+    /^(?:CONNECTION_NOT_FOUND|CONNECTION_ID_REQUIRED|CREDENTIALS_REQUIRED|CONNECTION_REQUIRED)$/,
+    'Choose a login that includes this account, or connect the provider and select the account on the Connections page.',
+  ],
+  [
+    /^REVISION_CONFLICT$/,
+    'Someone changed this since you opened it. Refresh the page to see the current version, then try again.',
+  ],
+  [/^DEPENDENCY_PENDING$/, 'Wait until the step this one depends on is verified, then review the next step again.'],
+  [
+    /^WRITE_REJECTED$/,
+    'Nothing was applied, and this change is never sent again. Correct what the provider’s message names and prepare a new review; in a campaign plan, correct the blocked step.',
+  ],
+  [
+    /^PLAN_LIMIT_REACHED$/,
+    'Archive complete, cancelled or superseded plans on the Campaigns page. Archived plans stay readable and no longer count toward the limit.',
+  ],
+  [/^PLAN_ARCHIVED$/, 'Unarchive the plan on the Campaigns page to work on it again.'],
+  [
+    /^POLICY_REQUIRED$/,
+    'Nothing was sent. This change needs a spending policy on the account: the workspace owner saves one in Settings, then prepare the change again.',
+  ],
+  [
+    /^(?:MEDIA_SOURCE_NOT_FOUND|MEDIA_UPLOAD_COMPLETE)$/,
+    'Uploads last 30 minutes. Choose a current upload on the Media page, or upload the file again.',
+  ],
+  [
+    /(?:^|_)MEDIA_(?:NOT_READY|CONVERSION_INCOMPLETE)$/,
+    'The media is still processing. Check it on the Media page and continue once it is ready.',
+  ],
+  [
+    /^(?:MEDIA_MEMORY_BUSY|MEDIA_UPLOAD_BUSY)$/,
+    'Another upload is in progress. Wait a moment, then check this upload on the Media page before you try again.',
+  ],
+  [
+    /^(?:MEDIA_ADMISSION_LOST|MEDIA_UPLOAD_LEASE_LOST|MEDIA_UPLOAD_URL_EXPIRED|RECOVERY_NOT_SAFE)$/,
+    'AMCP never repeats an upload or step whose outcome is not confirmed. Check its recovery in Operations before you do anything else.',
+  ],
+  [
+    /^(?:RECIPE_|DESTINATION_REQUIRED$)/,
+    'Supply or correct the recipe input the message names, then preview the recipe again.',
+  ],
+  [
+    /^PROGRAM_/,
+    'Choose a configured account and supply what the message names, then check again. This check only reads; nothing is prepared or changed.',
+  ],
+  [
+    /^SNAPCHAT_PIXEL_NOT_OWNED$/,
+    'Nothing was sent. Correct the blocked step with a pixel this ad account owns, or have the pixel’s owner share it to the ad account in Snapchat Business Manager.',
+  ],
+  [
+    /_SCOPE_REQUIRED$/,
+    'Reconnect the login on the Connections page with the permission the message names, then try again.',
+  ],
+  [
+    /(?:^|_)NOT_FOUND$/,
+    'The object the message names is not in this account or workspace. Check the account’s own list for the right ID, then try again.',
+  ],
+];
+// Who must act on a provider refusal, as the provider-error layer (PRV-01) names it; an unknown cause is never guessed.
+const providerLayerRemedies = {
+  credential: 'The provider ended this login’s access. Reconnect the login on the Connections page.',
+  consent:
+    'The login has not granted the permission the provider needs. Reconnect it on the Connections page and grant that permission.',
+  role_or_asset_access:
+    'The login’s role on this account does not allow this. Ask an administrator of the account at the provider to give the login access.',
+  app_eligibility:
+    'The provider has not approved AMCP’s application for this feature. Only the deployment owner can apply for that access.',
+  rate_limit: 'The provider is limiting requests for now. Nothing more was sent; try again after a short wait.',
+  api_version: 'The provider no longer accepts the API version AMCP used. The deployment owner needs to update AMCP.',
+};
+// When the server's remedy addresses an MCP client and no code above applies, its category decides the wording.
+const websiteCategoryRemedies = {
+  request: 'Check the values you entered or selected, correct what the message names, then try again.',
+  state: 'Refresh the page to see the current state, then try again.',
+  provider:
+    'The provider did not complete this. Try again later; if it keeps happening, share the reference with the workspace owner.',
+  grant:
+    'This login or account is missing access for this. Check it on the Connections page or ask the workspace owner.',
+  permission: 'Your role in this workspace does not include this. Ask the workspace owner.',
+  policy: 'A workspace policy stopped this. The workspace owner manages it in Settings.',
+  deployment: 'This AMCP deployment is not set up for this. Share the reference with the workspace owner.',
+  contract: 'AMCP does not support this here. Choose another option on this page.',
+  report:
+    'The report could not be completed as asked. Narrow it (a shorter date range, fewer accounts or metrics) or try again later.',
+  auth: 'Sign in again, then try again.',
+  confirmation: 'Confirm the choice shown on this page, then try again.',
+  discovery: 'Refresh this login’s accounts on the Connections page, then try again.',
+  internal: 'Something went wrong in AMCP. Share the reference with the workspace owner.',
+};
+// A server message that addresses an MCP client, by code: the website states the cause in its own words.
+const websiteMessages = {
+  APPROVAL_REQUIRED: raw =>
+    /another connection/.test(raw)
+      ? 'This plan was approved from another connection (an AI client or another sign-in). Approve it here to run it here.'
+      : 'This plan has no current approval.',
+};
+/** The remedy as the website words it, or ''. */
+function websiteRemedy(error) {
+  const code = typeof error?.code === 'string' ? error.code : '',
+    layer = error?.details?.layer;
+  if (typeof layer === 'string' && Object.hasOwn(providerLayerRemedies, layer))
+    return uiText(providerLayerRemedies[layer]);
+  const server =
     error?.next_action ??
     error?.remedy?.action ??
     error?.remedy?.message ??
     error?.remedy?.next_action ??
     error?.details?.next_action;
-  return [
-    split ? uiText(parts.base).replace(/\.?$/, '') + ': ' + parts.suffix : uiText(error?.message),
-    typeof remedy === 'string' ? uiText(remedy) : '',
-    error?.requestId ? uiText('Reference: {id}', {id: error.requestId}) : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
+  if (typeof server !== 'string' || !server) return '';
+  if (!agentDirected(server)) return uiText(server);
+  const rule = websiteRemedies.find(([pattern]) => pattern.test(code));
+  if (rule) return uiText(rule[1]);
+  const category = typeof error.category === 'string' ? error.category : error.remedy?.category,
+    fallback = uiText(websiteCategoryRemedies[Object.hasOwn(websiteCategoryRemedies, category) ? category : 'request']);
+  // The one safety fact such a remedy starts with is kept.
+  return /^Nothing was (?:submitted|sent|prepared)\b/.test(server)
+    ? uiText('Nothing was sent.') + ' ' + fallback
+    : fallback;
+}
+/**
+ * The provider's own facts about a refusal (owner decision D21): its HTTP status, its error code and its request ID,
+ * from allow-listed detail fields of a provider refusal only. A provider body, message or token is never shown here.
+ */
+function providerFacts(error) {
+  const d = error?.details && typeof error.details === 'object' ? error.details : {};
+  if (!Number.isInteger(d.http_status) && d.upstream === undefined && typeof d.layer !== 'string') return null;
+  const status = Number.isInteger(d.http_status) && d.http_status >= 100 && d.http_status <= 599 ? d.http_status : null,
+    code = Number.isSafeInteger(d.provider_code)
+      ? String(d.provider_code)
+      : typeof d.provider_code === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/.test(d.provider_code)
+        ? d.provider_code
+        : null,
+    requestId =
+      typeof d.request_id === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:+=\/-]{0,127}$/.test(d.request_id)
+        ? d.request_id
+        : null;
+  return status === null && code === null && requestId === null ? null : {status, code, requestId};
+}
+/** An error as its parts: AMCP's or the provider's message, what to do on the page, provider facts and the reference. */
+function errorParts(error) {
+  if (!error || error.code === 'REQUEST_SUPERSEDED') return {message: '', remedy: '', provider: '', reference: ''};
+  const parts = error.messageParts,
+    split =
+      parts &&
+      typeof parts.base === 'string' &&
+      typeof parts.suffix === 'string' &&
+      error.message === parts.base.replace(/\.?$/, '') + ': ' + parts.suffix,
+    raw = typeof error.message === 'string' ? error.message : '',
+    facts = providerFacts(error);
+  return {
+    message: split
+      ? uiText(parts.base).replace(/\.?$/, '') + ': ' + parts.suffix
+      : Object.hasOwn(websiteMessages, error.code) && agentDirected(raw)
+        ? uiText(websiteMessages[error.code](raw))
+        : uiText(raw),
+    remedy: websiteRemedy(error),
+    provider: facts
+      ? [
+          facts.status !== null ? uiText('Provider response: HTTP {status}.', {status: facts.status}) : '',
+          facts.code !== null && facts.code !== String(facts.status)
+            ? uiText('Provider code: {code}.', {code: facts.code})
+            : '',
+          facts.requestId !== null ? uiText('Provider request ID: {id}.', {id: facts.requestId}) : '',
+        ]
+          .filter(Boolean)
+          .join(' ')
+      : '',
+    reference: error.requestId ? uiText('Reference: {id}', {id: error.requestId}) : '',
+  };
+}
+const errorPartList = parts => [parts.message, parts.remedy, parts.provider, parts.reference].filter(Boolean);
+/** The error as one line, for a toast: its message, what to do, the provider's facts and the reference. */
+function errorMessage(error) {
+  return errorPartList(errorParts(error)).join(' ');
+}
+/** The same parts one per line, for an alert whose text keeps its line breaks (white-space: pre-line). */
+function errorLines(error) {
+  return errorPartList(errorParts(error)).join('\n');
+}
+/** The server's exact error text, kept under Technical details: its code, message and remedy, never a provider body. */
+function errorTechnical(error) {
+  if (typeof error?.code !== 'string' || error.code === 'REQUEST_SUPERSEDED') return null;
+  const remedy = error.next_action ?? error.remedy?.action;
+  return {
+    code: error.code,
+    message: typeof error.message === 'string' ? error.message : '',
+    ...(typeof remedy === 'string' ? {next_action: remedy} : {}),
+  };
+}
+/** The error as markup: one paragraph per part, then the server's exact text under Technical details. */
+function errorBlock(error) {
+  const parts = errorParts(error),
+    technical = errorTechnical(error);
+  if (!parts.message && !parts.remedy) return '';
+  return (
+    errorPartList(parts)
+      .map((line, i) => `<p${i ? ' class="form-note"' : ''}>${esc(line)}</p>`)
+      .join('') +
+    (technical
+      ? `<details class="error-technical"><summary>${esc(uiText('Technical details'))}</summary><pre class="code-block" dir="ltr" tabindex="0" role="region" aria-label="${esc(uiText('Technical details'))}">${esc(JSON.stringify(technical, null, 2))}</pre></details>`
+      : '')
+  );
 }
 const content = $('#content'),
   date = v => (v ? uiDate(v) : uiText('Not synced'));
@@ -210,9 +451,10 @@ const pageErrorCauses = {
 function showPageError(e) {
   const reload = e?.code === 'PAGE_ASSET_RELOAD_REQUIRED';
   content.innerHTML =
-    `<section class="panel page-error" role="alert"><h1 tabindex="-1">${esc(e?.updated ? uiText('AMCP was updated') : uiText('This page could not open'))}</h1><p>` +
-    esc(errorMessage({...e, message: pageErrorCauses[e?.code] ?? e?.message ?? 'Something went wrong.'})) +
-    `</p><div class="dialog-actions"><button class="button primary" type="button" data-retry-page>${esc(uiText(reload ? 'Reload page' : 'Try again'))}</button><a class="button" href="/connections">${esc(uiText('Back to Connections'))}</a></div></section>`;
+    `<section class="panel page-error" role="alert"><h1 tabindex="-1">${esc(e?.updated ? uiText('AMCP was updated') : uiText('This page could not open'))}</h1>` +
+    // WEB-03: one paragraph per part, so the cause, what to do and the reference never run together.
+    errorBlock({...e, message: pageErrorCauses[e?.code] ?? e?.message ?? 'Something went wrong.'}) +
+    `<div class="dialog-actions"><button class="button primary" type="button" data-retry-page>${esc(uiText(reload ? 'Reload page' : 'Try again'))}</button><a class="button" href="/connections">${esc(uiText('Back to Connections'))}</a></div></section>`;
   content.querySelector('[data-retry-page]').addEventListener('click', () => (reload ? reloadPage() : render()));
   content.querySelector('h1').focus();
 }
@@ -872,7 +1114,7 @@ async function renderConnectors() {
       oauthClients = authorizations.clients;
       oauthEnded = authorizations.ended ?? [];
     } catch (e) {
-      toast(e.message);
+      toast(errorMessage(e));
     }
   } else {
     tokens = [];
@@ -1099,7 +1341,8 @@ async function renderCallback() {
     result = id ? await api('/api/oauth/progress/' + encodeURIComponent(id)) : null;
   } catch (e) {
     content.innerHTML =
-      header(uiText('Connection needs attention'), esc(e.message)) +
+      header(uiText('Connection needs attention'), '') +
+      errorBlock(e) +
       `<a href="/connections" class="button primary">${esc(uiText('Back to connections'))}</a>`;
     return;
   }
@@ -1986,8 +2229,8 @@ document.addEventListener('click', async event => {
     }
   } catch (e) {
     // On the page, the error persists above the content until the next action; inside a dialog it stays a toast.
-    if (el.closest?.('dialog')) toast(e.message);
-    else showShellAlert(errorMessage(e));
+    if (el.closest?.('dialog')) toast(errorMessage(e));
+    else showShellAlert(errorLines(e));
   } finally {
     if (disabledHere && el.isConnected) el.disabled = false;
   }
@@ -2158,7 +2401,7 @@ function clientNavigation(event, el) {
     }
   } catch (e) {
     content.innerHTML =
-      header('AMCP', uiText('Your advertising workspace')) + `<div class="notice warning">${esc(e.message)}</div>`;
+      header('AMCP', uiText('Your advertising workspace')) + `<div class="notice warning">${errorBlock(e)}</div>`;
   }
 })();
 

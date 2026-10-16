@@ -5,6 +5,7 @@ import {parsers} from 'prettier/plugins/babel';
 import {inspectMeasurementFailures, inspectSharedRecoveryHints, localeProblems} from '../tools/check-locales.mjs';
 import {MirrorError, errorResult} from '../dist/src/errors.js';
 import {accountWorkflowFixture} from './fixtures/account-workflows-ui.mjs';
+import {assertWebsiteRemedy} from './fixtures/website-remedy.mjs';
 const file = 'src/linkedin-conversion-evidence.ts',
   source = readFileSync(file, 'utf8'),
   catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8')),
@@ -89,7 +90,13 @@ test('all authored conversion diagnostics format bilingually without altering co
       assert.ok(display.includes(locale === 'ar' ? catalog[message] : message));
       assert.ok(display.includes('synthetic-conversion-diagnostic-reference'));
       assert.equal(Object.hasOwn(catalog, response.error.next_action), true);
-      assert.ok(display.includes(locale === 'ar' ? catalog[response.error.next_action] : response.error.next_action));
+      // WEB-03: a hint written for an MCP client gives way to the website's own wording.
+      assertWebsiteRemedy(
+        f,
+        display,
+        response.error.next_action,
+        locale === 'ar' ? catalog[response.error.next_action] : response.error.next_action,
+      );
       assert.equal(JSON.stringify(response), original);
     }
   }
