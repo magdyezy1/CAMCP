@@ -4,9 +4,10 @@
 //     dist/server; type-only imports are elided by tsc, dynamic import() is not an evaluation edge);
 //   - shared modules with gateway literals: src/ and server/ modules outside the provider groups that name a provider
 //     gateway ('meta_native_action'...) in a string literal;
-//   - shared -> provider runtime imports: runtime edges from any shared module (src/ or server/) to a provider module.
-//     The review's "core -> provider" count (220 at 60ec2cc) counted 28 core modules only; this one counts every shared
-//     module, so its value is larger and is compared only with its own baseline.
+//   - shared -> provider runtime imports: runtime edges from any shared module (src/ or server/) to a provider module,
+//     except the provider registries, which shared modules are meant to consult instead. The review's "core ->
+//     provider" count (220 at 60ec2cc) counted 28 core modules only; this one counts every shared module, so its value
+//     is larger and is compared only with its own baseline.
 // Reported but not ratcheted: the number of gateway literals in shared modules and the modules with a local fail().
 // A ratcheted measurement may fall or stay; one that rises, or a module that joins a cycle, is a regression. `--write`
 // records the current measurements as the new baseline (after an intended improvement, or a regression the owner
@@ -39,13 +40,18 @@ export const providerPrefixes = Object.freeze([
   'woocommerce',
   'x',
 ]);
+/**
+ * Registries where provider facts belong (ARC-01): the provider adapter registry names every gateway on purpose, so it
+ * counts with the provider modules rather than as a shared module that names gateways.
+ */
+export const providerRegistries = Object.freeze(['src/provider-adapters.ts']);
 const roots = ['src', 'server'];
 const posix = file => file.replaceAll('\\', '/');
 
-/** True for a provider module id such as `src/meta-portfolio.ts`. */
+/** True for a provider module id such as `src/meta-portfolio.ts`, or a provider registry. */
 export function isProviderModule(id) {
   const name = path.posix.basename(id).replace(/\.(?:ts|js)$/, '');
-  return id.startsWith('src/') && providerPrefixes.includes(name.split('-')[0]);
+  return (id.startsWith('src/') && providerPrefixes.includes(name.split('-')[0])) || providerRegistries.includes(id);
 }
 
 /** The relative specifiers of a compiled module's static imports and re-exports (not `import()`). */
@@ -161,8 +167,10 @@ export function architectureMetrics(root) {
       literals += named;
     }
   }
+  // Consulting a provider registry is the decoupled form of a provider dependency, so it is not counted.
   for (const [from, edges] of graph)
-    if (!isProviderModule(from)) for (const to of edges) if (isProviderModule(to)) sharedToProvider++;
+    if (!isProviderModule(from))
+      for (const to of edges) if (isProviderModule(to) && !providerRegistries.includes(to)) sharedToProvider++;
   return {
     metrics: {
       largest_runtime_scc: components[0]?.length ?? 0,

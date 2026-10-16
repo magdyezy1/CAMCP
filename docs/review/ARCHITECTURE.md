@@ -267,4 +267,16 @@ even when another cycle shrinks by as much. The number of gateway literals in sh
 `fail()` are reported only. `node tools/architecture-map.mjs --write` records the current state after an intended
 improvement, or after a regression the owner accepted; the commit says which. The review's "core to provider" count
 (220 at `60ec2cc`) counted 28 core modules; `shared_to_provider_runtime_imports` counts every shared module, so its value
-is larger and is compared only with its own baseline.
+is larger and is compared only with its own baseline. The provider adapter registry (`src/provider-adapters.ts`, §9)
+names every gateway on purpose, so the ratchet counts it with the provider modules, and an import of it is not counted
+as coupling.
+
+## 9. Provider adapters
+
+`src/provider-adapter.ts` is the gateway-level provider contract (ARC-01) and `src/provider-adapters.ts` its registry:
+one adapter per provider gateway, a leaf module that imports no provider or lifecycle module. A provider supplies
+facts; the review lifecycle, `ScopeGuard` and `NativeTransport` keep control (account binding, the origin allowlist,
+single send, retries, spending, confirmation and idempotency never move into an adapter). Every adapter has a lifecycle
+status, `active` or `parked` with a reason (`owner_parked` or `unimplemented`), and the prefixes of its reviewed family
+names, so each registered family belongs to one provider (`tests/provider-adapters.test.mjs`). A parked provider is
+offered only where `AMCP_PROVIDERS` names it (`src/provider-offering.ts`; a misspelt ID is a startup `config_problem`).

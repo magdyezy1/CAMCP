@@ -50,6 +50,9 @@ test('provider modules are the provider filename groups; the lifecycle and the w
   assert.equal(isProviderModule('src/meta-portfolio.ts'), true);
   assert.equal(isProviderModule('src/x-report-jobs.ts'), true);
   assert.equal(isProviderModule('src/woocommerce-source.ts'), true);
+  // The provider adapter registry names every gateway on purpose: it counts with the providers (ARC-01).
+  assert.equal(isProviderModule('src/provider-adapters.ts'), true);
+  assert.equal(isProviderModule('src/provider-offering.ts'), false);
   assert.equal(isProviderModule('src/scope.ts'), false);
   assert.equal(isProviderModule('src/report-native.ts'), false);
   assert.equal(isProviderModule('server/platform-oauth.ts'), false);
