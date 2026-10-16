@@ -132,6 +132,67 @@ test('an accepted row applies only to the exact digest and version; any change m
     assert.equal(contractAcceptance(other, [row()], current).status, 'unverified', JSON.stringify(other));
 });
 
+test('a newer refusal of the same contract outranks an older acceptance (regression: the oldest acceptance won)', () => {
+  const current = {contract_digest: google.contract_digest, api_version: google.api_version},
+    refused = (id, at) =>
+      row({
+        id,
+        outcome: 'refused',
+        checked_at: at,
+        evidence: {status_codes: [403], provider_codes: ['PERMISSION_DENIED']},
+      });
+  // Accepted on 2026-10-20, refused on 2026-10-25 (the provider withdrew a permission): the contract is refused now.
+  const withdrawn = contractAcceptance(
+    action,
+    [row(), refused('acc-01-google-refused', '2026-10-25T10:00:00Z')],
+    current,
+  );
+  assert.equal(withdrawn.status, 'refused');
+  assert.equal(withdrawn.ledger_row, 'acc-01-google-refused');
+  assert.equal(liveQualification(withdrawn), 'unverified');
+  // An acceptance after the refusal counts again.
+  const restored = contractAcceptance(
+    action,
+    [
+      row(),
+      refused('acc-01-google-refused', '2026-10-25T10:00:00Z'),
+      row({id: 'acc-01-google-again', checked_at: '2026-10-27T10:00:00Z'}),
+    ],
+    current,
+  );
+  assert.equal(restored.status, 'write_accepted');
+  assert.equal(restored.ledger_row, 'acc-01-google-again');
+  // A write accepted before the refusal never lifts a read accepted after it to write_accepted.
+  const readAfter = contractAcceptance(
+    action,
+    [
+      row(),
+      refused('acc-01-google-refused', '2026-10-25T10:00:00Z'),
+      row({
+        id: 'acc-06-google-read',
+        effect: 'read',
+        checked_at: '2026-10-26T10:00:00Z',
+        evidence: {shape_sha256: 'd'.repeat(64)},
+      }),
+    ],
+    current,
+  );
+  assert.equal(readAfter.status, 'read_accepted');
+  assert.equal(readAfter.ledger_row, 'acc-06-google-read');
+  // An inconclusive run after a refusal is evidence of neither: the refusal stands.
+  assert.equal(
+    contractAcceptance(
+      action,
+      [
+        refused('acc-01-google-refused', '2026-10-25T10:00:00Z'),
+        row({id: 'acc-x-inconclusive', outcome: 'inconclusive', checked_at: '2026-10-26T10:00:00Z', evidence: {}}),
+      ],
+      current,
+    ).status,
+    'refused',
+  );
+});
+
 test('the contracts page states acceptance per row and counts each evidence layer, with no network request', () => {
   const registry = new Registry(),
     page = actionContractPage(registry, {gateway: 'google_ads_native_action', limit: 5});

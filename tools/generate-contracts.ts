@@ -158,7 +158,7 @@ lines.push(
   '',
   '`generate:vendor:check`, `generate:wsdl:check` and `contracts:check` are deterministic offline checks. The public-provider workflow separately checks remote schemas and documentation. A changed page is a maintenance signal, not proof of a breaking change. No CI job automatically upgrades versions or submits account mutations.',
   '',
-  'Each provider contract carries `contract_digest`, the SHA-256 of its content at the version AMCP sends (every field except its record metadata and test lists), and compact contract references carry it too (ACC-05). Its `contract_version` and `reviewed_at` come from `src/provider-contract-manifest.json`: when the content changes, `npm run contracts:generate` records the new digest, bumps `contract_version` and sets `reviewed_at` to that day, and `contracts:check` fails until it has. A row of the provider acceptance ledger applies only to the digest and version it ran under ([provider access register](PROVIDER-ACCESS.md)).',
+  'Each provider contract carries `contract_digest`, the SHA-256 of its content at the version AMCP sends (every field except its record metadata and test lists), and compact contract references carry it too (ACC-05). Its `contract_version` and `reviewed_at` come from `src/provider-contract-manifest.json`: when the content changes, `npm run contracts:generate -- --reviewed-at=YYYY-MM-DD` records the new digest, bumps `contract_version` and sets `reviewed_at` to the date of that review, which the person who reviewed the change supplies (the day the generator runs is never taken as a review date), and `contracts:check` fails until it has. After merging branches that change provider contract content, run it once on the merged tree with the date the merged content was reviewed, and commit the manifest diff. A row of the provider acceptance ledger applies only to the digest and version it ran under ([provider access register](PROVIDER-ACCESS.md)).',
 );
 for (const c of providerContracts) {
   const m = providerMaintenance[c.id],
@@ -176,15 +176,27 @@ for (const c of providerContracts) {
 const content = lines.join('\n') + '\n',
   path = 'docs/CONTRACTS.md';
 // ACC-05: each provider contract's record (version, review date) follows its content. When contract_digest changes,
-// generation bumps contract_version and sets reviewed_at to the day of generation; --check fails while a recorded
-// digest is stale. A record whose digest is "sha256:pending" (a new provider) takes its digest without a bump.
+// generation bumps contract_version and sets reviewed_at to the review date given with --reviewed-at=YYYY-MM-DD: the
+// day the generator runs is when the content changed, not when anyone reviewed it, so without a date it refuses rather
+// than invent one. --check fails while a recorded digest is stale. A record whose digest is "sha256:pending" (a new
+// provider) takes its digest without a bump.
 const manifestPath = 'src/provider-contract-manifest.json',
   manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')),
+  reviewedAt = process.argv.find(a => a.startsWith('--reviewed-at='))?.slice('--reviewed-at='.length),
   versionOverrides = ['AMCP_LINKEDIN_API_VERSION', 'AMCP_META_API_VERSION'].filter(name => process.env[name]);
 if (versionOverrides.length)
   throw Error('Unset ' + versionOverrides.join(' and ') + ': contract digests are recorded at the default versions.');
+if (
+  reviewedAt !== undefined &&
+  (!/^\d{4}-\d{2}-\d{2}$/.test(reviewedAt) ||
+    !Number.isFinite(Date.parse(reviewedAt + 'T00:00:00Z')) ||
+    new Date(reviewedAt + 'T00:00:00Z').toISOString().slice(0, 10) !== reviewedAt ||
+    reviewedAt > new Date().toISOString().slice(0, 10))
+)
+  throw Error('--reviewed-at is the YYYY-MM-DD date of the review, not a later day.');
 const records: Record<string, {contract_version: number; reviewed_at: string; contract_digest: string}> = {},
-  stale: string[] = [];
+  stale: string[] = [],
+  undated: string[] = [];
 for (const c of providerContracts) {
   const id = String(c.id),
     digest = String(effectiveProviderContract(id)!.contract_digest),
@@ -198,9 +210,22 @@ for (const c of providerContracts) {
         ? {...recorded, contract_digest: digest}
         : {
             contract_version: recorded.contract_version + 1,
-            reviewed_at: new Date().toISOString().slice(0, 10),
+            reviewed_at: reviewedAt ?? '',
             contract_digest: digest,
           };
+    if (recorded.contract_digest !== 'sha256:pending') {
+      if (!reviewedAt) undated.push(id);
+      else if (reviewedAt < recorded.reviewed_at)
+        throw Error(
+          '--reviewed-at ' +
+            reviewedAt +
+            ' is earlier than the recorded review of ' +
+            id +
+            ' (' +
+            recorded.reviewed_at +
+            ').',
+        );
+    }
   }
 }
 for (const id of Object.keys(manifest.providers ?? {}))
@@ -221,9 +246,15 @@ if (process.argv.includes('--check')) {
     throw Error(
       'Provider contract records are stale for ' +
         stale.join(', ') +
-        ': run npm run contracts:generate, which bumps contract_version and reviewed_at for changed content.',
+        ': run npm run contracts:generate -- --reviewed-at=YYYY-MM-DD (the date the changed content was reviewed), which bumps contract_version and records that date.',
     );
 } else {
+  if (undated.length)
+    throw Error(
+      'Provider contract content changed for ' +
+        undated.join(', ') +
+        ': review the change, then run npm run contracts:generate -- --reviewed-at=YYYY-MM-DD with the date of that review. Nothing was written.',
+    );
   fs.writeFileSync(path, content);
   fs.writeFileSync(manifestPath, manifestContent);
   if (stale.length) console.log('Provider contract records updated: ' + stale.join(', '));

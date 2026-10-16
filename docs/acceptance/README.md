@@ -44,4 +44,17 @@ authorizes and runs it.
 
 A ledger row applies only while the provider contract keeps the same digest and version: any change to the contract
 makes it `stale`, and the action is `unverified` again until a new run is recorded. An action without a row stays
-`unverified`. The ledger never grants access.
+`unverified`. The ledger never grants access. The newest conclusive row decides: a refusal recorded after an
+acceptance of the same contract makes the action `refused` until a later run accepts it again.
+
+## Remaining (ACC-05)
+
+- **Importing earlier evidence is not built.** ACC-05's ledger phase also proposed importing the verified-write records
+  and read-probe results AMCP already holds (`src/read-verification.ts`, each workspace's `live_verified` capability
+  evidence). They stay where they are: a workspace still sees its own verified writes as live evidence, but they lift
+  no action row's `live_qualification`. Only a row recorded through these runbooks does.
+- **The ledger is a committed file, not owner-scoped documents.** The ticket proposed owner-scoped documents in the
+  workspace store; `src/acceptance-ledger.json` is committed instead, so every deployment, the contracts page and the
+  generated register read the same reviewed rows, a row changes only through a reviewed commit, and no workspace's
+  private data can enter it. The cost: acceptance is recorded for the product, not per workspace, and recording a run
+  needs a commit and a release.

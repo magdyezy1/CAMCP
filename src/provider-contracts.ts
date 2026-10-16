@@ -235,7 +235,8 @@ export const providerContracts: JsonObject[] = [
   id,
   gateway: gateway + '_native_action',
   // The contract's record (ACC-05): its version and review date come from src/provider-contract-manifest.json, which
-  // `npm run contracts:generate` updates whenever contract_digest changes, so they follow the content they describe.
+  // `npm run contracts:generate -- --reviewed-at=YYYY-MM-DD` moves whenever contract_digest changes, with the date of
+  // the review that accepted the change, so they follow the content they describe.
   contract_version: contractRecord(String(id)).contract_version,
   api_version: version,
   owner_role: 'AMCP integration maintainer',

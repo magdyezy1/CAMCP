@@ -413,3 +413,25 @@ test('ACC-07 fixture host: a one-time loopback link signs in to the journey page
   }
   await assert.rejects(() => serveJourney('checkout'), /Name a journey/);
 });
+
+// The fixture host imports the browser fixtures from tests/fixtures (a dev-only harness): every journey's host is started
+// here, so a fixture change that breaks one of the seven fails a test instead of the owner's session.
+test('ACC-07 fixture host: every journey starts, signs in once to its own page and sends nothing to a provider', async () => {
+  for (const journey of assistiveJourneys) {
+    const host = await serveJourney(journey.id, {workIntervalMs: 100});
+    try {
+      assert.equal(host.kind, journey.fixture, journey.id);
+      const first = await fetch(host.link, {redirect: 'manual'});
+      assert.equal(first.status, 302, journey.id);
+      assert.equal(first.headers.get('location'), host.origin + journey.route, journey.id);
+      const cookie = first.headers.get('set-cookie').split(';')[0];
+      const session = await fetch(host.origin + '/api/session', {headers: {cookie}}).then(r => r.json());
+      assert.equal(session.authenticated, true, journey.id);
+      assert.equal((await fetch(host.origin + journey.route, {headers: {cookie}})).status, 200, journey.id);
+      if (journey.seed) assert.ok(host.seeded, journey.id + ' starts with its seeded record');
+      assert.deepEqual(host.counts(), {nativeReads: 0, refused: 0, writes: 0, syntheticWrites: 0}, journey.id);
+    } finally {
+      await host.close();
+    }
+  }
+});

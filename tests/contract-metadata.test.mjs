@@ -5,6 +5,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {
   contractDigest,
@@ -82,6 +84,50 @@ test('the compact reference and the full view carry the same digest', () => {
       reference = providerContractReference(String(c.gateway));
     assert.match(String(view.contract_digest), /^sha256:[0-9a-f]{64}$/, String(c.id));
     assert.equal(reference.contract_digest, view.contract_digest, String(c.id));
+  }
+});
+
+test('contracts:generate never invents a review date: changed content needs --reviewed-at (regression: the run day)', () => {
+  // A scratch checkout: the generator reads and writes src/provider-contract-manifest.json and docs/CONTRACTS.md in
+  // its working directory, so the committed files are never touched.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-contracts-')),
+    generator = path.resolve('dist/tools/generate-contracts.js'),
+    stale = structuredClone(manifest);
+  try {
+    fs.mkdirSync(path.join(dir, 'src'));
+    fs.mkdirSync(path.join(dir, 'docs'));
+    // Google's content "changed" since its record: its recorded digest no longer matches.
+    stale.providers.google = {...stale.providers.google, contract_digest: 'sha256:' + '0'.repeat(64)};
+    const write = () =>
+        fs.writeFileSync(path.join(dir, 'src/provider-contract-manifest.json'), JSON.stringify(stale, null, 2)),
+      read = () => JSON.parse(fs.readFileSync(path.join(dir, 'src/provider-contract-manifest.json'), 'utf8')),
+      run = (...args) => spawnSync(process.execPath, [generator, ...args], {cwd: dir, encoding: 'utf8'});
+    write();
+    const undated = run();
+    assert.notEqual(undated.status, 0);
+    assert.match(undated.stderr, /content changed for google: review the change, then run .*--reviewed-at=YYYY-MM-DD/);
+    assert.deepEqual(read(), stale, 'nothing was written');
+    assert.equal(fs.existsSync(path.join(dir, 'docs/CONTRACTS.md')), false);
+    // A date that is not a date, a later day, or one before the recorded review is refused, writing nothing.
+    const recorded = manifest.providers.google;
+    for (const date of ['2026-13-01', '9999-01-01', '2020-01-01']) {
+      const refused = run('--reviewed-at=' + date);
+      assert.notEqual(refused.status, 0, date);
+      assert.match(refused.stderr, /--reviewed-at/, date);
+      assert.deepEqual(read(), stale, date);
+    }
+    // With the reviewer's date the record moves: the version is bumped, that date recorded, the digest current.
+    const today = new Date().toISOString().slice(0, 10),
+      dated = run('--reviewed-at=' + today);
+    assert.equal(dated.status, 0, dated.stderr);
+    assert.deepEqual(read().providers.google, {
+      contract_version: recorded.contract_version + 1,
+      reviewed_at: today,
+      contract_digest: recorded.contract_digest,
+    });
+    assert.deepEqual(read().providers.meta, manifest.providers.meta, 'an unchanged contract keeps its record');
+  } finally {
+    fs.rmSync(dir, {recursive: true, force: true});
   }
 });
 

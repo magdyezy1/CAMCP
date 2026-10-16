@@ -192,8 +192,9 @@ export interface ContractAcceptance extends JsonObject {
 }
 /**
  * The acceptance of one action row: write_accepted or read_accepted when a row for this exact contract digest and
- * version accepted it (the newest such row's scope and time), refused when the newest matching row was refused, stale
- * when rows exist only for another digest or version, and unverified otherwise. Never a grant.
+ * version accepted it after the latest such refusal (the newest such row's scope and time), refused when the newest
+ * conclusive matching row was refused, stale when rows exist only for another digest or version, and unverified
+ * otherwise. Never a grant.
  */
 export function contractAcceptance(
   action: {gateway: string; operation?: string; action: string},
@@ -207,7 +208,13 @@ export function contractAcceptance(
   const matching = candidates
       .filter(r => current && r.contract_digest === current.contract_digest && r.api_version === current.api_version)
       .sort((a, b) => Date.parse(b.checked_at) - Date.parse(a.checked_at)),
-    accepted = matching.filter(r => r.outcome === 'accepted'),
+    // The newest conclusive row decides: a later refusal (a permission withdrawn, say) is never hidden behind an older
+    // acceptance, and only acceptances newer than the latest refusal count ("unknown stays unknown"). An inconclusive
+    // run is evidence of neither.
+    refusal = matching.find(r => r.outcome === 'refused'),
+    accepted = matching.filter(
+      r => r.outcome === 'accepted' && (!refusal || Date.parse(r.checked_at) > Date.parse(refusal.checked_at)),
+    ),
     view = (r: AcceptanceRow, status: AcceptanceStatus): ContractAcceptance => ({
       status,
       scope: {...r.scope, account_type: r.account_type, environment: r.environment},
@@ -219,7 +226,7 @@ export function contractAcceptance(
     const write = accepted.find(r => r.effect === 'mutation');
     return write ? view(write, 'write_accepted') : view(accepted[0]!, 'read_accepted');
   }
-  if (matching[0]?.outcome === 'refused') return view(matching[0], 'refused');
+  if (refusal) return view(refusal, 'refused');
   if (matching.length) return {status: 'unverified', inconclusive_rows: matching.length};
   const newest = [...candidates].sort((a, b) => Date.parse(b.checked_at) - Date.parse(a.checked_at))[0]!;
   return {
