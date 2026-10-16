@@ -259,7 +259,8 @@ test('a Meta budget mode that changes during inspection, before the draft or bef
   Object.assign(g.campaigns[10], {daily_budget: undefined});
   g.adsets[10][0].daily_budget = '10000';
   const r = await g.service.call('amcp_campaign', {action: 'prepare_next', id: created.id}, g.actor);
-  assert.equal(r.success, false, JSON.stringify(r));
+  // The step's own budget-owner re-read refuses it, not an unrelated check.
+  assert.equal(r.error?.code, 'ALLOCATION_BUDGET_CHANGED', JSON.stringify(r));
   assert.equal(g.writes.length, 0);
 });
 
