@@ -135,7 +135,7 @@ test('all actual directly owned backend reasons have Arabic with original native
   assert.equal(files.length, 569);
   assert.equal(selected.filter(row => row.messages.size).length, 234);
   assert.equal(owned.size, 1578);
-  assert.equal(Object.keys(catalog).length, 11422);
+  assert.equal(Object.keys(catalog).length, 11423);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

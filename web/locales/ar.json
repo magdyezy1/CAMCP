@@ -9729,6 +9729,7 @@
   "Two-step on": "التحقق بخطوتين مفعّل",
   "Pending invitations": "الدعوات المعلّقة",
   "Invitations expire after {hours} hours. Withdraw one to cancel its link; send a new invitation if a link expires.": "تنتهي صلاحية الدعوات بعد {hours} ساعة. اسحب الدعوة لإلغاء رابطها، وأرسل دعوة جديدة إذا انتهت صلاحية الرابط.",
+  "Invitations expire after {days} days. Withdraw one to cancel its link; send a new invitation if a link expires.": "تنتهي صلاحية الدعوات بعد {days} أيام. اسحب الدعوة لإلغاء رابطها، وأرسل دعوة جديدة إذا انتهت صلاحية الرابط.",
   "A private invitation link is on its way. It expires {date}.": "رابط الدعوة الخاص في طريقه إليك. تنتهي صلاحيته {date}.",
   "A private invitation link is on its way.": "رابط الدعوة الخاص في طريقه إليك.",
   "Invitation withdrawn. Its link no longer works.": "سُحبت الدعوة. لم يعد رابطها يعمل.",
