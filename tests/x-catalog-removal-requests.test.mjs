@@ -114,3 +114,39 @@ test('a price that only changes its written form is the same exact value and doe
   assert.equal(prepared.step_id, 'remove-1');
   assert.equal(f.writes(), 0);
 });
+
+test('a selected product that changes between its review and execute is refused at execute: nothing is deleted, the step keeps its review and runs once the product is as reviewed', async t => {
+  const f = fixture(t);
+  const saved = ok(await f.save(ok(await f.preview())));
+  const prepared = ok(await f.campaign({action: 'prepare_next', id: saved.id})),
+    reviewed = f.store.document(f.actor.tenantId, 'campaign_run', saved.id),
+    execute = {...prepared.next_call.arguments, spend_change_confirmed: true},
+    row = f.items[9001].find(p => p.id === 'sku-1'),
+    price = row.price;
+  assert.equal(reviewed.steps[0].status, 'review_ready');
+  // The product changes after the review: the execute-time state read refuses the step before anything is sent.
+  row.price = '21.00 SAR';
+  const refused = await f.campaign(execute);
+  assert.equal(refused.error?.code, 'CATALOG_REMOVAL_CHANGED', JSON.stringify(refused).slice(0, 600));
+  assert.equal(f.writes(), 0, 'no DELETE was sent');
+  assert.equal(f.calls.filter(c => c.method === 'DELETE').length, 0);
+  // The runner restores the step to its reviewed status, and the plan to its state before execute.
+  const after = f.store.document(f.actor.tenantId, 'campaign_run', saved.id);
+  assert.equal(after.steps[0].status, reviewed.steps[0].status);
+  assert.equal(after.state, reviewed.state);
+  // A later prepare_next returns the same review; while the product differs, executing it is refused again.
+  const resumed = ok(await f.campaign({action: 'prepare_next', id: saved.id}));
+  assert.equal(resumed.next_call.arguments.review_id, execute.review_id);
+  assert.equal((await f.campaign(execute)).error?.code, 'CATALOG_REMOVAL_CHANGED');
+  assert.equal(f.writes(), 0);
+  // With the product as reviewed again the same review executes once: the refusals released its claim.
+  row.price = price;
+  ok(await f.campaign(execute));
+  assert.equal(f.writes(), 1);
+  assert.equal(f.calls.filter(c => c.method === 'DELETE').length, 1);
+  assert.equal(
+    f.items[9001].some(p => p.id === 'sku-1'),
+    false,
+    'the reviewed product was deleted',
+  );
+});
