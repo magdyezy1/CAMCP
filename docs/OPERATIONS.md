@@ -587,10 +587,22 @@ The maintained GitHub workflow defines Docker builds and synthetic read-only/wri
   review, a decisive change (`STATE_CHANGED`), a paginated snapshot and a partial answer; families still without one
   are listed under a ceiling that only falls. Contract-faithful fakes (`tests/helpers/contract-fakes.mjs`) check a
   fake's requests against the pinned vendor contracts PRV-05 enforces, with generators for provider doubles and
-  cursor pages; `tests/schedule-timezone-sweep.test.mjs` sweeps every IANA zone over 2026-2027. Still open from QA-02:
-  the risk-class by evidence matrix in the qualification record (step 6: each risk class against its fixture,
-  conformance, mutant and live evidence) is not written yet, the conformance backfill has not reached zero, and the
-  manual reviewer samples remain with the owner.
+  cursor pages; `tests/schedule-timezone-sweep.test.mjs` sweeps every IANA zone over 2026-2027. Every reviewed write
+  family of Google Ads, Microsoft Advertising, Business Profile, GA4, Tag Manager, Search Console and Apple Ads has a
+  descriptor; a family whose state reads are single resources the vendor never pages says so (`unpaginated`), and one
+  whose own prerequisite refuses the changed value at execute names that refusal (`decisive.refusal`). Still open from
+  QA-02: the conformance backfill of the other providers has not reached zero, and the manual reviewer samples remain
+  with the owner.
+- **Risk evidence (QA-02).** Each record carries `risk_evidence` (`tools/risk-evidence.mjs`) instead of headline
+  totals: every risk class of the qualification plan (R1 money and deletion to R8 website, defined with their register
+  items in `tests/fixtures/risk-classes.json`) against its evidence. `fixture` is the named synthetic test files as
+  `test_suite` ran them (the stage records its `failing_files`); `conformance` is the family descriptors of the class's
+  risks (R1: activation, budget, destructive) with `family_conformance` counting all descriptors by risk and the
+  pending ones; `mutants` is the class's catalogued mutants as `mutant_catalogue` killed them (the stage records each
+  outcome); `live` names the owner-run acceptance (ACC-01 to ACC-07) and stays `owner_step`, because a record is local
+  synthetic qualification. `gaps` lists each class without conformance, mutants or recorded live evidence. A stage that
+  did not run reports `not_run`, never `passed`. Every catalogued mutant belongs to a class: classify a new one in
+  `tests/fixtures/risk-classes.json` (`tests/risk-evidence.test.mjs` fails until it is).
 - **Mutant catalogue.** `node tools/mutants.mjs [--only <id>]` copies the candidate (tracked and untracked sources and
   the built `dist/`) to `.runtime/mutants/`, applies each catalogued defect of `tests/fixtures/mutant-catalogue.json`
   to its compiled module in turn, and runs the tests named to kill it, then the critical set. Every mutant must be

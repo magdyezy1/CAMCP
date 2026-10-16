@@ -14,6 +14,7 @@ import {createHash, randomUUID} from 'node:crypto';
 import {execFileSync, spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {releaseSourceEntries, worktreeState} from './prepare-public-release.mjs';
+import {failingFiles, mutantStatuses, riskEvidence} from './risk-evidence.mjs';
 
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const tool = file => fileURLToPath(new URL('../' + file, import.meta.url));
@@ -80,7 +81,7 @@ export function profileStages(profile, {now} = {}) {
     node('test_suite', ['tools/test-suite.mjs'], {tests: true, env: {AMCP_REQUIRE_FFMPEG: 'true'}}),
     node('test_capture', ['--test', 'tools/catalog/core.test.mjs'], {tests: true}),
     // QA-02: every catalogued mutant must be killed by its named tests (tests/fixtures/mutant-catalogue.json).
-    node('mutant_catalogue', ['tools/mutants.mjs']),
+    node('mutant_catalogue', ['tools/mutants.mjs'], {mutants: true}),
     // PRV-05: every reviewed-family fixture body conforms to its pinned vendor contract or is a listed exception with
     // vendor evidence; a new unlisted violation or a stale exception fails release qualification.
     node('wire_contract_sweep', ['tools/wire-contract-sweep.mjs']),
@@ -406,6 +407,9 @@ async function runStage(stage, {root, env, timeoutMs, allowSkips, probe}) {
     stdout_sha256: sha(run.output),
     tests,
     ...(stage.tests ? {skipped_tests: skips, unexpected_skips: unexpectedSkips} : {}),
+    // QA-02 step 6: which test files failed and which mutants were killed feed the risk-class by evidence matrix.
+    ...(stage.tests ? {failing_files: failingFiles(output, root)} : {}),
+    ...(stage.mutants ? {mutants: mutantStatuses(output)} : {}),
     blocking: stage.blocking !== false,
     status: passed ? 'passed' : 'failed',
   };
@@ -488,7 +492,15 @@ export async function qualify({
   const sunset = results.find(stage => stage.json);
   const sunsetAlarms = sunset?.json ?? null;
   if (sunset) delete sunset.json;
-  const lockfile = path.join(root, 'package-lock.json');
+  const lockfile = path.join(root, 'package-lock.json'),
+    browser = attachBrowser ? browserAttachment(attachBrowser, facts.package) : undefined;
+  // The risk-class by evidence matrix (QA-02 step 6): reported per class instead of headline totals.
+  let risk_evidence;
+  try {
+    risk_evidence = await riskEvidence({root, stages: results, browser});
+  } catch {
+    risk_evidence = {error_code: 'RISK_EVIDENCE_UNAVAILABLE'};
+  }
   const record = {
     record_kind: 'amcp_local_qualification',
     schema_version: 1,
@@ -511,7 +523,8 @@ export async function qualify({
     sunset_alarms: sunsetAlarms,
     reuse_of: reuseResult?.eligible ? reuseResult.reuse_of : null,
     ...(reuseResult && !reuseResult.eligible ? {reuse_refused: reuseResult} : {}),
-    ...(attachBrowser ? {browser: browserAttachment(attachBrowser, facts.package)} : {}),
+    ...(browser ? {browser} : {}),
+    risk_evidence,
     deployed_observations: [],
     scope:
       'Local synthetic qualification only: no provider, live account, Linux container or deployed acceptance is implied.',
