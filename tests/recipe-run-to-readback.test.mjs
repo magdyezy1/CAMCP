@@ -3,7 +3,7 @@
 // refusal and preflight, and no recipe proved that an uncertain step is never sent again. These fixtures drive the real
 // campaign runner (preflight, prepare_next, execute_next, read-back) through synthetic provider APIs: PAUSED parents,
 // one receipt per step, verified read-back, no second write when a review is executed again, and an uncertain write
-// that is never replayed. The last test keeps a run-to-read-back fixture on record for each of the 12 recipes.
+// that is never replayed. The last test keeps a run-to-read-back fixture on record for each guided recipe.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -40,6 +40,8 @@ const microsoftBusiness = {
   headlines: ['Explore the collection', 'Find your next pair', 'Built for every day'],
   descriptions: ['Discover our latest collection online today.', 'Explore styles and find a pair today.'],
   destination_url: 'https://example.test/',
+  // CMP-03: the pack targets these locations on the paused campaign before its ad group.
+  location_ids: ['190'],
 };
 const microsoftLogin = {
   account_id: '123',
@@ -150,13 +152,19 @@ test('microsoft_search runs to verified read-back, paused, and a re-executed rev
     w = recipeWorkspace(t, 'microsoft_ads_native_action', ms.transport, microsoftLogin),
     saved = await w.call({action: 'create_from_recipe', recipe: 'microsoft_search', business: microsoftBusiness});
   assert.equal(saved.success, true, JSON.stringify(saved));
-  const run = await runToEnd(w, saved.data.id, 4);
+  const run = await runToEnd(w, saved.data.id, 5);
   assert.equal(run.state, 'complete');
   assert.deepEqual(
     ms.writes.map(x => x.kind),
-    ['Campaigns', 'AdGroups', 'Keywords', 'Ads'],
+    ['Campaigns', 'CampaignCriterions', 'AdGroups', 'Keywords', 'Ads'],
   );
-  assert.ok([...ms.records.values()].every(r => r.Status === 'Paused'));
+  // Every serving entity stays paused; the location criterion targets the paused campaign.
+  const entries = [...ms.records.entries()];
+  assert.ok(entries.filter(([k]) => !k.startsWith('CampaignCriterions:')).every(([, r]) => r.Status === 'Paused'));
+  assert.deepEqual(
+    entries.filter(([k]) => k.startsWith('CampaignCriterions:')).map(([, r]) => r.Criterion.LocationId),
+    ['190'],
+  );
   for (const s of run.steps) assert.equal(s.result?.executed, true, s.id);
   const last = run.steps.at(-1);
   await w.call({
@@ -167,7 +175,7 @@ test('microsoft_search runs to verified read-back, paused, and a re-executed rev
     confirmed: true,
     spend_change_confirmed: true,
   });
-  assert.equal(ms.writes.length, 4);
+  assert.equal(ms.writes.length, 5);
 });
 
 test('a microsoft_search step whose response was lost is refused a second send (PRV-03 lets its ad step verify)', async t => {
@@ -175,6 +183,8 @@ test('a microsoft_search step whose response was lost is refused a second send (
     w = recipeWorkspace(t, 'microsoft_ads_native_action', ms.transport, microsoftLogin),
     saved = await w.call({action: 'create_from_recipe', recipe: 'microsoft_search', business: microsoftBusiness});
   assert.equal(saved.success, true, JSON.stringify(saved));
+  assert.equal((await step(w, saved.data.id)).executed.data.current.status, 'verified');
+  // The campaign's locations (CMP-03), then the ad group whose response is lost.
   assert.equal((await step(w, saved.data.id)).executed.data.current.status, 'verified');
   const {prepared} = await step(w, saved.data.id);
   const adgroup = () =>
@@ -193,8 +203,9 @@ test('a microsoft_search step whose response was lost is refused a second send (
   assert.equal(ms.writes.filter(x => x.kind === 'Keywords').length, 0, 'no dependent step ran');
 });
 
-test('every one of the 12 recipes has a run-to-read-back fixture on record', () => {
-  // Each recipe names the test that runs it through execute_next to a verified read-back.
+test('every guided recipe has a run-to-read-back fixture on record', () => {
+  // Each recipe names the test that runs it through execute_next to a verified read-back. A recipe added to the
+  // registry without one fails here (CMP-07 added Performance Max, the two TikTok packs and LinkedIn lead generation).
   const fixtures = {
     meta_website_traffic: 'tests/recipe-run-to-readback.test.mjs',
     meta_website_sales: 'tests/recipe-run-to-readback.test.mjs',
@@ -208,12 +219,17 @@ test('every one of the 12 recipes has a run-to-read-back fixture on record', () 
     google_search_target_roas: 'tests/google-value-recipes.test.mjs',
     snapchat_website_traffic: 'tests/snapchat-traffic-recipe.test.mjs',
     snapchat_lead_generation: 'tests/snapchat-lead-recipe.test.mjs',
+    google_performance_max: 'tests/google-pmax-recipe.test.mjs',
+    tiktok_website_traffic: 'tests/tiktok-launch-recipes.test.mjs',
+    tiktok_website_conversions: 'tests/tiktok-launch-recipes.test.mjs',
+    linkedin_lead_generation: 'tests/linkedin-lead-recipe.test.mjs',
   };
   assert.deepEqual(Object.keys(fixtures).sort(), campaignRecipes.map(r => r.id).sort());
   for (const [recipe, file] of Object.entries(fixtures)) {
     const text = fs.readFileSync(file, 'utf8');
     assert.match(text, /execute_next|spend_change_confirmed: true|step\(w, /, file);
-    assert.match(text, /verified/, file);
+    // An assertion of a verified step or a complete plan, not merely the word (which "unverified" also contains).
+    assert.match(text, /assert\.\w+\([^;]{0,400}?['"](?:verified|complete)['"]/, file);
     // The file names the recipe, or (the Google value pair, Snapchat) the recipe set it runs.
     assert.ok(
       text.includes(recipe) ||

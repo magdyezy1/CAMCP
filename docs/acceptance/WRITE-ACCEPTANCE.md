@@ -7,11 +7,13 @@ Nothing here has been run live; ACC-01 stays open until the owner runs it ([rule
 
 ## What is proven locally
 
-- Every one of the 12 recipes has a synthetic run-to-read-back fixture: the Google recipes in
+- Every one of the 16 guided recipes has a synthetic run-to-read-back fixture: the Google Search recipes in
   `tests/campaign-plan-recovery.test.mjs`, `tests/google-clicks-recipe.test.mjs`, `tests/google-conversion-recipes.test.mjs`
-  and `tests/google-value-recipes.test.mjs`; the Snapchat recipes in `tests/snapchat-traffic-recipe.test.mjs` and
-  `tests/snapchat-lead-recipe.test.mjs`; the three Meta website recipes and `microsoft_search` in
-  `tests/recipe-run-to-readback.test.mjs`. That file also proves a step whose response was lost stays `uncertain` and is
+  and `tests/google-value-recipes.test.mjs`, Performance Max in `tests/google-pmax-recipe.test.mjs`; the Snapchat
+  recipes in `tests/snapchat-traffic-recipe.test.mjs` and `tests/snapchat-lead-recipe.test.mjs`; the TikTok traffic and
+  purchases packs in `tests/tiktok-launch-recipes.test.mjs`; LinkedIn lead generation in
+  `tests/linkedin-lead-recipe.test.mjs`; the three Meta website recipes and `microsoft_search` (with its location
+  targets, CMP-03) in `tests/recipe-run-to-readback.test.mjs`. That file also proves a step whose response was lost stays `uncertain` and is
   never sent again (Meta and Microsoft), and that a re-executed review writes nothing.
 - The harness (`tools/acceptance/write-acceptance.ts`) is tested in `tests/write-acceptance-harness.test.mjs`: it refuses
   without every live flag, refuses an account Google does not report as a test account before preparing anything, and

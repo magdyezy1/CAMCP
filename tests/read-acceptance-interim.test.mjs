@@ -159,6 +159,9 @@ test('ACC-06 X: without publisher-network activity, or when X names no placement
 test('ACC-06 X: the Overview source carries the partial state and the notice to the snapshot', async () => {
   const f = reports('x_ads_native_action', 'abc', p => {
     if (p.path.endsWith('/campaigns')) return {data: inventory};
+    // RPT-07: the Overview reads each campaign's objective from the account's line items (one bounded read).
+    if (p.path.endsWith('/line_items'))
+      return {data: inventory.map(c => ({id: 'li-' + c.id, campaign_id: c.id, objective: 'WEBSITE_CLICKS'}))};
     if (p.path.endsWith('/active_entities'))
       return active([
         ['c1', ['ALL_ON_TWITTER']],

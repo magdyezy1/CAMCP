@@ -62,7 +62,8 @@ export function metaGraphFake(options = {}) {
 
 /**
  * Microsoft Advertising Campaign Management v13 REST, as the PRV-03 fixture in tests/microsoft.test.ts: it keeps what
- * was written and returns it by exact ID; GetAdsByIds needs AdTypes.
+ * was written and returns it by exact ID; GetAdsByIds needs AdTypes. Location criteria (CMP-03) are kept per campaign
+ * and read back with CriterionType Location, as the provider does.
  */
 export function microsoftFake(options = {}) {
   const records = new Map(),
@@ -73,6 +74,35 @@ export function microsoftFake(options = {}) {
       body = JSON.parse(String(init?.body ?? '{}'));
     if (path.endsWith('/Account/Query'))
       return Response.json({Account: {Id: '123', ParentCustomerId: '456', CurrencyCode: 'USD'}});
+    if (path.endsWith('/CampaignCriterions/QueryByIds')) {
+      const own = [...records.entries()]
+        .filter(([k, r]) => k.startsWith('CampaignCriterions:') && r.CampaignId === body.CampaignId)
+        .map(([, r]) => structuredClone(r));
+      return Response.json({
+        CampaignCriterions:
+          body.CampaignCriterionIds === null
+            ? own
+            : body.CampaignCriterionIds.map(id => own.find(r => r.Id === id) ?? null),
+        PartialErrors: null,
+      });
+    }
+    if (path.endsWith('/CampaignCriterions')) {
+      writes.push({kind: 'CampaignCriterions', method: String(init?.method), body});
+      if (init?.method !== 'POST') throw Error('the recipe only creates');
+      const ids = body.CampaignCriterions.map(r => {
+        const Id = String(next++);
+        // Like the provider: Status Active, a 0 bid multiplier when none was sent, and the location's name.
+        records.set('CampaignCriterions:' + Id, {
+          ...structuredClone(r),
+          Id,
+          Status: 'Active',
+          CriterionBid: {Type: 'BidMultiplier', Multiplier: 0},
+          Criterion: {...r.Criterion, DisplayName: 'Synthetic location ' + r.Criterion.LocationId},
+        });
+        return Id;
+      });
+      return Response.json({CampaignCriterionIds: ids, NestedPartialErrors: []});
+    }
     const kind = /\/CampaignManagement\/v13\/(Campaigns|AdGroups|Ads|Keywords)(?:\/QueryByIds)?$/.exec(path)?.[1];
     if (!kind) throw Error('unexpected Microsoft path ' + path);
     if (path.endsWith('/QueryByIds')) {

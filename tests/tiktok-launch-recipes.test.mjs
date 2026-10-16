@@ -378,6 +378,38 @@ test('a TikTok traffic plan runs every reviewed create to a verified paused laun
   assert.equal(f.writes.length, 3, 'drafting the activation sends nothing');
 });
 
+// ACC-01: every guided recipe has a run-to-read-back fixture (tests/recipe-run-to-readback.test.mjs names this one).
+test('a TikTok purchases plan runs every reviewed create to a verified paused launch, its pixel read first', async t => {
+  const f = setup();
+  t.after(f.close);
+  const {id, result} = await launch(f, 'tiktok_website_conversions', conversionBusiness);
+  assert.equal(result.success, true, JSON.stringify(result).slice(0, 1500));
+  const full = (await f.call({action: 'get', id, detail: 'full'})).data;
+  assert.equal(
+    full.state,
+    'complete',
+    JSON.stringify(full.steps.map(s => ({id: s.id, status: s.status, error: s.error}))),
+  );
+  assert.deepEqual(
+    full.steps.map(s => s.status),
+    ['verified', 'verified', 'verified'],
+  );
+  // The pixel was read before the first create, and the ad group optimizes for its event.
+  const pixelRead = f.requests.indexOf('GET /v1.3/pixel/list/'),
+    firstCreate = f.requests.indexOf('POST /v1.3/campaign/create/');
+  assert.ok(pixelRead >= 0 && pixelRead < firstCreate, f.requests.join(' | '));
+  assert.deepEqual(
+    f.writes.map(w => w.path),
+    ['/v1.3/campaign/create/', '/v1.3/adgroup/create/', '/v1.3/ad/create/'],
+  );
+  assert.equal(f.campaigns.get('900').operation_status, 'DISABLE');
+  assert.equal(String(f.adgroups.get('901').pixel_id), '8800');
+  assert.equal(f.adgroups.get('901').campaign_id, '900');
+  const repeated = await f.call({action: 'run', id, confirmed: true, spend_change_confirmed: true});
+  assert.equal(repeated.success, true);
+  assert.equal(f.writes.length, 3, 'a completed plan never submits duplicate entities');
+});
+
 test('a purchases plan reads the pixel before creating anything; an unbound pixel blocks the whole plan', async t => {
   for (const scenario of ['owned', 'unbound', 'missing']) {
     const f = setup({
