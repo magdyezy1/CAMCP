@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "description": "Architecture ratchet baseline (ARC-01 phase A, ARC-04 stage A). node tools/architecture-map.mjs --check fails when a measurement rises or a module joins a runtime import cycle; --write records the current state. See docs/review/ARCHITECTURE.md.",
+  "metrics": {
+    "largest_runtime_scc": 34,
+    "cyclic_modules": 58,
+    "shared_modules_with_gateway_literals": 88,
+    "shared_to_provider_runtime_imports": 500
+  },
+  "reported": {
+    "runtime_scc_sizes": [
+      34,
+      13,
+      3,
+      2,
+      2,
+      2,
+      2
+    ],
+    "shared_gateway_literals": 711,
+    "local_fail_copies": 153
+  },
+  "cycles": [
+    [
+      "src/criteo-campaign-writes.ts",
+      "src/execution-risk.ts",
+      "src/google-atomic-builds.ts",
+      "src/google-business-access.ts",
+      "src/google-business-notifications.ts",
+      "src/google-customer-labels.ts",
+      "src/google-lifecycle-goals.ts",
+      "src/google-place-action-discovery.ts",
+      "src/google-place-action-links.ts",
+      "src/google-preview-writes.ts",
+      "src/google-recommendation-dismissal.ts",
+      "src/google-user-access.ts",
+      "src/linkedin-audience-templates.ts",
+      "src/linkedin-lead-forms.ts",
+      "src/meta-ad-library.ts",
+      "src/native-authority.ts",
+      "src/review-state.ts",
+      "src/reviewed-families.ts",
+      "src/reviewed-routes.ts",
+      "src/scope.ts",
+      "src/snapchat-adsquad-targeting.ts",
+      "src/snapchat-nested-updates.ts",
+      "src/tiktok-budgets.ts",
+      "src/tiktok-cta-portfolios.ts",
+      "src/tiktok-identities.ts",
+      "src/tiktok-lookalikes.ts",
+      "src/tiktok-saved-audiences.ts",
+      "src/tiktok-smart-plus-ad-updates.ts",
+      "src/tiktok-smart-plus-adgroups.ts",
+      "src/tiktok-smart-plus-ads.ts",
+      "src/tiktok-smart-plus-campaigns.ts",
+      "src/write-shape.ts",
+      "src/x-draft-writes.ts",
+      "src/x-targeting-batch.ts"
+    ],
+    [
+      "src/action-contracts.ts",
+      "src/capability-eligibility.ts",
+      "src/capability-graph.ts",
+      "src/conditional-programs.ts",
+      "src/operations-feed.ts",
+      "src/provider-access.ts",
+      "src/report-native.ts",
+      "src/report-windows.ts",
+      "src/reporting.ts",
+      "src/withheld-workbook-records.ts",
+      "src/workbook-queries.ts",
+      "src/workbook-schedules.ts",
+      "src/workspace.ts"
+    ],
+    [
+      "src/microsoft-associations.ts",
+      "src/microsoft-campaign-criteria.ts",
+      "src/microsoft-native.ts"
+    ],
+    [
+      "src/allocation-calibration.ts",
+      "src/report-allocation.ts"
+    ],
+    [
+      "src/apple-entity-writes.ts",
+      "src/measurement-writes.ts"
+    ],
+    [
+      "src/effect-class.ts",
+      "src/preflight.ts"
+    ],
+    [
+      "src/reddit-creative-writes.ts",
+      "src/reddit-writes.ts"
+    ]
+  ]
+}

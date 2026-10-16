@@ -247,3 +247,24 @@ used 68 MB. Generated artifacts are parsed once per process and frozen (`src/pin
 compile on first use.
 
 Full-check timing and counts are in `PROGRESS.md`.
+
+## 8. Architecture ratchet
+
+`tools/architecture-map.mjs` (ARC-01 phase A, ARC-04 stage A; owner decision D26) measures the compiled backend and
+compares it with `docs/review/architecture-baseline.json`. `npm run architecture:check` runs in `npm run check`, in the
+qualification fast gate and in `npm run test:related`; `tests/architecture-map.test.mjs` holds its rules. It reads the
+static imports of `dist/src` and `dist/server` (what Node evaluates: tsc elides type-only imports, and a dynamic
+`import()` is not an evaluation edge) and the source text of `src/` and `server/`.
+
+| Measurement (ratcheted) | What it counts |
+|---|---|
+| `largest_runtime_scc`, `cyclic_modules` | Modules in the largest runtime import cycle, and in any cycle |
+| `shared_modules_with_gateway_literals` | Shared modules (outside the provider filename groups `meta-*`, `tiktok-*`, ...) that name a provider gateway in a string literal |
+| `shared_to_provider_runtime_imports` | Runtime imports from any shared `src/` or `server/` module into a provider module |
+
+A measurement may fall or stay. One that rises fails the check, and so does a module that joins a runtime import cycle,
+even when another cycle shrinks by as much. The number of gateway literals in shared modules and the modules with a local
+`fail()` are reported only. `node tools/architecture-map.mjs --write` records the current state after an intended
+improvement, or after a regression the owner accepted; the commit says which. The review's "core to provider" count
+(220 at `60ec2cc`) counted 28 core modules; `shared_to_provider_runtime_imports` counts every shared module, so its value
+is larger and is compared only with its own baseline.

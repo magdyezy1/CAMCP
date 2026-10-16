@@ -28,6 +28,7 @@ export const freshnessChecks = [
   {name: 'docs_index_check', args: ['tools/docs-index.mjs', '--check']},
   {name: 'contracts_check', args: ['dist/tools/generate-contracts.js', '--check']},
   {name: 'contracts_actions_check', args: ['dist/tools/action-contracts.js', '--check']},
+  {name: 'architecture_check', args: ['tools/architecture-map.mjs', '--check']},
 ];
 const freshnessScope = /^(?:src|server|tools|docs|generated|codegen|\.mirror)\//;
 const graphRoots = ['src', 'server', 'tools', 'tests', 'generated', 'codegen'];
