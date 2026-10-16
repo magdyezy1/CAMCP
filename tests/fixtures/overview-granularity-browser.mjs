@@ -23,6 +23,27 @@ export async function exerciseGranularOverview({page, site, locale, result, chec
     text = key => (locale === 'ar' ? (catalog[key] ?? key) : key),
     form = page.locator('#overview-config'),
     meta = page.locator('.report-platform').filter({has: page.locator('[data-report-level=meta]')});
+  // WEB-03: a Pull with no account chosen is refused at the run bar before anything is sent, focused and in view, below
+  // the sticky top bar (before, the refusal appeared 1,020 px above the viewport and focus stayed on the button).
+  const beforePull = site.counts(),
+    runError = page.locator('#report-run-error');
+  await form.locator('button[type=submit]').click();
+  await runError.waitFor({state: 'visible'});
+  assert.equal(await page.evaluate(() => document.activeElement?.id), 'report-run-error');
+  const placement = await runError.evaluate(el => {
+    const r = el.getBoundingClientRect(),
+      bar = document.querySelector('.topbar'),
+      covered =
+        bar && ['sticky', 'fixed'].includes(getComputedStyle(bar).position) ? bar.getBoundingClientRect().bottom : 0;
+    return {top: Math.round(r.top), bottom: Math.round(r.bottom), viewport: innerHeight, covered: Math.round(covered)};
+  });
+  assert.ok(
+    placement.top >= Math.max(0, placement.covered) && placement.bottom <= placement.viewport,
+    'The Pull refusal is inside the viewport: ' + JSON.stringify(placement),
+  );
+  assert.equal((await runError.innerText()).trim(), text('Choose at least one account above, then pull the report.'));
+  assert.deepEqual(site.counts(), beforePull, 'A refused Pull sends nothing');
+  result.report_run_preflight = {focused: true, in_viewport: true, ...placement, provider_requests: 0};
   await form.locator('[name=name]').fill('Original snapshot name');
   await form.locator('[name=rangeMode]').selectOption('custom');
   await form.locator('[name=since]').fill('2026-09-01');

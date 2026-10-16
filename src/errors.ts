@@ -13,6 +13,27 @@ export class MirrorError extends Error {
 export const fail = (code: string, message: string, details: Record<string, unknown> = {}): never => {
   throw new MirrorError(code, message, details);
 };
+/**
+ * The allow-listed facts of a provider's refusal (owner decision D21, WEB-03), from an inner error envelope that a
+ * workflow re-raises in its own words: the HTTP status, the provider's request ID and error code, and the error layer.
+ * Never the provider's body, message or anything else in its details.
+ */
+export function providerFactDetails(error: unknown): Record<string, unknown> {
+  const d = (error as {details?: unknown} | undefined)?.details;
+  if (!d || typeof d !== 'object' || Array.isArray(d)) return {};
+  const facts = d as Record<string, unknown>;
+  return {
+    ...(Number.isInteger(facts.http_status) ? {http_status: facts.http_status} : {}),
+    ...(typeof facts.request_id === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:+=/-]{0,127}$/.test(facts.request_id)
+      ? {request_id: facts.request_id}
+      : {}),
+    ...(Number.isSafeInteger(facts.provider_code) ||
+    (typeof facts.provider_code === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/.test(facts.provider_code))
+      ? {provider_code: facts.provider_code}
+      : {}),
+    ...(typeof facts.layer === 'string' && /^[a-z_]{1,40}$/.test(facts.layer) ? {layer: facts.layer} : {}),
+  };
+}
 /** A deployment without reviewed writes (MCP-09). The message names no operator setting. */
 export const readOnlyDeployment = (details: Record<string, unknown> = {}) =>
   new MirrorError(

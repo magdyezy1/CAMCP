@@ -115,6 +115,45 @@ expectation changed only where a wave 2 change was intended and stays correct an
   slowest of a 208-case run 6.1 seconds; the deadline, which bounds a hung engine and asserts nothing about the page,
   is now 20 seconds (the bound stays at most 30).
 
+No full rendered qualification has been recorded since these fixes: the 208-case run above was a partial run. The full
+`--qualification` run (its `results.json` SHA-256, pass count, duration against the budget and
+`wcag_slowest_inspection`) belongs to the wave 3 integration gate, which records it here.
+
+## Wave 3a merge checks (2026-10-16)
+
+The wave 3a merge ran development subsets (`--kinds`, no axe engine, so no WCAG rules) on the merged tree at
+`b1da592` with uncommitted changes: `empty`, `granular-reporting`, both `workspace-form-*-error` kinds,
+`write-journey` and `export-outcomes` (316 cases, 6.3 minutes, `results.json` SHA-256 `5daad68c…`), then, with the
+fixes below, `empty`, `granular-reporting`, `workspace-form-gtm-error`, `write-journey`, `export-outcomes` and
+`spend-policy-edit` (304 cases, 5.8 minutes, 299 passed, SHA-256 `be801424…`) and `spend-policy-edit` alone (4 of 4).
+
+- **Found and fixed.** The privacy policy case still expected its 2026-10-07 date; SEC-07 revised the policy on
+  2026-10-12. The Arabic title of ACC-05's LinkedIn Lead Sync discovery program kept "(Lead Sync)" in Latin, a new
+  leak on `/capabilities`; the title is translated in full (the program's details keep the product name). The Settings
+  spending form showed WRT-07's Meta budget unit in English on the Arabic page ("account currency minor units (Meta
+  currency offset)"), raising the leak count of `spend-policy-edit /settings` from 2 to 3; the multi-word unit labels
+  are now translated.
+- **WEB-03 in the rendered matrix.** `granular-reporting` first presses **Pull report** with no account: the refusal
+  is shown at the run bar before any request, `#report-run-error` takes focus, and it lies inside the viewport below the
+  sticky top bar (`report_run_preflight` in each case record; 16 of 16). The two `workspace-form-*-error` kinds check
+  that the refusal's message, what to do, the provider's facts and the reference are separate lines, that nothing
+  promises details "below", and that the line "Provider response: HTTP 403. Provider request ID: …" is shown (the GTM
+  audit and the LinkedIn conversion read now keep the provider's allow-listed status, request ID, code and layer,
+  never its body). Every case probes the messages a person sees (alerts, status regions, notices, errors, toasts) at
+  its initial state, every intermediate state and its final state (`tools/browser-agent-tokens.mjs`): none may name
+  `execute_next`, `next_call`, `prepare_next`, `recover_step`, `reconcile_step`, `add_after_user_approval`,
+  `confirmed: true` or a `details.` path. No probe found one in either subset (608 and 606 probes).
+- **WCAG 2.4.11 where the reader is.** The axe runs scroll to the document start (above), so a control the sticky top
+  bar hides after a click was no longer seen by any check. `focusObscured` (`tools/browser-wcag.mjs`) now checks, at
+  every intermediate and the final state and before each document-start axe run, that the focused control is not
+  entirely hidden by a fixed or sticky layer (`focus_obscured` in the record). None was in the 304-case subset (330
+  checks).
+- **Known, not fixed here.** `granular-reporting`'s second table check times out at 320 pixels (3 or 4 of 4 cases, once
+  at 768 dark): the native metric mapping region is focused, but ArrowRight does not move it, while the same key sent
+  through the region's locator a moment later does. It reproduces at the browser-fixes tip `f8cce00`, before the wave
+  3a merges, and not in a standalone replay of the exercise, so it is a runner timing issue at narrow widths rather
+  than a regression of these merges; the integration gate run decides it.
+
 ## What it exercises
 
 The runner creates disposable loopback applications with encrypted in-memory stores, synthetic users

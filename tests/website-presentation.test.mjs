@@ -377,7 +377,10 @@ for (const locale of ['en', 'ar'])
       assert.doesNotMatch(html, /checked/);
       assert.doesNotMatch(visible(html), /execute_next/);
       // Without the ticks nothing is sent; with them, exactly this review and key are executed.
-      await assert.rejects(p.bindings.get('#execute-reviewed')());
+      // The first authorization not ticked is named; nothing is sent.
+      await assert.rejects(p.bindings.get('#execute-reviewed')(), {
+        message: t(locale, 'I reviewed this exact request and authorize its execution.'),
+      });
       assert.equal(p.calls.length, 0);
       p.node('#review-consent').checked = true;
       p.node('#spend-consent').checked = true;
@@ -444,7 +447,10 @@ for (const locale of ['en', 'ar'])
       assert.ok(visible(html).includes(t(locale, labels.needs_destructive_confirmed)));
       assert.match(html, /id="destructive-consent" type="checkbox">/, 'the acknowledgement starts unchecked');
       assert.doesNotMatch(html, /checked/);
-      await assert.rejects(p.bindings.get('#execute-reviewed')());
+      // The first authorization not ticked is named; nothing is sent.
+      await assert.rejects(p.bindings.get('#execute-reviewed')(), {
+        message: t(locale, 'I reviewed this exact request and authorize its execution.'),
+      });
       assert.equal(p.calls.length, 0);
       p.node('#review-consent').checked = true;
       p.node('#destructive-consent').checked = true;
@@ -694,6 +700,46 @@ for (const locale of ['en', 'ar'])
     p.context.error.details = {http_status: 401, layer: 'credential'};
     assert.equal(p.run('errorParts(error).remedy'), t(locale, p.run('providerLayerRemedies').credential));
   });
+
+for (const locale of ['en', 'ar'])
+  test(
+    locale + ': the measurement reads keep the provider facts the page may show (regression: the GTM 403 had none)',
+    async () => {
+      // The GTM audit and the LinkedIn conversion read re-raise a provider refusal in their own words. Before, they kept
+      // only its message and code, so the website could not name the provider's status or request ID (owner decision
+      // D21) although the synthetic provider returned both. Allow-listed facts only: never the provider's body.
+      const {workspaceFormRefusalFixture} = await import('./fixtures/workspace-form-refusal-data.mjs');
+      for (const [kind, keys] of [
+        ['gtm', ['http_status', 'layer', 'provider_code', 'request_id']],
+        ['conversions', ['http_status', 'layer', 'request_id']],
+      ]) {
+        const f = workspaceFormRefusalFixture(kind);
+        try {
+          const response = await f.service.call('amcp_workspace', f.input, f.actor);
+          assert.equal(response.error.code, 'PROVIDER_ACCESS_DENIED', kind);
+          assert.deepEqual(Object.keys(response.error.details).sort(), keys, kind);
+          assert.equal(response.error.details.http_status, 403, kind);
+          assert.equal(response.error.details.request_id, 'synthetic-workspace-form-native-reference', kind);
+          assert.doesNotMatch(JSON.stringify(response), /Synthetic selected account denial|upstream/, kind);
+          const p = page(locale);
+          p.context.response = response;
+          p.run('error = requestError(response)');
+          const lines = p.run('errorLines(error)').split('\n');
+          assert.equal(lines[0], 'Platform returned HTTP 403', kind);
+          assert.ok(
+            lines.includes(
+              t(locale, 'Provider response: HTTP {status}.').replace('{status}', '403') +
+                ' ' +
+                t(locale, 'Provider request ID: {id}.').replace('{id}', 'synthetic-workspace-form-native-reference'),
+            ),
+            kind + ': ' + lines.join(' | '),
+          );
+        } finally {
+          f.close();
+        }
+      }
+    },
+  );
 
 for (const locale of ['en', 'ar'])
   test(locale + ': the shared form alert puts each part on its own line and promises nothing "below"', async () => {

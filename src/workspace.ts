@@ -75,7 +75,7 @@ import {
 } from './workbook-bindings.js';
 import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
-import {MirrorError} from './errors.js';
+import {MirrorError, providerFactDetails} from './errors.js';
 import {reportSourceError} from './report-errors.js';
 import {reportPlatforms} from './report-metrics.js';
 import {Registry} from './catalog.js';
@@ -579,8 +579,14 @@ export class WorkspaceService {
         },
         actor,
       );
+      // A provider refusal keeps its allow-listed facts (status, request ID, code, layer; never its body), so the
+      // website can name them (WEB-03, owner decision D21).
       if (!result.success)
-        bad(result.error?.message ?? 'Measurement audit failed.', result.error?.code ?? 'MEASUREMENT_AUDIT_FAILED');
+        bad(
+          result.error?.message ?? 'Measurement audit failed.',
+          result.error?.code ?? 'MEASUREMENT_AUDIT_FAILED',
+          providerFactDetails(result.error),
+        );
       this.store.resolveConnection(actor, 'gtm_native_action', input.account_id, connection.id);
       return {
         record_kind: 'measurement_audit',

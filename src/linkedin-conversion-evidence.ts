@@ -1,6 +1,7 @@
 import type {Store} from './store.js';
 import type {Actor, CompiledRequest, Connection, JsonObject} from './types.js';
 import {bad, fingerprint, obj, validate, type ToolCall} from './workspace-core.js';
+import {providerFactDetails} from './errors.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {storedLogin} from './connection-authority.js';
@@ -158,10 +159,13 @@ export async function linkedInConversionEvidence(store: Store, call: ToolCall, a
       },
       result = await call(gateway, request, actor);
     current();
+    // A provider refusal keeps its allow-listed facts (status, request ID, code, layer; never its body) for the website
+    // to name (WEB-03, owner decision D21).
     if (result.success !== true)
       bad(
         result.error?.message ?? 'Conversion configuration could not be read.',
         result.error?.code ?? 'MEASUREMENT_EVIDENCE_INVALID',
+        providerFactDetails(result.error),
       );
     const data = result.data?.data;
     if (

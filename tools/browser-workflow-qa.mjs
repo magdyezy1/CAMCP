@@ -29,7 +29,8 @@ import {
   focusIndicatorContrast,
   focusIndicatorProblems,
 } from './browser-accessibility.mjs';
-import {readPinnedWcagEngine, inspectBrowserWcag, wcagTags, atDocumentStart} from './browser-wcag.mjs';
+import {readPinnedWcagEngine, inspectBrowserWcag, wcagTags, atDocumentStart, focusObscured} from './browser-wcag.mjs';
+import {agentTokenProbe} from './browser-agent-tokens.mjs';
 import {inputMapDigest, moduleClosure, releaseIdentityBinding} from './qualification-inputs.mjs';
 import {browserQaArguments, runFixtureLanes, summarizeBrowserEvidence} from './browser-qualification.mjs';
 import {arabicLeakProbe, leakRatchet, readLeakAllowlist, readLeakBaseline} from './browser-arabic-leaks.mjs';
@@ -608,6 +609,10 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     // surface behind them, in the case's own theme (light and dark cases both run this).
     const focusCounts = site.counts();
     result.focus_indicators = await focusIndicatorContrast(page);
+    // WEB-03: no message shown to a person names MCP-client vocabulary (execute_next, next_call, confirmed: true); the
+    // server's exact text stays under Technical details. Checked again at every intermediate and the final state.
+    result.agent_token_messages = await agentTokenProbe(page);
+    assert.deepEqual(result.agent_token_messages, [], 'A message on the page addresses an MCP client');
     assert.deepEqual(focusIndicatorProblems(result.focus_indicators), [], 'Focus indicator contrast refused');
     assert.deepEqual(site.counts(), focusCounts, 'Focus inspection must not read or mutate providers');
     // QA-03: the rendered Arabic leak probe runs in every Arabic case; a route's count may only go down.
@@ -644,7 +649,8 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         'The complete privacy content stays static; only appearance uses a script',
       );
       assert.match(await page.locator('script').getAttribute('src'), /^\/assets\/v\/[0-9a-f]{64}\/theme\.js$/);
-      assert.equal(await page.locator('time').getAttribute('datetime'), '2026-10-07');
+      // SEC-07 revised the privacy policy on 2026-10-12 (retention and erasure, owner decision P3).
+      assert.equal(await page.locator('time').getAttribute('datetime'), '2026-10-12');
       assert.equal(await page.locator('article section').count(), 8);
       const other = locale === 'ar' ? 'en' : 'ar';
       await page.locator('.policy-languages a[hreflang=' + other + ']').click();
@@ -673,6 +679,20 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         );
       }
       if (locale === 'ar') entry.arabic_leaks = await arabicLeakProbe(page, leakAllowlist, {intermediate: true});
+      // WCAG 2.4.11 where the reader is: the axe runs scroll to the document start, so the focused control is checked
+      // against the sticky top bar at the position the interaction left the page in.
+      entry.focus_obscured = await focusObscured(page);
+      assert.equal(
+        entry.focus_obscured,
+        null,
+        'Intermediate state ' + state + ': the focused control is hidden by a fixed layer',
+      );
+      entry.agent_token_messages = await agentTokenProbe(page);
+      assert.deepEqual(
+        entry.agent_token_messages,
+        [],
+        'Intermediate state ' + state + ': a message on the page addresses an MCP client',
+      );
       assert.deepEqual(site.counts(), counts, 'Intermediate inspection must not read or mutate providers');
       (result.intermediate_states ??= []).push(entry);
     };
@@ -1815,6 +1835,32 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         assert.ok(display.includes(message));
         assert.ok(display.includes(locale === 'ar' ? catalog[failed.error.next_action] : failed.error.next_action));
         assert.ok(display.includes(failed.meta.requestId));
+        // WEB-03: the message, what to do, the provider's allow-listed facts (owner decision D21) and the reference are
+        // separate lines; nothing promises details "below"; the provider's HTTP status and request ID are named, never
+        // its body.
+        const lines = display
+            .split('\n')
+            .map(line => line.trim())
+            .filter(Boolean),
+          facts = failed.error.details ?? {};
+        assert.equal(lines[0], message, 'The message is its own first line: ' + JSON.stringify(lines));
+        assert.ok(lines.length >= 4, 'One line per part: ' + JSON.stringify(lines));
+        assert.equal(facts.http_status, 403, 'The refusal carries the provider status: ' + JSON.stringify(facts));
+        assert.equal(typeof facts.request_id, 'string', 'The refusal carries the provider request ID');
+        assert.equal(facts.upstream, undefined, 'The provider body never reaches the page');
+        assert.ok(
+          lines.includes(
+            [
+              arabicOr(locale, 'Provider response: HTTP {status}.').replace('{status}', '403'),
+              arabicOr(locale, 'Provider request ID: {id}.').replace('{id}', facts.request_id),
+            ].join(' '),
+          ),
+          'The provider facts are one line: ' + JSON.stringify(lines),
+        );
+        const feedbackText = await feedback.innerText();
+        assert.doesNotMatch(feedbackText, /\bbelow\b/i);
+        if (locale === 'ar' && catalog['Review the message below before continuing.'])
+          assert.ok(!feedbackText.includes(catalog['Review the message below before continuing.']));
         assert.equal(await page.evaluate(() => document.activeElement.id), formId + '-submit');
         for (const control of [form, submit])
           assert.ok((await control.getAttribute('aria-describedby')).split(/\s+/).includes(feedbackId));
@@ -2242,6 +2288,10 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       assert.ok((await page.locator('#catalog-comparison').innerText()).includes('9007199254740993'));
     }
     const finalAccessibilityCounts = site.counts();
+    result.focus_obscured_final = await focusObscured(page);
+    assert.equal(result.focus_obscured_final, null, 'Completed: the focused control is hidden by a fixed layer');
+    result.agent_token_messages_final = await agentTokenProbe(page);
+    assert.deepEqual(result.agent_token_messages_final, [], 'Completed: a message on the page addresses an MCP client');
     result.accessibility_final = await inspectBrowserAccessibility(page);
     assert.deepEqual(
       accessibilityProblems(result.accessibility_final, {requireLandmarks: false}),
