@@ -529,3 +529,11 @@ inputs match the tested bytes. See
 ## Appearance and immediate detail export
 
 All selected public/workspace and populated/refusal journeys run in both light and dark appearance. Dark cases verify system resolution, an explicit light/dark switch, reload persistence and returning to system. The granular Overview fixture exercises ad and ad-set reports, original native IDs, preserving form inputs during appearance changes, exporting the original snapshot after setup edits, unchecked export confirmation, real synthetic worker/Sheets batches, preserving the original tab and creating no schedule. Automated contrast inspection includes populated results; manual/physical-assistive acceptance remains separate. See [batch 191](review/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md).
+
+## Pending rendered journeys
+
+- The multi-provider measurement ledger (MSR-03): choosing a Meta, Snapchat, TikTok, Search Console or Adjust asset
+  and a Meta pixel in the ledger task is covered in English and Arabic by the DOM fixture tests
+  (`tests/measurement-ledger-ui.test.mjs`), not yet by this runner. A rendered run at 320 and 1280 pixels in both
+  languages is pending until the journey joins `tools/browser-workflow-qa.mjs`; until then MSR-03 C/D's browser criterion
+  is not met by a rendered record.

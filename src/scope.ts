@@ -73,11 +73,11 @@ export function ownershipReads(
     arguments: {action, account_id: account, connection_id: connectionId, ...extra},
   });
   // A Meta pixel's aggregate reads are opened by the account's pixel list, which the measurement ledger reads (MSR-03).
+  // Only the pixel stats route and dataset quality name it: a numeric /stats path without that route could be another
+  // object's, and keeps the candidate-list hints below.
   if (
     gateway === 'meta_native_action' &&
-    (/^\/v[^/]+\/\{pixel_id\}\/stats$/.test(template ?? '') ||
-      (template === undefined && /^\/v[^/]+\/\d+\/stats$/.test(path)) ||
-      /^\/v[^/]+\/dataset_quality$/.test(path))
+    (/^\/v[^/]+\/\{pixel_id\}\/stats$/.test(template ?? '') || /^\/v[^/]+\/dataset_quality$/.test(path))
   )
     return [
       {

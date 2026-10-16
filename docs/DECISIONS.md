@@ -221,7 +221,7 @@ approval mode (off by default), and the read-only handover of colleagues' plans 
 Not decided in this round: the review's resource and authorization requests R1–R8 (test accounts, named reads, a
 disposable Sheets destination, declared provider approvals, LinkedIn programs and DV360, reviewers, a staging
 environment, the workload profile), the product-direction questions P1 (the isolation model and the parts of P1
-above), P8, P11 and P12, and the parts of P2–P7 and P9 that this record does not name as applied. Each register item that needs one of them stays at the stage the review
+above), P11 and P12, and the parts of P2–P7 and P9 that this record does not name as applied. Each register item that needs one of them stays at the stage the review
 names, and live acceptance stays read-only until R1 is answered.
 
 ### Campaign pack demand record (CMP-07, P7, PRV-06)

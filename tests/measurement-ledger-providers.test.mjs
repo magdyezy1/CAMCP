@@ -420,15 +420,30 @@ test('MSR-03 Meta pixel ownership opens only the two aggregate reads of a pixel 
       }
       return 'allowed';
     };
-  // Before the list: a pixel's stats are refused and the refusal names the ledger as the ownership read.
-  let error;
-  try {
-    guard.authorize(read('701/stats', {aggregation: 'event'}), f.connection);
-  } catch (e) {
-    error = e;
-  }
+  // Before the list: a pixel's stats (the {pixel_id}/stats route) are refused and the refusal names the ledger as the
+  // ownership read; a numeric /stats path of an unnamed route could be another object's and names no ledger.
+  const refusal = plan => {
+    try {
+      guard.authorize(plan, f.connection);
+    } catch (e) {
+      return e;
+    }
+    return undefined;
+  };
+  const error = refusal({...read('701/stats', {aggregation: 'event'}), action: 'meta_pixel_id_stats_get'});
   assert.equal(error.code, 'RESOURCE_SCOPE_REQUIRED');
   assert.equal(error.details.next_call.arguments.action, 'measurement_ledger');
+  const untemplated = refusal(read('701/stats', {aggregation: 'event'}));
+  assert.equal(untemplated.code, 'RESOURCE_SCOPE_REQUIRED');
+  assert.notEqual(untemplated.details.next_call?.arguments?.action, 'measurement_ledger');
+  assert.ok(
+    !(untemplated.details.ownership_reads ?? []).some(r => r.arguments?.action === 'measurement_ledger'),
+    JSON.stringify(untemplated.details).slice(0, 400),
+  );
+  assert.equal(
+    refusal(read('dataset_quality', {dataset_id: '701'})).details.next_call.arguments.action,
+    'measurement_ledger',
+  );
   assert.equal(
     refused(read('dataset_quality', {dataset_id: '701', fields: 'web{event_name}'})),
     'RESOURCE_SCOPE_REQUIRED',
