@@ -92,7 +92,30 @@ test('the pinned asset requirements are the reviewed fixture, field by field', (
   const fixture = JSON.parse(readFileSync('tests/fixtures/google-pmax-asset-requirements.json', 'utf8'));
   assert.deepEqual(pmaxAssetRequirements.fields, fixture.fields);
   assert.deepEqual(pmaxAssetRequirements.combined, fixture.combined);
+  assert.deepEqual(pmaxAssetRequirements.short_description, fixture.short_description);
   assert.equal(pmaxAssetRequirements.source, fixture.source);
+});
+
+// Google refuses an asset group without a short description (SHORT_DESCRIPTION_REQUIRED in the pinned v25 Discovery
+// document): at least one DESCRIPTION of at most 60 characters. Regression: two 61-character descriptions passed the
+// local check and were refused only by Google.
+test('an asset group whose descriptions are all longer than 60 characters is refused before any request', async t => {
+  const x = setup();
+  t.after(() => x.store.close());
+  const long = n => 'Widgets for every workshop, delivered fast across the region ' + n,
+    sixty = 'Widgets for every workshop, delivered fast across the regio';
+  assert.equal([...long(1)].length, 62);
+  const r = await x.prepare(pmax({descriptions: [long(1), long(2)]}));
+  assertRefused(r, 'PMAX_ASSET_MINIMUMS', {writes: x.mutates.length});
+  assert.match(r.error.message, /at least one description of at most 60 characters/);
+  assert.deepEqual([r.error.details.field_type, r.error.details.short_max_length], ['DESCRIPTION', 60]);
+  assert.deepEqual(r.error.details.lengths, [62, 62]);
+  assert.equal(x.queries.length, 0, 'no reads');
+  assert.equal(x.mutates.length, 0, 'no request');
+  // One description of exactly 60 characters is a short description: the build reviews.
+  assert.equal([...(sixty + 'n')].length, 60);
+  const ok = await x.prepare(pmax({descriptions: [long(1), sixty + 'n']}));
+  assert.equal(ok.success, true, JSON.stringify(ok).slice(0, 1500));
 });
 
 test('a whole Performance Max build is one review, one request and one read-back; the campaign stays PAUSED', async t => {

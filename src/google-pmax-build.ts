@@ -12,8 +12,10 @@ import type {JsonObject} from './types.js';
  *   be counted here. Brand-guideline campaigns (business name and logos as campaign assets) are not this contract.
  * - Each new asset group links its minimum assets in the same build: the pinned requirements below, sourced from
  *   Google's "Performance Max asset requirements" page as read in the engineering review (accessed 2026-10-08) and
- *   pinned in tests/fixtures/google-pmax-asset-requirements.json. A missing minimum is refused before any request;
- *   finer rules (image ratios and sizes, policy, duplicate text) stay with Google, whose refusal leaves nothing.
+ *   pinned in tests/fixtures/google-pmax-asset-requirements.json, including at least one short description (a
+ *   DESCRIPTION of at most 60 characters; the pinned v25 Discovery document lists SHORT_DESCRIPTION_REQUIRED, "At
+ *   least one short description asset is required for a valid asset group"). A missing minimum is refused before any
+ *   request; finer rules (image ratios and sizes, policy, duplicate text) stay with Google, whose refusal leaves nothing.
  * - Text assets may be created in the build; images, logos and videos are existing assets of the account (uploaded
  *   with amcp_media first), whose type the review reads before sending.
  */
@@ -22,6 +24,7 @@ export const pmaxAssetRequirements: {
   accessed: string;
   fields: Record<string, {min: number; max: number; max_length?: number; asset_type: string}>;
   combined: {fields: string[]; max: number}[];
+  short_description: {field_type: string; max_length: number; min: number};
 } = {
   source: 'https://developers.google.com/google-ads/api/performance-max/asset-requirements',
   accessed: '2026-10-08',
@@ -42,6 +45,7 @@ export const pmaxAssetRequirements: {
     {fields: ['MARKETING_IMAGE', 'SQUARE_MARKETING_IMAGE', 'PORTRAIT_MARKETING_IMAGE'], max: 20},
     {fields: ['LOGO', 'LANDSCAPE_LOGO'], max: 5},
   ],
+  short_description: {field_type: 'DESCRIPTION', max_length: 60, min: 1},
 };
 /** The build's view of one operation (google-atomic-builds.ts). */
 export interface PmaxOp {
@@ -199,6 +203,27 @@ export function assertPmaxBuild(ops: PmaxOp[]) {
           counts,
           ...(missing.length ? {outside_range: missing} : {}),
           ...(over.length ? {combined_over: over} : {}),
+          source: pmaxAssetRequirements.source,
+        },
+      );
+    // A short description: Google refuses an asset group whose descriptions are all longer than 60 characters
+    // (SHORT_DESCRIPTION_REQUIRED). Only texts this build creates are measured; a linked existing text asset's length
+    // is not read, so Google decides for it.
+    const short = pmaxAssetRequirements.short_description,
+      described = own.filter(l => l.create.field_type === short.field_type);
+    if (
+      described.length &&
+      described.every(l => textOf.has(l.create.asset)) &&
+      described.filter(l => length(textOf.get(l.create.asset)!) <= short.max_length).length < short.min
+    )
+      minimums(
+        'An asset group needs at least one description of at most 60 characters (Google’s short description); Google would refuse the whole build. Shorten one of its descriptions.',
+        {
+          operation: group.index,
+          asset_group: group.temp,
+          field_type: short.field_type,
+          short_max_length: short.max_length,
+          lengths: described.map(l => length(textOf.get(l.create.asset)!)),
           source: pmaxAssetRequirements.source,
         },
       );

@@ -146,11 +146,12 @@ test('spread forwarding helpers cannot qualify their static callers through unkn
 
 test('all actual qualified wrapper reasons have Arabic while native fields, limits and examples remain exact', () => {
   // PRV-06 C adds src/meta-creative-features.ts (no wrapper reasons) and seven catalog messages; CMP-03 adds
-  // src/microsoft-campaign-criteria.ts; QA-02 adds the Meta ad image read's paging refusal.
+  // src/microsoft-campaign-criteria.ts; QA-02 adds the Meta ad image read's paging refusal, and the Performance Max
+  // build's short-description refusal makes src/google-pmax-build.ts an owner of a literal wrapper reason.
   assert.equal(files.length, 536);
-  assert.equal(selected.filter(row => row.messages.size).length, 178);
-  assert.equal(owned.size, 2793);
-  assert.equal(Object.keys(catalog).length, 10629);
+  assert.equal(selected.filter(row => row.messages.size).length, 179);
+  assert.equal(owned.size, 2794);
+  assert.equal(Object.keys(catalog).length, 10631);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

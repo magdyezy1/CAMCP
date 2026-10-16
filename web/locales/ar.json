@@ -10583,6 +10583,8 @@
   "Use a business name of at most 25 characters.": "استخدم اسم نشاط تجاري لا يتجاوز 25 حرفًا.",
   "Use the numeric IDs of image assets already in this Google account.": "استخدم المعرّفات الرقمية لمواد الصور الموجودة بالفعل في حساب Google هذا.",
   "Performance Max takes at most 20 images per asset group.": "تقبل حملة الأداء الأقصى 20 صورة على الأكثر لكل مجموعة مواد عرض.",
+  "An asset group needs at least one description of at most 60 characters (Google’s short description); Google would refuse the whole build. Shorten one of its descriptions.": "تحتاج مجموعة مواد العرض إلى وصف واحد على الأقل لا يزيد على 60 حرفًا (الوصف القصير لدى Google)؛ وإلا سترفض Google البناء كله. اختصر أحد أوصافها.",
+  "Performance Max needs at least one description of at most 60 characters (Google’s short description). Shorten one of the descriptions.": "تحتاج حملة الأداء الأقصى إلى وصف واحد على الأقل لا يزيد على 60 حرفًا (الوصف القصير لدى Google). اختصر أحد الأوصاف.",
   "Every resource of the Performance Max launch, created together or not at all.": "كل موارد إطلاق حملة الأداء الأقصى، تُنشأ معًا أو لا تُنشأ إطلاقًا.",
   "TikTok reads ad group schedule times in UTC; the brief’s offsets were converted exactly.": "يقرأ تيك توك أوقات جدولة المجموعة الإعلانية بتوقيت UTC؛ وحُوّلت فروق التوقيت الواردة في الملخص بدقة.",
   "LinkedIn lead generation with an existing post and form": "جذب العملاء المحتملين على LinkedIn بمنشور ونموذج موجودين",

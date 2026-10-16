@@ -118,12 +118,13 @@ test('source discovery automatically includes future nested TypeScript files and
 });
 
 test('all actual directly owned backend reasons have Arabic with original native fields and numeric limits preserved', () => {
-  // Wave 3a sources, among them CMP-03's src/microsoft-campaign-criteria.ts and PRV-06 C's src/meta-creative-features.ts
-  // (five reasons; the catalog also holds its two remedies).
+  // Wave 3a sources, among them CMP-03's src/microsoft-campaign-criteria.ts and PRV-06 C's
+  // src/meta-creative-features.ts (five reasons; the catalog also holds its two remedies), and the Performance Max
+  // brief's short-description refusal.
   assert.equal(files.length, 536);
   assert.equal(selected.filter(row => row.messages.size).length, 223);
-  assert.equal(owned.size, 1547);
-  assert.equal(Object.keys(catalog).length, 10629);
+  assert.equal(owned.size, 1548);
+  assert.equal(Object.keys(catalog).length, 10631);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

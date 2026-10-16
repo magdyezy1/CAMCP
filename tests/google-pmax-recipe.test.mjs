@@ -65,6 +65,8 @@ test('briefs Performance Max or this pack cannot take are refused before anythin
     [{headlines: ['One', 'Two', 'A headline far longer than thirty characters']}, 'AD_TEXT_LIMIT'],
     [{long_headlines: ['x'.repeat(91)]}, 'AD_TEXT_LIMIT'],
     [{descriptions: Array.from({length: 6}, (_, i) => 'Description ' + i)}, 'RECIPE_INPUT_REQUIRED'],
+    // No short description: every description is longer than 60 characters (Google's SHORT_DESCRIPTION_REQUIRED).
+    [{descriptions: ['x'.repeat(61), 'y'.repeat(90)]}, 'AD_TEXT_LIMIT'],
     [{business_name: 'A business name over twenty-five characters'}, 'RECIPE_INPUT_INVALID'],
     [{logo_asset_ids: []}, 'RECIPE_INPUT_REQUIRED'],
     [{marketing_image_asset_ids: ['img-1']}, 'RECIPE_INPUT_INVALID'],
@@ -135,4 +137,18 @@ test('a Performance Max plan runs its one build to a verified paused launch, the
     [['activate_campaign', {resource_name: campaign.resourceName, status: 'ENABLED'}]],
   );
   assert.equal(x.mutates.length, 1, 'drafting the activation sends nothing');
+});
+
+test('a Performance Max brief needs one description of at most 60 characters, and one is enough', () => {
+  let refused;
+  try {
+    campaignRecipe('google_performance_max', {...business, descriptions: ['x'.repeat(61), 'y'.repeat(90)]});
+  } catch (e) {
+    refused = e;
+  }
+  assert.equal(refused?.code, 'AD_TEXT_LIMIT');
+  assert.match(refused.message, /at least one description of at most 60 characters/);
+  assert.deepEqual(refused.details, {field: 'descriptions', short_max_length: 60});
+  const plan = campaignRecipe('google_performance_max', {...business, descriptions: ['x'.repeat(60), 'y'.repeat(90)]});
+  assert.ok(plan.steps.length, 'a brief with one 60-character description compiles');
 });

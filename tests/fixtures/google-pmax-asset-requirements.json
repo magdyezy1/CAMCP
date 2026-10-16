@@ -1,7 +1,7 @@
 {
   "source": "https://developers.google.com/google-ads/api/performance-max/asset-requirements",
   "accessed": "2026-10-08",
-  "meaning": "Asset count and text-length minimums of a non-retail Performance Max asset group with brand guidelines off, as read from Google's Performance Max asset requirements page during the 2026-10-08 engineering review (finding R13-google-family:pmax-bulk-build-gap) and pinned here. Transcribed, not re-fetched in this environment: recheck against the page before live qualification. Image ratios and sizes, policy and duplicate-text rules stay with Google.",
+  "meaning": "Asset count and text-length minimums of a non-retail Performance Max asset group with brand guidelines off, as read from Google's Performance Max asset requirements page during the 2026-10-08 engineering review (finding R13-google-family:pmax-bulk-build-gap) and pinned here. Transcribed, not re-fetched in this environment: recheck against the page before live qualification. Image ratios and sizes, policy and duplicate-text rules stay with Google. The short-description rule (at least one DESCRIPTION of at most 60 characters) is the asset group error SHORT_DESCRIPTION_REQUIRED of the pinned Google Ads v25 Discovery document (\"At least one short description asset is required for a valid asset group.\"); its 60-character limit is transcribed from the same requirements page and is rechecked with the rest.",
   "fields": {
     "HEADLINE": {"min": 3, "max": 15, "max_length": 30, "asset_type": "TEXT"},
     "LONG_HEADLINE": {"min": 1, "max": 5, "max_length": 90, "asset_type": "TEXT"},
@@ -18,5 +18,6 @@
   "combined": [
     {"fields": ["MARKETING_IMAGE", "SQUARE_MARKETING_IMAGE", "PORTRAIT_MARKETING_IMAGE"], "max": 20},
     {"fields": ["LOGO", "LANDSCAPE_LOGO"], "max": 5}
-  ]
+  ],
+  "short_description": {"field_type": "DESCRIPTION", "max_length": 60, "min": 1}
 }

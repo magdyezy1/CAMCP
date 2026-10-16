@@ -102,6 +102,14 @@ export function buildGooglePmaxRecipe(b: JsonObject): JsonObject {
   const headlines = texts(b, 'headlines', 'HEADLINE'),
     longHeadlines = texts(b, 'long_headlines', 'LONG_HEADLINE'),
     descriptions = texts(b, 'descriptions', 'DESCRIPTION');
+  // Google's short description: at least one description of at most 60 characters (google-pmax-build.ts).
+  const short = pmaxAssetRequirements.short_description;
+  if (descriptions.filter(t => [...t].length <= short.max_length).length < short.min)
+    throw new MirrorError(
+      'AD_TEXT_LIMIT',
+      'Performance Max needs at least one description of at most 60 characters (Google’s short description). Shorten one of the descriptions.',
+      {field: 'descriptions', short_max_length: short.max_length},
+    );
   if (typeof b.business_name !== 'string' || !b.business_name.trim() || [...b.business_name].length > 25)
     invalid('Use a business name of at most 25 characters.', 'business_name');
   const asset = (key: string, min: number, max: number) =>

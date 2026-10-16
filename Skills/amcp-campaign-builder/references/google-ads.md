@@ -255,32 +255,32 @@ campaign. Every such asset group needs a valid tree, or its ads do not serve; a 
 
 ## Performance Max builds
 
-A non-retail Performance Max asset group and the links to its minimum assets must reach Google in one mutate request,
-so a new Performance Max campaign is one all-or-nothing build (`google_ads_v23_google_ads_mutate`, CMP-07): the budget, a
-PAUSED `PERFORMANCE_MAX` campaign with `brand_guidelines_enabled: false` (the business name and logos then link to
-the asset group), its criteria, text assets with temporary names (`asset_operation` with `text_asset: {text}` only),
-one asset group with temporary name, `final_urls` of public HTTPS pages and status ENABLED or PAUSED under the paused
+A non-retail Performance Max asset group and the links to its minimum assets must reach Google in one mutate request, so
+a new Performance Max campaign is one all-or-nothing build (`google_ads_v23_google_ads_mutate`, CMP-07): the budget, a
+PAUSED `PERFORMANCE_MAX` campaign with `brand_guidelines_enabled: false` (the business name and logos then link to the
+asset group), its criteria, text assets with temporary names (`asset_operation` with `text_asset: {text}` only), one
+asset group with temporary name, `final_urls` of public HTTPS pages and status ENABLED or PAUSED under the paused
 campaign, `asset_group_asset_operation` links (field types HEADLINE, LONG_HEADLINE, DESCRIPTION, BUSINESS_NAME,
 MARKETING_IMAGE, SQUARE_MARKETING_IMAGE, PORTRAIT_MARKETING_IMAGE, LOGO, LANDSCAPE_LOGO, YOUTUBE_VIDEO,
 CALL_TO_ACTION_SELECTION) and optional `asset_group_signal_operation` signals. Images, logos and videos are existing
 assets of the account: upload them with `amcp_media` first and link their resource names. Before any request the build
-must link, per asset group, 3–15 headlines (30 characters), 1–5 long headlines (90), 2–5 descriptions (90), one
-business name (25), 1–20 landscape and 1–20 square marketing images (20 images in all) and 1–5 logos (with landscape
-logos, 5 in all); `PMAX_ASSET_MINIMUMS` names each field type outside its range or the text that is too long. The review
-reads every linked existing asset; `PMAX_ASSET_TYPE_MISMATCH` means one is not the image, video or text its field type
-needs. An asset group under an existing campaign, a brand-guideline campaign, links to an existing asset group and image
-creation are refused with `INVALID_GOOGLE_BUILD`: change an existing asset group through its own asset-link or signal
-review. Every created resource is read back; the asset group read also returns Google's `primary_status` and
-`ad_strength`, and `amcp_reporting serving_diagnostics` shows them with their reasons. Image ratios, policy and
-duplicate-text rules stay with Google, whose refusal leaves nothing behind. Activation is the campaign's own reviewed
-status change.
+must link, per asset group, 3–15 headlines (30 characters), 1–5 long headlines (90), 2–5 descriptions (90, at least one
+of them a short description of at most 60), one business name (25), 1–20 landscape and 1–20 square marketing images (20
+images in all) and 1–5 logos (with landscape logos, 5 in all); `PMAX_ASSET_MINIMUMS` names each field type outside its
+range, the text that is too long, or an asset group without a short description. The review reads every linked existing
+asset; `PMAX_ASSET_TYPE_MISMATCH` means one is not the image, video or text its field type needs. An asset group under
+an existing campaign, a brand-guideline campaign, links to an existing asset group and image creation are refused with
+`INVALID_GOOGLE_BUILD`: change an existing asset group through its own asset-link or signal review. Every created
+resource is read back; the asset group read also returns Google's `primary_status` and `ad_strength`, and
+`amcp_reporting serving_diagnostics` shows them with their reasons. Image ratios, policy and duplicate-text rules stay
+with Google, whose refusal leaves nothing behind. Activation is the campaign's own reviewed status change.
 
 The guided pack `google_performance_max` (`amcp_campaign recipes`; example `google_pmax_business`) compiles such a build
 from a brief: budget, location and language criterion IDs, landing page, business name, 3–15 headlines, 1–5 long
-headlines, 2–5 descriptions, the numeric IDs of existing landscape, square and logo image assets, explicit
-`conversion_goal_policy: ACCOUNT_DEFAULT` (Maximize Conversions without a target, as the Search conversion packs) and
-the EU political advertising declaration. `recipe_eligibility` with `live:true` reads the account-default goals; the
-activation plan enables the campaign and is gated on them like the Search conversion packs.
+headlines, 2–5 descriptions (one of at most 60 characters), the numeric IDs of existing landscape, square and logo image
+assets, explicit `conversion_goal_policy: ACCOUNT_DEFAULT` (Maximize Conversions without a target, as the Search
+conversion packs) and the EU political advertising declaration. `recipe_eligibility` with `live:true` reads the
+account-default goals; the activation plan enables the campaign and is gated on them like the Search conversion packs.
 
 ## Performance Max brand guidelines
 
