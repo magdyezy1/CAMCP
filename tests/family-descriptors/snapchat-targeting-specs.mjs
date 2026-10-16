@@ -28,14 +28,19 @@ export default {
     campaign: {id: 'camp-1', ad_account_id: 'acct1', status: 'ACTIVE'},
     spec: {id: 'spec-1', type: 'GEO', container_id: 'sq-big', geos: postal(['20001', '20009'])},
   }),
-  unpaginated:
-    'GET /v1/adsquads/{id}, GET /v1/campaigns/{id} and the ad squad targeting_specs read return one entity each',
+  // An ad squad has one spec, yet GET /v1/adsquads/{id}/targeting_specs is a collection: the reader refuses an answer
+  // that names another page (paging.next_link) instead of trusting part of the set.
   isWrite: ({method}) => method !== 'GET',
   provider({method, path, body, state, mode}) {
     if (method === 'GET' && path === '/v1/adsquads/sq-big') return ok({adsquads: rows('adsquad', [state.squad])});
     if (method === 'GET' && path === '/v1/campaigns/camp-1') return ok({campaigns: rows('campaign', [state.campaign])});
     if (method === 'GET' && path === '/v1/adsquads/sq-big/targeting_specs')
-      return ok({targeting_specs: rows('targeting_spec', [state.spec])});
+      return ok({
+        targeting_specs: rows('targeting_spec', [state.spec]),
+        ...(mode.paginate
+          ? {paging: {next_link: 'https://adsapi.snapchat.com/v1/adsquads/sq-big/targeting_specs?cursor=2'}}
+          : {}),
+      });
     if (method === 'PUT' && path === '/v1/adsquads/sq-big/targeting_specs') {
       // A failed answer: the request is accepted but the spec row reports an error.
       if (mode.partial)

@@ -164,6 +164,14 @@ function specView(s: JsonObject): JsonObject {
   const geos = normalGeos(s.geos);
   return {id: s.id ?? null, type: s.type ?? null, container_id: s.container_id ?? null, geos, criteria: criteria(geos)};
 }
+/**
+ * An ad squad has one spec, but the targeting_specs read is a collection: an answer that names another page
+ * (paging.next_link) is not the whole set, so neither the review nor the read-back uses it.
+ */
+function morePages(d: JsonObject): void {
+  if (object(d.paging) && d.paging.next_link)
+    unverified('Snapchat listed the targeting specs of this ad squad on more than one page.');
+}
 export async function readSnapchatSpec(
   p: CompiledRequest,
   request: (p: CompiledRequest) => Promise<TransportResult>,
@@ -173,6 +181,7 @@ export async function readSnapchatSpec(
     const d = (await request(read(p, '/v1/adsquads/' + r.snapchatSpecCheck + '/targeting_specs'))).data;
     if (!object(d) || String(d.request_status).toUpperCase() !== 'SUCCESS' || !Array.isArray(d.targeting_specs))
       unverified('Snapchat did not return the targeting spec.');
+    morePages(d);
     const rows = (d.targeting_specs as JsonObject[]).filter(x => object(x) && object(x.targeting_spec));
     return {
       status: 200,
@@ -195,6 +204,7 @@ export async function readSnapchatSpec(
   const d = (await request(read(p, '/v1/adsquads/' + id + '/targeting_specs'))).data;
   if (!object(d) || String(d.request_status).toUpperCase() !== 'SUCCESS' || !Array.isArray(d.targeting_specs))
     unverified('Snapchat did not return the targeting spec.');
+  morePages(d);
   const specs = (d.targeting_specs as JsonObject[])
     .filter(x => object(x) && object(x.targeting_spec))
     .map(x => specView(x.targeting_spec as JsonObject));

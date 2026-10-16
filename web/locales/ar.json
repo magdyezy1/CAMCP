@@ -7937,6 +7937,7 @@
   "geos includes at least one location; exclusions alone target nowhere.": "تتضمن geos موقعًا واحدًا على الأقل؛ لا تستهدف الاستبعادات وحدها أي موقع.",
   "Unqualified internal targeting spec read.": "القراءة الداخلية لمواصفات الاستهداف غير مؤهلة.",
   "Snapchat did not return the targeting spec.": "لم يُعد Snapchat مواصفات الاستهداف.",
+  "Snapchat listed the targeting specs of this ad squad on more than one page.": "أدرج Snapchat مواصفات الاستهداف لهذه المجموعة الإعلانية في أكثر من صفحة واحدة.",
   "Snapchat returned another ad squad.": "أعاد Snapchat مجموعة إعلانية أخرى.",
   "The ad squad names no campaign.": "لا تحدد المجموعة الإعلانية حملة.",
   "Missing verified ad squad and targeting spec state.": "حالة المجموعة الإعلانية ومواصفات الاستهداف المتحقق منهما مفقودة.",
