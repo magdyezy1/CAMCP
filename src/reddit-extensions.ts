@@ -127,6 +127,8 @@ export function authorizeRedditPlanningRead(plan: CompiledRequest, _connection: 
     );
   return true;
 }
+/** The fields of a history change in the pinned v3 schema (AdAccountHistory.change, additionalProperties false). */
+const historyChangeFields = ['entity_type', 'entity_id', 'entity_name', 'field_name', 'before_value', 'after_value'];
 /** Whether a request reads an ad account's change history (its response names people). */
 export function redditAccountHistoryRead(plan: Pick<CompiledRequest, 'gateway' | 'path' | 'method'>): boolean {
   return (
@@ -140,15 +142,26 @@ export function redditAccountHistoryRead(plan: Pick<CompiledRequest, 'gateway' |
  * (personal-data policy) and are dropped before the response leaves the service. The change itself, its time and a
  * partner business name stay; `changed_by` says only whether Reddit named a member.
  */
-export function projectRedditAccountHistory(data: unknown): unknown {
+export function projectRedditAccountHistory(data: unknown): JsonObject {
   const value = data as JsonObject;
-  if (!value || typeof value !== 'object' || !Array.isArray(value.data)) return data;
+  // Fail closed: anything but the pinned envelope could carry the people, so it is refused instead of passed on.
+  if (!value || typeof value !== 'object' || Array.isArray(value) || !Array.isArray(value.data))
+    throw new MirrorError(
+      'UPSTREAM_RESPONSE_INVALID',
+      'Reddit returned an unrecognized account history; it was not shown.',
+      {},
+      502,
+    );
   return {
-    ...value,
+    ...(value.pagination !== undefined ? {pagination: value.pagination} : {}),
     data: value.data.map((row: JsonObject) => {
-      const cause = (row?.cause ?? {}) as JsonObject;
+      const cause = (row?.cause ?? {}) as JsonObject,
+        change = row?.change && typeof row.change === 'object' ? (row.change as JsonObject) : null;
       return {
-        change: row?.change ?? null,
+        // The pinned change fields only, named one by one (the schema allows no others).
+        change: change
+          ? Object.fromEntries(historyChangeFields.filter(k => k in change).map(k => [k, change[k]]))
+          : null,
         cause: {
           changed_at: cause.changed_at ?? null,
           partner_business_name: cause.partner_business_name ?? null,

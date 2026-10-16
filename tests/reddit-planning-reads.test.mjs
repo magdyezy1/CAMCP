@@ -8,7 +8,7 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
-import {redditReadActions} from '../dist/src/reddit-extensions.js';
+import {projectRedditAccountHistory, redditReadActions} from '../dist/src/reddit-extensions.js';
 
 const duration = {start_time: '2026-11-01T00:00:00Z', end_time: '2026-11-08T00:00:00Z'};
 const gateway = 'reddit_native_action',
@@ -261,4 +261,27 @@ test('account history pages are bounded by page.size and every page stays projec
   assert.equal(oversized.error?.code, 'INVALID_PARAMETER');
   assert.match(oversized.error.message, /page.size/);
   assert.equal(f.requests.length, 2);
+});
+
+test('an account history that is not the pinned envelope is refused, never passed on, and a change keeps only its pinned fields (regression: returned unchanged)', () => {
+  for (const data of [null, 'text', [], {data: {}}, {data: 'rows'}, {rows: history().data}])
+    assert.throws(
+      () => projectRedditAccountHistory(data),
+      e => e.code === 'UPSTREAM_RESPONSE_INVALID' && /unrecognized account history/.test(e.message),
+      JSON.stringify(data),
+    );
+  const raw = history();
+  raw.data[0].change.reddit_username = 'synthetic_person';
+  const projected = projectRedditAccountHistory(raw);
+  assert.deepEqual(Object.keys(projected.data[0].change).sort(), [
+    'after_value',
+    'before_value',
+    'entity_id',
+    'entity_name',
+    'entity_type',
+    'field_name',
+  ]);
+  assert.deepEqual(projected.data[1].change, {entity_id: '43', entity_type: 'AD', field_name: 'name'});
+  assert.equal(JSON.stringify(projected).includes('synthetic_person'), false);
+  assert.deepEqual(projected.pagination, {next_url: null});
 });

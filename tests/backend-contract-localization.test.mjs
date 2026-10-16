@@ -127,11 +127,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // (the Apple and Reddit planning reads extend existing modules).
   // MSR-03 adds the Meta dataset scope and the measurement hub's ledger adapter modules.
   // COM-02 and COM-03 add the catalog destination, lineage, mapping, requirement, source, native request meter and Snapchat
-  // catalog comparison and read modules; the review fixes add src/catalog-retirement.ts (a retirement of a missing product).
+  // catalog comparison and read modules; the review fixes add src/catalog-retirement.ts (a retirement of a missing product)
+  // and the refusal of an unrecognized Reddit account history.
   assert.equal(files.length, 565);
   assert.equal(selected.filter(row => row.messages.size).length, 233);
-  assert.equal(owned.size, 1576);
-  assert.equal(Object.keys(catalog).length, 11215);
+  assert.equal(owned.size, 1577);
+  assert.equal(Object.keys(catalog).length, 11216);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

@@ -55,8 +55,9 @@ Also applied on 2026-10-09 (P4, personal data, its recommended part only): reads
 TikTok lead reads) are personal data and are refused before any provider request (SEC-04,
 [personal-data policy](review/PERSONAL-DATA-POLICY.md)). P4 names no recommendation for viewer report downloads: SEC-05
 enforces the documented role matrix with an owner Settings toggle that is off by default, which is never less safe than
-before; whether viewers may download stays the owner's choice. P4's other questions (rehearsals that transmit hashed
-personal data, a user-scoped `amcp_test_id` GA4 dimension) are not decided.
+before; whether viewers may download stays the owner's choice. P4's question on provider rehearsals that transmit
+hashed personal data is not decided; its user-scoped `amcp_test_id` GA4 dimension question is applied under MSR-04 below
+(owner-marked test properties only).
 
 Also applied on 2026-10-12 (MSR-04, P4's user-scoped dimension question as approved on 2026-10-11): a user-scoped
 `amcp_test_id` GA4 custom dimension is used only on a property the workspace owner explicitly marks as a test property
