@@ -5,6 +5,7 @@ import {
   summarizeWcagResult,
   inspectBrowserWcag,
   atDocumentStart,
+  collectFocusObscured,
   wcagEngineVersion,
   wcagEngineSha256,
 } from '../tools/browser-wcag.mjs';
@@ -138,7 +139,8 @@ test('a page-level inspection runs at the document start and restores the scroll
     log.push('inspect at ' + window.scrollX + ',' + window.scrollY);
     return {automated_passed: true};
   });
-  assert.deepEqual(evidence, {automated_passed: true});
+  // The focused element is checked where the reader is before the scroll; nothing is focused in this fake page.
+  assert.deepEqual(evidence, {automated_passed: true, focus_obscured: null});
   assert.deepEqual(log, ['scroll 0,0', 'inspect at 0,0', 'scroll 3,4891']);
   log.length = 0;
   await assert.rejects(
@@ -148,4 +150,67 @@ test('a page-level inspection runs at the document start and restores the scroll
     /local deadline/,
   );
   assert.deepEqual(log, ['scroll 0,0', 'scroll 3,4891'], 'A failed inspection still restores the position');
+});
+
+// Review of browser QA wave 2: the axe runs moved to the document start, so a control the sticky phone top bar hides
+// after a click was no longer seen by any check. WCAG 2.4.11 is now checked at the reader's own position.
+test('a focused control entirely under the sticky top bar is reported where the reader is; a partly visible one is not', () => {
+  const element = (name, rect, position = 'static', parent = null) => ({
+    name,
+    rect,
+    position,
+    parentElement: parent,
+    tagName: 'DIV',
+    id: name,
+    classList: [],
+    getBoundingClientRect: () => rect,
+    contains(other) {
+      for (let node = other; node; node = node.parentElement) if (node === this) return true;
+      return false;
+    },
+  });
+  const run = (focusedRect, topbarRect) => {
+    const body = element('body', {left: 0, top: 0, right: 320, bottom: 900}),
+      topbar = element('topbar', topbarRect, 'sticky', body),
+      control = element(
+        'control',
+        {...focusedRect, width: focusedRect.right - focusedRect.left, height: 20},
+        'static',
+        body,
+      );
+    const saved = Object.fromEntries(
+      ['document', 'innerWidth', 'innerHeight', 'getComputedStyle'].map(key => [key, globalThis[key]]),
+    );
+    Object.assign(globalThis, {
+      document: {
+        activeElement: control,
+        body,
+        documentElement: null,
+        elementFromPoint: (x, y) =>
+          x >= topbarRect.left && x < topbarRect.right && y >= topbarRect.top && y < topbarRect.bottom
+            ? topbar
+            : control,
+      },
+      innerWidth: 320,
+      innerHeight: 900,
+      getComputedStyle: node => ({position: node.position}),
+    });
+    try {
+      return collectFocusObscured();
+    } finally {
+      for (const [key, value] of Object.entries(saved))
+        if (value === undefined) delete globalThis[key];
+        else globalThis[key] = value;
+    }
+  };
+  const bar = {left: 0, top: 0, right: 320, bottom: 68};
+  // Entirely beneath the bar: obscured, and named.
+  assert.deepEqual(run({left: 20, top: 30, right: 120, bottom: 50}, bar), {
+    focused: 'div#control',
+    covered_by: 'div#topbar',
+  });
+  // Half beneath it (the wave 2 target-size case): still visible, so not obscured under 2.4.11's minimum.
+  assert.equal(run({left: 20, top: 58, right: 120, bottom: 78}, bar), null);
+  // Below the bar: visible.
+  assert.equal(run({left: 20, top: 400, right: 120, bottom: 420}, bar), null);
 });

@@ -135,3 +135,29 @@ test('report delivery dialog text reaches 4.5:1 on the dialog, its report contex
   // The regression itself: the old literal on the same surfaces.
   assert.ok(surfaces.every(background => contrast('#897593', background) < 4.5));
 });
+
+// WEB-01 asks for both themes. In the dark theme web/theme.css gives the dialog var(--white), its report context
+// var(--surface-subtle) and a notice var(--surface-accent); dialog paragraphs inherit the dialog's ink there, and the
+// light theme's muted token is checked too, so either text token stays readable on each dark surface.
+const darkBackground = (theme, selector) => {
+  const pattern = new RegExp('(^|[\\s(,])' + selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[,)]', 'g');
+  for (const match of theme.matchAll(pattern)) {
+    const open = theme.indexOf('{', match.index),
+      head = theme.slice(theme.lastIndexOf('}', match.index) + 1, open);
+    if (!head.includes("[data-theme='dark']")) continue;
+    const background = declarations(theme.slice(open + 1, theme.indexOf('}', open))).get('background');
+    if (background) return background;
+  }
+  assert.fail('No dark-theme background for ' + selector);
+};
+test('report delivery dialog text reaches 4.5:1 in the dark theme too, on the dialog, its context and a notice', () => {
+  const theme = css('theme.css');
+  assert.match(theme, /\[data-theme='dark'\]\s*:is\(\s*p,/, 'dark paragraphs inherit their container ink');
+  for (const selector of ['.report-delivery-dialog', '.delivery-report-context', '.notice']) {
+    const background = resolve(dark, darkBackground(theme, selector));
+    for (const text of ['var(--ink)', 'var(--muted)']) {
+      const ratio = contrast(resolve(dark, text), background);
+      assert.ok(ratio >= 4.5, text + ' on ' + selector + ' (' + background + '): ' + ratio.toFixed(2));
+    }
+  }
+});

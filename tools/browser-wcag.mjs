@@ -87,15 +87,57 @@ export function summarizeWcagResult(result) {
  * overlaps nothing in the flow, so the result no longer depends on where the harness last scrolled. Rules, tags and
  * the evaluated nodes are unchanged; a modal dialog stays in the top layer, and a fixed toast is still evaluated
  * over whatever it covers at the document start.
+ *
+ * What the sticky bar hides at the reader's own position is not lost: before scrolling, the focused element is checked
+ * where the reader is (WCAG 2.4.11, focusObscured), and the inspection's evidence carries the result as focus_obscured.
  */
 export async function atDocumentStart(page, inspect) {
-  const position = await page.evaluate(() => [scrollX, scrollY]);
+  const position = await page.evaluate(() => [scrollX, scrollY]),
+    obscured = await focusObscured(page);
   try {
     await page.evaluate(() => scrollTo(0, 0));
-    return await inspect();
+    return {...(await inspect()), focus_obscured: obscured};
   } finally {
     await page.evaluate(([x, y]) => scrollTo(x, y), position);
   }
+}
+/**
+ * Runs in the page: whether the focused element is entirely hidden by a fixed or sticky layer at the current scroll
+ * position (WCAG 2.4.11 Focus Not Obscured, minimum), such as the sticky phone top bar. Nine points of the element
+ * that lie in the viewport are hit-tested; it is obscured only when every one of them shows a fixed or sticky layer
+ * that does not contain it. An element scrolled out of view, or none focused, is not obscured. Null when nothing is.
+ */
+export function collectFocusObscured() {
+  const focused = typeof document === 'undefined' ? null : document.activeElement;
+  if (!focused || focused === document.body || focused === document.documentElement) return null;
+  const r = focused.getBoundingClientRect();
+  if (r.width < 1 || r.height < 1) return null;
+  const points = [];
+  for (const x of [r.left + 1, (r.left + r.right) / 2, r.right - 1])
+    for (const y of [r.top + 1, (r.top + r.bottom) / 2, r.bottom - 1])
+      if (x >= 0 && y >= 0 && x < innerWidth && y < innerHeight) points.push([x, y]);
+  if (!points.length) return null;
+  const layerOf = node => {
+    for (let n = node; n && n !== document.body && n !== document.documentElement; n = n.parentElement)
+      if (['fixed', 'sticky'].includes(getComputedStyle(n).position)) return n;
+    return null;
+  };
+  const describe = el =>
+    el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + [...el.classList].map(name => '.' + name).join('');
+  let cover = null;
+  for (const [x, y] of points) {
+    const top = document.elementFromPoint(x, y);
+    // This point shows the focused element (or something inside it): it is not entirely hidden.
+    if (!top || focused.contains(top) || top.contains(focused)) return null;
+    const layer = layerOf(top);
+    if (!layer || layer.contains(focused)) return null;
+    cover = layer;
+  }
+  return {focused: describe(focused), covered_by: describe(cover)};
+}
+/** Whether the focused element of `page` is entirely hidden by a fixed or sticky layer where the reader is. */
+export async function focusObscured(page) {
+  return page.evaluate(collectFocusObscured);
 }
 /**
  * Run selected automated A/AA checks in an owned browser page. Incomplete rules remain explicit manual work. The
