@@ -606,6 +606,14 @@ const runStopLabels = {
     'This step goes beyond a spending cap. Check its review here and authorize the override to continue.',
   needs_creative_edit_confirmed:
     'This step edits a creative that existing ads use. Check its review here and authorize the edit to continue.',
+  // WRT-09's opt-in settings: a person's decision that a plan approval never gives. Nothing was sent, and the step's
+  // review stays ready until it expires (src/campaign-runner.ts personDecisions).
+  needs_destructive_confirmed:
+    'This step deletes something at the provider, and the workspace owner asks for an explicit acknowledgement first. Check its review here and authorize the deletion to continue.',
+  needs_website_approval:
+    'This step needs a person’s approval on the AMCP website before it runs. Nothing was sent, and its review stays ready. Open its approval page, then continue the run once the step is approved.',
+  needs_owner_approval:
+    'Only the workspace owner runs a change beyond a spending cap. Nothing was sent, and the step’s review stays ready. The owner continues the run, or approves the step on its approval page first.',
   // A plan its preflight blocked returns the blocked view, not a run (src/campaign-background.ts).
   blocked: 'A prerequisite blocks this plan. Correct the blocked step, then run the plan again.',
 };
@@ -683,9 +691,19 @@ function runOutcomeView(out, run) {
     );
   if (recovery) lines.push(uiText(runRecoveryLabels[recovery]));
   // The one control for this outcome.
-  if (/^needs_(spend_change|cap_override|creative_edit)_confirmed$/.test(stopped) && !out.review)
+  if (/^needs_(spend_change|cap_override|creative_edit|destructive)_confirmed$/.test(stopped) && !out.review)
     controls.push(button('outcome-review-step', uiText('Review the step'), true));
-  else if (recovery === 'recover_step') controls.push(button('outcome-amend', uiText('Correct blocked step'), true));
+  // A step waiting for a person's website approval links its approval page, followed only when it is this site's own
+  // (as reviewApprovalNotice does); without one, the step's review shows who approves it. Running again before the
+  // approval would only stop here again.
+  else if (stopped === 'needs_website_approval' || stopped === 'needs_owner_approval') {
+    const path = typeof out.run?.website_path === 'string' ? out.run.website_path : '';
+    controls.push(
+      /^\/(?![/\\])/.test(path)
+        ? `<a class="button primary" href="${esc(path)}">${esc(uiText('Open the approval page'))}</a>`
+        : button('outcome-review-step', uiText('Review the step'), true),
+    );
+  } else if (recovery === 'recover_step') controls.push(button('outcome-amend', uiText('Correct blocked step'), true));
   else if (recovery === 'confirm_absent')
     controls.push(button('outcome-confirm-absent', uiText('Check the provider'), true));
   else if (recovery === 'reconcile_step') controls.push(button('outcome-read-back', uiText('Read back'), true));
@@ -996,7 +1014,7 @@ function bindCampaignWorkflow(run, open, current, after) {
   // A response's outcome and its control. A run that stopped for an acknowledgement renders the returned review here.
   const showOutcome = (out, lead = '') => {
     if (
-      /^needs_(spend_change|cap_override|creative_edit)_confirmed$/.test(out?.run?.stopped) &&
+      /^needs_(spend_change|cap_override|creative_edit|destructive)_confirmed$/.test(out?.run?.stopped) &&
       out.review?.review_id
     ) {
       showReview(out.review, lead + runOutcomeView(out, run));

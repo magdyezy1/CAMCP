@@ -176,11 +176,15 @@ const literals = n =>
 
 test('every run stop of the campaign runner, remedy category and provider layer has website wording', () => {
   const p = campaignPage();
-  // run.stopped: the reasons runApproved passes to stop(); `'needs_' + human` takes each value of `human`.
+  // run.stopped: the reasons runApproved passes to stop(); `'needs_' + human` takes each value of `human`, and the stop
+  // a person's decision waits for (WRT-09) is each value of `personDecisions`.
   const stops = new Set(),
-    human = [];
+    human = [],
+    decisions = [];
   walk(ast('src/campaign-runner.ts'), n => {
     if (n.type === 'VariableDeclarator' && n.id?.name === 'human') human.push(...literals(n.init));
+    if (n.type === 'VariableDeclarator' && n.id?.name === 'personDecisions')
+      for (const property of n.init?.properties ?? []) decisions.push(...literals(property.value));
     if (n.type === 'CallExpression' && n.callee?.name === 'stop' && n.arguments[1]) {
       const reason = n.arguments[1];
       if (reason.type === 'BinaryExpression' && reason.left.type === 'StringLiteral')
@@ -188,9 +192,15 @@ test('every run stop of the campaign runner, remedy category and provider layer 
       else for (const value of literals(reason)) stops.add(value);
     }
   });
-  assert.deepEqual(human.sort(), ['cap_override_confirmed', 'creative_edit_confirmed', 'spend_change_confirmed']);
-  const expanded = [...stops].flatMap(s => (s === 'needs_*' ? human.map(h => 'needs_' + h) : [s]));
-  assert.ok(expanded.length >= 9, expanded.join());
+  assert.deepEqual(human.sort(), [
+    'cap_override_confirmed',
+    'creative_edit_confirmed',
+    'destructive_confirmed',
+    'spend_change_confirmed',
+  ]);
+  assert.deepEqual(decisions.sort(), ['needs_destructive_confirmed', 'needs_owner_approval', 'needs_website_approval']);
+  const expanded = [...[...stops].flatMap(s => (s === 'needs_*' ? human.map(h => 'needs_' + h) : [s])), ...decisions];
+  assert.ok(expanded.length >= 12, expanded.join());
   const labels = p.run('runStopLabels');
   for (const stop of [...expanded, 'blocked']) {
     assert.ok(Object.hasOwn(labels, stop), 'No website wording for run.stopped ' + stop);
@@ -245,6 +255,11 @@ for (const locale of ['en', 'ar'])
       needs_spend_change_confirmed: ['outcome-review-step'],
       needs_cap_override_confirmed: ['outcome-review-step'],
       needs_creative_edit_confirmed: ['outcome-review-step'],
+      // WRT-09: without an approval page of this site, the step's review says who approves it; Continue would only stop
+      // here again.
+      needs_destructive_confirmed: ['outcome-review-step'],
+      needs_website_approval: ['outcome-review-step'],
+      needs_owner_approval: ['outcome-review-step'],
     };
     const labels = p.run('runStopLabels');
     for (const [stopped, controls] of Object.entries(expected)) {
@@ -375,6 +390,98 @@ for (const locale of ['en', 'ar'])
         confirmed: true,
         spend_change_confirmed: true,
       });
+    },
+  );
+
+for (const locale of ['en', 'ar'])
+  test(
+    locale +
+      ': a run waiting for a person’s website approval links its approval page, and a deletion is acknowledged here',
+    async () => {
+      const p = campaignPage(locale),
+        labels = p.run('runStopLabels');
+      p.context.plan = {id: 'plan-1', steps: [{id: 'budget', status: 'review_ready'}]};
+      // WRT-09: the run names the step's approval page. It is linked, and nothing continues the run before it.
+      for (const stopped of ['needs_website_approval', 'needs_owner_approval']) {
+        p.context.out = {
+          run: {
+            executed: [],
+            stopped,
+            reason: 'Step budget waits for a person: Ask a member to open website_path. Nothing was sent.',
+            website_path: '/operations?approve=review-9',
+            next_call: {tool: 'amcp_campaign', arguments: {action: 'run', id: 'plan-1'}},
+          },
+        };
+        const html = p.run('runOutcomeView(out, plan)');
+        assert.ok(visible(html).includes(t(locale, labels[stopped])), stopped);
+        assert.match(html, /<a class="button primary" href="\/operations\?approve=review-9">/, stopped);
+        assert.ok(html.includes(esc(t(locale, 'Open the approval page'))), stopped);
+        assert.doesNotMatch(html, /id="outcome-continue"/, stopped);
+        assert.doesNotMatch(visible(html), /website_path|\bneeds_[a-z_]+\b/, stopped);
+        // A path that is not this site's own is never followed.
+        for (const foreign of ['https://example.test/approve', '//example.test/approve', '/\\example.test']) {
+          p.context.out.run.website_path = foreign;
+          const other = p.run('runOutcomeView(out, plan)');
+          assert.doesNotMatch(other, /<a /, foreign);
+          assert.match(other, /id="outcome-review-step"/, foreign);
+        }
+      }
+      // The owner's deletion acknowledgement: the returned review is shown here with the deletion consent unchecked,
+      // and executing it sends exactly that review and key with the acknowledgement the person ticked.
+      const plan = {id: 'plan-1', plan_hash: 'h', steps: [{id: 'remove', status: 'review_ready'}]},
+        review = {
+          review_id: 'review-8',
+          idempotency_key: 'review-8',
+          expires_at: new Date(Date.now() + 240000).toISOString(),
+          request: {method: 'DELETE', path: '/v1/adgroups/1'},
+          execute_requirements: {destructive_confirmed: true},
+        };
+      p.context.plan = plan;
+      p.context.after = {outcome: {run: {executed: [], stopped: 'needs_destructive_confirmed'}, review}};
+      p.run('bindCampaignWorkflow(plan, async () => true, () => true, after)');
+      const html = p.node('#campaign-review').innerHTML;
+      assert.ok(visible(html).includes(t(locale, labels.needs_destructive_confirmed)));
+      assert.match(html, /id="destructive-consent" type="checkbox">/, 'the acknowledgement starts unchecked');
+      assert.doesNotMatch(html, /checked/);
+      await assert.rejects(p.bindings.get('#execute-reviewed')());
+      assert.equal(p.calls.length, 0);
+      p.node('#review-consent').checked = true;
+      p.node('#destructive-consent').checked = true;
+      p.respond(async () => ({run: {executed: ['remove'], stopped: 'complete'}}));
+      await p.bindings.get('#execute-reviewed')();
+      assert.deepEqual(p.calls[0].args, {
+        action: 'execute_next',
+        id: 'plan-1',
+        review_id: 'review-8',
+        idempotency_key: 'review-8',
+        confirmed: true,
+        destructive_confirmed: true,
+      });
+      // The refusals behind these stops are worded for the page, not for an MCP client.
+      for (const [code, message] of [
+        [
+          'HUMAN_APPROVAL_REQUIRED',
+          'The owner requires a person’s approval on the AMCP website before this change is executed. Nothing was sent. Ask a member to open website_path and approve this exact review, then execute it again.',
+        ],
+        [
+          'CAP_OVERRIDE_OWNER_REQUIRED',
+          'Only the workspace owner executes a change beyond a spending cap the owner set. Nothing was sent. The owner executes this review, or approves it on the AMCP website first (website_path); then execute it again with cap_override_confirmed=true.',
+        ],
+        [
+          'DESTRUCTIVE_CONFIRMATION_REQUIRED',
+          'The owner requires an explicit acknowledgement before anything is deleted on this account. Nothing was sent. Show the user what this review deletes, and execute again with destructive_confirmed=true once they approve.',
+        ],
+      ]) {
+        p.context.error = refusal(p, code, message, {
+          review_id: 'review-8',
+          website_path: '/operations?approve=review-8',
+        });
+        const parts = p.run('errorParts(error)');
+        assert.equal(p.run('agentDirected')(parts.message), false, code + ' message');
+        assert.equal(p.run('agentDirected')(parts.remedy), false, code + ' remedy');
+        assert.ok(parts.message.includes(t(locale, 'Nothing was sent.')), code);
+        assert.ok(parts.remedy, code);
+      }
     },
   );
 

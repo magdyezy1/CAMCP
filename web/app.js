@@ -165,8 +165,17 @@ const websiteRemedies = [
     'Nothing was sent: the account changed after this review was prepared. Prepare the change again and check the new review.',
   ],
   [
-    /^(?:CAP_|SPEND_|CREATIVE_EDIT_)?CONFIRMATION_REQUIRED$/,
+    /^(?:CAP_|SPEND_|CREATIVE_EDIT_|DESTRUCTIVE_)?CONFIRMATION_REQUIRED$/,
     'The review is still valid. Tick the authorization it asks for, then execute it again; there is no need to prepare it again.',
+  ],
+  // WRT-09's opt-in approval settings: a person's approval on the website, which no AI client can give.
+  [
+    /^HUMAN_APPROVAL_REQUIRED$/,
+    'Approve this exact review on its approval page in Operations, or ask a colleague the workspace’s rule allows. Then execute it again before the review expires; there is no need to prepare it again.',
+  ],
+  [
+    /^CAP_OVERRIDE_OWNER_REQUIRED$/,
+    'Ask the workspace owner to execute this change, or to approve its review on the approval page in Operations first, as the message says.',
   ],
   [
     /^RESOURCE_SCOPE_REQUIRED$/,
@@ -276,6 +285,13 @@ const websiteMessages = {
     /another connection/.test(raw)
       ? 'This plan was approved from another connection (an AI client or another sign-in). Approve it here to run it here.'
       : 'This plan has no current approval.',
+  // WRT-09: the server's messages name website_path and the acknowledgement flag for MCP clients.
+  HUMAN_APPROVAL_REQUIRED: () =>
+    'The owner requires a person’s approval on the AMCP website before this change is executed. Nothing was sent.',
+  CAP_OVERRIDE_OWNER_REQUIRED: () =>
+    'Only the workspace owner executes a change beyond a spending cap the owner set. Nothing was sent.',
+  DESTRUCTIVE_CONFIRMATION_REQUIRED: () =>
+    'The owner requires an explicit acknowledgement before anything is deleted on this account. Nothing was sent.',
 };
 /** The remedy as the website words it, or ''. */
 function websiteRemedy(error) {
