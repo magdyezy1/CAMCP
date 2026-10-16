@@ -334,7 +334,8 @@ test('both sources stay in scope: a foreign site, login or customer is refused b
     [{}, {account_id: '456'}],
     [{gsc_connection_id: 'g'}, {}],
   ])
-    assert.equal((await f.read(requirements, extra)).success, false, JSON.stringify(requirements));
+    // Each names a login, site or customer this workspace's logins do not hold for that gateway.
+    assert.equal((await f.read(requirements, extra)).error?.code, 'CONNECTION_REQUIRED', JSON.stringify(requirements));
   for (const requirements of [
     {date_to: isoDay(0)},
     {date_from: isoDay(-120), date_to: isoDay(-3)},

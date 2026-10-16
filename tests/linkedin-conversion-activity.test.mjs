@@ -63,7 +63,8 @@ test('a malformed LinkedIn callback time refuses the whole read instead of showi
     assert.match(response.error.message, /invalid conversion callback time/);
   }
   const {response} = await read(t, [conversionMetadataRule(0, {latestFirstPartyCallbackAt: 'yesterday'})]);
-  assert.equal(response.success, false);
+  assert.equal(response.error?.code, 'MEASUREMENT_EVIDENCE_INVALID');
+  assert.match(response.error.message, /invalid conversion callback time/);
 });
 
 test('callback times never change the write-state projection or its fingerprint', () => {
@@ -119,7 +120,11 @@ for (const locale of ['en', 'ar']) {
       f.context.platforms.find(p => p.id === 'linkedin').connections[0].id = conversionMetadataConnectionId;
       f.respond(() => plain(invalid));
       await f.run('renderMeasurement()');
-      await assert.rejects(f.bindings.get('#measurement-conversions')(f.node('#measurement-conversions')));
+      // The website's own response check refuses the view, in the interface language.
+      await assert.rejects(
+        f.bindings.get('#measurement-conversions')(f.node('#measurement-conversions')),
+        locale === 'ar' ? /تغيّرت أدلة التحويلات أو أنها غير مكتملة/ : /Conversion evidence changed or is incomplete/,
+      );
       assert.equal(f.node('#conversion-rule-rows').innerHTML, '');
     }
   });

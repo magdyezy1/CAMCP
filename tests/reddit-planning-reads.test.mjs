@@ -129,9 +129,9 @@ test('delivery estimates read the selected account path with a schema-checked bo
     '/api/v3/ad_accounts/t2_allowed/forecasting/audience_and_delivery_estimates',
   );
   assert.deepEqual(f.requests[0].body, payload);
-  // Another account's path is refused before any request.
+  // Another account's path is refused before any request: the login does not hold that account.
   const foreign = await f.read('GET_DELIVERY_ESTIMATES', {params: {ad_account_id: 't2_other'}, payload});
-  assert.equal(foreign.success, false);
+  assert.equal(foreign.error?.code, 'CONNECTION_REQUIRED');
   assert.equal(f.requests.length, 1);
 });
 
@@ -180,15 +180,17 @@ test('bid and keyword suggestions run under a bound account and refuse account-o
       account_id: 't2_allowed',
       payload: {data: {ad_account_id, duration}},
     });
-    assert.equal(r.success, false);
+    assert.equal(r.error?.code, 'ACCOUNT_SCOPE_MISMATCH', String(ad_account_id));
+    assert.match(r.error.message, /ad_account_id/);
   }
   const unbound = await f.read('LIST_KEYWORD_SUGGESTIONS', {
     account_id: 't2_other',
     payload: {data: {seed_keywords: ['shoes']}},
   });
-  assert.equal(unbound.success, false);
+  assert.equal(unbound.error?.code, 'CONNECTION_REQUIRED');
   const malformed = await f.read('LIST_KEYWORD_SUGGESTIONS', {account_id: 't2_allowed', payload: {data: {}}});
-  assert.equal(malformed.success, false);
+  // An empty request does not satisfy the pinned Reddit schema: it is refused before any request.
+  assert.equal(malformed.error?.code, 'INVALID_VENDOR_BODY');
   assert.equal(f.requests.length, 2);
 });
 
@@ -256,6 +258,7 @@ test('account history pages are bounded by page.size and every page stays projec
     params: {ad_account_id: 't2_allowed', 'page.size': 1001},
     payload: {data: {}},
   });
-  assert.equal(oversized.success, false);
+  assert.equal(oversized.error?.code, 'INVALID_PARAMETER');
+  assert.match(oversized.error.message, /page.size/);
   assert.equal(f.requests.length, 2);
 });

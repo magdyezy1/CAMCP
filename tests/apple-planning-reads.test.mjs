@@ -87,9 +87,16 @@ test('app search and lookup read under the selected ad account with bounded URL 
   const app = ok(await f.read('apple_ads_v1_app_get', {path_params: {id: '900001'}}));
   assert.equal(app.result.appName, 'Synthetic App');
   assert.equal(f.requests[1].url.pathname, '/v1/apps/900001');
-  for (const query of [{limit: 1001}, {offset: -1}, {query: ''}, {returnOwnedApps: 'yes'}, {unknown: 'x'}]) {
+  for (const [query, message] of [
+    [{limit: 1001}, /limit must be an integer from 1 to 1000/],
+    [{offset: -1}, /offset must be an integer from 0 to 1000000/],
+    [{query: ''}, /query must be a nonempty app name or ID/],
+    [{returnOwnedApps: 'yes'}, /returnOwnedApps must be true or false/],
+    [{unknown: 'x'}, /Unsupported app search field: unknown/],
+  ]) {
     const r = await f.read('apple_ads_v1_apps_search', {query});
-    assert.equal(r.success, false, JSON.stringify(query));
+    assert.equal(r.error?.code, 'INVALID_APPLE_REQUEST', JSON.stringify(query));
+    assert.match(r.error.message, message);
   }
   assert.equal(f.requests.length, 2);
 });
@@ -116,19 +123,22 @@ test('eligibility, product pages, impression share, popularity and keyword sugge
     assert.equal(sent.context, 'adAccountId=77;');
   }
   const oversized = await f.read('apple_ads_v1_keyword_suggestions_query', {payload: {seed: 'x'.repeat(70000)}});
-  assert.equal(oversized.success, false);
+  assert.equal(oversized.error?.code, 'INVALID_APPLE_REQUEST');
+  assert.match(oversized.error.message, /limited to 64 KiB/);
   assert.equal(f.requests.length, 5);
 });
 
 test('another ad account is refused: in the selection before any request, and in a returned resource', async t => {
   const f = fixture(t, () => ({result: [{id: '1', adAccountId: '99'}]}));
   const outside = await f.read('apple_ads_v1_product_pages_query', {account_id: '99', payload: {}});
-  assert.equal(outside.success, false);
+  // The login does not hold account 99, so no connection serves it.
+  assert.equal(outside.error?.code, 'CONNECTION_REQUIRED');
   assert.equal(f.requests.length, 0);
   const leaked = await f.read('apple_ads_v1_product_pages_query', {payload: {}});
   assert.equal(leaked.success, false);
   assert.equal(leaked.error.code, 'ACCOUNT_SCOPE_MISMATCH');
   const g = fixture(t, () => ({result: {adamId: 900002}}));
   const other = await g.read('apple_ads_v1_app_get', {path_params: {id: '900001'}});
-  assert.equal(other.success, false);
+  // Another app's record is not the requested one: the envelope check refuses it.
+  assert.equal(other.error?.code, 'UPSTREAM_RESPONSE_INVALID');
 });
