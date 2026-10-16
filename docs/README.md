@@ -430,6 +430,7 @@ verification file holds its machine-checked evidence.
 | — | [Provider action implementation progress](implementation/CONTRACT-COMPLETION-PROGRESS.md) |  |
 | — | [Operating and qualifying this candidate](implementation/OPERATIONS.md) |  |
 | — | [Audit recommendations implementation](implementation/PROGRESS.md) |  |
+| — | [Route anchor coverage](implementation/ROUTE-ANCHOR-COVERAGE.md) |  |
 | — | [Implementation verification](implementation/VERIFICATION.md) |  |
 
 ### Ledgers and data

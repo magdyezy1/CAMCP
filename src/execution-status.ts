@@ -1,7 +1,33 @@
 import type {Registry} from './catalog.js';
 import {actionContracts, type ActionContract} from './action-contracts.js';
 import {unavailableOperation} from './unavailable-operations.js';
+import {readUnanchored} from './route-anchors.js';
 import type {JsonObject} from './types.js';
+
+/**
+ * What the route of a single action rests on (ARC-03), and for a native read that no pinned or dated vendor artifact
+ * states, the advisory read_unanchored. Advisory only: it changes neither the status nor what AMCP runs.
+ */
+const unanchoredNotes: Partial<Record<NonNullable<ActionContract['anchor_status']>, string>> = {
+  captured_only: 'its method and path come only from the captured catalog',
+  unanchored: 'its method and path come from an AMCP mapping of documentation that is not pinned',
+  not_recorded: 'no route anchor is recorded for it yet',
+};
+function routeAnchorNote(row: ActionContract): JsonObject {
+  if (!row.anchor_status || row.anchor_status === 'no_route') return {};
+  return {
+    route_anchor: row.anchor_status,
+    ...(readUnanchored(row)
+      ? {
+          advisory: 'read_unanchored',
+          advisory_note:
+            'This read runs as classified, but ' +
+            unanchoredNotes[row.anchor_status] +
+            ': no pinned vendor document, SDK request or dated page states its route (amcp_workspace contracts, anchor).',
+        }
+      : {}),
+  };
+}
 
 /** Contract statuses that settle whether a request only reads; the others keep the captured flag. */
 const readOnlyByStatus: Partial<Record<ActionContract['status'], boolean>> = {
@@ -42,6 +68,7 @@ export function amcpExecution(
       status: statuses[0],
       reason: unavailable ? unavailable.reason + ' ' + rows[0]!.reason : rows[0]!.reason,
       ...(unavailable ? {alternatives: structuredClone(unavailable.alternatives)} : {}),
+      ...(rows.length === 1 ? routeAnchorNote(rows[0]!) : {}),
     };
   return {
     status: 'mixed',

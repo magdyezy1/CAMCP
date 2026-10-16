@@ -42,6 +42,13 @@ import {
   type ContractAcceptance,
   type LiveQualification,
 } from './acceptance-ledger.js';
+import {
+  recordedRouteAnchor,
+  routeAnchorPageMeaning,
+  routeAnchorSources,
+  type AnchorStatus,
+  type RouteAnchor,
+} from './route-anchors.js';
 
 export type ContractStatus =
   | 'native_read'
@@ -73,6 +80,10 @@ export interface ActionContract {
   acceptance?: ContractAcceptance;
   /** A blocked write that waits on a provider program names its discovery-only entry (ACC-05). */
   program_id?: string;
+  /** What the route's method and path rest on (ARC-03, generated/route-anchors.json); advisory, never permission. */
+  anchor_status?: AnchorStatus;
+  /** The anchoring document, SDK request or dated page, or the capture file and the reason nothing else anchors it. */
+  anchor?: RouteAnchor;
 }
 const familyFiles: Record<string, [string, string[]]> = {
   google_entities: ['src/write-review.ts', ['tests/write-review.test.ts', 'tests/review-envelopes.test.ts']],
@@ -550,6 +561,8 @@ export function actionContracts(registry: Registry): ActionContract[] {
     const acceptance = contractAcceptance(row);
     row.live_qualification = liveQualification(acceptance);
     if (acceptance.status !== 'unverified') row.acceptance = acceptance;
+    // The route anchor recorded for this row (ARC-03): evidence about its method and path, never a permission.
+    Object.assign(row, recordedRouteAnchor(row));
   }
   cache.set(registry, rows);
   return rows;
@@ -604,6 +617,7 @@ export function actionContractPage(registry: Registry, input: JsonObject) {
         (!input.gateway || r.gateway === input.gateway) &&
         (!needle || [r.action, r.operation, r.path, r.status, ...r.aliases].join(' ').toLowerCase().includes(needle)),
     );
+  const shown = rows.slice(offset, offset + limit);
   return {
     network_requests: 0,
     // A page filtered to one gateway summarises that gateway only (Snapchat S10: about 6 KB of every gateway before).
@@ -613,11 +627,12 @@ export function actionContractPage(registry: Registry, input: JsonObject) {
     limit,
     has_more: offset + limit < rows.length,
     // Every row states its acceptance {status, scope, checked_at}; the layers count the whole filtered set (ACC-05).
-    actions: rows
-      .slice(offset, offset + limit)
-      .map(r => ({...r, acceptance: r.acceptance ?? {status: 'unverified' as const}})),
+    actions: shown.map(r => ({...r, acceptance: r.acceptance ?? {status: 'unverified' as const}})),
     acceptance_layers: acceptanceLayers(rows),
     acceptance_meaning: acceptanceMeaning,
+    // Each row's anchor_status and anchor (ARC-03), and the pinned documents and SDKs the shown rows name.
+    anchor_meaning: routeAnchorPageMeaning,
+    anchor_sources: routeAnchorSources(shown),
     meaning:
       'Complete local action/enum inventory, not complete vendor API coverage or live qualification. Route membership is conditional on exact-payload inspect, permissions, server-read review and provider validation.',
     next_step:
