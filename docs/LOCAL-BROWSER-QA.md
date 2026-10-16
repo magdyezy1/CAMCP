@@ -57,13 +57,13 @@ route without a limit is report-only. After a passing run, `node tools/browser-a
 .runtime/<run>/results.json --write` lowers limits to the measured maximum and adds new routes. It refuses to absorb
 a rise.
 
-Provenance (QA-03 review, 2026-10-11): no recorded browser run backs the committed limits yet, and the new focus and
-leak assertions have not been shown to pass across the existing cases. The first `npm run check:browser --
---output-dir .runtime/<fresh> --qualification` run after the wave 2 merges must record its `results.json` SHA-256,
-date and summary (distinct scenarios, critical routes at zero, duration) here; until then a limit that fails is a
-finding to investigate, not a regression from a measured state. Two known gaps make the counts a lower bound: the
-allow-list skips `option` elements (closed select options are not visible text nodes, so they are never probed) and
-every `bdi`, not only `bdi[data-native]`.
+Provenance: the committed limits are those of the first passing full qualification after the wave 1, 2 and 3a merges
+(`wave3a-browser-2`, 2026-10-16, recorded under
+[Wave 3a integration qualification](#wave-3a-integration-qualification-2026-10-16)), which also showed the focus and
+leak assertions passing across every case. A limit that fails is now a regression from a measured state. (The QA-03
+review of 2026-10-11 found that no recorded run backed the limits; that run closes it.) Two known gaps make the counts a
+lower bound: the allow-list skips `option` elements (closed select options are not visible text nodes, so they are
+never probed) and every `bdi`, not only `bdi[data-native]`.
 
 Every case also focuses the skip link, a sidebar link, a primary button and a form field in its own appearance. It
 requires each focus ring to reach 3:1 against the opaque surface behind it, with the worst gradient stop counting
@@ -115,9 +115,9 @@ expectation changed only where a wave 2 change was intended and stays correct an
   slowest of a 208-case run 6.1 seconds; the deadline, which bounds a hung engine and asserts nothing about the page,
   is now 20 seconds (the bound stays at most 30).
 
-No full rendered qualification has been recorded since these fixes: the 208-case run above was a partial run. The full
-`--qualification` run (its `results.json` SHA-256, pass count, duration against the budget and
-`wcag_slowest_inspection`) belongs to the wave 3 integration gate, which records it here.
+No full rendered qualification was recorded with these fixes alone: the 208-case run above was a partial run. The
+full `--qualification` run belonged to the wave 3 integration gate, which records it under
+[Wave 3a integration qualification](#wave-3a-integration-qualification-2026-10-16).
 
 ## Wave 3a merge checks (2026-10-16)
 
@@ -153,6 +153,64 @@ fixes below, `empty`, `granular-reporting`, `workspace-form-gtm-error`, `write-j
   through the region's locator a moment later does. It reproduces at the browser-fixes tip `f8cce00`, before the wave
   3a merges, and not in a standalone replay of the exercise, so it is a runner timing issue at narrow widths rather
   than a regression of these merges; the integration gate run decides it.
+
+## Wave 3a integration qualification (2026-10-16)
+
+The integration gate ran the full `--qualification` (axe-core 4.14.0, every kind, two fixture lanes) on the gated head
+`68fdcd6` (`wave3a-browser-1`): 1,248 cases, 813 passed, 435 failed, 37.64 minutes. It is a failed run, not the leak
+baseline's provenance. Each failure group was traced to its first failing case. Where that case stopped part-way, it
+left its kind's shared fixture in the wrong state (a store connection never removed, a refused read whose recovery never
+ran), so every later case of the kind failed for the same cause: the 435 failures had 10 causes.
+
+- **Product fix (`e6ebe51`).** The Settings section links (`.settings-subnav`) took the dark sidebar's hover surface
+  (`#27392e`) from an unscoped `nav a:hover` in `web/app.css`, so a hovered link read at 1.27:1 in the light theme (axe,
+  final state of `worker-health` at 320 and 375 pixels, where the document-start inspection left the pointer over
+  "Account"; `spend-policy-edit` at 320 pixels failed its saved-alert state on the same page and passes with the fix).
+  The sidebar's own link states are set in `web/identity.css`; the `app.css` hover and current-page rules are now
+  scoped to `.sidebar nav`, and `tests/website-contrast.test.mjs` refuses an unscoped sidebar link state and checks
+  the section links' own colour pair in both themes.
+- **Intended changes the expectations now follow (`0891a76`).** No WCAG, keyboard or reflow assertion changed.
+  - WEB-03 appends a hidden feedback region, with its own "Technical details" disclosure, to every workspace form, so
+    the report capture disclosure (the Google keyword, device, hour and country kinds with their error and stale
+    variants, and the four provider-refusal kinds) and the store removal disclosure (the three WooCommerce connection
+    kinds) hold a second summary. Each journey opens its disclosure by its own summary (`:scope > summary`).
+  - WEB-03 shows the page's wording instead of a remedy written for an MCP client. The GA4 event and identity refusals
+    and the LinkedIn conversion setting refusal carry "Correct the value the message names and send the call again (a
+    write is prepared again).", so the cases require the request category's website wording in the page's language
+    and that the server's text stays off the page (it stays under Technical details). The permission refusal's
+    people-facing remedy is still required as written.
+  - MSR-04 added the Observed activity column to the LinkedIn conversion table (10 columns) and the identity form's
+    report source and realtime window (23 named measurement fields; `mode` and `minutes` are named).
+  - COM-02 B lets each individual listed X product be selected for an explicit removal: the listed view holds one
+    unchecked choice per individual product on the page and never a preselected one.
+  - COM-03 makes a catalog's supplier column mapping a saved, versioned profile that only operators save, and a mapped
+    preview saves it first. `catalog-groups` signs in as the owner (the canonical `catalog` journey stays a viewer's),
+    clears the catalog's saved mappings at the start of each case and requires that its mapped preview saved version 1
+    with the chosen group column. A viewer can no longer preview a mapped supplier export.
+- **Not reproduced.** The `granular-reporting` table check that timed out at 320 pixels in the merge subsets passed in
+  all 16 cases of both full runs.
+
+Development subsets confirmed the fixes before the rerun: the 29 affected kinds and `spend-policy-edit` (452 cases, axe
+on; 437 passed, the other 15 being `catalog-groups` cases before its per-case reset) and `catalog-groups` with `catalog`
+(32 of 32).
+
+**The passing run.** `wave3a-browser-2` on `0891a76` (2026-10-16, 05:26 to 06:16 UTC; `results.json` SHA-256
+`4c894911d63247fcbe65ea94af46664b12083f33dcf1ef8be6eca7d5ff03571d`): 1,248 of 1,248 cases passed in 50.16 minutes
+against the 75-minute budget. It covered 93 distinct scenarios, 67 fixture kinds and 22 presentation variants. No
+pinned WCAG rule was violated at any initial, intermediate or final state; the incomplete results left for manual
+review were color-contrast (2,354), label-content-name-mismatch (2,320) and link-in-text-block (4). The slowest
+inspection took 0.71 seconds of its 20-second deadline (`conditional-programs-stale-capabilities-ar-1280-dark`). All
+3,470 measured focus rings reached 3:1, none of the 3,780 focus-obscured checks found a hidden control, and none of the
+2,500 message probes found MCP-client vocabulary. Every critical route had zero Arabic leaks, `/measurement` included
+(the wave 2 run never probed it). The write journeys ended accepted, uncertain and refused four times each, with 28
+synthetic writes, 0 provider writes, 0 external provider requests and 0 unhandled rejections.
+
+This run is the provenance of the leak baseline. `node tools/browser-arabic-leaks.mjs --ratchet
+.runtime/wave3a-browser-2/results.json --write` kept every committed limit (each measured maximum equals it) and added
+the 63 routes this run measured for the first time, most of them at zero, so all 90 probed routes are now held; all 624
+Arabic cases of the run are within the new limits. The nonzero new limits name the Latin phrases that remain on those
+routes: the ten Google evidence kinds on `/reports` (15 each), `retained-evidence /reports` (27), `snapchat /media`
+(3) and `worker-health /settings` (2). They may only go down.
 
 ## What it exercises
 

@@ -116,6 +116,11 @@ same code, one serving the web assets of `e21ec88` and one those of batch 27.
   (1.4.10). A hash-only change to an unknown fragment keeps the rendered page and leaves focus where it was (the
   rendered linked-measurement case asserts both). Guards: `tests/website-contrast.test.mjs`,
   `tests/conditional-programs-ui.test.mjs` and the intermediate-state axe run on the open dialog.
+- 2026-10-16 (wave 3a integration qualification, light theme; [local browser QA](../LOCAL-BROWSER-QA.md)): a hovered
+  Settings section link took the dark sidebar's hover surface `#27392e` from an unscoped `nav a:hover` and read at
+  1.27:1 with the page's ink (1.4.3). The sidebar's link hover and current-page rules in `app.css` are scoped to the
+  sidebar, which `identity.css` styles; in-page navigation keeps its own colours. Guard:
+  `tests/website-contrast.test.mjs`.
 
 2026-10-10 (review ticket WEB-05): Arabic correctness and right-to-left layout.
 
