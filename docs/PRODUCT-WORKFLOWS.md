@@ -138,6 +138,16 @@ DV360 discovery names the user profile and permission to set up. Forecast budget
 the exact six-decimal value in the title.
 [Current contracts, primary sources and selected-account acceptance](review/DELIVERY-2026-10-07-CONDITIONAL-PROGRAMS.md).
 
+These three are `mode: "live_read"`. Five more provider programs are listed for discovery only (ACC-05,
+`src/discovery-programs.ts`): LinkedIn Lead Sync, LinkedIn Matched Audiences, LinkedIn saved media plans, X Ads API
+access and Display & Video 360 reporting (Bid Manager). Capabilities lists them under `discovery_only_programs` (by
+ID in the summary, whole in `view:"graph"`) with their prerequisites, reference and what they would unlock; they have no
+account, no next call and `provider_requests: 0`, and `program_check` refuses them with `PROGRAM_CHECK_UNAVAILABLE` before
+reading a login. The website's Capability Center shows them under "Programs that need provider approval". A blocked
+write that waits on one names it as `program_id` in its refusal details and its action-ledger row, and its reason text
+comes from the program entry. The Lead Sync entry never reads lead responses; they stay behind the personal-data
+policy. The owner records each provider's approvals in the [provider access register](PROVIDER-ACCESS.md).
+
 The MCP JSON text and `structuredContent` now carry the same serialized result. General discovery
 help is `{success:true,data:{surface:"compact-v1",...}}`; text clients should read `data.surface`.
 Existing success/error envelopes remain unchanged. The HTTP health probe validates the same

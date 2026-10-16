@@ -61,6 +61,8 @@ Operation help on a direct gateway describes a catalog action from its record, a
 
 `generate:vendor:check`, `generate:wsdl:check` and `contracts:check` are deterministic offline checks. The public-provider workflow separately checks remote schemas and documentation. A changed page is a maintenance signal, not proof of a breaking change. No CI job automatically upgrades versions or submits account mutations.
 
+Each provider contract carries `contract_digest`, the SHA-256 of its content at the version AMCP sends (every field except its record metadata and test lists), and compact contract references carry it too (ACC-05). Its `contract_version` and `reviewed_at` come from `src/provider-contract-manifest.json`: when the content changes, `npm run contracts:generate` records the new digest, bumps `contract_version` and sets `reviewed_at` to that day, and `contracts:check` fails until it has. A row of the provider acceptance ledger applies only to the digest and version it ran under ([provider access register](PROVIDER-ACCESS.md)).
+
 ## google
 
 Maintenance: [official updates](https://developers.google.com/google-ads/api/docs/release-notes). [Lifecycle](https://developers.google.com/google-ads/api/docs/sunset-dates). Version v25 ends 2027-08 (the published date), checked 2026-09-29.

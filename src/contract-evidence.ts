@@ -129,11 +129,13 @@ export function providerContractView(gateway?: string, plan?: CompiledRequest): 
 export function providerContractReference(gateway?: string, plan?: CompiledRequest): JsonObject | undefined {
   const view = providerContractView(gateway, plan);
   if (!view) return undefined;
+  // contract_digest identifies the content, so a cached reference that no longer matches is visibly stale (ACC-05).
   const fields = [
     'id',
     'gateway',
     'api_version',
     'contract_version',
+    'contract_digest',
     'reviewed_at',
     'reviewed_writes',
     'live_qualification',

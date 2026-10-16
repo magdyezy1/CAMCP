@@ -14,6 +14,7 @@ import {linkedinVersion} from './linkedin-version.js';
 import {ownerOperations, writesPausedFor} from './owner-operations.js';
 import {withheldWorkbookRecords} from './withheld-workbook-records.js';
 import {cachedLegacyAliasUsage} from './legacy-alias-usage.js';
+import {providerAccessPanel} from './provider-access.js';
 import {actionContractPage} from './action-contracts.js';
 import {capabilities} from './capability-graph.js';
 import {dashboard, dashboardSections} from './dashboard.js';
@@ -622,6 +623,7 @@ export class WorkspaceService {
         withheldWorkbookRecords,
         legacyAliasUsage: (store, a) => cachedLegacyAliasUsage(store, a),
         providerJobs: {allowWrites: this.allowWrites, enabled: this.providerJobs},
+        providerAccess: (store, a) => providerAccessPanel(store, a),
       });
     if (input.action === 'profiles')
       return {

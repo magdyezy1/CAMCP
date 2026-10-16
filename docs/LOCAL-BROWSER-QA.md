@@ -180,7 +180,9 @@ source change does not qualify that change; run again at the clean committed sou
 The October 4 run uses local Chromium 148.0.7778.96 and Playwright 1.62.1 with an explicit existing
 test executable. It establishes those observed local cases. It does not establish another browser,
 touch device, assistive technology, complete Arabic editorial acceptance, production deployment,
-live provider acceptance or current Linux/Docker qualification.
+live provider acceptance or current Linux/Docker qualification. The screen-reader and touch acceptance is the finite
+manual protocol of ACC-07 ([assistive-technology acceptance](acceptance/ASSISTIVE-TECHNOLOGY.md): 28 sessions, none
+recorded yet); its `serve` command starts these same synthetic fixture kinds for a person to use.
 
 The checks apply the [W3C reflow guidance](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html),
 [focus guidance](https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html),

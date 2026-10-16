@@ -190,6 +190,17 @@ with the [repository README](../README.md) for what AMCP is.
 - [Microsoft Advertising / Bing Ads](MICROSOFT-ADS.md)
 - [Reddit adapter](REDDIT.md)
 
+## Acceptance
+
+- [Provider access register](PROVIDER-ACCESS.md)
+- [Acceptance runbooks](acceptance/README.md)
+- [Write acceptance: zero-spend reviewed writes](acceptance/WRITE-ACCEPTANCE.md)
+- [AI-client interoperability matrix](acceptance/CLIENT-INTEROP.md)
+- [Sheets delivery acceptance on a disposable spreadsheet](acceptance/SHEETS-DELIVERY.md)
+- [Read acceptance: measurement, TikTok, Reddit value unit, X placement](acceptance/READ-ACCEPTANCE.md)
+- [Assistive-technology acceptance: screen readers and touch, English and Arabic](acceptance/ASSISTIVE-TECHNOLOGY.md)
+- [Provider programs: LinkedIn Media Planning, Audience Insights and Display & Video 360](acceptance/PROVIDER-PROGRAMS.md)
+
 ## The September 2026 review
 
 - [Findings register](review/FINDINGS.md)

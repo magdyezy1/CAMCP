@@ -131,7 +131,9 @@ is qualified separately before push; that earlier healthy snapshot is not its de
 About Us, the complete standalone privacy languages, principal workspace navigation and selected
 populated report/measurement/commerce workflows are implemented. English/Arabic keyboard/reflow
 checks use an owned isolated Chromium browser. Their evidence does not replace other-browser,
-touch-device, screen-reader or editorial acceptance.
+touch-device, screen-reader or editorial acceptance. Screen-reader and touch acceptance is now a finite manual protocol:
+seven journeys with NVDA and VoiceOver in English and Arabic, 28 sessions
+([assistive-technology acceptance](acceptance/ASSISTIVE-TECHNOLOGY.md), ACC-07). None is recorded yet.
 
 ## Complete deployment acceptance
 
@@ -180,6 +182,9 @@ A locally reproduced LinkedIn multi-field projection defect is corrected
 in source and separately gated for release. These results do not establish that the current
 checkout is deployed or authorize writes/exports. See the
 [actual read results, retained failures and transport correction](review/DELIVERY-2026-10-06-LINKEDIN-FIELD-PROJECTIONS.md).
+The measurement reads, TikTok's core reads, Reddit's purchase-value unit and X's publisher-network placement have an
+owner-run read harness that is dry by default ([read acceptance](acceptance/READ-ACCEPTANCE.md), ACC-06). None has
+been run, so TikTok is not in the list above, and Reddit reports say their conversion value unit is unverified.
 
 Build an acceptance matrix from the actual customer/app entitlement and explicitly allowed
 accounts, objectives, assets, stores and destinations. For each supported workflow retain its
@@ -229,7 +234,7 @@ The table is a completion checklist, not a claim that these rows are finished.
 | B22     | Historical creative assignment and more provider usage formats                          | Exact owned usage formats, immutable identifiers, attribution/processing boundaries and refusal coverage                |
 | B23     | Real tenant capacity, cache/fan-out and multi-worker limits                             | Measured representative workloads and provider quotas; original tenant/authority/lease isolation must survive           |
 | B24     | Provider-specific/static and dynamic reason copy, full Arabic/assistive acceptance      | Authored ownership inventory, literal native preservation, editorial review and actual assistive/browser tests          |
-| B25     | Positive private-program entitlement; selected LinkedIn is denied, DV360 not configured | Existing approved app/account and exact bounded native acceptance; three implemented program workflows remain available |
+| B25     | Positive private-program entitlement; selected LinkedIn is denied, DV360 not configured | Existing approved app/account and exact bounded native acceptance; three implemented program workflows remain available; requirements and the owner-authorized recheck are in [provider programs](acceptance/PROVIDER-PROGRAMS.md) (ACC-08) |
 | B26     | Live outcome capture and Meta budget read (source done, DEC-02); further native budget bindings | Authorized post-period capture and read-only Meta budget read; marketer review of the English and Arabic wording        |
 | B27     | Point-in-time reconciliation; live Microsoft portfolio read (adapter done, RPT-07); more inventory providers | Bounded complete/change-aware native collection and accurate observation-time claims                                    |
 

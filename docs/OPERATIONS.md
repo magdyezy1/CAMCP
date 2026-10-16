@@ -765,6 +765,20 @@ planned under one of the legacy alias names instead of a canonical action: `goog
 yet: record the 30-day baseline, then decide whether to hide the aliases from default listings (their refusals would
 name the canonical next call).
 
+### Provider access
+
+Owner health (`provider_access`, and the Provider access panel at the end of the settings page's Health group) shows,
+for each provider this workspace has connected (ACC-05): the owner's declarations from the
+[provider access register](PROVIDER-ACCESS.md) with their dates, marked stale after 90 days; the logins' last
+successful sync and last sync refusal code; the latest unexpired observation of each live program check
+(`program:linkedin_forecast`, `program:linkedin_audience_insights`, `program:dv360_advertiser`); the programs listed for
+discovery only; and the provider acceptance ledger's counts. It is computed from stored state only, never from a
+provider request, and shows no token, account ID or login name. A declaration grants nothing.
+
+To declare an approval, edit `src/provider-access.json` (status, a short value such as `Standard`, and the day of the
+declaration), run `npm run build` and `node tools/acceptance/provider-access.mjs`, and deploy. Live acceptance results
+reach the ledger only through the acceptance harnesses ([acceptance runbooks](acceptance/README.md)).
+
 ### Website feature loading
 
 The initial document contains eight shared scripts; `web/route-assets.js` declares fixed same-origin feature

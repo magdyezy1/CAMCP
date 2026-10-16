@@ -251,6 +251,15 @@
       "live_qualification": "unverified"
     }
   ],
+  "acceptance_layers": {
+    "catalog": 3261,
+    "pinned": 3159,
+    "locally_qualified": 2630,
+    "read_accepted": 0,
+    "write_accepted": 0,
+    "refused": 0,
+    "stale": 0
+  },
   "actions": [
     {
       "gateway": "adjust_native_action",
@@ -27046,7 +27055,8 @@
       "reason": "Needs LinkedIn's rw_dmp_segments permission, which belongs to the Audiences program and \"is not granted automatically as part of the LinkedIn Marketing API Program\" (Matched Audiences pages, read 2026-09-30). AMCP's LinkedIn connection asks for r_ads, r_ads_reporting and rw_ads, so this waits on the owner's decision to request the permission and on LinkedIn's approval of the program.",
       "source": "OBSERVED",
       "tests": [],
-      "live_qualification": "unverified"
+      "live_qualification": "unverified",
+      "program_id": "program:linkedin_matched_audiences"
     },
     {
       "gateway": "linkedin_native_action",
@@ -27187,7 +27197,8 @@
       "reason": "Needs LinkedIn's rw_dmp_segments permission, which belongs to the Audiences program and \"is not granted automatically as part of the LinkedIn Marketing API Program\" (Matched Audiences pages, read 2026-09-30). AMCP's LinkedIn connection asks for r_ads, r_ads_reporting and rw_ads, so this waits on the owner's decision to request the permission and on LinkedIn's approval of the program.",
       "source": "OBSERVED",
       "tests": [],
-      "live_qualification": "unverified"
+      "live_qualification": "unverified",
+      "program_id": "program:linkedin_matched_audiences"
     },
     {
       "gateway": "linkedin_native_action",
@@ -27200,7 +27211,8 @@
       "reason": "Needs LinkedIn's rw_dmp_segments permission, which belongs to the Audiences program and \"is not granted automatically as part of the LinkedIn Marketing API Program\" (Matched Audiences pages, read 2026-09-30). AMCP's LinkedIn connection asks for r_ads, r_ads_reporting and rw_ads, so this waits on the owner's decision to request the permission and on LinkedIn's approval of the program.",
       "source": "OBSERVED",
       "tests": [],
-      "live_qualification": "unverified"
+      "live_qualification": "unverified",
+      "program_id": "program:linkedin_matched_audiences"
     },
     {
       "gateway": "linkedin_native_action",
@@ -27279,7 +27291,8 @@
       "reason": "LinkedIn's pages disagree on the permission: the Ad Segments page names rw_ads, while Getting Access names rw_dmp_segments for the Ad Segments APIs (read 2026-09-30). Ad segments come from DMP segments and page sets, so renaming or archiving one waits with them on the owner's decision about rw_dmp_segments.",
       "source": "OBSERVED",
       "tests": [],
-      "live_qualification": "unverified"
+      "live_qualification": "unverified",
+      "program_id": "program:linkedin_matched_audiences"
     },
     {
       "gateway": "linkedin_native_action",
@@ -28639,7 +28652,8 @@
       "reason": "Needs LinkedIn's rw_dmp_segments permission, which belongs to the Audiences program and \"is not granted automatically as part of the LinkedIn Marketing API Program\" (Matched Audiences pages, read 2026-09-30). AMCP's LinkedIn connection asks for r_ads, r_ads_reporting and rw_ads, so this waits on the owner's decision to request the permission and on LinkedIn's approval of the program.",
       "source": "OBSERVED",
       "tests": [],
-      "live_qualification": "unverified"
+      "live_qualification": "unverified",
+      "program_id": "program:linkedin_matched_audiences"
     },
     {
       "gateway": "linkedin_native_action",
@@ -28685,7 +28699,8 @@
       "reason": "Needs LinkedIn's rw_dmp_segments permission, which belongs to the Audiences program and \"is not granted automatically as part of the LinkedIn Marketing API Program\" (Matched Audiences pages, read 2026-09-30). AMCP's LinkedIn connection asks for r_ads, r_ads_reporting and rw_ads, so this waits on the owner's decision to request the permission and on LinkedIn's approval of the program.",
       "source": "OBSERVED",
       "tests": [],
-      "live_qualification": "unverified"
+      "live_qualification": "unverified",
+      "program_id": "program:linkedin_matched_audiences"
     },
     {
       "gateway": "linkedin_native_action",
@@ -28731,7 +28746,8 @@
       "reason": "Needs LinkedIn's rw_dmp_segments permission, which belongs to the Audiences program and \"is not granted automatically as part of the LinkedIn Marketing API Program\" (Matched Audiences pages, read 2026-09-30). AMCP's LinkedIn connection asks for r_ads, r_ads_reporting and rw_ads, so this waits on the owner's decision to request the permission and on LinkedIn's approval of the program.",
       "source": "OBSERVED",
       "tests": [],
-      "live_qualification": "unverified"
+      "live_qualification": "unverified",
+      "program_id": "program:linkedin_matched_audiences"
     },
     {
       "gateway": "linkedin_native_action",
@@ -28744,7 +28760,8 @@
       "reason": "Needs LinkedIn's rw_dmp_segments permission, which belongs to the Audiences program and \"is not granted automatically as part of the LinkedIn Marketing API Program\" (Matched Audiences pages, read 2026-09-30). AMCP's LinkedIn connection asks for r_ads, r_ads_reporting and rw_ads, so this waits on the owner's decision to request the permission and on LinkedIn's approval of the program. A company list is also a customer list under the personal-data policy.",
       "source": "OBSERVED",
       "tests": [],
-      "live_qualification": "unverified"
+      "live_qualification": "unverified",
+      "program_id": "program:linkedin_matched_audiences"
     },
     {
       "gateway": "linkedin_native_action",
@@ -28839,7 +28856,8 @@
       "reason": "Needs LinkedIn's rw_dmp_segments permission, which belongs to the Audiences program and \"is not granted automatically as part of the LinkedIn Marketing API Program\" (Matched Audiences pages, read 2026-09-30). AMCP's LinkedIn connection asks for r_ads, r_ads_reporting and rw_ads, so this waits on the owner's decision to request the permission and on LinkedIn's approval of the program.",
       "source": "OBSERVED",
       "tests": [],
-      "live_qualification": "unverified"
+      "live_qualification": "unverified",
+      "program_id": "program:linkedin_matched_audiences"
     },
     {
       "gateway": "linkedin_native_action",
@@ -30196,7 +30214,8 @@
       "reason": "Needs LinkedIn's rw_media_plans permission, which belongs to the Media Planning API program and \"is not granted automatically as part of the LinkedIn Marketing API Program\" (Manage Media Plans page, read 2026-09-30). AMCP's LinkedIn connection does not ask for it; this waits on the owner's decision and LinkedIn's approval.",
       "source": "OBSERVED",
       "tests": [],
-      "live_qualification": "unverified"
+      "live_qualification": "unverified",
+      "program_id": "program:linkedin_media_plans"
     },
     {
       "gateway": "linkedin_native_action",

@@ -21,7 +21,7 @@ import {
   settleProviderJob,
 } from './provider-jobs.js';
 import {assertWritesNotPaused} from './owner-operations.js';
-import {reportPlatforms, metricNumber, objectiveGroup} from './report-metrics.js';
+import {reportPlatforms, metricNumber, objectiveGroup, redditConversionValueDivisor} from './report-metrics.js';
 import {zonedMidnight} from './workflows.js';
 import {googleAdsCustomers} from './google-version.js';
 import {metaPrefix} from './meta-version.js';
@@ -136,6 +136,13 @@ const bad = (message: string) => {
 /** RPT-04: TikTok campaign reporting reads `AUCTION_CAMPAIGN` data only. */
 const tiktokAuctionOnlyWarning =
   'TikTok campaign reporting covers auction campaigns only (AUCTION_CAMPAIGN); Reach & Frequency and other reserved campaigns are not included.';
+/**
+ * ACC-06 interim: AMCP reads Reddit's CONVERSION_PURCHASE_TOTAL_VALUE as cents (redditConversionValueDivisor) while
+ * SPEND is in micros; no primary field reference or closed-week read against the Reddit UI confirms that unit yet, so a
+ * report that reads it says so until the authorized check is recorded (docs/acceptance/READ-ACCEPTANCE.md).
+ */
+export const redditValueUnitWarning =
+  'Reddit conversion value and ROAS are unverified: AMCP reads CONVERSION_PURCHASE_TOTAL_VALUE as cents (divided by 100), a unit not yet checked against Reddit. Compare them with Reddit Ads Manager before relying on them.';
 export function reportRange(range: JsonObject) {
   if (
     !range ||
@@ -437,7 +444,10 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
       impressions: value(raw.IMPRESSIONS ?? raw.impressions),
       clicks: value(raw.CLICKS ?? raw.clicks),
       purchases: value(raw.CONVERSION_PURCHASE_TOTAL_ITEMS ?? raw.conversion_purchase_total_items),
-      conversion_value: value(raw.CONVERSION_PURCHASE_TOTAL_VALUE ?? raw.conversion_purchase_total_value, 100),
+      conversion_value: value(
+        raw.CONVERSION_PURCHASE_TOTAL_VALUE ?? raw.conversion_purchase_total_value,
+        redditConversionValueDivisor,
+      ),
     };
   }
   if (p === 'ga4') {
@@ -1366,6 +1376,11 @@ export class NativeCampaignReports {
       warnings.push(
         'Reddit report dates are UTC; monetary conversion values and spend retain their distinct native units in source fields.',
       );
+      // ACC-06 interim: the conversion value unit is unverified until the authorized closed-week check is done.
+      if (extra.includes('CONVERSION_PURCHASE_TOTAL_VALUE')) warnings.push(redditValueUnitWarning);
+      // The result definition stays 'unknown' on purpose (ACC-06): no primary Reddit reference states which purchases
+      // and attribution windows these fields count, so sales recommendations keep asking for review (report-metrics).
+      // The closed-week check that settles the value unit also names the definition.
     } else if (p === 'ga4') {
       metadata = await run(
         plan('/v1beta/properties/' + account, {}, undefined, 'https://analyticsadmin.googleapis.com'),

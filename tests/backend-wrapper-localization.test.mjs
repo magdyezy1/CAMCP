@@ -151,10 +151,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // targeting specs read's paging refusal adds one.
   // The Meta window refusal is now one shared constant (meta-attribution-windows.ts); report-dimension-packs pins its
   // Arabic. WEB-09 adds server/workspace-search.ts (no wrapper reasons); WEB-03 and WEB-05 add website catalog entries.
-  assert.equal(files.length, 566);
+  // ACC-05 adds three modules without wrapper reasons and the owner provider access panel's catalog entries.
+  assert.equal(files.length, 569);
   assert.equal(selected.filter(row => row.messages.size).length, 184);
   assert.equal(owned.size, 2842);
-  assert.equal(Object.keys(catalog).length, 11324);
+  assert.equal(Object.keys(catalog).length, 11415);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

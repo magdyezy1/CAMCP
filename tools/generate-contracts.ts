@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import {providerContracts} from '../src/provider-contracts.js';
+import {effectiveProviderContract, providerContracts} from '../src/provider-contracts.js';
 import {providerMaintenance} from '../src/contract-evidence.js';
 import {googleAdsVersion} from '../src/google-version.js';
 import {providerSunset} from '../src/provider-sunsets.js';
@@ -157,6 +157,8 @@ lines.push(
   '`amcp_tool_help` returns `amcp_contract`. `amcp_write inspect` and prepare return `contract_evidence`; with `evidence: "ref"` its provider contract is a reference (versions, version end and the `amcp_tool_help` call that returns the whole contract), and `amcp_campaign` keeps its steps that way. Errors include a category, owner and remedy. Destructive operations retain existing explicit review and policy controls; there is no new acknowledgement that could imply schema provenance makes a write safe.',
   '',
   '`generate:vendor:check`, `generate:wsdl:check` and `contracts:check` are deterministic offline checks. The public-provider workflow separately checks remote schemas and documentation. A changed page is a maintenance signal, not proof of a breaking change. No CI job automatically upgrades versions or submits account mutations.',
+  '',
+  'Each provider contract carries `contract_digest`, the SHA-256 of its content at the version AMCP sends (every field except its record metadata and test lists), and compact contract references carry it too (ACC-05). Its `contract_version` and `reviewed_at` come from `src/provider-contract-manifest.json`: when the content changes, `npm run contracts:generate` records the new digest, bumps `contract_version` and sets `reviewed_at` to that day, and `contracts:check` fails until it has. A row of the provider acceptance ledger applies only to the digest and version it ran under ([provider access register](PROVIDER-ACCESS.md)).',
 );
 for (const c of providerContracts) {
   const m = providerMaintenance[c.id],
@@ -173,7 +175,56 @@ for (const c of providerContracts) {
 }
 const content = lines.join('\n') + '\n',
   path = 'docs/CONTRACTS.md';
+// ACC-05: each provider contract's record (version, review date) follows its content. When contract_digest changes,
+// generation bumps contract_version and sets reviewed_at to the day of generation; --check fails while a recorded
+// digest is stale. A record whose digest is "sha256:pending" (a new provider) takes its digest without a bump.
+const manifestPath = 'src/provider-contract-manifest.json',
+  manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')),
+  versionOverrides = ['AMCP_LINKEDIN_API_VERSION', 'AMCP_META_API_VERSION'].filter(name => process.env[name]);
+if (versionOverrides.length)
+  throw Error('Unset ' + versionOverrides.join(' and ') + ': contract digests are recorded at the default versions.');
+const records: Record<string, {contract_version: number; reviewed_at: string; contract_digest: string}> = {},
+  stale: string[] = [];
+for (const c of providerContracts) {
+  const id = String(c.id),
+    digest = String(effectiveProviderContract(id)!.contract_digest),
+    recorded = manifest.providers?.[id];
+  if (!recorded) throw Error(manifestPath + ' has no record for provider ' + id + '.');
+  if (recorded.contract_digest === digest) records[id] = recorded;
+  else {
+    stale.push(id);
+    records[id] =
+      recorded.contract_digest === 'sha256:pending'
+        ? {...recorded, contract_digest: digest}
+        : {
+            contract_version: recorded.contract_version + 1,
+            reviewed_at: new Date().toISOString().slice(0, 10),
+            contract_digest: digest,
+          };
+  }
+}
+for (const id of Object.keys(manifest.providers ?? {}))
+  if (!providerContracts.some(c => c.id === id)) stale.push(id + ' (no such provider)');
+const manifestContent =
+  '{\n  "schema_version": 1,\n  "providers": {\n' +
+  Object.entries(records)
+    .map(
+      ([id, r]) =>
+        '    ' + JSON.stringify(id) + ': ' + JSON.stringify(r).replaceAll('":', '": ').replaceAll(',"', ', "'),
+    )
+    .join(',\n') +
+  '\n  }\n}\n';
 if (process.argv.includes('--check')) {
   if (!fs.existsSync(path) || fs.readFileSync(path, 'utf8') !== content)
     throw Error('Generated contract guide is stale; run npm run contracts:generate.');
-} else fs.writeFileSync(path, content);
+  if (stale.length)
+    throw Error(
+      'Provider contract records are stale for ' +
+        stale.join(', ') +
+        ': run npm run contracts:generate, which bumps contract_version and reviewed_at for changed content.',
+    );
+} else {
+  fs.writeFileSync(path, content);
+  fs.writeFileSync(manifestPath, manifestContent);
+  if (stale.length) console.log('Provider contract records updated: ' + stale.join(', '));
+}

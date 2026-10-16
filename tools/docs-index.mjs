@@ -193,6 +193,20 @@ const sections = [
     ],
   ],
   ['Platforms', ['review/PLATFORMS.md', 'MEASUREMENT-AND-APPLE.md', 'MICROSOFT-ADS.md', 'REDDIT.md']],
+  // ACC-01 to ACC-08: the owner-run acceptance runbooks and the provider access register they record into.
+  [
+    'Acceptance',
+    [
+      'PROVIDER-ACCESS.md',
+      'acceptance/README.md',
+      'acceptance/WRITE-ACCEPTANCE.md',
+      'acceptance/CLIENT-INTEROP.md',
+      'acceptance/SHEETS-DELIVERY.md',
+      'acceptance/READ-ACCEPTANCE.md',
+      'acceptance/ASSISTIVE-TECHNOLOGY.md',
+      'acceptance/PROVIDER-PROGRAMS.md',
+    ],
+  ],
   [
     'The September 2026 review',
     [
@@ -234,7 +248,7 @@ const markdown = directory =>
     .map(f => (directory ? directory + '/' : '') + f);
 const problems = [];
 const placed = sections.flatMap(([, files]) => files);
-for (const file of [...markdown(''), ...markdown('review')])
+for (const file of [...markdown(''), ...markdown('review'), ...markdown('acceptance')])
   if (!placed.includes(file)) problems.push('place docs/' + file + ' in a section of tools/docs-index.mjs');
 for (const file of placed) if (!fs.existsSync(path.join(docs, file))) problems.push('docs/' + file + ' does not exist');
 if (new Set(placed).size !== placed.length) problems.push('a document is placed twice');

@@ -232,6 +232,12 @@ The adapter follows the current parameter enum. Official references checked
 2026-09-24: [analytics](https://docs.x.com/x-ads-api/analytics) and
 [rate limiting](https://docs.x.com/x-ads-api/fundamentals/rate-limiting).
 
+AMCP's line-item writes still accept `PUBLISHER_NETWORK`, and X's analytics summary (2026-10-08) lists it as a fourth
+placement. Until the authorized ACC-06 probe ([read acceptance](acceptance/READ-ACCEPTANCE.md)) shows whether X returns
+data for it, reports do not request it, and a campaign the active-entities answer lists on `PUBLISHER_NETWORK` makes the
+source partial (budget guidance is withheld) with a warning naming the count. Its delivery and spend are not in the
+totals, and a campaign active only there is not a zero row.
+
 ## Provider error layers and throttles
 
 A provider refusal is classified from the provider's documented codes before its
@@ -353,10 +359,10 @@ shows disabled entries with their reason.
 | TikTok | Integrated campaign report plus objective inventory |
 | Snapchat | Campaign totals/inventory and account-local day boundaries |
 | LinkedIn | Campaign adAnalytics with verified account currency, native UTC period/completion checks and explicit unknown conversion attribution. Campaign names and objectives come from one bounded read of the account's own campaigns per job (current metadata, not delivery-time values); a campaign of another account refuses the source, a refused read keeps IDs with a warning. Objective override when omitted |
-| X Ads | Active-entities request planning; current documented placements ALL_ON_TWITTER, SPOTLIGHT and TREND; separate web and mobile conversion requests; resumable hourly batches and explicit partial-coverage flags. Campaign objectives come from one bounded read of the account's line items per job (current metadata): a campaign whose line items share one objective takes it, mixed objectives stay unknown with a warning, and a refused or oversized read keeps every objective unknown |
+| X Ads | Active-entities request planning; current documented placements ALL_ON_TWITTER, SPOTLIGHT and TREND (activity X lists on PUBLISHER_NETWORK makes the source partial with a warning); separate web and mobile conversion requests; resumable hourly batches and explicit partial-coverage flags. Campaign objectives come from one bounded read of the account's line items per job (current metadata): a campaign whose line items share one objective takes it, mixed objectives stay unknown with a warning, and a refused or oversized read keeps every objective unknown |
 | Microsoft Ads | Durable Submit/Poll campaign, ad group or ad report in the account time zone and secure server-side CSV download |
 | Apple Ads | Campaign, ad group or ad report with explicit UTC range; detailed parents from the account's own records |
-| Reddit Ads | Campaign, ad group or ad metrics/inventory, spend micro-units and explicit native conversion definitions |
+| Reddit Ads | Campaign, ad group or ad metrics/inventory in UTC and spend micro-units; the campaign purchase value is read as cents, a unit not yet verified against Reddit, so a report that reads it says so; no result definition is claimed (`unknown`), so sales recommendations ask for review ([ACC-06](acceptance/READ-ACCEPTANCE.md)) |
 | GA4 | Campaign-attributed analytics context, property currency/timezone and threshold signals |
 | Search Console | Organic page context with limited top-row coverage; no paid-budget advice |
 
@@ -571,7 +577,7 @@ files to an external service.
 
 ## Acceptance
 
-Tests cover mappings, formulas, missing data, recommendations, pagination, date windows, schedules, permissions, Sheets ownership/typed cells/idempotency and lost create responses. Browser QA uses synthetic reports. Configure real credentials, reconcile a fixed period with each provider, and verify a real export plus scheduled delivery before relying on production results.
+Tests cover mappings, formulas, missing data, recommendations, pagination, date windows, schedules, permissions, Sheets ownership/typed cells/idempotency and lost create responses. Browser QA uses synthetic reports. Configure real credentials, reconcile a fixed period with each provider, and verify a real export plus scheduled delivery before relying on production results: the [Sheets delivery acceptance](acceptance/SHEETS-DELIVERY.md) runbook (ACC-03) does that on a disposable AMCP-created spreadsheet and records it in the acceptance ledger.
 
 References: [Sheets batch updates](https://developers.google.com/workspace/sheets/api/guides/batchupdate), [Drive creation](https://developers.google.com/workspace/drive/api/guides/create-file), [X analytics](https://docs.x.com/x-ads-api/analytics), [Snapchat measurement](https://developers.snap.com/marketing-api/Ads-API/measurement), [GA4 schema](https://developers.google.com/analytics/devguides/reporting/data/v1/api-schema), [Microsoft report columns](https://learn.microsoft.com/en-us/advertising/reporting-service/campaignperformancereportcolumn?view=bingads-13), [Reddit reporting](https://ads-api.reddit.com/docs/v3/api/get-a-report).
 

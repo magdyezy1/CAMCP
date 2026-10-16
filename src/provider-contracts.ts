@@ -4,6 +4,40 @@ import {metaCreativeFields} from './creative-validation.js';
 import {googleAdsVersion} from './google-version.js';
 import {metaApiVersion} from './meta-version.js';
 import {criteoApiVersion} from './criteo-version.js';
+import {sha256, stable} from './security.js';
+import manifest from './provider-contract-manifest.json' with {type: 'json'};
+
+export interface ProviderContractRecord {
+  contract_version: number;
+  reviewed_at: string;
+  contract_digest: string;
+}
+/** Each provider's recorded contract version, review date and the digest of the content they were recorded for. */
+export const providerContractRecords: Record<string, ProviderContractRecord> = manifest.providers;
+function contractRecord(id: string): ProviderContractRecord {
+  const record = providerContractRecords[id];
+  if (!record) throw Error('src/provider-contract-manifest.json has no record for provider ' + id);
+  return record;
+}
+/** Keys that describe a contract's record rather than its content: contract_digest leaves them out (ACC-05). */
+const recordKeys = new Set([
+  'contract_version',
+  'reviewed_at',
+  'contract_digest',
+  'owner_role',
+  'live_qualification',
+  'fixture_evidence',
+]);
+/**
+ * The digest of a provider contract's content (ACC-05): every field except its record metadata and its test lists. A
+ * change to write_scope, api_version or any other stated boundary changes it; adding a test or a review date does not.
+ */
+export function contractDigest(contract: JsonObject): string {
+  const content = Object.fromEntries(
+    Object.entries(contract).filter(([key]) => !recordKeys.has(key) && !/(?:^|_)tests$/.test(key)),
+  );
+  return 'sha256:' + sha256(stable(content));
+}
 
 /** Maintained contract boundaries, not inferred from generated action counts. */
 export const providerContracts: JsonObject[] = [
@@ -200,53 +234,12 @@ export const providerContracts: JsonObject[] = [
 ].map(([id, gateway, version, guide, media, writes, test, docs]) => ({
   id,
   gateway: gateway + '_native_action',
-  contract_version:
-    (
-      {
-        adjust: 2,
-        google: 27,
-        reddit: 4,
-        criteo: 12,
-        dv360: 19,
-        meta: 18,
-        microsoft: 3,
-        snapchat: 18,
-        linkedin: 18,
-        x: 16,
-        tiktok: 33,
-        ga4: 4,
-        gtm: 4,
-        gsc: 4,
-        google_business: 12,
-        apple: 3,
-      } as Record<string, number>
-    )[String(id)] ?? 1,
+  // The contract's record (ACC-05): its version and review date come from src/provider-contract-manifest.json, which
+  // `npm run contracts:generate` updates whenever contract_digest changes, so they follow the content they describe.
+  contract_version: contractRecord(String(id)).contract_version,
   api_version: version,
   owner_role: 'AMCP integration maintainer',
-  // PRV-06: the Reddit pixel check, Snapchat ad squad targeting and TikTok ad comment status (2026-10-15), and Meta
-  // Advantage+ creative feature choices (2026-10-16).
-  reviewed_at:
-    String(id) === 'meta'
-      ? '2026-10-16'
-      : ['reddit', 'snapchat', 'tiktok'].includes(String(id))
-        ? '2026-10-15'
-        : ['criteo', 'dv360', 'snapchat', 'linkedin', 'google', 'x', 'tiktok'].includes(String(id))
-          ? '2026-09-27'
-          : ['snapchat', 'tiktok', 'meta', 'google', 'linkedin', 'dv360'].includes(String(id))
-            ? '2026-09-26'
-            : ['adjust', 'google_business', 'x', 'google', 'linkedin'].includes(String(id))
-              ? '2026-09-25'
-              : ['meta', 'google', 'criteo'].includes(String(id))
-                ? '2026-09-24'
-                : ['google', 'ga4', 'gsc', 'google_business'].includes(String(id))
-                  ? '2026-09-20'
-                  : ['apple', 'gtm', 'reddit', 'criteo', 'linkedin', 'x'].includes(String(id))
-                    ? '2026-09-19'
-                    : ['microsoft', 'snapchat', 'linkedin'].includes(String(id))
-                      ? '2026-09-18'
-                      : ['x', 'tiktok'].includes(String(id))
-                        ? '2026-09-14'
-                        : '2026-09-12',
+  reviewed_at: contractRecord(String(id)).reviewed_at,
   documentation: docs,
   guide: guide ? 'amcp://guides/' + guide : null,
   // Business Profile connects on the website since CON-06 (once the owner declares the project's API approval).
@@ -560,8 +553,13 @@ export const providerContracts: JsonObject[] = [
       }
     : {}),
 }));
-/** A provider contract at the version AMCP sends; for LinkedIn, `sent` is the compiled LinkedIn-Version header. */
+/**
+ * A provider contract at the version AMCP sends; for LinkedIn, `sent` is the compiled LinkedIn-Version header. Its
+ * contract_digest identifies this content at this version (ACC-05): another version is another contract.
+ */
 export function effectiveProviderContract(id: string, sent?: string): JsonObject | undefined {
   const c = providerContracts.find(c => c.id === id);
-  return c ? {...c, api_version: id === 'linkedin' ? (sent ?? linkedinDescribedVersion()) : c.api_version} : undefined;
+  if (!c) return undefined;
+  const effective = {...c, api_version: id === 'linkedin' ? (sent ?? linkedinDescribedVersion()) : c.api_version};
+  return {...effective, contract_digest: contractDigest(effective)};
 }

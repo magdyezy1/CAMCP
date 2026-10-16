@@ -135,6 +135,9 @@ test('campaign adapters preserve native units, missing data, conversion aliases 
     12,
   );
   assert.equal(normalizeNativeRow('snapchat', {id: '1', stats: {spend: '5000000', swipes: '4'}}).metrics.spend, 5);
+  // Reddit's purchase value is read as cents (redditConversionValueDivisor, report-metrics.ts), a unit no primary Reddit
+  // reference confirms yet. The ACC-06 closed-week check (docs/acceptance/READ-ACCEPTANCE.md) settles it; a correction
+  // changes this expectation together with the divisor.
   assert.equal(
     normalizeNativeRow('reddit', {campaign_id: '1', SPEND: 1e6, CONVERSION_PURCHASE_TOTAL_VALUE: 500}).metrics
       .conversion_value,

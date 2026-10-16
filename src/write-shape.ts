@@ -17,7 +17,7 @@ import {assertRedditWrite} from './reddit-writes.js';
 import {microsoftGateway, assertMicrosoftWrite} from './microsoft-native.js';
 import {measurementWriteGateways, assertMeasurementWrite} from './measurement-writes.js';
 import {familyOf} from './reviewed-families.js';
-import {withheldWriteReason} from './withheld-writes.js';
+import {withheldWriteProgramId, withheldWriteReason} from './withheld-writes.js';
 import {assertNoMethodOverride, object, fail} from './write-common.js';
 
 export const writeContractGateways = new Set([
@@ -95,11 +95,13 @@ function assertReviewedShape(plan: CompiledRequest) {
   if (measurementWriteGateways.has(plan.gateway)) assertMeasurementWrite(plan);
   const supported = reviewedWriteFamily(plan);
   if (!supported) {
-    const reason = withheldWriteReason(plan.gateway, plan.action);
+    const reason = withheldWriteReason(plan.gateway, plan.action),
+      program = withheldWriteProgramId(plan.gateway, plan.action);
     fail(
       'WRITE_CONTRACT_UNAVAILABLE',
       'This route is outside the reviewed campaign-management execution contracts. Use a local dry run.',
-      reason ? {reason} : {},
+      // A write that waits on a provider program names its discovery-only entry in capabilities (ACC-05).
+      reason ? {reason, ...(program ? {program_id: program} : {})} : {},
     );
   }
   assertGatewayShape(plan);

@@ -15,6 +15,8 @@ export interface ProviderSunset {
   basis: 'official' | 'policy' | 'unknown';
   sunset?: string;
   checked: string;
+  /** The day AMCP started sending this version (its adoption commit), when the recorded history shows it (ACC-05). */
+  adopted?: string;
   note?: string;
 }
 const unknown = (provider: string, version: string, note?: string): ProviderSunset => ({
@@ -31,6 +33,7 @@ export const providerSunsets: ProviderSunset[] = [
     basis: 'official',
     sunset: '2027-08',
     checked: '2026-09-29',
+    adopted: '2026-09-28',
     note: 'Released 2026-07-22 (Google Ads API "Sunset dates" timetable). v23, which AMCP sent until 2026-09-28, sunsets in 2027-02.',
   },
   {
@@ -40,6 +43,7 @@ export const providerSunsets: ProviderSunset[] = [
       'Released 2026-07-29, available until "TBD" (Graph API Versions page and v26.0 changelog). AMCP_META_API_VERSION=v25.0 moves back to v25.0 (its own entry below).',
     ),
     checked: '2026-09-29',
+    adopted: '2026-09-28',
   },
   {
     // The emergency rollback version (src/meta-version.ts) has its own entry, so the registry and its alarms work while
@@ -57,6 +61,7 @@ export const providerSunsets: ProviderSunset[] = [
     basis: 'policy',
     sunset: '2027-09',
     checked: '2026-09-29',
+    adopted: '2026-09-29',
     note: 'LinkedIn supports each monthly version for at least one year (Marketing API Versioning). Published so far: 202510 ends 2026-10-15 and 202511 ends 2026-11-16 (Recent Marketing API changes, read 2026-09-29).',
   },
   {
@@ -65,6 +70,7 @@ export const providerSunsets: ProviderSunset[] = [
     basis: 'policy',
     sunset: '2027-07',
     checked: '2026-09-29',
+    adopted: '2026-09-29',
     note: 'Criteo supports each version for 12 months (Versioning Policy); 2026-07 was released in July 2026. 2026-01, which AMCP sent until 2026-09-29, is supported until 2027-01-27 (the same page).',
   },
   {
@@ -243,6 +249,8 @@ export function assertSunsetRegistry(entries: ProviderSunset[] = providerSunsets
     if (entry.sunset !== undefined && !Number.isFinite(sunsetDate(entry)))
       problems.push(entry.provider + ': malformed sunset ' + entry.sunset);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(entry.checked)) problems.push(entry.provider + ': malformed checked date');
+    if (entry.adopted !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(entry.adopted))
+      problems.push(entry.provider + ': malformed adopted date');
   }
   if (problems.length) throw Error('Provider sunset registry: ' + problems.join('; '));
 }

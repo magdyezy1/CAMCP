@@ -1,3 +1,5 @@
+import {discoveryOnlyProgram, withheldWriteProgram} from './discovery-programs.js';
+
 /**
  * Blocked writes whose refusal can say more than "no reviewed family": the ledger (src/action-contracts.ts) records the
  * reason, and the write-shape refusal (src/write-shape.ts) carries it in `details.reason`. They stay refused like every
@@ -186,10 +188,10 @@ Object.assign(evidenceWithheld, {
 /**
  * LinkedIn writes behind a permission AMCP does not request, and one without a documented request (Microsoft Learn,
  * li-lms-2026-09, read 2026-09-30). DMP segments that retarget engagement need only rw_ads (Engagement Retargeting page)
- * and are not listed here.
+ * and are not listed here. The program-gated reasons come from their discovery-only program entries (ACC-05), which
+ * also list the actions they withhold.
  */
-const linkedinAudiences =
-  "Needs LinkedIn's rw_dmp_segments permission, which belongs to the Audiences program and \"is not granted automatically as part of the LinkedIn Marketing API Program\" (Matched Audiences pages, read 2026-09-30). AMCP's LinkedIn connection asks for r_ads, r_ads_reporting and rw_ads, so this waits on the owner's decision to request the permission and on LinkedIn's approval of the program.";
+const linkedinAudiences = discoveryOnlyProgram('program:linkedin_matched_audiences')!.withheld_reason!;
 for (const action of [
   'linkedin_rest_ad_page_sets_post',
   'linkedin_rest_ad_segment_sources_source_urn_li_ad_page_set_id_segment_urn_li_ad_segment_id_put',
@@ -206,7 +208,7 @@ Object.assign(evidenceWithheld, {
   'linkedin_native_action linkedin_rest_ad_segments_segment_id_post':
     "LinkedIn's pages disagree on the permission: the Ad Segments page names rw_ads, while Getting Access names rw_dmp_segments for the Ad Segments APIs (read 2026-09-30). Ad segments come from DMP segments and page sets, so renaming or archiving one waits with them on the owner's decision about rw_dmp_segments.",
   'linkedin_native_action linkedin_rest_media_plans_post':
-    "Needs LinkedIn's rw_media_plans permission, which belongs to the Media Planning API program and \"is not granted automatically as part of the LinkedIn Marketing API Program\" (Manage Media Plans page, read 2026-09-30). AMCP's LinkedIn connection does not ask for it; this waits on the owner's decision and LinkedIn's approval.",
+    discoveryOnlyProgram('program:linkedin_media_plans')!.withheld_reason!,
   'linkedin_native_action linkedin_rest_ad_lift_tests_lift_test_id_ad_lift_test_surveys_post':
     "Not documented: LinkedIn's Lift Test Survey Management page (read 2026-09-30) shows the URL and a batch response for creating survey questions, but no request body, so AMCP could not build or check one. Add questions in Campaign Manager; lift tests and deleting their questions are reviewed (linkedin_lift_tests).",
   'linkedin_native_action linkedin_rest_global_publisher_list_post':
@@ -243,4 +245,8 @@ for (const action of [
 /** The specific reason a write without a family stays blocked, when AMCP knows one. */
 export function withheldWriteReason(gateway: string, action: string): string | undefined {
   return evidenceWithheld[gateway + ' ' + action];
+}
+/** The discovery-only program a withheld write waits on (ACC-05), by its ID; undefined for every other write. */
+export function withheldWriteProgramId(gateway: string, action: string): string | undefined {
+  return withheldWriteProgram(gateway, action)?.id;
 }

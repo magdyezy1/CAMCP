@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "providers": {
+    "google": {"contract_version": 27, "reviewed_at": "2026-09-30", "contract_digest": "sha256:d2cb36dfc772a366eedaf7b07303f7a03510b7b2bcf57cd8780423e7f6ac0b92"},
+    "meta": {"contract_version": 18, "reviewed_at": "2026-10-16", "contract_digest": "sha256:4bf23c501be473926e3d7f7e0438cba9bc8b3c66ac34bf370a5b3bf09337b05c"},
+    "tiktok": {"contract_version": 33, "reviewed_at": "2026-10-15", "contract_digest": "sha256:1d1edffb958dae82145a6d687550516f27f1cdd96e93d679c96820eb7e753481"},
+    "snapchat": {"contract_version": 18, "reviewed_at": "2026-10-15", "contract_digest": "sha256:eca52dfcbb74662d1e651fed9e012698b6599436ca08f9379876591e35d9a542"},
+    "linkedin": {"contract_version": 18, "reviewed_at": "2026-10-09", "contract_digest": "sha256:8552c5d747ae672048481f4e655456dd9a7df8b8a3349602db9097d5778ec706"},
+    "x": {"contract_version": 16, "reviewed_at": "2026-09-29", "contract_digest": "sha256:15d3e84f944fbf1bac7468d626292b5042d2bcb2bc580c4e8b78ebf82cc99759"},
+    "microsoft": {"contract_version": 3, "reviewed_at": "2026-09-18", "contract_digest": "sha256:897de4a829caa02b723bc3b7058215459308ca26cd814771e3108bf2b43ff762"},
+    "apple": {"contract_version": 3, "reviewed_at": "2026-09-19", "contract_digest": "sha256:5de9dc418e4dca4bd61d50ef44390322a05a693dccdbca161a079b07081c9668"},
+    "reddit": {"contract_version": 4, "reviewed_at": "2026-10-15", "contract_digest": "sha256:c71e078c8d5de361b9eba6f66608c89f93c2e819a5f812c5b93dad48572bb573"},
+    "dv360": {"contract_version": 19, "reviewed_at": "2026-09-28", "contract_digest": "sha256:f93fa99df12ef19add6ebede5c8894b995b13fb436d58a266d6fdc8cf0b4cd0a"},
+    "ga4": {"contract_version": 4, "reviewed_at": "2026-09-20", "contract_digest": "sha256:e4e3e0f1ecdbffa0098d10fbee8f43585b320cfa82125b11455a50e2d6b881cd"},
+    "gtm": {"contract_version": 4, "reviewed_at": "2026-09-19", "contract_digest": "sha256:5cb25deca278235eb9824df48a6fea1309b581a20315b8a48bd3cc464c980289"},
+    "gsc": {"contract_version": 4, "reviewed_at": "2026-09-20", "contract_digest": "sha256:b8315510f8c9f934cdcd14285bf422dace62933db911daeee781ef1ecfdf15c5"},
+    "drive": {"contract_version": 1, "reviewed_at": "2026-09-12", "contract_digest": "sha256:102da411d1d451713f564e40382d09a00781347cde92d6724b7f6ae4ca165a4d"},
+    "sheets": {"contract_version": 1, "reviewed_at": "2026-09-12", "contract_digest": "sha256:f367858a28774fdde99bb711015a9441895d1a3aaafb57870daa77568e26b43a"},
+    "amazon": {"contract_version": 1, "reviewed_at": "2026-09-12", "contract_digest": "sha256:b1375c4a04784d3905b76d001aed9a9ceb855c0353e2c5afcba850c59a81e9bd"},
+    "criteo": {"contract_version": 12, "reviewed_at": "2026-09-29", "contract_digest": "sha256:59def18b7dfe0b3c8295925d0b26ae72b3de1d6ab68aeb4f036ecc411fb3e472"},
+    "adjust": {"contract_version": 2, "reviewed_at": "2026-09-25", "contract_digest": "sha256:236aa941fa6c9e7e99d3c10374bf1c3df6d64b36afc3a9ab45487a9ebffccc91"},
+    "google_business": {"contract_version": 12, "reviewed_at": "2026-10-10", "contract_digest": "sha256:2ebaa461c733b5a86fde14ca429d43fbc43207c0ddc6e8e3a96c26da5ee5da37"}
+  }
+}

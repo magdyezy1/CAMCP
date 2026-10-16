@@ -198,6 +198,8 @@ function reportRecommendationAsOf(row) {
 }
 // Collector warnings AMCP authors for a source's reporting window (RPT-02); other warnings stay as written.
 const reportSourceWarnings = new Set([
+  // ACC-06 interim notice: the Reddit conversion value unit is unverified until the authorized closed-week check.
+  'Reddit conversion value and ROAS are unverified: AMCP reads CONVERSION_PURCHASE_TOTAL_VALUE as cents (divided by 100), a unit not yet checked against Reddit. Compare them with Reddit Ads Manager before relying on them.',
   'Includes an in-progress day: the last reporting day has not ended in the source time zone. The source stays partial and recommendations wait until it closes.',
   'The reporting window was declared incomplete. The source stays partial and recommendations are held until a complete window is collected.',
   // RPT-03 and RPT-04 collection notices.
@@ -240,6 +242,15 @@ const reportSourceWarningTemplates = [
       uiText('Active X campaigns missing from the campaign list, shown by ID: {count}.', {
         count: uiNumber(Number(m[1])),
       }),
+  ],
+  // ACC-06 interim notice: X reported activity on a placement these reports do not request yet.
+  [
+    /^(\d{1,7}) X campaigns? (?:has|have) activity on the publisher network \(PUBLISHER_NETWORK\), which this report does not request yet\. That delivery and its spend are not in these totals, so coverage is partial and budget guidance is withheld\.$/,
+    m =>
+      uiText(
+        'X campaigns with activity on the publisher network (PUBLISHER_NETWORK), which this report does not request yet: {count}. That delivery and its spend are not in these totals, so coverage is partial and budget guidance is withheld.',
+        {count: uiNumber(Number(m[1]))},
+      ),
   ],
 ];
 function uiSourceWarning(value) {

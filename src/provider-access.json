@@ -1,0 +1,292 @@
+{
+  "schema_version": 1,
+  "stale_after_days": 90,
+  "providers": {
+    "google": {
+      "approvals": [
+        {
+          "id": "cloud_project_access_level",
+          "label": "Google Ads API access level of the Cloud project that owns AMCP's Google OAuth client (Test, Explorer, Basic or Standard)",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        },
+        {
+          "id": "developer_token_tier",
+          "label": "Google Ads developer token tier, where one is still sent",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        },
+        {
+          "id": "oauth_verification",
+          "label": "Google OAuth consent screen verification for the scopes AMCP requests",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        },
+        {
+          "id": "test_manager_account",
+          "label": "A Google Ads test manager account and test account designated for zero-spend write acceptance (ACC-01)",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        }
+      ]
+    },
+    "meta": {
+      "approvals": [
+        {
+          "id": "ads_management_advanced_access",
+          "label": "Meta Advanced Access for ads_management",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        },
+        {
+          "id": "catalog_management_advanced_access",
+          "label": "Meta Advanced Access for catalog_management",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        },
+        {
+          "id": "sandbox_ad_account",
+          "label": "A Meta sandbox ad account, if Meta still offers one, for zero-spend write acceptance (ACC-01)",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        }
+      ]
+    },
+    "tiktok": {
+      "approvals": [
+        {
+          "id": "marketing_api_app",
+          "label": "TikTok API for Business developer app approval",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        },
+        {
+          "id": "sandbox_advertiser",
+          "label": "Whether the TikTok app has a sandbox advertiser (ACC-06)",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        }
+      ]
+    },
+    "snapchat": {
+      "approvals": [
+        {
+          "id": "marketing_api_app",
+          "label": "Snap Marketing API app approval",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        },
+        {
+          "id": "non_serving_account",
+          "label": "A non-serving Snapchat ad account designated for paused write acceptance (ACC-01)",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        }
+      ]
+    },
+    "linkedin": {
+      "approvals": [
+        {
+          "id": "advertising_api_access",
+          "label": "LinkedIn Advertising API access of the production application (Development or Standard tier)",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        },
+        {
+          "id": "programmatic_refresh_tokens",
+          "label": "LinkedIn approval for programmatic refresh tokens",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        },
+        {
+          "id": "media_planning_product",
+          "label": "Media Planning API product provisioned for the application (program:linkedin_forecast)",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        },
+        {
+          "id": "audience_insights_product",
+          "label": "Audience Insights API product provisioned for the application (program:linkedin_audience_insights)",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        }
+      ]
+    },
+    "x": {
+      "approvals": [
+        {
+          "id": "ads_api_access_form",
+          "label": "X Ads API access approved through the Ads API access form (program:x_ads_api_access)",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        }
+      ]
+    },
+    "microsoft": {
+      "approvals": [
+        {
+          "id": "developer_token",
+          "label": "Microsoft Advertising developer token: production, or sandbox only",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        }
+      ]
+    },
+    "apple": {
+      "approvals": [
+        {
+          "id": "api_user_role",
+          "label": "Apple Ads API user role of the deployment's API user",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        }
+      ]
+    },
+    "reddit": {
+      "approvals": [
+        {
+          "id": "ads_api_access",
+          "label": "Reddit Ads API access for AMCP's application",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        }
+      ]
+    },
+    "dv360": {
+      "approvals": [
+        {
+          "id": "user_profile",
+          "label": "A Display & Video 360 user profile for AMCP's Google identity, with access to a partner or advertiser (program:dv360_advertiser)",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        }
+      ]
+    },
+    "ga4": {
+      "approvals": [
+        {
+          "id": "test_property",
+          "label": "A GA4 property designated for read-only measurement acceptance (ACC-06)",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        }
+      ]
+    },
+    "gtm": {
+      "approvals": [
+        {
+          "id": "test_container",
+          "label": "A Tag Manager container designated for read-only measurement acceptance (ACC-06)",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        }
+      ]
+    },
+    "gsc": {
+      "approvals": [
+        {
+          "id": "oauth_verification",
+          "label": "Google OAuth verification covering the Search Console scope",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        }
+      ]
+    },
+    "drive": {
+      "approvals": [
+        {
+          "id": "oauth_verification",
+          "label": "Google OAuth verification covering the Drive scope AMCP requests",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        }
+      ]
+    },
+    "sheets": {
+      "approvals": [
+        {
+          "id": "oauth_verification",
+          "label": "Google OAuth verification covering drive.file for Sheets delivery",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        },
+        {
+          "id": "disposable_spreadsheet",
+          "label": "Authorization for one bounded export to a disposable AMCP-created spreadsheet (ACC-03)",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        }
+      ]
+    },
+    "amazon": {
+      "approvals": [
+        {
+          "id": "ads_api_onboarding",
+          "label": "Amazon Ads API approval and a Login with Amazon onboarding; Amazon Ads is not offered until one exists",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        }
+      ]
+    },
+    "criteo": {
+      "approvals": [
+        {
+          "id": "api_app",
+          "label": "Criteo API application consent; Criteo is parked",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        }
+      ]
+    },
+    "adjust": {
+      "approvals": [
+        {
+          "id": "api_token_holder",
+          "label": "The deployment-owned Adjust API token and the accounts it covers",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        }
+      ]
+    },
+    "google_business": {
+      "approvals": [
+        {
+          "id": "business_profile_api_approval",
+          "label": "Business Profile API approval of the Cloud project (a non-zero quota)",
+          "status": "undeclared",
+          "value": null,
+          "declared_at": null
+        }
+      ]
+    }
+  }
+}
