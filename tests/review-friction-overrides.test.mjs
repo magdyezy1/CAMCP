@@ -8,6 +8,7 @@ import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {ownerOperations} from '../dist/src/owner-operations.js';
 import {reviewFriction} from '../dist/src/review-friction.js';
 import {capOverrides} from '../dist/src/cap-overrides.js';
+import {approveReview} from '../dist/src/write-approval.js';
 import {MirrorError} from '../dist/src/errors.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
@@ -16,6 +17,8 @@ import {assertRefused} from './helpers/assert-refused.mjs';
  * cap_override_confirmed, and the audit event it wrote had no reader; nothing measured review friction although the
  * audit has every row. Owner health now lists the executions over a cap (who, which account and rule, which review) and
  * a friction report over the amcp_write audit (latency, expiry, changed state, refusals, uncertain and not-sent rates).
+ * Since owner decision P5 an operator executes over a cap only after the owner approved that exact review on the
+ * website (tests/write-approval.test.mjs), so these operator executions are approved by the owner first.
  */
 const key = Buffer.alloc(32, 72).toString('base64');
 
@@ -94,6 +97,7 @@ test('an operator execution over a cap appears in the owner health view, and onl
       operator,
     );
     assert.equal(prepared.success, true, JSON.stringify(prepared.error));
+    approveReview(store, owner, prepared.data.review_id, {fingerprint: prepared.data.fingerprint, confirmed: true});
     const done = await service.call(
       'amcp_write',
       {
@@ -216,6 +220,7 @@ test('a confirmed over-cap execution refused before it was sent is not listed as
       operator,
     );
     assert.equal(prepared.success, true, JSON.stringify(prepared.error));
+    approveReview(store, owner, prepared.data.review_id, {fingerprint: prepared.data.fingerprint, confirmed: true});
     const execute = () =>
       service.call(
         'amcp_write',

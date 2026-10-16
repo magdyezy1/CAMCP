@@ -17,6 +17,7 @@ import {checkSpendPolicy, policyWarnings, saveSpendPolicy} from '../dist/src/spe
 import {googleTargetingWidens} from '../dist/src/google-targeting-writes.js';
 import {reviewSummary} from '../dist/src/review-summary.js';
 import {rememberAccountMetadata} from '../dist/src/account-metadata.js';
+import {errorResult} from '../dist/src/errors.js';
 import {allocationReport} from './fixtures/allocation-data.mjs';
 import {linkedinAllocationFixture} from './fixtures/linkedin-allocation-data.mjs';
 import fs from 'node:fs';
@@ -509,24 +510,82 @@ test('caps bound to a currency compare only an account that spends in it; never 
   }
 });
 
-test('caps saved without a currency keep working and are listed; a live-read currency binds new ones', () => {
+test('owner decision P5: caps saved without a currency refuse budget and bid changes until saved again with one, under confirm and block', () => {
+  // Regression: a legacy cap (stated in account currency, no currency recorded) used to be compared as before with a
+  // warning, so 50 of the account's KWD passed a cap the owner may have meant in USD. P5 chose "block until re-saved".
   const store = policyStore();
   try {
-    // A legacy cap: stated in currency, no currency known. It still compares, and owner health names it.
+    for (const enforcement of ['confirm', 'block']) {
+      const legacy = savePolicy(store, {enforcement, max_budget_currency: 100});
+      assert.equal(legacy.currency, undefined);
+      assert.deepEqual(
+        legacy.warnings.map(w => [w.code, w.blocks]),
+        [['POLICY_CURRENCY_UNSET', true]],
+      );
+      for (const [amount, state] of [
+        ['50000000', budgetState([['1', '40000000']], 'KWD')], // within the number, in another currency
+        ['150000000', budgetState([['1', '40000000']], 'KWD')], // beyond it
+        ['20000000', budgetState([['1', '40000000']], 'USD')], // a decrease
+        ['50000000', budgetState([['1', '40000000']])], // the account's currency unknown
+      ])
+        assert.throws(
+          () => checkSpendPolicy(store, actor, budgetPlan([['1', amount]]), state, 'review-' + enforcement, true),
+          e =>
+            e.code === 'POLICY_CURRENCY_UNSET' &&
+            e.details.policy_id === legacy.id &&
+            e.details.gateway === google &&
+            e.details.fields.includes('max_budget_currency') &&
+            e.status === 409,
+          enforcement + ' ' + amount,
+        );
+      // Nothing was reserved, and the refusal names the account's currency where AMCP knows it and the owner's remedy.
+      assert.equal(store.db.prepare("SELECT 1 FROM documents WHERE kind='spend_reservation'").get(), undefined);
+      assert.throws(
+        () => checkSpendPolicy(store, actor, budgetPlan([['1', '50000000']]), budgetState([['1', '40000000']], 'KWD')),
+        e => {
+          const wire = errorResult(e, 'synthetic', 1).error;
+          return (
+            e.details.account_currency === 'KWD' &&
+            wire.remedy.owner === 'workspace_owner' &&
+            /saves this spending policy again with the currency/.test(wire.remedy.action)
+          );
+        },
+      );
+      // A request without money (pausing a campaign) is not judged by the caps at all.
+      const pause = {
+        ...budgetPlan([]),
+        action: 'google_ads_v23_campaign_mutate_campaigns',
+        path: '/v23/customers/' + customer + '/campaigns:mutate',
+        body: {
+          operations: [
+            {update: {resourceName: 'customers/' + customer + '/campaigns/7', status: 'PAUSED'}, updateMask: 'status'},
+          ],
+        },
+      };
+      assert.equal(checkSpendPolicy(store, actor, pause, []).exceeded, undefined);
+      store.db.prepare("DELETE FROM documents WHERE kind='spend_policy'").run();
+    }
     const legacy = savePolicy(store, {enforcement: 'block', max_budget_currency: 100});
-    assert.equal(legacy.currency, undefined);
-    assert.throws(
-      () => checkSpendPolicy(store, actor, budgetPlan([['1', '150000000']]), budgetState([['1', '40000000']], 'KWD')),
-      {code: 'POLICY_BUDGET_LIMIT'},
-    );
-    assert.equal(
-      checkSpendPolicy(store, actor, budgetPlan([['1', '50000000']]), budgetState([['1', '40000000']], 'KWD')).exceeded,
-      undefined,
-    );
     assert.deepEqual(
-      policyWarnings(store, owner.tenantId).map(w => [w.code, w.policy_id]),
-      [['POLICY_CURRENCY_UNSET', legacy.id]],
+      policyWarnings(store, owner.tenantId).map(w => [w.code, w.policy_id, w.blocks]),
+      [['POLICY_CURRENCY_UNSET', legacy.id, true]],
     );
+    // The rollback switch compares them as before, with the warning.
+    process.env.AMCP_LEGACY_CURRENCY_CAPS = 'warn';
+    try {
+      assert.throws(
+        () => checkSpendPolicy(store, actor, budgetPlan([['1', '150000000']]), budgetState([['1', '40000000']], 'KWD')),
+        {code: 'POLICY_BUDGET_LIMIT'},
+      );
+      assert.equal(
+        checkSpendPolicy(store, actor, budgetPlan([['1', '50000000']]), budgetState([['1', '40000000']], 'KWD'))
+          .exceeded,
+        undefined,
+      );
+      assert.equal(policyWarnings(store, owner.tenantId)[0].blocks, false);
+    } finally {
+      delete process.env.AMCP_LEGACY_CURRENCY_CAPS;
+    }
     // After a live account check, a save without a currency binds the account's own.
     rememberAccountMetadata(store, owner.tenantId, 'google', customer, {
       name: 'Kuwait',

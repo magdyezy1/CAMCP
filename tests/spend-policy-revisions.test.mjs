@@ -53,10 +53,12 @@ const refused = (fn, code) => assert.throws(fn, e => e.code === code, code);
 test('a stale expected_revision is refused with 409 and nothing is saved; the current one saves the next revision', () => {
   const f = fixture();
   try {
-    const first = f.save({enforcement: 'block', max_budget_currency: 100}, {expected_revision: 0});
+    // Caps in account currency name their currency here: without one, a save warns that they refuse money changes
+    // (owner decision P5, tests/currency-money-checks.test.mjs).
+    const first = f.save({enforcement: 'block', max_budget_currency: 100, currency: 'USD'}, {expected_revision: 0});
     assert.equal(first.revision, 1);
     assert.equal(first.warnings, undefined);
-    const second = f.save({enforcement: 'block', max_budget_currency: 80}, {expected_revision: 1});
+    const second = f.save({enforcement: 'block', max_budget_currency: 80, currency: 'USD'}, {expected_revision: 1});
     assert.equal(second.revision, 2);
     const before = f.store.document(owner.tenantId, 'spend_policy', f.id);
     let error;
@@ -80,10 +82,10 @@ test('a stale expected_revision is refused with 409 and nothing is saved; the cu
 test('without expected_revision an MCP save still succeeds and says it replaced the stored policy unchecked', () => {
   const f = fixture();
   try {
-    const created = f.save({max_bid_currency: 5});
+    const created = f.save({max_bid_currency: 5, currency: 'USD'});
     assert.equal(created.revision, 1);
     assert.equal(created.warnings, undefined, 'nothing was replaced');
-    const replaced = f.save({max_bid_currency: 4});
+    const replaced = f.save({max_bid_currency: 4, currency: 'USD'});
     assert.equal(replaced.revision, 2);
     assert.deepEqual(
       replaced.warnings.map(w => [w.code, w.replaced_revision]),

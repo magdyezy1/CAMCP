@@ -5,6 +5,7 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {saveSpendPolicy, checkSpendPolicy} from '../dist/src/spend-policy.js';
+import {rememberAccountMetadata} from '../dist/src/account-metadata.js';
 
 /**
  * Owner decision (2026-09-28): a spending cap asks the user instead of refusing. `enforcement: 'confirm'` is the
@@ -77,7 +78,7 @@ function fixture() {
     allowWrites: true,
     requireBeforeState: true,
   });
-  const call = input => service.call('amcp_write', input, actor);
+  const call = (input, as = actor) => service.call('amcp_write', input, as);
   const prepare = budget =>
     call({
       action: 'prepare',
@@ -89,13 +90,13 @@ function fixture() {
         payload: {budget: [{adgroup_id: '700', budget}]},
       },
     });
-  const execute = (id, extra = {}) =>
-    call({action: 'execute', review_id: id, confirmed: true, spend_change_confirmed: true, ...extra});
+  const execute = (id, extra = {}, as = actor) =>
+    call({action: 'execute', review_id: id, confirmed: true, spend_change_confirmed: true, ...extra}, as);
   const policy = p => saveSpendPolicy(store, owner, {gateway, account_id: account, confirmed: true, policy: p});
   return {store, writes, prepare, execute, policy};
 }
 
-test('a budget above the cap is prepared with a warning and runs once the user confirms', async () => {
+test('a budget above the cap is prepared with a warning and runs once the user confirms and the owner executes it', async () => {
   const f = fixture();
   try {
     f.policy({max_budget_native: 950});
@@ -115,7 +116,12 @@ test('a budget above the cap is prepared with a warning and runs once the user c
     assert.equal(refused.error.category, 'confirmation');
     assert.match(refused.error.remedy.action, /cap_override_confirmed=true/);
     assert.equal(f.writes.length, 0);
-    const done = await f.execute(r.data.review_id, {cap_override_confirmed: true});
+    // Owner decision P5: with the acknowledgement, only the workspace owner executes beyond the cap (before P5 the
+    // operator's own execute ran here).
+    const operatorRun = await f.execute(r.data.review_id, {cap_override_confirmed: true});
+    assert.equal(operatorRun.error.code, 'CAP_OVERRIDE_OWNER_REQUIRED');
+    assert.equal(f.writes.length, 0);
+    const done = await f.execute(r.data.review_id, {cap_override_confirmed: true}, owner);
     assert.equal(done.success, true, JSON.stringify(done.error));
     assert.equal(f.writes.length, 1);
     const audit = f.store.audit(actor.tenantId, 1000).map(row => JSON.parse(row.event));
@@ -206,11 +212,18 @@ test('the bid cap compares bid fields and money objects under a bid', () => {
     );
     assert.equal(google.exceeded[0].rule, 'POLICY_BID_LIMIT');
     assert.match(google.exceeded_summary, /bid 5000000 is above the bid cap of 2000000/);
+    // A cap in account currency names its currency (owner decision P5: one without a currency compares nothing), and
+    // the account's own currency is known from a live check.
+    rememberAccountMetadata(store, actor.tenantId, 'linkedin_native_action', '507404993', {
+      name: 'Synthetic LinkedIn',
+      currency: 'USD',
+      timezone: 'UTC',
+    });
     saveSpendPolicy(store, owner, {
       gateway: 'linkedin_native_action',
       account_id: '507404993',
       confirmed: true,
-      policy: {max_bid_currency: 5, enforcement: 'block'},
+      policy: {max_bid_currency: 5, currency: 'USD', enforcement: 'block'},
     });
     assert.throws(
       () =>
@@ -272,11 +285,17 @@ test('caps can be stated in account currency where the platform unit is document
       policy: {per_gateway: {google_ads_native_action: {max_budget_currency: 100}}, max_budget_increase_percent: 50},
     });
     assert.equal(workspace.per_gateway.google_ads_native_action.max_budget_native, 100000000);
-    // WRT-07: a currency cap that names no currency would compare a KWD and a JPY account with the same number. It
-    // still applies, and the owner is told; naming the currency clears the warning.
+    // WRT-07: a currency cap that names no currency would compare a KWD and a JPY account with the same number. Under
+    // owner decision P5 it refuses budget and bid changes until it names one, and the owner is told; naming the
+    // currency clears the warning.
     assert.deepEqual(
-      workspace.warnings.map(w => [w.code, w.gateways]),
-      [['POLICY_CURRENCY_UNSET', ['google_ads_native_action']]],
+      workspace.warnings.map(w => [w.code, w.gateways, w.blocks]),
+      [['POLICY_CURRENCY_UNSET', ['google_ads_native_action'], true]],
+    );
+    assert.deepEqual(
+      saved.warnings.map(w => w.code),
+      ['POLICY_CURRENCY_UNSET'],
+      'an account policy saved without a known currency says so at once',
     );
     const bound = saveSpendPolicy(f.store, owner, {
       scope: 'workspace',
