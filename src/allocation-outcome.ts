@@ -323,11 +323,21 @@ function accessiblePlan(store: Store, actor: Actor, planId: string) {
   store.resolveConnection(actor, b.gateway ?? 'google_ads_native_action', b.account_id, b.connection_id);
   return run;
 }
+/**
+ * The outcome review of a verified plan that has none (its quiet scheduling failed, or it completed before this
+ * release) is recorded by someone who can edit or approve the plan, and its background review runs as them; a person
+ * who may only view the plan reads its state and never becomes that job's actor.
+ */
+function recordedOutcome(store: Store, actor: Actor, run: JsonObject): JsonObject | undefined {
+  const existing = optional(store, actor.tenantId, allocationOutcomeKind, run.id);
+  if (existing) return existing;
+  if (!planRight(store, actor, run, 'edit') && !planRight(store, actor, run, 'approve')) return undefined;
+  return scheduleAllocationOutcome(store, actor, run);
+}
 /** `allocation_outcome`: the review's window, state and, once captured, its results. No provider request. */
 export function allocationOutcomeView(store: Store, actor: Actor, planId: string): JsonObject {
   const run = accessiblePlan(store, actor, planId),
-    doc =
-      optional(store, actor.tenantId, allocationOutcomeKind, run.id) ?? scheduleAllocationOutcome(store, actor, run);
+    doc = recordedOutcome(store, actor, run);
   if (doc) return view(doc);
   const execution = verifiedAllocationExecution(run);
   return {
@@ -494,14 +504,19 @@ export async function captureAllocationOutcome(
   capture: (input: JsonObject) => Promise<JsonObject>,
 ): Promise<JsonObject> {
   const run = accessiblePlan(store, actor, planId),
-    doc =
-      optional(store, actor.tenantId, allocationOutcomeKind, run.id) ?? scheduleAllocationOutcome(store, actor, run);
+    doc = recordedOutcome(store, actor, run);
   if (!doc) {
     const execution = verifiedAllocationExecution(run);
+    if ('executed_at' in execution)
+      bad(
+        'This plan’s outcome review is not recorded yet. Someone who can edit or approve the plan records it by opening the outcome.',
+        'ALLOCATION_OUTCOME_NOT_READY',
+        {reason: 'not_recorded'},
+      );
     bad(
       'The outcome review starts after every budget step of this plan has been executed and verified by read-back.',
       'ALLOCATION_OUTCOME_NOT_READY',
-      {reason: 'reason' in execution ? execution.reason : 'not_recorded'},
+      {reason: execution.reason},
     );
   }
   if (doc.state === 'complete') return view(doc);

@@ -617,3 +617,45 @@ test('at most the bounded number of outcome records is kept; finished ones are r
     f.store.close();
   }
 });
+
+test('a plan viewer who opens the outcome of a plan without a record reads it and records nothing; someone who can edit it records it (regression: the viewer became the job actor)', async () => {
+  const f = fixture();
+  try {
+    const id = await f.executed();
+    f.store.db
+      .prepare('INSERT INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES(?,?,?,?)')
+      .run(f.actor.tenantId, 'plan-viewer', 'viewer', Date.now());
+    good(await f.call('amcp_campaign', {action: 'assign', id, user_id: 'plan-viewer', role: 'viewer'}));
+    // A plan whose outcome was never recorded (its completion predates the review, or recording it failed).
+    f.store.deleteDocument(f.actor.tenantId, allocationOutcomeKind, id);
+    f.store.db.prepare('DELETE FROM jobs WHERE kind=?').run(allocationOutcomeKind);
+    const viewer = f.store.authenticate(
+      f.store.createKey({tenantId: f.actor.tenantId, userId: 'plan-viewer', role: 'reader'}),
+    );
+    const jobs = () => f.store.db.prepare('SELECT count(*) AS n FROM jobs WHERE kind=?').get(allocationOutcomeKind).n;
+    const shown = good(await f.view(id, viewer));
+    assert.equal(shown.state, 'not_scheduled');
+    assert.equal(shown.reason, 'not_recorded');
+    assert.equal(shown.network_requests, 0);
+    const refused = await f.capture(id, viewer);
+    assert.equal(refused.error?.code, 'ALLOCATION_OUTCOME_NOT_READY');
+    assert.equal(refused.error.details.reason, 'not_recorded');
+    assert.equal(f.store.documents(f.actor.tenantId, allocationOutcomeKind).length, 0, 'the viewer recorded nothing');
+    assert.equal(jobs(), 0, 'and queued no background review');
+    // The plan's owner opening it records the review, bound to the owner.
+    const recorded = good(await f.view(id));
+    assert.equal(recorded.state, 'scheduled');
+    assert.equal(f.outcomeDoc(id).automatic, true);
+    assert.equal(jobs(), 1);
+    const audit = f.store.db
+      .prepare('SELECT event FROM audit')
+      .all()
+      .map(r => JSON.parse(r.event));
+    const scheduled = audit.filter(e => e.event === 'allocation_outcome_scheduled' && e.plan_id === id);
+    // Every recording of this plan's review was the owner's (at completion and now), never the viewer's.
+    assert.ok(scheduled.length >= 2);
+    assert.deepEqual([...new Set(scheduled.map(e => e.actor))], [f.actor.userId]);
+  } finally {
+    f.store.close();
+  }
+});

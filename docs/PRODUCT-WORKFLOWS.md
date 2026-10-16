@@ -1351,7 +1351,9 @@ completed the plan) repeats the proposal's own guided preset on the same login, 
 attribution and result definition, and retains it as ordinary guided evidence. A provider that has not finalized the
 window (Snapchat) or a rate limit is retried up to six times with growing delays; any other refusal is recorded and an
 authorized member can review the outcome from the plan page (**Review the outcome now**) or with
-`capture_allocation_outcome {id}`.
+`capture_allocation_outcome {id}`. A verified plan without an outcome record (it completed before this release, or
+recording it failed) gets one when its owner, an administrator, an editor or an approver opens the outcome; a plan viewer
+only sees `not_scheduled` with the reason `not_recorded`, so the background review never runs as a viewer.
 
 `allocation_outcome {id}` (the campaign plan ID) shows the window, state and results: per entity and in total, the
 proposed budget, realized spend and its share of the proposal, realized conversions beside the range the proposal

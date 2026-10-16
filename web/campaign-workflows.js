@@ -1168,6 +1168,8 @@ const allocationOutcomeReasons = {
   proposal_not_reproducible: 'The proposal can no longer be reproduced from its evidence.',
   preset_unqualified: 'The proposal’s evidence report type does not qualify.',
   measurement_definition_changed: 'The outcome report used different measurement settings than the proposal.',
+  not_recorded:
+    'No outcome review is recorded for this plan yet. Someone who can edit or approve the plan records it by opening this outcome.',
 };
 const allocationOutcomeText = (labels, code) => (Object.hasOwn(labels, code) ? uiText(labels[code]) : String(code));
 /** An exact range of decimal strings, or Unknown. */

@@ -230,8 +230,8 @@ The table is a completion checklist, not a claim that these rows are finished.
 | B23     | Real tenant capacity, cache/fan-out and multi-worker limits                             | Measured representative workloads and provider quotas; original tenant/authority/lease isolation must survive           |
 | B24     | Provider-specific/static and dynamic reason copy, full Arabic/assistive acceptance      | Authored ownership inventory, literal native preservation, editorial review and actual assistive/browser tests          |
 | B25     | Positive private-program entitlement; selected LinkedIn is denied, DV360 not configured | Existing approved app/account and exact bounded native acceptance; three implemented program workflows remain available |
-| B26     | Live post-period outcome capture and Meta budget observation (source done, DEC-02)      | Authorized post-period capture and read-only Meta budget read; marketer review of the English and Arabic wording        |
-| B27     | Point-in-time reconciliation; live Microsoft portfolio read (adapter done, RPT-07)      | Bounded complete/change-aware native collection and accurate observation-time claims                                    |
+| B26     | Live outcome capture and Meta budget read (source done, DEC-02); further native budget bindings | Authorized post-period capture and read-only Meta budget read; marketer review of the English and Arabic wording        |
+| B27     | Point-in-time reconciliation; live Microsoft portfolio read (adapter done, RPT-07); more inventory providers | Bounded complete/change-aware native collection and accurate observation-time claims                                    |
 
 The implemented B01–B07/B09/B11/B12/B14/B19/B28 packages still retain their documented external
 acceptance limits. Existing synthetic/real-SDK tests demonstrate their controlled local contracts.

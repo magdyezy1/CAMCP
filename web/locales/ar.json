@@ -11214,5 +11214,7 @@
   "The selected login changed during the read. Read the measurement ledger again.": "تغيّر تسجيل الدخول المحدد أثناء القراءة. اقرأ سجل القياس مرة أخرى.",
   "Connect an advertising, analytics or Search Console account in Connections to read its measurement evidence ledger.": "اربط حسابًا إعلانيًا أو حساب تحليلات أو Search Console في الاتصالات لقراءة سجل أدلة القياس الخاص به.",
   "This retirement names a product the catalog does not have; retiring it would create it. Nothing was sent: remove it from the retirement.": "يسمّي هذا الإيقاف منتجًا غير موجود في الكتالوج؛ وإيقافه سينشئه. لم يُرسَل شيء: أزله من الإيقاف.",
-  "Reddit returned an unrecognized account history; it was not shown.": "أعادت Reddit سجل حساب غير معروف البنية؛ ولم يُعرض."
+  "Reddit returned an unrecognized account history; it was not shown.": "أعادت Reddit سجل حساب غير معروف البنية؛ ولم يُعرض.",
+  "This plan’s outcome review is not recorded yet. Someone who can edit or approve the plan records it by opening the outcome.": "لم تُسجَّل مراجعة نتيجة هذه الخطة بعد. يسجّلها من يمكنه تعديل الخطة أو اعتمادها عند فتح النتيجة.",
+  "No outcome review is recorded for this plan yet. Someone who can edit or approve the plan records it by opening this outcome.": "لا توجد مراجعة نتيجة مسجلة لهذه الخطة بعد. يسجّلها من يمكنه تعديل الخطة أو اعتمادها عند فتح هذه النتيجة."
 }
