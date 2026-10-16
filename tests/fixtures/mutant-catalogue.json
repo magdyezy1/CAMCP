@@ -237,7 +237,7 @@
       "id": "M30-writes-pause-ignored",
       "guards": "An owner's pause of reviewed writes refuses every execute before anything is sent",
       "file": "src/owner-operations.ts",
-      "find": "const pause = writePause(store, tenant); if (pause)",
+      "find": "const pause = writePause(store, tenant); if (pause && pauseCovers(pause, effect))",
       "replace": "const pause = writePause(store, tenant); if (false)",
       "tests": ["tests/write-dispatch-authority.test.mjs", "tests/write-not-sent.test.mjs"]
     },
