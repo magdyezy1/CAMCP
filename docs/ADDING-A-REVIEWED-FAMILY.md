@@ -100,7 +100,11 @@ in a body (`status: DELETED`, `operation_status: DELETE`) belongs in `bodyDeleti
    documented resource (the field the write overwrites or depends on), not from the family's projection.
    `tests/reviewed-family-conformance.test.mjs` drives it through the real review lifecycle: the change of the decisive
    field between review and execute is `STATE_CHANGED` naming it, a paginated state read is refused, and a partial or
-   failed answer is never success and never sent again. A family is never added to
+   failed answer is never success and never sent again. Where the family's own prerequisite forbids the changed value
+   (a status transition, a resource a live entity now uses, a duplicate), the descriptor names that refusal instead
+   (`decisive.refusal`, as `meta-ad-videos.mjs`); a family whose reads are single entities the vendor never pages
+   says why (`unpaginated`); an upload about people passes them with `prepareFields` and `execute`
+   (`meta-offline-conversions.mjs`). A family is never added to
    `tests/fixtures/family-conformance-pending.json`; a backfilled one is removed from it with the ceiling lowered.
    Backfill order: activation and spend-affecting families of active providers first (Google Ads, Meta, Snapchat,
    LinkedIn and Microsoft Advertising budgets, bids and statuses), then their other entity writes, and parked

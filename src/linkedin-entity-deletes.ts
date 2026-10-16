@@ -261,6 +261,10 @@ export async function readLinkedInDeletes(
           found && Array.isArray(found.elements)
             ? (found.elements as unknown[])
             : unverified('LinkedIn did not list the campaigns of campaign group ' + id + '.');
+        // LinkedIn may return a short page before the last one: an empty page that names another page does not show
+        // that the group holds no campaigns.
+        if (!rows.length && object(found!.metadata) && found!.metadata.nextPageToken)
+          unverified('LinkedIn named another page of the campaigns of campaign group ' + id + ' without listing one.');
         if (rows.length) {
           const first = rows[0];
           group.firstCampaign = object(first)
