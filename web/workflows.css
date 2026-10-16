@@ -275,6 +275,16 @@
 .operation-heading > .status {
   flex: 0 0 auto;
 }
+/* A program read chip carries a dated observation ("Provider refused · Oct 12, 2026, 2:50:35 AM GMT+3"). It wraps
+   inside its card instead of widening a 320-pixel page to 345 (WCAG 1.4.10; browser QA wave 2). */
+.operation-heading > [data-program-status] {
+  min-width: 0;
+  max-width: 100%;
+}
+[data-program-status] > .status {
+  white-space: normal;
+  max-width: 100%;
+}
 .operation-card small,
 .evidence-trail small {
   display: block;

@@ -665,6 +665,34 @@ test('a closed sign-up page explains access and links sign-in instead of a disab
     }
 });
 
+// Browser QA regression (wave 2, every /login case): the sign-in page people see is web/account-security.js's
+// renderer, which replaces identity.js's and had dropped WEB-02's About link and closed-registration state. The test
+// above renders only identity.js's version, so it kept passing while the rendered page lost both.
+test('the live sign-in renderer links About and offers sign-up only when registration can complete', async () => {
+  for (const [options, closed] of [
+    [closedOptions, true],
+    [{...closedOptions, emailEnabled: true, registrationAvailable: true}, false],
+  ])
+    for (const mode of ['/signup', '/login']) {
+      const f = publicFixture(options);
+      f.run('authBind = () => {}');
+      f.run(readFileSync('web/account-security.js', 'utf8'));
+      f.updateLocation(mode);
+      await f.run('renderAuthPage()');
+      const html = f.node('#content').innerHTML;
+      assert.match(html, /<p class="auth-legal"><a href="\/about">About us<\/a><\/p>/, 'The sign-in page links About');
+      if (mode === '/signup') {
+        assert.equal(html.includes('id="member-form"'), !closed);
+        assert.equal(html.includes('Registration is currently closed.'), closed);
+        assert.equal(html.includes('data-social'), false, 'No configured social sign-in in these options');
+        if (closed) assert.match(html, /class="button primary full" href="\/login"/);
+      } else {
+        assert.equal(/href="\/signup"/.test(html), !closed, 'Sign-in offers sign-up only when it can complete');
+        assert.equal(html.includes('Ask your workspace owner for access.'), closed);
+      }
+    }
+});
+
 test('anonymous MCP connectors offer sign-in instead of enabled create-token buttons', async () => {
   for (const role of [null, 'operator', 'viewer']) {
     const authenticated = role !== null,

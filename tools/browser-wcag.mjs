@@ -78,8 +78,33 @@ export function summarizeWcagResult(result) {
     inapplicable_rules: result.inapplicable.length,
   };
 }
-/** Run selected automated A/AA checks in an owned browser page. Incomplete rules remain explicit manual work. */
-export async function inspectBrowserWcag(page, engine, timeoutMs = 10000) {
+/**
+ * Runs a page-level inspection with the document scrolled to its start, then restores the reader's position. axe
+ * evaluates every node of the document wherever it is scrolled (the same color-contrast and target-size node counts
+ * were measured at both positions), but the phone top bar is sticky: wherever the last automated click or fill left
+ * the page, an in-flow control can sit half beneath the bar's own controls, and target-size then reports it as
+ * partially obscured (browser QA wave 2: measurement-identity at 375 px). At the document start the sticky bar
+ * overlaps nothing in the flow, so the result no longer depends on where the harness last scrolled. Rules, tags and
+ * the evaluated nodes are unchanged; a modal dialog stays in the top layer, and a fixed toast is still evaluated
+ * over whatever it covers at the document start.
+ */
+export async function atDocumentStart(page, inspect) {
+  const position = await page.evaluate(() => [scrollX, scrollY]);
+  try {
+    await page.evaluate(() => scrollTo(0, 0));
+    return await inspect();
+  } finally {
+    await page.evaluate(([x, y]) => scrollTo(x, y), position);
+  }
+}
+/**
+ * Run selected automated A/AA checks in an owned browser page. Incomplete rules remain explicit manual work. The
+ * deadline bounds a hung engine, not the page: on a fully loaded machine inspections measured 1.4 to 1.8 seconds on
+ * the Arabic capabilities pages and up to 6.1 seconds elsewhere, and one of about 2,500 in the wave 2 qualification
+ * passed 10 seconds and failed its case. 20 seconds keeps a hung engine a failure without failing a qualification on
+ * a scheduling spike.
+ */
+export async function inspectBrowserWcag(page, engine, timeoutMs = 20000) {
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30000)
     refuse('WCAG inspection requires a bounded local deadline.');
   if (
@@ -92,6 +117,7 @@ export async function inspectBrowserWcag(page, engine, timeoutMs = 10000) {
   )
     refuse('WCAG inspection requires qualified engine bytes and a bounded local deadline.');
   let timer;
+  const started = performance.now();
   const inspect = async () => {
     await page.evaluate(engine.source);
     const result = await page.evaluate(
@@ -107,7 +133,12 @@ export async function inspectBrowserWcag(page, engine, timeoutMs = 10000) {
       },
       [...wcagTags],
     );
-    return summarizeWcagResult(result);
+    // How long the engine took, against the deadline: one wave 2 case (Arabic /capabilities, 768 px) ran past it.
+    return {
+      ...summarizeWcagResult(result),
+      elapsed_ms: Math.round(performance.now() - started),
+      deadline_ms: timeoutMs,
+    };
   };
   try {
     return await Promise.race([

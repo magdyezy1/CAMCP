@@ -1675,13 +1675,14 @@ function bindMeasurementTrace(targets) {
   };
   workspaceBind('#measurement-trace-clear', clear);
   // MSR-03: a dataLayer export or HAR file is converted in this page only; nothing is uploaded, stored or sent.
-  // The converter loads with this page (route-assets.js); without it the test identifier is typed.
+  // The converter loads with this page (route-assets.js); without it the test identifier is typed. The generated
+  // identifier is the field's starting value, not an unsaved edit (WEB-05: a fresh /measurement is pristine).
   if (
     form.elements.import_test_id &&
     !form.elements.import_test_id.value &&
     typeof measurementTraceImportTestId === 'function'
   )
-    form.elements.import_test_id.value = measurementTraceImportTestId();
+    uiSetInitialValue(form.elements.import_test_id, measurementTraceImportTestId());
   workspaceBind('#measurement-trace-convert', async () => {
     const generation = navigationGeneration,
       identity = identityGeneration,

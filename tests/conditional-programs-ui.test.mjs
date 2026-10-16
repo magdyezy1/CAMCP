@@ -485,3 +485,19 @@ test('a retained observation shows after reload, and a program with no account s
     }
   }
 });
+
+// Browser QA wave 2 regression: at 320 pixels the refused-read chip ("Provider refused · <date and time>") kept the
+// status badge's nowrap and widened the page to 345 pixels. The chip may wrap inside its card.
+test('the program read chip wraps inside its card instead of widening a narrow page', () => {
+  const css = readFileSync('web/workflows.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, ''),
+    rule = selector => {
+      const start = css.indexOf(selector + ' {');
+      assert.ok(start >= 0, 'Missing rule ' + selector);
+      return css.slice(start, css.indexOf('}', start));
+    };
+  assert.match(rule('[data-program-status] > .status'), /white-space: normal;/);
+  assert.match(rule('[data-program-status] > .status'), /max-width: 100%;/);
+  assert.match(rule('.operation-heading > [data-program-status]'), /min-width: 0;/);
+  // The badge itself stays nowrap everywhere else; only the dated program chip wraps.
+  assert.match(readFileSync('web/app.css', 'utf8'), /\.status \{[^}]*white-space: nowrap;/);
+});

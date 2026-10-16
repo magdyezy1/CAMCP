@@ -44,12 +44,18 @@ function deliveryReceipt(r) {
     r.replayed && r.receipt_only
       ? uiText('This snapshot was already delivered to this tab; nothing was written again.')
       : Number.isSafeInteger(r.rows)
-        ? uiText('Exported {rows} rows to the tab “{tab}” in “{spreadsheet}” at {time}.', {
-            rows: uiNumber(r.rows),
-            tab: d?.tab_name ?? uiText('Report tab'),
-            spreadsheet: d?.name ?? 'Google Sheets',
-            time: uiDateZoned(r.completed_at ?? Date.now()),
-          })
+        ? uiText(
+            // RPT-05 plural rule: one row is "1 row", not "1 rows".
+            r.rows === 1
+              ? 'Exported {rows} row to the tab “{tab}” in “{spreadsheet}” at {time}.'
+              : 'Exported {rows} rows to the tab “{tab}” in “{spreadsheet}” at {time}.',
+            {
+              rows: uiNumber(r.rows),
+              tab: d?.tab_name ?? uiText('Report tab'),
+              spreadsheet: d?.name ?? 'Google Sheets',
+              time: uiDateZoned(r.completed_at ?? Date.now()),
+            },
+          )
         : uiText('Export complete.'),
     snapshot?.captured_at ? uiText('Snapshot captured {time}.', {time: uiDateZoned(snapshot.captured_at)}) : '',
   ]
@@ -166,7 +172,7 @@ async function renderReportDelivery(mode = 'delivery') {
   <div class="dialog-heading"><div><p class="eyebrow">${esc(uiText('REPORT DELIVERY'))}</p><h2 id="report-delivery-title">${sheetsNow ? uiText('Export now to Google Sheets') : existing ? uiText('Edit schedule') : uiText('Report destinations & schedules')}</h2></div><button class="icon-button" id="report-delivery-close" aria-label="${esc(uiText('Close report delivery'))}">×</button></div>
   <div class="delivery-report-context"><strong dir="auto" data-native>${esc(overviewLabel(config))}</strong><p>${accounts.length ? accounts.map(esc).join(`<br>`) : uiText('Choose platform accounts in Reporting overview first.')}<br>${esc(uiText('Data grouping:'))} ${esc(reportLabel(config.grain ?? 'total'))}</p></div>
   <section class="delivery-section"><h3>${esc(sheetsNow ? uiText('Choose your Google Sheets destination') : uiText('1. Choose a report destination'))}</h3><p>${esc(sheetsNow ? uiText('Export the collected snapshot below, including its entity IDs, dates and source evidence. Only this report’s owned tab is replaced; other spreadsheet tabs are kept. No schedule is created.') : uiText("Store client PDF/Excel files in this workspace or replace this report's owned Google Sheets tab."))}</p>
-   ${sheetsNow && r ? `<p class="notice">${uiMarkup('Snapshot “{name}” · {count} rows · {state}', {name: uiBidi(r.config.name), count: esc(String(r.row_count)), state: esc(reportDisplayState(r))})}${r.state === 'partial' ? '<br>' + esc(uiText('This snapshot is partial. Failed sources and missing metrics remain marked in the export.')) : ''}</p>` : ''}
+   ${sheetsNow && r ? `<p class="notice">${uiMarkup(r.row_count === 1 ? 'Snapshot “{name}” · {count} row · {state}' : 'Snapshot “{name}” · {count} rows · {state}', {name: uiBidi(r.config.name), count: esc(String(r.row_count)), state: esc(reportDisplayState(r))})}${r.state === 'partial' ? '<br>' + esc(uiText('This snapshot is partial. Failed sources and missing metrics remain marked in the export.')) : ''}</p>` : ''}
    <label>${esc(uiText('Report destination'))}<select id="report-destination"><option value="">${esc(uiText('Choose or add a destination'))}</option>${destinationOptions}</select></label>
    <p class="notice" id="report-destination-note" hidden></p>
    ${r && policyBlocked ? `<p class="notice">${esc(uiText('This report delivers complete snapshots only, so this partial snapshot cannot be exported.'))}</p>` : ''}

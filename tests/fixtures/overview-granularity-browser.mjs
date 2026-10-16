@@ -99,10 +99,15 @@ export async function exerciseGranularOverview({page, site, locale, result, chec
   assert.equal((await (await exported).json()).success, true);
   assert.equal(await site.granular.workOnce(), true);
   await dialog.locator('#delivery-status a').waitFor();
-  assert.match(
-    await dialog.locator('#delivery-status').innerText(),
-    new RegExp(text('Export complete.').replace('.', '\\.')),
-  );
+  // EXP-04 A replaced the bare "Export complete." with a receipt naming the rows, tab, spreadsheet and time; the one
+  // exported row reads in the singular.
+  const receipt = text('Exported {rows} row to the tab “{tab}” in “{spreadsheet}” at {time}.')
+    .replace(/[.*+?^$()[\]\\|]/g, '\\$&')
+    .replace('{rows}', '1')
+    .replace('{tab}', '[^”]*Original snapshot name[^”]*')
+    .replace('{spreadsheet}', 'Synthetic granular spreadsheet')
+    .replace('{time}', '.+');
+  assert.match(await dialog.locator('#delivery-status').innerText(), new RegExp(receipt));
   const tab = [...site.granular.tabs.values()].find(tab => tab.properties.sheetId !== 7),
     headers = tab.values[0].map(cell => cell.stringValue);
   assert.deepEqual(tab.values[1][headers.indexOf('Entity ID')], {stringValue: '9007199254740993'});

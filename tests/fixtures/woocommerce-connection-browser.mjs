@@ -11,6 +11,22 @@ export async function exerciseWooConnection({page, site, workflow, locale, outpu
     form = page.locator('#woo-connect'),
     feedback = page.locator('#woo-connect-workspace-feedback');
   assert.deepEqual(site.wooConnection.connectionCounts(), {connections: 0, proofs: 0});
+  // COM-01: until the page knows a store source, the store panels wait below the reviewed import in one collapsed
+  // administrator disclosure; the owner opens it with the keyboard (to connect the first store, or to refresh the
+  // store list after a setup whose result arrived on another page).
+  const openStoreSources = async () => {
+    const sources = page.locator('#commerce-store-sources');
+    assert.equal(await sources.evaluate(element => element.open), false, 'Parked store panels start collapsed');
+    assert.equal(
+      (await sources.locator(':scope > summary').innerText()).trim(),
+      locale === 'ar' ? catalog['Connect a store source (administrators)'] : 'Connect a store source (administrators)',
+    );
+    await sources.locator(':scope > summary').focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await sources.evaluate(element => element.open), true, 'The disclosure opens from the keyboard');
+  };
+  await openStoreSources();
+  assert.equal(await form.locator('[name=label]').isVisible(), true);
   assert.equal(await form.locator('[name=consumer_key]').getAttribute('type'), 'password');
   assert.equal(await form.locator('[name=consumer_secret]').getAttribute('type'), 'password');
   assert.equal(await form.locator('[name=consumer_secret]').getAttribute('autocomplete'), 'off');
@@ -105,6 +121,10 @@ export async function exerciseWooConnection({page, site, workflow, locale, outpu
       assert.equal(await page.locator('#toast').isVisible(), false);
       assert.equal(site.counts().nativeReads - before.nativeReads, 3);
       await page.evaluate(() => navigate('/commerce'));
+      // The silent result did not tell this page about the new store, so its panels are parked again until the
+      // explicit refresh below reads the store list.
+      await page.locator('#commerce-store-sources').waitFor();
+      await openStoreSources();
       await page.locator('#woo-stores-refresh').click();
       await page.locator('#action-dialog[open]').waitFor();
       await page.locator('#action-confirm').click();

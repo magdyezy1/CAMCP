@@ -109,6 +109,13 @@ same code, one serving the web assets of `e21ec88` and one those of batch 27.
   (`tools/browser-workflow-qa.mjs`) now measures the focused skip link (4.5:1), the next focus ring after it and the
   connector-hero ring (3:1), checks that the next Tab lands inside the main content, and on `/measurement` and
   `/reporting-overview` that a typed value survives the skip link with no `/api` request.
+- 2026-10-13 (browser QA wave 3 regressions, light theme): the open report delivery dialog's text was the literal
+  `#897593`, 4.11:1 on the dialog, 3.69:1 on its report context and 3.57:1 on a notice; it uses `--muted` (5.48:1 and
+  4.92:1) and a notice keeps its `--ink` (13.42:1). The dated program read chip ("Provider refused · <date and
+  time>") kept the status badge's `nowrap` and widened a 320-pixel page to 345–350 pixels; it wraps inside its card
+  (1.4.10). A hash-only change to an unknown fragment keeps the rendered page and leaves focus where it was (the
+  rendered linked-measurement case asserts both). Guards: `tests/website-contrast.test.mjs`,
+  `tests/conditional-programs-ui.test.mjs` and the intermediate-state axe run on the open dialog.
 
 2026-10-10 (review ticket WEB-05): Arabic correctness and right-to-left layout.
 
@@ -142,7 +149,10 @@ same code, one serving the web assets of `e21ec88` and one those of batch 27.
   workspace selectors both say "العربية (جزئي)" (the partial label stays until B24 acceptance, D27).
 - **No false "unsaved edits".** Read-only, `data-derived` and code-filled fields are the page's starting state: the
   playbook editor marks its filled form pristine, and a colour field compares case-insensitively. Every
-  empty-workspace route opens pristine in a real browser.
+  empty-workspace route opens pristine in a real browser. (2026-10-13, browser QA wave 3: MSR-03's generated
+  synthetic test identifier on `/measurement` was set as a typed value, so a fresh page reported unsaved edits; it is
+  now the field's starting value. A one-row export receipt and its snapshot notice say "1 row", in English and
+  Arabic.)
 - Guards: `tests/rtl-layout.test.mjs`, `tests/shell-bidi.test.mjs`, `tests/status-labels.test.mjs`,
   `tests/locale-persistence.test.mjs`, and the shell-chrome and pristine/badge cases in
   `tools/browser-workflow-qa.mjs`. An Arabic editorial review of the new strings and screens remains (B24, R6).

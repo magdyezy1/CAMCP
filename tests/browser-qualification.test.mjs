@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {browserQaArguments, summarizeBrowserEvidence} from '../tools/browser-qualification.mjs';
+import {browserQaArguments, runFixtureLanes, summarizeBrowserEvidence} from '../tools/browser-qualification.mjs';
 import {
   arabicLeakFindings,
   leakRatchet,
@@ -195,6 +195,120 @@ test('the summary reports distinct scenarios, variants, incomplete rules per rul
     without_indicator: 1,
     not_focus_visible: 0,
   });
+  assert.equal(summary.unhandled_rejections, 0, 'a record without the field has none');
+  assert.equal(summary.wcag_slowest_inspection, null, 'a record without inspection timings names none');
+});
+
+// Browser QA wave 3: one wave 2 case failed only because its axe inspection ran past the 10-second deadline. Each
+// inspection now records how long it took, and the summary names the slowest one with its deadline.
+test('the summary names the slowest WCAG inspection, intermediate states included, against its deadline', () => {
+  const timed = (elapsed_ms, deadline_ms = 20000) => ({incomplete: [], violations: [], elapsed_ms, deadline_ms});
+  const summary = summarizeBrowserEvidence(
+    {
+      cases: [
+        {id: 'a', kind: 'empty', route: '/', wcag_initial: timed(900), wcag_final: timed(4200)},
+        {
+          id: 'b',
+          kind: 'export-outcomes',
+          route: '/reporting-overview',
+          wcag_initial: timed(1100),
+          intermediate_states: [{state: 'delivery-dialog-complete', wcag: timed(5100)}],
+        },
+      ],
+    },
+    {critical_routes: []},
+  );
+  assert.deepEqual(summary.wcag_slowest_inspection, {elapsed_ms: 5100, deadline_ms: 20000, case: 'b'});
+});
+
+// Browser QA wave 3: a browser promise that rejected after its case closed its context ended the whole run without a
+// record. The runner keeps such rejections in the record, and the summary counts them so the run still fails.
+test('the summary counts unhandled browser rejections kept in the record', () => {
+  const summary = summarizeBrowserEvidence(
+    {cases: [], unhandled_rejections: ['page.waitForEvent: Target page, context or browser has been closed']},
+    {critical_routes: []},
+  );
+  assert.equal(summary.unhandled_rejections, 1);
+  const source = fs.readFileSync('tools/browser-workflow-qa.mjs', 'utf8');
+  assert.match(source, /process\.on\('unhandledRejection'/);
+  assert.match(source, /if \(evidence\.failed \|\| evidence\.unhandled_rejections\.length\) process\.exitCode = 1;/);
+});
+
+// Browser QA wave 3 (runtime budget): the wave 2 qualification took 81 of its 75 minutes, and one of its two lanes sat
+// idle for 33 of them, waiting behind the adjacent kinds of one tenant identity. A lane now parks a fixture whose tenant
+// is busy and runs another kind; fixtures of one tenant still never overlap.
+test('fixture lanes never overlap one tenant and run another kind instead of waiting behind it', async () => {
+  const tenants = {a1: 'a', a2: 'a', a3: 'a', b1: 'b', c1: 'c'},
+    log = [],
+    active = new Map(),
+    overlaps = [];
+  let concurrent = 0,
+    peak = 0;
+  const tick = () => new Promise(resolve => setImmediate(resolve));
+  await runFixtureLanes(['a1', 'a2', 'a3', 'b1', 'c1'], {
+    lanes: 2,
+    open: async kind => {
+      await tick();
+      return {tenantId: tenants[kind], kind};
+    },
+    run: async (kind, site) => {
+      assert.equal(site.kind, kind);
+      if (active.has(site.tenantId)) overlaps.push(kind + ' with ' + active.get(site.tenantId));
+      active.set(site.tenantId, kind);
+      peak = Math.max(peak, ++concurrent);
+      log.push('start ' + kind);
+      for (let i = 0; i < (kind.startsWith('a') ? 20 : 2); i++) await tick();
+      log.push('end ' + kind);
+      concurrent--;
+      active.delete(site.tenantId);
+    },
+  });
+  assert.deepEqual(overlaps, [], 'one tenant never runs twice at once');
+  assert.equal(peak, 2);
+  assert.deepEqual(log.filter(line => line.startsWith('start')).sort(), [
+    'start a1',
+    'start a2',
+    'start a3',
+    'start b1',
+    'start c1',
+  ]);
+  // The second lane parked a2 (tenant a busy) and ran b1 and c1 while a1 was still running.
+  assert.ok(log.indexOf('start b1') < log.indexOf('end a1'), log.join(', '));
+  assert.ok(log.indexOf('start c1') < log.indexOf('end a1'), log.join(', '));
+});
+
+test('fixture lanes finish the other kinds after a failure, discard parked sites, then report the failure', async () => {
+  const started = [],
+    discarded = [];
+  await assert.rejects(
+    runFixtureLanes(['x1', 'x2', 'y1'], {
+      lanes: 1,
+      open: async kind => ({tenantId: kind.slice(0, 1), kind}),
+      run: async kind => {
+        started.push(kind);
+        if (kind === 'x1') throw Error('fixture x1 failed');
+      },
+      discard: async site => discarded.push(site.kind),
+    }),
+    /fixture x1 failed/,
+  );
+  assert.deepEqual(started, ['x1'], 'one lane stops at its failure');
+  assert.deepEqual(discarded, [], 'nothing was parked');
+  const ran = [];
+  await assert.rejects(
+    runFixtureLanes(['x1', 'x2', 'y1', 'y2'], {
+      lanes: 2,
+      open: async kind => ({tenantId: kind.slice(0, 1), kind}),
+      run: async kind => {
+        ran.push(kind);
+        await new Promise(resolve => setImmediate(resolve));
+        if (kind === 'x1') throw Error('fixture x1 failed');
+      },
+    }),
+    /fixture x1 failed/,
+  );
+  assert.deepEqual(ran.sort(), ['x2', 'y1', 'y2', 'x1'].sort(), 'the other lane still runs every remaining kind');
+  await assert.rejects(runFixtureLanes(['x1'], {lanes: 0, open: async () => ({}), run: async () => {}}), /lanes/);
 });
 
 test('the leak probe flags the English Home capability block that WEB-05 translated, and not its Arabic', () => {

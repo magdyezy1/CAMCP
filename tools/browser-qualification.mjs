@@ -53,6 +53,51 @@ export function runtimeBudgetMinutes(env = process.env) {
   return Number(value);
 }
 
+/**
+ * Runs fixture kinds in parallel lanes. A fixture's tenant identity is known once `open(kind)` returns its site;
+ * fixtures that share one tenant identity never overlap (they keep the real per-tenant artifact limit), independent
+ * identities may. A lane whose next fixture's tenant is busy parks that fixture and takes the next kind instead of
+ * waiting: in the wave 2 qualification (81 minutes) one lane sat idle for 33 minutes behind adjacent kinds of one
+ * tenant. A parked fixture runs as soon as its tenant is free. Every lane runs to the end; parked fixtures that never
+ * ran are discarded, and the first failure is rethrown once all lanes have settled.
+ */
+export async function runFixtureLanes(kinds, {lanes = 2, open, run, discard = async () => {}}) {
+  if (!Number.isInteger(lanes) || lanes < 1) throw Error('Fixture lanes must be a positive whole number.');
+  const queue = [...kinds],
+    parked = [],
+    busy = new Set(),
+    waiting = [];
+  const lane = async () => {
+    for (;;) {
+      let next = parked.find(item => !busy.has(item.site.tenantId));
+      if (next) parked.splice(parked.indexOf(next), 1);
+      else if (queue.length) {
+        const kind = queue.shift(),
+          site = await open(kind);
+        if (busy.has(site.tenantId)) {
+          parked.push({kind, site});
+          continue;
+        }
+        next = {kind, site};
+      } else if (parked.length) {
+        // Every parked fixture waits for a tenant another lane is running; that lane wakes this one when it ends.
+        await new Promise(resolve => waiting.push(resolve));
+        continue;
+      } else return;
+      busy.add(next.site.tenantId);
+      try {
+        await run(next.kind, next.site);
+      } finally {
+        busy.delete(next.site.tenantId);
+        for (const wake of waiting.splice(0)) wake();
+      }
+    }
+  };
+  const outcomes = await Promise.allSettled(Array.from({length: lanes}, lane));
+  for (const item of parked.splice(0)) await discard(item.site);
+  for (const outcome of outcomes) if (outcome.status === 'rejected') throw outcome.reason;
+}
+
 const increment = (map, key, by = 1) => {
   map[key] = (map[key] ?? 0) + by;
 };
@@ -78,7 +123,8 @@ export function summarizeBrowserEvidence(evidence, baseline, env = process.env) 
     intermediateLeaks = {};
   let passed = 0,
     synthetic = 0,
-    providerWrites = 0;
+    providerWrites = 0,
+    slowestWcag = null;
   for (const item of cases) {
     if (item.passed === true) passed++;
     kinds.add(item.kind);
@@ -92,6 +138,8 @@ export function summarizeBrowserEvidence(evidence, baseline, env = process.env) 
     for (const wcag of states) {
       for (const rule of wcag?.incomplete ?? []) increment(incomplete, rule.id);
       for (const rule of wcag?.violations ?? []) increment(violations, rule.id);
+      if (Number.isFinite(wcag?.elapsed_ms) && (slowestWcag === null || wcag.elapsed_ms > slowestWcag.elapsed_ms))
+        slowestWcag = {elapsed_ms: wcag.elapsed_ms, deadline_ms: wcag.deadline_ms ?? null, case: item.id ?? null};
     }
     for (const state of item.intermediate_states ?? []) {
       increment(intermediate, state.state);
@@ -139,6 +187,8 @@ export function summarizeBrowserEvidence(evidence, baseline, env = process.env) 
     presentation_variants: variants.size,
     wcag_incomplete_by_rule: sorted(incomplete),
     wcag_violations_by_rule: sorted(violations),
+    // The slowest automated WCAG inspection against its deadline: the margin a loaded machine has before a case fails.
+    wcag_slowest_inspection: slowestWcag,
     intermediate_states: sorted(intermediate),
     arabic_leaks_by_route: sorted(leaks),
     arabic_leaks_by_intermediate_state: sorted(intermediateLeaks),
@@ -151,5 +201,7 @@ export function summarizeBrowserEvidence(evidence, baseline, env = process.env) 
     synthetic_writes: synthetic,
     provider_writes: providerWrites,
     focus_indicators: focus,
+    // A browser promise that rejected after its case was recorded (kept instead of ending the run); any fails the run.
+    unhandled_rejections: Array.isArray(evidence?.unhandled_rejections) ? evidence.unhandled_rejections.length : 0,
   };
 }

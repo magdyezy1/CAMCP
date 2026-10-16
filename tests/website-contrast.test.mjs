@@ -115,3 +115,23 @@ test('troubleshooting and schedule text uses themed colours at the 12px floor', 
       if (size) assert.ok(Number.parseFloat(size) >= 12, selector + ' ' + size);
     }
 });
+
+// Browser QA wave 2 regression (QA-03's intermediate-state axe run on the open delivery dialog): the dialog's body text
+// was the literal #897593, 4.11:1 on the dialog, 3.69:1 on the report context and 3.57:1 on a notice.
+test('report delivery dialog text reaches 4.5:1 on the dialog, its report context and its notices', () => {
+  const reporting = css('reporting.css'),
+    identity = css('identity.css'),
+    text = declarations(block(reporting, '.report-delivery-dialog p')).get('color'),
+    notice = declarations(block(reporting, '.report-delivery-dialog p.notice')).get('color'),
+    surfaces = [
+      declarations(block(reporting, '.report-delivery-dialog')).get('background'),
+      declarations(block(reporting, '.delivery-report-context')).get('background'),
+    ];
+  assert.equal(text, 'var(--muted)');
+  for (const background of surfaces)
+    assert.ok(contrast(resolve(light, text), background) >= 4.5, text + ' on ' + background);
+  const noticeBackground = declarations(block(identity, '.notice')).get('background');
+  assert.ok(contrast(resolve(light, notice), noticeBackground) >= 4.5, notice + ' on ' + noticeBackground);
+  // The regression itself: the old literal on the same surfaces.
+  assert.ok(surfaces.every(background => contrast('#897593', background) < 4.5));
+});
