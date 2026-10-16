@@ -561,15 +561,14 @@ The maintained GitHub workflow defines Docker builds and synthetic read-only/wri
 
 - **Stages.** The deterministic freshness gates run first: TypeScript build, release identity, format check, the
   test-oracle ratchet (`check:oracles`), the `generate:*` checks, `report -- --check`, `contracts:check`,
-  `contracts:actions:check` and `docs:index:check`. The full profile then probes FFmpeg and ffprobe, runs the suite
-  with `AMCP_REQUIRE_FFMPEG=true`, the capture tests, the mutant catalogue (`mutant_catalogue`), the wire-contract
-  sweep, the Meta creative feature pin (`meta_creative_features_pinned`: it fails while
+  `contracts:actions:check` and `docs:index:check`. The full profile then probes FFmpeg and ffprobe, runs the suite with
+  `AMCP_REQUIRE_FFMPEG=true`, the capture tests, the mutant catalogue (`mutant_catalogue`), the wire-contract sweep, the
+  Meta creative feature pin (`meta_creative_features_pinned`: it fails while
   `tests/fixtures/meta-creative-features-sdk-v26.json` is transcribed rather than hashed from the SDK 26.0.2 files, so
-  PRV-06 C stays partial and no release qualifies until the owner runs `node tools/meta-creative-features.mjs
-  --source-dir <directory>`), `check:web`, the journey and MCP evaluation (`journey_evaluation`, below) and the
-  provider checks. Each stage records argv, exit
-  code, duration, output SHA-256 and the test totals (total, pass, fail, skipped, cancelled). Any skipped test fails
-  the run unless named with
+  PRV-06 C stays partial and no release qualifies until the owner runs
+  `node tools/meta-creative-features.mjs --source-dir <directory>`), `check:web`, the journey and MCP evaluation
+  (`journey_evaluation`, below) and the provider checks. Each stage records argv, exit code, duration, output SHA-256
+  and the test totals (total, pass, fail, skipped, cancelled). Any skipped test fails the run unless named with
   `--allow-skip "<test name>"`; without FFmpeg the run fails at `ffmpeg_probe` (`FFMPEG_UNAVAILABLE`).
 - **Bytes.** The record holds `source_tree_hash` (equal to a release candidate's manifest for the same tree), revision,
   `worktree_clean` and `differs_from_revision`, the lockfile SHA-256, Node, npm, OS and the FFmpeg version line, the
@@ -586,17 +585,21 @@ The maintained GitHub workflow defines Docker builds and synthetic read-only/wri
   one fails, write, auth and export test files are held at zero, and `--update` lowers counts after a burn-down
   (`tools/oracle-burndown.mjs` rewrites only sites whose observed refusal was named, never a crash).
   `tools/refusal-exits.mjs` lists every refusal on the write, export and schedule paths that leaves something paused,
-  busy, uncertain or expired, each with its exit test or the reason it is terminal (`tests/fixtures/refusal-exits.json`).
-  `tests/reviewed-family-conformance.test.mjs` drives each family descriptor (`tests/family-descriptors/`) through
-  review, a decisive change (`STATE_CHANGED`), a paginated snapshot and a partial answer; families still without one
-  are listed under a ceiling that only falls. Contract-faithful fakes (`tests/helpers/contract-fakes.mjs`) check a
-  fake's requests against the pinned vendor contracts PRV-05 enforces, with generators for provider doubles and
-  cursor pages; `tests/schedule-timezone-sweep.test.mjs` sweeps every IANA zone over 2026-2027. Every reviewed write
-  family of Google Ads, Microsoft Advertising, Business Profile, GA4, Tag Manager, Search Console and Apple Ads has a
-  descriptor; a family whose state reads are single resources the vendor never pages says so (`unpaginated`), and one
-  whose own prerequisite refuses the changed value at execute names that refusal (`decisive.refusal`). Still open from
-  QA-02: the conformance backfill of the other providers has not reached zero, and the manual reviewer samples remain
-  with the owner.
+  busy, uncertain or expired, each with its exit test or the reason it is terminal
+  (`tests/fixtures/refusal-exits.json`). `tests/reviewed-family-conformance.test.mjs` drives each family descriptor
+  (`tests/family-descriptors/`) through review, a decisive change (`STATE_CHANGED`), a paginated snapshot and a partial
+  answer; families still without one are listed under a ceiling that only falls. Contract-faithful fakes
+  (`tests/helpers/contract-fakes.mjs`) check a fake's requests against the pinned vendor contracts PRV-05 enforces, with
+  generators for provider doubles and cursor pages; `tests/schedule-timezone-sweep.test.mjs` sweeps every IANA zone over
+  2026-2027. Every reviewed write family of an active provider has a descriptor (the pending ceiling is 0). The 11
+  Criteo families are lifecycle-parked exemptions (the `parked` list of
+  `tests/fixtures/family-conformance-pending.json`), valid only while `parkedProviders` in `tools/provider-lifecycle.ts`
+  includes criteo: once Criteo is unparked the test fails until each ships a descriptor, and the parked list can only
+  shrink. A family whose state reads are single resources the vendor never pages says so (`unpaginated`), one whose own
+  prerequisite refuses the changed value at execute names that refusal (`decisive.refusal`), a spend-affecting family
+  (the registry asks `spendConfirmation`) is never labelled `settings`, and a second request shape a family serves runs
+  the same checks as a variant (`tests/family-descriptors/variants/`). Still open from QA-02: the manual reviewer
+  samples remain with the owner.
 - **Risk evidence (QA-02).** Each record carries `risk_evidence` (`tools/risk-evidence.mjs`) instead of headline
   totals: every risk class of the qualification plan (R1 money and deletion to R8 website, defined with their register
   items in `tests/fixtures/risk-classes.json`) against its evidence. `fixture` is the named synthetic test files as

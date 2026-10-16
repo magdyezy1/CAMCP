@@ -75,6 +75,12 @@ test('failing test files and mutant outcomes are read from the runner output', (
   ]);
   assert.equal(sourceTestFile('file:///C:/work/tests/a.test.mjs:1:2', 'C:/work'), 'tests/a.test.mjs');
   assert.deepEqual(failingFiles('ℹ tests 3\nℹ pass 3\n'), []);
+  // On Windows `node --test --test-reporter=tap` doubles every backslash of a location. Regression: they became `//`,
+  // the root no longer matched and the failing fixture file was reported as passed.
+  const tap = "  location: 'C:\\\\work\\\\tests\\\\liveness-exits.test.mjs:4:1'";
+  assert.equal(tap.split('\\').length - 1, 6, 'the doubled form TAP prints');
+  assert.deepEqual(failingFiles(tap, 'C:\\work'), ['tests/liveness-exits.test.mjs']);
+  assert.deepEqual(failingFiles(tap, 'C:/work/'), ['tests/liveness-exits.test.mjs']);
   assert.deepEqual(
     mutantStatuses(
       [

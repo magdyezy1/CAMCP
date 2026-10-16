@@ -6,7 +6,8 @@ import {notFound, scopes} from './_dv360.mjs';
 
 export default {
   family: 'dv360_advertiser_settings',
-  risk: 'settings',
+  // Spend-affecting (the registry asks spendConfirmation), so it counts as money evidence (R1), not settings.
+  risk: 'budget',
   gateway: 'dv360_native_action',
   account: '123',
   connection: {scopes},

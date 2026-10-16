@@ -18,13 +18,17 @@ export const descriptorRisks = ['activation', 'budget', 'destructive', 'settings
 const descriptorDirectory = 'tests/family-descriptors',
   pendingFile = 'tests/fixtures/family-conformance-pending.json';
 
-/** A test location as the source file it names: forward slashes, relative to `root`, compiled tests mapped back. */
+/**
+ * A test location as the source file it names: forward slashes, relative to `root`, compiled tests mapped back. A run
+ * of backslashes is one separator: the TAP reporter prints a Windows location as a quoted string with each backslash
+ * doubled (`location: 'C:\\Users\\...'`).
+ */
 export function sourceTestFile(location, root = '') {
   let file = String(location)
     .replace(/^file:\/\/\/?/, '')
     .replace(/:\d+(?::\d+)?$/, '')
-    .replaceAll('\\', '/');
-  const base = String(root).replaceAll('\\', '/').replace(/\/+$/, '');
+    .replace(/\\+/g, '/');
+  const base = String(root).replace(/\\+/g, '/').replace(/\/+$/, '');
   if (base && file.toLowerCase().startsWith(base.toLowerCase() + '/')) file = file.slice(base.length + 1);
   const compiled = /^dist\/(tests\/.+)\.test\.js$/.exec(file);
   return compiled ? compiled[1] + '.test.ts' : file;

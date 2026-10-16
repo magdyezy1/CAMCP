@@ -6,7 +6,8 @@ import * as g from './_google-ads.mjs';
 
 export default {
   family: 'google_customer_settings',
-  risk: 'settings',
+  // Spend-affecting (the registry asks spendConfirmation), so it counts as money evidence (R1), not settings.
+  risk: 'budget',
   gateway: 'google_ads_native_action',
   account: g.account,
   connection: g.connection,

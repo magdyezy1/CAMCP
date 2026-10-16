@@ -75,6 +75,13 @@ test('every registered family has a descriptor or is listed as pending; the pend
       .filter(f => f.spendConfirmation)
       .map(f => f.name),
   );
+  // A family the registry marks spend-affecting is money evidence (risk class R1 counts the activation, budget and
+  // destructive descriptors): its descriptor is never labelled settings.
+  assert.deepEqual(
+    [...descriptors, ...variants].filter(d => spend.has(d.family) && d.risk === 'settings').map(d => d.file),
+    [],
+    'a spend-affecting family is not labelled settings',
+  );
   t.diagnostic(
     'reviewed families: ' +
       registered.length +

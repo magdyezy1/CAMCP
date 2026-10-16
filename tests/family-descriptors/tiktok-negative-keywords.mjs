@@ -6,7 +6,8 @@ import {failed, ok} from './_tiktok.mjs';
 
 export default {
   family: 'tiktok_negative_keywords',
-  risk: 'settings',
+  // Spend-affecting (the registry asks spendConfirmation), so it counts as money evidence (R1), not settings.
+  risk: 'budget',
   gateway: 'tiktok_native_action',
   account: '123',
   request: {
