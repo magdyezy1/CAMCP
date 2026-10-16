@@ -875,6 +875,15 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
         'Nothing was submitted. The new filter selects no product, so the ad sets the message names would stop delivering. Correct the filter, or pause those ad sets first with reviewed changes.',
       mutation_retry_safe: false,
     };
+  // Owner decision P5: caps in account currency that name no currency refuse money changes until they are saved again.
+  if (e.code === 'POLICY_CURRENCY_UNSET')
+    return {
+      category: 'policy',
+      owner: 'workspace_owner',
+      action:
+        'Nothing was sent. The workspace owner saves this spending policy again with the currency its caps are stated in (amcp_workspace save_spend_policy with currency, details.account_currency when AMCP knows it, or Settings on the website), then prepare the request again. No confirmation flag overrides it.',
+      mutation_retry_safe: false,
+    };
   if (e.code.startsWith('POLICY_'))
     return {
       category: 'policy',

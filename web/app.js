@@ -220,6 +220,11 @@ const websiteRemedies = [
     /^POLICY_REQUIRED$/,
     'Nothing was sent. This change needs a spending policy on the account: the workspace owner saves one in Settings, then prepare the change again.',
   ],
+  // Owner decision P5: caps in account currency that name no currency refuse budget and bid changes until saved again.
+  [
+    /^POLICY_CURRENCY_UNSET$/,
+    'Nothing was sent. The workspace owner saves this account’s spending policy again in Settings, with the currency its caps are stated in; then prepare the change again.',
+  ],
   [
     /^(?:MEDIA_SOURCE_NOT_FOUND|MEDIA_UPLOAD_COMPLETE)$/,
     'Uploads last 30 minutes. Choose a current upload on the Media page, or upload the file again.',

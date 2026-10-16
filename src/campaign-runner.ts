@@ -270,8 +270,9 @@ const activationOffer = (run: JsonObject): JsonObject =>
       }
     : {};
 /**
- * Refusals of a step that wait for a person's decision a plan approval never gives (WRT-09's opt-in settings; P1 and
- * P5 are open), and the stop `run` names for each. Each is raised before anything is claimed or sent.
+ * Refusals of a step that wait for a person's decision a plan approval never gives (WRT-09: the owner rule beyond a cap
+ * and the opt-in settings, owner decisions P1 and P5), and the stop `run` names for each. Each is raised before anything
+ * is claimed or sent.
  */
 const personDecisions: Record<string, string> = {
   HUMAN_APPROVAL_REQUIRED: 'needs_website_approval',

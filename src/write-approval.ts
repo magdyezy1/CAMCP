@@ -16,20 +16,21 @@ import type {Store} from './store.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 
 /**
- * Human approval of reviewed executions (WRT-09; the owner questions P1 and P5 it serves stay open). The acknowledgement
- * flags an AI client sends at execute (spend_change_confirmed, cap_override_confirmed, destructive_confirmed) record
- * that the user approved, but the user's approval reaches AMCP only through the client. Three owner controls, each off
- * by default, add a person's own approval on the AMCP website, outside the AI client:
+ * Human approval of reviewed executions (WRT-09, owner decisions P1 and P5 of 2026-10-11). The acknowledgement flags an
+ * AI client sends at execute (spend_change_confirmed, cap_override_confirmed, destructive_confirmed) record that the
+ * user approved, but the user's approval reaches AMCP only through the client. A person's own approval on the AMCP
+ * website, outside the AI client, comes in through one rule and two owner settings that are off by default:
  *
+ * - Beyond a cap, the owner (P5, always on): only the workspace owner executes a review beyond a cap under `confirm`,
+ *   or the owner approves it on the website first (CAP_OVERRIDE_OWNER_REQUIRED). Before P5 this was the opt-in
+ *   `cap_override_owner_only`, and a member with write access executed beyond a cap with cap_override_confirmed alone;
+ *   no policy turns the rule off.
  * - `approval_mode` in the spending policy (account or workspace default; default `assistant_ack`, today's
  *   behaviour). `website_approval`: executing a review that changes spending, goes beyond an owner cap or deletes needs
  *   a signed-in member's approval of that exact review on the website. `distinct_approver`: that member must be another
- *   person than the one who prepared it, or the workspace owner.
+ *   person than the one who prepared it, or the workspace owner (P1's distinct approver for spending plans).
  * - `require_destructive_confirmation` (the opt-in destructive_confirmed tier, P5): a review that deletes needs
  *   destructive_confirmed=true at execute, named in execute_requirements at prepare.
- * - `cap_override_owner_only` (opt-in, P5): only the workspace owner executes a review beyond a cap under `confirm`, or
- *   the owner approves it on the website first (CAP_OVERRIDE_OWNER_REQUIRED). Off, a member with write access executes
- *   beyond a cap with cap_override_confirmed, as before WRT-09.
  *
  * An approval is a `write_approval` document keyed by the review (or group) id, bound to the review's fingerprint and
  * the approver, minted only by the website route (a session with CSRF and recent sign-in, never an MCP tool). The
@@ -45,7 +46,8 @@ const modeRank = (mode: unknown) => Math.max(0, approvalModes.indexOf(mode as Ap
  * The approval policy of an account: the stricter of its own spending policy and the workspace default, setting by
  * setting. Unlike caps, where an account's own policy replaces the default, an account policy saved for its caps never
  * drops the approval the owner set for every account: it can only add to it. `policy_id` names the policy that turned
- * the destructive tier on; `cap_override_owner_only` is on when either policy turns it on.
+ * the destructive tier on. A stored `cap_override_owner_only` is no longer read: the owner rule beyond a cap always
+ * applies (P5).
  */
 export function reviewApprovalPolicy(
   store: Store,
@@ -55,7 +57,6 @@ export function reviewApprovalPolicy(
 ): {
   approval_mode: ApprovalMode;
   require_destructive_confirmation: boolean;
-  cap_override_owner_only: boolean;
   policy_id: string | null;
 } {
   const read = (id: string) => {
@@ -76,7 +77,6 @@ export function reviewApprovalPolicy(
   return {
     approval_mode: mode,
     require_destructive_confirmation: !!destructive,
-    cap_override_owner_only: policies.some(([, p]) => p?.cap_override_owner_only === true),
     policy_id: destructive?.[0] ?? null,
   };
 }
@@ -102,9 +102,8 @@ const approverText = (mode: ApprovalMode) =>
 const ownerCapText =
   'Only the workspace owner executes a change beyond a spending cap, or approves it on the AMCP website first.';
 /**
- * What prepare says about approval (WRT-09, P5): undefined when nothing beyond the acknowledgements is needed. Under
- * `cap_override_owner_only`, a review beyond a cap prepared by anyone but the owner names the owner; an approval mode
- * names its classes and approver.
+ * What prepare says about approval (WRT-09, P5): undefined when nothing beyond the acknowledgements is needed. A review
+ * beyond a cap prepared by anyone but the owner names the owner (P5); an approval mode names its classes and approver.
  */
 export function approvalNotice(
   store: Store,
@@ -117,10 +116,7 @@ export function approvalNotice(
   const policy = reviewApprovalPolicy(store, actor.tenantId, plan.gateway, plan.accountId ?? ''),
     classes = approvalClasses(acknowledgements, destructive),
     byMode = policy.approval_mode !== 'assistant_ack' && classes.length > 0,
-    ownerCap =
-      policy.cap_override_owner_only &&
-      acknowledgements.includes('cap_override_confirmed') &&
-      !workspaceOwner(store, actor);
+    ownerCap = acknowledgements.includes('cap_override_confirmed') && !workspaceOwner(store, actor);
   if (!byMode && !ownerCap) return undefined;
   return {
     required: true,
@@ -214,12 +210,9 @@ export function approvalStatus(store: Store, actor: Actor, reviewId: string): Js
   const policy = reviewApprovalPolicy(store, actor.tenantId, s.plan.gateway, s.plan.accountId ?? ''),
     classes = approvalClasses(s.acknowledgements, s.destructive),
     byMode = policy.approval_mode !== 'assistant_ack' && classes.length > 0,
-    // As at prepare: under cap_override_owner_only the owner executes a change beyond a cap without an approval, and
-    // anyone else needs the owner's.
-    ownerCap =
-      policy.cap_override_owner_only &&
-      s.acknowledgements.includes('cap_override_confirmed') &&
-      !workspaceOwner(store, actor);
+    // As at prepare (P5): the owner executes a change beyond a cap without an approval, and anyone else needs the
+    // owner's.
+    ownerCap = s.acknowledgements.includes('cap_override_confirmed') && !workspaceOwner(store, actor);
   if (!byMode && !ownerCap) return undefined;
   const found = optional(store, actor.tenantId, 'write_approval', subject),
     current = found?.fingerprint === s.fingerprint ? found : undefined;
@@ -355,23 +348,22 @@ function modeApproval(
 const unidentifiedPreparer = (preparer: unknown) =>
   typeof preparer !== 'string' || !preparer || principalOf({userId: preparer}) === doorPrincipal;
 /**
- * The P5 rule, when the owner turned it on (`cap_override_owner_only`, stricter of the account's policy and the
- * workspace default): only the workspace owner executes a change beyond a spending cap under `confirm`, or the owner
- * approved this exact review on the website. Off (the default), the acknowledgement alone lets a member with write
- * access execute beyond a cap, as before WRT-09. Checked with the caps exceeded now, before anything is claimed or sent.
- * `named`: prepare already named the cap; a cap crossed only since (another change used the day's allowance) is not one
- * the owner could approve for this review, so it is prepared again.
+ * The P5 rule (owner decision of 2026-10-11, always on): only the workspace owner executes a change beyond a spending
+ * cap under `confirm`, or the owner approved this exact review on the website. Before P5 the acknowledgement alone let
+ * a member with write access execute beyond a cap unless the owner opted in (`cap_override_owner_only`). Checked with
+ * the caps exceeded now, before anything is claimed or sent. `named`: prepare already named the cap; a cap crossed only
+ * since (another change used the day's allowance) is not one the owner could approve for this review, so it is
+ * prepared again. `plan` names the account the review belongs to (kept for callers; the rule is the same everywhere).
  */
 export function assertCapOverrideOwner(
   store: Store,
   actor: Actor,
-  plan: Pick<CompiledRequest, 'gateway' | 'accountId'>,
+  _plan: Pick<CompiledRequest, 'gateway' | 'accountId'>,
   exceeded: JsonObject[],
   reviewId: string,
   named = true,
 ): void {
   if (!exceeded.length || workspaceOwner(store, actor)) return;
-  if (!reviewApprovalPolicy(store, actor.tenantId, plan.gateway, plan.accountId ?? '').cap_override_owner_only) return;
   const found = approvalFor(store, actor.tenantId, reviewId);
   if (found.approval?.approver_is_owner === true) return;
   if (!named)
@@ -426,8 +418,8 @@ export function approvalView(store: Store, actor: Actor, reviewId: unknown): Jso
   const policy = reviewApprovalPolicy(store, actor.tenantId, s.plan.gateway, s.plan.accountId ?? ''),
     classes = approvalClasses(s.acknowledgements, s.destructive),
     byMode = policy.approval_mode !== 'assistant_ack' && classes.length > 0,
-    // Beyond a cap the owner's approval is needed only under the owner's opt-in cap_override_owner_only (P5).
-    capOwner = policy.cap_override_owner_only && s.acknowledgements.includes('cap_override_confirmed'),
+    // Beyond a cap the owner's approval is needed (P5): the owner executes it, or approves it here for another member.
+    capOwner = s.acknowledgements.includes('cap_override_confirmed'),
     owner = workspaceOwner(store, actor),
     found = optional(store, actor.tenantId, 'write_approval', id),
     current = found?.fingerprint === s.fingerprint ? found : undefined,
