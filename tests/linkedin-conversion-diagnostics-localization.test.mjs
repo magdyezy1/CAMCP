@@ -33,11 +33,11 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   assert.ok(hints.has(inventoryHint));
   assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 162);
 });
-test('all 25 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
+test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);
-  assert.equal(failures.size, 25);
+  assert.equal(failures.size, 26);
   const required = new Set([...failures, ...labels]);
-  assert.equal(required.size, 29);
+  assert.equal(required.size, 30);
   assert.deepEqual(localeProblems(catalog, required), []);
   for (const label of required) {
     assert.match(catalog[label], /[\u0600-\u06ff]/);
@@ -64,7 +64,7 @@ test('all authored conversion diagnostics format bilingually without altering co
           for (const child of Array.isArray(value) ? value : [value]) walk(child);
     };
   walk(parsers['babel-ts'].parse(source));
-  assert.equal(new Set(values.map(v => v.message)).size, 25);
+  assert.equal(new Set(values.map(v => v.message)).size, 26);
   for (const locale of ['en', 'ar']) {
     const f = accountWorkflowFixture(locale);
     for (const {message, code} of values) {

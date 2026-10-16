@@ -45,9 +45,9 @@
     },
     {
       "gateway": "apple_ads_native_action",
-      "actions": 41,
+      "actions": 48,
       "counts": {
-        "native_read": 20,
+        "native_read": 27,
         "reviewed_write_family": 21
       },
       "captured_catalog_complete": false,
@@ -199,9 +199,9 @@
     },
     {
       "gateway": "reddit_native_action",
-      "actions": 51,
+      "actions": 55,
       "counts": {
-        "native_read": 38,
+        "native_read": 42,
         "reviewed_write_family": 13
       },
       "captured_catalog_complete": true,
@@ -2114,6 +2114,60 @@
     },
     {
       "gateway": "apple_ads_native_action",
+      "action": "apple_ads_v1_app_eligibilities_query",
+      "aliases": [],
+      "method": "POST",
+      "path": "https://api.ads.apple.com/v1/eligibilities/apps/query",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
+      "source": "INDEPENDENT_APPLE_V1_EXTENSION",
+      "tests": [
+        "tests/measurement-apple.test.ts",
+        "tests/measurement-writes.test.ts",
+        "tests/apple-entity-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "origin": "https://api.ads.apple.com"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "action": "apple_ads_v1_app_get",
+      "aliases": [],
+      "method": "GET",
+      "path": "https://api.ads.apple.com/v1/apps/{id}",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
+      "source": "INDEPENDENT_APPLE_V1_EXTENSION",
+      "tests": [
+        "tests/measurement-apple.test.ts",
+        "tests/measurement-writes.test.ts",
+        "tests/apple-entity-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "origin": "https://api.ads.apple.com"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "action": "apple_ads_v1_apps_search",
+      "aliases": [],
+      "method": "GET",
+      "path": "https://api.ads.apple.com/v1/search/apps",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
+      "source": "INDEPENDENT_APPLE_V1_EXTENSION",
+      "tests": [
+        "tests/measurement-apple.test.ts",
+        "tests/measurement-writes.test.ts",
+        "tests/apple-entity-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "origin": "https://api.ads.apple.com"
+    },
+    {
+      "gateway": "apple_ads_native_action",
       "action": "apple_ads_v1_campaign_create",
       "aliases": [],
       "method": "POST",
@@ -2288,6 +2342,24 @@
     },
     {
       "gateway": "apple_ads_native_action",
+      "action": "apple_ads_v1_impression_share_query",
+      "aliases": [],
+      "method": "POST",
+      "path": "https://api.ads.apple.com/v1/insights/apps/impression-share/query",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
+      "source": "INDEPENDENT_APPLE_V1_EXTENSION",
+      "tests": [
+        "tests/measurement-apple.test.ts",
+        "tests/measurement-writes.test.ts",
+        "tests/apple-entity-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "origin": "https://api.ads.apple.com"
+    },
+    {
+      "gateway": "apple_ads_native_action",
       "action": "apple_ads_v1_keyword_create",
       "aliases": [],
       "method": "POST",
@@ -2326,6 +2398,24 @@
       "aliases": [],
       "method": "GET",
       "path": "https://api.ads.apple.com/v1/keywords/{id}",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
+      "source": "INDEPENDENT_APPLE_V1_EXTENSION",
+      "tests": [
+        "tests/measurement-apple.test.ts",
+        "tests/measurement-writes.test.ts",
+        "tests/apple-entity-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "origin": "https://api.ads.apple.com"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "action": "apple_ads_v1_keyword_suggestions_query",
+      "aliases": [],
+      "method": "POST",
+      "path": "https://api.ads.apple.com/v1/suggestions/keywords/query",
       "status": "native_read",
       "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
@@ -2462,6 +2552,24 @@
     },
     {
       "gateway": "apple_ads_native_action",
+      "action": "apple_ads_v1_product_pages_query",
+      "aliases": [],
+      "method": "POST",
+      "path": "https://api.ads.apple.com/v1/product-pages/query",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
+      "source": "INDEPENDENT_APPLE_V1_EXTENSION",
+      "tests": [
+        "tests/measurement-apple.test.ts",
+        "tests/measurement-writes.test.ts",
+        "tests/apple-entity-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "origin": "https://api.ads.apple.com"
+    },
+    {
+      "gateway": "apple_ads_native_action",
       "action": "apple_ads_v1_reports_apps_adgroups",
       "aliases": [],
       "method": "POST",
@@ -2538,6 +2646,24 @@
       "aliases": [],
       "method": "POST",
       "path": "https://api.ads.apple.com/v1/reports/apps/searchterms/query",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
+      "source": "INDEPENDENT_APPLE_V1_EXTENSION",
+      "tests": [
+        "tests/measurement-apple.test.ts",
+        "tests/measurement-writes.test.ts",
+        "tests/apple-entity-writes.test.ts"
+      ],
+      "live_qualification": "unverified",
+      "origin": "https://api.ads.apple.com"
+    },
+    {
+      "gateway": "apple_ads_native_action",
+      "action": "apple_ads_v1_search_term_popularity_query",
+      "aliases": [],
+      "method": "POST",
+      "path": "https://api.ads.apple.com/v1/insights/apps/search-term-popularity/query",
       "status": "native_read",
       "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
       "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
@@ -51957,6 +52083,25 @@
     {
       "gateway": "reddit_native_action",
       "operation": "reddit_account_ops",
+      "action": "GET_ACCOUNT_HISTORY",
+      "aliases": [],
+      "method": "POST",
+      "path": "/api/v3/ad_accounts/{ad_account_id}/history",
+      "origin": "https://ads-api.reddit.com",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
+      "source": "https://ads-api.reddit.com/api/v3/openapi.json",
+      "tests": [
+        "tests/reddit-writes.test.ts",
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
+      ],
+      "live_qualification": "unverified"
+    },
+    {
+      "gateway": "reddit_native_action",
+      "operation": "reddit_account_ops",
       "action": "GET_AD_ACCOUNT",
       "aliases": [],
       "method": "GET",
@@ -51976,10 +52121,48 @@
     {
       "gateway": "reddit_native_action",
       "operation": "reddit_account_ops",
+      "action": "GET_BID_SUGGESTIONS",
+      "aliases": [],
+      "method": "POST",
+      "path": "/api/v3/forecasting/bid_suggestions",
+      "origin": "https://ads-api.reddit.com",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
+      "source": "https://ads-api.reddit.com/api/v3/openapi.json",
+      "tests": [
+        "tests/reddit-writes.test.ts",
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
+      ],
+      "live_qualification": "unverified"
+    },
+    {
+      "gateway": "reddit_native_action",
+      "operation": "reddit_account_ops",
       "action": "GET_BUSINESS",
       "aliases": [],
       "method": "GET",
       "path": "/api/v3/businesses/{business_id}",
+      "origin": "https://ads-api.reddit.com",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
+      "source": "https://ads-api.reddit.com/api/v3/openapi.json",
+      "tests": [
+        "tests/reddit-writes.test.ts",
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
+      ],
+      "live_qualification": "unverified"
+    },
+    {
+      "gateway": "reddit_native_action",
+      "operation": "reddit_account_ops",
+      "action": "GET_DELIVERY_ESTIMATES",
+      "aliases": [],
+      "method": "POST",
+      "path": "/api/v3/ad_accounts/{ad_account_id}/forecasting/audience_and_delivery_estimates",
       "origin": "https://ads-api.reddit.com",
       "status": "native_read",
       "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
@@ -52094,6 +52277,25 @@
       "aliases": [],
       "method": "GET",
       "path": "/api/v3/targeting/interests",
+      "origin": "https://ads-api.reddit.com",
+      "status": "native_read",
+      "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",
+      "reason": "A mapped route passes independent read classification. Exact scope, payload, pagination and account/provider access still require verification.",
+      "source": "https://ads-api.reddit.com/api/v3/openapi.json",
+      "tests": [
+        "tests/reddit-writes.test.ts",
+        "tests/reddit-creative-writes.test.ts",
+        "tests/reddit-post-creation.test.ts"
+      ],
+      "live_qualification": "unverified"
+    },
+    {
+      "gateway": "reddit_native_action",
+      "operation": "reddit_account_ops",
+      "action": "LIST_KEYWORD_SUGGESTIONS",
+      "aliases": [],
+      "method": "POST",
+      "path": "/api/v3/targeting/keyword_suggestions",
       "origin": "https://ads-api.reddit.com",
       "status": "native_read",
       "implementation": "src/compiler.ts / src/delegated-native.ts / src/transport.ts",

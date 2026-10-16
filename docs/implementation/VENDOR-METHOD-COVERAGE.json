@@ -240,8 +240,8 @@
       "captured_at": "2026-09-05T21:40:44.959Z",
       "sha256": "3f9718b4b9fea49a08f28acb43d6b840f3e6c0cc0211dfc17c1dfcba11421b6c",
       "methods": 105,
-      "mapped": 45,
-      "no_mapped_action": 60,
+      "mapped": 49,
+      "no_mapped_action": 56,
       "meaning": "Complete for this pinned document, not all provider APIs or account access."
     },
     {
@@ -262,8 +262,8 @@
       "revision": "f90ac18b616e0ba2bbf2d17d73f54deeb2dd7af1",
       "sha256": "47933c604b2a34950effbdab18b2ac709046b390a42153adb8d9171590edd65c",
       "methods": 99,
-      "mapped": 41,
-      "no_mapped_action": 58,
+      "mapped": 48,
+      "no_mapped_action": 51,
       "meaning": "All methods extracted from the pinned public SDK API source; selected model facts are separate from method coverage and live access."
     }
   ],
@@ -24666,8 +24666,15 @@
       "method": "POST",
       "path": "/api/v3/ad_accounts/{ad_account_id}/forecasting/audience_and_delivery_estimates",
       "origin": "https://ads-api.reddit.com",
-      "mapped_actions": [],
-      "mapping_status": "no_mapped_action",
+      "mapped_actions": [
+        {
+          "operation": "reddit_account_ops",
+          "action": "GET_DELIVERY_ESTIMATES",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
       "qualification": "unverified"
     },
     {
@@ -24699,8 +24706,15 @@
       "method": "POST",
       "path": "/api/v3/ad_accounts/{ad_account_id}/history",
       "origin": "https://ads-api.reddit.com",
-      "mapped_actions": [],
-      "mapping_status": "no_mapped_action",
+      "mapped_actions": [
+        {
+          "operation": "reddit_account_ops",
+          "action": "GET_ACCOUNT_HISTORY",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
       "qualification": "unverified"
     },
     {
@@ -25286,8 +25300,15 @@
       "method": "POST",
       "path": "/api/v3/forecasting/bid_suggestions",
       "origin": "https://ads-api.reddit.com",
-      "mapped_actions": [],
-      "mapping_status": "no_mapped_action",
+      "mapped_actions": [
+        {
+          "operation": "reddit_account_ops",
+          "action": "GET_BID_SUGGESTIONS",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
       "qualification": "unverified"
     },
     {
@@ -26061,8 +26082,15 @@
       "method": "POST",
       "path": "/api/v3/targeting/keyword_suggestions",
       "origin": "https://ads-api.reddit.com",
-      "mapped_actions": [],
-      "mapping_status": "no_mapped_action",
+      "mapped_actions": [
+        {
+          "operation": "reddit_account_ops",
+          "action": "LIST_KEYWORD_SUGGESTIONS",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
       "qualification": "unverified"
     },
     {
@@ -27116,8 +27144,15 @@
       "path": "/v1/eligibilities/apps/query",
       "account_context": "required",
       "origin": "https://api.ads.apple.com",
-      "mapped_actions": [],
-      "mapping_status": "no_mapped_action",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_app_eligibilities_query",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
       "qualification": "unverified"
     },
     {
@@ -27144,8 +27179,15 @@
       "path": "/v1/apps/{adamId}",
       "account_context": "required",
       "origin": "https://api.ads.apple.com",
-      "mapped_actions": [],
-      "mapping_status": "no_mapped_action",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_app_get",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
       "qualification": "unverified"
     },
     {
@@ -27298,8 +27340,15 @@
       "path": "/v1/insights/apps/impression-share/query",
       "account_context": "required",
       "origin": "https://api.ads.apple.com",
-      "mapped_actions": [],
-      "mapping_status": "no_mapped_action",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_impression_share_query",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
       "qualification": "unverified"
     },
     {
@@ -27690,8 +27739,15 @@
       "path": "/v1/suggestions/keywords/query",
       "account_context": "required",
       "origin": "https://api.ads.apple.com",
-      "mapped_actions": [],
-      "mapping_status": "no_mapped_action",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_keyword_suggestions_query",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
       "qualification": "unverified"
     },
     {
@@ -27760,8 +27816,15 @@
       "path": "/v1/product-pages/query",
       "account_context": "required",
       "origin": "https://api.ads.apple.com",
-      "mapped_actions": [],
-      "mapping_status": "no_mapped_action",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_product_pages_query",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
       "qualification": "unverified"
     },
     {
@@ -27858,8 +27921,15 @@
       "path": "/v1/search/apps",
       "account_context": "required",
       "origin": "https://api.ads.apple.com",
-      "mapped_actions": [],
-      "mapping_status": "no_mapped_action",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_apps_search",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
       "qualification": "unverified"
     },
     {
@@ -27886,8 +27956,15 @@
       "path": "/v1/insights/apps/search-term-popularity/query",
       "account_context": "required",
       "origin": "https://api.ads.apple.com",
-      "mapped_actions": [],
-      "mapping_status": "no_mapped_action",
+      "mapped_actions": [
+        {
+          "operation": null,
+          "action": "apple_ads_v1_search_term_popularity_query",
+          "status": "native_read",
+          "family": null
+        }
+      ],
+      "mapping_status": "mapped",
       "qualification": "unverified"
     },
     {

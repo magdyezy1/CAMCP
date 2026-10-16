@@ -149,12 +149,12 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // src/microsoft-campaign-criteria.ts; QA-02 adds the Meta ad image read's paging refusal, and the Performance Max
   // build's short-description refusal makes src/google-pmax-build.ts an owner of a literal wrapper reason; the Snapchat
   // targeting specs read's paging refusal adds one.
-  assert.equal(files.length, 545);
-  assert.equal(selected.filter(row => row.messages.size).length, 179);
   // The Meta window refusal is now one shared constant (meta-attribution-windows.ts); report-dimension-packs pins its
   // Arabic.
-  assert.equal(owned.size, 2794);
-  assert.equal(Object.keys(catalog).length, 10884);
+  assert.equal(files.length, 549);
+  assert.equal(selected.filter(row => row.messages.size).length, 179);
+  assert.equal(owned.size, 2800);
+  assert.equal(Object.keys(catalog).length, 10973);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

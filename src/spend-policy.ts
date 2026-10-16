@@ -42,6 +42,7 @@ const ownerActs: Record<string, string> = {
   resume_writes: 'resume writes',
   enable_personal_data: 'turn personal-data writes on for an ad account',
   disable_personal_data: 'turn personal-data writes off for an ad account',
+  save_ga4_test_property: 'mark or unmark a GA4 test property',
 };
 /** Whether this actor is the workspace owner: an administrator who owns the workspace, or the local administrator. */
 export function workspaceOwner(store: Store, actor: Actor): boolean {

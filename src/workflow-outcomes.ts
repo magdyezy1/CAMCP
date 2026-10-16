@@ -429,14 +429,18 @@ export function workflowOutcome(tool: string | undefined, data: JsonObject, acti
         ...data.scope,
         account_id: data.scope?.property_id,
         expected_count: data.observation?.declared_expected_count,
+        // The realtime mode (MSR-04) links its minute window instead of calendar dates.
+        minutes: Number.isSafeInteger(data.scope?.minutes) ? String(data.scope.minutes) : undefined,
       };
       const query = [
         'connection_id',
         'account_id',
         'event_name',
         'test_id',
+        'mode',
         'date_from',
         'date_to',
+        'minutes',
         'stream_id',
         'expected_count',
       ]

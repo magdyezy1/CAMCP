@@ -448,6 +448,12 @@ export async function ga4AdminConfig(
               : dimensions.some(d => d.parameter_name === 'amcp_test_id')
                 ? 'other_scope'
                 : 'not_registered',
+          // The realtime identity mode (MSR-04) needs a user-scoped amcp_test_id on an owner-marked test property.
+          realtime_identity_dimension: !sections.includes('custom_dimensions')
+            ? 'not_read'
+            : dimensions.some(d => d.parameter_name === 'amcp_test_id' && d.scope === 'USER')
+              ? 'registered'
+              : 'not_registered',
           // GA4 deduplicates purchases by transaction ID only on web streams.
           web_streams: !sections.includes('data_streams')
             ? null

@@ -377,3 +377,27 @@ test('MSR-03 a login replaced or withdrawn during the read refuses the response'
     assert.ok(f.requests.length <= 2, name + ': no further read starts');
   }
 });
+
+test('MSR-04 GA4 configuration reports whether the user-scoped amcp_test_id for realtime test reads is registered', async t => {
+  const user = fixture(t, {
+      data: {
+        customDimensions: [
+          {
+            customDimensions: [
+              {name: 'properties/123/customDimensions/10', parameterName: 'amcp_test_id', scope: 'USER'},
+            ],
+          },
+        ],
+      },
+    }),
+    registered = await user.read({requirements: {sections: ['custom_dimensions']}});
+  assert.equal(registered.success, true, JSON.stringify(registered));
+  assert.equal(registered.data.checks.realtime_identity_dimension, 'registered');
+  // The event-scoped dimension serves only the core report mode.
+  const event = fixture(t),
+    core = await event.read({requirements: {sections: ['custom_dimensions']}});
+  assert.equal(core.data.checks.test_identifier_dimension, 'registered');
+  assert.equal(core.data.checks.realtime_identity_dimension, 'not_registered');
+  const unread = await event.read({requirements: {sections: ['data_streams']}});
+  assert.equal(unread.data.checks.realtime_identity_dimension, 'not_read');
+});

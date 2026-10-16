@@ -8,6 +8,26 @@ Reviewed ads use an existing authorized post_id. Create and verify a post throug
 
 AMCP qualifies classic campaign/ad-group/ad creates and PATCH updates through amcp_write. New serving entities require configured_status: PAUSED; the connection needs adsread and adsedit. Ad-group creation requires conversion_pixel_id; CBO campaigns also require it. The review reads the ad account's pixel list: a pixel the account does not list is refused with `REDDIT_PIXEL_NOT_IN_ACCOUNT` before anything is sent, so ask the user which pixel of `details.account_pixel_ids` to use (in a saved plan, amend the step with `amcp_campaign recover_step`) and never guess one. The review's `creative_impact.conversion_pixel` shows the pixel's name and last event; a `never_fired` or `stale` pixel is reviewable with a warning, which you relay to the user before execution. Ads require existing ad_group_id and post_id. CREATE_SAVED_AUDIENCE and UPDATE_SAVED_AUDIENCE are independent actions under reddit_account_ops for REDDIT_AUDIENCE targeting. Returned campaign, group and audience IDs are immediately usable as parents; post IDs require read-back first. Updates cannot move a resource to another parent. Request configured_status: DELETED for reviewed deactivation, or status: DELETED for a saved audience. Reddit private Drive import, Reddit Max and customer-list ingestion remain unqualified. Return an actionable capability gap rather than trying an unrelated native route to escape review. Do not claim cross-platform campaign transfer is complete until each platform's structure, identity, currency and media constraints have been independently resolved.
 
+## Planning and history reads
+
+Four independent AMCP reads under `reddit_account_ops`, built from the pinned v3 OpenAPI's own request and
+response schemas, run as POST reads with `adsread` on the selected bound account; none changes the account:
+
+- `GET_DELIVERY_ESTIMATES` (`params.ad_account_id`, `payload.data` with the objective and ad-group configs) sizes
+  the audience and delivery before launch.
+- `GET_BID_SUGGESTIONS` (`account_id`; `payload.data.ad_account_id` must name that same account) suggests bids.
+- `LIST_KEYWORD_SUGGESTIONS` (`account_id`, `payload.data.seed_keywords`) is account-agnostic and still runs
+  under a selected bound account.
+- `GET_ACCOUNT_HISTORY` (`params.ad_account_id`, optional `page.size` up to 1,000 and `page.token`) lists recent
+  changes. Who made each change is personal data: AMCP drops member IDs, usernames, e-mails and full names before
+  the response leaves the service, keeping the change, `changed_at`, any partner business name and `changed_by`
+  (`member_not_shown` or `not_reported`). Filtering by `member_ids` is refused for the same reason.
+
+Bid suggestions refuse `custom_audience_ids` and `excluded_custom_audience_ids`, because an audience belongs to
+one ad account. Estimates and
+suggestions are Reddit's forecasts, not commitments; quote them as ranges with their inputs. The Conversions API
+is not available: it is a later, separate step under the personal-data policy.
+
 ## Current post metadata and lead-form contracts
 
 `reddit_post_ops` actions `UPDATE_POST` and `UPDATE_STRUCTURED_POST` now use

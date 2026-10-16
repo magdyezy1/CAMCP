@@ -123,10 +123,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // brief's short-description refusal.
   // RPT-07 and DEC-02 add the period comparison, native parent, dimension pack, LinkedIn window, Microsoft portfolio,
   // Meta allocation budget and allocation outcome modules.
-  assert.equal(files.length, 545);
-  assert.equal(selected.filter(row => row.messages.size).length, 227);
-  assert.equal(owned.size, 1566);
-  assert.equal(Object.keys(catalog).length, 10884);
+  // MED-06, MSR-04 and PRV-07 add the media spec, GA4 test property, Google change history and search overlap modules
+  // (the Apple and Reddit planning reads extend existing modules).
+  assert.equal(files.length, 549);
+  assert.equal(selected.filter(row => row.messages.size).length, 229);
+  assert.equal(owned.size, 1573);
+  assert.equal(Object.keys(catalog).length, 10973);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

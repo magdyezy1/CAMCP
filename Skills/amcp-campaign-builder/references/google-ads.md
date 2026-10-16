@@ -1426,3 +1426,38 @@ unknown links remain distinct. Campaign links are not ads or asset groups. The d
 asset-group view remain independent. Google handoffs retain the original asset, chosen view and bounded
 limit; the website waits for an explicit read and clears view choices when another asset is opened. No
 write grant, serving/performance/history or all-format absence is established. See [qualification](../../../docs/review/DELIVERY-2026-10-04-GOOGLE-PMAX-CAMPAIGN-LOGOS.md).
+
+## Change history: what changed before a performance shift
+
+Ask Google's own change log before guessing why results moved:
+`amcp_workspace {action:"change_history", gateway:"google_ads_native_action", account_id, connection_id?,
+requirements:{date_from, date_to, limit?, resource_types?}}`. Dates are account-local days, at most 30, starting no
+earlier than 29 days before today (Google keeps change events for 30 days); `limit` is 1–10,000 (default 1,000) and
+`resource_types` names 1–20 native types such as `CAMPAIGN` or `AD_GROUP_AD`. One fixed `change_event` projection
+returns rows newest first with native resource type, operation, `client_type` (the tool used), changed field paths
+and the resource, campaign, ad group or asset names, plus per-day, type, operation and tool counts. Who made a
+change (`user_email`) is personal data and is never requested; old and new values are not requested either, so
+read the current resource when the value matters. `limit_reached` means older changes in the window may exist:
+read fewer days. A change near a shift is a lead to investigate with the user, not proof that it caused the shift.
+Nothing is saved. The website shows the same read with a bilingual timeline under Live portfolio.
+
+## Organic and paid search overlap
+
+`amcp_workspace {action:"search_overlap", gateway:"google_ads_native_action", account_id, connection_id?,
+requirements:{site_url, gsc_connection_id?, date_from, date_to, row_limit?, max_rows?, include_pages?}}` reads
+Search Console queries (`dataState: final`, web search) for the exact property (`sc-domain:example.com` or a URL
+prefix ending in `/`) and the customer's `search_term_view` for the same closed dates (at most 90, before today),
+then joins them on normalized text (NFKC, lower case, collapsed spaces). Every match is
+`approximate_normalized_text`: the products match queries differently, Search Console omits anonymized queries,
+both report top rows (`top_rows_only`), their days use different time zones and final Search Console data trails
+by two to three days (`recent_days_may_be_missing`; end the window earlier for a fair comparison). Rows are `both`,
+`paid_only` or `organic_only` with exact paid micros and conversions and impression-weighted organic position.
+`include_pages:true` also lists each organic query's top three landing pages (by-page metrics rank pages; they do
+not add up to the query totals). `review_hint` marks rows worth discussing (`organic_strong_with_paid_spend`,
+`paid_only_converting`); it is never an instruction to change bids, keywords or budgets. Act on a finding only
+through the existing reviewed paths: exact negative keywords from a retained guided search-term report
+(`amcp_reporting` `capture_preset` `google_search_terms` for the same dates, then `search_exclusion_candidates`,
+`preview_search_exclusions` with the row's `search_term_views` as `ids`, and `create_search_exclusion_plan`; only
+terms that qualify there can be excluded), new keywords through `amcp_write` with native review. When two Search
+Console logins hold the property, choose `gsc_connection_id` and make it the property's default; an ambiguous
+default is refused. Nothing is saved.

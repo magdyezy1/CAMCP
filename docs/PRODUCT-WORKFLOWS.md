@@ -758,6 +758,20 @@ campaign or ad types, repeated or malformed IDs and negative amounts refuse the 
 two complete Microsoft observations like the other providers. There is no Microsoft guided evidence capture, so the
 page offers no capture link.
 
+### Google Ads change history
+
+Below the inventory, **Google Ads change history** reads what changed in one selected Google Ads account (PRV-07).
+Choose account-local dates: at most 30 days, starting no earlier than 29 days before today, because Google keeps
+change events for 30 days. A wider or older window is refused in the page and again by the server, before any
+request. One fixed `change_event` query (at most 1,000 events from the page, 10,000 over MCP, newest first) returns
+the native resource type, operation, the tool used (`client_type`), changed field paths and the changed resource,
+campaign, ad group or asset. Who made a change (`user_email`) is personal data and is never requested; old and new
+values are not requested either. The page shows a timeline per day and counts by resource type, operation and tool
+in English or Arabic; native values stay literal, and rows page 50 at a time without another read. A full read is
+labelled: older changes in the window may exist. A response for another account, login or window, or with any
+unselected field, is refused rather than shown. Nothing is saved. MCP: `amcp_workspace {action:"change_history",
+gateway:"google_ads_native_action",account_id,connection_id?,requirements:{date_from,date_to,limit?,resource_types?}}`.
+
 Measurement (`/measurement`) connects the existing Google Tag Manager configuration audit with GA4/Search Console
 reporting, client conversion mappings and reviewed contract discovery. `measurement_audit` takes an exact GTM
 account/login and optional container/workspace requirements. It establishes configuration evidence; actual event
@@ -857,6 +871,15 @@ and missing/zero counts can reflect processing lag or filters. Consent, deduplic
 unverified. Original scope handoffs prefill without reading. Edits or generation clear prior evidence and pending
 results cannot overwrite a newer selection. See the [qualification record](review/DELIVERY-2026-10-03-MEASUREMENT-IDENTITY.md).
 
+**Realtime test identity** (MSR-04) is the faster report source of the same task. Choose **Realtime: user scope, test
+properties only** and a window of the last 1–30 minutes instead of dates. It reads a user-scoped
+`customUser:amcp_test_id` through the GA4 Realtime API, which cannot filter event-scoped dimensions, and only on a
+property the workspace owner marked as a test property (`amcp_workspace save_ga4_test_property`; otherwise
+`MEASUREMENT_TEST_PROPERTY_REQUIRED` before any GA4 request). The user-scoped dimension is checked before and after.
+Counts cover every event of the synthetic test user, so a match is user-level, not event-level proof, and realtime
+processing can lag a few minutes. The value persists on the test user: use a fresh identifier and a dedicated test
+browser or device for each test. The GA4 configuration read reports `checks.realtime_identity_dimension`.
+
 **LinkedIn conversion settings** reads current configuration for one selected login/advertising account.
 Inspect native rule IDs, registration method, reported ownership, enabled state, type, attribution model,
 click/view windows and exact configured values. Missing fields remain unknown; provider defaults do not fill
@@ -867,6 +890,10 @@ envelopes without new fields stay readable with unknown metadata. See the
 [method, ownership and scope qualification](review/DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
 The MCP action is `measurement_conversions` with `gateway:linkedin_native_action`, exact `account_id` and
 `connection_id`; it accepts no additional requirements. Its scoped website link only preselects the account.
+The **Observed activity** column (MSR-04) shows LinkedIn's own `lastCallbackAt` (the last time a rule's URL match
+fired) and `latestFirstPartyCallbackAt` as `last_callback_at` and `latest_first_party_callback_at` (epoch
+milliseconds). LinkedIn may take about 20 minutes to update them. A missing time is Unknown, never "never fired",
+and a time does not verify event delivery. The times stay out of conversion-rule write fingerprints.
 
 Collection requires existing `r_ads` or `rw_ads`, verifies native account identity/currency before and after,
 checks current authority around each read and retains source request/hash/time references. Bounds: 1,000 rules,
@@ -1346,6 +1373,26 @@ MCP: `amcp_decision_report {action:"search_exclusion_candidates",id,options:{min
 follow `next_offset` and explicitly select native row IDs. Then call `preview_search_exclusions` with the same
 report, options and `ids`. Use its exact `preview_id`/`preview_hash` with `create_search_exclusion_plan`,
 report `id` and `confirmed:true`. Candidate reads support readers; preview/save require an operator/admin.
+
+## Organic and paid search overlap
+
+`amcp_workspace {action:"search_overlap",gateway:"google_ads_native_action",account_id,connection_id?,
+requirements:{site_url,gsc_connection_id?,date_from,date_to,row_limit?,max_rows?,include_pages?}}` (PRV-07, MCP
+only) reads the Search Console property's queries (`searchAnalytics.query`, dimension `query`, web,
+`dataState: final`) and the customer's `search_term_view` for the same closed dates (at most 90 days, before today;
+1–25,000 rows per source), and joins them locally on normalized text (NFKC, lower case, collapsed spaces). Every
+match is labelled `approximate_normalized_text`: the products match queries differently, Search Console omits
+anonymized queries, both report top rows (`top_rows_only`, `complete:false`), their days use different time zones,
+and final Search Console data trails by two to three days (`recent_days_may_be_missing`). The table classifies each
+query as `both`, `paid_only` or `organic_only`, keeps exact paid micros, clicks and conversions and an
+impression-weighted organic position, and sorts deterministically. `include_pages:true` adds one `query × page`
+read and lists each organic query's top three landing pages; those by-page metrics rank pages within a query and do
+not add up to its totals. `review_hint` marks a strong organic position with paid spend, or a converting paid-only
+term; it is a prompt for review, never a change. Findings feed the reviewed paths above: each paid row lists its
+native `search_term_views` (up to 20, with `search_term_view_count`), the ids `preview_search_exclusions` takes from
+a retained `google_search_terms` report of the same dates; a keyword is prepared through `amcp_write`. Both sources
+stay in scope: the Search Console login must hold the exact property and be its default, and a foreign site,
+customer, page, search term view or malformed row refuses the whole read. Nothing is saved.
 
 ## Opening website pages
 

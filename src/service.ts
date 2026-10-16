@@ -73,6 +73,7 @@ import {WriteReviewService, providerJobWriteTool, readOnlyWriteTool, writeTool} 
 import {reviewedProviderJob} from './effect-class.js';
 import type {WriteOrigin} from './write-records.js';
 import {validateAppleResponse} from './apple-native.js';
+import {projectRedditAccountHistory, redditAccountHistoryRead} from './reddit-extensions.js';
 import {microsoftGateway, validateMicrosoftResponse} from './microsoft-native.js';
 import {
   downloadReportArchive,
@@ -1101,6 +1102,8 @@ export class MirrorService {
           );
         this.delegatedCompiler.validateResponse(p, data, status);
         validateAppleResponse(p, data);
+        // PRV-07: who changed a Reddit account is personal data; it never leaves this function.
+        if (redditAccountHistoryRead(p)) return projectRedditAccountHistory(data);
         if (p.gateway === microsoftGateway) validateMicrosoftResponse(p, result);
         if (placeActionReadKind(p)) return placeActionReadResult(p, data, status);
         if (p.xReportRead) {

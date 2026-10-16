@@ -58,9 +58,9 @@ test('measurement refusal ownership is exact by source, helper and literal argum
   for (const file of ['src/measurement.ts', 'tests/measurement-events.ts', 'src/other-measurement-event-identity.ts'])
     assert.equal(inspectMeasurementFailures(sample, file).size, 0);
 });
-test('all 34 selected measurement refusal sentences and the two persistent feedback labels have authored Arabic', () => {
+test('all 37 selected measurement refusal sentences and the two persistent feedback labels have authored Arabic', () => {
   const messages = new Set(files.flatMap(file => [...inspectMeasurementFailures(readFileSync(file, 'utf8'), file)]));
-  assert.equal(messages.size, 34);
+  assert.equal(messages.size, 37);
   for (const label of ['Read needs attention', 'Review the message and your settings before reading again.'])
     messages.add(label);
   assert.deepEqual(localeProblems(catalog, messages), []);
@@ -107,12 +107,12 @@ test('measurement remedy selector adds only the four reachable owned hints and p
     "function errorRemedy(e){const stateRead={STATE_TOO_LARGE:upstream.message};return {action:e.code==='INTERNAL_ERROR'?'Internal.':upstream.message??'Native fallback.'};}";
   assert.equal(inspectMeasurementRemedies(dynamic, 'src/errors.ts').size, 0);
 });
-test('all 36 source occurrences format bilingual authored reasons and reachable hints without changing native envelopes', () => {
+test('all 40 source occurrences format bilingual authored reasons and reachable hints without changing native envelopes', () => {
   const values = ownedCodes(),
     hints = inspectMeasurementRemedies(readFileSync('src/errors.ts', 'utf8'), 'src/errors.ts'),
     reached = new Set();
-  assert.equal(values.length, 36);
-  assert.equal(new Set(values.map(value => value.message)).size, 34);
+  assert.equal(values.length, 40);
+  assert.equal(new Set(values.map(value => value.message)).size, 37);
   for (const locale of ['en', 'ar']) {
     const f = accountWorkflowFixture(locale);
     for (const {message, code} of values) {

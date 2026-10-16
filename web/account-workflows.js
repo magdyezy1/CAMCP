@@ -107,6 +107,25 @@ const accountExplanationMessages = new Set([
   'The conversion configuration could not be completely inspected; no partial goal or primary-action evidence is reported as ready. Nothing was saved.',
   'Current GA4 property configuration from complete bounded Admin API reads. Configuration is not proof that events are sent, counted, deduplicated, consented or attributed. Nothing was saved.',
   'Measurement evidence for one asset in six fixed layers. A layer is observed only from complete evidence of the selected asset; everything else stays unknown, unavailable or not applicable. Configuration and reported activity do not prove that conversions are delivered, deduplicated, consented or attributed. Nothing was saved.',
+  // PRV-07 A: the change history explanation and refusals (src/google-change-history.ts).
+  'Google Ads change events of the selected customer in the requested account-local dates, newest first. Who made a change is personal data and was not requested; client_type names the tool used. Changed field paths name what changed, not its old or new value. limit_reached means older changes in the window may exist. Change history explains configuration changes; it does not prove their effect on performance. Nothing was saved or changed.',
+  'Change history reads a selected Google Ads customer (gateway google_ads_native_action).',
+  'Choose the exact numeric Google Ads customer ID.',
+  'Choose explicit dates covering at most 30 days within the last 30 days. Google Ads keeps change history for 30 days.',
+  'Choose a limit of 1–10,000 change events.',
+  'Use 1–20 distinct native Google Ads change resource types, such as CAMPAIGN or AD_GROUP_AD.',
+  'This Google Ads login changed. Read the change history again.',
+  'Google Ads returned more change history pages than this bounded read takes.',
+  'Google Ads did not return a complete change history response.',
+  'Google Ads returned more change events than the requested limit.',
+  'Google Ads returned a change for another customer or a malformed resource name.',
+  'Google Ads returned an unrecognized change value.',
+  'Google Ads returned a change history row mixed with another resource.',
+  'Google Ads returned unselected change event fields.',
+  'Google Ads returned a missing or repeated change event.',
+  'Google Ads returned a change outside the requested window.',
+  'Google Ads returned a change of a resource type outside the request.',
+  'Google Ads returned malformed changed field paths.',
   'Preview is based on supplied product data. Current provider items are read by each native review before execution. Partial or uncertain writes retain per-item receipts in the campaign journal.',
   'Preview uses supplied product data and the existing X product contract. Each product keeps a separate native review, accepted receipt and independent read-back. Matching IDs are updated; missing source items are retained.',
   'X catalog endpoints require early-access entitlement; a local preview does not establish account eligibility.',
@@ -487,8 +506,11 @@ async function renderPortfolio() {
     restoredIndex = targets.findIndex(
       t => t.connection_id === restored.connection_id && t.account_id === restored.account_id,
     ),
-    restoredMissing = !!(restored.connection_id || restored.account_id) && restoredIndex < 0;
+    restoredMissing = !!(restored.connection_id || restored.account_id) && restoredIndex < 0,
+    historyTargets = accountChoices(['google']);
   content.innerHTML += `<p class="notice">${esc(uiText('Browse current Google Ads, Meta, LinkedIn, Snapchat, TikTok, X and Microsoft Advertising inventory. Inventory is read-only; provider changes require a separate review.'))}</p><form id="portfolio-account" class="panel workspace-form"><label>${esc(uiText('Advertising account'))}<select name="target" required>${restoredMissing ? `<option value="" selected>${esc(uiText('Previously selected account — check access'))}</option>` : ''}<option value="">${esc(uiText('Choose a login and account'))}</option>${targets.map((t, i) => `<option value="${i}" ${i === restoredIndex ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select></label><button class="button primary" type="submit">${esc(uiText('Read inventory'))}</button></form><div id="portfolio-view" aria-live="polite"></div>`;
+  // PRV-07 A: a Google Ads account's change history, read separately from the inventory above.
+  content.innerHTML += changeHistoryMarkup(historyTargets);
   const view = $('#portfolio-view'),
     form = $('#portfolio-account');
   const attached = () =>
@@ -743,6 +765,221 @@ async function renderPortfolio() {
     target = binding;
     reopen = null;
     await load(level);
+  });
+  bindChangeHistory(historyTargets);
+}
+// PRV-07 A: one Google Ads customer's change history (src/google-change-history.ts), read only on submit and never
+// saved. Who made a change is not requested. Resource types, operations, tools, field paths and resource names are
+// native values and stay literal; the timeline is counted here from the validated rows.
+const changeHistoryPageSize = 50,
+  changeHistoryDayMs = 86400000;
+function changeHistoryDay(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value ?? '')) return null;
+  const time = Date.parse(value + 'T00:00:00Z');
+  return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value ? time : null;
+}
+function changeHistoryShift(days) {
+  const today = changeHistoryDay(new Date().toISOString().slice(0, 10));
+  return new Date(today + days * changeHistoryDayMs).toISOString().slice(0, 10);
+}
+/** The same window the server accepts: at most 30 days, starting no earlier than 29 days before today (UTC). */
+function changeHistoryWindow(from, to) {
+  const first = changeHistoryDay(from),
+    last = changeHistoryDay(to),
+    today = changeHistoryDay(changeHistoryShift(0));
+  return (
+    first !== null &&
+    last !== null &&
+    last >= first &&
+    last - first <= 29 * changeHistoryDayMs &&
+    first >= today - 29 * changeHistoryDayMs &&
+    last <= today + changeHistoryDayMs
+  );
+}
+function changeHistoryMarkup(targets) {
+  const earliest = changeHistoryShift(-29),
+    latest = changeHistoryShift(1);
+  return `<section class="panel workspace-form" aria-labelledby="change-history-title"><h2 id="change-history-title">${esc(uiText('Google Ads change history'))}</h2><p>${esc(uiText('See what changed in one Google Ads account, newest first, from the change history Google keeps for 30 days. Who made each change is not requested. Nothing is saved or changed.'))}</p><form id="change-history">${targets.length ? '' : `<p class="notice">${esc(uiText('Connect Google Ads and select a customer account in Connections to read its change history.'))} <a href="/connections">${esc(uiText('Connections'))}</a></p>`}<label>${esc(uiText('Google Ads account'))}<select name="target" required ${targets.length ? '' : 'disabled'}><option value="">${esc(uiText('Choose a selected account'))}</option>${targets.map((t, i) => `<option value="${i}" ${targets.length === 1 ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select></label><label>${esc(uiText('From date'))}<input name="date_from" type="date" required min="${earliest}" max="${latest}" value="${changeHistoryShift(-6)}"></label><label>${esc(uiText('To date'))}<input name="date_to" type="date" required min="${earliest}" max="${latest}" value="${changeHistoryShift(0)}"></label><p class="form-note">${esc(uiText('Dates are days in the account time zone. Choose at most 30 days within the last 30 days.'))}</p><button class="button primary" type="submit" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read change history'))}</button></form><div id="change-history-result" aria-live="polite"></div></section>`;
+}
+const changeHistoryRowKeys = [
+  'change_date_time',
+  'resource_type',
+  'operation',
+  'client_type',
+  'resource_name',
+  'changed_fields',
+  'campaign',
+  'ad_group',
+  'asset',
+  'change_event',
+].sort();
+/** The response belongs to this account, login and window, and every row carries only the selected native fields. */
+function changeHistoryValid(out, target, requested) {
+  const code = v => typeof v === 'string' && /^[A-Z][A-Z0-9_]{0,63}$/.test(v),
+    prefix = 'customers/' + target.account_id + '/',
+    resource = (v, kind = '') =>
+      typeof v === 'string' && v.length <= 512 && v.startsWith(prefix + kind) && !/[\x00-\x20\x7f]/.test(v);
+  if (
+    !out ||
+    out.record_kind !== 'change_history' ||
+    out.provider_mutations !== 0 ||
+    out.retained_snapshot !== false ||
+    out.scope?.gateway !== 'google_ads_native_action' ||
+    out.scope.account_id !== target.account_id ||
+    out.scope.connection_id !== target.connection_id ||
+    out.scope.date_from !== requested.date_from ||
+    out.scope.date_to !== requested.date_to ||
+    out.scope.limit !== requested.limit ||
+    out.personal_data?.user_email !== 'not_requested' ||
+    typeof out.meaning !== 'string' ||
+    !Array.isArray(out.rows) ||
+    out.rows.length !== out.row_count ||
+    out.rows.length > requested.limit ||
+    out.limit_reached !== (out.rows.length === requested.limit) ||
+    out.complete !== !out.limit_reached
+  )
+    return false;
+  const days = new Map();
+  for (const r of out.rows) {
+    if (
+      !r ||
+      typeof r !== 'object' ||
+      Object.keys(r).sort().join() !== changeHistoryRowKeys.join() ||
+      typeof r.change_date_time !== 'string' ||
+      !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d{1,6})?$/.test(r.change_date_time) ||
+      r.change_date_time.slice(0, 10) < requested.date_from ||
+      r.change_date_time.slice(0, 10) > requested.date_to ||
+      !code(r.resource_type) ||
+      !(r.operation === null || code(r.operation)) ||
+      !(r.client_type === null || code(r.client_type)) ||
+      !Array.isArray(r.changed_fields) ||
+      r.changed_fields.length > 1000 ||
+      !r.changed_fields.every(f => typeof f === 'string' && /^[A-Za-z0-9_.]{1,256}$/.test(f)) ||
+      !(r.resource_name === null || resource(r.resource_name)) ||
+      !(r.campaign === null || resource(r.campaign, 'campaigns/')) ||
+      !(r.ad_group === null || resource(r.ad_group, 'adGroups/')) ||
+      !(r.asset === null || resource(r.asset, 'assets/')) ||
+      !resource(r.change_event, 'changeEvents/')
+    )
+      return false;
+    const day = r.change_date_time.slice(0, 10);
+    days.set(day, (days.get(day) ?? 0) + 1);
+  }
+  const reported = out.timeline?.by_day;
+  return (
+    !!reported &&
+    typeof reported === 'object' &&
+    Object.keys(reported).length === days.size &&
+    [...days].every(([day, count]) => reported[day] === count)
+  );
+}
+function changeHistoryView(out, target, page) {
+  const notReported = esc(uiText('Not reported')),
+    native = v => (v === null || v === undefined ? notReported : `<code dir="ltr">${esc(v)}</code>`),
+    pages = Math.max(1, Math.ceil(out.rows.length / changeHistoryPageSize)),
+    start = page * changeHistoryPageSize,
+    footer = `<p>${esc(uiText('Who made each change was not requested. Changed field paths name what changed, not the old or new values. Times are in the account time zone. Nothing was saved or changed.'))}</p>${recordDetails({scope: out.scope, source_references: out.source_references}, uiText('Change history scope and source references'))}`;
+  let html = `<h3 id="change-history-heading" tabindex="-1">${esc(target.label)}</h3><p>${esc(uiText('Requested {requested} · Returned {captured}', {requested: date(out.requested_at), captured: date(out.captured_at)}))}</p>${badge(out.complete ? 'complete' : 'incomplete')}<p class="notice">${esc(uiAccountExplanation(out.meaning))}</p>`;
+  if (out.limit_reached)
+    html += `<p class="notice" role="status">${esc(uiText('Only the newest {count} changes in these dates were read. Older changes may exist; choose fewer days to read them.', {count: uiNumber(out.rows.length)}))}</p>`;
+  if (!out.rows.length)
+    return html + `<p>${esc(uiText('Google Ads reported no changes in these dates.'))}</p>` + footer;
+  // Counts per value, most frequent first; equal counts keep the native value order.
+  const tally = key => {
+    const counts = new Map();
+    for (const r of out.rows) counts.set(r[key], (counts.get(r[key]) ?? 0) + 1);
+    return [...counts].sort(([a, x], [b, y]) => y - x || String(a).localeCompare(String(b)));
+  };
+  const table = (caption, header, rows) =>
+    `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(caption)}"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr><th scope="col">${esc(header)}</th><th scope="col">${esc(uiText('Changes'))}</th></tr></thead><tbody>${rows.map(([value, count]) => `<tr><th scope="row">${value}</th><td>${esc(uiNumber(count))}</td></tr>`).join('')}</tbody></table></div>`;
+  const days = new Map();
+  for (const r of out.rows)
+    days.set(r.change_date_time.slice(0, 10), (days.get(r.change_date_time.slice(0, 10)) ?? 0) + 1);
+  html += `<div class="workspace-metrics"><article><strong>${esc(uiNumber(out.rows.length))}</strong><span>${esc(uiText('Changes read'))}</span></article><article><strong>${esc(uiNumber(days.size))}</strong><span>${esc(uiText('Days with changes'))}</span></article></div>`;
+  html += table(
+    uiText('Changes per day'),
+    uiText('Day'),
+    [...days]
+      .sort(([a], [b]) => (a < b ? 1 : a > b ? -1 : 0))
+      .map(([day, count]) => [`<bdi dir="ltr">${esc(day)}</bdi>`, count]),
+  );
+  for (const [caption, header, key] of [
+    [uiText('Changes by resource type'), uiText('Resource type'), 'resource_type'],
+    [uiText('Changes by operation'), uiText('Operation'), 'operation'],
+    [uiText('Changes by tool used'), uiText('Changed through'), 'client_type'],
+  ])
+    html += table(
+      caption,
+      header,
+      tally(key).map(([value, count]) => [native(value), count]),
+    );
+  const context = r =>
+    [
+      [uiText('Campaign'), r.campaign],
+      [uiText('Ad group'), r.ad_group],
+      [uiText('Asset'), r.asset],
+    ]
+      .filter(([, value]) => value !== null && value !== (r.resource_name ?? r.asset))
+      .map(([label, value]) => `<small>${esc(label)}: <code dir="ltr">${esc(value)}</code></small>`)
+      .join('');
+  html += `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Change events'))}"><table class="review-table"><caption>${esc(uiText('Change events'))}</caption><thead><tr><th scope="col">${esc(uiText('Changed at'))}</th><th scope="col">${esc(uiText('Resource type'))}</th><th scope="col">${esc(uiText('Operation'))}</th><th scope="col">${esc(uiText('Changed through'))}</th><th scope="col">${esc(uiText('Changed fields'))}</th><th scope="col">${esc(uiText('Changed resource'))}</th></tr></thead><tbody>${out.rows
+    .slice(start, start + changeHistoryPageSize)
+    .map(
+      r =>
+        `<tr><th scope="row"><bdi dir="ltr">${esc(r.change_date_time)}</bdi></th><td>${native(r.resource_type)}</td><td>${native(r.operation)}</td><td>${native(r.client_type)}</td><td>${r.changed_fields.length ? r.changed_fields.map(f => `<code dir="ltr">${esc(f)}</code>`).join(' ') : notReported}</td><td>${native(r.resource_name ?? r.asset)}${context(r)}</td></tr>`,
+    )
+    .join('')}</tbody></table></div>`;
+  if (pages > 1)
+    html += `<div class="dialog-actions"><button class="button" type="button" id="change-history-previous" ${page > 0 ? '' : 'disabled'}>${esc(uiText('Previous page'))}</button><span>${esc(uiText('Page {page} of {pages}', {page: uiNumber(page + 1), pages: uiNumber(pages)}))}</span><button class="button" type="button" id="change-history-next" ${page < pages - 1 ? '' : 'disabled'}>${esc(uiText('Next page'))}</button></div>`;
+  return html + footer;
+}
+function bindChangeHistory(targets) {
+  const form = $('#change-history'),
+    result = $('#change-history-result');
+  if (!form?.elements?.target || !result) return;
+  const begin = accountWorkflowContext(form, result);
+  workspaceBind('#change-history', async () => {
+    const current = begin();
+    if (!current()) return;
+    const target = targets[Number(form.elements.target.value)];
+    if (form.elements.target.value === '' || !target) throw Error(uiText('Choose a Google Ads account.'));
+    const requested = {date_from: form.elements.date_from.value, date_to: form.elements.date_to.value, limit: 1000};
+    // A window Google cannot answer is refused here, before any request.
+    if (!changeHistoryWindow(requested.date_from, requested.date_to))
+      throw Error(
+        uiText(
+          'Choose explicit dates covering at most 30 days within the last 30 days. Google Ads keeps change history for 30 days.',
+        ),
+      );
+    let out;
+    try {
+      out = await workspaceCall('workspace', {
+        action: 'change_history',
+        gateway: 'google_ads_native_action',
+        connection_id: target.connection_id,
+        account_id: target.account_id,
+        requirements: requested,
+      });
+    } catch (error) {
+      if (current()) throw error;
+      return;
+    }
+    if (!current()) return;
+    if (!changeHistoryValid(out, target, requested))
+      throw Error(
+        uiText('The change history response is incomplete or belongs to a different selection. Read it again.'),
+      );
+    const pages = Math.max(1, Math.ceil(out.rows.length / changeHistoryPageSize));
+    // Paging shows rows already read; it never reads Google Ads again.
+    const show = page => {
+      if (!current()) return;
+      const shown = Math.min(Math.max(page, 0), pages - 1);
+      result.innerHTML = changeHistoryView(out, target, shown);
+      workspaceBind('#change-history-previous', () => show(shown - 1));
+      workspaceBind('#change-history-next', () => show(shown + 1));
+    };
+    show(0);
+    $('#change-history-heading')?.focus();
   });
 }
 function portfolioMoneyLabel(value) {
@@ -2098,6 +2335,8 @@ function measurementGa4ConfigValid(out, target) {
     out.scope.property_id === target.account_id &&
     out.scope.connection_id === target.connection_id &&
     Object.hasOwn(measurementTestDimension, out.checks?.test_identifier_dimension) &&
+    // MSR-04: absent from older responses.
+    [undefined, 'registered', 'not_registered', 'not_read'].includes(out.checks.realtime_identity_dimension) &&
     list(out.key_events, r => text(r.event_name, 100) && !!r.event_name && code(r.counting_method)) &&
     list(out.custom_dimensions, r => text(r.parameter_name, 100) && text(r.display_name) && code(r.scope)) &&
     list(
@@ -2164,7 +2403,7 @@ function measurementGa4ConfigView(out, target) {
           .join('<br>')
       : esc(uiText('No synchronized container refers to this measurement ID.'));
   };
-  let html = `<h3 id="measurement-ga4-config-heading" tabindex="-1">${esc(target.label)}</h3><p>${esc(uiText('Requested {requested} · Returned {captured}', {requested: date(out.requested_at), captured: date(out.captured_at)}))}</p>${badge('complete')}<p class="notice">${esc(uiAccountExplanation(out.meaning))}</p><p>${esc(uiText('Test identifier dimension'))}: ${esc(uiText(measurementTestDimension[out.checks.test_identifier_dimension]))}${out.checks.test_identifier_dimension === 'registered' ? '' : ' · ' + esc(uiText('Inspecting a specific GA4 test identifier needs an event-scoped amcp_test_id custom dimension.'))}</p>`;
+  let html = `<h3 id="measurement-ga4-config-heading" tabindex="-1">${esc(target.label)}</h3><p>${esc(uiText('Requested {requested} · Returned {captured}', {requested: date(out.requested_at), captured: date(out.captured_at)}))}</p>${badge('complete')}<p class="notice">${esc(uiAccountExplanation(out.meaning))}</p><p>${esc(uiText('Test identifier dimension'))}: ${esc(uiText(measurementTestDimension[out.checks.test_identifier_dimension]))}${out.checks.test_identifier_dimension === 'registered' ? '' : ' · ' + esc(uiText('Inspecting a specific GA4 test identifier needs an event-scoped amcp_test_id custom dimension.'))}</p>${out.checks.realtime_identity_dimension === undefined ? '' : `<p>${esc(uiText('User-scoped amcp_test_id for realtime test reads'))}: ${esc(uiText(out.checks.realtime_identity_dimension === 'registered' ? 'Registered with user scope' : out.checks.realtime_identity_dimension === 'not_read' ? 'Not read' : 'Not registered'))}</p>`}`;
   html += table(
     uiText('Key events'),
     [uiText('Event name'), uiText('Counting method'), uiText('Default value')],
@@ -2565,6 +2804,10 @@ function bindMeasurementConversions(targets) {
           [r.post_click_days, r.post_view_days].some(
             v => v !== null && (!Number.isSafeInteger(v) || v < 0 || v > 365),
           ) ||
+          // Observed activity (MSR-04): absent from older responses, null when LinkedIn reports none (unknown).
+          [r.last_callback_at, r.latest_first_party_callback_at].some(
+            v => v != null && (!Number.isSafeInteger(v) || v < 1),
+          ) ||
           (r.value !== null &&
             (!r.value ||
               typeof r.value.amount !== 'string' ||
@@ -2587,6 +2830,18 @@ function mountConversionRuleRows(rules, selectionCurrent) {
     unknown = () => esc(uiText('Unknown')),
     nativeMetadata = value => (value == null ? unknown() : '<code dir="ltr">' + esc(value) + '</code>'),
     days = value => (value == null ? unknown() : esc(uiText('{count} days', {count: uiNumber(value)}))),
+    // MSR-04: LinkedIn's last-fired times; a missing time stays Unknown, never "never fired".
+    observed = r =>
+      r.last_callback_at == null && r.latest_first_party_callback_at == null
+        ? unknown()
+        : [
+            r.last_callback_at == null ? '' : esc(uiText('Last fired: {time}', {time: uiDate(r.last_callback_at)})),
+            r.latest_first_party_callback_at == null
+              ? ''
+              : esc(uiText('Latest first-party callback: {time}', {time: uiDate(r.latest_first_party_callback_at)})),
+          ]
+            .filter(Boolean)
+            .join('<br>'),
     attribution = value =>
       value === 'LAST_TOUCH_BY_CAMPAIGN'
         ? uiText('Last touch for each campaign')
@@ -2607,7 +2862,7 @@ function mountConversionRuleRows(rules, selectionCurrent) {
       page = rows.slice(offset, offset + 50);
     root.innerHTML =
       (rows.length
-        ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Conversion settings, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Native conversion rule settings'))}</caption><thead><tr><th scope="col">${esc(uiText('Conversion rule'))}</th><th scope="col">${esc(uiText('Native conversion type'))}</th><th scope="col">${esc(uiText('Registration method'))}</th><th scope="col">${esc(uiText('Reported ownership'))}</th><th scope="col">${esc(uiText('Enabled'))}</th><th scope="col">${esc(uiText('Post-click window'))}</th><th scope="col">${esc(uiText('Post-view window'))}</th><th scope="col">${esc(uiText('Attribution model'))}</th><th scope="col">${esc(uiText('Configured conversion value'))}</th></tr></thead><tbody>${page.map(r => `<tr><th scope="row"><span dir="auto">${esc(r.name || uiText('Unnamed conversion'))}</span><br><code dir="ltr">${esc(r.id)}</code></th><td>${r.type == null ? unknown() : `<code dir="ltr">${esc(r.type)}</code>`}</td><td>${nativeMetadata(r.conversion_method)}</td><td>${nativeMetadata(r.ownership_type)}</td><td>${esc(r.enabled === true ? uiText('Enabled') : r.enabled === false ? uiText('Disabled') : uiText('Unknown'))}</td><td>${days(r.post_click_days)}</td><td>${days(r.post_view_days)}</td><td>${esc(attribution(r.attribution_type))}</td><td>${r.value == null ? unknown() : `<span dir="ltr">${esc(r.value.amount)} ${esc(r.value.currency)}</span>`}<br>${r.value_type == null ? unknown() : `<code dir="ltr">${esc(r.value_type)}</code>`}</td></tr>`).join('')}</tbody></table></div>`
+        ? `<div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Conversion settings, scroll for all fields'))}"><table class="review-table"><caption>${esc(uiText('Native conversion rule settings'))}</caption><thead><tr><th scope="col">${esc(uiText('Conversion rule'))}</th><th scope="col">${esc(uiText('Native conversion type'))}</th><th scope="col">${esc(uiText('Registration method'))}</th><th scope="col">${esc(uiText('Reported ownership'))}</th><th scope="col">${esc(uiText('Enabled'))}</th><th scope="col">${esc(uiText('Post-click window'))}</th><th scope="col">${esc(uiText('Post-view window'))}</th><th scope="col">${esc(uiText('Attribution model'))}</th><th scope="col">${esc(uiText('Configured conversion value'))}</th><th scope="col">${esc(uiText('Observed activity'))}</th></tr></thead><tbody>${page.map(r => `<tr><th scope="row"><span dir="auto">${esc(r.name || uiText('Unnamed conversion'))}</span><br><code dir="ltr">${esc(r.id)}</code></th><td>${r.type == null ? unknown() : `<code dir="ltr">${esc(r.type)}</code>`}</td><td>${nativeMetadata(r.conversion_method)}</td><td>${nativeMetadata(r.ownership_type)}</td><td>${esc(r.enabled === true ? uiText('Enabled') : r.enabled === false ? uiText('Disabled') : uiText('Unknown'))}</td><td>${days(r.post_click_days)}</td><td>${days(r.post_view_days)}</td><td>${esc(attribution(r.attribution_type))}</td><td>${r.value == null ? unknown() : `<span dir="ltr">${esc(r.value.amount)} ${esc(r.value.currency)}</span>`}<br>${r.value_type == null ? unknown() : `<code dir="ltr">${esc(r.value_type)}</code>`}</td><td>${observed(r)}</td></tr>`).join('')}</tbody></table></div><p class="form-note" id="conversion-observed-activity-note">${esc(uiText('Observed activity is the last time LinkedIn reports a rule’s URL match fired. LinkedIn may take about 20 minutes to update it. Unknown means LinkedIn reported no time, not that the rule never fired; a time does not verify event delivery.'))}</p>`
         : `<p>${esc(needle ? uiText('No conversion rules match this search') : uiText('No conversion rules were returned for this account.'))}</p>`) +
       `<div class="report-pagination"><p id="conversion-rule-status" role="status" tabindex="-1">${esc(uiText('Showing {shown} of {matched} matching rules; {total} collected', {shown: uiNumber(page.length), matched: uiNumber(rows.length), total: uiNumber(rules.length)}))}</p><div><button class="button small" type="button" id="conversion-rule-previous">${esc(uiText('Previous page'))}</button><button class="button small" type="button" id="conversion-rule-next">${esc(uiText('Next page'))}</button></div></div>`;
     $('#conversion-rule-previous').disabled = offset === 0;
@@ -3167,24 +3422,34 @@ function measurementIdentityRows(out, requirements) {
   return out.observation.reported_count === count && out.observation.comparison === comparison;
 }
 function measurementEventIdentityMarkup(targets) {
-  return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-identity', uiText('Inspect a specific GA4 test identifier'))}<p>${esc(uiText('Use an existing event-scoped amcp_test_id custom dimension and a synthetic identifier already sent by your own test instrumentation. AMCP does not register the dimension or send an event.'))}</p><form id="measurement-event-identity">${measurementTargetField(targets, uiText('GA4 property'), 'Connect a GA4 property in Connections to inspect a test identifier.', uiText('Choose a login and account'))}<label>${esc(uiText('Exact event name'))}<input name="event_name" type="text" maxlength="40" required></label><label>${esc(uiText('Synthetic test identifier'))}<input name="test_id" type="text" maxlength="74" required aria-describedby="measurement-identity-help" dir="ltr"></label><p class="form-note" id="measurement-identity-help">${esc(uiText('Use amcp-test- followed by 8–64 letters, digits or hyphens. Generate a new identifier only before your separate test; enter the original identifier to inspect an existing test.'))}</p><button id="measurement-identity-generate" type="button" class="button small">${esc(uiText('Generate a synthetic test identifier'))}</button><label>${esc(uiText('From date'))}<input name="date_from" type="date" required></label><label>${esc(uiText('To date'))}<input name="date_to" type="date" required></label><p class="form-note">${esc(uiText('Choose at most seven calendar days in the GA4 property timezone. Core reporting may lag; this is not a realtime event trace.'))}</p><label>${esc(uiText('Stream ID (optional)'))}<input name="stream_id" type="text" maxlength="20" inputmode="numeric" dir="ltr"></label><label>${esc(uiText('Your expected count'))}<input name="expected_count" type="number" min="1" max="1000" step="1" value="1" required></label><button type="submit" class="button primary" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read matching test counts'))}</button></form><div id="measurement-event-identity-result" aria-live="polite"></div></section>`;
+  return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-identity', uiText('Inspect a specific GA4 test identifier'))}<p>${esc(uiText('Use an existing event-scoped amcp_test_id custom dimension and a synthetic identifier already sent by your own test instrumentation. AMCP does not register the dimension or send an event.'))}</p><form id="measurement-event-identity">${measurementTargetField(targets, uiText('GA4 property'), 'Connect a GA4 property in Connections to inspect a test identifier.', uiText('Choose a login and account'))}<label>${esc(uiText('Exact event name'))}<input name="event_name" type="text" maxlength="40" required></label><label>${esc(uiText('Synthetic test identifier'))}<input name="test_id" type="text" maxlength="74" required aria-describedby="measurement-identity-help" dir="ltr"></label><p class="form-note" id="measurement-identity-help">${esc(uiText('Use amcp-test- followed by 8–64 letters, digits or hyphens. Generate a new identifier only before your separate test; enter the original identifier to inspect an existing test.'))}</p><button id="measurement-identity-generate" type="button" class="button small">${esc(uiText('Generate a synthetic test identifier'))}</button><label>${esc(uiText('Report source'))}<select name="mode" aria-describedby="measurement-identity-mode-help"><option value="core_report">${esc(uiText('Core reports: property calendar dates'))}</option><option value="realtime_user_scope">${esc(uiText('Realtime: user scope, test properties only'))}</option></select></label><p class="form-note" id="measurement-identity-mode-help">${esc(uiText('Realtime reads a user-scoped amcp_test_id on a GA4 property the workspace owner marked as a test property. Counts arrive within minutes but cover every event of the test user, so they are not event-level proof.'))}</p><div id="measurement-identity-dates"><label>${esc(uiText('From date'))}<input name="date_from" type="date" required></label><label>${esc(uiText('To date'))}<input name="date_to" type="date" required></label><p class="form-note">${esc(uiText('Choose at most seven calendar days in the GA4 property timezone. Core reporting may lag; this is not a realtime event trace.'))}</p></div><div id="measurement-identity-minutes" hidden><label>${esc(uiText('Recent window (minutes)'))}<input name="minutes" type="number" min="1" max="30" step="1" value="30"></label></div><label>${esc(uiText('Stream ID (optional)'))}<input name="stream_id" type="text" maxlength="20" inputmode="numeric" dir="ltr"></label><label>${esc(uiText('Your expected count'))}<input name="expected_count" type="number" min="1" max="1000" step="1" value="1" required></label><button type="submit" class="button primary" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read matching test counts'))}</button></form><div id="measurement-event-identity-result" aria-live="polite"></div></section>`;
 }
 function bindMeasurementEventIdentity(targets) {
   const form = $('#measurement-event-identity'),
     result = $('#measurement-event-identity-result'),
     feedback = measurementReadFeedback(form),
     begin = accountWorkflowContext(form, result);
+  // MSR-04: the realtime mode reads a recent minute window instead of property calendar dates.
+  const realtimeMode = () => form.elements.mode?.value === 'realtime_user_scope',
+    modeSwitch = () => {
+      const realtime = realtimeMode();
+      $('#measurement-identity-dates').hidden = realtime;
+      $('#measurement-identity-minutes').hidden = !realtime;
+      form.elements.date_from.required = form.elements.date_to.required = !realtime;
+      if (form.elements.minutes) form.elements.minutes.required = realtime;
+    };
+  form.elements.mode?.addEventListener('change', modeSwitch);
   if (typeof location !== 'undefined') {
     const p = new URLSearchParams(location.search);
     if (p.has('event_identity')) {
-      const keys = [
+      const realtime = p.get('mode') === 'realtime_user_scope',
+        keys = [
           'event_identity',
           'account_id',
           'connection_id',
           'event_name',
           'test_id',
-          'date_from',
-          'date_to',
+          ...(realtime ? ['mode', 'minutes'] : ['date_from', 'date_to']),
           'expected_count',
         ],
         index = targets.findIndex(
@@ -3197,11 +3462,19 @@ function bindMeasurementEventIdentity(targets) {
           index >= 0 &&
           /^amcp-test-[A-Za-z0-9-]{8,64}$/.test(p.get('test_id') ?? '') &&
           /^\p{L}[\p{L}\p{N}_]{0,39}$/u.test(p.get('event_name') ?? '') &&
-          measurementIdentityPeriod(p.get('date_from'), p.get('date_to')) &&
+          (realtime
+            ? /^[1-9][0-9]?$/.test(p.get('minutes') ?? '') &&
+              Number(p.get('minutes')) <= 30 &&
+              !p.has('date_from') &&
+              !p.has('date_to')
+            : !p.has('mode') && !p.has('minutes') && measurementIdentityPeriod(p.get('date_from'), p.get('date_to'))) &&
           /^[1-9][0-9]{0,3}$/.test(p.get('expected_count') ?? '') &&
           Number(p.get('expected_count')) <= 1000 &&
           (!p.has('stream_id') || /^[1-9][0-9]{0,19}$/.test(p.get('stream_id') ?? ''));
       form.elements.target.value = valid ? String(index) : '';
+      if (form.elements.mode) form.elements.mode.value = valid && realtime ? 'realtime_user_scope' : 'core_report';
+      if (form.elements.minutes) form.elements.minutes.value = valid && realtime ? p.get('minutes') : '30';
+      modeSwitch();
       for (const k of ['event_name', 'test_id', 'date_from', 'date_to', 'stream_id', 'expected_count'])
         form.elements[k].value = valid ? (p.get(k) ?? '') : k === 'expected_count' ? '1' : '';
       result.innerHTML = `<p class="form-note" role="status">${esc(uiText(valid ? 'Test scope selected from the original inspection. Read current evidence to refresh it.' : 'The linked test scope is unavailable. Choose a currently selected property and original test identifier.'))}</p>`;
@@ -3220,13 +3493,22 @@ function bindMeasurementEventIdentity(targets) {
     try {
       const target = targets[Number(form.elements.target.value)];
       if (form.elements.target.value === '' || !target) throw Error(uiText('Choose a GA4 property.'));
-      const requirements = {
-          event_name: form.elements.event_name.value.trim(),
-          test_id: form.elements.test_id.value.trim(),
-          date_from: form.elements.date_from.value,
-          date_to: form.elements.date_to.value,
-          expected_count: Number(form.elements.expected_count.value),
-        },
+      const realtime = realtimeMode(),
+        requirements = realtime
+          ? {
+              mode: 'realtime_user_scope',
+              event_name: form.elements.event_name.value.trim(),
+              test_id: form.elements.test_id.value.trim(),
+              minutes: Number(form.elements.minutes.value),
+              expected_count: Number(form.elements.expected_count.value),
+            }
+          : {
+              event_name: form.elements.event_name.value.trim(),
+              test_id: form.elements.test_id.value.trim(),
+              date_from: form.elements.date_from.value,
+              date_to: form.elements.date_to.value,
+              expected_count: Number(form.elements.expected_count.value),
+            },
         stream = form.elements.stream_id.value.trim();
       if (stream) requirements.stream_id = stream;
       const {label, ...scope} = target;
@@ -3240,12 +3522,21 @@ function bindMeasurementEventIdentity(targets) {
         out.scope.event_name !== requirements.event_name ||
         out.scope.test_id !== requirements.test_id ||
         out.scope.stream_id !== (stream || null) ||
-        out.scope.date_from !== requirements.date_from ||
-        out.scope.date_to !== requirements.date_to ||
-        out.period?.date_from !== requirements.date_from ||
-        out.period.date_to !== requirements.date_to ||
-        typeof out.period.timezone !== 'string' ||
-        !out.period.timezone ||
+        (realtime
+          ? out.mode !== 'realtime_user_scope' ||
+            out.scope.mode !== 'realtime_user_scope' ||
+            out.scope.identity_dimension !== 'customUser:amcp_test_id' ||
+            out.scope.minutes !== requirements.minutes ||
+            out.relative_window?.start_minutes_ago !== requirements.minutes - 1 ||
+            out.relative_window.end_minutes_ago !== 0 ||
+            out.checks?.event_level_proof !== 'not_established'
+          : out.mode === 'realtime_user_scope' ||
+            out.scope.date_from !== requirements.date_from ||
+            out.scope.date_to !== requirements.date_to ||
+            out.period?.date_from !== requirements.date_from ||
+            out.period.date_to !== requirements.date_to ||
+            typeof out.period.timezone !== 'string' ||
+            !out.period.timezone) ||
         !out.observation ||
         !Object.hasOwn(measurementIdentityLabels, out.observation.comparison) ||
         (out.observation.reported_count !== null &&
@@ -3256,7 +3547,7 @@ function bindMeasurementEventIdentity(targets) {
         throw Error(
           uiText('The test inspection response is incomplete or belongs to a different selection. Read it again.'),
         );
-      result.innerHTML = `<h3 id="measurement-identity-heading" tabindex="-1">${esc(uiText('GA4 property {id}', {id: out.scope.property_id}))}</h3><p><bdi dir="auto">${esc(out.scope.event_name)}</bdi> · <bdi dir="ltr">${esc(out.scope.test_id)}</bdi></p><p>${esc(uiText('Property calendar dates'))}: <bdi dir="ltr">${esc(out.period.date_from)} — ${esc(out.period.date_to)}</bdi> · ${esc(uiText('Timezone'))}: <bdi dir="ltr">${esc(out.period.timezone)}</bdi></p><div class="workspace-metrics"><article><strong class="${out.observation.reported_count === null ? 'measurement-count-missing' : ''}"><bdi dir="ltr">${esc(out.observation.reported_count ?? uiText('No count returned'))}</bdi></strong><span>${esc(uiText('Reported matching count'))}</span></article><article><strong><bdi dir="ltr">${esc(out.observation.declared_expected_count)}</bdi></strong><span>${esc(uiText('Your declared expectation'))}</span></article></div><p class="notice">${esc(uiText(measurementIdentityLabels[out.observation.comparison]))}</p><p>${esc(uiText('Matching this test identifier does not establish deduplication, consent, attribution or overall tracking health. Multiple counts are a reason to investigate, not proof of duplicate delivery. Missing or zero counts can reflect processing delays or filters.'))}</p><p class="form-note">${esc(uiText('No event was sent and no snapshot was saved. The existing custom dimension was checked before and after this bounded report.'))}</p><div class="data-scroll" role="region" aria-label="${esc(uiText('Matching test counts by stream'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Matching test counts by stream'))}</caption><thead><tr><th scope="col">${esc(uiText('Stream ID'))}</th><th scope="col">${esc(uiText('Reported count'))}</th></tr></thead><tbody>${out.rows.map(r => `<tr><th scope="row"><bdi dir="ltr">${esc(r.stream_id)}</bdi></th><td><bdi dir="ltr">${esc(r.event_count)}</bdi></td></tr>`).join('') || `<tr><td colspan="2">${esc(uiText('No matching test rows were returned.'))}</td></tr>`}</tbody></table></div>${recordDetails(out, uiText('Test scope, source references and unverified checks'))}`;
+      result.innerHTML = `<h3 id="measurement-identity-heading" tabindex="-1">${esc(uiText('GA4 property {id}', {id: out.scope.property_id}))}</h3><p><bdi dir="auto">${esc(out.scope.event_name)}</bdi> · <bdi dir="ltr">${esc(out.scope.test_id)}</bdi></p>${realtime ? `<p>${esc(uiText('Realtime window: the last {minutes} minutes, relative to GA4 processing time', {minutes: uiNumber(out.scope.minutes)}))}</p><p class="notice">${esc(uiText('User-scoped realtime counts: every event of the synthetic test user carries this identifier, so a match is not event-level proof. Realtime processing can lag by a few minutes.'))}</p>` : `<p>${esc(uiText('Property calendar dates'))}: <bdi dir="ltr">${esc(out.period.date_from)} — ${esc(out.period.date_to)}</bdi> · ${esc(uiText('Timezone'))}: <bdi dir="ltr">${esc(out.period.timezone)}</bdi></p>`}<div class="workspace-metrics"><article><strong class="${out.observation.reported_count === null ? 'measurement-count-missing' : ''}"><bdi dir="ltr">${esc(out.observation.reported_count ?? uiText('No count returned'))}</bdi></strong><span>${esc(uiText('Reported matching count'))}</span></article><article><strong><bdi dir="ltr">${esc(out.observation.declared_expected_count)}</bdi></strong><span>${esc(uiText('Your declared expectation'))}</span></article></div><p class="notice">${esc(uiText(measurementIdentityLabels[out.observation.comparison]))}</p><p>${esc(uiText('Matching this test identifier does not establish deduplication, consent, attribution or overall tracking health. Multiple counts are a reason to investigate, not proof of duplicate delivery. Missing or zero counts can reflect processing delays or filters.'))}</p><p class="form-note">${esc(uiText('No event was sent and no snapshot was saved. The existing custom dimension was checked before and after this bounded report.'))}</p>${realtime ? `<p class="form-note">${esc(uiText('The user-scoped amcp_test_id value stays on the synthetic test user in GA4. Use a fresh identifier and a dedicated test browser or device for each test.'))}</p>` : ''}<div class="data-scroll" role="region" aria-label="${esc(uiText('Matching test counts by stream'))}" tabindex="0"><table class="review-table"><caption>${esc(uiText('Matching test counts by stream'))}</caption><thead><tr><th scope="col">${esc(uiText('Stream ID'))}</th><th scope="col">${esc(uiText('Reported count'))}</th></tr></thead><tbody>${out.rows.map(r => `<tr><th scope="row"><bdi dir="ltr">${esc(r.stream_id)}</bdi></th><td><bdi dir="ltr">${esc(r.event_count)}</bdi></td></tr>`).join('') || `<tr><td colspan="2">${esc(uiText('No matching test rows were returned.'))}</td></tr>`}</tbody></table></div>${recordDetails(out, uiText('Test scope, source references and unverified checks'))}`;
       $('#measurement-identity-heading').focus();
     } catch (error) {
       if (current()) feedback.show(error);

@@ -224,11 +224,16 @@ export function independentlyReadOnly(plan: CompiledRequest): boolean {
           /^\/v1\/locations\/[^/:]+:fetchVerificationOptions$/.test(pathname))
       );
     case 'reddit_native_action':
-      return /^\/api\/v3\/ad_accounts\/[^/]+\/reports$/.test(pathname);
+      // Reports, plus the PRV-07 planning and history reads (src/reddit-extensions.ts).
+      return (
+        /^\/api\/v3\/ad_accounts\/[^/]+\/(?:reports|history|forecasting\/audience_and_delivery_estimates)$/.test(
+          pathname,
+        ) || ['/api/v3/forecasting/bid_suggestions', '/api/v3/targeting/keyword_suggestions'].includes(pathname)
+      );
     case 'apple_ads_native_action':
       return (
         plan.origin === 'https://api.ads.apple.com' &&
-        /^\/v1\/(?:campaigns|adgroups|ads|creatives|keywords|negative-keywords|shared-budgets|reports\/apps\/(?:campaigns|adgroups|ads|keywords|searchterms))\/query$/.test(
+        /^\/v1\/(?:campaigns|adgroups|ads|creatives|keywords|negative-keywords|shared-budgets|reports\/apps\/(?:campaigns|adgroups|ads|keywords|searchterms)|eligibilities\/apps|product-pages|insights\/apps\/(?:impression-share|search-term-popularity)|suggestions\/keywords)\/query$/.test(
           pathname,
         )
       );

@@ -796,6 +796,9 @@ IDs, configured values, native type/status/model and click/view days; omitted fi
 references remain available, but no snapshot is saved. The website handoff preselects the exact current account
 without reading automatically; search/paging is local. Event delivery, deduplication, consent, campaign membership
 and historical report attribution are not established. No event, rule change or campaign association occurs.
+Each rule's `last_callback_at` and `latest_first_party_callback_at` (MSR-04, epoch milliseconds) are LinkedIn's own
+last-fired observations, which LinkedIn may take about 20 minutes to update; `checks.observed_activity` is
+`provider_reported` or `not_reported`. Null is unknown, never "never fired", and a time is not delivery proof.
 
 `amcp_workspace {action:"measurement_google_goals",gateway:"google_ads_native_action",account_id,connection_id,
 requirements?:{currency}}` reads current Google Ads conversion goals as measurement evidence: account-default goals,
@@ -810,7 +813,8 @@ requirements?:{sections}}` reads one GA4 property's configuration through fixed 
 key_events, custom_dimensions, custom_metrics, data_streams (type and measurement ID), google_ads_links and
 data_retention (all by default). Every list is read completely (10 pages per list; 60 requests, 4 MiB, 60 seconds);
 foreign, unpinned, repeated or malformed rows refuse the read. `checks.test_identifier_dimension` says whether the
-event-scoped `amcp_test_id` dimension that measurement_event_identity needs is registered. Ads link creator e-mails
+event-scoped `amcp_test_id` dimension that measurement_event_identity needs is registered;
+`checks.realtime_identity_dimension` says the same of the user-scoped one its realtime mode needs. Ads link creator e-mails
 are never returned. Nothing is saved; configuration is not proof of delivery.
 
 `amcp_workspace {action:"measurement_ledger",gateway:"google_ads_native_action"|"ga4_native_action",account_id,
@@ -870,6 +874,16 @@ investigation and do not prove duplicates; deduplication, consent, attribution a
 No snapshot is saved. The website link carries the original test scope and makes no automatic native request;
 local identifier generation clears old evidence. Never invent a reported count, declare a synthetic fixture as
 live acceptance or use an aggregate match as authorization for a repair/write.
+
+`requirements.mode:"realtime_user_scope"` (MSR-04) replaces the dates with `minutes` (1–30, default 30) and reads
+`customUser:amcp_test_id` through `runRealtimeReport`, because the Realtime API filters only user-scoped dimensions.
+It is refused (`MEASUREMENT_TEST_PROPERTY_REQUIRED`, before any GA4 request, and again if unmarked mid-read) unless
+the workspace owner marked the property with `amcp_workspace {action:"save_ga4_test_property",connection_id,
+account_id,enabled:true|false,confirmed:true}` (owner only, audited, nothing changes in GA4). The result carries
+`mode`, `relative_window`, `latency:"realtime"`, `checks.identity_scope:"user"`, `checks.test_event_identity:
+"user_scope_matched"|"not_observed"` and `checks.event_level_proof:"not_established"`: every event of the test user
+carries the identifier, so present it as a user-level signal, never event-level proof. The value persists on the
+synthetic test user; advise a fresh identifier and a dedicated test browser or device per test.
 
 
 ## Source-bound Google exact-negative drafts
@@ -1227,11 +1241,13 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `preview_consent_plan` | Reads 1–10 selected tags and previews additional-consent changes for a 10-minute, session-bound window. | **`gateway`**, **`account_id`**, **`connection_id`**, **`requirements`** | provider reads; saves gtm_consent_preview | operator |
 | `create_consent_plan` | Saves the previewed consent changes as one unapproved native UPDATE_TAG plan; nothing is published. | **`preview_id`**, **`preview_hash`**, **`confirmed`** | provider reads; saves campaign_run | operator |
 | `measurement_events` | Recent GA4 realtime event counts for 1–20 exact event names; no event is sent and nothing is saved. | **`gateway`**, **`account_id`**, **`connection_id`**, **`requirements`** | provider reads | reader |
-| `measurement_event_identity` | Counts one synthetic GA4 test identifier through an existing amcp_test_id dimension; nothing is saved. | **`gateway`**, **`account_id`**, **`connection_id`**, **`requirements`** | provider reads | reader |
+| `measurement_event_identity` | Counts one synthetic GA4 test identifier through an existing amcp_test_id dimension (core report dates, or mode realtime_user_scope on an owner-marked test property); nothing is saved. | **`gateway`**, **`account_id`**, **`connection_id`**, **`requirements`** | provider reads | reader |
 | `measurement_conversions` | Current LinkedIn conversion rule settings of one account; nothing is saved. | **`gateway`**, **`account_id`**, `connection_id`, `requirements` | provider reads | reader |
 | `measurement_google_goals` | Current Google Ads conversion goals of one customer, read twice under one fence; optional requirements {currency}. Nothing is saved. | **`gateway`**, **`account_id`**, `connection_id`, `requirements` | provider reads | reader |
 | `measurement_ga4_config` | One GA4 property configuration (key events, custom definitions, streams, Ads links, retention); optional requirements {sections}. | **`gateway`**, **`account_id`**, `connection_id`, `requirements` | provider reads | reader |
 | `measurement_ledger` | Six fixed evidence layers for one Google Ads customer or GA4 property; a failed read leaves its layer unknown. Nothing is saved. | **`gateway`**, **`account_id`**, `connection_id` | provider reads | reader |
+| `change_history` | Google Ads change events of one customer for at most 30 days, newest first, with a per-day timeline; who made a change is not requested. Nothing is saved. | **`gateway`**, **`account_id`**, **`requirements`**, `connection_id` | provider reads | reader |
+| `search_overlap` | Search Console queries and Google Ads search terms for the same closed dates, joined approximately on normalized text. Nothing is saved. | **`gateway`**, **`account_id`**, **`requirements`**, `connection_id` | provider reads | reader |
 | `catalog_preview` | Locally validates 1–50 selected Meta or X products with exact source prices. | **`gateway`**, **`account_id`**, **`catalog_id`**, **`products`**, `connection_id`, `allow_upsert`, `name` | no provider request | reader |
 | `catalog_source` | Reads selected WooCommerce products or variations (or, with source_kind:inventory, the published inventory). | **`gateway`**, **`account_id`**, **`connection_id`**, **`requirements`** | provider reads | reader |
 | `catalog_sources` | Lists configured WooCommerce source connections without credentials or network requests. | — | no provider request | reader |
@@ -1254,6 +1270,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `resume_writes` | Resumes reviewed writes. | **`confirmed`** | no provider request; saves write_pause | owner |
 | `enable_personal_data` | Turns personal-data writes (customer lists) on for one ad account. | **`gateway`**, **`account_id`**, **`confirmed`**, `connection_id` | no provider request; saves personal_data_setting | owner |
 | `disable_personal_data` | Turns personal-data writes off for one ad account. | **`gateway`**, **`account_id`**, **`confirmed`**, `connection_id` | no provider request; saves personal_data_setting | owner |
+| `save_ga4_test_property` | Marks (enabled true) or unmarks one GA4 property as a test property, which the realtime test-identity read requires; nothing changes in GA4. | **`connection_id`**, **`account_id`**, **`enabled`**, **`confirmed`** | no provider request; saves ga4_test_property | owner |
 
 ### amcp_campaign
 

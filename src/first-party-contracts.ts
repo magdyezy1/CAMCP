@@ -468,7 +468,7 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'measurement_event_identity',
-      'Counts one synthetic GA4 test identifier through an existing amcp_test_id dimension; nothing is saved.',
+      'Counts one synthetic GA4 test identifier through an existing amcp_test_id dimension (core report dates, or mode realtime_user_scope on an owner-marked test property); nothing is saved.',
       [...nativeScope],
       [],
       reads(),
@@ -513,6 +513,29 @@ const rows: Record<string, Row[]> = {
       [
         [W, 'measurement_google_goals'],
         [W, 'measurement_ga4_config'],
+      ],
+    ),
+    row(
+      'change_history',
+      'Google Ads change events of one customer for at most 30 days, newest first, with a per-day timeline; who made a change is not requested. Nothing is saved.',
+      ['gateway', 'account_id', 'requirements'],
+      ['connection_id'],
+      reads(),
+      'reader',
+      // The current value of a changed resource is in the inventory; change history names only the field.
+      [[W, 'portfolio']],
+    ),
+    row(
+      'search_overlap',
+      'Search Console queries and Google Ads search terms for the same closed dates, joined approximately on normalized text. Nothing is saved.',
+      ['gateway', 'account_id', 'requirements'],
+      ['connection_id'],
+      reads(),
+      'reader',
+      // Exact negative keywords come from a retained guided search-term report, through the reviewed exclusion plan.
+      [
+        [R, 'capture_preset'],
+        [R, 'search_exclusion_candidates'],
       ],
     ),
     row(
@@ -680,6 +703,15 @@ const rows: Record<string, Row[]> = {
       saves('personal_data_setting'),
       'owner',
       [[W, 'dashboard']],
+    ),
+    row(
+      'save_ga4_test_property',
+      'Marks (enabled true) or unmarks one GA4 property as a test property, which the realtime test-identity read requires; nothing changes in GA4.',
+      ['connection_id', 'account_id', 'enabled', 'confirmed'],
+      [],
+      saves('ga4_test_property'),
+      'owner',
+      [[W, 'measurement_event_identity']],
     ),
   ],
   [C]: [

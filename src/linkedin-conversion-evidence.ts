@@ -84,6 +84,16 @@ function projectRule(row: unknown, account: string): JsonObject {
       invalid('LinkedIn returned an imprecise or malformed configured conversion value.');
     value = {amount: r.value.amount, currency: r.value.currencyCode};
   }
+  // Observed activity (MSR-04): LinkedIn's report of the last time a URL match rule fired (lastCallbackAt; LinkedIn
+  // says it may take 20 minutes to update) and of the latest first-party callback. Epoch milliseconds; absent stays
+  // null, which means unknown, never "never fired". These are observations: the write-state projection
+  // (linkedinConversionConfiguration) strips them, so they never enter a write fingerprint.
+  const observedAt = (field: string) => {
+    const value = r[field];
+    if (value === undefined || value === null) return null;
+    if (!Number.isSafeInteger(value) || value < 1) invalid('LinkedIn returned an invalid conversion callback time.');
+    return value;
+  };
   return {
     id: selected,
     urn: 'urn:lla:llaPartnerConversion:' + selected,
@@ -97,10 +107,15 @@ function projectRule(row: unknown, account: string): JsonObject {
     post_view_days: days('viewThroughAttributionWindowSize'),
     value_type: text('valueType', 100),
     value,
+    last_callback_at: observedAt('lastCallbackAt'),
+    latest_first_party_callback_at: observedAt('latestFirstPartyCallbackAt'),
   };
 }
 
-/** Current configuration only. No event observations, historical attribution or campaign membership are inferred. */
+/**
+ * Current configuration plus LinkedIn's own last-callback observations, labelled as such (MSR-04). No event delivery,
+ * historical attribution or campaign membership is inferred.
+ */
 export async function linkedInConversionEvidence(store: Store, call: ToolCall, actor: Actor, input: JsonObject) {
   if (input.gateway !== gateway)
     bad('Conversion configuration discovery currently supports LinkedIn.', 'MEASUREMENT_CONVERSIONS_UNQUALIFIED');
@@ -314,6 +329,10 @@ export async function linkedInConversionEvidence(store: Store, call: ToolCall, a
         }),
         checks: {
           configuration: 'observed',
+          // Provider-reported last callback times per rule (MSR-04); null rules stay unknown. Not delivery proof.
+          observed_activity: rules.some(r => r.last_callback_at !== null || r.latest_first_party_callback_at !== null)
+            ? 'provider_reported'
+            : 'not_reported',
           event_delivery: 'unverified',
           deduplication: 'unverified',
           consent: 'unverified',
@@ -323,7 +342,7 @@ export async function linkedInConversionEvidence(store: Store, call: ToolCall, a
         advertising_writes: 0,
         retained_snapshot: false,
         meaning:
-          "The account finder requests LinkedIn's default owned-rule selection; shared rules were not requested. Current LinkedIn conversion rule settings only. Missing native fields stay unknown. Campaign membership, event delivery, deduplication, consent and historical report attribution are not established. No event was sent, rule changed or snapshot saved.",
+          "The account finder requests LinkedIn's default owned-rule selection; shared rules were not requested. Current LinkedIn conversion rule settings only. Missing native fields stay unknown. last_callback_at and latest_first_party_callback_at are LinkedIn's own last-fired observations (epoch milliseconds; LinkedIn notes up to about 20 minutes of lag); null is unknown, not 'never fired'. Campaign membership, event delivery, deduplication, consent and historical report attribution are not established. No event was sent, rule changed or snapshot saved.",
       };
     });
   } finally {

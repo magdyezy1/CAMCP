@@ -660,6 +660,19 @@ creative before choosing their native parent IDs. Do not guess app IDs, product-
 pricing models, targeting or identity inputs. New negative keywords select exactly one
 campaignId or adGroupId. Updates cannot change immutable parents or creative destination.
 
+Look these up instead, with the planning reads of the same pinned SDK (each under the selected
+account's `X-AP-Context`; nothing changes): `apple_ads_v1_apps_search` (`query: {query,
+returnOwnedApps, limit 1–1000, offset}`) and `apple_ads_v1_app_get` (`path_params: {id: <adamId>}`)
+find the app to promote; `apple_ads_v1_app_eligibilities_query` shows where it can run;
+`apple_ads_v1_product_pages_query` lists its custom product pages. Before preparing a campaign,
+confirm the `promotedObjectId` (adamId) and the intended countries or regions against these reads
+and show them to the user; the campaign review still freezes and re-reads only its own account
+state. `apple_ads_v1_impression_share_query`, `apple_ads_v1_search_term_popularity_query` and
+`apple_ads_v1_keyword_suggestions_query` are planning insights, not commitments. Their payloads are
+objects of at most 64 KiB that Apple validates, since the SDK pins no request model for them. A
+returned resource of another ad account is refused. Apple's change history is not exposed: its
+records name the people who made changes.
+
 Money uses decimal strings with at most two fractional digits and the discovered account
 currency. `CURRENCY_MISMATCH` requires correcting the currency, never converting by guessing
 an exchange rate. `VENDOR_SCHEMA_UNAVAILABLE` needs a maintainer to restore or refresh the

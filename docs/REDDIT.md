@@ -1,6 +1,6 @@
 # Reddit adapter
 
-All 49 action names exposed by the seven captured Reddit operation schemas resolve to the saved official v3 specification. Two independent AMCP actions, CREATE_SAVED_AUDIENCE and UPDATE_SAVED_AUDIENCE, extend reddit_account_ops at runtime without rewriting the captured catalog. Some names are aliases of the same vendor operation. Mappings are independently designed; exact AMCP behavior and live Reddit execution are not verified. The specification is captured in `.mirror/VENDOR/reddit-v3.json` and regenerated through `tools/fetch-vendor-specs.mjs`. [Official API specification](https://ads-api.reddit.com/api/v3/openapi.json).
+All 49 action names exposed by the seven captured Reddit operation schemas resolve to the saved official v3 specification. Six independent AMCP actions, CREATE_SAVED_AUDIENCE, UPDATE_SAVED_AUDIENCE and four planning/history reads (below), extend reddit_account_ops at runtime without rewriting the captured catalog. Some names are aliases of the same vendor operation. Mappings are independently designed; exact AMCP behavior and live Reddit execution are not verified. The specification is captured in `.mirror/VENDOR/reddit-v3.json` and regenerated through `tools/fetch-vendor-specs.mjs`. [Official API specification](https://ads-api.reddit.com/api/v3/openapi.json).
 
 ## Connection
 
@@ -52,6 +52,17 @@ Use amcp_write inspect/prepare with gateway reddit_native_action and the native 
 
 - reddit_campaign_ops: CREATE/UPDATE_CAMPAIGN, CREATE/UPDATE_AD_GROUP, CREATE/UPDATE_AD.
 - reddit_account_ops: CREATE/UPDATE_SAVED_AUDIENCE (independent AMCP additions).
+- reddit_account_ops reads (PRV-07, independent AMCP additions built from the pinned v3 document's own request and
+  response schemas; POST reads under adsread): GET_DELIVERY_ESTIMATES (`params.ad_account_id`), GET_BID_SUGGESTIONS
+  (`payload.data.ad_account_id` must name the selected account), LIST_KEYWORD_SUGGESTIONS (account-agnostic, run under
+  a selected bound account) and GET_ACCOUNT_HISTORY (`params.ad_account_id`, optional `page.size` up to 1,000 and
+  `page.token`). Bid suggestions refuse `custom_audience_ids` and `excluded_custom_audience_ids`, which belong to one
+  account. Account history names the
+  people who made changes, so AMCP drops member IDs, usernames, e-mails and full names before the response leaves the
+  service: each row keeps the change, `changed_at`, any partner business name and `changed_by`
+  (`member_not_shown` or `not_reported`). A `member_ids` filter would name them too, so it is refused
+  (`PERSONAL_DATA_READ_FORBIDDEN`) before any request. The Conversions API stays a separate, later step under the
+  personal-data policy.
 - Saved audiences are REDDIT_AUDIENCE targeting definitions; updates support name/targeting or status: DELETED. No customer lists are uploaded.
 - Classic ad groups require an existing campaign and conversion_pixel_id; CBO campaigns also require conversion_pixel_id under the current provider contract. Ads require an existing ad_group_id and post_id. Reddit Max/dynamic creative templates remain outside this contract. [Campaign contract](https://ads-api.reddit.com/docs/v3/api/create-campaign), [ad-group contract](https://ads-api.reddit.com/docs/v3/api/create-ad-group).
 - A request that names a conversion_pixel_id (an ad group, a CBO campaign, or an update that changes the pixel) reads the pixels associated with the ad account (`GET /api/v3/ad_accounts/{id}/pixels`, one page of up to 1,000) at prepare and again at execute. A pixel the account does not list is refused with `REDDIT_PIXEL_NOT_IN_ACCOUNT` before anything is sent; `details.account_pixel_ids` names the pixels the account has (PRV-06). Only then is the pixel's activity read (`GET /api/v3/pixels/{id}/last_fired_at`): the review's `creative_impact.conversion_pixel` shows its name, its latest event across the standard and custom events and a `freshness` of `recent`, `stale` (no event in the last 7 days) or `never_fired`, with a warning for the last two. Activity warns and never refuses (a new pixel has no history yet). The exact time is not compared at execute, but a change of freshness is `STATE_CHANGED`. Read-back compares `conversion_pixel_id` with the reviewed request. Both reads count against Reddit's Conversion Signals limit (30 requests per minute in the pinned specification).

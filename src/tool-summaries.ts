@@ -13,14 +13,14 @@ const help = (tool: string) =>
 export const routingSummaries: Readonly<Record<string, string>> = Object.freeze({
   amcp_workspace:
     'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its history. ' +
-    'Safety: nothing here changes an advertising account. Previews and saves are local; confirmed saves need confirmed:true and the current revision or version; saved drafts still need native review through amcp_write or amcp_campaign. Missing evidence stays unknown, never passed. ' +
-    'Core actions: capabilities (per-account readiness and blockers, paged by next_cursor, filtered by workflow_id, connection_id or account_id; view:"graph" adds the graph), ' +
+    'Safety: nothing here changes an advertising account. Previews and saves are local; confirmed saves need confirmed:true and the current revision or version; saved drafts still need native review (amcp_write, amcp_campaign). Missing evidence stays unknown, never passed. ' +
+    'Core actions: capabilities (per-account readiness and blockers, paged by next_cursor, filtered by workflow, connection or account; view:"graph" adds the graph), ' +
     'check (exact account prerequisites; only live:true reads the account, saving that evidence), ' +
     'program_check (one conditional program; only live:true reads the provider), ' +
     'contracts (read/write/media/blocked class of every action, no network), ' +
     'operations (feed of retained work with next_call handoffs), history (bounded audit metadata) and ' +
     'dashboard (bounded counts per provider and account). ' +
-    'Other actions: portfolio and portfolio_reconcile, measurement_audit/events/event_identity/conversions/google_goals/ga4_config/ledger, catalog_sources/source/preview/compare/plan, consent and catalog-removal drafts, local workbook report runs and schedules (no spreadsheet writes), queries and bindings, incidents and monitors, client profiles and briefs, and owner operations (health, support_bundle, spend, retention and plan policies, write pause, personal-data switch). ' +
+    'Other actions: portfolio and portfolio_reconcile, measurement_* evidence reads, catalog_* reads and plans, consent and catalog-removal drafts, local workbook report runs and schedules (no spreadsheet writes), queries and bindings, incidents and monitors, client profiles and briefs, and owner operations (health, support_bundle, spend, retention and plan policies, write pause, personal-data switch, GA4 test property). ' +
     help('amcp_workspace'),
   amcp_campaign:
     'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. ' +
