@@ -8,7 +8,7 @@ Production readiness: **not achieved**. Reviewed campaign-management writes are 
 | amazon_native_action | 0 (denominator unknown) | 0 | 0 | No |
 | amcp_native_action | 59 | 0 | 0 | No |
 | amcp_platform_workspace | 3 | 0 | 0 | No |
-| apple_ads_native_action | 0 (denominator unknown) | 0 | 41 | No |
+| apple_ads_native_action | 0 (denominator unknown) | 0 | 48 | No |
 | commerce_native_action | 2 | 0 | 0 | No |
 | criteo_native_action | 9 | 0 | 107 | No |
 | dv360_native_action | 173 | 0 | 173 | No |
