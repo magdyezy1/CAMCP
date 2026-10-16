@@ -291,7 +291,7 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'check',
-      'Exact account prerequisites of account_id, or of account_ids (1 to 20 accounts of one login, read four at a time): live:false saves nothing; live:true reads each account and saves its read evidence.',
+      'Exact account prerequisites of account_id, or of 1–20 account_ids of one login: live:false saves nothing; live:true reads each account and saves its read evidence.',
       ['connection_id'],
       ['account_id', 'account_ids', 'live', 'requirements'],
       reads('readiness', 'account_metadata'),
@@ -414,7 +414,7 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'portfolio',
-      'One bounded inventory page (campaigns, ad sets/groups, ads) of a Google, Meta, LinkedIn, Snapchat, TikTok or X account.',
+      'One bounded inventory page (campaigns, ad sets/groups, ads) of a Google, Meta, LinkedIn, Snapchat, TikTok, X or Microsoft account.',
       ['gateway', 'account_id'],
       ['connection_id', 'requirements', 'limit', 'cursor'],
       reads(),

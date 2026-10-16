@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import * as localeChecks from '../tools/check-locales.mjs';
 import {catalogComparisonInput} from './fixtures/catalog-comparison-data.mjs';
 import {accountWorkflowFixture, accountWorkflowCSV as csv} from './fixtures/account-workflows-ui.mjs';
+import {catalogServer} from './fixtures/catalog-server.mjs';
 
 const plain = value => JSON.parse(JSON.stringify(value));
 const fixture = accountWorkflowFixture;
@@ -913,18 +914,27 @@ test('Arabic product import preserves CSV strings, native defaults and create-on
   ]);
 });
 
-test('column mapping loads locally and submits identical selected fields in English and Arabic through the reviewed plan', async () => {
+test('column mapping loads locally and submits identical selected fields in English and Arabic through the reviewed plan', async t => {
   const transcripts = [];
   for (const locale of ['en', 'ar']) {
     const f = fixture(locale),
-      form = f.node('#catalog-import');
+      form = f.node('#catalog-import'),
+      // COM-03: the real catalog workspace keeps the catalog's versioned mapping and projects the selected columns.
+      server = catalogServer({tenant: 'account-localization-mapping-' + locale});
+    t.after(() => server.close());
+    f.respond(server.respond);
     const source =
       'SKU,Name,Regular price,Images,Private\n001,Home,0012.34,"https://example.test/a.png, https://example.test/b.png",SECRET-UNMAPPED\n';
     form.elements.file.files = [{size: source.length, text: async () => source}];
     form.elements.column_mode.value = 'mapped';
     await f.run('renderCommerce()');
     await f.bindings.get('#catalog-load-columns')();
-    assert.equal(f.calls.length, 0);
+    // The file is read in the browser; AMCP is asked only for this catalog's saved mapping, never for its rows.
+    assert.deepEqual(
+      f.calls.map(c => c.action),
+      ['catalog_mapping'],
+    );
+    assert.doesNotMatch(JSON.stringify(f.calls), /SKU|Home|0012\.34|SECRET-UNMAPPED/);
     assert.match(f.node('#catalog-mapping').innerHTML, /SKU/);
     if (locale === 'ar') assert.match(f.node('content').innerHTML, /تعيين أعمدة CSV/);
     assert.equal(f.node('#catalog-map-price').value, '', 'price is never guessed from regular/sale columns');
@@ -943,13 +953,31 @@ test('column mapping loads locally and submits identical selected fields in Engl
     transcripts.push(f.calls);
   }
   assert.deepEqual(transcripts[0], transcripts[1]);
-  assert.deepEqual(transcripts[0][0].products, [
-    {retailer_id: '001', name: 'Home', price: '0012.34', image_url: 'https://example.test/a.png', currency: 'SAR'},
-  ]);
-  assert.deepEqual(transcripts[0][1].products, transcripts[0][0].products);
+  assert.deepEqual(
+    transcripts[0].map(c => c.action),
+    ['catalog_mapping', 'save_catalog_mapping', 'catalog_preview', 'catalog_plan'],
+  );
+  const [, mapping, preview, plan] = transcripts[0];
+  // The saved mapping names the selected columns only; the price is the chosen column, never a guessed one.
+  assert.deepEqual(mapping.requirements.columns, {
+    retailer_id: 'SKU',
+    name: 'Name',
+    price: 'Regular price',
+    image_url: 'Images',
+  });
+  // Only the selected columns are sent, the image list read by its first URL; the plan names the same source.
+  assert.deepEqual(preview.requirements.source, {
+    kind: 'csv',
+    text: 'SKU,Name,Regular price,Images\n001,Home,0012.34,https://example.test/a.png',
+    columns: 'profile',
+    profile_version: 1,
+  });
+  assert.equal(preview.products, undefined);
+  assert.deepEqual(plan.requirements.source, preview.requirements.source);
+  assert.equal(plan.products, undefined);
 });
 
-test('column mapping requires the loaded file and fences changed forms, departure, errors and stale plans', async () => {
+test('column mapping requires the loaded file and fences changed forms, departure, errors and stale plans', async t => {
   for (const reason of ['navigationGeneration', 'identityGeneration', 'edit', 'detach'])
     for (const rejected of [false, true]) {
       const f = fixture(),
@@ -975,19 +1003,36 @@ test('column mapping requires the loaded file and fences changed forms, departur
       assert.equal(f.calls.length, 0);
     }
   const f = fixture(),
-    form = f.node('#catalog-import');
+    form = f.node('#catalog-import'),
+    server = catalogServer({tenant: 'account-localization-mapping-fences'});
+  t.after(() => server.close());
+  f.respond(server.respond);
   form.elements.column_mode.value = 'mapped';
+  form.elements.fixed_currency.value = 'SAR';
   await f.run('renderCommerce()');
   await assert.rejects(f.bindings.get('#catalog-import')(form), /Load the selected CSV/);
+  assert.equal(f.calls.length, 0);
   await f.bindings.get('#catalog-load-columns')();
+  for (const [field, column] of Object.entries({
+    retailer_id: 'retailer_id',
+    name: 'name',
+    price: 'price',
+    currency: '',
+    image_url: 'image_url',
+  }))
+    f.node('#catalog-map-' + field).value = column;
   await f.bindings.get('#catalog-import')(form);
+  assert.deepEqual(
+    f.calls.map(c => c.action),
+    ['catalog_mapping', 'save_catalog_mapping', 'catalog_preview'],
+  );
   const save = f.bindings.get('#create-catalog-plan');
   form.events.get('input')();
   await save();
-  assert.equal(f.calls.length, 1, 'changed mapping cannot save old plan');
+  assert.equal(f.calls.length, 3, 'changed mapping cannot save old plan');
   form.elements.file.files = [{size: csv.length, text: async () => csv}];
   await assert.rejects(f.bindings.get('#catalog-import')(form), /Load the selected CSV/);
-  assert.equal(f.calls.length, 1);
+  assert.equal(f.calls.length, 3);
 });
 
 test('Arabic portfolio keeps native hierarchy, status, exact money and continuation tokens', async () => {
