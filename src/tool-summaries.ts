@@ -9,9 +9,7 @@ import {actionSummaries, firstPartyContract, type FirstPartyContract} from './fi
  */
 export const descriptionBudget = 2000;
 const help = (tool: string) =>
-  'Per-action arguments, rules and guides: amcp_tool_help {gateway:"' +
-  tool +
-  '",operation:"<action>"} or {topic:"guides"}.';
+  'Per-action arguments: amcp_tool_help {gateway:"' + tool + '",operation:"<action>"} or {topic:"guides"}.';
 export const routingSummaries: Readonly<Record<string, string>> = Object.freeze({
   amcp_workspace:
     'Use this before planning a change, to see what an account is ready for and which actions have write contracts, and afterwards for its history. ' +
@@ -39,8 +37,8 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     'Core actions: inspect, prepare and execute (a Google Ads or Snapchat batch over 25 records is one review of parts of 25), status (a retained review read back without a provider request) and reconcile (read-only checks of an uncertain write; accept_applied with its reconciliation_id records what was observed). ' +
     help('amcp_write'),
   amcp_reporting:
-    'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. ' +
-    'For saved client reports across platforms, schedules and Sheets exports, use amcp_reporting_overview. ' +
+    'Use this to analyse captured native report metrics: reconciliation, comparisons and recommendations. ' +
+    'For saved client reports, schedules and Sheets exports, use amcp_reporting_overview. ' +
     'Safety: no advertising writes. A saved plan is an unapproved draft that still needs native review, spending acknowledgement and read-back. Missing metrics stay unknown; most attribution windows and completeness remain declared; partial or changed evidence is refused. ' +
     'Core actions: capture_presets, capture_preset and capture (bounded, source-hashed native reads), overview_sources and capture_overview, list and get (row_query, xlsx_path), ' +
     'analyze (pacing, anomaly, fatigue and search-waste recommendations), reconcile_report and reconcile, combine, scenarios, ' +
@@ -51,7 +49,7 @@ export const routingSummaries: Readonly<Record<string, string>> = Object.freeze(
     'Safety: no advertising mutations. Sheets exports replace only an AMCP-owned tab and retries never append duplicate rows; destinations, schedules and presentation changes need confirmed:true; missing metrics remain null; GA4 and Search Console are measurement context. ' +
     'Core actions: bootstrap (accounts, metrics, levels and saved reports), save, get, list and delete_report (client reports; edits need expected_revision), save_template, delete_template and delete_view, ' +
     'run (a bounded native snapshot, total to monthly, campaign to ad level where qualified), compare and compare_candidates (deltas against an earlier equal window), report_pack (summaries, evidence and PDF/XLSX), ' +
-    'export, export_status, retry and cancel; schedule, preview_schedule, update_schedule, pause_schedule, resume_schedule, remove_schedule (delete_schedule: legacy pause alias); ' +
+    'export, export_status, retry and cancel; schedule, preview_schedule, update_schedule, pause_schedule, resume_schedule, remove_schedule; ' +
     'create_spreadsheet, bind_destination (Google Sheets) and bind_file_destination (encrypted local PDF/XLSX); save_presentation, presentation_profiles and apply_profile_presentation. ' +
     help('amcp_reporting_overview'),
   amcp_media:
