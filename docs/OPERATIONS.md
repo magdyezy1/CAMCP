@@ -822,7 +822,8 @@ These counters do not certify service-level objectives or tenant capacity. See
 
 The same health view reads two 30-day summaries back from the audit: `cap_overrides`, the reviewed executions that
 went beyond a spending cap with `cap_override_confirmed` (count, then the latest 20 with account, rules, actor, role
-and review id), and `review_friction`, prepare-to-execute latency and the rates of expired reviews, changed state,
+and review id; since owner decision P5 each is the owner's own execution or one the owner approved on the website),
+and `review_friction`, prepare-to-execute latency and the rates of expired reviews, changed state,
 acknowledgement refusals, uncertain outcomes and requests not sent per 100 prepares (codes, counts and field paths,
 never values). Its `approvals` block (WRT-09) counts approvals given on the website, those by the owner, the time from
 prepare to approval and the refusals that waited for a person (`HUMAN_APPROVAL_REQUIRED`,
