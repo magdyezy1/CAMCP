@@ -100,15 +100,24 @@ in a body (`status: DELETED`, `operation_status: DELETE`) belongs in `bodyDeleti
    documented resource (the field the write overwrites or depends on), not from the family's projection.
    `tests/reviewed-family-conformance.test.mjs` drives it through the real review lifecycle: the change of the decisive
    field between review and execute is `STATE_CHANGED` naming it, a paginated state read is refused, and a partial or
-   failed answer is never success and never sent again. Where the family's own prerequisite forbids the changed value
-   (a status transition, a resource a live entity now uses, a duplicate), the descriptor names that refusal instead
-   (`decisive.refusal`, as `meta-ad-videos.mjs`); a family whose reads are single entities the vendor never pages
-   says why (`unpaginated`); an upload about people passes them with `prepareFields` and `execute`
-   (`meta-offline-conversions.mjs`). A family is never added to
+   failed answer is never success and never sent again. Shared synthetic answers of a provider live in
+   `tests/family-descriptors/_<provider>.mjs` (`_tiktok`, `_snapchat`, `_dv360`). A family whose state reads are single
+   resources states why in `unpaginated`; a reader that follows cursors is shown another page whose cursor repeats,
+   which it refuses at once instead of walking its page bound. The family's prerequisites run again at execute before
+   the comparison, so prefer a decisive change they accept, which the comparison reports as `STATE_CHANGED`. Only
+   when every meaningful change of the decisive field is refused by the family's own prerequisite (a status
+   transition, a resource a live entity now uses, a duplicate) does the descriptor name that typed refusal instead
+   (`decisive.refusal`, as `meta-ad-videos.mjs`; such a refusal is, for example, `AUDIENCE_IN_USE` or
+   `CONFIGURATION_EXISTS`). An upload about people passes them with `prepareFields` and `execute`
+   (`meta-offline-conversions.mjs`). A second request shape the family also serves is a variant in
+   `tests/family-descriptors/variants/` (as `snapchat-nested-updates-targeting.mjs` for the ad squad targeting PATCH):
+   it runs the same checks and never stands in for the family's own descriptor. A family is never added to
    `tests/fixtures/family-conformance-pending.json`; a backfilled one is removed from it with the ceiling lowered.
    Backfill order: activation and spend-affecting families of active providers first (Google Ads, Meta, Snapchat,
-   LinkedIn and Microsoft Advertising budgets, bids and statuses), then their other entity writes, and parked
-   providers (Criteo) last.
+   LinkedIn and Microsoft Advertising budgets, bids and statuses), then their other entity writes. A family of a
+   parked provider (`parkedProviders` in `tools/provider-lifecycle.ts`, today Criteo under PRK-02) may hold a
+   lifecycle-parked exemption in the same file's `parked` list instead; the test fails once the provider is unparked,
+   and then each such family ships its descriptor.
 6. `tests/reviewed-families.test.mjs` then checks, without changes, that the family owns ledger routes, that no
    ledger route is claimed by two families, that its reader passes foreign reads on, and that no lifecycle module
    names it directly. A new refusal that leaves something paused, busy, uncertain or expired needs its exit test in

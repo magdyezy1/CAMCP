@@ -1,71 +1,71 @@
-// snapchat_nested_updates: PATCH /v1/campaigns/{campaign_id}/adsquads/{ad_squad_id} (Snap Marketing API v1), described
-// with the ad squad targeting contract it serves (PRV-06 A): one replace /targeting operation. The decisive field is
-// the ad squad's current `targeting`, which the operation replaces whole (Snap's Ad Squads page).
-const account = 'acct-conformance',
-  wrap = (collection, singular, entity, paged) => ({
-    json: {
-      request_status: 'SUCCESS',
-      [collection]: [{sub_request_status: 'SUCCESS', [singular]: structuredClone(entity)}],
-      // Another page: Snapchat names it with paging.next_link.
-      ...(paged ? {paging: {next_link: 'https://adsapi.snapchat.com/v1/' + collection + '?cursor=next'}} : {}),
-    },
+// snapchat_nested_updates: PATCH /v1/campaigns/{campaign_id}/adsquads/{ad_squad_id} (Snapchat Marketing API v1, "Ad
+// Squads", Update an Ad Squad with JSON Patch) raising the daily budget. The decisive field is the ad squad's current
+// `daily_budget_micro` in "Get a specific Ad Squad", the amount the replacement overwrites and the spending review
+// measures the change against: a budget changed in Snapchat after the review makes the reviewed change another one.
+import {ok, rows} from './_snapchat.mjs';
+
+/** One entity as Snapchat returns it from GET /v1/{collection}/{id}; `more` adds a next page link. */
+const one = (collection, entity, row, more) =>
+  ok({
+    [collection]: rows(entity, [row]),
+    ...(more ? {paging: {next_link: 'https://adsapi.snapchat.com/v1/' + collection + '?cursor=2'}} : {}),
   });
+
 export default {
   family: 'snapchat_nested_updates',
-  risk: 'activation',
+  risk: 'budget',
   gateway: 'snapchat_native_action',
-  account,
-  owned: ['campaigns/camp-1', 'adsquads/sq-1'],
+  account: 'acct1',
+  owned: ['campaigns/campaign1', 'adsquads/squad1'],
   request: {
     action: 'snapchat_adsquad_patch',
-    path_params: {campaign_id: 'camp-1', ad_squad_id: 'sq-1'},
-    payload: [
-      {
-        op: 'replace',
-        path: '/targeting',
-        value: {
-          regulated_content: false,
-          geos: [
-            {country_code: 'sa', operation: 'INCLUDE'},
-            {country_code: 'kw', operation: 'INCLUDE'},
-          ],
-        },
-      },
-    ],
+    path_params: {campaign_id: 'campaign1', ad_squad_id: 'squad1'},
+    payload: [{op: 'replace', path: '/daily_budget_micro', value: 120000000}],
   },
   seed: () => ({
-    campaign: {id: 'camp-1', ad_account_id: account, status: 'ACTIVE', name: 'Campaign'},
+    account: {id: 'acct1', currency: 'SAR', timezone: 'Asia/Riyadh'},
+    campaign: {
+      id: 'campaign1',
+      ad_account_id: 'acct1',
+      name: 'Campaign',
+      status: 'ACTIVE',
+      buy_model: 'AUCTION',
+      pacing_level: 'AD_SQUAD',
+      start_time: '2026-01-01T00:00:00Z',
+      daily_budget_micro: 900000000,
+    },
     squad: {
-      id: 'sq-1',
-      campaign_id: 'camp-1',
+      id: 'squad1',
+      campaign_id: 'campaign1',
+      name: 'Squad',
       status: 'PAUSED',
-      name: 'Gulf',
-      targeting: {regulated_content: false, geos: [{country_code: 'sa', operation: 'INCLUDE'}]},
+      type: 'SNAP_ADS',
+      billing_event: 'IMPRESSION',
+      optimization_goal: 'IMPRESSIONS',
+      bid_strategy: 'LOWEST_COST_WITH_MAX_BID',
+      bid_micro: 1000000,
+      daily_budget_micro: 100000000,
+      start_time: '2026-01-01T00:00:00Z',
+      targeting: {geos: [{country_code: 'sa'}]},
+      placement_v2: {config: 'AUTOMATIC'},
+      pacing_type: 'STANDARD',
     },
   }),
+  // Each state read is one entity; the reader still refuses an answer that declares another page.
+  paginatedCodes: ['SNAPCHAT_UPDATE_STATE_UNVERIFIED'],
   isWrite: ({method}) => method !== 'GET',
   provider({method, path, body, state, mode}) {
-    if (method === 'GET' && path === '/v1/adaccounts/' + account)
-      return wrap('adaccounts', 'adaccount', {id: account}, mode.paginate);
-    if (method === 'GET' && path === '/v1/campaigns/camp-1')
-      return wrap('campaigns', 'campaign', state.campaign, mode.paginate);
-    if (method === 'GET' && path === '/v1/adsquads/sq-1')
-      return wrap('adsquads', 'adsquad', state.squad, mode.paginate);
-    if (method === 'PATCH' && path === '/v1/campaigns/camp-1/adsquads/sq-1') {
-      // A failed answer: Snapchat refuses the one ad squad of the request.
+    if (method === 'GET' && path === '/v1/adaccounts/acct1')
+      return one('adaccounts', 'adaccount', state.account, mode.paginate);
+    if (method === 'GET' && path === '/v1/campaigns/campaign1') return one('campaigns', 'campaign', state.campaign);
+    if (method === 'GET' && path === '/v1/adsquads/squad1') return one('adsquads', 'adsquad', state.squad);
+    if (method === 'PATCH' && path === '/v1/campaigns/campaign1/adsquads/squad1') {
+      // A failed answer: the request is accepted but the ad squad row reports an error.
       if (mode.partial)
-        return {
-          json: {
-            request_status: 'ERROR',
-            adsquads: [{sub_request_status: 'ERROR', sub_request_error_reason: 'Synthetic refusal'}],
-          },
-        };
-      state.squad.targeting = structuredClone(body[0].value);
-      return wrap('adsquads', 'adsquad', state.squad);
+        return ok({adsquads: [{sub_request_status: 'ERROR', sub_request_error_reason: 'Budget below minimum'}]});
+      for (const op of body) if (op.op !== 'test') state.squad[op.path.slice(1)] = op.value;
+      return ok({adsquads: rows('adsquad', [state.squad])});
     }
   },
-  decisive: {
-    change: state => state.squad.targeting.geos.push({country_code: 'om', operation: 'INCLUDE'}),
-    field: /targeting/,
-  },
+  decisive: {change: state => (state.squad.daily_budget_micro = 150000000), field: /daily_budget_micro/},
 };
