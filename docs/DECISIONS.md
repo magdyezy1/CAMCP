@@ -153,8 +153,9 @@ cites as owner decisions, each the review's recommended or the ticket's proposed
   campaign, and the refusal reads the campaign's location criteria instead of refusing every activation. Its premise,
   that a campaign created through the API targets every location until it has location criteria, is pinned from
   Microsoft's targeting guide (docs/MICROSOFT-ADS.md). UTM parameters versus tracking-suffix fields and mandatory
-  conventions are not decided here; the next launch packs and the PRV-06 order are recorded in the
-  [campaign pack demand record](#campaign-pack-demand-record-cmp-07-p7-prv-06).
+  conventions are not decided here. P7 next packs: pending owner. The packs built so far are implementer defaults
+  recorded in the [campaign pack demand record](#campaign-pack-demand-record-cmp-07-p7-prv-06), and the PRV-06 order
+  follows the review's recommendation (the Reddit pixel check first).
 - **P9.** A Meta product's populated destination-only attributes are notes (`unsent_fields`); they never put the item
   in the review set as `unknown` (COM-01). The Business Profile and Amazon Ads parts are recorded above.
 
@@ -185,17 +186,20 @@ names, and live acceptance stays read-only until R1 is answered.
 
 ### Campaign pack demand record (CMP-07, P7, PRV-06)
 
-Recorded 2026-10-12 from the owner's product direction of 2026-10-11 (P7, chosen during implementation; the owner may
-revise it). No per-client usage data exists in the repository, so this record names the platforms the owner directed,
-not measured demand; the measurable outcome (plans per recipe per month, launch checks per launch) starts at zero.
+Recorded 2026-10-12 during implementation, pending the owner's P7 answer. No owner answer in this repository names
+the next packs: P7 asks the owner to name the platforms clients use most, and no client demand evidence or per-client
+usage data is recorded. The packs below are the implementer's defaults under CMP-07's stated default for unclear
+demand (TikTok website traffic, then TikTok conversions); the LinkedIn lead generation and Performance Max rows were
+chosen during implementation. The owner may accept, change or remove each, and the owner's answer replaces this
+record. The measurable outcome (plans per recipe per month, launch checks per launch) starts at zero.
 
-| Direction | Applied as | Revisit trigger |
+| Implementer default (pending P7) | Applied as | Revisit trigger |
 |---|---|---|
-| Next guided packs: TikTok website traffic and website purchases | `tiktok_website_traffic` and `tiktok_website_conversions` (manual campaigns, existing post as a Spark Ad, campaign created `DISABLE`) | Plans per recipe after a quarter; a client asks for Smart+ |
-| LinkedIn lead generation | `linkedin_lead_generation` (paused group, campaign and sponsored-post creative with an existing lead form) | The owner names another LinkedIn objective |
-| Google Performance Max where contracts allow, before Demand Gen | A reviewed all-or-nothing PMax build with locally checked asset minimums; serving diagnostics first (read-only) | Google changes the asset minimums, or Demand Gen is named |
-| Post-launch check and serving diagnostics | `amcp_reporting launch_check` for guided Meta and Snapchat launches (Google keeps its campaign audit workflow); read-only `serving_diagnostics` for Google | Owner asks for scheduled checks |
-| PRV-06 order | Reddit conversion-pixel check first, then Snapchat ad-squad targeting, TikTok comment hide/unhide and Meta Advantage+ creative feature choices | The owner declines a sub-item (closed as declined) |
+| Next guided packs: TikTok website traffic and website purchases (CMP-07's default; the purchases pack is a manual campaign, not the default's Smart+) | `tiktok_website_traffic` and `tiktok_website_conversions` (manual campaigns, existing post as a Spark Ad, campaign created `DISABLE`) | The owner's P7 answer; plans per recipe after a quarter; a client asks for Smart+ |
+| LinkedIn lead generation (chosen during implementation: optional stretch in CMP-07, delivered before the owner named it) | `linkedin_lead_generation` (paused group, campaign and sponsored-post creative with an existing lead form) | The owner's P7 answer accepts it or removes it (the recipe leaves the registry), or names another LinkedIn objective |
+| Google Performance Max before Demand Gen (chosen during implementation; P7 asks the owner to choose) | A reviewed all-or-nothing PMax build with locally checked asset minimums; serving diagnostics first (read-only) | The owner's P7 answer; Google changes the asset minimums, or Demand Gen is named |
+| Post-launch check and serving diagnostics (CMP-07's named items) | `amcp_reporting launch_check` for guided Meta and Snapchat launches (Google keeps its campaign audit workflow); read-only `serving_diagnostics` for Google | Owner asks for scheduled checks |
+| PRV-06 order (the review's recommendation: the Reddit pixel check first; the rest in the ticket's proposed order) | Reddit conversion-pixel check first, then Snapchat ad-squad targeting, TikTok comment hide/unhide and Meta Advantage+ creative feature choices (partial: the Meta feature allowlist is transcribed from SDK 26.0.2, not yet pinned from its files) | The owner declines a sub-item (closed as declined) |
 
 ## October 2026: earlier owner decisions
 

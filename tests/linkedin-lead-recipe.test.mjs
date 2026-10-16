@@ -10,11 +10,11 @@ import {recipeDependencies} from '../dist/src/capability-eligibility.js';
 import {recipeContext, recipeObjective} from '../dist/src/recipe-context.js';
 
 /**
- * CMP-07 (owner direction P7): the guided paused LinkedIn lead generation pack. A synthetic LinkedIn ad account answers
- * the reads and creates of the reviewed linkedin_entities writes; nothing reaches LinkedIn. The pack compiles to the
- * creates the LinkedIn clone uses (campaign group, campaign, creative, all PAUSED), preflight reads the account's lead
- * forms before any create, and the separate activation plan activates the three in order only once the form is
- * published.
+ * CMP-07 (optional stretch, pending P7): the guided paused LinkedIn lead generation pack. A synthetic LinkedIn ad
+ * account answers the reads and creates of the reviewed linkedin_entities writes; nothing reaches LinkedIn. The pack
+ * compiles to the creates the LinkedIn clone uses (campaign group, campaign, creative, all PAUSED), preflight reads the
+ * account's lead forms before any create, and the separate activation plan activates the three in order only once the
+ * form is published.
  */
 const gateway = 'linkedin_native_action',
   CONNECTION = '33333333-3333-4333-8333-333333333333',

@@ -11,10 +11,10 @@ import {activationSteps} from '../dist/src/campaign-activation.js';
 import {tiktokBudget} from '../dist/src/tiktok-launch-recipes.js';
 
 /**
- * CMP-07 (owner direction P7): guided paused TikTok launch packs. A synthetic TikTok advertiser answers the reads and
- * creates the reviewed tiktok_entities family makes; nothing reaches TikTok. The packs compile to the same reviewed
- * creates a native plan uses, the campaign starts DISABLE, and preflight reads the Spark identity, post and pixel
- * before any predecessor is created.
+ * CMP-07 (implementer default pending P7): guided paused TikTok launch packs. A synthetic TikTok advertiser answers the
+ * reads and creates the reviewed tiktok_entities family makes; nothing reaches TikTok. The packs compile to the same
+ * reviewed creates a native plan uses, the campaign starts DISABLE, and preflight reads the Spark identity, post and
+ * pixel before any predecessor is created.
  */
 const gateway = 'tiktok_native_action',
   CONNECTION = '17171717-1717-4171-8171-171717171717',

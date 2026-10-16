@@ -1,4 +1,4 @@
-// CMP-07 (owner direction P7): the guided LinkedIn lead generation and Google Performance Max packs in the website's
+// CMP-07 (pending P7): the guided LinkedIn lead generation and Google Performance Max packs in the website's
 // recipe composer, in English and Arabic. Native values (calls to action, declarations, URNs) stay literal with
 // translated explanations; each preview shows the paused launch only when the compiled plan is exactly the pack.
 import test from 'node:test';

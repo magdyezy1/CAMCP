@@ -1,7 +1,7 @@
-// CMP-07 (owner direction P7): the guided TikTok packs in the website's recipe composer, in English and Arabic. The
-// brief form offers the native identity types, calls to action and purchase events as literal values with translated
-// explanations, reads location IDs one per line, and the preview shows the paused launch only when the compiled plan
-// is exactly the pack's three creates under a DISABLE campaign.
+// CMP-07 (implementer default pending P7): the guided TikTok packs in the website's recipe composer, in English and
+// Arabic. The brief form offers the native identity types, calls to action and purchase events as literal values with
+// translated explanations, reads location IDs one per line, and the preview shows the paused launch only when the
+// compiled plan is exactly the pack's three creates under a DISABLE campaign.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';

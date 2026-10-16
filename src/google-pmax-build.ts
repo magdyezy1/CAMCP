@@ -2,10 +2,10 @@ import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
 
 /**
- * Performance Max inside an all-or-nothing Google build (CMP-07, owner direction P7). For a non-retail Performance Max
- * campaign Google requires the asset group and the links to its minimum assets in the same mutate request
- * (AssetGroupService cannot create them alone), which the atomic build provides (google-atomic-builds.ts). This module
- * holds the local rules a build must meet before anything is sent:
+ * Performance Max inside an all-or-nothing Google build (CMP-07, an implementer default pending P7). For a non-retail
+ * Performance Max campaign Google requires the asset group and the links to its minimum assets in the same mutate
+ * request (AssetGroupService cannot create them alone), which the atomic build provides (google-atomic-builds.ts). This
+ * module holds the local rules a build must meet before anything is sent:
  *
  * - The asset group belongs to a Performance Max campaign this build creates, PAUSED, with brand guidelines off
  *   (`brand_guidelines_enabled: false`), so the business name and logos link to the asset group and every minimum can

@@ -1,6 +1,6 @@
-// CMP-07 (owner direction P7): the guided Performance Max pack. The brief compiles to the one reviewed all-or-nothing
-// build Google requires for an asset group and its minimum assets; a synthetic customer runs it to a verified paused
-// launch, and its activation is the campaign's own reviewed status change. Nothing reaches Google.
+// CMP-07 (implementer default pending P7): the guided Performance Max pack. The brief compiles to the one reviewed
+// all-or-nothing build Google requires for an asset group and its minimum assets; a synthetic customer runs it to a
+// verified paused launch, and its activation is the campaign's own reviewed status change. Nothing reaches Google.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';

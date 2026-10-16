@@ -5,11 +5,11 @@ import {currencyMinorDigits} from './budget-units.js';
 import {fingerprint} from './workspace-core.js';
 
 /**
- * Guided paused TikTok launch packs (CMP-07, owner direction P7): website traffic and website purchases on manual
- * campaigns, compiled to the existing reviewed tiktok_entities creates (POST /v1.3/campaign/create/,
+ * Guided paused TikTok launch packs (CMP-07, implementer default pending P7): website traffic and website purchases on
+ * manual campaigns, compiled to the existing reviewed tiktok_entities creates (POST /v1.3/campaign/create/,
  * /v1.3/adgroup/create/ and /v1.3/ad/create/ of API for Business v1.3). The campaign is created DISABLE and its ad
- * group and ad ENABLE under it (paused-parents.ts), so enabling the campaign is the one activation, a separate
- * reviewed status change.
+ * group and ad ENABLE under it (paused-parents.ts), so enabling the campaign is the one activation, a separate reviewed
+ * status change.
  *
  * The creative is a Spark Ad from an existing TikTok post (tiktok_item_id) under a TikTok account identity (TT_USER or
  * BC_AUTH_TT). A library video would need a CUSTOMIZED_USER identity, which TikTok no longer accepts for new ads that

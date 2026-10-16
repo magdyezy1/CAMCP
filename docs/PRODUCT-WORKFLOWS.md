@@ -331,7 +331,8 @@ campaign as its own reviewed change.
 
 ### TikTok website traffic and purchases with an existing post
 
-Choose `tiktok_website_traffic` or `tiktok_website_conversions` (CMP-07, owner direction P7) in Campaigns or MCP. The
+Choose `tiktok_website_traffic` or `tiktok_website_conversions` in Campaigns or MCP (CMP-07; implementer defaults
+until the owner answers P7, see the [demand record](DECISIONS.md#campaign-pack-demand-record-cmp-07-p7-prv-06)). The
 brief names the exact advertiser and login, account currency, a daily budget with at most two decimal places, 1–20
 TikTok location IDs, an existing TikTok post with the `TT_USER` or `BC_AUTH_TT` identity that owns it, an HTTPS
 landing page, a call to action and an offset start time; the purchases pack adds the pixel and one purchase event. It
@@ -343,14 +344,15 @@ preview shows the UTC times TikTok receives, in English and Arabic.
 
 ### LinkedIn lead generation with an existing post and form
 
-Choose `linkedin_lead_generation` (CMP-07, owner direction P7) in Campaigns or MCP. The brief names the exact ad
-account and login, account currency, a daily budget in the account currency, 1–50 LinkedIn location URNs
-(`urn:li:geo:…`), the campaign locale (`en_US`), an existing post to sponsor (`urn:li:share:…` or `urn:li:ugcPost:…`),
-the numeric ID of one of the account's lead forms, a lead form call to action, an explicit `NOT_POLITICAL`
-declaration (political advertising needs a tailored native plan) and an offset start time. It saves three reviewed
-creates, all `PAUSED`: a campaign group, a `LEAD_GENERATION` campaign with maximum delivery (`MAX_LEAD`, no bid) and a
-daily budget, and a creative that sponsors the post with the form as its call to action. Preflight reads the
-account's lead forms through the owner finder before anything is created: a form LinkedIn does not return for this
+Choose `linkedin_lead_generation` in Campaigns or MCP (CMP-07 optional stretch, built before the owner named it in P7;
+the owner may remove it, see the [demand record](DECISIONS.md#campaign-pack-demand-record-cmp-07-p7-prv-06)). The brief
+names the exact ad account and login, account currency, a daily budget in the account currency, 1–50 LinkedIn location
+URNs (`urn:li:geo:…`), the campaign locale (`en_US`), an existing post to sponsor (`urn:li:share:…` or
+`urn:li:ugcPost:…`), the numeric ID of one of the account's lead forms, a lead form call to action, an explicit
+`NOT_POLITICAL` declaration (political advertising needs a tailored native plan) and an offset start time. It saves
+three reviewed creates, all `PAUSED`: a campaign group, a `LEAD_GENERATION` campaign with maximum delivery (`MAX_LEAD`,
+no bid) and a daily budget, and a creative that sponsors the post with the form as its call to action. Preflight reads
+the account's lead forms through the owner finder before anything is created: a form LinkedIn does not return for this
 account, or an archived one, blocks the plan (`CAMPAIGN_PREREQUISITE_REQUIRED`). Post eligibility, privacy-policy
 acceptance, ad review and objective acceptance stay with LinkedIn, which may spend up to 150% of a daily budget on a
 day. **Prepare activation** activates the group, the campaign and the creative in that order, each as its own REST.li

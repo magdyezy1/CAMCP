@@ -5,16 +5,16 @@ import {fingerprint} from './workspace-core.js';
 import {currencyMinorDigits} from './budget-units.js';
 
 /**
- * linkedin_lead_generation (CMP-07, owner direction P7): a guided paused LinkedIn Lead Gen Form launch over the
- * reviewed linkedin_entities creates (Microsoft Learn "Create and manage campaign groups / campaigns / creatives",
- * li-lms-2026-05, the fields the LinkedIn clone writes). A PAUSED campaign group, a PAUSED Sponsored Content campaign
- * with the LEAD_GENERATION objective and maximum-delivery bidding, and a PAUSED creative that sponsors an existing post
- * with the account's existing lead form as its call to action. LinkedIn returns each new ID in x-restli-id, and each
- * child names its parent by URN reference, as the clone does. Before anything is created, preflight reads the
- * account's lead forms through the owner finder: a form this account does not own, or an archived one, blocks the
- * plan. A form's state decides whether its creative serves ("Lead Syncing", Updating Form Status), so the separate
- * activation plan (campaign-activation.ts) reads it again and activates group, campaign and creative only once the
- * form is PUBLISHED, each status change under its own review.
+ * linkedin_lead_generation (CMP-07 optional stretch, built before P7 named it; the owner may remove it): a guided
+ * paused LinkedIn Lead Gen Form launch over the reviewed linkedin_entities creates (Microsoft Learn "Create and manage
+ * campaign groups / campaigns / creatives", li-lms-2026-05, the fields the LinkedIn clone writes). A PAUSED campaign
+ * group, a PAUSED Sponsored Content campaign with the LEAD_GENERATION objective and maximum-delivery bidding, and a
+ * PAUSED creative that sponsors an existing post with the account's existing lead form as its call to action. LinkedIn
+ * returns each new ID in x-restli-id, and each child names its parent by URN reference, as the clone does. Before
+ * anything is created, preflight reads the account's lead forms through the owner finder: a form this account does not
+ * own, or an archived one, blocks the plan. A form's state decides whether its creative serves ("Lead Syncing",
+ * Updating Form Status), so the separate activation plan (campaign-activation.ts) reads it again and activates group,
+ * campaign and creative only once the form is PUBLISHED, each status change under its own review.
  */
 export const linkedinLeadSource =
   'https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads/account-structure/create-and-manage-campaigns?view=li-lms-2026-05';
