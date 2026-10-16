@@ -32,6 +32,7 @@ import {
 import {collectionRequestTimeout, collectionResponseBytes, collectionCheckpoint} from './report-collection-budget.js';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {currentQuotaPurpose, issuerKey, requestOperations, type IssuerPermit} from './provider-quota.js';
+import {meterNativeRequest} from './native-request-meter.js';
 /**
  * Whether a mutation request (or an upload chunk) left AMCP while a tracked operation ran (WRT-04). The marker is set
  * synchronously, immediately before the fetch, so a request that was sent is never recorded as unsent; a refusal raised
@@ -744,6 +745,7 @@ export class NativeTransport {
           }
         }
         this.metrics.requests++;
+        meterNativeRequest(plan.readOnly); // COM-02 C: per-step journal counts
         this.coordination?.providerMetric(connection.tenantId, connection.gateway, 'requests');
         let requestSignal: AbortSignal | undefined,
           deadlineTimer = false;

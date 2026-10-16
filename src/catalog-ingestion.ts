@@ -3,20 +3,135 @@ import type {JsonObject} from './types.js';
 import {assertXCatalogProductFields} from './x-catalog-products.js';
 import {xSnowflake} from './x-catalogs.js';
 import {assertMetaCatalogProductFields} from './meta-catalog-products.js';
-const fields = [
-  'retailer_id',
-  'name',
-  'price',
-  'currency',
-  'image_url',
-  'url',
-  'availability',
-  'condition',
-  'brand',
-  'description',
-];
+import {
+  catalogDestination,
+  catalogDestinations,
+  catalogSourceFields,
+  type CatalogGateway,
+} from './catalog-destinations.js';
+import {catalogRequirement} from './catalog-requirements.js';
+
+/** Each catalog destination's projection of supplied products into its native reviewed steps (COM-03). */
+const projections: Record<CatalogGateway, (input: JsonObject) => JsonObject> = {
+  meta_native_action: metaCatalogIngestion,
+  x_ads_native_action: xCatalogIngestion,
+  snapchat_native_action: snapchatCatalogIngestion,
+};
 export function catalogIngestion(input: JsonObject) {
-  if (input.gateway === 'x_ads_native_action') return xCatalogIngestion(input);
+  const destination = catalogDestination(input.gateway);
+  // An unknown gateway keeps the refusal it had before the destination contract.
+  if (!destination) return bad('Choose a numeric Meta product catalog ID and selected Meta ad account.');
+  return projections[destination.gateway](input) as ReturnType<typeof metaCatalogIngestion>;
+}
+/** Exact order of two nonnegative decimal strings, without floating point: negative, zero or positive. */
+function decimalOrder(a: string, b: string): number {
+  const [aw = '0', af = ''] = a.split('.'),
+    [bw = '0', bf = ''] = b.split('.'),
+    n = Math.max(af.length, bf.length),
+    x = BigInt(aw + af.padEnd(n, '0')),
+    y = BigInt(bw + bf.padEnd(n, '0'));
+  return x < y ? -1 : x > y ? 1 : 0;
+}
+/** Hundredths of a decimal amount, as Meta counts it; digits after the second decimal place must be zeros. */
+function hundredths(amount: string): bigint | undefined {
+  const [whole = '0', decimals = ''] = amount.split('.');
+  if (/[1-9]/.test(decimals.slice(2))) return undefined;
+  return BigInt(whole) * 100n + BigInt(decimals.slice(0, 2).padEnd(2, '0'));
+}
+/** ISO 8601 date and time with an explicit offset: a sale's start or end is kept as written, never re-zoned. */
+const saleTime = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?(?:Z|[+-]\d{2}:\d{2})$/;
+/**
+ * The optional sale of a supplied product (COM-02 A), for every destination: a decimal sale price in the product's
+ * own currency (an explicit currency suffix must be that currency), lower than the price, and an optional literal
+ * start and end. X needs both times or neither. A source without a sale sends none, and the destination keeps its
+ * current one (named as a value the source does not send); clearing a destination sale is not offered.
+ */
+function catalogSale(p: JsonObject, index: number, x: boolean): {amount: string} | undefined {
+  const product = index + 1;
+  if (p.sale_price === undefined) {
+    if (p.sale_price_start_date !== undefined || p.sale_price_end_date !== undefined)
+      bad('A sale start or end needs a sale price.', 'INVALID_CATALOG_SALE', {product});
+    return undefined;
+  }
+  const m = typeof p.sale_price === 'string' ? /^(\d+(?:\.\d+)?)(?: ([A-Z]{3}))?$/.exec(p.sale_price) : null;
+  if (!m)
+    return bad(
+      'Use a nonnegative decimal sale price, optionally followed by the product currency.',
+      'INVALID_CATALOG_SALE',
+      {field: 'sale_price', product},
+    );
+  if (m[2] !== undefined && m[2] !== p.currency)
+    bad('The sale price must be in the product currency.', 'INVALID_CATALOG_SALE', {
+      field: 'sale_price',
+      product,
+      sale_price: p.sale_price,
+      currency: p.currency,
+    });
+  // A malformed price is the destination's own refusal; the order needs two decimals.
+  if (typeof p.price === 'string' && /^\d+(\.\d+)?$/.test(p.price) && decimalOrder(m[1]!, p.price) >= 0)
+    bad('The sale price must be lower than the price.', 'INVALID_CATALOG_SALE', {
+      field: 'sale_price',
+      product,
+      sale_price: m[1]!,
+      price: p.price,
+    });
+  for (const field of ['sale_price_start_date', 'sale_price_end_date'])
+    if (
+      p[field] !== undefined &&
+      (typeof p[field] !== 'string' || !saleTime.test(p[field]) || !Number.isFinite(Date.parse(p[field])))
+    )
+      bad(
+        'A sale start or end is an ISO 8601 date and time with an explicit offset, such as 2026-11-01T00:00:00+03:00.',
+        'INVALID_CATALOG_SALE',
+        {field, product},
+      );
+  if (
+    p.sale_price_start_date !== undefined &&
+    p.sale_price_end_date !== undefined &&
+    Date.parse(p.sale_price_end_date) <= Date.parse(p.sale_price_start_date)
+  )
+    bad('The sale must end after it starts.', 'INVALID_CATALOG_SALE', {product});
+  if (x && (p.sale_price_start_date === undefined) !== (p.sale_price_end_date === undefined))
+    bad('X needs both the sale start and the sale end, or neither.', 'INVALID_CATALOG_SALE', {product});
+  return {amount: m[1]!};
+}
+/**
+ * A non-destructive retirement of supplied products (COM-02 B): their availability becomes "out of stock" or
+ * "discontinued" through the same reviewed upsert, so ads stop showing them while the product, its history and its sets
+ * stay. Nothing is deleted, and a comparison blocks retiring a product the catalog does not have (it would be created).
+ * The inputs are requirements.retire_retailer_ids and requirements.retire_availability.
+ */
+export function catalogRetirement(input: JsonObject): {ids: Set<string>; availability: string} | undefined {
+  const ids = catalogRequirement(input, 'retire_retailer_ids'),
+    availability = catalogRequirement(input, 'retire_availability');
+  if (ids === undefined && availability === undefined) return undefined;
+  if (!['out of stock', 'discontinued'].includes(availability))
+    bad('Retire products as "out of stock" or "discontinued".', 'INVALID_CATALOG_RETIREMENT');
+  if (
+    !Array.isArray(ids) ||
+    !ids.length ||
+    ids.length > 50 ||
+    ids.some((v: unknown) => typeof v !== 'string') ||
+    new Set(ids).size !== ids.length ||
+    !Array.isArray(input.products) ||
+    ids.some((v: string) => !input.products.some((p: JsonObject) => p?.retailer_id === v))
+  )
+    bad('Choose 1–50 distinct retailer IDs of the supplied products to retire.', 'INVALID_CATALOG_RETIREMENT');
+  if (input.allow_upsert !== true)
+    bad(
+      'Retiring updates existing products: explicitly allow updates to existing retailer IDs.',
+      'INVALID_CATALOG_RETIREMENT',
+    );
+  return {ids: new Set(ids), availability};
+}
+/** A retired product's projection source: the supplied row with the retirement availability. */
+export function retired(p: JsonObject, retire: ReturnType<typeof catalogRetirement>): JsonObject {
+  return retire?.ids.has(p.retailer_id) ? {...p, availability: retire.availability} : p;
+}
+/** Supplied products → one Meta product create per item; Meta counts prices in hundredths. */
+export function metaCatalogIngestion(input: JsonObject) {
+  const fields = catalogSourceFields(catalogDestinations.meta_native_action),
+    retire = catalogRetirement(input);
   if (input.gateway !== 'meta_native_action' || !/^\d+$/.test(input.catalog_id ?? ''))
     bad('Choose a numeric Meta product catalog ID and selected Meta ad account.');
   if (!Array.isArray(input.products) || !input.products.length || input.products.length > 50)
@@ -24,7 +139,7 @@ export function catalogIngestion(input: JsonObject) {
   if (typeof input.allow_upsert !== 'boolean') bad('Explicitly choose whether existing retailer IDs may be updated.');
   const seen = new Set<string>();
   const products = input.products.map((p: JsonObject, i: number) => {
-    validate(p, [...fields, 'retailer_product_group_id'], 16384, 'product field');
+    validate(p, fields, 16384, 'product field');
     if (Object.values(p).some(v => typeof v !== 'string' || /[\x00-\x1f\x7f]/.test(v)))
       bad('Product fields must be plain text without control characters.');
     for (const key of ['retailer_id', 'name', 'price', 'currency', 'image_url'])
@@ -65,9 +180,24 @@ export function catalogIngestion(input: JsonObject) {
       !['in stock', 'out of stock', 'preorder', 'available for order', 'discontinued'].includes(p.availability)
     )
       bad('Use a supported product availability.');
+    const q = retired(p, retire);
     if (p.condition && !['new', 'used', 'refurbished'].includes(p.condition))
       bad('Use new, used or refurbished condition.');
-    const payload = {...p, price: Number(cents), allow_upsert: input.allow_upsert};
+    // An optional sale in the same hundredths (COM-02 A); its dates stay literal.
+    const sale = catalogSale(p, i, false),
+      saleCents = sale ? hundredths(sale.amount) : undefined;
+    if (sale && saleCents === undefined)
+      bad(
+        'Meta counts prices in hundredths of the currency, so digits after the second decimal place must be zeros; nothing is rounded. This price cannot be represented exactly.',
+        'INVALID_ARGUMENT',
+        {field: sale.amount + ' ' + p.currency, price: sale.amount, currency: p.currency, product: i + 1},
+      );
+    const payload = {
+      ...q,
+      price: Number(cents),
+      ...(saleCents !== undefined ? {sale_price: Number(saleCents)} : {}),
+      allow_upsert: input.allow_upsert,
+    };
     assertMetaCatalogProductFields(payload);
     return payload;
   });
@@ -94,6 +224,8 @@ export function catalogIngestion(input: JsonObject) {
       name: p.name,
       ...(p.retailer_product_group_id !== undefined ? {retailer_product_group_id: p.retailer_product_group_id} : {}),
       price_minor_units: p.price,
+      ...(p.sale_price !== undefined ? {sale_price_minor_units: p.sale_price} : {}),
+      ...(retire?.ids.has(p.retailer_id) ? {retire_availability: retire.availability} : {}),
       currency: p.currency,
       existing_item_policy: input.allow_upsert
         ? 'explicit upsert after native review'
@@ -109,7 +241,10 @@ export function catalogIngestion(input: JsonObject) {
         input.catalog_id +
         '. Source hash ' +
         source_hash +
-        '. Each item requires native before-state review and independent read-back. Missing source items are not deleted.',
+        '. Each item requires native before-state review and independent read-back. Missing source items are not deleted.' +
+        (retire
+          ? ' Retires ' + retire.ids.size + ' existing products as "' + retire.availability + '"; nothing is deleted.'
+          : ''),
       steps,
     },
     network_requests: 0,
@@ -120,7 +255,9 @@ export function catalogIngestion(input: JsonObject) {
 }
 
 /** A bounded local projection into the existing single-product X reviewed contract. No inferred source values. */
-function xCatalogIngestion(input: JsonObject) {
+export function xCatalogIngestion(input: JsonObject) {
+  const fields = catalogSourceFields(catalogDestinations.x_ads_native_action),
+    retire = catalogRetirement(input);
   if (typeof input.catalog_id !== 'string' || !xSnowflake.test(input.catalog_id))
     bad('Choose an exact X product catalog ID and selected X ad account.', 'INVALID_X_CATALOG_IMPORT');
   if (!Array.isArray(input.products) || !input.products.length || input.products.length > 50)
@@ -131,9 +268,9 @@ function xCatalogIngestion(input: JsonObject) {
       'INVALID_X_CATALOG_IMPORT',
     );
   const seen = new Set<string>();
-  const native = input.products.map((p: JsonObject) => {
+  const native = input.products.map((p: JsonObject, i: number) => {
     validate(p, fields, 16384, 'product field');
-    for (const key of fields)
+    for (const key of catalogDestinations.x_ads_native_action.sourceFields.required)
       if (typeof p[key] !== 'string' || !p[key].trim())
         bad(
           'X imports require explicit retailer_id, name, price, currency, image_url, url, availability, condition, brand and plain text description.',
@@ -143,7 +280,9 @@ function xCatalogIngestion(input: JsonObject) {
     seen.add(p.retailer_id);
     if (!/^[A-Z]{3}$/.test(p.currency))
       bad('Choose one explicit uppercase three-letter product currency.', 'INVALID_X_CATALOG_IMPORT');
-    const product = {
+    // An optional sale (COM-02 A): X's "amount CUR" and one "start/end" effective period.
+    const sale = catalogSale(p, i, true);
+    const product: JsonObject = {
       id: p.retailer_id,
       title: p.name,
       price: p.price + ' ' + p.currency,
@@ -153,6 +292,11 @@ function xCatalogIngestion(input: JsonObject) {
       condition: p.condition,
       brand: p.brand,
       description: p.description,
+      ...(retire?.ids.has(p.retailer_id) ? {availability: retire.availability} : {}),
+      ...(sale ? {sale_price: sale.amount + ' ' + p.currency} : {}),
+      ...(p.sale_price_start_date !== undefined
+        ? {sale_price_effective_date: p.sale_price_start_date + '/' + p.sale_price_end_date}
+        : {}),
     };
     assertXCatalogProductFields(product);
     return product;
@@ -179,6 +323,9 @@ function xCatalogIngestion(input: JsonObject) {
       retailer_id: p.id,
       name: p.title,
       native_price: p.price,
+      ...(p.sale_price !== undefined ? {native_sale_price: p.sale_price} : {}),
+      ...(p.sale_price_effective_date !== undefined ? {sale_price_effective_date: p.sale_price_effective_date} : {}),
+      ...(retire?.ids.has(p.id) ? {retire_availability: retire.availability} : {}),
       currency: input.products[i]!.currency,
       existing_item_policy: 'explicit upsert after native review',
     })),
@@ -192,7 +339,10 @@ function xCatalogIngestion(input: JsonObject) {
         input.catalog_id +
         '. Source hash ' +
         source_hash +
-        '. Each item requires native before-state review and independent read-back. Matching IDs are updated; missing source items are not deleted.',
+        '. Each item requires native before-state review and independent read-back. Matching IDs are updated; missing source items are not deleted.' +
+        (retire
+          ? ' Retires ' + retire.ids.size + ' existing products as "' + retire.availability + '"; nothing is deleted.'
+          : ''),
       steps,
     },
     network_requests: 0,
@@ -204,5 +354,95 @@ function xCatalogIngestion(input: JsonObject) {
     ],
     meaning:
       'Preview uses supplied product data and the existing X product contract. Each product keeps a separate native review, accepted receipt and independent read-back. Matching IDs are updated; missing source items are retained.',
+  };
+}
+
+/**
+ * Supplied products for a read-only Snapchat comparison (COM-02 D). Snapchat changes products only through product
+ * feeds, so there is no reviewed step and no draft: the projection validates the supplied rows and keeps every price as
+ * the exact decimal the source wrote, in "amount CUR" form. allow_upsert has no meaning here and is ignored.
+ */
+export function snapchatCatalogIngestion(input: JsonObject) {
+  const d = catalogDestinations.snapchat_native_action,
+    fields = catalogSourceFields(d);
+  if (typeof input.catalog_id !== 'string' || !d.catalogId.test(input.catalog_id))
+    bad(
+      'Choose an exact Snapchat product catalog ID and selected Snapchat ad account.',
+      'INVALID_SNAPCHAT_CATALOG_COMPARISON',
+    );
+  if (!Array.isArray(input.products) || !input.products.length || input.products.length > 50)
+    bad('Import 1–50 products per reviewed plan.', 'CATALOG_IMPORT_LIMIT');
+  if (input.allow_upsert !== undefined && typeof input.allow_upsert !== 'boolean')
+    bad('Explicitly choose whether existing retailer IDs may be updated.');
+  if (['retire_retailer_ids', 'retire_availability'].some(k => catalogRequirement(input, k) !== undefined))
+    bad(
+      'Snapchat products change only through product feeds; retire them in the feed.',
+      'INVALID_SNAPCHAT_CATALOG_COMPARISON',
+    );
+  const seen = new Set<string>();
+  const products = input.products.map((p: JsonObject, i: number) => {
+    validate(p, fields, 16384, 'product field');
+    if (Object.values(p).some(v => typeof v !== 'string' || /[\x00-\x1f\x7f]/.test(v)))
+      bad('Product fields must be plain text without control characters.');
+    for (const key of d.sourceFields.required)
+      if (typeof p[key] !== 'string' || !p[key].trim()) bad('Product ' + (i + 1) + ' requires ' + key + '.');
+    if (p.retailer_id.length > 100 || p.name.length > 500 || seen.has(p.retailer_id))
+      bad('Product retailer IDs must be unique and at most 100 characters; names at most 500.');
+    seen.add(p.retailer_id);
+    if (!/^\d{1,12}(\.\d{1,6})?$/.test(p.price) || !/^[A-Z]{3}$/.test(p.currency))
+      bad('Use an explicit currency and a nonnegative decimal price.');
+    for (const key of ['image_url', 'url'])
+      if (p[key]) {
+        let u: URL;
+        try {
+          u = new URL(p[key]);
+        } catch {
+          return bad('Product ' + key + ' must be an HTTPS URL.');
+        }
+        if (u.protocol !== 'https:' || u.username || u.password)
+          bad('Product URLs must use HTTPS without embedded credentials.');
+      }
+    if (
+      p.availability &&
+      !['in stock', 'out of stock', 'preorder', 'available for order', 'discontinued'].includes(p.availability)
+    )
+      bad('Use a supported product availability.');
+    if (p.condition && !['new', 'used', 'refurbished'].includes(p.condition))
+      bad('Use new, used or refurbished condition.');
+    const sale = catalogSale(p, i, false);
+    if (sale && !/^\d{1,12}(\.\d{1,6})?$/.test(sale.amount))
+      bad(
+        'Use a nonnegative decimal sale price, optionally followed by the product currency.',
+        'INVALID_CATALOG_SALE',
+        {
+          field: 'sale_price',
+          product: i + 1,
+        },
+      );
+    return {...p, ...(sale ? {sale_price: sale.amount} : {})};
+  });
+  return {
+    source_hash: fingerprint(input.products),
+    item_count: products.length,
+    items: products.map((p: JsonObject) => ({
+      retailer_id: p.retailer_id,
+      name: p.name,
+      native_price: p.price + ' ' + p.currency,
+      ...(p.sale_price !== undefined ? {native_sale_price: p.sale_price + ' ' + p.currency} : {}),
+      currency: p.currency,
+      existing_item_policy: 'feed only; compared read-only',
+    })),
+    // The rows the comparison reads with: the supplied products, a sale price without its currency suffix.
+    products,
+    plan: null,
+    writes: 'feed_only',
+    network_requests: 0,
+    destructive_deletions: 0,
+    destination_limitations: [
+      'Snapchat changes catalog products only through product feeds. AMCP compares supplied products read-only and saves no draft; fix differences in the feed.',
+      'Feed processing can take time, so a comparison shows current catalog evidence, not the next feed result.',
+    ],
+    meaning:
+      'Preview validates supplied product data for a read-only Snapchat comparison. Exact decimal prices are kept as written. No review, draft or provider change is created.',
   };
 }

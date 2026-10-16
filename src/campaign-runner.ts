@@ -3,7 +3,10 @@ import {eligibilityReuse, recipeEligibility} from './recipe-eligibility.js';
 import {assertAllocationStep, allocationCreationBinding} from './allocation-plan.js';
 import {scheduleAllocationOutcomeQuietly} from './allocation-outcome.js';
 import {assertConsentStep, consentCreationBinding} from './gtm-consent-plans.js';
-import {assertCatalogRemovalStep, catalogRemovalCreationBinding} from './x-catalog-removal.js';
+import {assertCatalogRemovalStep, catalogRemovalChanged, catalogRemovalCreationBinding} from './x-catalog-removal.js';
+import {catalogLineageCreationBinding} from './catalog-lineage.js';
+import {withXCatalogRemovalExpectation, type XCatalogRemovalExpectation} from './x-catalog-products.js';
+import {addNativeRequests, meterNativeRequests} from './native-request-meter.js';
 import {
   assertSearchExclusionStep,
   assertNewSearchExclusionDraft,
@@ -121,9 +124,9 @@ export const campaignTool = tool(
     allocation_preview_hash: field.id,
     consent_preview_id: field.id,
     consent_preview_hash: field.id,
-    catalog_removal_preview_id: field.id,
-    catalog_removal_preview_hash: field.id,
-    catalog_removal_save_nonce: field.id,
+    // The guarded saves of the catalog workflows (COM-02, COM-03): {kind: "removal", preview_id, preview_hash,
+    // save_nonce} or {kind: "lineage", id, hash, save_nonce}. Only the workflow that just stored the binding can name it.
+    catalog_binding: field.object,
     search_exclusion_preview_id: field.id,
     search_exclusion_preview_hash: field.id,
     confirmed: field.bool,
@@ -1625,6 +1628,8 @@ export class CampaignRunner {
       const search_exclusions = searchExclusionCreationBinding(this.store, actor, input, steps);
       const gtm_consent = consentCreationBinding(this.store, actor, input, steps);
       const catalog_removal = catalogRemovalCreationBinding(this.store, actor, input, steps);
+      // Where a catalog plan's products came from (COM-03): set only by amcp_workspace catalog_plan.
+      const catalog_lineage = catalogLineageCreationBinding(this.store, actor, input, steps);
       const creation_fingerprint = fingerprint({
         name: input.name,
         brief: input.brief,
@@ -1637,6 +1642,7 @@ export class CampaignRunner {
         ...(search_exclusions ? {search_exclusions} : {}),
         ...(gtm_consent ? {gtm_consent} : {}),
         ...(catalog_removal ? {catalog_removal} : {}),
+        ...(catalog_lineage ? {catalog_lineage} : {}),
         ...(origin ? {origin} : {}),
       });
       const id = input.idempotency_key ? creationId(actor, input.idempotency_key) : randomUUID();
@@ -1677,6 +1683,7 @@ export class CampaignRunner {
         ...(search_exclusions ? {search_exclusions} : {}),
         ...(gtm_consent ? {gtm_consent} : {}),
         ...(catalog_removal ? {catalog_removal} : {}),
+        ...(catalog_lineage ? {catalog_lineage} : {}),
         ...(temporary.length
           ? {
               temporary_sources: {
@@ -2185,7 +2192,9 @@ export class CampaignRunner {
       });
     }
     if (next.status === 'verifying') {
-      const v = await this.verifyWrite(actor, next.review_id);
+      const count = {reads: 0, writes: 0},
+        v = await meterNativeRequests(count, () => this.verifyWrite(actor, next.review_id));
+      next.native_requests = addNativeRequests(next.native_requests, 'verify', count);
       next.verification = v;
       next.status = verificationStepStatus(v.status);
       if (next.status === 'verified' && v.verified_resources)
@@ -2209,7 +2218,8 @@ export class CampaignRunner {
       if (run.allocation) await assertAllocationStep(this.store, this.call, actor, run, next);
       if (run.search_exclusions) await assertSearchExclusionStep(this.store, this.call, actor, run, next);
       if (run.gtm_consent) await assertConsentStep(this.store, this.call, actor, run, next);
-      if (run.catalog_removal) await assertCatalogRemovalStep(this.store, this.call, actor, run, next);
+      // A selected-removal step is checked by its own native review against the bound product (COM-02 C).
+      const removal = run.catalog_removal ? assertCatalogRemovalStep(run, next) : undefined;
       // A resumed or still-valid review keeps the acknowledgements it needs, so run asks for the same ones.
       if (next.status === 'executing')
         return {
@@ -2251,13 +2261,17 @@ export class CampaignRunner {
       const results = new Map<string, JsonObject>(run.steps.filter(settled).map((s: JsonObject) => [s.id, s.result]));
       const resolved = references(next.arguments, results, new Set(next.depends_on));
       let prepared: JsonObject;
+      // Native requests per step are recorded in the plan's journal metadata (COM-02 C).
+      const prepareCount = {reads: 0, writes: 0};
       if (next.kind === 'media')
-        prepared = await this.call(
-          'amcp_media',
-          resolved.action === 'prepare_library'
-            ? {action: 'prepare_library', review_id: resolved.review_id}
-            : {...resolved, action: 'prepare', account_id: next.account_id, connection_id: next.connection_id},
-          actor,
+        prepared = await meterNativeRequests(prepareCount, () =>
+          this.call(
+            'amcp_media',
+            resolved.action === 'prepare_library'
+              ? {action: 'prepare_library', review_id: resolved.review_id}
+              : {...resolved, action: 'prepare', account_id: next.account_id, connection_id: next.connection_id},
+            actor,
+          ),
         );
       else {
         // DV360, Amazon and many delegated operations name the account with their own key and forbid account_id.
@@ -2267,18 +2281,27 @@ export class CampaignRunner {
         }
         // Each step keeps a reference to the provider contract: the whole one is a single amcp_tool_help call away
         // and would otherwise repeat 1.3-6.6 KB in every step of the run and its responses (F-29).
-        prepared = await this.call(
-          'amcp_write',
-          {
-            action: 'prepare',
-            gateway: next.gateway,
-            connection_id: next.connection_id,
-            arguments: resolved,
-            evidence: 'ref',
-          },
-          actor,
+        const prepare = () =>
+          this.call(
+            'amcp_write',
+            {
+              action: 'prepare',
+              gateway: next.gateway,
+              connection_id: next.connection_id,
+              arguments: resolved,
+              evidence: 'ref',
+            },
+            actor,
+          );
+        prepared = await meterNativeRequests(prepareCount, () =>
+          removal ? withXCatalogRemovalExpectation(removal, prepare) : prepare(),
         );
       }
+      next.native_requests = addNativeRequests(next.native_requests, 'prepare', prepareCount);
+      // The review read the selected product and it no longer matches its saved evidence: refused like before COM-02 C,
+      // the step unchanged and nothing retained, and the remedy is a new removal preview.
+      if (removal && !prepared.success && ['CATALOG_REMOVAL_CHANGED', 'STATE_NOT_FOUND'].includes(prepared.error?.code))
+        catalogRemovalChanged();
       if (!prepared.success && alreadyCurrent(next, prepared.error)) {
         // Nothing to change: recorded with the read evidence, and the plan moves on to its next step (COM-01).
         next.status = 'skipped_unchanged';
@@ -2420,30 +2443,48 @@ export class CampaignRunner {
     if (run.allocation) await assertAllocationStep(this.store, this.call, actor, run, next);
     if (run.search_exclusions) await assertSearchExclusionStep(this.store, this.call, actor, run, next);
     if (run.gtm_consent) await assertConsentStep(this.store, this.call, actor, run, next);
-    if (run.catalog_removal) await assertCatalogRemovalStep(this.store, this.call, actor, run, next);
+    const removal: XCatalogRemovalExpectation | undefined = run.catalog_removal
+        ? assertCatalogRemovalStep(run, next)
+        : undefined,
+      before = {status: next.status, state: run.state};
     next.status = 'executing';
     run.state = 'in_progress';
     run = this.save(actor, run);
     const step = run.steps.find((s: JsonObject) => s.id === next.id)!;
-    const result = await this.call(
-      'amcp_write',
-      {
-        action: 'execute',
-        review_id: step.review_id,
-        idempotency_key: step.review_id,
-        confirmed: true,
-        ...(step.kind === 'write'
-          ? {
-              spend_change_confirmed: input.spend_change_confirmed,
-              cap_override_confirmed: input.cap_override_confirmed,
-              creative_edit_confirmed: input.creative_edit_confirmed,
-              destructive_confirmed: input.destructive_confirmed,
-            }
-          : {}),
-      },
-      actor,
+    const execute = () =>
+        this.call(
+          'amcp_write',
+          {
+            action: 'execute',
+            review_id: step.review_id,
+            idempotency_key: step.review_id,
+            confirmed: true,
+            ...(step.kind === 'write'
+              ? {
+                  spend_change_confirmed: input.spend_change_confirmed,
+                  cap_override_confirmed: input.cap_override_confirmed,
+                  creative_edit_confirmed: input.creative_edit_confirmed,
+                  destructive_confirmed: input.destructive_confirmed,
+                }
+              : {}),
+          },
+          actor,
+        ),
+      executeCount = {reads: 0, writes: 0};
+    const result = await meterNativeRequests(executeCount, () =>
+      removal ? withXCatalogRemovalExpectation(removal, execute) : execute(),
     );
+    step.native_requests = addNativeRequests(step.native_requests, 'execute', executeCount);
     this.store.assertActorActive(actor);
+    // A selected-removal step whose product changed since its review is refused before anything is claimed or sent
+    // (COM-02 C): the step keeps its review as it did when a separate comparison refused it, and the remedy is a new
+    // removal preview.
+    if (removal && !result.success && ['STATE_CHANGED', 'CATALOG_REMOVAL_CHANGED'].includes(result.error?.code)) {
+      step.status = before.status;
+      run.state = before.state;
+      this.save(actor, run);
+      catalogRemovalChanged();
+    }
     if (!result.success) {
       step.error = result.error; // An expired review was refused before anything was sent: prepare_next prepares it again.
       // A refusal that sent nothing released its claim (WRT-04): a pause, rate limit, open circuit or busy target clears
@@ -2487,7 +2528,9 @@ export class CampaignRunner {
     step.result = result.data;
     step.status = step.kind === 'media' ? (result.data.ready ? 'verified' : 'processing') : 'verifying';
     if (step.kind === 'write') {
-      step.verification = await this.verifyWrite(actor, step.review_id);
+      const verifyCount = {reads: 0, writes: 0};
+      step.verification = await meterNativeRequests(verifyCount, () => this.verifyWrite(actor, step.review_id));
+      step.native_requests = addNativeRequests(step.native_requests, 'verify', verifyCount);
       step.status = verificationStepStatus(step.verification.status);
       if (step.status === 'verified' && step.verification.verified_resources)
         step.result = {...step.result, verified_resources: step.verification.verified_resources};

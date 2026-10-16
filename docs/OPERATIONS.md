@@ -453,6 +453,9 @@ Policy for later changes (expand, then contract):
 
 - **Additive** (a new table, a nullable or defaulted column, an index, a trigger): a new ledger step; `schema_version`
   and `MIN_READER_VERSION` stay, so a rolled-back image still starts.
+- **Document fields** (a new document kind or field inside the existing documents table, such as COM-03's
+  `catalog_lineage` on campaign_run and `catalog_mapping_profile`): no SQL change and no ledger step; older releases
+  ignore them. Record them in the change's own documentation instead.
 - **Contracting** (a drop, a rename, a changed meaning): ship the expand step and readers of both forms first; in a
   later release bump `SCHEMA_VERSION` and raise `MIN_READER_VERSION` together (`src/schema-migrations.ts`), so older
   images refuse instead of misreading.
@@ -918,6 +921,20 @@ failure and needs no correction. Any difference gets an ordinary review. Unsent 
 retain original recovery. No inventory deletion or point-in-time/complete variant proof is inferred. See
 [workflow and exact collection bounds](review/DELIVERY-2026-10-04-X-CATALOG-COMPARISON.md).
 
+**Variant groups (COM-02 E).** X lists only the first product of a group, so a grouped record can hide a supplied SKU.
+When the catalog lists grouped records, the comparison returns `variant_groups` (the grouped record count, up to ten
+named records, `expansion` and `remedy: scheduled_feed`), the website names those records beside a possible hidden
+variant, and the native review's refusal carries the same records: add or change variants through the catalog's
+scheduled feed. X does not document whether `GET products?item_group_key=` lists every member of a group, so AMCP reads
+group members only after an owner-authorized read-only qualification read on a catalog with a known group (owner
+resource R2, item 7) shows complete membership and the owner sets `AMCP_X_CATALOG_GROUP_EXPANSION=qualified`. Then each
+listed group is read by its key, at most 10 groups and 3 pages of 100 members per group and scan, and a supplied SKU's
+absence is established only when every group was read completely: each member belongs to its group once, never
+collides with another listed product, and the listed record of each group is among its members. A member SKU is a
+grouped product, never a new one; anything else (`group_status_unknown`, `group_limit`, `page_limit`,
+`listed_member_missing`) keeps the block. Both scans must agree on the membership hash. Unset, nothing changes but the
+named records; members are never returned, only counted and hashed.
+
 ### Original X identities and verification upgrade
 
 Catalog/product/set/feed evidence must retain exact native string IDs and literal manual membership. Numeric,
@@ -933,10 +950,94 @@ In Commerce, validate the selected source and compare current products. Select o
 rows intended for removal; none is selected by default. Preview exact native keys/current values, then save
 an unapproved removal draft. Missing, grouped or unknown products require separate qualification. Changing a
 selection invalidates its preview. Save repeats selected supported evidence and retains one original plan;
-each unsent step rechecks its source before normal native review/execute. Accepted/uncertain deletion receipts
+each unsent step must still be its exact saved proposal, and its own native review compares the product it reads
+with the bound evidence (fields, exact price, held optional attributes, individual grouping, catalog owner) at
+prepare and again at execute, refusing `CATALOG_REMOVAL_CHANGED` with nothing sent (COM-02 C). No separate catalog
+comparison is read per phase, so a removal step costs what an update step costs (about 40 GETs at 1,000 products,
+down from about 130). Every campaign step records its native request attempts per phase in its journal
+(`native_requests: {prepare|execute|verify: {reads, writes}}`). Accepted/uncertain deletion receipts
 retain original keys and read-only recovery. Deletion is permanent and a scheduled feed may restore a product
 it still contains. No source-absence deletion policy or feed rewrite is inferred.
 See [workflow, exact limits and synthetic qualification](review/DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md).
+
+**Listed products outside the source (COM-02 B, owner decision P9).** A discontinued SKU that is no longer in the
+source can be removed only by explicit intent: inspect the other listed X products, select individual products by
+their native key (nothing is preselected, a selection survives search and paging), preview them
+(`preview_catalog_removal` with `requirements: {selection_source: "listed_inventory", product_keys, listed_inventory_hash}`)
+and type the number of products back to save (`create_catalog_removal` with `confirmed_count`). The preview refuses a
+listing that changed since the inspection; grouped, unknown and unlisted keys are refused; 1–50 keys. No source row is
+invented, so the saved plan's brief and removal binding name the listing hash instead of a source hash. Each step keeps the single-key native
+review, the owner's `allow_deletion` policy (a `false` policy refuses the step before anything is deleted) and
+read-back. Nothing is ever selected because a source lacks it.
+
+### Catalog sale prices and retirement (COM-02 A, B)
+
+Meta and X imports accept an optional `sale_price`: a decimal lower than `price`, in the product currency (an explicit
+currency suffix must be that currency), with optional `sale_price_start_date` and `sale_price_end_date` in ISO 8601
+with an explicit offset, kept exactly as written (X needs both or neither and receives them as one
+`sale_price_effective_date` `start/end`). Meta receives the sale in hundredths, so digits beyond the second decimal
+place must be zeros; X receives `amount CUR`. The comparison uses Meta's own `sale_price_amount` filter and X's exact
+decimal value, and the native review and read-back check the sale that was sent. A source without a sale sends none:
+the destination keeps its current sale and the comparison names it as a value the source does not send. For Meta that
+puts the product in the review set as `unknown` (owner decision P9); for X it is a note. Clearing a destination sale is
+not offered.
+
+Retirement is the non-destructive way to stop advertising a discontinued product, for Meta (which has no product
+delete contract) and X. `requirements: {retire_retailer_ids, retire_availability: "out of stock" | "discontinued"}` on
+`catalog_preview`, `catalog_compare` and `catalog_plan` sends those supplied products through the same reviewed update
+with that availability, so ads stop showing them while the product, its history and its sets stay. It needs
+`allow_upsert: true`, and a comparison blocks retiring a product the catalog does not have (`retire_absent`: the update
+would create it). On the website an update comparison offers Retire checkboxes for existing products; nothing is
+deleted.
+
+### Read-only Snapchat catalog comparison (COM-02 D)
+
+Snapchat changes catalog products only through product feeds, so Commerce offers Snapchat ad accounts a read-only
+comparison and saves nothing (`catalog_plan` refuses `CATALOG_FEED_ONLY`). AMCP reads the selected ad account's
+organization, the catalog (it must belong to that organization), then the 1–50 supplied IDs in one `products/search`
+request with an `ID IS_ANY` filter (pages of 1,000, at most three; a repeated, empty-but-continued, foreign or
+duplicated page is refused) twice, and the account and catalog again; both scans must agree. Prices stay exact decimal
+strings and a supplied `sale_price` compares exactly. Every product that differs carries `fix_in: "feed"` and the
+response `remedy: "fix_in_feed"`. Limits: 30 attempts, 9,000 rows, 4 MiB and 60 seconds. Feed processing takes time, so
+this is current evidence, not the next feed result. The search body follows the documented product-set filter grammar;
+its live acceptance is an owner-authorized read on a selected catalog, which has not run yet.
+
+### Catalog destinations, sources, mappings, lineage and plan groups (COM-03)
+
+- **One destination contract.** `src/catalog-destinations.ts` registers Meta, X and Snapchat once: source fields, item
+  identity, how changes reach the catalog (one reviewed native step per product with its own receipt and read-back, or
+  feeds only), upsert intent (Meta asks, X always updates), removal intent (Meta retires; X also deletes explicitly
+  selected products by key; Snapchat none) and what a destination-only value means (P9). The projection and comparison
+  of each destination are registered under the same gateway, every comparison returns the shared item
+  (`catalog-comparison-item-v2`) and the website checks it with one validator. Native write contracts are unchanged.
+- **Product sources.** `src/catalog-sources.ts` turns a source into supplied rows: the caller's `products`, or
+  `requirements.source = {kind: "csv", text, columns: "canonical" | "profile", profile_version?}` (at most 192 KiB and
+  500 rows; `INVALID_CATALOG_SOURCE`, `CATALOG_SOURCE_LIMIT`) on `catalog_preview`, `catalog_compare` and `catalog_plan`.
+  The parked store sources (WooCommerce, Shopify, Salla) plug in as further adapters there. No source establishes
+  absence: a product it lacks is retained.
+- **Mapping profiles.** `catalog_mapping` reads and `save_catalog_mapping` saves the column mapping of one account's
+  catalog (`requirements: {columns, fixed_currency, image_mode, replace_identity_column?}`, optional `revision`). Each
+  change is a new version (20 kept), audited as `catalog_mapping_saved`; an unchanged mapping keeps its version; a save
+  from an older read is refused with `CATALOG_MAPPING_CHANGED`, and another retailer ID column without
+  `replace_identity_column: true` with `CATALOG_MAPPING_IDENTITY`. `columns: "profile"` needs a saved mapping
+  (`CATALOG_MAPPING_MISSING`). Access to the account is checked before a profile is read.
+- **Plan lineage.** Every `catalog_plan` stores `catalog_lineage` on its campaign_run (and in `amcp_campaign get`):
+  source kind, `source_hash`, `catalog_source_hash`, row counts, column mode, mapping profile and version, and, when
+  `requirements.comparison_token` names the `lineage_token` a `catalog_compare` returned to the same person within 15
+  minutes, that `comparison_hash` and time. A token for other products or another scope is refused
+  (`CATALOG_LINEAGE_MISMATCH`, `CATALOG_LINEAGE_EXPIRED`); a deployment without the encryption key returns no token.
+  Only `catalog_plan` can set a lineage: a direct `amcp_campaign create` naming one is refused
+  (`CATALOG_LINEAGE_UNBOUND`). Lineage changes no native request, review or approval.
+- **Plan groups.** `requirements.chunked: true` with a source of 51–500 products: `catalog_preview` validates every
+  part and saves nothing (`catalog_plan_group_preview`); `catalog_plan` saves one unapproved plan of at most 50 per
+  part with one `lineage_group` (`catalog_plan_group`). A refused product saves no part; each part has its own creation
+  key, so repeating the same request saves only missing parts; the parts count toward the 500-plan limit. Retirement,
+  a comparison token and Snapchat are refused in a group (`INVALID_CATALOG_PLAN_GROUP`, `CATALOG_FEED_ONLY`).
+- **Storage and rollback.** These are new documents (`catalog_mapping_profile`, the 90-second
+  `catalog_lineage_binding`) and an additive campaign_run field, with no SQL change and no ledger step; an older release
+  ignores them. Release the website and the server together: the website's mapped import and plan groups use these
+  actions and inputs. Each phase can be reverted on its own (the destination registry, then profiles, sources and
+  lineage, then plan groups).
 
 ### Verify the committed release source
 

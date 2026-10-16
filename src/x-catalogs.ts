@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {sha256, stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
@@ -106,7 +107,9 @@ export function authorizeXCatalogRead(p: CompiledRequest, account: string): bool
       m &&
       r.xCatalogId === m[1] &&
       !r.xCatalogUser &&
-      only(...(m[2] === 'products' ? ['count', 'cursor'] : ['cursor']))
+      // A product group's members are read by its key (COM-02 E).
+      only(...(m[2] === 'products' ? ['count', 'cursor', 'item_group_key'] : ['cursor'])) &&
+      (p.query.item_group_key === undefined || text(p.query.item_group_key, 100))
     )
       return true;
   }
@@ -298,4 +301,200 @@ export function priceView(v: unknown): JsonObject | null {
     : v === null || v === undefined
       ? null
       : {raw: String(v)};
+}
+/** Source field → native X attribute, for the attributes a supplied-source comparison sends and compares. */
+export const xCatalogComparedFields: Record<string, string> = {
+  name: 'title',
+  image_url: 'image_link',
+  url: 'link',
+  availability: 'availability',
+  condition: 'condition',
+  brand: 'brand',
+  description: 'description',
+};
+/** Optional native attributes a product can hold without the import sending them. */
+export const xCatalogOptionalFields = [
+  'gtin',
+  'mpn',
+  'mobile_link',
+  'additional_image_link',
+  'google_product_category',
+  'product_type',
+  'inventory',
+  'sale_price',
+  'sale_price_effective_date',
+  'gender',
+  'color',
+  'size',
+  'age_group',
+  'custom_label_0',
+  'custom_label_1',
+  'custom_label_2',
+  'custom_label_3',
+  'custom_label_4',
+];
+/** A listed product as a comparison shows it: supported plain values, or null for anything AMCP cannot compare. */
+export function xCatalogRowView(row: JsonObject): JsonObject {
+  const out: JsonObject = {present: true, id: row.product_key, retailer_id: row.id};
+  for (const [source, native] of Object.entries(xCatalogComparedFields)) {
+    const value = row[native],
+      max = native === 'title' ? 150 : native === 'description' ? 5000 : native.endsWith('link') ? 2048 : 1000;
+    if (value != null && typeof value !== 'string') unverified('X returned an unrecognized product field.');
+    const plain =
+      typeof value === 'string' &&
+      (native === 'description' ? text(value.replace(/\r?\n/g, ' '), max) : text(value, max));
+    out[source] = plain && (!native.endsWith('link') || httpsUrl(value)) ? value : null;
+  }
+  out.price = catalogPrice(row.price) ? row.price : null;
+  out.currency = catalogPrice(row.price)?.currency ?? null;
+  // The current sale as X returns it (COM-02 A): null when the product has none; an unparseable price stays as text.
+  for (const k of ['sale_price', 'sale_price_effective_date']) {
+    const value = row[k];
+    if (value != null && typeof value !== 'string') unverified('X returned an unrecognized product field.');
+    out[k] = typeof value === 'string' && text(value, 1000) ? value : null;
+  }
+  return out;
+}
+/** The optional attributes a listed product holds a value for. */
+export function xCatalogHeldOptional(row: JsonObject, sent: JsonObject = {}): string[] {
+  return xCatalogOptionalFields.filter(
+    k =>
+      !(k in sent) &&
+      row[k] != null &&
+      row[k] !== '' &&
+      !(Array.isArray(row[k]) && !row[k].length) &&
+      // A review's price view of an empty native value is {raw: ''}: still no value.
+      !(object(row[k]) && row[k].raw === ''),
+  );
+}
+/**
+ * The selected-removal evidence of one product in a form both observations share (COM-02 C): the comparison's row view
+ * and the native review's own product read. Prices compare by exact value, never by their formatted text.
+ */
+export function xCatalogRemovalEvidence(before: JsonObject, unsent: unknown): JsonObject {
+  const money = catalogPrice(before.price);
+  return {
+    product_id: before.id ?? null,
+    retailer_id: before.retailer_id ?? null,
+    ...Object.fromEntries(Object.keys(xCatalogComparedFields).map(k => [k, before[k] ?? null])),
+    price: money ? money.amount + ' ' + money.currency : null,
+    unsent_fields: Array.isArray(unsent) ? [...unsent].map(String).sort() : null,
+  };
+}
+/**
+ * X variant groups (COM-02 E). X lists only the first product of a group ("only the product that you submitted first"),
+ * so a grouped listed record can hide a supplied SKU and its absence is not established. GET products accepts
+ * item_group_key, but X does not document whether that filter returns every member of a group. Per-group expansion
+ * therefore runs only after an owner-authorized read has shown complete membership listing and the owner has set
+ * AMCP_X_CATALOG_GROUP_EXPANSION=qualified (docs/OPERATIONS.md). Until then the block stays and names its records.
+ */
+export const xGroupExpansionLimits = {groups: 10, pages: 3, named: 10} as const;
+export function xGroupExpansionQualified(): boolean {
+  return process.env.AMCP_X_CATALOG_GROUP_EXPANSION === 'qualified';
+}
+export type XGroupExpansion = {
+  /** not_needed: no grouped record; complete: every group read in full; otherwise absence stays unestablished. */
+  state: 'not_needed' | 'not_qualified' | 'complete' | 'incomplete';
+  /**
+   * Why an expansion is incomplete: a grouped record without a readable group key, more groups or member pages than
+   * one read takes, or a group read that does not return the listed record of its own group (the filter did not list
+   * every member).
+   */
+  reason: null | 'group_status_unknown' | 'group_limit' | 'page_limit' | 'listed_member_missing';
+  /** Every member of every expanded group, by SKU. */
+  members: Map<string, JsonObject>;
+  membership_hash: string | null;
+  grouped_record_count: number;
+  /** The listed grouped records that can hide a SKU, named for the explanation (at most ten). */
+  grouped_records: JsonObject[];
+};
+/** Whether an expansion establishes that a SKU outside the listing and its groups is absent. */
+export const xGroupAbsenceEstablished = (e: XGroupExpansion): boolean =>
+  e.state === 'not_needed' || e.state === 'complete';
+export async function xCatalogGroupExpansion(
+  p: CompiledRequest,
+  fetch: Fetch,
+  id: string,
+  rows: JsonObject[],
+): Promise<XGroupExpansion> {
+  const grouped = rows.filter(row => xCatalogProductGrouping(row) !== 'individual'),
+    named = grouped.slice(0, xGroupExpansionLimits.named).map(row => ({
+      retailer_id: row.id,
+      product_id: row.product_key,
+      group_status: xCatalogProductGrouping(row),
+      item_group_id: text(row.item_group_id, 100) ? row.item_group_id : null,
+      item_group_key: text(row.item_group_key, 100) ? row.item_group_key : null,
+    })),
+    base = {members: new Map<string, JsonObject>(), grouped_record_count: grouped.length, grouped_records: named};
+  if (!grouped.length) return {...base, state: 'not_needed', reason: null, membership_hash: null, grouped_records: []};
+  if (!xGroupExpansionQualified()) return {...base, state: 'not_qualified', reason: null, membership_hash: null};
+  // A group can be read only by its key: an unknown group status or a group without a key stays unexpanded.
+  if (grouped.some(row => xCatalogProductGrouping(row) !== 'grouped' || !text(row.item_group_key, 100)))
+    return {...base, state: 'incomplete', reason: 'group_status_unknown', membership_hash: null};
+  const keys = [...new Set(grouped.map(row => row.item_group_key as string))].sort();
+  if (keys.length > xGroupExpansionLimits.groups)
+    return {...base, state: 'incomplete', reason: 'group_limit', membership_hash: null};
+  const members = new Map<string, JsonObject>(),
+    productKeys = new Set<string>(),
+    listedById = new Map(rows.map(row => [row.id as string, row])),
+    listedByKey = new Map(rows.map(row => [row.product_key as string, row])),
+    membership: [string, [string, string][]][] = [];
+  for (const key of keys) {
+    const group = await xList(
+      fetch,
+      xCatalogRead(p, catalogPath(id, 'products'), {count: 100, item_group_key: key}, {xCatalogId: id}),
+      xGroupExpansionLimits.pages,
+      'products',
+    );
+    if (!group.complete) return {...base, state: 'incomplete', reason: 'page_limit', membership_hash: null};
+    // Every member has its own identity, belongs to this group and appears once across all groups; a member that is
+    // also listed is that same listed record of this group, never another product.
+    for (const row of group.rows) {
+      const listed = listedById.get(row.id) ?? listedByKey.get(row.product_key);
+      if (
+        !text(row.id, 100) ||
+        typeof row.product_key !== 'string' ||
+        !xSnowflake.test(row.product_key) ||
+        row.item_group_key !== key ||
+        members.has(row.id) ||
+        productKeys.has(row.product_key) ||
+        (listed && (listed.id !== row.id || listed.product_key !== row.product_key || listed.item_group_key !== key))
+      )
+        unverified('X returned a malformed, repeated or foreign member of a product group.');
+      members.set(row.id, row);
+      productKeys.add(row.product_key);
+    }
+    // The listed record of a group is one of its members: a group read without it did not list every member.
+    if (grouped.some(row => row.item_group_key === key && !productKeys.has(row.product_key)))
+      return {...base, state: 'incomplete', reason: 'listed_member_missing', membership_hash: null};
+    membership.push([
+      key,
+      group.rows.map(row => [row.product_key as string, row.id as string] as [string, string]).sort(),
+    ]);
+  }
+  return {...base, state: 'complete', reason: null, members, membership_hash: sha256(stable(membership))};
+}
+/** The variant-group evidence a comparison or review shows: no members, only their count and hash. */
+export function xGroupEvidence(e: XGroupExpansion): JsonObject {
+  return {
+    expansion: e.state,
+    reason: e.reason,
+    grouped_record_count: e.grouped_record_count,
+    grouped_records: e.grouped_records,
+    member_count: e.members.size,
+    membership_hash: e.membership_hash,
+    // Variants are added or changed through the catalog's scheduled feed while their absence is not established.
+    remedy: xGroupAbsenceEstablished(e) ? null : 'scheduled_feed',
+  };
+}
+/** The same evidence from a product a native review read (the family's productView, with exact price values). */
+export function xCatalogReviewRemovalEvidence(product: JsonObject): JsonObject {
+  const price = object(product.price) && typeof product.price.amount === 'string' ? product.price : undefined,
+    row: JsonObject = {
+      ...product,
+      id: product.id,
+      product_key: product.product_key,
+      price: price ? price.amount + ' ' + price.currency : null,
+    };
+  return xCatalogRemovalEvidence(xCatalogRowView(row), xCatalogHeldOptional(product));
 }

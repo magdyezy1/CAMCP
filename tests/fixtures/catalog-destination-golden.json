@@ -1,0 +1,1308 @@
+{
+  "meta_preview": {
+    "source_hash": "32dd3d41a077982386f005b698225d7421df30408df03d1133ba0f5cd53094af",
+    "item_count": 4,
+    "items": [
+      {
+        "retailer_id": "001",
+        "name": "New shoe",
+        "price_minor_units": 1234,
+        "currency": "SAR",
+        "existing_item_policy": "explicit upsert after native review"
+      },
+      {
+        "retailer_id": "002",
+        "name": "Updated shoe",
+        "price_minor_units": 2000,
+        "currency": "SAR",
+        "existing_item_policy": "explicit upsert after native review"
+      },
+      {
+        "retailer_id": "003",
+        "name": "Matching shoe",
+        "price_minor_units": 0,
+        "currency": "SAR",
+        "existing_item_policy": "explicit upsert after native review"
+      },
+      {
+        "retailer_id": "004",
+        "name": "Unknown image",
+        "price_minor_units": 999,
+        "currency": "SAR",
+        "existing_item_policy": "explicit upsert after native review"
+      }
+    ],
+    "plan": {
+      "action": "create",
+      "name": "Synthetic catalog changes",
+      "brief": "Import 4 products into Meta catalog 555. Source hash 32dd3d41a077982386f005b698225d7421df30408df03d1133ba0f5cd53094af. Each item requires native before-state review and independent read-back. Missing source items are not deleted.",
+      "steps": [
+        {
+          "id": "product-1",
+          "kind": "write",
+          "gateway": "meta_native_action",
+          "account_id": "123",
+          "connection_id": "catalog-login",
+          "arguments": {
+            "action": "meta_product_catalog_id_products_create",
+            "params": {
+              "product_catalog_id": "555"
+            },
+            "payload": {
+              "retailer_id": "001",
+              "name": "New shoe",
+              "price": 1234,
+              "currency": "SAR",
+              "image_url": "https://example.test/new.png",
+              "allow_upsert": true
+            }
+          },
+          "depends_on": [],
+          "description": "Catalog retailer ID 001"
+        },
+        {
+          "id": "product-2",
+          "kind": "write",
+          "gateway": "meta_native_action",
+          "account_id": "123",
+          "connection_id": "catalog-login",
+          "arguments": {
+            "action": "meta_product_catalog_id_products_create",
+            "params": {
+              "product_catalog_id": "555"
+            },
+            "payload": {
+              "retailer_id": "002",
+              "name": "Updated shoe",
+              "price": 2000,
+              "currency": "SAR",
+              "image_url": "https://example.test/update.png",
+              "allow_upsert": true
+            }
+          },
+          "depends_on": [],
+          "description": "Catalog retailer ID 002"
+        },
+        {
+          "id": "product-3",
+          "kind": "write",
+          "gateway": "meta_native_action",
+          "account_id": "123",
+          "connection_id": "catalog-login",
+          "arguments": {
+            "action": "meta_product_catalog_id_products_create",
+            "params": {
+              "product_catalog_id": "555"
+            },
+            "payload": {
+              "retailer_id": "003",
+              "name": "Matching shoe",
+              "price": 0,
+              "currency": "SAR",
+              "image_url": "https://example.test/match.png",
+              "allow_upsert": true
+            }
+          },
+          "depends_on": [],
+          "description": "Catalog retailer ID 003"
+        },
+        {
+          "id": "product-4",
+          "kind": "write",
+          "gateway": "meta_native_action",
+          "account_id": "123",
+          "connection_id": "catalog-login",
+          "arguments": {
+            "action": "meta_product_catalog_id_products_create",
+            "params": {
+              "product_catalog_id": "555"
+            },
+            "payload": {
+              "retailer_id": "004",
+              "name": "Unknown image",
+              "price": 999,
+              "currency": "SAR",
+              "image_url": "https://example.test/unknown.png",
+              "allow_upsert": true
+            }
+          },
+          "depends_on": [],
+          "description": "Catalog retailer ID 004"
+        }
+      ]
+    },
+    "network_requests": 0,
+    "destructive_deletions": 0,
+    "meaning": "Preview is based on supplied product data. Current provider items are read by each native review before execution. Partial or uncertain writes retain per-item receipts in the campaign journal."
+  },
+  "meta_preview_create_only": {
+    "source_hash": "32dd3d41a077982386f005b698225d7421df30408df03d1133ba0f5cd53094af",
+    "item_count": 4,
+    "items": [
+      {
+        "retailer_id": "001",
+        "name": "New shoe",
+        "price_minor_units": 1234,
+        "currency": "SAR",
+        "existing_item_policy": "create only; existing IDs refused"
+      },
+      {
+        "retailer_id": "002",
+        "name": "Updated shoe",
+        "price_minor_units": 2000,
+        "currency": "SAR",
+        "existing_item_policy": "create only; existing IDs refused"
+      },
+      {
+        "retailer_id": "003",
+        "name": "Matching shoe",
+        "price_minor_units": 0,
+        "currency": "SAR",
+        "existing_item_policy": "create only; existing IDs refused"
+      },
+      {
+        "retailer_id": "004",
+        "name": "Unknown image",
+        "price_minor_units": 999,
+        "currency": "SAR",
+        "existing_item_policy": "create only; existing IDs refused"
+      }
+    ],
+    "plan": {
+      "action": "create",
+      "name": "Synthetic catalog changes",
+      "brief": "Import 4 products into Meta catalog 555. Source hash 32dd3d41a077982386f005b698225d7421df30408df03d1133ba0f5cd53094af. Each item requires native before-state review and independent read-back. Missing source items are not deleted.",
+      "steps": [
+        {
+          "id": "product-1",
+          "kind": "write",
+          "gateway": "meta_native_action",
+          "account_id": "123",
+          "connection_id": "catalog-login",
+          "arguments": {
+            "action": "meta_product_catalog_id_products_create",
+            "params": {
+              "product_catalog_id": "555"
+            },
+            "payload": {
+              "retailer_id": "001",
+              "name": "New shoe",
+              "price": 1234,
+              "currency": "SAR",
+              "image_url": "https://example.test/new.png",
+              "allow_upsert": false
+            }
+          },
+          "depends_on": [],
+          "description": "Catalog retailer ID 001"
+        },
+        {
+          "id": "product-2",
+          "kind": "write",
+          "gateway": "meta_native_action",
+          "account_id": "123",
+          "connection_id": "catalog-login",
+          "arguments": {
+            "action": "meta_product_catalog_id_products_create",
+            "params": {
+              "product_catalog_id": "555"
+            },
+            "payload": {
+              "retailer_id": "002",
+              "name": "Updated shoe",
+              "price": 2000,
+              "currency": "SAR",
+              "image_url": "https://example.test/update.png",
+              "allow_upsert": false
+            }
+          },
+          "depends_on": [],
+          "description": "Catalog retailer ID 002"
+        },
+        {
+          "id": "product-3",
+          "kind": "write",
+          "gateway": "meta_native_action",
+          "account_id": "123",
+          "connection_id": "catalog-login",
+          "arguments": {
+            "action": "meta_product_catalog_id_products_create",
+            "params": {
+              "product_catalog_id": "555"
+            },
+            "payload": {
+              "retailer_id": "003",
+              "name": "Matching shoe",
+              "price": 0,
+              "currency": "SAR",
+              "image_url": "https://example.test/match.png",
+              "allow_upsert": false
+            }
+          },
+          "depends_on": [],
+          "description": "Catalog retailer ID 003"
+        },
+        {
+          "id": "product-4",
+          "kind": "write",
+          "gateway": "meta_native_action",
+          "account_id": "123",
+          "connection_id": "catalog-login",
+          "arguments": {
+            "action": "meta_product_catalog_id_products_create",
+            "params": {
+              "product_catalog_id": "555"
+            },
+            "payload": {
+              "retailer_id": "004",
+              "name": "Unknown image",
+              "price": 999,
+              "currency": "SAR",
+              "image_url": "https://example.test/unknown.png",
+              "allow_upsert": false
+            }
+          },
+          "depends_on": [],
+          "description": "Catalog retailer ID 004"
+        }
+      ]
+    },
+    "network_requests": 0,
+    "destructive_deletions": 0,
+    "meaning": "Preview is based on supplied product data. Current provider items are read by each native review before execution. Partial or uncertain writes retain per-item receipts in the campaign journal."
+  },
+  "meta_compare": {
+    "record_kind": "catalog_comparison",
+    "scope": {
+      "gateway": "meta_native_action",
+      "account_id": "123",
+      "connection_id": "catalog-login",
+      "catalog_id": "555"
+    },
+    "complete": true,
+    "catalog": {
+      "present": true,
+      "id": "555",
+      "name": "Synthetic shop",
+      "vertical": "commerce",
+      "business": "900"
+    },
+    "source_hash": "32dd3d41a077982386f005b698225d7421df30408df03d1133ba0f5cd53094af",
+    "comparison_hash": "<volatile>",
+    "requested_at": "<volatile>",
+    "captured_at": "<volatile>",
+    "item_count": 4,
+    "summary": {
+      "new": 1,
+      "changed": 1,
+      "matching": 1,
+      "unknown": 1,
+      "blocked": 0,
+      "needs_review": 3,
+      "with_destination_only_values": 0
+    },
+    "items": [
+      {
+        "retailer_id": "001",
+        "product_id": null,
+        "state": "new",
+        "blocked": false,
+        "price_matches": null,
+        "before": {
+          "present": false,
+          "retailer_id": "001"
+        },
+        "changes": [],
+        "unknown_fields": [],
+        "unsent_fields": []
+      },
+      {
+        "retailer_id": "002",
+        "product_id": "9007199254740993",
+        "state": "changed",
+        "blocked": false,
+        "price_matches": false,
+        "before": {
+          "present": true,
+          "id": "9007199254740993",
+          "retailer_id": "002",
+          "name": "Previous shoe",
+          "description": null,
+          "short_description": null,
+          "brand": null,
+          "category": null,
+          "fb_product_category": null,
+          "product_type": null,
+          "color": null,
+          "size": null,
+          "material": null,
+          "pattern": null,
+          "gtin": null,
+          "manufacturer_part_number": null,
+          "retailer_product_group_id": null,
+          "custom_label_0": null,
+          "custom_label_1": null,
+          "custom_label_2": null,
+          "custom_label_3": null,
+          "custom_label_4": null,
+          "availability": null,
+          "condition": null,
+          "age_group": null,
+          "gender": null,
+          "visibility": null,
+          "url": null,
+          "image_url": "https://example.test/update.png",
+          "mobile_link": null,
+          "sale_price_start_date": null,
+          "sale_price_end_date": null,
+          "additional_image_urls": null,
+          "inventory": null,
+          "currency": "SAR",
+          "price": "Native formatted price 1800",
+          "sale_price": null
+        },
+        "changes": [
+          {
+            "field": "name",
+            "before": "Previous shoe",
+            "after": "Updated shoe"
+          },
+          {
+            "field": "price",
+            "before": "Native formatted price 1800",
+            "after_minor_units": 2000,
+            "currency": "SAR"
+          }
+        ],
+        "unknown_fields": [],
+        "unsent_fields": []
+      },
+      {
+        "retailer_id": "003",
+        "product_id": "9007199254740994",
+        "state": "matching",
+        "blocked": false,
+        "price_matches": true,
+        "before": {
+          "present": true,
+          "id": "9007199254740994",
+          "retailer_id": "003",
+          "name": "Matching shoe",
+          "description": null,
+          "short_description": null,
+          "brand": null,
+          "category": null,
+          "fb_product_category": null,
+          "product_type": null,
+          "color": null,
+          "size": null,
+          "material": null,
+          "pattern": null,
+          "gtin": null,
+          "manufacturer_part_number": null,
+          "retailer_product_group_id": null,
+          "custom_label_0": null,
+          "custom_label_1": null,
+          "custom_label_2": null,
+          "custom_label_3": null,
+          "custom_label_4": null,
+          "availability": null,
+          "condition": null,
+          "age_group": null,
+          "gender": null,
+          "visibility": null,
+          "url": null,
+          "image_url": "https://example.test/match.png",
+          "mobile_link": null,
+          "sale_price_start_date": null,
+          "sale_price_end_date": null,
+          "additional_image_urls": null,
+          "inventory": null,
+          "currency": "SAR",
+          "price": "Native formatted price 0",
+          "sale_price": null
+        },
+        "changes": [],
+        "unknown_fields": [],
+        "unsent_fields": []
+      },
+      {
+        "retailer_id": "004",
+        "product_id": "9007199254740995",
+        "state": "unknown",
+        "blocked": false,
+        "price_matches": true,
+        "before": {
+          "present": true,
+          "id": "9007199254740995",
+          "retailer_id": "004",
+          "name": "Unknown image",
+          "description": null,
+          "short_description": null,
+          "brand": null,
+          "category": null,
+          "fb_product_category": null,
+          "product_type": null,
+          "color": null,
+          "size": null,
+          "material": null,
+          "pattern": null,
+          "gtin": null,
+          "manufacturer_part_number": null,
+          "retailer_product_group_id": null,
+          "custom_label_0": null,
+          "custom_label_1": null,
+          "custom_label_2": null,
+          "custom_label_3": null,
+          "custom_label_4": null,
+          "availability": null,
+          "condition": null,
+          "age_group": null,
+          "gender": null,
+          "visibility": null,
+          "url": null,
+          "image_url": null,
+          "mobile_link": null,
+          "sale_price_start_date": null,
+          "sale_price_end_date": null,
+          "additional_image_urls": null,
+          "inventory": null,
+          "currency": "SAR",
+          "price": "Native formatted price 999",
+          "sale_price": null
+        },
+        "changes": [],
+        "unknown_fields": ["image_url"],
+        "unsent_fields": []
+      }
+    ],
+    "review_retailer_ids": ["001", "002", "004"],
+    "network_requests": 15,
+    "provider_mutations": 0,
+    "destructive_deletions": 0,
+    "meaning": "Current evidence for the supplied retailer IDs only. Exact price equality uses Meta’s native filter; formatted prices are display text. Missing fields stay unknown. Each product and catalog ownership are checked again during collection, but this is not a point-in-time inventory snapshot. Saving a draft still requires a fresh native review before execution. Products outside the supplied import are not inspected or deleted."
+  },
+  "meta_compare_create_only": {
+    "record_kind": "catalog_comparison",
+    "scope": {
+      "gateway": "meta_native_action",
+      "account_id": "123",
+      "connection_id": "catalog-login",
+      "catalog_id": "555"
+    },
+    "complete": true,
+    "catalog": {
+      "present": true,
+      "id": "555",
+      "name": "Synthetic shop",
+      "vertical": "commerce",
+      "business": "900"
+    },
+    "source_hash": "32dd3d41a077982386f005b698225d7421df30408df03d1133ba0f5cd53094af",
+    "comparison_hash": "<volatile>",
+    "requested_at": "<volatile>",
+    "captured_at": "<volatile>",
+    "item_count": 4,
+    "summary": {
+      "new": 1,
+      "changed": 1,
+      "matching": 1,
+      "unknown": 1,
+      "blocked": 3,
+      "needs_review": 1,
+      "with_destination_only_values": 0
+    },
+    "items": [
+      {
+        "retailer_id": "001",
+        "product_id": null,
+        "state": "new",
+        "blocked": false,
+        "price_matches": null,
+        "before": {
+          "present": false,
+          "retailer_id": "001"
+        },
+        "changes": [],
+        "unknown_fields": [],
+        "unsent_fields": []
+      },
+      {
+        "retailer_id": "002",
+        "product_id": "9007199254740993",
+        "state": "changed",
+        "blocked": true,
+        "price_matches": false,
+        "before": {
+          "present": true,
+          "id": "9007199254740993",
+          "retailer_id": "002",
+          "name": "Previous shoe",
+          "description": null,
+          "short_description": null,
+          "brand": null,
+          "category": null,
+          "fb_product_category": null,
+          "product_type": null,
+          "color": null,
+          "size": null,
+          "material": null,
+          "pattern": null,
+          "gtin": null,
+          "manufacturer_part_number": null,
+          "retailer_product_group_id": null,
+          "custom_label_0": null,
+          "custom_label_1": null,
+          "custom_label_2": null,
+          "custom_label_3": null,
+          "custom_label_4": null,
+          "availability": null,
+          "condition": null,
+          "age_group": null,
+          "gender": null,
+          "visibility": null,
+          "url": null,
+          "image_url": "https://example.test/update.png",
+          "mobile_link": null,
+          "sale_price_start_date": null,
+          "sale_price_end_date": null,
+          "additional_image_urls": null,
+          "inventory": null,
+          "currency": "SAR",
+          "price": "Native formatted price 1800",
+          "sale_price": null
+        },
+        "changes": [
+          {
+            "field": "name",
+            "before": "Previous shoe",
+            "after": "Updated shoe"
+          },
+          {
+            "field": "price",
+            "before": "Native formatted price 1800",
+            "after_minor_units": 2000,
+            "currency": "SAR"
+          }
+        ],
+        "unknown_fields": [],
+        "unsent_fields": []
+      },
+      {
+        "retailer_id": "003",
+        "product_id": "9007199254740994",
+        "state": "matching",
+        "blocked": true,
+        "price_matches": true,
+        "before": {
+          "present": true,
+          "id": "9007199254740994",
+          "retailer_id": "003",
+          "name": "Matching shoe",
+          "description": null,
+          "short_description": null,
+          "brand": null,
+          "category": null,
+          "fb_product_category": null,
+          "product_type": null,
+          "color": null,
+          "size": null,
+          "material": null,
+          "pattern": null,
+          "gtin": null,
+          "manufacturer_part_number": null,
+          "retailer_product_group_id": null,
+          "custom_label_0": null,
+          "custom_label_1": null,
+          "custom_label_2": null,
+          "custom_label_3": null,
+          "custom_label_4": null,
+          "availability": null,
+          "condition": null,
+          "age_group": null,
+          "gender": null,
+          "visibility": null,
+          "url": null,
+          "image_url": "https://example.test/match.png",
+          "mobile_link": null,
+          "sale_price_start_date": null,
+          "sale_price_end_date": null,
+          "additional_image_urls": null,
+          "inventory": null,
+          "currency": "SAR",
+          "price": "Native formatted price 0",
+          "sale_price": null
+        },
+        "changes": [],
+        "unknown_fields": [],
+        "unsent_fields": []
+      },
+      {
+        "retailer_id": "004",
+        "product_id": "9007199254740995",
+        "state": "unknown",
+        "blocked": true,
+        "price_matches": true,
+        "before": {
+          "present": true,
+          "id": "9007199254740995",
+          "retailer_id": "004",
+          "name": "Unknown image",
+          "description": null,
+          "short_description": null,
+          "brand": null,
+          "category": null,
+          "fb_product_category": null,
+          "product_type": null,
+          "color": null,
+          "size": null,
+          "material": null,
+          "pattern": null,
+          "gtin": null,
+          "manufacturer_part_number": null,
+          "retailer_product_group_id": null,
+          "custom_label_0": null,
+          "custom_label_1": null,
+          "custom_label_2": null,
+          "custom_label_3": null,
+          "custom_label_4": null,
+          "availability": null,
+          "condition": null,
+          "age_group": null,
+          "gender": null,
+          "visibility": null,
+          "url": null,
+          "image_url": null,
+          "mobile_link": null,
+          "sale_price_start_date": null,
+          "sale_price_end_date": null,
+          "additional_image_urls": null,
+          "inventory": null,
+          "currency": "SAR",
+          "price": "Native formatted price 999",
+          "sale_price": null
+        },
+        "changes": [],
+        "unknown_fields": ["image_url"],
+        "unsent_fields": []
+      }
+    ],
+    "review_retailer_ids": ["001"],
+    "network_requests": 15,
+    "provider_mutations": 0,
+    "destructive_deletions": 0,
+    "meaning": "Current evidence for the supplied retailer IDs only. Exact price equality uses Meta’s native filter; formatted prices are display text. Missing fields stay unknown. Each product and catalog ownership are checked again during collection, but this is not a point-in-time inventory snapshot. Saving a draft still requires a fresh native review before execution. Products outside the supplied import are not inspected or deleted."
+  },
+  "x_preview": {
+    "source_hash": "7db5488bbdb2b5ff6df1bc59e9d7d4e3ea1f1fc00bdf5a17c225d2321d195561",
+    "item_count": 1,
+    "items": [
+      {
+        "retailer_id": "001",
+        "name": "عرض جديد",
+        "native_price": "000012.340000 SAR",
+        "currency": "SAR",
+        "existing_item_policy": "explicit upsert after native review"
+      }
+    ],
+    "plan": {
+      "action": "create",
+      "name": "X catalog import 9001",
+      "brief": "Import 1 products into X catalog 9001. Source hash 7db5488bbdb2b5ff6df1bc59e9d7d4e3ea1f1fc00bdf5a17c225d2321d195561. Each item requires native before-state review and independent read-back. Matching IDs are updated; missing source items are not deleted.",
+      "steps": [
+        {
+          "id": "product-1",
+          "kind": "write",
+          "gateway": "x_ads_native_action",
+          "account_id": "acct1",
+          "connection_id": "x",
+          "arguments": {
+            "action": "x_product_catalogs_product_catalog_id_products_put",
+            "params": {
+              "product_catalog_id": "9001"
+            },
+            "payload": {
+              "products": [
+                {
+                  "id": "001",
+                  "title": "عرض جديد",
+                  "price": "000012.340000 SAR",
+                  "image_link": "https://shop.example.test/i/001.jpg",
+                  "link": "https://shop.example.test/p/001",
+                  "availability": "in stock",
+                  "condition": "new",
+                  "brand": "Original brand",
+                  "description": "Original plain text description"
+                }
+              ]
+            }
+          },
+          "depends_on": [],
+          "description": "X catalog retailer ID 001"
+        }
+      ]
+    },
+    "network_requests": 0,
+    "destructive_deletions": 0,
+    "destination_limitations": [
+      "X catalog endpoints require early-access entitlement; a local preview does not establish account eligibility.",
+      "X updates matching product IDs. Ownership and existing values are checked during each native review.",
+      "Product variants, live store synchronization and deletion of missing source items are outside this import."
+    ],
+    "meaning": "Preview uses supplied product data and the existing X product contract. Each product keeps a separate native review, accepted receipt and independent read-back. Matching IDs are updated; missing source items are retained."
+  },
+  "x_compare": {
+    "record_kind": "catalog_comparison",
+    "scope": {
+      "gateway": "x_ads_native_action",
+      "account_id": "acct1",
+      "connection_id": "x",
+      "catalog_id": "9001"
+    },
+    "complete": true,
+    "catalog": {
+      "id": "9001",
+      "user_id": "111",
+      "name": "Shop"
+    },
+    "source_hash": "4943abd51b7af2814e39ec5cd029c86e20a815ba738cb3c473d252a1a58f4b35",
+    "comparison_hash": "<volatile>",
+    "requested_at": "<volatile>",
+    "captured_at": "<volatile>",
+    "item_count": 4,
+    "summary": {
+      "new": 1,
+      "changed": 1,
+      "matching": 2,
+      "unknown": 0,
+      "blocked": 0,
+      "needs_review": 2,
+      "with_destination_only_values": 3
+    },
+    "items": [
+      {
+        "retailer_id": "sku-4",
+        "product_id": null,
+        "before": {
+          "present": false,
+          "price": null
+        },
+        "state": "new",
+        "price_matches": null,
+        "changes": [],
+        "unknown_fields": [],
+        "blocked": false,
+        "blocked_reason": null,
+        "unsent_fields": []
+      },
+      {
+        "retailer_id": "sku-1",
+        "product_id": "5000001",
+        "before": {
+          "present": true,
+          "id": "5000001",
+          "retailer_id": "sku-1",
+          "name": "Product 1",
+          "image_url": "https://shop.example.test/i/1.jpg",
+          "url": "https://shop.example.test/p/1",
+          "availability": "in stock",
+          "condition": "new",
+          "brand": "Brand",
+          "description": "Synthetic product 1",
+          "price": "20.00 SAR",
+          "currency": "SAR"
+        },
+        "state": "changed",
+        "price_matches": true,
+        "changes": [
+          {
+            "field": "name",
+            "before": "Product 1",
+            "after": "Changed title"
+          }
+        ],
+        "unknown_fields": [],
+        "blocked": false,
+        "blocked_reason": null,
+        "unsent_fields": ["inventory"]
+      },
+      {
+        "retailer_id": "sku-2",
+        "product_id": "5000002",
+        "before": {
+          "present": true,
+          "id": "5000002",
+          "retailer_id": "sku-2",
+          "name": "Product 2",
+          "image_url": "https://shop.example.test/i/2.jpg",
+          "url": "https://shop.example.test/p/2",
+          "availability": "in stock",
+          "condition": "new",
+          "brand": "Brand",
+          "description": "Synthetic product 2",
+          "price": "20.00 SAR",
+          "currency": "SAR"
+        },
+        "state": "matching",
+        "price_matches": true,
+        "changes": [],
+        "unknown_fields": [],
+        "blocked": false,
+        "blocked_reason": null,
+        "unsent_fields": ["inventory"]
+      },
+      {
+        "retailer_id": "sku-3",
+        "product_id": "5000003",
+        "before": {
+          "present": true,
+          "id": "5000003",
+          "retailer_id": "sku-3",
+          "name": "Product 3",
+          "image_url": "https://shop.example.test/i/3.jpg",
+          "url": "https://shop.example.test/p/3",
+          "availability": "in stock",
+          "condition": "new",
+          "brand": "Brand",
+          "description": "Synthetic product 3",
+          "price": "20.00 SAR",
+          "currency": "SAR"
+        },
+        "state": "matching",
+        "price_matches": true,
+        "changes": [],
+        "unknown_fields": [],
+        "blocked": false,
+        "blocked_reason": null,
+        "unsent_fields": ["inventory"]
+      }
+    ],
+    "review_retailer_ids": ["sku-4", "sku-1"],
+    "network_requests": 8,
+    "provider_mutations": 0,
+    "destructive_deletions": 0,
+    "meaning": "Current evidence for supplied X product IDs only, using repeated bounded native reads and exact supported decimal prices. Grouped or potentially hidden variants are blocked. Missing fields stay unknown. This is sequential evidence, not a point-in-time inventory snapshot. Every saved product still requires a fresh native review and independent read-back; products outside the supplied source are not returned or deleted."
+  },
+  "x_compare_inventory": {
+    "record_kind": "catalog_comparison",
+    "scope": {
+      "gateway": "x_ads_native_action",
+      "account_id": "acct1",
+      "connection_id": "x",
+      "catalog_id": "9001"
+    },
+    "complete": true,
+    "catalog": {
+      "id": "9001",
+      "user_id": "111",
+      "name": "Shop"
+    },
+    "source_hash": "4943abd51b7af2814e39ec5cd029c86e20a815ba738cb3c473d252a1a58f4b35",
+    "comparison_hash": "<volatile>",
+    "requested_at": "<volatile>",
+    "captured_at": "<volatile>",
+    "item_count": 4,
+    "summary": {
+      "new": 1,
+      "changed": 1,
+      "matching": 2,
+      "unknown": 0,
+      "blocked": 0,
+      "needs_review": 2,
+      "with_destination_only_values": 3
+    },
+    "items": [
+      {
+        "retailer_id": "sku-4",
+        "product_id": null,
+        "before": {
+          "present": false,
+          "price": null
+        },
+        "state": "new",
+        "price_matches": null,
+        "changes": [],
+        "unknown_fields": [],
+        "blocked": false,
+        "blocked_reason": null,
+        "unsent_fields": []
+      },
+      {
+        "retailer_id": "sku-1",
+        "product_id": "5000001",
+        "before": {
+          "present": true,
+          "id": "5000001",
+          "retailer_id": "sku-1",
+          "name": "Product 1",
+          "image_url": "https://shop.example.test/i/1.jpg",
+          "url": "https://shop.example.test/p/1",
+          "availability": "in stock",
+          "condition": "new",
+          "brand": "Brand",
+          "description": "Synthetic product 1",
+          "price": "20.00 SAR",
+          "currency": "SAR"
+        },
+        "state": "changed",
+        "price_matches": true,
+        "changes": [
+          {
+            "field": "name",
+            "before": "Product 1",
+            "after": "Changed title"
+          }
+        ],
+        "unknown_fields": [],
+        "blocked": false,
+        "blocked_reason": null,
+        "unsent_fields": ["inventory"]
+      },
+      {
+        "retailer_id": "sku-2",
+        "product_id": "5000002",
+        "before": {
+          "present": true,
+          "id": "5000002",
+          "retailer_id": "sku-2",
+          "name": "Product 2",
+          "image_url": "https://shop.example.test/i/2.jpg",
+          "url": "https://shop.example.test/p/2",
+          "availability": "in stock",
+          "condition": "new",
+          "brand": "Brand",
+          "description": "Synthetic product 2",
+          "price": "20.00 SAR",
+          "currency": "SAR"
+        },
+        "state": "matching",
+        "price_matches": true,
+        "changes": [],
+        "unknown_fields": [],
+        "blocked": false,
+        "blocked_reason": null,
+        "unsent_fields": ["inventory"]
+      },
+      {
+        "retailer_id": "sku-3",
+        "product_id": "5000003",
+        "before": {
+          "present": true,
+          "id": "5000003",
+          "retailer_id": "sku-3",
+          "name": "Product 3",
+          "image_url": "https://shop.example.test/i/3.jpg",
+          "url": "https://shop.example.test/p/3",
+          "availability": "in stock",
+          "condition": "new",
+          "brand": "Brand",
+          "description": "Synthetic product 3",
+          "price": "20.00 SAR",
+          "currency": "SAR"
+        },
+        "state": "matching",
+        "price_matches": true,
+        "changes": [],
+        "unknown_fields": [],
+        "blocked": false,
+        "blocked_reason": null,
+        "unsent_fields": ["inventory"]
+      }
+    ],
+    "review_retailer_ids": ["sku-4", "sku-1"],
+    "network_requests": 8,
+    "provider_mutations": 0,
+    "destructive_deletions": 0,
+    "listed_inventory": {
+      "record_kind": "x_catalog_selection_inventory",
+      "coverage": "bounded_listed_products",
+      "listed_scan_complete": true,
+      "variant_inventory_complete": false,
+      "source_coverage": "supplied_products_only",
+      "source_absence_established": false,
+      "absent_source_policy": "retain",
+      "source_selection_count": 4,
+      "listed_product_count": 3,
+      "supplied_listed_count": 3,
+      "outside_selection_count": 0,
+      "outside_selection_group_counts": {
+        "individual": 0,
+        "grouped": 0,
+        "unknown": 0
+      },
+      "material_hash": "1838970c976f2ca41c04e1edc11fa89132a72cb1e8f8592887262fecf70df39a",
+      "items": [],
+      "provider_mutations": 0,
+      "destructive_deletions": 0,
+      "scope": {
+        "gateway": "x_ads_native_action",
+        "account_id": "acct1",
+        "connection_id": "x",
+        "catalog_id": "9001"
+      },
+      "source_hash": "4943abd51b7af2814e39ec5cd029c86e20a815ba738cb3c473d252a1a58f4b35",
+      "requested_at": "<volatile>",
+      "captured_at": "<volatile>",
+      "observations_hash": "<volatile>"
+    },
+    "meaning": "Products outside this supplied selection are retained. Their store absence is unverified. X listing can hide other variants, so this is not a complete variant inventory or a point-in-time snapshot."
+  },
+  "x_compare_grouped": {
+    "record_kind": "catalog_comparison",
+    "scope": {
+      "gateway": "x_ads_native_action",
+      "account_id": "acct1",
+      "connection_id": "x",
+      "catalog_id": "9001"
+    },
+    "complete": true,
+    "catalog": {
+      "id": "9001",
+      "user_id": "111",
+      "name": "Shop"
+    },
+    "source_hash": "4943abd51b7af2814e39ec5cd029c86e20a815ba738cb3c473d252a1a58f4b35",
+    "comparison_hash": "<volatile>",
+    "requested_at": "<volatile>",
+    "captured_at": "<volatile>",
+    "item_count": 4,
+    "summary": {
+      "new": 0,
+      "changed": 0,
+      "matching": 2,
+      "unknown": 2,
+      "blocked": 2,
+      "needs_review": 0,
+      "with_destination_only_values": 3
+    },
+    "items": [
+      {
+        "retailer_id": "sku-4",
+        "product_id": null,
+        "before": {
+          "present": null,
+          "price": null
+        },
+        "state": "unknown",
+        "price_matches": null,
+        "changes": [],
+        "unknown_fields": ["retailer_id"],
+        "blocked": true,
+        "blocked_reason": "hidden_variant",
+        "unsent_fields": []
+      },
+      {
+        "retailer_id": "sku-1",
+        "product_id": "5000001",
+        "before": {
+          "present": true,
+          "id": "5000001",
+          "retailer_id": "sku-1",
+          "name": "Product 1",
+          "image_url": "https://shop.example.test/i/1.jpg",
+          "url": "https://shop.example.test/p/1",
+          "availability": "in stock",
+          "condition": "new",
+          "brand": "Brand",
+          "description": "Synthetic product 1",
+          "price": "20.00 SAR",
+          "currency": "SAR"
+        },
+        "state": "unknown",
+        "price_matches": null,
+        "changes": [],
+        "unknown_fields": ["retailer_id"],
+        "blocked": true,
+        "blocked_reason": "grouped_product",
+        "unsent_fields": ["inventory"]
+      },
+      {
+        "retailer_id": "sku-2",
+        "product_id": "5000002",
+        "before": {
+          "present": true,
+          "id": "5000002",
+          "retailer_id": "sku-2",
+          "name": "Product 2",
+          "image_url": "https://shop.example.test/i/2.jpg",
+          "url": "https://shop.example.test/p/2",
+          "availability": "in stock",
+          "condition": "new",
+          "brand": "Brand",
+          "description": "Synthetic product 2",
+          "price": "20.00 SAR",
+          "currency": "SAR"
+        },
+        "state": "matching",
+        "price_matches": true,
+        "changes": [],
+        "unknown_fields": [],
+        "blocked": false,
+        "blocked_reason": null,
+        "unsent_fields": ["inventory"]
+      },
+      {
+        "retailer_id": "sku-3",
+        "product_id": "5000003",
+        "before": {
+          "present": true,
+          "id": "5000003",
+          "retailer_id": "sku-3",
+          "name": "Product 3",
+          "image_url": "https://shop.example.test/i/3.jpg",
+          "url": "https://shop.example.test/p/3",
+          "availability": "in stock",
+          "condition": "new",
+          "brand": "Brand",
+          "description": "Synthetic product 3",
+          "price": "20.00 SAR",
+          "currency": "SAR"
+        },
+        "state": "matching",
+        "price_matches": true,
+        "changes": [],
+        "unknown_fields": [],
+        "blocked": false,
+        "blocked_reason": null,
+        "unsent_fields": ["inventory"]
+      }
+    ],
+    "review_retailer_ids": [],
+    "network_requests": 8,
+    "provider_mutations": 0,
+    "destructive_deletions": 0,
+    "meaning": "Current evidence for supplied X product IDs only, using repeated bounded native reads and exact supported decimal prices. Grouped or potentially hidden variants are blocked. Missing fields stay unknown. This is sequential evidence, not a point-in-time inventory snapshot. Every saved product still requires a fresh native review and independent read-back; products outside the supplied source are not returned or deleted."
+  },
+  "x_compare_unknown_fields": {
+    "record_kind": "catalog_comparison",
+    "scope": {
+      "gateway": "x_ads_native_action",
+      "account_id": "acct1",
+      "connection_id": "x",
+      "catalog_id": "9001"
+    },
+    "complete": true,
+    "catalog": {
+      "id": "9001",
+      "user_id": "111",
+      "name": "Shop"
+    },
+    "source_hash": "4943abd51b7af2814e39ec5cd029c86e20a815ba738cb3c473d252a1a58f4b35",
+    "comparison_hash": "<volatile>",
+    "requested_at": "<volatile>",
+    "captured_at": "<volatile>",
+    "item_count": 4,
+    "summary": {
+      "new": 1,
+      "changed": 1,
+      "matching": 0,
+      "unknown": 2,
+      "blocked": 0,
+      "needs_review": 4,
+      "with_destination_only_values": 3
+    },
+    "items": [
+      {
+        "retailer_id": "sku-4",
+        "product_id": null,
+        "before": {
+          "present": false,
+          "price": null
+        },
+        "state": "new",
+        "price_matches": null,
+        "changes": [],
+        "unknown_fields": [],
+        "blocked": false,
+        "blocked_reason": null,
+        "unsent_fields": []
+      },
+      {
+        "retailer_id": "sku-1",
+        "product_id": "5000001",
+        "before": {
+          "present": true,
+          "id": "5000001",
+          "retailer_id": "sku-1",
+          "name": "Product 1",
+          "image_url": "https://shop.example.test/i/1.jpg",
+          "url": "https://shop.example.test/p/1",
+          "availability": "in stock",
+          "condition": "new",
+          "brand": "Brand",
+          "description": "Synthetic product 1",
+          "price": "20.00 SAR",
+          "currency": "SAR"
+        },
+        "state": "changed",
+        "price_matches": true,
+        "changes": [
+          {
+            "field": "name",
+            "before": "Product 1",
+            "after": "Changed title"
+          }
+        ],
+        "unknown_fields": [],
+        "blocked": false,
+        "blocked_reason": null,
+        "unsent_fields": ["inventory"]
+      },
+      {
+        "retailer_id": "sku-2",
+        "product_id": "5000002",
+        "before": {
+          "present": true,
+          "id": "5000002",
+          "retailer_id": "sku-2",
+          "name": "Product 2",
+          "image_url": "https://shop.example.test/i/2.jpg",
+          "url": "https://shop.example.test/p/2",
+          "availability": "in stock",
+          "condition": "new",
+          "brand": "Brand",
+          "description": "Synthetic product 2",
+          "price": null,
+          "currency": null
+        },
+        "state": "unknown",
+        "price_matches": null,
+        "changes": [],
+        "unknown_fields": ["price", "currency"],
+        "blocked": false,
+        "blocked_reason": null,
+        "unsent_fields": ["inventory"]
+      },
+      {
+        "retailer_id": "sku-3",
+        "product_id": "5000003",
+        "before": {
+          "present": true,
+          "id": "5000003",
+          "retailer_id": "sku-3",
+          "name": "Product 3",
+          "image_url": null,
+          "url": "https://shop.example.test/p/3",
+          "availability": "in stock",
+          "condition": "new",
+          "brand": "Brand",
+          "description": "Synthetic product 3",
+          "price": "20.00 SAR",
+          "currency": "SAR"
+        },
+        "state": "unknown",
+        "price_matches": true,
+        "changes": [],
+        "unknown_fields": ["image_url"],
+        "blocked": false,
+        "blocked_reason": null,
+        "unsent_fields": ["inventory"]
+      }
+    ],
+    "review_retailer_ids": ["sku-4", "sku-1", "sku-2", "sku-3"],
+    "network_requests": 8,
+    "provider_mutations": 0,
+    "destructive_deletions": 0,
+    "meaning": "Current evidence for supplied X product IDs only, using repeated bounded native reads and exact supported decimal prices. Grouped or potentially hidden variants are blocked. Missing fields stay unknown. This is sequential evidence, not a point-in-time inventory snapshot. Every saved product still requires a fresh native review and independent read-back; products outside the supplied source are not returned or deleted."
+  }
+}

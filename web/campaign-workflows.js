@@ -551,6 +551,10 @@ function campaignJournal(run) {
       : '') +
     (run.collaborators?.length
       ? `<p class="form-note">${esc(uiText('Shared with {count} colleagues.', {count: uiNumber(run.collaborators.length)}))}</p>`
+      : '') +
+    // A catalog plan saved as one part of a plan group says which part it is (COM-03).
+    (['part', 'parts', 'group_products'].every(k => Number.isSafeInteger(run.catalog_lineage?.lineage_group?.[k]))
+      ? `<p class="notice">${esc(uiText('This plan is part {part} of {parts} of one product import of {count} products. Approve and run each part separately.', {part: uiNumber(run.catalog_lineage.lineage_group.part), parts: uiNumber(run.catalog_lineage.lineage_group.parts), count: uiNumber(run.catalog_lineage.lineage_group.group_products)}))}</p>`
       : '');
   // When the plan must have run, and its server run (MED-03 B).
   const runBy =
@@ -565,7 +569,7 @@ function campaignJournal(run) {
     })
     .join(
       '',
-    )}</ol>${run.clone ? reviewTable(run.clone.not_copied ?? [], uiText('Source fields not copied')) : ''}${run.allocation && !context ? `<p class="notice">${esc(uiText('This budget plan came from a retained allocation.'))} <a href="/reports?id=${encodeURIComponent(run.allocation.report_id)}">${esc(uiText('Inspect original report'))}</a>${esc(uiText('. Daily budgets remain in effect until separately changed; the reference period sets no end date.'))}</p>` : ''}${run.allocation ? '<section id="allocation-outcome" class="allocation-outcome" aria-live="polite"></section>' : ''}${recordDetails({allocation: run.allocation, gtm_consent: run.gtm_consent, plan_hash: run.plan_hash, profile_id: run.profile_id, profile_revision: run.profile_revision, recipe: run.recipe, clone: run.clone, execution_journal: run.execution_journal}, uiText('Plan provenance and execution journal'))}`;
+    )}</ol>${run.clone ? reviewTable(run.clone.not_copied ?? [], uiText('Source fields not copied')) : ''}${run.allocation && !context ? `<p class="notice">${esc(uiText('This budget plan came from a retained allocation.'))} <a href="/reports?id=${encodeURIComponent(run.allocation.report_id)}">${esc(uiText('Inspect original report'))}</a>${esc(uiText('. Daily budgets remain in effect until separately changed; the reference period sets no end date.'))}</p>` : ''}${run.allocation ? '<section id="allocation-outcome" class="allocation-outcome" aria-live="polite"></section>' : ''}${recordDetails({allocation: run.allocation, gtm_consent: run.gtm_consent, catalog_lineage: run.catalog_lineage, plan_hash: run.plan_hash, profile_id: run.profile_id, profile_revision: run.profile_revision, recipe: run.recipe, clone: run.clone, execution_journal: run.execution_journal}, uiText('Plan provenance and execution journal'))}`;
 }
 function verificationComparison(verification) {
   const checks = (verification.checks ?? []).flatMap(check =>

@@ -66,7 +66,12 @@ test('English and Arabic X comparisons present exact native evidence and save on
       assert.equal(saved[0].steps.length, 3);
       assert.equal(f.native.store.documents(f.native.actor.tenantId, 'write_review').length, 0);
       assert.equal(f.native.writes(), 0);
-      transcripts.push({...request, name: 'same'});
+      // COM-03: the plan names the comparison its products come from (a sealed reference that differs per read), and
+      // the saved plan's lineage records that comparison.
+      assert.match(request.requirements.comparison_token, /^v1\./);
+      assert.match(saved[0].catalog_lineage.comparison_hash, /^[a-f0-9]{64}$/);
+      assert.equal(saved[0].catalog_lineage.source_kind, 'supplied_products');
+      transcripts.push({...request, name: 'same', requirements: {...request.requirements, comparison_token: 'sealed'}});
     } finally {
       f.native.store.close();
     }

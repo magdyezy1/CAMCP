@@ -108,6 +108,8 @@ export function setup({tenant = 'x-catalogs', products = 3, feed = true, noCatal
     9009: new Map(),
   };
   const feeds = {9001: new Map(), 9002: new Map(), 9009: new Map()};
+  // Product group members by catalog and item_group_key, including the listed first product of each group.
+  const groups = {9001: {}, 9002: {}, 9009: {}};
   if (feed)
     feeds[9001].set('8001', {
       id: '8001',
@@ -147,7 +149,13 @@ export function setup({tenant = 'x-catalogs', products = 3, feed = true, noCatal
         return reply([...catalogs.values()].filter(c => c.user === query.user_id).map(({id, name}) => ({id, name})));
       let m = /^\/12\/product_catalogs\/(\d+)\/products$/.exec(path);
       if (m) {
-        const all = items[m[1]] ?? [],
+        // GET products?item_group_key=K lists the members of one product group (COM-02 E): `groups` holds a catalog's
+        // members by key; without an entry, the listed products of that group.
+        const key = query.item_group_key,
+          all =
+            key === undefined
+              ? (items[m[1]] ?? [])
+              : (groups[m[1]]?.[key] ?? (items[m[1]] ?? []).filter(row => row.item_group_key === key)),
           count = Number(query.count ?? 100),
           start = Number(query.cursor ?? 0),
           page = all.slice(start, start + count);
@@ -284,5 +292,19 @@ export function setup({tenant = 'x-catalogs', products = 3, feed = true, noCatal
       actor,
     );
   const verify = p => service.call('amcp_campaign', {action: 'verify', review_id: p.data.review_id}, actor);
-  return {store, service, actor, calls, catalogs, items, sets, feeds, prepare, execute, verify, writes: () => writes};
+  return {
+    store,
+    service,
+    actor,
+    calls,
+    catalogs,
+    items,
+    sets,
+    feeds,
+    groups,
+    prepare,
+    execute,
+    verify,
+    writes: () => writes,
+  };
 }

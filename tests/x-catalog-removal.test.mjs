@@ -204,13 +204,29 @@ test('removal draft creation cannot bypass the guarded save with replayed previe
       brief: run.brief,
       steps: run.steps.map(({status, ...s}) => s),
       confirmed: true,
-      catalog_removal_preview_id: p.preview_id,
-      catalog_removal_preview_hash: p.preview_hash,
-      catalog_removal_save_nonce: 'guessed-nonce',
+      // The guarded save names its stored binding in one catalog_binding object (COM-02: one budgeted property).
+      catalog_binding: {kind: 'removal', preview_id: p.preview_id, preview_hash: p.preview_hash, save_nonce: 'guessed'},
       idempotency_key: 'different-creation-key',
     }),
     'CATALOG_REMOVAL_CHANGED',
   );
+  // A malformed binding is refused the same way.
+  for (const catalog_binding of [
+    {kind: 'removal', preview_id: p.preview_id},
+    {kind: 'other', preview_id: p.preview_id, preview_hash: p.preview_hash, save_nonce: 'guessed'},
+  ])
+    refused(
+      await f.campaign({
+        action: 'create',
+        name: run.name,
+        brief: run.brief,
+        steps: run.steps.map(({status, ...s}) => s),
+        confirmed: true,
+        catalog_binding,
+        idempotency_key: 'different-creation-key',
+      }),
+      'CATALOG_REMOVAL_CHANGED',
+    );
   run.steps[0].arguments.payload.product_keys = ['5000003'];
   f.store.putDocument(f.actor.tenantId, 'campaign_run', run.id, run);
   refused(await f.campaign({action: 'prepare_next', id: run.id}), 'PLAN_CHANGED');

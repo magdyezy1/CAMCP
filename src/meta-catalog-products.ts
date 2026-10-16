@@ -435,20 +435,29 @@ export async function readMetaCatalogImport(
     const before: JsonObject = await lookup(retailer),
       changes: JsonObject[] = [],
       unknown: string[] = [];
-    let price_matches: boolean | null = null;
-    if (before.present) {
+    let price_matches: boolean | null = null,
+      sale_price_matches: boolean | null = null;
+    // Meta's own amount filters establish equality; formatted prices are display text (COM-02 A adds the sale leg).
+    const amountMatches = async (field: string, value: number) => {
       const hits = await catalogProducts(
         p,
         s.catalog,
         retailer,
         fetch,
-        byRetailer(retailer, exactly('price_amount', supplied.price)),
+        byRetailer(retailer, exactly(field, value)),
         'id',
         1,
       );
       if (hits[0] && hits[0].id !== before.id) unverified('Meta returned price evidence for a different product.');
-      price_matches = hits.length === 1;
-      for (const field of Object.keys(supplied).filter(k => !['allow_upsert', 'price'].includes(k))) {
+      return hits.length === 1;
+    };
+    if (supplied.sale_price !== undefined && (!Number.isSafeInteger(supplied.sale_price) || supplied.sale_price < 0))
+      unverified('The comparison has an invalid retailer or native price.');
+    if (before.present) {
+      price_matches = await amountMatches('price_amount', supplied.price);
+      if (supplied.sale_price !== undefined)
+        sale_price_matches = await amountMatches('sale_price_amount', supplied.sale_price);
+      for (const field of Object.keys(supplied).filter(k => !['allow_upsert', 'price', 'sale_price'].includes(k))) {
         if (before[field] === null || before[field] === undefined) unknown.push(field);
         else if (before[field] !== supplied[field])
           changes.push({field, before: before[field], after: supplied[field]});
@@ -458,6 +467,13 @@ export async function readMetaCatalogImport(
           field: 'price',
           before: before.price ?? null,
           after_minor_units: supplied.price,
+          currency: supplied.currency,
+        });
+      if (sale_price_matches === false)
+        changes.push({
+          field: 'sale_price',
+          before: before.sale_price ?? null,
+          after_minor_units: supplied.sale_price,
           currency: supplied.currency,
         });
     }
@@ -470,6 +486,8 @@ export async function readMetaCatalogImport(
       state: !before.present ? 'new' : changes.length ? 'changed' : unknown.length ? 'unknown' : 'matching',
       blocked,
       price_matches,
+      // Additive (COM-02 A): only when the source sends a sale price.
+      ...(supplied.sale_price !== undefined ? {sale_price_matches} : {}),
       before,
       changes,
       unknown_fields: unknown,

@@ -6,7 +6,6 @@ import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {createMcpServer} from '../dist/server/mcp.js';
 import {setup} from './x-catalog-fixture.mjs';
 import {xImportInput, xImportProduct} from './fixtures/x-catalog-import-data.mjs';
-import {accountWorkflowFixture} from './fixtures/account-workflows-ui.mjs';
 
 test('real MCP maps explicit supplier fields to an unchanged X draft with exact JSON prices and revoked-access refusal', async t => {
   const f = setup({tenant: 'synthetic-x-import-sdk'}),
@@ -40,13 +39,24 @@ test('real MCP maps explicit supplier fields to an unchanged X draft with exact 
       );
       return result.structuredContent;
     };
-    const ui = accountWorkflowFixture(),
-      source = xImportProduct({price: '999999999999.000001'}),
-      headers = Object.keys(source).concat('Private notes');
-    ui.context.args = [
-      {headers, rows: [{...source, 'Private notes': 'UNUSED-PRIVATE-X'}]},
-      {
-        gateway: 'x_ads_native_action',
+    // COM-03: AMCP projects the supplier export with the catalog's saved mapping profile; the MCP client sends the
+    // export as it is, and its unmapped private column is never returned.
+    const source = xImportProduct({price: '999999999999.000001'}),
+      headers = Object.keys(source).concat('Private notes'),
+      encode = value => '"' + String(value).replaceAll('"', '""') + '"',
+      text =
+        headers.map(encode).join(',') +
+        '\n' +
+        [...Object.values(source), 'UNUSED-PRIVATE-X'].map(encode).join(',') +
+        '\n',
+      scope = Object.fromEntries(Object.entries(xImportInput()).filter(([k]) => k !== 'products'));
+    const mapping = await call('amcp_workspace', {
+      action: 'save_catalog_mapping',
+      gateway: scope.gateway,
+      connection_id: scope.connection_id,
+      account_id: scope.account_id,
+      catalog_id: scope.catalog_id,
+      requirements: {
         columns: Object.fromEntries(
           Object.keys(source)
             .filter(k => k !== 'currency')
@@ -55,11 +65,12 @@ test('real MCP maps explicit supplier fields to an unchanged X draft with exact 
         fixed_currency: 'SAR',
         image_mode: 'single',
       },
-    ];
-    const products = JSON.parse(JSON.stringify(ui.run('mapProductCSV(...args)'))),
-      input = xImportInput({products});
+    });
+    assert.equal(mapping.success, true, JSON.stringify(mapping));
+    const input = {...scope, requirements: {source: {kind: 'csv', text, columns: 'profile', profile_version: 1}}};
     const preview = await call('amcp_workspace', {action: 'catalog_preview', ...input});
     assert.equal(preview.success, true, JSON.stringify(preview));
+    assert.deepEqual(preview.data.supplied_products, [source]);
     assert.equal(preview.data.items[0].native_price, '999999999999.000001 SAR');
     assert.equal(preview.data.network_requests, 0);
     const saved = await call('amcp_workspace', {action: 'catalog_plan', ...input});

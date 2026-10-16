@@ -1,3 +1,4 @@
+import {AsyncLocalStorage} from 'node:async_hooks';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {sha256, stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -18,7 +19,12 @@ import {
   xCatalogProducts,
   xCatalogProductGrouping,
   xCatalogRead,
+  xCatalogRemovalEvidence,
+  xCatalogReviewRemovalEvidence,
+  xCatalogGroupExpansion,
   xCatalogSource as source,
+  xGroupAbsenceEstablished,
+  xGroupEvidence,
   xSnowflake,
   type Fetch,
 } from './x-catalogs.js';
@@ -231,7 +237,8 @@ export async function readXCatalogProducts(p: CompiledRequest, fetch: Fetch): Pr
     found = owners.catalogs.some(c => c.id === s.catalog);
   let match: JsonObject | undefined,
     hiddenVariants = false,
-    complete = true;
+    complete = true,
+    groups: JsonObject | undefined;
   if (found) {
     const scan = await xCatalogProducts(p, fetch, s.catalog),
       rows = scan.rows.filter(r => (s.key ? r.product_key === s.key : r.id === s.id));
@@ -239,6 +246,14 @@ export async function readXCatalogProducts(p: CompiledRequest, fetch: Fetch): Pr
     match = rows[0];
     complete = scan.complete;
     hiddenVariants = scan.rows.some(row => xCatalogProductGrouping(row) !== 'individual');
+    // COM-02 E: an upsert of a SKU that is not listed reads the listed groups, when that read is qualified. Its absence
+    // is established only when every group was read in full; a group member is a grouped product.
+    if (!match && hiddenVariants && complete && !s.key) {
+      const expansion = await xCatalogGroupExpansion(p, fetch, s.catalog, scan.rows);
+      match = expansion.members.get(String(s.id));
+      hiddenVariants = !xGroupAbsenceEstablished(expansion);
+      groups = xGroupEvidence(expansion);
+    }
   }
   const view = match ? {present: true, product_key: match.product_key, ...productView(match)} : undefined;
   if (s.verify) {
@@ -261,6 +276,8 @@ export async function readXCatalogProducts(p: CompiledRequest, fetch: Fetch): Pr
                   products_complete: complete,
                   products_grouped_or_unknown: hiddenVariants,
                 }),
+            // The variant-group evidence of the read (COM-02 E): which records hide the SKU, or the groups read in full.
+            ...(groups ? {variant_groups: groups} : {}),
           }
         : {}),
     },
@@ -307,9 +324,22 @@ export function xCatalogProductPrerequisites(p: CompiledRequest, states: unknown
       );
     return;
   }
+  // The refusal names the grouped records that hide the SKU and the path for variants: the catalog's scheduled feed.
   if (!before && s.products_grouped_or_unknown === true)
-    invalid(
+    fail(
+      'INVALID_X_CATALOG_PRODUCT',
       'Grouped or unrecognized product records can hide the supplied SKU. AMCP cannot establish its absence for an individual-product update.',
+      {
+        source,
+        ...(object(s.variant_groups)
+          ? {
+              grouped_records: s.variant_groups.grouped_records,
+              grouped_record_count: s.variant_groups.grouped_record_count,
+              group_expansion: s.variant_groups.expansion,
+              remedy: 'scheduled_feed',
+            }
+          : {}),
+      },
     );
   if (before && before.group_status !== 'individual')
     invalid(
@@ -426,6 +456,54 @@ export function xCatalogProductObserved(_read: CompiledRequest, data: JsonObject
   return {product: object(data.product) ? data.product : null};
 }
 
+/**
+ * A selected-removal plan step's bound evidence (COM-02 C): the catalog and the observed product the step was saved
+ * for. The plan runner sets it around the step's native prepare and execute, so the review's own state read is the
+ * evidence check, instead of a separate pair of full catalog comparisons per phase.
+ */
+export type XCatalogRemovalExpectation = {catalog: JsonObject; target: JsonObject};
+const removalExpectation = new AsyncLocalStorage<XCatalogRemovalExpectation>();
+export function withXCatalogRemovalExpectation<T>(expected: XCatalogRemovalExpectation, fn: () => Promise<T>) {
+  return removalExpectation.run(expected, fn);
+}
+function removalChanged(): never {
+  return fail(
+    'CATALOG_REMOVAL_CHANGED',
+    'The selected product evidence changed after this draft. Read a new removal preview; no products were deleted.',
+  );
+}
+/** At prepare and execute of a selected-removal step: the review state still shows the bound product, unchanged. */
+export function xCatalogRemovalStateCheck(p: CompiledRequest, state: unknown[]): void {
+  const expected = removalExpectation.getStore();
+  if (!expected || xCatalogProductKind(p) !== 'delete') return;
+  const s = state[0],
+    target = expected.target,
+    bound = expected.catalog;
+  if (!object(s)) return removalChanged();
+  if (
+    !object(target) ||
+    !object(bound) ||
+    catalogOf(p) !== bound.id ||
+    keyOf(p) !== target.product_id ||
+    !object(target.before)
+  )
+    removalChanged();
+  const catalog = (Array.isArray(s.catalogs) ? (s.catalogs as JsonObject[]) : []).find(c => c.id === bound.id),
+    product = object(s.product) ? s.product : undefined;
+  if (
+    !catalog ||
+    catalog.user_id !== bound.user_id ||
+    (typeof catalog.name === 'string' && text(catalog.name, 1000) ? catalog.name : null) !== bound.name ||
+    !product ||
+    product.present !== true ||
+    product.group_status !== 'individual' ||
+    product.product_key !== target.product_id ||
+    stable(xCatalogReviewRemovalEvidence(product)) !==
+      stable(xCatalogRemovalEvidence(target.before as JsonObject, target.unsent_fields))
+  )
+    removalChanged();
+}
+
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 export const xCatalogProductFamily: ReviewedFamily = {
   name: 'x_catalog_products',
@@ -439,6 +517,7 @@ export const xCatalogProductFamily: ReviewedFamily = {
   reader: readXCatalogProducts,
   validateState: validateXCatalogProductState,
   prerequisites: xCatalogProductPrerequisites,
+  stateChecks: (plan, state) => xCatalogRemovalStateCheck(plan, state),
   impact: xCatalogProductImpact,
   outcome: xCatalogProductOutcome,
   verification: xCatalogProductVerification,

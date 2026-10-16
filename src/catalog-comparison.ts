@@ -1,6 +1,7 @@
-import {catalogIngestion} from './catalog-ingestion.js';
-import {xCatalogComparison} from './x-catalog-comparison.js';
-import {catalogInventoryRequested} from './x-catalog-selection-inventory.js';
+import {catalogIngestion, catalogRetirement} from './catalog-ingestion.js';
+import {xCatalogComparison, xCatalogListedSelection} from './x-catalog-comparison.js';
+import {snapchatCatalogComparison} from './snapchat-catalog-comparison.js';
+import {catalogInventoryRequested, listedSelectionRequested} from './x-catalog-selection-inventory.js';
 import {assertMetaCatalogProduct, metaCatalogProductSnapshots, readMetaCatalogImport} from './meta-catalog-products.js';
 import {metaPrefix} from './meta-version.js';
 import {nativeAuthority} from './native-authority.js';
@@ -8,12 +9,35 @@ import {ReportCollectionBudget} from './report-collection-budget.js';
 import {ScopeGuard} from './scope.js';
 import {bad, fingerprint, obj} from './workspace-core.js';
 import {MirrorError} from './errors.js';
+import {
+  catalogDestination,
+  catalogDestinations,
+  catalogItemSchemaVersion,
+  comparisonItemV2,
+  comparisonSummary,
+  type CatalogGateway,
+} from './catalog-destinations.js';
 import type {Store} from './store.js';
 import type {Registry} from './catalog.js';
 import type {NativeTransport} from './transport.js';
 import type {CredentialProvider} from './auth.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 
+type Comparison = (
+  store: Store,
+  registry: Registry,
+  transport: NativeTransport,
+  credentials: CredentialProvider,
+  actor: Actor,
+  input: JsonObject,
+) => Promise<JsonObject>;
+/** Each catalog destination's read-only comparison of supplied products with its current catalog (COM-03). */
+const comparisons: Record<CatalogGateway, Comparison> = {
+  meta_native_action: metaCatalogComparison,
+  x_ads_native_action: xCatalogComparison,
+  // COM-02 D: Snapchat changes products only through feeds, so its comparison names what to fix there.
+  snapchat_native_action: snapchatCatalogComparison,
+};
 export async function catalogComparison(
   store: Store,
   registry: Registry,
@@ -23,11 +47,26 @@ export async function catalogComparison(
   input: JsonObject,
 ) {
   catalogInventoryRequested(input);
-  if (input.gateway === 'x_ads_native_action')
-    return xCatalogComparison(store, registry, transport, credentials, actor, input);
-  if (typeof input.catalog_id !== 'string' || !/^[1-9][0-9]{0,31}$/.test(input.catalog_id))
+  // An explicit selection of listed X products by native key (COM-02 B) reads only those products.
+  const keys = listedSelectionRequested(input);
+  if (keys) return xCatalogListedSelection(store, registry, transport, credentials, actor, input, keys);
+  // A gateway that is not a catalog destination keeps the Meta refusal it had before the destination contract.
+  const destination = catalogDestination(input.gateway)?.gateway ?? 'meta_native_action';
+  return comparisons[destination](store, registry, transport, credentials, actor, input);
+}
+/** Meta: reads only the supplied retailer IDs; Meta's own price_amount filter establishes price equality. */
+async function metaCatalogComparison(
+  store: Store,
+  registry: Registry,
+  transport: NativeTransport,
+  credentials: CredentialProvider,
+  actor: Actor,
+  input: JsonObject,
+) {
+  if (typeof input.catalog_id !== 'string' || !catalogDestinations.meta_native_action.catalogId.test(input.catalog_id))
     bad('Choose an exact positive numeric Meta product catalog ID.');
   const preview = catalogIngestion(input),
+    retire = catalogRetirement(input),
     plans: CompiledRequest[] = preview.plan.steps.map(step => ({
       gateway: input.gateway,
       accountId: input.account_id,
@@ -86,26 +125,20 @@ export async function catalogComparison(
       );
       nativeAuthority(store, registry, actor, read, current, auth)();
       budget.check();
-      const items = result.items,
-        review_retailer_ids = items.filter(i => !i.blocked && i.state !== 'matching').map(i => i.retailer_id),
-        summary = {
-          new: 0,
-          changed: 0,
-          matching: 0,
-          unknown: 0,
-          blocked: 0,
-          needs_review: review_retailer_ids.length,
-          // Additive (COM-01): products holding values for attributes the source does not send.
-          with_destination_only_values: 0,
-        };
-      for (const item of items) {
-        summary[item.state as 'new' | 'changed' | 'matching' | 'unknown']++;
-        if (item.blocked) summary.blocked++;
-        if (item.unsent_fields.length) summary.with_destination_only_values++;
-      }
+      // The shared item v2 (COM-03): a blocked Meta product is an existing one under a create-only import.
+      const items = result.items.map((item, i) =>
+          comparisonItemV2(
+            {...item, blocked_reason: item.blocked ? 'existing_product_create_only' : null},
+            plans[i]!.body as JsonObject,
+            catalogDestinations.meta_native_action,
+            !!retire?.ids.has(item.retailer_id),
+          ),
+        ),
+        {summary, review_retailer_ids} = comparisonSummary(items);
       const captured_at = Date.now();
       return {
         record_kind: 'catalog_comparison',
+        item_schema_version: catalogItemSchemaVersion,
         scope,
         complete: true,
         catalog: result.state.catalog,

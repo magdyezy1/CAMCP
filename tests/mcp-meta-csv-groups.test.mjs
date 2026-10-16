@@ -52,39 +52,40 @@ test('real MCP keeps exact canonical and supplier Meta group intent in identical
     };
     browser.context.csv =
       'retailer_id,name,price,currency,image_url,retailer_product_group_id\nVAR-001,Reviewed shoe,0012.34,SAR,https://example.test/child.png,GROUP-001\n';
-    browser.context.supplier =
-      'SKU,Title,Price,Image,Parent group,Ignored\nVAR-001,Reviewed shoe,0012.34,https://example.test/child.png,GROUP-001,PRIVATE-COLUMN\n';
-    browser.context.settings = {
-      gateway: 'meta_native_action',
-      columns: {
-        retailer_id: 'SKU',
-        name: 'Title',
-        price: 'Price',
-        image_url: 'Image',
-        retailer_product_group_id: 'Parent group',
+    // COM-03: a supplier export is projected by AMCP with the catalog's saved mapping profile; the MCP client sends
+    // the export as it is, and its unmapped private column is never returned.
+    const supplier =
+        'SKU,Title,Price,Image,Parent group,Ignored\nVAR-001,Reviewed shoe,0012.34,https://example.test/child.png,GROUP-001,PRIVATE-COLUMN\n',
+      scope = {gateway: 'meta_native_action', connection_id: 'meta-login', account_id: '123', catalog_id: '555'};
+    const mapping = await call('amcp_workspace', {
+      action: 'save_catalog_mapping',
+      ...scope,
+      revision: 0,
+      requirements: {
+        columns: {
+          retailer_id: 'SKU',
+          name: 'Title',
+          price: 'Price',
+          image_url: 'Image',
+          retailer_product_group_id: 'Parent group',
+        },
+        fixed_currency: 'SAR',
+        image_mode: 'single',
       },
-      fixed_currency: 'SAR',
-      image_mode: 'single',
-    };
+    });
+    assert.equal(mapping.success, true, JSON.stringify(mapping));
     const variants = [
-        'parseProductCSV(csv,"meta_native_action")',
-        'mapProductCSV(parseProductCSVTable(supplier),settings)',
+        {products: JSON.parse(JSON.stringify(browser.run('parseProductCSV(csv,"meta_native_action")')))},
+        {requirements: {source: {kind: 'csv', text: supplier, columns: 'profile', profile_version: 1}}},
       ],
       plans = [];
-    for (const expression of variants) {
-      const products = JSON.parse(JSON.stringify(browser.run(expression))),
-        input = {
-          gateway: 'meta_native_action',
-          connection_id: 'meta-login',
-          account_id: '123',
-          catalog_id: '555',
-          allow_upsert: false,
-          products,
-        };
+    for (const variant of variants) {
+      const input = {...scope, allow_upsert: false, ...variant};
       const preview = await call('amcp_workspace', {action: 'catalog_preview', ...input});
       assert.equal(preview.success, true, JSON.stringify(preview));
       assert.equal(preview.data.items[0].retailer_product_group_id, 'GROUP-001');
       assert.equal(preview.data.plan.steps[0].arguments.payload.price, 1234);
+      const products = variant.products ?? preview.data.supplied_products;
       assert.equal(products[0].price, '0012.34');
       const saved = await call('amcp_workspace', {action: 'catalog_plan', ...input});
       assert.equal(saved.success, true, JSON.stringify(saved));
@@ -107,7 +108,7 @@ test('real MCP keeps exact canonical and supplier Meta group intent in identical
           account_id: '123',
           catalog_id: '555',
           allow_upsert: false,
-          products: JSON.parse(JSON.stringify(browser.run(variants[0]))),
+          products: variants[0].products,
         })
       ).success,
       false,

@@ -35,11 +35,12 @@ test('E: with only a Meta connection the reviewed import is the first section an
     assert.equal(details[1], locale === 'ar' ? 'ربط مصدر متجر (للمسؤولين)' : 'Connect a store source (administrators)');
     assert.ok(html.indexOf('id="commerce-store-sources"') < html.indexOf('id="woo-connections"'));
     assert.ok(html.indexOf('id="commerce-store-sources"') < html.indexOf('id="woo-inventory"'));
+    // COM-02 D: Snapchat products are now compared read-only, so the note says so instead of only "managed through feeds".
     assert.match(
       html,
       locale === 'ar'
-        ? /يدعم استيراد المنتجات Meta وX؛ أما كتالوجات Snapchat فتُدار عبر الخلاصات\./
-        : /Product imports support Meta and X; Snapchat catalogs are managed through feeds\./,
+        ? /يدعم استيراد المنتجات Meta وX\. أما كتالوجات Snapchat فلا تتغير إلا عبر الخلاصات؛ ويقارن AMCP منتجاتها للقراءة فقط\./
+        : /Product imports support Meta and X\. Snapchat catalogs change only through feeds; AMCP compares their products read-only\./,
     );
     assert.doesNotMatch(html, /id="catalog-no-destination"/, 'a Meta account is connected');
     // The empty-source note comes before the disabled form it explains.
@@ -150,7 +151,9 @@ async function metaComparison(locale, mutate) {
       before: i ? {present: true, id: String(9007199254740993n + BigInt(i)), price: 'SAR' + p.price} : {present: false},
       changes: i === 1 ? [{field: 'name', before: 'Previous', after: p.name}] : [],
       unknown_fields: i === 3 ? ['image_url'] : [],
-      unsent_fields: i === 2 ? ['visibility', 'inventory', 'sale_price'] : [],
+      // Owner decision P9: destination-only values put an otherwise matching Meta product in review as unknown, so the
+      // note sits on the changed product here and the matching one still counts as matching for "Save all".
+      unsent_fields: i === 1 ? ['visibility', 'inventory', 'sale_price'] : [],
     })),
   };
   mutate?.(evidence);
@@ -189,12 +192,17 @@ test('A and C: a Meta comparison notes destination-only values in both languages
 
 test('A: the website refuses destination-only names it does not know, names the source sent, or counts that disagree; an older server without them still renders', async () => {
   for (const mutate of [
-    e => (e.items[2].unsent_fields = ['PRIVATE_UNUSED']),
-    e => (e.items[2].unsent_fields = ['name']),
-    e => (e.items[2].unsent_fields = ['inventory', 'inventory']),
-    e => (e.items[2].unsent_fields = 'inventory'),
+    e => (e.items[1].unsent_fields = ['PRIVATE_UNUSED']),
+    e => (e.items[1].unsent_fields = ['name']),
+    e => (e.items[1].unsent_fields = ['inventory', 'inventory']),
+    e => (e.items[1].unsent_fields = 'inventory'),
     e => (e.items[0].unsent_fields = ['inventory']),
     e => (e.summary.with_destination_only_values = 0),
+    // P9: a Meta product holding values the source does not send cannot read as matching.
+    e => {
+      e.items[2].unsent_fields = ['inventory'];
+      e.summary.with_destination_only_values = 2;
+    },
   ]) {
     const f = await metaComparison('en', mutate);
     await assert.rejects(f.bindings.get('#compare-catalog-products')(), /changed|Read|again/i, mutate.toString());
