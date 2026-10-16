@@ -226,8 +226,15 @@ export async function exerciseMeasurementNavigation(page, site, options) {
     const fields = await fieldSnapshot(),
       originalUrl = page.url(),
       originalHistory = await page.evaluate(() => history.length);
-    // MSR-03 added four named trace converter fields (format, file, stream, synthetic test identifier) to the 17.
-    assert.equal(fields.length, 21);
+    // MSR-03 added four named trace converter fields (format, file, stream, synthetic test identifier) to the 17, and
+    // MSR-04 the identity form's report source (mode) and realtime window (minutes).
+    assert.equal(fields.length, 23);
+    assert.deepEqual(
+      fields
+        .filter(f => f.form === 'measurement-event-identity' && ['mode', 'minutes'].includes(f.name))
+        .map(f => f.name),
+      ['mode', 'minutes'],
+    );
     let jumps = 0,
       returns = 0;
     const jump = async section => {

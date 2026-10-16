@@ -148,7 +148,12 @@ export async function exerciseXCatalogInventory({page, site, workflow, locale, o
   await page.locator('#catalog-inventory-heading').waitFor();
   assert.equal(await feedback.isVisible(), false);
   assert.equal(await page.locator('#catalog-inventory-view tbody tr').count(), 50);
-  assert.equal(await page.locator('#catalog-inventory-view input[type=checkbox]').count(), 0);
+  // COM-02 B: each individual listed product on the page can be selected for an explicit removal; the grouped and
+  // unknown-group products cannot, and nothing is selected for the person.
+  const selectable = inventory.items.slice(0, 50).filter(p => p.group_status === 'individual').length;
+  assert.ok(selectable > 0 && selectable < 50, 'The first page holds individual and grouped products');
+  assert.equal(await page.locator('#catalog-inventory-view input[type=checkbox]').count(), selectable);
+  assert.equal(await page.locator('#catalog-inventory-view input[type=checkbox]:checked').count(), 0);
   assert.equal(await page.locator('#catalog-comparison input:checked').count(), 0);
   assert.equal(await page.evaluate(() => typeof window.catalogUnsafe), 'undefined');
   const loaded = site.counts().nativeReads;

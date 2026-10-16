@@ -10,7 +10,7 @@ export async function exerciseGoogleCountry({page, site, workflow, locale, outpu
   const initialEvidence = site.evidenceCounts(),
     capture = page.locator('#report-capture');
   await capture.waitFor();
-  if (!(await capture.evaluate(el => el.open))) await capture.locator('summary').click();
+  if (!(await capture.evaluate(el => el.open))) await capture.locator(':scope > summary').click();
   const form = page.locator('#capture-preset'),
     submit = form.locator('button[type=submit]'),
     feedback = page.locator('#capture-feedback');

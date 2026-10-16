@@ -880,7 +880,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     } else if (workflow === 'google-device') {
       const capture = page.locator('#report-capture');
       await capture.waitFor();
-      if (!(await capture.evaluate(el => el.open))) await capture.locator('summary').click();
+      if (!(await capture.evaluate(el => el.open))) await capture.locator(':scope > summary').click();
       const form = page.locator('#capture-preset');
       await form.locator('[name=preset]').selectOption('google_campaign_device');
       await form.locator('[name=target]').selectOption('0');
@@ -967,7 +967,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       const catalog = JSON.parse(fs.readFileSync(path.join(root, 'web/locales/ar.json'), 'utf8'));
       const capture = page.locator('#report-capture');
       await capture.waitFor();
-      if (!(await capture.evaluate(el => el.open))) await capture.locator('summary').click();
+      if (!(await capture.evaluate(el => el.open))) await capture.locator(':scope > summary').click();
       const form = page.locator('#capture-preset');
       await form.locator('[name=preset]').selectOption(input.preset);
       await form.locator('[name=target]').selectOption('0');
@@ -1074,7 +1074,7 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         stale = workflow === 'google-keyword-stale';
       const capture = page.locator('#report-capture');
       await capture.waitFor();
-      if (!(await capture.evaluate(el => el.open))) await capture.locator('summary').click();
+      if (!(await capture.evaluate(el => el.open))) await capture.locator(':scope > summary').click();
       const form = page.locator('#capture-preset');
       await form.locator('[name=preset]').selectOption('google_keyword');
       await form.locator('[name=target]').selectOption('0');
@@ -1500,9 +1500,10 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
           table = page.locator('#conversion-rule-rows table');
         await heading.waitFor({state: 'visible'});
         assert.equal(await page.evaluate(() => document.activeElement.id), 'conversion-settings-heading');
-        assert.equal(await table.locator('thead th').count(), 9);
+        // MSR-04 added the Observed activity column (LinkedIn's last reported callback time): 10 columns, not 9.
+        assert.equal(await table.locator('thead th').count(), 10);
         assert.equal(await table.locator('tbody tr').count(), Math.min(out.rule_count, 50));
-        for (const label of ['Registration method', 'Reported ownership'])
+        for (const label of ['Registration method', 'Reported ownership', 'Observed activity'])
           assert.ok((await table.locator('thead').innerText()).includes(locale === 'ar' ? catalog[label] : label));
         assert.ok(
           (await page.locator('#conversion-collection-scope').innerText()).includes(
@@ -1613,7 +1614,17 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
           assert.equal(await feedback.getAttribute('role'), 'alert');
           const message = await feedback.innerText();
           assert.ok(message.includes(locale === 'ar' ? catalog[body.error.message] : body.error.message));
-          assert.ok(message.includes(locale === 'ar' ? catalog[body.error.next_action] : body.error.next_action));
+          // WEB-03: this server remedy addresses an MCP client ("send the call again"); the page shows its own wording
+          // for the request category instead, in the page's language, and keeps the server's text under Technical
+          // details (collapsed, so not part of the visible text).
+          const remedy = 'Check the values you entered or selected, correct what the message names, then try again.';
+          assert.equal(body.error.category, 'request');
+          assert.match(body.error.next_action, /\bsend the call again\b/);
+          assert.ok(
+            message.includes(locale === 'ar' ? catalog[remedy] : remedy),
+            'What to do: ' + JSON.stringify(message),
+          );
+          assert.ok(!message.includes(body.error.next_action), 'The MCP-client remedy stays off the page');
           assert.ok(message.includes(body.meta.requestId));
           for (const control of [form, submit])
             assert.ok(
@@ -2052,7 +2063,21 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         );
         const display = await page.locator('#' + feedbackId + '-message').innerText();
         assert.ok(display.includes(locale === 'ar' && !permission ? catalog[message] : message));
-        assert.ok(display.includes(locale === 'ar' ? catalog[failed.error.next_action] : failed.error.next_action));
+        // WEB-03: the GA4 refusals' server remedy addresses an MCP client ("send the call again"), so the page shows its
+        // own wording for the remedy's category, in the page's language; the provider permission refusal's remedy is
+        // written for people and is shown as written. The MCP wording never reaches the page.
+        const remedy = permission
+          ? failed.error.next_action
+          : 'Check the values you entered or selected, correct what the message names, then try again.';
+        if (!permission) {
+          assert.equal(failed.error.category, 'request');
+          assert.match(failed.error.next_action, /\bsend the call again\b/);
+          assert.ok(!display.includes(failed.error.next_action), 'The MCP-client remedy stays off the page');
+        }
+        assert.ok(
+          display.includes(locale === 'ar' ? catalog[remedy] : remedy),
+          'What to do: ' + JSON.stringify(display),
+        );
         assert.ok(display.includes(failed.meta.requestId));
         assert.equal(await page.evaluate(() => document.activeElement.id), formId + '-submit');
         for (const control of [form, submit])
@@ -2212,6 +2237,10 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         .locator('summary')
         .click();
     } else if (workflow === 'catalog-groups') {
+      // Each case starts from a catalog without a saved column mapping (COM-03): the previous case's saved mapping
+      // would otherwise fill the loaded columns, so the no-inference check below would not test inference.
+      site.catalogMappings.clear();
+      assert.deepEqual(site.catalogMappings.profiles(), []);
       await page.locator('#catalog-import select[name=target]').selectOption('0');
       await page.locator('#catalog-import input[name=catalog_id]').fill('555');
       await page.locator('#catalog-import select[name=allow_upsert]').selectOption('true');
@@ -2257,6 +2286,11 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       for (const value of ['GROUP-001', '0012.34 SAR', '1234']) assert.ok(preview.includes(value), value);
       assert.ok(!preview.includes('UNSELECTED-PRIVATE-SUPPLIER'));
       assert.equal(site.counts().nativeReads, compared, 'Supplier group preview must remain local');
+      // COM-03: the mapped preview saved the catalog's first column mapping version, with the group column chosen above.
+      const profiles = site.catalogMappings.profiles();
+      assert.equal(profiles.length, 1);
+      assert.equal(profiles[0].version, 1);
+      assert.equal(profiles[0].columns.retailer_product_group_id, 'Parent group');
       await checkProductLabels(page, '#catalog-preview table', result);
       await page.locator('#compare-catalog-products').click();
       await page.locator('#catalog-comparison table').waitFor();

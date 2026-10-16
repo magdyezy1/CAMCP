@@ -194,7 +194,9 @@ export async function exerciseWooConnection({page, site, workflow, locale, outpu
   assert.equal(await page.locator('#woo-inventory select[name=target]').inputValue(), '');
   assert.equal(await page.locator('#woo-source select[name=target] option').count(), 2);
   const removal = page.locator('#woo-remove');
-  await removal.locator('xpath=..').locator('summary').click();
+  // The disclosure's own summary: WEB-03 gives every workspace form a hidden feedback region with its own Technical
+  // details disclosure, so the form holds a second summary.
+  await removal.locator('xpath=..').locator(':scope > summary').click();
   await removal.locator('[name=target]').selectOption('0');
   await removal.locator('[name=confirmed]').check();
   await removal.locator('button[type=submit]').click();

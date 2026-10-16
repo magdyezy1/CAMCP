@@ -434,8 +434,10 @@ export async function browserWorkflowSite(kind) {
     },
     {web, accounts} = createWebsite(fixture.store, options, false, fixture.service),
     user = accounts.newUser('Synthetic browser reader', null, null, true),
+    // COM-03: a mapped supplier preview first saves the catalog's versioned column mapping, which only operators do
+    // (readers are refused), so catalog-groups signs in as the owner; the canonical `catalog` journey stays a viewer's.
     role =
-      ['empty', 'worker-health', 'granular-reporting', ...syntheticWriteKinds].includes(kind) ||
+      ['empty', 'worker-health', 'granular-reporting', 'catalog-groups', ...syntheticWriteKinds].includes(kind) ||
       kind.startsWith('woocommerce-connection')
         ? 'owner'
         : 'viewer';
@@ -532,6 +534,18 @@ export async function browserWorkflowSite(kind) {
           }),
         }
       : undefined,
+    // COM-03: the catalog's saved column mapping profiles. A case that saves one leaves it for the next case of its kind,
+    // whose loaded columns would then come from it; each catalog-groups case starts without one.
+    catalogMappings:
+      kind === 'catalog-groups'
+        ? {
+            profiles: () => fixture.store.documents(fixture.actor.tenantId, 'catalog_mapping_profile'),
+            clear: () => {
+              for (const profile of fixture.store.documents(fixture.actor.tenantId, 'catalog_mapping_profile'))
+                fixture.store.deleteDocument(fixture.actor.tenantId, 'catalog_mapping_profile', profile.profile_id);
+            },
+          }
+        : undefined,
     wooInventory: kind.startsWith('woocommerce-inventory')
       ? {
           setFault: fixture.setFault,
