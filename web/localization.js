@@ -198,6 +198,49 @@ function uiScheduleTime(value, timeZone) {
 const uiEscape = value =>
   String(value).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c]);
 /**
+ * Escape-by-default markup (WEB-07). In html`…` every ${} value is escaped, so a provider name, a native ID or what a
+ * person typed always arrives as text. A value that is already markup goes in as it is: another html`…`, a list of
+ * them, or raw(markup), which marks a fragment AMCP built and escaped itself (never a received value). null and
+ * undefined insert nothing. The result is SafeHtml, which reads as its markup in any string context; setHtml and
+ * insertHtml are the sinks that take it, and they refuse a plain string so unescaped text cannot reach them by
+ * mistake. tools/check-markup.mjs counts the markup still escaped by hand and refuses new markup that is not.
+ */
+const {html, raw, setHtml, insertHtml, isSafeHtml} = (() => {
+  const safe = new WeakSet();
+  class SafeHtml {
+    #markup;
+    constructor(markup) {
+      this.#markup = markup;
+      safe.add(this);
+      Object.freeze(this);
+    }
+    toString() {
+      return this.#markup;
+    }
+  }
+  const piece = value =>
+    safe.has(value) ? String(value) : Array.isArray(value) ? value.map(piece).join('') : uiEscape(value ?? '');
+  const markup = (value, sink) => {
+    if (!safe.has(value)) throw TypeError(sink + ' takes html`…` or raw() markup, not a string');
+    return String(value);
+  };
+  return Object.freeze({
+    html(strings, ...values) {
+      let out = strings[0];
+      for (let index = 0; index < values.length; index++) out += piece(values[index]) + strings[index + 1];
+      return new SafeHtml(out);
+    },
+    raw: value => (safe.has(value) ? value : new SafeHtml(String(value ?? ''))),
+    setHtml(element, value) {
+      element.innerHTML = markup(value, 'setHtml');
+    },
+    insertHtml(element, position, value) {
+      element.insertAdjacentHTML(position, markup(value, 'insertHtml'));
+    },
+    isSafeHtml: value => safe.has(value),
+  });
+})();
+/**
  * Escaped text in its own direction (WEB-05): a name or label decides its direction from its first strong character,
  * and an identifier, address or native value (`'ltr'`) always reads left to right inside Arabic text.
  */

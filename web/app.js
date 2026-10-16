@@ -1270,12 +1270,17 @@ function renderSettings() {
     `</div>`;
 }
 async function renderActivity() {
-  content.innerHTML = header(
-    uiText('Audit activity'),
-    uiText('Account activity and your workspace events, within current access.'),
+  // Audit events carry native identifiers, provider codes and request references: escape-by-default markup (WEB-07).
+  const heading = raw(
+    header(uiText('Audit activity'), uiText('Account activity and your workspace events, within current access.')),
   );
+  setHtml(content, heading);
   if (!session.authenticated) {
-    content.innerHTML += `<div class="empty">${esc(uiText('Sign in to view workspace activity.'))}</div>`;
+    setHtml(
+      content,
+      html`${heading}
+        <div class="empty">${uiText('Sign in to view workspace activity.')}</div>`,
+    );
     return;
   }
   const generation = navigationGeneration,
@@ -1284,30 +1289,69 @@ async function renderActivity() {
   const client = typeof workingClientQuery === 'function' ? workingClientQuery() : {},
     initial = await api('/api/activity' + (client.profile_id ? '?' + new URLSearchParams(client) : ''));
   if (generation !== navigationGeneration || identity !== identityGeneration) return;
+  const entry = e => {
+    const ids = [e.event.gateway ?? e.event.platform, e.event.account_id, e.event.connection_id].filter(Boolean);
+    return html`<article class="activity-entry">
+      <div class="token-row">
+        <div>
+          <strong>${String(e.event.event ?? uiText('Workspace request')).replaceAll('_', ' ')}</strong
+          ><small
+            >${ids.length ? ids.map((value, index) => html`${index ? ' · ' : ''}<bdi dir="ltr">${value}</bdi>`) : uiText('AMCP workspace')}</small
+          >
+        </div>
+        <span class="muted">${uiDateZoned(e.at)}</span>
+      </div>
+      ${e.event.action ? html`<p>${e.event.action}</p>` : ''}${e.event.request_id ? html`<p class="form-note">${uiText('Request reference')}: <code>${e.event.request_id}</code></p>` : ''}${
+        e.event.error
+          ? html`<details class="activity-failure" open>
+              <summary>${e.event.error.code ?? uiText('Request failed')}</summary>
+              ${(e.diagnostics ?? []).length ? e.diagnostics.map(d => raw(renderSourceDiagnostic(d))) : html`<p>${uiText('Inspect the original work for more details.')}</p>`}
+            </details>`
+          : ''
+      }
+    </article>`;
+  };
   const rows = result =>
-    `${
-      result.events
-        .map(
-          e =>
-            `<article class="activity-entry"><div class="token-row"><div><strong>${esc(String(e.event.event ?? uiText('Workspace request')).replaceAll('_', ' '))}</strong><small>${
-              [e.event.gateway ?? e.event.platform, e.event.account_id, e.event.connection_id]
-                .filter(Boolean)
-                .map(value => uiBidi(value, 'ltr'))
-                .join(' · ') || esc(uiText('AMCP workspace'))
-            }</small></div><span class="muted">${esc(uiDateZoned(e.at))}</span></div>${e.event.action ? `<p>${esc(e.event.action)}</p>` : ''}${e.event.request_id ? `<p class="form-note">${esc(uiText('Request reference'))}: <code>${esc(e.event.request_id)}</code></p>` : ''}${e.event.error ? `<details class="activity-failure" open><summary>${esc(e.event.error.code ?? uiText('Request failed'))}</summary>${(e.diagnostics ?? []).length ? e.diagnostics.map(d => renderSourceDiagnostic(d)).join('') : `<p>${esc(uiText('Inspect the original work for more details.'))}</p>`}</details>` : ''}</article>`,
-        )
-        .join('') ||
-      `<div class="empty">${esc(uiText('No accessible events on this page. Continue if another page is available.'))}</div>`
-    }`;
+    result.events.length
+      ? result.events.map(entry)
+      : html`<div class="empty">
+          ${uiText('No accessible events on this page. Continue if another page is available.')}
+        </div>`;
   let page = 0,
     next = initial.next_cursor ?? null,
     cursors = [undefined],
     filters = {...client},
     sequence = 0;
   const markup = result =>
-    rows(result) +
-    `<p id="activity-status" role="status">${esc(next ? uiText('More results are available.') : uiText('End of available results.'))}</p><nav class="dialog-actions" aria-label="${esc(uiText('Activity pages'))}"><button id="activity-prev" class="button small" ${page ? '' : 'disabled'}>${esc(uiText('Previous'))}</button><span>${esc(uiText('Page'))} ${page + 1}</span><button id="activity-next" class="button small" ${next ? '' : 'disabled'}>${esc(uiText('Next'))}</button></nav>`;
-  content.innerHTML += `<p class="notice">${esc(uiText('This history shows retained AMCP event metadata. Request bodies and receipts are omitted. Refresh to include newer events.'))}</p><form id="activity-filter" class="panel work-filter"><label>${esc(uiText('Search event, action or request reference'))}<input type="search" name="search" maxlength="200"></label><label>${esc(uiText('Account ID'))}<input name="account_id" maxlength="200"></label><button type="submit" class="button primary">${esc(uiText('Apply filters'))}</button><button type="button" id="activity-refresh" class="button">${esc(uiText('Refresh'))}</button></form><section class="panel" id="activity-results" aria-label="${esc(uiText('Activity results'))}">${markup(initial)}</section>`;
+    html`${rows(result)}
+      <p id="activity-status" role="status">
+        ${next ? uiText('More results are available.') : uiText('End of available results.')}
+      </p>
+      <nav class="dialog-actions" aria-label="${uiText('Activity pages')}">
+        <button id="activity-prev" class="button small" ${page ? '' : 'disabled'}>${uiText('Previous')}</button
+        ><span>${uiText('Page')} ${page + 1}</span
+        ><button id="activity-next" class="button small" ${next ? '' : 'disabled'}>${uiText('Next')}</button>
+      </nav>`;
+  setHtml(
+    content,
+    html`${heading}
+      <p class="notice">
+        ${uiText('This history shows retained AMCP event metadata. Request bodies and receipts are omitted. Refresh to include newer events.')}
+      </p>
+      <form id="activity-filter" class="panel work-filter">
+        <label
+          >${uiText('Search event, action or request reference')}<input
+            type="search"
+            name="search"
+            maxlength="200" /></label
+        ><label>${uiText('Account ID')}<input name="account_id" maxlength="200" /></label
+        ><button type="submit" class="button primary">${uiText('Apply filters')}</button
+        ><button type="button" id="activity-refresh" class="button">${uiText('Refresh')}</button>
+      </form>
+      <section class="panel" id="activity-results" aria-label="${uiText('Activity results')}">
+        ${markup(initial)}
+      </section>`,
+  );
   const root = $('#activity-results'),
     form = $('#activity-filter');
   const current = () =>
@@ -1330,7 +1374,7 @@ async function renderActivity() {
       else cursors[index] = cursor;
       page = index;
       next = result.next_cursor ?? null;
-      root.innerHTML = markup(result);
+      setHtml(root, markup(result));
       bind();
     } catch (e) {
       if (active()) $('#activity-status').textContent = uiText('Could not load this page.') + ' ' + errorMessage(e);

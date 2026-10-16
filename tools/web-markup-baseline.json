@@ -1,0 +1,133 @@
+{
+  "meaning": "WEB-07 ratchet: per shipped script, HTML writes that bypass setHtml/insertHtml and markup values inserted without escaping. Counts may only go down (node tools/check-markup.mjs --write).",
+  "totals": {
+    "sinks": 336,
+    "unescaped": 1268
+  },
+  "files": {
+    "account-approvals.js": {
+      "sinks": 1,
+      "unescaped": 25
+    },
+    "account-scope.js": {
+      "sinks": 2,
+      "unescaped": 0
+    },
+    "account-security.js": {
+      "sinks": 15,
+      "unescaped": 51
+    },
+    "account-workflows.js": {
+      "sinks": 76,
+      "unescaped": 226
+    },
+    "ad-previews.js": {
+      "sinks": 3,
+      "unescaped": 8
+    },
+    "app.js": {
+      "sinks": 27,
+      "unescaped": 119
+    },
+    "campaign-recipes.js": {
+      "sinks": 7,
+      "unescaped": 105
+    },
+    "campaign-workflows.js": {
+      "sinks": 8,
+      "unescaped": 95
+    },
+    "capability-center.js": {
+      "sinks": 4,
+      "unescaped": 39
+    },
+    "client-playbooks.js": {
+      "sinks": 6,
+      "unescaped": 21
+    },
+    "creative-library.js": {
+      "sinks": 22,
+      "unescaped": 20
+    },
+    "creative-push.js": {
+      "sinks": 6,
+      "unescaped": 19
+    },
+    "evidence-workflows.js": {
+      "sinks": 27,
+      "unescaped": 41
+    },
+    "identity.js": {
+      "sinks": 8,
+      "unescaped": 80
+    },
+    "localization.js": {
+      "sinks": 0,
+      "unescaped": 5
+    },
+    "mfa-qr.js": {
+      "sinks": 0,
+      "unescaped": 5
+    },
+    "operations-center.js": {
+      "sinks": 26,
+      "unescaped": 72
+    },
+    "owner-operations.js": {
+      "sinks": 1,
+      "unescaped": 38
+    },
+    "report-allocation.js": {
+      "sinks": 14,
+      "unescaped": 13
+    },
+    "report-delivery.js": {
+      "sinks": 4,
+      "unescaped": 27
+    },
+    "report-library.js": {
+      "sinks": 0,
+      "unescaped": 22
+    },
+    "report-presentation.js": {
+      "sinks": 5,
+      "unescaped": 0
+    },
+    "report-quality.js": {
+      "sinks": 1,
+      "unescaped": 26
+    },
+    "report-reference.js": {
+      "sinks": 3,
+      "unescaped": 14
+    },
+    "report-workflows.js": {
+      "sinks": 10,
+      "unescaped": 11
+    },
+    "reporting-overview.js": {
+      "sinks": 7,
+      "unescaped": 102
+    },
+    "work-center.js": {
+      "sinks": 2,
+      "unescaped": 16
+    },
+    "workbook-bindings.js": {
+      "sinks": 6,
+      "unescaped": 0
+    },
+    "workbook-rebinding.js": {
+      "sinks": 7,
+      "unescaped": 1
+    },
+    "workbook-schedules.js": {
+      "sinks": 6,
+      "unescaped": 6
+    },
+    "workspace.js": {
+      "sinks": 32,
+      "unescaped": 61
+    }
+  }
+}
