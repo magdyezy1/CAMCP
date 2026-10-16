@@ -46,11 +46,15 @@ export default {
       return restliError(404, 'Not found');
     }
     if (method === 'POST' && path === '/rest/adLiftTests/801') {
+      // An uncertain answer: LinkedIn fails with a 5xx, and the change may or may not have applied.
+      if (mode.uncertain) return restliError(503, 'Service unavailable');
       if (mode.partial) return restliError(422, 'Lift test cannot be activated');
       Object.assign(state.test, body.patch.$set);
       return empty();
     }
   },
   partialCodes: ['UPSTREAM_ERROR', 'WRITE_PARTIAL_OR_FAILED', 'WRITE_OUTCOME_UNCERTAIN'],
+  // A 5xx is reported as the provider error (never safe to retry); its replay is WRITE_OUTCOME_UNCERTAIN.
+  uncertainCodes: ['UPSTREAM_ERROR', 'WRITE_OUTCOME_UNCERTAIN'],
   decisive: {change: state => (state.test.schedule.end += 7 * day), field: /schedule/},
 };

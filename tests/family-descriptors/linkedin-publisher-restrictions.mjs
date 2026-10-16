@@ -60,12 +60,16 @@ export default {
     }
     if (method === 'PUT' && path === '/rest/adAccountTrustPreferences/507') {
       // A failed answer: LinkedIn refuses the preferences.
+      // An uncertain answer: LinkedIn fails with a 5xx, and the change may or may not have applied.
+      if (mode.uncertain) return restliError(503, 'Service unavailable');
       if (mode.partial) return restliError(400, 'Publisher list is not processed');
       state.preferences = structuredClone(body);
       return empty();
     }
   },
   partialCodes: ['UPSTREAM_ERROR', 'WRITE_PARTIAL_OR_FAILED', 'WRITE_OUTCOME_UNCERTAIN'],
+  // A 5xx is reported as the provider error (never safe to retry); its replay is WRITE_OUTCOME_UNCERTAIN.
+  uncertainCodes: ['UPSTREAM_ERROR', 'WRITE_OUTCOME_UNCERTAIN'],
   decisive: {
     change: state =>
       state.preferences.offsiteAccountPreferences.publisherRestrictionFiles.include.push('urn:li:adPublisherFile:33'),

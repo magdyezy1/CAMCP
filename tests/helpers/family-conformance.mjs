@@ -28,7 +28,8 @@ const key = Buffer.alloc(32, 97).toString('base64'),
  *   provider({method, url, path, body, state, mode})
  *                                             answers one request from `state`; `mode.paginate` asks state reads
  *                                             for another page, `mode.partial` asks the write for a partial or
- *                                             failed answer; returns {json, status?} or a Response
+ *                                             failed answer, `mode.uncertain` (with uncertainCodes) for an
+ *                                             uncertain one (a 5xx); returns {json, status?} or a Response
  *   isWrite({method, path})                   true for the provider mutation the request sends
  *   decisive: {change(state), field: RegExp}  the change between review and execute, and the changed_fields path
  *   decisive.refusal: {code, message: RegExp} optional: where a family prerequisite forbids the changed value (a
@@ -43,6 +44,8 @@ const key = Buffer.alloc(32, 97).toString('base64'),
  *   prepareFields                             optional: amcp_write prepare fields beside `arguments` (people and
  *                                             personal_data for a family that sends data about people)
  *   paginatedCodes, partialCodes              optional: the refusal codes a family names for those cases
+ *   uncertainCodes                            optional: the codes of the first answer to an uncertain write
+ *                                             (`mode.uncertain`); its replay must be WRITE_OUTCOME_UNCERTAIN
  *   prime({call, connectionId})               optional: reads a caller makes before preparing (discovery)
  *   setup({store, owner, actor, login})       optional: anything else the account already holds
  */
@@ -71,7 +74,7 @@ export function familyFixture(d) {
     d.credentials ?? {accessToken: 'synthetic'},
   );
   const state = d.seed(),
-    mode = {paginate: false, partial: false},
+    mode = {paginate: false, partial: false, uncertain: false},
     sent = [],
     requests = [];
   const transport = new NativeTransport(async (raw, init = {}) => {
@@ -213,6 +216,26 @@ export async function partialOutcome(d) {
     assert.equal(f.sent.length, 1);
     failed(await f.execute(review));
     assert.equal(f.sent.length, 1, 'never sent again');
+  } finally {
+    f.close();
+  }
+  if (d.uncertainCodes) await uncertainOutcome(d);
+}
+/**
+ * An uncertain answer (a 5xx: the write may have applied) where a resend would do harm: never success, never marked
+ * safe to retry, and executing the review again is WRITE_OUTCOME_UNCERTAIN without a second request.
+ */
+async function uncertainOutcome(d) {
+  const f = familyFixture(d);
+  try {
+    const review = await prepared(f);
+    f.mode.uncertain = true;
+    const first = await f.execute(review);
+    assertRefused(first, d.uncertainCodes);
+    assert.notEqual(first.error?.remedy?.mutation_retry_safe, true, 'an uncertain write is never safe to retry');
+    assert.equal(f.sent.length, 1);
+    assertRefused(await f.execute(review), ['WRITE_OUTCOME_UNCERTAIN']);
+    assert.equal(f.sent.length, 1, 'an uncertain write is never sent again');
   } finally {
     f.close();
   }

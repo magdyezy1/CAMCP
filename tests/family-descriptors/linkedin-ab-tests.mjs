@@ -45,6 +45,8 @@ export default {
   }),
   unpaginated: 'the account, the experiment and each campaign are read by ID as single entities, never as pages',
   partialCodes: ['UPSTREAM_ERROR', 'WRITE_PARTIAL_OR_FAILED', 'WRITE_OUTCOME_UNCERTAIN'],
+  // A 5xx is reported as the provider error (never safe to retry); its replay is WRITE_OUTCOME_UNCERTAIN.
+  uncertainCodes: ['UPSTREAM_ERROR', 'WRITE_OUTCOME_UNCERTAIN'],
   isWrite: ({method}) => method !== 'GET',
   provider({method, path, body, state, mode}) {
     if (method === 'GET') {
@@ -56,6 +58,8 @@ export default {
     }
     if (method === 'POST' && path === '/rest/adExperiments/901') {
       // A failed answer: LinkedIn refuses to start the experiment.
+      // An uncertain answer: LinkedIn fails with a 5xx, and the change may or may not have applied.
+      if (mode.uncertain) return restliError(503, 'Service unavailable');
       if (mode.partial) return restliError(422, 'Experiment cannot start');
       Object.assign(state.experiment, body.patch.$set);
       return empty();

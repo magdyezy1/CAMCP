@@ -111,7 +111,10 @@ in a body (`status: DELETED`, `operation_status: DELETE`) belongs in `bodyDeleti
    `CONFIGURATION_EXISTS`). An upload about people passes them with `prepareFields` and `execute`
    (`meta-offline-conversions.mjs`). A second request shape the family also serves is a variant in
    `tests/family-descriptors/variants/` (as `snapchat-nested-updates-targeting.mjs` for the ad squad targeting PATCH):
-   it runs the same checks and never stands in for the family's own descriptor. A family is never added to
+   it runs the same checks and never stands in for the family's own descriptor. A family whose partial case is a
+   definite refusal may also describe an uncertain answer (`mode.uncertain`, a 5xx, with `uncertainCodes`): it must
+   never be success or safe to retry, and its replay must be `WRITE_OUTCOME_UNCERTAIN` without a second request (as
+   `linkedin-lead-form-states.mjs`). A family is never added to
    `tests/fixtures/family-conformance-pending.json`; a backfilled one is removed from it with the ceiling lowered.
    Backfill order: activation and spend-affecting families of active providers first (Google Ads, Meta, Snapchat,
    LinkedIn and Microsoft Advertising budgets, bids and statuses), then their other entity writes. A family of a

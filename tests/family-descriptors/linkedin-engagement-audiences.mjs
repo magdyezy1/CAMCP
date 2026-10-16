@@ -48,12 +48,16 @@ export default {
       return restliError(404, 'Not found');
     }
     if (method === 'DELETE' && path === '/rest/dmpSegments/100') {
+      // An uncertain answer: LinkedIn fails with a 5xx, and the change may or may not have applied.
+      if (mode.uncertain) return restliError(503, 'Service unavailable');
       if (mode.partial) return restliError(422, 'Segment cannot be deleted');
       state.segment = undefined;
       return empty();
     }
   },
   partialCodes: ['UPSTREAM_ERROR', 'WRITE_PARTIAL_OR_FAILED', 'WRITE_OUTCOME_UNCERTAIN'],
+  // A 5xx is reported as the provider error (never safe to retry); its replay is WRITE_OUTCOME_UNCERTAIN.
+  uncertainCodes: ['UPSTREAM_ERROR', 'WRITE_OUTCOME_UNCERTAIN'],
   decisive: {
     change: state => state.campaigns.push(campaign(33, 'ACTIVE', [adSegment])),
     field: /usage/,
