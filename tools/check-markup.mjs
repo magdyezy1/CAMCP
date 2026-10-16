@@ -136,7 +136,14 @@ export function inspectMarkup(source, file = 'script.js') {
       problems.push(
         where(value) + ': html`…` would show the markup of ' + value.callee.name + '() as text; use raw() or html`…`',
       );
-    else if (memberCall(value, 'join'))
+    else if (
+      memberCall(value, 'join') &&
+      (memberCall(value.callee.object, 'map') || memberCall(value.callee.object, 'flatMap')) &&
+      (returned(value.callee.object.arguments[0]) ?? []).some(
+        result => isTagged(result, 'html') || isHtmlTemplate(result) || calls(result, rawCall),
+      )
+    )
+      // A list of text joined with a separator is text and is escaped correctly; a joined list of markup is not.
       problems.push(where(value) + ': html`…` would escape a joined list; interpolate the list of html`…` itself');
     else if (isHtmlTemplate(value))
       problems.push(where(value) + ': an untagged HTML template inside html`…` is escaped; tag it with html');

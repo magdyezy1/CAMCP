@@ -86,7 +86,9 @@ test('the markup check counts what is escaped by hand and refuses the mistakes o
   assert.equal(count('setHtml(el, html`${raw(helper())}`);').unescaped, 1);
   assert.equal(count('setHtml(el, html`${raw(uiBidi(name))}${raw("<hr>")}`);').unescaped, 0);
   assert.deepEqual(
-    count('setHtml(el, html`<b>${esc(name)}</b>${uiBidi(id)}${list.join("")}${a ? `<i>${b}</i>` : ""}`);').problems,
+    count(
+      'setHtml(el, html`<b>${esc(name)}</b>${uiBidi(id)}${list.map(v => html`<i>${v}</i>`).join("")}${a ? `<i>${b}</i>` : ""}`);',
+    ).problems,
     [
       'html`…` escapes esc() a second time; interpolate the value',
       'html`…` would show the markup of uiBidi() as text; use raw() or html`…`',
@@ -94,6 +96,8 @@ test('the markup check counts what is escaped by hand and refuses the mistakes o
       'an untagged HTML template inside html`…` is escaped; tag it with html',
     ],
   );
+  // Text joined with a separator is text, and html`…` escapes it correctly.
+  assert.deepEqual(count('setHtml(el, html`<code>${names.join(", ")}</code>`);').problems, []);
   assert.deepEqual(count('setHtml(el, `<b>${x}</b>`); insertHtml(el, "beforeend", "<p></p>");').problems, [
     'setHtml() takes html`…` markup, not a string',
     'insertHtml() takes html`…` markup, not a string',
