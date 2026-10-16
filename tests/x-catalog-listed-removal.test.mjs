@@ -5,7 +5,7 @@ import {xCatalogComparisonFixture, xProductSource} from './fixtures/x-catalog-co
 import {product} from './x-catalog-fixture.mjs';
 
 /**
- * COM-02 B (owner decision P9: explicit removal of listed X products stays allowed only with explicit intent). Before,
+ * COM-02 B (P9 as the decision record names it: explicit removal of listed X products only with explicit intent). Before,
  * removal accepted only retailer IDs of the supplied source, so a discontinued SKU that still appears in the listed X
  * inventory could not be removed without inventing a source row. A listed product is now removable only after explicit
  * selection by native key from an inspection, bound to that listing, with a typed count; grouped, unknown and unlisted

@@ -48,8 +48,10 @@ export type CatalogDestination = {
    */
   removal: 'retire' | 'retire_and_selected_deletion' | 'none';
   /**
-   * What a populated attribute the source does not send means for the comparison (owner decision P9): `review` puts
-   * an otherwise matching product in the review set as `unknown`; `note` names it without changing the state.
+   * What a populated attribute the source does not send means for the comparison (P9's first question): `note` names
+   * it in `unsent_fields` without changing the state (the recorded choice, COM-01), and `review` would put an otherwise
+   * matching product in the review set as `unknown` (the alternative P9 names, built but used by no destination until
+   * the owner chooses it; docs/DECISIONS.md).
    */
   destinationOnlyValues: 'review' | 'note';
   itemSchemaVersion: typeof catalogItemSchemaVersion;
@@ -69,8 +71,9 @@ export const catalogDestinations: Readonly<Record<CatalogGateway, CatalogDestina
     upsert: 'explicit_choice',
     // Meta has no product delete contract: a discontinued product is retired (COM-02 B).
     removal: 'retire',
-    // Owner decision P9 (2026-10-11): a populated Meta attribute the source does not send needs review.
-    destinationOnlyValues: 'review',
+    // A populated Meta attribute the source does not send is a note: Meta does not say whether an upsert keeps or
+    // clears it, so a product that otherwise matches is not swept into "Save all" (COM-01; P9's alternative is `review`).
+    destinationOnlyValues: 'note',
     itemSchemaVersion: catalogItemSchemaVersion,
   },
   x_ads_native_action: {
@@ -124,9 +127,10 @@ export function catalogServingNotes(supplied: JsonObject, before: JsonObject): s
   return notes;
 }
 /**
- * The shared item v2 fields beside a destination's own: existing fields keep their values. Under the destination's
- * `review` policy (owner decision P9), a product that matches every supplied field but holds values the source does
- * not send is `unknown`, so it enters the review set instead of reading as already current.
+ * The shared item v2 fields beside a destination's own: existing fields keep their values. Under a destination's
+ * `review` policy (P9's alternative, used by no destination today), a product that matches every supplied field but
+ * holds values the source does not send would be `unknown` and enter the review set; under `note` it stays matching
+ * and its `unsent_fields` name those values.
  */
 export function comparisonItemV2(
   item: JsonObject,

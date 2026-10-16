@@ -163,7 +163,7 @@ test('X: a sale price and period round-trip through preview, comparison, native 
   const again = ok(await call({action: 'catalog_compare', ...input}));
   assert.equal(again.items[0].state, 'matching', 'the exact value matches whatever its written form');
   assert.equal(again.items[0].sale_price_matches, true);
-  // A destination sale the source does not send stays a named destination-only value for X (P9 concerns Meta).
+  // A destination sale the source does not send stays a named destination-only value for X, as it does for Meta.
   const noSale = {...source};
   delete noSale.sale_price;
   delete noSale.sale_price_start_date;

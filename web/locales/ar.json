@@ -11212,5 +11212,6 @@
   "Adjust returned no report.": "لم تُعِد Adjust أي تقرير.",
   "An Adjust report day is malformed.": "يوم في تقرير Adjust مشوّه.",
   "The selected login changed during the read. Read the measurement ledger again.": "تغيّر تسجيل الدخول المحدد أثناء القراءة. اقرأ سجل القياس مرة أخرى.",
-  "Connect an advertising, analytics or Search Console account in Connections to read its measurement evidence ledger.": "اربط حسابًا إعلانيًا أو حساب تحليلات أو Search Console في الاتصالات لقراءة سجل أدلة القياس الخاص به."
+  "Connect an advertising, analytics or Search Console account in Connections to read its measurement evidence ledger.": "اربط حسابًا إعلانيًا أو حساب تحليلات أو Search Console في الاتصالات لقراءة سجل أدلة القياس الخاص به.",
+  "This retirement names a product the catalog does not have; retiring it would create it. Nothing was sent: remove it from the retirement.": "يسمّي هذا الإيقاف منتجًا غير موجود في الكتالوج؛ وإيقافه سينشئه. لم يُرسَل شيء: أزله من الإيقاف."
 }

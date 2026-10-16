@@ -5,6 +5,7 @@ import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {catalogIngestion} from '../dist/src/catalog-ingestion.js';
+import {catalogDestinations, comparisonItemV2, comparisonSummary} from '../dist/src/catalog-destinations.js';
 import {metaCatalogProductImpact, metaCatalogUnsentFields} from '../dist/src/meta-catalog-products.js';
 import {workflowOutcome} from '../dist/src/workflow-outcomes.js';
 import {compactPlan} from '../dist/src/campaign-view.js';
@@ -63,28 +64,42 @@ function metaComparison(mutate) {
   return {store, input, call: args => service.call('amcp_workspace', args, actor)};
 }
 
-// Owner decision P9 (approved 2026-10-11) replaced the wave-2 reading of COM-01 A: a populated Meta attribute the source
-// does not send puts the product in the review set as unknown, instead of a note on a matching product.
-test('A: a Meta comparison names destination-only sale price, staging visibility and zero inventory and puts the product in the review set as unknown (P9; regression: no unsent_fields)', async t => {
+// COM-01 A as recorded for P9 (docs/DECISIONS.md): a populated Meta attribute the source does not send is a note on a
+// product that otherwise matches; it never puts the product in the review set as unknown.
+test('A: a Meta comparison names destination-only sale price, staging visibility and zero inventory without changing the matching state (regression: no unsent_fields)', async t => {
   const f = metaComparison(data =>
     Object.assign(data.products.get('003'), {sale_price: 'SAR50.00', visibility: 'staging', inventory: 0}),
   );
   t.after(() => f.store.close());
   const out = ok(await f.call(f.input));
-  const held = out.items[2];
-  assert.equal(held.state, 'unknown', 'P9: values the source does not send need review');
-  assert.deepEqual(held.changes, []);
-  assert.deepEqual(held.unknown_fields, [], 'every supplied field still matches');
-  assert.deepEqual(held.unsent_fields, ['visibility', 'inventory', 'sale_price']);
-  assert.deepEqual(held.serving_notes, ['staging_visibility']);
-  assert.deepEqual(out.review_retailer_ids, ['001', '002', '003', '004'], 'P9: the product enters the review set');
+  const matching = out.items[2];
+  assert.equal(matching.state, 'matching', 'a note never changes what "matching" means');
+  assert.deepEqual(matching.changes, []);
+  assert.deepEqual(matching.unknown_fields, [], 'every supplied field matches');
+  assert.deepEqual(matching.unsent_fields, ['visibility', 'inventory', 'sale_price']);
+  assert.deepEqual(matching.serving_notes, ['staging_visibility']);
+  assert.deepEqual(out.review_retailer_ids, ['001', '002', '004'], 'notes do not enter the review set');
   assert.equal(out.summary.with_destination_only_values, 1);
-  assert.equal(out.summary.matching, 0);
-  assert.equal(out.summary.unknown, 2);
+  assert.equal(out.summary.matching, 1);
+  assert.equal(out.summary.unknown, 1);
   assert.deepEqual(out.items[0].unsent_fields, [], 'a new product has no destination values');
   assert.deepEqual(out.items[1].unsent_fields, [], 'only fields the source does not send are named');
   // Field names only: the destination values themselves are not repeated in the note.
-  assert.doesNotMatch(JSON.stringify(held.unsent_fields), /SAR50|staging/);
+  assert.doesNotMatch(JSON.stringify(matching.unsent_fields), /SAR50|staging/);
+});
+
+test('P9 alternative: a destination under the review policy would put such a product in the review set as unknown', () => {
+  // Built for the owner's P9 answer and used by no destination today (Meta, X and Snapchat note these values).
+  for (const d of Object.values(catalogDestinations)) assert.equal(d.destinationOnlyValues, 'note', d.gateway);
+  const item = {retailer_id: '003', state: 'matching', changes: [], unknown_fields: [], unsent_fields: ['inventory']},
+    supplied = {retailer_id: '003'},
+    review = {...catalogDestinations.meta_native_action, destinationOnlyValues: 'review'};
+  assert.equal(comparisonItemV2(item, supplied, catalogDestinations.meta_native_action).state, 'matching');
+  assert.equal(comparisonItemV2(item, supplied, review).state, 'unknown');
+  assert.equal(comparisonItemV2({...item, unsent_fields: []}, supplied, review).state, 'matching');
+  const {summary, review_retailer_ids} = comparisonSummary([comparisonItemV2(item, supplied, review)]);
+  assert.deepEqual(review_retailer_ids, ['003']);
+  assert.equal(summary.unknown, 1);
 });
 
 test('A: the Meta review of an upsert warns which current values it does not send; a create and a complete source do not', () => {

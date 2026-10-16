@@ -179,13 +179,27 @@ cites as owner decisions, each the review's recommended or the ticket's proposed
   recorded in the [campaign pack demand record](#campaign-pack-demand-record-cmp-07-p7-prv-06), and the PRV-06 order
   follows the review's recommendation (the Reddit pixel check first).
 - **P9.** A Meta product's populated destination-only attributes are notes (`unsent_fields`); they never put the item
-  in the review set as `unknown` (COM-01). The Business Profile and Amazon Ads parts are recorded above.
+  in the review set as `unknown` (COM-01). COM-03's destination registry also holds the alternative (`review`, the item
+  enters the review set as `unknown`), used by no destination until the owner chooses it. The Business Profile and
+  Amazon Ads parts are recorded above.
 
 P8 (owner-approved 2026-10-11, applied in wave 3; chosen during implementation, the owner may revise): Measurement is
 the multi-provider conversion-health hub. The measurement ledger adds read-only Meta pixel/dataset, Snapchat pixel,
 TikTok pixel, Search Console and Adjust adapters beside Google Ads and GA4; Meta pixel ownership is learned from the
 ad account's pixel list, and no test event, Conversions API call or validate request is sent (MSR-03,
 [product workflows](PRODUCT-WORKFLOWS.md)).
+
+Also implemented in wave 3 (COM-02, the remaining parts of P9; each is COM-02's proposed option, chosen during
+implementation, and the owner may revise it): listed X products outside the supplied source are removable only by
+explicit intent, an individual selection by native key from an inspection, bound to that listing's hash, with a typed
+count (`confirmed_count`), the owner's `allow_deletion` policy and read-back, while grouped, unknown and unlisted keys
+are refused and nothing is selected because a source lacks it (COM-02 B). A read-only Snapchat item comparison is
+offered: two agreeing scans with exact decimals that name what to fix in the feed, and nothing is saved (COM-02 D). A
+non-destructive retirement ("out of stock" or "discontinued" through the reviewed update) takes the place of a Meta
+delete contract, and a retirement never creates a product: a comparison blocks it and each retirement step's native
+review refuses it with `CATALOG_RETIRE_ABSENT` (COM-02 B). Bounded X variant group expansion stays behind
+`AMCP_X_CATALOG_GROUP_EXPANSION=qualified`, off by default (the block stays and names the grouped records) until the
+R2(7) native read qualifies it (COM-02 E).
 
 Also implemented on 2026-10-13 (SEC-08; P1's isolation model awaits owner confirmation). The review's
 recommendation for either model, the non-authorizing working-client filter, is built: the website's working client is

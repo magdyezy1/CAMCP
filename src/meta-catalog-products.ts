@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {assertCatalogRetirementTarget} from './catalog-retirement.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -521,6 +522,15 @@ export function metaCatalogProductPrerequisites(p: CompiledRequest, states: unkn
       {product_id: String(s.product.id), retailer_id: String(b.retailer_id)},
     );
 }
+/**
+ * At prepare and execute of a catalog plan's retirement step (COM-02 B): the reviewed product is the retired one and
+ * the catalog has it, so the upsert updates it instead of creating it (src/catalog-retirement.ts).
+ */
+export function metaCatalogRetirementCheck(p: CompiledRequest, state: unknown[]): void {
+  if (!metaCatalogProductKind(p)) return;
+  const s = state[0];
+  assertCatalogRetirementTarget(body(p).retailer_id, object(s) && object(s.product) && s.product.present === true);
+}
 export function metaCatalogProductImpact(p: CompiledRequest, state: unknown[]): JsonObject | undefined {
   if (!metaCatalogProductKind(p)) return;
   const s: JsonObject = object(state[0]) ? state[0] : {},
@@ -620,6 +630,7 @@ export const metaCatalogProductFamily: ReviewedFamily = {
   reader: readMetaCatalogProducts,
   validateState: validateMetaCatalogProductState,
   prerequisites: metaCatalogProductPrerequisites,
+  stateChecks: metaCatalogRetirementCheck,
   impact: metaCatalogProductImpact,
   outcome: metaCatalogProductOutcome,
   verification: metaCatalogProductVerification,

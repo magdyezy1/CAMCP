@@ -1668,8 +1668,8 @@ See [delivery](review/DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md).
 - **Sale prices (Meta and X).** Add optional `sale_price`, `sale_price_start_date` and `sale_price_end_date` columns (or
   map them). The sale is a decimal lower than the price in the product currency; the start and end are ISO 8601 times
   with an explicit offset, kept as written (X needs both or neither). The preview shows the native sale and the
-  comparison checks it exactly. Without sale columns the destination keeps its current sale; the comparison names it,
-  and a Meta product holding values your source does not send needs review (owner decision P9).
+  comparison checks it exactly. Without sale columns the destination keeps its current sale; the comparison names it as
+  a note, and a product whose only differences are values your source does not send still counts as matching.
 - **Retire instead of delete.** After an update comparison, tick **Retire** for existing products you stopped selling
   and save a retirement draft: each product is updated to "discontinued" or "out of stock", so ads stop showing it
   while the product stays. This is the only removal path for Meta, which has no product deletion.
@@ -1896,7 +1896,7 @@ listed products (none is selected for you; grouped and unknown products cannot b
 **Preview removal of selected listed products**, check the native keys and current prices, and
 type the number of products to save an unapproved removal draft. A listing that changed since
 the inspection needs a new inspection. Each removal still has its own native review, the owner's
-deletion policy and read-back; nothing is selected because your source lacks it (owner decision P9).
+deletion policy and read-back; nothing is selected because your source lacks it.
 X listings may hide variants, and your supplied selection does not establish full-store
 absence. Changed native observations require a new explicit read. A current failure stays
 visible with its request reference; editing the form clears old evidence and suppresses late

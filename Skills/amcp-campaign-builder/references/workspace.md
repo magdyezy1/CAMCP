@@ -1069,14 +1069,17 @@ explicit offset, literal; X needs both or neither and receives `sale_price_effec
 hundredths (digits beyond the second place must be zeros), X `amount CUR`. `catalog_compare` returns
 `sale_price_matches` beside `price_matches`, from Meta's `sale_price_amount` filter or X's exact value; native review
 and read-back check the sent sale. Refusals are `INVALID_CATALOG_SALE`. Without a supplied sale the destination keeps
-its own; it appears in `unsent_fields`, and a Meta product with populated values the source does not send is `unknown`
-and in `review_retailer_ids` (owner decision P9). Clearing a destination sale is not offered.
+its own; it appears in `unsent_fields` as a note: a product whose only differences are such values stays `matching`
+and out of `review_retailer_ids` (COM-01, as P9 is recorded in docs/DECISIONS.md). Clearing a destination sale is not
+offered.
 
 **Retirement (COM-02 B).** `requirements: {retire_retailer_ids: [1–50 supplied IDs], retire_availability: "out of
 stock" | "discontinued"}` on catalog_preview, catalog_compare and catalog_plan updates those supplied products with that
 availability through the same reviewed upsert; nothing is deleted (Meta has no delete contract). It needs
 `allow_upsert:true` (`INVALID_CATALOG_RETIREMENT` otherwise), and a comparison blocks a product the catalog lacks with
-`blocked_reason: "retire_absent"`.
+`blocked_reason: "retire_absent"`. A plan saved without a comparison records the retired IDs (`catalog_retirement`), and
+each retirement step's native review refuses a product the catalog does not have with `CATALOG_RETIRE_ABSENT`, at
+prepare and at execute, before anything is sent (the upsert would create it).
 
 **Variant groups (COM-02 E).** A comparison of a catalog with grouped records returns `variant_groups`
 (`grouped_record_count`, up to ten `grouped_records`, `expansion`, `reason`, `member_count`, `membership_hash`,

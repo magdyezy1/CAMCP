@@ -4172,8 +4172,8 @@ function catalogWebDestination(gateway) {
       unsent: metaCatalogUnsentFieldNames,
       blocked: ['existing_product_create_only', 'retire_absent'],
       productId: /^[1-9][0-9]{0,31}$/,
-      // Owner decision P9: a populated attribute the source does not send puts the product in review as unknown.
-      destinationOnly: 'review',
+      // A populated attribute the source does not send is a note on a product that otherwise matches (COM-01, P9).
+      destinationOnly: 'note',
       removal: false,
       retire: true,
       feedOnly: false,

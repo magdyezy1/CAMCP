@@ -6,9 +6,10 @@ import {catalogIngestion} from '../dist/src/catalog-ingestion.js';
 import {metaWorld, metaInput, metaShoe, start, end} from './fixtures/meta-catalog-world.mjs';
 
 /**
- * COM-02 A and owner decision P9 on the Commerce page. Each test names the defect it guards against:
+ * COM-02 A and P9's destination-only reading on the Commerce page. Each test names the defect it guards against:
  * - a supplied sale price could not be mapped or previewed, and a comparison could not show a sale change;
- * - a Meta product holding values the source does not send read as "Submitted fields match" and left the review set.
+ * - a Meta product holding values the source does not send must name them as a note and its serving note, while it
+ *   stays matching and out of the review set (COM-01, as P9 is recorded in docs/DECISIONS.md).
  */
 const plain = value => JSON.parse(JSON.stringify(value));
 const xSource = {
@@ -150,12 +151,13 @@ test('the comparison validator refuses a tampered sale change, a missing or flip
     ui.context.args = [tampered, noSale, noSalePreview];
     assert.throws(() => ui.run('catalogComparisonMarkup(...args)'), /scope or evidence changed/);
     const honest = plain(tampered);
-    // Without the sale only the destination's own sale differs: P9 names it and keeps the product in review.
+    // Without the sale only the destination's own sale differs: it is named as a note on a matching product.
     honest.items[0].changes = honest.items[0].changes.filter(c => c.field !== 'sale_price');
     assert.deepEqual(honest.items[0].changes, []);
     delete honest.items[0].sale_price_matches;
-    Object.assign(honest.items[0], {state: 'unknown', unsent_fields: ['sale_price']});
-    Object.assign(honest.summary, {changed: 0, unknown: 1, with_destination_only_values: 1});
+    Object.assign(honest.items[0], {state: 'matching', unsent_fields: ['sale_price']});
+    Object.assign(honest.summary, {changed: 0, matching: 1, needs_review: 0, with_destination_only_values: 1});
+    honest.review_retailer_ids = [];
     ui.context.args = [honest, noSale, noSalePreview];
     assert.doesNotThrow(() => ui.run('catalogComparisonMarkup(...args)'), 'without the sale the same evidence renders');
   } finally {
@@ -163,7 +165,7 @@ test('the comparison validator refuses a tampered sale change, a missing or flip
   }
 });
 
-test('P9: a Meta product holding values the source does not send is shown as unknown, enters the review set and names its serving note (regression: read as matching)', async () => {
+test('a Meta product holding values the source does not send stays matching with a note, stays out of the review set and names its serving note (regression: no note)', async () => {
   for (const locale of ['en', 'ar']) {
     const meta = metaWorld([
       {
@@ -187,23 +189,27 @@ test('P9: a Meta product holding values the source does not send is shown as unk
           },
         );
       assert.equal(out.success, true);
-      assert.equal(out.data.items[0].state, 'unknown');
-      assert.deepEqual(out.data.review_retailer_ids, ['SKU-1']);
+      assert.equal(out.data.items[0].state, 'matching');
+      assert.deepEqual(out.data.items[0].unsent_fields, ['visibility']);
+      assert.deepEqual(out.data.review_retailer_ids, []);
       const ui = accountWorkflowFixture(locale);
       ui.context.args = [out.data, input, catalogIngestion(input)];
       const html = ui.run('catalogComparisonMarkup(...args)');
-      assert.match(html, locale === 'ar' ? /بعض الحقول غير معروفة/ : /Some fields are unknown/);
+      assert.match(
+        html,
+        locale === 'ar' ? /سمات أصلية أخرى لها قيم: visibility/ : /Other native attributes have values: visibility/,
+      );
       assert.match(
         html,
         locale === 'ar' ? /المنتج الحالي في وضع التجهيز/ : /The current product is in staging, so ads do not show it/,
       );
-      assert.match(html, /id="save-catalog-changes"/, 'the product can be saved for review');
-      // The same evidence presented as matching is refused.
-      const matching = plain(out.data);
-      Object.assign(matching.items[0], {state: 'matching'});
-      Object.assign(matching.summary, {matching: 1, unknown: 0, needs_review: 0});
-      matching.review_retailer_ids = [];
-      ui.context.args = [matching, input, catalogIngestion(input)];
+      assert.doesNotMatch(html, /id="save-catalog-changes"/, 'nothing differs that a reviewed change would send');
+      // The same evidence presented as unknown, in the review set, is refused.
+      const unknown = plain(out.data);
+      Object.assign(unknown.items[0], {state: 'unknown'});
+      Object.assign(unknown.summary, {matching: 0, unknown: 1, needs_review: 1});
+      unknown.review_retailer_ids = ['SKU-1'];
+      ui.context.args = [unknown, input, catalogIngestion(input)];
       assert.throws(() => ui.run('catalogComparisonMarkup(...args)'), /changed|تغير/);
     } finally {
       meta.store.close();

@@ -1,6 +1,7 @@
 import {AsyncLocalStorage} from 'node:async_hooks';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {sha256, stable} from './security.js';
+import {assertCatalogRetirementTarget} from './catalog-retirement.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {
@@ -504,6 +505,16 @@ export function xCatalogRemovalStateCheck(p: CompiledRequest, state: unknown[]):
     removalChanged();
 }
 
+/**
+ * At prepare and execute of a catalog plan's retirement step (COM-02 B): the reviewed product is the retired one and
+ * the catalog lists it, so the upsert updates it instead of creating it (src/catalog-retirement.ts).
+ */
+export function xCatalogRetirementCheck(p: CompiledRequest, state: unknown[]): void {
+  if (xCatalogProductKind(p) !== 'upsert') return;
+  const s = state[0];
+  assertCatalogRetirementTarget(product(p).id, object(s) && object(s.product) && s.product.present === true);
+}
+
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
 export const xCatalogProductFamily: ReviewedFamily = {
   name: 'x_catalog_products',
@@ -517,7 +528,10 @@ export const xCatalogProductFamily: ReviewedFamily = {
   reader: readXCatalogProducts,
   validateState: validateXCatalogProductState,
   prerequisites: xCatalogProductPrerequisites,
-  stateChecks: (plan, state) => xCatalogRemovalStateCheck(plan, state),
+  stateChecks: (plan, state) => {
+    xCatalogRemovalStateCheck(plan, state);
+    xCatalogRetirementCheck(plan, state);
+  },
   impact: xCatalogProductImpact,
   outcome: xCatalogProductOutcome,
   verification: xCatalogProductVerification,

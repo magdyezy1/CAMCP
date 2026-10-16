@@ -960,7 +960,7 @@ retain original keys and read-only recovery. Deletion is permanent and a schedul
 it still contains. No source-absence deletion policy or feed rewrite is inferred.
 See [workflow, exact limits and synthetic qualification](review/DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md).
 
-**Listed products outside the source (COM-02 B, owner decision P9).** A discontinued SKU that is no longer in the
+**Listed products outside the source (COM-02 B; P9, as recorded in the [decision record](DECISIONS.md)).** A discontinued SKU that is no longer in the
 source can be removed only by explicit intent: inspect the other listed X products, select individual products by
 their native key (nothing is preselected, a selection survives search and paging), preview them
 (`preview_catalog_removal` with `requirements: {selection_source: "listed_inventory", product_keys, listed_inventory_hash}`)
@@ -978,17 +978,19 @@ with an explicit offset, kept exactly as written (X needs both or neither and re
 `sale_price_effective_date` `start/end`). Meta receives the sale in hundredths, so digits beyond the second decimal
 place must be zeros; X receives `amount CUR`. The comparison uses Meta's own `sale_price_amount` filter and X's exact
 decimal value, and the native review and read-back check the sale that was sent. A source without a sale sends none:
-the destination keeps its current sale and the comparison names it as a value the source does not send. For Meta that
-puts the product in the review set as `unknown` (owner decision P9); for X it is a note. Clearing a destination sale is
-not offered.
+the destination keeps its current sale and the comparison names it as a value the source does not send. For Meta and X
+it is a note (`unsent_fields`): a product whose only differences are such values stays matching and out of the review
+set (COM-01; P9 as recorded in the [decision record](DECISIONS.md)). Clearing a destination sale is not offered.
 
 Retirement is the non-destructive way to stop advertising a discontinued product, for Meta (which has no product
 delete contract) and X. `requirements: {retire_retailer_ids, retire_availability: "out of stock" | "discontinued"}` on
 `catalog_preview`, `catalog_compare` and `catalog_plan` sends those supplied products through the same reviewed update
 with that availability, so ads stop showing them while the product, its history and its sets stay. It needs
 `allow_upsert: true`, and a comparison blocks retiring a product the catalog does not have (`retire_absent`: the update
-would create it). On the website an update comparison offers Retire checkboxes for existing products; nothing is
-deleted.
+would create it). A plan saved from supplied products or a CSV without a comparison records the retired retailer IDs on
+the plan (`catalog_retirement`), and the native review of each retirement step refuses a product the catalog does not
+have (`CATALOG_RETIRE_ABSENT`, at prepare and at execute, nothing sent). On the website an update comparison offers
+Retire checkboxes for existing products; nothing is deleted.
 
 ### Read-only Snapchat catalog comparison (COM-02 D)
 

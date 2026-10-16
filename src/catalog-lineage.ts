@@ -133,22 +133,36 @@ export function catalogPlanParts<T>(products: T[]): T[][] {
 }
 /**
  * Stores the binding a catalog plan's campaign create names, for 90 seconds, and returns the binding; the caller
- * releases it after the create. The binding fixes the lineage, the exact steps, name, brief and creation key.
+ * releases it after the create. The binding fixes the lineage, the exact steps, name, brief and creation key, and the
+ * retailer IDs the plan retires (COM-02 B), which the plan runner holds its native reviews to (src/catalog-retirement.ts).
+ * A binding a crashed process never released is removed by the next binding of the workspace once it has expired.
  */
-export function storeCatalogLineageBinding(store: Store, actor: Actor, plan: JsonObject, lineage: JsonObject) {
+export function storeCatalogLineageBinding(
+  store: Store,
+  actor: Actor,
+  plan: JsonObject,
+  lineage: JsonObject,
+  retirement?: {retailer_ids: string[]; availability: string},
+) {
   const id = randomUUID(),
     nonce = randomUUID(),
-    hash = fingerprint(lineage);
+    hash = fingerprint(lineage),
+    now = Date.now();
+  for (const old of store.documents(actor.tenantId, bindingKind))
+    if (!(Number(old.expires_at) > now)) store.deleteDocument(actor.tenantId, bindingKind, String(old.id));
   store.putDocument(actor.tenantId, bindingKind, id, {
     lineage,
     hash,
+    ...(retirement
+      ? {retirement: {retailer_ids: [...retirement.retailer_ids], availability: retirement.availability}}
+      : {}),
     steps: fingerprint((plan.steps as JsonObject[]).map(cleanStep)),
     name: plan.name,
     brief: plan.brief,
     idempotency_key: plan.idempotency_key ?? null,
     user_id: actor.userId,
     nonce,
-    expires_at: Date.now() + 90000,
+    expires_at: now + 90000,
   });
   return {kind: 'lineage', id, hash, save_nonce: nonce};
 }
@@ -191,4 +205,21 @@ export function catalogLineageCreationBinding(
       409,
     );
   return doc.lineage;
+}
+
+/**
+ * The retirement a catalog plan's binding records (COM-02 B), or undefined. Campaign create reads it only after
+ * catalogLineageCreationBinding accepted the same binding.
+ */
+export function catalogRetirementCreationBinding(
+  store: Store,
+  actor: Actor,
+  input: JsonObject,
+): JsonObject | undefined {
+  const b = input.catalog_binding;
+  if (b?.kind !== 'lineage' || typeof b.id !== 'string') return undefined;
+  const retirement = optional(store, actor.tenantId, bindingKind, b.id)?.retirement;
+  return retirement && Array.isArray(retirement.retailer_ids) && retirement.retailer_ids.length
+    ? {retailer_ids: [...retirement.retailer_ids], availability: retirement.availability}
+    : undefined;
 }

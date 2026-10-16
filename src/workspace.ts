@@ -34,7 +34,7 @@ import {clientBriefs, recipeDefaultFields} from './recipe-context.js';
 import {monitorActions, monitorOperation} from './report-monitors.js';
 import {portfolioPage} from './portfolio.js';
 import {reconcilePortfolio} from './portfolio-reconciliation.js';
-import {catalogIngestion} from './catalog-ingestion.js';
+import {catalogIngestion, catalogRetirement} from './catalog-ingestion.js';
 import {wooCommerceSource, wooCommerceSources, type WooCommerceRequest} from './woocommerce-source.js';
 import {wooCommerceInventory} from './woocommerce-inventory.js';
 import {catalogComparison} from './catalog-comparison.js';
@@ -545,7 +545,14 @@ export class WorkspaceService {
         input.products,
         comparisonLineage(this.store, actor, input, input.products, connection.id),
       );
-      const created = await this.createCatalogPlan(actor, result.plan, lineage);
+      // A retirement only updates existing products: the plan names them, and each native review refuses a missing one.
+      const retire = catalogRetirement(input),
+        created = await this.createCatalogPlan(
+          actor,
+          result.plan,
+          lineage,
+          retire ? {retailer_ids: [...retire.ids], availability: retire.availability} : undefined,
+        );
       return {...created, source_hash: result.source_hash, item_count: result.item_count, lineage};
     }
     if (input.action === 'measurement_audit') {
@@ -701,8 +708,13 @@ export class WorkspaceService {
     return this.checkAccount(input, actor);
   }
   /** Saves one catalog plan with its lineage, through a binding only this workflow can name (COM-03). */
-  private async createCatalogPlan(actor: Actor, plan: JsonObject, lineage: JsonObject): Promise<JsonObject> {
-    const binding = storeCatalogLineageBinding(this.store, actor, plan, lineage);
+  private async createCatalogPlan(
+    actor: Actor,
+    plan: JsonObject,
+    lineage: JsonObject,
+    retirement?: {retailer_ids: string[]; availability: string},
+  ): Promise<JsonObject> {
+    const binding = storeCatalogLineageBinding(this.store, actor, plan, lineage, retirement);
     try {
       const created = await this.call('amcp_campaign', {...plan, catalog_binding: binding}, actor);
       if (!created.success)
@@ -796,6 +808,9 @@ export class WorkspaceService {
           fingerprint({kind: 'campaign-create', tenant: actor.tenantId, user: actor.userId, key}),
         ),
       ).length;
+    // An upfront check, so a group that cannot fit saves no part. It is not a reservation: each part's campaign create
+    // checks the plan limit again when it saves (assertPlanRoom), so two groups saved at once can stop part-way with
+    // PLAN_LIMIT_REACHED (the error names the saved parts, and the same request saves the missing ones later).
     if (activePlanCount(this.store, actor.tenantId) + parts.length - saved > activePlanLimit)
       bad(
         'Limit reached: 500 campaign plans that are not archived. Archive complete, cancelled or superseded plans to make room; archived plans stay readable.',

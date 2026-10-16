@@ -4,7 +4,8 @@ import {assertAllocationStep, allocationCreationBinding} from './allocation-plan
 import {scheduleAllocationOutcomeQuietly} from './allocation-outcome.js';
 import {assertConsentStep, consentCreationBinding} from './gtm-consent-plans.js';
 import {assertCatalogRemovalStep, catalogRemovalChanged, catalogRemovalCreationBinding} from './x-catalog-removal.js';
-import {catalogLineageCreationBinding} from './catalog-lineage.js';
+import {catalogLineageCreationBinding, catalogRetirementCreationBinding} from './catalog-lineage.js';
+import {catalogRetirementOf, withCatalogRetirement} from './catalog-retirement.js';
 import {withXCatalogRemovalExpectation, type XCatalogRemovalExpectation} from './x-catalog-products.js';
 import {addNativeRequests, meterNativeRequests} from './native-request-meter.js';
 import {
@@ -1630,6 +1631,10 @@ export class CampaignRunner {
       const catalog_removal = catalogRemovalCreationBinding(this.store, actor, input, steps);
       // Where a catalog plan's products came from (COM-03): set only by amcp_workspace catalog_plan.
       const catalog_lineage = catalogLineageCreationBinding(this.store, actor, input, steps);
+      // The retailer IDs the plan retires (COM-02 B): their native reviews must find an existing product.
+      const catalog_retirement = catalog_lineage
+        ? catalogRetirementCreationBinding(this.store, actor, input)
+        : undefined;
       const creation_fingerprint = fingerprint({
         name: input.name,
         brief: input.brief,
@@ -1643,6 +1648,7 @@ export class CampaignRunner {
         ...(gtm_consent ? {gtm_consent} : {}),
         ...(catalog_removal ? {catalog_removal} : {}),
         ...(catalog_lineage ? {catalog_lineage} : {}),
+        ...(catalog_retirement ? {catalog_retirement} : {}),
         ...(origin ? {origin} : {}),
       });
       const id = input.idempotency_key ? creationId(actor, input.idempotency_key) : randomUUID();
@@ -1684,6 +1690,7 @@ export class CampaignRunner {
         ...(gtm_consent ? {gtm_consent} : {}),
         ...(catalog_removal ? {catalog_removal} : {}),
         ...(catalog_lineage ? {catalog_lineage} : {}),
+        ...(catalog_retirement ? {catalog_retirement} : {}),
         ...(temporary.length
           ? {
               temporary_sources: {
@@ -2218,8 +2225,10 @@ export class CampaignRunner {
       if (run.allocation) await assertAllocationStep(this.store, this.call, actor, run, next);
       if (run.search_exclusions) await assertSearchExclusionStep(this.store, this.call, actor, run, next);
       if (run.gtm_consent) await assertConsentStep(this.store, this.call, actor, run, next);
-      // A selected-removal step is checked by its own native review against the bound product (COM-02 C).
-      const removal = run.catalog_removal ? assertCatalogRemovalStep(run, next) : undefined;
+      // A selected-removal step is checked by its own native review against the bound product (COM-02 C), and the
+      // review of a retirement step refuses a product the catalog does not have (COM-02 B).
+      const removal = run.catalog_removal ? assertCatalogRemovalStep(run, next) : undefined,
+        retiring = catalogRetirementOf(run, next);
       // A resumed or still-valid review keeps the acknowledgements it needs, so run asks for the same ones.
       if (next.status === 'executing')
         return {
@@ -2294,7 +2303,11 @@ export class CampaignRunner {
             actor,
           );
         prepared = await meterNativeRequests(prepareCount, () =>
-          removal ? withXCatalogRemovalExpectation(removal, prepare) : prepare(),
+          removal
+            ? withXCatalogRemovalExpectation(removal, prepare)
+            : retiring
+              ? withCatalogRetirement(retiring, prepare)
+              : prepare(),
         );
       }
       next.native_requests = addNativeRequests(next.native_requests, 'prepare', prepareCount);
@@ -2446,6 +2459,7 @@ export class CampaignRunner {
     const removal: XCatalogRemovalExpectation | undefined = run.catalog_removal
         ? assertCatalogRemovalStep(run, next)
         : undefined,
+      retiring = catalogRetirementOf(run, next),
       before = {status: next.status, state: run.state};
     next.status = 'executing';
     run.state = 'in_progress';
@@ -2472,7 +2486,11 @@ export class CampaignRunner {
         ),
       executeCount = {reads: 0, writes: 0};
     const result = await meterNativeRequests(executeCount, () =>
-      removal ? withXCatalogRemovalExpectation(removal, execute) : execute(),
+      removal
+        ? withXCatalogRemovalExpectation(removal, execute)
+        : retiring
+          ? withCatalogRetirement(retiring, execute)
+          : execute(),
     );
     step.native_requests = addNativeRequests(step.native_requests, 'execute', executeCount);
     this.store.assertActorActive(actor);

@@ -129,3 +129,64 @@ test('a retirement needs a qualified availability, supplied retailer IDs and exp
   assert.equal(f.writes(), 0);
   assert.equal(f.calls.length, 0);
 });
+
+test('a retirement plan saved without a comparison never creates a missing product: its native review refuses it with no write (regression: saved as an upsert that created it)', async t => {
+  // Meta: catalog_plan from supplied products names the retirement; the product is not in the catalog.
+  const f = metaWorld(existing);
+  t.after(() => f.store.close());
+  const call = args => f.service.call('amcp_workspace', args, actor),
+    missing = metaShoe({retailer_id: 'SKU-2', name: 'Missing shoe'});
+  const plan = ok(
+    await call({action: 'catalog_plan', ...metaInput([missing]), ...retire({retire_retailer_ids: ['SKU-2']})}),
+  );
+  assert.deepEqual(f.store.document(actor.tenantId, 'campaign_run', plan.id).catalog_retirement, {
+    retailer_ids: ['SKU-2'],
+    availability: 'discontinued',
+  });
+  // The step's own native review refuses it before anything is sent; the plan needs attention.
+  const refused = ok(await f.service.call('amcp_campaign', {action: 'prepare_next', id: plan.id}, actor));
+  assert.equal(refused.current.error?.code, 'CATALOG_RETIRE_ABSENT', JSON.stringify(refused).slice(0, 400));
+  assert.equal(refused.current.error.details.retailer_id, 'SKU-2');
+  assert.equal(refused.current.submission, 'not_submitted');
+  assert.equal(refused.state, 'attention');
+  assert.equal(f.writes(), 0);
+  assert.equal(f.products.has('SKU-2'), false, 'nothing was created');
+  // The same product imported without a retirement is an ordinary create, which the guard leaves alone.
+  const created = ok(await call({action: 'catalog_plan', ...metaInput([missing])}));
+  assert.equal(f.store.document(actor.tenantId, 'campaign_run', created.id).catalog_retirement, undefined);
+  const review = ok(await f.service.call('amcp_campaign', {action: 'prepare_next', id: created.id}, actor));
+  assert.ok(review.review, JSON.stringify(review).slice(0, 400));
+  assert.equal(f.writes(), 0);
+  // X: retiring a product the catalog does not list is refused the same way.
+  const world = setup({tenant: 'catalog-retirement-x-absent'});
+  t.after(() => world.store.close());
+  const input = {
+    gateway: 'x_ads_native_action',
+    account_id: 'acct1',
+    connection_id: 'x',
+    catalog_id: '9001',
+    allow_upsert: true,
+    products: [
+      {
+        retailer_id: 'sku-404',
+        name: 'Retired product',
+        price: '20',
+        currency: 'SAR',
+        image_url: 'https://shop.example.test/i/404.jpg',
+        url: 'https://shop.example.test/p/404',
+        availability: 'in stock',
+        condition: 'new',
+        brand: 'Brand',
+        description: 'Synthetic missing product',
+      },
+    ],
+    requirements: {retire_retailer_ids: ['sku-404'], retire_availability: 'out of stock'},
+  };
+  const xPlan = ok(await world.service.call('amcp_workspace', {action: 'catalog_plan', ...input}, world.actor));
+  const listed = world.items[9001].length,
+    xRefused = ok(await world.service.call('amcp_campaign', {action: 'prepare_next', id: xPlan.id}, world.actor));
+  assert.equal(xRefused.current.error?.code, 'CATALOG_RETIRE_ABSENT', JSON.stringify(xRefused).slice(0, 400));
+  assert.equal(xRefused.current.submission, 'not_submitted');
+  assert.equal(world.calls.filter(c => c.method !== 'GET').length, 0);
+  assert.equal(world.items[9001].length, listed, 'nothing was created');
+});
