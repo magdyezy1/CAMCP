@@ -7360,6 +7360,7 @@
   "hash is the 32-character image hash from the ad account library.": "تكون hash قيمة تجزئة الصورة المكونة من 32 محرفًا من مكتبة حساب الإعلانات.",
   "Reconnect Meta with ads_management to delete ad images.": "أعد ربط Meta بالنطاق ads_management لحذف صور الإعلانات.",
   "Meta did not list the ad images.": "لم يُدرج Meta صور الإعلانات.",
+  "Meta listed the ad images on more than one page.": "أدرج Meta صور الإعلانات في أكثر من صفحة واحدة.",
   "Meta listed an image of another ad account.": "أدرج Meta صورة لحساب إعلانات آخر.",
   "Missing verified ad image state.": "حالة صورة الإعلان المتحقق منها مفقودة.",
   "attribution_window is EQUAL to ACCOUNT_DEFAULT, the only value Meta allows.": "تكون attribution_window بالمقارنة EQUAL مع ACCOUNT_DEFAULT، وهي القيمة الوحيدة التي يسمح بها Meta.",

@@ -76,6 +76,9 @@ export async function readMetaImage(
     d = r.data;
   if (r.status !== 200 || !object(d) || !Array.isArray(d.data)) unverified('Meta did not list the ad images.');
   // Another page could hold the image: an image missing from this page is not gone (nor absent from the library).
+  // Deliberately stricter than that case: the read names one hash, so a next page is unexpected even when this page
+  // holds the image, and a later page could list the same hash again (refused below when it is on one page). The
+  // review fails closed and is prepared again rather than trusting part of the answer.
   if (object(d.paging) && d.paging.next) unverified('Meta listed the ad images on more than one page.');
   const rows = (d.data as unknown[]).filter(x => object(x) && x.hash === s.hash) as JsonObject[];
   if (rows.length > 1) unverified('Meta listed image ' + s.hash + ' more than once.');
