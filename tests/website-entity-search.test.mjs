@@ -176,6 +176,32 @@ test('a newer query wins over an older answer, and a short query or a test accou
   assert.equal(visitor.timers.length, 0);
 });
 
+test('answers last while the palette is open: opening it again searches again (regression: kept until a reload)', async () => {
+  const f = fixture();
+  f.respond(async () => ({results: []}));
+  f.type('spring');
+  await f.timers[0]();
+  // Typing the same query while the palette stays open is answered from the cache.
+  f.type('spring');
+  assert.equal(f.requests.length, 1);
+  // A plan named "Spring" saved since: the palette opened again asks the workspace, and finds it.
+  f.respond(async () => found);
+  f.run('commandSearchOpened()');
+  f.type('spring');
+  await f.timers.at(-1)();
+  assert.equal(f.requests.length, 2);
+  assert.match(f.entities(), /Acme spring launch/);
+  // openCommand is what calls it, before the first search of the opened palette.
+  const open = identity.slice(identity.indexOf('function openCommand('));
+  assert.ok(open.indexOf('commandSearchOpened();') < open.indexOf('commandEntitySearch();'));
+  // A working client keeps its own answers: the same query for another client is asked separately.
+  f.context.workingClientQuery = () => ({profile_id: 'profile-b'});
+  f.type('spring');
+  await f.timers.at(-1)();
+  assert.equal(f.requests.length, 3);
+  assert.deepEqual(JSON.parse(f.requests.at(-1).body), {q: 'spring', profile_id: 'profile-b'});
+});
+
 test('another identity discards a pending answer, and resetPrivateState clears the cached results', async () => {
   const f = fixture();
   f.respond(async () => found);

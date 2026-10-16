@@ -157,27 +157,32 @@ before using `program_check`; already captured native read operations remain usa
 ## Errors, run stops and next actions
 
 The website presents every refusal through one layer in `web/app.js` (WEB-03). An error shows its message, what to do,
-the provider's facts and AMCP's request reference as separate parts: each part on its own line in an alert, one line in a
-short notice. The server writes its remedies for MCP clients as well as people; a remedy that names tool, action or
+the provider's facts and AMCP's request reference as separate parts: each part on its own line in an alert, one line in
+a short notice. The server writes its remedies for MCP clients as well as people; a remedy that names tool, action or
 argument names, `details.*` paths or "send the call again" is replaced by the page's own wording for that code (for
-example `REVIEW_EXPIRED`, `APPROVAL_REQUIRED`, `PLAN_CHANGED`) or, failing that, for its remedy category, keeping a
-leading "Nothing was sent". A remedy written for people is shown as written, in the interface language. A refusal
-classified by the provider-error layer says who must act (reconnect the login, the account's provider administrator,
-the deployment owner, wait for a rate limit). For a provider refusal the page shows only allow-listed facts (owner
-decision D21): the HTTP status, the provider's error code and its request ID when they are well-formed; never a
-provider body, message or token. The server's exact code, message and remedy stay under **Technical details**.
+example `REVIEW_EXPIRED`, `APPROVAL_REQUIRED`, `PLAN_CHANGED`, `STATE_TARGET_MISMATCH`) or, failing that, for its remedy
+category, keeping a leading "Nothing was sent" and the safety facts the remedy states (a change whose outcome is not
+confirmed is never sent again; a failed or incomplete read never authorizes a change). A remedy written for people is
+shown as written, in the interface language. A refusal classified by the provider-error layer says who must act
+(reconnect the login, the account's provider administrator, the deployment owner, wait for a rate limit). For a provider
+refusal (the provider's answer, or a `PROVIDER_` code with the provider's HTTP status; not a link, Drive or AMCP status)
+the page shows only allow-listed facts (owner decision D21): the HTTP status, the provider's error code and its request
+ID when they are well-formed; never a provider body, message or token. The server's exact code, message and remedy stay
+under **Technical details**.
 
-A campaign run says what its stop means and offers the one control that continues it, never the raw `run.stopped`
-code: **Continue the run** after a pause to stay responsive or a step not sent, **Read back** while a step settles,
-**Correct blocked step**, **Check the provider**, **Compare observed values** or **Open Operations** for a step that
-needs a person. A stop for a spending, cap or creative-edit acknowledgement shows that step's review on the page with
-its consents unchecked; executing it sends exactly that review and key. `APPROVAL_REQUIRED` and `PLAN_CHANGED` offer
-**Review plan approval**, `REVIEW_EXPIRED` and `STATE_CHANGED` offer **Prepare again**. A plan approval older than 24
-hours is no longer offered as **Run**: the page says it expired and labels the review **Review whole plan again**.
-The report builder shows a Pull or Save refusal next to its run bar, focused and scrolled into view; a Pull with no
-account, or a custom range that ends before it starts, is refused there before anything is sent. A JSON field that
-does not parse names the field. Owner Settings, recipe, account-approval and media-job errors keep their remedy and
-request reference.
+A campaign run says what its stop means and offers the one control that continues it, never the raw `run.stopped` code:
+**Continue the run** after a pause to stay responsive or a step not sent, **Read back** while a step settles, **Correct
+blocked step**, **Check the provider**, **Compare observed values** or **Open Operations** for a step that needs a
+person. A stop for a spending, cap, creative-edit or (when the owner turned it on, WRT-09) deletion acknowledgement
+shows that step's review on the page with its consents unchecked; executing it sends exactly that review and key. A step
+that waits for a person's website approval or the owner's (WRT-09) says nothing was sent and links its approval page;
+nothing continues the run before that approval. `APPROVAL_REQUIRED` and `PLAN_CHANGED` offer **Review plan approval**,
+`REVIEW_EXPIRED` and `STATE_CHANGED` offer **Prepare again**. A plan approval older than 24 hours, counted on the
+server's clock (from the `Date` of AMCP's responses), is no longer offered as **Run**: the page says it expired and
+labels the review **Review whole plan again**. The report builder shows a Pull or Save refusal next to its run bar,
+focused and scrolled into view; a Pull with no account, or a custom range that ends before it starts, is refused there
+before anything is sent. A JSON field that does not parse names the field. Owner Settings, recipe, account-approval and
+media-job errors keep their remedy and request reference.
 
 ## Campaign review and recovery
 

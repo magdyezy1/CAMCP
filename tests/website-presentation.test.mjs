@@ -233,6 +233,7 @@ test('every run stop of the campaign runner, remedy category and provider layer 
     ...Object.values(labels),
     ...Object.values(p.run('runRecoveryLabels')),
     ...Object.values(p.run('websiteMessages')).flatMap(fn => [fn('another connection'), fn('')]),
+    ...p.run('websiteSafetyFacts').map(([, text]) => text),
   ];
   for (const text of wording) {
     assert.ok(Object.hasOwn(catalog, text), 'Missing Arabic: ' + text);
@@ -677,6 +678,18 @@ for (const locale of ['en', 'ar'])
     );
     p.context.error.details = {request_id: 'local-id'};
     assert.equal(p.run('errorParts(error).provider'), '');
+    // An HTTP status that is not the provider's answer (a media link, a Drive file, AMCP's own) is not shown as one.
+    for (const [code, message] of [
+      ['MEDIA_LINK_UNAVAILABLE', 'The link did not return the file (HTTP 404). Use a link anyone can open.'],
+      ['DRIVE_FILE_UNAVAILABLE', 'Make this Drive file downloadable by anyone with the link, then prepare again.'],
+    ]) {
+      p.context.other = refusal(p, code, message, {http_status: 404});
+      assert.equal(p.run('errorParts(other).provider'), '', code);
+      assert.ok(
+        !p.run('errorLines(other)').includes(t(locale, 'Provider response: HTTP {status}.').split('{status}')[0]),
+        code,
+      );
+    }
     // A provider layer names who must act.
     p.context.error.details = {http_status: 401, layer: 'credential'};
     assert.equal(p.run('errorParts(error).remedy'), t(locale, p.run('providerLayerRemedies').credential));
@@ -839,4 +852,20 @@ for (const locale of ['en', 'ar'])
         expired,
       );
     }
+    // The 24 hours are counted on the server's clock, learned from a response's Date header: a device clock three
+    // hours ahead no longer hides Run for a 22-hour-old approval, and one three hours behind no longer offers Run for a
+    // 25-hour-old one (regression: the device clock decided).
+    for (const [skew, age, expired] of [
+      [3 * 3600000, 22 * 3600000, false],
+      [-3 * 3600000, 25 * 3600000, true],
+    ]) {
+      const server = Date.now() - skew;
+      p.run('noteServerClock')({headers: {get: name => (name === 'date' ? new Date(server).toUTCString() : null)}});
+      const approved = plan(server - age);
+      assert.equal(p.run('campaignApprovalCurrent')(approved), !expired, String(skew));
+      assert.equal(p.run('campaignApprovalExpired')(approved), expired, String(skew));
+    }
+    // A response without a Date header leaves the last offset; none at all means the device clock, as before.
+    p.run('noteServerClock')({headers: {get: () => null}});
+    assert.equal(p.run('campaignApprovalExpired')(plan(Date.now() + 3 * 3600000 - 25 * 3600000)), true);
   });

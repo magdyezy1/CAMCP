@@ -127,6 +127,15 @@ function requestError(result, fallback = uiText('This request could not be compl
   return error;
 }
 const supersededRequest = () => Object.assign(Error(''), {code: 'REQUEST_SUPERSEDED'});
+// The server's clock, learned from the Date header of each AMCP response (WEB-03): a plan approval's 24 hours are
+// counted on it, so a device clock that is hours off neither offers Run for an expired approval nor hides it for a
+// current one. Without a Date header the device clock is used, as before.
+let serverClockOffset = 0;
+function noteServerClock(response) {
+  const at = Date.parse(response?.headers?.get?.('date') ?? '');
+  if (Number.isFinite(at)) serverClockOffset = at - Date.now();
+}
+const serverNow = () => Date.now() + serverClockOffset;
 // WEB-03: one presentation layer for errors. The server writes its messages and remedies for MCP clients as well as
 // people; a remedy written for an MCP client ("execute_next", "details.next_call", "send the call again") is replaced by
 // what to do on the page, and the server's exact text stays under Technical details. A remedy written for people is
@@ -240,6 +249,10 @@ const websiteRemedies = [
     'Nothing was sent. Correct the blocked step with a pixel this ad account owns, or have the pixel’s owner share it to the ad account in Snapchat Business Manager.',
   ],
   [
+    /^STATE_TARGET_MISMATCH$/,
+    'The provider returned a different object, parent or account than this request names. Check that every ID belongs to the selected account and login, then try again.',
+  ],
+  [
     /_SCOPE_REQUIRED$/,
     'Reconnect the login on the Connections page with the permission the message names, then try again.',
   ],
@@ -311,18 +324,39 @@ function websiteRemedy(error) {
   if (rule) return uiText(rule[1]);
   const category = typeof error.category === 'string' ? error.category : error.remedy?.category,
     fallback = uiText(websiteCategoryRemedies[Object.hasOwn(websiteCategoryRemedies, category) ? category : 'request']);
-  // The one safety fact such a remedy starts with is kept.
-  return /^Nothing was (?:submitted|sent|prepared)\b/.test(server)
-    ? uiText('Nothing was sent.') + ' ' + fallback
-    : fallback;
+  // The safety facts such a remedy states are kept in the website's words: a leading "Nothing was sent", and a write
+  // that is never sent again or a failed read that never authorizes one, wherever the server put it.
+  return [
+    /^Nothing was (?:submitted|sent|prepared)\b/.test(server) ? uiText('Nothing was sent.') : '',
+    fallback,
+    ...websiteSafetyFacts.filter(([pattern]) => pattern.test(server)).map(([, text]) => uiText(text)),
+  ]
+    .filter(Boolean)
+    .join(' ');
 }
+// Safety facts of a server remedy that the website keeps when the rest of it gives way to the page's wording (WEB-03).
+const websiteSafetyFacts = [
+  [
+    /never resubmit|is never resubmitted|do not send it again|never sent again/i,
+    'A change whose outcome is not confirmed is never sent again.',
+  ],
+  [/never authorizes a write/i, 'A failed or incomplete read never authorizes a change.'],
+];
 /**
  * The provider's own facts about a refusal (owner decision D21): its HTTP status, its error code and its request ID,
  * from allow-listed detail fields of a provider refusal only. A provider body, message or token is never shown here.
  */
 function providerFacts(error) {
   const d = error?.details && typeof error.details === 'object' ? error.details : {};
-  if (!Number.isInteger(d.http_status) && d.upstream === undefined && typeof d.layer !== 'string') return null;
+  // Only a provider's refusal: the transport keeps the provider's answer (upstream) and its layer, and a PROVIDER_ code
+  // names the provider's HTTP status. An http_status of AMCP's own or of a link or Drive download is not the provider's
+  // answer, and a request ID alone may be AMCP's.
+  if (
+    d.upstream === undefined &&
+    typeof d.layer !== 'string' &&
+    !(/^PROVIDER_/.test(String(error?.code ?? '')) && Number.isInteger(d.http_status))
+  )
+    return null;
   const status = Number.isInteger(d.http_status) && d.http_status >= 100 && d.http_status <= 599 ? d.http_status : null,
     code = Number.isSafeInteger(d.provider_code)
       ? String(d.provider_code)
@@ -599,6 +633,7 @@ async function api(url, options = {}) {
   let response, data;
   try {
     response = await fetch(url, {...init, headers, credentials: 'same-origin'});
+    noteServerClock(response);
     data = await response.json();
   } catch {
     if (generation !== navigationGeneration || identity !== identityGeneration) throw supersededRequest();

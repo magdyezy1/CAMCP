@@ -112,7 +112,9 @@ test('actual safety-critical remedy branches remain distinct and never change su
     INVALID_ARGUMENT: 'request',
   };
   for (const locale of ['en', 'ar']) {
-    const f = accountWorkflowFixture(locale);
+    const f = accountWorkflowFixture(locale),
+      replaced = new Map(),
+      t = text => (locale === 'ar' ? catalog[text] : text);
     for (const [code, category] of Object.entries(codes)) {
       const response = errorResult(new MirrorError(code, 'Original refusal 00123'), 'critical-recovery-reference', 0),
         before = JSON.stringify(response);
@@ -122,15 +124,24 @@ test('actual safety-critical remedy branches remain distinct and never change su
       assert.ok(hints.has(response.error.remedy.action), code + ' remedy');
       f.context.response = response;
       f.context.error = f.run('requestError(response)');
+      const display = f.run('errorMessage(error)');
       // WEB-03: a hint written for an MCP client gives way to the website's own wording.
-      assertWebsiteRemedy(
-        f,
-        f.run('errorMessage(error)'),
-        response.error.next_action,
-        locale === 'ar' ? catalog[response.error.next_action] : response.error.next_action,
-      );
+      assertWebsiteRemedy(f, display, response.error.next_action, t(response.error.next_action));
+      f.context.websiteRemedyHint = response.error.next_action;
+      if (f.run('agentDirected(websiteRemedyHint)')) {
+        replaced.set(code, f.run('websiteRemedy(error)'));
+        // The website wording keeps the safety facts the server remedy states (regression: the category fallback
+        // dropped "Never resubmit an uncertain mutation").
+        if (/never resubmit|is never resubmitted/i.test(response.error.next_action))
+          assert.ok(display.includes(t('A change whose outcome is not confirmed is never sent again.')), code);
+        if (/never authorizes a write/i.test(response.error.next_action))
+          assert.ok(display.includes(t('A failed or incomplete read never authorizes a change.')), code);
+      }
       assert.equal(JSON.stringify(response), before);
     }
+    // Each replaced remedy is the page's own wording for that refusal, never one shared text for several of them.
+    assert.ok(replaced.has('INVALID_ARGUMENT') && replaced.has('STATE_TARGET_MISMATCH'), [...replaced.keys()].join());
+    assert.equal(new Set(replaced.values()).size, replaced.size, JSON.stringify([...replaced]));
   }
 });
 test('native and changed recovery text remains literal and superseded requests remain silent', () => {

@@ -731,13 +731,15 @@ function runOutcomeView(out, run) {
 function campaignOutcome(out, run) {
   return `${blockedRequirementsView(out)}${runOutcomeView(out, run)}${recordDetails(out, uiText('Result, receipts and next safe action'))}`;
 }
+/** Now on the server's clock (serverNow in web/app.js), which assertApproval counts on; the device's without it. */
+const campaignNow = () => (typeof serverNow === 'function' ? serverNow() : Date.now());
 /** The campaign plan's approval is for this exact plan and less than a day old (src/campaign-runner.ts assertApproval). */
 function campaignApprovalCurrent(run) {
-  return !!run?.approval && run.approval.plan_hash === run.plan_hash && !(Date.now() - run.approval.at > 86400000);
+  return !!run?.approval && run.approval.plan_hash === run.plan_hash && !(campaignNow() - run.approval.at > 86400000);
 }
 /** An approval of this exact plan that is older than a day: the plan is reviewed and approved again (WEB-03). */
 function campaignApprovalExpired(run) {
-  return !!run?.approval && run.approval.plan_hash === run.plan_hash && Date.now() - run.approval.at > 86400000;
+  return !!run?.approval && run.approval.plan_hash === run.plan_hash && campaignNow() - run.approval.at > 86400000;
 }
 // A step with more money and status fields than the summary lists is aggregated by the server (WRT-05): one row per
 // field pattern. Its complete list is one call away, and approval stays disabled until every such list was opened.

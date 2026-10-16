@@ -386,7 +386,8 @@ function commandResults() {
 // WEB-09 (owner opt-in): beside the pages, the palette finds this workspace's campaign plans, saved reports, report
 // snapshots, uploaded media and accounts by name or ID (POST /api/workspace-search: local reads as the signed-in
 // person, at most five of each, never a provider request). A result only opens its page; nothing runs from here.
-// Results belong to the identity and the query that asked for them; resetPrivateState clears the cache.
+// Results belong to the identity, the working client and the query that asked for them, and last while the palette
+// stays open: opening it again, or resetPrivateState, clears the cache.
 const commandSearchCache = new Map();
 let commandSearchTimer,
   commandSearchSequence = 0;
@@ -448,11 +449,19 @@ function commandEntitySearch() {
     }
   }, 250);
 }
+/**
+ * A newly opened palette asks the workspace again: answers are kept only while the dialog stays open, so a plan or
+ * report created or renamed since the last search is found under the same query.
+ */
+function commandSearchOpened() {
+  commandSearchCache.clear();
+}
 function openCommand() {
   if (document.body.classList.contains('menu-open')) {
     closeNavigation();
     $('#menu-toggle').focus();
   }
+  commandSearchOpened();
   commandResults();
   commandEntitySearch();
   $('#command-dialog').showModal();
