@@ -1,8 +1,14 @@
 {
-  "generator_version": 1,
+  "generator": "codegen/generate.mjs",
+  "generator_version": 2,
   "gateways": 19,
   "tools": 20,
   "catalog_actions": 2778,
   "supplemental_routes": 173,
-  "registry_sha256": "0ed48994640ac40511ecfef969063ad645c882354df22be2f0ab6649edbb6aae"
+  "inputs": 46,
+  "inputs_digest": "sha256:47db49c58e389353a00713f04bbe917717a5f403ba34b6578180458b7883f87f",
+  "capture_shipped": 76,
+  "capture_withheld": 121,
+  "capture_withheld_digest": "sha256:36bfc761e864922782042ee9245218deb8c5b847731a2c07f3df5be94c2f94ad",
+  "registry_sha256": "cf5c03c51e57d9a80c18ac83ca0ead24f2fd4ddb674779d99869a33b31119e09"
 }
