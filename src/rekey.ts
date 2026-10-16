@@ -24,6 +24,8 @@ export const jobActorPrefixes = [
   'monitor-subscription:',
   'reporting-schedule:',
   'media-job:',
+  // DEC-02: the background outcome review of an allocation plan (allocation-outcome.ts).
+  'allocation-outcome:',
 ] as const;
 /** Purposes of Store.sealValue and Store.sealMediaChunk. */
 export const sealedValuePurposes = [

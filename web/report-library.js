@@ -106,7 +106,7 @@ function overviewGranularityFields(platform, config = {}) {
     campaignProfile = level === 'campaign' && config.report_options !== undefined;
   const windows =
     platform.id === 'meta'
-      ? `<label>${esc(uiText('Click attribution window'))}<select data-report-click-window="${esc(platform.id)}"><option value="7d_click" ${options.attribution_windows?.includes('7d_click') || !options.attribution_windows ? 'selected' : ''}>7d_click</option><option value="1d_click" ${options.attribution_windows?.includes('1d_click') ? 'selected' : ''}>1d_click</option><option value="" ${options.attribution_windows?.length === 1 && options.attribution_windows[0] === '1d_view' ? 'selected' : ''}>${esc(uiText('No click window'))}</option></select></label><label class="check"><input type="checkbox" data-report-view-window="${esc(platform.id)}" ${options.attribution_windows?.includes('1d_view') ? 'checked' : ''}> 1d_view</label>`
+      ? `<label>${esc(uiText('Click attribution window'))}<select data-report-click-window="${esc(platform.id)}"><option value="7d_click" ${options.attribution_windows?.includes('7d_click') || !options.attribution_windows ? 'selected' : ''}>7d_click</option><option value="1d_click" ${options.attribution_windows?.includes('1d_click') ? 'selected' : ''}>1d_click</option><option value="28d_click" ${options.attribution_windows?.includes('28d_click') ? 'selected' : ''}>28d_click</option><option value="" ${options.attribution_windows && !options.attribution_windows.some(w => /_click$/.test(w)) ? 'selected' : ''}>${esc(uiText('No click window'))}</option></select></label><label class="check"><input type="checkbox" data-report-view-window="${esc(platform.id)}" ${options.attribution_windows?.includes('1d_view') ? 'checked' : ''}> 1d_view</label><label class="check"><input type="checkbox" data-report-engaged-view-window="${esc(platform.id)}" ${options.attribution_windows?.includes('1d_ev') ? 'checked' : ''}> 1d_ev (${esc(uiText('engaged view'))})</label>`
       : platform.id === 'snapchat'
         ? `<label>${esc(uiText('Swipe attribution window'))}<select data-report-swipe="snapchat">${['1_DAY', '7_DAY', '28_DAY'].map(value => `<option value="${value}" ${(options.swipe_up_attribution_window ?? '28_DAY') === value ? 'selected' : ''}>${value}</option>`).join('')}</select></label><label>${esc(uiText('View attribution window'))}<select data-report-view="snapchat">${['none', '1_HOUR', '3_HOUR', '6_HOUR', '1_DAY', '7_DAY'].map(value => `<option value="${value}" ${(options.view_attribution_window ?? '1_DAY') === value ? 'selected' : ''}>${value}</option>`).join('')}</select></label>`
         : '';
@@ -129,6 +129,7 @@ function overviewAttributionProfile(platform) {
         attribution_windows: [
           $('[data-report-click-window="meta"]').value,
           ...($('[data-report-view-window="meta"]').checked ? ['1d_view'] : []),
+          ...($('[data-report-engaged-view-window="meta"]')?.checked ? ['1d_ev'] : []),
         ].filter(Boolean),
       }
     : {

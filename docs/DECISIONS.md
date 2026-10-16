@@ -145,8 +145,12 @@ cites as owner decisions, each the review's recommended or the ticket's proposed
   Overview (the review's recommendation, chosen during implementation; owner may revise): each moves only by an explicit,
   reversible move that keeps its saved query, and a query without an exact Overview equivalent stays local (EXP-04
   phase 2). Still open: whether a Sheets destination belongs to a report or a client, whether complete-only gates a
-  manual export, after how many failures a schedule pauses, period comparison, the decision-grade metric set, the DEC-02
-  outcome window and causal experiments.
+  manual export, after how many failures a schedule pauses, the decision-grade metric set and causal experiments.
+  Applied in wave 3 with the review's proposed options (RPT-07, DEC-02): Overview period comparison against the
+  previous equal window or a retained snapshot, matched on platform, account, currency, time zone, result definition,
+  attribution, level and grain, with exact deltas (nine places, half to even), recomputed ratios and reach/frequency
+  only for single days; and the DEC-02 outcome window, the plan's reference length from the first account-local day
+  after its last verified budget step, captured only after it has closed, observational and never a causal claim.
 - **P7.** Activation of a Microsoft campaign without a positive location criterion is refused with
   `LOCATION_CRITERIA_REQUIRED` (CMP-03). The "Draft only" label applied until the location-criterion family shipped
   (`microsoft_location_targets`): the Microsoft Search pack now takes `location_ids` and targets them on the paused

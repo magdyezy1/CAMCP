@@ -63,7 +63,10 @@ test('every supported native ad and middle-level preset reaches Overview without
         }
         if (platform === 'linkedin') {
           assert.equal(row.timezone, 'UTC');
-          assert.equal(row.campaign_id, null);
+          // RPT-07: a creative keeps its native campaign (this test previously asserted null, the defect it fixes);
+          // still no invented ad set between the creative and its campaign.
+          assert.equal(row.campaign_id, '555');
+          assert.equal(row.parent_ids.adset_id, undefined);
         }
       } finally {
         f.close();

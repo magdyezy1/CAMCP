@@ -43,8 +43,11 @@ const date = (time: number) => new Date(time).toISOString().slice(0, 10);
 const quantile = (values: Fraction[], percentage: number) =>
   values[Math.max(0, Math.ceil((values.length * percentage) / 100) - 1)]!;
 
-/** Retrospective, spend-conditioned one-day efficiency diagnostics. Never an unconditional forecast or native plan. */
-export function calibrateAllocation(report: JsonObject, ids: unknown, options: JsonObject = {}) {
+/**
+ * Retrospective, spend-conditioned one-day efficiency diagnostics. Never an unconditional forecast or native plan. `now`
+ * is the instant the evidence gates are evaluated at (allocationEvidence).
+ */
+export function calibrateAllocation(report: JsonObject, ids: unknown, options: JsonObject = {}, now = Date.now()) {
   validate(options, ['training_days', 'minimum_training_conversions', 'maximum_age_days', 'central_share_percent']);
   const training = options.training_days ?? 7,
     minimum = options.minimum_training_conversions ?? 10,
@@ -70,7 +73,7 @@ export function calibrateAllocation(report: JsonObject, ids: unknown, options: J
     new Set(ids).size !== ids.length
   )
     bad('Choose 1–20 distinct original report entity IDs for calibration.');
-  const {semantics, start, end, evidence} = allocationEvidence(report, age),
+  const {semantics, start, end, evidence} = allocationEvidence(report, age, now),
     days = (end - start) / day + 1;
   if (days < training + 7 || days > 31)
     bad(

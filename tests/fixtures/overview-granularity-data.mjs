@@ -44,6 +44,34 @@ export function granularConfig(source = granularSource('meta'), grain = 'total')
     objectives: [],
   };
 }
+/** RPT-07: synthetic native parents of the detailed entities (TikTok, Snapchat ads, LinkedIn creatives). */
+export const granularParents = {
+  tiktok: {campaign: '9007199254740001', adgroup: '9007199254740002'},
+  snapchat: {campaign: snapchatEvidenceCampaign, adsquad: '22222222-2222-4222-8222-000000000300'},
+  linkedin: {campaign: '555'},
+};
+const tiktokParent = (entity, id) =>
+  entity === 'campaign'
+    ? {advertiser_id: '100', campaign_id: id, campaign_name: 'Synthetic TikTok campaign'}
+    : entity === 'adgroup'
+      ? {
+          advertiser_id: '100',
+          adgroup_id: id,
+          campaign_id: granularParents.tiktok.campaign,
+          adgroup_name: 'Synthetic TikTok ad group',
+        }
+      : {
+          advertiser_id: '100',
+          ad_id: id,
+          adgroup_id: granularParents.tiktok.adgroup,
+          campaign_id: granularParents.tiktok.campaign,
+        };
+const snapchatParent = (kind, id) =>
+  kind === 'ads'
+    ? {id, ad_squad_id: granularParents.snapchat.adsquad, name: 'Synthetic ad'}
+    : kind === 'adsquads'
+      ? {id, campaign_id: granularParents.snapchat.campaign, name: 'Synthetic squad'}
+      : {id, ad_account_id: snapchatEvidenceAccount, name: 'Synthetic parent'};
 export function overviewGranularityFixture() {
   const keyByte = 154,
     actor = {tenantId: 'local', userId: 'fixture', role: 'admin'},
@@ -57,12 +85,33 @@ export function overviewGranularityFixture() {
     ]);
   let hook = () => {},
     mutate = rows => rows,
+    // RPT-07: replaces a parent read's response (platform, url, synthetic body) for refusal and drift cases.
+    parentHook = (_platform, _url, body) => body,
     metadataId = 1;
+  const parent = (platform, url, body) => {
+    const out = parentHook(platform, url, body);
+    return out instanceof Response ? out : Response.json(out);
+  };
   const fetcher = async (raw, init) => {
     const url = new URL(String(raw)),
       method = init?.method ?? 'GET';
     requests.push({url, method, body: init?.body ? JSON.parse(String(init.body)) : null});
     await hook(url);
+    // RPT-07: Snapchat's documented by-ID reads are POST reads of the account's ads, ad squads and campaigns.
+    const byIds = /^\/v1\/adaccounts\/([^/]+)\/get_(ads|adsquads|campaigns)_by_ids$/.exec(url.pathname);
+    if (url.hostname === 'adsapi.snapchat.com' && method === 'POST' && byIds) {
+      assert.equal(byIds[1], snapchatEvidenceAccount);
+      const kind = byIds[2],
+        singular = {ads: 'ad', adsquads: 'adsquad', campaigns: 'campaign'}[kind];
+      return parent('snapchat', url, {
+        request_status: 'SUCCESS',
+        request_id: 'synthetic-parents',
+        [kind]: JSON.parse(String(init.body)).entity_ids.map(({id}) => ({
+          sub_request_status: 'SUCCESS',
+          [singular]: snapchatParent(kind, id),
+        })),
+      });
+    }
     if (url.hostname === 'sheets.googleapis.com') {
       if (method === 'GET')
         return Response.json({
@@ -152,6 +201,20 @@ export function overviewGranularityFixture() {
           code: 0,
           data: {list: [{advertiser_id: '100', currency: 'USD', timezone: 'UTC', name: 'Synthetic TikTok'}]},
         });
+      const entity = /\/v1\.3\/(campaign|adgroup|ad)\/get\/$/.exec(url.pathname)?.[1];
+      if (entity) {
+        const filtering = JSON.parse(url.searchParams.get('filtering'));
+        assert.equal(filtering.primary_status, 'STATUS_ALL');
+        const list = filtering[entity + '_ids'].map(id => tiktokParent(entity, id));
+        return parent('tiktok', url, {
+          code: 0,
+          message: 'OK',
+          data: {
+            list,
+            page_info: {page: 1, page_size: 100, total_number: list.length, total_page: list.length ? 1 : 0},
+          },
+        });
+      }
       assert.ok(url.pathname.includes('/report/integrated/get/'));
       const level = JSON.parse(url.searchParams.get('dimensions'))[0].replace(/_id$/, ''),
         since = url.searchParams.get('start_date'),
@@ -187,6 +250,30 @@ export function overviewGranularityFixture() {
     if (url.hostname === 'api.linkedin.com') {
       if (url.pathname === '/rest/adAccounts/100')
         return Response.json({id: 100, name: 'Synthetic LinkedIn', currency: 'USD'});
+      if (url.pathname === '/rest/adAccounts/100/creatives') {
+        assert.equal(url.searchParams.get('q'), 'criteria');
+        return parent('linkedin', url, {
+          elements: [...url.searchParams.get('creatives').matchAll(/sponsoredCreative:(\d+)/g)].map(([, id]) => ({
+            id: 'urn:li:sponsoredCreative:' + id,
+            account: 'urn:li:sponsoredAccount:100',
+            campaign: 'urn:li:sponsoredCampaign:' + granularParents.linkedin.campaign,
+            intendedStatus: 'ACTIVE',
+          })),
+          metadata: {},
+        });
+      }
+      if (url.pathname === '/rest/adAccounts/100/adCampaigns') {
+        assert.equal(url.searchParams.get('q'), 'search');
+        return parent('linkedin', url, {
+          elements: [...url.searchParams.get('search').matchAll(/sponsoredCampaign:(\d+)/g)].map(([, id]) => ({
+            id: Number(id),
+            account: 'urn:li:sponsoredAccount:100',
+            name: 'Synthetic LinkedIn campaign',
+            objectiveType: 'WEBSITE_CONVERSION',
+          })),
+          metadata: {},
+        });
+      }
       assert.equal(url.pathname, '/rest/adAnalytics');
       const match = /year:(\d+),month:(\d+),day:(\d+)/g,
         requested = [...url.searchParams.get('dateRange').matchAll(match)].map(
@@ -282,6 +369,9 @@ export function overviewGranularityFixture() {
     },
     mutate: value => {
       mutate = value;
+    },
+    parents: value => {
+      parentHook = value;
     },
     close: () => store.close(),
   };

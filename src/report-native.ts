@@ -1,6 +1,11 @@
 import {fingerprint, reportContractVersion, ga4Quality, summarizeGA4Quality} from './report-quality.js';
 import {linkedinVersion} from './linkedin-version.js';
-import {xCampaignReport} from './x-campaign-report.js';
+import {
+  xCampaignObjectives,
+  xCampaignReport,
+  xObjectivesMixedWarning,
+  xObjectivesUnavailableWarning,
+} from './x-campaign-report.js';
 import {xActiveEntities, xActiveEntitiesMode, xActiveSet} from './x-active-entities.js';
 import {metaCampaignRows} from './meta-report.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
@@ -20,8 +25,19 @@ import {reportPlatforms, metricNumber, objectiveGroup} from './report-metrics.js
 import {zonedMidnight} from './workflows.js';
 import {googleAdsCustomers} from './google-version.js';
 import {metaPrefix} from './meta-version.js';
-import {linkedInCampaignPeriod} from './linkedin-reporting.js';
+import {metaWindowsOrdered} from './meta-attribution-windows.js';
+import {linkedInCampaignMetadata, linkedInCampaignPeriod} from './linkedin-reporting.js';
 import {campaignAttributionProfile, overviewSourceLevel, collectDetailedOverview} from './overview-granularity.js';
+import {detailParentsUnavailableWarning, optionalReadRefused, type DetailParentCache} from './overview-parents.js';
+import {
+  appleDetail,
+  microsoftDetail,
+  nativeDetailLookupLimit,
+  nativeDetailLookupLimitedWarning,
+  nativeDetailPlatforms,
+  nativeDetailResult,
+  redditDetail,
+} from './overview-native-detail.js';
 import {markReportWindow} from './report-windows.js';
 import {
   assertMicrosoftWindowClosed,
@@ -472,7 +488,17 @@ export interface AccountLookupCache {
    * (not once per period). `unavailable` records a non-retryable failure of this optional read.
    */
   tiktokEvents?: {events: Record<string, string[]>; lineage?: JsonObject; unavailable?: boolean};
+  /**
+   * RPT-07: current LinkedIn campaign names and objectives by URN, read once per source per job for the URNs reported
+   * so far (later periods read only new URNs). `unavailable` records a non-retryable refusal of this optional read.
+   */
+  linkedinCampaigns?: {campaigns: Record<string, JsonObject>; lineage: JsonObject[]; unavailable?: boolean};
+  /** RPT-07: native parents of detailed entities, read once per entity per source per job (overview-parents.ts). */
+  detailParents?: DetailParentCache;
 }
+/** Shown when LinkedIn refused the campaign metadata read, so rows keep campaign IDs and unknown objectives. */
+export const linkedinCampaignsUnavailableWarning =
+  'LinkedIn campaign names and objectives could not be read, so rows show campaign IDs and objectives stay unknown unless confirmed in report settings.';
 /** Shown when TikTok's ad group read failed, so result definitions fall back to the generic one. */
 export const tiktokEventsUnavailableWarning =
   'TikTok ad group optimization events could not be read, so conversions use one generic result definition and campaigns optimizing for different events are not told apart.';
@@ -689,8 +715,12 @@ export class NativeCampaignReports {
       currency = accountCurrency(platform!.gateway, d);
       timezone = accountTimezone(platform!.gateway, d);
     }
-    if (entityLevel.id !== 'campaign')
-      return collectDetailedOverview(this.service, source, range, actor, metadata, currency, timezone);
+    // RPT-07: Microsoft, Reddit and Apple detail levels reuse their native report paths below.
+    const detail = entityLevel.id === 'campaign' ? undefined : entityLevel.id;
+    if (detail && !nativeDetailPlatforms.includes(p))
+      return collectDetailedOverview(this.service, source, range, actor, metadata, currency, timezone, lookup);
+    const detailRounding: Record<string, number> = {};
+    let detailRows: {rows: JsonObject[]; parents: Record<string, JsonObject>} | undefined;
     if (p === 'google') {
       const fields = [
         ...new Set([
@@ -725,9 +755,7 @@ export class NativeCampaignReports {
     } else if (p === 'meta') {
       // RPT-04: an optional campaign-level attribution profile uses the detailed preset's explicit windows.
       const profile = campaignAttributionProfile(source),
-        windows = profile
-          ? ['1d_click', '7d_click', '1d_view'].filter(w => profile.attribution_windows.includes(w))
-          : undefined;
+        windows = profile ? metaWindowsOrdered(profile.attribution_windows) : undefined;
       raw = metaCampaignRows(
         await run(
           plan(metaPrefix + 'act_' + account + '/insights', {
@@ -912,10 +940,43 @@ export class NativeCampaignReports {
         false,
       );
       raw = linkedInCampaignPeriod(d, range);
+      // RPT-07: names and objectives of the reported campaigns, read from the account's own campaigns after the
+      // analytics response (cached per job; a later period reads only campaigns not seen before).
+      const known = lookup?.linkedinCampaigns ?? {campaigns: {}, lineage: []};
+      for (const entry of known.lineage) lineage.push({...entry, cached: true});
+      const missing = known.unavailable
+        ? []
+        : raw.map(r => String(r.pivotValues[0])).filter(urn => !Object.hasOwn(known.campaigns, urn));
+      if (missing.length)
+        try {
+          const before = lineage.length,
+            read = await linkedInCampaignMetadata(account, missing, query =>
+              run(plan('/rest/adAccounts/' + account + '/adCampaigns', query), false, 'campaign_metadata'),
+            );
+          known.lineage.push(...lineage.slice(before));
+          for (const urn of missing) known.campaigns[urn] = read.campaigns[urn] ?? {name: null, objective_type: null};
+        } catch (e) {
+          // Only a provider refusal of this optional read keeps IDs. A foreign account, malformed or partial metadata,
+          // a retryable failure, or a revoked connection, changed login or scope refusal fails the source.
+          if (!optionalReadRefused(e)) throw e;
+          known.unavailable = true;
+        }
+      if (lookup) lookup.linkedinCampaigns = known;
+      if (known.unavailable) warnings.push(linkedinCampaignsUnavailableWarning);
+      raw = raw.map(r => {
+        const campaign = known.campaigns[String(r.pivotValues[0])];
+        return {
+          ...r,
+          ...(campaign?.name ? {name: campaign.name} : {}),
+          ...(campaign?.objective_type ? {objectiveType: campaign.objective_type} : {}),
+        };
+      });
       attribution = 'unknown';
       resultDefinition = 'Attributed external website conversions';
       warnings.push(
-        'LinkedIn conversion-rule attribution windows are not independently verified. Campaign objectives should be confirmed in report settings.',
+        known.unavailable
+          ? 'LinkedIn conversion-rule attribution windows are not independently verified. Campaign objectives should be confirmed in report settings.'
+          : 'LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Campaign names and objectives are current campaign metadata, not the values at delivery time.',
       );
     } else if (p === 'x') {
       if (!timezone) bad('X account timezone is required.');
@@ -943,12 +1004,45 @@ export class NativeCampaignReports {
         warnings.push(
           'X refused the active-entities read; every listed campaign was requested instead (at most 100 analytics requests).',
         );
+      // RPT-07: objectives come from the account's line items (one bounded read, kept with the checkpoint so a resumed
+      // run uses the same answer). A refused or oversized read keeps objectives unknown with a warning.
+      let objectives: JsonObject | undefined = checkpoint.x_objectives;
+      if (!objectives)
+        try {
+          objectives = xCampaignObjectives(
+            inventory,
+            list(
+              (
+                await run(
+                  plan('/12/accounts/' + account + '/line_items', {count: 1000, with_deleted: true}),
+                  true,
+                  'line_item_objectives',
+                )
+              ).data ?? [],
+            ),
+          );
+        } catch (e) {
+          // Only a provider refusal (HTTP 400/403/404) or a line item collection above the page bound
+          // (INCOMPLETE_REPORT) keeps objectives unknown. A malformed line item, a retryable failure, or a removed
+          // connection, changed login or scope refusal fails the source, as for the LinkedIn campaign metadata read.
+          if (!(e instanceof MirrorError && e.code === 'INCOMPLETE_REPORT' && !e.retryable) && !optionalReadRefused(e))
+            throw e;
+          objectives = {unavailable: true, campaigns: {}};
+        }
+      if (objectives.unavailable) warnings.push(xObjectivesUnavailableWarning);
+      else if (Object.values(objectives.campaigns ?? {}).includes(null)) warnings.push(xObjectivesMixedWarning);
       const state = {
         x_inventory: inventory,
         ...(active ? {x_active: active} : {}),
         ...(fallback ? {x_active_fallback: true} : {}),
+        x_objectives: objectives,
       };
-      if (!checkpoint.x_inventory || (active && !checkpoint.x_active) || (fallback && !checkpoint.x_active_fallback))
+      if (
+        !checkpoint.x_inventory ||
+        (active && !checkpoint.x_active) ||
+        (fallback && !checkpoint.x_active_fallback) ||
+        !checkpoint.x_objectives
+      )
         save(state);
       const report = await xCampaignReport(
         inventory,
@@ -962,7 +1056,7 @@ export class NativeCampaignReports {
           ...(active ? {active, windows: mode === 'on'} : {}),
         },
       );
-      raw = report.rows;
+      raw = report.rows.map(row => ({...row, objective: objectives!.campaigns?.[row.id] ?? row.objective}));
       complete = report.complete;
       collectionComplete = report.complete;
       context.no_activity_count = report.no_activity_count;
@@ -1014,16 +1108,29 @@ export class NativeCampaignReports {
                 account_id: account,
                 payload: {
                   ReportRequest: {
-                    Type: 'CampaignPerformanceReportRequest',
+                    // RPT-07: ad group and ad levels use the native performance reports that name their parents.
+                    Type:
+                      detail === 'adset'
+                        ? 'AdGroupPerformanceReportRequest'
+                        : detail === 'ad'
+                          ? 'AdPerformanceReportRequest'
+                          : 'CampaignPerformanceReportRequest',
                     Aggregation: 'Summary',
                     Format: 'Csv',
-                    ReportName: 'AMCP campaign overview',
+                    ReportName:
+                      detail === 'adset'
+                        ? 'AMCP ad group overview'
+                        : detail === 'ad'
+                          ? 'AMCP ad overview'
+                          : 'AMCP campaign overview',
                     ReturnOnlyCompleteData: true,
                     Columns: [
                       ...new Set([
                         'AccountId',
                         'CampaignId',
                         'CampaignName',
+                        ...(detail ? ['AdGroupId', 'AdGroupName'] : []),
+                        ...(detail === 'ad' ? ['AdId', 'AdTitle'] : []),
                         'CurrencyCode',
                         'Spend',
                         'Impressions',
@@ -1094,30 +1201,100 @@ export class NativeCampaignReports {
       resultDefinition = 'Microsoft conversions included in the Conversions column';
       context.report_time_zone = zone.report_time_zone;
       if (zone.fallback) warnings.push(microsoftFallbackWarning);
+      if (detail) detailRows = microsoftDetail(detail, account, currency, raw, detailRounding);
     } else if (p === 'apple') {
       const m = await run({...plan('/v1/ad-accounts/' + account), origin: 'https://api.ads.apple.com'}, false);
       metadata = m.result ?? m;
       currency = metadata.currency ?? null;
       timezone = 'UTC';
-      const d = await run({
-        ...plan(
-          '/v1/reports/apps/campaigns/query',
-          {},
+      if (detail) {
+        // RPT-07: one bounded ad group or ad report page, then the account's own records for exact parents.
+        const entity = detail === 'ad' ? 'ads' : 'adgroups',
+          apple = (path: string, body: JsonObject, action: string, stage?: string) =>
+            run({...plan(path, {}, body, 'https://api.ads.apple.com'), action}, false, stage);
+        const d = await apple(
+          '/v1/reports/apps/' + entity + '/query',
           {
             timeRange: {start: range.since, end: range.until, timeZone: 'UTC'},
-            pagination: {offset: 0, pageSize: 100},
+            pagination: {offset: 0, pageSize: 1000},
             options: {},
           },
-          'https://api.ads.apple.com',
-        ),
-        action: 'apple_ads_v1_reports_apps_campaigns',
-      });
-      raw = list(d.result?.rows ?? d.result ?? []);
-      resultDefinition = 'Apple total attributed installs (tap + view); totalMetrics';
-      if (extra.length)
-        warnings.push(
-          'Apple report returns native metric columns; arbitrary field selection is not supported by this endpoint.',
+          'apple_ads_v1_reports_apps_' + entity,
         );
+        raw = list(d.result?.rows ?? []);
+        const total = d.pagination?.totalResults ?? d.result?.pagination?.totalResults;
+        if (raw.length >= 1000 || (total !== undefined && Number(total) !== raw.length))
+          throw new MirrorError(
+            'INCOMPLETE_REPORT',
+            'Report reached a pagination limit. Split the date range or accounts.',
+          );
+        // Apple IDs are JSON numbers; only safe integers can be requested and matched exactly.
+        const safeId = (id: string) => /^[1-9][0-9]{0,15}$/.test(id) && Number.isSafeInteger(Number(id)),
+          lists = {campaigns: [] as JsonObject[], adGroups: [] as JsonObject[], ads: [] as JsonObject[]},
+          ids = [...new Set(raw.map(r => String(r.metadata?.id ?? '')))].filter(safeId);
+        if (ids.length > nativeDetailLookupLimit) warnings.push(nativeDetailLookupLimitedWarning);
+        const query = async (kind: 'campaigns' | 'adgroups' | 'ads', wanted: string[]) => {
+          if (!wanted.length) return [];
+          const rows = list(
+            (
+              await apple(
+                '/v1/' + kind + '/query',
+                {
+                  filters: [{field: 'id', operator: 'IN', value: wanted.map(Number)}],
+                  pagination: {offset: 0, pageSize: 1000},
+                },
+                'apple_ads_v1_' + kind + '_query',
+                'detail_parents',
+              )
+            ).result ?? [],
+          );
+          if (rows.length > wanted.length || rows.some(r => !wanted.includes(String(r.id))))
+            throw new MirrorError(
+              'REPORT_SHAPE_CHANGED',
+              'Apple returned an unrequested or repeated parent record.',
+              {},
+              502,
+            );
+          return rows;
+        };
+        const parentIds = (rows: JsonObject[], key: string) =>
+          [...new Set(rows.map(r => String(r[key] ?? '')))].filter(safeId);
+        try {
+          const wanted = ids.slice(0, nativeDetailLookupLimit);
+          if (detail === 'ad') lists.ads = await query('ads', wanted);
+          lists.adGroups = await query('adgroups', detail === 'ad' ? parentIds(lists.ads, 'adGroupId') : wanted);
+          lists.campaigns = await query('campaigns', [
+            ...new Set([...parentIds(lists.adGroups, 'campaignId'), ...parentIds(lists.ads, 'campaignId')]),
+          ]);
+        } catch (e) {
+          // Only a provider refusal of these reads keeps the rows with unknown parents (as for other detail levels).
+          if (!optionalReadRefused(e)) throw e;
+          lists.campaigns = lists.adGroups = lists.ads = [];
+          warnings.push(detailParentsUnavailableWarning);
+        }
+        resultDefinition = 'Apple total attributed installs (tap + view); totalMetrics';
+        detailRows = appleDetail(detail, raw, lists, currency, detailRounding);
+      } else {
+        const d = await run({
+          ...plan(
+            '/v1/reports/apps/campaigns/query',
+            {},
+            {
+              timeRange: {start: range.since, end: range.until, timeZone: 'UTC'},
+              pagination: {offset: 0, pageSize: 100},
+              options: {},
+            },
+            'https://api.ads.apple.com',
+          ),
+          action: 'apple_ads_v1_reports_apps_campaigns',
+        });
+        raw = list(d.result?.rows ?? d.result ?? []);
+        resultDefinition = 'Apple total attributed installs (tap + view); totalMetrics';
+        if (extra.length)
+          warnings.push(
+            'Apple report returns native metric columns; arbitrary field selection is not supported by this endpoint.',
+          );
+      }
     } else if (p === 'reddit') {
       timezone = 'UTC';
       const d = await run(
@@ -1129,13 +1306,58 @@ export class NativeCampaignReports {
               starts_at: range.since + 'T00:00:00Z',
               ends_at: nextDay(range.until) + 'T00:00:00Z',
               fields: [...new Set(['SPEND', 'IMPRESSIONS', 'CLICKS', ...extra])],
-              breakdowns: ['CAMPAIGN_ID'],
+              // RPT-07: ad group and ad levels break down by their parents too (Reddit allows up to three).
+              breakdowns:
+                detail === 'adset'
+                  ? ['CAMPAIGN_ID', 'AD_GROUP_ID']
+                  : detail === 'ad'
+                    ? ['CAMPAIGN_ID', 'AD_GROUP_ID', 'AD_ID']
+                    : ['CAMPAIGN_ID'],
             },
           },
         ),
       );
       raw = list(d.data?.metrics ?? []);
       const campaigns = list((await run(plan('/api/v3/ad_accounts/' + account + '/campaigns'))).data ?? []);
+      if (detail) {
+        // Current names from the account's own ad group and ad lists (200 IDs per request, bounded); the report rows
+        // already name the parents, and a listed record that disagrees refuses the source.
+        const lists = {campaigns, adGroups: [] as JsonObject[], ads: [] as JsonObject[]},
+          wanted = (key: string) =>
+            [...new Set(raw.map(r => String(r[key] ?? '')))].filter(id => /^[1-9][0-9]{0,31}$/.test(id));
+        const named = async (kind: 'ad_groups' | 'ads', ids: string[]) => {
+          if (ids.length > nativeDetailLookupLimit) warnings.push(nativeDetailLookupLimitedWarning);
+          const out: JsonObject[] = [];
+          for (let at = 0; at < Math.min(ids.length, nativeDetailLookupLimit); at += 200) {
+            const batch = ids.slice(at, Math.min(at + 200, nativeDetailLookupLimit));
+            const rows = list(
+              (
+                await run(
+                  plan('/api/v3/ad_accounts/' + account + '/' + kind, {id: batch.join(','), 'page.size': 200}),
+                  true,
+                  'detail_names',
+                )
+              ).data ?? [],
+            );
+            if (rows.some(r => !batch.includes(String(r.id))))
+              throw new MirrorError('REPORT_SHAPE_CHANGED', 'Reddit returned an unrequested entity.', {}, 502);
+            out.push(...rows);
+          }
+          return out;
+        };
+        try {
+          lists.adGroups = await named('ad_groups', wanted('ad_group_id'));
+          if (detail === 'ad') lists.ads = await named('ads', wanted('ad_id'));
+        } catch (e) {
+          // As for Apple: only a provider refusal keeps IDs; AMCP access refusals and malformed lists fail the source.
+          if (!optionalReadRefused(e)) throw e;
+          lists.adGroups = lists.ads = [];
+          warnings.push(
+            'Reddit ad group and ad names could not be read, so rows show IDs; parents still come from the report.',
+          );
+        }
+        detailRows = redditDetail(detail, raw, lists, account, detailRounding);
+      }
       raw = raw.map(r => ({
         ...r,
         campaign_name: campaigns.find(c => c.id === r.campaign_id)?.name,
@@ -1303,6 +1525,19 @@ export class NativeCampaignReports {
       throw new MirrorError('REPORT_ROW_LIMIT', 'Report exceeds 10,000 rows. Narrow the date range or accounts.');
     this.service.store.assertActorActive(actor);
     this.service.store.resolveConnection(actor, platform!.gateway, account, connection);
+    if (detail)
+      return nativeDetailResult(source, detailRows!, raw, {
+        lineage,
+        metadata,
+        currency,
+        timezone,
+        range,
+        providerComplete: complete,
+        resultDefinition,
+        warnings,
+        context,
+        rounding: detailRounding,
+      });
     const rows = raw.map(r => normalizeNativeRow(p, r));
     for (const name of missingNativeMetrics(p, extra, rows))
       warnings.push(

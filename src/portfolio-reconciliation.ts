@@ -15,6 +15,7 @@ const gateways = [
   'snapchat_native_action',
   'tiktok_native_action',
   'x_ads_native_action',
+  'microsoft_ads_native_action',
 ];
 function incomplete(message: string): never {
   throw new MirrorError('PORTFOLIO_RECONCILIATION_INCOMPLETE', message, {}, 422);

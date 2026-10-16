@@ -2,6 +2,8 @@ import {MirrorError} from './errors.js';
 import {DecisionReporting} from './decision-reporting.js';
 import {fingerprint, reportContractVersion} from './report-quality.js';
 import {metricNumber} from './report-metrics.js';
+import {detailParents, type DetailParentCache} from './overview-parents.js';
+import {metaWindowsMessage, metaWindowsValid} from './meta-attribution-windows.js';
 import type {MirrorService} from './service.js';
 import type {Actor, JsonObject} from './types.js';
 
@@ -32,17 +34,26 @@ export const overviewEntityLevels: Record<string, {id: string; label: string; pr
       {id: 'campaign', label: 'Campaign', native_type: 'sponsoredCampaign'},
       {id: 'ad', label: 'Creative (ad)', preset: 'linkedin_creative', native_type: 'sponsoredCreative'},
     ],
+    // RPT-07 granular parity: native report collectors in overview-native-detail.ts (window totals per entity).
+    microsoft: [
+      {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
+      {id: 'adset', label: 'Ad group', preset: 'microsoft_ad_group', native_type: 'ad_group'},
+      {id: 'ad', label: 'Ad', preset: 'microsoft_ad', native_type: 'ad'},
+    ],
+    reddit: [
+      {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
+      {id: 'adset', label: 'Ad group', preset: 'reddit_ad_group', native_type: 'ad_group'},
+      {id: 'ad', label: 'Ad', preset: 'reddit_ad', native_type: 'ad'},
+    ],
+    apple: [
+      {id: 'campaign', label: 'Campaign', native_type: 'campaign'},
+      {id: 'adset', label: 'Ad group', preset: 'apple_adgroup', native_type: 'adgroup'},
+      {id: 'ad', label: 'Ad', preset: 'apple_ad', native_type: 'ad'},
+    ],
   };
 function invalid(message: string, code = 'INVALID_REPORT_LEVEL'): never {
   throw new MirrorError(code, message);
 }
-const metaWindowsValid = (windows: unknown) =>
-  Array.isArray(windows) &&
-  windows.length > 0 &&
-  windows.length <= 2 &&
-  new Set(windows).size === windows.length &&
-  windows.every(v => ['1d_click', '7d_click', '1d_view'].includes(String(v))) &&
-  !(windows.includes('1d_click') && windows.includes('7d_click'));
 const snapchatWindowsValid = (options: JsonObject) =>
   ['1_DAY', '7_DAY', '28_DAY'].includes(options.swipe_up_attribution_window) &&
   ['none', '1_HOUR', '3_HOUR', '6_HOUR', '1_DAY', '7_DAY'].includes(options.view_attribution_window) &&
@@ -67,8 +78,7 @@ export function campaignAttributionProfile(source: JsonObject): JsonObject | und
     invalid(
       'Campaign reporting accepts only an attribution profile: attribution_windows for Meta, or swipe_up_attribution_window and view_attribution_window for Snapchat.',
     );
-  if (source.platform === 'meta' && !metaWindowsValid(options.attribution_windows))
-    invalid('Choose one click window (1d_click or 7d_click), with optional 1d_view, or 1d_view alone.');
+  if (source.platform === 'meta' && !metaWindowsValid(options.attribution_windows)) invalid(metaWindowsMessage);
   if (source.platform === 'snapchat' && !snapchatWindowsValid(options))
     invalid('Choose supported Snapchat swipe and view windows. Seven-day view requires at least seven-day swipe.');
   return options;
@@ -116,14 +126,11 @@ export function overviewSourceLevel(source: JsonObject, template = false) {
     source.platform === 'meta' &&
     (typeof options.result_action_type !== 'string' ||
       !/^[a-z][a-z0-9_.]{0,159}$/.test(options.result_action_type) ||
-      !Array.isArray(options.attribution_windows) ||
-      !options.attribution_windows.length ||
-      options.attribution_windows.length > 2 ||
-      new Set(options.attribution_windows).size !== options.attribution_windows.length ||
-      options.attribution_windows.some((v: unknown) => !['1d_click', '7d_click', '1d_view'].includes(String(v))) ||
-      (options.attribution_windows.includes('1d_click') && options.attribution_windows.includes('7d_click')))
+      !metaWindowsValid(options.attribution_windows))
   )
-    invalid('Choose one exact Meta result action and one click window, optional one-day view, or one-day view alone.');
+    invalid(
+      'Choose one exact Meta result action and at most one click window (1d_click, 7d_click or 28d_click), with optional 1d_view and 1d_ev (engaged view), or view windows alone.',
+    );
   if (source.platform === 'snapchat') {
     if (
       !['1_DAY', '7_DAY', '28_DAY'].includes(options.swipe_up_attribution_window) ||
@@ -155,8 +162,11 @@ export function overviewSourceLevel(source: JsonObject, template = false) {
   return selected!;
 }
 
-/** v2: a declared-incomplete reporting window makes the detailed source partial (RPT-02). */
-export const detailContractVersion = 'overview-detail-v2';
+/**
+ * v2: a declared-incomplete reporting window makes the detailed source partial (RPT-02). v3: TikTok ad group and ad,
+ * Snapchat ad and LinkedIn creative rows carry their native parents from a bounded parent read (RPT-07).
+ */
+export const detailContractVersion = 'overview-detail-v3';
 const declaredIncompleteWarning =
   'The reporting window was declared incomplete. The source stays partial and recommendations are held until a complete window is collected.';
 const additive = ['spend', 'impressions', 'clicks', 'conversions', 'conversion_value'];
@@ -174,7 +184,15 @@ function exactSum(values: unknown[]) {
     (sum % 1000000000n ? '.' + (sum % 1000000000n).toString().padStart(9, '0').replace(/0+$/, '') : '');
   return {exact, display: metricNumber(exact)};
 }
-export function detailedOverviewRows(source: JsonObject, captured: JsonObject) {
+/**
+ * `nativeParents` holds the parents a bounded parent read returned for levels whose report rows carry none (RPT-07);
+ * an entity it does not name keeps unknown parents.
+ */
+export function detailedOverviewRows(
+  source: JsonObject,
+  captured: JsonObject,
+  nativeParents: Record<string, JsonObject> = {},
+) {
   const descriptor = overviewSourceLevel(source),
     groups = new Map<string, {mapped: JsonObject[]; raw: JsonObject[]; parents: JsonObject}>();
   if (
@@ -206,7 +224,7 @@ export function detailedOverviewRows(source: JsonObject, captured: JsonObject) {
             }
           : source.platform === 'snapchat' && source.campaign_id
             ? {campaign_id: source.campaign_id}
-            : {};
+            : (nativeParents[row.entity_id] ?? {});
     const prior = groups.get(row.entity_id);
     if (prior && fingerprint(prior.parents) !== fingerprint(parents))
       invalid('The detailed entity changed native parents during collection.', 'REPORT_ACCOUNT_MISMATCH');
@@ -254,6 +272,8 @@ export async function collectDetailedOverview(
   metadata: JsonObject,
   currency: string | null,
   timezone: string | null,
+  // RPT-07: the job's per-source cache, so each entity's parents are read once across periods.
+  lookup: {detailParents?: DetailParentCache} = {},
 ) {
   const descriptor = overviewSourceLevel(source),
     options = source.report_options;
@@ -290,7 +310,26 @@ export async function collectDetailedOverview(
   );
   service.store.assertActorActive(actor);
   service.store.resolveConnection(actor, captured.gateway, source.account_id, source.connection_id);
-  const lineage = [...(captured.native_account_evidence?.checks ?? []), ...(captured.source_pages ?? [])];
+  // RPT-07: parents of the reported entities where the report rows carry none (TikTok, Snapchat ads, LinkedIn
+  // creatives), read after the report under the same login; IDs stay exact and an unread parent stays unknown.
+  lookup.detailParents ??= {parents: {}, lineage: []};
+  const parents = await detailParents(
+    service,
+    source,
+    descriptor.id,
+    (Array.isArray(captured.rows) ? captured.rows : [])
+      .map((row: JsonObject) => row.entity_id)
+      .filter((id: unknown): id is string => typeof id === 'string' && !!id),
+    actor,
+    lookup.detailParents,
+  );
+  service.store.assertActorActive(actor);
+  service.store.resolveConnection(actor, captured.gateway, source.account_id, source.connection_id);
+  const lineage = [
+    ...(captured.native_account_evidence?.checks ?? []),
+    ...(captured.source_pages ?? []),
+    ...parents.lineage,
+  ];
   return {
     contract_version: reportContractVersion,
     quality: {
@@ -304,7 +343,7 @@ export async function collectDetailedOverview(
     },
     lineage,
     query_fingerprint: fingerprint(captured.source_request),
-    rows: detailedOverviewRows(source, captured),
+    rows: detailedOverviewRows(source, captured, parents.parents),
     metadata,
     account_name: metadata.name ?? metadata.displayName ?? null,
     currency,
@@ -320,6 +359,7 @@ export async function collectDetailedOverview(
     warnings: [
       'Detailed rows retain the original native entity level and exact additive daily totals. Reach and frequency are unavailable for multi-day totals; missing days are not filled with zero. Reporting-window completeness and attribution remain explicitly declared unless native finalization proves them.',
       ...(options.complete_window === true ? [] : [declaredIncompleteWarning]),
+      ...parents.warnings,
     ],
     native_account_evidence: captured.native_account_evidence,
     metric_mapping: captured.mapping,

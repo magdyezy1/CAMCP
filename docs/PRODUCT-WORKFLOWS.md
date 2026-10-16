@@ -520,8 +520,9 @@ remain declarations; search-term visibility can prevent reconciliation to campai
 
 Meta presets are `meta_campaign`, `meta_adset` and `meta_ad`, each at entity × day grain. Supply currency, IANA
 timezone, dates, source name and completeness. Select the exact native `result_action_type` (for example,
-`offsite_conversion.fb_pixel_purchase`) and `attribution_windows`: one of `1d_click`/`7d_click`, optional `1d_view`,
-or `1d_view` alone. Both click windows together are refused. The request explicitly uses impression time and
+`offsite_conversion.fb_pixel_purchase`) and `attribution_windows`: at most one of `1d_click`/`7d_click`/`28d_click`,
+optional `1d_view` and `1d_ev` (one-day engaged view), or view windows alone (RPT-07). Two click windows together, and
+the `7d_view`/`28d_view` windows Meta removed on 2026-01-12, are refused. The request explicitly uses impression time and
 disables account/unified attribution overrides; the saved attribution/result definitions are derived from that query.
 Account identity, currency and timezone are verified before and after complete Insights pages, including empty
 reports. Each native row must match its account, exact parent chain, currency, dates and unique entity/day grain.
@@ -533,6 +534,28 @@ counts as 0 and is named in `omitted_as_zero` (Meta omits zero-valued action ent
 it unknown. Overlapping action aliases are never added. Window completeness remains declared, and complete paging does not prove conversion delivery.
 See the [Meta evidence qualification](review/DELIVERY-2026-10-02-META-EVIDENCE-INTEGRITY.md); SDK/native fixture evidence
 does not certify live provider acceptance.
+
+**Dimension packs (RPT-07).** Five presets answer audience, placement, network and Performance Max questions that
+campaign rows cannot, through the same verified collectors:
+
+| Preset                     | Grain                                                 | Native dimension columns                                |
+| -------------------------- | ----------------------------------------------------- | ------------------------------------------------------- |
+| `google_pmax_search_terms` | Performance Max campaign × search term (window total) | `search_term` from `campaign_search_term_view`          |
+| `google_campaign_network`  | campaign × ad network × day                           | `native_ad_network` (`segments.ad_network_type`)        |
+| `meta_campaign_age_gender` | campaign × age × gender × day                         | `native_age`, `native_gender`                           |
+| `meta_campaign_country`    | campaign × country × day                              | `native_country`                                        |
+| `meta_campaign_placement`  | campaign × publisher platform × placement × day       | `native_publisher_platform`, `native_platform_position` |
+
+Values stay the literal provider values (never translated or merged) in the table, row search and English and Arabic
+Excel exports. A value outside the documented native set (Google's AdNetworkType enum; Meta's age buckets, genders,
+publisher platforms, ISO country codes or `unknown`, and lower-case placement names), a duplicate bucket/day row, an
+unrequested breakdown field, an extra segment or a Performance Max term outside a `PERFORMANCE_MAX` campaign or under a
+different `campaignSearchTermViews/{campaign}~{base64 term}` resource refuses capture and saves nothing. Saved evidence
+carries `breakdown {dimensions, observed_values, absent_buckets:"unknown", reconciles_with_parent_totals:false}`: a
+bucket the provider did not return is unknown, never zero, and bucket totals can differ from campaign totals (privacy
+thresholds, unknown buckets). Reach and frequency stay per bucket and are never added together; Meta omits reach for
+breakdown reports that start more than 13 months ago. The Google search-term view without keyword segments includes
+Performance Max data; these terms do not qualify negative keywords, brand exclusions or budget changes.
 
 LinkedIn presets are `linkedin_campaign_group`, `linkedin_campaign` and `linkedin_creative`, at the native
 entity × UTC day grain. Supply the native account currency, `timezone:"UTC"`, dates, source name, attribution
@@ -546,6 +569,21 @@ continuation metadata, provider ceilings, malformed/duplicate daily rows and emp
 Empty responses can mean no activity or missing reporting access, so they cannot establish zero performance.
 Narrow an oversized report or resolve access before making a new read. Retained account and analytics request/hash
 references remain available; this does not qualify LinkedIn budget allocation or advertising writes.
+
+**Verified LinkedIn conversion windows (RPT-07, B18).** `linkedin_campaign_conversion` reads campaign × conversion ×
+UTC day evidence with the statistics finder (`q=statistics`, `pivots=List(CAMPAIGN,CONVERSION)`) and the
+`externalWebsiteConversions`, post-click and post-view conversion counts and conversion value. Declare
+`attribution:"verified_per_rule"`; a typed window (or `unknown`) is refused before any read with
+`REPORT_ATTRIBUTION_DECLARED`. After the analytics response, and inside the same authorization bracket, AMCP reads
+the account's current conversion rules (the same account finder as LinkedIn conversion settings) and joins each
+reported conversion URN to its rule's `postClickAttributionWindowSize` and `viewThroughAttributionWindowSize`. The
+result's `conversion_windows.status` is `verified_per_rule` (every conversion's rule has the same windows; the
+semantics attribution names them), `mixed` (rules differ: no single window, and a declared single-window reference is
+refused) or `unknown` (a reported conversion has no current rule, for example a deleted one, or no stated window;
+attribution stays `unknown`). Spend, impressions and clicks are not split by conversion and stay unmapped. The
+15,000-element ceiling, empty responses and malformed or duplicate campaign/conversion/day rows refuse capture as for
+the other LinkedIn presets. Rule windows are today's settings, not a history. A live capture on an owner-designated
+account (559535022) is still an owner acceptance step.
 
 TikTok presets are `tiktok_campaign`, `tiktok_adgroup` and `tiktok_ad`, at native entity × advertiser-local
 day grain. Declare exact advertiser/login, currency, IANA timezone, source name, attribution (or `unknown`),
@@ -638,7 +676,7 @@ evidence under the existing disconnect workflow.
 
 ## Portfolio, measurement and commerce
 
-Live portfolio (`/portfolio`) supports Google Ads, Meta, LinkedIn, Snapchat, TikTok and X. Google campaigns, ad groups and ads use validated
+Live portfolio (`/portfolio`) supports Google Ads, Meta, LinkedIn, Snapchat, TikTok, X and Microsoft Advertising. Google campaigns, ad groups and ads use validated
 signed keyset continuation bound to current actor/login/permissions, account, hierarchy, native version and page size,
 with a five-minute expiry and 100-page limit. Exact customer, parent and resource identities are verified in the
 account-scoped query. Duplicate, out-of-order, foreign, unsafe-integer and partial rows are refused. Each page is
@@ -705,6 +743,20 @@ exact. Configured/effective status, servability and approval remain independent 
 Signed continuation binds current actor/login/permissions and hierarchy for five minutes, at most 100 pages;
 repeated tokens and adjacent overlaps fail. Eight requests including retries, 103 parent/inventory rows, 8 MiB
 and 60 seconds bound a page. Provider-order pagination is not a fixed snapshot.
+
+Microsoft Advertising (RPT-07, B27) uses `gateway:microsoft_ads_native_action` with `entity:campaign`, then
+`entity:ad_group,campaign_id`, then `entity:ad,campaign_id,ad_group_id` (the Google hierarchy, so the website
+drill-down is the same). Microsoft does not page `GetCampaignsByAccountId`, `GetAdGroupsByCampaignId` or
+`GetAdsByAdGroupId`, so each page reads the complete collection and serves an ascending native-ID slice: campaigns are
+requested with every documented `CampaignType` (the API returns only Search campaigns by default) and ads with every
+documented `AdType`. A collection above 1000 entities is refused with `PORTFOLIO_COLLECTION_LIMIT`, never truncated.
+The signed five-minute cursor binds the actor, login, account, hierarchy, page size and the collection's content; a
+collection that changes between pages is refused with `PORTFOLIO_CHANGED` so a reader restarts instead of merging two
+states. Parents must be observed in the same login's portfolio first, and each child page re-reads its current parent
+campaign (and ad group) by ID. Money (`DailyBudget`, `CpcBid`) stays unconverted decimal account currency; undocumented
+campaign or ad types, repeated or malformed IDs and negative amounts refuse the page. `portfolio_reconcile` compares
+two complete Microsoft observations like the other providers. There is no Microsoft guided evidence capture, so the
+page offers no capture link.
 
 Measurement (`/measurement`) connects the existing Google Tag Manager configuration audit with GA4/Search Console
 reporting, client conversion mappings and reviewed contract discovery. `measurement_audit` takes an exact GTM
@@ -1191,6 +1243,63 @@ bound to the current session and lasts ten minutes. Follow its returned `amcp_ca
 inspect the original draft. Lost responses reuse the same plan. `amcp_campaign create` also supports optional
 stable creation keys. See the [native budget-draft record](review/DELIVERY-2026-10-01-ALLOCATION-PLANS.md).
 
+### Factor provenance and indicators (DEC-02)
+
+**Use these historical factors** copies a retained calibration's envelope into the model and sends
+`factor_source {kind:"calibration", evidence_fingerprint, ids, options}` with it. The server recomputes that
+calibration and refuses `ALLOCATION_FACTOR_PROVENANCE` when the fingerprint, the factors or the entities differ, so
+a proposal never claims history it does not have. The provenance is part of `model_fingerprint` (the same numbers with
+and without it are different proposals), `assumptions.factor_provenance`, the limitations and the draft brief. Typed
+factors say they have no historical provenance; calibrated ones say the calibration was one-day and spend-conditioned.
+
+`allocation_indicators` compare each proposed daily average with the entity's observed daily spend range
+(`proposed_to_observed_spend`; `outside_observed_range` means the linear model extrapolates there). The native budget
+preview shows `budget_utilization` (observed spend ÷ today's daily budget × evidence days; below 80% is flagged, and
+today's budget may differ from the one in force then) and, for Google, each campaign's Search budget-lost impression
+share over the evidence period from one extra read after the two budget observations (`search_budget_lost_impression_share`:
+`read`, `not_search`, `not_reported` or `unavailable`; Google reports shares above 90% as 0.9001, shown as "more than
+90%"). Indicators are descriptive and never gate a proposal; a refused indicator read leaves it unavailable.
+
+### Meta budget drafts (DEC-02)
+
+A guided `meta_campaign` report can become a native draft of at most 20 campaigns. Inside one bounded bracket AMCP
+reads the account (identity, currency, time zone, active status), observes every campaign in the account's own
+collection, reads each campaign with its ad sets twice, and refuses anything it cannot bind exactly
+(`ALLOCATION_BUDGET_MODE`): lifetime campaign or ad-set budgets, a campaign and ad-set budget at once, ad-set budgets
+split across several spending ad sets, reserved buying, more ad sets than one bounded read, or a mode that changes
+between observations. A campaign daily budget (Advantage campaign budget) is drafted with `meta_campaign_id_update`;
+a campaign whose budget sits on its one spending ad set is drafted on that ad set with `meta_ad_set_id_update`. Amounts
+are whole Meta minor units of the pinned currency offset (`daily_budget_native`), rounded down and never converted;
+a currency without a pinned offset is refused before any read. The draft is unapproved and source-bound like the other
+providers; every step still needs native review, spend acknowledgement, owner caps and read-back. On the website,
+**Prepare a native budget draft** names the owner (campaign budget or ad set) and the minor units, and the saved plan
+shows them in English and Arabic.
+
+### Outcome review (DEC-02)
+
+When every budget step of an allocation plan has been executed and verified by read-back, AMCP schedules its outcome
+review. The outcome window is the plan's reference length (the evidence period's days), starting on the first
+account-local day after the last verified step, so the new budgets were in force all day; it is complete once its
+last day has ended in the account time zone. Nothing is read before then: `capture_allocation_outcome` refuses with
+`ALLOCATION_OUTCOME_NOT_DUE`. After the window closes, a background job (as the person whose verified execution
+completed the plan) repeats the proposal's own guided preset on the same login, account, currency, time zone,
+attribution and result definition, and retains it as ordinary guided evidence. A provider that has not finalized the
+window (Snapchat) or a rate limit is retried up to six times with growing delays; any other refusal is recorded and an
+authorized member can review the outcome from the plan page (**Review the outcome now**) or with
+`capture_allocation_outcome {id}`.
+
+`allocation_outcome {id}` (the campaign plan ID) shows the window, state and results: per entity and in total, the
+proposed budget, realized spend and its share of the proposal, realized conversions beside the range the proposal
+modeled at the proposed budget, the same range at the realized spend, and a realized factor on the proposal's
+efficiency scale (1.0 is the evidence period's conversions per unit of spend), all exact at nine places, half to even.
+An entity without outcome rows stays unknown and partial days are named; nothing is counted as zero. These are
+observational comparisons: they do not show that the budget change caused a difference, are not forecast accuracy and
+are not adjusted for seasonality, auctions, creatives, tracking or attribution changes. The outcome capture is offered
+as calibration evidence (`calibrate_allocation` when it covers 14–31 closed days). A plan whose evidence was deleted
+or changed, or whose proposal can no longer be reproduced exactly, is recorded `unavailable`. At most 500 outcome
+records are kept per workspace; the oldest finished ones are removed first. Causal experiments (Google experiments,
+LinkedIn lift tests) stay separate workflows.
+
 ## Interface language
 
 Choose **English** or **العربية (جزئي)** in the top bar, public navigation or sign-in screen. The choice is saved
@@ -1303,8 +1412,8 @@ review also freezes native delivery mode so a change prevents dispatch.
 
 For MCP use `allocation_candidates`, `allocation`, `preview_allocation_plan` with `conversion:"equal_daily"`,
 then `create_allocation_plan` with that session's `preview_id`, `preview_hash` and `confirmed:true`. Retain exact
-report and account scope. Other providers remain unqualified for this handoff; Google retains its dedicated-budget
-flow. See [qualification and limits](review/DELIVERY-2026-10-03-SNAPCHAT-ALLOCATION.md).
+report and account scope. Google retains its dedicated-budget flow, LinkedIn its independent-budget flow and Meta its
+owner-bound flow (above); other providers remain unqualified for this handoff. See [qualification and limits](review/DELIVERY-2026-10-03-SNAPCHAT-ALLOCATION.md).
 
 ### Allocation selection and browser review
 

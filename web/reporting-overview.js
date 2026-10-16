@@ -190,7 +190,7 @@ function renderReportTable(r, keys, b) {
     const name = String(row.entity_name ?? row.campaign_name ?? row.entity_id ?? row.campaign_id ?? ''),
       short = reportShortName(name),
       day = grain === 'daily' && row.date_from === row.date_to;
-    return `<tr role="row"><th scope="row" role="rowheader"><strong dir="auto" data-native${short === name ? '' : ` title="${esc(name)}"`}>${esc(short)}</strong></th><td role="cell" class="report-row-context" data-label="${esc(context)}"><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(row.objective_group))}</small><small>${short === name ? '' : `<span dir="auto" data-native>${esc(name)}</span><br>`}${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: reportLevelLabel(b, row)})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>${esc(uiText('Source details'))}</summary><p>${esc(row.result_definition)}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></td>${period ? `<td role="cell" data-label="${esc(period)}">${esc(reportDay(row.date_from))}${day ? '' : '<br>' + esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => metricCell(row, k, labels[k])).join('')}<td role="cell" class="recommendation" data-label="${esc(next)}"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${reportRecommendationAsOf(row)}${reportRecommendationBasis(row.recommendation)}${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`;
+    return `<tr role="row"><th scope="row" role="rowheader"><strong dir="auto" data-native${short === name ? '' : ` title="${esc(name)}"`}>${esc(short)}</strong></th><td role="cell" class="report-row-context" data-label="${esc(context)}"><span>${esc(b.platforms.find(p => p.id === row.platform)?.name ?? row.platform)}</span><small>${esc(reportLabel(row.objective_group))}</small><small>${short === name ? '' : `<span dir="auto" data-native>${esc(name)}</span><br>`}${esc(row.entity_id ?? row.campaign_id)}<br>${row.entity_level ? esc(uiText('Reporting level: {level}', {level: reportLevelLabel(b, row)})) + '<br>' : ''}${row.parent_ids?.campaign_id ? esc(uiText('Campaign: {id}', {id: row.parent_ids.campaign_id})) + reportParentName(row.parent_ids.campaign_name) + '<br>' : ''}${row.parent_ids?.adset_id ? esc(uiText('Ad set / ad group: {id}', {id: row.parent_ids.adset_id})) + reportParentName(row.parent_ids.adset_name) + '<br>' : ''}${esc(row.account_id)} · ${esc(row.currency ?? '—')}${row.timezone ? ' · ' + esc(row.timezone) : ''}</small><details><summary>${esc(uiText('Source details'))}</summary><p>${esc(row.result_definition)}<br>${esc(row.attribution)}<br>${esc(row.timezone)}</p>${reportQualityDetails(row)}<pre>${esc(JSON.stringify(row.native, null, 2))}</pre></details></td>${period ? `<td role="cell" data-label="${esc(period)}">${esc(reportDay(row.date_from))}${day ? '' : '<br>' + esc(reportDay(row.date_to))}</td>` : ''}${keys.map(k => metricCell(row, k, labels[k])).join('')}<td role="cell" class="recommendation" data-label="${esc(next)}"><span class="recommendation-pill decision-${row.recommendation.decision}">${esc(reportLabel(row.recommendation.decision))}</span><p>${esc(uiRecommendationReason(row.recommendation))}</p>${reportRecommendationAsOf(row)}${reportRecommendationBasis(row.recommendation)}${row.recommendation.evidence?.target ? `<small>${esc(uiText('{kpi} target {target} · actual {actual}', {kpi: row.recommendation.evidence.kpi, target: row.recommendation.evidence.target, actual: Number(row.recommendation.evidence.actual).toFixed(2)}))}</small>` : ''}</td></tr>`;
   };
   return `<table class="report-table report-rows-table" role="table"><caption>${uiBidi(overviewLabel(r.config))} · ${esc(reportWindowLabel(r.config.date_range))} · ${esc(uiText('{grain} grouping', {grain: reportLabel(grain)}))}</caption><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">${esc(uiText('Campaign / ad set / ad / resource'))}</th><th scope="col" role="columnheader">${esc(context)}</th>${period ? `<th scope="col" role="columnheader">${esc(period)}</th>` : ''}${keys.map(k => `<th scope="col" role="columnheader">${esc(labels[k])}</th>`).join('')}<th scope="col" role="columnheader">${esc(next)}</th></tr></thead><tbody role="rowgroup">${r.rows.map(row).join('')}</tbody></table>`;
 }
@@ -422,7 +422,7 @@ async function renderReportingOverview() {
                     c.sources.find(
                       s => s.platform === p.id && s.connection_id === a.connection_id && s.account_id === a.account_id,
                     )?.campaign_id ?? '';
-                return `<label class="report-account"><input type="checkbox" data-report-account="${p.id}" value="${esc(key)}" ${selected.has(key) ? 'checked' : ''}><span>${esc(a.label)}<small>${esc(a.account_id)}</small><small>${esc(uiText('Login:'))} ${esc(a.connection_label ?? a.label)}</small></span></label>${p.id === 'snapchat' ? `<label data-report-parent-field hidden>${esc(uiText('Parent campaign UUID for ad squads'))}<input data-report-parent="${esc(key)}" value="${esc(parent)}" maxlength="36" disabled></label>` : ''}`;
+                return `<label class="report-account"><input type="checkbox" data-report-account="${p.id}" value="${esc(key)}" ${selected.has(key) ? 'checked' : ''}><span>${esc(a.label)}<small>${esc(a.account_id)}</small><small>${esc(uiText('Login:'))} ${esc(a.connection_label ?? a.label)}</small></span></label>${p.id === 'snapchat' ? reportParentField(key, parent, a) : ''}`;
               })
               .join('')}`
           : p.accounts.length
@@ -459,7 +459,7 @@ async function renderReportingOverview() {
     })
     .join(
       '',
-    )}</div></details><label class="report-delivery-policy">${esc(uiText('Sheets delivery policy'))}<select name="partial_delivery"><option value="allow_marked" ${c.partial_delivery !== 'complete_only' ? 'selected' : ''}>${esc(uiText('Allow clearly marked partial reports'))}</option><option value="complete_only" ${c.partial_delivery === 'complete_only' ? 'selected' : ''}>${esc(uiText('Deliver complete reports only'))}</option></select></label><div class="report-runbar"><span id="report-selected-count" class="muted">${esc(uiText('Choose your accounts above.'))}</span><div><button type="button" id="overview-save" class="button" ${viewer ? 'disabled' : ''}>${overviewState.selection?.kind === 'template' ? uiText('Save template') : overviewState.selection ? uiText('Save changes') : uiText('Save report')}</button><button type="submit" class="button primary" ${viewer ? 'disabled' : ''}>${glyph('report')} ${esc(uiText('Pull report'))}</button></div></div></section></form><section id="overview-results"></section><section class="panel report-history">${renderOverviewHistory(history.reports, viewer)}</section><dialog id="report-delivery-dialog" class="report-delivery-dialog" aria-label="${esc(uiText('Report delivery'))}"><div id="report-delivery-content"></div></dialog>`;
+    )}</div></details><label class="report-delivery-policy">${esc(uiText('Sheets delivery policy'))}<select name="partial_delivery"><option value="allow_marked" ${c.partial_delivery !== 'complete_only' ? 'selected' : ''}>${esc(uiText('Allow clearly marked partial reports'))}</option><option value="complete_only" ${c.partial_delivery === 'complete_only' ? 'selected' : ''}>${esc(uiText('Deliver complete reports only'))}</option></select></label><div class="report-runbar"><span id="report-selected-count" class="muted">${esc(uiText('Choose your accounts above.'))}</span><label class="check"><input type="checkbox" id="overview-compare-previous"> ${esc(uiText('Also collect the previous equal window to compare'))}</label><div><button type="button" id="overview-save" class="button" ${viewer ? 'disabled' : ''}>${overviewState.selection?.kind === 'template' ? uiText('Save template') : overviewState.selection ? uiText('Save changes') : uiText('Save report')}</button><button type="submit" class="button primary" ${viewer ? 'disabled' : ''}>${glyph('report')} ${esc(uiText('Pull report'))}</button></div></div></section></form><section id="overview-results"></section><section class="panel report-history">${renderOverviewHistory(history.reports, viewer)}</section><dialog id="report-delivery-dialog" class="report-delivery-dialog" aria-label="${esc(uiText('Report delivery'))}"><div id="report-delivery-content"></div></dialog>`;
   bindReportDates();
   // DEC-01: the target card shows the direction derived for the selected KPI.
   document.querySelectorAll('[data-target-kpi]').forEach(el =>
@@ -535,7 +535,13 @@ async function renderReportingOverview() {
     if (overviewState.selection?.kind === 'template')
       throw new Error(uiText('Create a report from this template and choose its client accounts first.'));
     overviewState.config = overviewConfig();
-    const run = await overviewCall({action: 'run', config: overviewState.config, confirmed: true});
+    // RPT-07: the previous equal window is a second, linked snapshot with its own collection limits.
+    const run = await overviewCall({
+      action: 'run',
+      config: overviewState.config,
+      confirmed: true,
+      ...($('#overview-compare-previous')?.checked ? {compare: 'previous_period'} : {}),
+    });
     overviewState.page = 0;
     await loadOverviewReport(run.id);
   });
@@ -1314,6 +1320,28 @@ function reportLevelLabel(b, row) {
     level => level.id === row.entity_level,
   )?.label;
   return label ? uiText(label) : String(row.native_entity_type ?? '');
+}
+/**
+ * RPT-07: the exact parent campaign of Snapchat ad-squad detail. The campaigns of the newest retained campaign-level
+ * snapshot of this login and account are offered as choices; any UUID can still be entered, and collection checks it.
+ */
+function reportParentField(key, parent, account) {
+  const choices = account.parent_campaigns?.campaigns ?? [],
+    completed = account.parent_campaigns?.completed_at,
+    list = 'report-parents-' + account.connection_id + '-' + account.account_id;
+  return `<label data-report-parent-field hidden>${esc(uiText('Parent campaign UUID for ad squads'))}<input data-report-parent="${esc(key)}" value="${esc(parent)}" maxlength="36" disabled${choices.length ? ` list="${esc(list)}"` : ''}>${
+    choices.length
+      ? `<datalist id="${esc(list)}">${choices.map(c => `<option value="${esc(c.id)}" label="${esc(c.name ?? c.id)}"></option>`).join('')}</datalist>${
+          Number.isFinite(completed)
+            ? `<small>${esc(uiText('Choose a campaign from the report of {date}, or enter its UUID.', {date: reportDay(new Date(completed).toISOString().slice(0, 10))}))}</small>`
+            : ''
+        }`
+      : ''
+  }</label>`;
+}
+/** RPT-07: a native parent's name beside its ID, kept literal (current provider metadata, never translated). */
+function reportParentName(name) {
+  return typeof name === 'string' && name ? ` · <span dir="auto" data-native>${esc(name)}</span>` : '';
 }
 function renderSourceDiagnostic(error) {
   const p = error.provider ?? {},

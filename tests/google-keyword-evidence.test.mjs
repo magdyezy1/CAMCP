@@ -31,6 +31,9 @@ test('Google keyword preset declares a separate criterion/day grain and exact po
       'google_campaign_hour',
       'google_campaign_country',
       'google_search_terms',
+      // RPT-07 dimension packs.
+      'google_pmax_search_terms',
+      'google_campaign_network',
     ],
   );
   const p = reportPreset(input);

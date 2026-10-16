@@ -145,7 +145,8 @@ test('Google allocation retains two unchanged selected-budget observations and r
     const p = good(await f.preview());
     assert.equal(p.native_source_references.length, 2);
     assert.equal(p.native_source_references[0].source_hash, p.native_source_references[1].source_hash);
-    assert.equal(f.counts().requests, 2);
+    // Two budget observations, then one read of the Search budget-lost impression share indicator (DEC-02).
+    assert.equal(f.counts().requests, 3);
   } finally {
     f.store.close();
   }

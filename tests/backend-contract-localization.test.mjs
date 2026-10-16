@@ -121,10 +121,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Wave 3a sources, among them CMP-03's src/microsoft-campaign-criteria.ts and PRV-06 C's
   // src/meta-creative-features.ts (five reasons; the catalog also holds its two remedies), and the Performance Max
   // brief's short-description refusal.
-  assert.equal(files.length, 536);
-  assert.equal(selected.filter(row => row.messages.size).length, 223);
-  assert.equal(owned.size, 1548);
-  assert.equal(Object.keys(catalog).length, 10632);
+  // RPT-07 and DEC-02 add the period comparison, native parent, dimension pack, LinkedIn window, Microsoft portfolio,
+  // Meta allocation budget and allocation outcome modules.
+  assert.equal(files.length, 545);
+  assert.equal(selected.filter(row => row.messages.size).length, 227);
+  assert.equal(owned.size, 1566);
+  assert.equal(Object.keys(catalog).length, 10884);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

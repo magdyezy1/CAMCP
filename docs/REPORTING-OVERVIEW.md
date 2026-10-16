@@ -105,6 +105,16 @@ incomplete and its window has closed. Each label holds recommendations; nothing 
 - **Declared incomplete.** A detailed (ad set or ad) source with `complete_window:false` is partial
   (`detail_contract:"overview-detail-v2"`) and its recommendations need review. Snapshots retained earlier keep their
   original labels.
+- **Native parents and more detailed providers (RPT-07, `overview-detail-v3`).** TikTok ad groups and ads, Snapchat
+  ads and LinkedIn creatives carry their exact native parents from one bounded parent read per entity and job (drift,
+  foreign or repeated parents refuse the source; a refused read keeps unknown parents with a warning). Microsoft,
+  Reddit and Apple now offer ad-group and ad levels with the same `report_options:{complete_window, attribution}` as
+  Google: Microsoft uses its ad group and ad performance reports (rows name their campaign and ad group), Reddit breaks
+  its report down by `CAMPAIGN_ID`, `AD_GROUP_ID` (and `AD_ID`) and reads current names from the account's ad group and
+  ad lists (a listed record naming other parents refuses the source), and Apple reads `reports/apps/adgroups` or
+  `ads` (one page of at most 999 rows) with parents from the account's own ad group, ad and campaign records. These
+  rows are window totals per entity: additive values are exact (nine places, half to even), reach and frequency stay
+  unknown, and names and parents beyond 1000 entities per source stay unknown with a warning.
 - **Meta omitted actions (RPT-04, owner policy P6).** Meta leaves zero-valued actions out of `actions` and
   `action_values`. On a delivered row (impressions above 0) from a complete page, an absent requested action counts
   as 0 and is named in the row's `omitted_as_zero` (and in its quality, so CSV and Sheets carry it); a row without
@@ -300,6 +310,40 @@ Open **Reporting overview** in workspace navigation (/reporting-overview). Selec
 - **Scale**, **hold**, **pull back** and **reconsider/pause** are advisory. Each includes its reason and evidence. Missing objective/result definitions, immature or incomplete data, insufficient volume and ambiguous currency hold the recommendation. Nothing automatically changes campaign status or budget.
 - Summary cards keep platform, account, currency, timezone, attribution and objective groups separate. Ratios use additive components; reach/frequency/users are not blindly summed. AMCP does not deduplicate cross-platform conversions or invent a global currency total.
 
+## Period comparison (RPT-07)
+
+Compare a snapshot with an earlier window of the same report without spreadsheet work. Comparison reads retained
+snapshots only: no provider request and no saved change.
+
+- **Pull a pair.** Tick **Also collect the previous equal window to compare** in the builder, or call `run` with
+  `compare:"previous_period"`. AMCP queues two linked snapshots: the current window and the equal-length window that
+  ends the day before it (a 31-day window compares with the 31 days before it, not the previous calendar month). Each
+  snapshot keeps its own whole-job collection limits and estimate check, so a pair never exceeds the limits of one
+  run per job; both count against the 100 active reporting jobs and are refused together. With
+  `source_timezone:"account"`, each source takes the equal window before its own resolved window.
+- **Compare to.** On a finished snapshot, **Compare periods** lists retained snapshots (`compare_candidates`). An
+  earlier snapshot qualifies when both finished collecting, use the same grouping, have equal-length windows, the
+  baseline ends before the current window starts, and at least one account appears in both. Others stay listed,
+  disabled, with the rule they fail. The previous-period pair is preselected and opened.
+- **What is compared** (`compare {id, baseline_id?}`; without `baseline_id` the pair is used). Entities match on
+  platform, account, entity level and native ID, and are compared only when their compatibility key also matches:
+  currency, time zone, result definition, attribution, entity level and grouping. Additive metrics are summed exactly
+  over each window; ratios (CPA, CTR, ROAS, …) are recomputed from those sums; reach, frequency, users and position are
+  compared only for single-day native values. Each value has this window, the earlier window, Δ and Δ% at nine decimal
+  places, rounded half to even. A zero earlier value has no Δ% (`baseline_zero`); a missing value stays unknown.
+  Custom metrics are compared only when both snapshots use the same formulas and the formula reads standard additive
+  metrics. Entities in only one window, and entities whose definitions differ, are listed with the reason and never
+  counted as zero. Group totals add matched entities only.
+- **Analysis.** `amcp_reporting capture_overview` on the current snapshot of a pair also keeps the same group of its
+  baseline (`pairing`), and `analyze` uses that pair as its default baseline (`baseline_source:
+  "paired_previous_period"`). A pair that was deleted or is no longer compatible is skipped with a limitation; an
+  explicit `baseline_id` is still checked and refused as before.
+- **Limits of meaning.** Deltas are observational: they do not establish causality or adjust for seasonality.
+
+On **Evidence and analysis** (`/reports`), the **Earlier comparison report** select applies the same rule as the server
+(same account, report type, grain and measurement definitions, equal length, ending before this report starts) and
+shows disabled entries with their reason.
+
 ## Coverage
 
 | Source | Reporting behavior |
@@ -308,11 +352,11 @@ Open **Reporting overview** in workspace navigation (/reporting-overview). Selec
 | Meta | Campaign Insights with account attribution (or an explicit attribution profile) and objective-specific result aliases |
 | TikTok | Integrated campaign report plus objective inventory |
 | Snapchat | Campaign totals/inventory and account-local day boundaries |
-| LinkedIn | Campaign adAnalytics with verified account currency, native UTC period/completion checks and explicit unknown conversion attribution; objective override when omitted |
-| X Ads | Active-entities request planning; current documented placements ALL_ON_TWITTER, SPOTLIGHT and TREND; separate web and mobile conversion requests; resumable hourly batches and explicit partial-coverage flags |
-| Microsoft Ads | Durable Submit/Poll campaign report in the account time zone and secure server-side CSV download |
-| Apple Ads | Campaign report with explicit UTC range |
-| Reddit Ads | Campaign metrics/inventory, spend micro-units and explicit native conversion definitions |
+| LinkedIn | Campaign adAnalytics with verified account currency, native UTC period/completion checks and explicit unknown conversion attribution. Campaign names and objectives come from one bounded read of the account's own campaigns per job (current metadata, not delivery-time values); a campaign of another account refuses the source, a refused read keeps IDs with a warning. Objective override when omitted |
+| X Ads | Active-entities request planning; current documented placements ALL_ON_TWITTER, SPOTLIGHT and TREND; separate web and mobile conversion requests; resumable hourly batches and explicit partial-coverage flags. Campaign objectives come from one bounded read of the account's line items per job (current metadata): a campaign whose line items share one objective takes it, mixed objectives stay unknown with a warning, and a refused or oversized read keeps every objective unknown |
+| Microsoft Ads | Durable Submit/Poll campaign, ad group or ad report in the account time zone and secure server-side CSV download |
+| Apple Ads | Campaign, ad group or ad report with explicit UTC range; detailed parents from the account's own records |
+| Reddit Ads | Campaign, ad group or ad metrics/inventory, spend micro-units and explicit native conversion definitions |
 | GA4 | Campaign-attributed analytics context, property currency/timezone and threshold signals |
 | Search Console | Organic page context with limited top-row coverage; no paid-budget advice |
 

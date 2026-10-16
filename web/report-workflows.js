@@ -49,6 +49,91 @@ async function renderReportLibraryPage() {
     if (next !== null) append(await overviewCall({action: 'list', offset: next, limit: 30}));
   });
 }
+/** RPT-07: first-party labels for the comparison's reason codes; provider values stay literal. */
+const comparisonRowReasons = {
+  platform: 'Platform',
+  account_id: 'Account',
+  currency: 'Currency',
+  timezone: 'Time zone',
+  result_definition: 'Result definition',
+  attribution: 'Attribution',
+  entity_level: 'Reporting level',
+  grain: 'Grouping',
+  window: 'Window',
+  definition_changed_within_window: 'Definition changed within the window',
+  not_in_baseline: 'Not in the earlier window',
+  not_in_current: 'Not in this window',
+};
+const comparisonMetricReasons = {
+  non_additive_multi_day: 'Not additive across days; compared only for single-day windows',
+  formula_changed: 'The formula changed between the windows',
+  native_or_non_additive_dependency: 'Uses a provider field or a non-additive metric',
+  depends_on_excluded_metric: 'Depends on an excluded metric',
+  native_field_not_comparable: 'Provider field without a known aggregation',
+};
+const comparisonText = (labels, code) => (Object.hasOwn(labels, code) ? uiText(labels[code]) : code);
+/** One compared metric: this window, the earlier window and the change, with nothing coloured as good or bad. */
+function comparisonCell(key, value, currency) {
+  if (!value || value.current === null || value.baseline === null)
+    return `<td role="cell">${esc(uiText('Unavailable'))}</td>`;
+  const format = n => (typeof metricFormat === 'function' ? metricFormat(key, n, currency) : String(n)),
+    sign = value.delta.startsWith('-') ? '' : '+',
+    percent =
+      value.delta_percent === null
+        ? `<span title="${esc(uiText('The earlier value is zero, so there is no percentage.'))}">—</span>`
+        : esc(sign + uiDecimal(value.delta_percent, {maximumFractionDigits: 2}) + '%');
+  return `<td role="cell"><strong>${esc(format(value.current))}</strong><small>${esc(uiText('Earlier: {value}', {value: format(value.baseline)}))}</small><small>${esc(uiText('Change:'))} ${esc(sign + format(value.delta))} (${percent})</small></td>`;
+}
+function renderSnapshotComparison(out) {
+  const keys = out.metrics,
+    label = key =>
+      typeof overviewState !== 'undefined' && overviewState.bootstrap?.metrics?.[key]
+        ? uiText(overviewState.bootstrap.metrics[key].label)
+        : key,
+    entity = row =>
+      `<span dir="auto" data-native>${esc(row.entity_name ?? row.entity_id)}</span><small>${esc(row.entity_id)} · ${esc(row.account_id)}</small>`,
+    list = (items, count, one, other) =>
+      count
+        ? `<details><summary>${esc(uiPlural(count, one, other))}</summary><ul>${items.map(x => `<li>${entity(x)} — ${esc((x.reasons ?? [x.reason]).map(code => comparisonText(comparisonRowReasons, code)).join(', '))}</li>`).join('')}</ul></details>`
+        : '';
+  return `<p class="form-note">${esc(uiText('{current} compared with {baseline} ({days} days each).', {current: reportRangeLabel(out.current.date_range), baseline: reportRangeLabel(out.baseline.date_range), days: out.current.window_days}))}</p>${out.excluded_metrics.length ? `<p class="form-note">${esc(uiText('Not compared:'))} ${out.excluded_metrics.map(x => `${esc(label(x.metric))} (${esc(comparisonText(comparisonMetricReasons, x.reason))})`).join('; ')}</p>` : ''}${
+    out.rows.length
+      ? `<div class="report-table-wrap" role="region" tabindex="0" aria-label="${esc(uiText('Period comparison (scrolls sideways)'))}"><table class="report-table report-compare-table" role="table"><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">${esc(uiText('Campaign / ad set / ad / resource'))}</th>${keys.map(k => `<th scope="col" role="columnheader">${esc(label(k))}</th>`).join('')}</tr></thead><tbody role="rowgroup">${out.rows.map(row => `<tr role="row"><th scope="row" role="rowheader">${entity(row)}</th>${keys.map(k => comparisonCell(k, row.values[k], row.currency)).join('')}</tr>`).join('')}</tbody></table></div><p class="muted">${esc(uiText('Rows {start}–{end} of {total} matching entities.', {start: out.offset + 1, end: out.offset + out.rows.length, total: out.row_count}))}</p>`
+      : blank(uiText('No entity appears in both windows with the same measurement definitions.'))
+  }${list(out.incompatible, out.incompatible_count, '{count} entity not compared: measurement definitions differ', '{count} entities not compared: measurement definitions differ')}${list(out.only_current, out.only_current_count, '{count} entity only in this window', '{count} entities only in this window')}${list(out.only_baseline, out.only_baseline_count, '{count} entity only in the earlier window', '{count} entities only in the earlier window')}<ul class="form-note">${out.limitations.map(x => `<li>${esc(uiText(x))}</li>`).join('')}</ul>`;
+}
+/**
+ * RPT-07 "Compare to": an earlier retained snapshot of equal length (the previous-period pair is preselected). Options
+ * that fail a rule stay listed, disabled, with the reason. Comparing reads retained snapshots only.
+ */
+function mountSnapshotComparison(report, root) {
+  root.insertAdjacentHTML(
+    'beforeend',
+    `<section class="panel workspace-form" id="snapshot-compare"><h2>${esc(uiText('Compare periods'))}</h2><p>${esc(uiText('Compare this snapshot with an earlier window of the same length. Only entities with the same currency, time zone, attribution and result definition are compared, and nothing is read from the provider.'))}</p><button class="button" id="snapshot-compare-choices">${esc(uiText('Choose an earlier window'))}</button><div id="snapshot-compare-body"></div></section>`,
+  );
+  const show = async baselineId => {
+    const out = await overviewCall({
+      action: 'compare',
+      id: report.id,
+      ...(baselineId ? {baseline_id: baselineId} : {}),
+    });
+    $('#snapshot-compare-result').innerHTML = renderSnapshotComparison(out);
+  };
+  workspaceBind('#snapshot-compare-choices', async () => {
+    const out = await overviewCall({action: 'compare_candidates', id: report.id});
+    $('#snapshot-compare-body').innerHTML =
+      `<form id="snapshot-compare-form"><label>${esc(uiText('Compare to'))}<select name="baseline_id" required><option value="">${esc(uiText('Choose explicitly'))}</option>${out.candidates
+        .map(
+          c =>
+            `<option value="${esc(c.id)}" ${c.eligible ? '' : 'disabled'} ${c.paired && c.eligible ? 'selected' : ''}>${esc(reportRangeLabel(c.date_range))} · ${esc(c.name ?? '')}${c.paired ? ' · ' + esc(uiText('previous equal window')) : ''}${c.eligible ? '' : ' — ' + esc(c.reasons.map(r => uiText(r.message)).join(' '))}</option>`,
+        )
+        .join(
+          '',
+        )}</select></label><button type="submit" class="button primary">${esc(uiText('Compare'))}</button></form><div id="snapshot-compare-result"></div>`;
+    workspaceBind('#snapshot-compare-form', async form => show(form.elements.baseline_id.value));
+    if (out.candidates.some(c => c.paired && c.eligible)) await show(out.paired_baseline_id);
+  });
+}
 function bindSnapshotAnalysis(report, root) {
   root.insertAdjacentHTML(
     'afterbegin',
@@ -63,6 +148,7 @@ function bindSnapshotAnalysis(report, root) {
     'beforeend',
     `<section class="panel workspace-form"><h2>${esc(uiText('Analyze retained evidence'))}</h2><p>${esc(uiText('Choose one compatible account and measurement definition from this snapshot. Its original capture time and source lineage are retained.'))}</p><button class="button" id="snapshot-analysis-groups">${esc(uiText('Choose evidence group'))}</button><div id="snapshot-analysis"></div></section>`,
   );
+  mountSnapshotComparison(report, root);
   root.insertAdjacentHTML(
     'beforeend',
     `<a class="button" href="/report-pack?report_id=` +

@@ -209,11 +209,13 @@ test('saved evidence continuation failures remain retryable while late identity 
 });
 
 test('loaded comparison choices preserve the current selection and clear removed references without rebuilding the report', async () => {
+  // RPT-07: only an earlier equal-length window can be the analyze baseline, so the retained choice is the two days
+  // before the report (the same window was offered before, which the server always refused).
   const row = id => ({
     id,
     gateway: 'meta_native_action',
     account_id: '100',
-    semantics: {source_name: id, currency: 'USD', date_from: '2026-09-01', date_to: '2026-09-02'},
+    semantics: {source_name: id, currency: 'USD', date_from: '2026-08-30', date_to: '2026-08-31'},
     captured_at: 1,
   });
   const f = fixture(undefined, args =>

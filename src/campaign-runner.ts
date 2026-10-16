@@ -1,6 +1,7 @@
 import {recipeContext, recipeInputs, resolveBrief} from './recipe-context.js';
 import {eligibilityReuse, recipeEligibility} from './recipe-eligibility.js';
 import {assertAllocationStep, allocationCreationBinding} from './allocation-plan.js';
+import {scheduleAllocationOutcomeQuietly} from './allocation-outcome.js';
 import {assertConsentStep, consentCreationBinding} from './gtm-consent-plans.js';
 import {assertCatalogRemovalStep, catalogRemovalCreationBinding} from './x-catalog-removal.js';
 import {
@@ -433,7 +434,10 @@ export class CampaignRunner {
   private save(actor: Actor, run: JsonObject) {
     const {id, revision, ...data} = run;
     this.store.putDocument(actor.tenantId, 'campaign_run', id, {...data, updated_at: Date.now()}, revision);
-    return this.owned(actor, id);
+    const saved = this.owned(actor, id);
+    // DEC-02: a completed allocation plan whose every step was verified schedules its outcome review (idempotent).
+    if (saved.allocation && saved.state === 'complete') scheduleAllocationOutcomeQuietly(this.store, actor, saved);
+    return saved;
   }
   /** The idempotency claim of a submitted step, if its review ever reached execution. */
   private claim(actor: Actor, reviewId: unknown): JsonObject | undefined {

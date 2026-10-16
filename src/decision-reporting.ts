@@ -5,6 +5,7 @@ import {
   createSearchExclusionPlan,
 } from './search-exclusion-plan.js';
 import {Store} from './store.js';
+import {MirrorError} from './errors.js';
 import {accountMetadataStaleMs, recallAccountMetadata} from './account-metadata.js';
 import type {Actor, JsonObject} from './types.js';
 import {audit, bad, field, fingerprint, obj, pointer, read, tool, validate, type ToolCall} from './workspace-core.js';
@@ -28,6 +29,11 @@ import {
 import {normalizeAccount} from './scope.js';
 import {collectMetaEvidence} from './meta-evidence.js';
 import {collectLinkedInEvidence} from './linkedin-evidence.js';
+import {linkedInConversionEvidence} from './linkedin-conversion-evidence.js';
+import {allocationOutcomeView, captureAllocationOutcome} from './allocation-outcome.js';
+import {linkedInConversionUrn, linkedInConversionWindows} from './linkedin-conversion-windows.js';
+import {breakdownDescriptor, breakdownDimensionKeys, breakdownValue} from './report-breakdowns.js';
+import {metaAttributionWindows} from './meta-attribution-windows.js';
 import {collectSnapchatEvidence} from './snapchat-evidence.js';
 import {evidenceIndex} from './evidence-index.js';
 import {googleServingDiagnostics} from './google-serving-diagnostics.js';
@@ -46,7 +52,7 @@ const baselineIncompleteLimitation =
   'The baseline window is not declared complete; comparisons with it (spend anomaly, creative fatigue) may reflect missing baseline data.';
 export const decisionTool = tool(
   'amcp_reporting',
-  'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. For saved client reports across platforms, schedules and Sheets exports, use amcp_reporting_overview. Capture source-linked native metrics; reconcile totals with an explicitly labeled reference; compare compatible reports and generate evidence-based pacing, anomaly, fatigue and search-waste recommendations. Search waste: capture a search-terms read whose mapping names search_term, clicks, spend and conversions, then analyze {id, options: {minimum_clicks}}; amcp://guides/workspace shows the Google request. capture_presets discovers Google, Meta, LinkedIn, TikTok and Snapchat detailed reports; with connection_id and account_id it also returns the stored currency, timezone and read time of that account (target), without a provider read. Snapchat campaign/ad presets and the campaign-scoped adsquad preset require explicit swipe_up_attribution_window (1_DAY, 7_DAY or 28_DAY) and view_attribution_window (none, 1_HOUR, 3_HOUR, 6_HOUR, 1_DAY or 7_DAY); seven-day view needs at least seven-day swipe. They retain conversion_purchases from total sources with conversion-time reporting, exact spend micros and swipes as clicks. Require 1–31 closed account-local days, whole-hour midnight boundaries and complete:true. Both account checks and every bounded page keep source references. Native delivery and conversion processing timestamps must cover the requested end; duplicate entities, missing days, foreign cursors, changed settings or authorization are refused. Ad-squad evidence requires campaign_id, reads its account collection and exact parent before and after complete campaign stats pages, retains parent source references, and refuses reconciliation across different parents. Native lead presets snapchat_campaign_leads, snapchat_adsquad_leads and snapchat_ad_leads retain native_leads submitted-form counts without submitted lead records or purchase attribution-window controls. They require finalized_data_end_time for each complete daily page; conversion-processing timestamps do not establish these native counts. Lead ad-squad/ad presets require the exact owned campaign_id before and after collection. Original purchase presets remain unchanged. No conversion-value or historical creative-assignment claim. Google guided presets verify exact customer identity, currency and timezone before and after complete bounded Search pages, retain account/page source hashes, and reject mismatched counts, dates, native resources or duplicate grain. Ads use ad-group-ad resource names as entity_id; search terms use search-term-view resource names, preserving native parents. google_keyword retains positive Search keyword × day evidence from keyword_view with exact criterion/view resources, original keyword text as entity_name and optional keyword_match_type (EXACT, PHRASE or BROAD). False negative flags may be omitted under ProtoJSON defaults; malformed, foreign, negative or changed immutable keyword metadata is refused before persistence. The preset does not qualify search-exclusion or budget writes. Custom keyword_match_type mapping requires a plain field pointer and a literal supported native enum; old mappings/rows remain unchanged. google_campaign_device retains campaign × native device × day evidence from campaign, with full campaign resource identities and no device/status filtering. native_device preserves one of UNSPECIFIED, UNKNOWN, MOBILE, TABLET, DESKTOP, CONNECTED_TV or OTHER using a plain mapped pointer; missing categories do not establish zero activity. This separate grain does not qualify device bids, campaign budgets or search exclusions. google_campaign_country retains campaign × native country × native location type × day from geographic_view, with original nonnegative int64 country strings, literal UNSPECIFIED/UNKNOWN/AREA_OF_INTEREST/LOCATION_OF_PRESENCE and full geographic resource identities. Presence and interest stay distinct; IDs are not inferred country names and absent countries do not establish zero activity. Geographic mappings require unmodified pointers and matching native identity. This grain does not qualify geographic targeting, campaign budgets or search exclusions. Campaign and ad group IDs stay numeric strings. Conversions use metrics.conversions; attribution windows and period completeness remain declared. search_term_view excludes Performance Max. Older retained reports are unchanged and incompatible native mappings/grains cannot be reconciled. TikTok campaign, adgroup and ad presets use BASIC auction daily reporting. They verify advertiser currency and timezone before and after complete native pages; require 1–31 closed days and complete:true; retain native string IDs, exact decimals and per-page request hashes; reject changed totals or duplicate entity/day rows; and bound collections to 10000 rows. The native conversion metric follows each entity optimization goal, which can differ; attribution windows remain declared. Smart+, GMV Max and specialized reports are separate. LinkedIn campaign_group, campaign and creative presets verify exact account identity and currency before and after one complete bounded analytics response under unchanged credentials/scopes, require UTC and use the exact externalWebsiteConversions metric. Both account checks and the original analytics response keep source references; no continuation is invented. They require declared attribution windows (or unknown), reject ambiguous empty/truncated reports and retain native URNs. Daily dates are limited conservatively to the current month and previous five months. This reporting endpoint has no pagination. Meta capture_preset requires an exact result_action_type and explicit attribution_windows; its attribution and result definitions come from the generated request. It verifies exact native account identity, currency and timezone before and after complete Insights pages, including empty reports; retains account/page request hashes; checks parent/day grain and unchanged credentials/scopes around each read; and follows only bounded native cursors on the original account/query. On a delivered row (impressions above 0) an absent selected action counts as 0 and is named in omitted_as_zero; without delivery it stays unknown. Aliases are never added. calibrate_allocation diagnoses retained daily efficiency using id, 1–20 exact entity ids and options {training_days:7–21 (default 7), minimum_training_conversions:1–1000000 (default 10), maximum_age_days:1–90 (default 7), central_share_percent:50|60|70|80|90 (default 80)}. Requires 14–31 closed consecutive days with an explicit known spend/conversion row for every selected entity/day and at least seven test days after training. Each one-day estimate uses only the selected preceding training window, conditioned on actual test-day spend. Exact rational errors, empirical nearest-rank factor bands and an optional outward-rounded envelope remain inspectable. Unknown/zero expected ratios and factors outside allocation limits are never clipped or automatically applied. This diagnoses historical assumptions; it is not a delivery forecast, future coverage guarantee or causal budget response and makes no provider read, saved change or native plan. allocation_candidates pages selected unit totals from a guided Google/Meta/LinkedIn campaign/day or parent-bound Snapchat ad-squad/day report with offset/limit. allocation models a comparable-period budget using options {budget, allocations:[{entity_id,minimum,maximum}], efficiency_low, efficiency_high, minimum_conversions, maximum_age_days}; select 2–50 native campaigns or ad squads from the same report scope. It requires recent complete evidence and exact feasible floors/caps; it is a linear sensitivity proposal, not a forecast, native daily budget or approval. preview_allocation_plan takes report id, the same allocation options and explicit conversion equal_daily; it reads current dedicated Google campaign daily budgets, independent LinkedIn campaign daily budgets or Snapchat ad-squad daily budgets and shows exact native amounts and rounding residuals. LinkedIn selects at most 20 original campaign URNs, requires verified UTC analytics and account currency, current reporting/write scopes and account write grant, brackets campaign/group/account evidence, refuses shared/lifetime/accelerated modes, and emits native decimal dailyBudget amounts through the existing REST.li PARTIAL_UPDATE review. Daily settings may spend up to 150% on a day with strong auction opportunities; existing group caps remain unchanged. Snapchat requires exact retained parent evidence, positive account-edge ownership, current account/parent checks and owned auction ad-squad pacing; it refuses lifetime, reserved and Smart Budgets. Every native read retains request/hash/time; one shared reference array avoids duplication across targets. create_allocation_plan requires that report id, preview_id, preview_hash and confirmed:true within the current session and ten-minute preview. It saves an unapproved source-bound campaign draft, not an advertising change. Current ownership/source checks precede unsent plan steps, and native review, spending acknowledgement and read-back remain separate. Other providers, shared/lifetime/reserved/Smart Budgets and automatic end dates are unqualified. reconcile_report compares id against reference_id using retained guided presets or the same Overview definition/group; account, dates, currency, timezone, attribution, conversion definition, completeness and native grain must align. options.tolerance accepts additive metric decimals. It retains both source hashes, makes no new read and does not independently verify provider attribution. Legacy reconcile with manually supplied totals checks numerical agreement only. Optional reference.context explicitly declares gateway, account_id, currency, timezone, date_from, date_to, attribution, conversion_definition, grain, complete:true and same_entities_and_filters:true; all must match known guided or Overview evidence. It returns declared_reference with independently_verified:false. Optional reference.file metadata records a browser-parsed one-row CSV hash, bytes, encoding, delimiter, rows:1, number_format, selected columns and money_scales, never the original file. File hashes and declared source settings are not independently fetched or verified. list returns bounded source-linked metadata pages (default limit:30, maximum:100), not native rows/requests/page bodies. Continue only with next_cursor and the same search/gateway/connection/account/preset filters; account filtering requires gateway. Cursors expire after 15 minutes and bind current identity/session/role and connection read scope. Each returned item rechecks current access; at most 500 candidates are scanned per call, so an empty page with has_more is not a complete empty collection. search matches original report IDs, names, account IDs or presets case-insensitively. Nonzero offset is refused for list. get still inspects original complete bounded evidence and its source definitions. get accepts optional row_query (at most 150 plain-text characters) to search retained entity IDs/names, dates, search terms and explicitly mapped native keyword match types, devices, original hours, country criterion IDs, location types or geographic resources case-insensitively before offset/limit paging. row_count stays the full retained count; matched_row_count and row_query describe the filtered view. Totals, analysis, source hashes and Excel remain the complete original report; searching makes no provider call or saved change. get and capture results include xlsx_path for an authenticated website download of all retained mapped rows, exact totals, mappings and selected source references. Add ?language=en or ar explicitly; English is the default. Excel stores numeric metrics as text to preserve precision. Generation rechecks current account access and report revision, shares the bounded report artifact concurrency limit, and makes no provider call or retained binary. search_exclusion_candidates pages recent complete guided Google search-term evidence meeting options {minimum_clicks:1–1000000 (default 30),maximum_age_days:1–90 (default 7)}. Dates must be closed and recent in the account timezone, attribution declared and conversions exactly zero; missing metrics never qualify. Only 1–80 character, at most 10-word literal terms using Unicode letters, marks, digits, spaces and apostrophes qualify. preview_search_exclusions takes report id, 1–20 distinct entity resource ids in ids and the same options; it verifies current standard Search parents before and after a complete bounded exact-keyword read, rejecting existing positive/negative exact conflicts. Existing broader, campaign and shared exclusions remain unassessed. create_search_exclusion_plan needs preview_id and preview_hash from the same session and confirmed:true within ten minutes. It saves one unapproved exact negative-keyword step per selected term in the original ad group. Source revision, current access and native parent checks bind unsent steps; each still requires native review, spending acknowledgement and read-back. serving_diagnostics reads why Google entities serve or not, as Google reports it: account_id, connection_id, optional campaign_id and options {levels:[campaign|ad_group|ad|asset_group|asset_group_asset], limit:1–100 (default 50)}; one bounded page per level of primary_status, primary_status_reasons, policy approval/review status and topic types, ad_strength and action_items. Native symbols pass through unchanged and unknown_symbols lists any outside the pinned v25 enums; policy evidence and asset contents are not returned and nothing is saved. launch_check takes a completed guided Meta or Snapchat launch plan id and optional reference_id (a retained campaign × day capture_preset of that account): native reads of the plan’s verified campaign, its ad set or ad squad and the account feed the rule-based campaign audit (budget, schedule, bid strategy, frequency, targeting) with explicit unknowns. Delivery is observed only from reported impressions; a paused campaign or a missing capture stays unknown, never a false alarm. Nothing is saved or changed. No advertising writes from reporting. Missing metrics stay unknown.',
+  'Use this to analyse metrics captured from native reports: reconciliation, comparisons and recommendations. For saved client reports across platforms, schedules and Sheets exports, use amcp_reporting_overview. Capture source-linked native metrics; reconcile totals with an explicitly labeled reference; compare compatible reports and generate evidence-based pacing, anomaly, fatigue and search-waste recommendations. Search waste: capture a search-terms read whose mapping names search_term, clicks, spend and conversions, then analyze {id, options: {minimum_clicks}}; amcp://guides/workspace shows the Google request. capture_presets discovers Google, Meta, LinkedIn, TikTok and Snapchat detailed reports; with connection_id and account_id it also returns the stored currency, timezone and read time of that account (target), without a provider read. Snapchat campaign/ad presets and the campaign-scoped adsquad preset require explicit swipe_up_attribution_window (1_DAY, 7_DAY or 28_DAY) and view_attribution_window (none, 1_HOUR, 3_HOUR, 6_HOUR, 1_DAY or 7_DAY); seven-day view needs at least seven-day swipe. They retain conversion_purchases from total sources with conversion-time reporting, exact spend micros and swipes as clicks. Require 1–31 closed account-local days, whole-hour midnight boundaries and complete:true. Both account checks and every bounded page keep source references. Native delivery and conversion processing timestamps must cover the requested end; duplicate entities, missing days, foreign cursors, changed settings or authorization are refused. Ad-squad evidence requires campaign_id, reads its account collection and exact parent before and after complete campaign stats pages, retains parent source references, and refuses reconciliation across different parents. Native lead presets snapchat_campaign_leads, snapchat_adsquad_leads and snapchat_ad_leads retain native_leads submitted-form counts without submitted lead records or purchase attribution-window controls. They require finalized_data_end_time for each complete daily page; conversion-processing timestamps do not establish these native counts. Lead ad-squad/ad presets require the exact owned campaign_id before and after collection. Original purchase presets remain unchanged. No conversion-value or historical creative-assignment claim. Google guided presets verify exact customer identity, currency and timezone before and after complete bounded Search pages, retain account/page source hashes, and reject mismatched counts, dates, native resources or duplicate grain. Ads use ad-group-ad resource names as entity_id; search terms use search-term-view resource names, preserving native parents. google_keyword retains positive Search keyword × day evidence from keyword_view with exact criterion/view resources, original keyword text as entity_name and optional keyword_match_type (EXACT, PHRASE or BROAD). False negative flags may be omitted under ProtoJSON defaults; malformed, foreign, negative or changed immutable keyword metadata is refused before persistence. The preset does not qualify search-exclusion or budget writes. Custom keyword_match_type mapping requires a plain field pointer and a literal supported native enum; old mappings/rows remain unchanged. google_campaign_device retains campaign × native device × day evidence from campaign, with full campaign resource identities and no device/status filtering. native_device preserves one of UNSPECIFIED, UNKNOWN, MOBILE, TABLET, DESKTOP, CONNECTED_TV or OTHER using a plain mapped pointer; missing categories do not establish zero activity. This separate grain does not qualify device bids, campaign budgets or search exclusions. google_campaign_country retains campaign × native country × native location type × day from geographic_view, with original nonnegative int64 country strings, literal UNSPECIFIED/UNKNOWN/AREA_OF_INTEREST/LOCATION_OF_PRESENCE and full geographic resource identities. Presence and interest stay distinct; IDs are not inferred country names and absent countries do not establish zero activity. Geographic mappings require unmodified pointers and matching native identity. This grain does not qualify geographic targeting, campaign budgets or search exclusions. google_campaign_network retains campaign × literal segments.ad_network_type × day; google_pmax_search_terms retains Performance Max campaign × search term from campaign_search_term_view (exact view resources; no exclusion qualification). meta_campaign_age_gender, meta_campaign_country and meta_campaign_placement retain campaign × literal Meta breakdown values × day. Undocumented values, duplicate bucket grain and unrequested breakdowns are refused; buckets a provider omits stay unknown, bucket totals need not equal campaign totals and reach is never added across buckets. Campaign and ad group IDs stay numeric strings. Conversions use metrics.conversions; attribution windows and period completeness remain declared. search_term_view excludes Performance Max. Older retained reports are unchanged and incompatible native mappings/grains cannot be reconciled. TikTok campaign, adgroup and ad presets use BASIC auction daily reporting. They verify advertiser currency and timezone before and after complete native pages; require 1–31 closed days and complete:true; retain native string IDs, exact decimals and per-page request hashes; reject changed totals or duplicate entity/day rows; and bound collections to 10000 rows. The native conversion metric follows each entity optimization goal, which can differ; attribution windows remain declared. Smart+, GMV Max and specialized reports are separate. LinkedIn campaign_group, campaign and creative presets verify exact account identity and currency before and after one complete bounded analytics response under unchanged credentials/scopes, require UTC and use the exact externalWebsiteConversions metric. Both account checks and the original analytics response keep source references; no continuation is invented. They require declared attribution windows (or unknown), reject ambiguous empty/truncated reports and retain native URNs. Daily dates are limited conservatively to the current month and previous five months. This reporting endpoint has no pagination. linkedin_campaign_conversion keeps campaign × conversion × day evidence (statistics finder, CAMPAIGN and CONVERSION pivots, post-click and post-view counts; spend, impressions and clicks stay unmapped). It requires semantics.attribution verified_per_rule, reads the account’s current conversion rules in the same authorization bracket and returns conversion_windows: verified_per_rule when every conversion’s rule has the same windows, mixed when they differ (no single window; declared single-window references are refused) or unknown when a rule is missing (attribution unknown). Meta capture_preset requires an exact result_action_type and explicit attribution_windows (at most one of 1d_click, 7d_click or 28d_click, optional 1d_view and 1d_ev); its attribution and result definitions come from the generated request. It verifies exact native account identity, currency and timezone before and after complete Insights pages, including empty reports; retains account/page request hashes; checks parent/day grain and unchanged credentials/scopes around each read; and follows only bounded native cursors on the original account/query. On a delivered row (impressions above 0) an absent selected action counts as 0 and is named in omitted_as_zero; without delivery it stays unknown. Aliases are never added. calibrate_allocation diagnoses retained daily efficiency using id, 1–20 exact entity ids and options {training_days:7–21 (default 7), minimum_training_conversions:1–1000000 (default 10), maximum_age_days:1–90 (default 7), central_share_percent:50|60|70|80|90 (default 80)}. Requires 14–31 closed consecutive days with an explicit known spend/conversion row for every selected entity/day and at least seven test days after training. Each one-day estimate uses only the selected preceding training window, conditioned on actual test-day spend. Exact rational errors, empirical nearest-rank factor bands and an optional outward-rounded envelope remain inspectable. Unknown/zero expected ratios and factors outside allocation limits are never clipped or automatically applied. This diagnoses historical assumptions; it is not a delivery forecast, future coverage guarantee or causal budget response and makes no provider read, saved change or native plan. allocation_candidates pages selected unit totals from a guided Google/Meta/LinkedIn campaign/day or parent-bound Snapchat ad-squad/day report with offset/limit. allocation models a comparable-period budget using options {budget, allocations:[{entity_id,minimum,maximum}], efficiency_low, efficiency_high, minimum_conversions, maximum_age_days}; select 2–50 native campaigns or ad squads from the same report scope. It requires recent complete evidence and exact feasible floors/caps; it is a linear sensitivity proposal, not a forecast, native daily budget or approval. preview_allocation_plan takes report id, the same allocation options and explicit conversion equal_daily; it reads current dedicated Google campaign daily budgets, independent LinkedIn campaign daily budgets, Snapchat ad-squad daily budgets, or a Meta auction campaign’s daily budget on its current owner (the campaign, or its one spending ad set; at most 20 campaigns, exact Meta minor units; lifetime, mixed, split and reserved budgets refused) and shows exact native amounts and rounding residuals. Each target also shows budget_utilization (observed spend over today’s daily budget times the evidence days; low below 80%). LinkedIn selects at most 20 original campaign URNs, requires verified UTC analytics and account currency, current reporting/write scopes and account write grant, brackets campaign/group/account evidence, refuses shared/lifetime/accelerated modes, and emits native decimal dailyBudget amounts through the existing REST.li PARTIAL_UPDATE review. Daily settings may spend up to 150% on a day with strong auction opportunities; existing group caps remain unchanged. Snapchat requires exact retained parent evidence, positive account-edge ownership, current account/parent checks and owned auction ad-squad pacing; it refuses lifetime, reserved and Smart Budgets. Every native read retains request/hash/time; one shared reference array avoids duplication across targets. create_allocation_plan requires that report id, preview_id, preview_hash and confirmed:true within the current session and ten-minute preview. It saves an unapproved source-bound campaign draft, not an advertising change. Current ownership/source checks precede unsent plan steps, and native review, spending acknowledgement and read-back remain separate. Other providers, shared/lifetime/reserved/Smart Budgets and automatic end dates are unqualified. allocation options may add factor_source {kind:"calibration", evidence_fingerprint, ids, options} naming the calibration its efficiency factors came from; it is recomputed, refused when it differs, and becomes part of model_fingerprint and the draft brief. allocation_indicators compare each proposed daily average with the observed daily spend range (outside_observed_range means the model extrapolates). allocation_outcome takes a campaign plan id: once every allocation step is executed and verified by read-back it schedules the outcome review for the next comparable closed period (the reference length, from the next account-local day) and shows its window, state and results; capture_allocation_outcome captures the same entities with the proposal’s guided preset only after that window has closed (refused before) and saves realized spend and conversions beside the modeled range, a spend-conditioned range and a realized factor, retained as guided evidence. These are observational comparisons, never forecast accuracy or a causal effect; a background review retries a provider that has not finalized the window. reconcile_report compares id against reference_id using retained guided presets or the same Overview definition/group; account, dates, currency, timezone, attribution, conversion definition, completeness and native grain must align. options.tolerance accepts additive metric decimals. It retains both source hashes, makes no new read and does not independently verify provider attribution. Legacy reconcile with manually supplied totals checks numerical agreement only. Optional reference.context explicitly declares gateway, account_id, currency, timezone, date_from, date_to, attribution, conversion_definition, grain, complete:true and same_entities_and_filters:true; all must match known guided or Overview evidence. It returns declared_reference with independently_verified:false. Optional reference.file metadata records a browser-parsed one-row CSV hash, bytes, encoding, delimiter, rows:1, number_format, selected columns and money_scales, never the original file. File hashes and declared source settings are not independently fetched or verified. list returns bounded source-linked metadata pages (default limit:30, maximum:100), not native rows/requests/page bodies. Continue only with next_cursor and the same search/gateway/connection/account/preset filters; account filtering requires gateway. Cursors expire after 15 minutes and bind current identity/session/role and connection read scope. Each returned item rechecks current access; at most 500 candidates are scanned per call, so an empty page with has_more is not a complete empty collection. search matches original report IDs, names, account IDs or presets case-insensitively. Nonzero offset is refused for list. get still inspects original complete bounded evidence and its source definitions. get accepts optional row_query (at most 150 plain-text characters) to search retained entity IDs/names, dates, search terms and explicitly mapped native keyword match types, devices, original hours, country criterion IDs, location types or geographic resources case-insensitively before offset/limit paging. row_count stays the full retained count; matched_row_count and row_query describe the filtered view. Totals, analysis, source hashes and Excel remain the complete original report; searching makes no provider call or saved change. get and capture results include xlsx_path for an authenticated website download of all retained mapped rows, exact totals, mappings and selected source references. Add ?language=en or ar explicitly; English is the default. Excel stores numeric metrics as text to preserve precision. Generation rechecks current account access and report revision, shares the bounded report artifact concurrency limit, and makes no provider call or retained binary. search_exclusion_candidates pages recent complete guided Google search-term evidence meeting options {minimum_clicks:1–1000000 (default 30),maximum_age_days:1–90 (default 7)}. Dates must be closed and recent in the account timezone, attribution declared and conversions exactly zero; missing metrics never qualify. Only 1–80 character, at most 10-word literal terms using Unicode letters, marks, digits, spaces and apostrophes qualify. preview_search_exclusions takes report id, 1–20 distinct entity resource ids in ids and the same options; it verifies current standard Search parents before and after a complete bounded exact-keyword read, rejecting existing positive/negative exact conflicts. Existing broader, campaign and shared exclusions remain unassessed. create_search_exclusion_plan needs preview_id and preview_hash from the same session and confirmed:true within ten minutes. It saves one unapproved exact negative-keyword step per selected term in the original ad group. Source revision, current access and native parent checks bind unsent steps; each still requires native review, spending acknowledgement and read-back. serving_diagnostics reads why Google entities serve or not, as Google reports it: account_id, connection_id, optional campaign_id and options {levels:[campaign|ad_group|ad|asset_group|asset_group_asset], limit:1–100 (default 50)}; one bounded page per level of primary_status, primary_status_reasons, policy approval/review status and topic types, ad_strength and action_items. Native symbols pass through unchanged and unknown_symbols lists any outside the pinned v25 enums; policy evidence and asset contents are not returned and nothing is saved. launch_check takes a completed guided Meta or Snapchat launch plan id and optional reference_id (a retained campaign × day capture_preset of that account): native reads of the plan’s verified campaign, its ad set or ad squad and the account feed the rule-based campaign audit (budget, schedule, bid strategy, frequency, targeting) with explicit unknowns. Delivery is observed only from reported impressions; a paused campaign or a missing capture stays unknown, never a false alarm. Nothing is saved or changed. No advertising writes from reporting. Missing metrics stay unknown.',
   [
     'capture',
     'capture_presets',
@@ -65,6 +71,8 @@ export const decisionTool = tool(
     'allocation',
     'preview_allocation_plan',
     'create_allocation_plan',
+    'allocation_outcome',
+    'capture_allocation_outcome',
     'search_exclusion_candidates',
     'preview_search_exclusions',
     'create_search_exclusion_plan',
@@ -90,9 +98,9 @@ export const decisionTool = tool(
     attribution_windows: {
       type: 'array',
       minItems: 1,
-      maxItems: 2,
+      maxItems: 3,
       uniqueItems: true,
-      items: {type: 'string', enum: ['1d_click', '7d_click', '1d_view']},
+      items: {type: 'string', enum: [...metaAttributionWindows]},
     },
     swipe_up_attribution_window: {type: 'string', enum: ['1_DAY', '7_DAY', '28_DAY']},
     view_attribution_window: {type: 'string', enum: ['none', '1_HOUR', '3_HOUR', '6_HOUR', '1_DAY', '7_DAY']},
@@ -141,6 +149,8 @@ function captureTarget(store: Store, actor: Actor, input: JsonObject) {
 }
 const metrics = ['spend', 'impressions', 'clicks', 'conversions', 'conversion_value', 'reach', 'frequency'];
 const nonAdditive = ['reach', 'frequency'];
+/** RPT-07: LinkedIn post-click and post-view conversion counts; additive, retained only when a mapping names them. */
+const conversionSplit = ['post_click_conversions', 'post_view_conversions'];
 /** Caller-declared totals, tolerances and options keep the strict nine-place grammar; provider values use provider-decimal. */
 const scaledDeclared = (s: unknown): bigint => {
   if (typeof s === 'number' && (!Number.isFinite(s) || Math.abs(s) > Number.MAX_SAFE_INTEGER))
@@ -266,6 +276,109 @@ export class DecisionReporting {
   async collectGuided(input: JsonObject, actor: Actor) {
     return this.handle({action: 'capture', ...reportPreset(input)}, actor, input.preset, true);
   }
+  /** One analysable group per account, entity level, currency, time zone, attribution and result definition. */
+  private overviewGroups(actor: Actor, snapshot: JsonObject) {
+    for (const source of snapshot.config.sources)
+      this.store.resolveConnection(
+        actor,
+        reportPlatforms[source.platform]!.gateway,
+        source.account_id,
+        source.connection_id,
+      );
+    const groups = new Map<string, {semantics: JsonObject; source: JsonObject; rows: JsonObject[]}>();
+    for (const row of snapshot.rows) {
+      const sem = {
+        currency: row.currency,
+        timezone: row.timezone,
+        date_from: snapshot.config.date_range.since,
+        date_to: snapshot.config.date_range.until,
+        attribution: row.attribution ?? 'unknown',
+        conversion_definition: row.result_definition ?? 'unknown',
+        source_name: String(snapshot.config.name).slice(0, 200),
+        complete: row.complete === true && row.quality?.measurement_complete !== false,
+      };
+      const source = {
+        gateway: reportPlatforms[row.platform]!.gateway,
+        account_id: row.account_id,
+        connection_id: row.connection_id,
+        ...(row.entity_level ? {entity_level: row.entity_level, native_entity_type: row.native_entity_type} : {}),
+      };
+      // The key has no dates, so the same group of an earlier window of the report has the same ID (RPT-07 pairs).
+      const key = fingerprint({
+        ...source,
+        currency: sem.currency,
+        timezone: sem.timezone,
+        attribution: sem.attribution,
+        conversion_definition: sem.conversion_definition,
+      });
+      const group: {semantics: JsonObject; source: JsonObject; rows: JsonObject[]} = groups.get(key) ?? {
+        semantics: sem,
+        source,
+        rows: [],
+      };
+      group.rows.push(row);
+      group.semantics.complete &&= sem.complete;
+      groups.set(key, group);
+    }
+    return groups;
+  }
+  /** Keeps one Overview group as analysable evidence; the ID is derived from the snapshot, group and source hash. */
+  private captureOverviewGroup(
+    actor: Actor,
+    snapshot: JsonObject,
+    groupId: string,
+    group: {semantics: JsonObject; source: JsonObject; rows: JsonObject[]},
+    extra: JsonObject = {},
+  ): JsonObject {
+    const sem = semantic(group.semantics);
+    if (!group.rows.length || group.rows.length > 10000) bad('Choose a snapshot group of 1–10,000 rows.');
+    const rounding: Record<string, number> = {};
+    const rows = group.rows.map(row => ({
+      entity_id: String(row.entity_id ?? row.campaign_id),
+      entity_name: row.entity_name ?? row.campaign_name ?? null,
+      date: row.date_from,
+      search_term: null,
+      ...Object.fromEntries(
+        metrics.map(key => [
+          key,
+          row.metrics[key] == null ? null : providerMetric(key, row.metrics[key], 'metrics.' + key, rounding),
+        ]),
+      ),
+    }));
+    const metricRounding = metricRoundingRecord(rounding);
+    const report = {
+      ...group.source,
+      semantics: metricRounding ? {...sem, metric_rounding: metricRounding} : sem,
+      semantics_source: 'retained Overview source definitions; no fresh provider collection',
+      mapping: Object.fromEntries(metrics.map(key => [key, '/metrics/' + key])),
+      source_request: {overview_id: snapshot.id, group_id: groupId, grain: snapshot.config.grain ?? 'total'},
+      source_hash: fingerprint(metricRounding ? {rows: group.rows, metric_rounding: metricRounding} : group.rows),
+      source_lineage: {
+        overview_id: snapshot.id,
+        definition_fingerprint: fingerprint(snapshot.config),
+        row_keys: group.rows.map(row => row.row_key),
+        query_fingerprints: [...new Set(group.rows.map(row => row.query_fingerprint))],
+      },
+      captured_at: Math.min(...group.rows.map(row => row.captured_at ?? snapshot.captured_at)),
+      rows,
+      totals: totals(rows),
+      coverage: Object.fromEntries(
+        metrics.map(key => [key, rows.some(row => row[key as keyof typeof row] == null) ? 'partial' : 'mapped']),
+      ),
+      source: 'overview_snapshot',
+      ...extra,
+    };
+    const id = fingerprint({snapshot: snapshot.id, group: groupId, source_hash: report.source_hash});
+    if (Buffer.byteLength(JSON.stringify(report)) > 8 * 1024 * 1024) bad('Narrow the report to 8 MiB.');
+    this.store.putDocument(actor.tenantId, 'decision_report', id, report);
+    audit(this.store, actor, 'overview_evidence_captured', {
+      id,
+      overview_id: snapshot.id,
+      group_id: groupId,
+      source_hash: report.source_hash,
+    });
+    return {...report, id};
+  }
   async handle(input: JsonObject, actor: Actor, capturePreset?: string, transient = false): Promise<JsonObject> {
     validate(input, Object.keys(decisionTool.inputSchema.properties));
     this.store.assertActorActive(actor);
@@ -327,7 +440,9 @@ export class DecisionReporting {
           ...(request.gateway === 'linkedin_native_action'
             ? {
                 semantics_source:
-                  'LinkedIn account identity and currency verified before and after a complete bounded analytics response with unchanged authorization; UTC dates and externalWebsiteConversions from the native request; attribution windows and completeness explicitly declared, not independently verified. Collection is not a point-in-time snapshot.',
+                  input.preset === 'linkedin_campaign_conversion'
+                    ? "LinkedIn account identity and currency verified before and after a complete bounded campaign × conversion analytics response and the account's current conversion rules, all under unchanged authorization; each conversion's post-click and post-view windows come from its current rule (verified_per_rule, mixed or unknown). Rule settings are current, not historical. Reporting-window completeness remains declared. Collection is not a point-in-time snapshot."
+                    : 'LinkedIn account identity and currency verified before and after a complete bounded analytics response with unchanged authorization; UTC dates and externalWebsiteConversions from the native request; attribution windows and completeness explicitly declared, not independently verified. Collection is not a point-in-time snapshot.',
               }
             : {}),
           ...(request.gateway === 'tiktok_native_action'
@@ -338,10 +453,16 @@ export class DecisionReporting {
             : {}),
         };
         const saved = read(this.store, actor, 'decision_report', result.id);
+        // RPT-07 dimension packs: the retained dimensions, the values observed and that absent buckets stay unknown.
+        const dimensions = breakdownDimensionKeys.filter(key => Object.hasOwn(request.mapping ?? {}, key)),
+          retained = {
+            ...provenance,
+            ...(dimensions.length ? {breakdown: breakdownDescriptor(dimensions, saved.rows)} : {}),
+          };
         this.store.assertActorActive(actor);
         this.store.resolveConnection(actor, saved.gateway, saved.account_id, saved.connection_id);
-        this.store.putDocument(actor.tenantId, 'decision_report', saved.id, {...saved, ...provenance});
-        return {...result, ...provenance};
+        this.store.putDocument(actor.tenantId, 'decision_report', saved.id, {...saved, ...retained});
+        return {...result, ...retained};
       } finally {
         budget.close();
       }
@@ -364,6 +485,8 @@ export class DecisionReporting {
               ...['native_country_criterion_id', 'native_location_type', 'native_geographic_resource'].filter(key =>
                 Object.hasOwn(d.mapping ?? {}, key),
               ),
+              ...(Object.hasOwn(d.mapping ?? {}, 'native_conversion') ? ['native_conversion'] : []),
+              ...breakdownDimensionKeys.filter(key => Object.hasOwn(d.mapping ?? {}, key)),
             ].some(key => typeof row?.[key] === 'string' && row[key].toLowerCase().includes(needle)),
           )
         : d.rows;
@@ -392,47 +515,7 @@ export class DecisionReporting {
       const snapshot = read(this.store, actor, 'overview_report', input.id);
       if (!['complete', 'partial'].includes(snapshot.state))
         bad('Use a completed or marked partial snapshot.', 'REPORT_NOT_READY');
-      for (const source of snapshot.config.sources)
-        this.store.resolveConnection(
-          actor,
-          reportPlatforms[source.platform]!.gateway,
-          source.account_id,
-          source.connection_id,
-        );
-      const groups = new Map<string, {semantics: JsonObject; source: JsonObject; rows: JsonObject[]}>();
-      for (const row of snapshot.rows) {
-        const sem = {
-          currency: row.currency,
-          timezone: row.timezone,
-          date_from: snapshot.config.date_range.since,
-          date_to: snapshot.config.date_range.until,
-          attribution: row.attribution ?? 'unknown',
-          conversion_definition: row.result_definition ?? 'unknown',
-          source_name: String(snapshot.config.name).slice(0, 200),
-          complete: row.complete === true && row.quality?.measurement_complete !== false,
-        };
-        const source = {
-          gateway: reportPlatforms[row.platform]!.gateway,
-          account_id: row.account_id,
-          connection_id: row.connection_id,
-          ...(row.entity_level ? {entity_level: row.entity_level, native_entity_type: row.native_entity_type} : {}),
-        };
-        const key = fingerprint({
-          ...source,
-          currency: sem.currency,
-          timezone: sem.timezone,
-          attribution: sem.attribution,
-          conversion_definition: sem.conversion_definition,
-        });
-        const group: {semantics: JsonObject; source: JsonObject; rows: JsonObject[]} = groups.get(key) ?? {
-          semantics: sem,
-          source,
-          rows: [],
-        };
-        group.rows.push(row);
-        group.semantics.complete &&= sem.complete;
-        groups.set(key, group);
-      }
+      const groups = this.overviewGroups(actor, snapshot);
       if (input.action === 'overview_sources')
         return {
           overview_id: snapshot.id,
@@ -449,53 +532,42 @@ export class DecisionReporting {
         };
       const group = groups.get(String(input.group_id));
       if (!group) bad('Choose a group returned by overview_sources for this snapshot.', 'REPORT_GROUP_REQUIRED');
-      const sem = semantic(group.semantics);
-      if (!group.rows.length || group.rows.length > 10000) bad('Choose a snapshot group of 1–10,000 rows.');
-      const rounding: Record<string, number> = {};
-      const rows = group.rows.map(row => ({
-        entity_id: String(row.entity_id ?? row.campaign_id),
-        entity_name: row.entity_name ?? row.campaign_name ?? null,
-        date: row.date_from,
-        search_term: null,
-        ...Object.fromEntries(
-          metrics.map(key => [
-            key,
-            row.metrics[key] == null ? null : providerMetric(key, row.metrics[key], 'metrics.' + key, rounding),
-          ]),
-        ),
-      }));
-      const metricRounding = metricRoundingRecord(rounding);
-      const report = {
-        ...group.source,
-        semantics: metricRounding ? {...sem, metric_rounding: metricRounding} : sem,
-        semantics_source: 'retained Overview source definitions; no fresh provider collection',
-        mapping: Object.fromEntries(metrics.map(key => [key, '/metrics/' + key])),
-        source_request: {overview_id: snapshot.id, group_id: input.group_id, grain: snapshot.config.grain ?? 'total'},
-        source_hash: fingerprint(metricRounding ? {rows: group.rows, metric_rounding: metricRounding} : group.rows),
-        source_lineage: {
-          overview_id: snapshot.id,
-          definition_fingerprint: fingerprint(snapshot.config),
-          row_keys: group.rows.map(row => row.row_key),
-          query_fingerprints: [...new Set(group.rows.map(row => row.query_fingerprint))],
-        },
-        captured_at: Math.min(...group.rows.map(row => row.captured_at ?? snapshot.captured_at)),
-        rows,
-        totals: totals(rows),
-        coverage: Object.fromEntries(
-          metrics.map(key => [key, rows.some(row => row[key as keyof typeof row] == null) ? 'partial' : 'mapped']),
-        ),
-        source: 'overview_snapshot',
+      // RPT-07: a snapshot run with compare:"previous_period" also keeps the same group of its paired baseline, and
+      // analyze uses that pair as its default baseline. A missing or unfinished pair is reported, never guessed.
+      let pairing: JsonObject | undefined;
+      const pairedId = snapshot.comparison?.role === 'current' ? snapshot.comparison.baseline_id : undefined;
+      if (typeof pairedId === 'string') {
+        let base: JsonObject | undefined;
+        try {
+          base = read(this.store, actor, 'overview_report', pairedId);
+        } catch (e) {
+          if (!(e instanceof MirrorError) || e.code !== 'NOT_FOUND') throw e;
+          pairing = {status: 'unavailable', code: 'baseline_deleted'};
+        }
+        if (base && !['complete', 'partial'].includes(base.state))
+          pairing = {status: 'unavailable', code: 'baseline_not_finished'};
+        else if (base) {
+          const baseGroup = this.overviewGroups(actor, base).get(String(input.group_id));
+          if (!baseGroup) pairing = {status: 'unavailable', code: 'group_not_in_baseline'};
+          else {
+            const paired = this.captureOverviewGroup(actor, base, String(input.group_id), baseGroup);
+            pairing = {status: 'paired', baseline_id: paired.id, overview_id: base.id};
+          }
+        }
+      }
+      const captured = this.captureOverviewGroup(
+        actor,
+        snapshot,
+        String(input.group_id),
+        group,
+        pairing?.status === 'paired' ? {paired_baseline_id: pairing.baseline_id} : {},
+      );
+      return {
+        ...view(captured),
+        ...(pairing ? {pairing} : {}),
+        website_path: '/reports?id=' + encodeURIComponent(captured.id),
+        network_requests: 0,
       };
-      const id = fingerprint({snapshot: snapshot.id, group: input.group_id, source_hash: report.source_hash});
-      if (Buffer.byteLength(JSON.stringify(report)) > 8 * 1024 * 1024) bad('Narrow the report to 8 MiB.');
-      this.store.putDocument(actor.tenantId, 'decision_report', id, report);
-      audit(this.store, actor, 'overview_evidence_captured', {
-        id,
-        overview_id: snapshot.id,
-        group_id: input.group_id,
-        source_hash: report.source_hash,
-      });
-      return {...view({...report, id}), website_path: '/reports?id=' + encodeURIComponent(id), network_requests: 0};
     }
     if (input.action === 'capture') {
       const sem = semantic(input.semantics ?? {}),
@@ -515,7 +587,10 @@ export class DecisionReporting {
               'native_country_criterion_id',
               'native_location_type',
               'native_geographic_resource',
+              'native_conversion',
+              ...breakdownDimensionKeys,
               ...metrics,
+              ...conversionSplit,
             ].includes(k),
         )
       )
@@ -536,6 +611,10 @@ export class DecisionReporting {
           Object.keys(spec).some(k => k !== 'path')
         )
           nativeCountryMappingFailure('Native geographic dimensions require unmodified field pointers.');
+        if (key === 'native_conversion' && obj(spec) && Object.keys(spec).some(k => k !== 'path'))
+          bad('The native conversion dimension requires an unmodified field pointer.', 'REPORT_SHAPE_CHANGED');
+        if (breakdownDimensionKeys.includes(key) && obj(spec) && Object.keys(spec).some(k => k !== 'path'))
+          bad('A native breakdown dimension requires an unmodified field pointer.', 'REPORT_SHAPE_CHANGED');
         if (
           obj(spec) &&
           spec.format !== undefined &&
@@ -626,7 +705,10 @@ export class DecisionReporting {
           ...['native_country_criterion_id', 'native_location_type', 'native_geographic_resource'].filter(key =>
             Object.hasOwn(mapping, key),
           ),
+          ...(Object.hasOwn(mapping, 'native_conversion') ? ['native_conversion'] : []),
+          ...breakdownDimensionKeys.filter(key => Object.hasOwn(mapping, key)),
           ...metrics,
+          ...conversionSplit.filter(key => Object.hasOwn(mapping, key)),
         ]) {
           const spec = mapping[key];
           if (spec === undefined) {
@@ -663,7 +745,7 @@ export class DecisionReporting {
             out[key] = null;
             continue;
           }
-          if (metrics.includes(key)) {
+          if (metrics.includes(key) || conversionSplit.includes(key)) {
             const divisor = obj(spec) && spec.divisor !== undefined ? spec.divisor : undefined;
             if (divisor !== undefined && !['1', '100', '1000', '1000000', '1000000000'].includes(String(divisor)))
               bad('Use an explicit native unit divisor.');
@@ -695,6 +777,15 @@ export class DecisionReporting {
                 googleGeographicResource(value)?.account_id !== normalizeAccount(input.gateway, input.account_id))
             )
               nativeCountryMappingFailure('Native geographic resources must retain the exact selected customer.');
+            if (
+              key === 'native_conversion' &&
+              (input.gateway !== 'linkedin_native_action' ||
+                typeof value !== 'string' ||
+                !linkedInConversionUrn.test(value))
+            )
+              bad('The native conversion must retain an exact LinkedIn conversion rule URN.', 'REPORT_SHAPE_CHANGED');
+            // RPT-07: a breakdown value stays the literal documented native value of this gateway.
+            if (breakdownDimensionKeys.includes(key)) breakdownValue(key, input.gateway, value);
             out[key] = String(value);
           }
         }
@@ -714,21 +805,68 @@ export class DecisionReporting {
         if (omitted.length) out.omitted_as_zero = omitted;
         return out;
       });
+      // RPT-07 (B18): the conversion preset joins every reported conversion to its current rule's windows. The rules are
+      // read after the analytics response and before the bracket's final authorization check, so both reads share it.
+      let conversionWindows: JsonObject | undefined;
+      if (capturePreset === 'linkedin_campaign_conversion') {
+        const rules = await linkedInConversionEvidence(this.store, this.call, actor, {
+          gateway: input.gateway,
+          account_id: input.account_id,
+          connection_id: c.id,
+        });
+        if (rules.account_evidence?.currency !== sem.currency)
+          bad('The declared currency does not match the current LinkedIn account.', 'REPORT_CURRENCY_MISMATCH');
+        const join = linkedInConversionWindows(
+          rules.rules,
+          rows.map(row => String(row.native_conversion)),
+        );
+        conversionWindows = {
+          ...join,
+          rules_source_hash: rules.source_hash,
+          rules_captured_at: rules.captured_at,
+          rule_count: rules.rule_count,
+          rule_source_pages: rules.source_pages,
+          rule_account_checks: rules.account_evidence.checks,
+        };
+      }
       this.store.resolveConnection(actor, input.gateway, input.account_id, c.id);
       this.store.assertActorActive(actor);
       collected?.assertCurrent();
-      const metricRounding = metricRoundingRecord(rounding);
+      const metricRounding = metricRoundingRecord(rounding),
+        measured = conversionWindows ? {...sem, attribution: conversionWindows.attribution} : sem;
+      const splitTotals = Object.fromEntries(
+        conversionSplit
+          .filter(key => mapping[key] !== undefined)
+          .map(key => [
+            key,
+            rows.some(row => row[key] == null)
+              ? null
+              : decimal(rows.reduce((n, row) => n + scaledDeclared(row[key]), 0n)),
+          ]),
+      );
       const id = randomUUID(),
         report = {
           gateway: input.gateway,
           account_id: input.account_id,
           connection_id: c.id,
-          semantics: metricRounding ? {...sem, metric_rounding: metricRounding} : sem,
+          semantics: metricRounding ? {...measured, metric_rounding: metricRounding} : measured,
           semantics_source: 'explicit caller declaration; compare with native account/report metadata',
           mapping,
           source_request: args,
-          // Rounding provenance is part of new evidence identity; exact captures keep their original hash shape.
-          source_hash: fingerprint(metricRounding ? {data: source.data, metric_rounding: metricRounding} : source.data),
+          // Rounding provenance is part of new evidence identity; exact captures keep their original hash shape. Verified
+          // conversion windows (RPT-07) are too: the same analytics under different rules is different evidence.
+          source_hash: fingerprint(
+            conversionWindows
+              ? {
+                  data: source.data,
+                  conversion_rules: conversionWindows.rules_source_hash,
+                  ...(metricRounding ? {metric_rounding: metricRounding} : {}),
+                }
+              : metricRounding
+                ? {data: source.data, metric_rounding: metricRounding}
+                : source.data,
+          ),
+          ...(conversionWindows ? {conversion_windows: conversionWindows} : {}),
           ...(nativeAccountEvidence ? {native_account_evidence: nativeAccountEvidence} : {}),
           ...(collected
             ? {
@@ -746,9 +884,9 @@ export class DecisionReporting {
             : {}),
           captured_at: Date.now(),
           rows,
-          totals: totals(rows, mapping),
+          totals: {...totals(rows, mapping), ...splitTotals},
           coverage: Object.fromEntries(
-            metrics.map(k => [
+            [...metrics, ...Object.keys(splitTotals)].map(k => [
               k,
               mapping[k] === undefined
                 ? 'unmapped'
@@ -773,6 +911,10 @@ export class DecisionReporting {
       });
       return view({...report, id});
     }
+    // DEC-02 outcome review: `id` names the allocation campaign plan, not a report.
+    if (input.action === 'allocation_outcome') return allocationOutcomeView(this.store, actor, String(input.id));
+    if (input.action === 'capture_allocation_outcome')
+      return captureAllocationOutcome(this.store, actor, String(input.id), capture => this.handle(capture, actor));
     const report = read(this.store, actor, 'decision_report', input.id);
     this.store.resolveConnection(actor, report.gateway, report.account_id, report.connection_id);
     if (input.action === 'scenarios') return reportScenarios(report, input.options ?? {});
@@ -996,19 +1138,29 @@ export class DecisionReporting {
         );
       }
     }
-    let baseline: JsonObject | undefined;
-    if (input.baseline_id) {
-      baseline = read(this.store, actor, 'decision_report', input.baseline_id);
-      this.store.resolveConnection(actor, baseline.gateway, baseline.account_id, baseline.connection_id);
-      compatibility(report, baseline);
-      if (baseline.account_id !== report.account_id || baseline.gateway !== report.gateway)
-        bad('The baseline must use the same account and platform.');
-      // RPT-04: a different preset, grain or mapping would turn a grain difference into spend or fatigue advice.
-      assertCompatibleBaseline(report, baseline);
-      const days = (r: JsonObject) =>
-        (Date.parse(r.semantics.date_to) - Date.parse(r.semantics.date_from)) / 86400000 + 1;
-      if (days(report) !== days(baseline) || baseline.semantics.date_to >= report.semantics.date_from)
-        bad('Compare equal-length, non-overlapping windows.');
+    let baseline: JsonObject | undefined, pairedUnavailable: string | undefined;
+    // RPT-07: without an explicit baseline_id, evidence captured from a previous-period pair uses its paired baseline.
+    // A pair that is gone or no longer compatible is skipped with a stated limitation; an explicit one is refused.
+    const paired = input.baseline_id === undefined && typeof report.paired_baseline_id === 'string',
+      baselineId = input.baseline_id ?? (paired ? report.paired_baseline_id : undefined);
+    if (baselineId) {
+      try {
+        baseline = read(this.store, actor, 'decision_report', baselineId);
+        this.store.resolveConnection(actor, baseline.gateway, baseline.account_id, baseline.connection_id);
+        compatibility(report, baseline);
+        if (baseline.account_id !== report.account_id || baseline.gateway !== report.gateway)
+          bad('The baseline must use the same account and platform.');
+        // RPT-04: a different preset, grain or mapping would turn a grain difference into spend or fatigue advice.
+        assertCompatibleBaseline(report, baseline);
+        const days = (r: JsonObject) =>
+          (Date.parse(r.semantics.date_to) - Date.parse(r.semantics.date_from)) / 86400000 + 1;
+        if (days(report) !== days(baseline) || baseline.semantics.date_to >= report.semantics.date_from)
+          bad('Compare equal-length, non-overlapping windows.');
+      } catch (e) {
+        if (!paired || !(e instanceof MirrorError) || e.code === 'CONNECTION_REQUIRED') throw e;
+        baseline = undefined;
+        pairedUnavailable = e.code;
+      }
     }
     const minClicks = options.minimum_clicks ?? 30,
       minImpressions = options.minimum_impressions ?? 1000;
@@ -1094,6 +1246,7 @@ export class DecisionReporting {
     return {
       report_id: report.id,
       baseline_id: baseline?.id ?? null,
+      baseline_source: baseline ? (paired ? 'paired_previous_period' : 'explicit') : null,
       source_hash: report.source_hash,
       semantics: report.semantics,
       generated_at: Date.now(),
@@ -1117,7 +1270,11 @@ export class DecisionReporting {
         ...(report.semantics.metric_rounding ? [metricRoundingLimitation] : []),
         // RPT-04: also among the limitations, which every client already reads (the website shows data_quality).
         ...(baseline && baseline.semantics?.complete !== true ? [baselineIncompleteLimitation] : []),
+        ...(pairedUnavailable
+          ? ['The paired previous-period baseline could not be used, so no baseline was applied.']
+          : []),
       ],
+      ...(pairedUnavailable ? {paired_baseline_unavailable: pairedUnavailable} : {}),
       ...(baseline && baseline.semantics?.complete !== true ? {data_quality: [baselineIncompleteLimitation]} : {}),
     };
   }

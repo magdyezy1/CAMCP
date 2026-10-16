@@ -2460,7 +2460,10 @@ test('MCP allocation preview creates an unapproved Google draft with the correct
   const f = await fixture('operator', async (url, init) => {
     assert.match(String(url), /googleAds:search$/);
     assert.equal(init.method, 'POST');
-    assert.match(JSON.parse(init.body).query, /campaign_budget.reference_count/);
+    const query = JSON.parse(init.body).query;
+    // DEC-02: a preview's two budget observations are followed by one Search budget-lost impression share read.
+    if (query.includes('metrics.search_budget_lost_impression_share')) return Response.json({results: []});
+    assert.match(query, /campaign_budget.reference_count/);
     return Response.json({
       results: ['10', '20'].map(id => ({
         customer: {id: '123', currencyCode: 'USD', timeZone: 'UTC'},
@@ -2533,7 +2536,8 @@ test('MCP allocation preview creates an unapproved Google draft with the correct
     assert.equal(original.success, true);
     assert.equal(original.data.state, 'draft');
     assert.equal(original.data.allocation.report_id, 'allocation-source');
-    assert.equal(f.metrics().provider_requests, 4);
+    // Preview: two budget observations and the indicator read; draft creation: two budget observations.
+    assert.equal(f.metrics().provider_requests, 5);
     t.diagnostic(JSON.stringify({journey: 'allocation-to-native-budget-draft', ...f.metrics(), advertising_writes: 0}));
   } finally {
     await f.close();

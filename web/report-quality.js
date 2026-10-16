@@ -58,7 +58,30 @@ const reportExplanationMessages = new Set([
   'LinkedIn returned incomplete, ambiguous or oversized native budget evidence.',
   'Measurement and organic reports provide context; they do not establish an advertising budget action.',
   'Measurement completeness and timezone retain the original report declarations; the minimum conversion threshold is a user assumption, not statistical significance.',
-  'Native allocation drafts qualify Google dedicated campaign budgets, LinkedIn independent campaign daily budgets and Snapchat ad-squad daily budgets. Other budget modes need their separate native planning flow.',
+  'Native allocation drafts qualify Google dedicated campaign budgets, LinkedIn independent campaign daily budgets, Meta campaign or single-ad-set daily budgets and Snapchat ad-squad daily budgets. Other budget modes need their separate native planning flow.',
+  // DEC-02: the Meta budget binding (meta-allocation-budgets.ts).
+  'Meta budgets count in the account currency’s minor unit, and AMCP has no pinned Meta offset for this currency. Pin Meta’s currency table before converting an allocation; nothing was read or saved.',
+  'Preview only. Each Meta daily budget is set on its current owner: the campaign when it has a campaign daily budget, otherwise its one spending ad set. Amounts are whole Meta minor units of the account currency, rounded down; residuals are shown. Meta can spend up to 75% more than a daily budget on a day with better opportunities and at most seven times it over a calendar week. Daily budgets remain in effect until changed; this draft sets no end date and does not approve or execute any change.',
+  'Retain exact nonnegative Meta budget amounts in the account currency’s minor unit.',
+  'Select at most 20 exact Meta campaign IDs from this account’s verified report.',
+  'Meta returned failed, incomplete or oversized budget evidence.',
+  'Meta returned a malformed account collection.',
+  'Meta returned an object from another account.',
+  'Meta ownership lookup repeated or exceeded its bounded pages.',
+  'Every selected Meta object must be observed in this account’s own collection.',
+  'Use an active Meta account with the exact report identity, currency and time zone.',
+  'Use an owned active or paused Meta campaign in the report account.',
+  'Only auction Meta campaigns qualify; reserved buying needs its own planning flow.',
+  'This Meta campaign has more ad sets than one bounded read covers; its budget ownership is unknown.',
+  'Meta returned a malformed, repeated or foreign ad set.',
+  'Meta returned an ad set from another account.',
+  'This Meta campaign has a lifetime campaign budget; lifetime budgets need their own planning flow.',
+  'This Meta campaign reports a campaign budget and ad-set budgets at once; its budget ownership is ambiguous.',
+  'This Meta campaign keeps its budget on several ad sets (or none). Allocating between ad sets needs ad-set evidence; no budget was chosen for you.',
+  'The ad set that owns this Meta campaign’s budget uses a lifetime budget; it needs its own planning flow.',
+  'Meta budget ownership changed during allocation inspection. Preview again.',
+  'Meta campaign or ad-set budgets changed during allocation inspection. Preview again.',
+  'Meta account metadata changed during allocation inspection. Preview again.',
   'No live budget or approval is created. Any later change needs current native budget ownership, units, eligibility, preflight and a separate reviewed plan.',
   'Observational comparison; no causal lift or seasonal adjustment is inferred.',
   'Observational evidence does not establish causality or adjust for seasonality.',
@@ -149,6 +172,15 @@ const reportExplanationMessages = new Set([
   'No spend, or less than the minimum spend, in this window. Wait for delivered spend before recommending a change.',
   'Recommendations in this snapshot have expired. Refresh the report before acting on them.',
   'The baseline window is not declared complete; comparisons with it (spend anomaly, creative fatigue) may reflect missing baseline data.',
+  'The paired previous-period baseline could not be used, so no baseline was applied.',
+  // DEC-02: allocation factor provenance and indicators.
+  'The efficiency factors were entered directly, without a retained calibration; they are assumptions with no historical provenance.',
+  'The efficiency factors come from a one-day, spend-conditioned calibration of this report. The allocation applies them to a multi-day period at new spend levels, which that calibration did not test.',
+  'At least one proposed daily average lies outside the daily spend observed in the evidence, so the linear model is extrapolating there.',
+  'Name the calibration the efficiency factors came from, or omit factor_source.',
+  'The named calibration does not match this report’s current evidence. Calibrate again before using its factors.',
+  'The efficiency factors differ from the named calibration. Use its factors unchanged, or omit factor_source.',
+  'Every allocated entity must be one the named calibration evaluated.',
 ]);
 /** DEC-01: frozen recommendations show their as-of time, and are flagged expired at display time after 48 hours. */
 function reportRecommendationAsOf(row) {
@@ -175,6 +207,13 @@ const reportSourceWarnings = new Set([
   'Microsoft did not return a recognized account time zone, so report days use GreenwichMeanTimeDublinEdinburghLisbonLondon (Europe/London, including daylight saving).',
   'TikTok campaign reporting covers auction campaigns only (AUCTION_CAMPAIGN); Reach & Frequency and other reserved campaigns are not included.',
   'TikTok ad group optimization events could not be read, so conversions use one generic result definition and campaigns optimizing for different events are not told apart.',
+  // RPT-07: LinkedIn campaign names and objectives come from a current metadata read.
+  'LinkedIn campaign names and objectives could not be read, so rows show campaign IDs and objectives stay unknown unless confirmed in report settings.',
+  'LinkedIn conversion-rule attribution windows are not independently verified; the verified-window preset is linkedin_campaign_conversion. Campaign names and objectives are current campaign metadata, not the values at delivery time.',
+  'LinkedIn conversion-rule attribution windows are not independently verified. Campaign objectives should be confirmed in report settings.',
+  // RPT-07: native parents of detailed TikTok, Snapchat-ad and LinkedIn-creative rows (overview-parents.ts).
+  'Native parents could not be read for this source, so its rows show entity IDs without parent campaigns or ad groups.',
+  'This source reports more than 1000 entities, so the parents of entities beyond that bound stay unknown.',
 ]);
 // Collector notices that carry a count or a field name (RPT-03, RPT-04). English keeps the collector's own sentence;
 // another language fills the same exact value into its translated template.

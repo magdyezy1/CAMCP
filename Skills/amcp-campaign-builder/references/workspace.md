@@ -45,9 +45,9 @@ plan runs its own preflight (`eligibility_reuse.reason` says why). Meta image pa
 `drive_url`, `source_id` (an upload), `source_url` (public HTTPS) or `image_hash` (an image already in the ad
 account, read back by preflight); `age_min`/`age_max` default to 18 and 65.
 
-`amcp_reporting {action:"capture_presets"}` lists 16 detailed capture mappings: four Google, three Meta, three LinkedIn, three TikTok and three Snapchat. `capture_preset` needs
+`amcp_reporting {action:"capture_presets"}` lists 29 detailed capture mappings: ten Google, six Meta, four LinkedIn, three TikTok and six Snapchat, including the dimension packs (Performance Max search terms, Google ad network, Meta age/gender, country and placement). `capture_preset` needs
 the returned preset ID, exact account/login and declared measurement semantics. Meta also requires one exact
-`result_action_type` and explicit `attribution_windows` (one of `1d_click`/`7d_click`, optional `1d_view`, or view only).
+`result_action_type` and explicit `attribution_windows` (at most one of `1d_click`/`7d_click`/`28d_click`, optional `1d_view` and `1d_ev`, or view only).
 Its generated GET uses impression time with account/unified overrides disabled; attribution/result definitions
 come from that request. Meta account currency/timezone are checked before and after bounded native pages; measurement setup and historical conversion processing remain separate. Never add overlapping action aliases;
 an absent selected action is unknown. Scope, currency, date/grain mismatch, duplicate selected actions and partial
@@ -1309,6 +1309,8 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `allocation` | A constrained allocation proposal; never a budget change. | **`id`**, **`options`** | no provider request | reader |
 | `preview_allocation_plan` | Reads current budgets and previews the allocation as draft steps. | **`id`**, **`options`**, `conversion` | provider reads; saves allocation_preview | operator |
 | `create_allocation_plan` | Saves the previewed allocation as an unapproved campaign plan. | **`id`**, **`preview_id`**, **`preview_hash`**, **`confirmed`** | provider reads; saves campaign_run | operator |
+| `allocation_outcome` | The outcome review of a verified allocation plan (id): its closed-period window, state and, once captured, realized results beside the proposal. | **`id`** | no provider request; saves allocation_outcome | reader |
+| `capture_allocation_outcome` | After the outcome window closes, captures the same entities with the proposal’s guided preset and saves the observational comparison. | **`id`** | provider reads; saves decision_report, allocation_outcome | reader |
 | `search_exclusion_candidates` | Search terms of a Google report that could be excluded. | **`id`**, `options`, `offset`, `limit` | no provider request | reader |
 | `preview_search_exclusions` | Reads the original ad groups and previews exact-negative exclusions. | **`id`**, **`ids`**, `options` | provider reads; saves search_exclusion_preview | operator |
 | `create_search_exclusion_plan` | Saves the previewed exclusions as an unapproved campaign plan. | **`id`**, **`preview_id`**, **`preview_hash`**, **`confirmed`** | provider reads; saves campaign_run | operator |
@@ -1332,7 +1334,7 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `delete_report` | Deletes a report snapshot, releasing its unconfirmed Sheets deliveries as resolution says. | **`id`**, **`confirmed`**, `expected_revision`, `resolution` | no provider request; saves overview_report | operator |
 | `update_schedule` | Changes a delivery schedule’s settings. | **`id`**, **`schedule`**, **`confirmed`**, `config`, `destination_id`, `view_id`, `expected_revision`, `expected_view_revision` | no provider request; saves overview_schedule | operator |
 | `remove_schedule` | Removes a delivery schedule; its snapshots stay. | **`id`**, **`confirmed`**, `expected_revision` | no provider request; saves overview_schedule | operator |
-| `run` | Queues a bounded native report snapshot of a saved definition (id) or a config. | **`confirmed`**, `id`, `config` | provider reads; saves overview_report | operator |
+| `run` | Queues a bounded native report snapshot of a saved definition (id) or a config; compare:previous_period also queues the equal previous window as its paired baseline. | **`confirmed`**, `id`, `config`, `compare` | provider reads; saves overview_report | operator |
 | `get` | One snapshot with a page of rows, its exports and deliveries. | **`id`**, `offset`, `limit` | no provider request | reader |
 | `list` | Report snapshots you can access, newest first. | `offset`, `limit` | no provider request | reader |
 | `export` | Exports a snapshot to its Google Sheets tab (replacing only the AMCP-owned tab) or to retained files. | **`report_id`**, **`destination_id`**, **`confirmed`**, `idempotency_key` | no provider request; saves overview_export; Google Sheets write | operator |
@@ -1350,6 +1352,8 @@ call can do; roles are the least that can succeed (reader, operator, admin, owne
 | `preview_workbook_move` | Dry run of moving a local workbook schedule into an Overview report and schedule, with usable report tabs and blockers. | **`id`**, `destination_id` | no provider request | reader |
 | `move_workbook_schedule` | Creates the previewed Overview report and schedule and pauses the local workbook schedule; its query is unchanged. | **`id`**, **`destination_id`**, **`move_version`**, **`confirmed`** | no provider request; saves overview_view, overview_schedule, workbook_schedule | operator |
 | `undo_workbook_move` | Pauses the Overview schedule a workbook move created and restores the local workbook schedule. | **`id`**, **`confirmed`** | no provider request; saves overview_schedule, workbook_schedule | operator |
+| `compare` | Compares a finished snapshot with an earlier equal-length snapshot (baseline_id, or its previous-period pair): exact deltas for matching entities, with no provider request. | **`id`**, `baseline_id`, `offset`, `limit` | no provider request | reader |
+| `compare_candidates` | Retained snapshots that could be the baseline of a snapshot, each with the rules it fails. | **`id`**, `offset`, `limit` | no provider request | reader |
 
 ### amcp_media
 

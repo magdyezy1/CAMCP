@@ -326,7 +326,11 @@ test('Meta presets validate measurement inputs before egress and preserve curren
       {result_action_type: undefined},
       {result_action_type: 'purchase/other'},
       {attribution_windows: []},
-      {attribution_windows: ['28d_click']},
+      // RPT-07: 28d_click is a retained explicit Meta window now; the removed view windows and two click windows
+      // are still refused before egress.
+      {attribution_windows: ['7d_view']},
+      {attribution_windows: ['28d_view']},
+      {attribution_windows: ['7d_click', '28d_click']},
       {attribution_windows: ['1d_click', '7d_click']},
     ]) {
       const out = await f.call({...input, ...bad});
