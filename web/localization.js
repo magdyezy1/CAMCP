@@ -203,7 +203,8 @@ const uiEscape = value =>
  * them, or raw(markup), which marks a fragment AMCP built and escaped itself (never a received value). null and
  * undefined insert nothing. The result is SafeHtml, which reads as its markup in any string context; setHtml and
  * insertHtml are the sinks that take it, and they refuse a plain string so unescaped text cannot reach them by
- * mistake. tools/check-markup.mjs counts the markup still escaped by hand and refuses new markup that is not.
+ * mistake. The markup between the backticks is written byte for byte (Prettier does not reformat it), and
+ * tools/check-markup.mjs counts the markup still escaped by hand and refuses new markup that is not.
  */
 const {html, raw, setHtml, insertHtml, isSafeHtml} = (() => {
   const safe = new WeakSet();

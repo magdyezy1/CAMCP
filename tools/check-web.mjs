@@ -3,6 +3,7 @@ import {spawnSync} from 'node:child_process';
 import {checkWebLocales} from './check-locales.mjs';
 import {accountMarkupProblems, rtlProblems} from './check-rtl.mjs';
 import {checkRoutes} from './check-routes.mjs';
+import {checkMarkup} from './check-markup.mjs';
 
 // Static checks for the shipped website. The Content-Security-Policy (server/website.ts) allows scripts and styles
 // from 'self' only, so inline code would silently stop working; the other rules keep review findings from returning.
@@ -94,6 +95,9 @@ const localization = checkWebLocales();
 problems.push(...localization.problems);
 // WEB-06: navigation, page assets and the server's shell pages agree with the route registry.
 problems.push(...checkRoutes());
+// WEB-07: new markup is escape-by-default (html`…` and setHtml); the counts of markup escaped by hand only go down.
+const markup = checkMarkup();
+problems.push(...markup.problems);
 if (problems.length) {
   console.error(problems.join('\n'));
   process.exit(1);
@@ -104,6 +108,17 @@ console.log(
     '; HTML, CSP, assets, stylesheet order, tokens and confirmations: ' +
     html.length +
     ' pages',
+);
+const markupTotals = Object.values(markup.counts).reduce(
+  (sum, value) => ({sinks: sum.sinks + value.sinks, unescaped: sum.unescaped + value.unescaped}),
+  {sinks: 0, unescaped: 0},
+);
+console.log(
+  'Escape-by-default markup: ' +
+    markupTotals.sinks +
+    ' HTML writes and ' +
+    markupTotals.unescaped +
+    ' unescaped values remain escaped by hand, none above the baseline.',
 );
 console.log(
   'Arabic catalog covers ' +
