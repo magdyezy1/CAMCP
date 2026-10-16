@@ -117,10 +117,12 @@ nav a span {
   width: 23px;
   text-align: center;
 }
-nav a:hover {
+/* The dark sidebar's link states stay on the sidebar (identity.css restyles them there). Unscoped, the hover surface
+   reached in-page navigation such as the Settings sections, whose light-theme ink read at 1.27:1 on it. */
+.sidebar nav a:hover {
   background: #27392e;
 }
-nav a.active {
+.sidebar nav a.active {
   background: var(--iris);
   color: var(--ink);
 }

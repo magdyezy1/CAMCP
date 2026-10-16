@@ -161,3 +161,26 @@ test('report delivery dialog text reaches 4.5:1 in the dark theme too, on the di
     }
   }
 });
+
+// Wave 3a browser qualification regression (axe, final state of the worker-health journey at 320 and 375 pixels): the
+// Settings section link under the pointer read at 1.27:1, the light theme's ink on the dark sidebar's hover surface,
+// because app.css gave every nav link the sidebar's hover and current-page colours.
+test("the sidebar's link hover and current-page colours stay on the sidebar; Settings section links keep their pair", () => {
+  const app = css('app.css'),
+    selectors = [...app.matchAll(/([^{}]+)\{/g)].flatMap(m => m[1].split(',').map(s => s.trim().replace(/\s+/g, ' ')));
+  assert.deepEqual(
+    selectors.filter(s => /(^|\s)nav a(:hover|\.active)/.test(s) && !s.startsWith('.sidebar ')),
+    [],
+    'Sidebar link states in app.css are scoped to .sidebar',
+  );
+  // The rule body only: the selector's own colon would read as a declaration.
+  const hover = declarations(block(app, '.sidebar nav a:hover').split('{')[1]).get('background'),
+    section = declarations(block(css('reporting.css'), '.settings-subnav a'));
+  assert.equal(hover, '#27392e');
+  for (const theme of [light, dark]) {
+    const ratio = contrast(resolve(theme, section.get('color')), resolve(theme, section.get('background')));
+    assert.ok(ratio >= 4.5, 'Settings section link: ' + ratio.toFixed(2));
+  }
+  // The regression itself: the section link's light-theme ink on the sidebar's hover surface.
+  assert.ok(contrast(resolve(light, section.get('color')), hover) < 4.5);
+});
