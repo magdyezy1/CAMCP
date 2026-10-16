@@ -160,7 +160,7 @@ The integration gate ran the full `--qualification` (axe-core 4.14.0, every kind
 `68fdcd6` (`wave3a-browser-1`): 1,248 cases, 813 passed, 435 failed, 37.64 minutes. It is a failed run, not the leak
 baseline's provenance. Each failure group was traced to its first failing case. Where that case stopped part-way, it
 left its kind's shared fixture in the wrong state (a store connection never removed, a refused read whose recovery never
-ran), so every later case of the kind failed for the same cause: the 435 failures had 10 causes.
+ran), so every later case of the kind failed for the same cause: the 435 failures in 29 kinds had 9 causes.
 
 - **Product fix (`e6ebe51`).** The Settings section links (`.settings-subnav`) took the dark sidebar's hover surface
   (`#27392e`) from an unscoped `nav a:hover` in `web/app.css`, so a hovered link read at 1.27:1 in the light theme (axe,
@@ -190,9 +190,8 @@ ran), so every later case of the kind failed for the same cause: the 435 failure
 - **Not reproduced.** The `granular-reporting` table check that timed out at 320 pixels in the merge subsets passed in
   all 16 cases of both full runs.
 
-Development subsets confirmed the fixes before the rerun: the 29 affected kinds and `spend-policy-edit` (452 cases, axe
-on; 437 passed, the other 15 being `catalog-groups` cases before its per-case reset) and `catalog-groups` with `catalog`
-(32 of 32).
+Development subsets confirmed the fixes before the rerun: the 29 failing kinds (452 cases, axe on; 437 passed, the
+other 15 being `catalog-groups` cases before its per-case reset) and `catalog-groups` with `catalog` (32 of 32).
 
 **The passing run.** `wave3a-browser-2` on `0891a76` (2026-10-16, 05:26 to 06:16 UTC; `results.json` SHA-256
 `4c894911d63247fcbe65ea94af46664b12083f33dcf1ef8be6eca7d5ff03571d`): 1,248 of 1,248 cases passed in 50.16 minutes
