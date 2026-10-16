@@ -796,6 +796,13 @@ export function inspectMeasurementFailures(source, file) {
       'src/measurement-event-identity.ts': ['bad', 'invalid'],
       'src/linkedin-conversion-evidence.ts': ['bad', 'invalid'],
       'src/measurement-ledger.ts': ['bad', 'invalid'],
+      // MSR-03 under owner direction P8: the shared ledger parts and the five provider adapters.
+      'src/measurement-ledger-core.ts': ['bad', 'invalid'],
+      'src/measurement-ledger-meta.ts': ['bad', 'invalid'],
+      'src/measurement-ledger-snapchat.ts': ['bad', 'invalid'],
+      'src/measurement-ledger-tiktok.ts': ['bad', 'invalid'],
+      'src/measurement-ledger-search-console.ts': ['bad', 'invalid'],
+      'src/measurement-ledger-adjust.ts': ['bad', 'invalid'],
       'src/gtm-consent-evidence.ts': [],
     }[file.replaceAll('\\', '/')],
     messages = new Set();
@@ -1209,6 +1216,12 @@ export function checkWebLocales(root = process.cwd()) {
     'src/gtm-consent-evidence.ts',
     'src/linkedin-conversion-evidence.ts',
     'src/measurement-ledger.ts',
+    'src/measurement-ledger-core.ts',
+    'src/measurement-ledger-meta.ts',
+    'src/measurement-ledger-snapchat.ts',
+    'src/measurement-ledger-tiktok.ts',
+    'src/measurement-ledger-search-console.ts',
+    'src/measurement-ledger-adjust.ts',
   ])
     for (const message of inspectMeasurementFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
       required.add(message);

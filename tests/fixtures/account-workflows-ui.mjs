@@ -89,7 +89,7 @@ export function accountWorkflowFixture(locale = 'en') {
     'measurement-conversions': ['target'],
     'measurement-google-goals': ['target'],
     'measurement-ga4-config': ['target'],
-    'measurement-ledger': ['target'],
+    'measurement-ledger': ['target', 'pixel_id'],
     'measurement-scope': ['gtm', 'container', 'workspace', 'ga4', 'stream', 'google', 'linkedin'],
     'measurement-trace': ['target', 'trace', 'import_format', 'import_file', 'import_stream', 'import_test_id'],
     'catalog-import': [

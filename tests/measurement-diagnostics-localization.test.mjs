@@ -190,3 +190,23 @@ test('MSR-03 review fix: the measurement ledger response refusals are owned sent
   assert.deepEqual(localeProblems(catalog, messages), []);
   for (const message of messages) assert.match(catalog[message], /[؀-ۿ]/);
 });
+test('MSR-03 P8: every measurement ledger adapter refusal is an owned sentence with Arabic', () => {
+  // The five provider adapters and the shared ledger parts refuse foreign or out-of-contract evidence with bad() and
+  // invalid(); each sentence reaches the website, so each must be registered and translated.
+  for (const [file, sample] of [
+    ['src/measurement-ledger-core.ts', 'The provider returned a failed or unrecognized measurement response.'],
+    ['src/measurement-ledger-meta.ts', 'A Meta pixel statistics entry is malformed or repeated.'],
+    ['src/measurement-ledger-snapchat.ts', 'A Snapchat pixel is malformed, repeated or belongs to another ad account.'],
+    ['src/measurement-ledger-tiktok.ts', 'The native count shows the TikTok pixel list is incomplete.'],
+    [
+      'src/measurement-ledger-search-console.ts',
+      'Search Console returned another site or an unrecognized permission level.',
+    ],
+    ['src/measurement-ledger-adjust.ts', 'Choose the exact Adjust app token.'],
+  ]) {
+    const messages = inspectMeasurementFailures(readFileSync(file, 'utf8'), file);
+    assert.ok(messages.has(sample), file + ': ' + sample);
+    assert.deepEqual(localeProblems(catalog, messages), [], file);
+    for (const message of messages) assert.match(catalog[message], /[؀-ۿ]/, message);
+  }
+});

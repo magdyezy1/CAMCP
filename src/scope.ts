@@ -22,6 +22,7 @@ import {reviewedFamilies, familyOf} from './reviewed-families.js';
 import {metaRoute} from './meta-version.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
 import {assertNotPersonalDataRead} from './personal-data.js';
+import {authorizeMetaDatasetRead, observeMetaPixels} from './meta-dataset-scope.js';
 import {authorizeRedditPlanningRead} from './reddit-extensions.js';
 
 export function normalizeAccount(gateway: string, id: unknown): string {
@@ -70,6 +71,19 @@ export function ownershipReads(
     tool: gateway,
     arguments: {action, account_id: account, connection_id: connectionId, ...extra},
   });
+  // A Meta pixel's aggregate reads are opened by the account's pixel list, which the measurement ledger reads (MSR-03).
+  if (
+    gateway === 'meta_native_action' &&
+    (/^\/v[^/]+\/\{pixel_id\}\/stats$/.test(template ?? '') ||
+      (template === undefined && /^\/v[^/]+\/\d+\/stats$/.test(path)) ||
+      /^\/v[^/]+\/dataset_quality$/.test(path))
+  )
+    return [
+      {
+        tool: 'amcp_workspace',
+        arguments: {action: 'measurement_ledger', gateway, account_id: account, connection_id: connectionId},
+      },
+    ];
   if (gateway === 'meta_native_action' && /^\/v[^/]+\/\d+(?:\/|$)/.test(path)) {
     // A typed action names its object's type in its route ({campaign_id}, {ad_set_id}...), so one list read establishes
     // its ownership (MCP-09); a bare ID of unknown type still offers each candidate list.
@@ -230,6 +244,7 @@ export class ScopeGuard {
     )
       assertMetaLabelScope(connection);
     if (authorizeQualifiedProviderRead(plan, connection, id)) return id;
+    if (authorizeMetaDatasetRead(plan, connection, id, this.store)) return id;
     if (authorizeLinkedInConversionEvidenceRead(plan, connection, id)) return id;
     if (authorizePlaceActionDiscovery(plan, connection, id)) return id;
     if (authorizeDV360TargetingSearch(plan, connection, id)) return id;
@@ -456,6 +471,7 @@ export class ScopeGuard {
       d = data as JsonObject;
     for (const family of reviewedFamilies()) family.observe?.(plan, connection, id, data, this.store);
     observeLinkedInCreatives(plan, connection, this.store, id, data);
+    observeMetaPixels(plan, connection, id, data, this.store);
     if (
       plan.gateway === microsoftGateway &&
       plan.action === 'SubmitGenerateReport' &&

@@ -939,13 +939,16 @@ Google tag IDs of synchronized Tag Manager containers without a request; discove
 and web measurement ID and each container's public ID and Google tag IDs. Nothing is saved; configuration is not
 proof of delivery. The scoped website link (`/measurement?ga4_config=1&…`) only preselects the property.
 
-**Measurement evidence ledger** (MSR-03) shows, for one Google Ads account or GA4 property, where the evidence
-stops, in six fixed layers: configuration, provider-observed activity, provider diagnostics, supplied runtime trace,
-consent and attribution settings. Each layer is `observed`, `unknown`, `unavailable` or `not_applicable` with a
-reason code. A layer is observed only from complete evidence of the selected asset; a failed, partial, foreign or
-thresholded read leaves only that layer unknown with its error code and never upgrades it. The MCP action is
-`measurement_ledger` with `gateway` (`google_ads_native_action` or `ga4_native_action`), exact `account_id` and
-`connection_id`, and no requirements.
+**Measurement evidence ledger** (MSR-03) shows, for one asset, where the evidence stops, in six fixed layers:
+configuration, provider-observed activity, provider diagnostics, supplied runtime trace, consent and attribution
+settings. Each layer is `observed`, `unknown`, `unavailable` or `not_applicable` with a reason code. A layer is
+observed only from complete evidence of the selected asset; a failed, partial, foreign or thresholded read leaves only
+that layer unknown with its error code and never upgrades it. Owner direction P8 (2026-10-11) made Measurement the
+multi-provider conversion-health hub, so the MCP action `measurement_ledger` takes `gateway`
+(`google_ads_native_action`, `ga4_native_action`, `meta_native_action`, `snapchat_native_action`,
+`tiktok_native_action`, `google_search_console_native_action` or `adjust_native_action`), exact `account_id` and
+`connection_id`, and for the three pixel providers an optional `requirements:{pixel_id}`. Every adapter is read-only:
+no test event, Conversions API call, `/events/validate` request or provider change is ever sent.
 
 - **Google Ads** reuses the conversion goals read (configuration; last conversion date and tag detection as activity,
   observed only when every primary action reports both), then reads `offline_conversion_upload_client_summary`
@@ -956,22 +959,52 @@ thresholded read leaves only that layer unknown with its error code and never up
 - **GA4** reuses the configuration read, then one 30-minute realtime count of the property's key events (no
   reported key event stays unknown; a property without key events is not applicable). GA4 offers no diagnostics API,
   and its attribution settings exist only in the unpinned Admin API alpha (`unavailable`).
-- Supplied traces never reach AMCP (`unavailable`, see the trace task), and neither provider exposes a consent
+- **Meta** lists the ad account's pixels (`GET act_{id}/adspixels`, bounded pages; configuration with each pixel's
+  owner business and last fire time). That validated list is also the ownership evidence: for five minutes this
+  connection may read only two aggregate routes of a listed pixel, `/{pixel}/stats` and
+  `/dataset_quality?dataset_id=`, never the pixel node, its other edges or any write (`src/meta-dataset-scope.ts`).
+  Activity is 24 hours of hourly stats summed per event (AdsPixelStats entries `value`, `count`, `event`,
+  `diagnostics_hourly_last_timestamp`); diagnostics is the Dataset Quality API for web events (match quality out of
+  10 and match-key coverage, Conversions API coverage, deduplication-key coverage, upload frequency, ACR). Meta's
+  description texts are never kept. Dataset quality needs `ads_management`, or `ads_read` with `business_management`;
+  without either it stays unknown (`quality_permission_missing`) and no request is sent. Advanced access tiers are
+  tracked in ACC-05.
+- **Snapchat** lists the ad account's pixels (a pixel of another account refuses the list), then the domains that
+  fired the pixel in the last 7 days (`/v1/pixels/{id}/domains/stats`) and the Signal Readiness scores and
+  recommendations (`/v1/pixels/{id}/event_quality_scores`; codes, priority, score and title, never descriptions).
+  Snap intends Signal Readiness for internal monitoring and asks for review before any public display; AMCP shows it
+  only to signed-in workspace members.
+- **TikTok** lists the advertiser's pixels in bounded pages with ownership (owned, or shared/unbound). Pixel event
+  statistics have no primary response contract AMCP could pin, so activity is `unavailable` (`unpinned_contract`) and
+  no request is sent until a native read under ACC-06 pins it; TikTok exposes no event-quality diagnostics.
+- **Search Console** reads the site and the login's permission level (an unverified user stops there:
+  `site_unverified`), seven complete days of final web search totals grouped by date in Pacific time (no final data
+  stays unknown; data lags several days) and the submitted sitemaps with errors, warnings and pending state. Wire
+  values follow Google's public reference (camelCase such as `siteOwner`, `sitemap`, `byProperty`). It has no consent
+  setting and attributes no conversions (`not_applicable`).
+- **Adjust** reuses the qualified Report Service reads (app grant, shared source-IP permit, token fence, audit
+  record): the app's event catalog and seven complete UTC days of installs and events. A report with warnings or
+  missing totals stays unknown (`report_incomplete`). Adjust apps are bound administratively, so the website lists
+  them only when the workspace shows them; the MCP action always covers them.
+- Pixel selection: the ledger reads the requested pixel when the account lists it, otherwise the account's only pixel.
+  Several pixels without a choice (`pixel_not_selected`) or an unlisted pixel (`pixel_not_listed`) leave activity and
+  diagnostics unknown without a pixel read; an account without pixels is `not_applicable`. Attribution windows belong
+  to ad sets, ad groups or reports, not pixels (`not_pixel_setting`).
+- Supplied traces never reach AMCP (`unavailable`, see the trace task), and no advertising provider exposes a consent
   setting to these reads (the Tag Manager audit reports tag consent configuration).
 
 A change of actor, login, account access or (for Google Ads) the owner write pause refuses the whole ledger. One
-allowance bounds it (96 requests, 8,000 rows, 8 MiB, 150 seconds; the ledger's own Google Ads collections 24
-requests, 2,000 rows, 2 MiB, 60 seconds), and `network_requests` counts every request. Nothing is saved,
-`provider_mutations` is 0 and delivery, deduplication, consent and attribution stay unverified. The website task
-lists Google Ads accounts and GA4 properties in one picker, follows the kind last chosen in the scope bar, explains
-each reason in English or Arabic, links each layer to the task that holds its detail and accepts
-`/measurement?ledger=1&gateway=…&connection_id=…&account_id=…` handoffs without reading.
+allowance bounds it (96 requests, 8,000 rows, 8 MiB, 150 seconds; each adapter's own collections 24 requests, 2,000
+rows, 2 MiB, 60 seconds), and `network_requests` counts every request. Nothing is saved, `provider_mutations` is 0 and
+delivery, deduplication, consent and attribution stay unverified. `AMCP_MEASUREMENT_LEDGER_OFF` (a comma-separated list
+of gateways) withdraws an adapter without a release. The website task lists Google Ads accounts and GA4 properties
+first (it follows the kind last chosen in the scope bar), then Meta, Snapchat, TikTok and Search Console accounts,
+with an optional pixel or dataset ID field that is sent only for a pixel provider. It explains each reason in English
+or Arabic, keeps native values literal, links each layer to the task that holds its detail and accepts
+`/measurement?ledger=1&gateway=…&connection_id=…&account_id=…[&pixel_id=…]` handoffs without reading.
 
-Owner decision P8 remains open: whether the Meta pixel/dataset, Search Console and Adjust join Measurement (B20)
-or are de-scoped. Until it is decided, Measurement covers GA4, Tag Manager, LinkedIn and Google Ads goals, and the
-ledger has Google Ads and GA4 adapters only. A Meta dataset adapter also needs pixel ownership learned from an ad
-account (`act_{id}/adspixels` is not an AMCP read) and the Dataset Quality API pinned; Snapchat and TikTok pixel
-adapters follow it only if P8 keeps them in scope.
+Native acceptance (ACC-06) remains: one authorized read-only ledger call per adapter on a designated asset, which
+also confirms the AdsPixelStats entry shape and the Meta access tier.
 
 Commerce (`/commerce`) validates explicitly supplied Meta or X product CSV before creating an unapproved plan. The following native hundredths and optional-field rules describe Meta; X requires all ten source fields, exact original price/currency strings and explicit upsert as described below. Fields: retailer_id, name,
 price, currency, image_url; optional url, availability, condition, brand and description. Files are capped at 128 KiB

@@ -160,7 +160,8 @@ for (const locale of ['en', 'ar']) {
     await f.run('renderMeasurement()');
     const html = f.node('content').innerHTML,
       notices = [
-        'Connect Google Ads or a GA4 property in Connections to read its measurement evidence ledger.',
+        // The ledger notice names every provider owner direction P8 added (MSR-03).
+        'Connect an advertising, analytics or Search Console account in Connections to read its measurement evidence ledger.',
         'Connect Google Tag Manager and select an account in Connections to audit its configuration.',
         'Connect a GA4 property in Connections to read recent events.',
         'Connect a GA4 property in Connections to inspect a test identifier.',

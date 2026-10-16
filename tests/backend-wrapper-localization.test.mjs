@@ -151,10 +151,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // targeting specs read's paging refusal adds one.
   // The Meta window refusal is now one shared constant (meta-attribution-windows.ts); report-dimension-packs pins its
   // Arabic.
-  assert.equal(files.length, 549);
-  assert.equal(selected.filter(row => row.messages.size).length, 179);
-  assert.equal(owned.size, 2800);
-  assert.equal(Object.keys(catalog).length, 10973);
+  assert.equal(files.length, 556);
+  assert.equal(selected.filter(row => row.messages.size).length, 180);
+  assert.equal(owned.size, 2801);
+  assert.equal(Object.keys(catalog).length, 11091);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

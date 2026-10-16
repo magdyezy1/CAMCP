@@ -125,10 +125,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Meta allocation budget and allocation outcome modules.
   // MED-06, MSR-04 and PRV-07 add the media spec, GA4 test property, Google change history and search overlap modules
   // (the Apple and Reddit planning reads extend existing modules).
-  assert.equal(files.length, 549);
-  assert.equal(selected.filter(row => row.messages.size).length, 229);
-  assert.equal(owned.size, 1573);
-  assert.equal(Object.keys(catalog).length, 10973);
+  // MSR-03 adds the Meta dataset scope and the measurement hub's ledger adapter modules.
+  assert.equal(files.length, 556);
+  assert.equal(selected.filter(row => row.messages.size).length, 230);
+  assert.equal(owned.size, 1574);
+  assert.equal(Object.keys(catalog).length, 11091);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

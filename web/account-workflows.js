@@ -1223,14 +1223,20 @@ async function renderMeasurement() {
     eventTargets = accountChoices(['ga4']),
     conversionTargets = accountChoices(['linkedin']),
     goalTargets = accountChoices(['google']),
-    // One ledger picker: Google Ads accounts first, then GA4 properties (the scope bar relies on this order).
+    hubTargets = accountChoices(['meta', 'snapchat', 'tiktok', 'gsc', 'adjust']),
+    // One ledger picker: Google Ads accounts first, then GA4 properties (the scope bar relies on this order), then the
+    // providers owner direction P8 added (MSR-03).
     ledgerTargets = Object.assign(
       [
         ...goalTargets.map(t => ({...t, gateway: 'google_ads_native_action'})),
         ...eventTargets.map(t => ({...t, gateway: 'ga4_native_action'})),
+        ...hubTargets,
       ],
-      // What the working client hid of either (SEC-08), for the empty picker's notice.
-      {hiddenByClient: (goalTargets.hiddenByClient ?? 0) + (eventTargets.hiddenByClient ?? 0)},
+      // What the working client hid of any of them (SEC-08), for the empty picker's notice.
+      {
+        hiddenByClient:
+          (goalTargets.hiddenByClient ?? 0) + (eventTargets.hiddenByClient ?? 0) + (hubTargets.hiddenByClient ?? 0),
+      },
     ),
     scopeSets = {gtm: targets, ga4: eventTargets, google: goalTargets, linkedin: conversionTargets};
   content.innerHTML += `<section class="panel"><h2>${esc(uiText('Measurement evidence'))}</h2><p>${esc(uiText('Review configured tags, trigger dependencies, workspace conflicts and published-version consistency. Configuration evidence is distinct from observed event delivery and attribution.'))}</p>${measurementTaskNavigationMarkup()}<details class="workspace-details"><summary>${esc(uiText('Related measurement workflows'))}</summary><div class="work-links"><a href="/reporting-overview"><strong>${esc(uiText('GA4 and Search Console context'))}</strong><small>${esc(uiText('Collect measurement reports with source definitions.'))}</small></a><a href="/profiles"><strong>${esc(uiText('Client conversion mappings'))}</strong><small>${esc(uiText('Inspect approved conversion definitions and account bindings.'))}</small></a><a href="/capabilities"><strong>${esc(uiText('Reviewed measurement changes'))}</strong><small>${esc(uiText('Discover exact conversion and tag contracts.'))}</small></a></div></details></section>${measurementScopeMarkup(scopeSets)}${measurementLedgerMarkup(ledgerTargets)}<section class="panel workspace-form">${measurementSectionHeading('measurement-section-gtm', uiText('Google Tag Manager configuration audit'))}<p>${esc(uiText('Read the configured tags, triggers, conflicts and published version of one account, container or workspace. Leave the container empty to list containers, or the workspace empty to list workspaces.'))}</p><form id="measurement-audit">${measurementTargetField(targets, uiText('Tag Manager account'), 'Connect Google Tag Manager and select an account in Connections to audit its configuration.')}${controls(uiText('Container ID (optional for account inventory)'), 'text', '', 'container_id')}${controls(uiText('Workspace ID (optional)'), 'text', '', 'workspace_id')}<button class="button primary" type="submit" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read configuration evidence'))}</button></form><div id="measurement-result"></div></section>`;
@@ -2493,7 +2499,9 @@ function bindMeasurementGa4Config(targets) {
     $('#measurement-ga4-config-heading')?.focus();
   });
 }
-// MSR-03 slice C: the measurement evidence ledger of one Google Ads account or GA4 property. Six fixed layers, each
+// MSR-03: the measurement evidence ledger of one asset. Slice C read a Google Ads account or a GA4 property; owner
+// direction P8 (2026-10-11) adds Meta, Snapchat and TikTok ad accounts with their pixels, Search Console sites and Adjust
+// apps (Adjust apps are bound administratively and appear only when the workspace lists them). Six fixed layers, each
 // observed, unknown, unavailable or not applicable. The website explains each reason code itself; native values stay
 // literal. Choosing an account never reads; the ledger is read only on submit.
 const measurementLedgerLayers = {
@@ -2532,16 +2540,53 @@ const measurementLedgerReasons = {
   browser_only: 'Supplied traces are inspected only in this browser and never reach AMCP.',
   no_provider_source: 'The provider exposes no source for this layer to AMCP.',
   unpinned_api: 'This is available only in a provider API version AMCP has not pinned.',
+  unpinned_contract: 'The provider publishes no response contract AMCP could pin, so this is not read.',
+  pixels_listed: 'The pixels the account lists, read completely from the provider.',
+  no_pixels: 'The account lists no pixel.',
+  pixel_not_selected: 'The account lists several pixels. Enter one pixel ID and read the ledger again.',
+  pixel_not_listed: 'The pixel ID you entered is not listed for this account, so it was not read.',
+  pixel_events_reported: 'Meta reported pixel events by event name in the last 24 hours.',
+  pixel_domains_reported: 'Snapchat reported the domains that fired the pixel in the last 7 days.',
+  no_recent_events: 'No pixel event was reported in the read window. Absence does not establish a broken pixel.',
+  dataset_quality:
+    'Meta dataset quality of web events: match quality, Conversions API coverage, deduplication keys and freshness.',
+  quality_permission_missing:
+    'Dataset quality needs the ads_management or business_management permission besides ads_read, so it was not read.',
+  signal_readiness: 'Snapchat signal readiness recommendations by event type, with their priority and score.',
+  no_quality_data: 'The provider reported no quality data for this pixel.',
+  not_pixel_setting: 'Attribution windows are chosen per ad set, ad group or report, not on the pixel.',
+  site_permission: 'The site as Search Console lists it for this login, with the login’s permission level.',
+  site_unverified: 'This login is an unverified user of the site and has no access to its data.',
+  search_totals_reported: 'Final daily web search clicks and impressions over the last seven complete days.',
+  no_search_activity:
+    'Search Console reported no final search data for the last seven days. Data can lag by several days.',
+  sitemaps_listed: 'Submitted sitemaps with their errors, warnings and last download.',
+  no_sitemaps: 'No sitemap is submitted for this site.',
+  no_consent_setting: 'This provider has no consent setting.',
+  no_attribution: 'This provider attributes no conversions.',
+  event_catalog: 'The events defined for the app in Adjust.',
+  daily_activity_reported: 'Installs and events Adjust reported per day over the last seven complete UTC days.',
+  report_incomplete: 'Adjust returned warnings or missing totals, so the report is incomplete.',
+  no_recent_activity:
+    'Adjust reported no activity for the app in the last seven days. Absence does not establish broken tracking.',
 };
 // The related task of a layer, on this page; following it makes no request.
 const measurementLedgerTasks = {
   google_ads_native_action: {configuration: 'goals', provider_observed_activity: 'goals', consent: 'gtm'},
   ga4_native_action: {configuration: 'ga4config', provider_observed_activity: 'events', consent: 'gtm'},
+  meta_native_action: {consent: 'gtm'},
+  snapchat_native_action: {consent: 'gtm'},
+  tiktok_native_action: {consent: 'gtm'},
+  google_search_console_native_action: {},
+  adjust_native_action: {},
 };
+// The gateways whose ledger reads one pixel or dataset of the selected account.
+const measurementLedgerPixelGateways = ['meta_native_action', 'snapchat_native_action', 'tiktok_native_action'],
+  measurementLedgerPixel = v => typeof v === 'string' && /^[A-Za-z0-9-]{1,64}$/.test(v);
 function measurementLedgerMarkup(targets) {
-  return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-ledger', uiText('Measurement evidence ledger'))}<p>${esc(uiText('Collect configuration, provider-observed activity, diagnostics, consent and attribution evidence for one Google Ads account or GA4 property in one view. Each layer says whether it was observed, is unknown, is unavailable or does not apply.'))}</p><form id="measurement-ledger">${measurementTargetField(targets, uiText('Google Ads account or GA4 property'), 'Connect Google Ads or a GA4 property in Connections to read its measurement evidence ledger.')}<button class="button primary" type="submit" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read the evidence ledger'))}</button></form><div id="measurement-ledger-result" aria-live="polite"></div></section>`;
+  return `<section class="panel workspace-form">${measurementSectionHeading('measurement-section-ledger', uiText('Measurement evidence ledger'))}<p>${esc(uiText('Collect configuration, provider-observed activity, diagnostics, consent and attribution evidence for one advertising account, GA4 property, Search Console site or app in one view. Each layer says whether it was observed, is unknown, is unavailable or does not apply.'))}</p><form id="measurement-ledger">${measurementTargetField(targets, uiText('Account, property, site or app'), 'Connect an advertising, analytics or Search Console account in Connections to read its measurement evidence ledger.')}<label>${esc(uiText('Pixel or dataset ID (optional)'))}<input name="pixel_id" type="text" maxlength="64" autocomplete="off" spellcheck="false" dir="ltr" aria-describedby="measurement-ledger-pixel-help"></label><p class="form-note" id="measurement-ledger-pixel-help">${esc(uiText('Only for a Meta, Snapchat or TikTok account. The ledger lists the account’s pixels first and reads the only pixel, or the one you enter here.'))}</p><button class="button primary" type="submit" ${targets.length ? '' : 'disabled'}>${esc(uiText('Read the evidence ledger'))}</button></form><div id="measurement-ledger-result" aria-live="polite"></div></section>`;
 }
-function measurementLedgerValid(out, target) {
+function measurementLedgerValid(out, target, pixel) {
   const code = v => typeof v === 'string' && /^[a-z_]{1,64}$/.test(v),
     counts = out?.summary;
   return (
@@ -2552,6 +2597,11 @@ function measurementLedgerValid(out, target) {
     Object.hasOwn(measurementLedgerTasks, target.gateway) &&
     out.scope.account_id === target.account_id &&
     out.scope.connection_id === target.connection_id &&
+    // A pixel ledger names the pixel it read, or none; when a pixel was entered, it is that one.
+    (measurementLedgerPixelGateways.includes(target.gateway)
+      ? out.scope.pixel_id === null ||
+        (measurementLedgerPixel(out.scope.pixel_id) && (!pixel || out.scope.pixel_id === pixel))
+      : out.scope.pixel_id === undefined) &&
     Array.isArray(out.layers) &&
     out.layers.map(l => l?.layer).join() === Object.keys(measurementLedgerLayers).join() &&
     out.layers.every(
@@ -2579,10 +2629,16 @@ function measurementLedgerEvidence(l, gateway) {
     native = v => (v === null || v === undefined || v === '' ? unknown : `<code dir="ltr">${esc(String(v))}</code>`),
     list = rows => (rows.length ? `<ul class="measurement-ledger-list">${rows.join('')}</ul>` : ''),
     rows = v => (Array.isArray(v) ? v.slice(0, 5) : []),
+    count = v => (Number.isSafeInteger(v) ? uiNumber(v) : '0'),
+    percent = v =>
+      typeof v === 'number' && Number.isFinite(v)
+        ? `<span dir="ltr">${esc(uiNumber(v / 100, {style: 'percent', maximumFractionDigits: 1}))}</span>`
+        : unknown,
     more = (v, total) =>
       Number.isSafeInteger(total) && total > Math.min(5, Array.isArray(v) ? v.length : 0)
         ? `<p class="form-note">${esc(uiText('{shown} of {total} shown.', {shown: Math.min(5, Array.isArray(v) ? v.length : 0), total: uiNumber(total)}))}</p>`
         : '';
+  const pixel = measurementLedgerPixelGateways.includes(gateway);
   if (typeof e.error === 'string') return `${esc(uiText('Error code'))}: ${native(e.error)}`;
   if (l.state !== 'observed') {
     if (
@@ -2600,13 +2656,17 @@ function measurementLedgerEvidence(l, gateway) {
           },
         ),
       );
-    if (l.layer === 'provider_observed_activity' && Array.isArray(e.events))
+    if (l.layer === 'provider_observed_activity' && gateway === 'ga4_native_action' && Array.isArray(e.events))
       return list(
         rows(e.events).map(
           v =>
             `<li><code dir="ltr">${esc(v.event_name)}</code>: ${v.reported_count === null ? esc(uiText('None reported')) : native(v.reported_count)}</li>`,
         ),
       );
+    if (l.layer === 'provider_observed_activity' && gateway === 'meta_native_action' && 'last_fired_time' in e)
+      return `${esc(uiText('Last fired'))} ${native(e.last_fired_time)}`;
+    if (l.reason === 'report_incomplete' && Number.isSafeInteger(e.warnings))
+      return esc(uiText('{count} provider warnings', {count: uiNumber(e.warnings)}));
     return '';
   }
   if (l.layer === 'configuration' && gateway === 'google_ads_native_action')
@@ -2616,8 +2676,27 @@ function measurementLedgerEvidence(l, gateway) {
         actions: uiNumber(e.summary?.matching_primary_actions ?? 0),
       }),
     );
-  if (l.layer === 'configuration')
+  if (l.layer === 'configuration' && gateway === 'ga4_native_action')
     return `${esc(uiText('{events} key events · {streams} data streams', {events: uiNumber(e.summary?.key_events ?? 0), streams: uiNumber(e.summary?.data_streams ?? 0)}))}${list(rows(e.data_streams).map(s => `<li><code dir="ltr">${esc(s.stream_id)}</code> ${native(s.type)} ${s.measurement_id ? native(s.measurement_id) : ''}</li>`))}`;
+  if (l.layer === 'configuration' && pixel) {
+    const detail = p =>
+      gateway === 'meta_native_action'
+        ? ` · ${esc(uiText('Last fired'))} ${native(p.last_fired_time)}${p.is_unavailable === true ? ' · ' + esc(uiText('Unavailable')) : ''}`
+        : gateway === 'snapchat_native_action'
+          ? ` · ${native(p.effective_status ?? p.status)}`
+          : ` · ${esc(p.owned === true ? uiText('Owned') : p.owned === false ? uiText('Shared or unbound') : uiText('Ownership unknown'))}`;
+    return `${esc(uiText('{count} pixels listed', {count: count(e.pixel_count)}))}${list(
+      rows(e.pixels).map(p => {
+        const id = p.id ?? p.pixel_id,
+          name = p.name ?? p.pixel_name;
+        return `<li><code dir="ltr">${esc(String(id))}</code>${name ? ` <bdi dir="auto">${esc(name)}</bdi>` : ''}${detail(p)}${id === e.selected_pixel ? ' · <strong>' + esc(uiText('Selected')) + '</strong>' : ''}</li>`;
+      }),
+    )}${more(e.pixels, e.pixel_count)}`;
+  }
+  if (l.layer === 'configuration' && gateway === 'google_search_console_native_action')
+    return `${native(e.site_url)} · ${esc(uiText('Permission'))} ${native(e.permission_level)}`;
+  if (l.layer === 'configuration' && gateway === 'adjust_native_action')
+    return `${esc(uiText('{count} events defined', {count: count(e.event_count)}))}${list(rows(e.events).map(v => `<li><code dir="ltr">${esc(String(v.id))}</code>${v.name ? ` <bdi dir="auto">${esc(v.name)}</bdi>` : ''}</li>`))}${more(e.events, e.event_count)}`;
   if (l.layer === 'provider_observed_activity' && gateway === 'google_ads_native_action')
     return list(
       rows(e.primary_actions).map(
@@ -2625,13 +2704,55 @@ function measurementLedgerEvidence(l, gateway) {
           `<li><bdi dir="auto">${esc(a.name ?? a.resource_name)}</bdi>: ${esc(uiText('Last conversion date'))} ${native(a.last_conversion_date)} · ${esc(uiText('Last tag detected'))} ${native(a.last_tag_received_time)}</li>`,
       ),
     );
-  if (l.layer === 'provider_observed_activity')
+  if (l.layer === 'provider_observed_activity' && gateway === 'ga4_native_action')
     return list(
       rows(e.events).map(
         v =>
           `<li><code dir="ltr">${esc(v.event_name)}</code>: ${v.reported_count === null ? esc(uiText('None reported')) : native(v.reported_count)}</li>`,
       ),
     );
+  if (l.layer === 'provider_observed_activity' && gateway === 'meta_native_action')
+    return `${esc(uiText('Last {hours} hours', {hours: count(e.window_hours)}))} · ${esc(uiText('Last fired'))} ${native(e.last_fired_time)}${list(rows(e.events).map(v => `<li><code dir="ltr">${esc(v.event_name)}</code>: ${native(v.count)}</li>`))}${more(e.events, e.event_count)}`;
+  if (l.layer === 'provider_observed_activity' && gateway === 'snapchat_native_action')
+    return `${esc(uiText('{events} events from {domains} domains in the last 7 days', {events: count(e.total_events), domains: count(e.domain_count)}))}${list(rows(e.domains).map(d => `<li><code dir="ltr">${esc(d.domain_name)}</code>: ${native(d.total_events)}</li>`))}${more(e.domains, e.domain_count)}`;
+  if (l.layer === 'provider_observed_activity' && gateway === 'google_search_console_native_action')
+    return esc(
+      uiText('{clicks} clicks · {impressions} impressions on {days} reported days ({start} to {end}, Pacific time)', {
+        clicks: count(e.clicks),
+        impressions: count(e.impressions),
+        days: count(e.days_reported),
+        start: e.start_date,
+        end: e.end_date,
+      }),
+    );
+  if (l.layer === 'provider_observed_activity' && gateway === 'adjust_native_action')
+    return `${esc(uiText('Installs {installs} · Events {events} from {start} to {end} (UTC)', {installs: e.totals?.installs ?? uiText('Unknown'), events: e.totals?.events ?? uiText('Unknown'), start: e.start_date, end: e.end_date}))}${list(rows(e.days).map(d => `<li><code dir="ltr">${esc(d.day)}</code>: ${native(d.installs)} · ${native(d.events)}</li>`))}`;
+  if (l.layer === 'provider_diagnostics' && gateway === 'meta_native_action')
+    return (
+      list(
+        rows(e.events).map(
+          v =>
+            `<li><code dir="ltr">${esc(v.event_name)}</code>: ${v.composite_score === null ? `${esc(uiText('Match quality'))} ${unknown}` : esc(uiText('Match quality {score} of 10', {score: uiNumber(v.composite_score)}))} · ${esc(uiText('Conversions API coverage'))} ${percent(v.event_coverage_percentage)} · ${esc(uiText('Upload frequency'))} ${native(v.upload_frequency)}${rows(
+              v.dedupe_keys,
+            )
+              .map(
+                k => ` · ${esc(uiText('Deduplication key'))} ${native(k.dedupe_key)} ${percent(k.server_percentage)}`,
+              )
+              .join('')}</li>`,
+        ),
+      ) + more(e.events, e.event_count)
+    );
+  if (l.layer === 'provider_diagnostics' && gateway === 'snapchat_native_action')
+    return (
+      list(
+        rows(e.scores).map(
+          s =>
+            `<li><code dir="ltr">${esc(s.event_type)}</code> ${native(s.action_source)} ${native(s.event_source)}${list(rows(s.recommendations).map(r => `<li>${native(r.recommendation_code)} · ${native(r.priority)} · ${native(r.score)}${r.title ? ` · <bdi dir="auto">${esc(r.title)}</bdi>` : ''}</li>`))}</li>`,
+        ),
+      ) + more(e.scores, e.score_count)
+    );
+  if (l.layer === 'provider_diagnostics' && gateway === 'google_search_console_native_action')
+    return `${esc(uiText('{errors} with errors · {warnings} with warnings · {pending} pending', {errors: count(e.with_errors), warnings: count(e.with_warnings), pending: count(e.pending)}))}${list(rows(e.sitemaps).map(s => `<li><code dir="ltr">${esc(s.path)}</code>: ${esc(uiText('Errors'))} ${native(s.errors)} · ${esc(uiText('Warnings'))} ${native(s.warnings)} · ${esc(uiText('Last downloaded'))} ${native(s.last_downloaded)}</li>`))}${more(e.sitemaps, e.sitemap_count)}`;
   if (l.layer === 'provider_diagnostics')
     return (
       list(
@@ -2672,7 +2793,10 @@ function measurementLedgerView(out, target) {
         `<tr><th scope="row">${esc(uiText(measurementLedgerLayers[l.layer]))}</th><td><span class="measurement-ledger-state measurement-ledger-${esc(l.state)}">${esc(uiText(measurementLedgerStates[l.state]))}</span></td><td>${esc(Object.hasOwn(measurementLedgerReasons, l.reason) ? uiText(measurementLedgerReasons[l.reason]) : l.reason)}${link(l) ? `<br>${link(l)}` : ''}</td><td>${measurementLedgerEvidence(l, out.scope.gateway)}</td></tr>`,
     )
     .join('');
-  return `<h3 id="measurement-ledger-heading" tabindex="-1">${esc(target.label)}</h3><p>${esc(uiText('Requested {requested} · Returned {captured}', {requested: date(out.requested_at), captured: date(out.captured_at)}))}</p><p class="notice">${esc(uiAccountExplanation(out.meaning))}</p><div class="workspace-metrics">${summary}</div><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Evidence layers'))}"><table class="review-table measurement-ledger"><caption>${esc(uiText('Evidence layers'))}</caption><thead><tr><th scope="col">${esc(uiText('Layer'))}</th><th scope="col">${esc(uiText('State'))}</th><th scope="col">${esc(uiText('What this means'))}</th><th scope="col">${esc(uiText('Evidence'))}</th></tr></thead><tbody>${body}</tbody></table></div><p>${esc(uiText('Configuration and reported activity do not prove that conversions are delivered, deduplicated, consented or attributed. Nothing was changed and no snapshot was saved.'))}</p>${recordDetails(out, uiText('Evidence ledger scope, limits and source references'))}`;
+  const pixel = out.scope.pixel_id
+    ? `<p>${esc(uiText('Pixel or dataset ID'))}: <code dir="ltr">${esc(out.scope.pixel_id)}</code></p>`
+    : '';
+  return `<h3 id="measurement-ledger-heading" tabindex="-1">${esc(target.label)}</h3>${pixel}<p>${esc(uiText('Requested {requested} · Returned {captured}', {requested: date(out.requested_at), captured: date(out.captured_at)}))}</p><p class="notice">${esc(uiAccountExplanation(out.meaning))}</p><div class="workspace-metrics">${summary}</div><div class="data-scroll" role="region" tabindex="0" aria-label="${esc(uiText('Evidence layers'))}"><table class="review-table measurement-ledger"><caption>${esc(uiText('Evidence layers'))}</caption><thead><tr><th scope="col">${esc(uiText('Layer'))}</th><th scope="col">${esc(uiText('State'))}</th><th scope="col">${esc(uiText('What this means'))}</th><th scope="col">${esc(uiText('Evidence'))}</th></tr></thead><tbody>${body}</tbody></table></div><p>${esc(uiText('Configuration and reported activity do not prove that conversions are delivered, deduplicated, consented or attributed. Nothing was changed and no snapshot was saved.'))}</p>${recordDetails(out, uiText('Evidence ledger scope, limits and source references'))}`;
 }
 function bindMeasurementLedger(targets) {
   const form = $('#measurement-ledger'),
@@ -2688,20 +2812,30 @@ function bindMeasurementLedger(targets) {
             t.account_id === params.get('account_id') &&
             t.connection_id === params.get('connection_id'),
         ),
+        pixel = params.get('pixel_id'),
         valid =
           params.get('ledger') === '1' &&
           ['ledger', 'gateway', 'account_id', 'connection_id'].every(k => params.getAll(k).length === 1) &&
-          index >= 0;
+          index >= 0 &&
+          (!params.has('pixel_id') ||
+            (params.getAll('pixel_id').length === 1 &&
+              measurementLedgerPixelGateways.includes(targets[index].gateway) &&
+              measurementLedgerPixel(pixel)));
       form.elements.target.value = valid ? String(index) : '';
-      result.innerHTML = `<p class="form-note" role="status">${esc(valid ? uiText('Account selected from an evidence ledger link. Read the ledger to refresh the evidence.') : uiText('The linked account is unavailable. Choose a currently selected Google Ads account or GA4 property.'))}</p>`;
+      if (form.elements.pixel_id) form.elements.pixel_id.value = valid && pixel ? pixel : '';
+      result.innerHTML = `<p class="form-note" role="status">${esc(valid ? uiText('Account selected from an evidence ledger link. Read the ledger to refresh the evidence.') : uiText('The linked account is unavailable. Choose a currently selected account, property, site or app.'))}</p>`;
     }
   }
   workspaceBind('#measurement-ledger', async () => {
     const current = begin();
     if (!current()) return;
     const target = targets[Number(form.elements.target.value)];
-    if (form.elements.target.value === '' || !target)
-      throw Error(uiText('Choose a Google Ads account or GA4 property.'));
+    if (form.elements.target.value === '' || !target) throw Error(uiText('Choose an account, property, site or app.'));
+    const pixel = (form.elements.pixel_id?.value ?? '').trim();
+    if (pixel && !measurementLedgerPixelGateways.includes(target.gateway))
+      throw Error(uiText('A pixel ID applies only to a Meta, Snapchat or TikTok account.'));
+    if (pixel && !measurementLedgerPixel(pixel))
+      throw Error(uiText('Use the exact pixel or dataset ID the account lists.'));
     let out;
     try {
       out = await workspaceCall('workspace', {
@@ -2709,13 +2843,14 @@ function bindMeasurementLedger(targets) {
         gateway: target.gateway,
         connection_id: target.connection_id,
         account_id: target.account_id,
+        ...(pixel ? {requirements: {pixel_id: pixel}} : {}),
       });
     } catch (error) {
       if (current()) throw error;
       return;
     }
     if (!current()) return;
-    if (!measurementLedgerValid(out, target))
+    if (!measurementLedgerValid(out, target, pixel))
       throw Error(
         uiText('The evidence ledger response is incomplete or belongs to a different selection. Read it again.'),
       );
