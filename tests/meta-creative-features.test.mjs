@@ -16,7 +16,9 @@ import {
   metaEnrollStatuses,
 } from '../dist/src/meta-creative-features.js';
 import {metaSdkTag} from '../tools/meta-sdk.mjs';
-import {creativeFeatureEvidence, sdkModules} from '../tools/meta-creative-features.mjs';
+import {creativeFeatureEvidence, pinnedEvidenceProblems, sdkModules} from '../tools/meta-creative-features.mjs';
+import {profileStages} from '../tools/qualify.mjs';
+import {spawnSync} from 'node:child_process';
 
 /**
  * Advantage+ creative features chosen one by one (PRV-06 C). Meta's Standard Enhancements page (read 2026-10-08 by
@@ -413,4 +415,35 @@ test('the pin tool reads the SDK classes and refuses a feature or type the relea
     () => creativeFeatureEvidence(sdkText(all, {freedomType: 'Object'}), metaCreativeFeatures, '2026-10-16'),
     /creative_features_spec/,
   );
+});
+
+// PRV-06 C review: the allowlist is transcribed from the SDK classes until the owner pins the 26.0.2 files, so release
+// qualification fails on it (a blocking full-profile stage); npm run check and the fast gate do not run that stage.
+test('release qualification fails while the allowlist is transcribed and passes once the SDK files are pinned', () => {
+  const committed = JSON.parse(readFileSync('tests/fixtures/meta-creative-features-sdk-v26.json', 'utf8')),
+    problems = pinnedEvidenceProblems(committed);
+  if (committed.evidence === 'sdk_files') assert.deepEqual(problems, []);
+  else {
+    assert.ok(problems.includes('evidence is "transcribed", not sdk_files'), problems.join('; '));
+    assert.ok(problems.includes('checked_at holds no pin date'), problems.join('; '));
+    for (const name of sdkModules) assert.ok(problems.includes(name + ' has no SHA-256'), name);
+  }
+  const cli = spawnSync(process.execPath, ['tools/meta-creative-features.mjs', '--require-pinned'], {encoding: 'utf8'});
+  assert.equal(cli.status, problems.length ? 1 : 0, cli.stderr);
+  if (problems.length) assert.match(cli.stderr, /PRV-06 C stays partial until the owner runs/);
+  // The pin command's own output passes: hashed files, a pin date and the release's features.
+  const pinned = creativeFeatureEvidence(
+    sdkText([...metaCreativeFeatures, 'video_highlight']),
+    metaCreativeFeatures,
+    '2026-10-16',
+  );
+  assert.deepEqual(pinnedEvidenceProblems(pinned), []);
+  assert.deepEqual(pinnedEvidenceProblems({...pinned, checked_at: null}), ['checked_at holds no pin date']);
+  assert.deepEqual(
+    pinnedEvidenceProblems({...pinned, sources: {...pinned.sources, adaccount: {url: 'x', sha256: null}}}),
+    ['adaccount has no SHA-256'],
+  );
+  const stage = profileStages('full').find(s => s.name === 'meta_creative_features_pinned');
+  assert.deepEqual([stage?.args, stage?.blocking], [['tools/meta-creative-features.mjs', '--require-pinned'], true]);
+  assert.ok(!profileStages('fast').some(s => s.name === 'meta_creative_features_pinned'));
 });

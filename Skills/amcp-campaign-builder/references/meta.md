@@ -43,7 +43,8 @@ review of a new creative that chooses none says so (`creative_impact.creative_fe
 - **Ask the user** which features Meta may apply before you create a creative. Never choose for them, and leave out a
   feature they have no view on. Set each answer as `degrees_of_freedom_spec: {creative_features_spec: {<feature>:
   {enroll_status: "OPT_IN" | "OPT_OUT"}}}`; the review lists `opted_in` and `opted_out`.
-- The contract reviews these single features of Meta's SDK 26.0.2 (`tests/fixtures/meta-creative-features-sdk-v26.json`),
+- The contract reviews these single features of Meta's SDK 26.0.2 (`tests/fixtures/meta-creative-features-sdk-v26.json`,
+  transcribed from the SDK classes until the release files are hashed; release qualification fails until then),
   at Graph API v26.0 only (a deployment moved back to v25.0 refuses the field): `adapt_to_placement`,
   `add_text_overlay`, `audio`, `description_automation`, `enhance_cta`, `image_animation`, `image_background_gen`,
   `image_brightness_and_contrast`, `image_templates`, `image_touchups`, `image_uncrop`, `inline_comment`,

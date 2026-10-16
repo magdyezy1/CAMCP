@@ -562,8 +562,12 @@ The maintained GitHub workflow defines Docker builds and synthetic read-only/wri
 - **Stages.** The deterministic freshness gates run first: TypeScript build, release identity, format check, the
   test-oracle ratchet (`check:oracles`), the `generate:*` checks, `report -- --check`, `contracts:check`,
   `contracts:actions:check` and `docs:index:check`. The full profile then probes FFmpeg and ffprobe, runs the suite
-  with `AMCP_REQUIRE_FFMPEG=true`, the capture tests, the mutant catalogue (`mutant_catalogue`), `check:web`, the
-  journey and MCP evaluation (`journey_evaluation`, below) and the provider checks. Each stage records argv, exit
+  with `AMCP_REQUIRE_FFMPEG=true`, the capture tests, the mutant catalogue (`mutant_catalogue`), the wire-contract
+  sweep, the Meta creative feature pin (`meta_creative_features_pinned`: it fails while
+  `tests/fixtures/meta-creative-features-sdk-v26.json` is transcribed rather than hashed from the SDK 26.0.2 files, so
+  PRV-06 C stays partial and no release qualifies until the owner runs `node tools/meta-creative-features.mjs
+  --source-dir <directory>`), `check:web`, the journey and MCP evaluation (`journey_evaluation`, below) and the
+  provider checks. Each stage records argv, exit
   code, duration, output SHA-256 and the test totals (total, pass, fail, skipped, cancelled). Any skipped test fails
   the run unless named with
   `--allow-skip "<test name>"`; without FFmpeg the run fails at `ffmpeg_probe` (`FFMPEG_UNAVAILABLE`).

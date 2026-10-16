@@ -3,6 +3,8 @@
 // (facebook-python-business-sdk 26.0.2) into a directory and runs
 //   node tools/meta-creative-features.mjs --source-dir <directory>          (pins the fixture)
 //   node tools/meta-creative-features.mjs --source-dir <directory> --check  (fails when the pinned fixture differs)
+//   node tools/meta-creative-features.mjs --require-pinned                  (release qualification: fails while the
+//                                                                            committed fixture is not hashed SDK evidence)
 // It refuses when an accepted feature is not a field of AdCreativeFeaturesSpec, or when the SDK no longer types
 // degrees_of_freedom_spec, creative_features_spec or enroll_status as the contract expects.
 import fs from 'node:fs';
@@ -18,6 +20,24 @@ export const sdkModules = [
   'adcreative',
   'adaccount',
 ];
+
+/**
+ * Why a fixture is not yet the hashed SDK evidence the allowlist needs (PRV-06 C): empty once the pin command has read
+ * the release files. A transcribed fixture (no hashes, no pin date) only narrows what AMCP sends; release
+ * qualification (tools/qualify.mjs, full profile) fails on it until the owner pins the files.
+ */
+export function pinnedEvidenceProblems(fixture) {
+  const problems = [],
+    sources = fixture && typeof fixture.sources === 'object' && fixture.sources ? fixture.sources : {};
+  if (fixture?.evidence !== 'sdk_files')
+    problems.push('evidence is ' + JSON.stringify(fixture?.evidence ?? null) + ', not sdk_files');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(fixture?.checked_at ?? ''))) problems.push('checked_at holds no pin date');
+  for (const name of sdkModules)
+    if (!/^[0-9a-f]{64}$/.test(String(sources[name]?.sha256 ?? ''))) problems.push(name + ' has no SHA-256');
+  if (!Array.isArray(fixture?.sdk_features) || !fixture.sdk_features.length)
+    problems.push('sdk_features does not list the release features');
+  return problems;
+}
 
 /** The pinned evidence for `accepted` from the SDK modules' text and sources. Throws when the SDK disagrees. */
 export function creativeFeatureEvidence({sources, text}, accepted, checkedAt) {
@@ -67,7 +87,26 @@ export function creativeFeatureEvidence({sources, text}, accepted, checkedAt) {
   };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url) &&
+  process.argv.includes('--require-pinned')
+) {
+  // Offline: reads only the committed fixture. Until it is pinned, PRV-06 C stays partial and a release is not qualified.
+  const problems = pinnedEvidenceProblems(JSON.parse(fs.readFileSync(fixturePath, 'utf8')));
+  if (problems.length) {
+    console.error(
+      'The Advantage+ creative feature allowlist (' +
+        fixturePath +
+        ') is not pinned from the facebook-python-business-sdk ' +
+        metaSdkTag +
+        ' files: ' +
+        problems.join('; ') +
+        '. PRV-06 C stays partial until the owner runs: node tools/meta-creative-features.mjs --source-dir <directory>.',
+    );
+    process.exitCode = 1;
+  } else console.log('The Advantage+ creative feature allowlist is pinned from SDK ' + metaSdkTag + ' files.');
+} else if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const {metaCreativeFeatures} = await import('../dist/src/meta-creative-features.js');
   const sdk = readSdk(
     argumentDirectory('--source-dir', 'the facebook-python-business-sdk ' + metaSdkTag + ' adobjects files'),
