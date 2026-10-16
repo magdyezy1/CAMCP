@@ -37,6 +37,7 @@ import {
   refusedAfterSubmission,
 } from './campaign-continuation.js';
 import {activationGates, activationPlatforms, activationSteps} from './campaign-activation.js';
+import {microsoftLocationsUnpinned} from './microsoft-locations.js';
 import {recipeDependencies} from './capability-eligibility.js';
 import {
   archivableStates,
@@ -137,7 +138,7 @@ export const campaignTool = tool(
     destructive_confirmed: field.bool,
     expected_revision: field.integer,
     query: field.id,
-    lookup_kind: {type: 'string', enum: ['country', 'language']},
+    lookup_kind: {type: 'string', enum: ['country', 'language', 'microsoft_location']},
     account_id: field.id,
     recipe: field.id,
     business: field.object,
@@ -365,6 +366,8 @@ export class CampaignRunner {
     private preflight?: (actor: Actor, steps: JsonObject[]) => Promise<JsonObject>,
     private acceptsAccountId: (gateway: string, operation?: string) => boolean = () => true,
     private inspectConversionGoals?: (actor: Actor, scope: JsonObject, current: () => void) => Promise<JsonObject>,
+    /** The Microsoft location lookup (CMP-03, src/microsoft-locations.ts); absent, the lookup is unavailable. */
+    private lookupMicrosoftLocations?: (actor: Actor, input: JsonObject) => Promise<JsonObject>,
   ) {}
   /**
    * A plan the actor may act on with one of `rights` (CMP-05): its owner and administrators always; a collaborator by
@@ -1285,6 +1288,11 @@ export class CampaignRunner {
     validate(input, Object.keys(campaignTool.inputSchema.properties), 524288);
     this.store.assertActorActive(actor);
     if (input.action === 'recipes') return {recipes: campaignRecipes};
+    // CMP-03: Microsoft location IDs and names from its geographical locations file, by name or by ID.
+    if (input.action === 'recipe_lookup' && input.lookup_kind === 'microsoft_location') {
+      if (!this.lookupMicrosoftLocations) throw microsoftLocationsUnpinned();
+      return this.lookupMicrosoftLocations(actor, input);
+    }
     if (input.action === 'recipe_lookup') {
       const query = String(input.query ?? '').trim();
       if (!/^[A-Za-z -]{2,60}$/.test(query) || !['country', 'language'].includes(input.lookup_kind))

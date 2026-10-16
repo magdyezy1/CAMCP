@@ -908,6 +908,23 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
         'Pause the campaign with a reviewed UpdateCampaigns (Status Paused), then review the location change; or change its locations in Microsoft Advertising. Nothing was sent.',
       mutation_retry_safe: false,
     };
+  // CMP-03: the Microsoft location lookup reads only; nothing is ever written.
+  if (e.code === 'MICROSOFT_LOCATIONS_UNPINNED')
+    return {
+      category: 'contract',
+      owner: 'workspace_owner',
+      action:
+        'Nothing was sent. Enter location IDs from Microsoft’s geographical locations file instead. The deployment owner turns this search on by pinning Microsoft’s GetGeoLocationsFileUrl documentation with tools/microsoft-rest.mjs.',
+      mutation_retry_safe: false,
+    };
+  if (e.code === 'MICROSOFT_LOCATIONS_FILE_INVALID' || e.code === 'MICROSOFT_LOCATIONS_FILE_UNAVAILABLE')
+    return {
+      category: 'provider',
+      owner: 'operator',
+      action:
+        'No partial list was used. Search again in a moment, or enter location IDs from Microsoft’s geographical locations file; report the request ID if this recurs.',
+      mutation_retry_safe: false,
+    };
   // CMP-05: campaign plan inventory and team handoff. Local workspace state only; nothing reached a provider.
   if (e.code === 'PLAN_LIMIT_REACHED')
     return {

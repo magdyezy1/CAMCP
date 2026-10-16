@@ -17,6 +17,7 @@ import {
 } from './google-place-action-discovery.js';
 import {campaignPreflight} from './campaign-preflight.js';
 import {inspectGoogleRecipeGoals} from './google-goal-inspection.js';
+import {microsoftLocationLookup} from './microsoft-locations.js';
 import {searchMetaAdLibrary} from './meta-ad-library.js';
 import {fetchMetaExistingPosts, redactMetaPostInput} from './meta-existing-posts.js';
 import {assertNotPersonalDataRead, withoutPeople} from './personal-data.js';
@@ -413,6 +414,18 @@ export class MirrorService {
             (g, op) => this.registry.acceptsArgument(g, 'account_id', op),
             (a, scope, current) =>
               inspectGoogleRecipeGoals(this.store, this.registry, this.transport, this.credentials, a, scope, current),
+            (a, lookup) =>
+              microsoftLocationLookup(
+                {
+                  store: this.store,
+                  registry: this.registry,
+                  transport: this.transport,
+                  credentials: this.credentials,
+                  fetcher: this.mediaFetcher === fetch ? undefined : this.mediaFetcher,
+                },
+                a,
+                lookup,
+              ),
           ).handle(input, actor),
           requestId,
           start,

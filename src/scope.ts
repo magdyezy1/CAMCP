@@ -5,7 +5,12 @@ import {MirrorError} from './errors.js';
 import {Registry} from './catalog.js';
 import {Store} from './store.js';
 import {stable} from './security.js';
-import {microsoftGateway, microsoftCustomer, microsoftContracts} from './microsoft-native.js';
+import {
+  microsoftGateway,
+  microsoftCustomer,
+  microsoftContracts,
+  microsoftGeoLocationsContract,
+} from './microsoft-native.js';
 import {microsoftReportKey} from './microsoft-report-download.js';
 import {authorizeLinkedInSpecial} from './linkedin-posts.js';
 import {linkedinPlanningAccount, linkedinPlanningRoute} from './linkedin-planning-reads.js';
@@ -367,7 +372,10 @@ export class ScopeGuard {
     }
     if (plan.gateway === microsoftGateway) {
       microsoftCustomer(connection, id);
-      const contract = microsoftContracts.get(plan.action);
+      // The location lookup's file URL read (CMP-03) has its own exact route; it is no gateway action.
+      const contract =
+        microsoftContracts.get(plan.action) ??
+        (plan.action === microsoftGeoLocationsContract.name ? microsoftGeoLocationsContract : undefined);
       if (!contract || contract.path !== plan.path || contract.method !== plan.method)
         throw new MirrorError('RESOURCE_SCOPE_REQUIRED', 'Unqualified Microsoft request contract.', {}, 403);
       const body = plan.body as JsonObject;

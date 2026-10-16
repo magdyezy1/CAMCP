@@ -1005,7 +1005,7 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'recipe_lookup',
-      'Google country or language constants by name or code (one bounded read).',
+      'Google country or language constants by name or code; microsoft_location: Microsoft location IDs by name, or 1–100 IDs, from its geographical locations file (bounded reads).',
       ['query', 'lookup_kind'],
       ['account_id', 'connection_id'],
       reads(),

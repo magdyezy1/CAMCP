@@ -20,10 +20,16 @@ import {createHash} from 'node:crypto';
  * rules change here is read again. After --refresh, every page whose template or digest changed is printed with the
  * rules it carries: read it again and check them before changing src/microsoft-campaign-criteria.ts.
  *
+ * Optional operations (`optionalPages`, under document.optional_operations): the request of a feature that stays off
+ * until its page is pinned. GetGeoLocationsFileUrl is the first: the Microsoft location lookup (CMP-03,
+ * src/microsoft-locations.ts) refuses before sending anything until this tool has pinned its REST page. Its rules were
+ * written before the page was read here, so the first fetch prints them as newly_pinned: read the page and check them.
+ *
  *   node tools/microsoft-rest.mjs            fetch the pages not pinned yet, or whose rules changed
  *   node tools/microsoft-rest.mjs --refresh  fetch every page again
  *   node tools/microsoft-rest.mjs --check    offline: the pin is sealed and covers exactly AMCP's operations and the
- *                                            reference pages, each with its read time and rules
+ *                                            reference pages, each with its read time and rules; an optional
+ *                                            operation is checked when pinned and named when not
  */
 // --check may name another copy of the pin to check (--file=path), as the tests do; fetching always writes the pin.
 const file =
@@ -31,10 +37,13 @@ const file =
     '.mirror/VENDOR/microsoft-rest-v13.json',
   source = 'https://learn.microsoft.com/en-us/advertising/',
   hash = value => createHash('sha256').update(value).digest('hex');
-const {microsoftActions} = await import('../dist/src/microsoft-native.js');
+const {microsoftActions, microsoftGeoLocationsContract} = await import('../dist/src/microsoft-native.js');
 const pages = Object.fromEntries(microsoftActions.map(a => [a.name, a.raw.source]));
-for (const [name, page] of Object.entries(pages))
+/** Pinned when fetched, never required: each turns on a feature that refuses until its page is pinned. */
+export const optionalPages = {[microsoftGeoLocationsContract.name]: microsoftGeoLocationsContract.page};
+for (const [name, page] of Object.entries({...pages, ...optionalPages}))
   if (!page.startsWith(source) || !page.endsWith('?view=bingads-13')) throw Error('Unexpected page for ' + name);
+for (const name of Object.keys(optionalPages)) if (pages[name]) throw Error(name + ' is both required and optional');
 /**
  * The rules AMCP takes from a page beyond its REST templates (CMP-03, owner decision P7), paraphrased. The
  * location-criterion family (src/microsoft-campaign-criteria.ts) and the activation guard (microsoft-native.ts) apply
@@ -82,6 +91,11 @@ export const reliesOn = {
     'A location criterion takes the Location Id column of the geographical locations file (GetGeoLocationsFileUrl); the Bing Display Name is for presentation only, and several IDs can share one.',
     'This guide says a Pending Deprecation location still targets until it is deprecated within 30 days, while the LocationCriterion page says PendingDeprecation already stops targeting; both say a deprecated location criterion can still be read but no longer targets or excludes.',
   ],
+  // Optional (CMP-03 location lookup): written before the page was read; check them when it is first pinned.
+  GetGeoLocationsFileUrl: [
+    'Version 2.0 is the file version AMCP requests, LanguageLocale en gives its display names in English, and CompressionType Zip a single-file ZIP archive.',
+    'FileUrl is valid until FileUrlExpiryTimeUtc, and LastModifiedTimeUtc tells whether the file changed since an earlier download.',
+  ],
 };
 export const referencePages = {
   ...Object.fromEntries(
@@ -100,7 +114,8 @@ export const referencePages = {
 for (const [name, page] of Object.entries(referencePages))
   if (!page.startsWith(source) || !page.endsWith('?view=bingads-13')) throw Error('Unexpected page for ' + name);
 for (const name of Object.keys(reliesOn))
-  if (!pages[name] && !referencePages[name]) throw Error('Rules for a page that is not pinned: ' + name);
+  if (!pages[name] && !referencePages[name] && !optionalPages[name])
+    throw Error('Rules for a page that is not pinned: ' + name);
 const sameRules = (pinned, name) =>
   JSON.stringify(pinned?.relies_on ?? null) === JSON.stringify(reliesOn[name] ?? null);
 /** When and why a page was read: its read time and, when AMCP takes rules from it, those rules. */
@@ -184,6 +199,20 @@ function verify(envelope) {
     templateFields(op.response_json);
     provenanceOf(name, op);
   }
+  // An optional operation is checked like the others once pinned; until then its feature refuses, which is named here.
+  const optional = envelope.document.optional_operations ?? {};
+  for (const [name, op] of Object.entries(optional)) {
+    if (!optionalPages[name]) throw Error(name + ': not an optional operation of this tool');
+    if (op.page !== optionalPages[name]) throw Error(name + ': pinned from another page');
+    templateFields(op.request_json);
+    templateFields(op.response_json);
+    provenanceOf(name, op);
+  }
+  const pending = Object.keys(optionalPages).filter(name => !optional[name]);
+  if (pending.length)
+    console.log(
+      JSON.stringify({optional_not_pinned: pending, effect: 'their features refuse before sending anything'}),
+    );
   const references = envelope.document.references ?? {};
   if (JSON.stringify(Object.keys(references).sort()) !== JSON.stringify(Object.keys(referencePages).sort()))
     throw Error('Microsoft REST evidence pins the reference pages ' + Object.keys(references).join(','));
@@ -215,10 +244,19 @@ else {
   const references = {};
   for (const [name, page] of Object.entries(referencePages))
     references[name] = await pin(name, page, previous?.document.references?.[name], articleSection);
+  const optional = {},
+    added = [];
+  for (const [name, page] of Object.entries(optionalPages)) {
+    const pinned = previous?.document.optional_operations?.[name];
+    optional[name] = await pin(name, page, pinned, restSection);
+    if (!pinned) added.push({newly_pinned: name, check_rules: reliesOn[name] ?? []});
+  }
+  const sorted = value => Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b, 'en')));
   const document = {
     version: 'v13',
-    operations: Object.fromEntries(Object.entries(operations).sort(([a], [b]) => a.localeCompare(b, 'en'))),
-    references: Object.fromEntries(Object.entries(references).sort(([a], [b]) => a.localeCompare(b, 'en'))),
+    operations: sorted(operations),
+    references: sorted(references),
+    ...(Object.keys(optional).length ? {optional_operations: sorted(optional)} : {}),
   };
   const envelope = {
     source,
@@ -235,4 +273,6 @@ else {
   console.log({operations: Object.keys(operations).length, references: Object.keys(references).length});
   // A page whose template or text changed since it was pinned: check its rules against it before relying on them.
   for (const c of changed) console.log(JSON.stringify({changed_since_pinned: c.page, check_rules: c.relies_on}));
+  // An optional page pinned for the first time: its rules were written before it was read here, so check them now.
+  for (const a of added) console.log(JSON.stringify(a));
 }
