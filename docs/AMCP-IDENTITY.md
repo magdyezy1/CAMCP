@@ -67,5 +67,10 @@ The workspace stylesheets no longer carry declarations that a later stylesheet o
 (`app.css`, `identity.css` and `reporting.css`; most were the original shades WEB-01's contrast fixes in
 `accessibility.css` replaced). Each overriding declaration parses in Chromium, and a computed-style comparison of every
 element on every page, light and dark, at 1280 and 375 pixels, found no difference. Literal colours outside
-`tokens.css`: 570 on Work-here (558 outside today's allow-list), now 452 (440 outside the 12 allow-listed brand and
-print colours, the count `tools/web-colour-baseline.json` holds).
+`tokens.css`: 570 on Work-here (558 outside today's allow-list), then 452 (440 outside the 12 allow-listed brand and
+print colours). The 122 declarations that a later rule of the same stylesheet, or a later stylesheet, overrides for the
+identical selector at the same or a wider media condition left too (w4a, 2026-10-17: 34 in `app.css`, 73 in
+`identity.css`, 15 in `reporting.css`, 49 of them literal colours): each overriding declaration parses in Chromium, and
+a computed-style comparison of every element and every forced hover, focus and active state of the public and
+workspace pages, light and dark, English and Arabic, at 375, 800 and 1280 pixels, found no difference. 391 literal
+colours remained outside the allow-list.
