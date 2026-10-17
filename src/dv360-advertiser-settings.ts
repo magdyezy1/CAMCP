@@ -3,7 +3,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {assertDV360WriteScope} from './dv360-scope.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Settings of the selected DV360 advertiser, Display & Video 360 API v4 (pinned Discovery document: advertisers.patch,
@@ -130,22 +130,14 @@ export function assertDV360Advertiser(p: CompiledRequest): void {
       );
   }
 }
-const read = (p: CompiledRequest, path: string): Read => ({
-  ...p,
-  action: 'AMCP_DV360_ADVERTISER_READ',
-  method: 'GET',
-  path,
-  query: {},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  queryArrayEncoding: undefined,
-  dv360AdvertiserState: undefined,
-});
+const read = (p: CompiledRequest, path: string): Read =>
+  stateReadOf<Read>(
+    p,
+    'AMCP_DV360_ADVERTISER_READ',
+    path,
+    {},
+    {queryArrayEncoding: undefined, dv360AdvertiserState: undefined},
+  );
 export function dv360AdvertiserSnapshots(p: CompiledRequest): Read[] {
   const logo = writes(p).defaultLogoAssetId;
   return [

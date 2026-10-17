@@ -8,7 +8,7 @@ import type {TransportResult} from './transport.js';
 import {dv360AdGroupStateRead, readDV360AdGroups} from './dv360-demand-gen-ad-groups.js';
 import {pinnedJson} from './pinned-json.js';
 import {deprecationEffective, refuseDeprecated} from './provider-deprecations.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Demand Gen ads on Display & Video 360 API v4, per the pinned Discovery document (AdGroupAd, DemandGenVideoAd,
@@ -256,23 +256,14 @@ const videoIds = (p: CompiledRequest): string[] => {
       : [];
   return [...new Set<string>(a.map((v: JsonObject) => String(v?.videoAssetId)))].sort();
 };
-const read = (p: CompiledRequest, path: string): CompiledRequest => ({
-  ...p,
-  action: 'AMCP_DV360_AD_READ',
-  method: 'GET',
-  path,
-  query: {},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  queryArrayEncoding: undefined,
-  dv360AdState: undefined,
-  dv360AdGroupState: undefined,
-});
+const read = (p: CompiledRequest, path: string): CompiledRequest =>
+  stateReadOf(
+    p,
+    'AMCP_DV360_AD_READ',
+    path,
+    {},
+    {queryArrayEncoding: undefined, dv360AdState: undefined, dv360AdGroupState: undefined},
+  );
 /** One marked read of the advertiser; the reader below adds the ad, its ad group and line item, and the video assets. */
 const stateRead = (p: CompiledRequest, scope: Scope): CompiledRequest => ({
   ...read(p, '/v4/advertisers/' + advertiserOf(p)),

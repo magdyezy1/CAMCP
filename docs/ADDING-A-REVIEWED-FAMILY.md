@@ -64,6 +64,12 @@ projection is what makes `STATE_CHANGED` between prepare and execute meaningful.
 - `defineFamily(declaration)` checks a declaration when its module loads (a ledger family name, `src/` implementation
   modules, at least one test, a `kind` hook) and returns it unchanged; `tests/family-kit.test.mjs` applies it to every
   registered family.
+- `stateReadOf(p, action, path, query, fields)` builds a state read from the write request `p`: `p` with the read's
+  action and a GET of `path` with `query`, without the body, headers, confirmation, response controls or special
+  transport of a write, then `fields` in order (the family's state fields reset, a query encoding). Keep a `read`
+  wrapper in the module so its call sites stay the same, for example
+  `return stateReadOf<Read>(p, 'AMCP_X_MEDIA_READ', '/12/accounts/' + account(p) + path, query, {xMediaState: undefined});`.
+  The X, DV360 and Criteo families use it; a read that resets other fields keeps its own builder.
 - `FamilyCore`, `FamilyStateHooks`, `FamilyPolicyHooks`, `FamilyDeliveryHooks` and `FamilyVerificationHooks` group the
   hooks of `ReviewedFamily` by the stage that calls them; a new hook must join a group or the build fails
   (`everyFamilyHookHasAStage`).

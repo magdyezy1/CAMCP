@@ -4,7 +4,7 @@ import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Budget overrides of Criteo Retail Media campaigns and line items, API 2026-07 (unchanged from 2026-01; pinned OpenAPI
@@ -181,22 +181,11 @@ export function assertCriteoOverrideScopes(c: Connection, write = false): void {
   if (!required.every(s => c.scopes.includes(s)))
     fail('INSUFFICIENT_SCOPE', 'The selected Criteo connection needs ' + required.join(', ') + '.', {}, 403);
 }
-const read = (p: CompiledRequest, path: string, query: JsonObject = {}): Read => ({
-  ...p,
-  action: 'AMCP_CRITEO_OVERRIDE_READ',
-  method: 'GET',
-  path,
-  query,
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  queryArrayEncoding: 'repeat',
-  criteoOverrideState: undefined,
-});
+const read = (p: CompiledRequest, path: string, query: JsonObject = {}): Read =>
+  stateReadOf<Read>(p, 'AMCP_CRITEO_OVERRIDE_READ', path, query, {
+    queryArrayEncoding: 'repeat',
+    criteoOverrideState: undefined,
+  });
 const stateRead = (p: CompiledRequest): Read => ({
   ...read(p, prefix + '/accounts', {limitToId: [p.accountId!], pageIndex: 0, pageSize: 2}),
   criteoOverrideState: {kind: criteoOverrideKind(p)!, id: target(p)},

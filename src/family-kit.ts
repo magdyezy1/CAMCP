@@ -1,6 +1,6 @@
 import {MirrorError} from './errors.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import type {JsonObject} from './types.js';
+import type {CompiledRequest, JsonObject} from './types.js';
 
 /**
  * The reviewed-family kit (ARC-04 stage C): what family modules each declared for themselves. A leaf that imports no
@@ -60,6 +60,38 @@ export function familyCodeError(code: string, status = 400): OneCodeRefusal {
 /** `fail` with another default status, for a module whose refusals are conflicts (409) or denials (403). */
 export function failWithStatus(status: number): StatusRefusal {
   return (code, message, details = {}, override = status) => fail(code, message, details, override);
+}
+
+/**
+ * A family's state read of its write request `p` (the review's `readsFor`), as family modules had each copied it: `p`
+ * with the read's action, a GET of `path` with `query`, and without what only a write carries: no body, no headers,
+ * read-only, not destructive, no confirmation, no response controls, no special transport. `fields` follow, in the
+ * order the family's read set them (its state fields reset, a query encoding). A family keeps its own `read` wrapper,
+ * so its call sites do not change: `return stateReadOf<Read>(p, 'AMCP_X_MEDIA_READ', '/12/accounts/' + account(p) +
+ * path, query, {xMediaState: undefined});`.
+ */
+export function stateReadOf<R extends CompiledRequest = CompiledRequest>(
+  p: CompiledRequest,
+  action: string,
+  path: string,
+  query: JsonObject,
+  fields: Partial<R> = {},
+): R {
+  return {
+    ...p,
+    action,
+    method: 'GET',
+    path,
+    query,
+    body: undefined,
+    headers: {},
+    readOnly: true,
+    destructive: false,
+    requiresConfirmation: false,
+    responseControls: undefined,
+    specialTransport: undefined,
+    ...fields,
+  } as R;
 }
 
 /** The hooks of a family, by the stage that calls them (src/reviewed-family.ts documents each hook). */

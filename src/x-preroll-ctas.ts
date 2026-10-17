@@ -1,7 +1,7 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {defineFamily, fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Call-to-action buttons of X Ads pre-roll line items, Ads API v12 (Creatives reference, "Preroll Call To Actions";
@@ -83,21 +83,9 @@ export function assertXPrerollCta(p: CompiledRequest): void {
   if (b.call_to_action_url !== undefined) destination(b.call_to_action_url);
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}): Read {
-  return {
-    ...p,
-    action: 'AMCP_X_PREROLL_CTA_READ',
-    method: 'GET',
-    path: '/12/accounts/' + account(p) + path,
-    query,
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
+  return stateReadOf<Read>(p, 'AMCP_X_PREROLL_CTA_READ', '/12/accounts/' + account(p) + path, query, {
     xPrerollCtaState: undefined,
-  };
+  });
 }
 const stateRead = (p: CompiledRequest, state: State): Read => ({...read(p, ''), xPrerollCtaState: state});
 /** One marked read of the account; the reader adds the call to action, its line item and campaign, and the line item's calls to action. */

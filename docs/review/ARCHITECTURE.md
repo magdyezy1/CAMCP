@@ -452,6 +452,14 @@ rule names, and that every declared code is one AMCP raises; `tests/business-pro
 corrected remedy of the refusal the transport raises. The localization inventory reads the tables' remedies as shared
 recovery hints, as it read them in `errorRemedy` (the same 167 hints, 140 of them in `src/errors.ts`).
 
+The kit's `stateReadOf` (the review's `readsFor`) builds a state read from a write request: the request with the
+read's action and a GET of its path and query, without what only a write carries, then the family's own fields. The
+seven X list-attachment families, five DV360 families and four Criteo families had each copied that builder, identical
+but for the action and state fields; their `read` wrappers now call the kit, with the same fields in the same order
+(`tests/family-kit.test.mjs` compares its keys, values and order with each group's copy). The other 93 builders differ
+in what they reset (a POST search with a body, another query encoding, no special-transport reset), so they stay their
+families' own until each change can be tested with its family.
+
 ## 14. Composition tables
 
 ARC-04 stage D. What a composite function dispatched by an if-chain becomes a table that a new case joins by one entry.
@@ -556,6 +564,5 @@ composite tool's dispatcher: the transport and the asset discovery are ARC-01 ph
 server discovery configurations), `collectSource` is report collection (each platform's requests, paging and parsing,
 the part of the report sources still in `src/report-native.ts`, §12), and the rest are single workflows. The review's
 target of three or fewer needs those changes. These are open remainders of B18 and B27 in
-`docs/review/package-status.json`, so neither package is closed by ARC-04. Also left by ARC-04: a `readsFor`
-helper, which stage B made unnecessary for the import cycle because a family receives its read builders as hook
-arguments.
+`docs/review/package-status.json`, so neither package is closed by ARC-04. Also left by ARC-04: the 93 read builders
+that differ from the kit's `stateReadOf` (§13).

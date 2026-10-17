@@ -1,7 +1,7 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {defineFamily, fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Promoted accounts, media creatives and scheduled promoted Tweets of X Ads line items, Ads API v12 (Campaign Management
@@ -107,21 +107,9 @@ export function assertXAssociation(p: CompiledRequest): void {
   if (b.landing_url !== undefined) landing(b.landing_url);
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}): Read {
-  return {
-    ...p,
-    action: 'AMCP_X_ASSOCIATION_READ',
-    method: 'GET',
-    path: '/12/accounts/' + account(p) + path,
-    query,
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
+  return stateReadOf<Read>(p, 'AMCP_X_ASSOCIATION_READ', '/12/accounts/' + account(p) + path, query, {
     xAssociationState: undefined,
-  };
+  });
 }
 const stateRead = (p: CompiledRequest, state: State): Read => ({...read(p, ''), xAssociationState: state});
 export function xAssociationSnapshots(p: CompiledRequest): Read[] {
