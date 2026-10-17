@@ -48,7 +48,13 @@ const samples = {
   ],
   reporting: [
     'amcp_workspace',
-    {action: 'save_report_query', query_config: {gateway: 'meta_native_action', arguments: {access_token: 'EAAB1'}}},
+    {
+      action: 'save_report_query',
+      id: 'q1',
+      query_version: 'v1',
+      query: {name: 'Q', query_config: {gateway: 'meta_native_action', arguments: {access_token: 'EAAB1'}}},
+      confirmed: true,
+    },
   ],
   combined: [
     'amcp_native_action',
@@ -77,7 +83,7 @@ test('each redactor of the table does its part: people, post links, place links,
     [kept('connection').arguments.code, kept('connection').arguments.state],
     ['[REDACTED]', '[REDACTED]'],
   );
-  assert.equal(kept('reporting').query_config.arguments.access_token, '[REDACTED]');
+  assert.equal(kept('reporting').query.query_config.arguments.access_token, '[REDACTED]');
   assert.deepEqual(
     [kept('combined').arguments.url, kept('combined').arguments.access_token],
     ['[REDACTED]', '[REDACTED]'],
