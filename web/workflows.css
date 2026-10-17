@@ -18,7 +18,7 @@
   margin-inline-start: 0.7rem;
 }
 .nav-more > summary {
-  color: #c0b9d2;
+  color: var(--text-on-inverse-secondary);
   padding: 0.35rem 0.6rem;
   font-size: 0.75rem;
   cursor: pointer;
@@ -728,7 +728,7 @@
   min-width: 44px;
   max-width: 100%;
   padding: 10px 12px;
-  border: 1px solid #ddd5e8;
+  border: 1px solid var(--border-strong);
   border-radius: 9px;
   background: var(--white);
   color: var(--ink);
@@ -895,7 +895,7 @@
 
 .measurement-task-links a:hover,
 .measurement-task-links a:focus-visible {
-  background: #f5f2ff;
+  background: var(--surface);
 }
 /* MSR-03: the evidence ledger states and short evidence lists wrap inside the table at 320 px. */
 .measurement-ledger td,

@@ -1,15 +1,8 @@
 {
   "meaning": "WEB-07 ratchet: literal colours per shipped stylesheet outside web/tokens.css and outside the reviewed allow-list. Counts and the allow-list may only go down (node tools/check-colours.mjs --write).",
-  "total": 391,
+  "total": 0,
   "allowlist_entries": 12,
-  "files": {
-    "about.css": 1,
-    "accessibility.css": 19,
-    "app.css": 26,
-    "identity.css": 254,
-    "reporting.css": 88,
-    "workflows.css": 3
-  },
+  "files": {},
   "allowed": {
     "app.css": 8,
     "identity.css": 3,

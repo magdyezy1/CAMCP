@@ -28,8 +28,8 @@ Google, Apple and Facebook sign-in require the separate app credentials document
 connector hero and callback header) use `--focus-on-inverse` instead, and recommendation decisions use the
 `--decision-*` pairs. Measurements are in [the accessibility report](review/ACCESSIBILITY.md).
 `tools/check-web.mjs` keeps `tokens.css` first (and `public-tokens.css` second on the static public pages) and refuses
-a token defined in any other stylesheet. The shades of
-individual components (about 500 one-off tints) are still written where they are used.
+a token defined in any other stylesheet. The shades of individual components (about 500 one-off tints) were written
+where they were used until WEB-07 made them tokens too ([below](#component-colours-from-tokens-web-07-2026-10-18)).
 
 ## One theme source (WEB-07, 2026-10-17)
 
@@ -74,3 +74,47 @@ identical selector at the same or a wider media condition left too (w4a, 2026-10
 a computed-style comparison of every element and every forced hover, focus and active state of the public and
 workspace pages, light and dark, English and Arabic, at 375, 800 and 1280 pixels, found no difference. 391 literal
 colours remained outside the allow-list.
+
+## Component colours from tokens (WEB-07, 2026-10-18)
+
+No stylesheet writes a colour of its own any more: `tools/web-colour-baseline.json` holds 0, and only the 12
+allow-listed brand marks and the printed page keep literals. Each of the 391 became the palette, a semantic role, a
+component shade or a theme-invariant colour in `web/tokens.css` (a translucent tint is a `color-mix()` of a token), and
+none may read worse than the literal it replaced: text gets darker on light surfaces and lighter on the inverse ones, a
+surface under dark text lighter and under light text darker, a control or state border darker. Decorative borders,
+shadows, dots and illustration shapes take the nearest token. The component shades, by what they colour:
+
+- **Text.** `--text-strong` (the report builder's fields), `--text-soft` (notices, code, labels, chips),
+  `--text-secondary-strong`, `--text-accent` and `--text-accent-strong` (purple secondary text: section numbers,
+  summaries, badges, active tabs), `--text-warm` (on the warm callouts), `--danger-text` (form errors) and
+  `--danger-strong` (danger buttons, failed activity), `--iris-soft` (icons, dots and the hero's highlighted word),
+  `--apricot-700` (sparks on light surfaces), and `--platform-<name>` with `--platform-<name>-bg` for the report
+  builder's platform initials.
+- **Surfaces.** `--surface-selected` (active tabs and options), `--surface-warm`, `--surface-peach`, `--surface-cool`,
+  `--paper-warm` (the public pages), `--accent-fill` (primary buttons) and the status tints
+  `--{success,warning,danger}-bg-subtle`, beside the roles (`--surface`, `--surface-raised`, `--surface-subtle`, …).
+- **Lines.** `--border-control` (buttons), `--border-accent` and `--border-accent-strong` (hover and selected
+  outlines), `--{success,warning,danger}-line`, `--warning-dot`. The report builder, delivery dialog, team list,
+  native settings and saved-report selects had 1.4:1 borders that WEB-01's input rule did not reach (a class beat it);
+  they take `--border-strong` (3:1).
+- **Theme-invariant** (one value in both themes; `tools/check-colours.mjs` lists them and refuses a dark value for
+  them): the inverse surfaces (`--surface-inverse`, `-raised`, `-accent`) and what sits on them
+  (`--text-on-inverse`, `-strong`, `-secondary`, `-muted`, `--border-on-inverse`, `--fill-on-inverse`, `-subtle`,
+  `--accent-on-inverse`), `--overlay`, the three shadows, the online dot `--success-dot` and the illustrations'
+  `--art-*` colours.
+
+Every component shade has a dark value: where `theme.css` re-colours that component, its value there, so the override
+layer and the token agree; where the light literal used to paint in dark mode too, the dark theme's ink or line. That
+fixes dark-mode slips no override had reached: the icon buttons' ink (3.05:1 on the dark panel, now 8.07:1), a plan
+step's text (3.04:1), the near-black ink of the controls the dark input rule skips (the report builder's checkboxes),
+and light borders on platform logos and report options that lit up the dark page. The visible change in light mode is that the one-off tints merged: secondary text is
+the palette's muted ink (slightly darker), purple accents are two shades, icons one soft iris, and the sidebar's links
+and labels lighter. A computed-style comparison with the tree before (every element, `::before`/`::after`/`::marker`/
+`::placeholder` and every forced hover, focus and active state) of the public and workspace pages of the empty
+workspace, light and dark, English and Arabic, at 375 and 1280 pixels (256 page states), and of 23 populated fixture
+kinds on their pages in both themes, found colour changes only (no layout, text or DOM difference) and no text whose
+contrast against its surface went down. A first pass that merged every tint into the nearest role had lowered text
+contrast on every page (the primary buttons 4.73 to 4.62:1, the status pills 8.51 to 7.08:1);
+`tests/web-colours.test.mjs` keeps those pairs at or above the literals' contrast and checks the dark slips above.
+`tokens.css` grew from 1,000 to about 1,650 Brotli bytes, its comments shortened, and the component sheets shrank
+by more, so every page stays at or below its bytes before WEB-07 ([operations](OPERATIONS.md)).

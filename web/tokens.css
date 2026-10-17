@@ -19,10 +19,8 @@
   --warning-bg: #fff3db;
   --warning-ink: #714b14;
   --danger-bg: #fce5e8;
-  /* Focus ring on the dark sidebar, toast, connector hero and callback header, which keep their dark surface in the
-     light theme: iris-700 measured 2.32:1 there; this measures 6.1:1 or more against every one of them (WEB-01). */
+  /* The focus ring on the inverse surfaces, and the recommendation decisions (WEB-01). */
   --focus-on-inverse: #c7adff;
-  /* Recommendation decisions: one colour pair per meaning, each at least 4.5:1 in both themes (WEB-01). */
   --decision-positive-bg: var(--success-bg);
   --decision-positive-ink: var(--success-ink);
   --decision-steady-bg: #e6eafa;
@@ -33,7 +31,7 @@
   --decision-negative-ink: var(--danger);
   --decision-hold-bg: var(--surface-subtle);
   --decision-hold-ink: var(--muted);
-  /* Semantic roles (WEB-07). */
+  /* Semantic roles, then component shades (WEB-07). */
   --surface: var(--paper);
   --surface-raised: var(--white);
   --text: var(--ink);
@@ -48,9 +46,70 @@
   --status-warning-ink: var(--warning-ink);
   --status-danger-bg: var(--danger-bg);
   --status-danger-ink: var(--danger);
-  /* Theme-invariant: the always-dark surfaces and their ink. */
+  --text-strong: #231a36;
+  --text-soft: #47405a;
+  --text-secondary-strong: #5d5470;
+  --text-accent: #685393;
+  --text-accent-strong: #594591;
+  --text-warm: #6a4530;
+  --danger-text: #a53535;
+  --danger-strong: #873346;
+  --iris-soft: #8470c6;
+  --apricot-700: #b88461;
+  --accent-fill: #7560da;
+  --surface-selected: #eee8f9;
+  --surface-warm: #faf0e9;
+  --surface-peach: #ffeadc;
+  --surface-cool: #f0f2f5;
+  --paper-warm: #fcfaf7;
+  --success-bg-subtle: #edf7f3;
+  --warning-bg-subtle: #fff9e9;
+  --danger-bg-subtle: #feecec;
+  --warning-dot: #c9a237;
+  --border-control: #ded9e7;
+  --border-accent: #bcb0d9;
+  --border-accent-strong: #b391d1;
+  --success-line: #c2e1d5;
+  --warning-line: #efd5b4;
+  --danger-line: #e2b6ac;
+  --platform-google: #916225;
+  --platform-google-bg: #fcf0dc;
+  --platform-meta: #386ca6;
+  --platform-meta-bg: #e5eef8;
+  --platform-tiktok: #b54172;
+  --platform-tiktok-bg: #fce8f0;
+  --platform-snapchat: #826a2c;
+  --platform-snapchat-bg: #fff2c5;
+  --platform-linkedin: #266d88;
+  --platform-linkedin-bg: #dceef4;
+  --platform-microsoft: #8f5731;
+  --platform-microsoft-bg: #f5e2d9;
+  /* Theme-invariant (tools/check-colours.mjs). */
   --surface-inverse: #201d30;
+  --surface-inverse-raised: #292439;
+  --surface-inverse-accent: #3d3059;
   --text-on-inverse: #f2eef8;
+  --text-on-inverse-strong: #fff;
+  --text-on-inverse-secondary: #c7bcd9;
+  --text-on-inverse-muted: #a69db8;
+  --border-on-inverse: #ffffff1f;
+  --fill-on-inverse: #ffffff09;
+  --fill-on-inverse-subtle: #ffffff03;
+  --accent-on-inverse: #ffd0af;
+  --overlay: #16112280;
+  --shadow-soft: #30204505;
+  --shadow: #30204514;
+  --shadow-strong: #18112230;
+  --success-dot: #7dc2ad;
+  --art-iris: #8c70a4;
+  --art-frame: #8b75ac;
+  --art-spark: #a989ae;
+  --art-lilac: #ccb2d2;
+  --art-plum: #9d7496;
+  --art-mist: #e8dfeb;
+  --art-apricot: #e5b897;
+  --art-cream: #ffdfb8;
+  --art-highlight: #fff9f5;
   --radius: 17px;
   font-family: 'Aptos', 'Segoe UI', sans-serif;
   color: var(--ink);
@@ -83,4 +142,42 @@
   --focus-on-inverse: #decaff;
   --decision-steady-bg: #232c4d;
   --decision-steady-ink: #c3ccff;
+  --text-strong: var(--ink);
+  --text-soft: var(--ink);
+  --text-secondary-strong: #d9d1e3;
+  --text-accent: var(--iris-700);
+  --text-accent-strong: var(--iris-700);
+  --text-warm: var(--ink);
+  --danger-text: var(--danger);
+  --danger-strong: var(--danger);
+  --iris-soft: var(--iris);
+  --apricot-700: var(--apricot);
+  --accent-fill: var(--iris);
+  --surface-selected: var(--surface-accent);
+  --surface-warm: var(--surface-subtle);
+  --surface-peach: var(--surface-accent);
+  --surface-cool: var(--surface-subtle);
+  --paper-warm: var(--paper);
+  --success-bg-subtle: var(--success-bg);
+  --warning-bg-subtle: var(--warning-bg);
+  --danger-bg-subtle: var(--danger-bg);
+  --warning-dot: var(--warning-ink);
+  --border-control: var(--line);
+  --border-accent: var(--line-strong);
+  --border-accent-strong: var(--iris);
+  --success-line: var(--success-ink);
+  --warning-line: var(--warning-ink);
+  --danger-line: var(--danger);
+  --platform-google: var(--ink);
+  --platform-google-bg: var(--surface-accent);
+  --platform-meta: var(--ink);
+  --platform-meta-bg: var(--surface-accent);
+  --platform-tiktok: var(--ink);
+  --platform-tiktok-bg: var(--surface-accent);
+  --platform-snapchat: var(--ink);
+  --platform-snapchat-bg: var(--surface-accent);
+  --platform-linkedin: var(--ink);
+  --platform-linkedin-bg: var(--surface-accent);
+  --platform-microsoft: var(--ink);
+  --platform-microsoft-bg: var(--surface-accent);
 }

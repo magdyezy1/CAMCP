@@ -21,8 +21,37 @@ export const baselinePath = 'tools/web-colour-baseline.json';
 /** The stylesheets that define tokens, in the order a page loads them. */
 export const tokenSheets = Object.freeze(['tokens.css', 'public-tokens.css']);
 export const allowlistPath = 'tools/web-colour-allowlist.json';
-/** Tokens that keep one value in both themes: the surfaces that stay dark in the light theme and the ink on them. */
-export const themeInvariantTokens = new Set(['--surface-inverse', '--surface-inverse-raised', '--text-on-inverse']);
+/**
+ * Tokens that keep one value in both themes: the surfaces that stay dark in the light theme and what sits on them, the
+ * overlays and shadows, the online status dot, and the illustrations' own colours.
+ */
+export const themeInvariantTokens = new Set([
+  '--surface-inverse',
+  '--surface-inverse-raised',
+  '--surface-inverse-accent',
+  '--text-on-inverse',
+  '--text-on-inverse-strong',
+  '--text-on-inverse-secondary',
+  '--text-on-inverse-muted',
+  '--border-on-inverse',
+  '--fill-on-inverse',
+  '--fill-on-inverse-subtle',
+  '--accent-on-inverse',
+  '--overlay',
+  '--shadow-soft',
+  '--shadow',
+  '--shadow-strong',
+  '--success-dot',
+  '--art-iris',
+  '--art-frame',
+  '--art-spark',
+  '--art-lilac',
+  '--art-plum',
+  '--art-mist',
+  '--art-apricot',
+  '--art-cream',
+  '--art-highlight',
+]);
 const namedColours =
   'aliceblue|antiquewhite|aqua|aquamarine|azure|beige|bisque|black|blanchedalmond|blue|blueviolet|brown|burlywood|cadetblue|chartreuse|chocolate|coral|cornflowerblue|cornsilk|crimson|cyan|darkblue|darkcyan|darkgoldenrod|darkgray|darkgreen|darkgrey|darkkhaki|darkmagenta|darkolivegreen|darkorange|darkorchid|darkred|darksalmon|darkseagreen|darkslateblue|darkslategray|darkslategrey|darkturquoise|darkviolet|deeppink|deepskyblue|dimgray|dimgrey|dodgerblue|firebrick|floralwhite|forestgreen|fuchsia|gainsboro|ghostwhite|gold|goldenrod|gray|green|greenyellow|grey|honeydew|hotpink|indianred|indigo|ivory|khaki|lavender|lavenderblush|lawngreen|lemonchiffon|lightblue|lightcoral|lightcyan|lightgoldenrodyellow|lightgray|lightgreen|lightgrey|lightpink|lightsalmon|lightseagreen|lightskyblue|lightslategray|lightslategrey|lightsteelblue|lightyellow|lime|limegreen|linen|magenta|maroon|mediumaquamarine|mediumblue|mediumorchid|mediumpurple|mediumseagreen|mediumslateblue|mediumspringgreen|mediumturquoise|mediumvioletred|midnightblue|mintcream|mistyrose|moccasin|navajowhite|navy|oldlace|olive|olivedrab|orange|orangered|orchid|palegoldenrod|palegreen|paleturquoise|palevioletred|papayawhip|peachpuff|peru|pink|plum|powderblue|purple|rebeccapurple|red|rosybrown|royalblue|saddlebrown|salmon|sandybrown|seagreen|seashell|sienna|silver|skyblue|slateblue|slategray|slategrey|snow|springgreen|steelblue|tan|teal|thistle|tomato|turquoise|violet|wheat|white|whitesmoke|yellow|yellowgreen';
 const literalPattern = new RegExp(

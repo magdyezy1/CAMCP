@@ -16,7 +16,7 @@
 }
 .report-spark {
   font-size: 33px;
-  color: #db8c63;
+  color: var(--apricot-700);
   margin-inline-start: 14px;
 }
 .report-actions {
@@ -26,10 +26,10 @@
   flex-wrap: wrap;
 }
 .report-control-panel {
-  border: 1px solid #e0dbea;
+  border: 1px solid var(--border);
   background: var(--white);
   border-radius: 22px;
-  box-shadow: 0 10px 35px #30204405;
+  box-shadow: 0 10px 35px var(--shadow-soft);
   overflow: hidden;
 }
 .report-control-top {
@@ -37,7 +37,7 @@
   gap: 18px;
   flex-wrap: wrap;
   padding: 26px;
-  background: #f7f4fb;
+  background: var(--surface);
 }
 .report-control-top label,
 .report-platform-body label,
@@ -48,7 +48,7 @@
   display: grid;
   gap: 7px;
   font-size: 12px;
-  color: #686177;
+  color: var(--text-secondary-strong);
 }
 .report-control-top input,
 .report-control-top select,
@@ -62,13 +62,13 @@
 .report-delivery-policy select {
   min-height: 40px;
   background: var(--white);
-  border: 1px solid #ddd5e8;
+  border: 1px solid var(--border-strong);
   border-radius: 9px;
   padding: 9px 12px;
   min-width: 0;
   width: 100%;
   font: inherit;
-  color: #231a36;
+  color: var(--text-strong);
 }
 .report-name {
   flex: 1;
@@ -97,7 +97,7 @@ h2.report-section-label {
   margin: 0;
 }
 .report-section-label > span {
-  border: 1px solid #e2d7ec;
+  border: 1px solid var(--border);
   border-radius: 50%;
   width: 27px;
   height: 27px;
@@ -106,7 +106,7 @@ h2.report-section-label {
   font-size: 11px;
 }
 .report-section-label strong {
-  color: #2f223f;
+  color: var(--text);
 }
 .report-section-label small {
   margin-inline-start: 5px;
@@ -120,7 +120,7 @@ h2.report-section-label {
   align-items: start;
 }
 .report-platform {
-  border: 1px solid #e7e0ed;
+  border: 1px solid var(--border);
   border-radius: 13px;
   background: var(--white);
 }
@@ -135,54 +135,54 @@ h2.report-section-label {
 .report-platform summary:after {
   content: '⌄';
   margin-inline-start: auto;
-  color: #a293b1;
+  color: var(--text-secondary);
 }
 .report-platform-dot {
   display: grid;
   place-items: center;
-  background: #eee7f8;
-  color: #7457a4;
+  background: var(--surface-selected);
+  color: var(--text-accent);
   width: 30px;
   height: 30px;
   border-radius: 10px;
   font-size: 16px;
 }
 .platform-meta {
-  background: #e5eef8;
+  background: var(--platform-meta-bg);
 }
 .platform-google {
-  background: #fcf0dc;
+  background: var(--platform-google-bg);
 }
 .platform-tiktok {
-  background: #fce8f0;
-  color: #b54172;
+  background: var(--platform-tiktok-bg);
+  color: var(--platform-tiktok);
 }
 .platform-snapchat {
-  background: #fff2c5;
+  background: var(--platform-snapchat-bg);
 }
 .platform-linkedin {
-  background: #dceef4;
-  color: #266d88;
+  background: var(--platform-linkedin-bg);
+  color: var(--platform-linkedin);
 }
 .platform-microsoft {
-  background: #f5e2d9;
+  background: var(--platform-microsoft-bg);
 }
 .report-platform-body {
   padding: 2px 16px 17px;
-  border-top: 1px solid #eee8f4;
+  border-top: 1px solid var(--border);
 }
 .report-platform-body .report-account {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 0;
-  border-bottom: 1px solid #f0eaf4;
+  border-bottom: 1px solid var(--border);
 }
 .report-account input,
 .report-platform-body .check input {
   width: 16px;
   min-height: 16px;
-  accent-color: #7756ac;
+  accent-color: var(--link);
 }
 .report-platform-body .check {
   display: flex;
@@ -211,7 +211,7 @@ h2.report-section-label {
 }
 .native-settings textarea {
   width: 100%;
-  border: 1px solid #e6ddee;
+  border: 1px solid var(--border-strong);
   border-radius: 7px;
   padding: 8px;
   resize: vertical;
@@ -222,7 +222,7 @@ h2.report-section-label {
   overflow-wrap: anywhere;
 }
 .report-options {
-  border-top: 1px solid #e9e1ef;
+  border-top: 1px solid var(--border);
   padding-bottom: 8px;
 }
 .report-options > summary {
@@ -230,7 +230,7 @@ h2.report-section-label {
   list-style: none;
 }
 .report-options[open] > summary {
-  background: #fcfafe;
+  background: var(--surface-raised);
 }
 .report-options-grid {
   display: grid;
@@ -261,15 +261,15 @@ h2.report-section-label {
 .metric-pills span {
   display: block;
   padding: 7px 10px;
-  background: #f7f4fa;
-  border: 1px solid #e9e1f0;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 7px;
   font-size: 11px;
 }
 .metric-pills input:checked + span {
-  background: #f0e7fa;
-  border-color: #b391d1;
-  color: #634784;
+  background: var(--surface-selected);
+  border-color: var(--border-accent-strong);
+  color: var(--text-accent-strong);
 }
 .metric-pills input:focus-visible + span {
   outline: 2px solid var(--iris-700);
@@ -289,7 +289,7 @@ h2.report-section-label {
   display: flex;
   align-items: center;
   gap: 16px;
-  border-top: 1px solid #eee7f4;
+  border-top: 1px solid var(--border);
   padding: 13px 0;
   font-size: 12px;
 }
@@ -319,10 +319,10 @@ h2.report-section-label {
   padding: 8px 24px 24px;
 }
 .target-card {
-  border: 1px solid #e7deee;
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 18px;
-  background: #fcfafe;
+  background: var(--surface-raised);
 }
 .target-card h3 {
   margin: 0 0 15px;
@@ -354,8 +354,8 @@ h2.report-section-label {
   justify-content: space-between;
   align-items: center;
   padding: 18px 24px;
-  border-top: 1px solid #e5dcec;
-  background: #fcfbfd;
+  border-top: 1px solid var(--border);
+  background: var(--surface-raised);
   font-size: 12px;
 }
 .report-runbar > div {
@@ -376,12 +376,12 @@ h2.report-section-label {
   display: flex;
   align-items: center;
   gap: 16px;
-  background: #f2ebfb;
-  border: 1px solid #dbceee;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-accent);
   border-radius: 14px;
   padding: 20px;
   margin: 15px 0;
-  color: #6d518b;
+  color: var(--text-accent-strong);
 }
 .report-progress p {
   font-size: 12px;
@@ -445,7 +445,7 @@ h2.report-section-label {
   margin: 16px 0;
 }
 .source-health {
-  border: 1px solid #ddd4e9;
+  border: 1px solid var(--border);
   border-radius: 9px;
   background: var(--white);
   padding: 10px 12px;
@@ -461,10 +461,10 @@ h2.report-section-label {
 }
 .source-health strong {
   font-size: 10px;
-  color: #39796a;
+  color: var(--status-success-ink);
 }
 .source-health.attention strong {
-  color: #a7693b;
+  color: var(--status-warning-ink);
 }
 .source-health p {
   line-height: 1.7;
@@ -473,7 +473,7 @@ h2.report-section-label {
   overflow: auto;
   max-height: 700px;
   background: var(--white);
-  border: 1px solid #e0d7e8;
+  border: 1px solid var(--border);
   border-radius: 14px;
 }
 .report-table {
@@ -487,13 +487,13 @@ h2.report-section-label {
   position: sticky;
   top: 0;
   background: var(--surface-subtle);
-  color: #756183;
+  color: var(--text-secondary);
   z-index: 1;
   font-size: 10px;
   letter-spacing: 0.2px;
   padding: 15px;
   text-align: end;
-  border-bottom: 1px solid #e2d7ed;
+  border-bottom: 1px solid var(--border);
 }
 .report-table th:first-child,
 .report-table th:nth-child(2),
@@ -502,7 +502,7 @@ h2.report-section-label {
 }
 .report-table td {
   padding: 17px 15px;
-  border-bottom: 1px solid #eee7f4;
+  border-bottom: 1px solid var(--border);
   text-align: end;
   vertical-align: top;
   font-variant-numeric: tabular-nums;
@@ -524,7 +524,7 @@ h2.report-section-label {
 }
 .report-table td strong {
   display: block;
-  color: #3b2c4d;
+  color: var(--text);
   font-size: 12px;
 }
 .report-table td small {
@@ -618,7 +618,7 @@ h2.report-section-label {
 }
 .native-field-tags code {
   padding: 6px;
-  background: #f3eff8;
+  background: var(--surface-subtle);
   border-radius: 5px;
   font-size: 10px;
   overflow-wrap: anywhere;
@@ -633,7 +633,7 @@ h2.report-section-label {
   width: 100%;
   text-align: start;
   border: 0;
-  border-top: 1px solid #eee7f5;
+  border-top: 1px solid var(--border);
   padding: 15px 0;
   cursor: pointer;
 }
@@ -651,19 +651,19 @@ h2.report-section-label {
 .report-delivery-dialog {
   width: min(740px, 94vw);
   padding: 28px;
-  border: 1px solid #dfd3ea;
+  border: 1px solid var(--border);
   border-radius: 20px;
   max-height: 90vh;
   overflow: auto;
-  background: #fffdfa;
-  color: #3e2c50;
+  background: var(--surface-raised);
+  color: var(--text);
 }
 .report-delivery-dialog::backdrop {
-  background: #1b103b66;
+  background: var(--overlay);
   backdrop-filter: blur(4px);
 }
 .report-delivery-dialog section {
-  border-top: 1px solid #e9e0ee;
+  border-top: 1px solid var(--border);
   margin-top: 22px;
   padding-top: 12px;
 }
@@ -687,7 +687,7 @@ h2.report-section-label {
 .report-delivery-dialog select {
   min-height: 40px;
   width: 100%;
-  border: 1px solid #ddcfea;
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   padding: 9px;
   background: var(--white);
@@ -720,7 +720,7 @@ h2.report-section-label {
 .schedule-row {
   display: flex;
   justify-content: space-between;
-  border-top: 1px solid #eee4f4;
+  border-top: 1px solid var(--border);
   padding: 13px 0;
 }
 .schedule-row small {
@@ -744,7 +744,7 @@ h2.report-section-label {
   top: 50%;
   transform: translateY(-50%);
   border: 0;
-  color: #82609f;
+  color: var(--text-accent);
   background: transparent;
   padding: 8px;
   cursor: pointer;
@@ -753,8 +753,8 @@ h2.report-section-label {
 .recovery-key {
   display: block;
   padding: 18px;
-  background: #f4eef9;
-  border: 1px dashed #b89ccd;
+  background: var(--surface-subtle);
+  border: 1px dashed var(--border-accent-strong);
   border-radius: 10px;
   overflow-wrap: anywhere;
   font-size: 14px;
@@ -771,7 +771,7 @@ h2.report-section-label {
   margin: 18px 0;
 }
 .team-list select {
-  border: 1px solid #ddcfea;
+  border: 1px solid var(--border-strong);
   padding: 8px;
   border-radius: 7px;
   background: var(--white);
@@ -789,7 +789,7 @@ h2.report-section-label {
   line-height: 1.7;
   color: var(--ink);
   background: var(--surface-accent);
-  box-shadow: 0 -6px 16px #1b103b1f;
+  box-shadow: 0 -6px 16px var(--shadow);
   overflow-wrap: anywhere;
 }
 .report-delivery-dialog .delivery-status[hidden] {
@@ -913,10 +913,10 @@ h2.report-section-label {
   border: 1px solid var(--line);
   border-radius: 22px;
   padding: 23px;
-  background: linear-gradient(135deg, #fff9f3, #f4efff);
+  background: linear-gradient(135deg, var(--paper-warm), var(--surface));
 }
 .report-summary-card > small {
-  color: #685477;
+  color: var(--text-secondary-strong);
 }
 .report-summary-card h3 {
   margin: 14px 0;
@@ -944,7 +944,7 @@ h2.report-section-label {
 }
 .report-summary-card p {
   font-size: 13px;
-  color: #6e6175;
+  color: var(--text-secondary-strong);
 }
 .report-summary-card code {
   overflow-wrap: anywhere;
@@ -1033,10 +1033,10 @@ h2.report-section-label {
 }
 .source-next-action {
   padding: 12px 14px;
-  background: #fff6ed;
-  border: 1px solid #edd9c9;
+  background: var(--paper-warm);
+  border: 1px solid var(--warning-line);
   border-radius: 10px;
-  color: #6a4530;
+  color: var(--text-warm);
 }
 .source-health .report-actions {
   margin-top: 14px;
@@ -1044,25 +1044,25 @@ h2.report-section-label {
 .activity-failure {
   padding: 15px 20px;
   margin-bottom: 18px;
-  border: 1px solid #e7d8dd;
+  border: 1px solid var(--border);
   border-radius: 12px;
-  background: #fffcfd;
+  background: var(--surface-raised);
 }
 .activity-failure > summary {
   cursor: pointer;
   font-weight: 600;
-  color: #843e43;
+  color: var(--danger-strong);
 }
 .report-date-summary {
   flex-basis: 100%;
   margin: 0;
-  color: #49326c;
+  color: var(--text);
   font-size: 14px;
   font-weight: 600;
   line-height: 1.6;
 }
 .report-empty h3 {
-  color: #49326c;
+  color: var(--text);
 }
 .report-empty p {
   line-height: 1.7;
@@ -1076,8 +1076,8 @@ h2.report-section-label {
 
 .delivery-report-context {
   padding: 16px 18px;
-  background: #f4effa;
-  border: 1px solid #e1d6ed;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
   border-radius: 12px;
   margin: 14px 0;
 }
@@ -1123,24 +1123,24 @@ h2.report-section-label {
   gap: 7px;
   font-size: 12px;
   max-width: 100%;
-  color: #51435f;
+  color: var(--text-soft);
 }
 .report-library select {
   min-height: 44px;
   max-width: 100%;
   width: min(360px, 80vw);
   padding: 9px;
-  border: 1px solid #cfc2dd;
+  border: 1px solid var(--border-strong);
   border-radius: 9px;
-  background: white;
-  color: #30223f;
+  background: var(--surface-raised);
+  color: var(--text);
   font: inherit;
 }
 .report-library .report-actions {
   align-items: end;
 }
 .report-library .form-note {
-  color: #63516f;
+  color: var(--text-soft);
   line-height: 1.6;
 }
 .report-history-item {
@@ -1163,14 +1163,14 @@ h2.report-section-label {
   flex-basis: 100%;
   margin: 0;
   line-height: 1.6;
-  color: #63516f;
+  color: var(--text-soft);
 }
 .report-delivery-dialog small {
   line-height: 1.6;
 }
 .button.danger {
-  color: #873346;
-  border-color: #ddbdc5;
+  color: var(--danger-strong);
+  border-color: var(--danger-line);
 }
 /* The theme's focus colour: the fixed #7351a1 measured 2.57:1 on the dark-theme panel (QA-03 focus contrast). */
 .report-library :focus-visible,
@@ -1181,7 +1181,7 @@ h2.report-section-label {
 .report-table caption {
   text-align: start;
   padding: 12px;
-  color: #51435f;
+  color: var(--text-soft);
 }
 .schedule-row > .report-actions {
   flex-shrink: 0;
@@ -1240,7 +1240,7 @@ h2.report-section-label {
   font-weight: 400;
   letter-spacing: 0;
   padding: 17px 15px;
-  border-bottom: 1px solid #eee7f4;
+  border-bottom: 1px solid var(--border);
   text-align: start;
   vertical-align: top;
   min-width: 9rem;
@@ -1250,7 +1250,7 @@ h2.report-section-label {
 }
 .report-table tbody th strong {
   display: block;
-  color: #3b2c4d;
+  color: var(--text);
   font-size: 12px;
 }
 .report-table tbody th small {
@@ -1328,7 +1328,7 @@ html[dir='rtl'] .report-sparkline {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 4px 14px;
     padding: 14px;
-    border-bottom: 1px solid #eee7f4;
+    border-bottom: 1px solid var(--border);
   }
   .report-rows-table tbody th,
   .report-rows-table tbody td {

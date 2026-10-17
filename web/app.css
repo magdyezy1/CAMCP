@@ -69,7 +69,6 @@ nav {
 nav a {
   padding: 13px;
   border-radius: 9px;
-  color: #bdc9c0;
   font-size: 14px;
   font-weight: 550;
   display: flex;
@@ -80,11 +79,6 @@ nav a span {
   font-size: 21px;
   width: 23px;
   text-align: center;
-}
-/* The dark sidebar's link states stay on the sidebar (identity.css restyles them there). Unscoped, the hover surface
-   reached in-page navigation such as the Settings sections, whose light-theme ink read at 1.27:1 on it. */
-.sidebar nav a:hover {
-  background: #27392e;
 }
 .sidebar-bottom {
   margin-top: auto;
@@ -99,13 +93,7 @@ nav a span {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #a1ee66;
   display: inline-block;
-}
-.sidebar-bottom p {
-  font-size: 12px;
-  color: #99a89f;
-  line-height: 1.7;
 }
 .legal {
   border-top: 1px solid;
@@ -186,7 +174,7 @@ p {
   padding: 10px 15px;
   border: 1px solid;
   color: var(--ink);
-  background: white;
+  background: var(--surface-raised);
   font-size: 14px;
   font-weight: 560;
   line-height: 1.4;
@@ -200,7 +188,7 @@ p {
   background: transparent;
 }
 .button.danger {
-  background: #fff8f8;
+  background: var(--surface-raised);
 }
 .button.small {
   padding: 7px 11px;
@@ -318,7 +306,7 @@ p {
 .platform-logo {
   height: 43px;
   width: 43px;
-  border: 1px solid #e6eae5;
+  border: 1px solid var(--border);
   border-radius: 11px;
   display: grid;
   place-items: center;
@@ -374,15 +362,15 @@ p {
   white-space: nowrap;
 }
 .status.offline i {
-  background: #a2aaa4;
+  background: var(--border-strong);
 }
 .status.attention {
-  background: #fff9e9;
-  color: #8b6717;
-  border-color: #eddfb6;
+  background: var(--warning-bg-subtle);
+  color: var(--status-warning-ink);
+  border-color: var(--warning-line);
 }
 .status.attention i {
-  background: #c9a237;
+  background: var(--warning-dot);
 }
 .platform-description {
   font-size: 13px;
@@ -459,7 +447,7 @@ p {
 dialog {
   border: 1px solid var(--line);
   border-radius: 16px;
-  box-shadow: 0 24px 100px #12231830;
+  box-shadow: 0 24px 100px var(--shadow-strong);
   padding: 0;
   color: var(--ink);
 }
@@ -479,7 +467,7 @@ dialog {
 .icon-button {
   background: none;
   border: 0;
-  color: #647067;
+  color: var(--text-secondary);
   font-size: 26px;
   line-height: 1;
   padding: 6px;
@@ -501,7 +489,7 @@ dialog {
   color: var(--muted);
 }
 .error {
-  color: #a53535;
+  color: var(--danger-text);
   font-size: 13px;
 }
 /* WEB-03: an error's message, what to do, the provider's facts and the reference each start a new line. */
@@ -651,18 +639,18 @@ dialog {
   bottom: 24px;
   inset-inline-end: 25px;
   border: 1px solid;
-  color: white;
+  color: var(--text-on-inverse-strong);
   padding: 15px 22px;
   max-width: min(450px, 90vw);
   font-size: 14px;
-  box-shadow: 0 12px 35px #12231825;
+  box-shadow: 0 12px 35px var(--shadow-strong);
   z-index: 20;
 }
 .connector-hero {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 26px;
-  color: white;
+  color: var(--text-on-inverse-strong);
   margin-bottom: 25px;
 }
 .connector-hero h2 {
@@ -719,7 +707,7 @@ dialog {
 }
 .client-tab {
   border: 1px solid var(--line);
-  background: white;
+  background: var(--surface-raised);
   border-radius: 8px;
   padding: 10px 17px;
   font-size: 13px;
@@ -800,15 +788,15 @@ dialog {
   margin: 50px auto;
 }
 .callback-card {
-  background: white;
+  background: var(--surface-raised);
   border: 1px solid var(--line);
   border-radius: 18px;
   overflow: hidden;
-  box-shadow: 0 15px 50px #14231c10;
+  box-shadow: 0 15px 50px var(--shadow);
 }
 .callback-top {
   padding: 31px;
-  color: white;
+  color: var(--text-on-inverse-strong);
 }
 .callback-top .brand {
   margin-bottom: 25px;
@@ -835,8 +823,8 @@ dialog {
   font-size: 14px;
 }
 .callback-step.failed {
-  background: #fff6f4;
-  border-color: #e2b6ac;
+  background: var(--surface-raised);
+  border-color: var(--danger-line);
 }
 .step-number {
   display: grid;
@@ -844,7 +832,7 @@ dialog {
   flex-shrink: 0;
   width: 24px;
   height: 24px;
-  border: 1px solid #a8b49e;
+  border: 1px solid var(--border-strong);
   border-radius: 50%;
   font-size: 12px;
 }
@@ -1188,7 +1176,7 @@ dialog {
   width: 100%;
   max-height: 420px;
   object-fit: contain;
-  background: #f3f5f3;
+  background: var(--surface);
   border-radius: 12px;
   margin: 18px 0;
 }

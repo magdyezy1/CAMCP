@@ -318,6 +318,22 @@ the package status (B16 deployed, B24 the providers chunk); English About's byte
   own (every element of 30 pages, light and dark, 1280 and 375 pixels) and the review fix's for the token split (About,
   Privacy in both languages, Terms, Data deletion, 404 and the workspace shell, light and dark, with and without
   JavaScript, 320 and 1280 pixels).
+- **Component colours from tokens (w4a, 2026-10-18).** Every literal colour of the stylesheets became a token
+  (docs/AMCP-IDENTITY.md), so every page's colours changed a little. A development run of every kind (no
+  `--qualification`: the pinned axe-core asset is not installed in this checkout, so no WCAG rule ran; recorded head
+  `f6fb978`, a package commit since squashed whose `web/` is the final one) passed 1,279 of 1,280 cases in 56.6
+  minutes (`results.json` SHA-256 `bab018b6…`): 95 scenarios, 69 kinds,
+  22 presentation variants, 3,574 focus rings at 3:1 or more, every critical route at zero Arabic leaks, 27 synthetic
+  and 0 provider writes, no external request and no unhandled rejection. The one failure, `granular-reporting`
+  Arabic 768 px dark, is the table check's keyboard-scroll wait timing out; run alone, the kind failed three or four
+  of its 320 and 375 px cases the same way both with these stylesheets and with the stylesheets before the change
+  (served to the same runner), so it is a timing flake of that journey, not a colour change. Text contrast stood in for
+  the WCAG rule: a computed-style comparison with the tree before (256 page states of the empty workspace and 23
+  populated kinds, light and dark) found no text whose contrast went down. The integration gate's `--qualification`
+  with axe-core remains the acceptance run.
+  - `tests/website-contrast.test.mjs`: the dialog, notice, report option and hero surfaces are read through their
+    tokens, and app.css's sidebar hover rule (which identity.css always overrode) is gone, so its old value is the
+    regression's constant.
 
 ## Wave 3b integration qualification (2026-10-17)
 
