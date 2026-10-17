@@ -235,6 +235,29 @@ const capabilityLabel = value =>
     : typeof statusLabel === 'function'
       ? statusLabel(value)
       : uiText(String(value).replaceAll('_', ' '));
+// What a contract's method and path rest on (ARC-03). Source names, methods and capture files stay literal.
+const routeAnchorLabels = {
+  vendor_spec: 'Pinned vendor document',
+  sdk_method: 'Pinned vendor SDK request',
+  documented_url: 'Dated vendor documentation page',
+  captured_only: 'Captured catalog only',
+  unanchored: 'Not anchored to vendor evidence',
+  no_route: 'No provider route',
+  not_recorded: 'Not recorded',
+};
+const anchoredRoute = status => ['vendor_spec', 'sdk_method', 'documented_url'].includes(status);
+function contractRouteAnchor(a) {
+  const anchor = a.anchor ?? {},
+    detail = anchor.source
+      ? [anchor.source, anchor.method, anchor.checked_at].filter(Boolean).join(' ')
+      : (anchor.capture ?? '');
+  return `<p>${esc(uiText('Route evidence:'))} ${esc(uiText(routeAnchorLabels[a.anchor_status] ?? 'Not recorded'))}${detail ? ` · <bdi dir="ltr">${esc(detail)}</bdi>` : ''}</p>`;
+}
+// A native read whose route no pinned or dated vendor artifact states: advisory only, it still runs as classified.
+const contractReadUnanchored = a =>
+  a.status === 'native_read' && a.anchor_status && !anchoredRoute(a.anchor_status)
+    ? ` · ${badge('attention', uiText('Read route not anchored'))}`
+    : '';
 function capabilityContractReason(value) {
   if (typeof value !== 'string') return '';
   let remaining = value.trim();
@@ -794,7 +817,7 @@ async function renderCapabilityCenter() {
       return {...result, next_offset: result.has_more ? result.offset + result.limit : null};
     },
     result =>
-      `<p>${esc(uiText(result.meaning))}</p>${result.actions.map(a => `<details><summary><strong>${esc(a.action)}</strong> · ${badge(a.status, capabilityLabel(a.status))}</summary><p>${esc(capabilityContractReason(a.reason))}</p><code dir="ltr">${esc(a.method)} ${esc(a.path)}</code><p>${esc(uiText('Aliases:'))} ${esc(a.aliases.join(', ') || uiText('None'))}</p><p>${esc(uiText('Implementation:'))} ${esc(a.implementation)} ${esc(uiText('· Live qualification:'))} ${esc(a.live_qualification)}</p><p>${esc(uiText('Evidence:'))} ${esc(a.source)}</p><p>${esc(uiText('Tests:'))} ${esc(a.tests.join(', '))}</p></details>`).join('')}`,
+      `<p>${esc(uiText(result.meaning))}</p><p class="form-note">${esc(uiText('Route evidence says what each method and path rest on. “Captured catalog only” means no pinned vendor document, SDK request or dated page states them yet. It never changes what AMCP runs.'))}</p>${result.actions.map(a => `<details><summary><strong>${esc(a.action)}</strong> · ${badge(a.status, capabilityLabel(a.status))}${contractReadUnanchored(a)}</summary><p>${esc(capabilityContractReason(a.reason))}</p><code dir="ltr">${esc(a.method)} ${esc(a.path)}</code><p>${esc(uiText('Aliases:'))} ${esc(a.aliases.join(', ') || uiText('None'))}</p><p>${esc(uiText('Implementation:'))} ${esc(a.implementation)} ${esc(uiText('· Live qualification:'))} ${esc(a.live_qualification)}</p><p>${esc(uiText('Evidence:'))} ${esc(a.source)}</p>${contractRouteAnchor(a)}<p>${esc(uiText('Tests:'))} ${esc(a.tests.join(', '))}</p></details>`).join('')}`,
   );
   workspaceBind('#contract-filter', async () => {
     contractFilters = {

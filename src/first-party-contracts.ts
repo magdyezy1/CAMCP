@@ -261,7 +261,7 @@ const rows: Record<string, Row[]> = {
     ),
     row(
       'contracts',
-      'Read/write/media/blocked classification of every native action, with no network request.',
+      'Read/write/media/blocked classification of every native action and what its route rests on (anchor_status), with no network request.',
       [],
       ['gateway', 'search', 'offset', 'limit'],
       local,
