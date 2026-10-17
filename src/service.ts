@@ -120,6 +120,23 @@ import {sameLogin} from './connection-authority.js';
 import {accessSetView, assetsWithinAccess} from './access-sets.js';
 export const strictOptions: CallOptions = {mode: 'strict', flags: {}};
 /**
+ * What the audit record of a refused tool call keeps of its arguments (ARC-04 stage D): each redactor in turn removes
+ * what must not be retained, in this order: the people of a request that carries them (src/personal-data.ts), the
+ * links and cursors of a Meta existing-post read, private links of a Business Profile place action, the OAuth code and
+ * state of a connection diagnostic, and reporting credentials. A tool whose arguments hold something else that must not
+ * be kept adds its redactor here.
+ */
+export const auditInputRedactors: readonly ((tool: string, input: JsonObject) => JsonObject)[] = Object.freeze([
+  (tool: string, input: JsonObject) => withoutPeople(tool, input, personalDataActions()),
+  redactMetaPostInput,
+  redactPlaceActionInput,
+  redactConnectionInput,
+  (_tool: string, input: JsonObject) => redactReportingRecord(input),
+]);
+/** A refused call's arguments as its audit record keeps them. */
+export const auditedInput = (tool: string, input: JsonObject): JsonObject =>
+  auditInputRedactors.reduce((kept, redact) => redact(tool, kept), input);
+/**
  * The amcp_write inspect call for a change a native gateway will not send (MCP-09): the caller's arguments without the
  * execution flags (dry_run, confirmed, idempotency_key), which only a review's execute takes.
  */
@@ -576,15 +593,7 @@ export class MirrorService {
         this.store.appendAudit(actor.tenantId, requestId, {
           tool,
           ...accessSetAudit(actor),
-          input: redactReportingRecord(
-            redactConnectionInput(
-              tool,
-              redactPlaceActionInput(
-                tool,
-                redactMetaPostInput(tool, withoutPeople(tool, input, personalDataActions())),
-              ),
-            ),
-          ),
+          input: auditedInput(tool, input),
           outcome: result,
         });
       } catch (auditError) {

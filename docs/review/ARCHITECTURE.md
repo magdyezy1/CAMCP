@@ -371,7 +371,16 @@ and statuses each helper gave, and the shared helpers other modules import (`wri
 `x-catalogs.ts`) re-export the kit's `fail` under their old name. The X families declare themselves through
 `defineFamily`. The localization check owns the reasons of the kit's `fail` and of a kit-built refusal as it owned each
 local helper (`tools/check-locales.mjs`), so the owned reasons and their Arabic are unchanged: 2,553 reasons in the 152
-modules on the kit, the same set before stage C and after each wave. Nineteen modules whose former arrow or forwarding helper the
-inventory never followed stay outside it (`unlocalizedRefusalModules`; about 420 of their 430 reasons have no Arabic),
-a gap now named rather than implicit. `local_fail_copies` fell from 153 to 0 and is ratcheted (§8). See
+modules on the kit, the same set before stage C and after each wave. Nineteen modules whose former arrow or forwarding
+helper the inventory never followed stay outside it (`unlocalizedRefusalModules`; about 420 of their 430 reasons have
+no Arabic), a gap now named rather than implicit. `local_fail_copies` fell from 153 to 0 and is ratcheted (§8). See
 `docs/ADDING-A-REVIEWED-FAMILY.md`, "The family kit".
+
+## 14. Composition tables
+
+ARC-04 stage D. What a composite function dispatched by an if-chain becomes a table that a new case joins by one entry.
+The audit record of a refused tool call keeps its arguments through `auditInputRedactors` (`src/service.ts`), applied in
+order: the people of a request that carries them, the links and cursors of a Meta existing-post read, private links of
+a Business Profile place action, the OAuth code and state of a connection diagnostic, and reporting credentials. It
+replaced five nested calls in `MirrorService.callOnce`; `tests/audit-input-redaction.test.mjs` keeps the table equal to
+that nesting.
