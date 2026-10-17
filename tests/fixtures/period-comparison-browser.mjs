@@ -66,16 +66,14 @@ export async function exercisePeriodComparison({page, site, locale, result, chec
     table = page.locator('#snapshot-compare-result .report-compare-table');
   await table.waitFor();
   // The pair is chosen for the person; snapshots that fail a rule stay listed, disabled, with the reason.
-  const listed = await select
-    .locator('option')
-    .evaluateAll(nodes =>
-      nodes.map(option => ({
-        value: option.value,
-        disabled: option.disabled,
-        selected: option.selected,
-        text: option.textContent,
-      })),
-    );
+  const listed = await select.locator('option').evaluateAll(nodes =>
+    nodes.map(option => ({
+      value: option.value,
+      disabled: option.disabled,
+      selected: option.selected,
+      text: option.textContent,
+    })),
+  );
   assert.equal(listed[0].value, '', 'Nothing is chosen without an explicit option');
   const paired = listed.find(option => option.value === envelope.data.comparison.baseline_id);
   assert.ok(paired && paired.selected && !paired.disabled, JSON.stringify(listed));
