@@ -483,6 +483,20 @@ chain's blocks unchanged, token for token (`transfer` 218 lines, `prepareUpload`
 function of `src/media-upload.ts` is over 400. `tests/media-actions.test.mjs` holds the stage of every action and the
 order of the checks; the media suites are unchanged.
 
+`amcp_campaign` is the third: `CampaignRunner.handle` (1,311 lines, an if-chain over 28 actions) keeps the checks the
+chain ran between its actions and consults seven tables in their order: the recipe catalog and its lookups; after the
+recipe-argument checks, the reads (eligibility, recipe previews and creations, verification, provider validation,
+`list`, `get`); after the write check, the creations (`clone`, `create`); on a saved plan, after the right the action
+needs and the expected revision, its archive and collaborators; while the plan is neither archived, superseded nor
+cancelled, its confirmations, activation plans and step recoveries; after the account write grants, the draft checks
+and the preflight, approval and the runs it allows; and after the next step is found, `prepare_next` and
+`execute_next`. `continue_as_new` and `cancel` stay single dispatch lines between the plan-state checks, and
+`preflight` is the shared preflight check. An action in no table is refused where the chain refused it ("Unknown
+campaign action." after the next-step checks). The long actions are methods whose bodies are the chain's blocks
+unchanged, token for token (`prepareNext` 221 lines, `createPlan` 185); `handle` is 239 lines.
+`tests/campaign-actions.test.mjs` holds the stage of every action and the order of the checks, with behaviour tests
+that pass on the code before the change and after it; the campaign suites are unchanged.
+
 The tools `MirrorService` answers itself are entries of one table, `compositeTools` (`src/service.ts`): the seven
 composite tools and `amcp_tool_help`, each with the service-timing category its calls count under. `callOnce` runs the
 checks every call passes (an active actor, an offered gateway, the action's own arguments), then the table's entry for
