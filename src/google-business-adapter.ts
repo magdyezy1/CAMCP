@@ -1,7 +1,26 @@
-import type {ProviderHooks} from './provider-adapter.js';
-import type {CompiledRequest, JsonObject} from './types.js';
+import type {ProviderHooks, ScopeContext} from './provider-adapter.js';
+import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {errorObject} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
+import {authorizePlaceActionDiscovery, placeActionReadKind} from './google-place-action-discovery.js';
+
+/**
+ * Business Profile's resource scope, after the account path: a business account's path names it, and a location's
+ * path names a location the selected location grant is.
+ */
+function businessResourceScope(_plan: CompiledRequest, _c: Connection, id: string, {decoded, compare}: ScopeContext) {
+  const account = /\/accounts\/([^/:]+)/.exec(decoded)?.[1];
+  if (account) {
+    compare(account, 'path');
+    return true;
+  }
+  const location = /\/locations\/([^/:]+)/.exec(decoded)?.[1];
+  if (location && id.startsWith('locations/')) {
+    compare('locations/' + location, 'path');
+    return true;
+  }
+  return false;
+}
 
 /**
  * Business Profile's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the
@@ -12,6 +31,17 @@ import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from 
  */
 export const googleBusinessHooks: ProviderHooks = Object.freeze({
   gateway: 'google_business_native_action',
+  scope: Object.freeze({
+    authorizers: Object.freeze([
+      Object.freeze({
+        name: 'google_business_place_action_discovery',
+        stage: 'before_families' as const,
+        claims: (p: CompiledRequest) => !!placeActionReadKind(p),
+        authorize: authorizePlaceActionDiscovery,
+      }),
+    ]),
+    resource: businessResourceScope,
+  }),
   reads: Object.freeze({
     postRead: (plan: CompiledRequest, pathname: string) =>
       (plan.origin === 'https://mybusinessbusinessinformation.googleapis.com' &&

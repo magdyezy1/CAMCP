@@ -46,7 +46,8 @@ export const registeredProviderHooks: readonly ProviderHooks[] = Object.freeze([
   amazonHooks,
 ]);
 
-const byGateway = new Map<string, ProviderHooks>();
+const byGateway = new Map<string, ProviderHooks>(),
+  authorizerNames = new Set<string>();
 for (const hooks of registeredProviderHooks) {
   // A load-time check, like a family declaration's: hooks belong to exactly one provider adapter.
   if (!providerOf(hooks.gateway)) throw new Error('Provider hooks name no provider adapter: ' + hooks.gateway + '.');
@@ -54,6 +55,17 @@ for (const hooks of registeredProviderHooks) {
   // A readiness read of a provider's own is accepted only when its response names exactly the selected resource.
   if (!hooks.accountRead?.readiness !== !hooks.accountRead?.names)
     throw new Error('Provider hooks of ' + hooks.gateway + ' declare a readiness read without its identity check.');
+  // Read authorizers are named once, frozen, and consulted at one of ScopeGuard's two stages.
+  for (const authorizer of hooks.scope?.authorizers ?? [])
+    if (
+      !Object.isFrozen(authorizer) ||
+      !['before_families', 'after_families'].includes(authorizer.stage) ||
+      authorizerNames.has(authorizer.name)
+    )
+      throw new Error(
+        'Read authorizer ' + authorizer.name + ' of ' + hooks.gateway + ' is not one frozen, staged name.',
+      );
+    else authorizerNames.add(authorizer.name);
   byGateway.set(hooks.gateway, hooks);
 }
 

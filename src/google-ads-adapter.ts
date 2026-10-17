@@ -1,7 +1,12 @@
 import type {ProviderHooks, WireHeaders} from './provider-adapter.js';
 import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
-import {googleGenerationKind, googleGenerationResult, validateGoogleGeneration} from './google-generation.js';
+import {
+  assertGoogleGenerationScope,
+  googleGenerationKind,
+  googleGenerationResult,
+  validateGoogleGeneration,
+} from './google-generation.js';
 import {googleJson, validateGoogleRequest} from './google-contracts.js';
 import {googleAdsCustomers} from './google-version.js';
 import {boundedWait, errorObject, errorToken} from './provider-error-core.js';
@@ -113,8 +118,30 @@ export function googleGlobalRead(pathname: string): boolean {
   return !!m && (m[1] ? googleGlobalReadMethods.has(m[1]) : googleGlobalServiceReads.has(m[2]!));
 }
 
+/** A documented planning read outside any customer: in scope for every bound account (ScopeGuard, after the families). */
+function googleGlobalPlanningRead(p: CompiledRequest): boolean {
+  if (p.gateway !== 'google_ads_native_action' || !p.readOnly || p.method !== 'POST') return false;
+  try {
+    return googleGlobalRead(decodeURIComponent(p.path));
+  } catch {
+    return false;
+  }
+}
+
 export const googleAdsHooks: ProviderHooks = Object.freeze({
   gateway: 'google_ads_native_action',
+  scope: Object.freeze({
+    // Generation drafts need the Ads scope on the selected connection.
+    assert: assertGoogleGenerationScope,
+    authorizers: Object.freeze([
+      Object.freeze({
+        name: 'google_ads_global_planning_read',
+        stage: 'after_families' as const,
+        claims: googleGlobalPlanningRead,
+        authorize: () => true,
+      }),
+    ]),
+  }),
   reads: Object.freeze({
     // Generation drafts (reviewed as reads), the customer read RPCs and the global planning reads.
     postRead: (plan: CompiledRequest, pathname: string) =>

@@ -12,6 +12,8 @@
  */
 import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
+import type {Store} from './store.js';
+import type {Registry} from './catalog.js';
 
 /** `active` providers are offered; a `parked` one is offered only where AMCP_PROVIDERS names it. */
 export type ProviderStatus = 'active' | 'parked';
@@ -97,11 +99,6 @@ export interface ReadClassification {
   classifiedPath?(plan: CompiledRequest): string | undefined;
   /** A documented GET read whose path holds a word the generic rules refuse (src/provider-read-contracts.ts). */
   qualifiedRead?(plan: CompiledRequest): boolean;
-  /**
-   * Authorizes a qualified read for the bound account: true when it is in scope, false to leave it to ScopeGuard's
-   * other checks, or a refusal.
-   */
-  authorizeQualifiedRead?(plan: CompiledRequest, connection: Connection, account: string): boolean;
   /** Another documented route whose path words are not edits (TikTok's ad previews). */
   wordExempt?(plan: CompiledRequest): boolean;
   /** A query or body key, in lower case, that makes the request carry other requests (Meta's Graph batch). */
@@ -277,6 +274,79 @@ export interface WireProfile {
 }
 
 /**
+ * One of a provider's read authorizers (ARC-01 phase B). ScopeGuard (src/scope.ts) consults the authorizers of a
+ * request's provider only after it has compared every account the request names with the bound one. An authorizer
+ * claims the requests it decides, and no two claim one request: ScopeGuard refuses a request two claim with
+ * READ_AUTHORIZER_CONFLICT before anything is sent, like two reviewed families claiming one write, and
+ * tests/provider-read-authorizers.test.mjs holds the claims disjoint over every catalogued route.
+ */
+export interface ReadAuthorizer {
+  /** The authorizer's name in a conflict refusal. */
+  readonly name: string;
+  /** Where ScopeGuard consults it: before the reviewed families' own authorizers, or after them (as the chain did). */
+  readonly stage: 'before_families' | 'after_families';
+  /** Whether this authorizer decides `plan`, from the request alone; it never refuses. */
+  claims(plan: CompiledRequest): boolean;
+  /** True when the claimed request is in scope; false to leave it to ScopeGuard's later checks; or a refusal. */
+  authorize(plan: CompiledRequest, connection: Connection, account: string, store: Store): boolean;
+}
+
+/** What ScopeGuard gives a provider's resource scope: the decoded path, its account comparison, the store, the catalog. */
+export interface ScopeContext {
+  readonly decoded: string;
+  /** Refuses with ACCOUNT_SCOPE_MISMATCH unless every value is the bound account. */
+  compare(value: unknown, field: string): void;
+  /** ScopeGuard's ACCOUNT_SCOPE_MISMATCH refusal, naming `field`. */
+  mismatch(field: string): never;
+  readonly store: Store;
+  readonly registry: Registry;
+}
+
+/** A ready-to-send read, as ScopeGuard's ownership_reads offer it. */
+export type ScopeCall = {tool: string; arguments: JsonObject};
+/** Builds a call of the provider's gateway tool for the account and connection a refusal names. */
+export type ScopeCallBuilder = (action: string, extra?: JsonObject) => ScopeCall;
+
+/**
+ * A provider's part of ScopeGuard (ARC-01 phase B). ScopeGuard keeps the offering gate, the account binding, the walk
+ * that compares every account a request names, the order of every stage, the resource bindings and the final refusal;
+ * a provider supplies what only it can say, at the stage where ScopeGuard named the provider before.
+ */
+export interface ScopeHooks {
+  /** A public read that needs no account binding (Meta's Ad Library): ScopeGuard returns its public scope first. */
+  publicRead?(plan: CompiledRequest): boolean;
+  /** The provider's scope checks before any authorizer (Google's generation scope, Meta's label scope); refusals. */
+  assert?(plan: CompiledRequest, connection: Connection): void;
+  readonly authorizers?: readonly ReadAuthorizer[];
+  /**
+   * After the account path: whether the request is in the bound account's scope by the provider's own rules (a
+   * Search Console site, a Business Profile account or location, a LinkedIn account filter, TikTok's advertiser
+   * parameters, Microsoft's contracts, a mandatory account header, ownership from an account-scoped list); false to
+   * leave it to the resource bindings; or a refusal.
+   */
+  resource?(plan: CompiledRequest, connection: Connection, account: string, context: ScopeContext): boolean;
+  /**
+   * The account collection reads whose results establish ownership of the resource a refused request names;
+   * `call` builds one of the provider's own tool calls for the account and connection.
+   */
+  ownershipReads?(
+    path: string,
+    account: string,
+    connectionId: string,
+    template: string | undefined,
+    call: ScopeCallBuilder,
+  ): ScopeCall[];
+  /** Learns resource ownership from a successful account-scoped read, which ScopeGuard.observe has authorized. */
+  observe?(plan: CompiledRequest, connection: Connection, account: string, data: unknown, store: Store): void;
+  /** Learns ownership of what a verified, successful creation made; never from caller-supplied data. */
+  observeCreated?(plan: CompiledRequest, connection: Connection, account: string, data: JsonObject, store: Store): void;
+}
+
+/** The preconditions of a plain documented GET read: read-only, no body, no special transport. */
+export const plainGetRead = (p: CompiledRequest) =>
+  p.readOnly && p.method === 'GET' && !p.specialTransport && p.body === undefined;
+
+/**
  * A provider's hooks (ARC-01 phase B): the parts of its adapter that call its own modules, declared in
  * src/<provider>-adapter.ts and registered in src/provider-hooks.ts. The facts any module may read are the
  * ProviderAdapter of the leaf registry; a hook only supplies a provider fact to the shared stage that asks for it.
@@ -288,6 +358,7 @@ export interface ProviderHooks {
   readonly paging?: Paging;
   readonly accountRead?: AccountRead;
   readonly wire?: WireProfile;
+  readonly scope?: ScopeHooks;
 }
 
 export interface ProviderAdapter {

@@ -32,9 +32,12 @@ export const targets = Object.freeze({
     classes: {NativeTransport: ['request', 'uploadGoogleVideo', 'uploadLinkedIn']},
   },
   'dist/src/scope.js': {
-    functions: ['ownershipReads', 'snapchatScopedResource', 'snapchatOrganizationPixels'],
+    functions: ['ownershipReads'],
     classes: {ScopeGuard: ['authorize', 'observe', 'observeCreated']},
   },
+  // The Snapchat scoped-resource paths left scope.js for this leaf (ARC-01 phase B, the read authorizers), which
+  // scope.js re-exports; a recording made before names them dist/src/scope.js#... (compare with --ignore for both).
+  'dist/src/snapchat-scope.js': {functions: ['snapchatScopedResource', 'snapchatOrganizationPixels']},
   'dist/src/store.js': {classes: {Store: ['rememberResource', 'ownsResource']}},
   'dist/src/account-id.js': {functions: ['normalizeAccount']},
   'dist/src/execution-risk.js': {
@@ -82,8 +85,8 @@ export const replayable = Object.freeze([
   'dist/src/account-metadata.js#accountTimezone',
   'dist/src/account-metadata.js#accountKind',
   'dist/src/scope.js#ownershipReads',
-  'dist/src/scope.js#snapchatScopedResource',
-  'dist/src/scope.js#snapchatOrganizationPixels',
+  'dist/src/snapchat-scope.js#snapchatScopedResource',
+  'dist/src/snapchat-scope.js#snapchatOrganizationPixels',
   'dist/src/transport.js#losslessReportNumbers',
   'dist/src/provider-error-taxonomy.js#providerErrorCode',
   'dist/src/write-shape.js#assertWriteShape',

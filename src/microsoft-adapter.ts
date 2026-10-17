@@ -1,13 +1,73 @@
-import type {ProviderHooks, WireHeaders} from './provider-adapter.js';
-import type {CompiledRequest, JsonObject} from './types.js';
+import type {ProviderHooks, ScopeContext, WireHeaders} from './provider-adapter.js';
+import type {CompiledRequest, Connection, JsonObject} from './types.js';
+import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {
   compileMicrosoft,
   microsoftCustomer,
   microsoftCustomerOrigin,
+  microsoftContracts,
   microsoftGateway,
+  microsoftGeoLocationsContract,
   microsoftRead,
 } from './microsoft-native.js';
+import {microsoftReportKey} from './microsoft-report-download.js';
+
+/**
+ * Microsoft's resource scope, after the account path: the mandatory CustomerAccountId header confines Campaign
+ * Management resources, so a request in scope is one of its exact contracts for the selected account's customer; a
+ * report poll also needs the report this account and connection submitted. Report scope is validated by the
+ * compiler too, and a caller cannot override headers.
+ */
+function microsoftResourceScope(plan: CompiledRequest, connection: Connection, id: string, {store}: ScopeContext) {
+  microsoftCustomer(connection, id);
+  // The location lookup's file URL read (CMP-03) has its own exact route; it is no gateway action.
+  const contract =
+    microsoftContracts.get(plan.action) ??
+    (plan.action === microsoftGeoLocationsContract.name ? microsoftGeoLocationsContract : undefined);
+  if (!contract || contract.path !== plan.path || contract.method !== plan.method)
+    throw new MirrorError('RESOURCE_SCOPE_REQUIRED', 'Unqualified Microsoft request contract.', {}, 403);
+  const body = plan.body as JsonObject;
+  if (plan.action === 'PollGenerateReport') {
+    let receipt: JsonObject | undefined;
+    try {
+      receipt = store.document(
+        connection.tenantId,
+        'microsoft_report',
+        microsoftReportKey(connection.id, id, body.ReportRequestId),
+      );
+    } catch (e) {
+      if (!(e instanceof MirrorError) || e.code !== 'NOT_FOUND') throw e;
+    }
+    const ownsReport =
+      receipt?.connection_id === connection.id && receipt.account_id === id && receipt.expires_at > Date.now();
+    if (!ownsReport && !store.ownsResource(connection, id, 'report/' + body.ReportRequestId))
+      throw new MirrorError(
+        'RESOURCE_SCOPE_REQUIRED',
+        'Submit the Microsoft report using this account and connection before polling.',
+        {},
+        403,
+      );
+  }
+  return true;
+}
+/** A submitted report is remembered for its poll, for a day; expired receipts are dropped. */
+function observeMicrosoft(plan: CompiledRequest, connection: Connection, id: string, data: unknown, store: Store) {
+  const d = data as JsonObject;
+  if (plan.action !== 'SubmitGenerateReport' || typeof d?.ReportRequestId !== 'string') return;
+  store.rememberResource(connection, id, 'report/' + d.ReportRequestId);
+  store.db
+    .prepare(
+      "DELETE FROM documents WHERE tenant_id=? AND kind='microsoft_report' AND json_extract(data,'$.expires_at')<=?",
+    )
+    .run(connection.tenantId, Date.now());
+  store.putDocument(connection.tenantId, 'microsoft_report', microsoftReportKey(connection.id, id, d.ReportRequestId), {
+    connection_id: connection.id,
+    account_id: id,
+    request: (plan.body as JsonObject).ReportRequest,
+    expires_at: Date.now() + 86400000,
+  });
+}
 
 /**
  * Microsoft Advertising's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification:
@@ -18,6 +78,7 @@ import {
  */
 export const microsoftHooks: ProviderHooks = Object.freeze({
   gateway: microsoftGateway,
+  scope: Object.freeze({resource: microsoftResourceScope, observe: observeMicrosoft}),
   reads: Object.freeze({readOnly: microsoftRead}),
   accountRead: Object.freeze({
     plan: (_read: CompiledRequest, id: string) => compileMicrosoft({action: 'GetAccount', account_id: id}),

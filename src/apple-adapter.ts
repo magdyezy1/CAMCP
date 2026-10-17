@@ -9,6 +9,8 @@ const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.is
  */
 export const appleHooks: ProviderHooks = Object.freeze({
   gateway: 'apple_ads_native_action',
+  // The mandatory X-AP-Context header (below) confines every request to the selected account.
+  scope: Object.freeze({resource: () => true}),
   reads: Object.freeze({
     postRead: (plan: CompiledRequest, pathname: string) =>
       plan.origin === 'https://api.ads.apple.com' &&

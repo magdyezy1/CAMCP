@@ -8,6 +8,8 @@ import {MirrorError} from './errors.js';
  */
 export const amazonHooks: ProviderHooks = Object.freeze({
   gateway: 'amazon_native_action',
+  // The mandatory profile scope header (below) confines every request to the selected account.
+  scope: Object.freeze({resource: () => true}),
   wire: Object.freeze({
     headers({plan, credentials, headers}: WireHeaders) {
       if (!credentials.clientId) throw new MirrorError('CLIENT_ID_REQUIRED', 'Amazon Ads requires a client ID.');

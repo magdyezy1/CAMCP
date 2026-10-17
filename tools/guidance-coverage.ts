@@ -113,6 +113,9 @@ const operational: [string, string[]][] = [
       'REVIEWED_FAMILY_CONFLICT',
       // ARC-04: a malformed family declaration (src/family-kit.ts defineFamily) refuses when its module loads.
       'REVIEWED_FAMILY_INVALID',
+      // ARC-01 phase B: two provider read authorizers claiming one request is a wiring defect, refused before anything
+      // is sent (src/scope.ts claimingAuthorizer).
+      'READ_AUTHORIZER_CONFLICT',
       'SCHEMA_VERSION_MISMATCH',
       // OPS-08: a database written by a newer release than this one can read; refused at start-up only.
       'SCHEMA_TOO_NEW',

@@ -1,4 +1,4 @@
-import type {ProviderHooks} from './provider-adapter.js';
+import {plainGetRead, type ProviderHooks, type ScopeContext} from './provider-adapter.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
@@ -75,15 +75,73 @@ function authorizeQualifiedTikTokRead(p: CompiledRequest, c: Connection, account
   return true;
 }
 
+const qualifiedTikTokRead = (p: CompiledRequest) =>
+  (!p.origin || p.origin === 'https://business-api.tiktok.com') && Object.hasOwn(qualifiedTikTokReadPaths, p.path);
+/** The report, campaign and ad group lists the Overview reads (RPT-04), scoped by the selected advertiser. */
+const advertiserLists = ['/v1.3/report/integrated/get/', '/v1.3/campaign/get/', '/v1.3/adgroup/get/'];
+/**
+ * TikTok's resource scope, after the account path: its reads name the selected advertiser in advertiser_id (the
+ * advertiser info read in a list of one), and a route whose vendor schema requires advertiser_id is bound by it; some
+ * Business Center routes ignore advertiser_id, so only that declared requirement establishes the boundary.
+ */
+function tiktokResourceScope(
+  plan: CompiledRequest,
+  _c: Connection,
+  id: string,
+  {decoded, compare, registry}: ScopeContext,
+) {
+  if (
+    plan.readOnly &&
+    plan.method === 'GET' &&
+    // The ad group list is the Overview's optimization-event read (RPT-04), scoped like the campaign list.
+    advertiserLists.includes(decoded) &&
+    plan.query.advertiser_id === id
+  )
+    return true;
+  if (
+    plan.readOnly &&
+    decoded === '/v1.3/advertiser/info/' &&
+    Array.isArray(plan.query.advertiser_ids) &&
+    plan.query.advertiser_ids.length === 1
+  ) {
+    compare(plan.query.advertiser_ids, 'advertiser_ids');
+    return true;
+  }
+  // /page/get/ takes advertiser_id or a Business Center library_id; only the advertiser's own pages are in scope.
+  if (
+    plan.readOnly &&
+    plan.method === 'GET' &&
+    decoded === '/v1.3/page/get/' &&
+    plan.query.advertiser_id === id &&
+    plan.query.library_id === undefined
+  )
+    return true;
+  const action = registry.action(plan.gateway, plan.action);
+  return !!(
+    action?.required.includes('advertiser_id') &&
+    (plan.query.advertiser_id === id || (plan.body as JsonObject)?.advertiser_id === id)
+  );
+}
+
 export const tiktokHooks: ProviderHooks = Object.freeze({
   gateway: 'tiktok_native_action',
+  scope: Object.freeze({
+    authorizers: Object.freeze([
+      Object.freeze({
+        name: 'tiktok_qualified_read',
+        stage: 'before_families' as const,
+        claims: (p: CompiledRequest) =>
+          p.gateway === 'tiktok_native_action' && plainGetRead(p) && qualifiedTikTokRead(p),
+        authorize: authorizeQualifiedTikTokRead,
+      }),
+    ]),
+    resource: tiktokResourceScope,
+  }),
   reads: Object.freeze({
     // Ad previews are POSTs the catalog marks as writes; they are reviewed reads, and their path words are not edits.
     plannedRead: (p: CompiledRequest) => !!tiktokPreviewRoute(p),
     wordExempt: (p: CompiledRequest) => !!tiktokPreviewRoute(p),
-    qualifiedRead: (p: CompiledRequest) =>
-      (!p.origin || p.origin === 'https://business-api.tiktok.com') && Object.hasOwn(qualifiedTikTokReadPaths, p.path),
-    authorizeQualifiedRead: authorizeQualifiedTikTokRead,
+    qualifiedRead: qualifiedTikTokRead,
     postRead: (plan: CompiledRequest, pathname: string) =>
       tiktokReads.has(pathname.replace(/^\/open_api/, '')) || !!tiktokPreviewRoute(plan),
   }),

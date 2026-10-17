@@ -1,12 +1,22 @@
-import type {ProviderHooks} from './provider-adapter.js';
-import type {CompiledRequest, JsonObject} from './types.js';
+import type {ProviderHooks, ScopeContext} from './provider-adapter.js';
+import type {CompiledRequest, Connection, JsonObject} from './types.js';
 
 /**
  * Search Console's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: a site
- * or sitemap URL in the path is an identifier, and the search analytics query and URL inspection are POST reads.
+ * or sitemap URL in the path is an identifier, and the search analytics query and URL inspection are POST reads. Its
+ * scope: a request names its site in its path, or in the body's siteUrl, which must be the bound site.
  */
 export const searchConsoleHooks: ProviderHooks = Object.freeze({
   gateway: 'google_search_console_native_action',
+  scope: Object.freeze({
+    resource(plan: CompiledRequest, _c: Connection, _id: string, {compare}: ScopeContext) {
+      const site = /\/sites\/([^/]+)/.exec(plan.path)?.[1];
+      const value = site ? decodeURIComponent(site) : (plan.body as JsonObject)?.siteUrl;
+      if (value === undefined) return false;
+      compare(value, 'siteUrl');
+      return true;
+    },
+  }),
   reads: Object.freeze({
     // Search Console encodes full property and sitemap URLs as resource segments. Their escaped query delimiters and
     // path words are identifiers, not HTTP method overrides; only the documented fixed route structures are masked.

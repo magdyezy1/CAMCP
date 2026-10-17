@@ -168,6 +168,7 @@
     "JOB_CANCELLED": "The job stops because its report or schedule was edited, paused or removed; nothing is written, and the schedule's next run uses its current definition.",
     "MEDIA_LINK_BLOCKED": "The egress policy refuses the host or address; the caller supplies an approved public HTTPS or Drive source. The policy is never worked around.",
     "MEDIA_UPLOAD_URL_EXPIRED": "The provider's upload instructions expired before any bytes were sent; the allocated media is retained for amcp_media recovery, and another upload is prepared deliberately, never automatically.",
-    "REVIEWED_FAMILY_CONFLICT": "Two family modules claim the same route: a build-time defect refused at startup, fixed in the registration, never at run time."
+    "REVIEWED_FAMILY_CONFLICT": "Two family modules claim the same route: a build-time defect refused at startup, fixed in the registration, never at run time.",
+    "READ_AUTHORIZER_CONFLICT": "Two provider read authorizers claim one request: a wiring defect refused before anything is sent, fixed in the adapters (tests/provider-read-authorizers.test.mjs keeps their claims disjoint), never at run time."
   }
 }

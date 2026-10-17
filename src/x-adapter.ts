@@ -1,6 +1,6 @@
 import type {ProviderHooks} from './provider-adapter.js';
 import type {CompiledRequest, Credentials, JsonObject} from './types.js';
-import {xAudienceEstimateRoute} from './x-audience-estimate.js';
+import {authorizeXAudienceEstimate, xAudienceEstimateRoute} from './x-audience-estimate.js';
 import {scopeKey, sha256} from './security.js';
 import {oauth1} from './oauth1.js';
 import {errorInteger, errorObject, errorToken} from './provider-error-core.js';
@@ -22,6 +22,17 @@ const jsonBody = (plan: CompiledRequest) =>
  */
 export const xHooks: ProviderHooks = Object.freeze({
   gateway: 'x_ads_native_action',
+  // The audience estimate: an account-scoped POST read of the current connection's account.
+  scope: Object.freeze({
+    authorizers: Object.freeze([
+      Object.freeze({
+        name: 'x_audience_estimate',
+        stage: 'before_families' as const,
+        claims: xAudienceEstimateRoute,
+        authorize: authorizeXAudienceEstimate,
+      }),
+    ]),
+  }),
   reads: Object.freeze({
     plannedRead: (p: CompiledRequest) => xAudienceEstimateRoute(p),
     postRead: (plan: CompiledRequest) => xAudienceEstimateRoute(plan),

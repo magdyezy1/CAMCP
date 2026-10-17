@@ -1,7 +1,11 @@
-import type {ProviderHooks} from './provider-adapter.js';
+import {plainGetRead, type ProviderHooks, type ScopeCallBuilder, type ScopeContext} from './provider-adapter.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
+import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
-import {linkedinPlanningRoute} from './linkedin-planning-reads.js';
+import {linkedinPlanningAccount, linkedinPlanningRoute} from './linkedin-planning-reads.js';
+import {authorizeLinkedInConversionEvidenceRead} from './linkedin-conversion-evidence.js';
+import {authorizeLinkedInAdPreview, linkedinAdPreviewRead, observeLinkedInCreatives} from './linkedin-ad-previews.js';
+import {authorizeLinkedInSpecial, linkedinSpecialRequest} from './linkedin-posts.js';
 import {linkedInAnalyticsRows} from './linkedin-reporting.js';
 import {linkedinDefaultVersion, linkedinVersion} from './linkedin-version.js';
 import {linkedinQuery} from './linkedin-restli.js';
@@ -49,15 +53,100 @@ function authorizeShareAuthorizationRead(p: CompiledRequest, c: Connection, acco
   return true;
 }
 
+const shareAuthorizationRead = (p: CompiledRequest) =>
+  (!p.origin || p.origin === 'https://api.linkedin.com') &&
+  /^\/rest\/organizationalEntityCreateShareAuthorizations\/[^/]+$/.test(p.path);
+/**
+ * LinkedIn's resource scope, after the account path: the reporting reads and adBudgetPricing (read-only, an account's
+ * daily budget limits for allocation drafts, WRT-07) name exactly one sponsored account, which must be the bound one,
+ * and a planning read names its account in its request.
+ */
+function linkedinResourceScope(
+  plan: CompiledRequest,
+  _c: Connection,
+  _id: string,
+  {decoded, compare, mismatch}: ScopeContext,
+) {
+  if (
+    ['/rest/adAnalytics', '/rest/audienceCounts'].includes(decoded) ||
+    (plan.readOnly && plan.method === 'GET' && decoded === '/rest/adBudgetPricing')
+  ) {
+    const value = plan.query.accounts ?? plan.query.account;
+    if (typeof value === 'string') {
+      let decodedValue: string;
+      try {
+        decodedValue = decodeURIComponent(value);
+      } catch {
+        return mismatch('account filter');
+      }
+      const filter = /^(?:List\()?urn:li:sponsoredAccount:(\d+)\)?$/.exec(decodedValue);
+      if (filter) {
+        compare(filter[1], 'account filter');
+        return true;
+      }
+    }
+  }
+  if (plan.readOnly && linkedinPlanningRoute(plan)) {
+    const planned = linkedinPlanningAccount(plan);
+    if (planned !== undefined) {
+      compare(planned, 'request account');
+      return true;
+    }
+  }
+  return false;
+}
+
 export const linkedinHooks: ProviderHooks = Object.freeze({
   gateway: 'linkedin_native_action',
   reads: Object.freeze({
     plannedRead: (p: CompiledRequest) => !!linkedinPlanningRoute(p),
-    qualifiedRead: (p: CompiledRequest) =>
-      (!p.origin || p.origin === 'https://api.linkedin.com') &&
-      /^\/rest\/organizationalEntityCreateShareAuthorizations\/[^/]+$/.test(p.path),
-    authorizeQualifiedRead: authorizeShareAuthorizationRead,
+    qualifiedRead: shareAuthorizationRead,
     postRead: (plan: CompiledRequest) => !!linkedinPlanningRoute(plan),
+  }),
+  scope: Object.freeze({
+    authorizers: Object.freeze([
+      Object.freeze({
+        name: 'linkedin_share_authorization_read',
+        stage: 'before_families' as const,
+        claims: (p: CompiledRequest) =>
+          p.gateway === 'linkedin_native_action' && plainGetRead(p) && shareAuthorizationRead(p),
+        authorize: authorizeShareAuthorizationRead,
+      }),
+      Object.freeze({
+        name: 'linkedin_conversion_evidence_read',
+        stage: 'before_families' as const,
+        claims: (p: CompiledRequest) =>
+          p.gateway === 'linkedin_native_action' && p.path === '/rest/conversions' && p.method === 'GET' && p.readOnly,
+        authorize: authorizeLinkedInConversionEvidenceRead,
+      }),
+      Object.freeze({
+        name: 'linkedin_ad_preview',
+        stage: 'after_families' as const,
+        claims: linkedinAdPreviewRead,
+        authorize: (p: CompiledRequest, c: Connection, account: string, store: Store) =>
+          authorizeLinkedInAdPreview(p, c, store, account),
+      }),
+      Object.freeze({
+        name: 'linkedin_dsc_media_and_post_reads',
+        stage: 'after_families' as const,
+        claims: linkedinSpecialRequest,
+        authorize: (p: CompiledRequest, c: Connection, account: string, store: Store) =>
+          authorizeLinkedInSpecial(p, c, store, account),
+      }),
+    ]),
+    resource: linkedinResourceScope,
+    // An ad preview names its creative, not its account: the account's creatives finder establishes its ownership.
+    ownershipReads: (path: string, _a: string, _c: string, _t: string | undefined, call: ScopeCallBuilder) =>
+      path === '/rest/adPreviews'
+        ? [
+            call('linkedin_rest_ad_accounts_ad_account_id_creatives_get', {
+              restli_method: 'FINDER',
+              query: {q: 'criteria', pageSize: 100},
+            }),
+          ]
+        : [],
+    observe: (plan: CompiledRequest, connection: Connection, account: string, data: unknown, store: Store) =>
+      observeLinkedInCreatives(plan, connection, store, account, data),
   }),
   paging: Object.freeze({
     nextPage(plan: CompiledRequest, response: unknown, next: CompiledRequest) {

@@ -23,8 +23,10 @@ const plainRead = (p: CompiledRequest) =>
   !p.specialTransport &&
   (!p.origin || p.origin === 'https://api.linkedin.com');
 
+/** A plain read of /rest/adPreviews: the requests authorizeLinkedInAdPreview decides (its read authorizer's claim). */
+export const linkedinAdPreviewRead = (p: CompiledRequest) => plainRead(p) && decode(p.path) === '/rest/adPreviews';
 export function authorizeLinkedInAdPreview(p: CompiledRequest, c: Connection, store: Store, selected: string): boolean {
-  if (!plainRead(p) || decode(p.path) !== '/rest/adPreviews') return false;
+  if (!linkedinAdPreviewRead(p)) return false;
   if (Object.keys(p.query).some(k => !['q', 'creative'].includes(k)) || p.query.q !== 'creative') return false;
   const creative = creativeUrn.exec(decode(p.query.creative))?.[1];
   return !!creative && store.ownsResource(c, selected, 'creatives/' + creative);
