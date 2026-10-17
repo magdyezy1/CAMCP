@@ -32,7 +32,7 @@ for (const c of providerContracts)
   );
 lines.push(
   '',
-  'Every local action and delegated enum has a status in [ACTION-CONTRACT-COVERAGE.csv](implementation/ACTION-CONTRACT-COVERAGE.csv), also available through `amcp_workspace contracts`. [VENDOR-METHOD-COVERAGE.json](implementation/VENDOR-METHOD-COVERAGE.json) separately includes every method in the pinned public specifications, including methods missing from the catalog. Generate and check both with `contracts:actions` / `contracts:actions:check`. These inventories preserve blocked operations and never grant execution.',
+  'Every local action and delegated enum has a status in [ACTION-CONTRACT-COVERAGE.csv](implementation/ACTION-CONTRACT-COVERAGE.csv), also available through `amcp_workspace contracts`. [VENDOR-METHOD-COVERAGE.json](implementation/VENDOR-METHOD-COVERAGE.json) separately includes every method in the pinned public specifications, including methods missing from the catalog. Generate and check both with `contracts:actions` / `contracts:actions:check`. These inventories preserve blocked operations and never grant execution. Each row’s `anchor_status` and `anchor` say what its method and path rest on: a pinned vendor document, a pinned SDK request, a dated documentation page, or the captured catalog alone; [ROUTE-ANCHOR-COVERAGE.md](implementation/ROUTE-ANCHOR-COVERAGE.md) counts them per gateway. Anchors are evidence, never permission.',
 );
 // Each direct gateway's argument names (F-32). The captured gateways name the same things differently, and AMCP keeps
 // their names to stay compatible with them. A cell lists names separated by commas; `a=b` is the name `a` with its

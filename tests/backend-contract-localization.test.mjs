@@ -138,10 +138,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // reasons: the refusals stay where they were raised). The TikTok ledger's unpinned statistics request adds one
   // website reason, and the refusal of a reserved workspace ID (ensureTenant, INVALID_TENANT) one owned reason. The
   // invitation lifetime's one- and two-hour sentences add two website entries.
-  assert.equal(files.length, 597);
+  // ARC-03 adds src/route-anchors.ts (no owned reasons) and the nine route evidence entries of the contract reference.
+  assert.equal(files.length, 598);
   assert.equal(selected.filter(row => row.messages.size).length, 235);
   assert.equal(owned.size, 1587);
-  assert.equal(Object.keys(catalog).length, 11473);
+  assert.equal(Object.keys(catalog).length, 11482);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

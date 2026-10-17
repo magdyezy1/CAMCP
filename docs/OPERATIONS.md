@@ -578,8 +578,9 @@ The maintained GitHub workflow defines Docker builds and synthetic read-only/wri
 (owner decision D25 in [decisions](DECISIONS.md)); delivery notes cite its `source_tree_hash` instead of retyping counts.
 
 - **Stages.** The deterministic freshness gates run first: TypeScript build, release identity, format check, the
-  test-oracle ratchet (`check:oracles`), the `generate:*` checks, `report -- --check`, `contracts:check`,
-  `contracts:actions:check` and `docs:index:check`. The full profile then probes FFmpeg and ffprobe, runs the suite with
+  test-oracle ratchet (`check:oracles`), the `generate:*` checks (the Google bid-field and Cloudflare range checks
+  included), `provenance:check` ([generated-artifact provenance](#generated-artifacts-and-catalog-provenance-arc-03)),
+  `report -- --check`, `contracts:check`, `contracts:actions:check` and `docs:index:check`. The full profile then probes FFmpeg and ffprobe, runs the suite with
   `AMCP_REQUIRE_FFMPEG=true`, the capture tests, the mutant catalogue (`mutant_catalogue`), the wire-contract sweep, the
   Meta creative feature pin (`meta_creative_features_pinned`: it fails unless
   `tests/fixtures/meta-creative-features-sdk-v26.json` is hashed from the SDK 26.0.2 files, as pinned on 2026-10-16, so
@@ -659,6 +660,50 @@ The maintained GitHub workflow defines Docker builds and synthetic read-only/wri
 - **Pruning.** `node tools/qualify.mjs --prune --dry-run [--keep-last 5] [--keep-package <sha256>]` lists `.release`
   candidates that no record, deployed package or `.retain` file keeps. It deletes nothing; deletion stays a manual owner
   action after reviewing the list, and `--prune` without `--dry-run` is refused.
+
+### Generated artifacts and catalog provenance (ARC-03)
+
+`npm run provenance` (`tools/generated-provenance.mjs`) lists every tracked generated artifact: all of `generated/`,
+the captured catalog, the action ledger, `docs/CONTRACTS.md`, the tracked report under `.mirror/REPORTS` and the
+generated guides, each with its generator, its inputs, where it records their digests and the check that fails when it
+is edited by hand or stale. `npm run provenance:check` is a gate of `npm run check`, `check:fast`, qualification
+(`generated_provenance_check`) and `test:related`. It fails on a file in `generated/` that no artifact declares, a
+declared output that is missing, a check that is not a gate of both `npm run check` and qualification, or an input
+digest an artifact recorded that no longer matches, and it runs the checks that have no generator to rerun:
+
+- **Capture evidence.** `.mirror/REPORTS/evidence-hashes.json` names a SHA-256 for each file of the original capture.
+  `node tools/evidence-hashes.mjs --check` verifies the bytes of the files this tree ships under `.mirror/RAW`. The
+  others are declared in `.mirror/RAW/WITHHELD.json` under the label `historical_capture_not_shipped`, in groups with a
+  reason, a count and the digest of the whole set. Their digests cannot be checked from this tree, and none of those
+  files ships without a privacy review (D17). `--write` recomputes the declaration's lists, counts and digest; a
+  withheld file that matches no group is refused until a group with a reason names it.
+- **Frozen captured catalog.** `npm run capture:check` re-derives `.mirror/CATALOG` and `.mirror/TOOLS.json` from the
+  shipped capture and fails when either differs, when a shipped capture file is missing from the evidence list, or
+  when the files no longer have the digest `capturedCatalogDigest` in `tools/catalog/normalize.mjs`. Only the
+  operation schemas of delegated gateways come from withheld files; they are held to that digest. The catalog stays the
+  frozen naming-compatibility denominator (D17), so `npm run capture:normalize` is refused while any file is withheld.
+- **Registry provenance.** `generated/registry.json` records provenance format 2: each input with the digest of its
+  text, the shipped capture files verified against their captured digests, and the withheld set by label, count and
+  digest. It no longer presents all 197 capture digests as `source_hashes`, and `npm run generate` refuses to run while
+  the evidence check fails.
+- **Apple SDK evidence.** `npm run generate:apple:check` checks `generated/apple-platform-v1-models.json` offline: its
+  recorded digest, the pinned SDK revision in every source, and the shape of its models and methods. Re-deriving it
+  from that revision needs the public SDK files, so it is an owner-run release step with network access:
+  `node tools/apple-model-evidence.mjs --fetch --sdk <empty directory> --check`. No build, test or check fetches.
+
+Routing truth is anchored apart from the captured catalog. `npm run contracts:actions` also writes
+`generated/route-anchors.json` and the per-gateway [route anchor coverage](implementation/ROUTE-ANCHOR-COVERAGE.md)
+report, which `contracts:actions:check` keeps current. Each routed action names what its method and path rest on: a
+pinned vendor document method (`vendor_spec`), a pinned SDK request (`sdk_method`), a dated documentation page
+(`documented_url`), or the captured catalog alone (`captured_only`, with the capture file and the reason). Ledger rows,
+`amcp_workspace contracts` and the Capabilities contract reference show `anchor_status` and `anchor`; operation help
+and `DESCRIBE_ACTION` add `route_anchor`, and mark a native read that is not anchored with the advisory
+`read_unanchored`. Anchors are evidence only: they never enable, block or reclassify an action. To anchor a route from
+a documentation page you read, add the page to `tools/route-anchor-documents.json` with the exact method and path, the
+URL, the date read and a note; the generator refuses an entry whose route has moved or that anchors no routed action.
+The SDK evidence behind Meta's `sdk_method` anchors (`tests/fixtures/meta-sdk-changes-v26.json`, whose digest the
+anchors record) re-derives like the Apple evidence, from the two SDK releases the owner downloads:
+`node tools/meta-sdk-changes.mjs --from-dir <25.0.3 adobjects> --to-dir <26.0.2 adobjects> --check`.
 
 ### Journey and MCP evaluation (QA-04)
 

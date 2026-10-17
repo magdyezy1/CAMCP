@@ -28,6 +28,8 @@ export const freshnessChecks = [
   {name: 'docs_index_check', args: ['tools/docs-index.mjs', '--check']},
   {name: 'contracts_check', args: ['dist/tools/generate-contracts.js', '--check']},
   {name: 'contracts_actions_check', args: ['dist/tools/action-contracts.js', '--check']},
+  // ARC-03: generated-artifact provenance (capture evidence, frozen catalog, Apple SDK evidence, embedded inputs).
+  {name: 'generated_provenance_check', args: ['tools/generated-provenance.mjs', '--check']},
 ];
 const freshnessScope = /^(?:src|server|tools|docs|generated|codegen|\.mirror)\//;
 const graphRoots = ['src', 'server', 'tools', 'tests', 'generated', 'codegen'];

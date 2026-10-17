@@ -160,10 +160,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // its two envelope reasons wrapper reasons of src/measurement-ledger-tiktok.ts, and the unpinned statistics request
   // adds one website reason; the reserved workspace ID refusal adds one catalog entry and the invitation lifetime's one-
   // and two-hour sentences two.
-  assert.equal(files.length, 597);
+  // ARC-03 adds src/route-anchors.ts (no wrapper reasons) and the nine route evidence entries of the contract reference.
+  assert.equal(files.length, 598);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
-  assert.equal(Object.keys(catalog).length, 11473);
+  assert.equal(Object.keys(catalog).length, 11482);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

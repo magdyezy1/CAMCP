@@ -61,9 +61,14 @@ export function profileStages(profile, {now} = {}) {
     gate('format_check', ['node_modules/prettier/bin/prettier.cjs', '--check', ...formatGlobs]),
     gate('test_oracles_check', ['tools/check-test-oracles.mjs']),
     gate('generate_check', ['codegen/generate.mjs', '--check']),
+    // ARC-03: the capture evidence, the frozen captured catalog, the Apple SDK evidence and the generated-artifact
+    // inventory, which also requires every artifact's own check to be one of these gates.
+    gate('generated_provenance_check', ['tools/generated-provenance.mjs', '--check']),
     gate('generate_vendor_check', ['tools/fetch-vendor-specs.mjs', '--generate-only', '--check']),
     gate('generate_wsdl_check', ['tools/microsoft-specs.mjs', '--generate-only', '--check']),
     gate('generate_feeds_check', ['tools/google-asset-set-fields.mjs', '--check']),
+    gate('generate_cloudflare_check', ['tools/cloudflare-ranges.mjs', '--check']),
+    gate('generate_bids_check', ['tools/google-bid-fields.mjs', '--check']),
     gate('report_check', ['dist/tools/report.js', '--check']),
     gate('contracts_check', ['dist/tools/generate-contracts.js', '--check']),
     gate('contracts_actions_check', ['dist/tools/action-contracts.js', '--check']),
