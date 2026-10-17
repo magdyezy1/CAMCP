@@ -247,7 +247,14 @@ routes: the ten Google evidence kinds on `/reports` (15 each), `retained-evidenc
   `58a3251` plus these changes: 36 of 36 passed in 1.64 minutes (`results.json` SHA-256 `5484512a…`), with no WCAG
   violation, zero Arabic leaks on the three routes and at the comparison state, 118 focus rings at 3:1 or more, and no
   provider write. The ratchet added `period-comparison /reporting-overview` to the leak baseline at 0 from that run
-  (the other limits it measured were already 0). The full `--qualification` run belongs to the integration gate.
+  (the other limits it measured were already 0). `--kinds measurement-ledger`: 16 of 16 in 0.97 minutes, no WCAG
+  violation, zero Arabic leaks on the route and at each of the four states; the ratchet added
+  `measurement-ledger /measurement` at 0. A wider subset with the shared style and markup changes
+  (`empty`, `period-comparison`, `measurement-ledger`, `granular-reporting`, `export-outcomes`, `measurement-trace`,
+  `measurement-navigation`, `measurement-events`, `write-journey`; `79e1c2d` plus the ledger journey files): 364 of 364
+  passed in 9.13 minutes (`results.json` SHA-256 `265c0988…`), with no WCAG violation, every critical route at zero
+  Arabic leaks, 932 focus rings at 3:1 or more, the write journeys ending accepted, uncertain and refused four times
+  each, 28 synthetic and 0 provider writes. The full `--qualification` run belongs to the integration gate.
 
 ## What it exercises
 
