@@ -55,7 +55,10 @@ actions), `generated/vendor-routes.json` (5.9 MB, routes from pinned vendor docu
 `generated/microsoft-contracts.json` (6.6 MB, WSDL-derived). The unused `generated/types.ts` is no longer generated
 (MCP-07); the AMCP tools' per-action contracts are `src/first-party-contracts.ts`.
 Ledgers and `docs/CONTRACTS.md` are produced by `tools/action-contracts.ts` and
-`tools/generate-contracts.ts`.
+`tools/generate-contracts.ts`. `npm run provenance` lists every generated artifact with its generator, inputs and the
+check that fails when it is stale or edited by hand (ARC-03); the registry's inputs are those of the frozen captured
+catalog, whose withheld capture files are declared in `.mirror/RAW/WITHHELD.json`. `generated/route-anchors.json`
+records what each route's method and path rest on, separately from the captured names it keeps for compatibility.
 
 ## 3. Trust boundaries
 
