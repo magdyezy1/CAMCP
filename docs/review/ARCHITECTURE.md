@@ -436,9 +436,9 @@ are unchanged.
 
 Not yet tables (each a separate change, so that it does not collide with work that edits the same lines): the
 dispatch of the composite tools in `MirrorService.callOnce` and the actions of `amcp_media`
-(`MediaUploadService.handle`), both edited by packages running alongside this one; the route modules of
-`server/website.ts` (`createWebsite`); and the split of `web/account-workflows.js` behind `web/route-assets.js`, which
-belongs with WEB-07.
+(`MediaUploadService.handle`), both edited by packages running alongside this one; and the route modules of
+`server/website.ts` (`createWebsite`). WEB-07, merged beside this work, has split `web/account-workflows.js` behind
+`web/route-assets.js`: a shared helper and the portfolio, measurement and commerce modules.
 
 ## 15. Module structure
 

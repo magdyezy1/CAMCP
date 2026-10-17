@@ -60,7 +60,10 @@ a rise.
 Provenance: the committed limits are those of the first passing full qualification after the wave 1, 2 and 3a merges
 (`wave3a-browser-2`, 2026-10-16, recorded under
 [Wave 3a integration qualification](#wave-3a-integration-qualification-2026-10-16)), which also showed the focus and
-leak assertions passing across every case. A limit that fails is now a regression from a measured state. (The QA-03
+leak assertions passing across every case. Wave 3b's development runs added `period-comparison /reporting-overview` and
+`measurement-ledger /measurement` at zero, and the full qualification after the wave 3b merges (`wave3b-browser-1`,
+[Wave 3b integration qualification](#wave-3b-integration-qualification-2026-10-17)) measured each of the 92 routes at
+exactly its limit. A limit that fails is now a regression from a measured state. (The QA-03
 review of 2026-10-11 found that no recorded run backed the limits; that run closes it.) Two known gaps make the counts a
 lower bound: the allow-list skips `option` elements (closed select options are not visible text nodes, so they are
 never probed) and every `bdi`, not only `bdi[data-native]`.
@@ -255,14 +258,17 @@ routes: the ten Google evidence kinds on `/reports` (15 each), `retained-evidenc
   `measurement-navigation`, `measurement-events`, `write-journey`; `79e1c2d` plus the ledger journey files): 364 of 364
   passed in 9.13 minutes (`results.json` SHA-256 `265c0988…`), with no WCAG violation, every critical route at zero
   Arabic leaks, 932 focus rings at 3:1 or more, the write journeys ending accepted, uncertain and refused four times
-  each, 28 synthetic and 0 provider writes. The full `--qualification` run belongs to the integration gate.
+  each, 28 synthetic and 0 provider writes. The integration gate's full `--qualification` passed both kinds in full
+  ([Wave 3b integration qualification](#wave-3b-integration-qualification-2026-10-17)).
 
 ## WEB-07 front-end architecture (2026-10-17)
 
 WEB-07 changes every page: the shell's stylesheets and tokens, escape-by-default markup, the Arabic catalog chunks
-and route-sized bundles. Its local acceptance asks the full rendered run to show no contrast failure in either theme;
-that run has not been made on the merged tree. It is the integration gate's browser stage (`--qualification`, every
-kind in English and Arabic, both appearances, 320 to 1280 pixels), and WEB-07 stays open until it passes.
+and route-sized bundles. Its local acceptance asks the full rendered run to show no contrast failure in either theme.
+The integration gate's browser stage made that run on the merged tree (`--qualification`, every kind in English and
+Arabic, both appearances, 320 to 1280 pixels), and it passed
+([Wave 3b integration qualification](#wave-3b-integration-qualification-2026-10-17)). WEB-07's other open items are in
+the package status (B16 deployed, B23 English About's bytes, B24 the providers chunk).
 
 - **Development subsets so far** (no qualification; axe-core 4.14.0 on). On the package branch: the Live portfolio,
   Measurement and Commerce kinds, 144 of 144, and `empty`, `granular-reporting`, `export-outcomes`,
@@ -311,6 +317,31 @@ kind in English and Arabic, both appearances, 320 to 1280 pixels), and WEB-07 st
   own (every element of 30 pages, light and dark, 1280 and 375 pixels) and the review fix's for the token split (About,
   Privacy in both languages, Terms, Data deletion, 404 and the workspace shell, light and dark, with and without
   JavaScript, 320 and 1280 pixels).
+
+## Wave 3b integration qualification (2026-10-17)
+
+The integration gate ran the full `--qualification` (axe-core 4.14.0, every kind, two fixture lanes) on the gated head
+`c0f15bd`, the merged wave 3b tree with the gate fix (`wave3b-browser-1`, 2026-10-17, 17:40 to 18:31 UTC;
+`results.json` SHA-256 `bddf3eff222f68f0193766d51870e4b158f0b6a1e6d2171b084f8f19192ac814`). Its first run passed 1,280
+of 1,280 cases in 50.93 minutes against the 75-minute budget. It covered 95 distinct scenarios, 69 fixture kinds and 22
+presentation variants: every page WEB-07 changed, and the two wave 3b kinds, `period-comparison` (RPT-07) and
+`measurement-ledger` (MSR-03), in full.
+
+- **WCAG.** No pinned rule was violated at any initial, intermediate or final state in either theme, so WEB-07's
+  contrast criterion holds in light and dark. Left incomplete for manual review: color-contrast 2,498,
+  label-content-name-mismatch 2,464 and link-in-text-block 4. The slowest inspection took 0.78 seconds of its
+  20-second deadline (`period-comparison-reporting-overview-ar-1280-dark`).
+- **Focus and wording.** All 3,574 measured focus rings reached 3:1. None of the 4,036 focus-obscured checks found a
+  hidden control, and none of the 2,644 message probes found MCP-client vocabulary.
+- **Arabic.** Every critical route had zero leaks, and each of the 92 held routes measured exactly its committed limit.
+  `node tools/browser-arabic-leaks.mjs --ratchet .runtime/wave3b-browser-1/results.json` proposes no change, so the
+  baseline was not rewritten.
+- **Writes.** The write journeys ended accepted, uncertain and refused four times each, with 28 synthetic writes, 0
+  provider writes, 0 external provider requests and 0 unhandled rejections.
+
+The gate fix `c0f15bd` changed only the deployment HTTP contract, which no rendered case reads; the browser stage ran
+after the release gate passed on the same head. `working_tree_clean` is false only because of an untracked file
+outside the release scope.
 
 ## What it exercises
 
@@ -774,8 +805,9 @@ All selected public/workspace and populated/refusal journeys run in both light a
 
 ## Pending rendered journeys
 
-- The multi-provider measurement ledger (MSR-03): choosing a Meta, Snapchat, TikTok, Search Console or Adjust asset
-  and a Meta pixel in the ledger task is covered in English and Arabic by the DOM fixture tests
-  (`tests/measurement-ledger-ui.test.mjs`), not yet by this runner. A rendered run at 320 and 1280 pixels in both
-  languages is pending until the journey joins `tools/browser-workflow-qa.mjs`; until then MSR-03 C/D's browser criterion
-  is not met by a rendered record.
+- The multi-provider measurement ledger (MSR-03): the rendered `measurement-ledger` kind covers the TikTok and Snapchat
+  choices in both languages and appearances at 320 to 1280 pixels
+  ([Wave 3b local remainders](#wave-3b-local-remainders-2026-10-17)). Choosing a Meta pixel or dataset or a Search
+  Console site in the ledger task is covered in English and Arabic by the DOM fixture tests
+  (`tests/measurement-ledger-ui.test.mjs`), and the Adjust adapter by the backend tests
+  (`tests/measurement-ledger-providers.test.mjs`); this runner covers neither yet.

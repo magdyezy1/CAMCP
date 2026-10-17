@@ -288,7 +288,7 @@
         {"text": "Finite manual assistive-technology acceptance", "disposition": "register_item", "ref": "ACC-07"},
         {"text": "Railway settings before the 2026-12-01 cutoff and path-scoped deploys", "disposition": "register_item", "ref": "OPS-05"},
         {"text": "ARC-03 manual acceptance: the owner reviews the unanchored route list (docs/implementation/ROUTE-ANCHOR-COVERAGE.md) and the withheld-capture declaration (.mirror/RAW/WITHHELD.json), and runs the network steps no check takes: the Apple SDK re-derivation at its pinned revision and pinning the TikTok SDK", "disposition": "owner_action", "ref": "ARC-03"},
-        {"text": "WEB-07 acceptance: the full rendered qualification on the merged tree, every kind in English and Arabic, light and dark, 320 to 1280 pixels, with 0 contrast failures (the integration gate's browser stage); deployed, the release browser matrix, dark-mode screenshots matching local, and Arabic About and Home loading the shell chunk only", "disposition": "register_item", "ref": "WEB-07"},
+        {"text": "WEB-07 deployed acceptance: the release browser matrix, dark-mode screenshots matching local, and Arabic About and Home loading the shell chunk only (the local criterion, the full rendered qualification with 0 contrast failures in either theme, passed on the merged tree: wave3b-browser-1, docs/LOCAL-BROWSER-QA.md)", "disposition": "register_item", "ref": "WEB-07"},
         {"text": "WEB-07 visual diff sign-off per increment (theme tokens, escape-by-default markup, route bundles)", "disposition": "owner_action", "ref": "WEB-07"}
       ]
     },
@@ -333,7 +333,7 @@
       "remainders": [
         {"text": "Verified LinkedIn conversion windows (closes the package)", "disposition": "register_item", "ref": "RPT-07"},
         {"text": "Guided presets for X, Microsoft, Apple and Reddit (the capture bridge already covers them)", "disposition": "optional_stretch", "ref": "RPT-07"},
-        {"text": "ARC-04 local criteria not yet met: functions over 400 lines in touched modules (createWebsite, errorRemedy, MediaUploadService.handle), the remaining stage D tables (amcp_media actions, website route modules, the account-workflows split), family-declared remedies, and defineFamily beyond the X families", "disposition": "register_item", "ref": "ARC-04"},
+        {"text": "ARC-04 local criteria not yet met: functions over 400 lines in touched modules (createWebsite, errorRemedy, MediaUploadService.handle), the remaining stage D tables (amcp_media actions, website route modules; WEB-07 split web/account-workflows.js), family-declared remedies, and defineFamily beyond the X families", "disposition": "register_item", "ref": "ARC-04"},
         {"text": "ARC-01 phase B beyond the account model: 88 shared modules name a gateway (target 20 or fewer) and 496 shared-to-provider imports remain (target 30 or fewer), with the call-replay proof, the authorizer-disjointness test and the suite run with AMCP_PROVIDERS=criteo,woocommerce", "disposition": "register_item", "ref": "ARC-01"}
       ]
     },
@@ -490,7 +490,7 @@
       "manual": {"state": "not_recorded", "evidence": []},
       "remainders": [
         {"text": "Microsoft portfolio adapter", "disposition": "finite_package", "ref": "B30"},
-        {"text": "ARC-04 local criteria not yet met: functions over 400 lines in touched modules (createWebsite, errorRemedy, MediaUploadService.handle), the remaining stage D tables (amcp_media actions, website route modules, the account-workflows split), family-declared remedies, and defineFamily beyond the X families", "disposition": "register_item", "ref": "ARC-04"},
+        {"text": "ARC-04 local criteria not yet met: functions over 400 lines in touched modules (createWebsite, errorRemedy, MediaUploadService.handle), the remaining stage D tables (amcp_media actions, website route modules; WEB-07 split web/account-workflows.js), family-declared remedies, and defineFamily beyond the X families", "disposition": "register_item", "ref": "ARC-04"},
         {"text": "ARC-01 phase B beyond the account model: 88 shared modules name a gateway (target 20 or fewer) and 496 shared-to-provider imports remain (target 30 or fewer), with the call-replay proof, the authorizer-disjointness test and the suite run with AMCP_PROVIDERS=criteo,woocommerce", "disposition": "register_item", "ref": "ARC-01"}
       ],
       "declared_limits": [
