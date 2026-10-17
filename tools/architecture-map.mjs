@@ -43,15 +43,18 @@ export const providerPrefixes = Object.freeze([
   'x',
 ]);
 /**
- * Registries where provider facts belong: the provider adapter registry (ARC-01) names every gateway on purpose, and the
- * portfolio adapter and report source registries (ARC-04 stages E and F) import one module per provider so that shared
- * code consults them instead of branching on providers. Each counts with the provider modules rather than as a shared
- * module, and an import of one is not counted as coupling.
+ * Registries where provider facts belong: the provider adapter registry (ARC-01) names every gateway on purpose, the
+ * portfolio adapter and report source registries (ARC-04 stages E and F) import one module per provider, and the
+ * reviewed-family registry imports one module per family (ARC-01 phase B: it is the registry the lifecycle consults, and
+ * the review's "core -> provider" count of 220 never counted it), so that shared code consults them instead of branching
+ * on providers. Each counts with the provider modules rather than as a shared module, and an import of one is not
+ * counted as coupling.
  */
 export const providerRegistries = Object.freeze([
   'src/provider-adapters.ts',
   'src/portfolio.ts',
   'src/report-sources.ts',
+  'src/reviewed-families.ts',
 ]);
 const roots = ['src', 'server'];
 const posix = file => file.replaceAll('\\', '/');

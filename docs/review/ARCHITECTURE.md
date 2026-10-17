@@ -283,7 +283,10 @@ imports, which `src/portfolio.ts` made before it became the registry, are no lon
 neither had run against it: ARC-02's tenant-bound repositories hold SQL that names gateways
 (`src/workbook-repository.ts`, the workbook query projections; `src/audit-repository.ts`, the Google Ads legacy-alias
 query that left `src/legacy-alias-usage.ts`), and CMP-03's Microsoft location lookup (`src/microsoft-locations.ts`) is
-imported by `campaign-runner.ts`, `recipe-context.ts` and `service.ts`.
+imported by `campaign-runner.ts`, `recipe-context.ts` and `service.ts`. ARC-01 phase B counts the reviewed-family
+registry (`src/reviewed-families.ts`) as a registry too, as the role table (§15) already did: it imports one module per
+family so that the lifecycle consults it, and the review's 220 "core to provider" edges never counted it. That lowered
+`shared_to_provider_runtime_imports` from 496 to 333 by classification alone; every later fall in §9 is a migration.
 
 <!-- architecture-map:baseline:begin -->
 | Recorded baseline (written by `node tools/architecture-map.mjs --write`; do not edit) | Value |
@@ -291,7 +294,7 @@ imported by `campaign-runner.ts`, `recipe-context.ts` and `service.ts`.
 | `largest_runtime_scc` | 3 |
 | `cyclic_modules` | 11 |
 | `shared_modules_with_gateway_literals` | 88 |
-| `shared_to_provider_runtime_imports` | 496 |
+| `shared_to_provider_runtime_imports` | 333 |
 | `local_fail_copies` | 0 |
 | `shared_gateway_literals` (reported) | 701 |
 | Runtime import cycles | `src/microsoft-associations.ts` ↔ `src/microsoft-campaign-criteria.ts` ↔ `src/microsoft-native.ts`; `src/allocation-calibration.ts` ↔ `src/report-allocation.ts`; `src/apple-entity-writes.ts` ↔ `src/measurement-writes.ts`; `src/effect-class.ts` ↔ `src/preflight.ts`; `src/reddit-creative-writes.ts` ↔ `src/reddit-writes.ts` |
@@ -449,7 +452,7 @@ and `tests/import-order.test.mjs` hold the rules that can be measured.
 |---|---|---|
 | Leaf | `errors.ts`, `types.ts`, `security.ts`, `account-id.ts`, `review-state-core.ts`, `family-kit.ts`, `signed-cursor.ts`, `tool-actions.ts`, `provider-adapter.ts`, `report-source.ts`; values read at load: `tiktok-paths.ts`, `microsoft-association-contracts.ts`, `meta-ad-library-contract.ts`, `google-business-notification-kind.ts` | Other leaves only: a provider's version module such as `meta-version.ts`, and the provider adapter registry, are leaves too |
 | Provider module | `<provider>-*.ts`: reviewed families (on the family kit, §13), portfolio adapters (on `portfolio-runner.ts`, §11), report sources (§12) | Leaves, shared helpers and modules of its own provider; never a lifecycle module (§10) |
-| Registry | `provider-adapters.ts` (§9), `portfolio.ts` (§11), `report-sources.ts` (§12), which the ratchet counts with the providers; `reviewed-families.ts`, the family registry | One module per provider, so that shared code consults the registry instead of naming providers |
+| Registry | `provider-adapters.ts` (§9), `portfolio.ts` (§11), `report-sources.ts` (§12) and `reviewed-families.ts`, the family registry, which the ratchet counts with the providers | One module per provider, so that shared code consults the registry instead of naming providers |
 | Shared | the review lifecycle (`review-state.ts`, `scope.ts`, `write-review.ts`, ...), the composite tools (`service.ts`, `decision-reporting.ts`, ...), `server/` | Registries, leaves and other shared modules; a composite tool's actions are table entries (§14) |
 
 Against the review (`60ec2cc`) and the start of ARC-04: the largest runtime import cycle fell from 33 modules (34 when

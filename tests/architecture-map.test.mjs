@@ -57,9 +57,12 @@ test('provider modules are the provider filename groups; the lifecycle and the w
   assert.equal(isProviderModule('src/woocommerce-source.ts'), true);
   // The provider adapter registry names every gateway on purpose: it counts with the providers (ARC-01).
   assert.equal(isProviderModule('src/provider-adapters.ts'), true);
-  // The registries shared code consults instead of naming providers (ARC-04 stages E and F).
+  // The registries shared code consults instead of naming providers (ARC-04 stages E and F, and the reviewed-family
+  // registry the lifecycle consults: ARC-01 phase B).
   assert.equal(isProviderModule('src/portfolio.ts'), true);
   assert.equal(isProviderModule('src/report-sources.ts'), true);
+  assert.equal(isProviderModule('src/reviewed-families.ts'), true);
+  assert.equal(isProviderModule('src/reviewed-family.ts'), false, 'the family contract is shared');
   assert.equal(isProviderModule('src/portfolio-runner.ts'), false);
   assert.equal(isProviderModule('src/report-source.ts'), false);
   assert.equal(isProviderModule('src/provider-offering.ts'), false);
