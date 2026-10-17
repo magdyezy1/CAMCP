@@ -58,6 +58,13 @@ export function zipFile(name, content, {method = 8, crc, size} = {}) {
 export const locationZip = (csv = locationCsv()) => zipFile('GeoLocations.csv', csv);
 export const locationGzip = (csv = locationCsv()) => gzipSync(Buffer.from(csv, 'utf8'));
 
+/** The REST evidence without any optional page, resealed: the state before the owner pins one. */
+export function unpinnedGeoLocations(envelope) {
+  const copy = structuredClone(envelope);
+  delete copy.document.optional_operations;
+  copy.document_sha256 = createHash('sha256').update(JSON.stringify(copy.document)).digest('hex');
+  return copy;
+}
 /** The REST evidence as the owner's run of tools/microsoft-rest.mjs would add it, resealed (synthetic templates). */
 export function pinnedGeoLocations(envelope, change = op => op) {
   const copy = structuredClone(envelope);

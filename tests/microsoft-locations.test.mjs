@@ -32,15 +32,20 @@ import {
   locationRows,
   locationZip,
   pinnedGeoLocations,
+  unpinnedGeoLocations,
   zipFile,
 } from './fixtures/microsoft-locations-data.mjs';
 import {assertRefused} from './helpers/assert-refused.mjs';
 
 const actor = {tenantId: 'ms-locations', userId: 'operator', role: 'operator'},
   committed = JSON.parse(fs.readFileSync('.mirror/VENDOR/microsoft-rest-v13.json', 'utf8')),
+  // Whether the deployment operator has pinned the page yet (tools/microsoft-rest.mjs); the tests below hold for both.
+  pinnedNow = !!committed.document.optional_operations?.GetGeoLocationsFileUrl,
+  unpinned = unpinnedGeoLocations(committed),
   pinned = pinnedGeoLocations(committed),
   rest = geoLocationsRest(pinned),
-  fileUrl = 'https://geo.files.example.test/GeoLocations.zip?sig=synthetic';
+  fileUrl = 'https://geo.files.example.test/GeoLocations.zip?sig=synthetic',
+  microsoftLookupUrl = 'https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/GeoLocationsFileUrl/Query';
 
 /** A Microsoft login (account 123 of customer 456), its API answers and the file it serves, with every request kept. */
 function fixture(t, options = {}) {
@@ -103,7 +108,19 @@ function fixture(t, options = {}) {
 }
 const ids = out => out.results.map(r => r.location_id);
 
-test('the committed pin has no GetGeoLocationsFileUrl page, so the lookup refuses before anything is sent', async t => {
+test('without the GetGeoLocationsFileUrl page pinned the lookup refuses before anything is sent', async t => {
+  assert.throws(
+    () => geoLocationsRest(unpinned),
+    e => e.code === 'MICROSOFT_LOCATIONS_UNPINNED' && e.details.operation === 'GetGeoLocationsFileUrl',
+  );
+  // The remedy says what works meanwhile and who turns the search on.
+  assert.match(errorRemedy({code: 'MICROSOFT_LOCATIONS_UNPINNED', details: {}}).action, /Enter location IDs/);
+  // Through the service, the committed pin decides. Until the deployment operator pins the page (it is not pinned when
+  // this was written), nothing reaches Microsoft; once pinned, the synthetic-pin tests below cover the reads.
+  if (pinnedNow) {
+    assert.equal(geoLocationsRest(committed).url, microsoftLookupUrl);
+    return;
+  }
   const f = fixture(t);
   const out = await f.service.call(
     'amcp_campaign',
@@ -120,17 +137,11 @@ test('the committed pin has no GetGeoLocationsFileUrl page, so the lookup refuse
   assert.equal(out.error.details.operation, 'GetGeoLocationsFileUrl');
   assert.equal(f.requests.length, 0, 'no Microsoft request');
   assert.equal(f.downloads.length, 0, 'no download');
-  // The remedy says what works meanwhile and who turns the search on.
-  assert.match(errorRemedy({code: 'MICROSOFT_LOCATIONS_UNPINNED', details: {}}).action, /Enter location IDs/);
-  assert.throws(
-    () => geoLocationsRest(committed),
-    e => e.code === 'MICROSOFT_LOCATIONS_UNPINNED',
-  );
 });
 
 test('recipe_context tells the website whether the lookup can be sent, from the committed pin alone', async t => {
   const f = fixture(t);
-  assert.deepEqual(microsoftLocationLookupStatus(committed), {available: false, code: 'MICROSOFT_LOCATIONS_UNPINNED'});
+  assert.deepEqual(microsoftLocationLookupStatus(unpinned), {available: false, code: 'MICROSOFT_LOCATIONS_UNPINNED'});
   assert.deepEqual(microsoftLocationLookupStatus(pinned), {available: true});
   assert.deepEqual(microsoftLocationLookupStatus(pinnedGeoLocations(committed, op => ({...op, method: 'GET'}))), {
     available: false,
@@ -142,7 +153,8 @@ test('recipe_context tells the website whether the lookup can be sent, from the 
     {...actor, role: 'admin'},
   );
   assert.equal(context.success, true, JSON.stringify(context));
-  assert.deepEqual(context.data.location_lookup, {available: false, code: 'MICROSOFT_LOCATIONS_UNPINNED'});
+  assert.deepEqual(context.data.location_lookup, microsoftLocationLookupStatus(committed));
+  assert.equal(context.data.location_lookup.available, pinnedNow);
   const google = await f.service.call(
     'amcp_campaign',
     {action: 'recipe_context', recipe: 'google_search'},
@@ -556,7 +568,7 @@ test('the pin check accepts the optional page once pinned with its rules, and re
   };
   try {
     // Unpinned, the check passes and names the operation whose feature refuses.
-    assert.match(check(committed)(), /optional_not_pinned.*GetGeoLocationsFileUrl/);
+    assert.match(check(unpinned)(), /optional_not_pinned.*GetGeoLocationsFileUrl/);
     assert.doesNotMatch(check(pinned)(), /optional_not_pinned/);
     assert.throws(
       check(pinnedGeoLocations(committed, op => ({...op, page: op.page.replace('getgeo', 'getgeo2')}))),
