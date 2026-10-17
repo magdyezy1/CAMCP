@@ -3549,6 +3549,7 @@
   "Proposed": "المقترح",
   "No current product was returned": "لم تُرجع القراءة منتجًا حاليًا",
   "All supplied fields have matching evidence": "تتوفر أدلة مطابقة لجميع الحقول المرسلة",
+  "Every supplied field matches; it needs review because the catalog holds values this import does not send.": "تطابق جميع الحقول المرسلة، لكن المنتج يحتاج إلى مراجعة لأن الكتالوج يحتفظ بقيم لا يرسلها هذا الاستيراد.",
   "Compare current catalog products": "مقارنة منتجات الكتالوج الحالية",
   "Read {date} · {new} new · {changed} changed · {matching} matching · {unknown} unknown · {blocked} blocked": "قراءة {date} · {new} جديد · {changed} متغير · {matching} مطابق · {unknown} غير معروف · {blocked} محظور",
   "Only supplied retailer IDs are compared. Formatted native prices are display text; equality uses the native price filter. Unknown fields need review. This is current sequential evidence, not a point-in-time inventory snapshot. Missing source products are not deleted.": "تقتصر المقارنة على معرّفات بائع التجزئة المرسلة. الأسعار المنسقة من المنصة نصوص للعرض؛ ويُثبت التطابق بفلتر السعر الأصلي. تحتاج الحقول غير المعروفة إلى مراجعة. هذه أدلة حالية جُمعت بالتتابع وليست لقطة مخزون للحظة واحدة. لا تُحذف المنتجات الغائبة عن المصدر.",
