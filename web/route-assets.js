@@ -86,8 +86,26 @@ function pageAssetsFor(pathname) {
   for (const file of Object.hasOwn(pageAssetRoutes, pathname) ? pageAssetRoutes[pathname] : []) include(file);
   return pageAssetOrder.filter(file => wanted.has(file));
 }
+/**
+ * The Arabic catalog chunks a page needs besides the shell's (WEB-07): a signed-in page needs the workspace's and the
+ * providers' messages, and each of its feature scripts' own. Public pages need none.
+ */
+function pageLocaleChunks(pathname) {
+  const entry = routeEntry(pathname);
+  if (!entry || entry.public) return [];
+  return [
+    'workspace',
+    'providers',
+    ...pageAssetsFor(pathname)
+      .filter(file => !file.startsWith('vendor/'))
+      .map(file => file.replace(/\.js$/, '')),
+  ];
+}
 function pageAssetsPending(pathname) {
-  return pageAssetsFor(pathname).some(file => pageAssetLoads.get(file)?.state !== 'ready');
+  return (
+    pageAssetsFor(pathname).some(file => pageAssetLoads.get(file)?.state !== 'ready') ||
+    (typeof uiChunksReady === 'function' && !uiChunksReady(pageLocaleChunks(pathname)))
+  );
 }
 function loadPageAsset(file) {
   const existing = pageAssetLoads.get(file);
@@ -156,5 +174,9 @@ function loadPageAsset(file) {
   return entry.promise;
 }
 async function ensurePageAssets(pathname) {
-  await Promise.all(pageAssetsFor(pathname).map(loadPageAsset));
+  // The page's scripts and its catalog chunks download together.
+  await Promise.all([
+    ...pageAssetsFor(pathname).map(loadPageAsset),
+    ...(typeof uiNeedChunks === 'function' ? [uiNeedChunks(pageLocaleChunks(pathname))] : []),
+  ]);
 }

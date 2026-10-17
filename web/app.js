@@ -2447,8 +2447,12 @@ function clientNavigation(event, el) {
   if (document.readyState !== 'complete')
     await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, {once: true}));
   try {
+    // Who is signed in is asked while the language's shell chunk downloads (WEB-07: it used to wait for the whole
+    // catalog); the page renders once both are here, so an early failure still reads in the chosen language.
+    const sessionRequest = api('/api/session');
+    sessionRequest.catch(() => {});
     await initializeUILocale();
-    session = await api('/api/session');
+    session = await sessionRequest;
     await refresh();
     // A fresh load at a section of a workspace page opens there once the page has its data, as an in-app link does
     // (WEB-08: the palette's /settings#owner-write-pause). The browser found nothing there while the page was empty.

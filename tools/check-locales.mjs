@@ -8,6 +8,12 @@ const slots = value =>
     .map(m => m[1])
     .sort()
     .join(',');
+/**
+ * WEB-07: web/locales/ar.json is the authored catalog. The browser no longer downloads it: it loads the chunks
+ * generated from it (tools/locale-chunks.mjs), each bounded on its own, so the catalog's size is a build-time limit
+ * here (and in the deployed byte comparison, tools/check-public-website.mjs) rather than a fallback to English.
+ */
+export const catalogSourceLimit = 2097152;
 export function localeProblems(catalog, required) {
   const problems = [];
   for (const key of required) if (!Object.hasOwn(catalog, key)) problems.push('Missing Arabic message: ' + key);
@@ -995,9 +1001,18 @@ export function inspectSharedRecoveryHints(source, file) {
 export function checkWebLocales(root = process.cwd()) {
   const directory = path.join(root, 'web'),
     required = new Set(),
+    // WEB-07: where each required message comes from ('web/<script>', 'html' or 'server:<kind>'), which decides the
+    // catalog chunk that carries it (tools/locale-chunks.mjs).
+    sources = new Map(),
+    need = (source, message) => {
+      required.add(message);
+      if (!sources.has(source)) sources.set(source, new Set());
+      sources.get(source).add(message);
+    },
     problems = [];
   const json = fs.readFileSync(path.join(directory, 'locales/ar.json'), 'utf8');
-  if (Buffer.byteLength(json, 'utf8') > 2097152) problems.push('Arabic catalog exceeds the 2 MiB UTF-8 byte limit.');
+  if (Buffer.byteLength(json, 'utf8') > catalogSourceLimit)
+    problems.push('Arabic catalog exceeds the 2 MiB UTF-8 byte limit.');
   const catalog = JSON.parse(json);
   const object = parsers.babel.parse('(' + json + ')', {filepath: 'catalog.js'}).program.body[0].expression;
   const seen = new Set();
@@ -1008,7 +1023,7 @@ export function checkWebLocales(root = process.cwd()) {
   }
   for (const file of fs.readdirSync(directory).filter(file => file.endsWith('.js'))) {
     const result = inspectLocaleSource(fs.readFileSync(path.join(directory, file), 'utf8'), file);
-    result.required.forEach(key => required.add(key));
+    result.required.forEach(key => need('web/' + file, key));
     problems.push(...result.problems);
   }
   // These two fields are first-party display copy; never translate provider names, scopes or request fields.
@@ -1019,7 +1034,7 @@ export function checkWebLocales(root = process.cwd()) {
     for (const platform of declaration?.init?.elements ?? [])
       for (const property of platform.properties ?? [])
         if (['kind', 'description'].includes(property.key?.name) && property.value?.type === 'StringLiteral')
-          required.add(property.value.value);
+          need('server:platforms', property.value.value);
   }
   // Authored discovery and lifecycle sentences are display copy. Request fields and enum values are excluded.
   for (const file of [
@@ -1036,7 +1051,7 @@ export function checkWebLocales(root = process.cwd()) {
   ]) {
     const discovery = parsers['babel-ts'].parse(fs.readFileSync(path.join(root, file), 'utf8'));
     const addAuthored = value => {
-      if (value?.type === 'StringLiteral' && /\s/.test(value.value)) required.add(value.value);
+      if (value?.type === 'StringLiteral' && /\s/.test(value.value)) need('server:discovery', value.value);
       if (value?.type === 'ConditionalExpression') {
         addAuthored(value.consequent);
         addAuthored(value.alternate);
@@ -1070,14 +1085,14 @@ export function checkWebLocales(root = process.cwd()) {
     for (const metric of declaration?.init?.properties ?? [])
       for (const property of metric.value?.properties ?? [])
         if (property.key?.name === 'label' && property.value?.type === 'StringLiteral')
-          required.add(property.value.value);
+          need('server:report-metrics', property.value.value);
   }
   // The provider hierarchy labels are AMCP display copy; preset IDs and native types remain exact.
   const levels = parsers['babel-ts'].parse(fs.readFileSync(path.join(root, 'src/overview-granularity.ts'), 'utf8'));
   const visitLevels = node => {
     if (!node || typeof node !== 'object') return;
     if (node.type === 'ObjectProperty' && node.key?.name === 'label' && node.value?.type === 'StringLiteral')
-      required.add(node.value.value);
+      need('server:overview-levels', node.value.value);
     for (const [key, value] of Object.entries(node))
       if (!['loc', 'extra', 'comments', 'tokens'].includes(key))
         for (const child of Array.isArray(value) ? value : [value]) visitLevels(child);
@@ -1101,7 +1116,7 @@ export function checkWebLocales(root = process.cwd()) {
   ])
     for (const message of inspectReportExplanations(fs.readFileSync(path.join(root, file), 'utf8'), file)) {
       explanations.add(message);
-      required.add(message);
+      need('server:report-explanations', message);
     }
   const quality = parsers.babel.parse(fs.readFileSync(path.join(directory, 'report-quality.js'), 'utf8'));
   const declaration = quality.program.body
@@ -1124,7 +1139,7 @@ export function checkWebLocales(root = process.cwd()) {
     (contractDeclaration?.init?.arguments?.[0]?.elements ?? []).map(node => node.value),
   );
   for (const message of contractExplanations) {
-    required.add(message);
+    need('server:contract-explanations', message);
     if (!contractDisplayed.has(message)) problems.push('Missing authored contract explanation: ' + message);
   }
   for (const message of contractDisplayed)
@@ -1152,7 +1167,7 @@ export function checkWebLocales(root = process.cwd()) {
   ])
     for (const message of inspectAccountExplanations(fs.readFileSync(path.join(root, file), 'utf8'), file)) {
       accountExplanations.add(message);
-      required.add(message);
+      need('server:account-explanations', message);
     }
   const accounts = parsers.babel.parse(fs.readFileSync(path.join(directory, 'account-workflows.js'), 'utf8'));
   const accountDeclaration = accounts.program.body
@@ -1180,7 +1195,7 @@ export function checkWebLocales(root = process.cwd()) {
     (creativeDeclaration?.init?.arguments?.[0]?.elements ?? []).map(node => node.value),
   );
   for (const message of creativeExplanations) {
-    required.add(message);
+    need('server:creative-explanations', message);
     if (!creativeDisplayed.has(message)) problems.push('Missing authored creative explanation: ' + message);
   }
   for (const message of creativeDisplayed)
@@ -1189,7 +1204,7 @@ export function checkWebLocales(root = process.cwd()) {
     fs.readFileSync(path.join(root, 'src/meta-catalog-products.ts'), 'utf8'),
     'src/meta-catalog-products.ts',
   ))
-    required.add(message);
+    need('server:catalog-products', message);
   for (const file of [
     'src/google-reporting.ts',
     'src/decision-reporting.ts',
@@ -1199,9 +1214,9 @@ export function checkWebLocales(root = process.cwd()) {
     'src/snapchat-evidence.ts',
   ])
     for (const message of inspectReportingFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
-      required.add(message);
+      need('server:reporting-failures', message);
   for (const message of inspectSourceNextActions(fs.readFileSync(path.join(root, 'src/report-errors.ts'), 'utf8')))
-    required.add(message);
+    need('server:report-next-actions', message);
   for (const file of [
     'src/portfolio.ts',
     'src/google-portfolio.ts',
@@ -1212,7 +1227,7 @@ export function checkWebLocales(root = process.cwd()) {
     'src/x-portfolio.ts',
   ])
     for (const message of inspectPortfolioFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
-      required.add(message);
+      need('server:portfolio-failures', message);
   for (const file of [
     'src/measurement-events.ts',
     'src/measurement-event-identity.ts',
@@ -1227,24 +1242,25 @@ export function checkWebLocales(root = process.cwd()) {
     'src/measurement-ledger-adjust.ts',
   ])
     for (const message of inspectMeasurementFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
-      required.add(message);
+      need('server:measurement-failures', message);
   for (const message of inspectSharedRecoveryHints(
     fs.readFileSync(path.join(root, 'src/errors.ts'), 'utf8'),
     'src/errors.ts',
   ))
-    required.add(message);
+    need('server:shared-recovery', message);
   for (const message of inspectMeasurementRemedies(
     fs.readFileSync(path.join(root, 'src/errors.ts'), 'utf8'),
     'src/errors.ts',
   ))
-    required.add(message);
+    need('server:measurement-remedies', message);
   const publicMarkup = fs
     .readdirSync(directory)
     .filter(file => file.endsWith('.html'))
     .map(file => fs.readFileSync(path.join(directory, file), 'utf8'))
     .join('\n');
   for (const match of publicMarkup.matchAll(/data-ui-(?:text|label|placeholder|title)="([^"]+)"/g))
-    required.add(
+    need(
+      'html',
       match[1]
         .replaceAll('&quot;', '"')
         .replaceAll('&#x27;', "'")
@@ -1269,7 +1285,7 @@ export function checkWebLocales(root = process.cwd()) {
     'server/website.ts',
   ])
     for (const message of inspectWebsiteFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
-      required.add(message);
+      need('server:website-failures', message);
   for (const file of [
     'src/catalog.ts',
     'src/service.ts',
@@ -1279,21 +1295,28 @@ export function checkWebLocales(root = process.cwd()) {
     'src/workflows.ts',
   ])
     for (const message of inspectCoreContractFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
-      required.add(message);
+      need('server:core-contracts', message);
   for (const file of backendContractSourceFiles(root)) {
     const source = fs.readFileSync(path.join(root, file), 'utf8');
-    for (const message of inspectBackendContractFailures(source, file)) required.add(message);
-    for (const message of inspectBackendWrapperFailures(source, file)) required.add(message);
+    for (const message of inspectBackendContractFailures(source, file)) need('server:backend-contracts', message);
+    for (const message of inspectBackendWrapperFailures(source, file)) need('server:backend-contracts', message);
   }
   problems.push(...localeProblems(catalog, required));
   const scripts = [...index.matchAll(/<script src="([^\"]+)" defer>/g)].map(m => m[1]);
   if (scripts[0] !== '/assets/localization.js') problems.push('Localization must load before application scripts.');
-  return {problems, required_messages: required.size, catalog_messages: Object.keys(catalog).length};
+  return {problems, required_messages: required.size, catalog_messages: Object.keys(catalog).length, catalog, sources};
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const result = checkWebLocales();
   if (result.problems.length) {
     console.error(result.problems.join('\n'));
     process.exitCode = 1;
-  } else console.log(JSON.stringify(result));
+  } else
+    console.log(
+      JSON.stringify({
+        problems: result.problems,
+        required_messages: result.required_messages,
+        catalog_messages: result.catalog_messages,
+      }),
+    );
 }

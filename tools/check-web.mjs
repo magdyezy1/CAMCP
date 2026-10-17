@@ -6,6 +6,7 @@ import {checkRoutes} from './check-routes.mjs';
 import {checkMarkup} from './check-markup.mjs';
 import {checkExtensions} from './check-extensions.mjs';
 import {checkColours, colourSheets, cssDeclarations, literalColours, readColourAllowlist} from './check-colours.mjs';
+import {localeChunkProblems, planLocaleChunks} from './locale-chunks.mjs';
 
 // Static checks for the shipped website. The Content-Security-Policy (server/website.ts) allows scripts and styles
 // from 'self' only, so inline code would silently stop working; the other rules keep review findings from returning.
@@ -112,6 +113,9 @@ for (const m of index.matchAll(/<dialog\b[^>]*>/g))
   if (!/\baria-(?:label|labelledby)=/.test(m[0])) problems.push('index.html: unnamed ' + m[0]);
 const localization = checkWebLocales();
 problems.push(...localization.problems);
+// WEB-07: the Arabic chunks the browser loads are generated from the catalog, bounded, and carry what each page needs.
+const chunkPlan = planLocaleChunks(process.cwd(), localization);
+problems.push(...localeChunkProblems(process.cwd(), chunkPlan));
 // WEB-06: navigation, page assets and the server's shell pages agree with the route registry.
 problems.push(...checkRoutes());
 // WEB-07: new markup is escape-by-default (html`…` and setHtml); the counts of markup escaped by hand only go down.
@@ -149,5 +153,7 @@ console.log(
 console.log(
   'Arabic catalog covers ' +
     localization.required_messages +
-    ' explicitly selected interface messages; untranslated workflows remain tracked separately.',
+    ' explicitly selected interface messages in ' +
+    Object.keys(chunkPlan.chunks).length +
+    ' chunks; untranslated workflows remain tracked separately.',
 );
