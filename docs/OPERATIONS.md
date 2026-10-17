@@ -781,7 +781,7 @@ reach the ledger only through the acceptance harnesses ([acceptance runbooks](ac
 
 ### Website feature loading
 
-The initial document contains nine shared scripts. Each page's lazily loaded feature scripts are its `assets` in the
+The initial document contains eight shared scripts. Each page's lazily loaded feature scripts are its `assets` in the
 route registry (`web/routes.js`); `web/route-assets.js` holds the fixed same-origin file order and dependencies, and
 `tools/check-routes.mjs` refuses an asset the loader does not list or a file that does not ship. A page's files are
 requested together; no script captures another's globals while it initializes (WEB-07): a feature extends the shell
@@ -792,6 +792,28 @@ declared function and a second declaration of one in the same document. Navigati
 rendering. Download errors retry only failed files; uncertain evaluation/timeouts require full reload, since removing
 a script cannot establish that it never evaluated. Existing authorization applies after loading. No account data is
 stored in the loader.
+
+Pages load their own code (WEB-07). Live portfolio, Measurement and Commerce are one module each (`portfolio.js`,
+`measurement.js`, `commerce.js`) over a small shared helper (`account-workflows.js`: AMCP's account-read explanations,
+the account picker and the preview guard), and each registers its page body; they had shared one 388 KB script that
+also loaded the campaign review code. The parked WooCommerce store source is a module of its own behind Commerce
+(`commerce-woocommerce.js`, moved unchanged; a future store source gets its own the same way). Creative,
+Capabilities, Evidence & analysis and the report pack load the paged-list loader (`work-pages.js`) instead of the
+Operations center and its three workbook controllers. The report builder's script (`reporting-overview.js`) loads
+with `/reporting-overview` and with the report modules that use its state and labels, no longer with every page; its
+own page code runs only on that page, whose route lists the other report modules. The helpers the shell and many
+modules share (`overviewCall`, `pretty`, `renderSourceDiagnostic`) are in `workspace.js`.
+
+The Arabic catalog travels in chunks. `web/locales/ar.json` stays the authored catalog (`check-locales` bounds it at
+2 MiB); `node tools/locale-chunks.mjs --write` generates `web/locales/ar/`: `shell` (the shell scripts, the public
+pages and the website server's messages; every page), `workspace` and `providers` (what `src/` and the provider
+contracts say; every signed-in page) and one chunk per feature script, a message going to the first chunk whose
+sources write it. `check-web` refuses a stale or stray chunk, a chunk over 1 MiB (the browser's bound per chunk) and a
+script whose chunks lack a message it requires. A page requests its chunks together with its scripts; a chunk that
+cannot be downloaded offers **Try again** like a script, and a deploy offers the reload. A language chosen later loads
+every chunk the page has needed. The workspace asks `/api/session` while the shell chunk downloads (it used to wait
+for the catalog) and starts the first page's scripts and chunks at the same time. A versioned chunk address may be
+answered from the browser cache; an unversioned one is revalidated.
 
 Each page binds every file it uses to one public snapshot (`/assets/v/<version>/…`): HTML `src`/`href`, stylesheet
 `url()` references (fonts, images) and the addresses scripts build through `AMCPAssets.url`. A deploy that changes

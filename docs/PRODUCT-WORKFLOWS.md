@@ -1234,8 +1234,10 @@ value; Meta and TikTok amounts stay unconverted. `tests/route-registry.test.mjs`
 
 **Website composition and markup (WEB-07).** A page's lazily loaded scripts are its registry entry's `assets`. Scripts
 extend the shell through `AMCP` (`web/routes.js`): `AMCP.routes.register(path, {render})` gives a workspace page its
-body (one per page; a second is refused), `AMCP.routes.extend(path, part, {order})` adds a part after the page in a
-declared order (the owner's Settings sections at 10, account access at 20; account security on `/account`), and
+body (one per page; a second is refused; Live portfolio, Measurement and Commerce register theirs from their own
+modules, see [website feature loading](OPERATIONS.md#website-feature-loading)), `AMCP.routes.extend(path, part,
+{order})` adds a part after the page in a declared order (the owner's Settings sections at 10, account access at 20;
+account security on `/account`), and
 `AMCP.hooks.beforeRender`/`afterRender` run around every render (test-account scope). Nothing reassigns `render`,
 `renderSettings` or `renderAccountPage` any more, and identity.js's replaced sign-in builders are gone;
 `tools/check-extensions.mjs` refuses the pattern in `check-web` and `tests/web-extensions.test.mjs` covers the order.

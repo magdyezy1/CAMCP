@@ -31,9 +31,11 @@ function loader(root) {
   return JSON.parse(context.__plan);
 }
 const linked = (html, kind) =>
-  [...html.matchAll(kind === 'css' ? /<link rel="stylesheet" href="\/assets\/([^"]+)">/g : /<script src="\/assets\/([^"]+)"/g)].map(
-    match => match[1],
-  );
+  [
+    ...html.matchAll(
+      kind === 'css' ? /<link rel="stylesheet" href="\/assets\/([^"]+)">/g : /<script src="\/assets\/([^"]+)"/g,
+    ),
+  ].map(match => match[1]);
 /** Brotli bytes per route and language: {"<locale> <path>": {bytes, files}}. */
 export function routeBytes(root = process.cwd()) {
   const sizes = new Map(),
@@ -119,7 +121,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       console.log(
         key.padEnd(28) +
           String(value.bytes).padStart(9) +
-          (limit === undefined ? '' : String(limit).padStart(9) + ' ' + ((100 * (value.bytes - limit)) / limit).toFixed(1) + '%'),
+          (limit === undefined
+            ? ''
+            : String(limit).padStart(9) + ' ' + ((100 * (value.bytes - limit)) / limit).toFixed(1) + '%'),
       );
     }
     const problems = routeBytesProblems(current, baseline);

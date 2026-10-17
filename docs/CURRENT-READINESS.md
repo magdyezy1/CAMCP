@@ -330,13 +330,15 @@ manually authored Arabic, preserving every earlier 5,460 value; the complete cat
 entries and the full gate requires 7,890 messages with zero gaps. Native fields, amounts, enum
 values, request references, authorization and provider execution retain their exact meaning.
 
-The catalog reader limits received/decompressed UTF-8 bytes to 2 MiB, enforces a 15-second
-abort/monotonic deadline, decodes split UTF-8 strictly and releases reader/listener resources.
-Valid small positive chunks are accepted; 65 consecutive empty chunks are refused. Invalid,
-oversized or unavailable catalogs retain the current view and a fixed notice; successful reads
-coalesce/cache and a failed read permits an explicit fresh attempt. The public diagnostic
-command uses the same Arabic byte ceiling; its three original credential-free GET routes and
-separate liveness/About limits remain unchanged.
+The catalog reader limits received/decompressed UTF-8 bytes to 1 MiB per catalog chunk (WEB-07:
+pages load `/assets/locales/ar/<chunk>.json`, generated from `ar.json`, which `check-locales`
+still bounds at 2 MiB), enforces a 15-second abort/monotonic deadline, decodes split UTF-8
+strictly and releases reader/listener resources. Valid small positive stream reads are accepted;
+65 consecutive empty reads are refused. Invalid, oversized or unavailable catalogs retain the
+current view and a fixed notice; successful reads coalesce/cache and a failed read permits an
+explicit fresh attempt. The public diagnostic command still compares the authored `ar.json`
+under its 2 MiB ceiling; its three original credential-free GET routes and separate
+liveness/About limits remain unchanged.
 
 Focused local checks pass 60/60, zero failures/skips. Existing native/locale/browser assertions
 remain intact; broader helpers, dynamic/native reasons and complete Arabic editorial/physical
