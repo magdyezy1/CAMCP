@@ -31,8 +31,17 @@ test('html`…` escapes every value and keeps the markup it built itself', () =>
   // raw() is the explicit marker for a fragment AMCP escaped itself.
   assert.equal(run("String(html`<p>${raw('<i>own</i>')}</p>`)"), '<p><i>own</i></p>');
   assert.equal(run('const once = html`<b></b>`; raw(once) === once'), true);
-  // null and undefined insert nothing; other values read as text, as esc() reads them.
-  assert.equal(run('String(html`${null}|${undefined}|${0}|${false}|${12.5}`)'), '||0|false|12.5');
+  // null, undefined and false insert nothing; other values read as text, as esc() reads them.
+  assert.equal(run('String(html`${null}|${undefined}|${0}|${false}|${true}|${12.5}`)'), '||0||true|12.5');
+  // Regression: `${condition && html`…`}` showed the text "false" when the condition failed (piece() escaped false).
+  assert.equal(run('const shown = false; String(html`<p>${shown && html`<b>x</b>`}</p>`)'), '<p></p>');
+  assert.equal(run('const open = true; String(html`<p>${open && html`<b>x</b>`}</p>`)'), '<p><b>x</b></p>');
+  assert.equal(run("String(html`${[false, 'a', false]}`)"), 'a', 'false in a list inserts nothing too');
+  // An attribute that reads "false" says so as text.
+  assert.equal(
+    run('String(html`<button aria-pressed="${String(false)}"></button>`)'),
+    '<button aria-pressed="false"></button>',
+  );
   // The result reads as its markup wherever a string is expected, so existing templates can embed it.
   assert.equal(run('`<div>${html`<b>${"&"}</b>`}</div>`'), '<div><b>&amp;</b></div>');
   assert.equal(run("'<div>' + html`<br>`"), '<div><br>');
