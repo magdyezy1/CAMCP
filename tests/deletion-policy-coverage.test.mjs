@@ -151,6 +151,8 @@ const notRequestDocuments = {
     'An index of REST operation URLs and pages, with no schemas: the SOAP documents above carry them.',
   'lifecycle-pages': 'Hashes of provider release-note pages, not an API document.',
   'meta-currencies': 'Meta’s currency offsets (a table of money units, WRT-07), not an API document.',
+  'tiktok-pixel-event-stats':
+    'The pin of one read (GET /open_api/v1.3/pixel/event/stats/) the TikTok measurement ledger sends (MSR-03): its query fields and the SDK digests, with no request body or deletion value.',
 };
 /** Deletion values of pinned documents that are not deletions AMCP sends, each with its reason. */
 const exempt = {
