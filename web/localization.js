@@ -4,13 +4,8 @@ let uiLocale = 'en',
   uiMessages = new Map(),
   uiLocaleSequence = 0;
 const uiCatalogs = new Map();
-/**
- * The Arabic catalog travels in chunks (WEB-07, tools/locale-chunks.mjs): 'shell' for every page, then what a signed-in
- * page and its feature scripts add. These are the chunks this document has needed so far; a language chosen later
- * loads all of them.
- */
+// The Arabic catalog chunks this document has needed (WEB-07: 'shell' is every page's), and those in uiMessages.
 const uiCatalogChunks = new Set(['shell']);
-/** The chunks whose messages are in uiMessages now, as 'locale:chunk'. */
 let uiLoadedChunks = new Set();
 const uiSlots = text =>
   [...text.matchAll(/\{([a-zA-Z][a-zA-Z0-9_]*)\}/g)]
@@ -205,16 +200,8 @@ function uiScheduleTime(value, timeZone) {
 }
 const uiEscape = value =>
   String(value).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c]);
-/**
- * Escape-by-default markup (WEB-07). In html`…` every ${} value is escaped, so a provider name, a native ID or what a
- * person typed always arrives as text. A value that is already markup goes in as it is: another html`…`, a list of
- * them, or raw(markup), which marks a fragment AMCP built and escaped itself (never a received value). null, undefined
- * and false insert nothing, so `${condition && html`…`}` shows nothing when the condition fails (an attribute that
- * should read "false" interpolates String(value)). The result is SafeHtml, which reads as its markup in any string
- * context; setHtml and insertHtml are the sinks that take it, and they refuse a plain string so unescaped text cannot
- * reach them by mistake. The markup between the backticks is written byte for byte (Prettier does not reformat it),
- * and tools/check-markup.mjs counts the markup still escaped by hand and refuses new markup that is not.
- */
+// Escape-by-default markup (WEB-07, docs/PRODUCT-WORKFLOWS.md): html`…` escapes each value that is not markup itself;
+// null, undefined and false insert nothing. setHtml and insertHtml take only html`…` or raw() markup.
 const {html, raw, setHtml, insertHtml, isSafeHtml} = (() => {
   const safe = new WeakSet();
   class SafeHtml {
@@ -287,7 +274,7 @@ function themeControl() {
     )
     .join('')}</select></label>`;
 }
-/** One chunk of a language's catalog (WEB-07), downloaded once per document within time and byte bounds. */
+/** One catalog chunk, downloaded once per document within time and byte bounds. */
 async function uiCatalog(locale, chunk = 'shell') {
   if (locale === 'en') return new Map();
   if (locale !== 'ar') throw Error('Unsupported interface language');
@@ -323,8 +310,7 @@ async function uiCatalog(locale, chunk = 'shell') {
         const response = await bounded(() =>
           fetch(address, {
             credentials: 'same-origin',
-            // A versioned address never changes its bytes, so the browser's cache may answer it (WEB-07); an
-            // unversioned one (a legacy link) is revalidated.
+            // A versioned address never changes; an unversioned (legacy) one is revalidated.
             cache: address === original ? 'no-cache' : 'default',
             redirect: 'error',
             signal: controller.signal,
@@ -348,7 +334,7 @@ async function uiCatalog(locale, chunk = 'shell') {
           if (next.done) break;
           bytes += next.value.byteLength;
           emptyChunks = next.value.byteLength ? 0 : emptyChunks + 1;
-          // One catalog chunk is at most 1 MiB (tools/locale-chunks.mjs enforces it when the chunks are built).
+          // A chunk is at most 1 MiB (tools/locale-chunks.mjs).
           if (bytes > 1048576 || emptyChunks > 64) throw Error('Language catalog too large');
           text += decoder.decode(next.value, {stream: true});
         }
@@ -375,54 +361,11 @@ async function uiCatalog(locale, chunk = 'shell') {
   }
   return uiCatalogs.get(key);
 }
-/** The messages of several chunks of a language as one map (English has none). */
+/** Several chunks' messages as one map. */
 async function uiCatalogMessages(locale, chunks = uiCatalogChunks) {
   const maps = await Promise.all([...chunks].map(chunk => uiCatalog(locale, chunk)));
   return new Map(maps.flatMap(map => [...map]));
 }
-/** Whether every listed chunk of the interface language is already part of the page's messages. */
-function uiChunksReady(chunks) {
-  return uiLocale === 'en' || chunks.every(chunk => uiLoadedChunks.has(uiLocale + ':' + chunk));
-}
-/**
- * A page needs these chunks (WEB-07: its feature scripts' and the signed-in workspace's). They are loaded now in the
- * interface language and joined to its messages, and a language chosen later includes them. A failure rejects, so
- * the page offers its retry instead of rendering in two languages.
- */
-async function uiNeedChunks(chunks) {
-  for (const chunk of chunks) uiCatalogChunks.add(chunk);
-  if (uiChunksReady(chunks)) return;
-  const token = uiLocaleSequence,
-    locale = uiLocale;
-  let messages;
-  try {
-    messages = await uiCatalogMessages(locale, chunks);
-  } catch (error) {
-    // A deploy (409) needs a reload; anything else is a download the page offers to try again, like a script's.
-    if (error?.code === 'PAGE_ASSET_RELOAD_REQUIRED') throw error;
-    throw Object.assign(Error(uiText('A file needed for this page could not be downloaded. Try again.')), {
-      code: 'PAGE_ASSET_UNAVAILABLE',
-    });
-  }
-  // A language change meanwhile loads every needed chunk itself.
-  if (token !== uiLocaleSequence || locale !== uiLocale) return;
-  uiMessages = new Map([...uiMessages, ...messages]);
-  for (const chunk of chunks) uiLoadedChunks.add(locale + ':' + chunk);
-}
-/**
- * Starts downloading chunks the first page will need, in the saved language, while the shell's chunk and the session
- * are still on their way (WEB-07). They join the page's messages when the page asks for them (uiNeedChunks).
- */
-function uiPrefetchChunks(chunks) {
-  let saved;
-  try {
-    saved = localStorage.getItem('amcp.locale');
-  } catch {
-    return;
-  }
-  if (saved === 'ar') for (const chunk of chunks) uiCatalog('ar', chunk).catch(() => {});
-}
-/** Makes these chunks of a language the page's messages, as a whole set. */
 function uiUseMessages(locale, messages, chunks) {
   uiMessages = messages;
   uiLocale = locale;
@@ -541,7 +484,7 @@ async function changeUILocale(locale) {
       });
       if (!confirmed || !current()) return false;
     }
-    // Every chunk this document has needed so far, so the page re-renders whole in the new language (WEB-07).
+    // Every chunk needed so far, so the page re-renders whole.
     const chunks = [...uiCatalogChunks],
       messages = await uiCatalogMessages(locale, chunks);
     if (!current()) return false;

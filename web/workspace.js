@@ -68,8 +68,7 @@ const statusLabels = {
 /** A state value's label; a value without one keeps its earlier spaced form. */
 const statusLabel = value =>
   uiText(Object.hasOwn(statusLabels, value) ? statusLabels[value] : String(value ?? '').replaceAll('_', ' '));
-// WEB-07: report requests, display-enum labels and provider diagnostics are shared by the shell (Activity, connection
-// results) and many page modules; they used to come from the report builder's script, which every page loaded.
+// Shared by the shell and many page modules (WEB-07: they left the report builder's script).
 const overviewCall = async input => {
   const r = await api('/api/workspace/overview', {method: 'POST', body: JSON.stringify(input)});
   if (!r.success) throw requestError(r, uiText('The report request failed.'));
@@ -278,7 +277,7 @@ async function renderWorkspacePage() {
     content.innerHTML += `<div class="empty"><strong>${esc(uiText('A workspace of your own.'))}</strong><p>${esc(uiText('Sign in to connect your accounts and get started.'))}</p><button class="button primary" data-action="login">${esc(uiText('Sign in →'))}</button></div>`;
     return;
   }
-  // A page module registers the body of its page (WEB-07: AMCP.routes.register); the shell renders the rest here.
+  // A page module's registered body (WEB-07), or the shell's own page.
   const body = AMCP.routes.renderer('/' + page);
   if (body) return body();
   if (page === 'dashboard') return renderOverview();

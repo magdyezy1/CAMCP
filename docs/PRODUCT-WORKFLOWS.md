@@ -1260,8 +1260,11 @@ account security on `/account`), and
 `renderSettings` or `renderAccountPage` any more, and identity.js's replaced sign-in builders are gone;
 `tools/check-extensions.mjs` refuses the pattern in `check-web` and `tests/web-extensions.test.mjs` covers the order.
 New markup is escape-by-default: in `` html`…` `` (`web/localization.js`) every `${}` value is escaped unless it is
-already markup (another `` html`…` ``, a list of them, or `raw()` for a fragment AMCP escaped itself), and `setHtml`
-and `insertHtml` refuse a plain string. `tools/check-markup.mjs` counts, per script, the HTML writes and values still
+already markup (another `` html`…` ``, a list of them, or `raw()` for a fragment AMCP escaped itself); `null`,
+`undefined` and `false` insert nothing, so `` ${condition && html`…`} `` shows nothing when the condition fails (an
+attribute that must read "false" interpolates `String(value)`). The result reads as its markup wherever a string is
+expected, and `setHtml` and `insertHtml` refuse a plain string. `tools/check-markup.mjs` counts, per script, the HTML
+writes and values still
 escaped by hand (`tools/web-markup-baseline.json`, which only goes down) and refuses a conversion that would show
 markup as text or escape a value twice; `tests/web-markup.test.mjs` renders hostile provider strings as text.
 

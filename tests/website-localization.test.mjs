@@ -383,7 +383,10 @@ test('Arabic Home translates task labels while preserving and escaping campaign 
     initializing = f.run('initializeUILocale()');
   f.respondChunk(0);
   await initializing;
-  // Home's feature script brings its own chunk and the signed-in workspace's (WEB-07), as ensurePageAssets asks.
+  // Home's feature script brings its own chunk and the signed-in workspace's (WEB-07), as ensurePageAssets asks; the
+  // workspace's page loader (web/route-assets.js, after the route registry) holds the chunk loading.
+  f.run(readFileSync('web/routes.js', 'utf8'));
+  f.run(readFileSync('web/route-assets.js', 'utf8'));
   const chunks = f.run("uiNeedChunks(['workspace', 'providers', 'work-center'])");
   for (const index of [1, 2, 3]) f.respondChunk(index);
   await chunks;

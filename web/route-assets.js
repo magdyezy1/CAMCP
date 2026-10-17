@@ -35,14 +35,12 @@ const pageAssetOrder = [
   'account-approvals.js',
 ];
 const pageAssetDependencies = {
-  // WEB-07: a page that lists work needs only the paged-list loader, not the Operations center and its workbooks.
   'creative-library.js': ['work-pages.js'],
   'client-playbooks.js': ['campaign-recipes.js', 'campaign-workflows.js'],
   'operations-center.js': ['work-pages.js', 'workbook-schedules.js', 'workbook-bindings.js', 'workbook-rebinding.js'],
   'workbook-bindings.js': ['work-pages.js'],
   'workbook-rebinding.js': ['work-pages.js'],
-  // The report builder's script (reporting-overview.js) left the shell (WEB-07): the modules that use its state and labels
-  // load it. Its own page code runs only on /reporting-overview, whose route loads the other report modules.
+  // The report builder's script left the shell (WEB-07); the modules that use its state and labels load it.
   'work-center.js': ['report-library.js', 'reporting-overview.js', 'campaign-workflows.js'],
   'capability-center.js': ['work-pages.js'],
   'reporting-overview.js': ['report-library.js'],
@@ -51,8 +49,6 @@ const pageAssetDependencies = {
   'evidence-workflows.js': ['report-quality.js', 'report-allocation.js', 'report-presentation.js'],
   'report-allocation.js': ['work-pages.js', 'report-quality.js'],
   'report-presentation.js': ['evidence-workflows.js', 'work-pages.js'],
-  // WEB-07: one module per account workflow page over a small shared helper; only Measurement shows a review table.
-  // A parked store source is a module of its own behind the Commerce page.
   'portfolio.js': ['account-workflows.js'],
   'measurement.js': ['account-workflows.js', 'campaign-workflows.js'],
   'commerce.js': ['account-workflows.js', 'commerce-woocommerce.js'],
@@ -62,7 +58,7 @@ const pageAssetDependencies = {
   'report-delivery.js': ['report-library.js', 'reporting-overview.js'],
   'account-approvals.js': ['owner-operations.js'],
 };
-// The files each page loads are its route registry entry's `assets` (web/routes.js, WEB-07): a page is declared once.
+// A page's files are its route registry entry's `assets` (web/routes.js).
 const pageAssetRoutes = Object.freeze(
   Object.fromEntries(
     routeRegistry.filter(entry => entry.assets).map(entry => [entry.path, Object.freeze([...entry.assets])]),
@@ -102,10 +98,7 @@ function pageAssetsFor(pathname) {
   for (const file of Object.hasOwn(pageAssetRoutes, pathname) ? pageAssetRoutes[pathname] : []) include(file);
   return pageAssetOrder.filter(file => wanted.has(file));
 }
-/**
- * The Arabic catalog chunks a page needs besides the shell's (WEB-07): a signed-in page needs the workspace's and the
- * providers' messages, and each of its feature scripts' own. Public pages need none.
- */
+/** A signed-in page's Arabic chunks besides the shell's (WEB-07): workspace, providers and its scripts'. */
 function pageLocaleChunks(pathname) {
   const entry = routeEntry(pathname);
   if (!entry || entry.public) return [];
@@ -120,7 +113,7 @@ function pageLocaleChunks(pathname) {
 function pageAssetsPending(pathname) {
   return (
     pageAssetsFor(pathname).some(file => pageAssetLoads.get(file)?.state !== 'ready') ||
-    (typeof uiChunksReady === 'function' && !uiChunksReady(pageLocaleChunks(pathname)))
+    !uiChunksReady(pageLocaleChunks(pathname))
   );
 }
 function loadPageAsset(file) {
@@ -129,9 +122,7 @@ function loadPageAsset(file) {
   const entry = {state: 'loading', promise: null};
   pageAssetLoads.set(file, entry);
   const initialize = async () => {
-    // No script captures another's globals while it initializes: page modules register with the shell's extension
-    // points (WEB-07) and call their dependencies only once the page renders, after every file of the page is ready.
-    // Scripts inserted with async=false still run in the order they were requested.
+    // Page modules only register while they load (WEB-07); async=false scripts still run in request order.
     await new Promise((resolve, reject) => {
       const script = document.createElement('script'),
         originalPath = '/assets/' + file,
@@ -191,8 +182,45 @@ function loadPageAsset(file) {
 }
 async function ensurePageAssets(pathname) {
   // The page's scripts and its catalog chunks download together.
-  await Promise.all([
-    ...pageAssetsFor(pathname).map(loadPageAsset),
-    ...(typeof uiNeedChunks === 'function' ? [uiNeedChunks(pageLocaleChunks(pathname))] : []),
-  ]);
+  await Promise.all([...pageAssetsFor(pathname).map(loadPageAsset), uiNeedChunks(pageLocaleChunks(pathname))]);
+}
+/** Whether a page's chunks are in its messages; a document without localization.js needs none. */
+function uiChunksReady(chunks) {
+  return (
+    typeof uiLoadedChunks === 'undefined' ||
+    uiLocale === 'en' ||
+    chunks.every(chunk => uiLoadedChunks.has(uiLocale + ':' + chunk))
+  );
+}
+/** Adds a page's chunks to its messages (a later language includes them); a failure rejects, so the page retries. */
+async function uiNeedChunks(chunks) {
+  if (typeof uiCatalogChunks === 'undefined') return;
+  for (const chunk of chunks) uiCatalogChunks.add(chunk);
+  if (uiChunksReady(chunks)) return;
+  const token = uiLocaleSequence,
+    locale = uiLocale;
+  let messages;
+  try {
+    messages = await uiCatalogMessages(locale, chunks);
+  } catch (error) {
+    // A deploy (409) needs a reload; anything else offers Try again, like a script.
+    if (error?.code === 'PAGE_ASSET_RELOAD_REQUIRED') throw error;
+    throw Object.assign(Error(uiText('A file needed for this page could not be downloaded. Try again.')), {
+      code: 'PAGE_ASSET_UNAVAILABLE',
+    });
+  }
+  // A language change meanwhile loads every needed chunk itself.
+  if (token !== uiLocaleSequence || locale !== uiLocale) return;
+  uiMessages = new Map([...uiMessages, ...messages]);
+  for (const chunk of chunks) uiLoadedChunks.add(locale + ':' + chunk);
+}
+/** Starts the first page's chunks in the saved language while the shell chunk and the session load. */
+function uiPrefetchChunks(chunks) {
+  let saved;
+  try {
+    saved = localStorage.getItem('amcp.locale');
+  } catch {
+    return;
+  }
+  if (saved === 'ar') for (const chunk of chunks) uiCatalog('ar', chunk).catch(() => {});
 }

@@ -168,46 +168,68 @@ test('English pages fetch no catalog, versioned chunks may come from the cache, 
   );
 });
 
-test('the workspace asks who is signed in while the shell chunk downloads (regression: it waited for the catalog)', async () => {
+/** The workspace's boot (web/app.js) at a page, answering /api/session with `answer`; the page's files are recorded. */
+function boot(pathname, answer, available = () => true) {
   const app = fs.readFileSync('web/app.js', 'utf8'),
     start = app.indexOf('(async () => {\n  // All deferred feature scripts'),
-    boot = app.slice(start, app.indexOf('})();', start) + 5),
+    code = app.slice(start, app.indexOf('})();', start) + 5),
     events = [];
   let catalogArrived;
   const context = createContext({
     document: {readyState: 'complete', body: {classList: {contains: () => false}}},
-    location: {hash: '', pathname: '/settings'},
-    // The first page's files start downloading with the session request too.
+    location: {hash: '', pathname},
     pageAssetsFor: path => (path === '/settings' ? ['owner-operations.js', 'account-approvals.js'] : []),
     loadPageAsset: async file => events.push('script ' + file),
     pageLocaleChunks: () => ['workspace', 'providers', 'owner-operations', 'account-approvals'],
     uiPrefetchChunks: chunks => events.push('chunks ' + chunks.join(' ')),
+    routeAvailable: (path, who) => available(path, who),
     initializeUILocale: () => {
       events.push('catalog requested');
       return new Promise(resolve => (catalogArrived = resolve));
     },
     api: async path => {
       events.push('request ' + path);
-      return {authenticated: true};
+      return answer;
     },
     refresh: async () => events.push('render'),
     fragmentTarget: () => null,
   });
-  const running = new Script(boot).runInContext(context);
+  const running = new Script(code).runInContext(context);
+  return {events, context, running, arrive: () => catalogArrived()};
+}
+
+test('the workspace asks who is signed in while the shell chunk downloads (regression: it waited for the catalog)', async () => {
+  const f = boot('/settings', {authenticated: true});
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(
-    events,
+    f.events,
     [
       'request /api/session',
+      'catalog requested',
+      // The signed-in page's files start as soon as the session answers, before the shell chunk has arrived.
       'script owner-operations.js',
       'script account-approvals.js',
       'chunks workspace providers owner-operations account-approvals',
-      'catalog requested',
     ],
-    'Everything the first page needs starts before any of it arrives',
+    'Everything the first page needs starts before the catalog arrives',
   );
-  catalogArrived();
-  await running;
-  assert.deepEqual(events.at(-1), 'render', 'The page still renders after both');
-  assert.equal(context.session.authenticated, true);
+  f.arrive();
+  await f.running;
+  assert.deepEqual(f.events.at(-1), 'render', 'The page still renders after both');
+  assert.equal(f.context.session.authenticated, true);
+});
+
+test('a signed-out or out-of-scope visitor downloads no page files (regression: they started before the session answered)', async () => {
+  // Signed out at a signed-in page, and a test account at a page outside its scope: only the session and the shell
+  // chunk are requested, and the page still renders (the sign-in or scope notice).
+  for (const f of [
+    boot('/settings', {authenticated: false}),
+    boot('/settings', {authenticated: true, testAccount: true}, (path, who) => !who.testAccount),
+  ]) {
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(f.events, ['request /api/session', 'catalog requested']);
+    f.arrive();
+    await f.running;
+    assert.deepEqual(f.events, ['request /api/session', 'catalog requested', 'render']);
+  }
 });

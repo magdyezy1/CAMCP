@@ -874,8 +874,11 @@ sources write it. `check-web` refuses a stale or stray chunk, a chunk over 1 MiB
 script whose chunks lack a message it requires. A page requests its chunks together with its scripts; a chunk that
 cannot be downloaded offers **Try again** like a script, and a deploy offers the reload. A language chosen later loads
 every chunk the page has needed. The workspace asks `/api/session` while the shell chunk downloads (it used to wait
-for the catalog) and starts the first page's scripts and chunks at the same time. A versioned chunk address may be
-answered from the browser cache; an unversioned one is revalidated.
+for the catalog) and starts the first page's scripts and chunks as soon as the session says this person may open that
+page, while the shell chunk and the platforms load; a signed-out visitor, or a test account outside the page's scope,
+downloads none of them. The chunk loading a page needs beyond the shell chunk is part of the workspace's page loader
+(`web/route-assets.js`), so About and the policy pages do not download it. A versioned chunk address may be answered
+from the browser cache; an unversioned one is revalidated.
 
 Each page binds every file it uses to one public snapshot (`/assets/v/<version>/…`): HTML `src`/`href`, stylesheet
 `url()` references (fonts, images) and the addresses scripts build through `AMCPAssets.url`. A deploy that changes

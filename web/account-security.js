@@ -1,7 +1,5 @@
 'use strict';
-// The sign-in pages (email, password, two-step) and the account page's security part. formField, socialButtons and
-// renderAuthPage are defined only here: identity.js once had its own versions that this file replaced by reassignment,
-// so a fix made there never reached the page people saw (WEB-07).
+// The sign-in pages and the account page's security part; formField, socialButtons and renderAuthPage live only here.
 let loginMfaTicket = null;
 function formField(label, name, type = 'text', extra = '') {
   return `<label>${esc(label)}<span class="password-field"><input name="${esc(name)}" type="${type}" ${extra} required>${type === 'password' ? `<button type="button" class="password-toggle" aria-label="${esc(uiText('Show password'))}">${esc(uiText('Show'))}</button>` : ''}</span></label>`;
@@ -150,7 +148,7 @@ async function renderAuthPage() {
     loginMfaTicket = null;
   });
 }
-/** Account security, after the account page itself: a part of /account (WEB-07), registered below. */
+/** Account security: a part of /account (WEB-07). */
 async function renderAccountSecurity() {
   if (!session.authenticated) return;
   const account = await api('/api/account'),

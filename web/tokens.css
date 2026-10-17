@@ -1,7 +1,4 @@
-/* AMCP design tokens: the one place the palette, radius and base type are set, for both themes (docs/AMCP-IDENTITY.md).
-   Loaded first. WEB-07: components use the semantic roles below, which take their values from the palette in each
-   theme, so a component written with them is right in dark mode without an override; a colour written anywhere else
-   is counted by tools/check-colours.mjs, which refuses new ones and checks that every token has a dark value. */
+/* AMCP design tokens for both themes, loaded first (docs/AMCP-IDENTITY.md; checked by tools/check-colours.mjs). */
 :root {
   color-scheme: light;
   --ink: #222137;
@@ -36,8 +33,7 @@
   --decision-negative-ink: var(--danger);
   --decision-hold-bg: var(--surface-subtle);
   --decision-hold-ink: var(--muted);
-  /* Semantic roles (WEB-07). The page, the cards and fields raised on it, text and secondary text, links, borders,
-     the focus ring and the three status pairs; each follows its palette colour in both themes. */
+  /* Semantic roles (WEB-07). */
   --surface: var(--paper);
   --surface-raised: var(--white);
   --text: var(--ink);
@@ -52,11 +48,10 @@
   --status-warning-ink: var(--warning-ink);
   --status-danger-bg: var(--danger-bg);
   --status-danger-ink: var(--danger);
-  /* Surfaces that keep their dark colour in both themes (the sidebar) and the ink on them: theme-invariant. */
+  /* Theme-invariant: the always-dark surfaces and their ink. */
   --surface-inverse: #201d30;
   --text-on-inverse: #f2eef8;
-  /* The policy pages' own shades (privacy.css: Privacy, Terms, Data deletion and the 404 page, which need no
-     JavaScript); in dark mode they take the workspace's dark text, links, lines and surfaces. */
+  /* The policy pages' shades (privacy.css). */
   --policy-surface: #f8f6fb;
   --policy-text: #282238;
   --policy-text-body: #51485f;
@@ -83,7 +78,7 @@
   font-synthesis: none;
 }
 
-/* The dark theme: chosen in Appearance, or the system's when it is set to System (web/theme.js). */
+/* Dark: chosen in Appearance, or the system's (theme.js). */
 :root[data-theme='dark'] {
   color-scheme: dark;
   --ink: #f2edf8;
@@ -127,8 +122,7 @@
   --policy-shadow: #32234804;
 }
 
-/* A page without JavaScript (the policy pages can be read with it turned off) follows a dark system too: the same
-   values as the block above, which tools/check-colours.mjs keeps identical. */
+/* A dark system without JavaScript: the block above, kept identical. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;

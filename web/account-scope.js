@@ -3,7 +3,7 @@
 // refuses the rest outright; this keeps the navigation honest so nothing offers a door that will not open (WEB-06):
 // out-of-scope links, groups left empty and the sidebar's connectors link are hidden, the palette lists only pages in
 // scope, and a page the workspace does not include says so after opening Home instead of silently replacing the URL.
-// It adjusts every render through the shell's render hooks (WEB-07), before the page renders and once it has.
+// Through the shell's render hooks (WEB-07).
 let scopeRedirectedFrom = null;
 AMCP.hooks.beforeRender(() => {
   const scoped = !!(session.authenticated && session.testAccount);

@@ -812,7 +812,6 @@ function renderConnections() {
   const connected = platforms.filter(p => connectionCount(p) > 0),
     accounts = new Set(platforms.flatMap(p => p.connections.flatMap(c => c.accounts.map(a => p.id + ':' + a)))),
     logins = platforms.reduce((n, p) => n + p.connections.length, 0);
-  // Platform, login and account names come from providers: escape-by-default markup (WEB-07).
   setHtml(
     content,
     html`${raw(header(uiText('Connections'), uiText('Connect your platforms. Choose what AMCP can access.'), html`<button class="button" data-action="refresh">↻ <span>${uiText('Refresh')}</span></button>`))}${!session.authenticated ? html`<div class="notice"><span>◈</span><p><strong>${uiText('Your workspace, securely connected.')}</strong><br>${uiText('Sign in to manage platform logins and choose your advertising assets.')}</p><button class="button dark" data-action="login">${uiText('Sign in →')}</button></div>` : ''}<div class="stat-grid"><div class="stat"><div><div class="stat-label">${uiText('Connected platforms')}</div><div class="stat-value">${connected.length}<span class="muted stat-denominator"> / ${platforms.length}</span></div></div><span class="stat-icon" aria-hidden="true">◈</span></div><div class="stat"><div><div class="stat-label">${uiText('Selected accounts & properties')}</div><div class="stat-value">${accounts.size}</div></div><span class="stat-icon" aria-hidden="true">▦</span></div><div class="stat"><div><div class="stat-label">${uiText('Secure logins')}</div><div class="stat-value">${logins}</div></div><span class="stat-icon" aria-hidden="true">↗</span></div></div><div class="section-tools"><div class="filter-tabs" role="group" aria-label="${uiText('Filter platforms')}"><button class="filter-tab ${filter === 'all' ? 'active' : ''}" data-filter="all">${uiText('All platforms')} <span class="muted">${platforms.length}</span></button><button class="filter-tab ${filter === 'connected' ? 'active' : ''}" data-filter="connected">${uiText('Connected')} <span class="muted">${connected.length}</span></button></div><label class="search"><span aria-hidden="true">⌕</span><input id="platform-search" type="search" value="${search}" placeholder="${uiText('Search platforms…')}" aria-label="${uiText('Search platforms')}"></label></div><div class="platform-grid" id="platform-grid"></div>`,
@@ -1022,7 +1021,6 @@ function renderManage() {
   }
   const group = c?.groups.find(g => g.kind === assetKind),
     assets = (group?.assets ?? []).filter(a => (a.name + ' ' + a.id).toLowerCase().includes(assetSearch.toLowerCase()));
-  // Login, identity, account and asset names and IDs all come from providers (WEB-07).
   const loginRow = login =>
     html`<div class="oauth-login"><span class="avatar">${login.name.slice(0, 1).toUpperCase()}</span><div><button class="button quiet small" data-select-login="${login.id}"><strong>${login.name}</strong></button>${login.isDefault ? html`<span class="default-badge">${uiText('Default')}</span>` : ''}<small>${loginHealthLine(login)}${reviewerLoginLine(login)} · ${login.enabled ? uiText('Enabled in AMCP') : uiText('Choose assets')}${login.duplicateOf ? ' · ' + uiText('Same identity as another login') : ''}</small></div><div class="actions"><button class="button small" data-sync="${login.id}">${uiText('↻ Sync')}</button>${login.reauthorizeAvailable ? html`<button class="button small ${login.status === 'reauthorization_required' ? 'primary' : ''}" data-reauthorize="${login.id}">${uiText('Reauthorize')}</button>` : ''}${!login.isDefault && login.enabled ? html`<button class="button small" data-default="${login.id}">${uiText('Make default')}</button>` : ''}<button class="button small danger" data-disconnect="${login.id}" aria-label="${uiText('Disconnect {name}', {name: login.name})}">↗</button></div></div>`;
   setHtml(
@@ -1196,7 +1194,6 @@ async function renderConnectors() {
         door_password_change: uiText('Ended: the administrator password changed'),
         restore_quarantine: uiText('Ended: AMCP was restored from a backup'),
       })[reason] ?? uiText('Ended');
-  // Token, AI client and approver names are chosen by people and by the client apps themselves (WEB-07).
   const tokenRow = t =>
       html`<div class="token-row"><div><strong><bdi>${t.name}</bdi></strong><small>${t.role === 'operator' ? uiText('Operator · reviewed writes') : uiText('Reader')}${accessSetNote(t.access_set_id)} ${uiText('· Created')} ${uiDateZoned(t.createdAt)} ${uiText('· Expires')} ${uiDateZoned(t.expiresAt)}</small></div>${t.revoked ? html`<span class="status offline">${uiText('Revoked')}</span>` : manages(t) ? html`<button class="button small danger" data-revoke-token="${t.id}">${uiText('Revoke')}</button>` : ''}</div>`,
     approvedBy = c => (c.ownerName ? html` ${uiText('· Approved by')} <bdi>${c.ownerName}</bdi>` : ''),
@@ -1210,11 +1207,7 @@ async function renderConnectors() {
 codex mcp login amcp</pre><p class="muted">${uiText('For clients using a bearer token, follow the setup below.')}</p></section><section class="panel"><div class="panel-header"><h2>${uiText('Connect with a token')}</h2><span class="status">${uiText('Streamable HTTP')}</span></div><div class="client-tabs"><button class="client-tab ${client === 'codex' ? 'active' : ''}" data-client="codex">${uiText('Codex')}</button><button class="client-tab ${client === 'cursor' ? 'active' : ''}" data-client="cursor">${uiText('Cursor')}</button><button class="client-tab ${client === 'other' ? 'active' : ''}" data-client="other">${uiText('Other MCP client')}</button></div><div class="steps"><div class="step"><div><strong>${uiText('Create a connector token')}</strong><p class="muted">${uiText('Create a separate token for each tool. Tokens expire after 30 days and can be revoked below.')}</p></div></div><div class="step"><div><strong>${uiText('Add your token to the tool’s environment')}</strong><p class="muted">${uiText('Use the environment variable')} <code>AMCP_MCP_TOKEN</code>${uiText('. Keep the value private.')}</p></div></div><div class="step"><div class="step-content"><div class="copy-row"><strong>${client === 'codex' ? uiText('Add this to your Codex config.toml') : client === 'cursor' ? uiText('Add this to your Cursor MCP configuration') : uiText('Configure your MCP client')}</strong><button class="button small" data-copy-config="true">${uiText('Copy config')}</button></div><pre class="code-block">${connectorCode()}</pre><p class="muted">${client === 'codex' ? uiText('Reload your MCP connections, then ask Codex to list the tools available from AMCP.') : uiText('Use a client that supports Streamable HTTP and bearer authentication.')}</p></div></div></div></section><section class="panel"><div class="panel-header"><div><h2>${uiText('Connector tokens')}</h2><span class="muted token-caption">${uiText('Access follows your current AMCP asset selections.')}</span></div>${session.authenticated ? html`<button class="button" data-create-token="true">${uiText('Create read-only token')}</button>` : html`<a class="button" href="/login">${uiText('Sign in to create a token')}</a>`}</div>${session.writesEnabled && session.authenticated && !viewer ? html`<div class="consent-panel"><p><strong>${uiText('Read + write (default)')}</strong> ${uiText('Create an operator token for your selected resources, then use')} <code>amcp_write</code> ${uiText('to prepare and review a change before executing it.')}</p><label class="form-note"><input type="checkbox" id="operator-token-consent"> ${uiText('I authorize this connector to execute reviewed changes on accounts with write access.')}</label><p><button class="button primary" data-create-operator-token="true">${uiText('+ Create read + write token')}</button></p></div>` : ''}${tokenAccessSetControl()}<div id="new-token"></div>${tokens.length ? tokens.map(tokenRow) : html`<div class="empty">${session.authenticated ? uiText('No connector tokens yet.') : uiText('Sign in to create and manage connector tokens.')}</div>`}</section><section class="panel"><div class="panel-header"><h2>${uiText('Authorized MCP clients')}</h2></div>${oauthClients.length ? oauthClients.map(clientRow) : html`<div class="empty">${uiText('No clients authorized through browser sign-in.')}</div>`}${oauthEnded.length ? html`<h3>${uiText('Recently ended connections')}</h3>${oauthEnded.map(endedRow)}` : ''}</section><p class="muted small-text">${uiText('Codex configuration follows')} <a href="https://learn.chatgpt.com/docs/extend/mcp?surface=cli" target="_blank" rel="noreferrer">${uiText('official OpenAI documentation ↗')}</a>.</p>`,
   );
 }
-/**
- * Workspace settings: the shared page, then the parts other scripts register for it, in their declared order (the
- * owner's health and operating controls, then account access review; WEB-07). Every re-render of the page comes here,
- * so it is always whole.
- */
+/** Settings: the shared page, then the parts registered for it in their order (WEB-07); every re-render comes here. */
 async function renderSettings() {
   renderWorkspaceSettings();
   await AMCP.routes.renderParts('/settings');
@@ -1292,7 +1285,6 @@ function renderWorkspaceSettings() {
     `</div>`;
 }
 async function renderActivity() {
-  // Audit events carry native identifiers, provider codes and request references: escape-by-default markup (WEB-07).
   const heading = raw(
     header(uiText('Audit activity'), uiText('Account activity and your workspace events, within current access.')),
   );
@@ -1423,7 +1415,6 @@ async function renderCallback() {
     );
     return;
   }
-  // The platform's account and login names and the provider's diagnostics are the provider's own text (WEB-07).
   const p = platforms.find(p => p.id === result.platform),
     done = result.state === 'complete',
     failed = result.state === 'failed' || result.state === 'sync_attention',
@@ -1478,7 +1469,6 @@ async function renderConsent() {
   const info = await api('/api/mcp/consent?request=' + encodeURIComponent(request ?? ''));
   // MCP-08: the workspace is named above the decision, the return host is shown large, and the member chooses read only
   // or read and reviewed changes within what the app asked for and their role allows. Write stays the default choice.
-  // The app's name, return address and metadata host are whatever the app sent: escape-by-default markup (WEB-07).
   const choices = info.choices ?? [info.scope],
     write = choices.includes('mcp:read mcp:write'),
     option = (scope, title, text, checked) =>
@@ -1822,11 +1812,7 @@ function clearShellAlert() {
   alert.textContent = '';
   alert.hidden = true;
 }
-/**
- * Renders the current address. A script that adjusts every render registers a hook (test-account scope,
- * account-scope.js) and a page part extends its page (AMCP.routes.extend, web/routes.js); nothing wraps this
- * function (WEB-07).
- */
+/** Renders the current address; scripts adjust it through AMCP hooks and parts, never by wrapping it (WEB-07). */
 async function render() {
   AMCP.hooks.runBefore();
   const result = await renderCurrentPage();
@@ -2459,16 +2445,19 @@ function clientNavigation(event, el) {
   if (document.readyState !== 'complete')
     await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, {once: true}));
   try {
-    // Who is signed in is asked while the language's shell chunk downloads (WEB-07: it used to wait for the whole
-    // catalog); the page renders once both are here, so an early failure still reads in the chosen language.
+    // The session is asked while the shell chunk downloads (WEB-07); the page renders once both are here.
     const sessionRequest = api('/api/session');
-    sessionRequest.catch(() => {});
-    // The first page's feature scripts and catalog chunks start downloading now too; no script runs anything but its
-    // own definitions and registrations while it loads, so this is safe before the session is known.
-    if (typeof pageAssetsFor === 'function') {
-      for (const file of pageAssetsFor(location.pathname)) loadPageAsset(file).catch(() => {});
-      uiPrefetchChunks(pageLocaleChunks(location.pathname));
-    }
+    // A page's own scripts and chunks start once the session says this person may open it, while the shell chunk and
+    // the platforms load; a signed-out or out-of-scope visitor downloads nothing for a page it cannot open.
+    sessionRequest.then(
+      answer => {
+        if (typeof pageAssetsFor !== 'function' || !answer?.authenticated || !routeAvailable(location.pathname, answer))
+          return;
+        for (const file of pageAssetsFor(location.pathname)) loadPageAsset(file).catch(() => {});
+        uiPrefetchChunks(pageLocaleChunks(location.pathname));
+      },
+      () => {},
+    );
     await initializeUILocale();
     session = await sessionRequest;
     await refresh();
