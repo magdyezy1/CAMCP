@@ -267,3 +267,57 @@ function routeReturnable(path) {
   const entry = routeEntry(path.split(/[?#]/)[0]);
   return !!entry && !entry.public && entry.returnable !== false;
 }
+/**
+ * WEB-07: the shell's explicit extension points, built on the registry above. A script adds to the shell by
+ * registering, never by reassigning a shell function (render, renderSettings and renderAccountPage were wrapped by
+ * reassignment, so a wrapper dropped or loaded out of order changed pages silently):
+ *   AMCP.routes.register(path, {render})  the one renderer of a page that has none in the shell; a second renderer for
+ *                                         the same page is refused, never an override;
+ *   AMCP.routes.extend(path, part)        a part of a page that renders after the page itself, in the order the
+ *                                         scripts load (the owner sections of /settings, account security on /account);
+ *   AMCP.hooks.beforeRender(hook)         runs synchronously at the start of every page render (test-account scope);
+ *   AMCP.hooks.afterRender(hook)          runs once that render has finished.
+ * Only registered pages take renderers and parts. Lazily loaded files still come from route-assets.js, the loader's
+ * fixed list of authored filenames.
+ */
+const AMCP = (() => {
+  const renderers = new Map(),
+    parts = new Map(),
+    hooks = {before: [], after: []};
+  const known = path => {
+    if (!routeEntry(path)) throw Error('AMCP_ROUTE_UNKNOWN: ' + path);
+  };
+  const callable = value => {
+    if (typeof value !== 'function') throw TypeError('AMCP_EXTENSION_NOT_A_FUNCTION');
+    return value;
+  };
+  return Object.freeze({
+    routes: Object.freeze({
+      register(path, {render} = {}) {
+        known(path);
+        if (renderers.has(path)) throw Error('AMCP_ROUTE_ALREADY_REGISTERED: ' + path);
+        renderers.set(path, callable(render));
+      },
+      /** The renderer a script registered for a page, or undefined when the shell renders it itself. */
+      renderer: path => renderers.get(path),
+      extend(path, part) {
+        known(path);
+        parts.set(path, [...(parts.get(path) ?? []), callable(part)]);
+      },
+      /** Runs the parts of a page in order; a part that fails stops the rest, as an unfinished page would. */
+      async renderParts(path) {
+        for (const part of parts.get(path) ?? []) await part();
+      },
+    }),
+    hooks: Object.freeze({
+      beforeRender: hook => void hooks.before.push(callable(hook)),
+      afterRender: hook => void hooks.after.push(callable(hook)),
+      runBefore() {
+        for (const hook of hooks.before) hook();
+      },
+      async runAfter() {
+        for (const hook of hooks.after) await hook();
+      },
+    }),
+  });
+})();

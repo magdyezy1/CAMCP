@@ -1201,7 +1201,15 @@ async function renderConnectors() {
 codex mcp login amcp</pre><p class="muted">${uiText('For clients using a bearer token, follow the setup below.')}</p></section><section class="panel"><div class="panel-header"><h2>${uiText('Connect with a token')}</h2><span class="status">${uiText('Streamable HTTP')}</span></div><div class="client-tabs"><button class="client-tab ${client === 'codex' ? 'active' : ''}" data-client="codex">${uiText('Codex')}</button><button class="client-tab ${client === 'cursor' ? 'active' : ''}" data-client="cursor">${uiText('Cursor')}</button><button class="client-tab ${client === 'other' ? 'active' : ''}" data-client="other">${uiText('Other MCP client')}</button></div><div class="steps"><div class="step"><div><strong>${uiText('Create a connector token')}</strong><p class="muted">${uiText('Create a separate token for each tool. Tokens expire after 30 days and can be revoked below.')}</p></div></div><div class="step"><div><strong>${uiText('Add your token to the tool’s environment')}</strong><p class="muted">${uiText('Use the environment variable')} <code>AMCP_MCP_TOKEN</code>${uiText('. Keep the value private.')}</p></div></div><div class="step"><div class="step-content"><div class="copy-row"><strong>${client === 'codex' ? uiText('Add this to your Codex config.toml') : client === 'cursor' ? uiText('Add this to your Cursor MCP configuration') : uiText('Configure your MCP client')}</strong><button class="button small" data-copy-config="true">${uiText('Copy config')}</button></div><pre class="code-block">${connectorCode()}</pre><p class="muted">${client === 'codex' ? uiText('Reload your MCP connections, then ask Codex to list the tools available from AMCP.') : uiText('Use a client that supports Streamable HTTP and bearer authentication.')}</p></div></div></div></section><section class="panel"><div class="panel-header"><div><h2>${uiText('Connector tokens')}</h2><span class="muted token-caption">${uiText('Access follows your current AMCP asset selections.')}</span></div>${session.authenticated ? html`<button class="button" data-create-token="true">${uiText('Create read-only token')}</button>` : html`<a class="button" href="/login">${uiText('Sign in to create a token')}</a>`}</div>${session.writesEnabled && session.authenticated && !viewer ? html`<div class="consent-panel"><p><strong>${uiText('Read + write (default)')}</strong> ${uiText('Create an operator token for your selected resources, then use')} <code>amcp_write</code> ${uiText('to prepare and review a change before executing it.')}</p><label class="form-note"><input type="checkbox" id="operator-token-consent"> ${uiText('I authorize this connector to execute reviewed changes on accounts with write access.')}</label><p><button class="button primary" data-create-operator-token="true">${uiText('+ Create read + write token')}</button></p></div>` : ''}${tokenAccessSetControl()}<div id="new-token"></div>${tokens.length ? tokens.map(tokenRow) : html`<div class="empty">${session.authenticated ? uiText('No connector tokens yet.') : uiText('Sign in to create and manage connector tokens.')}</div>`}</section><section class="panel"><div class="panel-header"><h2>${uiText('Authorized MCP clients')}</h2></div>${oauthClients.length ? oauthClients.map(clientRow) : html`<div class="empty">${uiText('No clients authorized through browser sign-in.')}</div>`}${oauthEnded.length ? html`<h3>${uiText('Recently ended connections')}</h3>${oauthEnded.map(endedRow)}` : ''}</section><p class="muted small-text">${uiText('Codex configuration follows')} <a href="https://learn.chatgpt.com/docs/extend/mcp?surface=cli" target="_blank" rel="noreferrer">${uiText('official OpenAI documentation ↗')}</a>.</p>`,
   );
 }
-function renderSettings() {
+/**
+ * Workspace settings: the shared page, then the parts other scripts add to it in load order (the owner's health and
+ * operating controls, then account access review). Every re-render of the page comes here, so it is always whole.
+ */
+async function renderSettings() {
+  renderWorkspaceSettings();
+  await AMCP.routes.renderParts('/settings');
+}
+function renderWorkspaceSettings() {
   if (session.authenticated && !session.administrator) {
     content.innerHTML =
       header(uiText('Workspace settings'), uiText('A few thoughtful details make this space yours.')) +
@@ -1803,7 +1811,18 @@ function clearShellAlert() {
   alert.textContent = '';
   alert.hidden = true;
 }
+/**
+ * Renders the current address. A script that adjusts every render registers a hook (test-account scope,
+ * account-scope.js) and a page part extends its page (AMCP.routes.extend, web/routes.js); nothing wraps this
+ * function (WEB-07).
+ */
 async function render() {
+  AMCP.hooks.runBefore();
+  const result = await renderCurrentPage();
+  await AMCP.hooks.runAfter();
+  return result;
+}
+async function renderCurrentPage() {
   const generation = ++navigationGeneration,
     identity = identityGeneration,
     pathname = location.pathname,

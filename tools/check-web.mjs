@@ -4,6 +4,7 @@ import {checkWebLocales} from './check-locales.mjs';
 import {accountMarkupProblems, rtlProblems} from './check-rtl.mjs';
 import {checkRoutes} from './check-routes.mjs';
 import {checkMarkup} from './check-markup.mjs';
+import {checkExtensions} from './check-extensions.mjs';
 
 // Static checks for the shipped website. The Content-Security-Policy (server/website.ts) allows scripts and styles
 // from 'self' only, so inline code would silently stop working; the other rules keep review findings from returning.
@@ -98,6 +99,8 @@ problems.push(...checkRoutes());
 // WEB-07: new markup is escape-by-default (html`…` and setHtml); the counts of markup escaped by hand only go down.
 const markup = checkMarkup();
 problems.push(...markup.problems);
+// WEB-07: scripts extend the shell through AMCP.routes and AMCP.hooks, never by reassigning a shell function.
+problems.push(...checkExtensions());
 if (problems.length) {
   console.error(problems.join('\n'));
   process.exit(1);
