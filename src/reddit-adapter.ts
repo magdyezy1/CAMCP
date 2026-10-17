@@ -55,4 +55,10 @@ export const redditHooks: ProviderHooks = Object.freeze({
       return next;
     },
   }),
+  accountRead: Object.freeze({
+    plan(read: CompiledRequest, id: string) {
+      read.path = '/api/v3/ad_accounts/' + id;
+      return read;
+    },
+  }),
 });

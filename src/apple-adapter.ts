@@ -46,4 +46,11 @@ export const appleHooks: ProviderHooks = Object.freeze({
       return next;
     },
   }),
+  // Readiness reads the selected ad account on the Apple Ads API (CON-03), which answers with it under result.
+  accountRead: Object.freeze({
+    readiness: (id: string, read: (path: string, origin: string) => CompiledRequest) =>
+      read('/v1/ad-accounts/' + id, 'https://api.ads.apple.com'),
+    names: (id: string, data: JsonObject) => String((data.result ?? data).id) === id,
+    account: (data: JsonObject) => data.result ?? data.data ?? data,
+  }),
 });

@@ -7,10 +7,10 @@
  * Concerns move into adapters one at a time (ARC-01 phase B), each with a call-replay proof that the provider requests
  * and authorization decisions are unchanged (tools/call-replay.mjs; docs/review/ARCHITECTURE.md, "Provider adapters").
  * Every adapter carries its lifecycle status and its facts (the account model, body deletions), which any module may
- * read; behaviour that needs a provider's own modules (read classification, paging) is its hooks, declared in
- * src/<provider>-adapter.ts and registered in src/provider-hooks.ts.
+ * read; behaviour that needs a provider's own modules (read classification, paging, the account read) is its hooks,
+ * declared in src/<provider>-adapter.ts and registered in src/provider-hooks.ts.
  */
-import type {CompiledRequest, Connection} from './types.js';
+import type {CompiledRequest, Connection, JsonObject} from './types.js';
 
 /** `active` providers are offered; a `parked` one is offered only where AMCP_PROVIDERS names it. */
 export type ProviderStatus = 'active' | 'parked';
@@ -147,6 +147,32 @@ export interface Paging {
 }
 
 /**
+ * A provider's exact account read (ARC-01 phase B): readiness, plan preflight and reports read one account through it
+ * (src/account-metadata.ts `accountPlan`, src/workspace.ts `readinessPlan`) and find the account in its response. The
+ * shared stages keep what every account read is (AMCP_READINESS, read-only, never confirmed), ScopeGuard's
+ * authorization of it and every check of its result.
+ */
+export interface AccountRead {
+  /**
+   * The provider's route on `read`, the shared read of account `id` (its path, query, body and headers set and `read`
+   * returned), or the provider's own compiled read of it (Microsoft's GetAccount). Absent: the provider has no exact
+   * account read (READINESS_CONTRACT_UNAVAILABLE).
+   */
+  plan?(read: CompiledRequest, id: string): CompiledRequest;
+  /**
+   * The readiness read of a resource `plan` does not read (CON-03): a GA4 property, a Tag Manager account, a Search
+   * Console site, an Apple Ads ad account, a Business Profile location or account. `read` builds the shared read of a
+   * path on an origin; undefined when `id` names no resource the provider reads (readiness refuses it). Declared with
+   * `names`.
+   */
+  readiness?(id: string, read: (path: string, origin: string) => CompiledRequest): CompiledRequest | undefined;
+  /** Whether the response of a `readiness` read names exactly the selected resource `id`. */
+  names?(id: string, data: JsonObject): boolean;
+  /** The account inside an account read's response (Snapchat: adaccounts[0].adaccount); its `data`, or itself, when absent. */
+  account?(data: JsonObject): unknown;
+}
+
+/**
  * A provider's hooks (ARC-01 phase B): the parts of its adapter that call its own modules, declared in
  * src/<provider>-adapter.ts and registered in src/provider-hooks.ts. The facts any module may read are the
  * ProviderAdapter of the leaf registry; a hook only supplies a provider fact to the shared stage that asks for it.
@@ -156,6 +182,7 @@ export interface ProviderHooks {
   readonly gateway: string;
   readonly reads?: ReadClassification;
   readonly paging?: Paging;
+  readonly accountRead?: AccountRead;
 }
 
 export interface ProviderAdapter {

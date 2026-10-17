@@ -44,4 +44,12 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
       return next;
     },
   }),
+  // The account read returns the ad account wrapped like every entity read (adaccounts[0].adaccount, S8).
+  accountRead: Object.freeze({
+    plan(read: CompiledRequest, id: string) {
+      read.path = '/v1/adaccounts/' + id;
+      return read;
+    },
+    account: (data: JsonObject) => data.adaccounts?.[0]?.adaccount,
+  }),
 });

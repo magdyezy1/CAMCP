@@ -23,4 +23,10 @@ export const xHooks: ProviderHooks = Object.freeze({
       return next;
     },
   }),
+  accountRead: Object.freeze({
+    plan(read: CompiledRequest, id: string) {
+      read.path = '/12/accounts/' + id;
+      return read;
+    },
+  }),
 });

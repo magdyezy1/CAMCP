@@ -142,4 +142,13 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
         'TikTok reports are collected whole from page one: this repeats the collection with max_pages covering every page.',
     }),
   }),
+  // The advertiser info read takes a list of one advertiser and returns it in data.list.
+  accountRead: Object.freeze({
+    plan(read: CompiledRequest, id: string) {
+      read.path = '/v1.3/advertiser/info/';
+      read.query = {advertiser_ids: [id]};
+      return read;
+    },
+    account: (data: JsonObject) => data.data?.list?.[0],
+  }),
 });

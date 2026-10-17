@@ -47,6 +47,9 @@ for (const hooks of registeredProviderHooks) {
   // A load-time check, like a family declaration's: hooks belong to exactly one provider adapter.
   if (!providerOf(hooks.gateway)) throw new Error('Provider hooks name no provider adapter: ' + hooks.gateway + '.');
   if (byGateway.has(hooks.gateway)) throw new Error('Two provider hooks name ' + hooks.gateway + '.');
+  // A readiness read of a provider's own is accepted only when its response names exactly the selected resource.
+  if (!hooks.accountRead?.readiness !== !hooks.accountRead?.names)
+    throw new Error('Provider hooks of ' + hooks.gateway + ' declare a readiness read without its identity check.');
   byGateway.set(hooks.gateway, hooks);
 }
 

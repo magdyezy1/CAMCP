@@ -76,6 +76,7 @@ import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import {MirrorError, providerFactDetails} from './errors.js';
 import {assertGatewayOffered} from './provider-offering.js';
+import {providerHooks} from './provider-hooks.js';
 import {reportSourceError} from './report-errors.js';
 import {reportPlatforms} from './report-metrics.js';
 import {Registry} from './catalog.js';
@@ -262,7 +263,8 @@ export const workspaceTool = tool(
 export {accountPlan, accountMetadata, accountCurrency, accountTimezone};
 /**
  * Readiness reads one exact account. Measurement and Apple accounts have their own exact reads (CON-03): a GA4
- * property, a Tag Manager account, a Search Console site and an Apple Ads ad account. Plan preflight and reports keep
+ * property, a Tag Manager account, a Search Console site, an Apple Ads ad account and a Business Profile location or
+ * account (CON-06), each its provider adapter's readiness read (ARC-01 phase B). Plan preflight and reports keep
  * `accountPlan`, so their reads are unchanged.
  */
 export const readinessPlan = (gateway: string, id: string): CompiledRequest => {
@@ -281,47 +283,24 @@ export const readinessPlan = (gateway: string, id: string): CompiledRequest => {
     evidence: 'AMCP exact account readiness read',
     warnings: [],
   });
-  if (gateway === 'ga4_native_action') return read('/v1beta/properties/' + id, 'https://analyticsadmin.googleapis.com');
-  if (gateway === 'gtm_native_action')
-    return read('/tagmanager/v2/accounts/' + id, 'https://tagmanager.googleapis.com');
-  if (gateway === 'google_search_console_native_action')
-    return read('/webmasters/v3/sites/' + encodeURIComponent(id), 'https://www.googleapis.com');
-  if (gateway === 'apple_ads_native_action') return read('/v1/ad-accounts/' + id, 'https://api.ads.apple.com');
-  // Business Profile (CON-06): a selected location is read with a fixed mask, a selected business account by itself.
-  if (gateway === 'google_business_native_action') {
-    if (/^locations\/[1-9][0-9]{0,39}$/.test(id))
-      return {
-        ...read('/v1/' + id, 'https://mybusinessbusinessinformation.googleapis.com'),
-        query: {readMask: 'name,title,storeCode'},
-      };
-    if (/^[1-9][0-9]{0,39}$/.test(id))
-      return read('/v1/accounts/' + id, 'https://mybusinessaccountmanagement.googleapis.com');
-    bad('Select a Business Profile location (locations/{id}) or business account.', 'ASSET_ID_INVALID');
-  }
-  return accountPlan(gateway, id);
+  const readiness = providerHooks(gateway)?.accountRead?.readiness;
+  if (!readiness) return accountPlan(gateway, id);
+  // Business Profile reads a location (locations/{id}) or a business account; any other ID is no resource it reads.
+  return (
+    readiness(id, read) ??
+    bad('Select a Business Profile location (locations/{id}) or business account.', 'ASSET_ID_INVALID')
+  );
 };
-const measurementReadiness = new Set([
-  'ga4_native_action',
-  'gtm_native_action',
-  'google_search_console_native_action',
-  'apple_ads_native_action',
-  'google_business_native_action',
-]);
-/** The read must name exactly the selected resource; a restricted Search Console user still reads its site. */
+/**
+ * A readiness read of a provider's own (`readinessPlan`) must name exactly the selected resource, as its adapter
+ * decides; every other account read gets the state checks of a write's before-state.
+ */
 function validateReadinessRead(p: CompiledRequest, r: {status: number; headers: JsonObject; data: unknown}) {
-  if (!measurementReadiness.has(p.gateway)) return validateState(p, r as never);
+  const names = providerHooks(p.gateway)?.accountRead?.names;
+  if (!names) return validateState(p, r as never);
   const d = (r.data && typeof r.data === 'object' && !Array.isArray(r.data) ? r.data : {}) as JsonObject,
-    id = p.accountId!;
-  const exact =
-    p.gateway === 'ga4_native_action'
-      ? d.name === 'properties/' + id
-      : p.gateway === 'gtm_native_action'
-        ? String(d.accountId) === id
-        : p.gateway === 'google_search_console_native_action'
-          ? d.siteUrl === id && typeof d.permissionLevel === 'string' && d.permissionLevel !== 'siteUnverifiedUser'
-          : p.gateway === 'google_business_native_action'
-            ? d.name === (id.startsWith('locations/') ? id : 'accounts/' + id)
-            : String((d.result ?? d).id) === id;
+    id = p.accountId!,
+    exact = names(id, d);
   if (r.status !== 200 || !exact)
     throw new MirrorError('STATE_TARGET_MISMATCH', 'Provider state did not identify the exact selected resource.');
 }

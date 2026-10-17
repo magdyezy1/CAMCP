@@ -1,5 +1,5 @@
 import type {ProviderHooks} from './provider-adapter.js';
-import type {CompiledRequest} from './types.js';
+import type {CompiledRequest, JsonObject} from './types.js';
 
 /**
  * Search Console's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: a site
@@ -20,5 +20,12 @@ export const searchConsoleHooks: ProviderHooks = Object.freeze({
         : undefined,
     postRead: (_plan: CompiledRequest, pathname: string) =>
       /\/searchAnalytics\/query$/.test(pathname) || pathname === '/v1/urlInspection/index:inspect',
+  }),
+  // Readiness reads the selected site (CON-03); a restricted user still reads its own site, an unverified one does not.
+  accountRead: Object.freeze({
+    readiness: (id: string, read: (path: string, origin: string) => CompiledRequest) =>
+      read('/webmasters/v3/sites/' + encodeURIComponent(id), 'https://www.googleapis.com'),
+    names: (id: string, data: JsonObject) =>
+      data.siteUrl === id && typeof data.permissionLevel === 'string' && data.permissionLevel !== 'siteUnverifiedUser',
   }),
 });

@@ -1,10 +1,12 @@
 import type {ProviderHooks} from './provider-adapter.js';
-import type {CompiledRequest} from './types.js';
+import type {CompiledRequest, JsonObject} from './types.js';
 import {googleGenerationKind} from './google-generation.js';
+import {googleAdsCustomers} from './google-version.js';
 
 /**
  * Google Ads' provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the
- * documented read RPCs a POST may carry (src/execution-risk.ts keeps the generic rules).
+ * documented read RPCs a POST may carry (src/execution-risk.ts keeps the generic rules). The account read is a GAQL
+ * customer query.
  */
 
 // Read-only metadata is a compatibility observation, never sufficient execution authorization: POST reads must match
@@ -78,5 +80,15 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
       !!googleGenerationKind(plan) ||
       (/^\/v\d+\//.test(pathname) && googleReadMethods.has(pathname.split(':').at(-1)!)) ||
       googleGlobalRead(pathname),
+  }),
+  // The account read is one GAQL row of the customer: its ID, currency and time zone.
+  accountRead: Object.freeze({
+    plan(read: CompiledRequest, id: string) {
+      read.method = 'POST';
+      read.path = googleAdsCustomers + id + '/googleAds:search';
+      read.body = {query: 'SELECT customer.id, customer.currency_code, customer.time_zone FROM customer LIMIT 1'};
+      return read;
+    },
+    account: (data: JsonObject) => data.results?.[0]?.customer,
   }),
 });

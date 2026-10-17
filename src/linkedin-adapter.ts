@@ -3,6 +3,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {linkedinPlanningRoute} from './linkedin-planning-reads.js';
 import {linkedInAnalyticsRows} from './linkedin-reporting.js';
+import {linkedinVersion} from './linkedin-version.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
@@ -79,6 +80,14 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
       if (!paging || Number(paging.start) + Number(paging.count) >= Number(paging.total)) return null;
       next.query.start = Number(paging.start) + Number(paging.count);
       return next;
+    },
+  }),
+  // The account read is the ad account entity, with the reviewed LinkedIn version and Rest.li 2.0.
+  accountRead: Object.freeze({
+    plan(read: CompiledRequest, id: string) {
+      read.path = '/rest/adAccounts/' + id;
+      read.headers = {'LinkedIn-Version': linkedinVersion(), 'X-Restli-Protocol-Version': '2.0.0'};
+      return read;
     },
   }),
 });
