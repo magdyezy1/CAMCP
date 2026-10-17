@@ -8,6 +8,7 @@ import type {Actor, JsonObject} from './types.js';
 import {normalizeAccount} from './scope.js';
 import {accountMetadataView, resolveAccountMetadata} from './account-metadata.js';
 import {profileWithinAccess, visibleProfile} from './client-scope.js';
+import {microsoftLocationLookupStatus} from './microsoft-locations.js';
 // Business inputs a client playbook may default per recipe. Regulated declarations, goal policies, resource IDs and
 // currency stay in each brief, where preflight checks them.
 export const profileDefaultKeys = [
@@ -134,6 +135,8 @@ export function recipeContext(store: Store, actor: Actor, recipeId: string, prof
       .connectionsFor(actor)
       .filter(c => c.gateway === 'google_drive_native_action' && c.enabled)
       .map(c => ({id: c.id, label: c.label, files: c.accounts})),
+    // CMP-03: whether recipe_lookup can search Microsoft's geographical locations file in this deployment.
+    ...(recipe.platform === 'microsoft' ? {location_lookup: microsoftLocationLookupStatus()} : {}),
     limitations:
       recipe.platform === 'snapchat'
         ? recipeId === 'snapchat_lead_generation'

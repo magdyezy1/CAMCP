@@ -23,6 +23,7 @@ import {
   locationQuery,
   microsoftLocationLimits,
   microsoftLocationLookup,
+  microsoftLocationLookupStatus,
 } from '../dist/src/microsoft-locations.js';
 import {
   locationCsv,
@@ -125,6 +126,30 @@ test('the committed pin has no GetGeoLocationsFileUrl page, so the lookup refuse
     () => geoLocationsRest(committed),
     e => e.code === 'MICROSOFT_LOCATIONS_UNPINNED',
   );
+});
+
+test('recipe_context tells the website whether the lookup can be sent, from the committed pin alone', async t => {
+  const f = fixture(t);
+  assert.deepEqual(microsoftLocationLookupStatus(committed), {available: false, code: 'MICROSOFT_LOCATIONS_UNPINNED'});
+  assert.deepEqual(microsoftLocationLookupStatus(pinned), {available: true});
+  assert.deepEqual(microsoftLocationLookupStatus(pinnedGeoLocations(committed, op => ({...op, method: 'GET'}))), {
+    available: false,
+    code: 'VENDOR_SCHEMA_UNAVAILABLE',
+  });
+  const context = await f.service.call(
+    'amcp_campaign',
+    {action: 'recipe_context', recipe: 'microsoft_search'},
+    {...actor, role: 'admin'},
+  );
+  assert.equal(context.success, true, JSON.stringify(context));
+  assert.deepEqual(context.data.location_lookup, {available: false, code: 'MICROSOFT_LOCATIONS_UNPINNED'});
+  const google = await f.service.call(
+    'amcp_campaign',
+    {action: 'recipe_context', recipe: 'google_search'},
+    {...actor, role: 'admin'},
+  );
+  assert.equal(google.data.location_lookup, undefined, 'only the Microsoft pack has the lookup');
+  assert.equal(f.requests.length + f.downloads.length, 0);
 });
 
 test('only a pinned page that documents the exact method, URL and fields opens the lookup', () => {
@@ -336,7 +361,11 @@ test('a malformed, foreign, oversized or lying file is refused whole, and nothin
       ],
       ['unexpected member', zipFile('../GeoLocations.exe', csv), 'zip_member'],
       ['truncated archive', zip.subarray(0, zip.length - 30), 'zip_not_single_file'],
-      ['no documented columns', locationZip(locationCsv(locationRows, 'Id,Name,Type,Replaces,Status,Other')), 'documented_columns'],
+      [
+        'no documented columns',
+        locationZip(locationCsv(locationRows, 'Id,Name,Type,Replaces,Status,Other')),
+        'documented_columns',
+      ],
       [
         'repeated column',
         locationZip(
@@ -404,7 +433,8 @@ test('the file text and the archive are bounded before they are read whole', asy
   assert.ok(bomb.file.length < microsoftLocationLimits.archive_bytes);
   await assert.rejects(
     bomb.lookup('cairo'),
-    e => e.code === 'MICROSOFT_LOCATIONS_FILE_INVALID' && e.details.problem === 'text_bytes' && /128 MiB/.test(e.message),
+    e =>
+      e.code === 'MICROSOFT_LOCATIONS_FILE_INVALID' && e.details.problem === 'text_bytes' && /128 MiB/.test(e.message),
   );
   const missing = fixture(t, {download: () => new Response('gone', {status: 404})});
   await assert.rejects(

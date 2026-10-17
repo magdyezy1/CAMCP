@@ -911,10 +911,10 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
   // CMP-03: the Microsoft location lookup reads only; nothing is ever written.
   if (e.code === 'MICROSOFT_LOCATIONS_UNPINNED')
     return {
-      category: 'contract',
-      owner: 'workspace_owner',
+      category: 'deployment',
+      owner: 'deployment_operator',
       action:
-        'Nothing was sent. Enter location IDs from Microsoft’s geographical locations file instead. The deployment owner turns this search on by pinning Microsoft’s GetGeoLocationsFileUrl documentation with tools/microsoft-rest.mjs.',
+        'Nothing was sent. Enter location IDs from Microsoft’s geographical locations file instead. The deployment operator turns this search on by pinning Microsoft’s GetGeoLocationsFileUrl documentation (tools/microsoft-rest.mjs).',
       mutation_retry_safe: false,
     };
   if (e.code === 'MICROSOFT_LOCATIONS_FILE_INVALID' || e.code === 'MICROSOFT_LOCATIONS_FILE_UNAVAILABLE')

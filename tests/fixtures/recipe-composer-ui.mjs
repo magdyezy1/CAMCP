@@ -5,7 +5,10 @@ import {createContext, Script} from 'node:vm';
 
 export const arabicCatalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
 
-export function recipeComposerFixture(locale, definition, business, target = {}) {
+// `options.context` adds fields to the recipe_context answer and `options.reply(args)` answers every other action
+// (CMP-03's Microsoft location lookup); `calls` keeps every request the page sent.
+export function recipeComposerFixture(locale, definition, business, target = {}, options = {}) {
+  const calls = [];
   const nodes = new Map();
   const node = id => {
     if (!nodes.has(id))
@@ -48,6 +51,7 @@ export function recipeComposerFixture(locale, definition, business, target = {})
         },
         addEventListener() {},
         setAttribute() {},
+        focus() {},
       }),
     },
   );
@@ -80,6 +84,7 @@ export function recipeComposerFixture(locale, definition, business, target = {})
     toast() {},
     crypto: {randomUUID: () => 'synthetic-creation-key'},
     workspaceCall: async (_tool, args) => {
+      calls.push(JSON.parse(JSON.stringify(args)));
       if (args.action === 'recipes') return {recipes: [definition]};
       if (args.action === 'recipe_context')
         return {
@@ -99,8 +104,9 @@ export function recipeComposerFixture(locale, definition, business, target = {})
           limitations: [],
           pages: [],
           drive_connections: [],
+          ...options.context,
         };
-      return {ready: true, plan: {name: 'x'}};
+      return options.reply ? options.reply(args) : {ready: true, plan: {name: 'x'}};
     },
   });
   new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
@@ -112,6 +118,7 @@ export function recipeComposerFixture(locale, definition, business, target = {})
     context,
     node,
     form,
+    calls,
     run: code => new Script(code).runInContext(context),
     mount: () => new Script('mountRecipeBuilder([], async () => {})').runInContext(context),
   };
