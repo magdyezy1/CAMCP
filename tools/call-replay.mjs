@@ -172,8 +172,17 @@ export function normalizeValue(value) {
         ? '<epoch-s>'
         : value;
   if (Array.isArray(value)) return value.map(normalizeValue);
-  if (value && typeof value === 'object')
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, normalizeValue(v)]));
+  if (value && typeof value === 'object') {
+    const out = Object.fromEntries(Object.entries(value).map(([k, v]) => [k, normalizeValue(v)]));
+    // A refusal whose wait comes from the process clock (also in a recording made before a code joined the set).
+    if (
+      typeof out.$error === 'string' &&
+      clockRefusals.has(out.code) &&
+      typeof out.details?.retry_after_ms === 'number'
+    )
+      out.details = {...out.details, retry_after_ms: '<clock>'};
+    return out;
+  }
   return value;
 }
 const secretKey =
@@ -193,6 +202,7 @@ const clockRefusals = new Set([
   'CIRCUIT_OPEN',
   'PROVIDER_COORDINATION_BUSY',
   'PROVIDER_QUOTA_SHARE_EXHAUSTED',
+  'TOKEN_REFRESH_FAILED',
 ]);
 /**
  * A JSON-safe copy of a recorded value: undefined, functions, bytes, maps, sets and errors are marked; instances of
@@ -377,7 +387,9 @@ export function compareRecordings(before, after, noise) {
   for (const p of pairs(before, after)) {
     const key = p.test + '\n' + p.id,
       allowed = noise?.paths.get(key);
-    if (p.paths ? allowed && p.paths.every(path => allowed.has(path)) : noise?.counts.has(key)) {
+    // A function whose call count differed between two recordings of one build (a test racing promises) pairs its
+    // records differently in each comparison, so none of its differences in that test file is evidence.
+    if (noise?.counts.has(key) || (p.paths && allowed && p.paths.every(path => allowed.has(path)))) {
       noisy[p.id] = (noisy[p.id] ?? 0) + 1;
       continue;
     }
