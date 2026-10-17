@@ -156,8 +156,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // P9's parked WooCommerce notice on Commerce one more catalog entry.
   // ARC-04 stage B adds six leaf modules split from existing ones (account-id, review-state-core, tiktok-paths,
   // microsoft-association-contracts, meta-ad-library-contract, google-business-notification-kind); their reasons moved
-  // with them, so the owned reasons and the catalog are unchanged.
-  assert.equal(files.length, 577);
+  // with them, so the owned reasons and the catalog are unchanged. Stage E adds src/signed-cursor.ts and
+  // src/portfolio-runner.ts (no owned reasons: the portfolio refusals stay in each adapter).
+  assert.equal(files.length, 579);
   assert.equal(selected.filter(row => row.messages.size).length, 184);
   assert.equal(owned.size, 2842);
   assert.equal(Object.keys(catalog).length, 11425);

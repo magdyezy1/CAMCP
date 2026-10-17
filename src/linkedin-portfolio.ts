@@ -1,10 +1,9 @@
-import {createHmac, timingSafeEqual} from 'node:crypto';
 import {bad, fingerprint, obj, validate, type ToolCall} from './workspace-core.js';
-import {ReportCollectionBudget} from './report-collection-budget.js';
 import {linkedinVersion} from './linkedin-version.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
-import {storedLogin} from './connection-authority.js';
+import {openCursor, sealCursor} from './signed-cursor.js';
+import {portfolioAuthority, portfolioReader, withPortfolioBudget, type PortfolioAdapter} from './portfolio-runner.js';
 
 const gateway = 'linkedin_native_action';
 const groupStatuses = ['ACTIVE', 'ARCHIVED', 'CANCELED', 'DRAFT', 'PAUSED', 'PENDING_DELETION', 'REMOVED'];
@@ -22,7 +21,6 @@ function text(value: unknown, limit = 2000) {
 }
 const token = (value: unknown): value is string =>
   typeof value === 'string' && value.length > 0 && value.length <= 4096 && !/[\u0000-\u0020\u007f]/.test(value);
-const sign = (value: JsonObject, key: string) => createHmac('sha256', key).update(fingerprint(value)).digest('hex');
 const observation = (entity: string, id: string) => 'portfolio/linkedin/' + entity + '/' + id;
 function amount(value: unknown, currency: string | null) {
   if (value === undefined || value === null) return null;
@@ -94,16 +92,13 @@ export async function linkedinPortfolioPage(store: Store, call: ToolCall, actor:
   )
     bad('Choose an exact parent campaign group, and for creatives its exact campaign.');
   const connection = store.resolveConnection(actor, gateway, account, input.connection_id);
-  const authorization = fingerprint(storedLogin(store, connection)),
-    version = linkedinVersion();
-  const current = () => {
-    const active = store.resolveConnection(actor, gateway, account, connection.id);
-    if (!active.scopes.some(scope => scope === 'r_ads' || scope === 'rw_ads'))
-      bad('The selected login requires LinkedIn advertising read permission.', 'INSUFFICIENT_SCOPE');
-    if (fingerprint(storedLogin(store, active)) !== authorization)
-      bad('The selected login changed. Restart the portfolio read.', 'CONNECTION_AUTHORITY_CHANGED');
-    return active;
-  };
+  const {authorization, current} = portfolioAuthority(store, actor, gateway, account, connection, {
+    binds: 'login',
+    permits: active => active.scopes.some(scope => scope === 'r_ads' || scope === 'rw_ads'),
+    missingScope: () => bad('The selected login requires LinkedIn advertising read permission.', 'INSUFFICIENT_SCOPE'),
+    changed: () => bad('The selected login changed. Restart the portfolio read.', 'CONNECTION_AUTHORITY_CHANGED'),
+  });
+  const version = linkedinVersion();
   current();
   const binding = fingerprint({
     tenant: actor.tenantId,
@@ -124,26 +119,12 @@ export async function linkedinPortfolioPage(store: Store, call: ToolCall, actor:
     seen: string[] = [];
   if (input.cursor !== undefined) {
     try {
-      if (typeof input.cursor !== 'string' || input.cursor.length > 24000 || !/^[A-Za-z0-9_-]+$/.test(input.cursor))
-        throw Error();
-      const decoded = Buffer.from(input.cursor, 'base64url');
-      if (decoded.toString('base64url') !== input.cursor) throw Error();
-      const parsed = JSON.parse(decoded.toString('utf8'));
-      if (!obj(parsed)) throw Error();
-      const {signature, ...signed} = parsed;
+      const parsed = openCursor(input.cursor, {key: authorization, binding, maxLength: 24000});
       if (
-        typeof signature !== 'string' ||
-        !/^[a-f0-9]{64}$/.test(signature) ||
-        !timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(sign(signed, authorization), 'hex')) ||
-        parsed.version !== 1 ||
-        parsed.binding !== binding ||
         !token(parsed.after) ||
         !Number.isSafeInteger(parsed.page) ||
         parsed.page < 1 ||
         parsed.page >= 100 ||
-        !Number.isSafeInteger(parsed.expires_at) ||
-        parsed.expires_at <= Date.now() ||
-        parsed.expires_at > Date.now() + 300000 ||
         !(parsed.last_id === null || idString(parsed.last_id)) ||
         !Array.isArray(parsed.seen) ||
         parsed.seen.length !== parsed.page ||
@@ -179,38 +160,29 @@ export async function linkedinPortfolioPage(store: Store, call: ToolCall, actor:
     return active;
   };
   assertParents();
-  const budget = new ReportCollectionBudget(undefined, binding, () => {}, {
-    requests: 8,
-    rows: 100,
-    bytes: 8 * 1024 * 1024,
-    elapsed_ms: 60000,
-  });
+  const send = portfolioReader(call, actor, gateway, current, error =>
+    bad(error?.message ?? 'LinkedIn inventory read failed.', error?.code ?? 'PORTFOLIO_FAILED'),
+  );
   const read = async (action: string, path: JsonObject, query: JsonObject = {}) => {
-    current();
-    const response = await call(
-      gateway,
-      {
-        action,
-        account_id: account,
-        connection_id: connection.id,
-        api_version: version,
-        path_params: path,
-        query,
-        dry_run: false,
-      },
-      actor,
-    );
-    current();
-    if (!response.success)
-      bad(response.error?.message ?? 'LinkedIn inventory read failed.', response.error?.code ?? 'PORTFOLIO_FAILED');
+    const response = await send({
+      action,
+      account_id: account,
+      connection_id: connection.id,
+      api_version: version,
+      path_params: path,
+      query,
+      dry_run: false,
+    });
     const body = response.data?.data;
     if (response.data?.truncated || !obj(body) || body.serviceErrorCode !== undefined || body.truncated === true)
       invalid('LinkedIn returned an incomplete or malformed inventory response.');
     return body as JsonObject;
   };
   const urn = 'urn:li:sponsoredAccount:' + account;
-  try {
-    return await budget.run(async () => {
+  return withPortfolioBudget(
+    binding,
+    {requests: 8, rows: 100, bytes: 8 * 1024 * 1024, elapsed_ms: 60000},
+    async budget => {
       const accountRow = await read('linkedin_rest_ad_accounts_ad_account_id_get', {ad_account_id: account});
       if (nativeId(accountRow.id) !== account)
         bad('LinkedIn returned a different ad account.', 'STATE_TARGET_MISMATCH');
@@ -355,11 +327,7 @@ export async function linkedinPortfolioPage(store: Store, call: ToolCall, actor:
         entity,
         rows,
         has_more: more,
-        next_cursor: more
-          ? Buffer.from(JSON.stringify({...continuation, signature: sign(continuation, authorization)})).toString(
-              'base64url',
-            )
-          : null,
+        next_cursor: more ? sealCursor(continuation, authorization) : null,
         captured_at: Date.now(),
         page_number: page + 1,
         currency,
@@ -373,8 +341,13 @@ export async function linkedinPortfolioPage(store: Store, call: ToolCall, actor:
         meaning:
           'Current LinkedIn inventory in ascending native ID order, not a point-in-time snapshot. Campaign groups cover the seven documented status filters; test and non-test entities are included. Current parent reads verify account and hierarchy. Native decimal money and currency remain unconverted. Observed group controls and campaign pacing do not establish effective spend or budget-edit eligibility. Campaign daily settings are not a hard calendar-day spending cap. Creative intended status and observed serving state stay separate. No write authority is granted.',
       };
-    });
-  } finally {
-    budget.close();
-  }
+    },
+  );
 }
+
+/** The LinkedIn portfolio adapter (ARC-04 stage E). */
+export const linkedinPortfolioAdapter: PortfolioAdapter = {
+  gateway,
+  entities: ['campaign_group', 'campaign', 'creative'],
+  page: linkedinPortfolioPage,
+};

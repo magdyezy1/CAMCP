@@ -1,14 +1,12 @@
-import {createHmac, timingSafeEqual} from 'node:crypto';
 import {bad, fingerprint, obj, validate, type ToolCall} from './workspace-core.js';
-import {ReportCollectionBudget} from './report-collection-budget.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
-import {storedLogin} from './connection-authority.js';
+import {openCursor, sealCursor} from './signed-cursor.js';
+import {portfolioAuthority, portfolioReader, withPortfolioBudget, type PortfolioAdapter} from './portfolio-runner.js';
 
 const gateway = 'tiktok_native_action';
 const nativeId = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,31}$/.test(v);
 const invalid = (message: string): never => bad(message, 'PORTFOLIO_INVALID_RESPONSE');
-const sign = (v: JsonObject, key: string) => createHmac('sha256', key).update(fingerprint(v)).digest('hex');
 const fields: Record<string, string[]> = {
   campaign: [
     'advertiser_id',
@@ -100,15 +98,10 @@ export async function tiktokPortfolioPage(store: Store, call: ToolCall, actor: A
   )
     bad('Choose the exact campaign, and for ads its exact ad group.');
   const connection = store.resolveConnection(actor, gateway, account, input.connection_id);
-  const authorization = fingerprint({
-    login: storedLogin(store, connection),
-    scopes: [...connection.scopes].sort(),
+  const {authorization, current} = portfolioAuthority(store, actor, gateway, account, connection, {
+    binds: 'login_and_scopes',
+    changed: () => bad('The TikTok login or permissions changed. Restart inventory.', 'CONNECTION_AUTHORITY_CHANGED'),
   });
-  const current = () => {
-    const c = store.resolveConnection(actor, gateway, account, connection.id);
-    if (fingerprint({login: storedLogin(store, c), scopes: [...c.scopes].sort()}) !== authorization)
-      bad('The TikTok login or permissions changed. Restart inventory.', 'CONNECTION_AUTHORITY_CHANGED');
-  };
   const binding = fingerprint({
     tenant: actor.tenantId,
     user: actor.userId,
@@ -127,30 +120,13 @@ export async function tiktokPortfolioPage(store: Store, call: ToolCall, actor: A
     previous: string[] = [];
   if (input.cursor !== undefined) {
     try {
+      const c = openCursor(input.cursor, {key: authorization, binding, maxLength: 14000});
       if (
-        typeof input.cursor !== 'string' ||
-        input.cursor.length > 14000 ||
-        !/^[A-Za-z0-9_-]+$/.test(input.cursor) ||
-        Buffer.from(input.cursor, 'base64url').toString('base64url') !== input.cursor
-      )
-        throw Error();
-      const c = JSON.parse(Buffer.from(input.cursor, 'base64url').toString('utf8'));
-      if (!obj(c)) throw Error();
-      const {signature, ...signed} = c;
-      if (
-        typeof signature !== 'string' ||
-        !/^[0-9a-f]{64}$/.test(signature) ||
-        !timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(sign(signed, authorization), 'hex')) ||
-        c.version !== 1 ||
-        c.binding !== binding ||
         !Number.isInteger(c.page) ||
         c.page < 2 ||
         c.page > 100 ||
         !Number.isSafeInteger(c.total) ||
         c.total < 1 ||
-        !Number.isSafeInteger(c.expires_at) ||
-        c.expires_at <= Date.now() ||
-        c.expires_at > Date.now() + 300000 ||
         !Array.isArray(c.previous) ||
         c.previous.length !== limit ||
         !c.previous.every(nativeId) ||
@@ -169,21 +145,18 @@ export async function tiktokPortfolioPage(store: Store, call: ToolCall, actor: A
     }
   }
   current();
-  const budget = new ReportCollectionBudget(undefined, binding, () => {}, {
-    requests: 6,
-    rows: 101,
-    bytes: 8 * 1024 * 1024,
-    elapsed_ms: 60000,
-  });
+  const send = portfolioReader(call, actor, gateway, current, error =>
+    bad(error?.message ?? 'TikTok inventory read failed.', error?.code ?? 'PORTFOLIO_FAILED'),
+  );
   const read = async (action: string, query: JsonObject) => {
-    current();
-    const r = await call(
-      gateway,
-      {action, account_id: account, connection_id: connection.id, query, aggregate_pages: false, dry_run: false},
-      actor,
-    );
-    current();
-    if (!r.success) bad(r.error?.message ?? 'TikTok inventory read failed.', r.error?.code ?? 'PORTFOLIO_FAILED');
+    const r = await send({
+      action,
+      account_id: account,
+      connection_id: connection.id,
+      query,
+      aggregate_pages: false,
+      dry_run: false,
+    });
     const v = r.data?.data;
     if (
       r.data?.truncated ||
@@ -199,8 +172,10 @@ export async function tiktokPortfolioPage(store: Store, call: ToolCall, actor: A
       invalid('TikTok returned incomplete or unknown inventory evidence.');
     return v.data as JsonObject;
   };
-  try {
-    return await budget.run(async () => {
+  return withPortfolioBudget(
+    binding,
+    {requests: 6, rows: 101, bytes: 8 * 1024 * 1024, elapsed_ms: 60000},
+    async budget => {
       const info = await read('tiktok_advertiser_info_get', {
         advertiser_ids: [account],
         fields: ['advertiser_id', 'currency', 'timezone'],
@@ -296,15 +271,18 @@ export async function tiktokPortfolioPage(store: Store, call: ToolCall, actor: A
         entity,
         rows,
         has_more: inventory.more,
-        next_cursor: cursor
-          ? Buffer.from(JSON.stringify({...cursor, signature: sign(cursor, authorization)})).toString('base64url')
-          : null,
+        next_cursor: cursor ? sealCursor(cursor, authorization) : null,
         captured_at: Date.now(),
         meaning:
           'Current TikTok standard campaign/ad-group/ad route inventory, excluding deleted entities. Native money keeps its JSON type and account-currency units, without conversion; budget_mode determines its meaning. Operation and secondary status remain separate and do not prove serving. Smart+, GMV Max and specialized route coverage is not implied. Page counts may change; this is not a point-in-time snapshot. This read grants no write authority.',
       };
-    });
-  } finally {
-    budget.close();
-  }
+    },
+  );
 }
+
+/** The TikTok portfolio adapter (ARC-04 stage E). */
+export const tiktokPortfolioAdapter: PortfolioAdapter = {
+  gateway,
+  entities: ['campaign', 'adgroup', 'ad'],
+  page: tiktokPortfolioPage,
+};

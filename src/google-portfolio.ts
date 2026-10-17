@@ -1,19 +1,16 @@
-import {createHmac, timingSafeEqual} from 'node:crypto';
 import {bad, fingerprint, obj, validate, type ToolCall} from './workspace-core.js';
 import {normalizeAccount} from './account-id.js';
 import {googleAdsVersion} from './google-version.js';
-import {ReportCollectionBudget} from './report-collection-budget.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
-import {storedLogin} from './connection-authority.js';
+import {openCursor, sealCursor} from './signed-cursor.js';
+import {portfolioAuthority, portfolioReader, withPortfolioBudget, type PortfolioAdapter} from './portfolio-runner.js';
 
 const gateway = 'google_ads_native_action';
 const maxInt64 = 9223372036854775807n;
 const nativeId = (value: unknown): value is string =>
   typeof value === 'string' && /^[1-9][0-9]{0,18}$/.test(value) && BigInt(value) <= maxInt64;
 const invalid = (message: string): never => bad(message, 'PORTFOLIO_INVALID_RESPONSE');
-const signature = (value: JsonObject, key: string) =>
-  createHmac('sha256', key).update(fingerprint(value)).digest('hex');
 const fields: Record<string, string[]> = {
   campaign: [
     'campaign.id',
@@ -172,15 +169,10 @@ export async function googlePortfolioPage(store: Store, call: ToolCall, actor: A
   )
     bad('Choose the exact campaign, and for ads its exact ad group.');
   const connection = store.resolveConnection(actor, gateway, account, input.connection_id);
-  const authorization = fingerprint({
-    login: storedLogin(store, connection),
-    scopes: [...connection.scopes].sort(),
+  const {authorization, current} = portfolioAuthority(store, actor, gateway, account, connection, {
+    binds: 'login_and_scopes',
+    changed: () => bad('The Google login or permissions changed. Restart inventory.', 'CONNECTION_AUTHORITY_CHANGED'),
   });
-  const current = () => {
-    const c = store.resolveConnection(actor, gateway, account, connection.id);
-    if (fingerprint({login: storedLogin(store, c), scopes: [...c.scopes].sort()}) !== authorization)
-      bad('The Google login or permissions changed. Restart inventory.', 'CONNECTION_AUTHORITY_CHANGED');
-  };
   const binding = fingerprint({
     tenant: actor.tenantId,
     user: actor.userId,
@@ -199,31 +191,8 @@ export async function googlePortfolioPage(store: Store, call: ToolCall, actor: A
     expires = Date.now() + 300000;
   if (input.cursor !== undefined) {
     try {
-      if (
-        typeof input.cursor !== 'string' ||
-        input.cursor.length > 2048 ||
-        !/^[A-Za-z0-9_-]+$/.test(input.cursor) ||
-        Buffer.from(input.cursor, 'base64url').toString('base64url') !== input.cursor
-      )
-        throw Error();
-      const c = JSON.parse(Buffer.from(input.cursor, 'base64url').toString('utf8'));
-      if (!obj(c)) throw Error();
-      const {signature: sig, ...signed} = c;
-      if (
-        typeof sig !== 'string' ||
-        !/^[0-9a-f]{64}$/.test(sig) ||
-        !timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(signature(signed, authorization), 'hex')) ||
-        c.version !== 1 ||
-        c.binding !== binding ||
-        !nativeId(c.after) ||
-        !Number.isInteger(c.page) ||
-        c.page < 1 ||
-        c.page >= 100 ||
-        !Number.isSafeInteger(c.expires_at) ||
-        c.expires_at <= Date.now() ||
-        c.expires_at > Date.now() + 300000
-      )
-        throw Error();
+      const c = openCursor(input.cursor, {key: authorization, binding, maxLength: 2048});
+      if (!nativeId(c.after) || !Number.isInteger(c.page) || c.page < 1 || c.page >= 100) throw Error();
       after = c.after;
       page = c.page;
       expires = c.expires_at;
@@ -244,29 +213,21 @@ export async function googlePortfolioPage(store: Store, call: ToolCall, actor: A
     ...(after ? [`${key} > ${after}`] : []),
   ];
   const query = `SELECT customer.id, customer.currency_code, customer.time_zone, ${fields[entity]!.join(', ')} FROM ${type} WHERE ${where.join(' AND ')} ORDER BY ${key} LIMIT ${limit + 1}`;
-  const budget = new ReportCollectionBudget(undefined, binding, () => {}, {
-    requests: 5,
-    rows: 101,
-    elapsed_ms: 60000,
-    bytes: 8 * 1024 * 1024,
-  });
-  try {
-    return await budget.run(async () => {
-      const response = await call(
-        gateway,
-        {
-          action: 'google_ads_v23_google_ads_search',
-          account_id: account,
-          connection_id: connection.id,
-          payload: {query},
-          aggregate_pages: false,
-          dry_run: false,
-        },
-        actor,
-      );
-      current();
-      if (!response.success)
-        bad(response.error?.message ?? 'Google inventory read failed.', response.error?.code ?? 'PORTFOLIO_FAILED');
+  const send = portfolioReader(call, actor, gateway, current, error =>
+    bad(error?.message ?? 'Google inventory read failed.', error?.code ?? 'PORTFOLIO_FAILED'),
+  );
+  return withPortfolioBudget(
+    binding,
+    {requests: 5, rows: 101, elapsed_ms: 60000, bytes: 8 * 1024 * 1024},
+    async budget => {
+      const response = await send({
+        action: 'google_ads_v23_google_ads_search',
+        account_id: account,
+        connection_id: connection.id,
+        payload: {query},
+        aggregate_pages: false,
+        dry_run: false,
+      });
       const d = response.data?.data;
       if (
         !obj(d) ||
@@ -323,15 +284,18 @@ export async function googlePortfolioPage(store: Store, call: ToolCall, actor: A
         entity,
         rows: visible,
         has_more: more,
-        next_cursor: cursor
-          ? Buffer.from(JSON.stringify({...cursor, signature: signature(cursor, authorization)})).toString('base64url')
-          : null,
+        next_cursor: cursor ? sealCursor(cursor, authorization) : null,
         captured_at: Date.now(),
         meaning:
           'Current non-removed Google inventory, ordered by exact immutable IDs. Native micros remain unconverted. Configured status does not prove serving. Provider changes across pages are possible; this is not a point-in-time snapshot. This read grants no write authority.',
       };
-    });
-  } finally {
-    budget.close();
-  }
+    },
+  );
 }
+
+/** The Google Ads portfolio adapter (ARC-04 stage E). */
+export const googlePortfolioAdapter: PortfolioAdapter = {
+  gateway,
+  entities: ['campaign', 'ad_group', 'ad'],
+  page: googlePortfolioPage,
+};

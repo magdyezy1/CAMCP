@@ -318,3 +318,26 @@ requests it builds arrive as hook arguments (`assert`'s `shape`, the `classify` 
 pattern of the read builders. Five function-only cycles of two or three provider or reporting modules remain (Microsoft
 native and its two families, allocation calibration, Apple and measurement writes, effect class and preflight, Reddit
 writes); none reads a value at load.
+
+## 11. Portfolio adapters
+
+ARC-04 stage E. `amcp_workspace portfolio` pages one provider's inventory through the adapter of its gateway
+(`portfolioAdapters` in `src/portfolio.ts`: Google Ads, Meta, LinkedIn, Snapchat, TikTok, X, Microsoft Advertising).
+Each adapter is a `PortfolioAdapter` (`src/portfolio-runner.ts`: its gateway, its three entity levels and its page),
+and the parts every adapter ran the same way are shared:
+
+- `src/signed-cursor.ts` seals and opens the five-minute continuation cursor: base64url JSON of the payload and an
+  HMAC-SHA256 signature keyed by the read's login fingerprint. Opening refuses, before any read, a cursor that is
+  longer than the adapter seals, not canonical base64url, unsigned or tampered (compared in constant time), of another
+  version or binding (tenant, user, connection, account, hierarchy, page size, login), or expired. The adapter then
+  checks its own payload fields and refuses with its own `INVALID_CURSOR` sentence. The seven copies this replaces had
+  drifted: Meta accepted a non-canonical encoding.
+- `portfolioAuthority` binds the read to its login, with the scopes in the fingerprint (Google Ads, TikTok, X) or with
+  a per-read permission check (Meta, LinkedIn, Snapchat, Microsoft); `portfolioReader` checks it before and after every
+  gateway read; `withPortfolioBudget` runs the page inside its bounded collection budget.
+
+What stays per adapter: validation order and sentences, hierarchy and parent-observation rules, provider response
+checks, row projection, the cursor payload and length cap, and the page's output. Every refusal sentence stays a
+literal in the adapter, so the portfolio localization inventory still owns it. `tests/portfolio-adapter-contract.test.mjs`
+holds the common refusal contract for every adapter (tampered, non-canonical, oversized, foreign, expired and
+other-login cursors, a login change during a read, an unobserved parent) and `tests/signed-cursor.test.mjs` the codec.
