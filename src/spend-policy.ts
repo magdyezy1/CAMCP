@@ -195,14 +195,23 @@ function validatePolicy(
     } else if (
       key === 'allow_activation' ||
       key === 'allow_deletion' ||
-      // WRT-09 (P5, open with the owner): the opt-in destructive_confirmed tier, and owner-only execution beyond a cap.
-      key === 'require_destructive_confirmation' ||
-      key === 'cap_override_owner_only'
+      // WRT-09 (owner decision P5): the opt-in destructive_confirmed tier.
+      key === 'require_destructive_confirmation'
     ) {
       if (typeof value !== 'boolean') throw invalidPolicy();
       out[key] = value;
+    } else if (key === 'cap_override_owner_only') {
+      // Owner decision P5 (2026-10-11): only the workspace owner executes a change beyond a cap under `confirm`, always
+      // (src/write-approval.ts). The former opt-in is no setting: `true` restates the rule and is not stored, and `false`
+      // cannot turn it off.
+      if (typeof value !== 'boolean') throw invalidPolicy();
+      if (!value)
+        throw invalidPolicy(
+          'Only the workspace owner executes a change beyond a spending cap (owner decision P5), and no policy turns that off. Leave cap_override_owner_only out.',
+          {field: 'cap_override_owner_only'},
+        );
     } else if (key === 'approval_mode') {
-      // WRT-09 (opt-in; P1 and P5 are open): who approves spend, cap and deletion executions (src/write-approval.ts).
+      // WRT-09 (opt-in, owner decisions P1 and P5): who approves spend, cap and deletion executions (src/write-approval.ts).
       if (!approvalModes.includes(value))
         throw invalidPolicy(
           'approval_mode is assistant_ack (the user approves in the AI client, the default), website_approval (a member approves on the AMCP website) or distinct_approver (another member than the preparer, or the owner).',
@@ -344,8 +353,10 @@ export function saveSpendPolicy(store: Store, actor: Actor, input: JsonObject) {
       money_units: moneyUnits,
       ...(nativeUnit ? {native_unit: nativeUnit} : {}),
     };
-  const saved = putPolicy(store, actor, id, data, expected);
-  return {id, revision: saved.revision, ...data, ...(saved.warnings.length ? {warnings: saved.warnings} : {})};
+  const saved = putPolicy(store, actor, id, data, expected),
+    // Caps in account currency saved without one (P5): the owner is told at once that they refuse money changes.
+    warnings = [...currencyWarnings(id, data), ...saved.warnings];
+  return {id, revision: saved.revision, ...data, ...(warnings.length ? {warnings} : {})};
 }
 /**
  * The account's currency as its last live read recorded it (amcp_workspace check live:true), through any of this
@@ -386,21 +397,31 @@ export function observedAccountCurrency(
 function accountCurrency(store: Store, tenant: string, plan: CompiledRequest, before: unknown): string | undefined {
   return stateCurrency(before) ?? observedAccountCurrency(store, tenant, plan.gateway, String(plan.accountId ?? ''));
 }
-/** Caps stated in account currency with no currency recorded: they are compared as before, and the owner is told. */
+/** The caps of `limits` stated in account currency while no currency is recorded for them (WRT-07 Stage C). */
+const unboundCurrencyCaps = (limits: JsonObject | undefined): string[] =>
+  limits && limits.currency == null ? Object.keys(limits).filter(k => currencyMoneyKeys[k]) : [];
+/**
+ * Caps stated in account currency with no currency recorded (saved before policies recorded one, or while the
+ * account's currency was unknown). AMCP cannot tell which currency they were meant in, so every account they govern
+ * may spend in another currency: under owner decision P5 (2026-10-11) they refuse every change of a budget or bid until
+ * the owner saves them again with their currency (POLICY_CURRENCY_UNSET in checkAccountSpendPolicy), and the owner is
+ * told here. AMCP_LEGACY_CURRENCY_CAPS=warn is the rollback: they are compared as before, with the warning.
+ */
+export const legacyCurrencyCapsBlock = () => process.env.AMCP_LEGACY_CURRENCY_CAPS !== 'warn';
 function currencyWarnings(id: string, policy: JsonObject): JsonObject[] {
-  const unset = (limits: JsonObject | undefined) =>
-    !!limits && limits.currency == null && Object.keys(limits).some(k => currencyMoneyKeys[k]);
   const gateways = Object.entries((policy.per_gateway ?? {}) as JsonObject)
-    .filter(([, limits]) => unset(limits as JsonObject))
+    .filter(([, limits]) => unboundCurrencyCaps(limits as JsonObject).length)
     .map(([g]) => g);
-  if (!unset(policy) && !gateways.length) return [];
+  if (!unboundCurrencyCaps(policy).length && !gateways.length) return [];
   return [
     {
       code: 'POLICY_CURRENCY_UNSET',
       policy_id: id,
       ...(gateways.length ? {gateways} : {}),
-      message:
-        'These caps are stated in account currency without naming it, so an account spending in another currency is compared with the same number. Save them again with their currency (for example currency: "USD"), or read the account live first so AMCP records it.',
+      blocks: legacyCurrencyCapsBlock(),
+      message: legacyCurrencyCapsBlock()
+        ? 'These caps are stated in account currency without naming it, so AMCP cannot tell which currency they mean, and every budget or bid change on an account they govern is refused until they name it. Save them again with their currency (for example currency: "USD"), or read the account live first so AMCP records it.'
+        : 'These caps are stated in account currency without naming it, so an account spending in another currency is compared with the same number. Save them again with their currency (for example currency: "USD"), or read the account live first so AMCP records it.',
     },
   ];
 }
@@ -1047,6 +1068,34 @@ function checkAccountSpendPolicy(
     if (plan.gateway === googleGateway && (strict || policy.max_bid_native !== undefined))
       for (const field of namedMoney({body: plan.body, query: plan.query}, googleMoneyFields().unsupported))
         unsupported.push({field, message: unmappedMessage});
+    const bids =
+      policy.max_bid_native !== undefined
+        ? bidAmounts(
+            {body: plan.body, query: plan.query},
+            '',
+            '',
+            [],
+            0,
+            plan.gateway === googleGateway ? googleMoneyFields().bid : [],
+          )
+        : [];
+    // Owner decision P5 (2026-10-11): caps stated in account currency that name no currency (saved before policies
+    // recorded one) cannot be shown to be in the account's currency, so a request with money amounts is refused until
+    // the owner saves them again with it, under confirm and block alike, before any cap is compared or anything is
+    // reserved; no acknowledgement overrides it. AMCP_LEGACY_CURRENCY_CAPS=warn is the rollback (compared as before).
+    const unbound = unboundCurrencyCaps(policy);
+    if (unbound.length && legacyCurrencyCapsBlock() && (amounts.length || bids.length || unsupported.length))
+      throw new MirrorError(
+        'POLICY_CURRENCY_UNSET',
+        'The owner stated these spending caps in account currency without naming the currency, so AMCP cannot tell whether this account spends in it. Nothing was sent: budget and bid changes on this account are refused until the workspace owner saves the policy again with its currency.',
+        {
+          policy_id: id,
+          gateway: plan.gateway,
+          fields: unbound,
+          account_currency: accountCurrency(store, actor.tenantId, plan, before) ?? null,
+        },
+        409,
+      );
     const exact = (amount: Amount) => policyDecimal(amount.decimal ?? amount.amount);
     let increase = decimalZero;
     const restli = (plan.headers['X-RestLi-Method'] ?? '').toUpperCase();
@@ -1144,17 +1193,6 @@ function checkAccountSpendPolicy(
         );
       increase = addDecimal(increase, delta);
     }
-    const bids =
-      policy.max_bid_native !== undefined
-        ? bidAmounts(
-            {body: plan.body, query: plan.query},
-            '',
-            '',
-            [],
-            0,
-            plan.gateway === googleGateway ? googleMoneyFields().bid : [],
-          )
-        : [];
     // Caps bound to a currency (WRT-07 Stage C) compare only an account that spends in it. AMCP never converts
     // between currencies: another or an unknown account currency is a finding like an exceeded cap.
     if (typeof policy.currency === 'string' && (amounts.length || bids.length || unsupported.length)) {

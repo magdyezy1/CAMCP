@@ -5,7 +5,7 @@ import {currencyMinorDigits} from './budget-units.js';
 import {fingerprint} from './workspace-core.js';
 
 /**
- * Guided paused TikTok launch packs (CMP-07, implementer default pending P7): website traffic and website purchases on
+ * Guided paused TikTok launch packs (CMP-07, packs owner decision P7 names): website traffic and website purchases on
  * manual campaigns, compiled to the existing reviewed tiktok_entities creates (POST /v1.3/campaign/create/,
  * /v1.3/adgroup/create/ and /v1.3/ad/create/ of API for Business v1.3). The campaign is created DISABLE and its ad
  * group and ad ENABLE under it (paused-parents.ts), so enabling the campaign is the one activation, a separate reviewed

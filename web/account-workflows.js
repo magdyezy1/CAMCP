@@ -4174,8 +4174,9 @@ function catalogWebDestination(gateway) {
       unsent: metaCatalogUnsentFieldNames,
       blocked: ['existing_product_create_only', 'retire_absent'],
       productId: /^[1-9][0-9]{0,31}$/,
-      // A populated attribute the source does not send is a note on a product that otherwise matches (COM-01, P9).
-      destinationOnly: 'note',
+      // Owner decision P9: a populated attribute the source does not send makes an otherwise matching product unknown,
+      // so it enters the review set (src/catalog-destinations.ts); before P9 it was only a note.
+      destinationOnly: 'review',
       removal: false,
       retire: true,
       feedOnly: false,
@@ -4535,7 +4536,10 @@ function catalogComparisonMarkup(out, request, preview) {
         retire = retirable
           ? `<td>${eligible(item) ? `<label><input type="checkbox" id="catalog-retire-${index}"> ${esc(uiText('Retire {retailer_id}', {retailer_id: item.retailer_id}))}</label>` : esc(uiText('Unavailable'))}</td>`
           : '';
-      return `<tr><th scope="row"><strong>${esc(s.name)}</strong><br><code>${esc(item.retailer_id)}</code>${item.product_id ? `<br>${esc(uiText('Product ID'))}: <code class="catalog-product-id" dir="ltr">${esc(item.product_id)}</code>` : ''}</th><td>${esc(catalogComparisonState(item.state))}${item.blocked ? `<p class="form-note">${esc(reason(item.blocked_reason))}</p>` : ''}</td><td>${esc(uiText('Current'))}: ${current}<br>${esc(uiText('Proposed'))}: <bdi>${esc(s.price + ' ' + s.currency)}</bdi></td><td>${details ? `<ul>${details}</ul>` : esc(item.state === 'new' ? uiText('No current product was returned') : uiText('All supplied fields have matching evidence'))}${notes}</td>${removal}${retire}</tr>`;
+      // Owner decision P9: a product unknown only because the catalog holds values the source does not send says why.
+      const destinationOnlyReview =
+        d.destinationOnly === 'review' && item.state === 'unknown' && unsent.length > 0 && !details;
+      return `<tr><th scope="row"><strong>${esc(s.name)}</strong><br><code>${esc(item.retailer_id)}</code>${item.product_id ? `<br>${esc(uiText('Product ID'))}: <code class="catalog-product-id" dir="ltr">${esc(item.product_id)}</code>` : ''}</th><td>${esc(catalogComparisonState(item.state))}${item.blocked ? `<p class="form-note">${esc(reason(item.blocked_reason))}</p>` : ''}</td><td>${esc(uiText('Current'))}: ${current}<br>${esc(uiText('Proposed'))}: <bdi>${esc(s.price + ' ' + s.currency)}</bdi></td><td>${details ? `<ul>${details}</ul>` : esc(item.state === 'new' ? uiText('No current product was returned') : destinationOnlyReview ? uiText('Every supplied field matches; it needs review because the catalog holds values this import does not send.') : uiText('All supplied fields have matching evidence'))}${notes}</td>${removal}${retire}</tr>`;
     })
     .join('');
   const headers = [

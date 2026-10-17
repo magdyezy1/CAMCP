@@ -276,7 +276,7 @@ export function executeRequirements(
       reason:
         'This review acknowledges a potentially disruptive creative edit; repeat creative_edit_confirmed=true at execute.',
     });
-  // WRT-09 (P5, open): the owner's opt-in tier for deletions on this account.
+  // WRT-09 (P5): the owner's opt-in tier for deletions on this account.
   if (destructiveTier)
     reasons.push({
       flag: 'destructive_confirmed',
@@ -872,7 +872,7 @@ export class WriteReviewService {
       const reviewId = randomUUID(),
         fingerprint = sha256(stable({tenant: actor.tenantId, user: actor.userId, connection: c.id, plan, ...override})),
         expiresAt = Date.now() + 300000;
-      // WRT-09 (P5, open): a deletion on an account whose owner turned the destructive_confirmed tier on.
+      // WRT-09 (P5's opt-in tier): a deletion on an account whose owner turned the destructive_confirmed tier on.
       const destructive = destructiveRequest(plan, state),
         destructiveTier =
           destructive &&
@@ -1010,19 +1010,11 @@ export class WriteReviewService {
     const review = this.store.document(actor.tenantId, 'write_review', input.review_id);
     // An upload of people is prepared by an operator and approved by the owner executing it (personal-data policy,
     // rule 3): the workspace owner may execute a personal-data review another member prepared. Likewise a review beyond
-    // a spending cap where the owner turned on cap_override_owner_only, under which only the owner executes it (WRT-09,
-    // opt-in pending the owner's P5 answer). No other review moves.
+    // a spending cap, which only the owner executes (WRT-09, owner decision P5). No other review moves.
     if (
       review.user_id !== actor.userId &&
       !(
-        (review.plan?.personalData ||
-          (review.required_acknowledgements?.includes?.('cap_override_confirmed') &&
-            reviewApprovalPolicy(
-              this.store,
-              actor.tenantId,
-              String(review.plan?.gateway ?? ''),
-              String(review.plan?.accountId ?? ''),
-            ).cap_override_owner_only)) &&
+        (review.plan?.personalData || review.required_acknowledgements?.includes?.('cap_override_confirmed')) &&
         workspaceOwner(this.store, actor)
       )
     )
@@ -1104,8 +1096,8 @@ export class WriteReviewService {
         'Nothing was submitted. Prepare the same request again and review it.',
         expiredNext(review),
       );
-    // WRT-09 (opt-in; P1 and P5 are open): the destructive tier's acknowledgement and, under an approval mode, a
-    // person's website approval of this exact review. Checked after expiry (an expired review is prepared again, not
+    // WRT-09 (owner decisions P1 and P5; both settings opt-in): the destructive tier's acknowledgement and, under an
+    // approval mode, a person's website approval of this exact review. Checked after expiry (an expired review is prepared again, not
     // approved) and before anything is claimed or sent; the review stays valid.
     const approved = assertExecutionApproval(this.store, actor, review, input.review_id, input);
     if (approved)
@@ -1290,9 +1282,9 @@ export class WriteReviewService {
         state: current,
         submittedAt,
       };
-    // WRT-09 (P5, the owner's opt-in cap_override_owner_only): beyond a cap under `confirm`, only the workspace owner
-    // executes, or the owner approved this exact review on the website. Checked with the caps exceeded now; nothing is
-    // reserved, claimed or sent. Without the opt-in the acknowledgement suffices, as before.
+    // WRT-09 (owner decision P5, always on): beyond a cap under `confirm`, only the workspace owner executes, or the owner
+    // approved this exact review on the website. Checked with the caps exceeded now; nothing is reserved, claimed or
+    // sent. The acknowledgement is still needed as well.
     if (input.cap_override_confirmed === true)
       assertCapOverrideOwner(
         this.store,

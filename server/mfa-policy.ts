@@ -69,8 +69,11 @@ export function securitySettings(store: Store, tenant: string): JsonObject {
     ...(data.updated_at ? {updated_at: data.updated_at, updated_by: data.updated_by} : {}),
   };
 }
-/** Invitations last 72 hours unless the owner sets 1 hour to 7 days (SEC-06 S4). */
-export const defaultInvitationHours = 72;
+/**
+ * Invitations last 7 days (owner decision P2 of 2026-10-11) unless the workspace owner sets a shorter lifetime of 1 to
+ * 168 hours (SEC-06 S4). Before P2 the default was 72 hours.
+ */
+export const defaultInvitationHours = 168;
 const covers = (scope: unknown, role: unknown) =>
   scope === 'everyone' || (scope === 'admins' && (role === 'owner' || role === 'admin'));
 /**

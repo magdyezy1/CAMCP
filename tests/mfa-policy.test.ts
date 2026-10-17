@@ -411,7 +411,9 @@ test('SEC-06 S3: `admin mfa-reset <email>` turns two-step verification off and e
   }
 });
 
-test('SEC-06 S4: invitations last the owner-set lifetime (72 hours by default) and a withdrawn invitation is refused', async () => {
+test('SEC-06 S4: invitations last the owner-set lifetime (7 days by default, owner decision P2) and a withdrawn invitation is refused', async () => {
+  // Owner decision P2 (2026-10-11) set the invitation lifetime to 7 days; the default before it was 72 hours, so an
+  // invitation sent on a Friday expired before the invitee's Tuesday (regression: 72-hour default).
   const f = fixture({AMCP_REQUIRE_MFA: 'off'});
   try {
     const owner = f.accounts.newUser('Owner', 'owner@example.test', await hashUserPassword(passphrase), true),
@@ -429,8 +431,14 @@ test('SEC-06 S4: invitations last the owner-set lifetime (72 hours by default) a
       const doc = f.store.document(String(owner.tenant_id), 'workspace_invite', id);
       return Number(doc.expires_at) - Number(doc.created_at);
     };
-    assert.equal(lifetime(String(first.id)), 72 * 3600000);
-    assert.ok(Math.abs(Number(first.expires_at) - (Date.now() + 72 * 3600000)) < 60000);
+    assert.equal(lifetime(String(first.id)), 7 * day);
+    assert.ok(Math.abs(Number(first.expires_at) - (Date.now() + 7 * day)) < 60000);
+    // The link itself lasts the same 7 days, and the members list states the default.
+    const firstLink = f.store.db
+      .prepare("SELECT expires_at FROM amcp_account_challenges WHERE hash=? AND kind='invite'")
+      .get(sha(tokens[0]!)) as JsonObject;
+    assert.ok(Math.abs(Number(firstLink.expires_at) - Number(first.expires_at)) < 1000);
+    assert.equal(f.security.members(f.req(s)).security.invitation_hours, 168);
     // The owner shortens it to 2 hours; the link itself expires then too.
     assert.throws(() => f.security.saveSecurityPolicy(f.req(s), {require_mfa: 'off', invitation_hours: 169}), {
       code: 'INVALID_ARGUMENT',
@@ -480,4 +488,70 @@ test('SEC-06 S4: invitations last the owner-set lifetime (72 hours by default) a
   } finally {
     f.store.close();
   }
+});
+
+test('SEC-06 S4 (owner decision P2): a default invitation is accepted six days after it was sent; one past its seven days is refused', async () => {
+  // Regression: under the earlier 72-hour default an invitation six days old was already refused with LINK_EXPIRED.
+  const f = fixture({AMCP_REQUIRE_MFA: 'off'});
+  try {
+    const owner = f.accounts.newUser('Owner', 'owner@example.test', await hashUserPassword(passphrase), true),
+      s = f.accounts.session(owner),
+      tenant = String(owner.tenant_id);
+    /** Sends an invitation, then moves it and its link `age` into the past, as if it had been sent then. */
+    const sentAgo = async (email: string, age: number) => {
+      const result = await f.security.invite(f.req(s), {email, role: 'viewer'});
+      await flush(f);
+      const token = /token=([\w-]{43})/.exec(String(f.emails.findLast(e => e.to?.includes?.(email))?.text))![1]!;
+      f.store.db
+        .prepare("UPDATE amcp_account_challenges SET expires_at=expires_at-? WHERE hash=? AND kind='invite'")
+        .run(age, sha(token));
+      const doc = f.store.document(tenant, 'workspace_invite', String(result.id));
+      const {id: _id, revision: _revision, ...data} = doc;
+      f.store.putDocument(tenant, 'workspace_invite', String(result.id), {
+        ...data,
+        created_at: Number(doc.created_at) - age,
+        expires_at: Number(doc.expires_at) - age,
+      });
+      return token;
+    };
+    const late = await sentAgo('late@example.test', 6 * day);
+    const accepted = await f.security.accept(f.req(), {token: late, name: 'Late', password: passphrase});
+    assert.equal(accepted.workspaceId, tenant);
+    assert.ok(
+      f.store.db
+        .prepare(
+          'SELECT 1 FROM workspace_memberships m JOIN amcp_users u ON u.id=m.user_id WHERE u.email=? AND m.active=1',
+        )
+        .get('late@example.test'),
+      'the six-day-old invitation made a membership',
+    );
+    const expired = await sentAgo('expired@example.test', 7 * day + 60000);
+    await assert.rejects(f.security.accept(f.req(), {token: expired, name: 'Expired', password: passphrase}), {
+      code: 'LINK_EXPIRED',
+    });
+    assert.equal(
+      f.store.db.prepare('SELECT 1 FROM amcp_users WHERE email=?').get('expired@example.test'),
+      undefined,
+      'an expired invitation creates no account',
+    );
+  } finally {
+    f.store.close();
+  }
+});
+
+test('SEC-06 S4: the members list states the invitation lifetime in days when it is whole days, otherwise in hours', () => {
+  // The website's own wording of the lifetime (web/account-security.js): the 7-day default reads "7 days", not
+  // "168 hours"; an owner's shorter lifetime in hours is stated as set.
+  const source = fs.readFileSync('web/account-security.js', 'utf8'),
+    start = source.indexOf('function invitationLifetimeNote'),
+    end = source.indexOf('\nrenderAuthPage = ', start);
+  assert.ok(start >= 0 && end > start, 'web/account-security.js defines invitationLifetimeNote');
+  const note = new Function('uiText', source.slice(start, end) + '\nreturn invitationLifetimeNote;')(
+    (text: string, values: Record<string, unknown> = {}) =>
+      text.replace(/\{(\w+)\}/g, (_: string, k: string) => String(values[k])),
+  ) as (hours: number) => string;
+  assert.match(note(168), /^Invitations expire after 7 days\./);
+  assert.match(note(48), /^Invitations expire after 2 days\./);
+  assert.match(note(2), /^Invitations expire after 2 hours\./);
+  assert.match(note(30), /^Invitations expire after 30 hours\./);
 });

@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import {Store} from '../dist/src/store.js';
 import {saveSpendPolicy, checkSpendPolicy, exceededCaps, describeExceeded} from '../dist/src/spend-policy.js';
 import {campaignRecipe} from '../dist/src/campaign-recipes.js';
+import {rememberAccountMetadata} from '../dist/src/account-metadata.js';
 import {
   classifyGoogleBidFields,
   googleBidFieldsArtifact,
@@ -21,9 +22,36 @@ const key = Buffer.alloc(32, 91).toString('base64'),
   google = 'google_ads_native_action',
   meta = 'meta_native_action',
   reddit = 'reddit_native_action';
+/**
+ * A workspace default with these per-platform limits. Caps stated in account currency name it (USD), and each
+ * platform's account 123 is known to spend in USD from a live check: owner decision P5 refuses every money change under
+ * a currency cap that names no currency (tests/currency-money-checks.test.mjs), and these tests are about which amounts
+ * the caps compare.
+ */
 const workspace = (perGateway, shared = {}) => {
-  const s = new Store(':memory:', key);
-  saveSpendPolicy(s, actor, {scope: 'workspace', confirmed: true, policy: {...shared, per_gateway: perGateway}});
+  const s = new Store(':memory:', key),
+    limits = {};
+  for (const [gateway, entry] of Object.entries(perGateway)) {
+    const inCurrency = Object.keys(entry).some(k => k.endsWith('_currency'));
+    limits[gateway] = inCurrency && entry.currency === undefined ? {...entry, currency: 'USD'} : entry;
+    if (!inCurrency) continue;
+    s.putConnection(
+      actor,
+      {
+        id: gateway,
+        tenantId: actor.tenantId,
+        gateway,
+        accounts: ['123'],
+        writeAccounts: ['123'],
+        enabled: true,
+        label: gateway,
+        scopes: [],
+      },
+      {accessToken: 'synthetic'},
+    );
+    rememberAccountMetadata(s, actor.tenantId, gateway, '123', {name: 'Synthetic', currency: 'USD', timezone: 'UTC'});
+  }
+  saveSpendPolicy(s, actor, {scope: 'workspace', confirmed: true, policy: {...shared, per_gateway: limits}});
   return s;
 };
 const plan = (gateway, path, body, extra = {}) => ({

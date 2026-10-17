@@ -1446,7 +1446,7 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
       res.json(publicConnection(tenant, connection(tenant, c.id)));
     }),
   );
-  // WRT-09 (opt-in; P1 and P5 are open): a signed-in person approves one exact reviewed change on the website,
+  // WRT-09 (owner decisions P1 and P5): a signed-in person approves one exact reviewed change on the website,
   // outside any AI client. Only these routes mint an approval: a session with CSRF and recent sign-in, never an MCP
   // tool.
   router.get(

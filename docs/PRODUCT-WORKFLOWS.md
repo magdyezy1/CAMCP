@@ -371,8 +371,8 @@ campaign as its own reviewed change.
 
 ### TikTok website traffic and purchases with an existing post
 
-Choose `tiktok_website_traffic` or `tiktok_website_conversions` in Campaigns or MCP (CMP-07; implementer defaults
-until the owner answers P7, see the [demand record](DECISIONS.md#campaign-pack-demand-record-cmp-07-p7-prv-06)). The
+Choose `tiktok_website_traffic` or `tiktok_website_conversions` in Campaigns or MCP (CMP-07; packs owner decision P7
+of 2026-10-11 names, see the [demand record](DECISIONS.md#campaign-pack-demand-record-cmp-07-p7-prv-06)). The
 brief names the exact advertiser and login, account currency, a daily budget with at most two decimal places, 1–20
 TikTok location IDs, an existing TikTok post with the `TT_USER` or `BC_AUTH_TT` identity that owns it, an HTTPS
 landing page, a call to action and an offset start time; the purchases pack adds the pixel and one purchase event. It
@@ -384,8 +384,8 @@ preview shows the UTC times TikTok receives, in English and Arabic.
 
 ### LinkedIn lead generation with an existing post and form
 
-Choose `linkedin_lead_generation` in Campaigns or MCP (CMP-07 optional stretch, built before the owner named it in P7;
-the owner may remove it, see the [demand record](DECISIONS.md#campaign-pack-demand-record-cmp-07-p7-prv-06)). The brief
+Choose `linkedin_lead_generation` in Campaigns or MCP (CMP-07 optional stretch, built before owner decision P7 of
+2026-10-11 named it, see the [demand record](DECISIONS.md#campaign-pack-demand-record-cmp-07-p7-prv-06)). The brief
 names the exact ad account and login, account currency, a daily budget in the account currency, 1–50 LinkedIn location
 URNs (`urn:li:geo:…`), the campaign locale (`en_US`), an existing post to sponsor (`urn:li:share:…` or
 `urn:li:ugcPost:…`), the numeric ID of one of the account's lead forms, a lead form call to action, an explicit
@@ -1603,11 +1603,13 @@ CSV, choose create-only or explicit upsert, then validate the source. The previe
 exact decimal source prices and native hundredths. Compare current catalog products starts a bounded read of
 only the supplied retailer IDs. New, changed, matching and unknown states stay separate; create-only blocks every
 existing ID. Matching means only submitted fields have matching evidence. Unknown fields need native review.
-For Meta, as for X, each row also notes the native attributes the product holds a value for although the source does
+For Meta, as for X, each row also names the native attributes the product holds a value for although the source does
 not send them (`unsent_fields`: for example a sale price, staging visibility or zero inventory), because neither
 provider says whether an update keeps or clears them; the summary counts such products
-(`with_destination_only_values`). The note changes no state, and the native review of an upsert repeats it as a
-warning.
+(`with_destination_only_values`). On Meta such a product is never shown as matching: when every supplied field
+matches, it is unknown, says that the catalog holds values this import does not send, and is among the products
+needing review (owner decision P9 of 2026-10-11; before P9 it stayed matching). On X the note changes no state. The
+native review of an upsert repeats it as a warning.
 
 Save only products needing review excludes matching/blocked rows and preserves each selected original source
 product. Save all supplied products keeps the whole import; after a comparison it says how many already match. In an

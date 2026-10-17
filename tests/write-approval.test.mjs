@@ -21,10 +21,10 @@ import {
 } from '../dist/tests/snapchat-plan-fixture.js';
 
 /**
- * WRT-09 (owner questions P1 and P5, open): an owner-selectable human approval mode for spending, cap-override and
- * deletion executions (default off), the opt-in destructive_confirmed tier, and the opt-in owner-only execution beyond a
- * cap (cap_override_owner_only). The approval is minted only on the website, bound to the review's fingerprint and
- * approver; synthetic providers only.
+ * WRT-09 (owner decisions P1 and P5 of 2026-10-11): an owner-selectable human approval mode for spending, cap-override
+ * and deletion executions (default off), the opt-in destructive_confirmed tier, and owner-only execution beyond a cap,
+ * which P5 made the rule (it was the opt-in cap_override_owner_only). The approval is minted only on the website, bound
+ * to the review's fingerprint and approver; synthetic providers only.
  */
 const TIKTOK = '13131313-1313-4131-8131-131313131313',
   gateway = 'tiktok_native_action',
@@ -277,47 +277,78 @@ test('WRT-09 distinct_approver: a review prepared through a door or a key approv
   }
 });
 
-test('P5 default: without cap_override_owner_only an operator executes beyond a cap on the acknowledgement, as before WRT-09', async () => {
-  // Regression (wave 3a review): WRT-09 had made owner-only execution beyond a cap always on, which no owner decision
-  // backs (P5 is open); it is an opt-in setting now, and the owner may not run a member's review without it.
+test('P5 (owner decision of 2026-10-11): with no setting at all, an operator cannot execute beyond a cap on the acknowledgement; the owner executes it', async () => {
+  // Regression: before P5 owner-only execution beyond a cap was an opt-in (cap_override_owner_only, off by default), so
+  // an operator's AI client exceeded an owner cap by sending cap_override_confirmed=true. P5 makes it the rule.
   const f = tiktok();
   try {
     f.accountPolicy({max_budget_native: 950});
     const r = await f.prepare(1200);
     assert.equal(r.data.execute_requirements.cap_override_confirmed, true);
-    assert.equal(r.data.approval, undefined, 'no owner approval is named');
+    assert.equal(r.data.approval.owner_required, 'cap_override', 'prepare names the owner');
+    assert.equal(r.data.approval.website_path, '/operations?approve=' + r.data.review_id);
     const status = await f.service.call('amcp_write', {action: 'status', review_id: r.data.review_id}, operator);
-    assert.equal(status.data.approval, undefined);
-    assert.equal(approvalView(f.store, owner, r.data.review_id).refusal.code, 'APPROVAL_NOT_REQUIRED');
-    // The owner does not take over a member's review beyond a cap unless the opt-in makes it the owner's to run.
-    assertRefused(await f.execute(r.data.review_id, {cap_override_confirmed: true}, owner), 'FORBIDDEN', {
-      message: /belongs to a different actor/,
+    assert.equal(status.data.approval.owner_required, 'cap_override');
+    assert.equal(status.data.approval.approved, false);
+    assertRefused(await f.execute(r.data.review_id, {cap_override_confirmed: true}), 'CAP_OVERRIDE_OWNER_REQUIRED', {
       writes: () => f.writes.length,
     });
-    const done = await f.execute(r.data.review_id, {cap_override_confirmed: true});
+    assert.equal(
+      f.audit().some(e => e.event === 'spend_cap_exceeded_with_confirmation'),
+      false,
+      'nothing was reserved or audited as an override',
+    );
+    // The owner executes the member's review beyond the cap directly.
+    const done = await f.execute(r.data.review_id, {cap_override_confirmed: true}, owner);
     assert.equal(done.success, true, JSON.stringify(done.error));
     assert.equal(f.writes.length, 1);
     assert.ok(f.audit().some(e => e.event === 'spend_cap_exceeded_with_confirmation'));
-    // The workspace default's opt-in applies to an account whose own policy does not set it (stricter of the two).
-    f.workspacePolicy({cap_override_owner_only: true});
-    const after = await f.prepare(1300);
-    assert.equal(after.data.approval.owner_required, 'cap_override');
-    assertRefused(await f.execute(after.data.review_id, {cap_override_confirmed: true}), 'CAP_OVERRIDE_OWNER_REQUIRED');
-    assert.equal(f.writes.length, 1);
-    assert.throws(
-      () => f.accountPolicy({cap_override_owner_only: 'yes'}),
-      e => e.code === 'INVALID_POLICY',
-    );
+    // A review within every cap still runs on the operator's acknowledgements alone.
+    f.accountPolicy({max_budget_native: 5000});
+    const within = await f.prepare(1300);
+    assert.equal(within.data.approval, undefined);
+    assert.equal((await f.execute(within.data.review_id)).success, true);
+    assert.equal(f.writes.length, 2);
   } finally {
     f.store.close();
   }
 });
 
-test('P5 opt-in: under cap_override_owner_only only the workspace owner executes beyond a cap under confirm, or approves it on the website first', async () => {
-  // Without the opt-in any operator exceeds an owner cap by sending cap_override_confirmed=true (the default, above).
+test('P5: cap_override_owner_only is no setting: false cannot turn the owner rule off, true restates it and is not stored', async () => {
   const f = tiktok();
   try {
-    f.accountPolicy({max_budget_native: 950, cap_override_owner_only: true});
+    for (const save of [f.accountPolicy, f.workspacePolicy])
+      assert.throws(
+        () => save({max_budget_native: 950, cap_override_owner_only: false}),
+        e =>
+          e.code === 'INVALID_POLICY' &&
+          e.details.field === 'cap_override_owner_only' &&
+          /no policy turns that off/.test(e.message),
+      );
+    assert.throws(
+      () => f.accountPolicy({cap_override_owner_only: 'yes'}),
+      e => e.code === 'INVALID_POLICY',
+    );
+    const saved = f.accountPolicy({max_budget_native: 950, cap_override_owner_only: true});
+    assert.equal(Object.hasOwn(saved, 'cap_override_owner_only'), false);
+    // A policy stored with the former opt-in turned off (before P5) does not weaken the rule either.
+    const {id: _id, revision: _revision, ...stored} = f.store.document(tenant, 'spend_policy', saved.id);
+    f.store.putDocument(tenant, 'spend_policy', saved.id, {...stored, cap_override_owner_only: false});
+    const r = await f.prepare(1200);
+    assert.equal(r.data.approval.owner_required, 'cap_override');
+    assertRefused(await f.execute(r.data.review_id, {cap_override_confirmed: true}), 'CAP_OVERRIDE_OWNER_REQUIRED', {
+      writes: () => f.writes.length,
+    });
+  } finally {
+    f.store.close();
+  }
+});
+
+test('P5: only the workspace owner executes beyond a cap under confirm, or approves it on the website first', async () => {
+  // Before P5 any operator exceeded an owner cap by sending cap_override_confirmed=true unless the owner opted in.
+  const f = tiktok();
+  try {
+    f.accountPolicy({max_budget_native: 950});
     const r = await f.prepare(1200);
     assert.equal(r.data.execute_requirements.cap_override_confirmed, true);
     assert.equal(r.data.approval.owner_required, 'cap_override');
@@ -348,15 +379,15 @@ test('P5 opt-in: under cap_override_owner_only only the workspace owner executes
   }
 });
 
-test('P5 opt-in: a cap crossed only after prepare is refused for anyone but the owner, and the change is prepared again', async () => {
+test('P5: a cap crossed only after prepare is refused for anyone but the owner, and the change is prepared again', async () => {
   // The review did not name the cap, so the approval page has nothing for the owner to approve: the refusal says to
   // prepare again instead of pointing at an approval that cannot be given.
   const f = tiktok();
   try {
-    f.accountPolicy({max_budget_native: 5000, cap_override_owner_only: true});
+    f.accountPolicy({max_budget_native: 5000});
     const r = await f.prepare(1100);
     assert.equal(r.data.approval, undefined);
-    f.accountPolicy({max_budget_native: 1050, cap_override_owner_only: true});
+    f.accountPolicy({max_budget_native: 1050});
     const refused = await f.execute(r.data.review_id, {cap_override_confirmed: true});
     assert.equal(refused.error.code, 'CAP_OVERRIDE_OWNER_REQUIRED', JSON.stringify(refused.error));
     assert.equal(refused.error.details.prepare_again, true);
@@ -659,7 +690,7 @@ test('WRT-09: an expired review is refused as expired, not sent to a person for 
 test('WRT-09: a review is approved once; only the owner replaces a member approval where a cap needs the owner', async () => {
   const f = tiktok();
   try {
-    f.accountPolicy({max_budget_native: 950, approval_mode: 'website_approval', cap_override_owner_only: true});
+    f.accountPolicy({max_budget_native: 950, approval_mode: 'website_approval'});
     const r = await f.prepare(1200);
     assert.deepEqual(r.data.approval.classes, ['spend_affecting', 'cap_override']);
     assert.equal(r.data.approval.owner_required, 'cap_override');

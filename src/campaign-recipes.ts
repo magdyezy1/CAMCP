@@ -124,8 +124,8 @@ export const campaignRecipes = [
           ? 'Paused Search campaign, budget, exact keywords, location/language criteria and a responsive search ad. Search network only.'
           : 'Paused Search campaign using Maximize Clicks with an explicit campaign CPC ceiling, dedicated budget, exact keywords and location/language targeting. Optimizes clicks, not conversions. Activation is separate.',
   })),
-  // CMP-07 (an implementer default pending owner decision P7): Performance Max as one reviewed all-or-nothing build
-  // with its minimum assets.
+  // CMP-07 (a pack owner decision P7 of 2026-10-11 names): Performance Max as one reviewed all-or-nothing build with
+  // its minimum assets.
   googlePmaxRecipe,
   {
     id: 'microsoft_search',
@@ -152,8 +152,8 @@ export const campaignRecipes = [
   },
   snapchatTrafficRecipe,
   snapchatLeadRecipe,
-  // CMP-07 (an implementer default pending owner decision P7): guided paused TikTok packs over the reviewed
-  // tiktok_entities creates.
+  // CMP-07 (packs owner decision P7 of 2026-10-11 names): guided paused TikTok packs over the reviewed tiktok_entities
+  // creates.
   tiktokTrafficRecipe,
   tiktokConversionRecipe,
   // CMP-07 optional stretch, built before owner decision P7 named it (the owner may remove it): LinkedIn lead

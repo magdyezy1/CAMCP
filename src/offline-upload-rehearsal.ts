@@ -9,8 +9,9 @@ import type {CompiledRequest, JsonObject} from './types.js';
  * Offline-upload rehearsal as a local dry run (MSR-03 slice E). When `amcp_write inspect` checks an offline conversion
  * upload, the people are hashed in memory once more with the provider's time limits applied, the exact execution body
  * is built, and so is the provider's documented no-execution form of it. Neither is sent: a provider rehearsal still
- * transmits hashed personal data, so it waits for the owner's rehearsal policy (decision P4), designated test resources
- * and write-class authorization. The result is recorded as a rehearsal, creates no review and can never be executed.
+ * transmits hashed personal data, so under owner decision P4 (2026-10-11) it is reviewed like an execution, and sending
+ * one waits for a reviewed rehearsal path, designated test resources and write-class authorization. The result is
+ * recorded as a rehearsal, creates no review and can never be executed.
  *
  * Which provider "test" paths are rehearsals, and which are production writes:
  * - Google Data Manager events:ingest documents validateOnly: "the request is validated but not executed".

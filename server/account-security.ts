@@ -670,7 +670,7 @@ export class AccountSecurity {
       .prepare('SELECT count(*) AS n FROM workspace_memberships WHERE tenant_id=? AND active=1')
       .get(s.actor.tenantId) as JsonObject;
     if (members.n >= 100) throw new MirrorError('WORKSPACE_QUOTA', 'This workspace has reached its 100-member limit.');
-    // The owner sets how long invitations last: 72 hours by default, 1 hour to 7 days (SEC-06 S4).
+    // How long invitations last: 7 days by default (owner decision P2), or the 1 to 168 hours the owner set (SEC-06 S4).
     const lifetime = Number(securitySettings(this.web.store, s.actor.tenantId).invitation_hours) * 3600000,
       id = randomUUID(),
       createdAt = Date.now(),

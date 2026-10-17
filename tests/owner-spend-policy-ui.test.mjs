@@ -140,7 +140,12 @@ test('the replace probe: changing only the maximum bid stores every other field 
     assert.deepEqual(page.call('policyWeakenings', stored, policy), [], 'a lower bid cap is not a weakening');
     const saved = s.save(policy, {expected_revision: stored.revision});
     assert.equal(saved.revision, 2);
-    assert.equal(saved.warnings, undefined);
+    // The caps name no currency and the account's is unknown here, so the save says they refuse money changes (owner
+    // decision P5); the revision was checked, so nothing else is warned.
+    assert.deepEqual(
+      saved.warnings.map(w => w.code),
+      ['POLICY_CURRENCY_UNSET'],
+    );
     const after = s.store.document(owner.tenantId, 'spend_policy', stored.id);
     assert.deepEqual(editable(after), {...editable(stored), max_bid_currency: 3, max_bid_native: 3000000});
     // The same edit sent with the revision the page showed is refused once another save came first.
@@ -344,6 +349,54 @@ test('the confirmation lists what a save changes, and a stale save reaches the p
   assert.equal(nodes['action-dialog'].attributes['aria-describedby'], 'action-copy');
   const error = await new Script("ownerCall({action: 'save_spend_policy'}).catch(e => e)").runInContext(context);
   assert.equal(error.code, 'REVISION_CONFLICT');
+});
+
+test('P5: the workspace default form states the owner rule beyond a cap, has no switch for it, and never sends the former opt-in', () => {
+  // Regression: the form offered "Only the workspace owner executes a change beyond a spending cap" as a checkbox that
+  // was off by default; owner decision P5 (2026-10-11) makes it the rule, which the server refuses to turn off.
+  for (const locale of ['en', 'ar']) {
+    const page = vm(locale);
+    page.context.esc = String;
+    const html = page.call('approvalPolicyControls', {
+      approval_mode: 'website_approval',
+      cap_override_owner_only: false,
+    });
+    assert.doesNotMatch(html, /name="cap_override_owner_only"/);
+    assert.match(html, /id="owner-cap-rule"/);
+    if (locale === 'en')
+      assert.match(
+        html,
+        /Beyond a spending cap, only the workspace owner executes a change.*no setting turns it off\./,
+      );
+    else assert.doesNotMatch(html, /Beyond a spending cap|no setting turns it off/);
+  }
+  const page = vm(),
+    stored = {
+      id: 'workspace_default',
+      revision: 3,
+      scope: 'workspace',
+      enforcement: 'confirm',
+      approval_mode: 'website_approval',
+      cap_override_owner_only: true,
+    };
+  const sent = page.call('workspacePolicyInput', {enforcement: 'confirm', approval_mode: 'website_approval'}, stored);
+  assert.equal(Object.hasOwn(sent, 'cap_override_owner_only'), false);
+  assert.equal(sent.approval_mode, 'website_approval');
+  // An account policy save never resends it either, and dropping it is no weakening to confirm.
+  const account = {id: 'p', revision: 1, max_budget_native: 5, cap_override_owner_only: true};
+  const input = page.call('accountPolicyInput', {...page.call('accountPolicyValues', account)}, account);
+  assert.equal(Object.hasOwn(input, 'cap_override_owner_only'), false);
+  assert.deepEqual(page.call('policyWeakenings', account, input), []);
+  // The server refuses the former opt-in turned off, so a hand-made save cannot weaken the rule.
+  const s = server();
+  try {
+    assert.throws(
+      () => s.save({max_budget_native: 5, cap_override_owner_only: false}),
+      e => e.code === 'INVALID_POLICY' && e.details.field === 'cap_override_owner_only',
+    );
+  } finally {
+    s.store.close();
+  }
 });
 
 test('WRT-07: the form states the currency of the caps, prefilled from the live check, and names its removal', () => {

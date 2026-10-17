@@ -24,6 +24,21 @@ const signInComplete = async () => {
   platforms = (await api('/api/platforms')).platforms;
   afterSignIn();
 };
+/**
+ * How long invitations last, as the members list states it (SEC-06 S4): in days when the lifetime is whole days, as the
+ * 7-day default of owner decision P2 is, otherwise in hours.
+ */
+function invitationLifetimeNote(hours) {
+  return Number.isInteger(hours) && hours > 0 && hours % 24 === 0
+    ? uiText(
+        'Invitations expire after {days} days. Withdraw one to cancel its link; send a new invitation if a link expires.',
+        {days: hours / 24},
+      )
+    : uiText(
+        'Invitations expire after {hours} hours. Withdraw one to cancel its link; send a new invitation if a link expires.',
+        {hours},
+      );
+}
 renderAuthPage = async function () {
   authOptions = await api('/api/account/options');
   const mode = location.pathname.slice(1),
@@ -235,7 +250,8 @@ renderAccountPage = async function () {
         sets
           .map(s => `<option value="${esc(s.id)}" ${s.id === selectedId ? 'selected' : ''}>${esc(s.name)}</option>`)
           .join(''),
-      security = team.security ?? {require_mfa: 'off', invitation_hours: 72},
+      // Invitations last 7 days unless the owner set a shorter lifetime (SEC-06, owner decision P2).
+      security = team.security ?? {require_mfa: 'off', invitation_hours: 168},
       baseline = team.baseline ?? {require_mfa: 'off'},
       owner = account.workspaceRole === 'owner',
       // SEC-06: the AMCP owner resets a member's lost two-step verification; workspace owners set the policy.
@@ -258,7 +274,7 @@ renderAccountPage = async function () {
         : baselineNote;
     content.insertAdjacentHTML(
       'beforeend',
-      `<section class="panel"><span class="eyebrow">${esc(uiText('PEOPLE & ACCESS'))}</span><h2>${esc(uiText('Workspace members'))}</h2><div class="team-list">${team.members.map(m => `<div class="identity-row"><div><strong dir="auto" data-native>${esc(m.name)}</strong><small>${esc(m.email ?? uiText('Social account'))}${m.mfa ? ' · ' + esc(uiText('Two-step on')) : ''}${m.access_set_id ? ' · ' + esc(uiText('Limited to {client}', {client: setName(m.access_set_id)})) : ''}</small></div>${owner && m.role !== 'owner' ? `<select aria-label="${esc(uiText('Role for {name}', {name: m.name}))}" data-member-role="${esc(m.id)}"><option value="viewer" ${m.role === 'viewer' ? 'selected' : ''}>${esc(uiText('Viewer'))}</option><option value="operator" ${m.role === 'operator' ? 'selected' : ''}>${esc(uiText('Operator'))}</option><option value="admin" ${m.role === 'admin' ? 'selected' : ''}>${esc(uiText('Admin'))}</option></select>${sets.length ? `<select aria-label="${esc(uiText('Client limit for {name}', {name: m.name}))}" data-member-set="${esc(m.id)}">${setOptions(m.access_set_id, uiText('No client limit'))}</select>` : ''}<button class="button small" data-member-save="${esc(m.id)}">${esc(uiText('Save role'))}</button>${resetButton(m)}<button class="button small danger" data-member-remove="${esc(m.id)}" data-member-name="${esc(m.name)}">${esc(uiText('Remove'))}</button>` : `<span class="status">${esc(uiRole(m.role))}</span>${resetButton(m)}`}</div>`).join('')}</div>${invitations ? `<h3>${esc(uiText('Pending invitations'))}</h3><div class="team-list" id="pending-invitations">${invitations}</div>` : ''}<form id="invite-member" class="workspace-form">${formField(uiText('Email address'), 'email', 'email', 'maxlength="254"')}<label>${esc(uiText('Role'))}<select name="role"><option value="viewer">${esc(uiText('Viewer · reports and reads'))}</option><option value="operator">${esc(uiText('Operator · reviewed campaign changes'))}</option>${owner ? `<option value="admin">${esc(uiText('Admin · connections and invitations'))}</option>` : ''}</select></label>${sets.length ? `<label>${esc(uiText('Limit to client'))}<select name="access_set_id">${setOptions(null, uiText('No client limit'))}</select></label>` : ''}<button class="button primary" ${options.emailEnabled ? '' : 'disabled'}>${esc(uiText('Send invitation'))}</button></form><p class="form-note">${esc(uiText('Invitations expire after {hours} hours. Withdraw one to cancel its link; send a new invitation if a link expires.', {hours: security.invitation_hours}))}</p>${policyForm}</section>`,
+      `<section class="panel"><span class="eyebrow">${esc(uiText('PEOPLE & ACCESS'))}</span><h2>${esc(uiText('Workspace members'))}</h2><div class="team-list">${team.members.map(m => `<div class="identity-row"><div><strong dir="auto" data-native>${esc(m.name)}</strong><small>${esc(m.email ?? uiText('Social account'))}${m.mfa ? ' · ' + esc(uiText('Two-step on')) : ''}${m.access_set_id ? ' · ' + esc(uiText('Limited to {client}', {client: setName(m.access_set_id)})) : ''}</small></div>${owner && m.role !== 'owner' ? `<select aria-label="${esc(uiText('Role for {name}', {name: m.name}))}" data-member-role="${esc(m.id)}"><option value="viewer" ${m.role === 'viewer' ? 'selected' : ''}>${esc(uiText('Viewer'))}</option><option value="operator" ${m.role === 'operator' ? 'selected' : ''}>${esc(uiText('Operator'))}</option><option value="admin" ${m.role === 'admin' ? 'selected' : ''}>${esc(uiText('Admin'))}</option></select>${sets.length ? `<select aria-label="${esc(uiText('Client limit for {name}', {name: m.name}))}" data-member-set="${esc(m.id)}">${setOptions(m.access_set_id, uiText('No client limit'))}</select>` : ''}<button class="button small" data-member-save="${esc(m.id)}">${esc(uiText('Save role'))}</button>${resetButton(m)}<button class="button small danger" data-member-remove="${esc(m.id)}" data-member-name="${esc(m.name)}">${esc(uiText('Remove'))}</button>` : `<span class="status">${esc(uiRole(m.role))}</span>${resetButton(m)}`}</div>`).join('')}</div>${invitations ? `<h3>${esc(uiText('Pending invitations'))}</h3><div class="team-list" id="pending-invitations">${invitations}</div>` : ''}<form id="invite-member" class="workspace-form">${formField(uiText('Email address'), 'email', 'email', 'maxlength="254"')}<label>${esc(uiText('Role'))}<select name="role"><option value="viewer">${esc(uiText('Viewer · reports and reads'))}</option><option value="operator">${esc(uiText('Operator · reviewed campaign changes'))}</option>${owner ? `<option value="admin">${esc(uiText('Admin · connections and invitations'))}</option>` : ''}</select></label>${sets.length ? `<label>${esc(uiText('Limit to client'))}<select name="access_set_id">${setOptions(null, uiText('No client limit'))}</select></label>` : ''}<button class="button primary" ${options.emailEnabled ? '' : 'disabled'}>${esc(uiText('Send invitation'))}</button></form><p class="form-note">${esc(invitationLifetimeNote(security.invitation_hours))}</p>${policyForm}</section>`,
     );
     content.insertAdjacentHTML('beforeend', accessSetSection(sets));
     bindAccessSets(sets);

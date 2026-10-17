@@ -131,11 +131,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // and the refusal of an unrecognized Reddit account history.
   // WEB-09 adds server/workspace-search.ts (its query refusal); WEB-03 and WEB-05 add website copy.
   // ACC-05 adds src/acceptance-ledger.ts, src/discovery-programs.ts and src/provider-access.ts (no owned reasons) and the
-  // owner provider access panel's catalog entries.
+  // owner provider access panel's catalog entries. Owner decision P9 adds the Commerce reason a Meta product needs review.
   assert.equal(files.length, 569);
   assert.equal(selected.filter(row => row.messages.size).length, 234);
-  assert.equal(owned.size, 1578);
-  assert.equal(Object.keys(catalog).length, 11422);
+  assert.equal(owned.size, 1579);
+  assert.equal(Object.keys(catalog).length, 11427);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

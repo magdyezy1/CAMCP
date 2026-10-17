@@ -265,7 +265,8 @@ export function authorizeMetaCatalogProduct(p: CompiledRequest, c: Connection, s
 /**
  * The observed attributes a request does not send although the product holds a value for them today (COM-01): a
  * sale price, a staging visibility or zero inventory a source never mentions. Meta does not document whether an
- * upsert keeps or clears them, so they are named as a note and in the review; they never change the comparison state.
+ * upsert keeps or clears them, so they are named in the comparison and in the review; under owner decision P9 a
+ * product that otherwise matches is then `unknown` and needs review (the `review` policy, src/catalog-destinations.ts).
  */
 export function metaCatalogUnsentFields(sent: JsonObject, product: JsonObject): string[] {
   return [...compared, 'sale_price'].filter(

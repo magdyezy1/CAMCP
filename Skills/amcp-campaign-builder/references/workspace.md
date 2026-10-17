@@ -452,13 +452,13 @@ only the whole group crosses is named at prepare, and execute checks it for ever
 first is sent. The audit records every confirmed override. Never set the flag on the
 user's behalf, and never split a change into smaller writes to stay under a cap.
 
-**Only the owner goes beyond a cap (opt-in, `cap_override_owner_only`).** Off by default: the
-user's acknowledgement above is enough. Where the owner turned it on, executing beyond a cap is the
-workspace owner's: the owner executes the review (the owner may then execute one a member
-prepared), or approves that exact review on the AMCP website first. Anyone else's execute is
-refused with `CAP_OVERRIDE_OWNER_REQUIRED` and nothing is sent; prepare already names it in
-`approval` (`owner_required: "cap_override"`, `website_path`). Ask the owner; the review stays
-valid until it expires.
+**Only the owner goes beyond a cap (owner decision P5, always on).** The user's acknowledgement
+above is needed, and on its own it is not enough: executing beyond a cap is the workspace owner's.
+The owner executes the review (the owner may execute one a member prepared), or approves that exact
+review on the AMCP website first. Anyone else's execute is refused with
+`CAP_OVERRIDE_OWNER_REQUIRED` and nothing is sent; prepare already names it in `approval`
+(`owner_required: "cap_override"`, `website_path`). Ask the owner; the review stays valid until it
+expires. No policy turns this off: `cap_override_owner_only: false` is refused (`INVALID_POLICY`).
 
 **Website approval (WRT-09, opt-in).** A spending policy may set `approval_mode`:
 `assistant_ack` (the default: the user's acknowledgements in this client suffice),
@@ -542,9 +542,13 @@ The policy supports these settings, all optional:
   bound to a currency compare only an account that spends in it: another currency raises
   `POLICY_CURRENCY_MISMATCH` and an unknown one `POLICY_CURRENCY_UNKNOWN` (with a `next_call` to
   the live check). Both ask under `confirm` and refuse under `block`; AMCP never converts between
-  currencies. Caps in account currency saved without a currency still apply as before, and
-  `save_spend_policy` and `amcp_workspace health` warn about them (`POLICY_CURRENCY_UNSET` in
-  `policy_warnings`).
+  currencies. Caps in account currency that name no currency (saved before policies recorded one,
+  or while the account's currency was unknown) refuse every budget or bid change on the accounts
+  they govern with `POLICY_CURRENCY_UNSET` until the owner saves them again with their currency
+  (owner decision P5; no acknowledgement overrides it, and `details.account_currency` names the
+  account's currency when AMCP knows it). Do not retry it or reshape the request: ask the owner to
+  save the policy with its currency. `save_spend_policy` and `amcp_workspace health` list such caps
+  (`POLICY_CURRENCY_UNSET` in `warnings` and `policy_warnings`, `blocks: true`).
 
 Budget comparisons and cumulative reservations use exact decimal arithmetic in
 the native unit; `33.10 + 33.20` fits a `66.30` ceiling. Native decimal strings
@@ -1069,9 +1073,9 @@ explicit offset, literal; X needs both or neither and receives `sale_price_effec
 hundredths (digits beyond the second place must be zeros), X `amount CUR`. `catalog_compare` returns
 `sale_price_matches` beside `price_matches`, from Meta's `sale_price_amount` filter or X's exact value; native review
 and read-back check the sent sale. Refusals are `INVALID_CATALOG_SALE`. Without a supplied sale the destination keeps
-its own; it appears in `unsent_fields` as a note: a product whose only differences are such values stays `matching`
-and out of `review_retailer_ids` (COM-01, as P9 is recorded in docs/DECISIONS.md). Clearing a destination sale is not
-offered.
+its own, and it appears in `unsent_fields`. On Meta a product whose only differences are such values is `unknown` and
+in `review_retailer_ids` (owner decision P9: Meta does not say whether an upsert keeps or clears them, and the native
+review warns about them); on X it stays `matching`, with the note. Clearing a destination sale is not offered.
 
 **Retirement (COM-02 B).** `requirements: {retire_retailer_ids: [1–50 supplied IDs], retire_availability: "out of
 stock" | "discontinued"}` on catalog_preview, catalog_compare and catalog_plan updates those supplied products with that

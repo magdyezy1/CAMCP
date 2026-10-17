@@ -178,28 +178,40 @@ function accountPolicyInput(values, stored) {
     .trim()
     .toUpperCase();
   if (currency) policy.currency = currency;
-  // WRT-09: the account's own approval settings have no control here, so a save keeps them as they are.
-  for (const key of ['approval_mode', 'require_destructive_confirmation', 'cap_override_owner_only'])
+  // WRT-09: the account's own approval settings have no control here, so a save keeps them as they are. The former
+  // cap_override_owner_only is not resent: the owner rule beyond a cap is no setting (owner decision P5).
+  for (const key of ['approval_mode', 'require_destructive_confirmation'])
     if (stored?.[key] !== undefined) policy[key] = stored[key];
   return policy;
 }
 /**
- * WRT-09 (owner questions P1 and P5, open): who approves spending, cap and deletion changes, the opt-in acknowledgement
- * before deletions and the opt-in owner-only execution beyond a cap, as the workspace default sets them. Each is off by
- * default. They apply to every account; an account policy (set over MCP) can only add to them.
+ * WRT-09 (owner decisions P1 and P5 of 2026-10-11): who approves spending, cap and deletion changes and the opt-in
+ * acknowledgement before deletions, as the workspace default sets them, each off by default; they apply to every
+ * account, and an account policy (set over MCP) can only add to them. Beyond a cap only the owner executes, always (P5):
+ * the form states that rule, which no setting turns off.
  */
 function approvalPolicyControls(stored) {
   const mode = stored?.approval_mode ?? 'assistant_ack',
     option = (value, label) => `<option value="${value}"${mode === value ? ' selected' : ''}>${esc(label)}</option>`;
-  return `<label>${esc(uiText('Who approves spending, cap and deletion changes'))}<select name="approval_mode">${option('assistant_ack', uiText('The user, in the AI client (default)'))}${option('website_approval', uiText('A member, on the AMCP website'))}${option('distinct_approver', uiText('Another member than the preparer, or the owner'))}</select></label><p class="form-note">${esc(uiText('With approval on the website, a reviewed change to spending, beyond a cap or deleting something runs only after a member approves that exact review on the Operations page. This applies to every account, also one with a policy of its own.'))}</p><label class="check"><input name="require_destructive_confirmation" type="checkbox"${stored?.require_destructive_confirmation === true ? ' checked' : ''}> ${esc(uiText('Require an explicit acknowledgement before deletions'))}</label><label class="check"><input name="cap_override_owner_only" type="checkbox"${stored?.cap_override_owner_only === true ? ' checked' : ''}> ${esc(uiText('Only the workspace owner executes a change beyond a spending cap'))}</label><p class="form-note">${esc(uiText('When this is on, anyone else executes a change beyond a cap only after the owner approves that exact review on the AMCP website. When it is off, the user’s acknowledgement in the AI client is enough.'))}</p>`;
+  return `<label>${esc(uiText('Who approves spending, cap and deletion changes'))}<select name="approval_mode">${option('assistant_ack', uiText('The user, in the AI client (default)'))}${option('website_approval', uiText('A member, on the AMCP website'))}${option('distinct_approver', uiText('Another member than the preparer, or the owner'))}</select></label><p class="form-note">${esc(uiText('With approval on the website, a reviewed change to spending, beyond a cap or deleting something runs only after a member approves that exact review on the Operations page. This applies to every account, also one with a policy of its own.'))}</p><label class="check"><input name="require_destructive_confirmation" type="checkbox"${stored?.require_destructive_confirmation === true ? ' checked' : ''}> ${esc(uiText('Require an explicit acknowledgement before deletions'))}</label><p class="form-note" id="owner-cap-rule">${esc(uiText('Beyond a spending cap, only the workspace owner executes a change, or another member after the owner approves that exact review on the AMCP website. This always applies; no setting turns it off.'))}</p>`;
 }
 const approvalModeRank = mode =>
   ['assistant_ack', 'website_approval', 'distinct_approver'].indexOf(mode ?? 'assistant_ack');
 /** The workspace default a save sends: the settings the form shows over the stored ones it does not show. */
 function workspacePolicyInput(values, stored) {
   const policy = {};
+  // A stored cap_override_owner_only (the opt-in before owner decision P5) is not resent: the rule is no setting.
   for (const [k, v] of Object.entries(stored ?? {}))
-    if (![...policyMeta, 'applies_to', 'enforcement', 'max_budget_increase_percent', 'per_gateway'].includes(k))
+    if (
+      ![
+        ...policyMeta,
+        'applies_to',
+        'enforcement',
+        'max_budget_increase_percent',
+        'per_gateway',
+        'cap_override_owner_only',
+      ].includes(k)
+    )
       policy[k] = v;
   if (!stored || stored.enforcement !== undefined || values.enforcement !== 'confirm')
     policy.enforcement = values.enforcement === 'block' ? 'block' : 'confirm';
@@ -215,11 +227,6 @@ function workspacePolicyInput(values, stored) {
     if (values.require_destructive_confirmation || stored?.require_destructive_confirmation !== undefined)
       policy.require_destructive_confirmation = !!values.require_destructive_confirmation;
     else delete policy.require_destructive_confirmation;
-  }
-  if (values.cap_override_owner_only !== undefined) {
-    if (values.cap_override_owner_only || stored?.cap_override_owner_only !== undefined)
-      policy.cap_override_owner_only = !!values.cap_override_owner_only;
-    else delete policy.cap_override_owner_only;
   }
   const per = {};
   for (const [g, limits] of Object.entries(stored?.per_gateway ?? {})) {
@@ -262,10 +269,6 @@ function policyWeakenings(stored, next, platform = g => g) {
     out.push(uiText('Fewer approvals are needed before spending, cap and deletion changes are executed.'));
   if (stored.require_destructive_confirmation === true && next.require_destructive_confirmation !== true)
     out.push(uiText('Deletions no longer need an explicit acknowledgement.'));
-  if (stored.cap_override_owner_only === true && next.cap_override_owner_only !== true)
-    out.push(
-      uiText('Members other than the owner may execute a change beyond a spending cap on the user’s acknowledgement.'),
-    );
   const caps = (from, to, prefix) => {
     const pairs = [
       ...Object.entries(policyMoney),
@@ -570,7 +573,7 @@ renderSettings = async function () {
     )
     .join(
       '',
-    )}</select></label><label>${esc(uiText('When a change goes beyond a cap'))}<select name="enforcement"><option value="confirm" selected>${esc(uiText('Ask for confirmation (recommended)'))}</option><option value="block">${esc(uiText('Refuse the change'))}</option></select></label><label>${esc(uiText('Amounts are in'))}<select name="unit"><option value="currency">${esc(uiText('Account currency (where the platform unit is documented)'))}</option><option value="native">${esc(uiText('Native API units'))}</option></select></label><label>${esc(uiText('Currency of these caps'))}<input name="currency" maxlength="3" pattern="[A-Za-z]{3}" autocomplete="off" placeholder="USD"></label><p class="form-note">${esc(uiText('Caps compare only an account that spends in this currency; AMCP never converts between currencies. Left empty, the account’s currency from its last live check is used.'))}</p><p class="form-note" id="owner-policy-unit" aria-live="polite">${policyUnitNote(h, '')}</p><p class="form-note" id="owner-policy-existing" aria-live="polite">${esc(uiText('Choose an account to see its stored policy.'))}</p><label>${esc(uiText('Maximum budget'))}<input name="max_budget" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum increase per change, %'))}<input name="max_budget_increase_percent" type="number" min="0" max="10000" step="any" value="20"></label><label>${esc(uiText('Cumulative daily increases'))}<input name="max_daily_increase" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum bid'))}<input name="max_bid" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum lifetime or total budget'))}<input name="max_total_budget" type="number" min="0" step="any"></label><label class="check"><input name="allow_activation" type="checkbox" checked> ${esc(uiText('Allow activation after review'))}</label><label class="check"><input name="allow_deletion" type="checkbox"> ${esc(uiText('Allow deletion after review'))}</label><p class="form-note">${esc(uiText('Without it, AMCP also refuses deletion sent as a status value (TikTok DELETE, Meta DELETED) and Meta product feed deletion rules: turning feed deletion on, or a new file address or fetch interval for a feed whose deletion is on.'))}</p><p class="form-note">${esc(uiText('With “Ask for confirmation”, a change beyond a cap is still prepared; the reviewer sees which cap and by how much, and it runs only after they confirm. Activation and deletion rules always refuse.'))}</p><button class="button primary">${esc(uiText('Save account policy'))}</button></form><form id="owner-workspace-policy" class="workspace-form"><h4>${esc(uiText('Workspace default'))}</h4><p class="form-note">${esc(workspaceDefault ? uiText('Existing default · revision {revision} · last updated {time}', {revision: workspaceDefault.revision, time: date(workspaceDefault.updated_at)}) : uiText('No workspace default yet; saving creates one.'))}</p><p class="form-note">${esc(uiText('Covers every account without a policy of its own. Budget caps are per platform in account currency, because each platform counts money in its own unit.'))}</p><label>${esc(uiText('When a change goes beyond a cap'))}<select name="enforcement"><option value="confirm"${workspaceDefault?.enforcement === 'block' ? '' : ' selected'}>${esc(uiText('Ask for confirmation (recommended)'))}</option><option value="block"${workspaceDefault?.enforcement === 'block' ? ' selected' : ''}>${esc(uiText('Refuse the change'))}</option></select></label><label>${esc(uiText('Maximum increase per change, %'))}<input name="max_budget_increase_percent" type="number" min="0" max="10000" step="any" value="${esc(policyText(workspaceDefault?.max_budget_increase_percent))}"></label>${approvalPolicyControls(workspaceDefault)}${Object.entries(
+    )}</select></label><label>${esc(uiText('When a change goes beyond a cap'))}<select name="enforcement"><option value="confirm" selected>${esc(uiText('Ask for confirmation (recommended)'))}</option><option value="block">${esc(uiText('Refuse the change'))}</option></select></label><label>${esc(uiText('Amounts are in'))}<select name="unit"><option value="currency">${esc(uiText('Account currency (where the platform unit is documented)'))}</option><option value="native">${esc(uiText('Native API units'))}</option></select></label><label>${esc(uiText('Currency of these caps'))}<input name="currency" maxlength="3" pattern="[A-Za-z]{3}" autocomplete="off" placeholder="USD"></label><p class="form-note">${esc(uiText('Caps compare only an account that spends in this currency; AMCP never converts between currencies. Left empty, the account’s currency from its last live check is used.'))}</p><p class="form-note" id="owner-policy-unit" aria-live="polite">${policyUnitNote(h, '')}</p><p class="form-note" id="owner-policy-existing" aria-live="polite">${esc(uiText('Choose an account to see its stored policy.'))}</p><label>${esc(uiText('Maximum budget'))}<input name="max_budget" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum increase per change, %'))}<input name="max_budget_increase_percent" type="number" min="0" max="10000" step="any" value="20"></label><label>${esc(uiText('Cumulative daily increases'))}<input name="max_daily_increase" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum bid'))}<input name="max_bid" type="number" min="0" step="any"></label><label>${esc(uiText('Maximum lifetime or total budget'))}<input name="max_total_budget" type="number" min="0" step="any"></label><label class="check"><input name="allow_activation" type="checkbox" checked> ${esc(uiText('Allow activation after review'))}</label><label class="check"><input name="allow_deletion" type="checkbox"> ${esc(uiText('Allow deletion after review'))}</label><p class="form-note">${esc(uiText('Without it, AMCP also refuses deletion sent as a status value (TikTok DELETE, Meta DELETED) and Meta product feed deletion rules: turning feed deletion on, or a new file address or fetch interval for a feed whose deletion is on.'))}</p><p class="form-note">${esc(uiText('With “Ask for confirmation”, a change beyond a cap is still prepared; the reviewer sees which cap and by how much, and it runs only after they confirm, and only when the workspace owner executes it or approved it on the AMCP website first. Activation and deletion rules always refuse.'))}</p><button class="button primary">${esc(uiText('Save account policy'))}</button></form><form id="owner-workspace-policy" class="workspace-form"><h4>${esc(uiText('Workspace default'))}</h4><p class="form-note">${esc(workspaceDefault ? uiText('Existing default · revision {revision} · last updated {time}', {revision: workspaceDefault.revision, time: date(workspaceDefault.updated_at)}) : uiText('No workspace default yet; saving creates one.'))}</p><p class="form-note">${esc(uiText('Covers every account without a policy of its own. Budget caps are per platform in account currency, because each platform counts money in its own unit.'))}</p><label>${esc(uiText('When a change goes beyond a cap'))}<select name="enforcement"><option value="confirm"${workspaceDefault?.enforcement === 'block' ? '' : ' selected'}>${esc(uiText('Ask for confirmation (recommended)'))}</option><option value="block"${workspaceDefault?.enforcement === 'block' ? ' selected' : ''}>${esc(uiText('Refuse the change'))}</option></select></label><label>${esc(uiText('Maximum increase per change, %'))}<input name="max_budget_increase_percent" type="number" min="0" max="10000" step="any" value="${esc(policyText(workspaceDefault?.max_budget_increase_percent))}"></label>${approvalPolicyControls(workspaceDefault)}${Object.entries(
     h.budget_units ?? {},
   )
     .filter(([g]) => platforms.some(p => p.connections.some(c => (c.gateway ?? p.gateway) === g)))
@@ -806,7 +809,6 @@ renderSettings = async function () {
           currencies,
           approval_mode: String(d.get('approval_mode') ?? 'assistant_ack'),
           require_destructive_confirmation: d.has('require_destructive_confirmation'),
-          cap_override_owner_only: d.has('cap_override_owner_only'),
         },
         workspaceDefault,
       ),

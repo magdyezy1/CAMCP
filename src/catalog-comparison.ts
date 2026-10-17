@@ -154,7 +154,7 @@ async function metaCatalogComparison(
         provider_mutations: 0,
         destructive_deletions: 0,
         meaning:
-          'Current evidence for the supplied retailer IDs only. Exact price equality uses Meta’s native filter; formatted prices are display text. Missing fields stay unknown. Each product and catalog ownership are checked again during collection, but this is not a point-in-time inventory snapshot. Saving a draft still requires a fresh native review before execution. Products outside the supplied import are not inspected or deleted.',
+          'Current evidence for the supplied retailer IDs only. Exact price equality uses Meta’s native filter; formatted prices are display text. Missing fields stay unknown. A product that holds values for attributes the source does not send (unsent_fields) is unknown too and needs review, because Meta does not say whether an upsert keeps or clears them. Each product and catalog ownership are checked again during collection, but this is not a point-in-time inventory snapshot. Saving a draft still requires a fresh native review before execution. Products outside the supplied import are not inspected or deleted.',
       };
     });
   } catch (error) {

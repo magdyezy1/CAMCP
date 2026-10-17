@@ -150,6 +150,55 @@ test('every earlier recommendation and every review decision D1-D27 has exactly 
   for (const row of review) assert.match(row[2], /^Accepted/, row[0]);
 });
 
+// The owner approved the product-direction choices P1-P12 on 2026-10-11, but the record still listed P1, P11 and P12
+// as not decided and the next P7 packs as pending while the code cited them as owner decisions. Every P row is now
+// approved and none is left open anywhere in the record, beside the Zoho CRM scope (2026-10-13) and the instruction
+// to push after wave 4 (2026-10-17); the release notes name the behaviour P2, P5 and P9 change.
+test('every product-direction choice P1-P12 is recorded as approved on 2026-10-11 and none is left pending (regression: P1, P11 and P12 not decided, P7 pending)', () => {
+  const decisions = 'docs/DECISIONS.md',
+    text = fs.readFileSync(decisions, 'utf8'),
+    rows = tableRows(decisions, '## 2026-10-11: product direction P1–P12'),
+    open = /\bpending\b|\bnot decided\b|\bawaits?\b|until the owner (?:answers|decides|chooses)/i;
+  assert.deepEqual(
+    rows.map(r => r[0]),
+    Array.from({length: 12}, (_, i) => 'P' + (i + 1)),
+  );
+  for (const row of rows) {
+    assert.equal(row.length, 5, row[0]);
+    assert.match(row[2], /^Approved: /, row[0]);
+    assert.ok(row[3].length > 0 && row[4].length > 0, row[0] + ' names where the code stands and what it governs');
+    assert.doesNotMatch(row.join(' '), open, row[0]);
+  }
+  // No sentence or table cell elsewhere leaves a product-direction choice open.
+  for (const part of text.split(/(?<=\.)\s+|\n\n|\|/))
+    if (/\bP(?:[1-9]|1[0-2])\b/.test(part)) assert.doesNotMatch(part, open, part);
+  // Zoho CRM feeds the ad platforms only, read-only on Zoho, through the reviewed write engine.
+  const [zoho, ...more] = tableRows(decisions, '## 2026-10-13: Zoho CRM scope');
+  assert.equal(more.length, 0);
+  assert.match(zoho[1], /^Accepted: CRM to ads only\./);
+  assert.match(zoho[1], /leads, contacts and deals read-only/);
+  assert.match(zoho[1], /only through the existing reviewed write engine/);
+  assert.match(zoho[1], /Nothing is written to Zoho\./);
+  // The push follows wave 4.
+  const push = tableRows(decisions, '## October 2026: delivery instructions').find(r => r[0] === '2026-10-17');
+  assert.ok(push, 'the 2026-10-17 instruction has a row');
+  assert.match(push[1], /wave 4 \(documentation\), then push to git/);
+  assert.match(push[2], /^Accepted: the push to `Work-here` follows wave 4/);
+  // The release notes call out each default wave 3b changes for existing workspaces.
+  const start = text.indexOf('### Release notes for the push after wave 4'),
+    notes = text.slice(start, text.indexOf('\n## ', start));
+  assert.ok(start > 0);
+  for (const [id, code] of [
+    ['P2', /7 days instead of 72 hours/],
+    ['P5', /CAP_OVERRIDE_OWNER_REQUIRED/],
+    ['P5', /POLICY_CURRENCY_UNSET/],
+    ['P9', /`unknown`/],
+  ]) {
+    assert.match(notes, new RegExp('\\(' + id + '\\)\\.\\*\\*'), id);
+    assert.match(notes, code, id);
+  }
+});
+
 test('docs:index:check validates the status data and the generated table without writing anything', () => {
   const before = fs.readFileSync(tableFile, 'utf8'),
     run = spawnSync(process.execPath, ['tools/docs-index.mjs', '--check'], {encoding: 'utf8'});
