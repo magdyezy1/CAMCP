@@ -326,31 +326,33 @@ test('a malformed, foreign, oversized or lying file is refused whole, and nothin
   const csv = locationCsv(),
     zip = locationZip(),
     cases = [
-      ['not an archive', Buffer.from(csv)],
-      ['wrong CRC', zipFile('GeoLocations.csv', csv, {crc: 1})],
-      ['wrong size', zipFile('GeoLocations.csv', csv, {size: 10})],
+      ['not an archive', Buffer.from(csv), 'not_an_archive'],
+      ['wrong CRC', zipFile('GeoLocations.csv', csv, {crc: 1}), 'crc_or_size'],
+      ['wrong size', zipFile('GeoLocations.csv', csv, {size: 10}), 'crc_or_size'],
       [
         'declared expansion over the bound',
         zipFile('GeoLocations.csv', csv, {size: microsoftLocationLimits.text_bytes + 1}),
+        'zip_member',
       ],
-      ['unexpected member', zipFile('../GeoLocations.exe', csv)],
-      ['truncated archive', zip.subarray(0, zip.length - 30)],
-      ['no documented columns', locationZip(locationCsv(locationRows, 'Id,Name,Type,Replaces,Status,Other'))],
+      ['unexpected member', zipFile('../GeoLocations.exe', csv), 'zip_member'],
+      ['truncated archive', zip.subarray(0, zip.length - 30), 'zip_not_single_file'],
+      ['no documented columns', locationZip(locationCsv(locationRows, 'Id,Name,Type,Replaces,Status,Other')), 'documented_columns'],
       [
         'repeated column',
         locationZip(
           locationCsv(['190,United States,United States'], 'Location Id,Bing Display Name,Bing Display Name'),
         ),
+        'repeated_column',
       ],
-      ['repeated ID', locationZip(locationCsv([...locationRows, '190,Duplicate,Country,,Active,']))],
-      ['malformed ID', locationZip(locationCsv(['abc,Nowhere,City,,Active,']))],
-      ['unsafe ID', locationZip(locationCsv(['9223372036854775808,Nowhere,City,,Active,']))],
-      ['short row', locationZip(locationCsv(['190,United States']))],
-      ['unclosed quote', locationZip(locationCsv(['190,"United States,Country,,Active,']))],
-      ['quote inside a field', locationZip(locationCsv(['190,United "States",Country,,Active,']))],
-      ['text after a quote', locationZip(locationCsv(['190,"United" States,Country,,Active,']))],
-      ['control character', locationZip(locationCsv(['190,United\u0007States,Country,,Active,']))],
-      ['no header', locationZip('')],
+      ['repeated ID', locationZip(locationCsv([...locationRows, '190,Duplicate,Country,,Active,'])), 'repeated_id'],
+      ['malformed ID', locationZip(locationCsv(['abc,Nowhere,City,,Active,'])), 'id_or_name'],
+      ['unsafe ID', locationZip(locationCsv(['9223372036854775808,Nowhere,City,,Active,'])), 'id_or_name'],
+      ['short row', locationZip(locationCsv(['190,United States'])), 'row_shape'],
+      ['unclosed quote', locationZip(locationCsv(['190,"United States,Country,,Active,'])), 'unclosed_quote'],
+      ['quote inside a field', locationZip(locationCsv(['190,United "States",Country,,Active,'])), 'quote_in_field'],
+      ['text after a quote', locationZip(locationCsv(['190,"United" States,Country,,Active,'])), 'text_after_quote'],
+      ['control character', locationZip(locationCsv(['190,United\u0007States,Country,,Active,'])), 'id_or_name'],
+      ['no header', locationZip(''), 'no_header'],
       [
         'invalid UTF-8',
         zipFile(
@@ -361,12 +363,17 @@ test('a malformed, foreign, oversized or lying file is refused whole, and nothin
             Buffer.from(',City,,Active,\n'),
           ]),
         ),
+        'encoding',
       ],
     ];
-  for (const [name, file] of cases) {
+  for (const [name, file, problem] of cases) {
     const f = fixture(t);
     f.file = file;
-    await assert.rejects(f.lookup('cairo'), e => e.code === 'MICROSOFT_LOCATIONS_FILE_INVALID', name);
+    await assert.rejects(
+      f.lookup('cairo'),
+      e => e.code === 'MICROSOFT_LOCATIONS_FILE_INVALID' && e.details.problem === problem,
+      name,
+    );
     // Nothing was kept: the next lookup reads the URL and downloads again.
     f.file = zip;
     assert.equal((await f.lookup('cairo')).file_downloads, 1, name);
@@ -397,7 +404,7 @@ test('the file text and the archive are bounded before they are read whole', asy
   assert.ok(bomb.file.length < microsoftLocationLimits.archive_bytes);
   await assert.rejects(
     bomb.lookup('cairo'),
-    e => e.code === 'MICROSOFT_LOCATIONS_FILE_INVALID' && /128 MiB/.test(e.message),
+    e => e.code === 'MICROSOFT_LOCATIONS_FILE_INVALID' && e.details.problem === 'text_bytes' && /128 MiB/.test(e.message),
   );
   const missing = fixture(t, {download: () => new Response('gone', {status: 404})});
   await assert.rejects(

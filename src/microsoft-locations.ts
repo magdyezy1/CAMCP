@@ -58,8 +58,9 @@ const limits = microsoftLocationLimits;
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const numericId = (v: unknown): v is string =>
   typeof v === 'string' && /^[1-9][0-9]{0,18}$/.test(v) && BigInt(v) <= 9223372036854775807n;
-function unreadable(message: string): never {
-  throw new MirrorError('MICROSOFT_LOCATIONS_FILE_INVALID', message, {}, 502);
+/** A file AMCP cannot read completely; `problem` names the exact check that failed. */
+function unreadable(message: string, problem: string): never {
+  throw new MirrorError('MICROSOFT_LOCATIONS_FILE_INVALID', message, {problem}, 502);
 }
 /** The refusal when the deployment cannot send the file URL request as Microsoft Learn documents it. */
 export function microsoftLocationsUnpinned(): MirrorError {
@@ -189,11 +190,11 @@ function zipMember(bytes: Buffer) {
     bytes.readUInt16LE(end + 8) !== 1 ||
     bytes.readUInt16LE(end + 10) !== 1
   )
-    unreadable('Microsoft’s geographical locations archive is not a single-file ZIP.');
+    unreadable('Microsoft’s geographical locations archive is not a single-file ZIP or GZip archive, or it failed its size or CRC check.', 'zip_not_single_file');
   const central = bytes.readUInt32LE(end + 16),
     size = bytes.readUInt32LE(end + 12);
   if (central + size !== end || size < 46 || central + 46 > end || bytes.readUInt32LE(central) !== 0x02014b50)
-    unreadable('Microsoft’s geographical locations archive has an invalid ZIP directory.');
+    unreadable('Microsoft’s geographical locations archive is not a single-file ZIP or GZip archive, or it failed its size or CRC check.', 'zip_directory');
   const flags = bytes.readUInt16LE(central + 8),
     method = bytes.readUInt16LE(central + 10),
     checksum = bytes.readUInt32LE(central + 16),
@@ -216,9 +217,9 @@ function zipMember(bytes: Buffer) {
     bytes.readUInt32LE(local) !== 0x04034b50 ||
     bytes.readUInt16LE(local + 8) !== method
   )
-    unreadable('Microsoft’s geographical locations archive holds an unexpected or oversized file.');
+    unreadable('Microsoft’s geographical locations archive is not a single-file ZIP or GZip archive, or it failed its size or CRC check.', 'zip_member');
   const start = local + 30 + bytes.readUInt16LE(local + 26) + bytes.readUInt16LE(local + 28);
-  if (start + compressed > central) unreadable('Microsoft’s geographical locations archive has invalid boundaries.');
+  if (start + compressed > central) unreadable('Microsoft’s geographical locations archive is not a single-file ZIP or GZip archive, or it failed its size or CRC check.', 'zip_boundaries');
   return {method, checksum, expanded, data: bytes.subarray(start, start + compressed)};
 }
 /** The file's text bytes, inflated as they are read, within the text bound and checked against the archive's CRC. */
@@ -227,16 +228,16 @@ async function* inflated(bytes: Buffer): AsyncGenerator<Buffer> {
   const counted = (chunk: Buffer) => {
     total += chunk.length;
     if (total > limits.text_bytes)
-      unreadable('Microsoft’s geographical locations file is larger than the 128 MiB AMCP reads.');
+      unreadable('Microsoft’s geographical locations file is larger than AMCP reads: 32 MiB compressed, 128 MiB of text or 1,000,000 rows.', 'text_bytes');
     return chunk;
   };
   const gzip = bytes.length > 2 && bytes[0] === 0x1f && bytes[1] === 0x8b,
     member = gzip ? undefined : bytes.length >= 4 && bytes.readUInt32LE(0) === 0x04034b50 ? zipMember(bytes) : null;
-  if (member === null) unreadable('Microsoft returned a file that is not a ZIP or GZip archive.');
+  if (member === null) unreadable('Microsoft’s geographical locations archive is not a single-file ZIP or GZip archive, or it failed its size or CRC check.', 'not_an_archive');
   if (member?.method === 0) {
     yield counted(member.data);
     if (crc32(member.data) !== member.checksum || member.data.length !== member.expanded)
-      unreadable('Microsoft’s geographical locations archive failed its size or CRC check.');
+      unreadable('Microsoft’s geographical locations archive is not a single-file ZIP or GZip archive, or it failed its size or CRC check.', 'crc_or_size');
     return;
   }
   // GZip checks its own CRC and size as it ends; a ZIP member is checked against its directory entry below.
@@ -251,12 +252,12 @@ async function* inflated(bytes: Buffer): AsyncGenerator<Buffer> {
     }
   } catch (error) {
     if (error instanceof MirrorError) throw error;
-    unreadable('Microsoft’s geographical locations archive could not be inflated.');
+    unreadable('Microsoft’s geographical locations archive is not a single-file ZIP or GZip archive, or it failed its size or CRC check.', 'inflate');
   } finally {
     stream.destroy();
   }
   if (member && (checksum !== member.checksum || total !== member.expanded))
-    unreadable('Microsoft’s geographical locations archive failed its size or CRC check.');
+    unreadable('Microsoft’s geographical locations archive is not a single-file ZIP or GZip archive, or it failed its size or CRC check.', 'crc_or_size');
 }
 const special = /[,\r\n"]/g;
 /** Incremental RFC 4180 rows: quoted fields may hold commas, quotes ("") and line breaks; CRLF or LF ends a row. */
@@ -270,13 +271,13 @@ class CsvRows {
   private add(text: string) {
     this.cell += text;
     if (this.cell.length > limits.field_characters)
-      unreadable('A field of Microsoft’s geographical locations file is longer than AMCP reads.');
+      unreadable('Microsoft’s geographical locations file is not CSV text with the documented Location Id and Bing Display Name columns.', 'field_length');
   }
   private push() {
     this.row.push(this.cell);
     this.cell = '';
     this.state = 0;
-    if (this.row.length > 64) unreadable('Microsoft’s geographical locations file has more columns than AMCP reads.');
+    if (this.row.length > 64) unreadable('Microsoft’s geographical locations file is not CSV text with the documented Location Id and Bing Display Name columns.', 'column_count');
   }
   private finish() {
     this.push();
@@ -315,9 +316,9 @@ class CsvRows {
           continue;
         }
         if (c !== ',' && c !== '\r' && c !== '\n')
-          unreadable('Microsoft’s geographical locations file has text after a quoted field.');
+          unreadable('Microsoft’s geographical locations file is not CSV text with the documented Location Id and Bing Display Name columns.', 'text_after_quote');
       } else if (c === '"') {
-        if (this.state === 1) unreadable('Microsoft’s geographical locations file has a quote inside a field.');
+        if (this.state === 1) unreadable('Microsoft’s geographical locations file is not CSV text with the documented Location Id and Bing Display Name columns.', 'quote_in_field');
         this.state = 2;
         i++;
         continue;
@@ -339,7 +340,7 @@ class CsvRows {
     }
   }
   end() {
-    if (this.state === 2) unreadable('Microsoft’s geographical locations file ends inside a quoted field.');
+    if (this.state === 2) unreadable('Microsoft’s geographical locations file is not CSV text with the documented Location Id and Bing Display Name columns.', 'unclosed_quote');
     if (this.row.length || this.cell || this.state !== 0) this.finish();
   }
 }
@@ -356,7 +357,7 @@ function nativeValue(value: string | undefined): string | null {
   const v = (value ?? '').trim();
   if (!v) return null;
   if (v.length > 64 || /[\u0000-\u001f\u007f]/.test(v))
-    unreadable('Microsoft’s geographical locations file has a malformed location type or status.');
+    unreadable('Microsoft’s geographical locations file has a malformed or repeated location ID, name, type or status.', 'type_or_status');
   return v;
 }
 /**
@@ -374,7 +375,7 @@ async function scanFile(bytes: Buffer, visit: (row: LocationRow) => void, valida
       header = cells.map(c => c.trim());
       const folded = header.map(h => h.replace(/\s+/g, ' ').toLowerCase());
       if (new Set(folded).size !== folded.length)
-        unreadable('Microsoft’s geographical locations file repeats a column.');
+        unreadable('Microsoft’s geographical locations file is not CSV text with the documented Location Id and Bing Display Name columns.', 'repeated_column');
       at = {
         id: folded.indexOf(headers.id),
         name: folded.indexOf(headers.name),
@@ -383,19 +384,19 @@ async function scanFile(bytes: Buffer, visit: (row: LocationRow) => void, valida
       };
       // The guide documents these two columns; the others are read only when present.
       if (at.id < 0 || at.name < 0)
-        unreadable('Microsoft’s geographical locations file has no Location Id and Bing Display Name columns.');
+        unreadable('Microsoft’s geographical locations file is not CSV text with the documented Location Id and Bing Display Name columns.', 'documented_columns');
       return;
     }
     if (cells.length !== header.length)
-      unreadable('A row of Microsoft’s geographical locations file does not match its columns.');
+      unreadable('Microsoft’s geographical locations file is not CSV text with the documented Location Id and Bing Display Name columns.', 'row_shape');
     if (++rows > limits.rows)
-      unreadable('Microsoft’s geographical locations file has more than the 1,000,000 rows AMCP reads.');
+      unreadable('Microsoft’s geographical locations file is larger than AMCP reads: 32 MiB compressed, 128 MiB of text or 1,000,000 rows.', 'rows');
     const id = cells[at.id]!.trim(),
       name = cells[at.name]!.trim();
     if (!numericId(id) || !name || /[\u0000-\u001f\u007f]/.test(name))
-      unreadable('Microsoft’s geographical locations file has a malformed location ID or name.');
+      unreadable('Microsoft’s geographical locations file has a malformed or repeated location ID, name, type or status.', 'id_or_name');
     if (seen) {
-      if (seen.has(id)) unreadable('Microsoft’s geographical locations file lists a location ID twice.');
+      if (seen.has(id)) unreadable('Microsoft’s geographical locations file has a malformed or repeated location ID, name, type or status.', 'repeated_id');
       seen.add(id);
     }
     visit({
@@ -421,13 +422,13 @@ async function scanFile(bytes: Buffer, visit: (row: LocationRow) => void, valida
       parser.feed(decoder.decode(chunk, {stream: !final}));
     } catch (error) {
       if (error instanceof MirrorError) throw error;
-      unreadable('Microsoft’s geographical locations file is not valid UTF-8 or marked UTF-16 text.');
+      unreadable('Microsoft’s geographical locations file is not CSV text with the documented Location Id and Bing Display Name columns.', 'encoding');
     }
   };
   for await (const chunk of inflated(bytes)) decode(chunk);
   decode(Buffer.alloc(0), true);
   parser.end();
-  if (!header) unreadable('Microsoft’s geographical locations file has no column header.');
+  if (!header) unreadable('Microsoft’s geographical locations file is not CSV text with the documented Location Id and Bing Display Name columns.', 'no_header');
   return {
     columns: header,
     interpreted: {
@@ -461,7 +462,7 @@ async function download(fileUrl: unknown, fetcher?: typeof fetch): Promise<Buffe
   try {
     url = reportUrl(fileUrl);
   } catch {
-    unreadable('Microsoft did not return a public HTTPS address for its geographical locations file.');
+    unreadable('Microsoft did not return a public HTTPS address for its geographical locations file.', 'file_url');
   }
   const signal = AbortSignal.timeout(limits.download_ms);
   let response: Response;
@@ -472,7 +473,7 @@ async function download(fileUrl: unknown, fetcher?: typeof fetch): Promise<Buffe
   } catch (error) {
     // A host that resolves to a private address is not Microsoft's file; anything else may pass on a new attempt.
     if (error instanceof MirrorError && error.code === 'UNAPPROVED_REPORT_URL')
-      unreadable('Microsoft did not return a public HTTPS address for its geographical locations file.');
+      unreadable('Microsoft did not return a public HTTPS address for its geographical locations file.', 'file_url');
     throw new MirrorError(
       'MICROSOFT_LOCATIONS_FILE_UNAVAILABLE',
       'Microsoft’s geographical locations file could not be downloaded. Search again in a moment.',
@@ -502,7 +503,7 @@ async function download(fileUrl: unknown, fetcher?: typeof fetch): Promise<Buffe
         size += value.length;
         if (size > limits.archive_bytes) {
           await reader.cancel();
-          unreadable('Microsoft’s geographical locations archive is larger than the 32 MiB AMCP reads.');
+          unreadable('Microsoft’s geographical locations file is larger than AMCP reads: 32 MiB compressed, 128 MiB of text or 1,000,000 rows.', 'archive_bytes');
         }
         chunks.push(value);
       }
