@@ -181,6 +181,35 @@ test('a check of the entered IDs lists each one found or missing, with no Add, a
   assert.equal(f.lookups().length, 1);
 });
 
+test('a number typed as a location name is checked as an ID, as the server reads it', async () => {
+  // Regression: locationQuery reads digits as IDs, so its answer was a check, and the page refused it as incomplete.
+  const f = await composer('en', args => ({
+    kind: 'microsoft_location',
+    mode: 'resolve',
+    results: args.query.split(',').includes('190') ? [location('190', 'United States', 'Country', 'Active')] : [],
+    missing_ids: args.query.split(',').filter(id => id !== '190'),
+    provider_mutations: 0,
+  }));
+  await f.search(' 190, 999999 ,190 ');
+  assert.equal(f.lookups().at(-1).query, '190,999999', 'the typed IDs, each once');
+  assert.equal(f.node('#recipe-error').textContent, '');
+  assert.match(f.results.innerHTML, /1 of 2 location IDs are in Microsoft’s file\./);
+  assert.deepEqual(f.results.buttons, [], 'a check adds nothing');
+  // A name is still a search, and a check's answer to it is refused.
+  const g = await composer('en', () => ({...search(cairo), mode: 'resolve', missing_ids: []}));
+  await g.search('Cairo 2');
+  assert.equal(g.node('#recipe-error').textContent, 'The location lookup answer is incomplete. Search again.');
+});
+
+test('the prerequisite check names a missing location field for the brief’s recipe without reading the page', async () => {
+  const f = await composer('en', () => assert.fail('nothing is looked up'));
+  f.context.out = {provider_mutations: 0, status: 'blocked', dependencies: [], missing_fields: ['location_ids']};
+  // Regression: the view read the recipe from #recipe-choice; its caller now passes the brief's recipe.
+  assert.match(f.run("recipeEligibilityView(out, 'microsoft_search')"), /Microsoft location IDs — one per line/);
+  assert.match(f.run("recipeEligibilityView(out, 'tiktok_website_traffic')"), /TikTok location IDs — one per line/);
+  assert.match(f.run('recipeEligibilityView(out)'), /Location IDs of the workflow’s platform — one per line/);
+});
+
 test('an incomplete, changing or foreign answer is refused and never shown', async () => {
   for (const [name, answer] of [
     ['a resolve answer to a search', () => ({...search(cairo), mode: 'resolve', missing_ids: []})],

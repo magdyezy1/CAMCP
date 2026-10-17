@@ -928,9 +928,10 @@ function recipeBlockerMeaning(row) {
   if (Object.hasOwn(recipePrerequisiteLabels, row.code)) return uiText(recipePrerequisiteLabels[row.code]);
   return uiText(row.source ?? 'Current workspace prerequisite');
 }
-function recipeEligibilityView(out) {
+/** The recipe check's evidence; `recipeId` (the brief's recipe) names its missing fields when `out` does not. */
+function recipeEligibilityView(out, recipeId) {
   const status = value => esc(uiText(recipeEligibilityLabels[value] ?? 'Needs further verification'));
-  return `<section aria-label="${esc(uiText('Account prerequisite evidence'))}"><h3>${esc(uiText('Account prerequisite evidence'))}</h3><p>${status(out.status)}</p><p>${esc(uiText('This check saves no campaign plan and makes no advertising changes. Each later change still needs its own review.'))}</p>${out.scope ? `<p>${esc(uiText('Advertising login and account'))}: <code>${esc(out.scope.connection_id)}</code> · <code>${esc(out.scope.account_id)}</code></p>` : ''}${out.expires_at ? `<p>${esc(uiText('Evidence expires'))}: ${esc(date(out.expires_at))}</p>` : ''}${out.missing_fields?.length ? `<p>${esc(uiText('Missing business inputs'))}: ${out.missing_fields.map(key => esc(uiText(recipeFieldLabel(key, typeof out.recipe === 'string' ? out.recipe : (out.recipe?.id ?? (typeof $ === 'function' ? $('#recipe-choice')?.value : undefined))) ?? pretty(key)))).join(', ')}</p>` : ''}${conversionGoalInspectionView(out)}${conversionValueInspectionView(out)}${conversionActivityInspectionView(out)}${snapchatCreativeInspectionView(out)}<dl>${(out.dependencies ?? []).map(row => `<dt>${esc(uiText(recipeDependencyLabels[row.id] ?? pretty(row.id)))} — ${status(row.status)}</dt><dd><code>${esc(row.id)}</code><p>${esc(uiText(row.meaning))}</p></dd>`).join('')}</dl>${out.blockers?.length ? `<h4>${esc(uiText('Resolve before review'))}</h4><ul>${out.blockers.map(row => `<li>${esc(row.step_id ?? '')} ${esc(row.code)}: ${esc(recipeBlockerMeaning(row))}</li>`).join('')}</ul>` : ''}${out.deferred?.length ? `<h4>${esc(uiText('Checks after predecessor verification'))}</h4><ul>${out.deferred.map(row => `<li>${esc(row.step ?? '')}: ${esc(uiText(row.reason))}</li>`).join('')}</ul>` : ''}${out.warnings?.length ? `<h4>${esc(uiText('Account policy notices'))}</h4><ul>${out.warnings.map(row => `<li>${esc(recipePolicyNotice(row))}</li>`).join('')}</ul>` : ''}${recordDetails(out, uiText('Native evidence and input provenance'))}</section>`;
+  return `<section aria-label="${esc(uiText('Account prerequisite evidence'))}"><h3>${esc(uiText('Account prerequisite evidence'))}</h3><p>${status(out.status)}</p><p>${esc(uiText('This check saves no campaign plan and makes no advertising changes. Each later change still needs its own review.'))}</p>${out.scope ? `<p>${esc(uiText('Advertising login and account'))}: <code>${esc(out.scope.connection_id)}</code> · <code>${esc(out.scope.account_id)}</code></p>` : ''}${out.expires_at ? `<p>${esc(uiText('Evidence expires'))}: ${esc(date(out.expires_at))}</p>` : ''}${out.missing_fields?.length ? `<p>${esc(uiText('Missing business inputs'))}: ${out.missing_fields.map(key => esc(uiText(recipeFieldLabel(key, typeof out.recipe === 'string' ? out.recipe : (out.recipe?.id ?? recipeId)) ?? pretty(key)))).join(', ')}</p>` : ''}${conversionGoalInspectionView(out)}${conversionValueInspectionView(out)}${conversionActivityInspectionView(out)}${snapchatCreativeInspectionView(out)}<dl>${(out.dependencies ?? []).map(row => `<dt>${esc(uiText(recipeDependencyLabels[row.id] ?? pretty(row.id)))} — ${status(row.status)}</dt><dd><code>${esc(row.id)}</code><p>${esc(uiText(row.meaning))}</p></dd>`).join('')}</dl>${out.blockers?.length ? `<h4>${esc(uiText('Resolve before review'))}</h4><ul>${out.blockers.map(row => `<li>${esc(row.step_id ?? '')} ${esc(row.code)}: ${esc(recipeBlockerMeaning(row))}</li>`).join('')}</ul>` : ''}${out.deferred?.length ? `<h4>${esc(uiText('Checks after predecessor verification'))}</h4><ul>${out.deferred.map(row => `<li>${esc(row.step ?? '')}: ${esc(uiText(row.reason))}</li>`).join('')}</ul>` : ''}${out.warnings?.length ? `<h4>${esc(uiText('Account policy notices'))}</h4><ul>${out.warnings.map(row => `<li>${esc(recipePolicyNotice(row))}</li>`).join('')}</ul>` : ''}${recordDetails(out, uiText('Native evidence and input provenance'))}</section>`;
 }
 /**
  * Why no account can be chosen (CMP-06): nothing is connected for this platform, or the selected playbook's bound
@@ -1394,9 +1395,13 @@ async function mountRecipeBuilder(profiles, openCampaign) {
           ];
         const lookup = async (button, mode) => {
           const target = f.elements.target.value,
-            ids = entered(),
             typed = $('#recipe-ms-location-query').value.trim(),
-            query = mode === 'search' ? typed : ids.join(','),
+            // The server reads digits as location IDs (locationQuery), so a number typed as a name is checked as an ID
+            // and its answer is a check (before, that answer was refused as incomplete).
+            numeric = mode === 'search' && /^[0-9][0-9,\s]*$/.test(typed),
+            answer = numeric ? 'resolve' : mode,
+            ids = numeric ? [...new Set(typed.split(/[\s,]+/).filter(Boolean))] : entered(),
+            query = answer === 'search' ? typed : ids.join(','),
             sameAccount = () => formCurrent() && f.elements.target.value === target,
             current = () =>
               sameAccount() &&
@@ -1413,7 +1418,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
                   mode === 'search' ? 'Enter a location name to search for.' : 'Enter the location IDs to check first.',
                 ),
               );
-            if (mode === 'resolve' && (ids.length > 100 || !ids.every(id => /^[1-9][0-9]{0,18}$/.test(id))))
+            if (answer === 'resolve' && (ids.length > 100 || !ids.every(id => /^[1-9][0-9]{0,18}$/.test(id))))
               throw Error(uiText('Microsoft location IDs are numbers, one per line.'));
             const out = await workspaceCall('campaign', {
               action: 'recipe_lookup',
@@ -1422,7 +1427,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
               query,
             });
             if (!current()) return;
-            if (!recipeMicrosoftLocationsValid(out, mode, ids))
+            if (!recipeMicrosoftLocationsValid(out, answer, ids))
               throw Error(uiText('The location lookup answer is incomplete. Search again.'));
             results.innerHTML = recipeMicrosoftLocationsView(out);
             results.querySelectorAll('[data-ms-location]').forEach(el =>
@@ -1510,7 +1515,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
           } else {
             $('#recipe-preview').innerHTML =
               action === 'recipe_eligibility'
-                ? recipeEligibilityView(out)
+                ? recipeEligibilityView(out, recipe)
                 : recipeConventionView(out.provenance) + conversionRecipePreview(out);
             $('#recipe-preview').focus();
           }
