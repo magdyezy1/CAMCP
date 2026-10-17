@@ -384,3 +384,20 @@ order: the people of a request that carries them, the links and cursors of a Met
 a Business Profile place action, the OAuth code and state of a connection diagnostic, and reporting credentials. It
 replaced five nested calls in `MirrorService.callOnce`; `tests/audit-input-redaction.test.mjs` keeps the table equal to
 that nesting.
+
+A composite tool's actions are entries of action tables (`src/tool-actions.ts`, a leaf): each entry receives one
+`ToolContext` (the call's arguments and the caller, extended with what the tool's actions share) and `actionHandler`
+answers only a table's own entries, so an inherited name such as `constructor` is no action. `amcp_reporting` is the
+first: `DecisionReporting.handle` (899 lines, an if-chain over 24 actions) is now its two guards and three tables,
+consulted in the order of the checks the chain ran between them: the actions that take no page bounds (presets,
+serving diagnostics, the launch check), then, after the page bounds, those that list, read or capture evidence, then,
+after the read of the report the call names and the check of its connection, the 13 actions on that report. Each long
+action is a method (`capture` 342 lines, `analyze` 203); their bodies are the chain's blocks unchanged.
+`tests/tool-actions.test.mjs` holds the stage of every action and the order of the checks, and the reporting suites
+are unchanged.
+
+Not yet tables (each a separate change, so that it does not collide with work that edits the same lines): the
+dispatch of the composite tools in `MirrorService.callOnce` and the actions of `amcp_media`
+(`MediaUploadService.handle`), both edited by packages running alongside this one; the route modules of
+`server/website.ts` (`createWebsite`); and the split of `web/account-workflows.js` behind `web/route-assets.js`, which
+belongs with WEB-07.
