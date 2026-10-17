@@ -11,11 +11,6 @@ let overviewState = {
   loadSequence: 0,
   dirty: false,
 };
-const overviewCall = async input => {
-  const r = await api('/api/workspace/overview', {method: 'POST', body: JSON.stringify(input)});
-  if (!r.success) throw requestError(r, uiText('The report request failed.'));
-  return r.data;
-};
 const overviewDefault = () => ({
   name: 'Campaign performance',
   client_name: '',
@@ -28,10 +23,6 @@ const overviewDefault = () => ({
   targets: {},
   objectives: [],
 });
-const pretty = value =>
-  String(value ?? '')
-    .replaceAll('_', ' ')
-    .replace(/\b\w/g, x => x.toUpperCase());
 // First-party display enums only. Never apply this to client names, native fields or saved values.
 const reportLabels = {
   total: 'Total',
@@ -1393,19 +1384,6 @@ function reportParentField(key, parent, account) {
 /** RPT-07: a native parent's name beside its ID, kept literal (current provider metadata, never translated). */
 function reportParentName(name) {
   return typeof name === 'string' && name ? ` · <span dir="auto" data-native>${esc(name)}</span>` : '';
-}
-function renderSourceDiagnostic(error) {
-  const p = error.provider ?? {},
-    owned = uiOwnedError(error),
-    phase =
-      {
-        account_list: uiText('Accessible accounts'),
-        account_lookup: uiText('Account lookup'),
-        manager_hierarchy: uiText('Manager account hierarchy'),
-        campaign_report: uiText('Campaign report'),
-        campaign_lookup: uiText('Campaign lookup'),
-      }[error.request?.stage] ?? uiText('Provider request');
-  return `<div class="source-diagnostic"><strong><code>${esc(p.code ?? error.code)}</code>${error.http_status ? ` · HTTP ${esc(error.http_status)}` : ''}</strong><p>${esc(owned.message)}</p>${owned.nextAction ? `<p class="source-next-action">${esc(owned.nextAction)}</p>` : ''}${error.request ? `<small>${esc(phase)} · <code>${esc(error.request.method)} ${esc(error.request.path)}</code></small>` : ''}${Object.hasOwn(error, 'login_customer_id') ? `<small>${esc(uiText('Google login customer ID:'))} ${esc(error.login_customer_id ?? uiText('not sent'))}</small>` : ''}${p.request_id ? `<small>${esc(uiText('Provider request ID:'))} <code>${esc(p.request_id)}</code></small>` : ''}${p.errors?.length > 1 ? `<ul>${p.errors.map(e => `<li><code>${esc(e.code ?? '')}</code> ${esc(e.message ?? '')}${e.field ? ` · ${esc(e.field)}` : ''}</li>`).join('')}</ul>` : ''}</div>`;
 }
 function renderReportSourceHealth(s, platforms, index, range, report) {
   return `<details id="report-source-${index}" class="source-health ${s.complete ? 'complete' : 'attention'}" ${s.error ? 'open' : ''}><summary><span>${esc(platforms.find(p => p.id === s.source.platform)?.name ?? s.source.platform)}</span><strong>${s.error ? uiText('Source failed') : s.row_count === 0 ? uiText('No rows returned') : s.complete ? uiText('Complete') : uiText('Limited coverage')}</strong></summary>${s.account_name ? `<p><strong>${esc(s.account_name)}</strong></p>` : ''}<p>${esc(s.source.account_id)} · ${esc(s.currency ?? uiText('Currency unavailable'))} · ${esc(s.timezone ?? uiText('Timezone unavailable'))}</p>${s.error ? renderSourceDiagnostic(s.error) : `<p>${esc(s.row_count === 0 ? uiText('The provider returned no campaign rows for {range}. Check the account and year.', {range: reportRangeLabel(s.date_range ?? range)}) + ' ' + (s.warnings?.map(uiSourceWarning).join(' ') ?? '') : s.warnings?.map(uiSourceWarning).join(' ') || uiText('All returned pages captured.'))}</p>`}${s.row_count > 0 ? `<p>${esc(uiPlural(s.row_count, '{count} source row', '{count} source rows'))}${s.visible_row_count === undefined ? '' : ' · ' + esc(uiText('{count} shown after objective filters', {count: s.visible_row_count}))}</p>` : ''}<small>${esc(s.attribution ?? '')}</small>${reportQualityDetails(s, report)}${renderPeriodFailures(s.period_errors ?? s.error?.period_errors ?? [])}${s.error ? `<div class="report-actions"><a class="button small" href="/connections">${esc(uiText('Manage connections'))}</a><button type="button" class="button small" data-report-diagnostic="${index}">${esc(uiText('Copy error details'))}</button></div>` : ''}</details>`;

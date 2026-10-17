@@ -6,7 +6,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {Script, createContext} from 'node:vm';
 
-const catalogText = fs.readFileSync('web/locales/ar.json', 'utf8');
+// The page asks for catalog chunks (WEB-07: /assets/locales/ar/<chunk>.json); this serves the shipped ones.
+const chunkResponse = url =>
+  new Response(fs.readFileSync('web/' + String(url).replace(/^\/assets\//, ''), 'utf8'), {
+    status: 200,
+    headers: {'content-type': 'application/json'},
+  });
 
 /** Anchors of a real page, with just the attribute API applyUILocale uses. */
 function anchors(file) {
@@ -51,7 +56,7 @@ function localized({links = [], fields = [], stored = {}, confirm = true, extra 
     document: documentWith(links, fields),
     localStorage: {getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value))},
     addEventListener: (type, listener) => listeners.set(type, listener),
-    fetch: async () => new Response(catalogText, {status: 200, headers: {'content-type': 'application/json'}}),
+    fetch: async url => chunkResponse(url),
     confirmAction: async options => {
       prompts.push(options);
       return confirm;
@@ -103,9 +108,10 @@ test('the landing page built after the last locale pass links the policies in th
       },
     });
   await page.run('initializeUILocale()');
-  // The landing renderer and its helpers; the sign-in pages that follow need a full document.
+  // The landing renderer and its helpers; the account page and navigation that follow need a full document (the
+  // sign-in pages are account-security.js's alone since WEB-07 removed identity.js's replaced copy).
   const identity = fs.readFileSync('web/identity.js', 'utf8');
-  page.run(identity.slice(0, identity.indexOf('async function renderAuthPage()')));
+  page.run(identity.slice(0, identity.indexOf('async function renderAccountPage()')));
   await page.run('renderLanding()');
   const hrefs = [...content.innerHTML.matchAll(/href="([^"]+)"/g)].map(m => m[1]).filter(legal);
   assert.deepEqual(hrefs.sort(), ['/data-deletion?lang=ar', '/privacy?lang=ar', '/terms?lang=ar']);

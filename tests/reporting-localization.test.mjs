@@ -131,6 +131,15 @@ function fixture(locale) {
     'reporting-overview',
   ])
     run(readFileSync('web/' + file + '.js', 'utf8'));
+  // WEB-07: report requests and display labels are shell helpers (web/workspace.js) since the report builder's script
+  // left the shell.
+  const workspace = readFileSync('web/workspace.js', 'utf8');
+  run(
+    workspace.slice(
+      workspace.indexOf('const overviewCall = async input => {'),
+      workspace.indexOf('const capabilityFeatureLabels'),
+    ),
+  );
   run(
     `uiLocale=${JSON.stringify(locale)};uiMessages=new Map(${locale === 'ar' ? 'Object.entries(catalog)' : '[]'});overviewState.bootstrap=bootstrap;overviewState.config=config;overviewState.custom=config.custom_metrics;renderReportingOverview=async()=>{};`,
   );

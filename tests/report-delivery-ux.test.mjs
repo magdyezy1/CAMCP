@@ -150,6 +150,14 @@ function fixture(locale = 'en') {
   run(app.slice(app.indexOf('function requestError('), app.indexOf('const content =')));
   for (const file of ['report-library', 'report-quality', 'report-workflows', 'report-delivery', 'reporting-overview'])
     run(readFileSync('web/' + file + '.js', 'utf8'));
+  // WEB-07: report requests are a shell helper (web/workspace.js) since the report builder's script left the shell.
+  const workspace = readFileSync('web/workspace.js', 'utf8');
+  run(
+    workspace.slice(
+      workspace.indexOf('const overviewCall = async input => {'),
+      workspace.indexOf('const capabilityFeatureLabels'),
+    ),
+  );
   run(
     `uiLocale=${JSON.stringify(locale)};uiMessages=new Map(${locale === 'ar' ? 'Object.entries(catalog)' : '[]'});` +
       'uiViewerTimeZone=()=>"Europe/London";overviewState.bootstrap=bootstrap;overviewState.config=config;',

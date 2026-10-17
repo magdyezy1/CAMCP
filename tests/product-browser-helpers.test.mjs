@@ -6,7 +6,9 @@ test('product CSV preserves quoted commas and escaped quotes, rejects ambiguous 
   const c = createContext({document: {addEventListener() {}}});
   new Script(readFileSync('web/localization.js', 'utf8')).runInContext(c);
   new Script(readFileSync('web/report-quality.js', 'utf8')).runInContext(c);
-  new Script(readFileSync('web/account-workflows.js', 'utf8')).runInContext(c);
+  // WEB-07: the product CSV parser is the Commerce page's own module, which registers its page with the route registry.
+  for (const file of ['routes.js', 'account-workflows.js', 'commerce.js'])
+    new Script(readFileSync('web/' + file, 'utf8')).runInContext(c);
   c.text =
     'retailer_id,name,price,currency,image_url\r\nsku1,"A, ""quoted"" item",19.99,USD,https://example.com/image.jpg\r\n';
   const rows = new Script('parseProductCSV(text)').runInContext(c);

@@ -44,13 +44,36 @@ export function serverShellRoutes(source) {
     )?.[1];
   return list ? [...list.matchAll(/'([^']+)'/g)].map(m => m[1]) : null;
 }
+/** The loader's view of the registry: the files each page loads, and every file the loader may request, in order. */
+export function pageAssetPlan(root = process.cwd()) {
+  const context = createContext({});
+  new Script(fs.readFileSync(path.join(root, 'web/routes.js'), 'utf8')).runInContext(context);
+  new Script(
+    fs.readFileSync(path.join(root, 'web/route-assets.js'), 'utf8') +
+      '\n;globalThis.__assets = JSON.stringify({routes: pageAssetRoutes, order: pageAssetOrder, dependencies: pageAssetDependencies});',
+  ).runInContext(context);
+  return JSON.parse(context.__assets);
+}
 /** The page paths route-assets.js loads feature scripts for. */
 export function pageAssetPaths(root = process.cwd()) {
-  const context = createContext({});
-  new Script(
-    fs.readFileSync(path.join(root, 'web/route-assets.js'), 'utf8') + '\n;globalThis.__assets = pageAssetRoutes;',
-  ).runInContext(context);
-  return Object.keys(context.__assets);
+  return Object.keys(pageAssetPlan(root).routes);
+}
+/** WEB-07: a page's assets are authored scripts the loader knows, and each loader file ships. */
+export function pageAssetProblems(plan, exists = () => true) {
+  const problems = [],
+    order = new Set(plan.order);
+  for (const [route, files] of Object.entries(plan.routes)) {
+    if (!Array.isArray(files) || !files.length) problems.push('web/routes.js: ' + route + ' declares no assets');
+    for (const file of files ?? [])
+      if (!order.has(file))
+        problems.push('web/routes.js: ' + route + ' loads ' + file + ', which web/route-assets.js does not list');
+  }
+  for (const [file, dependencies] of Object.entries(plan.dependencies))
+    for (const dependency of [file, ...dependencies])
+      if (!order.has(dependency))
+        problems.push('web/route-assets.js: dependency ' + dependency + ' is not in the loader order');
+  for (const file of plan.order) if (!exists(file)) problems.push('web/route-assets.js: ' + file + ' does not ship');
+  return problems;
 }
 export function routeProblems({registry, index, server, assets}) {
   const problems = [],
@@ -100,12 +123,16 @@ export function routeProblems({registry, index, server, assets}) {
   return problems;
 }
 export function checkRoutes(root = process.cwd()) {
-  return routeProblems({
-    registry: loadRouteRegistry(root),
-    index: fs.readFileSync(path.join(root, 'web/index.html'), 'utf8'),
-    server: serverShellRoutes(fs.readFileSync(path.join(root, 'server/website.ts'), 'utf8')),
-    assets: pageAssetPaths(root),
-  });
+  const plan = pageAssetPlan(root);
+  return [
+    ...routeProblems({
+      registry: loadRouteRegistry(root),
+      index: fs.readFileSync(path.join(root, 'web/index.html'), 'utf8'),
+      server: serverShellRoutes(fs.readFileSync(path.join(root, 'server/website.ts'), 'utf8')),
+      assets: Object.keys(plan.routes),
+    }),
+    ...pageAssetProblems(plan, file => fs.existsSync(path.join(root, 'web', file))),
+  ];
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const problems = checkRoutes();

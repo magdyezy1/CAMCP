@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readdirSync, readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
 
 const deferred = () => {
@@ -209,6 +209,8 @@ function browserFixture(fetcher = async () => response({})) {
     },
     async renderAccountPage() {
       node('#content').innerHTML = 'Your account';
+      // Like identity.js's page, then the parts other scripts register (account security, WEB-07).
+      await run("AMCP.routes.renderParts('/account')");
     },
     glyph: () => '',
     workspaceBind: (selector, fn) => bindings.set(selector, fn),
@@ -224,7 +226,8 @@ function browserFixture(fetcher = async () => response({})) {
   const workspace = readFileSync('web/workspace.js', 'utf8');
   run(workspace.slice(0, workspace.indexOf('async function workspaceCall(')));
   const identitySource = readFileSync('web/identity.js', 'utf8');
-  run(identitySource.slice(0, identitySource.indexOf('async function renderAuthPage()')));
+  // The shell's helpers before the account page this fixture replaces (the sign-in pages are account-security.js's).
+  run(identitySource.slice(0, identitySource.indexOf('async function renderAccountPage()')));
   for (const file of ['report-library', 'report-quality', 'report-workflows', 'reporting-overview'])
     run(readFileSync('web/' + file + '.js', 'utf8'));
   context.nextIdentity = identity();
@@ -640,11 +643,20 @@ test('the landing offers sign-in, not a sign-up, when registration cannot comple
   assert.doesNotMatch(member.node('#content').innerHTML, /href="\/signup"|href="\/login"/);
 });
 
+// WEB-07 regression: identity.js kept its own sign-in page, field and social-button builders, which account-security.js
+// replaced by reassignment at load time. The copy never rendered, yet this test rendered it, so a fix made there (or a
+// regression in the live page) went unnoticed. Each builder is now declared once, and the test renders the live page.
 test('a closed sign-up page explains access and links sign-in instead of a disabled form', async () => {
-  const identitySource = readFileSync('web/identity.js', 'utf8'),
-    authPage = identitySource.slice(
-      identitySource.indexOf('async function renderAuthPage()'),
-      identitySource.indexOf('async function renderAccountPage()'),
+  const scripts = readdirSync('web')
+    .filter(file => file.endsWith('.js'))
+    .map(file => [file, readFileSync('web/' + file, 'utf8')]);
+  for (const name of ['renderAuthPage', 'formField', 'socialButtons'])
+    assert.deepEqual(
+      scripts
+        .filter(([, text]) => new RegExp('(?:^|\\n)(?:async )?function ' + name + '\\(').test(text))
+        .map(([f]) => f),
+      ['account-security.js'],
+      name + ' is declared once',
     );
   for (const [options, closed] of [
     [closedOptions, true],
@@ -652,7 +664,8 @@ test('a closed sign-up page explains access and links sign-in instead of a disab
   ])
     for (const mode of ['/signup', '/login']) {
       const f = publicFixture(options);
-      f.run(authPage);
+      f.run('authBind = () => {}');
+      f.run(readFileSync('web/account-security.js', 'utf8'));
       f.updateLocation(mode);
       await f.run('renderAuthPage()');
       const html = f.node('#content').innerHTML;
@@ -666,8 +679,9 @@ test('a closed sign-up page explains access and links sign-in instead of a disab
 });
 
 // Browser QA regression (wave 2, every /login case): the sign-in page people see is web/account-security.js's
-// renderer, which replaces identity.js's and had dropped WEB-02's About link and closed-registration state. The test
-// above renders only identity.js's version, so it kept passing while the rendered page lost both.
+// renderer, which then replaced identity.js's and had dropped WEB-02's About link and closed-registration state. The
+// test above rendered only identity.js's version, so it kept passing while the rendered page lost both (WEB-07 removed
+// that copy).
 test('the live sign-in renderer links About and offers sign-up only when registration can complete', async () => {
   for (const [options, closed] of [
     [closedOptions, true],

@@ -3,9 +3,9 @@
 // refuses the rest outright; this keeps the navigation honest so nothing offers a door that will not open (WEB-06):
 // out-of-scope links, groups left empty and the sidebar's connectors link are hidden, the palette lists only pages in
 // scope, and a page the workspace does not include says so after opening Home instead of silently replacing the URL.
+// It adjusts every render through the shell's render hooks (WEB-07), before the page renders and once it has.
 let scopeRedirectedFrom = null;
-const baseScopedRender = render;
-render = async function () {
+AMCP.hooks.beforeRender(() => {
   const scoped = !!(session.authenticated && session.testAccount);
   document.body.classList.toggle('test-account', scoped);
   for (const link of document.querySelectorAll('[data-route]'))
@@ -20,19 +20,18 @@ render = async function () {
     scopeRedirectedFrom = location.pathname;
     history.replaceState({}, '', '/dashboard');
   }
-  const result = await baseScopedRender.apply(this, arguments);
+});
+AMCP.hooks.afterRender(() => {
   const from = scopeRedirectedFrom;
   scopeRedirectedFrom = null;
-  if (from && location.pathname === '/dashboard' && content.querySelector) {
-    const label = routeLabel(from);
-    const notice = `<p class="notice" role="status" id="scope-notice">${esc(
-      label
-        ? uiText('This test workspace does not include {page}.', {page: uiText(label)})
-        : uiText('This test workspace does not include that page.'),
-    )}</p>`;
-    const heading = content.querySelector('.page-heading');
-    if (heading) heading.insertAdjacentHTML('afterend', notice);
-    else content.insertAdjacentHTML('afterbegin', notice);
-  }
-  return result;
-};
+  if (!from || location.pathname !== '/dashboard' || !content.querySelector) return;
+  const label = routeLabel(from);
+  const notice = html`<p class="notice" role="status" id="scope-notice">${
+    label
+      ? uiText('This test workspace does not include {page}.', {page: uiText(label)})
+      : uiText('This test workspace does not include that page.')
+  }</p>`;
+  const heading = content.querySelector('.page-heading');
+  if (heading) insertHtml(heading, 'afterend', notice);
+  else insertHtml(content, 'afterbegin', notice);
+});

@@ -1,5 +1,4 @@
 'use strict';
-const baseWorkspaceSettings = renderSettings;
 let ownerSettingsRequest = 0;
 const platformName = g =>
   ({
@@ -534,12 +533,15 @@ const ownerCall = async input => {
     });
   return r.data;
 };
-renderSettings = async function () {
+/**
+ * The owner's part of Workspace settings (WEB-07: a part of /settings, registered below, never a wrapper of the page):
+ * health, operating controls, retention and policies, after the shared settings page has rendered.
+ */
+async function renderOwnerSettings() {
   const request = ++ownerSettingsRequest,
     ownerSession = session,
     ownerIdentity = identityKey(session),
     ownerNavigation = navigationGeneration;
-  baseWorkspaceSettings();
   if (!session.authenticated || (!session.administrator && session.workspaceRole !== 'owner')) return;
   const [h, signin] = await Promise.all([ownerCall({action: 'health'}), api('/api/account/options')]);
   if (
@@ -840,4 +842,6 @@ renderSettings = async function () {
     toast(uiText('Workspace default saved.'));
     await renderSettings();
   });
-};
+}
+// First among the parts of /settings: account access (account-approvals.js) fills the section this part creates.
+AMCP.routes.extend('/settings', renderOwnerSettings, {order: 10});

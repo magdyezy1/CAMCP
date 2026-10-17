@@ -83,12 +83,6 @@ function afterSignIn() {
   sessionStorage.removeItem('amcp.return');
   navigate(path);
 }
-function socialButtons() {
-  return `<div class="social-buttons">${authOptions.providers.map(p => `<button class="social-button" data-social="${p.id}" ${p.configured ? '' : 'disabled'}><span class="social-icon ${p.id}">${p.id === 'google' ? 'G' : p.id === 'apple' ? `<svg width="20" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17 12c0-2 1.5-3.3 2-3.6-1.1-1.7-2.8-1.9-3.4-1.9-1.5-.2-2.9.9-3.6.9-.7 0-1.8-.9-3-.9-1.6 0-3.1 1-4 2.5-1.8 3.1-.5 7.7 1.2 10.2.8 1.1 1.7 2.4 3 2.3 1.2 0 1.7-.8 3.3-.8s2 .8 3.4.8 2.2-1.2 3-2.3c.9-1.3 1.3-2.5 1.3-2.6-.1 0-3.2-1.2-3.2-4.6ZM14.6 4.8c.7-.9 1.2-2.1 1.1-3.3-1.1 0-2.4.7-3.2 1.6-.7.8-1.3 2-1.1 3.2 1.2.1 2.4-.6 3.2-1.5Z"/></svg>` : 'f'}</span>${esc(uiText('Continue with'))} ${esc(p.name)}${p.configured ? '' : `<small>${esc(uiText('Not configured'))}</small>`}</button>`).join('')}</div>`;
-}
-function formField(label, name, type = 'text', extra = '') {
-  return `<label>${esc(uiText(label))}<input name="${name}" type="${type}" ${extra} required></label>`;
-}
 /** A selector that finds the same control after a re-render: its id, or its tag and data attributes. */
 function focusKey(el) {
   if (!el || el === document.body) return null;
@@ -165,99 +159,6 @@ function authBind(selector, fn) {
     }),
   );
 }
-async function renderAuthPage() {
-  authOptions = await api('/api/account/options');
-  const mode = location.pathname.slice(1),
-    signup = mode === 'signup',
-    forgot = mode === 'forgot-password',
-    verify = ['verify-email', 'reset-password'].includes(mode);
-  if (verify && location.hash) {
-    const hash = new URLSearchParams(location.hash.slice(1));
-    verificationLink = {
-      token: hash.get('token'),
-      kind: hash.get('kind') ?? (mode === 'reset-password' ? 'reset' : 'register'),
-    };
-    history.replaceState({}, '', location.pathname);
-  }
-  const heading = signup
-    ? `${esc(uiText('Make yourself'))}<br>${esc(uiText('at home.'))}`
-    : forgot
-      ? uiText('A fresh start.')
-      : verify
-        ? uiText('You’re almost in.')
-        : `${esc(uiText('Good to have'))}<br>${esc(uiText('you back.'))}`;
-  const subtitle = signup
-    ? uiText('A workspace for your accounts, your ideas, and whatever comes next.')
-    : forgot
-      ? uiText('Enter your account email. We’ll send a secure link to reset your password.')
-      : verify
-        ? uiText('Finish the steps below to secure your account.')
-        : uiText('Sign in to pick up where you left off.');
-  const authError = authErrors[new URLSearchParams(location.search).get('error')] ?? '',
-    registration = registrationOpen(authOptions),
-    // A sign-up no method can complete says so plainly and offers sign-in, instead of a disabled form (WEB-02).
-    closed = signup && !registration;
-  content.innerHTML = `<div class="auth-page"><div class="auth-brand">${brandLink()}${languageControl()}<a href="/" class="text-link">${esc(uiText('Back to home ↗'))}</a></div><section class="auth-story"><span class="eyebrow">${esc(uiText('YOUR SPACE TO MAKE MOVES'))}</span><div class="auth-tagline">${esc(uiText('A little more'))}<br>${esc(uiText('connected.'))}<br><em>${esc(uiText('A lot more you.'))}</em></div><div class="auth-art" aria-hidden="true"><div class="auth-arch"></div><div class="auth-disc"></div><span>✳</span><div class="auth-art-label">${esc(uiText('IDEAS IN MOTION'))}<br><b>${esc(uiText('AMCP / YOUR WORKSPACE'))}</b></div></div><p>${esc(uiText('One place for the accounts, creative, and decisions that move your work forward.'))}</p><div class="auth-story-footer">${esc(uiText('THOUGHTFUL BY DESIGN'))} <span>01 — ∞</span></div></section><section class="auth-form-side"><div class="auth-form-card"><span class="eyebrow">${signup ? uiText('LET’S START SOMETHING') : verify ? uiText('ACCOUNT SECURITY') : uiText('WELCOME TO AMCP')}</span><h1>${heading}</h1><p class="auth-subtitle">${subtitle}</p>${!forgot && !verify && !closed ? socialButtons() + `<div class="auth-divider"><span>${esc(uiText('or continue with email'))}</span></div>` : ''}<p id="auth-error" class="error" role="alert">${esc(uiText(authError))}</p><div id="auth-result" role="status"></div>${verify ? `<form id="email-finish" class="auth-form">${verificationLink?.kind === 'email' ? `<p>${esc(uiText('Confirm this email for your AMCP account. Existing sessions and MCP access will be revoked.'))}</p>` : formField(uiText('Choose a password'), 'password', 'password', 'minlength="15" maxlength="128" autocomplete="new-password"') + `<p class="form-note">${esc(uiText('At least 15 characters. A memorable phrase works well.'))}</p>`}<button class="button primary full" ${verificationLink?.token ? '' : 'disabled'}>${esc(uiText('Complete verification ↗'))}</button>${verificationLink?.token ? '' : `<p class="error">${esc(uiText('Open the complete link from your email to continue.'))}</p>`}</form>` : forgot ? `<form id="forgot-form" class="auth-form">${formField(uiText('Email address'), 'email', 'email', 'autocomplete="email" maxlength="254"')}<button class="button primary full" ${authOptions.emailEnabled ? '' : 'disabled'}>${esc(uiText('Send reset link ↗'))}</button></form>` : closed ? `<div class="auth-form auth-closed"><p class="notice">${esc(uiText(authErrors.SIGNUP_DISABLED))} ${esc(uiText('Ask your workspace owner for access.'))}</p><a class="button primary full" href="/login">${esc(uiText('Sign in to your workspace'))} ${glyph('arrow')}</a></div>` : `<form id="member-form" class="auth-form">${signup ? formField(uiText('Your name'), 'name', 'text', 'autocomplete="name" maxlength="80"') : ''}${formField(uiText('Email address'), 'email', 'email', 'autocomplete="username" maxlength="254"')}${signup ? `<p class="form-note">${esc(uiText('We’ll email a verification link. You’ll choose your password after confirming your address.'))}</p>` : formField(uiText('Password'), 'password', 'password', 'autocomplete="current-password" maxlength="128"') + `<a class="forgot-link" href="/forgot-password">${esc(uiText('Forgot password?'))}</a>`}<button class="button primary full" ${signup && (!authOptions.signupEnabled || !authOptions.emailEnabled) ? 'disabled' : ''}>${signup ? uiText('Create your account') : uiText('Sign in to your workspace')} ${glyph('arrow')}</button></form>`}${!authOptions.emailEnabled && ((signup && !closed) || forgot) ? `<p class="form-note setup-note">${esc(uiText('Email delivery hasn’t been configured yet. Use an available social sign-in method.'))}</p>` : ''}<p class="auth-switch">${verify || forgot ? `<a href="/login">${esc(uiText('← Back to sign in'))}</a>` : signup ? `${esc(uiText('Already part of AMCP?'))} <a href="/login">${esc(uiText('Sign in'))}</a>` : registration ? `${esc(uiText('New here?'))} <a href="/signup">${esc(uiText('Create an account'))}</a>` : `${esc(uiText('New here?'))} ${esc(uiText('Ask your workspace owner for access.'))}`}</p>${!signup && !verify && !forgot && authOptions.administratorEnabled ? `<button class="admin-link" data-open-admin>${esc(uiText('Deployment administrator access'))}</button>` : ''}${authLegalNotice()}<p class="auth-legal"><a href="/about">${esc(uiText('About us'))}</a></p></div></section></div>`;
-  authBind('[data-social]', async button => {
-    sessionStorage.setItem('amcp.return', safeReturn(sessionStorage.getItem('amcp.return')));
-    const r = await api('/api/signin/' + button.dataset.social + '/start', {method: 'POST', body: '{}'});
-    location.assign(r.url);
-  });
-  const done = (message, resend) => {
-    $('#auth-result').innerHTML =
-      `<div class="auth-success">${glyph('check')}<div><strong>${esc(uiText('Check your inbox'))}</strong><p>${esc(uiText(message))}</p>${resend ? `<p class="form-note">${esc(uiText('Nothing after a minute? Check spam, then'))} <button type="button" class="button small quiet" id="auth-resend">${esc(uiText('send it again'))}</button></p><p class="form-note" id="auth-resend-note" role="status" hidden></p>` : ''}</div></div>`;
-    document.querySelectorAll('.auth-form').forEach(f => (f.hidden = true));
-    const button = $('#auth-resend'),
-      note = $('#auth-resend-note');
-    if (!button) return;
-    button.addEventListener('click', async () => {
-      button.disabled = true;
-      note.hidden = false;
-      note.textContent = 'Sending…';
-      try {
-        note.textContent = (
-          await api('/api/account/resend-verification', {method: 'POST', body: JSON.stringify(resend)})
-        ).message;
-      } catch (e) {
-        note.textContent = uiText(e.message);
-      }
-      // The server rate-limits resends per address, so pause rather than invite a burst.
-      setTimeout(() => {
-        button.disabled = false;
-      }, 30000);
-    });
-  };
-  authBind('#member-form', async form => {
-    const values = Object.fromEntries(new FormData(form));
-    const r = await api('/api/account/' + (signup ? 'register' : 'login'), {
-      method: 'POST',
-      body: JSON.stringify(values),
-    });
-    if (signup) done(r.message, {name: values.name, email: values.email});
-    else {
-      session = await api('/api/session');
-      platforms = (await api('/api/platforms')).platforms;
-      afterSignIn();
-    }
-  });
-  authBind('#forgot-form', async form => {
-    const r = await api('/api/account/forgot-password', {
-      method: 'POST',
-      body: JSON.stringify(Object.fromEntries(new FormData(form))),
-    });
-    done(r.message);
-  });
-  authBind('#email-finish', async form => {
-    const r = await api('/api/account/verify-email', {
-      method: 'POST',
-      body: JSON.stringify({...verificationLink, ...Object.fromEntries(new FormData(form))}),
-    });
-    verificationLink = null;
-    form.hidden = true;
-    $('#auth-result').innerHTML =
-      `<div class="auth-success">${glyph('check')}<div><strong>${esc(uiText('You’re all set.'))}</strong><p>${esc(uiText(r.message))}</p><a class="button primary" href="/login">${esc(uiText('Continue to sign in ↗'))}</a></div></div>`;
-  });
-}
 async function renderAccountPage() {
   if (!session.authenticated) {
     showLogin();
@@ -333,6 +234,8 @@ async function renderAccountPage() {
       navigate('/login');
     } else await renderAccountPage();
   });
+  // The parts other scripts register for the account page (account security, WEB-07), in their declared order.
+  await AMCP.routes.renderParts('/account');
 }
 const menuMatch = matchMedia('(max-width:850px)');
 function closeNavigation() {

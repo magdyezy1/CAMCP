@@ -29,3 +29,29 @@ connector hero and callback header) use `--focus-on-inverse` instead, and recomm
 `--decision-*` pairs. Measurements are in [the accessibility report](review/ACCESSIBILITY.md).
 `tools/check-web.mjs` keeps `tokens.css` first and refuses a token defined in any other stylesheet. The shades of
 individual components (about 500 one-off tints) are still written where they are used.
+
+## One theme source (WEB-07, 2026-10-17)
+
+`web/tokens.css` sets every colour for both themes: the palette above, the semantic roles components should use
+(`--surface`, `--surface-raised`, `--text`, `--text-secondary`, `--link`, `--border`, `--border-strong`, `--focus`,
+`--status-{success,warning,danger}-{bg,ink}`, and the theme-invariant `--surface-inverse`/`--text-on-inverse` of the
+sidebar), and the policy pages' own shades (`--policy-*`). The dark values sit in `:root[data-theme='dark']` (chosen
+in Appearance, or the system's under System) and, identically, in `@media (prefers-color-scheme: dark)
+{ :root:not([data-theme]) }`, so Privacy, Terms, Data deletion and the 404 page follow a dark system with JavaScript
+turned off; `privacy.css` writes no colour of its own. A component written with the roles is right in dark mode
+without an entry in `theme.css`, the older override layer that still re-colours the components not yet migrated.
+
+`tools/check-colours.mjs` (part of `check-web`) checks that every colour token has a dark value and that the two dark
+blocks agree, and counts the literal colours left in every shipped stylesheet (`tools/web-colour-baseline.json`):
+a count may only go down. Brand marks and the printed page keep their literal colours by name in
+`tools/web-colour-allowlist.json`, which may only shrink. `node tools/check-colours.mjs --explain web/<sheet>.css`
+lists a stylesheet's literals; `--write` lowers the baseline after a migration. Declaring `--border` and `--surface`
+also gave the review tables, measurement task links and report packs that already asked for them (with `#ddd` and
+white fallbacks) the palette's line, which in dark mode replaces a light grey border on dark surfaces.
+
+The workspace stylesheets no longer carry declarations that a later stylesheet overrides for the identical selector
+(`app.css`, `identity.css` and `reporting.css`; most were the original shades WEB-01's contrast fixes in
+`accessibility.css` replaced). Each overriding declaration parses in Chromium, and a computed-style comparison of every
+element on every page, light and dark, at 1280 and 375 pixels, found no difference. Literal colours outside
+`tokens.css`: 570 on Work-here (558 outside today's allow-list), now 452 (440 outside the 12 allow-listed brand and
+print colours, the count `tools/web-colour-baseline.json` holds).

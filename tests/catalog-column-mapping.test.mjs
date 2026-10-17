@@ -5,7 +5,9 @@ import {createContext, Script} from 'node:vm';
 import {mappedCatalogRows, parseCatalogCsv} from '../dist/src/catalog-sources.js';
 import {catalogDestinations} from '../dist/src/catalog-destinations.js';
 const context = createContext({uiText: (s, vars = {}) => s.replace(/\{(\w+)\}/g, (_, k) => vars[k]), URL});
-new Script(readFileSync('web/account-workflows.js', 'utf8')).runInContext(context);
+// WEB-07: the Commerce page's own module, over the shared helper; it registers its page with the route registry.
+for (const file of ['routes.js', 'account-workflows.js', 'commerce.js'])
+  new Script(readFileSync('web/' + file, 'utf8')).runInContext(context);
 const call = (fn, ...args) => {
   context.args = args;
   return JSON.parse(JSON.stringify(new Script(`${fn}(...args)`).runInContext(context)));

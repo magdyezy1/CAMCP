@@ -52,7 +52,8 @@ function fixture(language = 'en') {
   c.content = {innerHTML: ''};
   c.header = (title, subtitle) => title + subtitle;
   c.location = {search: '?bindings=1'};
-  for (const file of ['localization.js', 'operations-center.js', 'workbook-bindings.js'])
+  // WEB-07: the Operations center and the bindings controller take the paged-list loader from web/work-pages.js.
+  for (const file of ['localization.js', 'work-pages.js', 'operations-center.js', 'workbook-bindings.js'])
     new Script(readFileSync('web/' + file, 'utf8')).runInContext(c);
   if (language === 'ar') {
     c.messages = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));

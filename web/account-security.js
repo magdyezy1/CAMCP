@@ -1,9 +1,11 @@
 'use strict';
+// The sign-in pages (email, password, two-step) and the account page's security part. formField, socialButtons and
+// renderAuthPage are defined only here: identity.js once had its own versions that this file replaced by reassignment,
+// so a fix made there never reached the page people saw (WEB-07).
 let loginMfaTicket = null;
-const baseAccountPage = renderAccountPage;
-formField = function (label, name, type = 'text', extra = '') {
+function formField(label, name, type = 'text', extra = '') {
   return `<label>${esc(label)}<span class="password-field"><input name="${esc(name)}" type="${type}" ${extra} required>${type === 'password' ? `<button type="button" class="password-toggle" aria-label="${esc(uiText('Show password'))}">${esc(uiText('Show'))}</button>` : ''}</span></label>`;
-};
+}
 document.addEventListener('click', e => {
   const button = e.target.closest('.password-toggle');
   if (!button) return;
@@ -12,12 +14,12 @@ document.addEventListener('click', e => {
   button.textContent = input.type === 'password' ? uiText('Show') : uiText('Hide');
   button.setAttribute('aria-label', uiText(input.type === 'password' ? 'Show password' : 'Hide password'));
 });
-socialButtons = function () {
+function socialButtons() {
   const providers = (authOptions?.providers ?? []).filter(p => p.configured);
   return providers.length
     ? `<div class="social-buttons">${providers.map(p => `<button class="social-button" data-social="${esc(p.id)}"><span class="social-icon ${esc(p.id)}">${p.id === 'google' ? 'G' : p.id === 'apple' ? '●' : 'f'}</span>${esc(uiText('Continue with'))} ${esc(p.name)}</button>`).join('')}</div><div class="auth-divider"><span>${esc(uiText('or continue with email'))}</span></div>`
     : '';
-};
+}
 const signInComplete = async () => {
   loginMfaTicket = null;
   session = await api('/api/session');
@@ -49,7 +51,7 @@ function invitationLifetimeNote(hours) {
     {hours},
   );
 }
-renderAuthPage = async function () {
+async function renderAuthPage() {
   authOptions = await api('/api/account/options');
   const mode = location.pathname.slice(1),
     signup = mode === 'signup',
@@ -147,9 +149,9 @@ renderAuthPage = async function () {
   $('#back-to-login')?.addEventListener('click', () => {
     loginMfaTicket = null;
   });
-};
-renderAccountPage = async function () {
-  await baseAccountPage();
+}
+/** Account security, after the account page itself: a part of /account (WEB-07), registered below. */
+async function renderAccountSecurity() {
   if (!session.authenticated) return;
   const account = await api('/api/account'),
     options = await api('/api/account/options');
@@ -379,7 +381,8 @@ renderAccountPage = async function () {
   // Self-service deletion (SEC-07, owner decision P3): a personal account only, never a door or reviewer sign-in, and
   // not before a required two-step setup (the server refuses everything else until then).
   if (!account.administrator && !account.testAccount && !account.mfaEnrollmentRequired) accountDeletionPanel();
-};
+}
+AMCP.routes.extend('/account', renderAccountSecurity);
 /** The platform name of a saved login's gateway, from the platforms the shell loaded. */
 const deletionPlatformName = gateway => (platforms ?? []).find(p => p.gateway === gateway)?.name ?? gateway;
 /**

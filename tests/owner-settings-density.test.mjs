@@ -81,7 +81,7 @@ function settingsPage({locale = 'en', hash = '', accounts = null} = {}) {
         };
       },
     },
-    renderSettings() {},
+    renderWorkspaceSettings() {},
     date: value => (value === undefined ? 'unknown' : new Date(value).toISOString()),
     esc,
     session: {authenticated: true, administrator: true, workspaceRole: 'owner'},
@@ -139,6 +139,9 @@ function settingsPage({locale = 'en', hash = '', accounts = null} = {}) {
   run(`uiLocale=${JSON.stringify(locale)};uiMessages=new Map(${locale === 'ar' ? 'Object.entries(catalog)' : '[]'});`);
   const app = readFileSync('web/app.js', 'utf8');
   run(app.slice(app.indexOf('const identityKey ='), app.indexOf('function resetPrivateState()')));
+  // WEB-07: the shell's Settings page renders its shared part (stubbed above), then the parts scripts registered.
+  run(readFileSync('web/routes.js', 'utf8'));
+  run(app.slice(app.indexOf('async function renderSettings()'), app.indexOf('function renderWorkspaceSettings()')));
   run(owner);
   if (accounts) run(approvals);
   return {

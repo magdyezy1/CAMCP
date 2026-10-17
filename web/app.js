@@ -680,7 +680,7 @@ function requireLogin() {
   return false;
 }
 function logo(p) {
-  return `<span class="platform-logo ${esc(p.id)}" aria-hidden="true">${esc(p.logo)}</span>`;
+  return html`<span class="platform-logo ${p.id}" aria-hidden="true">${p.logo}</span>`;
 }
 /** The element a same-page fragment names, or null. Fragments only ever select an existing element by its ID. */
 function fragmentTarget(hash) {
@@ -812,40 +812,39 @@ function renderConnections() {
   const connected = platforms.filter(p => connectionCount(p) > 0),
     accounts = new Set(platforms.flatMap(p => p.connections.flatMap(c => c.accounts.map(a => p.id + ':' + a)))),
     logins = platforms.reduce((n, p) => n + p.connections.length, 0);
-  content.innerHTML =
-    header(
-      uiText('Connections'),
-      uiText('Connect your platforms. Choose what AMCP can access.'),
-      `<button class="button" data-action="refresh">↻ <span>${esc(uiText('Refresh'))}</span></button>`,
-    ) +
-    `${!session.authenticated ? `<div class="notice"><span>◈</span><p><strong>${esc(uiText('Your workspace, securely connected.'))}</strong><br>${esc(uiText('Sign in to manage platform logins and choose your advertising assets.'))}</p><button class="button dark" data-action="login">${esc(uiText('Sign in →'))}</button></div>` : ''}` +
-    `<div class="stat-grid"><div class="stat"><div><div class="stat-label">${esc(uiText('Connected platforms'))}</div><div class="stat-value">${connected.length}<span class="muted stat-denominator"> / ${platforms.length}</span></div></div><span class="stat-icon" aria-hidden="true">◈</span></div><div class="stat"><div><div class="stat-label">${esc(uiText('Selected accounts & properties'))}</div><div class="stat-value">${accounts.size}</div></div><span class="stat-icon" aria-hidden="true">▦</span></div><div class="stat"><div><div class="stat-label">${esc(uiText('Secure logins'))}</div><div class="stat-value">${logins}</div></div><span class="stat-icon" aria-hidden="true">↗</span></div></div>` +
-    `<div class="section-tools"><div class="filter-tabs" role="group" aria-label="${esc(uiText('Filter platforms'))}"><button class="filter-tab ${filter === 'all' ? 'active' : ''}" data-filter="all">${esc(uiText('All platforms'))} <span class="muted">${platforms.length}</span></button><button class="filter-tab ${filter === 'connected' ? 'active' : ''}" data-filter="connected">${esc(uiText('Connected'))} <span class="muted">${connected.length}</span></button></div><label class="search"><span aria-hidden="true">⌕</span><input id="platform-search" type="search" value="${esc(search)}" placeholder="${esc(uiText('Search platforms…'))}" aria-label="${esc(uiText('Search platforms'))}"></label></div><div class="platform-grid" id="platform-grid"></div>`;
+  // Platform, login and account names come from providers: escape-by-default markup (WEB-07).
+  setHtml(
+    content,
+    html`${raw(header(uiText('Connections'), uiText('Connect your platforms. Choose what AMCP can access.'), html`<button class="button" data-action="refresh">↻ <span>${uiText('Refresh')}</span></button>`))}${!session.authenticated ? html`<div class="notice"><span>◈</span><p><strong>${uiText('Your workspace, securely connected.')}</strong><br>${uiText('Sign in to manage platform logins and choose your advertising assets.')}</p><button class="button dark" data-action="login">${uiText('Sign in →')}</button></div>` : ''}<div class="stat-grid"><div class="stat"><div><div class="stat-label">${uiText('Connected platforms')}</div><div class="stat-value">${connected.length}<span class="muted stat-denominator"> / ${platforms.length}</span></div></div><span class="stat-icon" aria-hidden="true">◈</span></div><div class="stat"><div><div class="stat-label">${uiText('Selected accounts & properties')}</div><div class="stat-value">${accounts.size}</div></div><span class="stat-icon" aria-hidden="true">▦</span></div><div class="stat"><div><div class="stat-label">${uiText('Secure logins')}</div><div class="stat-value">${logins}</div></div><span class="stat-icon" aria-hidden="true">↗</span></div></div><div class="section-tools"><div class="filter-tabs" role="group" aria-label="${uiText('Filter platforms')}"><button class="filter-tab ${filter === 'all' ? 'active' : ''}" data-filter="all">${uiText('All platforms')} <span class="muted">${platforms.length}</span></button><button class="filter-tab ${filter === 'connected' ? 'active' : ''}" data-filter="connected">${uiText('Connected')} <span class="muted">${connected.length}</span></button></div><label class="search"><span aria-hidden="true">⌕</span><input id="platform-search" type="search" value="${search}" placeholder="${uiText('Search platforms…')}" aria-label="${uiText('Search platforms')}"></label></div><div class="platform-grid" id="platform-grid"></div>`,
+  );
   renderPlatformCards();
 }
 function renderPlatformCards() {
   const visible = platforms.filter(
     p => (filter === 'all' || p.connections.length) && p.name.toLowerCase().includes(search.toLowerCase()),
   );
-  $('#platform-grid').innerHTML =
-    visible
-      .map(p => {
-        const n = p.connections.length,
-          // A login the provider no longer accepts is never shown as Connected (CON-02).
-          dead = p.connections.some(c => c.status === 'reauthorization_required'),
-          attention = dead || p.connections.some(c => c.error || c.status === 'expiring_soon'),
-          status = dead
-            ? uiText('Reauthorization required')
-            : attention
-              ? uiText('Needs attention')
-              : n
-                ? uiText('Connected')
-                : uiText('Not connected'),
-          metrics = p.assetKinds.slice(0, 3);
-        while (metrics.length < 3) metrics.push(metrics.length === 1 ? 'logins' : 'selected');
-        return `<article class="platform-card"><div class="platform-main"><div class="platform-top"><div class="platform-identity">${logo(p)}<div><div class="platform-name">${esc(p.name)}</div><div class="platform-kind">${esc(uiText(p.kind))}</div></div></div><span class="status ${attention ? 'attention' : n ? 'online' : 'offline'}"><i></i>${status}</span></div><p class="platform-description">${esc(uiText(p.description))}</p><div class="platform-bottom"><span class="platform-login">${n ? uiText('Connected logins: {count}', {count: uiNumber(n)}) : p.configured ? uiText('Ready to connect') : uiText('Administrator setup required')}</span><div class="platform-actions"><button class="button small" data-manage="${p.id}">${esc(uiText('Manage'))}</button><button class="button small ${n ? '' : 'primary'}" data-connect="${p.id}">${n ? uiText('+ Add login') : p.configured ? uiText('+ Connect') : uiText('Set up →')}</button></div></div></div><div class="platform-metrics">${metrics.map(k => `<div><small>${esc(uiText(labels[k] ?? k).toUpperCase())}</small><b>${k === 'logins' ? n : k === 'selected' ? p.connections.reduce((v, c) => v + c.accounts.length, 0) : assetsFor(p, k)}</b></div>`).join('')}</div></article>`;
-      })
-      .join('') || `<div class="empty">${esc(uiText('No platforms match your search.'))}</div>`;
+  const card = p => {
+    const n = p.connections.length,
+      // A login the provider no longer accepts is never shown as Connected (CON-02).
+      dead = p.connections.some(c => c.status === 'reauthorization_required'),
+      attention = dead || p.connections.some(c => c.error || c.status === 'expiring_soon'),
+      status = dead
+        ? uiText('Reauthorization required')
+        : attention
+          ? uiText('Needs attention')
+          : n
+            ? uiText('Connected')
+            : uiText('Not connected'),
+      metrics = p.assetKinds.slice(0, 3);
+    while (metrics.length < 3) metrics.push(metrics.length === 1 ? 'logins' : 'selected');
+    return html`<article class="platform-card"><div class="platform-main"><div class="platform-top"><div class="platform-identity">${logo(p)}<div><div class="platform-name">${p.name}</div><div class="platform-kind">${uiText(p.kind)}</div></div></div><span class="status ${attention ? 'attention' : n ? 'online' : 'offline'}"><i></i>${status}</span></div><p class="platform-description">${uiText(p.description)}</p><div class="platform-bottom"><span class="platform-login">${n ? uiText('Connected logins: {count}', {count: uiNumber(n)}) : p.configured ? uiText('Ready to connect') : uiText('Administrator setup required')}</span><div class="platform-actions"><button class="button small" data-manage="${p.id}">${uiText('Manage')}</button><button class="button small ${n ? '' : 'primary'}" data-connect="${p.id}">${n ? uiText('+ Add login') : p.configured ? uiText('+ Connect') : uiText('Set up →')}</button></div></div></div><div class="platform-metrics">${metrics.map(k => html`<div><small>${uiText(labels[k] ?? k).toUpperCase()}</small><b>${k === 'logins' ? n : k === 'selected' ? p.connections.reduce((v, c) => v + c.accounts.length, 0) : assetsFor(p, k)}</b></div>`)}</div></article>`;
+  };
+  setHtml(
+    $('#platform-grid'),
+    visible.length
+      ? html`${visible.map(card)}`
+      : html`<div class="empty">${uiText('No platforms match your search.')}</div>`,
+  );
 }
 function renderConnectionSyncStatus(c) {
   if (!c?.lastSync) return '';
@@ -873,19 +872,17 @@ function loginHealthLine(login) {
   if (h.renews_automatically) return uiText('Access renews automatically') + (expiry ? ' · ' + expiry : '');
   return expiry || uiText('Expiry not provided');
 }
-/** A reviewer workspace login's age and automatic removal (SEC-06); empty for every other login. */
+/** A reviewer workspace login's age and automatic removal (SEC-06), as text; empty for every other login. */
 function reviewerLoginLine(login) {
   if (!login.reviewerRemovesAt) return '';
   return (
     ' · ' +
-    esc(
-      login.connectedAt
-        ? uiText('Connected {connected} · removed automatically {date}', {
-            connected: date(login.connectedAt),
-            date: date(login.reviewerRemovesAt),
-          })
-        : uiText('Removed automatically {date}', {date: date(login.reviewerRemovesAt)}),
-    )
+    (login.connectedAt
+      ? uiText('Connected {connected} · removed automatically {date}', {
+          connected: date(login.connectedAt),
+          date: date(login.reviewerRemovesAt),
+        })
+      : uiText('Removed automatically {date}', {date: date(login.reviewerRemovesAt)}))
   );
 }
 function renderCredentialHealth(c) {
@@ -898,7 +895,7 @@ function renderCredentialHealth(c) {
   )
     return '';
   const failure = h.last_failure
-    ? `<p class="small-text">${esc(uiText('Last renewal attempt: {date}', {date: date(h.last_failure.at)}))}${h.last_failure.http_status ? ' · HTTP ' + esc(String(h.last_failure.http_status)) : ''}${h.last_failure.code ? ' · ' + esc(h.last_failure.code) : ''}</p>`
+    ? html`<p class="small-text">${uiText('Last renewal attempt: {date}', {date: date(h.last_failure.at)})}${h.last_failure.http_status ? ' · HTTP ' + String(h.last_failure.http_status) : ''}${h.last_failure.code ? ' · ' + h.last_failure.code : ''}</p>`
     : '';
   const text =
     h.state === 'reauthorization_required'
@@ -916,29 +913,29 @@ function renderCredentialHealth(c) {
             : uiText('This login expires soon and cannot renew itself. Reauthorize it before it expires.');
   const actions = [
     c.reauthorizeAvailable
-      ? `<button class="button small ${h.state === 'reauthorization_required' ? 'primary' : ''}" data-reauthorize="${esc(c.id)}">${esc(uiText('Reauthorize'))}</button>`
+      ? html`<button class="button small ${h.state === 'reauthorization_required' ? 'primary' : ''}" data-reauthorize="${c.id}">${uiText('Reauthorize')}</button>`
       : '',
     h.last_failure
-      ? `<button class="button small" data-credential-retry="${esc(c.id)}">${esc(uiText('Retry renewal'))}</button>`
+      ? html`<button class="button small" data-credential-retry="${c.id}">${uiText('Retry renewal')}</button>`
       : '',
   ].filter(Boolean);
-  return `<div class="notice credential-health" role="status"><div><strong>${esc(loginHealthLine(c))}</strong><p>${esc(text)}</p>${failure}${actions.length ? `<p>${actions.join(' ')}</p>` : ''}</div></div>`;
+  return html`<div class="notice credential-health" role="status"><div><strong>${loginHealthLine(c)}</strong><p>${text}</p>${failure}${actions.length ? html`<p>${actions.map((action, index) => html`${index ? ' ' : ''}${action}`)}</p>` : ''}</div></div>`;
 }
 /** What the provider confirmed this login was granted (CON-03): declined permissions, or that it is not confirmed. */
 function renderGrantedPermissions(c) {
   const g = c?.grants;
   if (!g) return '';
   const reauthorize = c.reauthorizeAvailable
-    ? ` <button class="button small" data-reauthorize="${esc(c.id)}">${esc(uiText('Reauthorize'))}</button>`
+    ? html` <button class="button small" data-reauthorize="${c.id}">${uiText('Reauthorize')}</button>`
     : '';
   if (g.requested_access_type === 'read')
-    return `<div class="notice" role="status"><p>${esc(uiText('This login was authorized for read access only.'))}${reauthorize}</p></div>`;
+    return html`<div class="notice" role="status"><p>${uiText('This login was authorized for read access only.')}${reauthorize}</p></div>`;
   if (g.source !== 'permissions_endpoint') return '';
   if (!g.known)
-    return `<div class="notice" role="status"><p>${esc(uiText('AMCP could not confirm which permissions this login granted. Sync to check again; until then readiness reports them as unknown.'))}</p></div>`;
+    return html`<div class="notice" role="status"><p>${uiText('AMCP could not confirm which permissions this login granted. Sync to check again; until then readiness reports them as unknown.')}</p></div>`;
   const declined = [...(g.declined ?? []), ...(g.expired ?? [])];
   if (!declined.length) return '';
-  return `<div class="notice" role="status"><div><strong>${esc(uiText('Declined permissions'))}</strong><p><code dir="ltr">${esc(declined.join(', '))}</code></p><p>${esc(uiText('Features that need these permissions stay unavailable. Reauthorize and allow them to use those features.'))}${reauthorize}</p><p class="small-text">${esc(uiText('Checked {date}', {date: date(g.checked_at)}))}</p></div></div>`;
+  return html`<div class="notice" role="status"><div><strong>${uiText('Declined permissions')}</strong><p><code dir="ltr">${declined.join(', ')}</code></p><p>${uiText('Features that need these permissions stay unavailable. Reauthorize and allow them to use those features.')}${reauthorize}</p><p class="small-text">${uiText('Checked {date}', {date: date(g.checked_at)})}</p></div></div>`;
 }
 /**
  * Save and check access (CON-05): after a selection is saved, one bounded live account read for each newly selected
@@ -961,29 +958,22 @@ async function checkSelectedAccess(platformId, connectionId, before) {
 function renderDefaultPrompt(p) {
   const enabled = p.connections.filter(c => c.enabled);
   if (enabled.length < 2 || enabled.some(c => c.isDefault)) return '';
-  return `<div class="notice" role="status"><p><strong>${esc(uiText('Choose a default login'))}</strong> ${esc(uiText('Several {platform} logins are enabled and none is the default, so AI tools must name a login for every request. Use Make default on one of them.', {platform: p.name}))}</p></div>`;
+  return html`<div class="notice" role="status"><p><strong>${uiText('Choose a default login')}</strong> ${uiText('Several {platform} logins are enabled and none is the default, so AI tools must name a login for every request. Use Make default on one of them.', {platform: p.name})}</p></div>`;
 }
 /** The login's own name in AMCP and the provider identity it was authorized with (CON-05). */
 function renderLoginIdentity(c) {
   const identity = c.identity?.name
-    ? `<p class="small-text">${esc(uiText('Provider identity: {name}', {name: c.identity.name}))}</p>`
+    ? html`<p class="small-text">${uiText('Provider identity: {name}', {name: c.identity.name})}</p>`
     : '';
-  if (!session.administrator) return identity ? `<div class="notice">${identity}</div>` : '';
-  return `<div class="notice login-identity"><div><label for="login-label">${esc(uiText('Login name'))}</label><div class="copy-row"><input id="login-label" type="text" maxlength="80" value="${esc(c.name)}" autocomplete="off"><button class="button small" data-rename-login="${esc(c.id)}">${esc(uiText('Rename'))}</button></div>${identity}</div></div>`;
+  if (!session.administrator) return identity ? html`<div class="notice">${identity}</div>` : '';
+  return html`<div class="notice login-identity"><div><label for="login-label">${uiText('Login name')}</label><div class="copy-row"><input id="login-label" type="text" maxlength="80" value="${c.name}" autocomplete="off"><button class="button small" data-rename-login="${c.id}">${uiText('Rename')}</button></div>${identity}</div></div>`;
 }
 function renderAccessChecks(p, c) {
   const result = c ? accessChecks.get(c.id) : undefined;
   if (!result?.results) return '';
   const name = id => c.groups.flatMap(g => g.assets).find(a => a.id === id)?.name ?? id,
     reason = r => r.checks?.find(x => x.status !== 'passed');
-  return `<section class="notice access-checks" role="status" aria-live="polite"><div><strong>${esc(uiText('Access check'))}</strong><ul>${result.results
-    .map(
-      r =>
-        `<li><bdi>${uiBidi(name(r.account_id))}</bdi> <small>${uiBidi(r.account_id, 'ltr')}</small> ${readinessBadge(r)}${reason(r) ? ` <small>${esc(uiText(reason(r).message))}</small>` : ''}</li>`,
-    )
-    .join(
-      '',
-    )}</ul>${result.skipped > 0 ? `<p class="small-text">${esc(uiText('{count} more accounts were not checked; check them from Home.', {count: uiNumber(result.skipped)}))}</p>` : ''}<p class="small-text">${esc(uiText('Each check read one selected account from {platform}. Nothing was changed.', {platform: p.name}))}</p></div></section>`;
+  return html`<section class="notice access-checks" role="status" aria-live="polite"><div><strong>${uiText('Access check')}</strong><ul>${result.results.map(r => html`<li><bdi><bdi>${name(r.account_id)}</bdi></bdi> <small><bdi dir="ltr">${r.account_id}</bdi></small> ${raw(readinessBadge(r))}${reason(r) ? html` <small>${uiText(reason(r).message)}</small>` : ''}</li>`)}</ul>${result.skipped > 0 ? html`<p class="small-text">${uiText('{count} more accounts were not checked; check them from Home.', {count: uiNumber(result.skipped)})}</p>` : ''}<p class="small-text">${uiText('Each check read one selected account from {platform}. Nothing was changed.', {platform: p.name})}</p></div></section>`;
 }
 function renderGoogleAuthorization(c) {
   const a = c?.authorization;
@@ -1032,8 +1022,13 @@ function renderManage() {
   }
   const group = c?.groups.find(g => g.kind === assetKind),
     assets = (group?.assets ?? []).filter(a => (a.name + ' ' + a.id).toLowerCase().includes(assetSearch.toLowerCase()));
-  $('#manage-content').innerHTML =
-    `<div class="manage-header"><div class="platform-identity">${logo(p)}<div><h3>${esc(p.name)} ${esc(uiText('assets'))}</h3><div class="platform-kind">${esc(uiText('Manage logins and access inside AMCP'))}</div></div></div><button class="icon-button" data-close="manage-dialog" aria-label="${esc(uiText('Close asset manager'))}">×</button></div><div class="manage-body"><div class="panel-header"><div><h3>${esc(uiText('Connected logins'))}</h3><p class="muted login-caption">${esc(uiText('Each login keeps its own encrypted credentials and permissions.'))}</p></div><button class="button dark small" data-connect="${p.id}">${esc(uiText('+ Connect another'))}</button></div><div class="login-list">${p.connections.map(login => `<div class="oauth-login"><span class="avatar">${esc(login.name.slice(0, 1).toUpperCase())}</span><div><button class="button quiet small" data-select-login="${esc(login.id)}"><strong>${esc(login.name)}</strong></button>${login.isDefault ? `<span class="default-badge">${esc(uiText('Default'))}</span>` : ''}<small>${esc(loginHealthLine(login))}${reviewerLoginLine(login)} · ${login.enabled ? uiText('Enabled in AMCP') : uiText('Choose assets')}${login.duplicateOf ? ' · ' + esc(uiText('Same identity as another login')) : ''}</small></div><div class="actions"><button class="button small" data-sync="${esc(login.id)}">${esc(uiText('↻ Sync'))}</button>${login.reauthorizeAvailable ? `<button class="button small ${login.status === 'reauthorization_required' ? 'primary' : ''}" data-reauthorize="${esc(login.id)}">${esc(uiText('Reauthorize'))}</button>` : ''}${!login.isDefault && login.enabled ? `<button class="button small" data-default="${esc(login.id)}">${esc(uiText('Make default'))}</button>` : ''}<button class="button small danger" data-disconnect="${esc(login.id)}" aria-label="${esc(uiText('Disconnect {name}', {name: login.name}))}">↗</button></div></div>`).join('') || `<div class="empty"><strong>${esc(uiText('No logins connected'))}</strong>${esc(uiText('Connect your account to discover its advertising assets.'))}</div>`}</div>${renderDefaultPrompt(p)}${c ? `${renderLoginIdentity(c)}${renderCredentialHealth(c)}${renderGrantedPermissions(c)}${renderConnectionSyncStatus(c)}${renderAccessChecks(p, c)}${renderGoogleAuthorization(c)}<div class="notice asset-notice"><span>✓</span><p>${esc(uiText('Select'))} ${esc(uiText(labels[p.selectionKind] ?? p.selectionKind ?? 'Resources').toLowerCase())} ${esc(uiText('to grant MCP access to their data. Other tabs show related asset inventory. Saving this selection changes AMCP access only.'))}</p></div>${session.writesEnabled && p.reviewedWrites !== false ? `<label class="form-note"><input type="checkbox" id="selection-write-access" ${c.defaultWriteAccess ? 'checked' : ''}> ${esc(uiText('Enable read + reviewed write access for all selected resources'))}</label>` : ''}${p.reviewedWrites === false ? '' : writeAccessPanel(c)}${reportJobPanel(c)}<div class="asset-tabs" role="group" aria-label="${esc(uiText('Asset types'))}">${p.assetKinds.map(k => `<button data-asset-kind="${k}" class="${assetKind === k ? 'active' : ''}">${esc(uiText(labels[k] ?? k))} <span class="asset-count">${c.groups.find(g => g.kind === k)?.assets.length ?? '—'}</span></button>`).join('')}</div><div class="asset-toolbar"><label class="search"><span>⌕</span><input id="asset-search" type="search" value="${esc(assetSearch)}" placeholder="${esc(uiText('Search {kind}…', {kind: uiText(labels[assetKind] ?? assetKind)}))}" aria-label="${esc(uiText('Search assets'))}"></label><button class="button small" data-sync-kind="${assetKind}">${esc(uiText('↻ Sync this tab'))}</button></div>${renderAssetSyncDiagnostics(group)}<div id="asset-rows">${assetRows(assets, group)}</div>` : ''}</div><div class="manage-footer"><span class="muted small-text">${esc(c ? uiText('Last sync: {date}', {date: date(c.lastSync)}) : uiText('Your provider opens in a secure authorization flow.'))}</span>${c && selectableKind(assetKind) ? `<div class="platform-actions"><button class="button small" data-select-all="true">${esc(uiText('Select visible'))}</button><button class="button primary" data-save-assets="true">${esc(uiText('Save selection'))}</button>${p.accountRead ? `<button class="button" data-save-assets="check">${esc(uiText('Save and check access'))}</button>` : ''}</div>` : ''}</div>`;
+  // Login, identity, account and asset names and IDs all come from providers (WEB-07).
+  const loginRow = login =>
+    html`<div class="oauth-login"><span class="avatar">${login.name.slice(0, 1).toUpperCase()}</span><div><button class="button quiet small" data-select-login="${login.id}"><strong>${login.name}</strong></button>${login.isDefault ? html`<span class="default-badge">${uiText('Default')}</span>` : ''}<small>${loginHealthLine(login)}${reviewerLoginLine(login)} · ${login.enabled ? uiText('Enabled in AMCP') : uiText('Choose assets')}${login.duplicateOf ? ' · ' + uiText('Same identity as another login') : ''}</small></div><div class="actions"><button class="button small" data-sync="${login.id}">${uiText('↻ Sync')}</button>${login.reauthorizeAvailable ? html`<button class="button small ${login.status === 'reauthorization_required' ? 'primary' : ''}" data-reauthorize="${login.id}">${uiText('Reauthorize')}</button>` : ''}${!login.isDefault && login.enabled ? html`<button class="button small" data-default="${login.id}">${uiText('Make default')}</button>` : ''}<button class="button small danger" data-disconnect="${login.id}" aria-label="${uiText('Disconnect {name}', {name: login.name})}">↗</button></div></div>`;
+  setHtml(
+    $('#manage-content'),
+    html`<div class="manage-header"><div class="platform-identity">${logo(p)}<div><h3>${p.name} ${uiText('assets')}</h3><div class="platform-kind">${uiText('Manage logins and access inside AMCP')}</div></div></div><button class="icon-button" data-close="manage-dialog" aria-label="${uiText('Close asset manager')}">×</button></div><div class="manage-body"><div class="panel-header"><div><h3>${uiText('Connected logins')}</h3><p class="muted login-caption">${uiText('Each login keeps its own encrypted credentials and permissions.')}</p></div><button class="button dark small" data-connect="${p.id}">${uiText('+ Connect another')}</button></div><div class="login-list">${p.connections.length ? p.connections.map(loginRow) : html`<div class="empty"><strong>${uiText('No logins connected')}</strong>${uiText('Connect your account to discover its advertising assets.')}</div>`}</div>${renderDefaultPrompt(p)}${c ? html`${renderLoginIdentity(c)}${renderCredentialHealth(c)}${renderGrantedPermissions(c)}${raw(renderConnectionSyncStatus(c))}${renderAccessChecks(p, c)}${raw(renderGoogleAuthorization(c))}<div class="notice asset-notice"><span>✓</span><p>${uiText('Select')} ${uiText(labels[p.selectionKind] ?? p.selectionKind ?? 'Resources').toLowerCase()} ${uiText('to grant MCP access to their data. Other tabs show related asset inventory. Saving this selection changes AMCP access only.')}</p></div>${session.writesEnabled && p.reviewedWrites !== false ? html`<label class="form-note"><input type="checkbox" id="selection-write-access" ${c.defaultWriteAccess ? 'checked' : ''}> ${uiText('Enable read + reviewed write access for all selected resources')}</label>` : ''}${p.reviewedWrites === false ? '' : writeAccessPanel(c)}${reportJobPanel(c)}<div class="asset-tabs" role="group" aria-label="${uiText('Asset types')}">${p.assetKinds.map(k => html`<button data-asset-kind="${k}" class="${assetKind === k ? 'active' : ''}">${uiText(labels[k] ?? k)} <span class="asset-count">${c.groups.find(g => g.kind === k)?.assets.length ?? '—'}</span></button>`)}</div><div class="asset-toolbar"><label class="search"><span>⌕</span><input id="asset-search" type="search" value="${assetSearch}" placeholder="${uiText('Search {kind}…', {kind: uiText(labels[assetKind] ?? assetKind)})}" aria-label="${uiText('Search assets')}"></label><button class="button small" data-sync-kind="${assetKind}">${uiText('↻ Sync this tab')}</button></div>${raw(renderAssetSyncDiagnostics(group))}<div id="asset-rows">${assetRows(assets, group)}</div>` : ''}</div><div class="manage-footer"><span class="muted small-text">${c ? uiText('Last sync: {date}', {date: date(c.lastSync)}) : uiText('Your provider opens in a secure authorization flow.')}</span>${c && selectableKind(assetKind) ? html`<div class="platform-actions"><button class="button small" data-select-all="true">${uiText('Select visible')}</button><button class="button primary" data-save-assets="true">${uiText('Save selection')}</button>${p.accountRead ? html`<button class="button" data-save-assets="check">${uiText('Save and check access')}</button>` : ''}</div>` : ''}</div>`,
+  );
 }
 /**
  * The resources a selection save would newly enable for writes, as display names, mirroring the server rule: with the
@@ -1060,7 +1055,7 @@ function selectionWriteAdditions(p, c, writeOption) {
 function writeAccessPanel(c) {
   // Every selectable kind names its resources (Business Profile locations and accounts, CON-06), ad accounts first.
   const assets = [...(c.groups.find(g => g.kind === 'ad_accounts')?.assets ?? []), ...c.groups.flatMap(g => g.assets)];
-  return `<section class="panel consent-panel"><h3>${esc(uiText('Resource write access'))}</h3><p>${session.writesEnabled ? uiText('Operator connectors may change only the selected accounts you explicitly enable below. Each change still requires a reviewed request through amcp_write.') : uiText('Write support is disabled in this deployment. You can revoke existing account grants below.')}</p>${c.accounts.length ? c.accounts.map(id => `<label class="token-row"><span>${esc(assets.find(a => a.id === id)?.name ?? id)}<small>${esc(id)}</small></span><input type="checkbox" data-write-account="${esc(id)}" aria-label="${esc(uiText('Allow writes to {id}', {id}))}" ${writeSelected.has(id) ? 'checked' : ''} ${!session.writesEnabled ? 'disabled' : ''}></label>`).join('') : `<p class="muted">${esc(uiText('Save a resource selection before granting write access.'))}</p>`}${session.writesEnabled && c.accounts.length ? `<label class="form-note"><input type="checkbox" id="confirm-write-access"> ${esc(uiText('I authorize operator connectors to change the checked resources.'))}</label>` : ''}<div class="dialog-actions">${c.writeAccounts?.length ? `<button class="button danger" data-revoke-write-access="true">${esc(uiText('Revoke all write access'))}</button>` : ''}${session.writesEnabled && c.accounts.length ? `<button class="button" data-save-write-access="true">${esc(uiText('Save write access'))}</button>` : ''}</div></section>`;
+  return html`<section class="panel consent-panel"><h3>${uiText('Resource write access')}</h3><p>${session.writesEnabled ? uiText('Operator connectors may change only the selected accounts you explicitly enable below. Each change still requires a reviewed request through amcp_write.') : uiText('Write support is disabled in this deployment. You can revoke existing account grants below.')}</p>${c.accounts.length ? c.accounts.map(id => html`<label class="token-row"><span>${assets.find(a => a.id === id)?.name ?? id}<small>${id}</small></span><input type="checkbox" data-write-account="${id}" aria-label="${uiText('Allow writes to {id}', {id})}" ${writeSelected.has(id) ? 'checked' : ''} ${!session.writesEnabled ? 'disabled' : ''}></label>`) : html`<p class="muted">${uiText('Save a resource selection before granting write access.')}</p>`}${session.writesEnabled && c.accounts.length ? html`<label class="form-note"><input type="checkbox" id="confirm-write-access"> ${uiText('I authorize operator connectors to change the checked resources.')}</label>` : ''}<div class="dialog-actions">${c.writeAccounts?.length ? html`<button class="button danger" data-revoke-write-access="true">${uiText('Revoke all write access')}</button>` : ''}${session.writesEnabled && c.accounts.length ? html`<button class="button" data-save-write-access="true">${uiText('Save write access')}</button>` : ''}</div></section>`;
 }
 /**
  * Report-job access (RPT-06): while the deployment owner allows provider report and export jobs, an administrator
@@ -1071,15 +1066,15 @@ function reportJobPanel(c) {
   if (!c.reportJobsAvailable || (!session.providerJobs && !c.reportJobAccounts?.length)) return '';
   const assets = c.groups.flatMap(g => g.assets),
     editable = session.providerJobs === true;
-  return `<section class="panel consent-panel"><h3>${esc(uiText('Report jobs'))}</h3><p>${esc(editable ? uiText('Report and export jobs create a processing job at the provider and use its quota; they change no campaign, budget or spend. Choose the accounts on which AI clients and members, readers included, may create them. Each job is still prepared and executed as a review.') : uiText('This deployment does not allow report jobs outside reviewed writes. You can revoke existing report-job grants below.'))}</p>${c.accounts.length ? c.accounts.map(id => `<label class="token-row"><span>${esc(assets.find(a => a.id === id)?.name ?? id)}<small>${esc(id)}</small></span><input type="checkbox" data-report-job-account="${esc(id)}" aria-label="${esc(uiText('Allow report jobs on {id}', {id}))}" ${reportJobSelected.has(id) ? 'checked' : ''} ${editable ? '' : 'disabled'}></label>`).join('') : `<p class="muted">${esc(uiText('Save a resource selection before granting report jobs.'))}</p>`}${editable && c.accounts.length ? `<label class="form-note"><input type="checkbox" id="confirm-report-jobs"> ${esc(uiText('I allow report jobs on the checked accounts.'))}</label>` : ''}<div class="dialog-actions">${c.reportJobAccounts?.length ? `<button class="button danger" data-revoke-report-jobs="true">${esc(uiText('Revoke report jobs'))}</button>` : ''}${editable && c.accounts.length ? `<button class="button" data-save-report-jobs="true">${esc(uiText('Save report jobs'))}</button>` : ''}</div></section>`;
+  return html`<section class="panel consent-panel"><h3>${uiText('Report jobs')}</h3><p>${editable ? uiText('Report and export jobs create a processing job at the provider and use its quota; they change no campaign, budget or spend. Choose the accounts on which AI clients and members, readers included, may create them. Each job is still prepared and executed as a review.') : uiText('This deployment does not allow report jobs outside reviewed writes. You can revoke existing report-job grants below.')}</p>${c.accounts.length ? c.accounts.map(id => html`<label class="token-row"><span>${assets.find(a => a.id === id)?.name ?? id}<small>${id}</small></span><input type="checkbox" data-report-job-account="${id}" aria-label="${uiText('Allow report jobs on {id}', {id})}" ${reportJobSelected.has(id) ? 'checked' : ''} ${editable ? '' : 'disabled'}></label>`) : html`<p class="muted">${uiText('Save a resource selection before granting report jobs.')}</p>`}${editable && c.accounts.length ? html`<label class="form-note"><input type="checkbox" id="confirm-report-jobs"> ${uiText('I allow report jobs on the checked accounts.')}</label>` : ''}<div class="dialog-actions">${c.reportJobAccounts?.length ? html`<button class="button danger" data-revoke-report-jobs="true">${uiText('Revoke report jobs')}</button>` : ''}${editable && c.accounts.length ? html`<button class="button" data-save-report-jobs="true">${uiText('Save report jobs')}</button>` : ''}</div></section>`;
 }
 function assetRows(assets, group) {
   // DV360 discovers advertisers through partners: an empty list names the user profile to set up (CON-04).
   if (!assets.length && group?.complete && currentPlatform === 'dv360')
-    return `<div class="empty"><strong>${esc(uiText('No Display & Video 360 advertisers found'))}</strong>${esc(uiText('AMCP lists advertisers through the partners this Google identity can access. Ask a Display & Video 360 administrator to give it a user profile with Admin, Standard or Read only access to the partner or advertiser, keep the Display & Video 360 permission granted at sign-in, then sync again.'))}</div>`;
+    return html`<div class="empty"><strong>${uiText('No Display & Video 360 advertisers found')}</strong>${uiText('AMCP lists advertisers through the partners this Google identity can access. Ask a Display & Video 360 administrator to give it a user profile with Admin, Standard or Read only access to the partner or advertiser, keep the Display & Video 360 permission granted at sign-in, then sync again.')}</div>`;
   if (!assets.length)
-    return `<div class="empty"><strong>${group?.complete ? uiText('No assets found') : group ? uiText('No assets available') : uiText('This tab has not been synced')}</strong>${group?.complete ? uiText('The provider returned an empty list for this login.') : uiText('Sync this tab to load the assets your login can access.')}</div>`;
-  return `<table class="asset-table"><thead><tr><th scope="col" aria-label="${esc(uiText('Select'))}"></th><th scope="col">${esc(uiText(labels[assetKind] ?? assetKind))}</th><th scope="col">${esc(uiText('Access'))}</th></tr></thead><tbody>${assets.map(a => `<tr><td>${selectableKind(assetKind) ? `<input type="checkbox" data-asset-key="${esc(a.kind + ':' + a.id)}" aria-label="${esc(uiText('Select {name}', {name: a.name}))}" ${selected.has(a.kind + ':' + a.id) ? 'checked' : ''}>` : ''}</td><td>${uiBidi(a.name)}<small>${uiBidi(a.id, 'ltr')}${a.currency ? ' · ' + uiBidi(a.currency, 'ltr') : ''}${currentPlatform === 'google' ? googleAssetLabel(a) : ''}${a.source === 'configured_binding' ? ' · ' + esc(uiText('locally configured')) : ''}</small></td><td><span class="status ${selected.has(a.kind + ':' + a.id) ? 'online' : 'offline'}">${selectableKind(assetKind) ? (selected.has(a.kind + ':' + a.id) ? uiText('Selected') : uiText('Available')) : uiText('Inventory')}</span></td></tr>`).join('')}</tbody></table>`;
+    return html`<div class="empty"><strong>${group?.complete ? uiText('No assets found') : group ? uiText('No assets available') : uiText('This tab has not been synced')}</strong>${group?.complete ? uiText('The provider returned an empty list for this login.') : uiText('Sync this tab to load the assets your login can access.')}</div>`;
+  return html`<table class="asset-table"><thead><tr><th scope="col" aria-label="${uiText('Select')}"></th><th scope="col">${uiText(labels[assetKind] ?? assetKind)}</th><th scope="col">${uiText('Access')}</th></tr></thead><tbody>${assets.map(a => html`<tr><td>${selectableKind(assetKind) ? html`<input type="checkbox" data-asset-key="${a.kind + ':' + a.id}" aria-label="${uiText('Select {name}', {name: a.name})}" ${selected.has(a.kind + ':' + a.id) ? 'checked' : ''}>` : ''}</td><td><bdi>${a.name}</bdi><small><bdi dir="ltr">${a.id}</bdi>${a.currency ? html` · <bdi dir="ltr">${a.currency}</bdi>` : ''}${currentPlatform === 'google' ? googleAssetLabel(a) : ''}${a.source === 'configured_binding' ? ' · ' + uiText('locally configured') : ''}</small></td><td><span class="status ${selected.has(a.kind + ':' + a.id) ? 'online' : 'offline'}">${selectableKind(assetKind) ? (selected.has(a.kind + ':' + a.id) ? uiText('Selected') : uiText('Available')) : uiText('Inventory')}</span></td></tr>`)}</tbody></table>`;
 }
 function openManage(id, connectionId) {
   if (!requireLogin()) return;
@@ -1156,13 +1151,13 @@ function connectorCode() {
 function tokenAccessSetControl() {
   if (!session.authenticated || !accessSetChoices.length) return '';
   const required = session.accessSet?.id ?? null;
-  return `<label class="form-note token-limit">${esc(uiText('Limit to client'))}<select id="token-access-set">${required ? '' : `<option value="">${esc(uiText('No limit: the accounts I can reach'))}</option>`}${accessSetChoices.map(s => `<option value="${esc(s.id)}" ${s.id === required ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label>`;
+  return html`<label class="form-note token-limit">${uiText('Limit to client')}<select id="token-access-set">${required ? '' : html`<option value="">${uiText('No limit: the accounts I can reach')}</option>`}${accessSetChoices.map(s => html`<option value="${s.id}" ${s.id === required ? 'selected' : ''}>${s.name}</option>`)}</select></label>`;
 }
-/** " · Limited to {client}" for a token or AI client limited to a client access set. */
+/** " · Limited to {client}" for a token or AI client limited to a client access set, as text. */
 function accessSetNote(id) {
   if (!id) return '';
   const set = accessSetChoices.find(s => s.id === id);
-  return ' ' + esc(set ? uiText('· Limited to {client}', {client: set.name}) : uiText('· Limited to one client'));
+  return ' ' + (set ? uiText('· Limited to {client}', {client: set.name}) : uiText('· Limited to one client'));
 }
 async function renderConnectors() {
   if (session.authenticated) {
@@ -1201,12 +1196,30 @@ async function renderConnectors() {
         door_password_change: uiText('Ended: the administrator password changed'),
         restore_quarantine: uiText('Ended: AMCP was restored from a backup'),
       })[reason] ?? uiText('Ended');
-  content.innerHTML =
-    header(uiText('AI connectors'), uiText('Give your AI tools access to the accounts you select.')) +
-    `<section class="connector-hero"><div><span class="status online"><i></i>${session.writesEnabled ? uiText('Write support enabled') : uiText('Read-only deployment')}</span><h2 class="connector-title">${esc(uiText('Your workspace.'))}<br>${esc(uiText('In the tools you already use.'))}</h2><p>${session.writesEnabled ? uiText('Connect your AI tools for reporting and reviewed advertising changes. New connections default to read and reviewed write access.') : uiText('Connect Codex or another MCP client to read advertising data and prepare dry-run requests.')}</p></div><div class="endpoint-box"><small>${esc(uiText('AMCP MCP ENDPOINT'))}</small><div class="copy-row"><code>${esc(session.origin + '/mcp')}</code><button class="button small" data-copy-endpoint="true">${esc(uiText('Copy'))}</button></div></div></section><section class="panel consent-panel"><h2>${esc(uiText('Connect with browser authorization'))}</h2><p>${esc(uiText('In an MCP client that supports OAuth, add the endpoint above and choose Sign in. AMCP requests read and reviewed write access when enabled.'))} ${session.writesEnabled ? `${esc(uiText('New clients default to'))} <code>mcp:read mcp:write</code>${esc(uiText('; the consent screen identifies operator access. Clients can explicitly request'))} <code>mcp:read</code> ${esc(uiText('for read-only access. Existing reader authorizations stay read-only until reauthorized.'))} ${esc(uiText('On the consent screen you can also choose read-only access. Viewers can approve read-only access only.'))}` : uiText('Advertising writes are disabled in this deployment.')}</p><pre class="code-block">codex mcp add amcp --url ${esc(session.origin + '/mcp')}
-codex mcp login amcp</pre><p class="muted">${esc(uiText('For clients using a bearer token, follow the setup below.'))}</p></section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Connect with a token'))}</h2><span class="status">${esc(uiText('Streamable HTTP'))}</span></div><div class="client-tabs"><button class="client-tab ${client === 'codex' ? 'active' : ''}" data-client="codex">${esc(uiText('Codex'))}</button><button class="client-tab ${client === 'cursor' ? 'active' : ''}" data-client="cursor">${esc(uiText('Cursor'))}</button><button class="client-tab ${client === 'other' ? 'active' : ''}" data-client="other">${esc(uiText('Other MCP client'))}</button></div><div class="steps"><div class="step"><div><strong>${esc(uiText('Create a connector token'))}</strong><p class="muted">${esc(uiText('Create a separate token for each tool. Tokens expire after 30 days and can be revoked below.'))}</p></div></div><div class="step"><div><strong>${esc(uiText('Add your token to the tool’s environment'))}</strong><p class="muted">${esc(uiText('Use the environment variable'))} <code>AMCP_MCP_TOKEN</code>${esc(uiText('. Keep the value private.'))}</p></div></div><div class="step"><div class="step-content"><div class="copy-row"><strong>${client === 'codex' ? uiText('Add this to your Codex config.toml') : client === 'cursor' ? uiText('Add this to your Cursor MCP configuration') : uiText('Configure your MCP client')}</strong><button class="button small" data-copy-config="true">${esc(uiText('Copy config'))}</button></div><pre class="code-block">${esc(connectorCode())}</pre><p class="muted">${client === 'codex' ? uiText('Reload your MCP connections, then ask Codex to list the tools available from AMCP.') : uiText('Use a client that supports Streamable HTTP and bearer authentication.')}</p></div></div></div></section><section class="panel"><div class="panel-header"><div><h2>${esc(uiText('Connector tokens'))}</h2><span class="muted token-caption">${esc(uiText('Access follows your current AMCP asset selections.'))}</span></div>${session.authenticated ? `<button class="button" data-create-token="true">${esc(uiText('Create read-only token'))}</button>` : `<a class="button" href="/login">${esc(uiText('Sign in to create a token'))}</a>`}</div>${session.writesEnabled && session.authenticated && !viewer ? `<div class="consent-panel"><p><strong>${esc(uiText('Read + write (default)'))}</strong> ${esc(uiText('Create an operator token for your selected resources, then use'))} <code>amcp_write</code> ${esc(uiText('to prepare and review a change before executing it.'))}</p><label class="form-note"><input type="checkbox" id="operator-token-consent"> ${esc(uiText('I authorize this connector to execute reviewed changes on accounts with write access.'))}</label><p><button class="button primary" data-create-operator-token="true">${esc(uiText('+ Create read + write token'))}</button></p></div>` : ''}${tokenAccessSetControl()}<div id="new-token"></div>${tokens.map(t => `<div class="token-row"><div><strong>${uiBidi(t.name)}</strong><small>${t.role === 'operator' ? uiText('Operator · reviewed writes') : uiText('Reader')}${accessSetNote(t.access_set_id)} ${esc(uiText('· Created'))} ${esc(uiDateZoned(t.createdAt))} ${esc(uiText('· Expires'))} ${esc(uiDateZoned(t.expiresAt))}</small></div>${t.revoked ? `<span class="status offline">${esc(uiText('Revoked'))}</span>` : manages(t) ? `<button class="button small danger" data-revoke-token="${esc(t.id)}">${esc(uiText('Revoke'))}</button>` : ''}</div>`).join('') || `<div class="empty">${session.authenticated ? uiText('No connector tokens yet.') : uiText('Sign in to create and manage connector tokens.')}</div>`}</section><section class="panel"><div class="panel-header"><h2>${esc(uiText('Authorized MCP clients'))}</h2></div>${oauthClients.map(c => `<div class="token-row"><div><strong>${uiBidi(c.name)}</strong><small>${c.role === 'operator' ? uiText('Operator · reviewed writes') : uiText('Reader')}${accessSetNote(c.access_set_id)} ${esc(uiText('· Authorization expires'))} ${esc(uiDateZoned(c.expiresAt))}${c.ownerName ? ` ${esc(uiText('· Approved by'))} ${uiBidi(c.ownerName)}` : ''}</small></div>${manages(c) ? `<button class="button small danger" data-revoke-client="${esc(c.id)}"${'owner' in c ? ` data-revoke-owner="${esc(c.owner ?? '')}"` : ''}>${esc(uiText('Revoke access'))}</button>` : ''}</div>`).join('') || `<div class="empty">${esc(uiText('No clients authorized through browser sign-in.'))}</div>`}${oauthEnded.length ? `<h3>${esc(uiText('Recently ended connections'))}</h3>${oauthEnded.map(c => `<div class="token-row"><div><strong>${uiBidi(c.name)}</strong><small>${esc(endedReason(c.reason))} · ${esc(uiDateZoned(c.endedAt))}${c.ownerName ? ` ${esc(uiText('· Approved by'))} ${uiBidi(c.ownerName)}` : ''}</small></div></div>`).join('')}` : ''}</section><p class="muted small-text">${esc(uiText('Codex configuration follows'))} <a href="https://learn.chatgpt.com/docs/extend/mcp?surface=cli" target="_blank" rel="noreferrer">${esc(uiText('official OpenAI documentation ↗'))}</a>.</p>`;
+  // Token, AI client and approver names are chosen by people and by the client apps themselves (WEB-07).
+  const tokenRow = t =>
+      html`<div class="token-row"><div><strong><bdi>${t.name}</bdi></strong><small>${t.role === 'operator' ? uiText('Operator · reviewed writes') : uiText('Reader')}${accessSetNote(t.access_set_id)} ${uiText('· Created')} ${uiDateZoned(t.createdAt)} ${uiText('· Expires')} ${uiDateZoned(t.expiresAt)}</small></div>${t.revoked ? html`<span class="status offline">${uiText('Revoked')}</span>` : manages(t) ? html`<button class="button small danger" data-revoke-token="${t.id}">${uiText('Revoke')}</button>` : ''}</div>`,
+    approvedBy = c => (c.ownerName ? html` ${uiText('· Approved by')} <bdi>${c.ownerName}</bdi>` : ''),
+    clientRow = c =>
+      html`<div class="token-row"><div><strong><bdi>${c.name}</bdi></strong><small>${c.role === 'operator' ? uiText('Operator · reviewed writes') : uiText('Reader')}${accessSetNote(c.access_set_id)} ${uiText('· Authorization expires')} ${uiDateZoned(c.expiresAt)}${approvedBy(c)}</small></div>${manages(c) ? html`<button class="button small danger" data-revoke-client="${c.id}"${'owner' in c ? html` data-revoke-owner="${c.owner ?? ''}"` : ''}>${uiText('Revoke access')}</button>` : ''}</div>`,
+    endedRow = c =>
+      html`<div class="token-row"><div><strong><bdi>${c.name}</bdi></strong><small>${endedReason(c.reason)} · ${uiDateZoned(c.endedAt)}${approvedBy(c)}</small></div></div>`;
+  setHtml(
+    content,
+    html`${raw(header(uiText('AI connectors'), uiText('Give your AI tools access to the accounts you select.')))}<section class="connector-hero"><div><span class="status online"><i></i>${session.writesEnabled ? uiText('Write support enabled') : uiText('Read-only deployment')}</span><h2 class="connector-title">${uiText('Your workspace.')}<br>${uiText('In the tools you already use.')}</h2><p>${session.writesEnabled ? uiText('Connect your AI tools for reporting and reviewed advertising changes. New connections default to read and reviewed write access.') : uiText('Connect Codex or another MCP client to read advertising data and prepare dry-run requests.')}</p></div><div class="endpoint-box"><small>${uiText('AMCP MCP ENDPOINT')}</small><div class="copy-row"><code>${session.origin + '/mcp'}</code><button class="button small" data-copy-endpoint="true">${uiText('Copy')}</button></div></div></section><section class="panel consent-panel"><h2>${uiText('Connect with browser authorization')}</h2><p>${uiText('In an MCP client that supports OAuth, add the endpoint above and choose Sign in. AMCP requests read and reviewed write access when enabled.')} ${session.writesEnabled ? html`${uiText('New clients default to')} <code>mcp:read mcp:write</code>${uiText('; the consent screen identifies operator access. Clients can explicitly request')} <code>mcp:read</code> ${uiText('for read-only access. Existing reader authorizations stay read-only until reauthorized.')} ${uiText('On the consent screen you can also choose read-only access. Viewers can approve read-only access only.')}` : uiText('Advertising writes are disabled in this deployment.')}</p><pre class="code-block">codex mcp add amcp --url ${session.origin + '/mcp'}
+codex mcp login amcp</pre><p class="muted">${uiText('For clients using a bearer token, follow the setup below.')}</p></section><section class="panel"><div class="panel-header"><h2>${uiText('Connect with a token')}</h2><span class="status">${uiText('Streamable HTTP')}</span></div><div class="client-tabs"><button class="client-tab ${client === 'codex' ? 'active' : ''}" data-client="codex">${uiText('Codex')}</button><button class="client-tab ${client === 'cursor' ? 'active' : ''}" data-client="cursor">${uiText('Cursor')}</button><button class="client-tab ${client === 'other' ? 'active' : ''}" data-client="other">${uiText('Other MCP client')}</button></div><div class="steps"><div class="step"><div><strong>${uiText('Create a connector token')}</strong><p class="muted">${uiText('Create a separate token for each tool. Tokens expire after 30 days and can be revoked below.')}</p></div></div><div class="step"><div><strong>${uiText('Add your token to the tool’s environment')}</strong><p class="muted">${uiText('Use the environment variable')} <code>AMCP_MCP_TOKEN</code>${uiText('. Keep the value private.')}</p></div></div><div class="step"><div class="step-content"><div class="copy-row"><strong>${client === 'codex' ? uiText('Add this to your Codex config.toml') : client === 'cursor' ? uiText('Add this to your Cursor MCP configuration') : uiText('Configure your MCP client')}</strong><button class="button small" data-copy-config="true">${uiText('Copy config')}</button></div><pre class="code-block">${connectorCode()}</pre><p class="muted">${client === 'codex' ? uiText('Reload your MCP connections, then ask Codex to list the tools available from AMCP.') : uiText('Use a client that supports Streamable HTTP and bearer authentication.')}</p></div></div></div></section><section class="panel"><div class="panel-header"><div><h2>${uiText('Connector tokens')}</h2><span class="muted token-caption">${uiText('Access follows your current AMCP asset selections.')}</span></div>${session.authenticated ? html`<button class="button" data-create-token="true">${uiText('Create read-only token')}</button>` : html`<a class="button" href="/login">${uiText('Sign in to create a token')}</a>`}</div>${session.writesEnabled && session.authenticated && !viewer ? html`<div class="consent-panel"><p><strong>${uiText('Read + write (default)')}</strong> ${uiText('Create an operator token for your selected resources, then use')} <code>amcp_write</code> ${uiText('to prepare and review a change before executing it.')}</p><label class="form-note"><input type="checkbox" id="operator-token-consent"> ${uiText('I authorize this connector to execute reviewed changes on accounts with write access.')}</label><p><button class="button primary" data-create-operator-token="true">${uiText('+ Create read + write token')}</button></p></div>` : ''}${tokenAccessSetControl()}<div id="new-token"></div>${tokens.length ? tokens.map(tokenRow) : html`<div class="empty">${session.authenticated ? uiText('No connector tokens yet.') : uiText('Sign in to create and manage connector tokens.')}</div>`}</section><section class="panel"><div class="panel-header"><h2>${uiText('Authorized MCP clients')}</h2></div>${oauthClients.length ? oauthClients.map(clientRow) : html`<div class="empty">${uiText('No clients authorized through browser sign-in.')}</div>`}${oauthEnded.length ? html`<h3>${uiText('Recently ended connections')}</h3>${oauthEnded.map(endedRow)}` : ''}</section><p class="muted small-text">${uiText('Codex configuration follows')} <a href="https://learn.chatgpt.com/docs/extend/mcp?surface=cli" target="_blank" rel="noreferrer">${uiText('official OpenAI documentation ↗')}</a>.</p>`,
+  );
 }
-function renderSettings() {
+/**
+ * Workspace settings: the shared page, then the parts other scripts register for it, in their declared order (the
+ * owner's health and operating controls, then account access review; WEB-07). Every re-render of the page comes here,
+ * so it is always whole.
+ */
+async function renderSettings() {
+  renderWorkspaceSettings();
+  await AMCP.routes.renderParts('/settings');
+}
+function renderWorkspaceSettings() {
   if (session.authenticated && !session.administrator) {
     content.innerHTML =
       header(uiText('Workspace settings'), uiText('A few thoughtful details make this space yours.')) +
@@ -1279,12 +1292,13 @@ function renderSettings() {
     `</div>`;
 }
 async function renderActivity() {
-  content.innerHTML = header(
-    uiText('Audit activity'),
-    uiText('Account activity and your workspace events, within current access.'),
+  // Audit events carry native identifiers, provider codes and request references: escape-by-default markup (WEB-07).
+  const heading = raw(
+    header(uiText('Audit activity'), uiText('Account activity and your workspace events, within current access.')),
   );
+  setHtml(content, heading);
   if (!session.authenticated) {
-    content.innerHTML += `<div class="empty">${esc(uiText('Sign in to view workspace activity.'))}</div>`;
+    setHtml(content, html`${heading}<div class="empty">${uiText('Sign in to view workspace activity.')}</div>`);
     return;
   }
   const generation = navigationGeneration,
@@ -1293,30 +1307,25 @@ async function renderActivity() {
   const client = typeof workingClientQuery === 'function' ? workingClientQuery() : {},
     initial = await api('/api/activity' + (client.profile_id ? '?' + new URLSearchParams(client) : ''));
   if (generation !== navigationGeneration || identity !== identityGeneration) return;
+  const entry = e => {
+    const ids = [e.event.gateway ?? e.event.platform, e.event.account_id, e.event.connection_id].filter(Boolean);
+    return html`<article class="activity-entry"><div class="token-row"><div><strong>${String(e.event.event ?? uiText('Workspace request')).replaceAll('_', ' ')}</strong><small>${ids.length ? ids.map((value, index) => html`${index ? ' · ' : ''}<bdi dir="ltr">${value}</bdi>`) : uiText('AMCP workspace')}</small></div><span class="muted">${uiDateZoned(e.at)}</span></div>${e.event.action ? html`<p>${e.event.action}</p>` : ''}${e.event.request_id ? html`<p class="form-note">${uiText('Request reference')}: <code>${e.event.request_id}</code></p>` : ''}${e.event.error ? html`<details class="activity-failure" open><summary>${e.event.error.code ?? uiText('Request failed')}</summary>${(e.diagnostics ?? []).length ? e.diagnostics.map(d => raw(renderSourceDiagnostic(d))) : html`<p>${uiText('Inspect the original work for more details.')}</p>`}</details>` : ''}</article>`;
+  };
   const rows = result =>
-    `${
-      result.events
-        .map(
-          e =>
-            `<article class="activity-entry"><div class="token-row"><div><strong>${esc(String(e.event.event ?? uiText('Workspace request')).replaceAll('_', ' '))}</strong><small>${
-              [e.event.gateway ?? e.event.platform, e.event.account_id, e.event.connection_id]
-                .filter(Boolean)
-                .map(value => uiBidi(value, 'ltr'))
-                .join(' · ') || esc(uiText('AMCP workspace'))
-            }</small></div><span class="muted">${esc(uiDateZoned(e.at))}</span></div>${e.event.action ? `<p>${esc(e.event.action)}</p>` : ''}${e.event.request_id ? `<p class="form-note">${esc(uiText('Request reference'))}: <code>${esc(e.event.request_id)}</code></p>` : ''}${e.event.error ? `<details class="activity-failure" open><summary>${esc(e.event.error.code ?? uiText('Request failed'))}</summary>${(e.diagnostics ?? []).length ? e.diagnostics.map(d => renderSourceDiagnostic(d)).join('') : `<p>${esc(uiText('Inspect the original work for more details.'))}</p>`}</details>` : ''}</article>`,
-        )
-        .join('') ||
-      `<div class="empty">${esc(uiText('No accessible events on this page. Continue if another page is available.'))}</div>`
-    }`;
+    result.events.length
+      ? result.events.map(entry)
+      : html`<div class="empty">${uiText('No accessible events on this page. Continue if another page is available.')}</div>`;
   let page = 0,
     next = initial.next_cursor ?? null,
     cursors = [undefined],
     filters = {...client},
     sequence = 0;
   const markup = result =>
-    rows(result) +
-    `<p id="activity-status" role="status">${esc(next ? uiText('More results are available.') : uiText('End of available results.'))}</p><nav class="dialog-actions" aria-label="${esc(uiText('Activity pages'))}"><button id="activity-prev" class="button small" ${page ? '' : 'disabled'}>${esc(uiText('Previous'))}</button><span>${esc(uiText('Page'))} ${page + 1}</span><button id="activity-next" class="button small" ${next ? '' : 'disabled'}>${esc(uiText('Next'))}</button></nav>`;
-  content.innerHTML += `<p class="notice">${esc(uiText('This history shows retained AMCP event metadata. Request bodies and receipts are omitted. Refresh to include newer events.'))}</p><form id="activity-filter" class="panel work-filter"><label>${esc(uiText('Search event, action or request reference'))}<input type="search" name="search" maxlength="200"></label><label>${esc(uiText('Account ID'))}<input name="account_id" maxlength="200"></label><button type="submit" class="button primary">${esc(uiText('Apply filters'))}</button><button type="button" id="activity-refresh" class="button">${esc(uiText('Refresh'))}</button></form><section class="panel" id="activity-results" aria-label="${esc(uiText('Activity results'))}">${markup(initial)}</section>`;
+    html`${rows(result)}<p id="activity-status" role="status">${next ? uiText('More results are available.') : uiText('End of available results.')}</p><nav class="dialog-actions" aria-label="${uiText('Activity pages')}"><button id="activity-prev" class="button small" ${page ? '' : 'disabled'}>${uiText('Previous')}</button><span>${uiText('Page')} ${page + 1}</span><button id="activity-next" class="button small" ${next ? '' : 'disabled'}>${uiText('Next')}</button></nav>`;
+  setHtml(
+    content,
+    html`${heading}<p class="notice">${uiText('This history shows retained AMCP event metadata. Request bodies and receipts are omitted. Refresh to include newer events.')}</p><form id="activity-filter" class="panel work-filter"><label>${uiText('Search event, action or request reference')}<input type="search" name="search" maxlength="200"></label><label>${uiText('Account ID')}<input name="account_id" maxlength="200"></label><button type="submit" class="button primary">${uiText('Apply filters')}</button><button type="button" id="activity-refresh" class="button">${uiText('Refresh')}</button></form><section class="panel" id="activity-results" aria-label="${uiText('Activity results')}">${markup(initial)}</section>`,
+  );
   const root = $('#activity-results'),
     form = $('#activity-filter');
   const current = () =>
@@ -1339,7 +1348,7 @@ async function renderActivity() {
       else cursors[index] = cursor;
       page = index;
       next = result.next_cursor ?? null;
-      root.innerHTML = markup(result);
+      setHtml(root, markup(result));
       bind();
     } catch (e) {
       if (active()) $('#activity-status').textContent = uiText('Could not load this page.') + ' ' + errorMessage(e);
@@ -1381,7 +1390,10 @@ function renderCallbackRefusal(code, platformId) {
             ? 'This authorization expired or was already used. Authorizations last 10 minutes and finish only in the browser session that started them. Nothing was saved. Start again from Connections.'
             : 'The provider returned an unexpected response. Nothing was saved. Start again from Connections.',
     );
-  content.innerHTML = `<div class="callback-layout"><div class="callback-card" role="alert"><div class="callback-top"><div class="brand"><img src="${publicAssetUrl('/assets/mark.svg')}" width="34" height="34" alt=""><span>AMCP</span></div><h1>${esc(p ? uiText('{platform} was not connected.', {platform: p.name}) : uiText('The platform was not connected.'))}</h1><p>${esc(text)}</p></div><div class="callback-bottom">${signIn ? `<a href="/login" class="button primary">${esc(uiText('Sign in'))}</a>` : `<a href="/connections" class="button primary">${esc(uiText('Start again'))}</a>`}</div></div></div>`;
+  setHtml(
+    content,
+    html`<div class="callback-layout"><div class="callback-card" role="alert"><div class="callback-top"><div class="brand"><img src="${publicAssetUrl('/assets/mark.svg')}" width="34" height="34" alt=""><span>AMCP</span></div><h1>${p ? uiText('{platform} was not connected.', {platform: p.name}) : uiText('The platform was not connected.')}</h1><p>${text}</p></div><div class="callback-bottom">${signIn ? html`<a href="/login" class="button primary">${uiText('Sign in')}</a>` : html`<a href="/connections" class="button primary">${uiText('Start again')}</a>`}</div></div></div>`,
+  );
 }
 /** A new login of an identity that is already connected (CON-05): renewing the existing login keeps its work. */
 function renderDuplicateLogin(result) {
@@ -1389,50 +1401,47 @@ function renderDuplicateLogin(result) {
     ? platforms.find(p => p.id === result.platform)?.connections.find(c => c.id === result.duplicateOf)
     : undefined;
   if (!existing) return '';
-  return `<div class="notice" role="status"><div><strong>${esc(uiText('This identity is already connected'))}</strong><p>${esc(uiText('The same provider identity is also saved as {name}. To renew that login and keep its selections, saved reports and schedules, reauthorize it instead, then disconnect this new login.', {name: existing.name}))}</p>${existing.reauthorizeAvailable ? `<p><button class="button small" data-reauthorize="${esc(existing.id)}">${esc(uiText('Reauthorize existing'))}</button></p>` : ''}</div></div>`;
+  return html`<div class="notice" role="status"><div><strong>${uiText('This identity is already connected')}</strong><p>${uiText('The same provider identity is also saved as {name}. To renew that login and keep its selections, saved reports and schedules, reauthorize it instead, then disconnect this new login.', {name: existing.name})}</p>${existing.reauthorizeAvailable ? html`<p><button class="button small" data-reauthorize="${existing.id}">${uiText('Reauthorize existing')}</button></p>` : ''}</div></div>`;
 }
 async function renderCallback() {
   const params = new URLSearchParams(location.search),
     refusal = params.get('error');
   if (refusal && !params.get('attempt')) return renderCallbackRefusal(refusal, params.get('platform'));
   const id = params.get('attempt');
+  const back = html`<a href="/connections" class="button primary">${uiText('Back to connections')}</a>`;
   let result;
   try {
     result = id ? await api('/api/oauth/progress/' + encodeURIComponent(id)) : null;
   } catch (e) {
-    content.innerHTML =
-      header(uiText('Connection needs attention'), '') +
-      errorBlock(e) +
-      `<a href="/connections" class="button primary">${esc(uiText('Back to connections'))}</a>`;
+    setHtml(content, html`${raw(header(uiText('Connection needs attention'), ''))}${raw(errorBlock(e))}${back}`);
     return;
   }
   if (!result) {
-    content.innerHTML =
-      header(uiText('Connection not found'), uiText('Start a connection from your AMCP workspace.')) +
-      `<a href="/connections" class="button primary">${esc(uiText('Back to connections'))}</a>`;
+    setHtml(
+      content,
+      html`${raw(header(uiText('Connection not found'), uiText('Start a connection from your AMCP workspace.')))}${back}`,
+    );
     return;
   }
+  // The platform's account and login names and the provider's diagnostics are the provider's own text (WEB-07).
   const p = platforms.find(p => p.id === result.platform),
     done = result.state === 'complete',
-    failed = result.state === 'failed' || result.state === 'sync_attention';
-  content.innerHTML = `<div class="callback-layout"><div class="callback-card"><div class="callback-top"><div class="brand"><img src="${publicAssetUrl('/assets/mark.svg')}" width="34" height="34" alt=""><span>AMCP</span></div><h1>${done ? uiText('You’re connected.') : failed ? uiText('A little attention needed.') : esc(uiText('Connecting {platform}.', {platform: p?.name ?? uiText('your platform')}))}</h1><p>${esc(result.message ?? (done ? uiText('Your login is secured. Choose the assets to make available in AMCP.') : uiText('Securing your connection and discovering workspace assets.')))}</p></div><div class="callback-steps">${[
-    [
-      'authorization',
-      p?.authType === 'client_credentials'
-        ? uiText('API credentials verified')
-        : uiText('Approve on {platform}', {platform: p?.name ?? uiText('the provider')}),
-      uiText('Provider authorization'),
-    ],
-    ['exchange', uiText('Secure connection'), uiText('Encrypted credential storage')],
-    ['sync', uiText('Sync workspace assets'), uiText('Available advertising assets')],
-  ]
-    .map(
-      ([key, title, sub], i) =>
-        `<div class="callback-step ${result[key] ? 'done' : failed ? 'failed' : ''}"><span class="step-number">${result[key] ? '✓' : i + 1}</span><div>${esc(title)}<small>${esc(sub)}</small></div></div>`,
-    )
-    .join(
-      '',
-    )}</div>${(result.diagnostics ?? []).length ? `<div class="reauthorization-errors">${result.diagnostics.map(d => renderSourceDiagnostic(d)).join('')}</div>` : ''}${renderDuplicateLogin(result)}<div class="callback-bottom"><a href="/connections" class="muted">${esc(uiText('Back to connections'))}</a>${result.connectionId ? `<button class="button primary" data-callback-manage="${esc(result.platform)}" data-connection-id="${esc(result.connectionId)}">${esc(uiText('Choose assets →'))}</button>` : `<a href="/connections" class="button">${esc(uiText('Try again'))}</a>`}</div></div></div>`;
+    failed = result.state === 'failed' || result.state === 'sync_attention',
+    steps = [
+      [
+        'authorization',
+        p?.authType === 'client_credentials'
+          ? uiText('API credentials verified')
+          : uiText('Approve on {platform}', {platform: p?.name ?? uiText('the provider')}),
+        uiText('Provider authorization'),
+      ],
+      ['exchange', uiText('Secure connection'), uiText('Encrypted credential storage')],
+      ['sync', uiText('Sync workspace assets'), uiText('Available advertising assets')],
+    ];
+  setHtml(
+    content,
+    html`<div class="callback-layout"><div class="callback-card"><div class="callback-top"><div class="brand"><img src="${publicAssetUrl('/assets/mark.svg')}" width="34" height="34" alt=""><span>AMCP</span></div><h1>${done ? uiText('You’re connected.') : failed ? uiText('A little attention needed.') : uiText('Connecting {platform}.', {platform: p?.name ?? uiText('your platform')})}</h1><p>${result.message ?? (done ? uiText('Your login is secured. Choose the assets to make available in AMCP.') : uiText('Securing your connection and discovering workspace assets.'))}</p></div><div class="callback-steps">${steps.map(([key, title, sub], i) => html`<div class="callback-step ${result[key] ? 'done' : failed ? 'failed' : ''}"><span class="step-number">${result[key] ? '✓' : i + 1}</span><div>${title}<small>${sub}</small></div></div>`)}</div>${(result.diagnostics ?? []).length ? html`<div class="reauthorization-errors">${result.diagnostics.map(d => raw(renderSourceDiagnostic(d)))}</div>` : ''}${renderDuplicateLogin(result)}<div class="callback-bottom"><a href="/connections" class="muted">${uiText('Back to connections')}</a>${result.connectionId ? html`<button class="button primary" data-callback-manage="${result.platform}" data-connection-id="${result.connectionId}">${uiText('Choose assets →')}</button>` : html`<a href="/connections" class="button">${uiText('Try again')}</a>`}</div></div></div>`,
+  );
   if (!done && !failed) {
     clearTimeout(pollTimer);
     pollTimer = setTimeout(renderCallback, 1500);
@@ -1455,48 +1464,29 @@ function consentAccessSet(info) {
   const sets = info.access_sets ?? [],
     required = info.access_set_required ?? null;
   if (!sets.length) return '';
-  return `<label class="consent-limit">${esc(uiText('Limit to client'))}<select id="consent-access-set">${required ? '' : `<option value="">${esc(uiText('No limit: the accounts I can reach'))}</option>`}${sets.map(s => `<option value="${esc(s.id)}" ${s.id === required ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label><p class="form-note">${esc(uiText('A client limit lets this app reach only that client’s accounts. The app cannot widen it.'))}</p>`;
+  return html`<label class="consent-limit">${uiText('Limit to client')}<select id="consent-access-set">${required ? '' : html`<option value="">${uiText('No limit: the accounts I can reach')}</option>`}${sets.map(s => html`<option value="${s.id}" ${s.id === required ? 'selected' : ''}>${s.name}</option>`)}</select></label><p class="form-note">${uiText('A client limit lets this app reach only that client’s accounts. The app cannot widen it.')}</p>`;
 }
 async function renderConsent() {
   if (!session.authenticated) {
-    content.innerHTML =
-      header(uiText('Authorize an MCP client'), uiText('Sign in to review this access request.')) +
-      `<button class="button primary" data-action="login">${esc(uiText('Sign in'))}</button>`;
+    setHtml(
+      content,
+      html`${raw(header(uiText('Authorize an MCP client'), uiText('Sign in to review this access request.')))}<button class="button primary" data-action="login">${uiText('Sign in')}</button>`,
+    );
     return;
   }
   const request = new URLSearchParams(location.search).get('request');
   const info = await api('/api/mcp/consent?request=' + encodeURIComponent(request ?? ''));
   // MCP-08: the workspace is named above the decision, the return host is shown large, and the member chooses read only
   // or read and reviewed changes within what the app asked for and their role allows. Write stays the default choice.
+  // The app's name, return address and metadata host are whatever the app sent: escape-by-default markup (WEB-07).
   const choices = info.choices ?? [info.scope],
     write = choices.includes('mcp:read mcp:write'),
     option = (scope, title, text, checked) =>
-      `<label class="consent-choice"><input type="radio" name="consent-scope" value="${esc(scope)}" ${checked ? 'checked' : ''}><span><strong>${esc(title)}</strong><small>${esc(text)}</small></span></label>`;
-  content.innerHTML =
-    header(
-      esc(uiText('Authorize {name}', {name: info.name})),
-      uiText('Review the tool requesting access to your workspace.'),
-    ) +
-    `<section class="panel consent-panel"><span class="eyebrow">${esc(uiText('WORKSPACE'))}</span><h2>${esc(info.workspace?.name ?? uiText('AMCP workspace'))}</h2><p>${esc(uiText('After you decide, AMCP returns you to:'))}</p><p class="consent-host"><strong>${esc(info.redirectHost ?? '')}</strong></p>${info.loopback ? `<p class="notice" role="note">${esc(uiText('This app receives the result on this computer (a loopback address). Approve only if you started this connection from an app on this device.'))}</p>` : ''}<p class="muted">${esc(uiText('The name “{name}” is provided by the app and is not verified by AMCP.', {name: info.name}))}${info.clientMetadataHost ? ' ' + esc(uiText('The app identifies itself with a metadata document that AMCP fetched from {host}.', {host: info.clientMetadataHost})) : ''}</p><fieldset class="consent-choices"><legend>${esc(uiText('Access to grant'))}</legend>` +
-    (write
-      ? option(
-          'mcp:read mcp:write',
-          uiText('Read and change enabled advertising accounts'),
-          uiText(
-            'This tool receives operator access. It can read your selected accounts and execute reviewed changes through amcp_write on accounts you explicitly enable for writes. Changes may affect campaign delivery or spend.',
-          ),
-          true,
-        )
-      : '') +
-    option(
-      'mcp:read',
-      uiText('Read your selected advertising accounts'),
-      uiText(
-        'This tool can read data available through your current AMCP account selections and prepare local dry runs. It cannot change your advertising accounts.',
-      ),
-      !write,
-    ) +
-    `</fieldset>${consentAccessSet(info)}${info.capped ? `<p class="notice" role="note">${esc(uiText('The app asked for reviewed changes too. Your workspace role allows read-only access, so it receives read access only.'))}</p>` : ''}<details><summary>${esc(uiText('Return address:'))}</summary><code>${esc(info.redirectUri)}</code></details><p>${esc(uiText('Requested permission:'))} <code>${esc(info.requestedScope ?? info.scope)}</code></p><div class="dialog-actions"><button class="button" data-consent="deny">${esc(uiText('Cancel'))}</button><button class="button primary" data-consent="approve">${esc(uiText('Authorize access'))}</button></div></section>`;
+      html`<label class="consent-choice"><input type="radio" name="consent-scope" value="${scope}" ${checked ? 'checked' : ''}><span><strong>${title}</strong><small>${text}</small></span></label>`;
+  setHtml(
+    content,
+    html`${raw(header(esc(uiText('Authorize {name}', {name: info.name})), uiText('Review the tool requesting access to your workspace.')))}<section class="panel consent-panel"><span class="eyebrow">${uiText('WORKSPACE')}</span><h2>${info.workspace?.name ?? uiText('AMCP workspace')}</h2><p>${uiText('After you decide, AMCP returns you to:')}</p><p class="consent-host"><strong>${info.redirectHost ?? ''}</strong></p>${info.loopback ? html`<p class="notice" role="note">${uiText('This app receives the result on this computer (a loopback address). Approve only if you started this connection from an app on this device.')}</p>` : ''}<p class="muted">${uiText('The name “{name}” is provided by the app and is not verified by AMCP.', {name: info.name})}${info.clientMetadataHost ? ' ' + uiText('The app identifies itself with a metadata document that AMCP fetched from {host}.', {host: info.clientMetadataHost}) : ''}</p><fieldset class="consent-choices"><legend>${uiText('Access to grant')}</legend>${write ? option('mcp:read mcp:write', uiText('Read and change enabled advertising accounts'), uiText('This tool receives operator access. It can read your selected accounts and execute reviewed changes through amcp_write on accounts you explicitly enable for writes. Changes may affect campaign delivery or spend.'), true) : ''}${option('mcp:read', uiText('Read your selected advertising accounts'), uiText('This tool can read data available through your current AMCP account selections and prepare local dry runs. It cannot change your advertising accounts.'), !write)}</fieldset>${consentAccessSet(info)}${info.capped ? html`<p class="notice" role="note">${uiText('The app asked for reviewed changes too. Your workspace role allows read-only access, so it receives read access only.')}</p>` : ''}<details><summary>${uiText('Return address:')}</summary><code>${info.redirectUri}</code></details><p>${uiText('Requested permission:')} <code>${info.requestedScope ?? info.scope}</code></p><div class="dialog-actions"><button class="button" data-consent="deny">${uiText('Cancel')}</button><button class="button primary" data-consent="approve">${uiText('Authorize access')}</button></div></section>`,
+  );
 }
 /**
  * What this person can do here, from their role and the deployment together (WEB-06). Before, the line showed only the
@@ -1832,7 +1822,18 @@ function clearShellAlert() {
   alert.textContent = '';
   alert.hidden = true;
 }
+/**
+ * Renders the current address. A script that adjusts every render registers a hook (test-account scope,
+ * account-scope.js) and a page part extends its page (AMCP.routes.extend, web/routes.js); nothing wraps this
+ * function (WEB-07).
+ */
 async function render() {
+  AMCP.hooks.runBefore();
+  const result = await renderCurrentPage();
+  await AMCP.hooks.runAfter();
+  return result;
+}
+async function renderCurrentPage() {
   const generation = ++navigationGeneration,
     identity = identityGeneration,
     pathname = location.pathname,
@@ -2237,8 +2238,10 @@ document.addEventListener('click', async event => {
         }),
       });
       await renderConnectors();
-      $('#new-token').innerHTML =
-        `<div class="notice"><div><strong>${esc(uiText('Save this token now. It is shown only once.'))}</strong><pre class="code-block token-secret" id="token-value"></pre><button class="button small" id="copy-new-token">${esc(uiText('Copy token'))}</button></div></div>`;
+      setHtml(
+        $('#new-token'),
+        html`<div class="notice"><div><strong>${uiText('Save this token now. It is shown only once.')}</strong><pre class="code-block token-secret" id="token-value"></pre><button class="button small" id="copy-new-token">${uiText('Copy token')}</button></div></div>`,
+      );
       $('#token-value').textContent = result.token;
       $('#copy-new-token').onclick = async () => {
         await navigator.clipboard.writeText(result.token);
@@ -2306,9 +2309,12 @@ document.addEventListener('input', event => {
     assetSearch = event.target.value;
     const c = platforms.find(p => p.id === currentPlatform)?.connections.find(c => c.id === currentConnection),
       group = c?.groups.find(g => g.kind === assetKind);
-    $('#asset-rows').innerHTML = assetRows(
-      (group?.assets ?? []).filter(a => (a.name + ' ' + a.id).toLowerCase().includes(assetSearch.toLowerCase())),
-      group,
+    setHtml(
+      $('#asset-rows'),
+      assetRows(
+        (group?.assets ?? []).filter(a => (a.name + ' ' + a.id).toLowerCase().includes(assetSearch.toLowerCase())),
+        group,
+      ),
     );
   }
 });
@@ -2453,8 +2459,18 @@ function clientNavigation(event, el) {
   if (document.readyState !== 'complete')
     await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, {once: true}));
   try {
+    // Who is signed in is asked while the language's shell chunk downloads (WEB-07: it used to wait for the whole
+    // catalog); the page renders once both are here, so an early failure still reads in the chosen language.
+    const sessionRequest = api('/api/session');
+    sessionRequest.catch(() => {});
+    // The first page's feature scripts and catalog chunks start downloading now too; no script runs anything but its
+    // own definitions and registrations while it loads, so this is safe before the session is known.
+    if (typeof pageAssetsFor === 'function') {
+      for (const file of pageAssetsFor(location.pathname)) loadPageAsset(file).catch(() => {});
+      uiPrefetchChunks(pageLocaleChunks(location.pathname));
+    }
     await initializeUILocale();
-    session = await api('/api/session');
+    session = await sessionRequest;
     await refresh();
     // A fresh load at a section of a workspace page opens there once the page has its data, as an in-app link does
     // (WEB-08: the palette's /settings#owner-write-pause). The browser found nothing there while the page was empty.
@@ -2469,20 +2485,8 @@ function clientNavigation(event, el) {
 })();
 
 function googleAssetLabel(a) {
-  return (
-    (a.status
-      ? ' · ' +
-        esc(
-          uiText(
-            {CANCELED: 'Cancelled', ENABLED: 'Active', SUSPENDED: 'Suspended', CLOSED: 'Closed'}[a.status] ?? a.status,
-          ),
-        )
-      : '') +
-    (a.manager ? ' · ' + esc(uiText('Manager')) : '') +
-    (a.hidden ? ' · ' + esc(uiText('Hidden')) : '') +
-    (a.testAccount ? ' · ' + esc(uiText('Test account')) : '') +
-    (a.parentId ? ' · ' + uiMarkup('Via manager {id}', {id: uiBidi(a.parentId, 'ltr')}) : '')
-  );
+  const status = {CANCELED: 'Cancelled', ENABLED: 'Active', SUSPENDED: 'Suspended', CLOSED: 'Closed'}[a.status];
+  return html`${a.status ? ' · ' + uiText(status ?? a.status) : ''}${a.manager ? ' · ' + uiText('Manager') : ''}${a.hidden ? ' · ' + uiText('Hidden') : ''}${a.testAccount ? ' · ' + uiText('Test account') : ''}${a.parentId ? html` · ${raw(uiMarkup('Via manager {id}', {id: html`<bdi dir="ltr">${a.parentId}</bdi>`}))}` : ''}`;
 }
 
 function renderAssetSyncDiagnostics(group) {

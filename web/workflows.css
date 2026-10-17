@@ -40,7 +40,7 @@
 .review-table th,
 .review-table td {
   padding: 0.65rem 0.75rem;
-  border-bottom: 1px solid var(--border, #ddd);
+  border-bottom: 1px solid var(--border);
   vertical-align: top;
   overflow-wrap: anywhere;
 }
@@ -163,7 +163,7 @@
 }
 .work-links > a {
   display: block;
-  border: 1px solid var(--border, #ddd);
+  border: 1px solid var(--border);
   border-radius: 0.75rem;
   padding: 1rem;
   color: inherit;
@@ -174,7 +174,7 @@
   margin-top: 0.5rem;
 }
 .report-pack {
-  background: var(--surface, white);
+  background: var(--surface-raised);
   padding: 2rem;
   border-radius: 1rem;
 }
@@ -223,7 +223,7 @@
   white-space: nowrap;
 }
 .report-pack .pack-evidence {
-  border-top: 1px solid var(--border, #ddd);
+  border-top: 1px solid var(--border);
   padding-block: 1rem;
 }
 .report-pack .pack-evidence summary {
@@ -616,7 +616,7 @@
   gap: 0.5rem;
   min-width: 0;
   padding: 1rem 0;
-  border-bottom: 1px solid var(--border, #ddd);
+  border-bottom: 1px solid var(--border);
 }
 .profile-conversion-row input {
   min-width: 0;
@@ -823,7 +823,7 @@
   border: 1px solid var(--line-strong);
   border-radius: 0.65rem;
   color: var(--iris-700);
-  background: var(--paper, white);
+  background: var(--paper);
   text-underline-offset: 0.2em;
   overflow-wrap: anywhere;
 }

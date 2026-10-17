@@ -7,6 +7,8 @@ import {createHash} from 'node:crypto';
 const index = fs.readFileSync('web/index.html', 'utf8'),
   initial = [...index.matchAll(/<script src="\/assets\/([^"]+)" defer><\/script>/g)].map(m => m[1]);
 const context = createContext({});
+// The loader reads each page's assets from the route registry (WEB-07).
+new Script(fs.readFileSync('web/routes.js', 'utf8')).runInContext(context);
 new Script(fs.readFileSync('web/route-assets.js', 'utf8')).runInContext(context);
 const authored = JSON.parse(new Script('JSON.stringify(pageAssetRoutes)').runInContext(context));
 const files = new Map();

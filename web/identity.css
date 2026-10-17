@@ -156,11 +156,6 @@ input[type='checkbox'] {
   background: #f5f1fd;
   border-color: #e3daf4;
 }
-.workspace-metrics span,
-.campaign-steps small,
-.workspace-copy {
-  color: #776b86;
-}
 .campaign-steps li {
   border-color: #ece6f3;
 }
@@ -226,10 +221,10 @@ input[type='checkbox'] {
   background: #282239;
 }
 .sidebar {
-  background: #201d30;
+  background: var(--surface-inverse);
   width: 253px;
   padding: 30px 22px 22px;
-  color: #f2eef8;
+  color: var(--text-on-inverse);
 }
 .brand {
   font-size: 28px;
@@ -344,7 +339,7 @@ input[type='checkbox'] {
 }
 .sidebar nav {
   gap: 3px;
-  scrollbar-color: #665479 #201d30;
+  scrollbar-color: #665479 var(--surface-inverse);
 }
 .sidebar nav a {
   font-size: 13px;
@@ -900,9 +895,7 @@ body.public-view {
   display: flex;
   justify-content: space-between;
   margin-top: 20px;
-  font-size: 7px;
   letter-spacing: 1px;
-  color: #927e9f;
 }
 .pill-dot {
   color: #d0a795;
@@ -1059,7 +1052,6 @@ body.public-view {
 }
 .feature-card p {
   font-size: 12px;
-  color: #917c95;
   line-height: 1.8;
 }
 .feature-creative {
@@ -1125,8 +1117,6 @@ body.public-view {
   background: #b197d0;
 }
 .mini-plan b {
-  font-size: 7px;
-  color: #8a66b2;
   background: #eee5f9;
   padding: 4px 6px;
   border-radius: 5px;
@@ -1205,7 +1195,6 @@ body.public-view {
   border: 1px solid #e8ddeb;
   border-radius: 7px;
   padding: 8px 10px;
-  color: #96769f;
   font-size: 10px;
 }
 .client-cloud b {
@@ -1220,8 +1209,6 @@ body.public-view {
   margin-top: 21px;
 }
 .evidence-tags span {
-  font-size: 8px;
-  color: #8591a3;
   background: #ffffff95;
   border: 1px solid #dfe4ec;
   border-radius: 5px;
@@ -1255,7 +1242,6 @@ body.public-view {
 }
 .how-steps li > span {
   font-size: 12px;
-  color: #b196c3;
   margin-top: 4px;
 }
 .how-steps h3 {
@@ -1372,7 +1358,6 @@ body.public-view {
 .auth-story .auth-tagline em {
   font-family: Georgia, serif;
   font-weight: 400;
-  color: #a48bb9;
   font-size: 0.95em;
   letter-spacing: -2.5px;
 }
@@ -1571,7 +1556,6 @@ body.public-view {
   margin: -7px 0 0;
   font-size: 10px !important;
   line-height: 1.7;
-  color: #ac94b5;
 }
 .auth-form .button {
   min-height: 46px;
@@ -1590,7 +1574,6 @@ body.public-view {
   color: #a48caf;
 }
 .auth-switch a {
-  color: #8a64b1;
   font-weight: 550;
 }
 .auth-legal {
@@ -1665,7 +1648,6 @@ body.public-view {
   background: #fffaf9;
   box-shadow: 0 5px 20px #9378a61a;
   font-size: 27px;
-  color: #a07bb0;
 }
 .account-hero h2 {
   margin: 7px 0;
@@ -2686,8 +2668,6 @@ body.public-view {
 }
 .quick-actions small {
   display: block;
-  font-size: 10px;
-  color: #867292;
   margin-top: 5px;
   line-height: 1.5;
 }

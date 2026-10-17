@@ -11,14 +11,20 @@ const pageAssetOrder = [
   'workbook-schedules.js',
   'workbook-bindings.js',
   'workbook-rebinding.js',
+  'work-pages.js',
   'work-center.js',
   'capability-center.js',
+  'reporting-overview.js',
   'report-workflows.js',
   'evidence-workflows.js',
   'report-allocation.js',
   'report-presentation.js',
   'measurement-trace-import.js',
   'account-workflows.js',
+  'portfolio.js',
+  'measurement.js',
+  'commerce-woocommerce.js',
+  'commerce.js',
   'vendor/qrcode-generator-2.0.4.js',
   'mfa-qr.js',
   'report-quality.js',
@@ -29,42 +35,39 @@ const pageAssetOrder = [
   'account-approvals.js',
 ];
 const pageAssetDependencies = {
-  'creative-library.js': ['operations-center.js'],
+  // WEB-07: a page that lists work needs only the paged-list loader, not the Operations center and its workbooks.
+  'creative-library.js': ['work-pages.js'],
   'client-playbooks.js': ['campaign-recipes.js', 'campaign-workflows.js'],
-  'operations-center.js': ['workbook-schedules.js', 'workbook-bindings.js', 'workbook-rebinding.js'],
-  'workbook-bindings.js': ['operations-center.js'],
-  'workbook-rebinding.js': ['operations-center.js'],
-  'work-center.js': ['report-library.js', 'campaign-workflows.js'],
-  'capability-center.js': ['operations-center.js'],
-  'report-workflows.js': ['report-library.js'],
+  'operations-center.js': ['work-pages.js', 'workbook-schedules.js', 'workbook-bindings.js', 'workbook-rebinding.js'],
+  'workbook-bindings.js': ['work-pages.js'],
+  'workbook-rebinding.js': ['work-pages.js'],
+  // The report builder's script (reporting-overview.js) left the shell (WEB-07): the modules that use its state and labels
+  // load it. Its own page code runs only on /reporting-overview, whose route loads the other report modules.
+  'work-center.js': ['report-library.js', 'reporting-overview.js', 'campaign-workflows.js'],
+  'capability-center.js': ['work-pages.js'],
+  'reporting-overview.js': ['report-library.js'],
+  'report-library.js': ['reporting-overview.js'],
+  'report-workflows.js': ['report-library.js', 'reporting-overview.js'],
   'evidence-workflows.js': ['report-quality.js', 'report-allocation.js', 'report-presentation.js'],
-  'report-allocation.js': ['operations-center.js', 'report-quality.js'],
-  'report-presentation.js': ['evidence-workflows.js', 'operations-center.js'],
-  'account-workflows.js': ['campaign-workflows.js'],
+  'report-allocation.js': ['work-pages.js', 'report-quality.js'],
+  'report-presentation.js': ['evidence-workflows.js', 'work-pages.js'],
+  // WEB-07: one module per account workflow page over a small shared helper; only Measurement shows a review table.
+  // A parked store source is a module of its own behind the Commerce page.
+  'portfolio.js': ['account-workflows.js'],
+  'measurement.js': ['account-workflows.js', 'campaign-workflows.js'],
+  'commerce.js': ['account-workflows.js', 'commerce-woocommerce.js'],
+  'commerce-woocommerce.js': ['account-workflows.js'],
   'mfa-qr.js': ['vendor/qrcode-generator-2.0.4.js'],
-  'report-quality.js': ['report-library.js'],
-  'report-delivery.js': ['report-library.js'],
+  'report-quality.js': ['report-library.js', 'reporting-overview.js'],
+  'report-delivery.js': ['report-library.js', 'reporting-overview.js'],
   'account-approvals.js': ['owner-operations.js'],
 };
-const pageAssetRoutes = {
-  '/dashboard': ['work-center.js'],
-  '/campaigns': ['campaign-recipes.js', 'campaign-workflows.js'],
-  '/media': ['creative-push.js', 'creative-library.js', 'ad-previews.js', 'campaign-workflows.js'],
-  '/reports': ['evidence-workflows.js', 'report-reference.js', 'report-quality.js'],
-  '/reporting-overview': ['report-quality.js', 'report-library.js', 'report-delivery.js', 'report-workflows.js'],
-  '/operations': ['operations-center.js'],
-  '/capabilities': ['capability-center.js'],
-  '/report-library': ['report-workflows.js'],
-  '/report-pack': ['evidence-workflows.js'],
-  '/monitors': ['operations-center.js'],
-  '/portfolio': ['account-workflows.js'],
-  '/measurement': ['account-workflows.js', 'measurement-trace-import.js'],
-  '/commerce': ['account-workflows.js'],
-  '/schedules': ['work-center.js'],
-  '/profiles': ['client-playbooks.js'],
-  '/account': ['mfa-qr.js'],
-  '/settings': ['owner-operations.js', 'account-approvals.js'],
-};
+// The files each page loads are its route registry entry's `assets` (web/routes.js, WEB-07): a page is declared once.
+const pageAssetRoutes = Object.freeze(
+  Object.fromEntries(
+    routeRegistry.filter(entry => entry.assets).map(entry => [entry.path, Object.freeze([...entry.assets])]),
+  ),
+);
 const pageAssetLoads = new Map();
 /**
  * After a versioned file failed to download, asks the server once whether this page's snapshot is still current.
@@ -99,8 +102,26 @@ function pageAssetsFor(pathname) {
   for (const file of Object.hasOwn(pageAssetRoutes, pathname) ? pageAssetRoutes[pathname] : []) include(file);
   return pageAssetOrder.filter(file => wanted.has(file));
 }
+/**
+ * The Arabic catalog chunks a page needs besides the shell's (WEB-07): a signed-in page needs the workspace's and the
+ * providers' messages, and each of its feature scripts' own. Public pages need none.
+ */
+function pageLocaleChunks(pathname) {
+  const entry = routeEntry(pathname);
+  if (!entry || entry.public) return [];
+  return [
+    'workspace',
+    'providers',
+    ...pageAssetsFor(pathname)
+      .filter(file => !file.startsWith('vendor/'))
+      .map(file => file.replace(/\.js$/, '')),
+  ];
+}
 function pageAssetsPending(pathname) {
-  return pageAssetsFor(pathname).some(file => pageAssetLoads.get(file)?.state !== 'ready');
+  return (
+    pageAssetsFor(pathname).some(file => pageAssetLoads.get(file)?.state !== 'ready') ||
+    (typeof uiChunksReady === 'function' && !uiChunksReady(pageLocaleChunks(pathname)))
+  );
 }
 function loadPageAsset(file) {
   const existing = pageAssetLoads.get(file);
@@ -108,9 +129,9 @@ function loadPageAsset(file) {
   const entry = {state: 'loading', promise: null};
   pageAssetLoads.set(file, entry);
   const initialize = async () => {
-    // These scripts capture existing globals during initialization. Other dependencies run only after page loading.
-    if (file === 'account-approvals.js') await loadPageAsset('owner-operations.js');
-    if (file === 'mfa-qr.js') await loadPageAsset('vendor/qrcode-generator-2.0.4.js');
+    // No script captures another's globals while it initializes: page modules register with the shell's extension
+    // points (WEB-07) and call their dependencies only once the page renders, after every file of the page is ready.
+    // Scripts inserted with async=false still run in the order they were requested.
     await new Promise((resolve, reject) => {
       const script = document.createElement('script'),
         originalPath = '/assets/' + file,
@@ -169,5 +190,9 @@ function loadPageAsset(file) {
   return entry.promise;
 }
 async function ensurePageAssets(pathname) {
-  await Promise.all(pageAssetsFor(pathname).map(loadPageAsset));
+  // The page's scripts and its catalog chunks download together.
+  await Promise.all([
+    ...pageAssetsFor(pathname).map(loadPageAsset),
+    ...(typeof uiNeedChunks === 'function' ? [uiNeedChunks(pageLocaleChunks(pathname))] : []),
+  ]);
 }

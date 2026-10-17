@@ -1,4 +1,7 @@
-/* AMCP design tokens: the one place the palette, radius and base type are set (docs/AMCP-IDENTITY.md). Loaded first. */
+/* AMCP design tokens: the one place the palette, radius and base type are set, for both themes (docs/AMCP-IDENTITY.md).
+   Loaded first. WEB-07: components use the semantic roles below, which take their values from the palette in each
+   theme, so a component written with them is right in dark mode without an override; a colour written anywhere else
+   is counted by tools/check-colours.mjs, which refuses new ones and checks that every token has a dark value. */
 :root {
   color-scheme: light;
   --ink: #222137;
@@ -33,6 +36,45 @@
   --decision-negative-ink: var(--danger);
   --decision-hold-bg: var(--surface-subtle);
   --decision-hold-ink: var(--muted);
+  /* Semantic roles (WEB-07). The page, the cards and fields raised on it, text and secondary text, links, borders,
+     the focus ring and the three status pairs; each follows its palette colour in both themes. */
+  --surface: var(--paper);
+  --surface-raised: var(--white);
+  --text: var(--ink);
+  --text-secondary: var(--muted);
+  --link: var(--iris-700);
+  --border: var(--line);
+  --border-strong: var(--line-strong);
+  --focus: var(--iris-700);
+  --status-success-bg: var(--success-bg);
+  --status-success-ink: var(--success-ink);
+  --status-warning-bg: var(--warning-bg);
+  --status-warning-ink: var(--warning-ink);
+  --status-danger-bg: var(--danger-bg);
+  --status-danger-ink: var(--danger);
+  /* Surfaces that keep their dark colour in both themes (the sidebar) and the ink on them: theme-invariant. */
+  --surface-inverse: #201d30;
+  --text-on-inverse: #f2eef8;
+  /* The policy pages' own shades (privacy.css: Privacy, Terms, Data deletion and the 404 page, which need no
+     JavaScript); in dark mode they take the workspace's dark text, links, lines and surfaces. */
+  --policy-surface: #f8f6fb;
+  --policy-text: #282238;
+  --policy-text-body: #51485f;
+  --policy-text-intro: #352c44;
+  --policy-text-strong: #342b43;
+  --policy-lead: #6a5e79;
+  --policy-text-secondary: #6a5e79;
+  --policy-eyebrow: #6c5186;
+  --policy-accent: #b7613e;
+  --policy-link: #5840ab;
+  --policy-link-hover: #38236f;
+  --policy-nav-link: #5840ab;
+  --policy-contents-link: #655475;
+  --policy-border: #e1d9ed;
+  --policy-border-subtle: #ebe5f2;
+  --policy-border-strong: #d9cfea;
+  --policy-code: #f3effa;
+  --policy-shadow: #32234804;
   --radius: 17px;
   font-family: 'Aptos', 'Segoe UI', sans-serif;
   color: var(--ink);
@@ -41,6 +83,7 @@
   font-synthesis: none;
 }
 
+/* The dark theme: chosen in Appearance, or the system's when it is set to System (web/theme.js). */
 :root[data-theme='dark'] {
   color-scheme: dark;
   --ink: #f2edf8;
@@ -64,4 +107,69 @@
   --focus-on-inverse: #decaff;
   --decision-steady-bg: #232c4d;
   --decision-steady-ink: #c3ccff;
+  --policy-surface: var(--paper);
+  --policy-text: var(--ink);
+  --policy-text-body: var(--ink);
+  --policy-text-intro: var(--ink);
+  --policy-text-strong: var(--ink);
+  --policy-lead: var(--ink);
+  --policy-text-secondary: var(--muted);
+  --policy-eyebrow: var(--ink);
+  --policy-accent: var(--ink);
+  --policy-link: var(--iris-700);
+  --policy-link-hover: var(--iris-700);
+  --policy-nav-link: var(--muted);
+  --policy-contents-link: var(--iris-700);
+  --policy-border: var(--line);
+  --policy-border-subtle: var(--line);
+  --policy-border-strong: var(--line);
+  --policy-code: var(--surface-subtle);
+  --policy-shadow: #32234804;
+}
+
+/* A page without JavaScript (the policy pages can be read with it turned off) follows a dark system too: the same
+   values as the block above, which tools/check-colours.mjs keeps identical. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --ink: #f2edf8;
+    --muted: #c0b5ce;
+    --iris: #c7adff;
+    --iris-700: #decaff;
+    --apricot: #ffbf9b;
+    --paper: #181522;
+    --white: #252032;
+    --line: #51475f;
+    --line-strong: #988aab;
+    --danger: #ffb6bf;
+    --surface-subtle: #30293f;
+    --surface-accent: #403153;
+    --on-accent: #21172f;
+    --success-bg: #18382e;
+    --success-ink: #a5e5c4;
+    --warning-bg: #3d2e19;
+    --warning-ink: #f6d89e;
+    --danger-bg: #452830;
+    --focus-on-inverse: #decaff;
+    --decision-steady-bg: #232c4d;
+    --decision-steady-ink: #c3ccff;
+    --policy-surface: var(--paper);
+    --policy-text: var(--ink);
+    --policy-text-body: var(--ink);
+    --policy-text-intro: var(--ink);
+    --policy-text-strong: var(--ink);
+    --policy-lead: var(--ink);
+    --policy-text-secondary: var(--muted);
+    --policy-eyebrow: var(--ink);
+    --policy-accent: var(--ink);
+    --policy-link: var(--iris-700);
+    --policy-link-hover: var(--iris-700);
+    --policy-nav-link: var(--muted);
+    --policy-contents-link: var(--iris-700);
+    --policy-border: var(--line);
+    --policy-border-subtle: var(--line);
+    --policy-border-strong: var(--line);
+    --policy-code: var(--surface-subtle);
+    --policy-shadow: #32234804;
+  }
 }

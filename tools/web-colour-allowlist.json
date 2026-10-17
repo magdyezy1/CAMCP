@@ -1,0 +1,89 @@
+{
+  "meaning": "WEB-07: literal colours reviewed to stay literal in both themes (brand marks, print). Each entry names its stylesheet, selector, property and value exactly; the list may only shrink (tools/check-colours.mjs).",
+  "entries": [
+    {
+      "file": "app.css",
+      "selector": ".platform-logo.meta",
+      "property": "color",
+      "value": "#087df0",
+      "reason": "Meta brand mark"
+    },
+    {
+      "file": "app.css",
+      "selector": ".platform-logo.google",
+      "property": "color",
+      "value": "#4285f4",
+      "reason": "Google brand mark"
+    },
+    {
+      "file": "app.css",
+      "selector": ".platform-logo.tiktok",
+      "property": "color",
+      "value": "#141414",
+      "reason": "TikTok brand mark"
+    },
+    {
+      "file": "app.css",
+      "selector": ".platform-logo.snapchat",
+      "property": "background",
+      "value": "#fffc00",
+      "reason": "Snapchat brand mark (yellow ground)"
+    },
+    {
+      "file": "app.css",
+      "selector": ".platform-logo.snapchat",
+      "property": "color",
+      "value": "#141414",
+      "reason": "Snapchat brand mark"
+    },
+    {
+      "file": "app.css",
+      "selector": ".platform-logo.linkedin",
+      "property": "background",
+      "value": "#0a66c2",
+      "reason": "LinkedIn brand mark (blue ground)"
+    },
+    {
+      "file": "app.css",
+      "selector": ".platform-logo.linkedin",
+      "property": "color",
+      "value": "white",
+      "reason": "LinkedIn brand mark"
+    },
+    {
+      "file": "app.css",
+      "selector": ".platform-logo.x",
+      "property": "color",
+      "value": "#000",
+      "reason": "X brand mark (kept on a light ground in dark mode by theme.css)"
+    },
+    {
+      "file": "identity.css",
+      "selector": ".social-icon.google",
+      "property": "color",
+      "value": "#4285f4",
+      "reason": "Google sign-in mark"
+    },
+    {
+      "file": "identity.css",
+      "selector": ".social-icon.apple",
+      "property": "color",
+      "value": "#302936",
+      "reason": "Apple sign-in mark"
+    },
+    {
+      "file": "identity.css",
+      "selector": ".social-icon.facebook",
+      "property": "color",
+      "value": "#1877f2",
+      "reason": "Facebook sign-in mark"
+    },
+    {
+      "file": "privacy.css",
+      "selector": "body",
+      "property": "background",
+      "value": "#fff",
+      "reason": "Printed policies are always on white paper, whatever the screen's theme"
+    }
+  ]
+}

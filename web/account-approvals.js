@@ -1,7 +1,7 @@
 'use strict';
 // Account access review. Rendered only when the server confirms this session is the instance
-// owner: a workspace owner elsewhere on the instance gets 403 and sees nothing at all.
-const baseApprovalSettings = renderSettings;
+// owner: a workspace owner elsewhere on the instance gets 403 and sees nothing at all. It is a part of /settings (WEB-07)
+// that renders after the owner's operating controls (their order is declared below, not taken from the load order).
 const approvalState = {
   pending: ['attention', 'Waiting for you'],
   approved: ['online', 'Has access'],
@@ -13,8 +13,7 @@ const approvalWhen = value => {
 };
 const approvalText = value =>
   String(value ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c]);
-renderSettings = async function () {
-  await baseApprovalSettings();
+async function renderAccountApprovals() {
   if (!session.authenticated) return;
   let data;
   try {
@@ -165,4 +164,6 @@ renderSettings = async function () {
       if (error) error.textContent = errorMessage(e);
     }
   });
-};
+}
+// After the owner's part (order 10), which creates the #settings-access section, whichever script loaded first.
+AMCP.routes.extend('/settings', renderAccountApprovals, {order: 20});

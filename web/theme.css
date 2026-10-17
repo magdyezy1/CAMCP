@@ -82,7 +82,6 @@ html[data-theme='dark'],
     .about-art-card,
     .about-grid article,
     .about-control,
-    .policy-layout > article,
     dialog
   ) {
   color: var(--ink);
@@ -154,8 +153,7 @@ html[data-theme='dark'],
     .report-section-label strong,
     .workspace-details summary,
     .metric-pills span,
-    .how-steps li > span,
-    .policy-heading span
+    .how-steps li > span
   ) {
   color: inherit;
 }
@@ -177,7 +175,6 @@ html[data-theme='dark'],
     .workspace-metrics span,
     .auth-story > p,
     .feature-card p,
-    .contents a,
     .report-control-top label,
     .target-fields label,
     .target-currency-row label,
@@ -203,8 +200,6 @@ html[data-theme='dark'],
     .public-nav nav a,
     #breadcrumb,
     .breadcrumb span,
-    .site-header nav a,
-    .policy-languages a,
     footer,
     footer a
   ) {
@@ -212,7 +207,6 @@ html[data-theme='dark'],
 }
 [data-theme='dark']
   :is(
-    .contents strong,
     .quick-actions strong,
     article li,
     article strong,
@@ -223,14 +217,7 @@ html[data-theme='dark'],
   color: var(--ink);
 }
 [data-theme='dark']
-  :is(
-    a.text-link,
-    .auth-switch a,
-    .auth-legal a,
-    .policy-layout a,
-    .auth-story .auth-tagline em,
-    .hero-copy h1 > span
-  ) {
+  :is(a.text-link, .auth-switch a, .auth-legal a, .auth-story .auth-tagline em, .hero-copy h1 > span) {
   color: var(--iris-700);
 }
 [data-theme='dark'] .password-toggle {

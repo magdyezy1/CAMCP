@@ -4,6 +4,14 @@ let uiLocale = 'en',
   uiMessages = new Map(),
   uiLocaleSequence = 0;
 const uiCatalogs = new Map();
+/**
+ * The Arabic catalog travels in chunks (WEB-07, tools/locale-chunks.mjs): 'shell' for every page, then what a signed-in
+ * page and its feature scripts add. These are the chunks this document has needed so far; a language chosen later
+ * loads all of them.
+ */
+const uiCatalogChunks = new Set(['shell']);
+/** The chunks whose messages are in uiMessages now, as 'locale:chunk'. */
+let uiLoadedChunks = new Set();
 const uiSlots = text =>
   [...text.matchAll(/\{([a-zA-Z][a-zA-Z0-9_]*)\}/g)]
     .map(m => m[1])
@@ -198,6 +206,50 @@ function uiScheduleTime(value, timeZone) {
 const uiEscape = value =>
   String(value).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c]);
 /**
+ * Escape-by-default markup (WEB-07). In html`…` every ${} value is escaped, so a provider name, a native ID or what a
+ * person typed always arrives as text. A value that is already markup goes in as it is: another html`…`, a list of
+ * them, or raw(markup), which marks a fragment AMCP built and escaped itself (never a received value). null and
+ * undefined insert nothing. The result is SafeHtml, which reads as its markup in any string context; setHtml and
+ * insertHtml are the sinks that take it, and they refuse a plain string so unescaped text cannot reach them by
+ * mistake. The markup between the backticks is written byte for byte (Prettier does not reformat it), and
+ * tools/check-markup.mjs counts the markup still escaped by hand and refuses new markup that is not.
+ */
+const {html, raw, setHtml, insertHtml, isSafeHtml} = (() => {
+  const safe = new WeakSet();
+  class SafeHtml {
+    #markup;
+    constructor(markup) {
+      this.#markup = markup;
+      safe.add(this);
+      Object.freeze(this);
+    }
+    toString() {
+      return this.#markup;
+    }
+  }
+  const piece = value =>
+    safe.has(value) ? String(value) : Array.isArray(value) ? value.map(piece).join('') : uiEscape(value ?? '');
+  const markup = (value, sink) => {
+    if (!safe.has(value)) throw TypeError(sink + ' takes html`…` or raw() markup, not a string');
+    return String(value);
+  };
+  return Object.freeze({
+    html(strings, ...values) {
+      let out = strings[0];
+      for (let index = 0; index < values.length; index++) out += piece(values[index]) + strings[index + 1];
+      return new SafeHtml(out);
+    },
+    raw: value => (safe.has(value) ? value : new SafeHtml(String(value ?? ''))),
+    setHtml(element, value) {
+      element.innerHTML = markup(value, 'setHtml');
+    },
+    insertHtml(element, position, value) {
+      element.insertAdjacentHTML(position, markup(value, 'insertHtml'));
+    },
+    isSafeHtml: value => safe.has(value),
+  });
+})();
+/**
  * Escaped text in its own direction (WEB-05): a name or label decides its direction from its first strong character,
  * and an identifier, address or native value (`'ltr'`) always reads left to right inside Arabic text.
  */
@@ -228,10 +280,13 @@ function themeControl() {
     )
     .join('')}</select></label>`;
 }
-async function uiCatalog(locale) {
+/** One chunk of a language's catalog (WEB-07), downloaded once per document within time and byte bounds. */
+async function uiCatalog(locale, chunk = 'shell') {
   if (locale === 'en') return new Map();
   if (locale !== 'ar') throw Error('Unsupported interface language');
-  if (!uiCatalogs.has(locale)) {
+  if (typeof chunk !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(chunk)) throw Error('Invalid language catalog chunk');
+  const key = locale + ':' + chunk;
+  if (!uiCatalogs.has(key)) {
     const pending = (async () => {
       const controller = new AbortController(),
         deadline = performance.now() + 15000,
@@ -256,16 +311,17 @@ async function uiCatalog(locale) {
       };
       let reader;
       try {
+        const original = '/assets/locales/ar/' + chunk + '.json',
+          address = typeof AMCPAssets === 'object' ? AMCPAssets.url(original) : original;
         const response = await bounded(() =>
-          fetch(
-            typeof AMCPAssets === 'object' ? AMCPAssets.url('/assets/locales/ar.json') : '/assets/locales/ar.json',
-            {
-              credentials: 'same-origin',
-              cache: 'no-cache',
-              redirect: 'error',
-              signal: controller.signal,
-            },
-          ),
+          fetch(address, {
+            credentials: 'same-origin',
+            // A versioned address never changes its bytes, so the browser's cache may answer it (WEB-07); an
+            // unversioned one (a legacy link) is revalidated.
+            cache: address === original ? 'no-cache' : 'default',
+            redirect: 'error',
+            signal: controller.signal,
+          }),
         );
         // The page's asset snapshot was replaced by a deploy: this address can never succeed again (WEB-04).
         if (response.status === 409)
@@ -285,7 +341,8 @@ async function uiCatalog(locale) {
           if (next.done) break;
           bytes += next.value.byteLength;
           emptyChunks = next.value.byteLength ? 0 : emptyChunks + 1;
-          if (bytes > 2097152 || emptyChunks > 64) throw Error('Language catalog too large');
+          // One catalog chunk is at most 1 MiB (tools/locale-chunks.mjs enforces it when the chunks are built).
+          if (bytes > 1048576 || emptyChunks > 64) throw Error('Language catalog too large');
           text += decoder.decode(next.value, {stream: true});
         }
         text += decoder.decode();
@@ -306,10 +363,63 @@ async function uiCatalog(locale) {
         }
       }
     })();
-    uiCatalogs.set(locale, pending);
-    pending.catch(() => uiCatalogs.delete(locale));
+    uiCatalogs.set(key, pending);
+    pending.catch(() => uiCatalogs.delete(key));
   }
-  return uiCatalogs.get(locale);
+  return uiCatalogs.get(key);
+}
+/** The messages of several chunks of a language as one map (English has none). */
+async function uiCatalogMessages(locale, chunks = uiCatalogChunks) {
+  const maps = await Promise.all([...chunks].map(chunk => uiCatalog(locale, chunk)));
+  return new Map(maps.flatMap(map => [...map]));
+}
+/** Whether every listed chunk of the interface language is already part of the page's messages. */
+function uiChunksReady(chunks) {
+  return uiLocale === 'en' || chunks.every(chunk => uiLoadedChunks.has(uiLocale + ':' + chunk));
+}
+/**
+ * A page needs these chunks (WEB-07: its feature scripts' and the signed-in workspace's). They are loaded now in the
+ * interface language and joined to its messages, and a language chosen later includes them. A failure rejects, so
+ * the page offers its retry instead of rendering in two languages.
+ */
+async function uiNeedChunks(chunks) {
+  for (const chunk of chunks) uiCatalogChunks.add(chunk);
+  if (uiChunksReady(chunks)) return;
+  const token = uiLocaleSequence,
+    locale = uiLocale;
+  let messages;
+  try {
+    messages = await uiCatalogMessages(locale, chunks);
+  } catch (error) {
+    // A deploy (409) needs a reload; anything else is a download the page offers to try again, like a script's.
+    if (error?.code === 'PAGE_ASSET_RELOAD_REQUIRED') throw error;
+    throw Object.assign(Error(uiText('A file needed for this page could not be downloaded. Try again.')), {
+      code: 'PAGE_ASSET_UNAVAILABLE',
+    });
+  }
+  // A language change meanwhile loads every needed chunk itself.
+  if (token !== uiLocaleSequence || locale !== uiLocale) return;
+  uiMessages = new Map([...uiMessages, ...messages]);
+  for (const chunk of chunks) uiLoadedChunks.add(locale + ':' + chunk);
+}
+/**
+ * Starts downloading chunks the first page will need, in the saved language, while the shell's chunk and the session
+ * are still on their way (WEB-07). They join the page's messages when the page asks for them (uiNeedChunks).
+ */
+function uiPrefetchChunks(chunks) {
+  let saved;
+  try {
+    saved = localStorage.getItem('amcp.locale');
+  } catch {
+    return;
+  }
+  if (saved === 'ar') for (const chunk of chunks) uiCatalog('ar', chunk).catch(() => {});
+}
+/** Makes these chunks of a language the page's messages, as a whole set. */
+function uiUseMessages(locale, messages, chunks) {
+  uiMessages = messages;
+  uiLocale = locale;
+  uiLoadedChunks = new Set(locale === 'en' ? [] : [...chunks].map(chunk => locale + ':' + chunk));
 }
 function applyUILocale() {
   if (document.documentElement) {
@@ -351,15 +461,14 @@ async function initializeUILocale() {
     /* Private modes may deny storage. English remains usable. */
   }
   try {
-    const locale = saved === 'ar' ? 'ar' : 'en';
-    const messages = await uiCatalog(locale);
+    const locale = saved === 'ar' ? 'ar' : 'en',
+      chunks = [...uiCatalogChunks];
+    const messages = await uiCatalogMessages(locale, chunks);
     if (token !== uiLocaleSequence) return;
-    uiMessages = messages;
-    uiLocale = locale;
+    uiUseMessages(locale, messages, chunks);
   } catch {
     if (token !== uiLocaleSequence) return;
-    uiLocale = 'en';
-    uiMessages = new Map();
+    uiUseMessages('en', new Map(), []);
   }
   applyUILocale();
 }
@@ -425,10 +534,11 @@ async function changeUILocale(locale) {
       });
       if (!confirmed || !current()) return false;
     }
-    const messages = await uiCatalog(locale);
+    // Every chunk this document has needed so far, so the page re-renders whole in the new language (WEB-07).
+    const chunks = [...uiCatalogChunks],
+      messages = await uiCatalogMessages(locale, chunks);
     if (!current()) return false;
-    uiMessages = messages;
-    uiLocale = locale;
+    uiUseMessages(locale, messages, chunks);
     try {
       localStorage.setItem('amcp.locale', locale);
     } catch {

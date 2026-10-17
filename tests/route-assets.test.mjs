@@ -53,6 +53,8 @@ function fixture() {
     },
   });
   const run = text => new Script(text).runInContext(context);
+  // Each page's assets are its route registry entry's (WEB-07), so the registry loads first, as in index.html.
+  run(fs.readFileSync('web/routes.js', 'utf8'));
   run(source());
   return {
     context,
@@ -77,10 +79,15 @@ test('the initial document loads only shared scripts and the fixed route loader'
     'identity.js',
     'workspace.js',
     'account-security.js',
-    'reporting-overview.js',
+    // WEB-07 (regression): the report builder's script (reporting-overview.js, 23 KB compressed) was part of every page,
+    // the landing and sign-in pages included; it now loads with /reporting-overview and the modules that use it.
     'route-assets.js',
     'account-scope.js',
   ]);
+  assert.deepEqual(
+    Array.from(fixture().run("pageAssetsFor('/reporting-overview')")).filter(file => file === 'reporting-overview.js'),
+    ['reporting-overview.js'],
+  );
   const baseline = fs.readdirSync('web', {recursive: true}).filter(f => f.endsWith('.js') && f !== 'route-assets.js');
   const bytes = files => files.reduce((n, f) => n + fs.readFileSync('web/' + f).length, 0);
   assert.ok(bytes(scripts()) < bytes(baseline) * 0.36);
@@ -140,28 +147,34 @@ test('concurrent page loads share exact same-origin scripts and revisit without 
   assert.equal(f.listeners.get('error')?.size ?? 0, 0);
 });
 
-test('failed downloads are retryable while settings wrappers wait for their original dependency', async () => {
+// WEB-07: account-approvals.js used to capture owner-operations.js's renderSettings wrapper while it initialized, so the
+// loader had to wait for one file before requesting the other. Both now register parts of /settings with a declared
+// order (tests/web-extensions.test.mjs), so the page's files are requested together and a failed one is retried alone.
+test('failed downloads are retryable and settings parts no longer wait for each other to load', async () => {
   const f = fixture(),
     first = f.load('/settings');
   const rejected = assert.rejects(first, e => e.code === 'PAGE_ASSET_UNAVAILABLE');
   await tick();
   assert.deepEqual(
     f.appended.map(s => s.src),
-    ['/assets/owner-operations.js'],
+    ['/assets/owner-operations.js', '/assets/account-approvals.js'],
   );
   f.appended[0].onerror();
   await rejected;
   assert.equal(f.appended[0].removed, true);
   const retry = f.load('/settings');
   await tick();
-  assert.equal(f.appended.length, 2);
+  assert.deepEqual(
+    f.appended.map(s => s.src),
+    ['/assets/owner-operations.js', '/assets/account-approvals.js', '/assets/owner-operations.js'],
+    'Only the failed file is requested again',
+  );
   f.appended[1].onload();
-  await tick();
-  assert.equal(f.appended[2].src, '/assets/account-approvals.js');
   f.appended[2].onload();
   await retry;
   await f.load('/settings');
   assert.equal(f.appended.length, 3);
+  assert.equal(f.timers.size, 0);
 });
 
 test('uncertain timeout or partial evaluation requires a full reload and never reinserts a script', async () => {
@@ -240,6 +253,69 @@ test('every route dependency is local, shipped, and initialized once, including 
   assert.equal(f.timers.size, 0);
 });
 
+// Regression (WEB-07): Live portfolio, Measurement and Commerce all loaded account-workflows.js (388 KB: the three pages
+// and the parked WooCommerce source) and campaign-workflows.js. Each page now loads its own module over a small shared
+// helper, and the parked store source is a module of its own behind the Commerce page.
+test('each account workflow page loads only its own module, the shared helper and what it uses', () => {
+  const f = fixture(),
+    files = path => Array.from(f.run(`pageAssetsFor(${JSON.stringify(path)})`));
+  assert.deepEqual(files('/portfolio'), ['account-workflows.js', 'portfolio.js']);
+  assert.deepEqual(files('/commerce'), ['account-workflows.js', 'commerce-woocommerce.js', 'commerce.js']);
+  assert.deepEqual(files('/measurement'), [
+    'campaign-workflows.js',
+    'measurement-trace-import.js',
+    'account-workflows.js',
+    'measurement.js',
+  ]);
+  const read = file => fs.readFileSync('web/' + file, 'utf8'),
+    declared = file => [...read(file).matchAll(/^(?:async )?function ([A-Za-z0-9_$]+)/gm)].map(match => match[1]);
+  assert.ok(Buffer.byteLength(read('account-workflows.js')) < 32768, 'The shared helper stays small');
+  // Every WooCommerce function lives in the store source's module; the Commerce page only renders its panels.
+  const woo = name => /^(?:bindWooCommerce|wooCommerce|wooConnection)/.test(name);
+  assert.ok(declared('commerce-woocommerce.js').filter(woo).length >= 12);
+  for (const file of ['account-workflows.js', 'portfolio.js', 'measurement.js', 'commerce.js'])
+    assert.deepEqual(declared(file).filter(woo), [], file);
+  // A page module renders only its own page.
+  for (const [file, page] of [
+    ['portfolio.js', 'renderPortfolio'],
+    ['measurement.js', 'renderMeasurement'],
+    ['commerce.js', 'renderCommerce'],
+  ])
+    assert.deepEqual(
+      declared(file).filter(name => /^render(?:Portfolio|Measurement|Commerce)$/.test(name)),
+      [page],
+      file,
+    );
+});
+
+// Regression (WEB-07): Creative, Capabilities, Evidence & analysis and the report pack loaded the whole Operations
+// center and its three workbook controllers (about 110 KB) for one paged-list loader. They now load web/work-pages.js.
+test('a page that lists work loads the paged-list loader, not the Operations center and its workbooks', () => {
+  const f = fixture(),
+    files = path => Array.from(f.run(`pageAssetsFor(${JSON.stringify(path)})`)),
+    operations = ['operations-center.js', 'workbook-schedules.js', 'workbook-bindings.js', 'workbook-rebinding.js'];
+  for (const path of ['/media', '/capabilities', '/reports', '/report-pack']) {
+    assert.ok(files(path).includes('work-pages.js'), path);
+    assert.deepEqual(
+      files(path).filter(file => operations.includes(file)),
+      [],
+      path,
+    );
+  }
+  for (const path of ['/operations', '/monitors'])
+    assert.deepEqual(
+      files(path).filter(f => operations.includes(f)),
+      operations,
+    );
+  // The loader is declared once, in its own module.
+  for (const file of fs.readdirSync('web').filter(file => file.endsWith('.js')))
+    assert.equal(
+      /^function workPageLoader\(/m.test(fs.readFileSync('web/' + file, 'utf8')),
+      file === 'work-pages.js',
+      file,
+    );
+});
+
 test('each cold route initializes its real scripts and required handlers in English and Arabic without API traffic', async () => {
   const routes = {
     '/': ['renderLanding'],
@@ -279,13 +355,43 @@ test('each cold route initializes its real scripts and required handlers in Engl
     ],
     '/monitors': ['renderMonitors', 'workPageLoader'],
     '/capabilities': ['renderCapabilityCenter', 'workPageLoader'],
-    '/portfolio': ['renderPortfolio', 'reviewTable'],
-    '/measurement': ['renderMeasurement', 'reviewTable'],
-    '/commerce': ['renderCommerce', 'reviewTable'],
+    // WEB-07: each account workflow page brings its own module; only Measurement shows a campaign review table.
+    '/portfolio': ['renderPortfolio', 'bindChangeHistory', 'accountChoices'],
+    '/measurement': ['renderMeasurement', 'reviewTable', 'measurementTraceImport', 'accountChoices'],
+    '/commerce': ['renderCommerce', 'parseProductCSV', 'bindWooCommerceSource', 'accountChoices'],
     '/schedules': ['renderScheduleCenter', 'overviewLabel'],
     '/profiles': ['renderClientPlaybooks', 'reviewTable'],
-    '/settings': ['renderSettings', 'baseWorkspaceSettings', 'baseApprovalSettings'],
+    // WEB-07: the owner's sections and account access are registered parts of /settings, not wrappers of it.
+    '/settings': ['renderSettings', 'renderOwnerSettings', 'renderAccountApprovals'],
     '/account': ['renderAccountPage', 'mfaQr', 'qrcode'],
+  };
+  // Regression (WEB-07): /portfolio, /measurement and /commerce each loaded all three pages' code (account-workflows.js,
+  // 388 KB with the parked WooCommerce source) and campaign-workflows.js. A page now loads none of the others' code.
+  // The report builder's script is no longer part of every page either.
+  const builder = ['renderReportingOverview', 'overviewState'];
+  const absent = {
+    '/': builder,
+    '/login': builder,
+    '/campaigns': builder,
+    '/profiles': builder,
+    '/settings': builder,
+    '/account': builder,
+    '/operations': builder,
+    '/monitors': builder,
+    '/portfolio': ['renderMeasurement', 'renderCommerce', 'bindWooCommerceSource', 'reviewTable', ...builder],
+    '/measurement': ['renderPortfolio', 'renderCommerce', 'bindWooCommerceSource', ...builder],
+    '/commerce': ['renderPortfolio', 'renderMeasurement', 'reviewTable', ...builder],
+    // A page that lists work loads only the paged-list loader (web/work-pages.js).
+    '/media': ['renderOperationsCenter', 'renderWorkbookBindings', ...builder],
+    '/capabilities': ['renderOperationsCenter', 'renderWorkbookBindings', ...builder],
+    '/reports': ['renderOperationsCenter', 'renderWorkbookBindings'],
+    '/report-pack': ['renderOperationsCenter', 'renderWorkbookBindings'],
+  };
+  // The page bodies these modules provide through the route registry (AMCP.routes.register, web/routes.js).
+  const registered = {
+    '/portfolio': 'renderPortfolio',
+    '/measurement': 'renderMeasurement',
+    '/commerce': 'renderCommerce',
   };
   for (const locale of ['en', 'ar'])
     for (const [path, handlers] of Object.entries(routes)) {
@@ -321,12 +427,19 @@ test('each cold route initializes its real scripts and required handlers in Engl
         matchMedia: () => ({matches: false, addEventListener() {}}),
         localStorage: {getItem: () => null},
         history: {replaceState() {}},
-        fetch() {
+        performance,
+        AbortController,
+        TextDecoder,
+        fetch(url) {
+          // Asset traffic only: an Arabic page also downloads its catalog chunks (WEB-07). No API request.
+          if (/^\/assets\/locales\/ar\/[a-z][a-z0-9-]*\.json$/.test(url))
+            return Promise.resolve(new Response(fs.readFileSync('web/' + url.slice(8), 'utf8')));
           throw Error('Asset initialization must not call an API');
         },
       });
       Object.assign(f.context.location, {pathname: path, search: '', hash: ''});
-      for (const file of scripts()) if (file !== 'route-assets.js') f.run(fs.readFileSync('web/' + file, 'utf8'));
+      for (const file of scripts())
+        if (!['routes.js', 'route-assets.js'].includes(file)) f.run(fs.readFileSync('web/' + file, 'utf8'));
       f.context.catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
       f.run(
         `uiLocale=${JSON.stringify(locale)};uiMessages=new Map(Object.entries(${locale === 'ar' ? 'catalog' : '{}'}));session={authenticated:true,workspaceRole:'owner'}`,
@@ -345,6 +458,11 @@ test('each cold route initializes its real scripts and required handlers in Engl
       await pending;
       for (const handler of handlers)
         assert.equal(f.run('typeof ' + handler), 'function', `${locale} ${path}: ${handler}`);
+      for (const handler of absent[path] ?? [])
+        assert.equal(f.run('typeof ' + handler), 'undefined', `${locale} ${path} loads another page's ${handler}`);
+      if (registered[path])
+        assert.equal(f.run(`AMCP.routes.renderer(${JSON.stringify(path)}) === ${registered[path]}`), true, path);
+      else assert.equal(f.run(`AMCP.routes.renderer(${JSON.stringify(path)})`), undefined, path);
       if (path === '/account')
         assert.match(f.run("mfaQr('otpauth://totp/AMCP:test?secret=JBSWY3DPEHPK3PXP&issuer=AMCP')"), /<svg/);
       assert.equal(f.timers.size, 0);

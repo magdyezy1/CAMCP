@@ -69,6 +69,8 @@ function loader(fetcher) {
   });
   const run = text => new Script(text).runInContext(context);
   run(fs.readFileSync('web/theme.js', 'utf8'));
+  // The loader reads each page's assets from the route registry (WEB-07).
+  run(fs.readFileSync('web/routes.js', 'utf8'));
   run(fs.readFileSync('web/route-assets.js', 'utf8'));
   return {run, appended, requests, timers, load: route => run('ensurePageAssets(' + JSON.stringify(route) + ')')};
 }
@@ -110,7 +112,8 @@ test('a network failure or a current snapshot keeps the retryable download error
       throw TypeError('Failed to fetch');
     },
   ]) {
-    // /account loads the QR vendor file first, then its wrapper.
+    // /account requests the QR vendor file and the QR script together: neither captures the other while it
+    // initializes any more (WEB-07), and scripts inserted with async=false still run in the order they were requested.
     const page = loader(answer),
       pending = page.load('/account'),
       refused = assert.rejects(
@@ -118,17 +121,15 @@ test('a network failure or a current snapshot keeps the retryable download error
         error => error.code === 'PAGE_ASSET_UNAVAILABLE' && error.updated === undefined,
       );
     await tick();
-    assert.equal(page.appended.length, 1);
+    assert.equal(page.appended.length, 2);
     await page.appended[0].onerror();
     await refused;
     assert.equal(page.requests.length, 1);
     const retry = page.load('/account');
     await tick();
-    assert.equal(page.appended.length, 2, 'A retryable failure inserts the script again');
-    assert.equal(page.appended[1].src, page.appended[0].src);
+    assert.equal(page.appended.length, 3, 'A retryable failure inserts that script again, and only that one');
+    assert.equal(page.appended[2].src, page.appended[0].src);
     page.appended[1].onload();
-    await tick();
-    assert.equal(page.appended.length, 3);
     page.appended[2].onload();
     await retry;
   }
@@ -152,6 +153,7 @@ test('an unversioned page never probes: only snapshot addresses can be supersede
     window: {addEventListener() {}, removeEventListener() {}},
     document: {createElement: () => ({remove() {}}), head: {append: script => appended.push(script)}},
   });
+  new Script(fs.readFileSync('web/routes.js', 'utf8')).runInContext(legacy);
   new Script(fs.readFileSync('web/route-assets.js', 'utf8')).runInContext(legacy);
   const pending = new Script("ensurePageAssets('/operations')").runInContext(legacy),
     refused = assert.rejects(pending, error => error.code === 'PAGE_ASSET_UNAVAILABLE');
@@ -529,10 +531,8 @@ test('served HTML, CSS and JavaScript reference /assets/ only through the page s
   const allowed = [
     ['theme.js', "return version ? '/assets/v/' + version + '/' + path.slice(8) : path;"],
     ['route-assets.js', "originalPath = '/assets/' + file,"],
-    [
-      'localization.js',
-      "typeof AMCPAssets === 'object' ? AMCPAssets.url('/assets/locales/ar.json') : '/assets/locales/ar.json',",
-    ],
+    // WEB-07: one catalog chunk's address, which the next line passes through AMCPAssets.url.
+    ['localization.js', "const original = '/assets/locales/ar/' + chunk + '.json',"],
   ];
   const offenders = [];
   for (const file of fs.readdirSync('web', {recursive: true}).filter(name => String(name).endsWith('.js'))) {

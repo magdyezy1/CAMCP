@@ -20,7 +20,7 @@ function fixture(viewerDownloads, confirmed = true) {
       addEventListener() {},
       createElement: () => ({}),
     },
-    renderSettings() {},
+    renderWorkspaceSettings() {},
     date: value => String(value),
     esc: value =>
       String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;'),
@@ -54,6 +54,9 @@ function fixture(viewerDownloads, confirmed = true) {
   run(readFileSync('web/localization.js', 'utf8'));
   const app = readFileSync('web/app.js', 'utf8');
   run(app.slice(app.indexOf('const identityKey ='), app.indexOf('function resetPrivateState()')));
+  // WEB-07: the shell's Settings page renders its shared part (stubbed above), then the parts scripts registered.
+  run(readFileSync('web/routes.js', 'utf8'));
+  run(app.slice(app.indexOf('async function renderSettings()'), app.indexOf('function renderWorkspaceSettings()')));
   run(source);
   const health = {
     backup: {status: 'unverified'},

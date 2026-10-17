@@ -55,7 +55,8 @@ export function creativeNativeUsageUi(locale = 'en', request = async () => {}) {
   const run = code => new Script(code).runInContext(context);
   run(readFileSync('web/localization.js', 'utf8'));
   run(`uiLocale=${JSON.stringify(locale)};uiMessages=new Map(${locale === 'ar' ? 'Object.entries(catalog)' : '[]'});`);
-  run(readFileSync('web/operations-center.js', 'utf8'));
+  // WEB-07: Creative needs only the paged-list loader (web/work-pages.js), no longer the Operations center.
+  run(readFileSync('web/work-pages.js', 'utf8'));
   run(readFileSync('web/creative-library.js', 'utf8'));
   return {run, context, node, bindings, calls};
 }

@@ -5,5 +5,13 @@
   "bracketSpacing": false,
   "arrowParens": "avoid",
   "trailingComma": "all",
-  "endOfLine": "lf"
+  "endOfLine": "lf",
+  "overrides": [
+    {
+      "files": "web/**/*.js",
+      "options": {
+        "embeddedLanguageFormatting": "off"
+      }
+    }
+  ]
 }

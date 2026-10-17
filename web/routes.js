@@ -10,8 +10,10 @@
 // link; palette marks a command-palette entry; testAccount marks a page a test account may open; public marks a page
 // for people who are not signed in; returnable:false keeps a page out of sign-in returns; parent names the page a
 // child page belongs to (its breadcrumb and highlighted navigation link); section is the page key the renderer
-// dispatches on when it differs from the path. Only English interface text is written here; the Arabic catalog
-// translates labels, groups, aliases and descriptions like every other message (tools/check-locales.mjs).
+// dispatches on when it differs from the path; assets are the authored feature scripts the page loads lazily (WEB-07:
+// web/route-assets.js loads them and their dependencies before the page renders). Only English interface text is
+// written here; the Arabic catalog translates labels, groups, aliases and descriptions like every other message
+// (tools/check-locales.mjs).
 const routeRegistry = [
   {path: '/', label: 'Make room for your next move', public: true},
   {path: '/login', label: 'Sign in', public: true},
@@ -28,6 +30,7 @@ const routeRegistry = [
     testAccount: true,
     aliases: ['Overview', 'Dashboard'],
     description: 'Work needing attention and account readiness',
+    assets: ['work-center.js'],
   },
   {
     path: '/campaigns',
@@ -36,6 +39,7 @@ const routeRegistry = [
     palette: true,
     aliases: ['Campaign plans'],
     description: 'Plans, dependencies, reviews',
+    assets: ['campaign-recipes.js', 'campaign-workflows.js'],
   },
   {
     path: '/portfolio',
@@ -45,6 +49,7 @@ const routeRegistry = [
     palette: true,
     aliases: ['Live account portfolio', 'Portfolio'],
     description: 'Browse current campaigns, ad groups, ad sets and ads',
+    assets: ['portfolio.js'],
   },
   {
     path: '/commerce',
@@ -54,6 +59,7 @@ const routeRegistry = [
     palette: true,
     aliases: ['Product catalog'],
     description: 'Product imports with per-item reviews and receipts',
+    assets: ['commerce.js'],
   },
   {
     path: '/media',
@@ -62,6 +68,7 @@ const routeRegistry = [
     palette: true,
     aliases: ['Media library', 'Media'],
     description: 'Drive imports, formats, and reuse',
+    assets: ['creative-push.js', 'creative-library.js', 'ad-previews.js', 'campaign-workflows.js'],
   },
   {
     path: '/report-library',
@@ -70,6 +77,7 @@ const routeRegistry = [
     palette: true,
     aliases: ['Report library'],
     description: 'Saved client definitions, templates and retained snapshots',
+    assets: ['report-workflows.js'],
   },
   {
     path: '/reporting-overview',
@@ -80,6 +88,14 @@ const routeRegistry = [
     testAccount: true,
     aliases: ['Reporting overview'],
     description: 'Campaign metrics, recommendations and scheduled Sheets exports',
+    // WEB-07: the report builder's own script loads with its page, not with every page of the website.
+    assets: [
+      'reporting-overview.js',
+      'report-quality.js',
+      'report-library.js',
+      'report-delivery.js',
+      'report-workflows.js',
+    ],
   },
   {
     path: '/reports',
@@ -89,6 +105,7 @@ const routeRegistry = [
     palette: true,
     aliases: ['Reports'],
     description: 'Evidence, totals, and recommendations',
+    assets: ['evidence-workflows.js', 'report-reference.js', 'report-quality.js'],
   },
   {
     path: '/schedules',
@@ -98,6 +115,7 @@ const routeRegistry = [
     palette: true,
     aliases: ['Schedules & deliveries'],
     description: 'Delivery times, windows and recovery',
+    assets: ['work-center.js'],
   },
   {
     path: '/profiles',
@@ -107,6 +125,7 @@ const routeRegistry = [
     testAccount: true,
     aliases: ['Client profiles', 'Client playbooks'],
     description: 'Templates, naming, and defaults',
+    assets: ['client-playbooks.js'],
   },
   {
     path: '/connections',
@@ -124,6 +143,7 @@ const routeRegistry = [
     palette: true,
     aliases: ['Measurement diagnostics'],
     description: 'Tag Manager audits and measurement evidence',
+    assets: ['measurement.js', 'measurement-trace-import.js'],
   },
   {
     path: '/connectors',
@@ -141,6 +161,7 @@ const routeRegistry = [
     nav: true,
     palette: true,
     description: 'Workflow eligibility and native action contracts',
+    assets: ['capability-center.js'],
   },
   {
     path: '/operations',
@@ -148,6 +169,7 @@ const routeRegistry = [
     nav: true,
     palette: true,
     description: 'Campaign, media and delivery recovery',
+    assets: ['operations-center.js'],
   },
   {
     path: '/monitors',
@@ -156,6 +178,7 @@ const routeRegistry = [
     nav: true,
     palette: true,
     description: 'Read-only rules and evidence-linked incidents',
+    assets: ['operations-center.js'],
   },
   {
     path: '/activity',
@@ -176,6 +199,7 @@ const routeRegistry = [
     testAccount: true,
     aliases: ['Settings'],
     description: 'Platform and deployment setup',
+    assets: ['owner-operations.js', 'account-approvals.js'],
   },
   {
     path: '/account',
@@ -183,8 +207,9 @@ const routeRegistry = [
     palette: true,
     testAccount: true,
     description: 'Profile, social sign-in, and security',
+    assets: ['mfa-qr.js'],
   },
-  {path: '/report-pack', label: 'Report pack', parent: '/report-library'},
+  {path: '/report-pack', label: 'Report pack', parent: '/report-library', assets: ['evidence-workflows.js']},
   {
     path: '/oauth/consent',
     label: 'Authorize access',
@@ -267,3 +292,68 @@ function routeReturnable(path) {
   const entry = routeEntry(path.split(/[?#]/)[0]);
   return !!entry && !entry.public && entry.returnable !== false;
 }
+/**
+ * WEB-07: the shell's explicit extension points, built on the registry above. A script adds to the shell by
+ * registering, never by reassigning a shell function: render, renderSettings and renderAccountPage were wrapped by
+ * reassignment, so the composition depended on the order the scripts loaded in, and a wrapper dropped in a refactor
+ * changed a page without an error (tools/check-extensions.mjs now refuses the pattern).
+ *   AMCP.routes.register(path, {render})        the body of a workspace page that its page module provides, rendered
+ *                                               below the page heading the shell has already written; one per page,
+ *                                               a second is refused rather than overriding the first;
+ *   AMCP.routes.extend(path, part, {order})     a part rendered after the page itself, by ascending order and then in
+ *                                               the order it was registered, however the scripts were loaded (the
+ *                                               owner's sections of /settings, then account access; account security
+ *                                               on /account);
+ *   AMCP.hooks.beforeRender(hook)               runs synchronously at the start of every render (test-account scope);
+ *   AMCP.hooks.afterRender(hook)                runs once that render has finished.
+ * Only registered pages take renderers and parts. The files a page loads lazily are its registry entry's `assets`
+ * (web/route-assets.js loads them), so a page module's registration has always run before its page renders.
+ */
+const AMCP = (() => {
+  const renderers = new Map(),
+    parts = new Map(),
+    hooks = {before: [], after: []};
+  const known = path => {
+    if (!routeEntry(path)) throw Error('AMCP_ROUTE_UNKNOWN: ' + path);
+  };
+  const callable = value => {
+    if (typeof value !== 'function') throw TypeError('AMCP_EXTENSION_NOT_A_FUNCTION');
+    return value;
+  };
+  return Object.freeze({
+    routes: Object.freeze({
+      register(path, {render} = {}) {
+        known(path);
+        if (renderers.has(path)) throw Error('AMCP_ROUTE_ALREADY_REGISTERED: ' + path);
+        renderers.set(path, callable(render));
+      },
+      /** The page body a module registered for a page, or undefined when the shell renders the page itself. */
+      renderer: path => renderers.get(path),
+      extend(path, part, {order = 0} = {}) {
+        known(path);
+        if (!Number.isFinite(order)) throw TypeError('AMCP_EXTENSION_ORDER_INVALID');
+        // A stable sort: parts of equal order keep the order they were registered in.
+        parts.set(
+          path,
+          [...(parts.get(path) ?? []), {part: callable(part), order}].sort((a, b) => a.order - b.order),
+        );
+      },
+      /** The parts registered for a page, in the order they render. */
+      parts: path => (parts.get(path) ?? []).map(entry => entry.part),
+      /** Runs the parts of a page in order; a part that fails stops the rest, as an unfinished page would. */
+      async renderParts(path) {
+        for (const {part} of [...(parts.get(path) ?? [])]) await part();
+      },
+    }),
+    hooks: Object.freeze({
+      beforeRender: hook => void hooks.before.push(callable(hook)),
+      afterRender: hook => void hooks.after.push(callable(hook)),
+      runBefore() {
+        for (const hook of hooks.before) hook();
+      },
+      async runAfter() {
+        for (const hook of hooks.after) await hook();
+      },
+    }),
+  });
+})();

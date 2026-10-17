@@ -49,11 +49,12 @@ test('focus rings on the dark sidebar, toast, connector hero and callback header
   assert.equal(backgrounds.length, 5);
   for (const theme of [light, dark]) {
     const ring = resolve(theme, 'var(--focus-on-inverse)');
-    for (const background of backgrounds)
+    // The sidebar takes its theme-invariant surface from tokens.css (WEB-07).
+    for (const background of backgrounds.map(value => resolve(theme, value)))
       assert.ok(contrast(ring, background) >= 3, ring + ' on ' + background + ': ' + contrast(ring, background));
   }
   // The regression itself: the global ring on these surfaces in the light theme.
-  assert.ok(contrast(resolve(light, 'var(--iris-700)'), surfaces.sidebar) < 3);
+  assert.ok(contrast(resolve(light, 'var(--iris-700)'), resolve(light, surfaces.sidebar)) < 3);
   const rule = css('accessibility.css');
   assert.match(rule, /:is\(\.sidebar, \.toast, \.connector-hero, \.callback-top\)/);
   assert.match(rule, /outline-color: var\(--focus-on-inverse\)/);

@@ -69,7 +69,9 @@ async function fixture(request, locale = 'en') {
       errorSource.indexOf("const content = $('#content')"),
     ),
   ).runInContext(context);
-  new Script(readFileSync('web/account-workflows.js', 'utf8')).runInContext(context);
+  // WEB-07: the Live portfolio page's own module, over the shared helper; it registers its page with the registry.
+  for (const file of ['routes.js', 'account-workflows.js', 'portfolio.js'])
+    new Script(readFileSync('web/' + file, 'utf8')).runInContext(context);
   await new Script('renderPortfolio()').runInContext(context);
   return {
     context,

@@ -1,0 +1,10 @@
+{
+  "A HAR file is JSON with log.entries.": "ملف HAR هو JSON يحتوي على log.entries.",
+  "A dataLayer export is a JSON array of dataLayer entries.": "ملف تصدير dataLayer هو مصفوفة JSON من إدخالات dataLayer.",
+  "Choose a HAR file of at most 16 MiB.": "اختر ملف HAR لا يتجاوز 16 ميبيبايت.",
+  "Choose a dataLayer export of at most 2 MiB.": "اختر ملف تصدير dataLayer لا يتجاوز 2 ميبيبايت.",
+  "Choose a dataLayer export or a HAR file.": "اختر ملف تصدير dataLayer أو ملف HAR.",
+  "Choose the GA4 property and enter its exact numeric data stream ID.": "اختر خاصية GA4 وأدخل المعرّف الرقمي الدقيق لمصدر البيانات.",
+  "The file contains no consent command or event that a trace can use.": "لا يحتوي الملف على أي أمر موافقة أو حدث يمكن للتسلسل استخدامه.",
+  "Use a synthetic test identifier that starts with amcp-test- followed by 8–64 letters, digits or hyphens.": "استخدم معرّف اختبار اصطناعيًا يبدأ بـ amcp-test- يليه من 8 إلى 64 حرفًا أو رقمًا أو شرطة."
+}

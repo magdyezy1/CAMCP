@@ -68,6 +68,30 @@ const statusLabels = {
 /** A state value's label; a value without one keeps its earlier spaced form. */
 const statusLabel = value =>
   uiText(Object.hasOwn(statusLabels, value) ? statusLabels[value] : String(value ?? '').replaceAll('_', ' '));
+// WEB-07: report requests, display-enum labels and provider diagnostics are shared by the shell (Activity, connection
+// results) and many page modules; they used to come from the report builder's script, which every page loaded.
+const overviewCall = async input => {
+  const r = await api('/api/workspace/overview', {method: 'POST', body: JSON.stringify(input)});
+  if (!r.success) throw requestError(r, uiText('The report request failed.'));
+  return r.data;
+};
+const pretty = value =>
+  String(value ?? '')
+    .replaceAll('_', ' ')
+    .replace(/\b\w/g, x => x.toUpperCase());
+function renderSourceDiagnostic(error) {
+  const p = error.provider ?? {},
+    owned = uiOwnedError(error),
+    phase =
+      {
+        account_list: uiText('Accessible accounts'),
+        account_lookup: uiText('Account lookup'),
+        manager_hierarchy: uiText('Manager account hierarchy'),
+        campaign_report: uiText('Campaign report'),
+        campaign_lookup: uiText('Campaign lookup'),
+      }[error.request?.stage] ?? uiText('Provider request');
+  return `<div class="source-diagnostic"><strong><code>${esc(p.code ?? error.code)}</code>${error.http_status ? ` · HTTP ${esc(error.http_status)}` : ''}</strong><p>${esc(owned.message)}</p>${owned.nextAction ? `<p class="source-next-action">${esc(owned.nextAction)}</p>` : ''}${error.request ? `<small>${esc(phase)} · <code>${esc(error.request.method)} ${esc(error.request.path)}</code></small>` : ''}${Object.hasOwn(error, 'login_customer_id') ? `<small>${esc(uiText('Google login customer ID:'))} ${esc(error.login_customer_id ?? uiText('not sent'))}</small>` : ''}${p.request_id ? `<small>${esc(uiText('Provider request ID:'))} <code>${esc(p.request_id)}</code></small>` : ''}${p.errors?.length > 1 ? `<ul>${p.errors.map(e => `<li><code>${esc(e.code ?? '')}</code> ${esc(e.message ?? '')}${e.field ? ` · ${esc(e.field)}` : ''}</li>`).join('')}</ul>` : ''}</div>`;
+}
 // AMCP's own capability vocabulary from src/capabilities.ts, listed so its Arabic is required. The server's text is what
 // is shown; tests/status-labels.test.mjs fails when the two drift apart.
 const capabilityFeatureLabels = {
@@ -254,6 +278,9 @@ async function renderWorkspacePage() {
     content.innerHTML += `<div class="empty"><strong>${esc(uiText('A workspace of your own.'))}</strong><p>${esc(uiText('Sign in to connect your accounts and get started.'))}</p><button class="button primary" data-action="login">${esc(uiText('Sign in →'))}</button></div>`;
     return;
   }
+  // A page module registers the body of its page (WEB-07: AMCP.routes.register); the shell renders the rest here.
+  const body = AMCP.routes.renderer('/' + page);
+  if (body) return body();
   if (page === 'dashboard') return renderOverview();
   if (page === 'profiles') return renderProfiles();
   if (page === 'campaigns') return renderCampaigns();
@@ -264,9 +291,6 @@ async function renderWorkspacePage() {
   if (page === 'report-library') return renderReportLibraryPage();
   if (page === 'report-pack') return renderReportPack();
   if (page === 'monitors') return renderMonitors();
-  if (page === 'portfolio') return renderPortfolio();
-  if (page === 'measurement') return renderMeasurement();
-  if (page === 'commerce') return renderCommerce();
   return renderDecisionReports();
 }
 /** Readiness is evaluated for this viewer from shared account-read evidence, which ages out after 15 minutes. */
