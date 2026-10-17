@@ -11,7 +11,6 @@
   margin: 8px 0;
 }
 .report-heading p {
-  color: #777286;
   max-width: 640px;
   line-height: 1.7;
 }
@@ -110,7 +109,6 @@ h2.report-section-label {
   color: #2f223f;
 }
 .report-section-label small {
-  color: #857b91;
   margin-inline-start: 5px;
   font-size: 12px;
 }
@@ -205,7 +203,6 @@ h2.report-section-label {
 }
 .native-settings {
   font-size: 11px;
-  color: #84768f;
   margin-top: 14px;
 }
 .native-settings summary {
@@ -287,7 +284,6 @@ h2.report-section-label {
 }
 .custom-metric-heading p {
   font-size: 12px;
-  color: #857b91;
 }
 .custom-metric-row {
   display: flex;
@@ -533,15 +529,11 @@ h2.report-section-label {
 }
 .report-table td small {
   display: block;
-  color: #9b8ba9;
   margin-top: 7px;
-  font-size: 10px;
   line-height: 1.65;
 }
 .report-table td details {
-  font-size: 10px;
   margin-top: 8px;
-  color: #8f7aa2;
 }
 .report-table td pre {
   max-width: 260px;
@@ -728,7 +720,6 @@ h2.report-section-label {
 .schedule-row {
   display: flex;
   justify-content: space-between;
-  align-items: center;
   border-top: 1px solid #eee4f4;
   padding: 13px 0;
 }
@@ -861,9 +852,6 @@ h2.report-section-label {
     padding: 18px;
     flex-direction: column;
   }
-  .report-date-fields {
-    flex-wrap: wrap;
-  }
   .report-control-top label {
     flex: 1;
   }
@@ -878,9 +866,6 @@ h2.report-section-label {
   }
   .report-actions {
     width: 100%;
-  }
-  .report-actions > select {
-    max-width: 100%;
   }
   .custom-metric-heading {
     align-items: flex-start;
@@ -1270,15 +1255,11 @@ h2.report-section-label {
 }
 .report-table tbody th small {
   display: block;
-  color: #9b8ba9;
   margin-top: 7px;
-  font-size: 10px;
   line-height: 1.65;
 }
 .report-table tbody th details {
-  font-size: 10px;
   margin-top: 8px;
-  color: #8f7aa2;
 }
 .report-table tbody th pre {
   max-width: 260px;
