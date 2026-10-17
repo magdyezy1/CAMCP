@@ -211,6 +211,37 @@ Arabic cases of the run are within the new limits. The nonzero new limits name t
 routes: the ten Google evidence kinds on `/reports` (15 each), `retained-evidence /reports` (27), `snapchat /media`
 (3) and `worker-health /settings` (2). They may only go down.
 
+## Wave 3b local remainders (2026-10-17)
+
+- **`period-comparison` (RPT-07, `/reporting-overview`).** The full matrix (both appearances, both languages, 320,
+  375, 768 and 1280 pixels). Each case starts from the same retained snapshots (an overlapping window and a one-day
+  shorter one, collected again from the synthetic Meta account), pulls a seven-day report with **Also collect the
+  previous equal window to compare** and reach chosen, and requires the run request to carry
+  `compare: "previous_period"`, the pair's window and twice the request estimate, and queueing to read nothing. The
+  fixture's worker collects both windows; **Compare periods** must preselect the pair, list the overlapping and the
+  shorter snapshot disabled with their reasons in the page's language and allow no other choice, and the table must
+  show this window, the earlier window and the change (`+70.13%` from 100.10 to 170.30, `-20%` clicks), "—" for a
+  zero earlier value with its reason, "Unavailable" for a ratio with an unknown side, reach named as not compared,
+  the campaign of the earlier window listed apart, and the native name `Spring <sale> العربية` literal in its own
+  direction. Listing, comparing and comparing again with the explicit choice read nothing from the provider. The
+  comparison state is inspected like the other intermediate states (accessibility, WCAG, Arabic leaks, obscured
+  focus) and its table by the table checks.
+- **Found and fixed by it.** The comparison table had no caption (the table check requires one beside the named
+  region; `tests/report-compare-ui.test.mjs` now pins it). In the dark theme a compared value
+  (`.report-table td strong`) kept the light ink, 1.24:1 on the dark panel (`web/theme.css`). An opened report
+  option's section number measured 4.44:1 on its `#fcfafe` summary (`#7b6696`, 4.84:1;
+  `tests/website-contrast.test.mjs`). The Arabic summary
+  card's spend, clicks and CPC row ("170.30 US$") widened a 320-pixel page to 339 pixels; the row wraps. At the
+  comparison state the Arabic leak probe counted eight English nodes: the account and login names and the metric
+  formulas are now marked as native or left-to-right literals.
+- **Runner.** An intermediate state's record is kept before its checks run, so a refused state keeps the WCAG rules
+  that failed (before, a failing state left no evidence in `results.json`).
+- **Development runs.** `--kinds period-comparison,granular-reporting,export-outcomes` with axe-core 4.14.0 on
+  `58a3251` plus these changes: 36 of 36 passed in 1.64 minutes (`results.json` SHA-256 `5484512a…`), with no WCAG
+  violation, zero Arabic leaks on the three routes and at the comparison state, 118 focus rings at 3:1 or more, and no
+  provider write. The ratchet added `period-comparison /reporting-overview` to the leak baseline at 0 from that run
+  (the other limits it measured were already 0). The full `--qualification` run belongs to the integration gate.
+
 ## What it exercises
 
 The runner creates disposable loopback applications with encrypted in-memory stores, synthetic users

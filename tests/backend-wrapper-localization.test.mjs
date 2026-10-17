@@ -152,11 +152,12 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // The Meta window refusal is now one shared constant (meta-attribution-windows.ts); report-dimension-packs pins its
   // Arabic. WEB-09 adds server/workspace-search.ts (no wrapper reasons); WEB-03 and WEB-05 add website catalog entries.
   // ACC-05 adds three modules without wrapper reasons and the owner provider access panel's catalog entries.
-  // CMP-03's Microsoft location lookup adds src/microsoft-locations.ts (five wrapper reasons of its file checks).
+  // CMP-03's Microsoft location lookup adds src/microsoft-locations.ts (five wrapper reasons of its file checks);
+  // RPT-07's period comparison table adds its caption to the catalog.
   assert.equal(files.length, 570);
   assert.equal(selected.filter(row => row.messages.size).length, 185);
   assert.equal(owned.size, 2847);
-  assert.equal(Object.keys(catalog).length, 11454);
+  assert.equal(Object.keys(catalog).length, 11455);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

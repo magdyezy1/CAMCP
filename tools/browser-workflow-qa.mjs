@@ -23,6 +23,7 @@ import {exercisePortfolioDiagnostic} from '../tests/fixtures/portfolio-diagnosti
 import {exercisePortfolioComparison} from '../tests/fixtures/portfolio-reconciliation-browser.mjs';
 import {exerciseConditionalPrograms} from '../tests/fixtures/conditional-program-browser.mjs';
 import {exerciseGranularOverview} from '../tests/fixtures/overview-granularity-browser.mjs';
+import {exercisePeriodComparison} from '../tests/fixtures/period-comparison-browser.mjs';
 import {
   inspectBrowserAccessibility,
   accessibilityProblems,
@@ -50,6 +51,8 @@ import {
 const fixtureKinds = [
   'empty',
   'granular-reporting',
+  // RPT-07: the Overview period comparison (previous equal window, Compare to, delta columns).
+  'period-comparison',
   'conditional-programs',
   'conditional-programs-denied',
   'conditional-programs-stale',
@@ -664,6 +667,8 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     const intermediate = async state => {
       const counts = site.counts(),
         entry = {state};
+      // Kept before its checks run, so a refused state's evidence (the WCAG rules that failed) is in the record.
+      (result.intermediate_states ??= []).push(entry);
       entry.accessibility = await inspectBrowserAccessibility(page);
       assert.deepEqual(
         accessibilityProblems(entry.accessibility, {requireLandmarks: false}),
@@ -694,7 +699,6 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
         'Intermediate state ' + state + ': a message on the page addresses an MCP client',
       );
       assert.deepEqual(site.counts(), counts, 'Intermediate inspection must not read or mutate providers');
-      (result.intermediate_states ??= []).push(entry);
     };
     if (workflow === 'write-journey') {
       await exerciseWriteJourney({page, site, locale, result, checks: {intermediate}});
@@ -704,6 +708,8 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       await exerciseExportOutcomes({page, site, locale, result, checks: {intermediate}});
     } else if (workflow === 'granular-reporting') {
       await exerciseGranularOverview({page, site, locale, result, checks: {tables: checkTables}});
+    } else if (workflow === 'period-comparison') {
+      await exercisePeriodComparison({page, site, locale, result, checks: {intermediate, tables: checkTables}});
     } else if (workflow?.startsWith('conditional-programs')) {
       await exerciseConditionalPrograms({page, site, workflow, locale, result, before, checks: {tables: checkTables}});
     } else if (workflow === 'worker-health') {
@@ -2623,7 +2629,7 @@ async function runFixture(kind, site) {
           await renderedCase(site, kind, syntheticJourneyRoutes[kind], locale, width, true, kind, 'light');
     } else {
       const route =
-        kind === 'granular-reporting'
+        kind === 'granular-reporting' || kind === 'period-comparison'
           ? '/reporting-overview'
           : kind.startsWith('conditional-programs')
             ? '/capabilities'

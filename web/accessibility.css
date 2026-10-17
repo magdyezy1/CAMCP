@@ -181,8 +181,10 @@ code {
   color: #7a7187;
   font-size: 12px;
 }
+/* The section number of an opened report option sits on its #fcfafe summary, where #816c9c measured 4.44:1 (RPT-07's
+   rendered case opens it); #7b6696 is the same hue at 4.84:1 there and 5.02:1 on white. */
 .report-section-label > span {
-  color: #816c9c;
+  color: #7b6696;
 }
 .account-monogram {
   color: #846795;

@@ -184,3 +184,23 @@ test("the sidebar's link hover and current-page colours stay on the sidebar; Set
   // The regression itself: the section link's light-theme ink on the sidebar's hover surface.
   assert.ok(contrast(resolve(light, section.get('color')), hover) < 4.5);
 });
+
+// Wave 3b browser cases (RPT-07 period comparison, axe at the comparison state): the section number of an opened report
+// option read at 4.44:1 on its summary (#816c9c on #fcfafe), and in the dark theme a compared value kept
+// reporting.css's light ink (#3b2c4d on the dark panel, 1.24:1).
+test('an opened report option keeps its section number readable, and compared values take the dark ink', () => {
+  const rule = (file, selector) => declarations(block(css(file), selector).split('{')[1]),
+    open = rule('reporting.css', '.report-options[open] > summary').get('background'),
+    number = rule('accessibility.css', '.report-section-label > span').get('color');
+  for (const surface of [open, '#ffffff'])
+    assert.ok(
+      contrast(number, surface) >= 4.5,
+      number + ' on ' + surface + ': ' + contrast(number, surface).toFixed(2),
+    );
+  assert.ok(contrast('#816c9c', open) < 4.5, 'the regression itself');
+  const value = rule('theme.css', "[data-theme='dark'] .report-table td strong").get('color');
+  assert.equal(value, 'var(--ink)');
+  assert.ok(contrast(resolve(dark, value), resolve(dark, 'var(--white)')) >= 4.5);
+  const lightInk = rule('reporting.css', '.report-table td strong').get('color');
+  assert.ok(contrast(lightInk, resolve(dark, 'var(--white)')) < 4.5, 'the regression itself');
+});
