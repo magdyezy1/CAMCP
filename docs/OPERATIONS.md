@@ -1290,4 +1290,7 @@ validate request is sent ([product workflows](PRODUCT-WORKFLOWS.md)). To withdra
 the ledger then refuses that gateway with `MEASUREMENT_LEDGER_UNQUALIFIED` before any provider request and lists the
 remaining ones. Meta Dataset Quality needs `ads_management`, or `ads_read` with `business_management`; a login
 without either keeps that layer unknown. Snap asks for review before Signal Readiness data is displayed publicly, so it
-stays on signed-in workspace pages.
+stays on signed-in workspace pages. The TikTok adapter now sends one more read per ledger, the selected pixel's event
+statistics (`GET /v1.3/pixel/event/stats/`); its fields stay unconfirmed (activity `unknown`, `unconfirmed_fields`)
+until the owner runs one authorized read under ACC-06 on a designated pixel and records which fields mean what and on
+which day basis; `AMCP_MEASUREMENT_LEDGER_OFF=tiktok_native_action` withdraws the whole TikTok adapter.

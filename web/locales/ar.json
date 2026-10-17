@@ -11453,5 +11453,14 @@
   "Microsoft’s geographical locations file has a malformed or repeated location ID, name, type or status.": "يتضمن ملف المواقع الجغرافية لدى Microsoft معرّف موقع أو اسمًا أو نوعًا أو حالة بصيغة غير صحيحة أو مكرّرًا.",
   "Nothing was sent. Enter location IDs from Microsoft’s geographical locations file instead. The deployment operator turns this search on by pinning Microsoft’s GetGeoLocationsFileUrl documentation (tools/microsoft-rest.mjs).": "لم يُرسل أي شيء. أدخل معرّفات المواقع من ملف المواقع الجغرافية لدى Microsoft بدلًا من ذلك. يفعّل مشغّل النشر هذا البحث بتثبيت توثيق GetGeoLocationsFileUrl لدى Microsoft (tools/microsoft-rest.mjs).",
   "No partial list was used. Search again in a moment, or enter location IDs from Microsoft’s geographical locations file; report the request ID if this recurs.": "لم تُستخدم أي قائمة جزئية. ابحث مرة أخرى بعد قليل، أو أدخل معرّفات المواقع من ملف المواقع الجغرافية لدى Microsoft؛ وأبلغ عن معرّف الطلب إذا تكرر ذلك.",
-  "Entities in both windows: each metric in this window, in the earlier window, and the change.": "الكيانات الموجودة في الفترتين: كل مقياس في هذه الفترة وفي الفترة السابقة، والتغيّر."
+  "Entities in both windows: each metric in this window, in the earlier window, and the change.": "الكيانات الموجودة في الفترتين: كل مقياس في هذه الفترة وفي الفترة السابقة، والتغيّر.",
+  "TikTok returned these pixel event statistics. Their field meanings are not confirmed yet, so AMCP shows them as returned and does not interpret them.": "أعادت TikTok إحصاءات أحداث البكسل هذه. لم تُؤكَّد معاني حقولها بعد، لذا يعرضها AMCP كما وردت ولا يفسّرها.",
+  "{start} to {end} in UTC days; TikTok’s day basis is not confirmed.": "من {start} إلى {end} بأيام UTC؛ أساس الأيام لدى TikTok غير مؤكد.",
+  "TikTok returned statistics of another pixel.": "أعادت TikTok إحصاءات بكسل آخر.",
+  "TikTok returned statistics of another advertiser.": "أعادت TikTok إحصاءات معلن آخر.",
+  "TikTok returned pixel event statistics nested deeper than one ledger reads.": "أعادت TikTok إحصاءات أحداث بكسل متداخلة بعمق أكبر مما يقرؤه سجل واحد.",
+  "TikTok returned more pixel event statistics than one ledger reads.": "أعادت TikTok من إحصاءات أحداث البكسل أكثر مما يقرؤه سجل واحد.",
+  "TikTok returned a malformed statistics field name.": "أعادت TikTok اسم حقل إحصاءات مشوّهًا.",
+  "TikTok returned an unsafe number or an unreadable value in its pixel event statistics.": "أعادت TikTok رقمًا غير آمن أو قيمة غير قابلة للقراءة في إحصاءات أحداث البكسل.",
+  "TikTok returned a failed or unrecognized pixel event statistics response.": "أعادت TikTok استجابة فاشلة أو غير معروفة لإحصاءات أحداث البكسل."
 }

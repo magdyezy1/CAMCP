@@ -828,7 +828,9 @@ attribution settings of enabled conversion actions; `ga4_native_action` reuses t
 their aggregate reads for five minutes), then 24 hours of `/{pixel}/stats` by event and the Dataset Quality API
 (match quality, Conversions API coverage, deduplication keys, freshness; needs ads_management or business_management);
 `snapchat_native_action` lists pixels, then 7-day domain stats and Signal Readiness scores; `tiktok_native_action`
-lists pixels only (pixel event stats have no pinned contract); `google_search_console_native_action` reads the site,
+lists pixels, then reads the selected pixel's 7-day event statistics, whose fields TikTok documents nowhere AMCP could
+read: they come back literally by path (`evidence.fields`, `field_meanings:"unconfirmed"`) and activity stays unknown
+(`unconfirmed_fields`), so never present them as counts of any event; `google_search_console_native_action` reads the site,
 seven final days of search totals and sitemaps; `adjust_native_action` (app token) reads the event catalog and seven
 UTC days of installs and events. For Meta, Snapchat and TikTok, `requirements.pixel_id` picks one listed pixel or
 dataset; without it only a sole pixel is read and several pixels stay unknown (`pixel_not_selected`). A failed,

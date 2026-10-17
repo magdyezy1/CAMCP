@@ -553,7 +553,19 @@ for (const locale of ['en', 'ar']) {
             pixel_count: 1,
             selected_pixel: '7100000000000000001',
           }),
-          layer('provider_observed_activity', 'unavailable', 'unpinned_contract'),
+          // MSR-03: TikTok's statistics fields as returned, with no meaning claimed (the layer stays unknown).
+          layer('provider_observed_activity', 'unknown', 'unconfirmed_fields', {
+            pixel_id: '7100000000000000001',
+            window: {start_date: '2026-10-09', end_date: '2026-10-15', day_basis: 'unconfirmed'},
+            field_count: 23,
+            fields: [
+              {path: 'stats[0].events[0].name', value: 'CompletePayment <img onerror=bad>'},
+              {path: 'stats[0].events[0].count', value: 3},
+              {path: 'stats[0].note', value: null},
+              ...Array.from({length: 20}, (_, i) => ({path: 'stats[0].rows[' + i + ']', value: i})),
+            ],
+            field_meanings: 'unconfirmed',
+          }),
           layer('provider_diagnostics', 'unavailable', 'no_provider_source'),
           ...otherLayers(),
         ],
@@ -564,11 +576,29 @@ for (const locale of ['en', 'ar']) {
       await submit(f);
       out = f.node('#measurement-ledger-result').innerHTML;
       for (const value of [
-        'The provider publishes no response contract AMCP could pin, so this is not read.',
+        'TikTok returned these pixel event statistics. Their field meanings are not confirmed yet, so AMCP shows them as returned and does not interpret them.',
         'Shared or unbound',
         'Selected',
       ])
         assert.ok(out.includes(text(locale, value)), value);
+      assert.ok(
+        out.includes(
+          text(locale, '{start} to {end} in UTC days; TikTok’s day basis is not confirmed.')
+            .replace('{start}', '2026-10-09')
+            .replace('{end}', '2026-10-15'),
+        ),
+      );
+      assert.match(out, /<code dir="ltr">stats\[0\]\.events\[0\]\.count<\/code>: <code dir="ltr">3<\/code>/);
+      assert.match(out, /<code dir="ltr">stats\[0\]\.note<\/code>: <code dir="ltr">null<\/code>/);
+      assert.match(out, /CompletePayment &lt;img onerror=bad&gt;/);
+      assert.doesNotMatch(out, /<img/);
+      // Twenty fields are listed (the record details below keep the whole answer).
+      assert.equal(out.match(/<li><code dir="ltr">stats\[0\]\.rows\[/g).length, 17, 'twenty fields are shown');
+      // Interface numbers use Latin digits in both languages (uiNumber).
+      assert.ok(
+        out.includes(text(locale, '{shown} of {total} shown.').replace('{shown}', '20').replace('{total}', '23')),
+      );
+      assert.match(out, /measurement-ledger-unknown/, 'the activity layer stays unknown, never observed');
       assert.equal(f.calls.length, 3);
       assert.deepEqual(f.httpCalls, []);
     },

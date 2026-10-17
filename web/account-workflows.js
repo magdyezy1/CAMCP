@@ -2567,6 +2567,8 @@ const measurementLedgerReasons = {
   no_provider_source: 'The provider exposes no source for this layer to AMCP.',
   unpinned_api: 'This is available only in a provider API version AMCP has not pinned.',
   unpinned_contract: 'The provider publishes no response contract AMCP could pin, so this is not read.',
+  unconfirmed_fields:
+    'TikTok returned these pixel event statistics. Their field meanings are not confirmed yet, so AMCP shows them as returned and does not interpret them.',
   pixels_listed: 'The pixels the account lists, read completely from the provider.',
   no_pixels: 'The account lists no pixel.',
   pixel_not_selected: 'The account lists several pixels. Enter one pixel ID and read the ledger again.',
@@ -2691,6 +2693,11 @@ function measurementLedgerEvidence(l, gateway) {
       );
     if (l.layer === 'provider_observed_activity' && gateway === 'meta_native_action' && 'last_fired_time' in e)
       return `${esc(uiText('Last fired'))} ${native(e.last_fired_time)}`;
+    // MSR-03: TikTok's statistics as returned, each value literal, with no meaning claimed for any field.
+    if (l.reason === 'unconfirmed_fields' && Array.isArray(e.fields)) {
+      const shown = e.fields.slice(0, 20);
+      return `${esc(uiText('{start} to {end} in UTC days; TikTok’s day basis is not confirmed.', {start: e.window?.start_date ?? '', end: e.window?.end_date ?? ''}))}${list(shown.map(f => `<li><code dir="ltr">${esc(String(f.path))}</code>: ${f.value === null ? '<code dir="ltr">null</code>' : native(f.value)}</li>`))}${Number.isSafeInteger(e.field_count) && e.field_count > shown.length ? `<p class="form-note">${esc(uiText('{shown} of {total} shown.', {shown: uiNumber(shown.length), total: uiNumber(e.field_count)}))}</p>` : ''}`;
+    }
     if (l.reason === 'report_incomplete' && Number.isSafeInteger(e.warnings))
       return esc(uiText('{count} provider warnings', {count: uiNumber(e.warnings)}));
     return '';
