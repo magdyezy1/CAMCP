@@ -278,15 +278,20 @@ names every gateway on purpose, so the ratchet counts it with the provider modul
 as coupling; so are the portfolio adapter registry (`src/portfolio.ts`, §11) and the report source registry
 (`src/report-sources.ts`, §12), which import one module per provider so that shared code consults them. Counting them
 as registries lowered `shared_to_provider_runtime_imports` from 500 to 493 by classification alone: the seven portfolio
-imports, which `src/portfolio.ts` made before it became the registry, are no longer counted.
+imports, which `src/portfolio.ts` made before it became the registry, are no longer counted. The wave 3b merge recorded
+88 and 496 (87 and 493 on the ARC-01/ARC-04 branch) for two packages built beside the ratchet on the same base, so
+neither had run against it: ARC-02's tenant-bound repositories hold SQL that names gateways
+(`src/workbook-repository.ts`, the workbook query projections; `src/audit-repository.ts`, the Google Ads legacy-alias
+query that left `src/legacy-alias-usage.ts`), and CMP-03's Microsoft location lookup (`src/microsoft-locations.ts`) is
+imported by `campaign-runner.ts`, `recipe-context.ts` and `service.ts`.
 
 <!-- architecture-map:baseline:begin -->
 | Recorded baseline (written by `node tools/architecture-map.mjs --write`; do not edit) | Value |
 |---|---|
 | `largest_runtime_scc` | 3 |
 | `cyclic_modules` | 11 |
-| `shared_modules_with_gateway_literals` | 87 |
-| `shared_to_provider_runtime_imports` | 493 |
+| `shared_modules_with_gateway_literals` | 88 |
+| `shared_to_provider_runtime_imports` | 496 |
 | `local_fail_copies` | 0 |
 | `shared_gateway_literals` (reported) | 701 |
 | Runtime import cycles | `src/microsoft-associations.ts` ↔ `src/microsoft-campaign-criteria.ts` ↔ `src/microsoft-native.ts`; `src/allocation-calibration.ts` ↔ `src/report-allocation.ts`; `src/apple-entity-writes.ts` ↔ `src/measurement-writes.ts`; `src/effect-class.ts` ↔ `src/preflight.ts`; `src/reddit-creative-writes.ts` ↔ `src/reddit-writes.ts` |
