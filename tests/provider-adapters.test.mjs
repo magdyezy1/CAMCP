@@ -117,3 +117,38 @@ test('a misspelt AMCP_PROVIDERS name is a startup problem and offers nothing', (
   assert.equal(loadConfig({AMCP_PROVIDERS: 'amazon'}, 'http').problems.length, 0);
   assert.equal(familyOffered('amazn_family', {AMCP_PROVIDERS: 'amazn'}), true, 'a family of no provider is not gated');
 });
+
+test('ARC-04 stage B: each provider adapter declares its account ID form, read by a leaf that scope.ts re-exports', async () => {
+  const leaf = await import('../dist/src/account-id.js'),
+    scope = await import('../dist/src/scope.js');
+  assert.equal(scope.normalizeAccount, leaf.normalizeAccount, 'one function, two import paths');
+  const {normalizeAccount} = leaf;
+  assert.equal(normalizeAccount('meta_native_action', 'act_123'), '123');
+  assert.equal(normalizeAccount('meta_native_action', '123'), '123');
+  assert.equal(normalizeAccount('meta_native_action', 'xact_123'), 'xact_123', 'only a leading act_');
+  assert.equal(normalizeAccount('google_ads_native_action', '123-456-7890'), '1234567890');
+  assert.equal(normalizeAccount('google_ads_native_action', 1234567890), '1234567890');
+  // Every other provider's ID is kept as given, dashes and prefixes included.
+  for (const adapter of providerAdapters.filter(a => !['google', 'meta'].includes(a.id)))
+    assert.equal(normalizeAccount(adapter.gateway, 'act_1-2'), 'act_1-2', adapter.id);
+  assert.equal(normalizeAccount('amcp_native_action', 'act_1-2'), 'act_1-2');
+  assert.deepEqual(
+    providerAdapters.filter(a => a.account).map(a => a.id),
+    ['google', 'meta'],
+  );
+});
+
+test('ARC-04 stage B: the review-state projection helpers come from one leaf, re-exported by review-state.ts', async () => {
+  const core = await import('../dist/src/review-state-core.js'),
+    state = await import('../dist/src/review-state.js');
+  for (const name of ['normalizeReviewState', 'reviewStateHash', 'changedStateFields'])
+    assert.equal(state[name], core[name], name);
+  // The projection drops volatile fields, sorts keys and membership-only arrays, and keeps other arrays in order.
+  assert.deepEqual(core.normalizeReviewState({b: 1, updatedTime: 'x', countries: ['US', 'DE'], ids: [2, 1]}), {
+    b: 1,
+    countries: ['DE', 'US'],
+    ids: [2, 1],
+  });
+  assert.equal(core.reviewStateHash({a: 1, stats: {x: 1}}), core.reviewStateHash({a: 1}));
+  assert.deepEqual(core.changedStateFields({a: 1, b: [1, 2]}, {a: 2, b: [1]}), ['$["a"]', '$["b"][1]']);
+});

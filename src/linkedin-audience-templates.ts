@@ -3,7 +3,7 @@ import {MirrorError} from './errors.js';
 import {parseLinkedInValue} from './linkedin-restli.js';
 import {assertLinkedInConversionScope} from './linkedin-conversion-links.js';
 import {stable} from './security.js';
-import {normalizeReviewState, reviewStateHash, changedStateFields} from './review-state.js';
+import {normalizeReviewState, reviewStateHash, changedStateFields} from './review-state-core.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 

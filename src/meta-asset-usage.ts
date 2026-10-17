@@ -3,7 +3,7 @@ import type {Actor, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import {bad, fingerprint, obj, validate, type ToolCall} from './workspace-core.js';
 import {creativeAssetView} from './creative-library.js';
-import {normalizeAccount} from './scope.js';
+import {normalizeAccount} from './account-id.js';
 import {metaApiVersion, resolveMetaVersion} from './meta-version.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {storedLogin} from './connection-authority.js';

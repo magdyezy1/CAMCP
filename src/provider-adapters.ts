@@ -1,4 +1,4 @@
-import type {ParkedReason, ProviderAdapter, ProviderParking, ProviderStatus} from './provider-adapter.js';
+import type {AccountModel, ParkedReason, ProviderAdapter, ProviderParking, ProviderStatus} from './provider-adapter.js';
 
 /**
  * The provider adapter registry (ARC-01): one adapter per provider gateway, each with its lifecycle status. This module
@@ -14,7 +14,7 @@ import type {ParkedReason, ProviderAdapter, ProviderParking, ProviderStatus} fro
 function adapter(
   id: string,
   gateway: string,
-  options: {families?: readonly string[]; parked?: ProviderParking} = {},
+  options: {families?: readonly string[]; parked?: ProviderParking; account?: AccountModel} = {},
 ): ProviderAdapter {
   const status: ProviderStatus = options.parked ? 'parked' : 'active';
   return Object.freeze({
@@ -23,13 +23,16 @@ function adapter(
     status,
     ...(options.parked ? {parked: Object.freeze({...options.parked})} : {}),
     familyPrefixes: Object.freeze([...(options.families ?? [id + '_'])]),
+    ...(options.account ? {account: Object.freeze({...options.account})} : {}),
   });
 }
 
 export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
-  adapter('google', 'google_ads_native_action'),
+  // Google Ads customer IDs are compared without the dashes of their display form (123-456-7890).
+  adapter('google', 'google_ads_native_action', {account: {normalize: id => id.replaceAll('-', '')}}),
   adapter('google_business', 'google_business_native_action'),
-  adapter('meta', 'meta_native_action'),
+  // Meta ad account IDs are compared without the act_ prefix of their Graph node form.
+  adapter('meta', 'meta_native_action', {account: {normalize: id => id.replace(/^act_/, '')}}),
   adapter('tiktok', 'tiktok_native_action'),
   adapter('snapchat', 'snapchat_native_action'),
   adapter('linkedin', 'linkedin_native_action'),

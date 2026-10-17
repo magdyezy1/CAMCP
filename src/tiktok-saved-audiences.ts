@@ -1,4 +1,4 @@
-import {normalizeAccount} from './scope.js';
+import {normalizeAccount} from './account-id.js';
 import {hasProviderId, responseData, assertNoMethodOverride, object} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';

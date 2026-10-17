@@ -1,5 +1,4 @@
 import {keywordPlanObserved} from './google-keyword-plan-writes.js';
-import {sha256, stable} from './security.js';
 import {MirrorError} from './errors.js';
 import {microsoftContracts} from './microsoft-native.js';
 import {gtmSafeConfiguration} from './gtm-workflow-writes.js';
@@ -24,91 +23,11 @@ import {tiktokSmartPlusAdgroupCampaignState} from './tiktok-smart-plus-adgroup-u
 import {tiktokInstantFormState} from './tiktok-instant-forms.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {familyOfRead} from './reviewed-families.js';
+import {normalizeReviewState} from './review-state-core.js';
 
-// Response envelopes are validated before projection. Within each resource keep
-// unknown fields: a new configuration field must remain protected by default.
-const volatile = new Set([
-  'delivery_status',
-  'effective_status',
-  'secondary_status',
-  'updated_at',
-  'updated_time',
-  'last_modified_time',
-  'last_modified_at',
-  'last_modified',
-  'update_time',
-  'modification_time',
-  'modify_time',
-  'modified_at',
-  'modified_time',
-  'last_updated_at',
-  'last_update_time',
-  'request_id',
-  'request_time',
-  'trace_id',
-  'sub_request_status',
-  'request_status',
-  'stats',
-  'statistics',
-  'metrics',
-  'insights',
-  'reporting',
-  'pacing_stats',
-  'pacing_metrics',
-  'total_stats',
-  'timeseries_stats',
-  'delivery_metrics',
-  'delivery_stats',
-  'delivery_pacing',
-  'spend_to_date',
-  'last_synced_at',
-  // A pixel's last event (Reddit last_fired_at, PRV-06 D) is telemetry; a review keeps whether and how recently it fired.
-  'last_fired_at',
-]);
-const fieldName = (key: string) => key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
-const scalar = (value: unknown) => value === null || ['string', 'number', 'boolean'].includes(typeof value);
-// Only fields whose provider contracts define membership, rather than sequence.
-// Unknown scalar arrays stay ordered until a contract explicitly qualifies them.
-const unorderedFields = new Set([
-  'country_codes',
-  'countries',
-  'genders',
-  'age_groups',
-  'age_ranges',
-  'locales',
-  'device_platforms',
-  'publisher_platforms',
-  'facebook_positions',
-  'instagram_positions',
-  'messenger_positions',
-  'audience_network_positions',
-  'placements',
-  'included_languages',
-  'excluded_languages',
-]);
+// The pure projection helpers live in the leaf src/review-state-core.ts, which family modules import (ARC-04 stage B).
+export {normalizeReviewState, reviewStateHash, changedStateFields} from './review-state-core.js';
 
-/** Configuration projection only; never use this to canonicalize a mutation payload. */
-export function normalizeReviewState(value: unknown, key = ''): unknown {
-  if (Array.isArray(value)) {
-    const values = value.map(item => normalizeReviewState(item));
-    // Preserve duplicates and types. Arrays of objects may have meaningful order.
-    return unorderedFields.has(fieldName(key)) && values.every(scalar)
-      ? values.sort((a, b) => {
-          const x = stable(a),
-            y = stable(b);
-          return x < y ? -1 : x > y ? 1 : 0;
-        })
-      : values;
-  }
-  if (value && typeof value === 'object')
-    return Object.fromEntries(
-      Object.entries(value)
-        .filter(([key]) => !volatile.has(fieldName(key)))
-        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .map(([key, item]) => [key, normalizeReviewState(item, key)]),
-    );
-  return value;
-}
 /** Allowlist configuration-bearing response containers, not response metadata.
  * Only call after raw success, completeness and exact-target validation. Preserve
  * the native container shape for spending/ownership checks and field diagnostics.
@@ -300,32 +219,4 @@ function gatewayStateValue(read: CompiledRequest, d: JsonObject): unknown {
   ].includes(resource)
     ? assetSetCanonical(state)
     : state;
-}
-export const reviewStateHash = (value: unknown) => sha256(stable(normalizeReviewState(value)));
-
-/** JSON paths only: diagnostics must not disclose provider values or credentials. */
-export function changedStateFields(expected: unknown, actual: unknown): string[] {
-  const paths: string[] = [];
-  const walk = (a: unknown, b: unknown, path: string) => {
-    if (stable(a) === stable(b)) return;
-    if (Array.isArray(a) && Array.isArray(b)) {
-      for (let i = 0; i < Math.max(a.length, b.length); i++) {
-        const child = path + '[' + i + ']';
-        if (i >= a.length || i >= b.length) paths.push(child);
-        else walk(a[i], b[i], child);
-      }
-      return;
-    }
-    if (a && b && typeof a === 'object' && typeof b === 'object' && !Array.isArray(a) && !Array.isArray(b)) {
-      for (const key of [...new Set([...Object.keys(a), ...Object.keys(b)])].sort()) {
-        const child = path + '[' + JSON.stringify(key) + ']';
-        if (!Object.hasOwn(a, key) || !Object.hasOwn(b, key)) paths.push(child);
-        else walk((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key], child);
-      }
-      return;
-    }
-    paths.push(path);
-  };
-  walk(normalizeReviewState(expected), normalizeReviewState(actual), '$');
-  return paths;
 }

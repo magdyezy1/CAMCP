@@ -2,7 +2,7 @@ import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
-import {changedStateFields} from './review-state.js';
+import {changedStateFields} from './review-state-core.js';
 import {
   snapTargetingKind,
   assertSnapTargeting,

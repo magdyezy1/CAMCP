@@ -2,7 +2,7 @@ import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {sha256, stable} from './security.js';
-import {normalizeReviewState} from './review-state.js';
+import {normalizeReviewState} from './review-state-core.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';

@@ -7,7 +7,7 @@ import {inspectGoogleRecipeGoals} from './google-goal-inspection.js';
 import {readinessBinding} from './readiness.js';
 import {storedLogin} from './connection-authority.js';
 import {writePause} from './owner-operations.js';
-import {normalizeAccount} from './scope.js';
+import {normalizeAccount} from './account-id.js';
 import {MirrorError} from './errors.js';
 import {bad, fingerprint, validate} from './workspace-core.js';
 

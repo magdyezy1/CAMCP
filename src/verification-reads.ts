@@ -9,7 +9,7 @@ import {tiktokSmartPlusAdgroupProjection} from './tiktok-smart-plus-adgroups.js'
 import {tiktokCtaPortfolioProjection, tiktokPortfolioGetPath} from './tiktok-cta-portfolios.js';
 import {tiktokSmartPlusAdProjection, tiktokSmartPlusAdGetPath} from './tiktok-smart-plus-ads.js';
 import {Registry} from './catalog.js';
-import {normalizeReviewState} from './review-state.js';
+import {normalizeReviewState} from './review-state-core.js';
 import {googleConfigurationObserved} from './google-configuration-writes.js';
 import {snapshotPlans} from './write-snapshots.js';
 import {microsoftGateway, microsoftContracts} from './microsoft-native.js';

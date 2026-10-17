@@ -1,5 +1,5 @@
 import {assertNoMethodOverride, object} from './write-common.js';
-import {normalizeAccount} from './scope.js';
+import {normalizeAccount} from './account-id.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';

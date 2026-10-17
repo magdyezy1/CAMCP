@@ -26,15 +26,10 @@ import {assertNotPersonalDataRead} from './personal-data.js';
 import {authorizeMetaDatasetRead, observeMetaPixels} from './meta-dataset-scope.js';
 import {authorizeRedditPlanningRead} from './reddit-extensions.js';
 import {assertGatewayOffered} from './provider-offering.js';
+import {normalizeAccount} from './account-id.js';
 
-export function normalizeAccount(gateway: string, id: unknown): string {
-  const value = String(id);
-  return gateway === 'meta_native_action'
-    ? value.replace(/^act_/, '')
-    : gateway === 'google_ads_native_action'
-      ? value.replaceAll('-', '')
-      : value;
-}
+// The account ID form lives in the leaf src/account-id.ts, from the provider adapters (ARC-04 stage B).
+export {normalizeAccount};
 const accountFields: Record<string, Set<string>> = {
   microsoft_ads_native_action: new Set(['AccountId', 'AccountIds', 'CustomerAccountId']),
   meta_native_action: new Set(['account_id', 'ad_account_id']),

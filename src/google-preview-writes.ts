@@ -1,7 +1,7 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
-import {changedStateFields} from './review-state.js';
+import {changedStateFields} from './review-state-core.js';
 import {redact, stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';

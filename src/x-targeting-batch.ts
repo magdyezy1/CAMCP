@@ -1,6 +1,6 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {changedStateFields, normalizeReviewState} from './review-state.js';
+import {changedStateFields, normalizeReviewState} from './review-state-core.js';
 import {sha256, stable} from './security.js';
 import {xAudienceCriteriaTypes} from './x-audience-estimate.js';
 import type {CompiledRequest, JsonObject} from './types.js';

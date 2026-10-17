@@ -5,10 +5,11 @@
  * origin allowlist, single send, retries and the spend, confirmation and idempotency rules never move into an adapter.
  *
  * Concerns move into adapters one at a time, each as a strangler that calls the existing function until its shared
- * branch is removed (docs/review/ARCHITECTURE.md, "Provider adapters"). Every adapter carries its lifecycle status.
- * Still in shared modules: the account model, read-only classification, pagination, account metadata reads, the wire
- * profile (URL, headers, rate key, error envelope), read authorizers, gateway state and shape checks, and the server
- * OAuth and asset-discovery configurations.
+ * branch is removed (docs/review/ARCHITECTURE.md, "Provider adapters"). Every adapter carries its lifecycle status,
+ * and the account ID form moved first (`account`, read by src/account-id.ts). Still in shared modules: the account
+ * fields, read-only classification, pagination, account metadata reads, the wire profile (URL, headers, rate key,
+ * error envelope), read authorizers, gateway state and shape checks, and the server OAuth and asset-discovery
+ * configurations.
  */
 
 /** `active` providers are offered; a `parked` one is offered only where AMCP_PROVIDERS names it. */
@@ -27,6 +28,15 @@ export interface ProviderParking {
   readonly decision: string;
 }
 
+/** The provider's account model (ARC-01 phase B, its first concern). */
+export interface AccountModel {
+  /**
+   * The account ID in the form AMCP binds and compares (`src/account-id.ts`): Meta drops `act_`, Google Ads drops
+   * dashes. Without one, an ID is kept as given.
+   */
+  normalize(id: string): string;
+}
+
 export interface ProviderAdapter {
   /** The provider's ID, as AMCP_PROVIDERS and the provider contracts name it (`criteo`, `google_business`). */
   readonly id: string;
@@ -40,4 +50,5 @@ export interface ProviderAdapter {
    * matching prefix, so `google_business_lodging` is Business Profile's and `google_targeting` Google Ads'.
    */
   readonly familyPrefixes: readonly string[];
+  readonly account?: AccountModel;
 }

@@ -3,7 +3,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {isIP} from 'node:net';
 import {MirrorError} from './errors.js';
 import {stable, sha256} from './security.js';
-import {changedStateFields} from './review-state.js';
+import {changedStateFields} from './review-state-core.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 

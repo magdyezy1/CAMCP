@@ -1,6 +1,6 @@
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
-import {changedStateFields} from './review-state.js';
+import {changedStateFields} from './review-state-core.js';
 import {normalGeos} from './snapchat-targeting-specs.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
