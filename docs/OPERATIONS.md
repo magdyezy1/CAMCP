@@ -652,9 +652,9 @@ The maintained GitHub workflow defines Docker builds and synthetic read-only/wri
 the captured catalog, the action ledger, `docs/CONTRACTS.md`, the tracked report under `.mirror/REPORTS` and the
 generated guides, each with its generator, its inputs, where it records their digests and the check that fails when it
 is edited by hand or stale. `npm run provenance:check` is a gate of `npm run check`, `check:fast`, qualification
-(`generated_provenance_check`) and `test:related`. It fails on a generated file no artifact declares, a check that is
-not a gate of both `npm run check` and qualification, or an input digest an artifact recorded that no longer matches,
-and it runs the checks that have no generator to rerun:
+(`generated_provenance_check`) and `test:related`. It fails on a file in `generated/` that no artifact declares, a
+declared output that is missing, a check that is not a gate of both `npm run check` and qualification, or an input
+digest an artifact recorded that no longer matches, and it runs the checks that have no generator to rerun:
 
 - **Capture evidence.** `.mirror/REPORTS/evidence-hashes.json` names a SHA-256 for each file of the original capture.
   `node tools/evidence-hashes.mjs --check` verifies the bytes of the files this tree ships under `.mirror/RAW`. The
@@ -686,6 +686,9 @@ and `DESCRIBE_ACTION` add `route_anchor`, and mark a native read that is not anc
 `read_unanchored`. Anchors are evidence only: they never enable, block or reclassify an action. To anchor a route from
 a documentation page you read, add the page to `tools/route-anchor-documents.json` with the exact method and path, the
 URL, the date read and a note; the generator refuses an entry whose route has moved or that anchors no routed action.
+The SDK evidence behind Meta's `sdk_method` anchors (`tests/fixtures/meta-sdk-changes-v26.json`, whose digest the
+anchors record) re-derives like the Apple evidence, from the two SDK releases the owner downloads:
+`node tools/meta-sdk-changes.mjs --from-dir <25.0.3 adobjects> --to-dir <26.0.2 adobjects> --check`.
 
 ### Journey and MCP evaluation (QA-04)
 
