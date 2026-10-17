@@ -318,7 +318,7 @@ async function uiCatalog(locale, chunk = 'shell') {
             credentials: 'same-origin',
             // A versioned address never changes its bytes, so the browser's cache may answer it (WEB-07); an
             // unversioned one (a legacy link) is revalidated.
-            cache: address.startsWith('/assets/v/') ? 'default' : 'no-cache',
+            cache: address === original ? 'no-cache' : 'default',
             redirect: 'error',
             signal: controller.signal,
           }),
@@ -401,6 +401,19 @@ async function uiNeedChunks(chunks) {
   if (token !== uiLocaleSequence || locale !== uiLocale) return;
   uiMessages = new Map([...uiMessages, ...messages]);
   for (const chunk of chunks) uiLoadedChunks.add(locale + ':' + chunk);
+}
+/**
+ * Starts downloading chunks the first page will need, in the saved language, while the shell's chunk and the session
+ * are still on their way (WEB-07). They join the page's messages when the page asks for them (uiNeedChunks).
+ */
+function uiPrefetchChunks(chunks) {
+  let saved;
+  try {
+    saved = localStorage.getItem('amcp.locale');
+  } catch {
+    return;
+  }
+  if (saved === 'ar') for (const chunk of chunks) uiCatalog('ar', chunk).catch(() => {});
 }
 /** Makes these chunks of a language the page's messages, as a whole set. */
 function uiUseMessages(locale, messages, chunks) {

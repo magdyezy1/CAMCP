@@ -2451,6 +2451,12 @@ function clientNavigation(event, el) {
     // catalog); the page renders once both are here, so an early failure still reads in the chosen language.
     const sessionRequest = api('/api/session');
     sessionRequest.catch(() => {});
+    // The first page's feature scripts and catalog chunks start downloading now too; no script runs anything but its
+    // own definitions and registrations while it loads, so this is safe before the session is known.
+    if (typeof pageAssetsFor === 'function') {
+      for (const file of pageAssetsFor(location.pathname)) loadPageAsset(file).catch(() => {});
+      uiPrefetchChunks(pageLocaleChunks(location.pathname));
+    }
     await initializeUILocale();
     session = await sessionRequest;
     await refresh();

@@ -157,7 +157,11 @@ async function signInPage(options, search = '', locale = 'en') {
   const run = code => new Script(code).runInContext(context);
   run(readFileSync('web/localization.js', 'utf8'));
   const initializing = run('initializeUILocale()');
-  if (locale === 'ar') requests[0].resolve(new Response(readFileSync('web/locales/ar.json', 'utf8')));
+  // The sign-in page needs only the shell's catalog chunk (WEB-07).
+  if (locale === 'ar') {
+    assert.equal(requests[0].url, '/assets/locales/ar/shell.json');
+    requests[0].resolve(new Response(readFileSync('web/locales/ar/shell.json', 'utf8')));
+  }
   await initializing;
   // account-security.js registers its part of /account with the route registry's extension points (WEB-07).
   run(readFileSync('web/routes.js', 'utf8'));

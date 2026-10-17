@@ -531,10 +531,8 @@ test('served HTML, CSS and JavaScript reference /assets/ only through the page s
   const allowed = [
     ['theme.js', "return version ? '/assets/v/' + version + '/' + path.slice(8) : path;"],
     ['route-assets.js', "originalPath = '/assets/' + file,"],
-    [
-      'localization.js',
-      "typeof AMCPAssets === 'object' ? AMCPAssets.url('/assets/locales/ar.json') : '/assets/locales/ar.json',",
-    ],
+    // WEB-07: one catalog chunk's address, which the next line passes through AMCPAssets.url.
+    ['localization.js', "const original = '/assets/locales/ar/' + chunk + '.json',"],
   ];
   const offenders = [];
   for (const file of fs.readdirSync('web', {recursive: true}).filter(name => String(name).endsWith('.js'))) {

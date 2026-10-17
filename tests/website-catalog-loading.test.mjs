@@ -4,7 +4,9 @@ import fs from 'node:fs';
 import {createContext, Script} from 'node:vm';
 import {listenForFetch} from '../dist/tests/http-listener.js';
 const source = fs.readFileSync('web/localization.js', 'utf8');
-const maximum = 2097152;
+// WEB-07: the browser downloads the catalog in chunks of at most 1 MiB each (tools/locale-chunks.mjs), the first being
+// the shell's; the whole catalog is no longer one download.
+const maximum = 1048576;
 function fixture(fetcher = () => new Promise(() => {}), deadlineMs, monotonic = performance) {
   const requests = [],
     notices = [],
@@ -103,15 +105,15 @@ function streamBytes(bytes, size = 32768) {
   return {body, response: new Response(body), cancelled: () => cancelled, pulls: () => pulls};
 }
 function originalFetch(request) {
-  assert.equal(request.url, '/assets/locales/ar.json');
+  assert.equal(request.url, '/assets/locales/ar/shell.json');
   assert.equal(request.args.credentials, 'same-origin');
   assert.equal(request.args.cache, 'no-cache');
   assert.equal(request.args.redirect, 'error');
   assert.deepEqual(Object.keys(request.args).sort(), ['cache', 'credentials', 'redirect', 'signal']);
   assert.ok(request.args.signal instanceof AbortSignal);
 }
-test('bounded reader loads the actual complete Arabic catalog across split UTF-8 bytes', async () => {
-  const data = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8')),
+test('bounded reader loads the actual Arabic shell chunk across split UTF-8 bytes', async () => {
+  const data = JSON.parse(fs.readFileSync('web/locales/ar/shell.json', 'utf8')),
     bytes = Buffer.from(JSON.stringify(data)),
     s = streamBytes(bytes, 113),
     f = fixture(async () => s.response);
@@ -122,7 +124,7 @@ test('bounded reader loads the actual complete Arabic catalog across split UTF-8
   assert.equal(f.timers.size, 0);
   assert.deepEqual(f.delays, [15000]);
   originalFetch(f.requests[0]);
-  assert.ok(s.pulls() > 8192);
+  assert.ok(s.pulls() >= Math.ceil(bytes.length / 113));
   assert.equal(f.signals[0].maximum, 1);
   assert.equal(f.signals[0].active, 0);
 });
@@ -298,7 +300,7 @@ for (const holdBody of [false, true])
         assert.equal(f.timers.size, 0);
         assert.equal(requests.length, 1);
         assert.equal(requests[0].method, 'GET');
-        assert.equal(requests[0].url, '/assets/locales/ar.json');
+        assert.equal(requests[0].url, '/assets/locales/ar/shell.json');
         assert.equal(requests[0].headers.authorization, undefined);
         assert.equal(requests[0].headers.cookie, undefined);
       } finally {

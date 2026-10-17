@@ -330,7 +330,13 @@ test('each cold route initializes its real scripts and required handlers in Engl
         matchMedia: () => ({matches: false, addEventListener() {}}),
         localStorage: {getItem: () => null},
         history: {replaceState() {}},
-        fetch() {
+        performance,
+        AbortController,
+        TextDecoder,
+        fetch(url) {
+          // Asset traffic only: an Arabic page also downloads its catalog chunks (WEB-07). No API request.
+          if (/^\/assets\/locales\/ar\/[a-z][a-z0-9-]*\.json$/.test(url))
+            return Promise.resolve(new Response(fs.readFileSync('web/' + url.slice(8), 'utf8')));
           throw Error('Asset initialization must not call an API');
         },
       });

@@ -49,6 +49,11 @@ function fixture(saved = 'en') {
   const run = code => new Script(code).runInContext(context);
   const respond = (index = 0, data = {'Home': 'الرئيسية', 'Hello, {name}': 'مرحبًا، {name}'}) =>
     requests[index].resolve(new Response(JSON.stringify(data)));
+  // The shipped catalog chunk a request names (WEB-07: /assets/locales/ar/<chunk>.json).
+  const respondChunk = (index = 0) =>
+    requests[index].resolve(
+      new Response(readFileSync('web/' + requests[index].url.replace(/^\/assets\//, ''), 'utf8')),
+    );
   return {
     context,
     run,
@@ -61,6 +66,7 @@ function fixture(saved = 'en') {
     labels,
     privacyLinks,
     respond,
+    respondChunk,
     renders: () => renders,
   };
 }
@@ -102,7 +108,7 @@ test('the workspace opens the static legal pages in its language, and the shared
       const f = fixture(locale);
       if (locale === 'ar') {
         const init = f.run('initializeUILocale()');
-        f.respond(0, messages);
+        f.respondChunk(0);
         await init;
       }
       const replaced = [];
@@ -155,7 +161,7 @@ test('changing or reapplying language preserves the footer access mode establish
     const key = enabled ? 'Encrypted connections · Reviewed write access' : 'Encrypted connections · Read-only access';
     assert.equal(footer.textContent, key);
     const pending = f.run('changeUILocale("ar")');
-    f.respond(0, messages);
+    f.respondChunk(0);
     await pending;
     assert.equal(footer.textContent, messages[key]);
     await f.run('changeUILocale("ar")');
@@ -166,7 +172,7 @@ test('changing or reapplying language preserves the footer access mode establish
 test('Arabic preference uses a fixed local catalog, applies language/direction and keeps dynamic values intact', async () => {
   const f = fixture('ar'),
     initializing = f.run('initializeUILocale()');
-  assert.equal(f.requests[0].url, '/assets/locales/ar.json');
+  assert.equal(f.requests[0].url, '/assets/locales/ar/shell.json');
   f.respond();
   await initializing;
   assert.equal(f.root.lang, 'ar');
@@ -299,7 +305,7 @@ test('English and Arabic sign-in/MFA screens submit identical endpoints and orig
   for (const locale of ['en', 'ar']) {
     const f = fixture(locale),
       initializing = f.run('initializeUILocale()');
-    if (locale === 'ar') f.respond(0, JSON.parse(readFileSync('web/locales/ar.json', 'utf8')));
+    if (locale === 'ar') f.respondChunk(0);
     await initializing;
     const nodes = new Map(),
       bindings = new Map(),
@@ -375,8 +381,12 @@ test('English and Arabic sign-in/MFA screens submit identical endpoints and orig
 test('Arabic Home translates task labels while preserving and escaping campaign names and IDs', async () => {
   const f = fixture('ar'),
     initializing = f.run('initializeUILocale()');
-  f.respond(0, JSON.parse(readFileSync('web/locales/ar.json', 'utf8')));
+  f.respondChunk(0);
   await initializing;
+  // Home's feature script brings its own chunk and the signed-in workspace's (WEB-07), as ensurePageAssets asks.
+  const chunks = f.run("uiNeedChunks(['workspace', 'providers', 'work-center'])");
+  for (const index of [1, 2, 3]) f.respondChunk(index);
+  await chunks;
   Object.assign(f.context, {
     session: {name: 'Home'},
     esc: value =>
