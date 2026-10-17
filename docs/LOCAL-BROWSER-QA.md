@@ -301,6 +301,10 @@ kind in English and Arabic, both appearances, 320 to 1280 pixels), and WEB-07 st
     load the second sheet right after the first, About inside `<noscript>`, the workspace never.
   - `tests/route-anchors.test.mjs` (merge): the contracts panel harness loads the paged-list loader from
     `web/work-pages.js`, where WEB-07 moved it.
+  - `deploy/smoke-api.mjs` (integration gate; the deployed HTTP contract `tests/deployment-smoke.test.ts` and the
+    container smoke share): `/reporting-overview` no longer carries the report builder's script. The contract requires
+    the page loader and the route registry from the page's own snapshot, the registry naming the script as a file of
+    that page, the exact versioned script served, and the shell not listing it.
 - **Visible changes in the light theme.** The review tables and measurement task links asked for a `--border` that
   did not exist (a `#ddd` fallback); they now take the palette's line. In the dark theme the policy pages' dividers,
   the 404 links and those borders take the dark palette. Computed-style comparisons found no other difference: WEB-07's

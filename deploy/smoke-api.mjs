@@ -60,8 +60,23 @@ export async function checkApplication({base, origin, password, writes, restart}
   );
   const assetVersion = /src="\/assets\/v\/([0-9a-f]{64})\/theme\.js"/.exec(page)?.[1];
   assert.ok(assetVersion, 'The page binds initial assets to one complete public snapshot');
-  const overviewScript = '/assets/v/' + assetVersion + '/reporting-overview.js';
-  assert.ok(page.includes('src="' + overviewScript + '"'), 'Reporting Overview uses that same public snapshot');
+  // The report builder's script loads with its page, not with the shell (WEB-07): the page loader and the route
+  // registry come from that same snapshot, and the registry names the script as a file of /reporting-overview.
+  const snapshot = '/assets/v/' + assetVersion + '/';
+  for (const file of ['routes.js', 'route-assets.js'])
+    assert.ok(
+      page.includes('src="' + snapshot + file + '"'),
+      'Reporting Overview loads ' + file + ' from that snapshot',
+    );
+  assert.ok(!page.includes('reporting-overview.js'), 'The report builder is not part of the shell every page loads');
+  const registry = await api(snapshot + 'routes.js');
+  assert.equal(registry.status, 200, 'The versioned route registry is served');
+  assert.match(
+    await registry.text(),
+    /\{\s*path: '\/reporting-overview',[^{}]*\bassets: \[[^\]]*'reporting-overview\.js'/,
+    'The route registry of that snapshot names the Reporting Overview script as a file of its page',
+  );
+  const overviewScript = snapshot + 'reporting-overview.js';
   assert.equal((await api(overviewScript)).status, 200, 'The exact versioned Reporting Overview script is served');
   assert.equal((await api('/api/workspace/overview', 'POST', {action: 'bootstrap'}, {Origin: origin})).status, 401);
   assert.equal((await api('/api/reporting-overview/synthetic.csv')).status, 401);
