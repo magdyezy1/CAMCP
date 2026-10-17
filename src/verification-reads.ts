@@ -1,7 +1,7 @@
 /** Verification plan: the reads that show a write took effect, what each must contain, and how read-backs compare. */
 import {snapLeadFormProjection} from './snapchat-lead-forms.js';
 import {snapSegmentProjection} from './snapchat-segments.js';
-import {tiktokAudienceGetPath} from './tiktok-lookalikes.js';
+import {tiktokAudienceGetPath} from './tiktok-paths.js';
 import {tiktokConversionGetPath, tiktokCustomConversionProjection} from './tiktok-custom-conversions.js';
 import {tiktokSavedAudienceRead, tiktokSavedAudienceProjection} from './tiktok-saved-audiences.js';
 import {tiktokSmartPlusCampaignProjection} from './tiktok-smart-plus-campaigns.js';

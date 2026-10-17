@@ -1,7 +1,9 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {microsoftEvidence} from './microsoft-evidence.js';
+// Read below while this module is evaluated: the data comes from a leaf, not from the family module that imports this
+// one (ARC-04).
+import {microsoftAssociationContracts} from './microsoft-association-contracts.js';
 import {
-  microsoftAssociationContracts,
   microsoftAssociationWrite,
   assertMicrosoftAssociation,
   microsoftAssociationSnapshots,

@@ -3,6 +3,7 @@ import {hasProviderId, responseData, assertNoMethodOverride, object} from './wri
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {tiktokAudienceGetPath, tiktokLookalikePath} from './tiktok-paths.js';
 
 /**
  * TikTok lookalike audiences, per API for Business v1.3 "Create a lookalike audience", "Get audience details" and
@@ -10,8 +11,8 @@ import type {CompiledRequest, JsonObject} from './types.js';
  * this advertiser owns; creating one starts no delivery, spends nothing and uploads no customer data. Refresh,
  * update, deletion, sharing and customer-file audiences are outside this contract.
  */
-export const tiktokLookalikePath = '/v1.3/dmp/custom_audience/lookalike/create/',
-  tiktokAudienceGetPath = '/v1.3/dmp/custom_audience/get/';
+// The routes live in a leaf (src/tiktok-paths.ts) that other modules read while they are evaluated (ARC-04).
+export {tiktokLookalikePath, tiktokAudienceGetPath};
 const locations = [
   'AE',
   'AU',

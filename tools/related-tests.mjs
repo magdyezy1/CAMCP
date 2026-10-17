@@ -22,6 +22,8 @@ export const criticalTests = [
   'tests/sqlite-diagnostics.test.mjs',
   'tests/sheets-authority.test.mjs',
   'tests/reporting-overview.test.ts',
+  // ARC-04: any backend change can move a top-level read into an import cycle; the guard imports every module first.
+  'tests/import-order.test.mjs',
 ];
 export const freshnessChecks = [
   {name: 'report_check', args: ['dist/tools/report.js', '--check']},
