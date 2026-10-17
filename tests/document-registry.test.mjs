@@ -135,6 +135,35 @@ test('a workspace repository reads, writes, counts and deletes only its own work
   }
 });
 
+test('a condition that would leave the workspace binding is refused before any statement runs', () => {
+  const s = store();
+  try {
+    s.putDocument('tenant-b', 'overview_view', 'b', {name: 'B view'});
+    const a = s.repo('overview_view', 'tenant-a');
+    // Regression: `1) OR (1=1` closed the binding's parenthesis and read every workspace's documents.
+    for (const where of ['1) OR (1=1', '1=1)', '(1=1', '1=1; DELETE FROM documents', '1=1 -- ', '1=1 /* x */']) {
+      assert.throws(() => a.select(where), /repository condition/, where);
+      assert.throws(() => a.count(where), /repository condition/, where);
+      assert.throws(() => a.deleteWhere(where), /repository condition/, where);
+      assert.throws(() => a.updateWhere("data=json_set(data,'$.name','x')", [], where), /repository condition/, where);
+    }
+    assert.throws(() => a.updateWhere("data=json_set(data,'$.name','x')) OR (1", [], '1=1'), /repository assignment/);
+    assert.throws(() => a.select('', [], {order: 'id) --'}), /repository order/);
+    assert.throws(() => a.select('', [], {columns: "data) FROM documents; SELECT ('x"}), /repository column list/);
+    assert.throws(() => a.select("json_extract(data,'$.name')='open"), /unterminated quote/);
+    // Parentheses, semicolons and dashes inside quoted literals are text, not structure.
+    s.putDocument('tenant-a', 'overview_view', 'a', {name: "a (b); c -- d's"});
+    assert.deepEqual(
+      a.select("json_extract(data,'$.name')='a (b); c -- d''s'").map(d => d.id),
+      ['a'],
+    );
+    assert.equal(s.repo('overview_view', 'tenant-b').count(), 1, 'nothing reached the other workspace');
+    assert.equal(s.document('tenant-b', 'overview_view', 'b').name, 'B view');
+  } finally {
+    s.close();
+  }
+});
+
 test('the typed repository operations stay in their workspace and kind and apply each kind’s declared expiry', () => {
   const s = store(),
     now = Date.now();
@@ -236,7 +265,11 @@ test('service documents have an explicit scope and partition that no workspace c
     for (const reserved of Object.values(servicePartitions)) {
       assert.ok(isServicePartition(reserved));
       assert.throws(() => s.repo('overview_report', reserved), /needs a workspace id/);
-      assert.throws(() => s.ensureTenant(reserved), /reserved for service documents/);
+      // A coded refusal (an operator's id reaches it through tools/admin.ts), not an internal error.
+      assert.throws(() => s.ensureTenant(reserved), {
+        code: 'INVALID_TENANT',
+        message: 'This workspace ID is reserved for AMCP service records. Choose another workspace ID.',
+      });
     }
     assert.throws(() => s.repo('overview_report', ''), /needs a workspace id/);
     assert.throws(() => s.repo('no_such_kind', 'tenant-a'), /Undeclared document kind/);
@@ -505,6 +538,84 @@ test('an erasure of a workspace without an account deletes nothing in other work
     assert.equal(s.repo('monitor_notice', 'tenant-a').count(), 1);
     assert.equal(s.repo('workspace_invite', 'tenant-a').count(), 1);
     assert.equal(s.repo('member_access_set', 'tenant-a').count(), 1);
+    assert.equal(s.verifyAudit(), true);
+  } finally {
+    s.close();
+  }
+});
+
+test('an erasure without an account keeps keys, grants, memberships, sessions and logins of other workspaces whose person field is empty (regression: the person steps bound an empty id)', () => {
+  const master = Buffer.alloc(32, 92).toString('base64'),
+    s = new Store(':memory:', master);
+  try {
+    new WebStore(s, {
+      origin: 'https://amcp.example.test',
+      masterKey: master,
+      adminPassword: 'synthetic-registry-admin-door',
+      authEnv: {},
+      fetcher: async () => {
+        throw Error('No provider or e-mail traffic allowed');
+      },
+    });
+    for (const t of ['receipt-only', 'tenant-a']) s.ensureTenant(t);
+    const sql = s.sql(),
+      now = Date.now();
+    // The erased workspace's own key and membership go; the other workspace's rows with an empty person field stay.
+    sql
+      .prepare("INSERT INTO api_keys(hash,tenant_id,user_id,role) VALUES('own-key','receipt-only','someone','admin')")
+      .run();
+    sql.prepare("INSERT INTO api_keys(hash,tenant_id,user_id,role) VALUES('blank-key','tenant-a','','admin')").run();
+    sql.prepare("INSERT INTO credential_owners(hash,user_id) VALUES('blank-key','')").run();
+    sql
+      .prepare(
+        "INSERT INTO workspace_memberships(tenant_id,user_id,role,active,created_at) VALUES('receipt-only','someone','owner',0,?)",
+      )
+      .run(now);
+    sql
+      .prepare(
+        "INSERT INTO workspace_memberships(tenant_id,user_id,role,created_at) VALUES('tenant-a','','operator',?)",
+      )
+      .run(now);
+    sql
+      .prepare(
+        "INSERT INTO amcp_mcp_grants(hash,kind,client_id,tenant_id,data,expires_at) VALUES('blank-grant','access','client','tenant-a',?,?)",
+      )
+      .run(JSON.stringify({ownerUserId: ''}), now + 60000);
+    sql
+      .prepare("INSERT INTO amcp_web_sessions(hash,actor,csrf,expires_at) VALUES('blank-session',?,'csrf',?)")
+      .run(JSON.stringify({tenantId: 'tenant-a', userId: ''}), now + 60000);
+    sql.prepare("INSERT INTO amcp_mfa(user_id,secret,recovery,enabled_at) VALUES('','sealed','[]',?)").run(now);
+    sql
+      .prepare("INSERT INTO amcp_identities(provider,subject,user_id,created_at) VALUES('google','blank-subject','',?)")
+      .run(now);
+    const count = (table, where = '1') => sql.prepare('SELECT count(*) AS n FROM ' + table + ' WHERE ' + where).get().n,
+      options = {deploymentTenant: 'local', reason: 'operator_request', by: 'cli'},
+      plan = eraseAccount(s, {tenantId: 'receipt-only'}, {...options, dryRun: true});
+    assert.equal(plan.user_id, null);
+    for (const [table, n] of [
+      ['api_keys', 1],
+      ['credential_owners', 0],
+      ['workspace_memberships', 1],
+      ['amcp_mcp_grants', 0],
+      ['amcp_web_sessions', 0],
+      ['amcp_mfa', 0],
+      ['amcp_identities', 0],
+      ['amcp_users', 0],
+    ])
+      assert.equal(plan.counts[table], n, table);
+    eraseAccount(s, {tenantId: 'receipt-only'}, options);
+    assert.equal(count('api_keys', "hash='own-key'"), 0);
+    assert.equal(count('workspace_memberships', "tenant_id='receipt-only'"), 0);
+    for (const [table, where] of [
+      ['api_keys', "hash='blank-key'"],
+      ['credential_owners', "hash='blank-key'"],
+      ['workspace_memberships', "tenant_id='tenant-a'"],
+      ['amcp_mcp_grants', "hash='blank-grant'"],
+      ['amcp_web_sessions', "hash='blank-session'"],
+      ['amcp_mfa', "user_id=''"],
+      ['amcp_identities', "subject='blank-subject'"],
+    ])
+      assert.equal(count(table, where), 1, table + ' of another workspace is kept');
     assert.equal(s.verifyAudit(), true);
   } finally {
     s.close();

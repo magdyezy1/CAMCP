@@ -22,9 +22,13 @@ export interface ErasureStep {
 /**
  * Every row of an erasure, in deletion order (the workspace's own rows, then keys and grants, then the account). The
  * keys are listed first: the workspace's keys, the person's keys in other workspaces and their AI-client access.
+ * Without an account (a workspace named by a receipt alone) there is no person: every step keeps only its workspace
+ * clause, and a step that only follows the person matches nothing (`0`). Before, the person's clauses were bound to an
+ * empty id and deleted any row of any workspace whose person field was the empty string.
  */
 export function erasureSteps(store: Store, user: JsonObject | undefined, tenant: string): ErasureStep[] {
   const id = String(user?.id ?? ''),
+    known = id !== '',
     emailHash = typeof user?.email === 'string' ? sha256(user.email.toLowerCase()) : '',
     // The person's documents in other workspaces, from the kinds that declare a person (src/document-kinds.ts, ARC-02):
     // monitor subscriptions and notices, invitations and the client access set of a membership.
@@ -35,14 +39,18 @@ export function erasureSteps(store: Store, user: JsonObject | undefined, tenant:
         store
           .sql()
           .prepare(
-            'SELECT hash FROM api_keys WHERE tenant_id=? OR hash IN (SELECT hash FROM credential_owners WHERE user_id=?)' +
-              (grants
+            'SELECT hash FROM api_keys WHERE tenant_id=?' +
+              (known ? ' OR hash IN (SELECT hash FROM credential_owners WHERE user_id=?)' : '') +
+              (known && grants
                 ? " OR hash IN (SELECT hash FROM amcp_mcp_grants WHERE kind='access' AND json_extract(data,'$.ownerUserId')=?)"
                 : ''),
           )
-          .all(tenant, id, ...(grants ? [id] : [])) as {hash: string}[]
+          .all(tenant, ...(known ? [id] : []), ...(known && grants ? [id] : [])) as {hash: string}[]
       ).map(row => row.hash),
-    );
+    ),
+    // A step that only follows the person.
+    personOnly = (where: string): Pick<ErasureStep, 'where' | 'params'> =>
+      known ? {where, params: [id]} : {where: '0', params: []};
   return [
     {table: 'media_chunks', where: 'tenant_id=?', params: [tenant], oneByOne: true},
     {table: 'retained_media_chunks', where: 'tenant_id=?', params: [tenant], oneByOne: true},
@@ -58,24 +66,32 @@ export function erasureSteps(store: Store, user: JsonObject | undefined, tenant:
     {table: 'resource_ownership', where: 'tenant_id=?', params: [tenant]},
     {table: 'connections', where: 'tenant_id=?', params: [tenant]},
     {table: 'api_keys', where: 'hash IN (SELECT value FROM json_each(?))', params: [keys]},
-    {table: 'credential_owners', where: 'user_id=? OR hash IN (SELECT value FROM json_each(?))', params: [id, keys]},
-    {table: 'amcp_mcp_grants', where: "tenant_id=? OR json_extract(data,'$.ownerUserId')=?", params: [tenant, id]},
-    {table: 'workspace_memberships', where: 'tenant_id=? OR user_id=?', params: [tenant, id]},
+    known
+      ? {table: 'credential_owners', where: 'user_id=? OR hash IN (SELECT value FROM json_each(?))', params: [id, keys]}
+      : {table: 'credential_owners', where: 'hash IN (SELECT value FROM json_each(?))', params: [keys]},
+    known
+      ? {table: 'amcp_mcp_grants', where: "tenant_id=? OR json_extract(data,'$.ownerUserId')=?", params: [tenant, id]}
+      : {table: 'amcp_mcp_grants', where: 'tenant_id=?', params: [tenant]},
+    known
+      ? {table: 'workspace_memberships', where: 'tenant_id=? OR user_id=?', params: [tenant, id]}
+      : {table: 'workspace_memberships', where: 'tenant_id=?', params: [tenant]},
     {
       table: 'amcp_oauth_states',
       where:
-        "session_hash IN (SELECT hash FROM amcp_web_sessions WHERE json_extract(actor,'$.userId')=? OR json_extract(actor,'$.tenantId')=?)",
-      params: [id, tenant],
+        'session_hash IN (SELECT hash FROM amcp_web_sessions WHERE ' +
+        (known ? "json_extract(actor,'$.userId')=? OR " : '') +
+        "json_extract(actor,'$.tenantId')=?)",
+      params: known ? [id, tenant] : [tenant],
     },
     {
       table: 'amcp_web_sessions',
-      where: "json_extract(actor,'$.userId')=? OR json_extract(actor,'$.tenantId')=?",
-      params: [id, tenant],
+      where: (known ? "json_extract(actor,'$.userId')=? OR " : '') + "json_extract(actor,'$.tenantId')=?",
+      params: known ? [id, tenant] : [tenant],
     },
-    {table: 'amcp_mfa', where: 'user_id=?', params: [id]},
-    {table: 'amcp_identities', where: 'user_id=?', params: [id]},
+    {table: 'amcp_mfa', ...personOnly('user_id=?')},
+    {table: 'amcp_identities', ...personOnly('user_id=?')},
     {table: 'amcp_email_outbox', where: 'tenant_id=?', params: [tenant]},
-    {table: 'amcp_users', where: 'id=?', params: [id]},
+    {table: 'amcp_users', ...personOnly('id=?')},
   ];
 }
 /** How many rows an erasure step would delete. */

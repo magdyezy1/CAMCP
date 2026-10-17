@@ -1615,8 +1615,14 @@ export class Store {
   }
   ensureTenant(id: string, name = id) {
     if (!id) throw new MirrorError('INVALID_TENANT', 'Tenant ID is required.');
-    // Service documents live under reserved ids (ARC-02); a workspace of that id would read them as its own.
-    if (isServicePartition(id)) throw new Error('Workspace id ' + id + ' is reserved for service documents.');
+    // Service documents live under reserved ids (ARC-02); a workspace of that id would read them as its own. A coded
+    // refusal, since an id can come from an operator (tools/admin.ts) or a request rather than from the code.
+    if (isServicePartition(id))
+      throw new MirrorError(
+        'INVALID_TENANT',
+        'This workspace ID is reserved for AMCP service records. Choose another workspace ID.',
+        {tenant_id: id},
+      );
     this.db.prepare('INSERT INTO tenants(id,name) VALUES(?,?) ON CONFLICT(id) DO NOTHING').run(id, name);
   }
   createKey(actor: Actor, ttlMs: number = 86400000 * 30): string {

@@ -50,13 +50,17 @@ A query the repository cannot express (a projection, a join, an aggregate) belon
 website's own tables (sessions, sign-in identities, AI-client grants, attempt counters), `server/<area>-repository.ts`:
 name a function for the question it answers, bind it to `tenant_id=?` and keep projections bounded (metadata only,
 never whole rows of another record). Statements on deployment-wide tables (AI-client registrations, attempt counters)
-say so in their module. Moving an existing statement, move it verbatim first and change it in a separate step.
+say so in their module. Moving an existing statement, move it verbatim first and change it in a separate step. A
+condition such a module passes to `select`, `count`, `deleteWhere` or `updateWhere` (and an assignment, column list or
+order) must be balanced: the repository wraps it as `tenant_id=? AND kind=? AND (...)` and refuses one with unbalanced
+parentheses, a `;`, `--` or `/*` outside its quoted literals before preparing the statement, so it cannot close the
+workspace binding. Add the new module to `storeRepositories` in `tools/check-storage-boundary.mjs`.
 
 ## The storage boundary ratchet
 
 `node tools/check-storage-boundary.mjs` (`npm run check:storage`; the test suite runs it too) counts, for every module
-outside the store layer (`src/store.ts`, `src/schema-migrations.ts`, `src/document-kinds.ts`, the repositories
-`src/*-repository.ts` and `server/*-repository.ts`, and `server/web-store.ts`), its SQL literals, `json_extract` uses,
+outside the store layer (`src/store.ts`, `src/schema-migrations.ts`, `src/document-kinds.ts`, the repository modules
+`storeRepositories` in that tool lists by name, and `server/web-store.ts`), its SQL literals, `json_extract` uses,
 database handle uses and the document kinds its SQL names, against `tests/fixtures/storage-boundary-allowance.json`.
 Values may only fall: a module may not gain raw SQL, and a module without an allowance may not hold any. When a change
 removes some, lower the allowance with `--update`. An integration that deliberately records new raw SQL uses
@@ -68,8 +72,12 @@ a step to the schema ledger instead.
 The modules that still hold SQL are listed in the allowance file. Most belong to the website's account flows
 (`server/user-accounts.ts`, `server/account-security.ts`, `server/mfa-policy.ts`) or to the reviewed-write path
 (`src/write-review.ts`, `src/write-groups.ts`, `src/write-approval.ts`, `src/spend-policy.ts`, `src/cap-overrides.ts`);
-move their statements the same way, verbatim, one module at a time. `store.db` stays readable for tests and the store
-layer; `store.sql()` is the store layer's accessor, and the ratchet counts both outside it.
+move their statements the same way, verbatim, one module at a time. A new repository module joins the store layer only by
+being added to `storeRepositories` in the same reviewed change: a module named `*-repository.ts` that the list does not
+name is counted like any other and fails the check (`UNLISTED REPOSITORY`). `store.db` stays readable for tests and the
+store layer; `store.sql()` is the store layer's accessor, and the ratchet counts both outside it. ARC-02's last step,
+making `store.db` private behind `store.sql()`, remains: `sql()` still returns the same public handle, so today only the
+ratchet keeps new uses out, and the handle becomes private once the modules the allowance lists use repositories.
 
 ## Changing a kind: versions, migrations and rollback
 

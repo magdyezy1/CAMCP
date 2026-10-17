@@ -1,6 +1,7 @@
 // Storage boundary ratchet (ARC-02): SQL against AMCP's tables belongs to the store layer (src/store.ts,
-// src/schema-migrations.ts, server/web-store.ts, src/document-kinds.ts and the repository modules
-// src/*-repository.ts and server/*-repository.ts). Every other application module (src/, server/) is counted for:
+// src/schema-migrations.ts, server/web-store.ts, src/document-kinds.ts and the repository modules storeRepositories
+// lists by name; a module named *-repository.ts that it does not list fails the check). Every other application module
+// (src/, server/) is counted for:
 //   sql           string or template literals holding SQL (a statement, or a fragment naming an AMCP table or using
 //                 json_extract);
 //   json_extract  json_extract( uses inside those literals;
@@ -19,17 +20,50 @@ import {fileURLToPath} from 'node:url';
 const root = fileURLToPath(new URL('..', import.meta.url));
 export const allowanceFile = 'tests/fixtures/storage-boundary-allowance.json';
 export const registryFile = 'src/document-kinds.ts';
+/**
+ * The repository modules of the store layer, listed by name: adding one is a reviewed change to this list, never a
+ * matter of naming a file *-repository.ts (a module so named but not listed is counted like any other, and the check
+ * fails on it until it is listed).
+ */
+export const storeRepositories = [
+  'src/audit-repository.ts',
+  'src/backup-repository.ts',
+  'src/campaign-repository.ts',
+  'src/connection-repository.ts',
+  'src/document-repository.ts',
+  'src/erasure-repository.ts',
+  'src/job-repository.ts',
+  'src/mcp-client-repository.ts',
+  'src/mcp-rate-limit-repository.ts',
+  'src/media-library-repository.ts',
+  'src/monitor-repository.ts',
+  'src/operations-feed-repository.ts',
+  'src/owner-health-repository.ts',
+  'src/provider-usage-repository.ts',
+  'src/rekey-repository.ts',
+  'src/report-repository.ts',
+  'src/retained-media-repository.ts',
+  'src/retention-repository.ts',
+  'src/schedule-repository.ts',
+  'src/service-lock-repository.ts',
+  'src/workbook-repository.ts',
+  'src/worker-health-repository.ts',
+  'src/write-record-repository.ts',
+  // The website's repositories for its own tables (sessions, sign-in limits, AI-client grants).
+  'server/login-limit-repository.ts',
+  'server/mcp-grant-repository.ts',
+  'server/web-session-repository.ts',
+];
 /** The store layer: the only modules whose SQL and database handle uses are not counted. */
 export const storeLayer = [
   /^src\/store\.ts$/,
   /^src\/schema-migrations\.ts$/,
   /^src\/document-kinds\.ts$/,
-  /^src\/document-repository\.ts$/,
-  /^src\/[a-z0-9-]+-repository\.ts$/,
   /^server\/web-store\.ts$/,
-  // The website's repositories for its own tables (sessions, sign-in identities, AI-client grants).
-  /^server\/[a-z0-9-]+-repository\.ts$/,
+  ...storeRepositories.map(file => new RegExp('^' + file.replace(/[.]/g, '\\.') + '$')),
 ];
+/** A module named like a repository: it is store layer only when storeRepositories lists it. */
+const repositoryName = /^(?:src|server)\/[a-z0-9-]+-repository\.ts$/;
 export const scanRoots = ['src', 'server'];
 const metrics = ['sql', 'json_extract', 'db'];
 // SQLite-only statements. A bare SELECT, DELETE or CREATE is not enough: HTTP methods, provider operation names and
@@ -327,7 +361,9 @@ export function scanTree(base = root) {
     store = {sql: 0, json_extract: 0},
     unregistered = {},
     // Schema changes outside the store layer, by module and line: none are allowed (ARC-02, one ordered ledger).
-    ddl = {};
+    ddl = {},
+    // Modules named like a repository that storeRepositories does not list: the check fails until one is reviewed in.
+    unlisted_repositories = files.filter(file => repositoryName.test(file) && !inStoreLayer(file));
   // Every kind the application and its tools name must be declared (tests may use their own kinds).
   if (registry)
     for (const file of sourceFiles(base, [...scanRoots, 'tools'])) {
@@ -364,6 +400,7 @@ export function scanTree(base = root) {
     registered_kinds: registry ? registry.size : null,
     unregistered,
     ddl,
+    unlisted_repositories,
   };
 }
 
@@ -449,7 +486,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const recorded = JSON.parse(fs.readFileSync(file, 'utf8')),
     comparison = compareAllowance(result.modules, recorded.allowance, summaryOf(result.totals), recorded.totals);
   const failed =
-    comparison.over.length > 0 || Object.keys(result.unregistered).length > 0 || Object.keys(result.ddl).length > 0;
+    comparison.over.length > 0 ||
+    Object.keys(result.unregistered).length > 0 ||
+    Object.keys(result.ddl).length > 0 ||
+    result.unlisted_repositories.length > 0;
   if (process.argv.includes('--json')) console.log(JSON.stringify({...result, ...comparison}, null, 2));
   else {
     const t = result.totals;
@@ -470,6 +510,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     for (const [module, kinds] of Object.entries(result.unregistered))
       console.log(
         'UNDECLARED DOCUMENT KIND ' + module + ' ' + kinds.join(',') + ' (declare it in ' + registryFile + ')',
+      );
+    for (const module of result.unlisted_repositories)
+      console.log(
+        'UNLISTED REPOSITORY ' +
+          module +
+          ' (a repository module joins the store layer only by being added to storeRepositories in' +
+          ' tools/check-storage-boundary.mjs, a reviewed change)',
       );
     for (const [module, lines] of Object.entries(result.ddl))
       console.log(

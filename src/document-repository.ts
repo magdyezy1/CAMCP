@@ -23,12 +23,39 @@ export interface SelectOptions {
 }
 
 /**
+ * A condition, assignment, column list or order a store-layer module passes to a repository statement must stay inside
+ * the binding it is wrapped in: balanced parentheses, and no statement separator or comment, outside its quoted
+ * literals and identifiers. Otherwise a text such as `1) OR (1=1` would close the workspace binding and reach every
+ * workspace. A programming error, refused before the statement is prepared.
+ */
+export function assertBoundFragment(text: string, part: string): void {
+  let depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]!;
+    if (c === "'" || c === '"') {
+      // A quoted literal or identifier ends at its next unpaired quote ('' and "" escape one).
+      let j = i + 1;
+      while (j < text.length && !(text[j] === c && text[j + 1] !== c)) j += text[j] === c ? 2 : 1;
+      if (j >= text.length) throw new Error('A repository ' + part + ' has an unterminated quote.');
+      i = j;
+    } else if (c === '(') depth++;
+    else if (c === ')' && --depth < 0)
+      throw new Error('A repository ' + part + ' closes a parenthesis it did not open.');
+    else if (c === ';' || (c === '-' && text[i + 1] === '-') || (c === '/' && text[i + 1] === '*'))
+      throw new Error('A repository ' + part + ' holds a statement separator or a comment.');
+  }
+  if (depth !== 0) throw new Error('A repository ' + part + ' leaves a parenthesis open.');
+}
+
+/**
  * The documents of one kind in one workspace, or of one service kind (ARC-02). Every statement it runs is bound to its
- * workspace (or service partition) and kind: `tenant_id=? AND kind=?` is part of the statement, never the caller's to
- * add, so one workspace's repository cannot read, change or delete another's documents. Reads and writes of single
- * documents use the store's own document methods (revisions, transactions and the NOT_FOUND refusal stay as they are);
- * `select`, `count` and `deleteWhere` take a condition written by a store-layer repository module
- * (src/*-repository.ts), which tools/check-storage-boundary.mjs keeps out of every other module.
+ * workspace (or service partition) and kind: `tenant_id=? AND kind=?` is part of the statement, so one workspace's
+ * repository cannot read, change or delete another's documents. Reads and writes of single documents use the store's
+ * own document methods (revisions, transactions and the NOT_FOUND refusal stay as they are); `select`, `count`,
+ * `deleteWhere` and `updateWhere` take a condition written by a store-layer repository module (src/*-repository.ts),
+ * which tools/check-storage-boundary.mjs keeps out of every other module. Such a condition must be balanced: one that
+ * would leave the binding (unbalanced parentheses, a `;`, `--` or `/*`) is refused before the statement is prepared
+ * (assertBoundFragment), and its values are bound, never written into the text.
  */
 export class DocumentRepository<K extends DocumentKindName = DocumentKindName> {
   readonly kind: K;
@@ -203,7 +230,9 @@ export class DocumentRepository<K extends DocumentKindName = DocumentKindName> {
   }
   /**
    * Writes the document as `Store.putDocument` (an expected revision of 0: it must not exist yet). The payload must keep
-   * the kind's store contract (`fields` in src/document-kinds.ts), so retention and erasure can rely on it.
+   * the kind's store contract (`fields` in src/document-kinds.ts), so retention and erasure can rely on it. A payload
+   * that breaks it is a programming error of the module that built it (callers validate what a person sends before
+   * building a document), so it is a plain Error, never a refusal a person is asked to correct.
    */
   put(id: string, data: JsonObject, expectedRevision?: number) {
     const problems = documentProblems(this.kind, data);
@@ -222,6 +251,7 @@ export class DocumentRepository<K extends DocumentKindName = DocumentKindName> {
     );
   }
   private bound(where?: string) {
+    if (where) assertBoundFragment(where, 'condition');
     return 'FROM documents WHERE tenant_id=? AND kind=?' + (where ? ' AND (' + where + ')' : '');
   }
   /**
@@ -232,6 +262,8 @@ export class DocumentRepository<K extends DocumentKindName = DocumentKindName> {
     // Placeholders bind in order and the binding comes first, so the columns and order take none.
     if (/\?/.test((options.columns ?? '') + (options.order ?? '')))
       throw new Error('Pass values to select through its condition, not its columns or order.');
+    if (options.columns !== undefined) assertBoundFragment(options.columns, 'column list');
+    if (options.order !== undefined) assertBoundFragment(options.order, 'order');
     const sql =
       'SELECT ' +
       (options.columns ?? 'id,data,revision') +
@@ -274,6 +306,8 @@ export class DocumentRepository<K extends DocumentKindName = DocumentKindName> {
    */
   updateWhere(set: string, setParams: SQLInputValue[], where: string, whereParams: SQLInputValue[] = []): number {
     if (!where.trim()) throw new Error('updateWhere needs a condition.');
+    assertBoundFragment(set, 'assignment');
+    assertBoundFragment(where, 'condition');
     return Number(
       this.store
         .sql()

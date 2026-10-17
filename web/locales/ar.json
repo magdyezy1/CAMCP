@@ -5126,6 +5126,7 @@
   "Staged media integrity check failed.": "فشل التحقّق من سلامة الوسائط المخزّنة مؤقتًا.",
   "SQLite transactions require synchronous callbacks.": "تتطلب معاملات SQLite دوال استدعاء متزامنة.",
   "Tenant ID is required.": "يلزم معرّف مساحة العمل.",
+  "This workspace ID is reserved for AMCP service records. Choose another workspace ID.": "معرّف مساحة العمل هذا محجوز لسجلات خدمة AMCP. اختر معرّف مساحة عمل آخر.",
   "A valid, unexpired API key is required.": "يلزم مفتاح API صالح لم تنتهِ صلاحيته.",
   "The administrator workspace was migrated. Sign in with the owner account and explicitly resume pending work.": "تم ترحيل مساحة عمل المسؤول. سجّل الدخول بحساب المالك واستأنف العمل المنتظر صراحةً.",
   "Account access or security changed. Sign in again and explicitly resume this job or schedule.": "تغيّرت صلاحيات الحساب أو إعدادات أمانه. سجّل الدخول مجددًا واستأنف هذه المهمة أو الجدول صراحةً.",

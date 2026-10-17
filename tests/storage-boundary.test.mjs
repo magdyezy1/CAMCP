@@ -4,6 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import {
   allowanceFile,
   compareAllowance,
@@ -13,6 +15,7 @@ import {
   lex,
   scanModule,
   scanTree,
+  storeRepositories,
   summaryOf,
   updatedAllowance,
 } from '../tools/check-storage-boundary.mjs';
@@ -141,8 +144,44 @@ test('the committed allowance holds for the tree: no new raw storage access and 
     'src/repository.ts',
     'server/repository.ts',
     'tools/x-repository.ts',
+    // Regression: any src/*-repository.ts counted as store layer, so naming a module so added raw SQL unratcheted.
+    'src/foo-repository.ts',
+    'server/foo-repository.ts',
   ])
     assert.equal(inStoreLayer(file), false, file);
+  // Every repository of the store layer is listed by name, and every module named like one is listed.
+  assert.deepEqual(result.unlisted_repositories, []);
+  for (const file of storeRepositories) {
+    assert.ok(fs.existsSync(file), file);
+    assert.ok(inStoreLayer(file), file);
+  }
+});
+
+test('a module named like a repository but not listed is counted and fails the check', () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-storage-boundary-'));
+  try {
+    for (const directory of ['src', 'server']) fs.mkdirSync(path.join(base, directory));
+    fs.writeFileSync(
+      path.join(base, 'src', 'store.ts'),
+      "const schema = 'CREATE TABLE IF NOT EXISTS documents(tenant_id TEXT, kind TEXT, id TEXT, data TEXT)';\n",
+    );
+    fs.writeFileSync(
+      path.join(base, 'src', 'shadow-repository.ts'),
+      "export const all = store => store.db.prepare('SELECT data FROM documents').all();\n",
+    );
+    const result = scanTree(base);
+    assert.deepEqual(result.unlisted_repositories, ['src/shadow-repository.ts']);
+    assert.equal(result.modules['src/shadow-repository.ts']?.sql, 1, 'its SQL counts against the allowance');
+    assert.deepEqual(
+      compareAllowance(result.modules, {}).over.map(o => [o.file, o.metric]),
+      [
+        ['src/shadow-repository.ts', 'sql'],
+        ['src/shadow-repository.ts', 'db'],
+      ],
+    );
+  } finally {
+    fs.rmSync(base, {recursive: true, force: true});
+  }
 });
 
 test('the ARC-02 targets hold: at most 15 modules outside the store layer hold SQL and their SQL names at most 10 document kinds', () => {

@@ -158,11 +158,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // refusals and website copy. ARC-02 adds the document-kind registry and the tenant-bound repository modules (27
   // files without wrapper reasons). The TikTok ledger's envelope refusal (it keeps TikTok's code and request ID) makes
   // its two envelope reasons wrapper reasons of src/measurement-ledger-tiktok.ts, and the unpinned statistics request
-  // adds one website reason.
+  // adds one website reason; the reserved workspace ID refusal adds one catalog entry.
   assert.equal(files.length, 597);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
-  assert.equal(Object.keys(catalog).length, 11470);
+  assert.equal(Object.keys(catalog).length, 11471);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {
