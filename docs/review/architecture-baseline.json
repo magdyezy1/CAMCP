@@ -5,7 +5,7 @@
     "largest_runtime_scc": 3,
     "cyclic_modules": 11,
     "shared_modules_with_gateway_literals": 87,
-    "shared_to_provider_runtime_imports": 500
+    "shared_to_provider_runtime_imports": 493
   },
   "reported": {
     "runtime_scc_sizes": [

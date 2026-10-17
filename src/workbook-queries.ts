@@ -9,7 +9,7 @@ import {
   redactReportingConfig,
 } from './report-query-access.js';
 import {ReportingService, resolveReportConfig} from './reporting.js';
-import {reportRange} from './report-native.js';
+import {reportRange} from './report-periods.js';
 import {reportingBindingMove} from './report-query-rebinding.js';
 
 export function workbookQuery(store: Store, actor: Actor, id: unknown) {

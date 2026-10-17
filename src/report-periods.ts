@@ -1,10 +1,32 @@
 import {MirrorError} from './errors.js';
-import {reportRange} from './report-native.js';
 import {fingerprint} from './report-quality.js';
 import {reportSourceError} from './report-errors.js';
 import {mergeMetricRounding} from './provider-decimal.js';
 import type {JsonObject} from './types.js';
 
+const bad = (message: string) => {
+  throw new MirrorError('INVALID_REPORT_SOURCE', message);
+};
+/**
+ * The inclusive calendar date range of a report: two real ISO dates, at most 366 days apart. Moved from
+ * src/report-native.ts (ARC-04 stage F), which re-exports it; period helpers no longer import the native collector.
+ */
+export function reportRange(range: JsonObject) {
+  if (
+    !range ||
+    !['since', 'until'].every(
+      k =>
+        typeof range[k] === 'string' &&
+        /^\d{4}-\d{2}-\d{2}$/.test(range[k]) &&
+        Number.isFinite(Date.parse(range[k])) &&
+        new Date(range[k]).toISOString().slice(0, 10) === range[k],
+    ) ||
+    range.since > range.until ||
+    Date.parse(range.until) - Date.parse(range.since) > 365 * 86400000
+  )
+    bad('Choose a valid inclusive date range of at most 366 days.');
+  return range as {since: string; until: string};
+}
 export const reportGrains = ['total', 'daily', 'weekly', 'monthly'];
 export function reportPeriods(range: JsonObject, grain = 'total'): {since: string; until: string}[] {
   const r = reportRange(range);

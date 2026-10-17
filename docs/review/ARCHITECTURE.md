@@ -269,7 +269,10 @@ improvement, or after a regression the owner accepted; the commit says which. Th
 (220 at `60ec2cc`) counted 28 core modules; `shared_to_provider_runtime_imports` counts every shared module, so its value
 is larger and is compared only with its own baseline. The provider adapter registry (`src/provider-adapters.ts`, §9)
 names every gateway on purpose, so the ratchet counts it with the provider modules, and an import of it is not counted
-as coupling.
+as coupling; so are the portfolio adapter registry (`src/portfolio.ts`, §11) and the report source registry
+(`src/report-sources.ts`, §12), which import one module per provider so that shared code consults them. Counting them
+as registries lowered `shared_to_provider_runtime_imports` from 500 to 493 by classification alone: the seven portfolio
+imports, which `src/portfolio.ts` made before it became the registry, are no longer counted.
 
 ## 9. Provider adapters
 
@@ -341,3 +344,18 @@ checks, row projection, the cursor payload and length cap, and the page's output
 literal in the adapter, so the portfolio localization inventory still owns it. `tests/portfolio-adapter-contract.test.mjs`
 holds the common refusal contract for every adapter (tampered, non-canonical, oversized, foreign, expired and
 other-login cursors, a login change during a read, an unobserved parent) and `tests/signed-cursor.test.mjs` the codec.
+
+## 12. Report sources
+
+ARC-04 stage F. Each reporting platform has a report source (`src/report-source.ts`): the native metrics the Overview
+suggests for it, the container its requested native metrics may sit in, and `normalize`, which reads one native
+campaign row's identity and shared metrics. `src/report-sources.ts` registers them in the order of `reportPlatforms`
+(`google-report-source.ts` holds Google Ads and Search Console; one module each for Meta, TikTok, Snapchat, LinkedIn,
+X, Microsoft Advertising, Apple Ads, Reddit and GA4). `normalizeNativeRow` (`src/report-native.ts`) calls the source of
+the row's platform and keeps the shared parts: the safe-identifier check, the copy of every native numeric field,
+`omitted_as_zero`, the result definition and the row envelope. The rows were captured before the platform if-chain
+moved (`tests/fixtures/report-source-golden.json`, written by `tools/report-source-golden.mjs`) and
+`tests/report-source-golden.test.mjs` keeps them byte-identical, refusals included. `reportRange` moved to
+`src/report-periods.ts` (re-exported), so the period helpers and the workbook and reporting modules no longer import
+the native collector. Still in `src/report-native.ts`: collection, that is each platform's request plans, paging and
+response parsing, and the async report jobs, which `src/service.ts` and `src/compiler.ts` still import directly.

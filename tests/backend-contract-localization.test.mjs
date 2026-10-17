@@ -137,9 +137,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // ARC-04 stage B adds six leaf modules split from existing ones (account-id, review-state-core, tiktok-paths,
   // microsoft-association-contracts, meta-ad-library-contract, google-business-notification-kind); their reasons moved
   // with them, so the owned reasons and the catalog are unchanged. Stage E adds src/signed-cursor.ts and
-  // src/portfolio-runner.ts (no owned reasons: the portfolio refusals stay in each adapter).
-  assert.equal(files.length, 579);
-  assert.equal(selected.filter(row => row.messages.size).length, 234);
+  // src/portfolio-runner.ts (no owned reasons: the portfolio refusals stay in each adapter). Stage F adds the report
+  // source contract, its registry and ten provider report sources; the Apple source owns the reason it took from
+  // src/report-native.ts (one more file with reasons, the same reasons).
+  assert.equal(files.length, 591);
+  assert.equal(selected.filter(row => row.messages.size).length, 235);
   assert.equal(owned.size, 1579);
   assert.equal(Object.keys(catalog).length, 11425);
   assert.deepEqual(localeProblems(catalog, owned), []);

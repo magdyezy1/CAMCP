@@ -157,8 +157,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // ARC-04 stage B adds six leaf modules split from existing ones (account-id, review-state-core, tiktok-paths,
   // microsoft-association-contracts, meta-ad-library-contract, google-business-notification-kind); their reasons moved
   // with them, so the owned reasons and the catalog are unchanged. Stage E adds src/signed-cursor.ts and
-  // src/portfolio-runner.ts (no owned reasons: the portfolio refusals stay in each adapter).
-  assert.equal(files.length, 579);
+  // src/portfolio-runner.ts (no owned reasons: the portfolio refusals stay in each adapter). Stage F adds the report
+  // source contract, its registry and ten provider report sources (no wrapper reasons).
+  assert.equal(files.length, 591);
   assert.equal(selected.filter(row => row.messages.size).length, 184);
   assert.equal(owned.size, 2842);
   assert.equal(Object.keys(catalog).length, 11425);
