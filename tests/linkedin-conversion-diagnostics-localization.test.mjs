@@ -29,10 +29,10 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
   const hints = inspectSharedRecoveryHints(readFileSync('src/errors.ts', 'utf8'), 'src/errors.ts'),
     inventoryHint = errorResult(new MirrorError('PORTFOLIO_INVALID_RESPONSE', 'Fixture'), 'ref', 0).error.next_action;
   // The shared inventory of tests/shared-recovery-localization.test.mjs (SEC-08 and CMP-03 added one remedy each,
-  // PRV-06 four, owner decision P5 one).
-  assert.equal(hints.size, 164);
+  // PRV-06 four, owner decision P5 one, and CMP-03's Microsoft location lookup two).
+  assert.equal(hints.size, 166);
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 163);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 165);
 });
 test('all 26 LinkedIn authored conversion failures and four metadata/search labels have Arabic coverage', () => {
   const failures = inspectMeasurementFailures(source, file);

@@ -45,6 +45,9 @@ export function inspectLocaleSource(source, file = 'script.js') {
     'pageTitle',
     'pageErrorCauses',
     'recipeLabels',
+    // CMP-03: the per-platform location_ids labels and why a Microsoft location is not offered.
+    'recipeLocationLabels',
+    'recipeMicrosoftLocationReasons',
     'recipeDependencyLabels',
     'recipeEligibilityLabels',
     'recipePrerequisiteLabels',

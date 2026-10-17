@@ -1455,6 +1455,25 @@ dialog::backdrop {
 .recipe-builder details {
   margin-block: 1rem;
 }
+/* CMP-03: Microsoft location lookup results wrap at 320 px; each reason sits on its own line under its location. */
+.recipe-location-results {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.recipe-location-results li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.recipe-location-results small {
+  flex-basis: 100%;
+}
 @media (max-width: 680px) {
   .recipe-choice,
   .recipe-fields {

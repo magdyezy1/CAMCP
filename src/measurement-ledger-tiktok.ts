@@ -15,6 +15,8 @@ import {
   selectPixel,
   text,
   trace,
+  unselected,
+  type Layer,
   type LedgerInput,
   type LedgerOut,
   type ReadContext,
@@ -26,16 +28,27 @@ import {
  * - Configuration: GET /v1.3/pixel/list/ of the selected advertiser in bounded pages (the "Get pixels" contract the pixel
  *   family already relies on, checked 2026-09-26: pixel_id, pixel_name, pixel_code and asset_ownership). Pixel IDs are
  *   exact strings; an unsafe JSON number is refused rather than rounded.
- * - Provider-observed activity: GET /v1.3/pixel/event/stats/ exists in the captured catalog, but its response is not in
- *   any primary document AMCP could read (the official Business API SDK leaves its data unspecified, checked
- *   2026-10-11). The layer is unavailable and no request is sent until a native read under ACC-06 pins it.
+ * - Provider-observed activity: GET /v1.3/pixel/event/stats/, TikTok's "Get Pixel Event statistics" (Events 1.0 Pixel
+ *   Events reference), for the selected pixel. Its request comes from TikTok's official Business API SDK specification
+ *   (tiktok/tiktok-business-api-sdk, yml_files/pixel_event_stats.yml, read 2026-10-17): advertiser_id, pixel_ids (an
+ *   array of numeric IDs) and date_range {start_date, end_date}, each JSON-encoded in the query; the dates have no
+ *   documented format, so AMCP sends the last seven complete UTC days as YYYY-MM-DD. The specification leaves the
+ *   answer's `data` unspecified ("checked in the document for the API"), and the portal page's response table is drawn
+ *   by TikTok's scripts, which AMCP did not run. So the read is sent and its answer is checked only for what is
+ *   documented (the code/message/request_id/data envelope) and for safety (bounded size and depth, safe numbers, no
+ *   other pixel or advertiser), then returned field by field as TikTok sent it. The layer stays unknown
+ *   (`unconfirmed_fields`): AMCP names no field's meaning and never reports activity as observed until an owner-run
+ *   native read (ACC-06) confirms the fields and their date basis.
  * - TikTok exposes no event-quality diagnostics or consent setting to these reads; attribution windows belong to ad
  *   groups, not pixels.
  */
 const gateway = 'tiktok_native_action',
   listPath = '/v1.3/pixel/list/',
+  statsPath = '/v1.3/pixel/event/stats/',
   pageSize = 20,
   maxPages = 10;
+/** Bounds of the unconfirmed statistics answer: refused whole beyond them, never truncated. */
+export const tiktokEventStatsLimits = Object.freeze({fields: 200, depth: 6, items: 100, characters: 128, days: 7});
 const numeric = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,31}$/.test(v);
 const pixelId = (v: unknown) =>
   numeric(v) ? v : typeof v === 'number' && Number.isSafeInteger(v) && v > 0 ? String(v) : undefined;
@@ -53,6 +66,97 @@ const plan = (account: string, page: number): CompiledRequest => ({
   evidence: 'Measurement ledger read of one selected TikTok advertiser',
   warnings: [],
 });
+
+/** The last seven complete UTC days, as the YYYY-MM-DD dates TikTok's date_range takes. */
+export function tiktokStatsWindow(now = Date.now()) {
+  const day = 86400000,
+    end = Math.floor(now / day) * day - day;
+  return {
+    start_date: new Date(end - (tiktokEventStatsLimits.days - 1) * day).toISOString().slice(0, 10),
+    end_date: new Date(end).toISOString().slice(0, 10),
+  };
+}
+const statsPlan = (account: string, pixel: string, window: JsonObject): CompiledRequest => ({
+  gateway,
+  accountId: account,
+  action: 'tiktok_pixel_event_stats',
+  method: 'GET',
+  path: statsPath,
+  query: {advertiser_id: account, pixel_ids: JSON.stringify([pixel]), date_range: JSON.stringify(window)},
+  headers: {},
+  readOnly: true,
+  destructive: false,
+  requiresConfirmation: false,
+  evidence: 'Measurement ledger read of one selected TikTok pixel',
+  warnings: [],
+});
+/**
+ * TikTok's statistics answer as it came, one entry per value (`stats[0].count` style paths), within the bounds. A key
+ * that names a pixel or the advertiser must name the selected ones; anything else is returned literally, not
+ * interpreted.
+ */
+export function unconfirmedFields(data: unknown, own: {pixel: string; code: string | null; advertiser: string}) {
+  const limits = tiktokEventStatsLimits,
+    fields: {path: string; value: string | number | boolean | null}[] = [];
+  const own_id = (key: string, value: unknown) => {
+    const literal = typeof value === 'number' ? String(value) : value;
+    if (['pixel_id', 'pixel_ids'].includes(key) && literal !== own.pixel)
+      invalid('TikTok returned statistics of another pixel.');
+    if (key === 'advertiser_id' && literal !== own.advertiser)
+      invalid('TikTok returned statistics of another advertiser.');
+    if (key === 'pixel_code' && own.code !== null && literal !== own.code)
+      invalid('TikTok returned statistics of another pixel.');
+  };
+  const walk = (value: unknown, path: string, key: string, depth: number) => {
+    if (depth > limits.depth) invalid('TikTok returned pixel event statistics nested deeper than one ledger reads.');
+    if (Array.isArray(value)) {
+      if (value.length > limits.items) invalid('TikTok returned more pixel event statistics than one ledger reads.');
+      value.forEach((item, i) => walk(item, path + '[' + i + ']', key, depth + 1));
+      return;
+    }
+    if (obj(value)) {
+      for (const [name, child] of Object.entries(value)) {
+        if (!/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(name)) invalid('TikTok returned a malformed statistics field name.');
+        walk(child, path ? path + '.' + name : name, name, depth + 1);
+      }
+      return;
+    }
+    // A value is kept only as it can be shown exactly: no rounded integer, no control character, no long text.
+    const exact =
+      value === null ||
+      typeof value === 'boolean' ||
+      (typeof value === 'number' &&
+        Number.isFinite(value) &&
+        (!Number.isInteger(value) || Number.isSafeInteger(value))) ||
+      (typeof value === 'string' && (value === '' || text(value, limits.characters)));
+    if (!exact) invalid('TikTok returned an unsafe number or an unreadable value in its pixel event statistics.');
+    own_id(key, value);
+    if (fields.length >= limits.fields) invalid('TikTok returned more pixel event statistics than one ledger reads.');
+    fields.push({path, value: value as string | number | boolean | null});
+  };
+  walk(data, '', '', 0);
+  return fields;
+}
+/** The selected pixel's statistics read: the documented envelope checked, every field returned unconfirmed. */
+async function eventStats(context: ReadContext, pixel: string, code: string | null) {
+  const window = tiktokStatsWindow(),
+    read = statsPlan(context.account, pixel, window),
+    data = await ledgerRead(context, read);
+  if (data.code !== 0 || !Object.hasOwn(data, 'data') || (data.data !== null && !obj(data.data)))
+    invalid('TikTok returned a failed or unrecognized pixel event statistics response.');
+  const fields = unconfirmedFields(data.data ?? {}, {pixel, code, advertiser: context.account});
+  context.budget.rows('pixel_event_stats', fields.length);
+  context.references.push(
+    ledgerReference('pixel_event_stats', read, [pageReference(0, fields.length, data)], fields.length),
+  );
+  return {
+    pixel_id: pixel,
+    window: {...window, day_basis: 'unconfirmed'},
+    field_count: fields.length,
+    fields,
+    field_meanings: 'unconfirmed',
+  };
+}
 
 async function pixels(context: ReadContext) {
   const rows: JsonObject[] = [],
@@ -134,12 +238,12 @@ export async function tiktokLedger({
   const references: JsonObject[] = [],
     budget = ledgerBudget(ledger, gateway),
     context: ReadContext = {store, registry, transport, actor, connection, auth, account, fence, budget, references};
-  let selection: ReturnType<typeof selectPixel> | undefined;
-  let configuration;
+  let selection: ReturnType<typeof selectPixel> | undefined, listed: JsonObject[] | undefined;
+  let configuration, activity: Layer;
   try {
     configuration = await guarded('configuration', fence, ledger, () =>
       budget.run(async () => {
-        const listed = await pixels(context);
+        listed = await pixels(context);
         selection = selectPixel(
           listed.map(p => p.pixel_id as string),
           requested,
@@ -166,6 +270,34 @@ export async function tiktokLedger({
             );
       }),
     );
+    fence();
+    const pixel = selection?.pixel;
+    activity =
+      !listed || !selection
+        ? layer(
+            'provider_observed_activity',
+            'unknown',
+            'configuration_unknown',
+            null,
+            'Without the pixel list, no pixel is read.',
+          )
+        : !pixel
+          ? unselected('provider_observed_activity', selection.reason!)
+          : await guarded('provider_observed_activity', fence, ledger, () =>
+              budget.run(async () =>
+                layer(
+                  'provider_observed_activity',
+                  'unknown',
+                  'unconfirmed_fields',
+                  await eventStats(
+                    context,
+                    pixel,
+                    (listed!.find(p => p.pixel_id === pixel)?.pixel_code as string | null | undefined) ?? null,
+                  ),
+                  'TikTok returned its pixel event statistics, shown as they came: no primary document AMCP could read names the response fields, so AMCP does not interpret them, and the layer stays unknown until an owner-run read confirms their meaning.',
+                ),
+              ),
+            );
   } finally {
     budget.close();
   }
@@ -174,13 +306,7 @@ export async function tiktokLedger({
     scope: {gateway, connection_id: connection.id, account_id: account, pixel_id: selection?.pixel ?? null},
     layers: [
       configuration,
-      layer(
-        'provider_observed_activity',
-        'unavailable',
-        'unpinned_contract',
-        null,
-        'TikTok pixel event statistics have no primary response contract AMCP could pin, so they are not read.',
-      ),
+      activity,
       layer(
         'provider_diagnostics',
         'unavailable',

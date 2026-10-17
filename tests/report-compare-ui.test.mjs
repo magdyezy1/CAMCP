@@ -63,6 +63,12 @@ test('delta columns show this window, the earlier window and the change, with un
   ctx.out = comparison;
   const html = new Script('renderSnapshotComparison(out)').runInContext(ctx);
   assert.match(html, /<th scope="col" role="columnheader">Spend<\/th>/);
+  // The rendered qualification (RPT-07) refused the comparison table: a data table needs a caption besides its named
+  // scrolling region, and this one had none.
+  assert.match(
+    html,
+    /role="region" tabindex="0" aria-label="Period comparison \(scrolls sideways\)"><table[^>]*><caption>Entities in both windows: each metric in this window, in the earlier window, and the change\.<\/caption>/,
+  );
   assert.match(
     html,
     /<strong>120\.3<\/strong><small>Earlier: 100\.1<\/small><small>Change: \+20\.2 \(\+20\.18%\)<\/small>/,

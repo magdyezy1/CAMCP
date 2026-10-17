@@ -460,7 +460,8 @@ async function renderReportingOverview() {
                     c.sources.find(
                       s => s.platform === p.id && s.connection_id === a.connection_id && s.account_id === a.account_id,
                     )?.campaign_id ?? '';
-                return `<label class="report-account"><input type="checkbox" data-report-account="${p.id}" value="${esc(key)}" ${selected.has(key) ? 'checked' : ''}><span>${esc(a.label)}<small>${esc(a.account_id)}</small><small>${esc(uiText('Login:'))} ${esc(a.connection_label ?? a.label)}</small></span></label>${p.id === 'snapchat' ? reportParentField(key, parent, a) : ''}`;
+                // The account and login names are the provider's and the person's own; they keep their direction.
+                return `<label class="report-account"><input type="checkbox" data-report-account="${p.id}" value="${esc(key)}" ${selected.has(key) ? 'checked' : ''}><span><bdi dir="auto" data-native>${esc(a.label)}</bdi><small>${esc(a.account_id)}</small><small>${esc(uiText('Login:'))} <bdi dir="auto" data-native>${esc(a.connection_label ?? a.label)}</bdi></small></span></label>${p.id === 'snapchat' ? reportParentField(key, parent, a) : ''}`;
               })
               .join('')}`
           : p.accounts.length
@@ -485,7 +486,8 @@ async function renderReportingOverview() {
   )
     .map(
       ([id, m]) =>
-        `<label><input type="checkbox" data-report-metric value="${id}" ${c.metrics.includes(id) ? 'checked' : ''}><span>${esc(b.metrics[id] ? uiText(m.label) : m.label)}<small class="metric-formula">${esc(m.formula ?? m.aggregation)}</small></span></label>`,
+        // A formula is written in metric identifiers (spend / clicks), read left to right in either language.
+        `<label><input type="checkbox" data-report-metric value="${id}" ${c.metrics.includes(id) ? 'checked' : ''}><span>${esc(b.metrics[id] ? uiText(m.label) : m.label)}<small class="metric-formula" dir="ltr">${esc(m.formula ?? m.aggregation)}</small></span></label>`,
     )
     .join(
       '',

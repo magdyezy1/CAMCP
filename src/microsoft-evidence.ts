@@ -5,7 +5,7 @@ import {pinnedJson} from './pinned-json.js';
 import type {JsonObject} from './types.js';
 let summary: JsonObject | undefined;
 /** The top-level fields of a Microsoft Learn JSON template (its placeholders, such as IntValueHere, are not JSON). */
-const templateFields = (template: string): string[] =>
+export const templateFields = (template: string): string[] =>
   Object.keys(JSON.parse(template.replace(/:\s*[A-Za-z]+ValueHere\b/g, ': null')));
 /**
  * The REST request Microsoft Learn documents for an operation (F-50): its method, production URL and JSON request

@@ -739,31 +739,47 @@ const tiktokPixel = (id, extra = {}) => ({
   pixel_script: '<script>synthetic snippet that is never kept</script>',
   ...extra,
 });
+// The statistics answer's `data` has no documented fields (TikTok's SDK specification leaves it unspecified), so this
+// synthetic shape is only something to return literally; the adapter interprets none of it.
+const tiktokStats = (
+  data = {stats: [{pixel_id: '7100000000000000001', events: [{name: 'CompletePayment', count: 3}]}]},
+) => ({
+  code: 0,
+  message: 'OK',
+  request_id: 'synthetic-stats',
+  data,
+});
 function tiktokFixture(t, options = {}) {
   const f = base(t, 'synthetic-ledger-tiktok', 'tiktok_native_action', tiktokAccount, []);
   f.account = tiktokAccount;
   f.service = service(f, request => {
     assert.equal(request.method, 'GET', 'TikTok ledger reads only');
-    assert.ok(request.path.endsWith('/v1.3/pixel/list/'), 'Unexpected synthetic TikTok route ' + request.path);
     assert.equal(request.query.advertiser_id, tiktokAccount);
+    if (request.path.endsWith('/v1.3/pixel/event/stats/'))
+      return options.stats ? options.stats(request) : tiktokStats();
+    assert.ok(request.path.endsWith('/v1.3/pixel/list/'), 'Unexpected synthetic TikTok route ' + request.path);
     return options.list ? options.list(request) : tiktokPage([tiktokPixel('7100000000000000001')]);
   });
   return f;
 }
+const utcDay = offset =>
+  new Date(Math.floor(Date.now() / 86400000) * 86400000 + offset * 86400000).toISOString().slice(0, 10);
 
-test('MSR-03 TikTok ledger lists the advertiser’s pixels and leaves unpinned pixel statistics unavailable', async t => {
+// Before (MSR-03 slice D), the layer was unavailable and no statistics request was sent ("unpinned_contract"). The read
+// now follows TikTok's documented request; its answer is returned as it came and the layer stays unknown.
+test('MSR-03 TikTok ledger reads the selected pixel’s event statistics and keeps their fields unconfirmed', async t => {
   const f = tiktokFixture(t),
     out = await ledger(f, 'tiktok_native_action');
   assert.equal(out.success, true, JSON.stringify(out));
   assert.deepEqual(states(out.data), {
     configuration: 'observed',
-    provider_observed_activity: 'unavailable',
+    provider_observed_activity: 'unknown',
     provider_diagnostics: 'unavailable',
     supplied_runtime_trace: 'unavailable',
     consent: 'unavailable',
     attribution_settings: 'not_applicable',
   });
-  assert.equal(reasons(out.data).provider_observed_activity, 'unpinned_contract');
+  assert.equal(reasons(out.data).provider_observed_activity, 'unconfirmed_fields');
   assert.deepEqual(layerOf(out.data, 'configuration').evidence.pixels, [
     {
       pixel_id: '7100000000000000001',
@@ -774,8 +790,82 @@ test('MSR-03 TikTok ledger lists the advertiser’s pixels and leaves unpinned p
   ]);
   assert.equal(out.data.scope.pixel_id, '7100000000000000001');
   assert.doesNotMatch(JSON.stringify(out.data), /synthetic snippet/);
-  assert.equal(f.requests.length, 1, 'no pixel statistics request is sent');
+  // The documented request: one advertiser, the selected pixel and the last seven complete UTC days, JSON-encoded.
+  assert.equal(f.requests.length, 2);
+  const stats = f.requests[1];
+  assert.equal(stats.path, '/open_api/v1.3/pixel/event/stats/');
+  assert.deepEqual(JSON.parse(stats.query.pixel_ids), ['7100000000000000001']);
+  assert.deepEqual(JSON.parse(stats.query.date_range), {start_date: utcDay(-7), end_date: utcDay(-1)});
+  const activity = layerOf(out.data, 'provider_observed_activity').evidence;
+  assert.deepEqual(activity, {
+    pixel_id: '7100000000000000001',
+    window: {start_date: utcDay(-7), end_date: utcDay(-1), day_basis: 'unconfirmed'},
+    field_count: 3,
+    fields: [
+      {path: 'stats[0].pixel_id', value: '7100000000000000001'},
+      {path: 'stats[0].events[0].name', value: 'CompletePayment'},
+      {path: 'stats[0].events[0].count', value: 3},
+    ],
+    field_meanings: 'unconfirmed',
+  });
+  assert.equal(out.data.summary.observed, 1, 'only the pixel list is observed');
+  assert.ok(out.data.source_references.some(r => r.resource === 'pixel_event_stats'));
   assertReadOnly(f, out);
+  // An empty answer says nothing about activity either: still unknown, never "no recent events".
+  const empty = tiktokFixture(t, {stats: () => tiktokStats({})}),
+    none = await ledger(empty, 'tiktok_native_action');
+  assert.equal(reasons(none.data).provider_observed_activity, 'unconfirmed_fields');
+  assert.equal(states(none.data).provider_observed_activity, 'unknown');
+  assert.equal(layerOf(none.data, 'provider_observed_activity').evidence.field_count, 0);
+});
+
+test('MSR-03 a foreign, failed, unsafe or oversized TikTok statistics answer leaves the layer unknown, unmapped', async t => {
+  const deep = {a: {b: {c: {d: {e: {f: {g: 1}}}}}}},
+    many = {rows: Array.from({length: 101}, (_, i) => ({n: i}))},
+    wide = {rows: Array.from({length: 70}, (_, i) => ({a: i, b: i, c: i}))};
+  for (const [name, stats] of [
+    ['provider error', () => ({code: 40002, message: 'No permission', request_id: 'x', data: {}})],
+    ['no data', () => ({code: 0, message: 'OK', request_id: 'x'})],
+    ['data not an object', () => tiktokStats([1, 2])],
+    ['another pixel', () => tiktokStats({stats: [{pixel_id: '7100000000000000009', count: 1}]})],
+    ['another pixel in a list', () => tiktokStats({pixel_ids: ['7100000000000000001', '7100000000000000009']})],
+    ['another pixel code', () => tiktokStats({pixel_code: 'COTHER'})],
+    ['another advertiser', () => tiktokStats({advertiser_id: '7000000000000000002'})],
+    ['an unsafe number', () => tiktokStats({stats: [{count: 9007199254740993}]})],
+    ['a control character', () => tiktokStats({stats: [{name: 'Complete\u0007Payment'}]})],
+    ['a long text', () => tiktokStats({stats: [{name: 'x'.repeat(129)}]})],
+    ['a malformed key', () => tiktokStats({'event name': 1})],
+    ['too deep', () => tiktokStats(deep)],
+    ['too many items', () => tiktokStats(many)],
+    ['too many fields', () => tiktokStats(wide)],
+  ]) {
+    const f = tiktokFixture(t, {stats}),
+      out = await ledger(f, 'tiktok_native_action');
+    assert.equal(out.success, true, name + ': ' + JSON.stringify(out));
+    assert.equal(states(out.data).configuration, 'observed', name);
+    assert.equal(states(out.data).provider_observed_activity, 'unknown', name);
+    assert.equal(reasons(out.data).provider_observed_activity, 'read_failed', name);
+    assert.deepEqual(
+      Object.keys(layerOf(out.data, 'provider_observed_activity').evidence),
+      ['error'],
+      name + ': a refused answer keeps no field',
+    );
+    assertReadOnly(f, out);
+  }
+  // Several pixels and none chosen: nothing is read for activity.
+  const several = tiktokFixture(t, {
+      list: () => tiktokPage([tiktokPixel('7100000000000000001'), tiktokPixel('7100000000000000002')]),
+    }),
+    unselected = await ledger(several, 'tiktok_native_action');
+  assert.equal(reasons(unselected.data).provider_observed_activity, 'pixel_not_selected');
+  assert.equal(several.requests.length, 1, 'no statistics read without a selected pixel');
+  const chosen = tiktokFixture(t, {
+      list: () => tiktokPage([tiktokPixel('7100000000000000001'), tiktokPixel('7100000000000000002')]),
+      stats: () => tiktokStats({pixel_id: '7100000000000000002', pixel_code: 'CABCDEF0002', total: 4}),
+    }),
+    picked = await ledger(chosen, 'tiktok_native_action', {requirements: {pixel_id: '7100000000000000002'}});
+  assert.equal(reasons(picked.data).provider_observed_activity, 'unconfirmed_fields');
+  assert.deepEqual(JSON.parse(chosen.requests.at(-1).query.pixel_ids), ['7100000000000000002']);
 });
 
 test('MSR-03 partial, changing or unsafe TikTok pixel lists are refused, never mapped', async t => {

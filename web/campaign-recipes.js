@@ -17,7 +17,6 @@ const recipeLabels = {
   country_codes: 'Country codes — one per line',
   country_criterion_ids: 'Google location criterion IDs — one per line',
   language_criterion_ids: 'Google language criterion IDs — one per line',
-  location_ids: 'Microsoft location IDs — one per line',
   page_id: 'Facebook Page ID',
   pixel_id: 'Website pixel ID assigned to this account',
   click_attribution_days: 'Click attribution window',
@@ -39,7 +38,6 @@ const recipeLabels = {
   end_time: 'End time in the account timezone',
   age_min: 'Minimum age',
   age_max: 'Maximum age',
-  location_ids: 'TikTok location IDs — one per line',
   tiktok_item_id: 'Existing TikTok post ID',
   identity_type: 'TikTok account identity type',
   identity_id: 'TikTok account identity ID',
@@ -56,6 +54,14 @@ const recipeLabels = {
   post_urn: 'Existing post URN to sponsor',
   lead_form_id: 'Existing lead form ID of this ad account',
   political_intent: 'Political advertising declaration',
+};
+// location_ids is one field of two providers' packs, each with its own location IDs. One label in recipeLabels named
+// TikTok on the Microsoft Search form too (CMP-03 and CMP-07 each added the key, and the later one won). `other` labels
+// a playbook's shared default, which applies to every workflow that takes the field.
+const recipeLocationLabels = {
+  microsoft: 'Microsoft location IDs — one per line',
+  tiktok: 'TikTok location IDs — one per line',
+  other: 'Location IDs of the workflow’s platform — one per line',
 };
 // The Performance Max pack (CMP-07) takes its own text counts.
 const recipePmaxLabels = {
@@ -108,14 +114,20 @@ const recipeTiktokEvents = [
   ['INITIATE_ORDER', 'Initiate checkout'],
   ['ON_WEB_CART', 'Add to cart'],
 ];
+/** The English label of a brief field for one workflow, or, without one, for every workflow that takes it. */
+function recipeFieldLabel(name, recipeId) {
+  if (name === 'creative_id' && recipeId === 'snapchat_lead_generation') return 'Existing Snapchat lead creative ID';
+  if (recipeId === 'google_performance_max' && recipePmaxLabels[name]) return recipePmaxLabels[name];
+  if (name === 'location_ids') {
+    const platform = String(recipeId ?? '').split('_')[0];
+    return platform !== 'other' && Object.hasOwn(recipeLocationLabels, platform)
+      ? recipeLocationLabels[platform]
+      : recipeLocationLabels.other;
+  }
+  return recipeLabels[name];
+}
 function recipeField(name, value, required, recipeId) {
-  const label = uiText(
-      name === 'creative_id' && recipeId === 'snapchat_lead_generation'
-        ? 'Existing Snapchat lead creative ID'
-        : recipeId === 'google_performance_max' && recipePmaxLabels[name]
-          ? recipePmaxLabels[name]
-          : (recipeLabels[name] ?? pretty(name)),
-    ),
+  const label = uiText(recipeFieldLabel(name, recipeId) ?? pretty(name)),
     attr = `name="${name}" ${required ? 'required' : ''}`;
   if (name === 'optimization_goal')
     return `<label>${esc(label)}<select ${attr}><option value="">${esc(uiText('Choose explicitly'))}</option><option value="SWIPES" ${value === 'SWIPES' ? 'selected' : ''}>${esc(uiText('Optimize swipes to the lead form'))}</option><option value="LEAD_FORM_SUBMISSIONS" ${value === 'LEAD_FORM_SUBMISSIONS' ? 'selected' : ''}>${esc(uiText('Optimize submitted lead forms'))}</option></select></label>`;
@@ -163,6 +175,66 @@ function recipeField(name, value, required, recipeId) {
   if (recipeArrays.has(name) || name === 'message')
     return `<label>${esc(label)}<textarea ${attr} rows="3" maxlength="6000">${esc(text)}</textarea></label>`;
   return `<label>${esc(label)}<input ${attr} type="${name.endsWith('_url') ? 'url' : name.endsWith('_date') ? 'date' : 'text'}" value="${esc(text)}" ${['daily_budget', 'cpc_bid', 'cpc_bid_ceiling', 'target_cpa'].includes(name) ? 'inputmode="decimal"' : ''} maxlength="2048"></label>`;
+}
+// CMP-03: the Microsoft location lookup of the Search pack's brief, from Microsoft's geographical locations file. It is
+// offered only when recipe_context says this deployment can send its request (the GetGeoLocationsFileUrl page is
+// pinned). Names, types and statuses stay literal; only AMCP's own explanations are translated.
+function recipeMicrosoftLocationLookup() {
+  return `<details id="recipe-ms-locations"><summary>${esc(uiText('Find Microsoft location IDs'))}</summary><label>${esc(uiText('Location name'))}<input id="recipe-ms-location-query" maxlength="80" autocomplete="off" enterkeyhint="search"></label><div class="dialog-actions"><button type="button" class="button" id="recipe-ms-location-search">${esc(uiText('Find locations'))}</button><button type="button" class="button" id="recipe-ms-location-check">${esc(uiText('Check the entered IDs'))}</button></div><p class="form-note">${esc(uiText('Microsoft names its locations in English. Several IDs can share a name, so check the type.'))}</p><div id="recipe-ms-location-results" aria-live="polite"></div></details>`;
+}
+// Why a location is not offered, from its status in the file (src/microsoft-locations.ts).
+const recipeMicrosoftLocationReasons = {
+  pending_deprecation:
+    'Microsoft marks this location as pending deprecation, and its pages disagree on whether it still targets. Choose an Active location.',
+  deprecated: 'Microsoft marks this location as deprecated, so it cannot be added.',
+  status_unknown: 'Microsoft’s file gives this location a status AMCP does not know, so it is not offered.',
+  status_not_in_file:
+    'Microsoft’s file has no status column, so AMCP cannot tell whether this location is deprecated. Check it in Microsoft Advertising.',
+};
+/** A lookup answer of the mode asked for, with exact numeric IDs, at most its bound, and no change made. */
+function recipeMicrosoftLocationsValid(out, mode, ids = []) {
+  const id = v => typeof v === 'string' && /^[1-9][0-9]{0,18}$/.test(v);
+  return (
+    out?.kind === 'microsoft_location' &&
+    out.mode === mode &&
+    out.provider_mutations === 0 &&
+    Array.isArray(out.results) &&
+    out.results.length <= (mode === 'search' ? 20 : 100) &&
+    out.results.every(
+      r =>
+        id(r?.location_id) &&
+        typeof r.display_name === 'string' &&
+        typeof r.selectable === 'boolean' &&
+        (r.reason === undefined || Object.hasOwn(recipeMicrosoftLocationReasons, r.reason)),
+    ) &&
+    (mode === 'search'
+      ? Number.isSafeInteger(out.match_count) && out.match_count >= out.results.length
+      : // A check answers for exactly the IDs entered: each one found or missing, once.
+        Array.isArray(out.missing_ids) &&
+        out.missing_ids.every(id) &&
+        JSON.stringify([...out.results.map(r => r.location_id), ...out.missing_ids].sort()) ===
+          JSON.stringify([...ids].sort()))
+  );
+}
+function recipeMicrosoftLocationsView(out) {
+  const native = v => (v === null || v === undefined ? esc(uiText('Unknown')) : `<bdi dir="auto">${esc(v)}</bdi>`),
+    // A search offers Add for a location that may be added; a check names the entered IDs to replace.
+    rows = out.results
+      .map(
+        r =>
+          `<li><span><bdi dir="auto">${esc(r.display_name)}</bdi> · <code dir="ltr">${esc(r.location_id)}</code> · ${native(r.location_type)} · ${native(r.status)}</span>${out.mode === 'search' && r.selectable ? `<button type="button" class="button small" data-ms-location="${esc(r.location_id)}" aria-label="${esc(uiText('Add {name} ({id})', {name: r.display_name, id: r.location_id}))}">${esc(uiText('Add'))}</button>` : ''}${r.reason ? `<small>${esc(uiText(recipeMicrosoftLocationReasons[r.reason]))}</small>` : ''}</li>`,
+      )
+      .join(''),
+    summary =
+      out.mode === 'search'
+        ? out.results.length
+          ? uiText('{shown} of {total} shown.', {shown: uiNumber(out.results.length), total: uiNumber(out.match_count)})
+          : uiText('No Microsoft location has this name. Try another spelling, in English.')
+        : uiText('{found} of {total} location IDs are in Microsoft’s file.', {
+            found: uiNumber(out.results.length),
+            total: uiNumber(out.results.length + out.missing_ids.length),
+          });
+  return `<p class="form-note">${esc(summary)}</p>${rows ? `<ul class="recipe-location-results">${rows}</ul>` : ''}${out.missing_ids?.length ? `<p class="notice">${esc(uiText('Not in Microsoft’s geographical locations file:'))} ${out.missing_ids.map(v => `<code dir="ltr">${esc(v)}</code>`).join(', ')}</p>` : ''}`;
 }
 function readRecipeBusiness(form) {
   const v = Object.fromEntries(new FormData(form)),
@@ -858,7 +930,7 @@ function recipeBlockerMeaning(row) {
 }
 function recipeEligibilityView(out) {
   const status = value => esc(uiText(recipeEligibilityLabels[value] ?? 'Needs further verification'));
-  return `<section aria-label="${esc(uiText('Account prerequisite evidence'))}"><h3>${esc(uiText('Account prerequisite evidence'))}</h3><p>${status(out.status)}</p><p>${esc(uiText('This check saves no campaign plan and makes no advertising changes. Each later change still needs its own review.'))}</p>${out.scope ? `<p>${esc(uiText('Advertising login and account'))}: <code>${esc(out.scope.connection_id)}</code> · <code>${esc(out.scope.account_id)}</code></p>` : ''}${out.expires_at ? `<p>${esc(uiText('Evidence expires'))}: ${esc(date(out.expires_at))}</p>` : ''}${out.missing_fields?.length ? `<p>${esc(uiText('Missing business inputs'))}: ${out.missing_fields.map(key => esc(uiText(recipeLabels[key] ?? pretty(key)))).join(', ')}</p>` : ''}${conversionGoalInspectionView(out)}${conversionValueInspectionView(out)}${conversionActivityInspectionView(out)}${snapchatCreativeInspectionView(out)}<dl>${(out.dependencies ?? []).map(row => `<dt>${esc(uiText(recipeDependencyLabels[row.id] ?? pretty(row.id)))} — ${status(row.status)}</dt><dd><code>${esc(row.id)}</code><p>${esc(uiText(row.meaning))}</p></dd>`).join('')}</dl>${out.blockers?.length ? `<h4>${esc(uiText('Resolve before review'))}</h4><ul>${out.blockers.map(row => `<li>${esc(row.step_id ?? '')} ${esc(row.code)}: ${esc(recipeBlockerMeaning(row))}</li>`).join('')}</ul>` : ''}${out.deferred?.length ? `<h4>${esc(uiText('Checks after predecessor verification'))}</h4><ul>${out.deferred.map(row => `<li>${esc(row.step ?? '')}: ${esc(uiText(row.reason))}</li>`).join('')}</ul>` : ''}${out.warnings?.length ? `<h4>${esc(uiText('Account policy notices'))}</h4><ul>${out.warnings.map(row => `<li>${esc(recipePolicyNotice(row))}</li>`).join('')}</ul>` : ''}${recordDetails(out, uiText('Native evidence and input provenance'))}</section>`;
+  return `<section aria-label="${esc(uiText('Account prerequisite evidence'))}"><h3>${esc(uiText('Account prerequisite evidence'))}</h3><p>${status(out.status)}</p><p>${esc(uiText('This check saves no campaign plan and makes no advertising changes. Each later change still needs its own review.'))}</p>${out.scope ? `<p>${esc(uiText('Advertising login and account'))}: <code>${esc(out.scope.connection_id)}</code> · <code>${esc(out.scope.account_id)}</code></p>` : ''}${out.expires_at ? `<p>${esc(uiText('Evidence expires'))}: ${esc(date(out.expires_at))}</p>` : ''}${out.missing_fields?.length ? `<p>${esc(uiText('Missing business inputs'))}: ${out.missing_fields.map(key => esc(uiText(recipeFieldLabel(key, typeof out.recipe === 'string' ? out.recipe : (out.recipe?.id ?? (typeof $ === 'function' ? $('#recipe-choice')?.value : undefined))) ?? pretty(key)))).join(', ')}</p>` : ''}${conversionGoalInspectionView(out)}${conversionValueInspectionView(out)}${conversionActivityInspectionView(out)}${snapchatCreativeInspectionView(out)}<dl>${(out.dependencies ?? []).map(row => `<dt>${esc(uiText(recipeDependencyLabels[row.id] ?? pretty(row.id)))} — ${status(row.status)}</dt><dd><code>${esc(row.id)}</code><p>${esc(uiText(row.meaning))}</p></dd>`).join('')}</dl>${out.blockers?.length ? `<h4>${esc(uiText('Resolve before review'))}</h4><ul>${out.blockers.map(row => `<li>${esc(row.step_id ?? '')} ${esc(row.code)}: ${esc(recipeBlockerMeaning(row))}</li>`).join('')}</ul>` : ''}${out.deferred?.length ? `<h4>${esc(uiText('Checks after predecessor verification'))}</h4><ul>${out.deferred.map(row => `<li>${esc(row.step ?? '')}: ${esc(uiText(row.reason))}</li>`).join('')}</ul>` : ''}${out.warnings?.length ? `<h4>${esc(uiText('Account policy notices'))}</h4><ul>${out.warnings.map(row => `<li>${esc(recipePolicyNotice(row))}</li>`).join('')}</ul>` : ''}${recordDetails(out, uiText('Native evidence and input provenance'))}</section>`;
 }
 /**
  * Why no account can be chosen (CMP-06): nothing is connected for this platform, or the selected playbook's bound
@@ -1203,7 +1275,7 @@ async function mountRecipeBuilder(profiles, openCampaign) {
           })
           .join(
             '',
-          )}</select></label><label>${esc(uiText('Account currency'))}<input name="currency" value="${esc(values.currency ?? '')}" pattern="[A-Z]{3}" maxlength="3" required></label>${required.map(k => (k === 'drive_url' && context.recipe.platform === 'meta' ? recipeImageField(values) : recipeField(k, fieldValue(k), true, recipe))).join('')}${recipe.startsWith('meta') ? `<label>${esc(uiText('Private Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public link or resolve a selected login'))}</option>${context.drive_connections.map(c => `<option value="${esc(c.id)}" ${values.drive_connection_id === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>` : ''}</div>${context.recipe.platform === 'google' ? `<details><summary>${esc(uiText('Find Google targeting IDs'))}</summary><label>${esc(uiText('Type'))}<select id="recipe-lookup-kind"><option value="country">${esc(uiText('Country'))}</option><option value="language">${esc(uiText('Language'))}</option></select></label><label>${esc(uiText('Country name/code or language'))}<input id="recipe-lookup-query" maxlength="60"></label><button type="button" class="button" id="recipe-lookup">${esc(uiText('Find targeting'))}</button><div id="recipe-lookup-results" aria-live="polite"></div></details>` : ''}${context.recipe.platform === 'microsoft' ? `<p class="form-note" id="recipe-location-note">${esc(uiText('Microsoft location IDs come from the Location Id column of its geographical locations file; use locations it lists as Active. Each becomes a positive location criterion of the paused campaign, read back by ID; activation preflight lists each location with the name Microsoft gives it, for you to confirm before approving.'))}</p>` : ''}<details><summary>${esc(uiText('Optional schedule'))}</summary><div class="recipe-fields">${optional.map(k => recipeField(k, fieldValue(k), false)).join('')}</div></details>${timed ? `<input type="hidden" name="schedule_timezone" value="${esc(zoneOf(selected))}"><p class="form-note" id="recipe-timezone-note">${esc(zoneNote(selected))}</p>` : ''}${context.recipe.platform === 'meta' ? `<details><summary>${esc(uiText('Audience age'))}</summary><p class="form-note">${esc(uiText('Meta targets ages 18–65 unless you set a range from 13 to 65.'))}</p><div class="recipe-fields">${['age_min', 'age_max'].map(k => recipeField(k, values[k], false)).join('')}</div></details>` : ''}${context.recipe.platform === 'tiktok' ? `<details><summary>${esc(uiText('Business Center identity'))}</summary><p class="form-note">${esc(uiText('Needed only for a BC_AUTH_TT identity: the Business Center that authorized the TikTok account.'))}</p><div class="recipe-fields">${recipeField('identity_authorized_bc_id', values.identity_authorized_bc_id, false)}</div></details>` : ''}${
+          )}</select></label><label>${esc(uiText('Account currency'))}<input name="currency" value="${esc(values.currency ?? '')}" pattern="[A-Z]{3}" maxlength="3" required></label>${required.map(k => (k === 'drive_url' && context.recipe.platform === 'meta' ? recipeImageField(values) : recipeField(k, fieldValue(k), true, recipe))).join('')}${recipe.startsWith('meta') ? `<label>${esc(uiText('Private Drive access'))}<select name="drive_connection_id"><option value="">${esc(uiText('Public link or resolve a selected login'))}</option>${context.drive_connections.map(c => `<option value="${esc(c.id)}" ${values.drive_connection_id === c.id ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select></label>` : ''}</div>${context.recipe.platform === 'google' ? `<details><summary>${esc(uiText('Find Google targeting IDs'))}</summary><label>${esc(uiText('Type'))}<select id="recipe-lookup-kind"><option value="country">${esc(uiText('Country'))}</option><option value="language">${esc(uiText('Language'))}</option></select></label><label>${esc(uiText('Country name/code or language'))}<input id="recipe-lookup-query" maxlength="60"></label><button type="button" class="button" id="recipe-lookup">${esc(uiText('Find targeting'))}</button><div id="recipe-lookup-results" aria-live="polite"></div></details>` : ''}${context.recipe.platform === 'microsoft' ? `<p class="form-note" id="recipe-location-note">${esc(uiText('Microsoft location IDs come from the Location Id column of its geographical locations file; use locations it lists as Active. Each becomes a positive location criterion of the paused campaign, read back by ID; activation preflight lists each location with the name Microsoft gives it, for you to confirm before approving.'))}</p>${context.location_lookup?.available === true ? recipeMicrosoftLocationLookup() : ''}` : ''}<details><summary>${esc(uiText('Optional schedule'))}</summary><div class="recipe-fields">${optional.map(k => recipeField(k, fieldValue(k), false)).join('')}</div></details>${timed ? `<input type="hidden" name="schedule_timezone" value="${esc(zoneOf(selected))}"><p class="form-note" id="recipe-timezone-note">${esc(zoneNote(selected))}</p>` : ''}${context.recipe.platform === 'meta' ? `<details><summary>${esc(uiText('Audience age'))}</summary><p class="form-note">${esc(uiText('Meta targets ages 18–65 unless you set a range from 13 to 65.'))}</p><div class="recipe-fields">${['age_min', 'age_max'].map(k => recipeField(k, values[k], false)).join('')}</div></details>` : ''}${context.recipe.platform === 'tiktok' ? `<details><summary>${esc(uiText('Business Center identity'))}</summary><p class="form-note">${esc(uiText('Needed only for a BC_AUTH_TT identity: the Business Center that authorized the TikTok account.'))}</p><div class="recipe-fields">${recipeField('identity_authorized_bc_id', values.identity_authorized_bc_id, false)}</div></details>` : ''}${
           context.conventions
             ? `<fieldset class="recipe-conventions"><legend>${esc(uiText('Client playbook rules'))}</legend><input type="hidden" name="playbook_rules_seen" value="1"><label class="form-note"><input type="checkbox" name="apply_playbook_rules" value="true" ${rulesOn ? 'checked' : ''}> ${esc(uiText('Apply this playbook’s naming and tracking rules to this plan'))}</label>${context.conventions.naming ? `<p class="form-note">${esc(uiText('Naming rule'))}: <code dir="ltr">${esc(context.conventions.naming)}</code></p>` : ''}${
                 Object.keys(context.conventions.utm ?? {}).length
@@ -1307,6 +1379,85 @@ async function mountRecipeBuilder(profiles, openCampaign) {
             if (formCurrent()) b.disabled = false;
           }
         });
+      // CMP-03: Microsoft location IDs by name, or a check of the IDs entered. An answer is shown only while the account
+      // and the query (or the entered IDs) are still the ones it was read for; Add puts its ID in the brief, for the
+      // account it was read for, and keeps the other results for the next one.
+      if (context.recipe.platform === 'microsoft' && context.location_lookup?.available === true) {
+        const results = $('#recipe-ms-location-results'),
+          entered = () => [
+            ...new Set(
+              String(f.elements.location_ids?.value ?? '')
+                .split(/[\r\n,]+/)
+                .map(s => s.trim())
+                .filter(Boolean),
+            ),
+          ];
+        const lookup = async (button, mode) => {
+          const target = f.elements.target.value,
+            ids = entered(),
+            typed = $('#recipe-ms-location-query').value.trim(),
+            query = mode === 'search' ? typed : ids.join(','),
+            sameAccount = () => formCurrent() && f.elements.target.value === target,
+            current = () =>
+              sameAccount() &&
+              (mode === 'search'
+                ? $('#recipe-ms-location-query').value.trim() === typed
+                : entered().join(',') === query);
+          button.disabled = true;
+          $('#recipe-error').textContent = '';
+          try {
+            if (!target) throw Error(uiText('Choose an account first.'));
+            if (!query)
+              throw Error(
+                uiText(
+                  mode === 'search' ? 'Enter a location name to search for.' : 'Enter the location IDs to check first.',
+                ),
+              );
+            if (mode === 'resolve' && (ids.length > 100 || !ids.every(id => /^[1-9][0-9]{0,18}$/.test(id))))
+              throw Error(uiText('Microsoft location IDs are numbers, one per line.'));
+            const out = await workspaceCall('campaign', {
+              action: 'recipe_lookup',
+              lookup_kind: 'microsoft_location',
+              ...JSON.parse(target),
+              query,
+            });
+            if (!current()) return;
+            if (!recipeMicrosoftLocationsValid(out, mode, ids))
+              throw Error(uiText('The location lookup answer is incomplete. Search again.'));
+            results.innerHTML = recipeMicrosoftLocationsView(out);
+            results.querySelectorAll('[data-ms-location]').forEach(el =>
+              el.addEventListener('click', () => {
+                if (!sameAccount()) return;
+                const field = f.elements.location_ids,
+                  listed = String(field.value ?? '')
+                    .split(/\r?\n/)
+                    .map(s => s.trim())
+                    .filter(Boolean);
+                field.value = [...new Set([...listed, el.dataset.msLocation])].join('\n');
+                changed();
+                field.focus();
+              }),
+            );
+          } catch (e) {
+            if (current()) $('#recipe-error').textContent = recipeErrorText(e);
+          } finally {
+            if (formCurrent()) button.disabled = false;
+          }
+        };
+        $('#recipe-ms-location-search').addEventListener('click', () =>
+          lookup($('#recipe-ms-location-search'), 'search'),
+        );
+        $('#recipe-ms-location-check').addEventListener('click', () =>
+          lookup($('#recipe-ms-location-check'), 'resolve'),
+        );
+        // Enter in the name field searches; it never submits the brief.
+        $('#recipe-ms-location-query').addEventListener('keydown', event => {
+          if (event.key !== 'Enter') return;
+          event.preventDefault();
+          if (!$('#recipe-ms-location-search').disabled) lookup($('#recipe-ms-location-search'), 'search');
+        });
+        f.elements.target.addEventListener('change', () => (results.innerHTML = ''));
+      }
       const business = () => {
         const all = readRecipeBusiness(f);
         for (const [k, v] of Object.entries(context.defaults ?? {}))

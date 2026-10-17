@@ -956,14 +956,21 @@ h2.report-section-label {
   font-size: 12px;
   font-weight: 400;
 }
+/* The spend, clicks and CPC figures wrap: an Arabic currency figure ("170.30 US$") is wider than "$170.30", and the
+   unwrapped row widened a 320-pixel page to 339 (RPT-07's rendered case). */
 .report-summary-card > div {
   display: flex;
-  gap: 26px;
+  flex-wrap: wrap;
+  gap: 12px 26px;
+}
+.report-summary-card > div > span {
+  min-width: 0;
 }
 .report-summary-card strong {
   display: block;
   font-size: 21px;
   margin-top: 7px;
+  overflow-wrap: anywhere;
 }
 .report-summary-card p {
   font-size: 13px;

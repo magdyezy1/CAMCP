@@ -345,6 +345,11 @@ snapshots only: no provider request and no saved change.
   "paired_previous_period"`). A pair that was deleted or is no longer compatible is skipped with a limitation; an
   explicit `baseline_id` is still checked and refused as before.
 - **Limits of meaning.** Deltas are observational: they do not establish causality or adjust for seasonality.
+- **On the page.** The comparison is a captioned table in a named region that scrolls sideways (keyboard arrows move
+  it); each cell shows this window's value, then "Earlier" and "Change" with Δ%, and a zero earlier value shows "—"
+  with the reason on hover. Native entity names keep their own direction. The rendered qualification's
+  `period-comparison` kind runs the whole journey (pull a pair, the worker collects both windows, compare) in English
+  and Arabic, light and dark, at 320, 375, 768 and 1280 pixels ([local browser QA](LOCAL-BROWSER-QA.md)).
 
 On **Evidence and analysis** (`/reports`), the **Earlier comparison report** select applies the same rule as the server
 (same account, report type, grain and measurement definitions, equal length, ending before this report starts) and

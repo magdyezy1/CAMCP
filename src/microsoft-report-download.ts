@@ -75,8 +75,9 @@ export function reportUrl(value: unknown): URL {
   return url;
 }
 /** Microsoft explicitly permits changing download domains. Pin validated public DNS
- * results into the TLS request instead of forwarding advertising credentials. */
-async function publicGet(url: URL, signal: AbortSignal): Promise<Response> {
+ * results into the TLS request instead of forwarding advertising credentials. The location lookup's file download
+ * (src/microsoft-locations.ts, CMP-03) uses it too. */
+export async function publicGet(url: URL, signal: AbortSignal): Promise<Response> {
   const records = await reportDns(url.hostname.replace(/^\[|\]$/g, ''), signal);
   if (!records.length || records.some(r => !publicReportAddress(r.address)))
     throw new MirrorError('UNAPPROVED_REPORT_URL', 'Report DNS resolved to a nonpublic address.', {}, 502);

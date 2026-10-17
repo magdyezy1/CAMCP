@@ -28,6 +28,8 @@ import {workerHealthBrowserFixture} from './worker-health-browser.mjs';
 import {reconciliationFixture, reconciliationRows, reconciliationRow} from './portfolio-reconciliation-data.mjs';
 import {conditionalProgramFixture} from './conditional-program-data.mjs';
 import {overviewGranularityFixture} from './overview-granularity-data.mjs';
+import {periodComparisonFixture} from './period-comparison-data.mjs';
+import {measurementLedgerFixture} from './measurement-ledger-data.mjs';
 import {syntheticWriteJourneyFixture, spendPolicyEditFixture, exportOutcomesFixture} from './synthetic-writes-data.mjs';
 
 /** Fixture kinds whose own fake provider accepts its declared synthetic mutations (QA-03, owner decision D26). */
@@ -40,6 +42,7 @@ export async function browserWorkflowSite(kind) {
       'empty',
       ...syntheticWriteKinds,
       'granular-reporting',
+      'period-comparison',
       'conditional-programs',
       'conditional-programs-denied',
       'conditional-programs-stale',
@@ -56,6 +59,7 @@ export async function browserWorkflowSite(kind) {
       'measurement-navigation',
       'measurement-navigation-linked',
       'measurement-trace',
+      'measurement-ledger',
       'conversion-metadata-owned',
       'conversion-metadata-unknown',
       'conversion-metadata-invalid',
@@ -115,6 +119,16 @@ export async function browserWorkflowSite(kind) {
   };
   if (kind === 'granular-reporting') {
     fixture = overviewGranularityFixture();
+    keyByte = fixture.keyByte;
+    cleanup.push(fixture.close);
+  } else if (kind === 'period-comparison') {
+    // RPT-07: one synthetic Meta account read per window; each case resets the retained snapshots.
+    fixture = periodComparisonFixture();
+    keyByte = fixture.keyByte;
+    cleanup.push(fixture.close);
+  } else if (kind === 'measurement-ledger') {
+    // MSR-03: a synthetic Snapchat ad account and TikTok advertiser answer the ledger's read routes only.
+    fixture = measurementLedgerFixture();
     keyByte = fixture.keyByte;
     cleanup.push(fixture.close);
   } else if (syntheticWriteKinds.includes(kind)) {
@@ -437,8 +451,14 @@ export async function browserWorkflowSite(kind) {
     // COM-03: a mapped supplier preview first saves the catalog's versioned column mapping, which only operators do
     // (readers are refused), so catalog-groups signs in as the owner; the canonical `catalog` journey stays a viewer's.
     role =
-      ['empty', 'worker-health', 'granular-reporting', 'catalog-groups', ...syntheticWriteKinds].includes(kind) ||
-      kind.startsWith('woocommerce-connection')
+      [
+        'empty',
+        'worker-health',
+        'granular-reporting',
+        'period-comparison',
+        'catalog-groups',
+        ...syntheticWriteKinds,
+      ].includes(kind) || kind.startsWith('woocommerce-connection')
         ? 'owner'
         : 'viewer';
   fixture.store.db
@@ -502,6 +522,8 @@ export async function browserWorkflowSite(kind) {
         : undefined,
     workerHealth,
     conditionalProgram: fixture.programGate,
+    periodComparison:
+      kind === 'period-comparison' ? {reset: () => fixture.reset(), drain: () => fixture.drain()} : undefined,
     granular:
       kind === 'granular-reporting'
         ? {
@@ -600,14 +622,19 @@ export async function browserWorkflowSite(kind) {
       : undefined,
     measurementReadRefusal:
       kind.startsWith('measurement-') &&
-      !['measurement-events', 'measurement-trace'].includes(kind) &&
+      !['measurement-events', 'measurement-trace', 'measurement-ledger'].includes(kind) &&
       !kind.startsWith('measurement-navigation')
         ? {kind: fixture.kind, input: fixture.input, message: fixture.message, code: fixture.code}
         : undefined,
     counts: () => ({
       nativeReads: fixture.requests?.length ?? fixture.calls?.length ?? native.length,
       refused,
-      writes: kind.startsWith('x-catalog-inventory') || syntheticWriteKinds.includes(kind) ? fixture.writes() : writes,
+      writes:
+        kind.startsWith('x-catalog-inventory') ||
+        syntheticWriteKinds.includes(kind) ||
+        ['period-comparison', 'measurement-ledger'].includes(kind)
+          ? fixture.writes()
+          : writes,
       // The fixture's own synthetic mutations, never forwarded (QA-03): the write journeys' creates and the owned
       // synthetic Sheets batches. Provider writes stay in `writes`, which must remain zero.
       syntheticWrites: syntheticWriteKinds.includes(kind)

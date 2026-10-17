@@ -131,6 +131,20 @@ contracts.push(
   },
 );
 export const microsoftContracts = new Map(contracts.map(c => [c.name, c]));
+/**
+ * GetGeoLocationsFileUrl (CMP-03): the URL of Microsoft's geographical locations file, which the location lookup reads
+ * (src/microsoft-locations.ts) and this gateway never sends. It is not one of `contracts`: AMCP sends a Microsoft request
+ * only as its pinned REST page documents it, and this page is an optional pin that tools/microsoft-rest.mjs records when
+ * the owner runs it. Until then the lookup refuses before anything is sent.
+ */
+export const microsoftGeoLocationsContract = Object.freeze({
+  name: 'GetGeoLocationsFileUrl',
+  method: 'POST',
+  path: base + 'GeoLocationsFileUrl/Query',
+  fields: Object.freeze(['Version', 'LanguageLocale', 'CompressionType']),
+  result: 'FileUrl',
+  page: 'https://learn.microsoft.com/en-us/advertising/campaign-management-service/getgeolocationsfileurl?view=bingads-13',
+});
 /** A Search campaign-management write (Add, Update or Delete) at the exact route of its contract. */
 export function microsoftSearchKind(p: CompiledRequest): boolean {
   if (p.gateway !== microsoftGateway) return false;

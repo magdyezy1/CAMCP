@@ -138,6 +138,9 @@ async function renderClientPlaybooks() {
     if (shared) defaults.common = values;
     else defaults.recipes = {...defaults.recipes, [currentRecipe]: values};
   };
+  // A field's label names its workflow's platform where the IDs differ by platform (location_ids, CMP-03).
+  const defaultLabel = (k, shared) =>
+    typeof recipeFieldLabel === 'function' ? recipeFieldLabel(k, shared ? undefined : currentRecipe) : recipeLabels[k];
   const drawDefaults = () => {
     const shared = currentRecipe === sharedDefaults,
       recipe = recipes.find(r => r.id === currentRecipe),
@@ -168,7 +171,7 @@ async function renderClientPlaybooks() {
       keys
         .map(
           k =>
-            `<label>${esc(recipeLabels[k] ? uiText(recipeLabels[k]) : pretty(k))}${recipeArrays.has(k) ? `<textarea data-default-field="${k}" rows="2">${esc((values[k] ?? []).join?.('\n') ?? values[k] ?? '')}</textarea>` : `<input data-default-field="${k}" value="${esc(values[k] ?? '')}">`}</label>`,
+            `<label>${esc(defaultLabel(k, shared) ? uiText(defaultLabel(k, shared)) : pretty(k))}${recipeArrays.has(k) ? `<textarea data-default-field="${k}" rows="2">${esc((values[k] ?? []).join?.('\n') ?? values[k] ?? '')}</textarea>` : `<input data-default-field="${k}" value="${esc(values[k] ?? '')}">`}</label>`,
         )
         .join('');
   };
