@@ -911,10 +911,11 @@ public and sign-in pages were 15.4% below, Live portfolio 43.8%, Commerce 35.5%,
 Those four were 2,750 bytes above until the shell lost most of the commentary WEB-07 had added to it (about 3.5 KB of
 compressed comments every page downloaded), the workspace-only chunk loading moved into `route-assets.js`, and the
 policy pages' shades and the no-JavaScript dark block moved into `public-tokens.css`, which the workspace never
-downloads. English About is the one open gap: 16,868 bytes against 15,848 (6.4%), from the semantic roles and the
-html tag About does not use and the workspace override layer (`theme.css`) it already carried; closing it is package
-work (About off `theme.css`, or the html tag out of `localization.js`). `tests/web-route-bytes.test.mjs` checks the
-same and keeps the split's gains, each with a wide margin.
+downloads. English About was the last open gap (16,868 bytes against 15,848): it downloaded `theme.css`, the
+workspace's dark override layer, although `about.css` took its colours from tokens. About no longer loads it
+(`about.css` carries the Appearance control's rules), so it downloads 15,111 bytes (4.7% below) and renders the same
+in dark mode with and without JavaScript; no page is open. `tests/web-route-bytes.test.mjs` checks the same and keeps
+the split's gains, each with a wide margin.
 
 `npm run build && node tools/benchmark-web-first-render.mjs --output-dir .runtime/<fresh-directory>` times the first
 content render (the page's own heading in the chosen language, no loading placeholder) on the synthetic fixture under

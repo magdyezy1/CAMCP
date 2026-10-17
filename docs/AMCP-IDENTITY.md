@@ -47,6 +47,14 @@ light and dark, with and without JavaScript, at 320 and 1280 pixels, found no di
 holding everything (2026-10-17). A component written with the roles is right in dark mode without an entry in
 `theme.css`, the older override layer that still re-colours the components not yet migrated.
 
+About loads no `theme.css` (w4a, 2026-10-17): `about.css` takes every colour from tokens and carries the Appearance
+control's rules, so About renders the same in dark mode with and without JavaScript. The override layer had given its
+JavaScript-dark rendering quirks the light theme and the no-JavaScript dark rendering never had: the eyebrows and the
+registration note in plain ink instead of the accent and muted ink, the footer muted, and a language error in plain
+ink instead of the danger ink. Light mode and every no-JavaScript state are unchanged (computed-style comparison at
+320, 375 and 1280 pixels, English and Arabic); in dark mode with JavaScript the eyebrows measure 10.5–12.0:1, the
+registration note and the Appearance label 9.2:1 on their surfaces, and the footer's contrast rises.
+
 `tools/check-colours.mjs` (part of `check-web`) checks, over both token sheets, that every colour token has a dark
 value and that the two dark blocks agree, and counts the literal colours left in every shipped stylesheet (`tools/web-colour-baseline.json`):
 a count may only go down. Brand marks and the printed page keep their literal colours by name in

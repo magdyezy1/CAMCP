@@ -423,7 +423,6 @@
       "manual": {"state": "not_recorded", "evidence": []},
       "remainders": [
         {"text": "Real tenant load tests and shared-quota admission", "disposition": "register_item", "ref": "OPS-08"},
-        {"text": "WEB-07 transferred bytes: English About downloads 16,868 Brotli bytes before it renders against 15,848 on the merged tree before WEB-07, an open gap in tools/web-route-bytes-baseline.json that may not grow (About off theme.css's override layer, or the html tag out of localization.js, closes it); every other page and language is at or below its baseline", "disposition": "register_item", "ref": "WEB-07"},
         {"text": "WEB-07 ES modules with explicit imports instead of the shared global scope", "disposition": "optional_stretch", "ref": "WEB-07"}
       ]
     },

@@ -58,11 +58,5 @@
     "ar /report-pack": 643920,
     "en /about": 15848,
     "ar /about": 439703
-  },
-  "open": {
-    "en /about": {
-      "limit": 16868,
-      "reason": "WEB-07 acceptance gap, not an accepted exception (no owner decision covers it): About downloads tokens.css and localization.js, which WEB-07 grew by the semantic roles and the html tag About does not use, and the workspace override layer it already carried (theme.css, 1,911 bytes). Remainder for package w4a-web07-bytes (About off theme.css, or the html tag out of localization.js), measured 2026-10-17."
-    }
   }
 }

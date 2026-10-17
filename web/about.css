@@ -89,6 +89,23 @@ main {
 .about-header .language-control select {
   min-height: 44px;
 }
+/* The Appearance control; About takes every colour from tokens and loads no theme.css (WEB-07). */
+.theme-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.theme-control select {
+  font: inherit;
+  min-height: 32px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 4px 7px;
+  color: var(--ink);
+  background: var(--white);
+}
 .eyebrow {
   font-size: 0.75rem;
   font-weight: 750;
@@ -318,6 +335,15 @@ main {
   .about-footer nav {
     width: 100%;
     margin-inline-start: 0;
+  }
+}
+@media (max-width: 600px) {
+  .theme-control > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
   }
 }
 @media (prefers-reduced-motion: reduce) {
