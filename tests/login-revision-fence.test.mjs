@@ -86,7 +86,8 @@ test('every code path that writes the connections table is classified for the lo
       updateConnection: 'metadata only; keeps revision and credentials',
       sealCredentials: 'replace bumps on different credentials; refresh and re-seal keep it',
     },
-    'server/website.ts': {label: 'json_set of $.label only', default: 'isDefault flag inside a transaction'},
+    // ARC-04 stage D moved the website's two connection writes from createWebsite into its store-layer repository.
+    'server/website-repository.ts': {label: 'json_set of $.label only', default: 'isDefault flag inside a transaction'},
     // The local disconnect (src/connection-disconnect.ts) deletes the login through the store layer (ARC-02).
     'src/connection-repository.ts': {delete: 'removes the login (deleteConnectionRow)'},
   };
@@ -112,8 +113,8 @@ test('every code path that writes the connections table is classified for the lo
   }
   assert.deepEqual([...found['src/store.ts']].sort(), Object.keys(classified['src/store.ts']).sort());
   assert.deepEqual(Object.keys(found).sort(), Object.keys(classified).sort(), JSON.stringify(found));
-  assert.equal(found['server/website.ts'].length, 2);
-  assert.ok(found['server/website.ts'].some(l => l.includes("json_set(data,'$.label'")));
+  assert.equal(found['server/website-repository.ts'].length, 2);
+  assert.ok(found['server/website-repository.ts'].some(l => l.includes("json_set(data,'$.label'")));
   assert.equal(found['src/connection-repository.ts'].length, 1);
   assert.ok(found['src/connection-repository.ts'][0].includes('DELETE FROM connections WHERE tenant_id=? AND id=?'));
 });

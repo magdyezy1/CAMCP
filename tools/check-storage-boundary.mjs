@@ -49,10 +49,12 @@ export const storeRepositories = [
   'src/workbook-repository.ts',
   'src/worker-health-repository.ts',
   'src/write-record-repository.ts',
-  // The website's repositories for its own tables (sessions, sign-in limits, AI-client grants).
+  // The website's repositories for its own tables (sessions, sign-in limits, AI-client grants), and the statements its
+  // route modules make on AMCP's tables (a login's label, default flag and asset selection, access-set use; ARC-04).
   'server/login-limit-repository.ts',
   'server/mcp-grant-repository.ts',
   'server/web-session-repository.ts',
+  'server/website-repository.ts',
 ];
 /** The store layer: the only modules whose SQL and database handle uses are not counted. */
 export const storeLayer = [

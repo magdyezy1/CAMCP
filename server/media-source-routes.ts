@@ -13,7 +13,7 @@ const partsInFlight = 16;
  * upload is discarded the same way). Every change needs the signed-in session, its CSRF
  * token and the site's own origin; a part's body is read only after those checks and the part's exact length are
  * known, so a request that is refused never costs the server its body. Reviewer test accounts do not reach these
- * routes (see the allow-list in website.ts).
+ * routes (see the allow-list in website-gates.ts).
  */
 export function mediaSourceRoutes(web: WebStore, store: Store, sources: () => MediaSources) {
   // Express 5 passes a thrown error or a rejected promise of a handler on to the error handler.

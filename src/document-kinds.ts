@@ -900,7 +900,7 @@ export const documentKindSpecs = {
   },
   website_assets: {
     scope: 'tenant',
-    owner: 'server/website.ts',
+    owner: 'server/website-connections.ts',
     version: 1,
     summary: 'The assets a login can select, as its last discovery listed them; the document id is the connection id.',
     fields: {},
@@ -909,7 +909,7 @@ export const documentKindSpecs = {
   },
   website_connection: {
     scope: 'tenant',
-    owner: 'server/website.ts',
+    owner: 'server/website-connections.ts',
     version: 1,
     summary: 'The website side of a login: its selection and settings; the document id is the connection id.',
     fields: {'createdAt?': 'number'},
@@ -918,7 +918,7 @@ export const documentKindSpecs = {
   },
   website_mcp_token: {
     scope: 'tenant',
-    owner: 'server/website.ts',
+    owner: 'server/access-routes.ts',
     version: 1,
     summary: "A connector token's record: its name, role, hash, creator and revocation.",
     fields: {hash: 'string'},

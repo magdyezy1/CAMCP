@@ -11,7 +11,7 @@ One Node.js 24 process (`dist/server/http.js`) hosts three things:
 
 | Component | Entry | What it does |
 |---|---|---|
-| Website | `server/website.ts` + `web/` | Accounts, MFA, sessions, platform OAuth, account selection, MCP connector page, policies, plans, reporting |
+| Website | `server/website.ts` (route registry, §14), its route modules + `web/` | Accounts, MFA, sessions, platform OAuth, account selection, MCP connector page, policies, plans, reporting |
 | MCP endpoint | `server/http-app.ts` (`POST /mcp`) → `server/mcp.ts` | Stateless Streamable HTTP; bearer token → `Actor`; every tool call goes to `MirrorService.call` |
 | Worker loop | `server/http.ts` (`ReportWorker`) | Report jobs, scheduled exports, write verification jobs, e-mail outbox |
 
@@ -24,7 +24,8 @@ SQLite file (`MIRROR_DB`, `/data/mirror.sqlite` on Railway) opened through `node
 ```
 server/                         website, OAuth, MCP transport, worker loop
   http.ts ─ http-app.ts ─ mcp.ts ─────────────┐
-  website.ts, user-accounts.ts, account-*.ts   │
+  website.ts (route registry), *-routes.ts,    │
+  website-*.ts, user-accounts.ts, account-*.ts │
   platform-oauth.ts, social-signin.ts,         │
   mcp-oauth.ts, web-store.ts                   │
                                                ▼
@@ -94,7 +95,7 @@ flowchart LR
 
 | Boundary | Crossing | Control (where) |
 |---|---|---|
-| Browser → website | cookie session, form/JSON posts | session cookie, CSRF token, `Origin` check, MFA (`server/website.ts`, `server/web-store.ts`, `server/account-security.ts`) |
+| Browser → website | cookie session, form/JSON posts | session cookie, CSRF token, `Origin` check, MFA (the route modules of `server/website.ts` and their gates in `server/website-gates.ts`, `server/web-store.ts`, `server/account-security.ts`) |
 | MCP client → `/mcp` | bearer token | `store.authenticate` (hashed token, expiry, revocation), `Origin` pinned to public origin (`server/http-app.ts:48-70`) |
 | Actor → tenant data | every tool call | `Actor.tenantId` on every store query; `assertActorActive` on every call (`src/service.ts:116-120`) |
 | Actor → provider account | per request | `store.resolveConnection` + `ScopeGuard.authorize` (selected accounts, resource grants, ownership bindings) |
@@ -292,10 +293,10 @@ imported by `campaign-runner.ts`, `recipe-context.ts` and `service.ts`.
 |---|---|
 | `largest_runtime_scc` | 3 |
 | `cyclic_modules` | 11 |
-| `shared_modules_with_gateway_literals` | 88 |
-| `shared_to_provider_runtime_imports` | 488 |
+| `shared_modules_with_gateway_literals` | 87 |
+| `shared_to_provider_runtime_imports` | 487 |
 | `local_fail_copies` | 0 |
-| `shared_gateway_literals` (reported) | 701 |
+| `shared_gateway_literals` (reported) | 693 |
 | Runtime import cycles | `src/microsoft-associations.ts` ↔ `src/microsoft-campaign-criteria.ts` ↔ `src/microsoft-native.ts`; `src/allocation-calibration.ts` ↔ `src/report-allocation.ts`; `src/apple-entity-writes.ts` ↔ `src/measurement-writes.ts`; `src/effect-class.ts` ↔ `src/preflight.ts`; `src/reddit-creative-writes.ts` ↔ `src/reddit-writes.ts` |
 <!-- architecture-map:baseline:end -->
 
@@ -468,9 +469,24 @@ the tool, awaited so that its refusal is audited like any other, then the native
 eight branches and a second list naming the timing categories; `callOnce` fell from 315 lines to 186.
 `tests/composite-tools.test.mjs` holds the entries, their categories and that an inherited name is no tool.
 
-Not yet tables (a separate change, so that it does not collide with work that edits the same lines): the route
-modules of `server/website.ts` (`createWebsite`). WEB-07, merged beside this work, has split `web/account-workflows.js`
-behind `web/route-assets.js`: a shared helper and the portfolio, measurement and commerce modules.
+The website's routes are route modules registered through one registry, `websiteRoutes` (`server/website.ts`).
+`createWebsite` registered every route itself (1,816 lines). It now builds the website's parts once (`websiteSite`, in
+the order it built them: the web store, the OAuth services, accounts, the public asset snapshot and the login views of
+`server/website-connections.ts`) and calls each route module in registration order, which is the order Express
+matches routes in: the security headers and the test-account and two-step enrollment gates (`server/website-gates.ts`),
+the account pages, `/api` no-store, the MCP token budgets and authorization server (`server/mcp-token-routes.ts`),
+report downloads and the workspace tools (only where the MCP service runs), the session, AI-client consent, platform
+logins and provider returns (before the connection routes, so `/api/connections/callback` is a provider return),
+connections, connector tokens and client access sets, activity, and the public pages with the not-found page last
+(`server/page-routes.ts`). A new route joins the module of its area, in that module's order. The routes' SQL moved
+into the store layer (`server/website-repository.ts`), and the three gateways the website treats by name come from
+the provider adapter registry. The modules' code is the function's code unchanged (a token comparison shows no other
+difference), and the router has the same layers as before in every deployment shape: the same 98 layers (85 without
+the MCP service) in the same order, with the same paths, methods and handlers. `tests/website-routes.test.mjs` holds
+the registry order, the orderings that decide a match and the fall-through answers (404, never 405). `createWebsite`
+is 7 lines; the longest route module is `connectionRoutes` (378). WEB-07, merged beside this work, has split
+`web/account-workflows.js` behind `web/route-assets.js`: a shared helper and the portfolio, measurement and commerce
+modules.
 
 ## 15. Module structure
 
@@ -489,10 +505,10 @@ stage A measured it) to 3, and no cycle holds the family registry, the lifecycle
 fail when imported first, from 2 (3) to 0; local `fail` helpers, from 126 by the review's count (153 by the
 ratchet's) to 0, ratcheted; the seven portfolio adapters share one signed cursor and one `PortfolioAdapter` contract;
 each reporting platform has one report source behind a registry. In the functions ARC-04 restructured none is longer
-than 400 lines (`DecisionReporting.handle` was 899, now 30). Thirteen backend functions still are, such as
-`createWebsite` (1,816), `CampaignRunner.handle` (1,306), `NativeCampaignReports.collectSource` (978), `errorRemedy`
-(841) and `MediaUploadService.handle` (739); the review's target of three or fewer needs the Stage D changes listed in
-§14 and the same treatment of the rest. These are open remainders of B18 and B27 in `docs/review/package-status.json`,
+than 400 lines (`DecisionReporting.handle` was 899, now 30; `MediaUploadService.handle` 732, now 98; `createWebsite`
+1,816, now 7). Twelve backend functions still are (counted from their first line to their last), such as
+`CampaignRunner.handle` (1,311), `NativeCampaignReports.collectSource` (978) and `errorRemedy` (867); the review's
+target of three or fewer needs the same treatment of the rest. These are open remainders of B18 and B27 in `docs/review/package-status.json`,
 so neither package is closed by ARC-04. Also left by ARC-04: family remedies declared by each family for `errorRemedy`
 to consult first (today `familyRemedy` in `src/errors.ts`, which other packages are extending), and a `readsFor`
 helper, which stage B made unnecessary for the import cycle because a family receives its read builders as hook

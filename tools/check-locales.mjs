@@ -527,22 +527,39 @@ function importedMirrorErrorSentences(source, errorModule) {
   });
   return messages;
 }
+/**
+ * The website's own server sources, whose authored refusals the website shows (server:website-failures, carried in
+ * the shell chunk). ARC-04 stage D split createWebsite into the route modules listed after server/website.ts.
+ */
+export const websiteFailureSources = Object.freeze([
+  'server/account-routes.ts',
+  'server/account-security.ts',
+  'server/asset-discovery.ts',
+  'server/google-account-discovery.ts',
+  'server/google-reauthorization.ts',
+  'server/http-app.ts',
+  'server/media-source-routes.ts',
+  'server/password-hashes.ts',
+  'server/platform-oauth.ts',
+  'server/social-signin.ts',
+  'server/user-accounts.ts',
+  'server/web-store.ts',
+  'server/website.ts',
+  'server/access-routes.ts',
+  'server/activity-routes.ts',
+  'server/connection-routes.ts',
+  'server/mcp-consent-routes.ts',
+  'server/mcp-token-routes.ts',
+  'server/page-routes.ts',
+  'server/platform-routes.ts',
+  'server/report-download-routes.ts',
+  'server/session-routes.ts',
+  'server/website-connections.ts',
+  'server/website-gates.ts',
+  'server/workspace-routes.ts',
+]);
 export function inspectWebsiteFailures(source, file) {
-  const selected = new Set([
-    'server/account-routes.ts',
-    'server/account-security.ts',
-    'server/asset-discovery.ts',
-    'server/google-account-discovery.ts',
-    'server/google-reauthorization.ts',
-    'server/http-app.ts',
-    'server/media-source-routes.ts',
-    'server/password-hashes.ts',
-    'server/platform-oauth.ts',
-    'server/social-signin.ts',
-    'server/user-accounts.ts',
-    'server/web-store.ts',
-    'server/website.ts',
-  ]);
+  const selected = new Set(websiteFailureSources);
   if (!selected.has(file.replaceAll('\\', '/'))) return new Set();
   return importedMirrorErrorSentences(source, '../src/errors.js');
 }
@@ -1352,21 +1369,7 @@ export function checkWebLocales(root = process.cwd()) {
         .replaceAll('&gt;', '>')
         .replaceAll('&amp;', '&'),
     );
-  for (const file of [
-    'server/account-routes.ts',
-    'server/account-security.ts',
-    'server/asset-discovery.ts',
-    'server/google-account-discovery.ts',
-    'server/google-reauthorization.ts',
-    'server/http-app.ts',
-    'server/media-source-routes.ts',
-    'server/password-hashes.ts',
-    'server/platform-oauth.ts',
-    'server/social-signin.ts',
-    'server/user-accounts.ts',
-    'server/web-store.ts',
-    'server/website.ts',
-  ])
+  for (const file of websiteFailureSources)
     for (const message of inspectWebsiteFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
       need('server:website-failures', message);
   for (const file of [

@@ -197,8 +197,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // src/portfolio-runner.ts (no owned reasons: the portfolio refusals stay in each adapter). Stage F adds the report
   // source contract, its registry and ten provider report sources (no wrapper reasons).
   // Stage C adds src/family-kit.ts; the family modules that import its fail keep their owned reasons. Stage D adds
-  // src/tool-actions.ts (no wrapper reasons).
-  assert.equal(files.length, 622);
+  // src/tool-actions.ts (no wrapper reasons). Stage F's report jobs add src/report-job.ts and src/report-jobs.ts, and
+  // stage D's split of createWebsite 14 server modules, none with a wrapper reason.
+  assert.equal(files.length, 638);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
   assert.equal(Object.keys(catalog).length, 11485);

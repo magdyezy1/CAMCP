@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {inspectWebsiteFailures, localeProblems} from '../tools/check-locales.mjs';
+import {inspectWebsiteFailures, localeProblems, websiteFailureSources} from '../tools/check-locales.mjs';
 import {MirrorError, errorResult} from '../dist/src/errors.js';
 import {accountWorkflowFixture} from './fixtures/account-workflows-ui.mjs';
 const counts = {
@@ -17,7 +17,21 @@ const counts = {
   'server/social-signin.ts': 21,
   'server/user-accounts.ts': 32,
   'server/web-store.ts': 14,
-  'server/website.ts': 45,
+  // ARC-04 stage D split createWebsite (server/website.ts, which held 45 reasons) into route modules registered in
+  // order; each reason moved with its route, so the same 45 are owned and the total below is unchanged.
+  'server/website.ts': 0,
+  'server/access-routes.ts': 6,
+  'server/activity-routes.ts': 0,
+  'server/connection-routes.ts': 18,
+  'server/mcp-consent-routes.ts': 3,
+  'server/mcp-token-routes.ts': 0,
+  'server/page-routes.ts': 0,
+  'server/platform-routes.ts': 5,
+  'server/report-download-routes.ts': 4,
+  'server/session-routes.ts': 2,
+  'server/website-connections.ts': 1,
+  'server/website-gates.ts': 2,
+  'server/workspace-routes.ts': 4,
 };
 const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
 const owned = new Set(
@@ -62,7 +76,9 @@ test('website diagnostic ownership excludes unrelated source, unresolved constru
   ])
     assert.deepEqual([...inspectWebsiteFailures(source, 'server/website.ts')], []);
 });
-test('all thirteen selected website sources have exact authored diagnostic coverage with native tokens and limits preserved', () => {
+test('all selected website sources have exact authored diagnostic coverage with native tokens and limits preserved', () => {
+  // The inventory's own list (tools/check-locales.mjs) is the one these counts cover.
+  assert.deepEqual(Object.keys(counts).sort(), [...websiteFailureSources].sort());
   for (const [file, count] of Object.entries(counts))
     assert.equal(inspectWebsiteFailures(fs.readFileSync(file, 'utf8'), file).size, count, file);
   assert.equal(owned.size, 259);

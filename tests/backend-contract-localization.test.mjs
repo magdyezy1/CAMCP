@@ -151,9 +151,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // src/tool-actions.ts (no owned reasons). Stage F's report jobs add src/report-job.ts and src/report-jobs.ts (no
   // owned reasons); the 14 reasons of the X and Microsoft report retrievals and of the X and TikTok job-read checks
   // moved with that code from src/service.ts to src/x-report-download.ts (one more file with reasons),
-  // src/microsoft-report-download.ts and src/tiktok-report-jobs.ts, so the owned reasons are the same.
-  assert.equal(files.length, 624);
-  assert.equal(selected.filter(row => row.messages.size).length, 237);
+  // src/microsoft-report-download.ts and src/tiktok-report-jobs.ts, so the owned reasons are the same. Stage D's split
+  // of createWebsite adds 14 server modules: twelve route and helper modules, the website's site contract and its
+  // store-layer repository. The 45 reasons of server/website.ts moved with their routes into nine of them, so the
+  // owned reasons are the same.
+  assert.equal(files.length, 638);
+  assert.equal(selected.filter(row => row.messages.size).length, 245);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11485);
   assert.deepEqual(localeProblems(catalog, owned), []);
