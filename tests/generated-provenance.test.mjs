@@ -44,6 +44,8 @@ test('every file in generated/ and the ledger, report and guide outputs are decl
     '.mirror/REPORTS/compatibility-verification.json',
     'docs/implementation/ACTION-CONTRACT-COVERAGE.json',
     'Skills/amcp-campaign-builder/references/workspace.md',
+    // The architecture ratchet's baseline (ARC-01, ARC-04), merged beside this inventory in wave 3b.
+    'docs/review/architecture-baseline.json',
   ])
     assert.ok(declared.includes(file), file);
   for (const artifact of generatedArtifacts) {

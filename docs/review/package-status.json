@@ -132,7 +132,8 @@
       "manual": {"state": "not_recorded", "evidence": []},
       "remainders": [
         {"text": "Truthful readiness from actually granted scopes", "disposition": "register_item", "ref": "CON-03"},
-        {"text": "Provider eligibility register for declared approvals and access levels", "disposition": "register_item", "ref": "ACC-05"}
+        {"text": "Provider eligibility register for declared approvals and access levels", "disposition": "register_item", "ref": "ACC-05"},
+        {"text": "ARC-03 stage B route anchors per gateway (docs/implementation/ROUTE-ANCHOR-COVERAGE.md): no anchored executable route for LinkedIn (214), Snapchat (343), TikTok (384) and X (161), and 158 Meta routes resting on the captured catalog only; and the per-family manifests (src/families/<name>.manifest.ts) feeding the provider contracts, CONTRACTS.md, the ledger and PARITY", "disposition": "register_item", "ref": "ARC-03"}
       ]
     },
     {
@@ -285,7 +286,8 @@
       "remainders": [
         {"text": "Harvest Railway build logs and image digests as Linux/container evidence", "disposition": "register_item", "ref": "ACC-04"},
         {"text": "Finite manual assistive-technology acceptance", "disposition": "register_item", "ref": "ACC-07"},
-        {"text": "Railway settings before the 2026-12-01 cutoff and path-scoped deploys", "disposition": "register_item", "ref": "OPS-05"}
+        {"text": "Railway settings before the 2026-12-01 cutoff and path-scoped deploys", "disposition": "register_item", "ref": "OPS-05"},
+        {"text": "ARC-03 manual acceptance: the owner reviews the unanchored route list (docs/implementation/ROUTE-ANCHOR-COVERAGE.md) and the withheld-capture declaration (.mirror/RAW/WITHHELD.json), and runs the network steps no check takes: the Apple SDK re-derivation at its pinned revision and pinning the TikTok SDK", "disposition": "owner_action", "ref": "ARC-03"}
       ]
     },
     {

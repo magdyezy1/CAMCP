@@ -56,6 +56,7 @@ export const gates = {
     'contracts_actions_check',
   ),
   docs: gate('npm run docs:index:check', ['tools/docs-index.mjs', '--check'], 'docs_index_check'),
+  architecture: gate('npm run architecture:check', ['tools/architecture-map.mjs', '--check'], 'architecture_check'),
 };
 /**
  * The tracked generated and derived artifacts. `outputs` may use `*` within one path segment. `provenance` says where
@@ -225,6 +226,18 @@ export const generatedArtifacts = [
     provenance: 'Its header names the generator and its inputs.',
     // Checked by the suite rather than a freshness gate: it needs the built register module.
     check: {test: 'tests/provider-access.test.mjs', argv: ['tools/acceptance/provider-access.mjs', '--check']},
+  },
+  {
+    // ARC-01 phase A and ARC-04: the architecture ratchet's recorded baseline (owner decision D26).
+    id: 'architecture_baseline',
+    outputs: ['docs/review/architecture-baseline.json'],
+    generator: 'tools/architecture-map.mjs',
+    regenerate:
+      'npm run build, then npm run architecture:baseline, only after an intended improvement or a regression the owner accepted (the commit says which)',
+    inputs: ['dist/src and dist/server (the runtime imports Node evaluates)', 'src/ and server/ (the source text)'],
+    provenance:
+      'The ratcheted measurements and the runtime import cycles; docs/review/ARCHITECTURE.md shows them in the table between its architecture-map markers, which the check compares with this file.',
+    check: gates.architecture,
   },
 ];
 
