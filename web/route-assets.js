@@ -46,25 +46,12 @@ const pageAssetDependencies = {
   'report-delivery.js': ['report-library.js'],
   'account-approvals.js': ['owner-operations.js'],
 };
-const pageAssetRoutes = {
-  '/dashboard': ['work-center.js'],
-  '/campaigns': ['campaign-recipes.js', 'campaign-workflows.js'],
-  '/media': ['creative-push.js', 'creative-library.js', 'ad-previews.js', 'campaign-workflows.js'],
-  '/reports': ['evidence-workflows.js', 'report-reference.js', 'report-quality.js'],
-  '/reporting-overview': ['report-quality.js', 'report-library.js', 'report-delivery.js', 'report-workflows.js'],
-  '/operations': ['operations-center.js'],
-  '/capabilities': ['capability-center.js'],
-  '/report-library': ['report-workflows.js'],
-  '/report-pack': ['evidence-workflows.js'],
-  '/monitors': ['operations-center.js'],
-  '/portfolio': ['account-workflows.js'],
-  '/measurement': ['account-workflows.js', 'measurement-trace-import.js'],
-  '/commerce': ['account-workflows.js'],
-  '/schedules': ['work-center.js'],
-  '/profiles': ['client-playbooks.js'],
-  '/account': ['mfa-qr.js'],
-  '/settings': ['owner-operations.js', 'account-approvals.js'],
-};
+// The files each page loads are its route registry entry's `assets` (web/routes.js, WEB-07): a page is declared once.
+const pageAssetRoutes = Object.freeze(
+  Object.fromEntries(
+    routeRegistry.filter(entry => entry.assets).map(entry => [entry.path, Object.freeze([...entry.assets])]),
+  ),
+);
 const pageAssetLoads = new Map();
 /**
  * After a versioned file failed to download, asks the server once whether this page's snapshot is still current.
@@ -108,9 +95,9 @@ function loadPageAsset(file) {
   const entry = {state: 'loading', promise: null};
   pageAssetLoads.set(file, entry);
   const initialize = async () => {
-    // These scripts capture existing globals during initialization. Other dependencies run only after page loading.
-    if (file === 'account-approvals.js') await loadPageAsset('owner-operations.js');
-    if (file === 'mfa-qr.js') await loadPageAsset('vendor/qrcode-generator-2.0.4.js');
+    // No script captures another's globals while it initializes: page modules register with the shell's extension
+    // points (WEB-07) and call their dependencies only once the page renders, after every file of the page is ready.
+    // Scripts inserted with async=false still run in the order they were requested.
     await new Promise((resolve, reject) => {
       const script = document.createElement('script'),
         originalPath = '/assets/' + file,

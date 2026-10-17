@@ -230,7 +230,10 @@ function scopedShell(session, pathname) {
   const run = source => new Script(source).runInContext(context);
   run(fs.readFileSync('web/localization.js', 'utf8'));
   run(fs.readFileSync('web/routes.js', 'utf8'));
-  run('var renders = []; var render = async function () { renders.push(location.pathname); };');
+  // The shell's real render() with its hooks (WEB-07); the page itself is recorded instead of rendered.
+  const app = fs.readFileSync('web/app.js', 'utf8');
+  run(app.slice(app.indexOf('async function render() {'), app.indexOf('async function renderCurrentPage()')));
+  run('var renders = []; var renderCurrentPage = async function () { renders.push(location.pathname); };');
   run(fs.readFileSync('web/account-scope.js', 'utf8'));
   return {run, context, navLinks, groupNodes, note, inserted, location};
 }

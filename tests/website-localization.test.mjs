@@ -346,6 +346,8 @@ test('English and Arabic sign-in/MFA screens submit identical endpoints and orig
         return {};
       },
     });
+    // account-security.js registers its part of /account with the route registry's extension points (WEB-07).
+    f.run(readFileSync('web/routes.js', 'utf8'));
     f.run(readFileSync('web/account-security.js', 'utf8'));
     await f.context.renderAuthPage();
     assert.match(node('#content').innerHTML, /name="email"/);

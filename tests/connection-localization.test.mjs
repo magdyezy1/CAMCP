@@ -78,6 +78,8 @@ function fixture(locale) {
   });
   const run = code => new Script(code).runInContext(context);
   run(readFileSync('web/localization.js', 'utf8'));
+  // The route registry and its extension points (WEB-07) load before app.js, as in index.html.
+  run(readFileSync('web/routes.js', 'utf8'));
   const app = readFileSync('web/app.js', 'utf8'),
     start = app.indexOf('(async () => {'),
     end = app.indexOf('})();', start) + 5;
@@ -285,7 +287,8 @@ test('Arabic owner access review retains original user, test flag and explicit r
   for (const locale of ['en', 'ar']) {
     const f = fixture(locale);
     f.context.location.pathname = '/settings';
-    f.run('renderSettings=async()=>{}');
+    // WEB-07: the shared Settings page is stubbed; renderSettings() then renders the part account-approvals.js adds.
+    f.run('renderWorkspaceSettings=()=>{}');
     f.context.api = async (url, args) => {
       if (args) {
         f.calls.push({url, body: JSON.parse(args.body)});
@@ -355,7 +358,8 @@ test('Arabic owner controls preserve spending units, exact account binding and c
     const f = fixture(locale);
     f.context.location.pathname = '/settings';
     f.context.platform = structuredClone(platform);
-    f.run('platforms=[platform];renderSettings=()=>{}');
+    // WEB-07: the shared Settings page is stubbed; renderSettings() then renders the part owner-operations.js adds.
+    f.run('platforms=[platform];renderWorkspaceSettings=()=>{}');
     f.context.api = async (url, args) => {
       if (url === '/api/account/options') return {emailEnabled: true, providers: []};
       const body = JSON.parse(args.body);

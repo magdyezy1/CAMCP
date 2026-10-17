@@ -207,6 +207,8 @@ function client(scriptUrl) {
   });
   const run = text => new Script(text).runInContext(context);
   run(fs.readFileSync('web/theme.js', 'utf8'));
+  // The loader reads each page's assets from the route registry (WEB-07).
+  run(fs.readFileSync('web/routes.js', 'utf8'));
   run(fs.readFileSync('web/route-assets.js', 'utf8'));
   return {run, appended, listeners, timers};
 }

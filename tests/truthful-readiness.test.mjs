@@ -434,7 +434,8 @@ test('Home and Connections render stale, not-applicable and declined-permission 
   load('web/app.js', 'renderGrantedPermissions');
   const run = (fn, value) => {
     context.value = value;
-    return new Script(fn + '(value)').runInContext(context);
+    // Markup helpers return escape-by-default html`…` (WEB-07); the page writes it as its markup string.
+    return new Script('String(' + fn + '(value))').runInContext(context);
   };
   assert.match(run('readinessBadge', {readiness: 'not_applicable'}), /data-state="not_applicable">Not applicable/);
   assert.match(run('readinessBadge', {readiness: 'account_read', stale: true}), /data-state="stale">Stale/);

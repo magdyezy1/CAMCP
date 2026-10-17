@@ -302,7 +302,8 @@ test('Connections copy: renewal line instead of the first token expiry, Reauthor
   }
   const render = (fn, value) => {
     context.value = value;
-    return new Script(fn + '(value)').runInContext(context);
+    // Markup helpers return escape-by-default html`…` (WEB-07); the page writes it as its markup string.
+    return new Script('String(' + fn + '(value))').runInContext(context);
   };
   const healthy = {
     id: 'a',

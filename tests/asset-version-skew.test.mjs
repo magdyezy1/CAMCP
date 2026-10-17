@@ -69,6 +69,8 @@ function loader(fetcher) {
   });
   const run = text => new Script(text).runInContext(context);
   run(fs.readFileSync('web/theme.js', 'utf8'));
+  // The loader reads each page's assets from the route registry (WEB-07).
+  run(fs.readFileSync('web/routes.js', 'utf8'));
   run(fs.readFileSync('web/route-assets.js', 'utf8'));
   return {run, appended, requests, timers, load: route => run('ensurePageAssets(' + JSON.stringify(route) + ')')};
 }
@@ -152,6 +154,7 @@ test('an unversioned page never probes: only snapshot addresses can be supersede
     window: {addEventListener() {}, removeEventListener() {}},
     document: {createElement: () => ({remove() {}}), head: {append: script => appended.push(script)}},
   });
+  new Script(fs.readFileSync('web/routes.js', 'utf8')).runInContext(legacy);
   new Script(fs.readFileSync('web/route-assets.js', 'utf8')).runInContext(legacy);
   const pending = new Script("ensurePageAssets('/operations')").runInContext(legacy),
     refused = assert.rejects(pending, error => error.code === 'PAGE_ASSET_UNAVAILABLE');

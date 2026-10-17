@@ -53,6 +53,8 @@ function fixture() {
     },
   });
   const run = text => new Script(text).runInContext(context);
+  // Each page's assets are its route registry entry's (WEB-07), so the registry loads first, as in index.html.
+  run(fs.readFileSync('web/routes.js', 'utf8'));
   run(source());
   return {
     context,
@@ -140,28 +142,34 @@ test('concurrent page loads share exact same-origin scripts and revisit without 
   assert.equal(f.listeners.get('error')?.size ?? 0, 0);
 });
 
-test('failed downloads are retryable while settings wrappers wait for their original dependency', async () => {
+// WEB-07: account-approvals.js used to capture owner-operations.js's renderSettings wrapper while it initialized, so the
+// loader had to wait for one file before requesting the other. Both now register parts of /settings with a declared
+// order (tests/web-extensions.test.mjs), so the page's files are requested together and a failed one is retried alone.
+test('failed downloads are retryable and settings parts no longer wait for each other to load', async () => {
   const f = fixture(),
     first = f.load('/settings');
   const rejected = assert.rejects(first, e => e.code === 'PAGE_ASSET_UNAVAILABLE');
   await tick();
   assert.deepEqual(
     f.appended.map(s => s.src),
-    ['/assets/owner-operations.js'],
+    ['/assets/owner-operations.js', '/assets/account-approvals.js'],
   );
   f.appended[0].onerror();
   await rejected;
   assert.equal(f.appended[0].removed, true);
   const retry = f.load('/settings');
   await tick();
-  assert.equal(f.appended.length, 2);
+  assert.deepEqual(
+    f.appended.map(s => s.src),
+    ['/assets/owner-operations.js', '/assets/account-approvals.js', '/assets/owner-operations.js'],
+    'Only the failed file is requested again',
+  );
   f.appended[1].onload();
-  await tick();
-  assert.equal(f.appended[2].src, '/assets/account-approvals.js');
   f.appended[2].onload();
   await retry;
   await f.load('/settings');
   assert.equal(f.appended.length, 3);
+  assert.equal(f.timers.size, 0);
 });
 
 test('uncertain timeout or partial evaluation requires a full reload and never reinserts a script', async () => {
@@ -284,7 +292,8 @@ test('each cold route initializes its real scripts and required handlers in Engl
     '/commerce': ['renderCommerce', 'reviewTable'],
     '/schedules': ['renderScheduleCenter', 'overviewLabel'],
     '/profiles': ['renderClientPlaybooks', 'reviewTable'],
-    '/settings': ['renderSettings', 'baseWorkspaceSettings', 'baseApprovalSettings'],
+    // WEB-07: the owner's sections and account access are registered parts of /settings, not wrappers of it.
+    '/settings': ['renderSettings', 'renderOwnerSettings', 'renderAccountApprovals'],
     '/account': ['renderAccountPage', 'mfaQr', 'qrcode'],
   };
   for (const locale of ['en', 'ar'])
@@ -326,7 +335,8 @@ test('each cold route initializes its real scripts and required handlers in Engl
         },
       });
       Object.assign(f.context.location, {pathname: path, search: '', hash: ''});
-      for (const file of scripts()) if (file !== 'route-assets.js') f.run(fs.readFileSync('web/' + file, 'utf8'));
+      for (const file of scripts())
+        if (!['routes.js', 'route-assets.js'].includes(file)) f.run(fs.readFileSync('web/' + file, 'utf8'));
       f.context.catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8'));
       f.run(
         `uiLocale=${JSON.stringify(locale)};uiMessages=new Map(Object.entries(${locale === 'ar' ? 'catalog' : '{}'}));session={authenticated:true,workspaceRole:'owner'}`,

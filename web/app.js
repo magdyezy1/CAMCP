@@ -1202,8 +1202,9 @@ codex mcp login amcp</pre><p class="muted">${uiText('For clients using a bearer 
   );
 }
 /**
- * Workspace settings: the shared page, then the parts other scripts add to it in load order (the owner's health and
- * operating controls, then account access review). Every re-render of the page comes here, so it is always whole.
+ * Workspace settings: the shared page, then the parts other scripts register for it, in their declared order (the
+ * owner's health and operating controls, then account access review; WEB-07). Every re-render of the page comes here,
+ * so it is always whole.
  */
 async function renderSettings() {
   renderWorkspaceSettings();

@@ -19,7 +19,7 @@ function fixture(locale = 'en') {
           return {};
         },
       },
-      renderSettings() {},
+      renderWorkspaceSettings() {},
       date: value => (value === undefined ? 'unknown' : new Date(value).toISOString()),
       esc: value =>
         String(value)
@@ -55,6 +55,9 @@ function fixture(locale = 'en') {
   run(helper);
   const app = readFileSync('web/app.js', 'utf8');
   run(app.slice(app.indexOf('const identityKey ='), app.indexOf('function resetPrivateState()')));
+  // WEB-07: the shell's Settings page renders its shared part (stubbed above), then the parts scripts registered.
+  run(readFileSync('web/routes.js', 'utf8'));
+  run(app.slice(app.indexOf('async function renderSettings()'), app.indexOf('function renderWorkspaceSettings()')));
   return {
     context,
     areas,

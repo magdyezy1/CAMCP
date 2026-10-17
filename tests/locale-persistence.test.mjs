@@ -103,9 +103,10 @@ test('the landing page built after the last locale pass links the policies in th
       },
     });
   await page.run('initializeUILocale()');
-  // The landing renderer and its helpers; the sign-in pages that follow need a full document.
+  // The landing renderer and its helpers; the account page and navigation that follow need a full document (the
+  // sign-in pages are account-security.js's alone since WEB-07 removed identity.js's replaced copy).
   const identity = fs.readFileSync('web/identity.js', 'utf8');
-  page.run(identity.slice(0, identity.indexOf('async function renderAuthPage()')));
+  page.run(identity.slice(0, identity.indexOf('async function renderAccountPage()')));
   await page.run('renderLanding()');
   const hrefs = [...content.innerHTML.matchAll(/href="([^"]+)"/g)].map(m => m[1]).filter(legal);
   assert.deepEqual(hrefs.sort(), ['/data-deletion?lang=ar', '/privacy?lang=ar', '/terms?lang=ar']);

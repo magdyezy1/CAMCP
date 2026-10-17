@@ -16,7 +16,11 @@ import {rememberAccountMetadata} from '../dist/src/account-metadata.js';
  */
 const source = readFileSync('web/owner-operations.js', 'utf8'),
   helpers = source.slice(source.indexOf('const policyMoney ='), source.indexOf('let pendingPolicyBinding')),
-  ownerCallSource = source.slice(source.indexOf('const ownerCall ='), source.indexOf('renderSettings = async')),
+  // WEB-07: the owner's part of Settings is registered (AMCP.routes.extend), no longer a reassigned renderSettings.
+  ownerCallSource = source.slice(
+    source.indexOf('const ownerCall ='),
+    source.indexOf('async function renderOwnerSettings()'),
+  ),
   app = readFileSync('web/app.js', 'utf8'),
   confirmSource = app.slice(app.indexOf('function confirmAction('), app.indexOf('let toastTimer;'));
 const owner = {tenantId: 'policy-ui', userId: 'owner', role: 'admin'},

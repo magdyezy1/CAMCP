@@ -159,6 +159,8 @@ async function signInPage(options, search = '', locale = 'en') {
   const initializing = run('initializeUILocale()');
   if (locale === 'ar') requests[0].resolve(new Response(readFileSync('web/locales/ar.json', 'utf8')));
   await initializing;
+  // account-security.js registers its part of /account with the route registry's extension points (WEB-07).
+  run(readFileSync('web/routes.js', 'utf8'));
   run(readFileSync('web/account-security.js', 'utf8'));
   await context.renderAuthPage();
   return node('#content').innerHTML;

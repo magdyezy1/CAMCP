@@ -784,7 +784,8 @@ test('a JSON mistake names its field in the interface language, and a wrong shap
 test('an owner settings refusal keeps its remedy and request reference', async () => {
   const p = page('en');
   const source = readFileSync('web/owner-operations.js', 'utf8');
-  p.run(source.slice(source.indexOf('const ownerCall ='), source.indexOf('renderSettings = async')));
+  // WEB-07: the owner's part of Settings is registered (AMCP.routes.extend), no longer a reassigned renderSettings.
+  p.run(source.slice(source.indexOf('const ownerCall ='), source.indexOf('async function renderOwnerSettings()')));
   p.context.api = async () => ({
     success: false,
     error: {

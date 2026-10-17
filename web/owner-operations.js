@@ -841,4 +841,5 @@ async function renderOwnerSettings() {
     await renderSettings();
   });
 }
-AMCP.routes.extend('/settings', renderOwnerSettings);
+// First among the parts of /settings: account access (account-approvals.js) fills the section this part creates.
+AMCP.routes.extend('/settings', renderOwnerSettings, {order: 10});
