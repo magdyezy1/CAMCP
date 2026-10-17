@@ -431,6 +431,27 @@ would join the two in a runtime import cycle (§8), and a second definition woul
 repository imported it from `errors.ts`, and a caller outside it imports `fail` from `src/family-kit.ts`. See
 `docs/ADDING-A-REVIEWED-FAMILY.md`, "The family kit".
 
+A refusal's remedy (`errorRemedy`, `src/errors.ts`) was one function of 867 lines, an if-chain whose provider rules sat
+among the shared ones, so every provider's remedy was an edit of the shared chain. Each provider now declares the
+remedies of its own refusals in its table (`src/<provider>-remedies.ts`: Google Ads, Business Profile, Meta, TikTok,
+Snapchat, LinkedIn, X, Microsoft Advertising and Reddit, 27 rules), registered by provider ID in
+`src/provider-remedies.ts`, and `errorRemedy` consults them before its shared rules. The registry and the tables are
+leaves (a table imports only the `ProviderRemedy` type), so `errors.ts` stays one, and the ratchet counts the registry
+with the providers (§8). The shared rules keep their order in three functions `errorRemedy` consults in turn
+(`workflowRemedy` 242 lines, `reviewRemedy` 215, `workspaceRemedy` 214), then the code-family remedies
+(`familyRemedy`) and the default; `errorRemedy` is 17 lines. Every remedy text moved from its source line unchanged.
+Over 3,507 codes (every code literal of the sources and tests, and one synthetic code per prefix and pattern rule)
+with 20 detail variants each, the remedies and error results equal those before the change but for one class: a
+provider rule that came after the shared rule for provider replies now answers its code even when the refusal carries
+the provider's reply (`details.upstream`). Of the nine codes that moved from after that rule, only
+`BUSINESS_PROFILE_API_NOT_APPROVED` is raised with the reply (the transport's provider error taxonomy derives it from
+Google's 429 or 403), so an MCP caller was told to inspect the native error instead of the owner action CON-06 wrote
+for it; the other eight are raised only by AMCP's own checks. `tests/provider-remedies.test.mjs` holds that no two
+providers answer one code, that no rule of a table is hidden by an earlier one, that no table answers a code a shared
+rule names, and that every declared code is one AMCP raises; `tests/business-profile-connection.test.mjs` holds the
+corrected remedy of the refusal the transport raises. The localization inventory reads the tables' remedies as shared
+recovery hints, as it read them in `errorRemedy` (the same 167 hints, 140 of them in `src/errors.ts`).
+
 ## 14. Composition tables
 
 ARC-04 stage D. What a composite function dispatched by an if-chain becomes a table that a new case joins by one entry.
@@ -495,9 +516,9 @@ and `tests/import-order.test.mjs` hold the rules that can be measured.
 
 | Role | Modules | May import |
 |---|---|---|
-| Leaf | `errors.ts`, `types.ts`, `security.ts`, `account-id.ts`, `review-state-core.ts`, `family-kit.ts`, `signed-cursor.ts`, `tool-actions.ts`, `provider-adapter.ts`, `report-source.ts`, `report-job.ts`; values read at load: `tiktok-paths.ts`, `microsoft-association-contracts.ts`, `meta-ad-library-contract.ts`, `google-business-notification-kind.ts` | Other leaves only: a provider's version module such as `meta-version.ts`, and the provider adapter registry, are leaves too |
+| Leaf | `errors.ts`, `types.ts`, `security.ts`, `account-id.ts`, `review-state-core.ts`, `family-kit.ts`, `signed-cursor.ts`, `tool-actions.ts`, `provider-adapter.ts`, `report-source.ts`, `report-job.ts`, `provider-remedies.ts` and its remedy tables (§13); values read at load: `tiktok-paths.ts`, `microsoft-association-contracts.ts`, `meta-ad-library-contract.ts`, `google-business-notification-kind.ts` | Other leaves only: a provider's version module such as `meta-version.ts`, and the provider adapter registry, are leaves too |
 | Provider module | `<provider>-*.ts`: reviewed families (on the family kit, §13), portfolio adapters (on `portfolio-runner.ts`, §11), report sources and report jobs (§12) | Leaves, shared helpers and modules of its own provider; never a lifecycle module (§10) |
-| Registry | `provider-adapters.ts` (§9), `portfolio.ts` (§11), `report-sources.ts` and `report-jobs.ts` (§12), which the ratchet counts with the providers; `reviewed-families.ts`, the family registry | One module per provider, so that shared code consults the registry instead of naming providers |
+| Registry | `provider-adapters.ts` (§9), `portfolio.ts` (§11), `report-sources.ts` and `report-jobs.ts` (§12), `provider-remedies.ts` (§13), which the ratchet counts with the providers; `reviewed-families.ts`, the family registry | One module per provider, so that shared code consults the registry instead of naming providers |
 | Shared | the review lifecycle (`review-state.ts`, `scope.ts`, `write-review.ts`, ...), the composite tools (`service.ts`, `decision-reporting.ts`, ...), `server/` | Registries, leaves and other shared modules; a composite tool's actions are table entries (§14) |
 
 Against the review (`60ec2cc`) and the start of ARC-04: the largest runtime import cycle fell from 33 modules (34 when
@@ -506,10 +527,9 @@ fail when imported first, from 2 (3) to 0; local `fail` helpers, from 126 by the
 ratchet's) to 0, ratcheted; the seven portfolio adapters share one signed cursor and one `PortfolioAdapter` contract;
 each reporting platform has one report source behind a registry. In the functions ARC-04 restructured none is longer
 than 400 lines (`DecisionReporting.handle` was 899, now 30; `MediaUploadService.handle` 732, now 98; `createWebsite`
-1,816, now 7). Twelve backend functions still are (counted from their first line to their last), such as
-`CampaignRunner.handle` (1,311), `NativeCampaignReports.collectSource` (978) and `errorRemedy` (867); the review's
-target of three or fewer needs the same treatment of the rest. These are open remainders of B18 and B27 in `docs/review/package-status.json`,
-so neither package is closed by ARC-04. Also left by ARC-04: family remedies declared by each family for `errorRemedy`
-to consult first (today `familyRemedy` in `src/errors.ts`, which other packages are extending), and a `readsFor`
+1,816, now 7; `errorRemedy` 867, now 17). Eleven backend functions still are (counted from their first line to their
+last), such as `CampaignRunner.handle` (1,311), `NativeCampaignReports.collectSource` (978) and `campaignRecipe`
+(706); the review's target of three or fewer needs the same treatment of the rest. These are open remainders of B18
+and B27 in `docs/review/package-status.json`, so neither package is closed by ARC-04. Also left by ARC-04: a `readsFor`
 helper, which stage B made unnecessary for the import cycle because a family receives its read builders as hook
 arguments.

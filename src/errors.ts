@@ -1,3 +1,5 @@
+import {providerRemedy} from './provider-remedies.js';
+
 export class MirrorError extends Error {
   constructor(
     public code: string,
@@ -264,31 +266,33 @@ function familyRemedy(code: string): {category: string; owner: string; action: s
   return undefined;
 }
 export type ErrorRemedy = {category: string; owner: string; action: string; mutation_retry_safe: boolean};
+/**
+ * What to do next about a refusal. The remedy its provider declares comes first (src/provider-remedies.ts, ARC-04
+ * stage C), then the first shared rule that names it (AMCP’s own workflows, then reviewed writes and access, then the
+ * workspace and the deployment: the rules keep the order they were written in, so a rule that names exact codes comes
+ * before the patterns that would also match them), then the remedy of its code family, then the default.
+ */
 export function errorRemedy(e: MirrorError): ErrorRemedy {
-  if (e.code.startsWith('LINKEDIN_TEMPLATE_') || e.code === 'INVALID_AUDIENCE_TEMPLATE')
-    return {
-      category: 'state',
-      owner: 'operator',
-      action:
-        'Check the selected account, complete template collection and referenced segment ownership/readiness. Use the documented native criteria and partial-update shape. Keep the original review/key after an uncertain submission; inspect state before preparing a correction.',
-      mutation_retry_safe: false,
-    };
-  if (
-    e.code.startsWith('X_TARGETING_') ||
-    e.code === 'INVALID_X_TARGETING_BATCH' ||
-    e.code === 'TARGETING_PARENT_NOT_PAUSED'
-  )
-    return {
-      category: 'state',
-      owner: 'operator',
-      action:
-        e.code === 'TARGETING_PARENT_NOT_PAUSED'
-          ? 'Prepare and review a separate pause for each affected line item, then review the audience change. Do not activate automatically.'
-          : e.code === 'X_TARGETING_LIMIT'
-            ? 'Narrow the explicitly reviewed operation or selected line items. An incomplete collection cannot authorize execution. Preserve the original key for any submitted request.'
-            : 'Inspect the exact targeting input, selected account, current private-reference eligibility and complete membership. Preserve the original review/key after submission; correct an uncertain result only after scoped read-back.',
-      mutation_retry_safe: false,
-    };
+  const remedy = providerRemedy(e.code, e.details) ?? workflowRemedy(e) ?? reviewRemedy(e) ?? workspaceRemedy(e);
+  if (remedy) return remedy;
+  const family = familyRemedy(e.code);
+  if (family) return {...family, mutation_retry_safe: false};
+  return {
+    category: e.code === 'INTERNAL_ERROR' ? 'internal' : 'request',
+    owner: e.code === 'INTERNAL_ERROR' ? 'amcp' : 'operator',
+    action:
+      e.code === 'INTERNAL_ERROR'
+        ? 'Use the request ID to inspect the audit trail.'
+        : 'Correct what the message names and send the call again (a write is prepared again). A write whose outcome is uncertain is never resubmitted.',
+    mutation_retry_safe: false,
+  };
+}
+/**
+ * Refusals of AMCP’s own workflows: media uploads and their recovery, ownership, clones, revisions, plan steps, asset
+ * syncs and changed logins, read cursors, operations AMCP cannot run, approvals and acknowledgements, idempotency, and
+ * the codes the provider error taxonomy derives.
+ */
+function workflowRemedy(e: MirrorError): ErrorRemedy | undefined {
   if (e.code === 'MEDIA_UPLOAD_INCOMPLETE')
     return {
       category: 'request',
@@ -437,112 +441,12 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
         'Resolve the current connection and confirm its selected account. A newer login replaced the credentials used by this operation. Retry a read with the current login, or prepare a fresh review for an unsubmitted write; keep every submitted or uncertain receipt.',
       mutation_retry_safe: false,
     };
-  if (e.code.startsWith('TIKTOK_REPORT_'))
-    return {
-      category: 'report',
-      owner: 'operator',
-      action:
-        e.code === 'TIKTOK_REPORT_TOKEN_CHANGED'
-          ? 'Preserve the original task and receipt. TikTok requires its original access token; do not silently switch logins or regenerate the report. If that authorization is unavailable, explicitly review a new task.'
-          : e.code === 'TIKTOK_REPORT_PENDING'
-            ? 'Poll the same task later; do not submit another task.'
-            : [
-                  'TIKTOK_REPORT_FAILED',
-                  'TIKTOK_REPORT_CANCELED',
-                  'TIKTOK_REPORT_EXPIRED',
-                  'TIKTOK_REPORT_NOT_CANCELLABLE',
-                ].includes(e.code)
-              ? 'Inspect the original task status and reviewed definition. Preserve completed output; only an explicit new review may create a replacement.'
-              : 'Inspect the report contract and original status. Retry only a failed read; fix the definition or split large output through an explicit new review.',
-      mutation_retry_safe: false,
-    };
-  if (e.code.startsWith('META_CREATIVE_'))
-    return {
-      category: e.code === 'META_CREATIVE_IDENTITY_REQUIRED' ? 'grant' : 'provider',
-      owner: 'provider_or_account_admin',
-      action:
-        'Discover the selected advertiser’s Pages and linked Instagram identities, then prepare a fresh review of owned content. Check required read permissions separately from advertising write grants. Incomplete identity or owner reads cannot authorize a creative.',
-      mutation_retry_safe: false,
-    };
-  if (
-    e.code === 'INVALID_META_CAMPAIGN' &&
-    Array.isArray(e.details.fields) &&
-    e.details.fields.includes('is_adset_budget_sharing_enabled')
-  )
-    return {
-      category: 'request',
-      owner: 'operator',
-      action:
-        'Nothing was sent. Add is_adset_budget_sharing_enabled to the campaign payload as a boolean (false keeps each ad set on its own budget) and prepare a new review. Correct a saved plan step with amcp_campaign recover_step and corrected arguments.',
-      mutation_retry_safe: false,
-    };
   if (e.code === 'INVALID_READ_CURSOR')
     return {
       category: 'state',
       owner: 'operator',
       action:
         'Restart the read from its first page with the current user, connection and selection. Keep earlier segments separate; an expired or mismatched cursor cannot prove completeness.',
-      mutation_retry_safe: false,
-    };
-  if (e.code.startsWith('META_POST_'))
-    return {
-      category: e.code === 'META_POST_IDENTITY_REQUIRED' ? 'grant' : 'provider',
-      owner: e.code === 'META_POST_IDENTITY_REQUIRED' ? 'workspace_or_account_admin' : 'provider_or_account_admin',
-      action:
-        e.code === 'META_POST_IDENTITY_REQUIRED'
-          ? 'Select a Page and linked professional Instagram identity available to the chosen advertiser and login. Check Page permissions and app access separately from AMCP account grants.'
-          : 'Retry the scoped read or use its returned continuation. Malformed or incomplete content is not a successful empty result and does not authorize a creative write.',
-      mutation_retry_safe: false,
-    };
-  if (['META_REPORT_PENDING', 'META_REPORT_GENERATION_FAILED', 'META_REPORT_STATE_UNVERIFIED'].includes(e.code))
-    return {
-      category: 'provider',
-      owner: 'operator',
-      action:
-        e.code === 'META_REPORT_PENDING'
-          ? 'Poll amcp_campaign verify with the original review_id, then use its scoped result-read call after completed processing.'
-          : 'Keep the original report review and receipt. Inspect job status or retry its reads; a failed or incomplete read never authorizes submitting another report job.',
-      mutation_retry_safe: false,
-    };
-  if (e.code === 'SNAPCHAT_PIXEL_NOT_OWNED')
-    return {
-      category: 'grant',
-      owner: 'provider_or_account_admin',
-      action:
-        'Nothing was submitted. Ask the user which pixel in details.owned_pixel_ids to use and amend the step with amcp_campaign recover_step, as the refusal’s next_call shows (a patch of the named pixel_id); the next prepare_next checks it again. Or have the pixel’s owner share it to this ad account in Snapchat Business Manager, then run preflight.',
-      mutation_retry_safe: false,
-    };
-  if (e.code === 'REDDIT_PIXEL_NOT_IN_ACCOUNT')
-    return {
-      category: 'grant',
-      owner: 'provider_or_account_admin',
-      action:
-        'Nothing was submitted. Ask the user which pixel in details.account_pixel_ids to use and prepare a new review with that conversion_pixel_id; in a saved plan, amend the step with amcp_campaign recover_step. Or associate the pixel with this ad account in Reddit Events Manager, then prepare again.',
-      mutation_retry_safe: false,
-    };
-  if (e.code === 'SNAPCHAT_SEGMENT_UNAVAILABLE')
-    return {
-      category: 'state',
-      owner: 'operator',
-      action:
-        'Nothing was submitted. Ask the user to choose segments of the selected ad account (details.reason says why this one is refused): a foreign or unlisted segment cannot be added, and one that is not ready can be included once Snapchat lists it as READY. Then prepare the targeting edit again.',
-      mutation_retry_safe: false,
-    };
-  // PRV-06 C: Advantage+ creative features are the user's choice, one explicit enroll_status per listed feature.
-  if (e.code === 'META_ADVANTAGE_CREATIVE_CHOICE_REQUIRED')
-    return {
-      category: 'request',
-      owner: 'operator',
-      action:
-        'Nothing was sent. Ask the user, for each Advantage+ creative feature in details.features, whether Meta may apply it to this creative: set its enroll_status to OPT_IN or OPT_OUT, or leave the feature out, and prepare a new review. Never choose for them.',
-      mutation_retry_safe: false,
-    };
-  if (e.code === 'META_ADVANTAGE_CREATIVE_FEATURE_UNAVAILABLE')
-    return {
-      category: 'request',
-      owner: 'operator',
-      action:
-        'Nothing was sent. Choose Advantage+ creative features from details.supported_features, the single features AMCP reviews against Meta’s SDK 26.0.2; since Marketing API v22.0 a bundle such as standard_enhancements is chosen feature by feature. Leave out any other feature, then prepare a new review.',
       mutation_retry_safe: false,
     };
   // An operation listed for compatibility with the captured catalog that AMCP cannot run (MCP-10).
@@ -628,6 +532,14 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
         'Another reviewed write to the same target was being executed, so nothing was sent. Execute the same review again in a moment: its state is read again first, and a change the other write made is refused as STATE_CHANGED.',
       mutation_retry_safe: false,
     };
+  return undefined;
+}
+/**
+ * Refusals of a reviewed write and of access to it: a group stopped at a part, provider replies, contracts, grants,
+ * review state, rejections, state reads, the deployment’s and owner’s write switches, connections, roles and the
+ * spending policy’s requirement.
+ */
+function reviewRemedy(e: MirrorError): ErrorRemedy | undefined {
   // A group that stopped at a part refused before it was sent (WRT-04): the cause is the part's, not the provider's.
   if (
     e.code === 'WRITE_PARTIAL_OR_FAILED' &&
@@ -840,14 +752,14 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
         'Nothing was submitted. This write is offered only on an account the owner spending policy protects: the workspace owner saves one for the account (amcp_workspace save_spend_policy, or the website), then prepare the request again.',
       mutation_retry_safe: false,
     };
-  if (e.code === 'BUDGET_SCHEDULING_UNAVAILABLE')
-    return {
-      category: 'state',
-      owner: 'operator',
-      action:
-        'Nothing was submitted. Meta does not offer budget scheduling for this account or object as it stands; the message names why (capability, a lifetime or campaign-level budget, Advantage+ App, or 50 periods). Schedule on an eligible campaign or ad set, or change the daily budget with a reviewed update.',
-      mutation_retry_safe: false,
-    };
+  return undefined;
+}
+/**
+ * Refusals of the workspace and the deployment: catalogs, spending policies, plans and approvers, activation gates,
+ * connections and client access sets, providers not offered, the database and its volume, provider response shapes,
+ * media limits and request names.
+ */
+function workspaceRemedy(e: MirrorError): ErrorRemedy | undefined {
   if (e.code === 'CATALOG_NOT_EMPTY')
     return {
       category: 'state',
@@ -862,14 +774,6 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
       owner: 'operator',
       action:
         'Nothing was submitted. X lists catalog products 100 at a time with no lookup by key, and AMCP reads at most 1,000 to find the ones a request names. For a larger catalog, change products through its scheduled feed and group them with a FILTERED product set.',
-      mutation_retry_safe: false,
-    };
-  if (e.code === 'PRODUCT_SET_EMPTY')
-    return {
-      category: 'request',
-      owner: 'operator',
-      action:
-        'Nothing was submitted. The new filter selects no product, so the ad sets the message names would stop delivering. Correct the filter, or pause those ad sets first with reviewed changes.',
       mutation_retry_safe: false,
     };
   // Owner decision P5: caps in account currency that name no currency refuse money changes until they are saved again.
@@ -895,40 +799,6 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
       owner: 'operator',
       action:
         'What this request would create already exists, as the message names. Use the existing object, or prepare an update of it instead of another create.',
-      mutation_retry_safe: false,
-    };
-  // CMP-03 (owner decision P7): Microsoft activation waits for a readable positive location criterion.
-  if (e.code === 'LOCATION_CRITERIA_REQUIRED')
-    return {
-      category: 'state',
-      owner: 'operator',
-      action:
-        'While the campaign is paused, add its target locations with a reviewed AddCampaignCriterions (CriterionType Targets) or in Microsoft Advertising, then prepare the activation again. Nothing was activated.',
-      mutation_retry_safe: false,
-    };
-  if (e.code === 'LOCATION_PARENT_NOT_PAUSED')
-    return {
-      category: 'state',
-      owner: 'operator',
-      action:
-        'Pause the campaign with a reviewed UpdateCampaigns (Status Paused), then review the location change; or change its locations in Microsoft Advertising. Nothing was sent.',
-      mutation_retry_safe: false,
-    };
-  // CMP-03: the Microsoft location lookup reads only; nothing is ever written.
-  if (e.code === 'MICROSOFT_LOCATIONS_UNPINNED')
-    return {
-      category: 'deployment',
-      owner: 'deployment_operator',
-      action:
-        'Nothing was sent. Enter location IDs from Microsoft’s geographical locations file instead. The deployment operator turns this search on by pinning Microsoft’s GetGeoLocationsFileUrl documentation (tools/microsoft-rest.mjs).',
-      mutation_retry_safe: false,
-    };
-  if (e.code === 'MICROSOFT_LOCATIONS_FILE_INVALID' || e.code === 'MICROSOFT_LOCATIONS_FILE_UNAVAILABLE')
-    return {
-      category: 'provider',
-      owner: 'operator',
-      action:
-        'No partial list was used. Search again in a moment, or enter location IDs from Microsoft’s geographical locations file; report the request ID if this recurs.',
       mutation_retry_safe: false,
     };
   // CMP-05: campaign plan inventory and team handoff. Local workspace state only; nothing reached a provider.
@@ -992,15 +862,6 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
         'This access is limited to a client access set that does not include this account. Work with an account of that client (get_workspace_context lists them), or ask a workspace administrator to add the account to the set or to use access for that client. Nothing was sent.',
       mutation_retry_safe: false,
     };
-  if (e.code === 'BUSINESS_PROFILE_API_NOT_APPROVED')
-    return {
-      category: 'deployment',
-      owner: 'deployment_operator',
-      // CON-06: Google answers an unapproved Cloud project with a quota of 0 requests per minute.
-      action:
-        'Google has not approved this deployment’s Google Cloud project for the Business Profile APIs, or the APIs are not enabled in it. The AMCP owner requests Business Profile API access for the project that owns AMCP’s Google OAuth client and enables the Business Profile APIs; reconnecting or retrying does not help. Nothing was changed.',
-      mutation_retry_safe: false,
-    };
   if (e.code === 'GATEWAY_NOT_OFFERED')
     return {
       category: 'deployment',
@@ -1012,15 +873,6 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
           ? 'This deployment does not offer this provider: its work is parked, and only the deployment operator can offer it again (AMCP_PROVIDERS). Use a tool that tools/list shows. Nothing was sent.'
           : 'This deployment does not offer this provider: it has no website connection or account discovery yet. Use a tool that tools/list shows. Nothing was sent.',
       mutation_retry_safe: false,
-    };
-  if (e.code === 'GOOGLE_LOGIN_CUSTOMER_UNMAPPED')
-    return {
-      category: 'grant',
-      owner: 'workspace_or_account_admin',
-      // CON-05: no deployment-wide manager is guessed for an account whose route was never recorded.
-      action:
-        'Sync this Google Ads login on the website’s Connections page so it records the manager route of each selected account, then retry. Nothing was sent to Google.',
-      mutation_retry_safe: true,
     };
   if (e.code === 'AMBIGUOUS_CONNECTION')
     return {
@@ -1119,17 +971,7 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
         'Correct the argument the message names and send the corrected call (for amcp_write, prepare it again). Never resubmit an uncertain mutation.',
       mutation_retry_safe: false,
     };
-  const family = familyRemedy(e.code);
-  if (family) return {...family, mutation_retry_safe: false};
-  return {
-    category: e.code === 'INTERNAL_ERROR' ? 'internal' : 'request',
-    owner: e.code === 'INTERNAL_ERROR' ? 'amcp' : 'operator',
-    action:
-      e.code === 'INTERNAL_ERROR'
-        ? 'Use the request ID to inspect the audit trail.'
-        : 'Correct what the message names and send the call again (a write is prepared again). A write whose outcome is uncertain is never resubmitted.',
-    mutation_retry_safe: false,
-  };
+  return undefined;
 }
 /**
  * The message, naming what its details identify (F-86): the field, parameter or missing value, and for a request

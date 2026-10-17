@@ -154,8 +154,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // src/microsoft-report-download.ts and src/tiktok-report-jobs.ts, so the owned reasons are the same. Stage D's split
   // of createWebsite adds 14 server modules: twelve route and helper modules, the website's site contract and its
   // store-layer repository. The 45 reasons of server/website.ts moved with their routes into nine of them, so the
-  // owned reasons are the same.
-  assert.equal(files.length, 638);
+  // owned reasons are the same. Stage C's provider remedies add src/provider-remedies.ts and nine remedy tables (no
+  // refusals: remedies are not reasons).
+  assert.equal(files.length, 648);
   assert.equal(selected.filter(row => row.messages.size).length, 245);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11485);
