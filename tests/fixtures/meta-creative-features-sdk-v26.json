@@ -1,29 +1,28 @@
 {
   "api_version": "v26.0",
   "sdk_tag": "26.0.2",
-  "evidence": "transcribed",
-  "checked_at": null,
-  "pin": "node tools/meta-creative-features.mjs --source-dir <directory with the facebook-python-business-sdk 26.0.2 adobjects files>",
+  "evidence": "sdk_files",
+  "checked_at": "2026-10-16",
   "sources": {
     "adcreativefeaturesspec": {
       "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/adcreativefeaturesspec.py",
-      "sha256": null
+      "sha256": "869d9b29d265c7cb7f62832c5a031e1192db569ae1f625b18821684f5406e593"
     },
     "adcreativefeaturedetails": {
       "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/adcreativefeaturedetails.py",
-      "sha256": null
+      "sha256": "c8a5367c3aeb7be10c68a0648a5ac612155afb118322ac100566f9a77e08abbc"
     },
     "adcreativedegreesoffreedomspec": {
       "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/adcreativedegreesoffreedomspec.py",
-      "sha256": null
+      "sha256": "695fcfda270ecdf2d7c4850a050d29fac0d2ca1902fce100aa1c694e8f90dfdf"
     },
     "adcreative": {
       "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/adcreative.py",
-      "sha256": null
+      "sha256": "e11e6ff50bbf169036505a73bf57ec106bfde819ea398f78b8cc047dc7e23dbe"
     },
     "adaccount": {
       "url": "https://raw.githubusercontent.com/facebook/facebook-python-business-sdk/26.0.2/facebook_business/adobjects/adaccount.py",
-      "sha256": null
+      "sha256": "dd0a0d1acbc9c3a690f20f8b4ec28c7868211688a9973885c607660865313df6"
     }
   },
   "routes": {
@@ -37,11 +36,97 @@
     }
   },
   "types": {
-    "AdAccount.create_ad_creative degrees_of_freedom_spec": "Object",
+    "AdAccount.create_ad_creative degrees_of_freedom_spec": "map",
     "AdCreative.degrees_of_freedom_spec": "AdCreativeDegreesOfFreedomSpec",
     "AdCreativeDegreesOfFreedomSpec.creative_features_spec": "AdCreativeFeaturesSpec",
     "AdCreativeFeatureDetails.enroll_status": "string"
   },
+  "sdk_features": [
+    "adapt_to_placement",
+    "add_text_overlay",
+    "ads_with_benefits",
+    "advantage_plus_creative",
+    "app_highlights",
+    "audio",
+    "auto_promotion_tag",
+    "biz_ai",
+    "carousel_to_video",
+    "catalog_feed_tag",
+    "creative_stickers",
+    "customize_product_recommendation",
+    "cv_transformation",
+    "description_automation",
+    "dha_optimization",
+    "dynamic_cta_text",
+    "dynamic_partner_content",
+    "enable_ncs_testimonials",
+    "enhance_cta",
+    "fb_feed_tag",
+    "fb_reels_tag",
+    "fb_story_tag",
+    "feed_caption_optimization",
+    "generate_cta",
+    "hide_price",
+    "hyperlink_formatting",
+    "ig_feed_tag",
+    "ig_glados_feed",
+    "ig_reels_tag",
+    "ig_stream_tag",
+    "ig_video_native_subtitle",
+    "image_animation",
+    "image_auto_crop",
+    "image_background_gen",
+    "image_banner",
+    "image_brightness_and_contrast",
+    "image_end_card",
+    "image_enhancement",
+    "image_templates",
+    "image_text_translation",
+    "image_touchups",
+    "image_uncrop",
+    "inline_comment",
+    "local_store_extension",
+    "media_liquidity_animated_image",
+    "media_order",
+    "media_type_automation",
+    "multi_creative_post_carousel",
+    "multi_photo_to_video",
+    "music_generation",
+    "pac_genai_recomposition",
+    "pac_recomposition",
+    "pac_relaxation",
+    "product_browsing",
+    "product_extensions",
+    "product_metadata_automation",
+    "product_tags",
+    "profile_card",
+    "profile_extension",
+    "replace_media_text",
+    "reveal_details_over_time",
+    "show_destination_blurbs",
+    "show_summary",
+    "site_extensions",
+    "standard_enhancements",
+    "standard_enhancements_catalog",
+    "text_extraction_for_headline",
+    "text_extraction_for_tap_target",
+    "text_formatting_optimization",
+    "text_generation",
+    "text_optimizations",
+    "text_overlay_translation",
+    "text_translation",
+    "translate_voiceover",
+    "video_auto_crop",
+    "video_filtering",
+    "video_highlight",
+    "video_highlights",
+    "video_to_image",
+    "video_uncrop",
+    "video_uncrop_9x16_to_9x18",
+    "video_voiceover",
+    "wa_mm_image_filtering",
+    "wa_mm_text_truncation_length"
+  ],
   "accepted": [
     "adapt_to_placement",
     "add_text_overlay",
@@ -60,6 +145,9 @@
     "text_optimizations",
     "video_auto_crop"
   ],
-  "enroll_status": ["OPT_IN", "OPT_OUT"],
-  "meaning": "Transcribed from the SDK classes named in sources; the files are not hashed yet. The pin command checks every accepted feature against the 26.0.2 files and replaces this record with hashed SDK evidence (evidence: sdk_files, with sdk_features listing every feature of the release). Until then the list only narrows what AMCP sends: a feature it omits is refused locally, and a choice Meta does not keep is not read back, so verification never reports it as verified."
+  "enroll_status": [
+    "OPT_IN",
+    "OPT_OUT"
+  ],
+  "meaning": "Field names and types of the official SDK generated from Meta’s API specification: the accepted single features exist at this release. The OPT_IN and OPT_OUT values, Meta’s default for features a creative made through the API does not list, and live acceptance are not SDK evidence; they come from Meta’s Advantage+ creative documentation and native acceptance."
 }
