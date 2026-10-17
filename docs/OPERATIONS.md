@@ -830,9 +830,9 @@ covers the manifest, cold English/Arabic source initialization and HTTP revalida
 `node tools/web-route-bytes.mjs` adds the stylesheets and the Arabic chunks: the Brotli (quality 5) bytes each page
 downloads before it renders, per language, against `tools/web-route-bytes-baseline.json` (recorded on Work-here before
 WEB-07); it exits 1 when a page exceeds its recorded value. On 2026-10-17 every Arabic page was 10–84% below it (the
-public pages 69%, About 84%); in English the public and sign-in pages were 13.5% below, Live portfolio 42.6%, Commerce
-34.5%, Measurement 22.6%, Capabilities 23.7%, Creative 19.4% and most other pages 10–12%. Home, Schedules, Report
-library and Report builder remained 1.5–1.8% above (2,810 bytes: the escape-by-default, extension-point and theme-token
+public pages 69%, About 84%); in English the public and sign-in pages were 13.6% below, Live portfolio 42.7%, Commerce
+34.6%, Measurement 22.6%, Capabilities 23.8%, Creative 19.5% and most other pages 10–13%. Home, Schedules, Report
+library and Report builder remained 1.5–1.7% above (2,680 bytes: the escape-by-default, extension-point and theme-token
 code every page now carries, which those pages do not offset because they need the report modules) and About 17.5%
 (2,745 bytes: the theme tokens with their no-JavaScript dark block and the chunked catalog loader).
 `tests/web-route-bytes.test.mjs` keeps the split's gains, each with a wide margin.
