@@ -227,7 +227,7 @@ test('a search reads the file URL under the account, downloads the file once and
   assert.deepEqual(f.requests[0], {
     method: 'POST',
     path: '/CampaignManagement/v13/GeoLocationsFileUrl/Query',
-    body: {Version: '2.0', LanguageLocale: 'en', CompressionType: 'Zip'},
+    body: {Version: '2.0', LanguageLocale: 'en', CompressionType: 'GZip'},
     account: '123',
     customer: '456',
     developer: 'synthetic-developer',

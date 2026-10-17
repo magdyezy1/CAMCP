@@ -21,8 +21,10 @@ import {publicGet, reportUrl} from './microsoft-report-download.js';
  * positive location criteria of the microsoft_search pack. It reads; it saves nothing and changes no account.
  *
  * What it relies on, from the pinned evidence in .mirror/VENDOR:
- * - The Campaign Management WSDL: GetGeoLocationsFileUrl takes Version, LanguageLocale and CompressionType (Zip or GZip)
- *   and returns FileUrl, FileUrlExpiryTimeUtc and LastModifiedTimeUtc.
+ * - The Campaign Management WSDL: GetGeoLocationsFileUrl takes Version, LanguageLocale and CompressionType and returns
+ *   FileUrl, FileUrlExpiryTimeUtc and LastModifiedTimeUtc. The WSDL enumerates Zip and GZip, but Microsoft Learn's
+ *   CompressionType page marks Zip "Reserved for future use": GZip is the only supported compression for this
+ *   operation (pinned page, read 2026-10-17), so AMCP requests GZip. The reader still accepts a single-file ZIP.
  * - The geographical location codes guide (pinned by digest; its rules are in tools/microsoft-rest.mjs): a location
  *   criterion takes the file's Location Id column, the Bing Display Name is for presentation only and several IDs can
  *   share one, a deprecated location cannot be added, and the guide and the LocationCriterion page disagree on when a
@@ -42,7 +44,7 @@ import {publicGet, reportUrl} from './microsoft-report-download.js';
  */
 const version = '2.0',
   languageLocale = 'en',
-  compressionType = 'Zip',
+  compressionType = 'GZip',
   pin = '.mirror/VENDOR/microsoft-rest-v13.json';
 export const microsoftLocationLimits = Object.freeze({
   archive_bytes: 32 * 1024 * 1024,

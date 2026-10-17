@@ -1,6 +1,7 @@
 // Synthetic Microsoft geographical locations files (CMP-03). The IDs and names are test data, not Microsoft's file.
 import {crc32, deflateRawSync, gzipSync} from 'node:zlib';
 import {createHash} from 'node:crypto';
+import {reliesOn} from '../../tools/microsoft-rest-rules.mjs';
 
 export const locationHeader = 'Location Id,Bing Display Name,Location Type,Replaces,Status,AdWords Location Id';
 export const locationRows = [
@@ -72,10 +73,8 @@ export function pinnedGeoLocations(envelope, change = op => op) {
     GetGeoLocationsFileUrl: change({
       page: 'https://learn.microsoft.com/en-us/advertising/campaign-management-service/getgeolocationsfileurl?view=bingads-13',
       read_at: '2026-10-16T00:00:00.000Z',
-      relies_on: [
-        'Version 2.0 is the file version AMCP requests, LanguageLocale en gives its display names in English, and CompressionType Zip a single-file ZIP archive.',
-        'FileUrl is valid until FileUrlExpiryTimeUtc, and LastModifiedTimeUtc tells whether the file changed since an earlier download.',
-      ],
+      // The rules come from the tool itself so this fixture cannot drift from what the pin check compares.
+      relies_on: [...reliesOn.GetGeoLocationsFileUrl],
       method: 'POST',
       url: 'https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/GeoLocationsFileUrl/Query',
       sandbox_url:

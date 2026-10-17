@@ -1,8 +1,8 @@
 {
   "source": "https://learn.microsoft.com/en-us/advertising/",
-  "captured_at": "2026-10-14T22:24:54.498Z",
+  "captured_at": "2026-10-17T18:45:59.511Z",
   "evidence": "VENDOR_DOCUMENTED_NOT_AMCP_OBSERVED",
-  "document_sha256": "3b1f04e4cf2dc4327f538c8733d54d6775ed4706293a81c3c9d2b0f51682be12",
+  "document_sha256": "1b94df3bf6e23410fe7d46af70b77926a0d25556d2834cda147ab8d55186c649",
   "document": {
     "version": "v13",
     "operations": {
@@ -385,6 +385,21 @@
         "title": "Show Ads to Your Target Audience",
         "characters": 26585,
         "content_sha256": "134f98c662c0af7760c852d83ee358b6e8459d9af0d83280bc073bbdc3be598e"
+      }
+    },
+    "optional_operations": {
+      "GetGeoLocationsFileUrl": {
+        "page": "https://learn.microsoft.com/en-us/advertising/campaign-management-service/getgeolocationsfileurl?view=bingads-13",
+        "read_at": "2026-10-17T18:45:59.503Z",
+        "relies_on": [
+          "Version 2.0 is the only supported file version, LanguageLocale en gives its display names in English, and CompressionType GZip is the only supported compression (Zip is reserved for future use; without a value the file is uncompressed).",
+          "FileUrl is valid until FileUrlExpiryTimeUtc, and LastModifiedTimeUtc tells whether the file changed since an earlier download."
+        ],
+        "method": "POST",
+        "url": "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13/GeoLocationsFileUrl/Query",
+        "sandbox_url": "https://campaign.api.sandbox.bingads.microsoft.com/CampaignManagement/v13/GeoLocationsFileUrl/Query",
+        "request_json": "{\n  \"Version\": \"ValueHere\",\n  \"LanguageLocale\": \"ValueHere\",\n  \"CompressionType\": \"ValueHere\"\n}",
+        "response_json": "{\n  \"FileUrl\": \"ValueHere\",\n  \"FileUrlExpiryTimeUtc\": \"ValueHere\",\n  \"LastModifiedTimeUtc\": \"ValueHere\"\n}"
       }
     }
   }
