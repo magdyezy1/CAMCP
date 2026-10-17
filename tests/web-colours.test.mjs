@@ -15,7 +15,8 @@ import {
   tokenParityProblems,
 } from '../tools/check-colours.mjs';
 
-const tokens = fs.readFileSync('web/tokens.css', 'utf8');
+// The token sheets as a page that loads both reads them: tokens.css, then the static public pages' public-tokens.css.
+const tokens = ['tokens.css', 'public-tokens.css'].map(file => fs.readFileSync('web/' + file, 'utf8')).join('\n');
 const block = (selector, atRule) =>
   Object.fromEntries(
     cssDeclarations(tokens)
@@ -137,8 +138,8 @@ test('the shipped stylesheets are within the committed baseline, which is below 
 });
 
 test('the policy pages take every colour from tokens, so they follow a dark system with JavaScript turned off', () => {
-  // Privacy, Terms, Data deletion and 404 load tokens.css, privacy.css and theme.css; theme.css needs a data-theme
-  // attribute that only web/theme.js sets, so without JavaScript only tokens can change these pages.
+  // Privacy, Terms, Data deletion and 404 load tokens.css, public-tokens.css, privacy.css and theme.css; theme.css needs
+  // a data-theme attribute that only web/theme.js sets, so without JavaScript only tokens can change these pages.
   const privacy = fs.readFileSync('web/privacy.css', 'utf8'),
     allowlist = readColourAllowlist().entries.filter(entry => entry.file === 'privacy.css');
   const literals = literalColours(privacy).filter(
@@ -153,8 +154,16 @@ test('the policy pages take every colour from tokens, so they follow a dark syst
   for (const html of ['privacy.html', 'privacy-ar.html', 'terms.html', 'data-deletion.html', '404.html'])
     assert.match(
       fs.readFileSync('web/' + html, 'utf8'),
-      /href="\/assets\/tokens\.css">[\s\S]*href="\/assets\/privacy\.css">/,
+      /href="\/assets\/tokens\.css"><link rel="stylesheet" href="\/assets\/public-tokens\.css">[\s\S]*href="\/assets\/privacy\.css">/,
     );
+  // The dark system and the policy shades are the public pages' only: About loads them only without JavaScript, and the
+  // workspace, which needs JavaScript (theme.js sets its theme before styles load), never does.
+  assert.match(
+    fs.readFileSync('web/about.html', 'utf8'),
+    /<noscript><link rel="stylesheet" href="\/assets\/public-tokens\.css"><\/noscript>/,
+  );
+  assert.doesNotMatch(fs.readFileSync('web/index.html', 'utf8'), /public-tokens\.css/);
+  assert.doesNotMatch(fs.readFileSync('web/tokens.css', 'utf8'), /--policy-|prefers-color-scheme/);
   const theme = fs.readFileSync('web/theme.css', 'utf8');
   for (const selector of ['.policy-layout', '.policy-heading', '.site-header', '.policy-languages', '.contents'])
     assert.ok(!theme.includes(selector), selector + ' has no dark override: its tokens carry both themes');

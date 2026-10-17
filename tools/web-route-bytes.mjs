@@ -9,7 +9,13 @@ import {brotliCompressSync, constants} from 'node:zlib';
 // document's stylesheets and scripts, the page's feature scripts with their dependencies, and in Arabic the catalog
 // (one ar.json before WEB-07, the shell chunk and the page's chunks after). Each file is Brotli-compressed on its own
 // at quality 5, as server/compressed-assets.ts serves it. Fonts, images, API responses and HTTP headers are excluded:
-// this is a byte count of the website's own code and copy, not a browser timing.
+// this is a byte count of the website's own code and copy, not a browser timing. A stylesheet inside <noscript> is
+// not counted: a browser that runs scripts never downloads it.
+//
+// The baseline holds each page's value before WEB-07 (`routes`). A page above it fails, unless it is listed under
+// `open`: an acceptance gap WEB-07 has not closed yet (not an accepted exception), with the value it may not exceed
+// while open and the reason. An open page fails above that value, and fails once it is back at or below its
+// baseline, so the list only shrinks.
 export const baselinePath = 'tools/web-route-bytes-baseline.json';
 const publicPages = ['/', '/login', '/signup', '/forgot-password'];
 
@@ -32,9 +38,11 @@ function loader(root) {
 }
 const linked = (html, kind) =>
   [
-    ...html.matchAll(
-      kind === 'css' ? /<link rel="stylesheet" href="\/assets\/([^"]+)">/g : /<script src="\/assets\/([^"]+)"/g,
-    ),
+    ...html
+      .replace(/<noscript>[\s\S]*?<\/noscript>/g, '')
+      .matchAll(
+        kind === 'css' ? /<link rel="stylesheet" href="\/assets\/([^"]+)">/g : /<script src="\/assets\/([^"]+)"/g,
+      ),
   ].map(match => match[1]);
 /** Brotli bytes per route and language: {"<locale> <path>": {bytes, files}}. */
 export function routeBytes(root = process.cwd()) {
@@ -81,33 +89,65 @@ export function routeBytes(root = process.cwd()) {
 export function readRouteBytesBaseline(root = process.cwd()) {
   return JSON.parse(fs.readFileSync(path.join(root, baselinePath), 'utf8'));
 }
-/** Every route whose bytes rose above the recorded baseline. */
+/** Every route above its recorded baseline that is not an open gap, and every open gap that grew or has closed. */
 export function routeBytesProblems(current, baseline) {
   const problems = [];
   for (const [key, value] of Object.entries(current)) {
-    const limit = baseline.routes?.[key];
+    const limit = baseline.routes?.[key],
+      open = baseline.open?.[key];
     if (limit === undefined) continue;
-    if (value.bytes > limit)
+    if (open) {
+      if (!open.reason || !Number.isSafeInteger(open.limit))
+        problems.push(key + ': an open gap needs a limit and a reason');
+      else if (value.bytes > open.limit)
+        problems.push(
+          key +
+            ': ' +
+            value.bytes +
+            ' Brotli bytes before rendering, above its open limit of ' +
+            open.limit +
+            ' (WEB-07)',
+        );
+      else if (value.bytes <= limit)
+        problems.push(key + ': back at or below its baseline of ' + limit + '; remove it from the open gaps (WEB-07)');
+    } else if (value.bytes > limit)
       problems.push(
         key + ': ' + value.bytes + ' Brotli bytes before rendering, above the recorded ' + limit + ' (WEB-07)',
       );
   }
+  for (const key of Object.keys(baseline.open ?? {}))
+    if (!(key in current)) problems.push(key + ': an open gap for a page that is not measured');
   return problems;
+}
+/** The open gaps as they stand: [{key, bytes, baseline, limit, reason}]. */
+export function routeBytesOpen(current, baseline) {
+  return Object.entries(baseline.open ?? {})
+    .filter(([key]) => key in current)
+    .map(([key, open]) => ({key, bytes: current[key].bytes, baseline: baseline.routes?.[key], ...open}));
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const rootIndex = process.argv.indexOf('--root'),
     root = rootIndex > 0 ? path.resolve(process.argv[rootIndex + 1]) : process.cwd(),
     current = routeBytes(root);
   if (process.argv.includes('--write')) {
-    // Records a baseline: the measured state of the tree given with --root (the tree before a change).
+    // Records a baseline: the measured state of the tree given with --root (the tree before a change). An open gap keeps
+    // its recorded target and its entry: a new recording never turns an open gap into the baseline.
+    const existing = fs.existsSync(baselinePath) ? readRouteBytesBaseline() : {routes: {}};
     fs.writeFileSync(
       baselinePath,
       JSON.stringify(
         {
           meaning:
-            'WEB-07: Brotli (quality 5) bytes of the stylesheets, scripts, feature scripts and Arabic catalog each page downloads before it renders, per language. A route may not exceed its recorded value (node tools/web-route-bytes.mjs).',
+            'WEB-07: Brotli (quality 5) bytes of the stylesheets, scripts, feature scripts and Arabic catalog each page downloads before it renders, per language. A route may not exceed its recorded value unless it is an open gap, which may not exceed its own limit and leaves the list once it is back at its baseline (node tools/web-route-bytes.mjs, part of check-web).',
           recorded_from: process.argv[process.argv.indexOf('--label') + 1] ?? 'unlabelled tree',
-          routes: Object.fromEntries(Object.entries(current).map(([key, value]) => [key, value.bytes])),
+          routes: Object.fromEntries(
+            Object.entries(current).map(([key, value]) => [
+              key,
+              existing.open?.[key] && existing.routes?.[key] !== undefined ? existing.routes[key] : value.bytes,
+            ]),
+          ),
+          // Open gaps are written by hand.
+          ...(existing.open ? {open: existing.open} : {}),
         },
         null,
         2,
@@ -126,6 +166,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
             : String(limit).padStart(9) + ' ' + ((100 * (value.bytes - limit)) / limit).toFixed(1) + '%'),
       );
     }
+    for (const gap of routeBytesOpen(current, baseline))
+      console.log(
+        'open: ' + gap.key + ' ' + gap.bytes + ' of ' + gap.baseline + ' (limit ' + gap.limit + '): ' + gap.reason,
+      );
     const problems = routeBytesProblems(current, baseline);
     if (problems.length) {
       console.error(problems.join('\n'));

@@ -1,0 +1,87 @@
+/* The static public pages' tokens, loaded right after tokens.css by About, Privacy, Terms, Data deletion and 404
+   (docs/AMCP-IDENTITY.md): the policy pages' shades, and the dark system a page read without JavaScript follows. */
+:root {
+  --policy-surface: #f8f6fb;
+  --policy-text: #282238;
+  --policy-text-body: #51485f;
+  --policy-text-intro: #352c44;
+  --policy-text-strong: #342b43;
+  --policy-lead: #6a5e79;
+  --policy-text-secondary: #6a5e79;
+  --policy-eyebrow: #6c5186;
+  --policy-accent: #b7613e;
+  --policy-link: #5840ab;
+  --policy-link-hover: #38236f;
+  --policy-nav-link: #5840ab;
+  --policy-contents-link: #655475;
+  --policy-border: #e1d9ed;
+  --policy-border-subtle: #ebe5f2;
+  --policy-border-strong: #d9cfea;
+  --policy-code: #f3effa;
+  --policy-shadow: #32234804;
+}
+:root[data-theme='dark'] {
+  --policy-surface: var(--paper);
+  --policy-text: var(--ink);
+  --policy-text-body: var(--ink);
+  --policy-text-intro: var(--ink);
+  --policy-text-strong: var(--ink);
+  --policy-lead: var(--ink);
+  --policy-text-secondary: var(--muted);
+  --policy-eyebrow: var(--ink);
+  --policy-accent: var(--ink);
+  --policy-link: var(--iris-700);
+  --policy-link-hover: var(--iris-700);
+  --policy-nav-link: var(--muted);
+  --policy-contents-link: var(--iris-700);
+  --policy-border: var(--line);
+  --policy-border-subtle: var(--line);
+  --policy-border-strong: var(--line);
+  --policy-code: var(--surface-subtle);
+  --policy-shadow: #32234804;
+}
+/* A dark system without JavaScript: tokens.css's dark block and the one above, kept identical. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --ink: #f2edf8;
+    --muted: #c0b5ce;
+    --iris: #c7adff;
+    --iris-700: #decaff;
+    --apricot: #ffbf9b;
+    --paper: #181522;
+    --white: #252032;
+    --line: #51475f;
+    --line-strong: #988aab;
+    --danger: #ffb6bf;
+    --surface-subtle: #30293f;
+    --surface-accent: #403153;
+    --on-accent: #21172f;
+    --success-bg: #18382e;
+    --success-ink: #a5e5c4;
+    --warning-bg: #3d2e19;
+    --warning-ink: #f6d89e;
+    --danger-bg: #452830;
+    --focus-on-inverse: #decaff;
+    --decision-steady-bg: #232c4d;
+    --decision-steady-ink: #c3ccff;
+    --policy-surface: var(--paper);
+    --policy-text: var(--ink);
+    --policy-text-body: var(--ink);
+    --policy-text-intro: var(--ink);
+    --policy-text-strong: var(--ink);
+    --policy-lead: var(--ink);
+    --policy-text-secondary: var(--muted);
+    --policy-eyebrow: var(--ink);
+    --policy-accent: var(--ink);
+    --policy-link: var(--iris-700);
+    --policy-link-hover: var(--iris-700);
+    --policy-nav-link: var(--muted);
+    --policy-contents-link: var(--iris-700);
+    --policy-border: var(--line);
+    --policy-border-subtle: var(--line);
+    --policy-border-strong: var(--line);
+    --policy-code: var(--surface-subtle);
+    --policy-shadow: #32234804;
+  }
+}

@@ -1,20 +1,38 @@
 // WEB-07: what each page downloads before it renders (tools/web-route-bytes.mjs: Brotli bytes of its stylesheets, scripts,
-// feature scripts and, in Arabic, catalog chunks), against the baseline recorded on Work-here before WEB-07
-// (tools/web-route-bytes-baseline.json). Before WEB-07, Live portfolio, Measurement and Commerce loaded one 388 KB script
-// with all three pages and the parked WooCommerce source, every Arabic page waited for the whole 1.9 MB catalog, and the
-// landing and sign-in pages carried the report builder. These tests fail on that tree; each margin below is wide, so
-// ordinary feature work does not trip them, while re-merging a bundle or the catalog does.
+// feature scripts and, in Arabic, catalog chunks), against the baseline recorded on the merged Work-here tree before
+// WEB-07 (tools/web-route-bytes-baseline.json). Before WEB-07, Live portfolio, Measurement and Commerce loaded one 388 KB
+// script with all three pages and the parked WooCommerce source, every Arabic page waited for the whole 1.9 MB catalog,
+// and the landing and sign-in pages carried the report builder. check-web refuses a page above its baseline unless it
+// is an open gap, which may not grow and leaves the list once it closes; the ratio tests keep the split's gains.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readRouteBytesBaseline, routeBytes, routeBytesProblems} from '../tools/web-route-bytes.mjs';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {spawnSync} from 'node:child_process';
+import {readRouteBytesBaseline, routeBytes, routeBytesOpen, routeBytesProblems} from '../tools/web-route-bytes.mjs';
 
 const current = routeBytes(),
-  baseline = readRouteBytesBaseline().routes,
+  recorded = readRouteBytesBaseline(),
+  baseline = recorded.routes,
   ratio = key => current[key].bytes / baseline[key];
 
 test('the baseline covers every page in both languages and the tool measures each of them', () => {
   assert.deepEqual(Object.keys(current).sort(), Object.keys(baseline).sort());
   for (const [key, value] of Object.entries(current)) assert.ok(value.bytes > 0 && value.files > 0, key);
+});
+
+test('no page downloads more than before WEB-07; an open gap stays within its limit and names its reason', () => {
+  assert.deepEqual(routeBytesProblems(current, recorded), []);
+  // The open gaps are exactly the pages still above their baseline (regression: the gate ran nowhere and five pages
+  // exceeded it unnoticed); each is a gap WEB-07 has not closed, not an accepted exception.
+  const above = Object.keys(current).filter(key => current[key].bytes > baseline[key]);
+  assert.deepEqual(Object.keys(recorded.open ?? {}).sort(), above.sort());
+  for (const gap of routeBytesOpen(current, recorded)) {
+    assert.ok(gap.bytes <= gap.limit && gap.bytes > gap.baseline, gap.key);
+    assert.match(gap.reason, /not an accepted exception/);
+  }
+  assert.match(fs.readFileSync('tools/check-web.mjs', 'utf8'), /routeBytesProblems\(bytesNow, bytesBaseline\)/);
 });
 
 test('each account workflow page downloads well under what it did before (regression: one 388 KB bundle)', () => {
@@ -36,10 +54,61 @@ test('the landing and sign-in pages no longer download the report builder (regre
     assert.ok(ratio('en ' + route) < 0.95, 'en ' + route + ': ' + ratio('en ' + route));
 });
 
-test('a route above its recorded value is reported, one at or below it is not', () => {
-  const problems = routeBytesProblems(
-    {'en /a': {bytes: 11, files: 1}, 'en /b': {bytes: 10, files: 1}, 'en /new': {bytes: 99, files: 1}},
-    {routes: {'en /a': 10, 'en /b': 10}},
+test('a page above its baseline is refused unless open; an open gap may not grow and must leave once closed', () => {
+  const sample = {routes: {'en /a': 10, 'en /b': 10, 'en /c': 10, 'en /d': 10}},
+    bytes = values => Object.fromEntries(Object.entries(values).map(([key, value]) => [key, {bytes: value, files: 1}]));
+  assert.deepEqual(routeBytesProblems(bytes({'en /a': 11, 'en /b': 10, 'en /new': 99}), sample), [
+    'en /a: 11 Brotli bytes before rendering, above the recorded 10 (WEB-07)',
+  ]);
+  const open = {...sample, open: {'en /a': {limit: 12, reason: 'gap'}, 'en /b': {limit: 12, reason: 'gap'}}};
+  assert.deepEqual(
+    routeBytesProblems(bytes({'en /a': 12, 'en /b': 10, 'en /c': 10, 'en /d': 10}), open),
+    ['en /b: back at or below its baseline of 10; remove it from the open gaps (WEB-07)'],
+    'An open gap within its limit passes; a closed one must leave the list',
   );
-  assert.deepEqual(problems, ['en /a: 11 Brotli bytes before rendering, above the recorded 10 (WEB-07)']);
+  assert.deepEqual(
+    routeBytesProblems(bytes({'en /a': 13, 'en /c': 10}), {...open, open: {'en /a': open.open['en /a']}}),
+    ['en /a: 13 Brotli bytes before rendering, above its open limit of 12 (WEB-07)'],
+  );
+  assert.deepEqual(routeBytesProblems(bytes({'en /a': 11}), {...sample, open: {'en /a': {limit: 12}}}), [
+    'en /a: an open gap needs a limit and a reason',
+  ]);
+  assert.deepEqual(routeBytesProblems(bytes({}), {...sample, open: {'en /z': {limit: 1, reason: 'gap'}}}), [
+    'en /z: an open gap for a page that is not measured',
+  ]);
+});
+
+test('a stylesheet inside <noscript> is not counted: a browser that runs scripts never downloads it', () => {
+  // About loads the public pages' tokens only without JavaScript (their dark system); with it, theme.js sets the theme.
+  const about = fs.readFileSync('web/about.html', 'utf8'),
+    visible = about.replace(/<noscript>[\s\S]*?<\/noscript>/g, '');
+  assert.match(about, /<noscript><link rel="stylesheet" href="\/assets\/public-tokens\.css"><\/noscript>/);
+  assert.doesNotMatch(visible, /public-tokens\.css/);
+  const files = [
+    ...visible.matchAll(/<link rel="stylesheet" href="\/assets\/([^"]+)">/g),
+    ...visible.matchAll(/<script src="\/assets\/([^"]+)"/g),
+  ];
+  assert.equal(current['en /about'].files, files.length);
+});
+
+test('recording a new baseline keeps an open gap and its target (regression: a recording could absorb the gap)', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-route-bytes-'));
+  try {
+    fs.mkdirSync(path.join(directory, 'tools'));
+    fs.copyFileSync('tools/web-route-bytes-baseline.json', path.join(directory, 'tools/web-route-bytes-baseline.json'));
+    const result = spawnSync(
+      process.execPath,
+      [path.resolve('tools/web-route-bytes.mjs'), '--root', process.cwd(), '--write', '--label', 'this tree'],
+      {cwd: directory, encoding: 'utf8'},
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const written = JSON.parse(fs.readFileSync(path.join(directory, 'tools/web-route-bytes-baseline.json'), 'utf8'));
+    assert.equal(written.recorded_from, 'this tree');
+    assert.deepEqual(written.open, recorded.open);
+    for (const key of Object.keys(recorded.open ?? {})) assert.equal(written.routes[key], baseline[key], key);
+    for (const key of Object.keys(current).filter(key => !recorded.open?.[key]))
+      assert.equal(written.routes[key], current[key].bytes, key);
+  } finally {
+    fs.rmSync(directory, {recursive: true, force: true});
+  }
 });

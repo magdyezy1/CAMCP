@@ -27,22 +27,28 @@ Google, Apple and Facebook sign-in require the separate app credentials document
 2 px offset, and readable text is at least 12 px. Surfaces that stay dark in the light theme (the sidebar, toast,
 connector hero and callback header) use `--focus-on-inverse` instead, and recommendation decisions use the
 `--decision-*` pairs. Measurements are in [the accessibility report](review/ACCESSIBILITY.md).
-`tools/check-web.mjs` keeps `tokens.css` first and refuses a token defined in any other stylesheet. The shades of
+`tools/check-web.mjs` keeps `tokens.css` first (and `public-tokens.css` second on the static public pages) and refuses
+a token defined in any other stylesheet. The shades of
 individual components (about 500 one-off tints) are still written where they are used.
 
 ## One theme source (WEB-07, 2026-10-17)
 
-`web/tokens.css` sets every colour for both themes: the palette above, the semantic roles components should use
+`web/tokens.css` sets every colour for both themes: the palette above and the semantic roles components should use
 (`--surface`, `--surface-raised`, `--text`, `--text-secondary`, `--link`, `--border`, `--border-strong`, `--focus`,
 `--status-{success,warning,danger}-{bg,ink}`, and the theme-invariant `--surface-inverse`/`--text-on-inverse` of the
-sidebar), and the policy pages' own shades (`--policy-*`). The dark values sit in `:root[data-theme='dark']` (chosen
-in Appearance, or the system's under System) and, identically, in `@media (prefers-color-scheme: dark)
+sidebar). The dark values sit in `:root[data-theme='dark']` (chosen in Appearance, or the system's under System).
+`web/public-tokens.css`, which the static public pages load right after it, adds the policy pages' own shades
+(`--policy-*`, with their dark values) and the same dark values again in `@media (prefers-color-scheme: dark)
 { :root:not([data-theme]) }`, so Privacy, Terms, Data deletion and the 404 page follow a dark system with JavaScript
-turned off; `privacy.css` writes no colour of its own. A component written with the roles is right in dark mode
-without an entry in `theme.css`, the older override layer that still re-colours the components not yet migrated.
+turned off; `privacy.css` writes no colour of its own. About loads it inside `<noscript>`, so it follows a dark system
+without JavaScript too, and the workspace, which needs JavaScript (`theme.js` sets its theme before the styles load),
+never downloads it. A computed-style comparison of About, Privacy, Terms, Data deletion, 404 and the workspace shell,
+light and dark, with and without JavaScript, at 320 and 1280 pixels, found no difference from one `tokens.css`
+holding everything (2026-10-17). A component written with the roles is right in dark mode without an entry in
+`theme.css`, the older override layer that still re-colours the components not yet migrated.
 
-`tools/check-colours.mjs` (part of `check-web`) checks that every colour token has a dark value and that the two dark
-blocks agree, and counts the literal colours left in every shipped stylesheet (`tools/web-colour-baseline.json`):
+`tools/check-colours.mjs` (part of `check-web`) checks, over both token sheets, that every colour token has a dark
+value and that the two dark blocks agree, and counts the literal colours left in every shipped stylesheet (`tools/web-colour-baseline.json`):
 a count may only go down. Brand marks and the printed page keep their literal colours by name in
 `tools/web-colour-allowlist.json`, which may only shrink. `node tools/check-colours.mjs --explain web/<sheet>.css`
 lists a stylesheet's literals; `--write` lowers the baseline after a migration. Declaring `--border` and `--surface`

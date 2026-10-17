@@ -2,12 +2,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
-// WEB-07: tokens.css is the one theme source. Dark mode used to be an override layer (theme.css re-coloured components
+// WEB-07: the token sheets are the one theme source: tokens.css, which every page loads first, and public-tokens.css,
+// which the static public pages load right after it (the policy pages' shades and the dark system a page read without
+// JavaScript follows; the workspace needs JavaScript, and theme.js sets its theme before styles load). Dark mode used
+// to be an override layer (theme.css re-coloured components
 // through [data-theme='dark'] :is(...) lists whose winner depended on specificity), and every component written with a
 // literal colour rendered in light colours in dark mode until someone added it to that layer; check-web only refused a
 // literal equal to a token value, and only in the stylesheets index.html links. These checks cover every shipped
 // stylesheet:
-//   parity     every colour token tokens.css sets for the light theme is set for the dark theme too (unless it is one
+//   parity     every colour token the token sheets set for the light theme is set for the dark theme too (unless it is one
 //              of the reviewed theme-invariant tokens below), and the block a dark operating system gets without
 //              JavaScript (prefers-color-scheme) is exactly the [data-theme='dark'] block;
 //   literals   a colour written outside tokens.css is counted per stylesheet, unless the reviewed allow-list
@@ -15,6 +18,8 @@ import {fileURLToPath} from 'node:url';
 //              count may only go down (tools/web-colour-baseline.json), and so may the allow-list.
 
 export const baselinePath = 'tools/web-colour-baseline.json';
+/** The stylesheets that define tokens, in the order a page loads them. */
+export const tokenSheets = Object.freeze(['tokens.css', 'public-tokens.css']);
 export const allowlistPath = 'tools/web-colour-allowlist.json';
 /** Tokens that keep one value in both themes: the surfaces that stay dark in the light theme and the ink on them. */
 export const themeInvariantTokens = new Set(['--surface-inverse', '--surface-inverse-raised', '--text-on-inverse']);
@@ -81,12 +86,12 @@ const sameEntry = (entry, found, file) =>
   entry.selector === found.selector &&
   entry.property === found.property &&
   entry.value.toLowerCase() === found.literal;
-/** Shipped stylesheets other than tokens.css. */
+/** Shipped stylesheets other than the token sheets. */
 export function colourSheets(root = process.cwd()) {
   return fs
     .readdirSync(path.join(root, 'web'), {recursive: true})
     .map(file => file.replaceAll('\\', '/'))
-    .filter(file => file.endsWith('.css') && file !== 'tokens.css')
+    .filter(file => file.endsWith('.css') && !tokenSheets.includes(file))
     .sort();
 }
 export function readColourAllowlist(root = process.cwd()) {
@@ -181,32 +186,32 @@ export const themeBlocks = {
   dark: [":root[data-theme='dark']"],
   system: [':root:not([data-theme])', '@media (prefers-color-scheme: dark)'],
 };
-/** Light/dark parity of tokens.css, as problems. */
-export function tokenParityProblems(css) {
+/** Light/dark parity of the token sheets (their text joined), as problems. */
+export function tokenParityProblems(css, label = 'web/tokens.css') {
   const declarations = cssDeclarations(css),
     light = tokenBlock(declarations, ...themeBlocks.light),
     dark = tokenBlock(declarations, ...themeBlocks.dark),
     system = tokenBlock(declarations, ...themeBlocks.system),
     problems = [];
-  if (!Object.keys(dark).length) problems.push("web/tokens.css: no :root[data-theme='dark'] block");
+  if (!Object.keys(dark).length) problems.push(label + ": no :root[data-theme='dark'] block");
   if (!Object.keys(system).length)
     problems.push(
-      'web/tokens.css: no @media (prefers-color-scheme: dark) { :root:not([data-theme]) } block, so a page without JavaScript cannot follow a dark system',
+      label +
+        ': no @media (prefers-color-scheme: dark) { :root:not([data-theme]) } block, so a page without JavaScript cannot follow a dark system',
     );
   for (const [name, value] of Object.entries(light))
     if (name.startsWith('--') && isLiteralColour(value) && !themeInvariantTokens.has(name) && !(name in dark))
-      problems.push('web/tokens.css: ' + name + ' has a light value but no dark value');
+      problems.push(label + ': ' + name + ' has a light value but no dark value');
   for (const name of Object.keys(dark))
-    if (name.startsWith('--') && !(name in light))
-      problems.push('web/tokens.css: ' + name + ' is defined only for dark');
+    if (name.startsWith('--') && !(name in light)) problems.push(label + ': ' + name + ' is defined only for dark');
   for (const name of themeInvariantTokens)
-    if (name in dark) problems.push('web/tokens.css: ' + name + ' is theme-invariant but has a dark value');
+    if (name in dark) problems.push(label + ': ' + name + ' is theme-invariant but has a dark value');
   const differences = [...new Set([...Object.keys(dark), ...Object.keys(system)])].filter(
     name => dark[name] !== system[name],
   );
   if (differences.length)
     problems.push(
-      'web/tokens.css: the system-dark block (no JavaScript) differs from the dark block for ' + differences.join(', '),
+      label + ': the system-dark block (no JavaScript) differs from the dark block for ' + differences.join(', '),
     );
   return problems;
 }
@@ -220,7 +225,10 @@ export function checkColours(
     counts,
     allowed,
     problems: [
-      ...tokenParityProblems(fs.readFileSync(path.join(root, 'web/tokens.css'), 'utf8')),
+      ...tokenParityProblems(
+        tokenSheets.map(file => fs.readFileSync(path.join(root, 'web', file), 'utf8')).join('\n'),
+        tokenSheets.map(file => 'web/' + file).join(' + '),
+      ),
       ...problems,
       ...colourRatchet(counts, baseline, allowlist),
     ],

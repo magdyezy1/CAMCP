@@ -5,8 +5,16 @@ import {accountMarkupProblems, rtlProblems} from './check-rtl.mjs';
 import {checkRoutes} from './check-routes.mjs';
 import {checkMarkup} from './check-markup.mjs';
 import {checkExtensions} from './check-extensions.mjs';
-import {checkColours, colourSheets, cssDeclarations, literalColours, readColourAllowlist} from './check-colours.mjs';
+import {
+  checkColours,
+  colourSheets,
+  cssDeclarations,
+  literalColours,
+  readColourAllowlist,
+  tokenSheets,
+} from './check-colours.mjs';
 import {localeChunkProblems, planLocaleChunks} from './locale-chunks.mjs';
+import {readRouteBytesBaseline, routeBytes, routeBytesOpen, routeBytesProblems} from './web-route-bytes.mjs';
 
 // Static checks for the shipped website. The Content-Security-Policy (server/website.ts) allows scripts and styles
 // from 'self' only, so inline code would silently stop working; the other rules keep review findings from returning.
@@ -47,15 +55,23 @@ for (const html of fs.readdirSync('web').filter(f => f.endsWith('.html'))) {
     ...fs.readFileSync('web/' + html, 'utf8').matchAll(/<link rel="stylesheet" href="\/assets\/([^"]+)">/g),
   ];
   if (linked.length && linked[0][1] !== 'tokens.css') problems.push(html + ': tokens.css must be the first stylesheet');
+  // The static public pages can be read without JavaScript, so their dark system and the policy shades come right
+  // after; the workspace needs JavaScript (theme.js sets its theme before styles load) and does not download them.
+  if (html === 'index.html' && linked.some(m => m[1] === 'public-tokens.css'))
+    problems.push(html + ': the workspace does not load public-tokens.css');
+  if (html !== 'index.html' && linked.length && linked[1]?.[1] !== 'public-tokens.css')
+    problems.push(html + ': public-tokens.css must be the second stylesheet');
 }
 for (const sheet of stylesheets)
   if (/(?:^|[{;\s])--[\w-]+\s*:/.test(fs.readFileSync('web/' + sheet, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')))
-    problems.push(sheet + ': defines a design token; tokens belong in tokens.css');
+    problems.push(
+      sheet + ': defines a design token; tokens belong in the token sheets (' + tokenSheets.join(', ') + ')',
+    );
 // A colour equal to a light token's value uses the token, so a palette change reaches it (F-40). Reviewed literals
 // (tools/web-colour-allowlist.json) are brand marks and print colours that never follow the palette.
 const hex = v => (v.length === 4 ? '#' + [...v.slice(1)].map(c => c + c).join('') : v).toLowerCase();
 const tokenColours = new Map(
-  cssDeclarations(fs.readFileSync('web/tokens.css', 'utf8'))
+  cssDeclarations(tokenSheets.map(sheet => fs.readFileSync('web/' + sheet, 'utf8')).join('\n'))
     .filter(d => d.selector === ':root' && !d.atRules.length && /^#[0-9a-fA-F]{3,8}$/.test(d.value))
     .map(d => [hex(d.value), d.property.slice(2)]),
 );
@@ -123,6 +139,10 @@ const markup = checkMarkup();
 problems.push(...markup.problems);
 // WEB-07: scripts extend the shell through AMCP.routes and AMCP.hooks, never by reassigning a shell function.
 problems.push(...checkExtensions());
+// WEB-07: no page downloads more before it renders than before WEB-07 (an open gap may not grow and must close).
+const bytesNow = routeBytes(),
+  bytesBaseline = readRouteBytesBaseline();
+problems.push(...routeBytesProblems(bytesNow, bytesBaseline));
 if (problems.length) {
   console.error(problems.join('\n'));
   process.exit(1);
@@ -156,4 +176,16 @@ console.log(
     ' explicitly selected interface messages in ' +
     Object.keys(chunkPlan.chunks).length +
     ' chunks; untranslated workflows remain tracked separately.',
+);
+const openBytes = routeBytesOpen(bytesNow, bytesBaseline);
+console.log(
+  'Route bytes: ' +
+    (Object.keys(bytesNow).length - openBytes.length) +
+    ' of ' +
+    Object.keys(bytesNow).length +
+    ' pages (both languages) at or below their bytes before WEB-07' +
+    (openBytes.length
+      ? '; open: ' + openBytes.map(gap => gap.key + ' ' + gap.bytes + ' of ' + gap.baseline).join(', ')
+      : '') +
+    '.',
 );

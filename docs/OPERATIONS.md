@@ -893,14 +893,22 @@ covers the manifest, cold English/Arabic source initialization and HTTP revalida
 [qualification and limits](review/DELIVERY-2026-10-02-ROUTE-ASSETS.md) before making performance claims.
 
 `node tools/web-route-bytes.mjs` adds the stylesheets and the Arabic chunks: the Brotli (quality 5) bytes each page
-downloads before it renders, per language, against `tools/web-route-bytes-baseline.json` (recorded on Work-here before
-WEB-07); it exits 1 when a page exceeds its recorded value. On 2026-10-17 every Arabic page was 10–84% below it (the
-public pages 69%, About 84%); in English the public and sign-in pages were 13.6% below, Live portfolio 42.7%, Commerce
-34.6%, Measurement 22.6%, Capabilities 23.8%, Creative 19.5% and most other pages 10–13%. Home, Schedules, Report
-library and Report builder remained 1.5–1.7% above (2,680 bytes: the escape-by-default, extension-point and theme-token
-code every page now carries, which those pages do not offset because they need the report modules) and About 17.5%
-(2,745 bytes: the theme tokens with their no-JavaScript dark block and the chunked catalog loader).
-`tests/web-route-bytes.test.mjs` keeps the split's gains, each with a wide margin.
+downloads before it renders, per language (a stylesheet inside `<noscript>` is not counted), against
+`tools/web-route-bytes-baseline.json`, recorded on the merged Work-here tree before WEB-07 (36742651, which already
+held the other wave 3b packages' additions). `check-web` refuses a page above its recorded value unless the baseline
+lists it under `open`: an acceptance gap WEB-07 has not closed (not an accepted exception), with the value it may not
+exceed while open and the reason. An open page fails above that value and fails once it is back at or below its
+baseline, so the list only shrinks; `--write --label <why>` records a new baseline from a tree and keeps each open
+page's target. On 2026-10-17 every Arabic page was 11–85% below it (the public pages 69%, About 85%); in English the
+public and sign-in pages were 15.4% below, Live portfolio 43.8%, Commerce 35.5%, Capabilities 25.0%, Measurement
+23.7%, Creative 20.6% and most other pages 11–14%; Home, Schedules, Report library and Report builder 37 bytes below.
+Those four were 2,750 bytes above until the shell lost most of the commentary WEB-07 had added to it (about 3.5 KB of
+compressed comments every page downloaded), the workspace-only chunk loading moved into `route-assets.js`, and the
+policy pages' shades and the no-JavaScript dark block moved into `public-tokens.css`, which the workspace never
+downloads. English About is the one open gap: 16,868 bytes against 15,848 (6.4%), from the semantic roles and the
+html tag About does not use and the workspace override layer (`theme.css`) it already carried; closing it is package
+work (About off `theme.css`, or the html tag out of `localization.js`). `tests/web-route-bytes.test.mjs` checks the
+same and keeps the split's gains, each with a wide margin.
 
 `npm run build && node tools/benchmark-web-first-render.mjs --output-dir .runtime/<fresh-directory>` times the first
 content render (the page's own heading in the chosen language, no loading placeholder) on the synthetic fixture under
