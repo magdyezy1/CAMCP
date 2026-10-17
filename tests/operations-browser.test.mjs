@@ -27,6 +27,8 @@ function browser() {
     errorMessage: e => e.message,
   });
   new Script(readFileSync('web/localization.js', 'utf8')).runInContext(c);
+  // WEB-07: the paged-list loader is web/work-pages.js, a dependency of the Operations center.
+  new Script(readFileSync('web/work-pages.js', 'utf8')).runInContext(c);
   new Script(readFileSync('web/operations-center.js', 'utf8')).runInContext(c);
   c.fetchPage = cursor => new Promise((resolve, reject) => requests.push({cursor, resolve, reject}));
   const pager = new Script("workPageLoader('#page','Work',fetchPage,r=>r.rows.join(','))").runInContext(c);

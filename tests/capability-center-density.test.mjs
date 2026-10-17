@@ -15,11 +15,8 @@ import {NativeTransport} from '../dist/src/transport.js';
 const tenantId = 'capability-density',
   admin = {tenantId, userId: 'owner', role: 'admin'},
   catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8')),
-  operations = readFileSync('web/operations-center.js', 'utf8'),
-  pager = operations.slice(
-    operations.indexOf('function workPageLoader('),
-    operations.indexOf('// Only these authored AMCP instructions'),
-  ),
+  // WEB-07: the paged-list loader is its own small module (web/work-pages.js), shared by every page that lists work.
+  pager = readFileSync('web/work-pages.js', 'utf8'),
   esc = value =>
     String(value ?? '')
       .replaceAll('&', '&amp;')

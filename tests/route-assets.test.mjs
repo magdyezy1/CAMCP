@@ -283,6 +283,34 @@ test('each account workflow page loads only its own module, the shared helper an
     );
 });
 
+// Regression (WEB-07): Creative, Capabilities, Evidence & analysis and the report pack loaded the whole Operations
+// center and its three workbook controllers (about 110 KB) for one paged-list loader. They now load web/work-pages.js.
+test('a page that lists work loads the paged-list loader, not the Operations center and its workbooks', () => {
+  const f = fixture(),
+    files = path => Array.from(f.run(`pageAssetsFor(${JSON.stringify(path)})`)),
+    operations = ['operations-center.js', 'workbook-schedules.js', 'workbook-bindings.js', 'workbook-rebinding.js'];
+  for (const path of ['/media', '/capabilities', '/reports', '/report-pack']) {
+    assert.ok(files(path).includes('work-pages.js'), path);
+    assert.deepEqual(
+      files(path).filter(file => operations.includes(file)),
+      [],
+      path,
+    );
+  }
+  for (const path of ['/operations', '/monitors'])
+    assert.deepEqual(
+      files(path).filter(f => operations.includes(f)),
+      operations,
+    );
+  // The loader is declared once, in its own module.
+  for (const file of fs.readdirSync('web').filter(file => file.endsWith('.js')))
+    assert.equal(
+      /^function workPageLoader\(/m.test(fs.readFileSync('web/' + file, 'utf8')),
+      file === 'work-pages.js',
+      file,
+    );
+});
+
 test('each cold route initializes its real scripts and required handlers in English and Arabic without API traffic', async () => {
   const routes = {
     '/': ['renderLanding'],
@@ -338,6 +366,11 @@ test('each cold route initializes its real scripts and required handlers in Engl
     '/portfolio': ['renderMeasurement', 'renderCommerce', 'bindWooCommerceSource', 'reviewTable'],
     '/measurement': ['renderPortfolio', 'renderCommerce', 'bindWooCommerceSource'],
     '/commerce': ['renderPortfolio', 'renderMeasurement', 'reviewTable'],
+    // A page that lists work loads only the paged-list loader (web/work-pages.js).
+    '/media': ['renderOperationsCenter', 'renderWorkbookBindings'],
+    '/capabilities': ['renderOperationsCenter', 'renderWorkbookBindings'],
+    '/reports': ['renderOperationsCenter', 'renderWorkbookBindings'],
+    '/report-pack': ['renderOperationsCenter', 'renderWorkbookBindings'],
   };
   // The page bodies these modules provide through the route registry (AMCP.routes.register, web/routes.js).
   const registered = {

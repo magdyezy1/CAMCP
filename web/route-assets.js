@@ -1,6 +1,7 @@
 'use strict';
 // Only authored same-origin filenames enter the loader. Routes, query strings and provider data never become URLs.
 const pageAssetOrder = [
+  'work-pages.js',
   'campaign-recipes.js',
   'creative-push.js',
   'creative-library.js',
@@ -33,17 +34,18 @@ const pageAssetOrder = [
   'account-approvals.js',
 ];
 const pageAssetDependencies = {
-  'creative-library.js': ['operations-center.js'],
+  // WEB-07: a page that lists work needs only the paged-list loader, not the Operations center and its workbooks.
+  'creative-library.js': ['work-pages.js'],
   'client-playbooks.js': ['campaign-recipes.js', 'campaign-workflows.js'],
-  'operations-center.js': ['workbook-schedules.js', 'workbook-bindings.js', 'workbook-rebinding.js'],
-  'workbook-bindings.js': ['operations-center.js'],
-  'workbook-rebinding.js': ['operations-center.js'],
+  'operations-center.js': ['work-pages.js', 'workbook-schedules.js', 'workbook-bindings.js', 'workbook-rebinding.js'],
+  'workbook-bindings.js': ['work-pages.js'],
+  'workbook-rebinding.js': ['work-pages.js'],
   'work-center.js': ['report-library.js', 'campaign-workflows.js'],
-  'capability-center.js': ['operations-center.js'],
+  'capability-center.js': ['work-pages.js'],
   'report-workflows.js': ['report-library.js'],
   'evidence-workflows.js': ['report-quality.js', 'report-allocation.js', 'report-presentation.js'],
-  'report-allocation.js': ['operations-center.js', 'report-quality.js'],
-  'report-presentation.js': ['evidence-workflows.js', 'operations-center.js'],
+  'report-allocation.js': ['work-pages.js', 'report-quality.js'],
+  'report-presentation.js': ['evidence-workflows.js', 'work-pages.js'],
   // WEB-07: one module per account workflow page over a small shared helper; only Measurement shows a review table.
   // A parked store source is a module of its own behind the Commerce page.
   'portfolio.js': ['account-workflows.js'],
