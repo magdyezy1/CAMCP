@@ -54,8 +54,8 @@ part not built yet is named there as work, not as an open decision. The owner ma
 
 ### Release notes for the push after wave 4
 
-Three approved defaults applied in wave 3b change behaviour for existing workspaces, and the release notes must call
-them out beside the P3 defaults (below):
+The approved choices wave 3b applies (P2, P5 and P9) change behaviour for existing workspaces and MCP clients, and the
+release notes must call them out beside the P3 defaults (below):
 
 - **Invitations last 7 days (P2).** New invitations expire after 7 days instead of 72 hours. Invitations already sent
   keep their expiry, and a workspace whose owner saved Workspace security before keeps the lifetime saved then (the
@@ -73,6 +73,12 @@ them out beside the P3 defaults (below):
 - **Meta catalog products with destination-only values need review (P9).** A Meta product that matches every supplied
   field but holds values the import does not send (a sale price, staging visibility, inventory) is `unknown` and is
   among the products a "Save only products needing review" draft saves; its native review warns about those values.
+- **Criteo and WooCommerce are no longer offered by default (P9).** The provider adapter registry parks them (ARC-01),
+  as it parks Amazon Ads: `tools/list` lists 25 tools instead of 27; contracts, capabilities and the Capability Center
+  leave them out; Commerce hides the WooCommerce store panels and product source. A call naming
+  `criteo_native_action` or `commerce_native_action` is refused with `GATEWAY_NOT_OFFERED` before anything is read or
+  sent. Their audit history stays readable, and an administrator can still remove a stored WooCommerce store
+  connection. A deployment that still uses them names them in `AMCP_PROVIDERS` (`AMCP_PROVIDERS=criteo,woocommerce`).
 
 ## 2026-10-09: engineering review decisions D1–D27
 

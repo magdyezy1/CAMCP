@@ -209,6 +209,9 @@ test('every product-direction choice P1-P12 is recorded as approved on 2026-10-1
     ['P5', /CAP_OVERRIDE_OWNER_REQUIRED/],
     ['P5', /POLICY_CURRENCY_UNSET/],
     ['P9', /`unknown`/],
+    // ARC-01's lifecycle part of P9: parked providers leave tools/list unless AMCP_PROVIDERS names them.
+    ['P9', /`GATEWAY_NOT_OFFERED`/],
+    ['P9', /`AMCP_PROVIDERS=criteo,woocommerce`/],
   ]) {
     assert.match(notes, new RegExp('\\(' + id + '\\)\\.\\*\\*'), id);
     assert.match(notes, code, id);
