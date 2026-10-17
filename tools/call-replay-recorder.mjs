@@ -36,6 +36,16 @@ if (directory && root) {
     records = new Map(),
     replays = new Map(),
     replaySet = new Set(replayable);
+  // Fixtures that draw Math.random() (a synthetic image URL, a session ID) draw the same sequence in every recording
+  // of a test file: mulberry32, seeded by the file's name, so two recordings compare. Tests pass for any sequence.
+  let seed = [...test].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0, 2166136261);
+  Math.random = () => {
+    seed = (seed + 0x6d2b79f5) >>> 0;
+    let t = seed;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
   const add = record => {
     const text = JSON.stringify(record);
     records.set(text, (records.get(text) ?? 0) + 1);
@@ -102,15 +112,17 @@ if (directory && root) {
       if (typeof fetcher !== 'function' || fetcher.__callReplay) return;
       const watched = function (url, init = {}) {
         try {
+          // A multipart body holds its random boundary; it is digested with the boundary as a placeholder.
+          const headers = init.headers ?? {},
+            type = Object.entries(headers).find(([k]) => k.toLowerCase() === 'content-type')?.[1],
+            boundary = /boundary=([^;\s]+)/.exec(String(type ?? ''))?.[1];
+          const body =
+            boundary && init.body instanceof Uint8Array
+              ? Buffer.from(Buffer.from(init.body).toString('latin1').split(boundary).join('<boundary>'), 'latin1')
+              : init.body;
           add({
             id: 'provider_request',
-            in: encode({
-              url: String(url),
-              method: init.method ?? 'GET',
-              headers: init.headers ?? {},
-              body: init.body,
-              redirect: init.redirect,
-            }),
+            in: encode({url: String(url), method: init.method ?? 'GET', headers, body, redirect: init.redirect}),
           });
         } catch {}
         return fetcher.call(this, url, init);

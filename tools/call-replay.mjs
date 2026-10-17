@@ -9,8 +9,11 @@
 //      recorded calls of the pure functions in `replayable` through the current build and compares their results.
 // Usage:
 //   npm run build && node tools/call-replay.mjs record <dir> [test file ...] [--list file] [--related source file ...]
-//   node tools/call-replay.mjs compare <before dir> <after dir> [--show N]
-//   node tools/call-replay.mjs replay <before dir>
+//   node tools/call-replay.mjs compare <before> <after> [--calibration <dir> <dir>] [--ignore id ...] [--show N]
+//   node tools/call-replay.mjs replay <before dir> [--ignore id ...]
+// A calibration is two recordings of the build before the change: a paired record that differs only where they
+// differed (a fixture's random value, a clock-relative time inside a digest) is noise, reported apart; --ignore
+// names a helper that intentionally left its module, whose callers still compare.
 // Recordings stay outside the repository (they hold test payloads); the commit that moves a concern states the counts.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -143,51 +146,71 @@ export function targetOf(url, root) {
   return Object.hasOwn(targets, relative) ? relative : undefined;
 }
 
-const uuid = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi,
-  iso = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})\b/g,
+const uuid = /(?<![0-9a-f])[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![0-9a-f])/gi,
+  iso = /\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?(?![\d.])/g,
   epochMs = /\b1[6-9]\d{11}\b/g,
-  oauthPart = /\b(oauth_(?:nonce|timestamp|signature))="[^"]*"/g;
-/** Values that differ between two runs of the same test without meaning anything: IDs, clocks, signatures. */
+  epochS = /\b1[78]\d{8}\b/g,
+  oauthPart = /\b(oauth_(?:nonce|timestamp|signature))="[^"]*"/g,
+  randomField = /\b(code_verifier|code_challenge|state|nonce)=([^&\s"]+)/g;
+/** Text values that differ between two runs of the same test without meaning anything: IDs, clocks, signatures. */
 export function normalizeText(text) {
   return String(text)
     .replace(uuid, '<uuid>')
     .replace(iso, '<time>')
     .replace(epochMs, '<epoch-ms>')
-    .replace(oauthPart, '$1="<oauth>"');
+    .replace(epochS, '<epoch-s>')
+    .replace(oauthPart, '$1="<oauth>"')
+    .replace(randomField, '$1=<random>');
+}
+/** A recorded value with run-to-run noise removed: strings through normalizeText, epoch numbers as placeholders. */
+export function normalizeValue(value) {
+  if (typeof value === 'string') return normalizeText(value);
+  if (typeof value === 'number')
+    return Number.isInteger(value) && value >= 1.6e12 && value < 2e12
+      ? '<epoch-ms>'
+      : Number.isInteger(value) && value >= 1.7e9 && value < 1.9e9
+        ? '<epoch-s>'
+        : value;
+  if (Array.isArray(value)) return value.map(normalizeValue);
+  if (value && typeof value === 'object')
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, normalizeValue(v)]));
+  return value;
 }
 const secretKey =
   /^(?:authorization|access[-_]?token|refresh[-_]?token|client[-_]?secret|code[-_]?verifier|developer[-_]?token|x-api-key|api[-_]?key|cookie|password)$/i;
+const credentialKey =
+  /^(?:accessToken|refreshToken|clientSecret|consumerSecret|tokenSecret|password|apiKey|applePrivateKey|developerToken)$/;
 const secretField =
   /\b(client_secret|refresh_token|access_token|code_verifier|client_assertion|oauth_token_secret|password)=([^&\s"]+)/g;
+// A PKCE verifier, OAuth state or nonce is random by design: a mixed-case token under these names.
+const randomKey = /^(?:verifier|codeVerifier|code_verifier|state|nonce|codeChallenge|code_challenge)$/,
+  randomToken = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z0-9._~-]{16,}$/;
 const digest = text => crypto.createHash('sha256').update(text).digest('hex').slice(0, 16);
+// These refusals compute their wait from the process clock or the daily reset; a provider's own Retry-After is kept.
 const clockRefusals = new Set([
   'TENANT_RATE_LIMIT',
   'PLATFORM_RATE_LIMIT',
   'CIRCUIT_OPEN',
   'PROVIDER_COORDINATION_BUSY',
+  'PROVIDER_QUOTA_SHARE_EXHAUSTED',
 ]);
 /**
  * A JSON-safe copy of a recorded value: undefined, functions, bytes, maps, sets and errors are marked; instances of
- * classes (a Store, a Registry) are named, not walked; header and credential values are digested, never written.
+ * classes (a Store, a Registry) are named, not walked; header and credential values are digested, never written;
+ * clock-derived deadlines and random OAuth values are placeholders.
  */
 export function encode(value, seen = new Set(), depth = 0, key = '') {
   if (value === undefined) return {$undefined: true};
   if (value === null || typeof value === 'boolean') return value;
-  if (typeof value === 'number')
-    return Number.isFinite(value)
-      ? /deadline|timeout|until|_at$|At$/i.test(key) && !Number.isInteger(value)
-        ? '<clock>'
-        : value
-      : {$number: String(value)};
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) return {$number: String(value)};
+    if (/deadline/i.test(key) || (/timeout|until|_at$|At$/.test(key) && !Number.isInteger(value))) return '<clock>';
+    return value;
+  }
   if (typeof value === 'bigint') return {$bigint: String(value)};
   if (typeof value === 'string') {
-    if (
-      secretKey.test(key) ||
-      /^(?:accessToken|refreshToken|clientSecret|consumerSecret|tokenSecret|password|apiKey|applePrivateKey|developerToken)$/.test(
-        key,
-      )
-    )
-      return '<secret:' + digest(normalizeText(value)) + '>';
+    if (secretKey.test(key) || credentialKey.test(key)) return '<secret:' + digest(normalizeText(value)) + '>';
+    if (randomKey.test(key) && randomToken.test(value)) return '<random>';
     const text = value.includes('=')
       ? value.replace(secretField, (_m, name, secret) => name + '=<secret:' + digest(secret) + '>')
       : value;
@@ -202,18 +225,22 @@ export function encode(value, seen = new Set(), depth = 0, key = '') {
   if (value instanceof ArrayBuffer) return {$bytes: value.byteLength, sha256: digest(Buffer.from(value))};
   if (value instanceof URL) return {$url: value.href};
   if (value instanceof Date) return {$date: Number.isFinite(value.getTime()) ? '<time>' : 'invalid'};
-  if (value instanceof URLSearchParams) return {$search: value.toString()};
+  if (value instanceof URLSearchParams) return {$search: encode(value.toString(), seen, depth + 1, key)};
   if (typeof FormData !== 'undefined' && value instanceof FormData) {
     const entries = [];
     for (const [name, part] of value.entries())
-      entries.push([name, typeof part === 'string' ? part : {$blob: part.type, size: part.size, name: part.name}]);
+      entries.push([
+        name,
+        typeof part === 'string'
+          ? encode(part, seen, depth + 1, name)
+          : {$blob: part.type, size: part.size, name: part.name},
+      ]);
     return {$form: entries};
   }
   if (typeof Headers !== 'undefined' && value instanceof Headers)
     return encode(Object.fromEntries([...value.entries()]), seen, depth + 1, key);
   if (value instanceof Error) {
     const details = encode(value.details, seen, depth + 1, 'details');
-    // These refusals compute their wait from the process clock; a provider's own Retry-After stays compared.
     if (clockRefusals.has(value.code) && details && typeof details.retry_after_ms === 'number')
       details.retry_after_ms = '<clock>';
     return {
@@ -239,8 +266,8 @@ export function encode(value, seen = new Set(), depth = 0, key = '') {
     seen.delete(value);
   }
 }
-/** Deterministic JSON of an encoded value (keys are already sorted by encode). */
-export const recordText = record => normalizeText(JSON.stringify(record));
+/** Deterministic JSON of a recorded record after normalization (keys are already sorted by encode). */
+export const recordText = record => JSON.stringify(normalizeValue(record));
 
 /**
  * The records of a recording directory, per test file: a map of record text to its count. `failed` names the test
@@ -269,28 +296,99 @@ export function readRecording(directory) {
   return perTest;
 }
 
-/** Differences between two recordings: records whose count differs, per test file, and per-function totals. */
-export function compareRecordings(before, after) {
-  const differences = [],
-    totals = {};
-  const tests = [...new Set([...before.keys(), ...after.keys()])].sort();
-  let records = 0;
-  for (const test of tests) {
+/** The leaf paths where two records differ, array indices generalized to `#`. */
+export function differingPaths(x, y, prefix = '', out = new Set()) {
+  if (x && y && typeof x === 'object' && typeof y === 'object' && Array.isArray(x) === Array.isArray(y)) {
+    for (const k of new Set([...Object.keys(x), ...Object.keys(y)]))
+      differingPaths(x[k], y[k], prefix + '/' + (Array.isArray(x) ? '#' : k), out);
+  } else if (JSON.stringify(x) !== JSON.stringify(y)) out.add(prefix || '/');
+  return out;
+}
+
+/**
+ * The differing records of two recordings, per test file and function: each record only one side holds is paired with
+ * the other side's record of the same function that differs from it at the fewest paths.
+ */
+function pairs(before, after) {
+  const out = [];
+  for (const test of [...new Set([...before.keys(), ...after.keys()])].sort()) {
     const a = before.get(test) ?? new Map(),
-      b = after.get(test) ?? new Map();
+      b = after.get(test) ?? new Map(),
+      only = {before: new Map(), after: new Map()};
     for (const text of new Set([...a.keys(), ...b.keys()])) {
-      const id = JSON.parse(text).id,
-        x = a.get(text) ?? 0,
+      const x = a.get(text) ?? 0,
         y = b.get(text) ?? 0;
-      totals[id] = (totals[id] ?? 0) + Math.max(x, y);
-      records += Math.max(x, y);
-      if (x !== y) differences.push({test, id, before: x, after: y, record: text});
+      if (x === y) continue;
+      const side = x > y ? only.before : only.after,
+        id = JSON.parse(text).id;
+      side.set(id, [...(side.get(id) ?? []), ...Array(Math.abs(x - y)).fill(text)]);
+    }
+    for (const id of new Set([...only.before.keys(), ...only.after.keys()])) {
+      const left = only.before.get(id) ?? [],
+        right = (only.after.get(id) ?? []).map(text => ({text, value: JSON.parse(text)}));
+      for (const text of left) {
+        const x = JSON.parse(text);
+        let best = -1,
+          bestPaths;
+        right.forEach((other, i) => {
+          const paths = differingPaths(x, other.value);
+          if (!bestPaths || paths.size < bestPaths.size) [best, bestPaths] = [i, paths];
+        });
+        if (best < 0) out.push({test, id, before: text});
+        else out.push({test, id, before: text, after: right.splice(best, 1)[0].text, paths: [...bestPaths].sort()});
+      }
+      for (const {text} of right) out.push({test, id, after: text});
     }
   }
+  return out;
+}
+
+/**
+ * What differs between two recordings of the same build: the noise a later comparison may ignore, as the paths where
+ * paired records of each test file and function differed, and the functions whose call counts differed.
+ */
+export function noiseProfile(before, after) {
+  const paths = new Map(),
+    counts = new Set();
+  for (const p of pairs(before, after)) {
+    const key = p.test + '\n' + p.id;
+    if (!p.paths) counts.add(key);
+    else paths.set(key, new Set([...(paths.get(key) ?? []), ...p.paths]));
+  }
+  return {paths, counts};
+}
+
+/**
+ * Differences between two recordings, per test file: a paired record that differs only where the calibration
+ * (two recordings of one build) also differed is noise; every other paired or unpaired record is a difference.
+ */
+export function compareRecordings(before, after, noise) {
+  const differences = [],
+    totals = {},
+    noisy = {};
+  // Records per side; totals per function count the recording after the change.
+  const count = recording =>
+    [...recording.values()].reduce((n, map) => n + [...map.values()].reduce((a, c) => a + c, 0), 0);
+  for (const map of after.values())
+    for (const [text, n] of map) {
+      const id = JSON.parse(text).id;
+      totals[id] = (totals[id] ?? 0) + n;
+    }
+  for (const p of pairs(before, after)) {
+    const key = p.test + '\n' + p.id,
+      allowed = noise?.paths.get(key);
+    if (p.paths ? allowed && p.paths.every(path => allowed.has(path)) : noise?.counts.has(key)) {
+      noisy[p.id] = (noisy[p.id] ?? 0) + 1;
+      continue;
+    }
+    differences.push(p);
+  }
   return {
-    tests: tests.length,
-    records,
+    tests: new Set([...before.keys(), ...after.keys()]).size,
+    records_before: count(before),
+    records_after: count(after),
     totals,
+    noise: noisy,
     differences,
     failed_before: [...(before.failed ?? [])].sort(),
     failed_after: [...(after.failed ?? [])].sort(),
@@ -324,6 +422,45 @@ export function revive(value) {
   }
   return out;
 }
+
+async function replay(root, directory, moved) {
+  const calls = replayCalls(directory),
+    modules = new Map(),
+    counts = {},
+    differences = [];
+  for (const call of calls) {
+    const [moduleId, name] = call.id.split('#');
+    if (moved.has(call.id)) continue;
+    if (!modules.has(moduleId)) modules.set(moduleId, await import(pathToFileURL(path.join(root, moduleId)).href));
+    const fn = modules.get(moduleId)[name];
+    let outcome;
+    if (typeof fn !== 'function') outcome = {missing: true};
+    else
+      try {
+        outcome = {returns: encode(fn(...revive(JSON.parse(call.args))))};
+      } catch (error) {
+        outcome = {throws: encode(error)};
+      }
+    const now = JSON.stringify(normalizeValue(outcome)),
+      then = JSON.stringify(normalizeValue(call.outcome));
+    counts[call.id] = (counts[call.id] ?? 0) + 1;
+    if (now !== then)
+      differences.push({
+        id: call.id,
+        args: call.args.slice(0, 400),
+        before: then.slice(0, 400),
+        after: now.slice(0, 400),
+      });
+  }
+  console.log(
+    JSON.stringify({event: 'call_replay_replay', calls: calls.length, differences: differences.length, counts}),
+  );
+  for (const d of differences.slice(0, 10)) console.log(JSON.stringify(d));
+  return differences.length ? 1 : 0;
+}
+
+/** Values of a repeated option (`--ignore a --ignore b`). */
+const option = (args, name) => args.flatMap((a, i) => (a === name && args[i + 1] ? [args[i + 1]] : []));
 
 function main(argv) {
   const root = path.resolve(fileURLToPath(new URL('..', import.meta.url))),
@@ -387,64 +524,44 @@ function main(argv) {
     return exit === 0 ? 0 : 2;
   }
   if (mode === 'compare') {
+    // compare <before> <after> [--calibration <dir> <dir>] [--ignore id ...] [--show N]
     const [a, b] = rest,
-      show = Number(rest[rest.indexOf('--show') + 1] ?? 10) || 10;
-    const result = compareRecordings(readRecording(a), readRecording(b));
+      show = Number(option(rest, '--show')[0] ?? 10) || 10,
+      ignore = new Set(option(rest, '--ignore')),
+      at = rest.indexOf('--calibration'),
+      calibration = at >= 0 ? [rest[at + 1], rest[at + 2]] : undefined;
+    // An intended move (a helper that left its module) is named with --ignore; its callers' records still compare.
+    const load = directory => {
+      const recording = readRecording(directory);
+      for (const [test, map] of recording)
+        recording.set(test, new Map([...map].filter(([text]) => !ignore.has(JSON.parse(text).id))));
+      return recording;
+    };
+    const noise = calibration ? noiseProfile(load(calibration[0]), load(calibration[1])) : undefined;
+    const result = compareRecordings(load(a), load(b), noise);
     console.log(
       JSON.stringify({
         event: 'call_replay_compare',
         tests: result.tests,
-        records: result.records,
+        records_before: result.records_before,
+        records_after: result.records_after,
         differences: result.differences.length,
+        noise: result.noise,
+        ignored: [...ignore],
         failed_before: result.failed_before,
         failed_after: result.failed_after,
         totals: result.totals,
       }),
     );
-    for (const d of result.differences.slice(0, show)) console.log(JSON.stringify(d));
+    for (const d of result.differences.slice(0, show)) console.log(JSON.stringify(d).slice(0, 4000));
     return result.differences.length ? 1 : 0;
   }
   if (mode === 'replay') {
     const [directory] = rest;
-    return replay(root, directory);
+    return replay(root, directory, new Set(option(rest, '--ignore')));
   }
   console.error('Usage: node tools/call-replay.mjs record|compare|replay ...');
   return 1;
-}
-
-async function replay(root, directory) {
-  const calls = replayCalls(directory),
-    modules = new Map(),
-    counts = {},
-    differences = [];
-  for (const call of calls) {
-    const [moduleId, name] = call.id.split('#');
-    if (!modules.has(moduleId)) modules.set(moduleId, await import(pathToFileURL(path.join(root, moduleId)).href));
-    const fn = modules.get(moduleId)[name];
-    let outcome;
-    if (typeof fn !== 'function') outcome = {missing: true};
-    else
-      try {
-        outcome = {returns: encode(fn(...revive(JSON.parse(call.args))))};
-      } catch (error) {
-        outcome = {throws: encode(error)};
-      }
-    const now = normalizeText(JSON.stringify(outcome)),
-      then = normalizeText(JSON.stringify(call.outcome));
-    counts[call.id] = (counts[call.id] ?? 0) + 1;
-    if (now !== then)
-      differences.push({
-        id: call.id,
-        args: call.args.slice(0, 400),
-        before: then.slice(0, 400),
-        after: now.slice(0, 400),
-      });
-  }
-  console.log(
-    JSON.stringify({event: 'call_replay_replay', calls: calls.length, differences: differences.length, counts}),
-  );
-  for (const d of differences.slice(0, 10)) console.log(JSON.stringify(d));
-  return differences.length ? 1 : 0;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

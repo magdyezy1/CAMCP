@@ -6,9 +6,12 @@ import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {
   compareRecordings,
+  differingPaths,
   encode,
   instrument,
+  noiseProfile,
   normalizeText,
+  normalizeValue,
   readRecording,
   recordText,
   revive,
@@ -113,6 +116,8 @@ test('recorded values are JSON-safe, secrets are digested and clock-derived valu
     fn: function named() {},
     store: new (class Store {})(),
     deadline: 1234.5678,
+    xReportDeadline: 76562,
+    oauth: {verifier: 'Xg4RG83uK4sjxWO8AeocwWZJ', state: 'ENABLED'},
     error,
   });
   const text = JSON.stringify(value);
@@ -125,10 +130,16 @@ test('recorded values are JSON-safe, secrets are digested and clock-derived valu
   assert.deepEqual(value.fn, {$function: 'named'});
   assert.deepEqual(value.store, {$instance: 'Store'});
   assert.equal(value.deadline, '<clock>');
+  assert.equal(value.xReportDeadline, '<clock>', 'a deadline is clock-relative, whole number or not');
+  assert.deepEqual(value.oauth, {verifier: '<random>', state: 'ENABLED'}, 'only a random token is masked');
   assert.equal(value.error.code, 'TENANT_RATE_LIMIT');
   assert.equal(value.error.details.retry_after_ms, '<clock>', "the throttle's wait comes from the process clock");
   const provider = encode(Object.assign(new Error('x'), {code: 'PLATFORM_ERROR', details: {retry_after_ms: 30000}}));
   assert.equal(provider.details.retry_after_ms, 30000, "a provider's own delay stays compared");
+  const quota = encode(
+    Object.assign(new Error('x'), {code: 'PROVIDER_QUOTA_SHARE_EXHAUSTED', details: {retry_after_ms: 1}}),
+  );
+  assert.equal(quota.details.retry_after_ms, '<clock>', 'the daily reset is clock-relative');
   // Identical secrets digest identically, so a changed credential still shows as a difference.
   assert.equal(encode({accessToken: 'a'}).accessToken, encode({accessToken: 'a'}).accessToken);
   assert.notEqual(encode({accessToken: 'a'}).accessToken, encode({accessToken: 'b'}).accessToken);
@@ -151,6 +162,21 @@ test('normalization removes run-to-run noise only', () => {
     normalizeText('act_123 7890123456789012345 customers/1234567890'),
     'act_123 7890123456789012345 customers/1234567890',
   );
+  // A multipart boundary, a clock time without a zone, epoch seconds and PKCE values in a form body.
+  assert.equal(
+    normalizeText('boundary=amcp_82b33feb-776c-4ffc-ad54-df925aa10122 at 2026-10-17 10:00:00 t=1790000000'),
+    'boundary=amcp_<uuid> at <time> t=<epoch-s>',
+  );
+  assert.equal(
+    normalizeText('code=c&code_verifier=Xg4RG83&state=aHOlucxd&redirect_uri=x'),
+    'code=c&code_verifier=<random>&state=<random>&redirect_uri=x',
+  );
+  assert.deepEqual(normalizeValue({at: 1760000000000, s: 1790000000, n: 42, id: 1234567890}), {
+    at: '<epoch-ms>',
+    s: '<epoch-s>',
+    n: 42,
+    id: 1234567890,
+  });
 });
 
 test('two recordings compare equal only with the same calls and results per test file', () => {
@@ -171,21 +197,56 @@ test('two recordings compare equal only with the same calls and results per test
     // Another process of the same test file: the second call differs only by its random review ID.
     write('b/dist_tests_x.test.js.12.calls.jsonl', [allowed, call('7c9e6679-7425-40de-944b-e07fc1f90ae7')]);
     const same = compareRecordings(readRecording(path.join(directory, 'a')), readRecording(path.join(directory, 'b')));
-    assert.deepEqual([same.tests, same.records, same.differences.length], [1, 2, 0]);
+    assert.deepEqual([same.tests, same.records_before, same.records_after, same.differences.length], [1, 2, 2, 0]);
     write('b/dist_tests_x.test.js.12.calls.jsonl', [allowed, refused]);
     const changed = compareRecordings(
       readRecording(path.join(directory, 'a')),
       readRecording(path.join(directory, 'b')),
     );
+    // One allowed call became a refusal: the two records pair up by function and show where they differ.
     assert.deepEqual(
-      changed.differences.map(d => [d.before, d.after, JSON.parse(d.record).out.returns ?? 'refused']),
-      [
-        [2, 1, '1'],
-        [0, 1, 'refused'],
-      ],
+      changed.differences.map(d => [d.test, d.id, d.paths]),
+      [['dist_tests_x.test.js', 'dist/src/scope.js#ScopeGuard.authorize', ['/out/returns', '/out/throws']]],
     );
     assert.equal(recordText({id: 'x', in: ['0f8fad5b-d9cb-469f-a165-70867728950e']}), '{"id":"x","in":["<uuid>"]}');
+    // A failed test process is reported apart from the calls.
+    write('b/dist_tests_x.test.js.12.calls.jsonl', [
+      {id: '$exit', code: 1},
+      {...allowed, count: 2},
+    ]);
+    const failed = compareRecordings(
+      readRecording(path.join(directory, 'a')),
+      readRecording(path.join(directory, 'b')),
+    );
+    assert.deepEqual(
+      [failed.differences.length, failed.failed_before, failed.failed_after],
+      [0, [], ['dist_tests_x.test.js']],
+    );
   } finally {
     fs.rmSync(directory, {recursive: true, force: true});
   }
+});
+
+test('a calibration of two recordings of one build sets the noise a comparison may ignore, and nothing else', () => {
+  const recording = records =>
+    Object.assign(new Map([['dist_tests_x.test.js', new Map(records.map(r => [recordText(r), 1]))]]), {
+      failed: new Set(),
+    });
+  const read = (token, out = {returns: '1'}) => ({
+    id: 'dist/src/transport.js#NativeTransport.request',
+    in: [{path: '/v1/x'}],
+    out: {...out, fixture: token},
+  });
+  // The same build twice: a fixture's random token differs.
+  const noise = noiseProfile(recording([read('r1')]), recording([read('r2')]));
+  assert.deepEqual(
+    [...noise.paths.values()].map(p => [...p]),
+    [['/out/fixture']],
+  );
+  // Before and after the change: the token differs again, so it is noise; a refusal in place of a result is not.
+  const same = compareRecordings(recording([read('r3')]), recording([read('r4')]), noise);
+  assert.deepEqual([same.differences.length, same.noise], [0, {'dist/src/transport.js#NativeTransport.request': 1}]);
+  const refused = compareRecordings(recording([read('r3')]), recording([read('r4', {throws: {code: 'X'}})]), noise);
+  assert.deepEqual(refused.differences[0].paths, ['/out/fixture', '/out/returns', '/out/throws']);
+  assert.deepEqual([...differingPaths({a: [1, {b: 2}]}, {a: [1, {b: 3}]})], ['/a/#/b']);
 });
