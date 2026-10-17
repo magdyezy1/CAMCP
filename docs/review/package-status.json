@@ -287,7 +287,9 @@
         {"text": "Harvest Railway build logs and image digests as Linux/container evidence", "disposition": "register_item", "ref": "ACC-04"},
         {"text": "Finite manual assistive-technology acceptance", "disposition": "register_item", "ref": "ACC-07"},
         {"text": "Railway settings before the 2026-12-01 cutoff and path-scoped deploys", "disposition": "register_item", "ref": "OPS-05"},
-        {"text": "ARC-03 manual acceptance: the owner reviews the unanchored route list (docs/implementation/ROUTE-ANCHOR-COVERAGE.md) and the withheld-capture declaration (.mirror/RAW/WITHHELD.json), and runs the network steps no check takes: the Apple SDK re-derivation at its pinned revision and pinning the TikTok SDK", "disposition": "owner_action", "ref": "ARC-03"}
+        {"text": "ARC-03 manual acceptance: the owner reviews the unanchored route list (docs/implementation/ROUTE-ANCHOR-COVERAGE.md) and the withheld-capture declaration (.mirror/RAW/WITHHELD.json), and runs the network steps no check takes: the Apple SDK re-derivation at its pinned revision and pinning the TikTok SDK", "disposition": "owner_action", "ref": "ARC-03"},
+        {"text": "WEB-07 acceptance: the full rendered qualification on the merged tree, every kind in English and Arabic, light and dark, 320 to 1280 pixels, with 0 contrast failures (the integration gate's browser stage); deployed, the release browser matrix, dark-mode screenshots matching local, and Arabic About and Home loading the shell chunk only", "disposition": "register_item", "ref": "WEB-07"},
+        {"text": "WEB-07 visual diff sign-off per increment (theme tokens, escape-by-default markup, route bundles)", "disposition": "owner_action", "ref": "WEB-07"}
       ]
     },
     {
@@ -420,7 +422,9 @@
       "native": {"state": "none", "evidence": []},
       "manual": {"state": "not_recorded", "evidence": []},
       "remainders": [
-        {"text": "Real tenant load tests and shared-quota admission", "disposition": "register_item", "ref": "OPS-08"}
+        {"text": "Real tenant load tests and shared-quota admission", "disposition": "register_item", "ref": "OPS-08"},
+        {"text": "WEB-07 transferred bytes: English About downloads 16,868 Brotli bytes before it renders against 15,848 on the merged tree before WEB-07, an open gap in tools/web-route-bytes-baseline.json that may not grow (About off theme.css's override layer, or the html tag out of localization.js, closes it); every other page and language is at or below its baseline", "disposition": "register_item", "ref": "WEB-07"},
+        {"text": "WEB-07 ES modules with explicit imports instead of the shared global scope", "disposition": "optional_stretch", "ref": "WEB-07"}
       ]
     },
     {
@@ -437,7 +441,8 @@
       "remainders": [
         {"text": "Arabic correctness: untranslated owned text, locale persistence, RTL and bidi layout", "disposition": "register_item", "ref": "WEB-05"},
         {"text": "Arabic for the refusal reasons of the 19 family modules outside the localization inventory (unlocalizedRefusalModules in tools/check-locales.mjs, about 420 reasons), until the list is empty; it may only shrink", "disposition": "register_item", "ref": "WEB-05"},
-        {"text": "Arabic editorial review and assistive-technology acceptance", "disposition": "owner_action", "ref": "R6"}
+        {"text": "Arabic editorial review and assistive-technology acceptance", "disposition": "owner_action", "ref": "R6"},
+        {"text": "WEB-07: the providers catalog chunk (web/locales/ar/providers.json, 781 KB of its 1 MiB cap, loaded by every signed-in page) split per provider family before it reaches about 90%", "disposition": "register_item", "ref": "WEB-07"}
       ]
     },
     {

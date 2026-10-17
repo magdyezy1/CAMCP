@@ -257,6 +257,57 @@ routes: the ten Google evidence kinds on `/reports` (15 each), `retained-evidenc
   Arabic leaks, 932 focus rings at 3:1 or more, the write journeys ending accepted, uncertain and refused four times
   each, 28 synthetic and 0 provider writes. The full `--qualification` run belongs to the integration gate.
 
+## WEB-07 front-end architecture (2026-10-17)
+
+WEB-07 changes every page: the shell's stylesheets and tokens, escape-by-default markup, the Arabic catalog chunks
+and route-sized bundles. Its local acceptance asks the full rendered run to show no contrast failure in either theme;
+that run has not been made on the merged tree. It is the integration gate's browser stage (`--qualification`, every
+kind in English and Arabic, both appearances, 320 to 1280 pixels), and WEB-07 stays open until it passes.
+
+- **Development subsets so far** (no qualification; axe-core 4.14.0 on). On the package branch: the Live portfolio,
+  Measurement and Commerce kinds, 144 of 144, and `empty`, `granular-reporting`, `export-outcomes`,
+  `retained-evidence`, `conditional-programs`, `worker-health`, `google-keyword` and `snapchat`, 360 of 360, with no
+  WCAG violation, no focus ring below 3:1, no provider write or external request and the Arabic leak counts at their
+  limits. On the merged tree with the merge and review fixes (`b764b4e`, only this documentation uncommitted):
+  `empty`, `measurement-ledger`, `measurement-events`, `catalog`, `woocommerce-connection`, `conditional-programs`,
+  `period-comparison`, `portfolio-comparison`, `spend-policy-edit` and `export-outcomes`, 380 of 380 in 7.1 minutes
+  (`results.json` SHA-256 `9622d496…`): 38 scenarios, 12 fixture kinds, 22 presentation variants, no WCAG violation at
+  any state, 1,000 focus rings at 3:1 or more, every critical route at zero Arabic leaks and every route within its
+  committed limit (`node tools/browser-arabic-leaks.mjs --ratchet`), 4 synthetic and 0 provider writes, no external
+  provider request and no unhandled rejection.
+- **Changed expectations in the VM suites**, each because the old one encoded the behavior WEB-07 removed. Every
+  other test edit (about forty files) only loads the files a page now gets its code from (`web/routes.js` for the
+  route registry and the extension points, `web/work-pages.js`, the account workflow modules, the helpers that moved
+  into `web/workspace.js`, `web/route-assets.js` for the chunk loading); none weakens an assertion.
+  - `tests/route-assets.test.mjs`: the initial document no longer lists `reporting-overview.js` (the report builder
+    left the shell); `/settings` requests `owner-operations.js` and `account-approvals.js` together and retries only a
+    failed one (the second no longer captures the first's `renderSettings` wrapper while it loads); a cold `/portfolio`
+    or `/commerce` no longer loads `reviewTable` (campaign-workflows.js), and `/settings` names its registered parts
+    instead of the `base*` wrappers. New: each account page loads only its own module, and a page that lists work
+    loads the paged-list loader, not the Operations center.
+  - `tests/asset-version-skew.test.mjs`: `/account` requests the QR vendor file and `mfa-qr.js` together and a
+    retryable failure inserts only that script again; the catalog address a script builds is a chunk's.
+  - `tests/website-catalog-loading.test.mjs`, `tests/website-localization.test.mjs`, `tests/owner-door.test.mjs`: the
+    first Arabic request is `/assets/locales/ar/shell.json` and the reader's bound is 1 MiB per chunk (it was the
+    2 MiB monolith); Home's chunks arrive through `uiNeedChunks`.
+  - `tests/website-navigation.test.mjs`: it rendered `identity.js`'s copy of the sign-in page, which never rendered in
+    the product (account-security.js replaced it at load); it now renders the live page and requires each builder to
+    be declared once.
+  - `tests/website-contrast.test.mjs`: the sidebar's surface is resolved through its token.
+  - `tests/web-locale-chunks.test.mjs` (review fix): a signed-in page's scripts and chunks start once the session says
+    the person may open it, not before it answers; a signed-out visitor or an out-of-scope test account requests none.
+  - `tests/web-markup.test.mjs` (review fix): `false` inserts nothing in `` html`…` `` (it read as the word "false").
+  - `tests/web-colours.test.mjs`: the token parity is read over `tokens.css` and `public-tokens.css`; the public pages
+    load the second sheet right after the first, About inside `<noscript>`, the workspace never.
+  - `tests/route-anchors.test.mjs` (merge): the contracts panel harness loads the paged-list loader from
+    `web/work-pages.js`, where WEB-07 moved it.
+- **Visible changes in the light theme.** The review tables and measurement task links asked for a `--border` that
+  did not exist (a `#ddd` fallback); they now take the palette's line. In the dark theme the policy pages' dividers,
+  the 404 links and those borders take the dark palette. Computed-style comparisons found no other difference: WEB-07's
+  own (every element of 30 pages, light and dark, 1280 and 375 pixels) and the review fix's for the token split (About,
+  Privacy in both languages, Terms, Data deletion, 404 and the workspace shell, light and dark, with and without
+  JavaScript, 320 and 1280 pixels).
+
 ## What it exercises
 
 The runner creates disposable loopback applications with encrypted in-memory stores, synthetic users
