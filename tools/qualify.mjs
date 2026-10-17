@@ -85,8 +85,9 @@ export function profileStages(profile, {now} = {}) {
     // PRV-05: every reviewed-family fixture body conforms to its pinned vendor contract or is a listed exception with
     // vendor evidence; a new unlisted violation or a stale exception fails release qualification.
     node('wire_contract_sweep', ['tools/wire-contract-sweep.mjs']),
-    // PRV-06 C: the Advantage+ creative feature allowlist must be the hashed SDK 26.0.2 pin; while its fixture is
-    // transcribed, release qualification fails here (`npm run check` and the fast gate do not run it).
+    // PRV-06 C: the Advantage+ creative feature allowlist is the hashed SDK 26.0.2 pin (pinned 2026-10-16); release
+    // qualification fails here if the fixture stops being that evidence, for example a record transcribed without
+    // hashes (`npm run check` and the fast gate do not run it).
     node('meta_creative_features_pinned', ['tools/meta-creative-features.mjs', '--require-pinned']),
     node('check_web', ['tools/check-web.mjs']),
     // QA-04: the journey and MCP evaluation compared with its committed baseline (counts may not rise).

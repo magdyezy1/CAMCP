@@ -23,8 +23,8 @@ export const sdkModules = [
 
 /**
  * Why a fixture is not yet the hashed SDK evidence the allowlist needs (PRV-06 C): empty once the pin command has read
- * the release files. A transcribed fixture (no hashes, no pin date) only narrows what AMCP sends; release
- * qualification (tools/qualify.mjs, full profile) fails on it until the owner pins the files.
+ * the release files (the committed fixture has been, since 2026-10-16). A transcribed fixture (no hashes, no pin date)
+ * only narrows what AMCP sends; release qualification (tools/qualify.mjs, full profile) fails on one.
  */
 export function pinnedEvidenceProblems(fixture) {
   const problems = [],
@@ -92,7 +92,8 @@ if (
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url) &&
   process.argv.includes('--require-pinned')
 ) {
-  // Offline: reads only the committed fixture. Until it is pinned, PRV-06 C stays partial and a release is not qualified.
+  // Offline: reads only the committed fixture, pinned from the SDK files on 2026-10-16. If it regresses to a record
+  // without hashes or a pin date, PRV-06 C is partial again and a release is not qualified.
   const problems = pinnedEvidenceProblems(JSON.parse(fs.readFileSync(fixturePath, 'utf8')));
   if (problems.length) {
     console.error(
