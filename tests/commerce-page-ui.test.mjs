@@ -9,7 +9,9 @@ import {catalogIngestion} from '../dist/src/catalog-ingestion.js';
 
 /**
  * COM-01 on the Commerce page. Each test names the defect it guards against:
- * A. the Meta comparison said "All supplied fields have matching evidence" and named no destination-only values;
+ * A. the Meta comparison said "All supplied fields have matching evidence" and named no destination-only values; since
+ *    owner decision P9 (2026-10-11) a product whose only differences are such values is unknown and in the review set
+ *    (before P9 it stayed matching, out of the review set);
  * B. the website handoff matched only Meta targets, so an accessible X scope read "no longer available";
  * C. "Save all" gave no sign that some supplied products already match;
  * E. the page opened with two parked WooCommerce panels before the reviewed import, and never said why Snapchat
@@ -132,20 +134,22 @@ async function metaComparison(locale, mutate) {
     scope: {gateway: 'meta_native_action', account_id: '001', connection_id: 'meta-login', catalog_id: '0001'},
     captured_at: 1,
     item_count: 4,
+    // Owner decision P9: product 003 matches every supplied field but holds values the source does not send, so it
+    // is unknown and in the review set.
     summary: {
       new: 1,
       changed: 1,
-      matching: 1,
-      unknown: 1,
+      matching: 0,
+      unknown: 2,
       blocked: 0,
-      needs_review: 3,
+      needs_review: 4,
       with_destination_only_values: 1,
     },
-    review_retailer_ids: ['001', '002', '004'],
+    review_retailer_ids: ['001', '002', '003', '004'],
     items: products.map((p, i) => ({
       retailer_id: p.retailer_id,
       product_id: i ? String(9007199254740993n + BigInt(i)) : null,
-      state: ['new', 'changed', 'matching', 'unknown'][i],
+      state: ['new', 'changed', 'unknown', 'unknown'][i],
       blocked: false,
       price_matches: i ? true : null,
       before: i ? {present: true, id: String(9007199254740993n + BigInt(i)), price: 'SAR' + p.price} : {present: false},
@@ -161,7 +165,7 @@ async function metaComparison(locale, mutate) {
   return {...f, evidence};
 }
 
-test('A and C: a Meta comparison notes destination-only values in both languages and Save all counts matching products (regression: silent destination values)', async () => {
+test('A and C: a Meta comparison names destination-only values in both languages, reviews that product as unknown (P9), and Save all counts matching products (regression: silent destination values; matching before P9)', async () => {
   for (const locale of ['en', 'ar']) {
     const f = await metaComparison(locale);
     await f.bindings.get('#compare-catalog-products')();
@@ -173,14 +177,40 @@ test('A and C: a Meta comparison notes destination-only values in both languages
         : /Other native attributes have values: visibility, inventory, sale_price\. Meta does not establish whether an update preserves omitted attributes\./,
     );
     assert.equal(html.match(/Other native attributes|سمات أصلية أخرى/g).length, 1, 'only the product holding them');
+    // Owner decision P9: the product says why it needs review, and it is among the products a draft saves.
+    assert.match(
+      html,
+      locale === 'ar'
+        ? /تطابق جميع الحقول المرسلة، لكن المنتج يحتاج إلى مراجعة لأن الكتالوج يحتفظ بقيم لا يرسلها هذا الاستيراد\./
+        : /Every supplied field matches; it needs review because the catalog holds values this import does not send\./,
+    );
+    assert.match(html, locale === 'ar' ? / · 0 مطابق · 2 غير معروف · / : / · 0 matching · 2 unknown · /);
+    assert.match(
+      html,
+      locale === 'ar' ? /تحتاج 4 منتجات إلى مراجعة أصلية جديدة/ : /4 products need a fresh native review/,
+    );
+    assert.match(html, /id="save-catalog-changes"/);
+    // No supplied product matches, so Save all names no matching products.
     assert.equal(
       f.node('#create-catalog-plan').textContent,
+      locale === 'ar' ? 'حفظ جميع المنتجات المرسلة للمراجعة الأصلية' : 'Save all supplied products for native review',
+    );
+    assert.equal(f.node('#create-catalog-plan-note').textContent, '');
+    // A product without destination-only values that matches every supplied field still matches.
+    const matching = await metaComparison(locale, e => {
+      Object.assign(e.items[3], {state: 'matching', unknown_fields: []});
+      Object.assign(e.summary, {matching: 1, unknown: 1, needs_review: 3});
+      e.review_retailer_ids = ['001', '002', '003'];
+    });
+    await matching.bindings.get('#compare-catalog-products')();
+    assert.equal(
+      matching.node('#create-catalog-plan').textContent,
       locale === 'ar'
         ? 'حفظ جميع المنتجات المرسلة وعددها 4 (1 مطابقة بالفعل)'
         : 'Save all 4 supplied products (1 already match)',
     );
     assert.match(
-      f.node('#create-catalog-plan-note').textContent,
+      matching.node('#create-catalog-plan-note').textContent,
       locale === 'ar'
         ? /تُراجَع منتجات Meta المطابقة بالفعل/
         : /Meta products that already match are reviewed and sent again/,
@@ -188,7 +218,7 @@ test('A and C: a Meta comparison notes destination-only values in both languages
   }
 });
 
-test('A: the website refuses destination-only names it does not know, names the source sent, or counts that disagree; an older server without them still renders', async () => {
+test('A: the website refuses destination-only names it does not know, names the source sent, counts that disagree, or such a product shown as matching (P9); an older server without them still renders', async () => {
   for (const mutate of [
     e => (e.items[2].unsent_fields = ['PRIVATE_UNUSED']),
     e => (e.items[2].unsent_fields = ['name']),
@@ -196,22 +226,32 @@ test('A: the website refuses destination-only names it does not know, names the 
     e => (e.items[2].unsent_fields = 'inventory'),
     e => (e.items[0].unsent_fields = ['inventory']),
     e => (e.summary.with_destination_only_values = 0),
-    // A Meta product whose only differences are notes is matching: the same evidence shown as unknown is refused.
+    // Owner decision P9: a Meta product holding values the source does not send is unknown and in the review set, so
+    // the same evidence shown as matching and out of the review set (the reading before P9) is refused.
     e => {
-      e.items[2].state = 'unknown';
-      e.summary.matching = 0;
-      e.summary.unknown = 2;
-      e.summary.needs_review = 4;
-      e.review_retailer_ids = ['001', '002', '003', '004'];
+      e.items[2].state = 'matching';
+      e.summary.matching = 1;
+      e.summary.unknown = 1;
+      e.summary.needs_review = 3;
+      e.review_retailer_ids = ['001', '002', '004'];
+    },
+    // Unknown, but left out of the review set.
+    e => {
+      e.summary.needs_review = 3;
+      e.review_retailer_ids = ['001', '002', '004'];
     },
   ]) {
     const f = await metaComparison('en', mutate);
     await assert.rejects(f.bindings.get('#compare-catalog-products')(), /changed|Read|again/i, mutate.toString());
     assert.doesNotMatch(f.node('#catalog-comparison').innerHTML, /Other native attributes/);
   }
+  // An older server names no destination-only values, so the same product matches there.
   const older = await metaComparison('en', e => {
     delete e.summary.with_destination_only_values;
     for (const item of e.items) delete item.unsent_fields;
+    e.items[2].state = 'matching';
+    Object.assign(e.summary, {matching: 1, unknown: 1, needs_review: 3});
+    e.review_retailer_ids = ['001', '002', '004'];
   });
   await older.bindings.get('#compare-catalog-products')();
   assert.match(older.node('#catalog-comparison').innerHTML, /Compare current catalog products/);
