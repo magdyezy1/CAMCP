@@ -263,6 +263,7 @@
   "This step reached the provider and its result is not confirmed, so AMCP never sends it again. Check at the provider whether it exists; anything still to be written needs a new plan.": "وصلت هذه الخطوة إلى المنصة ولم تتأكد نتيجتها، لذلك لن يرسلها AMCP مرة أخرى أبدًا. تحقق لدى المنصة مما إذا كانت موجودة؛ وأي شيء لم يُكتب بعد يحتاج إلى خطة جديدة.",
   "This step reached the provider and its result is not confirmed, so AMCP never sends it again. Read it back from its receipt.": "وصلت هذه الخطوة إلى المنصة ولم تتأكد نتيجتها، لذلك لن يرسلها AMCP مرة أخرى أبدًا. أعد قراءتها من إيصالها.",
   "This step reached the provider without a completed receipt, so AMCP never sends it again. Reconcile it in Operations with read-only provider checks.": "وصلت هذه الخطوة إلى المنصة دون إيصال مكتمل، لذلك لن يرسلها AMCP مرة أخرى أبدًا. سوِّها في صفحة العمليات بفحوص للمنصة للقراءة فقط.",
+  "Total": "الإجمالي",
   "Try again in about {seconds} seconds.": "حاول مجددًا بعد نحو {seconds} ثانية.",
   "Unarchive plan": "إلغاء أرشفة الخطة",
   "Value": "القيمة",

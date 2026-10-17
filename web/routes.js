@@ -88,7 +88,14 @@ const routeRegistry = [
     testAccount: true,
     aliases: ['Reporting overview'],
     description: 'Campaign metrics, recommendations and scheduled Sheets exports',
-    assets: ['report-quality.js', 'report-library.js', 'report-delivery.js', 'report-workflows.js'],
+    // WEB-07: the report builder's own script loads with its page, not with every page of the website.
+    assets: [
+      'reporting-overview.js',
+      'report-quality.js',
+      'report-library.js',
+      'report-delivery.js',
+      'report-workflows.js',
+    ],
   },
   {
     path: '/reports',

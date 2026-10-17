@@ -79,10 +79,15 @@ test('the initial document loads only shared scripts and the fixed route loader'
     'identity.js',
     'workspace.js',
     'account-security.js',
-    'reporting-overview.js',
+    // WEB-07 (regression): the report builder's script (reporting-overview.js, 23 KB compressed) was part of every page,
+    // the landing and sign-in pages included; it now loads with /reporting-overview and the modules that use it.
     'route-assets.js',
     'account-scope.js',
   ]);
+  assert.deepEqual(
+    Array.from(fixture().run("pageAssetsFor('/reporting-overview')")).filter(file => file === 'reporting-overview.js'),
+    ['reporting-overview.js'],
+  );
   const baseline = fs.readdirSync('web', {recursive: true}).filter(f => f.endsWith('.js') && f !== 'route-assets.js');
   const bytes = files => files.reduce((n, f) => n + fs.readFileSync('web/' + f).length, 0);
   assert.ok(bytes(scripts()) < bytes(baseline) * 0.36);
@@ -362,13 +367,23 @@ test('each cold route initializes its real scripts and required handlers in Engl
   };
   // Regression (WEB-07): /portfolio, /measurement and /commerce each loaded all three pages' code (account-workflows.js,
   // 388 KB with the parked WooCommerce source) and campaign-workflows.js. A page now loads none of the others' code.
+  // The report builder's script is no longer part of every page either.
+  const builder = ['renderReportingOverview', 'overviewState'];
   const absent = {
-    '/portfolio': ['renderMeasurement', 'renderCommerce', 'bindWooCommerceSource', 'reviewTable'],
-    '/measurement': ['renderPortfolio', 'renderCommerce', 'bindWooCommerceSource'],
-    '/commerce': ['renderPortfolio', 'renderMeasurement', 'reviewTable'],
+    '/': builder,
+    '/login': builder,
+    '/campaigns': builder,
+    '/profiles': builder,
+    '/settings': builder,
+    '/account': builder,
+    '/operations': builder,
+    '/monitors': builder,
+    '/portfolio': ['renderMeasurement', 'renderCommerce', 'bindWooCommerceSource', 'reviewTable', ...builder],
+    '/measurement': ['renderPortfolio', 'renderCommerce', 'bindWooCommerceSource', ...builder],
+    '/commerce': ['renderPortfolio', 'renderMeasurement', 'reviewTable', ...builder],
     // A page that lists work loads only the paged-list loader (web/work-pages.js).
-    '/media': ['renderOperationsCenter', 'renderWorkbookBindings'],
-    '/capabilities': ['renderOperationsCenter', 'renderWorkbookBindings'],
+    '/media': ['renderOperationsCenter', 'renderWorkbookBindings', ...builder],
+    '/capabilities': ['renderOperationsCenter', 'renderWorkbookBindings', ...builder],
     '/reports': ['renderOperationsCenter', 'renderWorkbookBindings'],
     '/report-pack': ['renderOperationsCenter', 'renderWorkbookBindings'],
   };

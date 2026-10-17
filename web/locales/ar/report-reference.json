@@ -23,6 +23,7 @@
   "Map at least one additive metric to a distinct CSV column.": "اربط مقياسًا واحدًا قابلًا للجمع على الأقل بعمود CSV مستقل.",
   "Map reference metrics": "ربط المقاييس المرجعية",
   "Mapped values must be nonnegative decimals without grouping, percent signs or formulas. Blank values remain unknown.": "يجب أن تكون القيم المرتبطة أعدادًا عشرية غير سالبة، دون فواصل تجميع أو علامات نسبة مئوية أو صيغ. تبقى القيم الفارغة غير معروفة.",
+  "Metric": "المقياس",
   "Micros of currency": "أجزاء المليون من العملة",
   "No rounding or currency conversion was applied. The hash identifies the local file bytes; AMCP has not independently fetched that file.": "لم يُطبّق تقريب أو تحويل للعملة. تحدد البصمة بايتات الملف المحلي؛ ولم يجلب AMCP هذا الملف بشكل مستقل.",
   "Not supplied": "لم تُقدَّم قيمة",

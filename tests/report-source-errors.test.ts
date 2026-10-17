@@ -313,6 +313,14 @@ test('failed source panels open by default, explain the provider error, and esca
   new Script(readFileSync('web/report-quality.js', 'utf8')).runInContext(context);
   new Script(readFileSync('web/report-workflows.js', 'utf8')).runInContext(context);
   new Script(readFileSync('web/reporting-overview.js', 'utf8')).runInContext(context);
+  // WEB-07: provider diagnostics are a shell helper (web/workspace.js) since the report builder's script left the shell.
+  const workspace = readFileSync('web/workspace.js', 'utf8');
+  new Script(
+    workspace.slice(
+      workspace.indexOf('const overviewCall = async input => {'),
+      workspace.indexOf('const capabilityFeatureLabels'),
+    ),
+  ).runInContext(context);
   context.input = {
     source,
     complete: false,

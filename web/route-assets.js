@@ -1,7 +1,6 @@
 'use strict';
 // Only authored same-origin filenames enter the loader. Routes, query strings and provider data never become URLs.
 const pageAssetOrder = [
-  'work-pages.js',
   'campaign-recipes.js',
   'creative-push.js',
   'creative-library.js',
@@ -12,8 +11,10 @@ const pageAssetOrder = [
   'workbook-schedules.js',
   'workbook-bindings.js',
   'workbook-rebinding.js',
+  'work-pages.js',
   'work-center.js',
   'capability-center.js',
+  'reporting-overview.js',
   'report-workflows.js',
   'evidence-workflows.js',
   'report-allocation.js',
@@ -40,9 +41,13 @@ const pageAssetDependencies = {
   'operations-center.js': ['work-pages.js', 'workbook-schedules.js', 'workbook-bindings.js', 'workbook-rebinding.js'],
   'workbook-bindings.js': ['work-pages.js'],
   'workbook-rebinding.js': ['work-pages.js'],
-  'work-center.js': ['report-library.js', 'campaign-workflows.js'],
+  // The report builder's script (reporting-overview.js) left the shell (WEB-07): the modules that use its state and labels
+  // load it. Its own page code runs only on /reporting-overview, whose route loads the other report modules.
+  'work-center.js': ['report-library.js', 'reporting-overview.js', 'campaign-workflows.js'],
   'capability-center.js': ['work-pages.js'],
-  'report-workflows.js': ['report-library.js'],
+  'reporting-overview.js': ['report-library.js'],
+  'report-library.js': ['reporting-overview.js'],
+  'report-workflows.js': ['report-library.js', 'reporting-overview.js'],
   'evidence-workflows.js': ['report-quality.js', 'report-allocation.js', 'report-presentation.js'],
   'report-allocation.js': ['work-pages.js', 'report-quality.js'],
   'report-presentation.js': ['evidence-workflows.js', 'work-pages.js'],
@@ -53,8 +58,8 @@ const pageAssetDependencies = {
   'commerce.js': ['account-workflows.js', 'commerce-woocommerce.js'],
   'commerce-woocommerce.js': ['account-workflows.js'],
   'mfa-qr.js': ['vendor/qrcode-generator-2.0.4.js'],
-  'report-quality.js': ['report-library.js'],
-  'report-delivery.js': ['report-library.js'],
+  'report-quality.js': ['report-library.js', 'reporting-overview.js'],
+  'report-delivery.js': ['report-library.js', 'reporting-overview.js'],
   'account-approvals.js': ['owner-operations.js'],
 };
 // The files each page loads are its route registry entry's `assets` (web/routes.js, WEB-07): a page is declared once.

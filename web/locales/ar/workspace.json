@@ -605,6 +605,7 @@
   "Keep the original report review and receipt. Inspect job status or retry its reads; a failed or incomplete read never authorizes submitting another report job.": "احتفظ بمراجعة التقرير وإيصالها الأصليين. افحص حالة المهمة أو أعد محاولة قراءاتها؛ فالقراءة الفاشلة أو غير المكتملة لا تسمح بإرسال مهمة تقرير أخرى.",
   "LET’S START SOMETHING": "لنبدأ معًا",
   "Latest version changed during the audit. Read a fresh snapshot before reviewing a mutation.": "تغير أحدث إصدار أثناء التدقيق. اقرأ لقطة جديدة قبل مراجعة أي تغيير.",
+  "Leads": "العملاء المحتملون",
   "Lease duration must be between 1 ms and 1 hour.": "يجب أن تكون مدة حجز التنفيذ بين 1 ms و1 ساعة.",
   "Linear response ignores saturation, auction changes, audience overlap, creative changes and causal incrementality. Caps are user assumptions, not verified provider limits.": "تتجاهل الاستجابة الخطية التشبع وتغييرات المزاد وتداخل الجماهير وتغييرات المواد الإعلانية والأثر السببي الإضافي. الحدود القصوى افتراضات للمستخدم وليست حدودًا متحققًا منها لدى المزود.",
   "LinkedIn Advertising API access of the production application (Development or Standard tier)": "وصول تطبيق الإنتاج إلى LinkedIn Advertising API (فئة Development أو Standard)",

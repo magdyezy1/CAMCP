@@ -198,10 +198,11 @@ test('AMCP error guidance is translated while a provider message stays exactly a
 // The failed TikTok source card in Arabic showed "Every calendar period failed for this source." in English although
 // the catalog translates it; the delivery history printed a failed run's AMCP message raw as well.
 test('a failed report source renders AMCP guidance in Arabic and the provider message literally', () => {
-  const source = fs.readFileSync('web/reporting-overview.js', 'utf8'),
+  // WEB-07: provider diagnostics are a shell helper (web/workspace.js), shared by Activity and the report builder.
+  const source = fs.readFileSync('web/workspace.js', 'utf8'),
     diagnostic = source.slice(
       source.indexOf('function renderSourceDiagnostic(error) {'),
-      source.indexOf('function renderReportSourceHealth('),
+      source.indexOf('const capabilityFeatureLabels'),
     ),
     arabic = page('ar');
   arabic.run(diagnostic);

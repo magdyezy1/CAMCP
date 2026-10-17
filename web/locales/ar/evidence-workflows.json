@@ -46,6 +46,7 @@
   "Counts submitted native lead forms with native_leads; no submitted lead records are read. Purchase attribution controls do not apply. Choose 1–31 closed account-local days with finalized non-conversion metrics. Missing counts stay unknown; lead quality and off-platform attribution are not established.": "يحصي النماذج الأصلية المرسلة عبر مقياس native_leads دون قراءة سجلات العملاء المحتملين. لا تنطبق عليه إعدادات إسناد المشتريات. اختر من يوم إلى 31 يومًا مكتملًا حسب توقيت الحساب، مع اكتمال معالجة المقاييس غير المرتبطة بالتحويلات. تبقى الأعداد المفقودة غير معروفة؛ لا يثبت هذا التقرير جودة العملاء أو الإسناد خارج المنصة.",
   "Currency and timezone from the account read on {date}. Edit them if they changed; the capture verifies both.": "العملة والمنطقة الزمنية من قراءة الحساب في {date}. عدّلهما إن تغيّرا؛ فالالتقاط يتحقق من كليهما.",
   "Current exact ad-group keywords were checked. Broader, campaign and shared exclusions remain unassessed.": "تم فحص الكلمات الحالية ذات المطابقة التامة في المجموعات الإعلانية. لم تُقيّم الاستبعادات الأوسع أو استبعادات الحملات والقوائم المشتركة.",
+  "Date": "التاريخ",
   "Detailed evidence prepared for download.": "تم تجهيز البيانات التفصيلية للتنزيل.",
   "Download Excel": "تنزيل Excel",
   "Download HTML report pack": "تنزيل حزمة التقرير بصيغة HTML",
@@ -204,5 +205,6 @@
   "Visible columns": "الأعمدة المعروضة",
   "{count} of 20 terms selected": "تم تحديد {count} عبارة من أصل 20",
   "{count} rows": "عدد الصفوف: {count}",
+  "{grain} grouping": "التجميع: {grain}",
   "{state} snapshot · {count} source rows · Collected {date}": "لقطة {state} · {count} صفوف مصدر · جُمعت في {date}"
 }
