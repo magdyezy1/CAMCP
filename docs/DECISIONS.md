@@ -182,7 +182,7 @@ cites as owner decisions, each the review's recommended or the ticket's proposed
 - **P9.** A Meta product's populated destination-only attributes are notes (`unsent_fields`); they never put the item
   in the review set as `unknown` (COM-01). COM-03's destination registry also holds the alternative (`review`, the item
   enters the review set as `unknown`), used by no destination until the owner chooses it. The Business Profile and
-  Amazon Ads parts are recorded above.
+  Amazon Ads parts are recorded above, the lifecycle status of parked providers below.
 
 P8 (owner-approved 2026-10-11, applied in wave 3; chosen during implementation, the owner may revise): Measurement is
 the multi-provider conversion-health hub. The measurement ledger adds read-only Meta pixel/dataset, Snapchat pixel,
@@ -201,6 +201,17 @@ delete contract, and a retirement never creates a product: a comparison blocks i
 review refuses it with `CATALOG_RETIRE_ABSENT` (COM-02 B). Bounded X variant group expansion stays behind
 `AMCP_X_CATALOG_GROUP_EXPANSION=qualified`, off by default (the block stays and names the grouped records) until the
 R2(7) native read qualifies it (COM-02 E).
+
+Also implemented in wave 3b (ARC-01, the lifecycle part of P9, the review's recommendation): parked providers are gated
+by their lifecycle status in the provider adapter registry (`src/provider-adapters.ts`). Criteo and WooCommerce are
+`parked` with the reason `owner_parked` (PRK-01, PRK-02), Amazon Ads with `unimplemented` (above). Unless the
+deployment's `AMCP_PROVIDERS` names a parked provider, its gateway is absent from `tools/list` (25 tools by default),
+contracts, capabilities and the Capability Center; its reviewed families stay registered for the ledger but are not listed; any
+call that names it is refused with `GATEWAY_NOT_OFFERED` before its arguments are read, and `ScopeGuard` refuses every
+request to it before credentials are fetched, so a review prepared while it was offered cannot execute after it is
+parked. Commerce hides the WooCommerce store panels and product source; an administrator can still remove a stored
+store connection. Shopify and Salla have no gateway, connection or module to gate. Their code keeps compiling and
+their suites run with the provider named in `AMCP_PROVIDERS` ([architecture](review/ARCHITECTURE.md#9-provider-adapters)).
 
 Also implemented on 2026-10-13 (SEC-08; P1's isolation model awaits owner confirmation). The review's
 recommendation for either model, the non-authorizing working-client filter, is built: the website's working client is

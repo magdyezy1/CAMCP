@@ -167,10 +167,12 @@ export async function checkApplication({base, origin, password, writes, restart}
     return body.result;
   };
   const tools = await mcp('tools/list');
-  // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09). Amazon Ads is not offered
-  // (CON-06, owner decision option b).
-  assert.equal(tools.tools.length, 27);
-  assert.ok(!tools.tools.some(t => t.name === 'amazon_native_action'));
+  // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09). Parked providers are not
+  // offered unless AMCP_PROVIDERS names them: Amazon Ads (CON-06, owner decision option b), Criteo and WooCommerce
+  // (ARC-01, P9).
+  assert.equal(tools.tools.length, 25);
+  for (const parked of ['amazon_native_action', 'criteo_native_action', 'commerce_native_action'])
+    assert.ok(!tools.tools.some(t => t.name === parked), parked);
   if (!writes)
     assert.deepEqual(tools.tools.find(t => t.name === 'amcp_write').inputSchema.properties.action.enum, ['inspect']);
   assert.ok(tools.tools.some(t => t.name === 'amcp_reporting_overview'));

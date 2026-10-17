@@ -76,6 +76,7 @@ import {
 import {randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import {MirrorError, providerFactDetails} from './errors.js';
+import {assertGatewayOffered} from './provider-offering.js';
 import {reportSourceError} from './report-errors.js';
 import {reportPlatforms} from './report-metrics.js';
 import {Registry} from './catalog.js';
@@ -516,6 +517,8 @@ export class WorkspaceService {
     }
     if (input.action === 'catalog_sources') {
       validate(input, ['action']);
+      // The store sources are WooCommerce's, which is parked (ARC-01, P9) unless AMCP_PROVIDERS names it.
+      assertGatewayOffered('commerce_native_action');
       return wooCommerceSources(this.store, actor);
     }
     if (input.action === 'preview_catalog_removal') return previewCatalogRemoval(this.store, this.call, actor, input);

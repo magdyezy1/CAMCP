@@ -355,9 +355,10 @@ export class MirrorService {
     try {
       this.store.assertActorActive(actor);
       actorChecked = true;
-      // A provider this deployment does not offer is refused before its arguments are read (CON-06).
+      // A provider this deployment does not offer (a parked one, ARC-01 and P9) is refused before its arguments are
+      // read, whether it is the tool itself or the gateway any AMCP tool names (CON-06).
       assertGatewayOffered(tool);
-      if (tool === 'amcp_tool_help' || tool === 'amcp_write') assertGatewayOffered(input?.gateway);
+      assertGatewayOffered(input?.gateway);
       // Each action of an AMCP tool takes its own arguments (MCP-07): one it does not read is a meta warning, or with
       // MIRROR_FLAGS {"actionArguments":"enforce"} an INVALID_ARGUMENT naming it, before the action runs.
       const own = this.firstPartyTools().find(t => t.name === tool);

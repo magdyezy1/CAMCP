@@ -4,6 +4,11 @@ import {createWebsite} from '../dist/server/website.js';
 import {createHttpApp} from '../dist/server/http-app.js';
 import {listenForFetch} from '../dist/tests/http-listener.js';
 import {wooInventoryBrowserFixture, wooInventoryInput} from './fixtures/woocommerce-inventory-data.mjs';
+import {offerParkedProviders} from './helpers/parked-providers.mjs';
+
+// WooCommerce is parked (ARC-01, P9): this suite exercises it, so it offers it like a
+// deployment whose AMCP_PROVIDERS names it.
+offerParkedProviders('woocommerce');
 
 async function fixture(t) {
   const f = wooInventoryBrowserFixture(),

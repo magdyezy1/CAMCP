@@ -44,8 +44,14 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
   adapter('adjust', 'adjust_native_action'),
   adapter('drive', 'google_drive_native_action'),
   adapter('sheets', 'google_sheets_native_action'),
-  adapter('criteo', 'criteo_native_action'),
-  adapter('woocommerce', 'commerce_native_action'),
+  // The owner parked Criteo and the store platforms (PRK-01, PRK-02); P9 gates them by this status (docs/DECISIONS.md).
+  // WooCommerce is the only store platform with a gateway: Shopify and Salla have no connection or module to gate.
+  adapter('criteo', 'criteo_native_action', {
+    parked: {reason: 'owner_parked', decision: 'PRK-02 and P9, docs/DECISIONS.md'},
+  }),
+  adapter('woocommerce', 'commerce_native_action', {
+    parked: {reason: 'owner_parked', decision: 'PRK-01 and P9, docs/DECISIONS.md'},
+  }),
   adapter('amazon', 'amazon_native_action', {
     parked: {reason: 'unimplemented', decision: 'CON-06 option (b), docs/DECISIONS.md'},
   }),

@@ -7,6 +7,7 @@ import {wooCommerceOrigin, wooCommerceRequest, type WooCommerceRequest} from './
 import type {Store} from './store.js';
 import type {Actor, Connection, JsonObject} from './types.js';
 import {provisionedRecord} from './connection-authority.js';
+import {assertGatewayOffered} from './provider-offering.js';
 
 const maximumBytes = 256 * 1024,
   maximumStores = 50,
@@ -60,6 +61,8 @@ export async function connectWooCommerce(
   options: WooCommerceConnectionOptions = {},
 ) {
   store.assertActorActive(actor);
+  // WooCommerce is parked (ARC-01, P9): only a deployment whose AMCP_PROVIDERS names it connects a store.
+  assertGatewayOffered('commerce_native_action');
   if (actor.role !== 'admin' || actor.testAccount)
     throw new MirrorError('FORBIDDEN', 'Only a workspace administrator can connect a WooCommerce source.', {}, 403);
   if (!input || typeof input !== 'object' || Array.isArray(input)) invalid();

@@ -1,5 +1,12 @@
 # Criteo Retail Media campaigns, targeting and reports
 
+Criteo is parked by the owner. A deployment offers `criteo_native_action` only where
+its operator names `criteo` in `AMCP_PROVIDERS`. Elsewhere the gateway is not in
+`tools/list`, and any call that names it, including the execute of a review
+prepared while it was offered, is refused with `GATEWAY_NOT_OFFERED` before
+anything is read or sent. Do not retry or route around it; only the deployment
+operator can offer Criteo again.
+
 AMCP qualifies nine targeting writes for **existing preferred line items** on
 Retail Media API 2026-07, plus the bounded auction campaign, auction line item and
 report families below. Preferred line-item creation and website OAuth are still unqualified. An administrator must provision an encrypted

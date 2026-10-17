@@ -25,6 +25,7 @@ import {criteoPrefix, criteoRoute} from './criteo-version.js';
 import {assertNotPersonalDataRead} from './personal-data.js';
 import {authorizeMetaDatasetRead, observeMetaPixels} from './meta-dataset-scope.js';
 import {authorizeRedditPlanningRead} from './reddit-extensions.js';
+import {assertGatewayOffered} from './provider-offering.js';
 
 export function normalizeAccount(gateway: string, id: unknown): string {
   const value = String(id);
@@ -172,6 +173,9 @@ export class ScopeGuard {
     private store: Store,
   ) {}
   authorize(plan: CompiledRequest, connection: Connection): string {
+    // No request reaches a provider this deployment does not offer (a parked one, ARC-01 and P9): not a read, a review's
+    // state read, an execute of an earlier review or a verification read, before credentials are fetched.
+    assertGatewayOffered(plan.gateway);
     if (connection.gateway !== plan.gateway)
       throw new MirrorError('ACCOUNT_SCOPE_MISMATCH', 'Connection gateway does not match request.', {}, 403);
     // Submitted leads stay out of reach: no resource binding below may open them (SEC-04).

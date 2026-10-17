@@ -29,6 +29,11 @@ import {reconciliationFixture, reconciliationRows, reconciliationRow} from './po
 import {conditionalProgramFixture} from './conditional-program-data.mjs';
 import {overviewGranularityFixture} from './overview-granularity-data.mjs';
 import {syntheticWriteJourneyFixture, spendPolicyEditFixture, exportOutcomesFixture} from './synthetic-writes-data.mjs';
+import {offerParkedProviders} from '../helpers/parked-providers.mjs';
+
+// The browser journeys were written with WooCommerce offered, and fixture sites share one process: they run with it
+// offered. Its parked default (ARC-01, P9) is covered by the Commerce page tests of tests/provider-lifecycle-gate.test.mjs.
+offerParkedProviders('woocommerce');
 
 /** Fixture kinds whose own fake provider accepts its declared synthetic mutations (QA-03, owner decision D26). */
 export const syntheticWriteKinds = Object.freeze(['write-journey', 'spend-policy-edit', 'export-outcomes']);

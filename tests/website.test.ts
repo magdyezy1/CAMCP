@@ -156,8 +156,8 @@ test('website routes conceal connections, protect mutations, and issue revocable
     });
     assert.equal(native.status, 200);
     // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09).
-    // Amazon Ads is not offered by default (CON-06).
-    assert.equal((await native.json()).result.tools.length, 27);
+    // Parked providers are not offered by default: Amazon Ads (CON-06), Criteo and WooCommerce (ARC-01, P9).
+    assert.equal((await native.json()).result.tools.length, 25);
     assert.equal((await s.request('/api/connector-tokens/' + token.id, 'DELETE', undefined, s.headers)).status, 200);
     assert.throws(() => s.store.authenticate(token.token));
     const logout = await s.request('/api/session', 'DELETE', undefined, s.headers);

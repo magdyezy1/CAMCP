@@ -269,10 +269,12 @@ test('every listed tool has a title and reviewed annotations in both modes', asy
     const c = await connected(allowWrites);
     try {
       const tools = (await c.client.listTools()).tools;
-      // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09). Amazon Ads is not offered
-      // by default (CON-06); its reviewed annotation stays for a deployment that offers it with AMCP_PROVIDERS=amazon.
-      assert.equal(tools.length, 27);
-      assert.ok(!tools.some(t => t.name === 'amazon_native_action'));
+      // A read-only deployment lists amcp_write with inspect only (owner decision D15, MCP-09). Parked providers are not
+      // offered by default: Amazon Ads (CON-06), Criteo and WooCommerce (ARC-01, P9); their reviewed annotations stay for
+      // a deployment that offers them with AMCP_PROVIDERS.
+      assert.equal(tools.length, 25);
+      for (const parked of ['amazon_native_action', 'criteo_native_action', 'commerce_native_action'])
+        assert.ok(!tools.some(t => t.name === parked), parked);
       for (const tool of tools) {
         assert.equal(typeof tool.title, 'string', tool.name);
         assert.ok(tool.title.length > 3 && tool.title.length <= 60, tool.name);
@@ -328,10 +330,18 @@ test('a tool without a reviewed entry is listed with the most cautious presentat
   assert.equal(toolPresentation('amcp_tool_help', false, log).annotations.readOnlyHint, true);
   assert.equal(lines.length, 1);
 });
-test('every tool marked read-only changes no AMCP state and sends only read requests, action by action', async () => {
+test('every tool marked read-only changes no AMCP state and sends only read requests, action by action', async t => {
   let calls = 0,
     succeeded = 0,
     reads = 0;
+  // The walk keeps covering the parked Criteo and WooCommerce gateways (ARC-01, P9) by offering them, as a deployment
+  // whose AMCP_PROVIDERS names them does; Amazon Ads stays unlisted, as before.
+  const providers = process.env.AMCP_PROVIDERS;
+  process.env.AMCP_PROVIDERS = 'criteo,woocommerce';
+  t.after(() => {
+    if (providers === undefined) delete process.env.AMCP_PROVIDERS;
+    else process.env.AMCP_PROVIDERS = providers;
+  });
   for (const allowWrites of [false, true]) {
     const w = world(allowWrites);
     try {

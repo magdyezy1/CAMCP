@@ -6,6 +6,11 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
+import {offerParkedProviders} from './helpers/parked-providers.mjs';
+
+// Criteo is parked (ARC-01, P9): this suite exercises it, so it offers it like a
+// deployment whose AMCP_PROVIDERS names it.
+offerParkedProviders('criteo');
 
 /**
  * Promoted products of Criteo auction line items, Retail Media API 2026-07 (pinned OpenAPI document and the "Promoted

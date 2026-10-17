@@ -280,3 +280,14 @@ single send, retries, spending, confirmation and idempotency never move into an 
 status, `active` or `parked` with a reason (`owner_parked` or `unimplemented`), and the prefixes of its reviewed family
 names, so each registered family belongs to one provider (`tests/provider-adapters.test.mjs`). A parked provider is
 offered only where `AMCP_PROVIDERS` names it (`src/provider-offering.ts`; a misspelt ID is a startup `config_problem`).
+
+Parked today: Criteo and WooCommerce (`owner_parked`, PRK-01, PRK-02 and P9) and Amazon Ads (`unimplemented`, CON-06).
+The status is enforced where each surface is built, not by deleting code: `MirrorService.listTools` leaves the gateway
+out of `tools/list`; `MirrorService.callOnce` refuses a tool call that is, or names, a parked gateway before its
+arguments are read; `ScopeGuard.authorize` refuses every request to it before credentials are fetched (so a review
+prepared while it was offered cannot execute after it is parked); contracts, capabilities and the Capability Center
+filter it; `/api/platforms` names the providers not offered (`providers_not_offered`), and Commerce hides the
+WooCommerce store panels while an administrator can still remove a stored connection. The reviewed-family registry
+stays complete for the ledger; `familyOffered` says whether a family's provider is offered.
+`tests/provider-lifecycle-gate.test.mjs` covers each surface in both modes; suites that exercise a parked provider
+offer it with `tests/helpers/parked-providers.mjs`.

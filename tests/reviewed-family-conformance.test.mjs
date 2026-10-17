@@ -13,6 +13,11 @@ import {pathToFileURL} from 'node:url';
 import {reviewedFamilies} from '../dist/src/reviewed-families.js';
 import {parkedProviders} from '../dist/tools/provider-lifecycle.js';
 import {conformanceChecks} from './helpers/family-conformance.mjs';
+import {offerParkedProviders} from './helpers/parked-providers.mjs';
+
+// Criteo is parked (ARC-01, P9): this suite exercises it, so it offers it like a
+// deployment whose AMCP_PROVIDERS names it.
+offerParkedProviders('criteo');
 
 const directory = path.resolve('tests/family-descriptors'),
   descriptors = [],

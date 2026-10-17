@@ -79,6 +79,29 @@ test('a parked provider is offered only where AMCP_PROVIDERS names it; active pr
   assert.doesNotThrow(() => assertGatewayOffered('meta_native_action', {}));
 });
 
+test('P9: Criteo and WooCommerce are owner-parked, their families are not offered, and no website login page belongs to a parked provider', () => {
+  for (const [gateway, id] of [
+    ['criteo_native_action', 'criteo'],
+    ['commerce_native_action', 'woocommerce'],
+  ]) {
+    const provider = providerOf(gateway);
+    assert.deepEqual([provider.id, provider.status, provider.parked.reason], [id, 'parked', 'owner_parked']);
+    assert.equal(gatewayOffered(gateway, {}), false);
+    assert.equal(gatewayOffered(gateway, {AMCP_PROVIDERS: id}), true);
+  }
+  assert.deepEqual([...parkedProviderIds()].sort(), ['amazon', 'criteo', 'woocommerce']);
+  // The family registry stays complete for the ledger; a parked provider's families are not offered.
+  const criteoFamilies = reviewedFamilies().filter(f => familyProvider(f.name)?.id === 'criteo');
+  assert.equal(criteoFamilies.length, 12);
+  for (const family of criteoFamilies) {
+    assert.equal(familyOffered(family.name, {}), false, family.name);
+    assert.equal(familyOffered(family.name, {AMCP_PROVIDERS: 'criteo'}), true, family.name);
+  }
+  assert.equal(familyOffered('meta_pixels', {}), true);
+  // OAuth pages: a parked provider has no website login, so Connections never offers one; gate a platform here first.
+  for (const p of platforms) assert.equal(providerOf(p.gateway)?.status ?? 'active', 'active', p.id);
+});
+
 test('the remedy of a parked provider names the operator switch; an unimplemented one names the missing onboarding', () => {
   const remedy = reason =>
     errorRemedy(new MirrorError('GATEWAY_NOT_OFFERED', 'x', {gateway: 'g', provider: 'p', reason}, 404)).action;

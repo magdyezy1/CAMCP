@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 import {wooVariationsFixture, wooVariationInput} from './fixtures/woocommerce-variations-data.mjs';
 import {catalogIngestion} from '../dist/src/catalog-ingestion.js';
 import {assertMetaCatalogProductFields} from '../dist/src/meta-catalog-products.js';
+import {offerParkedProviders} from './helpers/parked-providers.mjs';
+
+// WooCommerce is parked (ARC-01, P9): this suite exercises it, so it offers it like a
+// deployment whose AMCP_PROVIDERS names it.
+offerParkedProviders('woocommerce');
 
 test('selected variations bracket their exact native parent membership, repeated child values and currency without writes', async () => {
   const f = wooVariationsFixture();

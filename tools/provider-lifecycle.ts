@@ -3,6 +3,7 @@ import {pathToFileURL} from 'node:url';
 import {createHash} from 'node:crypto';
 import {providerMaintenance} from '../src/contract-evidence.js';
 import {providerContracts} from '../src/provider-contracts.js';
+import {parkedProviderIds} from '../src/provider-adapters.js';
 import type {JsonObject} from '../src/types.js';
 
 /**
@@ -19,8 +20,11 @@ import type {JsonObject} from '../src/types.js';
  *   node dist/tools/provider-lifecycle.js --refresh  --live that writes the new baseline for review and commit
  */
 const artifact = '.mirror/VENDOR/lifecycle-pages.json';
-/** Providers whose work is parked (PRK-02): their pages report `parked` and never fail the watch. */
-export const parkedProviders = new Set(['criteo']);
+/**
+ * Providers whose work is parked (PRK-01, PRK-02), from their lifecycle status in the provider adapter registry
+ * (ARC-01, src/provider-adapters.ts): their pages report `parked` and never fail the watch.
+ */
+export const parkedProviders: ReadonlySet<string> = parkedProviderIds();
 /** Official pages watched beyond the provider maintenance records (src/contract-evidence.ts). */
 export const additionalLifecycleSources: {provider: string; url: string}[] = [
   {provider: 'dv360', url: 'https://developers.google.com/display-video/api/deprecations'},

@@ -2,6 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {wooVariationsFixture, wooVariationInput} from './fixtures/woocommerce-variations-data.mjs';
 import {assertRefused} from './helpers/assert-refused.mjs';
+import {offerParkedProviders} from './helpers/parked-providers.mjs';
+
+// WooCommerce is parked (ARC-01, P9): this suite exercises it, so it offers it like a
+// deployment whose AMCP_PROVIDERS names it.
+offerParkedProviders('woocommerce');
 
 const run = (f, actor = f.actor) => f.service.call('amcp_workspace', wooVariationInput(), actor);
 const hidden = out => {

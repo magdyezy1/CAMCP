@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {wooVariationsFixture, wooVariationInput, wooVariation} from './fixtures/woocommerce-variations-data.mjs';
+import {offerParkedProviders} from './helpers/parked-providers.mjs';
+
+// WooCommerce is parked (ARC-01, P9): this suite exercises it, so it offers it like a
+// deployment whose AMCP_PROVIDERS names it.
+offerParkedProviders('woocommerce');
 
 test('selected children and parent membership preserve large native integer IDs and tolerate collection reordering', async () => {
   const f = wooVariationsFixture();

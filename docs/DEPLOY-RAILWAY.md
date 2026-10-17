@@ -72,6 +72,7 @@ Add these service variables:
 | `MIRROR_ALLOW_WRITES` | `true` for reviewed write support; `false` for reads and dry runs only |
 | `AMCP_PROVIDER_VALIDATION` | Optional, default `false`. With writes off, `true` allows provider validation (`validate_provider`), which applies nothing but uses write permission; see [WRITE-OPERATIONS](WRITE-OPERATIONS.md#provider-validation) |
 | `AMCP_PROVIDER_JOBS` | Optional, default `false`. `true` allows provider report and export jobs with writes off and for readers, on accounts granted report jobs in Connections; see [WRITE-OPERATIONS](WRITE-OPERATIONS.md#provider-report-and-export-jobs) |
+| `AMCP_PROVIDERS` | Optional, unset by default. Parked providers (Amazon Ads, Criteo, WooCommerce) are not offered: absent from `tools/list` (25 tools) and the website, and every call is refused with `GATEWAY_NOT_OFFERED`. A comma-separated list of provider IDs (`amazon,criteo,woocommerce`) offers them again; see [architecture](review/ARCHITECTURE.md#9-provider-adapters) |
 | `AMCP_WIRE_CONTRACTS` | Optional, default `shadow`: pinned vendor request schemas record differences only. Keep `shadow` until 14 days show no `wire_contract_violations` (write violations) and no `wire_contract_check_failures`, then `enforce` (`wire_contract_read_violations` does not block it); see [WRITE-OPERATIONS](WRITE-OPERATIONS.md#pinned-vendor-contracts) |
 | `AMCP_RUN_WORKER` | `true` |
 | `AMCP_DATA_MOUNT` | Optional: `/data` when `RAILWAY_VOLUME_MOUNT_PATH` is not supplied; the start-up volume guard requires one of them |

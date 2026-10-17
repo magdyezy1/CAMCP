@@ -5,6 +5,11 @@ import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {createMcpServer} from '../dist/server/mcp.js';
 import {wooVariationsFixture, wooVariationInput} from './fixtures/woocommerce-variations-data.mjs';
+import {offerParkedProviders} from './helpers/parked-providers.mjs';
+
+// WooCommerce is parked (ARC-01, P9): this suite exercises it, so it offers it like a
+// deployment whose AMCP_PROVIDERS names it.
+offerParkedProviders('woocommerce');
 
 test('real MCP retains selected variation hierarchy and explicit reviewed title in the original unapproved Meta draft', async t => {
   const f = wooVariationsFixture({role: 'operator'}),

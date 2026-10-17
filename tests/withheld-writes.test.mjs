@@ -5,6 +5,11 @@ import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
+import {offerParkedProviders} from './helpers/parked-providers.mjs';
+
+// Criteo is parked (ARC-01, P9): this suite exercises it, so it offers it like a
+// deployment whose AMCP_PROVIDERS names it.
+offerParkedProviders('criteo');
 
 /**
  * Blocked writes with a known reason say it, in the ledger and in the refusal: two F-58 candidates blocked on evidence,

@@ -7,6 +7,7 @@ import {bad, fingerprint, obj, validate} from './workspace-core.js';
 import type {Store} from './store.js';
 import type {Actor, Connection, JsonObject} from './types.js';
 import {loginStamp, storedLogin} from './connection-authority.js';
+import {assertGatewayOffered} from './provider-offering.js';
 
 export type WooCommerceRequest = (
   url: URL,
@@ -134,6 +135,7 @@ export function wooCommerceSources(store: Store, actor: Actor, includeDisabled =
 
 /** The captured discovery operation exposes current qualified configurations, without opening credentials or egress. */
 export function wooCommerceStoreDiscovery(store: Store, actor: Actor, args: JsonObject) {
+  assertGatewayOffered('commerce_native_action');
   const includeDisabled = args.include_disconnected === true,
     sources = wooCommerceSources(store, actor, includeDisabled),
     stores = sources.items.map(item => ({...item, configuration_enabled: item.configuration_enabled ?? true})),
@@ -390,6 +392,8 @@ export async function wooCommerceSource(
   request: WooCommerceRequest = wooCommerceRequest,
   environment: 'production' | 'sandbox' = 'production',
 ) {
+  // WooCommerce is parked (ARC-01, P9): no store is read unless AMCP_PROVIDERS names it.
+  assertGatewayOffered('commerce_native_action');
   if (environment !== 'production')
     throw new MirrorError(
       'SANDBOX_ROUTE_UNQUALIFIED',

@@ -8,6 +8,11 @@ import {
   wooInventoryFixture,
   wooInventoryInput,
 } from './fixtures/woocommerce-inventory-data.mjs';
+import {offerParkedProviders} from './helpers/parked-providers.mjs';
+
+// WooCommerce is parked (ARC-01, P9): this suite exercises it, so it offers it like a
+// deployment whose AMCP_PROVIDERS names it.
+offerParkedProviders('woocommerce');
 
 const call = f => f.service.call('amcp_workspace', wooInventoryInput(), f.actor);
 test('complete multi-page published products and every reported child preserve exact observations, lineage and retention without mutations', async () => {

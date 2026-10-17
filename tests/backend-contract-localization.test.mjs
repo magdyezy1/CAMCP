@@ -133,11 +133,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // ACC-05 adds src/acceptance-ledger.ts, src/discovery-programs.ts and src/provider-access.ts (no owned reasons) and the
   // owner provider access panel's catalog entries.
   // ARC-01 adds src/provider-adapter.ts and src/provider-adapters.ts (no owned reasons) and the parked-provider refusal
-  // of src/provider-offering.ts with its remedy.
+  // of src/provider-offering.ts with its remedy; P9's parked WooCommerce notice on Commerce adds one catalog entry.
   assert.equal(files.length, 571);
   assert.equal(selected.filter(row => row.messages.size).length, 234);
   assert.equal(owned.size, 1579);
-  assert.equal(Object.keys(catalog).length, 11424);
+  assert.equal(Object.keys(catalog).length, 11425);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

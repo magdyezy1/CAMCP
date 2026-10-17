@@ -7,8 +7,8 @@
     "bytesSlack": 512
   },
   "mcp_surface": {
-    "tools": 27,
-    "tools_list_bytes": 97261,
+    "tools": 25,
+    "tools_list_bytes": 94467,
     "instructions_bytes": 1446
   },
   "task_measures": {

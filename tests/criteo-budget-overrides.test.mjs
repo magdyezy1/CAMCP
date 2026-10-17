@@ -8,6 +8,11 @@ import {NativeTransport} from '../dist/src/transport.js';
 import {saveSpendPolicy} from '../dist/src/spend-policy.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
+import {offerParkedProviders} from './helpers/parked-providers.mjs';
+
+// Criteo is parked (ARC-01, P9): this suite exercises it, so it offers it like a
+// deployment whose AMCP_PROVIDERS names it.
+offerParkedProviders('criteo');
 
 /**
  * Budget overrides of Criteo Retail Media campaigns and line items, API 2026-07 (pinned OpenAPI document and the "Budget

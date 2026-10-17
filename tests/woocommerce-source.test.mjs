@@ -6,6 +6,11 @@ import {EventEmitter} from 'node:events';
 import {Readable} from 'node:stream';
 import {wooCommerceRequest} from '../dist/src/woocommerce-source.js';
 import {guardedLookup} from '../dist/src/media-link.js';
+import {offerParkedProviders} from './helpers/parked-providers.mjs';
+
+// WooCommerce is parked (ARC-01, P9): this suite exercises it, so it offers it like a
+// deployment whose AMCP_PROVIDERS names it.
+offerParkedProviders('woocommerce');
 
 const productsResponse = (products, headers = {}) =>
   new Response(JSON.stringify(products), {

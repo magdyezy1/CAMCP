@@ -4962,10 +4962,26 @@ function commerceAdministrator() {
     (session.administrator === true || ['owner', 'admin'].includes(session.workspaceRole))
   );
 }
+/** WooCommerce store sources are parked (ARC-01, P9): offered only where the deployment's AMCP_PROVIDERS names them. */
+function commerceStoresOffered() {
+  return !(typeof providersNotOffered !== 'undefined' && providersNotOffered.includes('woocommerce'));
+}
+/**
+ * While WooCommerce is parked, an administrator sees only the stored store connections, to remove one: no store is
+ * connected or read, and nothing else of the store panels is shown.
+ */
+function wooCommerceParkedMarkup() {
+  const sources = typeof commerceSources === 'undefined' ? [] : commerceSources;
+  if (!commerceAdministrator() || !sources.length) return '';
+  return `<section class="panel workspace-form" id="woo-connections"><div class="panel-header"><h2>${esc(uiText('WooCommerce store connections'))}</h2><button class="button" type="button" id="woo-stores-refresh">${esc(uiText('Refresh store list'))}</button></div><p class="notice" id="woo-parked">${esc(uiText('This deployment does not offer WooCommerce store sources: their work is parked. No store is connected or read. You can still remove a stored connection.'))}</p>${wooCommerceRemovalMarkup(sources, true)}</section>`;
+}
+function wooCommerceRemovalMarkup(sources, open) {
+  return `<details${open ? ' open' : ''}><summary>${esc(uiText('Remove a local store connection'))}</summary><p id="woo-remove-help">${esc(uiText('Removal deletes this AMCP connection, its encrypted key, discovery metadata and related finished report data. Reviews, receipts and audit history remain. The WooCommerce key, products and provider access are unchanged.'))}</p><form id="woo-remove" aria-describedby="woo-remove-help"><label>${esc(uiText('Configured WooCommerce store'))}<select name="target" required><option value="">${esc(uiText('Choose a store'))}</option>${sources.map((item, i) => `<option value="${i}">${esc(item.label)} · ${esc(item.store_origin)}</option>`).join('')}</select></label><label class="form-note"><input type="checkbox" name="confirmed" required>${esc(uiText('I confirm removal of the selected local AMCP connection and its related stored report data.'))}</label><button class="button danger" type="submit">${esc(uiText('Remove local connection'))}</button></form><div id="woo-remove-result" aria-live="polite"></div></details>`;
+}
 function wooCommerceConnectionsMarkup() {
   if (!commerceAdministrator()) return '';
   const sources = typeof commerceSources === 'undefined' ? [] : commerceSources;
-  return `<section class="panel workspace-form" id="woo-connections"><div class="panel-header"><h2>${esc(uiText('WooCommerce store connections'))}</h2><button class="button" type="button" id="woo-stores-refresh">${esc(uiText('Refresh store list'))}</button></div><p>${esc(uiText('Connect an existing Read REST API key to inspect products. This grants AMCP read access only.'))}</p><details ${sources.length ? '' : 'open'}><summary>${esc(uiText('Connect a WooCommerce source'))}</summary><p id="woo-connect-help">${esc(uiText('Use WooCommerce → Settings → Advanced → REST API to inspect an existing key and its user. Choose a key with Read permission. AMCP verifies product and currency reads, stores the key encrypted and never changes the store.'))} <a href="https://woocommerce.com/document/woocommerce-rest-api/" target="_blank" rel="noreferrer">${esc(uiText('Official WooCommerce key guide ↗'))}</a></p><p class="form-note">${esc(uiText('Use the exact HTTPS origin on port 443 without a path. Setup is limited to 3 requests, 256 KiB and 20 seconds. Read success cannot independently establish the key’s native write permission.'))}</p><form id="woo-connect" aria-describedby="woo-connect-help"><label>${esc(uiText('Store label'))}<input name="label" type="text" required maxlength="200" autocomplete="off"></label><label>${esc(uiText('HTTPS store origin'))}<input name="store_origin" type="url" required maxlength="2048" dir="ltr" autocomplete="off" spellcheck="false" placeholder="https://shop.example.com"></label><label>${esc(uiText('Consumer Key'))}<input name="consumer_key" type="password" required minlength="4" maxlength="203" autocomplete="off" spellcheck="false" dir="ltr" pattern="ck_[A-Za-z0-9]+"></label><label>${esc(uiText('Consumer Secret'))}<input name="consumer_secret" type="password" required minlength="4" maxlength="203" autocomplete="off" spellcheck="false" dir="ltr" pattern="cs_[A-Za-z0-9]+"></label><label class="form-note"><input type="checkbox" name="confirmed" required>${esc(uiText('I confirm this existing key has Read permission and authorize encrypted storage and read verification in this workspace.'))}</label><p class="form-note">${esc(uiText('Credential fields are cleared when submitted and are never included in the result. If a reply is interrupted, refresh the store list before adding another connection.'))}</p><button class="button primary" type="submit">${esc(uiText('Verify reads and connect'))}</button></form><div id="woo-connect-result" aria-live="polite"></div></details>${sources.length ? `<details><summary>${esc(uiText('Remove a local store connection'))}</summary><p id="woo-remove-help">${esc(uiText('Removal deletes this AMCP connection, its encrypted key, discovery metadata and related finished report data. Reviews, receipts and audit history remain. The WooCommerce key, products and provider access are unchanged.'))}</p><form id="woo-remove" aria-describedby="woo-remove-help"><label>${esc(uiText('Configured WooCommerce store'))}<select name="target" required><option value="">${esc(uiText('Choose a store'))}</option>${sources.map((item, i) => `<option value="${i}">${esc(item.label)} · ${esc(item.store_origin)}</option>`).join('')}</select></label><label class="form-note"><input type="checkbox" name="confirmed" required>${esc(uiText('I confirm removal of the selected local AMCP connection and its related stored report data.'))}</label><button class="button danger" type="submit">${esc(uiText('Remove local connection'))}</button></form><div id="woo-remove-result" aria-live="polite"></div></details>` : ''}</section>`;
+  return `<section class="panel workspace-form" id="woo-connections"><div class="panel-header"><h2>${esc(uiText('WooCommerce store connections'))}</h2><button class="button" type="button" id="woo-stores-refresh">${esc(uiText('Refresh store list'))}</button></div><p>${esc(uiText('Connect an existing Read REST API key to inspect products. This grants AMCP read access only.'))}</p><details ${sources.length ? '' : 'open'}><summary>${esc(uiText('Connect a WooCommerce source'))}</summary><p id="woo-connect-help">${esc(uiText('Use WooCommerce → Settings → Advanced → REST API to inspect an existing key and its user. Choose a key with Read permission. AMCP verifies product and currency reads, stores the key encrypted and never changes the store.'))} <a href="https://woocommerce.com/document/woocommerce-rest-api/" target="_blank" rel="noreferrer">${esc(uiText('Official WooCommerce key guide ↗'))}</a></p><p class="form-note">${esc(uiText('Use the exact HTTPS origin on port 443 without a path. Setup is limited to 3 requests, 256 KiB and 20 seconds. Read success cannot independently establish the key’s native write permission.'))}</p><form id="woo-connect" aria-describedby="woo-connect-help"><label>${esc(uiText('Store label'))}<input name="label" type="text" required maxlength="200" autocomplete="off"></label><label>${esc(uiText('HTTPS store origin'))}<input name="store_origin" type="url" required maxlength="2048" dir="ltr" autocomplete="off" spellcheck="false" placeholder="https://shop.example.com"></label><label>${esc(uiText('Consumer Key'))}<input name="consumer_key" type="password" required minlength="4" maxlength="203" autocomplete="off" spellcheck="false" dir="ltr" pattern="ck_[A-Za-z0-9]+"></label><label>${esc(uiText('Consumer Secret'))}<input name="consumer_secret" type="password" required minlength="4" maxlength="203" autocomplete="off" spellcheck="false" dir="ltr" pattern="cs_[A-Za-z0-9]+"></label><label class="form-note"><input type="checkbox" name="confirmed" required>${esc(uiText('I confirm this existing key has Read permission and authorize encrypted storage and read verification in this workspace.'))}</label><p class="form-note">${esc(uiText('Credential fields are cleared when submitted and are never included in the result. If a reply is interrupted, refresh the store list before adding another connection.'))}</p><button class="button primary" type="submit">${esc(uiText('Verify reads and connect'))}</button></form><div id="woo-connect-result" aria-live="polite"></div></details>${sources.length ? wooCommerceRemovalMarkup(sources, false) : ''}</section>`;
 }
 function wooConnectionResult(out, request) {
   const origin = new URL(request.store_origin).origin;
@@ -4999,7 +5015,7 @@ function wooConnectionResult(out, request) {
     );
   return `<h3 tabindex="-1" id="woo-connect-heading">${esc(uiText(out.replayed ? 'Existing store connection recovered' : 'Store read access verified'))}</h3><p><strong>${esc(out.label)}</strong> · <bdi dir="ltr">${esc(out.store_origin)}</bdi></p><p>${esc(uiText('Verified {date} · Reported published products: {count}', {date: date(out.verified_at), count: uiNumber(out.reported_published_products)}))} · <bdi dir="ltr">${esc(out.native_currency)}</bdi></p><p>${esc(uiText('AMCP store binding'))}: <code dir="ltr">${esc(out.account_id)}</code></p><p class="form-note">${esc(uiText('This binding identifies the origin inside AMCP; it is not a native WooCommerce store ID.'))}</p><p class="notice">${esc(uiText('Product and currency access were verified during setup. Read permission is your recorded selection; full inventory, future access and destination eligibility still need inspection. Store writes remain disabled.'))}</p>${out.replayed ? `<p>${esc(uiText('This is the original setup result. No new store reads were made by this retry.'))}</p>` : ''}<button class="button" type="button" id="woo-connect-refresh">${esc(uiText('Refresh store list'))}</button>`;
 }
-function bindWooCommerceConnections() {
+function bindWooCommerceConnections(parked = false) {
   if (!commerceAdministrator()) return;
   const identity = session,
     identityValue = identityKey(session),
@@ -5053,51 +5069,8 @@ function bindWooCommerceConnections() {
       identityVersion === identityGeneration &&
       $('#woo-connections').isConnected,
   );
-  const form = $('#woo-connect'),
-    result = $('#woo-connect-result'),
-    begin = accountWorkflowContext(form, result),
-    requestId = crypto.randomUUID();
-  let submitting = false,
-    completed = false;
-  workspaceBind(
-    '#woo-connect',
-    async () => {
-      if (submitting || completed || !authorized()) return;
-      const attempt = begin(),
-        current = () => attempt() && authorized(),
-        request = {
-          connection_id: requestId,
-          store_origin: form.elements.store_origin.value,
-          label: form.elements.label.value,
-          consumer_key: form.elements.consumer_key.value,
-          consumer_secret: form.elements.consumer_secret.value,
-          key_permission: 'read',
-          confirmed: form.elements.confirmed.checked === true,
-        };
-      if (!current()) return;
-      submitting = true;
-      form.elements.consumer_key.value = '';
-      form.elements.consumer_secret.value = '';
-      const fields = ['label', 'store_origin', 'consumer_key', 'consumer_secret', 'confirmed'];
-      for (const field of fields) form.elements[field].disabled = true;
-      try {
-        const out = await api('/api/commerce/stores', {method: 'POST', body: JSON.stringify(request)});
-        if (!current()) return;
-        result.innerHTML = wooConnectionResult(out, request);
-        completed = true;
-        $('#woo-connect-heading').focus({preventScroll: true});
-        bindRefresh('#woo-connect-refresh', current);
-      } catch (error) {
-        if (current()) throw error;
-      } finally {
-        // Retain no secret in a retry cache. The stable request ID lets an explicitly re-entered identical key recover the original result.
-        request.consumer_key = request.consumer_secret = '';
-        submitting = false;
-        if (current()) for (const field of fields) form.elements[field].disabled = false;
-      }
-    },
-    {disabled: () => completed},
-  );
+  // A parked WooCommerce (ARC-01, P9) shows no connect form: only stored connections can be removed.
+  if (!parked) bindWooCommerceConnect(authorized, bindRefresh);
   if (!sources.length) return;
   const remove = $('#woo-remove'),
     removeResult = $('#woo-remove-result'),
@@ -5152,6 +5125,53 @@ function bindWooCommerceConnections() {
       }
     },
     {disabled: () => removed},
+  );
+}
+function bindWooCommerceConnect(authorized, bindRefresh) {
+  const form = $('#woo-connect'),
+    result = $('#woo-connect-result'),
+    begin = accountWorkflowContext(form, result),
+    requestId = crypto.randomUUID();
+  let submitting = false,
+    completed = false;
+  workspaceBind(
+    '#woo-connect',
+    async () => {
+      if (submitting || completed || !authorized()) return;
+      const attempt = begin(),
+        current = () => attempt() && authorized(),
+        request = {
+          connection_id: requestId,
+          store_origin: form.elements.store_origin.value,
+          label: form.elements.label.value,
+          consumer_key: form.elements.consumer_key.value,
+          consumer_secret: form.elements.consumer_secret.value,
+          key_permission: 'read',
+          confirmed: form.elements.confirmed.checked === true,
+        };
+      if (!current()) return;
+      submitting = true;
+      form.elements.consumer_key.value = '';
+      form.elements.consumer_secret.value = '';
+      const fields = ['label', 'store_origin', 'consumer_key', 'consumer_secret', 'confirmed'];
+      for (const field of fields) form.elements[field].disabled = true;
+      try {
+        const out = await api('/api/commerce/stores', {method: 'POST', body: JSON.stringify(request)});
+        if (!current()) return;
+        result.innerHTML = wooConnectionResult(out, request);
+        completed = true;
+        $('#woo-connect-heading').focus({preventScroll: true});
+        bindRefresh('#woo-connect-refresh', current);
+      } catch (error) {
+        if (current()) throw error;
+      } finally {
+        // Retain no secret in a retry cache. The stable request ID lets an explicitly re-entered identical key recover the original result.
+        request.consumer_key = request.consumer_secret = '';
+        submitting = false;
+        if (current()) for (const field of fields) form.elements[field].disabled = false;
+      }
+    },
+    {disabled: () => completed},
   );
 }
 function wooCommerceSourcePanelMarkup() {
@@ -5373,15 +5393,25 @@ async function renderCommerce() {
   // COM-01: the reviewed import comes first; it is the active journey. Store sources follow, collapsed into one
   // administrator disclosure until a source is configured, so the page no longer opens with forms that cannot run.
   // COM-02 D: Snapchat accounts are offered for a read-only comparison; their products change only through feeds.
+  // ARC-01, P9: while WooCommerce is parked the store panels and the WooCommerce product source are not shown.
   const targets = accountChoices(['meta', 'x', 'snapchat']),
+    storesOffered = commerceStoresOffered(),
     storeSources = typeof commerceSources === 'undefined' ? [] : commerceSources,
-    storePanels = wooCommerceConnectionsMarkup() + wooCommerceSourcePanelMarkup() + wooCommerceInventoryPanelMarkup();
-  content.innerHTML += `<section class="panel workspace-form"><h2>${esc(uiText('Reviewed catalog product import'))}</h2><p>${esc(uiText('Import up to 500 supplied products for the selected account and catalog; more than 50 are saved as one group of plans of at most 50 products each. Ownership is checked during native review. Every item keeps a separate review, receipt and read-back in its saved plan. Missing items are retained.'))}</p><p class="form-note">${esc(uiText('Product imports support Meta and X. Snapchat catalogs change only through feeds; AMCP compares their products read-only.'))}</p>${targets.length ? '' : `<p class="notice" id="catalog-no-destination">${accountChoicesEmptyNotice(targets, uiText('Connect a Meta or X ad account to import products.'), uiText('Manage connections'))}</p>`}<form id="catalog-import"><label>${esc(uiText('Meta, X or Snapchat ad account'))}<select name="target" required><option value="">${esc(uiText('Choose an account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Native product catalog ID'), 'text', '', 'catalog_id')}${controls(uiText('Import plan name'), 'text', 'Product catalog import', 'name')}<label>${esc(uiText('Product source'))}<select name="source_mode"><option value="csv">${esc(uiText('Product CSV'))}</option><option value="woocommerce">${esc(uiText('Selected WooCommerce products'))}</option></select></label><div id="catalog-csv-controls"><label>${esc(uiText('Product CSV'))}<input type="file" name="file" accept=".csv,text/csv" required></label></div><div id="catalog-woo-selection" class="form-note" aria-live="polite"></div><div id="catalog-destination-help" class="form-note" aria-live="polite"></div>${catalogMappingMarkup()}<label>${esc(uiText('Existing retailer IDs'))}<select name="allow_upsert"><option value="false">${esc(uiText('Create only — refuse existing IDs'))}</option><option value="true">${esc(uiText('Explicitly update existing IDs after native review'))}</option></select></label><button class="button primary" type="submit">${esc(uiText('Validate and preview products'))}</button></form><div id="catalog-preview"></div></section><p class="notice">${esc(uiText('Mapped supplier and WooCommerce exports use the selected Meta or X reviewed product contract. Choose the intended price, currency, image and destination fields. Live store synchronization and additional destinations require separate qualification.'))}</p>`;
-  content.innerHTML += storeSources.length
-    ? storePanels
-    : `<details class="panel" id="commerce-store-sources"><summary>${esc(uiText('Connect a store source (administrators)'))}</summary>${storePanels}</details>`;
-  bindWooCommerceInventory();
-  bindWooCommerceConnections();
+    storePanels = storesOffered
+      ? wooCommerceConnectionsMarkup() + wooCommerceSourcePanelMarkup() + wooCommerceInventoryPanelMarkup()
+      : '';
+  content.innerHTML += `<section class="panel workspace-form"><h2>${esc(uiText('Reviewed catalog product import'))}</h2><p>${esc(uiText('Import up to 500 supplied products for the selected account and catalog; more than 50 are saved as one group of plans of at most 50 products each. Ownership is checked during native review. Every item keeps a separate review, receipt and read-back in its saved plan. Missing items are retained.'))}</p><p class="form-note">${esc(uiText('Product imports support Meta and X. Snapchat catalogs change only through feeds; AMCP compares their products read-only.'))}</p>${targets.length ? '' : `<p class="notice" id="catalog-no-destination">${accountChoicesEmptyNotice(targets, uiText('Connect a Meta or X ad account to import products.'), uiText('Manage connections'))}</p>`}<form id="catalog-import"><label>${esc(uiText('Meta, X or Snapchat ad account'))}<select name="target" required><option value="">${esc(uiText('Choose an account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Native product catalog ID'), 'text', '', 'catalog_id')}${controls(uiText('Import plan name'), 'text', 'Product catalog import', 'name')}<label>${esc(uiText('Product source'))}<select name="source_mode"><option value="csv">${esc(uiText('Product CSV'))}</option>${storesOffered ? `<option value="woocommerce">${esc(uiText('Selected WooCommerce products'))}</option>` : ''}</select></label><div id="catalog-csv-controls"><label>${esc(uiText('Product CSV'))}<input type="file" name="file" accept=".csv,text/csv" required></label></div><div id="catalog-woo-selection" class="form-note" aria-live="polite"></div><div id="catalog-destination-help" class="form-note" aria-live="polite"></div>${catalogMappingMarkup()}<label>${esc(uiText('Existing retailer IDs'))}<select name="allow_upsert"><option value="false">${esc(uiText('Create only — refuse existing IDs'))}</option><option value="true">${esc(uiText('Explicitly update existing IDs after native review'))}</option></select></label><button class="button primary" type="submit">${esc(uiText('Validate and preview products'))}</button></form><div id="catalog-preview"></div></section><p class="notice">${esc(uiText('Mapped supplier and WooCommerce exports use the selected Meta or X reviewed product contract. Choose the intended price, currency, image and destination fields. Live store synchronization and additional destinations require separate qualification.'))}</p>`;
+  if (storesOffered) {
+    content.innerHTML += storeSources.length
+      ? storePanels
+      : `<details class="panel" id="commerce-store-sources"><summary>${esc(uiText('Connect a store source (administrators)'))}</summary>${storePanels}</details>`;
+    bindWooCommerceInventory();
+    bindWooCommerceConnections();
+  } else {
+    const parked = wooCommerceParkedMarkup();
+    content.innerHTML += parked;
+    if (parked) bindWooCommerceConnections(true);
+  }
   const form = $('#catalog-import'),
     result = $('#catalog-preview'),
     begin = accountWorkflowContext(form, result);
@@ -5398,22 +5428,23 @@ async function renderCommerce() {
     updateSourceMode();
   });
   updateSourceMode();
-  bindWooCommerceSource(
-    (products, source, current) => {
-      selectedWoo = {products: structuredClone(products), source, current};
-      begin();
-      form.elements.source_mode.value = 'woocommerce';
-      updateSourceMode();
-      $('#catalog-woo-selection').innerHTML =
-        `<p>${esc(uiText('{count} original products selected from {store}. Validate the exact destination fields before saving a draft.', {count: products.length, store: source.scope.store_origin}))}</p>`;
-      form.elements.target.focus();
-    },
-    () => {
-      selectedWoo = null;
-      begin();
-      $('#catalog-woo-selection').innerHTML = '';
-    },
-  );
+  if (storesOffered)
+    bindWooCommerceSource(
+      (products, source, current) => {
+        selectedWoo = {products: structuredClone(products), source, current};
+        begin();
+        form.elements.source_mode.value = 'woocommerce';
+        updateSourceMode();
+        $('#catalog-woo-selection').innerHTML =
+          `<p>${esc(uiText('{count} original products selected from {store}. Validate the exact destination fields before saving a draft.', {count: products.length, store: source.scope.store_origin}))}</p>`;
+        form.elements.target.focus();
+      },
+      () => {
+        selectedWoo = null;
+        begin();
+        $('#catalog-woo-selection').innerHTML = '';
+      },
+    );
   const destinationHelp = () => {
     const target = form.elements.target.value === '' ? undefined : targets[Number(form.elements.target.value)];
     const snapchat = target?.gateway === 'snapchat_native_action';
