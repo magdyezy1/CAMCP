@@ -6,9 +6,11 @@
  *
  * Concerns move into adapters one at a time (ARC-01 phase B), each with a call-replay proof that the provider requests
  * and authorization decisions are unchanged (tools/call-replay.mjs; docs/review/ARCHITECTURE.md, "Provider adapters").
- * Every adapter carries its lifecycle status and its account model: the account ID form, where a request names the
- * account, and what a bound resource is.
+ * Every adapter carries its lifecycle status and its facts (the account model, body deletions), which any module may
+ * read; behaviour that needs a provider's own modules (read classification so far) is its hooks, declared in
+ * src/<provider>-adapter.ts and registered in src/provider-hooks.ts.
  */
+import type {CompiledRequest, Connection} from './types.js';
 
 /** `active` providers are offered; a `parked` one is offered only where AMCP_PROVIDERS names it. */
 export type ProviderStatus = 'active' | 'parked';
@@ -62,6 +64,62 @@ export interface AccountModel {
   readonly kind?: AccountKind;
 }
 
+/**
+ * Deletions a provider takes as a body value on a route that is not a DELETE (WRT-02): src/execution-risk.ts treats a
+ * write that carries one as destructive, so the owner's deletion switch holds it.
+ */
+export interface BodyDeletions {
+  /** Each snake_case field and the values that delete or remove what the request names. */
+  readonly fields: Readonly<Record<string, readonly string[]>>;
+  /** Where the values come from. */
+  readonly source: string;
+  /** A `remove` operation by resource name with this prefix deletes (Google Ads `{remove: 'customers/…'}`). */
+  readonly removePrefix?: string;
+  /** A :mutate POST whose operations carry a string `remove` deletes (Google Ads RPC removals). */
+  readonly mutateRemovals?: true;
+}
+
+/**
+ * A provider's read classification (ARC-01 phase B): its documented exceptions to the generic read rules of
+ * src/execution-risk.ts, which keeps every rule and decides. A request classified as a read still passes ScopeGuard and
+ * every review rule.
+ */
+export interface ReadClassification {
+  /** A route the catalog marks as a write that is a reviewed read (planning, estimate and preview POSTs). */
+  plannedRead?(plan: CompiledRequest): boolean;
+  /** Decides alone, in place of the generic rules: the provider's contracts declare their reads (Microsoft). */
+  readOnly?(plan: CompiledRequest): boolean;
+  /**
+   * The path the generic rules read when the provider's paths hold identifiers that look like words (Search Console's
+   * site URLs); undefined to read the decoded path.
+   */
+  classifiedPath?(plan: CompiledRequest): string | undefined;
+  /** A documented GET read whose path holds a word the generic rules refuse (src/provider-read-contracts.ts). */
+  qualifiedRead?(plan: CompiledRequest): boolean;
+  /**
+   * Authorizes a qualified read for the bound account: true when it is in scope, false to leave it to ScopeGuard's
+   * other checks, or a refusal.
+   */
+  authorizeQualifiedRead?(plan: CompiledRequest, connection: Connection, account: string): boolean;
+  /** Another documented route whose path words are not edits (TikTok's ad previews). */
+  wordExempt?(plan: CompiledRequest): boolean;
+  /** A query or body key, in lower case, that makes the request carry other requests (Meta's Graph batch). */
+  batch?(key: string): boolean;
+  /** Whether a POST is a read, by its decoded path: the provider's documented query, report and planning RPCs. */
+  postRead?(plan: CompiledRequest, pathname: string): boolean;
+}
+
+/**
+ * A provider's hooks (ARC-01 phase B): the parts of its adapter that call its own modules, declared in
+ * src/<provider>-adapter.ts and registered in src/provider-hooks.ts. The facts any module may read are the
+ * ProviderAdapter of the leaf registry; a hook only supplies a provider fact to the shared stage that asks for it.
+ */
+export interface ProviderHooks {
+  /** The gateway of the provider adapter these hooks belong to. */
+  readonly gateway: string;
+  readonly reads?: ReadClassification;
+}
+
 export interface ProviderAdapter {
   /** The provider's ID, as AMCP_PROVIDERS and the provider contracts name it (`criteo`, `google_business`). */
   readonly id: string;
@@ -76,4 +134,5 @@ export interface ProviderAdapter {
    */
   readonly familyPrefixes: readonly string[];
   readonly account?: AccountModel;
+  readonly deletions?: BodyDeletions;
 }

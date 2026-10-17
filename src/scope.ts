@@ -14,7 +14,7 @@ import {
 import {microsoftReportKey} from './microsoft-report-download.js';
 import {authorizeLinkedInSpecial} from './linkedin-posts.js';
 import {linkedinPlanningAccount, linkedinPlanningRoute} from './linkedin-planning-reads.js';
-import {googleGlobalRead} from './execution-risk.js';
+import {googleGlobalRead} from './google-ads-adapter.js';
 import {authorizeQualifiedProviderRead} from './provider-read-contracts.js';
 import {authorizeDV360TargetingSearch} from './dv360-targeting-search.js';
 import {authorizeDV360AudienceRead} from './dv360-audiences.js';

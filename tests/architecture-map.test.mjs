@@ -63,6 +63,11 @@ test('provider modules are the provider filename groups; the lifecycle and the w
   assert.equal(isProviderModule('src/report-sources.ts'), true);
   assert.equal(isProviderModule('src/reviewed-families.ts'), true);
   assert.equal(isProviderModule('src/reviewed-family.ts'), false, 'the family contract is shared');
+  // The provider hooks registry and each provider's adapter module (ARC-01 phase B); the adapter contract is shared.
+  assert.equal(isProviderModule('src/provider-hooks.ts'), true);
+  assert.equal(isProviderModule('src/tiktok-adapter.ts'), true);
+  assert.equal(isProviderModule('src/google-search-console-adapter.ts'), true);
+  assert.equal(isProviderModule('src/provider-adapter.ts'), false);
   assert.equal(isProviderModule('src/portfolio-runner.ts'), false);
   assert.equal(isProviderModule('src/report-source.ts'), false);
   assert.equal(isProviderModule('src/provider-offering.ts'), false);

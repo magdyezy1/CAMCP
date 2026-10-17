@@ -1,0 +1,18 @@
+import type {ProviderHooks} from './provider-adapter.js';
+import type {CompiledRequest} from './types.js';
+
+/**
+ * Google Analytics 4's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the
+ * report RPCs and the audience export and report task queries are POST reads.
+ */
+export const ga4Hooks: ProviderHooks = Object.freeze({
+  gateway: 'ga4_native_action',
+  reads: Object.freeze({
+    postRead: (_plan: CompiledRequest, pathname: string) =>
+      /\/properties\/[^/:]+:(?:runReport|batchRunReports|runPivotReport|batchRunPivotReports|runRealtimeReport|checkCompatibility|runFunnelReport)$/.test(
+        pathname,
+      ) ||
+      /^\/v1beta\/properties\/[^/:]+\/audienceExports\/[^/:]+:query$/.test(pathname) ||
+      /^\/v1alpha\/properties\/[^/:]+\/reportTasks\/[^/:]+:query$/.test(pathname),
+  }),
+});

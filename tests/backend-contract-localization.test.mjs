@@ -148,8 +148,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // source contract, its registry and ten provider report sources; the Apple source owns the reason it took from
   // src/report-native.ts (one more file with reasons, the same reasons).
   // Stage C adds src/family-kit.ts; the family modules that import its fail keep their owned reasons. Stage D adds
-  // src/tool-actions.ts (no owned reasons).
-  assert.equal(files.length, 622);
+  // src/tool-actions.ts (no owned reasons). ARC-01 phase B adds the provider hooks registry and fifteen provider adapter
+  // modules (src/<provider>-adapter.ts): LinkedIn's share-authorization reason moved with its check from
+  // src/provider-read-contracts.ts to src/linkedin-adapter.ts, so the files with reasons and the reasons are unchanged.
+  assert.equal(files.length, 638);
   assert.equal(selected.filter(row => row.messages.size).length, 236);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11485);

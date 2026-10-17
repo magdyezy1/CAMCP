@@ -293,10 +293,10 @@ family so that the lifecycle consults it, and the review's 220 "core to provider
 |---|---|
 | `largest_runtime_scc` | 3 |
 | `cyclic_modules` | 11 |
-| `shared_modules_with_gateway_literals` | 88 |
-| `shared_to_provider_runtime_imports` | 333 |
+| `shared_modules_with_gateway_literals` | 86 |
+| `shared_to_provider_runtime_imports` | 325 |
 | `local_fail_copies` | 0 |
-| `shared_gateway_literals` (reported) | 701 |
+| `shared_gateway_literals` (reported) | 676 |
 | Runtime import cycles | `src/microsoft-associations.ts` ↔ `src/microsoft-campaign-criteria.ts` ↔ `src/microsoft-native.ts`; `src/allocation-calibration.ts` ↔ `src/report-allocation.ts`; `src/apple-entity-writes.ts` ↔ `src/measurement-writes.ts`; `src/effect-class.ts` ↔ `src/preflight.ts`; `src/reddit-creative-writes.ts` ↔ `src/reddit-writes.ts` |
 <!-- architecture-map:baseline:end -->
 
@@ -326,6 +326,16 @@ reviewed-family registry stays complete for the ledger, by design: the listings 
 gateway's status, so there is no family-level offering check. `tests/provider-lifecycle-gate.test.mjs` covers each
 surface in both modes; suites that exercise a parked provider offer it with `tests/helpers/parked-providers.mjs`.
 
+An adapter has two halves, split by import layer. Its **facts** (lifecycle status, family prefixes, the account model,
+body deletions, paging names) are pure data in the leaf registry, which any module may read, the lowest included
+(`src/account-id.ts`, which family modules import). Its **hooks** call the provider's own modules, so they live in the
+provider's adapter module (`src/<provider>-adapter.ts`, a provider module) and are registered by gateway in
+`src/provider-hooks.ts`, which the shared stages consult instead of importing provider modules; no provider module
+imports it, and the ratchet (§8) counts it with the providers. One registry holding both would sit in an import
+cycle: the hooks' modules import shared helpers that read the facts. A hook only supplies a provider fact to the shared
+stage that asks for it, at the point where that stage named the provider before: the stage keeps every rule, in its
+order, and decides.
+
 **Phase B** moves one concern at a time out of the shared modules into the adapters. Each move carries a call-replay
 proof (`tools/call-replay.mjs`, `tests/call-replay.test.mjs`): the related suites (739 test files) are recorded on the
 build before the change and after it, a loader hook writing every call of the moved functions with its arguments and
@@ -338,12 +348,13 @@ replay through the new build. Nothing is sent anywhere: the suites' synthetic fe
 | Concern | Now in the adapter | Shared stage that keeps the rule | Proof |
 |---|---|---|---|
 | Account model | `account`: the ID form, the request fields that name the account, account references inside strings (Google's `customers/<id>`, LinkedIn's sponsored account URNs), JSON Patch account fields (Snapchat), the path that names the account, and what a bound resource is (CON-05). Facts, frozen at load; `tests/provider-account-model.test.mjs` pins them. | `ScopeGuard.authorize` still walks every request and compares each place with the bound account before any authorizer; `accountKind` | 4,836,540 records before, 4,836,547 after: 0 differences beyond calibration except the 10 records of `tests/transport.test.ts`'s burst-pacing test, whose refusal count depends on elapsed time; 85,676 distinct pure calls replay with 0 differences |
+| Read classification | hooks `reads`: the planning and preview POSTs a catalog marks as writes, the documented POST reads (query, report and planning RPCs), Microsoft's contract reads, Search Console's site URLs read as identifiers, the documented reads whose paths hold mutation-like words and their authorization (Meta value rule sets, TikTok catalog and status reads, LinkedIn's share-authorization check), Meta's Graph batch; facts `deletions`: the body values that delete (WRT-02) and Google's `remove` operations. `tests/provider-read-classification.test.mjs` holds the cases and pins the deletions. | `independentlyReadOnly` keeps the generic rules (personal data, path words, method overrides, REST.li methods, GET and HEAD) and consults the provider at the same points; `qualifiedProviderRead` keeps the GET preconditions; `applyExecutionRisk` and `bodyDeletion` | 4,747,579 records before, 4,747,577 after (the moved `googleGlobalRead` helper's own records set aside; its callers compare): 0 differences beyond calibration; 85,633 distinct pure calls replay with 0 differences |
 
 Not met yet of ARC-01's local criteria (open remainders of B18 and B27 in `docs/review/package-status.json`): the whole
 suite has not run with `AMCP_PROVIDERS=criteo,woocommerce` (the tool-surface suites assert the default 25 tools; only
-the gate test checks both modes), and phase B has moved only the account model so far, so 88 shared modules still name
-a gateway (target 20 or fewer) and 333 shared-to-provider imports remain (target 30 or fewer), with no
-authorizer-disjointness test yet.
+the gate test checks both modes), and phase B has moved two concerns so far, so 86 shared modules still name a gateway
+(target 20 or fewer) and 325 shared-to-provider imports remain (target 30 or fewer), with no authorizer-disjointness
+test yet.
 
 ## 10. Import cycles and leaf modules
 
