@@ -1,10 +1,10 @@
-import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
 import {assertMetaCatalogOfBusiness, assertMetaCatalogScope, optionalMetaRead} from './meta-catalogs.js';
+import {fail} from './family-kit.js';
 
 /**
  * Meta product catalogs themselves, opened by the owner on 2026-09-29. Meta's references (read 2026-09-29): "Business
@@ -43,9 +43,6 @@ const numeric = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-
 const account = (v: unknown) => String(v ?? '').replace(/^act_/, '');
 const text = (v: unknown, max: number): v is string =>
   typeof v === 'string' && v === v.trim() && v.length > 0 && [...v].length <= max && !/[\u0000-\u001f\u007f]/.test(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_META_PRODUCT_CATALOG', message, {source});
 }

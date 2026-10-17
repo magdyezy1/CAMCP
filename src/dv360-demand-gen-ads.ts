@@ -8,6 +8,7 @@ import type {TransportResult} from './transport.js';
 import {dv360AdGroupStateRead, readDV360AdGroups} from './dv360-demand-gen-ad-groups.js';
 import {pinnedJson} from './pinned-json.js';
 import {deprecationEffective, refuseDeprecated} from './provider-deprecations.js';
+import {fail} from './family-kit.js';
 
 /**
  * Demand Gen ads on Display & Video 360 API v4, per the pinned Discovery document (AdGroupAd, DemandGenVideoAd,
@@ -62,9 +63,6 @@ const statuses = ['ENTITY_STATUS_ACTIVE', 'ENTITY_STATUS_PAUSED'];
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const numeric = (v: unknown) => /^[1-9]\d*$/.test(String(v ?? ''));
 const models = (): Record<string, JsonObject> => pinnedJson('.mirror/VENDOR/dv360-v4.json').document.schemas;
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_DV360_AD', message);
 }

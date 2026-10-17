@@ -56,8 +56,10 @@ projection is what makes `STATE_CHANGED` between prepare and execute meaningful.
   hooks of `ReviewedFamily` by the stage that calls them; a new hook must join a group or the build fails
   (`everyFamilyHookHasAStage`).
 
-The migration runs in waves: the X families, then the TikTok and Google Ads families with a byte-identical copy, are
-on the kit; `npm run architecture:check` reports the local `fail` copies still left (`local_fail_copies`).
+The migration runs in waves: the X families, then the TikTok, Google Ads, Criteo, DV360, LinkedIn, Meta and Snapchat
+families with a byte-identical copy, are on the kit; `npm run architecture:check` reports the local `fail` copies still
+left (`local_fail_copies`).
+
 ## What a family module imports
 
 A family module imports no lifecycle module (ARC-04): the registry imports every family, so a family that imports

@@ -3,6 +3,7 @@ import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {fail} from './family-kit.js';
 
 /**
  * LinkedIn engagement retargeting audiences, per LinkedIn's Engagement Retargeting and DMP Segments pages (Microsoft
@@ -61,9 +62,6 @@ const numeric = (v: unknown) =>
 const campaignId = (urn: unknown) => /^urn:li:sponsoredCampaign:([1-9][0-9]{0,19})$/.exec(String(urn))?.[1];
 const triggerOf = (urn: unknown) =>
   /^urn:li:dmpEngagementTrigger:\(urn:li:dmpEngagementSourceType:([A-Z_]+),([A-Z_]+)\)$/.exec(String(urn));
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_LINKEDIN_ENGAGEMENT_AUDIENCE', message, {source});
 }

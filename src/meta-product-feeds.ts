@@ -1,4 +1,3 @@
-import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -11,6 +10,7 @@ import {
   metaCatalogView,
   optionalMetaRead,
 } from './meta-catalogs.js';
+import {fail} from './family-kit.js';
 
 /**
  * Scheduled product feeds of Meta catalogs, opened by the owner on 2026-09-29. Meta's references (read 2026-09-29):
@@ -59,9 +59,6 @@ const text = (v: unknown, max: number): v is string =>
   typeof v === 'string' && v === v.trim() && v.length > 0 && [...v].length <= max && !/[\u0000-\u001f\u007f]/.test(v);
 const int = (v: unknown, min: number, max: number) =>
   Number.isSafeInteger(v) && (v as number) >= min && (v as number) <= max;
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string, details: JsonObject = {}): never {
   return fail('INVALID_META_PRODUCT_FEED', message, {source, ...details});
 }

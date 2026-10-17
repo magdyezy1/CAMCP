@@ -1,8 +1,8 @@
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
+import {fail} from './family-kit.js';
 
 /**
  * Removing videos from a Meta ad account's video library, Marketing API ("Ad Account Advideos" reference, Deleting; read
@@ -21,9 +21,6 @@ const creativeFields = 'id,name,status,video_id,object_story_spec,asset_feed_spe
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const account = (v: unknown) => String(v ?? '').replace(/^act_/, '');
 const source = 'https://developers.facebook.com/docs/marketing-api/reference/ad-account/advideos/';
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_META_AD_VIDEO', message);
 }

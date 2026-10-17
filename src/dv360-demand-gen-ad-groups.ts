@@ -6,6 +6,7 @@ import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {assertDV360WriteScope} from './dv360-scope.js';
 import {pinnedJson} from './pinned-json.js';
+import {fail} from './family-kit.js';
 
 /**
  * Demand Gen ad groups on Display & Video 360 API v4, per the pinned Discovery document (AdGroup, adGroups.create, patch
@@ -57,9 +58,6 @@ const matchTypes = [
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const micros = (v: unknown): v is string => typeof v === 'string' && /^[1-9]\d{0,15}$/.test(v);
 const models = (): Record<string, JsonObject> => pinnedJson('.mirror/VENDOR/dv360-v4.json').document.schemas;
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_DV360_AD_GROUP', message);
 }

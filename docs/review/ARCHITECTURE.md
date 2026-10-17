@@ -364,8 +364,8 @@ response parsing, and the async report jobs, which `src/service.ts` and `src/com
 
 ARC-04 stage C. `src/family-kit.ts`, a leaf, holds the refusal helper family modules had copied (`fail`), a load-time
 check of a family declaration (`defineFamily`) and the hook groups of `ReviewedFamily` by stage. Wave 1 (the nine X
-families) and wave 2 (ten TikTok and fourteen Google Ads families) import it; the X families declare themselves
-through `defineFamily`. The localization check owns the reasons of the kit's `fail` as it owned each local copy
-(`tools/check-locales.mjs`), so the owned reasons and their Arabic are unchanged. `local_fail_copies` (reported by the
-ratchet) fell from 153 to 120; the other byte-identical copies (Criteo, DV360, LinkedIn, Meta, Snapchat) and the
-variants with their own codes are the next waves. See `docs/ADDING-A-REVIEWED-FAMILY.md`, "The family kit".
+families), wave 2 (ten TikTok and fourteen Google Ads families) and wave 3 (8 Criteo, 11 DV360, 13 LinkedIn, 15 Meta
+and 14 Snapchat families) import it; the X families declare themselves through `defineFamily`. The localization check
+owns the reasons of the kit's `fail` as it owned each local copy (`tools/check-locales.mjs`), so the owned reasons and
+their Arabic are unchanged. `local_fail_copies` (reported by the ratchet) fell from 153 to 59; the variants with their
+own codes are the next wave. See `docs/ADDING-A-REVIEWED-FAMILY.md`, "The family kit".

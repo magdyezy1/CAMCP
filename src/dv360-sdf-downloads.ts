@@ -1,9 +1,9 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {assertDV360WriteScope} from './dv360-scope.js';
-import {MirrorError} from './errors.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {fail} from './family-kit.js';
 
 /**
  * Structured Data File download tasks on Display & Video 360 API v4, per the pinned Discovery document
@@ -49,9 +49,6 @@ const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Ar
 const id = (v: unknown): v is string =>
   typeof v === 'string' && /^[1-9]\d{0,18}$/.test(v) && BigInt(v) <= 9223372036854775807n;
 const operationName = /^sdfdownloadtasks\/operations\/[A-Za-z0-9_-]{1,128}$/;
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_DV360_SDF_DOWNLOAD', message);
 }

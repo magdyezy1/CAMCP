@@ -3,6 +3,7 @@ import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {fail} from './family-kit.js';
 
 /**
  * LinkedIn brand lift tests, per the Brand Lift Testing pages of the Marketing API (Overview, Lift Test Management API,
@@ -53,9 +54,6 @@ const numeric = (v: unknown) =>
     : typeof v === 'string' && /^[1-9][0-9]{0,19}$/.test(v)
       ? v
       : undefined;
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_LINKEDIN_LIFT_TEST', message, {source});
 }

@@ -1,7 +1,7 @@
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {fail} from './family-kit.js';
 
 /**
  * Publishing and archiving LinkedIn lead gen forms, per "Lead Syncing" (Updating Lead Forms, Updating Form Status;
@@ -18,9 +18,6 @@ const gateway = 'linkedin_native_action',
   marker = 'AMCP_LINKEDIN_LEAD_FORM_STATE_READ';
 const transitions: Record<string, string> = {PUBLISHED: 'DRAFT', ARCHIVED: 'PUBLISHED'};
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_LINKEDIN_LEAD_FORM_STATE', message);
 }

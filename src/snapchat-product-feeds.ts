@@ -3,6 +3,7 @@ import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {fail} from './family-kit.js';
 
 /**
  * Product feeds of Snapchat catalogs, opened by the owner on 2026-09-29 ("Product catalogs: make it available").
@@ -46,9 +47,6 @@ const whole = (v: unknown, min: number, max: number) => {
   const n = typeof v === 'string' && /^\d{1,2}$/.test(v) ? Number(v) : v;
   return Number.isSafeInteger(n) && (n as number) >= min && (n as number) <= max;
 };
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_SNAPCHAT_PRODUCT_FEED', message, {source});
 }

@@ -4,6 +4,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
+import {fail} from './family-kit.js';
 
 /**
  * Creatives of a Criteo Retail Media account, API 2026-07, from the pinned OpenAPI document (CreateCreative,
@@ -43,9 +44,6 @@ const int = (v: unknown, max = 2147483647): v is number =>
   Number.isSafeInteger(v) && (v as number) > 0 && (v as number) <= max;
 const text = (v: unknown, max: number): v is string =>
   typeof v === 'string' && v === v.trim() && v.length > 0 && [...v].length <= max && !/[\u0000-\u001f\u007f]/.test(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_CRITEO_CREATIVE', message);
 }

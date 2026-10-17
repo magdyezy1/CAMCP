@@ -1,7 +1,7 @@
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {fail} from './family-kit.js';
 
 /**
  * LinkedIn ad account name and notification settings, per "Create and Manage Ad Accounts" (li-lms-2026-09, checked
@@ -25,9 +25,6 @@ const switches = [
 ];
 const editable = ['name', ...switches];
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_LINKEDIN_ACCOUNT_SETTING', message);
 }

@@ -3,6 +3,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {fail} from './family-kit.js';
 
 /**
  * Snapchat media copy between ad accounts of one organization, per the Ads API "Media" reference (Copy Media, checked
@@ -21,9 +22,6 @@ const route = /^\/v1\/adaccounts\/([\w-]+)\/media_copy$/,
   maxCopies = 20,
   id = /^[\w-]{1,64}$/;
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_SNAPCHAT_MEDIA_COPY', message);
 }

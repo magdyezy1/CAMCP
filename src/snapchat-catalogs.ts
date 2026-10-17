@@ -4,6 +4,7 @@ import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {all} from './snapchat-product-feeds.js';
+import {fail} from './family-kit.js';
 
 /**
  * Snapchat product catalogs, opened by the owner on 2026-09-29. Snapchat's "Dynamic Product Ads" reference (read
@@ -31,9 +32,6 @@ const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && 
 const snapId = (v: unknown): v is string => typeof v === 'string' && /^[A-Za-z0-9-]{1,64}$/.test(v);
 const text = (v: unknown, max: number): v is string =>
   typeof v === 'string' && v === v.trim() && v.length > 0 && [...v].length <= max && !/[\u0000-\u001f\u007f]/.test(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_SNAPCHAT_CATALOG', message, {source});
 }

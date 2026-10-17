@@ -4,6 +4,7 @@ import type {Store} from './store.js';
 import type {TransportResult} from './transport.js';
 import {assertLinkedInOrganization} from './linkedin-posts.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {fail} from './family-kit.js';
 
 /**
  * Editing and deleting LinkedIn Direct Sponsored Content posts, per "Posts API" (li-lms-2026-09, checked 2026-09-28).
@@ -36,9 +37,6 @@ const labels = [
 const editable = ['commentary', 'contentLandingPage', 'contentCallToActionLabel'];
 const postUrn = /^urn:li:(?:ugcPost|share):[1-9][0-9]{0,19}$/;
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_LINKEDIN_DSC_EDIT', message);
 }

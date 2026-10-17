@@ -1,9 +1,9 @@
-import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import {changedStateFields} from './review-state-core.js';
 import {normalGeos} from './snapchat-targeting-specs.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {fail} from './family-kit.js';
 
 /**
  * Targeting edits of Snapchat ad squads (PRV-06 A), per Snap's Marketing API v1 Audience Targeting and Ad Squads pages
@@ -81,9 +81,6 @@ const lists: Record<string, Record<string, RegExp>> = {
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const isId = (v: unknown): v is string =>
   typeof v === 'string' && /^[A-Za-z0-9-]{1,128}$/.test(v) && !Object.hasOwn(Object.prototype, v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string, details: JsonObject = {}): never {
   return fail('INVALID_SNAPCHAT_TARGETING', message, {source, ...details});
 }

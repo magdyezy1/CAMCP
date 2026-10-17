@@ -3,6 +3,7 @@ import {parseLinkedInValue, linkedinQuery} from './linkedin-restli.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {fail} from './family-kit.js';
 
 /**
  * LinkedIn dynamic UTM tracking parameters, per "Dynamic UTM Tracking" of the Marketing API (li-lms-2026-09, checked
@@ -35,9 +36,6 @@ const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && 
 const nativeId = (v: unknown, want: string) =>
   (typeof v === 'string' && v === want) ||
   (typeof v === 'number' && Number.isSafeInteger(v) && v > 0 && String(v) === want);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_LINKEDIN_TRACKING', message);
 }

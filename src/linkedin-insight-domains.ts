@@ -1,8 +1,8 @@
-import {MirrorError} from './errors.js';
 import {parseLinkedInValue, linkedinQuery} from './linkedin-restli.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {fail} from './family-kit.js';
 
 /**
  * LinkedIn Insight Tag domains, per "Conversion Tracking" of the Marketing API (li-lms-2025-10 to li-lms-2026-09, checked
@@ -30,9 +30,6 @@ const hostname = (v: unknown): v is string =>
   typeof v === 'string' &&
   v.length <= 253 &&
   /^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z][A-Za-z0-9-]{0,61}[A-Za-z0-9]$/.test(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_LINKEDIN_INSIGHT_DOMAIN', message);
 }

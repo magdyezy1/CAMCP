@@ -1,7 +1,7 @@
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {fail} from './family-kit.js';
 
 /**
  * LinkedIn Message Ads and Conversation Ads content, per "Message Ads API" and "Conversation Ads API" of the Marketing API
@@ -41,9 +41,6 @@ const numeric = (v: unknown) =>
     : typeof v === 'string' && /^[1-9][0-9]{0,19}$/.test(v)
       ? v
       : undefined;
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_LINKEDIN_MESSAGE_AD', message);
 }

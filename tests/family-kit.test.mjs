@@ -59,9 +59,11 @@ test('defineFamily refuses a malformed declaration when its module loads', () =>
   assert.ok(defineFamily({...valid, files: ['src/x-a.ts / src/x-b.ts', ['tests/x-a.test.mjs']]}));
 });
 
-test('the X families declare themselves through the kit and no wave-1 or wave-2 module keeps a local fail copy', () => {
-  const wave = [
-    ...[
+// The modules each codemod wave moved onto the kit's fail, by provider prefix: wave 1 the X families, wave 2 the TikTok
+// and Google Ads families, wave 3 the Criteo, DV360, LinkedIn, Meta and Snapchat families with a byte-identical copy.
+const waves = {
+  1: {
+    x: [
       'conversation-cards',
       'curated-categories',
       'custom-audiences',
@@ -71,8 +73,10 @@ test('the X families declare themselves through the kit and no wave-1 or wave-2 
       'preroll-ctas',
       'scheduled-tweets',
       'tracking-tags',
-    ].map(m => 'src/x-' + m + '.ts'),
-    ...[
+    ],
+  },
+  2: {
+    tiktok: [
       'ad-comments',
       'audience-edits',
       'blocked-words',
@@ -83,8 +87,8 @@ test('the X families declare themselves through the kit and no wave-1 or wave-2 
       'library-assets',
       'pixels',
       'rule-audiences',
-    ].map(m => 'src/tiktok-' + m + '.ts'),
-    ...[
+    ],
+    google: [
       'auto-assets',
       'business-location-attributes',
       'business-location-edits',
@@ -99,8 +103,88 @@ test('the X families declare themselves through the kit and no wave-1 or wave-2 
       'smart-campaign-settings',
       'user-list-customer-types',
       'youtube-uploads',
-    ].map(m => 'src/google-' + m + '.ts'),
-  ];
+    ],
+  },
+  3: {
+    criteo: [
+      'auction-line-items',
+      'audience-segments',
+      'budget-overrides',
+      'catalog-requests',
+      'creatives',
+      'line-item-bidding',
+      'preferred-line-items',
+      'promoted-products',
+    ],
+    dv360: [
+      'ad-assets',
+      'advertiser-settings',
+      'audience-edits',
+      'custom-bidding-files',
+      'custom-bidding',
+      'demand-gen-ad-groups',
+      'demand-gen-ads',
+      'inventory-source-groups',
+      'line-item-bulk-update',
+      'line-item-duplicate',
+      'sdf-downloads',
+    ],
+    linkedin: [
+      'ab-tests',
+      'account-settings',
+      'dsc-edits',
+      'engagement-audiences',
+      'entity-deletes',
+      'insight-domains',
+      'insight-tags',
+      'lead-form-states',
+      'lift-tests',
+      'message-ads',
+      'publisher-restrictions',
+      'third-party-tracking',
+      'tracking-parameters',
+    ],
+    meta: [
+      'account-settings',
+      'ad-images',
+      'ad-rules',
+      'ad-videos',
+      'budget-schedules',
+      'catalog-products',
+      'custom-conversions',
+      'customer-lists',
+      'object-edits',
+      'offline-conversions',
+      'pixels',
+      'product-catalogs',
+      'product-feeds',
+      'product-sets',
+      'split-tests',
+    ],
+    snapchat: [
+      'adsquad-targeting',
+      'catalog-comparison',
+      'catalogs',
+      'claim-media',
+      'custom-conversions',
+      'dynamic-templates',
+      'event-details',
+      'media-copy',
+      'offer-disclaimers',
+      'pixel-names',
+      'product-feeds',
+      'product-sets',
+      'segment-deletions',
+      'targeting-specs',
+    ],
+  },
+};
+const waveModules = number =>
+  Object.entries(waves[number]).flatMap(([prefix, modules]) => modules.map(m => 'src/' + prefix + '-' + m + '.ts'));
+
+test('the X families declare themselves through the kit and no module of waves 1 to 3 keeps a local fail copy', () => {
+  const wave = [1, 2, 3].flatMap(waveModules);
+  assert.equal(wave.length, 9 + 24 + 61);
   for (const file of wave) {
     const source = fs.readFileSync(file, 'utf8');
     assert.doesNotMatch(source, /^function fail\(/m, file);

@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {fail} from './family-kit.js';
 
 /**
  * LinkedIn Audience Network publisher lists, per "Manage Audience Restrictions" of the Marketing API (li-lms-2025-10 to
@@ -29,9 +30,6 @@ const numeric = (v: unknown) =>
       : undefined;
 const fileUrn = (v: unknown): v is string =>
   typeof v === 'string' && /^urn:li:adPublisherFile:[1-9][0-9]{0,19}$/.test(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_LINKEDIN_PUBLISHER_RESTRICTION', message);
 }
