@@ -169,9 +169,25 @@ test('every product-direction choice P1-P12 is recorded as approved on 2026-10-1
     assert.ok(row[3].length > 0 && row[4].length > 0, row[0] + ' names where the code stands and what it governs');
     assert.doesNotMatch(row.join(' '), open, row[0]);
   }
-  // No sentence or table cell elsewhere leaves a product-direction choice open.
-  for (const part of text.split(/(?<=\.)\s+|\n\n|\|/))
-    if (/\bP(?:[1-9]|1[0-2])\b/.test(part)) assert.doesNotMatch(part, open, part);
+  // No recorded outcome elsewhere leaves a product-direction choice open: the Outcome cell of every decision table that
+  // names a P choice. (Only outcomes: other prose may say what work still awaits, for example a P4 rehearsal path.)
+  const lines = text.split('\n');
+  let outcomes = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].startsWith('|') || !lines[i + 1]?.startsWith('|---')) continue;
+    const column = lines[i]
+      .split('|')
+      .slice(1, -1)
+      .findIndex(c => /^Outcome\b/.test(c.trim()));
+    if (column < 0) continue;
+    for (let j = i + 2; j < lines.length && lines[j].startsWith('|'); j++) {
+      const cell = lines[j].split('|').slice(1, -1)[column]?.trim() ?? '';
+      if (!/\bP(?:[1-9]|1[0-2])\b/.test(cell)) continue;
+      outcomes++;
+      assert.doesNotMatch(cell, open, cell);
+    }
+  }
+  assert.ok(outcomes > 0, 'outcome cells name P choices');
   // Zoho CRM feeds the ad platforms only, read-only on Zoho, through the reviewed write engine.
   const [zoho, ...more] = tableRows(decisions, '## 2026-10-13: Zoho CRM scope');
   assert.equal(more.length, 0);

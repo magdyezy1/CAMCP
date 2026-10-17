@@ -525,7 +525,6 @@ test('owner decision P5: caps saved without a currency refuse budget and bid cha
       for (const [amount, state] of [
         ['50000000', budgetState([['1', '40000000']], 'KWD')], // within the number, in another currency
         ['150000000', budgetState([['1', '40000000']], 'KWD')], // beyond it
-        ['20000000', budgetState([['1', '40000000']], 'USD')], // a decrease
         ['50000000', budgetState([['1', '40000000']])], // the account's currency unknown
       ])
         assert.throws(
@@ -540,6 +539,43 @@ test('owner decision P5: caps saved without a currency refuse budget and bid cha
         );
       // Nothing was reserved, and the refusal names the account's currency where AMCP knows it and the owner's remedy.
       assert.equal(store.db.prepare("SELECT 1 FROM documents WHERE kind='spend_reservation'").get(), undefined);
+      // Regression: a decrease was refused too, so under a legacy cap only pausing could cut spend in an incident. A
+      // request that only lowers budgets, each from its own current amount, cannot raise spend in any currency (owner
+      // decision D7: decreases are always allowed), so it is compared with the caps as before, whatever the currency.
+      for (const state of [
+        budgetState([['1', '40000000']], 'USD'),
+        budgetState([['1', '40000000']], 'KWD'),
+        budgetState([['1', '40000000']]),
+      ])
+        assert.equal(
+          checkSpendPolicy(store, actor, budgetPlan([['1', '20000000']]), state).exceeded,
+          undefined,
+          enforcement + ' decrease',
+        );
+      // Lowering one budget while raising another, or a budget without its one current amount, is still refused.
+      for (const [name, plan, state] of [
+        [
+          'one down, one up',
+          budgetPlan([
+            ['1', '20000000'],
+            ['2', '90000000'],
+          ]),
+          budgetState(
+            [
+              ['1', '40000000'],
+              ['2', '40000000'],
+            ],
+            'USD',
+          ),
+        ],
+        ['no current amount', budgetPlan([['1', '20000000']]), budgetState([], 'USD')],
+        ['a raise of one micro', budgetPlan([['1', '40000001']]), budgetState([['1', '40000000']], 'USD')],
+      ])
+        assert.throws(
+          () => checkSpendPolicy(store, actor, plan, state),
+          {code: 'POLICY_CURRENCY_UNSET'},
+          enforcement + ' ' + name,
+        );
       assert.throws(
         () => checkSpendPolicy(store, actor, budgetPlan([['1', '50000000']]), budgetState([['1', '40000000']], 'KWD')),
         e => {

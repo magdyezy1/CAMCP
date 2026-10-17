@@ -420,7 +420,7 @@ function currencyWarnings(id: string, policy: JsonObject): JsonObject[] {
       ...(gateways.length ? {gateways} : {}),
       blocks: legacyCurrencyCapsBlock(),
       message: legacyCurrencyCapsBlock()
-        ? 'These caps are stated in account currency without naming it, so AMCP cannot tell which currency they mean, and every budget or bid change on an account they govern is refused until they name it. Save them again with their currency (for example currency: "USD"), or read the account live first so AMCP records it.'
+        ? 'These caps are stated in account currency without naming it, so AMCP cannot tell which currency they mean, and every budget or bid change on an account they govern, other than lowering a budget from its current amount, is refused until they name it. Save them again with their currency (for example currency: "USD"), or read the account live first so AMCP records it.'
         : 'These caps are stated in account currency without naming it, so an account spending in another currency is compared with the same number. Save them again with their currency (for example currency: "USD"), or read the account live first so AMCP records it.',
     },
   ];
@@ -1079,31 +1079,13 @@ function checkAccountSpendPolicy(
             plan.gateway === googleGateway ? googleMoneyFields().bid : [],
           )
         : [];
-    // Owner decision P5 (2026-10-11): caps stated in account currency that name no currency (saved before policies
-    // recorded one) cannot be shown to be in the account's currency, so a request with money amounts is refused until
-    // the owner saves them again with it, under confirm and block alike, before any cap is compared or anything is
-    // reserved; no acknowledgement overrides it. AMCP_LEGACY_CURRENCY_CAPS=warn is the rollback (compared as before).
-    const unbound = unboundCurrencyCaps(policy);
-    if (unbound.length && legacyCurrencyCapsBlock() && (amounts.length || bids.length || unsupported.length))
-      throw new MirrorError(
-        'POLICY_CURRENCY_UNSET',
-        'The owner stated these spending caps in account currency without naming the currency, so AMCP cannot tell whether this account spends in it. Nothing was sent: budget and bid changes on this account are refused until the workspace owner saves the policy again with its currency.',
-        {
-          policy_id: id,
-          gateway: plan.gateway,
-          fields: unbound,
-          account_currency: accountCurrency(store, actor.tenantId, plan, before) ?? null,
-        },
-        409,
-      );
     const exact = (amount: Amount) => policyDecimal(amount.decimal ?? amount.amount);
-    let increase = decimalZero;
     const restli = (plan.headers['X-RestLi-Method'] ?? '').toUpperCase();
     const updatesExisting =
       ['UPDATE', 'BATCH_UPDATE', 'PARTIAL_UPDATE', 'BATCH_PARTIAL_UPDATE'].includes(restli) ||
       /_(?:id|urn)_post$/.test(plan.action);
-    for (const b of amounts) {
-      const requested = exact(b);
+    /** Whether an amount creates its record, and the distinct current values of its field that are its baseline. */
+    const baseline = (b: Amount) => {
       const creating =
         campaignAmounts?.creating ??
         (!updatesExisting && (/\/create\//.test(b.path) || /create|_post$|^Add/.test(plan.action)));
@@ -1117,6 +1099,46 @@ function checkAccountSpendPolicy(
             (identified ? sameField.filter(o => o.resource === b.resource) : sameField).map(o => decimalText(exact(o))),
           ),
         ];
+      return {creating, candidates};
+    };
+    // Owner decision P5 (2026-10-11): caps stated in account currency that name no currency (saved before policies
+    // recorded one) cannot be shown to be in the account's currency, so a request with money amounts is refused until
+    // the owner saves them again with it, under confirm and block alike, before any cap is compared or anything is
+    // reserved; no acknowledgement overrides it. AMCP_LEGACY_CURRENCY_CAPS=warn is the rollback (compared as before).
+    // A request that only lowers budgets, each from its record's one current amount, is not refused (owner decision D7:
+    // decreases are always allowed): lowering a budget cannot raise spend in any currency, so an owner or operator can
+    // still cut spend in an incident. Its amounts are then compared with the caps as before. A bid, a new record, an
+    // amount without one current value or an amount AMCP cannot measure is still refused.
+    const unbound = unboundCurrencyCaps(policy),
+      lowersOnly =
+        amounts.length > 0 &&
+        !bids.length &&
+        !unsupported.length &&
+        amounts.every(b => {
+          const {creating, candidates} = baseline(b);
+          return !creating && candidates.length === 1 && compareDecimal(exact(b), policyDecimal(candidates[0]!)) <= 0;
+        });
+    if (
+      unbound.length &&
+      legacyCurrencyCapsBlock() &&
+      !lowersOnly &&
+      (amounts.length || bids.length || unsupported.length)
+    )
+      throw new MirrorError(
+        'POLICY_CURRENCY_UNSET',
+        'The owner stated these spending caps in account currency without naming the currency, so AMCP cannot tell whether this account spends in it. Nothing was sent: budget and bid changes on this account are refused until the workspace owner saves the policy again with its currency.',
+        {
+          policy_id: id,
+          gateway: plan.gateway,
+          fields: unbound,
+          account_currency: accountCurrency(store, actor.tenantId, plan, before) ?? null,
+        },
+        409,
+      );
+    let increase = decimalZero;
+    for (const b of amounts) {
+      const requested = exact(b);
+      const {creating, candidates} = baseline(b);
       // Lifetime and total amounts (owner decision D7) answer to max_total_budget_native when the owner set it, and
       // lowering one from its single current value is always allowed: it can only reduce what may be spent.
       const lifetime = b.lifetime ?? lifetimeAmount(plan.gateway, b.path, b.key),

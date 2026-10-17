@@ -546,7 +546,8 @@ The policy supports these settings, all optional:
   or while the account's currency was unknown) refuse every budget or bid change on the accounts
   they govern with `POLICY_CURRENCY_UNSET` until the owner saves them again with their currency
   (owner decision P5; no acknowledgement overrides it, and `details.account_currency` names the
-  account's currency when AMCP knows it). Do not retry it or reshape the request: ask the owner to
+  account's currency when AMCP knows it). A request that only lowers budgets, each from its
+  current amount, is not refused (D7) and is compared with the caps as before. Do not retry it or reshape the request: ask the owner to
   save the policy with its currency. `save_spend_policy` and `amcp_workspace health` list such caps
   (`POLICY_CURRENCY_UNSET` in `warnings` and `policy_warnings`, `blocks: true`).
 

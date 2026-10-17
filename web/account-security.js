@@ -29,15 +29,25 @@ const signInComplete = async () => {
  * 7-day default of owner decision P2 is, otherwise in hours.
  */
 function invitationLifetimeNote(hours) {
-  return Number.isInteger(hours) && hours > 0 && hours % 24 === 0
-    ? uiText(
-        'Invitations expire after {days} days. Withdraw one to cancel its link; send a new invitation if a link expires.',
-        {days: hours / 24},
-      )
-    : uiText(
-        'Invitations expire after {hours} hours. Withdraw one to cancel its link; send a new invitation if a link expires.',
-        {hours},
-      );
+  // Whole days from three (the Arabic plural أيام fits 3 to 10; the lifetime is at most 7 days); a day or two reads
+  // as 24 or 48 hours, and one or two hours have their own sentences (English singular, Arabic singular and dual).
+  if (Number.isInteger(hours) && hours >= 72 && hours % 24 === 0)
+    return uiText(
+      'Invitations expire after {days} days. Withdraw one to cancel its link; send a new invitation if a link expires.',
+      {days: hours / 24},
+    );
+  if (hours === 1)
+    return uiText(
+      'Invitations expire after 1 hour. Withdraw one to cancel its link; send a new invitation if a link expires.',
+    );
+  if (hours === 2)
+    return uiText(
+      'Invitations expire after 2 hours. Withdraw one to cancel its link; send a new invitation if a link expires.',
+    );
+  return uiText(
+    'Invitations expire after {hours} hours. Withdraw one to cancel its link; send a new invitation if a link expires.',
+    {hours},
+  );
 }
 renderAuthPage = async function () {
   authOptions = await api('/api/account/options');

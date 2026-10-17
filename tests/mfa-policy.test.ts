@@ -539,19 +539,32 @@ test('SEC-06 S4 (owner decision P2): a default invitation is accepted six days a
   }
 });
 
-test('SEC-06 S4: the members list states the invitation lifetime in days when it is whole days, otherwise in hours', () => {
+test('SEC-06 S4: the members list states the invitation lifetime in days from three whole days, otherwise in hours', () => {
   // The website's own wording of the lifetime (web/account-security.js): the 7-day default reads "7 days", not
-  // "168 hours"; an owner's shorter lifetime in hours is stated as set.
+  // "168 hours"; an owner's shorter lifetime is stated in hours. Regression: 24 hours read "1 days", and the Arabic
+  // plural أيام was used for one and two days.
   const source = fs.readFileSync('web/account-security.js', 'utf8'),
     start = source.indexOf('function invitationLifetimeNote'),
-    end = source.indexOf('\nrenderAuthPage = ', start);
+    end = source.indexOf('\n}\n', start) + 2;
   assert.ok(start >= 0 && end > start, 'web/account-security.js defines invitationLifetimeNote');
-  const note = new Function('uiText', source.slice(start, end) + '\nreturn invitationLifetimeNote;')(
-    (text: string, values: Record<string, unknown> = {}) =>
-      text.replace(/\{(\w+)\}/g, (_: string, k: string) => String(values[k])),
-  ) as (hours: number) => string;
-  assert.match(note(168), /^Invitations expire after 7 days\./);
-  assert.match(note(48), /^Invitations expire after 2 days\./);
-  assert.match(note(2), /^Invitations expire after 2 hours\./);
-  assert.match(note(30), /^Invitations expire after 30 hours\./);
+  const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8')) as Record<string, string>,
+    lifetime = (arabic: boolean) =>
+      new Function('uiText', source.slice(start, end) + '\nreturn invitationLifetimeNote;')(
+        (text: string, values: Record<string, unknown> = {}) =>
+          (arabic ? catalog[text]! : text).replace(/\{(\w+)\}/g, (_: string, k: string) => String(values[k])),
+      ) as (hours: number) => string;
+  const note = lifetime(false),
+    arabic = lifetime(true);
+  for (const [hours, english, translated] of [
+    [168, /^Invitations expire after 7 days\./, /^تنتهي صلاحية الدعوات بعد 7 أيام\./],
+    [72, /^Invitations expire after 3 days\./, /^تنتهي صلاحية الدعوات بعد 3 أيام\./],
+    [48, /^Invitations expire after 48 hours\./, /^تنتهي صلاحية الدعوات بعد 48 ساعة\./],
+    [24, /^Invitations expire after 24 hours\./, /^تنتهي صلاحية الدعوات بعد 24 ساعة\./],
+    [30, /^Invitations expire after 30 hours\./, /^تنتهي صلاحية الدعوات بعد 30 ساعة\./],
+    [2, /^Invitations expire after 2 hours\./, /^تنتهي صلاحية الدعوات بعد ساعتين\./],
+    [1, /^Invitations expire after 1 hour\./, /^تنتهي صلاحية الدعوات بعد ساعة واحدة\./],
+  ] as const) {
+    assert.match(note(hours), english, String(hours));
+    assert.match(arabic(hours), translated, String(hours));
+  }
 });

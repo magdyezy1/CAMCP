@@ -351,6 +351,27 @@ test('the confirmation lists what a save changes, and a stale save reaches the p
   assert.equal(error.code, 'REVISION_CONFLICT');
 });
 
+test('P5: the account policy form says, at the currency field, that caps saved without a currency refuse budget and bid changes', () => {
+  // Regression: the note said only that an empty currency takes the account's last-read one, so an owner saving caps
+  // for an account AMCP had not read yet learned from owner health afterwards that they refuse every money change.
+  const note =
+    'Caps compare only an account that spends in this currency; AMCP never converts between currencies. Left empty, the account’s currency from its last live check is used; until AMCP has read it, caps saved without a currency refuse every budget and bid change on this account, other than lowering a budget, until you save them again with one.';
+  assert.ok(source.includes("uiText('" + note + "')"), 'the form note');
+  const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
+  assert.match(
+    catalog[note],
+    /ترفض السقوف المحفوظة دون عملة كل تغيير في الميزانية أو عرض السعر على هذا الحساب، عدا خفض الميزانية/,
+  );
+  assert.equal(
+    Object.hasOwn(
+      catalog,
+      'Caps compare only an account that spends in this currency; AMCP never converts between currencies. Left empty, the account’s currency from its last live check is used.',
+    ),
+    false,
+    'the shorter note is gone',
+  );
+});
+
 test('P5: the workspace default form states the owner rule beyond a cap, has no switch for it, and never sends the former opt-in', () => {
   // Regression: the form offered "Only the workspace owner executes a change beyond a spending cap" as a checkbox that
   // was off by default; owner decision P5 (2026-10-11) makes it the rule, which the server refuses to turn off.
