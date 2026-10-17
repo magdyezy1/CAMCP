@@ -2,6 +2,7 @@ import {request} from 'node:https';
 import {Readable} from 'node:stream';
 import {gunzipSync} from 'node:zlib';
 import {MirrorError} from './errors.js';
+import {familyCodeError, type OneCodeRefusal} from './family-kit.js';
 import {collectionRequestTimeout, collectionResponseBytes} from './report-collection-budget.js';
 import {sha256} from './security.js';
 import {publicReportAddress, reportDns} from './microsoft-report-download.js';
@@ -10,9 +11,7 @@ import type {JsonObject} from './types.js';
 
 const compressedLimit = 8 * 1024 * 1024,
   expandedLimit = 32 * 1024 * 1024;
-function fail(message: string): never {
-  throw new MirrorError('X_REPORT_DOWNLOAD_INVALID', message, {}, 502);
-}
+const fail: OneCodeRefusal = familyCodeError('X_REPORT_DOWNLOAD_INVALID', 502);
 /** Only a freshly polled, bound SUCCESS job can supply this URL. The caller
  * never accepts a client-provided URL, and no advertising credential is sent. */
 export function xReportUrl(value: unknown, id: string) {

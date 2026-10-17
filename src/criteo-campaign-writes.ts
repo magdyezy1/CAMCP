@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {sha256, stable} from './security.js';
 import {normalizeReviewState} from './review-state-core.js';
 import type {Store} from './store.js';
@@ -46,9 +46,7 @@ export const criteoCampaignFields = [
   'companyName',
   'onBehalfCompanyName',
 ];
-function fail(message: string, code = 'CRITEO_CAMPAIGN_INVALID'): never {
-  throw new MirrorError(code, message, {}, code === 'CRITEO_CAMPAIGN_STATE_UNVERIFIED' ? 502 : 400);
-}
+const fail: ReasonFirstRefusal = familyErrors('CRITEO_CAMPAIGN_INVALID', {CRITEO_CAMPAIGN_STATE_UNVERIFIED: 502});
 const incomplete = (message: string): never => fail(message, 'CRITEO_CAMPAIGN_STATE_UNVERIFIED');
 function only(v: JsonObject, allowed: string[]) {
   if (Object.keys(v).some(k => !allowed.includes(k)))

@@ -2,6 +2,7 @@ import {nativeAuthority} from './native-authority.js';
 import {createHash, randomUUID} from 'node:crypto';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {MirrorError} from './errors.js';
+import {fail} from './family-kit.js';
 import {websiteUploadDeadline, withWebsiteUploadDeadline} from './media-retention.js';
 import {Registry} from './catalog.js';
 import {Store, MEDIA_LEASE_MS} from './store.js';
@@ -241,9 +242,6 @@ export const readOnlyMediaTool = {
       action: {type: 'string', enum: ['list', 'library', 'asset', 'asset_performance', 'asset_usage']},
     },
   },
-};
-const fail = (code: string, message: string, details: JsonObject = {}): never => {
-  throw new MirrorError(code, message, details);
 };
 const responseId = (value: unknown, pattern = /^[A-Za-z0-9_-]+$/) => {
   if (typeof value !== 'string' || !pattern.test(value))

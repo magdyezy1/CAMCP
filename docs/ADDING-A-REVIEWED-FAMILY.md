@@ -49,6 +49,18 @@ projection is what makes `STATE_CHANGED` between prepare and execute meaningful.
 - `fail(code, message, details = {}, status = 400)`, the refusal helper. Import it instead of declaring a local copy;
   `tools/check-locales.mjs` owns the reason of every call to it exactly as it owned a local copy's, so each reason still
   needs its Arabic. A local `invalid(message)` that forwards to it stays recognized too.
+- Refusal factories for a family with its own codes. Bind the refusal once at the top of the module, with its type, so
+  TypeScript treats each call as the end of its branch:
+
+  | Factory | Binding | A call |
+  |---|---|---|
+  | `familyErrors(input, statuses = {}, otherwise = 400)` | `const fail: ReasonFirstRefusal = familyErrors('INVALID_X', {X_STATE_UNVERIFIED: 502});` | `fail(reason)` throws `INVALID_X` (400); `fail(reason, code)` throws `code` with its status in `statuses`, `otherwise` for any other code |
+  | `familyStateErrors(input, state)` | `const fail: StateFlaggedRefusal = familyStateErrors('INVALID_X', 'X_STATE_UNVERIFIED');` | `fail(reason)` throws the input code (400), `fail(reason, true)` the state code (502) |
+  | `familyCodeError(code, status = 400)` | `const fail: OneCodeRefusal = familyCodeError('INVALID_X');` | `fail(reason, details?)` |
+  | `failWithStatus(status)` | `const fail: StatusRefusal = failWithStatus(409);` | `fail(code, reason, details?, status?)`, 409 unless the call names a status |
+
+  The localization check owns the reason of a call to a binding built this way, at the argument the factory's refusal
+  takes it in (`kitRefusalFactories`), and of a forwarder to it, as for `fail`.
 - `defineFamily(declaration)` checks a declaration when its module loads (a ledger family name, `src/` implementation
   modules, at least one test, a `kind` hook) and returns it unchanged; `tests/family-kit.test.mjs` applies it to every
   registered family.
@@ -56,9 +68,13 @@ projection is what makes `STATE_CHANGED` between prepare and execute meaningful.
   hooks of `ReviewedFamily` by the stage that calls them; a new hook must join a group or the build fails
   (`everyFamilyHookHasAStage`).
 
-The migration runs in waves: the X families, then the TikTok, Google Ads, Criteo, DV360, LinkedIn, Meta and Snapchat
-families with a byte-identical copy, are on the kit; `npm run architecture:check` reports the local `fail` copies still
-left (`local_fail_copies`).
+Every module is on the kit: the byte-identical copies moved in waves 1 to 3 (X, then TikTok, Google Ads, Criteo, DV360,
+LinkedIn, Meta and Snapchat), and wave 4 moved the variants with their own codes and statuses onto the factories, each
+with the code and status its helper gave (`tests/family-kit.test.mjs`). A module that declares its own `fail` again is
+a regression `npm run architecture:check` names (`local_fail_copies`, 0). Nineteen modules whose former helper the
+localization inventory never followed (an arrow function, or a forwarder to another module's helper) are listed in
+`unlocalizedRefusalModules` (`tools/check-locales.mjs`): their reasons still have no Arabic and stay outside the
+inventory until they are translated. The list only shrinks; a new module never joins it.
 
 ## What a family module imports
 

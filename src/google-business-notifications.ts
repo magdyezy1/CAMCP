@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {familyStateErrors, type StateFlaggedRefusal} from './family-kit.js';
 import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state-core.js';
 import {
@@ -34,14 +34,10 @@ export const retiredBusinessNotificationTypes = [
 ];
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 type Send = (p: CompiledRequest) => Promise<TransportResult>;
-function fail(message: string, state = false): never {
-  throw new MirrorError(
-    state ? 'BUSINESS_NOTIFICATION_STATE_UNVERIFIED' : 'INVALID_BUSINESS_NOTIFICATION',
-    message,
-    {},
-    state ? 502 : 400,
-  );
-}
+const fail: StateFlaggedRefusal = familyStateErrors(
+  'INVALID_BUSINESS_NOTIFICATION',
+  'BUSINESS_NOTIFICATION_STATE_UNVERIFIED',
+);
 const only = (v: JsonObject, keys: string[], state = false) => {
   if (Object.keys(v).some(k => !keys.includes(k)))
     fail('Unqualified notification field, response envelope or query option.', state);

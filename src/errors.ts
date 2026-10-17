@@ -10,9 +10,6 @@ export class MirrorError extends Error {
     this.name = 'MirrorError';
   }
 }
-export const fail = (code: string, message: string, details: Record<string, unknown> = {}): never => {
-  throw new MirrorError(code, message, details);
-};
 /**
  * The allow-listed facts of a provider's refusal (owner decision D21, WEB-03), from an inner error envelope that a
  * workflow re-raises in its own words: the HTTP status, the provider's request ID and error code, and the error layer.

@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
@@ -17,9 +17,7 @@ const kinds: Record<string, Kind> = {
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const id = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]*$/.test(v);
 const account = (v: unknown) => (typeof v === 'string' ? v.replace(/^act_/, '') : '');
-function fail(message: string, code = 'META_LABEL_INVALID'): never {
-  throw new MirrorError(code, message);
-}
+const fail: ReasonFirstRefusal = familyErrors('META_LABEL_INVALID');
 const only = (o: JsonObject, fields: string[]) => {
   if (Object.keys(o).some(k => !fields.includes(k)))
     fail('Unqualified label field. Use the documented name or exact adlabels identifiers.');

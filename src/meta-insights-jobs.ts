@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {stable} from './security.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -18,9 +18,7 @@ const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && 
 const id = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]*$/.test(v);
 const numeric = (v: unknown): v is string => typeof v === 'string' && /^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(v);
 const account = (p: CompiledRequest) => String(p.accountId ?? '').replace(/^act_/, '');
-function fail(message: string, code = 'META_REPORT_INVALID'): never {
-  throw new MirrorError(code, message, {}, code === 'META_REPORT_STATE_UNVERIFIED' ? 502 : 400);
-}
+const fail: ReasonFirstRefusal = familyErrors('META_REPORT_INVALID', {META_REPORT_STATE_UNVERIFIED: 502});
 function stateFail(message: string): never {
   return fail(message, 'META_REPORT_STATE_UNVERIFIED');
 }

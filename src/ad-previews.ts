@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {fail} from './family-kit.js';
 import type {Actor, JsonObject} from './types.js';
 
 type Call = (tool: string, input: JsonObject, actor: Actor) => Promise<JsonObject>;
@@ -65,9 +66,6 @@ interface Row {
 }
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v : null);
-const fail = (code: string, message: string, details: JsonObject = {}): never => {
-  throw new MirrorError(code, message, details);
-};
 
 /**
  * The platform links in a preview response, wherever the platform put them: string values that are HTTPS URLs, and

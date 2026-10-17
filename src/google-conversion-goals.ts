@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -19,9 +19,7 @@ type Send = (p: CompiledRequest) => Promise<TransportResult>;
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const text = (v: unknown, max = 255): v is string =>
   typeof v === 'string' && !!v.trim() && [...v].length <= max && !/[\u0000-\u001f\ud800-\udfff]/u.test(v);
-const fail = (message: string, code = 'INVALID_CONVERSION_GOAL'): never => {
-  throw new MirrorError(code, message, {}, code === 'CONVERSION_GOAL_STATE_UNVERIFIED' ? 502 : 400);
-};
+const fail: ReasonFirstRefusal = familyErrors('INVALID_CONVERSION_GOAL', {CONVERSION_GOAL_STATE_UNVERIFIED: 502});
 const stateFail = (message: string): never => fail(message, 'CONVERSION_GOAL_STATE_UNVERIFIED');
 const only = (v: JsonObject, keys: string[]) => {
   if (Object.keys(v).some(k => !keys.includes(k))) fail('Unqualified or immutable conversion-goal field.');

@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -75,9 +75,7 @@ const strategyFields = [
   'maximize_conversion_value.target_roas_tolerance_percent_millis',
 ];
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-const fail = (message: string, code = 'INVALID_BIDDING_EVENT'): never => {
-  throw new MirrorError(code, message);
-};
+const fail: ReasonFirstRefusal = familyErrors('INVALID_BIDDING_EVENT');
 const stateFail = (message: string): never => fail(message, 'BIDDING_EVENT_STATE_UNVERIFIED');
 const only = (v: JsonObject, allowed: string[]) => {
   if (Object.keys(v).some(k => !allowed.includes(k))) fail('Unqualified or output-only bidding-event field.');

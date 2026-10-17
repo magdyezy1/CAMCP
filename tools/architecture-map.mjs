@@ -7,8 +7,10 @@
 //   - shared -> provider runtime imports: runtime edges from any shared module (src/ or server/) to a provider module,
 //     except the provider registries, which shared modules are meant to consult instead. The review's "core ->
 //     provider" count (220 at 60ec2cc) counted 28 core modules only; this one counts every shared module, so its value
-//     is larger and is compared only with its own baseline.
-// Reported but not ratcheted: the number of gateway literals in shared modules and the modules with a local fail().
+//     is larger and is compared only with its own baseline;
+//   - local fail helpers: src/ and server/ modules that declare their own fail instead of the family kit's (ARC-04
+//     stage C moved all of them onto src/family-kit.ts, so a new one is a regression).
+// Reported but not ratcheted: the number of gateway literals in shared modules.
 // A ratcheted measurement may fall or stay; one that rises, or a module that joins a cycle, is a regression. `--write`
 // records the current measurements as the new baseline (after an intended improvement, or a regression the owner
 // accepted; say which in the commit).
@@ -152,7 +154,12 @@ function sources(root) {
 }
 
 const gatewayLiteral = /['"]([a-z0-9]+(?:_[a-z0-9]+)*)_native_action['"]/g;
-const localFail = /^(?:export\s+)?(?:const\s+fail\s*(?::[^=]+)?=|function\s+fail\s*[(<])/m;
+// A module's own fail helper: a function declaration, or a const bound to a function. A const bound to a refusal the
+// family kit built (`const fail: ReasonFirstRefusal = familyErrors(...)`, ARC-04 stage C) declares codes, not a copy.
+const localFail =
+  /^(?:export\s+)?(?:function\s+fail\s*[(<]|const\s+fail\s*(?::[^=\n]+)?=\s*(?:async\s*)?(?:\(|function\b|[A-Za-z_$][\w$]*\s*=>))/m;
+/** Whether a module declares its own fail helper; the family kit's is the one the others import. */
+export const declaresLocalFail = (source, id) => id !== 'src/family-kit.ts' && localFail.test(source);
 
 /** Every measurement the ratchet compares, plus the cycle membership it reports. */
 export function architectureMetrics(root) {
@@ -166,7 +173,7 @@ export function architectureMetrics(root) {
     fails = [];
   for (const [id, source] of text) {
     // The family kit's fail (ARC-04 stage C) is the one copy the others should import.
-    if (localFail.test(source) && id !== 'src/family-kit.ts') fails.push(id);
+    if (declaresLocalFail(source, id)) fails.push(id);
     if (isProviderModule(id)) continue;
     const named = [...source.matchAll(gatewayLiteral)].filter(m => m[1] !== 'amcp').length;
     if (named) {
@@ -184,12 +191,13 @@ export function architectureMetrics(root) {
       cyclic_modules: components.reduce((n, c) => n + c.length, 0),
       shared_modules_with_gateway_literals: shared.length,
       shared_to_provider_runtime_imports: sharedToProvider,
+      local_fail_copies: fails.length,
     },
     reported: {
       runtime_scc_sizes: components.map(c => c.length),
       shared_gateway_literals: literals,
-      local_fail_copies: fails.length,
     },
+    local_fail_modules: fails,
     cycles: components,
     modules: graph.size,
   };
@@ -201,6 +209,7 @@ export const ratchetedMetrics = Object.freeze({
   cyclic_modules: 'modules in any runtime import cycle',
   shared_modules_with_gateway_literals: 'shared modules that name a provider gateway',
   shared_to_provider_runtime_imports: 'runtime imports from shared modules into provider modules',
+  local_fail_copies: 'modules that declare their own fail helper instead of importing the family kit’s',
 });
 
 /** Compares measurements with a baseline: regressions fail the check, improvements can be recorded with --write. */
@@ -214,7 +223,20 @@ export function compareToBaseline(current, baseline) {
       regressions.push(key + ': the baseline has no value (' + meaning + '); record one with --write');
       continue;
     }
-    if (now > before) regressions.push(key + ' rose from ' + before + ' to ' + now + ' (' + meaning + ')');
+    if (now > before)
+      regressions.push(
+        key +
+          ' rose from ' +
+          before +
+          ' to ' +
+          now +
+          ' (' +
+          meaning +
+          ')' +
+          (key === 'local_fail_copies' && current.local_fail_modules?.length
+            ? ': ' + current.local_fail_modules.join(', ') + '; import fail or a refusal factory from src/family-kit.ts'
+            : ''),
+      );
     else if (now < before) improvements.push(key + ' fell from ' + before + ' to ' + now);
   }
   const known = new Set((baseline.cycles ?? []).flat());

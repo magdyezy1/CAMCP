@@ -1,4 +1,4 @@
-import {MirrorError} from './errors.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {googleJson} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -8,9 +8,7 @@ type Context = {campaigns: string[]; targets: string[]};
 type Read = CompiledRequest & {googleCampaignBidState?: Context};
 type Send = (p: CompiledRequest) => Promise<TransportResult>;
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-const fail = (message: string, code = 'INVALID_BID_MODIFIER'): never => {
-  throw new MirrorError(code, message, {}, code === 'BID_MODIFIER_STATE_UNVERIFIED' ? 502 : 400);
-};
+const fail: ReasonFirstRefusal = familyErrors('INVALID_BID_MODIFIER', {BID_MODIFIER_STATE_UNVERIFIED: 502});
 const stateFail = (message: string): never => fail(message, 'BID_MODIFIER_STATE_UNVERIFIED');
 const only = (v: JsonObject, keys: string[]) => {
   if (Object.keys(v).some(k => !keys.includes(k))) fail('Unqualified or immutable campaign bid-modifier field.');

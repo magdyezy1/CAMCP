@@ -2,6 +2,7 @@ import {assertBusinessNotificationActor} from './google-business-notification-ki
 import type {ReviewedFamily} from './reviewed-family.js';
 import {isIP} from 'node:net';
 import {MirrorError} from './errors.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state-core.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -28,9 +29,7 @@ type Send = (p: CompiledRequest) => Promise<TransportResult>;
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const text = (v: unknown, max = 255): v is string =>
   typeof v === 'string' && !!v.trim() && v.length <= max && !/[\u0000-\u001f\u007f]/.test(v);
-function fail(message: string, code = 'INVALID_PLACE_ACTION'): never {
-  throw new MirrorError(code, message, {}, code === 'PLACE_ACTION_STATE_UNVERIFIED' ? 502 : 400);
-}
+const fail: ReasonFirstRefusal = familyErrors('INVALID_PLACE_ACTION', {PLACE_ACTION_STATE_UNVERIFIED: 502});
 const stateFail = (message: string): never => fail(message, 'PLACE_ACTION_STATE_UNVERIFIED');
 function only(v: JsonObject, keys: string[], state = false) {
   if (Object.keys(v).some(k => !keys.includes(k)))

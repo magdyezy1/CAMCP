@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {stable} from './security.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import type {Store} from './store.js';
@@ -23,9 +24,7 @@ export const metaPostFields = {
   instagram: ['id', 'owner', 'caption', 'media_type', 'media_product_type', 'permalink', 'timestamp'],
 };
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-const fail = (message: string, code = 'INVALID_META_POST_INPUT'): never => {
-  throw new MirrorError(code, message);
-};
+const fail: ReasonFirstRefusal = familyErrors('INVALID_META_POST_INPUT');
 const id = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,39}$/.test(v);
 const allowed = [
   'action',

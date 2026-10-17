@@ -5,6 +5,7 @@ import {
   architectureMetrics,
   baselineFile,
   compareToBaseline,
+  declaresLocalFail,
   isProviderModule,
   staticSpecifiers,
   stronglyConnected,
@@ -70,6 +71,7 @@ test('a rising measurement or a module joining a cycle is a regression; a fall i
       cyclic_modules: 5,
       shared_modules_with_gateway_literals: 10,
       shared_to_provider_runtime_imports: 20,
+      local_fail_copies: 0,
     },
     cycles: [
       ['src/a.ts', 'src/b.ts', 'src/c.ts'],
@@ -111,7 +113,48 @@ test('a rising measurement or a module joining a cycle is a regression; a fall i
   assert.deepEqual(broken.improvements, ['largest_runtime_scc fell from 3 to 2', 'cyclic_modules fell from 5 to 2']);
   // A baseline without a value for a ratcheted measurement fails rather than passing silently.
   const missing = compareToBaseline(same, {metrics: {largest_runtime_scc: 3}, cycles: baseline.cycles});
-  assert.equal(missing.regressions.length, 3);
+  assert.equal(missing.regressions.length, 4);
+});
+
+test('ARC-04 stage C: a module that declares its own fail is a regression that names it; a kit-built refusal is not one', () => {
+  for (const source of [
+    'function fail(code: string, message: string): never {',
+    'export function fail(code: string, message: string, details = {}): never {',
+    'const fail = (message: string, code = "INVALID_X"): never => {',
+    'const fail = message => {',
+    'export const fail = function (message) {',
+  ])
+    assert.equal(declaresLocalFail(source, 'src/x-example.ts'), true, source);
+  for (const source of [
+    "import {fail} from './family-kit.js';",
+    "const fail: ReasonFirstRefusal = familyErrors('INVALID_X', {X_STATE_UNVERIFIED: 502});",
+    'const fail: StatusRefusal = failWithStatus(409);',
+    'export {fail};',
+    'const failure = (message: string) => {',
+    '  const fail = (message: string) => {',
+  ])
+    assert.equal(declaresLocalFail(source, 'src/x-example.ts'), false, source);
+  // The kit's own fail is the one the others import.
+  assert.equal(declaresLocalFail('export function fail(code, message) {', 'src/family-kit.ts'), false);
+  const baseline = {
+    metrics: {
+      largest_runtime_scc: 3,
+      cyclic_modules: 5,
+      shared_modules_with_gateway_literals: 10,
+      shared_to_provider_runtime_imports: 20,
+      local_fail_copies: 0,
+    },
+    cycles: [],
+  };
+  const copied = compareToBaseline(
+    {metrics: {...baseline.metrics, local_fail_copies: 1}, cycles: [], local_fail_modules: ['src/x-example.ts']},
+    baseline,
+  );
+  assert.equal(copied.regressions.length, 1);
+  assert.match(copied.regressions[0], /local_fail_copies rose from 0 to 1 .*: src\/x-example\.ts; import fail/);
+  // Every module of the tree imports the kit instead (local fail copies: 153 before stage C).
+  const {metrics, local_fail_modules} = architectureMetrics('.');
+  assert.deepEqual([metrics.local_fail_copies, local_fail_modules], [0, []]);
 });
 
 test('the compiled tree is within the committed architecture baseline', () => {

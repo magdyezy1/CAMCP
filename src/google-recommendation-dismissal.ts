@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {familyStateErrors, type StateFlaggedRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state-core.js';
@@ -12,14 +12,10 @@ const actions = new Set(['DISMISS_RECOMMENDATION', 'google_ads_v23_recommendatio
 const fields = ['resource_name', 'type', 'dismissed', 'campaign', 'campaigns', 'campaign_budget', 'ad_group'];
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 type Send = (read: CompiledRequest) => Promise<TransportResult>;
-function fail(message: string, state = false): never {
-  throw new MirrorError(
-    state ? 'RECOMMENDATION_STATE_UNVERIFIED' : 'INVALID_RECOMMENDATION_DISMISSAL',
-    message,
-    {},
-    state ? 502 : 400,
-  );
-}
+const fail: StateFlaggedRefusal = familyStateErrors(
+  'INVALID_RECOMMENDATION_DISMISSAL',
+  'RECOMMENDATION_STATE_UNVERIFIED',
+);
 function only(value: JsonObject, allowed: string[], state = false) {
   if (Object.keys(value).some(k => !allowed.includes(k)))
     fail('The dismissal contract received an unknown field or native envelope.', state);

@@ -2,6 +2,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
+import {familyCodeError, type OneCodeRefusal} from './family-kit.js';
 import {
   appleEntityKind,
   assertAppleEntityWrite,
@@ -21,9 +22,7 @@ export const measurementWriteGateways = new Set([
   'apple_ads_native_action',
 ]);
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
-const fail = (message: string): never => {
-  throw new MirrorError('WRITE_CONTRACT_UNAVAILABLE', message);
-};
+const fail: OneCodeRefusal = familyCodeError('WRITE_CONTRACT_UNAVAILABLE');
 const mismatch = (): never => {
   throw new MirrorError(
     'ACCOUNT_SCOPE_MISMATCH',

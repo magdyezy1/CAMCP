@@ -1,6 +1,7 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
+import {fail} from './family-kit.js';
 import {stable, sha256} from './security.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -40,9 +41,6 @@ type Inventory = Record<string, Record<string, JsonObject>>;
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const simple = (v: unknown): v is string => typeof v === 'string' && /^[A-Za-z0-9_-]+$/.test(v);
 const empty = (v: unknown) => v == null || (obj(v) && Object.keys(v).length === 0);
-function fail(code: string, message: string): never {
-  throw new MirrorError(code, message);
-}
 function invalid(message: string): never {
   return fail('INVALID_GTM_REQUEST', message);
 }

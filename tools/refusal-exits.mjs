@@ -60,9 +60,10 @@ export function blockingCodes(src = path.join(root, 'src')) {
   const out = new Map();
   for (const [name, spec] of Object.entries(paths))
     for (const file of pathModules(spec, src))
+      // As in tools/guidance-coverage.ts, a one-code refusal the family kit builds (`familyCodeError('CODE')`) names its code.
       for (const m of fs
         .readFileSync(path.join(src, file), 'utf8')
-        .matchAll(/(?:new MirrorError\(|fail\()\s*'([A-Z][A-Z0-9_]{3,})'/g))
+        .matchAll(/(?:new MirrorError\(|fail\(|familyCodeError\()\s*'([A-Z][A-Z0-9_]{3,})'/g))
         if (blockingState.test(m[1])) out.set(m[1], [...new Set([...(out.get(m[1]) ?? []), name + ':' + file])].sort());
   return new Map([...out].sort(([a], [b]) => a.localeCompare(b)));
 }

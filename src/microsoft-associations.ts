@@ -1,6 +1,7 @@
 import {microsoftOutcome, microsoftSnapshots, compileMicrosoft} from './microsoft-native.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
+import {familyCodeError, type OneCodeRefusal} from './family-kit.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {microsoftAssociationContracts, microsoftExtensionTypes} from './microsoft-association-contracts.js';
 type Compile = (input: JsonObject) => CompiledRequest;
@@ -8,9 +9,7 @@ type Compile = (input: JsonObject) => CompiledRequest;
 // The contract data lives in a leaf that src/microsoft-native.ts reads while it is evaluated (ARC-04).
 export {microsoftAssociationContracts, microsoftExtensionTypes};
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-const fail = (message: string): never => {
-  throw new MirrorError('INVALID_MICROSOFT_ASSOCIATION', message);
-};
+const fail: OneCodeRefusal = familyCodeError('INVALID_MICROSOFT_ASSOCIATION');
 export function microsoftAssociationWrite(p: CompiledRequest) {
   return (
     p.gateway === 'microsoft_ads_native_action' &&

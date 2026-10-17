@@ -1,5 +1,6 @@
 /** Small helpers the reviewed-write stages share. */
 import {MirrorError} from './errors.js';
+import {fail} from './family-kit.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
 /** A provider identifier: a non-empty string or a safe integer. */
@@ -10,9 +11,7 @@ export const hasProviderId = (v: unknown): boolean =>
 export const object = (v: unknown): JsonObject =>
   v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {};
 export const snake = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
-export function fail(code: string, message: string, details: JsonObject = {}): never {
-  throw new MirrorError(code, message, details);
-}
+export {fail};
 /**
  * Rollback switches and tuning for the execute-integrity changes (WRT-04), read at call time.
  * AMCP_WRITE_NOT_SENT_RELEASE=false records every refusal after the claim as uncertain again, as before;

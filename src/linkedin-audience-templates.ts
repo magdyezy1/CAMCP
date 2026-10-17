@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {parseLinkedInValue} from './linkedin-restli.js';
 import {assertLinkedInConversionScope} from './linkedin-conversion-links.js';
 import {stable} from './security.js';
@@ -11,9 +11,7 @@ const base = '/rest/adTargetTemplates',
   marker = 'AMCP_LINKEDIN_TEMPLATE_READ';
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const only = (v: unknown, keys: string[]): v is JsonObject => object(v) && Object.keys(v).every(k => keys.includes(k));
-const fail = (message: string, code = 'LINKEDIN_TEMPLATE_STATE_UNVERIFIED'): never => {
-  throw new MirrorError(code, message);
-};
+const fail: ReasonFirstRefusal = familyErrors('LINKEDIN_TEMPLATE_STATE_UNVERIFIED');
 const input = (message: string): never => fail(message, 'INVALID_AUDIENCE_TEMPLATE');
 const id = (v: unknown): string | undefined =>
   typeof v === 'string' && /^[1-9][0-9]{0,18}$/.test(v) && BigInt(v) <= 9223372036854775807n

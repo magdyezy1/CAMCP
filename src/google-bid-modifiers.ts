@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import * as campaignBid from './google-campaign-bid-modifiers.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable} from './security.js';
@@ -11,9 +11,7 @@ import {googleAdsCustomers} from './google-version.js';
 type Context = {groups: string[]; targets: string[]};
 type Read = CompiledRequest & {googleBidState?: Context};
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-const fail = (message: string, code = 'INVALID_BID_MODIFIER'): never => {
-  throw new MirrorError(code, message);
-};
+const fail: ReasonFirstRefusal = familyErrors('INVALID_BID_MODIFIER');
 const stateFail = (message: string): never => fail(message, 'BID_MODIFIER_STATE_UNVERIFIED');
 const only = (v: JsonObject, keys: string[]) => {
   if (Object.keys(v).some(k => !keys.includes(k))) fail('Unqualified or immutable bid-modifier field.');

@@ -261,10 +261,10 @@ static imports of `dist/src` and `dist/server` (what Node evaluates: tsc elides 
 | `largest_runtime_scc`, `cyclic_modules` | Modules in the largest runtime import cycle, and in any cycle |
 | `shared_modules_with_gateway_literals` | Shared modules (outside the provider filename groups `meta-*`, `tiktok-*`, ...) that name a provider gateway in a string literal |
 | `shared_to_provider_runtime_imports` | Runtime imports from any shared `src/` or `server/` module into a provider module |
+| `local_fail_copies` | Modules that declare their own `fail` helper instead of the family kit's (§13); 0 since ARC-04 stage C |
 
 A measurement may fall or stay. One that rises fails the check, and so does a module that joins a runtime import cycle,
-even when another cycle shrinks by as much. The number of gateway literals in shared modules and the modules with a local
-`fail()` are reported only. `node tools/architecture-map.mjs --write` records the current state after an intended
+even when another cycle shrinks by as much. The number of gateway literals in shared modules is reported only. `node tools/architecture-map.mjs --write` records the current state after an intended
 improvement, or after a regression the owner accepted; the commit says which. The review's "core to provider" count
 (220 at `60ec2cc`) counted 28 core modules; `shared_to_provider_runtime_imports` counts every shared module, so its value
 is larger and is compared only with its own baseline. The provider adapter registry (`src/provider-adapters.ts`, §9)
@@ -362,10 +362,16 @@ response parsing, and the async report jobs, which `src/service.ts` and `src/com
 
 ## 13. Family kit
 
-ARC-04 stage C. `src/family-kit.ts`, a leaf, holds the refusal helper family modules had copied (`fail`), a load-time
-check of a family declaration (`defineFamily`) and the hook groups of `ReviewedFamily` by stage. Wave 1 (the nine X
-families), wave 2 (ten TikTok and fourteen Google Ads families) and wave 3 (8 Criteo, 11 DV360, 13 LinkedIn, 15 Meta
-and 14 Snapchat families) import it; the X families declare themselves through `defineFamily`. The localization check
-owns the reasons of the kit's `fail` as it owned each local copy (`tools/check-locales.mjs`), so the owned reasons and
-their Arabic are unchanged. `local_fail_copies` (reported by the ratchet) fell from 153 to 59; the variants with their
-own codes are the next wave. See `docs/ADDING-A-REVIEWED-FAMILY.md`, "The family kit".
+ARC-04 stage C. `src/family-kit.ts`, a leaf, holds the refusal helper family modules had copied (`fail`), the refusal
+factories for modules with their own codes (`familyErrors`, `familyStateErrors`, `familyCodeError`, `failWithStatus`), a
+load-time check of a family declaration (`defineFamily`) and the hook groups of `ReviewedFamily` by stage. Wave 1 (the
+nine X families), wave 2 (ten TikTok and fourteen Google Ads families) and wave 3 (8 Criteo, 11 DV360, 13 LinkedIn, 15
+Meta and 14 Snapchat families) import its `fail`; wave 4 moved the 58 variants onto `fail` or a factory with the codes
+and statuses each helper gave, and the shared helpers other modules import (`write-common.ts`, `personal-data.ts`,
+`x-catalogs.ts`) re-export the kit's `fail` under their old name. The X families declare themselves through
+`defineFamily`. The localization check owns the reasons of the kit's `fail` and of a kit-built refusal as it owned each
+local helper (`tools/check-locales.mjs`), so the owned reasons and their Arabic are unchanged: 2,553 reasons in the 152
+modules on the kit, the same set before stage C and after each wave. Nineteen modules whose former arrow or forwarding helper the
+inventory never followed stay outside it (`unlocalizedRefusalModules`; about 420 of their 430 reasons have no Arabic),
+a gap now named rather than implicit. `local_fail_copies` fell from 153 to 0 and is ratcheted (§8). See
+`docs/ADDING-A-REVIEWED-FAMILY.md`, "The family kit".

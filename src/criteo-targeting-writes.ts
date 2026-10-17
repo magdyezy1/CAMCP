@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -14,9 +14,7 @@ const fields: Record<string, string[]> = {
   'add-to-basket': ['categoryIds', 'productIds'],
 };
 const object = (x: unknown): x is JsonObject => !!x && typeof x === 'object' && !Array.isArray(x);
-function fail(message: string, code = 'CRITEO_TARGETING_INVALID'): never {
-  throw new MirrorError(code, message);
-}
+const fail: ReasonFirstRefusal = familyErrors('CRITEO_TARGETING_INVALID');
 const id = (x: unknown): x is string => typeof x === 'string' && /^[1-9][0-9]*$/.test(x);
 const keys = (x: JsonObject, allowed: string[]) => {
   if (Object.keys(x).some(k => !allowed.includes(k)))

@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {parseLinkedInValue, linkedinQuery} from './linkedin-restli.js';
 import {linkedinConversionConfiguration} from './linkedin-conversion-state.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -8,9 +8,7 @@ import type {TransportResult} from './transport.js';
 type Pair = {campaign: string; conversion: string};
 type LinkRead = CompiledRequest & {linkedinConversionState?: Pair[]; linkedinConversionPage?: true};
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-const fail = (message: string, code = 'INVALID_CONVERSION_LINK'): never => {
-  throw new MirrorError(code, message);
-};
+const fail: ReasonFirstRefusal = familyErrors('INVALID_CONVERSION_LINK');
 const stateFail = (message: string): never => fail(message, 'CONVERSION_LINK_STATE_UNVERIFIED');
 const only = (v: unknown, fields: string[]): v is JsonObject =>
   object(v) && Object.keys(v).every(k => fields.includes(k));

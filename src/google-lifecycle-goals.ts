@@ -1,4 +1,5 @@
 import {MirrorError} from './errors.js';
+import {failWithStatus, type StatusRefusal} from './family-kit.js';
 import {assertGoogleAdsScope} from './google-contracts.js';
 import type {Classify, ReadBuilder, ReviewedFamily, VerificationRead} from './reviewed-family.js';
 import type {TransportResult} from './transport.js';
@@ -352,9 +353,7 @@ const rowsOf = (state: unknown[], entity: string): JsonObject[] =>
     .flatMap(s => (object(s) && Array.isArray(s.results) ? s.results : []))
     .map(r => (object(r) ? (snakeKeys(r) as JsonObject)[entity] : undefined))
     .filter(object);
-function fail(code: string, message: string, details: JsonObject): never {
-  throw new MirrorError(code, message, details, 409);
-}
+const fail: StatusRefusal = failWithStatus(409);
 export function googleLifecycleGoalPrerequisites(p: CompiledRequest, state: unknown[]) {
   const kind = googleLifecycleGoalKind(p)!,
     goals = rowsOf(state, 'goal'),

@@ -1,4 +1,4 @@
-import {MirrorError} from './errors.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {assertPlaceActionScope, placeActionSafe, placeActionTypes} from './google-place-action-links.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 
@@ -12,14 +12,11 @@ const kinds: Record<string, 'types' | 'links' | 'link'> = {
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const text = (v: unknown, max = 4096): v is string =>
   typeof v === 'string' && !!v.trim() && v.length <= max && !/[\u0000-\u001f\u007f]/.test(v);
-function fail(message: string, code = 'INVALID_PLACE_ACTION_READ'): never {
-  throw new MirrorError(
-    code,
-    message,
-    {},
-    code === 'ACCOUNT_SCOPE_MISMATCH' ? 403 : code === 'INVALID_PLACE_ACTION_READ' ? 400 : 502,
-  );
-}
+const fail: ReasonFirstRefusal = familyErrors(
+  'INVALID_PLACE_ACTION_READ',
+  {ACCOUNT_SCOPE_MISMATCH: 403, INVALID_PLACE_ACTION_READ: 400},
+  502,
+);
 const invalid = (): never =>
   fail('Business Profile returned incomplete or unrecognized place-action discovery.', 'PLACE_ACTION_READ_INVALID');
 export function placeActionReadKind(p: CompiledRequest) {

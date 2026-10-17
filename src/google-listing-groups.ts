@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {fail} from './family-kit.js';
 import {googleJson, validateGoogleRequest, assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -55,9 +55,6 @@ const types = new Set(['SUBDIVISION', 'UNIT_INCLUDED', 'UNIT_EXCLUDED']),
   maxNodes = 5000;
 type Node = {name: string; type: string; source: string; parent?: string; caseValue?: JsonObject};
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(code: string, message: string, details: JsonObject = {}): never {
-  throw new MirrorError(code, message, details);
-}
 function invalid(message: string): never {
   return fail('INVALID_LISTING_GROUP', message);
 }

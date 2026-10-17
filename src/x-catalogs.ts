@@ -1,4 +1,4 @@
-import {MirrorError} from './errors.js';
+import {fail} from './family-kit.js';
 import {sha256, stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -36,9 +36,7 @@ export function xCatalogProductGrouping(row: JsonObject): 'individual' | 'groupe
   if (keys.some(key => row[key] != null)) return 'grouped';
   return keys.some(key => Object.hasOwn(row, key) && row[key] === null) ? 'individual' : 'unknown';
 }
-export function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
+export {fail};
 export function unverified(message: string): never {
   return fail('INCOMPLETE_STATE', message, {}, 502);
 }

@@ -1,6 +1,6 @@
 import {assertDV360WriteScope} from './dv360-scope.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {fail} from './family-kit.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import {dv360AdGroupStateRead} from './dv360-demand-gen-ad-groups.js';
 import {dv360AudienceCollections} from './dv360-audiences.js';
@@ -233,9 +233,6 @@ type Edit = {
 type Row = {owner: string; option: JsonObject};
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const list = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
-function fail(code: string, message: string, details: JsonObject = {}): never {
-  throw new MirrorError(code, message, details);
-}
 function invalid(message: string): never {
   return fail('INVALID_DV360_TARGETING', message);
 }

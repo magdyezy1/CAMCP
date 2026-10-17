@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {sha256, stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -25,9 +25,7 @@ const snake = (s: string) => s.replace(/[A-Z]/g, c => '_' + c.toLowerCase());
 const camel = (s: string) => s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
 const typeOf = (scheme: string) => snake(scheme).toUpperCase();
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-const fail = (message: string, code = 'INVALID_PORTFOLIO_STRATEGY'): never => {
-  throw new MirrorError(code, message);
-};
+const fail: ReasonFirstRefusal = familyErrors('INVALID_PORTFOLIO_STRATEGY');
 const incomplete = (message: string): never => fail(message, 'PORTFOLIO_STATE_UNVERIFIED');
 const only = (row: JsonObject, fields: string[]) => {
   if (Object.keys(row).some(k => !fields.includes(k)))
