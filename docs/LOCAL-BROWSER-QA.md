@@ -230,10 +230,17 @@ routes: the ten Google evidence kinds on `/reports` (15 each), `retained-evidenc
   region; `tests/report-compare-ui.test.mjs` now pins it). In the dark theme a compared value
   (`.report-table td strong`) kept the light ink, 1.24:1 on the dark panel (`web/theme.css`). An opened report
   option's section number measured 4.44:1 on its `#fcfafe` summary (`#7b6696`, 4.84:1;
-  `tests/website-contrast.test.mjs`). The Arabic summary
-  card's spend, clicks and CPC row ("170.30 US$") widened a 320-pixel page to 339 pixels; the row wraps. At the
-  comparison state the Arabic leak probe counted eight English nodes: the account and login names and the metric
-  formulas are now marked as native or left-to-right literals.
+  `tests/website-contrast.test.mjs`). The Arabic summary card's spend, clicks and CPC row ("170.30 US$") widened a
+  320-pixel page to 339 pixels; the row wraps. At the comparison state the Arabic leak probe counted eight English
+  nodes: the account and login names and the metric formulas are now marked as native or left-to-right literals.
+- **`measurement-ledger` (MSR-03, `/measurement`).** The full matrix. A synthetic TikTok advertiser lists two pixels
+  and a synthetic Snapchat ad account one. Choosing the advertiser reads nothing. With no pixel entered, only the pixel
+  list is read and activity stays unknown (`pixel_not_selected`). With the first pixel, its event statistics come back
+  field by field as literal left-to-right paths and values, and activity stays unknown (`unconfirmed_fields`, never
+  observed). The second pixel's answer names another pixel: it is refused, the layer is unknown with
+  `MEASUREMENT_LEDGER_INVALID` and no field of it is shown. Snapchat's pixel domains and signal readiness are observed,
+  with their codes literal. Each of the four results is inspected as an intermediate state, the layer table by the
+  table checks; eight provider reads in all, no write and no saved report, plan or review. It found nothing to fix.
 - **Runner.** An intermediate state's record is kept before its checks run, so a refused state keeps the WCAG rules
   that failed (before, a failing state left no evidence in `results.json`).
 - **Development runs.** `--kinds period-comparison,granular-reporting,export-outcomes` with axe-core 4.14.0 on

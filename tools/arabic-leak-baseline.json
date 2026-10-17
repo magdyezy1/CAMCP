@@ -62,6 +62,7 @@
     "measurement-identity-error /measurement": 0,
     "measurement-identity-permission /measurement": 0,
     "measurement-identity-stale /measurement": 0,
+    "measurement-ledger /measurement": 0,
     "measurement-navigation /measurement": 0,
     "measurement-navigation-linked /measurement": 0,
     "measurement-trace /measurement": 0,

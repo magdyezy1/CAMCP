@@ -19,6 +19,7 @@ import {exerciseGoogleHour} from '../tests/fixtures/google-hour-browser.mjs';
 import {exerciseGoogleCountry} from '../tests/fixtures/google-country-browser.mjs';
 import {exerciseMeasurementNavigation} from '../tests/fixtures/measurement-navigation-browser.mjs';
 import {exerciseMeasurementTrace} from '../tests/fixtures/measurement-trace-browser.mjs';
+import {exerciseMeasurementLedger} from '../tests/fixtures/measurement-ledger-browser.mjs';
 import {exercisePortfolioDiagnostic} from '../tests/fixtures/portfolio-diagnostics-browser.mjs';
 import {exercisePortfolioComparison} from '../tests/fixtures/portfolio-reconciliation-browser.mjs';
 import {exerciseConditionalPrograms} from '../tests/fixtures/conditional-program-browser.mjs';
@@ -81,6 +82,8 @@ const fixtureKinds = [
   'measurement-navigation',
   'measurement-navigation-linked',
   'measurement-trace',
+  // MSR-03: the measurement evidence ledger (TikTok unconfirmed statistics and a refused answer, Snapchat observed).
+  'measurement-ledger',
   'portfolio-diagnostic-google',
   'portfolio-diagnostic-meta',
   'portfolio-diagnostic-linkedin',
@@ -1422,6 +1425,16 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       assert.equal(await page.locator('#evidence-rows-page-size').inputValue(), '25');
       assert.equal(await page.locator('.workspace-metrics').innerText(), metrics);
       assert.equal(site.counts().nativeReads, before.nativeReads, 'Retained views/downloads make no provider read');
+    } else if (workflow === 'measurement-ledger') {
+      await exerciseMeasurementLedger({
+        page,
+        site,
+        locale,
+        result,
+        before,
+        beforeEvidence,
+        checks: {intermediate, tables: checkTables},
+      });
     } else if (workflow === 'measurement-trace') {
       await exerciseMeasurementTrace({
         page,
