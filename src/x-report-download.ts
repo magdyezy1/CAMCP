@@ -1,13 +1,24 @@
+import {randomUUID} from 'node:crypto';
 import {request} from 'node:https';
 import {Readable} from 'node:stream';
 import {gunzipSync} from 'node:zlib';
 import {MirrorError} from './errors.js';
 import {familyCodeError, type OneCodeRefusal} from './family-kit.js';
 import {collectionRequestTimeout, collectionResponseBytes} from './report-collection-budget.js';
-import {sha256} from './security.js';
+import type {NativeReportJob, ReportJobPage} from './report-job.js';
+import {sha256, stable} from './security.js';
+import {holdsLock} from './service-lock-repository.js';
 import {publicReportAddress, reportDns} from './microsoft-report-download.js';
-import {validateXReportData} from './x-report-jobs.js';
-import type {JsonObject} from './types.js';
+import {
+  observeXReport,
+  validateXReportData,
+  xReportIdentity,
+  xReportPlan,
+  xReportRoute,
+  xReportStatus,
+  xReportStatusData,
+} from './x-report-jobs.js';
+import type {CompiledRequest, JsonObject} from './types.js';
 
 const compressedLimit = 8 * 1024 * 1024,
   expandedLimit = 32 * 1024 * 1024;
@@ -183,3 +194,182 @@ export function xReportPage(rows: JsonObject[], offset: number, limit: number) {
   }
   return page;
 }
+/**
+ * The validated result of one original X job, one page at a time (download_report): the first read downloads it under
+ * the job's lock and one of two memory slots, checks the job once more and retains it encrypted for at most six hours;
+ * every read checks the actor, the connection, the scope and the login first. It moved here from MirrorService
+ * (ARC-04 stage F); the read path's checks arrive as the hooks of `page`.
+ */
+export async function retrieveXReport(plan: CompiledRequest, row: JsonObject, page: ReportJobPage) {
+  const {store, actor, credentials} = page,
+    connectionId = page.connection.id;
+  const access = () => {
+    store.assertActorActive(actor);
+    const c = store.resolveConnection(actor, plan.gateway, plan.accountId, connectionId);
+    page.authorize(plan, c);
+    if (xReportIdentity(store.credentials(actor.tenantId, c.id)) !== xReportIdentity(credentials))
+      throw new MirrorError('X_REPORT_LOGIN_CHANGED', 'The X login changed during retrieval.', {}, 403);
+  };
+  access();
+  const b = plan.xReportRead![0]!,
+    {offset, limit} = plan.reportDownload!,
+    next = (at: number) => ({
+      tool: plan.gateway,
+      arguments: {
+        action: 'x_stats_jobs_accounts_account_id_get',
+        account_id: plan.accountId,
+        connection_id: connectionId,
+        params: {job_ids: b.job_id},
+        download_report: true,
+        offset: at,
+        limit,
+        dry_run: false,
+      },
+    });
+  if (row.status === 'PROCESSING')
+    return {
+      data: [],
+      report: {
+        job_id: b.job_id,
+        account_id: b.account_id,
+        status: 'PROCESSING',
+        complete: false,
+        report_rows_downloaded: false,
+        next_call: next(offset),
+      },
+    };
+  if (row.status !== 'SUCCESS')
+    throw new MirrorError(
+      row.status === 'FAILED' ? 'X_REPORT_FAILED' : 'X_REPORT_CANCELLED',
+      'The original X report did not complete. Inspect the retained definition before explicitly preparing a new job.',
+      {job_id: b.job_id, provider_status: row.status},
+      502,
+    );
+  if (Date.parse(row.expires_at) <= Date.now())
+    throw new MirrorError(
+      'X_REPORT_EXPIRED',
+      'The native X result expired. This does not authorize another submission.',
+      {job_id: b.job_id},
+      410,
+    );
+  const key = sha256(connectionId + ':' + b.job_id),
+    lock = 'x-report-result:' + actor.tenantId + ':' + key,
+    owner = randomUUID();
+  if (!store.acquireLock(lock, owner, 120000))
+    throw new MirrorError(
+      'X_REPORT_DOWNLOAD_BUSY',
+      'This original report is already being retrieved. Retry the same read shortly.',
+      {retry_after_ms: 1000},
+      409,
+      true,
+    );
+  let slot: string | undefined;
+  try {
+    slot = [0, 1].map(i => 'x-report-memory:' + i).find(k => store.acquireLock(k, owner, 120000));
+    if (!slot)
+      throw new MirrorError(
+        'X_REPORT_DOWNLOAD_BUSY',
+        'Two report results are already being read in this deployment. Retry this same read shortly.',
+        {retry_after_ms: 1000},
+        429,
+        true,
+      );
+    let parsed = store.xReportResult(actor.tenantId, key);
+    if (!parsed) {
+      parsed = await downloadXReport(row, b, access, page.fetcher, plan.xReportDeadline);
+      access();
+      // A final native check catches cancellation/replacement/expiry during transfer.
+      const check = {...plan, reportDownload: undefined},
+        current = store.resolveConnection(actor, plan.gateway, plan.accountId, connectionId),
+        guard = page.authority(check, current, access);
+      const response = await page.request(check, guard);
+      access();
+      const final = xReportStatus(check, response)[0]!;
+      if (final.status !== 'SUCCESS' || Date.parse(final.expires_at) <= Date.now())
+        throw new MirrorError(
+          'X_REPORT_STATE_UNVERIFIED',
+          'The report stopped being available while its result was downloaded.',
+          {},
+          502,
+        );
+      if ([lock, slot].some(k => !holdsLock(store, k, owner, Date.now())))
+        throw new MirrorError(
+          'X_REPORT_DOWNLOAD_BUSY',
+          'Result retrieval lost its lease. Retry the original read.',
+          {},
+          409,
+          true,
+        );
+      parsed = {
+        ...parsed,
+        binding_sha256: sha256(
+          stable({definition: b.definition, login: b.login_fingerprint, account: b.account_id, job: b.job_id}),
+        ),
+      };
+      store.saveXReportResult(
+        actor.tenantId,
+        key,
+        parsed,
+        Math.min(Date.parse(final.expires_at), Date.now() + 6 * 3600000),
+      );
+    }
+    access();
+    if (
+      parsed.binding_sha256 !==
+      sha256(stable({definition: b.definition, login: b.login_fingerprint, account: b.account_id, job: b.job_id}))
+    )
+      throw new MirrorError(
+        'X_REPORT_STATE_UNVERIFIED',
+        'The retained report no longer matches the original definition.',
+        {},
+        502,
+      );
+    const rows = xReportPage(parsed.data, offset, limit),
+      more = offset + rows.length < parsed.data.length;
+    return {
+      data: rows,
+      report: {
+        ...parsed.report,
+        status: 'SUCCESS',
+        source_complete: parsed.report.complete,
+        complete: parsed.report.complete && !more && offset === 0,
+        download_complete: true,
+        source_rows: parsed.data.length,
+        returned_rows: rows.length,
+        offset,
+        limit,
+        has_more: more,
+        ...(more ? {next_call: next(offset + rows.length)} : {}),
+      },
+    };
+  } finally {
+    if (slot) store.releaseLock(slot, owner);
+    store.releaseLock(lock, owner);
+  }
+}
+/**
+ * X's asynchronous analytics jobs on the native read path (ARC-04 stage F, src/report-job.ts): explicit job_ids only and
+ * never aggregated; a status read keeps a 60-second deadline and its login; a page is the jobs' status, or with
+ * download_report the validated result of one original job (retrieveXReport).
+ */
+export const xReportJob: NativeReportJob = {
+  gateway: 'x_ads_native_action',
+  plan: (request, input) => xReportPlan(request, input),
+  admit(p, input) {
+    if (xReportRoute(p) && (input.aggregate_pages || input.paginate || input.allPages))
+      throw new MirrorError(
+        'INVALID_ARGUMENT',
+        'Poll explicit job_ids. Download one original job with offset/limit; do not aggregate job discovery.',
+      );
+    if (xReportRoute(p) === 'status') p = {...p, xReportDeadline: performance.now() + 60000};
+    return p;
+  },
+  sameLogin: p => !!p.xReportRead,
+  page(p, page) {
+    if (!p.xReportRead) return undefined;
+    const rows = xReportStatus(p, page.result);
+    observeXReport(p, page.connection, page.store, rows);
+    if (p.reportDownload) return retrieveXReport(p, rows[0]!, page);
+    return xReportStatusData(p, page.result);
+  },
+};

@@ -1,8 +1,5 @@
-import {metaReportReadResult, observeMetaReportRead, runMetaReportRead} from './meta-insights-jobs.js';
-import {xReportRoute, xReportStatus, xReportStatusData, observeXReport, xReportIdentity} from './x-report-jobs.js';
-import {downloadXReport, xReportPage} from './x-report-download.js';
-import {tiktokReportRoute, tiktokReportReadResult, runTiktokReportRead} from './tiktok-report-jobs.js';
-import {criteoReportReadResult, observeCriteoReportRead, runCriteoReportRead} from './criteo-report-jobs.js';
+import {reportJob} from './report-jobs.js';
+import type {ReportJobPage} from './report-job.js';
 import {connectionDiagnosticKind, connectionDiagnostics, redactConnectionInput} from './connection-diagnostics.js';
 import {connectionDisconnectKind, connectionDisconnect} from './connection-disconnect.js';
 import {measurementConnectionSyncKind, syncMeasurementConnection} from './measurement-connection-sync.js';
@@ -77,12 +74,6 @@ import type {WriteOrigin} from './write-records.js';
 import {validateAppleResponse} from './apple-native.js';
 import {projectRedditAccountHistory, redditAccountHistoryRead} from './reddit-extensions.js';
 import {microsoftGateway, validateMicrosoftResponse} from './microsoft-native.js';
-import {
-  downloadReportArchive,
-  parseMicrosoftReport,
-  microsoftReportKey,
-  microsoftReportPage,
-} from './microsoft-report-download.js';
 import {WorkspaceService, workspaceTool} from './workspace.js';
 import {CampaignRunner, campaignTool} from './campaign-runner.js';
 import {DecisionReporting, decisionTool} from './decision-reporting.js';
@@ -1091,17 +1082,9 @@ export class MirrorService {
       plan = {...plan, xAudienceDeadline: performance.now() + 60000};
     }
     validatePlaceActionRead(plan, input);
-    if (xReportRoute(plan) && (input.aggregate_pages || input.paginate || input.allPages))
-      throw new MirrorError(
-        'INVALID_ARGUMENT',
-        'Poll explicit job_ids. Download one original job with offset/limit; do not aggregate job discovery.',
-      );
-    if (xReportRoute(plan) === 'status') plan = {...plan, xReportDeadline: performance.now() + 60000};
-    if (tiktokReportRoute(plan) && (input.aggregate_pages || input.paginate || input.allPages))
-      throw new MirrorError(
-        'INVALID_ARGUMENT',
-        'TikTok asynchronous tasks are not paginated. Resume the same task using status/download.',
-      );
+    // ARC-04 stage F: an asynchronous report job's read refuses arguments it does not take (src/report-jobs.ts).
+    const job = reportJob(plan.gateway);
+    if (job?.admit) plan = job.admit(plan, input);
     if (googleGenerationKind(plan) && (input.aggregate_pages || input.paginate || input.allPages))
       throw new MirrorError('INVALID_ARGUMENT', 'Google generation is one bounded request, not a paginated query.');
     if (input.dry_run === true || (!plan.readOnly && input.dry_run !== false)) {
@@ -1147,8 +1130,9 @@ export class MirrorService {
       request: plan,
     });
     try {
+      // A report job's read keeps its login from the first request to the last (Criteo, TikTok and X).
       const reportAccess = (p: CompiledRequest) => {
-        if (p.criteoReportRead || p.tiktokReportRead || p.xReportRead) {
+        if (reportJob(p.gateway)?.sameLogin?.(p)) {
           this.store.assertActorActive(actor);
           if (!sameLogin(credentials, this.store.credentials(actor.tenantId, connection.id)))
             throw new MirrorError(
@@ -1186,50 +1170,48 @@ export class MirrorService {
         if (redditAccountHistoryRead(p)) return projectRedditAccountHistory(data);
         if (p.gateway === microsoftGateway) validateMicrosoftResponse(p, result);
         if (placeActionReadKind(p)) return placeActionReadResult(p, data, status);
-        if (p.xReportRead) {
-          const rows = xReportStatus(p, result);
-          observeXReport(p, active, this.store, rows);
-          if (p.reportDownload) return this.xDownload(p, rows[0]!, actor, active.id, credentials);
-          return xReportStatusData(p, result);
-        }
-        const tiktokData = tiktokReportReadResult(p, result);
-        if (tiktokData) return tiktokData;
-        const criteoData = criteoReportReadResult(p, result);
-        if (criteoData) {
-          observeCriteoReportRead(p, active, this.store, criteoData);
-          return criteoData;
-        }
-        const reportData = metaReportReadResult(p, result);
-        if (reportData) {
-          observeMetaReportRead(p, active, this.store, reportData);
-          return reportData;
-        }
+        // ARC-04 stage F: a page of an asynchronous report job's read is the job's (src/report-jobs.ts): its status or
+        // result with what it retains, before the scope observes the page, or a downloaded report after it does.
+        const pageJob = reportJob(p.gateway),
+          page: ReportJobPage | undefined = pageJob && {
+            store: this.store,
+            actor,
+            connection: active,
+            credentials,
+            result,
+            authorize: (q, c) => new ScopeGuard(this.registry, this.store).authorize(q, c),
+            authority: (q, c, before) => nativeAuthority(this.store, this.registry, actor, q, c, credentials, before),
+            request: (q, authority) =>
+              this.transport.request(q, authority(), credentials, undefined, {beforeAttempt: authority}),
+            fetcher: this.mediaFetcher === fetch ? undefined : this.mediaFetcher,
+          };
+        const jobData = page && pageJob!.page?.(p, page);
+        if (jobData) return jobData;
         scope.observe(p, active, data);
-        if (p.gateway === microsoftGateway && p.reportDownload)
-          return this.microsoftDownload(p, data as JsonObject, actor, active.id);
+        const downloaded = page && pageJob!.observed?.(p, data, page);
+        if (downloaded) return downloaded;
         // PRV-05: an MCP caller receives 64-bit integers exactly; every check above saw the provider's JSON numbers.
         return exactIntegerScope.getStore()?.active ? (result.exactData ?? data) : data;
       };
+      // A report job's read runs as its job reads it (TikTok and Criteo: an output fenced by two status reads; Meta:
+      // bounded result pages). A job answers only its own gateway's reads, so at most one runner applies to a plan.
+      const jobRead = xAudienceEstimateRoute(plan) ? undefined : job?.read?.(plan, fetchPage, input);
       const result = xAudienceEstimateRoute(plan)
         ? await runXAudienceEstimate(plan, fetchPage)
-        : plan.tiktokReportRead
-          ? await runTiktokReportRead(plan, fetchPage)
-          : plan.criteoReportRead
-            ? await runCriteoReportRead(plan, fetchPage)
-            : placeActionReadKind(plan)
-              ? await runPlaceActionDiscovery(plan, fetchPage, connection.id)
-              : plan.metaReportRead
-                ? await runMetaReportRead(plan, fetchPage, !!input.aggregate_pages, Number(input.max_pages ?? 25))
-                : dv360TargetingSearchRoute(plan)
-                  ? await runDV360TargetingSearch(
-                      plan,
-                      fetchPage,
-                      !!(input.aggregate_pages || input.paginate || input.allPages),
-                      Number(input.max_pages ?? 25),
-                    )
-                  : wantedIds || input.aggregate_pages || input.paginate || input.allPages
-                    ? await paginate(plan, fetchPage, Number(input.max_pages ?? 25))
-                    : {data: await fetchPage(plan), pages: 1, truncated: false};
+        : jobRead
+          ? await jobRead
+          : placeActionReadKind(plan)
+            ? await runPlaceActionDiscovery(plan, fetchPage, connection.id)
+            : dv360TargetingSearchRoute(plan)
+              ? await runDV360TargetingSearch(
+                  plan,
+                  fetchPage,
+                  !!(input.aggregate_pages || input.paginate || input.allPages),
+                  Number(input.max_pages ?? 25),
+                )
+              : wantedIds || input.aggregate_pages || input.paginate || input.allPages
+                ? await paginate(plan, fetchPage, Number(input.max_pages ?? 25))
+                : {data: await fetchPage(plan), pages: 1, truncated: false};
       // A capped aggregation continues from the first page it did not read (MCP-04), never from a merged page's cursor.
       const continuation = 'continuation' in result ? result.continuation : undefined;
       if ('continuation' in result) delete result.continuation;
@@ -1322,256 +1304,6 @@ export class MirrorService {
       });
       throw e;
     }
-  }
-  private async xDownload(
-    plan: CompiledRequest,
-    row: JsonObject,
-    actor: Actor,
-    connectionId: string,
-    credentials: import('./types.js').Credentials,
-  ) {
-    const access = () => {
-      this.store.assertActorActive(actor);
-      const c = this.store.resolveConnection(actor, plan.gateway, plan.accountId, connectionId);
-      new ScopeGuard(this.registry, this.store).authorize(plan, c);
-      if (xReportIdentity(this.store.credentials(actor.tenantId, c.id)) !== xReportIdentity(credentials))
-        throw new MirrorError('X_REPORT_LOGIN_CHANGED', 'The X login changed during retrieval.', {}, 403);
-    };
-    access();
-    const b = plan.xReportRead![0]!,
-      {offset, limit} = plan.reportDownload!,
-      next = (at: number) => ({
-        tool: plan.gateway,
-        arguments: {
-          action: 'x_stats_jobs_accounts_account_id_get',
-          account_id: plan.accountId,
-          connection_id: connectionId,
-          params: {job_ids: b.job_id},
-          download_report: true,
-          offset: at,
-          limit,
-          dry_run: false,
-        },
-      });
-    if (row.status === 'PROCESSING')
-      return {
-        data: [],
-        report: {
-          job_id: b.job_id,
-          account_id: b.account_id,
-          status: 'PROCESSING',
-          complete: false,
-          report_rows_downloaded: false,
-          next_call: next(offset),
-        },
-      };
-    if (row.status !== 'SUCCESS')
-      throw new MirrorError(
-        row.status === 'FAILED' ? 'X_REPORT_FAILED' : 'X_REPORT_CANCELLED',
-        'The original X report did not complete. Inspect the retained definition before explicitly preparing a new job.',
-        {job_id: b.job_id, provider_status: row.status},
-        502,
-      );
-    if (Date.parse(row.expires_at) <= Date.now())
-      throw new MirrorError(
-        'X_REPORT_EXPIRED',
-        'The native X result expired. This does not authorize another submission.',
-        {job_id: b.job_id},
-        410,
-      );
-    const key = sha256(connectionId + ':' + b.job_id),
-      lock = 'x-report-result:' + actor.tenantId + ':' + key,
-      owner = randomUUID();
-    if (!this.store.acquireLock(lock, owner, 120000))
-      throw new MirrorError(
-        'X_REPORT_DOWNLOAD_BUSY',
-        'This original report is already being retrieved. Retry the same read shortly.',
-        {retry_after_ms: 1000},
-        409,
-        true,
-      );
-    let slot: string | undefined;
-    try {
-      slot = [0, 1].map(i => 'x-report-memory:' + i).find(k => this.store.acquireLock(k, owner, 120000));
-      if (!slot)
-        throw new MirrorError(
-          'X_REPORT_DOWNLOAD_BUSY',
-          'Two report results are already being read in this deployment. Retry this same read shortly.',
-          {retry_after_ms: 1000},
-          429,
-          true,
-        );
-      let parsed = this.store.xReportResult(actor.tenantId, key);
-      if (!parsed) {
-        parsed = await downloadXReport(
-          row,
-          b,
-          access,
-          this.mediaFetcher === fetch ? undefined : this.mediaFetcher,
-          plan.xReportDeadline,
-        );
-        access();
-        // A final native check catches cancellation/replacement/expiry during transfer.
-        const check = {...plan, reportDownload: undefined},
-          current = this.store.resolveConnection(actor, plan.gateway, plan.accountId, connectionId),
-          guard = nativeAuthority(this.store, this.registry, actor, check, current, credentials, access);
-        const response = await this.transport.request(check, guard(), credentials, undefined, {beforeAttempt: guard});
-        access();
-        const final = xReportStatus(check, response)[0]!;
-        if (final.status !== 'SUCCESS' || Date.parse(final.expires_at) <= Date.now())
-          throw new MirrorError(
-            'X_REPORT_STATE_UNVERIFIED',
-            'The report stopped being available while its result was downloaded.',
-            {},
-            502,
-          );
-        if (
-          [lock, slot].some(
-            k =>
-              !this.store.db
-                .prepare('SELECT 1 FROM service_locks WHERE key=? AND owner=? AND expires_at>?')
-                .get(k, owner, Date.now()),
-          )
-        )
-          throw new MirrorError(
-            'X_REPORT_DOWNLOAD_BUSY',
-            'Result retrieval lost its lease. Retry the original read.',
-            {},
-            409,
-            true,
-          );
-        parsed = {
-          ...parsed,
-          binding_sha256: sha256(
-            stable({definition: b.definition, login: b.login_fingerprint, account: b.account_id, job: b.job_id}),
-          ),
-        };
-        this.store.saveXReportResult(
-          actor.tenantId,
-          key,
-          parsed,
-          Math.min(Date.parse(final.expires_at), Date.now() + 6 * 3600000),
-        );
-      }
-      access();
-      if (
-        parsed.binding_sha256 !==
-        sha256(stable({definition: b.definition, login: b.login_fingerprint, account: b.account_id, job: b.job_id}))
-      )
-        throw new MirrorError(
-          'X_REPORT_STATE_UNVERIFIED',
-          'The retained report no longer matches the original definition.',
-          {},
-          502,
-        );
-      const rows = xReportPage(parsed.data, offset, limit),
-        more = offset + rows.length < parsed.data.length;
-      return {
-        data: rows,
-        report: {
-          ...parsed.report,
-          status: 'SUCCESS',
-          source_complete: parsed.report.complete,
-          complete: parsed.report.complete && !more && offset === 0,
-          download_complete: true,
-          source_rows: parsed.data.length,
-          returned_rows: rows.length,
-          offset,
-          limit,
-          has_more: more,
-          ...(more ? {next_call: next(offset + rows.length)} : {}),
-        },
-      };
-    } finally {
-      if (slot) this.store.releaseLock(slot, owner);
-      this.store.releaseLock(lock, owner);
-    }
-  }
-  private async microsoftDownload(plan: CompiledRequest, data: JsonObject, actor: Actor, connectionId: string) {
-    const access = () => {
-      this.store.assertActorActive(actor);
-      const c = this.store.resolveConnection(actor, plan.gateway, plan.accountId, connectionId);
-      new ScopeGuard(this.registry, this.store).authorize(plan, c);
-    };
-    access();
-    const reportId = (plan.body as JsonObject).ReportRequestId,
-      status = data.ReportRequestStatus,
-      key = microsoftReportKey(connectionId, plan.accountId!, reportId);
-    const next = (offset: number) => ({
-      tool: microsoftGateway,
-      arguments: {
-        action: 'PollGenerateReport',
-        account_id: plan.accountId,
-        connection_id: connectionId,
-        payload: {ReportRequestId: reportId},
-        download_report: true,
-        offset,
-        limit: plan.reportDownload!.limit,
-      },
-    });
-    if (status.Status === 'Pending')
-      return {
-        report_request_id: reportId,
-        status: 'Pending',
-        complete: false,
-        next_call: next(plan.reportDownload!.offset),
-      };
-    if (status.Status === 'Error')
-      throw new MirrorError('REPORT_GENERATION_FAILED', 'Microsoft could not generate this report.', {}, 502);
-    let stored: JsonObject;
-    try {
-      stored = this.store.document(actor.tenantId, 'microsoft_report', key);
-    } catch {
-      throw new MirrorError(
-        'REPORT_METADATA_REQUIRED',
-        'Submit this report through AMCP again to record the original format and columns.',
-      );
-    }
-    if (stored.expires_at <= Date.now()) throw new MirrorError('REPORT_EXPIRED', 'Submit a fresh Microsoft report.');
-    let parsed = stored.parsed;
-    if (!parsed) {
-      if (status.ReportDownloadUrl == null || status.ReportDownloadUrl === '')
-        parsed = {
-          columns: stored.request.Columns,
-          rows: [],
-          row_count: 0,
-          metadata: {},
-          potentially_incomplete: stored.request.ReturnOnlyCompleteData === true ? false : null,
-          values: 'native_strings',
-          format: stored.request.Format ?? 'Csv',
-          empty_reason: 'provider_returned_no_download_url',
-        };
-      else {
-        if (!['Csv', 'Tsv'].includes(stored.request.Format ?? 'Csv'))
-          throw new MirrorError(
-            'REPORT_FORMAT_UNSUPPORTED',
-            'Server parsing supports Csv and Tsv. Submit another report in one of those formats.',
-          );
-        access();
-        const bytes = await downloadReportArchive(
-          status.ReportDownloadUrl,
-          this.mediaFetcher === fetch ? undefined : this.mediaFetcher,
-        );
-        access();
-        parsed = parseMicrosoftReport(bytes, stored.request, plan.accountId!);
-      }
-      this.store.putDocument(actor.tenantId, 'microsoft_report', key, {...stored, parsed});
-    }
-    access();
-    const {offset, limit} = plan.reportDownload!,
-      rows = microsoftReportPage(parsed.rows, offset, limit),
-      hasMore = offset + rows.length < parsed.row_count;
-    return {
-      ...parsed,
-      rows,
-      status: 'Success',
-      report_request_id: reportId,
-      download_complete: true,
-      offset,
-      limit,
-      has_more: hasMore,
-      ...(hasMore ? {next_call: next(offset + rows.length)} : {}),
-    };
   }
   private async delegated(
     gateway: string,

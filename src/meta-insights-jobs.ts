@@ -1,6 +1,7 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import type {NativeReportJob} from './report-job.js';
 import {stable} from './security.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -648,6 +649,21 @@ export async function runMetaReportRead(
     truncated: !!after,
   };
 }
+/**
+ * Meta's asynchronous Insights jobs on the native read path (ARC-04 stage F, src/report-job.ts): the compiled fields
+ * list, a status or result page with its retained run, and the bounded result retrieval.
+ */
+export const metaReportJob: NativeReportJob = {
+  gateway: 'meta_native_action',
+  plan: request => metaReportPlan(request),
+  page(p, page) {
+    const data = metaReportReadResult(p, page.result);
+    if (data) observeMetaReportRead(p, page.connection, page.store, data);
+    return data;
+  },
+  read: (p, fetch, input) =>
+    p.metaReportRead ? runMetaReportRead(p, fetch, !!input.aggregate_pages, Number(input.max_pages ?? 25)) : undefined,
+};
 export const metaReportImpact = {
   provider: 'meta',
   scope: 'asynchronous_insights_job',

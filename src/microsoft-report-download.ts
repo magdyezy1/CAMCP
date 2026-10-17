@@ -5,8 +5,12 @@ import {request} from 'node:https';
 import {Readable} from 'node:stream';
 import {MirrorError} from './errors.js';
 import {collectionRequestTimeout, collectionResponseBytes} from './report-collection-budget.js';
+import type {NativeReportJob, ReportJobPage} from './report-job.js';
 import {sha256, scopeKey} from './security.js';
-import type {JsonObject} from './types.js';
+import type {CompiledRequest, JsonObject} from './types.js';
+
+/** Microsoft Advertising's gateway (microsoftGateway); src/microsoft-native.ts is not imported, so this stays light. */
+const gateway = 'microsoft_ads_native_action';
 
 const MAX_ARCHIVE = 8 * 1024 * 1024,
   MAX_TEXT = 32 * 1024 * 1024,
@@ -398,3 +402,102 @@ export function parseMicrosoftReport(bytes: Buffer, request: JsonObject, account
     format,
   };
 }
+/**
+ * One page of a generated Microsoft report (PollGenerateReport with download_report): a pending report names the poll
+ * to repeat; a finished one is downloaded once, parsed with the format and columns retained at submission and kept
+ * with that record; every read checks the actor, the connection and the scope first. It moved here from MirrorService
+ * (ARC-04 stage F); the read path's checks arrive as the hooks of `page`.
+ */
+export async function retrieveMicrosoftReport(plan: CompiledRequest, data: JsonObject, page: ReportJobPage) {
+  const {store, actor} = page,
+    connectionId = page.connection.id;
+  const access = () => {
+    store.assertActorActive(actor);
+    const c = store.resolveConnection(actor, plan.gateway, plan.accountId, connectionId);
+    page.authorize(plan, c);
+  };
+  access();
+  const reportId = (plan.body as JsonObject).ReportRequestId,
+    status = data.ReportRequestStatus,
+    key = microsoftReportKey(connectionId, plan.accountId!, reportId);
+  const next = (offset: number) => ({
+    tool: gateway,
+    arguments: {
+      action: 'PollGenerateReport',
+      account_id: plan.accountId,
+      connection_id: connectionId,
+      payload: {ReportRequestId: reportId},
+      download_report: true,
+      offset,
+      limit: plan.reportDownload!.limit,
+    },
+  });
+  if (status.Status === 'Pending')
+    return {
+      report_request_id: reportId,
+      status: 'Pending',
+      complete: false,
+      next_call: next(plan.reportDownload!.offset),
+    };
+  if (status.Status === 'Error')
+    throw new MirrorError('REPORT_GENERATION_FAILED', 'Microsoft could not generate this report.', {}, 502);
+  let stored: JsonObject;
+  try {
+    stored = store.document(actor.tenantId, 'microsoft_report', key);
+  } catch {
+    throw new MirrorError(
+      'REPORT_METADATA_REQUIRED',
+      'Submit this report through AMCP again to record the original format and columns.',
+    );
+  }
+  if (stored.expires_at <= Date.now()) throw new MirrorError('REPORT_EXPIRED', 'Submit a fresh Microsoft report.');
+  let parsed = stored.parsed;
+  if (!parsed) {
+    if (status.ReportDownloadUrl == null || status.ReportDownloadUrl === '')
+      parsed = {
+        columns: stored.request.Columns,
+        rows: [],
+        row_count: 0,
+        metadata: {},
+        potentially_incomplete: stored.request.ReturnOnlyCompleteData === true ? false : null,
+        values: 'native_strings',
+        format: stored.request.Format ?? 'Csv',
+        empty_reason: 'provider_returned_no_download_url',
+      };
+    else {
+      if (!['Csv', 'Tsv'].includes(stored.request.Format ?? 'Csv'))
+        throw new MirrorError(
+          'REPORT_FORMAT_UNSUPPORTED',
+          'Server parsing supports Csv and Tsv. Submit another report in one of those formats.',
+        );
+      access();
+      const bytes = await downloadReportArchive(status.ReportDownloadUrl, page.fetcher);
+      access();
+      parsed = parseMicrosoftReport(bytes, stored.request, plan.accountId!);
+    }
+    store.putDocument(actor.tenantId, 'microsoft_report', key, {...stored, parsed});
+  }
+  access();
+  const {offset, limit} = plan.reportDownload!,
+    rows = microsoftReportPage(parsed.rows, offset, limit),
+    hasMore = offset + rows.length < parsed.row_count;
+  return {
+    ...parsed,
+    rows,
+    status: 'Success',
+    report_request_id: reportId,
+    download_complete: true,
+    offset,
+    limit,
+    has_more: hasMore,
+    ...(hasMore ? {next_call: next(offset + rows.length)} : {}),
+  };
+}
+/**
+ * Microsoft Advertising's generated reports on the native read path (ARC-04 stage F, src/report-job.ts): after the scope
+ * observed a PollGenerateReport page, download_report turns it into one page of the parsed report.
+ */
+export const microsoftReportJob: NativeReportJob = {
+  gateway,
+  observed: (p, data, page) => (p.reportDownload ? retrieveMicrosoftReport(p, data as JsonObject, page) : undefined),
+};

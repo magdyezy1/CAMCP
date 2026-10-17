@@ -1,6 +1,5 @@
 import {MirrorError} from './errors.js';
-import {metaReportPlan} from './meta-insights-jobs.js';
-import {xReportPlan} from './x-report-jobs.js';
+import {reportJobPlan} from './report-jobs.js';
 import {xAudienceEstimatePlan} from './x-audience-estimate.js';
 import {snapchatPlanningPlan} from './snapchat-planning-reads.js';
 import {linkedinPlanningPlan} from './linkedin-planning-reads.js';
@@ -339,36 +338,35 @@ export class Compiler {
           linkedinPlanningPlan(
             snapchatPlanningPlan(
               xAudienceEstimatePlan(
-                xReportPlan(
-                  metaReportPlan(
-                    dv360TargetingSearchPlan(
-                      linkedinTrackingPlan(
-                        linkedinConversionPlan(
-                          googleGenerationPlan(
-                            googleContractEvidence(
-                              validateApplePlan({
-                                gateway,
-                                action: action.canonical_name || action.name,
-                                method,
-                                path,
-                                query,
-                                ...(absolute ? {origin: absolute.origin} : {}),
-                                ...(body === undefined ? {} : {body}),
-                                headers,
-                                readOnly,
-                                destructive:
-                                  action.destructive === true || headers['X-HTTP-Method-Override'] === 'DELETE',
-                                requiresConfirmation: !readOnly,
-                                accountId,
-                                evidence: action.evidence,
-                                warnings: [
-                                  'Request routing compiled locally; live behavioral parity is tracked separately.',
-                                ],
-                                specialTransport: action.raw.special_transport ?? undefined,
-                                ...(projection ? {responseControls: projection} : {}),
-                                ...(commentScope ? {tiktokCommentScope: commentScope} : {}),
-                              }),
-                            ),
+                // ARC-04 stage F: the request controls of its gateway's report job (src/report-jobs.ts).
+                reportJobPlan(
+                  dv360TargetingSearchPlan(
+                    linkedinTrackingPlan(
+                      linkedinConversionPlan(
+                        googleGenerationPlan(
+                          googleContractEvidence(
+                            validateApplePlan({
+                              gateway,
+                              action: action.canonical_name || action.name,
+                              method,
+                              path,
+                              query,
+                              ...(absolute ? {origin: absolute.origin} : {}),
+                              ...(body === undefined ? {} : {body}),
+                              headers,
+                              readOnly,
+                              destructive:
+                                action.destructive === true || headers['X-HTTP-Method-Override'] === 'DELETE',
+                              requiresConfirmation: !readOnly,
+                              accountId,
+                              evidence: action.evidence,
+                              warnings: [
+                                'Request routing compiled locally; live behavioral parity is tracked separately.',
+                              ],
+                              specialTransport: action.raw.special_transport ?? undefined,
+                              ...(projection ? {responseControls: projection} : {}),
+                              ...(commentScope ? {tiktokCommentScope: commentScope} : {}),
+                            }),
                           ),
                         ),
                       ),

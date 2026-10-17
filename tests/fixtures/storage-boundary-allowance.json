@@ -3,9 +3,9 @@
   "totals": {
     "modules_with_sql": 14,
     "modules_with_db": 14,
-    "sql": 139,
+    "sql": 138,
     "json_extract": 24,
-    "db": 120,
+    "db": 119,
     "kinds_via_raw_sql": 10
   },
   "allowance": {
@@ -62,9 +62,9 @@
       ]
     },
     "src/service.ts": {
-      "sql": 5,
+      "sql": 4,
       "json_extract": 1,
-      "db": 5,
+      "db": 4,
       "kinds": []
     },
     "src/spend-policy.ts": {

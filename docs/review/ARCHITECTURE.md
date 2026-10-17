@@ -275,10 +275,12 @@ recorded one. The review's "core to provider" count
 (220 at `60ec2cc`) counted 28 core modules; `shared_to_provider_runtime_imports` counts every shared module, so its value
 is larger and is compared only with its own baseline. The provider adapter registry (`src/provider-adapters.ts`, §9)
 names every gateway on purpose, so the ratchet counts it with the provider modules, and an import of it is not counted
-as coupling; so are the portfolio adapter registry (`src/portfolio.ts`, §11) and the report source registry
-(`src/report-sources.ts`, §12), which import one module per provider so that shared code consults them. Counting them
-as registries lowered `shared_to_provider_runtime_imports` from 500 to 493 by classification alone: the seven portfolio
-imports, which `src/portfolio.ts` made before it became the registry, are no longer counted. The wave 3b merge recorded
+as coupling; so are the portfolio adapter registry (`src/portfolio.ts`, §11), the report source registry
+(`src/report-sources.ts`, §12) and the report job registry (`src/report-jobs.ts`, §12), which import one module per
+provider so that shared code consults them. Counting them as registries lowered `shared_to_provider_runtime_imports`
+from 500 to 493 by classification alone: the seven portfolio imports, which `src/portfolio.ts` made before it became
+the registry, are no longer counted. The report job registry lowered it from 496 to 488: `src/service.ts` and
+`src/compiler.ts` no longer import the five job modules (eight edges). The wave 3b merge recorded
 88 and 496 (87 and 493 on the ARC-01/ARC-04 branch) for two packages built beside the ratchet on the same base, so
 neither had run against it: ARC-02's tenant-bound repositories hold SQL that names gateways
 (`src/workbook-repository.ts`, the workbook query projections; `src/audit-repository.ts`, the Google Ads legacy-alias
@@ -291,7 +293,7 @@ imported by `campaign-runner.ts`, `recipe-context.ts` and `service.ts`.
 | `largest_runtime_scc` | 3 |
 | `cyclic_modules` | 11 |
 | `shared_modules_with_gateway_literals` | 88 |
-| `shared_to_provider_runtime_imports` | 496 |
+| `shared_to_provider_runtime_imports` | 488 |
 | `local_fail_copies` | 0 |
 | `shared_gateway_literals` (reported) | 701 |
 | Runtime import cycles | `src/microsoft-associations.ts` ↔ `src/microsoft-campaign-criteria.ts` ↔ `src/microsoft-native.ts`; `src/allocation-calibration.ts` ↔ `src/report-allocation.ts`; `src/apple-entity-writes.ts` ↔ `src/measurement-writes.ts`; `src/effect-class.ts` ↔ `src/preflight.ts`; `src/reddit-creative-writes.ts` ↔ `src/reddit-writes.ts` |
@@ -326,7 +328,7 @@ surface in both modes; suites that exercise a parked provider offer it with `tes
 Not met yet of ARC-01's local criteria (open remainders of B18 and B27 in `docs/review/package-status.json`): the whole
 suite has not run with `AMCP_PROVIDERS=criteo,woocommerce` (the tool-surface suites assert the default 25 tools; only
 the gate test checks both modes), and phase B has moved only the account model, so 88 shared modules still name a
-gateway (target 20 or fewer) and 496 shared-to-provider imports remain (target 30 or fewer), with no call-replay proof
+gateway (target 20 or fewer) and 488 shared-to-provider imports remain (target 30 or fewer), with no call-replay proof
 and no authorizer-disjointness test yet.
 
 ## 10. Import cycles and leaf modules
@@ -392,7 +394,21 @@ moved (`tests/fixtures/report-source-golden.json`, written by `tools/report-sour
 `tests/report-source-golden.test.mjs` keeps them byte-identical, refusals included. `reportRange` moved to
 `src/report-periods.ts` (re-exported), so the period helpers and the workbook and reporting modules no longer import
 the native collector. Still in `src/report-native.ts`: collection, that is each platform's request plans, paging and
-response parsing, and the async report jobs, which `src/service.ts` and `src/compiler.ts` still import directly.
+response parsing.
+
+The asynchronous report jobs a reviewed write creates and native reads then poll or retrieve are a contract of their
+own (`src/report-job.ts`, a leaf), registered one per gateway in `src/report-jobs.ts`: X analytics jobs and their
+validated result download (`src/x-report-download.ts`), TikTok report tasks, Criteo report exports, Meta Insights jobs
+and Microsoft Advertising's generated-report download (`src/microsoft-report-download.ts`). The compiler adds the
+request controls of a request's gateway's job (Meta's fields list, an X download page), and `MirrorService.runPlan`
+consults the same job at each step it branched on before: the argument checks before anything is sent (an X or TikTok
+job read is never aggregated, an X status read has a 60-second deadline), whether the read keeps its login from the
+first request to the last (Criteo, TikTok, X), a page before the scope observes it (a job's status or result, with the
+run it retains) or after (a Microsoft report download), and the job's own read (TikTok and Criteo outputs fenced by two
+status reads, Meta's bounded result pages). The read path keeps its checks: ScopeGuard, the native authority check and
+the transport reach a job's own requests as the hooks of `ReportJobPage`. Neither `src/service.ts` nor
+`src/compiler.ts` imports a job module (`tests/report-jobs.test.mjs`); the X and Microsoft retrievals moved from
+`MirrorService` with their reasons, and the provider suites run them through `MirrorService` unchanged.
 
 ## 13. Family kit
 
@@ -453,9 +469,9 @@ and `tests/import-order.test.mjs` hold the rules that can be measured.
 
 | Role | Modules | May import |
 |---|---|---|
-| Leaf | `errors.ts`, `types.ts`, `security.ts`, `account-id.ts`, `review-state-core.ts`, `family-kit.ts`, `signed-cursor.ts`, `tool-actions.ts`, `provider-adapter.ts`, `report-source.ts`; values read at load: `tiktok-paths.ts`, `microsoft-association-contracts.ts`, `meta-ad-library-contract.ts`, `google-business-notification-kind.ts` | Other leaves only: a provider's version module such as `meta-version.ts`, and the provider adapter registry, are leaves too |
-| Provider module | `<provider>-*.ts`: reviewed families (on the family kit, §13), portfolio adapters (on `portfolio-runner.ts`, §11), report sources (§12) | Leaves, shared helpers and modules of its own provider; never a lifecycle module (§10) |
-| Registry | `provider-adapters.ts` (§9), `portfolio.ts` (§11), `report-sources.ts` (§12), which the ratchet counts with the providers; `reviewed-families.ts`, the family registry | One module per provider, so that shared code consults the registry instead of naming providers |
+| Leaf | `errors.ts`, `types.ts`, `security.ts`, `account-id.ts`, `review-state-core.ts`, `family-kit.ts`, `signed-cursor.ts`, `tool-actions.ts`, `provider-adapter.ts`, `report-source.ts`, `report-job.ts`; values read at load: `tiktok-paths.ts`, `microsoft-association-contracts.ts`, `meta-ad-library-contract.ts`, `google-business-notification-kind.ts` | Other leaves only: a provider's version module such as `meta-version.ts`, and the provider adapter registry, are leaves too |
+| Provider module | `<provider>-*.ts`: reviewed families (on the family kit, §13), portfolio adapters (on `portfolio-runner.ts`, §11), report sources and report jobs (§12) | Leaves, shared helpers and modules of its own provider; never a lifecycle module (§10) |
+| Registry | `provider-adapters.ts` (§9), `portfolio.ts` (§11), `report-sources.ts` and `report-jobs.ts` (§12), which the ratchet counts with the providers; `reviewed-families.ts`, the family registry | One module per provider, so that shared code consults the registry instead of naming providers |
 | Shared | the review lifecycle (`review-state.ts`, `scope.ts`, `write-review.ts`, ...), the composite tools (`service.ts`, `decision-reporting.ts`, ...), `server/` | Registries, leaves and other shared modules; a composite tool's actions are table entries (§14) |
 
 Against the review (`60ec2cc`) and the start of ARC-04: the largest runtime import cycle fell from 33 modules (34 when

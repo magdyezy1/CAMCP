@@ -2,6 +2,7 @@ import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import type {NativeReportJob} from './report-job.js';
 import {scopeKey, stable} from './security.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -789,6 +790,20 @@ export async function runCriteoReportRead(
   if (stable(before) !== stable(after)) stateFail('The report changed during retrieval. Retry only this output read.');
   return {data, pages: 1, truncated: false};
 }
+/**
+ * Criteo's asynchronous report exports on the native read path (ARC-04 stage F, src/report-job.ts): an export read
+ * keeps its login throughout, retains each status it reads, and returns an output fenced by two status reads.
+ */
+export const criteoReportJob: NativeReportJob = {
+  gateway,
+  sameLogin: p => !!p.criteoReportRead,
+  page(p, page) {
+    const data = criteoReportReadResult(p, page.result);
+    if (data) observeCriteoReportRead(p, page.connection, page.store, data);
+    return data;
+  },
+  read: (p, fetch) => (p.criteoReportRead ? runCriteoReportRead(p, fetch) : undefined),
+};
 export const criteoReportImpact = {
   provider: 'criteo',
   effect:
