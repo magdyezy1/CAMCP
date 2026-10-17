@@ -16725,9 +16725,10 @@
         "tests/retired-provider-actions.test.ts"
       ],
       "live_qualification": "unverified",
-      "anchor_status": "unanchored",
+      "anchor_status": "captured_only",
       "anchor": {
-        "reason": "independent_mapping_unpinned"
+        "capture": ".mirror/RAW/google_ads_native_action/catalog-0000.json",
+        "reason": "not_in_pinned_document"
       }
     },
     {
@@ -17270,9 +17271,10 @@
         "tests/retired-provider-actions.test.ts"
       ],
       "live_qualification": "unverified",
-      "anchor_status": "unanchored",
+      "anchor_status": "captured_only",
       "anchor": {
-        "reason": "independent_mapping_unpinned"
+        "capture": ".mirror/RAW/google_ads_native_action/catalog-0000.json",
+        "reason": "not_in_pinned_document"
       }
     },
     {
@@ -38484,9 +38486,10 @@
         "tests/retired-provider-actions.test.ts"
       ],
       "live_qualification": "unverified",
-      "anchor_status": "unanchored",
+      "anchor_status": "captured_only",
       "anchor": {
-        "reason": "independent_mapping_unpinned"
+        "capture": ".mirror/RAW/linkedin_native_action/catalog-0002.json",
+        "reason": "captured_catalog_only"
       }
     },
     {
@@ -38503,9 +38506,10 @@
         "tests/retired-provider-actions.test.ts"
       ],
       "live_qualification": "unverified",
-      "anchor_status": "unanchored",
+      "anchor_status": "captured_only",
       "anchor": {
-        "reason": "independent_mapping_unpinned"
+        "capture": ".mirror/RAW/linkedin_native_action/catalog-0002.json",
+        "reason": "captured_catalog_only"
       }
     },
     {
@@ -38522,9 +38526,10 @@
         "tests/retired-provider-actions.test.ts"
       ],
       "live_qualification": "unverified",
-      "anchor_status": "unanchored",
+      "anchor_status": "captured_only",
       "anchor": {
-        "reason": "independent_mapping_unpinned"
+        "capture": ".mirror/RAW/linkedin_native_action/catalog-0002.json",
+        "reason": "captured_catalog_only"
       }
     },
     {
@@ -38579,9 +38584,10 @@
         "tests/retired-provider-actions.test.ts"
       ],
       "live_qualification": "unverified",
-      "anchor_status": "unanchored",
+      "anchor_status": "captured_only",
       "anchor": {
-        "reason": "independent_mapping_unpinned"
+        "capture": ".mirror/RAW/linkedin_native_action/catalog-0002.json",
+        "reason": "captured_catalog_only"
       }
     },
     {
@@ -38598,9 +38604,10 @@
         "tests/retired-provider-actions.test.ts"
       ],
       "live_qualification": "unverified",
-      "anchor_status": "unanchored",
+      "anchor_status": "captured_only",
       "anchor": {
-        "reason": "independent_mapping_unpinned"
+        "capture": ".mirror/RAW/linkedin_native_action/catalog-0002.json",
+        "reason": "captured_catalog_only"
       }
     },
     {
@@ -38617,9 +38624,10 @@
         "tests/retired-provider-actions.test.ts"
       ],
       "live_qualification": "unverified",
-      "anchor_status": "unanchored",
+      "anchor_status": "captured_only",
       "anchor": {
-        "reason": "independent_mapping_unpinned"
+        "capture": ".mirror/RAW/linkedin_native_action/catalog-0002.json",
+        "reason": "captured_catalog_only"
       }
     },
     {
@@ -38636,9 +38644,10 @@
         "tests/retired-provider-actions.test.ts"
       ],
       "live_qualification": "unverified",
-      "anchor_status": "unanchored",
+      "anchor_status": "captured_only",
       "anchor": {
-        "reason": "independent_mapping_unpinned"
+        "capture": ".mirror/RAW/linkedin_native_action/catalog-0002.json",
+        "reason": "captured_catalog_only"
       }
     },
     {
@@ -38655,9 +38664,10 @@
         "tests/retired-provider-actions.test.ts"
       ],
       "live_qualification": "unverified",
-      "anchor_status": "unanchored",
+      "anchor_status": "captured_only",
       "anchor": {
-        "reason": "independent_mapping_unpinned"
+        "capture": ".mirror/RAW/linkedin_native_action/catalog-0002.json",
+        "reason": "captured_catalog_only"
       }
     },
     {
@@ -38788,9 +38798,10 @@
         "tests/retired-provider-actions.test.ts"
       ],
       "live_qualification": "unverified",
-      "anchor_status": "unanchored",
+      "anchor_status": "captured_only",
       "anchor": {
-        "reason": "independent_mapping_unpinned"
+        "capture": ".mirror/RAW/linkedin_native_action/catalog-0002.json",
+        "reason": "captured_catalog_only"
       }
     },
     {
@@ -38807,9 +38818,10 @@
         "tests/retired-provider-actions.test.ts"
       ],
       "live_qualification": "unverified",
-      "anchor_status": "unanchored",
+      "anchor_status": "captured_only",
       "anchor": {
-        "reason": "independent_mapping_unpinned"
+        "capture": ".mirror/RAW/linkedin_native_action/catalog-0002.json",
+        "reason": "captured_catalog_only"
       }
     },
     {
@@ -94482,9 +94494,10 @@
         "tests/retired-provider-actions.test.ts"
       ],
       "live_qualification": "unverified",
-      "anchor_status": "unanchored",
+      "anchor_status": "captured_only",
       "anchor": {
-        "reason": "independent_mapping_unpinned"
+        "capture": ".mirror/RAW/x_ads_native_action/catalog-0000.json",
+        "reason": "captured_catalog_only"
       }
     },
     {
@@ -94503,9 +94516,10 @@
         "tests/retired-provider-actions.test.ts"
       ],
       "live_qualification": "unverified",
-      "anchor_status": "unanchored",
+      "anchor_status": "captured_only",
       "anchor": {
-        "reason": "independent_mapping_unpinned"
+        "capture": ".mirror/RAW/x_ads_native_action/catalog-0000.json",
+        "reason": "captured_catalog_only"
       }
     },
     {

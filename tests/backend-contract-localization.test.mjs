@@ -132,10 +132,11 @@ test('all actual directly owned backend reasons have Arabic with original native
   // WEB-09 adds server/workspace-search.ts (its query refusal); WEB-03 and WEB-05 add website copy.
   // ACC-05 adds src/acceptance-ledger.ts, src/discovery-programs.ts and src/provider-access.ts (no owned reasons) and the
   // owner provider access panel's catalog entries.
-  assert.equal(files.length, 569);
+  // ARC-03 adds src/route-anchors.ts (no owned reasons) and the nine route evidence entries of the contract reference.
+  assert.equal(files.length, 570);
   assert.equal(selected.filter(row => row.messages.size).length, 234);
   assert.equal(owned.size, 1578);
-  assert.equal(Object.keys(catalog).length, 11422);
+  assert.equal(Object.keys(catalog).length, 11431);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

@@ -8,7 +8,7 @@
     "captured_catalog_only": "Its method and path come only from the frozen captured catalog: no pinned vendor document, SDK request or dated documentation page states them yet.",
     "sdk_has_no_request": "Meta's Python Business SDK 26.0.2 has no request for this route (tests/fixtures/meta-sdk-changes-v26.json), so its method and path come only from the frozen captured catalog.",
     "not_in_pinned_document": "The gateway's pinned vendor document has no method with this route, so its method and path come only from the captured catalog.",
-    "independent_mapping_unpinned": "An AMCP route mapped from vendor documentation that is not pinned in this repository and has no dated page recorded."
+    "independent_mapping_unpinned": "A route AMCP maps itself: the captured catalog does not give it, and no pinned vendor document, SDK request or dated documentation page states it."
   },
   "normalization": "Input digests are the SHA-256 of each file text with CRLF line ends read as LF.",
   "inputs": {
@@ -311,7 +311,8 @@
       "anchored_executable": 393,
       "read_unanchored": 0,
       "by_anchor_status": {
-        "unanchored": 4,
+        "captured_only": 2,
+        "unanchored": 2,
         "vendor_spec": 448
       },
       "executable_by_anchor_status": {
@@ -380,8 +381,7 @@
       "anchored_executable": 0,
       "read_unanchored": 146,
       "by_anchor_status": {
-        "captured_only": 277,
-        "unanchored": 10
+        "captured_only": 287
       },
       "executable_by_anchor_status": {
         "captured_only": 214
@@ -491,8 +491,7 @@
       "anchored_executable": 0,
       "read_unanchored": 94,
       "by_anchor_status": {
-        "captured_only": 184,
-        "unanchored": 2
+        "captured_only": 186
       },
       "executable_by_anchor_status": {
         "captured_only": 161
@@ -505,6 +504,7 @@
     }
   ],
   "captures": {
+    ".mirror/RAW/google_ads_native_action/catalog-0000.json": {"sha256":"8b31026b4e4156a7057dde6d136d5e2c8524740d266981f463ebd16ac376720b","shipped":true},
     ".mirror/RAW/linkedin_native_action/catalog-0000.json": {"sha256":"31db7d07608a18b3c7d1ece879540f12cb416b327ae2222e1c2da9649cd76362","shipped":true},
     ".mirror/RAW/linkedin_native_action/catalog-0001.json": {"sha256":"f3724238563097c433830834c84bcd7ee7bc9a69f53a2b66ae610b3f8ddf5879","shipped":true},
     ".mirror/RAW/linkedin_native_action/catalog-0002.json": {"sha256":"6c5b7d9e095c5ed8d7c0bb80a6529d6207d7e2e018cd67de2ce96331eb2c37a0","shipped":true},
@@ -1038,7 +1038,7 @@
     "google_ads_native_action//google_ads_v23_campaign_goal_config_mutate_campaign_goal_configs": {"status":"reviewed_write_family","anchor_status":"vendor_spec","anchor":{"source":"google-ads-v25","method":"googleads.customers.CampaignGoalConfigs.mutate"}},
     "google_ads_native_action//google_ads_v23_campaign_group_mutate_campaign_groups": {"status":"reviewed_write_family","anchor_status":"vendor_spec","anchor":{"source":"google-ads-v25","method":"googleads.customers.campaignGroups.mutate"}},
     "google_ads_native_action//google_ads_v23_campaign_label_mutate_campaign_labels": {"status":"reviewed_write_family","anchor_status":"vendor_spec","anchor":{"source":"google-ads-v25","method":"googleads.customers.campaignLabels.mutate"}},
-    "google_ads_native_action//google_ads_v23_campaign_lifecycle_goal_configure_campaign_lifecycle_goals": {"status":"provider_unsupported","anchor_status":"unanchored","anchor":{"reason":"independent_mapping_unpinned"}},
+    "google_ads_native_action//google_ads_v23_campaign_lifecycle_goal_configure_campaign_lifecycle_goals": {"status":"provider_unsupported","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/google_ads_native_action/catalog-0000.json","reason":"not_in_pinned_document"}},
     "google_ads_native_action//google_ads_v23_campaign_mutate_campaigns": {"status":"reviewed_write_family","anchor_status":"vendor_spec","anchor":{"source":"google-ads-v25","method":"googleads.customers.campaigns.mutate"}},
     "google_ads_native_action//google_ads_v23_campaign_shared_set_mutate_campaign_shared_sets": {"status":"reviewed_write_family","anchor_status":"vendor_spec","anchor":{"source":"google-ads-v25","method":"googleads.customers.campaignSharedSets.mutate"}},
     "google_ads_native_action//google_ads_v23_content_creator_insights_generate_creator_insights": {"status":"native_read","anchor_status":"vendor_spec","anchor":{"source":"google-ads-v25","method":"googleads.customers.generateCreatorInsights"}},
@@ -1061,7 +1061,7 @@
     "google_ads_native_action//google_ads_v23_customer_create_customer_client": {"status":"blocked_write","anchor_status":"vendor_spec","anchor":{"source":"google-ads-v25","method":"googleads.customers.createCustomerClient"}},
     "google_ads_native_action//google_ads_v23_customer_customizer_mutate_customer_customizers": {"status":"reviewed_write_family","anchor_status":"vendor_spec","anchor":{"source":"google-ads-v25","method":"googleads.customers.CustomerCustomizers.mutate"}},
     "google_ads_native_action//google_ads_v23_customer_label_mutate_customer_labels": {"status":"reviewed_write_family","anchor_status":"vendor_spec","anchor":{"source":"google-ads-v25","method":"googleads.customers.customerLabels.mutate"}},
-    "google_ads_native_action//google_ads_v23_customer_lifecycle_goal_configure_customer_lifecycle_goals": {"status":"provider_unsupported","anchor_status":"unanchored","anchor":{"reason":"independent_mapping_unpinned"}},
+    "google_ads_native_action//google_ads_v23_customer_lifecycle_goal_configure_customer_lifecycle_goals": {"status":"provider_unsupported","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/google_ads_native_action/catalog-0000.json","reason":"not_in_pinned_document"}},
     "google_ads_native_action//google_ads_v23_customer_list_accessible_customers": {"status":"native_read","anchor_status":"vendor_spec","anchor":{"source":"google-ads-v25","method":"googleads.customers.listAccessibleCustomers"}},
     "google_ads_native_action//google_ads_v23_customer_manager_link_move_manager_link": {"status":"blocked_write","anchor_status":"vendor_spec","anchor":{"source":"google-ads-v25","method":"googleads.customers.customerManagerLinks.moveManagerLink"}},
     "google_ads_native_action//google_ads_v23_customer_manager_link_mutate_customer_manager_link": {"status":"blocked_write","anchor_status":"vendor_spec","anchor":{"source":"google-ads-v25","method":"googleads.customers.customerManagerLinks.mutate"}},
@@ -1768,20 +1768,20 @@
     "linkedin_native_action//linkedin_rest_videos_post": {"status":"blocked_write","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0002.json","reason":"captured_catalog_only"}},
     "linkedin_native_action//linkedin_rest_videos_video_urn_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0002.json","reason":"captured_catalog_only"}},
     "linkedin_native_action//linkedin_rest_videos_video_urn_post": {"status":"blocked_write","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0002.json","reason":"captured_catalog_only"}},
-    "linkedin_native_action//linkedin_v2_ad_campaigns_v2_campaign_id_post": {"status":"provider_unsupported","anchor_status":"unanchored","anchor":{"reason":"independent_mapping_unpinned"}},
-    "linkedin_native_action//linkedin_v2_ad_campaigns_v2_post": {"status":"provider_unsupported","anchor_status":"unanchored","anchor":{"reason":"independent_mapping_unpinned"}},
-    "linkedin_native_action//linkedin_v2_ad_creatives_v2_post": {"status":"provider_unsupported","anchor_status":"unanchored","anchor":{"reason":"independent_mapping_unpinned"}},
+    "linkedin_native_action//linkedin_v2_ad_campaigns_v2_campaign_id_post": {"status":"provider_unsupported","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0002.json","reason":"captured_catalog_only"}},
+    "linkedin_native_action//linkedin_v2_ad_campaigns_v2_post": {"status":"provider_unsupported","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0002.json","reason":"captured_catalog_only"}},
+    "linkedin_native_action//linkedin_v2_ad_creatives_v2_post": {"status":"provider_unsupported","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0002.json","reason":"captured_catalog_only"}},
     "linkedin_native_action//linkedin_v2_ad_lift_test_benchmark_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0002.json","reason":"captured_catalog_only"}},
-    "linkedin_native_action//linkedin_v2_dmp_segments_dmp_segment_id_list_uploads_list_id_delete": {"status":"provider_unsupported","anchor_status":"unanchored","anchor":{"reason":"independent_mapping_unpinned"}},
-    "linkedin_native_action//linkedin_v2_dmp_segments_post": {"status":"provider_unsupported","anchor_status":"unanchored","anchor":{"reason":"independent_mapping_unpinned"}},
-    "linkedin_native_action//linkedin_v2_dmp_segments_segment_id_companies_post": {"status":"provider_unsupported","anchor_status":"unanchored","anchor":{"reason":"independent_mapping_unpinned"}},
-    "linkedin_native_action//linkedin_v2_dmp_segments_segment_id_destinations_destination_id_get": {"status":"provider_unsupported","anchor_status":"unanchored","anchor":{"reason":"independent_mapping_unpinned"}},
-    "linkedin_native_action//linkedin_v2_dmp_segments_segment_id_users_post": {"status":"provider_unsupported","anchor_status":"unanchored","anchor":{"reason":"independent_mapping_unpinned"}},
+    "linkedin_native_action//linkedin_v2_dmp_segments_dmp_segment_id_list_uploads_list_id_delete": {"status":"provider_unsupported","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0002.json","reason":"captured_catalog_only"}},
+    "linkedin_native_action//linkedin_v2_dmp_segments_post": {"status":"provider_unsupported","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0002.json","reason":"captured_catalog_only"}},
+    "linkedin_native_action//linkedin_v2_dmp_segments_segment_id_companies_post": {"status":"provider_unsupported","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0002.json","reason":"captured_catalog_only"}},
+    "linkedin_native_action//linkedin_v2_dmp_segments_segment_id_destinations_destination_id_get": {"status":"provider_unsupported","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0002.json","reason":"captured_catalog_only"}},
+    "linkedin_native_action//linkedin_v2_dmp_segments_segment_id_users_post": {"status":"provider_unsupported","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0002.json","reason":"captured_catalog_only"}},
     "linkedin_native_action//linkedin_v2_endorsement_endorsement_urn_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0002.json","reason":"captured_catalog_only"}},
     "linkedin_native_action//linkedin_v2_geo_geo_id_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0002.json","reason":"captured_catalog_only"}},
     "linkedin_native_action//linkedin_v2_me_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0002.json","reason":"captured_catalog_only"}},
-    "linkedin_native_action//linkedin_v2_organizational_entity_acls_get": {"status":"provider_unsupported","anchor_status":"unanchored","anchor":{"reason":"independent_mapping_unpinned"}},
-    "linkedin_native_action//linkedin_v2_organizational_entity_acls_post": {"status":"provider_unsupported","anchor_status":"unanchored","anchor":{"reason":"independent_mapping_unpinned"}},
+    "linkedin_native_action//linkedin_v2_organizational_entity_acls_get": {"status":"provider_unsupported","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0002.json","reason":"captured_catalog_only"}},
+    "linkedin_native_action//linkedin_v2_organizational_entity_acls_post": {"status":"provider_unsupported","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0002.json","reason":"captured_catalog_only"}},
     "linkedin_native_action//linkedin_v2_people_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0002.json","reason":"captured_catalog_only"}},
     "linkedin_native_action//linkedin_v2_people_id_person_id_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0002.json","reason":"captured_catalog_only"}},
     "linkedin_native_action//linkedin_v2_people_id_profile_id_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/linkedin_native_action/catalog-0002.json","reason":"captured_catalog_only"}},
@@ -3541,8 +3541,8 @@
     "x_ads_native_action//x_accounts_account_id_promoted_tweets_promoted_tweet_id_delete": {"status":"reviewed_write_family","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/x_ads_native_action/catalog-0000.json","reason":"captured_catalog_only"}},
     "x_ads_native_action//x_accounts_account_id_promoted_tweets_promoted_tweet_id_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/x_ads_native_action/catalog-0000.json","reason":"captured_catalog_only"}},
     "x_ads_native_action//x_accounts_account_id_put": {"status":"blocked_write","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/x_ads_native_action/catalog-0000.json","reason":"captured_catalog_only"}},
-    "x_ads_native_action//x_accounts_account_id_recommendations_get": {"status":"provider_unsupported","anchor_status":"unanchored","anchor":{"reason":"independent_mapping_unpinned"}},
-    "x_ads_native_action//x_accounts_account_id_recommendations_recommendation_id_get": {"status":"provider_unsupported","anchor_status":"unanchored","anchor":{"reason":"independent_mapping_unpinned"}},
+    "x_ads_native_action//x_accounts_account_id_recommendations_get": {"status":"provider_unsupported","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/x_ads_native_action/catalog-0000.json","reason":"captured_catalog_only"}},
+    "x_ads_native_action//x_accounts_account_id_recommendations_recommendation_id_get": {"status":"provider_unsupported","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/x_ads_native_action/catalog-0000.json","reason":"captured_catalog_only"}},
     "x_ads_native_action//x_accounts_account_id_scheduled_promoted_tweets_get": {"status":"native_read","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/x_ads_native_action/catalog-0000.json","reason":"captured_catalog_only"}},
     "x_ads_native_action//x_accounts_account_id_scheduled_promoted_tweets_post": {"status":"reviewed_write_family","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/x_ads_native_action/catalog-0000.json","reason":"captured_catalog_only"}},
     "x_ads_native_action//x_accounts_account_id_scheduled_promoted_tweets_scheduled_promoted_tweet_id_delete": {"status":"reviewed_write_family","anchor_status":"captured_only","anchor":{"capture":".mirror/RAW/x_ads_native_action/catalog-0000.json","reason":"captured_catalog_only"}},

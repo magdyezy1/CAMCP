@@ -10,7 +10,7 @@ import type {JsonObject} from './types.js';
  */
 const unanchoredNotes: Partial<Record<NonNullable<ActionContract['anchor_status']>, string>> = {
   captured_only: 'its method and path come only from the captured catalog',
-  unanchored: 'its method and path come from an AMCP mapping of documentation that is not pinned',
+  unanchored: 'its method and path are a mapping of AMCP’s own, not the captured catalog’s',
   not_recorded: 'no route anchor is recorded for it yet',
 };
 function routeAnchorNote(row: ActionContract): JsonObject {

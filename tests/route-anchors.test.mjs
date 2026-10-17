@@ -360,16 +360,17 @@ test('the contracts panel shows what each route rests on and marks an unanchored
     assert.ok(
       read.page.includes(
         text(
-          'Route evidence says what each method and path rest on. “Captured catalog only” means no pinned vendor document, SDK request or dated page states them yet. It never changes what AMCP runs.',
+          'Route evidence names the vendor source that states each method and path. “Captured catalog only” means no pinned vendor document, SDK request or dated page states them yet. Route evidence never changes what AMCP runs.',
         ),
       ),
     );
-    assert.ok(read.entry.includes(`<span data-state="attention">${text('Read route not anchored')}</span>`), locale);
+    const badge = `<span data-state="attention">${text('Read route without vendor evidence')}</span>`;
+    assert.ok(read.entry.includes(badge), locale);
     assert.ok(read.entry.includes(text('Route evidence:') + ' ' + text('Captured catalog only')), locale);
     // Native names, methods and capture files stay literal and left-to-right.
     assert.ok(read.entry.includes(`<bdi dir="ltr">${esc(unanchoredRead.anchor.capture)}</bdi>`), locale);
     const anchored = await panel.entry(anchoredRead);
-    assert.ok(!anchored.entry.includes(text('Read route not anchored')), locale + ': an anchored read has no badge');
+    assert.ok(!anchored.entry.includes(badge), locale + ': an anchored read has no badge');
     assert.ok(
       anchored.entry.includes(
         text('Pinned vendor document') +
@@ -385,6 +386,48 @@ test('the contracts panel shows what each route rests on and marks an unanchored
       ),
       locale,
     );
+    // A route AMCP maps itself shows that it has no pinned vendor evidence; it is not a read, so it has no badge.
+    const mapped = await panel.entry(rows.find(r => r.anchor_status === 'unanchored'));
+    assert.ok(mapped.entry.includes(text('Route evidence:') + ' ' + text('No pinned vendor evidence')), locale);
+    assert.ok(!mapped.entry.includes(badge), locale);
   }
   assert.deepEqual(f.requests, []);
+});
+
+test('a route rests on its capture page exactly while it keeps the captured method and path', () => {
+  // The first anchors linked a route to its capture only when the ledger's evidence was OBSERVED, so 14 captured
+  // LinkedIn, X and Google routes the providers retired (evidence: the vendor page that retired them) were reported as
+  // AMCP's own unpinned mappings. The captured route itself decides.
+  const served = new Map(
+    [...registry.catalogs.values()].flatMap(c => c.actions.map(a => [c.gateway + '/' + a.name, a])),
+  );
+  const keepsCaptured = row => {
+    const captured = served.get(row.gateway + '/' + row.action);
+    return !!captured && captured.method === row.method && captured.path === row.path;
+  };
+  for (const row of rows.filter(r => r.method && r.path)) {
+    if (row.anchor_status === 'captured_only') assert.ok(keepsCaptured(row), routeAnchorKey(row));
+    if (row.anchor_status === 'unanchored') {
+      assert.equal(keepsCaptured(row), false, routeAnchorKey(row) + ' is a captured route');
+      assert.equal(row.anchor.reason, 'independent_mapping_unpinned', routeAnchorKey(row));
+    }
+  }
+  const retired = rows.filter(
+    r =>
+      r.status === 'provider_unsupported' &&
+      r.source !== 'OBSERVED' &&
+      keepsCaptured(r) &&
+      registry.catalogs.get(r.gateway)?.actions.length &&
+      !anchoredStatuses.has(r.anchor_status),
+  );
+  assert.ok(retired.length >= 14, String(retired.length));
+  for (const row of retired) {
+    assert.equal(row.anchor_status, 'captured_only', routeAnchorKey(row));
+    assert.match(row.anchor.capture, new RegExp('^\\.mirror/RAW/' + row.gateway + '/catalog-\\d{4}\\.json$'));
+    assert.ok(['captured_catalog_only', 'not_in_pinned_document'].includes(row.anchor.reason), routeAnchorKey(row));
+  }
+  // What stays unanchored is AMCP's own mapping of a captured name the catalog gives no route for.
+  const own = rows.filter(r => r.anchor_status === 'unanchored');
+  assert.ok(own.length > 0);
+  for (const row of own) assert.equal(served.get(row.gateway + '/' + row.action)?.path ?? null, null, row.action);
 });

@@ -60,9 +60,6 @@ are exposed by `amcp_workspace dashboard` and website platform configuration.
    variant executes. `blocked_write`, `unmapped`, `unqualified_read` and
    `adapter_requires_input` retain their stated limits; inspect the exact request before
    planning a dependent step. Never treat these states as a request for extra confirmation.
-   Each row's `anchor_status` says what its method and path rest on; help marks a native read
-   that no pinned or dated vendor evidence states `read_unanchored`. That is advice only: the
-   read still runs as classified.
 3. Native account reads establish current state and, for global Meta/Snapchat IDs, account ownership. A previously successful create already establishes ownership for the next child operation. An arbitrary ID or user-supplied snapshot does not establish ownership.
 4. Build a native payload for the correct hierarchy. Keep the user's supplied text and URLs; apply changes only within their instructions. Read a small relevant collection rather than an entire agency workspace.
 

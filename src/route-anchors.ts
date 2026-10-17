@@ -41,7 +41,7 @@ export const routeAnchorReasons = {
   not_in_pinned_document:
     "The gateway's pinned vendor document has no method with this route, so its method and path come only from the captured catalog.",
   independent_mapping_unpinned:
-    'An AMCP route mapped from vendor documentation that is not pinned in this repository and has no dated page recorded.',
+    'A route AMCP maps itself: the captured catalog does not give it, and no pinned vendor document, SDK request or dated documentation page states it.',
 } as const;
 export const routeAnchorMeaning =
   'anchor_status says what the method and path of each action rest on: vendor_spec, sdk_method and documented_url name a pinned vendor document, a pinned SDK request or a dated documentation page; captured_only rests on the frozen captured catalog alone and names its capture file; unanchored gives its reason. A native_read that is not anchored carries the advisory read_unanchored. Anchors are evidence only: they never enable, block or reclassify an action.';

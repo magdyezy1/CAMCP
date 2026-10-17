@@ -249,6 +249,14 @@ export function routeAnchors(registry: Registry, rows: ActionContract[], invento
     return undefined;
   }
 
+  // Each captured action's route as the registry serves it (AMCP's version moves applied). A row rests on its capture
+  // page only while it keeps exactly that method and path; a row whose evidence names a vendor page instead (a route
+  // the provider retired, say) still rests on the capture when its route is the captured one.
+  const capturedRoutes = new Map(
+    [...registry.catalogs.values()].flatMap(c =>
+      c.actions.map(a => [c.gateway + '/' + a.name, a.method + ' ' + a.path]),
+    ),
+  );
   const routes: Record<string, RouteAnchorRecord> = {};
   for (const row of rows) {
     if (!row.method || !row.path) continue;
@@ -258,7 +266,10 @@ export function routeAnchors(registry: Registry, rows: ActionContract[], invento
       routes[key] = {status: row.status, ...anchored};
       continue;
     }
-    const capture = row.source === 'OBSERVED' ? pages.get(row.gateway + '/' + row.action) : undefined;
+    const capture =
+      capturedRoutes.get(row.gateway + '/' + row.action) === row.method + ' ' + row.path
+        ? pages.get(row.gateway + '/' + row.action)
+        : undefined;
     if (capture) {
       captures[capture] ??= {sha256: evidence[capture] ?? null, shipped: fs.existsSync(repository(capture))};
       routes[key] = {
