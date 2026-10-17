@@ -32,6 +32,15 @@ function browserFixture(api) {
     });
   for (const file of ['localization', 'report-library', 'report-quality', 'report-workflows', 'reporting-overview'])
     new Script(readFileSync('web/' + file + '.js', 'utf8')).runInContext(context);
+  // WEB-07: report requests and display labels are shell helpers (web/workspace.js) since the report builder's script
+  // left the shell.
+  const workspace = readFileSync('web/workspace.js', 'utf8');
+  new Script(
+    workspace.slice(
+      workspace.indexOf('const overviewCall = async input => {'),
+      workspace.indexOf('const capabilityFeatureLabels'),
+    ),
+  ).runInContext(context);
   new Script('overviewState.bootstrap={platforms:[],metrics:{}}').runInContext(context);
   return {root, run: code => new Script(code).runInContext(context), context};
 }

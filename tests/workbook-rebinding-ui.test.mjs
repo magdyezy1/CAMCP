@@ -49,7 +49,8 @@ function fixture(language = 'en') {
     workspaceCall: (tool, args) => new Promise((resolve, reject) => requests.push({tool, args, resolve, reject})),
     confirmAction: options => new Promise(resolve => confirmations.push({options, resolve})),
   });
-  for (const file of ['localization.js', 'operations-center.js', 'workbook-rebinding.js'])
+  // WEB-07: the rebinding controller needs only the paged-list loader (web/work-pages.js), not the Operations center.
+  for (const file of ['localization.js', 'work-pages.js', 'workbook-rebinding.js'])
     new Script(readFileSync('web/' + file, 'utf8')).runInContext(c);
   if (language === 'ar') {
     c.messages = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));

@@ -48,3 +48,9 @@ a count may only go down. Brand marks and the printed page keep their literal co
 lists a stylesheet's literals; `--write` lowers the baseline after a migration. Declaring `--border` and `--surface`
 also gave the review tables, measurement task links and report packs that already asked for them (with `#ddd` and
 white fallbacks) the palette's line, which in dark mode replaces a light grey border on dark surfaces.
+
+The workspace stylesheets no longer carry declarations that a later stylesheet overrides for the identical selector
+(`app.css`, `identity.css` and `reporting.css`; most were the original shades WEB-01's contrast fixes in
+`accessibility.css` replaced). Each overriding declaration parses in Chromium, and a computed-style comparison of every
+element on every page, light and dark, at 1280 and 375 pixels, found no difference. Literal colours outside
+`tokens.css`: 570 on Work-here, 440 now.

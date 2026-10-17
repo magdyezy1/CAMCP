@@ -98,7 +98,6 @@ h2.report-section-label {
   margin: 0;
 }
 .report-section-label > span {
-  color: #977eb4;
   border: 1px solid #e2d7ec;
   border-radius: 50%;
   width: 27px;
@@ -140,10 +139,6 @@ h2.report-section-label {
   margin-inline-start: auto;
   color: #a293b1;
 }
-.report-platform summary small {
-  color: #8f849a;
-  font-size: 10px;
-}
 .report-platform-dot {
   display: grid;
   place-items: center;
@@ -156,11 +151,9 @@ h2.report-section-label {
 }
 .platform-meta {
   background: #e5eef8;
-  color: #3d75b4;
 }
 .platform-google {
   background: #fcf0dc;
-  color: #b57a2e;
 }
 .platform-tiktok {
   background: #fce8f0;
@@ -168,7 +161,6 @@ h2.report-section-label {
 }
 .platform-snapchat {
   background: #fff2c5;
-  color: #89702e;
 }
 .platform-linkedin {
   background: #dceef4;
@@ -176,7 +168,6 @@ h2.report-section-label {
 }
 .platform-microsoft {
   background: #f5e2d9;
-  color: #b16b3d;
 }
 .report-platform-body {
   padding: 2px 16px 17px;
@@ -277,7 +268,6 @@ h2.report-section-label {
   border: 1px solid #e9e1f0;
   border-radius: 7px;
   font-size: 11px;
-  color: #796c85;
 }
 .metric-pills input:checked + span {
   background: #f0e7fa;
@@ -623,8 +613,6 @@ h2.report-section-label {
   justify-content: space-between;
   align-items: center;
   padding: 15px 2px;
-  font-size: 11px;
-  color: #9684a6;
 }
 .report-pagination > div {
   display: flex;
@@ -654,10 +642,8 @@ h2.report-section-label {
   text-align: start;
   border: 0;
   border-top: 1px solid #eee7f5;
-  background: transparent;
   padding: 15px 0;
   cursor: pointer;
-  color: #574367;
 }
 .report-history-row > span:first-child {
   flex: 1;
@@ -667,7 +653,6 @@ h2.report-section-label {
   display: block;
 }
 .report-history-row small {
-  color: #9b89a9;
   font-size: 11px;
   margin-top: 6px;
 }

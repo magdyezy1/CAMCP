@@ -818,7 +818,7 @@ answered from the browser cache; an unversioned one is revalidated.
 Each page binds every file it uses to one public snapshot (`/assets/v/<version>/…`): HTML `src`/`href`, stylesheet
 `url()` references (fonts, images) and the addresses scripts build through `AMCPAssets.url`. A deploy that changes
 `web/` replaces the snapshot, and the server answers `409 ASSET_VERSION_CHANGED` for the old one. When a feature
-script or the Arabic catalog then fails, the page sends one `HEAD` probe (5-second bound); a 409 shows "AMCP was
+script or an Arabic catalog chunk then fails, the page sends one `HEAD` probe (5-second bound); a 409 shows "AMCP was
 updated" with **Reload page** instead of "Try again", and a reload with unsaved edits on the page asks first. Unversioned
 `/assets/…` paths (legacy links only) stay `no-cache` and are compressed off the event loop at Brotli quality 5.
 
@@ -826,6 +826,25 @@ Run `node tools/benchmark-web-assets.mjs` from the repository for exact file has
 route. This excludes CSS/fonts/locale JSON/headers and is not a browser timing test. The normal regression suite
 covers the manifest, cold English/Arabic source initialization and HTTP revalidation. See
 [qualification and limits](review/DELIVERY-2026-10-02-ROUTE-ASSETS.md) before making performance claims.
+
+`node tools/web-route-bytes.mjs` adds the stylesheets and the Arabic chunks: the Brotli (quality 5) bytes each page
+downloads before it renders, per language, against `tools/web-route-bytes-baseline.json` (recorded on Work-here before
+WEB-07); it exits 1 when a page exceeds its recorded value. On 2026-10-17 every Arabic page was 10–84% below it (the
+public pages 69%, About 84%); in English the public and sign-in pages were 13.5% below, Live portfolio 42.6%, Commerce
+34.5%, Measurement 22.6%, Capabilities 23.7%, Creative 19.4% and most other pages 10–12%. Home, Schedules, Report
+library and Report builder remained 1.5–1.8% above (2,810 bytes: the escape-by-default, extension-point and theme-token
+code every page now carries, which those pages do not offset because they need the report modules) and About 17.5%
+(2,745 bytes: the theme tokens with their no-JavaScript dark block and the chunked catalog loader).
+`tests/web-route-bytes.test.mjs` keeps the split's gains, each with a wide margin.
+
+`npm run build && node tools/benchmark-web-first-render.mjs --output-dir .runtime/<fresh-directory>` times the first
+content render (the page's own heading in the chosen language, no loading placeholder) on the synthetic fixture under
+a throttled profile (150 ms round trips, 1.6 Mbit/s down, 4× slower CPU), with the bytes each page transferred; it
+needs the browser QA variables, and `--web <directory>` serves an exported tree, so a baseline is measured in the same
+session. Measured on 2026-10-17 (median of three) against Work-here: Arabic first render 15–45% sooner on every page
+measured (the landing page 4,838 → 2,683 ms, About 3,035 → 1,716 ms, Home 5,152 → 4,199 ms, Report builder 5,505 →
+4,662 ms); English 3–29% sooner (About unchanged at 470 ms, Home 2,381 → 2,066 ms). A timing describes that machine and
+profile only.
 
 ### Owner tool timings
 
