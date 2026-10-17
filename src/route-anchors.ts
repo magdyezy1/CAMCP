@@ -55,16 +55,12 @@ interface RouteAnchorsArtifact {
   sources: Record<string, JsonObject>;
   routes: Record<string, {anchor_status: AnchorStatus; anchor?: RouteAnchor}>;
 }
-const empty: RouteAnchorsArtifact = {sources: {}, routes: {}};
-/** The generated anchors; empty only while generated/route-anchors.json is first being generated. */
-function artifact(): RouteAnchorsArtifact {
-  try {
-    return pinnedJson<RouteAnchorsArtifact>('generated/route-anchors.json');
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT') return empty;
-    throw error;
-  }
-}
+/**
+ * The generated anchors, a required read like every pinned document (tests/runtime-image-files.test.mjs): the runtime
+ * image copies generated/, so a missing file fails loudly instead of quietly showing every route as not_recorded.
+ * tools/action-contracts.ts writes an empty one before it first generates the anchors.
+ */
+const artifact = () => pinnedJson<RouteAnchorsArtifact>('generated/route-anchors.json');
 
 /** The anchor recorded for a ledger row; `not_recorded` when generated/route-anchors.json is older than the row. */
 export function recordedRouteAnchor(row: {

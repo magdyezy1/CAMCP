@@ -15,6 +15,14 @@ import {overviewTool} from '../src/reporting-overview.js';
 import {mediaTool} from '../src/media-upload.js';
 import {writeTool} from '../src/write-review.js';
 import {previewTool} from '../src/ad-previews.js';
+// The ledger reads the anchors last recorded in generated/route-anchors.json (src/route-anchors.ts, a required read),
+// and every row below takes the anchor computed now instead. A first generation therefore starts from an empty file;
+// the check never writes and reports a missing one as stale.
+if (!fs.existsSync(routeAnchorsFile)) {
+  if (process.argv.includes('--check'))
+    throw Error('Action contract ledger is stale: ' + routeAnchorsFile + ' is missing');
+  fs.writeFileSync(routeAnchorsFile, JSON.stringify({format_version: 1, sources: {}, routes: {}}) + '\n');
+}
 const registry = new Registry(),
   classified = actionContracts(registry),
   summary = actionContractSummary(registry),
