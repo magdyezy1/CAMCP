@@ -48,7 +48,7 @@ export function snapshotPlans(plan: CompiledRequest, registry: Registry): Compil
   const base = (path: string, query: JsonObject = {}, body?: JsonObject, method = 'GET'): CompiledRequest =>
     stateRead(plan, path, query, body, method);
   const family = familyOf(plan);
-  if (family?.snapshots) return family.snapshots(plan, base);
+  if (family?.snapshots) return family.snapshots(plan, base, applyExecutionRisk);
   if (xTargetingKind(plan)) return xTargetingSnapshots(plan);
   const id = normalizeAccount(plan.gateway, plan.accountId!),
     body = object(plan.body);

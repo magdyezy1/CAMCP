@@ -11,7 +11,7 @@ import {metaCampaignRows} from './meta-report.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import type {MirrorService} from './service.js';
 import {MirrorError} from './errors.js';
-import {accountPlan, accountMetadata, accountCurrency, accountTimezone} from './workspace.js';
+import {accountPlan, accountMetadata, accountCurrency, accountTimezone} from './account-metadata.js';
 import {compileMicrosoft, microsoftGateway} from './microsoft-native.js';
 import {
   admitProviderJob,

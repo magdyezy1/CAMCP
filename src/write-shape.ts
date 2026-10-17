@@ -88,7 +88,8 @@ function assertReviewedShape(plan: CompiledRequest) {
     );
   const family = familyOf(plan);
   if (family?.assert) {
-    family.assert(plan, () => assertGatewayShape(plan));
+    // The whole stage is passed in, so a family that checks derived requests imports no lifecycle module (ARC-04).
+    family.assert(plan, () => assertGatewayShape(plan), assertWriteShape);
     return;
   }
   assertNoMethodOverride(plan);

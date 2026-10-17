@@ -134,7 +134,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // owner provider access panel's catalog entries.
   // ARC-01 adds src/provider-adapter.ts and src/provider-adapters.ts (no owned reasons) and the parked-provider refusal
   // of src/provider-offering.ts with its remedy; P9's parked WooCommerce notice on Commerce adds one catalog entry.
-  assert.equal(files.length, 571);
+  // ARC-04 stage B adds six leaf modules split from existing ones (account-id, review-state-core, tiktok-paths,
+  // microsoft-association-contracts, meta-ad-library-contract, google-business-notification-kind); their reasons moved
+  // with them, so the owned reasons and the catalog are unchanged.
+  assert.equal(files.length, 577);
   assert.equal(selected.filter(row => row.messages.size).length, 234);
   assert.equal(owned.size, 1579);
   assert.equal(Object.keys(catalog).length, 11425);

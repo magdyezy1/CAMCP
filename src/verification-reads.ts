@@ -12,6 +12,7 @@ import {Registry} from './catalog.js';
 import {normalizeReviewState} from './review-state-core.js';
 import {googleConfigurationObserved} from './google-configuration-writes.js';
 import {snapshotPlans} from './write-snapshots.js';
+import {applyExecutionRisk} from './execution-risk.js';
 import {microsoftGateway, microsoftContracts} from './microsoft-native.js';
 import {bad, fingerprint, obj} from './workspace-core.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -99,7 +100,7 @@ export function verificationReads(
     action: 'AMCP_VERIFY_READ',
   });
   const family = familyOf(plan);
-  if (family?.verification) return family.verification(plan, result, before, base);
+  if (family?.verification) return family.verification(plan, result, before, base, applyExecutionRisk);
   if (plan.method === 'DELETE') return [];
   if (gateway === 'google_ads_native_action') {
     const leaves = (value: JsonObject, prefix = ''): string[] =>

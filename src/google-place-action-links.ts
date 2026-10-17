@@ -1,4 +1,4 @@
-import {assertBusinessNotificationActor} from './google-business-notifications.js';
+import {assertBusinessNotificationActor} from './google-business-notification-kind.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {isIP} from 'node:net';
 import {MirrorError} from './errors.js';

@@ -1,6 +1,6 @@
 import {MirrorError} from './errors.js';
 import {zonedMidnight} from './workflows.js';
-import {accountPlan, accountTimezone} from './workspace.js';
+import {accountPlan, accountTimezone} from './account-metadata.js';
 import {reportPlatforms} from './report-metrics.js';
 import {microsoftReportZone} from './microsoft-timezones.js';
 import type {MirrorService} from './service.js';

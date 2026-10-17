@@ -154,7 +154,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // ACC-05 adds three modules without wrapper reasons and the owner provider access panel's catalog entries.
   // ARC-01 adds two registry modules without wrapper reasons and the parked-provider refusal and remedy entries, and
   // P9's parked WooCommerce notice on Commerce one more catalog entry.
-  assert.equal(files.length, 571);
+  // ARC-04 stage B adds six leaf modules split from existing ones (account-id, review-state-core, tiktok-paths,
+  // microsoft-association-contracts, meta-ad-library-contract, google-business-notification-kind); their reasons moved
+  // with them, so the owned reasons and the catalog are unchanged.
+  assert.equal(files.length, 577);
   assert.equal(selected.filter(row => row.messages.size).length, 184);
   assert.equal(owned.size, 2842);
   assert.equal(Object.keys(catalog).length, 11425);

@@ -2,55 +2,23 @@
   "schema_version": 1,
   "description": "Architecture ratchet baseline (ARC-01 phase A, ARC-04 stage A). node tools/architecture-map.mjs --check fails when a measurement rises or a module joins a runtime import cycle; --write records the current state. See docs/review/ARCHITECTURE.md.",
   "metrics": {
-    "largest_runtime_scc": 13,
-    "cyclic_modules": 35,
+    "largest_runtime_scc": 3,
+    "cyclic_modules": 11,
     "shared_modules_with_gateway_literals": 88,
     "shared_to_provider_runtime_imports": 500
   },
   "reported": {
     "runtime_scc_sizes": [
-      13,
-      6,
       3,
-      3,
-      2,
       2,
       2,
       2,
       2
     ],
-    "shared_gateway_literals": 710,
+    "shared_gateway_literals": 708,
     "local_fail_copies": 153
   },
   "cycles": [
-    [
-      "src/action-contracts.ts",
-      "src/capability-eligibility.ts",
-      "src/capability-graph.ts",
-      "src/conditional-programs.ts",
-      "src/operations-feed.ts",
-      "src/provider-access.ts",
-      "src/report-native.ts",
-      "src/report-windows.ts",
-      "src/reporting.ts",
-      "src/withheld-workbook-records.ts",
-      "src/workbook-queries.ts",
-      "src/workbook-schedules.ts",
-      "src/workspace.ts"
-    ],
-    [
-      "src/execution-risk.ts",
-      "src/google-atomic-builds.ts",
-      "src/google-lifecycle-goals.ts",
-      "src/reviewed-families.ts",
-      "src/reviewed-routes.ts",
-      "src/write-shape.ts"
-    ],
-    [
-      "src/meta-ad-library.ts",
-      "src/native-authority.ts",
-      "src/scope.ts"
-    ],
     [
       "src/microsoft-associations.ts",
       "src/microsoft-campaign-criteria.ts",
@@ -67,10 +35,6 @@
     [
       "src/effect-class.ts",
       "src/preflight.ts"
-    ],
-    [
-      "src/google-business-notifications.ts",
-      "src/google-place-action-links.ts"
     ],
     [
       "src/reddit-creative-writes.ts",

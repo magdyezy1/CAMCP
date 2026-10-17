@@ -115,3 +115,24 @@ test('the compiled tree is within the committed architecture baseline', () => {
     {regressions} = compareToBaseline(current, baseline);
   assert.deepEqual(regressions, [], 'node tools/architecture-map.mjs --check explains each regression');
 });
+
+test('ARC-04 stage B: no runtime import cycle holds the family registry, the lifecycle or the workspace tool, and none exceeds three modules', () => {
+  const {cycles, metrics} = architectureMetrics('.');
+  // 34 modules before stage B, with the registry, review-state, scope, execution-risk and write-shape among them, and a
+  // separate 13-module cycle through workspace.ts and the reporting modules.
+  assert.ok(metrics.largest_runtime_scc <= 3, JSON.stringify(cycles));
+  const kept = [
+    'src/reviewed-families.ts',
+    'src/reviewed-routes.ts',
+    'src/review-state.ts',
+    'src/scope.ts',
+    'src/execution-risk.ts',
+    'src/write-shape.ts',
+    'src/native-authority.ts',
+    'src/workspace.ts',
+    'src/report-native.ts',
+    'src/reporting.ts',
+    'src/action-contracts.ts',
+  ];
+  for (const cycle of cycles) for (const module of kept) assert.ok(!cycle.includes(module), module + ' in ' + cycle);
+});

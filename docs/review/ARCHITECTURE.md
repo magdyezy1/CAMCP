@@ -291,3 +291,30 @@ WooCommerce store panels while an administrator can still remove a stored connec
 stays complete for the ledger; `familyOffered` says whether a family's provider is offered.
 `tests/provider-lifecycle-gate.test.mjs` covers each surface in both modes; suites that exercise a parked provider
 offer it with `tests/helpers/parked-providers.mjs`.
+
+## 10. Import cycles and leaf modules
+
+ARC-04 stage A and B. `tests/import-order.test.mjs` imports every compiled `src/` and `server/` module first in a fresh
+process (the three process entry points excepted) and fails on any load error; before stage B three modules failed
+with a `ReferenceError` because they read another module's top-level value while an import cycle evaluated them
+first. Stage B removed the cycles that held the family registry and the workspace tool: the largest runtime cycle fell
+from 34 modules (and a separate 13-module cycle through `workspace.ts` and the reporting modules) to 3, with 11 modules
+in any cycle, recorded in the ratchet baseline; `tests/architecture-map.test.mjs` keeps the registry, the lifecycle
+modules and the workspace and reporting modules out of every cycle.
+
+| Leaf | Holds | Was in |
+|---|---|---|
+| `src/account-id.ts` | `normalizeAccount`, from the provider adapters' account form | `scope.ts` |
+| `src/review-state-core.ts` | `normalizeReviewState`, `reviewStateHash`, `changedStateFields` | `review-state.ts` |
+| `src/tiktok-paths.ts` | TikTok routes read at load | `tiktok-lookalikes.ts` |
+| `src/microsoft-association-contracts.ts` | the association contracts `microsoft-native.ts` reads at load | `microsoft-associations.ts` |
+| `src/meta-ad-library-contract.ts` | the Ad Library read contract `ScopeGuard` authorizes by | `meta-ad-library.ts` |
+| `src/google-business-notification-kind.ts` | the notification request kind and its actor check | `google-business-notifications.ts` |
+
+The account read and its metadata readers (`accountPlan`, `accountMetadata`, `accountCurrency`, `accountTimezone`)
+moved from `workspace.ts` to `src/account-metadata.ts`, so reporting reads accounts without importing the workspace
+tool. Each old module re-exports what moved, so every import path keeps working. Lifecycle stages a family applies to
+requests it builds arrive as hook arguments (`assert`'s `shape`, the `classify` of `snapshots` and `verification`), the
+pattern of the read builders. Five function-only cycles of two or three provider or reporting modules remain (Microsoft
+native and its two families, allocation calibration, Apple and measurement writes, effect class and preflight, Reddit
+writes); none reads a value at load.

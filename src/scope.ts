@@ -18,7 +18,7 @@ import {authorizeSnapCatalogComparisonRead} from './snapchat-catalog-reads.js';
 import {assertGoogleGenerationScope} from './google-generation.js';
 import {assertMetaLabelScope, metaLabelIdentities} from './meta-label-writes.js';
 import {authorizeLinkedInAdPreview, observeLinkedInCreatives} from './linkedin-ad-previews.js';
-import {metaAdLibraryRead} from './meta-ad-library.js';
+import {metaAdLibraryRead} from './meta-ad-library-contract.js';
 import {reviewedFamilies, familyOf} from './reviewed-families.js';
 import {metaRoute} from './meta-version.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';

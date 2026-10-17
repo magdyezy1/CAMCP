@@ -1,6 +1,12 @@
 import type {Store} from './store.js';
-import type {Connection, JsonObject} from './types.js';
+import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {sha256, stable} from './security.js';
+import {bad} from './workspace-core.js';
+import {normalizeAccount} from './account-id.js';
+import {linkedinVersion} from './linkedin-version.js';
+import {microsoftGateway, compileMicrosoft} from './microsoft-native.js';
+import {googleAdsCustomers} from './google-version.js';
+import {metaPrefix} from './meta-version.js';
 
 /**
  * What a live account read said about an account: its name, currency, timezone and organization (Snapchat S8).
@@ -77,12 +83,7 @@ export interface ResolvedAccountMetadata {
 }
 
 const text = (v: unknown) => (typeof v === 'string' && v.trim() && v.length <= 300 ? v : null);
-const normalized = (gateway: string, id: string) =>
-  gateway === 'meta_native_action'
-    ? id.replace(/^act_/, '')
-    : gateway === 'google_ads_native_action'
-      ? id.replaceAll('-', '')
-      : id;
+const normalized = normalizeAccount;
 
 /** The account as the login's last discovery listed it, with when that listing was read. */
 function discovered(store: Store, tenantId: string, c: Connection, accountId: string) {
@@ -171,3 +172,93 @@ export function accountMetadataView(m: ResolvedAccountMetadata): JsonObject | nu
     ...(m.stale ? {stale: true} : {}),
   };
 }
+
+/**
+ * The exact account read of each advertising provider (ARC-04 stage B: moved from src/workspace.ts, which re-exports it,
+ * so reporting reads accounts without importing the workspace tool). Readiness, plan preflight and reports use it.
+ */
+export const accountPlan = (gateway: string, id: string): CompiledRequest => {
+  const p: CompiledRequest = {
+    gateway,
+    accountId: id,
+    action: 'AMCP_READINESS',
+    method: 'GET',
+    path: '',
+    query: {},
+    headers: {},
+    readOnly: true,
+    destructive: false,
+    requiresConfirmation: false,
+    evidence: 'AMCP exact account readiness read',
+    warnings: [],
+  };
+  switch (gateway) {
+    case 'meta_native_action':
+      p.path = metaPrefix + 'act_' + id;
+      p.query = {fields: 'id,name,account_status,currency,timezone_name'};
+      break;
+    case 'snapchat_native_action':
+      p.path = '/v1/adaccounts/' + id;
+      break;
+    case 'tiktok_native_action':
+      p.path = '/v1.3/advertiser/info/';
+      p.query = {advertiser_ids: [id]};
+      break;
+    case 'google_ads_native_action':
+      p.method = 'POST';
+      p.path = googleAdsCustomers + id + '/googleAds:search';
+      p.body = {query: 'SELECT customer.id, customer.currency_code, customer.time_zone FROM customer LIMIT 1'};
+      break;
+    case 'linkedin_native_action':
+      p.path = '/rest/adAccounts/' + id;
+      p.headers = {'LinkedIn-Version': linkedinVersion(), 'X-Restli-Protocol-Version': '2.0.0'};
+      break;
+    case 'x_ads_native_action':
+      p.path = '/12/accounts/' + id;
+      break;
+    case 'dv360_native_action':
+      p.path = '/v4/advertisers/' + id;
+      break;
+    case 'reddit_native_action':
+      p.path = '/api/v3/ad_accounts/' + id;
+      break;
+    case microsoftGateway:
+      return compileMicrosoft({action: 'GetAccount', account_id: id});
+    default:
+      bad('This provider uses resource-specific readiness checks.', 'READINESS_CONTRACT_UNAVAILABLE');
+  }
+  return p;
+};
+/** Native account reads nest the account differently per provider (Snapchat: adaccounts[0].adaccount).
+ * Readiness checks, plan preflight and reports share this reader so a currency is never lost to nesting. */
+export function accountMetadata(gateway: string, data: unknown): JsonObject {
+  const d = (data && typeof data === 'object' ? data : {}) as JsonObject;
+  // A Business Profile location is named by its title and an account by accountName; `name` is the resource name.
+  if (gateway === 'google_business_native_action') {
+    const title = d.title ?? d.accountName;
+    return typeof title === 'string' ? {name: title} : {};
+  }
+  const m =
+    gateway === 'google_ads_native_action'
+      ? d.results?.[0]?.customer
+      : gateway === 'meta_native_action'
+        ? d
+        : gateway === 'tiktok_native_action'
+          ? d.data?.list?.[0]
+          : gateway === 'snapchat_native_action'
+            ? d.adaccounts?.[0]?.adaccount
+            : gateway === microsoftGateway
+              ? d.Account
+              : gateway === 'apple_ads_native_action'
+                ? (d.result ?? d.data ?? d)
+                : (d.data ?? d);
+  return m && typeof m === 'object' && !Array.isArray(m) ? m : {};
+}
+export const accountCurrency = (gateway: string, data: unknown): string | null => {
+  const m = accountMetadata(gateway, data);
+  return m.currency ?? m.currencyCode ?? m.CurrencyCode ?? null;
+};
+export const accountTimezone = (gateway: string, data: unknown): string | null => {
+  const m = accountMetadata(gateway, data);
+  return m.timezone_name ?? m.timezone ?? m.timeZone ?? m.TimeZone ?? null;
+};
