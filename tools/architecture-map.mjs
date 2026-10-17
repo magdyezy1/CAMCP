@@ -254,20 +254,62 @@ export function baselineRecord(current) {
   return {
     schema_version: 1,
     description:
-      'Architecture ratchet baseline (ARC-01 phase A, ARC-04 stage A). node tools/architecture-map.mjs --check fails when a measurement rises or a module joins a runtime import cycle; --write records the current state. See docs/review/ARCHITECTURE.md.',
+      'Architecture ratchet baseline (ARC-01 phase A, ARC-04). node tools/architecture-map.mjs --check fails when a measurement rises, a module joins a runtime import cycle or docs/review/ARCHITECTURE.md shows another baseline; --write records the current state and that table. See docs/review/ARCHITECTURE.md.',
     metrics: current.metrics,
     reported: current.reported,
     cycles: current.cycles,
   };
 }
 
+/** The document that shows the recorded baseline, in a block this tool writes (owner direction P11: partly generated). */
+export const architectureDocument = 'docs/review/ARCHITECTURE.md';
+const blockStart = '<!-- architecture-map:baseline:begin -->',
+  blockEnd = '<!-- architecture-map:baseline:end -->';
+/** The recorded baseline as the Markdown table between the document's generated markers. */
+export function baselineMarkdown(baseline) {
+  const rows = [
+    ...Object.keys(ratchetedMetrics).map(key => ['`' + key + '`', String(baseline.metrics?.[key] ?? 'not recorded')]),
+    ['`shared_gateway_literals` (reported)', String(baseline.reported?.shared_gateway_literals ?? 'not recorded')],
+    [
+      'Runtime import cycles',
+      (baseline.cycles ?? []).map(cycle => cycle.map(id => '`' + id + '`').join(' ↔ ')).join('; ') || 'none',
+    ],
+  ];
+  return [
+    blockStart,
+    '| Recorded baseline (written by `node tools/architecture-map.mjs --write`; do not edit) | Value |',
+    '|---|---|',
+    ...rows.map(([name, value]) => '| ' + name + ' | ' + value + ' |'),
+    blockEnd,
+  ].join('\n');
+}
+/** The document with its generated block showing `baseline`, or undefined when it has no such block. */
+export function withBaselineBlock(document, baseline) {
+  const start = document.indexOf(blockStart),
+    end = document.indexOf(blockEnd);
+  if (start < 0 || end < start || document.indexOf(blockStart, start + 1) >= 0) return undefined;
+  return document.slice(0, start) + baselineMarkdown(baseline) + document.slice(end + blockEnd.length);
+}
+
 function main(argv) {
   const root = path.resolve(fileURLToPath(new URL('..', import.meta.url))),
     current = architectureMetrics(root),
-    file = path.join(root, baselineFile);
+    file = path.join(root, baselineFile),
+    documentFile = path.join(root, architectureDocument);
   if (argv.includes('--write')) {
-    fs.writeFileSync(file, JSON.stringify(baselineRecord(current), null, 2) + '\n');
-    console.log('Recorded ' + baselineFile + ': ' + JSON.stringify(current.metrics));
+    const record = baselineRecord(current),
+      document = withBaselineBlock(fs.readFileSync(documentFile, 'utf8'), record);
+    if (document === undefined) {
+      console.error(
+        architectureDocument + ' has no generated baseline block (' + blockStart + ' ... ' + blockEnd + ').',
+      );
+      return 1;
+    }
+    fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n');
+    fs.writeFileSync(documentFile, document);
+    console.log(
+      'Recorded ' + baselineFile + ' and its table in ' + architectureDocument + ': ' + JSON.stringify(current.metrics),
+    );
     return 0;
   }
   if (argv.includes('--json')) {
@@ -275,7 +317,16 @@ function main(argv) {
     return 0;
   }
   const baseline = JSON.parse(fs.readFileSync(file, 'utf8')),
-    {regressions, improvements} = compareToBaseline(current, baseline);
+    {regressions, improvements} = compareToBaseline(current, baseline),
+    document = fs.readFileSync(documentFile, 'utf8');
+  // The document shows the committed baseline, never a hand-edited or older one.
+  if (withBaselineBlock(document, baseline) !== document)
+    regressions.push(
+      architectureDocument +
+        ' does not show the baseline ' +
+        baselineFile +
+        ' records; node tools/architecture-map.mjs --write rewrites its generated table',
+    );
   console.log(
     JSON.stringify({
       event: 'architecture_ratchet',

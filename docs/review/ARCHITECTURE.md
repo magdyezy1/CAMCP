@@ -264,8 +264,11 @@ static imports of `dist/src` and `dist/server` (what Node evaluates: tsc elides 
 | `local_fail_copies` | Modules that declare their own `fail` helper instead of the family kit's (§13); 0 since ARC-04 stage C |
 
 A measurement may fall or stay. One that rises fails the check, and so does a module that joins a runtime import cycle,
-even when another cycle shrinks by as much. The number of gateway literals in shared modules is reported only. `node tools/architecture-map.mjs --write` records the current state after an intended
-improvement, or after a regression the owner accepted; the commit says which. The review's "core to provider" count
+even when another cycle shrinks by as much. The number of gateway literals in shared modules is reported only.
+`node tools/architecture-map.mjs --write` records the current state after an intended improvement, or after a
+regression the owner accepted; the commit says which. It also writes the table below from the recorded baseline (owner
+direction P11: this document is partly generated), and the check fails when the table shows another baseline than the
+recorded one. The review's "core to provider" count
 (220 at `60ec2cc`) counted 28 core modules; `shared_to_provider_runtime_imports` counts every shared module, so its value
 is larger and is compared only with its own baseline. The provider adapter registry (`src/provider-adapters.ts`, §9)
 names every gateway on purpose, so the ratchet counts it with the provider modules, and an import of it is not counted
@@ -273,6 +276,18 @@ as coupling; so are the portfolio adapter registry (`src/portfolio.ts`, §11) an
 (`src/report-sources.ts`, §12), which import one module per provider so that shared code consults them. Counting them
 as registries lowered `shared_to_provider_runtime_imports` from 500 to 493 by classification alone: the seven portfolio
 imports, which `src/portfolio.ts` made before it became the registry, are no longer counted.
+
+<!-- architecture-map:baseline:begin -->
+| Recorded baseline (written by `node tools/architecture-map.mjs --write`; do not edit) | Value |
+|---|---|
+| `largest_runtime_scc` | 3 |
+| `cyclic_modules` | 11 |
+| `shared_modules_with_gateway_literals` | 87 |
+| `shared_to_provider_runtime_imports` | 493 |
+| `local_fail_copies` | 0 |
+| `shared_gateway_literals` (reported) | 701 |
+| Runtime import cycles | `src/microsoft-associations.ts` ↔ `src/microsoft-campaign-criteria.ts` ↔ `src/microsoft-native.ts`; `src/allocation-calibration.ts` ↔ `src/report-allocation.ts`; `src/apple-entity-writes.ts` ↔ `src/measurement-writes.ts`; `src/effect-class.ts` ↔ `src/preflight.ts`; `src/reddit-creative-writes.ts` ↔ `src/reddit-writes.ts` |
+<!-- architecture-map:baseline:end -->
 
 ## 9. Provider adapters
 
@@ -401,3 +416,28 @@ dispatch of the composite tools in `MirrorService.callOnce` and the actions of `
 (`MediaUploadService.handle`), both edited by packages running alongside this one; the route modules of
 `server/website.ts` (`createWebsite`); and the split of `web/account-workflows.js` behind `web/route-assets.js`, which
 belongs with WEB-07.
+
+## 15. Module structure
+
+ARC-04 (§8 and §10 to §14) leaves each backend module a role, and the role decides what it may import. The ratchet (§8)
+and `tests/import-order.test.mjs` hold the rules that can be measured.
+
+| Role | Modules | May import |
+|---|---|---|
+| Leaf | `errors.ts`, `types.ts`, `security.ts`, `account-id.ts`, `review-state-core.ts`, `family-kit.ts`, `signed-cursor.ts`, `tool-actions.ts`, `provider-adapter.ts`, `report-source.ts`; values read at load: `tiktok-paths.ts`, `microsoft-association-contracts.ts`, `meta-ad-library-contract.ts`, `google-business-notification-kind.ts` | Other leaves only: a provider's version module such as `meta-version.ts`, and the provider adapter registry, are leaves too |
+| Provider module | `<provider>-*.ts`: reviewed families (on the family kit, §13), portfolio adapters (on `portfolio-runner.ts`, §11), report sources (§12) | Leaves, shared helpers and modules of its own provider; never a lifecycle module (§10) |
+| Registry | `provider-adapters.ts` (§9), `portfolio.ts` (§11), `report-sources.ts` (§12), which the ratchet counts with the providers; `reviewed-families.ts`, the family registry | One module per provider, so that shared code consults the registry instead of naming providers |
+| Shared | the review lifecycle (`review-state.ts`, `scope.ts`, `write-review.ts`, ...), the composite tools (`service.ts`, `decision-reporting.ts`, ...), `server/` | Registries, leaves and other shared modules; a composite tool's actions are table entries (§14) |
+
+Against the review (`60ec2cc`) and the start of ARC-04: the largest runtime import cycle fell from 33 modules (34 when
+stage A measured it) to 3, and no cycle holds the family registry, the lifecycle or the workspace tool; modules that
+fail when imported first, from 2 (3) to 0; local `fail` helpers, from 126 by the review's count (153 by the
+ratchet's) to 0, ratcheted; the seven portfolio adapters share one signed cursor and one `PortfolioAdapter` contract;
+each reporting platform has one report source behind a registry. In the functions ARC-04 restructured none is longer
+than 400 lines (`DecisionReporting.handle` was 899, now 30). Thirteen backend functions still are, such as
+`createWebsite` (1,816), `CampaignRunner.handle` (1,306), `NativeCampaignReports.collectSource` (978), `errorRemedy`
+(841) and `MediaUploadService.handle` (739); the review's target of three or fewer needs the Stage D changes listed in
+§14 and the same treatment of the rest. Also left by ARC-04: family remedies declared by each family for `errorRemedy`
+to consult first (today `familyRemedy` in `src/errors.ts`, which other packages are extending), and a `readsFor`
+helper, which stage B made unnecessary for the import cycle because a family receives its read builders as hook
+arguments.

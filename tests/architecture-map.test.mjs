@@ -2,13 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
+  architectureDocument,
   architectureMetrics,
   baselineFile,
+  baselineMarkdown,
   compareToBaseline,
   declaresLocalFail,
   isProviderModule,
+  ratchetedMetrics,
   staticSpecifiers,
   stronglyConnected,
+  withBaselineBlock,
 } from '../tools/architecture-map.mjs';
 
 // The architecture ratchet (ARC-01 phase A, ARC-04 stage A, owner decision D26): measurements may only fall, and no
@@ -183,4 +187,35 @@ test('ARC-04 stage B: no runtime import cycle holds the family registry, the lif
     'src/action-contracts.ts',
   ];
   for (const cycle of cycles) for (const module of kept) assert.ok(!cycle.includes(module), module + ' in ' + cycle);
+});
+
+test('owner direction P11: the architecture document shows the recorded baseline in the table the ratchet writes', () => {
+  const baseline = {
+    metrics: {
+      largest_runtime_scc: 3,
+      cyclic_modules: 5,
+      shared_modules_with_gateway_literals: 10,
+      shared_to_provider_runtime_imports: 20,
+      local_fail_copies: 0,
+    },
+    reported: {shared_gateway_literals: 42},
+    cycles: [
+      ['src/a.ts', 'src/b.ts'],
+      ['src/c.ts', 'src/d.ts', 'src/e.ts'],
+    ],
+  };
+  const table = baselineMarkdown(baseline);
+  for (const key of Object.keys(ratchetedMetrics))
+    assert.match(table, new RegExp('\\| `' + key + '` \\| ' + baseline.metrics[key] + ' \\|'), key);
+  assert.match(table, /\| `shared_gateway_literals` \(reported\) \| 42 \|/);
+  assert.match(table, /`src\/a\.ts` ↔ `src\/b\.ts`; `src\/c\.ts` ↔ `src\/d\.ts` ↔ `src\/e\.ts`/);
+  // Only the block between the markers changes; a document without one, or with two, is refused.
+  const document = 'Before.\n\n' + table.replace('| 42 |', '| 41 |') + '\n\nAfter.\n';
+  assert.equal(withBaselineBlock(document, baseline), 'Before.\n\n' + table + '\n\nAfter.\n');
+  assert.equal(withBaselineBlock('No block.\n', baseline), undefined);
+  assert.equal(withBaselineBlock(table + '\n' + table, baseline), undefined);
+  // The committed document shows the committed baseline, so a hand edit or a stale table fails the check.
+  const committed = fs.readFileSync(new URL('../' + architectureDocument, import.meta.url), 'utf8'),
+    recorded = JSON.parse(fs.readFileSync(new URL('../' + baselineFile, import.meta.url), 'utf8'));
+  assert.equal(withBaselineBlock(committed, recorded), committed);
 });
