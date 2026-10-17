@@ -111,6 +111,8 @@ const operational: [string, string[]][] = [
       'CONFIG_ERROR',
       'INTERNAL_ERROR',
       'REVIEWED_FAMILY_CONFLICT',
+      // ARC-04: a malformed family declaration (src/family-kit.ts defineFamily) refuses when its module loads.
+      'REVIEWED_FAMILY_INVALID',
       'SCHEMA_VERSION_MISMATCH',
       // OPS-08: a database written by a newer release than this one can read; refused at start-up only.
       'SCHEMA_TOO_NEW',

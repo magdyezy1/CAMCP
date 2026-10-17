@@ -625,9 +625,27 @@ export function inspectBackendWrapperFailures(source, file) {
     else candidates.set(fn.id.name, fn);
   }
   for (const name of duplicateNames) candidates.delete(name);
+  // ARC-04 stage C: the family kit's fail (src/family-kit.ts) is the sole-throw wrapper family modules had copied; a binding
+  // imported from it owns its message argument as a local copy did.
+  const kit = new Map();
+  for (const node of program.body)
+    if (
+      node.type === 'ImportDeclaration' &&
+      node.importKind !== 'type' &&
+      path.posix.normalize(path.posix.join(path.posix.dirname(file), node.source.value)) === 'src/family-kit.js'
+    )
+      for (const specifier of node.specifiers)
+        if (
+          specifier.type === 'ImportSpecifier' &&
+          specifier.importKind !== 'type' &&
+          (specifier.imported.name ?? specifier.imported.value) === 'fail' &&
+          !candidates.has(specifier.local.name)
+        )
+          kit.set(specifier.local.name, 1);
+  const tracked = name => candidates.has(name) || kit.has(name);
   const shadows = [];
   const shadow = (node, names) => {
-    const affected = names.filter(name => candidates.has(name));
+    const affected = names.filter(tracked);
     if (affected.length) shadows.push({start: node.start, end: node.end, names: new Set(affected)});
   };
   visit(program, (node, ancestors) => {
@@ -639,7 +657,9 @@ export function inspectBackendWrapperFailures(source, file) {
     if (node.type === 'CatchClause') shadow(node, bindingNames(node.param));
     if (node.type === 'ClassExpression') shadow(node, bindingNames(node.id));
     if (['VariableDeclarator', 'ClassDeclaration', 'FunctionDeclaration'].includes(node.type)) {
-      const names = bindingNames(node.id).filter(name => candidates.has(name) && candidates.get(name) !== node);
+      const names = bindingNames(node.id).filter(
+        name => (candidates.has(name) && candidates.get(name) !== node) || kit.has(name),
+      );
       if (!names.length) return;
       const declaration = ancestors.at(-1),
         scopes = [...ancestors].reverse(),
@@ -674,7 +694,7 @@ export function inspectBackendWrapperFailures(source, file) {
           : ['ForInStatement', 'ForOfStatement'].includes(node.type) && node.left.type !== 'VariableDeclaration'
             ? node.left
             : null;
-    for (const name of bindingNames(target)) if (candidates.has(name) && !shadowed(node, name)) assigned.add(name);
+    for (const name of bindingNames(target)) if (tracked(name) && !shadowed(node, name)) assigned.add(name);
   });
   const signature = (fn, identifier) =>
       fn.params.findIndex(parameter => parameter.type === 'Identifier' && parameter.name === identifier),
@@ -705,6 +725,7 @@ export function inspectBackendWrapperFailures(source, file) {
     wrappers = new Map(
       direct.filter(row => qualified.has(row.sentinel)).map(row => [row.fn.id.name, {fn: row.fn, index: row.index}]),
     );
+  for (const [name, index] of kit) if (!assigned.has(name)) wrappers.set(name, {fn: null, index});
   let progress = true;
   while (progress) {
     progress = false;

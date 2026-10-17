@@ -42,6 +42,22 @@ in `src/reviewed-families.ts`. The lifecycle modules consult the registry; they 
 Snapshots of a family's marked reads are normalized as its reader projected them (`normalizeSnapshot`); a stable
 projection is what makes `STATE_CHANGED` between prepare and execute meaningful.
 
+## The family kit
+
+`src/family-kit.ts` (ARC-04 stage C) holds what family modules used to copy:
+
+- `fail(code, message, details = {}, status = 400)`, the refusal helper. Import it instead of declaring a local copy;
+  `tools/check-locales.mjs` owns the reason of every call to it exactly as it owned a local copy's, so each reason still
+  needs its Arabic. A local `invalid(message)` that forwards to it stays recognized too.
+- `defineFamily(declaration)` checks a declaration when its module loads (a ledger family name, `src/` implementation
+  modules, at least one test, a `kind` hook) and returns it unchanged; `tests/family-kit.test.mjs` applies it to every
+  registered family.
+- `FamilyCore`, `FamilyStateHooks`, `FamilyPolicyHooks`, `FamilyDeliveryHooks` and `FamilyVerificationHooks` group the
+  hooks of `ReviewedFamily` by the stage that calls them; a new hook must join a group or the build fails
+  (`everyFamilyHookHasAStage`).
+
+The migration runs in waves: the X families, then the TikTok and Google Ads families with a byte-identical copy, are
+on the kit; `npm run architecture:check` reports the local `fail` copies still left (`local_fail_copies`).
 ## What a family module imports
 
 A family module imports no lifecycle module (ARC-04): the registry imports every family, so a family that imports
@@ -77,11 +93,11 @@ in a body (`status: DELETED`, `operation_status: DELETE`) belongs in `bodyDeleti
 ## Steps
 
 1. Write the module. Keep each hook a named, exported function so tests can call it directly.
-2. Declare the family at the end of the module:
+2. Declare the family at the end of the module, through the family kit (below):
 
    ```ts
    /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-   export const businessLodgingFamily:ReviewedFamily={
+   export const businessLodgingFamily:ReviewedFamily=defineFamily({
     name:'google_business_lodging',
     files:['src/google-business-lodging.ts',['tests/google-business-lodging.test.mjs']],
     kind:businessLodgingKind,
@@ -97,7 +113,7 @@ in a body (`status: DELETED`, `operation_status: DELETE`) belongs in `bodyDeleti
     verification:businessLodgingVerification,
     observed:businessLodgingObserved,
     exemptFromSpendTextMatch:true,
-   };
+   });
    ```
 
 3. Add it to the list in `src/reviewed-families.ts`, in name order.

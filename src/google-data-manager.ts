@@ -1,4 +1,3 @@
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily, Verified, Verification} from './reviewed-family.js';
@@ -16,6 +15,7 @@ import {
   type PersonalDataSpec,
   type Row,
 } from './personal-data.js';
+import {fail} from './family-kit.js';
 
 /**
  * Google Customer Match and offline conversions through the Data Manager API, which the owner opened on 2026-09-30
@@ -44,9 +44,6 @@ const routes: Record<string, [Kind, string]> = {
   DATA_MANAGER_INGEST_EVENTS: ['events', '/v1/events:ingest'],
 };
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_GOOGLE_DATA_MANAGER', message, {source});
 }

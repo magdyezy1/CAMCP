@@ -44,6 +44,34 @@ test('type-only, default, namespace and unrelated constructors or imported helpe
   }
   assert.deepEqual(inspect("import {fail} from './helper.js';fail('Native reason.');"), []);
 });
+test('ARC-04: the family kit fail owns its reasons as a local copy did; type, foreign and shadowed bindings do not', () => {
+  const kit = "import {fail} from './family-kit.js';\n";
+  assert.deepEqual(inspect(kit + "fail('CODE','Kit-owned reason.');fail('CODE',native.message);"), [
+    'Kit-owned reason.',
+  ]);
+  assert.deepEqual(inspect("import {fail as refuse} from './family-kit.js';refuse('CODE','Aliased kit reason.');"), [
+    'Aliased kit reason.',
+  ]);
+  assert.deepEqual(
+    inspect("import {fail} from '../family-kit.js';fail('CODE','Nested kit reason.');", 'src/nested/wrapped.ts'),
+    ['Nested kit reason.'],
+  );
+  assert.deepEqual(
+    inspect(kit + "function invalid(message:string){return fail('INVALID',message);}invalid('Forwarded kit reason.');"),
+    ['Forwarded kit reason.'],
+  );
+  for (const source of [
+    "import type {fail} from './family-kit.js';fail('CODE','Type-only binding.');",
+    "import {type fail} from './family-kit.js';fail('CODE','Type-only specifier.');",
+    "import {fail} from './errors.js';fail('CODE','Another module.');",
+    "import {fail} from './family-kits.js';fail('CODE','Another file.');",
+    kit + "function parameter(fail:any){fail('CODE','Shadowed parameter.');}",
+    kit + "{const fail=native;fail('CODE','Shadowed block.');}",
+    kit + "fail=native;fail('CODE','Reassigned binding.');",
+  ])
+    assert.deepEqual(inspect(source), [], source);
+  assert.deepEqual(inspect(kit + "fail('CODE','Server reason.');", 'server/wrapped.ts'), [], 'src family kit only');
+});
 test('constructor parameter shadows and callable parameter, block, catch, class and var shadows cannot author provider text', () => {
   const source =
     imports +
@@ -159,7 +187,8 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // with them, so the owned reasons and the catalog are unchanged. Stage E adds src/signed-cursor.ts and
   // src/portfolio-runner.ts (no owned reasons: the portfolio refusals stay in each adapter). Stage F adds the report
   // source contract, its registry and ten provider report sources (no wrapper reasons).
-  assert.equal(files.length, 591);
+  // Stage C adds src/family-kit.ts; the family modules that import its fail keep their owned reasons.
+  assert.equal(files.length, 592);
   assert.equal(selected.filter(row => row.messages.size).length, 184);
   assert.equal(owned.size, 2842);
   assert.equal(Object.keys(catalog).length, 11425);

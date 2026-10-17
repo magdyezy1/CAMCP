@@ -1,7 +1,7 @@
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {fail} from './family-kit.js';
 
 /**
  * TikTok custom audience edits, per API for Business v1.3 "Update an audience", "Delete audiences", "Apply audiences to
@@ -30,9 +30,6 @@ const gateway = 'tiktok_native_action',
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const numeric = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,31}$/.test(v);
 const ids = (v: unknown): string[] => (Array.isArray(v) ? v.map(String).sort() : []);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_TIKTOK_AUDIENCE_EDIT', message);
 }

@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {defineFamily, fail} from './family-kit.js';
 
 /**
  * Batch writes of X campaigns and line items, per the X Ads API v12 Campaign Management reference (checked 2026-09-28).
@@ -157,9 +158,6 @@ const iso = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const text = (v: unknown, max: number): v is string =>
   typeof v === 'string' && !!v.trim() && v === v.trim() && [...v].length <= max && !/[\u0000-\u001f\u007f]/.test(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_X_ENTITY_BATCH', message);
 }
@@ -746,7 +744,7 @@ export function xEntityBatchObserved(_read: CompiledRequest, data: JsonObject): 
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const xEntityBatchFamily: ReviewedFamily = {
+export const xEntityBatchFamily: ReviewedFamily = defineFamily({
   name: 'x_entity_batches',
   files: ['src/x-entity-batches.ts', ['tests/x-entity-batches.test.mjs']],
   kind: xEntityBatchKind,
@@ -762,4 +760,4 @@ export const xEntityBatchFamily: ReviewedFamily = {
   observed: xEntityBatchObserved,
   destructive: xEntityBatchDeletes,
   policyAmounts: xEntityBatchPolicyAmounts,
-};
+});

@@ -359,3 +359,13 @@ moved (`tests/fixtures/report-source-golden.json`, written by `tools/report-sour
 `src/report-periods.ts` (re-exported), so the period helpers and the workbook and reporting modules no longer import
 the native collector. Still in `src/report-native.ts`: collection, that is each platform's request plans, paging and
 response parsing, and the async report jobs, which `src/service.ts` and `src/compiler.ts` still import directly.
+
+## 13. Family kit
+
+ARC-04 stage C. `src/family-kit.ts`, a leaf, holds the refusal helper family modules had copied (`fail`), a load-time
+check of a family declaration (`defineFamily`) and the hook groups of `ReviewedFamily` by stage. Wave 1 (the nine X
+families) and wave 2 (ten TikTok and fourteen Google Ads families) import it; the X families declare themselves
+through `defineFamily`. The localization check owns the reasons of the kit's `fail` as it owned each local copy
+(`tools/check-locales.mjs`), so the owned reasons and their Arabic are unchanged. `local_fail_copies` (reported by the
+ratchet) fell from 153 to 120; the other byte-identical copies (Criteo, DV360, LinkedIn, Meta, Snapchat) and the
+variants with their own codes are the next waves. See `docs/ADDING-A-REVIEWED-FAMILY.md`, "The family kit".

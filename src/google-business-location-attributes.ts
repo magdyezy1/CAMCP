@@ -1,7 +1,7 @@
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {fail} from './family-kit.js';
 
 /**
  * Business Profile location attributes, per the pinned Business Information API v1 Discovery document
@@ -24,9 +24,6 @@ const action = 'gmb_location_ops/UPDATE_LOCATION_ATTRIBUTES',
   maxPages = 10;
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const attributeName = /^attributes\/[a-z0-9_]{1,100}$/;
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_BUSINESS_LOCATION_ATTRIBUTE', message);
 }

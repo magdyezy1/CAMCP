@@ -1,7 +1,7 @@
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {fail} from './family-kit.js';
 
 /**
  * TikTok asset library edits, per API for Business v1.3 "Update the name of an image", "Update the name of a video",
@@ -33,9 +33,6 @@ const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Ar
 const imageId = (v: unknown): v is string =>
   typeof v === 'string' && /^[A-Za-z0-9_.\/-]{1,256}$/.test(v) && !v.includes('..');
 const videoId = (v: unknown): v is string => typeof v === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_TIKTOK_LIBRARY_ASSET', message);
 }

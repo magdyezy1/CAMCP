@@ -1,7 +1,7 @@
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {defineFamily, fail} from './family-kit.js';
 
 /**
  * Tracking tags of X Ads line items, Ads API v12 (Campaign Management reference, "Tracking Tags"; docs.x.com copy read on
@@ -16,9 +16,6 @@ const gateway = 'x_ads_native_action',
   nativeId = /^[a-z0-9]{1,32}$/,
   tagTypes = ['IMPRESSION_TAG', 'CLICK_TRACKER'];
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_X_TRACKING_TAG', message);
 }
@@ -310,7 +307,7 @@ export function xTrackingTagObserved(_read: CompiledRequest, data: JsonObject): 
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const xTrackingTagFamily: ReviewedFamily = {
+export const xTrackingTagFamily: ReviewedFamily = defineFamily({
   name: 'x_tracking_tags',
   files: ['src/x-tracking-tags.ts', ['tests/x-tracking-tags.test.mjs']],
   kind: xTrackingTagKind,
@@ -325,4 +322,4 @@ export const xTrackingTagFamily: ReviewedFamily = {
   verification: xTrackingTagVerification,
   observed: xTrackingTagObserved,
   exemptFromSpendTextMatch: true,
-};
+});

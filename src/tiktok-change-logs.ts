@@ -1,7 +1,7 @@
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {fail} from './family-kit.js';
 
 /**
  * TikTok change log download tasks, per API for Business v1.3 "Create a change log download task" and "Check the status of
@@ -38,9 +38,6 @@ const listings: Record<string, {action: string; path: string; filter: string; id
   AD: {action: 'tiktok_ad_get', path: '/v1.3/ad/get/', filter: 'ad_ids', id: 'ad_id'},
 };
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_TIKTOK_CHANGE_LOG_TASK', message);
 }

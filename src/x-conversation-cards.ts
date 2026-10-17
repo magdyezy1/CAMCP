@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {defineFamily, fail} from './family-kit.js';
 
 /**
  * X poll, image conversation and video conversation cards, per X Ads API v12 Creatives reference ("Poll Cards", "Image
@@ -99,9 +100,6 @@ const ordinals = ['first', 'second', 'third', 'fourth'];
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const text = (v: unknown, max: number): v is string =>
   typeof v === 'string' && !!v.trim() && v === v.trim() && [...v].length <= max && !/[\u0000-\u001f\u007f]/.test(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_X_CONVERSATION_CARD', message);
 }
@@ -405,7 +403,7 @@ export function xConversationCardObserved(_read: CompiledRequest, data: JsonObje
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const xConversationCardFamily: ReviewedFamily = {
+export const xConversationCardFamily: ReviewedFamily = defineFamily({
   name: 'x_conversation_cards',
   files: ['src/x-conversation-cards.ts', ['tests/x-conversation-cards.test.mjs']],
   kind: xConversationCardKind,
@@ -420,4 +418,4 @@ export const xConversationCardFamily: ReviewedFamily = {
   verification: xConversationCardVerification,
   observed: xConversationCardObserved,
   exemptFromSpendTextMatch: true,
-};
+});

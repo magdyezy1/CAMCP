@@ -165,7 +165,8 @@ export function architectureMetrics(root) {
   const shared = [],
     fails = [];
   for (const [id, source] of text) {
-    if (localFail.test(source)) fails.push(id);
+    // The family kit's fail (ARC-04 stage C) is the one copy the others should import.
+    if (localFail.test(source) && id !== 'src/family-kit.ts') fails.push(id);
     if (isProviderModule(id)) continue;
     const named = [...source.matchAll(gatewayLiteral)].filter(m => m[1] !== 'amcp').length;
     if (named) {

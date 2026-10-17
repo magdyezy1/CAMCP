@@ -140,7 +140,8 @@ test('all actual directly owned backend reasons have Arabic with original native
   // src/portfolio-runner.ts (no owned reasons: the portfolio refusals stay in each adapter). Stage F adds the report
   // source contract, its registry and ten provider report sources; the Apple source owns the reason it took from
   // src/report-native.ts (one more file with reasons, the same reasons).
-  assert.equal(files.length, 591);
+  // Stage C adds src/family-kit.ts; the family modules that import its fail keep their owned reasons.
+  assert.equal(files.length, 592);
   assert.equal(selected.filter(row => row.messages.size).length, 235);
   assert.equal(owned.size, 1579);
   assert.equal(Object.keys(catalog).length, 11425);
