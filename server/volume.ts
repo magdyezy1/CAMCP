@@ -97,9 +97,8 @@ export function verifyDataVolume(
   throw new StorageNotPersistentError(reason);
 }
 export const VOLUME_MARKER_FILE = '.amcp-volume-id';
-const markerTenant = '__amcp_system__',
-  markerKind = 'storage_volume',
-  markerId = 'marker';
+// The marker is a service document (src/document-kinds.ts, partition `system`).
+const markerId = 'marker';
 function readMarkerFile(file: string): string | undefined {
   try {
     const value = fs.readFileSync(file, 'utf8').trim();
@@ -111,7 +110,7 @@ function readMarkerFile(file: string): string | undefined {
 }
 function databaseMarker(store: Store): string | undefined {
   try {
-    const value = store.document(markerTenant, markerKind, markerId).volume_id;
+    const value = store.serviceRepo('storage_volume').get(markerId).volume_id;
     return typeof value === 'string' ? value : undefined;
   } catch {
     return;
@@ -127,7 +126,7 @@ export function stampVolumeMarker(store: Store, directory: string, now = Date.no
     temporary = file + '.' + randomUUID() + '.tmp';
   fs.writeFileSync(temporary, id + '\n', {mode: 0o600, flag: 'wx'});
   try {
-    store.putDocument(markerTenant, markerKind, markerId, {volume_id: id, stamped_at: new Date(now).toISOString()});
+    store.serviceRepo('storage_volume').put(markerId, {volume_id: id, stamped_at: new Date(now).toISOString()});
     fs.renameSync(temporary, file);
   } finally {
     fs.rmSync(temporary, {force: true});

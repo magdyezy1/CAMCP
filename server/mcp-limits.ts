@@ -1,4 +1,5 @@
 import {MirrorError} from '../src/errors.js';
+import {pruneRateBuckets, rateBucket, saveRateBucket} from '../src/mcp-rate-limit-repository.js';
 import {sha256} from '../src/security.js';
 import type {Store} from '../src/store.js';
 import type {Actor} from '../src/types.js';
@@ -110,10 +111,10 @@ export class McpRequestLimiter {
   private readonly perMs: number;
   private prunedAt = -Infinity;
   /**
-   * The bucket table is created by the first admitted request, inside its own write transaction, so building the HTTP
-   * app never needs the write lock: a start while another process holds it (the health probe's busy case) still works.
+   * The buckets (src/mcp-rate-limit-repository.ts) live in a table the store's schema ledger creates at start-up
+   * (store-0016, ARC-02), so building the HTTP app still never needs the write lock: a start while another process holds
+   * it (the health probe's busy case) still works.
    */
-  private tableReady = false;
   constructor(
     private readonly store: Store,
     options: McpLimitOptions = {},
@@ -134,31 +135,21 @@ export class McpRequestLimiter {
   private take(key: string, cost: number): number {
     if (this.limits.perMinute === 0) return 0;
     const now = this.clock(),
-      db = this.store.db,
       fullAfterMs = this.limits.burst / this.perMs;
-    const wait = this.store.transaction(() => {
-      if (!this.tableReady)
-        db.exec(
-          'CREATE TABLE IF NOT EXISTS amcp_mcp_rate_limits(key TEXT PRIMARY KEY,tokens REAL NOT NULL,updated_at INTEGER NOT NULL)',
-        );
+    return this.store.transaction(() => {
       if (now - this.prunedAt > 60000) {
         // A bucket idle long enough to be full again carries no information.
-        db.prepare('DELETE FROM amcp_mcp_rate_limits WHERE updated_at<?').run(now - fullAfterMs);
+        pruneRateBuckets(this.store, now - fullAfterMs);
         this.prunedAt = now;
       }
-      const row = db.prepare('SELECT tokens,updated_at FROM amcp_mcp_rate_limits WHERE key=?').get(key) as
-        {tokens: number; updated_at: number} | undefined;
+      const row = rateBucket(this.store, key);
       const tokens = row
         ? Math.min(this.limits.burst, row.tokens + Math.max(0, now - row.updated_at) * this.perMs)
         : this.limits.burst;
       if (tokens < cost) return Math.max(1, Math.ceil((cost - tokens) / this.perMs / 1000));
-      db.prepare(
-        'INSERT INTO amcp_mcp_rate_limits VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET tokens=excluded.tokens,updated_at=excluded.updated_at',
-      ).run(key, tokens - cost, now);
+      saveRateBucket(this.store, key, tokens - cost, now);
       return 0;
     });
-    this.tableReady = true;
-    return wait;
   }
   /**
    * Admits one request carrying `cost` JSON-RPC messages, or throws RATE_LIMITED (HTTP 429) with the seconds to wait.

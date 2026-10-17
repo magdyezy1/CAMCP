@@ -12,14 +12,11 @@ import {MirrorError} from './errors.js';
  * Gate: the first split save also replaces the report's inline `collection_budget` with a version 2 marker. An older
  * release accepts only version 1 counters, so after a rollback it refuses to resume such a report
  * (REPORT_DEFINITION_CHANGED) instead of collecting again with counters it cannot see. A trigger removes the parts
- * whenever their report document is deleted (retention, report deletion, disconnect), in the same statement.
+ * whenever their report document is deleted (retention, report deletion, disconnect), in the same statement
+ * (src/report-repository.ts, schema ledger step store-0013).
  */
 export const REPORT_BUDGET_KIND = 'overview_report_budget';
 export const REPORT_CHECKPOINT_KIND = 'overview_checkpoint';
-export const reportPartsCleanupSQL = `CREATE TRIGGER IF NOT EXISTS overview_report_parts_cleanup AFTER DELETE ON documents WHEN old.kind='overview_report' BEGIN
-  DELETE FROM documents WHERE tenant_id=old.tenant_id AND kind='${REPORT_BUDGET_KIND}' AND id=old.id;
-  DELETE FROM documents WHERE tenant_id=old.tenant_id AND kind='${REPORT_CHECKPOINT_KIND}' AND id>=old.id||':' AND id<old.id||';';
-END`;
 export const splitBudgetMarker = (definition: unknown) => ({version: 2, layout: 'split', definition});
 export const splitLayout = (r: JsonObject) => r.collection_budget?.layout === 'split';
 const strip = (document: JsonObject | undefined, field?: string) => {
@@ -27,11 +24,13 @@ const strip = (document: JsonObject | undefined, field?: string) => {
   const {id: _id, revision: _revision, report_id: _report, ...data} = document;
   return field ? data[field] : data;
 };
-function optional(store: Store, tenant: string, kind: string, id: string): JsonObject | undefined {
-  const row = store.db
-    .prepare('SELECT data,revision FROM documents WHERE tenant_id=? AND kind=? AND id=?')
-    .get(tenant, kind, id) as {data: string; revision: number} | undefined;
-  return row ? {...JSON.parse(row.data), id, revision: row.revision} : undefined;
+function optional(
+  store: Store,
+  tenant: string,
+  kind: typeof REPORT_BUDGET_KIND | typeof REPORT_CHECKPOINT_KIND,
+  id: string,
+): JsonObject | undefined {
+  return store.repo(kind, tenant).find(id);
 }
 /**
  * The report's collection counters as the budget reads them: the split document, else legacy inline version 1
@@ -69,11 +68,7 @@ export class ReportParts {
    */
   private put(kind: string, id: string, data: JsonObject) {
     this.store.transaction(() => {
-      if (
-        !this.store.db
-          .prepare("SELECT 1 FROM documents WHERE tenant_id=? AND kind='overview_report' AND id=?")
-          .get(this.tenant, this.report.id)
-      )
+      if (!this.store.repo('overview_report', this.tenant).has(this.report.id))
         throw new MirrorError('NOT_FOUND', 'Document not found in this tenant.', {}, 404);
       this.store.putDocument(this.tenant, kind, id, {report_id: this.report.id, ...data});
     });
@@ -117,14 +112,11 @@ export class ReportParts {
     const prefix = this.report.id + ':' + key + ':',
       periods: JsonObject = {},
       remembered = new Map<string, unknown>();
-    for (const row of this.store.db
-      .prepare('SELECT id,data FROM documents WHERE tenant_id=? AND kind=? AND id>=? AND id<? ORDER BY id')
-      .all(this.tenant, REPORT_CHECKPOINT_KIND, prefix, this.report.id + ':' + key + ';') as {
-      id: string;
-      data: string;
-    }[]) {
+    for (const row of this.store
+      .repo(REPORT_CHECKPOINT_KIND, this.tenant)
+      .range(prefix, this.report.id + ':' + key + ';')) {
       const period = row.id.slice(prefix.length);
-      periods[period] = JSON.parse(row.data).period;
+      periods[period] = row.period;
       remembered.set(period, periods[period]);
     }
     this.saved.set(key, remembered);
@@ -156,9 +148,7 @@ export class ReportParts {
     const head = this.report.id + ':' + key;
     this.store.transaction(() => {
       this.put(REPORT_CHECKPOINT_KIND, head, {result});
-      this.store.db
-        .prepare('DELETE FROM documents WHERE tenant_id=? AND kind=? AND id>=? AND id<?')
-        .run(this.tenant, REPORT_CHECKPOINT_KIND, head + ':', head + ';');
+      this.store.repo(REPORT_CHECKPOINT_KIND, this.tenant).deleteRange(head + ':', head + ';');
     });
     this.saved.delete(key);
   }

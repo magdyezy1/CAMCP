@@ -2,7 +2,8 @@ import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {bad, fingerprint, identifier, validate, writer} from './workspace-core.js';
-import {reportingWorkbookAccess, reportQuerySQL} from './report-query-access.js';
+import {reportingWorkbookAccess} from './report-query-access.js';
+import {bindingHasSchedule, bindingQueries, workbookPage} from './workbook-repository.js';
 import {reportRunScope} from './report-runs.js';
 
 /** Local associations only. This projection never exposes preferences, stored URLs or query configurations. */
@@ -10,9 +11,7 @@ export function workbookBinding(store: Store, actor: Actor, id: unknown) {
   const binding = reportingWorkbookAccess(store, actor, identifier(id, 'workbook binding ID'), true);
   if (typeof binding.spreadsheet_id !== 'string' || !binding.spreadsheet_id || binding.spreadsheet_id.length > 200)
     bad('The legacy workbook association has an invalid spreadsheet ID.', 'REPORT_BINDING_INVALID');
-  const rows = store.db
-    .prepare(reportQuerySQL + " AND json_extract(q.data,'$.workbook_binding_id')=? ORDER BY q.id LIMIT 501")
-    .all(actor.tenantId, binding.id) as JsonObject[];
+  const rows = bindingQueries(store, actor.tenantId, binding.id, true);
   if (rows.length > 500) bad('A workbook binding supports at most 500 attached queries.', 'REPORT_BINDING_QUERY_LIMIT');
   const queries = rows.map(row => {
     const metadata = JSON.parse(row.metadata),
@@ -71,16 +70,7 @@ export function workbookBindingPage(store: Store, actor: Actor, input: JsonObjec
     (typeof input.spreadsheet_id !== 'string' || input.spreadsheet_id.length > 200)
   )
     bad('Use an exact spreadsheet ID up to 200 characters.');
-  const rows = store.db
-    .prepare(
-      "SELECT id FROM documents WHERE tenant_id=? AND kind='workbook'" +
-        (state === 'all'
-          ? ''
-          : " AND json_extract(data,'$.retired_at') IS " + (state === 'active' ? 'NULL' : 'NOT NULL')) +
-        (input.spreadsheet_id ? " AND json_extract(data,'$.spreadsheet_id')=?" : '') +
-        ' ORDER BY id LIMIT 51 OFFSET ?',
-    )
-    .all(actor.tenantId, ...(input.spreadsheet_id ? [input.spreadsheet_id] : []), offset) as JsonObject[];
+  const rows = workbookPage(store, actor.tenantId, state, input.spreadsheet_id || undefined, offset);
   const bindings: JsonObject[] = [];
   let scanned = 0;
   for (const row of rows.slice(0, 50)) {
@@ -172,11 +162,7 @@ export function previewWorkbookBindingState(store: Store, actor: Actor, input: J
   if (current.binding_version !== input.binding_version)
     bad('The workbook setup or linked queries changed. Refresh before changing its state.', 'STALE_REPORT_BINDING');
   if (typeof input.active !== 'boolean') bad('Choose an active or retired workbook state.');
-  const linkedSchedule = store.db
-    .prepare(
-      "SELECT 1 AS present FROM documents WHERE tenant_id=? AND kind='reporting_schedule' AND json_extract(data,'$.workbook_binding_id')=? LIMIT 1",
-    )
-    .get(actor.tenantId, current.id);
+  const linkedSchedule = bindingHasSchedule(store, actor.tenantId, current.id);
   if (current.query_count || linkedSchedule)
     bad(
       'Move all linked queries and schedules before changing this workbook association state.',

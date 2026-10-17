@@ -2,6 +2,7 @@ import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {bad, fingerprint, identifier} from './workspace-core.js';
 import {normalizeAccount} from './scope.js';
+import {creativeReport, creativeReportPage, type CreativeReportScope} from './report-repository.js';
 
 const scopes: Record<string, {gateway: string; presets: string[]; grain: string; actions: string[]}> = {
   meta: {
@@ -66,15 +67,6 @@ export function linkedPlanAdIds(asset: JsonObject, steps: JsonObject[]) {
     .filter(id => exactAdId(asset.platform, account, id));
 }
 
-const projection = `SELECT id,json_object('gateway',json_extract(data,'$.gateway'),
-  'preset',json_extract(data,'$.preset'),'grain',json_extract(data,'$.grain'),
-  'account_id',json_extract(data,'$.account_id'),'connection_id',json_extract(data,'$.connection_id'),
-  'captured_at',json_extract(data,'$.captured_at'),'source_hash',json_extract(data,'$.source_hash'),
-  'semantics',json_extract(data,'$.semantics'),'row_count',json_array_length(data,'$.rows')) AS metadata
-  FROM documents WHERE tenant_id=? AND kind='decision_report' AND json_extract(data,'$.preset') IN ($PRESETS)
-  AND json_extract(data,'$.grain')=? AND json_extract(data,'$.source')='provider_read'
-  AND json_extract(data,'$.gateway')=?
-  AND json_extract(data,'$.account_id')=? AND json_extract(data,'$.connection_id')=?`;
 export function creativePerformance(
   store: Store,
   actor: Actor,
@@ -90,8 +82,14 @@ export function creativePerformance(
   const limit = input.limit ?? 30;
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) bad('Use a page size of 1–100.');
   const account = normalizeAccount(scope.gateway, asset.account_id),
-    query = projection.replace('$PRESETS', scope.presets.map(() => '?').join(',')),
-    params = [actor.tenantId, ...scope.presets, scope.grain, scope.gateway, account, asset.connection_id];
+    // The provider-read reports of this asset's presets, grain, gateway, account and login (src/report-repository.ts).
+    reportScope: CreativeReportScope = {
+      presets: scope.presets,
+      grain: scope.grain,
+      gateway: scope.gateway,
+      account,
+      connectionId: asset.connection_id,
+    };
   const metadata = (row: any) => ({id: row.id, ...JSON.parse(row.metadata)});
   if (input.report_id === undefined) {
     const bound = fingerprint({
@@ -115,7 +113,7 @@ export function creativePerformance(
         bad('Refresh the performance choices for this identity and asset.', 'INVALID_CURSOR');
       }
     }
-    const rows = store.db.prepare(query + ' AND id>? ORDER BY id LIMIT ?').all(...params, after, limit + 1);
+    const rows = creativeReportPage(store, actor.tenantId, reportScope, after, limit + 1);
     const reports = rows.slice(0, limit).map(metadata),
       more = rows.length > limit;
     return {
@@ -129,7 +127,7 @@ export function creativePerformance(
   }
   const reportId = identifier(input.report_id, 'report_id'),
     planId = identifier(input.plan_id, 'plan_id');
-  const row = store.db.prepare(query + ' AND id=?').get(...params, reportId);
+  const row = creativeReport(store, actor.tenantId, reportScope, reportId);
   if (!row)
     bad(
       'Choose an accessible compatible guided ad report from the same provider, account and login.',

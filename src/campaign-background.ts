@@ -2,6 +2,7 @@ import {randomUUID} from 'node:crypto';
 import {MirrorError} from './errors.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
+import {setJobInput} from './job-repository.js';
 
 /**
  * Server-side runs of an approved upload plan (MED-03 B). The website's creative push used to run in the open tab: it
@@ -71,12 +72,11 @@ export function enqueueBackgroundRun(store: Store, actor: Actor, planId: string)
   return store.transaction(() => {
     store.assertActorActive(actor);
     const id = store.enqueue(actor.tenantId, BACKGROUND_RUN_KIND, {plan_id: planId});
-    store.db
-      .prepare('UPDATE jobs SET input=? WHERE id=?')
-      .run(
-        JSON.stringify({plan_id: planId, authority: {version: 1, binding: store.bindJobActor(actor, 'job:' + id)}}),
-        id,
-      );
+    setJobInput(
+      store,
+      id,
+      JSON.stringify({plan_id: planId, authority: {version: 1, binding: store.bindJobActor(actor, 'job:' + id)}}),
+    );
     return id;
   });
 }

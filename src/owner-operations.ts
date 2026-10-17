@@ -24,6 +24,10 @@ import {lastBackupReceipt} from './backup-receipt.js';
 import {planInventory, planPolicy, purgeArchivedPlans, savePlanPolicy} from './campaign-inventory.js';
 import {reportRetention, reportRetentionDefault, reportRetentionKinds} from './data-retention.js';
 import {providerJobSummary, purgeProviderJobReceipts} from './provider-jobs.js';
+import {applyReportRetention, sweepOrphanReportFiles, sweepSpendReservations} from './retention-repository.js';
+import {databaseBytes, emailQueue, serviceKeyRows, tableExists} from './owner-health-repository.js';
+import {jobCounts, jobQueue} from './job-repository.js';
+import {snapshotRowCount} from './report-repository.js';
 /**
  * Parts of the owner's health that need modules a reviewed write must not load (this module is on the write path:
  * `assertWritesNotPaused`). The workspace tool supplies them; the guidance-coverage check stays on the write path.
@@ -64,11 +68,7 @@ function providerJobHealth(store: Store, tenant: string, switches?: {allowWrites
 const writePauseId = 'workspace';
 /** Live keys of a workspace that the service, not a person, owns (owner health, SEC-06). Never the token or hash. */
 export function serviceKeys(store: Store, tenant: string): JsonObject[] {
-  return store.db
-    .prepare(
-      "SELECT a.user_id AS label,a.role,a.expires_at,coalesce(o.user_id,'service:legacy') AS owner FROM api_keys a LEFT JOIN credential_owners o ON o.hash=a.hash WHERE a.tenant_id=? AND a.revoked=0 AND (a.expires_at IS NULL OR a.expires_at>?) AND (o.user_id LIKE 'service:%' OR (o.hash IS NULL AND a.user_id NOT LIKE 'connector/%' AND a.user_id NOT LIKE 'oauth/%')) ORDER BY a.expires_at LIMIT 100",
-    )
-    .all(tenant, Date.now()) as JsonObject[];
+  return serviceKeyRows(store, tenant, Date.now());
 }
 const accountCurrencyOf = (metadata: JsonObject | undefined) =>
   typeof metadata?.currency === 'string' && /^[A-Z]{3}$/.test(metadata.currency)
@@ -76,10 +76,7 @@ const accountCurrencyOf = (metadata: JsonObject | undefined) =>
     : {};
 /** The owner's pause of every reviewed write of a workspace, or undefined when writes are not paused. */
 export function writePause(store: Store, tenant: string): JsonObject | undefined {
-  const row = store.db
-    .prepare("SELECT data FROM documents WHERE tenant_id=? AND kind='write_pause' AND id=?")
-    .get(tenant, writePauseId) as {data: string} | undefined;
-  return row ? JSON.parse(row.data) : undefined;
+  return store.repo('write_pause', tenant).payload(writePauseId);
 }
 /**
  * What a pause stops (RPT-06): `all` (the default, and every pause saved before scopes existed), advertising writes
@@ -140,9 +137,7 @@ function administratorHealth(store: Store, tenant: string): JsonObject {
         needs_attention: !!expires && expires < Date.now() + 86400000,
       };
     }),
-    jobs: store.db
-      .prepare('SELECT kind,state,count(*) AS count FROM jobs WHERE tenant_id=? GROUP BY kind,state')
-      .all(tenant),
+    jobs: jobCounts(store, tenant),
     writes_paused: !!writePause(store, tenant),
     owner_view: 'Policies, e-mail delivery, storage, backups and API versions are in the owner’s health view.',
   };
@@ -166,13 +161,8 @@ export function ownerOperations(
   if (input.action === 'save_spend_policy') return saveSpendPolicy(store, actor, input);
   if (input.action === 'support_bundle') return operationsHealth(store, tenant);
   if (input.action === 'health') {
-    const exists = (name: string) =>
-        !!store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(name),
-      jobs = store.db
-        .prepare(
-          'SELECT kind,state,count(*) AS count,min(available_at) AS oldest_due,max(updated_at) AS last_update FROM jobs WHERE tenant_id=? GROUP BY kind,state',
-        )
-        .all(tenant),
+    const exists = (name: string) => tableExists(store, name),
+      jobs = jobQueue(store, tenant),
       connections = store.listConnections(tenant).map(c => {
         const credentials = store.credentials(tenant, c.id);
         return {
@@ -196,13 +186,7 @@ export function ownerOperations(
       at: Date.now(),
       connections,
       jobs,
-      email: exists('amcp_email_outbox')
-        ? store.db
-            .prepare(
-              'SELECT state,count(*) AS count,min(available_at) AS next_attempt FROM amcp_email_outbox WHERE tenant_id=? GROUP BY state',
-            )
-            .all(tenant)
-        : [],
+      email: exists('amcp_email_outbox') ? emailQueue(store, tenant) : [],
       policies: store.documents(tenant, 'spend_policy'),
       // The policy each selected account answers to, by the server's own normalized key (WRT-03): the settings form
       // prefills from it instead of guessing from a formatted account ID.
@@ -253,16 +237,8 @@ export function ownerOperations(
       ga4_test_properties: ga4TestProperties(store, tenant),
       storage: {
         ...storageDetails(store),
-        database_bytes:
-          Number((store.db.prepare('PRAGMA page_count').get() as JsonObject).page_count) *
-          Number((store.db.prepare('PRAGMA page_size').get() as JsonObject).page_size),
-        report_rows: (
-          store.db
-            .prepare(
-              "SELECT coalesce(sum(json_array_length(data,'$.rows')),0) AS n FROM documents WHERE tenant_id=? AND kind='overview_report'",
-            )
-            .get(tenant) as JsonObject
-        ).n,
+        database_bytes: databaseBytes(store),
+        report_rows: snapshotRowCount(store, tenant),
       },
       limits: {
         active_reports: 100,
@@ -345,9 +321,7 @@ export function ownerOperations(
       throw new MirrorError('INVALID_ARGUMENT', 'Provide confirmed=true to resume reviewed writes.');
     const was = writePause(store, tenant);
     store.transaction(() => {
-      store.db
-        .prepare("DELETE FROM documents WHERE tenant_id=? AND kind='write_pause' AND id=?")
-        .run(tenant, writePauseId);
+      store.repo('write_pause', tenant).delete(writePauseId);
     });
     store.appendAudit(tenant, 'write_pause/' + writePauseId, {event: 'writes_resumed', by: actor.userId});
     return {
@@ -427,17 +401,9 @@ export function cleanupReports(store: Store, defaultDays: number | null = report
     // ones from when they were created.
     purgeProviderJobReceipts(store, tenant, now);
     store.transaction(() => {
-      store.db
-        .prepare(
-          "DELETE FROM documents WHERE tenant_id=? AND kind='spend_reservation' AND json_extract(data,'$.day')<date('now','-2 day')",
-        )
-        .run(tenant);
+      sweepSpendReservations(store, tenant);
     });
-    store.db
-      .prepare(
-        "DELETE FROM documents WHERE tenant_id=? AND kind='report_file' AND NOT EXISTS (SELECT 1 FROM documents r WHERE r.tenant_id=documents.tenant_id AND r.kind='overview_report' AND r.id=json_extract(documents.data,'$.report_id'))",
-      )
-      .run(tenant);
+    sweepOrphanReportFiles(store, tenant);
     const policy = store.documents(tenant, 'retention_policy')[0];
     // Opt-in purge of archived campaign plans (CMP-05); audit and write receipts are separate records and stay.
     if (Number.isInteger(policy?.archived_campaign_plans_days) && policy!.archived_campaign_plans_days > 0)
@@ -447,57 +413,8 @@ export function cleanupReports(store: Store, defaultDays: number | null = report
     if (retention.days === null) continue;
     const cutoff = now - retention.days * 86400000;
     const deleted = store.transaction(() => {
-      const counts: Record<string, number> = {};
-      const remove = (kind: string, sql: string, ...params: (string | number)[]) => {
-        const changes = Number(store.db.prepare(sql).run(...params).changes);
-        if (changes) counts[kind] = (counts[kind] ?? 0) + changes;
-      };
-      remove(
-        'report_incident',
-        "DELETE FROM documents WHERE tenant_id=? AND kind='report_incident' AND (json_extract(data,'$.state')='resolved' OR json_extract(data,'$.superseded_by_version') IS NOT NULL) AND json_extract(data,'$.updated_at')<?",
-        tenant,
-        cutoff,
-      );
-      remove(
-        'decision_report',
-        "DELETE FROM documents WHERE tenant_id=? AND kind='decision_report' AND json_extract(data,'$.captured_at')<?",
-        tenant,
-        cutoff,
-      );
-      remove(
-        'overview_report',
-        "DELETE FROM documents WHERE tenant_id=? AND kind='overview_report' AND json_extract(data,'$.created_at')<? AND json_extract(data,'$.state') IN ('complete','partial','failed','cancelled') AND NOT EXISTS (SELECT 1 FROM jobs WHERE jobs.tenant_id=documents.tenant_id AND json_extract(jobs.input,'$.report_id')=documents.id AND jobs.state IN ('queued','running')) AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.tenant_id=documents.tenant_id AND d.kind='sheets_delivery' AND json_extract(d.data,'$.report_id')=documents.id AND json_extract(d.data,'$.state') IN ('pending','uncertain'))",
-        tenant,
-        cutoff,
-      );
-      // A snapshot with an unconfirmed Sheets delivery is kept above (its recovery needs the identical report).
-      // Only terminal receipts of removed snapshots are deleted, once they are older than the retention period.
-      remove(
-        'sheets_delivery',
-        "DELETE FROM documents WHERE tenant_id=? AND kind='sheets_delivery' AND json_extract(data,'$.state') IN ('complete','rejected','abandoned') AND coalesce(json_extract(data,'$.abandoned_at'),json_extract(data,'$.completed_at'),json_extract(data,'$.sent_at'),0)<? AND NOT EXISTS (SELECT 1 FROM documents r WHERE r.tenant_id=documents.tenant_id AND r.kind='overview_report' AND r.id=json_extract(documents.data,'$.report_id'))",
-        tenant,
-        cutoff,
-      );
-      remove(
-        'report_presentation',
-        "DELETE FROM documents WHERE tenant_id=? AND kind='report_presentation' AND NOT EXISTS (SELECT 1 FROM documents r WHERE r.tenant_id=documents.tenant_id AND r.kind='overview_report' AND r.id=documents.id)",
-        tenant,
-      );
-      remove(
-        'report_file',
-        "DELETE FROM documents WHERE tenant_id=? AND kind='report_file' AND NOT EXISTS (SELECT 1 FROM documents r WHERE r.tenant_id=documents.tenant_id AND r.kind='overview_report' AND r.id=json_extract(documents.data,'$.report_id'))",
-        tenant,
-      );
-      // Counted per job kind under the job:<kind> keys data-retention.ts declares, so the audit matches the kinds owner
-      // health lists (wave 3a review: they were one `jobs` count).
-      for (const job of ['report_overview', 'sheets_export', 'report_file_export', 'report'])
-        remove(
-          'job:' + job,
-          "DELETE FROM jobs WHERE tenant_id=? AND kind=? AND state IN ('complete','failed','cancelled') AND updated_at<? AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.tenant_id=jobs.tenant_id AND d.kind='sheets_delivery' AND json_extract(d.data,'$.report_id')=json_extract(jobs.input,'$.report_id') AND json_extract(d.data,'$.state') IN ('pending','uncertain'))",
-          tenant,
-          job,
-          cutoff,
-        );
+      // Per document kind in the registry's order, then finished report jobs (src/retention-repository.ts).
+      const counts = applyReportRetention(store, tenant, cutoff);
       if (Object.keys(counts).length)
         store.appendAudit(tenant, 'retention_policy/reports', {
           event: 'report_retention_applied',

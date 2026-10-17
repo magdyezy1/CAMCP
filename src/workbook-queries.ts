@@ -11,6 +11,7 @@ import {
 import {ReportingService, resolveReportConfig} from './reporting.js';
 import {reportRange} from './report-native.js';
 import {reportingBindingMove} from './report-query-rebinding.js';
+import {activeQueryScheduleCount, querySchedules} from './workbook-repository.js';
 
 export function workbookQuery(store: Store, actor: Actor, id: unknown) {
   const p = reportingQueryScope(store, actor, id);
@@ -19,11 +20,7 @@ export function workbookQuery(store: Store, actor: Actor, id: unknown) {
   const query = store.document(actor.tenantId, 'reporting_query', p.id);
   if (Buffer.byteLength(JSON.stringify(query.query_config)) > 65536)
     bad('This legacy query exceeds the 64 KiB editor limit.', 'REPORT_QUERY_TOO_LARGE');
-  const schedules = store.db
-    .prepare(
-      "SELECT id,revision,json_extract(data,'$.is_active') AS active FROM documents WHERE tenant_id=? AND kind='reporting_schedule' AND json_extract(data,'$.schedule_config.query_id')=? ORDER BY id LIMIT 101",
-    )
-    .all(actor.tenantId, p.id) as JsonObject[];
+  const schedules = querySchedules(store, actor.tenantId, p.id);
   const version = fingerprint({id: p.id, revision: p.revision, scope: p.scope, schedules});
   return {
     id: p.id,
@@ -77,17 +74,7 @@ export function previewWorkbookQuery(store: Store, actor: Actor, input: JsonObje
     changes: ['name', 'query_config'].filter(
       k => fingerprint(current[k as keyof typeof current]) !== fingerprint(input.query[k]),
     ),
-    schedules_to_pause: definitionChanged
-      ? Number(
-          (
-            store.db
-              .prepare(
-                "SELECT count(*) AS n FROM documents WHERE tenant_id=? AND kind='reporting_schedule' AND json_extract(data,'$.schedule_config.query_id')=? AND json_extract(data,'$.is_active')=1",
-              )
-              .get(actor.tenantId, current.id) as JsonObject
-          ).n,
-        )
-      : 0,
+    schedules_to_pause: definitionChanged ? activeQueryScheduleCount(store, actor.tenantId, current.id) : 0,
     meaning:
       'Save a local query revision and one prepared, unsubmitted report run. Definition changes pause its active schedules for separate review/resume. Existing queued and completed runs retain their original configuration.',
     network_requests: 0,

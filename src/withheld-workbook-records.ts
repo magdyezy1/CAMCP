@@ -1,8 +1,8 @@
 import {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import type {Actor, JsonObject} from './types.js';
-import {reportRunFeedSQL, reportRunScope} from './report-runs.js';
-import {workbookScheduleFeedSQL} from './workbook-schedules.js';
+import {reportRunScope} from './report-runs.js';
+import {workbookFeedRows} from './workbook-repository.js';
 
 const withheldScan = 5000;
 /**
@@ -14,8 +14,8 @@ const withheldScan = 5000;
  * as scope_check_failed, so one malformed record never fails the owner's whole health view. `scope` is a test seam.
  */
 export function withheldWorkbookRecords(store: Store, actor: Actor, scope = reportRunScope): JsonObject {
-  const scan = (sql: string) => {
-    const rows = store.db.prepare(sql + ' LIMIT ' + (withheldScan + 1)).all(actor.tenantId) as {metadata: string}[],
+  const scan = (records: 'runs' | 'schedules') => {
+    const rows = workbookFeedRows(store, actor.tenantId, records, withheldScan + 1),
       reasons = {scope_unavailable: 0, connection_unavailable: 0, metadata_unreadable: 0, scope_check_failed: 0};
     for (const row of rows.slice(0, withheldScan)) {
       let metadata: JsonObject;
@@ -49,8 +49,8 @@ export function withheldWorkbookRecords(store: Store, actor: Actor, scope = repo
     };
   };
   return {
-    runs: scan(reportRunFeedSQL),
-    schedules: scan(workbookScheduleFeedSQL),
+    runs: scan('runs'),
+    schedules: scan('schedules'),
     meaning:
       'Records with no unambiguous account and connection scope (scope_unavailable), whose connection or account is no longer available (connection_unavailable), whose stored metadata cannot be read, or whose scope check failed unexpectedly (scope_check_failed). They are not shown in Operations; counts only.',
   };

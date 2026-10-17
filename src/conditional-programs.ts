@@ -310,9 +310,8 @@ export function programObservation(
 function retainObservation(store: Store, actor: Actor, result: JsonObject, amcpRequestId: unknown) {
   const now = Date.now(),
     e = result.native_error ?? {};
-  store.db
-    .prepare("DELETE FROM documents WHERE tenant_id=? AND kind=? AND json_extract(data,'$.expires_at')<=?")
-    .run(actor.tenantId, observationKind, now);
+  // Expired observations go first (their declared expiry, src/document-kinds.ts).
+  store.repo(observationKind, actor.tenantId).purgeExpired(now);
   const observation = {
     record_kind: observationKind,
     workflow_id: result.workflow_id,

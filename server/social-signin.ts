@@ -7,6 +7,18 @@ import type {JsonObject} from '../src/types.js';
 import {cookieValue, type WebSession} from './web-store.js';
 import {UserAccounts, accountEmail, accountName} from './user-accounts.js';
 import {metaDialogUrl, metaGraphUrl} from '../src/meta-version.js';
+import {
+  accountWithEmail,
+  addIdentity,
+  deleteSession,
+  hasIdentity,
+  identityOwner,
+  liveSession,
+  liveSessionActor,
+  markSessionReauthenticated,
+  personIdentity,
+  sessionLive,
+} from './web-session-repository.js';
 
 const random = () => randomBytes(32).toString('base64url');
 const definitions = {
@@ -109,11 +121,7 @@ export class SocialSignIn {
     if (input.reauth) {
       // A social step-up (SEC-06) confirms the person with a provider already linked to this account.
       const user = this.accounts.user(session!.actor.userId);
-      if (
-        !this.web.store.db
-          .prepare('SELECT 1 FROM amcp_identities WHERE user_id=? AND provider=?')
-          .get(user.id, provider)
-      )
+      if (!hasIdentity(this.web.store, user.id, provider))
         throw new MirrorError(
           'SIGNIN_METHOD_UNAVAILABLE',
           'This sign-in method is not linked to your account. Confirm with your password or a two-step code.',
@@ -308,19 +316,15 @@ export class SocialSignIn {
     if (typeof input.code !== 'string' || input.code.length < 1 || input.code.length > 8192)
       throw new MirrorError('SIGNIN_IDENTITY_INVALID', 'The provider did not return an authorization code.');
     const identity = await this.identity(provider, pending, input.code),
-      db = this.web.store.db;
+      store = this.web.store;
     if (pending.reauth === true)
       // A social step-up (SEC-06): the provider identity must be the one linked to the person of the same, unchanged
       // session that started it. That session keeps its expiry; only its recent-proof time is renewed.
       return this.web.store.transaction(() => {
-        const row = db
-            .prepare('SELECT actor FROM amcp_web_sessions WHERE hash=? AND expires_at>?')
-            .get(pending.sessionHash, Date.now()) as JsonObject | undefined,
+        const row = liveSessionActor(store, pending.sessionHash, Date.now()),
           actor = row ? JSON.parse(row.actor) : undefined,
           user = this.accounts.user(pending.userId),
-          linked = db
-            .prepare('SELECT user_id FROM amcp_identities WHERE provider=? AND subject=?')
-            .get(provider, identity.subject) as JsonObject | undefined;
+          linked = identityOwner(store, provider, identity.subject);
         if (!actor || actor.userId !== user.id || actor.accountVersion !== user.version)
           throw new MirrorError('SIGN_IN_REQUIRED', 'The initiating session ended. Start sign-in again.', {}, 401);
         if (linked?.user_id !== user.id)
@@ -329,10 +333,7 @@ export class SocialSignIn {
             'That is not the sign-in linked to your AMCP account. Try again with the linked account.',
           );
         const at = Date.now();
-        db.prepare("UPDATE amcp_web_sessions SET actor=json_set(actor,'$.reauthAt',?) WHERE hash=?").run(
-          at,
-          pending.sessionHash,
-        );
+        markSessionReauthenticated(store, pending.sessionHash, at);
         this.web.store.appendAudit(actor.tenantId, randomUUID(), {
           event: 'account_reauthenticated',
           method: provider,
@@ -341,20 +342,11 @@ export class SocialSignIn {
       });
     const result = this.web.store.transaction(() => {
       let user: JsonObject, activeWorkspace: string | undefined;
-      if (
-        pending.sessionHash &&
-        !db
-          .prepare('SELECT hash FROM amcp_web_sessions WHERE hash=? AND expires_at>?')
-          .get(pending.sessionHash, Date.now())
-      )
+      if (pending.sessionHash && !sessionLive(store, pending.sessionHash, Date.now()))
         throw new MirrorError('SIGN_IN_REQUIRED', 'The initiating session ended. Start sign-in again.', {}, 401);
-      const existing = db
-        .prepare('SELECT user_id FROM amcp_identities WHERE provider=? AND subject=?')
-        .get(provider, identity.subject) as JsonObject | undefined;
+      const existing = identityOwner(store, provider, identity.subject);
       if (pending.link) {
-        const previous = db
-          .prepare('SELECT actor,expires_at FROM amcp_web_sessions WHERE hash=? AND expires_at>?')
-          .get(pending.sessionHash, Date.now()) as JsonObject | undefined;
+        const previous = liveSession(store, pending.sessionHash, Date.now());
         user = this.accounts.user(pending.userId);
         if (
           !previous ||
@@ -365,9 +357,7 @@ export class SocialSignIn {
         activeWorkspace = JSON.parse(previous.actor).tenantId;
         if (existing && existing.user_id !== user.id)
           throw new MirrorError('IDENTITY_ALREADY_LINKED', 'That social account belongs to another AMCP account.');
-        const sameProvider = db
-          .prepare('SELECT subject FROM amcp_identities WHERE user_id=? AND provider=?')
-          .get(user.id, provider) as JsonObject | undefined;
+        const sameProvider = personIdentity(store, user.id, provider);
         if (sameProvider && sameProvider.subject !== identity.subject)
           throw new MirrorError(
             'IDENTITY_ALREADY_LINKED',
@@ -377,7 +367,7 @@ export class SocialSignIn {
       else {
         if (!this.accounts.signupEnabled)
           throw new MirrorError('SIGNUP_DISABLED', 'New account registration is currently closed.', {}, 403);
-        if (identity.email && db.prepare('SELECT id FROM amcp_users WHERE email=?').get(identity.email))
+        if (identity.email && accountWithEmail(store, identity.email))
           throw new MirrorError(
             'ACCOUNT_EXISTS',
             'Sign in to your existing AMCP account, then link this provider from Account settings.',
@@ -386,7 +376,7 @@ export class SocialSignIn {
       }
       if (pending.link) this.accounts.assertApproved(user);
       if (!existing) {
-        db.prepare('INSERT INTO amcp_identities VALUES(?,?,?,?)').run(provider, identity.subject, user.id, Date.now());
+        addIdentity(store, provider, identity.subject, user.id, Date.now());
         if (pending.link)
           this.accounts.securityNotice(
             user,
@@ -396,7 +386,7 @@ export class SocialSignIn {
       // Commit a new pending registration and its owner notice before returning the
       // access error. Throwing here would roll back the request the owner must approve.
       if (!user.approved) return {pendingUser: user};
-      if (pending.sessionHash) db.prepare('DELETE FROM amcp_web_sessions WHERE hash=?').run(pending.sessionHash);
+      if (pending.sessionHash) deleteSession(store, pending.sessionHash);
       this.web.store.appendAudit(activeWorkspace ?? user.tenant_id, randomUUID(), {
         event: pending.link ? 'account_identity_linked' : 'account_sign_in',
         method: provider,

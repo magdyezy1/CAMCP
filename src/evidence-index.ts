@@ -3,28 +3,9 @@ import type {Actor, JsonObject} from './types.js';
 import {bad, fingerprint} from './workspace-core.js';
 import {normalizeAccount} from './scope.js';
 import {reportPresets} from './report-presets.js';
-
-const scalar = (path: string, max = 200) =>
-  `CASE WHEN json_type(data,'$.${path}')='text' AND length(json_extract(data,'$.${path}'))<=${max}
-    THEN json_extract(data,'$.${path}') ELSE NULL END`;
-// SQLite projects only bounded metadata. Native rows, page responses, requests and arbitrary fields
-// never enter the discovery response or a JavaScript document array.
-const selection = `tenant_id=? AND kind='decision_report' AND length(id) BETWEEN 1 AND 160 AND id>?
-  AND (? IS NULL OR json_extract(data,'$.gateway')=?)
-  AND (? IS NULL OR json_extract(data,'$.connection_id')=?)
-  AND (? IS NULL OR json_extract(data,'$.preset')=?)`;
-export const evidenceIndexSQL = `SELECT id,revision,json_object(
-  'gateway',${scalar('gateway', 160)},'account_id',${scalar('account_id')},
-  'connection_id',${scalar('connection_id')},'preset',${scalar('preset', 160)},
-  'grain',${scalar('grain')},'source',${scalar('source', 80)},'source_hash',${scalar('source_hash', 128)},
-  'captured_at',CASE WHEN json_type(data,'$.captured_at')='integer'
-    AND json_extract(data,'$.captured_at') BETWEEN 0 AND 9007199254740991
-    THEN json_extract(data,'$.captured_at') ELSE NULL END,
-  'row_count',CASE WHEN json_type(data,'$.rows')='array' THEN json_array_length(data,'$.rows') ELSE NULL END,
-  'semantics',json_object(${['source_name', 'currency', 'timezone', 'date_from', 'date_to', 'attribution', 'conversion_definition'].map(key => `'${key}',${scalar('semantics.' + key)}`).join(',')},
-    'complete',json(CASE json_type(data,'$.semantics.complete') WHEN 'true' THEN 'true' WHEN 'false' THEN 'false' ELSE 'null' END))
-  ) AS metadata FROM documents
-  WHERE ${selection} ORDER BY id LIMIT ?`;
+import {evidenceStatements} from './report-repository.js';
+// The bounded metadata projection is in the store layer (src/report-repository.ts).
+export {evidenceIndexSQL} from './report-repository.js';
 
 export function evidenceIndex(store: Store, actor: Actor, input: JsonObject) {
   store.assertActorActive(actor);
@@ -89,15 +70,14 @@ export function evidenceIndex(store: Store, actor: Actor, input: JsonObject) {
     filters.preset,
     filters.preset,
   ];
-  const query = store.db.prepare(evidenceIndexSQL),
-    remaining = store.db.prepare(`SELECT id FROM documents WHERE ${selection} ORDER BY id LIMIT 1`);
+  const statements = evidenceStatements(store);
   const reports: JsonObject[] = [];
   let last = after,
     hasMore = false,
     scanned = 0;
   collection: while (scanned < 500) {
     const size = Math.min(limit + 1, 500 - scanned),
-      rows = query.all(...params(last), size) as JsonObject[];
+      rows = statements.page(params(last), size);
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]!;
       last = row.id;
@@ -125,12 +105,12 @@ export function evidenceIndex(store: Store, actor: Actor, input: JsonObject) {
         continue;
       reports.push({id: row.id, revision: row.revision, ...metadata});
       if (reports.length === limit) {
-        hasMore = i + 1 < rows.length || (rows.length === size && Boolean(remaining.get(...params(last))));
+        hasMore = i + 1 < rows.length || (rows.length === size && statements.remains(params(last)));
         break collection;
       }
     }
     if (rows.length < size) break;
-    if (scanned === 500) hasMore = Boolean(remaining.get(...params(last)));
+    if (scanned === 500) hasMore = statements.remains(params(last));
   }
   store.assertActorActive(actor);
   if (binding() !== original) bad('Account access changed. Refresh saved evidence discovery.', 'INVALID_READ_CURSOR');

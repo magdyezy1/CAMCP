@@ -7,7 +7,14 @@ import {recentSqliteFailures} from './sqlite-diagnostics.js';
 import {readBuildRecord} from './release-status.js';
 import {startMediaProcessorProbe} from './runtime-toolchain.js';
 import {eventLoopDelay} from './runtime-metrics.js';
-import {READER_VERSION, migrationLedgerSummary} from './schema-migrations.js';
+import {READER_VERSION} from './schema-migrations.js';
+import {
+  databaseFile,
+  pragmaValue,
+  schemaLedgerSummary,
+  sqliteVersion,
+  storedSchemaVersion,
+} from './owner-health-repository.js';
 
 /**
  * Where the database lives, as the production start-up guard established it (OPS-03): on a verified persistent mount,
@@ -51,10 +58,7 @@ const fileBytes = (file: string) => {
     return null;
   }
 };
-const pragma = (store: Store, name: string) => {
-  const row = store.db.prepare('PRAGMA ' + name).get() as JsonObject | undefined;
-  return Number(row ? Object.values(row)[0] : NaN);
-};
+const pragma = (store: Store, name: string) => pragmaValue(store, name);
 /** Owner-only storage figures: volume, database, write-ahead log and free list sizes, and the admission floor. */
 export function storageDetails(store: Store): JsonObject {
   let space;
@@ -63,7 +67,7 @@ export function storageDetails(store: Store): JsonObject {
   } catch {
     space = undefined;
   }
-  const file = store.db.location(),
+  const file = databaseFile(store),
     pageSize = pragma(store, 'page_size');
   return {
     state: storageState(store),
@@ -135,7 +139,7 @@ export function runtimeIdentity(store: Store, ffmpegVersion: string): JsonObject
   let sqlite = 'unavailable';
   try {
     // The store may already be closed when a fast shutdown overtakes the FFmpeg probe.
-    sqlite = String((store.db.prepare('SELECT sqlite_version() AS v').get() as JsonObject).v);
+    sqlite = sqliteVersion(store);
   } catch {}
   return {
     release: release ? {sha256: release.sha256, source_revision: release.source_revision} : null,
@@ -155,20 +159,20 @@ export function runtimeDiagnostics(store: Store): JsonObject {
   const release = readBuildRecord(process.cwd());
   let schema: number | null = null;
   try {
-    schema = Number((store.db.prepare('SELECT version FROM schema_version').get() as JsonObject).version);
+    schema = storedSchemaVersion(store);
   } catch {}
   return {
     release: release
       ? {sha256: release.sha256, files: release.files, source_revision: release.source_revision}
       : {status: 'unavailable'},
     node: process.version,
-    sqlite: String((store.db.prepare('SELECT sqlite_version() AS v').get() as JsonObject).v),
+    sqlite: sqliteVersion(store),
     ffmpeg: ffmpeg(),
     uptime_seconds: Math.floor(process.uptime()),
     schema_version: schema,
     // OPS-08: the schema ledger and what this start's bootstrap did (step IDs and durations, never SQL).
     schema_ledger: {
-      ...migrationLedgerSummary(store.db),
+      ...schemaLedgerSummary(store),
       min_reader_version: store.bootstrap?.min_reader_version ?? null,
       reader_version: READER_VERSION,
       migration_ms: store.bootstrap?.migration_ms ?? null,

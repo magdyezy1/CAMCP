@@ -16,6 +16,7 @@ import {nativeAuthority} from './native-authority.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
 import {normalize, differing, verificationReads, entity, verificationContractVersion} from './verification-reads.js';
 import {loginStamp} from './connection-authority.js';
+import {writeClaim} from './job-repository.js';
 
 /** A guarded-reader binding: the connection's login (its revision, not token bytes) must stay the one the first read used. */
 const sameLogin = (message: string) => ({
@@ -77,9 +78,7 @@ export class WriteVerifier {
     const review = read(this.store, actor, 'write_review', reviewId);
     if (review.user_id !== actor.userId && actor.role !== 'admin')
       bad('This write belongs to another actor.', 'FORBIDDEN');
-    const row = this.store.db
-      .prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?')
-      .get(actor.tenantId, reviewId) as JsonObject | undefined;
+    const row = writeClaim(this.store, actor.tenantId, reviewId);
     if (row?.state !== 'complete' || !row.result)
       bad(
         'The write outcome is uncertain or unavailable; verification cannot make it safe to resubmit.',

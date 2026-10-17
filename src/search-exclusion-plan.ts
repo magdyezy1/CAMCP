@@ -473,11 +473,8 @@ export async function previewSearchExclusions(
     binding = {...b, ...native};
   sourceCurrent(store, actor, b);
   return store.transaction(() => {
-    store.db
-      .prepare(
-        "DELETE FROM documents WHERE tenant_id=? AND kind='search_exclusion_preview' AND json_extract(data,'$.expires_at')<?",
-      )
-      .run(actor.tenantId, Date.now());
+    // Expired previews go first (their declared expiry, src/document-kinds.ts).
+    store.repo('search_exclusion_preview', actor.tenantId).purgeExpired(Date.now());
     if (store.documents(actor.tenantId, 'search_exclusion_preview').length >= 100)
       fail('At most 100 current exclusion previews may be retained.', 'SEARCH_EXCLUSION_PREVIEW_LIMIT');
     const id = randomUUID(),

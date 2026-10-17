@@ -24,6 +24,7 @@ import {isModernRequest, modernProtocolModes, serveModernRequest, type ModernPro
 import {runtimeToolchain, type RuntimeToolchain} from '../src/runtime-toolchain.js';
 import {createPublicAssets} from './public-assets.js';
 import {REQUEST_ID_HEADER, newRequestId, runWithRequestId} from '../src/request-context.js';
+import {probeRead} from '../src/owner-health-repository.js';
 export interface HttpOptions {
   host?: string;
   publicOrigin?: string;
@@ -79,7 +80,7 @@ function healthCheck(service: MirrorService, store: Store, clock: () => number, 
       mcp: 'failed',
     };
     try {
-      store.db.prepare('SELECT 1').get();
+      probeRead(store);
       checks.database = 'ok';
       checks.database_write = store.probeWrite(clock());
     } catch (e) {

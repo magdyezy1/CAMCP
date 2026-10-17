@@ -4,103 +4,12 @@ import {MirrorError} from './errors.js';
 import {reportPlatforms} from './report-metrics.js';
 import {normalizeAccount} from './scope.js';
 import {fingerprint} from './workspace-core.js';
-import {accountAliases, encodedBodyGateways} from './parameters.js';
-import {reportResourceFieldsSQL, reportingResourceAccount, reportingResourceAccounts} from './report-resource-scope.js';
+import {reportingResourceAccount, reportingResourceAccounts} from './report-resource-scope.js';
+import {reportRunRow} from './workbook-repository.js';
+import {jobKind} from './job-repository.js';
 
-// SQLite extracts only the canonical account anchor and bounded metadata. The job's retained configuration,
-// rather than the current query definition, determines access to old results. Full inputs/results never leave
-// SQLite for the Operations feed or status endpoint. Native aliases are shared with the compiler.
-// Supported encoded JSON bodies and delegated resource selectors contribute bounded exact account fields,
-// never body text. Arbitrary endpoint paths, unsupported opaque formats and provider responses are not scope.
-const native = "json_extract(j.input,'$.query_config.gateway') IS NOT NULL";
-const scopeField = (path: string, limit = 201) => `CASE
-  WHEN json_type(j.input,'${path}') IS NULL OR json_type(j.input,'${path}')='null' THEN NULL
-  WHEN json_type(j.input,'${path}')='text' THEN substr(json_extract(j.input,'${path}'),1,${limit})
-  ELSE json('{"invalid":true}') END`;
-const reference = (key: string) => `CASE WHEN json_type(j.input,'$.${key}')='text'
-  AND length(json_extract(j.input,'$.${key}'))<=160 THEN json_extract(j.input,'$.${key}') END`;
-const anchor = (key: string, limit = 201) => `CASE WHEN ${native} THEN
-  CASE WHEN json_type(j.input,'$.query_config.arguments.operation')='text'
-    THEN ${scopeField('$.query_config.arguments.arguments.' + key, limit)}
-    ELSE ${scopeField('$.query_config.arguments.' + key, limit)} END
-  ELSE ${scopeField('$.query_config.' + key, limit)} END`;
-const accountAnchors = `CASE WHEN ${native} THEN CASE json_extract(j.input,'$.query_config.gateway')
-  ${Object.entries(accountAliases)
-    .map(
-      ([gateway, aliases]) =>
-        `WHEN '${gateway}' THEN json_array(${aliases
-          .flatMap(key =>
-            [
-              '',
-              'params.',
-              'path_params.',
-              'pathParams.',
-              'query.',
-              'payload.',
-              'body.',
-              'params.payload.',
-              'params.body.',
-            ].map(bag => anchor(bag + key)),
-          )
-          .join(',')})`,
-    )
-    .join('\n')}
-  ELSE json_array(${anchor('account_id')},${anchor('params.account_id')},${anchor('path_params.account_id')}) END
-  ELSE json_array(${scopeField('$.query_config.account_id')}) END`;
-const bodyLocations = ['payload', 'body', 'params.payload', 'params.body'];
-const encodedSupported = `${native} AND json_extract(j.input,'$.query_config.gateway') IN (${encodedBodyGateways.map(g => `'${g}'`).join(',')})`;
-const bodyCell = (bag: string) => `CASE WHEN json_type(j.input,'$.query_config.arguments.operation')='text'
-  THEN json_extract(j.input,'$.query_config.arguments.arguments.${bag}')
-  ELSE json_extract(j.input,'$.query_config.arguments.${bag}') END`;
-const bodyType = (bag: string) => `CASE WHEN json_type(j.input,'$.query_config.arguments.operation')='text'
-  THEN json_type(j.input,'$.query_config.arguments.arguments.${bag}')
-  ELSE json_type(j.input,'$.query_config.arguments.${bag}') END`;
-const encodedValid = (bag: string) => `CASE WHEN ${bodyType(bag)}='text'
-  AND length(CAST(${bodyCell(bag)} AS BLOB))<=65536 AND json_valid(${bodyCell(bag)})
-  THEN json_type(${bodyCell(bag)})='object' ELSE 0 END`;
-// json_each preserves repeated keys: conflicting duplicate identifiers must not be hidden by first/last-key parsing.
-// Nine projected occurrences are sufficient to reject more than eight; arbitrary body fields never leave SQLite.
-const encodedAnchors = `CASE WHEN ${encodedSupported} THEN json_array(${bodyLocations
-  .map(
-    bag => `(
-  SELECT json_group_array(CASE WHEN v.type='text' THEN substr(v.value,1,201)
-    WHEN v.type='null' THEN NULL ELSE json('{"invalid":true}') END)
-  FROM (SELECT type,value FROM json_each(CASE WHEN ${encodedValid(bag)} THEN ${bodyCell(bag)} ELSE '{}' END)
-    WHERE CASE json_extract(j.input,'$.query_config.gateway')
-      ${encodedBodyGateways.map(g => `WHEN '${g}' THEN key IN (${accountAliases[g]!.map(key => `'${key}'`).join(',')})`).join('\n')} ELSE 0 END
-    LIMIT 9) v)`,
-  )
-  .join(',')}) ELSE json_array() END`;
-const encodedInvalid = `CASE WHEN ${encodedSupported} AND (${bodyLocations.map(bag => `(${bodyType(bag)}='text' AND NOT (${encodedValid(bag)}))`).join(' OR ')}) THEN 1 ELSE 0 END`;
-const revision =
-  "CASE WHEN json_type(j.input,'$.query_revision')='integer' THEN json_extract(j.input,'$.query_revision') END";
-const jobState =
-  "CASE WHEN j.state IN ('queued','running','failed','cancelled','complete') THEN j.state ELSE 'unknown' END";
-export function reportScopeFieldsSQL(column: 'j.input' | 'q.data') {
-  return `'platform',CASE WHEN ${native} THEN NULL ELSE ${scopeField('$.query_config.platform', 81)} END,
-    'gateway',${scopeField('$.query_config.gateway', 101)},
-    'account_anchors',${accountAnchors},'encoded_account_anchors',${encodedAnchors},'encoded_body_invalid',${encodedInvalid},
-    'connection_anchors',json_array(${anchor('connection_id')},${anchor('connectionId')}),
-    ${reportResourceFieldsSQL(native)}`.replaceAll('j.input', column);
-}
-export const reportRunFeedSQL = `SELECT j.id, 'workbook_report' AS kind,
-  ${revision} AS revision, j.updated_at AS at,
-  json_object(
-    'name',substr(coalesce(CASE WHEN json_type(j.input,'$.query_name')='text' THEN json_extract(j.input,'$.query_name') END,
-      CASE WHEN json_type(q.data,'$.name')='text' THEN json_extract(q.data,'$.name') END,j.id),1,200),
-    'name_source',CASE WHEN json_type(j.input,'$.query_name')='text' THEN 'retained_run'
-      WHEN json_type(q.data,'$.name')='text' THEN 'current_query' ELSE 'run_id' END,
-    'state',CASE WHEN j.state='queued' AND j.available_at=9007199254740991 THEN 'prepared' ELSE ${jobState} END,
-    'source_state',${jobState},'attempts',j.attempts,'created_at',j.created_at,'available_at',j.available_at,
-    'query_id',${reference('query_id')},'query_revision',${revision},
-    'schedule_id',${reference('schedule_id')},
-    ${reportScopeFieldsSQL('j.input')},
-    'error_code',CASE WHEN json_valid(j.error) THEN substr(json_extract(j.error,'$.code'),1,101) END,
-    'result_available',CASE WHEN j.state='complete' AND j.result IS NOT NULL THEN 1 ELSE 0 END
-  ) AS metadata
-  FROM jobs j LEFT JOIN documents q ON q.tenant_id=j.tenant_id AND q.kind='reporting_query'
-    AND q.id=json_extract(j.input,'$.query_id')
-  WHERE j.tenant_id=? AND j.kind='report'`;
+// The account-scope projection and the report run feed are in the store layer (src/workbook-repository.ts, ARC-02).
+export {reportRunFeedSQL, reportScopeFieldsSQL} from './workbook-repository.js';
 
 export function reportRunScope(store: Store, actor: Actor, p: JsonObject) {
   const gateway = p.gateway ?? reportPlatforms[p.platform]?.gateway;
@@ -159,9 +68,9 @@ export function reportRunStatus(store: Store, actor: Actor, id: unknown): JsonOb
   store.assertActorActive(actor);
   if (typeof id !== 'string' || !id || id.length > 160)
     throw new MirrorError('INVALID_REPORT_RUN', 'Choose an exact reporting run ID.');
-  const row = store.db.prepare(reportRunFeedSQL + ' AND j.id=?').get(actor.tenantId, id) as JsonObject | undefined;
+  const row = reportRunRow(store, actor.tenantId, id);
   if (!row) {
-    const exists = store.db.prepare('SELECT kind FROM jobs WHERE tenant_id=? AND id=?').get(actor.tenantId, id);
+    const exists = jobKind(store, actor.tenantId, id);
     throw new MirrorError(
       exists ? 'INVALID_REPORT_RUN' : 'NOT_FOUND',
       exists ? 'The job is not a reporting run.' : 'Reporting run not found in this tenant.',

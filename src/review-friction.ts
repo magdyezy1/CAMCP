@@ -1,5 +1,6 @@
 import type {Store} from './store.js';
 import type {JsonObject} from './types.js';
+import {writeAuditEvents} from './audit-repository.js';
 
 /**
  * How much friction reviewed writes meet (WRT-05 Stage F), read from the audit the review service already writes:
@@ -26,12 +27,7 @@ const path = (v: unknown) => (typeof v === 'string' && v.length <= 300 && !/[\u0
 
 export function reviewFriction(store: Store, tenant: string, days = 30, now = Date.now()): JsonObject {
   const since = now - days * 86400000;
-  const rows = store.db
-    .prepare(
-      `SELECT request_id, event, created_at FROM audit WHERE tenant_id=? AND created_at>=? AND created_at<=?
-        AND (instr(event,'"event":"write_')>0 OR instr(event,'"tool":"amcp_write"')>0) ORDER BY seq LIMIT ?`,
-    )
-    .all(tenant, since, now, frictionScanLimit + 1) as {request_id: string; event: string; created_at: number}[];
+  const rows = writeAuditEvents(store, tenant, since, now, frictionScanLimit + 1);
   const complete = rows.length <= frictionScanLimit;
   const prepared = new Map<string, number>(),
     latencies: number[] = [],

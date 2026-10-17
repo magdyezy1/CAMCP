@@ -8,28 +8,9 @@ import {normalizeAccount} from './scope.js';
 import {activityReportErrors} from './report-errors.js';
 import {redact} from './security.js';
 import {optionalClientView} from './client-scope.js';
+import {auditDetails, auditPage, newestAuditSeq} from './audit-repository.js';
 
-const stringField = (path: string, limit = 201) => `CASE
- WHEN json_type(a.event,'${path}') IS NULL OR json_type(a.event,'${path}')='null' THEN NULL
- WHEN json_type(a.event,'${path}')='text' THEN substr(json_extract(a.event,'${path}'),1,${limit})
- ELSE json('{"invalid":true}') END`;
-// Never materialize an audit event, provider body, result or receipt in JavaScript for discovery.
-const projection = `SELECT a.seq,a.created_at,substr(a.request_id,1,201) AS request_id,json_object(
- 'event',${stringField('$.event', 101)},'actor',${stringField('$.actor', 201)},
- 'platform',${stringField('$.platform', 81)},
- 'gateways',json_array(${stringField('$.gateway', 101)},${stringField('$.request.gateway', 101)}),
- 'accounts',json_array(${stringField('$.account_id')},${stringField('$.request.accountId')},${stringField('$.request.account_id')}),
- 'connections',json_array(${stringField('$.connection_id')},${stringField('$.request.connection_id')}),
- 'action',${stringField('$.request.action', 201)},'error_code',${stringField('$.error.code', 101)},
- 'complete',CASE WHEN json_type(a.event,'$.complete') IN ('true','false') THEN json_extract(a.event,'$.complete') END,
- 'vendor_writes',CASE WHEN json_type(a.event,'$.vendor_writes')='integer' THEN json_extract(a.event,'$.vendor_writes') END
-) AS metadata FROM audit a WHERE a.tenant_id=? AND a.seq<=? AND a.seq<? ORDER BY a.seq DESC LIMIT 501`;
-const boundedJson = (path: string, bytes: number) => `CASE WHEN json_type(event,'${path}') IN ('object','array')
- AND length(CAST(json_extract(event,'${path}') AS BLOB))<=${bytes} THEN json_extract(event,'${path}') END`;
-const detailsQuery = `SELECT ${boundedJson('$.error', 16384)} AS error,
- ${boundedJson('$.diagnostics', 65536)} AS diagnostics,
- substr(json_extract(event,'$.request.method'),1,8) AS method,
- substr(json_extract(event,'$.request.path'),1,501) AS path FROM audit WHERE tenant_id=? AND seq=?`;
+// The audit projections are in the store layer (src/audit-repository.ts, ARC-02).
 const safeText = (v: unknown, max = 200) => {
   if (typeof v !== 'string' || !v || v.length > max || /[\u0000-\u001f\u007f]/.test(v)) return undefined;
   return String(redact(v)).replace(
@@ -121,7 +102,7 @@ function diagnosticProjection(d: JsonObject): JsonObject {
   return out;
 }
 function diagnostics(store: Store, actor: Actor, row: JsonObject, event: JsonObject, owner: boolean) {
-  const details = store.db.prepare(detailsQuery).get(actor.tenantId, row.seq) as JsonObject;
+  const details = auditDetails(store, actor.tenantId, row.seq);
   const input: JsonObject = {
     event: event.event,
     connection_id: event.connection_id,
@@ -185,11 +166,7 @@ export function auditHistoryPage(store: Store, actor: Actor, input: JsonObject):
       filters,
       limit,
     });
-  let ceiling = (
-      store.db
-        .prepare('SELECT coalesce(max(seq),0) AS seq FROM audit WHERE tenant_id=?')
-        .get(actor.tenantId) as JsonObject
-    ).seq as number,
+  let ceiling = newestAuditSeq(store, actor.tenantId),
     before = Number.MAX_SAFE_INTEGER;
   if (input.cursor !== undefined)
     try {
@@ -218,7 +195,7 @@ export function auditHistoryPage(store: Store, actor: Actor, input: JsonObject):
         'INVALID_CURSOR',
       );
     }
-  const rows = store.db.prepare(projection).all(actor.tenantId, ceiling, before) as JsonObject[],
+  const rows = auditPage(store, actor.tenantId, ceiling, before),
     events: JsonObject[] = [];
   let last: number | undefined,
     more = false,

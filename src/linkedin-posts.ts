@@ -3,6 +3,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
+import {writeClaim} from './job-repository.js';
 
 const object = (v: any): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (code: string, message: string): never => {
@@ -178,9 +179,7 @@ export function authorizeLinkedInSpecial(plan: CompiledRequest, c: Connection, s
     const reviewId = plan.scopeContext?.linkedinPostReviewId;
     if (reviewId) {
       const review = document(store, c.tenantId, 'write_review', reviewId),
-        row = store.db
-          .prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?')
-          .get(c.tenantId, reviewId) as JsonObject | undefined;
+        row = writeClaim(store, c.tenantId, reviewId);
       if (
         review?.connection_id === c.id &&
         review.plan?.accountId === id &&

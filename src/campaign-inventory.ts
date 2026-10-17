@@ -1,10 +1,22 @@
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
-import {doorPrincipal, ownsRecord, principalOf} from './actor-identity.js';
+import {ownsRecord, principalOf} from './actor-identity.js';
 import {MirrorError} from './errors.js';
 import {cursorBinding} from './page-cursor.js';
 import {bad} from './workspace-core.js';
 import {clientView} from './client-scope.js';
+import {archivedPlansBefore} from './retention-repository.js';
+import {
+  activeMembers,
+  planCount,
+  planRows,
+  planStateCounts,
+  planTotals,
+  unarchivedPlanCount,
+  type PlanFilters,
+  type PlanReader,
+} from './campaign-repository.js';
+export type {PlanFilters} from './campaign-repository.js';
 
 /**
  * Campaign plan inventory and team handoff (CMP-05).
@@ -99,36 +111,12 @@ function relation(actor: Actor, row: JsonObject, collaborators: JsonObject[]): s
   return c ? String(c.role) : 'admin';
 }
 
-/** The SQL that limits plan documents to those the actor owns or collaborates on (everything for administrators). */
-type Param = string | number | null;
-function visibility(actor: Actor): {sql: string; params: Param[]} {
-  if (actor.role === 'admin') return {sql: '1', params: []};
-  const person = principalOf(actor);
-  return {
-    sql: `(json_extract(d.data,'$.principal')=?
-      OR (coalesce(json_extract(d.data,'$.principal'),'')='' AND (json_extract(d.data,'$.user_id') IN (?,?)
-        OR (?=? AND json_extract(d.data,'$.user_id') IN ('workspace-admin','workspace-test'))))
-      OR EXISTS (SELECT 1 FROM json_each(d.data,'$.collaborators') c WHERE json_extract(c.value,'$.user_id')=?))`,
-    params: [person, actor.userId, person, person, doorPrincipal, person],
-  };
-}
-const updatedAt = "coalesce(json_extract(d.data,'$.updated_at'),0)";
-const stepGateway =
-  "CASE WHEN json_extract(s.value,'$.kind')='media' THEN json_extract(s.value,'$.arguments.platform')||'_native_action' ELSE json_extract(s.value,'$.gateway') END";
-const plainAccount = (sql: string) => `replace(replace(${sql},'act_',''),'-','')`;
-
-export type PlanFilters = {
-  state?: string;
-  archived?: boolean;
-  gateway?: string;
-  account_id?: string;
-  connection_id?: string;
-  profile_id?: string;
-  /** The client's bound accounts as `gateway NUL plain account` (set with profile_id; never part of the cursor). */
-  client_accounts?: string[];
-  search?: string;
-  awaiting_approval?: boolean;
-};
+/** Who reads plan lists: the plan SQL limits a person who is not an administrator to their own and shared plans. */
+const reader = (actor: Actor): PlanReader => ({
+  admin: actor.role === 'admin',
+  person: principalOf(actor),
+  userId: actor.userId,
+});
 /** As the plan SQL compares accounts: without act_ and dashes. */
 const plainKey = (gateway: string, account: string) =>
   gateway + '\u0000' + account.replaceAll('act_', '').replaceAll('-', '');
@@ -142,67 +130,6 @@ function clientAccounts(store: Store, actor: Actor, profileId: string): string[]
     throw e;
   }
 }
-function filterSQL(actor: Actor, f: PlanFilters): {sql: string[]; params: Param[]} {
-  const sql: string[] = [],
-    params: Param[] = [];
-  sql.push(f.archived ? "json_extract(d.data,'$.archived') IS NOT NULL" : "json_extract(d.data,'$.archived') IS NULL");
-  if (f.state) {
-    sql.push("json_extract(d.data,'$.state')=?");
-    params.push(f.state);
-  }
-  if (f.profile_id) {
-    // A client's plans (SEC-08): made with its profile, or naming an account the profile binds within current access.
-    sql.push(`(json_extract(d.data,'$.profile_id')=? OR EXISTS (SELECT 1 FROM json_each(d.data,'$.steps') s
-      WHERE ${stepGateway}||char(0)||${plainAccount("json_extract(s.value,'$.account_id')")} IN (SELECT value FROM json_each(?))))`);
-    params.push(f.profile_id, JSON.stringify(f.client_accounts ?? []));
-  }
-  if (f.gateway || f.account_id || f.connection_id) {
-    sql.push(`EXISTS (SELECT 1 FROM json_each(d.data,'$.steps') s WHERE (? IS NULL OR ${stepGateway}=?)
-      AND (? IS NULL OR ${plainAccount("json_extract(s.value,'$.account_id')")}=${plainAccount('?')})
-      AND (? IS NULL OR json_extract(s.value,'$.connection_id')=?))`);
-    params.push(
-      f.gateway ?? null,
-      f.gateway ?? null,
-      f.account_id ?? null,
-      f.account_id ?? null,
-      f.connection_id ?? null,
-      f.connection_id ?? null,
-    );
-  }
-  if (f.search) {
-    const term = f.search.toLowerCase();
-    sql.push(`(instr(lower(coalesce(json_extract(d.data,'$.name'),'')),?)>0 OR lower(d.id)=?
-      OR EXISTS (SELECT 1 FROM json_each(d.data,'$.steps') s WHERE instr(lower(coalesce(json_extract(s.value,'$.account_id'),'')),?)>0))`);
-    params.push(term, term, term);
-  }
-  if (f.awaiting_approval) {
-    // Plans naming this person as approver that still wait for an approval of their current plan_hash.
-    sql.push(`EXISTS (SELECT 1 FROM json_each(d.data,'$.collaborators') c WHERE json_extract(c.value,'$.user_id')=?
-        AND json_extract(c.value,'$.role')='approver')
-      AND json_extract(d.data,'$.state') NOT IN ('complete','cancelled','superseded')
-      AND coalesce(json_extract(d.data,'$.approval.plan_hash'),'')<>json_extract(d.data,'$.plan_hash')`);
-    params.push(principalOf(actor));
-  }
-  return {sql, params};
-}
-const projection = (steps: boolean) => `SELECT d.id, d.revision,
-  json_extract(d.data,'$.name') AS name, json_extract(d.data,'$.state') AS state, ${updatedAt} AS at,
-  json_extract(d.data,'$.created_at') AS created_at, json_array_length(d.data,'$.steps') AS step_count,
-  json_extract(d.data,'$.archived') AS archived, json_extract(d.data,'$.profile_id') AS profile_id,
-  json_extract(d.data,'$.recipe.id') AS recipe_id, json_extract(d.data,'$.user_id') AS user_id,
-  json_extract(d.data,'$.principal') AS principal, json_extract(d.data,'$.collaborators') AS collaborators,
-  CASE WHEN json_extract(d.data,'$.approval.plan_hash')=json_extract(d.data,'$.plan_hash') THEN 1 ELSE 0 END AS approved,
-  (SELECT json_group_array(json_object('kind',json_extract(s.value,'$.kind'),'gateway',json_extract(s.value,'$.gateway'),
-    'arguments',json_object('platform',json_extract(s.value,'$.arguments.platform')),
-    'connection_id',json_extract(s.value,'$.connection_id'),'account_id',json_extract(s.value,'$.account_id')))
-    FROM json_each(d.data,'$.steps') s) AS scopes
-  ${
-    steps
-      ? `, (SELECT json_group_array(json_object('id',json_extract(s.value,'$.id'),'status',json_extract(s.value,'$.status'),
-    'error',json_extract(s.value,'$.error'))) FROM json_each(d.data,'$.steps') s) AS steps`
-      : ''
-  }
-  FROM documents d`;
 const parse = (v: unknown) => (typeof v === 'string' ? JSON.parse(v) : v);
 
 /**
@@ -241,20 +168,13 @@ function scanPlans(
   filters: PlanFilters,
   options: {limit: number; after?: {at: number; id: string}; offset?: number; steps?: boolean; scan?: number},
 ): Scan {
-  const v = visibility(actor),
-    f = filterSQL(actor, filters),
-    where = ['d.tenant_id=?', "d.kind='campaign_run'", v.sql, ...f.sql],
-    params: Param[] = [actor.tenantId, ...v.params, ...f.params];
-  if (options.after) {
-    where.push(`(${updatedAt}<? OR (${updatedAt}=? AND d.id>?))`);
-    params.push(options.after.at, options.after.at, options.after.id);
-  }
   const scan = options.scan ?? Math.max(200, options.limit * 4);
-  const rows = store.db
-    .prepare(
-      `${projection(options.steps === true)} WHERE ${where.join(' AND ')} ORDER BY at DESC, d.id LIMIT ? OFFSET ?`,
-    )
-    .all(...params, scan + 1, options.offset ?? 0) as JsonObject[];
+  const rows = planRows(store, actor.tenantId, reader(actor), filters, {
+    ...(options.after ? {after: options.after} : {}),
+    steps: options.steps === true,
+    scan,
+    offset: options.offset ?? 0,
+  });
   const out: JsonObject[] = [];
   let withheld = 0,
     last: JsonObject | undefined,
@@ -288,17 +208,7 @@ function scanPlans(
 }
 /** How many visible plans match the filters, counted in SQL (collaborators' access is checked per page). */
 function countPlans(store: Store, actor: Actor, filters: PlanFilters): number {
-  const v = visibility(actor),
-    f = filterSQL(actor, filters);
-  return Number(
-    (
-      store.db
-        .prepare(
-          `SELECT count(*) AS n FROM documents d WHERE d.tenant_id=? AND d.kind='campaign_run' AND ${[v.sql, ...f.sql].join(' AND ')}`,
-        )
-        .get(actor.tenantId, ...v.params, ...f.params) as JsonObject
-    ).n,
-  );
+  return planCount(store, actor.tenantId, reader(actor), filters);
 }
 
 const text = (v: unknown, field: string, max = 200) => {
@@ -393,13 +303,7 @@ export function listPlans(store: Store, actor: Actor, input: JsonObject): JsonOb
 
 /** Counts of the actor's visible plans in SQL: those not archived by state, and the archived ones. */
 export function planCounts(store: Store, actor: Actor): JsonObject {
-  const v = visibility(actor);
-  const rows = store.db
-    .prepare(
-      `SELECT json_extract(d.data,'$.state') AS state, json_extract(d.data,'$.archived') IS NOT NULL AS archived,
-        count(*) AS n FROM documents d WHERE d.tenant_id=? AND d.kind='campaign_run' AND ${v.sql} GROUP BY 1,2`,
-    )
-    .all(actor.tenantId, ...v.params) as JsonObject[];
+  const rows = planStateCounts(store, actor.tenantId, reader(actor));
   const by_state: Record<string, number> = {};
   let total = 0,
     archived = 0;
@@ -423,26 +327,14 @@ export function visiblePlans(store: Store, actor: Actor): JsonObject[] {
 
 /** The plans counted against the workspace bound: every plan that is not archived, of every person. */
 export function activePlanCount(store: Store, tenant: string): number {
-  return Number(
-    (
-      store.db
-        .prepare(
-          "SELECT count(*) AS n FROM documents WHERE tenant_id=? AND kind='campaign_run' AND json_extract(data,'$.archived') IS NULL",
-        )
-        .get(tenant) as JsonObject
-    ).n,
-  );
+  return unarchivedPlanCount(store, tenant);
 }
 /**
  * The workspace's plans against the bound, for the owner's health (CMP-05 baseline: how close the workspace is to the
  * limit). Counts every person's plans; names nothing.
  */
 export function planInventory(store: Store, tenant: string): JsonObject {
-  const row = store.db
-    .prepare(
-      "SELECT count(*) AS total, sum(json_extract(data,'$.archived') IS NOT NULL) AS archived FROM documents WHERE tenant_id=? AND kind='campaign_run'",
-    )
-    .get(tenant) as JsonObject;
+  const row = planTotals(store, tenant);
   const total = Number(row.total ?? 0),
     archived = Number(row.archived ?? 0);
   return {active: total - archived, archived, limit: activePlanLimit};
@@ -468,15 +360,9 @@ export function assertPlanRoom(store: Store, actor: Actor): void {
  */
 export function purgeArchivedPlans(store: Store, tenant: string, cutoff: number): number {
   const removed = store.transaction(() => {
-    const ids = (
-      store.db
-        .prepare(
-          "SELECT id FROM documents WHERE tenant_id=? AND kind='campaign_run' AND json_extract(data,'$.archived.at')<?",
-        )
-        .all(tenant, cutoff) as {id: string}[]
-    ).map(r => r.id);
-    for (const id of ids)
-      store.db.prepare("DELETE FROM documents WHERE tenant_id=? AND kind='campaign_run' AND id=?").run(tenant, id);
+    const ids = archivedPlansBefore(store, tenant, cutoff),
+      plans = store.repo('campaign_run', tenant);
+    for (const id of ids) plans.delete(id);
     return ids;
   });
   if (removed.length)
@@ -507,10 +393,7 @@ export function linkedTeam(actor: Actor, source: JsonObject): JsonObject[] | und
 const planPolicyId = 'workspace';
 /** The owner's campaign plan policy (CMP-05). Off by default: one person may approve their own plans. */
 export function planPolicy(store: Store, tenant: string): JsonObject {
-  const row = store.db
-    .prepare("SELECT data FROM documents WHERE tenant_id=? AND kind='plan_policy' AND id=?")
-    .get(tenant, planPolicyId) as {data: string} | undefined;
-  return row ? JSON.parse(row.data) : {require_distinct_approver: false};
+  return store.repo('plan_policy', tenant).payload(planPolicyId) ?? {require_distinct_approver: false};
 }
 /** Saves the plan policy (owner operations save_plan_policy, already owner-checked), audited. */
 export function savePlanPolicy(store: Store, actor: Actor, input: JsonObject): JsonObject {
@@ -541,12 +424,5 @@ export function savePlanPolicy(store: Store, actor: Actor, input: JsonObject): J
 
 /** Members of the workspace a plan can be shared with: active members, by account ID, name and workspace role. */
 export function assignableMembers(store: Store, tenant: string): JsonObject[] {
-  const users = !!store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='amcp_users'").get();
-  return store.db
-    .prepare(
-      users
-        ? 'SELECT m.user_id AS user_id, u.name AS name, m.role AS workspace_role FROM workspace_memberships m LEFT JOIN amcp_users u ON u.id=m.user_id WHERE m.tenant_id=? AND m.active=1 ORDER BY m.user_id LIMIT 100'
-        : 'SELECT m.user_id AS user_id, NULL AS name, m.role AS workspace_role FROM workspace_memberships m WHERE m.tenant_id=? AND m.active=1 ORDER BY m.user_id LIMIT 100',
-    )
-    .all(tenant) as JsonObject[];
+  return activeMembers(store, tenant);
 }

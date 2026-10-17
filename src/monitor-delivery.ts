@@ -3,6 +3,20 @@ import type {Actor, JsonObject} from './types.js';
 import {bad, fingerprint, optional} from './workspace-core.js';
 import {reportPlatforms} from './report-metrics.js';
 import {sha256} from './security.js';
+import {
+  cancelNoticeMail,
+  currentRuleSubscriptions,
+  deleteNoticesCreatedBefore,
+  expireNotices,
+  liveNoticeCount,
+  nextPendingNotice,
+  noticeMail,
+  openRuleNotices,
+  openSubscriptionNotices,
+  recipientAccount,
+  requeueNoticeMail,
+  subscriptionNotices,
+} from './monitor-repository.js';
 
 export const notificationActions = ['monitor_notifications', 'set_monitor_notifications', 'retry_monitor_notification'];
 const day = 86400000;
@@ -16,9 +30,7 @@ function recipient(store: Store, actor: Actor) {
   store.assertActorActive(actor);
   if (!actor.ownerUserId || actor.testAccount)
     bad('Sign in with a verified personal account to enable email notices.', 'NOTIFICATION_ACCOUNT_REQUIRED');
-  const user = store.db
-    .prepare('SELECT id,email,version,test_account FROM amcp_users WHERE id=? AND approved=1 AND disabled=0')
-    .get(actor.ownerUserId) as JsonObject | undefined;
+  const user = recipientAccount(store, actor.ownerUserId);
   if (!user?.email || user.test_account)
     bad('A verified account email is required for notices.', 'NOTIFICATION_ACCOUNT_REQUIRED');
   return user;
@@ -34,11 +46,7 @@ function currentSubscription(store: Store, tenant: string, sub: JsonObject, moni
   return {actor, user};
 }
 function deliveryRow(store: Store, tenant: string, n: JsonObject) {
-  return store.db
-    .prepare(
-      'SELECT state,attempts,available_at,expires_at,last_error FROM amcp_email_outbox WHERE id=? AND tenant_id=?',
-    )
-    .get(monitorMailId(n.id), tenant) as JsonObject | undefined;
+  return noticeMail(store, tenant, monitorMailId(n.id));
 }
 function publicNotice(store: Store, tenant: string, n: JsonObject) {
   const mail = deliveryRow(store, tenant, n),
@@ -89,11 +97,7 @@ export function monitorNotifications(store: Store, actor: Actor, input: JsonObje
         delivery_state: null,
         delivery_error: null,
       });
-      store.db
-        .prepare(
-          "UPDATE amcp_email_outbox SET state='queued',available_at=?,last_error=NULL WHERE id=? AND tenant_id=? AND state='failed'",
-        )
-        .run(Date.now(), monitorMailId(n.id), actor.tenantId);
+      requeueNoticeMail(store, actor.tenantId, monitorMailId(n.id), Date.now());
       store.appendAudit(actor.tenantId, n.id, {event: 'monitor_notice_retried', user_id: actor.ownerUserId});
       return publicNotice(store, actor.tenantId, store.document(actor.tenantId, 'monitor_notice', n.id));
     });
@@ -123,14 +127,7 @@ export function monitorNotifications(store: Store, actor: Actor, input: JsonObje
       bad('Sign in with a verified personal account to change email notices.', 'NOTIFICATION_ACCOUNT_REQUIRED');
     if (input.recipient !== undefined || input.email !== undefined || input.to !== undefined)
       bad('Notices can only go to your own verified account email.');
-    if (
-      !sub &&
-      (
-        store.db
-          .prepare("SELECT count(*) AS n FROM documents WHERE tenant_id=? AND kind='monitor_subscription'")
-          .get(actor.tenantId) as JsonObject
-      ).n >= 1000
-    )
+    if (!sub && store.repo('monitor_subscription', actor.tenantId).count() >= 1000)
       bad('The workspace has reached 1,000 saved monitor subscriptions.', 'NOTIFICATION_LIMIT');
     store.transaction(() => {
       // Reconfirmation intentionally creates a new generation; old pending notices cannot move to it.
@@ -164,13 +161,7 @@ export function monitorNotifications(store: Store, actor: Actor, input: JsonObje
       reason = (e as {code?: string}).code ?? 'NOTIFICATION_ACCESS_REQUIRED';
     }
   }
-  const notices = user
-    ? (store.db
-        .prepare(
-          "SELECT id,data,revision FROM documents WHERE tenant_id=? AND kind='monitor_notice' AND json_extract(data,'$.subscription_id')=? ORDER BY json_extract(data,'$.created_at') DESC,id DESC LIMIT 20",
-        )
-        .all(actor.tenantId, id) as JsonObject[])
-    : [];
+  const notices = user ? subscriptionNotices(store, actor.tenantId, id) : [];
   return {
     record_kind: 'monitor_notifications',
     monitor_id: monitor.id,
@@ -191,28 +182,16 @@ export function monitorNotifications(store: Store, actor: Actor, input: JsonObje
   };
 }
 function cancelSubscriptionNotices(store: Store, tenant: string, id: string) {
-  const rows = store.db
-    .prepare(
-      "SELECT id,data FROM documents WHERE tenant_id=? AND kind='monitor_notice' AND json_extract(data,'$.subscription_id')=? AND json_extract(data,'$.state') IN ('pending','queued')",
-    )
-    .all(tenant, id) as JsonObject[];
+  const rows = openSubscriptionNotices(store, tenant, id);
   for (const r of rows)
     cancelMonitorNotice(store, tenant, {...JSON.parse(r.data), id: r.id}, 'NOTIFICATION_SUBSCRIPTION_CHANGED');
 }
 export function cancelMonitorNotice(store: Store, tenant: string, n: JsonObject, reason: string) {
-  store.db
-    .prepare(
-      "UPDATE amcp_email_outbox SET state='cancelled',secret='',lease_token=NULL,last_error=? WHERE id=? AND tenant_id=? AND state IN ('queued','sending','failed')",
-    )
-    .run(reason, monitorMailId(n.id), tenant);
+  cancelNoticeMail(store, tenant, monitorMailId(n.id), reason);
   store.putDocument(tenant, 'monitor_notice', n.id, {...n, state: 'cancelled', reason});
 }
 export function cancelMonitorRuleNotices(store: Store, tenant: string, id: string) {
-  const rows = store.db
-    .prepare(
-      "SELECT id,data FROM documents WHERE tenant_id=? AND kind='monitor_notice' AND json_extract(data,'$.monitor_id')=? AND json_extract(data,'$.state') IN ('pending','queued')",
-    )
-    .all(tenant, id) as JsonObject[];
+  const rows = openRuleNotices(store, tenant, id);
   for (const r of rows)
     cancelMonitorNotice(store, tenant, {...JSON.parse(r.data), id: r.id}, 'NOTIFICATION_RULE_CHANGED');
 }
@@ -227,22 +206,8 @@ export function queueMonitorTransition(
   if (previous?.state === incident.state || (incident.state !== 'resolved' && previous?.state === 'acknowledged'))
     return 0;
   const event = incident.state === 'resolved' ? 'resolved' : 'opened';
-  const subs = store.db
-    .prepare(
-      "SELECT id,data FROM documents WHERE tenant_id=? AND kind='monitor_subscription' AND json_extract(data,'$.monitor_id')=? AND json_extract(data,'$.enabled')=1 AND json_extract(data,'$.rule_version')=?",
-    )
-    .all(tenant, monitor.id, monitor.rule_version) as JsonObject[];
-  let remaining =
-      1000 -
-      Number(
-        (
-          store.db
-            .prepare(
-              "SELECT count(*) AS n FROM documents WHERE tenant_id=? AND kind='monitor_notice' AND json_extract(data,'$.expires_at')>?",
-            )
-            .get(tenant, Date.now()) as JsonObject
-        ).n,
-      ),
+  const subs = currentRuleSubscriptions(store, tenant, monitor.id, monitor.rule_version);
+  let remaining = 1000 - liveNoticeCount(store, tenant, Date.now()),
     queued = 0;
   for (const row of subs) {
     if (remaining <= 0) {
@@ -326,27 +291,12 @@ export function authorizeMonitorNotice(store: Store, tenant: string, n: JsonObje
   };
 }
 export function pruneMonitorNotices(store: Store) {
-  store.db
-    .prepare(
-      "UPDATE amcp_email_outbox SET state='expired',secret='',lease_token=NULL WHERE state IN ('queued','sending','failed') AND expires_at<=?",
-    )
-    .run(Date.now() + 60000);
-  store.db
-    .prepare(
-      "UPDATE documents SET data=json_set(data,'$.state','expired'),revision=revision+1 WHERE kind='monitor_notice' AND json_extract(data,'$.state') IN ('pending','queued') AND json_extract(data,'$.expires_at')<=?",
-    )
-    .run(Date.now() + 60000);
+  expireNotices(store, Date.now() + 60000);
   // Metadata expires after 30 days; intent creation and original delivery lifetime remain independently bounded.
-  store.db
-    .prepare("DELETE FROM documents WHERE kind='monitor_notice' AND json_extract(data,'$.created_at')<?")
-    .run(Date.now() - 30 * day);
+  deleteNoticesCreatedBefore(store, Date.now() - 30 * day);
 }
 export function nextMonitorNotice(store: Store) {
-  const row = store.db
-    .prepare(
-      "SELECT tenant_id,id,data FROM documents WHERE kind='monitor_notice' AND json_extract(data,'$.state')='pending' AND json_extract(data,'$.available_at')<=? ORDER BY json_extract(data,'$.created_at'),id LIMIT 1",
-    )
-    .get(Date.now()) as JsonObject | undefined;
+  const row = nextPendingNotice(store, Date.now());
   if (!row) return;
   const n = {...JSON.parse(row.data), id: row.id};
   try {

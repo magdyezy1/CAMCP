@@ -1,6 +1,7 @@
 import type {Request} from 'express';
 import {MirrorError} from '../src/errors.js';
 import {eraseAccount, selfServiceDeletion, workspaceBusy, workspaceBusyError} from '../src/account-erasure.js';
+import {connectionGateways, otherActiveMemberships} from '../src/connection-repository.js';
 import type {JsonObject} from '../src/types.js';
 import type {UserAccounts} from './user-accounts.js';
 import type {WebSession} from './web-store.js';
@@ -82,25 +83,13 @@ export class AccountDeletion {
   }
   /** The platforms of the workspace's saved logins: AMCP never contacts them, so the person removes its access there. */
   private platforms(user: JsonObject): string[] {
-    return (
-      this.store.db
-        .prepare(
-          "SELECT DISTINCT json_extract(data,'$.gateway') AS gateway FROM connections WHERE tenant_id=? ORDER BY 1",
-        )
-        .all(String(user.tenant_id)) as {gateway: unknown}[]
-    )
+    return connectionGateways(this.store, String(user.tenant_id))
       .map(r => r.gateway)
       .filter((g): g is string => typeof g === 'string' && /^[a-z0-9_]{1,64}$/.test(g));
   }
   /** The other workspaces the person is an active member of: those memberships end, the workspaces stay. */
   private otherWorkspaces(user: JsonObject): number {
-    return Number(
-      (
-        this.store.db
-          .prepare('SELECT count(*) AS n FROM workspace_memberships WHERE user_id=? AND tenant_id<>? AND active=1')
-          .get(String(user.id), String(user.tenant_id)) as JsonObject
-      ).n,
-    );
+    return otherActiveMemberships(this.store, String(user.id), String(user.tenant_id));
   }
   /** What an erasure removed or would remove, in the person's terms. */
   private summary(counts: JsonObject, otherWorkspaces: number): JsonObject {

@@ -5,6 +5,7 @@ import {publicReportAddress} from './microsoft-report-download.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {writeClaim} from './job-repository.js';
 
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const invalid = (message: string): never => {
@@ -354,9 +355,7 @@ export function authorizeRedditPostRead(p: CompiledRequest, c: Connection, store
     return false;
   }
   const review = document(store, c.tenantId, 'write_review', reviewId),
-    row = store.db
-      .prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?')
-      .get(c.tenantId, reviewId) as JsonObject | undefined;
+    row = writeClaim(store, c.tenantId, reviewId);
   if (
     review?.connection_id !== c.id ||
     review.plan?.accountId !== account ||

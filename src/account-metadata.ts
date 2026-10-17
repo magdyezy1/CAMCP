@@ -35,10 +35,7 @@ export function recallAccountMetadata(
   connectionId: string,
   accountId: string,
 ): JsonObject | undefined {
-  const row = store.db
-    .prepare("SELECT data FROM documents WHERE tenant_id=? AND kind='account_metadata' AND id=?")
-    .get(tenantId, key(connectionId, accountId)) as {data: string} | undefined;
-  return row ? JSON.parse(row.data) : undefined;
+  return store.repo('account_metadata', tenantId).payload(key(connectionId, accountId));
 }
 /** The account's own name in a native account read, however the provider nests it. */
 export function accountName(metadata: JsonObject): unknown {
@@ -86,12 +83,9 @@ const normalized = (gateway: string, id: string) =>
 
 /** The account as the login's last discovery listed it, with when that listing was read. */
 function discovered(store: Store, tenantId: string, c: Connection, accountId: string) {
-  const row = store.db
-    .prepare("SELECT data FROM documents WHERE tenant_id=? AND kind='website_assets' AND id=?")
-    .get(tenantId, c.id) as {data: string} | undefined;
-  if (!row) return undefined;
-  const assets = JSON.parse(row.data) as JsonObject,
-    wanted = normalized(c.gateway, accountId);
+  const assets = store.repo('website_assets', tenantId).payload(c.id);
+  if (!assets) return undefined;
+  const wanted = normalized(c.gateway, accountId);
   for (const group of Array.isArray(assets.groups) ? (assets.groups as JsonObject[]) : [])
     for (const asset of Array.isArray(group.assets) ? (group.assets as JsonObject[]) : [])
       if (asset?.source === 'vendor' && normalized(c.gateway, String(asset.id)) === wanted)

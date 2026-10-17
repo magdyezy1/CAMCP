@@ -17,6 +17,7 @@ import {bad, fingerprint, noSecrets} from './workspace-core.js';
 import {redact} from './security.js';
 import {reportRange} from './report-native.js';
 import {reportingBindingMove, moveWorkbookSchedules} from './report-query-rebinding.js';
+import {bindingQueryCount, pauseQuerySchedules, scheduleSize, workbookOfSpreadsheet} from './workbook-repository.js';
 // The schedule clock lives in its own module so that the reviewed-write path (store -> scheduled-work) does not load
 // the reporting service; it is re-exported here for existing importers.
 export {nextSchedule, nextScheduleDetail, scheduleClockFields, scheduleDstPolicy} from './schedule-clock.js';
@@ -171,11 +172,7 @@ export class ReportingService {
       if (kind === 'reporting_query') previous = reportingQueryRecord(this.store, actor, oldId);
       else if (kind === 'workbook') previous = reportingWorkbookAccess(this.store, actor, String(oldId));
       else {
-        const p = this.store.db
-          .prepare(
-            "SELECT length(CAST(data AS BLOB)) AS bytes,json_extract(data,'$.schedule_config.query_id') AS query_id FROM documents WHERE tenant_id=? AND kind='reporting_schedule' AND id=?",
-          )
-          .get(tenant, String(oldId)) as JsonObject | undefined;
+        const p = scheduleSize(this.store, tenant, String(oldId));
         if (!p) throw new MirrorError('NOT_FOUND', 'Reporting schedule not found.', {}, 404);
         reportingQueryScope(this.store, actor, p.query_id);
         if (p.bytes > 65536)
@@ -186,11 +183,7 @@ export class ReportingService {
     if (args.workbook_binding_id && kind !== 'workbook')
       reportingWorkbookAccess(this.store, actor, args.workbook_binding_id);
     if (operation === 'bind_reporting_workbook') {
-      const existing = this.store.db
-        .prepare(
-          "SELECT id FROM documents WHERE tenant_id=? AND kind='workbook' AND json_extract(data,'$.spreadsheet_id')=? ORDER BY id LIMIT 1",
-        )
-        .get(tenant, args.spreadsheet_id) as JsonObject | undefined;
+      const existing = workbookOfSpreadsheet(this.store, tenant, args.spreadsheet_id);
       if (existing) previous = reportingWorkbookAccess(this.store, actor, existing.id);
     }
     const id = previous?.id ?? randomUUID(),
@@ -221,12 +214,7 @@ export class ReportingService {
       if (!value.query_config.gateway && resolved.date_range) reportRange(resolved.date_range);
       reportingWorkbookAccess(this.store, actor, value.workbook_binding_id);
       if (previous?.workbook_binding_id !== value.workbook_binding_id) {
-        const count = this.store.db
-          .prepare(
-            "SELECT count(*) AS n FROM documents WHERE tenant_id=? AND kind='reporting_query' AND json_extract(data,'$.workbook_binding_id')=?",
-          )
-          .get(tenant, value.workbook_binding_id) as JsonObject;
-        if (count.n >= 500)
+        if (bindingQueryCount(this.store, tenant, value.workbook_binding_id) >= 500)
           bad('A workbook binding supports at most 500 attached queries.', 'REPORT_BINDING_QUERY_LIMIT');
       }
     }
@@ -294,13 +282,7 @@ export class ReportingService {
         : kind === 'reporting_query' &&
             previous &&
             fingerprint(previous.query_config) !== fingerprint(value.query_config)
-          ? Number(
-              this.store.db
-                .prepare(
-                  "UPDATE documents SET data=json_set(data,'$.is_active',json('false'),'$.error',NULL,'$.pause_reason','query_definition_changed','$.updated_at',?),revision=revision+1 WHERE tenant_id=? AND kind='reporting_schedule' AND json_extract(data,'$.schedule_config.query_id')=? AND json_extract(data,'$.is_active')=1",
-                )
-                .run(new Date().toISOString(), tenant, id).changes,
-            )
+          ? pauseQuerySchedules(this.store, tenant, id, new Date().toISOString())
           : 0;
       this.store.appendAudit(tenant, 'reporting/' + id, {
         event: operation,

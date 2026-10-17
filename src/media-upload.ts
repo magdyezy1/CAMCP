@@ -48,6 +48,7 @@ import {googleAdsCustomers} from './google-version.js';
 import {metaPrefix} from './meta-version.js';
 import {creativeLibrary} from './creative-library.js';
 import {optionalClientView} from './client-scope.js';
+import {cancelJobLease, writeClaim, writeClaimFingerprint} from './job-repository.js';
 
 const platforms = mediaPlatforms;
 /** Snapchat simple uploads take up to 32 MB; larger files are sent in parts well under the 32 MB part limit (either unit). */
@@ -960,9 +961,7 @@ export class MediaUploadService {
   }
   private recoveryRecord(actor: Actor, review: JsonObject) {
     const p = review.plan as UploadPlan,
-      claim = this.store.db
-        .prepare('SELECT state FROM idempotency WHERE tenant_id=? AND key=?')
-        .get(actor.tenantId, review.id) as JsonObject | undefined,
+      claim = writeClaim(this.store, actor.tenantId, review.id),
       job = this.unsentJob(actor, review, !!claim),
       notSent = !!job,
       session = this.store.uploadSession(actor.tenantId, review.id),
@@ -1584,9 +1583,7 @@ export class MediaUploadService {
     this.access(actor, p.platform, p.account_id, p.connection_id);
     const fingerprint = sha256(stable({tenant: actor.tenantId, user: actor.userId, plan: p}));
     if (fingerprint !== review.fingerprint) fail('REVIEW_CHANGED', 'Media review failed its integrity check.');
-    const previous = this.store.db
-      .prepare('SELECT state,result,fingerprint FROM idempotency WHERE tenant_id=? AND key=?')
-      .get(actor.tenantId, input.review_id) as JsonObject | undefined;
+    const previous = writeClaimFingerprint(this.store, actor.tenantId, input.review_id);
     if (input.action === 'prepare_library') return this.prepareLibrary(actor, p, review, input.review_id, previous);
     if (input.action === 'job_status') {
       if (!review.job_id) fail('NOT_FOUND', 'No background upload was queued for this review.');
@@ -1613,12 +1610,7 @@ export class MediaUploadService {
     }
     if (input.action === 'cancel') {
       if (previous) fail('UPLOAD_ALREADY_SUBMITTED', 'An upload already submitted cannot be cancelled locally.');
-      if (review.job_id)
-        this.store.db
-          .prepare(
-            "UPDATE jobs SET state='cancelled',lease_token=NULL,lease_until=NULL WHERE tenant_id=? AND id=? AND state IN ('queued','running')",
-          )
-          .run(actor.tenantId, review.job_id);
+      if (review.job_id) cancelJobLease(this.store, actor.tenantId, review.job_id);
       this.store.removeStagedMedia(actor.tenantId, input.review_id);
       this.store.putDocument(actor.tenantId, 'media_review', input.review_id, {...review, expires_at: 0});
       return {success: true, cancelled: true};
@@ -2424,9 +2416,7 @@ export class MediaUploadService {
       confirmation_required: true,
     });
     if (pending) {
-      const claimed = this.store.db
-        .prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?')
-        .get(actor.tenantId, source.library_review_id) as JsonObject | undefined;
+      const claimed = writeClaim(this.store, actor.tenantId, source.library_review_id);
       if (claimed) {
         if (claimed.state === 'complete')
           return {...JSON.parse(claimed.result), executed: false, already_in_library: true};

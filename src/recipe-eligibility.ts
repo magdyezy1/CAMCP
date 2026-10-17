@@ -383,25 +383,17 @@ export const eligibilityRecordsPerUser = 20;
 function saveEligibility(store: Store, actor: Actor, record: JsonObject): string {
   const id = randomUUID();
   store.transaction(() => {
-    // Expired checks go in one statement (no scan of the workspace's documents in JavaScript).
-    store.db
-      .prepare(
-        "DELETE FROM documents WHERE tenant_id=? AND kind='recipe_eligibility' AND coalesce(json_extract(data,'$.expires_at'),0)<=?",
-      )
-      .run(actor.tenantId, Date.now());
+    const checks = store.repo('recipe_eligibility', actor.tenantId);
+    // Expired checks go in one statement (no scan of the workspace's documents in JavaScript); a check without an expiry
+    // counts as expired (its declared expiry, src/document-kinds.ts).
+    checks.purgeExpired(Date.now());
     store.putDocument(actor.tenantId, 'recipe_eligibility', id, {
       ...record,
       user_id: actor.userId,
       saved_at: Date.now(),
     });
     // Each person keeps their newest checks only; each one carries a whole native preflight result.
-    store.db
-      .prepare(
-        `DELETE FROM documents WHERE tenant_id=? AND kind='recipe_eligibility' AND json_extract(data,'$.user_id')=? AND id NOT IN (
-          SELECT id FROM documents WHERE tenant_id=? AND kind='recipe_eligibility' AND json_extract(data,'$.user_id')=?
-          ORDER BY coalesce(json_extract(data,'$.saved_at'),0) DESC, rowid DESC LIMIT ?)`,
-      )
-      .run(actor.tenantId, actor.userId, actor.tenantId, actor.userId, eligibilityRecordsPerUser);
+    checks.keepNewest('user_id', actor.userId, 'saved_at', eligibilityRecordsPerUser);
   });
   return id;
 }

@@ -6,6 +6,7 @@ import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
+import {writeClaim} from './job-repository.js';
 
 type Kind = 'account' | 'campaign' | 'adset';
 type Send = (p: CompiledRequest) => Promise<TransportResult>;
@@ -312,9 +313,7 @@ export function authorizeMetaReportRead(p: CompiledRequest, c: Connection, store
   let binding = saved;
   if (reviewId) {
     const review = document(store, c.tenantId, 'write_review', reviewId),
-      claim = store.db
-        .prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?')
-        .get(c.tenantId, reviewId) as JsonObject | undefined;
+      claim = writeClaim(store, c.tenantId, reviewId);
     let result: JsonObject | undefined;
     try {
       result = claim?.result ? JSON.parse(claim.result) : undefined;

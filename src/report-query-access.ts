@@ -1,7 +1,16 @@
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
-import {reportRunScope, reportScopeFieldsSQL} from './report-runs.js';
+import {reportRunScope} from './report-runs.js';
+import {
+  bindingQueries,
+  configurationScope,
+  emptyWorkbooks,
+  linkedSchedules,
+  savedQuery,
+  savedQueryPage,
+  workbookSize,
+} from './workbook-repository.js';
 import {bad, fingerprint, noSecrets, obj, workspaceCredentialKey} from './workspace-core.js';
 import {redact, guardInput} from './security.js';
 import {Registry} from './catalog.js';
@@ -14,16 +23,10 @@ import {redditReportWarning, savedRedditReportProblems} from './reddit-report-ru
 let registry: Registry | undefined;
 // Leave room for the query's ID, name, binding and revision around a 64 KiB configuration.
 export const reportQueryRecordLimit = 73728;
-export const reportQuerySQL = `SELECT q.id,q.revision,length(CAST(q.data AS BLOB)) AS bytes,json_object(
-  'name',substr(json_extract(q.data,'$.name'),1,120),
-  'workbook_binding_id',substr(json_extract(q.data,'$.workbook_binding_id'),1,160),
-  'updated_at',json_extract(q.data,'$.updated_at'),
-  ${reportScopeFieldsSQL('q.data')}) AS metadata
-  FROM documents q WHERE q.tenant_id=? AND q.kind='reporting_query'`;
+// The saved query projection is in the store layer (src/workbook-repository.ts, ARC-02).
+export {reportQuerySQL} from './workbook-repository.js';
 export function reportingConfigScope(store: Store, actor: Actor, config: JsonObject) {
-  const row = store.db
-    .prepare(`SELECT json_object(${reportScopeFieldsSQL('q.data')}) AS metadata FROM (SELECT ? AS data) q`)
-    .get(JSON.stringify({query_config: config})) as JsonObject;
+  const row = configurationScope(store, config);
   return reportRunScope(store, actor, JSON.parse(row.metadata));
 }
 function redactDecodedBody(value: unknown): unknown {
@@ -122,7 +125,7 @@ export function validateReportingConfig(store: Store, actor: Actor, config: Json
 export function reportingQueryScope(store: Store, actor: Actor, id: unknown) {
   store.assertActorActive(actor);
   if (typeof id !== 'string' || !id || id.length > 160) bad('Choose an exact saved query ID.');
-  const row = store.db.prepare(reportQuerySQL + ' AND q.id=?').get(actor.tenantId, id) as JsonObject | undefined;
+  const row = savedQuery(store, actor.tenantId, id);
   if (!row) throw new MirrorError('NOT_FOUND', 'Saved query not found in this workspace.', {}, 404);
   const metadata = JSON.parse(row.metadata),
     scope = reportRunScope(store, actor, metadata);
@@ -136,16 +139,10 @@ export function reportingQueryRecord(store: Store, actor: Actor, id: unknown) {
 }
 export function reportingWorkbookAccess(store: Store, actor: Actor, id: string, allowRetired = false) {
   store.assertActorActive(actor);
-  const size = store.db
-    .prepare(
-      "SELECT length(CAST(data AS BLOB)) AS bytes,json_extract(data,'$.created_by') AS creator FROM documents WHERE tenant_id=? AND kind='workbook' AND id=?",
-    )
-    .get(actor.tenantId, id) as JsonObject | undefined;
+  const size = workbookSize(store, actor.tenantId, id);
   if (!size) throw new MirrorError('NOT_FOUND', 'Workbook binding not found in this workspace.', {}, 404);
   if (size?.bytes > 65536) bad('This legacy binding exceeds the 64 KiB settings limit.', 'REPORT_BINDING_TOO_LARGE');
-  const rows = store.db
-    .prepare(reportQuerySQL + " AND json_extract(q.data,'$.workbook_binding_id')=? LIMIT 501")
-    .all(actor.tenantId, id) as JsonObject[];
+  const rows = bindingQueries(store, actor.tenantId, id);
   if (rows.length > 500) bad('A workbook binding supports at most 500 attached queries.', 'REPORT_BINDING_QUERY_LIMIT');
   if (rows.length) for (const row of rows) reportRunScope(store, actor, JSON.parse(row.metadata));
   else if (size.creator !== (actor.ownerUserId ?? actor.userId) && actor.role !== 'admin')
@@ -181,15 +178,7 @@ export function reportQueryPage(store: Store, actor: Actor, input: JsonObject) {
     search.length > 200
   )
     bad('Use a query page limit of 1–100, nonnegative offset and search up to 200 characters.');
-  const rows = store.db
-      .prepare(
-        reportQuerySQL +
-          (input.spreadsheet_id
-            ? " AND EXISTS(SELECT 1 FROM documents w WHERE w.tenant_id=q.tenant_id AND w.kind='workbook' AND w.id=json_extract(q.data,'$.workbook_binding_id') AND json_extract(w.data,'$.spreadsheet_id')=?)"
-            : '') +
-          ' ORDER BY q.id LIMIT 501 OFFSET ?',
-      )
-      .all(actor.tenantId, ...(input.spreadsheet_id ? [input.spreadsheet_id] : []), offset) as JsonObject[],
+  const rows = savedQueryPage(store, actor.tenantId, input.spreadsheet_id || undefined, offset),
     result: JsonObject[] = [];
   let scanned = 0;
   for (const row of rows.slice(0, 500)) {
@@ -252,11 +241,7 @@ export function reportingBootstrap(store: Store, actor: Actor, input: JsonObject
         remainingBytes -= bytes;
       } else workbooks.push({id: workbook.id, spreadsheet_id: workbook.spreadsheet_id, settings_omitted: true});
     }
-    const linked = store.db
-      .prepare(
-        "SELECT id,length(CAST(data AS BLOB)) AS bytes FROM documents WHERE tenant_id=? AND kind='reporting_schedule' AND json_extract(data,'$.schedule_config.query_id')=? AND json_extract(data,'$.workbook_binding_id')=? ORDER BY id LIMIT 100",
-      )
-      .all(actor.tenantId, item.id, query.workbook_binding_id) as JsonObject[];
+    const linked = linkedSchedules(store, actor.tenantId, item.id, query.workbook_binding_id);
     for (const row of linked) {
       if (schedules.length >= 100) break;
       if (row.bytes <= 65536 && row.bytes <= remainingBytes) {
@@ -283,17 +268,13 @@ export function reportingBootstrap(store: Store, actor: Actor, input: JsonObject
       );
   }
   // Empty bindings have no provider scope yet; retain only the creator/admin's local setup records.
-  const empty = store.db
-    .prepare(
-      "SELECT w.id FROM documents w WHERE w.tenant_id=? AND w.kind='workbook' AND json_extract(w.data,'$.retired_at') IS NULL AND (?='admin' OR json_extract(w.data,'$.created_by')=?) AND (? IS NULL OR json_extract(w.data,'$.spreadsheet_id')=?) AND NOT EXISTS(SELECT 1 FROM documents q WHERE q.tenant_id=w.tenant_id AND q.kind='reporting_query' AND json_extract(q.data,'$.workbook_binding_id')=w.id) ORDER BY w.id LIMIT 100",
-    )
-    .all(
-      actor.tenantId,
-      actor.role,
-      actor.ownerUserId ?? actor.userId,
-      input.spreadsheet_id ?? null,
-      input.spreadsheet_id ?? null,
-    ) as JsonObject[];
+  const empty = emptyWorkbooks(
+    store,
+    actor.tenantId,
+    actor.role,
+    actor.ownerUserId ?? actor.userId,
+    input.spreadsheet_id ?? null,
+  );
   for (const row of empty)
     try {
       const w = reportingWorkbookAccess(store, actor, row.id);

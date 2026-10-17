@@ -5,6 +5,7 @@ import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {reportPlatforms, recommendationValidityMs} from './report-metrics.js';
 import {normalizeAccount} from './scope.js';
+import {presentationProfilePage} from './report-repository.js';
 export const defaultPresentation = {brand_name: '', accent_color: '#354B67', footer: '', template: 'standard'};
 export function presentationStyle(value: JsonObject = {}) {
   validate(value, ['brand_name', 'accent_color', 'footer', 'template', 'artifact_language'], 4096, 'presentation');
@@ -96,15 +97,7 @@ export function presentationProfiles(store: Store, actor: Actor, report: JsonObj
     limit = input.limit ?? 30;
   if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
     bad('Use an offset >= 0 and a page size of 1–100.');
-  const rows = store.db
-    .prepare(
-      `SELECT id,revision,json_object('name',json_extract(data,'$.name'),
-    'approved_by',json_extract(data,'$.approved_by'),'approved_at',json_extract(data,'$.approved_at'),
-    'bindings',json_extract(data,'$.bindings'),'report_presentation',json_extract(data,'$.report_presentation')) AS data
-    FROM documents WHERE tenant_id=? AND kind='client_profile' AND json_type(data,'$.report_presentation')='object'
-    ORDER BY id LIMIT 100 OFFSET ?`,
-    )
-    .all(actor.tenantId, offset) as JsonObject[];
+  const rows = presentationProfilePage(store, actor.tenantId, offset);
   const profiles: JsonObject[] = [];
   let scanned = 0;
   for (const row of rows) {

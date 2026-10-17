@@ -3,6 +3,7 @@ import {MirrorError} from './errors.js';
 import {scopeKey, stable} from './security.js';
 import {storableCredentials} from './app-credentials.js';
 import type {Credentials, JsonObject} from './types.js';
+import {hasTable, rowsAfter, tenantIds, updateRow} from './rekey-repository.js';
 
 /**
  * Master-key rotation (SEC-07 S3). With the new key in MIRROR_MASTER_KEY and the replaced one in
@@ -84,11 +85,10 @@ export interface RekeyOptions {
 export function rekeyStore(store: Store, options: RekeyOptions = {}): JsonObject {
   const box = store.keyring;
   if (!box) throw new MirrorError('ENCRYPTION_REQUIRED', 'Set MIRROR_MASTER_KEY before re-sealing stored values.');
-  const db = store.db,
-    dryRun = options.dryRun === true,
+  const dryRun = options.dryRun === true,
     batch = Math.max(1, Math.min(1000, options.batch ?? 50)),
     locations: Record<string, RekeyTally> = {},
-    has = (table: string) => !!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table),
+    has = (table: string) => hasTable(store, table),
     tally = (name: string) => (locations[name] ??= {current: 0, previous: 0, resealed: 0, unreadable: 0});
   const openText = (sealed: string, scopes: readonly string[]) => {
     for (const scope of scopes)
@@ -143,20 +143,14 @@ export function rekeyStore(store: Store, options: RekeyOptions = {}): JsonObject
     if (!has(table)) return;
     let after = Number.MIN_SAFE_INTEGER;
     for (;;) {
-      const rows = db
-        .prepare('SELECT rowid AS r,' + columns + ' FROM ' + table + ' WHERE rowid>? ORDER BY rowid LIMIT ?')
-        .all(after, size) as JsonObject[];
+      const rows = rowsAfter(store, table, columns, after, size);
       if (!rows.length) return;
       after = rows.at(-1)!.r;
       const apply = () => {
         for (const row of rows) {
           const update = visit(row);
           if (!update || dryRun) continue;
-          const names = Object.keys(update);
-          db.prepare('UPDATE ' + table + ' SET ' + names.map(n => n + '=?').join(',') + ' WHERE rowid=?').run(
-            ...(Object.values(update) as (string | number | Buffer | null)[]),
-            row.r,
-          );
+          updateRow(store, table, update, row.r);
         }
       };
       if (dryRun) apply();
@@ -285,13 +279,7 @@ export function rekeyStore(store: Store, options: RekeyOptions = {}): JsonObject
     }
     return Object.keys(update).length ? update : undefined;
   });
-  const workspaces = [
-    ...new Set([
-      ...(options.websiteTenants ?? []),
-      'local',
-      ...(db.prepare('SELECT id FROM tenants').all() as {id: string}[]).map(t => t.id),
-    ]),
-  ];
+  const workspaces = [...new Set([...(options.websiteTenants ?? []), 'local', ...tenantIds(store).map(t => t.id)])];
   eachRow('amcp_mcp_clients', 'id,data', row => {
     const data = JSON.parse(row.data);
     if (typeof data.encrypted_client_secret !== 'string') return;
@@ -329,7 +317,7 @@ export function rekeyStore(store: Store, options: RekeyOptions = {}): JsonObject
       ? 'incomplete'
       : 'rekeyed';
   if (!dryRun)
-    for (const tenant of db.prepare('SELECT id FROM tenants').all() as {id: string}[])
+    for (const tenant of tenantIds(store))
       store.appendAudit(tenant.id, 'admin/rekey', {
         event: 'secrets_rekeyed',
         status,

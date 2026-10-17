@@ -1,9 +1,29 @@
 import {randomUUID} from 'node:crypto';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
-import {deleteRowsOneByOne} from './media-storage.js';
-import {scopeKey, sha256} from './security.js';
+import {scopeKey} from './security.js';
 import type {JsonObject} from './types.js';
+import {
+  accountByEmail,
+  accountById,
+  accountExists,
+  accountsPastRetention,
+  auditRecordCount,
+  deleteEmailedLink,
+  deleteQueuedMail,
+  deleteStepRows,
+  deleteStepRowsOneByOne,
+  deleteWorkspace,
+  emailedLinks,
+  erasureSteps,
+  leasedJobRunning,
+  otherActiveMembers,
+  pendingClaimSince,
+  sealedMailOutside,
+  stepRowCount,
+  tableExists as has,
+  workspaceExists,
+} from './erasure-repository.js';
 
 /**
  * Account erasure (SEC-07 S4). Revoking access only set approved=0 and disabled=1, and nothing could delete an account,
@@ -16,8 +36,9 @@ import type {JsonObject} from './types.js';
  * - every website session, emailed link, queued e-mail about the person, connector key and AI-client grant ends;
  * - every record of the account's own workspace goes: documents, connections (the saved logins; AMCP does not contact
  *   the provider, so the person removes AMCP's access there), jobs, write claims, media, memberships and the workspace;
- * - the person's memberships, invitations, monitor subscriptions and keys in other workspaces go, and the account,
- *   its sign-in identities and two-step secret are deleted;
+ * - the person's memberships (with the client access set each limits them to), invitations, monitor subscriptions
+ *   and notices and keys in other workspaces go, and the account, its sign-in identities and two-step secret are
+ *   deleted; the document kinds that belong to a person are those src/document-kinds.ts declares with `person`;
  * - the workspace's audit records keep their place in the hash chain with a tombstone instead of their payload, and the
  *   deployment's audit gets `account_erased` with the counts and the tombstones' digest (Store.verifyAudit checks it);
  * - an `erasure_receipt` document in the deployment's workspace names the erased account and workspace by their random
@@ -49,89 +70,20 @@ export interface ErasureSelector {
   tenantId?: string;
 }
 
-const has = (store: Store, table: string) =>
-  !!store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table);
-interface Step {
-  table: string;
-  where: string;
-  params: (string | number)[];
-  /** Media chunks go one row per statement, outside the transaction, so the log stays small (OPS-01). */
-  oneByOne?: boolean;
-}
-/**
- * Every row of an erasure, in deletion order (the workspace's own rows, then keys and grants, then the account). The
- * keys are listed first: the workspace's keys, the person's keys in other workspaces and their AI-client access.
- */
-function steps(store: Store, user: JsonObject | undefined, tenant: string): Step[] {
-  const id = String(user?.id ?? ''),
-    emailHash = typeof user?.email === 'string' ? sha256(user.email.toLowerCase()) : '',
-    grants = has(store, 'amcp_mcp_grants'),
-    keys = JSON.stringify(
-      (
-        store.db
-          .prepare(
-            'SELECT hash FROM api_keys WHERE tenant_id=? OR hash IN (SELECT hash FROM credential_owners WHERE user_id=?)' +
-              (grants
-                ? " OR hash IN (SELECT hash FROM amcp_mcp_grants WHERE kind='access' AND json_extract(data,'$.ownerUserId')=?)"
-                : ''),
-          )
-          .all(tenant, id, ...(grants ? [id] : [])) as {hash: string}[]
-      ).map(row => row.hash),
-    );
-  return [
-    {table: 'media_chunks', where: 'tenant_id=?', params: [tenant], oneByOne: true},
-    {table: 'retained_media_chunks', where: 'tenant_id=?', params: [tenant], oneByOne: true},
-    {table: 'media_staging', where: 'tenant_id=?', params: [tenant]},
-    {table: 'retained_media', where: 'tenant_id=?', params: [tenant]},
-    {table: 'media_admissions', where: 'tenant_id=?', params: [tenant]},
-    {
-      table: 'documents',
-      where:
-        "tenant_id=? OR (kind IN ('monitor_subscription','monitor_notice') AND json_extract(data,'$.user_id')=?) OR (kind='workspace_invite' AND json_extract(data,'$.emailHash')=?)",
-      params: [tenant, id, emailHash],
-    },
-    {table: 'jobs', where: 'tenant_id=?', params: [tenant]},
-    {table: 'idempotency', where: 'tenant_id=?', params: [tenant]},
-    {table: 'resource_ownership', where: 'tenant_id=?', params: [tenant]},
-    {table: 'connections', where: 'tenant_id=?', params: [tenant]},
-    {table: 'api_keys', where: 'hash IN (SELECT value FROM json_each(?))', params: [keys]},
-    {table: 'credential_owners', where: 'user_id=? OR hash IN (SELECT value FROM json_each(?))', params: [id, keys]},
-    {table: 'amcp_mcp_grants', where: "tenant_id=? OR json_extract(data,'$.ownerUserId')=?", params: [tenant, id]},
-    {table: 'workspace_memberships', where: 'tenant_id=? OR user_id=?', params: [tenant, id]},
-    {
-      table: 'amcp_oauth_states',
-      where:
-        "session_hash IN (SELECT hash FROM amcp_web_sessions WHERE json_extract(actor,'$.userId')=? OR json_extract(actor,'$.tenantId')=?)",
-      params: [id, tenant],
-    },
-    {
-      table: 'amcp_web_sessions',
-      where: "json_extract(actor,'$.userId')=? OR json_extract(actor,'$.tenantId')=?",
-      params: [id, tenant],
-    },
-    {table: 'amcp_mfa', where: 'user_id=?', params: [id]},
-    {table: 'amcp_identities', where: 'user_id=?', params: [id]},
-    {table: 'amcp_email_outbox', where: 'tenant_id=?', params: [tenant]},
-    {table: 'amcp_users', where: 'id=?', params: [id]},
-  ];
-}
 /** The account a selector names, and the workspace it owns. */
 function target(store: Store, selector: ErasureSelector): {user?: JsonObject; tenant?: string} {
   const users = has(store, 'amcp_users'),
     user = !users
       ? undefined
       : selector.userId
-        ? (store.db.prepare('SELECT * FROM amcp_users WHERE id=?').get(selector.userId) as JsonObject | undefined)
+        ? accountById(store, selector.userId)
         : selector.email
-          ? (store.db
-              .prepare('SELECT * FROM amcp_users WHERE email=? COLLATE NOCASE')
-              .get(String(selector.email).trim().toLowerCase()) as JsonObject | undefined)
+          ? accountByEmail(store, String(selector.email).trim().toLowerCase())
           : undefined;
   const tenant = user ? String(user.tenant_id) : selector.tenantId;
   return {
     user,
-    tenant:
-      tenant && store.db.prepare('SELECT 1 FROM tenants WHERE id=?').get(tenant) ? tenant : user ? tenant : undefined,
+    tenant: tenant && workspaceExists(store, tenant) ? tenant : user ? tenant : undefined,
   };
 }
 /**
@@ -159,14 +111,12 @@ function sealedRows(
     }
   };
   if (has(store, 'amcp_email_outbox'))
-    for (const row of store.db
-      .prepare("SELECT id,secret FROM amcp_email_outbox WHERE secret<>'' AND tenant_id<>?")
-      .all(tenant) as JsonObject[]) {
+    for (const row of sealedMailOutside(store, tenant)) {
       const payload = open(row.secret, scopeKey('account-auth', 'mail:' + row.id));
       if (payload && email && JSON.stringify(payload).toLowerCase().includes(email)) out.outbox.push(row.id);
     }
   if (has(store, 'amcp_account_challenges'))
-    for (const row of store.db.prepare('SELECT hash,secret FROM amcp_account_challenges').all() as JsonObject[]) {
+    for (const row of emailedLinks(store)) {
       const data = open(row.secret, scopeKey('account-auth', row.hash));
       if (data && (data.userId === user.id || (!!email && String(data.email ?? '').toLowerCase() === email)))
         out.challenges.push(row.hash);
@@ -181,14 +131,7 @@ const claimWindowMs = 15 * 60000;
  * self-service deletion waits for it (ACCOUNT_DELETION_BUSY).
  */
 export function workspaceBusy(store: Store, tenant: string, now = Date.now()): boolean {
-  return !!(
-    store.db
-      .prepare("SELECT 1 FROM jobs WHERE tenant_id=? AND state='running' AND lease_until>? LIMIT 1")
-      .get(tenant, now) ||
-    store.db
-      .prepare("SELECT 1 FROM idempotency WHERE tenant_id=? AND state='pending' AND created_at>? LIMIT 1")
-      .get(tenant, now - claimWindowMs)
-  );
+  return leasedJobRunning(store, tenant, now) || pendingClaimSince(store, tenant, now - claimWindowMs);
 }
 export const workspaceBusyError = () =>
   new MirrorError(
@@ -200,13 +143,7 @@ export const workspaceBusyError = () =>
   );
 /** Whether another active member uses the account's own workspace (its erasure is refused then). */
 const sharedWith = (store: Store, tenant: string, user: JsonObject | undefined) =>
-  Number(
-    (
-      store.db
-        .prepare('SELECT count(*) AS n FROM workspace_memberships WHERE tenant_id=? AND active=1 AND user_id<>?')
-        .get(tenant, String(user?.id ?? '')) as JsonObject
-    ).n,
-  ) > 0;
+  otherActiveMembers(store, tenant, String(user?.id ?? '')) > 0;
 const sharedError = () =>
   new MirrorError(
     'ERASURE_WORKSPACE_SHARED',
@@ -240,24 +177,14 @@ export function eraseAccount(store: Store, selector: ErasureSelector, options: E
     if (!options.reapplies && sharedWith(store, tenant, user)) throw sharedError();
     if (options.reason === 'self_service' && workspaceBusy(store, tenant)) throw workspaceBusyError();
   };
-  const plan = steps(store, user, tenant).filter(step => has(store, step.table)),
+  const plan = erasureSteps(store, user, tenant).filter(step => has(store, step.table)),
     sealed = sealedRows(store, user, tenant),
-    count = (step: Step) =>
-      Number(
-        (
-          store.db
-            .prepare('SELECT count(*) AS n FROM ' + step.table + ' WHERE ' + step.where)
-            .get(...step.params) as JsonObject
-        ).n,
-      ),
     counts: Record<string, number> = {};
-  for (const step of plan) counts[step.table] = count(step);
+  for (const step of plan) counts[step.table] = stepRowCount(store, step);
   counts.amcp_email_outbox = (counts.amcp_email_outbox ?? 0) + sealed.outbox.length;
   if (has(store, 'amcp_account_challenges')) counts.amcp_account_challenges = sealed.challenges.length;
-  counts.tenants = store.db.prepare('SELECT 1 FROM tenants WHERE id=?').get(tenant) ? 1 : 0;
-  const auditRecords = Number(
-    (store.db.prepare('SELECT count(*) AS n FROM audit WHERE tenant_id=?').get(tenant) as JsonObject).n,
-  );
+  counts.tenants = workspaceExists(store, tenant) ? 1 : 0;
+  const auditRecords = auditRecordCount(store, tenant);
   const ids = {user_id: user?.id ?? null, tenant_id: tenant};
   if (options.dryRun)
     return {
@@ -273,22 +200,15 @@ export function eraseAccount(store: Store, selector: ErasureSelector, options: E
     at = Date.now();
   recheck();
   // Media chunks first, one per statement; a failure after them leaves an account the next erasure finishes.
-  for (const step of plan.filter(s => s.oneByOne))
-    deleteRowsOneByOne(
-      store.db,
-      step.table,
-      'SELECT rowid AS r FROM ' + step.table + ' WHERE ' + step.where + ' LIMIT 1',
-      ...step.params.map(String),
-    );
+  for (const step of plan.filter(s => s.oneByOne)) deleteStepRowsOneByOne(store, step);
   const receipt = store.transaction(() => {
     recheck();
     // The rows are selected again inside the transaction, so a key or session created since the plan goes too.
-    for (const step of steps(store, user, tenant).filter(s => !s.oneByOne && has(store, s.table)))
-      store.db.prepare('DELETE FROM ' + step.table + ' WHERE ' + step.where).run(...step.params);
-    for (const id of sealed.outbox) store.db.prepare('DELETE FROM amcp_email_outbox WHERE id=?').run(id);
-    for (const hash of sealed.challenges)
-      store.db.prepare('DELETE FROM amcp_account_challenges WHERE hash=?').run(hash);
-    store.db.prepare('DELETE FROM tenants WHERE id=?').run(tenant);
+    for (const step of erasureSteps(store, user, tenant).filter(s => !s.oneByOne && has(store, s.table)))
+      deleteStepRows(store, step);
+    for (const id of sealed.outbox) deleteQueuedMail(store, id);
+    for (const hash of sealed.challenges) deleteEmailedLink(store, hash);
+    deleteWorkspace(store, tenant);
     const tombstones = store.tombstoneAudit(tenant, erasure),
       receipt: JsonObject = {
         erasure_id: erasure,
@@ -359,10 +279,7 @@ export function reapplyErasures(store: Store, receipts: unknown, deploymentTenan
     );
   return (receipts as JsonObject[]).map(r => {
     const present =
-      (r.user_id &&
-        has(store, 'amcp_users') &&
-        store.db.prepare('SELECT 1 FROM amcp_users WHERE id=?').get(r.user_id)) ||
-      store.db.prepare('SELECT 1 FROM tenants WHERE id=?').get(r.tenant_id);
+      (r.user_id && has(store, 'amcp_users') && accountExists(store, r.user_id)) || workspaceExists(store, r.tenant_id);
     if (!present) return {erasure_id: r.erasure_id, status: 'absent'};
     const receipt = eraseAccount(
       store,
@@ -410,45 +327,8 @@ export function selfServiceDeletion(env: NodeJS.ProcessEnv): boolean {
   if (value === 'off') return false;
   throw Error('AMCP_ACCOUNT_SELF_DELETION must be on or off.');
 }
-/** Whether another active member uses the account's own workspace: an erasure of it is refused (eraseAccount). */
-const sharedWorkspace =
-  'EXISTS (SELECT 1 FROM workspace_memberships s WHERE s.tenant_id=u.tenant_id AND s.active=1 AND s.user_id<>u.id)';
 /** The accounts past each retention period, oldest first; `shared` selects those whose workspace others use. */
-function pastRetention(
-  store: Store,
-  deploymentTenant: string,
-  retention: {pendingMs: number | null; revokedMs: number | null},
-  now: number,
-  shared: boolean,
-  limit: number,
-) {
-  const workspace = (shared ? '' : 'NOT ') + sharedWorkspace;
-  const select = (sql: string, ...params: (string | number)[]) =>
-    (store.db.prepare(sql + ' ORDER BY u.created_at LIMIT ' + limit).all(...params) as {id: string}[]).map(r => r.id);
-  return {
-    pending:
-      retention.pendingMs === null
-        ? []
-        : select(
-            'SELECT u.id FROM amcp_users u WHERE u.approved=0 AND u.disabled=0 AND u.created_at<? AND u.tenant_id<>? AND NOT EXISTS (SELECT 1 FROM workspace_memberships m WHERE m.user_id=u.id AND m.tenant_id<>u.tenant_id) AND ' +
-              workspace,
-            now - retention.pendingMs,
-            deploymentTenant,
-          ),
-    revoked:
-      retention.revokedMs === null
-        ? []
-        : // Each account's latest revocation is read in one grouped pass over the deployment's audit, not once per
-          // disabled account (the owner's access page runs this on every render; wave 3a review).
-          select(
-            "WITH revoked AS (SELECT json_extract(a.event,'$.user_id') AS uid,max(a.created_at) AS at FROM audit a WHERE a.tenant_id=? AND json_valid(a.event) AND json_extract(a.event,'$.event')='account_access_revoked' GROUP BY 1) SELECT u.id FROM amcp_users u LEFT JOIN revoked r ON r.uid=u.id WHERE u.disabled=1 AND u.tenant_id<>? AND coalesce(r.at,u.created_at)<? AND " +
-              workspace,
-            deploymentTenant,
-            deploymentTenant,
-            now - retention.revokedMs,
-          ),
-  };
-}
+const pastRetention = accountsPastRetention;
 /**
  * Accounts the retention sweep erases now: never approved and older than `pendingMs`, or revoked `revokedMs` ago, at
  * most 100 of each. A pending account with a membership in another workspace (invited by that workspace's administrator

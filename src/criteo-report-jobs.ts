@@ -7,6 +7,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {criteoPrefix} from './criteo-version.js';
 import {sameLogin} from './connection-authority.js';
+import {writeClaim} from './job-repository.js';
 
 type Kind = 'accounts' | 'campaigns' | 'line-items';
 type Send = (p: CompiledRequest) => Promise<TransportResult>;
@@ -503,9 +504,7 @@ export function authorizeCriteoReport(p: CompiledRequest, c: Connection, store: 
   let binding = saved;
   if (p.criteoReportReviewId) {
     const review = document(store, c, 'write_review', p.criteoReportReviewId),
-      claim = store.db
-        .prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?')
-        .get(c.tenantId, p.criteoReportReviewId) as JsonObject | undefined;
+      claim = writeClaim(store, c.tenantId, p.criteoReportReviewId);
     let result: JsonObject | undefined;
     try {
       result = claim?.result ? JSON.parse(claim.result) : undefined;
@@ -712,11 +711,8 @@ export function observeCriteoReportRead(p: CompiledRequest, c: Connection, store
   const s = p.criteoReportRead;
   if (!s || s.kind !== 'status') return;
   const {kind, ...binding} = s;
-  store.db
-    .prepare(
-      "DELETE FROM documents WHERE tenant_id=? AND kind='criteo_report_run' AND json_extract(data,'$.retained_until')<=?",
-    )
-    .run(c.tenantId, Date.now());
+  // Runs past their 7 days go first (their declared expiry, src/document-kinds.ts).
+  store.repo('criteo_report_run', c.tenantId).purgeExpired(Date.now());
   store.putDocument(c.tenantId, 'criteo_report_run', bindingKey(c, s.job_id), {
     ...binding,
     status_data: data,

@@ -2,6 +2,8 @@ import {randomUUID} from 'node:crypto';
 import {MirrorError} from './errors.js';
 import {sha256, stable, redact} from './security.js';
 import {loginRevision} from './connection-authority.js';
+import {connectionRow, deleteConnectionRow, deleteResourceBindings} from './connection-repository.js';
+import {deleteCapturedReportsReadThrough, deleteSnapshotsReadThrough} from './report-repository.js';
 import type {Store} from './store.js';
 import type {Actor, Connection, JsonObject} from './types.js';
 
@@ -20,8 +22,7 @@ function access(store: Store, actor: Actor) {
     throw new MirrorError('FORBIDDEN', 'Only a workspace administrator can disconnect a platform identity.', {}, 403);
 }
 function find(store: Store, actor: Actor, gateway: string, id: string): Connection | undefined {
-  const row = store.db.prepare('SELECT data FROM connections WHERE tenant_id=? AND id=?').get(actor.tenantId, id) as
-    {data: string} | undefined;
+  const row = connectionRow(store, actor.tenantId, id);
   const c = row ? (JSON.parse(row.data) as Connection) : undefined;
   if (c && (c.tenantId !== actor.tenantId || c.gateway !== gateway))
     throw new MirrorError('CONNECTION_NOT_FOUND', 'No matching connection exists in this workspace.', {}, 404);
@@ -63,29 +64,27 @@ function impact(c: Connection): JsonObject {
  * reconciliation. A report still running fails its current-access check instead of storing rows.
  */
 function purgeReportContent(store: Store, tenant: string, id: string) {
-  const snapshots = store.db
-    .prepare(
-      `DELETE FROM documents WHERE tenant_id=? AND kind='overview_report'
-        AND json_extract(data,'$.state') IN ('complete','partial','failed','cancelled')
-        AND (EXISTS (SELECT 1 FROM json_each(data,'$.rows') WHERE json_extract(value,'$.connection_id')=?)
-          OR EXISTS (SELECT 1 FROM json_each(data,'$.config.sources') WHERE json_extract(value,'$.connection_id')=?))`,
-    )
-    .run(tenant, id, id).changes;
-  const captured = store.db
-    .prepare(
-      "DELETE FROM documents WHERE tenant_id=? AND kind IN ('decision_report','microsoft_report','report_incident') AND json_extract(data,'$.connection_id')=?",
-    )
-    .run(tenant, id).changes;
-  return {report_snapshots: Number(snapshots), captured_reports: Number(captured)};
+  const snapshots = deleteSnapshotsReadThrough(store, tenant, id);
+  const captured = deleteCapturedReportsReadThrough(store, tenant, id);
+  return {report_snapshots: snapshots, captured_reports: captured};
 }
-/** Deletes this tenant's documents of one kind that name the connection in `field`; returns how many. */
-function purgeConnectionDocuments(store: Store, tenant: string, kind: string, field: string, id: string): number {
-  return Number(
-    store.db
-      .prepare("DELETE FROM documents WHERE tenant_id=? AND kind=? AND json_extract(data,'$.' || ?)=?")
-      .run(tenant, kind, field, id).changes,
-  );
-}
+/**
+ * The document kinds a disconnect deletes, by how they name the login: the registry's `connection` declarations
+ * (src/document-kinds.ts), which tests/document-registry.test.mjs holds equal to this list.
+ */
+export const disconnectedKinds = [
+  'account_metadata',
+  'conditional_program_observation',
+  'connection_health',
+  'decision_report',
+  'microsoft_report',
+  'oauth_progress',
+  'overview_report',
+  'readiness',
+  'report_incident',
+  'website_assets',
+  'website_connection',
+] as const;
 /**
  * A provider revocation the administrator confirmed before this disconnect (CON-05 sub-item 10,
  * provider-revocation.ts): the provider's answer, and the login revision and id whose token was sent.
@@ -122,31 +121,23 @@ export function disconnectLocalConnection(
         {provider_revocation: revocation.result},
         409,
       );
-    const details = impact(c),
-      bindings = store.db
-        .prepare('DELETE FROM resource_ownership WHERE tenant_id=? AND connection_id=?')
-        .run(actor.tenantId, id).changes;
-    const documents = store.db
-      .prepare("DELETE FROM documents WHERE tenant_id=? AND id=? AND kind IN ('website_assets','website_connection')")
-      .run(actor.tenantId, id).changes;
+    const tenant = actor.tenantId,
+      details = impact(c),
+      bindings = deleteResourceBindings(store, tenant, id);
+    // The login's discovery documents carry its id.
+    const documents =
+      Number(store.repo('website_assets', tenant).delete(id)) +
+      Number(store.repo('website_connection', tenant).delete(id));
     // Credential health (CON-02) describes only this login and goes with it.
-    store.db
-      .prepare("DELETE FROM documents WHERE tenant_id=? AND id=? AND kind='connection_health'")
-      .run(actor.tenantId, id);
-    const purged = purgeReportContent(store, actor.tenantId, id),
+    store.repo('connection_health', tenant).delete(id);
+    const purged = purgeReportContent(store, tenant, id),
       // Conditional-program observations read through this login go with it (owner decision D20, CON-04).
-      observations = Number(
-        store.db
-          .prepare(
-            "DELETE FROM documents WHERE tenant_id=? AND kind='conditional_program_observation' AND json_extract(data,'$.connection_id')=?",
-          )
-          .run(actor.tenantId, id).changes,
-      ),
+      observations = store.repo('conditional_program_observation', tenant).deleteBy('connection_id', id),
       // Account names read live, readiness evidence and the login's connect progress describe only this login (CON-05).
-      metadata = purgeConnectionDocuments(store, actor.tenantId, 'account_metadata', 'connection_id', id),
-      readiness = purgeConnectionDocuments(store, actor.tenantId, 'readiness', 'connection_id', id),
-      progress = purgeConnectionDocuments(store, actor.tenantId, 'oauth_progress', 'connectionId', id);
-    store.db.prepare('DELETE FROM connections WHERE tenant_id=? AND id=?').run(actor.tenantId, id);
+      metadata = store.repo('account_metadata', tenant).deleteBy('connection_id', id),
+      readiness = store.repo('readiness', tenant).deleteBy('connection_id', id),
+      progress = store.repo('oauth_progress', tenant).deleteBy('connectionId', id);
+    deleteConnectionRow(store, tenant, id);
     const receipt = {
       success: true,
       executed: true,

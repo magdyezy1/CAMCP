@@ -165,6 +165,8 @@ with the [repository README](../README.md) for what AMCP is.
 
 - [Deploy AMCP on Railway with Cloudflare DNS](DEPLOY-RAILWAY.md)
 - [Operations](OPERATIONS.md)
+- [Document kinds and retention](DOCUMENT-KINDS.md)
+- [Adding a document kind](ADDING-A-DOCUMENT-KIND.md)
 - [Local rendered website qualification](LOCAL-BROWSER-QA.md)
 - [MCP evaluation record template](review/MCP-EVALUATION-RECORD-TEMPLATE.md)
 - [AMCP accounts and workspace access](USER-ACCOUNTS.md)

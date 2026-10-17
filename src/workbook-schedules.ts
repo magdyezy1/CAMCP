@@ -3,33 +3,11 @@ import type {Actor, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {fingerprint, validate, writer} from './workspace-core.js';
 import {nextScheduleDetail} from './reporting.js';
-import {reportRunScope, reportRunStatus, reportScopeFieldsSQL} from './report-runs.js';
+import {reportRunScope, reportRunStatus} from './report-runs.js';
+import {scheduleMigration, workbookScheduleRow} from './workbook-repository.js';
 
-const text = (key: string, limit = 160) => `CASE WHEN json_type(d.data,'$.${key}')='text'
-  AND length(json_extract(d.data,'$.${key}'))<=${limit} THEN json_extract(d.data,'$.${key}') END`;
-const integer = (key: string) =>
-  `CASE WHEN json_type(d.data,'$.${key}')='integer' THEN json_extract(d.data,'$.${key}') END`;
-const timestamp = (key: string) => `coalesce(CASE WHEN json_type(d.data,'$.${key}')='integer'
-  THEN json_extract(d.data,'$.${key}')
-  ELSE cast(unixepoch(json_extract(d.data,'$.${key}'),'subsec')*1000 AS integer) END,0)`;
-export const workbookScheduleFeedSQL = `SELECT d.id,'workbook_schedule' AS kind,d.revision,
-  max(${timestamp('updated_at')},${timestamp('last_run_at')}) AS at,
-  json_object('name',coalesce(${text('name', 200)},d.id),
-    'state',CASE WHEN json_extract(d.data,'$.error.code') IS NOT NULL THEN 'failed'
-      WHEN json_extract(d.data,'$.is_active')=1 AND json_extract(d.data,'$.schedule_warning.code') IS NOT NULL THEN 'attention'
-      WHEN json_extract(d.data,'$.is_active')=1 THEN 'active' ELSE 'paused' END,
-    'active',CASE WHEN json_extract(d.data,'$.is_active')=1 THEN 1 ELSE 0 END,
-    'timezone',${text('timezone', 80)},'schedule_kind',${text('schedule_kind', 20)},
-    'minute',${integer('schedule_config.minute')},'hour',${integer('schedule_config.hour')},
-    'weekday',${integer('schedule_config.weekday')},'day',${integer('schedule_config.day')},
-    'query_id',${text('schedule_config.query_id')},'query_revision',q.revision,
-    'next_run_at',${integer('next_run_at')},'last_run_id',${text('last_run_id')},
-    'error_code',substr(coalesce(json_extract(d.data,'$.error.code'),json_extract(d.data,'$.schedule_warning.code')),1,101),
-    ${reportScopeFieldsSQL('q.data')}
-  ) AS metadata
-  FROM documents d LEFT JOIN documents q ON q.tenant_id=d.tenant_id AND q.kind='reporting_query'
-    AND q.id=json_extract(d.data,'$.schedule_config.query_id')
-  WHERE d.tenant_id=? AND d.kind='reporting_schedule'`;
+// The workbook schedule feed projection is in the store layer (src/workbook-repository.ts, ARC-02).
+export {workbookScheduleFeedSQL} from './workbook-repository.js';
 
 /** A schedule's move to Reporting overview (EXP-04 D phase 2), without private fields; null when never moved. */
 export const workbookMigrationProjection = (m: JsonObject | null | undefined) =>
@@ -44,11 +22,7 @@ export const workbookMigrationProjection = (m: JsonObject | null | undefined) =>
       }
     : null;
 function migrationOf(store: Store, tenant: string, id: string) {
-  const row = store.db
-    .prepare(
-      "SELECT json_extract(data,'$.overview_migration') AS m FROM documents WHERE tenant_id=? AND kind='reporting_schedule' AND id=?",
-    )
-    .get(tenant, id) as JsonObject | undefined;
+  const row = scheduleMigration(store, tenant, id);
   return workbookMigrationProjection(typeof row?.m === 'string' ? JSON.parse(row.m) : null);
 }
 
@@ -73,8 +47,7 @@ export function workbookSchedule(store: Store, actor: Actor, id: unknown): JsonO
   store.assertActorActive(actor);
   if (typeof id !== 'string' || !id || id.length > 160)
     throw new MirrorError('INVALID_SCHEDULE', 'Choose an exact workbook schedule ID.');
-  const row = store.db.prepare(workbookScheduleFeedSQL + ' AND d.id=?').get(actor.tenantId, id) as
-    JsonObject | undefined;
+  const row = workbookScheduleRow(store, actor.tenantId, id);
   if (!row) throw new MirrorError('NOT_FOUND', 'Workbook schedule not found in this tenant.', {}, 404);
   const p = JSON.parse(row.metadata),
     scope = reportRunScope(store, actor, p);

@@ -14,10 +14,7 @@ const exportPolicyId = 'exports';
 
 /** Whether the workspace owner lets viewers download report files (account_settings/exports). Off by default. */
 export function viewerDownloadsAllowed(store: Store, tenant: string): boolean {
-  const row = store.db
-    .prepare("SELECT data FROM documents WHERE tenant_id=? AND kind='account_settings' AND id=?")
-    .get(tenant, exportPolicyId) as {data: string} | undefined;
-  return row ? JSON.parse(row.data).viewer_downloads === true : false;
+  return store.repo('account_settings', tenant).payload(exportPolicyId)?.viewer_downloads === true;
 }
 
 /** Whether this actor may download report files. */

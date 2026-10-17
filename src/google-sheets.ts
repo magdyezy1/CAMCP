@@ -8,6 +8,8 @@ import {sha256, stable} from './security.js';
 import {csvField} from './csv-safety.js';
 import type {Actor, Connection, JsonObject} from './types.js';
 import {loginStamp, storedLogin} from './connection-authority.js';
+import {snapshotDeliveries, unresolvedDelivery} from './report-repository.js';
+import {lockLease} from './service-lock-repository.js';
 export const sheetsGateway = 'google_sheets_native_action';
 /**
  * Delivery limits aligned with Google's documented Sheets limits: batchUpdate may process for up to 180 s, so the
@@ -106,23 +108,10 @@ export function deliveryProjection(delivery: JsonObject | undefined) {
   };
 }
 export function unresolvedSheetsDelivery(store: Store, tenant: string, destinationId: string, exceptId = '') {
-  const row = store.db
-    .prepare(
-      "SELECT id,data FROM documents WHERE tenant_id=? AND kind='sheets_delivery' AND id<>? AND json_extract(data,'$.destination_id')=? AND json_extract(data,'$.state') IN ('pending','uncertain') ORDER BY id LIMIT 1",
-    )
-    .get(tenant, exceptId, destinationId) as JsonObject | undefined;
-  return row ? {...JSON.parse(row.data), id: row.id} : undefined;
+  return unresolvedDelivery(store, tenant, destinationId, exceptId);
 }
 export function sheetsDeliveriesForReport(store: Store, tenant: string, reportId: string, states = unresolvedStates) {
-  return (
-    store.db
-      .prepare(
-        "SELECT id,data FROM documents WHERE tenant_id=? AND kind='sheets_delivery' AND json_extract(data,'$.report_id')=? ORDER BY id",
-      )
-      .all(tenant, reportId) as JsonObject[]
-  )
-    .map(row => ({...JSON.parse(row.data), id: row.id}))
-    .filter(d => states.includes(d.state));
+  return snapshotDeliveries(store, tenant, reportId).filter(d => states.includes(d.state));
 }
 /**
  * Audited "release tab": an operator gives up an unconfirmed delivery after the settle window. The destination is
@@ -682,8 +671,7 @@ export class GoogleSheetsExports {
         throw new MirrorError('IDEMPOTENCY_CONFLICT', 'This key belongs to a different spreadsheet creation.');
       const check = () => {
         this.connection(actor, connectionId, true);
-        const lease = this.store.db.prepare('SELECT owner,expires_at FROM service_locks WHERE key=?').get(lock) as
-          JsonObject | undefined;
+        const lease = lockLease(this.store, lock);
         if (!lease || lease.owner !== owner || lease.expires_at <= Date.now())
           throw new MirrorError(
             'EXPORT_LEASE_LOST',
@@ -952,8 +940,7 @@ export class GoogleSheetsExports {
           {},
           409,
         );
-      const lease = this.store.db.prepare('SELECT owner,expires_at FROM service_locks WHERE key=?').get(lock) as
-        JsonObject | undefined;
+      const lease = lockLease(this.store, lock);
       if (!lease || lease.owner !== owner || lease.expires_at <= Date.now())
         throw new MirrorError(
           'EXPORT_LEASE_LOST',

@@ -19,10 +19,7 @@ export function personalDataSwitch(
   gateway: string,
   account: string,
 ): JsonObject | undefined {
-  const row = store.db
-    .prepare('SELECT data FROM documents WHERE tenant_id=? AND kind=? AND id=?')
-    .get(tenant, kind, switchId(gateway, account)) as {data: string} | undefined;
-  return row ? JSON.parse(row.data) : undefined;
+  return store.repo(kind, tenant).payload(switchId(gateway, account));
 }
 /** Every account the owner turned on, for the owner's view. */
 export function personalDataAccounts(store: Store, tenant: string): JsonObject[] {
@@ -98,7 +95,7 @@ export function disablePersonalData(store: Store, actor: Actor, input: JsonObjec
   const id = switchId(input.gateway, input.account_id),
     was = !!personalDataSwitch(store, actor.tenantId, input.gateway, input.account_id);
   store.transaction(() => {
-    store.db.prepare('DELETE FROM documents WHERE tenant_id=? AND kind=? AND id=?').run(actor.tenantId, kind, id);
+    store.repo(kind, actor.tenantId).delete(id);
   });
   store.appendAudit(actor.tenantId, kind + '/' + id, {
     event: 'personal_data_disabled',

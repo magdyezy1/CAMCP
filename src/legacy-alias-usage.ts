@@ -1,6 +1,7 @@
 import {googleLegacyCoverage} from './google-legacy.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
+import {googleAdsRequestActions} from './audit-repository.js';
 
 const day = 86400000;
 /** Audit rows read at most, like the review-friction baseline; a busier window reports `complete: false`. */
@@ -15,11 +16,7 @@ let legacyNames: Set<string> | undefined;
 export function legacyAliasUsage(store: Store, actor: Actor, now = Date.now(), days = 30): JsonObject {
   legacyNames ??= new Set(googleLegacyCoverage().entries.map(e => e.action));
   const since = now - days * day,
-    rows = store.db
-      .prepare(
-        "SELECT request_id, json_extract(event,'$.request.action') AS action FROM audit WHERE tenant_id=? AND created_at>=? AND instr(event,'google_ads_native_action')>0 AND json_extract(event,'$.request.gateway')='google_ads_native_action' ORDER BY seq LIMIT ?",
-      )
-      .all(actor.tenantId, since, aliasScanLimit + 1) as {request_id: string; action: unknown}[];
+    rows = googleAdsRequestActions(store, actor.tenantId, since, aliasScanLimit + 1);
   // One request is counted once, under the action it was planned with, however many events it recorded.
   const requests = new Map<string, string>();
   for (const row of rows.slice(0, aliasScanLimit))

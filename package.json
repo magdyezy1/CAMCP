@@ -45,6 +45,7 @@
     "report": "node dist/tools/report.js",
     "check:web": "node tools/check-web.mjs",
     "check:oracles": "node tools/check-test-oracles.mjs",
+    "check:storage": "node tools/check-storage-boundary.mjs",
     "check:browser": "npm run build && node tools/browser-workflow-qa.mjs",
     "eval:mcp": "npm run build && node tools/mcp-eval.mjs",
     "providers:check": "node dist/tools/provider-drift.js",
