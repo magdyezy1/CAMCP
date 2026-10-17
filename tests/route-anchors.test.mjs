@@ -315,17 +315,12 @@ async function contractPanel(f, locale) {
     $: selector =>
       selector === '#contract-filter' ? filter : selector === '#capability-filter' ? workflows : nodes[selector],
   });
-  const run = code => new Script(code).runInContext(context),
-    operations = fs.readFileSync('web/operations-center.js', 'utf8');
+  const run = code => new Script(code).runInContext(context);
   run(fs.readFileSync('web/localization.js', 'utf8'));
   context.catalog = catalog;
   run(`uiLocale=${JSON.stringify(locale)};uiMessages=new Map(${locale === 'ar' ? 'Object.entries(catalog)' : '[]'});`);
-  run(
-    operations.slice(
-      operations.indexOf('function workPageLoader('),
-      operations.indexOf('// Only these authored AMCP instructions'),
-    ),
-  );
+  // WEB-07: the paged-list loader is its own small module (web/work-pages.js), as the Capabilities page loads it.
+  run(fs.readFileSync('web/work-pages.js', 'utf8'));
   run(fs.readFileSync('web/capability-center.js', 'utf8'));
   await run('renderCapabilityCenter()');
   return {

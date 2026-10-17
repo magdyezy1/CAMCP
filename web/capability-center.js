@@ -251,12 +251,12 @@ function contractRouteAnchor(a) {
     detail = anchor.source
       ? [anchor.source, anchor.method, anchor.checked_at].filter(Boolean).join(' ')
       : (anchor.capture ?? '');
-  return `<p>${esc(uiText('Route evidence:'))} ${esc(uiText(routeAnchorLabels[a.anchor_status] ?? 'Not recorded'))}${detail ? ` · <bdi dir="ltr">${esc(detail)}</bdi>` : ''}</p>`;
+  return html`<p>${uiText('Route evidence:')} ${uiText(routeAnchorLabels[a.anchor_status] ?? 'Not recorded')}${detail ? html` · <bdi dir="ltr">${detail}</bdi>` : ''}</p>`;
 }
 // A native read whose route no pinned or dated vendor artifact states: advisory only, it still runs as classified.
 const contractReadUnanchored = a =>
   a.status === 'native_read' && a.anchor_status && !anchoredRoute(a.anchor_status)
-    ? ` · ${badge('attention', uiText('Read route without vendor evidence'))}`
+    ? html` · ${raw(badge('attention', uiText('Read route without vendor evidence')))}`
     : '';
 function capabilityContractReason(value) {
   if (typeof value !== 'string') return '';
@@ -352,9 +352,10 @@ function capabilityReadChip(w, a) {
 }
 function capabilityReadSummary(w, a) {
   const read = capabilityLastRead(w, a);
-  if (!read) return '';
-  const code = (label, value) => (value ? ` · ${esc(uiText(label))} <code dir="ltr">${esc(value)}</code>` : '');
-  return `<p>${esc(uiText('Last observed:'))} ${esc(capabilityReadLabel(read))}${code('Provider code', read.provider_code)}${code('Provider request reference', read.provider_request_id)}</p><p class="form-note">${esc(uiText('This is a timestamped observation, not a grant. It does not establish current access.'))}</p>`;
+  if (!read) return html``;
+  // The provider's code and request reference are its own: escape-by-default markup (WEB-07).
+  const code = (label, value) => (value ? html` · ${uiText(label)} <code dir="ltr">${value}</code>` : '');
+  return html`<p>${uiText('Last observed:')} ${capabilityReadLabel(read)}${code('Provider code', read.provider_code)}${code('Provider request reference', read.provider_request_id)}</p><p class="form-note">${uiText('This is a timestamped observation, not a grant. It does not establish current access.')}</p>`;
 }
 // A program with no selected account shows how to set one up instead of a check that can only refuse (CON-04).
 function capabilityProgramSetup(w) {
@@ -633,7 +634,7 @@ function bindCapabilityPrograms(root) {
           chip = card?.querySelector('[data-program-status]'),
           last = card?.querySelector('[data-program-last]');
         if (chip) chip.innerHTML = capabilityReadChip(w, a);
-        if (last) last.innerHTML = capabilityReadSummary(w, a);
+        if (last) setHtml(last, capabilityReadSummary(w, a));
       }
       result.querySelectorAll?.('[data-copy-reference]').forEach(button =>
         button.addEventListener('click', async () => {
@@ -816,8 +817,9 @@ async function renderCapabilityCenter() {
       });
       return {...result, next_offset: result.has_more ? result.offset + result.limit : null};
     },
+    // Action names, methods, paths, sources and tests come from the contracts register: escape-by-default (WEB-07).
     result =>
-      `<p>${esc(uiText(result.meaning))}</p><p class="form-note">${esc(uiText('Route evidence names the vendor source that states each method and path. “Captured catalog only” means no pinned vendor document, SDK request or dated page states them yet. Route evidence never changes what AMCP runs.'))}</p>${result.actions.map(a => `<details><summary><strong>${esc(a.action)}</strong> · ${badge(a.status, capabilityLabel(a.status))}${contractReadUnanchored(a)}</summary><p>${esc(capabilityContractReason(a.reason))}</p><code dir="ltr">${esc(a.method)} ${esc(a.path)}</code><p>${esc(uiText('Aliases:'))} ${esc(a.aliases.join(', ') || uiText('None'))}</p><p>${esc(uiText('Implementation:'))} ${esc(a.implementation)} ${esc(uiText('· Live qualification:'))} ${esc(a.live_qualification)}</p><p>${esc(uiText('Evidence:'))} ${esc(a.source)}</p>${contractRouteAnchor(a)}<p>${esc(uiText('Tests:'))} ${esc(a.tests.join(', '))}</p></details>`).join('')}`,
+      html`<p>${uiText(result.meaning)}</p><p class="form-note">${uiText('Route evidence names the vendor source that states each method and path. “Captured catalog only” means no pinned vendor document, SDK request or dated page states them yet. Route evidence never changes what AMCP runs.')}</p>${result.actions.map(a => html`<details><summary><strong>${a.action}</strong> · ${raw(badge(a.status, capabilityLabel(a.status)))}${contractReadUnanchored(a)}</summary><p>${capabilityContractReason(a.reason)}</p><code dir="ltr">${a.method} ${a.path}</code><p>${uiText('Aliases:')} ${a.aliases.join(', ') || uiText('None')}</p><p>${uiText('Implementation:')} ${a.implementation} ${uiText('· Live qualification:')} ${a.live_qualification}</p><p>${uiText('Evidence:')} ${a.source}</p>${contractRouteAnchor(a)}<p>${uiText('Tests:')} ${a.tests.join(', ')}</p></details>`)}`,
   );
   workspaceBind('#contract-filter', async () => {
     contractFilters = {

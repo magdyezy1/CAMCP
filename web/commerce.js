@@ -1202,17 +1202,18 @@ async function renderCommerce() {
       ? wooCommerceConnectionsMarkup() + wooCommerceSourcePanelMarkup() + wooCommerceInventoryPanelMarkup()
       : '';
   content.innerHTML += `<section class="panel workspace-form"><h2>${esc(uiText('Reviewed catalog product import'))}</h2><p>${esc(uiText('Import up to 500 supplied products for the selected account and catalog; more than 50 are saved as one group of plans of at most 50 products each. Ownership is checked during native review. Every item keeps a separate review, receipt and read-back in its saved plan. Missing items are retained.'))}</p><p class="form-note">${esc(uiText('Product imports support Meta and X. Snapchat catalogs change only through feeds; AMCP compares their products read-only.'))}</p>${targets.length ? '' : `<p class="notice" id="catalog-no-destination">${accountChoicesEmptyNotice(targets, uiText('Connect a Meta or X ad account to import products.'), uiText('Manage connections'))}</p>`}<form id="catalog-import"><label>${esc(uiText('Meta, X or Snapchat ad account'))}<select name="target" required><option value="">${esc(uiText('Choose an account'))}</option>${targets.map((t, i) => `<option value="${i}">${esc(t.label)}</option>`).join('')}</select></label>${controls(uiText('Native product catalog ID'), 'text', '', 'catalog_id')}${controls(uiText('Import plan name'), 'text', 'Product catalog import', 'name')}<label>${esc(uiText('Product source'))}<select name="source_mode"><option value="csv">${esc(uiText('Product CSV'))}</option>${storesOffered ? `<option value="woocommerce">${esc(uiText('Selected WooCommerce products'))}</option>` : ''}</select></label><div id="catalog-csv-controls"><label>${esc(uiText('Product CSV'))}<input type="file" name="file" accept=".csv,text/csv" required></label></div><div id="catalog-woo-selection" class="form-note" aria-live="polite"></div><div id="catalog-destination-help" class="form-note" aria-live="polite"></div>${catalogMappingMarkup()}<label>${esc(uiText('Existing retailer IDs'))}<select name="allow_upsert"><option value="false">${esc(uiText('Create only — refuse existing IDs'))}</option><option value="true">${esc(uiText('Explicitly update existing IDs after native review'))}</option></select></label><button class="button primary" type="submit">${esc(uiText('Validate and preview products'))}</button></form><div id="catalog-preview"></div></section><p class="notice">${esc(uiText('Mapped supplier and WooCommerce exports use the selected Meta or X reviewed product contract. Choose the intended price, currency, image and destination fields. Live store synchronization and additional destinations require separate qualification.'))}</p>`;
-  if (storesOffered) {
-    content.innerHTML += storeSources.length
+  // One write for the store area: the store panels where WooCommerce is offered, otherwise only the removal of a stored
+  // connection, for an administrator (or nothing).
+  const parked = storesOffered ? '' : wooCommerceParkedMarkup();
+  content.innerHTML += storesOffered
+    ? storeSources.length
       ? storePanels
-      : `<details class="panel" id="commerce-store-sources"><summary>${esc(uiText('Connect a store source (administrators)'))}</summary>${storePanels}</details>`;
+      : `<details class="panel" id="commerce-store-sources"><summary>${esc(uiText('Connect a store source (administrators)'))}</summary>${storePanels}</details>`
+    : parked;
+  if (storesOffered) {
     bindWooCommerceInventory();
     bindWooCommerceConnections();
-  } else {
-    const parked = wooCommerceParkedMarkup();
-    content.innerHTML += parked;
-    if (parked) bindWooCommerceConnections(true);
-  }
+  } else if (parked) bindWooCommerceConnections(true);
   const form = $('#catalog-import'),
     result = $('#catalog-preview'),
     begin = accountWorkflowContext(form, result);

@@ -1,8 +1,8 @@
 {
   "meaning": "WEB-07 ratchet: per shipped script, HTML writes that bypass setHtml/insertHtml and markup values inserted without escaping. Counts may only go down (node tools/check-markup.mjs --write).",
   "totals": {
-    "sinks": 315,
-    "unescaped": 1162
+    "sinks": 314,
+    "unescaped": 1160
   },
   "files": {
     "account-approvals.js": {
@@ -30,8 +30,8 @@
       "unescaped": 95
     },
     "capability-center.js": {
-      "sinks": 4,
-      "unescaped": 39
+      "sinks": 3,
+      "unescaped": 38
     },
     "client-playbooks.js": {
       "sinks": 6,
@@ -39,7 +39,7 @@
     },
     "commerce-woocommerce.js": {
       "sinks": 5,
-      "unescaped": 8
+      "unescaped": 7
     },
     "commerce.js": {
       "sinks": 17,

@@ -1695,10 +1695,19 @@ function measurementLedgerEvidence(l, gateway) {
       );
     if (l.layer === 'provider_observed_activity' && gateway === 'meta_native_action' && 'last_fired_time' in e)
       return `${esc(uiText('Last fired'))} ${native(e.last_fired_time)}`;
-    // MSR-03: TikTok's statistics as returned, each value literal, with no meaning claimed for any field.
+    // MSR-03: TikTok's statistics as returned, each value literal, with no meaning claimed for any field. Paths and values
+    // are TikTok's own: escape-by-default markup (WEB-07).
     if (l.reason === 'unconfirmed_fields' && Array.isArray(e.fields)) {
-      const shown = e.fields.slice(0, 20);
-      return `${esc(uiText('{start} to {end} in UTC days; TikTok’s day basis is not confirmed.', {start: e.window?.start_date ?? '', end: e.window?.end_date ?? ''}))}${list(shown.map(f => `<li><code dir="ltr">${esc(String(f.path))}</code>: ${f.value === null ? '<code dir="ltr">null</code>' : native(f.value)}</li>`))}${Number.isSafeInteger(e.field_count) && e.field_count > shown.length ? `<p class="form-note">${esc(uiText('{shown} of {total} shown.', {shown: uiNumber(shown.length), total: uiNumber(e.field_count)}))}</p>` : ''}`;
+      const shown = e.fields.slice(0, 20),
+        value = v =>
+          v === null
+            ? html`<code dir="ltr">null</code>`
+            : v === undefined || v === ''
+              ? uiText('Unknown')
+              : html`<code dir="ltr">${String(v)}</code>`;
+      return String(
+        html`${uiText('{start} to {end} in UTC days; TikTok’s day basis is not confirmed.', {start: e.window?.start_date ?? '', end: e.window?.end_date ?? ''})}${shown.length ? html`<ul class="measurement-ledger-list">${shown.map(f => html`<li><code dir="ltr">${String(f.path)}</code>: ${value(f.value)}</li>`)}</ul>` : ''}${Number.isSafeInteger(e.field_count) && e.field_count > shown.length ? html`<p class="form-note">${uiText('{shown} of {total} shown.', {shown: uiNumber(shown.length), total: uiNumber(e.field_count)})}</p>` : ''}`,
+      );
     }
     if (l.reason === 'report_incomplete' && Number.isSafeInteger(e.warnings))
       return esc(uiText('{count} provider warnings', {count: uiNumber(e.warnings)}));
