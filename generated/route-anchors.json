@@ -16,7 +16,7 @@
     "generated/apple-platform-v1-models.json": "47933c604b2a34950effbdab18b2ac709046b390a42153adb8d9171590edd65c",
     "generated/registry.json": "cf5c03c51e57d9a80c18ac83ca0ead24f2fd4ddb674779d99869a33b31119e09",
     "generated/vendor-routes.json": "5b7c8e8d4ea28837ac4c6d7d30a874c5fcf692e30f0803ea1d4c117eea5374a4",
-    "tests/fixtures/meta-sdk-changes-v26.json": "5214181cdafc82d89926fda80c5922ef8cc531a978145eca127a6d7c04878e03",
+    "tests/fixtures/meta-sdk-changes-v26.json": "2524545545ff2a93893d314162c349d44111036c4ba0a70975ff1e0b67abb922",
     "tools/route-anchor-documents.json": "ee744ef99b75e747a8b9e0d5fed74dbd81e3d97ba4a9bef481f664d2815fe4f4"
   },
   "sources": {
@@ -105,7 +105,7 @@
       "api_version": "v26.0",
       "url": "https://github.com/facebook/facebook-python-business-sdk/tree/26.0.2",
       "evidence": "tests/fixtures/meta-sdk-changes-v26.json",
-      "evidence_sha256": "5214181cdafc82d89926fda80c5922ef8cc531a978145eca127a6d7c04878e03",
+      "evidence_sha256": "2524545545ff2a93893d314162c349d44111036c4ba0a70975ff1e0b67abb922",
       "checked_at": "2026-09-28"
     },
     "ga4-admin-v1beta": {

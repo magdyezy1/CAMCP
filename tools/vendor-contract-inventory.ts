@@ -30,6 +30,8 @@ export const vendorDocumentsWithoutMethods: readonly string[] = [
   'lifecycle-pages.json',
   'microsoft-rest-v13.json',
   'meta-currencies.json',
+  // MSR-03: one pinned request specification for the TikTok measurement ledger, not a method inventory.
+  'tiktok-pixel-event-stats.json',
 ];
 type Method = {id: string; method: string; path: string; origin?: string};
 function methods(d: JsonObject): Method[] {

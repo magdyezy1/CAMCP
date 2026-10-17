@@ -114,6 +114,9 @@ test('nothing AMCP sends to Meta is a field, parameter or value that v26.0 remov
     ...changes.removed.fields.map(f => f.split('.').at(-1)),
     ...changes.removed.params.map(p => p.split(' ').at(-1)),
   ];
-  assert.equal(removed.length, 27);
+  // 35 since the fixture was regenerated from both complete PyPI releases (984 modules, 2026-10-17); the earlier
+  // 250-module evidence found 27. The 8 added names (copyright reference-match owners and IGUserForIGOnlyAPI media
+  // branded-content parameters) are not sent by AMCP; the next assertion keeps checking that.
+  assert.equal(removed.length, 35);
   assert.deepEqual(removed.filter(sentAsRemoved), []);
 });
