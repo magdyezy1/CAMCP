@@ -532,7 +532,7 @@ h2.report-section-label {
 }
 .report-table .metric-qualifier {
   margin-inline-start: 2px;
-  color: var(--muted, #756183);
+  color: var(--muted);
   text-decoration: none;
   cursor: help;
 }
@@ -940,7 +940,7 @@ h2.report-section-label {
   margin: 20px 0;
 }
 .report-summary-card {
-  border: 1px solid var(--line, #e4dbe9);
+  border: 1px solid var(--line);
   border-radius: 22px;
   padding: 23px;
   background: linear-gradient(135deg, #fff9f3, #f4efff);
@@ -1035,10 +1035,10 @@ h2.report-section-label {
   min-height: 44px;
   padding-block: 0;
   padding-inline: 14px 36px;
-  border: 1px solid var(--line, #e6e1ed);
+  border: 1px solid var(--line);
   border-radius: 12px;
-  color: var(--ink, #242031);
-  background: var(--surface, var(--white));
+  color: var(--ink);
+  background: var(--surface-raised);
   font: inherit;
   max-width: 100%;
 }
@@ -1322,7 +1322,7 @@ h2.report-section-label {
   width: 100%;
   height: 36px;
   margin-top: 14px;
-  color: var(--iris, #5a43ad);
+  color: var(--iris);
 }
 /* Time runs from the inline start in both directions. */
 html[dir='rtl'] .report-sparkline {

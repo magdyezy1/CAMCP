@@ -226,10 +226,10 @@ input[type='checkbox'] {
   background: #282239;
 }
 .sidebar {
-  background: #201d30;
+  background: var(--surface-inverse);
   width: 253px;
   padding: 30px 22px 22px;
-  color: #f2eef8;
+  color: var(--text-on-inverse);
 }
 .brand {
   font-size: 28px;
@@ -344,7 +344,7 @@ input[type='checkbox'] {
 }
 .sidebar nav {
   gap: 3px;
-  scrollbar-color: #665479 #201d30;
+  scrollbar-color: #665479 var(--surface-inverse);
 }
 .sidebar nav a {
   font-size: 13px;

@@ -8,8 +8,9 @@
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
-  color: #282238;
-  background: #f8f6fb;
+  /* Every colour here is a token (web/tokens.css), so these pages follow a dark system without JavaScript (WEB-07). */
+  color: var(--policy-text);
+  background: var(--policy-surface);
   font-synthesis: none;
 }
 @font-face {
@@ -44,11 +45,15 @@ body {
   line-height: 1.75;
 }
 a {
-  color: #5840ab;
+  color: var(--policy-link);
   text-underline-offset: 4px;
 }
+/* Header and footer links read as the site's links in light and as secondary text in dark; hover still applies. */
+:where(.site-header nav, footer) a {
+  color: var(--policy-nav-link);
+}
 a:hover {
-  color: #38236f;
+  color: var(--policy-link-hover);
 }
 a:focus-visible {
   outline: 3px solid var(--iris-700);
@@ -80,7 +85,7 @@ footer {
   padding: 26px 36px;
 }
 .site-header {
-  border-bottom: 1px solid #e1d9ed;
+  border-bottom: 1px solid var(--policy-border);
   flex-wrap: wrap;
 }
 .policy-languages {
@@ -99,7 +104,7 @@ footer {
   gap: 12px;
   font-size: 27px;
   font-weight: 750;
-  color: #282238;
+  color: var(--policy-text);
   text-decoration: none;
   letter-spacing: -1px;
 }
@@ -122,7 +127,7 @@ main {
   text-transform: uppercase;
   letter-spacing: 2px;
   font-size: 11px;
-  color: #6c5186;
+  color: var(--policy-eyebrow);
   font-weight: 650;
 }
 h1 {
@@ -132,12 +137,12 @@ h1 {
   margin: 16px 0;
 }
 h1 span {
-  color: #b7613e;
+  color: var(--policy-accent);
   margin-inline-start: 16px;
   font-size: 0.8em;
 }
 .policy-heading > p:not(.eyebrow) {
-  color: #6a5e79;
+  color: var(--policy-lead);
 }
 .policy-heading .updated {
   font-size: 13px;
@@ -155,7 +160,7 @@ h1 span {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  border-top: 1px solid #d9cfea;
+  border-top: 1px solid var(--policy-border-strong);
   padding-top: 18px;
 }
 .contents strong {
@@ -167,31 +172,31 @@ h1 span {
 .contents a {
   font-size: 13px;
   text-decoration: none;
-  color: #655475;
+  color: var(--policy-contents-link);
 }
 article {
-  background: #fff;
-  border: 1px solid #e1d9ed;
+  background: var(--surface-raised);
+  border: 1px solid var(--policy-border);
   border-radius: 22px;
   padding: 36px 42px;
   min-width: 0;
-  box-shadow: 0 8px 36px #32234804;
+  box-shadow: 0 8px 36px var(--policy-shadow);
 }
 article p,
 article li {
   font-size: 15px;
-  color: #51485f;
+  color: var(--policy-text-body);
 }
 article .intro {
   font-size: 17px;
-  color: #352c44;
+  color: var(--policy-text-intro);
   margin-top: 0;
 }
 section {
   scroll-margin-top: 25px;
 }
 section + section {
-  border-top: 1px solid #ebe5f2;
+  border-top: 1px solid var(--policy-border-subtle);
   padding-top: 22px;
   margin-top: 30px;
 }
@@ -200,7 +205,7 @@ h2 {
   line-height: 1.4;
   letter-spacing: -0.4px;
   margin: 20px 0 14px;
-  color: #282238;
+  color: var(--policy-text);
 }
 ul {
   padding-inline-start: 22px;
@@ -210,12 +215,12 @@ li + li {
 }
 strong {
   font-weight: 650;
-  color: #342b43;
+  color: var(--policy-text-strong);
 }
 code {
   font-size: 0.9em;
   padding: 2px 5px;
-  background: #f3effa;
+  background: var(--policy-code);
   border-radius: 4px;
   overflow-wrap: anywhere;
 }
@@ -223,9 +228,9 @@ article a {
   overflow-wrap: anywhere;
 }
 footer {
-  border-top: 1px solid #e1d9ed;
+  border-top: 1px solid var(--policy-border);
   font-size: 12px;
-  color: #6a5e79;
+  color: var(--policy-text-secondary);
   margin-bottom: 15px;
 }
 @media (max-width: 800px) {

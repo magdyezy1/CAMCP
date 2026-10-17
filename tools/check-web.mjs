@@ -5,6 +5,7 @@ import {accountMarkupProblems, rtlProblems} from './check-rtl.mjs';
 import {checkRoutes} from './check-routes.mjs';
 import {checkMarkup} from './check-markup.mjs';
 import {checkExtensions} from './check-extensions.mjs';
+import {checkColours, colourSheets, cssDeclarations, literalColours, readColourAllowlist} from './check-colours.mjs';
 
 // Static checks for the shipped website. The Content-Security-Policy (server/website.ts) allows scripts and styles
 // from 'self' only, so inline code would silently stop working; the other rules keep review findings from returning.
@@ -38,24 +39,41 @@ if (sheets.at(-1) !== 'accessibility.css')
 // The design tokens live in tokens.css, which loads first; a token defined anywhere else forks the palette (F-40).
 if (sheets[0] !== 'tokens.css')
   problems.push('index.html: tokens.css must be the first stylesheet (found ' + sheets.join(', ') + ')');
-for (const sheet of sheets.slice(1))
+// WEB-07: every page's stylesheets, not only the workspace's (privacy.css and about.css were unchecked).
+const stylesheets = colourSheets();
+for (const html of fs.readdirSync('web').filter(f => f.endsWith('.html'))) {
+  const linked = [
+    ...fs.readFileSync('web/' + html, 'utf8').matchAll(/<link rel="stylesheet" href="\/assets\/([^"]+)">/g),
+  ];
+  if (linked.length && linked[0][1] !== 'tokens.css') problems.push(html + ': tokens.css must be the first stylesheet');
+}
+for (const sheet of stylesheets)
   if (/(?:^|[{;\s])--[\w-]+\s*:/.test(fs.readFileSync('web/' + sheet, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')))
     problems.push(sheet + ': defines a design token; tokens belong in tokens.css');
-// A colour equal to a token's value uses the token, so a palette change reaches it (F-40).
+// A colour equal to a light token's value uses the token, so a palette change reaches it (F-40). Reviewed literals
+// (tools/web-colour-allowlist.json) are brand marks and print colours that never follow the palette.
 const hex = v => (v.length === 4 ? '#' + [...v.slice(1)].map(c => c + c).join('') : v).toLowerCase();
 const tokenColours = new Map(
-  [...fs.readFileSync('web/tokens.css', 'utf8').matchAll(/--([\w-]+):\s*(#[0-9a-fA-F]{3,8})\s*;/g)].map(m => [
-    hex(m[2]),
-    m[1],
-  ]),
+  cssDeclarations(fs.readFileSync('web/tokens.css', 'utf8'))
+    .filter(d => d.selector === ':root' && !d.atRules.length && /^#[0-9a-fA-F]{3,8}$/.test(d.value))
+    .map(d => [hex(d.value), d.property.slice(2)]),
 );
-for (const sheet of sheets.slice(1))
-  for (const m of fs
-    .readFileSync('web/' + sheet, 'utf8')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .matchAll(/#[0-9a-fA-F]{3,8}\b/g))
-    if (tokenColours.has(hex(m[0])))
-      problems.push(sheet + ': ' + m[0] + ' is var(--' + tokenColours.get(hex(m[0])) + ')');
+const allowedColours = readColourAllowlist().entries;
+for (const sheet of stylesheets)
+  for (const found of literalColours(fs.readFileSync('web/' + sheet, 'utf8')))
+    if (
+      found.literal.startsWith('#') &&
+      tokenColours.has(hex(found.literal)) &&
+      !allowedColours.some(
+        entry => entry.file === sheet && entry.selector === found.selector && entry.property === found.property,
+      )
+    )
+      problems.push(
+        sheet + ':' + found.line + ': ' + found.literal + ' is var(--' + tokenColours.get(hex(found.literal)) + ')',
+      );
+// WEB-07: tokens.css sets every colour for both themes, and the literal colours left in stylesheets only go down.
+const colours = checkColours();
+problems.push(...colours.problems);
 // WEB-05: one set of stylesheets serves both directions; a physical left/right side needs an allow-list entry.
 for (const sheet of fs
   .readdirSync('web', {recursive: true})
@@ -122,6 +140,11 @@ console.log(
     ' HTML writes and ' +
     markupTotals.unescaped +
     ' unescaped values remain escaped by hand, none above the baseline.',
+);
+console.log(
+  'Theme colours: tokens.css sets both themes; ' +
+    Object.values(colours.counts).reduce((sum, count) => sum + count, 0) +
+    ' literal colours remain in stylesheets, none above the baseline.',
 );
 console.log(
   'Arabic catalog covers ' +
