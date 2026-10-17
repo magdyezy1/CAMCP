@@ -6,7 +6,14 @@ import {createMcpServer} from '../server/mcp.js';
 import {Store} from '../src/store.js';
 import {Registry} from '../src/catalog.js';
 import {MirrorService} from '../src/service.js';
-import {readGuidance, buildCampaignPrompt, guidanceResources} from '../src/guidance.js';
+import {
+  readGuidance,
+  buildCampaignPrompt,
+  guidanceResources,
+  campaignPlatforms,
+  campaignPromptBudget,
+  guideSections,
+} from '../src/guidance.js';
 
 test('MCP clients discover, read and load curated campaign guides without provider calls', async () => {
   const store = new Store(':memory:'),
@@ -61,4 +68,25 @@ test('guide references are complete and distinguish unsupported execution from m
   assert.ok(reddit.includes('Never\nrepeat the POST'));
   assert.ok(reddit.includes('does not certify identical bytes/appearance'));
   assert.ok(readGuidance('amcp://guides/google-ads').text.includes('negative campaign keyword'));
+});
+
+test('every campaign prompt stays within its budget and keeps the campaign rules a brief needs (MCP-01, D14)', () => {
+  for (const platform of campaignPlatforms) {
+    const text = buildCampaignPrompt({platform, request: 'Build a paused search campaign'}).messages[0]!.content.text;
+    assert.ok(text.length <= campaignPromptBudget, platform + ': ' + text.length);
+    assert.ok(text.includes('Build a paused search campaign'), platform);
+  }
+  // The Microsoft guide no longer fits whole beside the skill and the workspace index (CMP-03's location lookup grew
+  // it), so the prompt carries its section index and the sections the brief shares words with; the Search campaign
+  // rules and the activation location gate are among them, and every section left out is named with the call that
+  // reads it.
+  const microsoft = buildCampaignPrompt({platform: 'microsoft', request: 'Build a paused search campaign'}).messages[0]!
+    .content.text;
+  const sections = guideSections('microsoft-ads');
+  for (const id of ['search-campaigns', 'activation-and-locations-owner-decision-p7'])
+    assert.ok(microsoft.includes(sections.find(s => s.id === id)!.text), id);
+  assert.match(microsoft, /Campaign creation needs Name plus DailyBudget\/BudgetType or an existing BudgetId/);
+  assert.match(microsoft, /LOCATION_CRITERIA_REQUIRED/);
+  for (const section of sections)
+    assert.ok(microsoft.includes(section.text) || microsoft.includes('- `' + section.id + '` '), section.id);
 });
