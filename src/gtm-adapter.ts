@@ -15,4 +15,8 @@ export const gtmHooks: ProviderHooks = Object.freeze({
       read('/tagmanager/v2/accounts/' + id, 'https://tagmanager.googleapis.com'),
     names: (id: string, data: JsonObject) => String(data.accountId) === id,
   }),
+  // A delete answers 200 without a body.
+  wire: Object.freeze({
+    emptyWrite: (plan: CompiledRequest, response: Response) => response.status === 200 && plan.method === 'DELETE',
+  }),
 });

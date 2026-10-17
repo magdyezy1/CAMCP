@@ -11,7 +11,10 @@ const counts = {
   'src/service.ts': 30,
   // ARC-02's review fixes add the refusal of a reserved workspace ID (INVALID_TENANT).
   'src/store.ts': 89,
-  'src/transport.ts': 42,
+  // ARC-01 phase B's wire profile moves six refusals that name a provider's own headers to that provider's adapter
+  // (Reddit's User-Agent, Microsoft's developer token and account, Amazon's client ID, Google Ads' login customer) and
+  // X's OAuth 1.0a credentials to src/oauth1.ts; tests/backend-contract-localization.test.mjs keeps their Arabic.
+  'src/transport.ts': 36,
   'src/delegated-native.ts': 37,
   'src/workflows.ts': 52,
 };
@@ -55,7 +58,7 @@ test('core diagnostic ownership resolves runtime imports and excludes lexical sh
 test('all six selected core sources require every authored reason with native field names, limits and protocol tokens intact', () => {
   for (const [file, count] of Object.entries(counts))
     assert.equal(inspectCoreContractFailures(fs.readFileSync(file, 'utf8'), file).size, count, file);
-  assert.equal(owned.size, 257);
+  assert.equal(owned.size, 251);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

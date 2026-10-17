@@ -28,4 +28,15 @@ export const searchConsoleHooks: ProviderHooks = Object.freeze({
     names: (id: string, data: JsonObject) =>
       data.siteUrl === id && typeof data.permissionLevel === 'string' && data.permissionLevel !== 'siteUnverifiedUser',
   }),
+  // A measurement asset sync read carries the sync's deadline; a site or sitemap edit answers 200 without a body.
+  wire: Object.freeze({
+    deadline: (plan: CompiledRequest) =>
+      plan.action === 'AMCP_MEASUREMENT_ASSET_SYNC' && plan.readOnly && plan.method === 'GET'
+        ? plan.measurementSyncDeadline
+        : undefined,
+    emptyWrite: (plan: CompiledRequest, response: Response) =>
+      response.status === 200 &&
+      ['PUT', 'DELETE'].includes(plan.method) &&
+      /^\/webmasters\/v3\/sites\//.test(plan.path),
+  }),
 });

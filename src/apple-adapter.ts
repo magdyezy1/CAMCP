@@ -1,4 +1,4 @@
-import type {ProviderHooks} from './provider-adapter.js';
+import type {ProviderHooks, WireHeaders} from './provider-adapter.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 
@@ -52,5 +52,24 @@ export const appleHooks: ProviderHooks = Object.freeze({
       read('/v1/ad-accounts/' + id, 'https://api.ads.apple.com'),
     names: (id: string, data: JsonObject) => String((data.result ?? data).id) === id,
     account: (data: JsonObject) => data.result ?? data.data ?? data,
+  }),
+  wire: Object.freeze({
+    // The selected account travels in X-AP-Context (adAccountId on the Apple Ads API v1, orgId on Search Ads).
+    // Shared-budget mutations are organization-level methods in Apple's SDK: the review layer authorizes every
+    // affected account and a header cannot scope them, so they carry none. Reads keep the selected-account context.
+    headers({plan, url, headers}: WireHeaders) {
+      if (!plan.accountId) return;
+      const sharedWrite =
+        url.origin === 'https://api.ads.apple.com' &&
+        !plan.readOnly &&
+        /^\/v1\/shared-budgets(?:\/\d+)?$/.test(plan.path);
+      if (sharedWrite) {
+        for (const key of Object.keys(headers)) if (key.toLowerCase() === 'x-ap-context') delete headers[key];
+      } else
+        headers['X-AP-Context'] =
+          url.origin === 'https://api.ads.apple.com' && plan.path.startsWith('/v1/')
+            ? 'adAccountId=' + plan.accountId + ';'
+            : 'orgId=' + plan.accountId;
+    },
   }),
 });

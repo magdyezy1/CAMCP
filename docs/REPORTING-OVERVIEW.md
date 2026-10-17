@@ -241,7 +241,8 @@ totals, and a campaign active only there is not a zero row.
 ## Provider error layers and throttles
 
 A provider refusal is classified from the provider's documented codes before its
-HTTP status (`src/provider-error-taxonomy.ts`). Each error carries `details.layer`
+HTTP status (`src/provider-error-taxonomy.ts`, which reads each provider's documented
+error shapes from its adapter's wire profile, `src/<provider>-adapter.ts`). Each error carries `details.layer`
 (`credential`, `consent`, `role_or_asset_access`, `app_eligibility`, `rate_limit`,
 `api_version` or `unknown`), a closed-set `details.provider_code` (a token or a
 number, never provider text) and the provider request ID. Meta's code 190 is

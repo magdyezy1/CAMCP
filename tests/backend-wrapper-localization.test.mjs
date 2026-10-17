@@ -198,8 +198,10 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // source contract, its registry and ten provider report sources (no wrapper reasons).
   // Stage C adds src/family-kit.ts; the family modules that import its fail keep their owned reasons. Stage D adds
   // src/tool-actions.ts (no wrapper reasons). ARC-01 phase B adds the provider hooks registry and fifteen provider
-  // adapter modules (src/<provider>-adapter.ts), without wrapper reasons.
-  assert.equal(files.length, 638);
+  // adapter modules (src/<provider>-adapter.ts), without wrapper reasons; its wire profile adds the Adjust and Amazon
+  // adapters and two leaves split from existing modules (src/oauth1.ts, src/provider-error-core.ts), without wrapper
+  // reasons.
+  assert.equal(files.length, 642);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
   assert.equal(Object.keys(catalog).length, 11485);

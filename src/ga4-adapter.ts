@@ -21,4 +21,11 @@ export const ga4Hooks: ProviderHooks = Object.freeze({
       read('/v1beta/properties/' + id, 'https://analyticsadmin.googleapis.com'),
     names: (id: string, data: JsonObject) => data.name === 'properties/' + id,
   }),
+  // A measurement asset sync read carries the sync's deadline.
+  wire: Object.freeze({
+    deadline: (plan: CompiledRequest) =>
+      plan.action === 'AMCP_MEASUREMENT_ASSET_SYNC' && plan.readOnly && plan.method === 'GET'
+        ? plan.measurementSyncDeadline
+        : undefined,
+  }),
 });

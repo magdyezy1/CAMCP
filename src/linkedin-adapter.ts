@@ -3,7 +3,10 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {linkedinPlanningRoute} from './linkedin-planning-reads.js';
 import {linkedInAnalyticsRows} from './linkedin-reporting.js';
-import {linkedinVersion} from './linkedin-version.js';
+import {linkedinDefaultVersion, linkedinVersion} from './linkedin-version.js';
+import {linkedinQuery} from './linkedin-restli.js';
+import {errorInteger, errorObject, errorToken, providerReference} from './provider-error-core.js';
+import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
@@ -89,5 +92,41 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
       read.headers = {'LinkedIn-Version': linkedinVersion(), 'X-Restli-Protocol-Version': '2.0.0'};
       return read;
     },
+  }),
+  // Queries are Rest.li 2.0 encoded. LinkedIn names created entities in x-restli-id and documents only the status of a
+  // tracking parameter create (201) or replace (200), keyed by the path; lead form IDs are 64-bit longs. Callers record
+  // x-li-uuid (x-li-request-id on older responses) and x-li-fabric, and a refused version names the one sent.
+  wire: Object.freeze({
+    search: (query: JsonObject) => linkedinQuery(query),
+    deadline: (plan: CompiledRequest) =>
+      plan.action === 'AMCP_LINKEDIN_TEMPLATE_READ' && plan.readOnly && plan.method === 'GET'
+        ? plan.linkedinTemplateDeadline
+        : undefined,
+    emptyWrite: (plan: CompiledRequest, response: Response) =>
+      (response.status === 200 &&
+        plan.method === 'POST' &&
+        plan.path === '/rest/videos' &&
+        plan.query.action === 'finalizeUpload') ||
+      (response.status === 201 && response.headers.has('x-restli-id')) ||
+      (plan.method === 'PUT' &&
+        /^\/rest\/adTrackingParameters\/[^/]+$/.test(plan.path) &&
+        [200, 201].includes(response.status)),
+    int64: (plan: CompiledRequest) => /^\/rest\/leadForms(?:\/|$)/.test(plan.path),
+    reportData: (plan: CompiledRequest) => plan.path === '/rest/adAnalytics',
+    fabric: (response: Response) => providerReference(response.headers.get('x-li-fabric')),
+    versionSent: (headers: Record<string, string>) => ({
+      api_version_sent: headers['LinkedIn-Version'] ?? null,
+      default_version: linkedinDefaultVersion,
+    }),
+    referenceHeaders: Object.freeze(['x-li-uuid', 'x-li-request-id', 'x-li-fabric']),
+    errors: Object.freeze({
+      requestId: (header: (name: string) => string | undefined) => header('x-li-uuid') ?? header('x-li-request-id'),
+      code: (body: unknown) => errorToken(errorObject(body).code) ?? errorInteger(errorObject(body).serviceErrorCode),
+      // HTTP 426: LinkedIn no longer serves the version sent (PRV-02).
+      classify: (input: ProviderErrorInput, {base}: ProviderErrorContext): ProviderErrorClass | undefined =>
+        !input.inBody && input.status === 426
+          ? {...base, code: 'PROVIDER_VERSION_UNSUPPORTED', layer: 'api_version', retryable: false, documented: true}
+          : undefined,
+    }),
   }),
 });

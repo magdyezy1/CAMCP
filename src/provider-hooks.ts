@@ -15,6 +15,8 @@ import {ga4Hooks} from './ga4-adapter.js';
 import {gtmHooks} from './gtm-adapter.js';
 import {searchConsoleHooks} from './google-search-console-adapter.js';
 import {criteoHooks} from './criteo-adapter.js';
+import {adjustHooks} from './adjust-adapter.js';
+import {amazonHooks} from './amazon-adapter.js';
 
 /**
  * The provider hooks registry (ARC-01 phase B): each provider's behaviour that needs its own modules, from its adapter
@@ -40,6 +42,8 @@ export const registeredProviderHooks: readonly ProviderHooks[] = Object.freeze([
   gtmHooks,
   searchConsoleHooks,
   criteoHooks,
+  adjustHooks,
+  amazonHooks,
 ]);
 
 const byGateway = new Map<string, ProviderHooks>();

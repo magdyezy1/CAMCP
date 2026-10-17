@@ -1,5 +1,5 @@
 import type {ProviderHooks} from './provider-adapter.js';
-import type {CompiledRequest, JsonObject} from './types.js';
+import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
@@ -59,6 +59,17 @@ export const redditHooks: ProviderHooks = Object.freeze({
     plan(read: CompiledRequest, id: string) {
       read.path = '/api/v3/ad_accounts/' + id;
       return read;
+    },
+  }),
+  wire: Object.freeze({
+    // Reddit requires a descriptive application User-Agent on every request.
+    connectionHeaders(headers: Record<string, string>, connection: Connection) {
+      if (!connection.userAgent || /[\r\n]/.test(connection.userAgent))
+        throw new MirrorError(
+          'USER_AGENT_REQUIRED',
+          'Configure a descriptive Reddit application userAgent on the connection.',
+        );
+      headers['User-Agent'] = connection.userAgent;
     },
   }),
 });

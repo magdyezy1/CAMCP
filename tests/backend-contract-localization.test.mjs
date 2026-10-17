@@ -153,8 +153,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // src/provider-read-contracts.ts to src/linkedin-adapter.ts, so the files with reasons and the reasons are unchanged.
   // Its paging concern moves each provider's paging refusals with its cursor rules from src/pagination.ts (which keeps
   // its own) to the Apple, Meta, Reddit, Snapchat and TikTok adapters: five more files with reasons, the same reasons.
-  assert.equal(files.length, 638);
-  assert.equal(selected.filter(row => row.messages.size).length, 241);
+  // Its wire profile adds the Adjust and Amazon adapters and two leaves split from existing modules (src/oauth1.ts,
+  // src/provider-error-core.ts); the transport refusals that name a provider's headers moved with them to the Amazon,
+  // Google Ads and Microsoft adapters, and X's OAuth 1.0a refusal to src/oauth1.ts: four more files with reasons, the
+  // same reasons.
+  assert.equal(files.length, 642);
+  assert.equal(selected.filter(row => row.messages.size).length, 245);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11485);
   assert.deepEqual(localeProblems(catalog, owned), []);

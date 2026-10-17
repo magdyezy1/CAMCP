@@ -2,6 +2,7 @@ import type {ProviderHooks} from './provider-adapter.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
+import {errorInteger, errorObject} from './provider-error-core.js';
 import {tiktokPreviewRoute} from './tiktok-preview-reads.js';
 import {
   tiktokIntegratedReport,
@@ -150,5 +151,20 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
       return read;
     },
     account: (data: JsonObject) => data.data?.list?.[0],
+  }),
+  // Requests go under /open_api with the access token in Access-Token; a failed result is a non-zero code in an HTTP
+  // 200 body, and the report reads carry their own deadline.
+  wire: Object.freeze({
+    path: (path: string) => (path.startsWith('/open_api/') ? path : '/open_api' + path),
+    tokenHeader: 'Access-Token',
+    deadline: (plan: CompiledRequest) =>
+      plan.readOnly && plan.method === 'GET' ? plan.tiktokReportDeadline : undefined,
+    csv: (plan: CompiledRequest) =>
+      plan.tiktokReportRead?.kind === 'download' &&
+      plan.method === 'GET' &&
+      plan.path === '/v1.3/report/task/download/',
+    reportData: (plan: CompiledRequest) => /\/report\/integrated\/get\/$/.test(plan.path),
+    failedResult: (data: JsonObject) => data.code !== undefined && data.code !== 0,
+    errors: Object.freeze({code: (body: unknown) => errorInteger(errorObject(body).code)}),
   }),
 });

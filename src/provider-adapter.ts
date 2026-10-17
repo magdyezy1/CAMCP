@@ -7,10 +7,11 @@
  * Concerns move into adapters one at a time (ARC-01 phase B), each with a call-replay proof that the provider requests
  * and authorization decisions are unchanged (tools/call-replay.mjs; docs/review/ARCHITECTURE.md, "Provider adapters").
  * Every adapter carries its lifecycle status and its facts (the account model, body deletions), which any module may
- * read; behaviour that needs a provider's own modules (read classification, paging, the account read) is its hooks,
- * declared in src/<provider>-adapter.ts and registered in src/provider-hooks.ts.
+ * read; behaviour that needs a provider's own modules (read classification, paging, the account read, the wire
+ * profile) is its hooks, declared in src/<provider>-adapter.ts and registered in src/provider-hooks.ts.
  */
-import type {CompiledRequest, Connection, JsonObject} from './types.js';
+import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
+import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 
 /** `active` providers are offered; a `parked` one is offered only where AMCP_PROVIDERS names it. */
 export type ProviderStatus = 'active' | 'parked';
@@ -172,6 +173,109 @@ export interface AccountRead {
   account?(data: JsonObject): unknown;
 }
 
+/** What a wire profile sets its provider's headers from: the request, its URL, the connection and its credentials. */
+export interface WireHeaders {
+  readonly plan: CompiledRequest;
+  readonly url: URL;
+  readonly connection: Connection;
+  readonly credentials: Credentials;
+  /** The headers that will be sent: the profile sets its own. */
+  readonly headers: Record<string, string>;
+}
+
+/**
+ * A provider's documented error shapes (PRV-01): src/provider-error-taxonomy.ts keeps the generic shapes and the
+ * classification of every refusal they do not name.
+ */
+export interface ErrorEnvelope {
+  /** The provider's own request reference, before the generic headers (LinkedIn's x-li-uuid and x-li-request-id). */
+  requestId?(header: (name: string) => string | undefined): string | undefined;
+  /** The request reference in a body when no header names one (Meta's error.fbtrace_id). */
+  bodyRequestId?(body: unknown): string | undefined;
+  /** The provider's own code, from its documented error shape, in place of the generic shapes. */
+  code?(body: unknown): string | number | undefined;
+  /** A refusal its documented tables classify (Meta's codes, Google Ads' quota errors...); undefined for the generic. */
+  classify?(input: ProviderErrorInput, context: ProviderErrorContext): ProviderErrorClass | undefined;
+}
+
+/**
+ * A provider's wire profile (ARC-01 phase B): how its requests are shaped on the wire and how its responses say they
+ * failed. NativeTransport (src/transport.ts) keeps the origin allowlist, the single send, the attempts and retries,
+ * the deadlines, rate limits, cooldowns and circuits, the size limits and every refusal; a profile only answers the
+ * transport's questions about its provider's requests, at the points where the transport named the provider before.
+ */
+export interface WireProfile {
+  /** Checks a request before its pinned wire contract (Google Ads' Discovery request validation); refuses or returns. */
+  validate?(plan: CompiledRequest): void;
+  /** Checks a request after its wire contract (Google's generation drafts, DV360's targeting search). */
+  validateRoute?(plan: CompiledRequest): void;
+  /** The path sent (TikTok's /open_api prefix). */
+  path?(path: string): string;
+  /** The query string, in place of the generic encoding (LinkedIn's Rest.li 2.0 encoding). */
+  search?(query: JsonObject): string;
+  /** Sets a header the connection supplies before anything else (Reddit's User-Agent), or refuses. */
+  connectionHeaders?(headers: Record<string, string>, connection: Connection): void;
+  /** Whether a multipart/related upload is one of the provider's contracts (DV360's asset uploads). */
+  relatedUpload?(plan: CompiledRequest): boolean;
+  /** Whether a field-only multipart form is one of the provider's contracts (Snapchat's chunked upload). */
+  fieldUpload?(plan: CompiledRequest): boolean;
+  /** Whether a body is sent form-encoded (Meta; X outside batches and its JSON-body routes). */
+  formBody?(plan: CompiledRequest): boolean;
+  /** The JSON a body is sent as (Google Ads: its ProtoJSON names, and the Data Manager login account). */
+  json?(plan: CompiledRequest, url: URL, connection: Connection, credentials: Credentials): unknown;
+  /** The content type of a JSON body that is not application/json (Snapchat's JSON Patch). */
+  jsonType?(plan: CompiledRequest): string | undefined;
+  /** The header that carries the access token in place of a bearer Authorization (TikTok's Access-Token). */
+  readonly tokenHeader?: string;
+  /**
+   * Sets the provider's own authentication and scope headers (Google Ads' login customer, Microsoft's developer token
+   * and customer, Amazon's client and scope, Apple's context), or refuses.
+   */
+  headers?(context: WireHeaders): void;
+  /** The Authorization that replaces the bearer token (X's OAuth 1.0a signature). */
+  authorization?(plan: CompiledRequest, url: URL, credentials: Credentials, form?: URLSearchParams): string;
+  /** The key of the provider's own user rate limit (X: per access token, origin and endpoint); its account limits are keyed under it. */
+  userRateKey?(tenantKey: string, url: URL, credentials: Credentials): string;
+  /** Whether a throttled response names its account (X's account reset header), whose cooldown is then the account's. */
+  accountThrottle?(response: Response): boolean;
+  /** The wait until the throttle reset a 429 reports in the provider's own headers (X). */
+  resetWait?(response: Response, now: number): number | undefined;
+  /** A read the provider is sent once (Google's generation drafts, Microsoft's report submission). */
+  singleAttempt?(plan: CompiledRequest): boolean;
+  /** A bounded report read whose bytes are checked whole and whose numbers keep their source text (Adjust). */
+  boundedReport?(plan: CompiledRequest, url: URL): boolean;
+  /** The monotonic deadline of one of the provider's bounded reads, from the plan field that read carries. */
+  deadline?(plan: CompiledRequest, url: URL): number | undefined;
+  /**
+   * A write documented to answer without a body (Search Console site and sitemap edits, Tag Manager deletes, LinkedIn
+   * creations named by x-restli-id and its finalized uploads and tracking parameters, Google's resumable upload session).
+   */
+  emptyWrite?(plan: CompiledRequest, response: Response): boolean;
+  /** A CSV download (TikTok's report task download). */
+  csv?(plan: CompiledRequest): boolean;
+  /** Report output whose bytes are checked whole (Criteo). */
+  reportOutput?(plan: CompiledRequest): boolean;
+  /** A read whose 64-bit IDs are kept as their source text (LinkedIn's lead forms). */
+  int64?(plan: CompiledRequest): boolean;
+  /** Report data whose fractional numbers keep their source text when AMCP_REPORT_LOSSLESS_NUMBERS is on (RPT-01). */
+  reportData?(plan: CompiledRequest): boolean;
+  /** The provider's own request reference beside its request ID (LinkedIn's x-li-fabric). */
+  fabric?(response: Response): string | undefined;
+  /** What a version refusal names besides its layer (the LinkedIn version sent and the reviewed default, PRV-02). */
+  versionSent?(headers: Record<string, string>): JsonObject;
+  /** The login a refused request was sent under (Google Ads' login customer). */
+  sentLogin?(headers: Record<string, string>): JsonObject;
+  /** An unsuccessful result inside a 2xx response (TikTok's non-zero code, X's errors list). */
+  failedResult?(data: JsonObject): boolean;
+  /** Checks a successful response, or refuses it (Google's generation drafts, DV360's targeting search). */
+  checkResult?(plan: CompiledRequest, data: unknown): void;
+  /** Response headers kept beside the generic request IDs (LinkedIn's request references). */
+  readonly referenceHeaders?: readonly string[];
+  /** Upload session headers kept last (Google's resumable upload URL and chunk granularity). */
+  sessionHeaders?(plan: CompiledRequest): readonly string[];
+  readonly errors?: ErrorEnvelope;
+}
+
 /**
  * A provider's hooks (ARC-01 phase B): the parts of its adapter that call its own modules, declared in
  * src/<provider>-adapter.ts and registered in src/provider-hooks.ts. The facts any module may read are the
@@ -183,6 +287,7 @@ export interface ProviderHooks {
   readonly reads?: ReadClassification;
   readonly paging?: Paging;
   readonly accountRead?: AccountRead;
+  readonly wire?: WireProfile;
 }
 
 export interface ProviderAdapter {

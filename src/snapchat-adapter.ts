@@ -2,6 +2,7 @@ import type {ProviderHooks} from './provider-adapter.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {snapchatPlanningRoute} from './snapchat-planning-reads.js';
 import {MirrorError} from './errors.js';
+import {errorObject, errorToken} from './provider-error-core.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
@@ -51,5 +52,17 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
       return read;
     },
     account: (data: JsonObject) => data.adaccounts?.[0]?.adaccount,
+  }),
+  // Chunked media uploads INIT and FINALIZE as field-only multipart forms; a PATCH body is a JSON Patch; an update's
+  // state reads carry their own deadline.
+  wire: Object.freeze({
+    fieldUpload: (plan: CompiledRequest) =>
+      plan.method === 'POST' &&
+      /^\/(?:[a-z]{2}\/)?v1\/media\/[\w-]+\/multipart-upload-v2$/.test(plan.path) &&
+      ['INIT', 'FINALIZE'].includes(plan.query.action),
+    jsonType: (plan: CompiledRequest) => (plan.method === 'PATCH' ? 'application/json-patch+json' : undefined),
+    deadline: (plan: CompiledRequest) => (plan.readOnly && plan.method === 'GET' ? plan.snapUpdateDeadline : undefined),
+    reportData: (plan: CompiledRequest) => /\/stats$/.test(plan.path),
+    errors: Object.freeze({code: (body: unknown) => errorToken(errorObject(body).error_code)}),
   }),
 });

@@ -1,31 +1,13 @@
-import {createHash, createHmac, randomUUID} from 'node:crypto';
+import {createHash, randomUUID} from 'node:crypto';
 import {setTimeout as delay} from 'node:timers/promises';
 import {MirrorError, providerHttpErrorCode} from './errors.js';
 import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
-import {redact, scopeKey, sha256} from './security.js';
-import {linkedinQuery} from './linkedin-restli.js';
-import {googleJson, validateGoogleRequest} from './google-contracts.js';
+import {redact, scopeKey} from './security.js';
 import {enforceWireContract, recordWireViolation, wireContractCheck, wireContractMode} from './wire-contracts.js';
-import {googleGenerationKind, googleGenerationResult, validateGoogleGeneration} from './google-generation.js';
-import {
-  dv360TargetingSearchRoute,
-  validateDV360TargetingSearch,
-  dv360TargetingSearchResult,
-} from './dv360-targeting-search.js';
 import type {Store} from './store.js';
-import {
-  microsoftGateway,
-  microsoftOrigin,
-  microsoftCustomerOrigin,
-  microsoftReportOrigin,
-  microsoftCustomer,
-} from './microsoft-native.js';
-import {criteoRoute} from './criteo-version.js';
-import {linkedinDefaultVersion} from './linkedin-version.js';
 import {
   classifyProviderError,
   providerErrorTaxonomyEnabled,
-  providerReference,
   providerRequestId,
   type ProviderErrorClass,
 } from './provider-error-taxonomy.js';
@@ -34,6 +16,9 @@ import {AsyncLocalStorage} from 'node:async_hooks';
 import {currentQuotaPurpose, issuerKey, requestOperations, type IssuerPermit} from './provider-quota.js';
 import {meterNativeRequest} from './native-request-meter.js';
 import {assertGatewayOffered} from './provider-offering.js';
+import {providerHooks} from './provider-hooks.js';
+// The OAuth 1.0a signature X requests carry; its X wire profile signs with it (src/x-adapter.ts).
+export {oauth1} from './oauth1.js';
 /**
  * Whether a mutation request (or an upload chunk) left AMCP while a tracked operation ran (WRT-04). The marker is set
  * synchronously, immediately before the fetch, so a request that was sent is never recorded as unsent; a refusal raised
@@ -47,6 +32,11 @@ function markDispatched() {
   const record = dispatches.getStore();
   if (record) record.sent = true;
 }
+/**
+ * The origin allowlist (ARC-01: it stays here, with the single send). A gateway's requests go to its vendor origin, or
+ * to an origin of its own (`request.origin`) or of its connection (`connection.baseUrl`) only when that origin is listed
+ * here for the gateway. No provider adapter adds an origin: tests/provider-wire.test.mjs pins every entry.
+ */
 export const vendorOrigins: Record<string, string> = {
   google_sheets_native_action: 'https://www.googleapis.com',
   google_drive_native_action: 'https://www.googleapis.com',
@@ -66,6 +56,8 @@ export const vendorOrigins: Record<string, string> = {
   google_business_native_action: 'https://mybusinessbusinessinformation.googleapis.com',
   google_search_console_native_action: 'https://searchconsole.googleapis.com',
   adjust_native_action: 'https://automate.adjust.com',
+  // Microsoft Advertising's Campaign Management service (src/microsoft-native.ts microsoftOrigin).
+  microsoft_ads_native_action: 'https://campaign.api.bingads.microsoft.com',
 };
 const additionalOrigins: Record<string, string[]> = {
   google_sheets_native_action: ['https://sheets.googleapis.com'],
@@ -79,13 +71,35 @@ const additionalOrigins: Record<string, string[]> = {
     'https://mybusinessverifications.googleapis.com',
     'https://mybusinessnotifications.googleapis.com',
     'https://mybusinesslodging.googleapis.com',
+    'https://mybusinessplaceactions.googleapis.com',
   ],
   x_ads_native_action: ['https://upload.twitter.com', 'https://api.x.com', 'https://upload.x.com'],
   google_search_console_native_action: ['https://www.googleapis.com'],
   // Google's Data Manager API (Customer Match and offline conversions), approved by the owner on 2026-09-30.
   google_ads_native_action: ['https://datamanager.googleapis.com'],
   adjust_native_action: ['https://api.adjust.com', 'https://dash.adjust.com'],
+  // Microsoft Advertising's Customer Management and Reporting services (microsoftCustomerOrigin, microsoftReportOrigin).
+  microsoft_ads_native_action: [
+    'https://clientcenter.api.bingads.microsoft.com',
+    'https://reporting.api.bingads.microsoft.com',
+  ],
 };
+/** The qualified isolated sandbox origin of each production origin that has one; every other request refuses a sandbox. */
+const sandboxOrigins: Record<string, Record<string, string>> = {
+  x_ads_native_action: {'https://ads-api.x.com': 'https://ads-api-sandbox.x.com'},
+  microsoft_ads_native_action: {
+    'https://campaign.api.bingads.microsoft.com': 'https://campaign.api.sandbox.bingads.microsoft.com',
+    'https://clientcenter.api.bingads.microsoft.com': 'https://clientcenter.api.sandbox.bingads.microsoft.com',
+    'https://reporting.api.bingads.microsoft.com': 'https://reporting.api.sandbox.bingads.microsoft.com',
+  },
+};
+const own = <T>(table: Record<string, T>, key: string): T | undefined =>
+  Object.hasOwn(table, key) ? table[key] : undefined;
+/** The approved origins of a gateway (tests/provider-wire.test.mjs pins them). */
+export const approvedOrigins = (gateway: string): string[] => [
+  ...(own(vendorOrigins, gateway) ? [vendorOrigins[gateway]!] : []),
+  ...(own(additionalOrigins, gateway) ?? []),
+];
 export function buildUrl(
   request: CompiledRequest,
   connection: Connection,
@@ -100,22 +114,14 @@ export function buildUrl(
   // saw act_1. The compilers already refuse them; this keeps the transport safe for any hand-built path.
   if (request.path.split('/').some(segment => /^(?:\.|%2e){1,2}$/i.test(segment)))
     throw new MirrorError('INVALID_PATH', 'Request paths cannot contain dot segments.');
-  const base =
-    request.origin ??
-    connection.baseUrl ??
-    (request.gateway === microsoftGateway ? microsoftOrigin : vendorOrigins[request.gateway]);
+  const base = request.origin ?? connection.baseUrl ?? own(vendorOrigins, request.gateway);
   if (!base)
     throw new MirrorError(
       'CONNECTOR_CONFIGURATION_REQUIRED',
       'Configure an approved upstream origin for this gateway.',
     );
   const origin = new URL(base);
-  const allowed = [
-    vendorOrigins[request.gateway],
-    ...(additionalOrigins[request.gateway] ?? []),
-    ...(request.gateway === microsoftGateway ? [microsoftOrigin, microsoftCustomerOrigin, microsoftReportOrigin] : []),
-    ...(request.gateway === 'google_business_native_action' ? ['https://mybusinessplaceactions.googleapis.com'] : []),
-  ];
+  const allowed = approvedOrigins(request.gateway);
   if (
     origin.protocol !== 'https:' ||
     origin.username ||
@@ -126,17 +132,13 @@ export function buildUrl(
     !allowed.includes(origin.origin)
   )
     throw new MirrorError('UNAPPROVED_UPSTREAM', 'Upstream origin is not allowed for this gateway.', {}, 403);
-  let path = request.path;
-  if (request.gateway === 'tiktok_native_action' && !path.startsWith('/open_api/')) path = '/open_api' + path;
+  // The provider's wire profile (ARC-01 phase B) shapes the path and the query; the origin stays the approved one.
+  const wire = providerHooks(request.gateway)?.wire;
+  const path = wire?.path ? wire.path(request.path) : request.path;
   let target = origin;
   if (environment === 'sandbox') {
-    const sandbox =
-      request.gateway === 'x_ads_native_action' && origin.origin === 'https://ads-api.x.com'
-        ? 'https://ads-api-sandbox.x.com'
-        : request.gateway === microsoftGateway &&
-            [microsoftOrigin, microsoftCustomerOrigin, microsoftReportOrigin].includes(origin.origin)
-          ? origin.origin.replace('.api.', '.api.sandbox.')
-          : undefined;
+    const sandboxes = own(sandboxOrigins, request.gateway),
+      sandbox = sandboxes && own(sandboxes, origin.origin);
     if (!sandbox)
       throw new MirrorError(
         'SANDBOX_ROUTE_UNQUALIFIED',
@@ -147,7 +149,7 @@ export function buildUrl(
   const url = new URL(path, target);
   if (url.origin !== target.origin)
     throw new MirrorError('UNAPPROVED_UPSTREAM', 'Request escaped the platform origin.', {}, 403);
-  if (request.gateway === 'linkedin_native_action') url.search = linkedinQuery(request.query);
+  if (wire?.search) url.search = wire.search(request.query);
   else
     for (const [key, value] of Object.entries(request.query)) {
       if (value === undefined || value === null) continue;
@@ -157,43 +159,6 @@ export function buildUrl(
     }
   return url;
 }
-const pct = (s: string) =>
-  encodeURIComponent(s).replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
-export function oauth1(
-  method: string,
-  url: URL,
-  credentials: Credentials,
-  bodyParams?: URLSearchParams,
-  nonce: string = randomUUID(),
-  timestamp: string = Math.floor(Date.now() / 1000).toString(),
-): string {
-  if (!credentials.consumerKey || !credentials.consumerSecret || !credentials.accessToken || !credentials.tokenSecret)
-    throw new MirrorError('OAUTH1_CREDENTIALS_REQUIRED', 'X Ads requires consumer and user OAuth 1.0a credentials.');
-  const oauth: Record<string, string> = {
-    oauth_consumer_key: credentials.consumerKey,
-    oauth_token: credentials.accessToken,
-    oauth_nonce: nonce,
-    oauth_timestamp: timestamp,
-    oauth_signature_method: 'HMAC-SHA1',
-    oauth_version: '1.0',
-  };
-  const entries = [...url.searchParams.entries(), ...(bodyParams?.entries() ?? []), ...Object.entries(oauth)]
-    .map(([k, v]) => [pct(k), pct(v)] as [string, string])
-    .sort(([a, b], [c, d]) => (a < c ? -1 : a > c ? 1 : b < d ? -1 : b > d ? 1 : 0));
-  const params = entries.map(([k, v]) => k + '=' + v).join('&');
-  const baseUrl = url.origin + url.pathname;
-  const signature = createHmac('sha1', pct(credentials.consumerSecret) + '&' + pct(credentials.tokenSecret))
-    .update(method.toUpperCase() + '&' + pct(baseUrl) + '&' + pct(params))
-    .digest('base64');
-  return (
-    'OAuth ' +
-    Object.entries({...oauth, oauth_signature: signature})
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([k, v]) => pct(k) + '="' + pct(v) + '"')
-      .join(', ')
-  );
-}
-const camelKeys = googleJson;
 export interface TransportResult {
   data: unknown;
   status: number;
@@ -217,13 +182,9 @@ export interface BinaryUpload {
  */
 export function losslessReportNumbers(plan: CompiledRequest, env: Record<string, string | undefined> = process.env) {
   if (env.AMCP_REPORT_LOSSLESS_NUMBERS !== 'true' || !plan.readOnly || plan.method === 'HEAD') return false;
-  return (
-    (plan.gateway === 'google_ads_native_action' && /\/googleAds:search$/.test(plan.path)) ||
-    (plan.gateway === 'meta_native_action' && /\/insights$/.test(plan.path)) ||
-    (plan.gateway === 'tiktok_native_action' && /\/report\/integrated\/get\/$/.test(plan.path)) ||
-    (plan.gateway === 'snapchat_native_action' && /\/stats$/.test(plan.path)) ||
-    (plan.gateway === 'linkedin_native_action' && plan.path === '/rest/adAnalytics')
-  );
+  // The report data routes are each provider's (Google GAQL search, Meta insights, TikTok integrated reports, Snapchat
+  // stats, LinkedIn ad analytics): its wire profile names them.
+  return providerHooks(plan.gateway)?.wire?.reportData?.(plan) === true;
 }
 /**
  * Lossless unsafe integers on every gateway (PRV-05): JSON.parse rounds an integer beyond 2^53, so a 64-bit ID such as
@@ -261,14 +222,10 @@ export function providerRetryDelay(response: Response, gateway: string, now = Da
     if (Number.isFinite(seconds)) delay = seconds * 1000;
     else if (Number.isFinite(date)) delay = Math.max(0, date - now);
   }
-  if (gateway === 'x_ads_native_action' && response.status === 429) {
-    const reset = response.headers.get('x-account-rate-limit-reset') ?? response.headers.get('x-rate-limit-reset'),
-      seconds = Number(reset);
-    if (reset && Number.isFinite(seconds) && seconds > 0) {
-      const server = Date.parse(response.headers.get('date') ?? ''),
-        remaining = seconds * 1000 - (Number.isFinite(server) ? server : now);
-      delay = Math.max(delay ?? 0, remaining);
-    }
+  // A provider that reports its throttle reset in headers of its own (X) waits at least until that reset.
+  if (response.status === 429) {
+    const remaining = providerHooks(gateway)?.wire?.resetWait?.(response, now);
+    if (remaining !== undefined) delay = Math.max(delay ?? 0, remaining);
   }
   if (delay === undefined && response.status === 429) delay = 30000;
   return delay === undefined ? undefined : Math.max(1000, Math.min(86400000, Math.ceil(delay)));
@@ -380,14 +337,18 @@ export class NativeTransport {
     // a background read), before the credentials are used and before anything is counted or sent.
     assertGatewayOffered(plan.gateway);
     if (connection.gateway !== plan.gateway) assertGatewayOffered(connection.gateway);
-    validateGoogleRequest(plan);
+    // The provider's wire profile (ARC-01 phase B, src/<provider>-adapter.ts) answers this transport's questions about
+    // its requests and responses; the allowlist, the single send, attempts, deadlines, rate limits, circuits and every
+    // refusal stay here.
+    const wire = providerHooks(plan.gateway)?.wire;
+    wire?.validate?.(plan);
     // PRV-05: every route with a pinned request schema is checked here, the last step before anything is sent. A
     // violation is counted per gateway, writes and reads apart; AMCP_WIRE_CONTRACTS=enforce also refuses it for a write.
     const wireMode = wireContractMode(),
-      wire = wireContractCheck(plan, wireMode);
-    if (wire?.status === 'violations' || wire?.status === 'check_failed') {
+      contract = wireContractCheck(plan, wireMode);
+    if (contract?.status === 'violations' || contract?.status === 'check_failed') {
       const metric =
-        wire.status === 'check_failed'
+        contract.status === 'check_failed'
           ? 'wire_contract_check_failures'
           : plan.readOnly
             ? 'wire_contract_read_violations'
@@ -396,11 +357,10 @@ export class NativeTransport {
       else if (metric === 'wire_contract_read_violations') this.metrics.wireContractReadViolations++;
       else this.metrics.wireContractViolations++;
       this.coordination?.providerMetric(connection.tenantId, connection.gateway, metric);
-      recordWireViolation(plan, wire);
+      recordWireViolation(plan, contract);
     }
-    enforceWireContract(plan, wire, wireMode);
-    validateGoogleGeneration(plan);
-    validateDV360TargetingSearch(plan);
+    enforceWireContract(plan, contract, wireMode);
+    wire?.validateRoute?.(plan);
     this.prune();
     const key = scopeKey(connection.tenantId, connection.gateway);
     await this.permit(key);
@@ -417,25 +377,14 @@ export class NativeTransport {
         : undefined;
     const url = buildUrl(plan, connection, this.environment);
     const headers: Record<string, string> = {Accept: 'application/json', ...plan.headers};
-    if (plan.gateway === 'reddit_native_action') {
-      if (!connection.userAgent || /[\r\n]/.test(connection.userAgent))
-        throw new MirrorError(
-          'USER_AGENT_REQUIRED',
-          'Configure a descriptive Reddit application userAgent on the connection.',
-        );
-      headers['User-Agent'] = connection.userAgent;
-    }
+    // A provider may require a connection header before anything else (Reddit's descriptive User-Agent).
+    wire?.connectionHeaders?.(headers, connection);
     let body: BodyInit | undefined;
     let form: URLSearchParams | undefined;
     if (upload) {
       if (plan.readOnly) throw new MirrorError('INVALID_UPLOAD', 'Binary uploads must be reviewed mutations.');
       if (upload.format === 'related') {
-        if (
-          plan.gateway !== 'dv360_native_action' ||
-          plan.method !== 'POST' ||
-          !/^\/upload\/v4\/advertisers\/\d+\/(?:assets|adAssets:uploadAdAsset)$/.test(plan.path) ||
-          plan.query.uploadType !== 'multipart'
-        )
+        if (wire?.relatedUpload?.(plan) !== true)
           throw new MirrorError(
             'INVALID_UPLOAD',
             'Multipart-related is restricted to the DV360 advertiser asset and image ad asset contracts.',
@@ -461,12 +410,7 @@ export class NativeTransport {
         headers['Content-Type'] = 'multipart/related; boundary=' + boundary;
       } else if (upload.format === 'fields') {
         // Snapchat chunked upload INIT and FINALIZE are multipart forms without a file part.
-        if (
-          plan.gateway !== 'snapchat_native_action' ||
-          plan.method !== 'POST' ||
-          !/^\/(?:[a-z]{2}\/)?v1\/media\/[\w-]+\/multipart-upload-v2$/.test(plan.path) ||
-          !['INIT', 'FINALIZE'].includes(plan.query.action)
-        )
+        if (wire?.fieldUpload?.(plan) !== true)
           throw new MirrorError(
             'INVALID_UPLOAD',
             'Field-only multipart forms are restricted to the Snapchat chunked upload contract.',
@@ -484,120 +428,29 @@ export class NativeTransport {
         for (const key of Object.keys(headers)) if (key.toLowerCase() === 'content-type') delete headers[key];
       }
     } else if (plan.body !== undefined) {
-      // X's catalog reference gives products and product sets a "JSON body"; catalogs and feeds take parameters.
-      const xJsonCard =
-        plan.gateway === 'x_ads_native_action' &&
-        ((['POST', 'PUT'].includes(plan.method) &&
-          /^\/12\/accounts\/[^/]+\/cards(?:\/[^/]+)?$/.test(plan.path) &&
-          !/\/cards\/(?:poll|image_conversation|video_conversation)$/.test(plan.path)) ||
-          (plan.method === 'POST' && /^\/12\/accounts\/[a-z0-9]{1,32}\/audience_estimate$/.test(plan.path)) ||
-          (['PUT', 'DELETE'].includes(plan.method) && /^\/12\/product_catalogs\/\d+\/products$/.test(plan.path)) ||
-          (['POST', 'PUT'].includes(plan.method) &&
-            /^\/12\/product_catalogs\/\d+\/product_sets(?:\/\d+)?$/.test(plan.path)));
-      if (
-        plan.gateway === 'meta_native_action' ||
-        (plan.gateway === 'x_ads_native_action' && !plan.path.includes('/batch/') && !xJsonCard)
-      ) {
+      // A provider's wire profile says whether a body is sent form-encoded (Meta, X outside its JSON routes) and which
+      // JSON it is sent as (Google Ads' ProtoJSON names, Snapchat's JSON Patch type).
+      if (wire?.formBody?.(plan) === true) {
         form = new URLSearchParams();
         for (const [k, v] of Object.entries(plan.body as JsonObject))
           form.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
         body = form.toString();
         headers['Content-Type'] = 'application/x-www-form-urlencoded';
       } else {
-        let json = plan.gateway === 'google_ads_native_action' ? camelKeys(plan.body) : plan.body;
-        // The Data Manager API names the manager login in each destination, where the Google Ads API takes the
-        // login-customer-id header; it is the same login, from the same connection settings.
-        if (plan.gateway === 'google_ads_native_action' && url.origin === 'https://datamanager.googleapis.com') {
-          const login = (
-            (plan.accountId ? connection.accountLoginCustomers?.[plan.accountId] : undefined) ??
-            credentials.loginCustomerId
-          )?.replaceAll('-', '');
-          if (login && json && Array.isArray((json as JsonObject).destinations))
-            json = {
-              ...(json as JsonObject),
-              destinations: (json as JsonObject).destinations.map((d: JsonObject) =>
-                d?.operatingAccount?.accountId && d.operatingAccount.accountId !== login
-                  ? {...d, loginAccount: {accountType: 'GOOGLE_ADS', accountId: login}}
-                  : d,
-              ),
-            };
-        }
+        const json = wire?.json ? wire.json(plan, url, connection, credentials) : plan.body;
         body = JSON.stringify(json);
-        headers['Content-Type'] =
-          plan.gateway === 'snapchat_native_action' && plan.method === 'PATCH'
-            ? 'application/json-patch+json'
-            : 'application/json';
+        headers['Content-Type'] = wire?.jsonType?.(plan) ?? 'application/json';
       }
     }
     if (credentials.accessToken) {
-      if (plan.gateway === 'tiktok_native_action') headers['Access-Token'] = credentials.accessToken;
+      if (wire?.tokenHeader) headers[wire.tokenHeader] = credentials.accessToken;
       else headers.Authorization = 'Bearer ' + credentials.accessToken;
     }
-    // The developer token and login customer are Google Ads API headers; the Data Manager API takes neither.
-    if (plan.gateway === 'google_ads_native_action' && url.origin === vendorOrigins.google_ads_native_action) {
-      // Google Cloud projects own API access since developer tokens were sunset on September 9, 2026. Google ignores the
-      // header today and will reject it in a future major version, so a configured legacy token is never sent (PRV-04;
-      // src/google-version.ts warns while AMCP_GOOGLE_DEVELOPER_TOKEN is set).
-      const mapped =
-        plan.action !== 'AMCP_GOOGLE_DISCOVERY' && plan.accountId
-          ? connection.accountLoginCustomers?.[plan.accountId.replaceAll('-', '')]
-          : undefined;
-      // A website login records the manager route of every selected account when it is synced. An account without one
-      // is refused with re-sync guidance: no login header, and never a deployment-wide manager guessed for it (CON-05).
-      // Operator-provisioned logins, which have no recorded routes, keep their own provisioned login customer.
-      if (
-        mapped === undefined &&
-        plan.action !== 'AMCP_GOOGLE_DISCOVERY' &&
-        plan.accountId &&
-        connection.accountLoginCustomers !== undefined
-      )
-        throw new MirrorError(
-          'GOOGLE_LOGIN_CUSTOMER_UNMAPPED',
-          'This Google Ads account has no recorded manager route on this login. Sync the Google Ads login in Connections, then try again.',
-          {account_id: plan.accountId, connection_id: connection.id, website: '/connections'},
-          409,
-        );
-      const loginCustomerId = mapped ?? credentials.loginCustomerId;
-      if (loginCustomerId) headers['login-customer-id'] = loginCustomerId.replaceAll('-', '');
-    }
-    if (plan.gateway === microsoftGateway) {
-      if (!credentials.developerToken)
-        throw new MirrorError('DEVELOPER_TOKEN_REQUIRED', 'Microsoft Advertising requires its own developer token.');
-      headers.DeveloperToken = credentials.developerToken;
-      if (plan.accountId) {
-        headers.CustomerAccountId = plan.accountId;
-        headers.CustomerId = microsoftCustomer(connection, plan.accountId);
-      } else if (
-        plan.action !== 'AMCP_MICROSOFT_DISCOVERY' ||
-        ![
-          microsoftCustomerOrigin + '/CustomerManagement/v13/User/Query',
-          microsoftCustomerOrigin + '/CustomerManagement/v13/Accounts/Search',
-        ].includes(url.href)
-      )
-        throw new MirrorError('ACCOUNT_REQUIRED', 'Microsoft requests require an explicit selected account.');
-    }
-    if (plan.gateway === 'amazon_native_action') {
-      if (!credentials.clientId) throw new MirrorError('CLIENT_ID_REQUIRED', 'Amazon Ads requires a client ID.');
-      headers['Amazon-Advertising-API-ClientId'] = credentials.clientId;
-      if (plan.accountId) headers['Amazon-Advertising-API-Scope'] = plan.accountId;
-    }
-    if (plan.gateway === 'apple_ads_native_action' && plan.accountId) {
-      // Shared-budget mutations are organization-level methods in Apple's SDK.
-      // The review layer authorizes every affected account; a header cannot scope
-      // this mutation. Reads retain the optional selected-account context.
-      const sharedWrite =
-        url.origin === 'https://api.ads.apple.com' &&
-        !plan.readOnly &&
-        /^\/v1\/shared-budgets(?:\/\d+)?$/.test(plan.path);
-      if (sharedWrite) {
-        for (const key of Object.keys(headers)) if (key.toLowerCase() === 'x-ap-context') delete headers[key];
-      } else
-        headers['X-AP-Context'] =
-          url.origin === 'https://api.ads.apple.com' && plan.path.startsWith('/v1/')
-            ? 'adAccountId=' + plan.accountId + ';'
-            : 'orgId=' + plan.accountId;
-    }
-    if (plan.gateway === 'x_ads_native_action') headers.Authorization = oauth1(plan.method, url, credentials, form);
+    // The provider's own authentication and scope headers (Google Ads' login customer, Microsoft's developer token and
+    // customer, Amazon's client and scope, Apple's context), each of which may refuse; then a signature that replaces
+    // the bearer token (X's OAuth 1.0a).
+    wire?.headers?.({plan, url, connection, credentials, headers});
+    if (wire?.authorization) headers.Authorization = wire.authorization(plan, url, credentials, form);
     if (credentials.apiKey && !headers.Authorization) headers.Authorization = 'Bearer ' + credentials.apiKey;
     if (!headers.Authorization && !headers['Access-Token'])
       throw new MirrorError('CREDENTIALS_REQUIRED', 'An authenticated platform connection is required.', {}, 401);
@@ -606,86 +459,23 @@ export class NativeTransport {
     // Return a single attempt; callers explicitly decide whether to generate again.
     const start = performance.now(),
       circuitKey = scopeKey(key, connection.id, plan.accountId ?? '', url.origin),
-      endpoint = url.pathname.replace(/\/accounts\/[^/]+/, '/accounts/:account'),
-      userRateKey =
-        plan.gateway === 'x_ads_native_action'
-          ? scopeKey(
-              key,
-              'x-rate',
-              sha256(credentials.accessToken ?? ''),
-              url.origin,
-              endpoint.startsWith('/12/stats/accounts/') ? 'analytics' : endpoint,
-            )
-          : key,
+      // A provider with rate limits of its own keys them itself (X: per access token, origin and endpoint, its account
+      // limits under them); the others share the tenant's budget key.
+      userRateKey = wire?.userRateKey ? wire.userRateKey(key, url, credentials) : key,
       // A provider throttle of one ad account (Meta 80000-series, 17/2446079, 613/1487742) cools down that account on
       // this login only; X keeps its user/account reset-header keys.
       accountRateKey = !plan.accountId
         ? userRateKey
-        : plan.gateway === 'x_ads_native_action'
+        : wire?.userRateKey
           ? scopeKey(userRateKey, plan.accountId)
           : scopeKey(key, 'account-rate', connection.id, plan.accountId);
-    const maxAttempts =
-      plan.readOnly &&
-      !googleGenerationKind(plan) &&
-      !(plan.gateway === microsoftGateway && plan.action === 'SubmitGenerateReport')
-        ? 3
-        : 1;
-    const adjustRead =
-      plan.gateway === 'adjust_native_action' &&
-      plan.action === 'AMCP_ADJUST_REPORT_READ' &&
-      plan.adjustReportRead === true &&
-      plan.readOnly &&
-      plan.method === 'GET' &&
-      url.origin === 'https://automate.adjust.com' &&
-      [
-        '/reports-service/filters_data',
-        '/reports-service/events',
-        '/reports-service/report',
-        '/reports-service/pivot_report',
-      ].includes(plan.path);
-    const discoveryRead =
-      ((plan.action === 'AMCP_MEASUREMENT_ASSET_SYNC' &&
-        ['ga4_native_action', 'google_search_console_native_action'].includes(plan.gateway)) ||
-        (plan.action === 'AMCP_BUSINESS_ASSET_SYNC' && plan.gateway === 'google_business_native_action')) &&
-      plan.readOnly &&
-      plan.method === 'GET';
-    const deadline =
-      plan.gateway === 'linkedin_native_action' &&
-      plan.action === 'AMCP_LINKEDIN_TEMPLATE_READ' &&
-      plan.readOnly &&
-      plan.method === 'GET' &&
-      plan.linkedinTemplateDeadline !== undefined
-        ? plan.linkedinTemplateDeadline
-        : plan.gateway === 'x_ads_native_action' &&
-            plan.readOnly &&
-            plan.method === 'GET' &&
-            plan.xTargetingDeadline !== undefined
-          ? plan.xTargetingDeadline
-          : plan.gateway === 'x_ads_native_action' && plan.readOnly && plan.xAudienceDeadline !== undefined
-            ? plan.xAudienceDeadline
-            : plan.gateway === 'snapchat_native_action' &&
-                plan.readOnly &&
-                plan.method === 'GET' &&
-                plan.snapUpdateDeadline !== undefined
-              ? plan.snapUpdateDeadline
-              : plan.gateway === 'x_ads_native_action' &&
-                  plan.readOnly &&
-                  plan.method === 'GET' &&
-                  plan.xReportDeadline !== undefined
-                ? plan.xReportDeadline
-                : adjustRead
-                  ? plan.adjustReportDeadline
-                  : discoveryRead
-                    ? plan.measurementSyncDeadline
-                    : plan.gateway === 'tiktok_native_action' && plan.readOnly && plan.method === 'GET'
-                      ? plan.tiktokReportDeadline
-                      : plan.gateway === 'criteo_native_action' && plan.readOnly && plan.method === 'GET'
-                        ? plan.criteoReportRead
-                          ? plan.criteoReportDeadline
-                          : plan.action === 'AMCP_CRITEO_CAMPAIGN_READ'
-                            ? plan.criteoCampaignDeadline
-                            : undefined
-                        : undefined;
+    // A read is attempted three times unless its provider sends it once (Google's generation drafts, Microsoft's
+    // report submission); a write is always sent once.
+    const maxAttempts = plan.readOnly && wire?.singleAttempt?.(plan) !== true ? 3 : 1;
+    // A bounded report read whose bytes are checked whole and whose numbers keep their source text (Adjust).
+    const adjustRead = wire?.boundedReport?.(plan, url) === true;
+    // The monotonic deadline of a bounded read, from the plan field its provider's bounded reads carry.
+    const deadline = wire?.deadline?.(plan, url);
     const reportDeadline = deadline !== undefined,
       deadlineFailure = () =>
         new MirrorError(
@@ -788,10 +578,8 @@ export class NativeTransport {
             this.issuerRateLimit(issuerPermit);
           }
           if ((response.status === 429 || response.status === 503) && retryDelay !== undefined) {
-            const rateKey =
-              plan.gateway === 'x_ads_native_action' && response.headers.has('x-account-rate-limit-reset')
-                ? accountRateKey
-                : userRateKey;
+            // A provider may name the throttled account (X's account reset header): that account cools down.
+            const rateKey = wire?.accountThrottle?.(response) === true ? accountRateKey : userRateKey;
             this.cooldowns.set(rateKey, performance.now() + retryDelay);
             this.coordination?.providerCooldown(rateKey, retryDelay);
           }
@@ -801,66 +589,35 @@ export class NativeTransport {
             await this.sleeper(200 * 2 ** attempt);
             continue;
           }
-          // LinkedIn documents only the status of a tracking parameter create (201) or replace (200), keyed by the path.
-          const linkedinTrackingWrite =
-            plan.gateway === 'linkedin_native_action' &&
-            plan.method === 'PUT' &&
-            /^\/rest\/adTrackingParameters\/[^/]+$/.test(plan.path);
-          const documentedEmpty =
-            response.status === 200 &&
-            ((plan.gateway === 'google_search_console_native_action' &&
-              ['PUT', 'DELETE'].includes(plan.method) &&
-              /^\/webmasters\/v3\/sites\//.test(plan.path)) ||
-              (plan.gateway === 'gtm_native_action' && plan.method === 'DELETE') ||
-              (plan.gateway === 'linkedin_native_action' &&
-                plan.method === 'POST' &&
-                plan.path === '/rest/videos' &&
-                plan.query.action === 'finalizeUpload') ||
-              (plan.gateway === 'google_ads_native_action' &&
-                plan.method === 'POST' &&
-                /^\/resumable\/upload\/v\d+\/customers\/\d+\/youTubeVideoUploads:create$/.test(plan.path) &&
-                response.headers.has('x-goog-upload-url')));
+          // A write may be documented to answer without a body (Search Console site and sitemap edits, Tag Manager
+          // deletes, LinkedIn creations named by x-restli-id, Google's resumable upload session): its provider says.
+          const documentedEmpty = wire?.emptyWrite?.(plan, response) === true;
           let bodyIntegrity: TransportResult['bodyIntegrity'];
-          const tiktokCsv =
-            plan.gateway === 'tiktok_native_action' &&
-            plan.tiktokReportRead?.kind === 'download' &&
-            plan.method === 'GET' &&
-            plan.path === '/v1.3/report/task/download/';
-          const reportOutput =
-            plan.gateway === 'criteo_native_action' &&
-            plan.criteoReportRead?.kind === 'output' &&
-            plan.method === 'GET' &&
-            criteoRoute('/reports/[a-f0-9-]+/output$', 'i').test(plan.path);
-          // LinkedIn lead form IDs are 64-bit longs; keep unsafe integers as their exact source text.
-          const int64 = plan.gateway === 'linkedin_native_action' && /^\/rest\/leadForms(?:\/|$)/.test(plan.path);
+          // The response forms a provider documents for a read: a CSV download (TikTok report tasks), report output
+          // whose bytes are checked whole (Criteo), 64-bit IDs kept as their source text (LinkedIn lead forms).
+          const csvDownload = wire?.csv?.(plan) === true;
+          const reportOutput = wire?.reportOutput?.(plan) === true;
+          const int64 = wire?.int64?.(plan) === true;
           let exactData: unknown;
           const data = await this.readBody(
             response,
             (adjustRead && response.status === 204) ||
               plan.method === 'HEAD' ||
-              (!plan.readOnly &&
-                (documentedEmpty ||
-                  [204, 205].includes(response.status) ||
-                  (plan.gateway === 'linkedin_native_action' &&
-                    response.status === 201 &&
-                    response.headers.has('x-restli-id')) ||
-                  (linkedinTrackingWrite && [200, 201].includes(response.status)))),
+              (!plan.readOnly && (documentedEmpty || [204, 205].includes(response.status))),
             reportOutput || adjustRead
               ? bytes => {
                   bodyIntegrity = {bytes: bytes.length, md5: createHash('md5').update(bytes).digest('hex')};
                 }
               : undefined,
-            tiktokCsv,
+            csvDownload,
             adjustRead,
             int64,
             losslessReportNumbers(plan),
             exact => (exactData = exact),
           );
           if (expired()) throw deadlineFailure();
-          const fabric =
-              plan.gateway === 'linkedin_native_action'
-                ? providerReference(response.headers.get('x-li-fabric'))
-                : undefined,
+          // A provider's own request reference beside its request ID (LinkedIn's x-li-fabric).
+          const fabric = wire?.fabric?.(response),
             taxonomy = providerErrorTaxonomyEnabled();
           const errorDetails = (c?: ProviderErrorClass) => ({
             upstream: redact(data),
@@ -877,10 +634,8 @@ export class NativeTransport {
                   ...(c.providerCode !== undefined ? {provider_code: c.providerCode} : {}),
                   ...(c.providerSubcode !== undefined ? {provider_subcode: c.providerSubcode} : {}),
                   ...(c.cooldownScope ? {cooldown_scope: c.cooldownScope} : {}),
-                  // A version refusal names the version sent and the reviewed default (PRV-02).
-                  ...(c.layer === 'api_version' && plan.gateway === 'linkedin_native_action'
-                    ? {api_version_sent: headers['LinkedIn-Version'] ?? null, default_version: linkedinDefaultVersion}
-                    : {}),
+                  // A version refusal names the version sent and the reviewed default (PRV-02, LinkedIn).
+                  ...(c.layer === 'api_version' && wire?.versionSent ? wire.versionSent(headers) : {}),
                 }
               : {}),
             ...(response.status === 403
@@ -889,9 +644,8 @@ export class NativeTransport {
                     providerHttpErrorCode(403, data, response.headers.get('www-authenticate')) === 'INSUFFICIENT_SCOPE',
                 }
               : {}),
-            ...(plan.gateway === 'google_ads_native_action'
-              ? {login_customer_id: headers['login-customer-id'] ?? null}
-              : {}),
+            // The login a refused request was sent under (Google Ads' login customer).
+            ...(wire?.sentLogin ? wire.sentLogin(headers) : {}),
           });
           // A documented provider throttle reported outside HTTP 429 (Meta codes at HTTP 400, a Google Ads quota body)
           // counts as a rate limit and opens the shared cooldown at the scope the provider names. Nothing is retried
@@ -933,12 +687,9 @@ export class NativeTransport {
           }
           if (data && typeof data === 'object') {
             const d = data as JsonObject;
-            if (
-              (plan.gateway === 'tiktok_native_action' && d.code !== undefined && d.code !== 0) ||
-              d.request_status === 'ERROR' ||
-              d.error ||
-              (plan.gateway === 'x_ads_native_action' && Array.isArray(d.errors) && d.errors.length)
-            ) {
+            // An unsuccessful result inside a 2xx response: the generic envelopes, or the provider's own (TikTok's
+            // non-zero code, X's errors list).
+            if (wire?.failedResult?.(d) === true || d.request_status === 'ERROR' || d.error) {
               const c = classify(true),
                 status =
                   c?.layer === 'credential'
@@ -957,8 +708,8 @@ export class NativeTransport {
               );
             }
           }
-          googleGenerationResult(plan, data);
-          if (dv360TargetingSearchRoute(plan)) dv360TargetingSearchResult(plan, data);
+          // A provider's own check of a successful response (Google's generation drafts, DV360's targeting search).
+          wire?.checkResult?.(plan, data);
           this.circuits.delete(circuitKey);
           this.metrics.totalLatencyMs += performance.now() - start;
           this.coordination?.providerMetric(
@@ -977,12 +728,12 @@ export class NativeTransport {
                 'request-id',
                 'x-request-id',
                 'x-fb-trace-id',
-                ...(plan.gateway === 'linkedin_native_action' ? ['x-li-uuid', 'x-li-request-id', 'x-li-fabric'] : []),
+                // The provider's own request references (LinkedIn) and upload session headers (Google's resumable
+                // uploads) are kept with the generic ones.
+                ...(wire?.referenceHeaders ?? []),
                 'x-restli-id',
                 'retry-after',
-                ...(plan.gateway === 'google_ads_native_action' && plan.path.startsWith('/resumable/upload/')
-                  ? ['x-goog-upload-url', 'x-goog-upload-chunk-granularity']
-                  : []),
+                ...(wire?.sessionHeaders?.(plan) ?? []),
               ]
                 .map(k => [k, response.headers.get(k)])
                 .filter((p): p is [string, string] => p[1] !== null),

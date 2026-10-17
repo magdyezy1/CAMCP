@@ -26,6 +26,8 @@ export const baselineFile = 'docs/review/architecture-baseline.json';
  */
 export const providerPrefixes = Object.freeze([
   'adjust',
+  // Amazon Ads (parked, unimplemented: CON-06) has one provider module, its adapter (ARC-01 phase B).
+  'amazon',
   'apple',
   'criteo',
   'dv360',
