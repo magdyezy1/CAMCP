@@ -239,6 +239,53 @@ export const generatedArtifacts = [
       'The ratcheted measurements and the runtime import cycles; docs/review/ARCHITECTURE.md shows them in the table between its architecture-map markers, which the check compares with this file.',
     check: gates.architecture,
   },
+  // WEB-07, merged beside this inventory in wave 3b: the Arabic catalog chunks the browser loads and the three website
+  // ratchets' recorded baselines. check-web (a full-qualification stage, so not a freshness gate here) and the suite
+  // regenerate or compare each; the named test fails when one is stale or edited past its limits.
+  {
+    id: 'arabic_catalog_chunks',
+    outputs: ['web/locales/ar/*.json'],
+    generator: 'tools/locale-chunks.mjs',
+    regenerate:
+      'node tools/locale-chunks.mjs --write, after a change to web/locales/ar.json or to the messages a page writes',
+    inputs: [
+      'web/locales/ar.json (the authored catalog)',
+      'web/*.js and web/*.html (the messages each page writes)',
+      'src/ and server/ (the messages the services send to the website)',
+    ],
+    provenance:
+      'None embedded: check-web plans the chunks again and refuses a stale, stray or oversized one and a script whose chunks lack a message it requires.',
+    check: {test: 'tests/web-locale-chunks.test.mjs', argv: ['tools/locale-chunks.mjs']},
+  },
+  {
+    id: 'web_markup_baseline',
+    outputs: ['tools/web-markup-baseline.json'],
+    generator: 'tools/check-markup.mjs',
+    regenerate: 'node tools/check-markup.mjs --write, which refuses a count above its limit: the counts only go down',
+    inputs: ['web/*.js (the shipped first-party scripts)'],
+    provenance: 'Per-script counts and their totals; check-web counts the scripts again and compares.',
+    check: {test: 'tests/web-markup.test.mjs', argv: ['tools/check-markup.mjs']},
+  },
+  {
+    id: 'web_colour_baseline',
+    outputs: ['tools/web-colour-baseline.json'],
+    generator: 'tools/check-colours.mjs',
+    regenerate: 'node tools/check-colours.mjs --write, which refuses a count above its limit: the counts only go down',
+    inputs: ['web/*.css (the shipped stylesheets)', 'tools/web-colour-allowlist.json (reviewed by hand)'],
+    provenance: 'Per-stylesheet counts, their total and the allow-list size; check-web counts again and compares.',
+    check: {test: 'tests/web-colours.test.mjs', argv: ['tools/check-colours.mjs']},
+  },
+  {
+    id: 'web_route_bytes_baseline',
+    outputs: ['tools/web-route-bytes-baseline.json'],
+    generator: 'tools/web-route-bytes.mjs',
+    regenerate:
+      'node tools/web-route-bytes.mjs --root <tree> --write --label <the tree and why>; its open gaps are written by hand and keep their targets',
+    inputs: ['web/ of the tree named in recorded_from'],
+    provenance:
+      'recorded_from names the measured tree; open names each acceptance gap with its limit and reason. check-web measures the shipped tree and compares.',
+    check: {test: 'tests/web-route-bytes.test.mjs', argv: ['tools/web-route-bytes.mjs']},
+  },
 ];
 
 function readJson(root, file) {

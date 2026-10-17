@@ -46,6 +46,11 @@ test('every file in generated/ and the ledger, report and guide outputs are decl
     'Skills/amcp-campaign-builder/references/workspace.md',
     // The architecture ratchet's baseline (ARC-01, ARC-04), merged beside this inventory in wave 3b.
     'docs/review/architecture-baseline.json',
+    // WEB-07's catalog chunks and website ratchet baselines, merged beside it too.
+    'web/locales/ar/*.json',
+    'tools/web-markup-baseline.json',
+    'tools/web-colour-baseline.json',
+    'tools/web-route-bytes-baseline.json',
   ])
     assert.ok(declared.includes(file), file);
   for (const artifact of generatedArtifacts) {
