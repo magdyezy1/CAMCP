@@ -434,11 +434,17 @@ action is a method (`capture` 342 lines, `analyze` 203); their bodies are the ch
 `tests/tool-actions.test.mjs` holds the stage of every action and the order of the checks, and the reporting suites
 are unchanged.
 
-Not yet tables (each a separate change, so that it does not collide with work that edits the same lines): the
-dispatch of the composite tools in `MirrorService.callOnce` and the actions of `amcp_media`
-(`MediaUploadService.handle`), both edited by packages running alongside this one; and the route modules of
-`server/website.ts` (`createWebsite`). WEB-07, merged beside this work, has split `web/account-workflows.js` behind
-`web/route-assets.js`: a shared helper and the portfolio, measurement and commerce modules.
+The tools `MirrorService` answers itself are entries of one table, `compositeTools` (`src/service.ts`): the seven
+composite tools and `amcp_tool_help`, each with the service-timing category its calls count under. `callOnce` runs the
+checks every call passes (an active actor, an offered gateway, the action's own arguments), then the table's entry for
+the tool, awaited so that its refusal is audited like any other, then the native gateways. It replaced an if-chain of
+eight branches and a second list naming the timing categories; `callOnce` fell from 315 lines to 186.
+`tests/composite-tools.test.mjs` holds the entries, their categories and that an inherited name is no tool.
+
+Not yet tables (each a separate change, so that it does not collide with work that edits the same lines): the actions
+of `amcp_media` (`MediaUploadService.handle`) and the route modules of `server/website.ts` (`createWebsite`). WEB-07,
+merged beside this work, has split `web/account-workflows.js` behind `web/route-assets.js`: a shared helper and the
+portfolio, measurement and commerce modules.
 
 ## 15. Module structure
 

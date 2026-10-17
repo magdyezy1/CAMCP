@@ -47,6 +47,7 @@ import {randomUUID} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import type {ServiceTimingCategory} from './service-timings.js';
+import type {ToolContext} from './tool-actions.js';
 import type {Actor, CallOptions, CompiledRequest, JsonObject} from './types.js';
 import {Registry, listsActions} from './catalog.js';
 import {Compiler} from './compiler.js';
@@ -252,6 +253,25 @@ function narrowedOwnershipRead(tool: string, input: JsonObject, result: JsonObje
 const exactIntegerScope = new AsyncLocalStorage<{requested: boolean; active: boolean}>();
 export const withExactIntegers = <T>(run: () => Promise<T>): Promise<T> =>
   exactIntegerScope.run({requested: true, active: false}, run);
+/**
+ * One call of an AMCP tool that MirrorService answers itself (ARC-04 stage D): its arguments and caller, the request it
+ * is audited and timed under, and `call`, through which the tool reaches other tools on the person's behalf (a nested
+ * call, which is never the person's standalone review).
+ */
+interface CompositeCall extends ToolContext {
+  readonly tool: string;
+  readonly requestId: string;
+  readonly start: number;
+  readonly call: (tool: string, input: JsonObject, actor: Actor) => Promise<JsonObject>;
+}
+/** An AMCP composite tool: the service-timing category of its calls, and how one call runs. */
+interface CompositeTool {
+  readonly category: ServiceTimingCategory;
+  run(call: CompositeCall): Promise<JsonObject>;
+}
+/** The table's entry for `tool`: an own entry only, so an inherited name (`constructor`, `toString`) is no tool. */
+const compositeTool = (table: Readonly<Record<string, CompositeTool>>, tool: unknown) =>
+  typeof tool === 'string' && Object.hasOwn(table, tool) ? table[tool] : undefined;
 export class MirrorService {
   readonly compiler: Compiler;
   readonly introspection: Introspection;
@@ -372,49 +392,32 @@ export class MirrorService {
       return false;
     }
   }
-  private async callOnce(tool: string, input: JsonObject, actor: Actor): Promise<JsonObject> {
-    const requestId = randomUUID(),
-      start = Date.now(),
-      timingStart = performance.now();
-    let actorChecked = false,
-      failed = false;
-    try {
-      this.store.assertActorActive(actor);
-      actorChecked = true;
-      // A provider this deployment does not offer (a parked one, ARC-01 and P9) is refused before its arguments are
-      // read, whether it is the tool itself or the gateway any AMCP tool names (CON-06). The one exception is the audit
-      // history of retained work: a local metadata read that sends and offers nothing, so a parked provider's history
-      // can still be filtered by its gateway, as its stored connections can still be removed.
-      assertGatewayOffered(tool);
-      if (!localGatewayFilter(tool, input)) assertGatewayOffered(input?.gateway);
-      // Each action of an AMCP tool takes its own arguments (MCP-07): one it does not read is a meta warning, or with
-      // MIRROR_FLAGS {"actionArguments":"enforce"} an INVALID_ARGUMENT naming it, before the action runs.
-      const own = this.firstPartyTools().find(t => t.name === tool);
-      if (own) {
-        const warnings = actionArgumentCheck(
-          own,
-          input,
-          this.options.flags.actionArguments === 'enforce' ? 'enforce' : 'report',
-        );
-        if (warnings.length) this.argumentWarnings.set(requestId, warnings);
-      }
-      if (tool === overviewTool.name)
-        return this.wrap(
+  /**
+   * The tools MirrorService answers itself (ARC-04 stage D), by name: callOnce consults this table after the checks every
+   * call passes (an active actor, an offered gateway, the action's own arguments) and before the native gateways. Each
+   * entry declares the timing category its calls count under; a new composite tool is one entry.
+   */
+  private readonly compositeTools: Readonly<Record<string, CompositeTool>> = {
+    [overviewTool.name]: {
+      category: 'overview',
+      run: async ({input, actor, tool, requestId, start}) =>
+        this.wrap(
           await new ReportingOverview(this, this.mediaFetcher).handle(input, actor),
           requestId,
           start,
           tool,
           input.action,
-        );
-      // A call a workflow makes for the person (a campaign plan preparing its step) is not their standalone review.
-      const call = (t: string, a: JsonObject, u: Actor) => {
-        this.nested.add(a);
-        return this.call(t, a, u);
-      };
-      if (tool === previewTool.name)
-        return this.wrap(await new AdPreviews(call).handle(input, actor), requestId, start, tool);
-      if (tool === workspaceTool.name)
-        return this.wrap(
+        ),
+    },
+    [previewTool.name]: {
+      category: 'preview',
+      run: async ({input, actor, tool, requestId, start, call}) =>
+        this.wrap(await new AdPreviews(call).handle(input, actor), requestId, start, tool),
+    },
+    [workspaceTool.name]: {
+      category: 'workspace',
+      run: async ({input, actor, tool, requestId, start, call}) =>
+        this.wrap(
           await new WorkspaceService(
             this.store,
             this.registry,
@@ -430,9 +433,12 @@ export class MirrorService {
           start,
           tool,
           input.action,
-        );
-      if (tool === campaignTool.name)
-        return this.wrap(
+        ),
+    },
+    [campaignTool.name]: {
+      category: 'campaign',
+      run: async ({input, actor, tool, requestId, start, call}) =>
+        this.wrap(
           await new CampaignRunner(
             this.store,
             call,
@@ -459,9 +465,12 @@ export class MirrorService {
           start,
           tool,
           input.action,
-        );
-      if (tool === decisionTool.name)
-        return this.wrap(
+        ),
+    },
+    [decisionTool.name]: {
+      category: 'analysis',
+      run: async ({input, actor, tool, requestId, start, call}) =>
+        this.wrap(
           await new DecisionReporting(
             this.store,
             async (t, a, u) => {
@@ -484,9 +493,12 @@ export class MirrorService {
           start,
           tool,
           input.action,
-        );
-      if (tool === mediaTool.name)
-        return this.wrap(
+        ),
+    },
+    [mediaTool.name]: {
+      category: 'media',
+      run: async ({input, actor, tool, requestId, start, call}) =>
+        this.wrap(
           mediaNext(
             input.action === 'asset_usage'
               ? await this.assetUsage(input, actor, call)
@@ -496,8 +508,11 @@ export class MirrorService {
           start,
           tool,
           input.action,
-        );
-      if (tool === writeTool.name) {
+        ),
+    },
+    [writeTool.name]: {
+      category: 'write',
+      run: async ({input, actor, tool, requestId, start}) => {
         const result: any = await this.reviewed(input, actor);
         return {
           ...this.wrap(result, requestId, start, tool, input.action),
@@ -515,11 +530,15 @@ export class MirrorService {
               }
             : {}),
         };
-      }
-      // Help and introspection share the one envelope {success, data, meta} (MCP-05); a captured success flag inside
-      // the content is dropped, and the captured content itself is kept verbatim under data.
-      if (tool === 'amcp_tool_help')
-        return this.wrap(
+      },
+    },
+    // Help and introspection share the one envelope {success, data, meta} (MCP-05); a captured success flag inside the
+    // content is dropped, and the captured content itself is kept verbatim under data. Its calls are timed with the
+    // native gateways' (native_other), as before it was an entry.
+    amcp_tool_help: {
+      category: 'native_other',
+      run: async ({input, tool, requestId, start}) =>
+        this.wrap(
           withoutSuccess(
             toolHelp(
               {
@@ -535,7 +554,44 @@ export class MirrorService {
           requestId,
           start,
           tool,
+        ),
+    },
+  };
+  private async callOnce(tool: string, input: JsonObject, actor: Actor): Promise<JsonObject> {
+    const requestId = randomUUID(),
+      start = Date.now(),
+      timingStart = performance.now();
+    let actorChecked = false,
+      failed = false;
+    try {
+      this.store.assertActorActive(actor);
+      actorChecked = true;
+      // A provider this deployment does not offer (a parked one, ARC-01 and P9) is refused before its arguments are
+      // read, whether it is the tool itself or the gateway any AMCP tool names (CON-06). The one exception is the audit
+      // history of retained work: a local metadata read that sends and offers nothing, so a parked provider's history
+      // can still be filtered by its gateway, as its stored connections can still be removed.
+      assertGatewayOffered(tool);
+      if (!localGatewayFilter(tool, input)) assertGatewayOffered(input?.gateway);
+      // Each action of an AMCP tool takes its own arguments (MCP-07): one it does not read is a meta warning, or with
+      // MIRROR_FLAGS {"actionArguments":"enforce"} an INVALID_ARGUMENT naming it, before the action runs.
+      const own = this.firstPartyTools().find(t => t.name === tool);
+      if (own) {
+        const warnings = actionArgumentCheck(
+          own,
+          input,
+          this.options.flags.actionArguments === 'enforce' ? 'enforce' : 'report',
         );
+        if (warnings.length) this.argumentWarnings.set(requestId, warnings);
+      }
+      // A call a workflow makes for the person (a campaign plan preparing its step) is not their standalone review.
+      const call = (t: string, a: JsonObject, u: Actor) => {
+        this.nested.add(a);
+        return this.call(t, a, u);
+      };
+      // ARC-04 stage D: an AMCP tool is an entry of the composite tool table; the native gateways follow. Its result is
+      // awaited here, so its refusal reaches the audit below like every other.
+      const composite = compositeTool(this.compositeTools, tool);
+      if (composite) return await composite.run({input, actor, tool, requestId, start, call});
       const catalogListing = listsActions.has(tool) && ['LIST_ACTIONS', 'DESCRIBE_ACTION'].includes(input.action);
       // An operation listed only for catalog compatibility is refused before its arguments are checked, since
       // correcting them would not help, and before anything is sent (MCP-10).
@@ -736,18 +792,9 @@ export class MirrorService {
       throw e;
     }
   }
+  /** The timing category a composite tool declares; every native gateway and any other name is native_other. */
   private timingCategory(tool: string): ServiceTimingCategory {
-    for (const [name, category] of [
-      [workspaceTool.name, 'workspace'],
-      [campaignTool.name, 'campaign'],
-      [decisionTool.name, 'analysis'],
-      [overviewTool.name, 'overview'],
-      [previewTool.name, 'preview'],
-      [mediaTool.name, 'media'],
-      [writeTool.name, 'write'],
-    ] as [string, ServiceTimingCategory][])
-      if (tool === name) return category;
-    return 'native_other';
+    return compositeTool(this.compositeTools, tool)?.category ?? 'native_other';
   }
   /**
    * The website's public origin on an HTTP deployment, set where the website is mounted, so a handoff carries an
