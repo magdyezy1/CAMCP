@@ -1,13 +1,76 @@
 # Decisions
 
 The maintained record of owner decisions and of what happened to earlier recommendations (DOC-02). Each row names the
-date, the decision, its outcome (accepted, declined or deferred), what would reopen it, and the canonical ID it
-governs. A decision changes only the stage it names: it never marks a package complete. Package status is reported on
+date, the decision, its outcome (accepted or approved, declined or deferred), what would reopen it, and the canonical
+ID it governs. A decision changes only the stage it names: it never marks a package complete. Package status is reported on
 three axes in [package status](review/PACKAGE-STATUS.md). Settled decisions, such as the declined out-of-band spend
 approval, are recorded rather than reopened.
 
 Canonical IDs: `D`, `R` and `P` are the owner questions of the 2026-10-08 engineering review; three-letter IDs
 (`OPS-04`) are its register items; `B01`–`B32` are packages.
+
+## October 2026: delivery instructions
+
+How the review's items are delivered, as the owner instructed. These govern the work, not product behaviour.
+
+| Date | Instruction | Outcome | Revisit trigger | Governs |
+|---|---|---|---|---|
+| 2026-10-17 | Continue through the wave 3b integration and wave 4 (documentation), then push to git | Accepted: the push to `Work-here` follows wave 4 and its gate, instead of one push after all waves as planned on 2026-10-09. Commits stay local until then, and package branches are never pushed | The owner names another point to push | D25, B16 |
+| 2026-10-10 | Upgrade the bundled MCP SDK from 1.30.0 to 1.32.1 | Accepted and applied ([OAuth hardening](OAUTH-HARDENING.md)) | An SDK v2 dependency is proposed | MCP-03 |
+| 2026-10-09 | Implement every review item with the recommended option of each decision; parked providers last; provider accounts stay read-only; commits stay local until one final push | Accepted (D1–D27 below; P1–P12 approved on 2026-10-11); the push point changed on 2026-10-17 | — | D1–D27, PRK-01, PRK-02, ACC-01 |
+
+## 2026-10-13: Zoho CRM scope
+
+The owner set the scope of a Zoho CRM source on 2026-10-13. Zoho CRM is not one of the review's register items; it is
+planned with the parked providers (wave 5).
+
+| Decision | Outcome | Implementation | Revisit trigger | Governs |
+|---|---|---|---|---|
+| Zoho CRM scope | Accepted: CRM to ads only. AMCP reads Zoho CRM leads, contacts and deals read-only, to build offline conversion uploads and customer-list audiences, and sends what it builds to Meta, Google, TikTok, LinkedIn or Snapchat only through the existing reviewed write engine (review, spending policy, idempotency and read-back unchanged). Nothing is written to Zoho. Leads and contacts are personal data, so their reads and uploads follow the [personal-data policy](review/PERSONAL-DATA-POLICY.md) (P4). | Not started: planned for wave 5 with the parked providers (Zoho OAuth with its data-center domains, bounded paginated reads of leads, contacts and deals, mapped to offline conversion events and customer-list audiences of existing reviewed families) | The owner wants AMCP to write to Zoho (for example a lead status), or another CRM | The Zoho CRM source (wave 5), SEC-04 |
+
+## 2026-10-11: product direction P1–P12
+
+The owner approved the product-direction choices P1–P12 of the review handoff on 2026-10-11 (P8 as the multi-provider
+measurement hub, P3 designed to GDPR and the KSA PDPL, every other proposal as written), after instructing on
+2026-10-09 that every review item be implemented with the recommended options. Where the handoff gave a
+recommendation it is the choice; where it gave none, the choice implements the fuller scope and keeps every existing
+safeguard. None is pending. Each row records the direction; its Implementation cell says where the code stands, and a
+part not built yet is named there as work, not as an open decision. The owner may revise any of them.
+
+| ID | Decision | Outcome | Implementation | Governs |
+|---|---|---|---|---|
+| P1 | Agency isolation and teamwork | Approved: many clients per workspace. Start with the non-authorizing working-client filter, then optional authorizing client access sets. Spending plans may require a distinct approver through the opt-in approval mode (off by default). Members see colleagues' plans and stuck uploads read-only (handover). | Built: the working client, a view filter that grants nothing, and client access sets, inert until an administrator creates one (SEC-08); `approval_mode: distinct_approver` and the plan policy `require_distinct_approver`, both off by default (WRT-09, CMP-05); a plan's owner shares it with named colleagues as viewer, editor or approver, and administrators see every plan (CMP-05). Not built yet: a read-only view of colleagues' plans and unfinished uploads for members nobody shared them with | SEC-08, CMP-05, WRT-09 |
+| P2 | Account security | Approved: two-step verification is mandatory for owners and administrators of write-enabled workspaces; invitations last 7 days; the app-reviewer workspace lifecycle is treated first. | Built: the two-step baseline (`AMCP_REQUIRE_MFA=admins`, the default) and the shared reviewer workspace's logins removed 7 days after they were connected, or at once when the reviewer password changes (SEC-06). Since wave 3b invitations last 7 days by default (before, 72 hours); the owner may set 1 to 168 hours | SEC-06 |
+| P3 | Retention and erasure | Approved: design to GDPR and the KSA PDPL. Sign-ups never approved are purged after 30 days and revoked accounts' personal data after 90 days; reports follow a retention per document kind (ARC-02); self-service account deletion is offered. Residual copies (WAL, volume snapshots, older backups) are covered by application retention plus backup expiry and key rotation, documented as such, not promised as instant cryptographic erasure. | Built in waves 2 and 3 (SEC-07, below): the 30- and 90-day defaults, a 365-day default for the report records of workspaces without their own period (that value chosen during implementation), and self-service deletion with an erasure receipt. The per-kind registry follows in ARC-02 (wave 3b) | SEC-07, ARC-02, OPS-02, WEB-02 |
+| P4 | Personal data and viewer files | Approved: TikTok lead reads are personal data; viewer report downloads stay off by default (an owner opt-in); provider no-execution rehearsals that transmit hashed personal data are reviewed like executions; a user-scoped `amcp_test_id` GA4 dimension is allowed only on properties explicitly marked as test properties. | Built: lead reads are refused before any provider request (SEC-04), the owner's viewer download switch is off by default (SEC-05), and only an owner-marked test property takes the dimension (MSR-04). No provider rehearsal is sent today: `amcp_write inspect` builds it as a local dry run (MSR-03 E); under this rule, sending one needs a review like an execution | SEC-04, SEC-05, MSR-03, MSR-04 |
+| P5 | Review and approval | Approved: an opt-in `destructive_confirmed` tier; only the owner may execute an over-cap review under `confirm`; the 5-minute review window stays; caps carry a currency, and a legacy cap on an account in another currency blocks until it is saved again. | Built: the window (WRT-05), the opt-in tier (`require_destructive_confirmation`, off by default; WRT-09) and currency caps (WRT-07). Since wave 3b only the owner executes beyond a cap, always on (`CAP_OVERRIDE_OWNER_REQUIRED`; before, the opt-in `cap_override_owner_only`), and caps in account currency that name no currency refuse every budget or bid change on the accounts they govern until the owner saves them again (`POLICY_CURRENCY_UNSET`: AMCP cannot tell which currency such a cap meant; before, a warning; `AMCP_LEGACY_CURRENCY_CAPS=warn` is a rollback only) | WRT-05, WRT-07, WRT-08, WRT-09 |
+| P6 | Reporting semantics | Approved: proposals (1) to (5) as written in the handoff: rolling windows per source in the account time zone; declared-incomplete detail sources keep a snapshot partial and hold its recommendations; GA4 `(not set)` and Search Console top rows are scope limits; Meta actions omitted from delivered rows count as zero with `provider_omitted`; Microsoft totals in the account time zone. | Built in waves 1 and 2, with proposals (6) to (8) (RPT-02, RPT-03, RPT-04, DEC-01, EXP-04; below) | RPT-02, RPT-04, DEC-01, EXP-03 |
+| P7 | Campaign and provider roadmap | Approved: the Microsoft Search pack is draft only and activation is refused without a positive location criterion; UTM parameters by default, provider tracking-suffix fields where the provider supports them, and conventions can be made mandatory per client; the next guided packs are TikTok traffic and conversions, LinkedIn lead generation and Google Performance Max where contracts allow (CMP-07). | Built: the activation refusal (`LOCATION_CRITERIA_REQUIRED`), and since the location-criterion family shipped the pack takes `location_ids`, so it is no longer draft only (CMP-03); playbook UTM rules applied by default, with a recorded per-plan opt-out (CMP-06); the four packs ([demand record](#campaign-pack-demand-record-cmp-07-p7-prv-06)). Not built yet: provider tracking-suffix fields, and conventions a client's playbook makes mandatory | CMP-03, CMP-06, CMP-07, PRV-06 |
+| P8 | Measurement scope | Approved: Measurement becomes the multi-provider conversion-health hub: the Meta dataset and pixel, Search Console and Adjust, plus Snapchat and TikTok adapters, all read-only, with no test events. | Built in wave 3 (MSR-03, below): read-only adapters for Meta pixels and datasets, Snapchat pixels, TikTok pixel configuration, Search Console and Adjust beside Google Ads and GA4. TikTok pixel activity waits for a native read that pins its response (ACC-06) | MSR-02, MSR-03, B20 |
+| P9 | Commerce and parked visibility | Approved: populated Meta destination-only attributes put the item in the review set as `unknown`; parked providers are gated by a lifecycle status on Commerce, in navigation, `tools/list` and the family registry; `amazon_native_action` is marked parked (unimplemented) by that status; explicit removal of listed X products stays allowed only with explicit intent. | Built: since wave 3b a Meta product whose only differences are such attributes is `unknown` and in the review set (before, a note on a matching product; COM-02); removal of listed X products only by an explicit selection with a typed count and `allow_deletion` (COM-02 B); Amazon Ads is not offered (CON-06). The lifecycle status follows in ARC-01 (wave 3b) | COM-01, COM-02, ARC-01, CON-06 |
+| P10 | Provider lifecycle ownership | Approved: the workspace owner owns the manual TikTok lifecycle check, monthly; LinkedIn keeps a reviewed version window and per-call `api_version` stays only within it; the Meta v25.0 rollback gets a monitored deadline once Meta publishes its expiry; lifecycle alarms run locally in the qualification runner. | Built (PRV-02, PRV-04): the TikTok check is due to the workspace owner every 30 days; a LinkedIn version outside the reviewed table is refused; the Meta deadline waits on Meta's published date | PRV-02, PRV-04 |
+| P11 | Architecture end state | Approved: in-repo registries only, no per-provider packages; ledger family `files` paths may change for directory moves; a retention period per document kind as ARC-02 defines it; `docs/review/ARCHITECTURE.md` becomes partly generated. | Follows in wave 3b (ARC-01 to ARC-04) | ARC-01, ARC-02, ARC-04 |
+| P12 | Documentation audience | Approved: the primary audience is workspace owners at agencies and in-house teams; owner documentation is bilingual (English first, then the Arabic translation); the delivery records move to `docs/records/` and `docs/archive/` with links preserved; signed-in visitors to `/` go to `/dashboard`. | Follows in wave 4 (DOC-03, WEB-06); today `/` shows everyone the landing page, with "Open your workspace" for a signed-in visitor | DOC-03, WEB-06 |
+
+### Release notes for the push after wave 4
+
+Three approved defaults applied in wave 3b change behaviour for existing workspaces, and the release notes must call
+them out beside the P3 defaults (below):
+
+- **Invitations last 7 days (P2).** New invitations expire after 7 days instead of 72 hours. Invitations already sent
+  keep their expiry, and a workspace whose owner saved Workspace security before keeps the lifetime saved then (the
+  form showed 72 hours) until the owner saves another.
+- **Only the owner goes beyond a spending cap (P5).** Another member's execute of a review beyond a cap is refused with
+  `CAP_OVERRIDE_OWNER_REQUIRED` before anything is sent: the owner executes it, or approves that exact review on the
+  website first. `cap_override_owner_only: false` is refused, and a value stored before is no longer read.
+- **Caps without a currency block money changes (P5).** Until the owner saves a spending policy again with its
+  currency, caps in account currency that name none refuse every budget or bid change on the accounts they govern
+  (`POLICY_CURRENCY_UNSET`, 409); pausing and renaming are unaffected. Owner health lists such caps (`blocks: true`),
+  so owners should save those policies again when the release is deployed. `AMCP_LEGACY_CURRENCY_CAPS=warn` restores
+  the earlier comparison as a rollback only.
+- **Meta catalog products with destination-only values need review (P9).** A Meta product that matches every supplied
+  field but holds values the import does not send (a sale price, staging visibility, inventory) is `unknown` and is
+  among the products a "Save only products needing review" draft saves; its native review warns about those values.
 
 ## 2026-10-09: engineering review decisions D1–D27
 
@@ -48,15 +111,14 @@ recommendation, that part is recorded as **pending owner**.
 
 Also applied on 2026-10-09 (P10, provider lifecycle): the lifecycle alarms run locally inside the qualification
 runner (PRV-04), and the Meta v25.0 rollback has its own sunset entry to be dated once Meta publishes the Marketing
-API end. The TikTok manual check is recorded with the workspace owner as owner and a 30-day cadence; naming a person
-is pending owner.
+API end. The TikTok manual check is the workspace owner's, every 30 days, as P10 (approved on 2026-10-11) names it.
 
-Also applied on 2026-10-09 (P4, personal data, its recommended part only): reads that return submitted leads (the
+Also applied on 2026-10-09 (P4, personal data, its recommended part first): reads that return submitted leads (the
 TikTok lead reads) are personal data and are refused before any provider request (SEC-04,
-[personal-data policy](review/PERSONAL-DATA-POLICY.md)). P4 names no recommendation for viewer report downloads: SEC-05
-enforces the documented role matrix with an owner Settings toggle that is off by default, which is never less safe than
-before; whether viewers may download stays the owner's choice. P4's question on provider rehearsals that transmit
-hashed personal data is not decided; its user-scoped `amcp_test_id` GA4 dimension question is applied under MSR-04 below
+[personal-data policy](review/PERSONAL-DATA-POLICY.md)). SEC-05 enforces the documented role matrix with an owner
+Settings switch for viewer report downloads that is off by default, which P4 as approved on 2026-10-11 keeps (an owner
+opt-in). Under the same approval a provider no-execution rehearsal that transmits hashed personal data is reviewed like
+an execution; none is sent today. The user-scoped `amcp_test_id` GA4 dimension is applied under MSR-04 below
 (owner-marked test properties only).
 
 Also applied on 2026-10-12 (MSR-04, P4's user-scoped dimension question as approved on 2026-10-11): a user-scoped
@@ -78,12 +140,13 @@ the existing reviewed keyword and negative-keyword paths (paid rows name their `
 the personal-data policy; the Apple legacy-origin and `orgId` cleanup stays with PRV-04's dated table.
 
 Also applied on 2026-10-10 (CON-06, the Business Profile and Amazon Ads parts of P9, with the review's proposed
-defaults; the owner may still choose otherwise): Business Profile is a website platform for workspace owners, shipped
-behind `AMCP_GBP_API_APPROVED=true` (or a dedicated `AMCP_GBP_CLIENT_ID`/`AMCP_GBP_CLIENT_SECRET`) because Google's
-approval of the Cloud project for the Business Profile APIs (R4) is not declared. Amazon Ads takes option (b):
-`amazon_native_action` is not offered (not in `tools/list`, the Capability Center or the Overview; a call is refused
-with `GATEWAY_NOT_OFFERED` before anything is read) until a Login with Amazon onboarding exists; `AMCP_PROVIDERS=amazon`
-reverses it for an operator-provisioned connection. Option (a), building that onboarding, stays the owner's choice.
+defaults; P9 as approved on 2026-10-11 keeps Amazon Ads parked): Business Profile is a website platform for workspace
+owners, shipped behind `AMCP_GBP_API_APPROVED=true` (or a dedicated `AMCP_GBP_CLIENT_ID`/`AMCP_GBP_CLIENT_SECRET`)
+because Google's approval of the Cloud project for the Business Profile APIs (R4) is not declared. Amazon Ads takes
+option (b): `amazon_native_action` is not offered (not in `tools/list`, the Capability Center or the Overview; a call
+is refused with `GATEWAY_NOT_OFFERED` before anything is read) until a Login with Amazon onboarding exists;
+`AMCP_PROVIDERS=amazon` reverses it for an operator-provisioned connection. Building that onboarding (option (a)) is
+what would unpark it.
 
 Also applied on 2026-10-11 (OPS-08, chosen during implementation; the owner may revise): owner health's provider
 quota view shows, beside a workspace's own counts, the deployment-wide daily request, refusal and 429 counts of each
@@ -93,12 +156,12 @@ totals to the deployment administrator is the alternative if that aggregate is c
 `node:24-bookworm-slim` base image by digest (OPS-08 step 1) is a deferred owner step: the digest to pin is the
 `base_image.digest` of the first Railway build evidence record (ACC-04, `docs/DEPLOY-RAILWAY.md`).
 
-Also applied on 2026-10-11 (SEC-06 and SEC-07, P2 and P3; P2 follows its recommendation, the P3 values were chosen
-during implementation and the owner may revise them): the default two-step baseline (`AMCP_REQUIRE_MFA=admins`)
-covers owners and administrators of write-enabled workspaces only (a connection grants write access), with the grace
-period counted from when a workspace was first seen write-enabled; `everyone` stays the stricter explicit choice.
-Sign-ups never approved are erased after 30 days by default (`AMCP_PENDING_ACCOUNT_DAYS`; `off` keeps them), except a
-pending account that holds a membership in another workspace.
+Also applied on 2026-10-11 (SEC-06 and SEC-07, P2 and P3 as approved that day): the default two-step baseline
+(`AMCP_REQUIRE_MFA=admins`) covers owners and administrators of write-enabled workspaces only (a connection grants
+write access), with the grace period counted from when a workspace was first seen write-enabled; `everyone` stays the
+stricter explicit choice. Sign-ups never approved are erased after 30 days by default (`AMCP_PENDING_ACCOUNT_DAYS`;
+`off` keeps them), except a pending account that holds a membership in another workspace. Since wave 3b invitations
+last 7 days by default (P2; before, 72 hours).
 
 P3 as approved on 2026-10-11 (design to GDPR and the KSA PDPL), applied in wave 3: revoked accounts are erased 90 days
 after revocation by default (`AMCP_REVOKED_ACCOUNT_DAYS`, `off` keeps them; before, they were kept unless set); report
@@ -134,26 +197,27 @@ registration limit for up to a day; metadata-document clients and existing conne
 stay English, as the existing OAuth descriptions are; no AMCP page displays them, and an AI client that shows one shows
 it as received.
 
-Also applied in waves 1 and 2 (recorded 2026-10-11 at the wave 2 gate; the parts of P5, P6, P7 and P9 that the code
-cites as owner decisions, each the review's recommended or the ticket's proposed option; the owner may revise them):
+Also applied in waves 1 to 3b (first recorded 2026-10-11 at the wave 2 gate): the parts of P5, P6, P7 and P9 that the
+code cites as owner decisions, as approved on 2026-10-11 ([P1–P12](#2026-10-11-product-direction-p1p12)) or, where
+the approval names nothing, the review's recommended or the ticket's proposed option:
 
 - **P5.** The 5-minute review window stays until the friction baseline is read (WRT-05). A spending cap may carry an
   ISO currency: a cap in another currency than the account's is `POLICY_CURRENCY_MISMATCH` (asked under `confirm`,
-  refused under `block`, never converted), and a cap saved without one is compared as before while the owner is
-  warned (`POLICY_CURRENCY_UNSET`) (WRT-07). A negative-only Google targeting create needs no spend acknowledgement, and removing an exclusion
-  counts as activation (`AMCP_GOOGLE_NARROWING_EXEMPT=false` restores the prompt; WRT-07). Standalone `amcp_write`
-  reviews are retained work with a status read and read-only reconciliation (WRT-08). Not decided by the owner: P5's
-  disclosure-only versus `destructive_confirmed` choice, whether only the owner executes over-cap reviews under
-  `confirm`, and the optional approval mode stay open. Wave 3 (WRT-09) built each as an owner-selectable setting that is
-  off by default, so behaviour is unchanged until the owner turns one on: the `destructive_confirmed` tier
-  (`require_destructive_confirmation`), owner-only execution of over-cap reviews (`cap_override_owner_only`, the owner
-  executes or approves that review on the website; off, a member with write access executes beyond a cap with
-  `cap_override_confirmed` as before), and `approval_mode` (`assistant_ack` by default, `website_approval`,
-  `distinct_approver`). Under `distinct_approver` each plan step or review that changes spending needs another
-  member's (or the owner's) approval on the website, and a review prepared through a door sign-in or a key approved
-  from one needs the owner's (AMCP cannot tell its person apart); this would serve P1's distinct approver for spending
-  plans, beside the CMP-05 plan policy `require_distinct_approver`. Each approval setting applies as the stricter of
-  the account's own policy and the workspace default.
+  refused under `block`, never converted) (WRT-07). A cap saved without one was compared as before while the owner
+  was warned (`POLICY_CURRENCY_UNSET`) until wave 3b; as P5 approves, it now refuses every budget or bid change on
+  the accounts it governs until the owner saves it again with its currency. A negative-only Google targeting create
+  needs no spend acknowledgement, and removing an exclusion counts as activation (`AMCP_GOOGLE_NARROWING_EXEMPT=false`
+  restores the prompt; WRT-07). Standalone `amcp_write` reviews are retained work with a status read and read-only
+  reconciliation (WRT-08). Wave 3 (WRT-09) built P5's approval controls: the opt-in `destructive_confirmed` tier
+  (`require_destructive_confirmation`, off by default) and `approval_mode` (`assistant_ack` by default,
+  `website_approval`, `distinct_approver`). Owner-only execution beyond a cap, opt-in in wave 3
+  (`cap_override_owner_only`), is always on since wave 3b, as P5 approves: the owner executes such a review or approves
+  it on the website first, and the acknowledgement `cap_override_confirmed` is still needed. Under `distinct_approver`
+  each plan step or review that changes spending needs another member's (or the owner's) approval on the website, and
+  a review prepared through a door sign-in or a key approved from one needs the owner's (AMCP cannot tell its person
+  apart); this serves P1's distinct approver for spending plans, beside the CMP-05 plan policy
+  `require_distinct_approver`. Each approval setting applies as the stricter of the account's own policy and the
+  workspace default.
 - **P6.** Proposals (1) to (8): rolling windows can resolve per source in the account time zone (opt-in
   `date_range.source_timezone: "account"`), declared-incomplete detail sources keep a snapshot partial and hold its
   recommendations, and GA4 `(not set)` and Search Console top-row coverage are scope limits (RPT-02); recommendations
@@ -163,83 +227,85 @@ cites as owner decisions, each the review's recommended or the ticket's proposed
   addressable with `?report_id=` under the same authorization as any load (RPT-05). Workbook schedules converge into
   Overview (the review's recommendation, chosen during implementation; owner may revise): each moves only by an explicit,
   reversible move that keeps its saved query, and a query without an exact Overview equivalent stays local (EXP-04
-  phase 2). Still open: whether a Sheets destination belongs to a report or a client, whether complete-only gates a
-  manual export, after how many failures a schedule pauses, the decision-grade metric set and causal experiments.
-  Applied in wave 3 with the review's proposed options (RPT-07, DEC-02): Overview period comparison against the
-  previous equal window or a retained snapshot, matched on platform, account, currency, time zone, result definition,
-  attribution, level and grain, with exact deltas (nine places, half to even), recomputed ratios and reach/frequency
-  only for single days; and the DEC-02 outcome window, the plan's reference length from the first account-local day
-  after its last verified budget step, captured only after it has closed, observational and never a causal claim.
+  phase 2). P6's further questions (whether a Sheets destination belongs to a report or a client, whether complete-only
+  gates a manual export, after how many failures a schedule pauses, the decision-grade metric set, causal experiments)
+  are outside the approved proposals: what is built stays as documented, and no decision-grade metric set or causal
+  experiment is built. Applied in wave 3 with the review's proposed options (RPT-07, DEC-02): Overview period
+  comparison against the previous equal window or a retained snapshot, matched on platform, account, currency, time
+  zone, result definition, attribution, level and grain, with exact deltas (nine places, half to even), recomputed
+  ratios and reach/frequency only for single days; and the DEC-02 outcome window, the plan's reference length from the
+  first account-local day after its last verified budget step, captured only after it has closed, observational and
+  never a causal claim.
 - **P7.** Activation of a Microsoft campaign without a positive location criterion is refused with
   `LOCATION_CRITERIA_REQUIRED` (CMP-03). The "Draft only" label applied until the location-criterion family shipped
   (`microsoft_location_targets`): the Microsoft Search pack now takes `location_ids` and targets them on the paused
   campaign, and the refusal reads the campaign's location criteria instead of refusing every activation. Its premise,
   that a campaign created through the API targets every location until it has location criteria, is pinned from
-  Microsoft's targeting guide (docs/MICROSOFT-ADS.md). UTM parameters versus tracking-suffix fields and mandatory
-  conventions are not decided here. P7 next packs: pending owner. The packs built so far are implementer defaults
-  recorded in the [campaign pack demand record](#campaign-pack-demand-record-cmp-07-p7-prv-06), and the PRV-06 order
-  follows the review's recommendation (the Reddit pixel check first).
+  Microsoft's targeting guide (docs/MICROSOFT-ADS.md). As approved on 2026-10-11, UTM parameters are the default, with
+  provider tracking-suffix fields where the provider supports them and conventions a client may make mandatory: client
+  playbooks apply their UTM rules by default (CMP-06), while the tracking-suffix fields and mandatory conventions are
+  not built yet. The next packs P7 names are built (the
+  [campaign pack demand record](#campaign-pack-demand-record-cmp-07-p7-prv-06)), and the PRV-06 order follows the
+  review's recommendation (the Reddit pixel check first).
 - **P9.** Waves 1 to 3 kept a Meta product's populated destination-only attributes as notes (`unsent_fields`, COM-01).
   Since owner decision P9 of 2026-10-11 (applied in wave 3b) Meta uses the `review` policy of COM-03's destination
   registry: a product whose only differences are such attributes is `unknown` and enters the review set; X and
   Snapchat keep the note. The Business Profile and Amazon Ads parts are recorded above.
 
-P8 (owner-approved 2026-10-11, applied in wave 3; chosen during implementation, the owner may revise): Measurement is
-the multi-provider conversion-health hub. The measurement ledger adds read-only Meta pixel/dataset, Snapchat pixel,
-TikTok pixel, Search Console and Adjust adapters beside Google Ads and GA4; Meta pixel ownership is learned from the
-ad account's pixel list, and no test event, Conversions API call or validate request is sent (MSR-03,
-[product workflows](PRODUCT-WORKFLOWS.md)).
+P8 (approved on 2026-10-11, applied in wave 3): Measurement is the multi-provider conversion-health hub. The
+measurement ledger adds read-only Meta pixel/dataset, Snapchat pixel, TikTok pixel configuration (its activity waits
+for a native read that pins the response), Search Console and Adjust adapters beside Google Ads and GA4; Meta pixel
+ownership is learned from the ad account's pixel list, and no test event, Conversions API call or validate request is
+sent (MSR-03, [product workflows](PRODUCT-WORKFLOWS.md)).
 
-Also implemented in wave 3 (COM-02, the remaining parts of P9; each is COM-02's proposed option, chosen during
-implementation, and the owner may revise it): listed X products outside the supplied source are removable only by
-explicit intent, an individual selection by native key from an inspection, bound to that listing's hash, with a typed
-count (`confirmed_count`), the owner's `allow_deletion` policy and read-back, while grouped, unknown and unlisted keys
-are refused and nothing is selected because a source lacks it (COM-02 B). A read-only Snapchat item comparison is
-offered: two agreeing scans with exact decimals that name what to fix in the feed, and nothing is saved (COM-02 D). A
-non-destructive retirement ("out of stock" or "discontinued" through the reviewed update) takes the place of a Meta
-delete contract, and a retirement never creates a product: a comparison blocks it and each retirement step's native
-review refuses it with `CATALOG_RETIRE_ABSENT` (COM-02 B). Bounded X variant group expansion stays behind
-`AMCP_X_CATALOG_GROUP_EXPANSION=qualified`, off by default (the block stays and names the grouped records) until the
-R2(7) native read qualifies it (COM-02 E).
+Also implemented in wave 3 (COM-02, the remaining parts of P9): as P9 approves, listed X products outside the supplied
+source are removable only by explicit intent, an individual selection by native key from an inspection, bound to that
+listing's hash, with a typed count (`confirmed_count`), the owner's `allow_deletion` policy and read-back, while
+grouped, unknown and unlisted keys are refused and nothing is selected because a source lacks it (COM-02 B). P9's
+approval names neither of the next two, so each is COM-02's proposed option, built under the owner's instruction to
+implement every ticket: a read-only Snapchat item comparison, two agreeing scans with exact decimals that name what
+to fix in the feed, saving nothing (COM-02 D); and a non-destructive retirement ("out of stock" or "discontinued"
+through the reviewed update) in place of a Meta delete contract, which never creates a product: a comparison blocks
+it and each retirement step's native review refuses it with `CATALOG_RETIRE_ABSENT` (COM-02 B). Bounded X variant
+group expansion stays behind `AMCP_X_CATALOG_GROUP_EXPANSION=qualified`, off by default (the block stays and names
+the grouped records) until the R2(7) native read qualifies it (COM-02 E).
 
-Also implemented on 2026-10-13 (SEC-08; P1's isolation model awaits owner confirmation). The review's
-recommendation for either model, the non-authorizing working-client filter, is built: the website's working client is
-a view filter (top bar, `?client=`, `profile_id` on the list actions) that never grants anything. SEC-08 phase 2(a)
-is implemented as an optional mechanism that is inert until an administrator creates a set: client access sets limit
-members, connector tokens and AI clients to one client's accounts, enforced where accounts are resolved and refused
-with `ACCOUNT_SCOPE_RESTRICTED`
+Also implemented on 2026-10-13 (SEC-08, P1's isolation model as approved on 2026-10-11: many clients per workspace).
+The non-authorizing working-client filter comes first, as P1 directs: the website's working client is a view filter
+(top bar, `?client=`, `profile_id` on the list actions) that never grants anything. The optional authorizing client
+access sets P1 names next are SEC-08 phase 2(a), a mechanism that is inert until an administrator creates a set:
+client access sets limit members, connector tokens and AI clients to one client's accounts, enforced where accounts
+are resolved and refused with `ACCOUNT_SCOPE_RESTRICTED`
 ([clients in one workspace](USER-ACCOUNTS.md#clients-in-one-workspace-working-client-and-client-access-sets)). No
-owner decision in this repository chose authorizing client access sets over one workspace per client; until the owner
-answers P1, no set exists unless an administrator creates one, and nothing existing changes. Chosen during
-implementation (the owner may revise): only viewer and operator access can be limited, never owners or
-administrators; a removed set reaches nothing rather than the whole workspace; a limited credential gets no Facebook
-Page suggestions, since a Page belongs to a login rather than an account. Owner-created additional workspaces
-(SEC-08 phase 2(b)) are not built. P1's other parts are outside SEC-08: the distinct approver is WRT-09's opt-in
-approval mode (off by default), and the read-only handover of colleagues' plans and stuck uploads is team-handoff work
-(CMP-05).
+set exists unless an administrator creates one, so nothing existing changes. Chosen during implementation (the owner
+may revise): only viewer and operator access can be limited, never owners or administrators; a removed set reaches
+nothing rather than the whole workspace; a limited credential gets no Facebook Page suggestions, since a Page belongs
+to a login rather than an account. Owner-created additional workspaces (SEC-08 phase 2(b)) are not built: P1 keeps
+many clients in one workspace. P1's other parts are outside SEC-08: the distinct approver is WRT-09's opt-in approval
+mode (off by default), and the read-only handover of colleagues' plans and stuck uploads is team-handoff work
+(CMP-05: plans are shared with named colleagues; a read-only view for every member is not built yet).
 
-Not decided in this round: the review's resource and authorization requests R1–R8 (test accounts, named reads, a
-disposable Sheets destination, declared provider approvals, LinkedIn programs and DV360, reviewers, a staging
-environment, the workload profile), the product-direction questions P1 (the isolation model and the parts of P1
-above), P11 and P12, and the parts of P2–P7 and P9 that this record does not name as applied. Each register item that needs one of them stays at the stage the review
-names, and live acceptance stays read-only until R1 is answered.
-The R1–R8 requests are owner actions, not decisions: the [acceptance runbooks](acceptance/README.md) (ACC-01 to ACC-08)
-prepare each of them, and none has been run.
+The review's resource and authorization requests R1–R8 (test accounts, named reads, a disposable Sheets destination,
+declared provider approvals, LinkedIn programs and DV360, reviewers, a staging environment, the workload profile) are
+owner actions, not decisions, and remain open. Each register item that needs one of them stays at the stage the
+review names, and live acceptance stays read-only until R1 is answered. The [acceptance runbooks](acceptance/README.md)
+(ACC-01 to ACC-08) prepare each of them, and none has been run. The product-direction questions P1–P12 were approved
+on 2026-10-11 ([above](#2026-10-11-product-direction-p1p12)).
 
 ### Campaign pack demand record (CMP-07, P7, PRV-06)
 
-Recorded 2026-10-12 during implementation, pending the owner's P7 answer. No owner answer in this repository names
-the next packs: P7 asks the owner to name the platforms clients use most, and no client demand evidence or per-client
-usage data is recorded. The packs below are the implementer's defaults under CMP-07's stated default for unclear
-demand (TikTok website traffic, then TikTok conversions); the LinkedIn lead generation and Performance Max rows were
-chosen during implementation. The owner may accept, change or remove each, and the owner's answer replaces this
-record. The measurable outcome (plans per recipe per month, launch checks per launch) starts at zero.
+First recorded 2026-10-12 during implementation, when the packs below were implementer defaults under CMP-07's stated
+default for unclear demand (TikTok website traffic, then TikTok conversions). P7 as approved on 2026-10-11 names the
+next packs: TikTok traffic and conversions, LinkedIn lead generation and Google Performance Max where contracts allow.
+No client demand evidence or per-client usage data is recorded yet: the measurable outcome (plans per recipe per
+month, launch checks per launch) starts at zero, and further packs are chosen from client demand (CMP-07, optional
+stretch).
 
-| Implementer default (pending P7) | Applied as | Revisit trigger |
+| Choice (P7, approved 2026-10-11) | Applied as | Revisit trigger |
 |---|---|---|
-| Next guided packs: TikTok website traffic and website purchases (CMP-07's default; the purchases pack is a manual campaign, not the default's Smart+) | `tiktok_website_traffic` and `tiktok_website_conversions` (manual campaigns, existing post as a Spark Ad, campaign created `DISABLE`) | The owner's P7 answer; plans per recipe after a quarter; a client asks for Smart+ |
-| LinkedIn lead generation (chosen during implementation: optional stretch in CMP-07, delivered before the owner named it) | `linkedin_lead_generation` (paused group, campaign and sponsored-post creative with an existing lead form) | The owner's P7 answer accepts it or removes it (the recipe leaves the registry), or names another LinkedIn objective |
-| Google Performance Max before Demand Gen (chosen during implementation; P7 asks the owner to choose) | A reviewed all-or-nothing PMax build with locally checked asset minimums; serving diagnostics first (read-only) | The owner's P7 answer; Google changes the asset minimums, or Demand Gen is named |
+| Next guided packs: TikTok website traffic and website purchases (the purchases pack is a manual campaign, not the Smart+ of CMP-07's default) | `tiktok_website_traffic` and `tiktok_website_conversions` (manual campaigns, existing post as a Spark Ad, campaign created `DISABLE`) | Plans per recipe after a quarter; a client asks for Smart+ |
+| LinkedIn lead generation (built as CMP-07 optional stretch before the approval named it) | `linkedin_lead_generation` (paused group, campaign and sponsored-post creative with an existing lead form) | Plans per recipe after a quarter; a client names another LinkedIn objective |
+| Google Performance Max before Demand Gen (Performance Max where contracts allow) | A reviewed all-or-nothing PMax build with locally checked asset minimums; serving diagnostics first (read-only) | Google changes the asset minimums, or a client asks for Demand Gen |
 | Post-launch check and serving diagnostics (CMP-07's named items) | `amcp_reporting launch_check` for guided Meta and Snapchat launches (Google keeps its campaign audit workflow); read-only `serving_diagnostics` for Google | Owner asks for scheduled checks |
 | PRV-06 order (the review's recommendation: the Reddit pixel check first; the rest in the ticket's proposed order) | Reddit conversion-pixel check first, then Snapchat ad-squad targeting, TikTok comment hide/unhide and Meta Advantage+ creative feature choices (partial: the Meta feature allowlist is transcribed from SDK 26.0.2, not yet pinned from its files) | The owner declines a sub-item (closed as declined) |
 
@@ -248,7 +314,7 @@ record. The measurable outcome (plans per recipe per month, launch checks per la
 | Date | Decision | Outcome | Revisit trigger | Governs |
 |---|---|---|---|---|
 | 2026-10 | Hosted GitHub Actions waived after the Actions minutes ran out; local qualification continues | Accepted (recorded as a B16 acceptance amendment under D25) | Actions minutes restored | B16, ACC-04 |
-| 2026-10 | Shopify, Salla, WooCommerce and Criteo expansion and live acceptance parked ([completion audit](review/COMPLETION-2026-10-07.md)) | Deferred (parked) | The owner unparks a store platform or Criteo | PRK-01, PRK-02 |
+| 2026-10 | Shopify, Salla, WooCommerce and Criteo expansion and live acceptance parked ([completion audit](review/COMPLETION-2026-10-07.md)) | Deferred (parked); the 2026-10-09 instruction schedules the parked providers last ([delivery instructions](#october-2026-delivery-instructions)) | The owner unparks a store platform or Criteo | PRK-01, PRK-02 |
 | 2026-10 | Live acceptance is read-only: no changes to real advertising accounts | Accepted | Test accounts are designated (R1) | ACC-01, ACC-06 |
 
 ## September 2026 decisions
@@ -313,7 +379,7 @@ Recorded 2026-10-09 under D25.
 | UX §3 | Media receipt history | Implemented (B10 cursor-bound library paging) | B10 | — |
 | UX §3 | Reports/templates/schedules | Implemented (B11, B12) | B11, B12 | — |
 | UX §3 | Client profile deletion | Implemented | B14 | — |
-| UX §3 | Per-account personal-data control on the website | Deferred: stays MCP-only (`enable_personal_data`) until the personal-data classification decision | P4 | P4 decided |
+| UX §3 | Per-account personal-data control on the website | Deferred: stays MCP-only (`enable_personal_data`, owner only). P4 as approved on 2026-10-11 settles the classification (TikTok lead reads are personal data) and names no website switch | P4 | The owner asks for the switch on the website |
 | UX §3 | Support bundle | Implemented (Operations) | B13 | — |
 | D25 list | Success-measure baselines (blueprint) | Implemented locally: step and call baselines in the journey harness (`tests/journeys/baseline.json`, checked by `tools/mcp-eval.mjs`) | QA-04 | MCP-07 lands (re-baseline) |
 | D25 list | B10's integrated cross-provider usage view | Replaced by per-asset provider readers (Meta, Google image, Snapchat); further adapters are optional stretch | B10, MED-04 | Client demand |

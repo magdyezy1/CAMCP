@@ -4,7 +4,7 @@ import {recipeCurrencyMicros as currencyMicros} from './recipe-values.js';
 import {pmaxAssetRequirements} from './google-pmax-build.js';
 
 /**
- * google_performance_max (CMP-07, an implementer default pending owner decision P7): a guided paused
+ * google_performance_max (CMP-07, a pack owner decision P7 of 2026-10-11 names): a guided paused
  * Performance Max launch compiled to the one reviewed all-or-nothing build that Google requires for an asset group and
  * its minimum assets (google-atomic-builds.ts, google-pmax-build.ts). Maximize Conversions with explicitly chosen
  * account-default conversion goals, as the Google Search conversion packs use them; brand guidelines off, so the

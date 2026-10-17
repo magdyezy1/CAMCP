@@ -431,8 +431,8 @@ Before the first upload, the owner does four things outside AMCP. AMCP does none
   `offline_upload_rehearsal`: a local dry run that applies the 90-day and future-time limits, builds
   the exact request and its `validateOnly: true` form, and reports only their hashes and counts.
   Nothing is sent, no review is created and it can never be executed. Sending Google's
-  validate-only request would still transmit hashed people, so AMCP does not, until the owner
-  decides the rehearsal policy.
+  validate-only request would still transmit hashed people, so AMCP does not: under the owner's
+  decision P4 such a rehearsal is reviewed like an execution, and no reviewed rehearsal path exists.
 - **Verification** reads the request status. `pending` means Google is still processing, so
   verify again later. `verified` means Google reports success for every record sent. The
   result carries Google's error counts and, for lists, its match-rate range. It never reads

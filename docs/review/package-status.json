@@ -307,8 +307,7 @@
       "remainders": [
         {"text": "Launch completion: Microsoft location targeting, activation gating and activation plans", "disposition": "register_item", "ref": "CMP-03"},
         {"text": "Zero-spend live acceptance and one recipe verified outcome", "disposition": "native_acceptance", "ref": "ACC-01"},
-        {"text": "Next launch packs chosen from client demand", "disposition": "optional_stretch", "ref": "CMP-07"},
-        {"text": "The CMP-07 packs built so far are implementer defaults until the owner answers P7 (no client demand evidence is recorded); the LinkedIn lead pack is optional stretch delivered before the owner named it, for the owner to accept or remove", "disposition": "owner_action", "ref": "P7"}
+        {"text": "Next launch packs chosen from client demand, beyond the four owner decision P7 named on 2026-10-11 (TikTok traffic and conversions, LinkedIn lead generation, Performance Max)", "disposition": "optional_stretch", "ref": "CMP-07"}
       ]
     },
     {
