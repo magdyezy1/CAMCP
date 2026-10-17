@@ -134,8 +134,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // owner provider access panel's catalog entries. Owner decision P9 adds the Commerce reason a Meta product needs review.
   // CMP-03's Microsoft location lookup adds src/microsoft-locations.ts (seven owned reasons) and its website copy;
   // RPT-07's period comparison table adds its caption; MSR-03's TikTok pixel event statistics add their refusals and
-  // website copy.
-  assert.equal(files.length, 570);
+  // website copy. ARC-02 adds the document-kind registry and the tenant-bound repository modules (27 files, no owned
+  // reasons: the refusals stay where they were raised).
+  assert.equal(files.length, 597);
   assert.equal(selected.filter(row => row.messages.size).length, 235);
   assert.equal(owned.size, 1586);
   assert.equal(Object.keys(catalog).length, 11469);

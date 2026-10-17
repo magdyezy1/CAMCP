@@ -155,8 +155,9 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // decision P9 adds the Commerce reason a Meta product needs review.
   // CMP-03's Microsoft location lookup adds src/microsoft-locations.ts (five wrapper reasons of its file checks);
   // RPT-07's period comparison table adds its caption to the catalog, and MSR-03's TikTok pixel event statistics their
-  // refusals and website copy.
-  assert.equal(files.length, 570);
+  // refusals and website copy. ARC-02 adds the document-kind registry and the tenant-bound repository modules (27
+  // files without wrapper reasons).
+  assert.equal(files.length, 597);
   assert.equal(selected.filter(row => row.messages.size).length, 185);
   assert.equal(owned.size, 2847);
   assert.equal(Object.keys(catalog).length, 11469);
