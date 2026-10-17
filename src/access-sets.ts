@@ -22,10 +22,8 @@ export const accessSetKind = 'access_set';
 export const memberAccessSetKind = 'member_access_set';
 /** The client access set a member is limited to, or undefined for the whole workspace. */
 export function memberAccessSetId(store: Store, tenant: string, userId: string): string | undefined {
-  const row = store.db
-    .prepare("SELECT json_extract(data,'$.access_set_id') AS id FROM documents WHERE tenant_id=? AND kind=? AND id=?")
-    .get(tenant, memberAccessSetKind, userId) as {id?: unknown} | undefined;
-  return typeof row?.id === 'string' && row.id ? row.id : undefined;
+  const id = store.repo(memberAccessSetKind, tenant).field(userId, 'access_set_id');
+  return typeof id === 'string' && id ? id : undefined;
 }
 /** Limits a member to a set, or with none lifts the limit. */
 export function setMemberAccessSet(store: Store, tenant: string, userId: string, accessSetId?: string | null) {
@@ -144,10 +142,7 @@ export function assetsWithinAccess(store: Store, actor: Actor, assets: JsonObjec
 /** What an actor limited to a set is told about it: its ID, name and how many accounts it binds (never removed: null). */
 export function accessSetView(store: Store, actor: Actor): JsonObject | null {
   if (actor.accessSetId === undefined) return null;
-  const row = store.db
-    .prepare('SELECT data FROM documents WHERE tenant_id=? AND kind=? AND id=?')
-    .get(actor.tenantId, accessSetKind, actor.accessSetId) as {data: string} | undefined;
-  const record = row ? (JSON.parse(row.data) as JsonObject) : undefined;
+  const record = store.repo(accessSetKind, actor.tenantId).payload(actor.accessSetId);
   return {
     id: actor.accessSetId,
     name: typeof record?.name === 'string' ? record.name : null,
@@ -263,9 +258,7 @@ export function choosableAccessSet(store: Store, actor: Actor, requested: unknow
     return actor.accessSetId;
   }
   if (id === undefined) return undefined;
-  const exists = store.db
-    .prepare('SELECT 1 FROM documents WHERE tenant_id=? AND kind=? AND id=?')
-    .get(actor.tenantId, accessSetKind, id);
+  const exists = store.repo(accessSetKind, actor.tenantId).has(id);
   if (!exists)
     throw new MirrorError('ACCESS_SET_NOT_FOUND', 'This client access set no longer exists. Choose another one.', {
       access_set_id: id,
@@ -284,9 +277,7 @@ export function saveAccessSet(store: Store, actor: Actor, input: JsonObject): Js
     const id = input.id === undefined ? randomUUID() : String(input.id);
     if (!/^[A-Za-z0-9_-]{1,160}$/.test(id))
       throw new MirrorError('INVALID_ARGUMENT', 'Choose a client access set of this workspace.', {field: 'id'});
-    const previous = store.db
-      .prepare('SELECT data,revision FROM documents WHERE tenant_id=? AND kind=? AND id=?')
-      .get(actor.tenantId, accessSetKind, id) as {data: string; revision: number} | undefined;
+    const previous = store.repo(accessSetKind, actor.tenantId).find(id);
     if (input.id !== undefined && !previous)
       throw new MirrorError('ACCESS_SET_NOT_FOUND', 'This client access set no longer exists. Choose another one.', {
         access_set_id: id,
@@ -295,7 +286,7 @@ export function saveAccessSet(store: Store, actor: Actor, input: JsonObject): Js
       throw new MirrorError('REVISION_CONFLICT', 'Reload the client access set before changing it.', {}, 409);
     if (!previous && store.documents(actor.tenantId, accessSetKind).length >= accessSetLimit)
       throw new MirrorError('WORKSPACE_QUOTA', 'This workspace has reached its limit of 100 client access sets.');
-    const before = previous ? setBindings(JSON.parse(previous.data)) : [];
+    const before = previous ? setBindings(previous) : [];
     store.putDocument(
       actor.tenantId,
       accessSetKind,
@@ -333,9 +324,7 @@ export function deleteAccessSet(store: Store, actor: Actor, input: JsonObject): 
     );
   return store.transaction(() => {
     const id = String(input.id ?? ''),
-      row = store.db
-        .prepare('SELECT revision FROM documents WHERE tenant_id=? AND kind=? AND id=?')
-        .get(actor.tenantId, accessSetKind, id) as {revision: number} | undefined;
+      row = store.repo(accessSetKind, actor.tenantId).find(id);
     if (!row)
       throw new MirrorError('ACCESS_SET_NOT_FOUND', 'This client access set no longer exists. Choose another one.', {
         access_set_id: id,

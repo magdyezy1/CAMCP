@@ -1,15 +1,27 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {backup, DatabaseSync} from 'node:sqlite';
+import {DatabaseSync} from 'node:sqlite';
 import {createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID} from 'node:crypto';
 import {Store} from './store.js';
 import {setTimeout as delay} from 'node:timers/promises';
 import {MirrorError} from './errors.js';
 import type {JsonObject} from './types.js';
-import {JOURNAL_SIZE_LIMIT_BYTES, deleteRowsOneByOne} from './media-storage.js';
+import {
+  databaseBytes as storedDatabaseBytes,
+  databaseFile,
+  drillCounts,
+  endRestoredAccess,
+  foreignKeyViolations,
+  integrityCheck,
+  newestActivityAt,
+  restoredDocumentExists,
+  snapshotDatabase,
+  stripBackupSnapshot,
+  tableNames,
+  truncateWal,
+} from './backup-repository.js';
 import {READER_VERSION, readSchemaState, schemaCompatibility} from './schema-migrations.js';
-import {activeScheduleSQL, scheduleKinds} from './scheduled-work.js';
 import {masterKeyId, masterKeys, purposeKey, type MasterKeyInput} from './security.js';
 
 /**
@@ -136,19 +148,13 @@ function writeAll(fd: number, bytes: Buffer) {
 function inspectSqlite(file: string) {
   const db = new DatabaseSync(file, {readOnly: true});
   try {
-    const result = db.prepare('PRAGMA integrity_check').all() as JsonObject[];
-    if (
-      result.length !== 1 ||
-      result[0]!.integrity_check !== 'ok' ||
-      db.prepare('PRAGMA foreign_key_check').all().length
-    )
+    const result = integrityCheck(db);
+    if (result.length !== 1 || result[0]!.integrity_check !== 'ok' || foreignKeyViolations(db))
       throw new MirrorError(
         'BACKUP_INTEGRITY_FAILED',
         'The restored SQLite copy failed its integrity or foreign-key check.',
       );
-    const tables = new Set(
-      (db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as {name: string}[]).map(t => t.name),
-    );
+    const tables = new Set(tableNames(db));
     if (
       ['schema_version', 'tenants', 'connections', 'audit', 'idempotency', 'documents', 'jobs'].some(
         t => !tables.has(t),
@@ -266,7 +272,7 @@ async function withVerifiedBackup<T>(
       if (!restored.verifyAudit()) throw new MirrorError('BACKUP_AUDIT_FAILED', 'The restored audit chain is invalid.');
       for (const tenant of restored.listTenants())
         for (const connection of restored.listConnections(tenant)) restored.credentials(tenant, connection.id);
-      restored.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+      truncateWal(restored);
     } finally {
       restored.close();
     }
@@ -329,44 +335,12 @@ const writePauseKind = 'write_pause',
 function quarantineRestoredCopy(snapshot: string, key: MasterKeyInput, backupSha256: string): JsonObject {
   const store = storeOf(snapshot, key);
   try {
-    const has = (table: string) =>
-        !!store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table),
-      run = (sql: string, ...values: (string | number)[]) => Number(store.db.prepare(sql).run(...values).changes);
     const counts = store.transaction(() => {
       const now = Date.now(),
-        ended: JsonObject = {
-          sessions_ended: has('amcp_web_sessions') ? run('DELETE FROM amcp_web_sessions') : 0,
-          authorizations_in_progress_ended: has('amcp_oauth_states') ? run('DELETE FROM amcp_oauth_states') : 0,
-          emailed_links_ended: has('amcp_account_challenges') ? run('DELETE FROM amcp_account_challenges') : 0,
-          keys_revoked: run('UPDATE api_keys SET revoked=1 WHERE revoked=0'),
-          // The reason is the one server/mcp-grants.ts records, so the AI client is told why its access ended.
-          ai_client_grants_ended: has('amcp_mcp_grants')
-            ? run(
-                "UPDATE amcp_mcp_grants SET used=1,data=json_set(data,'$.ended_reason','restore_quarantine','$.ended_at',?) WHERE used=0",
-                now,
-              )
-            : 0,
-          queued_emails_cleared: has('amcp_email_outbox')
-            ? run(
-                "UPDATE amcp_email_outbox SET secret='',lease_token=NULL,state=CASE WHEN state IN ('queued','sending','failed') THEN 'expired' ELSE state END WHERE secret<>''",
-              )
-            : 0,
-          schedules_paused: run(
-            "UPDATE documents SET data=json_set(data,'$.is_active',json('false'),'$.pause_reason','restore_quarantine','$.updated_at',?),revision=revision+1 WHERE kind IN (" +
-              scheduleKinds.map(k => "'" + k + "'").join(',') +
-              ') AND ' +
-              activeScheduleSQL,
-            now,
-          ),
-          workspaces_paused: 0,
-        };
+        ended = endRestoredAccess(store, now);
       const tenants = store.listTenants();
       for (const tenant of tenants)
-        if (
-          !store.db
-            .prepare('SELECT 1 FROM documents WHERE tenant_id=? AND kind=? AND id=?')
-            .get(tenant, writePauseKind, writePauseId)
-        ) {
+        if (!restoredDocumentExists(store, tenant, writePauseKind, writePauseId)) {
           store.putDocument(tenant, writePauseKind, writePauseId, {
             paused: true,
             reason:
@@ -386,7 +360,7 @@ function quarantineRestoredCopy(snapshot: string, key: MasterKeyInput, backupSha
     });
     if (!store.verifyAudit())
       throw new MirrorError('BACKUP_AUDIT_FAILED', 'The quarantined copy failed its audit-chain check.');
-    store.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+    truncateWal(store);
     return counts;
   } finally {
     store.close();
@@ -493,7 +467,7 @@ export async function restoreEncryptedBackup(
  */
 function backupPreflight(store: Store, parent: string, destinationDir: string, options: BackupOptions) {
   const device = options.device ?? deviceOf,
-    database = store.db.location(),
+    database = databaseFile(store),
     sameVolume = database ? device(database) === device(destinationDir) : null,
     production = options.production ?? process.env.NODE_ENV === 'production';
   if (sameVolume && production && !options.allowSameVolume)
@@ -502,8 +476,7 @@ function backupPreflight(store: Store, parent: string, destinationDir: string, o
       'The backup destination is on the same volume as MIRROR_DB, so losing the volume would lose both. Write it outside the volume (for example under /tmp), copy it off-host and delete the local copy, or pass --allow-same-volume deliberately.',
       {destination_same_volume: true},
     );
-  const pragma = (name: string) => Number((store.db.prepare('PRAGMA ' + name).get() as JsonObject)[name]),
-    databaseBytes = pragma('page_count') * pragma('page_size'),
+  const databaseBytes = storedDatabaseBytes(store),
     stagingDevice = device(parent),
     shared = stagingDevice === device(destinationDir),
     requirements = shared
@@ -559,24 +532,13 @@ export async function createEncryptedBackup(
   try {
     // One step from one read snapshot (rate -1 copies every page at once). The default 100 pages per step restarts
     // whenever another connection writes between steps, so a busy site could keep a backup from ever finishing.
-    await backup(store.db, temp.file, {rate: -1, progress: () => void steps++});
+    await snapshotDatabase(store, temp.file, () => void steps++);
     // A backup must not turn a 30-minute website upload into a permanent copy.
     // Only the disposable snapshot is edited; the running database and provider assets are untouched.
     const snapshot = new DatabaseSync(temp.file);
     try {
-      // Chunks go one row per statement, so the strip's log stays about one chunk rather than every file (OPS-01).
-      snapshot.exec('PRAGMA secure_delete=ON; PRAGMA journal_size_limit=' + JOURNAL_SIZE_LIMIT_BYTES + ';');
-      deleteRowsOneByOne(snapshot, 'media_chunks', 'SELECT rowid AS r FROM media_chunks LIMIT 1');
-      deleteRowsOneByOne(
-        snapshot,
-        'retained_media_chunks',
-        "SELECT c.rowid AS r FROM retained_media_chunks c WHERE EXISTS(SELECT 1 FROM documents d WHERE d.kind='retained_media_source' AND d.tenant_id=c.tenant_id AND d.id=c.id AND json_extract(d.data,'$.origin')='upload') LIMIT 1",
-      );
-      snapshot.exec(`DELETE FROM media_staging;
-        DELETE FROM media_admissions;
-        DELETE FROM retained_media WHERE EXISTS(SELECT 1 FROM documents d WHERE d.kind='retained_media_source' AND d.tenant_id=retained_media.tenant_id AND d.id=retained_media.id AND json_extract(d.data,'$.origin')='upload');
-        DELETE FROM documents WHERE kind IN ('media_source','media_variant','upload_session') OR (kind='retained_media_source' AND json_extract(data,'$.origin')='upload');
-        VACUUM;`);
+      // Website uploads, unfinished staging and the kinds the registry leaves out (src/backup-repository.ts).
+      stripBackupSnapshot(snapshot);
     } finally {
       snapshot.close();
     }
@@ -644,26 +606,8 @@ export async function restoreDrill(
   const db = new DatabaseSync(String(restored.destination), {readOnly: true});
   let counts: JsonObject, newest: number | null;
   try {
-    const count = (sql: string) => Number((db.prepare(sql).get() as {n: number}).n);
-    counts = {
-      workspaces: count('SELECT count(*) AS n FROM tenants'),
-      connections: count('SELECT count(*) AS n FROM connections'),
-      documents: count('SELECT count(*) AS n FROM documents'),
-      audit_events: count('SELECT count(*) AS n FROM audit'),
-      queued_jobs: count("SELECT count(*) AS n FROM jobs WHERE state='queued'"),
-      running_jobs: count("SELECT count(*) AS n FROM jobs WHERE state='running'"),
-      uncertain_writes: count("SELECT count(*) AS n FROM idempotency WHERE state='uncertain'"),
-    };
-    // Multi-argument max() is NULL when any argument is; an empty table counts as no activity.
-    const latest = Number(
-      (
-        db
-          .prepare(
-            'SELECT max(coalesce((SELECT max(created_at) FROM audit),0),coalesce((SELECT max(updated_at) FROM jobs),0)) AS at',
-          )
-          .get() as {at: number}
-      ).at,
-    );
+    counts = drillCounts(db);
+    const latest = newestActivityAt(db);
     newest = Number.isFinite(latest) && latest > 0 ? latest : null;
   } finally {
     db.close();

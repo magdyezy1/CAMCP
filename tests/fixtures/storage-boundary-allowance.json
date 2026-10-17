@@ -1,0 +1,120 @@
+{
+  "description": "Raw SQL each application module outside the store layer may still hold (ARC-02, tools/check-storage-boundary.mjs): SQL literals, json_extract uses, database handle uses and the document kinds its SQL names. Values only fall: move SQL into a repository module (docs/ADDING-A-DOCUMENT-KIND.md) and lower them with --update; never raise one.",
+  "totals": {
+    "modules_with_sql": 14,
+    "modules_with_db": 14,
+    "sql": 139,
+    "json_extract": 24,
+    "db": 120,
+    "kinds_via_raw_sql": 10
+  },
+  "allowance": {
+    "server/account-security.ts": {
+      "sql": 37,
+      "json_extract": 5,
+      "db": 38,
+      "kinds": [
+        "account_settings"
+      ]
+    },
+    "server/mfa-policy.ts": {
+      "sql": 7,
+      "json_extract": 2,
+      "db": 7,
+      "kinds": [
+        "account_settings"
+      ]
+    },
+    "server/user-accounts.ts": {
+      "sql": 54,
+      "json_extract": 5,
+      "db": 35,
+      "kinds": []
+    },
+    "server/website.ts": {
+      "sql": 6,
+      "json_extract": 1,
+      "db": 6,
+      "kinds": [
+        "member_access_set"
+      ]
+    },
+    "src/campaign-runner.ts": {
+      "sql": 4,
+      "json_extract": 1,
+      "db": 4,
+      "kinds": []
+    },
+    "src/cap-overrides.ts": {
+      "sql": 4,
+      "json_extract": 4,
+      "db": 3,
+      "kinds": [
+        "write_review"
+      ]
+    },
+    "src/scope.ts": {
+      "sql": 1,
+      "json_extract": 1,
+      "db": 1,
+      "kinds": [
+        "microsoft_report"
+      ]
+    },
+    "src/service.ts": {
+      "sql": 5,
+      "json_extract": 1,
+      "db": 5,
+      "kinds": []
+    },
+    "src/spend-policy.ts": {
+      "sql": 6,
+      "json_extract": 2,
+      "db": 6,
+      "kinds": [
+        "account_metadata",
+        "spend_policy",
+        "spend_reservation"
+      ]
+    },
+    "src/woocommerce-connection.ts": {
+      "sql": 4,
+      "json_extract": 1,
+      "db": 4,
+      "kinds": [
+        "connection_disconnection"
+      ]
+    },
+    "src/workspace.ts": {
+      "sql": 1,
+      "json_extract": 0,
+      "db": 1,
+      "kinds": []
+    },
+    "src/write-approval.ts": {
+      "sql": 5,
+      "json_extract": 0,
+      "db": 5,
+      "kinds": [
+        "spend_policy",
+        "write_review_group"
+      ]
+    },
+    "src/write-groups.ts": {
+      "sql": 3,
+      "json_extract": 0,
+      "db": 3,
+      "kinds": [
+        "write_review_group"
+      ]
+    },
+    "src/write-review.ts": {
+      "sql": 2,
+      "json_extract": 1,
+      "db": 2,
+      "kinds": [
+        "campaign_run"
+      ]
+    }
+  }
+}

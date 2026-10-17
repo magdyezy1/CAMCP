@@ -3,6 +3,7 @@ import type {DatabaseSync} from 'node:sqlite';
 import {MirrorError} from './errors.js';
 import {sha256} from './security.js';
 import type {Credentials} from './types.js';
+import {issuerUsageSince, workspaceIssuerUsage} from './provider-usage-repository.js';
 
 /**
  * Provider quota by issuer (OPS-08). Providers ration requests per OAuth app, Cloud project or developer token across
@@ -168,16 +169,9 @@ const counts = (rows: UsageRow[]) =>
 export function providerQuotaHealth(db: DatabaseSync, tenant: string, policy: QuotaPolicy, now = Date.now()) {
   const today = quotaDay(now),
     since = quotaDay(now - (QUOTA_RETAINED_DAYS - 1) * 86400000),
-    rows = db
-      .prepare(
-        'SELECT issuer,gateway,day,sum(requests) AS requests,sum(reserved_requests) AS reserved_requests,sum(operations) AS operations,sum(rate_limits) AS rate_limits,sum(refused) AS refused,sum(would_refuse) AS would_refuse FROM provider_issuer_usage WHERE day>=? AND issuer IN (SELECT issuer FROM provider_issuer_usage WHERE tenant_id=? AND day>=?) GROUP BY issuer,gateway,day ORDER BY issuer,gateway,day',
-      )
-      .all(since, tenant, since) as UsageRow[],
-    mine = db
-      .prepare(
-        'SELECT issuer,gateway,day,requests,reserved_requests,operations,rate_limits,refused,would_refuse FROM provider_issuer_usage WHERE tenant_id=? AND day=?',
-      )
-      .all(tenant, today) as UsageRow[];
+    rows: UsageRow[] = issuerUsageSince(db, tenant, since),
+    mine: UsageRow[] = workspaceIssuerUsage(db, tenant, today);
+
   const keys = [...new Set(rows.map(r => r.issuer + '\0' + r.gateway))];
   return {
     version: 1,

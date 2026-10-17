@@ -7,6 +7,7 @@ import type {Store} from './store.js';
 import type {CredentialProvider} from './auth.js';
 import type {NativeTransport} from './transport.js';
 import {loginStamp, storedLogin} from './connection-authority.js';
+import {holdsLock} from './service-lock-repository.js';
 
 export const measurementConnectionSyncKind = (gateway: string, operation: string, action: unknown) =>
   (gateway === 'ga4_native_action' &&
@@ -135,11 +136,7 @@ export async function syncMeasurementConnection(
         {},
         409,
       );
-    if (
-      !store.db
-        .prepare('SELECT key FROM service_locks WHERE key=? AND owner=? AND expires_at>?')
-        .get(lock, lease, Date.now())
-    )
+    if (!holdsLock(store, lock, lease, Date.now()))
       throw new MirrorError(
         'ASSET_SYNC_CHANGED',
         'This synchronization no longer owns its lease. Read the latest discovery result.',

@@ -405,11 +405,10 @@ const quotaKey = (account: string) => sha256(scopeKey('x-report-processing', acc
 export function admitXReport(p: CompiledRequest, store: Store, review: string) {
   if (!xReportKind(p)) return;
   const key = quotaKey(p.accountId!),
-    claim = sha256(review);
-  const row = store.db
-    .prepare("SELECT data FROM documents WHERE tenant_id='__service_limits__' AND kind='x_report_quota' AND id=?")
-    .get(key) as JsonObject | undefined;
-  const active: string[] = row ? JSON.parse(row.data).active : [];
+    claim = sha256(review),
+    quotas = store.serviceRepo('x_report_quota');
+  const row = quotas.find(key);
+  const active: string[] = row ? row.active : [];
   if (!Array.isArray(active) || active.some(v => typeof v !== 'string') || active.length > 100)
     stateFail('Invalid local report admission state.');
   if (active.includes(claim)) return;
@@ -421,7 +420,7 @@ export function admitXReport(p: CompiledRequest, store: Store, review: string) {
       429,
       true,
     );
-  store.putDocument('__service_limits__', 'x_report_quota', key, {active: [...active, claim], at: Date.now()});
+  quotas.put(key, {active: [...active, claim], at: Date.now()});
 }
 export function observeXReport(p: CompiledRequest, c: Connection, store: Store, rows: JsonObject[]) {
   for (const row of rows) {
@@ -430,16 +429,12 @@ export function observeXReport(p: CompiledRequest, c: Connection, store: Store, 
     if (!['SUCCESS', 'FAILED', 'CANCELLED'].includes(row.status)) continue;
     store.transaction(() => {
       const key = quotaKey(b.account_id),
-        prior = store.db
-          .prepare("SELECT data FROM documents WHERE tenant_id='__service_limits__' AND kind='x_report_quota' AND id=?")
-          .get(key) as JsonObject | undefined;
+        quotas = store.serviceRepo('x_report_quota'),
+        prior = quotas.find(key);
       if (prior) {
-        const active = JSON.parse(prior.data).active.filter((id: string) => id !== sha256(b.review_id));
-        if (active.length) store.putDocument('__service_limits__', 'x_report_quota', key, {active, at: Date.now()});
-        else
-          store.db
-            .prepare("DELETE FROM documents WHERE tenant_id='__service_limits__' AND kind='x_report_quota' AND id=?")
-            .run(key);
+        const active = prior.active.filter((id: string) => id !== sha256(b.review_id));
+        if (active.length) quotas.put(key, {active, at: Date.now()});
+        else quotas.delete(key);
       }
       store.putDocument(c.tenantId, 'x_report_run', bindingKey(c, b.job_id), {
         ...b,
@@ -462,9 +457,7 @@ export function retainXReport(
   if (!xReportKind(p) || !xReportOutcome(p, response)) return;
   const row = (response.data as JsonObject).data,
     key = bindingKey(c, row.id_str);
-  if (
-    store.db.prepare("SELECT 1 FROM documents WHERE tenant_id=? AND kind='x_report_run' AND id=?").get(c.tenantId, key)
-  )
+  if (store.repo('x_report_run', c.tenantId).has(key))
     stateFail('X reused an existing job ID. It cannot establish new report ownership.');
   const b = {
     review_id: reviewId,

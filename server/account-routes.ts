@@ -4,9 +4,15 @@ import {UserAccounts} from './user-accounts.js';
 import {SocialSignIn} from './social-signin.js';
 import {MirrorError} from '../src/errors.js';
 import {sha256} from '../src/security.js';
-import type {JsonObject} from '../src/types.js';
 import {AccountSecurity} from './account-security.js';
 import {AccountDeletion} from './account-deletion.js';
+import {
+  deleteSession,
+  deleteSessionAuthorizations,
+  emailDeliveryStates,
+  enabledAccountVersion,
+  personSessions,
+} from './web-session-repository.js';
 
 /** Registration is open and at least one method can complete it: verification email or a configured social sign-in. */
 export function registrationAvailable(
@@ -28,10 +34,7 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
   const security = new AccountSecurity(accounts);
   // A completed password, two-step or social sign-in marks the browser as a known device of that person (SEC-03).
   const device = (s: ReturnType<WebStore['createSession']>) =>
-    accounts.deviceCookie(
-      web.store.db.prepare('SELECT id,version FROM amcp_users WHERE id=? AND disabled=0').get(s.actor.userId) as
-        JsonObject | undefined,
-    );
+    accounts.deviceCookie(enabledAccountVersion(web.store, s.actor.userId));
   const sessionCookies = (s: ReturnType<WebStore['createSession']>, signIn: boolean, ...extra: string[]) => {
     const known = signIn ? device(s) : undefined;
     return [web.cookie(s.id), ...extra, ...(known ? [known] : [])];
@@ -147,11 +150,7 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
       res.json({
         configured: accounts.emailConfigured,
         sender: accounts.emailConfigured ? accounts.env.AMCP_EMAIL_FROM : null,
-        jobs: web.store.db
-          .prepare(
-            'SELECT state,count(*) AS count,min(available_at) AS nextAttempt FROM amcp_email_outbox WHERE tenant_id=? GROUP BY state',
-          )
-          .all(web.requireSession(req).actor.tenantId),
+        jobs: emailDeliveryStates(web.store, web.requireSession(req).actor.tenantId),
       });
     }),
   );
@@ -183,13 +182,9 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
   // Reviewer sign-ins share the subject workspace-test, so each reviewer sees and ends only its own session.
   const ownedSessions = (req: Request) => {
     const s = web.requireSession(req),
-      rows = (
-        web.store.db
-          .prepare(
-            "SELECT hash,actor,expires_at FROM amcp_web_sessions WHERE json_extract(actor,'$.userId')=? AND json_extract(actor,'$.tenantId')=? AND expires_at>?",
-          )
-          .all(s.actor.userId, s.actor.tenantId, Date.now()) as JsonObject[]
-      ).filter(r => s.actor.userId !== 'workspace-test' || r.hash === sha256(s.id));
+      rows = personSessions(web.store, s.actor.userId, s.actor.tenantId, Date.now()).filter(
+        r => s.actor.userId !== 'workspace-test' || r.hash === sha256(s.id),
+      );
     return {s, rows};
   };
   router.get(
@@ -213,8 +208,8 @@ export function accountRoutes(web: WebStore, accounts: UserAccounts, social: Soc
       const {s, rows} = ownedSessions(req),
         row = rows.find(r => sha256('public-session:' + r.hash) === req.params.id);
       if (!row) throw new MirrorError('NOT_FOUND', 'Session not found.', {}, 404);
-      web.store.db.prepare('DELETE FROM amcp_web_sessions WHERE hash=?').run(row.hash);
-      web.store.db.prepare('DELETE FROM amcp_oauth_states WHERE session_hash=?').run(row.hash);
+      deleteSession(web.store, row.hash);
+      deleteSessionAuthorizations(web.store, row.hash);
       if (row.hash === sha256(s.id)) res.setHeader('Set-Cookie', web.cookie('', 0));
       res.json({success: true});
     }),

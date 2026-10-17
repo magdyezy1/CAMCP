@@ -1,4 +1,13 @@
 import type {Store} from './store.js';
+import {
+  deleteClientGrants,
+  deleteRegisteredClient,
+  idleRegisteredClients,
+  idleUnregisteredClients,
+  registeredClientCount,
+  registrationsSince,
+  tableExists,
+} from './mcp-client-repository.js';
 
 /**
  * Registered MCP OAuth clients (dynamic client registration). Registration is anonymous and the table is deployment
@@ -59,20 +68,13 @@ export function registerMcpRegistrationLimits(store: Store, limits: McpRegistrat
   configuredLimits.set(store, limits);
 }
 
-const tableExists = (store: Store, name: string) =>
-  !!store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(name);
-
 /**
  * Registrations issued in the 24 hours before `now`, and when the oldest of them leaves that window. Rows are never
  * released within a day of registration, so the count is exact.
  */
 export function mcpRecentRegistrations(store: Store, now = Date.now()): {count: number; oldestAt?: number} {
   if (!tableExists(store, 'amcp_mcp_clients')) return {count: 0};
-  const row = store.db
-    .prepare(
-      "SELECT count(*) AS n,min(json_extract(data,'$.client_id_issued_at')) AS oldest FROM amcp_mcp_clients WHERE json_extract(data,'$.client_id_issued_at')>=?",
-    )
-    .get(Math.floor((now - mcpRegistrationWindowMs) / 1000)) as {n: number; oldest: number | null};
+  const row = registrationsSince(store, Math.floor((now - mcpRegistrationWindowMs) / 1000));
   return {count: row.n, ...(typeof row.oldest === 'number' ? {oldestAt: row.oldest * 1000} : {})};
 }
 
@@ -98,16 +100,7 @@ export function mcpRegistrationAlarms(
  */
 export function releasableMcpClients(store: Store, now = Date.now()): string[] {
   if (!tableExists(store, 'amcp_mcp_clients') || !tableExists(store, 'amcp_mcp_grants')) return [];
-  return (
-    store.db
-      .prepare(
-        `SELECT c.id FROM amcp_mcp_clients c
-         WHERE json_extract(c.data,'$.client_id_issued_at')<?
-           AND NOT EXISTS(SELECT 1 FROM amcp_mcp_grants g WHERE g.client_id=c.id AND g.used=0 AND g.expires_at>?)
-           AND coalesce((SELECT max(g.expires_at) FROM amcp_mcp_grants g WHERE g.client_id=c.id),0)<?`,
-      )
-      .all(Math.floor((now - mcpClientUnusedMs) / 1000), now, now - mcpClientReleaseGraceMs) as {id: string}[]
-  ).map(r => r.id);
+  return idleRegisteredClients(store, Math.floor((now - mcpClientUnusedMs) / 1000), now, now - mcpClientReleaseGraceMs);
 }
 
 /**
@@ -118,27 +111,10 @@ export function releasableMcpClients(store: Store, now = Date.now()): string[] {
 export function releaseStaleMcpClients(store: Store, now = Date.now()): number {
   if (!tableExists(store, 'amcp_mcp_clients') || !tableExists(store, 'amcp_mcp_grants')) return 0;
   return store.transaction(() => {
-    const db = store.db,
-      ids = releasableMcpClients(store, now);
-    const unregistered = (
-      db
-        .prepare(
-          `SELECT client_id AS id FROM amcp_mcp_grants WHERE client_id NOT IN (SELECT id FROM amcp_mcp_clients)
-           GROUP BY client_id HAVING sum(used=0 AND expires_at>?)=0 AND max(expires_at)<?`,
-        )
-        .all(now, now - mcpClientReleaseGraceMs) as {id: string}[]
-    ).map(r => r.id);
-    for (const id of [...ids, ...unregistered]) {
-      const keys = "SELECT hash FROM amcp_mcp_grants WHERE client_id=? AND kind='access'";
-      db.prepare(
-        'DELETE FROM credential_owners WHERE hash IN (' +
-          keys +
-          ') AND hash IN (SELECT hash FROM api_keys WHERE expires_at<=?)',
-      ).run(id, now);
-      db.prepare('DELETE FROM api_keys WHERE hash IN (' + keys + ') AND expires_at<=?').run(id, now);
-      db.prepare('DELETE FROM amcp_mcp_grants WHERE client_id=?').run(id);
-    }
-    for (const id of ids) db.prepare('DELETE FROM amcp_mcp_clients WHERE id=?').run(id);
+    const ids = releasableMcpClients(store, now),
+      unregistered = idleUnregisteredClients(store, now, now - mcpClientReleaseGraceMs);
+    for (const id of [...ids, ...unregistered]) deleteClientGrants(store, id, now);
+    for (const id of ids) deleteRegisteredClient(store, id);
     return ids.length;
   });
 }
@@ -149,9 +125,7 @@ export function releaseStaleMcpClients(store: Store, now = Date.now()): number {
  */
 export function mcpClientCapacity(store: Store, now = Date.now()) {
   const limits = configuredLimits.get(store) ?? mcpRegistrationLimitDefaults,
-    registered = tableExists(store, 'amcp_mcp_clients')
-      ? (store.db.prepare('SELECT count(*) AS n FROM amcp_mcp_clients').get() as {n: number}).n
-      : 0,
+    registered = tableExists(store, 'amcp_mcp_clients') ? registeredClientCount(store) : 0,
     recent = mcpRecentRegistrations(store, now).count;
   return {
     registered,

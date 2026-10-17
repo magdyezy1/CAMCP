@@ -57,6 +57,24 @@ import {ReportFileDelivery, reportDestination} from './report-file-delivery.js';
 import {collectNativeDaily, collectReportPeriods, reportGrains} from './report-periods.js';
 import {ReportCollectionBudget, reportCollectionLimits} from './report-collection-budget.js';
 import {ReportParts, reportBudgetState, reportBudgetView} from './report-checkpoints.js';
+import {
+  comparisonCandidates,
+  recentFinishedSnapshots,
+  recentSnapshotSources,
+  snapshotPage,
+  snapshotSnapchatCampaigns,
+} from './report-repository.js';
+import {
+  activeReportJobCount,
+  cancelJob,
+  cancelQueuedSheetsExports,
+  jobAttempts,
+  jobLease,
+  jobState,
+  requeueJob,
+  retryJob,
+  writeClaimed,
+} from './job-repository.js';
 import {quotaExhausted} from './provider-quota.js';
 import {evaluateMonitors} from './report-monitors.js';
 import {compareSnapshots, comparisonEligibility, comparisonReasons, previousEqualWindow} from './report-compare.js';
@@ -476,11 +494,7 @@ export class ReportingOverview {
     const store = this.service.store,
       tenant = actor.tenantId,
       uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const candidates = store.db
-      .prepare(
-        "SELECT id,json_extract(data,'$.config') AS config,json_extract(data,'$.completed_at') AS completed_at FROM documents WHERE tenant_id=? AND kind='overview_report' AND json_extract(data,'$.state') IN ('complete','partial') AND json_type(data,'$.completed_at') IN ('integer','real') ORDER BY json_extract(data,'$.completed_at') DESC,id LIMIT 50",
-      )
-      .all(tenant) as JsonObject[];
+    const candidates = recentFinishedSnapshots(store, tenant);
     for (const candidate of candidates) {
       let config: JsonObject;
       try {
@@ -501,11 +515,7 @@ export class ReportingOverview {
         continue;
       }
       const campaigns = new Map<string, string | null>();
-      for (const row of store.db
-        .prepare(
-          "SELECT json_extract(r.value,'$.campaign_id') AS id,json_extract(r.value,'$.campaign_name') AS name FROM documents d,json_each(d.data,'$.rows') r WHERE d.tenant_id=? AND d.id=? AND json_extract(r.value,'$.platform')='snapchat' AND json_extract(r.value,'$.connection_id')=? AND json_extract(r.value,'$.account_id')=? AND json_extract(r.value,'$.entity_level') IS NULL LIMIT 2000",
-        )
-        .all(tenant, candidate.id, connectionId, account) as JsonObject[])
+      for (const row of snapshotSnapchatCampaigns(store, tenant, candidate.id, connectionId, account))
         if (typeof row.id === 'string' && uuid.test(row.id) && !campaigns.has(row.id))
           campaigns.set(row.id, typeof row.name === 'string' ? row.name.slice(0, 200) : null);
       if (!campaigns.size) continue;
@@ -529,15 +539,7 @@ export class ReportingOverview {
   ) {
     const store = this.service.store;
     this.access(actor, config);
-    if (
-      (
-        store.db
-          .prepare(
-            "SELECT count(*) AS n FROM jobs WHERE tenant_id=? AND kind IN ('report_overview','sheets_export','report_file_export') AND state IN ('queued','running')",
-          )
-          .get(actor.tenantId) as JsonObject
-      ).n >= 100
-    )
+    if (activeReportJobCount(store, actor.tenantId) >= 100)
       throw new MirrorError('REPORT_QUEUE_FULL', 'This workspace already has 100 active reporting jobs.');
     const id = randomUUID();
     // A new snapshot has no collection state, so it always starts under the current source contract (RPT-03), even
@@ -719,12 +721,8 @@ export class ReportingOverview {
         limit = input.limit ?? 50;
       if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
         throw new MirrorError('INVALID_PAGE', 'Use an offset >= 0 and 1–100 report snapshots.');
-      const candidates = store.db
-        .prepare(
-          // RPT-05: the whole-window summary (with its sparkline series) is returned by get, not by every list page.
-          "SELECT id,revision,json_remove(data,'$.rows','$.checkpoints','$.actor_binding','$.collection_budget.row_counts','$.window_summary') AS data,json_array_length(data,'$.rows') AS row_count FROM documents WHERE tenant_id=? AND kind='overview_report' ORDER BY json_extract(data,'$.created_at') DESC,id LIMIT 500 OFFSET ?",
-        )
-        .all(tenant, offset) as JsonObject[];
+      // RPT-05: the whole-window summary (with its sparkline series) is returned by get, not by every list page.
+      const candidates = snapshotPage(store, tenant, offset);
       const reports: JsonObject[] = [];
       let scanned = 0;
       for (const candidate of candidates) {
@@ -892,11 +890,7 @@ export class ReportingOverview {
       const r = store.document(tenant, 'overview_report', job.input.report_id);
       this.access(actor, r.config);
       if (input.action === 'cancel') {
-        store.db
-          .prepare(
-            "UPDATE jobs SET state='cancelled',lease_until=NULL,lease_token=NULL,updated_at=? WHERE tenant_id=? AND id=? AND state IN ('queued','running')",
-          )
-          .run(Date.now(), tenant, job.id);
+        cancelJob(store, tenant, job.id, Date.now());
         if (job.kind === 'report_overview')
           store.putDocument(tenant, 'overview_report', r.id, {...r, state: 'cancelled'});
         return {
@@ -945,11 +939,7 @@ export class ReportingOverview {
           state: 'queued',
         });
       }
-      store.db
-        .prepare(
-          "UPDATE jobs SET state='queued',attempts=0,lease_expiries=0,crash_expiries=0,error=NULL,available_at=?,updated_at=? WHERE tenant_id=? AND id=?",
-        )
-        .run(Date.now(), Date.now(), tenant, job.id);
+      retryJob(store, tenant, job.id, Date.now());
       return {id: job.id, report_id: r.id, state: 'queued'};
     }
     throw new MirrorError('INVALID_ARGUMENT', 'Unknown reporting overview action.');
@@ -969,11 +959,7 @@ export class ReportingOverview {
   /** Source time zones seen in the newest retained snapshots, for network-free schedule previews. */
   private observedTimezones(tenant: string): Map<string, string> {
     const zones = new Map<string, string>();
-    const rows = this.service.store.db
-      .prepare(
-        "SELECT json_extract(data,'$.sources') AS sources FROM documents WHERE tenant_id=? AND kind='overview_report' ORDER BY json_extract(data,'$.created_at') DESC LIMIT 25",
-      )
-      .all(tenant) as JsonObject[];
+    const rows = recentSnapshotSources(this.service.store, tenant);
     for (const row of rows) {
       let sources: unknown;
       try {
@@ -1057,11 +1043,7 @@ export class ReportingOverview {
         limit = input.limit ?? 50;
       if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
         throw new MirrorError('INVALID_PAGE', 'Use an offset >= 0 and 1–100 candidate snapshots.');
-      const candidates = store.db
-        .prepare(
-          "SELECT id,json_remove(data,'$.rows','$.checkpoints','$.actor_binding','$.collection_budget','$.window_summary','$.summary','$.sources') AS data FROM documents WHERE tenant_id=? AND kind='overview_report' AND id<>? ORDER BY json_extract(data,'$.created_at') DESC,id LIMIT 500 OFFSET ?",
-        )
-        .all(tenant, current.id, offset) as JsonObject[];
+      const candidates = comparisonCandidates(store, tenant, current.id, offset);
       const out: JsonObject[] = [];
       let scanned = 0;
       for (const candidate of candidates) {
@@ -1248,10 +1230,7 @@ export class ReportingOverview {
       return result;
     } catch (error) {
       if (scheduled) {
-        const job = input.__job_id
-          ? (store.db.prepare('SELECT attempts FROM jobs WHERE tenant_id=? AND id=?').get(tenant, input.__job_id) as
-              JsonObject | undefined)
-          : undefined;
+        const job = input.__job_id ? jobAttempts(store, tenant, input.__job_id) : undefined;
         this.deliveryFailed(tenant, scheduled, error, Number(job?.attempts ?? 1), e.job_id);
       }
       throw error;
@@ -1308,11 +1287,7 @@ export class ReportingOverview {
     if (input.resolution === 'abandon') {
       const abandoned = abandonSheetsDelivery(store, actor, delivery, 'operator_release');
       // The released report's queued retries stop; a running attempt cannot hold the destination lock any more.
-      store.db
-        .prepare(
-          "UPDATE jobs SET state='cancelled',lease_until=NULL,lease_token=NULL,updated_at=? WHERE tenant_id=? AND kind='sheets_export' AND state='queued' AND json_extract(input,'$.export_id')=?",
-        )
-        .run(Date.now(), tenant, sha256(delivery.report_id + ':' + destination.id));
+      cancelQueuedSheetsExports(store, tenant, sha256(delivery.report_id + ':' + destination.id), Date.now());
       return {state: 'abandoned', destination_id: destination.id, delivery: deliveryProjection(abandoned)};
     }
     if (!report)
@@ -1334,9 +1309,7 @@ export class ReportingOverview {
           409,
         );
       const prior = optional(this.service, tenant, 'overview_export', exportId),
-        job = prior
-          ? store.db.prepare('SELECT state FROM jobs WHERE tenant_id=? AND id=?').get(tenant, prior.job_id)
-          : null;
+        job = prior ? jobState(store, tenant, prior.job_id) : null;
       if ((job as JsonObject | undefined)?.state === 'running')
         throw new MirrorError(
           'EXPORT_BUSY',
@@ -1355,11 +1328,7 @@ export class ReportingOverview {
       let jobId: string;
       if (prior && job) {
         jobId = prior.job_id;
-        store.db
-          .prepare(
-            "UPDATE jobs SET state='queued',attempts=0,error=NULL,available_at=?,lease_until=NULL,lease_token=NULL,updated_at=? WHERE tenant_id=? AND id=?",
-          )
-          .run(now, now, tenant, jobId);
+        requeueJob(store, tenant, jobId, now);
       } else jobId = store.enqueue(tenant, 'sheets_export', {report_id: report.id, export_id: exportId});
       store.putDocument(tenant, 'overview_export', exportId, {
         ...(prior ? publicRecord(prior) : {}),
@@ -1494,9 +1463,7 @@ export class ReportingOverview {
     const store = this.service.store;
     const leaseCheck = () => {
       if (!input.__job_id) return;
-      const row = store.db
-        .prepare('SELECT state,lease_token,lease_until FROM jobs WHERE tenant_id=? AND id=?')
-        .get(tenant, input.__job_id) as JsonObject | undefined;
+      const row = jobLease(store, tenant, input.__job_id);
       if (!row || row.state !== 'running' || row.lease_token !== input.__lease_token || row.lease_until <= Date.now())
         throw new MirrorError('STALE_JOB_LEASE', 'This worker no longer owns the report/export job.', {}, 409);
     };
@@ -1515,9 +1482,7 @@ export class ReportingOverview {
       if (!result.success) {
         // Contention before any claim sent nothing, so the worker may retry it until the review expires (MED-02).
         // Once a claim exists the upload is never retried: its outcome is reconciled from its receipt.
-        const claimed = !!store.db
-            .prepare('SELECT 1 FROM idempotency WHERE tenant_id=? AND key=?')
-            .get(tenant, input.review_id),
+        const claimed = writeClaimed(store, tenant, input.review_id),
           contention = ['MEDIA_MEMORY_BUSY', 'MEDIA_UPLOAD_BUSY', 'MEDIA_PROCESSOR_BUSY'].includes(result.error.code);
         throw new MirrorError(
           result.error.code,

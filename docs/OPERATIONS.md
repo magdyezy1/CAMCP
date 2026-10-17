@@ -322,8 +322,10 @@ Revoking access keeps an account; erasing it (SEC-07) removes the account and it
    first.
 2. `npm run admin -- erase-account <email> --confirm` erases, irreversibly: every session, emailed link, queued e-mail
    about the person, connector key and AI-client grant ends; the workspace's documents, saved logins, jobs, write
-   claims, media, memberships and the workspace itself are deleted; the person's memberships, invitations, monitor
-   subscriptions and keys in other workspaces go; the account, its sign-in identities and two-step secret are deleted.
+   claims, media, memberships and the workspace itself are deleted; the person's memberships (with the client access
+   set each one limited them to), invitations, monitor subscriptions and notices and keys in other workspaces go (the
+   document kinds `src/document-kinds.ts` declares with `person`); the account, its sign-in identities and two-step
+   secret are deleted.
    AMCP does not contact providers: the person removes AMCP's authorization in each provider's own settings.
 3. Audit records of the erased workspace keep their place in the one hash chain with a tombstone instead of their
    payload; `account_erased` in the deployment's audit names how many and their digest, and `admin audit-verify`
@@ -354,13 +356,15 @@ the workspace. The answer is the erasure receipt, which the page offers as a dow
 queued when e-mail is configured. `AMCP_ACCOUNT_SELF_DELETION=off` turns it off (the rollback); deletion is then the
 operator's `erase-account`. Add self-service erasures to the receipts kept with the backups like any other.
 
-Report records follow a retention per document kind (`src/data-retention.ts`, until ARC-02's registry owns it):
-finished Overview snapshots with their presentations and files, analyses, resolved incidents, terminal Sheets delivery
-receipts and finished report jobs are deleted once older than the workspace owner's period (Settings → Storage &
-retention, 7–365 days) or, without one, the deployment default `AMCP_REPORT_RETENTION_DAYS` (365 days; 7–3650, or `off`
-to keep them). Before this, a workspace without a saved period kept them forever. Each hourly cleanup that deleted
-something appends `report_retention_applied` (period, its source and counts per kind) to that workspace's audit.
-Audit records, write receipts, active work and archived plans (their own opt-in period) are not covered.
+Every stored document kind has a declared retention (owner decision P11): the document-kind registry,
+`src/document-kinds.ts` (ARC-02), declares it once per kind, the sweeps apply it from there, and
+[Document kinds and retention](DOCUMENT-KINDS.md) lists every kind with its rule. Report records follow the report
+retention: finished Overview snapshots with their presentations and files, analyses, resolved incidents, terminal
+Sheets delivery receipts and finished report jobs are deleted once older than the workspace owner's period (Settings →
+Storage & retention, 7–365 days) or, without one, the deployment default `AMCP_REPORT_RETENTION_DAYS` (365 days;
+7–3650, or `off` to keep them). Before this, a workspace without a saved period kept them forever. Each hourly cleanup
+that deleted something appends `report_retention_applied` (period, its source and counts per kind) to that workspace's
+audit. Audit records, write receipts, active work and archived plans (their own opt-in period) are not covered.
 
 Erasure and retention are application retention, not instant cryptographic erasure of every copy. The rows go from the
 live database at once; SQLite zeroes freed pages (`secure_delete`), and an erasure asks the next maintenance pass to
@@ -429,8 +433,17 @@ Every start runs the schema bootstrap in one serialized `BEGIN IMMEDIATE` transa
 version 1 to 2 upgrade, every later additive step, and the website tables, including the two `amcp_users` columns
 that earlier ran outside the transaction. Each step is idempotent and recorded once in
 `schema_migrations(id, applied_at, release)`. A database created before the ledger records today's steps
-(`store-0001` to `store-0013`, `web-0001`, `web-0002`) as its baseline at its first start. The start line reports
-`migration_ms` and `migrations_applied`; owner health and the support bundle show `runtime.schema_ledger`.
+(`store-0001` to `store-0016`, `web-0001`, `web-0002`) as its baseline at its first start. The start line reports
+`migration_ms` and `migrations_applied`; owner health and the support bundle show `runtime.schema_ledger`. Only the
+store layer changes the schema: `tools/check-storage-boundary.mjs` fails on a `CREATE`, `ALTER` or `DROP` anywhere
+else (ARC-02).
+
+- **`store-0016-mcp-rate-limits`** (ARC-02) creates the `/mcp` request bucket table at start-up. Earlier releases
+  created the identical table on the first admitted request, outside the ledger, so the step is additive (schema 2,
+  minimum reader 2) and a rolled-back image starts and keeps using the same table.
+- **The document-kind registry and repositories** (ARC-02) are code only: no table, column or row changes, and the
+  service records keep their reserved partition ids (`__service_limits__`, `__amcp_system__`), so quota counters,
+  heartbeats and the volume marker survive a rollback. Rolling back is deploying the previous image.
 
 - **Versions.** `schema_version` stays 2. Each release records in `schema_meta` the oldest reader that may open the
   database it wrote (`min_reader_version`, with `min_reader_for_version`). A version 1 database is upgraded; a newer
@@ -455,7 +468,9 @@ Policy for later changes (expand, then contract):
   and `MIN_READER_VERSION` stay, so a rolled-back image still starts.
 - **Document fields** (a new document kind or field inside the existing documents table, such as COM-03's
   `catalog_lineage` on campaign_run and `catalog_mapping_profile`): no SQL change and no ledger step; older releases
-  ignore them. Record them in the change's own documentation instead.
+  ignore them. Declare a new kind, with its retention, in `src/document-kinds.ts`; a change an older release would
+  misread raises the kind's `version` and, when stored documents must be rewritten, ships a ledger step
+  ([Adding a document kind](ADDING-A-DOCUMENT-KIND.md)).
 - **Contracting** (a drop, a rename, a changed meaning): ship the expand step and readers of both forms first; in a
   later release bump `SCHEMA_VERSION` and raise `MIN_READER_VERSION` together (`src/schema-migrations.ts`), so older
   images refuse instead of misreading.

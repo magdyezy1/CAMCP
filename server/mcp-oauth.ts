@@ -27,6 +27,29 @@ import {
   releaseStaleMcpClients,
   type McpRegistrationLimits,
 } from '../src/mcp-clients.js';
+import {insertRegisteredClient, registeredClient, registeredClientCount} from '../src/mcp-client-repository.js';
+import {countLoginAttempt, expireLoginLimits, loginLimit, returnLoginAttempt} from './login-limit-repository.js';
+import {
+  accessGrant,
+  accountNames,
+  clientGrant,
+  clientGrantOfKind,
+  clientGrants,
+  deleteExpiredAuthorizations,
+  endedRefreshGrants,
+  familyGrants,
+  grantByHash,
+  insertGrant,
+  liveRefreshGrants,
+  markGrantUsed,
+  markRotated,
+  pairedAccessGrants,
+  pruneGrants,
+  refreshGrant,
+  setSuccessor,
+  supersedeAccessGrant,
+  useGrantWith,
+} from './mcp-grant-repository.js';
 import {sha256, safeEqual} from '../src/security.js';
 import {MirrorError} from '../src/errors.js';
 import {choosableAccessSet, listAccessSets} from '../src/access-sets.js';
@@ -164,14 +187,13 @@ export class McpOAuth implements OAuthServerProvider {
    * for everyone.
    */
   admitRegistration(address: string): RegistrationTicket | RegistrationRefusal {
-    const db = this.web.store.db,
+    const store = this.web.store,
       now = Date.now(),
       limits = this.registrationLimits,
       key = sha256('mcp-register:' + address);
     const admitted = this.web.store.transaction((): RegistrationRefusal | undefined => {
-      db.prepare('DELETE FROM amcp_login_limits WHERE until_at<=?').run(now);
-      const row = db.prepare('SELECT attempts,until_at FROM amcp_login_limits WHERE key=?').get(key) as
-        {attempts: number; until_at: number} | undefined;
+      expireLoginLimits(store, now);
+      const row = loginLimit(store, key);
       if (row && row.attempts >= limits.perAddressDaily)
         return {wait: Math.max(1, Math.ceil((row.until_at - now) / 1000)), scope: 'address'};
       const recent = mcpRecentRegistrations(this.web.store, now);
@@ -183,10 +205,7 @@ export class McpOAuth implements OAuthServerProvider {
               : 1,
           scope: 'deployment',
         };
-      db.prepare('INSERT INTO amcp_login_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET attempts=attempts+1').run(
-        key,
-        now + mcpRegistrationWindowMs,
-      );
+      countLoginAttempt(store, key, now + mcpRegistrationWindowMs);
       return undefined;
     });
     if (admitted) {
@@ -207,10 +226,10 @@ export class McpOAuth implements OAuthServerProvider {
         settled = true;
         this.pendingRegistrations--;
         if (!registered) {
-          db.prepare('UPDATE amcp_login_limits SET attempts=attempts-1 WHERE key=? AND attempts>0').run(key);
+          returnLoginAttempt(store, key);
           return;
         }
-        const registeredCount = (db.prepare('SELECT count(*) AS n FROM amcp_mcp_clients').get() as {n: number}).n,
+        const registeredCount = registeredClientCount(store),
           recent = mcpRecentRegistrations(this.web.store).count;
         for (const reason of mcpRegistrationAlarms(registeredCount, recent, limits))
           this.alarm('mcp_registration_alarm:' + reason, {
@@ -241,8 +260,7 @@ export class McpOAuth implements OAuthServerProvider {
           const client = await this.metadataDocuments.client(id);
           return {...client, scope: this.documentScope(client.scope)};
         }
-        const row = this.web.store.db.prepare('SELECT data FROM amcp_mcp_clients WHERE id=?').get(id) as
-          {data: string} | undefined;
+        const row = registeredClient(this.web.store, id);
         if (!row) return;
         const {encrypted_client_secret, ...client} = JSON.parse(row.data);
         if (client.token_endpoint_auth_method === 'client_secret_post') {
@@ -276,7 +294,7 @@ export class McpOAuth implements OAuthServerProvider {
         // refresh row, so the cap filled for good. How fast registrations arrive is limited per address and per
         // deployment before this point (admitRegistration); the count below is only a storage backstop.
         releaseStaleMcpClients(this.web.store);
-        const count = this.web.store.db.prepare('SELECT count(*) AS n FROM amcp_mcp_clients').get() as {n: number};
+        const count = {n: registeredClientCount(this.web.store)};
         if (count.n >= mcpClientLimit) {
           this.alarm('mcp_registration_alarm:registered_clients_full', {
             level: 'error',
@@ -304,7 +322,8 @@ export class McpOAuth implements OAuthServerProvider {
           client.client_secret_expires_at = 0;
         }
         const {client_secret, ...metadata} = client;
-        this.web.store.db.prepare('INSERT INTO amcp_mcp_clients VALUES(?,?)').run(
+        insertRegisteredClient(
+          this.web.store,
           client.client_id,
           JSON.stringify({
             ...metadata,
@@ -353,9 +372,7 @@ export class McpOAuth implements OAuthServerProvider {
       throw new InvalidTargetError('The resource must be the AMCP MCP endpoint.');
   }
   private put(token: string, kind: string, client: string, data: JsonObject, ttl: number, tenant = this.web.tenantId) {
-    this.web.store.db
-      .prepare('INSERT INTO amcp_mcp_grants VALUES(?,?,?,?,?,?,0)')
-      .run(sha256(token), kind, client, tenant, JSON.stringify(data), Date.now() + ttl);
+    insertGrant(this.web.store, sha256(token), kind, client, tenant, JSON.stringify(data), Date.now() + ttl);
   }
   /** MCP access approved from the administrator's or the reviewer's password sign-in ends with that password (F-16). */
   private assertUsable(ownerUserId: unknown, tenant: unknown) {
@@ -363,9 +380,7 @@ export class McpOAuth implements OAuthServerProvider {
       throw new InvalidGrantError('This authorization has expired or was already used.');
   }
   private get(token: string, kind: string, client?: string, allowUsed = false): JsonObject {
-    const row = this.web.store.db
-      .prepare('SELECT * FROM amcp_mcp_grants WHERE hash=? AND kind=?')
-      .get(sha256(token), kind) as JsonObject | undefined;
+    const row = grantByHash(this.web.store, sha256(token), kind);
     if (!row || (client && row.client_id !== client) || row.expires_at <= Date.now() || (row.used && !allowUsed))
       throw new InvalidGrantError('This authorization has expired or was already used.');
     return {...row, data: JSON.parse(row.data)};
@@ -389,9 +404,7 @@ export class McpOAuth implements OAuthServerProvider {
       throw new InvalidGrantError(
         'A registered redirect URI and S256 PKCE challenge are required. Only the port may vary for loopback callbacks.',
       );
-    this.web.store.db
-      .prepare("DELETE FROM amcp_mcp_grants WHERE kind IN ('request','code') AND expires_at<?")
-      .run(Date.now());
+    deleteExpiredAuthorizations(this.web.store, Date.now());
     const request = opaque();
     this.put(
       request,
@@ -460,7 +473,7 @@ export class McpOAuth implements OAuthServerProvider {
     return this.web.store.transaction(() => {
       this.assertUsable(owner.ownerUserId, session.actor.tenantId);
       const row = this.get(request, 'request');
-      this.web.store.db.prepare('UPDATE amcp_mcp_grants SET used=1 WHERE hash=?').run(row.hash);
+      markGrantUsed(this.web.store, row.hash);
       const url = new URL(row.data.redirectUri);
       if (row.data.state !== undefined) url.searchParams.set('state', row.data.state);
       // RFC 9207: the response names its issuer, so a client talking to several servers cannot be mixed up (MCP-03).
@@ -493,15 +506,7 @@ export class McpOAuth implements OAuthServerProvider {
   /** Removes expired access grants with their keys, and expired refresh grants already rotated away. Each client keeps
    * its newest refresh grant, so a registration still in use is never orphaned for the unused-client cleanup. */
   private prune() {
-    const db = this.web.store.db,
-      now = Date.now(),
-      expired = "SELECT hash FROM amcp_mcp_grants WHERE kind='access' AND expires_at<?";
-    db.prepare('DELETE FROM credential_owners WHERE hash IN (' + expired + ')').run(now);
-    db.prepare('DELETE FROM api_keys WHERE hash IN (' + expired + ')').run(now);
-    db.prepare("DELETE FROM amcp_mcp_grants WHERE kind='access' AND expires_at<?").run(now);
-    db.prepare(
-      "DELETE FROM amcp_mcp_grants WHERE kind='refresh' AND used=1 AND expires_at<? AND EXISTS(SELECT 1 FROM amcp_mcp_grants o WHERE o.client_id=amcp_mcp_grants.client_id AND o.kind='refresh' AND o.expires_at>amcp_mcp_grants.expires_at)",
-    ).run(now);
+    pruneGrants(this.web.store, Date.now());
   }
   private issue(client: string, data: JsonObject, tenant: string): OAuthTokens {
     this.prune();
@@ -553,26 +558,17 @@ export class McpOAuth implements OAuthServerProvider {
         throw new InvalidGrantError('The redirect URI or PKCE verifier does not match.');
       // The code remembers the token family it issued, so a replay can revoke it.
       const data = {...row.data, family: randomUUID()};
-      this.web.store.db
-        .prepare('UPDATE amcp_mcp_grants SET used=1,data=? WHERE hash=?')
-        .run(JSON.stringify(data), row.hash);
+      useGrantWith(this.web.store, row.hash, JSON.stringify(data));
       return this.issue(client.client_id, data, row.tenant_id);
     });
   }
   /** Ends a token family and audits it with the reason (MCP-08). */
   private revokeFamily(family: string, tenant: string, reason: GrantEndReason) {
-    return endMcpGrants(
-      this.web.store,
-      "tenant_id=? AND kind IN ('access','refresh') AND json_extract(data,'$.family')=?",
-      [tenant, family],
-      reason,
-    );
+    return endMcpGrants(this.web.store, familyGrants, [tenant, family], reason);
   }
   /** Marks a refresh grant rotated: when, and which refresh grant replaced it. */
   private rotated(hash: string, successor: string) {
-    this.web.store.db
-      .prepare("UPDATE amcp_mcp_grants SET used=1,data=json_set(data,'$.rotated_at',?,'$.successor',?) WHERE hash=?")
-      .run(Date.now(), sha256(successor), hash);
+    markRotated(this.web.store, hash, Date.now(), sha256(successor));
   }
   /**
    * The bounded reuse window (owner decision D16): the same client presents a refresh token that was rotated at most
@@ -583,7 +579,7 @@ export class McpOAuth implements OAuthServerProvider {
    */
   private reissueWithinWindow(row: JsonObject, scopes?: string[]): OAuthTokens | undefined {
     const data = row.data as JsonObject,
-      db = this.web.store.db,
+      store = this.web.store,
       now = Date.now();
     if (
       !this.refreshReuseMs ||
@@ -593,11 +589,7 @@ export class McpOAuth implements OAuthServerProvider {
       typeof data.successor !== 'string'
     )
       return;
-    const next = db
-      .prepare(
-        "SELECT hash,data,used,expires_at FROM amcp_mcp_grants WHERE hash=? AND kind='refresh' AND client_id=? AND tenant_id=?",
-      )
-      .get(data.successor, row.client_id, row.tenant_id) as JsonObject | undefined;
+    const next = refreshGrant(store, data.successor, row.client_id, row.tenant_id);
     if (!next || next.used || next.expires_at <= now) return;
     const successor = JSON.parse(next.data) as JsonObject;
     if (successor.family !== data.family) return;
@@ -606,24 +598,11 @@ export class McpOAuth implements OAuthServerProvider {
       requested = this.validateScopes(scopes ?? current);
     if (requested.some(s => !current.includes(s)))
       throw new InvalidScopeError('Refresh cannot add access. Start a new authorization to request write access.');
-    const paired = db
-      .prepare(
-        "SELECT hash FROM amcp_mcp_grants WHERE tenant_id=? AND kind='access' AND used=0 AND json_extract(data,'$.pair')=?",
-      )
-      .all(row.tenant_id, next.hash) as JsonObject[];
-    for (const access of paired) {
-      db.prepare("UPDATE amcp_mcp_grants SET used=1,data=json_set(data,'$.superseded_at',?) WHERE hash=?").run(
-        now,
-        access.hash,
-      );
-      db.prepare('UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash=?').run(row.tenant_id, access.hash);
-    }
+    const paired = pairedAccessGrants(store, row.tenant_id, next.hash);
+    for (const access of paired) supersedeAccessGrant(store, row.tenant_id, access.hash, now);
     const tokens = this.issue(row.client_id, {...successor, scope: requested.join(' ')}, row.tenant_id);
     this.rotated(next.hash, tokens.refresh_token!);
-    db.prepare("UPDATE amcp_mcp_grants SET data=json_set(data,'$.successor',?) WHERE hash=?").run(
-      sha256(tokens.refresh_token!),
-      row.hash,
-    );
+    setSuccessor(store, row.hash, sha256(tokens.refresh_token!));
     this.web.store.appendAudit(row.tenant_id, randomUUID(), {
       event: 'mcp_oauth_refresh_reused',
       client_id: row.client_id,
@@ -665,9 +644,7 @@ export class McpOAuth implements OAuthServerProvider {
    * before resources were recorded (at most an hour old at release) is accepted for this server's one resource.
    */
   assertAccessGrant(hash: string, actor: Actor) {
-    const row = this.web.store.db
-      .prepare("SELECT client_id,tenant_id,data,expires_at,used FROM amcp_mcp_grants WHERE hash=? AND kind='access'")
-      .get(hash) as JsonObject | undefined;
+    const row = accessGrant(this.web.store, hash);
     const data = row ? (JSON.parse(row.data) as JsonObject) : {};
     if (
       !row ||
@@ -696,9 +673,7 @@ export class McpOAuth implements OAuthServerProvider {
     };
   }
   async revokeToken(client: OAuthClientInformationFull, request: OAuthTokenRevocationRequest) {
-    const row = this.web.store.db
-      .prepare('SELECT data,tenant_id FROM amcp_mcp_grants WHERE hash=? AND client_id=?')
-      .get(sha256(request.token), client.client_id) as {data: string; tenant_id: string} | undefined;
+    const row = clientGrant(this.web.store, sha256(request.token), client.client_id);
     if (row) {
       const data = JSON.parse(row.data);
       if (data.family) this.revokeFamily(data.family, row.tenant_id, 'client_revoke');
@@ -719,9 +694,7 @@ export class McpOAuth implements OAuthServerProvider {
             ? ['code', input.code]
             : [undefined, undefined];
     if (!kind || typeof token !== 'string' || !token || token.length > 4096) return '';
-    const row = this.web.store.db
-      .prepare('SELECT tenant_id,data FROM amcp_mcp_grants WHERE hash=? AND kind=? AND client_id=?')
-      .get(sha256(token), kind, clientId) as {tenant_id: string; data: string} | undefined;
+    const row = clientGrantOfKind(this.web.store, sha256(token), kind, clientId);
     if (!row) return '';
     const owner = (JSON.parse(row.data) as JsonObject).ownerUserId;
     return row.tenant_id + '\n' + (typeof owner === 'string' ? owner : '');
@@ -729,9 +702,9 @@ export class McpOAuth implements OAuthServerProvider {
   /** Display names of the people who approved connections, for the workspace administrator's view. */
   private ownerNames(owners: Iterable<string>) {
     const names = new Map<string, string>(),
-      byId = this.web.store.db.prepare('SELECT name FROM amcp_users WHERE id=?');
+      byId = accountNames(this.web.store);
     for (const owner of owners) {
-      const row = byId.get(owner) as {name?: string} | undefined;
+      const row = byId(owner);
       if (typeof row?.name === 'string') names.set(owner, row.name.slice(0, 120));
     }
     return names;
@@ -744,11 +717,7 @@ export class McpOAuth implements OAuthServerProvider {
    * it (`owner`: their user ID, or null for the administrator sign-in) so one person's connection can be revoked.
    */
   authorizations(tenant = this.web.tenantId, viewer?: string | null, options: {owners?: boolean} = {}) {
-    const rows = this.web.store.db
-      .prepare(
-        "SELECT g.client_id,g.expires_at,g.data AS grant_data,c.data FROM amcp_mcp_grants g LEFT JOIN amcp_mcp_clients c ON c.id=g.client_id WHERE g.tenant_id=? AND g.kind='refresh' AND g.used=0 AND g.expires_at>?",
-      )
-      .all(tenant, Date.now()) as JsonObject[];
+    const rows = liveRefreshGrants(this.web.store, tenant, Date.now());
     const clients = new Map<string, JsonObject>();
     for (const row of rows) {
       const grant = JSON.parse(row.grant_data),
@@ -778,11 +747,7 @@ export class McpOAuth implements OAuthServerProvider {
    * authorizations instead. `owners` names the person, as in authorizations. */
   endedAuthorizations(tenant = this.web.tenantId, options: {owners?: boolean} = {}) {
     const now = Date.now(),
-      rows = this.web.store.db
-        .prepare(
-          "SELECT g.client_id,json_extract(g.data,'$.ownerUserId') AS owner,max(json_extract(g.data,'$.ended_at')) AS ended_at,json_extract(g.data,'$.ended_reason') AS reason,json_extract(g.data,'$.clientName') AS grant_name,c.data FROM amcp_mcp_grants g LEFT JOIN amcp_mcp_clients c ON c.id=g.client_id WHERE g.tenant_id=? AND g.kind='refresh' AND json_extract(g.data,'$.ended_at')>? AND NOT EXISTS(SELECT 1 FROM amcp_mcp_grants l WHERE l.tenant_id=g.tenant_id AND l.client_id=g.client_id AND json_extract(l.data,'$.ownerUserId') IS json_extract(g.data,'$.ownerUserId') AND l.kind='refresh' AND l.used=0 AND l.expires_at>?) GROUP BY g.client_id,json_extract(g.data,'$.ownerUserId') ORDER BY ended_at DESC LIMIT 20",
-        )
-        .all(tenant, now - 14 * 86400000, now) as JsonObject[];
+      rows = endedRefreshGrants(this.web.store, tenant, now - 14 * 86400000, now);
     const names = options.owners
       ? this.ownerNames(rows.flatMap(r => (typeof r.owner === 'string' ? [r.owner] : [])))
       : undefined;
@@ -807,12 +772,7 @@ export class McpOAuth implements OAuthServerProvider {
   revokeClient(id: string, tenant = this.web.tenantId, owner?: string | null) {
     return endMcpGrants(
       this.web.store,
-      'client_id=? AND tenant_id=?' +
-        (owner === undefined
-          ? ''
-          : owner === null
-            ? " AND json_extract(data,'$.ownerUserId') IS NULL"
-            : " AND json_extract(data,'$.ownerUserId')=?"),
+      clientGrants(owner),
       owner === undefined || owner === null ? [id, tenant] : [id, tenant, owner],
       'workspace_revoke',
       {audit: false},

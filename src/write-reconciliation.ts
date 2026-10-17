@@ -20,6 +20,7 @@ import {fingerprint, optional} from './workspace-core.js';
 import {ownsRecord} from './actor-identity.js';
 import {mayResolve, pendingUncertainMs, retainedReview, writeStatus} from './write-records.js';
 import {object} from './write-common.js';
+import {writeClaim} from './job-repository.js';
 
 /**
  * Read-only reconciliation of an uncertain reviewed write (WRT-08 Stage B). A write whose response was lost may or
@@ -192,9 +193,7 @@ export class WriteReconciler {
       fail('RECONCILIATION_UNAVAILABLE', 'Reconcile each part of a group by its own review_id; status lists them.', {
         next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: review.id}},
       });
-    const claim = this.store.db
-      .prepare('SELECT state,created_at FROM idempotency WHERE tenant_id=? AND key=?')
-      .get(actor.tenantId, review.id) as JsonObject | undefined;
+    const claim = writeClaim(this.store, actor.tenantId, review.id);
     const stalePending = claim?.state === 'pending' && Date.now() - Number(claim.created_at) >= pendingUncertainMs;
     if (claim?.state !== 'uncertain' && !stalePending)
       fail(
@@ -478,9 +477,7 @@ export class WriteReconciler {
       },
     };
     this.store.transaction(() => {
-      const claim = this.store.db
-        .prepare('SELECT state FROM idempotency WHERE tenant_id=? AND key=?')
-        .get(actor.tenantId, id) as JsonObject | undefined;
+      const claim = writeClaim(this.store, actor.tenantId, id);
       if (!['uncertain', 'pending'].includes(String(claim?.state)))
         fail('RECONCILIATION_UNAVAILABLE', 'This write is no longer uncertain. Read its status.', {
           next_call: {tool: 'amcp_write', arguments: {action: 'status', review_id: id}},

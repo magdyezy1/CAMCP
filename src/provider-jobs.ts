@@ -4,6 +4,8 @@ import {normalizeAccount} from './scope.js';
 import {scopeKey, sha256} from './security.js';
 import {accountWriteGranted} from './write-access.js';
 import {optional} from './workspace-core.js';
+import {sweepProviderJobReceipts} from './retention-repository.js';
+import {providerJobCounts} from './report-repository.js';
 import type {Store} from './store.js';
 import type {Actor, Connection, JsonObject} from './types.js';
 
@@ -141,11 +143,10 @@ export function providerJobHourlyLimit(env: NodeJS.ProcessEnv = process.env): nu
 export function admitProviderJob(store: Store, gateway: string, account: string, now = Date.now()): void {
   const id = sha256(scopeKey('provider-job', gateway, normalizeAccount(gateway, account))),
     limit = providerJobHourlyLimit();
+  const quotas = store.serviceRepo('provider_job_quota');
   store.transaction(() => {
-    const row = store.db
-      .prepare("SELECT data FROM documents WHERE tenant_id='__service_limits__' AND kind='provider_job_quota' AND id=?")
-      .get(id) as {data: string} | undefined;
-    const stored = row ? JSON.parse(row.data).times : [];
+    const row = quotas.find(id);
+    const stored = row ? row.times : [];
     const times = (Array.isArray(stored) ? stored : []).filter(
       (t: unknown): t is number => typeof t === 'number' && t > now - hour && t <= now + 60000,
     );
@@ -157,7 +158,7 @@ export function admitProviderJob(store: Store, gateway: string, account: string,
         429,
         true,
       );
-    store.putDocument('__service_limits__', 'provider_job_quota', id, {times: [...times, now].slice(-limit)});
+    quotas.put(id, {times: [...times, now].slice(-limit)});
   });
 }
 
@@ -351,11 +352,7 @@ export function failedJobState(error: unknown): 'rejected' | 'uncertain' {
 /** Provider jobs of the last `days` days by gateway and state, for the owner (counted, never their contents). */
 export function providerJobSummary(store: Store, tenant: string, days = 7): JsonObject {
   const since = Date.now() - days * 86400000;
-  const rows = store.db
-    .prepare(
-      "SELECT json_extract(data,'$.gateway') AS gateway,json_extract(data,'$.state') AS state,json_extract(data,'$.source') AS source,count(*) AS count FROM documents WHERE tenant_id=? AND kind='provider_job' AND json_extract(data,'$.created_at')>=? GROUP BY 1,2,3 ORDER BY 1,2,3",
-    )
-    .all(tenant, since) as JsonObject[];
+  const rows = providerJobCounts(store, tenant, since);
   return {days, created: rows.reduce((n, r) => n + Number(r.count), 0), by_gateway_and_state: rows};
 }
 /**
@@ -363,15 +360,5 @@ export function providerJobSummary(store: Store, tenant: string, days = 7): Json
  * providerJobRetentionDays ago (a receipt without a creation time counts as that old). Returns how many went.
  */
 export function purgeProviderJobReceipts(store: Store, tenant: string, now = Date.now()): number {
-  const settled = store.db
-      .prepare(
-        "DELETE FROM documents WHERE tenant_id=? AND kind='provider_job' AND json_extract(data,'$.state') IN ('accepted','rejected') AND coalesce(json_extract(data,'$.retain_until'),0)<?",
-      )
-      .run(tenant, now).changes,
-    unsettled = store.db
-      .prepare(
-        "DELETE FROM documents WHERE tenant_id=? AND kind='provider_job' AND coalesce(json_extract(data,'$.state'),'') NOT IN ('accepted','rejected') AND coalesce(json_extract(data,'$.created_at'),0)<?",
-      )
-      .run(tenant, now - providerJobRetentionDays * 86400000).changes;
-  return Number(settled) + Number(unsettled);
+  return sweepProviderJobReceipts(store, tenant, now, providerJobRetentionDays);
 }

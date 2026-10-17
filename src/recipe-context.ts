@@ -407,9 +407,7 @@ export function clientBriefs(store: Store, actor: Actor, input: JsonObject): Jso
     if (input.confirmed !== true) bad('Confirm brief deletion.');
     const brief = visibleBrief(store, actor, input.id);
     if (input.revision !== brief.revision) bad('Reload the current brief.', 'REVISION_CONFLICT');
-    store.db
-      .prepare('DELETE FROM documents WHERE tenant_id=? AND kind=? AND id=? AND revision=?')
-      .run(actor.tenantId, 'client_brief', brief.id, brief.revision);
+    store.repo('client_brief', actor.tenantId).deleteRevision(brief.id, brief.revision);
     audit(store, actor, 'client_brief_deleted', {id: brief.id});
     return {deleted: true};
   }

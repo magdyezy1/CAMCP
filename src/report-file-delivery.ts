@@ -5,6 +5,7 @@ import {bad, fingerprint, optional, validate, writer} from './workspace-core.js'
 import {sha256} from './security.js';
 import {presentationStyle} from './report-packs.js';
 import {assertReportExportable, sheetsGateway} from './google-sheets.js';
+import {activeReportJobCount} from './job-repository.js';
 
 type Format = 'pdf' | 'xlsx';
 export const fileDeliveryLimits = {output_bytes: 20 * 1024 * 1024, tenant_storage_bytes: 256 * 1024 * 1024};
@@ -74,10 +75,8 @@ export class ReportFileDelivery {
           bad('This key belongs to different file destination settings.', 'IDEMPOTENCY_CONFLICT');
         return old;
       }
-      const count = this.store.db
-        .prepare("SELECT count(*) n FROM documents WHERE tenant_id=? AND kind='report_file_destination'")
-        .get(actor.tenantId) as JsonObject;
-      if (count.n >= 100) bad('Use at most 100 file destinations in this workspace.', 'DESTINATION_LIMIT');
+      if (this.store.repo('report_file_destination', actor.tenantId).count() >= 100)
+        bad('Use at most 100 file destinations in this workspace.', 'DESTINATION_LIMIT');
       this.store.putDocument(actor.tenantId, 'report_file_destination', id, {
         ...value,
         request_fingerprint: hash,
@@ -114,12 +113,8 @@ export class ReportFileDelivery {
           state: this.store.job(actor.tenantId, prior.job_id).state,
           files: prior.files,
         };
-      const pending = this.store.db
-        .prepare(
-          "SELECT count(*) n FROM jobs WHERE tenant_id=? AND kind IN ('report_overview','sheets_export','report_file_export') AND state IN ('queued','running')",
-        )
-        .get(actor.tenantId) as JsonObject;
-      if (pending.n >= 100) bad('This workspace already has 100 active reporting jobs.', 'REPORT_QUEUE_FULL');
+      if (activeReportJobCount(this.store, actor.tenantId) >= 100)
+        bad('This workspace already has 100 active reporting jobs.', 'REPORT_QUEUE_FULL');
       const job = this.store.enqueue(actor.tenantId, 'report_file_export', {report_id: report.id, export_id: id});
       this.store.putDocument(actor.tenantId, 'overview_export', id, {
         report_id: report.id,
@@ -190,12 +185,8 @@ export class ReportFileDelivery {
         }
         const sealed = this.store.sealValue(tenant, 'report-file', id, {bytes: bytes.toString('base64')}),
           storageBytes = Buffer.byteLength(sealed);
-        const stored = this.store.db
-          .prepare(
-            "SELECT coalesce(sum(json_extract(data,'$.storage_bytes')),0) n FROM documents WHERE tenant_id=? AND kind='report_file'",
-          )
-          .get(tenant) as JsonObject;
-        if (stored.n + storageBytes > fileDeliveryLimits.tenant_storage_bytes)
+        const stored = this.store.repo('report_file', tenant).sum('storage_bytes');
+        if (stored + storageBytes > fileDeliveryLimits.tenant_storage_bytes)
           bad(
             'Stored report files reached the 256 MiB workspace limit. Delete old snapshots or set report retention before retrying.',
             'REPORT_FILE_QUOTA',

@@ -5,6 +5,8 @@ import {scheduleClockFields} from './reporting.js';
 import {sha256, stable} from './security.js';
 import {reportDestination} from './report-file-delivery.js';
 import {currencyTargetKey} from './report-metrics.js';
+import {deleteSettledDeliveries, hasUnconfirmedDelivery} from './report-repository.js';
+import {cancelReportJobs, deleteReportJobs} from './job-repository.js';
 import type {Actor, JsonObject} from './types.js';
 
 const optional = (store: Store, tenant: string, kind: string, id: string) => {
@@ -50,11 +52,7 @@ export class ReportLibrary {
       this.cancelReport(tenant, r.id);
   }
   private cancelReport(tenant: string, id: string) {
-    this.store.db
-      .prepare(
-        "UPDATE jobs SET state='cancelled',lease_until=NULL,lease_token=NULL,updated_at=? WHERE tenant_id=? AND kind IN ('report_overview','sheets_export','report_file_export') AND json_extract(input,'$.report_id')=? AND state IN ('queued','running')",
-      )
-      .run(Date.now(), tenant, id);
+    cancelReportJobs(this.store, tenant, id, Date.now());
     const r = optional(this.store, tenant, 'overview_report', id);
     if (r && ['queued', 'running'].includes(r.state))
       this.store.putDocument(tenant, 'overview_report', id, {...r, state: 'cancelled'});
@@ -307,9 +305,7 @@ export class ReportLibrary {
       this.revision(input, s, remove);
       this.cancelRuns(tenant, s.id);
       if (remove) {
-        this.store.db
-          .prepare("DELETE FROM documents WHERE tenant_id=? AND kind='overview_schedule' AND id=?")
-          .run(tenant, s.id);
+        this.store.repo('overview_schedule', tenant).delete(s.id);
         this.store.putDocument(tenant, 'overview_schedule_deleted', s.id, {deleted_at: Date.now()});
         const view = optional(this.store, tenant, 'overview_view', s.view_id);
         if (view) {
@@ -367,43 +363,24 @@ export class ReportLibrary {
       }
       if (kind === 'overview_report') {
         this.store.deleteDocument(tenant, 'report_presentation', r.id);
-        this.store.db
-          .prepare(
-            "DELETE FROM documents WHERE tenant_id=? AND kind='report_file' AND json_extract(data,'$.report_id')=?",
-          )
-          .run(tenant, r.id);
+        this.store.repo('report_file', tenant).deleteBy('report_id', r.id);
         this.cancelReport(tenant, r.id);
         // Terminal Sheets receipts go with the snapshot. An unconfirmed one was released (audited) before this point;
         // an abandoned receipt stays until retention so a late application of its batch is still recognized.
-        if (
-          this.store.db
-            .prepare(
-              "SELECT 1 FROM documents WHERE tenant_id=? AND kind='sheets_delivery' AND json_extract(data,'$.report_id')=? AND json_extract(data,'$.state') IN ('pending','uncertain') LIMIT 1",
-            )
-            .get(tenant, r.id)
-        )
+        if (hasUnconfirmedDelivery(this.store, tenant, r.id))
           throw new MirrorError(
             'SHEETS_DELIVERY_UNRESOLVED',
             'This snapshot has an unconfirmed Google Sheets delivery. Release its report tab before deleting it.',
             {report_id: r.id},
             409,
           );
-        this.store.db
-          .prepare(
-            "DELETE FROM documents WHERE tenant_id=? AND kind='sheets_delivery' AND json_extract(data,'$.report_id')=? AND json_extract(data,'$.state') IN ('complete','rejected')",
-          )
-          .run(tenant, r.id);
+        deleteSettledDeliveries(this.store, tenant, r.id);
+        const exports = this.store.repo('overview_export', tenant);
         for (const e of this.store.documents(tenant, 'overview_export').filter(e => e.report_id === r.id))
-          this.store.db
-            .prepare("DELETE FROM documents WHERE tenant_id=? AND kind='overview_export' AND id=?")
-            .run(tenant, e.id);
-        this.store.db
-          .prepare(
-            "DELETE FROM jobs WHERE tenant_id=? AND kind IN ('report_overview','sheets_export','report_file_export') AND json_extract(input,'$.report_id')=?",
-          )
-          .run(tenant, r.id);
+          exports.delete(e.id);
+        deleteReportJobs(this.store, tenant, r.id);
       }
-      this.store.db.prepare('DELETE FROM documents WHERE tenant_id=? AND kind=? AND id=?').run(tenant, kind, r.id);
+      this.store.deleteDocument(tenant, kind, r.id);
       this.audit(actor, kind + '_deleted', r.id);
       return {id: r.id, deleted: true, external_spreadsheet_unchanged: true};
     });

@@ -4,6 +4,7 @@ import type {Actor, JsonObject} from './types.js';
 import {audit, bad, fingerprint, optional, read, update, validate, writer} from './workspace-core.js';
 import {reportPlatforms} from './report-metrics.js';
 import {MirrorError} from './errors.js';
+import {supersedeIncidents} from './report-repository.js';
 import {
   monitorNotifications,
   notificationActions,
@@ -321,15 +322,7 @@ export function monitorOperation(store: Store, actor: Actor, input: JsonObject):
       );
       // Revised rules cannot evaluate old-version incident IDs. Retain their factual state and evidence,
       // but explicitly retire their attention instead of presenting them as current unresolved alerts.
-      const superseded = old
-        ? Number(
-            store.db
-              .prepare(
-                "UPDATE documents SET data=json_set(data,'$.superseded_by_version',?,'$.superseded_at',?,'$.snoozed_until',NULL,'$.updated_at',?),revision=revision+1 WHERE tenant_id=? AND kind='report_incident' AND json_extract(data,'$.monitor_id')=? AND coalesce(json_extract(data,'$.rule_version'),0)<? AND json_extract(data,'$.state')!='resolved' AND json_extract(data,'$.superseded_by_version') IS NULL",
-              )
-              .run(result.rule_version, Date.now(), Date.now(), actor.tenantId, id, result.rule_version).changes,
-          )
-        : 0;
+      const superseded = old ? supersedeIncidents(store, actor.tenantId, id, result.rule_version) : 0;
       audit(store, actor, 'monitor_saved', {id, rule_version: result.rule_version, superseded_incidents: superseded});
       if (old) cancelMonitorRuleNotices(store, actor.tenantId, id);
       return {...publicMonitor(result), superseded_incidents: superseded};

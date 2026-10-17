@@ -359,18 +359,10 @@ export async function previewAllocationPlan(
   };
   sourceCurrent(store, actor, binding);
   return store.transaction(() => {
-    store.db
-      .prepare(
-        "DELETE FROM documents WHERE tenant_id=? AND kind='allocation_preview' AND json_extract(data,'$.expires_at')<?",
-      )
-      .run(actor.tenantId, Date.now());
-    if (
-      Number(
-        store.db
-          .prepare("SELECT COUNT(*) AS n FROM documents WHERE tenant_id=? AND kind='allocation_preview'")
-          .get(actor.tenantId)?.n,
-      ) >= 100
-    )
+    // Expired previews go first (their declared expiry, src/document-kinds.ts).
+    const previews = store.repo('allocation_preview', actor.tenantId);
+    previews.purgeExpired(Date.now());
+    if (previews.count() >= 100)
       bad('At most 100 current allocation previews may be retained.', 'ALLOCATION_PREVIEW_LIMIT');
     const id = randomUUID(),
       preview_hash = fingerprint(binding),

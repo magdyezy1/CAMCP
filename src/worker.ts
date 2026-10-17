@@ -15,6 +15,7 @@ import {
 } from './scheduled-work.js';
 import {RELEASABLE_JOB_KINDS, WORKER_BOOT_ID} from './job-leases.js';
 import {backgroundRunContinuation} from './campaign-background.js';
+import {workerJobLease} from './job-repository.js';
 /** What a shutdown did with the job this worker was running (OPS-07). */
 export type WorkerDrain = {released: string[]; settling: string[]};
 /** How a leased job ended in this worker (OPS-08). */
@@ -78,7 +79,7 @@ export class ReportWorker {
   heartbeat(state = 'idle') {
     try {
       // The boot ID lets lease expiry tell a live process's stalled job from a crashed one (OPS-07); it is never shown.
-      this.store.putDocument('__service_limits__', 'worker_heartbeat', this.workerId, {
+      this.store.serviceRepo('worker_heartbeat').put(this.workerId, {
         at: Date.now(),
         state,
         boot: WORKER_BOOT_ID,
@@ -196,9 +197,7 @@ export class ReportWorker {
           );
         actor = this.store.restoreJobActor(job.tenant_id, 'job:' + job.id, job.input.authority.binding);
         this.store.bindActorCheck(actor, () => {
-          const current = this.store.db
-            .prepare('SELECT state,lease_token,lease_until FROM jobs WHERE id=?')
-            .get(job.id) as JsonObject;
+          const current = workerJobLease(this.store, job.id) as JsonObject;
           if (
             lostLease ||
             !current ||

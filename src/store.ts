@@ -12,8 +12,8 @@ import {SecretBox, sha256, stable, redact, scopeKey, sealedBytesOverhead} from '
 import type {Actor, Connection, Credentials, JsonObject} from './types.js';
 import {recordServiceTiming, type ServiceTimingCategory} from './service-timings.js';
 import {nativeParameterKey} from './parameter-key.js';
-import {scheduleGlobalIndexSQL, scheduleIndexSQL} from './scheduled-work.js';
-import {reportPartsCleanupSQL} from './report-checkpoints.js';
+import {scheduleGlobalIndexSQL, scheduleIndexSQL} from './schedule-repository.js';
+import {reportPartsCleanupSQL} from './report-repository.js';
 import {WEBSITE_UPLOAD_TTL_MS, WEBSITE_UPLOAD_IDLE_MS, MEDIA_CLEANUP_INTERVAL_MS} from './media-retention.js';
 import {recordSqliteFailure, sqliteDiagnostic} from './sqlite-diagnostics.js';
 import {
@@ -61,6 +61,15 @@ import {
   type AccessBinding,
 } from './access-sets.js';
 import {storableCredentials, withAppSecrets} from './app-credentials.js';
+import {DocumentRepository} from './document-repository.js';
+import {mcpRateLimitsSQL} from './mcp-rate-limit-repository.js';
+import {
+  isServicePartition,
+  maintenanceSweeps,
+  servicePartitions,
+  type ServiceDocumentKind,
+  type TenantDocumentKind,
+} from './document-kinds.js';
 import {
   JOURNAL_SIZE_LIMIT_BYTES,
   MEDIA_CHUNK_BYTES,
@@ -71,6 +80,10 @@ import {
   type StatfsResult,
 } from './media-storage.js';
 export const MEDIA_LEASE_MS = 45000;
+/** Where service limits, heartbeats and dispatch cursors are stored (src/document-kinds.ts, `scope: 'service'`). */
+const serviceLimits = servicePartitions.limits;
+/** The documents the maintenance timer deletes: the kinds whose retention the registry gives it (ARC-02). */
+const recordSweeps = maintenanceSweeps();
 /** credential_owners.user_id of a key the service owns (Store.createServiceKey, SEC-06), e.g. `service:cli`. */
 export const serviceOwnerPrefix = 'service:';
 /** One member's unfinished website uploads per workspace: at most this many files and two media limits of bytes. */
@@ -368,6 +381,10 @@ export class Store {
                 db.exec('ALTER TABLE api_keys ADD COLUMN access_set_id TEXT');
             },
           },
+          // An additive schema-2 table (ARC-02: one ordered migration list): the /mcp request buckets (SEC-02), which
+          // the limiter created on its first admitted request, outside the ledger. An older release creates the same
+          // table that way, so a rollback starts unchanged.
+          {id: 'store-0016-mcp-rate-limits', run: db => db.exec(mcpRateLimitsSQL)},
         ]);
         schema = readSchemaState(this.db);
       });
@@ -845,24 +862,18 @@ export class Store {
     this.cleanupMediaTransient(now);
     this.cleanupExpiredRecords(now);
   }
-  /** Expired report runs and results, provider cooldowns and day-old service heartbeats and budgets. */
+  /**
+   * Expired report runs and results, provider cooldowns and day-old service heartbeats, budgets and quotas: the
+   * document kinds are those src/document-kinds.ts gives this timer (`maintenanceSweeps`).
+   */
   private cleanupExpiredRecords(now = Date.now()) {
     this.transaction(() => {
-      this.db
-        .prepare(
-          "DELETE FROM documents WHERE kind IN ('tiktok_report_run','x_report_run','x_report_result') AND json_extract(data,'$.expires_at')<=?",
-        )
-        .run(now);
+      for (const sweep of recordSweeps) this.db.prepare(sweep.sql).run(sweep.cutoff(now));
       this.db.prepare('DELETE FROM provider_cooldowns WHERE until_at<=?').run(now);
       // Issuer quota counters keep the current day and the seven before it (OPS-08 baseline).
       this.db
         .prepare('DELETE FROM provider_issuer_usage WHERE day<?')
         .run(quotaDay(now - (QUOTA_RETAINED_DAYS - 1) * 86400000));
-      this.db
-        .prepare(
-          "DELETE FROM documents WHERE tenant_id='__service_limits__' AND kind IN ('provider_budget','worker_heartbeat','tiktok_report_quota') AND coalesce(json_extract(data,'$.at'),0)<?",
-        )
-        .run(now - 86400000);
     });
     this.recordsCleanupAt = now;
   }
@@ -1604,6 +1615,8 @@ export class Store {
   }
   ensureTenant(id: string, name = id) {
     if (!id) throw new MirrorError('INVALID_TENANT', 'Tenant ID is required.');
+    // Service documents live under reserved ids (ARC-02); a workspace of that id would read them as its own.
+    if (isServicePartition(id)) throw new Error('Workspace id ' + id + ' is reserved for service documents.');
     this.db.prepare('INSERT INTO tenants(id,name) VALUES(?,?) ON CONFLICT(id) DO NOTHING').run(id, name);
   }
   createKey(actor: Actor, ttlMs: number = 86400000 * 30): string {
@@ -1908,9 +1921,7 @@ export class Store {
           true,
         );
       const record = this.db
-          .prepare(
-            "SELECT data FROM documents WHERE tenant_id='__service_limits__' AND kind='provider_budget' AND id=?",
-          )
+          .prepare(`SELECT data FROM documents WHERE tenant_id='${serviceLimits}' AND kind='provider_budget' AND id=?`)
           .get(sha256(key)) as JsonObject | undefined,
         old = record ? JSON.parse(record.data) : {tokens: budget.burst, at: now},
         tokens = Math.min(budget.burst, old.tokens + Math.max(0, now - old.at) / budget.refillMs);
@@ -1949,7 +1960,7 @@ export class Store {
             refusal ? 1 : 0,
           );
       }
-      this.putDocument('__service_limits__', 'provider_budget', sha256(key), {
+      this.putDocument(serviceLimits, 'provider_budget', sha256(key), {
         tokens: tokens - 1,
         at: Math.max(now, old.at),
       });
@@ -2591,6 +2602,25 @@ export class Store {
   deleteDocument(tenantId: string, kind: string, id: string) {
     this.db.prepare('DELETE FROM documents WHERE tenant_id=? AND kind=? AND id=?').run(tenantId, kind, id);
   }
+  /**
+   * The documents of one workspace kind in one workspace (ARC-02): every statement is bound to the workspace and the
+   * kind (src/document-kinds.ts), so a read, change or deletion through it cannot reach another workspace.
+   */
+  repo<K extends TenantDocumentKind>(kind: K, tenant: string): DocumentRepository<K> {
+    return new DocumentRepository(this, kind, {tenant});
+  }
+  /** The documents of one service kind (limits, heartbeats, cursors, the volume marker), in its reserved partition. */
+  serviceRepo<K extends ServiceDocumentKind>(kind: K): DocumentRepository<K> {
+    return new DocumentRepository(this, kind, {service: true});
+  }
+  /**
+   * The database handle, for the store layer only: this module, src/schema-migrations.ts, src/document-kinds.ts, the
+   * repositories (src/document-repository.ts, src/*-repository.ts) and server/web-store.ts. Every other module's use of
+   * it (or of `db`) is counted by tools/check-storage-boundary.mjs, and the count may only fall.
+   */
+  sql(): DatabaseSync {
+    return this.db;
+  }
   /** Seals a value for a document field that only this tenant, purpose and id can open again. */
   sealValue(tenant: string, purpose: string, id: string, value: JsonObject): string {
     if (!this.box)
@@ -2719,18 +2749,18 @@ export class Store {
       this.expireLeases(now);
       const row = this.db
         .prepare(
-          "SELECT * FROM jobs WHERE state='queued' AND available_at<=? ORDER BY coalesce((SELECT json_extract(data,'$.ordinal') FROM documents WHERE tenant_id='__service_limits__' AND kind='tenant_dispatch' AND id=jobs.tenant_id),0),available_at,created_at LIMIT 1",
+          `SELECT * FROM jobs WHERE state='queued' AND available_at<=? ORDER BY coalesce((SELECT json_extract(data,'$.ordinal') FROM documents WHERE tenant_id='${serviceLimits}' AND kind='tenant_dispatch' AND id=jobs.tenant_id),0),available_at,created_at LIMIT 1`,
         )
         .get(now) as JsonObject | undefined;
       if (!row) return;
       const cursor = this.db
           .prepare(
-            "SELECT data FROM documents WHERE tenant_id='__service_limits__' AND kind='queue_cursor' AND id='dispatch'",
+            `SELECT data FROM documents WHERE tenant_id='${serviceLimits}' AND kind='queue_cursor' AND id='dispatch'`,
           )
           .get() as JsonObject | undefined,
         ordinal = (cursor ? JSON.parse(cursor.data).ordinal : 0) + 1;
-      this.putDocument('__service_limits__', 'queue_cursor', 'dispatch', {ordinal});
-      this.putDocument('__service_limits__', 'tenant_dispatch', row.tenant_id, {ordinal, at: now});
+      this.putDocument(serviceLimits, 'queue_cursor', 'dispatch', {ordinal});
+      this.putDocument(serviceLimits, 'tenant_dispatch', row.tenant_id, {ordinal, at: now});
       const token = randomUUID();
       this.db
         .prepare(
@@ -2760,7 +2790,7 @@ export class Store {
       )
       .all(now) as JsonObject[];
     const bootAlive = this.db.prepare(
-      "SELECT 1 FROM documents WHERE tenant_id='__service_limits__' AND kind='worker_heartbeat' AND json_valid(data) AND json_extract(data,'$.boot')=? AND json_extract(data,'$.at')>=? LIMIT 1",
+      `SELECT 1 FROM documents WHERE tenant_id='${serviceLimits}' AND kind='worker_heartbeat' AND json_valid(data) AND json_extract(data,'$.boot')=? AND json_extract(data,'$.at')>=? LIMIT 1`,
     );
     for (const job of expired) {
       const expiries = Number(job.lease_expiries) + 1,

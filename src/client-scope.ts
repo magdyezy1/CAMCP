@@ -53,11 +53,9 @@ export function clientView(store: Store, actor: Actor, profileId: unknown): Clie
     throw new MirrorError('INVALID_ARGUMENT', 'Use the ID of a client profile of this workspace.', {
       field: 'profile_id',
     });
-  const row = store.db
-    .prepare("SELECT data FROM documents WHERE tenant_id=? AND kind='client_profile' AND id=?")
-    .get(actor.tenantId, profileId) as {data: string} | undefined;
+  const stored = store.repo('client_profile', actor.tenantId).payload(profileId);
   const reachable = reachableAccounts(store, actor),
-    profile = row ? {...JSON.parse(row.data), id: profileId} : undefined;
+    profile = stored ? {...stored, id: profileId} : undefined;
   // A profile outside the actor's client access set is not found either, so its name is never shown (SEC-08).
   if (!profile || !profileWithinAccess(store, actor, profile, reachable))
     throw new MirrorError(

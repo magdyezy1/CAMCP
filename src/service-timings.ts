@@ -115,12 +115,10 @@ export function recordServiceTiming(
       ? Math.round(elapsedMs * 1000)
       : Number.NaN;
   store.transaction(() => {
-    const raw = store.db
-      .prepare("SELECT data FROM documents WHERE tenant_id=? AND kind='service_timings' AND id=?")
-      .get(tenant, id) as JsonObject | undefined;
-    const previous = load(raw?.data, id);
+    const raw = store.repo('service_timings', tenant).text(id);
+    const previous = load(raw, id);
     let next = previous;
-    if (!next) next = fresh(id, now, raw ? 'invalid_counter' : 'initial');
+    if (!next) next = fresh(id, now, raw !== undefined ? 'invalid_counter' : 'initial');
     else if (now < next.last_observed_at) next = fresh(id, now, 'clock_changed');
     else if (next.window_start_ms !== Math.floor(now / windowMs) * windowMs) next = fresh(id, now, 'new_window');
     next.last_observed_at = now;
@@ -156,13 +154,7 @@ function percentile(value: JsonObject, fraction: number) {
 }
 export function serviceTimings(store: Store, tenant: string, now = Date.now()) {
   if (!validTime(now)) throw TypeError('Invalid timing observation clock');
-  const records = store.db
-    .prepare(
-      "SELECT id,data FROM documents WHERE tenant_id=? AND kind='service_timings' AND id IN (" +
-        serviceTimingCategories.map(() => '?').join(',') +
-        ')',
-    )
-    .all(tenant, ...serviceTimingCategories) as JsonObject[];
+  const records = store.repo('service_timings', tenant).texts(serviceTimingCategories) as JsonObject[];
   const items: JsonObject[] = [];
   let unavailable = 0;
   for (const row of records) {

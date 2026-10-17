@@ -1,6 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import type {Store} from '../src/store.js';
 import type {JsonObject} from '../src/types.js';
+import {endGrant, familyEndRow, liveGrants, revokeGrantKey} from './mcp-grant-repository.js';
 
 /**
  * Why an AI client's authorization ended (MCP-08). The reason is kept on each ended grant row and in one
@@ -39,20 +40,14 @@ export function endMcpGrants(
   reason: GrantEndReason,
   options: {audit?: boolean; details?: JsonObject} = {},
 ): number {
-  const db = store.db,
-    now = Date.now();
+  const now = Date.now();
   return store.transaction(() => {
-    const rows = db
-      .prepare('SELECT hash,kind,client_id,tenant_id,data FROM amcp_mcp_grants WHERE used=0 AND (' + where + ')')
-      .all(...(params as never[])) as JsonObject[];
+    const rows = liveGrants(store, where, params);
     type Ended = {tenant: string; client: string; families: Set<string>; owner?: string};
     const clients = new Map<string, Ended>();
     for (const row of rows) {
-      db.prepare(
-        "UPDATE amcp_mcp_grants SET used=1,data=json_set(data,'$.ended_reason',?,'$.ended_at',?) WHERE hash=?",
-      ).run(reason, now, row.hash);
-      if (row.kind === 'access')
-        db.prepare('UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash=?').run(row.tenant_id, row.hash);
+      endGrant(store, row.hash, reason, now);
+      if (row.kind === 'access') revokeGrantKey(store, row.tenant_id, row.hash);
       const data = JSON.parse(row.data) as JsonObject,
         owner = typeof data.ownerUserId === 'string' ? data.ownerUserId : undefined,
         key = row.tenant_id + '\u0000' + row.client_id + '\u0000' + (owner ?? ''),
@@ -83,10 +78,6 @@ export function endMcpGrants(
 /** The reason recorded on a token family that has ended, if one was recorded. */
 export function familyEndReason(store: Store, tenant: string, family: unknown): GrantEndReason | undefined {
   if (typeof family !== 'string') return;
-  const row = store.db
-    .prepare(
-      "SELECT json_extract(data,'$.ended_reason') AS reason FROM amcp_mcp_grants WHERE tenant_id=? AND kind IN ('access','refresh') AND json_extract(data,'$.family')=? AND json_extract(data,'$.ended_reason') IS NOT NULL ORDER BY json_extract(data,'$.ended_at') DESC LIMIT 1",
-    )
-    .get(tenant, family) as {reason?: string} | undefined;
+  const row = familyEndRow(store, tenant, family);
   return grantEndReasons.find(r => r === row?.reason);
 }

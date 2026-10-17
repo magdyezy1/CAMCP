@@ -210,11 +210,7 @@ function view(doc: JsonObject, now = Date.now()): JsonObject {
 }
 /** Keeps at most allocationOutcomeLimit records: the oldest finished reviews are removed first. */
 function bound(store: Store, tenant: string) {
-  const rows = store.db
-    .prepare(
-      "SELECT id,json_extract(data,'$.state') AS state FROM documents WHERE tenant_id=? AND kind=? ORDER BY coalesce(json_extract(data,'$.updated_at'),0),id",
-    )
-    .all(tenant, allocationOutcomeKind) as JsonObject[];
+  const rows = store.repo(allocationOutcomeKind, tenant).fieldsByAge(['state'], 'updated_at');
   let excess = rows.length - (allocationOutcomeLimit - 1);
   for (const row of rows) {
     if (excess <= 0) break;

@@ -14,10 +14,7 @@ const numericId = (value: unknown): value is string => typeof value === 'string'
 
 /** The owner's marking of this GA4 property as a test property, or undefined. */
 export function ga4TestProperty(store: Store, tenant: string, property: string): JsonObject | undefined {
-  const row = store.db
-    .prepare('SELECT data FROM documents WHERE tenant_id=? AND kind=? AND id=?')
-    .get(tenant, kind, property) as {data: string} | undefined;
-  return row ? JSON.parse(row.data) : undefined;
+  return store.repo(kind, tenant).payload(property);
 }
 /** Every property the owner marked, oldest first. */
 export function ga4TestProperties(store: Store, tenant: string): JsonObject[] {
@@ -71,9 +68,7 @@ export function saveGa4TestProperty(store: Store, actor: Actor, input: JsonObjec
     });
   } else
     store.transaction(() => {
-      store.db
-        .prepare('DELETE FROM documents WHERE tenant_id=? AND kind=? AND id=?')
-        .run(actor.tenantId, kind, property);
+      store.repo(kind, actor.tenantId).delete(property);
       store.appendAudit(actor.tenantId, kind + '/' + property, {
         event: 'ga4_test_property_unmarked',
         property_id: property,

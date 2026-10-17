@@ -380,10 +380,8 @@ export function retainTiktokReport(
   const task = envelope(response).task_id,
     key = bindingKey(c, task),
     s = state[0] as JsonObject;
-  const old = store.db
-    .prepare("SELECT data FROM documents WHERE tenant_id=? AND kind='tiktok_report_run' AND id=?")
-    .get(c.tenantId, key);
-  if (old) stateFail('The provider reused a task ID. The new submission cannot establish ownership.');
+  if (store.repo('tiktok_report_run', c.tenantId).has(key))
+    stateFail('The provider reused a task ID. The new submission cannot establish ownership.');
   store.putDocument(c.tenantId, 'tiktok_report_run', key, {
     review_id: reviewId,
     task_id: task,
@@ -405,14 +403,8 @@ export function admitTiktokReport(p: CompiledRequest, store: Store, _auth: Crede
   // clientId metadata. Adding metadata or another login cannot reset the quota.
   const app = scopeKey('tiktok-report-create', 'deployment'),
     keys = [sha256(app), sha256(scopeKey(app, p.accountId!))];
-  const docs = keys.map(k => {
-    const r = store.db
-      .prepare(
-        "SELECT data FROM documents WHERE tenant_id='__service_limits__' AND kind='tiktok_report_quota' AND id=?",
-      )
-      .get(k) as JsonObject | undefined;
-    return r ? JSON.parse(r.data) : {at: 0, times: []};
-  });
+  const quotas = store.serviceRepo('tiktok_report_quota');
+  const docs = keys.map((k): JsonObject => quotas.find(k) ?? {at: 0, times: []}) as [JsonObject, JsonObject];
   const clock = Math.max(now, docs[0].at, docs[1].at),
     times = (docs[1].times as number[]).filter(t => t > clock - 3600000);
   const wait = Math.max(docs[0].at + 1000 - now, times.length >= 500 ? times[0]! + 3600000 - now : 0);
@@ -424,8 +416,8 @@ export function admitTiktokReport(p: CompiledRequest, store: Store, _auth: Crede
       429,
       true,
     );
-  store.putDocument('__service_limits__', 'tiktok_report_quota', keys[0]!, {at: clock});
-  store.putDocument('__service_limits__', 'tiktok_report_quota', keys[1]!, {at: clock, times: [...times, clock]});
+  quotas.put(keys[0]!, {at: clock});
+  quotas.put(keys[1]!, {at: clock, times: [...times, clock]});
 }
 function usable(s: JsonObject) {
   if (['QUEUING', 'PROCESSING'].includes(s.status))

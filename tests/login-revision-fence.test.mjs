@@ -87,7 +87,8 @@ test('every code path that writes the connections table is classified for the lo
       sealCredentials: 'replace bumps on different credentials; refresh and re-seal keep it',
     },
     'server/website.ts': {label: 'json_set of $.label only', default: 'isDefault flag inside a transaction'},
-    'src/connection-disconnect.ts': {delete: 'removes the login'},
+    // The local disconnect (src/connection-disconnect.ts) deletes the login through the store layer (ARC-02).
+    'src/connection-repository.ts': {delete: 'removes the login (deleteConnectionRow)'},
   };
   const write = /(?:INSERT INTO|UPDATE|DELETE FROM)\s+connections\b/g,
     found = {};
@@ -113,7 +114,8 @@ test('every code path that writes the connections table is classified for the lo
   assert.deepEqual(Object.keys(found).sort(), Object.keys(classified).sort(), JSON.stringify(found));
   assert.equal(found['server/website.ts'].length, 2);
   assert.ok(found['server/website.ts'].some(l => l.includes("json_set(data,'$.label'")));
-  assert.equal(found['src/connection-disconnect.ts'].length, 1);
+  assert.equal(found['src/connection-repository.ts'].length, 1);
+  assert.ok(found['src/connection-repository.ts'][0].includes('DELETE FROM connections WHERE tenant_id=? AND id=?'));
 });
 
 function nativeFixture(change) {

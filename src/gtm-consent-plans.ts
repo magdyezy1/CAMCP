@@ -376,15 +376,10 @@ export async function previewConsentPlan(store: Store, call: ToolCall, actor: Ac
   return store.transaction(() => {
     if (authorization(store, actor, scope) !== observed.authorization_signature)
       bad('Read access changed. Read a new consent preview.', 'CONSENT_PREVIEW_CHANGED');
-    store.db
-      .prepare(
-        "DELETE FROM documents WHERE tenant_id=? AND kind='gtm_consent_preview' AND json_extract(data,'$.expires_at')<=?",
-      )
-      .run(actor.tenantId, Date.now());
-    const count = store.db
-      .prepare("SELECT count(*) AS n FROM documents WHERE tenant_id=? AND kind='gtm_consent_preview'")
-      .get(actor.tenantId) as {n: number};
-    if (count.n >= 100) bad('At most 100 current consent previews may be retained.', 'CONSENT_PREVIEW_LIMIT');
+    // Expired previews go first (their declared expiry, src/document-kinds.ts).
+    const previews = store.repo('gtm_consent_preview', actor.tenantId);
+    previews.purgeExpired(Date.now());
+    if (previews.count() >= 100) bad('At most 100 current consent previews may be retained.', 'CONSENT_PREVIEW_LIMIT');
     const preview_id = randomUUID(),
       preview_hash = fingerprint(binding),
       expires_at = Date.now() + 600000;

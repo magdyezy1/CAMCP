@@ -202,17 +202,11 @@ export async function previewCatalogRemoval(store: Store, call: ToolCall, actor:
   return store.transaction(() => {
     if (authorization(store, actor, binding.scope) !== binding.authorization_signature)
       changed('Read access changed. Read a new removal preview.');
-    store.db
-      .prepare(
-        "DELETE FROM documents WHERE tenant_id=? AND kind='x_catalog_removal_preview' AND json_extract(data,'$.expires_at')<=? AND json_extract(data,'$.plan_id') IS NULL",
-      )
-      .run(actor.tenantId, Date.now());
-    const count = store.db
-      .prepare(
-        "SELECT count(*) AS n FROM documents WHERE tenant_id=? AND kind='x_catalog_removal_preview' AND json_extract(data,'$.expires_at')>?",
-      )
-      .get(actor.tenantId, Date.now()) as {n: number};
-    if (count.n >= 100) bad('At most 100 current removal previews may be retained.', 'CATALOG_REMOVAL_LIMIT');
+    // Expired previews not bound to a plan go first (their declared expiry, src/document-kinds.ts).
+    const previews = store.repo('x_catalog_removal_preview', actor.tenantId);
+    previews.purgeExpired(Date.now());
+    if (previews.countUnexpired(Date.now()) >= 100)
+      bad('At most 100 current removal previews may be retained.', 'CATALOG_REMOVAL_LIMIT');
     const preview_id = randomUUID(),
       preview_hash = fingerprint(binding),
       expires_at = Date.now() + 600000;

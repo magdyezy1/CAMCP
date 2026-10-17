@@ -2,6 +2,8 @@ import {randomUUID} from 'node:crypto';
 import type {Store} from '../src/store.js';
 import type {Actor, JsonObject} from '../src/types.js';
 import {disconnectLocalConnection} from '../src/connection-disconnect.js';
+import {connectionRows} from '../src/connection-repository.js';
+import {tableExists} from '../src/owner-health-repository.js';
 import {
   accountRetention,
   accountsDueForErasure,
@@ -28,12 +30,7 @@ export function reviewerConnectionLifetime(env: NodeJS.ProcessEnv): number | nul
 }
 /** When a login of the reviewer workspace was connected: its first website authorization, or 0 when unrecorded. */
 export function connectedAt(store: Store, tenant: string, id: string): number {
-  const row = store.db
-    .prepare(
-      "SELECT json_extract(data,'$.createdAt') AS at FROM documents WHERE tenant_id=? AND kind='website_connection' AND id=?",
-    )
-    .get(tenant, id) as {at: number | null} | undefined;
-  return Number(row?.at) || 0;
+  return Number(store.repo('website_connection', tenant).field(id, 'createdAt')) || 0;
 }
 /**
  * Removes the reviewer workspace's logins (SEC-06 S6), each exactly as a local disconnect does (credentials, selections,
@@ -48,10 +45,7 @@ export function purgeReviewerConnections(
   connectedBefore = Infinity,
 ): {connections: number} {
   return store.transaction(() => {
-    const rows = store.db.prepare('SELECT id,data FROM connections WHERE tenant_id=?').all(tenant) as {
-      id: string;
-      data: string;
-    }[];
+    const rows = connectionRows(store, tenant);
     let removed = 0;
     for (const row of rows) {
       if (connectedAt(store, tenant, row.id) >= connectedBefore) continue;
@@ -142,8 +136,7 @@ export function accountLifecycleSweeper(
         ? 0
         : purgeReviewerConnections(store, reviewers, 'reviewer_connection_expired', at - reviewerLifetime).connections;
     // A store without website accounts (the stdio server's) has nothing to retain.
-    if (!store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='amcp_users'").get())
-      return {reviewer_connections};
+    if (!tableExists(store, 'amcp_users')) return {reviewer_connections};
     const accounts_erased = eraseDueAccounts(store, options.tenantId, retention, at);
     if (accounts_erased.pending || accounts_erased.revoked || accounts_erased.refused)
       options.log?.({level: 'info', event: 'retention_sweep', ...accounts_erased});

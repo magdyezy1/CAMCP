@@ -7,14 +7,9 @@ import type {JsonObject} from './types.js';
  * health, which shares a module with the reviewed-write pause, does not put the backup code on the write path.
  */
 export function lastBackupReceipt(store: Store, tenant: string, now = Date.now()): JsonObject | undefined {
-  const row = store.db
-    .prepare(
-      "SELECT data FROM documents WHERE tenant_id=? AND kind='backup_receipt' ORDER BY CAST(json_extract(data,'$.verified_at') AS INTEGER) DESC,id LIMIT 1",
-    )
-    .get(tenant) as {data: string} | undefined;
-  if (!row) return;
-  const receipt = JSON.parse(row.data) as JsonObject,
-    at = Number(receipt.verified_at);
+  const receipt = store.repo('backup_receipt', tenant).newest('verified_at');
+  if (!receipt) return;
+  const at = Number(receipt.verified_at);
   return Number.isFinite(at)
     ? {...receipt, age_ms: Math.max(0, now - at), age_hours: Math.max(0, Math.round((now - at) / 360000) / 10)}
     : receipt;

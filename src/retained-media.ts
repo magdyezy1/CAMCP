@@ -2,7 +2,15 @@ import {createHash} from 'node:crypto';
 import {MirrorError} from './errors.js';
 import {MAX_MEDIA_BYTES} from './drive-media.js';
 import type {Store} from './store.js';
-import type {JsonObject} from './types.js';
+import {
+  deleteRetainedManifest,
+  insertRetainedChunk,
+  insertRetainedManifest,
+  retainedChunks,
+  retainedManifest,
+  retainedManifests,
+  stagedChunkCount,
+} from './retained-media-repository.js';
 
 export const retainedMediaId = /^lib-[0-9a-f-]{36}$/;
 const chunkLimit = 4 * 1024 * 1024;
@@ -30,13 +38,7 @@ function valid(manifest: Manifest, size: number) {
 }
 /** Only encrypted manifests establish retained-byte accounting. Plain SQLite counters cannot reduce the quota. */
 export function retainedMediaStats(store: Store, tenant?: string) {
-  const rows = (
-    tenant === undefined
-      ? store.db.prepare('SELECT tenant_id,id,secret,size_bytes FROM retained_media LIMIT 51').all()
-      : store.db
-          .prepare('SELECT tenant_id,id,secret,size_bytes FROM retained_media WHERE tenant_id=? LIMIT 51')
-          .all(tenant)
-  ) as JsonObject[];
+  const rows = retainedManifests(store, tenant);
   if (rows.length > 50)
     throw new MirrorError('MEDIA_LIBRARY_INVALID', 'The retained-original count exceeds its storage ceiling.');
   let bytes = 0;
@@ -58,9 +60,7 @@ export class RetainedMedia {
   manifest(tenant: string, id: string) {
     if (!retainedMediaId.test(id))
       throw new MirrorError('MEDIA_LIBRARY_INVALID', 'Invalid retained-original identity.');
-    const row = this.store.db
-      .prepare('SELECT secret,size_bytes FROM retained_media WHERE tenant_id=? AND id=?')
-      .get(tenant, id) as JsonObject | undefined;
+    const row = retainedManifest(this.store, tenant, id);
     if (!row)
       throw new MirrorError('MEDIA_SOURCE_NOT_FOUND', 'The retained original was removed or is unavailable.', {}, 404);
     return valid(this.store.openValue<Manifest>(tenant, 'retained-media-manifest', id, row.secret), row.size_bytes);
@@ -97,7 +97,7 @@ export class RetainedMedia {
           throw new MirrorError('MEDIA_LIBRARY_INVALID', 'The original file has invalid bounded chunks.');
         if (chunks === 0) validateHead(part);
         const secret = this.store.sealMediaChunk(tenant, 'retained-media-chunk', id + '.' + chunks, part);
-        this.store.db.prepare('INSERT INTO retained_media_chunks VALUES(?,?,?,?)').run(tenant, id, chunks++, secret);
+        insertRetainedChunk(this.store, tenant, id, chunks++, secret);
         hash.update(part);
         bytes += part.length;
       };
@@ -111,10 +111,7 @@ export class RetainedMedia {
         if (!Number.isSafeInteger(original.chunks) || original.chunks < 1 || original.chunks > maximumChunks)
           throw new MirrorError('MEDIA_LIBRARY_INVALID', 'The original file has an invalid chunk count.');
         for (let index = 0; index < original.chunks; index++) write(this.store.stagedMediaChunk(tenant, source, index));
-        const actual = this.store.db
-          .prepare('SELECT count(*) AS n FROM media_chunks WHERE tenant_id=? AND id=?')
-          .get(tenant, source) as {n: number};
-        if (actual.n !== chunks)
+        if (stagedChunkCount(this.store, tenant, source) !== chunks)
           throw new MirrorError('MEDIA_LIBRARY_INVALID', 'The original file has unexpected extra chunks.');
       }
       const manifest = {chunks, size: bytes, sha256: hash.digest('hex')};
@@ -124,9 +121,13 @@ export class RetainedMedia {
       const fresh = this.store.stagedMediaManifest(tenant, source);
       if (fresh.size !== original.size || fresh.sha256 !== original.sha256)
         throw new MirrorError('MEDIA_SOURCE_CHANGED', 'The original file changed during retention.');
-      this.store.db
-        .prepare('INSERT INTO retained_media VALUES(?,?,?,?)')
-        .run(tenant, id, this.store.sealValue(tenant, 'retained-media-manifest', id, manifest), manifest.size);
+      insertRetainedManifest(
+        this.store,
+        tenant,
+        id,
+        this.store.sealValue(tenant, 'retained-media-manifest', id, manifest),
+        manifest.size,
+      );
       return manifest;
     });
   }
@@ -135,9 +136,7 @@ export class RetainedMedia {
       hash = createHash('sha256');
     let index = 0,
       bytes = 0;
-    for (const row of this.store.db
-      .prepare('SELECT chunk_index,secret FROM retained_media_chunks WHERE tenant_id=? AND id=? ORDER BY chunk_index')
-      .iterate(tenant, id) as Iterable<JsonObject>) {
+    for (const row of retainedChunks(this.store, tenant, id)) {
       if (row.chunk_index !== index || index >= manifest.chunks)
         throw new MirrorError('MEDIA_LIBRARY_INVALID', 'Retained-original chunk order is invalid.');
       // Either chunk format (OPS-01): v2 raw BLOBs and v1 base64 text, each bounded before use.
@@ -172,7 +171,7 @@ export class RetainedMedia {
    * statement, after the enclosing transaction commits (OPS-01).
    */
   remove(tenant: string, id: string) {
-    this.store.db.prepare('DELETE FROM retained_media WHERE tenant_id=? AND id=?').run(tenant, id);
+    deleteRetainedManifest(this.store, tenant, id);
     this.store.sweepMediaChunks();
   }
 }
