@@ -132,8 +132,10 @@ test('ARC-04 stage B: each provider adapter declares its account ID form, read b
   for (const adapter of providerAdapters.filter(a => !['google', 'meta'].includes(a.id)))
     assert.equal(normalizeAccount(adapter.gateway, 'act_1-2'), 'act_1-2', adapter.id);
   assert.equal(normalizeAccount('amcp_native_action', 'act_1-2'), 'act_1-2');
+  // Only Google Ads and Meta transform their IDs; the rest of each account model (ARC-01 phase B: fields, references,
+  // paths, kind) is checked in tests/provider-account-model.test.mjs.
   assert.deepEqual(
-    providerAdapters.filter(a => a.account).map(a => a.id),
+    providerAdapters.filter(a => a.account?.normalize).map(a => a.id),
     ['google', 'meta'],
   );
 });

@@ -326,11 +326,24 @@ reviewed-family registry stays complete for the ledger, by design: the listings 
 gateway's status, so there is no family-level offering check. `tests/provider-lifecycle-gate.test.mjs` covers each
 surface in both modes; suites that exercise a parked provider offer it with `tests/helpers/parked-providers.mjs`.
 
+**Phase B** moves one concern at a time out of the shared modules into the adapters. Each move carries a call-replay
+proof (`tools/call-replay.mjs`, `tests/call-replay.test.mjs`): the related suites (739 test files) are recorded on the
+build before the change and after it, a loader hook writing every call of the moved functions with its arguments and
+its result or refusal, and every request each transport sends (headers digested, never written); the two recordings
+must hold the same records per test file. Run-to-run noise is learned from two recordings of the build before the
+change (a calibration: a digest over clock-relative personal-data rows, a fixture's generated key) and reported
+apart; fixtures that draw `Math.random()` draw a seeded sequence. The distinct pure calls of the first recording also
+replay through the new build. Nothing is sent anywhere: the suites' synthetic fetchers answer.
+
+| Concern | Now in the adapter | Shared stage that keeps the rule | Proof |
+|---|---|---|---|
+| Account model | `account`: the ID form, the request fields that name the account, account references inside strings (Google's `customers/<id>`, LinkedIn's sponsored account URNs), JSON Patch account fields (Snapchat), the path that names the account, and what a bound resource is (CON-05). Facts, frozen at load; `tests/provider-account-model.test.mjs` pins them. | `ScopeGuard.authorize` still walks every request and compares each place with the bound account before any authorizer; `accountKind` | 4,836,540 records before, 4,836,547 after: 0 differences beyond calibration except the 10 records of `tests/transport.test.ts`'s burst-pacing test, whose refusal count depends on elapsed time; 85,676 distinct pure calls replay with 0 differences |
+
 Not met yet of ARC-01's local criteria (open remainders of B18 and B27 in `docs/review/package-status.json`): the whole
 suite has not run with `AMCP_PROVIDERS=criteo,woocommerce` (the tool-surface suites assert the default 25 tools; only
-the gate test checks both modes), and phase B has moved only the account model, so 88 shared modules still name a
-gateway (target 20 or fewer) and 496 shared-to-provider imports remain (target 30 or fewer), with no call-replay proof
-and no authorizer-disjointness test yet.
+the gate test checks both modes), and phase B has moved only the account model so far, so 88 shared modules still name
+a gateway (target 20 or fewer) and 333 shared-to-provider imports remain (target 30 or fewer), with no
+authorizer-disjointness test yet.
 
 ## 10. Import cycles and leaf modules
 

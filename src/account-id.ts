@@ -8,5 +8,5 @@ import {providerOf} from './provider-adapters.js';
  */
 export function normalizeAccount(gateway: string, id: unknown): string {
   const value = String(id);
-  return providerOf(gateway)?.account?.normalize(value) ?? value;
+  return providerOf(gateway)?.account?.normalize?.(value) ?? value;
 }

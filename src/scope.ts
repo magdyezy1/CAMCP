@@ -32,21 +32,10 @@ import {authorizeMetaDatasetRead, observeMetaPixels} from './meta-dataset-scope.
 import {authorizeRedditPlanningRead} from './reddit-extensions.js';
 import {assertGatewayOffered} from './provider-offering.js';
 import {normalizeAccount} from './account-id.js';
+import {providerOf} from './provider-adapters.js';
 
 // The account ID form lives in the leaf src/account-id.ts, from the provider adapters (ARC-04 stage B).
 export {normalizeAccount};
-const accountFields: Record<string, Set<string>> = {
-  microsoft_ads_native_action: new Set(['AccountId', 'AccountIds', 'CustomerAccountId']),
-  meta_native_action: new Set(['account_id', 'ad_account_id']),
-  google_ads_native_action: new Set(['customer_id', 'customerId']),
-  tiktok_native_action: new Set(['advertiser_id', 'advertiser_ids']),
-  snapchat_native_action: new Set(['ad_account_id', 'ad_account_ids']),
-  linkedin_native_action: new Set(['ad_account_id', 'account_id']),
-  apple_ads_native_action: new Set(['adAccountId', 'account_id', 'ad_account_id']),
-  x_ads_native_action: new Set(['account_id']),
-  dv360_native_action: new Set(['advertiserId', 'advertiser_id']),
-  reddit_native_action: new Set(['ad_account_id', 'account_id']),
-};
 function mismatch(field: string): never {
   throw new MirrorError(
     'ACCOUNT_SCOPE_MISMATCH',
@@ -197,20 +186,21 @@ export class ScopeGuard {
       for (const item of Array.isArray(value) ? value : [value])
         if (normalizeAccount(plan.gateway, item) !== id) mismatch(field);
     };
+    // Where this provider's requests name an account (ARC-01 phase B: its adapter's account model); every place it
+    // names is compared here with the bound account.
+    const model = providerOf(plan.gateway)?.account;
     const walk = (value: unknown, field = '$'): void => {
-      // Customer-level RPCs use customers/{id}:method. The colon ends the ID,
-      // just like the slash in customers/{id}/resources; it is not account data.
-      if (typeof value === 'string' && plan.gateway === 'google_ads_native_action')
-        for (const m of value.matchAll(/\bcustomers\/([^/:\s'"),]+)/g)) compare(m[1], field);
-      if (typeof value === 'string' && plan.gateway === 'linkedin_native_action')
-        for (const m of value.matchAll(/urn:li:sponsoredAccount:(\d+)/g)) compare(m[1], field);
+      // An account reference inside any string: Google's customers/{id} (customer-level RPCs use customers/{id}:method,
+      // whose colon ends the ID as the slash does in customers/{id}/resources) and LinkedIn's sponsored account URNs.
+      if (typeof value === 'string' && model?.references)
+        for (const m of value.matchAll(model.references)) compare(m[1], field);
       if (Array.isArray(value)) {
         value.forEach(v => walk(v, field));
         return;
       }
-      if (value && typeof value === 'object' && plan.gateway === 'snapchat_native_action' && plan.method === 'PATCH') {
+      if (value && typeof value === 'object' && model?.patchFields && plan.method === 'PATCH') {
         const patch = value as JsonObject;
-        if (typeof patch.path === 'string' && accountFields[plan.gateway]?.has(patch.path.split('/').at(-1)!)) {
+        if (typeof patch.path === 'string' && model.fields?.has(patch.path.split('/').at(-1)!)) {
           if (patch.op === 'remove' || patch.value === undefined) mismatch('account patch');
           compare(patch.value, 'account patch');
         }
@@ -224,7 +214,7 @@ export class ScopeGuard {
               {field: key},
               403,
             );
-          if (accountFields[plan.gateway]?.has(key)) {
+          if (model?.fields?.has(key)) {
             let candidate = v;
             if (typeof v === 'string' && v.startsWith('[')) {
               try {
@@ -267,19 +257,8 @@ export class ScopeGuard {
     )
       return id;
     if (authorizeLinkedInSpecial(plan, connection, this.store, id)) return id;
-    const patterns: Record<string, RegExp> = {
-      google_ads_native_action: /\/customers\/([^/:]+)/,
-      meta_native_action: /^\/v[^/]+\/act_([^/]+)/,
-      snapchat_native_action: /^\/v1\/adaccounts\/([^/]+)/,
-      linkedin_native_action: /^\/rest\/(?:adAccounts|adAccountTrustPreferences)\/([^/]+)/,
-      x_ads_native_action: /\/accounts\/([^/]+)/,
-      dv360_native_action: /\/advertisers\/([^/:]+)/,
-      ga4_native_action: /\/properties\/([^/:]+)/,
-      gtm_native_action: /\/accounts\/([^/:]+)/,
-      criteo_native_action: /\/accounts\/([^/:]+)/,
-      reddit_native_action: /^\/api\/v3\/ad_accounts\/([^/]+)/,
-    };
-    const match = patterns[plan.gateway]?.exec(decoded);
+    // A path that names the bound account, where the provider's account model says paths name it.
+    const match = model?.path?.exec(decoded);
     if (match) {
       compare(match[1], 'path');
       return id;

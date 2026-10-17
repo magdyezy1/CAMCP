@@ -3,6 +3,8 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {sha256, stable} from './security.js';
 import {bad} from './workspace-core.js';
 import {normalizeAccount} from './account-id.js';
+import type {AccountKind} from './provider-adapter.js';
+import {providerOf} from './provider-adapters.js';
 import {linkedinVersion} from './linkedin-version.js';
 import {microsoftGateway, compileMicrosoft} from './microsoft-native.js';
 import {googleAdsCustomers} from './google-version.js';
@@ -49,20 +51,12 @@ export function accountName(metadata: JsonObject): unknown {
 }
 
 /**
- * What a selected resource is (CON-05). Report destinations and media sources (Sheets, Drive) are not advertising
- * accounts: list_accounts leaves them out unless they are asked for, and no account read is suggested for them.
+ * What a selected resource is (CON-05), from its provider's account model (src/provider-adapters.ts, ARC-01 phase B).
+ * Report destinations and media sources (Sheets, Drive) are not advertising accounts: list_accounts leaves them out
+ * unless they are asked for, and no account read is suggested for them.
  */
-export type AccountKind =
-  'ad_account' | 'analytics_property' | 'tag_account' | 'search_property' | 'business_profile' | 'destination';
-const kinds: Record<string, AccountKind> = {
-  ga4_native_action: 'analytics_property',
-  gtm_native_action: 'tag_account',
-  google_search_console_native_action: 'search_property',
-  google_business_native_action: 'business_profile',
-  google_sheets_native_action: 'destination',
-  google_drive_native_action: 'destination',
-};
-export const accountKind = (gateway: string): AccountKind => kinds[gateway] ?? 'ad_account';
+export type {AccountKind} from './provider-adapter.js';
+export const accountKind = (gateway: string): AccountKind => providerOf(gateway)?.account?.kind ?? 'ad_account';
 
 export interface ResolvedAccountMetadata {
   kind: AccountKind;

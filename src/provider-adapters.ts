@@ -14,10 +14,47 @@ import type {AccountModel, ParkedReason, ProviderAdapter, ProviderParking, Provi
  * compiling and its tests keep running with the provider named in AMCP_PROVIDERS. AMCP_PROVIDERS is read at each
  * check, so a process sees one value from its environment.
  */
+
+/** An adapter's account model as declared: its fields as a list. */
+type AccountDeclaration = Omit<AccountModel, 'fields'> & {fields?: readonly string[]};
+
+/** A set no module can change after load: ScopeGuard compares requests with these facts. */
+function fixedSet(values: readonly string[]): ReadonlySet<string> {
+  const set = new Set(values);
+  const view: ReadonlySet<string> = Object.freeze({
+    has: (value: string) => set.has(value),
+    get size() {
+      return set.size;
+    },
+    forEach(fn: (value: string, key: string, set: ReadonlySet<string>) => void, thisArg?: unknown) {
+      set.forEach(value => fn.call(thisArg, value, value, view));
+    },
+    entries: () => set.entries(),
+    keys: () => set.keys(),
+    values: () => set.values(),
+    [Symbol.iterator]: () => set.values(),
+  });
+  return view;
+}
+
+/**
+ * The frozen account model of a provider. A reference pattern must be global (every reference in a string is
+ * compared); a path pattern must not be, so it keeps no position between requests. Both are frozen.
+ */
+function accountModel(id: string, {fields, ...declared}: AccountDeclaration): AccountModel {
+  if (declared.references && !declared.references.global)
+    throw new Error('Provider adapter ' + id + ': account references need a global pattern.');
+  if (declared.path && (declared.path.global || declared.path.sticky))
+    throw new Error('Provider adapter ' + id + ': the account path pattern must not be global or sticky.');
+  if (declared.references) Object.freeze(declared.references);
+  if (declared.path) Object.freeze(declared.path);
+  return Object.freeze({...declared, ...(fields ? {fields: fixedSet(fields)} : {})});
+}
+
 function adapter(
   id: string,
   gateway: string,
-  options: {families?: readonly string[]; parked?: ProviderParking; account?: AccountModel} = {},
+  options: {families?: readonly string[]; parked?: ProviderParking; account?: AccountDeclaration} = {},
 ): ProviderAdapter {
   const status: ProviderStatus = options.parked ? 'parked' : 'active';
   return Object.freeze({
@@ -26,34 +63,69 @@ function adapter(
     status,
     ...(options.parked ? {parked: Object.freeze({...options.parked})} : {}),
     familyPrefixes: Object.freeze([...(options.families ?? [id + '_'])]),
-    ...(options.account ? {account: Object.freeze({...options.account})} : {}),
+    ...(options.account ? {account: accountModel(id, options.account)} : {}),
   });
 }
 
+// The account fields, references and path patterns ScopeGuard compares (ARC-01 phase B: they were tables in
+// src/scope.ts), and what a bound resource is (CON-05: src/account-metadata.ts). tests/provider-account-model.test.mjs
+// pins them; a change changes what ScopeGuard compares and is reviewed with src/scope.ts.
 export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
-  // Google Ads customer IDs are compared without the dashes of their display form (123-456-7890).
-  adapter('google', 'google_ads_native_action', {account: {normalize: id => id.replaceAll('-', '')}}),
-  adapter('google_business', 'google_business_native_action'),
+  // Google Ads customer IDs are compared without the dashes of their display form (123-456-7890). Customer-level RPCs
+  // use customers/{id}:method: the colon ends the ID, just like the slash in customers/{id}/resources.
+  adapter('google', 'google_ads_native_action', {
+    account: {
+      normalize: id => id.replaceAll('-', ''),
+      fields: ['customer_id', 'customerId'],
+      references: /\bcustomers\/([^/:\s'"),]+)/g,
+      path: /\/customers\/([^/:]+)/,
+    },
+  }),
+  adapter('google_business', 'google_business_native_action', {account: {kind: 'business_profile'}}),
   // Meta ad account IDs are compared without the act_ prefix of their Graph node form.
-  adapter('meta', 'meta_native_action', {account: {normalize: id => id.replace(/^act_/, '')}}),
-  adapter('tiktok', 'tiktok_native_action'),
-  adapter('snapchat', 'snapchat_native_action'),
-  adapter('linkedin', 'linkedin_native_action'),
-  adapter('x', 'x_ads_native_action'),
-  adapter('microsoft', 'microsoft_ads_native_action'),
-  adapter('apple', 'apple_ads_native_action'),
-  adapter('reddit', 'reddit_native_action'),
-  adapter('dv360', 'dv360_native_action'),
-  adapter('ga4', 'ga4_native_action'),
-  adapter('gtm', 'gtm_native_action'),
-  adapter('gsc', 'google_search_console_native_action', {families: ['search_console_']}),
+  adapter('meta', 'meta_native_action', {
+    account: {
+      normalize: id => id.replace(/^act_/, ''),
+      fields: ['account_id', 'ad_account_id'],
+      path: /^\/v[^/]+\/act_([^/]+)/,
+    },
+  }),
+  adapter('tiktok', 'tiktok_native_action', {account: {fields: ['advertiser_id', 'advertiser_ids']}}),
+  adapter('snapchat', 'snapchat_native_action', {
+    account: {fields: ['ad_account_id', 'ad_account_ids'], patchFields: true, path: /^\/v1\/adaccounts\/([^/]+)/},
+  }),
+  adapter('linkedin', 'linkedin_native_action', {
+    account: {
+      fields: ['ad_account_id', 'account_id'],
+      references: /urn:li:sponsoredAccount:(\d+)/g,
+      path: /^\/rest\/(?:adAccounts|adAccountTrustPreferences)\/([^/]+)/,
+    },
+  }),
+  adapter('x', 'x_ads_native_action', {account: {fields: ['account_id'], path: /\/accounts\/([^/]+)/}}),
+  adapter('microsoft', 'microsoft_ads_native_action', {
+    account: {fields: ['AccountId', 'AccountIds', 'CustomerAccountId']},
+  }),
+  adapter('apple', 'apple_ads_native_action', {account: {fields: ['adAccountId', 'account_id', 'ad_account_id']}}),
+  adapter('reddit', 'reddit_native_action', {
+    account: {fields: ['ad_account_id', 'account_id'], path: /^\/api\/v3\/ad_accounts\/([^/]+)/},
+  }),
+  adapter('dv360', 'dv360_native_action', {
+    account: {fields: ['advertiserId', 'advertiser_id'], path: /\/advertisers\/([^/:]+)/},
+  }),
+  adapter('ga4', 'ga4_native_action', {account: {path: /\/properties\/([^/:]+)/, kind: 'analytics_property'}}),
+  adapter('gtm', 'gtm_native_action', {account: {path: /\/accounts\/([^/:]+)/, kind: 'tag_account'}}),
+  adapter('gsc', 'google_search_console_native_action', {
+    families: ['search_console_'],
+    account: {kind: 'search_property'},
+  }),
   adapter('adjust', 'adjust_native_action'),
-  adapter('drive', 'google_drive_native_action'),
-  adapter('sheets', 'google_sheets_native_action'),
+  adapter('drive', 'google_drive_native_action', {account: {kind: 'destination'}}),
+  adapter('sheets', 'google_sheets_native_action', {account: {kind: 'destination'}}),
   // The owner parked Criteo and the store platforms (PRK-01, PRK-02); P9 gates them by this status (docs/DECISIONS.md).
   // WooCommerce is the only store platform with a gateway: Shopify and Salla have no connection or module to gate.
   adapter('criteo', 'criteo_native_action', {
     parked: {reason: 'owner_parked', decision: 'PRK-02 and P9, docs/DECISIONS.md'},
+    account: {path: /\/accounts\/([^/:]+)/},
   }),
   adapter('woocommerce', 'commerce_native_action', {
     parked: {reason: 'owner_parked', decision: 'PRK-01 and P9, docs/DECISIONS.md'},
