@@ -497,6 +497,12 @@ unchanged, token for token (`prepareNext` 221 lines, `createPlan` 185); `handle`
 `tests/campaign-actions.test.mjs` holds the stage of every action and the order of the checks, with behaviour tests
 that pass on the code before the change and after it; the campaign suites are unchanged.
 
+`amcp_write` is the fourth: `WriteReviewService.call` (507 lines) consults `retainedActions` (`status`, `reconcile`,
+which take only their own arguments) before the argument checks, then, after them and the evidence form,
+`reviewActions` (`prepare`, `inspect`), then executes the one action left with its review; its blocks are methods
+unchanged (`prepareReview` 301 lines, `executeReview` 167) and `call` is 38 lines. `tests/write-actions.test.mjs` holds
+the stages and the order of the checks; the write suites are unchanged.
+
 The tools `MirrorService` answers itself are entries of one table, `compositeTools` (`src/service.ts`): the seven
 composite tools and `amcp_tool_help`, each with the service-timing category its calls count under. `callOnce` runs the
 checks every call passes (an active actor, an offered gateway, the action's own arguments), then the table's entry for
@@ -540,10 +546,16 @@ stage A measured it) to 3, and no cycle holds the family registry, the lifecycle
 fail when imported first, from 2 (3) to 0; local `fail` helpers, from 126 by the review's count (153 by the
 ratchet's) to 0, ratcheted; the seven portfolio adapters share one signed cursor and one `PortfolioAdapter` contract;
 each reporting platform has one report source behind a registry. In the functions ARC-04 restructured none is longer
-than 400 lines (`DecisionReporting.handle` was 899, now 30; `MediaUploadService.handle` 732, now 98; `createWebsite`
-1,816, now 7; `errorRemedy` 867, now 17). Eleven backend functions still are (counted from their first line to their
-last), such as `CampaignRunner.handle` (1,311), `NativeCampaignReports.collectSource` (978) and `campaignRecipe`
-(706); the review's target of three or fewer needs the same treatment of the rest. These are open remainders of B18
-and B27 in `docs/review/package-status.json`, so neither package is closed by ARC-04. Also left by ARC-04: a `readsFor`
+than 400 lines (`DecisionReporting.handle` was 899, now 30; `createWebsite` 1,816, now 7; `CampaignRunner.handle`
+1,311, now 239; `errorRemedy` 867, now 17; `MediaUploadService.handle` 732, now 98; `WriteReviewService.call` 507, now
+38). Nine backend functions still are (counted from their first line to their last; fourteen before the website,
+media, campaign and write tables and the provider remedies): `NativeCampaignReports.collectSource` (978), `campaignRecipe` (706),
+`AssetDiscovery.discover` (693), `NativeTransport.request` (670), `adjustReporting` (465), `inspectGoogleRecipeGoals`
+(463), `checkAccountSpendPolicy` (430), `GoogleSheetsExports.write` (416) and `connectWooCommerce` (402). None is a
+composite tool's dispatcher: the transport and the asset discovery are ARC-01 phase B concerns (the wire profile, the
+server discovery configurations), `collectSource` is report collection (each platform's requests, paging and parsing,
+the part of the report sources still in `src/report-native.ts`, §12), and the rest are single workflows. The review's
+target of three or fewer needs those changes. These are open remainders of B18 and B27 in
+`docs/review/package-status.json`, so neither package is closed by ARC-04. Also left by ARC-04: a `readsFor`
 helper, which stage B made unnecessary for the import cycle because a family receives its read builders as hook
 arguments.

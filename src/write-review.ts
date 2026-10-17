@@ -59,6 +59,7 @@ import {
   uncertainNext,
 } from './write-common.js';
 import {writeStatus, type WriteOrigin} from './write-records.js';
+import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
 import {WriteReconciler} from './write-reconciliation.js';
 import {principalOf} from './actor-identity.js';
 import {setTimeout as pause} from 'node:timers/promises';
@@ -296,6 +297,15 @@ export function executeRequirements(
         ? 'Show the user before_state, the impact and the reasons, and set these flags only after they approve.'
         : 'Execute after the user approves this review.',
   };
+}
+/** A prepare or inspect call of amcp_write (ARC-04 stage D), with its evidence form and who prepares it. */
+interface ReviewPreparation extends ToolContext {
+  readonly evidence: EvidenceForm;
+  readonly origin: WriteOrigin;
+}
+/** An execute call, and who executes the review: the person, a plan's step or a group's part. */
+interface ReviewExecution extends ToolContext {
+  readonly origin: WriteOrigin;
 }
 export class WriteReviewService {
   constructor(
@@ -662,18 +672,12 @@ export class WriteReviewService {
     for (const key of Object.keys(input))
       if (!Object.hasOwn(writeTool.inputSchema.properties, key))
         fail('INVALID_ARGUMENT', 'Unknown write-tool parameter.', {parameter: key});
-    // A retained review read back (status: AMCP alone) or reconciled with read-only provider lookups (WRT-08).
-    if (input.action === 'status' || input.action === 'reconcile') {
-      const accepted =
-        input.action === 'status'
-          ? ['action', 'review_id']
-          : ['action', 'review_id', 'accept_applied', 'reconciliation_id'];
-      for (const key of Object.keys(input))
-        if (!accepted.includes(key))
-          fail('INVALID_ARGUMENT', input.action + ' takes ' + accepted.join(', ') + '.', {field: key, accepted});
-      if (input.action === 'status') return writeStatus(this.store, actor, input.review_id);
-      return this.reconciler().call(input, actor);
-    }
+    // ARC-04 stage D: each action is an entry of an action table (src/tool-actions.ts), consulted in the order of the
+    // checks the if-chain ran between them: a retained review read back or reconciled, which takes only its own
+    // arguments; after the argument checks and the evidence form, prepare and inspect; then execute, the one action
+    // left, which names its review. An action in no table is refused with the chain's sentence.
+    const retained = actionHandler(this.retainedActions, input.action);
+    if (retained) return retained({input, actor});
     for (const key of ['accept_applied', 'reconciliation_id'])
       if (input[key] !== undefined) fail('INVALID_ARGUMENT', key + ' is for reconcile.', {field: key});
     if (input.supersedes_review_id !== undefined && input.action !== 'prepare')
@@ -690,309 +694,337 @@ export class WriteReviewService {
         field: 'destructive_confirmed',
       });
     const evidence = input.evidence === undefined ? (evidenceDefault ?? 'full') : evidenceForm(input.evidence);
-    if (input.action === 'prepare' || input.action === 'inspect') {
-      if (
-        typeof input.gateway !== 'string' ||
-        !input.arguments ||
-        typeof input.arguments !== 'object' ||
-        Array.isArray(input.arguments)
-      )
-        fail('INVALID_ARGUMENT', 'prepare requires gateway and arguments.');
-      const isDelegated = this.registry.tools.get(input.gateway)?.mode === 'delegated',
-        nativeArgs = isDelegated ? object(input.arguments.arguments) : input.arguments;
-      if (['aggregate_pages', 'paginate', 'allPages'].some(k => input.arguments[k] || nativeArgs[k]))
-        fail('MUTATION_PAGINATION_FORBIDDEN', 'A reviewed mutation executes exactly one request.');
-      // Enhanced-mode native_request lets the caller choose the action and the path independently, and several families
-      // classify by action; a reviewed mutation must come from a catalog action whose route the compiler derived.
-      if (input.arguments.native_request !== undefined || nativeArgs.native_request !== undefined)
-        fail(
-          'WRITE_CONTRACT_UNAVAILABLE',
-          'Reviewed writes use catalog actions. native_request is a read-only extension; name the catalog action and its params instead.',
+    const reviewing = actionHandler(this.reviewActions, input.action);
+    if (reviewing) return reviewing({input, actor, evidence, origin});
+    if (input.action !== 'execute' || typeof input.review_id !== 'string')
+      fail('INVALID_ARGUMENT', 'Use prepare or execute with a review_id.');
+    return this.executeReview({input, actor, origin});
+  }
+  /** A retained review read back or reconciled (WRT-08), and the review a person prepares or inspects. */
+  private readonly retainedActions: ActionTable<ToolContext> = {
+    status: call => this.retainedReview(call),
+    reconcile: call => this.retainedReview(call),
+  };
+  private readonly reviewActions: ActionTable<ReviewPreparation> = {
+    prepare: call => this.prepareReview(call),
+    inspect: call => this.prepareReview(call),
+  };
+  /** status and reconcile: a retained review read back by AMCP alone, or reconciled with read-only provider lookups. */
+  private async retainedReview({input, actor}: ToolContext): Promise<unknown> {
+    const accepted =
+      input.action === 'status'
+        ? ['action', 'review_id']
+        : ['action', 'review_id', 'accept_applied', 'reconciliation_id'];
+    for (const key of Object.keys(input))
+      if (!accepted.includes(key))
+        fail('INVALID_ARGUMENT', input.action + ' takes ' + accepted.join(', ') + '.', {field: key, accepted});
+    if (input.action === 'status') return writeStatus(this.store, actor, input.review_id);
+    return this.reconciler().call(input, actor);
+  }
+  /** prepare and inspect: the reviewed request, its current state and what executing it needs, frozen as a review. */
+  private async prepareReview({input, actor, evidence, origin}: ReviewPreparation): Promise<unknown> {
+    if (
+      typeof input.gateway !== 'string' ||
+      !input.arguments ||
+      typeof input.arguments !== 'object' ||
+      Array.isArray(input.arguments)
+    )
+      fail('INVALID_ARGUMENT', 'prepare requires gateway and arguments.');
+    const isDelegated = this.registry.tools.get(input.gateway)?.mode === 'delegated',
+      nativeArgs = isDelegated ? object(input.arguments.arguments) : input.arguments;
+    if (['aggregate_pages', 'paginate', 'allPages'].some(k => input.arguments[k] || nativeArgs[k]))
+      fail('MUTATION_PAGINATION_FORBIDDEN', 'A reviewed mutation executes exactly one request.');
+    // Enhanced-mode native_request lets the caller choose the action and the path independently, and several families
+    // classify by action; a reviewed mutation must come from a catalog action whose route the compiler derived.
+    if (input.arguments.native_request !== undefined || nativeArgs.native_request !== undefined)
+      fail(
+        'WRITE_CONTRACT_UNAVAILABLE',
+        'Reviewed writes use catalog actions. native_request is a read-only extension; name the catalog action and its params instead.',
+      );
+    const args = isDelegated ? {...input.arguments} : {...input.arguments, dry_run: true};
+    this.registry.validate(input.gateway, args, this.options);
+    const unavailable = unsupportedProviderAlias(input.gateway, nativeArgs.action);
+    if (input.action === 'inspect' && unavailable) {
+      const e = new MirrorError('PROVIDER_ACTION_UNSUPPORTED', unavailable.reason, unavailable),
+        remedy = errorRemedy(e);
+      return {
+        executed: false,
+        network_requests: 0,
+        review_contract_supported: false,
+        request: null,
+        error: {code: e.code, message: preciseMessage(e), details: e.details, category: remedy.category, remedy},
+        live_permissions_verified: false,
+        next_step: unavailable.replacement,
+      };
+    }
+    const plan = applyExecutionRisk(
+      isDelegated
+        ? this.delegated.compile(input.gateway, args)
+        : this.compiler.compile(input.gateway, args, this.options),
+    );
+    if (input.connection_id && nativeArgs.connection_id && input.connection_id !== nativeArgs.connection_id)
+      fail('CONFLICTING_PARAMETER', 'Connection IDs must agree.');
+    if (input.action === 'inspect') {
+      let accountCapability: JsonObject;
+      try {
+        const c = this.store.resolveConnection(
+          actor,
+          plan.gateway,
+          plan.accountId,
+          input.connection_id ?? nativeArgs.connection_id,
         );
-      const args = isDelegated ? {...input.arguments} : {...input.arguments, dry_run: true};
-      this.registry.validate(input.gateway, args, this.options);
-      const unavailable = unsupportedProviderAlias(input.gateway, nativeArgs.action);
-      if (input.action === 'inspect' && unavailable) {
-        const e = new MirrorError('PROVIDER_ACTION_UNSUPPORTED', unavailable.reason, unavailable),
-          remedy = errorRemedy(e);
+        // The grant is compared as enforcement compares it, normalized (Google dashes, Meta act_), MCP-09.
+        accountCapability = {
+          connection_id: c.id,
+          account_id: plan.accountId ? normalizeAccount(plan.gateway, plan.accountId) : plan.accountId,
+          selected: true,
+          write_granted: plan.accountId ? accountWriteGranted(c, plan.accountId) : false,
+          granted_scopes: c.scopes,
+          provider_access: 'requires live preparation',
+        };
+      } catch (e) {
+        accountCapability = {
+          selected: false,
+          error: e instanceof MirrorError ? {code: e.code, message: e.message} : undefined,
+        };
+      }
+      try {
+        this.people(plan, input, true);
+        assertWriteShape(plan);
+        familyOf(plan)?.available?.(plan);
+        const reads = snapshotPlans(plan, this.registry),
+          // MSR-03: an offline conversion upload also gets its local rehearsal; nothing is sent or reviewed. A plan whose
+          // family has no personal-data spec has no rehearsal, so this contract check never throws for it.
+          personalSpec = familyOf(plan)?.personalData,
+          rehearsal =
+            plan.personalData && personalSpec ? offlineUploadRehearsal(plan, personalSpec, input.people) : undefined;
+        return {
+          executed: false,
+          network_requests: 0,
+          review_contract_supported: true,
+          request: redact(plan.gateway === 'google_business_native_action' ? placeActionSafe(plan) : plan),
+          contract_evidence: executionEvidence(plan, evidence),
+          state_reads: reads.map(r => ({method: r.method, path: r.path})),
+          live_permissions_verified: false,
+          account_capability: accountCapability,
+          provider_check_available: providerValidationRequest(plan) !== undefined,
+          // The request's effect class (src/effect-class.ts, RPT-06).
+          effect: effectClass(plan),
+          requirements: {
+            deployment_writes_enabled: this.policy.allowWrites,
+            operator_role: actor.role !== 'reader',
+            account_write_grant_required: !switchedProviderJob(plan, this.policy),
+            ...(reviewedProviderJob(plan)
+              ? {
+                  provider_jobs_switch: this.policy.providerJobs === true ? 'on' : 'off',
+                  provider_job_authority:
+                    this.policy.providerJobs === true
+                      ? 'The account’s report-job grant, or while live writes are on an operator’s account write grant.'
+                      : 'A reviewed write: live writes on, an operator role and the account’s write grant.',
+                }
+              : {}),
+            ...(familyOf(plan)?.administratorRequired
+              ? {
+                  administrator_role_required: true,
+                  administrator_role: actor.role === 'admin' && actor.testAccount !== true,
+                }
+              : {}),
+            ...(plan.personalData
+              ? {
+                  personal_data_switch: 'The workspace owner turns personal-data writes on for the ad account.',
+                  ...(plan.personalData.direction === 'add'
+                    ? {owner_executes: 'Only the workspace owner executes an upload of people.'}
+                    : {}),
+                }
+              : {}),
+          },
+          ...(rehearsal ? {offline_upload_rehearsal: rehearsal} : {}),
+          next_step: 'Use prepare to verify live state and account access.',
+        };
+      } catch (e) {
+        if (!(e instanceof MirrorError)) throw e;
+        const remedy = errorRemedy(e);
         return {
           executed: false,
           network_requests: 0,
           review_contract_supported: false,
-          request: null,
+          request: redact(plan.gateway === 'google_business_native_action' ? placeActionSafe(plan) : plan),
+          contract_evidence: executionEvidence(plan, evidence),
           error: {code: e.code, message: preciseMessage(e), details: e.details, category: remedy.category, remedy},
           live_permissions_verified: false,
-          next_step: unavailable.replacement,
         };
       }
-      const plan = applyExecutionRisk(
-        isDelegated
-          ? this.delegated.compile(input.gateway, args)
-          : this.compiler.compile(input.gateway, args, this.options),
+    }
+    this.people(plan, input);
+    assertWriteShape(plan);
+    familyOf(plan)?.available?.(plan);
+    const c = this.access(actor, plan, input.connection_id ?? nativeArgs.connection_id);
+    // A replacement of an uncertain review that a reconciliation found not applied (WRT-08 Stage B).
+    const supersedes =
+      input.supersedes_review_id !== undefined
+        ? this.reconciler().replaceable(actor, input.supersedes_review_id, plan, c.id)
+        : undefined;
+    if (input.provider_check === true && !providerValidationRequest(plan))
+      fail('INVALID_ARGUMENT', 'provider_check is available for ' + providerValidationScope + '.', {
+        field: 'provider_check',
+      });
+    if (plan.personalData)
+      assertPersonalDataAllowed(this.store, actor, plan, (plan.personalData as PersonalDataRecord).direction, false);
+    const reads = snapshotPlans(plan, this.registry),
+      state = await this.state(actor, plan, c.id, reads);
+    familyOf(plan)?.stateChecks?.(plan, state, true);
+    if (plan.gateway === 'gtm_native_action' && !familyOf(plan)?.ownsConcurrency) {
+      const route = this.delegated.data.routes.find(
+          r => r.gateway === plan.gateway && r.operation + (r.action ? '/' + r.action : '') === plan.action,
+        ),
+        fingerprint = object(state[0]).fingerprint;
+      if (route?.parameters.fingerprint && typeof fingerprint === 'string' && fingerprint) {
+        if (plan.query.fingerprint !== undefined && plan.query.fingerprint !== fingerprint)
+          fail('STATE_CHANGED', 'The supplied Tag Manager fingerprint is stale.');
+        plan.query.fingerprint = fingerprint;
+      }
+    }
+    if (input.creative_edit_confirmed !== undefined && !familyOf(plan)?.creativeEditConfirmation?.(plan))
+      fail(
+        'INVALID_ARGUMENT',
+        'creative_edit_confirmed is only for an X creative edit or deletion, or a TikTok Smart+ ad edit.',
       );
-      if (input.connection_id && nativeArgs.connection_id && input.connection_id !== nativeArgs.connection_id)
-        fail('CONFLICTING_PARAMETER', 'Connection IDs must agree.');
-      if (input.action === 'inspect') {
-        let accountCapability: JsonObject;
-        try {
-          const c = this.store.resolveConnection(
-            actor,
-            plan.gateway,
-            plan.accountId,
-            input.connection_id ?? nativeArgs.connection_id,
-          );
-          // The grant is compared as enforcement compares it, normalized (Google dashes, Meta act_), MCP-09.
-          accountCapability = {
-            connection_id: c.id,
-            account_id: plan.accountId ? normalizeAccount(plan.gateway, plan.accountId) : plan.accountId,
-            selected: true,
-            write_granted: plan.accountId ? accountWriteGranted(c, plan.accountId) : false,
-            granted_scopes: c.scopes,
-            provider_access: 'requires live preparation',
-          };
-        } catch (e) {
-          accountCapability = {
-            selected: false,
-            error: e instanceof MirrorError ? {code: e.code, message: e.message} : undefined,
-          };
-        }
-        try {
-          this.people(plan, input, true);
-          assertWriteShape(plan);
-          familyOf(plan)?.available?.(plan);
-          const reads = snapshotPlans(plan, this.registry),
-            // MSR-03: an offline conversion upload also gets its local rehearsal; nothing is sent or reviewed. A plan whose
-            // family has no personal-data spec has no rehearsal, so this contract check never throws for it.
-            personalSpec = familyOf(plan)?.personalData,
-            rehearsal =
-              plan.personalData && personalSpec ? offlineUploadRehearsal(plan, personalSpec, input.people) : undefined;
-          return {
-            executed: false,
-            network_requests: 0,
-            review_contract_supported: true,
-            request: redact(plan.gateway === 'google_business_native_action' ? placeActionSafe(plan) : plan),
-            contract_evidence: executionEvidence(plan, evidence),
-            state_reads: reads.map(r => ({method: r.method, path: r.path})),
-            live_permissions_verified: false,
-            account_capability: accountCapability,
-            provider_check_available: providerValidationRequest(plan) !== undefined,
-            // The request's effect class (src/effect-class.ts, RPT-06).
-            effect: effectClass(plan),
-            requirements: {
-              deployment_writes_enabled: this.policy.allowWrites,
-              operator_role: actor.role !== 'reader',
-              account_write_grant_required: !switchedProviderJob(plan, this.policy),
-              ...(reviewedProviderJob(plan)
-                ? {
-                    provider_jobs_switch: this.policy.providerJobs === true ? 'on' : 'off',
-                    provider_job_authority:
-                      this.policy.providerJobs === true
-                        ? 'The account’s report-job grant, or while live writes are on an operator’s account write grant.'
-                        : 'A reviewed write: live writes on, an operator role and the account’s write grant.',
-                  }
-                : {}),
-              ...(familyOf(plan)?.administratorRequired
-                ? {
-                    administrator_role_required: true,
-                    administrator_role: actor.role === 'admin' && actor.testAccount !== true,
-                  }
-                : {}),
-              ...(plan.personalData
-                ? {
-                    personal_data_switch: 'The workspace owner turns personal-data writes on for the ad account.',
-                    ...(plan.personalData.direction === 'add'
-                      ? {owner_executes: 'Only the workspace owner executes an upload of people.'}
-                      : {}),
-                  }
-                : {}),
-            },
-            ...(rehearsal ? {offline_upload_rehearsal: rehearsal} : {}),
-            next_step: 'Use prepare to verify live state and account access.',
-          };
-        } catch (e) {
-          if (!(e instanceof MirrorError)) throw e;
-          const remedy = errorRemedy(e);
-          return {
-            executed: false,
-            network_requests: 0,
-            review_contract_supported: false,
-            request: redact(plan.gateway === 'google_business_native_action' ? placeActionSafe(plan) : plan),
-            contract_evidence: executionEvidence(plan, evidence),
-            error: {code: e.code, message: preciseMessage(e), details: e.details, category: remedy.category, remedy},
-            live_permissions_verified: false,
-          };
-        }
-      }
-      this.people(plan, input);
-      assertWriteShape(plan);
-      familyOf(plan)?.available?.(plan);
-      const c = this.access(actor, plan, input.connection_id ?? nativeArgs.connection_id);
-      // A replacement of an uncertain review that a reconciliation found not applied (WRT-08 Stage B).
-      const supersedes =
-        input.supersedes_review_id !== undefined
-          ? this.reconciler().replaceable(actor, input.supersedes_review_id, plan, c.id)
-          : undefined;
-      if (input.provider_check === true && !providerValidationRequest(plan))
-        fail('INVALID_ARGUMENT', 'provider_check is available for ' + providerValidationScope + '.', {
-          field: 'provider_check',
-        });
-      if (plan.personalData)
-        assertPersonalDataAllowed(this.store, actor, plan, (plan.personalData as PersonalDataRecord).direction, false);
-      const reads = snapshotPlans(plan, this.registry),
-        state = await this.state(actor, plan, c.id, reads);
-      familyOf(plan)?.stateChecks?.(plan, state, true);
-      if (plan.gateway === 'gtm_native_action' && !familyOf(plan)?.ownsConcurrency) {
-        const route = this.delegated.data.routes.find(
-            r => r.gateway === plan.gateway && r.operation + (r.action ? '/' + r.action : '') === plan.action,
-          ),
-          fingerprint = object(state[0]).fingerprint;
-        if (route?.parameters.fingerprint && typeof fingerprint === 'string' && fingerprint) {
-          if (plan.query.fingerprint !== undefined && plan.query.fingerprint !== fingerprint)
-            fail('STATE_CHANGED', 'The supplied Tag Manager fingerprint is stale.');
-          plan.query.fingerprint = fingerprint;
-        }
-      }
-      if (input.creative_edit_confirmed !== undefined && !familyOf(plan)?.creativeEditConfirmation?.(plan))
-        fail(
-          'INVALID_ARGUMENT',
-          'creative_edit_confirmed is only for an X creative edit or deletion, or a TikTok Smart+ ad edit.',
-        );
-      const creativeImpact = writeImpact(plan, state, input.creative_edit_confirmed === true, c.id);
-      // A Snapchat creative edit changes every ad that uses the creative: name them, from a bounded read (WRT-05).
-      if (
-        creativeImpact?.provider === 'snapchat' &&
-        creativeImpact.affected_ad_ids === null &&
-        Array.isArray(creativeImpact.affected_creative_ids)
-      )
-        Object.assign(creativeImpact, await this.snapchatAds(actor, plan, c.id, creativeImpact.affected_creative_ids));
-      assertSnapCreativeReferences(plan, state, resource =>
-        this.store.ownsResource(c, normalizeAccount(plan.gateway, plan.accountId!), resource),
-      );
-      const override = input.creative_edit_confirmed === true ? {creative_edit_confirmed: true} : {};
-      const reviewId = randomUUID(),
-        fingerprint = sha256(stable({tenant: actor.tenantId, user: actor.userId, connection: c.id, plan, ...override})),
-        expiresAt = Date.now() + 300000;
-      // WRT-09 (P5's opt-in tier): a deletion on an account whose owner turned the destructive_confirmed tier on.
-      const destructive = destructiveRequest(plan, state),
-        destructiveTier =
-          destructive &&
-          reviewApprovalPolicy(this.store, actor.tenantId, plan.gateway, plan.accountId ?? '')
-            .require_destructive_confirmation;
-      const stateHash = reviewStateHash(state),
-        spendPolicy = checkSpendPolicy(this.store, actor, plan, state),
-        requirements = executeRequirements(
-          actor,
-          plan,
-          this.policy,
-          reviewId,
-          input.creative_edit_confirmed === true,
-          exceededCaps(spendPolicy),
-          destructiveTier,
-        );
-      if (plan.personalData)
-        Object.assign(requirements, {
-          people: 'Send the same people again in people: the review kept only their count and digest.',
-          ...(plan.personalData.direction === 'add'
-            ? {
-                owner_executes:
-                  'Only the workspace owner executes an upload of people: an operator prepares it, and the owner approves it by executing.',
-              }
-            : {}),
-        });
-      // Deletions, live publishes and stopped delivery are named, with the target's current status (WRT-05).
-      const effects = writeEffects(plan, state);
-      if (effects) {
-        const flagged = requirements.reasons.length > 0;
-        requirements.effects = effects;
-        requirements.reasons = [...requirements.reasons, ...effectReasons(plan, state, effects)];
-        requirements.user_approval =
-          'This change ' +
-          effectNames(effects).join(', ') +
-          '. Show the user the target, its current status and the reasons' +
-          (flagged ? ', set the flags only after they approve,' : '') +
-          ' and execute only after they approve.';
-      }
-      const providerCheck =
-        input.provider_check === true ? await this.providerCheck(actor, plan, c.id, reviewId) : undefined;
-      const acknowledgements = Object.keys(requirements).filter(k => requirements[k] === true && k !== 'confirmed'),
-        // WRT-09: the owner's approval mode or the owner-only cap override (P5) names the website approval it needs.
-        approval = approvalNotice(this.store, actor, plan, reviewId, acknowledgements, destructive);
-      this.store.putDocument(actor.tenantId, 'write_review', reviewId, {
-        user_id: actor.userId,
-        // The person (MCP-02) and who prepared it: a standalone review is retained work in Operations (WRT-08).
-        principal: principalOf(actor),
-        origin,
-        created_at: Date.now(),
-        connection_id: c.id,
+    const creativeImpact = writeImpact(plan, state, input.creative_edit_confirmed === true, c.id);
+    // A Snapchat creative edit changes every ad that uses the creative: name them, from a bounded read (WRT-05).
+    if (
+      creativeImpact?.provider === 'snapchat' &&
+      creativeImpact.affected_ad_ids === null &&
+      Array.isArray(creativeImpact.affected_creative_ids)
+    )
+      Object.assign(creativeImpact, await this.snapchatAds(actor, plan, c.id, creativeImpact.affected_creative_ids));
+    assertSnapCreativeReferences(plan, state, resource =>
+      this.store.ownsResource(c, normalizeAccount(plan.gateway, plan.accountId!), resource),
+    );
+    const override = input.creative_edit_confirmed === true ? {creative_edit_confirmed: true} : {};
+    const reviewId = randomUUID(),
+      fingerprint = sha256(stable({tenant: actor.tenantId, user: actor.userId, connection: c.id, plan, ...override})),
+      expiresAt = Date.now() + 300000;
+    // WRT-09 (P5's opt-in tier): a deletion on an account whose owner turned the destructive_confirmed tier on.
+    const destructive = destructiveRequest(plan, state),
+      destructiveTier =
+        destructive &&
+        reviewApprovalPolicy(this.store, actor.tenantId, plan.gateway, plan.accountId ?? '')
+          .require_destructive_confirmation;
+    const stateHash = reviewStateHash(state),
+      spendPolicy = checkSpendPolicy(this.store, actor, plan, state),
+      requirements = executeRequirements(
+        actor,
         plan,
-        reads,
-        state,
-        state_hash: stateHash,
-        fingerprint,
-        expires_at: expiresAt,
-        required_acknowledgements: acknowledgements,
-        // What a person approving on the website is shown (WRT-09): the reasons and effects, never the request body.
-        approval_context: {reasons: requirements.reasons, effects: effects ?? null},
-        ...(supersedes ? {supersedes_uncertain: supersedes} : {}),
-        ...override,
-        ...(providerCheck ? {provider_check: providerCheck} : {}),
-        prepare_input: {
-          gateway: input.gateway,
-          arguments: input.arguments,
-          ...(input.connection_id !== undefined ? {connection_id: input.connection_id} : {}),
-          ...(input.creative_edit_confirmed === true ? {creative_edit_confirmed: true} : {}),
-          ...(input.evidence !== undefined ? {evidence: input.evidence} : {}),
-          ...(input.personal_data !== undefined ? {personal_data: input.personal_data} : {}),
-          ...(input.provider_check === true ? {provider_check: true} : {}),
-        },
-      });
-      // PRV-05 shadow mode: a body that differs from its pinned vendor contract is recorded with the review.
-      const wire = wireContractCheck(plan);
-      this.store.appendAudit(actor.tenantId, reviewId, {
-        event: 'write_prepared',
-        request: plan,
-        fingerprint,
-        expires_at: expiresAt,
-        ...(wire?.status === 'violations' || wire?.status === 'check_failed' ? {wire_contract: wire} : {}),
-      });
-      if (supersedes) this.reconciler().supersede(actor, supersedes, reviewId);
-      return {
-        success: true,
-        executed: false,
-        review_id: reviewId,
-        idempotency_key: reviewId,
-        expires_at: new Date(expiresAt).toISOString(),
-        request: redact(plan.gateway === 'google_business_native_action' ? placeActionSafe(plan) : plan),
-        contract_evidence: executionEvidence(plan, evidence),
-        before_state: redact(state),
-        spend_policy: spendPolicy,
-        state_hash: stateHash,
-        state_reads: reads.map(r => ({method: r.method, path: r.path})),
-        fingerprint,
-        confirmation_required: true,
-        expires_in_seconds: 300,
-        execute_requirements: requirements,
-        ...(approval ? {approval} : {}),
-        ...(supersedes ? {supersedes_uncertain: supersedes} : {}),
-        summary: reviewSummary(plan, state),
-        effect: effectClass(plan, state),
-        ...(effects ? {effects} : {}),
-        ...(creativeImpact ? {creative_impact: creativeImpact} : {}),
-        ...(providerCheck
+        this.policy,
+        reviewId,
+        input.creative_edit_confirmed === true,
+        exceededCaps(spendPolicy),
+        destructiveTier,
+      );
+    if (plan.personalData)
+      Object.assign(requirements, {
+        people: 'Send the same people again in people: the review kept only their count and digest.',
+        ...(plan.personalData.direction === 'add'
           ? {
-              provider_check: {
-                ...providerCheck,
-                meaning:
-                  providerCheck.status === 'provider_validated'
-                    ? 'The provider checked this request without applying it and found no error. It does not prove execute will succeed; execute still reads the state again.'
-                    : 'The provider rejected this request without applying it. This review cannot be executed: correct what field_paths and the response name, and prepare it again.',
-              },
+              owner_executes:
+                'Only the workspace owner executes an upload of people: an operator prepares it, and the owner approves it by executing.',
             }
           : {}),
-      };
+      });
+    // Deletions, live publishes and stopped delivery are named, with the target's current status (WRT-05).
+    const effects = writeEffects(plan, state);
+    if (effects) {
+      const flagged = requirements.reasons.length > 0;
+      requirements.effects = effects;
+      requirements.reasons = [...requirements.reasons, ...effectReasons(plan, state, effects)];
+      requirements.user_approval =
+        'This change ' +
+        effectNames(effects).join(', ') +
+        '. Show the user the target, its current status and the reasons' +
+        (flagged ? ', set the flags only after they approve,' : '') +
+        ' and execute only after they approve.';
     }
-    if (input.action !== 'execute' || typeof input.review_id !== 'string')
-      fail('INVALID_ARGUMENT', 'Use prepare or execute with a review_id.');
+    const providerCheck =
+      input.provider_check === true ? await this.providerCheck(actor, plan, c.id, reviewId) : undefined;
+    const acknowledgements = Object.keys(requirements).filter(k => requirements[k] === true && k !== 'confirmed'),
+      // WRT-09: the owner's approval mode or the owner-only cap override (P5) names the website approval it needs.
+      approval = approvalNotice(this.store, actor, plan, reviewId, acknowledgements, destructive);
+    this.store.putDocument(actor.tenantId, 'write_review', reviewId, {
+      user_id: actor.userId,
+      // The person (MCP-02) and who prepared it: a standalone review is retained work in Operations (WRT-08).
+      principal: principalOf(actor),
+      origin,
+      created_at: Date.now(),
+      connection_id: c.id,
+      plan,
+      reads,
+      state,
+      state_hash: stateHash,
+      fingerprint,
+      expires_at: expiresAt,
+      required_acknowledgements: acknowledgements,
+      // What a person approving on the website is shown (WRT-09): the reasons and effects, never the request body.
+      approval_context: {reasons: requirements.reasons, effects: effects ?? null},
+      ...(supersedes ? {supersedes_uncertain: supersedes} : {}),
+      ...override,
+      ...(providerCheck ? {provider_check: providerCheck} : {}),
+      prepare_input: {
+        gateway: input.gateway,
+        arguments: input.arguments,
+        ...(input.connection_id !== undefined ? {connection_id: input.connection_id} : {}),
+        ...(input.creative_edit_confirmed === true ? {creative_edit_confirmed: true} : {}),
+        ...(input.evidence !== undefined ? {evidence: input.evidence} : {}),
+        ...(input.personal_data !== undefined ? {personal_data: input.personal_data} : {}),
+        ...(input.provider_check === true ? {provider_check: true} : {}),
+      },
+    });
+    // PRV-05 shadow mode: a body that differs from its pinned vendor contract is recorded with the review.
+    const wire = wireContractCheck(plan);
+    this.store.appendAudit(actor.tenantId, reviewId, {
+      event: 'write_prepared',
+      request: plan,
+      fingerprint,
+      expires_at: expiresAt,
+      ...(wire?.status === 'violations' || wire?.status === 'check_failed' ? {wire_contract: wire} : {}),
+    });
+    if (supersedes) this.reconciler().supersede(actor, supersedes, reviewId);
+    return {
+      success: true,
+      executed: false,
+      review_id: reviewId,
+      idempotency_key: reviewId,
+      expires_at: new Date(expiresAt).toISOString(),
+      request: redact(plan.gateway === 'google_business_native_action' ? placeActionSafe(plan) : plan),
+      contract_evidence: executionEvidence(plan, evidence),
+      before_state: redact(state),
+      spend_policy: spendPolicy,
+      state_hash: stateHash,
+      state_reads: reads.map(r => ({method: r.method, path: r.path})),
+      fingerprint,
+      confirmation_required: true,
+      expires_in_seconds: 300,
+      execute_requirements: requirements,
+      ...(approval ? {approval} : {}),
+      ...(supersedes ? {supersedes_uncertain: supersedes} : {}),
+      summary: reviewSummary(plan, state),
+      effect: effectClass(plan, state),
+      ...(effects ? {effects} : {}),
+      ...(creativeImpact ? {creative_impact: creativeImpact} : {}),
+      ...(providerCheck
+        ? {
+            provider_check: {
+              ...providerCheck,
+              meaning:
+                providerCheck.status === 'provider_validated'
+                  ? 'The provider checked this request without applying it and found no error. It does not prove execute will succeed; execute still reads the state again.'
+                  : 'The provider rejected this request without applying it. This review cannot be executed: correct what field_paths and the response name, and prepare it again.',
+            },
+          }
+        : {}),
+    };
+  }
+  /** execute: the frozen review, after its owner, binding, integrity, approvals and window are checked, sent once. */
+  private async executeReview({input, actor, origin}: ReviewExecution): Promise<unknown> {
     // The idempotency key is the review id; asking the client to repeat it protected nothing. A supplied key must still match.
     if (input.idempotency_key === undefined) input = {...input, idempotency_key: input.review_id};
     if (input.arguments !== undefined)
