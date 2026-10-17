@@ -7,7 +7,7 @@
  * Concerns move into adapters one at a time (ARC-01 phase B), each with a call-replay proof that the provider requests
  * and authorization decisions are unchanged (tools/call-replay.mjs; docs/review/ARCHITECTURE.md, "Provider adapters").
  * Every adapter carries its lifecycle status and its facts (the account model, body deletions), which any module may
- * read; behaviour that needs a provider's own modules (read classification so far) is its hooks, declared in
+ * read; behaviour that needs a provider's own modules (read classification, paging) is its hooks, declared in
  * src/<provider>-adapter.ts and registered in src/provider-hooks.ts.
  */
 import type {CompiledRequest, Connection} from './types.js';
@@ -110,6 +110,43 @@ export interface ReadClassification {
 }
 
 /**
+ * How a provider's requests and tool arguments name paging (ARC-01 phase B facts; src/pagination.ts reads them).
+ */
+export interface PagingFacts {
+  /** The parameter a generic next-page token takes in this provider's requests (Google Ads `page_token`); `pageToken` otherwise. */
+  readonly tokenParameter?: string;
+  /** The tool argument that carries a native request's body (GA4 `request`); `payload` or `body` otherwise. */
+  readonly bodyArgument?: string;
+}
+
+/** A collection a provider reports whole (TikTok integrated reports): its pages are one verified result. */
+export interface WholeCollection {
+  /** Whether a request reads such a collection. */
+  claims(plan: CompiledRequest): boolean;
+  /** Starts one collection at its first page (refused otherwise) and returns the check every page read must pass. */
+  start(plan: CompiledRequest): (request: CompiledRequest, response: unknown) => void;
+  /** The number of pages a page of the collection reports. */
+  pages(data: unknown): number;
+  /** What a continuation that reads the whole collection again does, for its caller. */
+  readonly meaning: string;
+}
+
+/**
+ * How a provider's collections page (ARC-01 phase B): src/pagination.ts keeps the loop, the merge, the page and size
+ * limits, the loop and shape checks and the continuation call, and asks the provider only for its next page.
+ */
+export interface Paging {
+  /**
+   * The request of the page after `response`: `next`, a copy of the request, with the provider's cursor set, or null
+   * after the last page; undefined leaves the response to the generic page tokens. A cursor that would change the
+   * request's scope or filters is refused (UNSAFE_PAGINATION_LINK), and a page that advertises more without a usable
+   * cursor too (UNKNOWN_PAGINATION).
+   */
+  nextPage?(plan: CompiledRequest, response: unknown, next: CompiledRequest): CompiledRequest | null | undefined;
+  readonly whole?: WholeCollection;
+}
+
+/**
  * A provider's hooks (ARC-01 phase B): the parts of its adapter that call its own modules, declared in
  * src/<provider>-adapter.ts and registered in src/provider-hooks.ts. The facts any module may read are the
  * ProviderAdapter of the leaf registry; a hook only supplies a provider fact to the shared stage that asks for it.
@@ -118,6 +155,7 @@ export interface ProviderHooks {
   /** The gateway of the provider adapter these hooks belong to. */
   readonly gateway: string;
   readonly reads?: ReadClassification;
+  readonly paging?: Paging;
 }
 
 export interface ProviderAdapter {
@@ -135,4 +173,5 @@ export interface ProviderAdapter {
   readonly familyPrefixes: readonly string[];
   readonly account?: AccountModel;
   readonly deletions?: BodyDeletions;
+  readonly paging?: PagingFacts;
 }

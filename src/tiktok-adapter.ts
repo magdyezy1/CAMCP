@@ -1,9 +1,16 @@
 import type {ProviderHooks} from './provider-adapter.js';
-import type {CompiledRequest, Connection} from './types.js';
+import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import {tiktokPreviewRoute} from './tiktok-preview-reads.js';
+import {
+  tiktokIntegratedReport,
+  tiktokReportGrain,
+  tiktokReportPage,
+  tiktokReportRowKey,
+} from './tiktok-report-pagination.js';
 
+const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
  * TikTok's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the planning and
  * preview POSTs, the documented reads whose paths hold mutation-like words, and their authorization.
@@ -78,5 +85,61 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
     authorizeQualifiedRead: authorizeQualifiedTikTokRead,
     postRead: (plan: CompiledRequest, pathname: string) =>
       tiktokReads.has(pathname.replace(/^\/open_api/, '')) || !!tiktokPreviewRoute(plan),
+  }),
+  paging: Object.freeze({
+    nextPage(plan: CompiledRequest, response: unknown, next: CompiledRequest) {
+      const d = obj(response),
+        data = obj(d.data);
+      if (tiktokIntegratedReport(plan)) {
+        const page = tiktokReportPage(response, plan.query);
+        if (page.page >= page.pages) return null;
+        next.query.page = page.page + 1;
+        return next;
+      }
+      const info = data.page_info ?? d.page_info;
+      if (info) {
+        if (Number(info.page) >= Number(info.total_page)) return null;
+        next.query.page = Number(info.page) + 1;
+        return next;
+      }
+      // Business, identity, mention and TTO lists page by cursor: {cursor, has_more} (13 catalogued reads declare a
+      // cursor). The cursor is opaque, a number or a string by endpoint; has_more without one cannot be continued.
+      if (data.has_more !== true) return null;
+      const cursor = data.cursor;
+      if (!((typeof cursor === 'string' && cursor) || (Number.isSafeInteger(cursor) && cursor >= 0)))
+        throw new MirrorError('UNKNOWN_PAGINATION', 'TikTok reports more results but supplies no usable cursor.');
+      next.query.cursor = cursor;
+      return next;
+    },
+    // Integrated reports are collected whole from page one: their counts and native rows are checked across the
+    // collection, and the merged result keeps the first page's counts, which describe the whole verified collection.
+    whole: Object.freeze({
+      claims: tiktokIntegratedReport,
+      start(plan: CompiledRequest) {
+        const dimensions = tiktokReportGrain(plan.query),
+          nativeRows = new Set<string>();
+        if ((plan.query.page ?? 1) !== 1)
+          throw new MirrorError('REPORT_INCOMPLETE', 'Start a complete TikTok report collection at page one.');
+        let expectedTotal: number | undefined;
+        return (request: CompiledRequest, response: unknown) => {
+          const page = tiktokReportPage(response, request.query);
+          if (expectedTotal !== undefined && page.total !== expectedTotal)
+            throw new MirrorError(
+              'REPORT_INCOMPLETE',
+              'TikTok report counts changed during collection. Capture again.',
+            );
+          expectedTotal = page.total;
+          for (const row of page.rows) {
+            const key = tiktokReportRowKey(row, dimensions);
+            if (nativeRows.has(key))
+              throw new MirrorError('REPORT_DUPLICATE_ROWS', 'TikTok repeated a native reporting dimension tuple.');
+            nativeRows.add(key);
+          }
+        };
+      },
+      pages: (data: unknown) => Number(obj(obj(obj(data).data).page_info).total_page),
+      meaning:
+        'TikTok reports are collected whole from page one: this repeats the collection with max_pages covering every page.',
+    }),
   }),
 });

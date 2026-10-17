@@ -1,8 +1,10 @@
 import type {ProviderHooks} from './provider-adapter.js';
-import type {CompiledRequest, Connection} from './types.js';
+import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {linkedinPlanningRoute} from './linkedin-planning-reads.js';
+import {linkedInAnalyticsRows} from './linkedin-reporting.js';
 
+const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
  * LinkedIn's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the audience
  * insight and forecast POSTs, and the share-authorization permission check, a documented read whose path holds
@@ -52,5 +54,31 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
       /^\/rest\/organizationalEntityCreateShareAuthorizations\/[^/]+$/.test(p.path),
     authorizeQualifiedRead: authorizeShareAuthorizationRead,
     postRead: (plan: CompiledRequest) => !!linkedinPlanningRoute(plan),
+  }),
+  paging: Object.freeze({
+    nextPage(plan: CompiledRequest, response: unknown, next: CompiledRequest) {
+      const d = obj(response);
+      if (plan.path === '/rest/adAnalytics') {
+        linkedInAnalyticsRows(response);
+        return null;
+      }
+      // Search and criteria finders page by cursor: the next page's pageToken is metadata.nextPageToken, and a page
+      // without one is the last (Microsoft Learn, "Create and Manage Creatives", li-lms-2026-05). Older finders page by
+      // start and count against paging.total.
+      const token = obj(d.metadata).nextPageToken;
+      if (token !== undefined && token !== null && (typeof token !== 'string' || !token))
+        throw new MirrorError('UNKNOWN_PAGINATION', 'LinkedIn returned a malformed page cursor.');
+      if (typeof token === 'string') {
+        if (plan.query.start !== undefined)
+          throw new MirrorError('UNKNOWN_PAGINATION', 'LinkedIn returned a page cursor for a read paged by offset.');
+        next.query.pageToken = token;
+        return next;
+      }
+      if (plan.query.pageSize !== undefined || plan.query.pageToken !== undefined) return null;
+      const paging = d.paging;
+      if (!paging || Number(paging.start) + Number(paging.count) >= Number(paging.total)) return null;
+      next.query.start = Number(paging.start) + Number(paging.count);
+      return next;
+    },
   }),
 });

@@ -151,8 +151,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // src/tool-actions.ts (no owned reasons). ARC-01 phase B adds the provider hooks registry and fifteen provider adapter
   // modules (src/<provider>-adapter.ts): LinkedIn's share-authorization reason moved with its check from
   // src/provider-read-contracts.ts to src/linkedin-adapter.ts, so the files with reasons and the reasons are unchanged.
+  // Its paging concern moves each provider's paging refusals with its cursor rules from src/pagination.ts (which keeps
+  // its own) to the Apple, Meta, Reddit, Snapchat and TikTok adapters: five more files with reasons, the same reasons.
   assert.equal(files.length, 638);
-  assert.equal(selected.filter(row => row.messages.size).length, 236);
+  assert.equal(selected.filter(row => row.messages.size).length, 241);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11485);
   assert.deepEqual(localeProblems(catalog, owned), []);

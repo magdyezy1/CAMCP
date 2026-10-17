@@ -1,6 +1,7 @@
 import type {
   AccountModel,
   BodyDeletions,
+  PagingFacts,
   ParkedReason,
   ProviderAdapter,
   ProviderParking,
@@ -76,6 +77,7 @@ function adapter(
     parked?: ProviderParking;
     account?: AccountDeclaration;
     deletions?: BodyDeletions;
+    paging?: PagingFacts;
   } = {},
 ): ProviderAdapter {
   const status: ProviderStatus = options.parked ? 'parked' : 'active';
@@ -87,6 +89,7 @@ function adapter(
     familyPrefixes: Object.freeze([...(options.families ?? [id + '_'])]),
     ...(options.account ? {account: accountModel(id, options.account)} : {}),
     ...(options.deletions ? {deletions: bodyDeletions(options.deletions)} : {}),
+    ...(options.paging ? {paging: Object.freeze({...options.paging})} : {}),
   });
 }
 
@@ -117,6 +120,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
       removePrefix: 'customers/',
       mutateRemovals: true,
     },
+    paging: {tokenParameter: 'page_token'},
   }),
   adapter('google_business', 'google_business_native_action', {account: {kind: 'business_profile'}}),
   // Meta ad account IDs are compared without the act_ prefix of their Graph node form.
@@ -183,7 +187,10 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
         'pinned Display & Video 360 v4 Discovery document: "the advertiser will be deleted 30 days from when it was first scheduled for deletion"',
     },
   }),
-  adapter('ga4', 'ga4_native_action', {account: {path: /\/properties\/([^/:]+)/, kind: 'analytics_property'}}),
+  adapter('ga4', 'ga4_native_action', {
+    account: {path: /\/properties\/([^/:]+)/, kind: 'analytics_property'},
+    paging: {bodyArgument: 'request'},
+  }),
   adapter('gtm', 'gtm_native_action', {account: {path: /\/accounts\/([^/:]+)/, kind: 'tag_account'}}),
   adapter('gsc', 'google_search_console_native_action', {
     families: ['search_console_'],

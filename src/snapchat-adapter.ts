@@ -1,7 +1,9 @@
 import type {ProviderHooks} from './provider-adapter.js';
-import type {CompiledRequest} from './types.js';
+import type {CompiledRequest, JsonObject} from './types.js';
 import {snapchatPlanningRoute} from './snapchat-planning-reads.js';
+import {MirrorError} from './errors.js';
 
+const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
  * Snapchat's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the planning
  * POSTs, the by-ID entity reads, the audience, bid and forecasting estimates, and the catalog and Ads Library searches.
@@ -17,5 +19,29 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
       /^\/v1\/(?:catalogs\/[^/]+\/(?:product_search|products\/search|flights\/search|hotels\/search|facets)|ads_library\/(?:ads|sponsored_content)\/search)$/.test(
         pathname,
       ),
+  }),
+  paging: Object.freeze({
+    nextPage(plan: CompiledRequest, response: unknown, next: CompiledRequest) {
+      const d = obj(response);
+      const link = d.paging?.next_link ?? d.paging?.next;
+      if (!link) return null;
+      const url = new URL(link, 'https://adsapi.snapchat.com');
+      if (url.origin !== 'https://adsapi.snapchat.com' || url.pathname !== plan.path)
+        throw new MirrorError('UNSAFE_PAGINATION_LINK', 'Pagination link changed upstream scope.');
+      const paginationKeys = new Set(['cursor', 'offset', 'page', 'page_token']);
+      for (const [key, value] of url.searchParams) {
+        if (paginationKeys.has(key)) {
+          next.query[key] = value;
+          continue;
+        }
+        const original = plan.query[key];
+        if (original === undefined || String(original) !== value)
+          throw new MirrorError('UNSAFE_PAGINATION_LINK', 'Pagination link changed account scope or report filters.', {
+            parameter: key,
+          });
+      }
+      // The server may omit invariant filters from its link; retain them verbatim.
+      return next;
+    },
   }),
 });
