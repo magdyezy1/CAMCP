@@ -299,3 +299,13 @@ test('RPT-05: row headers stay visible while scrolling and phones read report ro
   );
   assert.match(css, /html\[dir='rtl'\] \.report-sparkline \{\n\s+transform: scaleX\(-1\);/, 'time runs from the start');
 });
+
+test('RPT-07: a summary card’s spend, clicks and CPC figures wrap instead of widening a phone page', () => {
+  // The rendered period comparison (Arabic, 320 pixels) found the unwrapped row of "170.30 US$" figures widening the
+  // page to 339 pixels: the row was a nowrap flex row with 26-pixel gaps.
+  const css = readFileSync('web/reporting.css', 'utf8'),
+    rule = selector => css.slice(css.indexOf(selector + ' {'), css.indexOf('}', css.indexOf(selector + ' {')));
+  assert.match(rule('.report-summary-card > div'), /flex-wrap: wrap;/);
+  assert.match(rule('.report-summary-card > div > span'), /min-width: 0;/);
+  assert.match(rule('.report-summary-card strong'), /overflow-wrap: anywhere;/);
+});

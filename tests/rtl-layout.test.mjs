@@ -108,3 +108,16 @@ test('account names in markup go through the isolating helpers; option labels st
   for (const file of fs.readdirSync('web').filter(file => file.endsWith('.js')))
     assert.deepEqual(accountMarkupProblems(fs.readFileSync('web/' + file, 'utf8'), file), [], file);
 });
+
+test('the report builder keeps native account and login names and metric formulas literal', () => {
+  // RPT-07's rendered period comparison: the Arabic leak probe counted the account name and seven metric formulas
+  // ("spend / clicks") as English interface text, because they sat in Arabic running text unmarked. They are now
+  // isolated native values and left-to-right literals.
+  const source = fs.readFileSync('web/reporting-overview.js', 'utf8');
+  assert.match(source, /<span><bdi dir="auto" data-native>\$\{esc\(a\.label\)\}<\/bdi><small>/);
+  assert.match(
+    source,
+    /\$\{esc\(uiText\('Login:'\)\)\} <bdi dir="auto" data-native>\$\{esc\(a\.connection_label \?\? a\.label\)\}<\/bdi>/,
+  );
+  assert.match(source, /<small class="metric-formula" dir="ltr">\$\{esc\(m\.formula \?\? m\.aggregation\)\}<\/small>/);
+});
