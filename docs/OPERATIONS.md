@@ -993,9 +993,11 @@ with an explicit offset, kept exactly as written (X needs both or neither and re
 `sale_price_effective_date` `start/end`). Meta receives the sale in hundredths, so digits beyond the second decimal
 place must be zeros; X receives `amount CUR`. The comparison uses Meta's own `sale_price_amount` filter and X's exact
 decimal value, and the native review and read-back check the sale that was sent. A source without a sale sends none:
-the destination keeps its current sale and the comparison names it as a value the source does not send. For Meta and X
-it is a note (`unsent_fields`): a product whose only differences are such values stays matching and out of the review
-set (COM-01; P9 as recorded in the [decision record](DECISIONS.md)). Clearing a destination sale is not offered.
+the destination keeps its current sale and the comparison names it as a value the source does not send
+(`unsent_fields`, COM-01). For Meta, a product whose only differences are such values is `unknown` and enters the
+review set, because Meta does not say whether an upsert keeps or clears them (owner decision P9 of 2026-10-11, in the
+[decision record](DECISIONS.md); before P9 it stayed matching); for X it stays a note on a matching product. The native
+review of a Meta upsert names the same values as a warning. Clearing a destination sale is not offered.
 
 Retirement is the non-destructive way to stop advertising a discontinued product, for Meta (which has no product
 delete contract) and X. `requirements: {retire_retailer_ids, retire_availability: "out of stock" | "discontinued"}` on
@@ -1024,7 +1026,8 @@ its live acceptance is an owner-authorized read on a selected catalog, which has
 - **One destination contract.** `src/catalog-destinations.ts` registers Meta, X and Snapchat once: source fields, item
   identity, how changes reach the catalog (one reviewed native step per product with its own receipt and read-back, or
   feeds only), upsert intent (Meta asks, X always updates), removal intent (Meta retires; X also deletes explicitly
-  selected products by key; Snapchat none) and what a destination-only value means (P9). The projection and comparison
+  selected products by key; Snapchat none) and what a destination-only value means (P9: Meta reviews the product as
+  `unknown`, X and Snapchat note it on a matching product). The projection and comparison
   of each destination are registered under the same gateway, every comparison returns the shared item
   (`catalog-comparison-item-v2`) and the website checks it with one validator. Native write contracts are unchanged.
 - **Product sources.** `src/catalog-sources.ts` turns a source into supplied rows: the caller's `products`, or

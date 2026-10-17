@@ -1603,11 +1603,13 @@ CSV, choose create-only or explicit upsert, then validate the source. The previe
 exact decimal source prices and native hundredths. Compare current catalog products starts a bounded read of
 only the supplied retailer IDs. New, changed, matching and unknown states stay separate; create-only blocks every
 existing ID. Matching means only submitted fields have matching evidence. Unknown fields need native review.
-For Meta, as for X, each row also notes the native attributes the product holds a value for although the source does
+For Meta, as for X, each row also names the native attributes the product holds a value for although the source does
 not send them (`unsent_fields`: for example a sale price, staging visibility or zero inventory), because neither
 provider says whether an update keeps or clears them; the summary counts such products
-(`with_destination_only_values`). The note changes no state, and the native review of an upsert repeats it as a
-warning.
+(`with_destination_only_values`). On Meta such a product is never shown as matching: when every supplied field
+matches, it is unknown, says that the catalog holds values this import does not send, and is among the products
+needing review (owner decision P9 of 2026-10-11; before P9 it stayed matching). On X the note changes no state. The
+native review of an upsert repeats it as a warning.
 
 Save only products needing review excludes matching/blocked rows and preserves each selected original source
 product. Save all supplied products keeps the whole import; after a comparison it says how many already match. In an

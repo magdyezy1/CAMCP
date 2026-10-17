@@ -1073,9 +1073,9 @@ explicit offset, literal; X needs both or neither and receives `sale_price_effec
 hundredths (digits beyond the second place must be zeros), X `amount CUR`. `catalog_compare` returns
 `sale_price_matches` beside `price_matches`, from Meta's `sale_price_amount` filter or X's exact value; native review
 and read-back check the sent sale. Refusals are `INVALID_CATALOG_SALE`. Without a supplied sale the destination keeps
-its own; it appears in `unsent_fields` as a note: a product whose only differences are such values stays `matching`
-and out of `review_retailer_ids` (COM-01, as P9 is recorded in docs/DECISIONS.md). Clearing a destination sale is not
-offered.
+its own, and it appears in `unsent_fields`. On Meta a product whose only differences are such values is `unknown` and
+in `review_retailer_ids` (owner decision P9: Meta does not say whether an upsert keeps or clears them, and the native
+review warns about them); on X it stays `matching`, with the note. Clearing a destination sale is not offered.
 
 **Retirement (COM-02 B).** `requirements: {retire_retailer_ids: [1–50 supplied IDs], retire_availability: "out of
 stock" | "discontinued"}` on catalog_preview, catalog_compare and catalog_plan updates those supplied products with that

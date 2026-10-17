@@ -179,10 +179,10 @@ cites as owner decisions, each the review's recommended or the ticket's proposed
   conventions are not decided here. P7 next packs: pending owner. The packs built so far are implementer defaults
   recorded in the [campaign pack demand record](#campaign-pack-demand-record-cmp-07-p7-prv-06), and the PRV-06 order
   follows the review's recommendation (the Reddit pixel check first).
-- **P9.** A Meta product's populated destination-only attributes are notes (`unsent_fields`); they never put the item
-  in the review set as `unknown` (COM-01). COM-03's destination registry also holds the alternative (`review`, the item
-  enters the review set as `unknown`), used by no destination until the owner chooses it. The Business Profile and
-  Amazon Ads parts are recorded above.
+- **P9.** Waves 1 to 3 kept a Meta product's populated destination-only attributes as notes (`unsent_fields`, COM-01).
+  Since owner decision P9 of 2026-10-11 (applied in wave 3b) Meta uses the `review` policy of COM-03's destination
+  registry: a product whose only differences are such attributes is `unknown` and enters the review set; X and
+  Snapchat keep the note. The Business Profile and Amazon Ads parts are recorded above.
 
 P8 (owner-approved 2026-10-11, applied in wave 3; chosen during implementation, the owner may revise): Measurement is
 the multi-provider conversion-health hub. The measurement ledger adds read-only Meta pixel/dataset, Snapchat pixel,
