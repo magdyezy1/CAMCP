@@ -2,9 +2,9 @@
 
 The maintained record of owner decisions and of what happened to earlier recommendations (DOC-02). Each row names the
 date, the decision, its outcome (accepted or approved, declined or deferred), what would reopen it, and the canonical
-ID it governs. A decision changes only the stage it names: it never marks a package complete. Package status is reported on
-three axes in [package status](review/PACKAGE-STATUS.md). Settled decisions, such as the declined out-of-band spend
-approval, are recorded rather than reopened.
+ID it governs. A decision changes only the stage it names: it never marks a package complete. Package status is
+reported on three axes in [package status](review/PACKAGE-STATUS.md). Settled decisions, such as the declined
+out-of-band spend approval, are recorded rather than reopened.
 
 Canonical IDs: `D`, `R` and `P` are the owner questions of the 2026-10-08 engineering review; three-letter IDs
 (`OPS-04`) are its register items; `B01`–`B32` are packages.
@@ -60,9 +60,10 @@ them out beside the P3 defaults (below):
 - **Invitations last 7 days (P2).** New invitations expire after 7 days instead of 72 hours. Invitations already sent
   keep their expiry, and a workspace whose owner saved Workspace security before keeps the lifetime saved then (the
   form showed 72 hours) until the owner saves another.
-- **Only the owner goes beyond a spending cap (P5).** Another member's execute of a review beyond a cap is refused with
-  `CAP_OVERRIDE_OWNER_REQUIRED` before anything is sent: the owner executes it, or approves that exact review on the
-  website first. `cap_override_owner_only: false` is refused, and a value stored before is no longer read.
+- **Only the owner goes beyond a spending cap (P5).** Under `enforcement: confirm`, another member's execute of a
+  review beyond a cap is refused with `CAP_OVERRIDE_OWNER_REQUIRED` before anything is sent: the owner executes it,
+  or approves that exact review on the website first. `cap_override_owner_only: false` is refused, and a value stored
+  before is no longer read.
 - **Caps without a currency block money changes (P5).** Until the owner saves a spending policy again with its
   currency, caps in account currency that name none refuse every budget or bid change on the accounts they govern
   (`POLICY_CURRENCY_UNSET`, 409); pausing and renaming are unaffected. Owner health lists such caps (`blocks: true`),
