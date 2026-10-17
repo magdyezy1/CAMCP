@@ -7,9 +7,12 @@ import type {AccountModel, ParkedReason, ProviderAdapter, ProviderParking, Provi
  *
  * A parked provider is not offered unless the deployment's AMCP_PROVIDERS (a comma- or space-separated list of
  * provider IDs) names it: it is not listed in tools/list, contracts, capabilities or the website, any tool call that
- * names its gateway is refused with GATEWAY_NOT_OFFERED before its arguments are read, and ScopeGuard refuses every
- * request to it before credentials are fetched. Its code keeps compiling and its tests keep running with the provider
- * named in AMCP_PROVIDERS. AMCP_PROVIDERS is read at each check, so a process sees one value from its environment.
+ * names its gateway is refused with GATEWAY_NOT_OFFERED before its arguments are read (a local read of retained audit
+ * history may still filter by it), ScopeGuard refuses every request to it before credentials are fetched, and
+ * NativeTransport refuses to send one whichever caller built it. Its reviewed families stay registered, by design: the
+ * ledger keeps every family, and the listings that show families filter them by their gateway's status. Its code keeps
+ * compiling and its tests keep running with the provider named in AMCP_PROVIDERS. AMCP_PROVIDERS is read at each
+ * check, so a process sees one value from its environment.
  */
 function adapter(
   id: string,
@@ -95,11 +98,6 @@ export function familyProvider(family: string): ProviderAdapter | undefined {
     for (const prefix of provider.familyPrefixes)
       if (family.startsWith(prefix) && prefix.length > length) [found, length] = [provider, prefix.length];
   return found;
-}
-
-/** Whether a reviewed family's provider is offered: a parked provider's families are not registered for offering. */
-export function familyOffered(family: string, env: NodeJS.ProcessEnv = process.env): boolean {
-  return providerOffered(familyProvider(family), env);
 }
 
 /** The IDs of parked providers, offered or not (tools/provider-lifecycle.ts does not watch their pages). */

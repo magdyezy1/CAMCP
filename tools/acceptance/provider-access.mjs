@@ -94,7 +94,11 @@ export async function providerAccessMarkdown() {
     '',
     '## Summary',
     '',
-    '| Provider | API version | Offered | Approvals declared | Live programs | Discovery-only programs | Accepted reads | Accepted writes | Last ledger refusal |',
+    '`Offered by default` is the provider’s lifecycle status when the deployment sets no `AMCP_PROVIDERS`: a parked',
+    'provider is offered only where `AMCP_PROVIDERS` names it ([architecture](review/ARCHITECTURE.md#9-provider-adapters)),',
+    'so this document reads the same in every deployment.',
+    '',
+    '| Provider | API version | Offered by default | Approvals declared | Live programs | Discovery-only programs | Accepted reads | Accepted writes | Last ledger refusal |',
     '|---|---|---|---:|---:|---:|---:|---:|---|',
   ];
   for (const p of providers) {

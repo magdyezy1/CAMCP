@@ -24,6 +24,8 @@ import {
   wireContractResolver,
 } from '../dist/src/wire-contracts.js';
 import {assertRefused} from './helpers/assert-refused.mjs';
+import {offerParkedProviders} from './helpers/parked-providers.mjs';
+import {parkedProviderIds} from '../dist/src/provider-adapters.js';
 
 /**
  * PRV-05: pinned vendor request schemas checked on every route that has one (shadow first, enforcement for reviewed
@@ -697,7 +699,15 @@ const synthetic = {
   consumerSecret: 'synthetic',
   tokenSecret: 'synthetic',
 };
-test('every gateway keeps JSON numbers for its checks and carries the exact twin of unsafe integers', async () => {
+test('every gateway keeps JSON numbers for its checks and carries the exact twin of unsafe integers', async t => {
+  // The vendor origins include parked providers' (Amazon Ads, Criteo), which NativeTransport refuses to send to unless
+  // the deployment offers them (ARC-01, P9): this check of their response parsing offers them, as AMCP_PROVIDERS would.
+  const previous = process.env.AMCP_PROVIDERS;
+  t.after(() => {
+    if (previous === undefined) delete process.env.AMCP_PROVIDERS;
+    else process.env.AMCP_PROVIDERS = previous;
+  });
+  offerParkedProviders(...parkedProviderIds());
   const origins = {...vendorOrigins, microsoft_ads_native_action: microsoftOrigin};
   let checked = 0;
   for (const gateway of Object.keys(origins)) {

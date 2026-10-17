@@ -310,13 +310,24 @@ offered only where `AMCP_PROVIDERS` names it (`src/provider-offering.ts`; a miss
 Parked today: Criteo and WooCommerce (`owner_parked`, PRK-01, PRK-02 and P9) and Amazon Ads (`unimplemented`, CON-06).
 The status is enforced where each surface is built, not by deleting code: `MirrorService.listTools` leaves the gateway
 out of `tools/list`; `MirrorService.callOnce` refuses a tool call that is, or names, a parked gateway before its
-arguments are read; `ScopeGuard.authorize` refuses every request to it before credentials are fetched (so a review
-prepared while it was offered cannot execute after it is parked); contracts, capabilities and the Capability Center
-filter it; `/api/platforms` names the providers not offered (`providers_not_offered`), and Commerce hides the
-WooCommerce store panels while an administrator can still remove a stored connection. The reviewed-family registry
-stays complete for the ledger; `familyOffered` says whether a family's provider is offered.
-`tests/provider-lifecycle-gate.test.mjs` covers each surface in both modes; suites that exercise a parked provider
-offer it with `tests/helpers/parked-providers.mjs`.
+arguments are read, except `amcp_workspace history` (`localGatewayFilterActions` in `src/service.ts`), a local read of
+retained audit metadata that may still filter by it; `ScopeGuard.authorize` refuses every request to it before
+credentials are fetched (so a review prepared while it was offered cannot execute after it is parked), and
+`NativeTransport.request` refuses to send to it, or with a parked provider's connection, whichever caller built the
+request (account discovery and other reads that do not pass `ScopeGuard`), before anything is counted or sent;
+contracts, capabilities and the Capability Center filter it; `/api/platforms` names the providers not offered
+(`providers_not_offered`), and Commerce hides the WooCommerce store panels while an administrator can still remove a
+stored connection. The provider access register (`docs/PROVIDER-ACCESS.md`) states each provider's default
+(`Offered by default`, under no `AMCP_PROVIDERS`), so it and its check read the same in every deployment. The
+reviewed-family registry stays complete for the ledger, by design: the listings that show families filter them by their
+gateway's status, so there is no family-level offering check. `tests/provider-lifecycle-gate.test.mjs` covers each
+surface in both modes; suites that exercise a parked provider offer it with `tests/helpers/parked-providers.mjs`.
+
+Not met yet of ARC-01's local criteria (open remainders of B18 and B27 in `docs/review/package-status.json`): the whole
+suite has not run with `AMCP_PROVIDERS=criteo,woocommerce` (the tool-surface suites assert the default 25 tools; only
+the gate test checks both modes), and phase B has moved only the account model, so 88 shared modules still name a
+gateway (target 20 or fewer) and 496 shared-to-provider imports remain (target 30 or fewer), with no call-replay proof
+and no authorizer-disjointness test yet.
 
 ## 10. Import cycles and leaf modules
 
@@ -396,7 +407,11 @@ and statuses each helper gave, and the shared helpers other modules import (`wri
 local helper (`tools/check-locales.mjs`), so the owned reasons and their Arabic are unchanged: 2,553 reasons in the 152
 modules on the kit, the same set before stage C and after each wave. Nineteen modules whose former arrow or forwarding
 helper the inventory never followed stay outside it (`unlocalizedRefusalModules`; about 420 of their 430 reasons have
-no Arabic), a gap now named rather than implicit. `local_fail_copies` fell from 153 to 0 and is ratcheted (§8). See
+no Arabic), a gap now named rather than implicit (an open remainder of B24 in `docs/review/package-status.json`).
+`local_fail_copies` fell from 153 to 0 and is ratcheted (§8). The `fail` that `src/errors.ts` exported moved to the kit
+and is intentionally not re-exported there: `family-kit.ts` imports `MirrorError` from `errors.ts`, so a re-export
+would join the two in a runtime import cycle (§8), and a second definition would be a local copy again; nothing in the
+repository imported it from `errors.ts`, and a caller outside it imports `fail` from `src/family-kit.ts`. See
 `docs/ADDING-A-REVIEWED-FAMILY.md`, "The family kit".
 
 ## 14. Composition tables
@@ -445,7 +460,8 @@ each reporting platform has one report source behind a registry. In the function
 than 400 lines (`DecisionReporting.handle` was 899, now 30). Thirteen backend functions still are, such as
 `createWebsite` (1,816), `CampaignRunner.handle` (1,306), `NativeCampaignReports.collectSource` (978), `errorRemedy`
 (841) and `MediaUploadService.handle` (739); the review's target of three or fewer needs the Stage D changes listed in
-§14 and the same treatment of the rest. Also left by ARC-04: family remedies declared by each family for `errorRemedy`
+§14 and the same treatment of the rest. These are open remainders of B18 and B27 in `docs/review/package-status.json`,
+so neither package is closed by ARC-04. Also left by ARC-04: family remedies declared by each family for `errorRemedy`
 to consult first (today `familyRemedy` in `src/errors.ts`, which other packages are extending), and a `readsFor`
 helper, which stage B made unnecessary for the import cycle because a family receives its read builders as hook
 arguments.

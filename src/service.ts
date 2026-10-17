@@ -138,6 +138,14 @@ export const auditInputRedactors: readonly ((tool: string, input: JsonObject) =>
 export const auditedInput = (tool: string, input: JsonObject): JsonObject =>
   auditInputRedactors.reduce((kept, redact) => redact(tool, kept), input);
 /**
+ * The workspace actions whose `gateway` only filters local metadata (ARC-01 and P9): `history` reads the retained audit
+ * metadata and sends no request, so it may name a parked provider's gateway. Every other call that names a parked
+ * gateway is refused before its arguments are read.
+ */
+export const localGatewayFilterActions: ReadonlySet<string> = new Set(['history']);
+const localGatewayFilter = (tool: string, input: JsonObject | undefined) =>
+  tool === workspaceTool.name && typeof input?.action === 'string' && localGatewayFilterActions.has(input.action);
+/**
  * The amcp_write inspect call for a change a native gateway will not send (MCP-09): the caller's arguments without the
  * execution flags (dry_run, confirmed, idempotency_key), which only a review's execute takes.
  */
@@ -374,9 +382,11 @@ export class MirrorService {
       this.store.assertActorActive(actor);
       actorChecked = true;
       // A provider this deployment does not offer (a parked one, ARC-01 and P9) is refused before its arguments are
-      // read, whether it is the tool itself or the gateway any AMCP tool names (CON-06).
+      // read, whether it is the tool itself or the gateway any AMCP tool names (CON-06). The one exception is the audit
+      // history of retained work: a local metadata read that sends and offers nothing, so a parked provider's history
+      // can still be filtered by its gateway, as its stored connections can still be removed.
       assertGatewayOffered(tool);
-      assertGatewayOffered(input?.gateway);
+      if (!localGatewayFilter(tool, input)) assertGatewayOffered(input?.gateway);
       // Each action of an AMCP tool takes its own arguments (MCP-07): one it does not read is a meta warning, or with
       // MIRROR_FLAGS {"actionArguments":"enforce"} an INVALID_ARGUMENT naming it, before the action runs.
       const own = this.firstPartyTools().find(t => t.name === tool);

@@ -278,12 +278,15 @@ Also implemented in wave 3b (ARC-01, the lifecycle part of P9, the review's reco
 by their lifecycle status in the provider adapter registry (`src/provider-adapters.ts`). Criteo and WooCommerce are
 `parked` with the reason `owner_parked` (PRK-01, PRK-02), Amazon Ads with `unimplemented` (above). Unless the
 deployment's `AMCP_PROVIDERS` names a parked provider, its gateway is absent from `tools/list` (25 tools by default),
-contracts, capabilities and the Capability Center; its reviewed families stay registered for the ledger but are not listed; any
-call that names it is refused with `GATEWAY_NOT_OFFERED` before its arguments are read, and `ScopeGuard` refuses every
-request to it before credentials are fetched, so a review prepared while it was offered cannot execute after it is
-parked. Commerce hides the WooCommerce store panels and product source; an administrator can still remove a stored
-store connection. Shopify and Salla have no gateway, connection or module to gate. Their code keeps compiling and
-their suites run with the provider named in `AMCP_PROVIDERS` ([architecture](review/ARCHITECTURE.md#9-provider-adapters)).
+contracts, capabilities and the Capability Center; its reviewed families stay registered by design (the ledger keeps
+every family; the listings filter them by their gateway's status) but are not listed; any call that names it is refused
+with `GATEWAY_NOT_OFFERED` before its arguments are read, except a local read of its retained audit history
+(`amcp_workspace history`), which sends nothing; `ScopeGuard` refuses every request to it before credentials are
+fetched, so a review prepared while it was offered cannot execute after it is parked, and `NativeTransport` sends
+nothing to it whichever caller built the request. Commerce hides the WooCommerce store panels and product source; an
+administrator can still remove a stored store connection. Shopify and Salla have no gateway, connection or module to
+gate. Their code keeps compiling and their suites run with the provider named in `AMCP_PROVIDERS`
+([architecture](review/ARCHITECTURE.md#9-provider-adapters)).
 
 Also implemented on 2026-10-13 (SEC-08, P1's isolation model as approved on 2026-10-11: many clients per workspace).
 The non-authorizing working-client filter comes first, as P1 directs: the website's working client is a view filter

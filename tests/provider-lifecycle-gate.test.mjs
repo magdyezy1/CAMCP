@@ -232,6 +232,97 @@ test('ScopeGuard refuses a parked provider before credentials, so a review prepa
   }
 });
 
+test('NativeTransport sends nothing to a parked provider, whichever caller built the request and without ScopeGuard', async () => {
+  // Regression: only ScopeGuard.authorize held the gate, so a caller that sends through the transport itself (account
+  // discovery, a background read) could still reach a parked provider.
+  let fetches = 0;
+  const transport = new NativeTransport(
+      async () => {
+        fetches++;
+        return Response.json({data: [], errors: [], warnings: []});
+      },
+      async () => {},
+    ),
+    connection = {
+      id: 'criteo',
+      tenantId: owner.tenantId,
+      gateway: 'criteo_native_action',
+      accounts: ['123'],
+      writeAccounts: [],
+      enabled: true,
+      label: 'Synthetic Criteo',
+      scopes: ['RetailMedia_Accounts_Read'],
+    },
+    plan = {
+      gateway: 'criteo_native_action',
+      action: 'AMCP_CRITEO_CAMPAIGN_READ',
+      method: 'GET',
+      origin: 'https://api.criteo.com',
+      path: '/2026-07/retail-media/accounts',
+      query: {},
+      headers: {},
+      accountId: '123',
+      readOnly: true,
+      destructive: false,
+      requiresConfirmation: false,
+      evidence: 'synthetic parked-provider transport check',
+      warnings: [],
+    };
+  await withProviders(undefined, async () => {
+    await assert.rejects(
+      transport.request(plan, connection, {accessToken: 'synthetic'}),
+      e => e.code === 'GATEWAY_NOT_OFFERED' && e.details.provider === 'criteo' && e.details.reason === 'owner_parked',
+    );
+    // A plan of an offered provider sent with a parked provider's connection is refused the same way.
+    await assert.rejects(
+      transport.request({...plan, gateway: 'meta_native_action'}, connection, {accessToken: 'synthetic'}),
+      e => e.code === 'GATEWAY_NOT_OFFERED' && e.details.provider === 'criteo',
+    );
+    assert.equal(fetches, 0, 'nothing was sent');
+    assert.equal(transport.metrics.requests, 0, 'nothing was counted');
+  });
+  // Offered, the same request is sent.
+  await withProviders('criteo', async () => {
+    await transport.request(plan, connection, {accessToken: 'synthetic'}).catch(() => undefined);
+    assert.equal(fetches, 1);
+  });
+});
+
+test('a parked provider keeps its audit history filterable by its gateway, a local read; other calls naming it are refused', async () => {
+  const w = criteoWorld();
+  try {
+    // The audit record a Criteo read left while Criteo was offered, as the native gateway writes it.
+    w.store.appendAudit(owner.tenantId, 'synthetic-criteo-read', {
+      request: {gateway: 'criteo_native_action', accountId: '123', action: 'AMCP_CRITEO_CAMPAIGN_READ'},
+      connection_id: 'criteo',
+      outcome: {success: true},
+    });
+    const requests = [...w.requests];
+    await withProviders(undefined, async () => {
+      const history = await w.service.call(
+        'amcp_workspace',
+        {action: 'history', gateway: 'criteo_native_action', limit: 100},
+        owner,
+      );
+      assert.equal(history.success, true, JSON.stringify(history).slice(0, 400));
+      const {events} = history.data;
+      assert.ok(Array.isArray(events) && events.length > 0, JSON.stringify(history.data).slice(0, 400));
+      assert.equal(history.data.network_requests, 0);
+      for (const event of events) assert.equal(event.gateway, 'criteo_native_action');
+      for (const input of [
+        {action: 'dashboard', gateway: 'criteo_native_action'},
+        {action: 'contracts', gateway: 'criteo_native_action'},
+      ]) {
+        const refused = await w.service.call('amcp_workspace', input, owner);
+        assert.equal(refused.error?.code, 'GATEWAY_NOT_OFFERED', input.action);
+      }
+      assert.deepEqual(w.requests, requests, 'no provider request');
+    });
+  } finally {
+    w.close();
+  }
+});
+
 test('listings leave out a parked provider: contracts, its reviewed families and the capabilities providers', async () => {
   const w = criteoWorld();
   try {

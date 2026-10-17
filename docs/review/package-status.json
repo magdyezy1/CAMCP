@@ -328,7 +328,9 @@
       "manual": {"state": "not_recorded", "evidence": []},
       "remainders": [
         {"text": "Verified LinkedIn conversion windows (closes the package)", "disposition": "register_item", "ref": "RPT-07"},
-        {"text": "Guided presets for X, Microsoft, Apple and Reddit (the capture bridge already covers them)", "disposition": "optional_stretch", "ref": "RPT-07"}
+        {"text": "Guided presets for X, Microsoft, Apple and Reddit (the capture bridge already covers them)", "disposition": "optional_stretch", "ref": "RPT-07"},
+        {"text": "ARC-04 local criteria not yet met: functions over 400 lines in touched modules (createWebsite, errorRemedy, MediaUploadService.handle), the remaining stage D tables (amcp_media actions, website route modules, the account-workflows split), family-declared remedies, and defineFamily beyond the X families", "disposition": "register_item", "ref": "ARC-04"},
+        {"text": "ARC-01 phase B beyond the account model: 88 shared modules name a gateway (target 20 or fewer) and 496 shared-to-provider imports remain (target 30 or fewer), with the call-replay proof, the authorizer-disjointness test and the suite run with AMCP_PROVIDERS=criteo,woocommerce", "disposition": "register_item", "ref": "ARC-01"}
       ]
     },
     {
@@ -432,6 +434,7 @@
       "manual": {"state": "not_recorded", "evidence": []},
       "remainders": [
         {"text": "Arabic correctness: untranslated owned text, locale persistence, RTL and bidi layout", "disposition": "register_item", "ref": "WEB-05"},
+        {"text": "Arabic for the refusal reasons of the 19 family modules outside the localization inventory (unlocalizedRefusalModules in tools/check-locales.mjs, about 420 reasons), until the list is empty; it may only shrink", "disposition": "register_item", "ref": "WEB-05"},
         {"text": "Arabic editorial review and assistive-technology acceptance", "disposition": "owner_action", "ref": "R6"}
       ]
     },
@@ -479,7 +482,9 @@
       "native": {"state": "none", "evidence": []},
       "manual": {"state": "not_recorded", "evidence": []},
       "remainders": [
-        {"text": "Microsoft portfolio adapter", "disposition": "finite_package", "ref": "B30"}
+        {"text": "Microsoft portfolio adapter", "disposition": "finite_package", "ref": "B30"},
+        {"text": "ARC-04 local criteria not yet met: functions over 400 lines in touched modules (createWebsite, errorRemedy, MediaUploadService.handle), the remaining stage D tables (amcp_media actions, website route modules, the account-workflows split), family-declared remedies, and defineFamily beyond the X families", "disposition": "register_item", "ref": "ARC-04"},
+        {"text": "ARC-01 phase B beyond the account model: 88 shared modules name a gateway (target 20 or fewer) and 496 shared-to-provider imports remain (target 30 or fewer), with the call-replay proof, the authorizer-disjointness test and the suite run with AMCP_PROVIDERS=criteo,woocommerce", "disposition": "register_item", "ref": "ARC-01"}
       ],
       "declared_limits": [
         {"text": "Atomic point-in-time inventory is not offered by the provider list APIs", "ref": "ACC-05"}

@@ -95,6 +95,21 @@ test('the published register is current and lists every provider with its progra
   assert.doesNotMatch(doc, /undefined|NaN/);
 });
 
+test('the published register reads the same in every deployment: a parked provider is offered by default or not', () => {
+  // Regression: the Offered column came from the generator's own AMCP_PROVIDERS, so an operator's environment that
+  // offers a parked provider produced another file and failed the check.
+  const check = spawnSync(process.execPath, ['tools/acceptance/provider-access.mjs', '--check'], {
+    encoding: 'utf8',
+    env: {...process.env, AMCP_PROVIDERS: 'amazon,criteo,woocommerce'},
+  });
+  assert.equal(check.status, 0, check.stderr);
+  const doc = fs.readFileSync('docs/PROVIDER-ACCESS.md', 'utf8');
+  assert.match(doc, /\| Provider \| API version \| Offered by default \|/);
+  assert.match(doc, /\| \[Amazon Ads\]\(#amazon-ads\) \| [^|]+ \| no \|/);
+  assert.match(doc, /\| \[Criteo\]\(#criteo\) \| [^|]+ \| no \|/);
+  assert.match(doc, /\| \[Meta\]\(#meta\) \| [^|]+ \| yes \|/);
+});
+
 test('discovery-only programs make no request: capabilities lists them, program_check refuses them first', async t => {
   const store = new Store(':memory:', Buffer.alloc(32, 31).toString('base64')),
     actor = {tenantId: 'acc05', userId: 'owner', role: 'admin'};

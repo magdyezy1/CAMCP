@@ -4,7 +4,6 @@ import {Registry} from '../dist/src/catalog.js';
 import {providerContracts} from '../dist/src/provider-contracts.js';
 import {reviewedFamilies} from '../dist/src/reviewed-families.js';
 import {
-  familyOffered,
   familyProvider,
   parkedProviderIds,
   providerAdapters,
@@ -90,14 +89,15 @@ test('P9: Criteo and WooCommerce are owner-parked, their families are not offere
     assert.equal(gatewayOffered(gateway, {AMCP_PROVIDERS: id}), true);
   }
   assert.deepEqual([...parkedProviderIds()].sort(), ['amazon', 'criteo', 'woocommerce']);
-  // The family registry stays complete for the ledger; a parked provider's families are not offered.
+  // The family registry stays complete for the ledger, by design; a parked provider's families are offered exactly as
+  // its gateway is, because the listings that show families filter them by their gateway's status.
   const criteoFamilies = reviewedFamilies().filter(f => familyProvider(f.name)?.id === 'criteo');
   assert.equal(criteoFamilies.length, 12);
   for (const family of criteoFamilies) {
-    assert.equal(familyOffered(family.name, {}), false, family.name);
-    assert.equal(familyOffered(family.name, {AMCP_PROVIDERS: 'criteo'}), true, family.name);
+    assert.equal(gatewayOffered(familyProvider(family.name).gateway, {}), false, family.name);
+    assert.equal(gatewayOffered(familyProvider(family.name).gateway, {AMCP_PROVIDERS: 'criteo'}), true, family.name);
   }
-  assert.equal(familyOffered('meta_pixels', {}), true);
+  assert.equal(gatewayOffered(familyProvider('meta_pixels').gateway, {}), true);
   // OAuth pages: a parked provider has no website login, so Connections never offers one; gate a platform here first.
   for (const p of platforms) assert.equal(providerOf(p.gateway)?.status ?? 'active', 'active', p.id);
 });
@@ -115,7 +115,7 @@ test('a misspelt AMCP_PROVIDERS name is a startup problem and offers nothing', (
   const config = loadConfig({AMCP_PROVIDERS: 'amazn'}, 'http');
   assert.ok(config.problems.some(p => /^AMCP_PROVIDERS names no provider: amazn\. Provider IDs: google, /.test(p)));
   assert.equal(loadConfig({AMCP_PROVIDERS: 'amazon'}, 'http').problems.length, 0);
-  assert.equal(familyOffered('amazn_family', {AMCP_PROVIDERS: 'amazn'}), true, 'a family of no provider is not gated');
+  assert.equal(familyProvider('amazn_family'), undefined, 'a misspelt name is no provider and no family prefix');
 });
 
 test('ARC-04 stage B: each provider adapter declares its account ID form, read by a leaf that scope.ts re-exports', async () => {

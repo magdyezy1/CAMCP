@@ -2,6 +2,11 @@ import test, {mock} from 'node:test';
 import assert from 'node:assert/strict';
 import {NativeTransport} from '../src/transport.js';
 import type {CompiledRequest, Connection} from '../src/types.js';
+import {offerParkedProviders} from './helpers/parked-providers.js';
+
+// Criteo is parked (ARC-01, P9) and NativeTransport refuses to send to a parked provider: the Criteo cases offer it like
+// a deployment whose AMCP_PROVIDERS names it.
+offerParkedProviders('criteo');
 
 const cases: [string, Partial<CompiledRequest>, string][] = [
   [

@@ -45,7 +45,11 @@ counted on its own; none implies another.
 
 ## Summary
 
-| Provider | API version | Offered | Approvals declared | Live programs | Discovery-only programs | Accepted reads | Accepted writes | Last ledger refusal |
+`Offered by default` is the provider’s lifecycle status when the deployment sets no `AMCP_PROVIDERS`: a parked
+provider is offered only where `AMCP_PROVIDERS` names it ([architecture](review/ARCHITECTURE.md#9-provider-adapters)),
+so this document reads the same in every deployment.
+
+| Provider | API version | Offered by default | Approvals declared | Live programs | Discovery-only programs | Accepted reads | Accepted writes | Last ledger refusal |
 |---|---|---|---:|---:|---:|---:|---:|---|
 | [Google Ads](#google-ads) | v25 | yes | 0 of 4 | 0 | 0 | 0 | 0 | — |
 | [Meta](#meta) | v26.0 | yes | 0 of 3 | 0 | 0 | 0 | 0 | — |

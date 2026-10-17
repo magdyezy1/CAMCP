@@ -161,7 +161,9 @@ export function providerPrograms(gateway: string): JsonObject[] {
 }
 /**
  * The register as published (docs/PROVIDER-ACCESS.md): deterministic, so it states each declaration's review date
- * rather than whether it is stale today. Staleness is computed where it is shown live (the owner's health view).
+ * rather than whether it is stale today. Staleness is computed where it is shown live (the owner's health view). For
+ * the same reason `offered` is the provider's default, under no AMCP_PROVIDERS: the document and its check never read
+ * the environment that runs them (an operator who offers a parked provider would otherwise get another file).
  */
 export function providerAccessDocument(data: ProviderAccessRegister | null = providerAccessRegister): JsonObject[] {
   if (!data) return [];
@@ -172,7 +174,7 @@ export function providerAccessDocument(data: ProviderAccessRegister | null = pro
       id,
       gateway,
       api_version: c.api_version,
-      offered: gatewayOffered(gateway),
+      offered: gatewayOffered(gateway, {}),
       approvals: data.providers[id]!.approvals.map(a => ({
         ...a,
         review_by: reviewBy(a.declared_at, data.stale_after_days),

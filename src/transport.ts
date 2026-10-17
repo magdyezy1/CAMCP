@@ -33,6 +33,7 @@ import {collectionRequestTimeout, collectionResponseBytes, collectionCheckpoint}
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {currentQuotaPurpose, issuerKey, requestOperations, type IssuerPermit} from './provider-quota.js';
 import {meterNativeRequest} from './native-request-meter.js';
+import {assertGatewayOffered} from './provider-offering.js';
 /**
  * Whether a mutation request (or an upload chunk) left AMCP while a tracked operation ran (WRT-04). The marker is set
  * synchronously, immediately before the fetch, so a request that was sent is never recorded as unsent; a refusal raised
@@ -374,6 +375,11 @@ export class NativeTransport {
     upload?: BinaryUpload,
     hooks: {beforeAttempt?: () => void; onDispatch?: () => void} = {},
   ): Promise<TransportResult> {
+    // No request reaches a provider this deployment does not offer (a parked one, ARC-01 and P9). ScopeGuard refuses it
+    // first on the reviewed paths; this gate also holds for a caller that sends without ScopeGuard (account discovery,
+    // a background read), before the credentials are used and before anything is counted or sent.
+    assertGatewayOffered(plan.gateway);
+    if (connection.gateway !== plan.gateway) assertGatewayOffered(connection.gateway);
     validateGoogleRequest(plan);
     // PRV-05: every route with a pinned request schema is checked here, the last step before anything is sent. A
     // violation is counted per gateway, writes and reads apart; AMCP_WIRE_CONTRACTS=enforce also refuses it for a write.
