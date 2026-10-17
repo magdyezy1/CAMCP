@@ -1,5 +1,6 @@
 import {createHash} from 'node:crypto';
 import {MirrorError} from './errors.js';
+import {fail} from './family-kit.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
 /**
@@ -75,9 +76,7 @@ export interface PersonalDataRecord extends JsonObject {
 
 const maxRows = 10000,
   hex = /^[0-9a-f]{64}$/;
-export function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
+export {fail};
 export const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 /**
  * Native reads that return submitted leads, the answers people gave in lead forms, and so are personal data. The policy

@@ -1,8 +1,9 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
+import {familyStateErrors, type StateFlaggedRefusal} from './family-kit.js';
 import {stable} from './security.js';
-import {changedStateFields} from './review-state.js';
+import {changedStateFields} from './review-state-core.js';
 import {
   snapTargetingKind,
   assertSnapTargeting,
@@ -126,14 +127,7 @@ const targetCostGoals = [
 ];
 const metadata =
   /^(?:created_at|updated_at|delivery_status|effective_status|review_status(?:_.*)?|rejection(?:_.*)?|approval(?:_.*)?|deleted|request_id|sub_request_warnings|auto_bid|target_bid|targeting_reach_status|separated_types)$/;
-function fail(message: string, state = false): never {
-  throw new MirrorError(
-    state ? 'SNAPCHAT_UPDATE_STATE_UNVERIFIED' : 'INVALID_SNAPCHAT_UPDATE',
-    message,
-    {},
-    state ? 502 : 400,
-  );
-}
+const fail: StateFlaggedRefusal = familyStateErrors('INVALID_SNAPCHAT_UPDATE', 'SNAPCHAT_UPDATE_STATE_UNVERIFIED');
 const fields = (k: Kind) =>
   k.collection === 'ads' ? [...adIdentity, ...adMutable] : [...squadIdentity, ...squadMutable];
 const mutable = (k: Kind) => (k.collection === 'ads' ? adMutable : squadMutable);

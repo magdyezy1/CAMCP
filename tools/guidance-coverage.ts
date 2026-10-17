@@ -111,6 +111,8 @@ const operational: [string, string[]][] = [
       'CONFIG_ERROR',
       'INTERNAL_ERROR',
       'REVIEWED_FAMILY_CONFLICT',
+      // ARC-04: a malformed family declaration (src/family-kit.ts defineFamily) refuses when its module loads.
+      'REVIEWED_FAMILY_INVALID',
       'SCHEMA_VERSION_MISMATCH',
       // OPS-08: a database written by a newer release than this one can read; refused at start-up only.
       'SCHEMA_TOO_NEW',
@@ -181,10 +183,12 @@ export function guidanceCoverage(root = 'src') {
   const guides = guidanceResources.map(r => readGuidance(r.uri).text).join('\n');
   const modules = writePathModules(root);
   const codes = new Set<string>();
+  // A one-code refusal the family kit builds (`familyCodeError('CODE')`, ARC-04 stage C) names its code where the
+  // module's own helper had named it in `new MirrorError('CODE', ...)`.
   for (const file of modules)
     for (const m of fs
       .readFileSync(path.join(root, file), 'utf8')
-      .matchAll(/(?:new MirrorError\(|fail\()\s*'([A-Z][A-Z0-9_]{3,})'/g))
+      .matchAll(/(?:new MirrorError\(|fail\(|familyCodeError\()\s*'([A-Z][A-Z0-9_]{3,})'/g))
       codes.add(m[1]!);
   const family = (c: string) => undocumentedFamilies.find(([pattern]) => pattern.test(c));
   const documented = [...codes].filter(c => guides.includes(c));

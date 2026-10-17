@@ -1,7 +1,7 @@
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {fail} from './family-kit.js';
 
 /**
  * Ad comment blocked words, per TikTok API for Business v1.3 "Create blocked words", "Update a blocked word", "Delete
@@ -26,9 +26,6 @@ const gateway = 'tiktok_native_action',
   maxPages = 5,
   langs = ['EN', 'JA', 'ZH'];
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_TIKTOK_BLOCKED_WORD', message);
 }

@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {defineFamily, fail} from './family-kit.js';
 
 /**
  * Media library and account media of an X Ads account, Ads API v12 (Creatives reference, "Media Library" and "Account
@@ -19,9 +20,6 @@ const limits: Record<string, number> = {name: 100, file_name: 255, title: 70, de
   videoOnly = ['title', 'description', 'poster_media_key'],
   moving = ['VIDEO', 'GIF'];
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_X_MEDIA_LIBRARY', message);
 }
@@ -397,7 +395,7 @@ export function xMediaObserved(_read: CompiledRequest, data: JsonObject): JsonOb
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const xMediaFamily: ReviewedFamily = {
+export const xMediaFamily: ReviewedFamily = defineFamily({
   name: 'x_media_library',
   files: ['src/x-media-library.ts', ['tests/x-media-library.test.mjs']],
   kind: xMediaKind,
@@ -412,4 +410,4 @@ export const xMediaFamily: ReviewedFamily = {
   verification: xMediaVerification,
   observed: xMediaObserved,
   exemptFromSpendTextMatch: true,
-};
+});

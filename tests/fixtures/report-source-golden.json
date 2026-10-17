@@ -1,0 +1,1485 @@
+{
+  "schema_version": 1,
+  "records": [
+    {
+      "platform": "google",
+      "raw": {
+        "campaign": {
+          "id": "1",
+          "name": "Google campaign",
+          "status": "ENABLED"
+        },
+        "customer": {
+          "currencyCode": "USD"
+        },
+        "metrics": {
+          "costMicros": "1500000",
+          "impressions": "10",
+          "clicks": "2",
+          "conversions": 1.5,
+          "conversionsValue": "20.5",
+          "videoViews": "3",
+          "engagements": "4",
+          "allConversions": "2.5",
+          "allConversionsValue": 7
+        },
+        "segments": {
+          "date": "2026-10-01"
+        }
+      },
+      "output": {
+        "campaign_id": "1",
+        "campaign_name": "Google campaign",
+        "objective": "unknown",
+        "objective_group": "unknown",
+        "currency": "USD",
+        "metrics": {
+          "spend": 1.5,
+          "impressions": 10,
+          "clicks": 2,
+          "conversions": 1.5,
+          "conversion_value": 20.5,
+          "video_views": 3,
+          "engagements": 4,
+          "native_google_metrics_costMicros": 1500000,
+          "native_google_metrics_impressions": 10,
+          "native_google_metrics_clicks": 2,
+          "native_google_metrics_conversions": 1.5,
+          "native_google_metrics_conversionsValue": 20.5,
+          "native_google_metrics_videoViews": 3,
+          "native_google_metrics_engagements": 4,
+          "native_google_metrics_allConversions": 2.5,
+          "native_google_metrics_allConversionsValue": 7
+        },
+        "native": {
+          "campaign": {
+            "id": "1",
+            "name": "Google campaign",
+            "status": "ENABLED"
+          },
+          "customer": {
+            "currencyCode": "USD"
+          },
+          "metrics": {
+            "costMicros": "1500000",
+            "impressions": "10",
+            "clicks": "2",
+            "conversions": 1.5,
+            "conversionsValue": "20.5",
+            "videoViews": "3",
+            "engagements": "4",
+            "allConversions": "2.5",
+            "allConversionsValue": 7
+          },
+          "segments": {
+            "date": "2026-10-01"
+          }
+        }
+      }
+    },
+    {
+      "platform": "google",
+      "raw": {
+        "campaign": {
+          "id": 2
+        }
+      },
+      "output": {
+        "campaign_id": "2",
+        "campaign_name": "2",
+        "objective": "unknown",
+        "objective_group": "unknown",
+        "currency": null,
+        "metrics": {
+          "spend": null,
+          "impressions": null,
+          "clicks": null,
+          "conversions": null,
+          "conversion_value": null,
+          "video_views": null,
+          "engagements": null
+        },
+        "native": {
+          "campaign": {
+            "id": 2
+          }
+        }
+      }
+    },
+    {
+      "platform": "google",
+      "raw": {
+        "campaign": {
+          "id": "3",
+          "name": "No metrics"
+        },
+        "metrics": null,
+        "customer": null
+      },
+      "output": {
+        "campaign_id": "3",
+        "campaign_name": "No metrics",
+        "objective": "unknown",
+        "objective_group": "unknown",
+        "currency": null,
+        "metrics": {
+          "spend": null,
+          "impressions": null,
+          "clicks": null,
+          "conversions": null,
+          "conversion_value": null,
+          "video_views": null,
+          "engagements": null
+        },
+        "native": {
+          "campaign": {
+            "id": "3",
+            "name": "No metrics"
+          },
+          "metrics": null,
+          "customer": null
+        }
+      }
+    },
+    {
+      "platform": "google",
+      "raw": {
+        "campaign": {
+          "id": "4",
+          "name": "Strings"
+        },
+        "metrics": {
+          "costMicros": "abc",
+          "impressions": "1e3",
+          "clicks": -2
+        }
+      },
+      "output": {
+        "campaign_id": "4",
+        "campaign_name": "Strings",
+        "objective": "unknown",
+        "objective_group": "unknown",
+        "currency": null,
+        "metrics": {
+          "spend": null,
+          "impressions": 1000,
+          "clicks": -2,
+          "conversions": null,
+          "conversion_value": null,
+          "video_views": null,
+          "engagements": null,
+          "native_google_metrics_clicks": -2
+        },
+        "native": {
+          "campaign": {
+            "id": "4",
+            "name": "Strings"
+          },
+          "metrics": {
+            "costMicros": "abc",
+            "impressions": "1e3",
+            "clicks": -2
+          }
+        }
+      }
+    },
+    {
+      "platform": "meta",
+      "raw": {
+        "campaign_id": "1",
+        "campaign_name": "Leads",
+        "objective": "OUTCOME_LEADS",
+        "account_id": "100",
+        "date_start": "2026-10-01",
+        "date_stop": "2026-10-01",
+        "spend": "12.34",
+        "impressions": "100",
+        "clicks": "5",
+        "reach": "80",
+        "frequency": "1.25",
+        "actions": [
+          {
+            "action_type": "lead",
+            "value": "3"
+          },
+          {
+            "action_type": "video_view",
+            "value": "7"
+          },
+          {
+            "action_type": "post_engagement",
+            "value": "11"
+          }
+        ],
+        "action_values": [
+          {
+            "action_type": "purchase",
+            "value": "9.5"
+          }
+        ],
+        "cost_per_action_type": [
+          {
+            "action_type": "lead",
+            "value": "4.11"
+          }
+        ]
+      },
+      "output": {
+        "campaign_id": "1",
+        "campaign_name": "Leads",
+        "objective": "OUTCOME_LEADS",
+        "objective_group": "leads",
+        "currency": null,
+        "metrics": {
+          "spend": 12.34,
+          "impressions": 100,
+          "clicks": 5,
+          "reach": 80,
+          "frequency": 1.25,
+          "leads": 3,
+          "purchases": 0,
+          "installs": 0,
+          "conversions": 3,
+          "conversion_value": 9.5,
+          "video_views": 7,
+          "engagements": 11,
+          "native_meta_spend": 12.34,
+          "native_meta_impressions": 100,
+          "native_meta_clicks": 5,
+          "native_meta_reach": 80,
+          "native_meta_frequency": 1.25,
+          "native_meta_actions_lead": 3,
+          "native_meta_actions_video_view": 7,
+          "native_meta_actions_post_engagement": 11,
+          "native_meta_action_values_purchase": 9.5,
+          "native_meta_cost_per_action_type_lead": 4.11
+        },
+        "omitted_as_zero": [
+          "installs",
+          "purchases"
+        ],
+        "native": {
+          "campaign_id": "1",
+          "campaign_name": "Leads",
+          "objective": "OUTCOME_LEADS",
+          "account_id": "100",
+          "date_start": "2026-10-01",
+          "date_stop": "2026-10-01",
+          "spend": "12.34",
+          "impressions": "100",
+          "clicks": "5",
+          "reach": "80",
+          "frequency": "1.25",
+          "actions": [
+            {
+              "action_type": "lead",
+              "value": "3"
+            },
+            {
+              "action_type": "video_view",
+              "value": "7"
+            },
+            {
+              "action_type": "post_engagement",
+              "value": "11"
+            }
+          ],
+          "action_values": [
+            {
+              "action_type": "purchase",
+              "value": "9.5"
+            }
+          ],
+          "cost_per_action_type": [
+            {
+              "action_type": "lead",
+              "value": "4.11"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "platform": "meta",
+      "raw": {
+        "campaign_id": "2",
+        "campaign_name": "Sales",
+        "objective": "OUTCOME_SALES",
+        "impressions": "50",
+        "spend": "1"
+      },
+      "output": {
+        "campaign_id": "2",
+        "campaign_name": "Sales",
+        "objective": "OUTCOME_SALES",
+        "objective_group": "sales",
+        "currency": null,
+        "metrics": {
+          "spend": 1,
+          "impressions": 50,
+          "clicks": null,
+          "reach": null,
+          "frequency": null,
+          "leads": 0,
+          "purchases": 0,
+          "installs": 0,
+          "conversions": 0,
+          "conversion_value": 0,
+          "video_views": 0,
+          "engagements": 0,
+          "native_meta_impressions": 50,
+          "native_meta_spend": 1
+        },
+        "omitted_as_zero": [
+          "conversion_value",
+          "conversions",
+          "engagements",
+          "installs",
+          "leads",
+          "purchases",
+          "video_views"
+        ],
+        "native": {
+          "campaign_id": "2",
+          "campaign_name": "Sales",
+          "objective": "OUTCOME_SALES",
+          "impressions": "50",
+          "spend": "1"
+        }
+      }
+    },
+    {
+      "platform": "meta",
+      "raw": {
+        "campaign_id": "3",
+        "objective": "OUTCOME_APP_PROMOTION",
+        "impressions": "0"
+      },
+      "output": {
+        "campaign_id": "3",
+        "campaign_name": "3",
+        "objective": "OUTCOME_APP_PROMOTION",
+        "objective_group": "app_installs",
+        "currency": null,
+        "metrics": {
+          "spend": null,
+          "impressions": 0,
+          "clicks": null,
+          "reach": null,
+          "frequency": null,
+          "leads": null,
+          "purchases": null,
+          "installs": null,
+          "conversions": null,
+          "conversion_value": null,
+          "video_views": null,
+          "engagements": null,
+          "native_meta_impressions": 0
+        },
+        "native": {
+          "campaign_id": "3",
+          "objective": "OUTCOME_APP_PROMOTION",
+          "impressions": "0"
+        }
+      }
+    },
+    {
+      "platform": "meta",
+      "raw": {
+        "campaign_id": "4",
+        "objective": "OUTCOME_LEADS",
+        "impressions": "9",
+        "actions": "not-an-array"
+      },
+      "output": {
+        "campaign_id": "4",
+        "campaign_name": "4",
+        "objective": "OUTCOME_LEADS",
+        "objective_group": "leads",
+        "currency": null,
+        "metrics": {
+          "spend": null,
+          "impressions": 9,
+          "clicks": null,
+          "reach": null,
+          "frequency": null,
+          "leads": null,
+          "purchases": null,
+          "installs": null,
+          "conversions": null,
+          "conversion_value": 0,
+          "video_views": null,
+          "engagements": null,
+          "native_meta_impressions": 9
+        },
+        "omitted_as_zero": [
+          "conversion_value"
+        ],
+        "native": {
+          "campaign_id": "4",
+          "objective": "OUTCOME_LEADS",
+          "impressions": "9",
+          "actions": "not-an-array"
+        }
+      }
+    },
+    {
+      "platform": "meta",
+      "raw": {
+        "campaign_id": "5",
+        "objective": "SOMETHING_NEW",
+        "impressions": "9",
+        "actions": [
+          {
+            "action_type": "omni_purchase",
+            "value": "2"
+          },
+          {
+            "action_type": "app_install",
+            "value": "1"
+          }
+        ]
+      },
+      "output": {
+        "campaign_id": "5",
+        "campaign_name": "5",
+        "objective": "SOMETHING_NEW",
+        "objective_group": "unknown",
+        "currency": null,
+        "metrics": {
+          "spend": null,
+          "impressions": 9,
+          "clicks": null,
+          "reach": null,
+          "frequency": null,
+          "leads": 0,
+          "purchases": 2,
+          "installs": 1,
+          "conversions": null,
+          "conversion_value": 0,
+          "video_views": 0,
+          "engagements": 0,
+          "native_meta_impressions": 9,
+          "native_meta_actions_omni_purchase": 2,
+          "native_meta_actions_app_install": 1
+        },
+        "omitted_as_zero": [
+          "conversion_value",
+          "engagements",
+          "leads",
+          "video_views"
+        ],
+        "native": {
+          "campaign_id": "5",
+          "objective": "SOMETHING_NEW",
+          "impressions": "9",
+          "actions": [
+            {
+              "action_type": "omni_purchase",
+              "value": "2"
+            },
+            {
+              "action_type": "app_install",
+              "value": "1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "platform": "meta",
+      "raw": {
+        "campaign_id": "6",
+        "objective": "OUTCOME_SALES",
+        "impressions": "9",
+        "actions": [
+          {
+            "action_type": "offsite_conversion.fb_pixel_purchase",
+            "value": "2"
+          }
+        ],
+        "action_values": []
+      },
+      "output": {
+        "campaign_id": "6",
+        "campaign_name": "6",
+        "objective": "OUTCOME_SALES",
+        "objective_group": "sales",
+        "currency": null,
+        "metrics": {
+          "spend": null,
+          "impressions": 9,
+          "clicks": null,
+          "reach": null,
+          "frequency": null,
+          "leads": 0,
+          "purchases": 2,
+          "installs": 0,
+          "conversions": 2,
+          "conversion_value": 0,
+          "video_views": 0,
+          "engagements": 0,
+          "native_meta_impressions": 9,
+          "native_meta_actions_offsite_conversion_fb_pixel_purchase": 2
+        },
+        "omitted_as_zero": [
+          "conversion_value",
+          "engagements",
+          "installs",
+          "leads",
+          "video_views"
+        ],
+        "native": {
+          "campaign_id": "6",
+          "objective": "OUTCOME_SALES",
+          "impressions": "9",
+          "actions": [
+            {
+              "action_type": "offsite_conversion.fb_pixel_purchase",
+              "value": "2"
+            }
+          ],
+          "action_values": []
+        }
+      }
+    },
+    {
+      "platform": "tiktok",
+      "raw": {
+        "dimensions": {
+          "campaign_id": "1"
+        },
+        "metrics": {
+          "campaign_name": "TikTok",
+          "spend": "1.5",
+          "impressions": "10",
+          "clicks": "1",
+          "conversion": "2",
+          "reach": "8",
+          "frequency": "1.2",
+          "video_play_actions": "5",
+          "video_views_p100": "1",
+          "total_purchase": "1",
+          "total_purchase_value": "9.99",
+          "likes": "3"
+        },
+        "objective_type": "CONVERSIONS",
+        "optimization_events": [
+          "ON_WEB_ORDER"
+        ]
+      },
+      "output": {
+        "campaign_id": "1",
+        "campaign_name": "TikTok",
+        "objective": "CONVERSIONS",
+        "objective_group": "sales",
+        "currency": null,
+        "metrics": {
+          "spend": 1.5,
+          "impressions": 10,
+          "clicks": 1,
+          "conversions": 2,
+          "reach": 8,
+          "frequency": 1.2,
+          "video_views": 5,
+          "video_completions": 1,
+          "purchases": 1,
+          "conversion_value": 9.99,
+          "native_tiktok_metrics_spend": 1.5,
+          "native_tiktok_metrics_impressions": 10,
+          "native_tiktok_metrics_clicks": 1,
+          "native_tiktok_metrics_conversion": 2,
+          "native_tiktok_metrics_reach": 8,
+          "native_tiktok_metrics_frequency": 1.2,
+          "native_tiktok_metrics_video_play_actions": 5,
+          "native_tiktok_metrics_video_views_p100": 1,
+          "native_tiktok_metrics_total_purchase": 1,
+          "native_tiktok_metrics_total_purchase_value": 9.99,
+          "native_tiktok_metrics_likes": 3
+        },
+        "result_definition": "TikTok conversions for optimization event ON_WEB_ORDER",
+        "native": {
+          "dimensions": {
+            "campaign_id": "1"
+          },
+          "metrics": {
+            "campaign_name": "TikTok",
+            "spend": "1.5",
+            "impressions": "10",
+            "clicks": "1",
+            "conversion": "2",
+            "reach": "8",
+            "frequency": "1.2",
+            "video_play_actions": "5",
+            "video_views_p100": "1",
+            "total_purchase": "1",
+            "total_purchase_value": "9.99",
+            "likes": "3"
+          },
+          "objective_type": "CONVERSIONS",
+          "optimization_events": [
+            "ON_WEB_ORDER"
+          ]
+        }
+      }
+    },
+    {
+      "platform": "tiktok",
+      "raw": {
+        "dimensions": {
+          "campaign_id": "2"
+        },
+        "metrics": {
+          "campaign_name": "Mixed"
+        },
+        "optimization_events": [
+          "A",
+          "B"
+        ]
+      },
+      "output": {
+        "campaign_id": "2",
+        "campaign_name": "Mixed",
+        "objective": "unknown",
+        "objective_group": "unknown",
+        "currency": null,
+        "metrics": {
+          "spend": null,
+          "impressions": null,
+          "clicks": null,
+          "conversions": null,
+          "reach": null,
+          "frequency": null,
+          "video_views": null,
+          "video_completions": null,
+          "purchases": null,
+          "conversion_value": null
+        },
+        "result_definition": "TikTok conversions mixing optimization events: A, B",
+        "mixed_result_definition": true,
+        "native": {
+          "dimensions": {
+            "campaign_id": "2"
+          },
+          "metrics": {
+            "campaign_name": "Mixed"
+          },
+          "optimization_events": [
+            "A",
+            "B"
+          ]
+        }
+      }
+    },
+    {
+      "platform": "tiktok",
+      "raw": {
+        "dimensions": {
+          "campaign_id": "3"
+        }
+      },
+      "output": {
+        "campaign_id": "3",
+        "campaign_name": "3",
+        "objective": "unknown",
+        "objective_group": "unknown",
+        "currency": null,
+        "metrics": {
+          "spend": null,
+          "impressions": null,
+          "clicks": null,
+          "conversions": null,
+          "reach": null,
+          "frequency": null,
+          "video_views": null,
+          "video_completions": null,
+          "purchases": null,
+          "conversion_value": null
+        },
+        "native": {
+          "dimensions": {
+            "campaign_id": "3"
+          }
+        }
+      }
+    },
+    {
+      "platform": "snapchat",
+      "raw": {
+        "id": "s1",
+        "name": "Leads",
+        "objective": "LEAD_GENERATION",
+        "stats": {
+          "spend": 2000000,
+          "impressions": 10,
+          "swipes": 2,
+          "conversion_purchases": 1,
+          "conversion_purchases_value": 5000000,
+          "conversion_sign_ups": 3,
+          "total_installs": 4,
+          "video_views": 5,
+          "view_completion": 6
+        }
+      },
+      "output": {
+        "campaign_id": "s1",
+        "campaign_name": "Leads",
+        "objective": "LEAD_GENERATION",
+        "objective_group": "leads",
+        "currency": null,
+        "metrics": {
+          "spend": 2,
+          "impressions": 10,
+          "clicks": 2,
+          "purchases": 1,
+          "conversion_value": 5,
+          "leads": 3,
+          "installs": 4,
+          "video_views": 5,
+          "video_completions": 6,
+          "conversions": 3,
+          "native_snapchat_stats_spend": 2000000,
+          "native_snapchat_stats_impressions": 10,
+          "native_snapchat_stats_swipes": 2,
+          "native_snapchat_stats_conversion_purchases": 1,
+          "native_snapchat_stats_conversion_purchases_value": 5000000,
+          "native_snapchat_stats_conversion_sign_ups": 3,
+          "native_snapchat_stats_total_installs": 4,
+          "native_snapchat_stats_video_views": 5,
+          "native_snapchat_stats_view_completion": 6
+        },
+        "native": {
+          "id": "s1",
+          "name": "Leads",
+          "objective": "LEAD_GENERATION",
+          "stats": {
+            "spend": 2000000,
+            "impressions": 10,
+            "swipes": 2,
+            "conversion_purchases": 1,
+            "conversion_purchases_value": 5000000,
+            "conversion_sign_ups": 3,
+            "total_installs": 4,
+            "video_views": 5,
+            "view_completion": 6
+          }
+        }
+      }
+    },
+    {
+      "platform": "snapchat",
+      "raw": {
+        "id": "s2",
+        "name": "Installs",
+        "objective": "APP_INSTALLS",
+        "stats": {
+          "total_installs": 7
+        }
+      },
+      "output": {
+        "campaign_id": "s2",
+        "campaign_name": "Installs",
+        "objective": "APP_INSTALLS",
+        "objective_group": "app_installs",
+        "currency": null,
+        "metrics": {
+          "spend": null,
+          "impressions": null,
+          "clicks": null,
+          "purchases": null,
+          "conversion_value": null,
+          "leads": null,
+          "installs": 7,
+          "video_views": null,
+          "video_completions": null,
+          "conversions": 7,
+          "native_snapchat_stats_total_installs": 7
+        },
+        "native": {
+          "id": "s2",
+          "name": "Installs",
+          "objective": "APP_INSTALLS",
+          "stats": {
+            "total_installs": 7
+          }
+        }
+      }
+    },
+    {
+      "platform": "snapchat",
+      "raw": {
+        "id": "s3",
+        "name": "Sales",
+        "objective": "WEB_CONVERSION",
+        "stats": {
+          "conversion_purchases": 2
+        }
+      },
+      "output": {
+        "campaign_id": "s3",
+        "campaign_name": "Sales",
+        "objective": "WEB_CONVERSION",
+        "objective_group": "sales",
+        "currency": null,
+        "metrics": {
+          "spend": null,
+          "impressions": null,
+          "clicks": null,
+          "purchases": 2,
+          "conversion_value": null,
+          "leads": null,
+          "installs": null,
+          "video_views": null,
+          "video_completions": null,
+          "conversions": 2,
+          "native_snapchat_stats_conversion_purchases": 2
+        },
+        "native": {
+          "id": "s3",
+          "name": "Sales",
+          "objective": "WEB_CONVERSION",
+          "stats": {
+            "conversion_purchases": 2
+          }
+        }
+      }
+    },
+    {
+      "platform": "snapchat",
+      "raw": {
+        "id": "s4",
+        "objective": "AWARENESS"
+      },
+      "output": {
+        "campaign_id": "s4",
+        "campaign_name": "s4",
+        "objective": "AWARENESS",
+        "objective_group": "awareness",
+        "currency": null,
+        "metrics": {
+          "spend": null,
+          "impressions": null,
+          "clicks": null,
+          "purchases": null,
+          "conversion_value": null,
+          "leads": null,
+          "installs": null,
+          "video_views": null,
+          "video_completions": null,
+          "conversions": null
+        },
+        "native": {
+          "id": "s4",
+          "objective": "AWARENESS"
+        }
+      }
+    },
+    {
+      "platform": "linkedin",
+      "raw": {
+        "pivotValues": [
+          "urn:li:sponsoredCampaign:123"
+        ],
+        "name": "LinkedIn",
+        "objectiveType": "LEAD_GENERATION",
+        "costInLocalCurrency": "10.5",
+        "impressions": 100,
+        "clicks": 2,
+        "externalWebsiteConversions": 1,
+        "conversionValueInLocalCurrency": "3",
+        "oneClickLeads": 2,
+        "videoViews": 1,
+        "videoCompletions": 0,
+        "likes": 4
+      },
+      "output": {
+        "campaign_id": "123",
+        "campaign_name": "LinkedIn",
+        "objective": "LEAD_GENERATION",
+        "objective_group": "leads",
+        "currency": null,
+        "metrics": {
+          "spend": 10.5,
+          "impressions": 100,
+          "clicks": 2,
+          "conversions": 1,
+          "conversion_value": 3,
+          "leads": 2,
+          "video_views": 1,
+          "video_completions": 0,
+          "native_linkedin_costInLocalCurrency": 10.5,
+          "native_linkedin_impressions": 100,
+          "native_linkedin_clicks": 2,
+          "native_linkedin_externalWebsiteConversions": 1,
+          "native_linkedin_conversionValueInLocalCurrency": 3,
+          "native_linkedin_oneClickLeads": 2,
+          "native_linkedin_videoViews": 1,
+          "native_linkedin_videoCompletions": 0,
+          "native_linkedin_likes": 4
+        },
+        "native": {
+          "pivotValues": [
+            "urn:li:sponsoredCampaign:123"
+          ],
+          "name": "LinkedIn",
+          "objectiveType": "LEAD_GENERATION",
+          "costInLocalCurrency": "10.5",
+          "impressions": 100,
+          "clicks": 2,
+          "externalWebsiteConversions": 1,
+          "conversionValueInLocalCurrency": "3",
+          "oneClickLeads": 2,
+          "videoViews": 1,
+          "videoCompletions": 0,
+          "likes": 4
+        }
+      }
+    },
+    {
+      "platform": "linkedin",
+      "raw": {
+        "pivotValues": [
+          "urn:li:sponsoredCampaign:124"
+        ]
+      },
+      "output": {
+        "campaign_id": "124",
+        "campaign_name": "124",
+        "objective": "unknown",
+        "objective_group": "unknown",
+        "currency": null,
+        "metrics": {
+          "spend": null,
+          "impressions": null,
+          "clicks": null,
+          "conversions": null,
+          "conversion_value": null,
+          "leads": null,
+          "video_views": null,
+          "video_completions": null
+        },
+        "native": {
+          "pivotValues": [
+            "urn:li:sponsoredCampaign:124"
+          ]
+        }
+      }
+    },
+    {
+      "platform": "x",
+      "raw": {
+        "id": "x1",
+        "name": "X campaign",
+        "objective": "WEBSITE_CLICKS",
+        "metrics": {
+          "spend": 1.2,
+          "impressions": 3,
+          "engagements": 1
+        }
+      },
+      "output": {
+        "campaign_id": "x1",
+        "campaign_name": "X campaign",
+        "objective": "WEBSITE_CLICKS",
+        "objective_group": "traffic",
+        "currency": null,
+        "metrics": {
+          "spend": 1.2,
+          "impressions": 3,
+          "engagements": 1,
+          "native_x_metrics_spend": 1.2,
+          "native_x_metrics_impressions": 3,
+          "native_x_metrics_engagements": 1
+        },
+        "native": {
+          "id": "x1",
+          "name": "X campaign",
+          "objective": "WEBSITE_CLICKS",
+          "metrics": {
+            "spend": 1.2,
+            "impressions": 3,
+            "engagements": 1
+          }
+        }
+      }
+    },
+    {
+      "platform": "x",
+      "raw": {
+        "id": "x2"
+      },
+      "output": {
+        "campaign_id": "x2",
+        "campaign_name": "x2",
+        "objective": "unknown",
+        "objective_group": "unknown",
+        "currency": null,
+        "metrics": {},
+        "native": {
+          "id": "x2"
+        }
+      }
+    },
+    {
+      "platform": "microsoft",
+      "raw": {
+        "CampaignId": "5",
+        "CampaignName": "Microsoft",
+        "CurrencyCode": "USD",
+        "Spend": "1.23",
+        "Impressions": "10",
+        "Clicks": "1",
+        "Conversions": "0.5",
+        "Revenue": "2",
+        "AllConversions": "1"
+      },
+      "output": {
+        "campaign_id": "5",
+        "campaign_name": "Microsoft",
+        "objective": "unknown",
+        "objective_group": "unknown",
+        "currency": "USD",
+        "metrics": {
+          "spend": 1.23,
+          "impressions": 10,
+          "clicks": 1,
+          "conversions": 0.5,
+          "conversion_value": 2,
+          "native_microsoft_Spend": 1.23,
+          "native_microsoft_Impressions": 10,
+          "native_microsoft_Clicks": 1,
+          "native_microsoft_Conversions": 0.5,
+          "native_microsoft_Revenue": 2,
+          "native_microsoft_AllConversions": 1
+        },
+        "native": {
+          "CampaignId": "5",
+          "CampaignName": "Microsoft",
+          "CurrencyCode": "USD",
+          "Spend": "1.23",
+          "Impressions": "10",
+          "Clicks": "1",
+          "Conversions": "0.5",
+          "Revenue": "2",
+          "AllConversions": "1"
+        }
+      }
+    },
+    {
+      "platform": "microsoft",
+      "raw": {
+        "CampaignId": 6
+      },
+      "output": {
+        "campaign_id": "6",
+        "campaign_name": "6",
+        "objective": "unknown",
+        "objective_group": "unknown",
+        "currency": null,
+        "metrics": {
+          "spend": null,
+          "impressions": null,
+          "clicks": null,
+          "conversions": null,
+          "conversion_value": null
+        },
+        "native": {
+          "CampaignId": 6
+        }
+      }
+    },
+    {
+      "platform": "apple",
+      "raw": {
+        "metadata": {
+          "id": 7,
+          "name": "Apple"
+        },
+        "totalMetrics": {
+          "localSpend": {
+            "amount": "1.5",
+            "currency": "USD"
+          },
+          "impressions": 10,
+          "taps": 2,
+          "totalInstalls": 3,
+          "newDownloads": 1
+        }
+      },
+      "output": {
+        "campaign_id": "7",
+        "campaign_name": "Apple",
+        "objective": "APP_INSTALLS",
+        "objective_group": "app_installs",
+        "currency": "USD",
+        "metrics": {
+          "spend": 1.5,
+          "impressions": 10,
+          "clicks": 2,
+          "installs": 3,
+          "conversions": 3,
+          "native_apple_totalMetrics_localSpend_amount": 1.5,
+          "native_apple_totalMetrics_impressions": 10,
+          "native_apple_totalMetrics_taps": 2,
+          "native_apple_totalMetrics_totalInstalls": 3,
+          "native_apple_totalMetrics_newDownloads": 1
+        },
+        "native": {
+          "metadata": {
+            "id": 7,
+            "name": "Apple"
+          },
+          "totalMetrics": {
+            "localSpend": {
+              "amount": "1.5",
+              "currency": "USD"
+            },
+            "impressions": 10,
+            "taps": 2,
+            "totalInstalls": 3,
+            "newDownloads": 1
+          }
+        }
+      }
+    },
+    {
+      "platform": "apple",
+      "raw": {
+        "metadata": {
+          "id": 8
+        },
+        "totalMetrics": {}
+      },
+      "output": {
+        "campaign_id": "8",
+        "campaign_name": "8",
+        "objective": "APP_INSTALLS",
+        "objective_group": "app_installs",
+        "currency": null,
+        "metrics": {
+          "spend": null,
+          "impressions": null,
+          "clicks": null,
+          "installs": null,
+          "conversions": null
+        },
+        "native": {
+          "metadata": {
+            "id": 8
+          },
+          "totalMetrics": {}
+        }
+      }
+    },
+    {
+      "platform": "apple",
+      "raw": {
+        "metadata": {
+          "id": 9
+        }
+      },
+      "error": {
+        "code": "REPORT_SHAPE_CHANGED",
+        "message": "Apple v1 report row is missing totalMetrics.",
+        "status": 502
+      }
+    },
+    {
+      "platform": "reddit",
+      "raw": {
+        "campaign_id": "r1",
+        "campaign_name": "Reddit",
+        "objective": "CONVERSIONS",
+        "SPEND": 2000000,
+        "IMPRESSIONS": 10,
+        "CLICKS": 1,
+        "CONVERSION_PURCHASE_TOTAL_ITEMS": 1,
+        "CONVERSION_PURCHASE_TOTAL_VALUE": 1999,
+        "VIDEO_STARTED": 4
+      },
+      "output": {
+        "campaign_id": "r1",
+        "campaign_name": "Reddit",
+        "objective": "CONVERSIONS",
+        "objective_group": "sales",
+        "currency": null,
+        "metrics": {
+          "spend": 2,
+          "impressions": 10,
+          "clicks": 1,
+          "purchases": 1,
+          "conversion_value": 19.99,
+          "native_reddit_SPEND": 2000000,
+          "native_reddit_IMPRESSIONS": 10,
+          "native_reddit_CLICKS": 1,
+          "native_reddit_CONVERSION_PURCHASE_TOTAL_ITEMS": 1,
+          "native_reddit_CONVERSION_PURCHASE_TOTAL_VALUE": 1999,
+          "native_reddit_VIDEO_STARTED": 4
+        },
+        "native": {
+          "campaign_id": "r1",
+          "campaign_name": "Reddit",
+          "objective": "CONVERSIONS",
+          "SPEND": 2000000,
+          "IMPRESSIONS": 10,
+          "CLICKS": 1,
+          "CONVERSION_PURCHASE_TOTAL_ITEMS": 1,
+          "CONVERSION_PURCHASE_TOTAL_VALUE": 1999,
+          "VIDEO_STARTED": 4
+        }
+      }
+    },
+    {
+      "platform": "reddit",
+      "raw": {
+        "CAMPAIGN_ID": "r2",
+        "spend": 1000000,
+        "impressions": 5,
+        "clicks": 1,
+        "conversion_purchase_total_items": 2,
+        "conversion_purchase_total_value": 250
+      },
+      "output": {
+        "campaign_id": "r2",
+        "campaign_name": "r2",
+        "objective": "unknown",
+        "objective_group": "unknown",
+        "currency": null,
+        "metrics": {
+          "spend": 1,
+          "impressions": 5,
+          "clicks": 1,
+          "purchases": 2,
+          "conversion_value": 2.5,
+          "native_reddit_spend": 1000000,
+          "native_reddit_impressions": 5,
+          "native_reddit_clicks": 1,
+          "native_reddit_conversion_purchase_total_items": 2,
+          "native_reddit_conversion_purchase_total_value": 250
+        },
+        "native": {
+          "CAMPAIGN_ID": "r2",
+          "spend": 1000000,
+          "impressions": 5,
+          "clicks": 1,
+          "conversion_purchase_total_items": 2,
+          "conversion_purchase_total_value": 250
+        }
+      }
+    },
+    {
+      "platform": "ga4",
+      "raw": {
+        "campaign_id": "g1",
+        "campaign_name": "GA4",
+        "sessions": "10",
+        "totalUsers": "7",
+        "keyEvents": "2",
+        "totalRevenue": "9.5",
+        "ecommercePurchases": "1",
+        "engagementRate": null,
+        "bounceRate": "0.4"
+      },
+      "output": {
+        "campaign_id": "g1",
+        "campaign_name": "GA4",
+        "objective": "unknown",
+        "objective_group": "unknown",
+        "currency": null,
+        "metrics": {
+          "sessions": 10,
+          "users": 7,
+          "conversions": 2,
+          "conversion_value": 9.5,
+          "purchases": 1,
+          "native_ga4_sessions": 10,
+          "native_ga4_totalUsers": 7,
+          "native_ga4_keyEvents": 2,
+          "native_ga4_totalRevenue": 9.5,
+          "native_ga4_ecommercePurchases": 1,
+          "native_ga4_engagementRate": null,
+          "native_ga4_bounceRate": 0.4
+        },
+        "native": {
+          "campaign_id": "g1",
+          "campaign_name": "GA4",
+          "sessions": "10",
+          "totalUsers": "7",
+          "keyEvents": "2",
+          "totalRevenue": "9.5",
+          "ecommercePurchases": "1",
+          "engagementRate": null,
+          "bounceRate": "0.4"
+        }
+      }
+    },
+    {
+      "platform": "ga4",
+      "raw": {
+        "campaign_id": "(not set)"
+      },
+      "output": {
+        "campaign_id": "(not set)",
+        "campaign_name": "(not set)",
+        "objective": "unknown",
+        "objective_group": "unknown",
+        "currency": null,
+        "metrics": {
+          "sessions": null,
+          "users": null,
+          "conversions": null,
+          "conversion_value": null,
+          "purchases": null
+        },
+        "native": {
+          "campaign_id": "(not set)"
+        }
+      }
+    },
+    {
+      "platform": "gsc",
+      "raw": {
+        "keys": [
+          "https://example.com/"
+        ],
+        "clicks": 3,
+        "impressions": 30,
+        "position": 4.5,
+        "ctr": 0.1
+      },
+      "output": {
+        "campaign_id": "https://example.com/",
+        "campaign_name": "https://example.com/",
+        "objective": "unknown",
+        "objective_group": "unknown",
+        "currency": null,
+        "metrics": {
+          "clicks": 3,
+          "impressions": 30,
+          "position": 4.5,
+          "native_gsc_clicks": 3,
+          "native_gsc_impressions": 30,
+          "native_gsc_position": 4.5,
+          "native_gsc_ctr": 0.1
+        },
+        "native": {
+          "keys": [
+            "https://example.com/"
+          ],
+          "clicks": 3,
+          "impressions": 30,
+          "position": 4.5,
+          "ctr": 0.1
+        }
+      }
+    },
+    {
+      "platform": "gsc",
+      "raw": {
+        "clicks": 1
+      },
+      "output": {
+        "campaign_id": "site",
+        "campaign_name": "site",
+        "objective": "unknown",
+        "objective_group": "unknown",
+        "currency": null,
+        "metrics": {
+          "clicks": 1,
+          "impressions": null,
+          "position": null,
+          "native_gsc_clicks": 1
+        },
+        "native": {
+          "clicks": 1
+        }
+      }
+    },
+    {
+      "platform": "google",
+      "raw": {
+        "campaign": {}
+      },
+      "error": {
+        "code": "REPORT_ID_MISSING",
+        "message": "The provider report did not include a safe campaign/resource identifier.",
+        "status": 502
+      }
+    },
+    {
+      "platform": "google",
+      "raw": {
+        "campaign": {
+          "id": 9007199254740992
+        }
+      },
+      "error": {
+        "code": "REPORT_ID_MISSING",
+        "message": "The provider report did not include a safe campaign/resource identifier.",
+        "status": 502
+      }
+    },
+    {
+      "platform": "meta",
+      "raw": {
+        "campaign_name": "No id"
+      },
+      "error": {
+        "code": "REPORT_ID_MISSING",
+        "message": "The provider report did not include a safe campaign/resource identifier.",
+        "status": 502
+      }
+    },
+    {
+      "platform": "linkedin",
+      "raw": {
+        "pivotValues": []
+      },
+      "error": {
+        "code": "REPORT_ID_MISSING",
+        "message": "The provider report did not include a safe campaign/resource identifier.",
+        "status": 502
+      }
+    },
+    {
+      "platform": "other",
+      "raw": {
+        "id": "1"
+      },
+      "error": {
+        "code": "REPORT_ID_MISSING",
+        "message": "The provider report did not include a safe campaign/resource identifier.",
+        "status": 502
+      }
+    }
+  ],
+  "missing": {
+    "google": [
+      "metrics.interactions"
+    ],
+    "meta": [
+      "inline_link_clicks"
+    ],
+    "tiktok": [
+      "shares"
+    ],
+    "snapchat": [
+      "swipe_ups"
+    ],
+    "linkedin": [
+      "shares"
+    ],
+    "microsoft": [
+      "Assists"
+    ],
+    "apple": [],
+    "reddit": [
+      "VIDEO_VIEWABLE_IMPRESSIONS"
+    ],
+    "ga4": [
+      "eventCount"
+    ],
+    "gsc": [],
+    "x": []
+  }
+}

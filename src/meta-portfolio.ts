@@ -1,11 +1,10 @@
 import {bad, fingerprint, obj, validate, type ToolCall} from './workspace-core.js';
-import {normalizeAccount} from './scope.js';
-import {ReportCollectionBudget} from './report-collection-budget.js';
+import {normalizeAccount} from './account-id.js';
 import {metaApiVersion} from './meta-version.js';
-import {createHmac, timingSafeEqual} from 'node:crypto';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
-import {storedLogin} from './connection-authority.js';
+import {openCursor, sealCursor} from './signed-cursor.js';
+import {portfolioAuthority, portfolioReader, withPortfolioBudget, type PortfolioAdapter} from './portfolio-runner.js';
 
 const gateway = 'meta_native_action';
 const nativeId = (value: unknown): value is string => typeof value === 'string' && /^[1-9][0-9]{0,31}$/.test(value);
@@ -42,11 +41,6 @@ function text(value: unknown, max = 2000) {
 const cursorToken = (value: unknown): value is string =>
   typeof value === 'string' && value.length > 0 && value.length <= 4096 && !/[\u0000-\u0020\u007f]/.test(value);
 
-const signature = (value: JsonObject, key: string) =>
-  createHmac('sha256', key).update(fingerprint(value)).digest('hex');
-const encodeCursor = (value: JsonObject, key: string) =>
-  Buffer.from(JSON.stringify({...value, signature: signature(value, key)})).toString('base64url');
-
 /** Bounded native inventory. Parent ownership comes from a prior scoped read, never from the requested ID alone. */
 export async function metaPortfolioPage(store: Store, call: ToolCall, actor: Actor, input: JsonObject) {
   const config = input.requirements ?? {};
@@ -66,15 +60,13 @@ export async function metaPortfolioPage(store: Store, call: ToolCall, actor: Act
   )
     bad('Choose an exact parent campaign, and for ads its exact ad set.');
   const connection = store.resolveConnection(actor, gateway, account, input.connection_id);
-  const authorization = fingerprint(storedLogin(store, connection));
-  const current = () => {
-    const c = store.resolveConnection(actor, gateway, account, connection.id);
-    if (connection.scopes.some(scope => !c.scopes.includes(scope)))
-      bad('The selected login lost permissions. Restart the portfolio read.', 'INSUFFICIENT_SCOPE');
-    if (fingerprint(storedLogin(store, c)) !== authorization)
-      bad('The selected login changed. Restart the portfolio read.', 'CONNECTION_AUTHORITY_CHANGED');
-    return c;
-  };
+  const {authorization, current} = portfolioAuthority(store, actor, gateway, account, connection, {
+    binds: 'login',
+    // Every permission the login had when the read started.
+    permits: (c, first) => !first.scopes.some(scope => !c.scopes.includes(scope)),
+    missingScope: () => bad('The selected login lost permissions. Restart the portfolio read.', 'INSUFFICIENT_SCOPE'),
+    changed: () => bad('The selected login changed. Restart the portfolio read.', 'CONNECTION_AUTHORITY_CHANGED'),
+  });
   const binding = fingerprint({
     tenant: actor.tenantId,
     user: actor.userId,
@@ -95,28 +87,13 @@ export async function metaPortfolioPage(store: Store, call: ToolCall, actor: Act
     cursors: string[] = [];
   if (input.cursor !== undefined) {
     try {
-      if (typeof input.cursor !== 'string' || input.cursor.length > 24000 || !/^[A-Za-z0-9_-]+$/.test(input.cursor))
-        throw Error();
-      const c = JSON.parse(Buffer.from(input.cursor, 'base64url').toString('utf8'));
-      if (!obj(c)) throw Error();
-      const {signature: suppliedSignature, ...signed} = c;
+      // The shared codec also refuses a non-canonical encoding, which this adapter alone accepted before (ARC-04).
+      const c = openCursor(input.cursor, {key: authorization, binding, maxLength: 24000});
       if (
-        typeof suppliedSignature !== 'string' ||
-        !/^[0-9a-f]{64}$/.test(suppliedSignature) ||
-        !timingSafeEqual(Buffer.from(suppliedSignature, 'hex'), Buffer.from(signature(signed, authorization), 'hex'))
-      )
-        throw Error();
-      if (
-        !obj(c) ||
-        c.binding !== binding ||
-        c.version !== 1 ||
         !cursorToken(c.after) ||
         !Number.isInteger(c.page) ||
         c.page < 1 ||
         c.page >= 100 ||
-        !Number.isSafeInteger(c.expires_at) ||
-        c.expires_at <= Date.now() ||
-        c.expires_at > Date.now() + 300000 ||
         !Array.isArray(c.previous_ids) ||
         c.previous_ids.length > limit ||
         !c.previous_ids.every(nativeId) ||
@@ -147,35 +124,26 @@ export async function metaPortfolioPage(store: Store, call: ToolCall, actor: Act
         'Read the parent inventory page with this login first. Parent observations last five minutes.',
         'RESOURCE_SCOPE_REQUIRED',
       );
-  const budget = new ReportCollectionBudget(undefined, binding, () => {}, {
-    requests: 8,
-    rows: 100,
-    bytes: 8 * 1024 * 1024,
-    elapsed_ms: 60000,
-  });
+  const send = portfolioReader(call, actor, gateway, current, error =>
+    bad(error?.message ?? 'Meta inventory read failed.', error?.code ?? 'PORTFOLIO_FAILED'),
+  );
   const read = async (action: string, path: JsonObject, fields: string[], query: JsonObject = {}) => {
-    current();
-    const response = await call(
-      gateway,
-      {
-        action,
-        account_id: account,
-        connection_id: connection.id,
-        path_params: path,
-        query: {fields: fields.join(','), ...query},
-        dry_run: false,
-      },
-      actor,
-    );
-    current();
-    if (!response.success)
-      bad(response.error?.message ?? 'Meta inventory read failed.', response.error?.code ?? 'PORTFOLIO_FAILED');
+    const response = await send({
+      action,
+      account_id: account,
+      connection_id: connection.id,
+      path_params: path,
+      query: {fields: fields.join(','), ...query},
+      dry_run: false,
+    });
     if (response.data?.truncated || !obj(response.data?.data))
       invalid('Meta returned incomplete or malformed inventory.');
     return response.data.data as JsonObject;
   };
-  try {
-    return await budget.run(async () => {
+  return withPortfolioBudget(
+    binding,
+    {requests: 8, rows: 100, bytes: 8 * 1024 * 1024, elapsed_ms: 60000},
+    async budget => {
       const accountRow = await read('meta_ad_account_id_get', {ad_account_id: account}, [
         'id',
         'account_id',
@@ -281,7 +249,7 @@ export async function metaPortfolioPage(store: Store, call: ToolCall, actor: Act
         rows,
         has_more: more,
         next_cursor: more
-          ? encodeCursor(
+          ? sealCursor(
               {
                 version: 1,
                 binding,
@@ -301,8 +269,13 @@ export async function metaPortfolioPage(store: Store, call: ToolCall, actor: Act
         meaning:
           'Current native inventory in provider order and default status visibility, not a point-in-time snapshot. Provider changes between pages can move, repeat or remove entities. Configured and effective status stay separate. Native money remains exact and unconverted. This read grants no write authority.',
       };
-    });
-  } finally {
-    budget.close();
-  }
+    },
+  );
 }
+
+/** The Meta portfolio adapter (ARC-04 stage E). */
+export const metaPortfolioAdapter: PortfolioAdapter = {
+  gateway,
+  entities: ['campaign', 'adset', 'ad'],
+  page: metaPortfolioPage,
+};

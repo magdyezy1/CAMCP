@@ -16,6 +16,11 @@ import {workspaceCapabilities} from '../dist/src/capabilities.js';
 import {aliasUsageCacheMs, cachedLegacyAliasUsage, legacyAliasUsage} from '../dist/src/legacy-alias-usage.js';
 import {googleLegacyCoverage} from '../dist/src/google-legacy.js';
 import {serverInstructions} from '../dist/src/tool-annotations.js';
+import {offerParkedProviders} from './helpers/parked-providers.mjs';
+
+// WooCommerce is parked (ARC-01, P9): this suite exercises it, so it offers it like a
+// deployment whose AMCP_PROVIDERS names it.
+offerParkedProviders('woocommerce');
 
 // MCP-10: what AMCP advertises is what it runs. The nine amcp_native_action operations that always ended in
 // WORKFLOW_UNSUPPORTED, the four Adjust operations and the other unmapped operations were listed with captured text and

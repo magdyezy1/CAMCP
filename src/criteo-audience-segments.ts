@@ -1,8 +1,8 @@
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
+import {fail} from './family-kit.js';
 
 /**
  * Audience segments of a Criteo Retail Media account, API 2026-07 (unchanged from 2026-01; pinned OpenAPI document:
@@ -35,9 +35,6 @@ const lookbacks = [
 const identifiers = ['Email', 'UserIdentifier', 'IdentityLink', 'CustomerId', 'PhoneNumber'];
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const id = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,18}$/.test(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_CRITEO_AUDIENCE_SEGMENT', message);
 }

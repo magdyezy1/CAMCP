@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {fail} from './family-kit.js';
 import {sha256} from './security.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
@@ -79,9 +79,6 @@ export const gtmWorkflowContracts: Record<string, Contract> = {
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const empty = (v: unknown) => v == null || (obj(v) && Object.keys(v).length === 0);
 const simple = (v: unknown) => typeof v === 'string' && /^[A-Za-z0-9_-]+$/.test(v);
-function fail(code: string, message: string): never {
-  throw new MirrorError(code, message);
-}
 const invalid = (message: string): never => fail('INVALID_GTM_REQUEST', message);
 const document = (): JsonObject => pinnedJson('.mirror/VENDOR/gtm-v2.json').document;
 export function gtmWorkflowKind(p: CompiledRequest): string | undefined {

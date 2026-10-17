@@ -1,8 +1,8 @@
-import {normalizeAccount} from './scope.js';
+import {normalizeAccount} from './account-id.js';
 import {responseData, assertNoMethodOverride, object} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {tiktokAudienceGetPath} from './tiktok-lookalikes.js';
+import {tiktokAudienceGetPath} from './tiktok-paths.js';
 import {tiktokConversionGetPath, tiktokPixelListPath} from './tiktok-custom-conversions.js';
 import {
   validateTiktokTargeting,

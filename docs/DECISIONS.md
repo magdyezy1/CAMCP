@@ -108,7 +108,7 @@ recommendation, that part is recorded as **pending owner**.
 | D23 | Media timing and capacity | Accepted: (1) release an idle website upload earlier than 30 minutes, never later; (2) saved plans may reference 30-minute uploads only with a visible deadline; (3) a per-tenant share of global media capacity (for example at most 4 of 8 slots) after retry-on-contention; (4) Drive imports are frozen copies and show "Drive access since revoked"; (5) planned push rows may re-bind to an identical re-upload (same SHA-256). | MED-01, MED-02, MED-03, MED-05 | Measured media contention | MED-01, MED-02, MED-03, MED-05 |
 | D24 | SQLite secure delete | Accepted: keep `secure_delete=ON` and fix the amplification another way. | OPS-01, OPS-02 | — | OPS-01, OPS-02 |
 | D25 | Package closure and release records | Accepted: (1) the three-axis status (source, native/live, manual); (2) open-ended remainders become finite packages B29+ or optional stretch; (3) a disposition for each dropped commitment (below); (4) B16 stays a standing per-release gate, with the hosted-CI waiver recorded as an acceptance amendment; (5) B20 raw tracing moves to the conditional package B32. For QA-01: pruning ad hoc `.release` candidates is approved as owner-run from a dry-run list; `NOTICE.md` and `.gitattributes` ship; qualification records stay local. The license has no recommendation: pending owner (no license file until chosen). | DOC-02: [package status](review/PACKAGE-STATUS.md) from `review/package-status.json`, this record; QA-01 records and prune dry-run | Owner disagrees with a count or disposition | DOC-02, DOC-01, QA-01 |
-| D26 | Test tooling | Accepted: the browser fixture may accept its own synthetic mutations; an architecture ratchet that blocks only regressions joins `npm run check`. Dev-only property/mutation dependencies versus hand-rolled equivalents, and the qualification runtime budget: pending owner. Implemented defaults (wave 2, recorded 2026-10-11): hand-rolled equivalents, no new dependency (`tools/mutants.mjs`, the IANA zone and decimal sweeps, QA-02); the browser fixture accepts only its own declared synthetic mutations (QA-03); the qualification runtime budget is a proposed 75 minutes, `AMCP_QA_RUNTIME_BUDGET_MINUTES` sets another (QA-03). The architecture ratchet waits for ARC-04. | QA-02, QA-03, ARC-04 | — | QA-02, QA-03, ARC-04 |
+| D26 | Test tooling | Accepted: the browser fixture may accept its own synthetic mutations; an architecture ratchet that blocks only regressions joins `npm run check`. Dev-only property/mutation dependencies versus hand-rolled equivalents, and the qualification runtime budget: pending owner. Implemented defaults (wave 2, recorded 2026-10-11): hand-rolled equivalents, no new dependency (`tools/mutants.mjs`, the IANA zone and decimal sweeps, QA-02); the browser fixture accepts only its own declared synthetic mutations (QA-03); the qualification runtime budget is a proposed 75 minutes, `AMCP_QA_RUNTIME_BUDGET_MINUTES` sets another (QA-03). The architecture ratchet is in `npm run check` and the fast gate since wave 3b (`architecture:check`, ARC-01 phase A and ARC-04 stage A): import cycles and provider coupling may only fall. | QA-02, QA-03, ARC-04 | — | QA-02, QA-03, ARC-04 |
 | D27 | Arabic presentation and page names | Accepted: keep Latin digits and one date style per context; keep the partial-Arabic label until B24 acceptance passes; generate the canonical page names from one registry. Whether audit, session and token times show a time zone, which name set is canonical (navigation labels or page titles), and fixing or removing the test-account Clients & templates tab: pending owner. Implemented defaults (wave 2, recorded 2026-10-11): `web/routes.js` makes the navigation labels canonical, with former names as palette aliases in English and Arabic, and Clients & templates is fixed for test accounts (it opens and saves playbooks from the `amcp_workspace profiles` response) (WEB-06). The time-zone question stays open. | WEB-05, WEB-06, DOC-03 | B24 acceptance | WEB-05, WEB-06, DOC-03 |
 
 Also applied on 2026-10-09 (P10, provider lifecycle): the lifecycle alarms run locally inside the qualification
@@ -253,7 +253,8 @@ the approval names nothing, the review's recommended or the ticket's proposed op
 - **P9.** Waves 1 to 3 kept a Meta product's populated destination-only attributes as notes (`unsent_fields`, COM-01).
   Since owner decision P9 of 2026-10-11 (applied in wave 3b) Meta uses the `review` policy of COM-03's destination
   registry: a product whose only differences are such attributes is `unknown` and enters the review set; X and
-  Snapchat keep the note. The Business Profile and Amazon Ads parts are recorded above.
+  Snapchat keep the note. The Business Profile and Amazon Ads parts are recorded above, the lifecycle status of parked
+  providers below.
 
 P8 (approved on 2026-10-11, applied in wave 3): Measurement is the multi-provider conversion-health hub. The
 measurement ledger adds read-only Meta pixel/dataset, Snapchat pixel, TikTok pixel configuration (its activity waits
@@ -272,6 +273,17 @@ through the reviewed update) in place of a Meta delete contract, which never cre
 it and each retirement step's native review refuses it with `CATALOG_RETIRE_ABSENT` (COM-02 B). Bounded X variant
 group expansion stays behind `AMCP_X_CATALOG_GROUP_EXPANSION=qualified`, off by default (the block stays and names
 the grouped records) until the R2(7) native read qualifies it (COM-02 E).
+
+Also implemented in wave 3b (ARC-01, the lifecycle part of P9, the review's recommendation): parked providers are gated
+by their lifecycle status in the provider adapter registry (`src/provider-adapters.ts`). Criteo and WooCommerce are
+`parked` with the reason `owner_parked` (PRK-01, PRK-02), Amazon Ads with `unimplemented` (above). Unless the
+deployment's `AMCP_PROVIDERS` names a parked provider, its gateway is absent from `tools/list` (25 tools by default),
+contracts, capabilities and the Capability Center; its reviewed families stay registered for the ledger but are not listed; any
+call that names it is refused with `GATEWAY_NOT_OFFERED` before its arguments are read, and `ScopeGuard` refuses every
+request to it before credentials are fetched, so a review prepared while it was offered cannot execute after it is
+parked. Commerce hides the WooCommerce store panels and product source; an administrator can still remove a stored
+store connection. Shopify and Salla have no gateway, connection or module to gate. Their code keeps compiling and
+their suites run with the provider named in `AMCP_PROVIDERS` ([architecture](review/ARCHITECTURE.md#9-provider-adapters)).
 
 Also implemented on 2026-10-13 (SEC-08, P1's isolation model as approved on 2026-10-11: many clients per workspace).
 The non-authorizing working-client filter comes first, as P1 directs: the website's working client is a view filter

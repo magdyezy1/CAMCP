@@ -359,7 +359,8 @@ test('every MCP tool entry point with a client A token leaves client B unseen an
       [],
       'every listed tool has a scoped-actor probe',
     );
-    assert.ok(names.length >= 27, names.join(' '));
+    // 25 by default: the parked Amazon Ads, Criteo and WooCommerce gateways are not listed (CON-06; ARC-01, P9).
+    assert.ok(names.length >= 25, names.join(' '));
     // The same first-party probes reveal client B to an unscoped token, so the probes above can see a leak.
     const revealing = new Set<string>();
     for (const tool of tools) {

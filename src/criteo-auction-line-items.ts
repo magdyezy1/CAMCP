@@ -1,10 +1,10 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
+import {fail} from './family-kit.js';
 
 /**
  * Criteo Retail Media auction (Onsite Sponsored Products) line items on API 2026-07 (unchanged from 2026-01), per the
@@ -95,9 +95,6 @@ const order = (x: JsonObject, y: JsonObject) => {
     b = stable(y);
   return a < b ? -1 : a > b ? 1 : 0;
 };
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_CRITEO_LINE_ITEM', message);
 }

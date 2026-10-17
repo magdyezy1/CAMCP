@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {defineFamily, fail} from './family-kit.js';
 
 /**
  * Scheduled Tweets of an X Ads account, Ads API v12 (Creatives reference and guide, "Scheduled Tweets"; docs.x.com copy
@@ -27,9 +28,6 @@ const gateway = 'x_ads_native_action',
   cardUri = /^card:\/\/[1-9][0-9]{0,24}$/;
 const margin = 10 * 60 * 1000;
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_X_SCHEDULED_TWEET', message);
 }
@@ -448,7 +446,7 @@ export function xScheduledObserved(_read: CompiledRequest, data: JsonObject): Js
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const xScheduledFamily: ReviewedFamily = {
+export const xScheduledFamily: ReviewedFamily = defineFamily({
   name: 'x_scheduled_tweets',
   files: ['src/x-scheduled-tweets.ts', ['tests/x-scheduled-tweets.test.mjs']],
   kind: xScheduledKind,
@@ -463,4 +461,4 @@ export const xScheduledFamily: ReviewedFamily = {
   verification: xScheduledVerification,
   observed: xScheduledObserved,
   exemptFromSpendTextMatch: true,
-};
+});

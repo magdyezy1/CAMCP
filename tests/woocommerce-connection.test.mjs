@@ -6,6 +6,11 @@ import {disconnectLocalConnection} from '../dist/src/connection-disconnect.js';
 import {MirrorError} from '../dist/src/errors.js';
 import {sha256} from '../dist/src/security.js';
 import {wooConnectionFixture, wooConnectionInput, wooConnectionJSON} from './fixtures/woocommerce-connection-data.mjs';
+import {offerParkedProviders} from './helpers/parked-providers.mjs';
+
+// WooCommerce is parked (ARC-01, P9): this suite exercises it, so it offers it like a
+// deployment whose AMCP_PROVIDERS names it.
+offerParkedProviders('woocommerce');
 
 const connectionId = wooConnectionInput().connection_id;
 function fixture(t, options) {

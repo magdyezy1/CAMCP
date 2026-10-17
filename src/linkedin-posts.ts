@@ -1,14 +1,13 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
+import {failWithStatus, type StatusRefusal} from './family-kit.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import {writeClaim} from './job-repository.js';
 
 const object = (v: any): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-const fail = (code: string, message: string): never => {
-  throw new MirrorError(code, message, {}, 403);
-};
+const fail: StatusRefusal = failWithStatus(403);
 export const linkedinPostId = (id: unknown): id is string =>
   typeof id === 'string' && /^urn:li:(?:ugcPost|share):\d+$/.test(id);
 export function linkedinDSC(plan: CompiledRequest) {

@@ -10,9 +10,6 @@ export class MirrorError extends Error {
     this.name = 'MirrorError';
   }
 }
-export const fail = (code: string, message: string, details: Record<string, unknown> = {}): never => {
-  throw new MirrorError(code, message, details);
-};
 /**
  * The allow-listed facts of a provider's refusal (owner decision D21, WEB-03), from an inner error envelope that a
  * workflow re-raises in its own words: the HTTP status, the provider's request ID and error code, and the error layer.
@@ -1008,9 +1005,12 @@ export function errorRemedy(e: MirrorError): ErrorRemedy {
     return {
       category: 'deployment',
       owner: 'deployment_operator',
-      // CON-06 (owner decision, option b): Amazon Ads has no website login or profile discovery yet.
+      // The provider's lifecycle status (ARC-01, src/provider-adapters.ts): parked by the owner (Criteo, WooCommerce),
+      // or unimplemented (Amazon Ads, CON-06 option b: no website login or profile discovery yet).
       action:
-        'This deployment does not offer this provider: it has no website connection or account discovery yet. Use a tool that tools/list shows. Nothing was sent.',
+        e.details?.reason === 'owner_parked'
+          ? 'This deployment does not offer this provider: its work is parked, and only the deployment operator can offer it again (AMCP_PROVIDERS). Use a tool that tools/list shows. Nothing was sent.'
+          : 'This deployment does not offer this provider: it has no website connection or account discovery yet. Use a tool that tools/list shows. Nothing was sent.',
       mutation_retry_safe: false,
     };
   if (e.code === 'GOOGLE_LOGIN_CUSTOMER_UNMAPPED')

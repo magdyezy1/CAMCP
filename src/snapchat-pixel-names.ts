@@ -1,7 +1,7 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {fail} from './family-kit.js';
 
 /**
  * Renaming Snapchat pixels, Marketing API v1 ("Snap Pixel"; checked 2026-09-27). PUT /v1/adaccounts/{ad_account_id}/pixels
@@ -23,9 +23,6 @@ const text = (v: unknown, min: number, max: number): v is string =>
   [...v].length >= min &&
   [...v].length <= max &&
   !/[\u0000-\u001f\u007f]/.test(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_SNAPCHAT_PIXEL_NAME', message);
 }

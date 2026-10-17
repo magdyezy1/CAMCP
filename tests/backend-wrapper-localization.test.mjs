@@ -44,6 +44,34 @@ test('type-only, default, namespace and unrelated constructors or imported helpe
   }
   assert.deepEqual(inspect("import {fail} from './helper.js';fail('Native reason.');"), []);
 });
+test('ARC-04: the family kit fail owns its reasons as a local copy did; type, foreign and shadowed bindings do not', () => {
+  const kit = "import {fail} from './family-kit.js';\n";
+  assert.deepEqual(inspect(kit + "fail('CODE','Kit-owned reason.');fail('CODE',native.message);"), [
+    'Kit-owned reason.',
+  ]);
+  assert.deepEqual(inspect("import {fail as refuse} from './family-kit.js';refuse('CODE','Aliased kit reason.');"), [
+    'Aliased kit reason.',
+  ]);
+  assert.deepEqual(
+    inspect("import {fail} from '../family-kit.js';fail('CODE','Nested kit reason.');", 'src/nested/wrapped.ts'),
+    ['Nested kit reason.'],
+  );
+  assert.deepEqual(
+    inspect(kit + "function invalid(message:string){return fail('INVALID',message);}invalid('Forwarded kit reason.');"),
+    ['Forwarded kit reason.'],
+  );
+  for (const source of [
+    "import type {fail} from './family-kit.js';fail('CODE','Type-only binding.');",
+    "import {type fail} from './family-kit.js';fail('CODE','Type-only specifier.');",
+    "import {fail} from './errors.js';fail('CODE','Another module.');",
+    "import {fail} from './family-kits.js';fail('CODE','Another file.');",
+    kit + "function parameter(fail:any){fail('CODE','Shadowed parameter.');}",
+    kit + "{const fail=native;fail('CODE','Shadowed block.');}",
+    kit + "fail=native;fail('CODE','Reassigned binding.');",
+  ])
+    assert.deepEqual(inspect(source), [], source);
+  assert.deepEqual(inspect(kit + "fail('CODE','Server reason.');", 'server/wrapped.ts'), [], 'src family kit only');
+});
 test('constructor parameter shadows and callable parameter, block, catch, class and var shadows cannot author provider text', () => {
   const source =
     imports +
@@ -161,10 +189,19 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // adds one website reason; the reserved workspace ID refusal adds one catalog entry and the invitation lifetime's one-
   // and two-hour sentences two.
   // ARC-03 adds src/route-anchors.ts (no wrapper reasons) and the nine route evidence entries of the contract reference.
-  assert.equal(files.length, 598);
+  // ARC-01 adds two registry modules without wrapper reasons and the parked-provider refusal and remedy entries, and
+  // P9's parked WooCommerce notice on Commerce one more catalog entry.
+  // ARC-04 stage B adds six leaf modules split from existing ones (account-id, review-state-core, tiktok-paths,
+  // microsoft-association-contracts, meta-ad-library-contract, google-business-notification-kind); their reasons moved
+  // with them, so the owned reasons and the catalog are unchanged. Stage E adds src/signed-cursor.ts and
+  // src/portfolio-runner.ts (no owned reasons: the portfolio refusals stay in each adapter). Stage F adds the report
+  // source contract, its registry and ten provider report sources (no wrapper reasons).
+  // Stage C adds src/family-kit.ts; the family modules that import its fail keep their owned reasons. Stage D adds
+  // src/tool-actions.ts (no wrapper reasons).
+  assert.equal(files.length, 622);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
-  assert.equal(Object.keys(catalog).length, 11482);
+  assert.equal(Object.keys(catalog).length, 11485);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

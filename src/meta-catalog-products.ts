@@ -1,4 +1,3 @@
-import {MirrorError} from './errors.js';
 import {assertCatalogRetirementTarget} from './catalog-retirement.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -12,6 +11,7 @@ import {
   metaCatalogView,
   optionalMetaRead,
 } from './meta-catalogs.js';
+import {fail} from './family-kit.js';
 
 /**
  * Products of Meta catalogs, one at a time, opened by the owner on 2026-09-29. Meta's "Product Catalog Products"
@@ -119,9 +119,6 @@ const https = (v: unknown): boolean => {
     return false;
   }
 };
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string, details: JsonObject = {}): never {
   return fail('INVALID_META_CATALOG_PRODUCT', message, {source, ...details});
 }

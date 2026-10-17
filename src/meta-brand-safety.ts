@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {fail} from './family-kit.js';
 import {stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -28,9 +28,6 @@ const placements = [
 ];
 const numeric = /^[1-9]\d*$/;
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(code: string, message: string, details: JsonObject = {}): never {
-  throw new MirrorError(code, message, details);
-}
 function invalid(message: string): never {
   return fail('INVALID_META_BRAND_SAFETY', message);
 }

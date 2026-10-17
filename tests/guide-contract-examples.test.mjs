@@ -14,6 +14,11 @@ import {providerContracts} from '../dist/src/provider-contracts.js';
 import {platforms} from '../dist/server/platform-oauth.js';
 import {reportPlatforms} from '../dist/src/report-metrics.js';
 import {mediaPlatforms} from '../dist/src/media-routing.js';
+import {offerParkedProviders} from './helpers/parked-providers.mjs';
+
+// Criteo is parked (ARC-01, P9): the guide keeps its examples, so this suite checks them with it offered, like a
+// deployment whose AMCP_PROVIDERS names it.
+offerParkedProviders('criteo');
 const examples = JSON.parse(fs.readFileSync('Skills/amcp-campaign-builder/examples/contracts.json', 'utf8'));
 const actor = {tenantId: 'guidance-examples', userId: 'owner', role: 'admin'},
   key = Buffer.alloc(32, 81).toString('base64');

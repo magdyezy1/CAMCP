@@ -1,4 +1,4 @@
-import {MirrorError} from './errors.js';
+import {familyCodeError, type OneCodeRefusal} from './family-kit.js';
 import {stable} from './security.js';
 import {googleJson} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -7,9 +7,7 @@ export const segmentFields = ['name', 'description', 'status', 'type', 'members'
 const kinds = new Set(['customAudiences', 'customInterests']),
   resources = new Set(['custom_audience', 'custom_interest']);
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-const fail = (message: string): never => {
-  throw new MirrorError('INVALID_CUSTOM_SEGMENT', message);
-};
+const fail: OneCodeRefusal = familyCodeError('INVALID_CUSTOM_SEGMENT');
 const plain = (v: unknown, max: number, empty = false): v is string =>
   typeof v === 'string' && (empty || !!v.trim()) && [...v].length <= max && !/[\u0000-\u001f]/.test(v);
 const url = (v: unknown) => {

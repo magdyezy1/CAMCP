@@ -1,5 +1,5 @@
 import {bad, fingerprint, obj, validate, type ToolCall} from './workspace-core.js';
-import {normalizeAccount} from './scope.js';
+import {normalizeAccount} from './account-id.js';
 import {googleAdsVersion} from './google-version.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {storedLogin} from './connection-authority.js';

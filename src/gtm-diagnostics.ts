@@ -1,5 +1,6 @@
 import {nativeAuthority} from './native-authority.js';
 import {MirrorError} from './errors.js';
+import {fail} from './family-kit.js';
 import {redact} from './security.js';
 import {Store} from './store.js';
 import {Registry} from './catalog.js';
@@ -17,9 +18,6 @@ const gateway = 'gtm_native_action',
   prefix = '/tagmanager/v2/';
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const simple = (v: unknown): v is string => typeof v === 'string' && /^[A-Za-z0-9_-]+$/.test(v);
-function fail(code: string, message: string): never {
-  throw new MirrorError(code, message);
-}
 const missing = (): never => fail('NOT_FOUND', 'No accessible Tag Manager verification job has this ID.');
 function exact(row: JsonObject, path: string): void {
   if (row.path !== path) fail('STATE_TARGET_MISMATCH', 'Tag Manager returned a different resource.');

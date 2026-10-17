@@ -1,7 +1,7 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {fail} from './family-kit.js';
 
 /**
  * Snapchat offer disclaimers, Marketing API v1 ("Offer Disclaimers", checked 2026-09-27). Ads in regulated verticals
@@ -15,9 +15,6 @@ const maxItems = 20,
   maxListed = 1000;
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const uuid = (v: unknown): v is string => typeof v === 'string' && /^[A-Za-z0-9-]{1,64}$/.test(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_SNAPCHAT_OFFER_DISCLAIMER', message);
 }

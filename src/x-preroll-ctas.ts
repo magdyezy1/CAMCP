@@ -1,7 +1,7 @@
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {defineFamily, fail} from './family-kit.js';
 
 /**
  * Call-to-action buttons of X Ads pre-roll line items, Ads API v12 (Creatives reference, "Preroll Call To Actions";
@@ -16,9 +16,6 @@ const gateway = 'x_ads_native_action',
   nativeId = /^[a-z0-9]{1,32}$/,
   buttons = ['GO_TO', 'SEE_MORE', 'SHOP', 'VISIT_SITE', 'WATCH_NOW'];
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_X_PREROLL_CTA', message);
 }
@@ -344,7 +341,7 @@ export function xPrerollCtaObserved(_read: CompiledRequest, data: JsonObject): J
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const xPrerollCtaFamily: ReviewedFamily = {
+export const xPrerollCtaFamily: ReviewedFamily = defineFamily({
   name: 'x_preroll_ctas',
   files: ['src/x-preroll-ctas.ts', ['tests/x-preroll-ctas.test.mjs']],
   kind: xPrerollCtaKind,
@@ -359,4 +356,4 @@ export const xPrerollCtaFamily: ReviewedFamily = {
   verification: xPrerollCtaVerification,
   observed: xPrerollCtaObserved,
   exemptFromSpendTextMatch: true,
-};
+});

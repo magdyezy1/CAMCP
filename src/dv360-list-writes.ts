@@ -1,7 +1,7 @@
 import {assertDV360WriteScope} from './dv360-scope.js';
 import {assertNoMethodOverride} from './write-common.js';
 import type {GatewayStateChecks, ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {fail} from './family-kit.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -52,9 +52,6 @@ type Contract = {
   target?: string;
 };
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(code: string, message: string, details: JsonObject = {}): never {
-  throw new MirrorError(code, message, details);
-}
 function decoded(value: string): string | undefined {
   try {
     return decodeURIComponent(value);

@@ -7,6 +7,7 @@ import type {CredentialProvider} from './auth.js';
 import type {ExecutionPolicy} from './preflight.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import {MirrorError, connectorReadOnly, readOnlyDeployment} from './errors.js';
+import {failWithStatus, type StatusRefusal} from './family-kit.js';
 import {independentlyReadOnly} from './execution-risk.js';
 import {ScopeGuard, normalizeAccount} from './scope.js';
 import {nativeAuthority} from './native-authority.js';
@@ -168,9 +169,7 @@ const providerFailure = (e: unknown) =>
     /^(?:UPSTREAM_|PLATFORM_|PROVIDER_|CIRCUIT_OPEN$|TENANT_RATE_LIMIT$|STATE_UNAVAILABLE$|STATE_INCOMPLETE$)/.test(
       e.code,
     ));
-function fail(code: string, message: string, details: JsonObject = {}, status = 409): never {
-  throw new MirrorError(code, message, details, status);
-}
+const fail: StatusRefusal = failWithStatus(409);
 export class WriteReconciler {
   constructor(
     private store: Store,

@@ -580,7 +580,9 @@ The maintained GitHub workflow defines Docker builds and synthetic read-only/wri
 - **Stages.** The deterministic freshness gates run first: TypeScript build, release identity, format check, the
   test-oracle ratchet (`check:oracles`), the `generate:*` checks (the Google bid-field and Cloudflare range checks
   included), `provenance:check` ([generated-artifact provenance](#generated-artifacts-and-catalog-provenance-arc-03)),
-  `report -- --check`, `contracts:check`, `contracts:actions:check` and `docs:index:check`. The full profile then probes FFmpeg and ffprobe, runs the suite with
+  `report -- --check`, `contracts:check`, `contracts:actions:check`, `docs:index:check` and the architecture ratchet
+  (`architecture:check`, [architecture](review/ARCHITECTURE.md#8-architecture-ratchet)). The full profile then probes
+  FFmpeg and ffprobe, runs the suite with
   `AMCP_REQUIRE_FFMPEG=true`, the capture tests, the mutant catalogue (`mutant_catalogue`), the wire-contract sweep, the
   Meta creative feature pin (`meta_creative_features_pinned`: it fails unless
   `tests/fixtures/meta-creative-features-sdk-v26.json` is hashed from the SDK 26.0.2 files, as pinned on 2026-10-16, so

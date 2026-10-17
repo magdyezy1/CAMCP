@@ -26,18 +26,19 @@ test('shared recovery ownership includes only literal hints in the three exact a
   assert.equal(inspectProviderCaptureRemedies(source, 'src/errors.ts').size, 8);
   assert.equal(inspectMeasurementRemedies(source, 'src/errors.ts').size, 12);
 });
-test('all 165 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
+test('all 166 shared recovery hints have authored Arabic with exact native tool fields and quantities', () => {
   // 163 since SEC-08 added ACCOUNT_SCOPE_RESTRICTED's remedy, CMP-03 added LOCATION_PARENT_NOT_PAUSED's remedy
   // (Microsoft location criteria of a campaign not paused), and PRV-06 added the REDDIT_PIXEL_NOT_IN_ACCOUNT,
   // SNAPCHAT_SEGMENT_UNAVAILABLE, META_ADVANTAGE_CREATIVE_CHOICE_REQUIRED and
   // META_ADVANTAGE_CREATIVE_FEATURE_UNAVAILABLE remedies; 164 since owner decision P5 added POLICY_CURRENCY_UNSET's;
   // 166 since CMP-03's Microsoft location lookup added two (MICROSOFT_LOCATIONS_UNPINNED, and one for an unreadable or
-  // unavailable locations file).
-  assert.equal(hints.size, 166);
+  // unavailable locations file); 167 since ARC-01 added the remedy of a provider parked by the owner
+  // (GATEWAY_NOT_OFFERED with reason owner_parked: Criteo, WooCommerce).
+  assert.equal(hints.size, 167);
   const inventoryHint = errorResult(new MirrorError('PORTFOLIO_INVALID_RESPONSE', 'Fixture'), 'ref', 0).error
     .next_action;
   assert.ok(hints.has(inventoryHint));
-  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 165);
+  assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 166);
   assert.deepEqual(localeProblems(catalog, hints), []);
   for (const hint of hints) {
     assert.match(catalog[hint], /[\u0600-\u06ff]/);

@@ -1,7 +1,8 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
+import {familyStateErrors, type StateFlaggedRefusal} from './family-kit.js';
 import {stable, sha256} from './security.js';
-import {changedStateFields} from './review-state.js';
+import {changedStateFields} from './review-state-core.js';
 import {assertPlaceActionScope, placeActionSafeError, placeActionSafe} from './google-place-action-links.js';
 import type {Actor, CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -15,14 +16,7 @@ const text = (v: unknown, max = 1024): v is string =>
 const roleRank: Record<string, number> = {SITE_MANAGER: 0, MANAGER: 1, OWNER: 2, PRIMARY_OWNER: 3};
 type Kind = 'rename' | 'create' | 'patch' | 'delete';
 type Send = (p: CompiledRequest) => Promise<TransportResult>;
-function fail(message: string, state = false): never {
-  throw new MirrorError(
-    state ? 'BUSINESS_ACCESS_STATE_UNVERIFIED' : 'INVALID_BUSINESS_ACCESS',
-    message,
-    {},
-    state ? 502 : 400,
-  );
-}
+const fail: StateFlaggedRefusal = familyStateErrors('INVALID_BUSINESS_ACCESS', 'BUSINESS_ACCESS_STATE_UNVERIFIED');
 function only(value: JsonObject, keys: string[], state = false) {
   if (Object.keys(value).some(k => !keys.includes(k)))
     fail('Unqualified Business Profile access field, query override or native response envelope.', state);

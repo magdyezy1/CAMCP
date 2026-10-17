@@ -135,7 +135,8 @@ test('every gateway a review can name has a reference that leads to its whole co
       assert.ok(bytes(reference) < 800 && bytes(reference) < bytes(whole), gateway + ': ' + bytes(reference));
       // Drive and Sheets back AMCP's own features; they are no MCP gateway, so no review names them.
       if (!registry.tools.has(gateway)) continue;
-      // Amazon Ads is not offered (CON-06): no review can name it, and its help is refused before anything is read.
+      // A parked provider is not offered (Amazon Ads, CON-06; Criteo, ARC-01 and P9): no review can name it, and its
+      // help is refused before anything is read.
       if (!gatewayOffered(gateway)) {
         const refused = await x.service.call(reference.full_contract.tool, reference.full_contract.arguments, actor);
         assert.equal(refused.error?.code, 'GATEWAY_NOT_OFFERED', gateway);
@@ -145,7 +146,8 @@ test('every gateway a review can name has a reference that leads to its whole co
       assert.deepEqual(resultAt(help, reference.full_contract.result_field), whole, gateway);
       followed++;
     }
-    assert.equal(followed, providerContracts.length - 3);
+    // Drive and Sheets (no MCP gateway), and the parked Amazon Ads and Criteo.
+    assert.equal(followed, providerContracts.length - 4);
     assert.equal(providerContractReference('amcp_native_action'), undefined);
   } finally {
     x.store.close();

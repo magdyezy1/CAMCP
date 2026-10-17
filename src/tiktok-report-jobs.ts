@@ -1,6 +1,7 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {redact, scopeKey, sha256, stable} from './security.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
@@ -54,18 +55,11 @@ const uv = [
   'reach',
   'live_play_count',
 ];
-function fail(message: string, code = 'TIKTOK_REPORT_INVALID'): never {
-  throw new MirrorError(
-    code,
-    message,
-    {},
-    code === 'RESOURCE_SCOPE_REQUIRED' || code === 'TIKTOK_REPORT_TOKEN_CHANGED'
-      ? 403
-      : code === 'TIKTOK_REPORT_STATE_UNVERIFIED'
-        ? 502
-        : 400,
-  );
-}
+const fail: ReasonFirstRefusal = familyErrors('TIKTOK_REPORT_INVALID', {
+  RESOURCE_SCOPE_REQUIRED: 403,
+  TIKTOK_REPORT_TOKEN_CHANGED: 403,
+  TIKTOK_REPORT_STATE_UNVERIFIED: 502,
+});
 function stateFail(message: string): never {
   return fail(message, 'TIKTOK_REPORT_STATE_UNVERIFIED');
 }

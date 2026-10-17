@@ -26,6 +26,7 @@ import type {Registry} from './catalog.js';
 import type {NativeTransport, TransportResult} from './transport.js';
 import type {CredentialProvider} from './auth.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
+import {fail} from './family-kit.js';
 
 /**
  * Read-only Snapchat catalog item comparison (COM-02 D). Snapchat changes catalog products only through product feeds
@@ -41,9 +42,6 @@ import type {Actor, CompiledRequest, JsonObject} from './types.js';
  */
 const maxPages = 3,
   source = 'https://developers.snap.com/api/marketing-api/Ads-API/dynamic-product-ads';
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function unverified(message: string): never {
   return fail('INCOMPLETE_STATE', message, {source}, 502);
 }

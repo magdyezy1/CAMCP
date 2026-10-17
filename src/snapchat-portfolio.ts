@@ -1,10 +1,9 @@
-import {createHmac, timingSafeEqual} from 'node:crypto';
 import {bad, fingerprint, obj, validate, type ToolCall} from './workspace-core.js';
-import {ReportCollectionBudget} from './report-collection-budget.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
 import {snapchatScope} from './provider-grants.js';
-import {storedLogin} from './connection-authority.js';
+import {openCursor, sealCursor} from './signed-cursor.js';
+import {portfolioAuthority, portfolioReader, withPortfolioBudget, type PortfolioAdapter} from './portfolio-runner.js';
 
 const gateway = 'snapchat_native_action',
   origin = 'https://adsapi.snapchat.com',
@@ -16,7 +15,6 @@ const token = (v: unknown): v is string =>
   typeof v === 'string' && v.length > 0 && v.length <= 4096 && !/[\x00-\x20\x7f]/.test(v);
 const success = (v: unknown) => typeof v === 'string' && v.toUpperCase() === 'SUCCESS';
 const observation = (entity: string, id: string) => 'portfolio/snapchat/' + entity + '/' + id;
-const sign = (v: JsonObject, key: string) => createHmac('sha256', key).update(fingerprint(v)).digest('hex');
 const groups: Record<string, string> = {campaign: 'campaigns', adsquad: 'adsquads', ad: 'ads'};
 function text(v: unknown, max = 2000): string | null {
   if (v === undefined || v === null) return null;
@@ -66,16 +64,13 @@ export async function snapchatPortfolioPage(store: Store, call: ToolCall, actor:
     (entity === 'ad' && !nativeId(config.ad_squad_id))
   )
     bad('Choose the exact campaign, and for ads its exact ad squad.');
-  const connection = store.resolveConnection(actor, gateway, account, input.connection_id),
-    authorization = fingerprint(storedLogin(store, connection));
-  const current = () => {
-    const c = store.resolveConnection(actor, gateway, account, connection.id);
-    if (!c.scopes.includes(snapchatScope))
-      bad('This login requires Snapchat Marketing API permission.', 'INSUFFICIENT_SCOPE');
-    if (fingerprint(storedLogin(store, c)) !== authorization)
-      bad('The Snapchat login changed. Restart inventory.', 'CONNECTION_AUTHORITY_CHANGED');
-    return c;
-  };
+  const connection = store.resolveConnection(actor, gateway, account, input.connection_id);
+  const {authorization, current} = portfolioAuthority(store, actor, gateway, account, connection, {
+    binds: 'login',
+    permits: c => c.scopes.includes(snapchatScope),
+    missingScope: () => bad('This login requires Snapchat Marketing API permission.', 'INSUFFICIENT_SCOPE'),
+    changed: () => bad('The Snapchat login changed. Restart inventory.', 'CONNECTION_AUTHORITY_CHANGED'),
+  });
   const assertParents = () => {
     const c = current();
     for (const [kind, id] of [
@@ -113,29 +108,12 @@ export async function snapchatPortfolioPage(store: Store, call: ToolCall, actor:
     seen: string[] = [];
   if (input.cursor !== undefined) {
     try {
+      const c = openCursor(input.cursor, {key: authorization, binding, maxLength: 24000});
       if (
-        typeof input.cursor !== 'string' ||
-        input.cursor.length > 24000 ||
-        !/^[A-Za-z0-9_-]+$/.test(input.cursor) ||
-        Buffer.from(input.cursor, 'base64url').toString('base64url') !== input.cursor
-      )
-        throw Error();
-      const c = JSON.parse(Buffer.from(input.cursor, 'base64url').toString('utf8'));
-      if (!obj(c)) throw Error();
-      const {signature, ...signed} = c;
-      if (
-        typeof signature !== 'string' ||
-        !/^[0-9a-f]{64}$/.test(signature) ||
-        !timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(sign(signed, authorization), 'hex')) ||
-        c.version !== 1 ||
-        c.binding !== binding ||
         !token(c.after) ||
         !Number.isInteger(c.page) ||
         c.page < 1 ||
         c.page >= 100 ||
-        !Number.isSafeInteger(c.expires_at) ||
-        c.expires_at <= Date.now() ||
-        c.expires_at > Date.now() + 300000 ||
         !Array.isArray(c.previous) ||
         c.previous.length > limit ||
         !c.previous.every(nativeId) ||
@@ -159,21 +137,18 @@ export async function snapchatPortfolioPage(store: Store, call: ToolCall, actor:
       );
     }
   }
-  const budget = new ReportCollectionBudget(undefined, binding, () => {}, {
-    requests: 8,
-    rows: 100,
-    bytes: 8 * 1024 * 1024,
-    elapsed_ms: 60000,
-  });
+  const send = portfolioReader(call, actor, gateway, current, error =>
+    bad(error?.message ?? 'Snapchat inventory read failed.', error?.code ?? 'PORTFOLIO_FAILED'),
+  );
   const read = async (action: string, path: JsonObject, query: JsonObject = {}) => {
-    current();
-    const r = await call(
-      gateway,
-      {action, account_id: account, connection_id: connection.id, path_params: path, query, dry_run: false},
-      actor,
-    );
-    current();
-    if (!r.success) bad(r.error?.message ?? 'Snapchat inventory read failed.', r.error?.code ?? 'PORTFOLIO_FAILED');
+    const r = await send({
+      action,
+      account_id: account,
+      connection_id: connection.id,
+      path_params: path,
+      query,
+      dry_run: false,
+    });
     const d = r.data?.data;
     if (r.data?.truncated || !obj(d) || !success(d.request_status) || d.error || d.truncated)
       invalid('Snapchat returned an incomplete or failed inventory response.');
@@ -187,8 +162,10 @@ export async function snapchatPortfolioPage(store: Store, call: ToolCall, actor:
       invalid('Snapchat did not confirm the exact requested account or parent.');
     return rows[0]!;
   };
-  try {
-    return await budget.run(async () => {
+  return withPortfolioBudget(
+    binding,
+    {requests: 8, rows: 100, bytes: 8 * 1024 * 1024, elapsed_ms: 60000},
+    async budget => {
       const metadata = await one('snapchat_account_get', {ad_account_id: account}, 'adaccounts', account),
         currency = text(metadata.currency, 3),
         timezone = text(metadata.timezone, 100);
@@ -345,19 +322,20 @@ export async function snapchatPortfolioPage(store: Store, call: ToolCall, actor:
         currency,
         timezone,
         has_more: next !== undefined,
-        next_cursor: next
-          ? Buffer.from(JSON.stringify({...continuation, signature: sign(continuation, authorization)})).toString(
-              'base64url',
-            )
-          : null,
+        next_cursor: next ? sealCursor(continuation, authorization) : null,
         page_number: page + 1,
         captured_at: Date.now(),
         sort,
         meaning:
           'Current Snapchat inventory in created-at descending order with provider default visibility, not a point-in-time or complete deleted-entity snapshot. Native money remains exact micros. Configured status, review status and delivery codes are independent and do not establish actual delivery. Only the opaque continuation token is reused on the fixed authorized native route. This read grants no write authority.',
       };
-    });
-  } finally {
-    budget.close();
-  }
+    },
+  );
 }
+
+/** The Snapchat portfolio adapter (ARC-04 stage E). */
+export const snapchatPortfolioAdapter: PortfolioAdapter = {
+  gateway,
+  entities: ['campaign', 'adsquad', 'ad'],
+  page: snapchatPortfolioPage,
+};

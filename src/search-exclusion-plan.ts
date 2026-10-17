@@ -1,15 +1,14 @@
 import {randomUUID} from 'node:crypto';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
-import {bad, fingerprint, obj, validate, writer, type ToolCall} from './workspace-core.js';
+import {fingerprint, obj, validate, writer, type ToolCall} from './workspace-core.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {storedLogin} from './connection-authority.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 
 const gateway = 'google_ads_native_action',
   day = 86400000;
-function fail(message: string, code = 'SEARCH_EXCLUSION_EVIDENCE_REQUIRED'): never {
-  return bad(message, code);
-}
+const fail: ReasonFirstRefusal = familyErrors('SEARCH_EXCLUSION_EVIDENCE_REQUIRED');
 const keyText = (value: string) => value.trim().replace(/\s+/gu, ' ').toLowerCase();
 const dateValue = (v: unknown) => {
   if (

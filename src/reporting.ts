@@ -15,7 +15,7 @@ import {
 } from './report-query-access.js';
 import {bad, fingerprint, noSecrets} from './workspace-core.js';
 import {redact} from './security.js';
-import {reportRange} from './report-native.js';
+import {reportRange} from './report-periods.js';
 import {reportingBindingMove, moveWorkbookSchedules} from './report-query-rebinding.js';
 import {bindingQueryCount, pauseQuerySchedules, scheduleSize, workbookOfSpreadsheet} from './workbook-repository.js';
 // The schedule clock lives in its own module so that the reviewed-write path (store -> scheduled-work) does not load

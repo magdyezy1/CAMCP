@@ -14,13 +14,13 @@ in `src/reviewed-families.ts`. The lifecycle modules consult the registry; they 
 | Stage | Hook | Called from | Must |
 |---|---|---|---|
 | Membership | `kind(plan)` | everywhere, through `familyOf` | Be truthy only for this family's mutations. It sees every request. |
-| Validation | `assert(plan, gateway)` | `assertWriteShape` (`write-shape.ts`) | Refuse anything outside the qualified contract before any network call. Call `gateway()` (before or after the family's own checks) when the gateway's generic write checks also apply: query parameters, method tunnelling, paused creation, Google operation structure. |
+| Validation | `assert(plan, gateway, shape)` | `assertWriteShape` (`write-shape.ts`) | Refuse anything outside the qualified contract before any network call. Call `gateway()` (before or after the family's own checks) when the gateway's generic write checks also apply: query parameters, method tunnelling, paused creation, Google operation structure. `shape(request)` runs the whole write-shape stage on a request derived from the plan (one operation of a batch, as its own service would receive it). |
 | Availability | `available(plan)` | inspect, prepare, execute | Optional: refuse a request the provider no longer accepts (a withdrawn feature). |
 | Actor | `actor(plan, actor, verifying)` | `access()` first; verification | Optional: refuse an actor the writes need more authority from (an administrator). |
 | Scope | `scope(connection, write, plan)` | `access()` at prepare/execute with `write=true`; verification with `write=false` | Throw when the OAuth grant lacks what the call needs (`INSUFFICIENT_SCOPE`; DV360 writes use `assertDV360WriteScope`). |
 | Authorization | `authorize(plan, connection, account, store)` | `ScopeGuard.authorize` (`scope.ts`), for the mutation and every read | Return true when it proved the request stays inside `account`; false for requests that are not its own. A read-scope check of the family's marked reads belongs here too. |
 | Ownership | `observe(read, connection, account, data, store)`, `created(plan, response)` | `ScopeGuard.observe`, `observeCreated` | Optional: record what a native list read or the write's response proves the account owns. |
-| Snapshot plan | `snapshots(plan, stateRead)` | `snapshotPlans` (`write-snapshots.ts`) | Return the reads whose results decide whether the write is allowed and what it changes; `stateRead(path, query)` builds one like the lifecycle's own. Mark each read with a family field (e.g. `businessLodgingRead`). |
+| Snapshot plan | `snapshots(plan, stateRead, classify)` | `snapshotPlans` (`write-snapshots.ts`) | Return the reads whose results decide whether the write is allowed and what it changes; `stateRead(path, query)` builds one like the lifecycle's own, and `classify(read)` classifies a read the family builds itself (`applyExecutionRisk`). Mark each read with a family field (e.g. `businessLodgingRead`). |
 | Whole state | `state(plan, readers)` | `WriteReviewer.state` | Optional, instead of `snapshots`: read everything the write depends on through `readers.guarded(...)`. |
 | Snapshot read | `reader(read, next)` | `readThroughFamilies` (prepare, execute, verification) | Handle only reads carrying its marker; pass every other read to `next` unchanged. Project the provider response to a small, stable shape. |
 | Read recognition | `isRead(read)` | `familyOfRead` | Be true only for reads it marked (check the gateway and the marker). |
@@ -34,13 +34,58 @@ in `src/reviewed-families.ts`. The lifecycle modules consult the registry; they 
 | Owner policy | `activates`, `destructive`, `policyAmounts` | `checkSpendPolicy` (`spend-policy.ts`), `applyExecutionRisk` | See [Spending](#spending). |
 | Outcome | `outcome(plan, result, before)`, `receipt`, `safeOutcome` | `writeOutcome` (`write-outcome.ts`) | Return true only when the response confirms every mutation of the request; add the provider's receipt; remove what must not be stored or shown. |
 | Refusal | `rejectionIsNonApplied(plan, status, body)` | `WriteReviewer` execute (`write-rejection.ts`) | Optional (CMP-04): true only when a primary document or authorized live observation proves that this definitive refusal (HTTP 4xx with the provider's parsed error body) applied nothing. The claim becomes `rejected`, its spend reservation is released and a plan step can be amended under a new key. Without it the outcome stays uncertain. |
-| Verification | `verification(plan, result, before, verificationRead)`, `observed(read, data, gateway)` | `WriteVerifier` | Name the reads and expected fields that show the result, and project each read to the shape of its `expected`. |
+| Verification | `verification(plan, result, before, verificationRead, classify)`, `observed(read, data, gateway)` | `WriteVerifier` | Name the reads and expected fields that show the result, and project each read to the shape of its `expected`; `classify` as for snapshots. |
 | Own verification | `verify(plan, verification)` | `WriteVerifier` | Optional, instead of the read-back: verify with the family's own reads (report jobs, previews, account access). |
 | Created resources | `verifiedResources(plan, actual)`, `afterReadBack(plan, check, verification)` | `WriteVerifier` | Optional: IDs a consistent read-back proves the write created; they become readable for the account after `scope` with `write`. |
 | Ledger | `name`, `files` | `action-contracts.ts` | Name the family as the ledger does and list its implementation and tests. |
 
 Snapshots of a family's marked reads are normalized as its reader projected them (`normalizeSnapshot`); a stable
 projection is what makes `STATE_CHANGED` between prepare and execute meaningful.
+
+## The family kit
+
+`src/family-kit.ts` (ARC-04 stage C) holds what family modules used to copy:
+
+- `fail(code, message, details = {}, status = 400)`, the refusal helper. Import it instead of declaring a local copy;
+  `tools/check-locales.mjs` owns the reason of every call to it exactly as it owned a local copy's, so each reason still
+  needs its Arabic. A local `invalid(message)` that forwards to it stays recognized too.
+- Refusal factories for a family with its own codes. Bind the refusal once at the top of the module, with its type, so
+  TypeScript treats each call as the end of its branch:
+
+  | Factory | Binding | A call |
+  |---|---|---|
+  | `familyErrors(input, statuses = {}, otherwise = 400)` | `const fail: ReasonFirstRefusal = familyErrors('INVALID_X', {X_STATE_UNVERIFIED: 502});` | `fail(reason)` throws `INVALID_X` (400); `fail(reason, code)` throws `code` with its status in `statuses`, `otherwise` for any other code |
+  | `familyStateErrors(input, state)` | `const fail: StateFlaggedRefusal = familyStateErrors('INVALID_X', 'X_STATE_UNVERIFIED');` | `fail(reason)` throws the input code (400), `fail(reason, true)` the state code (502) |
+  | `familyCodeError(code, status = 400)` | `const fail: OneCodeRefusal = familyCodeError('INVALID_X');` | `fail(reason, details?)` |
+  | `failWithStatus(status)` | `const fail: StatusRefusal = failWithStatus(409);` | `fail(code, reason, details?, status?)`, 409 unless the call names a status |
+
+  The localization check owns the reason of a call to a binding built this way, at the argument the factory's refusal
+  takes it in (`kitRefusalFactories`), and of a forwarder to it, as for `fail`.
+- `defineFamily(declaration)` checks a declaration when its module loads (a ledger family name, `src/` implementation
+  modules, at least one test, a `kind` hook) and returns it unchanged; `tests/family-kit.test.mjs` applies it to every
+  registered family.
+- `FamilyCore`, `FamilyStateHooks`, `FamilyPolicyHooks`, `FamilyDeliveryHooks` and `FamilyVerificationHooks` group the
+  hooks of `ReviewedFamily` by the stage that calls them; a new hook must join a group or the build fails
+  (`everyFamilyHookHasAStage`).
+
+Every module is on the kit: the byte-identical copies moved in waves 1 to 3 (X, then TikTok, Google Ads, Criteo, DV360,
+LinkedIn, Meta and Snapchat), and wave 4 moved the variants with their own codes and statuses onto the factories, each
+with the code and status its helper gave (`tests/family-kit.test.mjs`). A module that declares its own `fail` again is
+a regression `npm run architecture:check` names (`local_fail_copies`, 0). Nineteen modules whose former helper the
+localization inventory never followed (an arrow function, or a forwarder to another module's helper) are listed in
+`unlocalizedRefusalModules` (`tools/check-locales.mjs`): their reasons still have no Arabic and stay outside the
+inventory until they are translated. The list only shrinks; a new module never joins it.
+
+## What a family module imports
+
+A family module imports no lifecycle module (ARC-04): the registry imports every family, so a family that imports
+`scope.ts`, `review-state.ts`, `execution-risk.ts`, `write-shape.ts` or another module that reaches the registry joins
+a runtime import cycle with it. Pure helpers come from leaves instead: `normalizeAccount` from `src/account-id.ts`,
+`normalizeReviewState`, `reviewStateHash` and `changedStateFields` from `src/review-state-core.ts` (the old modules
+re-export them); the lifecycle stages a family applies to requests it builds arrive as hook arguments (`shape`,
+`classify`, the read builders). A value read while a module is evaluated (a top-level constant taken from another
+module) belongs in a leaf as well, such as `src/tiktok-paths.ts`. `npm run architecture:check` refuses a module that
+joins a cycle, and `tests/import-order.test.mjs` imports every module first and fails on a load-time `ReferenceError`.
 
 ## Spending
 
@@ -66,11 +111,11 @@ in a body (`status: DELETED`, `operation_status: DELETE`) belongs in `bodyDeleti
 ## Steps
 
 1. Write the module. Keep each hook a named, exported function so tests can call it directly.
-2. Declare the family at the end of the module:
+2. Declare the family at the end of the module, through the family kit (below):
 
    ```ts
    /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-   export const businessLodgingFamily:ReviewedFamily={
+   export const businessLodgingFamily:ReviewedFamily=defineFamily({
     name:'google_business_lodging',
     files:['src/google-business-lodging.ts',['tests/google-business-lodging.test.mjs']],
     kind:businessLodgingKind,
@@ -86,7 +131,7 @@ in a body (`status: DELETED`, `operation_status: DELETE`) belongs in `bodyDeleti
     verification:businessLodgingVerification,
     observed:businessLodgingObserved,
     exemptFromSpendTextMatch:true,
-   };
+   });
    ```
 
 3. Add it to the list in `src/reviewed-families.ts`, in name order.

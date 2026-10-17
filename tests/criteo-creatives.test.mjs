@@ -6,6 +6,11 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
 import {authorizeCriteoCreative} from '../dist/src/criteo-creatives.js';
+import {offerParkedProviders} from './helpers/parked-providers.mjs';
+
+// Criteo is parked (ARC-01, P9): this suite exercises it, so it offers it like a
+// deployment whose AMCP_PROVIDERS names it.
+offerParkedProviders('criteo');
 
 /**
  * Criteo Retail Media creatives, API 2026-07 (pinned OpenAPI document: CreateCreative, UpdateCreative, GetCreative,

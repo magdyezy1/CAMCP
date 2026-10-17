@@ -1,12 +1,17 @@
 import {MirrorError} from './errors.js';
-import {applyExecutionRisk} from './execution-risk.js';
 import {validateGooglePausedParents} from './google-paused-parents.js';
 import {validateGoogleTargetingState} from './google-targeting-writes.js';
-import type {PolicyAmounts, ReviewedFamily, VerificationRead} from './reviewed-family.js';
+import type {
+  Classify,
+  PolicyAmounts,
+  ReadBuilder,
+  ReviewedFamily,
+  VerificationRead,
+  WriteShape,
+} from './reviewed-family.js';
 import type {TransportResult} from './transport.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {snake} from './write-common.js';
-import {assertWriteShape} from './write-shape.js';
 import {currencyText, minimumUnitMicros} from './budget-units.js';
 import {googleRejectionIsNonApplied} from './write-rejection.js';
 import {
@@ -295,13 +300,13 @@ function single(plan: CompiledRequest, op: Op): CompiledRequest {
 }
 const pmaxOps = (ops: Op[]): PmaxOp[] =>
   ops.map(o => ({index: o.index, kind: o.type.kind, create: o.create, ...(o.temp ? {temp: o.temp} : {})}));
-export function assertGoogleAtomicBuild(plan: CompiledRequest) {
+export function assertGoogleAtomicBuild(plan: CompiledRequest, _gateway: () => void, shape: WriteShape) {
   const ops = operations(plan);
   // Performance Max minimums and structure, before any request (CMP-07).
   assertPmaxBuild(pmaxOps(ops));
   for (const op of ops) {
     try {
-      assertWriteShape(single(plan, op));
+      shape(single(plan, op));
     } catch (e) {
       // The same refusal, naming the operation it came from.
       if (e instanceof MirrorError)
@@ -313,8 +318,8 @@ export function assertGoogleAtomicBuild(plan: CompiledRequest) {
     }
   }
 }
-const search = (plan: CompiledRequest, query: string): CompiledRequest =>
-  applyExecutionRisk({
+const search = (classify: Classify, plan: CompiledRequest, query: string): CompiledRequest =>
+  classify({
     ...plan,
     action: 'AMCP_STATE_READ',
     method: 'POST',
@@ -339,8 +344,14 @@ const resourceOf: Record<string, string> = {
   adGroups: 'ad_group',
 };
 /** The customer (currency and time zone), and every existing parent the build names. */
-export function googleAtomicSnapshots(plan: CompiledRequest): CompiledRequest[] {
-  const reads = [search(plan, 'SELECT customer.id, customer.currency_code, customer.time_zone FROM customer LIMIT 1')],
+export function googleAtomicSnapshots(
+  plan: CompiledRequest,
+  _stateRead: ReadBuilder,
+  classify: Classify,
+): CompiledRequest[] {
+  const reads = [
+      search(classify, plan, 'SELECT customer.id, customer.currency_code, customer.time_zone FROM customer LIMIT 1'),
+    ],
     seen = new Set<string>(),
     ops = operations(plan);
   for (const op of ops)
@@ -352,6 +363,7 @@ export function googleAtomicSnapshots(plan: CompiledRequest): CompiledRequest[] 
       const resource = resourceOf[kind]!;
       reads.push(
         search(
+          classify,
           plan,
           'SELECT ' +
             parentFields[kind] +
@@ -370,6 +382,7 @@ export function googleAtomicSnapshots(plan: CompiledRequest): CompiledRequest[] 
   if (assets.length)
     reads.push(
       search(
+        classify,
         plan,
         'SELECT asset.resource_name, asset.type FROM asset WHERE asset.resource_name IN (' +
           assets.map(a => "'" + a + "'").join(', ') +
@@ -494,7 +507,13 @@ export function googleAtomicOutcome(plan: CompiledRequest, result: TransportResu
 const leaves = (value: JsonObject, prefix = ''): string[] =>
   Object.entries(value).flatMap(([k, v]) => (object(v) ? leaves(v, prefix + k + '.') : [prefix + k]));
 /** One read per created resource, of the fields sent, with temporary names replaced by the ones Google returned. */
-export function googleAtomicVerification(plan: CompiledRequest, result: JsonObject): VerificationRead[] {
+export function googleAtomicVerification(
+  plan: CompiledRequest,
+  result: JsonObject,
+  _before: unknown[],
+  _verificationRead: ReadBuilder,
+  classify: Classify,
+): VerificationRead[] {
   const ops = operations(plan),
     list = responses(result),
     names = new Map<string, string>();
@@ -524,6 +543,7 @@ export function googleAtomicVerification(plan: CompiledRequest, result: JsonObje
       ];
     return {
       read: search(
+        classify,
         plan,
         'SELECT ' +
           fields.join(', ') +

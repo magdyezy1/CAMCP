@@ -575,6 +575,40 @@ export function inspectBackendContractFailures(source, file) {
     for (const message of importedMirrorErrorSentences(source, module)) messages.add(message);
   return messages;
 }
+/** The family kit's refusal factories (src/family-kit.ts): the argument of the built refusal that holds its reason. */
+export const kitRefusalFactories = Object.freeze({
+  familyErrors: 0,
+  familyStateErrors: 0,
+  familyCodeError: 0,
+  failWithStatus: 1,
+});
+/**
+ * Modules whose refusal reasons this inventory has never owned (ARC-04 stage C, wave 4): their local helper was an arrow
+ * function, or forwarded to another module's, which the wrapper inventory does not follow, so their reasons have no
+ * Arabic yet. Their kit refusals stay outside the inventory as those helpers were; remove a module from this list once its
+ * reasons are translated, and never add one (tests/backend-wrapper-localization.test.mjs).
+ */
+export const unlocalizedRefusalModules = new Set([
+  'src/ad-previews.ts',
+  'src/google-bid-modifiers.ts',
+  'src/google-bidding-events.ts',
+  'src/google-campaign-bid-modifiers.ts',
+  'src/google-conversion-actions.ts',
+  'src/google-conversion-goals.ts',
+  'src/google-custom-segments.ts',
+  'src/google-portfolio-strategies.ts',
+  'src/linkedin-audience-templates.ts',
+  'src/linkedin-conversion-links.ts',
+  'src/linkedin-conversion-rules.ts',
+  'src/linkedin-posts.ts',
+  'src/measurement-writes.ts',
+  'src/media-upload.ts',
+  'src/meta-existing-posts.ts',
+  'src/microsoft-associations.ts',
+  'src/search-exclusion-plan.ts',
+  'src/x-draft-writes.ts',
+  'src/x-targeting-batch.ts',
+]);
 // Qualify only unchanged message parameters of sole-throw local runtime helpers and their sole-call forwarders.
 export function inspectBackendWrapperFailures(source, file) {
   const bindingNames = node =>
@@ -628,9 +662,52 @@ export function inspectBackendWrapperFailures(source, file) {
     else candidates.set(fn.id.name, fn);
   }
   for (const name of duplicateNames) candidates.delete(name);
+  // ARC-04 stage C: the family kit's fail (src/family-kit.ts) is the sole-throw wrapper family modules had copied; a binding
+  // imported from it owns its message argument as a local copy did. So does a refusal a kit factory built: a top-level
+  // const bound to one call of an imported factory, whose declarator declares it rather than shadowing it.
+  const kit = new Map(),
+    built = new Map();
+  if (!unlocalizedRefusalModules.has(file)) {
+    const factories = new Map();
+    for (const node of program.body)
+      if (
+        node.type === 'ImportDeclaration' &&
+        node.importKind !== 'type' &&
+        path.posix.normalize(path.posix.join(path.posix.dirname(file), node.source.value)) === 'src/family-kit.js'
+      )
+        for (const specifier of node.specifiers) {
+          if (
+            specifier.type !== 'ImportSpecifier' ||
+            specifier.importKind === 'type' ||
+            candidates.has(specifier.local.name)
+          )
+            continue;
+          const imported = specifier.imported.name ?? specifier.imported.value;
+          if (imported === 'fail') kit.set(specifier.local.name, 1);
+          else if (Object.hasOwn(kitRefusalFactories, imported))
+            factories.set(specifier.local.name, kitRefusalFactories[imported]);
+        }
+    for (const node of program.body) {
+      const declaration = node.type === 'ExportNamedDeclaration' ? node.declaration : node;
+      if (declaration?.type !== 'VariableDeclaration' || declaration.kind !== 'const') continue;
+      for (const declarator of declaration.declarations)
+        if (
+          declarator.id.type === 'Identifier' &&
+          !candidates.has(declarator.id.name) &&
+          !kit.has(declarator.id.name) &&
+          declarator.init?.type === 'CallExpression' &&
+          declarator.init.callee.type === 'Identifier' &&
+          factories.has(declarator.init.callee.name)
+        ) {
+          kit.set(declarator.id.name, factories.get(declarator.init.callee.name));
+          built.set(declarator.id.name, declarator);
+        }
+    }
+  }
+  const tracked = name => candidates.has(name) || kit.has(name);
   const shadows = [];
   const shadow = (node, names) => {
-    const affected = names.filter(name => candidates.has(name));
+    const affected = names.filter(tracked);
     if (affected.length) shadows.push({start: node.start, end: node.end, names: new Set(affected)});
   };
   visit(program, (node, ancestors) => {
@@ -642,7 +719,9 @@ export function inspectBackendWrapperFailures(source, file) {
     if (node.type === 'CatchClause') shadow(node, bindingNames(node.param));
     if (node.type === 'ClassExpression') shadow(node, bindingNames(node.id));
     if (['VariableDeclarator', 'ClassDeclaration', 'FunctionDeclaration'].includes(node.type)) {
-      const names = bindingNames(node.id).filter(name => candidates.has(name) && candidates.get(name) !== node);
+      const names = bindingNames(node.id).filter(
+        name => (candidates.has(name) && candidates.get(name) !== node) || (kit.has(name) && built.get(name) !== node),
+      );
       if (!names.length) return;
       const declaration = ancestors.at(-1),
         scopes = [...ancestors].reverse(),
@@ -677,7 +756,7 @@ export function inspectBackendWrapperFailures(source, file) {
           : ['ForInStatement', 'ForOfStatement'].includes(node.type) && node.left.type !== 'VariableDeclaration'
             ? node.left
             : null;
-    for (const name of bindingNames(target)) if (candidates.has(name) && !shadowed(node, name)) assigned.add(name);
+    for (const name of bindingNames(target)) if (tracked(name) && !shadowed(node, name)) assigned.add(name);
   });
   const signature = (fn, identifier) =>
       fn.params.findIndex(parameter => parameter.type === 'Identifier' && parameter.name === identifier),
@@ -708,6 +787,7 @@ export function inspectBackendWrapperFailures(source, file) {
     wrappers = new Map(
       direct.filter(row => qualified.has(row.sentinel)).map(row => [row.fn.id.name, {fn: row.fn, index: row.index}]),
     );
+  for (const [name, index] of kit) if (!assigned.has(name)) wrappers.set(name, {fn: null, index});
   let progress = true;
   while (progress) {
     progress = false;

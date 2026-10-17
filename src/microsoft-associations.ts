@@ -1,61 +1,15 @@
 import {microsoftOutcome, microsoftSnapshots, compileMicrosoft} from './microsoft-native.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
+import {familyCodeError, type OneCodeRefusal} from './family-kit.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {microsoftAssociationContracts, microsoftExtensionTypes} from './microsoft-association-contracts.js';
 type Compile = (input: JsonObject) => CompiledRequest;
 
-// Explicit v13 JSON contracts; WSDL correspondence is checked separately.
-// https://learn.microsoft.com/en-us/advertising/campaign-management-service/setadextensionsassociations?view=bingads-13
-export const microsoftExtensionTypes = [
-  'LocationAdExtension',
-  'CallAdExtension',
-  'ImageAdExtension',
-  'AppAdExtension',
-  'ReviewAdExtension',
-  'CalloutAdExtension',
-  'SitelinkAdExtension',
-  'StructuredSnippetAdExtension',
-  'PriceAdExtension',
-  'ActionAdExtension',
-  'PromotionAdExtension',
-  'FilterLinkAdExtension',
-  'FlyerAdExtension',
-  'VideoAdExtension',
-  'DisclaimerAdExtension',
-  'LogoAdExtension',
-];
-const base = '/CampaignManagement/v13/';
-export const microsoftAssociationContracts = [
-  {
-    name: 'GetAdExtensionsByIds',
-    method: 'POST',
-    path: base + 'AdExtensions/QueryByIds',
-    fields: ['AccountId', 'AdExtensionIds', 'AdExtensionType', 'ReturnAdditionalFields'],
-    required: ['AccountId', 'AdExtensionIds', 'AdExtensionType'],
-    result: 'AdExtensions',
-    kind: 'AdExtensions',
-  },
-  {
-    name: 'GetAdExtensionsAssociations',
-    method: 'POST',
-    path: base + 'AdExtensionsAssociations/Query',
-    fields: ['AccountId', 'EntityIds', 'AssociationType', 'AdExtensionType', 'ReturnAdditionalFields'],
-    required: ['AccountId', 'EntityIds', 'AssociationType', 'AdExtensionType'],
-    result: 'AdExtensionAssociationCollection',
-  },
-  ...['Set', 'Delete'].map(verb => ({
-    name: verb + 'AdExtensionsAssociations',
-    method: verb === 'Set' ? 'POST' : 'DELETE',
-    path: base + 'AdExtensionsAssociations' + (verb === 'Set' ? '/Set' : ''),
-    fields: ['AccountId', 'AdExtensionIdToEntityIdAssociations', 'AssociationType'],
-    required: ['AccountId', 'AdExtensionIdToEntityIdAssociations', 'AssociationType'],
-    result: 'PartialErrors',
-  })),
-];
+// The contract data lives in a leaf that src/microsoft-native.ts reads while it is evaluated (ARC-04).
+export {microsoftAssociationContracts, microsoftExtensionTypes};
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-const fail = (message: string): never => {
-  throw new MirrorError('INVALID_MICROSOFT_ASSOCIATION', message);
-};
+const fail: OneCodeRefusal = familyCodeError('INVALID_MICROSOFT_ASSOCIATION');
 export function microsoftAssociationWrite(p: CompiledRequest) {
   return (
     p.gateway === 'microsoft_ads_native_action' &&
@@ -98,7 +52,7 @@ export function assertMicrosoftAssociation(p: CompiledRequest) {
         ),
     )
   )
-    fail('Use 1–100 exact positive 64-bit string AdExtensionId/EntityId pairs.');
+    fail('Use 1â€“100 exact positive 64-bit string AdExtensionId/EntityId pairs.');
   if (new Set(rows.map((r: JsonObject) => r.EntityId + '/' + r.AdExtensionId)).size !== rows.length)
     fail('Association pairs must be unique.');
   const types = p.scopeContext?.microsoftExtensionTypes;

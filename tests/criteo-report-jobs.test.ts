@@ -20,6 +20,11 @@ import {
 import {saveSpendPolicy} from '../src/spend-policy.js';
 import {removeTestDirectory} from './temp.js';
 import type {Connection, JsonObject, CompiledRequest} from '../src/types.js';
+import {offerParkedProviders} from './helpers/parked-providers.js';
+
+// Criteo is parked (ARC-01, P9): this suite exercises it, so it offers it like a
+// deployment whose AMCP_PROVIDERS names it.
+offerParkedProviders('criteo');
 
 const gateway = 'criteo_native_action',
   prefix = '/2026-07/retail-media',

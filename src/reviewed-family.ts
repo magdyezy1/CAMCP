@@ -16,6 +16,19 @@ export type ReadBuilder = (path: string, query?: JsonObject, body?: JsonObject, 
 /** Runs the gateway's own checks of a state read; `identity`, when given, replaces its check of the read's target. */
 export type GatewayStateChecks = (identity?: (read: CompiledRequest, result: TransportResult) => void) => void;
 
+/**
+ * Classifies a request the family built itself the way every compiled request is classified (`applyExecutionRisk` of
+ * src/execution-risk.ts: read-only, destructive, confirmation and warnings). The lifecycle passes it to the hooks that
+ * build requests, like the read builders, so no family module imports a lifecycle module (ARC-04).
+ */
+export type Classify = (request: CompiledRequest) => CompiledRequest;
+
+/**
+ * Runs the whole write-shape stage (`assertWriteShape` of src/write-shape.ts) on a request the family derives from its
+ * plan, such as one operation of a batch as its own service would receive it.
+ */
+export type WriteShape = (request: CompiledRequest) => void;
+
 /** What the review knows besides the plan and its state. */
 export interface ImpactContext {
   /** The caller confirmed an edit that changes every ad using a shared creative. */
@@ -162,17 +175,21 @@ export interface ReviewedFamily {
   /**
    * Validates the request before any network call; throws the family's refusal. `gateway` runs the gateway's generic
    * write checks (query parameters, method tunnelling, paused creation, native operation structure); a family that
-   * relies on them calls it, before or after its own checks.
+   * relies on them calls it, before or after its own checks. `shape` runs the whole write-shape stage on a request the
+   * family derives from its plan.
    */
-  assert?(plan: CompiledRequest, gateway: () => void): void;
+  assert?(plan: CompiledRequest, gateway: () => void, shape: WriteShape): void;
   /** Checks the connection's OAuth scopes: for writing at prepare and execute (`write` true), for reading at verification. */
   scope?(connection: Connection, write?: boolean, plan?: CompiledRequest): void;
   /** True when this family authorizes the request (its mutation or one of its reads); false to leave it to others. */
   authorize?(plan: CompiledRequest, connection: Connection, account: string, store: Store): boolean;
   /** Records what a native read of the account shows this family's later writes may rely on (listed resources it owns). */
   observe?(read: CompiledRequest, connection: Connection, account: string, data: unknown, store: Store): void;
-  /** Reads taken at prepare and repeated at execute; `stateRead` builds a state read of the plan's account. */
-  snapshots?(plan: CompiledRequest, stateRead: ReadBuilder): CompiledRequest[];
+  /**
+   * Reads taken at prepare and repeated at execute; `stateRead` builds a state read of the plan's account, and `classify`
+   * classifies a read the family builds itself.
+   */
+  snapshots?(plan: CompiledRequest, stateRead: ReadBuilder, classify: Classify): CompiledRequest[];
   /** Reads the whole state the write depends on through `readers`, instead of the reads of `snapshots`. */
   state?(plan: CompiledRequest, readers: StateReaders): Promise<unknown[]>;
   /** True for the reads this family marked in `snapshots` or `verification`. */
@@ -225,14 +242,15 @@ export interface ReviewedFamily {
    */
   rejectionIsNonApplied?(plan: CompiledRequest, status: number, body: JsonObject): boolean;
   /**
-   * Reads that show the result after execution; `before` holds the snapshots taken at execute, and `verificationRead`
-   * builds a read of the plan's account.
+   * Reads that show the result after execution; `before` holds the snapshots taken at execute, `verificationRead`
+   * builds a read of the plan's account, and `classify` classifies a read the family builds itself.
    */
   verification?(
     plan: CompiledRequest,
     result: JsonObject,
     before: unknown[],
     verificationRead: ReadBuilder,
+    classify: Classify,
   ): VerificationRead[];
   /**
    * Verifies the write with the family's own reads instead of `verification`'s read-back; undefined leaves the plan to

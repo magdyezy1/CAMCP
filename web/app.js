@@ -31,6 +31,8 @@ const labels = {
 let session = {authenticated: false, csrf: null},
   platforms = [],
   commerceSources = [],
+  // Parked providers this deployment does not offer (ARC-01, P9), from /api/platforms.
+  providersNotOffered = [],
   filter = 'all',
   search = '',
   currentPlatform = null,
@@ -68,6 +70,7 @@ function resetPrivateState() {
   clearTimeout(toastTimer);
   platforms = [];
   commerceSources = [];
+  providersNotOffered = [];
   tokens = [];
   oauthClients = [];
   oauthEnded = [];
@@ -1124,6 +1127,7 @@ async function refresh() {
   const data = await api('/api/platforms');
   platforms = data.platforms;
   commerceSources = data.commerce_sources ?? [];
+  providersNotOffered = data.providers_not_offered ?? [];
   const c = platforms.find(p => p.id === currentPlatform)?.connections.find(c => c.id === currentConnection);
   if (c) {
     selected = new Set(c.selected ?? []);
@@ -1566,6 +1570,7 @@ async function switchWorkspaceFromShell(id) {
   const platformData = await api('/api/platforms');
   platforms = platformData.platforms;
   commerceSources = platformData.commerce_sources ?? [];
+  providersNotOffered = platformData.providers_not_offered ?? [];
   closeWorkspaceMenu();
   // Plan, report and account IDs in the address belonged to the previous workspace: keep only the page.
   navigate(routeEntry(location.pathname) && routeAvailable(location.pathname) ? location.pathname : '/dashboard');
@@ -2010,6 +2015,7 @@ document.addEventListener('click', async event => {
       const platformData = await api('/api/platforms');
       platforms = platformData.platforms;
       commerceSources = platformData.commerce_sources ?? [];
+      providersNotOffered = platformData.providers_not_offered ?? [];
       navigate('/');
       return;
     }
@@ -2340,6 +2346,7 @@ $('#login-form').addEventListener('submit', async event => {
     const platformData = await api('/api/platforms');
     platforms = platformData.platforms;
     commerceSources = platformData.commerce_sources ?? [];
+    providersNotOffered = platformData.providers_not_offered ?? [];
     afterSignIn();
   } catch (e) {
     $('#login-error').textContent = errorMessage(e);

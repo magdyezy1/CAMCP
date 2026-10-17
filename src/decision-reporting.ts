@@ -8,6 +8,7 @@ import {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {accountMetadataStaleMs, recallAccountMetadata} from './account-metadata.js';
 import type {Actor, JsonObject} from './types.js';
+import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
 import {audit, bad, field, fingerprint, obj, pointer, read, tool, validate, type ToolCall} from './workspace-core.js';
 import {metricNumber, reportPlatforms} from './report-metrics.js';
 import {reportPresets, reportPreset, validatePresetRows} from './report-presets.js';
@@ -264,6 +265,49 @@ function compatibility(a: JsonObject, b: JsonObject) {
   );
   if (mismatch.length) bad('Report semantics cannot be combined: ' + mismatch.join(', '), 'REPORT_SEMANTICS_MISMATCH');
 }
+/** One amcp_reporting call (ARC-04 stage D): a preset names its capture; the Overview collector's is transient. */
+interface ReportingCall extends ToolContext {
+  readonly capturePreset?: string;
+  readonly transient: boolean;
+}
+/** A call on the retained evidence report its `id` names. */
+interface EvidenceCall extends ReportingCall {
+  readonly report: JsonObject;
+}
+/** The rows of retained evidence a read returns: one bounded page, matched by `get`'s plain-text row search. */
+function evidenceView(d: JsonObject, input: JsonObject) {
+  if (!Array.isArray(d.rows) || d.rows.length > 10000)
+    bad('Retained evidence exceeds the bounded row view.', 'REPORT_SHAPE_CHANGED');
+  const query = (input.row_query ?? '').trim(),
+    needle = query.toLowerCase();
+  const rows = query
+    ? d.rows.filter((row: JsonObject) =>
+        [
+          'entity_id',
+          'entity_name',
+          'date',
+          'search_term',
+          ...(Object.hasOwn(d.mapping ?? {}, 'keyword_match_type') ? ['keyword_match_type'] : []),
+          ...(Object.hasOwn(d.mapping ?? {}, 'native_device') ? ['native_device'] : []),
+          ...(Object.hasOwn(d.mapping ?? {}, 'native_hour') ? ['native_hour'] : []),
+          ...['native_country_criterion_id', 'native_location_type', 'native_geographic_resource'].filter(key =>
+            Object.hasOwn(d.mapping ?? {}, key),
+          ),
+          ...(Object.hasOwn(d.mapping ?? {}, 'native_conversion') ? ['native_conversion'] : []),
+          ...breakdownDimensionKeys.filter(key => Object.hasOwn(d.mapping ?? {}, key)),
+        ].some(key => typeof row?.[key] === 'string' && row[key].toLowerCase().includes(needle)),
+      )
+    : d.rows;
+  return {
+    ...d,
+    xlsx_path: '/api/reporting-evidence/' + encodeURIComponent(d.id) + '.xlsx',
+    rows: rows.slice(input.offset ?? 0, (input.offset ?? 0) + (input.limit ?? 50)),
+    row_count: d.rows.length,
+    matched_row_count: rows.length,
+    row_query: query,
+    has_more: (input.offset ?? 0) + (input.limit ?? 50) < rows.length,
+  };
+}
 export class DecisionReporting {
   constructor(
     private store: Store,
@@ -390,692 +434,696 @@ export class DecisionReporting {
         /[\x00-\x1f\x7f]/.test(input.row_query))
     )
       bad('Retained row search is available on get and requires at most 150 plain-text characters.');
-    if (input.action === 'capture_presets')
-      return input.connection_id === undefined && input.account_id === undefined
-        ? {presets: reportPresets}
-        : {presets: reportPresets, target: captureTarget(this.store, actor, input)};
-    // CMP-07: read-only serving diagnostics (Google) and the post-launch check of a guided Meta or Snapchat launch.
-    if (input.action === 'serving_diagnostics') return googleServingDiagnostics(this.store, this.call, actor, input);
-    if (input.action === 'launch_check') {
-      if (!this.readPlan) bad('Launch checks need the campaign plan service.', 'LAUNCH_CHECK_UNSUPPORTED');
-      return launchCheck(this.store, this.call, this.readPlan, actor, input);
-    }
-    if (input.action === 'capture_preset') {
-      const request = reportPreset(input);
-      let usage: JsonObject = {};
-      const budget = new ReportCollectionBudget(
-        undefined,
-        fingerprint(request),
-        v => {
-          usage = v;
-        },
-        {requests: 120, rows: 10000, elapsed_ms: 120000, bytes: 32 * 1024 * 1024},
-      );
-      try {
-        const result = await budget.run(() => this.handle({action: 'capture', ...request}, actor, input.preset));
-        const provenance = {
-          preset: input.preset,
-          collection_usage: {requests: usage.requests, bytes: usage.bytes, elapsed_ms: usage.elapsed_ms},
-          grain: reportPresets.find(p => p.id === input.preset)!.grain,
-          ...(request.gateway === 'snapchat_native_action'
-            ? {
-                semantics_source:
-                  request.arguments.query.fields === 'spend,impressions,swipes,native_leads'
-                    ? 'Snapchat account identity, currency and timezone verified before and after complete daily pages. Native submitted-form counts use native_leads; every page confirms non-conversion metric finalization through the selected end. Swipes are clicks; spend is native micros. No submitted lead records are read. Collection is not a point-in-time snapshot; off-platform attribution, lead quality and measurement setup remain unverified.'
-                    : 'Snapchat account identity, currency and timezone verified before and after complete daily pages. Explicit swipe/view windows, conversion-time reporting and total conversion sources come from the retained request; each page confirms delivery and conversion processing through the selected end. Swipes are clicks; spend is native micros. Collection is not a point-in-time snapshot or proof of measurement setup.',
-              }
-            : {}),
-          ...(request.gateway === 'google_ads_native_action'
-            ? {
-                semantics_source:
-                  'Google customer currency and timezone verified before and after complete Search pages; native resource identity, dates, result counts and unique grain checked; conversions use metrics.conversions. Attribution and reporting-window completeness remain declared, not independently verified. Collection is not a point-in-time snapshot.',
-              }
-            : {}),
-          ...(request.gateway === 'meta_native_action'
-            ? {
-                semantics_source:
-                  'Meta account currency and timezone verified before and after complete Insights pages; action/window/report-time settings come from the retained request, native account/parent/day grain is checked, and reporting-window completeness remains declared. Collection is not a point-in-time snapshot.',
-              }
-            : {}),
-          ...(request.gateway === 'linkedin_native_action'
-            ? {
-                semantics_source:
-                  input.preset === 'linkedin_campaign_conversion'
-                    ? "LinkedIn account identity and currency verified before and after a complete bounded campaign × conversion analytics response and the account's current conversion rules, all under unchanged authorization; each conversion's post-click and post-view windows come from its current rule (verified_per_rule, mixed or unknown). Rule settings are current, not historical. Reporting-window completeness remains declared. Collection is not a point-in-time snapshot."
-                    : 'LinkedIn account identity and currency verified before and after a complete bounded analytics response with unchanged authorization; UTC dates and externalWebsiteConversions from the native request; attribution windows and completeness explicitly declared, not independently verified. Collection is not a point-in-time snapshot.',
-              }
-            : {}),
-          ...(request.gateway === 'tiktok_native_action'
-            ? {
-                semantics_source:
-                  'TikTok advertiser currency and timezone verified before and after complete native pages; native conversion refers to each entity optimization goal and goals may differ; attribution windows and completeness declared, not independently verified. Collection is not a point-in-time snapshot.',
-              }
-            : {}),
-        };
-        const saved = read(this.store, actor, 'decision_report', result.id);
-        // RPT-07 dimension packs: the retained dimensions, the values observed and that absent buckets stay unknown.
-        const dimensions = breakdownDimensionKeys.filter(key => Object.hasOwn(request.mapping ?? {}, key)),
-          retained = {
-            ...provenance,
-            ...(dimensions.length ? {breakdown: breakdownDescriptor(dimensions, saved.rows)} : {}),
-          };
-        this.store.assertActorActive(actor);
-        this.store.resolveConnection(actor, saved.gateway, saved.account_id, saved.connection_id);
-        this.store.putDocument(actor.tenantId, 'decision_report', saved.id, {...saved, ...retained});
-        return {...result, ...retained};
-      } finally {
-        budget.close();
-      }
-    }
-    const view = (d: JsonObject) => {
-      if (!Array.isArray(d.rows) || d.rows.length > 10000)
-        bad('Retained evidence exceeds the bounded row view.', 'REPORT_SHAPE_CHANGED');
-      const query = (input.row_query ?? '').trim(),
-        needle = query.toLowerCase();
-      const rows = query
-        ? d.rows.filter((row: JsonObject) =>
-            [
-              'entity_id',
-              'entity_name',
-              'date',
-              'search_term',
-              ...(Object.hasOwn(d.mapping ?? {}, 'keyword_match_type') ? ['keyword_match_type'] : []),
-              ...(Object.hasOwn(d.mapping ?? {}, 'native_device') ? ['native_device'] : []),
-              ...(Object.hasOwn(d.mapping ?? {}, 'native_hour') ? ['native_hour'] : []),
-              ...['native_country_criterion_id', 'native_location_type', 'native_geographic_resource'].filter(key =>
-                Object.hasOwn(d.mapping ?? {}, key),
-              ),
-              ...(Object.hasOwn(d.mapping ?? {}, 'native_conversion') ? ['native_conversion'] : []),
-              ...breakdownDimensionKeys.filter(key => Object.hasOwn(d.mapping ?? {}, key)),
-            ].some(key => typeof row?.[key] === 'string' && row[key].toLowerCase().includes(needle)),
-          )
-        : d.rows;
-      return {
-        ...d,
-        xlsx_path: '/api/reporting-evidence/' + encodeURIComponent(d.id) + '.xlsx',
-        rows: rows.slice(input.offset ?? 0, (input.offset ?? 0) + (input.limit ?? 50)),
-        row_count: d.rows.length,
-        matched_row_count: rows.length,
-        row_query: query,
-        has_more: (input.offset ?? 0) + (input.limit ?? 50) < rows.length,
-      };
-    };
-    const accessible = (d: JsonObject) => {
-      this.store.resolveConnection(actor, d.gateway, d.account_id, d.connection_id);
-      return d;
-    };
+    // ARC-04 stage D: each action is an entry of an action table (src/tool-actions.ts), consulted in the order of the
+    // checks between them: the page bounds apply from `list` on, and the actions after those read the retained report
+    // the call names, whose connection must still be accessible, before their own checks.
+    const context: ReportingCall = {input, actor, capturePreset, transient};
+    const unpaged = actionHandler(this.unpagedActions, input.action);
+    if (unpaged) return unpaged(context);
     if (
       (input.offset !== undefined && (!Number.isInteger(input.offset) || input.offset < 0)) ||
       (input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > 100))
     )
       bad('Invalid report pagination.');
-    if (input.action === 'list') return evidenceIndex(this.store, actor, input);
-    if (input.action === 'get') return view(accessible(read(this.store, actor, 'decision_report', input.id)));
-    if (['overview_sources', 'capture_overview'].includes(input.action)) {
-      const snapshot = read(this.store, actor, 'overview_report', input.id);
-      if (!['complete', 'partial'].includes(snapshot.state))
-        bad('Use a completed or marked partial snapshot.', 'REPORT_NOT_READY');
-      const groups = this.overviewGroups(actor, snapshot);
-      if (input.action === 'overview_sources')
-        return {
-          overview_id: snapshot.id,
-          network_requests: 0,
-          groups: [...groups].map(([id, g]) => ({
-            id,
-            ...g.source,
-            semantics: g.semantics,
-            row_count: g.rows.length,
-            eligible: !!g.semantics.currency && !!g.semantics.timezone,
-          })),
-          meaning:
-            'Choose one account, currency, timezone and conversion definition. Source data is reused from this snapshot; currencies and attribution models are never blended.',
-        };
-      const group = groups.get(String(input.group_id));
-      if (!group) bad('Choose a group returned by overview_sources for this snapshot.', 'REPORT_GROUP_REQUIRED');
-      // RPT-07: a snapshot run with compare:"previous_period" also keeps the same group of its paired baseline, and
-      // analyze uses that pair as its default baseline. A missing or unfinished pair is reported, never guessed.
-      let pairing: JsonObject | undefined;
-      const pairedId = snapshot.comparison?.role === 'current' ? snapshot.comparison.baseline_id : undefined;
-      if (typeof pairedId === 'string') {
-        let base: JsonObject | undefined;
-        try {
-          base = read(this.store, actor, 'overview_report', pairedId);
-        } catch (e) {
-          if (!(e instanceof MirrorError) || e.code !== 'NOT_FOUND') throw e;
-          pairing = {status: 'unavailable', code: 'baseline_deleted'};
-        }
-        if (base && !['complete', 'partial'].includes(base.state))
-          pairing = {status: 'unavailable', code: 'baseline_not_finished'};
-        else if (base) {
-          const baseGroup = this.overviewGroups(actor, base).get(String(input.group_id));
-          if (!baseGroup) pairing = {status: 'unavailable', code: 'group_not_in_baseline'};
-          else {
-            const paired = this.captureOverviewGroup(actor, base, String(input.group_id), baseGroup);
-            pairing = {status: 'paired', baseline_id: paired.id, overview_id: base.id};
-          }
-        }
-      }
-      const captured = this.captureOverviewGroup(
-        actor,
-        snapshot,
-        String(input.group_id),
-        group,
-        pairing?.status === 'paired' ? {paired_baseline_id: pairing.baseline_id} : {},
-      );
-      return {
-        ...view(captured),
-        ...(pairing ? {pairing} : {}),
-        website_path: '/reports?id=' + encodeURIComponent(captured.id),
-        network_requests: 0,
-      };
-    }
-    if (input.action === 'capture') {
-      const sem = semantic(input.semantics ?? {}),
-        mapping = input.mapping;
-      if (
-        !obj(mapping) ||
-        Object.keys(mapping).some(
-          k =>
-            ![
-              'entity_id',
-              'entity_name',
-              'date',
-              'search_term',
-              'keyword_match_type',
-              'native_device',
-              'native_hour',
-              'native_country_criterion_id',
-              'native_location_type',
-              'native_geographic_resource',
-              'native_conversion',
-              ...breakdownDimensionKeys,
-              ...metrics,
-              ...conversionSplit,
-            ].includes(k),
-        )
-      )
-        bad('Provide the native field mapping.');
-      // Validate even an empty result's mappings before requesting provider data.
-      for (const [key, spec] of Object.entries(mapping)) {
-        if (typeof spec !== 'string')
-          validate(spec, ['path', 'divisor', 'action_type', 'format'], undefined, 'mapping field');
-        if (key === 'keyword_match_type' && obj(spec) && Object.keys(spec).some(k => k !== 'path'))
-          bad('Native keyword match type requires an unmodified field pointer.');
-        if (key === 'native_device' && obj(spec) && Object.keys(spec).some(k => k !== 'path'))
-          nativeDeviceMappingFailure('Native device requires an unmodified field pointer.');
-        if (key === 'native_hour' && obj(spec) && Object.keys(spec).some(k => k !== 'path'))
-          nativeHourMappingFailure('Native hour requires an unmodified field pointer.');
-        if (
-          ['native_country_criterion_id', 'native_location_type', 'native_geographic_resource'].includes(key) &&
-          obj(spec) &&
-          Object.keys(spec).some(k => k !== 'path')
-        )
-          nativeCountryMappingFailure('Native geographic dimensions require unmodified field pointers.');
-        if (key === 'native_conversion' && obj(spec) && Object.keys(spec).some(k => k !== 'path'))
-          bad('The native conversion dimension requires an unmodified field pointer.', 'REPORT_SHAPE_CHANGED');
-        if (breakdownDimensionKeys.includes(key) && obj(spec) && Object.keys(spec).some(k => k !== 'path'))
-          bad('A native breakdown dimension requires an unmodified field pointer.', 'REPORT_SHAPE_CHANGED');
-        if (
-          obj(spec) &&
-          spec.format !== undefined &&
-          (key !== 'date' ||
-            !['linkedin_utc_date', 'tiktok_day'].includes(spec.format) ||
-            spec.divisor !== undefined ||
-            spec.action_type !== undefined)
-        )
-          bad('Native date formats are only available for the report date.');
-        const path = typeof spec === 'string' ? spec : (spec as JsonObject).path;
-        if (typeof path !== 'string' || path.length > 512 || (path !== '' && !path.startsWith('/')))
-          bad('Invalid metric JSON pointer.');
-        if (
-          obj(spec) &&
-          spec.divisor !== undefined &&
-          !['1', '100', '1000', '1000000', '1000000000'].includes(String(spec.divisor))
-        )
-          bad('Use an explicit native unit divisor.');
-        if (
-          obj(spec) &&
-          spec.action_type !== undefined &&
-          (!metrics.includes(key) ||
-            typeof spec.action_type !== 'string' ||
-            !/^[a-z][a-z0-9_.]{0,159}$/.test(spec.action_type))
-        )
-          bad('An action_type selector requires an exact native metric action type.');
-      }
-      if (typeof input.account_id !== 'string' || typeof input.gateway !== 'string' || !obj(input.arguments))
-        bad('Specify a gateway, account and native read arguments.');
-      const c = this.store.resolveConnection(actor, input.gateway, input.account_id, input.connection_id);
-      const args = structuredClone(input.arguments);
-      if (args.operation) {
-        args.arguments = {...args.arguments, account_id: input.account_id, connection_id: c.id, dry_run: false};
-      } else Object.assign(args, {account_id: input.account_id, connection_id: c.id, dry_run: false});
-      let nativeAccountEvidence: JsonObject | undefined;
-      const linkedin = capturePreset?.startsWith('linkedin_')
-        ? await collectLinkedInEvidence(this.store, this.call, actor, args, sem, rows =>
-            validatePresetRows(capturePreset, input, rows),
-          )
-        : undefined;
-      const tiktok = capturePreset?.startsWith('tiktok_')
-        ? await collectTikTokDailyReport(this.store, this.call, actor, args, sem)
-        : undefined;
-      const google = capturePreset?.startsWith('google_')
-        ? await collectGoogleReport(this.store, this.call, actor, args, sem, capturePreset)
-        : undefined;
-      const meta = capturePreset?.startsWith('meta_')
-        ? await collectMetaEvidence(this.store, this.call, actor, args, sem)
-        : undefined;
-      const snapchat = capturePreset?.startsWith('snapchat_')
-        ? await collectSnapchatEvidence(this.store, this.call, actor, args, sem)
-        : undefined;
-      const collected = tiktok ?? google ?? meta ?? linkedin ?? snapchat;
-      if (collected) nativeAccountEvidence = collected.nativeAccountEvidence;
-      const source: JsonObject = collected?.source ?? (await this.call(input.gateway, args, actor));
-      if (source.success !== true)
-        bad(source.error?.message ?? 'Provider report failed.', source.error?.code ?? 'REPORT_FAILED');
-      if (source.data?.executed === false || source.data?.dry_run || partial(source))
-        bad('Capture requires a complete provider read, not a preview or partial page.', 'REPORT_INCOMPLETE');
-      const raw = pointer(source, input.rows_pointer ?? '/data/data/results');
-      if (!Array.isArray(raw) || raw.length > 10000) bad('Select an array of at most 10000 provider rows.');
-      if (!linkedin) validatePresetRows(capturePreset, input, raw);
-      const rounding: Record<string, number> = {};
-      // RPT-04 (owner policy P6): guided Meta pages are complete, and Meta omits zero-valued action entries, so a
-      // delivered row (impressions above 0) counts an absent selected action as 0 and names it in `omitted_as_zero`.
-      const metaOmittedZero = meta !== undefined,
-        omittedCounts: Record<string, number> = {};
-      const rows = raw.map(r => {
-        const out: JsonObject = {},
-          omitted: string[] = [];
-        let delivered = false;
-        if (metaOmittedZero)
-          try {
-            const spec = mapping.impressions,
-              impressions = pointer(r, typeof spec === 'string' ? spec : spec?.path);
-            delivered = (metricNumber(impressions) ?? 0) > 0;
-          } catch {
-            delivered = false;
-          }
-        for (const key of [
-          'entity_id',
-          'entity_name',
-          'date',
-          'search_term',
-          ...(Object.hasOwn(mapping, 'keyword_match_type') ? ['keyword_match_type'] : []),
-          ...(Object.hasOwn(mapping, 'native_device') ? ['native_device'] : []),
-          ...(Object.hasOwn(mapping, 'native_hour') ? ['native_hour'] : []),
-          ...['native_country_criterion_id', 'native_location_type', 'native_geographic_resource'].filter(key =>
-            Object.hasOwn(mapping, key),
-          ),
-          ...(Object.hasOwn(mapping, 'native_conversion') ? ['native_conversion'] : []),
-          ...breakdownDimensionKeys.filter(key => Object.hasOwn(mapping, key)),
-          ...metrics,
-          ...conversionSplit.filter(key => Object.hasOwn(mapping, key)),
-        ]) {
-          const spec = mapping[key];
-          if (spec === undefined) {
-            out[key] = null;
-            continue;
-          }
-          const path = typeof spec === 'string' ? spec : spec.path;
-          let value: any;
-          try {
-            value = pointer(r, path);
-          } catch {
-            value = null;
-          }
-          if (obj(spec) && spec.action_type !== undefined && value !== null && value !== undefined) {
-            if (!Array.isArray(value) || value.some(v => !obj(v)))
-              bad('The native action metric is not a row collection.', 'REPORT_SHAPE_CHANGED');
-            const matching = value.filter(v => v.action_type === spec.action_type);
-            if (matching.length > 1)
-              bad('The native action metric has duplicate selected action types.', 'REPORT_METRIC_AMBIGUOUS');
-            value = matching[0]?.value ?? null;
-          }
-          if (
-            (value === null || value === undefined) &&
-            delivered &&
-            obj(spec) &&
-            spec.action_type !== undefined &&
-            metrics.includes(key)
-          ) {
-            value = '0';
-            omitted.push(key);
-            omittedCounts[key] = (omittedCounts[key] ?? 0) + 1;
-          }
-          if (value === null || value === undefined) {
-            out[key] = null;
-            continue;
-          }
-          if (metrics.includes(key) || conversionSplit.includes(key)) {
-            const divisor = obj(spec) && spec.divisor !== undefined ? spec.divisor : undefined;
-            if (divisor !== undefined && !['1', '100', '1000', '1000000', '1000000000'].includes(String(divisor)))
-              bad('Use an explicit native unit divisor.');
-            // The native unit is applied to the exact decimal text before the nine-place rounding policy.
-            out[key] = providerMetric(key, value, key + ' (' + (path || '/') + ')', rounding, divisor);
-          } else {
-            if (obj(spec) && spec.format === 'linkedin_utc_date') value = linkedInReportDate(value);
-            if (obj(spec) && spec.format === 'tiktok_day') value = tiktokReportDate(value);
-            if (typeof value === 'object' || String(value).length > 1000) bad('Invalid report identifier or label.');
-            if (
-              key === 'keyword_match_type' &&
-              (typeof value !== 'string' || !['EXACT', 'PHRASE', 'BROAD'].includes(value))
-            )
-              bad('Native keyword match type must retain EXACT, PHRASE or BROAD.', 'REPORT_SHAPE_CHANGED');
-            if (key === 'native_device' && (typeof value !== 'string' || !googleReportDevices.includes(value)))
-              nativeDeviceMappingFailure('Native device must retain a documented Google device value.');
-            if (key === 'native_hour' && (!Number.isInteger(value) || value < 0 || value > 23))
-              nativeHourMappingFailure('Native hour must retain an explicit integer from 0 through 23.');
-            if (key === 'native_country_criterion_id' && !googleReportCountryId(value))
-              nativeCountryMappingFailure('Native country criterion IDs must retain exact nonnegative int64 strings.');
-            if (
-              key === 'native_location_type' &&
-              (typeof value !== 'string' || !Object.hasOwn(googleReportLocationTypes, value))
-            )
-              nativeCountryMappingFailure('Native location type must retain a documented Google geographic value.');
-            if (
-              key === 'native_geographic_resource' &&
-              (input.gateway !== 'google_ads_native_action' ||
-                googleGeographicResource(value)?.account_id !== normalizeAccount(input.gateway, input.account_id))
-            )
-              nativeCountryMappingFailure('Native geographic resources must retain the exact selected customer.');
-            if (
-              key === 'native_conversion' &&
-              (input.gateway !== 'linkedin_native_action' ||
-                typeof value !== 'string' ||
-                !linkedInConversionUrn.test(value))
-            )
-              bad('The native conversion must retain an exact LinkedIn conversion rule URN.', 'REPORT_SHAPE_CHANGED');
-            // RPT-07: a breakdown value stays the literal documented native value of this gateway.
-            if (breakdownDimensionKeys.includes(key)) breakdownValue(key, input.gateway, value);
-            out[key] = String(value);
-          }
-        }
-        if (out.native_geographic_resource !== undefined && out.native_geographic_resource !== null) {
-          const geographic = googleGeographicResource(out.native_geographic_resource)!;
-          if (
-            (out.native_country_criterion_id !== undefined &&
-              out.native_country_criterion_id !== null &&
-              out.native_country_criterion_id !== geographic.country_criterion_id) ||
-            (out.native_location_type !== undefined &&
-              out.native_location_type !== null &&
-              googleReportLocationTypes[out.native_location_type as keyof typeof googleReportLocationTypes] !==
-                geographic.location_type_value)
-          )
-            nativeCountryMappingFailure('Native geographic dimensions disagree with their original resource identity.');
-        }
-        if (omitted.length) out.omitted_as_zero = omitted;
-        return out;
-      });
-      // RPT-07 (B18): the conversion preset joins every reported conversion to its current rule's windows. The rules are
-      // read after the analytics response and before the bracket's final authorization check, so both reads share it.
-      let conversionWindows: JsonObject | undefined;
-      if (capturePreset === 'linkedin_campaign_conversion') {
-        const rules = await linkedInConversionEvidence(this.store, this.call, actor, {
-          gateway: input.gateway,
-          account_id: input.account_id,
-          connection_id: c.id,
-        });
-        if (rules.account_evidence?.currency !== sem.currency)
-          bad('The declared currency does not match the current LinkedIn account.', 'REPORT_CURRENCY_MISMATCH');
-        const join = linkedInConversionWindows(
-          rules.rules,
-          rows.map(row => String(row.native_conversion)),
-        );
-        conversionWindows = {
-          ...join,
-          rules_source_hash: rules.source_hash,
-          rules_captured_at: rules.captured_at,
-          rule_count: rules.rule_count,
-          rule_source_pages: rules.source_pages,
-          rule_account_checks: rules.account_evidence.checks,
-        };
-      }
-      this.store.resolveConnection(actor, input.gateway, input.account_id, c.id);
-      this.store.assertActorActive(actor);
-      collected?.assertCurrent();
-      const metricRounding = metricRoundingRecord(rounding),
-        measured = conversionWindows ? {...sem, attribution: conversionWindows.attribution} : sem;
-      const splitTotals = Object.fromEntries(
-        conversionSplit
-          .filter(key => mapping[key] !== undefined)
-          .map(key => [
-            key,
-            rows.some(row => row[key] == null)
-              ? null
-              : decimal(rows.reduce((n, row) => n + scaledDeclared(row[key]), 0n)),
-          ]),
-      );
-      const id = randomUUID(),
-        report = {
-          gateway: input.gateway,
-          account_id: input.account_id,
-          connection_id: c.id,
-          semantics: metricRounding ? {...measured, metric_rounding: metricRounding} : measured,
-          semantics_source: 'explicit caller declaration; compare with native account/report metadata',
-          mapping,
-          source_request: args,
-          // Rounding provenance is part of new evidence identity; exact captures keep their original hash shape. Verified
-          // conversion windows (RPT-07) are too: the same analytics under different rules is different evidence.
-          source_hash: fingerprint(
-            conversionWindows
-              ? {
-                  data: source.data,
-                  conversion_rules: conversionWindows.rules_source_hash,
-                  ...(metricRounding ? {metric_rounding: metricRounding} : {}),
-                }
-              : metricRounding
-                ? {data: source.data, metric_rounding: metricRounding}
-                : source.data,
-          ),
-          ...(conversionWindows ? {conversion_windows: conversionWindows} : {}),
-          ...(nativeAccountEvidence ? {native_account_evidence: nativeAccountEvidence} : {}),
-          ...(collected
-            ? {
-                source_pages: collected.sourcePages,
-                source_collection: tiktok
-                  ? 'tiktok_daily_pages'
-                  : google
-                    ? 'google_search_pages'
-                    : meta
-                      ? 'meta_insights_pages'
-                      : snapchat
-                        ? 'snapchat_daily_pages'
-                        : 'linkedin_analytics',
-              }
-            : {}),
-          captured_at: Date.now(),
-          rows,
-          totals: {...totals(rows, mapping), ...splitTotals},
-          coverage: Object.fromEntries(
-            [...metrics, ...Object.keys(splitTotals)].map(k => [
-              k,
-              mapping[k] === undefined
-                ? 'unmapped'
-                : rows.some(r => r[k] === null)
-                  ? 'partial'
-                  : omittedCounts[k]
-                    ? 'omitted_as_zero'
-                    : 'mapped',
-            ]),
-          ),
-          ...(Object.keys(omittedCounts).length ? {omitted_as_zero: omittedCounts} : {}),
-          source: 'provider_read',
-        };
-      if (Buffer.byteLength(JSON.stringify(report)) > 8 * 1024 * 1024) bad('Narrow the report to 8 MiB.');
-      if (transient) return {...report, native_rows: raw};
-      this.store.putDocument(actor.tenantId, 'decision_report', id, report);
-      audit(this.store, actor, 'report_captured', {
-        id,
-        gateway: input.gateway,
-        account_id: input.account_id,
-        source_hash: report.source_hash,
-      });
-      return view({...report, id});
-    }
-    // DEC-02 outcome review: `id` names the allocation campaign plan, not a report.
-    if (input.action === 'allocation_outcome') return allocationOutcomeView(this.store, actor, String(input.id));
-    if (input.action === 'capture_allocation_outcome')
-      return captureAllocationOutcome(this.store, actor, String(input.id), capture => this.handle(capture, actor));
+    const paged = actionHandler(this.pagedActions, input.action);
+    if (paged) return paged(context);
     const report = read(this.store, actor, 'decision_report', input.id);
     this.store.resolveConnection(actor, report.gateway, report.account_id, report.connection_id);
-    if (input.action === 'scenarios') return reportScenarios(report, input.options ?? {});
-    if (input.action === 'allocation_candidates') return allocationCandidates(report, input);
-    if (input.action === 'calibrate_allocation') {
+    const onReport = actionHandler(this.reportActions, input.action);
+    if (!onReport) bad('Unknown reporting action.');
+    return onReport({...context, report});
+  }
+  /** The actions that take no page bounds and read no retained report. */
+  private readonly unpagedActions: ActionTable<ReportingCall> = {
+    capture_presets: ({input, actor}) =>
+      input.connection_id === undefined && input.account_id === undefined
+        ? {presets: reportPresets}
+        : {presets: reportPresets, target: captureTarget(this.store, actor, input)},
+    // CMP-07: read-only serving diagnostics (Google) and the post-launch check of a guided Meta or Snapchat launch.
+    serving_diagnostics: ({input, actor}) => googleServingDiagnostics(this.store, this.call, actor, input),
+    launch_check: ({input, actor}) => {
+      if (!this.readPlan) bad('Launch checks need the campaign plan service.', 'LAUNCH_CHECK_UNSUPPORTED');
+      return launchCheck(this.store, this.call, this.readPlan, actor, input);
+    },
+    capture_preset: context => this.presetCapture(context),
+  };
+  /** The actions after the page bounds that read no retained report by `id` first: listing, reading, capturing. */
+  private readonly pagedActions: ActionTable<ReportingCall> = {
+    list: ({input, actor}) => evidenceIndex(this.store, actor, input),
+    get: ({input, actor}) =>
+      evidenceView(this.accessible(actor, read(this.store, actor, 'decision_report', input.id)), input),
+    overview_sources: context => this.overviewEvidence(context),
+    capture_overview: context => this.overviewEvidence(context),
+    capture: context => this.capture(context),
+    // DEC-02 outcome review: `id` names the allocation campaign plan, not a report.
+    allocation_outcome: ({input, actor}) => allocationOutcomeView(this.store, actor, String(input.id)),
+    capture_allocation_outcome: ({input, actor}) =>
+      captureAllocationOutcome(this.store, actor, String(input.id), capture => this.handle(capture, actor)),
+  };
+  /** The actions on the retained report the call names, after its connection is checked. */
+  private readonly reportActions: ActionTable<EvidenceCall> = {
+    scenarios: ({input, report}) => reportScenarios(report, input.options ?? {}),
+    allocation_candidates: ({input, report}) => allocationCandidates(report, input),
+    calibrate_allocation: ({input, actor, report}) => {
       const result = calibrateAllocation(report, input.ids, input.options ?? {});
       this.store.assertActorActive(actor);
       this.store.resolveConnection(actor, report.gateway, report.account_id, report.connection_id);
       return result;
-    }
-    if (input.action === 'allocation') return reportAllocation(report, input.options ?? {});
-    if (input.action === 'preview_allocation_plan')
-      return previewAllocationPlan(this.store, this.call, actor, report, input);
-    if (input.action === 'create_allocation_plan')
-      return createAllocationPlan(this.store, this.call, actor, report, input, this.createDraft);
-    if (input.action === 'search_exclusion_candidates') return searchExclusionCandidates(report, input);
-    if (input.action === 'preview_search_exclusions')
-      return previewSearchExclusions(this.store, this.call, actor, report, input);
-    if (input.action === 'create_search_exclusion_plan')
-      return createSearchExclusionPlan(this.store, this.call, actor, report, input, this.createDraft);
-    if (input.action === 'reconcile_report') {
-      const reference = read(this.store, actor, 'decision_report', input.reference_id);
-      this.store.resolveConnection(actor, reference.gateway, reference.account_id, reference.connection_id);
-      const context = compareReportContext(report, reference);
-      validate(input.options ?? {}, ['tolerance'], undefined, 'reconciliation option');
-      const tolerance = input.options?.tolerance ?? {};
-      validate(
-        tolerance,
-        metrics.filter(k => !['reach', 'frequency'].includes(k)),
-        undefined,
-        'metric tolerance',
-      );
-      for (const value of Object.values(tolerance)) scaledDeclared(value);
-      const differences = metrics
-        .filter(
-          k =>
-            !['reach', 'frequency'].includes(k) &&
-            report.mapping?.[k] !== undefined &&
-            reference.mapping?.[k] !== undefined,
-        )
-        .map(metric => {
-          const actual = report.totals[metric] ?? null,
-            expected = reference.totals[metric] ?? null;
-          const delta = actual === null || expected === null ? null : scaledDeclared(actual) - scaledDeclared(expected);
-          return {
-            metric,
-            actual,
-            reference: expected,
-            difference: delta === null ? null : decimal(delta),
-            tolerance: String(tolerance[metric] ?? '0'),
-            matched: delta === null ? null : (delta < 0n ? -delta : delta) <= scaledDeclared(tolerance[metric] ?? '0'),
-          };
-        });
-      if (!differences.length) bad('These reports have no shared additive metrics.', 'REPORT_REFERENCE_REQUIRED');
-      const result = {
-        report_id: report.id,
-        reference_report_id: reference.id,
-        comparison_kind: 'retained_reports',
-        context_compatible: true,
-        independently_verified: false,
-        context,
-        qualification:
-          'Retained account, period, measurement declarations and grain match. This checks numerical agreement, not independent provider attribution or an external export.',
-        reference_source: 'retained report; no new provider read',
-        source_hash: report.source_hash,
-        reference_source_hash: reference.source_hash,
-        captured_at: report.captured_at,
-        reference_captured_at: reference.captured_at,
-        network_requests: 0,
-        differences,
-        matched: differences.every(r => r.matched === true),
-        checked_at: Date.now(),
+    },
+    allocation: ({input, report}) => reportAllocation(report, input.options ?? {}),
+    preview_allocation_plan: ({input, actor, report}) =>
+      previewAllocationPlan(this.store, this.call, actor, report, input),
+    create_allocation_plan: ({input, actor, report}) =>
+      createAllocationPlan(this.store, this.call, actor, report, input, this.createDraft),
+    search_exclusion_candidates: ({input, report}) => searchExclusionCandidates(report, input),
+    preview_search_exclusions: ({input, actor, report}) =>
+      previewSearchExclusions(this.store, this.call, actor, report, input),
+    create_search_exclusion_plan: ({input, actor, report}) =>
+      createSearchExclusionPlan(this.store, this.call, actor, report, input, this.createDraft),
+    reconcile_report: context => this.reconcileReport(context),
+    reconcile: context => this.reconcileDeclared(context),
+    combine: context => this.combine(context),
+    analyze: context => this.analyze(context),
+  };
+  /** The retained evidence `d`, after its connection is checked for this caller. */
+  private accessible(actor: Actor, d: JsonObject) {
+    this.store.resolveConnection(actor, d.gateway, d.account_id, d.connection_id);
+    return d;
+  }
+  /** capture_preset: the capture a qualified preset defines, inside its own collection budget, with its provenance. */
+  private async presetCapture({input, actor}: ReportingCall): Promise<JsonObject> {
+    const request = reportPreset(input);
+    let usage: JsonObject = {};
+    const budget = new ReportCollectionBudget(
+      undefined,
+      fingerprint(request),
+      v => {
+        usage = v;
+      },
+      {requests: 120, rows: 10000, elapsed_ms: 120000, bytes: 32 * 1024 * 1024},
+    );
+    try {
+      const result = await budget.run(() => this.handle({action: 'capture', ...request}, actor, input.preset));
+      const provenance = {
+        preset: input.preset,
+        collection_usage: {requests: usage.requests, bytes: usage.bytes, elapsed_ms: usage.elapsed_ms},
+        grain: reportPresets.find(p => p.id === input.preset)!.grain,
+        ...(request.gateway === 'snapchat_native_action'
+          ? {
+              semantics_source:
+                request.arguments.query.fields === 'spend,impressions,swipes,native_leads'
+                  ? 'Snapchat account identity, currency and timezone verified before and after complete daily pages. Native submitted-form counts use native_leads; every page confirms non-conversion metric finalization through the selected end. Swipes are clicks; spend is native micros. No submitted lead records are read. Collection is not a point-in-time snapshot; off-platform attribution, lead quality and measurement setup remain unverified.'
+                  : 'Snapchat account identity, currency and timezone verified before and after complete daily pages. Explicit swipe/view windows, conversion-time reporting and total conversion sources come from the retained request; each page confirms delivery and conversion processing through the selected end. Swipes are clicks; spend is native micros. Collection is not a point-in-time snapshot or proof of measurement setup.',
+            }
+          : {}),
+        ...(request.gateway === 'google_ads_native_action'
+          ? {
+              semantics_source:
+                'Google customer currency and timezone verified before and after complete Search pages; native resource identity, dates, result counts and unique grain checked; conversions use metrics.conversions. Attribution and reporting-window completeness remain declared, not independently verified. Collection is not a point-in-time snapshot.',
+            }
+          : {}),
+        ...(request.gateway === 'meta_native_action'
+          ? {
+              semantics_source:
+                'Meta account currency and timezone verified before and after complete Insights pages; action/window/report-time settings come from the retained request, native account/parent/day grain is checked, and reporting-window completeness remains declared. Collection is not a point-in-time snapshot.',
+            }
+          : {}),
+        ...(request.gateway === 'linkedin_native_action'
+          ? {
+              semantics_source:
+                input.preset === 'linkedin_campaign_conversion'
+                  ? "LinkedIn account identity and currency verified before and after a complete bounded campaign × conversion analytics response and the account's current conversion rules, all under unchanged authorization; each conversion's post-click and post-view windows come from its current rule (verified_per_rule, mixed or unknown). Rule settings are current, not historical. Reporting-window completeness remains declared. Collection is not a point-in-time snapshot."
+                  : 'LinkedIn account identity and currency verified before and after a complete bounded analytics response with unchanged authorization; UTC dates and externalWebsiteConversions from the native request; attribution windows and completeness explicitly declared, not independently verified. Collection is not a point-in-time snapshot.',
+            }
+          : {}),
+        ...(request.gateway === 'tiktok_native_action'
+          ? {
+              semantics_source:
+                'TikTok advertiser currency and timezone verified before and after complete native pages; native conversion refers to each entity optimization goal and goals may differ; attribution windows and completeness declared, not independently verified. Collection is not a point-in-time snapshot.',
+            }
+          : {}),
       };
+      const saved = read(this.store, actor, 'decision_report', result.id);
+      // RPT-07 dimension packs: the retained dimensions, the values observed and that absent buckets stay unknown.
+      const dimensions = breakdownDimensionKeys.filter(key => Object.hasOwn(request.mapping ?? {}, key)),
+        retained = {
+          ...provenance,
+          ...(dimensions.length ? {breakdown: breakdownDescriptor(dimensions, saved.rows)} : {}),
+        };
       this.store.assertActorActive(actor);
-      this.store.resolveConnection(actor, report.gateway, report.account_id, report.connection_id);
-      this.store.resolveConnection(actor, reference.gateway, reference.account_id, reference.connection_id);
-      this.store.putDocument(actor.tenantId, 'report_reconciliation', randomUUID(), result);
-      return result;
+      this.store.resolveConnection(actor, saved.gateway, saved.account_id, saved.connection_id);
+      this.store.putDocument(actor.tenantId, 'decision_report', saved.id, {...saved, ...retained});
+      return {...result, ...retained};
+    } finally {
+      budget.close();
     }
-    if (input.action === 'reconcile') {
-      const ref = input.reference;
-      validate(
-        ref ?? {},
-        ['label', 'captured_at', 'totals', 'tolerance', 'evidence_url', 'context', 'file'],
-        undefined,
-        'reference field',
+  }
+  /** overview_sources and capture_overview: the analysable groups of an Overview snapshot, or one group captured. */
+  private overviewEvidence({input, actor}: ReportingCall): JsonObject {
+    const snapshot = read(this.store, actor, 'overview_report', input.id);
+    if (!['complete', 'partial'].includes(snapshot.state))
+      bad('Use a completed or marked partial snapshot.', 'REPORT_NOT_READY');
+    const groups = this.overviewGroups(actor, snapshot);
+    if (input.action === 'overview_sources')
+      return {
+        overview_id: snapshot.id,
+        network_requests: 0,
+        groups: [...groups].map(([id, g]) => ({
+          id,
+          ...g.source,
+          semantics: g.semantics,
+          row_count: g.rows.length,
+          eligible: !!g.semantics.currency && !!g.semantics.timezone,
+        })),
+        meaning:
+          'Choose one account, currency, timezone and conversion definition. Source data is reused from this snapshot; currencies and attribution models are never blended.',
+      };
+    const group = groups.get(String(input.group_id));
+    if (!group) bad('Choose a group returned by overview_sources for this snapshot.', 'REPORT_GROUP_REQUIRED');
+    // RPT-07: a snapshot run with compare:"previous_period" also keeps the same group of its paired baseline, and
+    // analyze uses that pair as its default baseline. A missing or unfinished pair is reported, never guessed.
+    let pairing: JsonObject | undefined;
+    const pairedId = snapshot.comparison?.role === 'current' ? snapshot.comparison.baseline_id : undefined;
+    if (typeof pairedId === 'string') {
+      let base: JsonObject | undefined;
+      try {
+        base = read(this.store, actor, 'overview_report', pairedId);
+      } catch (e) {
+        if (!(e instanceof MirrorError) || e.code !== 'NOT_FOUND') throw e;
+        pairing = {status: 'unavailable', code: 'baseline_deleted'};
+      }
+      if (base && !['complete', 'partial'].includes(base.state))
+        pairing = {status: 'unavailable', code: 'baseline_not_finished'};
+      else if (base) {
+        const baseGroup = this.overviewGroups(actor, base).get(String(input.group_id));
+        if (!baseGroup) pairing = {status: 'unavailable', code: 'group_not_in_baseline'};
+        else {
+          const paired = this.captureOverviewGroup(actor, base, String(input.group_id), baseGroup);
+          pairing = {status: 'paired', baseline_id: paired.id, overview_id: base.id};
+        }
+      }
+    }
+    const captured = this.captureOverviewGroup(
+      actor,
+      snapshot,
+      String(input.group_id),
+      group,
+      pairing?.status === 'paired' ? {paired_baseline_id: pairing.baseline_id} : {},
+    );
+    return {
+      ...evidenceView(captured, input),
+      ...(pairing ? {pairing} : {}),
+      website_path: '/reports?id=' + encodeURIComponent(captured.id),
+      network_requests: 0,
+    };
+  }
+  /** capture: one complete native read mapped to evidence, retained unless the Overview collector made it. */
+  private async capture({input, actor, capturePreset, transient}: ReportingCall): Promise<JsonObject> {
+    const sem = semantic(input.semantics ?? {}),
+      mapping = input.mapping;
+    if (
+      !obj(mapping) ||
+      Object.keys(mapping).some(
+        k =>
+          ![
+            'entity_id',
+            'entity_name',
+            'date',
+            'search_term',
+            'keyword_match_type',
+            'native_device',
+            'native_hour',
+            'native_country_criterion_id',
+            'native_location_type',
+            'native_geographic_resource',
+            'native_conversion',
+            ...breakdownDimensionKeys,
+            ...metrics,
+            ...conversionSplit,
+          ].includes(k),
+      )
+    )
+      bad('Provide the native field mapping.');
+    // Validate even an empty result's mappings before requesting provider data.
+    for (const [key, spec] of Object.entries(mapping)) {
+      if (typeof spec !== 'string')
+        validate(spec, ['path', 'divisor', 'action_type', 'format'], undefined, 'mapping field');
+      if (key === 'keyword_match_type' && obj(spec) && Object.keys(spec).some(k => k !== 'path'))
+        bad('Native keyword match type requires an unmodified field pointer.');
+      if (key === 'native_device' && obj(spec) && Object.keys(spec).some(k => k !== 'path'))
+        nativeDeviceMappingFailure('Native device requires an unmodified field pointer.');
+      if (key === 'native_hour' && obj(spec) && Object.keys(spec).some(k => k !== 'path'))
+        nativeHourMappingFailure('Native hour requires an unmodified field pointer.');
+      if (
+        ['native_country_criterion_id', 'native_location_type', 'native_geographic_resource'].includes(key) &&
+        obj(spec) &&
+        Object.keys(spec).some(k => k !== 'path')
+      )
+        nativeCountryMappingFailure('Native geographic dimensions require unmodified field pointers.');
+      if (key === 'native_conversion' && obj(spec) && Object.keys(spec).some(k => k !== 'path'))
+        bad('The native conversion dimension requires an unmodified field pointer.', 'REPORT_SHAPE_CHANGED');
+      if (breakdownDimensionKeys.includes(key) && obj(spec) && Object.keys(spec).some(k => k !== 'path'))
+        bad('A native breakdown dimension requires an unmodified field pointer.', 'REPORT_SHAPE_CHANGED');
+      if (
+        obj(spec) &&
+        spec.format !== undefined &&
+        (key !== 'date' ||
+          !['linkedin_utc_date', 'tiktok_day'].includes(spec.format) ||
+          spec.divisor !== undefined ||
+          spec.action_type !== undefined)
+      )
+        bad('Native date formats are only available for the report date.');
+      const path = typeof spec === 'string' ? spec : (spec as JsonObject).path;
+      if (typeof path !== 'string' || path.length > 512 || (path !== '' && !path.startsWith('/')))
+        bad('Invalid metric JSON pointer.');
+      if (
+        obj(spec) &&
+        spec.divisor !== undefined &&
+        !['1', '100', '1000', '1000000', '1000000000'].includes(String(spec.divisor))
+      )
+        bad('Use an explicit native unit divisor.');
+      if (
+        obj(spec) &&
+        spec.action_type !== undefined &&
+        (!metrics.includes(key) ||
+          typeof spec.action_type !== 'string' ||
+          !/^[a-z][a-z0-9_.]{0,159}$/.test(spec.action_type))
+      )
+        bad('An action_type selector requires an exact native metric action type.');
+    }
+    if (typeof input.account_id !== 'string' || typeof input.gateway !== 'string' || !obj(input.arguments))
+      bad('Specify a gateway, account and native read arguments.');
+    const c = this.store.resolveConnection(actor, input.gateway, input.account_id, input.connection_id);
+    const args = structuredClone(input.arguments);
+    if (args.operation) {
+      args.arguments = {...args.arguments, account_id: input.account_id, connection_id: c.id, dry_run: false};
+    } else Object.assign(args, {account_id: input.account_id, connection_id: c.id, dry_run: false});
+    let nativeAccountEvidence: JsonObject | undefined;
+    const linkedin = capturePreset?.startsWith('linkedin_')
+      ? await collectLinkedInEvidence(this.store, this.call, actor, args, sem, rows =>
+          validatePresetRows(capturePreset, input, rows),
+        )
+      : undefined;
+    const tiktok = capturePreset?.startsWith('tiktok_')
+      ? await collectTikTokDailyReport(this.store, this.call, actor, args, sem)
+      : undefined;
+    const google = capturePreset?.startsWith('google_')
+      ? await collectGoogleReport(this.store, this.call, actor, args, sem, capturePreset)
+      : undefined;
+    const meta = capturePreset?.startsWith('meta_')
+      ? await collectMetaEvidence(this.store, this.call, actor, args, sem)
+      : undefined;
+    const snapchat = capturePreset?.startsWith('snapchat_')
+      ? await collectSnapchatEvidence(this.store, this.call, actor, args, sem)
+      : undefined;
+    const collected = tiktok ?? google ?? meta ?? linkedin ?? snapchat;
+    if (collected) nativeAccountEvidence = collected.nativeAccountEvidence;
+    const source: JsonObject = collected?.source ?? (await this.call(input.gateway, args, actor));
+    if (source.success !== true)
+      bad(source.error?.message ?? 'Provider report failed.', source.error?.code ?? 'REPORT_FAILED');
+    if (source.data?.executed === false || source.data?.dry_run || partial(source))
+      bad('Capture requires a complete provider read, not a preview or partial page.', 'REPORT_INCOMPLETE');
+    const raw = pointer(source, input.rows_pointer ?? '/data/data/results');
+    if (!Array.isArray(raw) || raw.length > 10000) bad('Select an array of at most 10000 provider rows.');
+    if (!linkedin) validatePresetRows(capturePreset, input, raw);
+    const rounding: Record<string, number> = {};
+    // RPT-04 (owner policy P6): guided Meta pages are complete, and Meta omits zero-valued action entries, so a
+    // delivered row (impressions above 0) counts an absent selected action as 0 and names it in `omitted_as_zero`.
+    const metaOmittedZero = meta !== undefined,
+      omittedCounts: Record<string, number> = {};
+    const rows = raw.map(r => {
+      const out: JsonObject = {},
+        omitted: string[] = [];
+      let delivered = false;
+      if (metaOmittedZero)
+        try {
+          const spec = mapping.impressions,
+            impressions = pointer(r, typeof spec === 'string' ? spec : spec?.path);
+          delivered = (metricNumber(impressions) ?? 0) > 0;
+        } catch {
+          delivered = false;
+        }
+      for (const key of [
+        'entity_id',
+        'entity_name',
+        'date',
+        'search_term',
+        ...(Object.hasOwn(mapping, 'keyword_match_type') ? ['keyword_match_type'] : []),
+        ...(Object.hasOwn(mapping, 'native_device') ? ['native_device'] : []),
+        ...(Object.hasOwn(mapping, 'native_hour') ? ['native_hour'] : []),
+        ...['native_country_criterion_id', 'native_location_type', 'native_geographic_resource'].filter(key =>
+          Object.hasOwn(mapping, key),
+        ),
+        ...(Object.hasOwn(mapping, 'native_conversion') ? ['native_conversion'] : []),
+        ...breakdownDimensionKeys.filter(key => Object.hasOwn(mapping, key)),
+        ...metrics,
+        ...conversionSplit.filter(key => Object.hasOwn(mapping, key)),
+      ]) {
+        const spec = mapping[key];
+        if (spec === undefined) {
+          out[key] = null;
+          continue;
+        }
+        const path = typeof spec === 'string' ? spec : spec.path;
+        let value: any;
+        try {
+          value = pointer(r, path);
+        } catch {
+          value = null;
+        }
+        if (obj(spec) && spec.action_type !== undefined && value !== null && value !== undefined) {
+          if (!Array.isArray(value) || value.some(v => !obj(v)))
+            bad('The native action metric is not a row collection.', 'REPORT_SHAPE_CHANGED');
+          const matching = value.filter(v => v.action_type === spec.action_type);
+          if (matching.length > 1)
+            bad('The native action metric has duplicate selected action types.', 'REPORT_METRIC_AMBIGUOUS');
+          value = matching[0]?.value ?? null;
+        }
+        if (
+          (value === null || value === undefined) &&
+          delivered &&
+          obj(spec) &&
+          spec.action_type !== undefined &&
+          metrics.includes(key)
+        ) {
+          value = '0';
+          omitted.push(key);
+          omittedCounts[key] = (omittedCounts[key] ?? 0) + 1;
+        }
+        if (value === null || value === undefined) {
+          out[key] = null;
+          continue;
+        }
+        if (metrics.includes(key) || conversionSplit.includes(key)) {
+          const divisor = obj(spec) && spec.divisor !== undefined ? spec.divisor : undefined;
+          if (divisor !== undefined && !['1', '100', '1000', '1000000', '1000000000'].includes(String(divisor)))
+            bad('Use an explicit native unit divisor.');
+          // The native unit is applied to the exact decimal text before the nine-place rounding policy.
+          out[key] = providerMetric(key, value, key + ' (' + (path || '/') + ')', rounding, divisor);
+        } else {
+          if (obj(spec) && spec.format === 'linkedin_utc_date') value = linkedInReportDate(value);
+          if (obj(spec) && spec.format === 'tiktok_day') value = tiktokReportDate(value);
+          if (typeof value === 'object' || String(value).length > 1000) bad('Invalid report identifier or label.');
+          if (
+            key === 'keyword_match_type' &&
+            (typeof value !== 'string' || !['EXACT', 'PHRASE', 'BROAD'].includes(value))
+          )
+            bad('Native keyword match type must retain EXACT, PHRASE or BROAD.', 'REPORT_SHAPE_CHANGED');
+          if (key === 'native_device' && (typeof value !== 'string' || !googleReportDevices.includes(value)))
+            nativeDeviceMappingFailure('Native device must retain a documented Google device value.');
+          if (key === 'native_hour' && (!Number.isInteger(value) || value < 0 || value > 23))
+            nativeHourMappingFailure('Native hour must retain an explicit integer from 0 through 23.');
+          if (key === 'native_country_criterion_id' && !googleReportCountryId(value))
+            nativeCountryMappingFailure('Native country criterion IDs must retain exact nonnegative int64 strings.');
+          if (
+            key === 'native_location_type' &&
+            (typeof value !== 'string' || !Object.hasOwn(googleReportLocationTypes, value))
+          )
+            nativeCountryMappingFailure('Native location type must retain a documented Google geographic value.');
+          if (
+            key === 'native_geographic_resource' &&
+            (input.gateway !== 'google_ads_native_action' ||
+              googleGeographicResource(value)?.account_id !== normalizeAccount(input.gateway, input.account_id))
+          )
+            nativeCountryMappingFailure('Native geographic resources must retain the exact selected customer.');
+          if (
+            key === 'native_conversion' &&
+            (input.gateway !== 'linkedin_native_action' ||
+              typeof value !== 'string' ||
+              !linkedInConversionUrn.test(value))
+          )
+            bad('The native conversion must retain an exact LinkedIn conversion rule URN.', 'REPORT_SHAPE_CHANGED');
+          // RPT-07: a breakdown value stays the literal documented native value of this gateway.
+          if (breakdownDimensionKeys.includes(key)) breakdownValue(key, input.gateway, value);
+          out[key] = String(value);
+        }
+      }
+      if (out.native_geographic_resource !== undefined && out.native_geographic_resource !== null) {
+        const geographic = googleGeographicResource(out.native_geographic_resource)!;
+        if (
+          (out.native_country_criterion_id !== undefined &&
+            out.native_country_criterion_id !== null &&
+            out.native_country_criterion_id !== geographic.country_criterion_id) ||
+          (out.native_location_type !== undefined &&
+            out.native_location_type !== null &&
+            googleReportLocationTypes[out.native_location_type as keyof typeof googleReportLocationTypes] !==
+              geographic.location_type_value)
+        )
+          nativeCountryMappingFailure('Native geographic dimensions disagree with their original resource identity.');
+      }
+      if (omitted.length) out.omitted_as_zero = omitted;
+      return out;
+    });
+    // RPT-07 (B18): the conversion preset joins every reported conversion to its current rule's windows. The rules are
+    // read after the analytics response and before the bracket's final authorization check, so both reads share it.
+    let conversionWindows: JsonObject | undefined;
+    if (capturePreset === 'linkedin_campaign_conversion') {
+      const rules = await linkedInConversionEvidence(this.store, this.call, actor, {
+        gateway: input.gateway,
+        account_id: input.account_id,
+        connection_id: c.id,
+      });
+      if (rules.account_evidence?.currency !== sem.currency)
+        bad('The declared currency does not match the current LinkedIn account.', 'REPORT_CURRENCY_MISMATCH');
+      const join = linkedInConversionWindows(
+        rules.rules,
+        rows.map(row => String(row.native_conversion)),
       );
-      if (typeof ref?.label !== 'string' || !ref.label.trim() || !obj(ref.totals) || !Number.isFinite(ref.captured_at))
-        bad('Provide labeled reference totals and capture time.');
-      const declaredContext = compareDeclaredReference(report, ref);
-      const differences = Object.entries(ref.totals).map(([metric, value]) => {
-        if (!metrics.includes(metric) || ['reach', 'frequency'].includes(metric))
-          bad('Only additive metrics can be reconciled.');
+      conversionWindows = {
+        ...join,
+        rules_source_hash: rules.source_hash,
+        rules_captured_at: rules.captured_at,
+        rule_count: rules.rule_count,
+        rule_source_pages: rules.source_pages,
+        rule_account_checks: rules.account_evidence.checks,
+      };
+    }
+    this.store.resolveConnection(actor, input.gateway, input.account_id, c.id);
+    this.store.assertActorActive(actor);
+    collected?.assertCurrent();
+    const metricRounding = metricRoundingRecord(rounding),
+      measured = conversionWindows ? {...sem, attribution: conversionWindows.attribution} : sem;
+    const splitTotals = Object.fromEntries(
+      conversionSplit
+        .filter(key => mapping[key] !== undefined)
+        .map(key => [
+          key,
+          rows.some(row => row[key] == null)
+            ? null
+            : decimal(rows.reduce((n, row) => n + scaledDeclared(row[key]), 0n)),
+        ]),
+    );
+    const id = randomUUID(),
+      report = {
+        gateway: input.gateway,
+        account_id: input.account_id,
+        connection_id: c.id,
+        semantics: metricRounding ? {...measured, metric_rounding: metricRounding} : measured,
+        semantics_source: 'explicit caller declaration; compare with native account/report metadata',
+        mapping,
+        source_request: args,
+        // Rounding provenance is part of new evidence identity; exact captures keep their original hash shape. Verified
+        // conversion windows (RPT-07) are too: the same analytics under different rules is different evidence.
+        source_hash: fingerprint(
+          conversionWindows
+            ? {
+                data: source.data,
+                conversion_rules: conversionWindows.rules_source_hash,
+                ...(metricRounding ? {metric_rounding: metricRounding} : {}),
+              }
+            : metricRounding
+              ? {data: source.data, metric_rounding: metricRounding}
+              : source.data,
+        ),
+        ...(conversionWindows ? {conversion_windows: conversionWindows} : {}),
+        ...(nativeAccountEvidence ? {native_account_evidence: nativeAccountEvidence} : {}),
+        ...(collected
+          ? {
+              source_pages: collected.sourcePages,
+              source_collection: tiktok
+                ? 'tiktok_daily_pages'
+                : google
+                  ? 'google_search_pages'
+                  : meta
+                    ? 'meta_insights_pages'
+                    : snapchat
+                      ? 'snapchat_daily_pages'
+                      : 'linkedin_analytics',
+            }
+          : {}),
+        captured_at: Date.now(),
+        rows,
+        totals: {...totals(rows, mapping), ...splitTotals},
+        coverage: Object.fromEntries(
+          [...metrics, ...Object.keys(splitTotals)].map(k => [
+            k,
+            mapping[k] === undefined
+              ? 'unmapped'
+              : rows.some(r => r[k] === null)
+                ? 'partial'
+                : omittedCounts[k]
+                  ? 'omitted_as_zero'
+                  : 'mapped',
+          ]),
+        ),
+        ...(Object.keys(omittedCounts).length ? {omitted_as_zero: omittedCounts} : {}),
+        source: 'provider_read',
+      };
+    if (Buffer.byteLength(JSON.stringify(report)) > 8 * 1024 * 1024) bad('Narrow the report to 8 MiB.');
+    if (transient) return {...report, native_rows: raw};
+    this.store.putDocument(actor.tenantId, 'decision_report', id, report);
+    audit(this.store, actor, 'report_captured', {
+      id,
+      gateway: input.gateway,
+      account_id: input.account_id,
+      source_hash: report.source_hash,
+    });
+    return evidenceView({...report, id}, input);
+  }
+  /** reconcile_report: the shared additive metrics of two retained reports of the same context. */
+  private reconcileReport({input, actor, report}: EvidenceCall): JsonObject {
+    const reference = read(this.store, actor, 'decision_report', input.reference_id);
+    this.store.resolveConnection(actor, reference.gateway, reference.account_id, reference.connection_id);
+    const context = compareReportContext(report, reference);
+    validate(input.options ?? {}, ['tolerance'], undefined, 'reconciliation option');
+    const tolerance = input.options?.tolerance ?? {};
+    validate(
+      tolerance,
+      metrics.filter(k => !['reach', 'frequency'].includes(k)),
+      undefined,
+      'metric tolerance',
+    );
+    for (const value of Object.values(tolerance)) scaledDeclared(value);
+    const differences = metrics
+      .filter(
+        k =>
+          !['reach', 'frequency'].includes(k) &&
+          report.mapping?.[k] !== undefined &&
+          reference.mapping?.[k] !== undefined,
+      )
+      .map(metric => {
         const actual = report.totals[metric] ?? null,
-          expected = value === null ? null : scaledDeclared(value),
-          delta = actual === null || expected === null ? null : scaledDeclared(actual) - expected,
-          tolerance = scaledDeclared(ref.tolerance?.[metric] ?? '0');
+          expected = reference.totals[metric] ?? null;
+        const delta = actual === null || expected === null ? null : scaledDeclared(actual) - scaledDeclared(expected);
         return {
           metric,
           actual,
-          reference: value,
+          reference: expected,
           difference: delta === null ? null : decimal(delta),
-          matched: delta === null ? null : (delta < 0n ? -delta : delta) <= tolerance,
+          tolerance: String(tolerance[metric] ?? '0'),
+          matched: delta === null ? null : (delta < 0n ? -delta : delta) <= scaledDeclared(tolerance[metric] ?? '0'),
         };
       });
-      const result = {
-        report_id: report.id,
-        comparison_kind: declaredContext ? 'declared_reference' : 'manual_totals',
-        context_compatible: declaredContext ? true : null,
-        independently_verified: false,
-        file_hash_verified_by_server: false,
-        source_hash: report.source_hash,
-        network_requests: 0,
-        qualification: declaredContext
-          ? 'Caller-declared reference settings match the retained report. File provenance, entities, filters and provider attribution have not been independently verified.'
-          : 'This is numerical agreement only. The reference account, dates, currency, timezone and attribution have not been verified.',
-        reference_source: 'caller-provided reference; not independently fetched',
-        reference: ref,
-        differences,
-        matched: differences.length > 0 && differences.every(r => r.matched === true),
-        checked_at: Date.now(),
-      };
-      this.store.assertActorActive(actor);
-      this.store.resolveConnection(actor, report.gateway, report.account_id, report.connection_id);
-      this.store.putDocument(actor.tenantId, 'report_reconciliation', randomUUID(), result);
-      return result;
-    }
-    if (input.action === 'combine') {
-      if (
-        !Array.isArray(input.ids) ||
-        !input.ids.length ||
-        input.ids.length > 20 ||
-        new Set(input.ids).size !== input.ids.length
-      )
-        bad('Choose 1–20 distinct report IDs.');
-      const all = [
-        report,
-        ...input.ids
-          .filter((id: string) => id !== report.id)
-          .map((id: string) => read(this.store, actor, 'decision_report', id)),
-      ];
-      const seen = new Set<string>();
-      for (const r of all) {
-        this.store.resolveConnection(actor, r.gateway, r.account_id, r.connection_id);
-        compatibility(report, r);
-        if (r.semantics.date_from !== report.semantics.date_from || r.semantics.date_to !== report.semantics.date_to)
-          bad('Combined reports must cover the same window.');
-        const key = [r.gateway, r.account_id].join('/');
-        if (seen.has(key)) bad('Overlapping same-account reports must not be summed.');
-        seen.add(key);
-      }
+    if (!differences.length) bad('These reports have no shared additive metrics.', 'REPORT_REFERENCE_REQUIRED');
+    const result = {
+      report_id: report.id,
+      reference_report_id: reference.id,
+      comparison_kind: 'retained_reports',
+      context_compatible: true,
+      independently_verified: false,
+      context,
+      qualification:
+        'Retained account, period, measurement declarations and grain match. This checks numerical agreement, not independent provider attribution or an external export.',
+      reference_source: 'retained report; no new provider read',
+      source_hash: report.source_hash,
+      reference_source_hash: reference.source_hash,
+      captured_at: report.captured_at,
+      reference_captured_at: reference.captured_at,
+      network_requests: 0,
+      differences,
+      matched: differences.every(r => r.matched === true),
+      checked_at: Date.now(),
+    };
+    this.store.assertActorActive(actor);
+    this.store.resolveConnection(actor, report.gateway, report.account_id, report.connection_id);
+    this.store.resolveConnection(actor, reference.gateway, reference.account_id, reference.connection_id);
+    this.store.putDocument(actor.tenantId, 'report_reconciliation', randomUUID(), result);
+    return result;
+  }
+  /** reconcile: the report's totals against caller-declared reference totals. */
+  private reconcileDeclared({input, actor, report}: EvidenceCall): JsonObject {
+    const ref = input.reference;
+    validate(
+      ref ?? {},
+      ['label', 'captured_at', 'totals', 'tolerance', 'evidence_url', 'context', 'file'],
+      undefined,
+      'reference field',
+    );
+    if (typeof ref?.label !== 'string' || !ref.label.trim() || !obj(ref.totals) || !Number.isFinite(ref.captured_at))
+      bad('Provide labeled reference totals and capture time.');
+    const declaredContext = compareDeclaredReference(report, ref);
+    const differences = Object.entries(ref.totals).map(([metric, value]) => {
+      if (!metrics.includes(metric) || ['reach', 'frequency'].includes(metric))
+        bad('Only additive metrics can be reconciled.');
+      const actual = report.totals[metric] ?? null,
+        expected = value === null ? null : scaledDeclared(value),
+        delta = actual === null || expected === null ? null : scaledDeclared(actual) - expected,
+        tolerance = scaledDeclared(ref.tolerance?.[metric] ?? '0');
       return {
-        report_ids: all.map(r => r.id),
-        semantics: report.semantics,
-        totals: totals(all.flatMap(r => r.rows)),
-        cross_platform_deduplicated: false,
-        warning:
-          'Platform-attributed conversions can overlap across platforms; this is not unique business conversions.',
+        metric,
+        actual,
+        reference: value,
+        difference: delta === null ? null : decimal(delta),
+        matched: delta === null ? null : (delta < 0n ? -delta : delta) <= tolerance,
       };
+    });
+    const result = {
+      report_id: report.id,
+      comparison_kind: declaredContext ? 'declared_reference' : 'manual_totals',
+      context_compatible: declaredContext ? true : null,
+      independently_verified: false,
+      file_hash_verified_by_server: false,
+      source_hash: report.source_hash,
+      network_requests: 0,
+      qualification: declaredContext
+        ? 'Caller-declared reference settings match the retained report. File provenance, entities, filters and provider attribution have not been independently verified.'
+        : 'This is numerical agreement only. The reference account, dates, currency, timezone and attribution have not been verified.',
+      reference_source: 'caller-provided reference; not independently fetched',
+      reference: ref,
+      differences,
+      matched: differences.length > 0 && differences.every(r => r.matched === true),
+      checked_at: Date.now(),
+    };
+    this.store.assertActorActive(actor);
+    this.store.resolveConnection(actor, report.gateway, report.account_id, report.connection_id);
+    this.store.putDocument(actor.tenantId, 'report_reconciliation', randomUUID(), result);
+    return result;
+  }
+  /** combine: compatible same-window reports of different accounts, summed. */
+  private combine({input, actor, report}: EvidenceCall): JsonObject {
+    if (
+      !Array.isArray(input.ids) ||
+      !input.ids.length ||
+      input.ids.length > 20 ||
+      new Set(input.ids).size !== input.ids.length
+    )
+      bad('Choose 1–20 distinct report IDs.');
+    const all = [
+      report,
+      ...input.ids
+        .filter((id: string) => id !== report.id)
+        .map((id: string) => read(this.store, actor, 'decision_report', id)),
+    ];
+    const seen = new Set<string>();
+    for (const r of all) {
+      this.store.resolveConnection(actor, r.gateway, r.account_id, r.connection_id);
+      compatibility(report, r);
+      if (r.semantics.date_from !== report.semantics.date_from || r.semantics.date_to !== report.semantics.date_to)
+        bad('Combined reports must cover the same window.');
+      const key = [r.gateway, r.account_id].join('/');
+      if (seen.has(key)) bad('Overlapping same-account reports must not be summed.');
+      seen.add(key);
     }
-    if (input.action !== 'analyze') bad('Unknown reporting action.');
+    return {
+      report_ids: all.map(r => r.id),
+      semantics: report.semantics,
+      totals: totals(all.flatMap(r => r.rows)),
+      cross_platform_deduplicated: false,
+      warning: 'Platform-attributed conversions can overlap across platforms; this is not unique business conversions.',
+    };
+  }
+  /** analyze: heuristic recommendations from one report and an optional baseline, each to review before acting. */
+  private analyze({input, actor, report}: EvidenceCall): JsonObject {
     const options = input.options ?? {};
     validate(
       options,

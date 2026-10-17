@@ -1,8 +1,8 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {fail} from './family-kit.js';
 
 /**
  * Claiming an organic Snap into an ad account, per Snap's "Claim Media" page (read 2026-09-30): POST
@@ -18,9 +18,6 @@ const route = /^\/v1\/adaccounts\/([\w-]+)\/claim_media_by_snap_reference$/,
   marker = 'AMCP_SNAPCHAT_CLAIM_MEDIA_READ',
   source = 'https://developers.snap.com/marketing-api/Ads-API/claim-media';
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_SNAPCHAT_CLAIM_MEDIA', message, {source});
 }

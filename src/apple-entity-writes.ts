@@ -3,6 +3,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import fs from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {MirrorError} from './errors.js';
+import {familyCodeError, type OneCodeRefusal} from './family-kit.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
@@ -23,9 +24,7 @@ type Kind = keyof typeof appleEntityContracts;
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const id = (v: unknown) =>
   (typeof v === 'number' && Number.isSafeInteger(v) && v > 0) || (typeof v === 'string' && /^[1-9]\d*$/.test(v));
-function fail(message: string, details: JsonObject = {}): never {
-  throw new MirrorError('INVALID_APPLE_REQUEST', message, details);
-}
+const fail: OneCodeRefusal = familyCodeError('INVALID_APPLE_REQUEST');
 let artifact: JsonObject | undefined;
 export const appleModelEvidence = (): JsonObject =>
   (artifact ??= JSON.parse(

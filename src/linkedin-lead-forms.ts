@@ -1,4 +1,4 @@
-import {normalizeAccount} from './scope.js';
+import {normalizeAccount} from './account-id.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {parseLinkedInValue} from './linkedin-restli.js';

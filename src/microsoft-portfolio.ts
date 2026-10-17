@@ -1,11 +1,10 @@
-import {createHmac, timingSafeEqual} from 'node:crypto';
 import {bad, fingerprint, obj, validate, type ToolCall} from './workspace-core.js';
-import {ReportCollectionBudget} from './report-collection-budget.js';
 import {microsoftScope} from './microsoft-native.js';
 import {providerDecimalText} from './provider-decimal.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
-import {storedLogin} from './connection-authority.js';
+import {openCursor, sealCursor} from './signed-cursor.js';
+import {portfolioAuthority, portfolioReader, withPortfolioBudget, type PortfolioAdapter} from './portfolio-runner.js';
 
 /**
  * RPT-07 (B27): the Microsoft Advertising portfolio adapter. Microsoft's campaign, ad group and ad reads are not paged
@@ -50,7 +49,6 @@ const kinds: Record<string, {result: string; observation: string}> = {
 const invalid = (message: string): never => bad(message, 'PORTFOLIO_INVALID_RESPONSE');
 const nativeId = (v: unknown): v is string =>
   typeof v === 'string' && /^[1-9][0-9]{0,18}$/.test(v) && BigInt(v) <= 9223372036854775807n;
-const sign = (v: JsonObject, key: string) => createHmac('sha256', key).update(fingerprint(v)).digest('hex');
 const observation = (entity: string, id: string) => 'portfolio/microsoft/' + entity + '/' + id;
 function text(v: unknown, max = 2000): string | null {
   if (v === undefined || v === null) return null;
@@ -85,16 +83,13 @@ export async function microsoftPortfolioPage(store: Store, call: ToolCall, actor
     (entity === 'ad' && !nativeId(config.ad_group_id))
   )
     bad('Choose the exact parent campaign, and for ads its exact ad group.');
-  const connection = store.resolveConnection(actor, gateway, account, input.connection_id),
-    authorization = fingerprint(storedLogin(store, connection));
-  const current = () => {
-    const c = store.resolveConnection(actor, gateway, account, connection.id);
-    if (!c.scopes.includes(microsoftScope))
-      bad('This login requires Microsoft Advertising permission.', 'INSUFFICIENT_SCOPE');
-    if (fingerprint(storedLogin(store, c)) !== authorization)
-      bad('The Microsoft login changed. Restart inventory.', 'CONNECTION_AUTHORITY_CHANGED');
-    return c;
-  };
+  const connection = store.resolveConnection(actor, gateway, account, input.connection_id);
+  const {authorization, current} = portfolioAuthority(store, actor, gateway, account, connection, {
+    binds: 'login',
+    permits: c => c.scopes.includes(microsoftScope),
+    missingScope: () => bad('This login requires Microsoft Advertising permission.', 'INSUFFICIENT_SCOPE'),
+    changed: () => bad('The Microsoft login changed. Restart inventory.', 'CONNECTION_AUTHORITY_CHANGED'),
+  });
   const parents: [string, string][] = [
     ...(entity !== 'campaign' ? [['campaign', config.campaign_id] as [string, string]] : []),
     ...(entity === 'ad' ? [['ad_group', config.ad_group_id] as [string, string]] : []),
@@ -128,22 +123,8 @@ export async function microsoftPortfolioPage(store: Store, call: ToolCall, actor
     content: string | undefined;
   if (input.cursor !== undefined) {
     try {
+      const c = openCursor(input.cursor, {key: authorization, binding, maxLength: 4096});
       if (
-        typeof input.cursor !== 'string' ||
-        input.cursor.length > 4096 ||
-        !/^[A-Za-z0-9_-]+$/.test(input.cursor) ||
-        Buffer.from(input.cursor, 'base64url').toString('base64url') !== input.cursor
-      )
-        throw Error();
-      const c = JSON.parse(Buffer.from(input.cursor, 'base64url').toString('utf8'));
-      if (!obj(c)) throw Error();
-      const {signature, ...signed} = c;
-      if (
-        typeof signature !== 'string' ||
-        !/^[0-9a-f]{64}$/.test(signature) ||
-        !timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(sign(signed, authorization), 'hex')) ||
-        c.version !== 1 ||
-        c.binding !== binding ||
         !Number.isSafeInteger(c.offset) ||
         c.offset < limit ||
         c.offset % limit !== 0 ||
@@ -151,10 +132,7 @@ export async function microsoftPortfolioPage(store: Store, call: ToolCall, actor
         !Number.isSafeInteger(c.page) ||
         c.page !== c.offset / limit ||
         typeof c.content !== 'string' ||
-        !/^[0-9a-f]{64}$/.test(c.content) ||
-        !Number.isSafeInteger(c.expires_at) ||
-        c.expires_at <= Date.now() ||
-        c.expires_at > Date.now() + 300000
+        !/^[0-9a-f]{64}$/.test(c.content)
       )
         throw Error();
       offset = c.offset;
@@ -168,28 +146,18 @@ export async function microsoftPortfolioPage(store: Store, call: ToolCall, actor
       );
     }
   }
-  const budget = new ReportCollectionBudget(undefined, binding, () => {}, {
-    requests: 6,
-    rows: microsoftPortfolioLimit + 2,
-    bytes: 16 * 1024 * 1024,
-    elapsed_ms: 60000,
-  });
+  const send = portfolioReader(call, actor, gateway, current, error =>
+    bad(error?.message ?? 'Microsoft inventory read failed.', error?.code ?? 'PORTFOLIO_FAILED'),
+  );
   const read = async (action: string, payload: JsonObject, campaign?: string) => {
-    current();
-    const r = await call(
-      gateway,
-      {
-        action,
-        account_id: account,
-        connection_id: connection.id,
-        payload,
-        ...(campaign ? {campaign_id: campaign} : {}),
-        dry_run: false,
-      },
-      actor,
-    );
-    current();
-    if (!r.success) bad(r.error?.message ?? 'Microsoft inventory read failed.', r.error?.code ?? 'PORTFOLIO_FAILED');
+    const r = await send({
+      action,
+      account_id: account,
+      connection_id: connection.id,
+      payload,
+      ...(campaign ? {campaign_id: campaign} : {}),
+      dry_run: false,
+    });
     const d = r.data?.data;
     if (r.data?.truncated || !obj(d)) invalid('Microsoft returned an incomplete or failed inventory response.');
     return d as JsonObject;
@@ -201,8 +169,10 @@ export async function microsoftPortfolioPage(store: Store, call: ToolCall, actor
       bad('Microsoft did not confirm the exact parent in this account.', 'STATE_TARGET_MISMATCH');
     return rows[0] as JsonObject;
   };
-  try {
-    return await budget.run(async () => {
+  return withPortfolioBudget(
+    binding,
+    {requests: 6, rows: microsoftPortfolioLimit + 2, bytes: 16 * 1024 * 1024, elapsed_ms: 60000},
+    async budget => {
       const accountRow = (await read('GetAccount', {})).Account;
       if (!obj(accountRow) || String(accountRow.Id) !== account)
         bad('Microsoft returned a different advertising account.', 'STATE_TARGET_MISMATCH');
@@ -325,11 +295,7 @@ export async function microsoftPortfolioPage(store: Store, call: ToolCall, actor
         currency,
         timezone,
         has_more: more,
-        next_cursor: more
-          ? Buffer.from(JSON.stringify({...continuation, signature: sign(continuation, authorization)})).toString(
-              'base64url',
-            )
-          : null,
+        next_cursor: more ? sealCursor(continuation, authorization) : null,
         page_number: page + 1,
         captured_at: Date.now(),
         collection_size: rows.length,
@@ -342,8 +308,13 @@ export async function microsoftPortfolioPage(store: Store, call: ToolCall, actor
         meaning:
           'Current Microsoft Advertising inventory in ascending native ID order, not a point-in-time snapshot. Microsoft does not page these reads, so each page reads the complete collection (at most 1000 entities, refused above it) and a collection that changes between pages is restarted. Campaigns include every documented campaign type and ads every documented ad type. Current parent reads confirm the account and hierarchy. Money is unconverted decimal account currency. No write authority is granted.',
       };
-    });
-  } finally {
-    budget.close();
-  }
+    },
+  );
 }
+
+/** The Microsoft Advertising portfolio adapter (ARC-04 stage E). */
+export const microsoftPortfolioAdapter: PortfolioAdapter = {
+  gateway,
+  entities: ['campaign', 'ad_group', 'ad'],
+  page: microsoftPortfolioPage,
+};

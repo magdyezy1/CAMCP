@@ -14,8 +14,14 @@ import {driveDownloadUrl} from './drive-media.js';
 import {mediaLinkUrl} from './media-link.js';
 import {validateMetaCreative} from './creative-validation.js';
 import {normalizeAccount} from './scope.js';
-import {accountPlan, accountCurrency, accountMetadata, accountTimezone} from './workspace.js';
-import {accountName, rememberAccountMetadata} from './account-metadata.js';
+import {
+  accountPlan,
+  accountCurrency,
+  accountMetadata,
+  accountTimezone,
+  accountName,
+  rememberAccountMetadata,
+} from './account-metadata.js';
 import {unprotectedAccounts} from './spend-policy.js';
 import {groupLimitRefusal, groupParts, needsGroup} from './write-groups.js';
 import {fingerprint} from './workspace-core.js';

@@ -1,7 +1,7 @@
 import {MirrorError} from './errors.js';
-import {applyExecutionRisk} from './execution-risk.js';
+import {failWithStatus, type StatusRefusal} from './family-kit.js';
 import {assertGoogleAdsScope} from './google-contracts.js';
-import type {ReviewedFamily, VerificationRead} from './reviewed-family.js';
+import type {Classify, ReadBuilder, ReviewedFamily, VerificationRead} from './reviewed-family.js';
 import type {TransportResult} from './transport.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {snake} from './write-common.js';
@@ -243,8 +243,8 @@ export function assertGoogleLifecycleGoals(p: CompiledRequest) {
   operations(p);
 }
 type Read = CompiledRequest & {googleLifecycleGoalRead?: true};
-const search = (p: CompiledRequest, query: string, extra: JsonObject = {}): Read =>
-  applyExecutionRisk({
+const search = (classify: Classify, p: CompiledRequest, query: string, extra: JsonObject = {}): Read =>
+  classify({
     ...p,
     action: 'AMCP_STATE_READ',
     method: 'POST',
@@ -308,9 +308,13 @@ const configFields = [
 ];
 const quoted = (names: string[]) => names.map(n => "'" + n + "'").join(', ');
 /** Every goal of the customer (at most one per type); for configs, the campaigns named and their configs. */
-export function googleLifecycleGoalSnapshots(p: CompiledRequest): CompiledRequest[] {
+export function googleLifecycleGoalSnapshots(
+  p: CompiledRequest,
+  _stateRead: ReadBuilder,
+  classify: Classify,
+): CompiledRequest[] {
   const ops = operations(p),
-    reads = [search(p, 'SELECT ' + goalFields.join(', ') + ' FROM goal', marked)];
+    reads = [search(classify, p, 'SELECT ' + goalFields.join(', ') + ' FROM goal', marked)];
   if (googleLifecycleGoalKind(p) === 'configs') {
     const campaigns = [
       ...new Set(
@@ -323,6 +327,7 @@ export function googleLifecycleGoalSnapshots(p: CompiledRequest): CompiledReques
     ].sort();
     reads.push(
       search(
+        classify,
         p,
         'SELECT campaign.resource_name, campaign.status, campaign.advertising_channel_type FROM campaign WHERE campaign.resource_name IN (' +
           quoted(campaigns) +
@@ -330,6 +335,7 @@ export function googleLifecycleGoalSnapshots(p: CompiledRequest): CompiledReques
         marked,
       ),
       search(
+        classify,
         p,
         'SELECT ' +
           configFields.join(', ') +
@@ -347,9 +353,7 @@ const rowsOf = (state: unknown[], entity: string): JsonObject[] =>
     .flatMap(s => (object(s) && Array.isArray(s.results) ? s.results : []))
     .map(r => (object(r) ? (snakeKeys(r) as JsonObject)[entity] : undefined))
     .filter(object);
-function fail(code: string, message: string, details: JsonObject): never {
-  throw new MirrorError(code, message, details, 409);
-}
+const fail: StatusRefusal = failWithStatus(409);
 export function googleLifecycleGoalPrerequisites(p: CompiledRequest, state: unknown[]) {
   const kind = googleLifecycleGoalKind(p)!,
     goals = rowsOf(state, 'goal'),
@@ -473,7 +477,13 @@ export function googleLifecycleGoalOutcome(p: CompiledRequest, r: TransportResul
   );
 }
 /** Each resource read back by name: the fields sent, or, for a removed config, its absence. */
-export function googleLifecycleGoalVerification(p: CompiledRequest, result: JsonObject): VerificationRead[] {
+export function googleLifecycleGoalVerification(
+  p: CompiledRequest,
+  result: JsonObject,
+  _before: unknown[],
+  _verificationRead: ReadBuilder,
+  classify: Classify,
+): VerificationRead[] {
   const kind = googleLifecycleGoalKind(p)!,
     resource = kind === 'goals' ? 'goal' : 'campaign_goal_config',
     results = object(result.data) && Array.isArray(result.data.results) ? result.data.results : [];
@@ -484,6 +494,7 @@ export function googleLifecycleGoalVerification(p: CompiledRequest, result: Json
     if (o.type === 'remove')
       return {
         read: search(
+          classify,
           p,
           'SELECT ' +
             resource +
@@ -504,6 +515,7 @@ export function googleLifecycleGoalVerification(p: CompiledRequest, result: Json
     const {resource_name: _, ...sent} = o.record;
     return {
       read: search(
+        classify,
         p,
         'SELECT ' +
           [resource + '.resource_name', ...leaves(sent).map(f => resource + '.' + f)].join(', ') +

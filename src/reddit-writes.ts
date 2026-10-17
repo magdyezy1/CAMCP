@@ -9,12 +9,11 @@ import {
 import type {CompiledRequest, JsonObject, Connection} from './types.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
+import {familyCodeError, type OneCodeRefusal} from './family-kit.js';
 import {recordedWriteGrant} from './provider-grants.js';
 const kinds = ['campaigns', 'ad_groups', 'ads', 'saved_audiences'];
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(message: string): never {
-  throw new MirrorError('INVALID_REDDIT_MUTATION', message);
-}
+const fail: OneCodeRefusal = familyCodeError('INVALID_REDDIT_MUTATION');
 const identifier = (v: unknown) => typeof v === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(v);
 export function redditWriteKind(plan: CompiledRequest) {
   if (plan.gateway !== 'reddit_native_action') return;

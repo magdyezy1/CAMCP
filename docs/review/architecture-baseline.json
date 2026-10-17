@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "description": "Architecture ratchet baseline (ARC-01 phase A, ARC-04). node tools/architecture-map.mjs --check fails when a measurement rises, a module joins a runtime import cycle or docs/review/ARCHITECTURE.md shows another baseline; --write records the current state and that table. See docs/review/ARCHITECTURE.md.",
+  "metrics": {
+    "largest_runtime_scc": 3,
+    "cyclic_modules": 11,
+    "shared_modules_with_gateway_literals": 87,
+    "shared_to_provider_runtime_imports": 493,
+    "local_fail_copies": 0
+  },
+  "reported": {
+    "runtime_scc_sizes": [
+      3,
+      2,
+      2,
+      2,
+      2
+    ],
+    "shared_gateway_literals": 701
+  },
+  "cycles": [
+    [
+      "src/microsoft-associations.ts",
+      "src/microsoft-campaign-criteria.ts",
+      "src/microsoft-native.ts"
+    ],
+    [
+      "src/allocation-calibration.ts",
+      "src/report-allocation.ts"
+    ],
+    [
+      "src/apple-entity-writes.ts",
+      "src/measurement-writes.ts"
+    ],
+    [
+      "src/effect-class.ts",
+      "src/preflight.ts"
+    ],
+    [
+      "src/reddit-creative-writes.ts",
+      "src/reddit-writes.ts"
+    ]
+  ]
+}

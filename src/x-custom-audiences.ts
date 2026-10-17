@@ -2,6 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {defineFamily, fail} from './family-kit.js';
 
 /**
  * Custom audiences of an X Ads account, Ads API v12 (Audiences reference, "Custom Audiences"; docs.x.com copy read on
@@ -17,9 +18,6 @@ type Read = CompiledRequest & {xAudienceState?: State};
 const gateway = 'x_ads_native_action',
   nativeId = /^[a-z0-9]{1,32}$/;
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_X_CUSTOM_AUDIENCE', message);
 }
@@ -357,7 +355,7 @@ export function xAudienceObserved(_read: CompiledRequest, data: JsonObject): Jso
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const xAudienceFamily: ReviewedFamily = {
+export const xAudienceFamily: ReviewedFamily = defineFamily({
   name: 'x_custom_audiences',
   files: ['src/x-custom-audiences.ts', ['tests/x-custom-audiences.test.mjs']],
   kind: xAudienceKind,
@@ -372,4 +370,4 @@ export const xAudienceFamily: ReviewedFamily = {
   verification: xAudienceVerification,
   observed: xAudienceObserved,
   exemptFromSpendTextMatch: true,
-};
+});

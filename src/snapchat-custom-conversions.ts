@@ -1,7 +1,7 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {fail} from './family-kit.js';
 
 /**
  * Snapchat custom conversions of a pixel, Marketing API v1 ("Custom Conversions"; checked 2026-09-27). POST
@@ -52,9 +52,6 @@ const numericKeys = ['price', 'number_items'],
   comparisons = ['LESS_THAN', 'LESS_THAN_OR_EQUALS', 'GREATER_THAN', 'GREATER_THAN_OR_EQUALS'];
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const snapId = (v: unknown): v is string => typeof v === 'string' && /^[A-Za-z0-9-]{1,64}$/.test(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_SNAPCHAT_CUSTOM_CONVERSION', message);
 }

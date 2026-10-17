@@ -1,6 +1,7 @@
 import {compressedAssets} from './compressed-assets.js';
 import {createPublicAssets, robotsTxt, securityTxt, type PublicPage} from './public-assets.js';
 import {wooCommerceSources} from '../src/woocommerce-source.js';
+import {providerLifecycle} from '../src/provider-adapters.js';
 import {mediaSourceRoutes} from './media-source-routes.js';
 import {workspaceSearch} from './workspace-search.js';
 import express, {type Request, type Response, type NextFunction} from 'express';
@@ -986,7 +987,12 @@ export function createWebsite(store: Store, options: WebsiteOptions, allowWrites
           connections: connections.filter(c => c.gateway === p.gateway).map(c => visibleConnection(session!.actor, c)),
         })),
         authenticated: !!session,
+        // Stored store connections stay listed while WooCommerce is parked, so an administrator can still remove one.
         commerce_sources: session ? wooCommerceSources(store, session.actor).items : [],
+        // Parked providers this deployment does not offer (ARC-01, P9): Commerce hides their panels.
+        providers_not_offered: providerLifecycle()
+          .filter(p => !p.offered)
+          .map(p => p.provider),
       });
     }),
   );

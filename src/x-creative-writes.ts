@@ -2,6 +2,7 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
+import {familyCodeError, type OneCodeRefusal} from './family-kit.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -37,9 +38,7 @@ const legacyFields: Record<string, string[]> = {
 // X returns the card media key but not the poster or unlock media keys.
 const writeOnly = ['poster_media_key', 'unlocked_image_media_key', 'unlocked_video_media_key'];
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(message: string, details: JsonObject = {}): never {
-  throw new MirrorError('X_CREATIVE_STATE_UNVERIFIED', message, details);
-}
+const fail: OneCodeRefusal = familyCodeError('X_CREATIVE_STATE_UNVERIFIED');
 type Kind =
   'card_create' | 'card_update' | 'card_delete' | 'tweet_create' | 'tweet_rename' | 'library_create' | 'promotion';
 export function xCreativeKind(p: CompiledRequest): Kind | undefined {

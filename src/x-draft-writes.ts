@@ -1,7 +1,7 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {xRead, xReader} from './x-creative-writes.js';
-import {normalizeReviewState} from './review-state.js';
+import {normalizeReviewState} from './review-state-core.js';
 import {sha256, stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -13,9 +13,7 @@ const native = /^[a-z0-9]{1,32}$/,
   snowflake = /^[1-9][0-9]{0,24}$/,
   mediaKey = /^[0-9]+_[1-9][0-9]{0,24}$/,
   cardUri = /^card:\/\/[1-9][0-9]{0,24}$/;
-const fail = (message: string, code = 'X_DRAFT_STATE_UNVERIFIED'): never => {
-  throw new MirrorError(code, message);
-};
+const fail: ReasonFirstRefusal = familyErrors('X_DRAFT_STATE_UNVERIFIED');
 const input = (message: string): never => fail(message, 'INVALID_X_DRAFT');
 const text = (v: unknown, max: number, empty = false) =>
   typeof v === 'string' &&

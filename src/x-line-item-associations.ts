@@ -1,7 +1,7 @@
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {defineFamily, fail} from './family-kit.js';
 
 /**
  * Promoted accounts, media creatives and scheduled promoted Tweets of X Ads line items, Ads API v12 (Campaign Management
@@ -33,9 +33,6 @@ const gateway = 'x_ads_native_action',
   snowflake = /^[1-9][0-9]{0,24}$/,
   removedStatuses = ['DELETED'];
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_X_LINE_ITEM_ASSOCIATION', message);
 }
@@ -506,7 +503,7 @@ export function xAssociationObserved(_read: CompiledRequest, data: JsonObject): 
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const xAssociationFamily: ReviewedFamily = {
+export const xAssociationFamily: ReviewedFamily = defineFamily({
   name: 'x_line_item_associations',
   files: ['src/x-line-item-associations.ts', ['tests/x-line-item-associations.test.mjs']],
   kind: xAssociationKind,
@@ -527,4 +524,4 @@ export const xAssociationFamily: ReviewedFamily = {
   },
   exemptFromSpendTextMatch: true,
   activates: xAssociationNeedsConfirmation,
-};
+});

@@ -1,4 +1,4 @@
-import {MirrorError} from './errors.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 
@@ -56,18 +56,12 @@ export const xAudienceCriteriaTypes = Object.freeze([...types].sort());
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const text = (v: unknown, max: number): v is string =>
   typeof v === 'string' && !!v.trim() && [...v].length <= max && !/[\u0000-\u001f\u007f\ud800-\udfff]/u.test(v);
-function fail(message: string, code = 'INVALID_X_AUDIENCE_ESTIMATE'): never {
-  throw new MirrorError(
-    code,
-    message,
-    {},
-    code === 'RESOURCE_SCOPE_REQUIRED' || code === 'ACCOUNT_SCOPE_MISMATCH'
-      ? 403
-      : code === 'X_AUDIENCE_RESPONSE_INVALID' || code === 'X_AUDIENCE_LIMIT'
-        ? 502
-        : 400,
-  );
-}
+const fail: ReasonFirstRefusal = familyErrors('INVALID_X_AUDIENCE_ESTIMATE', {
+  RESOURCE_SCOPE_REQUIRED: 403,
+  ACCOUNT_SCOPE_MISMATCH: 403,
+  X_AUDIENCE_RESPONSE_INVALID: 502,
+  X_AUDIENCE_LIMIT: 502,
+});
 function invalid(): never {
   return fail(
     'X returned a malformed, partial or unscoped audience estimate. No zero or midpoint is substituted.',

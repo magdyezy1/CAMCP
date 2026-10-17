@@ -139,10 +139,20 @@ test('all actual directly owned backend reasons have Arabic with original native
   // website reason, and the refusal of a reserved workspace ID (ensureTenant, INVALID_TENANT) one owned reason. The
   // invitation lifetime's one- and two-hour sentences add two website entries.
   // ARC-03 adds src/route-anchors.ts (no owned reasons) and the nine route evidence entries of the contract reference.
-  assert.equal(files.length, 598);
-  assert.equal(selected.filter(row => row.messages.size).length, 235);
-  assert.equal(owned.size, 1587);
-  assert.equal(Object.keys(catalog).length, 11482);
+  // ARC-01 adds src/provider-adapter.ts and src/provider-adapters.ts (no owned reasons) and the parked-provider refusal
+  // of src/provider-offering.ts with its remedy; P9's parked WooCommerce notice on Commerce adds one catalog entry.
+  // ARC-04 stage B adds six leaf modules split from existing ones (account-id, review-state-core, tiktok-paths,
+  // microsoft-association-contracts, meta-ad-library-contract, google-business-notification-kind); their reasons moved
+  // with them, so the owned reasons and the catalog are unchanged. Stage E adds src/signed-cursor.ts and
+  // src/portfolio-runner.ts (no owned reasons: the portfolio refusals stay in each adapter). Stage F adds the report
+  // source contract, its registry and ten provider report sources; the Apple source owns the reason it took from
+  // src/report-native.ts (one more file with reasons, the same reasons).
+  // Stage C adds src/family-kit.ts; the family modules that import its fail keep their owned reasons. Stage D adds
+  // src/tool-actions.ts (no owned reasons).
+  assert.equal(files.length, 622);
+  assert.equal(selected.filter(row => row.messages.size).length, 236);
+  assert.equal(owned.size, 1588);
+  assert.equal(Object.keys(catalog).length, 11485);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

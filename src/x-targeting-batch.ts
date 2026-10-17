@@ -1,6 +1,6 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
-import {changedStateFields, normalizeReviewState} from './review-state.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {changedStateFields, normalizeReviewState} from './review-state-core.js';
 import {sha256, stable} from './security.js';
 import {xAudienceCriteriaTypes} from './x-audience-estimate.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -14,9 +14,7 @@ const privateUser = new Set(['FOLLOWERS_OF_USER', 'USER_ENGAGEMENT', 'USER_ENGAG
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const text = (v: unknown, max = 1024): v is string =>
   typeof v === 'string' && !!v.trim() && [...v].length <= max && !/[\u0000-\u001f\u007f\ud800-\udfff]/u.test(v);
-const fail = (message: string, code = 'X_TARGETING_STATE_UNVERIFIED'): never => {
-  throw new MirrorError(code, message);
-};
+const fail: ReasonFirstRefusal = familyErrors('X_TARGETING_STATE_UNVERIFIED');
 const input = (message: string): never => fail(message, 'INVALID_X_TARGETING_BATCH');
 const operations = (p: CompiledRequest) => p.body as JsonObject[];
 const scalar = (v: unknown): string | undefined =>

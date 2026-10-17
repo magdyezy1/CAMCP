@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 import {accountWorkflowFixture} from './fixtures/account-workflows-ui.mjs';
 import {wooVariationsFixture, wooVariationInput} from './fixtures/woocommerce-variations-data.mjs';
 import {catalogIngestion} from '../dist/src/catalog-ingestion.js';
+import {offerParkedProviders} from './helpers/parked-providers.mjs';
+
+// WooCommerce is parked (ARC-01, P9): this suite exercises it, so it offers it like a
+// deployment whose AMCP_PROVIDERS names it.
+offerParkedProviders('woocommerce');
 const plain = value => JSON.parse(JSON.stringify(value));
 async function fixture(locale = 'en') {
   const f = accountWorkflowFixture(locale),

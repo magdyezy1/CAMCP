@@ -1,4 +1,3 @@
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily, Verified} from './reviewed-family.js';
@@ -12,6 +11,7 @@ import {
   type PersonalDataRecord,
   type PersonalDataSpec,
 } from './personal-data.js';
+import {fail} from './family-kit.js';
 
 /**
  * Meta customer lists (customer-file custom audiences) under the personal-data policy the owner approved on
@@ -54,9 +54,6 @@ const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && 
 const account = (v: unknown) => String(v ?? '').replace(/^act_/, '');
 const text = (v: unknown, max: number): v is string =>
   typeof v === 'string' && v === v.trim() && v.length > 0 && [...v].length <= max && !/[\u0000-\u001f\u007f]/.test(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_META_CUSTOMER_LIST', message, {source});
 }

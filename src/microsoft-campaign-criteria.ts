@@ -1,5 +1,6 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
+import {familyCodeError, type OneCodeRefusal} from './family-kit.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {compileMicrosoft, getByIdsPayload} from './microsoft-native.js';
 
@@ -75,9 +76,7 @@ export function microsoftCriterionContracts() {
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const numeric = (v: unknown) =>
   typeof v === 'string' && /^[1-9][0-9]{0,18}$/.test(v) && BigInt(v) <= 9223372036854775807n;
-function fail(message: string, details: JsonObject = {}): never {
-  throw new MirrorError('INVALID_MICROSOFT_REQUEST', message, details);
-}
+const fail: OneCodeRefusal = familyCodeError('INVALID_MICROSOFT_REQUEST');
 /** A campaign-criterion write (add or delete) of this family, at any route; kind() also checks the exact route. */
 export function microsoftCriterionWrite(p: CompiledRequest): boolean {
   return p.gateway === gateway && ['AddCampaignCriterions', 'DeleteCampaignCriterions'].includes(p.action);

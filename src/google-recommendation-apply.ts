@@ -1,9 +1,9 @@
-import {MirrorError} from './errors.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {googleAdsCustomers} from './google-version.js';
+import {fail} from './family-kit.js';
 
 /**
  * Applying keyword and campaign budget recommendations, Google Ads API v23 (pinned Discovery document:
@@ -29,9 +29,6 @@ const actions = ['APPLY_RECOMMENDATION', 'google_ads_v23_recommendation_apply_re
   maxOperations = 20;
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const micros = (v: unknown) => (typeof v === 'string' || typeof v === 'number') && /^[1-9][0-9]{0,17}$/.test(String(v));
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_GOOGLE_RECOMMENDATION_APPLY', message);
 }

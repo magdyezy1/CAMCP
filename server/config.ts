@@ -3,6 +3,7 @@ import {previousMasterKeys} from '../src/security.js';
 import {accountRetention, selfServiceDeletion} from '../src/account-erasure.js';
 import {reportRetentionDefault} from '../src/data-retention.js';
 import {mcpRegistrationLimitDefaults, mcpRegistrationLimits, type McpRegistrationLimits} from '../src/mcp-clients.js';
+import {providerAdapters, unknownProviderIds} from '../src/provider-adapters.js';
 
 /** The process an AMCP configuration starts. */
 export type EntryPoint = 'http' | 'worker' | 'stdio';
@@ -155,6 +156,16 @@ export function loadConfig(env: NodeJS.ProcessEnv, entry: EntryPoint): AmcpConfi
   const modern = text(env.AMCP_MCP_MODERN_PROTOCOL?.trim().toLowerCase());
   if (modern !== undefined && !modernProtocolModeNames.includes(modern))
     problems.push('AMCP_MCP_MODERN_PROTOCOL must be off, next or on; it was treated as off.');
+  // ARC-01: a misspelt provider ID in AMCP_PROVIDERS offers nothing, so it is named at startup.
+  const unknownProviders = unknownProviderIds(env);
+  if (unknownProviders.length)
+    problems.push(
+      'AMCP_PROVIDERS names no provider: ' +
+        unknownProviders.join(', ') +
+        '. Provider IDs: ' +
+        providerAdapters.map(a => a.id).join(', ') +
+        '; the unknown names were ignored.',
+    );
   return Object.freeze({
     entry,
     production,

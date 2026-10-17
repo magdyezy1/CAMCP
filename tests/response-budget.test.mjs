@@ -18,7 +18,8 @@ const surface = async () => (measured ??= await measureSurface());
 test('tools/list descriptions are routing summaries of at most 2,000 characters in reader and operator modes', async () => {
   const m = await surface();
   for (const mode of ['reader', 'operator']) {
-    assert.ok(m.tools_list[mode].tools >= 27, mode);
+    // 25 tools by default: the parked Amazon Ads, Criteo and WooCommerce gateways are not offered (CON-06, ARC-01, P9).
+    assert.ok(m.tools_list[mode].tools >= 25, mode);
     for (const [name, length] of Object.entries(m.tools_list[mode].descriptions))
       assert.ok(length <= 2000, mode + ' ' + name + ' ' + length);
   }

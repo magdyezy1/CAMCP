@@ -3,6 +3,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {assertDV360WriteScope} from './dv360-scope.js';
+import {fail} from './family-kit.js';
 
 /**
  * Advertiser-owned inventory source groups on Display & Video 360 API v4, per the pinned Discovery document
@@ -29,9 +30,6 @@ const groups = '/v4/inventorySourceGroups';
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const id = (v: unknown): v is string =>
   typeof v === 'string' && /^[1-9]\d{0,18}$/.test(v) && BigInt(v) <= 9223372036854775807n;
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_DV360_INVENTORY_GROUP', message);
 }

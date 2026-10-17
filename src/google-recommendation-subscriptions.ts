@@ -1,9 +1,9 @@
-import {MirrorError} from './errors.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {googleAdsCustomers} from './google-version.js';
+import {fail} from './family-kit.js';
 
 /**
  * Auto-apply recommendation subscriptions, Google Ads API v23 (pinned Discovery document:
@@ -21,9 +21,6 @@ const legacy: Record<string, string> = {
 const statuses = ['ENABLED', 'PAUSED'],
   maxOperations = 10;
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_GOOGLE_RECOMMENDATION_SUBSCRIPTION', message);
 }

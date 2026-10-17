@@ -1,7 +1,7 @@
 /** Verification plan: the reads that show a write took effect, what each must contain, and how read-backs compare. */
 import {snapLeadFormProjection} from './snapchat-lead-forms.js';
 import {snapSegmentProjection} from './snapchat-segments.js';
-import {tiktokAudienceGetPath} from './tiktok-lookalikes.js';
+import {tiktokAudienceGetPath} from './tiktok-paths.js';
 import {tiktokConversionGetPath, tiktokCustomConversionProjection} from './tiktok-custom-conversions.js';
 import {tiktokSavedAudienceRead, tiktokSavedAudienceProjection} from './tiktok-saved-audiences.js';
 import {tiktokSmartPlusCampaignProjection} from './tiktok-smart-plus-campaigns.js';
@@ -9,9 +9,10 @@ import {tiktokSmartPlusAdgroupProjection} from './tiktok-smart-plus-adgroups.js'
 import {tiktokCtaPortfolioProjection, tiktokPortfolioGetPath} from './tiktok-cta-portfolios.js';
 import {tiktokSmartPlusAdProjection, tiktokSmartPlusAdGetPath} from './tiktok-smart-plus-ads.js';
 import {Registry} from './catalog.js';
-import {normalizeReviewState} from './review-state.js';
+import {normalizeReviewState} from './review-state-core.js';
 import {googleConfigurationObserved} from './google-configuration-writes.js';
 import {snapshotPlans} from './write-snapshots.js';
+import {applyExecutionRisk} from './execution-risk.js';
 import {microsoftGateway, microsoftContracts} from './microsoft-native.js';
 import {bad, fingerprint, obj} from './workspace-core.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -99,7 +100,7 @@ export function verificationReads(
     action: 'AMCP_VERIFY_READ',
   });
   const family = familyOf(plan);
-  if (family?.verification) return family.verification(plan, result, before, base);
+  if (family?.verification) return family.verification(plan, result, before, base, applyExecutionRisk);
   if (plan.method === 'DELETE') return [];
   if (gateway === 'google_ads_native_action') {
     const leaves = (value: JsonObject, prefix = ''): string[] =>

@@ -11,7 +11,7 @@ import {metaCampaignRows} from './meta-report.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import type {MirrorService} from './service.js';
 import {MirrorError} from './errors.js';
-import {accountPlan, accountMetadata, accountCurrency, accountTimezone} from './workspace.js';
+import {accountPlan, accountMetadata, accountCurrency, accountTimezone} from './account-metadata.js';
 import {compileMicrosoft, microsoftGateway} from './microsoft-native.js';
 import {
   admitProviderJob,
@@ -21,7 +21,7 @@ import {
   settleProviderJob,
 } from './provider-jobs.js';
 import {assertWritesNotPaused} from './owner-operations.js';
-import {reportPlatforms, metricNumber, objectiveGroup, redditConversionValueDivisor} from './report-metrics.js';
+import {reportPlatforms, metricNumber, objectiveGroup} from './report-metrics.js';
 import {zonedMidnight} from './workflows.js';
 import {googleAdsCustomers} from './google-version.js';
 import {metaPrefix} from './meta-version.js';
@@ -39,6 +39,9 @@ import {
   redditDetail,
 } from './overview-native-detail.js';
 import {markReportWindow} from './report-windows.js';
+import {reportSource, reportSourceList} from './report-sources.js';
+import type {ReportSourceRow} from './report-source.js';
+import {reportRange} from './report-periods.js';
 import {
   assertMicrosoftWindowClosed,
   microsoftCompleteData,
@@ -47,92 +50,15 @@ import {
   microsoftReportZone,
 } from './microsoft-timezones.js';
 
-export const nativeMetricExamples: Record<string, string[]> = {
-  google: [
-    'metrics.all_conversions',
-    'metrics.all_conversions_value',
-    'metrics.interactions',
-    'metrics.video_views',
-    'metrics.engagements',
-    'metrics.view_through_conversions',
-  ],
-  meta: [
-    'inline_link_clicks',
-    'outbound_clicks',
-    'unique_clicks',
-    'video_play_actions',
-    'video_p25_watched_actions',
-    'video_p50_watched_actions',
-    'video_p75_watched_actions',
-    'video_p100_watched_actions',
-    'cost_per_action_type',
-  ],
-  tiktok: [
-    'reach',
-    'frequency',
-    'video_play_actions',
-    'video_watched_2s',
-    'video_watched_6s',
-    'video_views_p100',
-    'likes',
-    'comments',
-    'shares',
-    'follows',
-    'total_purchase',
-    'total_purchase_value',
-  ],
-  snapchat: [
-    'video_views',
-    'view_completion',
-    'conversion_purchases',
-    'conversion_purchases_value',
-    'conversion_sign_ups',
-    'total_installs',
-  ],
-  linkedin: [
-    'videoViews',
-    'videoCompletions',
-    'likes',
-    'comments',
-    'shares',
-    'externalWebsiteConversions',
-    'externalWebsitePostClickConversions',
-    'externalWebsitePostViewConversions',
-    'conversionValueInLocalCurrency',
-    'oneClickLeads',
-  ],
-  x: ['VIDEO', 'WEB_CONVERSION', 'MOBILE_CONVERSION'],
-  microsoft: [
-    'AllConversions',
-    'AllRevenue',
-    'Assists',
-    'ViewThroughConversions',
-    'QualityScore',
-    'PhoneCalls',
-    'ImpressionSharePercent',
-  ],
-  apple: [],
-  reddit: [
-    'VIDEO_STARTED',
-    'VIDEO_VIEWABLE_IMPRESSIONS',
-    'CONVERSION_PURCHASE_TOTAL_ITEMS',
-    'CONVERSION_PURCHASE_TOTAL_VALUE',
-  ],
-  ga4: [
-    'engagedSessions',
-    'engagementRate',
-    'bounceRate',
-    'screenPageViews',
-    'averageSessionDuration',
-    'eventCount',
-    'ecommercePurchases',
-    'purchaseRevenue',
-  ],
-  gsc: [],
-};
+/** Native metrics the Overview suggests per platform, from each platform's report source (ARC-04 stage F). */
+export const nativeMetricExamples: Record<string, string[]> = Object.fromEntries(
+  reportSourceList.map(source => [source.platform, [...source.nativeMetricExamples]]),
+);
 const bad = (message: string) => {
   throw new MirrorError('INVALID_REPORT_SOURCE', message);
 };
+// The report date range lives in src/report-periods.ts (ARC-04 stage F); this module keeps exporting it.
+export {reportRange};
 /** RPT-04: TikTok campaign reporting reads `AUCTION_CAMPAIGN` data only. */
 const tiktokAuctionOnlyWarning =
   'TikTok campaign reporting covers auction campaigns only (AUCTION_CAMPAIGN); Reach & Frequency and other reserved campaigns are not included.';
@@ -143,22 +69,6 @@ const tiktokAuctionOnlyWarning =
  */
 export const redditValueUnitWarning =
   'Reddit conversion value and ROAS are unverified: AMCP reads CONVERSION_PURCHASE_TOTAL_VALUE as cents (divided by 100), a unit not yet checked against Reddit. Compare them with Reddit Ads Manager before relying on them.';
-export function reportRange(range: JsonObject) {
-  if (
-    !range ||
-    !['since', 'until'].every(
-      k =>
-        typeof range[k] === 'string' &&
-        /^\d{4}-\d{2}-\d{2}$/.test(range[k]) &&
-        Number.isFinite(Date.parse(range[k])) &&
-        new Date(range[k]).toISOString().slice(0, 10) === range[k],
-    ) ||
-    range.since > range.until ||
-    Date.parse(range.until) - Date.parse(range.since) > 365 * 86400000
-  )
-    bad('Choose a valid inclusive date range of at most 366 days.');
-  return range as {since: string; until: string};
-}
 const list = (v: unknown): JsonObject[] => {
   if (!Array.isArray(v) || v.some(x => !x || typeof x !== 'object' || Array.isArray(x)))
     throw new MirrorError('REPORT_SHAPE_CHANGED', 'The provider returned an unexpected report collection.', {}, 502);
@@ -201,7 +111,11 @@ const nativeFieldName = (k: string) => snake(k.replace(/[^a-zA-Z0-9_]/g, '_')).r
  * The response container a requested field may leave out: TikTok and Google metrics sit under `metrics`, Snapchat
  * stats under `stats` (TikTok `reach` is returned as `metrics.reach`). No other prefix or suffix is accepted.
  */
-const nativeMetricContainers: Record<string, string> = {google: 'metrics', tiktok: 'metrics', snapchat: 'stats'};
+const nativeMetricContainers: Record<string, string> = Object.fromEntries(
+  reportSourceList.flatMap(source =>
+    source.nativeMetricContainer ? [[source.platform, source.nativeMetricContainer] as [string, string]] : [],
+  ),
+);
 /** The paths of action arrays ({action_type, value} entries), whose metrics carry the action type after the path. */
 function nativeActionPaths(data: unknown, prefix: string, out: Set<string>, depth = 0) {
   if (depth > 4 || !data || typeof data !== 'object' || Array.isArray(data)) return;
@@ -257,215 +171,19 @@ function numericNative(
   }
   return output;
 }
+/**
+ * One native report row in the shared shape: the platform's report source (src/report-sources.ts) reads its identity
+ * and shared metrics; every native numeric field is kept as `native_<platform>_<path>`, and the row must carry a safe
+ * identifier.
+ */
 export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObject {
-  let id: any,
-    name: any,
-    objective: any,
-    metrics: JsonObject = {},
-    currency: any = null,
-    resultDefinition: string | undefined,
-    mixedResult = false;
-  const p = platform,
-    n = (k: string, d = 1) => value(raw[k], d),
-    omitted = new Set<string>();
-  if (p === 'google') {
-    id = raw.campaign?.id;
-    name = raw.campaign?.name;
-    objective = null;
-    currency = raw.customer?.currencyCode;
-    const m = raw.metrics ?? {};
-    metrics = {
-      spend: value(m.costMicros, 1e6),
-      impressions: value(m.impressions),
-      clicks: value(m.clicks),
-      conversions: value(m.conversions),
-      conversion_value: value(m.conversionsValue),
-      video_views: value(m.videoViews),
-      engagements: value(m.engagements),
-    };
-  }
-  if (p === 'meta') {
-    id = raw.campaign_id;
-    name = raw.campaign_name;
-    objective = raw.objective;
-    // RPT-04 (owner policy P6): Meta omits zero-valued action entries. A delivered row (impressions above 0) from a
-    // complete page counts an absent requested action as 0 and names it in `omitted_as_zero`; a row without delivery
-    // keeps it unknown.
-    const delivered = (metricNumber(raw.impressions) ?? 0) > 0;
-    const action = (metric: string, keys: string[], field = 'actions') => {
-      const a = raw[field];
-      if (Array.isArray(a))
-        for (const key of keys) {
-          const found = a.find((v: JsonObject) => v?.action_type === key);
-          if (found) return value(found.value);
-        }
-      if (delivered && (a === undefined || Array.isArray(a))) {
-        omitted.add(metric);
-        return 0;
-      }
-      return null;
-    };
-    const leads = action('leads', ['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead']),
-      purchases = action('purchases', ['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase']),
-      installs = action('installs', ['mobile_app_install', 'app_install']),
-      result: [number | null, string] | undefined =
-        objectiveGroup(objective) === 'leads'
-          ? [leads, 'leads']
-          : objectiveGroup(objective) === 'app_installs'
-            ? [installs, 'installs']
-            : objectiveGroup(objective) === 'sales'
-              ? [purchases, 'purchases']
-              : undefined;
-    if (result && omitted.has(result[1])) omitted.add('conversions');
-    metrics = {
-      spend: n('spend'),
-      impressions: n('impressions'),
-      clicks: n('clicks'),
-      reach: n('reach'),
-      frequency: n('frequency'),
-      leads,
-      purchases,
-      installs,
-      conversions: result ? result[0] : null,
-      conversion_value: action(
-        'conversion_value',
-        ['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase'],
-        'action_values',
-      ),
-      video_views: action('video_views', ['video_view']),
-      engagements: action('engagements', ['post_engagement']),
-    };
-  }
-  if (p === 'tiktok') {
-    id = raw.dimensions?.campaign_id;
-    const m = raw.metrics ?? {};
-    name = m.campaign_name;
-    objective = raw.objective_type;
-    // RPT-04: the result definition names the campaign's ad group optimization events; mixed events are held.
-    const events: string[] = Array.isArray(raw.optimization_events) ? raw.optimization_events : [];
-    if (events.length === 1) resultDefinition = 'TikTok conversions for optimization event ' + events[0];
-    else if (events.length > 1) {
-      resultDefinition = 'TikTok conversions mixing optimization events: ' + events.join(', ');
-      mixedResult = true;
-    }
-    metrics = {
-      spend: value(m.spend),
-      impressions: value(m.impressions),
-      clicks: value(m.clicks),
-      conversions: value(m.conversion),
-      reach: value(m.reach),
-      frequency: value(m.frequency),
-      video_views: value(m.video_play_actions),
-      video_completions: value(m.video_views_p100),
-      purchases: value(m.total_purchase),
-      conversion_value: value(m.total_purchase_value),
-    };
-  }
-  if (p === 'snapchat') {
-    id = raw.id;
-    name = raw.name;
-    objective = raw.objective;
-    const m = raw.stats ?? {};
-    metrics = {
-      spend: value(m.spend, 1e6),
-      impressions: value(m.impressions),
-      clicks: value(m.swipes),
-      purchases: value(m.conversion_purchases),
-      conversion_value: value(m.conversion_purchases_value, 1e6),
-      leads: value(m.conversion_sign_ups),
-      installs: value(m.total_installs),
-      video_views: value(m.video_views),
-      video_completions: value(m.view_completion),
-    };
-    metrics.conversions =
-      objectiveGroup(objective) === 'app_installs'
-        ? metrics.installs
-        : objectiveGroup(objective) === 'leads'
-          ? metrics.leads
-          : objectiveGroup(objective) === 'sales'
-            ? metrics.purchases
-            : null;
-  }
-  if (p === 'linkedin') {
-    id = raw.pivotValues?.[0]?.split(':').at(-1);
-    name = raw.name;
-    objective = raw.objectiveType;
-    metrics = {
-      spend: n('costInLocalCurrency'),
-      impressions: n('impressions'),
-      clicks: n('clicks'),
-      conversions: n('externalWebsiteConversions'),
-      conversion_value: n('conversionValueInLocalCurrency'),
-      leads: n('oneClickLeads'),
-      video_views: n('videoViews'),
-      video_completions: n('videoCompletions'),
-    };
-  }
-  if (p === 'x') {
-    id = raw.id;
-    name = raw.name;
-    objective = raw.objective;
-    metrics = raw.metrics ?? {};
-  }
-  if (p === 'microsoft') {
-    id = raw.CampaignId;
-    name = raw.CampaignName;
-    currency = raw.CurrencyCode;
-    metrics = {
-      spend: n('Spend'),
-      impressions: n('Impressions'),
-      clicks: n('Clicks'),
-      conversions: n('Conversions'),
-      conversion_value: n('Revenue'),
-    };
-  }
-  if (p === 'apple') {
-    id = raw.metadata?.id;
-    name = raw.metadata?.name;
-    objective = 'APP_INSTALLS';
-    const m = raw.totalMetrics;
-    if (!m || typeof m !== 'object' || Array.isArray(m))
-      throw new MirrorError('REPORT_SHAPE_CHANGED', 'Apple v1 report row is missing totalMetrics.', {}, 502);
-    currency = m.localSpend?.currency;
-    metrics = {
-      spend: value(m.localSpend?.amount),
-      impressions: value(m.impressions),
-      clicks: value(m.taps),
-      installs: value(m.totalInstalls),
-      conversions: value(m.totalInstalls),
-    };
-  }
-  if (p === 'reddit') {
-    id = raw.campaign_id ?? raw.CAMPAIGN_ID;
-    name = raw.campaign_name;
-    objective = raw.objective;
-    metrics = {
-      spend: value(raw.SPEND ?? raw.spend, 1e6),
-      impressions: value(raw.IMPRESSIONS ?? raw.impressions),
-      clicks: value(raw.CLICKS ?? raw.clicks),
-      purchases: value(raw.CONVERSION_PURCHASE_TOTAL_ITEMS ?? raw.conversion_purchase_total_items),
-      conversion_value: value(
-        raw.CONVERSION_PURCHASE_TOTAL_VALUE ?? raw.conversion_purchase_total_value,
-        redditConversionValueDivisor,
-      ),
-    };
-  }
-  if (p === 'ga4') {
-    id = raw.campaign_id;
-    name = raw.campaign_name;
-    metrics = {
-      sessions: n('sessions'),
-      users: n('totalUsers'),
-      conversions: n('keyEvents'),
-      conversion_value: n('totalRevenue'),
-      purchases: n('ecommercePurchases'),
-    };
-  }
-  if (p === 'gsc') {
-    id = raw.keys?.[0] ?? 'site';
-    name = id;
-    metrics = {clicks: n('clicks'), impressions: n('impressions'), position: n('position')};
-  }
+  const omitted = new Set<string>(),
+    row: ReportSourceRow = reportSource(platform)?.normalize(raw, {
+      value,
+      field: (key: string, divisor = 1) => value(raw[key], divisor),
+      omitted,
+    }) ?? {id: undefined, metrics: {}};
+  const {id, name, objective, currency} = row;
   if (id === undefined || id === null || (typeof id === 'number' && !Number.isSafeInteger(id)))
     throw new MirrorError(
       'REPORT_ID_MISSING',
@@ -479,10 +197,10 @@ export function normalizeNativeRow(platform: string, raw: JsonObject): JsonObjec
     objective: objective ?? 'unknown',
     objective_group: objectiveGroup(objective),
     currency: currency ?? null,
-    metrics: {...metrics, ...numericNative(platform, raw)},
+    metrics: {...row.metrics, ...numericNative(platform, raw)},
     ...(omitted.size ? {omitted_as_zero: [...omitted].sort()} : {}),
-    ...(resultDefinition ? {result_definition: resultDefinition} : {}),
-    ...(mixedResult ? {mixed_result_definition: true} : {}),
+    ...(row.resultDefinition ? {result_definition: row.resultDefinition} : {}),
+    ...(row.mixedResult ? {mixed_result_definition: true} : {}),
     native: raw,
   };
 }

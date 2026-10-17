@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {readGoogleConversionGraph, googleConversionGoalSnapshots} from './google-conversion-goals.js';
 import {stable, sha256} from './security.js';
@@ -9,9 +9,7 @@ import type {TransportResult} from './transport.js';
 
 type Send = (p: CompiledRequest) => Promise<TransportResult>;
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-const fail = (message: string, code = 'INVALID_CONVERSION_ACTION'): never => {
-  throw new MirrorError(code, message, {}, code === 'CONVERSION_ACTION_STATE_UNVERIFIED' ? 502 : 400);
-};
+const fail: ReasonFirstRefusal = familyErrors('INVALID_CONVERSION_ACTION', {CONVERSION_ACTION_STATE_UNVERIFIED: 502});
 const incomplete = (message: string): never => fail(message, 'CONVERSION_ACTION_STATE_UNVERIFIED');
 const only = (v: JsonObject, fields: string[]) => {
   if (Object.keys(v).some(k => !fields.includes(k)))

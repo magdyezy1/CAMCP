@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {parseLinkedInValue} from './linkedin-restli.js';
 import {linkedinConversionConfiguration} from './linkedin-conversion-state.js';
 import {assertLinkedInConversionScope} from './linkedin-conversion-links.js';
@@ -12,9 +12,7 @@ type RuleRead = CompiledRequest & {
 };
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const only = (v: unknown, keys: string[]): v is JsonObject => object(v) && Object.keys(v).every(k => keys.includes(k));
-const fail = (message: string, code = 'INVALID_CONVERSION_RULE'): never => {
-  throw new MirrorError(code, message);
-};
+const fail: ReasonFirstRefusal = familyErrors('INVALID_CONVERSION_RULE');
 const stateFail = (message: string): never => fail(message, 'CONVERSION_RULE_STATE_UNVERIFIED');
 const id = (v: unknown): string => {
   if (typeof v === 'number' && Number.isSafeInteger(v) && v > 0) v = String(v);

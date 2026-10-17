@@ -63,7 +63,7 @@ counted on its own; none implies another.
 | [Google Drive](#google-drive) | v3 | yes | 0 of 1 | 0 | 0 | 0 | 0 | — |
 | [Google Sheets](#google-sheets) | v4/v3 | yes | 0 of 2 | 0 | 0 | 0 | 0 | — |
 | [Amazon Ads](#amazon-ads) | catalog-dependent | no | 0 of 1 | 0 | 0 | 0 | 0 | — |
-| [Criteo](#criteo) | 2026-07 | yes | 0 of 1 | 0 | 0 | 0 | 0 | — |
+| [Criteo](#criteo) | 2026-07 | no | 0 of 1 | 0 | 0 | 0 | 0 | — |
 | [Adjust](#adjust) | Reports Service (unversioned) | yes | 0 of 1 | 0 | 0 | 0 | 0 | — |
 | [Google Business Profile](#google-business-profile) | v1 | yes | 0 of 1 | 0 | 0 | 0 | 0 | — |
 

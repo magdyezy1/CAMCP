@@ -1,10 +1,10 @@
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {PolicyAmounts, ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
 import {assertNoMethodOverride} from './write-common.js';
 import {optionalMetaRead} from './meta-catalogs.js';
+import {fail} from './family-kit.js';
 
 /**
  * Meta automated rules (the Ad Rules Engine), unblocked by the owner on 2026-09-30. Meta's references (read 2026-09-30):
@@ -113,9 +113,6 @@ const account = (v: unknown) => String(v ?? '').replace(/^act_/, '');
 const text = (v: unknown, max: number): v is string =>
   typeof v === 'string' && v === v.trim() && v.length > 0 && [...v].length <= max && !/[\u0000-\u001f\u007f]/.test(v);
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_META_AD_RULE', message, {source});
 }

@@ -1,4 +1,4 @@
-import {MirrorError} from './errors.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {pinnedJson} from './pinned-json.js';
@@ -15,18 +15,13 @@ const variants: Record<string, {input: string; fields: string[]; details: string
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const text = (v: unknown, max: number): v is string =>
   typeof v === 'string' && !!v.trim() && [...v].length <= max && !/[\u0000-\u001f\ud800-\udfff]/u.test(v);
-function fail(message: string, code = 'INVALID_DV360_SEARCH'): never {
-  throw new MirrorError(
-    code,
-    message,
-    {},
-    ['DV360_SEARCH_RESPONSE_INVALID', 'DV360_SEARCH_LIMIT', 'PAGINATION_LOOP'].includes(code)
-      ? 502
-      : ['ACCOUNT_SCOPE_MISMATCH', 'INSUFFICIENT_SCOPE'].includes(code)
-        ? 403
-        : 400,
-  );
-}
+const fail: ReasonFirstRefusal = familyErrors('INVALID_DV360_SEARCH', {
+  DV360_SEARCH_RESPONSE_INVALID: 502,
+  DV360_SEARCH_LIMIT: 502,
+  PAGINATION_LOOP: 502,
+  ACCOUNT_SCOPE_MISMATCH: 403,
+  INSUFFICIENT_SCOPE: 403,
+});
 const models = (): Record<string, JsonObject> => pinnedJson('.mirror/VENDOR/dv360-v4.json').document.schemas;
 
 /** The exact documented POST search creates no assignment, list, task or job.

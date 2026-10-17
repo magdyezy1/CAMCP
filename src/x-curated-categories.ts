@@ -1,7 +1,7 @@
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {defineFamily, fail} from './family-kit.js';
 
 /**
  * Curated categories of X Ads pre-roll line items, Ads API v12 (Campaign Management reference, "Line Item Curated
@@ -15,9 +15,6 @@ type Read = CompiledRequest & {xCuratedState?: State};
 const gateway = 'x_ads_native_action',
   nativeId = /^[a-z0-9]{1,32}$/;
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_X_CURATED_CATEGORY', message);
 }
@@ -337,7 +334,7 @@ export function xCuratedObserved(_read: CompiledRequest, data: JsonObject): Json
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const xCuratedFamily: ReviewedFamily = {
+export const xCuratedFamily: ReviewedFamily = defineFamily({
   name: 'x_curated_categories',
   files: ['src/x-curated-categories.ts', ['tests/x-curated-categories.test.mjs']],
   kind: xCuratedKind,
@@ -358,4 +355,4 @@ export const xCuratedFamily: ReviewedFamily = {
   },
   exemptFromSpendTextMatch: true,
   activates: xCuratedNeedsConfirmation,
-};
+});

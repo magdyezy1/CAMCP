@@ -1,6 +1,7 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
+import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
 import {scopeKey, stable} from './security.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -40,9 +41,7 @@ const timestamp = (v: unknown): v is string =>
   typeof v === 'string' &&
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(v) &&
   Number.isFinite(Date.parse(v));
-function fail(message: string, code = 'CRITEO_REPORT_INVALID'): never {
-  throw new MirrorError(code, message, {}, code === 'CRITEO_REPORT_STATE_UNVERIFIED' ? 502 : 400);
-}
+const fail: ReasonFirstRefusal = familyErrors('CRITEO_REPORT_INVALID', {CRITEO_REPORT_STATE_UNVERIFIED: 502});
 function stateFail(message: string): never {
   return fail(message, 'CRITEO_REPORT_STATE_UNVERIFIED');
 }

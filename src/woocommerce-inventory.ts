@@ -5,6 +5,7 @@ import {bad, fingerprint, obj, validate} from './workspace-core.js';
 import {guardedLookup} from './media-link.js';
 import {wooCommerceOrigin, wooCommerceRequest, type WooCommerceRequest} from './woocommerce-source.js';
 import {loginStamp, storedLogin} from './connection-authority.js';
+import {assertGatewayOffered} from './provider-offering.js';
 
 export const wooCommerceInventoryLimits = Object.freeze({
   items_per_scan: 1000,
@@ -151,6 +152,8 @@ export async function wooCommerceInventory(
   request: WooCommerceRequest = wooCommerceRequest,
   environment: 'production' | 'sandbox' = 'production',
 ) {
+  // WooCommerce is parked (ARC-01, P9): no store is read unless AMCP_PROVIDERS names it.
+  assertGatewayOffered('commerce_native_action');
   validate(input, ['action', 'gateway', 'account_id', 'connection_id', 'requirements']);
   const requirements = input.requirements;
   if (!obj(requirements)) bad('Choose the WooCommerce inventory mode and one exact native price field.');

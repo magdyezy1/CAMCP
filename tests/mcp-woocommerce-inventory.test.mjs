@@ -7,6 +7,11 @@ import {createMcpServer} from '../dist/server/mcp.js';
 import {workflowOutcome} from '../dist/src/workflow-outcomes.js';
 import {wooInventoryBrowserFixture, wooInventoryInput} from './fixtures/woocommerce-inventory-data.mjs';
 import {fullDescription} from './fixtures/tool-help.mjs';
+import {offerParkedProviders} from './helpers/parked-providers.mjs';
+
+// WooCommerce is parked (ARC-01, P9): this suite exercises it, so it offers it like a
+// deployment whose AMCP_PROVIDERS names it.
+offerParkedProviders('woocommerce');
 
 test('real MCP inventory preserves hierarchy, exact values and no-change evidence through schema-validated calls and a scoped website handoff', async t => {
   const f = wooInventoryBrowserFixture(),

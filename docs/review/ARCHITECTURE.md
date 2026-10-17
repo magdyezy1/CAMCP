@@ -250,3 +250,197 @@ used 68 MB. Generated artifacts are parsed once per process and frozen (`src/pin
 compile on first use.
 
 Full-check timing and counts are in `PROGRESS.md`.
+
+## 8. Architecture ratchet
+
+`tools/architecture-map.mjs` (ARC-01 phase A, ARC-04 stage A; owner decision D26) measures the compiled backend and
+compares it with `docs/review/architecture-baseline.json`. `npm run architecture:check` runs in `npm run check`, in the
+qualification fast gate and in `npm run test:related`; `tests/architecture-map.test.mjs` holds its rules. It reads the
+static imports of `dist/src` and `dist/server` (what Node evaluates: tsc elides type-only imports, and a dynamic
+`import()` is not an evaluation edge) and the source text of `src/` and `server/`.
+
+| Measurement (ratcheted) | What it counts |
+|---|---|
+| `largest_runtime_scc`, `cyclic_modules` | Modules in the largest runtime import cycle, and in any cycle |
+| `shared_modules_with_gateway_literals` | Shared modules (outside the provider filename groups `meta-*`, `tiktok-*`, ...) that name a provider gateway in a string literal |
+| `shared_to_provider_runtime_imports` | Runtime imports from any shared `src/` or `server/` module into a provider module |
+| `local_fail_copies` | Modules that declare their own `fail` helper instead of the family kit's (§13); 0 since ARC-04 stage C |
+
+A measurement may fall or stay. One that rises fails the check, and so does a module that joins a runtime import cycle,
+even when another cycle shrinks by as much. The number of gateway literals in shared modules is reported only.
+`node tools/architecture-map.mjs --write` records the current state after an intended improvement, or after a
+regression the owner accepted; the commit says which. It also writes the table below from the recorded baseline (owner
+direction P11: this document is partly generated), and the check fails when the table shows another baseline than the
+recorded one. The review's "core to provider" count
+(220 at `60ec2cc`) counted 28 core modules; `shared_to_provider_runtime_imports` counts every shared module, so its value
+is larger and is compared only with its own baseline. The provider adapter registry (`src/provider-adapters.ts`, §9)
+names every gateway on purpose, so the ratchet counts it with the provider modules, and an import of it is not counted
+as coupling; so are the portfolio adapter registry (`src/portfolio.ts`, §11) and the report source registry
+(`src/report-sources.ts`, §12), which import one module per provider so that shared code consults them. Counting them
+as registries lowered `shared_to_provider_runtime_imports` from 500 to 493 by classification alone: the seven portfolio
+imports, which `src/portfolio.ts` made before it became the registry, are no longer counted.
+
+<!-- architecture-map:baseline:begin -->
+| Recorded baseline (written by `node tools/architecture-map.mjs --write`; do not edit) | Value |
+|---|---|
+| `largest_runtime_scc` | 3 |
+| `cyclic_modules` | 11 |
+| `shared_modules_with_gateway_literals` | 87 |
+| `shared_to_provider_runtime_imports` | 493 |
+| `local_fail_copies` | 0 |
+| `shared_gateway_literals` (reported) | 701 |
+| Runtime import cycles | `src/microsoft-associations.ts` ↔ `src/microsoft-campaign-criteria.ts` ↔ `src/microsoft-native.ts`; `src/allocation-calibration.ts` ↔ `src/report-allocation.ts`; `src/apple-entity-writes.ts` ↔ `src/measurement-writes.ts`; `src/effect-class.ts` ↔ `src/preflight.ts`; `src/reddit-creative-writes.ts` ↔ `src/reddit-writes.ts` |
+<!-- architecture-map:baseline:end -->
+
+## 9. Provider adapters
+
+`src/provider-adapter.ts` is the gateway-level provider contract (ARC-01) and `src/provider-adapters.ts` its registry:
+one adapter per provider gateway, a leaf module that imports no provider or lifecycle module. A provider supplies
+facts; the review lifecycle, `ScopeGuard` and `NativeTransport` keep control (account binding, the origin allowlist,
+single send, retries, spending, confirmation and idempotency never move into an adapter). Every adapter has a lifecycle
+status, `active` or `parked` with a reason (`owner_parked` or `unimplemented`), and the prefixes of its reviewed family
+names, so each registered family belongs to one provider (`tests/provider-adapters.test.mjs`). A parked provider is
+offered only where `AMCP_PROVIDERS` names it (`src/provider-offering.ts`; a misspelt ID is a startup `config_problem`).
+
+Parked today: Criteo and WooCommerce (`owner_parked`, PRK-01, PRK-02 and P9) and Amazon Ads (`unimplemented`, CON-06).
+The status is enforced where each surface is built, not by deleting code: `MirrorService.listTools` leaves the gateway
+out of `tools/list`; `MirrorService.callOnce` refuses a tool call that is, or names, a parked gateway before its
+arguments are read; `ScopeGuard.authorize` refuses every request to it before credentials are fetched (so a review
+prepared while it was offered cannot execute after it is parked); contracts, capabilities and the Capability Center
+filter it; `/api/platforms` names the providers not offered (`providers_not_offered`), and Commerce hides the
+WooCommerce store panels while an administrator can still remove a stored connection. The reviewed-family registry
+stays complete for the ledger; `familyOffered` says whether a family's provider is offered.
+`tests/provider-lifecycle-gate.test.mjs` covers each surface in both modes; suites that exercise a parked provider
+offer it with `tests/helpers/parked-providers.mjs`.
+
+## 10. Import cycles and leaf modules
+
+ARC-04 stage A and B. `tests/import-order.test.mjs` imports every compiled `src/` and `server/` module first in a fresh
+process (the three process entry points excepted) and fails on any load error; before stage B three modules failed
+with a `ReferenceError` because they read another module's top-level value while an import cycle evaluated them
+first. Stage B removed the cycles that held the family registry and the workspace tool: the largest runtime cycle fell
+from 34 modules (and a separate 13-module cycle through `workspace.ts` and the reporting modules) to 3, with 11 modules
+in any cycle, recorded in the ratchet baseline; `tests/architecture-map.test.mjs` keeps the registry, the lifecycle
+modules and the workspace and reporting modules out of every cycle.
+
+| Leaf | Holds | Was in |
+|---|---|---|
+| `src/account-id.ts` | `normalizeAccount`, from the provider adapters' account form | `scope.ts` |
+| `src/review-state-core.ts` | `normalizeReviewState`, `reviewStateHash`, `changedStateFields` | `review-state.ts` |
+| `src/tiktok-paths.ts` | TikTok routes read at load | `tiktok-lookalikes.ts` |
+| `src/microsoft-association-contracts.ts` | the association contracts `microsoft-native.ts` reads at load | `microsoft-associations.ts` |
+| `src/meta-ad-library-contract.ts` | the Ad Library read contract `ScopeGuard` authorizes by | `meta-ad-library.ts` |
+| `src/google-business-notification-kind.ts` | the notification request kind and its actor check | `google-business-notifications.ts` |
+
+The account read and its metadata readers (`accountPlan`, `accountMetadata`, `accountCurrency`, `accountTimezone`)
+moved from `workspace.ts` to `src/account-metadata.ts`, so reporting reads accounts without importing the workspace
+tool. Each old module re-exports what moved, so every import path keeps working. Lifecycle stages a family applies to
+requests it builds arrive as hook arguments (`assert`'s `shape`, the `classify` of `snapshots` and `verification`), the
+pattern of the read builders. Five function-only cycles of two or three provider or reporting modules remain (Microsoft
+native and its two families, allocation calibration, Apple and measurement writes, effect class and preflight, Reddit
+writes); none reads a value at load.
+
+## 11. Portfolio adapters
+
+ARC-04 stage E. `amcp_workspace portfolio` pages one provider's inventory through the adapter of its gateway
+(`portfolioAdapters` in `src/portfolio.ts`: Google Ads, Meta, LinkedIn, Snapchat, TikTok, X, Microsoft Advertising).
+Each adapter is a `PortfolioAdapter` (`src/portfolio-runner.ts`: its gateway, its three entity levels and its page),
+and the parts every adapter ran the same way are shared:
+
+- `src/signed-cursor.ts` seals and opens the five-minute continuation cursor: base64url JSON of the payload and an
+  HMAC-SHA256 signature keyed by the read's login fingerprint. Opening refuses, before any read, a cursor that is
+  longer than the adapter seals, not canonical base64url, unsigned or tampered (compared in constant time), of another
+  version or binding (tenant, user, connection, account, hierarchy, page size, login), or expired. The adapter then
+  checks its own payload fields and refuses with its own `INVALID_CURSOR` sentence. The seven copies this replaces had
+  drifted: Meta accepted a non-canonical encoding.
+- `portfolioAuthority` binds the read to its login, with the scopes in the fingerprint (Google Ads, TikTok, X) or with
+  a per-read permission check (Meta, LinkedIn, Snapchat, Microsoft); `portfolioReader` checks it before and after every
+  gateway read; `withPortfolioBudget` runs the page inside its bounded collection budget.
+
+What stays per adapter: validation order and sentences, hierarchy and parent-observation rules, provider response
+checks, row projection, the cursor payload and length cap, and the page's output. Every refusal sentence stays a
+literal in the adapter, so the portfolio localization inventory still owns it. `tests/portfolio-adapter-contract.test.mjs`
+holds the common refusal contract for every adapter (tampered, non-canonical, oversized, foreign, expired and
+other-login cursors, a login change during a read, an unobserved parent) and `tests/signed-cursor.test.mjs` the codec.
+
+## 12. Report sources
+
+ARC-04 stage F. Each reporting platform has a report source (`src/report-source.ts`): the native metrics the Overview
+suggests for it, the container its requested native metrics may sit in, and `normalize`, which reads one native
+campaign row's identity and shared metrics. `src/report-sources.ts` registers them in the order of `reportPlatforms`
+(`google-report-source.ts` holds Google Ads and Search Console; one module each for Meta, TikTok, Snapchat, LinkedIn,
+X, Microsoft Advertising, Apple Ads, Reddit and GA4). `normalizeNativeRow` (`src/report-native.ts`) calls the source of
+the row's platform and keeps the shared parts: the safe-identifier check, the copy of every native numeric field,
+`omitted_as_zero`, the result definition and the row envelope. The rows were captured before the platform if-chain
+moved (`tests/fixtures/report-source-golden.json`, written by `tools/report-source-golden.mjs`) and
+`tests/report-source-golden.test.mjs` keeps them byte-identical, refusals included. `reportRange` moved to
+`src/report-periods.ts` (re-exported), so the period helpers and the workbook and reporting modules no longer import
+the native collector. Still in `src/report-native.ts`: collection, that is each platform's request plans, paging and
+response parsing, and the async report jobs, which `src/service.ts` and `src/compiler.ts` still import directly.
+
+## 13. Family kit
+
+ARC-04 stage C. `src/family-kit.ts`, a leaf, holds the refusal helper family modules had copied (`fail`), the refusal
+factories for modules with their own codes (`familyErrors`, `familyStateErrors`, `familyCodeError`, `failWithStatus`), a
+load-time check of a family declaration (`defineFamily`) and the hook groups of `ReviewedFamily` by stage. Wave 1 (the
+nine X families), wave 2 (ten TikTok and fourteen Google Ads families) and wave 3 (8 Criteo, 11 DV360, 13 LinkedIn, 15
+Meta and 14 Snapchat families) import its `fail`; wave 4 moved the 58 variants onto `fail` or a factory with the codes
+and statuses each helper gave, and the shared helpers other modules import (`write-common.ts`, `personal-data.ts`,
+`x-catalogs.ts`) re-export the kit's `fail` under their old name. The X families declare themselves through
+`defineFamily`. The localization check owns the reasons of the kit's `fail` and of a kit-built refusal as it owned each
+local helper (`tools/check-locales.mjs`), so the owned reasons and their Arabic are unchanged: 2,553 reasons in the 152
+modules on the kit, the same set before stage C and after each wave. Nineteen modules whose former arrow or forwarding
+helper the inventory never followed stay outside it (`unlocalizedRefusalModules`; about 420 of their 430 reasons have
+no Arabic), a gap now named rather than implicit. `local_fail_copies` fell from 153 to 0 and is ratcheted (§8). See
+`docs/ADDING-A-REVIEWED-FAMILY.md`, "The family kit".
+
+## 14. Composition tables
+
+ARC-04 stage D. What a composite function dispatched by an if-chain becomes a table that a new case joins by one entry.
+The audit record of a refused tool call keeps its arguments through `auditInputRedactors` (`src/service.ts`), applied in
+order: the people of a request that carries them, the links and cursors of a Meta existing-post read, private links of
+a Business Profile place action, the OAuth code and state of a connection diagnostic, and reporting credentials. It
+replaced five nested calls in `MirrorService.callOnce`; `tests/audit-input-redaction.test.mjs` keeps the table equal to
+that nesting.
+
+A composite tool's actions are entries of action tables (`src/tool-actions.ts`, a leaf): each entry receives one
+`ToolContext` (the call's arguments and the caller, extended with what the tool's actions share) and `actionHandler`
+answers only a table's own entries, so an inherited name such as `constructor` is no action. `amcp_reporting` is the
+first: `DecisionReporting.handle` (899 lines, an if-chain over 24 actions) is now its two guards and three tables,
+consulted in the order of the checks the chain ran between them: the actions that take no page bounds (presets,
+serving diagnostics, the launch check), then, after the page bounds, those that list, read or capture evidence, then,
+after the read of the report the call names and the check of its connection, the 13 actions on that report. Each long
+action is a method (`capture` 342 lines, `analyze` 203); their bodies are the chain's blocks unchanged.
+`tests/tool-actions.test.mjs` holds the stage of every action and the order of the checks, and the reporting suites
+are unchanged.
+
+Not yet tables (each a separate change, so that it does not collide with work that edits the same lines): the
+dispatch of the composite tools in `MirrorService.callOnce` and the actions of `amcp_media`
+(`MediaUploadService.handle`), both edited by packages running alongside this one; the route modules of
+`server/website.ts` (`createWebsite`); and the split of `web/account-workflows.js` behind `web/route-assets.js`, which
+belongs with WEB-07.
+
+## 15. Module structure
+
+ARC-04 (§8 and §10 to §14) leaves each backend module a role, and the role decides what it may import. The ratchet (§8)
+and `tests/import-order.test.mjs` hold the rules that can be measured.
+
+| Role | Modules | May import |
+|---|---|---|
+| Leaf | `errors.ts`, `types.ts`, `security.ts`, `account-id.ts`, `review-state-core.ts`, `family-kit.ts`, `signed-cursor.ts`, `tool-actions.ts`, `provider-adapter.ts`, `report-source.ts`; values read at load: `tiktok-paths.ts`, `microsoft-association-contracts.ts`, `meta-ad-library-contract.ts`, `google-business-notification-kind.ts` | Other leaves only: a provider's version module such as `meta-version.ts`, and the provider adapter registry, are leaves too |
+| Provider module | `<provider>-*.ts`: reviewed families (on the family kit, §13), portfolio adapters (on `portfolio-runner.ts`, §11), report sources (§12) | Leaves, shared helpers and modules of its own provider; never a lifecycle module (§10) |
+| Registry | `provider-adapters.ts` (§9), `portfolio.ts` (§11), `report-sources.ts` (§12), which the ratchet counts with the providers; `reviewed-families.ts`, the family registry | One module per provider, so that shared code consults the registry instead of naming providers |
+| Shared | the review lifecycle (`review-state.ts`, `scope.ts`, `write-review.ts`, ...), the composite tools (`service.ts`, `decision-reporting.ts`, ...), `server/` | Registries, leaves and other shared modules; a composite tool's actions are table entries (§14) |
+
+Against the review (`60ec2cc`) and the start of ARC-04: the largest runtime import cycle fell from 33 modules (34 when
+stage A measured it) to 3, and no cycle holds the family registry, the lifecycle or the workspace tool; modules that
+fail when imported first, from 2 (3) to 0; local `fail` helpers, from 126 by the review's count (153 by the
+ratchet's) to 0, ratcheted; the seven portfolio adapters share one signed cursor and one `PortfolioAdapter` contract;
+each reporting platform has one report source behind a registry. In the functions ARC-04 restructured none is longer
+than 400 lines (`DecisionReporting.handle` was 899, now 30). Thirteen backend functions still are, such as
+`createWebsite` (1,816), `CampaignRunner.handle` (1,306), `NativeCampaignReports.collectSource` (978), `errorRemedy`
+(841) and `MediaUploadService.handle` (739); the review's target of three or fewer needs the Stage D changes listed in
+§14 and the same treatment of the rest. Also left by ARC-04: family remedies declared by each family for `errorRemedy`
+to consult first (today `familyRemedy` in `src/errors.ts`, which other packages are extending), and a `readsFor`
+helper, which stage B made unnecessary for the import cycle because a family receives its read builders as hook
+arguments.

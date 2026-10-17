@@ -1,9 +1,9 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {fail} from './family-kit.js';
 
 /**
  * Snapchat ad squad targeting specs, per Snap's Audience Targeting page, "Targeting Specs - Greater than 500 rows"
@@ -22,9 +22,6 @@ const route = /^\/v1\/adsquads\/([\w-]{1,64})\/targeting_specs$/,
   maxCriteria = 4000,
   lists = ['region_id', 'metro_id', 'postal_code'];
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_SNAPCHAT_TARGETING_SPEC', message, {source});
 }

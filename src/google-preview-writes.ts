@@ -1,7 +1,7 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {familyStateErrors, type StateFlaggedRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
-import {changedStateFields} from './review-state.js';
+import {changedStateFields} from './review-state-core.js';
 import {redact, stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -14,9 +14,7 @@ type Target = {
   previewType: 'UI_PREVIEW' | 'YOUTUBE_LIVE_PREVIEW';
 };
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(message: string, state = false): never {
-  throw new MirrorError(state ? 'PREVIEW_STATE_UNVERIFIED' : 'INVALID_PREVIEW_REQUEST', message, {}, state ? 502 : 400);
-}
+const fail: StateFlaggedRefusal = familyStateErrors('INVALID_PREVIEW_REQUEST', 'PREVIEW_STATE_UNVERIFIED');
 const only = (v: JsonObject, keys: string[], state = false) => {
   if (Object.keys(v).some(k => !keys.includes(k)))
     fail('An unqualified preview field or response envelope was returned.', state);

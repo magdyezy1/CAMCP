@@ -1,8 +1,8 @@
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
+import {fail} from './family-kit.js';
 
 /**
  * Meta pixels of an ad account, Marketing API v25.0 ("Ad Account Adspixels" and "Ad Pixel" references, checked
@@ -30,9 +30,6 @@ const customerData = [
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const numeric = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,31}$/.test(v);
 const account = (v: unknown) => String(v ?? '').replace(/^act_/, '');
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_META_PIXEL', message);
 }

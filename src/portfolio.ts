@@ -1,23 +1,33 @@
 import {bad, type ToolCall} from './workspace-core.js';
 import type {Store} from './store.js';
 import type {Actor, JsonObject} from './types.js';
-import {googlePortfolioPage} from './google-portfolio.js';
-import {metaPortfolioPage} from './meta-portfolio.js';
-import {linkedinPortfolioPage} from './linkedin-portfolio.js';
-import {snapchatPortfolioPage} from './snapchat-portfolio.js';
-import {tiktokPortfolioPage} from './tiktok-portfolio.js';
-import {xPortfolioPage} from './x-portfolio.js';
-import {microsoftPortfolioPage} from './microsoft-portfolio.js';
+import type {PortfolioAdapter} from './portfolio-runner.js';
+import {googlePortfolioAdapter} from './google-portfolio.js';
+import {metaPortfolioAdapter} from './meta-portfolio.js';
+import {linkedinPortfolioAdapter} from './linkedin-portfolio.js';
+import {snapchatPortfolioAdapter} from './snapchat-portfolio.js';
+import {tiktokPortfolioAdapter} from './tiktok-portfolio.js';
+import {xPortfolioAdapter} from './x-portfolio.js';
+import {microsoftPortfolioAdapter} from './microsoft-portfolio.js';
+
+/**
+ * The portfolio adapters (ARC-04 stage E), one per provider gateway: amcp_workspace portfolio pages a provider's
+ * inventory through the adapter of its gateway. RPT-07 (B27) added Microsoft Advertising, whose campaigns AMCP itself
+ * creates.
+ */
+export const portfolioAdapters: readonly PortfolioAdapter[] = Object.freeze([
+  googlePortfolioAdapter,
+  metaPortfolioAdapter,
+  linkedinPortfolioAdapter,
+  snapchatPortfolioAdapter,
+  tiktokPortfolioAdapter,
+  xPortfolioAdapter,
+  microsoftPortfolioAdapter,
+]);
 
 export async function portfolioPage(store: Store, call: ToolCall, actor: Actor, input: JsonObject) {
-  if (input.gateway === 'google_ads_native_action') return googlePortfolioPage(store, call, actor, input);
-  if (input.gateway === 'meta_native_action') return metaPortfolioPage(store, call, actor, input);
-  if (input.gateway === 'linkedin_native_action') return linkedinPortfolioPage(store, call, actor, input);
-  if (input.gateway === 'snapchat_native_action') return snapchatPortfolioPage(store, call, actor, input);
-  if (input.gateway === 'tiktok_native_action') return tiktokPortfolioPage(store, call, actor, input);
-  if (input.gateway === 'x_ads_native_action') return xPortfolioPage(store, call, actor, input);
-  // RPT-07 (B27): Microsoft Advertising, whose campaigns AMCP itself creates.
-  if (input.gateway === 'microsoft_ads_native_action') return microsoftPortfolioPage(store, call, actor, input);
+  const adapter = portfolioAdapters.find(a => a.gateway === input.gateway);
+  if (adapter) return adapter.page(store, call, actor, input);
   return bad(
     'Portfolio adapters cover Google Ads, Meta, LinkedIn, Snapchat, TikTok, X and Microsoft Advertising. Other platforms retain their native read workflows.',
     'PORTFOLIO_UNQUALIFIED',

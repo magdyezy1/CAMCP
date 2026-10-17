@@ -73,6 +73,8 @@ export function profileStages(profile, {now} = {}) {
     gate('contracts_check', ['dist/tools/generate-contracts.js', '--check']),
     gate('contracts_actions_check', ['dist/tools/action-contracts.js', '--check']),
     gate('docs_index_check', ['tools/docs-index.mjs', '--check']),
+    // ARC-01/ARC-04 (owner decision D26): import cycles and provider coupling may only fall.
+    gate('architecture_check', ['tools/architecture-map.mjs', '--check']),
     gate('sunset_alarms', ['dist/tools/provider-sunsets.js', '--alarm', ...(now ? ['--now', now] : [])], {
       blocking: false,
       json: true,

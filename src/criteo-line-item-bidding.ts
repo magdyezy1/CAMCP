@@ -1,5 +1,4 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -11,6 +10,7 @@ import {
   criteoBidMultiplierPages,
 } from './criteo-auction-line-items.js';
 import {criteoDocs, criteoRoute} from './criteo-version.js';
+import {fail} from './family-kit.js';
 
 /**
  * Keywords and bid multipliers of Criteo auction line items on Retail Media API 2026-07 (unchanged from 2026-01), per
@@ -29,9 +29,6 @@ const id = (v: unknown): v is string =>
   typeof v === 'string' && /^[1-9][0-9]{0,18}$/.test(v) && BigInt(v) <= 9223372036854775807n;
 const phraseOk = (v: unknown): v is string =>
   typeof v === 'string' && v.length >= 1 && v.length <= 255 && v === v.trim() && !/[\u0000-\u001f\u007f]/.test(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalidKeywords(message: string): never {
   return fail('INVALID_CRITEO_KEYWORDS', message);
 }

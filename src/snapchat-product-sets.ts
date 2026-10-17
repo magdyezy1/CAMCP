@@ -3,6 +3,7 @@ import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {fail} from './family-kit.js';
 
 /**
  * Snapchat product sets of catalogs, Marketing API v1 (Dynamic Product Ads guide, "Product Set"; checked 2026-09-27).
@@ -70,9 +71,6 @@ const text = (v: unknown, min: number, max: number): v is string =>
   [...v].length >= min &&
   [...v].length <= max &&
   !/[\u0000-\u001f\u007f]/.test(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_SNAPCHAT_PRODUCT_SET', message);
 }

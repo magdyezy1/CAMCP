@@ -1,9 +1,9 @@
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {PolicyAmounts, ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
 import {assertNoMethodOverride} from './write-common.js';
+import {fail} from './family-kit.js';
 
 /**
  * Meta budget scheduling (high demand periods), opened by the owner on 2026-09-29 on conditions. Meta's references (read
@@ -35,9 +35,6 @@ const actions: Record<string, Level> = {
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const numeric = (v: unknown): v is string => typeof v === 'string' && /^[1-9][0-9]{0,31}$/.test(v);
 const account = (v: unknown) => String(v ?? '').replace(/^act_/, '');
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string, details: JsonObject = {}): never {
   return fail('INVALID_META_BUDGET_SCHEDULE', message, {source, ...details});
 }

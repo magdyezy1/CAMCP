@@ -1,7 +1,9 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {microsoftEvidence} from './microsoft-evidence.js';
+// Read below while this module is evaluated: the data comes from a leaf, not from the family module that imports this
+// one (ARC-04).
+import {microsoftAssociationContracts} from './microsoft-association-contracts.js';
 import {
-  microsoftAssociationContracts,
   microsoftAssociationWrite,
   assertMicrosoftAssociation,
   microsoftAssociationSnapshots,
@@ -20,6 +22,7 @@ import {
 import type {Action, CompiledRequest, Connection, JsonObject, ToolDefinition} from './types.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
+import {familyCodeError, type OneCodeRefusal} from './family-kit.js';
 import {guardInput, stable} from './security.js';
 
 export const microsoftGateway = 'microsoft_ads_native_action';
@@ -233,9 +236,7 @@ export const microsoftTool: ToolDefinition = {
   },
 };
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
-function fail(message: string, details: JsonObject = {}): never {
-  throw new MirrorError('INVALID_MICROSOFT_REQUEST', message, details);
-}
+const fail: OneCodeRefusal = familyCodeError('INVALID_MICROSOFT_REQUEST');
 function id(v: unknown, key: string) {
   if (typeof v !== 'string' || !/^[1-9][0-9]*$/.test(v) || v.length > 19 || BigInt(v) > 9223372036854775807n)
     fail(key + ' must be a positive signed 64-bit decimal ID supplied as a string.');

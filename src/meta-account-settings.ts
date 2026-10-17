@@ -1,8 +1,8 @@
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
+import {fail} from './family-kit.js';
 
 /**
  * Meta ad account settings, Marketing API v25.0 "Ad Account" reference (Updating and Reading, checked 2026-09-27).
@@ -32,9 +32,6 @@ const reasons: Record<string, string> = {
 };
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const account = (v: unknown) => String(v ?? '').replace(/^act_/, '');
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string): never {
   return fail('INVALID_META_ACCOUNT_SETTING', message);
 }

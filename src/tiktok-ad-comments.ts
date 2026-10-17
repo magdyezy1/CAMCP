@@ -1,7 +1,7 @@
-import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
+import {fail} from './family-kit.js';
 
 /**
  * Hiding and unhiding comments on an advertiser's ads (PRV-06 B), per TikTok's official Business API SDK
@@ -37,9 +37,6 @@ const gateway = 'tiktok_native_action',
   scopes: Record<string, string> = {AD_ID: 'ad_id', ADGROUP_ID: 'adgroup_id', CAMPAIGN_ID: 'campaign_id'};
 const obj = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 const numeric = (v: unknown): v is string => typeof v === 'string' && /^[0-9]{1,32}$/.test(v);
-function fail(code: string, message: string, details: JsonObject = {}, status = 400): never {
-  throw new MirrorError(code, message, details, status);
-}
 function invalid(message: string, details: JsonObject = {}): never {
   return fail('INVALID_TIKTOK_COMMENT', message, details);
 }

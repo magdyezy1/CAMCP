@@ -1,18 +1,21 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {MirrorError} from './errors.js';
+import {familyStateErrors, type StateFlaggedRefusal} from './family-kit.js';
 import {stable, sha256} from './security.js';
-import {changedStateFields} from './review-state.js';
+import {changedStateFields} from './review-state-core.js';
 import {
   assertPlaceActionScope as assertBusinessScope,
   placeActionSafeError,
   placeActionSafe,
   assertPlaceActionScope,
 } from './google-place-action-links.js';
-import type {Actor, CompiledRequest, Connection, JsonObject} from './types.js';
+import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
+import {businessNotificationKind, assertBusinessNotificationActor} from './google-business-notification-kind.js';
 
-const gateway = 'google_business_native_action',
-  origin = 'https://mybusinessnotifications.googleapis.com',
+// The request kind and its actor check are a leaf the place-action family also reads (ARC-04).
+export {businessNotificationKind, assertBusinessNotificationActor};
+
+const origin = 'https://mybusinessnotifications.googleapis.com',
   accountOrigin = 'https://mybusinessaccountmanagement.googleapis.com';
 export const businessNotificationTypes = [
   'GOOGLE_UPDATE',
@@ -31,14 +34,10 @@ export const retiredBusinessNotificationTypes = [
 ];
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
 type Send = (p: CompiledRequest) => Promise<TransportResult>;
-function fail(message: string, state = false): never {
-  throw new MirrorError(
-    state ? 'BUSINESS_NOTIFICATION_STATE_UNVERIFIED' : 'INVALID_BUSINESS_NOTIFICATION',
-    message,
-    {},
-    state ? 502 : 400,
-  );
-}
+const fail: StateFlaggedRefusal = familyStateErrors(
+  'INVALID_BUSINESS_NOTIFICATION',
+  'BUSINESS_NOTIFICATION_STATE_UNVERIFIED',
+);
 const only = (v: JsonObject, keys: string[], state = false) => {
   if (Object.keys(v).some(k => !keys.includes(k)))
     fail('Unqualified notification field, response envelope or query option.', state);
@@ -49,31 +48,12 @@ function account(p: CompiledRequest) {
     fail('Use the exact numeric Business Profile account grant, not a location grant.');
   return 'accounts/' + id;
 }
-export function businessNotificationKind(p: CompiledRequest): boolean {
-  return (
-    p.gateway === gateway &&
-    p.action === 'gmb_notification_ops/UPDATE_NOTIFICATION_SETTING' &&
-    p.origin === origin &&
-    p.method === 'PATCH' &&
-    !p.specialTransport &&
-    /^\/v1\/accounts\/\d+\/notificationSetting$/.test(p.path)
-  );
-}
 export function businessNotificationDisables(p: CompiledRequest): boolean {
   return (
     businessNotificationKind(p) &&
     object(p.body) &&
     (p.body.pubsubTopic === '' || (Array.isArray(p.body.notificationTypes) && p.body.notificationTypes.length === 0))
   );
-}
-export function assertBusinessNotificationActor(p: CompiledRequest, actor: Actor) {
-  if (businessNotificationKind(p) && (actor.role !== 'admin' || actor.testAccount === true))
-    throw new MirrorError(
-      'ADMIN_REQUIRED',
-      'Only a workspace administrator can change account-wide Business Profile notification destinations. Reviewer test accounts cannot perform this administrative change.',
-      {},
-      403,
-    );
 }
 export function assertBusinessNotificationScope(c: Connection) {
   assertBusinessScope(c);

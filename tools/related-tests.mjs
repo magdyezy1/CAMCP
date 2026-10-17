@@ -22,6 +22,8 @@ export const criticalTests = [
   'tests/sqlite-diagnostics.test.mjs',
   'tests/sheets-authority.test.mjs',
   'tests/reporting-overview.test.ts',
+  // ARC-04: any backend change can move a top-level read into an import cycle; the guard imports every module first.
+  'tests/import-order.test.mjs',
 ];
 export const freshnessChecks = [
   {name: 'report_check', args: ['dist/tools/report.js', '--check']},
@@ -30,6 +32,7 @@ export const freshnessChecks = [
   {name: 'contracts_actions_check', args: ['dist/tools/action-contracts.js', '--check']},
   // ARC-03: generated-artifact provenance (capture evidence, frozen catalog, Apple SDK evidence, embedded inputs).
   {name: 'generated_provenance_check', args: ['tools/generated-provenance.mjs', '--check']},
+  {name: 'architecture_check', args: ['tools/architecture-map.mjs', '--check']},
 ];
 const freshnessScope = /^(?:src|server|tools|docs|generated|codegen|\.mirror)\//;
 const graphRoots = ['src', 'server', 'tools', 'tests', 'generated', 'codegen'];

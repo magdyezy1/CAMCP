@@ -5,6 +5,11 @@ import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {createMcpServer} from '../dist/server/mcp.js';
 import {wooSourceFixture, wooSourceInput} from './fixtures/woocommerce-source-data.mjs';
+import {offerParkedProviders} from './helpers/parked-providers.mjs';
+
+// WooCommerce is parked (ARC-01, P9): this suite exercises it, so it offers it like a
+// deployment whose AMCP_PROVIDERS names it.
+offerParkedProviders('woocommerce');
 
 test('real MCP preserves explicit WooCommerce source identity and supplied prices through an unapproved Meta draft with no provider mutation', async t => {
   const f = wooSourceFixture({role: 'operator'}),
