@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "operation": "Get Pixel Event statistics",
+  "source": {
+    "repository": "tiktok/tiktok-business-api-sdk",
+    "path": "yml_files/pixel_event_stats.yml",
+    "commit": "f809c396520df2d7b201a9ccc5378d822b728ed3",
+    "url": "https://raw.githubusercontent.com/tiktok/tiktok-business-api-sdk/f809c396520df2d7b201a9ccc5378d822b728ed3/yml_files/pixel_event_stats.yml",
+    "sha256": "067aeb70256c87652489989ce7598d37522e8b2eaffba6c0008576c85a39550f",
+    "checked_at": "2026-10-17"
+  },
+  "route_source": {
+    "repository": "tiktok/tiktok-business-api-sdk",
+    "path": "java_sdk/docs/MeasurementApi.md",
+    "commit": "f809c396520df2d7b201a9ccc5378d822b728ed3",
+    "url": "https://raw.githubusercontent.com/tiktok/tiktok-business-api-sdk/f809c396520df2d7b201a9ccc5378d822b728ed3/java_sdk/docs/MeasurementApi.md",
+    "sha256": "abb12e30736937c0c3637d708dea72a272349f9de316896703ca0f36060622a7",
+    "base": "https://business-api.tiktok.com"
+  },
+  "request": {
+    "method": "GET",
+    "path": "/open_api/v1.3/pixel/event/stats/",
+    "query": [
+      "advertiser_id",
+      "date_range",
+      "pixel_ids"
+    ],
+    "date_range": [
+      "end_date",
+      "start_date"
+    ],
+    "date_format": null
+  }
+}
