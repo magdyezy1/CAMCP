@@ -832,13 +832,16 @@ attribution settings of enabled conversion actions; `ga4_native_action` reuses t
 their aggregate reads for five minutes), then 24 hours of `/{pixel}/stats` by event and the Dataset Quality API
 (match quality, Conversions API coverage, deduplication keys, freshness; needs ads_management or business_management);
 `snapchat_native_action` lists pixels, then 7-day domain stats and Signal Readiness scores; `tiktok_native_action`
-lists pixels, then reads the selected pixel's 7-day event statistics, whose fields TikTok documents nowhere AMCP could
-read: they come back literally by path (`evidence.fields`, `field_meanings:"unconfirmed"`) and activity stays unknown
-(`unconfirmed_fields`), so never present them as counts of any event; `google_search_console_native_action` reads the site,
+lists pixels, then reads the selected pixel's 7-day event statistics only once the deployment has pinned TikTok's SDK
+specification of that request (otherwise activity is unavailable, `unpinned_request`, and nothing is sent); TikTok
+documents their fields nowhere AMCP could read: they come back literally by path (`evidence.fields`,
+`field_meanings:"unconfirmed"`) and activity stays unknown (`unconfirmed_fields`), so never present them as counts of
+any event; `google_search_console_native_action` reads the site,
 seven final days of search totals and sitemaps; `adjust_native_action` (app token) reads the event catalog and seven
 UTC days of installs and events. For Meta, Snapchat and TikTok, `requirements.pixel_id` picks one listed pixel or
 dataset; without it only a sole pixel is read and several pixels stay unknown (`pixel_not_selected`). A failed,
-partial, foreign or thresholded read leaves only its layer unknown (`reason:"read_failed"`, `evidence.error`); an
+partial, foreign or thresholded read leaves only its layer unknown (`reason:"read_failed"`, `evidence.error`, and for
+the provider's own refusal its `http_status`, `provider_code` and `request_id`, never its message); an
 actor, login, access or write-pause change refuses the ledger. No test event, Conversions API call or validate request
 is ever sent. Never present unknown as healthy or as broken, and never treat an observed layer as proof of delivery,
 deduplication, consent or attribution. Bounded to 96 requests, 8 MiB and 150 seconds; nothing is saved.

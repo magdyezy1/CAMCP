@@ -179,6 +179,13 @@ for (const locale of ['en', 'ar']) {
       error: 'X',
       upload_summaries: [{client: 'GOOGLE_ADS_API'}],
     });
+    // A failed read may carry the provider's allow-listed facts, never its message.
+    const message = googleReply();
+    message.layers[2] = layer('provider_diagnostics', 'unknown', 'read_failed', {
+      error: 'X',
+      provider_code: 200,
+      message: 'Permissions error',
+    });
     const upgraded = googleReply();
     upgraded.layers[2] = {...upgraded.layers[2], state: 'observed'};
     for (const [name, bad] of [
@@ -193,6 +200,7 @@ for (const locale of ['en', 'ar']) {
       ['mutation', googleReply({provider_mutations: 1})],
       ['reordered layers', reordered],
       ['partial rows in a failed read', partial],
+      ['a provider message in a failed read', message],
       ['failed read reported observed', upgraded],
       ['unknown state', googleReply({layers: googleReply().layers.map((l, i) => (i ? l : {...l, state: 'healthy'}))})],
       ['summary mismatch', googleReply({summary: {observed: 6, unknown: 0, unavailable: 0, not_applicable: 0}})],
@@ -600,6 +608,52 @@ for (const locale of ['en', 'ar']) {
       );
       assert.match(out, /measurement-ledger-unknown/, 'the activity layer stays unknown, never observed');
       assert.equal(f.calls.length, 3);
+      assert.deepEqual(f.httpCalls, []);
+      // Without a pinned SDK specification nothing was read, and the page says why; a refused TikTok envelope shows
+      // TikTok's code and request ID beside AMCP's error code, never its message.
+      for (const [name, activity, expected] of [
+        [
+          'unpinned',
+          layer('provider_observed_activity', 'unavailable', 'unpinned_request'),
+          [
+            text(
+              locale,
+              'AMCP sends this read only as a pinned copy of the provider’s specification documents it, and this deployment has not pinned it yet, so this is not read.',
+            ),
+          ],
+        ],
+        [
+          'refused envelope',
+          layer('provider_observed_activity', 'unknown', 'read_failed', {
+            error: 'MEASUREMENT_LEDGER_INVALID',
+            provider_code: 40002,
+            request_id: '2026101700000000ABCDEF',
+          }),
+          [
+            text(locale, 'Provider code: {code}.').replace('{code}', '40002'),
+            text(locale, 'Provider request ID: {id}.').replace('{id}', '2026101700000000ABCDEF'),
+          ],
+        ],
+        [
+          'refused with an HTTP status',
+          layer('provider_observed_activity', 'unknown', 'read_failed', {
+            error: 'PROVIDER_ACCESS_DENIED',
+            http_status: 403,
+          }),
+          [text(locale, 'Provider response: HTTP {status}.').replace('{status}', '403')],
+        ],
+      ]) {
+        const reply = structuredClone(tiktok);
+        reply.layers[1] = activity;
+        reply.summary = summary(reply.layers);
+        f.respond(() => reply);
+        pick(f, 4);
+        await submit(f);
+        out = f.node('#measurement-ledger-result').innerHTML;
+        for (const value of expected) assert.ok(out.includes(value), name + ': ' + value);
+        assert.doesNotMatch(out, /No permission/, name);
+      }
+      assert.equal(f.calls.length, 6);
       assert.deepEqual(f.httpCalls, []);
     },
   );

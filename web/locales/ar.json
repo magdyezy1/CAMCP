@@ -11198,6 +11198,7 @@
   "Search impressions lost to budget: not a Search campaign": "مرات ظهور البحث المفقودة بسبب الميزانية: ليست حملة بحث",
   "Search impressions lost to budget: not reported": "مرات ظهور البحث المفقودة بسبب الميزانية: لم يُبلَغ عنها",
   "The provider publishes no response contract AMCP could pin, so this is not read.": "لا ينشر المزوّد عقد استجابة يمكن لـ AMCP تثبيته، لذا لا تُقرأ هذه البيانات.",
+  "AMCP sends this read only as a pinned copy of the provider’s specification documents it, and this deployment has not pinned it yet, so this is not read.": "لا يرسل AMCP هذه القراءة إلا كما توثّقها نسخة مثبّتة من مواصفات المزوّد، ولم يثبّت هذا النشر تلك النسخة بعد، لذا لا تُقرأ هذه البيانات.",
   "The pixels the account lists, read completely from the provider.": "وحدات البكسل التي يدرجها الحساب، مقروءة بالكامل من المزوّد.",
   "The account lists no pixel.": "لا يدرج الحساب أي بكسل.",
   "The account lists several pixels. Enter one pixel ID and read the ledger again.": "يدرج الحساب عدة وحدات بكسل. أدخل معرّف بكسل واحد واقرأ السجل مرة أخرى.",

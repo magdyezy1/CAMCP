@@ -6,7 +6,7 @@ import type {Actor, CompiledRequest, Connection, JsonObject} from './types.js';
 import {nativeAuthority} from './native-authority.js';
 import {ReportCollectionBudget} from './report-collection-budget.js';
 import {storedLogin} from './connection-authority.js';
-import {MirrorError} from './errors.js';
+import {MirrorError, providerFactDetails} from './errors.js';
 import {fingerprint, obj} from './workspace-core.js';
 
 /**
@@ -62,8 +62,27 @@ export function invalid(message: string): never {
 }
 
 /**
+ * The provider's own facts about a failed read (owner decision D21, WEB-03): its HTTP error status, error code and
+ * request ID, from a provider refusal (the transport kept the provider's answer or classified its layer) or from the
+ * provider envelope an adapter refused (MEASUREMENT_LEDGER_INVALID with those details). Never the provider's message or
+ * body, and nothing from AMCP's own refusals.
+ */
+export function readFailureFacts(error: MirrorError): JsonObject {
+  const d = error.details ?? {};
+  if (d.upstream === undefined && typeof d.layer !== 'string' && error.code !== 'MEASUREMENT_LEDGER_INVALID') return {};
+  const facts = providerFactDetails(error);
+  return {
+    ...(Number.isInteger(facts.http_status) && (facts.http_status as number) >= 400
+      ? {http_status: facts.http_status}
+      : {}),
+    ...(facts.provider_code !== undefined ? {provider_code: facts.provider_code} : {}),
+    ...(facts.request_id !== undefined ? {request_id: facts.request_id} : {}),
+  } as JsonObject;
+}
+/**
  * Runs one layer read. A changed actor, login, access or control (the fence), or an exhausted whole-ledger allowance,
- * refuses the ledger; any other provider or evidence failure leaves only this layer unknown with its error code.
+ * refuses the ledger; any other provider or evidence failure leaves only this layer unknown with its error code and,
+ * for a provider's refusal, the provider's allow-listed facts (readFailureFacts).
  */
 export async function guarded(name: LayerName, fence: () => void, ledger: string, run: () => Promise<Layer>) {
   try {
@@ -76,7 +95,10 @@ export async function guarded(name: LayerName, fence: () => void, ledger: string
       name,
       'unknown',
       'read_failed',
-      {error: error.code === 'REPORT_COLLECTION_LIMIT' ? 'MEASUREMENT_LEDGER_READ_LIMIT' : error.code},
+      {
+        error: error.code === 'REPORT_COLLECTION_LIMIT' ? 'MEASUREMENT_LEDGER_READ_LIMIT' : error.code,
+        ...readFailureFacts(error),
+      },
       'This read failed or was incomplete, so the layer stays unknown.',
     );
   }

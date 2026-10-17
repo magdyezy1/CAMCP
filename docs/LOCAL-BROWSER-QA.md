@@ -234,7 +234,8 @@ routes: the ten Google evidence kinds on `/reports` (15 each), `retained-evidenc
   320-pixel page to 339 pixels; the row wraps. At the comparison state the Arabic leak probe counted eight English
   nodes: the account and login names and the metric formulas are now marked as native or left-to-right literals.
 - **`measurement-ledger` (MSR-03, `/measurement`).** The full matrix. A synthetic TikTok advertiser lists two pixels
-  and a synthetic Snapchat ad account one. Choosing the advertiser reads nothing. With no pixel entered, only the pixel
+  and a synthetic Snapchat ad account one. The fixture installs a synthetic pin of TikTok's statistics specification
+  while it runs (the state after the owner pins the real file; without one the statistics read is not sent). Choosing the advertiser reads nothing. With no pixel entered, only the pixel
   list is read and activity stays unknown (`pixel_not_selected`). With the first pixel, its event statistics come back
   field by field as literal left-to-right paths and values, and activity stays unknown (`unconfirmed_fields`, never
   observed). The second pixel's answer names another pixel: it is refused, the layer is unknown with

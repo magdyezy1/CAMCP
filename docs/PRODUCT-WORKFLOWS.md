@@ -983,7 +983,8 @@ proof of delivery. The scoped website link (`/measurement?ga4_config=1&…`) onl
 configuration, provider-observed activity, provider diagnostics, supplied runtime trace, consent and attribution
 settings. Each layer is `observed`, `unknown`, `unavailable` or `not_applicable` with a reason code. A layer is
 observed only from complete evidence of the selected asset; a failed, partial, foreign or thresholded read leaves only
-that layer unknown with its error code and never upgrades it. Owner direction P8 (2026-10-11) made Measurement the
+that layer unknown with its error code and never upgrades it (a provider's own refusal also keeps its allow-listed
+facts, D21: `http_status`, `provider_code` and `request_id`, never its message). Owner direction P8 (2026-10-11) made Measurement the
 multi-provider conversion-health hub, so the MCP action `measurement_ledger` takes `gateway`
 (`google_ads_native_action`, `ga4_native_action`, `meta_native_action`, `snapchat_native_action`,
 `tiktok_native_action`, `google_search_console_native_action` or `adjust_native_action`), exact `account_id` and
@@ -1017,16 +1018,23 @@ no test event, Conversions API call, `/events/validate` request or provider chan
 - **TikTok** lists the advertiser's pixels in bounded pages with ownership (owned, or shared/unbound), then reads the
   selected pixel's event statistics ("Get Pixel Event statistics", `GET /v1.3/pixel/event/stats/`) with the request
   TikTok's official Business API SDK specification documents (`advertiser_id`, `pixel_ids` and `date_range`
-  `{start_date, end_date}`, JSON-encoded; AMCP sends the last seven complete UTC days as `YYYY-MM-DD`, since the dates
-  have no documented format). The specification leaves the answer's `data` unspecified and the portal page's response
+  `{start_date, end_date}`, JSON-encoded). The dates have no documented format: AMCP sends the last seven complete UTC
+  days as `YYYY-MM-DD`, which is a guess, not TikTok's documented format. AMCP sends a provider request only as a pinned
+  document states it, so this read is sent only once the deployment has pinned that specification
+  (`yml_files/pixel_event_stats.yml` of `tiktok/tiktok-business-api-sdk` at a full commit, with its SHA-256 and the
+  request fields it documents; see [operations](OPERATIONS.md)). Until then, or when the pin documents another method,
+  path, field or date format than AMCP sends, activity is `unavailable` (`unpinned_request`; a differing pin is named
+  with `evidence.problem`) and nothing is sent. Once pinned, the evidence names the pinned file the request followed
+  (`request_specification`). The specification leaves the answer's `data` unspecified and the portal page's response
   table is drawn by TikTok's scripts, so AMCP checks only the documented envelope (`code`, `message`, `request_id`,
   `data`) and safety: at most 200 values, 6 levels and 100 items an array, field names of letters, digits and `_`, no
   unsafe number, no text over 128 characters, and no `pixel_id`, `pixel_ids`, `pixel_code` or `advertiser_id` other than
-  the selected ones (each refused whole: the layer is unknown with `read_failed`). Otherwise every value is returned as
-  TikTok sent it, by path (`stats[0].count` style), and activity stays `unknown` (`unconfirmed_fields`,
-  `field_meanings: "unconfirmed"`, `day_basis: "unconfirmed"`): AMCP names no field's meaning and never reports TikTok
-  activity as observed until an owner-run read under ACC-06 confirms the fields and their day basis. The website lists
-  the first 20 values literally. TikTok exposes no event-quality diagnostics to these reads.
+  the selected ones (each refused whole: the layer is unknown with `read_failed`; a failed envelope keeps TikTok's
+  `provider_code` and `request_id`, never its message). Otherwise every value is returned as TikTok sent it, by path
+  (`stats[0].count` style), and activity stays `unknown` (`unconfirmed_fields`, `field_meanings: "unconfirmed"`,
+  `day_basis: "unconfirmed"`): AMCP names no field's meaning and never reports TikTok activity as observed until an
+  owner-run read under ACC-06 confirms the fields and their day basis. The website lists the first 20 values literally.
+  TikTok exposes no event-quality diagnostics to these reads.
 - **Search Console** reads the site and the login's permission level (an unverified user stops there:
   `site_unverified`), seven complete days of final web search totals grouped by date in Pacific time (no final data
   stays unknown; data lags several days) and the submitted sitemaps with errors, warnings and pending state. Wire

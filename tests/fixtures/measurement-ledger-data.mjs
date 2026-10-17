@@ -1,11 +1,15 @@
 // MSR-03: the measurement evidence ledger as the rendered browser qualification runs it. A synthetic Snapchat ad account
 // (one pixel with domain stats and signal readiness) and a synthetic TikTok advertiser (two pixels: one whose statistics
 // come back with fields AMCP does not interpret, one whose answer names another pixel) answer read-only routes; every
-// other request and every mutation is refused. No external account is used or mutated.
+// other request and every mutation is refused. No external account is used or mutated. The TikTok statistics read is
+// sent only under a pinned SDK specification, so the fixture installs the synthetic pin while it runs (the state after
+// the owner pins the real file) and removes it on close.
 import {Store} from '../../dist/src/store.js';
 import {Registry} from '../../dist/src/catalog.js';
 import {MirrorService} from '../../dist/src/service.js';
 import {NativeTransport} from '../../dist/src/transport.js';
+import {setTiktokEventStatsPinForTest} from '../../dist/src/measurement-ledger-tiktok.js';
+import {syntheticTiktokEventStatsPin} from './tiktok-event-stats-pin-data.mjs';
 
 export const ledgerSnapAccount = '8f1c4a52-0b6e-4d1f-9a27-3c5d7e9f1a20',
   ledgerSnapPixel = '2b7c9d14-5e3f-4a81-b6c2-9d0e1f2a3b4c',
@@ -151,5 +155,17 @@ export function measurementLedgerFixture() {
   const service = new MirrorService(new Registry(), store, new NativeTransport(fetcher), undefined, {
     allowWrites: false,
   });
-  return {keyByte, actor, store, service, requests, writes: () => writes, close: () => store.close()};
+  setTiktokEventStatsPinForTest(syntheticTiktokEventStatsPin);
+  return {
+    keyByte,
+    actor,
+    store,
+    service,
+    requests,
+    writes: () => writes,
+    close: () => {
+      setTiktokEventStatsPinForTest(undefined);
+      store.close();
+    },
+  };
 }

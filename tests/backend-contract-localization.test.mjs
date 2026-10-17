@@ -135,11 +135,12 @@ test('all actual directly owned backend reasons have Arabic with original native
   // CMP-03's Microsoft location lookup adds src/microsoft-locations.ts (seven owned reasons) and its website copy;
   // RPT-07's period comparison table adds its caption; MSR-03's TikTok pixel event statistics add their refusals and
   // website copy. ARC-02 adds the document-kind registry and the tenant-bound repository modules (27 files, no owned
-  // reasons: the refusals stay where they were raised).
+  // reasons: the refusals stay where they were raised). The TikTok ledger's unpinned statistics request adds one
+  // website reason.
   assert.equal(files.length, 597);
   assert.equal(selected.filter(row => row.messages.size).length, 235);
   assert.equal(owned.size, 1586);
-  assert.equal(Object.keys(catalog).length, 11469);
+  assert.equal(Object.keys(catalog).length, 11470);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

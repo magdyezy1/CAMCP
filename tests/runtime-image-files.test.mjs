@@ -41,7 +41,9 @@ test('only a declared capture may be absent, and a present one parses', () => {
   // or the Dockerfile copy fails the tests above instead of quietly turning those caps back into refusals. Another
   // optional document needs its own entry here.
   assert.ok(reads.has('.mirror/VENDOR/meta-currencies.json'), 'the Meta currency capture is read as required');
-  assert.deepEqual([...optionalReads].sort(), []);
+  // MSR-03 slice D: TikTok's SDK specification of the pixel event statistics request, pinned by the owner with
+  // tools/tiktok-event-stats-pin.mjs; until it is, the TikTok ledger sends no statistics request (unpinned_request).
+  assert.deepEqual([...optionalReads].sort(), ['.mirror/VENDOR/tiktok-pixel-event-stats.json']);
   for (const path of optionalReads) {
     assert.ok(!reads.has(path), path + ' is read both as required and as optional');
     if (fs.existsSync(path)) JSON.parse(fs.readFileSync(path, 'utf8'));

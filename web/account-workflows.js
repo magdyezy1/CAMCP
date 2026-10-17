@@ -2567,6 +2567,8 @@ const measurementLedgerReasons = {
   no_provider_source: 'The provider exposes no source for this layer to AMCP.',
   unpinned_api: 'This is available only in a provider API version AMCP has not pinned.',
   unpinned_contract: 'The provider publishes no response contract AMCP could pin, so this is not read.',
+  unpinned_request:
+    'AMCP sends this read only as a pinned copy of the provider’s specification documents it, and this deployment has not pinned it yet, so this is not read.',
   unconfirmed_fields:
     'TikTok returned these pixel event statistics. Their field meanings are not confirmed yet, so AMCP shows them as returned and does not interpret them.',
   pixels_listed: 'The pixels the account lists, read completely from the provider.',
@@ -2640,13 +2642,13 @@ function measurementLedgerValid(out, target, pixel) {
     ) &&
     !!counts &&
     Object.keys(measurementLedgerStates).every(s => counts[s] === out.layers.filter(l => l.state === s).length) &&
-    // A failed read carries only its error code, never partial rows.
+    // A failed read carries only its error code and the provider's allow-listed facts, never partial rows.
     out.layers.every(
       l =>
         l.reason !== 'read_failed' ||
         (l.state === 'unknown' &&
           !!l.evidence &&
-          Object.keys(l.evidence).join() === 'error' &&
+          Object.keys(l.evidence).every(key => ['error', 'http_status', 'provider_code', 'request_id'].includes(key)) &&
           /^[A-Z][A-Z0-9_]{0,63}$/.test(l.evidence.error ?? '')),
     )
   );
@@ -2667,7 +2669,20 @@ function measurementLedgerEvidence(l, gateway) {
         ? `<p class="form-note">${esc(uiText('{shown} of {total} shown.', {shown: Math.min(5, Array.isArray(v) ? v.length : 0), total: uiNumber(total)}))}</p>`
         : '';
   const pixel = measurementLedgerPixelGateways.includes(gateway);
-  if (typeof e.error === 'string') return `${esc(uiText('Error code'))}: ${native(e.error)}`;
+  // A provider's refusal keeps its HTTP status, error code and request ID (allow-listed facts, never its message).
+  const providerStatus =
+      Number.isInteger(e.http_status) && e.http_status >= 400 && e.http_status <= 599 ? e.http_status : null,
+    providerCode =
+      Number.isSafeInteger(e.provider_code) ||
+      (typeof e.provider_code === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/.test(e.provider_code))
+        ? String(e.provider_code)
+        : null,
+    providerRequest =
+      typeof e.request_id === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:+=\/-]{0,127}$/.test(e.request_id)
+        ? e.request_id
+        : null;
+  if (typeof e.error === 'string')
+    return `${esc(uiText('Error code'))}: ${native(e.error)}${providerStatus !== null ? ` ${esc(uiText('Provider response: HTTP {status}.', {status: providerStatus}))}` : ''}${providerCode !== null ? ` ${esc(uiText('Provider code: {code}.', {code: providerCode}))}` : ''}${providerRequest !== null ? ` ${esc(uiText('Provider request ID: {id}.', {id: providerRequest}))}` : ''}`;
   if (l.state !== 'observed') {
     if (
       l.layer === 'provider_observed_activity' &&

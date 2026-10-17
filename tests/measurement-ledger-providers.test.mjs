@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
@@ -7,6 +8,13 @@ import {NativeTransport} from '../dist/src/transport.js';
 import {ScopeGuard} from '../dist/src/scope.js';
 import {metaPrefix} from '../dist/src/meta-version.js';
 import {measurementLedgerLayers} from '../dist/src/measurement-ledger.js';
+import {setTiktokEventStatsPinForTest, tiktokEventStatsPin} from '../dist/src/measurement-ledger-tiktok.js';
+import {pinPath as tiktokPinPath, tiktokEventStatsPinFrom} from '../tools/tiktok-event-stats-pin.mjs';
+import {
+  syntheticTiktokCommit,
+  syntheticTiktokEventStatsPin,
+  syntheticTiktokSpecification,
+} from './fixtures/tiktok-event-stats-pin-data.mjs';
 
 // MSR-03 under owner direction P8 (2026-10-11): the measurement ledger is the multi-provider conversion-health hub.
 // Synthetic transports serve only the selected asset's read routes. There is no event sender, Conversions API,
@@ -317,7 +325,14 @@ test('MSR-03 partial, foreign or out-of-contract Meta evidence leaves its layer 
     const l = layerOf(out.data, failed);
     assert.equal(l.state, 'unknown', name);
     assert.equal(l.reason, 'read_failed', name);
-    assert.deepEqual(Object.keys(l.evidence), ['error'], name + ': only the error code, never partial rows');
+    // Only the error code (and, for Meta's own refusal, its allow-listed facts), never partial rows.
+    assert.deepEqual(
+      l.evidence,
+      name === 'provider refusal'
+        ? {error: l.evidence.error, http_status: 403, provider_code: 200}
+        : {error: 'MEASUREMENT_LEDGER_INVALID'},
+      name + ': only the error code, never partial rows',
+    );
     assert.equal(states(out.data).configuration, 'observed', name);
     const other = failed === 'provider_diagnostics' ? 'provider_observed_activity' : 'provider_diagnostics';
     assert.equal(states(out.data)[other], 'observed', name + ': the other layer is still read');
@@ -749,7 +764,11 @@ const tiktokStats = (
   request_id: 'synthetic-stats',
   data,
 });
+// The statistics read is sent only under a pinned SDK specification: fixtures install the synthetic pin (the state after
+// the owner pins the real file) unless `pin` says otherwise (null: none), and the committed state returns afterwards.
 function tiktokFixture(t, options = {}) {
+  setTiktokEventStatsPinForTest(Object.hasOwn(options, 'pin') ? options.pin : syntheticTiktokEventStatsPin);
+  t.after(() => setTiktokEventStatsPinForTest(undefined));
   const f = base(t, 'synthetic-ledger-tiktok', 'tiktok_native_action', tiktokAccount, []);
   f.account = tiktokAccount;
   f.service = service(f, request => {
@@ -766,7 +785,87 @@ const utcDay = offset =>
   new Date(Math.floor(Date.now() / 86400000) * 86400000 + offset * 86400000).toISOString().slice(0, 10);
 
 // Before (MSR-03 slice D), the layer was unavailable and no statistics request was sent ("unpinned_contract"). The read
-// now follows TikTok's documented request; its answer is returned as it came and the layer stays unknown.
+// now follows TikTok's documented request once its SDK specification is pinned (the tests below without a pin); its
+// answer is returned as it came and the layer stays unknown.
+test('MSR-03 without a pinned SDK specification the TikTok ledger sends no statistics request', async t => {
+  // The committed state decides through the service: no capture yet (when this was written), so nothing is sent; once
+  // the owner pins the real file (tools/tiktok-event-stats-pin.mjs) the pinned tests below cover the read.
+  const committed = tiktokEventStatsPin();
+  assert.equal(committed.status, fs.existsSync(tiktokPinPath) ? 'pinned' : 'unpinned', JSON.stringify(committed));
+  for (const [name, pin, evidence] of [
+    ['no pin', null, null],
+    ...(committed.status === 'pinned' ? [] : [['the committed state', undefined, null]]),
+    [
+      'a pin of another route',
+      {...syntheticTiktokEventStatsPin, request: {...syntheticTiktokEventStatsPin.request, method: 'POST'}},
+      {pin: 'differs', problem: 'request_route'},
+    ],
+    [
+      'a pin without pixel_ids',
+      {
+        ...syntheticTiktokEventStatsPin,
+        request: {...syntheticTiktokEventStatsPin.request, query: ['advertiser_id', 'date_range']},
+      },
+      {pin: 'differs', problem: 'request_query'},
+    ],
+    [
+      'a pin of another date format',
+      {...syntheticTiktokEventStatsPin, request: {...syntheticTiktokEventStatsPin.request, date_format: 'YYYYMMDD'}},
+      {pin: 'differs', problem: 'request_date_format'},
+    ],
+    [
+      'a pin at a branch name',
+      {...syntheticTiktokEventStatsPin, source: {...syntheticTiktokEventStatsPin.source, commit: 'main'}},
+      {pin: 'differs', problem: 'source_commit'},
+    ],
+    [
+      'a pin of another file',
+      {
+        ...syntheticTiktokEventStatsPin,
+        source: {...syntheticTiktokEventStatsPin.source, path: 'yml_files/pixel_list.yml'},
+      },
+      {pin: 'differs', problem: 'source_file'},
+    ],
+    [
+      'a pin without its hash',
+      {...syntheticTiktokEventStatsPin, source: {...syntheticTiktokEventStatsPin.source, sha256: 'unknown'}},
+      {pin: 'differs', problem: 'source_sha256'},
+    ],
+  ]) {
+    const f = tiktokFixture(t, {pin}),
+      out = await ledger(f, 'tiktok_native_action', {requirements: {pixel_id: '7100000000000000001'}});
+    assert.equal(out.success, true, name + ': ' + JSON.stringify(out));
+    assert.equal(states(out.data).configuration, 'observed', name);
+    assert.equal(states(out.data).provider_observed_activity, 'unavailable', name);
+    assert.equal(reasons(out.data).provider_observed_activity, 'unpinned_request', name);
+    assert.deepEqual(layerOf(out.data, 'provider_observed_activity').evidence, evidence, name);
+    assert.deepEqual(
+      f.requests.map(r => r.path),
+      ['/open_api/v1.3/pixel/list/'],
+      name + ': only the pixel list is read',
+    );
+    assert.ok(!out.data.source_references.some(r => r.resource === 'pixel_event_stats'), name);
+    assertReadOnly(f, out);
+  }
+  // The recording tool refuses a file that does not document every field AMCP sends, or a commit that is not full.
+  for (const [name, text, commit] of [
+    [
+      'no pixel_ids',
+      syntheticTiktokSpecification.replace('- name: pixel_ids', '- name: pixel_id'),
+      syntheticTiktokCommit,
+    ],
+    ['no end_date', syntheticTiktokSpecification.replace('end_date:', 'stop_date:'), syntheticTiktokCommit],
+    [
+      'another route',
+      syntheticTiktokSpecification.replace('/pixel/event/stats/', '/pixel/list/'),
+      syntheticTiktokCommit,
+    ],
+    ['a short commit', syntheticTiktokSpecification, syntheticTiktokCommit.slice(0, 7)],
+  ])
+    assert.throws(() => tiktokEventStatsPinFrom(text, {commit, checkedAt: '2026-10-17'}), Error, name);
+  assert.equal(tiktokEventStatsPin(syntheticTiktokEventStatsPin).status, 'pinned');
+});
+
 test('MSR-03 TikTok ledger reads the selected pixel’s event statistics and keeps their fields unconfirmed', async t => {
   const f = tiktokFixture(t),
     out = await ledger(f, 'tiktok_native_action');
@@ -807,6 +906,14 @@ test('MSR-03 TikTok ledger reads the selected pixel’s event statistics and kee
       {path: 'stats[0].events[0].count', value: 3},
     ],
     field_meanings: 'unconfirmed',
+    // The pinned file the request followed (synthetic here).
+    request_specification: {
+      repository: 'tiktok/tiktok-business-api-sdk',
+      path: 'yml_files/pixel_event_stats.yml',
+      commit: syntheticTiktokCommit,
+      sha256: syntheticTiktokEventStatsPin.source.sha256,
+      checked_at: '2026-10-17',
+    },
   });
   assert.equal(out.data.summary.observed, 1, 'only the pixel list is observed');
   assert.ok(out.data.source_references.some(r => r.resource === 'pixel_event_stats'));
@@ -845,13 +952,43 @@ test('MSR-03 a foreign, failed, unsafe or oversized TikTok statistics answer lea
     assert.equal(states(out.data).configuration, 'observed', name);
     assert.equal(states(out.data).provider_observed_activity, 'unknown', name);
     assert.equal(reasons(out.data).provider_observed_activity, 'read_failed', name);
+    // A refused answer keeps no field: only the error code and, from TikTok's own refusal or a failed or unrecognized
+    // envelope, TikTok's code and request ID (WEB-03's allow-listed facts; never its message).
+    const evidence = layerOf(out.data, 'provider_observed_activity').evidence;
+    assert.match(evidence.error, /^(?:MEASUREMENT_LEDGER_INVALID|PLATFORM_ERROR)$/, name);
     assert.deepEqual(
-      Object.keys(layerOf(out.data, 'provider_observed_activity').evidence),
-      ['error'],
+      Object.keys(evidence).filter(key => !['error', 'provider_code', 'request_id'].includes(key)),
+      [],
       name + ': a refused answer keeps no field',
     );
+    assert.doesNotMatch(JSON.stringify(evidence), /No permission/, name + ': never the provider message');
     assertReadOnly(f, out);
   }
+  // Regression: TikTok's own refusal (code 40002 in an HTTP 200 answer) kept only AMCP's error code, so a permission
+  // refusal could not be told from a malformed answer; TikTok's code and the request ID its body names are kept now.
+  const permission = tiktokFixture(t, {
+      stats: () => ({code: 40002, message: 'No permission', request_id: '2026101700000000ABCDEF', data: {}}),
+    }),
+    refusedRead = await ledger(permission, 'tiktok_native_action');
+  assert.deepEqual(layerOf(refusedRead.data, 'provider_observed_activity').evidence, {
+    error: 'PLATFORM_ERROR',
+    provider_code: 40002,
+    request_id: '2026101700000000ABCDEF',
+  });
+  // An answer without TikTok's code: AMCP refuses the envelope and keeps the request ID it names.
+  const uncoded = tiktokFixture(t, {stats: () => ({message: 'OK', request_id: 'synthetic-uncoded', data: {}})}),
+    uncodedRead = await ledger(uncoded, 'tiktok_native_action');
+  assert.deepEqual(layerOf(uncodedRead.data, 'provider_observed_activity').evidence, {
+    error: 'MEASUREMENT_LEDGER_INVALID',
+    request_id: 'synthetic-uncoded',
+  });
+  const malformed = tiktokFixture(t, {stats: () => tiktokStats({stats: [{name: 'Complete\u0007Payment'}]})}),
+    malformedRead = await ledger(malformed, 'tiktok_native_action');
+  assert.deepEqual(
+    layerOf(malformedRead.data, 'provider_observed_activity').evidence,
+    {error: 'MEASUREMENT_LEDGER_INVALID'},
+    'a refused statistics value is AMCP’s finding, with no provider facts',
+  );
   // Several pixels and none chosen: nothing is read for activity.
   const several = tiktokFixture(t, {
       list: () => tiktokPage([tiktokPixel('7100000000000000001'), tiktokPixel('7100000000000000002')]),
@@ -892,6 +1029,16 @@ test('MSR-03 partial, changing or unsafe TikTok pixel lists are refused, never m
     assert.equal(out.data.scope.pixel_id, null, name);
     assertReadOnly(f, out);
   }
+  // TikTok's own refusal of the list keeps its code and request ID, never its message.
+  const denied = tiktokFixture(t, {
+      list: () => ({code: 40001, message: 'No permission', request_id: 'synthetic-list-refusal', data: {}}),
+    }),
+    deniedRead = await ledger(denied, 'tiktok_native_action');
+  assert.deepEqual(layerOf(deniedRead.data, 'configuration').evidence, {
+    error: 'PLATFORM_ERROR',
+    provider_code: 40001,
+    request_id: 'synthetic-list-refusal',
+  });
   const shared = tiktokFixture(t, {
       list: () =>
         tiktokPage([

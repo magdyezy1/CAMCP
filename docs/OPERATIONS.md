@@ -1309,7 +1309,15 @@ validate request is sent ([product workflows](PRODUCT-WORKFLOWS.md)). To withdra
 the ledger then refuses that gateway with `MEASUREMENT_LEDGER_UNQUALIFIED` before any provider request and lists the
 remaining ones. Meta Dataset Quality needs `ads_management`, or `ads_read` with `business_management`; a login
 without either keeps that layer unknown. Snap asks for review before Signal Readiness data is displayed publicly, so it
-stays on signed-in workspace pages. The TikTok adapter now sends one more read per ledger, the selected pixel's event
-statistics (`GET /v1.3/pixel/event/stats/`); its fields stay unconfirmed (activity `unknown`, `unconfirmed_fields`)
-until the owner runs one authorized read under ACC-06 on a designated pixel and records which fields mean what and on
-which day basis; `AMCP_MEASUREMENT_LEDGER_OFF=tiktok_native_action` withdraws the whole TikTok adapter.
+stays on signed-in workspace pages. The TikTok adapter sends one more read per ledger, the selected pixel's event
+statistics (`GET /v1.3/pixel/event/stats/`), only once the deployment has pinned TikTok's SDK specification of that
+request; until then that layer is `unavailable` (`unpinned_request`) and nothing is sent. To pin it, download
+`yml_files/pixel_event_stats.yml` of `tiktok/tiktok-business-api-sdk` at a full commit (for example
+`https://raw.githubusercontent.com/tiktok/tiktok-business-api-sdk/<commit>/yml_files/pixel_event_stats.yml`), run
+`node tools/tiktok-event-stats-pin.mjs --source-file <file> --commit <commit>` (it refuses a file that does not document
+the route, `advertiser_id`, `pixel_ids` and `date_range` with `start_date` and `end_date`; add `--date-format
+YYYY-MM-DD` only when the file states that format), review and commit `.mirror/VENDOR/tiktok-pixel-event-stats.json`,
+and release; `--check` re-verifies a downloaded copy against the committed pin. The read's fields stay unconfirmed
+(activity `unknown`, `unconfirmed_fields`) until the owner runs one authorized read under ACC-06 on a designated pixel
+and records which fields mean what and on which day basis; `AMCP_MEASUREMENT_LEDGER_OFF=tiktok_native_action`
+withdraws the whole TikTok adapter.
