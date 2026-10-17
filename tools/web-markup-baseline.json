@@ -13,10 +13,6 @@
       "sinks": 15,
       "unescaped": 51
     },
-    "account-workflows.js": {
-      "sinks": 76,
-      "unescaped": 226
-    },
     "ad-previews.js": {
       "sinks": 3,
       "unescaped": 8
@@ -41,6 +37,14 @@
       "sinks": 6,
       "unescaped": 21
     },
+    "commerce-woocommerce.js": {
+      "sinks": 5,
+      "unescaped": 8
+    },
+    "commerce.js": {
+      "sinks": 17,
+      "unescaped": 33
+    },
     "creative-library.js": {
       "sinks": 22,
       "unescaped": 20
@@ -61,6 +65,10 @@
       "sinks": 0,
       "unescaped": 5
     },
+    "measurement.js": {
+      "sinks": 42,
+      "unescaped": 146
+    },
     "mfa-qr.js": {
       "sinks": 0,
       "unescaped": 5
@@ -72,6 +80,10 @@
     "owner-operations.js": {
       "sinks": 1,
       "unescaped": 38
+    },
+    "portfolio.js": {
+      "sinks": 12,
+      "unescaped": 39
     },
     "report-allocation.js": {
       "sinks": 14,

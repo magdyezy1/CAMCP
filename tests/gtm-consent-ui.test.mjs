@@ -60,7 +60,8 @@ function fixture(locale = 'en') {
     context.catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
     run('uiLocale="ar";uiMessages=new Map(Object.entries(catalog))');
   }
-  run(readFileSync('web/account-workflows.js', 'utf8'));
+  // WEB-07: the Measurement page's own module, over the shared helper; it registers its page with the route registry.
+  for (const file of ['routes.js', 'account-workflows.js', 'measurement.js']) run(readFileSync('web/' + file, 'utf8'));
   return {
     node,
     context,

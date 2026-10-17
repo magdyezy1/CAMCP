@@ -248,6 +248,41 @@ test('every route dependency is local, shipped, and initialized once, including 
   assert.equal(f.timers.size, 0);
 });
 
+// Regression (WEB-07): Live portfolio, Measurement and Commerce all loaded account-workflows.js (388 KB: the three pages
+// and the parked WooCommerce source) and campaign-workflows.js. Each page now loads its own module over a small shared
+// helper, and the parked store source is a module of its own behind the Commerce page.
+test('each account workflow page loads only its own module, the shared helper and what it uses', () => {
+  const f = fixture(),
+    files = path => Array.from(f.run(`pageAssetsFor(${JSON.stringify(path)})`));
+  assert.deepEqual(files('/portfolio'), ['account-workflows.js', 'portfolio.js']);
+  assert.deepEqual(files('/commerce'), ['account-workflows.js', 'commerce-woocommerce.js', 'commerce.js']);
+  assert.deepEqual(files('/measurement'), [
+    'campaign-workflows.js',
+    'measurement-trace-import.js',
+    'account-workflows.js',
+    'measurement.js',
+  ]);
+  const read = file => fs.readFileSync('web/' + file, 'utf8'),
+    declared = file => [...read(file).matchAll(/^(?:async )?function ([A-Za-z0-9_$]+)/gm)].map(match => match[1]);
+  assert.ok(Buffer.byteLength(read('account-workflows.js')) < 32768, 'The shared helper stays small');
+  // Every WooCommerce function lives in the store source's module; the Commerce page only renders its panels.
+  const woo = name => /^(?:bindWooCommerce|wooCommerce|wooConnection)/.test(name);
+  assert.ok(declared('commerce-woocommerce.js').filter(woo).length >= 12);
+  for (const file of ['account-workflows.js', 'portfolio.js', 'measurement.js', 'commerce.js'])
+    assert.deepEqual(declared(file).filter(woo), [], file);
+  // A page module renders only its own page.
+  for (const [file, page] of [
+    ['portfolio.js', 'renderPortfolio'],
+    ['measurement.js', 'renderMeasurement'],
+    ['commerce.js', 'renderCommerce'],
+  ])
+    assert.deepEqual(
+      declared(file).filter(name => /^render(?:Portfolio|Measurement|Commerce)$/.test(name)),
+      [page],
+      file,
+    );
+});
+
 test('each cold route initializes its real scripts and required handlers in English and Arabic without API traffic', async () => {
   const routes = {
     '/': ['renderLanding'],
@@ -287,14 +322,28 @@ test('each cold route initializes its real scripts and required handlers in Engl
     ],
     '/monitors': ['renderMonitors', 'workPageLoader'],
     '/capabilities': ['renderCapabilityCenter', 'workPageLoader'],
-    '/portfolio': ['renderPortfolio', 'reviewTable'],
-    '/measurement': ['renderMeasurement', 'reviewTable'],
-    '/commerce': ['renderCommerce', 'reviewTable'],
+    // WEB-07: each account workflow page brings its own module; only Measurement shows a campaign review table.
+    '/portfolio': ['renderPortfolio', 'bindChangeHistory', 'accountChoices'],
+    '/measurement': ['renderMeasurement', 'reviewTable', 'measurementTraceImport', 'accountChoices'],
+    '/commerce': ['renderCommerce', 'parseProductCSV', 'bindWooCommerceSource', 'accountChoices'],
     '/schedules': ['renderScheduleCenter', 'overviewLabel'],
     '/profiles': ['renderClientPlaybooks', 'reviewTable'],
     // WEB-07: the owner's sections and account access are registered parts of /settings, not wrappers of it.
     '/settings': ['renderSettings', 'renderOwnerSettings', 'renderAccountApprovals'],
     '/account': ['renderAccountPage', 'mfaQr', 'qrcode'],
+  };
+  // Regression (WEB-07): /portfolio, /measurement and /commerce each loaded all three pages' code (account-workflows.js,
+  // 388 KB with the parked WooCommerce source) and campaign-workflows.js. A page now loads none of the others' code.
+  const absent = {
+    '/portfolio': ['renderMeasurement', 'renderCommerce', 'bindWooCommerceSource', 'reviewTable'],
+    '/measurement': ['renderPortfolio', 'renderCommerce', 'bindWooCommerceSource'],
+    '/commerce': ['renderPortfolio', 'renderMeasurement', 'reviewTable'],
+  };
+  // The page bodies these modules provide through the route registry (AMCP.routes.register, web/routes.js).
+  const registered = {
+    '/portfolio': 'renderPortfolio',
+    '/measurement': 'renderMeasurement',
+    '/commerce': 'renderCommerce',
   };
   for (const locale of ['en', 'ar'])
     for (const [path, handlers] of Object.entries(routes)) {
@@ -361,6 +410,11 @@ test('each cold route initializes its real scripts and required handlers in Engl
       await pending;
       for (const handler of handlers)
         assert.equal(f.run('typeof ' + handler), 'function', `${locale} ${path}: ${handler}`);
+      for (const handler of absent[path] ?? [])
+        assert.equal(f.run('typeof ' + handler), 'undefined', `${locale} ${path} loads another page's ${handler}`);
+      if (registered[path])
+        assert.equal(f.run(`AMCP.routes.renderer(${JSON.stringify(path)}) === ${registered[path]}`), true, path);
+      else assert.equal(f.run(`AMCP.routes.renderer(${JSON.stringify(path)})`), undefined, path);
       if (path === '/account')
         assert.match(f.run("mfaQr('otpauth://totp/AMCP:test?secret=JBSWY3DPEHPK3PXP&issuer=AMCP')"), /<svg/);
       assert.equal(f.timers.size, 0);

@@ -103,7 +103,9 @@ test('every destination projection follows its contract: source fields, identity
 
 test('the website offers each destination exactly the contract: its fields, identity, upsert, removal and feed rules', () => {
   const context = createContext({uiText: (s, vars = {}) => s.replace(/\{(\w+)\}/g, (_, k) => vars[k]), URL});
-  new Script(readFileSync('web/account-workflows.js', 'utf8')).runInContext(context);
+  // WEB-07: the Commerce page's own module, over the shared helper; it registers its page with the route registry.
+  for (const file of ['routes.js', 'account-workflows.js', 'commerce.js'])
+    new Script(readFileSync('web/' + file, 'utf8')).runInContext(context);
   const run = (fn, ...args) => {
     context.args = args;
     return new Script(`${fn}(...args)`).runInContext(context);

@@ -228,7 +228,17 @@ export function accountWorkflowFixture(locale = 'en') {
   run(appSource.slice(identityStart, identityEnd));
   run(appSource.slice(appStart, appEnd));
   run(readFileSync('web/measurement-trace-import.js', 'utf8'));
-  run(readFileSync(process.env.AMCP_ACCOUNT_UI_SOURCE ?? 'web/account-workflows.js', 'utf8'));
+  // WEB-07: the account workflow pages are a shared helper and one module per page (plus the WooCommerce source), each
+  // registering its page with the route registry. Each file can still be replaced by a copy for a mutation check.
+  run(readFileSync('web/routes.js', 'utf8'));
+  for (const [file, override] of [
+    ['web/account-workflows.js', 'AMCP_ACCOUNT_UI_SOURCE'],
+    ['web/portfolio.js', 'AMCP_PORTFOLIO_UI_SOURCE'],
+    ['web/measurement.js', 'AMCP_MEASUREMENT_UI_SOURCE'],
+    ['web/commerce-woocommerce.js', 'AMCP_WOOCOMMERCE_UI_SOURCE'],
+    ['web/commerce.js', 'AMCP_COMMERCE_UI_SOURCE'],
+  ])
+    run(readFileSync(process.env[override] ?? file, 'utf8'));
   return {
     context,
     run,

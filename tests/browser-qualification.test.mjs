@@ -528,7 +528,8 @@ test('names and native values the leak probe met are marked literal where render
     ['account-security.js', '<strong dir="auto" data-native>${esc(m.name)}</strong>'],
     ['owner-operations.js', '<strong dir="auto" data-native>${esc(c.name)}</strong>'],
     ['campaign-workflows.js', "{native: path => !path.startsWith('/warnings')}"],
-    ['account-workflows.js', '<code dir="ltr">$1</code>'],
+    // WEB-07: the measurement trace markup moved with the Measurement page into its own module.
+    ['measurement.js', '<code dir="ltr">$1</code>'],
   ])
     assert.ok(read(file).includes(marked), file + ': ' + marked);
   // Regression: a failed or uncertain step showed AMCP's English message raw in the Arabic interface.

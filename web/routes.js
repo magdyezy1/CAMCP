@@ -49,7 +49,7 @@ const routeRegistry = [
     palette: true,
     aliases: ['Live account portfolio', 'Portfolio'],
     description: 'Browse current campaigns, ad groups, ad sets and ads',
-    assets: ['account-workflows.js'],
+    assets: ['portfolio.js'],
   },
   {
     path: '/commerce',
@@ -59,7 +59,7 @@ const routeRegistry = [
     palette: true,
     aliases: ['Product catalog'],
     description: 'Product imports with per-item reviews and receipts',
-    assets: ['account-workflows.js'],
+    assets: ['commerce.js'],
   },
   {
     path: '/media',
@@ -136,7 +136,7 @@ const routeRegistry = [
     palette: true,
     aliases: ['Measurement diagnostics'],
     description: 'Tag Manager audits and measurement evidence',
-    assets: ['account-workflows.js', 'measurement-trace-import.js'],
+    assets: ['measurement.js', 'measurement-trace-import.js'],
   },
   {
     path: '/connectors',

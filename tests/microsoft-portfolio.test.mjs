@@ -277,7 +277,8 @@ test('two complete Microsoft reads reconcile: matching collections, then an adde
 });
 
 test('the Portfolio page lists Microsoft accounts and names its money in both languages', () => {
-  const source = readFileSync('web/account-workflows.js', 'utf8');
+  // WEB-07: the Live portfolio page is its own module.
+  const source = readFileSync('web/portfolio.js', 'utf8');
   assert.match(source, /accountChoices\(\['google', 'meta', 'linkedin', 'snapchat', 'tiktok', 'x', 'microsoft'\]\)/);
   const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
   for (const text of [
@@ -291,7 +292,10 @@ test('the Portfolio page lists Microsoft accounts and names its money in both la
   // The hierarchy follows Google's ad_group naming, so drill-down and URL state work unchanged.
   const ctx = createContext({uiText: s => s, pretty: s => s});
   new Script(
-    source.slice(source.indexOf('function portfolioEntityLabel('), source.indexOf('function accountChoices(')),
+    source.slice(
+      source.indexOf('function portfolioEntityLabel('),
+      source.indexOf('function portfolioReconciliationView('),
+    ),
   ).runInContext(ctx);
   assert.equal(new Script("portfolioEntityLabel('ad_group')").runInContext(ctx), 'Ad Group');
 });

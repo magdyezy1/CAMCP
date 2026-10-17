@@ -267,9 +267,6 @@ async function renderWorkspacePage() {
   if (page === 'report-library') return renderReportLibraryPage();
   if (page === 'report-pack') return renderReportPack();
   if (page === 'monitors') return renderMonitors();
-  if (page === 'portfolio') return renderPortfolio();
-  if (page === 'measurement') return renderMeasurement();
-  if (page === 'commerce') return renderCommerce();
   return renderDecisionReports();
 }
 /** Readiness is evaluated for this viewer from shared account-read evidence, which ages out after 15 minutes. */
