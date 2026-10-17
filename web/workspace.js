@@ -254,6 +254,9 @@ async function renderWorkspacePage() {
     content.innerHTML += `<div class="empty"><strong>${esc(uiText('A workspace of your own.'))}</strong><p>${esc(uiText('Sign in to connect your accounts and get started.'))}</p><button class="button primary" data-action="login">${esc(uiText('Sign in →'))}</button></div>`;
     return;
   }
+  // A page module registers the body of its page (WEB-07: AMCP.routes.register); the shell renders the rest here.
+  const body = AMCP.routes.renderer('/' + page);
+  if (body) return body();
   if (page === 'dashboard') return renderOverview();
   if (page === 'profiles') return renderProfiles();
   if (page === 'campaigns') return renderCampaigns();

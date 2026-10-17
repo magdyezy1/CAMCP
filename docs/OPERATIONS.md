@@ -781,11 +781,17 @@ reach the ledger only through the acceptance harnesses ([acceptance runbooks](ac
 
 ### Website feature loading
 
-The initial document contains eight shared scripts; `web/route-assets.js` declares fixed same-origin feature
-dependencies. Keep top-level initialization dependencies explicit when adding a controller, especially wrappers
-that capture another function. Navigation awaits all required scripts before rendering. Download errors retry
-only failed files; uncertain evaluation/timeouts require full reload, since removing a script cannot establish
-that it never evaluated. Existing authorization applies after loading. No account data is stored in the loader.
+The initial document contains nine shared scripts. Each page's lazily loaded feature scripts are its `assets` in the
+route registry (`web/routes.js`); `web/route-assets.js` holds the fixed same-origin file order and dependencies, and
+`tools/check-routes.mjs` refuses an asset the loader does not list or a file that does not ship. A page's files are
+requested together; no script captures another's globals while it initializes (WEB-07): a feature extends the shell
+through `AMCP.routes.register` (a page body), `AMCP.routes.extend(path, part, {order})` (a part after the page, in its
+declared order whatever order the files finish loading in) and `AMCP.hooks.beforeRender`/`afterRender`, never by
+reassigning a shell function. `tools/check-extensions.mjs` (part of `check-web`) refuses a top-level reassignment of a
+declared function and a second declaration of one in the same document. Navigation awaits all required scripts before
+rendering. Download errors retry only failed files; uncertain evaluation/timeouts require full reload, since removing
+a script cannot establish that it never evaluated. Existing authorization applies after loading. No account data is
+stored in the loader.
 
 Each page binds every file it uses to one public snapshot (`/assets/v/<version>/…`): HTML `src`/`href`, stylesheet
 `url()` references (fonts, images) and the addresses scripts build through `AMCPAssets.url`. A deploy that changes

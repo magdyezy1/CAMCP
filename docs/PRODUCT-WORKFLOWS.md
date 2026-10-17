@@ -1232,6 +1232,19 @@ waits for *Read inventory*. Google, Snapchat and X micros show the exact account
 value; Meta and TikTok amounts stay unconverted. `tests/route-registry.test.mjs`, `tests/website-navigation.test.mjs`,
 `tests/website-deep-links.test.mjs` and `tests/portfolio-url-state.test.mjs` cover these.
 
+**Website composition and markup (WEB-07).** A page's lazily loaded scripts are its registry entry's `assets`. Scripts
+extend the shell through `AMCP` (`web/routes.js`): `AMCP.routes.register(path, {render})` gives a workspace page its
+body (one per page; a second is refused), `AMCP.routes.extend(path, part, {order})` adds a part after the page in a
+declared order (the owner's Settings sections at 10, account access at 20; account security on `/account`), and
+`AMCP.hooks.beforeRender`/`afterRender` run around every render (test-account scope). Nothing reassigns `render`,
+`renderSettings` or `renderAccountPage` any more, and identity.js's replaced sign-in builders are gone;
+`tools/check-extensions.mjs` refuses the pattern in `check-web` and `tests/web-extensions.test.mjs` covers the order.
+New markup is escape-by-default: in `` html`…` `` (`web/localization.js`) every `${}` value is escaped unless it is
+already markup (another `` html`…` ``, a list of them, or `raw()` for a fragment AMCP escaped itself), and `setHtml`
+and `insertHtml` refuse a plain string. `tools/check-markup.mjs` counts, per script, the HTML writes and values still
+escaped by hand (`tools/web-markup-baseline.json`, which only goes down) and refuses a conversion that would show
+markup as text or escape a value twice; `tests/web-markup.test.mjs` renders hostile provider strings as text.
+
 **Workspace search in the palette (WEB-09, owner opt-in).** Beside the pages, the palette (Ctrl+K, "Search workspace")
 lists, under **In this workspace**, up to five each of the campaign plans, saved reports, report snapshots, uploaded
 media and accounts whose name or ID contains the query (two characters or more, after a short pause). It asks
