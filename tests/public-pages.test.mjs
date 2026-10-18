@@ -85,10 +85,11 @@ test('Terms and Data deletion are complete static pages in English and Arabic wi
           assert.match(body, locale === 'ar' ? /<html lang="ar" dir="rtl">/ : /<html lang="en" dir="ltr">/);
           // The contact the privacy policy already publishes, and a dated document.
           assert.match(body, /mailto:privacy@amcp\.shop/);
-          // Data deletion was updated for self-service deletion and the P3 retention periods (SEC-07).
+          // Data deletion was updated for self-service deletion and the P3 retention periods (SEC-07). The Terms take
+          // effect on the day of the push that published them, as the owner approved on 2026-10-18 (D3).
           assert.match(
             body,
-            name === 'data-deletion' ? /<time datetime="2026-10-12">/ : /<time datetime="2026-10-09">/,
+            name === 'data-deletion' ? /<time datetime="2026-10-12">/ : /<time datetime="2026-10-18">/,
           );
           assert.match(body, new RegExp('href="' + route + '\\?lang=en"'));
           assert.match(body, new RegExp('href="' + route + '\\?lang=ar"'));

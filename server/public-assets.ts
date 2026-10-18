@@ -15,15 +15,15 @@ const unavailable = (): never => {
 export const robotsTxt =
   'User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /mcp\nDisallow: /authorize\nDisallow: /oauth/\nDisallow: /assets/v/*.html\n';
 /**
- * RFC 9116 security contact. The owner sets AMCP_SECURITY_CONTACT (a mailto: or https: URI); until then it is the
- * contact the privacy policy already publishes. The expiry is recomputed for each response, 90 days ahead.
- */
-/**
  * When the published security contact was last reviewed, plus less than a year (RFC 9116 Expires). The owner moves it
  * forward when reviewing the contact, or sets AMCP_SECURITY_TXT_EXPIRES (an ISO date); a date that has passed is
  * published as it is, so a stale contact shows as expired instead of being renewed silently on every response.
  */
 export const securityTxtExpires = '2027-04-01T00:00:00.000Z';
+/**
+ * RFC 9116 security contact. The owner sets AMCP_SECURITY_CONTACT (a mailto: or https: URI); until then it is the
+ * contact the privacy policy already publishes, which the owner kept on 2026-10-18 (D3).
+ */
 export function securityTxt(origin: string, env: NodeJS.ProcessEnv) {
   const configured = env.AMCP_SECURITY_CONTACT?.trim(),
     contact =
