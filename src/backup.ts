@@ -530,7 +530,7 @@ export async function createEncryptedBackup(
     failureCode: string | undefined,
     steps = 1;
   try {
-    // One step from one read snapshot (rate -1 copies every page at once). The default 100 pages per step restarts
+    // Use the repository's large positive page batch. The default 100 pages per step restarts
     // whenever another connection writes between steps, so a busy site could keep a backup from ever finishing.
     await snapshotDatabase(store, temp.file, () => void steps++);
     // A backup must not turn a 30-minute website upload into a permanent copy.

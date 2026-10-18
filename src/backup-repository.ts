@@ -13,11 +13,12 @@ export {databaseBytes, databaseFile} from './owner-health-repository.js';
  * the running database and provider assets are untouched.
  */
 /**
- * Copies the running database into `file` from one read snapshot: rate -1 copies every page in one step, which a write
- * from another connection cannot restart. `progress` runs after each step.
+ * Copies the running database into `file` with the largest positive signed 32-bit page batch Node accepts.
+ * A copy fitting that batch finishes in one read snapshot, so another connection's writes cannot restart it.
+ * SQLite's negative all-pages sentinel is not a supported Node rate. `progress` runs between unfinished steps.
  */
 export function snapshotDatabase(store: Store, file: string, progress: () => void) {
-  return backup(store.sql(), file, {rate: -1, progress});
+  return backup(store.sql(), file, {rate: 0x7fffffff, progress});
 }
 /** What an encrypted backup leaves out (OPS-04). Only the disposable snapshot is edited. */
 export function stripBackupSnapshot(snapshot: DatabaseSync) {
