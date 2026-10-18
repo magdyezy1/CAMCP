@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import express from 'express';
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
@@ -80,6 +81,48 @@ test('the router is the route modules’ layers in registry order, and nothing e
       store.close();
     }
   }
+});
+
+// The test above holds that the router is the registry. This one holds that the registry is the router createWebsite
+// built before the split: tests/fixtures/website-router-layers.json records that router's layers (server/website.ts at
+// 28dbb421) in each deployment shape, so a route or middleware added, removed or moved, inside a module or between
+// modules, a route given another method or handler, or a middleware that reaches other paths fails here until the
+// fixture is updated deliberately.
+test('the router is the one createWebsite built before the split, in every deployment shape', () => {
+  const fixture = JSON.parse(fs.readFileSync('tests/fixtures/website-router-layers.json', 'utf8')),
+    recorded = l =>
+      l.route
+        ? 'route ' +
+          l.route.path +
+          ' ' +
+          Object.keys(l.route.methods).sort().join(',') +
+          ' ' +
+          l.route.stack.map(s => s.name).join('|')
+        : 'use ' +
+          l.name +
+          ' ' +
+          (fixture.probes.every(p => l.match(p)) ? '*' : fixture.probes.filter(p => l.match(p)).join(','));
+  for (const [shape, writes, withService] of [
+    ['writes_with_service', true, true],
+    ['reads_with_service', false, true],
+    ['reads_without_service', false, false],
+  ]) {
+    const {store, service, options} = parts(writes);
+    try {
+      const stack = createWebsite(store, options, writes, withService ? service : undefined).router.stack;
+      assert.deepEqual(stack.map(recorded), fixture.shapes[shape], shape);
+    } finally {
+      store.close();
+    }
+  }
+  // The recording itself: 98 layers where the MCP service runs (the workspace and report download routes among them)
+  // and 85 where it does not; whether writes are enabled is decided per request, not by the router.
+  assert.equal(fixture.shapes.writes_with_service.length, 98);
+  assert.deepEqual(fixture.shapes.reads_with_service, fixture.shapes.writes_with_service);
+  assert.equal(fixture.shapes.reads_without_service.length, 85);
+  assert.ok(fixture.shapes.writes_with_service.includes('route /api/workspace/:tool post jsonParser|<anonymous>'));
+  assert.ok(!fixture.shapes.reads_without_service.some(l => l.startsWith('route /api/workspace/')));
+  assert.equal(fixture.shapes.writes_with_service.at(-1), 'use <anonymous> *', 'the not-found handler is last');
 });
 
 test('the registry keeps the orderings that decide a match', () => {

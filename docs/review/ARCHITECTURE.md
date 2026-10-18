@@ -536,7 +536,10 @@ into the store layer (`server/website-repository.ts`), and the three gateways th
 the provider adapter registry. The modules' code is the function's code unchanged (a token comparison shows no other
 difference), and the router has the same layers as before in every deployment shape: the same 98 layers (85 without
 the MCP service) in the same order, with the same paths, methods and handlers. `tests/website-routes.test.mjs` holds
-the registry order, the orderings that decide a match and the fall-through answers (404, never 405). `createWebsite`
+the registry order, the orderings that decide a match and the fall-through answers (404, never 405), and compares the
+router with the one recorded from the function before the split (`tests/fixtures/website-router-layers.json`: each
+layer's path, methods and handler names or middleware reach, in each deployment shape), so a route moved inside a
+module fails too; a commit that adds or moves a route updates that recording deliberately. `createWebsite`
 is 7 lines; the longest route module is `connectionRoutes` (378). WEB-07, merged beside this work, has split
 `web/account-workflows.js` behind `web/route-assets.js`: a shared helper and the portfolio, measurement and commerce
 modules.
