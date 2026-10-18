@@ -91,6 +91,21 @@ test('a stylesheet inside <noscript> is not counted: a browser that runs scripts
   assert.equal(current['en /about'].files, files.length);
 });
 
+test('About takes its colours from tokens and loads no override layer (regression: English About above its baseline)', () => {
+  // WEB-07 left English About 1,020 Brotli bytes above its baseline (16,868 against 15,848): it downloaded theme.css,
+  // the workspace's dark override layer, although about.css already took its colours from tokens.
+  const about = fs.readFileSync('web/about.html', 'utf8'),
+    css = fs.readFileSync('web/about.css', 'utf8');
+  assert.doesNotMatch(about, /theme\.css/);
+  assert.ok(current['en /about'].bytes <= baseline['en /about'], 'en /about: ' + current['en /about'].bytes);
+  assert.equal(recorded.open?.['en /about'], undefined, 'English About is no longer an open gap');
+  // The Appearance control keeps the layout theme.css gave it, and no rule re-colours About for one theme only.
+  assert.match(css, /\.theme-control \{[^}]*display: inline-flex;[^}]*color: var\(--muted\);/);
+  assert.match(css, /\.theme-control select \{[^}]*border: 1px solid var\(--line-strong\);/);
+  assert.match(css, /@media \(max-width: 600px\) \{\s*\.theme-control > span \{/);
+  assert.doesNotMatch(css, /data-theme/);
+});
+
 test('recording a new baseline keeps an open gap and its target (regression: a recording could absorb the gap)', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-route-bytes-'));
   try {

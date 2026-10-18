@@ -45,7 +45,8 @@ test('focus rings on the dark sidebar, toast, connector hero and callback header
       callback: declarations(block(identity, '.callback-top')).get('background'),
     },
     hero = declarations(block(identity, '.connector-hero')).get('background');
-  const backgrounds = [...Object.values(surfaces), ...hero.match(/#[0-9a-f]{6}/gi)];
+  // The surfaces are theme-invariant tokens (WEB-07); a literal is still read as itself.
+  const backgrounds = [...Object.values(surfaces), ...hero.match(/var\(--[\w-]+\)|#[0-9a-f]{6}/gi)];
   assert.equal(backgrounds.length, 5);
   for (const theme of [light, dark]) {
     const ring = resolve(theme, 'var(--focus-on-inverse)');
@@ -129,12 +130,13 @@ test('report delivery dialog text reaches 4.5:1 on the dialog, its report contex
       declarations(block(reporting, '.delivery-report-context')).get('background'),
     ];
   assert.equal(text, 'var(--muted)');
-  for (const background of surfaces)
+  // The surfaces take their colours from tokens (WEB-07).
+  for (const background of surfaces.map(value => resolve(light, value)))
     assert.ok(contrast(resolve(light, text), background) >= 4.5, text + ' on ' + background);
-  const noticeBackground = declarations(block(identity, '.notice')).get('background');
+  const noticeBackground = resolve(light, declarations(block(identity, '.notice')).get('background'));
   assert.ok(contrast(resolve(light, notice), noticeBackground) >= 4.5, notice + ' on ' + noticeBackground);
   // The regression itself: the old literal on the same surfaces.
-  assert.ok(surfaces.every(background => contrast('#897593', background) < 4.5));
+  assert.ok(surfaces.every(background => contrast('#897593', resolve(light, background)) < 4.5));
 });
 
 // WEB-01 asks for both themes. In the dark theme web/theme.css gives the dialog var(--white), its report context
@@ -174,10 +176,11 @@ test("the sidebar's link hover and current-page colours stay on the sidebar; Set
     [],
     'Sidebar link states in app.css are scoped to .sidebar',
   );
-  // The rule body only: the selector's own colon would read as a declaration.
-  const hover = declarations(block(app, '.sidebar nav a:hover').split('{')[1]).get('background'),
+  // app.css's sidebar hover surface never applied (identity.css's link states always win) and left with WEB-07's
+  // literal colours; the regression below keeps its value.
+  const hover = '#27392e',
     section = declarations(block(css('reporting.css'), '.settings-subnav a'));
-  assert.equal(hover, '#27392e');
+  assert.doesNotMatch(app, /\.sidebar nav a:hover \{/);
   for (const theme of [light, dark]) {
     const ratio = contrast(resolve(theme, section.get('color')), resolve(theme, section.get('background')));
     assert.ok(ratio >= 4.5, 'Settings section link: ' + ratio.toFixed(2));
@@ -190,18 +193,19 @@ test("the sidebar's link hover and current-page colours stay on the sidebar; Set
 // option read at 4.44:1 on its summary (#816c9c on #fcfafe), and in the dark theme a compared value kept
 // reporting.css's light ink (#3b2c4d on the dark panel, 1.24:1).
 test('an opened report option keeps its section number readable, and compared values take the dark ink', () => {
+  // Both colours are tokens since WEB-07 moved the literals into tokens.css; they are read in the light theme.
   const rule = (file, selector) => declarations(block(css(file), selector).split('{')[1]),
-    open = rule('reporting.css', '.report-options[open] > summary').get('background'),
-    number = rule('accessibility.css', '.report-section-label > span').get('color');
+    open = resolve(light, rule('reporting.css', '.report-options[open] > summary').get('background')),
+    number = resolve(light, rule('accessibility.css', '.report-section-label > span').get('color'));
   for (const surface of [open, '#ffffff'])
     assert.ok(
       contrast(number, surface) >= 4.5,
       number + ' on ' + surface + ': ' + contrast(number, surface).toFixed(2),
     );
-  assert.ok(contrast('#816c9c', open) < 4.5, 'the regression itself');
+  assert.ok(contrast('#816c9c', '#fcfafe') < 4.5, 'the regression itself (the summary was #fcfafe then)');
   const value = rule('theme.css', "[data-theme='dark'] .report-table td strong").get('color');
   assert.equal(value, 'var(--ink)');
   assert.ok(contrast(resolve(dark, value), resolve(dark, 'var(--white)')) >= 4.5);
-  const lightInk = rule('reporting.css', '.report-table td strong').get('color');
+  const lightInk = resolve(light, rule('reporting.css', '.report-table td strong').get('color'));
   assert.ok(contrast(lightInk, resolve(dark, 'var(--white)')) < 4.5, 'the regression itself');
 });

@@ -911,10 +911,15 @@ public and sign-in pages were 15.4% below, Live portfolio 43.8%, Commerce 35.5%,
 Those four were 2,750 bytes above until the shell lost most of the commentary WEB-07 had added to it (about 3.5 KB of
 compressed comments every page downloaded), the workspace-only chunk loading moved into `route-assets.js`, and the
 policy pages' shades and the no-JavaScript dark block moved into `public-tokens.css`, which the workspace never
-downloads. English About is the one open gap: 16,868 bytes against 15,848 (6.4%), from the semantic roles and the
-html tag About does not use and the workspace override layer (`theme.css`) it already carried; closing it is package
-work (About off `theme.css`, or the html tag out of `localization.js`). `tests/web-route-bytes.test.mjs` checks the
-same and keeps the split's gains, each with a wide margin.
+downloads. English About was the last open gap (16,868 bytes against 15,848): it downloaded `theme.css`, the
+workspace's dark override layer, although `about.css` took its colours from tokens. About no longer loads it
+(`about.css` carries the Appearance control's rules), so it downloads 15,111 bytes (4.7% below) and renders the same
+in dark mode with and without JavaScript; no page is open. Moving every component colour into tokens (2026-10-18,
+docs/AMCP-IDENTITY.md) grew `tokens.css` from 1,000 to 1,642 bytes (its comments shortened) and shrank the
+workspace's other stylesheets by 1,619 (the declarations a later rule always overrides left first): Home, Schedules,
+Report library and Report builder are 1,014 bytes below their baseline and English About 146 (0.9%) below, every
+Arabic page 10.9–85% below. `tests/web-route-bytes.test.mjs` checks the same and keeps the split's gains, each with a
+wide margin.
 
 `npm run build && node tools/benchmark-web-first-render.mjs --output-dir .runtime/<fresh-directory>` times the first
 content render (the page's own heading in the chosen language, no loading placeholder) on the synthetic fixture under
@@ -922,8 +927,11 @@ a throttled profile (150 ms round trips, 1.6 Mbit/s down, 4× slower CPU), with 
 needs the browser QA variables, and `--web <directory>` serves an exported tree, so a baseline is measured in the same
 session. Measured on 2026-10-17 (median of three) against Work-here: Arabic first render 15–45% sooner on every page
 measured (the landing page 4,838 → 2,683 ms, About 3,035 → 1,716 ms, Home 5,152 → 4,199 ms, Report builder 5,505 →
-4,662 ms); English 3–29% sooner (About unchanged at 470 ms, Home 2,381 → 2,066 ms). A timing describes that machine and
-profile only.
+4,662 ms); English 3–29% sooner (About unchanged at 470 ms, Home 2,381 → 2,066 ms). With every component colour from
+tokens (2026-10-18, both trees served from exports in one session, median of three) each page measured rendered as
+soon as or sooner than on Work-here: English About 456 → 453 ms, Arabic About 1,718 → 1,217 ms, Home 2,256 → 2,223 ms
+in English and 4,697 → 4,653 ms in Arabic, Report builder 2,585 → 2,554 ms in English. A timing describes that
+machine and profile only.
 
 ### Owner tool timings
 

@@ -59,7 +59,7 @@ textarea {
   font-size: 12px !important;
 }
 .status {
-  color: #4f4a5c;
+  color: var(--text-soft);
 }
 input[type='checkbox'],
 input[type='radio'] {
@@ -85,7 +85,7 @@ code {
     box-shadow: none;
   }
   .menu-open .sidebar {
-    box-shadow: 15px 0 50px #18112230;
+    box-shadow: 15px 0 50px var(--shadow-strong);
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -121,13 +121,13 @@ code {
 }
 .auth-story > .eyebrow,
 .auth-story > p {
-  color: #5f5b70;
+  color: var(--text-secondary-strong);
 }
 .auth-story .auth-tagline em {
   color: var(--iris-700);
 }
 .feature-card p {
-  color: #5f5b70;
+  color: var(--text-secondary-strong);
 }
 .panel-header {
   flex-wrap: wrap;
@@ -165,51 +165,51 @@ code {
 .workspace-metrics span,
 .campaign-steps small,
 .workspace-copy {
-  color: #746984;
+  color: var(--text-secondary);
 }
 .metric-pills span {
-  color: #766a83;
+  color: var(--text-secondary);
 }
 .quick-actions small {
-  color: #816e8d;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 .quick-actions > a > i {
   font-style: normal;
 }
 .report-platform summary small {
-  color: #7a7187;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 /* The section number of an opened report option sits on its #fcfafe summary, where #816c9c measured 4.44:1 (RPT-07's
    rendered case opens it); #7b6696 is the same hue at 4.84:1 there and 5.02:1 on white. */
 .report-section-label > span {
-  color: #7b6696;
+  color: var(--text-accent);
 }
 .account-monogram {
-  color: #846795;
+  color: var(--text-accent);
 }
 .client-cloud span {
-  color: #7b6287;
+  color: var(--text-secondary);
 }
 .evidence-tags span {
-  color: #697285;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 .how-steps li > span {
-  color: #7c6b8f;
+  color: var(--text-secondary);
 }
 .platform-google {
-  color: #916225;
+  color: var(--platform-google);
 }
 .platform-meta {
-  color: #386ca6;
+  color: var(--platform-meta);
 }
 .platform-snapchat {
-  color: #826a2c;
+  color: var(--platform-snapchat);
 }
 .platform-microsoft {
-  color: #8f5731;
+  color: var(--platform-microsoft);
 }
 
 /* Text people and platforms write, such as campaign names and ad copy, keeps its own direction: Arabic or Hebrew reads
@@ -249,7 +249,7 @@ select {
   font-size: 12px;
 }
 .stage-window-bottom {
-  color: #c0b9d2;
+  color: var(--text-on-inverse-secondary);
   font-size: 12px;
 }
 .mini-plan b {
@@ -271,6 +271,6 @@ select {
 
 /* Owner/reviewer captions need contrast against the full card gradient, including its darker end. */
 .auth-form-card .owner-entry .eyebrow {
-  color: #5d5470;
+  color: var(--text-secondary-strong);
   font-size: 12px;
 }
