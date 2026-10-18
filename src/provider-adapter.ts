@@ -59,7 +59,9 @@ export interface AccountModel {
   readonly fields?: ReadonlySet<string>;
   /**
    * Account references inside any string of the request, path included (Google's `customers/<id>`, LinkedIn's sponsored
-   * account URNs): a global pattern whose first group is an account ID.
+   * account URNs): a global pattern whose first group is an account ID. It is frozen, so its `lastIndex` is read-only:
+   * use it only through `String.prototype.matchAll`, which clones the pattern (as ScopeGuard does), or copy it with
+   * `new RegExp(pattern)`. Its own `test` and `exec`, and `match`, `replace` or `search` with it, throw a TypeError.
    */
   readonly references?: RegExp;
   /** JSON Patch operations of a PATCH name account fields in their path (Snapchat): such an operation must set the bound account. */

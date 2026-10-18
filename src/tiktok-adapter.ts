@@ -80,7 +80,8 @@ const tiktokReads = new Set([
 ]);
 /**
  * Exact documented reads whose resource names contain mutation-like words, with the native identifiers each one takes.
- * This only establishes HTTP semantics; credentials and object scope are separate (authorizeQualifiedRead).
+ * This only establishes HTTP semantics; credentials and object scope are separate (authorizeQualifiedTikTokRead, the
+ * tiktok_qualified_read read authorizer that ScopeGuard consults).
  */
 export const qualifiedTikTokReadPaths: Readonly<Record<string, readonly string[]>> = Object.freeze({
   '/v1.3/catalog/set/get/': Object.freeze(['bc_id', 'catalog_id']),

@@ -48,7 +48,8 @@ function fixedSet(values: readonly string[]): ReadonlySet<string> {
 
 /**
  * The frozen account model of a provider. A reference pattern must be global (every reference in a string is
- * compared); a path pattern must not be, so it keeps no position between requests. Both are frozen.
+ * compared); a path pattern must not be, so it keeps no position between requests. Both are frozen, so a global
+ * pattern's lastIndex cannot move: it is read only through matchAll, which clones it (AccountModel.references).
  */
 function accountModel(id: string, {fields, ...declared}: AccountDeclaration): AccountModel {
   if (declared.references && !declared.references.global)
