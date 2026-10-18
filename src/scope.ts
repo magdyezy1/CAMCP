@@ -1,5 +1,5 @@
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
-import type {ReadAuthorizer} from './provider-adapter.js';
+import type {ProviderHooks, ReadAuthorizer} from './provider-adapter.js';
 import {MirrorError} from './errors.js';
 import {Registry} from './catalog.js';
 import {Store} from './store.js';
@@ -66,6 +66,10 @@ export class ScopeGuard {
   constructor(
     private registry: Registry,
     private store: Store,
+    // The provider hooks the guard consults: the registry's, always, outside tests. A test passes its own to reach a
+    // refusal no registered provider can produce (two read authorizers claiming one request), with every rule and
+    // the order still this guard's.
+    private hooks: (gateway: unknown) => ProviderHooks | undefined = providerHooks,
   ) {}
   authorize(plan: CompiledRequest, connection: Connection): string {
     // No request reaches a provider this deployment does not offer (a parked one, ARC-01 and P9): not a read, a review's
@@ -77,7 +81,7 @@ export class ScopeGuard {
     assertNotPersonalDataRead(plan);
     // The provider's part of this guard (ARC-01 phase B, src/<provider>-adapter.ts): a public read, its scope checks,
     // its read authorizers and its resource scope. Everything else here, and the order, is this guard's.
-    const scope = providerHooks(plan.gateway)?.scope;
+    const scope = this.hooks(plan.gateway)?.scope;
     if (scope?.publicRead?.(plan)) return 'public_ad_library';
     const id = normalizeAccount(
       plan.gateway,
@@ -143,8 +147,9 @@ export class ScopeGuard {
     // The provider's own scope checks (Google's generation scope, Meta's label scope) refuse before any authorizer.
     scope?.assert?.(plan, connection);
     // Exactly one read authorizer may claim a request; it runs where the chain ran it, before or after the reviewed
-    // families' own authorizers, and false leaves the request to the checks below.
-    const authorizer = claimingAuthorizer(plan);
+    // families' own authorizers, and false leaves the request to the checks below. A second claim is refused here,
+    // before the families, the store or any later check is consulted.
+    const authorizer = claimingAuthorizer(plan, scope?.authorizers ?? []);
     if (authorizer?.stage === 'before_families' && authorizer.authorize(plan, connection, id, this.store)) return id;
     for (const family of reviewedFamilies()) if (family.authorize?.(plan, connection, id, this.store)) return id;
     if (authorizer?.stage === 'after_families' && authorizer.authorize(plan, connection, id, this.store)) return id;
@@ -201,7 +206,7 @@ export class ScopeGuard {
     for (const family of reviewedFamilies()) family.observe?.(plan, connection, id, data, this.store);
     // Only named entity collections are ownership evidence, as each provider defines them (its scope hooks); never
     // learn from arbitrary nested IDs, reports, user supplied state, search results or unscoped account lists.
-    providerHooks(plan.gateway)?.scope?.observe?.(plan, connection, id, data, this.store);
+    this.hooks(plan.gateway)?.scope?.observe?.(plan, connection, id, data, this.store);
   }
   /** Called only after a verified successful mutation, never on caller-supplied data. */
   observeCreated(plan: CompiledRequest, connection: Connection, data: unknown): void {
@@ -212,6 +217,6 @@ export class ScopeGuard {
       this.store.rememberResource(connection, id, created);
     // Other qualified gateways carry the account in every child path/body. Those that use global IDs need this extra,
     // connection-bound observation (their scope hooks).
-    providerHooks(plan.gateway)?.scope?.observeCreated?.(plan, connection, id, d, this.store);
+    this.hooks(plan.gateway)?.scope?.observeCreated?.(plan, connection, id, d, this.store);
   }
 }

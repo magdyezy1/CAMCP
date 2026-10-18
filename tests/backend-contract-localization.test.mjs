@@ -168,6 +168,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // already own reasons), and Snapchat's scoped paths to src/snapchat-scope.ts (no reasons). Its review projections
   // move Google's state-identity refusals from src/review-state.ts, which owns no other reason, to
   // src/google-ads-adapter.ts, which already owns reasons: one file with reasons fewer, the same reasons.
+  // Exempt by design: the refusal of a request two read authorizers claim (READ_AUTHORIZER_CONFLICT, src/scope.ts)
+  // names the claiming authorizers in its message, so it owns no reason here and has no Arabic, as the refusal of two
+  // families claiming one route (REVIEWED_FAMILY_CONFLICT) has none: both are wiring defects, refused with status 500
+  // before anything is sent and fixed in the code, which no user action resolves.
   assert.equal(files.length, 669);
   assert.equal(selected.filter(row => row.messages.size).length, 253);
   assert.equal(owned.size, 1588);

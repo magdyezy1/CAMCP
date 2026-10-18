@@ -2,10 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {Registry} from '../dist/src/catalog.js';
-import {claimingAuthorizer} from '../dist/src/scope.js';
-import {registeredProviderHooks} from '../dist/src/provider-hooks.js';
+import {Store} from '../dist/src/store.js';
+import {ScopeGuard, claimingAuthorizer} from '../dist/src/scope.js';
+import {providerHooks, registeredProviderHooks} from '../dist/src/provider-hooks.js';
 import {providerOf} from '../dist/src/provider-adapters.js';
 import {isProviderModule, providerRegistries} from '../tools/architecture-map.mjs';
+import {assertRefused} from './helpers/assert-refused.mjs';
 
 // ARC-01 phase B, the read authorizers: ScopeGuard (src/scope.ts) ran nine provider authorizers before the reviewed
 // families' own and three after them, first true wins. Each is now its provider's (src/<provider>-adapter.ts) and
@@ -182,4 +184,66 @@ test('two authorizers claiming one request are refused before anything is sent',
   );
   assert.equal(claimingAuthorizer(p, [claimsAll('only')]).name, 'only');
   assert.equal(claimingAuthorizer(p, []), undefined);
+});
+
+test('ScopeGuard refuses a request two authorizers claim before the families, the store or any later check', () => {
+  const registry = new Registry(),
+    touched = [];
+  // A store that records every use. The refusal comes before anything that could read or remember a resource.
+  const watched = new Proxy(
+    {},
+    {
+      get: (_target, key) => {
+        touched.push('store.' + String(key));
+        return () => touched.push('store call');
+      },
+    },
+  );
+  // A LinkedIn saved-audience dependency read: no registered authorizer claims it, and its reviewed family (the
+  // audience templates) authorizes it on its own, so a guard that consulted the families first would allow it.
+  const p = plan('linkedin_native_action', 'GET', '/rest/adSegments/1', {action: 'AMCP_LINKEDIN_TEMPLATE_READ'}),
+    connection = {
+      id: 'c-linkedin',
+      tenantId: 'read-authorizers',
+      gateway: 'linkedin_native_action',
+      accounts: ['123'],
+      label: 'Synthetic',
+      enabled: true,
+      scopes: ['r_ads'],
+    };
+  assert.deepEqual(claimants(p), []);
+  const plain = new ScopeGuard(registry, new Store(':memory:', Buffer.alloc(32, 9).toString('base64')));
+  assert.equal(plain.authorize(p, connection), '123');
+  // Two of its provider's authorizers claim it, at the stage after the families.
+  const claimsAll = name =>
+    Object.freeze({
+      name,
+      stage: 'after_families',
+      claims: () => true,
+      authorize: () => {
+        touched.push(name);
+        return true;
+      },
+    });
+  const linkedin = providerHooks('linkedin_native_action'),
+    hooks = gateway =>
+      gateway === 'linkedin_native_action'
+        ? {...linkedin, scope: {...linkedin.scope, authorizers: [claimsAll('first'), claimsAll('second')]}}
+        : providerHooks(gateway);
+  const guard = new ScopeGuard(registry, watched, hooks);
+  assert.throws(
+    () => guard.authorize(p, connection),
+    error =>
+      assertRefused(error, 'READ_AUTHORIZER_CONFLICT', {status: 500}) &&
+      JSON.stringify(error.details.authorizers) === '["first","second"]' &&
+      /nothing was sent/.test(error.message),
+  );
+  // Observing the response refuses the same way: nothing is learned from a read two authorizers claim.
+  assert.throws(
+    () => guard.observe(p, connection, {elements: [{id: 1}]}),
+    error => assertRefused(error, 'READ_AUTHORIZER_CONFLICT', {status: 500}),
+  );
+  assert.deepEqual(touched, [], 'neither authorizer ran and the store was never touched');
+  // The injected hooks are that guard's alone: the registry's guard still lets the family allow the request.
+  assert.equal(plain.authorize(p, connection), '123');
 });
