@@ -4,6 +4,7 @@ import type {
   PagingFacts,
   ParkedReason,
   ProviderAdapter,
+  ProviderGrantFacts,
   ProviderParking,
   ProviderStatus,
 } from './provider-adapter.js';
@@ -69,6 +70,24 @@ function bodyDeletions(declared: BodyDeletions): BodyDeletions {
   });
 }
 
+// The OAuth scope names the providers' grants use (CON-02, CON-03; src/provider-grants.ts re-exports them), which the
+// write and readiness checks of those providers compare with a connection's recorded scopes.
+const google = (s: string) => 'https://www.googleapis.com/auth/' + s;
+export const gtmWriteScopes = [
+  'tagmanager.edit.containers',
+  'tagmanager.delete.containers',
+  'tagmanager.edit.containerversions',
+  'tagmanager.publish',
+].map(google);
+export const googleAdsScope = google('adwords');
+export const dv360Scope = google('display-video');
+export const businessScope = google('business.manage');
+export const snapchatScope = 'snapchat-marketing-api';
+export const microsoftManageScope = 'https://ads.microsoft.com/msads.manage';
+export const analyticsScopes = [google('analytics.readonly'), google('analytics')];
+export const searchConsoleWriteScope = google('webmasters');
+export const appleScope = 'searchadsorg';
+
 function adapter(
   id: string,
   gateway: string,
@@ -79,6 +98,7 @@ function adapter(
     deletions?: BodyDeletions;
     paging?: PagingFacts;
     executionOptions?: true;
+    grant?: ProviderGrantFacts;
   } = {},
 ): ProviderAdapter {
   const status: ProviderStatus = options.parked ? 'parked' : 'active';
@@ -92,6 +112,8 @@ function adapter(
     ...(options.deletions ? {deletions: bodyDeletions(options.deletions)} : {}),
     ...(options.paging ? {paging: Object.freeze({...options.paging})} : {}),
     ...(options.executionOptions ? {executionOptions: true as const} : {}),
+    // The grant's scope lists stay the declared arrays, as the grant registry kept them.
+    ...(options.grant ? {grant: Object.freeze({...options.grant})} : {}),
   });
 }
 
@@ -123,8 +145,30 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
       mutateRemovals: true,
     },
     paging: {tokenParameter: 'page_token'},
+    grant: {
+      platform: 'google',
+      requestedRead: [googleAdsScope, 'openid', 'profile'],
+      // Customer Match and offline conversions through Google's Data Manager API (owner decision of 2026-09-30).
+      requestedWrite: [google('datamanager')],
+      read: {all: [googleAdsScope]},
+      write: {all: [googleAdsScope]},
+      grantSource: 'token_response',
+      accountReadContract: true,
+    },
   }),
-  adapter('google_business', 'google_business_native_action', {account: {kind: 'business_profile'}}),
+  adapter('google_business', 'google_business_native_action', {
+    account: {kind: 'business_profile'},
+    grant: {
+      platform: 'google_business',
+      requestedRead: [businessScope],
+      requestedWrite: [],
+      read: {all: [businessScope]},
+      write: {all: [businessScope]},
+      grantSource: 'token_response',
+      // One exact read of the selected location or business account (src/workspace.ts readinessPlan, CON-06).
+      accountReadContract: true,
+    },
+  }),
   // Meta ad account IDs are compared without the act_ prefix of their Graph node form.
   adapter('meta', 'meta_native_action', {
     account: {
@@ -137,6 +181,15 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
       source: 'Marketing API campaign, ad set and ad updates: status ACTIVE, PAUSED, DELETED or ARCHIVED',
     },
     executionOptions: true,
+    grant: {
+      platform: 'meta',
+      requestedRead: ['ads_read', 'pages_show_list', 'pages_read_engagement', 'business_management'],
+      requestedWrite: ['ads_management'],
+      read: {any: ['ads_read', 'ads_management']},
+      write: {all: ['ads_management']},
+      grantSource: 'permissions_endpoint',
+      accountReadContract: true,
+    },
   }),
   adapter('tiktok', 'tiktok_native_action', {
     account: {fields: ['advertiser_id', 'advertiser_ids']},
@@ -145,9 +198,29 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
       source:
         'API for Business v1.3 campaign, ad group and ad /status/update/: operation_status ENABLE, DISABLE or DELETE',
     },
+    grant: {
+      platform: 'tiktok',
+      requestedRead: [],
+      requestedWrite: [],
+      // TikTok permissions are set on the developer app, not per authorization; a returned scope list is recorded
+      // verbatim, but no documented mapping turns it into an AMCP requirement.
+      read: null,
+      write: null,
+      grantSource: 'token_response',
+      accountReadContract: true,
+    },
   }),
   adapter('snapchat', 'snapchat_native_action', {
     account: {fields: ['ad_account_id', 'ad_account_ids'], patchFields: true, path: /^\/v1\/adaccounts\/([^/]+)/},
+    grant: {
+      platform: 'snapchat',
+      requestedRead: [snapchatScope],
+      requestedWrite: [],
+      read: {all: [snapchatScope]},
+      write: {all: [snapchatScope]},
+      grantSource: 'token_response',
+      accountReadContract: true,
+    },
   }),
   adapter('linkedin', 'linkedin_native_action', {
     account: {
@@ -160,8 +233,29 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
       source:
         'LinkedIn campaign groups and creatives: "update the status to PENDING_DELETION" to delete (src/linkedin-entity-deletes.ts)',
     },
+    grant: {
+      platform: 'linkedin',
+      requestedRead: ['r_ads', 'r_ads_reporting'],
+      requestedWrite: ['rw_ads'],
+      read: {any: ['r_ads', 'rw_ads']},
+      write: {all: ['rw_ads']},
+      grantSource: 'token_response',
+      accountReadContract: true,
+    },
   }),
-  adapter('x', 'x_ads_native_action', {account: {fields: ['account_id'], path: /\/accounts\/([^/]+)/}}),
+  adapter('x', 'x_ads_native_action', {
+    account: {fields: ['account_id'], path: /\/accounts\/([^/]+)/},
+    grant: {
+      platform: 'x',
+      requestedRead: [],
+      requestedWrite: [],
+      // OAuth 1.0a has no scopes; only the requested access type (read or write) is known.
+      read: null,
+      write: null,
+      grantSource: 'requested_access_type',
+      accountReadContract: true,
+    },
+  }),
   adapter('microsoft', 'microsoft_ads_native_action', {
     account: {fields: ['AccountId', 'AccountIds', 'CustomerAccountId']},
     // Status Deleted on entities; Action Delete in AdGroupCriterionAction and AssetGroupListingGroupAction; a user's
@@ -171,8 +265,29 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
       source:
         'pinned Microsoft Advertising v13 Campaign and Customer Management WSDLs: entity statuses Deleted, ItemAction Delete, UserLifeCycleStatus Deleted',
     },
+    grant: {
+      platform: 'microsoft',
+      requestedRead: [microsoftManageScope, 'offline_access'],
+      requestedWrite: [],
+      // Microsoft uses one API scope for reads and writes; AMCP roles and account grants separate them.
+      read: {any: [microsoftManageScope, 'msads.manage']},
+      write: {any: [microsoftManageScope, 'msads.manage']},
+      grantSource: 'token_response',
+      accountReadContract: true,
+    },
   }),
-  adapter('apple', 'apple_ads_native_action', {account: {fields: ['adAccountId', 'account_id', 'ad_account_id']}}),
+  adapter('apple', 'apple_ads_native_action', {
+    account: {fields: ['adAccountId', 'account_id', 'ad_account_id']},
+    grant: {
+      platform: 'apple',
+      requestedRead: [appleScope],
+      requestedWrite: [],
+      read: {all: [appleScope]},
+      write: {all: [appleScope]},
+      grantSource: 'token_response',
+      accountReadContract: true,
+    },
+  }),
   adapter('reddit', 'reddit_native_action', {
     account: {fields: ['ad_account_id', 'account_id'], path: /^\/api\/v3\/ad_accounts\/([^/]+)/},
     // effective_status is computed by Reddit, but its request schemas accept it; sent as DELETED it counts as a deletion.
@@ -180,6 +295,16 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
       fields: {configured_status: ['DELETED'], effective_status: ['DELETED'], status: ['DELETED']},
       source:
         'pinned Reddit Ads API v3 OpenAPI document: configured_status and status ACTIVE, ARCHIVED, DELETED or PAUSED',
+    },
+    grant: {
+      platform: 'reddit',
+      // adsedit is requested only when the deployment allows reviewed writes (owner decision D19, item 5).
+      requestedRead: ['adsread'],
+      requestedWrite: ['adsedit'],
+      read: {all: ['adsread']},
+      write: {all: ['adsread', 'adsedit']},
+      grantSource: 'token_response',
+      accountReadContract: true,
     },
   }),
   adapter('dv360', 'dv360_native_action', {
@@ -189,24 +314,96 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
       source:
         'pinned Display & Video 360 v4 Discovery document: "the advertiser will be deleted 30 days from when it was first scheduled for deletion"',
     },
+    grant: {
+      platform: 'dv360',
+      requestedRead: [dv360Scope],
+      requestedWrite: [],
+      read: {all: [dv360Scope]},
+      write: {all: [dv360Scope]},
+      grantSource: 'token_response',
+      accountReadContract: true,
+    },
   }),
   adapter('ga4', 'ga4_native_action', {
     account: {path: /\/properties\/([^/:]+)/, kind: 'analytics_property'},
     paging: {bodyArgument: 'request'},
+    grant: {
+      platform: 'ga4',
+      requestedRead: [google('analytics.readonly')],
+      requestedWrite: [],
+      read: {any: analyticsScopes},
+      // src/measurement-writes.ts accepts either recorded Analytics scope for its reviewed property writes.
+      write: {any: analyticsScopes},
+      grantSource: 'token_response',
+      accountReadContract: true,
+    },
   }),
-  adapter('gtm', 'gtm_native_action', {account: {path: /\/accounts\/([^/:]+)/, kind: 'tag_account'}}),
+  adapter('gtm', 'gtm_native_action', {
+    account: {path: /\/accounts\/([^/:]+)/, kind: 'tag_account'},
+    grant: {
+      platform: 'gtm',
+      requestedRead: [google('tagmanager.readonly')],
+      requestedWrite: gtmWriteScopes,
+      read: {any: [google('tagmanager.readonly'), ...gtmWriteScopes]},
+      // Each Tag Manager action needs its own scope (src/measurement-writes.ts); any one of them enables some writes.
+      write: {any: gtmWriteScopes},
+      grantSource: 'token_response',
+      accountReadContract: true,
+    },
+  }),
   adapter('gsc', 'google_search_console_native_action', {
     families: ['search_console_'],
     account: {kind: 'search_property'},
+    grant: {
+      platform: 'gsc',
+      requestedRead: [google('webmasters.readonly')],
+      requestedWrite: [searchConsoleWriteScope],
+      read: {any: [google('webmasters.readonly'), searchConsoleWriteScope]},
+      write: {all: [searchConsoleWriteScope]},
+      grantSource: 'token_response',
+      accountReadContract: true,
+    },
   }),
   adapter('adjust', 'adjust_native_action'),
-  adapter('drive', 'google_drive_native_action', {account: {kind: 'destination'}}),
-  adapter('sheets', 'google_sheets_native_action', {account: {kind: 'destination'}}),
+  adapter('drive', 'google_drive_native_action', {
+    account: {kind: 'destination'},
+    grant: {
+      platform: 'drive',
+      requestedRead: [google('drive.readonly')],
+      requestedWrite: [],
+      read: {all: [google('drive.readonly')]},
+      write: null,
+      grantSource: 'token_response',
+      accountReadContract: false,
+    },
+  }),
+  adapter('sheets', 'google_sheets_native_action', {
+    account: {kind: 'destination'},
+    grant: {
+      platform: 'sheets',
+      requestedRead: [google('drive.file'), google('spreadsheets')],
+      requestedWrite: [],
+      read: {any: [google('drive.file'), google('spreadsheets')]},
+      write: null,
+      grantSource: 'token_response',
+      // Sheets and Drive are report destinations and media sources, not advertising accounts.
+      accountReadContract: false,
+    },
+  }),
   // The owner parked Criteo and the store platforms (PRK-01, PRK-02); P9 gates them by this status (docs/DECISIONS.md).
   // WooCommerce is the only store platform with a gateway: Shopify and Salla have no connection or module to gate.
   adapter('criteo', 'criteo_native_action', {
     parked: {reason: 'owner_parked', decision: 'PRK-02 and P9, docs/DECISIONS.md'},
     account: {path: /\/accounts\/([^/:]+)/},
+    // No website platform authorizes Criteo, and no OAuth scope distinguishes its capabilities.
+    grant: {
+      requestedRead: [],
+      requestedWrite: [],
+      read: null,
+      write: null,
+      grantSource: 'none',
+      accountReadContract: false,
+    },
   }),
   adapter('woocommerce', 'commerce_native_action', {
     parked: {reason: 'owner_parked', decision: 'PRK-01 and P9, docs/DECISIONS.md'},
@@ -241,6 +438,36 @@ export const reviewedWriteGateways: readonly string[] = Object.freeze([
 
 const byGateway = new Map(providerAdapters.map(a => [a.gateway, a]));
 const byId = new Map(providerAdapters.map(a => [a.id, a]));
+
+/**
+ * The order in which the grant registry (src/provider-grants.ts providerGrants) lists the providers' grants, by
+ * provider ID. A load-time check: it names every adapter that declares a grant once, and no other.
+ */
+export const grantOrder: readonly string[] = Object.freeze([
+  'meta',
+  'google',
+  'linkedin',
+  'reddit',
+  'microsoft',
+  'snapchat',
+  'tiktok',
+  'x',
+  'dv360',
+  'ga4',
+  'gtm',
+  'gsc',
+  'apple',
+  'google_business',
+  'criteo',
+  'sheets',
+  'drive',
+]);
+if (
+  new Set(grantOrder).size !== grantOrder.length ||
+  grantOrder.some(id => !byId.get(id)?.grant) ||
+  providerAdapters.filter(a => a.grant).length !== grantOrder.length
+)
+  throw new Error('The grant order must name every provider adapter that declares a grant exactly once.');
 
 /** The adapter of a gateway tool name, or undefined for AMCP's own tools and unknown names. */
 export function providerOf(gateway: unknown): ProviderAdapter | undefined {

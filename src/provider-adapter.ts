@@ -486,4 +486,34 @@ export interface ProviderAdapter {
   readonly paging?: PagingFacts;
   /** Its writes take execution_options, whose validate-only values a reviewed write refuses (Meta, WRT-06). */
   readonly executionOptions?: true;
+  /** Its OAuth grant (CON-02, CON-03), which src/provider-grants.ts lists and reads. */
+  readonly grant?: ProviderGrantFacts;
+}
+
+/** A requirement on recorded scopes: any one of `any` is recorded, and every scope of `all` is. */
+export interface ScopeRequirement {
+  any?: readonly string[];
+  all?: readonly string[];
+}
+/**
+ * A provider's OAuth grant: what AMCP requests, what read and reviewed-write enforcement requires, where the granted
+ * permissions come from, and whether readiness has an exact account read. `null` means the provider has no OAuth scope
+ * that distinguishes the capability (TikTok, X, Criteo): AMCP cannot know it from a grant.
+ */
+export interface ProviderGrantFacts {
+  /** The website platform that authorizes this gateway, when it has one. */
+  platform?: string;
+  /** Requested for every authorization (the platform's default scopes). */
+  requestedRead: readonly string[];
+  /** Added when the deployment allows reviewed writes. */
+  requestedWrite: readonly string[];
+  read: ScopeRequirement | null;
+  write: ScopeRequirement | null;
+  /**
+   * Where the granted permissions are learned: echoed by the token response, read from a permissions endpoint (Meta
+   * `/me/permissions`), only the requested access type (X), or not available at all.
+   */
+  grantSource: 'token_response' | 'permissions_endpoint' | 'requested_access_type' | 'none';
+  /** Whether readiness has one exact, scoped account read for this gateway (src/account-metadata.ts accountPlan). */
+  accountReadContract: boolean;
 }
