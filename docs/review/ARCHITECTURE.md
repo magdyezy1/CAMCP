@@ -281,7 +281,11 @@ as coupling; so are the portfolio adapter registry (`src/portfolio.ts`, §11), t
 provider so that shared code consults them. Counting them as registries lowered `shared_to_provider_runtime_imports`
 from 500 to 493 by classification alone: the seven portfolio imports, which `src/portfolio.ts` made before it became
 the registry, are no longer counted. The report job registry lowered it from 496 to 488: `src/service.ts` and
-`src/compiler.ts` no longer import the five job modules (eight edges). The wave 3b merge recorded
+`src/compiler.ts` no longer import the five job modules (eight edges). The website route modules (ARC-04 stage D)
+lowered `shared_modules_with_gateway_literals` from 88 to 87 and `shared_to_provider_runtime_imports` from 488 to 487:
+the three gateways the website treats by name (Google Ads, Microsoft Advertising, WooCommerce) come from the provider
+adapter registry, so `server/website.ts` names no gateway and no longer imports `src/microsoft-native.ts`. The wave 3b
+merge recorded
 88 and 496 (87 and 493 on the ARC-01/ARC-04 branch) for two packages built beside the ratchet on the same base, so
 neither had run against it: ARC-02's tenant-bound repositories hold SQL that names gateways
 (`src/workbook-repository.ts`, the workbook query projections; `src/audit-repository.ts`, the Google Ads legacy-alias
@@ -328,8 +332,8 @@ surface in both modes; suites that exercise a parked provider offer it with `tes
 
 Not met yet of ARC-01's local criteria (open remainders of B18 and B27 in `docs/review/package-status.json`): the whole
 suite has not run with `AMCP_PROVIDERS=criteo,woocommerce` (the tool-surface suites assert the default 25 tools; only
-the gate test checks both modes), and phase B has moved only the account model, so 88 shared modules still name a
-gateway (target 20 or fewer) and 488 shared-to-provider imports remain (target 30 or fewer), with no call-replay proof
+the gate test checks both modes), and phase B has moved only the account model, so 87 shared modules still name a
+gateway (target 20 or fewer) and 487 shared-to-provider imports remain (target 30 or fewer), with no call-replay proof
 and no authorizer-disjointness test yet.
 
 ## 10. Import cycles and leaf modules
