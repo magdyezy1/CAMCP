@@ -288,7 +288,7 @@
         {"text": "Finite manual assistive-technology acceptance", "disposition": "register_item", "ref": "ACC-07"},
         {"text": "Railway settings before the 2026-12-01 cutoff and path-scoped deploys", "disposition": "register_item", "ref": "OPS-05"},
         {"text": "ARC-03 manual acceptance: the owner reviews the unanchored route list (docs/implementation/ROUTE-ANCHOR-COVERAGE.md) and the withheld-capture declaration (.mirror/RAW/WITHHELD.json), and runs the network steps no check takes: the Apple SDK re-derivation at its pinned revision and pinning the TikTok SDK", "disposition": "owner_action", "ref": "ARC-03"},
-        {"text": "WEB-07 deployed acceptance: the release browser matrix, dark-mode screenshots matching local, and Arabic About and Home loading the shell chunk only (the local criterion, the full rendered qualification with 0 contrast failures in either theme, passed on the wave 3b tree, wave3b-browser-1; with the component colours from tokens it is the wave 4a integration qualification with axe-core, docs/LOCAL-BROWSER-QA.md)", "disposition": "register_item", "ref": "WEB-07"},
+        {"text": "WEB-07 deployed acceptance: the release browser matrix, dark-mode screenshots matching local, and Arabic About and Home loading the shell chunk only (the local criterion, the full rendered qualification with axe-core and 0 contrast failures in either theme, passed on the wave 3b tree, wave3b-browser-1, and with the component colours from tokens on the wave 4a tree, wave4a-browser-1, docs/LOCAL-BROWSER-QA.md)", "disposition": "register_item", "ref": "WEB-07"},
         {"text": "WEB-07 visual diff sign-off per increment (theme tokens, escape-by-default markup, route bundles, and the component colours from tokens: the merged light-mode shades, the decorative borders and tints that read a little lighter, and the dark-mode borders of platform logos, report options, report platforms and the command key on the dark line, as docs/AMCP-IDENTITY.md lists them)", "disposition": "owner_action", "ref": "WEB-07"}
       ]
     },
@@ -444,7 +444,7 @@
         {"text": "Arabic correctness: untranslated owned text, locale persistence, RTL and bidi layout", "disposition": "register_item", "ref": "WEB-05"},
         {"text": "Arabic for the refusal reasons of the 19 family modules outside the localization inventory (unlocalizedRefusalModules in tools/check-locales.mjs, about 420 reasons), until the list is empty; it may only shrink", "disposition": "register_item", "ref": "WEB-05"},
         {"text": "Arabic editorial review and assistive-technology acceptance", "disposition": "owner_action", "ref": "R6"},
-        {"text": "WEB-07: the providers catalog chunk (web/locales/ar/providers.json, 781 KB of its 1 MiB cap, loaded by every signed-in page) split per provider family before it reaches about 90%", "disposition": "register_item", "ref": "WEB-07"}
+        {"text": "WEB-07: the providers catalog chunk (web/locales/ar/providers.json, 791,301 bytes or 75% of its 1 MiB cap after wave 4a, loaded by every signed-in page) split per provider family before it reaches about 90%", "disposition": "register_item", "ref": "WEB-07"}
       ]
     },
     {

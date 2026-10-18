@@ -873,8 +873,9 @@ The Arabic catalog travels in chunks. `web/locales/ar.json` stays the authored c
 pages and the website server's messages; every page), `workspace` and `providers` (what `src/` and the provider
 contracts say; every signed-in page) and one chunk per feature script, a message going to the first chunk whose
 sources write it. `check-web` refuses a stale or stray chunk, a chunk over 1 MiB (the browser's bound per chunk) and a
-script whose chunks lack a message it requires. `providers` is the largest (781 KB on 2026-10-17, 75% of that bound)
-and grows with the provider families; it is to be split per family before it reaches about 90% (package status B24).
+script whose chunks lack a message it requires. `providers` is the largest (791,301 bytes after wave 4a, 75% of that
+bound; 787,573 on 2026-10-17) and grows with the provider families; it is to be split per family before it reaches
+about 90% (package status B24).
 `web/locales/ar.json` itself stays in the public snapshot although no page requests it any more:
 `tools/check-public-website.mjs` compares the deployed catalog's bytes with the authored one, and it leaves the
 snapshot once that comparison reads the chunks. A page requests its chunks together with its scripts; a chunk that

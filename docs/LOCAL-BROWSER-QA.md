@@ -269,9 +269,11 @@ The integration gate's browser stage made that run on the merged tree (`--qualif
 Arabic, both appearances, 320 to 1280 pixels), and it passed
 ([Wave 3b integration qualification](#wave-3b-integration-qualification-2026-10-17)). The component colours from
 tokens (w4a, below) changed every page's colours after that run, so the wave 4a integration gate's `--qualification`
-with axe-core is their acceptance run. WEB-07's other open items are in the package status (B16 deployed and the
-owner's visual sign-off, B23 the `theme.css` entries that only repeat a token, B24 the providers chunk); English
-About's bytes gap closed when About stopped loading `theme.css` (docs/AMCP-IDENTITY.md).
+with axe-core was their acceptance run, and it passed
+([Wave 4a integration qualification](#wave-4a-integration-qualification-2026-10-18)). WEB-07's other open items are in
+the package status (B16 deployed and the owner's visual sign-off, B23 the `theme.css` entries that only repeat a token,
+B24 the providers chunk); English About's bytes gap closed when About stopped loading `theme.css`
+(docs/AMCP-IDENTITY.md).
 
 - **Development subsets so far** (no qualification; axe-core 4.14.0 on). On the package branch: the Live portfolio,
   Measurement and Commerce kinds, 144 of 144, and `empty`, `granular-reporting`, `export-outcomes`,
@@ -332,7 +334,8 @@ About's bytes gap closed when About stopped loading `theme.css` (docs/AMCP-IDENT
   (served to the same runner), so it is a timing flake of that journey, not a colour change. Text contrast stood in for
   the WCAG rule: a computed-style comparison with the tree before (256 page states of the empty workspace and 23
   populated kinds, light and dark) found no text whose contrast went down. The integration gate's `--qualification`
-  with axe-core remains the acceptance run.
+  with axe-core was the acceptance run: it passed every kind, the 16 `granular-reporting` cases included, with no WCAG
+  violation in either theme (`wave4a-browser-1`, below).
   - `tests/website-contrast.test.mjs`: the dialog, notice, report option and hero surfaces are read through their
     tokens, and app.css's sidebar hover rule (which identity.css always overrode) is gone, so its old value is the
     regression's constant.
@@ -361,6 +364,34 @@ presentation variants: every page WEB-07 changed, and the two wave 3b kinds, `pe
 The gate fix `c0f15bd` changed only the deployment HTTP contract, which no rendered case reads; the browser stage ran
 after the release gate passed on the same head. `working_tree_clean` is false only because of an untracked file
 outside the release scope.
+
+## Wave 4a integration qualification (2026-10-18)
+
+The integration gate ran the full `--qualification` (axe-core 4.14.0, every kind, two fixture lanes) on the gated head
+`8295c64c`, the merged wave 4a tree with its review fixes (`wave4a-browser-1`, 2026-10-18, 04:22 to 05:14 UTC;
+`results.json` SHA-256 `73b413c8e80206bc71b27b3eab402b84a8cf4d8945cce7ccd4f7662301fbc574`). Its first run passed 1,280
+of 1,280 cases in 51.55 minutes against the 75-minute budget. It covered 95 distinct scenarios, 69 fixture kinds and 22
+presentation variants: every page with WEB-07's component colours from tokens, in both languages and appearances at
+320 to 1280 pixels. The fixtures drive the compiled merged server (`createWebsite` with ARC-04's route modules,
+`MirrorService` with its composite tool table, and `NativeTransport`, which consults ARC-01's provider hooks), and
+their synthetic fetchers answer every provider request.
+
+- **WCAG.** No pinned rule was violated at any initial, intermediate or final state in either theme, so WEB-07's
+  contrast criterion holds with the component colours from tokens in light and dark. Left incomplete for manual
+  review, as in wave 3b: color-contrast 2,498, label-content-name-mismatch 2,464 and link-in-text-block 4. The slowest
+  inspection took 0.77 seconds of its 20-second deadline (`conversion-metadata-owned-measurement-ar-375-dark`).
+- **Focus and wording.** All 3,574 measured focus rings reached 3:1. None of the 4,036 focus-obscured checks found a
+  hidden control, and none of the 2,644 message probes found MCP-client vocabulary.
+- **Tables.** The table check's keyboard-scroll wait, which timed out in the development runs above, passed in all 16
+  `granular-reporting` cases.
+- **Arabic.** Every critical route had zero leaks, and each of the 92 held routes measured exactly its committed limit.
+  `node tools/browser-arabic-leaks.mjs --ratchet .runtime/wave4a-browser-1/results.json` proposes no change, so the
+  baseline was not rewritten.
+- **Writes.** The write journeys ended accepted, uncertain and refused four times each, with 28 synthetic writes, 0
+  provider writes, 0 external provider requests and 0 unhandled rejections.
+
+The browser stage ran after the release gate had passed on the same head (`wave4a-gate-1`), with no other heavy job
+running. `working_tree_clean` is false only because of an untracked file outside the release scope.
 
 ## What it exercises
 
