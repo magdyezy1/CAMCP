@@ -613,11 +613,13 @@ than 400 lines (`DecisionReporting.handle` was 899, now 30; `createWebsite` 1,81
 1,311, now 239; `errorRemedy` 867, now 17; `MediaUploadService.handle` 732, now 98; `WriteReviewService.call` 507, now
 38). Nine backend functions still are (counted from their first line to their last; fourteen before the website,
 media, campaign and write tables and the provider remedies): `NativeCampaignReports.collectSource` (978), `campaignRecipe` (706),
-`AssetDiscovery.discover` (693), `NativeTransport.request` (670), `adjustReporting` (465), `inspectGoogleRecipeGoals`
-(463), `checkAccountSpendPolicy` (430), `GoogleSheetsExports.write` (416) and `connectWooCommerce` (402). None is a
-composite tool's dispatcher: the transport and the asset discovery are ARC-01 phase B concerns (the wire profile, the
-server discovery configurations), `collectSource` is report collection (each platform's requests, paging and parsing,
-the part of the report sources still in `src/report-native.ts`, §12), and the rest are single workflows. The review's
-target of three or fewer needs those changes. These are open remainders of B18 and B27 in
+`AssetDiscovery.discover` (693), `NativeTransport.request` (464; 670 before ARC-01 phase B moved its wire profile into
+the adapters, §9), `adjustReporting` (465), `inspectGoogleRecipeGoals` (463), `checkAccountSpendPolicy` (430),
+`GoogleSheetsExports.write` (416) and `connectWooCommerce` (402). None is a composite tool's dispatcher: the transport
+keeps what never moves into an adapter (the origin allowlist, the single send, attempts, retries and the deadline
+loop), so shortening it further splits it inside `src/transport.ts`; the asset discovery is an ARC-01 phase B concern
+(the server discovery configurations); `collectSource` is report collection (each platform's requests, paging and
+parsing, the part of the report sources still in `src/report-native.ts`, §12), and the rest are single workflows. The
+review's target of three or fewer needs those changes. These are open remainders of B18 and B27 in
 `docs/review/package-status.json`, so neither package is closed by ARC-04. Also left by ARC-04: the 93 read builders
 that differ from the kit's `stateReadOf` (§13).
