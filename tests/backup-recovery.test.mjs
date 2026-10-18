@@ -678,7 +678,8 @@ test('in production a backup on the database volume is refused unless allowed, b
       NODE_ENV: 'production',
       AMCP_BACKUP_TMPDIR: f.dir,
     };
-    const refused = spawnSync(process.execPath, [cli, 'backup', path.join(f.dir, 'cli.amcp')], {
+    // Exercise the volume policy even when the Docker build runs the CLI as root.
+    const refused = spawnSync(process.execPath, [cli, '--allow-root', 'backup', path.join(f.dir, 'cli.amcp')], {
       encoding: 'utf8',
       env,
       timeout: 30000,
@@ -686,11 +687,15 @@ test('in production a backup on the database volume is refused unless allowed, b
     assert.equal(refused.status, 1);
     assert.match(refused.stderr, /BACKUP_SAME_VOLUME/);
     assert.equal(fs.existsSync(path.join(f.dir, 'cli.amcp')), false);
-    const forced = spawnSync(process.execPath, [cli, 'backup', path.join(f.dir, 'cli.amcp'), '--allow-same-volume'], {
-      encoding: 'utf8',
-      env,
-      timeout: 30000,
-    });
+    const forced = spawnSync(
+      process.execPath,
+      [cli, '--allow-root', 'backup', path.join(f.dir, 'cli.amcp'), '--allow-same-volume'],
+      {
+        encoding: 'utf8',
+        env,
+        timeout: 30000,
+      },
+    );
     assert.equal(forced.status, 0, forced.stderr);
     assert.equal(JSON.parse(forced.stdout).destination_same_volume, true);
   } finally {
