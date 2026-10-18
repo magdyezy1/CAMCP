@@ -4,7 +4,7 @@
     {
       "id": "M1-google-manager-routing-ignored",
       "guards": "Google Ads requests carry the account's own manager (login-customer-id), not the login's default manager",
-      "file": "src/transport.ts",
+      "file": "src/google-ads-adapter.ts",
       "find": "const loginCustomerId = mapped ?? credentials.loginCustomerId;",
       "replace": "const loginCustomerId = credentials.loginCustomerId ?? mapped;",
       "tests": ["tests/google-recommendation-dismissal.test.ts", "tests/report-delivery-discovery.test.ts"]
@@ -68,7 +68,7 @@
     {
       "id": "M9-tiktok-list-projection-drops-budget",
       "guards": "A review's TikTok list snapshot keeps the decisive budget field, so a budget change is STATE_CHANGED",
-      "file": "src/review-state.ts",
+      "file": "src/tiktok-adapter.ts",
       "find": ": { list: d.data.list },",
       "replace": ": { list: d.data.list.map(row => { const { budget, ...rest } = row ?? {}; return rest; }) },",
       "tests": ["tests/reviewed-family-conformance.test.mjs"]
@@ -156,7 +156,7 @@
     {
       "id": "M20-tiktok-cursor-ignored",
       "guards": "TikTok cursor lists ({cursor, has_more}) are followed to their last page instead of being cut at the first",
-      "file": "src/pagination.ts",
+      "file": "src/tiktok-adapter.ts",
       "find": "if (data.has_more !== true) return null;",
       "replace": "if (true) return null;",
       "tests": ["tests/native-pagination-continuation.test.ts", "tests/contract-faithful-fakes.test.mjs"]
@@ -164,7 +164,7 @@
     {
       "id": "M21-meta-paging-ignored",
       "guards": "Meta paging.next with cursors.after is followed instead of truncating the collection",
-      "file": "src/pagination.ts",
+      "file": "src/meta-adapter.ts",
       "find": "if (!d.paging?.next) return null; const cursor = d.paging?.cursors?.after;",
       "replace": "return null; const cursor = d.paging?.cursors?.after;",
       "tests": ["tests/pagination.test.ts", "tests/contract-faithful-fakes.test.mjs"]
