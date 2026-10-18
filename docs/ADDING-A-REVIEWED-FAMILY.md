@@ -199,12 +199,14 @@ serves every request of a gateway rather than one family:
 - the entity writes of seven platforms (`google_entities`, `meta_entities`, `snapchat_entities`, `tiktok_entities`,
   `x_entities`, `linkedin_entities`, `dv360_entities`: `src/reviewed-routes.ts`), which use each gateway's generic
   reads, checks and projections;
-- gateway checks shared by several families. The write-shape and state checks of each provider are its adapter's
-  (`checks` in `src/<provider>-adapter.ts`, ARC-01 phase B: Microsoft's request validation, the measurement gateways'
-  checks, TikTok's state checks, the paused-creation rules), which `src/write-shape.ts` and `src/write-state.ts`
-  consult where they named the provider; Reddit's request validation and state check stay in those stages. TikTok's
-  path-keyed projections, Google's configuration fallback, the Business Profile URL redaction (`placeActionSafe`) and
-  paused-parent checks stay in the lifecycle modules;
+- gateway checks and projections shared by several families. The write-shape and state checks of each provider are
+  its adapter's (`checks` in `src/<provider>-adapter.ts`, ARC-01 phase B: Microsoft's request validation, the
+  measurement gateways' checks, TikTok's state checks, the paused-creation rules), which `src/write-shape.ts` and
+  `src/write-state.ts` consult where they named the provider; Reddit's request validation and state check stay in
+  those stages. So are the review's projections of its reads (`review`: TikTok's path-keyed projections, Google's
+  configuration fallback and the gateway verification reads), which `src/review-state.ts` and
+  `src/verification-reads.ts` consult after the families' own. The Business Profile URL redaction (`placeActionSafe`)
+  and paused-parent checks stay in the lifecycle modules;
 - Apple shared budgets, which change a budget several ad accounts share: the lifecycle checks each account's write
   grant itself (`appleSharedBudget`);
 - compile-time path rewriting (`linkedinTrackingPlan`, `linkedinDomainPlan`) in `src/compiler.ts`.

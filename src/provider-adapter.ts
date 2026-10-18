@@ -8,14 +8,15 @@
  * and authorization decisions are unchanged (tools/call-replay.mjs; docs/review/ARCHITECTURE.md, "Provider adapters").
  * Every adapter carries its lifecycle status and its facts (the account model, body deletions), which any module may
  * read; behaviour that needs a provider's own modules (read classification, paging, the account read, the wire
- * profile, its part of ScopeGuard, its write-shape and state checks) is its hooks, declared in
- * src/<provider>-adapter.ts and registered in src/provider-hooks.ts.
+ * profile, its part of ScopeGuard, its write-shape and state checks, the review's projections of its reads) is its
+ * hooks, declared in src/<provider>-adapter.ts and registered in src/provider-hooks.ts.
  */
 import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 import type {Store} from './store.js';
 import type {Registry} from './catalog.js';
 import type {TransportResult} from './transport.js';
+import type {VerificationRead} from './reviewed-family.js';
 
 /** `active` providers are offered; a `parked` one is offered only where AMCP_PROVIDERS names it. */
 export type ProviderStatus = 'active' | 'parked';
@@ -410,6 +411,42 @@ export interface GatewayChecks {
   readonly state?: StateChecks;
 }
 
+/** A verification read a provider builds: the family contract's, and how the stage compares two of its fields. */
+export interface ProviderVerificationRead extends VerificationRead {
+  /** Sent fields the read may omit: when it does, they are compared with the write response instead. */
+  readOptional?: string[];
+  /** What the read shows beyond the expected fields, reported in the check and never compared. */
+  observe?: (actual: unknown) => JsonObject | undefined;
+}
+
+/**
+ * A provider's parts of the review's projections (ARC-01 phase B): the state a review keeps of a read no family
+ * projects (src/review-state.ts), and the reads that show a write no family verifies took effect, with what each
+ * shows of its resource (src/verification-reads.ts). The stages keep the families first, the normalization, the empty
+ * verification of a DELETE and every comparison; a provider without a projection keeps a read whole.
+ */
+export interface ReviewProjections {
+  /** The state a review keeps of a read, before normalization: its configuration, not its envelope; `data` by default. */
+  snapshot?(read: CompiledRequest, data: JsonObject): unknown;
+  /** The write's headers a verification read keeps (LinkedIn's versioning headers); none by default. */
+  verificationHeaders?(plan: CompiledRequest): Record<string, string>;
+  /**
+   * The reads that show a write took effect, none by default. `read` builds one the way the stage builds every
+   * verification read; `snapshots` returns a request's state reads (src/write-snapshots.ts), passed in so that no
+   * adapter imports a lifecycle module.
+   */
+  verification?(
+    plan: CompiledRequest,
+    result: JsonObject,
+    read: (path: string, query?: JsonObject) => CompiledRequest,
+    snapshots: (plan: CompiledRequest) => CompiledRequest[],
+  ): ProviderVerificationRead[];
+  /** What a verification read shows of its resource: the provider's record, unwrapped; `data` by default. */
+  observed?(read: CompiledRequest, data: JsonObject): JsonObject;
+  /** The verification cache version that retires older proofs of a write (Google's value-bidding campaigns). */
+  verificationVersion?(plan: CompiledRequest): string | undefined;
+}
+
 /** The preconditions of a plain documented GET read: read-only, no body, no special transport. */
 export const plainGetRead = (p: CompiledRequest) =>
   p.readOnly && p.method === 'GET' && !p.specialTransport && p.body === undefined;
@@ -428,6 +465,7 @@ export interface ProviderHooks {
   readonly wire?: WireProfile;
   readonly scope?: ScopeHooks;
   readonly checks?: GatewayChecks;
+  readonly review?: ReviewProjections;
 }
 
 export interface ProviderAdapter {

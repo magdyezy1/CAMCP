@@ -2,6 +2,7 @@ import {
   plainGetRead,
   type ExpectState,
   type ProviderHooks,
+  type ProviderVerificationRead,
   type ScopeContext,
   type StateTarget,
 } from './provider-adapter.js';
@@ -11,16 +12,44 @@ import {MirrorError} from './errors.js';
 // The write-shape and state refusals keep the write stages' own helper (src/write-common.ts).
 import {fail} from './write-common.js';
 import {pausedParentChildStatuses} from './paused-parents.js';
-import {tiktokAdgroupConversion} from './tiktok-adgroup-conversions.js';
-import {tiktokCtaReferences, validateTiktokCtaPortfolioState} from './tiktok-cta-portfolios.js';
-import {tiktokImageInfoPath} from './tiktok-identities.js';
-import {tiktokAudienceGetPath} from './tiktok-lookalikes.js';
-import {validateTiktokConversionState} from './tiktok-custom-conversions.js';
-import {validateTiktokSavedAudienceState} from './tiktok-saved-audiences.js';
+import {tiktokAdgroupConversion, tiktokConversionEligibility} from './tiktok-adgroup-conversions.js';
+import {
+  tiktokCtaPortfolioProjection,
+  tiktokCtaPortfolioState,
+  tiktokCtaReferences,
+  tiktokPortfolioGetPath,
+  validateTiktokCtaPortfolioState,
+} from './tiktok-cta-portfolios.js';
+import {tiktokImageInfoPath, tiktokImageState} from './tiktok-identities.js';
+import {tiktokAudienceGetPath, tiktokAudienceState} from './tiktok-lookalikes.js';
+import {
+  tiktokConversionGetPath,
+  tiktokConversionListPath,
+  tiktokConversionListState,
+  tiktokCustomConversionProjection,
+  tiktokPixelListPath,
+  tiktokPixelState,
+  validateTiktokConversionState,
+} from './tiktok-custom-conversions.js';
+import {
+  tiktokSavedAudienceProjection,
+  tiktokSavedAudienceRead,
+  validateTiktokSavedAudienceState,
+} from './tiktok-saved-audiences.js';
 import {validateTiktokSmartPlusState} from './tiktok-smart-plus-status.js';
-import {validateTiktokSmartPlusAdState} from './tiktok-smart-plus-ads.js';
-import {validateTiktokSmartPlusAdgroupCampaignState} from './tiktok-smart-plus-adgroup-updates.js';
-import {validateTiktokInstantFormState} from './tiktok-instant-forms.js';
+import {
+  tiktokSmartPlusAdGetPath,
+  tiktokSmartPlusAdProjection,
+  tiktokSmartPlusAdState,
+  validateTiktokSmartPlusAdState,
+} from './tiktok-smart-plus-ads.js';
+import {
+  tiktokSmartPlusAdgroupCampaignState,
+  validateTiktokSmartPlusAdgroupCampaignState,
+} from './tiktok-smart-plus-adgroup-updates.js';
+import {tiktokInstantFormState, validateTiktokInstantFormState} from './tiktok-instant-forms.js';
+import {tiktokSmartPlusCampaignProjection} from './tiktok-smart-plus-campaigns.js';
+import {tiktokSmartPlusAdgroupProjection} from './tiktok-smart-plus-adgroups.js';
 import {stable} from './security.js';
 import {errorInteger, errorObject} from './provider-error-core.js';
 import {tiktokPreviewRoute} from './tiktok-preview-reads.js';
@@ -216,6 +245,76 @@ function tiktokStateTarget(read: CompiledRequest, _result: TransportResult, data
   );
 }
 
+/**
+ * The state a review keeps of a TikTok read: the pixels, the Smart+ and Instant Form states, a CTA portfolio and a
+ * custom conversion's eligibility in their own projections, and a native list (the image, audience and conversion
+ * lists in theirs); any other response whole.
+ */
+function tiktokSnapshot(read: CompiledRequest, d: JsonObject): unknown {
+  if (read.path === tiktokPixelListPath && Array.isArray(d.data?.pixels)) return {data: tiktokPixelState(d)};
+  const state =
+    tiktokSmartPlusAdState(read, d) ?? tiktokSmartPlusAdgroupCampaignState(read, d) ?? tiktokInstantFormState(read, d);
+  if (state) return state;
+  if (read.path === tiktokPortfolioGetPath && d.data && typeof d.data === 'object' && !Array.isArray(d.data))
+    return {data: tiktokCtaPortfolioState(read, d.data)};
+  if (read.path === tiktokConversionGetPath && d.data && typeof d.data === 'object' && !Array.isArray(d.data))
+    return {data: tiktokConversionEligibility(d.data)};
+  if (Array.isArray(d.data?.list))
+    return {
+      data:
+        read.path === tiktokImageInfoPath
+          ? tiktokImageState(d)
+          : read.path === tiktokAudienceGetPath
+            ? tiktokAudienceState(d)
+            : read.path === tiktokConversionListPath
+              ? tiktokConversionListState(d)
+              : {list: d.data.list},
+    };
+  return d;
+}
+/** The reads that show TikTok writes took effect: each returned or written entity, read back from its get route. */
+function tiktokVerification(
+  plan: CompiledRequest,
+  result: JsonObject,
+  read: (path: string, query?: JsonObject) => CompiledRequest,
+): ProviderVerificationRead[] {
+  const b = (plan.body ?? {}) as JsonObject,
+    d = result.data ?? {};
+  const kind = plan.path.split('/')[2]!,
+    ids = d.data?.[kind + '_ids'] ?? [d.data?.[kind + '_id'] ?? b[kind + '_id']];
+  if (ids.some((id: unknown) => typeof id !== 'string')) return [];
+  const expected =
+    kind === 'ad' && plan.path === '/v1.3/ad/create/'
+      ? {...b.creatives[0], adgroup_id: b.adgroup_id}
+      : Object.fromEntries(Object.entries(b).filter(([k]) => !['advertiser_id', kind + '_ids'].includes(k)));
+  return ids.map((id: string) => ({
+    read: {
+      ...read('/v1.3/' + kind + '/get/', {
+        advertiser_id: plan.accountId,
+        filtering: {[kind + '_ids']: [id]},
+        page_size: 100,
+      }),
+      action: 'tiktok_' + kind + '_get',
+    },
+    expected,
+    id,
+  }));
+}
+/** What a TikTok verification read shows: its record, in its own projection where the read has one. */
+function tiktokObserved(plan: CompiledRequest, data: JsonObject): JsonObject {
+  if (plan.path === '/v1.3/identity/info/') return data.data?.identity_info;
+  if (plan.path === tiktokAudienceGetPath) return data.data?.list?.[0]?.audience_details;
+  if (plan.path === tiktokConversionGetPath) return tiktokCustomConversionProjection(data.data);
+  if (tiktokSavedAudienceRead(plan)) return tiktokSavedAudienceProjection(data.data?.saved_audiences?.[0]);
+  if (plan.path === '/v1.3/smart_plus/campaign/get/')
+    return tiktokSmartPlusCampaignProjection(data.data?.list?.[0]) as JsonObject;
+  if (plan.path === '/v1.3/smart_plus/adgroup/get/')
+    return tiktokSmartPlusAdgroupProjection(data.data?.list?.[0]) as JsonObject;
+  if (plan.path === tiktokPortfolioGetPath) return tiktokCtaPortfolioProjection(data.data);
+  if (plan.path === tiktokSmartPlusAdGetPath) return tiktokSmartPlusAdProjection(data.data?.list?.[0]) as JsonObject;
+  return data.data?.list?.[0];
+}
+
 export const tiktokHooks: ProviderHooks = Object.freeze({
   gateway: 'tiktok_native_action',
   checks: Object.freeze({
@@ -227,6 +326,7 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
       target: tiktokStateTarget,
     }),
   }),
+  review: Object.freeze({snapshot: tiktokSnapshot, verification: tiktokVerification, observed: tiktokObserved}),
   scope: Object.freeze({
     authorizers: Object.freeze([
       Object.freeze({

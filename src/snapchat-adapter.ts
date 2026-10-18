@@ -1,4 +1,11 @@
-import type {ExpectState, ProviderHooks, ScopeCallBuilder, ScopeContext, StateTarget} from './provider-adapter.js';
+import type {
+  ExpectState,
+  ProviderHooks,
+  ProviderVerificationRead,
+  ScopeCallBuilder,
+  ScopeContext,
+  StateTarget,
+} from './provider-adapter.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import type {TransportResult} from './transport.js';
@@ -6,8 +13,13 @@ import type {TransportResult} from './transport.js';
 import {fail, object} from './write-common.js';
 import {pausedParentChildStatuses} from './paused-parents.js';
 import {snapAdCreativePaths} from './snapchat-ad-creatives.js';
-import {assertSnapLeadCreativeRefs, assertSnapLeadForms} from './snapchat-lead-forms.js';
-import {assertSnapSegmentUpdates, assertSnapSegments} from './snapchat-segments.js';
+import {assertSnapLeadCreativeRefs, assertSnapLeadForms, snapLeadFormProjection} from './snapchat-lead-forms.js';
+import {
+  assertSnapSegmentUpdates,
+  assertSnapSegments,
+  snapSegmentProjection,
+  snapSegmentState,
+} from './snapchat-segments.js';
 import {snapchatPlanningRoute} from './snapchat-planning-reads.js';
 import {MirrorError} from './errors.js';
 import {errorObject, errorToken} from './provider-error-core.js';
@@ -197,10 +209,100 @@ function snapchatStateTarget(read: CompiledRequest, _result: TransportResult, da
 }
 
 /**
+ * A Snapchat ad account as a review keeps it (Snapchat S9): what a write under it depends on, not its billing centre,
+ * funding sources, cells or invoicing arrangements. The state hash covers these fields, so a change of currency or
+ * status still invalidates a review.
+ */
+export const snapAccountFields = ['id', 'name', 'status', 'currency', 'timezone', 'organization_id', 'type'];
+function snapAccountState(account: unknown): unknown {
+  if (!account || typeof account !== 'object' || Array.isArray(account)) return account;
+  return Object.fromEntries(
+    snapAccountFields.filter(k => Object.hasOwn(account, k)).map(k => [k, (account as JsonObject)[k]]),
+  );
+}
+// Snapchat records whose read-back adds provider fields or renames sent ones are compared as projections.
+const snapProjections: Record<string, (row: unknown) => unknown> = {
+  lead_generation_forms: snapLeadFormProjection,
+  segments: snapSegmentProjection,
+};
+/** The state a review keeps of a Snapchat read: each row's record, segments and ad accounts in their projections. */
+function snapchatSnapshot(read: CompiledRequest, d: JsonObject): unknown {
+  const kind = read.path.split('/').at(-2)!,
+    singular = kind === 'adsquads' ? 'adsquad' : kind === 'media' ? 'media' : kind.slice(0, -1);
+  if (!Array.isArray(d[kind])) return d;
+  return {
+    [kind]: d[kind].map((row: JsonObject) =>
+      Object.hasOwn(row, singular)
+        ? {
+            [singular]:
+              kind === 'segments'
+                ? snapSegmentState(row[singular])
+                : kind === 'adaccounts'
+                  ? snapAccountState(row[singular])
+                  : row[singular],
+          }
+        : row,
+    ),
+  };
+}
+/** The reads that show Snapchat writes took effect: each returned record, read back by its ID. */
+function snapchatVerification(
+  plan: CompiledRequest,
+  result: JsonObject,
+  read: (path: string, query?: JsonObject) => CompiledRequest,
+): ProviderVerificationRead[] {
+  const b = (plan.body ?? {}) as JsonObject,
+    d = result.data ?? {};
+  const kind = Object.keys(d).find(k =>
+    ['campaigns', 'adsquads', 'ads', 'creatives', 'lead_generation_forms', 'segments'].includes(k),
+  );
+  if (!kind) return [];
+  const singular = kind === 'adsquads' ? 'adsquad' : kind.slice(0, -1);
+  // Array-index patches and removes need before/after reconstruction. Do not label partial checks verified.
+  if (
+    Array.isArray(plan.body) &&
+    plan.body.some((p: JsonObject) => !['add', 'replace'].includes(p.op) || !/^\/[A-Za-z_]+$/.test(p.path))
+  )
+    return [];
+  // Snapchat's GET never returns placement_v2 (it reads back as placement:"UNSUPPORTED"). A field no read
+  // can observe is compared with the provider's own write response instead; a missing echo stays inconclusive.
+  const writeOnly = kind === 'adsquads' ? ['placement_v2'] : [];
+  return d[kind].map((r: JsonObject, i: number) => {
+    const id = r[singular].id,
+      expected = {
+        ...(b[kind]?.[i] ??
+          (Array.isArray(plan.body)
+            ? Object.fromEntries((plan.body as JsonObject[]).map(p => [p.path.slice(1), p.value]))
+            : b)),
+      },
+      acknowledged: Record<string, {sent: unknown; echoed: unknown}> = {};
+    for (const field of writeOnly)
+      if (Object.hasOwn(expected, field)) {
+        acknowledged[field] = {sent: expected[field], echoed: r[singular]?.[field]};
+        delete expected[field];
+      }
+    return {
+      read: read('/v1/' + kind + '/' + id),
+      expected: (snapProjections[kind]?.(expected) ?? expected) as JsonObject,
+      id,
+      ...(Object.keys(acknowledged).length ? {acknowledged} : {}),
+    };
+  });
+}
+/** What a Snapchat verification read shows: its one record, lead forms and segments in their projections. */
+function snapchatObserved(plan: CompiledRequest, data: JsonObject): JsonObject {
+  const kind = plan.path.split('/').at(-2)!,
+    singular = kind === 'adsquads' ? 'adsquad' : kind.slice(0, -1),
+    row = data[kind]?.[0]?.[singular];
+  return (snapProjections[kind]?.(row) ?? row) as JsonObject;
+}
+
+/**
  * Snapchat's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the planning
  * POSTs, the by-ID entity reads, the audience, bid and forecasting estimates, and the catalog and Ads Library searches.
  * Its scope: the catalog comparison's internal reads, and ownership of the global IDs its account lists and creations
  * show (Snapchat S3, S6). Its gateway checks: an ad's creative paths, its native records and a state read's one record.
+ * A review keeps each row's record and verifies each returned record by its ID.
  */
 export const snapchatHooks: ProviderHooks = Object.freeze({
   gateway: 'snapchat_native_action',
@@ -211,6 +313,11 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
       after: snapchatWriteShape,
     }),
     state: Object.freeze({target: snapchatStateTarget}),
+  }),
+  review: Object.freeze({
+    snapshot: snapchatSnapshot,
+    verification: snapchatVerification,
+    observed: snapchatObserved,
   }),
   scope: Object.freeze({
     authorizers: Object.freeze([

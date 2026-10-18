@@ -1,10 +1,18 @@
-import type {ExpectState, ProviderHooks, ScopeCallBuilder, ScopeContext, StateTarget} from './provider-adapter.js';
+import type {
+  ExpectState,
+  ProviderHooks,
+  ProviderVerificationRead,
+  ScopeCallBuilder,
+  ScopeContext,
+  StateTarget,
+} from './provider-adapter.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import type {TransportResult} from './transport.js';
 // The write-shape and state refusals keep the write stages' own helper (src/write-common.ts).
 import {fail} from './write-common.js';
 import {validateMetaCampaign, validateMetaV26} from './meta-contracts.js';
+import {metaCreativeFeaturesObserved} from './meta-creative-features.js';
 import {pausedParentChildStatuses} from './paused-parents.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
 import {MirrorError} from './errors.js';
@@ -109,6 +117,39 @@ function observeMeta(plan: CompiledRequest, connection: Connection, id: string, 
   }
 }
 
+/** The read that shows a Meta write took effect: its node, read back with the fields the write sent. */
+function metaVerification(
+  plan: CompiledRequest,
+  result: JsonObject,
+  read: (path: string, query?: JsonObject) => CompiledRequest,
+): ProviderVerificationRead[] {
+  const b = (plan.body ?? {}) as JsonObject,
+    d = result.data ?? {};
+  const id = String(d.id ?? plan.path.split('/').at(-1));
+  if (!/^\d+$/.test(id)) return [];
+  const expected = {...b};
+  delete expected.execution_options;
+  if (expected.creative?.creative_id) expected.creative = {id: expected.creative.creative_id};
+  // Meta's reference does not say whether a creative read returns destination_spec (the owner's condition of
+  // 2026-09-29: verify it on read-back, else against the write response, never silently). The Advantage+ creative
+  // feature choices (PRV-06 C) are compared the same way, and the features Meta shows on its own are reported.
+  const creative = /\/adcreatives$/.test(plan.path),
+    readOptional = creative
+      ? ['destination_spec', 'degrees_of_freedom_spec'].filter(field => Object.hasOwn(expected, field))
+      : [];
+  return [
+    {
+      read: read(metaPrefix + id, {fields: ['id', ...Object.keys(expected)].join(',')}),
+      expected,
+      id,
+      ...(readOptional.length ? {readOptional} : {}),
+      ...(creative && Object.hasOwn(expected, 'degrees_of_freedom_spec')
+        ? {observe: (actual: unknown) => metaCreativeFeaturesObserved(expected, actual)}
+        : {}),
+    },
+  ];
+}
+
 export const metaHooks: ProviderHooks = Object.freeze({
   gateway: 'meta_native_action',
   checks: Object.freeze({
@@ -134,6 +175,7 @@ export const metaHooks: ProviderHooks = Object.freeze({
       },
     }),
   }),
+  review: Object.freeze({verification: metaVerification}),
   reads: Object.freeze({
     batch: (key: string) => key === 'batch',
     // GET act_<id>/value_rule_set. The fixed act_ path binds it, so it has no authorizer of its own.

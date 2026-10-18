@@ -1,4 +1,4 @@
-import type {ProviderHooks, ScopeCallBuilder, ScopeContext} from './provider-adapter.js';
+import type {ProviderHooks, ProviderVerificationRead, ScopeCallBuilder, ScopeContext} from './provider-adapter.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
@@ -49,10 +49,29 @@ function observeReddit(plan: CompiledRequest, connection: Connection, id: string
 /**
  * Reddit's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: reports, plus
  * the PRV-07 planning and history reads (src/reddit-extensions.ts), are POST reads. Its scope: the planning reads'
- * authorizer, the reference reads, and ownership of the global IDs its account lists and creations show.
+ * authorizer, the reference reads, and ownership of the global IDs its account lists and creations show. A review keeps
+ * a response's records and verifies a write by the entity it returned. Its write contract and state check stay in the
+ * write stages (src/write-shape.ts says why).
  */
 export const redditHooks: ProviderHooks = Object.freeze({
   gateway: 'reddit_native_action',
+  // A response's records are under data, the rest is its envelope.
+  review: Object.freeze({
+    snapshot: (_read: CompiledRequest, d: JsonObject) => (Object.hasOwn(d, 'data') ? {data: d.data} : d),
+    verification(
+      plan: CompiledRequest,
+      result: JsonObject,
+      read: (path: string, query?: JsonObject) => CompiledRequest,
+    ): ProviderVerificationRead[] {
+      const b = (plan.body ?? {}) as JsonObject,
+        d = result.data ?? {};
+      const kind = plan.method === 'POST' ? plan.path.split('/').at(-1) : plan.path.split('/').at(-2),
+        id = d.data?.id;
+      if (!id) return [];
+      return [{read: read('/api/v3/' + kind + '/' + id), expected: b.data, id}];
+    },
+    observed: (_plan: CompiledRequest, data: JsonObject) => data.data,
+  }),
   scope: Object.freeze({
     authorizers: Object.freeze([
       Object.freeze({

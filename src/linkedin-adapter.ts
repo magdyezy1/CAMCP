@@ -2,6 +2,7 @@ import {
   plainGetRead,
   type ExpectState,
   type ProviderHooks,
+  type ProviderVerificationRead,
   type ScopeCallBuilder,
   type ScopeContext,
   type StateTarget,
@@ -122,6 +123,26 @@ function linkedinStateTarget(read: CompiledRequest, _result: TransportResult, da
   );
 }
 
+/** The read that shows a LinkedIn write took effect: the created entity, by the ID LinkedIn returned, or the written one. */
+function linkedinVerification(
+  plan: CompiledRequest,
+  result: JsonObject,
+  read: (path: string, query?: JsonObject) => CompiledRequest,
+): ProviderVerificationRead[] {
+  const b = (plan.body ?? {}) as JsonObject;
+  const id = String(result.created_id ?? result.headers?.['x-restli-id'] ?? plan.path.split('/').at(-1)),
+    expected = b.patch?.$set ?? b;
+  return [
+    {
+      read: read(
+        plan.method === 'POST' && result.status === 201 ? plan.path + '/' + encodeURIComponent(id) : plan.path,
+      ),
+      expected,
+      id: id.split(':').at(-1)!,
+    },
+  ];
+}
+
 export const linkedinHooks: ProviderHooks = Object.freeze({
   gateway: 'linkedin_native_action',
   checks: Object.freeze({
@@ -152,6 +173,14 @@ export const linkedinHooks: ProviderHooks = Object.freeze({
       },
     }),
     state: Object.freeze({target: linkedinStateTarget}),
+  }),
+  review: Object.freeze({
+    // A verification read keeps the write's versioning headers: its API version and Rest.li protocol.
+    verificationHeaders: (plan: CompiledRequest) =>
+      Object.fromEntries(
+        Object.entries(plan.headers).filter(([k]) => ['LinkedIn-Version', 'X-Restli-Protocol-Version'].includes(k)),
+      ),
+    verification: linkedinVerification,
   }),
   reads: Object.freeze({
     plannedRead: (p: CompiledRequest) => !!linkedinPlanningRoute(p),

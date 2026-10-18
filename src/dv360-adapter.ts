@@ -1,4 +1,4 @@
-import type {ExpectState, ProviderHooks, StateTarget} from './provider-adapter.js';
+import type {ExpectState, ProviderHooks, ProviderVerificationRead, StateTarget} from './provider-adapter.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {
@@ -45,6 +45,20 @@ export const dv360Hooks: ProviderHooks = Object.freeze({
       target: (read: CompiledRequest, _result: TransportResult, data: JsonObject, context: StateTarget) =>
         context.sameIds([data[stateIds[read.path.split('/').at(-2)!]!]], [context.target()]),
     }),
+  }),
+  review: Object.freeze({
+    // A created campaign, insertion order, line item or creative is read back by its returned ID, an update in place.
+    verification(
+      plan: CompiledRequest,
+      result: JsonObject,
+      read: (path: string, query?: JsonObject) => CompiledRequest,
+    ): ProviderVerificationRead[] {
+      const b = (plan.body ?? {}) as JsonObject,
+        d = result.data ?? {};
+      const id = d.campaignId ?? d.insertionOrderId ?? d.lineItemId ?? d.creativeId;
+      if (!id) return [];
+      return [{read: read(plan.method === 'POST' ? plan.path + '/' + id : plan.path), expected: b, id: String(id)}];
+    },
   }),
   // The targeting option search (a POST) and the audience reads (GETs) of the selected advertiser.
   scope: Object.freeze({

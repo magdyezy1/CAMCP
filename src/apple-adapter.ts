@@ -5,9 +5,20 @@ import {MirrorError} from './errors.js';
 import {assertMeasurementWrite, validateMeasurementState} from './measurement-writes.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
+// SDK output-only processing/approval observations are not advertiser edits.
+const observational = new Set([
+  'systemStatus',
+  'systemStatusReasons',
+  'systemStatusLimitingReasons',
+  'displayStatus',
+  'eligibility',
+]);
+/** An Apple record's ad account IDs, in one order (a shared budget lists the accounts it spans). */
+const sortedAccounts = (ids: unknown[]) => [...ids].sort((a, b) => String(a).localeCompare(String(b), 'en'));
 /**
  * Apple Ads' provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the
- * documented /query selectors of the Apple Ads API (v1 on api.ads.apple.com) are POST reads.
+ * documented /query selectors of the Apple Ads API (v1 on api.ads.apple.com) are POST reads. A review keeps a
+ * record's result without Apple's own status observations.
  */
 export const appleHooks: ProviderHooks = Object.freeze({
   gateway: 'apple_ads_native_action',
@@ -24,6 +35,22 @@ export const appleHooks: ProviderHooks = Object.freeze({
       ownTarget: true as const,
       target: (read: CompiledRequest, result: TransportResult) => validateMeasurementState(read, result),
     }),
+  }),
+  review: Object.freeze({
+    snapshot(_read: CompiledRequest, d: JsonObject) {
+      if (!Object.hasOwn(d, 'result')) return d;
+      const result = Object.fromEntries(Object.entries(d.result ?? {}).filter(([key]) => !observational.has(key)));
+      if (Array.isArray(result.adAccountIds)) result.adAccountIds = sortedAccounts(result.adAccountIds);
+      return {result};
+    },
+    // A deleted record an optional state read finds reads as absent.
+    observed(plan: CompiledRequest, data: JsonObject) {
+      if (plan.action === 'AMCP_STATE_OPTIONAL' && data.result?.deleted === true)
+        return {amcp_absent: true, path: plan.path};
+      return Array.isArray(data.result?.adAccountIds)
+        ? {...data.result, adAccountIds: sortedAccounts(data.result.adAccountIds)}
+        : data.result;
+    },
   }),
   // The mandatory X-AP-Context header (below) confines every request to the selected account.
   scope: Object.freeze({resource: () => true}),

@@ -1,10 +1,24 @@
-import type {ExpectState, ProviderHooks, StateTarget, WireHeaders} from './provider-adapter.js';
+import type {
+  ExpectState,
+  ProviderHooks,
+  ProviderVerificationRead,
+  StateTarget,
+  WireHeaders,
+} from './provider-adapter.js';
 import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
-// The write-shape and state refusals keep the write stages' own helpers (src/write-common.ts).
-import {fail, object} from './write-common.js';
+// The write-shape and state refusals keep the write stages' own helpers (src/write-common.ts), and the verification
+// reads the workspace's (src/workspace-core.ts).
+import {fail, object, snake} from './write-common.js';
+import {bad, obj} from './workspace-core.js';
 import {stable} from './security.js';
+import {keywordPlanObserved} from './google-keyword-plan-writes.js';
+import {assetSetCanonical} from './google-asset-set-writes.js';
+import {googleSegmentResource, googleSegmentCanonical} from './google-custom-segments.js';
+import {googleUserListCanonical} from './google-user-lists.js';
+import {googleValueRuleCanonical} from './google-value-rules.js';
+import {googleConfigurationObserved} from './google-configuration-writes.js';
 import {
   assertGoogleGenerationScope,
   googleGenerationKind,
@@ -15,13 +29,6 @@ import {googleJson, validateGoogleRequest} from './google-contracts.js';
 import {googleAdsCustomers} from './google-version.js';
 import {boundedWait, errorObject, errorToken} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
-
-/**
- * Google Ads' provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the
- * documented read RPCs a POST may carry (src/execution-risk.ts keeps the generic rules). The account read is a GAQL
- * customer query. On the wire, bodies are ProtoJSON, the login customer header names the manager route, and quota
- * errors are documented throttles.
- */
 
 /** The first errorCode token of a Google Ads failure (GoogleAdsFailure details), else the RPC status. */
 function googleErrorCode(body: unknown): string | number | undefined {
@@ -211,6 +218,215 @@ function googleWriteShape(plan: CompiledRequest, body: JsonObject, expect: Expec
       fail('INVALID_MUTATION', 'Each Google operation must contain exactly one create, update or remove.');
 }
 
+/**
+ * The state a review keeps of a Google state query: its rows, each named resource once and exactly the requested ones
+ * (an optional association query: no others), sorted, each in its canonical configuration.
+ */
+function googleSnapshot(read: CompiledRequest, d: JsonObject): unknown {
+  const query = String((read.body as JsonObject)?.query ?? ''),
+    resource = /\bFROM\s+([a-z_]+)/i.exec(query)?.[1];
+  const rows = d.results ?? (read.googleState?.allowMissing ? [] : undefined);
+  if (!Array.isArray(rows)) return d;
+  // Even customer reads without resource_name must exclude query cost, field
+  // masks, summary metrics and future envelope metadata. Never ignore a nonempty
+  // nextPageToken here instead of rejecting the incomplete raw response first.
+  if (!resource || !query.includes(resource + '.resource_name')) return {results: rows};
+  const key = resource.replace(/_([a-z])/g, (_m, c) => c.toUpperCase()),
+    seen = new Set<string>();
+  const items = rows.map((row: JsonObject) => {
+    const value = row[resource] ?? row[key],
+      id = value?.resourceName ?? value?.resource_name;
+    if (typeof id !== 'string' || !id || seen.has(id))
+      throw new MirrorError(
+        'STATE_RESOURCE_INVALID',
+        'The state response contains missing or duplicate resource identities.',
+        {},
+        502,
+      );
+    seen.add(id);
+    return {id, row};
+  });
+  const expected = [...new Set([...query.matchAll(/'(customers\/[^']+)'/g)].map(m => m[1]!))];
+  if (
+    expected.length &&
+    (read.googleState?.allowMissing
+      ? items.some(item => !expected.includes(item.id))
+      : expected.length !== seen.size || expected.some(id => !seen.has(id)))
+  )
+    throw new MirrorError(
+      'STATE_RESOURCE_MISMATCH',
+      'The state response does not cover exactly the requested resources.',
+      {},
+      409,
+    );
+  items.sort((a, b) => a.id.localeCompare(b.id, 'en'));
+  const state = {
+    results: items.map(item =>
+      resource.startsWith('keyword_plan')
+        ? {...item.row, [key]: keywordPlanObserved(resource, item.row[key])}
+        : googleSegmentResource(resource)
+          ? {
+              ...item.row,
+              [item.row[resource] ? resource : key]: googleSegmentCanonical(
+                resource,
+                item.row[resource] ?? item.row[key],
+                true,
+              ),
+            }
+          : resource === 'user_list'
+            ? {
+                ...item.row,
+                [item.row[resource] ? resource : key]: googleUserListCanonical(item.row[resource] ?? item.row[key]),
+              }
+            : resource === 'conversion_value_rule'
+              ? {
+                  ...item.row,
+                  [item.row[resource] ? resource : key]: googleValueRuleCanonical(
+                    resource,
+                    item.row[resource] ?? item.row[key],
+                  ),
+                }
+              : item.row,
+    ),
+  };
+  return [
+    'asset',
+    'asset_set',
+    'asset_set_asset',
+    'campaign_asset_set',
+    'ad_group_asset_set',
+    'customer_asset_set',
+  ].includes(resource)
+    ? assetSetCanonical(state)
+    : state;
+}
+/**
+ * The reads that show Google mutations took effect: each operation's resource, read back with its state query; a
+ * removal reads as absent, and a bidding strategy proves its oneof through Google's selectable native enum.
+ */
+function googleVerification(
+  plan: CompiledRequest,
+  result: JsonObject,
+  _read: (path: string, query?: JsonObject) => CompiledRequest,
+  snapshots: (plan: CompiledRequest) => CompiledRequest[],
+): ProviderVerificationRead[] {
+  const b = (plan.body ?? {}) as JsonObject,
+    d = result.data ?? {};
+  const leaves = (value: JsonObject, prefix = ''): string[] =>
+    Object.entries(value).flatMap(([k, v]) => (obj(v) ? leaves(v, prefix + snake(k) + '.') : [prefix + snake(k)]));
+  return (d.results ?? []).map((r: JsonObject, i: number) => {
+    const op = b.operations[i],
+      record = op.create ?? op.update,
+      expected = op.remove
+        ? {status: 'REMOVED'}
+        : Object.fromEntries(Object.entries(record).filter(([k]) => !['resource_name', 'resourceName'].includes(k)));
+    // An empty bidding message has no scalar leaves. Prove its oneof through Google's selectable native enum,
+    // rather than letting an empty object compare successfully with any or no strategy (F-185).
+    if (/\/campaigns:mutate$/.test(plan.path) && !op.remove) {
+      const schemes: Record<string, string> = {
+        manual_cpc: 'MANUAL_CPC',
+        target_spend: 'TARGET_SPEND',
+        maximize_conversions: 'MAXIMIZE_CONVERSIONS',
+        maximize_conversion_value: 'MAXIMIZE_CONVERSION_VALUE',
+      };
+      const chosen = Object.keys(expected).find(key => Object.hasOwn(schemes, snake(key)));
+      if (chosen) {
+        expected.bidding_strategy_type = schemes[snake(chosen)];
+        // MaximizeConversions.target_cpa_micros is an implicit-presence proto3 int64. Selecting it establishes
+        // zero when ProtoJSON omits the default; a positive unexpected target must not verify an untargeted plan.
+        if (
+          snake(chosen) === 'maximize_conversions' &&
+          obj(expected[chosen]) &&
+          !Object.keys(expected[chosen]).some(key => snake(key) === 'target_cpa_micros')
+        )
+          expected[chosen] = {...expected[chosen], target_cpa_micros: '0'};
+        // MaximizeConversionValue.target_roas is likewise an implicit-presence proto3 double in v25.
+        if (
+          snake(chosen) === 'maximize_conversion_value' &&
+          obj(expected[chosen]) &&
+          !Object.keys(expected[chosen]).some(key => snake(key) === 'target_roas')
+        )
+          expected[chosen] = {...expected[chosen], target_roas: 0};
+      }
+    }
+    const fake = {
+      ...plan,
+      body: {
+        operations: [
+          op.remove
+            ? {remove: op.remove}
+            : {update: {resource_name: r.resourceName, ...expected}, update_mask: leaves(expected).join(',')},
+        ],
+      },
+    };
+    const p = snapshots(fake)[0]!;
+    if (Object.keys(expected).some(key => snake(key) === 'maximize_conversion_value'))
+      // Added after GAQL compilation: this local typed proof marker is never a native request field.
+      expected.amcp_conversion_value_target_shape_valid = true;
+    if (op.remove) {
+      const resource = String((p.body as JsonObject).query).match(/ FROM ([a-z_]+)/)?.[1];
+      if (!resource) bad('Removal has no exact state read.', 'VERIFICATION_UNSUPPORTED');
+      p.googleState = {resource, names: [r.resourceName], allowMissing: true, removedAsAbsent: true};
+    }
+    return {read: p, expected, id: r.resourceName};
+  });
+}
+/**
+ * What a Google verification read shows: a removed resource reads as REMOVED once its read finds nothing (only Google's
+ * state reads carry googleState); otherwise the first row's resource as observed, with the implicit zero targets of
+ * Maximize Conversions and Maximize Conversion Value made explicit and the value target's shape checked.
+ */
+function googleObserved(plan: CompiledRequest, data: JsonObject): JsonObject {
+  if (plan.googleState?.removedAsAbsent && !data.results?.length) return {status: 'REMOVED'};
+  let observed = googleConfigurationObserved(plan, Object.values(data.results?.[0] ?? {})[0] as JsonObject);
+  const query = (plan.body as JsonObject)?.query ?? '';
+  if (
+    obj(observed) &&
+    observed.biddingStrategyType === 'MAXIMIZE_CONVERSIONS' &&
+    /\bcampaign\.maximize_conversions\.target_cpa_micros\b/.test(query) &&
+    / FROM campaign(?: |$)/.test(query) &&
+    (observed.maximizeConversions === undefined || obj(observed.maximizeConversions)) &&
+    !Object.hasOwn(observed.maximizeConversions ?? {}, 'targetCpaMicros')
+  )
+    observed = {...observed, maximizeConversions: {...observed.maximizeConversions, targetCpaMicros: '0'}};
+  if (
+    obj(observed) &&
+    observed.biddingStrategyType === 'MAXIMIZE_CONVERSION_VALUE' &&
+    /\bcampaign\.maximize_conversion_value\.target_roas\b/.test(query) &&
+    / FROM campaign(?: |$)/.test(query)
+  ) {
+    const value = observed.maximizeConversionValue,
+      shape = value === undefined || obj(value),
+      absent = shape && !Object.hasOwn(value ?? {}, 'targetRoas');
+    if (absent) observed = {...observed, maximizeConversionValue: {...value, targetRoas: 0}};
+    observed = {
+      ...observed,
+      amcpConversionValueTargetShapeValid:
+        shape && (absent || (typeof value.targetRoas === 'number' && Number.isFinite(value.targetRoas))),
+    };
+  }
+  return observed;
+}
+/** Retire older value-bidding cache proofs: a campaign mutation that sets Maximize Conversion Value. */
+function googleVerificationVersion(plan: CompiledRequest): string | undefined {
+  const body = plan.body as JsonObject | undefined;
+  return plan.method === 'POST' &&
+    /\/campaigns:mutate$/.test(plan.path) &&
+    Array.isArray(body?.operations) &&
+    body.operations.some((op: JsonObject) =>
+      Object.keys(op.create ?? op.update ?? {}).some(key => snake(key) === 'maximize_conversion_value'),
+    )
+    ? 'google-campaign-value-roas-v1'
+    : undefined;
+}
+
+/**
+ * Google Ads' provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the
+ * documented read RPCs a POST may carry (src/execution-risk.ts keeps the generic rules). The account read is a GAQL
+ * customer query. On the wire, bodies are ProtoJSON, the login customer header names the manager route, and quota
+ * errors are documented throttles. A review keeps a state query's rows, each resource in its canonical configuration,
+ * and verifies each operation by its resource's state query.
+ */
 export const googleAdsHooks: ProviderHooks = Object.freeze({
   gateway: 'google_ads_native_action',
   checks: Object.freeze({
@@ -222,6 +438,12 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
         emptyOptionalState(read, result, data) ? {...result, data: {...data, results: []}} : result,
       target: googleStateTarget,
     }),
+  }),
+  review: Object.freeze({
+    snapshot: googleSnapshot,
+    verification: googleVerification,
+    observed: googleObserved,
+    verificationVersion: googleVerificationVersion,
   }),
   scope: Object.freeze({
     // Generation drafts need the Ads scope on the selected connection.

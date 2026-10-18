@@ -1,4 +1,4 @@
-import type {ExpectState, ProviderHooks, StateTarget} from './provider-adapter.js';
+import type {ExpectState, ProviderHooks, ProviderVerificationRead, StateTarget} from './provider-adapter.js';
 import type {CompiledRequest, Credentials, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {assertXTargeting} from './x-targeting-writes.js';
@@ -38,6 +38,25 @@ export const xHooks: ProviderHooks = Object.freeze({
       target: (_read: CompiledRequest, _result: TransportResult, data: JsonObject, context: StateTarget) =>
         context.sameIds([data.data?.id], [context.target()]),
     }),
+  }),
+  // A response's records are under data, the rest is its envelope; a write is verified by each record it returned.
+  review: Object.freeze({
+    snapshot: (_read: CompiledRequest, d: JsonObject) => (Object.hasOwn(d, 'data') ? {data: d.data} : d),
+    verification(
+      plan: CompiledRequest,
+      result: JsonObject,
+      read: (path: string, query?: JsonObject) => CompiledRequest,
+    ): ProviderVerificationRead[] {
+      const b = (plan.body ?? {}) as JsonObject,
+        d = result.data ?? {};
+      const records = Array.isArray(d.data) ? d.data : [d.data];
+      return records.filter(Boolean).map((r: JsonObject) => ({
+        read: read(plan.method === 'POST' ? plan.path + '/' + r.id : plan.path),
+        expected: b,
+        id: String(r.id),
+      }));
+    },
+    observed: (_plan: CompiledRequest, data: JsonObject) => data.data,
   }),
   // The audience estimate: an account-scoped POST read of the current connection's account.
   scope: Object.freeze({

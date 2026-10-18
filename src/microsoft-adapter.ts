@@ -91,6 +91,14 @@ export const microsoftHooks: ProviderHooks = Object.freeze({
       target: () => undefined,
     }),
   }),
+  // A contract's result field is its state and what its verification read shows; the rest is its envelope.
+  review: Object.freeze({
+    snapshot(read: CompiledRequest, d: JsonObject) {
+      const field = microsoftContracts.get(read.action)?.result;
+      return field && Object.hasOwn(d, field) ? {[field]: d[field]} : d;
+    },
+    observed: (plan: CompiledRequest, data: JsonObject) => data[microsoftContracts.get(plan.action)!.result]?.[0],
+  }),
   scope: Object.freeze({resource: microsoftResourceScope, observe: observeMicrosoft}),
   reads: Object.freeze({readOnly: microsoftRead}),
   accountRead: Object.freeze({

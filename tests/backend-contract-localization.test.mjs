@@ -158,8 +158,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // Google Ads and Microsoft adapters, and X's OAuth 1.0a refusal to src/oauth1.ts: four more files with reasons, the
   // same reasons. Its read authorizers move each provider's part of ScopeGuard to its adapter, the Microsoft refusals
   // among them (files that already own reasons), and Snapchat's scoped paths to src/snapchat-scope.ts (no reasons).
+  // Its review projections move Google's state-identity refusals from src/review-state.ts, which owns no other reason,
+  // to src/google-ads-adapter.ts, which already owns reasons: one file with reasons fewer, the same reasons.
   assert.equal(files.length, 643);
-  assert.equal(selected.filter(row => row.messages.size).length, 245);
+  assert.equal(selected.filter(row => row.messages.size).length, 244);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11485);
   assert.deepEqual(localeProblems(catalog, owned), []);

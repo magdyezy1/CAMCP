@@ -2,6 +2,7 @@ import type {ProviderHooks} from './provider-adapter.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {assertMeasurementWrite, validateMeasurementState} from './measurement-writes.js';
+import {gtmSafeConfiguration} from './gtm-workflow-writes.js';
 
 /**
  * Google Tag Manager's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: a
@@ -24,6 +25,9 @@ export const gtmHooks: ProviderHooks = Object.freeze({
       target: (read: CompiledRequest, result: TransportResult) => validateMeasurementState(read, result),
     }),
   }),
+  // A review keeps a Tag Manager resource's configuration, its authorization code as a digest and its container
+  // access and trigger lists in one order (src/gtm-workflow-writes.ts).
+  review: Object.freeze({snapshot: (_read: CompiledRequest, d: JsonObject) => gtmSafeConfiguration(d)}),
   reads: Object.freeze({
     postRead: (_plan: CompiledRequest, pathname: string) => /\/folders\/[^/:]+:entities$/.test(pathname),
   }),

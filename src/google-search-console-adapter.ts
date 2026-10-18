@@ -19,6 +19,8 @@ function sitemapEnvelope(read: CompiledRequest, result: TransportResult, data: J
     fail('STATE_READ_FAILED', 'Search Console sitemap content-error counts must be nonnegative integers.');
   return sitemapCount ? {...result, data: {...data, errors: 0}} : result;
 }
+/** A sitemap's crawl and processing fields, which a review does not keep. */
+const sitemapProcessing = new Set(['lastDownloaded', 'isPending', 'warnings', 'errors', 'contents']);
 
 /**
  * Search Console's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: a site
@@ -41,6 +43,14 @@ export const searchConsoleHooks: ProviderHooks = Object.freeze({
       ownTarget: true as const,
       target: (read: CompiledRequest, result: TransportResult) => validateMeasurementState(read, result),
     }),
+  }),
+  review: Object.freeze({
+    // Crawl/processing observations are not a sitemap submission change. Keep
+    // lastSubmitted, type, path, index identity and unknown configuration fields.
+    snapshot: (read: CompiledRequest, d: JsonObject) =>
+      read.path.includes('/sitemaps/') && d.amcp_absent !== true
+        ? Object.fromEntries(Object.entries(d).filter(([key]) => !sitemapProcessing.has(key)))
+        : d,
   }),
   scope: Object.freeze({
     resource(plan: CompiledRequest, _c: Connection, _id: string, {compare}: ScopeContext) {
