@@ -199,8 +199,13 @@ test('workspace search stays within a client access set and the working client (
     for (const [name, account] of [
       ['Acme spring launch', '123'],
       ['Globex spring launch', '456'],
-    ] as const)
+    ] as const) {
       assert.equal((await plan(f.service, admin, name, account)).success, true);
+      // Plans list newest first, then by their random ID, so the next plan starts in a later millisecond: the order
+      // asserted below must not depend on two plans sharing a timestamp (the container-parity run, ACC-04, met that tie).
+      const created = Date.now();
+      while (Date.now() === created);
+    }
     const set = saveAccessSet(f.store, admin, {name: 'Client A', bindings: bindings('123')});
     setMemberAccessSet(f.store, 'acme', 'alice', String(set.id));
     const alice: Actor = {tenantId: 'acme', userId: 'alice', role: 'operator', accessSetId: String(set.id)};

@@ -180,6 +180,17 @@ test('qualify records the matrix with the failing files and mutant outcomes of i
     root,
     record: false,
     probe: async () => ({status: 'available', version: 'ffmpeg version synthetic'}),
+    // The matrix needs no Git checkout. The real source facts ask Git for the worktree state, which Railway's build
+    // cannot answer: the container-parity run (ACC-04) failed this test with "not a git repository".
+    source: () => ({
+      origin: 'checkout',
+      manifest_version: 2,
+      source_tree_hash: 'synthetic',
+      revision: null,
+      branch: null,
+      worktree_clean: null,
+      differs_from_revision: null,
+    }),
     stages: [
       {
         name: 'test_suite',

@@ -456,10 +456,13 @@ export async function qualify({
   timeoutMs = 60 * 60 * 1000,
   log = () => {},
   probe,
+  // Where the tree's source facts come from; a test of the stage matrix that needs no Git checkout injects its own,
+  // since Railway's build has no .git (ACC-04).
+  source: readSource = sourceFacts,
 } = {}) {
   root = fs.realpathSync(root);
   recordsDir = path.resolve(root, recordsDir ?? '.runtime/qualifications');
-  const source = sourceFacts(root),
+  const source = readSource(root),
     started_at = new Date().toISOString(),
     plan = stages ?? profileStages(profile, {now}),
     // Reuse never skips the cheap freshness gates: they run first, and the rebuilt digests decide.
