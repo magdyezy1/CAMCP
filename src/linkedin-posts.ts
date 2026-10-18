@@ -144,6 +144,23 @@ function mediaBound(store: Store, c: Connection, id: string, urn: string) {
         a.ready === true,
     );
 }
+const specialMedia = /^\/rest\/(?:images|videos)\/(urn:li:(?:image|video):[A-Za-z0-9_-]+)$/,
+  specialPost = /^\/rest\/posts\/(urn:li:(?:ugcPost|share):\d+)$/;
+/**
+ * The requests authorizeLinkedInSpecial decides (its read authorizer's claim): a DSC creation, and GET reads of one
+ * image, video or post.
+ */
+export function linkedinSpecialRequest(plan: CompiledRequest): boolean {
+  if (plan.gateway !== 'linkedin_native_action') return false;
+  if (linkedinDSC(plan)) return true;
+  let path: string;
+  try {
+    path = decodeURIComponent(plan.path);
+  } catch {
+    return false;
+  }
+  return plan.method === 'GET' && plan.readOnly && (specialMedia.test(path) || specialPost.test(path));
+}
 /** Internal verification context grants one read of the returned ID, never ownership.
  * Native request inputs cannot supply scopeContext. Ownership follows an exact read. */
 export function authorizeLinkedInSpecial(plan: CompiledRequest, c: Connection, store: Store, id: string): boolean {
@@ -158,7 +175,7 @@ export function authorizeLinkedInSpecial(plan: CompiledRequest, c: Connection, s
     return true;
   }
   const path = decodeURIComponent(plan.path),
-    media = /^\/rest\/(?:images|videos)\/(urn:li:(?:image|video):[A-Za-z0-9_-]+)$/.exec(path);
+    media = specialMedia.exec(path);
   if (media && plan.method === 'GET' && plan.readOnly) {
     if (mediaBound(store, c, id, media[1]!)) return true;
     fail(
@@ -166,7 +183,7 @@ export function authorizeLinkedInSpecial(plan: CompiledRequest, c: Connection, s
       'This media has no verified receipt or exact administrator binding in the selected connection/account.',
     );
   }
-  const post = /^\/rest\/posts\/(urn:li:(?:ugcPost|share):\d+)$/.exec(path);
+  const post = specialPost.exec(path);
   if (post && plan.method === 'GET' && plan.readOnly) {
     const retained = document(store, c.tenantId, 'linkedin_post', c.id + '/' + post[1]);
     if (retained?.account_id === id) {

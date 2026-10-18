@@ -1,39 +1,18 @@
 /** Validation stage: the request shapes each reviewed write family accepts, checked before any read. */
-import {pausedParentChildStatuses} from './paused-parents.js';
-import {assertSnapLeadForms, assertSnapLeadCreativeRefs} from './snapchat-lead-forms.js';
-import {snapAdCreativePaths} from './snapchat-ad-creatives.js';
-import {assertSnapSegments, assertSnapSegmentUpdates} from './snapchat-segments.js';
-import {tiktokAdgroupConversion} from './tiktok-adgroup-conversions.js';
-import {tiktokCtaReferences} from './tiktok-cta-portfolios.js';
 import {reviewedWriteFamily} from './reviewed-routes.js';
 import {assertProviderActionAvailable} from './retired-provider-actions.js';
-import {validateMetaCampaign, validateMetaV26} from './meta-contracts.js';
-import {validateGoogleRequest} from './google-contracts.js';
 import {assertWireContract} from './wire-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
-import {validateMetaCreative} from './creative-validation.js';
-import {assertXTargeting} from './x-targeting-writes.js';
 import {assertRedditWrite} from './reddit-writes.js';
-import {microsoftGateway, assertMicrosoftWrite} from './microsoft-native.js';
-import {measurementWriteGateways, assertMeasurementWrite} from './measurement-writes.js';
 import {familyOf} from './reviewed-families.js';
 import {withheldWriteProgramId, withheldWriteReason} from './withheld-writes.js';
 import {assertNoMethodOverride, object, fail} from './write-common.js';
+import {validateMetaCreative} from './creative-validation.js';
+import {providerOf, reviewedWriteGateways} from './provider-adapters.js';
+import {providerHooks} from './provider-hooks.js';
 
-export const writeContractGateways = new Set([
-  'meta_native_action',
-  'tiktok_native_action',
-  'snapchat_native_action',
-  'google_ads_native_action',
-  'google_business_native_action',
-  'linkedin_native_action',
-  'x_ads_native_action',
-  'dv360_native_action',
-  'reddit_native_action',
-  'criteo_native_action',
-  microsoftGateway,
-  ...measurementWriteGateways,
-]);
+/** The gateways with reviewed mutation contracts, from the provider adapter registry (ARC-01 phase B). */
+export const writeContractGateways: ReadonlySet<string> = new Set(reviewedWriteGateways);
 /** The Meta execution_options values that validate instead of applying (a list, its JSON text, or comma-separated). */
 export function metaValidationOptions(body: JsonObject): string[] {
   const raw: unknown = body.execution_options;
@@ -55,16 +34,17 @@ export function assertWriteShape(plan: CompiledRequest) {
   assertWireContract(plan);
 }
 function assertReviewedShape(plan: CompiledRequest) {
+  // The provider's part of this stage (ARC-01 phase B, its adapter's write checks), asked where it named the provider.
+  const checks = providerHooks(plan.gateway)?.checks;
   assertProviderActionAvailable(plan);
-  validateGoogleRequest(plan);
-  validateMetaCampaign(plan);
-  validateMetaV26(plan);
+  // The provider's own request contracts: Google's Discovery schema, Meta's campaign and v26 rules.
+  checks?.request?.(plan);
   if (!writeContractGateways.has(plan.gateway))
     fail('WRITE_CONTRACT_UNAVAILABLE', 'This platform has no reviewed mutation contract.');
   if (plan.readOnly) fail('MUTATION_REQUIRED', 'Use the original native gateway to perform this read.');
   // Meta's validate_only and include_recommendations ask it to check a request without applying it. A reviewed write
   // applies its request, so such a review would be receipted as an applied change (WRT-06); validation is its own path.
-  const validation = plan.gateway === 'meta_native_action' ? metaValidationOptions(object(plan.body)) : [];
+  const validation = providerOf(plan.gateway)?.executionOptions ? metaValidationOptions(object(plan.body)) : [];
   if (validation.length)
     fail(
       'WRITE_CONTRACT_UNAVAILABLE',
@@ -73,12 +53,16 @@ function assertReviewedShape(plan: CompiledRequest) {
         ' from execution_options: a reviewed write applies its request. To have Meta check a campaign or ad set without applying it, use amcp_campaign validate_provider.',
       {field: 'execution_options', refused: validation},
     );
+  // A provider whose own write contract decides alone (Microsoft's contracts). Reddit's does too, but its module
+  // reads pages through src/pagination.ts, which consults the provider hooks, so Reddit's adapter cannot import it
+  // without an import cycle: it stays here until that family takes its page step as a hook argument (section 9 of
+  // docs/review/ARCHITECTURE.md).
   if (plan.gateway === 'reddit_native_action') {
     assertRedditWrite(plan);
     return;
   }
-  if (plan.gateway === microsoftGateway) {
-    assertMicrosoftWrite(plan);
+  if (checks?.contract) {
+    checks.contract(plan);
     return;
   }
   if (plan.specialTransport)
@@ -93,7 +77,8 @@ function assertReviewedShape(plan: CompiledRequest) {
     return;
   }
   assertNoMethodOverride(plan);
-  if (measurementWriteGateways.has(plan.gateway)) assertMeasurementWrite(plan);
+  // The provider's generic write contract before the reviewed routes (the measurement providers' resource writes).
+  checks?.routeWrite?.(plan);
   const supported = reviewedWriteFamily(plan);
   if (!supported) {
     const reason = withheldWriteReason(plan.gateway, plan.action),
@@ -110,22 +95,45 @@ function assertReviewedShape(plan: CompiledRequest) {
 
 /**
  * The generic write checks of a gateway: query parameters, method tunnelling, paused creation of serving entities and
- * the structure of native Google operations. A family that relies on them calls them through its `assert` hook.
+ * the structure of native operations. A family that relies on them calls them through its `assert` hook. Each
+ * provider's own checks are its adapter's (`checks.shape`), asked where this stage named the provider: before the
+ * generic checks, after the query parameters, and after the method checks with `expect`, the paused-creation rule.
  */
 function assertGatewayShape(plan: CompiledRequest): void {
-  const body = object(plan.body);
-  snapAdCreativePaths(plan);
+  const body = object(plan.body),
+    shape = providerHooks(plan.gateway)?.checks?.shape;
+  shape?.before?.(plan, body);
+  // Meta's own first checks stay here: they name budget_schedule_specs, a field v26.0 removed, only to refuse it, and
+  // tests/meta-version.test.mjs reads every string literal of a Meta module as a name AMCP may send.
+  if (plan.gateway === 'meta_native_action') metaShapeBefore(plan, body);
+  // A reviewed write carries body fields only, but for its provider's qualified concurrency parameter.
+  const concurrency = shape?.queryParameter;
+  if (Object.keys(plan.query).some(k => k !== concurrency))
+    fail('WRITE_CONTRACT_UNAVAILABLE', 'Reviewed writes accept body fields and qualified concurrency parameters only.');
+  shape?.afterQuery?.(plan, body);
+  if (
+    ['method', '_method', 'http_method', 'method_override', 'batch', 'adbatch'].some(
+      k => plan.query[k] !== undefined || body[k] !== undefined,
+    ) ||
+    /\/batch\//.test(plan.path)
+  )
+    fail('WRITE_CONTRACT_UNAVAILABLE', 'Batch and method-tunneled writes require individual reviewed native requests.');
+  if (plan.method === 'GET' || plan.method === 'HEAD')
+    fail('WRITE_CONTRACT_UNAVAILABLE', 'Side-effecting GET/HEAD actions are not qualified for execution.');
+  shape?.after?.(plan, body, expectState);
+}
+/** Meta's write shape before the generic checks: a creative's own contract, and no budget schedules or inline creatives. */
+function metaShapeBefore(plan: CompiledRequest, body: JsonObject) {
   const route = plan.path,
     method = plan.method;
-  if (plan.gateway === 'meta_native_action' && route.endsWith('/adcreatives')) validateMetaCreative(body, route);
-  if (plan.gateway === 'meta_native_action' && body.budget_schedule_specs !== undefined)
+  if (route.endsWith('/adcreatives')) validateMetaCreative(body, route);
+  if (body.budget_schedule_specs !== undefined)
     fail(
       'WRITE_CONTRACT_UNAVAILABLE',
       "Schedule budget increases with meta_campaign_id_budget_schedules_create or meta_ad_set_id_budget_schedules_create (/{id}/budget_schedules), whose review checks the spending policy, the caps and Meta's limits.",
       {field: 'budget_schedule_specs'},
     );
   if (
-    plan.gateway === 'meta_native_action' &&
     method === 'POST' &&
     (/^\/v[^/]+\/act_[^/]+\/ads$/.test(route) || ['meta_ad_id_update', 'meta_ad_update'].includes(plan.action)) &&
     body.creative !== undefined
@@ -152,152 +160,13 @@ function assertGatewayShape(plan: CompiledRequest): void {
         {field: 'creative'},
       );
   }
-  if (
-    Object.keys(plan.query).some(
-      k =>
-        !(
-          (plan.gateway === 'dv360_native_action' && k === 'updateMask') ||
-          (plan.gateway === 'gtm_native_action' && k === 'fingerprint')
-        ),
-    )
-  )
-    fail('WRITE_CONTRACT_UNAVAILABLE', 'Reviewed writes accept body fields and qualified concurrency parameters only.');
-  if (
-    plan.gateway === 'linkedin_native_action' &&
-    method === 'POST' &&
-    /^\/rest\/adAccounts\/[^/]+\/[^/]+\/[^/]+$/.test(route) &&
-    (!body.patch || plan.headers['X-RestLi-Method']?.toUpperCase() !== 'PARTIAL_UPDATE')
-  )
-    fail(
-      'WRITE_CONTRACT_UNAVAILABLE',
-      'LinkedIn entity POST requires a native patch and restli_method PARTIAL_UPDATE.',
-    );
-  if (
-    ['method', '_method', 'http_method', 'method_override', 'batch', 'adbatch'].some(
-      k => plan.query[k] !== undefined || body[k] !== undefined,
-    ) ||
-    /\/batch\//.test(plan.path)
-  )
-    fail('WRITE_CONTRACT_UNAVAILABLE', 'Batch and method-tunneled writes require individual reviewed native requests.');
-  if (plan.method === 'GET' || plan.method === 'HEAD')
-    fail('WRITE_CONTRACT_UNAVAILABLE', 'Side-effecting GET/HEAD actions are not qualified for execution.');
-  const expect = (record: JsonObject, key: string, values: string[]) => {
-    if (!values.includes(record[key]))
-      fail('PAUSED_CREATION_REQUIRED', 'New serving entities require an explicit paused or draft state.', {
-        field: key,
-        allowed: values,
-      });
-  };
-  // Campaigns start paused. Ad sets, ad groups and ads may start active under a parent the review reads as paused
-  // (paused-parents.ts, the owner's decision of 2026-09-29).
-  if (
-    plan.gateway === 'meta_native_action' &&
-    /^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads)$/.test(plan.path) &&
-    plan.method === 'POST'
-  )
-    expect(body, 'status', pausedParentChildStatuses(plan) ?? ['PAUSED']);
-  if (plan.gateway === 'tiktok_native_action' && /^\/v1\.3\/(?:campaign|adgroup)\/create\/$/.test(plan.path))
-    expect(body, 'operation_status', pausedParentChildStatuses(plan) ?? ['DISABLE']);
-  if (plan.gateway === 'tiktok_native_action') tiktokAdgroupConversion(plan);
-  if (plan.gateway === 'tiktok_native_action') tiktokCtaReferences(plan);
-  if (plan.gateway === 'tiktok_native_action' && plan.path === '/v1.3/ad/create/') {
-    if (
-      !Array.isArray(body.creatives) ||
-      body.creatives.length !== 1 ||
-      !body.creatives[0] ||
-      Array.isArray(body.creatives[0]) ||
-      typeof body.creatives[0] !== 'object'
-    )
-      fail(
-        'WRITE_CONTRACT_UNAVAILABLE',
-        'Reviewed TikTok ad creation requires exactly one native creatives record per review. Put the ad fields and operation_status inside that record.',
-      );
-    if (Object.hasOwn(body, 'operation_status'))
-      fail(
-        'INVALID_ARGUMENT',
-        'TikTok ad creation uses creatives[0].operation_status; a top-level status does not pause the creative.',
-      );
-    expect(body.creatives[0], 'operation_status', pausedParentChildStatuses(plan) ?? ['DISABLE']);
-  }
-  if (plan.gateway === 'snapchat_native_action' && plan.method === 'POST') {
-    const kind = plan.path.split('/').at(-1)!;
-    if (!Array.isArray(body[kind]) || !body[kind].length || body[kind].length > 25)
-      fail('MISSING_PAYLOAD', 'Provide 1–25 native ' + kind + ' records.');
-    if (kind === 'lead_generation_forms') assertSnapLeadForms(plan, body[kind]);
-    else if (kind === 'segments') assertSnapSegments(plan, body[kind]);
-    else if (kind === 'creatives') assertSnapLeadCreativeRefs(body[kind]);
-    else for (const row of body[kind]) expect(object(row), 'status', pausedParentChildStatuses(plan) ?? ['PAUSED']);
-  }
-  if (
-    plan.gateway === 'snapchat_native_action' &&
-    plan.method === 'PUT' &&
-    /^\/v1\/adaccounts\/[^/]+\/segments$/.test(plan.path)
-  ) {
-    if (!Array.isArray(body.segments) || !body.segments.length || body.segments.length > 25)
-      fail('MISSING_PAYLOAD', 'Provide 1–25 native segments records.');
-    assertSnapSegmentUpdates(plan, body.segments);
-  }
-  if (plan.gateway === 'snapchat_native_action' && plan.method === 'PATCH') {
-    if (
-      !Array.isArray(plan.body) ||
-      !plan.body.length ||
-      plan.body.length > 25 ||
-      plan.body.some(
-        op =>
-          !op ||
-          !['add', 'remove', 'replace', 'test'].includes(op.op) ||
-          typeof op.path !== 'string' ||
-          !/^\/[a-zA-Z0-9_/-]+$/.test(op.path) ||
-          op.path.split('/').some((part: string) => ['__proto__', 'constructor', 'prototype'].includes(part)) ||
-          (op.op !== 'remove' && !Object.hasOwn(op, 'value')),
-      )
-    )
-      fail('INVALID_PATCH', 'Use 1–25 native JSON Patch add, remove, replace or test operations.');
-  }
-  if (
-    plan.gateway === 'x_ads_native_action' &&
-    /^\/12\/accounts\/[^/]+\/(campaigns|line_items)$/.test(plan.path) &&
-    plan.method === 'POST'
-  )
-    expect(body, 'entity_status', ['PAUSED']);
-  assertXTargeting(plan);
-  if (
-    plan.gateway === 'linkedin_native_action' &&
-    /^\/rest\/adAccounts\/[^/]+\/(adCampaigns|adCampaignGroups|creatives)$/.test(plan.path) &&
-    plan.method === 'POST'
-  ) {
-    const creative = plan.path.endsWith('/creatives');
-    if (creative && Object.hasOwn(body, 'status'))
-      fail('INVALID_ARGUMENT', 'LinkedIn creatives use intendedStatus; remove the unsupported status field.');
-    expect(body, creative ? 'intendedStatus' : 'status', ['PAUSED', 'DRAFT']);
-  }
-  if (
-    plan.gateway === 'dv360_native_action' &&
-    /^\/v\d+\/advertisers\/[^/]+\/(campaigns|insertionOrders|lineItems)$/.test(plan.path) &&
-    plan.method === 'POST'
-  )
-    expect(body, 'entityStatus', ['ENTITY_STATUS_PAUSED', 'ENTITY_STATUS_DRAFT']);
-  if (plan.gateway === 'google_ads_native_action') {
-    if (!Array.isArray(body.operations) || !body.operations.length || body.operations.length > 25)
-      fail('WRITE_CONTRACT_UNAVAILABLE', 'Reviewed Google mutations require 1–25 homogeneous native operations.');
-    // A new campaign starts PAUSED. Its ad groups, ads and asset groups may start ENABLED only under a parent the
-    // review reads as PAUSED (google-paused-parents.ts, the owner's item 6).
-    if (/\/campaigns:mutate$/.test(plan.path))
-      for (const op of body.operations) if (op.create) expect(op.create, 'status', ['PAUSED']);
-    if (/\/(adGroups|adGroupAds|assetGroups):mutate$/.test(plan.path))
-      for (const op of body.operations) if (op.create) expect(op.create, 'status', ['PAUSED', 'ENABLED']);
-    if (body.partial_failure === true || body.partialFailure === true)
-      fail(
-        'WRITE_CONTRACT_UNAVAILABLE',
-        'Execute homogeneous Google mutations atomically; partial_failure must be false.',
-      );
-    if (body.validate_only === true || body.validateOnly === true)
-      fail(
-        'WRITE_CONTRACT_UNAVAILABLE',
-        'This tool executes mutations; use a local dry run for validation-only plans.',
-      );
-    for (const op of body.operations)
-      if (!op || typeof op !== 'object' || ['create', 'update', 'remove'].filter(k => op[k] !== undefined).length !== 1)
-        fail('INVALID_MUTATION', 'Each Google operation must contain exactly one create, update or remove.');
-  }
+}
+
+/** Refuses a new serving entity whose `key` is not one of `values` (an explicit paused or draft state). */
+function expectState(record: JsonObject, key: string, values: string[]) {
+  if (!values.includes(record[key]))
+    fail('PAUSED_CREATION_REQUIRED', 'New serving entities require an explicit paused or draft state.', {
+      field: key,
+      allowed: values,
+    });
 }

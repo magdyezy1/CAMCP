@@ -135,7 +135,8 @@ Owner policies: `activates(plan, before)` must return true when the request star
 something the catalog method does not show (`allow_deletion=false`), and receives the reviewed state at prepare and
 execute for a deletion that depends on it (a Meta feed whose deletion rule is already on); `policyAmounts` returns the
 native amounts when the generic budget scan cannot find them, so budget limits apply. A provider value that deletes
-in a body (`status: DELETED`, `operation_status: DELETE`) belongs in `bodyDeletionValues` (`src/execution-risk.ts`);
+in a body (`status: DELETED`, `operation_status: DELETE`) belongs in its provider adapter's `deletions`
+(`src/provider-adapters.ts`, read as `bodyDeletionValues` by `src/execution-risk.ts`);
 `tests/deletion-policy-coverage.test.mjs` fails until a value of a pinned document is classified there or exempted.
 
 ## Steps
@@ -228,9 +229,14 @@ serves every request of a gateway rather than one family:
 - the entity writes of seven platforms (`google_entities`, `meta_entities`, `snapchat_entities`, `tiktok_entities`,
   `x_entities`, `linkedin_entities`, `dv360_entities`: `src/reviewed-routes.ts`), which use each gateway's generic
   reads, checks and projections;
-- gateway checks shared by several families: Reddit and Microsoft request validation, the measurement gateways'
-  checks, TikTok's path-keyed projections and state checks, Google's configuration fallback, the Business Profile
-  URL redaction (`placeActionSafe`) and paused-parent checks;
+- gateway checks and projections shared by several families. The write-shape and state checks of each provider are
+  its adapter's (`checks` in `src/<provider>-adapter.ts`, ARC-01 phase B: Microsoft's request validation, the
+  measurement gateways' checks, TikTok's state checks, the paused-creation rules), which `src/write-shape.ts` and
+  `src/write-state.ts` consult where they named the provider; Reddit's request validation and state check stay in
+  those stages. So are the review's projections of its reads (`review`: TikTok's path-keyed projections, Google's
+  configuration fallback and the gateway verification reads), which `src/review-state.ts` and
+  `src/verification-reads.ts` consult after the families' own. The Business Profile URL redaction (`placeActionSafe`)
+  and paused-parent checks stay in the lifecycle modules;
 - Apple shared budgets, which change a budget several ad accounts share: the lifecycle checks each account's write
   grant itself (`appleSharedBudget`);
 - compile-time path rewriting (`linkedinTrackingPlan`, `linkedinDomainPlan`) in `src/compiler.ts`.

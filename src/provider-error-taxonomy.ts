@@ -1,4 +1,10 @@
 import {providerHttpErrorCode} from './errors.js';
+import {providerHooks} from './provider-hooks.js';
+import {errorInteger, errorObject, errorToken, providerReference} from './provider-error-core.js';
+
+// The values the classification reads live in the leaf src/provider-error-core.ts, which the provider adapters' wire
+// profiles read too; the types below are imported by those adapters as types only, so no runtime cycle forms.
+export {metaRegainAccessMs, providerReference} from './provider-error-core.js';
 
 /**
  * Which party must act on a provider refusal (PRV-01). `credential`: the login's token expired or was revoked, so the
@@ -33,111 +39,74 @@ export interface ProviderErrorClass {
   /** A documented provider table entry, not only the HTTP status, decided the classification. */
   documented: boolean;
 }
+/**
+ * What the generic classification already decided for a refusal, from which a provider's documented classification
+ * starts: the provider code, the pre-PRV-01 code and retryability, and the layer of a generic code.
+ */
+export interface ProviderErrorContext {
+  base: {providerCode?: string | number};
+  legacyCode: string;
+  legacyRetryable: boolean;
+  layerOf(code: string): ProviderErrorLayer;
+}
+
 /** The classifier is on unless the deployment turns it off; off, the transport returns exactly the pre-PRV-01 codes. */
 export const providerErrorTaxonomyEnabled = (value = process.env.AMCP_PROVIDER_ERROR_TAXONOMY) => value !== 'off';
 
-const object = (v: unknown): Record<string, any> =>
-  v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, any>) : {};
-const token = (v: unknown): string | undefined =>
-  typeof v === 'string' && /^[A-Z0-9_]{2,64}$/.test(v) ? v : undefined;
-const integer = (v: unknown): number | undefined => (typeof v === 'number' && Number.isSafeInteger(v) ? v : undefined);
-/** A provider correlation reference: at most 128 token characters, never free text. */
-export const providerReference = (v: unknown): string | undefined =>
-  typeof v === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:+=\/-]{0,127}$/.test(v) ? v : undefined;
+/** A provider's documented error shapes (ARC-01 phase B: its adapter's wire profile, src/<provider>-adapter.ts). */
+const envelope = (gateway: string) => providerHooks(gateway)?.wire?.errors;
 
 /**
  * The provider's correlation reference for a response. LinkedIn asks callers to record x-li-uuid (x-li-request-id on
- * older responses); Meta's trace ID is a header or, when the header is absent, error.fbtrace_id in the body. Values that
- * are not short tokens are dropped rather than echoed.
+ * older responses); Meta's trace ID is a header or, when the header is absent, error.fbtrace_id in the body. Each is its
+ * provider's; values that are not short tokens are dropped rather than echoed.
  */
 export function providerRequestId(
   gateway: string,
   headers: {get(name: string): string | null},
   body: unknown,
 ): string | undefined {
-  const header = (name: string) => providerReference(headers.get(name));
+  const header = (name: string) => providerReference(headers.get(name)),
+    own = envelope(gateway);
   return (
-    (gateway === 'linkedin_native_action' ? (header('x-li-uuid') ?? header('x-li-request-id')) : undefined) ??
+    own?.requestId?.(header) ??
     header('request-id') ??
     header('x-request-id') ??
     header('x-fb-trace-id') ??
-    (gateway === 'meta_native_action' ? providerReference(object(object(body).error).fbtrace_id) : undefined)
+    own?.bodyRequestId?.(body)
   );
 }
-/** The provider's own code from the documented error shapes; anything that is not a token or an integer is dropped. */
+/**
+ * The provider's own code from its documented error shape (its wire profile), or the generic shapes; anything that is
+ * not a token or an integer is dropped.
+ */
 export function providerErrorCode(gateway: string, body: unknown): string | number | undefined {
-  const root = object(body),
-    error = object(root.error),
-    first = (v: unknown) => (Array.isArray(v) ? object(v[0]) : {});
-  if (gateway === 'meta_native_action') return integer(error.code);
-  if (gateway === 'tiktok_native_action') return integer(root.code);
-  if (gateway === 'linkedin_native_action') return token(root.code) ?? integer(root.serviceErrorCode);
-  if (gateway === 'google_ads_native_action') {
-    for (const detail of Array.isArray(error.details) ? error.details.slice(0, 10) : [])
-      for (const row of Array.isArray(object(detail).errors) ? object(detail).errors.slice(0, 10) : []) {
-        const found = Object.values(object(object(row).errorCode))
-          .map(token)
-          .find(Boolean);
-        if (found) return found;
-      }
-    return token(error.status);
-  }
-  if (gateway === 'x_ads_native_action') return token(first(root.errors).code) ?? integer(first(root.errors).code);
-  if (gateway === 'snapchat_native_action') return token(root.error_code);
+  const own = envelope(gateway)?.code;
+  if (own) return own(body);
+  const root = errorObject(body),
+    error = errorObject(root.error),
+    first = (v: unknown) => (Array.isArray(v) ? errorObject(v[0]) : {});
   return (
-    integer(error.code) ??
-    token(error.status) ??
-    token(error.code) ??
-    token(first(error.details).reason) ??
-    token(root.code) ??
-    integer(root.code) ??
-    token(root.error_code) ??
-    token(first(root.errors).code)
+    errorInteger(error.code) ??
+    errorToken(error.status) ??
+    errorToken(error.code) ??
+    errorToken(first(error.details).reason) ??
+    errorToken(root.code) ??
+    errorInteger(root.code) ??
+    errorToken(root.error_code) ??
+    errorToken(first(root.errors).code)
   );
 }
-
-// Meta Graph and Marketing API error codes (developers.facebook.com: Graph API "Handling Errors" and Marketing API
-// "Rate Limiting", read 2026-10-08). Only these documented codes are mapped; every other Meta code keeps its HTTP
-// classification with layer `unknown`.
-const metaThrottles = new Set([4, 17, 613, 80000, 80003, 80004, 80014]);
-/** The ad-account-level throttle subcodes Meta documents for codes 17 and 613. */
-const metaAccountSubcodes = new Set([2446079, 1487742]);
-const minute = 60000;
-/** The longest estimated_time_to_regain_access (minutes) in X-Business-Use-Case-Usage, as milliseconds. */
-export function metaRegainAccessMs(header: string | null): number | undefined {
-  if (!header || header.length > 16384) return;
-  let usage: unknown;
-  try {
-    usage = JSON.parse(header);
-  } catch {
-    return;
-  }
-  let longest: number | undefined;
-  for (const entries of Object.values(object(usage)).slice(0, 50))
-    for (const entry of Array.isArray(entries) ? entries.slice(0, 50) : []) {
-      const value = object(entry).estimated_time_to_regain_access;
-      if (typeof value === 'number' && Number.isFinite(value) && value > 0)
-        longest = Math.max(longest ?? 0, value * minute);
-    }
-  return longest;
-}
-/** Google Ads QuotaErrorDetails.retryDelay ("30s", "1.5s"), as milliseconds. */
-function googleRetryDelay(row: Record<string, any>): number | undefined {
-  const value = object(object(row.details).quotaErrorDetails).retryDelay,
-    match = typeof value === 'string' ? /^(\d{1,6}(?:\.\d{1,9})?)s$/.exec(value) : null;
-  return match ? Math.ceil(Number(match[1]) * 1000) : undefined;
-}
-const bounded = (ms: number) => Math.max(1000, Math.min(86400000, Math.ceil(ms)));
 
 /**
- * One provider refusal, classified from documented provider codes before the HTTP status (PRV-01). Unknown codes keep
- * today's code with layer `unknown`. A refusal of a write is never made retryable here: writes are sent once.
+ * One provider refusal, classified from documented provider codes before the HTTP status (PRV-01): a provider's wire
+ * profile classifies the refusals its documented tables name (Meta's codes, Google Ads' quota errors, Business
+ * Profile's unapproved projects, LinkedIn's unsupported versions). Unknown codes keep today's code with layer
+ * `unknown`. A refusal of a write is never made retryable here: writes are sent once.
  */
 export function classifyProviderError(input: ProviderErrorInput): ProviderErrorClass {
-  const {gateway, status, headers, body, readOnly} = input,
-    providerCode = providerErrorCode(gateway, body),
-    root = object(body),
-    error = object(root.error);
+  const {gateway, status, headers, body} = input,
+    providerCode = providerErrorCode(gateway, body);
   const legacyCode = input.inBody
       ? 'PLATFORM_ERROR'
       : providerHttpErrorCode(status, body, headers.get('www-authenticate')),
@@ -153,71 +122,8 @@ export function classifyProviderError(input: ProviderErrorInput): ProviderErrorC
         : code === 'INSUFFICIENT_SCOPE'
           ? 'consent'
           : 'unknown';
-  if (gateway === 'meta_native_action') {
-    const code = integer(error.code),
-      subcode = integer(error.error_subcode),
-      meta = {...base, ...(subcode !== undefined ? {providerSubcode: subcode} : {})};
-    if (code === 190)
-      return {...meta, code: 'REAUTHORIZATION_REQUIRED', layer: 'credential', retryable: false, documented: true};
-    if (code !== undefined && (code === 10 || (code >= 200 && code <= 299)))
-      return {...meta, code: 'PROVIDER_PERMISSION_MISSING', layer: 'consent', retryable: false, documented: true};
-    if (code !== undefined && metaThrottles.has(code)) {
-      const account = code >= 80000 || (subcode !== undefined && metaAccountSubcodes.has(subcode));
-      return {
-        ...meta,
-        code: 'PLATFORM_RATE_LIMIT',
-        layer: 'rate_limit',
-        retryable: readOnly || legacyRetryable,
-        retryAfterMs: bounded(
-          Math.max(metaRegainAccessMs(headers.get('x-business-use-case-usage')) ?? minute, input.retryAfterMs ?? 0),
-        ),
-        cooldownScope: account ? 'account' : 'login',
-        documented: true,
-      };
-    }
-    return {
-      ...meta,
-      code: legacyCode,
-      layer: layerOf(legacyCode),
-      // Meta marks a temporary failure is_transient; a read may be retried, a write never is.
-      retryable: legacyRetryable || (readOnly && error.is_transient === true),
-      documented: false,
-    };
-  }
-  if (gateway === 'google_ads_native_action') {
-    for (const detail of Array.isArray(error.details) ? error.details.slice(0, 10) : [])
-      for (const row of Array.isArray(object(detail).errors) ? object(detail).errors.slice(0, 10) : [])
-        if (object(object(row).errorCode).quotaError === 'RESOURCE_TEMPORARILY_EXHAUSTED')
-          return {
-            ...base,
-            code: 'PLATFORM_RATE_LIMIT',
-            layer: 'rate_limit',
-            retryable: readOnly || legacyRetryable,
-            retryAfterMs: bounded(Math.max(googleRetryDelay(object(row)) ?? 30000, input.retryAfterMs ?? 0)),
-            cooldownScope: 'login',
-            documented: true,
-          };
-  }
-  // Google answers a Cloud project it has not approved for the Business Profile APIs with a quota of 0 requests per
-  // minute (google.rpc.ErrorInfo metadata quota_limit_value "0"), and one without the APIs enabled with SERVICE_DISABLED
-  // (developers.google.com/my-business/content/prereqs, read 2026-10-08). Retrying or reconnecting cannot help; the
-  // deployment owner must act (CON-06).
-  if (gateway === 'google_business_native_action' && !input.inBody && [403, 429].includes(status))
-    for (const detail of Array.isArray(error.details) ? error.details.slice(0, 10) : []) {
-      const d = object(detail),
-        quota = object(d.metadata).quota_limit_value;
-      if ((status === 429 && quota === '0') || (status === 403 && d.reason === 'SERVICE_DISABLED'))
-        return {
-          ...base,
-          code: 'BUSINESS_PROFILE_API_NOT_APPROVED',
-          layer: 'app_eligibility',
-          retryable: false,
-          providerCode: status === 429 ? 'RESOURCE_EXHAUSTED' : 'SERVICE_DISABLED',
-          documented: true,
-        };
-    }
-  if (gateway === 'linkedin_native_action' && !input.inBody && status === 426)
-    return {...base, code: 'PROVIDER_VERSION_UNSUPPORTED', layer: 'api_version', retryable: false, documented: true};
+  const documented = envelope(gateway)?.classify?.(input, {base, legacyCode, legacyRetryable, layerOf});
+  if (documented) return documented;
   // TikTok reports token and QPS failures inside HTTP 200 bodies. Its official return-code table has not been
   // verified (TikTok's portal did not render during the 2026-10-08 review), so no TikTok code is mapped: each keeps
   // PLATFORM_ERROR with layer `unknown` and its numeric code, until the table is checked against TikTok's own reference.

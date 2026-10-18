@@ -200,7 +200,11 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // src/tool-actions.ts (no wrapper reasons). Stage F's report jobs add src/report-job.ts and src/report-jobs.ts,
   // stage D's split of createWebsite 14 server modules, and stage C's provider remedies src/provider-remedies.ts and
   // nine remedy tables, none with a wrapper reason.
-  assert.equal(files.length, 648);
+  // ARC-01 phase B adds the provider hooks registry and fifteen provider adapter modules (src/<provider>-adapter.ts),
+  // without wrapper reasons; its wire profile adds the Adjust and Amazon adapters and two leaves split from existing
+  // modules (src/oauth1.ts, src/provider-error-core.ts), without wrapper reasons; its read authorizers add
+  // src/snapchat-scope.ts, Snapchat's scoped paths, without wrapper reasons.
+  assert.equal(files.length, 669);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
   assert.equal(Object.keys(catalog).length, 11485);

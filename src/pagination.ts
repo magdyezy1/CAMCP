@@ -1,170 +1,26 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import {MirrorError} from './errors.js';
 import {stable} from './security.js';
-import {linkedInAnalyticsRows} from './linkedin-reporting.js';
-import {
-  tiktokIntegratedReport,
-  tiktokReportPage,
-  tiktokReportGrain,
-  tiktokReportRowKey,
-} from './tiktok-report-pagination.js';
+import {providerOf} from './provider-adapters.js';
+import {providerHooks} from './provider-hooks.js';
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
+/**
+ * The request of the page after `response`, or null after the last page. Each provider's cursor rules are its adapter's
+ * paging (ARC-01 phase B, src/<provider>-adapter.ts), which also refuses a cursor that would change the request's
+ * scope; a provider without its own rules, or one whose rules leave a response to them, pages by the generic tokens.
+ */
 export function nextPage(plan: CompiledRequest, response: unknown): CompiledRequest | null {
   const d = obj(response),
     data = obj(d.data);
   const next = structuredClone(plan);
-  if (
-    plan.gateway === 'apple_ads_native_action' &&
-    plan.origin === 'https://api.ads.apple.com' &&
-    plan.path.endsWith('/query')
-  ) {
-    const pagination = obj(d.pagination),
-      body = obj(plan.body),
-      requested = obj(body.pagination);
-    const rows = Array.isArray(d.result) ? d.result : obj(d.result).rows;
-    if (!Array.isArray(rows))
-      throw new MirrorError('UNKNOWN_PAGINATION', 'Apple query response is missing its row collection.');
-    const offset = requested.offset ?? 0,
-      size = requested.pageSize ?? 100,
-      total = pagination.totalCount;
-    if (
-      (pagination.offset !== undefined && pagination.offset !== offset) ||
-      (pagination.pageSize !== undefined && (!Number.isSafeInteger(pagination.pageSize) || pagination.pageSize < 0)) ||
-      (total !== undefined && (!Number.isSafeInteger(total) || total < 0)) ||
-      rows.length > size
-    )
-      throw new MirrorError('UNKNOWN_PAGINATION', 'Apple returned inconsistent pagination metadata.');
-    if ((total !== undefined && offset + rows.length >= total) || (total === undefined && rows.length < size))
-      return null;
-    if (!rows.length)
-      throw new MirrorError('UNKNOWN_PAGINATION', 'Apple returned an empty page before its reported total.');
-    next.body = {...body, pagination: {...requested, offset: offset + rows.length}};
-    return next;
-  }
-  if (plan.gateway === 'meta_native_action') {
-    if (!d.paging?.next) return null;
-    const cursor = d.paging?.cursors?.after;
-    if (!cursor) throw new MirrorError('UNKNOWN_PAGINATION', 'Meta advertises another page but supplies no cursor.');
-    next.query.after = cursor;
-    return next;
-  }
-  if (plan.gateway === 'tiktok_native_action') {
-    if (tiktokIntegratedReport(plan)) {
-      const page = tiktokReportPage(response, plan.query);
-      if (page.page >= page.pages) return null;
-      next.query.page = page.page + 1;
-      return next;
-    }
-    const info = data.page_info ?? d.page_info;
-    if (info) {
-      if (Number(info.page) >= Number(info.total_page)) return null;
-      next.query.page = Number(info.page) + 1;
-      return next;
-    }
-    // Business, identity, mention and TTO lists page by cursor: {cursor, has_more} (13 catalogued reads declare a
-    // cursor). The cursor is opaque, a number or a string by endpoint; has_more without one cannot be continued.
-    if (data.has_more !== true) return null;
-    const cursor = data.cursor;
-    if (!((typeof cursor === 'string' && cursor) || (Number.isSafeInteger(cursor) && cursor >= 0)))
-      throw new MirrorError('UNKNOWN_PAGINATION', 'TikTok reports more results but supplies no usable cursor.');
-    next.query.cursor = cursor;
-    return next;
-  }
-  if (plan.gateway === 'snapchat_native_action') {
-    const link = d.paging?.next_link ?? d.paging?.next;
-    if (!link) return null;
-    const url = new URL(link, 'https://adsapi.snapchat.com');
-    if (url.origin !== 'https://adsapi.snapchat.com' || url.pathname !== plan.path)
-      throw new MirrorError('UNSAFE_PAGINATION_LINK', 'Pagination link changed upstream scope.');
-    const paginationKeys = new Set(['cursor', 'offset', 'page', 'page_token']);
-    for (const [key, value] of url.searchParams) {
-      if (paginationKeys.has(key)) {
-        next.query[key] = value;
-        continue;
-      }
-      const original = plan.query[key];
-      if (original === undefined || String(original) !== value)
-        throw new MirrorError('UNSAFE_PAGINATION_LINK', 'Pagination link changed account scope or report filters.', {
-          parameter: key,
-        });
-    }
-    // The server may omit invariant filters from its link; retain them verbatim.
-    return next;
-  }
-  if (plan.gateway === 'x_ads_native_action') {
-    const cursor = d.next_cursor ?? data.next_cursor;
-    if (!cursor || cursor === '0') return null;
-    next.query.cursor = cursor;
-    return next;
-  }
-  if (plan.gateway === 'reddit_native_action') {
-    const link = d.pagination?.next_url;
-    if (!link) return null;
-    let url: URL;
-    try {
-      url = new URL(link);
-    } catch {
-      throw new MirrorError('UNSAFE_PAGINATION_LINK', 'Reddit pagination must supply a valid absolute URL.');
-    }
-    if (
-      url.origin !== 'https://ads-api.reddit.com' ||
-      url.username ||
-      url.password ||
-      url.hash ||
-      url.pathname !== plan.path
-    )
-      throw new MirrorError('UNSAFE_PAGINATION_LINK', 'Reddit pagination changed upstream scope.');
-    const keys = new Set<string>();
-    for (const [key, value] of url.searchParams) {
-      if (keys.has(key))
-        throw new MirrorError('UNSAFE_PAGINATION_LINK', 'Reddit pagination contains duplicate parameters.');
-      keys.add(key);
-      if (key === 'page.token') {
-        next.query[key] = value;
-        continue;
-      }
-      if (plan.query[key] === undefined || String(plan.query[key]) !== value)
-        throw new MirrorError(
-          'UNSAFE_PAGINATION_LINK',
-          'Reddit pagination changed account scope, page size or report filters.',
-          {parameter: key},
-        );
-    }
-    if (!keys.has('page.token'))
-      throw new MirrorError('UNKNOWN_PAGINATION', 'Reddit supplied a next URL without a page token.');
-    return next;
-  }
-  if (plan.gateway === 'linkedin_native_action') {
-    if (plan.path === '/rest/adAnalytics') {
-      linkedInAnalyticsRows(response);
-      return null;
-    }
-    // Search and criteria finders page by cursor: the next page's pageToken is metadata.nextPageToken, and a page
-    // without one is the last (Microsoft Learn, "Create and Manage Creatives", li-lms-2026-05). Older finders page by
-    // start and count against paging.total.
-    const token = obj(d.metadata).nextPageToken;
-    if (token !== undefined && token !== null && (typeof token !== 'string' || !token))
-      throw new MirrorError('UNKNOWN_PAGINATION', 'LinkedIn returned a malformed page cursor.');
-    if (typeof token === 'string') {
-      if (plan.query.start !== undefined)
-        throw new MirrorError('UNKNOWN_PAGINATION', 'LinkedIn returned a page cursor for a read paged by offset.');
-      next.query.pageToken = token;
-      return next;
-    }
-    if (plan.query.pageSize !== undefined || plan.query.pageToken !== undefined) return null;
-    const paging = d.paging;
-    if (!paging || Number(paging.start) + Number(paging.count) >= Number(paging.total)) return null;
-    next.query.start = Number(paging.start) + Number(paging.count);
-    return next;
-  }
+  const paged = providerHooks(plan.gateway)?.paging?.nextPage?.(plan, response, next);
+  if (paged !== undefined) return paged;
   const token = d.nextPageToken ?? d.next_page_token ?? d.nextToken ?? data.nextToken;
   if (token) {
     const key =
       d.nextToken !== undefined || data.nextToken !== undefined
         ? 'nextToken'
-        : plan.gateway === 'google_ads_native_action'
-          ? 'page_token'
-          : 'pageToken';
+        : (providerOf(plan.gateway)?.paging?.tokenParameter ?? 'pageToken');
     if (plan.method === 'POST') next.body = {...obj(plan.body), [key]: token};
     else next.query[key] = token;
     return next;
@@ -192,11 +48,16 @@ function put(root: any, path: string, value: any) {
   const parent = parts.reduce((v, k) => v[k], root);
   parent[key] = value;
 }
+/** The whole collection a request reads, when its provider reports one whole (TikTok integrated reports). */
+function wholeCollection(plan: CompiledRequest) {
+  const whole = providerHooks(plan.gateway)?.paging?.whole;
+  return whole?.claims(plan) ? whole : undefined;
+}
 /**
  * Follows native pages and merges their row collections. Everything that is not a row collection (provider paging
  * objects, cursors, page counters) describes the last page read, so a visible cursor never points back at rows already
- * merged (TikTok integrated reports keep their first page's counts). A capped collection is truncated and carries
- * `continuation`, the exact request of the first page not read.
+ * merged (a collection its provider reports whole, such as a TikTok integrated report, keeps its first page's counts).
+ * A capped collection is truncated and carries `continuation`, the exact request of the first page not read.
  */
 export async function paginate(
   plan: CompiledRequest,
@@ -205,27 +66,11 @@ export async function paginate(
 ): Promise<{data: unknown; pages: number; truncated: boolean; continuation?: CompiledRequest}> {
   if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 100)
     throw new MirrorError('INVALID_PAGE_LIMIT', 'max_pages must be between 1 and 100.');
-  const tiktok = tiktokIntegratedReport(plan),
-    dimensions = tiktok ? tiktokReportGrain(plan.query) : [],
-    nativeRows = new Set<string>();
-  if (tiktok && (plan.query.page ?? 1) !== 1)
-    throw new MirrorError('REPORT_INCOMPLETE', 'Start a complete TikTok report collection at page one.');
-  let expectedTotal: number | undefined;
-  const verify = (request: CompiledRequest, response: unknown) => {
-    if (!tiktok) return;
-    const page = tiktokReportPage(response, request.query);
-    if (expectedTotal !== undefined && page.total !== expectedTotal)
-      throw new MirrorError('REPORT_INCOMPLETE', 'TikTok report counts changed during collection. Capture again.');
-    expectedTotal = page.total;
-    for (const row of page.rows) {
-      const key = tiktokReportRowKey(row, dimensions);
-      if (nativeRows.has(key))
-        throw new MirrorError('REPORT_DUPLICATE_ROWS', 'TikTok repeated a native reporting dimension tuple.');
-      nativeRows.add(key);
-    }
-  };
+  // A collection its provider reports whole is started at its first page, and every page is checked across it.
+  const whole = wholeCollection(plan),
+    verify = whole?.start(plan);
   const first = await fetchPage(plan);
-  verify(plan, first);
+  verify?.(plan, first);
   let merged = structuredClone(first);
   let current = plan;
   let response = first;
@@ -246,22 +91,22 @@ export async function paginate(
     if (seen.has(key)) throw new MirrorError('PAGINATION_LOOP', 'Platform repeated a page cursor.');
     seen.add(key);
     response = await fetchPage(next);
-    verify(next, response);
+    verify?.(next, response);
     pages++;
     if (arraySlots(response).join('|') !== slots.join('|'))
       throw new MirrorError(
         'PAGINATION_SHAPE_CHANGED',
         'Row collections changed between pages; refusing to return a partial successful result.',
       );
-    // The rows so far, on the skeleton of the page just read: its paging metadata is the current position. A TikTok
-    // integrated report keeps its first page's native counts (page 1 of total_page, total_number), which describe the
-    // whole verified collection; it is never resumed mid-way.
+    // The rows so far, on the skeleton of the page just read: its paging metadata is the current position. A whole
+    // collection (a TikTok integrated report) keeps its first page's native counts (page 1 of total_page, total_number),
+    // which describe the whole verified collection; it is never resumed mid-way.
     const rows = slots.map(slot => [at(merged, slot), at(response, slot)]);
     if (slots.length === 1 && slots[0] === '') {
       const [a, b] = rows[0]!;
       if (Array.isArray(a) && Array.isArray(b)) merged = [...a, ...b];
     } else {
-      const skeleton = tiktok ? merged : structuredClone(response);
+      const skeleton = whole ? merged : structuredClone(response);
       slots.forEach((slot, i) => {
         const [a, b] = rows[i]!;
         if (Array.isArray(a) && Array.isArray(b)) put(skeleton, slot, [...a, ...b]);
@@ -303,7 +148,7 @@ export function continuationArguments(
   if (!query || !body || (!Object.keys(query).length && !Object.keys(body).length)) return undefined;
   const next: JsonObject = structuredClone(args),
     bodyKey =
-      plan.gateway === 'ga4_native_action' ? 'request' : next.payload === undefined && next.body ? 'body' : 'payload';
+      providerOf(plan.gateway)?.paging?.bodyArgument ?? (next.payload === undefined && next.body ? 'body' : 'payload');
   const place = (key: string, value: unknown, bags: unknown[], fallback: string) => {
     let placed = false;
     for (const bag of bags)
@@ -333,7 +178,7 @@ const requestKey = (p: CompiledRequest) => stable({path: p.path, query: p.query,
 /**
  * The `next_call` of a capped aggregation: the same tool and arguments, asking for the first page not read, so following
  * it returns exactly the remaining rows. It is offered only when `compile` turns it back into that exact request.
- * TikTok integrated reports are collected whole from page one, so theirs repeats the collection with every page.
+ * A collection its provider reports whole (TikTok integrated reports) is read again from page one, with every page.
  */
 export function nextPageCall(
   plan: CompiledRequest,
@@ -348,8 +193,9 @@ export function nextPageCall(
 ): JsonObject | undefined {
   const tool = options.delegated ? {operation: plan.action.split('/')[0]} : {};
   let next: JsonObject | undefined, expected: CompiledRequest, pages: number;
-  if (tiktokIntegratedReport(plan)) {
-    pages = Number(obj(obj(obj(data).data).page_info).total_page);
+  const whole = wholeCollection(plan);
+  if (whole) {
+    pages = whole.pages(data);
     if (!Number.isSafeInteger(pages) || pages < 2 || pages > 100) return undefined;
     next = {...args, max_pages: pages};
     expected = plan;
@@ -363,7 +209,7 @@ export function nextPageCall(
   const {aggregate_pages, paginate: _paginate, allPages, max_pages, ...single} = next;
   const aggregated = [aggregate_pages, _paginate, allPages].some(Boolean),
     candidates: [JsonObject, number][] = [[next, pages]];
-  if (aggregated && !tiktokIntegratedReport(plan)) candidates.push([single, 1]);
+  if (aggregated && !whole) candidates.push([single, 1]);
   for (const [candidate, requests] of candidates) {
     const call = options.delegated ? {...tool, arguments: candidate} : candidate;
     try {
@@ -375,8 +221,8 @@ export function nextPageCall(
       tool: plan.gateway,
       arguments: call,
       effects: {provider_requests: requests, saves: [], advertising_writes: 0},
-      meaning: tiktokIntegratedReport(plan)
-        ? 'TikTok reports are collected whole from page one: this repeats the collection with max_pages covering every page.'
+      meaning: whole
+        ? whole.meaning
         : requests === 1 && candidate === single
           ? 'Reads the first page after the last one merged here. The provider paging fields in data describe the last page read.'
           : 'Reads the pages after the last one merged here (at most max_pages provider reads). The provider paging fields in data describe the last page read.',

@@ -156,8 +156,20 @@ test('all actual directly owned backend reasons have Arabic with original native
   // store-layer repository. The 45 reasons of server/website.ts moved with their routes into nine of them, so the
   // owned reasons are the same. Stage C's provider remedies add src/provider-remedies.ts and nine remedy tables (no
   // refusals: remedies are not reasons).
-  assert.equal(files.length, 648);
-  assert.equal(selected.filter(row => row.messages.size).length, 245);
+  // ARC-01 phase B adds the provider hooks registry and fifteen provider adapter modules (src/<provider>-adapter.ts):
+  // LinkedIn's share-authorization reason moved with its check from src/provider-read-contracts.ts to
+  // src/linkedin-adapter.ts, so the files with reasons and the reasons are unchanged. Its paging concern moves each
+  // provider's paging refusals with its cursor rules from src/pagination.ts (which keeps its own) to the Apple, Meta,
+  // Reddit, Snapchat and TikTok adapters: five more files with reasons, the same reasons. Its wire profile adds the
+  // Adjust and Amazon adapters and two leaves split from existing modules (src/oauth1.ts, src/provider-error-core.ts);
+  // the transport refusals that name a provider's headers moved with them to the Amazon, Google Ads and Microsoft
+  // adapters, and X's OAuth 1.0a refusal to src/oauth1.ts: four more files with reasons, the same reasons. Its read
+  // authorizers move each provider's part of ScopeGuard to its adapter, the Microsoft refusals among them (files that
+  // already own reasons), and Snapchat's scoped paths to src/snapchat-scope.ts (no reasons). Its review projections
+  // move Google's state-identity refusals from src/review-state.ts, which owns no other reason, to
+  // src/google-ads-adapter.ts, which already owns reasons: one file with reasons fewer, the same reasons.
+  assert.equal(files.length, 669);
+  assert.equal(selected.filter(row => row.messages.size).length, 253);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11485);
   assert.deepEqual(localeProblems(catalog, owned), []);
