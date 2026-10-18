@@ -1,6 +1,26 @@
-import {plainGetRead, type ProviderHooks, type ScopeContext} from './provider-adapter.js';
+import {
+  plainGetRead,
+  type ExpectState,
+  type ProviderHooks,
+  type ScopeContext,
+  type StateTarget,
+} from './provider-adapter.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
+import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
+// The write-shape and state refusals keep the write stages' own helper (src/write-common.ts).
+import {fail} from './write-common.js';
+import {pausedParentChildStatuses} from './paused-parents.js';
+import {tiktokAdgroupConversion} from './tiktok-adgroup-conversions.js';
+import {tiktokCtaReferences, validateTiktokCtaPortfolioState} from './tiktok-cta-portfolios.js';
+import {tiktokImageInfoPath} from './tiktok-identities.js';
+import {tiktokAudienceGetPath} from './tiktok-lookalikes.js';
+import {validateTiktokConversionState} from './tiktok-custom-conversions.js';
+import {validateTiktokSavedAudienceState} from './tiktok-saved-audiences.js';
+import {validateTiktokSmartPlusState} from './tiktok-smart-plus-status.js';
+import {validateTiktokSmartPlusAdState} from './tiktok-smart-plus-ads.js';
+import {validateTiktokSmartPlusAdgroupCampaignState} from './tiktok-smart-plus-adgroup-updates.js';
+import {validateTiktokInstantFormState} from './tiktok-instant-forms.js';
 import {stable} from './security.js';
 import {errorInteger, errorObject} from './provider-error-core.js';
 import {tiktokPreviewRoute} from './tiktok-preview-reads.js';
@@ -123,8 +143,90 @@ function tiktokResourceScope(
   );
 }
 
+/**
+ * TikTok's write shape after the generic checks: a new campaign or ad group starts disabled unless its parent is read
+ * as paused (paused-parents.ts), an ad group's conversion and an ad's CTA portfolio references are checked, and an ad
+ * is created from exactly one native creatives record that carries its operation_status.
+ */
+function tiktokWriteShape(plan: CompiledRequest, body: JsonObject, expect: ExpectState) {
+  if (/^\/v1\.3\/(?:campaign|adgroup)\/create\/$/.test(plan.path))
+    expect(body, 'operation_status', pausedParentChildStatuses(plan) ?? ['DISABLE']);
+  tiktokAdgroupConversion(plan);
+  tiktokCtaReferences(plan);
+  if (plan.path === '/v1.3/ad/create/') {
+    if (
+      !Array.isArray(body.creatives) ||
+      body.creatives.length !== 1 ||
+      !body.creatives[0] ||
+      Array.isArray(body.creatives[0]) ||
+      typeof body.creatives[0] !== 'object'
+    )
+      fail(
+        'WRITE_CONTRACT_UNAVAILABLE',
+        'Reviewed TikTok ad creation requires exactly one native creatives record per review. Put the ad fields and operation_status inside that record.',
+      );
+    if (Object.hasOwn(body, 'operation_status'))
+      fail(
+        'INVALID_ARGUMENT',
+        'TikTok ad creation uses creatives[0].operation_status; a top-level status does not pause the creative.',
+      );
+    expect(body.creatives[0], 'operation_status', pausedParentChildStatuses(plan) ?? ['DISABLE']);
+  }
+}
+/** A TikTok state read confirms success and lists exactly its requested targets, however each read names them. */
+function tiktokStateTarget(read: CompiledRequest, _result: TransportResult, data: JsonObject, context: StateTarget) {
+  const {id, sameIds} = context;
+  if (read.path === '/v1.3/identity/info/') {
+    const info = data.data?.identity_info;
+    if (data.code !== 0 || !info || typeof info !== 'object' || Array.isArray(info))
+      fail('STATE_READ_FAILED', 'TikTok identity info must confirm success and contain identity_info.');
+    sameIds([info.identity_id], [read.query.identity_id]);
+    return;
+  }
+  if (
+    validateTiktokConversionState(read, data, sameIds) ||
+    validateTiktokSavedAudienceState(read, data, sameIds) ||
+    validateTiktokSmartPlusAdState(read, data, sameIds) ||
+    validateTiktokSmartPlusAdgroupCampaignState(read, data) ||
+    validateTiktokSmartPlusState(read, data, sameIds) ||
+    validateTiktokCtaPortfolioState(read, data, sameIds)
+  )
+    return;
+  if (data.code !== 0 || !Array.isArray(data.data?.list))
+    fail('STATE_READ_FAILED', 'TikTok state must confirm success and contain its native list.');
+  if (read.path === tiktokImageInfoPath) {
+    sameIds(
+      data.data.list.map((r: JsonObject) => r.image_id),
+      read.query.image_ids,
+    );
+    return;
+  }
+  if (read.path === tiktokAudienceGetPath) {
+    sameIds(
+      data.data.list.map((r: JsonObject) => r?.audience_details?.audience_id),
+      read.query.custom_audience_ids,
+    );
+    return;
+  }
+  const kind = read.path.split('/')[2]!,
+    key = kind === 'advertiser' ? 'advertiser_id' : kind + '_id';
+  sameIds(
+    data.data.list.map((r: JsonObject) => r[key]),
+    kind === 'advertiser' ? [id] : read.query.filtering[kind + '_ids'],
+  );
+}
+
 export const tiktokHooks: ProviderHooks = Object.freeze({
   gateway: 'tiktok_native_action',
+  checks: Object.freeze({
+    shape: Object.freeze({after: tiktokWriteShape}),
+    state: Object.freeze({
+      // Published Instant Forms cannot be read by ID; every page is read through follow-up reads
+      // (src/tiktok-instant-forms.ts), so their page information is expected rather than incomplete.
+      complete: validateTiktokInstantFormState,
+      target: tiktokStateTarget,
+    }),
+  }),
   scope: Object.freeze({
     authorizers: Object.freeze([
       Object.freeze({

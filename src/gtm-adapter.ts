@@ -1,12 +1,29 @@
 import type {ProviderHooks} from './provider-adapter.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import type {TransportResult} from './transport.js';
+import {assertMeasurementWrite, validateMeasurementState} from './measurement-writes.js';
 
 /**
  * Google Tag Manager's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: a
- * folder's entity listing is a POST read. Readiness reads the selected Tag Manager account (CON-03).
+ * folder's entity listing is a POST read. Readiness reads the selected Tag Manager account (CON-03). Its writes follow
+ * the measurement resource contract (src/measurement-writes.ts) and may carry the workspace fingerprint; a resource's
+ * 404, or its status read, is its documented state, and the resource checks every state read's target.
  */
 export const gtmHooks: ProviderHooks = Object.freeze({
   gateway: 'gtm_native_action',
+  checks: Object.freeze({
+    routeWrite: assertMeasurementWrite,
+    shape: Object.freeze({queryParameter: 'fingerprint'}),
+    state: Object.freeze({
+      settled(read: CompiledRequest, result: TransportResult) {
+        if (result.status !== 404 && !(read.path.endsWith('/status') && result.status === 200)) return false;
+        validateMeasurementState(read, result);
+        return true;
+      },
+      ownTarget: true as const,
+      target: (read: CompiledRequest, result: TransportResult) => validateMeasurementState(read, result),
+    }),
+  }),
   reads: Object.freeze({
     postRead: (_plan: CompiledRequest, pathname: string) => /\/folders\/[^/:]+:entities$/.test(pathname),
   }),

@@ -1,6 +1,8 @@
 import type {ProviderHooks, WireHeaders} from './provider-adapter.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
+import {assertMeasurementWrite, validateMeasurementState} from './measurement-writes.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
@@ -9,6 +11,20 @@ const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.is
  */
 export const appleHooks: ProviderHooks = Object.freeze({
   gateway: 'apple_ads_native_action',
+  // Its writes follow the measurement resource contract (src/measurement-writes.ts: Apple's entity and shared-budget
+  // writes); a resource's 404 is its documented absence, and the resource checks every state read's target.
+  checks: Object.freeze({
+    routeWrite: assertMeasurementWrite,
+    state: Object.freeze({
+      settled(read: CompiledRequest, result: TransportResult) {
+        if (result.status !== 404) return false;
+        validateMeasurementState(read, result);
+        return true;
+      },
+      ownTarget: true as const,
+      target: (read: CompiledRequest, result: TransportResult) => validateMeasurementState(read, result),
+    }),
+  }),
   // The mandatory X-AP-Context header (below) confines every request to the selected account.
   scope: Object.freeze({resource: () => true}),
   reads: Object.freeze({

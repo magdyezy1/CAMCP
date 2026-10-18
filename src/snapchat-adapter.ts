@@ -1,6 +1,13 @@
-import type {ProviderHooks, ScopeCallBuilder, ScopeContext} from './provider-adapter.js';
+import type {ExpectState, ProviderHooks, ScopeCallBuilder, ScopeContext, StateTarget} from './provider-adapter.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
+import type {TransportResult} from './transport.js';
+// The write-shape and state refusals keep the write stages' own helpers (src/write-common.ts).
+import {fail, object} from './write-common.js';
+import {pausedParentChildStatuses} from './paused-parents.js';
+import {snapAdCreativePaths} from './snapchat-ad-creatives.js';
+import {assertSnapLeadCreativeRefs, assertSnapLeadForms} from './snapchat-lead-forms.js';
+import {assertSnapSegmentUpdates, assertSnapSegments} from './snapchat-segments.js';
 import {snapchatPlanningRoute} from './snapchat-planning-reads.js';
 import {MirrorError} from './errors.js';
 import {errorObject, errorToken} from './provider-error-core.js';
@@ -130,13 +137,81 @@ function observeSnapchatCreated(
   }
 }
 /**
+ * Snapchat's write shape after the generic checks: 1–25 native records per creation, each new serving entity paused
+ * unless its parent is read as paused (paused-parents.ts), lead forms, segments and lead creatives by their own
+ * contracts, segment updates, and JSON Patch operations of a PATCH.
+ */
+function snapchatWriteShape(plan: CompiledRequest, body: JsonObject, expect: ExpectState) {
+  if (plan.method === 'POST') {
+    const kind = plan.path.split('/').at(-1)!;
+    if (!Array.isArray(body[kind]) || !body[kind].length || body[kind].length > 25)
+      fail('MISSING_PAYLOAD', 'Provide 1–25 native ' + kind + ' records.');
+    if (kind === 'lead_generation_forms') assertSnapLeadForms(plan, body[kind]);
+    else if (kind === 'segments') assertSnapSegments(plan, body[kind]);
+    else if (kind === 'creatives') assertSnapLeadCreativeRefs(body[kind]);
+    else for (const row of body[kind]) expect(object(row), 'status', pausedParentChildStatuses(plan) ?? ['PAUSED']);
+  }
+  if (plan.method === 'PUT' && /^\/v1\/adaccounts\/[^/]+\/segments$/.test(plan.path)) {
+    if (!Array.isArray(body.segments) || !body.segments.length || body.segments.length > 25)
+      fail('MISSING_PAYLOAD', 'Provide 1–25 native segments records.');
+    assertSnapSegmentUpdates(plan, body.segments);
+  }
+  if (plan.method === 'PATCH') {
+    if (
+      !Array.isArray(plan.body) ||
+      !plan.body.length ||
+      plan.body.length > 25 ||
+      plan.body.some(
+        op =>
+          !op ||
+          !['add', 'remove', 'replace', 'test'].includes(op.op) ||
+          typeof op.path !== 'string' ||
+          !/^\/[a-zA-Z0-9_/-]+$/.test(op.path) ||
+          op.path.split('/').some((part: string) => ['__proto__', 'constructor', 'prototype'].includes(part)) ||
+          (op.op !== 'remove' && !Object.hasOwn(op, 'value')),
+      )
+    )
+      fail('INVALID_PATCH', 'Use 1–25 native JSON Patch add, remove, replace or test operations.');
+  }
+}
+/** A Snapchat entity read returns one exact record; a creative or lead form names the selected ad account. */
+function snapchatStateTarget(read: CompiledRequest, _result: TransportResult, data: JsonObject, context: StateTarget) {
+  const target = context.target(),
+    kind = read.path.split('/').at(-2)!,
+    rows = data[kind];
+  if (!Array.isArray(rows) || rows.length !== 1)
+    fail('STATE_READ_FAILED', 'Snapchat must return one exact target record.');
+  const singular = kind === 'adsquads' ? 'adsquad' : kind === 'media' ? 'media' : kind.slice(0, -1);
+  context.sameIds(
+    rows.map((r: JsonObject) => (r[singular] ?? r).id),
+    [target],
+  );
+  if (
+    ['creatives', 'lead_generation_forms'].includes(kind) &&
+    (rows[0][singular] ?? rows[0]).ad_account_id !== context.id
+  )
+    fail(
+      'ACCOUNT_SCOPE_MISMATCH',
+      'The creative or lead form must explicitly belong to the selected Snapchat ad account.',
+    );
+}
+
+/**
  * Snapchat's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: the planning
  * POSTs, the by-ID entity reads, the audience, bid and forecasting estimates, and the catalog and Ads Library searches.
  * Its scope: the catalog comparison's internal reads, and ownership of the global IDs its account lists and creations
- * show (Snapchat S3, S6).
+ * show (Snapchat S3, S6). Its gateway checks: an ad's creative paths, its native records and a state read's one record.
  */
 export const snapchatHooks: ProviderHooks = Object.freeze({
   gateway: 'snapchat_native_action',
+  checks: Object.freeze({
+    // An ad's creative references are checked before anything else (src/snapchat-ad-creatives.ts).
+    shape: Object.freeze({
+      before: (plan: CompiledRequest) => void snapAdCreativePaths(plan),
+      after: snapchatWriteShape,
+    }),
+    state: Object.freeze({target: snapchatStateTarget}),
+  }),
   scope: Object.freeze({
     authorizers: Object.freeze([
       Object.freeze({

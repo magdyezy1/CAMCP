@@ -1,6 +1,10 @@
-import type {ProviderHooks, WireHeaders} from './provider-adapter.js';
+import type {ExpectState, ProviderHooks, StateTarget, WireHeaders} from './provider-adapter.js';
 import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
+import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
+// The write-shape and state refusals keep the write stages' own helpers (src/write-common.ts).
+import {fail, object} from './write-common.js';
+import {stable} from './security.js';
 import {
   assertGoogleGenerationScope,
   googleGenerationKind,
@@ -128,8 +132,97 @@ function googleGlobalPlanningRead(p: CompiledRequest): boolean {
   }
 }
 
+/** A server-derived optional association query (googleState.allowMissing), whose empty result ProtoJSON omits. */
+const optionalState = (read: CompiledRequest) => read.googleState?.allowMissing === true;
+/** ProtoJSON omits an empty repeated `results`: only an optional association query reads that as absence. */
+function emptyOptionalState(read: CompiledRequest, result: TransportResult, data: JsonObject) {
+  return (
+    optionalState(read) &&
+    result.status === 200 &&
+    result.data !== null &&
+    typeof result.data === 'object' &&
+    !Array.isArray(result.data) &&
+    data.results === undefined &&
+    (Object.keys(data).length === 0 ||
+      typeof data.fieldMask === 'string' ||
+      typeof data.queryResourceConsumption === 'string')
+  );
+}
+/** A Google state query must return exactly its requested resources (an optional one, at most them, once each). */
+function googleStateTarget(
+  read: CompiledRequest,
+  result: TransportResult,
+  data: JsonObject,
+  {id, sameIds}: StateTarget,
+) {
+  const optionalGoogle = optionalState(read);
+  if (emptyOptionalState(read, result, data)) data.results = [];
+  if (!Array.isArray(data.results) || (!data.results.length && !optionalGoogle))
+    fail('STATE_NOT_FOUND', 'Google state query returned no target rows.');
+  const q = String(object(read.body).query),
+    type = q.match(/ FROM ([a-z_]+)/)?.[1];
+  if (type === 'customer') {
+    sameIds(
+      data.results.map((r: JsonObject) => r.customer?.id),
+      [id],
+    );
+    return;
+  }
+  if (!type) fail('STATE_READ_FAILED', 'Unrecognized Google state query.');
+  const expected = [...q.matchAll(/'(customers\/[^']+)'/g)].map(m => m[1]),
+    camel = type!.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase()),
+    actual = data.results.map(
+      (r: JsonObject) => (r[camel] ?? r[type!])?.resourceName ?? (r[camel] ?? r[type!])?.resource_name,
+    );
+  if (optionalGoogle) {
+    if (
+      read.googleState!.resource !== type ||
+      stable(read.googleState!.names) !== stable(expected) ||
+      new Set(actual).size !== actual.length ||
+      actual.some((name: unknown) => typeof name !== 'string' || !expected.includes(name))
+    )
+      fail(
+        'STATE_TARGET_MISMATCH',
+        'Optional state must contain only unique, exactly requested association identities.',
+      );
+  } else sameIds(actual, expected);
+}
+/**
+ * Google's write shape: 1–25 homogeneous native operations, atomic and applied (never partial or validate-only), each
+ * one create, update or remove. A new campaign starts PAUSED; its ad groups, ads and asset groups may start ENABLED
+ * only under a parent the review reads as PAUSED (google-paused-parents.ts, the owner's item 6).
+ */
+function googleWriteShape(plan: CompiledRequest, body: JsonObject, expect: ExpectState) {
+  if (!Array.isArray(body.operations) || !body.operations.length || body.operations.length > 25)
+    fail('WRITE_CONTRACT_UNAVAILABLE', 'Reviewed Google mutations require 1–25 homogeneous native operations.');
+  if (/\/campaigns:mutate$/.test(plan.path))
+    for (const op of body.operations) if (op.create) expect(op.create, 'status', ['PAUSED']);
+  if (/\/(adGroups|adGroupAds|assetGroups):mutate$/.test(plan.path))
+    for (const op of body.operations) if (op.create) expect(op.create, 'status', ['PAUSED', 'ENABLED']);
+  if (body.partial_failure === true || body.partialFailure === true)
+    fail(
+      'WRITE_CONTRACT_UNAVAILABLE',
+      'Execute homogeneous Google mutations atomically; partial_failure must be false.',
+    );
+  if (body.validate_only === true || body.validateOnly === true)
+    fail('WRITE_CONTRACT_UNAVAILABLE', 'This tool executes mutations; use a local dry run for validation-only plans.');
+  for (const op of body.operations)
+    if (!op || typeof op !== 'object' || ['create', 'update', 'remove'].filter(k => op[k] !== undefined).length !== 1)
+      fail('INVALID_MUTATION', 'Each Google operation must contain exactly one create, update or remove.');
+}
+
 export const googleAdsHooks: ProviderHooks = Object.freeze({
   gateway: 'google_ads_native_action',
+  checks: Object.freeze({
+    // Every reviewed write is checked against its pinned Discovery schema first.
+    request: validateGoogleRequest,
+    shape: Object.freeze({after: googleWriteShape}),
+    state: Object.freeze({
+      envelope: (read: CompiledRequest, result: TransportResult, data: JsonObject) =>
+        emptyOptionalState(read, result, data) ? {...result, data: {...data, results: []}} : result,
+      target: googleStateTarget,
+    }),
+  }),
   scope: Object.freeze({
     // Generation drafts need the Ads scope on the selected connection.
     assert: assertGoogleGenerationScope,

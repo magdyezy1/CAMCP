@@ -78,6 +78,7 @@ function adapter(
     account?: AccountDeclaration;
     deletions?: BodyDeletions;
     paging?: PagingFacts;
+    executionOptions?: true;
   } = {},
 ): ProviderAdapter {
   const status: ProviderStatus = options.parked ? 'parked' : 'active';
@@ -90,6 +91,7 @@ function adapter(
     ...(options.account ? {account: accountModel(id, options.account)} : {}),
     ...(options.deletions ? {deletions: bodyDeletions(options.deletions)} : {}),
     ...(options.paging ? {paging: Object.freeze({...options.paging})} : {}),
+    ...(options.executionOptions ? {executionOptions: true as const} : {}),
   });
 }
 
@@ -134,6 +136,7 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
       fields: {status: ['DELETED']},
       source: 'Marketing API campaign, ad set and ad updates: status ACTIVE, PAUSED, DELETED or ARCHIVED',
     },
+    executionOptions: true,
   }),
   adapter('tiktok', 'tiktok_native_action', {
     account: {fields: ['advertiser_id', 'advertiser_ids']},
@@ -211,6 +214,29 @@ export const providerAdapters: readonly ProviderAdapter[] = Object.freeze([
   adapter('amazon', 'amazon_native_action', {
     parked: {reason: 'unimplemented', decision: 'CON-06 option (b), docs/DECISIONS.md'},
   }),
+]);
+
+/**
+ * The gateways with reviewed mutation contracts (src/write-shape.ts writeContractGateways), in the order the review
+ * lists them: a request to any other gateway is refused WRITE_CONTRACT_UNAVAILABLE before anything else is checked.
+ */
+export const reviewedWriteGateways: readonly string[] = Object.freeze([
+  'meta_native_action',
+  'tiktok_native_action',
+  'snapchat_native_action',
+  'google_ads_native_action',
+  'google_business_native_action',
+  'linkedin_native_action',
+  'x_ads_native_action',
+  'dv360_native_action',
+  'reddit_native_action',
+  'criteo_native_action',
+  'microsoft_ads_native_action',
+  // The measurement providers (src/measurement-writes.ts measurementWriteGateways).
+  'ga4_native_action',
+  'gtm_native_action',
+  'google_search_console_native_action',
+  'apple_ads_native_action',
 ]);
 
 const byGateway = new Map(providerAdapters.map(a => [a.gateway, a]));

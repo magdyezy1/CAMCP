@@ -1,6 +1,11 @@
-import type {ProviderHooks, ScopeCallBuilder, ScopeContext} from './provider-adapter.js';
+import type {ExpectState, ProviderHooks, ScopeCallBuilder, ScopeContext, StateTarget} from './provider-adapter.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
+import type {TransportResult} from './transport.js';
+// The write-shape and state refusals keep the write stages' own helper (src/write-common.ts).
+import {fail} from './write-common.js';
+import {validateMetaCampaign, validateMetaV26} from './meta-contracts.js';
+import {pausedParentChildStatuses} from './paused-parents.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
 import {MirrorError} from './errors.js';
 import {normalizeAccount} from './account-id.js';
@@ -106,6 +111,29 @@ function observeMeta(plan: CompiledRequest, connection: Connection, id: string, 
 
 export const metaHooks: ProviderHooks = Object.freeze({
   gateway: 'meta_native_action',
+  checks: Object.freeze({
+    // Meta's campaign and v26 request rules come first.
+    request(plan: CompiledRequest) {
+      validateMetaCampaign(plan);
+      validateMetaV26(plan);
+    },
+    shape: Object.freeze({
+      // Campaigns start paused. Ad sets and ads may start active under a parent the review reads as paused
+      // (paused-parents.ts, the owner's decision of 2026-09-29).
+      after(plan: CompiledRequest, body: JsonObject, expect: ExpectState) {
+        if (/^\/v[^/]+\/act_[^/]+\/(campaigns|adsets|ads)$/.test(plan.path) && plan.method === 'POST')
+          expect(body, 'status', pausedParentChildStatuses(plan) ?? ['PAUSED']);
+      },
+    }),
+    // A node read names its ID last; a status asked for must be returned.
+    state: Object.freeze({
+      target(read: CompiledRequest, _result: TransportResult, data: JsonObject, {sameIds, target}: StateTarget) {
+        sameIds([String(data.id).replace(/^act_/, '')], [target()]);
+        if (String(read.query.fields).split(',').includes('status') && !Object.hasOwn(data, 'status'))
+          fail('STATE_READ_FAILED', 'Meta did not return the requested target status.');
+      },
+    }),
+  }),
   reads: Object.freeze({
     batch: (key: string) => key === 'batch',
     // GET act_<id>/value_rule_set. The fixed act_ path binds it, so it has no authorizer of its own.

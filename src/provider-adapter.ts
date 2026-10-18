@@ -8,12 +8,14 @@
  * and authorization decisions are unchanged (tools/call-replay.mjs; docs/review/ARCHITECTURE.md, "Provider adapters").
  * Every adapter carries its lifecycle status and its facts (the account model, body deletions), which any module may
  * read; behaviour that needs a provider's own modules (read classification, paging, the account read, the wire
- * profile) is its hooks, declared in src/<provider>-adapter.ts and registered in src/provider-hooks.ts.
+ * profile, its part of ScopeGuard, its write-shape and state checks) is its hooks, declared in
+ * src/<provider>-adapter.ts and registered in src/provider-hooks.ts.
  */
 import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 import type {Store} from './store.js';
 import type {Registry} from './catalog.js';
+import type {TransportResult} from './transport.js';
 
 /** `active` providers are offered; a `parked` one is offered only where AMCP_PROVIDERS names it. */
 export type ProviderStatus = 'active' | 'parked';
@@ -342,6 +344,72 @@ export interface ScopeHooks {
   observeCreated?(plan: CompiledRequest, connection: Connection, account: string, data: JsonObject, store: Store): void;
 }
 
+/** Refuses a new serving entity whose `key` is not one of `values`: the write-shape stage's paused-creation rule. */
+export type ExpectState = (record: JsonObject, key: string, values: string[]) => void;
+
+/**
+ * A provider's checks in the write-shape stage (src/write-shape.ts assertGatewayShape), which keeps the generic ones
+ * (query parameters, method tunnelling, side-effecting GETs) and asks the provider before them, after the query
+ * parameters and after the method checks.
+ */
+export interface WriteShapeChecks {
+  /** Checks before the generic ones (Snapchat's creative paths, Meta's creative, budget schedule and inline creative). */
+  before?(plan: CompiledRequest, body: JsonObject): void;
+  /** The one concurrency query parameter a reviewed write may carry (DV360's updateMask, Tag Manager's fingerprint). */
+  readonly queryParameter?: string;
+  /** Checks after the query parameters (LinkedIn's PARTIAL_UPDATE patches). */
+  afterQuery?(plan: CompiledRequest, body: JsonObject): void;
+  /** Paused creation and the native record structure, after the method checks; `expect` is the paused-creation rule. */
+  after?(plan: CompiledRequest, body: JsonObject, expect: ExpectState): void;
+}
+
+/** What a provider's exact-target check of a state read is given: the bound account and the shared ID comparison. */
+export interface StateTarget {
+  readonly id: string;
+  /** Refuses with STATE_TARGET_MISMATCH unless `actual` holds exactly the `expected` IDs, in any order. */
+  sameIds(actual: unknown[], expected: unknown[]): void;
+  /** The ID the read's path ends with (its last segment, decoded, without act_ or a URN's prefix). */
+  target(): string;
+}
+
+/**
+ * A provider's checks in the state stage (src/write-state.ts validateGatewayState), which keeps the success check,
+ * the pagination checks and the order, and asks the provider where it named the provider.
+ */
+export interface StateChecks {
+  /** The provider's own response contract, first; it replaces the generic success check (Microsoft's contracts). */
+  contract?(read: CompiledRequest, result: TransportResult): void;
+  /** True when a documented result ends the checks (a measurement resource's 404, Tag Manager's status read). */
+  settled?(read: CompiledRequest, result: TransportResult): boolean;
+  /**
+   * The result the success check reads: documented values set aside that are not failures (Search Console's sitemap
+   * error counts, Google's omitted empty results, a failed GA4 job's message); `result` itself otherwise. May refuse.
+   */
+  envelope?(read: CompiledRequest, result: TransportResult, data: JsonObject): TransportResult;
+  /** A read complete by its own contract, without the pagination checks (TikTok's published Instant Forms). */
+  complete?(read: CompiledRequest, data: JsonObject): boolean;
+  /** The provider checks its reads' targets whatever identity a family supplies (Microsoft, the measurement providers). */
+  readonly ownTarget?: true;
+  /** The exact-target check of a read no family checks: it returns, or refuses. */
+  target?(read: CompiledRequest, result: TransportResult, data: JsonObject, context: StateTarget): void;
+}
+
+/**
+ * A provider's gateway checks (ARC-01 phase B): its parts of the write-shape and state stages. The stages keep every
+ * generic rule, the order and every refusal they name; Reddit's write contract and state check stay in them (their
+ * module reads pages through src/pagination.ts, which consults these hooks, so Reddit's adapter cannot import it).
+ */
+export interface GatewayChecks {
+  /** The provider's request contracts, first (Google's Discovery schema, Meta's campaign and v26 rules). */
+  request?(plan: CompiledRequest): void;
+  /** A write contract that decides alone, instead of the families and routes (Microsoft's contracts). */
+  contract?(plan: CompiledRequest): void;
+  /** The provider's generic write contract before the reviewed routes (the measurement providers' resource writes). */
+  routeWrite?(plan: CompiledRequest): void;
+  readonly shape?: WriteShapeChecks;
+  readonly state?: StateChecks;
+}
+
 /** The preconditions of a plain documented GET read: read-only, no body, no special transport. */
 export const plainGetRead = (p: CompiledRequest) =>
   p.readOnly && p.method === 'GET' && !p.specialTransport && p.body === undefined;
@@ -359,6 +427,7 @@ export interface ProviderHooks {
   readonly accountRead?: AccountRead;
   readonly wire?: WireProfile;
   readonly scope?: ScopeHooks;
+  readonly checks?: GatewayChecks;
 }
 
 export interface ProviderAdapter {
@@ -377,4 +446,6 @@ export interface ProviderAdapter {
   readonly account?: AccountModel;
   readonly deletions?: BodyDeletions;
   readonly paging?: PagingFacts;
+  /** Its writes take execution_options, whose validate-only values a reviewed write refuses (Meta, WRT-06). */
+  readonly executionOptions?: true;
 }

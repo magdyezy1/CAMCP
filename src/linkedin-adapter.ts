@@ -1,7 +1,17 @@
-import {plainGetRead, type ProviderHooks, type ScopeCallBuilder, type ScopeContext} from './provider-adapter.js';
+import {
+  plainGetRead,
+  type ExpectState,
+  type ProviderHooks,
+  type ScopeCallBuilder,
+  type ScopeContext,
+  type StateTarget,
+} from './provider-adapter.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
+import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
+// The write-shape and state refusals keep the write stages' own helper (src/write-common.ts).
+import {fail} from './write-common.js';
 import {linkedinPlanningAccount, linkedinPlanningRoute} from './linkedin-planning-reads.js';
 import {authorizeLinkedInConversionEvidenceRead} from './linkedin-conversion-evidence.js';
 import {authorizeLinkedInAdPreview, linkedinAdPreviewRead, observeLinkedInCreatives} from './linkedin-ad-previews.js';
@@ -96,8 +106,53 @@ function linkedinResourceScope(
   return false;
 }
 
+/** A state read names one entity, whose URN (or its ID) the response must repeat. */
+function linkedinStateTarget(read: CompiledRequest, _result: TransportResult, data: JsonObject, context: StateTarget) {
+  const target = context.target(),
+    exact = decodeURIComponent(read.path.split('/').at(-1)!);
+  if (exact.startsWith('urn:li:') && data.id !== exact)
+    fail('STATE_TARGET_MISMATCH', 'LinkedIn returned a different resource URN.');
+  context.sameIds(
+    [
+      String(data.id ?? '')
+        .split(':')
+        .at(-1),
+    ],
+    [target],
+  );
+}
+
 export const linkedinHooks: ProviderHooks = Object.freeze({
   gateway: 'linkedin_native_action',
+  checks: Object.freeze({
+    shape: Object.freeze({
+      // An entity POST is a native PARTIAL_UPDATE patch.
+      afterQuery(plan: CompiledRequest, body: JsonObject) {
+        if (
+          plan.method === 'POST' &&
+          /^\/rest\/adAccounts\/[^/]+\/[^/]+\/[^/]+$/.test(plan.path) &&
+          (!body.patch || plan.headers['X-RestLi-Method']?.toUpperCase() !== 'PARTIAL_UPDATE')
+        )
+          fail(
+            'WRITE_CONTRACT_UNAVAILABLE',
+            'LinkedIn entity POST requires a native patch and restli_method PARTIAL_UPDATE.',
+          );
+      },
+      // New campaign groups, campaigns and creatives start paused or as drafts; creatives use intendedStatus.
+      after(plan: CompiledRequest, body: JsonObject, expect: ExpectState) {
+        if (
+          !/^\/rest\/adAccounts\/[^/]+\/(adCampaigns|adCampaignGroups|creatives)$/.test(plan.path) ||
+          plan.method !== 'POST'
+        )
+          return;
+        const creative = plan.path.endsWith('/creatives');
+        if (creative && Object.hasOwn(body, 'status'))
+          fail('INVALID_ARGUMENT', 'LinkedIn creatives use intendedStatus; remove the unsupported status field.');
+        expect(body, creative ? 'intendedStatus' : 'status', ['PAUSED', 'DRAFT']);
+      },
+    }),
+    state: Object.freeze({target: linkedinStateTarget}),
+  }),
   reads: Object.freeze({
     plannedRead: (p: CompiledRequest) => !!linkedinPlanningRoute(p),
     qualifiedRead: shareAuthorizationRead,

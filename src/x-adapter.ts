@@ -1,5 +1,7 @@
-import type {ProviderHooks} from './provider-adapter.js';
+import type {ExpectState, ProviderHooks, StateTarget} from './provider-adapter.js';
 import type {CompiledRequest, Credentials, JsonObject} from './types.js';
+import type {TransportResult} from './transport.js';
+import {assertXTargeting} from './x-targeting-writes.js';
 import {authorizeXAudienceEstimate, xAudienceEstimateRoute} from './x-audience-estimate.js';
 import {scopeKey, sha256} from './security.js';
 import {oauth1} from './oauth1.js';
@@ -22,6 +24,21 @@ const jsonBody = (plan: CompiledRequest) =>
  */
 export const xHooks: ProviderHooks = Object.freeze({
   gateway: 'x_ads_native_action',
+  checks: Object.freeze({
+    shape: Object.freeze({
+      // New campaigns and line items start paused; a targeting criterion follows its own contract.
+      after(plan: CompiledRequest, body: JsonObject, expect: ExpectState) {
+        if (/^\/12\/accounts\/[^/]+\/(campaigns|line_items)$/.test(plan.path) && plan.method === 'POST')
+          expect(body, 'entity_status', ['PAUSED']);
+        assertXTargeting(plan);
+      },
+    }),
+    // An entity read returns it under data.
+    state: Object.freeze({
+      target: (_read: CompiledRequest, _result: TransportResult, data: JsonObject, context: StateTarget) =>
+        context.sameIds([data.data?.id], [context.target()]),
+    }),
+  }),
   // The audience estimate: an account-scoped POST read of the current connection's account.
   scope: Object.freeze({
     authorizers: Object.freeze([

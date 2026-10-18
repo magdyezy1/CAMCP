@@ -3,6 +3,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import {MirrorError} from './errors.js';
 import {
+  assertMicrosoftWrite,
   compileMicrosoft,
   microsoftCustomer,
   microsoftCustomerOrigin,
@@ -10,7 +11,9 @@ import {
   microsoftGateway,
   microsoftGeoLocationsContract,
   microsoftRead,
+  validateMicrosoftResponse,
 } from './microsoft-native.js';
+import type {TransportResult} from './transport.js';
 import {microsoftReportKey} from './microsoft-report-download.js';
 
 /**
@@ -78,6 +81,16 @@ function observeMicrosoft(plan: CompiledRequest, connection: Connection, id: str
  */
 export const microsoftHooks: ProviderHooks = Object.freeze({
   gateway: microsoftGateway,
+  // Its contracts decide alone: the write contract, and a state read's response contract in place of the generic
+  // success check; the contract is the target check, whatever a family supplies.
+  checks: Object.freeze({
+    contract: assertMicrosoftWrite,
+    state: Object.freeze({
+      contract: (read: CompiledRequest, result: TransportResult) => validateMicrosoftResponse(read, result, true),
+      ownTarget: true as const,
+      target: () => undefined,
+    }),
+  }),
   scope: Object.freeze({resource: microsoftResourceScope, observe: observeMicrosoft}),
   reads: Object.freeze({readOnly: microsoftRead}),
   accountRead: Object.freeze({
