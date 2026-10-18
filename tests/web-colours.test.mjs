@@ -250,6 +250,54 @@ test('the tokens that replaced the literal colours keep or raise the contrast ea
     );
   }
 });
+// A hover or focus surface mapped onto the token of the surface its element already has gives no feedback: the
+// measurement task links' hover (#f5f2ff on their #f7f6fa) had become var(--surface), the --paper they sit on. In dark
+// mode theme.css re-colours the links through an :is() group that outranks the hover rule, so their hover and focus
+// states take a dark surface from its hover group (before, the dark links showed no hover at all).
+test('every hover and focus surface differs from its element’s own surface in both themes', () => {
+  const sheets = ['app.css', 'identity.css', 'reporting.css', 'workflows.css', 'accessibility.css', 'about.css'];
+  const surfaces = sheets.flatMap(file =>
+    cssDeclarations(fs.readFileSync('web/' + file, 'utf8'))
+      .filter(d => /^background(?:-color)?$/.test(d.property) && !d.atRules.length)
+      .map(d => ({...d, file, parts: d.selector.split(',').map(part => part.trim())})),
+  );
+  let compared = 0;
+  for (const state of surfaces)
+    for (const part of state.parts) {
+      const element = part.replace(/:(?:hover|focus-visible|focus-within|focus)\b/g, '').trim(),
+        own = element !== part && surfaces.findLast(d => d.parts.includes(element));
+      if (!own) continue;
+      for (const theme of ['light', 'dark']) {
+        compared++;
+        assert.notEqual(
+          resolve(theme, state.value),
+          resolve(theme, own.value),
+          `${theme}: ${state.file} ${part} has the surface of ${own.file} ${element}`,
+        );
+      }
+    }
+  assert.ok(compared >= 8, 'the scan reads the hover and focus surfaces: ' + compared);
+  // The links' text reaches 4.5:1 or more on that surface: in light from workflows.css, in dark from theme.css.
+  const ink = resolve('light', declared('workflows.css', '.measurement-task-links a', 'color')),
+    hovered = resolve('light', declared('workflows.css', '.measurement-task-links a:hover', 'background'));
+  assert.ok(contrast(ink, hovered) >= 4.5, `light: ${ink} on ${hovered}: ${contrast(ink, hovered).toFixed(2)}`);
+  const dark = cssDeclarations(fs.readFileSync('web/theme.css', 'utf8')).filter(d => !d.atRules.length),
+    group = (member, property) =>
+      dark.find(d => {
+        const list = /^\[data-theme='dark'\]\s*:is\(([\s\S]*)\)$/.exec(d.selector);
+        return d.property === property && list && list[1].split(',').some(entry => entry.trim() === member);
+      });
+  const rest = group('.measurement-task-links a', 'background');
+  assert.ok(rest, 'theme.css re-colours the measurement task links');
+  for (const state of ['.measurement-task-links a:hover', '.measurement-task-links a:focus-visible']) {
+    const surface = group(state, 'background'),
+      text = group(state, 'color');
+    assert.ok(surface && text, 'dark ' + state + ' has a surface and ink of its own');
+    const [on, under] = [resolve('dark', text.value), resolve('dark', surface.value)];
+    assert.notEqual(under, resolve('dark', rest.value), 'dark ' + state + ' differs from the links at rest');
+    assert.ok(contrast(on, under) >= 4.5, `dark ${state}: ${on} on ${under}: ${contrast(on, under).toFixed(2)}`);
+  }
+});
 // Declarations whose light literal also painted in the dark theme (no theme.css entry reached them): the icon buttons'
 // ink read 3.05:1 on the dark panel, a plan step 3.04:1, the controls theme.css's input rule skips (the report
 // builder's checkboxes) kept a near-black ink (1.05:1), and light borders lit up the dark page. Their tokens carry a

@@ -895,7 +895,7 @@
 
 .measurement-task-links a:hover,
 .measurement-task-links a:focus-visible {
-  background: var(--surface);
+  background: var(--surface-subtle);
 }
 /* MSR-03: the evidence ledger states and short evidence lists wrap inside the table at 320 px. */
 .measurement-ledger td,
