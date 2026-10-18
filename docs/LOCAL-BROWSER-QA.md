@@ -267,9 +267,11 @@ WEB-07 changes every page: the shell's stylesheets and tokens, escape-by-default
 and route-sized bundles. Its local acceptance asks the full rendered run to show no contrast failure in either theme.
 The integration gate's browser stage made that run on the merged tree (`--qualification`, every kind in English and
 Arabic, both appearances, 320 to 1280 pixels), and it passed
-([Wave 3b integration qualification](#wave-3b-integration-qualification-2026-10-17)). WEB-07's other open items are in
-the package status (B16 deployed, B24 the providers chunk); English About's bytes gap closed when About stopped loading
-`theme.css` (docs/AMCP-IDENTITY.md).
+([Wave 3b integration qualification](#wave-3b-integration-qualification-2026-10-17)). The component colours from
+tokens (w4a, below) changed every page's colours after that run, so the wave 4a integration gate's `--qualification`
+with axe-core is their acceptance run. WEB-07's other open items are in the package status (B16 deployed and the
+owner's visual sign-off, B23 the `theme.css` entries that only repeat a token, B24 the providers chunk); English
+About's bytes gap closed when About stopped loading `theme.css` (docs/AMCP-IDENTITY.md).
 
 - **Development subsets so far** (no qualification; axe-core 4.14.0 on). On the package branch: the Live portfolio,
   Measurement and Commerce kinds, 144 of 144, and `empty`, `granular-reporting`, `export-outcomes`,

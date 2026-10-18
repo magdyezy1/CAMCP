@@ -45,7 +45,8 @@ without JavaScript too, and the workspace, which needs JavaScript (`theme.js` se
 never downloads it. A computed-style comparison of About, Privacy, Terms, Data deletion, 404 and the workspace shell,
 light and dark, with and without JavaScript, at 320 and 1280 pixels, found no difference from one `tokens.css`
 holding everything (2026-10-17). A component written with the roles is right in dark mode without an entry in
-`theme.css`, the older override layer that still re-colours the components not yet migrated.
+`theme.css`, the older override layer, which the workspace still loads after the component sheets; what it still
+decides is [below](#component-colours-from-tokens-web-07-2026-10-18).
 
 About loads no `theme.css` (w4a, 2026-10-17): `about.css` takes every colour from tokens and carries the Appearance
 control's rules, so About renders the same in dark mode with and without JavaScript. The override layer had given its
@@ -80,9 +81,11 @@ colours remained outside the allow-list.
 No stylesheet writes a colour of its own any more: `tools/web-colour-baseline.json` holds 0, and only the 12
 allow-listed brand marks and the printed page keep literals. Each of the 391 became the palette, a semantic role, a
 component shade or a theme-invariant colour in `web/tokens.css` (a translucent tint is a `color-mix()` of a token), and
-none may read worse than the literal it replaced: text gets darker on light surfaces and lighter on the inverse ones, a
-surface under dark text lighter and under light text darker, a control or state border darker. Decorative borders,
-shadows, dots and illustration shapes take the nearest token. The component shades, by what they colour:
+no text may read worse than the literal it replaced: text gets darker on light surfaces and lighter on the inverse
+ones, and a surface under dark text lighter and under light text darker. The control borders WEB-01's input rule had
+missed got darker (below). Decorative borders, hover tints, shadows, dots and illustration shapes take the nearest
+token, so some read a little lighter than their literal (listed below for the owner's sign-off). The component shades,
+by what they colour:
 
 - **Text.** `--text-strong` (the report builder's fields), `--text-soft` (notices, code, labels, chips),
   `--text-secondary-strong`, `--text-accent` and `--text-accent-strong` (purple secondary text: section numbers,
@@ -107,9 +110,29 @@ Every component shade has a dark value: where `theme.css` re-colours that compon
 layer and the token agree; where the light literal used to paint in dark mode too, the dark theme's ink or line. That
 fixes dark-mode slips no override had reached: the icon buttons' ink (3.05:1 on the dark panel, now 8.07:1), a plan
 step's text (3.04:1), the near-black ink of the controls the dark input rule skips (the report builder's checkboxes),
-and light borders on platform logos and report options that lit up the dark page. The visible change in light mode is that the one-off tints merged: secondary text is
-the palette's muted ink (slightly darker), purple accents are two shades, icons one soft iris, and the sidebar's links
-and labels lighter. A computed-style comparison with the tree before (every element, `::before`/`::after`/`::marker`/
+and light borders on platform logos and report options that lit up the dark page. The visible change in light mode is
+that the one-off tints merged: secondary text is the palette's muted ink (slightly darker), purple accents are two
+shades, icons one soft iris, the sidebar's links and labels lighter, and the hero's chip white on the iris (it was pale
+lilac on a mid lilac).
+
+Some lines and tints read a little lighter in light mode, none of which reached 3:1 against white before: container
+borders of 1.31 to 1.46:1 take `--border` (1.29:1): the report table, delivery dialog, source health, report control
+panel, target cards, delivery report context, notices, the empty state, the plan card and the command key; the
+failed-activity panel and the AI feature card lose their faint rose and warm tints; the spinner's track is
+`--surface-accent`; and hover tints are slightly closer to white (the buttons' `#f4f0fc`, 1.12:1 against white, is
+`--surface`, 1.08:1). In dark mode the borders of the platform logos, report options, report platforms and the command
+key, which painted their light literal there (11 to 13:1 on the dark panel), are the dark line (1.8:1). The owner's
+visual sign-off of this increment covers these changes (package status B16).
+
+`theme.css` still loads after the component sheets in the workspace, and its `:is()` groups often outrank the
+component rules (a group takes the specificity of its most specific entry). Where a component's colour became a
+component shade, the shade's dark value is the layer's value, so those entries only repeat the tokens; where a
+component uses a palette role, an entry can still decide its dark colours: the measurement task links, for example,
+take `--surface-subtle` and the ink there instead of `--paper` and `--iris-700`, and their hover and focus states the
+layer's dark hover group. Removing the entries that only repeat a token, checked with the same computed-style
+comparison, is open (package status B23).
+
+A computed-style comparison with the tree before (every element, `::before`/`::after`/`::marker`/
 `::placeholder` and every forced hover, focus and active state) of the public and workspace pages of the empty
 workspace, light and dark, English and Arabic, at 375 and 1280 pixels (256 page states), and of 23 populated fixture
 kinds on their pages in both themes, found colour changes only (no layout, text or DOM difference) and no text whose

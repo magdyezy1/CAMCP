@@ -288,8 +288,8 @@
         {"text": "Finite manual assistive-technology acceptance", "disposition": "register_item", "ref": "ACC-07"},
         {"text": "Railway settings before the 2026-12-01 cutoff and path-scoped deploys", "disposition": "register_item", "ref": "OPS-05"},
         {"text": "ARC-03 manual acceptance: the owner reviews the unanchored route list (docs/implementation/ROUTE-ANCHOR-COVERAGE.md) and the withheld-capture declaration (.mirror/RAW/WITHHELD.json), and runs the network steps no check takes: the Apple SDK re-derivation at its pinned revision and pinning the TikTok SDK", "disposition": "owner_action", "ref": "ARC-03"},
-        {"text": "WEB-07 deployed acceptance: the release browser matrix, dark-mode screenshots matching local, and Arabic About and Home loading the shell chunk only (the local criterion, the full rendered qualification with 0 contrast failures in either theme, passed on the merged tree: wave3b-browser-1, docs/LOCAL-BROWSER-QA.md)", "disposition": "register_item", "ref": "WEB-07"},
-        {"text": "WEB-07 visual diff sign-off per increment (theme tokens, escape-by-default markup, route bundles)", "disposition": "owner_action", "ref": "WEB-07"}
+        {"text": "WEB-07 deployed acceptance: the release browser matrix, dark-mode screenshots matching local, and Arabic About and Home loading the shell chunk only (the local criterion, the full rendered qualification with 0 contrast failures in either theme, passed on the wave 3b tree, wave3b-browser-1; with the component colours from tokens it is the wave 4a integration qualification with axe-core, docs/LOCAL-BROWSER-QA.md)", "disposition": "register_item", "ref": "WEB-07"},
+        {"text": "WEB-07 visual diff sign-off per increment (theme tokens, escape-by-default markup, route bundles, and the component colours from tokens: the merged light-mode shades, the decorative borders and tints that read a little lighter, and the dark-mode borders of platform logos, report options, report platforms and the command key on the dark line, as docs/AMCP-IDENTITY.md lists them)", "disposition": "owner_action", "ref": "WEB-07"}
       ]
     },
     {
@@ -423,6 +423,7 @@
       "manual": {"state": "not_recorded", "evidence": []},
       "remainders": [
         {"text": "Real tenant load tests and shared-quota admission", "disposition": "register_item", "ref": "OPS-08"},
+        {"text": "WEB-07: theme.css keeps entries that only repeat a component shade token's dark value; remove them where a computed-style comparison of every page state, light and dark, shows no difference, so the layer holds only what it still decides", "disposition": "register_item", "ref": "WEB-07"},
         {"text": "WEB-07 ES modules with explicit imports instead of the shared global scope", "disposition": "optional_stretch", "ref": "WEB-07"}
       ]
     },

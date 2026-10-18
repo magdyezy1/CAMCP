@@ -913,12 +913,13 @@ compressed comments every page downloaded), the workspace-only chunk loading mov
 policy pages' shades and the no-JavaScript dark block moved into `public-tokens.css`, which the workspace never
 downloads. English About was the last open gap (16,868 bytes against 15,848): it downloaded `theme.css`, the
 workspace's dark override layer, although `about.css` took its colours from tokens. About no longer loads it
-(`about.css` carries the Appearance control's rules), so it downloads 15,111 bytes (4.7% below) and renders the same
-in dark mode with and without JavaScript; no page is open. Moving every component colour into tokens (2026-10-18,
+(`about.css` carries the Appearance control's rules), so it downloaded 15,111 bytes then (4.7% below) and renders the
+same in dark mode with and without JavaScript; no page is open. Moving every component colour into tokens (2026-10-18,
 docs/AMCP-IDENTITY.md) grew `tokens.css` from 1,000 to 1,642 bytes (its comments shortened) and shrank the
 workspace's other stylesheets by 1,619 (the declarations a later rule always overrides left first): Home, Schedules,
-Report library and Report builder are 1,014 bytes below their baseline and English About 146 (0.9%) below, every
-Arabic page 10.9–85% below. `tests/web-route-bytes.test.mjs` checks the same and keeps the split's gains, each with a
+Report library and Report builder were 1,014 bytes below their baseline and English About 146 (0.9%, 15,702 bytes)
+below, every Arabic page 10.9–85% below. The measurement task links' hover and focus fix (wave 4a review) added 22
+bytes to the workspace pages, which are 992 bytes below. `tests/web-route-bytes.test.mjs` checks the same and keeps the split's gains, each with a
 wide margin.
 
 `npm run build && node tools/benchmark-web-first-render.mjs --output-dir .runtime/<fresh-directory>` times the first
