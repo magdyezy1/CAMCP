@@ -1,12 +1,12 @@
 {
   "description": "Raw SQL each application module outside the store layer may still hold (ARC-02, tools/check-storage-boundary.mjs): SQL literals, json_extract uses, database handle uses and the document kinds its SQL names. Values only fall: move SQL into a repository module (docs/ADDING-A-DOCUMENT-KIND.md) and lower them with --update; never raise one.",
   "totals": {
-    "modules_with_sql": 14,
-    "modules_with_db": 14,
-    "sql": 139,
-    "json_extract": 24,
-    "db": 120,
-    "kinds_via_raw_sql": 10
+    "modules_with_sql": 13,
+    "modules_with_db": 13,
+    "sql": 132,
+    "json_extract": 23,
+    "db": 113,
+    "kinds_via_raw_sql": 9
   },
   "allowance": {
     "server/account-security.ts": {
@@ -31,14 +31,6 @@
       "db": 35,
       "kinds": []
     },
-    "server/website.ts": {
-      "sql": 6,
-      "json_extract": 1,
-      "db": 6,
-      "kinds": [
-        "member_access_set"
-      ]
-    },
     "src/campaign-runner.ts": {
       "sql": 4,
       "json_extract": 1,
@@ -62,9 +54,9 @@
       ]
     },
     "src/service.ts": {
-      "sql": 5,
+      "sql": 4,
       "json_extract": 1,
-      "db": 5,
+      "db": 4,
       "kinds": []
     },
     "src/spend-policy.ts": {

@@ -36,7 +36,12 @@ export function navigationLinks(index) {
   }
   return links;
 }
-/** The shell pages server/website.ts answers with index.html. */
+/**
+ * The website route module that answers the shell pages with index.html (ARC-04 stage D: createWebsite registers it
+ * through its route registry, server/website.ts).
+ */
+export const serverShellSource = 'server/page-routes.ts';
+/** The shell pages the server answers with index.html, from the source of serverShellSource. */
 export function serverShellRoutes(source) {
   const list =
     /for \(const route of \[([\s\S]*?)\]\)\s*router\.get\(route, \(_req, res\) => res\.type\('html'\)\.send\(publicAssets\.html\('index\.html'\)\)\)/.exec(
@@ -110,13 +115,13 @@ export function routeProblems({registry, index, server, assets}) {
       problems.push('index.html: navigation page ' + entry.path + ' has no navigation link');
   if (links.map(link => link.href).join() !== expected.map(entry => entry.path).join())
     problems.push('index.html: navigation order differs from web/routes.js');
-  if (!server) problems.push('server/website.ts: the list of shell pages was not found');
+  if (!server) problems.push(serverShellSource + ': the list of shell pages was not found');
   else {
     for (const route of server)
       if (!paths.includes(route))
-        problems.push('server/website.ts: serves ' + route + ', which web/routes.js does not register');
+        problems.push(serverShellSource + ': serves ' + route + ', which web/routes.js does not register');
     for (const route of paths)
-      if (!server.includes(route)) problems.push('server/website.ts: does not serve registered page ' + route);
+      if (!server.includes(route)) problems.push(serverShellSource + ': does not serve registered page ' + route);
   }
   for (const route of assets ?? [])
     if (!paths.includes(route)) problems.push('web/route-assets.js: loads assets for unregistered page ' + route);
@@ -128,7 +133,7 @@ export function checkRoutes(root = process.cwd()) {
     ...routeProblems({
       registry: loadRouteRegistry(root),
       index: fs.readFileSync(path.join(root, 'web/index.html'), 'utf8'),
-      server: serverShellRoutes(fs.readFileSync(path.join(root, 'server/website.ts'), 'utf8')),
+      server: serverShellRoutes(fs.readFileSync(path.join(root, serverShellSource), 'utf8')),
       assets: Object.keys(plan.routes),
     }),
     ...pageAssetProblems(plan, file => fs.existsSync(path.join(root, 'web', file))),

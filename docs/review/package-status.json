@@ -333,7 +333,7 @@
       "remainders": [
         {"text": "Verified LinkedIn conversion windows (closes the package)", "disposition": "register_item", "ref": "RPT-07"},
         {"text": "Guided presets for X, Microsoft, Apple and Reddit (the capture bridge already covers them)", "disposition": "optional_stretch", "ref": "RPT-07"},
-        {"text": "ARC-04 local criteria not yet met: functions over 400 lines in touched modules (createWebsite, errorRemedy, MediaUploadService.handle), the remaining stage D tables (amcp_media actions, website route modules; WEB-07 split web/account-workflows.js), family-declared remedies, and defineFamily beyond the X families", "disposition": "register_item", "ref": "ARC-04"},
+        {"text": "ARC-04 local criteria not yet met: nine backend functions of 400 lines or more remain (target three or fewer; none a composite tool dispatcher: report collection, campaignRecipe, asset discovery, the transport and five single workflows), the 93 family read builders that differ from the kit stateReadOf, and defineFamily beyond the X families", "disposition": "register_item", "ref": "ARC-04"},
         {"text": "ARC-01 phase B beyond the account model: 88 shared modules name a gateway (target 20 or fewer) and 496 shared-to-provider imports remain (target 30 or fewer), with the call-replay proof, the authorizer-disjointness test and the suite run with AMCP_PROVIDERS=criteo,woocommerce", "disposition": "register_item", "ref": "ARC-01"}
       ]
     },
@@ -489,7 +489,7 @@
       "manual": {"state": "not_recorded", "evidence": []},
       "remainders": [
         {"text": "Microsoft portfolio adapter", "disposition": "finite_package", "ref": "B30"},
-        {"text": "ARC-04 local criteria not yet met: functions over 400 lines in touched modules (createWebsite, errorRemedy, MediaUploadService.handle), the remaining stage D tables (amcp_media actions, website route modules; WEB-07 split web/account-workflows.js), family-declared remedies, and defineFamily beyond the X families", "disposition": "register_item", "ref": "ARC-04"},
+        {"text": "ARC-04 local criteria not yet met: nine backend functions of 400 lines or more remain (target three or fewer; none a composite tool dispatcher: report collection, campaignRecipe, asset discovery, the transport and five single workflows), the 93 family read builders that differ from the kit stateReadOf, and defineFamily beyond the X families", "disposition": "register_item", "ref": "ARC-04"},
         {"text": "ARC-01 phase B beyond the account model: 88 shared modules name a gateway (target 20 or fewer) and 496 shared-to-provider imports remain (target 30 or fewer), with the call-replay proof, the authorizer-disjointness test and the suite run with AMCP_PROVIDERS=criteo,woocommerce", "disposition": "register_item", "ref": "ARC-01"}
       ],
       "declared_limits": [

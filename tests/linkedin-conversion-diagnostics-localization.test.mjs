@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {parsers} from 'prettier/plugins/babel';
-import {inspectMeasurementFailures, inspectSharedRecoveryHints, localeProblems} from '../tools/check-locales.mjs';
+import {inspectMeasurementFailures, localeProblems, sharedRecoveryHints} from '../tools/check-locales.mjs';
 import {MirrorError, errorResult} from '../dist/src/errors.js';
 import {accountWorkflowFixture} from './fixtures/account-workflows-ui.mjs';
 import {assertWebsiteRemedy} from './fixtures/website-remedy.mjs';
@@ -26,10 +26,11 @@ test('LinkedIn conversion failure selector owns only exact source helpers and li
     'src/other-linkedin-conversion-evidence.ts',
   ])
     assert.equal(inspectMeasurementFailures(sample, name).size, 0);
-  const hints = inspectSharedRecoveryHints(readFileSync('src/errors.ts', 'utf8'), 'src/errors.ts'),
+  const hints = sharedRecoveryHints(),
     inventoryHint = errorResult(new MirrorError('PORTFOLIO_INVALID_RESPONSE', 'Fixture'), 'ref', 0).error.next_action;
   // The shared inventory of tests/shared-recovery-localization.test.mjs (SEC-08, CMP-03 and ARC-01 added one remedy
-  // each, PRV-06 four, owner decision P5 one, and CMP-03's Microsoft location lookup two).
+  // each, PRV-06 four, owner decision P5 one, and CMP-03's Microsoft location lookup two): errorRemedy's in
+  // src/errors.ts and the providers' remedy tables it consults first (ARC-04 stage C).
   assert.equal(hints.size, 167);
   assert.ok(hints.has(inventoryHint));
   assert.equal([...hints].filter(hint => hint !== inventoryHint).length, 166);

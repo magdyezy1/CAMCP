@@ -13,7 +13,7 @@ import {readOnlyPolicy} from '../dist/src/preflight.js';
 import {ScopeGuard} from '../dist/src/scope.js';
 import {readinessPlan} from '../dist/src/workspace.js';
 import {classifyProviderError} from '../dist/src/provider-error-taxonomy.js';
-import {MirrorError, errorRemedy} from '../dist/src/errors.js';
+import {MirrorError, errorRemedy, errorResult} from '../dist/src/errors.js';
 import {businessScope} from '../dist/src/google-business-assets.js';
 import {gatewayOffered} from '../dist/src/provider-offering.js';
 import {createHttpApp} from '../dist/server/http-app.js';
@@ -353,6 +353,35 @@ test('a quota of 0 requests per minute is refused as a project Google has not ap
   const remedy = errorRemedy(new MirrorError('BUSINESS_PROFILE_API_NOT_APPROVED', 'x'));
   assert.deepEqual([remedy.owner, remedy.mutation_retry_safe], ['deployment_operator', false]);
   assert.match(remedy.action, /reconnecting or retrying does not help/);
+  // The transport raises it from Google's reply, which the refusal carries as details.upstream, and the owner action
+  // still applies. Regression (ARC-04 stage C): errorRemedy's shared rule for provider replies came before this code's
+  // rule, so an MCP caller was told to inspect the native error and request ID instead.
+  const raised = await new NativeTransport(async () => zeroQuota())
+    .request(
+      readinessPlan('google_business_native_action', 'locations/3001'),
+      {
+        id: 'gbp',
+        tenantId: 'local',
+        gateway: 'google_business_native_action',
+        accounts: ['locations/3001'],
+        enabled: true,
+        label: 'Synthetic Business Profile',
+        scopes: [businessScope],
+      },
+      {accessToken: 'synthetic-business-access'},
+    )
+    .then(
+      () => assert.fail('a quota of 0 is refused'),
+      e => e,
+    );
+  assert.equal(raised.code, 'BUSINESS_PROFILE_API_NOT_APPROVED');
+  assert.ok(Object.hasOwn(raised.details, 'upstream'), 'Google’s reply rides along');
+  const replied = errorResult(raised, 'business-profile-reference', 0);
+  assert.deepEqual(
+    [replied.error.category, replied.error.remedy.owner, replied.error.remedy.mutation_retry_safe],
+    ['deployment', 'deployment_operator', false],
+  );
+  assert.match(replied.error.next_action, /reconnecting or retrying does not help/);
 
   // The website connect flow keeps the login and tells the owner why discovery failed; nothing offers a retry time.
   const s = await site({env: {AMCP_GBP_API_APPROVED: 'true'}, quotaZero: true});

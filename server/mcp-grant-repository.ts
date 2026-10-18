@@ -20,7 +20,7 @@ export function endGrant(store: Store, hash: string, reason: string, at: number)
     .prepare("UPDATE amcp_mcp_grants SET used=1,data=json_set(data,'$.ended_reason',?,'$.ended_at',?) WHERE hash=?")
     .run(reason, at, hash);
 }
-/** Revokes the API key of an ended access grant. */
+/** Revokes one API key of a workspace by its hash: an ended access grant's, or a revoked connector token's. */
 export function revokeGrantKey(store: Store, tenant: string, hash: string) {
   store.sql().prepare('UPDATE api_keys SET revoked=1 WHERE tenant_id=? AND hash=?').run(tenant, hash);
 }

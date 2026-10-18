@@ -527,22 +527,39 @@ function importedMirrorErrorSentences(source, errorModule) {
   });
   return messages;
 }
+/**
+ * The website's own server sources, whose authored refusals the website shows (server:website-failures, carried in
+ * the shell chunk). ARC-04 stage D split createWebsite into the route modules listed after server/website.ts.
+ */
+export const websiteFailureSources = Object.freeze([
+  'server/account-routes.ts',
+  'server/account-security.ts',
+  'server/asset-discovery.ts',
+  'server/google-account-discovery.ts',
+  'server/google-reauthorization.ts',
+  'server/http-app.ts',
+  'server/media-source-routes.ts',
+  'server/password-hashes.ts',
+  'server/platform-oauth.ts',
+  'server/social-signin.ts',
+  'server/user-accounts.ts',
+  'server/web-store.ts',
+  'server/website.ts',
+  'server/access-routes.ts',
+  'server/activity-routes.ts',
+  'server/connection-routes.ts',
+  'server/mcp-consent-routes.ts',
+  'server/mcp-token-routes.ts',
+  'server/page-routes.ts',
+  'server/platform-routes.ts',
+  'server/report-download-routes.ts',
+  'server/session-routes.ts',
+  'server/website-connections.ts',
+  'server/website-gates.ts',
+  'server/workspace-routes.ts',
+]);
 export function inspectWebsiteFailures(source, file) {
-  const selected = new Set([
-    'server/account-routes.ts',
-    'server/account-security.ts',
-    'server/asset-discovery.ts',
-    'server/google-account-discovery.ts',
-    'server/google-reauthorization.ts',
-    'server/http-app.ts',
-    'server/media-source-routes.ts',
-    'server/password-hashes.ts',
-    'server/platform-oauth.ts',
-    'server/social-signin.ts',
-    'server/user-accounts.ts',
-    'server/web-store.ts',
-    'server/website.ts',
-  ]);
+  const selected = new Set(websiteFailureSources);
   if (!selected.has(file.replaceAll('\\', '/'))) return new Set();
   return importedMirrorErrorSentences(source, '../src/errors.js');
 }
@@ -922,10 +939,31 @@ export function inspectMeasurementFailures(source, file) {
   return messages;
 }
 
+/**
+ * errorRemedy and the functions that hold its shared rules, in src/errors.ts (ARC-04 stage C split the rules into
+ * three functions consulted in order); the inventories below read them as they read errorRemedy itself.
+ */
+export const errorRemedyFunctions = Object.freeze(['errorRemedy', 'workflowRemedy', 'reviewRemedy', 'workspaceRemedy']);
+/**
+ * The providers' remedy tables, which errorRemedy consults before its shared rules (src/provider-remedies.ts, ARC-04
+ * stage C). Their remedies are shared recovery hints as errorRemedy's are.
+ */
+export const providerRemedyModules = Object.freeze([
+  'src/google-remedies.ts',
+  'src/google-business-remedies.ts',
+  'src/linkedin-remedies.ts',
+  'src/meta-remedies.ts',
+  'src/microsoft-remedies.ts',
+  'src/reddit-remedies.ts',
+  'src/snapchat-remedies.ts',
+  'src/tiktok-remedies.ts',
+  'src/x-remedies.ts',
+]);
 // Exact shared recovery hints reached by the selected native capture collectors.
 function inspectCaptureRemedies(source, file, otherProviders, measurement = false) {
   const messages = new Set();
   if (file.replaceAll('\\', '/') !== 'src/errors.ts') return messages;
+  const remedyFunction = declaration => errorRemedyFunctions.includes(declaration.id.name);
   const visit = (node, callback) => {
     if (!node || typeof node !== 'object') return;
     callback(node);
@@ -953,7 +991,7 @@ function inspectCaptureRemedies(source, file, otherProviders, measurement = fals
           )
             selected = true;
           if (
-            declaration.id.name === 'errorRemedy' &&
+            remedyFunction(declaration) &&
             ((condition.type === 'StringLiteral' && condition.value === 'REPORT_SHAPE_CHANGED') ||
               (otherProviders &&
                 condition.type === 'RegExpLiteral' &&
@@ -971,7 +1009,7 @@ function inspectCaptureRemedies(source, file, otherProviders, measurement = fals
             )
               messages.add(value.arguments[1].value);
             if (
-              declaration.id.name === 'errorRemedy' &&
+              remedyFunction(declaration) &&
               value.type === 'ObjectProperty' &&
               value.key?.name === 'action' &&
               value.value?.type === 'StringLiteral'
@@ -996,8 +1034,9 @@ function inspectCaptureRemedies(source, file, otherProviders, measurement = fals
           )
             messages.add(property.value.value);
     });
-    if (measurement && declaration.id.name === 'errorRemedy') {
-      // Only the two selected metadata refusals and the final authored fallback reached by measurement reads.
+    if (measurement && remedyFunction(declaration)) {
+      // Only the two selected metadata refusals and the final authored fallback reached by measurement reads: the
+      // state-read table of whichever function holds it, and errorRemedy's own last statement.
       for (const node of declaration.body.body) {
         if (node.type === 'VariableDeclaration')
           for (const value of node.declarations)
@@ -1009,7 +1048,7 @@ function inspectCaptureRemedies(source, file, otherProviders, measurement = fals
                 )
                   messages.add(property.value.value);
       }
-      const last = declaration.body.body.at(-1);
+      const last = declaration.id.name === 'errorRemedy' ? declaration.body.body.at(-1) : undefined;
       if (last?.type === 'ReturnStatement' && last.argument?.type === 'ObjectExpression')
         for (const property of last.argument.properties) {
           const value = property.value;
@@ -1035,8 +1074,9 @@ export const inspectGoogleCaptureRemedies = (source, file) => inspectCaptureReme
 export const inspectProviderCaptureRemedies = (source, file) => inspectCaptureRemedies(source, file, true);
 export const inspectMeasurementRemedies = (source, file) => inspectCaptureRemedies(source, file, true, true);
 export function inspectSharedRecoveryHints(source, file) {
-  const messages = new Set();
-  if (file.replaceAll('\\', '/') !== 'src/errors.ts') return messages;
+  const messages = new Set(),
+    name = file.replaceAll('\\', '/');
+  if (name !== 'src/errors.ts' && !providerRemedyModules.includes(name)) return messages;
   const visit = (node, callback) => {
     if (!node || typeof node !== 'object') return;
     callback(node);
@@ -1051,13 +1091,22 @@ export function inspectSharedRecoveryHints(source, file) {
       literalBranches(node.alternate);
     }
   };
-  for (const statement of parsers['babel-ts'].parse(source).program.body) {
+  const program = parsers['babel-ts'].parse(source).program;
+  // A provider's remedy table (ARC-04 stage C): the action of each remedy it declares.
+  if (name !== 'src/errors.ts') {
+    visit(program, node => {
+      if (node.type === 'ObjectProperty' && node.key?.name === 'action') literalBranches(node.value);
+    });
+    return messages;
+  }
+  for (const statement of program.body) {
     const declaration = statement.type === 'ExportNamedDeclaration' ? statement.declaration : statement;
     if (
       declaration?.type !== 'FunctionDeclaration' ||
-      !['familyRemedy', 'errorRemedy', 'errorResult'].includes(declaration.id.name)
+      !['familyRemedy', ...errorRemedyFunctions, 'errorResult'].includes(declaration.id.name)
     )
       continue;
+    const remedyFunction = errorRemedyFunctions.includes(declaration.id.name);
     visit(declaration.body, node => {
       if (
         declaration.id.name === 'familyRemedy' &&
@@ -1066,12 +1115,11 @@ export function inspectSharedRecoveryHints(source, file) {
         node.arguments[1]?.type === 'StringLiteral'
       )
         messages.add(node.arguments[1].value);
-      if (declaration.id.name === 'errorRemedy' && node.type === 'ObjectProperty' && node.key?.name === 'action')
-        literalBranches(node.value);
+      if (remedyFunction && node.type === 'ObjectProperty' && node.key?.name === 'action') literalBranches(node.value);
       if (
         node.type === 'VariableDeclarator' &&
         node.init?.type === 'ObjectExpression' &&
-        ((declaration.id.name === 'errorRemedy' && node.id?.name === 'stateRead') ||
+        ((remedyFunction && node.id?.name === 'stateRead') ||
           (declaration.id.name === 'errorResult' && node.id?.name === 'remediation'))
       )
         for (const property of node.init.properties)
@@ -1080,6 +1128,17 @@ export function inspectSharedRecoveryHints(source, file) {
     });
   }
   return messages;
+}
+/**
+ * The shared recovery hints the website shows: those of errorRemedy in src/errors.ts and of the providers' remedy
+ * tables it consults first.
+ */
+export function sharedRecoveryHints(root = process.cwd()) {
+  const hints = new Set();
+  for (const file of ['src/errors.ts', ...providerRemedyModules])
+    for (const hint of inspectSharedRecoveryHints(fs.readFileSync(path.join(root, file), 'utf8'), file))
+      hints.add(hint);
+  return hints;
 }
 export function checkWebLocales(root = process.cwd()) {
   const directory = path.join(root, 'web'),
@@ -1326,11 +1385,7 @@ export function checkWebLocales(root = process.cwd()) {
   ])
     for (const message of inspectMeasurementFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
       need('server:measurement-failures', message);
-  for (const message of inspectSharedRecoveryHints(
-    fs.readFileSync(path.join(root, 'src/errors.ts'), 'utf8'),
-    'src/errors.ts',
-  ))
-    need('server:shared-recovery', message);
+  for (const message of sharedRecoveryHints(root)) need('server:shared-recovery', message);
   for (const message of inspectMeasurementRemedies(
     fs.readFileSync(path.join(root, 'src/errors.ts'), 'utf8'),
     'src/errors.ts',
@@ -1352,21 +1407,7 @@ export function checkWebLocales(root = process.cwd()) {
         .replaceAll('&gt;', '>')
         .replaceAll('&amp;', '&'),
     );
-  for (const file of [
-    'server/account-routes.ts',
-    'server/account-security.ts',
-    'server/asset-discovery.ts',
-    'server/google-account-discovery.ts',
-    'server/google-reauthorization.ts',
-    'server/http-app.ts',
-    'server/media-source-routes.ts',
-    'server/password-hashes.ts',
-    'server/platform-oauth.ts',
-    'server/social-signin.ts',
-    'server/user-accounts.ts',
-    'server/web-store.ts',
-    'server/website.ts',
-  ])
+  for (const file of websiteFailureSources)
     for (const message of inspectWebsiteFailures(fs.readFileSync(path.join(root, file), 'utf8'), file))
       need('server:website-failures', message);
   for (const file of [

@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import {familyErrors, type ReasonFirstRefusal, stateReadOf} from './family-kit.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -81,22 +81,8 @@ export function assertCriteoTargetingScopes(c: Connection) {
       'PROVIDER_WRITE_SCOPE_REQUIRED',
     );
 }
-const read = (p: CompiledRequest, path: string, query: JsonObject = {}): CompiledRequest => ({
-  ...p,
-  action: 'AMCP_CRITEO_TARGET_READ',
-  method: 'GET',
-  path,
-  query,
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  queryArrayEncoding: 'repeat',
-  criteoTargetState: undefined,
-});
+const read = (p: CompiledRequest, path: string, query: JsonObject = {}): CompiledRequest =>
+  stateReadOf(p, 'AMCP_CRITEO_TARGET_READ', path, query, {queryArrayEncoding: 'repeat', criteoTargetState: undefined});
 export function criteoTargetingSnapshots(p: CompiledRequest): CompiledRequest[] {
   return [
     {

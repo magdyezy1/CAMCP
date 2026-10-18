@@ -148,9 +148,16 @@ test('all actual directly owned backend reasons have Arabic with original native
   // source contract, its registry and ten provider report sources; the Apple source owns the reason it took from
   // src/report-native.ts (one more file with reasons, the same reasons).
   // Stage C adds src/family-kit.ts; the family modules that import its fail keep their owned reasons. Stage D adds
-  // src/tool-actions.ts (no owned reasons).
-  assert.equal(files.length, 622);
-  assert.equal(selected.filter(row => row.messages.size).length, 236);
+  // src/tool-actions.ts (no owned reasons). Stage F's report jobs add src/report-job.ts and src/report-jobs.ts (no
+  // owned reasons); the 14 reasons of the X and Microsoft report retrievals and of the X and TikTok job-read checks
+  // moved with that code from src/service.ts to src/x-report-download.ts (one more file with reasons),
+  // src/microsoft-report-download.ts and src/tiktok-report-jobs.ts, so the owned reasons are the same. Stage D's split
+  // of createWebsite adds 14 server modules: twelve route and helper modules, the website's site contract and its
+  // store-layer repository. The 45 reasons of server/website.ts moved with their routes into nine of them, so the
+  // owned reasons are the same. Stage C's provider remedies add src/provider-remedies.ts and nine remedy tables (no
+  // refusals: remedies are not reasons).
+  assert.equal(files.length, 648);
+  assert.equal(selected.filter(row => row.messages.size).length, 245);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11485);
   assert.deepEqual(localeProblems(catalog, owned), []);

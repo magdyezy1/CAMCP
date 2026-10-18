@@ -2,6 +2,7 @@ import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import {familyErrors, type ReasonFirstRefusal} from './family-kit.js';
+import type {NativeReportJob} from './report-job.js';
 import {redact, scopeKey, sha256, stable} from './security.js';
 import type {Store} from './store.js';
 import type {CompiledRequest, Connection, Credentials, JsonObject} from './types.js';
@@ -595,6 +596,24 @@ export async function runTiktokReportRead(
   usable(await bounded(check));
   return {data, pages: 1, truncated: false};
 }
+/**
+ * TikTok's asynchronous report tasks on the native read path (ARC-04 stage F, src/report-job.ts): a task read is never
+ * paginated, keeps its login throughout, and returns the task status or the validated CSV fenced by two status checks.
+ */
+export const tiktokReportJob: NativeReportJob = {
+  gateway,
+  admit(p, input) {
+    if (tiktokReportRoute(p) && (input.aggregate_pages || input.paginate || input.allPages))
+      throw new MirrorError(
+        'INVALID_ARGUMENT',
+        'TikTok asynchronous tasks are not paginated. Resume the same task using status/download.',
+      );
+    return p;
+  },
+  sameLogin: p => !!p.tiktokReportRead,
+  page: (p, page) => tiktokReportReadResult(p, page.result),
+  read: (p, fetch) => (p.tiktokReportRead ? runTiktokReportRead(p, fetch) : undefined),
+};
 export async function verifyTiktokReport(p: CompiledRequest, result: JsonObject, send: Send) {
   const cancel = tiktokReportKind(p) === 'cancel',
     task = cancel ? (p.body as JsonObject).task_id : result.data.data.task_id,

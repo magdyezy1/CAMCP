@@ -7,21 +7,49 @@ import {
   inspectProviderCaptureRemedies,
   inspectMeasurementRemedies,
   localeProblems,
+  providerRemedyModules,
+  sharedRecoveryHints,
 } from '../tools/check-locales.mjs';
 import {MirrorError, errorResult} from '../dist/src/errors.js';
 import {accountWorkflowFixture} from './fixtures/account-workflows-ui.mjs';
 import {assertWebsiteRemedy} from './fixtures/website-remedy.mjs';
 const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8')),
   source = readFileSync('src/errors.ts', 'utf8'),
-  hints = inspectSharedRecoveryHints(source, 'src/errors.ts');
-test('shared recovery ownership includes only literal hints in the three exact authored functions and lookup positions', () => {
+  // ARC-04 stage C: errorRemedy's hints and those of the providers' remedy tables it consults first.
+  hints = sharedRecoveryHints();
+test('shared recovery ownership includes only literal hints in the exact authored functions, the providers’ remedy tables and lookup positions', () => {
+  // errorRemedy's shared rules sit in three functions it consults in order (ARC-04 stage C); workflowRemedy stands for
+  // them here.
   const sample =
-    "function familyRemedy(code){r('state','Owned family.');native.r('state','Native method.');r('state',native.message??'Native fallback.');} export function errorRemedy(e){const stateRead={STATE_TOO_LARGE:'Owned state.',NATIVE_CODE:native.message};const other={STATE_TOO_LARGE:'Other state.'};return {action:e.code==='CODE'?'Owned branch.':ready?'Owned nested branch.':native.message};} export function errorResult(e){const remediation={OWNER_REQUIRED:'Owned legacy hint.',NATIVE_CODE:native.message};return {message:'Unselected message.',details:{native:'Unselected detail.'}};} function other(){return {action:'Unrelated function.'};}";
-  const expected = ['Owned family.', 'Owned state.', 'Owned branch.', 'Owned nested branch.', 'Owned legacy hint.'];
+    "function familyRemedy(code){r('state','Owned family.');native.r('state','Native method.');r('state',native.message??'Native fallback.');} export function errorRemedy(e){const stateRead={STATE_TOO_LARGE:'Owned state.',NATIVE_CODE:native.message};const other={STATE_TOO_LARGE:'Other state.'};return {action:e.code==='CODE'?'Owned branch.':ready?'Owned nested branch.':native.message};} function workflowRemedy(e){if(e.code==='X')return {action:'Owned shared rule.'};} export function errorResult(e){const remediation={OWNER_REQUIRED:'Owned legacy hint.',NATIVE_CODE:native.message};return {message:'Unselected message.',details:{native:'Unselected detail.'}};} function other(){return {action:'Unrelated function.'};}";
+  const expected = [
+    'Owned family.',
+    'Owned state.',
+    'Owned branch.',
+    'Owned nested branch.',
+    'Owned shared rule.',
+    'Owned legacy hint.',
+  ];
   assert.deepEqual([...inspectSharedRecoveryHints(sample, 'src/errors.ts')], expected);
   assert.deepEqual([...inspectSharedRecoveryHints(sample, 'src\\errors.ts')], expected);
-  for (const file of ['tests/errors.ts', 'src/native-errors.ts', 'src/errors-other.ts'])
+  for (const file of ['tests/errors.ts', 'src/native-errors.ts', 'src/errors-other.ts', 'src/meta-remedies-other.ts'])
     assert.equal(inspectSharedRecoveryHints(sample, file).size, 0);
+  // A provider's remedy table: the action of every remedy it declares, whatever function it sits in.
+  const table =
+    "export const metaRemedies=[{codes:['META_X'],remedy:{category:'state',owner:'operator',action:'Owned provider remedy.',mutation_retry_safe:false}},{codes:['META_Y'],remedy:{category:'state',action:ready?'Owned branch two.':'Owned branch three.'}}]; const note={message:'Unselected message.'};";
+  assert.deepEqual(
+    [...inspectSharedRecoveryHints(table, 'src/meta-remedies.ts')],
+    ['Owned provider remedy.', 'Owned branch two.', 'Owned branch three.'],
+  );
+  assert.ok(providerRemedyModules.includes('src/meta-remedies.ts'));
+  // The inventory is the union of errorRemedy's and the tables', each hint once.
+  const parts = ['src/errors.ts', ...providerRemedyModules].map(
+    file => inspectSharedRecoveryHints(readFileSync(file, 'utf8'), file).size,
+  );
+  assert.equal(
+    parts.reduce((a, b) => a + b, 0),
+    hints.size,
+  );
   assert.equal(inspectGoogleCaptureRemedies(source, 'src/errors.ts').size, 5);
   assert.equal(inspectProviderCaptureRemedies(source, 'src/errors.ts').size, 8);
   assert.equal(inspectMeasurementRemedies(source, 'src/errors.ts').size, 12);
@@ -33,8 +61,10 @@ test('all 166 shared recovery hints have authored Arabic with exact native tool 
   // META_ADVANTAGE_CREATIVE_FEATURE_UNAVAILABLE remedies; 164 since owner decision P5 added POLICY_CURRENCY_UNSET's;
   // 166 since CMP-03's Microsoft location lookup added two (MICROSOFT_LOCATIONS_UNPINNED, and one for an unreadable or
   // unavailable locations file); 167 since ARC-01 added the remedy of a provider parked by the owner
-  // (GATEWAY_NOT_OFFERED with reason owner_parked: Criteo, WooCommerce).
+  // (GATEWAY_NOT_OFFERED with reason owner_parked: Criteo, WooCommerce). ARC-04 stage C moved 27 of them, the
+  // providers' own, into their remedy tables (src/*-remedies.ts): 140 in src/errors.ts, the same 167 in all.
   assert.equal(hints.size, 167);
+  assert.equal(inspectSharedRecoveryHints(source, 'src/errors.ts').size, 140);
   const inventoryHint = errorResult(new MirrorError('PORTFOLIO_INVALID_RESPONSE', 'Fixture'), 'ref', 0).error
     .next_action;
   assert.ok(hints.has(inventoryHint));

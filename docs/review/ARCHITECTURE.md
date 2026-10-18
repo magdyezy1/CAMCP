@@ -11,7 +11,7 @@ One Node.js 24 process (`dist/server/http.js`) hosts three things:
 
 | Component | Entry | What it does |
 |---|---|---|
-| Website | `server/website.ts` + `web/` | Accounts, MFA, sessions, platform OAuth, account selection, MCP connector page, policies, plans, reporting |
+| Website | `server/website.ts` (route registry, §14), its route modules + `web/` | Accounts, MFA, sessions, platform OAuth, account selection, MCP connector page, policies, plans, reporting |
 | MCP endpoint | `server/http-app.ts` (`POST /mcp`) → `server/mcp.ts` | Stateless Streamable HTTP; bearer token → `Actor`; every tool call goes to `MirrorService.call` |
 | Worker loop | `server/http.ts` (`ReportWorker`) | Report jobs, scheduled exports, write verification jobs, e-mail outbox |
 
@@ -24,7 +24,8 @@ SQLite file (`MIRROR_DB`, `/data/mirror.sqlite` on Railway) opened through `node
 ```
 server/                         website, OAuth, MCP transport, worker loop
   http.ts ─ http-app.ts ─ mcp.ts ─────────────┐
-  website.ts, user-accounts.ts, account-*.ts   │
+  website.ts (route registry), *-routes.ts,    │
+  website-*.ts, user-accounts.ts, account-*.ts │
   platform-oauth.ts, social-signin.ts,         │
   mcp-oauth.ts, web-store.ts                   │
                                                ▼
@@ -94,7 +95,7 @@ flowchart LR
 
 | Boundary | Crossing | Control (where) |
 |---|---|---|
-| Browser → website | cookie session, form/JSON posts | session cookie, CSRF token, `Origin` check, MFA (`server/website.ts`, `server/web-store.ts`, `server/account-security.ts`) |
+| Browser → website | cookie session, form/JSON posts | session cookie, CSRF token, `Origin` check, MFA (the route modules of `server/website.ts` and their gates in `server/website-gates.ts`, `server/web-store.ts`, `server/account-security.ts`) |
 | MCP client → `/mcp` | bearer token | `store.authenticate` (hashed token, expiry, revocation), `Origin` pinned to public origin (`server/http-app.ts:48-70`) |
 | Actor → tenant data | every tool call | `Actor.tenantId` on every store query; `assertActorActive` on every call (`src/service.ts:116-120`) |
 | Actor → provider account | per request | `store.resolveConnection` + `ScopeGuard.authorize` (selected accounts, resource grants, ownership bindings) |
@@ -275,10 +276,12 @@ recorded one. The review's "core to provider" count
 (220 at `60ec2cc`) counted 28 core modules; `shared_to_provider_runtime_imports` counts every shared module, so its value
 is larger and is compared only with its own baseline. The provider adapter registry (`src/provider-adapters.ts`, §9)
 names every gateway on purpose, so the ratchet counts it with the provider modules, and an import of it is not counted
-as coupling; so are the portfolio adapter registry (`src/portfolio.ts`, §11) and the report source registry
-(`src/report-sources.ts`, §12), which import one module per provider so that shared code consults them. Counting them
-as registries lowered `shared_to_provider_runtime_imports` from 500 to 493 by classification alone: the seven portfolio
-imports, which `src/portfolio.ts` made before it became the registry, are no longer counted. The wave 3b merge recorded
+as coupling; so are the portfolio adapter registry (`src/portfolio.ts`, §11), the report source registry
+(`src/report-sources.ts`, §12) and the report job registry (`src/report-jobs.ts`, §12), which import one module per
+provider so that shared code consults them. Counting them as registries lowered `shared_to_provider_runtime_imports`
+from 500 to 493 by classification alone: the seven portfolio imports, which `src/portfolio.ts` made before it became
+the registry, are no longer counted. The report job registry lowered it from 496 to 488: `src/service.ts` and
+`src/compiler.ts` no longer import the five job modules (eight edges). The wave 3b merge recorded
 88 and 496 (87 and 493 on the ARC-01/ARC-04 branch) for two packages built beside the ratchet on the same base, so
 neither had run against it: ARC-02's tenant-bound repositories hold SQL that names gateways
 (`src/workbook-repository.ts`, the workbook query projections; `src/audit-repository.ts`, the Google Ads legacy-alias
@@ -290,10 +293,10 @@ imported by `campaign-runner.ts`, `recipe-context.ts` and `service.ts`.
 |---|---|
 | `largest_runtime_scc` | 3 |
 | `cyclic_modules` | 11 |
-| `shared_modules_with_gateway_literals` | 88 |
-| `shared_to_provider_runtime_imports` | 496 |
+| `shared_modules_with_gateway_literals` | 87 |
+| `shared_to_provider_runtime_imports` | 487 |
 | `local_fail_copies` | 0 |
-| `shared_gateway_literals` (reported) | 701 |
+| `shared_gateway_literals` (reported) | 693 |
 | Runtime import cycles | `src/microsoft-associations.ts` ↔ `src/microsoft-campaign-criteria.ts` ↔ `src/microsoft-native.ts`; `src/allocation-calibration.ts` ↔ `src/report-allocation.ts`; `src/apple-entity-writes.ts` ↔ `src/measurement-writes.ts`; `src/effect-class.ts` ↔ `src/preflight.ts`; `src/reddit-creative-writes.ts` ↔ `src/reddit-writes.ts` |
 <!-- architecture-map:baseline:end -->
 
@@ -326,7 +329,7 @@ surface in both modes; suites that exercise a parked provider offer it with `tes
 Not met yet of ARC-01's local criteria (open remainders of B18 and B27 in `docs/review/package-status.json`): the whole
 suite has not run with `AMCP_PROVIDERS=criteo,woocommerce` (the tool-surface suites assert the default 25 tools; only
 the gate test checks both modes), and phase B has moved only the account model, so 88 shared modules still name a
-gateway (target 20 or fewer) and 496 shared-to-provider imports remain (target 30 or fewer), with no call-replay proof
+gateway (target 20 or fewer) and 488 shared-to-provider imports remain (target 30 or fewer), with no call-replay proof
 and no authorizer-disjointness test yet.
 
 ## 10. Import cycles and leaf modules
@@ -392,7 +395,21 @@ moved (`tests/fixtures/report-source-golden.json`, written by `tools/report-sour
 `tests/report-source-golden.test.mjs` keeps them byte-identical, refusals included. `reportRange` moved to
 `src/report-periods.ts` (re-exported), so the period helpers and the workbook and reporting modules no longer import
 the native collector. Still in `src/report-native.ts`: collection, that is each platform's request plans, paging and
-response parsing, and the async report jobs, which `src/service.ts` and `src/compiler.ts` still import directly.
+response parsing.
+
+The asynchronous report jobs a reviewed write creates and native reads then poll or retrieve are a contract of their
+own (`src/report-job.ts`, a leaf), registered one per gateway in `src/report-jobs.ts`: X analytics jobs and their
+validated result download (`src/x-report-download.ts`), TikTok report tasks, Criteo report exports, Meta Insights jobs
+and Microsoft Advertising's generated-report download (`src/microsoft-report-download.ts`). The compiler adds the
+request controls of a request's gateway's job (Meta's fields list, an X download page), and `MirrorService.runPlan`
+consults the same job at each step it branched on before: the argument checks before anything is sent (an X or TikTok
+job read is never aggregated, an X status read has a 60-second deadline), whether the read keeps its login from the
+first request to the last (Criteo, TikTok, X), a page before the scope observes it (a job's status or result, with the
+run it retains) or after (a Microsoft report download), and the job's own read (TikTok and Criteo outputs fenced by two
+status reads, Meta's bounded result pages). The read path keeps its checks: ScopeGuard, the native authority check and
+the transport reach a job's own requests as the hooks of `ReportJobPage`. Neither `src/service.ts` nor
+`src/compiler.ts` imports a job module (`tests/report-jobs.test.mjs`); the X and Microsoft retrievals moved from
+`MirrorService` with their reasons, and the provider suites run them through `MirrorService` unchanged.
 
 ## 13. Family kit
 
@@ -414,6 +431,35 @@ would join the two in a runtime import cycle (§8), and a second definition woul
 repository imported it from `errors.ts`, and a caller outside it imports `fail` from `src/family-kit.ts`. See
 `docs/ADDING-A-REVIEWED-FAMILY.md`, "The family kit".
 
+A refusal's remedy (`errorRemedy`, `src/errors.ts`) was one function of 867 lines, an if-chain whose provider rules sat
+among the shared ones, so every provider's remedy was an edit of the shared chain. Each provider now declares the
+remedies of its own refusals in its table (`src/<provider>-remedies.ts`: Google Ads, Business Profile, Meta, TikTok,
+Snapchat, LinkedIn, X, Microsoft Advertising and Reddit, 27 rules), registered by provider ID in
+`src/provider-remedies.ts`, and `errorRemedy` consults them before its shared rules. The registry and the tables are
+leaves (a table imports only the `ProviderRemedy` type), so `errors.ts` stays one, and the ratchet counts the registry
+with the providers (§8). The shared rules keep their order in three functions `errorRemedy` consults in turn
+(`workflowRemedy` 242 lines, `reviewRemedy` 215, `workspaceRemedy` 214), then the code-family remedies
+(`familyRemedy`) and the default; `errorRemedy` is 17 lines. Every remedy text moved from its source line unchanged.
+Over 3,507 codes (every code literal of the sources and tests, and one synthetic code per prefix and pattern rule)
+with 20 detail variants each, the remedies and error results equal those before the change but for one class: a
+provider rule that came after the shared rule for provider replies now answers its code even when the refusal carries
+the provider's reply (`details.upstream`). Of the nine codes that moved from after that rule, only
+`BUSINESS_PROFILE_API_NOT_APPROVED` is raised with the reply (the transport's provider error taxonomy derives it from
+Google's 429 or 403), so an MCP caller was told to inspect the native error instead of the owner action CON-06 wrote
+for it; the other eight are raised only by AMCP's own checks. `tests/provider-remedies.test.mjs` holds that no two
+providers answer one code, that no rule of a table is hidden by an earlier one, that no table answers a code a shared
+rule names, and that every declared code is one AMCP raises; `tests/business-profile-connection.test.mjs` holds the
+corrected remedy of the refusal the transport raises. The localization inventory reads the tables' remedies as shared
+recovery hints, as it read them in `errorRemedy` (the same 167 hints, 140 of them in `src/errors.ts`).
+
+The kit's `stateReadOf` (the review's `readsFor`) builds a state read from a write request: the request with the
+read's action and a GET of its path and query, without what only a write carries, then the family's own fields. The
+seven X list-attachment families, five DV360 families and four Criteo families had each copied that builder, identical
+but for the action and state fields; their `read` wrappers now call the kit, with the same fields in the same order
+(`tests/family-kit.test.mjs` compares its keys, values and order with each group's copy). The other 93 builders differ
+in what they reset (a POST search with a body, another query encoding, no special-transport reset), so they stay their
+families' own until each change can be tested with its family.
+
 ## 14. Composition tables
 
 ARC-04 stage D. What a composite function dispatched by an if-chain becomes a table that a new case joins by one entry.
@@ -434,11 +480,62 @@ action is a method (`capture` 342 lines, `analyze` 203); their bodies are the ch
 `tests/tool-actions.test.mjs` holds the stage of every action and the order of the checks, and the reporting suites
 are unchanged.
 
-Not yet tables (each a separate change, so that it does not collide with work that edits the same lines): the
-dispatch of the composite tools in `MirrorService.callOnce` and the actions of `amcp_media`
-(`MediaUploadService.handle`), both edited by packages running alongside this one; and the route modules of
-`server/website.ts` (`createWebsite`). WEB-07, merged beside this work, has split `web/account-workflows.js` behind
-`web/route-assets.js`: a shared helper and the portfolio, measurement and commerce modules.
+`amcp_media` is the second: `MediaUploadService.handle` (732 lines, an if-chain over 20 actions) keeps its guards and
+consults three tables in the same way: the actions that name no review (sources, the listing, the library, plans,
+reuse, variants, eligibility, prepare); after the frozen-review checks (no fresh-file argument, the review read, its
+owner, account access, its integrity and its idempotency claim) the five actions on that review (`prepare_library`,
+`job_status`, `cancel`, `recovery`, `status`); after the confirmation, the claim and resume checks and the review's
+window, the executions (`execute_async`, `execute`, `resume`). An action in no table, `asset_usage` among them (which
+`MirrorService` answers first), is refused as the chain refused it. The long actions are methods whose bodies are the
+chain's blocks unchanged, token for token (`transfer` 218 lines, `prepareUpload` 197); `handle` is 98 lines and no
+function of `src/media-upload.ts` is over 400. `tests/media-actions.test.mjs` holds the stage of every action and the
+order of the checks; the media suites are unchanged.
+
+`amcp_campaign` is the third: `CampaignRunner.handle` (1,311 lines, an if-chain over 28 actions) keeps the checks the
+chain ran between its actions and consults seven tables in their order: the recipe catalog and its lookups; after the
+recipe-argument checks, the reads (eligibility, recipe previews and creations, verification, provider validation,
+`list`, `get`); after the write check, the creations (`clone`, `create`); on a saved plan, after the right the action
+needs and the expected revision, its archive and collaborators; while the plan is neither archived, superseded nor
+cancelled, its confirmations, activation plans and step recoveries; after the account write grants, the draft checks
+and the preflight, approval and the runs it allows; and after the next step is found, `prepare_next` and
+`execute_next`. `continue_as_new` and `cancel` stay single dispatch lines between the plan-state checks, and
+`preflight` is the shared preflight check. An action in no table is refused where the chain refused it ("Unknown
+campaign action." after the next-step checks). The long actions are methods whose bodies are the chain's blocks
+unchanged, token for token (`prepareNext` 221 lines, `createPlan` 185); `handle` is 239 lines.
+`tests/campaign-actions.test.mjs` holds the stage of every action and the order of the checks, with behaviour tests
+that pass on the code before the change and after it; the campaign suites are unchanged.
+
+`amcp_write` is the fourth: `WriteReviewService.call` (507 lines) consults `retainedActions` (`status`, `reconcile`,
+which take only their own arguments) before the argument checks, then, after them and the evidence form,
+`reviewActions` (`prepare`, `inspect`), then executes the one action left with its review; its blocks are methods
+unchanged (`prepareReview` 301 lines, `executeReview` 167) and `call` is 38 lines. `tests/write-actions.test.mjs` holds
+the stages and the order of the checks; the write suites are unchanged.
+
+The tools `MirrorService` answers itself are entries of one table, `compositeTools` (`src/service.ts`): the seven
+composite tools and `amcp_tool_help`, each with the service-timing category its calls count under. `callOnce` runs the
+checks every call passes (an active actor, an offered gateway, the action's own arguments), then the table's entry for
+the tool, awaited so that its refusal is audited like any other, then the native gateways. It replaced an if-chain of
+eight branches and a second list naming the timing categories; `callOnce` fell from 315 lines to 186.
+`tests/composite-tools.test.mjs` holds the entries, their categories and that an inherited name is no tool.
+
+The website's routes are route modules registered through one registry, `websiteRoutes` (`server/website.ts`).
+`createWebsite` registered every route itself (1,816 lines). It now builds the website's parts once (`websiteSite`, in
+the order it built them: the web store, the OAuth services, accounts, the public asset snapshot and the login views of
+`server/website-connections.ts`) and calls each route module in registration order, which is the order Express
+matches routes in: the security headers and the test-account and two-step enrollment gates (`server/website-gates.ts`),
+the account pages, `/api` no-store, the MCP token budgets and authorization server (`server/mcp-token-routes.ts`),
+report downloads and the workspace tools (only where the MCP service runs), the session, AI-client consent, platform
+logins and provider returns (before the connection routes, so `/api/connections/callback` is a provider return),
+connections, connector tokens and client access sets, activity, and the public pages with the not-found page last
+(`server/page-routes.ts`). A new route joins the module of its area, in that module's order. The routes' SQL moved
+into the store layer (`server/website-repository.ts`), and the three gateways the website treats by name come from
+the provider adapter registry. The modules' code is the function's code unchanged (a token comparison shows no other
+difference), and the router has the same layers as before in every deployment shape: the same 98 layers (85 without
+the MCP service) in the same order, with the same paths, methods and handlers. `tests/website-routes.test.mjs` holds
+the registry order, the orderings that decide a match and the fall-through answers (404, never 405). `createWebsite`
+is 7 lines; the longest route module is `connectionRoutes` (378). WEB-07, merged beside this work, has split
+`web/account-workflows.js` behind `web/route-assets.js`: a shared helper and the portfolio, measurement and commerce
+modules.
 
 ## 15. Module structure
 
@@ -447,9 +544,9 @@ and `tests/import-order.test.mjs` hold the rules that can be measured.
 
 | Role | Modules | May import |
 |---|---|---|
-| Leaf | `errors.ts`, `types.ts`, `security.ts`, `account-id.ts`, `review-state-core.ts`, `family-kit.ts`, `signed-cursor.ts`, `tool-actions.ts`, `provider-adapter.ts`, `report-source.ts`; values read at load: `tiktok-paths.ts`, `microsoft-association-contracts.ts`, `meta-ad-library-contract.ts`, `google-business-notification-kind.ts` | Other leaves only: a provider's version module such as `meta-version.ts`, and the provider adapter registry, are leaves too |
-| Provider module | `<provider>-*.ts`: reviewed families (on the family kit, §13), portfolio adapters (on `portfolio-runner.ts`, §11), report sources (§12) | Leaves, shared helpers and modules of its own provider; never a lifecycle module (§10) |
-| Registry | `provider-adapters.ts` (§9), `portfolio.ts` (§11), `report-sources.ts` (§12), which the ratchet counts with the providers; `reviewed-families.ts`, the family registry | One module per provider, so that shared code consults the registry instead of naming providers |
+| Leaf | `errors.ts`, `types.ts`, `security.ts`, `account-id.ts`, `review-state-core.ts`, `family-kit.ts`, `signed-cursor.ts`, `tool-actions.ts`, `provider-adapter.ts`, `report-source.ts`, `report-job.ts`, `provider-remedies.ts` and its remedy tables (§13); values read at load: `tiktok-paths.ts`, `microsoft-association-contracts.ts`, `meta-ad-library-contract.ts`, `google-business-notification-kind.ts` | Other leaves only: a provider's version module such as `meta-version.ts`, and the provider adapter registry, are leaves too |
+| Provider module | `<provider>-*.ts`: reviewed families (on the family kit, §13), portfolio adapters (on `portfolio-runner.ts`, §11), report sources and report jobs (§12) | Leaves, shared helpers and modules of its own provider; never a lifecycle module (§10) |
+| Registry | `provider-adapters.ts` (§9), `portfolio.ts` (§11), `report-sources.ts` and `report-jobs.ts` (§12), `provider-remedies.ts` (§13), which the ratchet counts with the providers; `reviewed-families.ts`, the family registry | One module per provider, so that shared code consults the registry instead of naming providers |
 | Shared | the review lifecycle (`review-state.ts`, `scope.ts`, `write-review.ts`, ...), the composite tools (`service.ts`, `decision-reporting.ts`, ...), `server/` | Registries, leaves and other shared modules; a composite tool's actions are table entries (§14) |
 
 Against the review (`60ec2cc`) and the start of ARC-04: the largest runtime import cycle fell from 33 modules (34 when
@@ -457,11 +554,15 @@ stage A measured it) to 3, and no cycle holds the family registry, the lifecycle
 fail when imported first, from 2 (3) to 0; local `fail` helpers, from 126 by the review's count (153 by the
 ratchet's) to 0, ratcheted; the seven portfolio adapters share one signed cursor and one `PortfolioAdapter` contract;
 each reporting platform has one report source behind a registry. In the functions ARC-04 restructured none is longer
-than 400 lines (`DecisionReporting.handle` was 899, now 30). Thirteen backend functions still are, such as
-`createWebsite` (1,816), `CampaignRunner.handle` (1,306), `NativeCampaignReports.collectSource` (978), `errorRemedy`
-(841) and `MediaUploadService.handle` (739); the review's target of three or fewer needs the Stage D changes listed in
-§14 and the same treatment of the rest. These are open remainders of B18 and B27 in `docs/review/package-status.json`,
-so neither package is closed by ARC-04. Also left by ARC-04: family remedies declared by each family for `errorRemedy`
-to consult first (today `familyRemedy` in `src/errors.ts`, which other packages are extending), and a `readsFor`
-helper, which stage B made unnecessary for the import cycle because a family receives its read builders as hook
-arguments.
+than 400 lines (`DecisionReporting.handle` was 899, now 30; `createWebsite` 1,816, now 7; `CampaignRunner.handle`
+1,311, now 239; `errorRemedy` 867, now 17; `MediaUploadService.handle` 732, now 98; `WriteReviewService.call` 507, now
+38). Nine backend functions still are (counted from their first line to their last; fourteen before the website,
+media, campaign and write tables and the provider remedies): `NativeCampaignReports.collectSource` (978), `campaignRecipe` (706),
+`AssetDiscovery.discover` (693), `NativeTransport.request` (670), `adjustReporting` (465), `inspectGoogleRecipeGoals`
+(463), `checkAccountSpendPolicy` (430), `GoogleSheetsExports.write` (416) and `connectWooCommerce` (402). None is a
+composite tool's dispatcher: the transport and the asset discovery are ARC-01 phase B concerns (the wire profile, the
+server discovery configurations), `collectSource` is report collection (each platform's requests, paging and parsing,
+the part of the report sources still in `src/report-native.ts`, §12), and the rest are single workflows. The review's
+target of three or fewer needs those changes. These are open remainders of B18 and B27 in
+`docs/review/package-status.json`, so neither package is closed by ARC-04. Also left by ARC-04: the 93 read builders
+that differ from the kit's `stateReadOf` (§13).

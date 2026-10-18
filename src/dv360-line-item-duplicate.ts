@@ -2,7 +2,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {assertDV360WriteScope} from './dv360-scope.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Duplication of DV360 line items, per the pinned Display & Video 360 API v4 Discovery document
@@ -62,22 +62,13 @@ export function assertDV360LineItemDuplicate(p: CompiledRequest): void {
     );
 }
 function read(p: CompiledRequest, path: string): Read {
-  return {
-    ...p,
-    action: 'AMCP_DV360_LINE_ITEM_DUPLICATE_READ',
-    method: 'GET',
+  return stateReadOf<Read>(
+    p,
+    'AMCP_DV360_LINE_ITEM_DUPLICATE_READ',
     path,
-    query: {},
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    queryArrayEncoding: undefined,
-    dv360DuplicateState: undefined,
-  };
+    {},
+    {queryArrayEncoding: undefined, dv360DuplicateState: undefined},
+  );
 }
 const stateRead = (p: CompiledRequest, lineItemId: string): Read => ({
   ...read(p, '/v4/advertisers/' + advertiserOf(p)),

@@ -50,6 +50,7 @@ import {metaPrefix} from './meta-version.js';
 import {creativeLibrary} from './creative-library.js';
 import {optionalClientView} from './client-scope.js';
 import {cancelJobLease, writeClaim, writeClaimFingerprint} from './job-repository.js';
+import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
 
 const platforms = mediaPlatforms;
 /** Snapchat simple uploads take up to 32 MB; larger files are sent in parts well under the 32 MB part limit (either unit). */
@@ -392,6 +393,25 @@ interface UploadResult {
   processing_status: string;
   library_id?: string;
   data?: unknown;
+}
+/** One amcp_media call (ARC-04 stage D): its arguments and the caller. */
+type MediaCall = ToolContext;
+/** A call on the frozen review its review_id names, after the review's arguments, ownership and integrity checks. */
+interface ReviewCall extends MediaCall {
+  readonly review: JsonObject;
+  readonly plan: UploadPlan;
+  /** The review's integrity fingerprint, which its idempotency claim is bound to. */
+  readonly fingerprint: string;
+  /** The review's idempotency claim, when an execution claimed it. */
+  readonly previous: JsonObject | undefined;
+}
+/** A confirmed execution of the frozen review, within its window. */
+interface ConfirmedCall extends ReviewCall {
+  /** The retained upload session a resume continues. */
+  readonly resumable: JsonObject | undefined;
+  readonly resuming: boolean;
+  /** When the confirmation must be acted on: the review's expiry, or a resume's transfer window. */
+  readonly confirmBy: number;
 }
 
 export class MediaUploadService {
@@ -1186,363 +1206,15 @@ export class MediaUploadService {
     if (input.stage_fits !== undefined && input.action !== 'plan')
       fail('INVALID_ARGUMENT', 'stage_fits applies to plan only.', {parameter: 'stage_fits'});
     this.store.assertActorActive(actor);
-    if (input.action === 'retain_source')
-      return this.sources.retain(actor, input.source_id, {
-        confirmed: input.confirmed,
-        expected_sha256: input.expected_sha256,
-      });
-    if (input.action === 'remove_source')
-      return this.sources.remove(actor, input.source_id, {
-        confirmed: input.confirmed,
-        expected_sha256: input.expected_sha256,
-      });
-    if (input.action === 'list') {
-      const offset = input.offset ?? 0,
-        limit = input.limit ?? 50,
-        // Recovery reviews page on their own cursor (MED-05); without one they follow `offset`, as before.
-        recoveryOffset = input.recovery_offset ?? offset;
-      if (
-        !Number.isInteger(offset) ||
-        offset < 0 ||
-        !Number.isInteger(recoveryOffset) ||
-        recoveryOffset < 0 ||
-        !Number.isInteger(limit) ||
-        limit < 1 ||
-        limit > 100
-      )
-        fail('INVALID_ARGUMENT', 'Invalid media pagination.');
-      if (input.include_assets !== undefined && typeof input.include_assets !== 'boolean')
-        fail('INVALID_ARGUMENT', 'include_assets is true or false.');
-      // A page that shows only recovery and sources (the website's media page) leaves the receipts out. The working
-      // client (SEC-08) keeps receipts and recovery of the accounts its profile binds, within current access.
-      const client = optionalClientView(this.store, actor, input.profile_id),
-        ofClient = (platform: string, account: unknown, connection: unknown) =>
-          !client || client.has(platform + '_native_action', account, connection),
-        withAssets = input.include_assets !== false,
-        assets = withAssets
-          ? this.assets(actor, input).filter(a => ofClient(a.platform, a.account_id, a.connection_id))
-          : [];
-      const reviews = this.store
-        .documents(actor.tenantId, 'media_review')
-        .filter(r => r.user_id === actor.userId)
-        .filter(r => {
-          const p = r.plan;
-          try {
-            this.access(actor, p.platform, p.account_id, p.connection_id);
-            return (
-              (!input.platform || p.platform === input.platform) &&
-              (!input.connection_id || p.connection_id === input.connection_id) &&
-              (!input.account_id ||
-                p.account_id === normalizeAccount(p.platform + '_native_action', input.account_id)) &&
-              ofClient(p.platform, p.account_id, p.connection_id)
-            );
-          } catch {
-            return false;
-          }
-        })
-        .map(r => this.recoveryRecord(actor, r))
-        .filter(
-          r => r.state !== 'complete' && (r.expires_at > Date.now() || ['pending', 'uncertain'].includes(r.state)),
-        )
-        .sort((a, b) => b.expires_at - a.expires_at);
-      return {
-        ...(withAssets
-          ? {
-              assets: assets.slice(offset, offset + limit),
-              total: assets.length,
-              has_more: offset + limit < assets.length,
-            }
-          : {}),
-        recovery_reviews: reviews.slice(recoveryOffset, recoveryOffset + limit),
-        recovery_total: reviews.length,
-        recovery_has_more: recoveryOffset + limit < reviews.length,
-        variants: this.store
-          .documents(actor.tenantId, 'media_variant')
-          .filter(v => (ownsRecord(actor, v) || actor.role === 'admin') && v.expires_at > Date.now())
-          .filter(v => {
-            try {
-              this.variant(actor, v.id);
-              return true;
-            } catch {
-              return false;
-            }
-          })
-          .map(({drive_url, ...v}) => v),
-        presets: variantPresets,
-        sources: this.sources.list(actor),
-        // Whether a push of several uploads runs on the server (amcp_campaign run_background, MED-03 B).
-        server_push: serverPushEnabled(),
-      };
-    }
-    if (['library', 'asset', 'save_asset_metadata', 'asset_performance'].includes(input.action))
-      return creativeLibrary(this.store, actor, input);
-    if (input.action === 'reuse') {
-      const asset = this.assets(actor, input).find(a => a.id === input.asset_id);
-      if (!asset) fail('MEDIA_NOT_READY', 'Select an upload receipt in an accessible account.');
-      return this.reuse(actor, asset!);
-    }
-    if (input.action === 'plan') return this.planPush(input, actor);
-    if (input.action === 'inspect_eligibility') {
-      if (actor.role === 'reader') fail('FORBIDDEN', 'An operator is required to stage media.');
-      const id = randomUUID();
-      this.store.reserveMedia(actor.tenantId, id, Date.now() + 300000);
-      try {
-        const file = await this.source(input, actor, id);
-        return {
-          ...(await withWebsiteUploadDeadline(file.upload_expires_at, () =>
-            inspectMediaPlacement(file.bytes, input.preset),
-          )),
-          sha256: sha256(file.bytes),
-          size_bytes: file.bytes.length,
-          executed: false,
-        };
-      } finally {
-        this.store.removeStagedMedia(actor.tenantId, id);
-      }
-    }
-    if (input.action === 'variant') {
-      if (actor.role === 'reader') fail('FORBIDDEN', 'An operator is required to stage media.');
-      if (input.variant_id !== undefined || !['source_id', 'source_url', 'drive_url'].some(k => input[k] !== undefined))
-        fail('INVALID_ARGUMENT', 'Name the original file: source_id, source_url or drive_url.');
-      const id = randomUUID();
-      let expires = Date.now() + 300000;
-      this.store.reserveMedia(actor.tenantId, id, expires);
-      try {
-        const file = await this.source(input, actor, id),
-          converted = await withWebsiteUploadDeadline(file.upload_expires_at, () =>
-            createMediaVariant(file.bytes, input.preset, input.fit),
-          ),
-          {bytes, ...metadata} = converted;
-        if (file.upload_expires_at !== undefined) {
-          expires = Math.min(expires, file.upload_expires_at);
-          this.store.capStagedMediaExpiry(actor.tenantId, id, expires);
-        }
-        this.store.assertActorActive(actor);
-        if (input.drive_connection_id) driveAccess(this.store, actor, input.drive_connection_id, input.drive_url);
-        this.store.stageMedia(actor.tenantId, id, bytes);
-        const record = {
-          ...metadata,
-          ...ownership(actor),
-          drive_url: input.drive_url,
-          drive_connection_id: file.source_drive?.connection_id ?? null,
-          sha256: sha256(bytes),
-          source_sha256: sha256(file.bytes),
-          ...(file.upload_expires_at !== undefined ? {upload_expires_at: file.upload_expires_at} : {}),
-          ...('origin' in file && file.origin ? {origin: file.origin} : {}),
-          size: bytes.length,
-          expires_at: expires,
-          preview_url: '/api/media/variants/' + id + '/preview',
-        };
-        this.store.putDocument(actor.tenantId, 'media_variant', id, record);
-        return {...record, id, variant_id: id, executed: false, client_download_required: false};
-      } catch (e) {
-        this.store.removeStagedMedia(actor.tenantId, id);
-        throw e;
-      }
-    }
-    if (input.action === 'prepare') {
-      if (
-        !platforms.includes(input.platform) ||
-        typeof input.account_id !== 'string' ||
-        !['source_id', 'source_url', 'drive_url', 'variant_id'].some(k => typeof input[k] === 'string')
-      )
-        fail(
-          'INVALID_ARGUMENT',
-          'prepare requires platform, account_id and one file: source_id, source_url, drive_url or variant_id.',
-        );
-      if (input.fit_to_platform !== undefined && typeof input.fit_to_platform !== 'boolean')
-        fail('INVALID_ARGUMENT', 'fit_to_platform is true or false.');
-      if (input.review_id !== undefined || input.idempotency_key !== undefined || input.confirmed !== undefined)
-        fail('INVALID_ARGUMENT', 'Preparation cannot execute an upload.');
-      const account = normalizeAccount(input.platform + '_native_action', input.account_id);
-      if (!/^[A-Za-z0-9_-]+$/.test(account)) fail('INVALID_ARGUMENT', 'Invalid account ID.');
-      const c = this.access(actor, input.platform, account, input.connection_id),
-        reviewId = randomUUID();
-      let expires = Date.now() + 300000;
-      if (
-        input.platform === 'linkedin' &&
-        typeof input.owner_urn === 'string' &&
-        input.owner_urn.startsWith('urn:li:organization:')
-      )
-        assertLinkedInOrganization(c, account, input.owner_urn);
-      if (
-        input.platform === 'linkedin' &&
-        input.media_type === 'video' &&
-        !/^urn:li:(?:organization|person):[A-Za-z0-9_-]+$/.test(input.owner_urn ?? '')
-      )
-        fail(
-          'LINKEDIN_VIDEO_OWNER_REQUIRED',
-          'LinkedIn video upload requires an explicitly bound organization or person owner; a sponsoredAccount URN is not a video owner.',
-        );
-      if (
-        input.name !== undefined &&
-        (typeof input.name !== 'string' ||
-          !input.name.trim() ||
-          input.name.length > 80 ||
-          /[\x00-\x1f\/\\]/.test(input.name))
-      )
-        fail('INVALID_ARGUMENT', 'Use a media name of 1–80 characters without paths or control characters.');
-      if (
-        input.dv360_target !== undefined &&
-        (input.platform !== 'dv360' || !['creative_asset', 'ad_asset'].includes(input.dv360_target))
-      )
-        fail(
-          'INVALID_ARGUMENT',
-          'dv360_target selects a DV360 creative asset (the default) or a Demand Gen image ad asset.',
-        );
-      const adAsset = input.dv360_target === 'ad_asset';
-      // An existing Snapchat allocation must be owned before any Drive download.
-      if (input.existing_media_id !== undefined) {
-        if (
-          input.platform !== 'snapchat' ||
-          typeof input.existing_media_id !== 'string' ||
-          !/^[-\w]+$/.test(input.existing_media_id)
-        )
-          fail('INVALID_ARGUMENT', 'existing_media_id identifies an existing Snapchat media allocation.');
-        new ScopeGuard(this.registry, this.store).authorize(
-          {...this.accountRead(input.platform, account), path: '/v1/media/' + input.existing_media_id},
-          c,
-        );
-      }
-      if (
-        input.synthetic_content !== undefined &&
-        (!adAsset || !['NOT_SYNTHETIC', 'IS_SYNTHETIC'].includes(input.synthetic_content))
-      )
-        fail('INVALID_ARGUMENT', 'synthetic_content (NOT_SYNTHETIC or IS_SYNTHETIC) labels a DV360 image ad asset.');
-      if (adAsset && input.media_type !== undefined && input.media_type !== 'image')
-        fail(
-          'MEDIA_TYPE_UNSUPPORTED',
-          'DV360 uploads only images as ad assets; YouTube video ad assets are created by video ID with DV360_ADVERTISERS_AD_ASSETS_CREATE.',
-        );
-      this.store.reserveMedia(actor.tenantId, reviewId, expires);
-      try {
-        const {file, transform} = await this.platformFile(
-          input,
-          await this.source(input, actor, reviewId),
-          adAsset,
-          actor,
-        );
-        if (file.upload_expires_at !== undefined) {
-          expires = Math.min(expires, file.upload_expires_at);
-          this.store.capStagedMediaExpiry(actor.tenantId, reviewId, expires);
-        }
-        const name = input.name?.trim() ?? 'AMCP media',
-          p: UploadPlan = {
-            platform: input.platform,
-            account_id: account,
-            connection_id: c.id,
-            name,
-            mime: file.mime,
-            kind: file.kind,
-            filename: name + '.' + file.extension,
-            size: file.bytes.length,
-            sha256: sha256(file.bytes),
-            read: this.accountRead(input.platform, account),
-            ...(file.source_drive ? {source_drive: file.source_drive} : {}),
-            ...(file.upload_expires_at !== undefined ? {upload_expires_at: file.upload_expires_at} : {}),
-            ...('origin' in file && file.origin ? {origin: file.origin} : {}),
-            ...(transform ? {transform} : {}),
-            ...(adAsset
-              ? {
-                  dv360_target: 'ad_asset' as const,
-                  ...(input.synthetic_content ? {synthetic_content: input.synthetic_content} : {}),
-                }
-              : {}),
-          };
-        if (input.existing_media_id !== undefined) {
-          if (
-            p.platform !== 'snapchat' ||
-            typeof input.existing_media_id !== 'string' ||
-            !/^[-\w]+$/.test(input.existing_media_id)
-          )
-            fail('INVALID_ARGUMENT', 'existing_media_id identifies an existing Snapchat media allocation.');
-          p.existing_media_id = input.existing_media_id;
-          p.read = {...p.read, path: '/v1/media/' + p.existing_media_id};
-          new ScopeGuard(this.registry, this.store).authorize(p.read, c);
-        }
-        if (input.owner_urn !== undefined) {
-          if (
-            p.platform !== 'linkedin' ||
-            typeof input.owner_urn !== 'string' ||
-            !/^urn:li:(?:sponsoredAccount|organization|person):[A-Za-z0-9_-]+$/.test(input.owner_urn)
-          )
-            fail('INVALID_ARGUMENT', 'owner_urn requires a LinkedIn account, organization or person URN.');
-          if (input.owner_urn !== 'urn:li:sponsoredAccount:' + account) {
-            const [, kind, owner] = /^urn:li:([^:]+):(.+)$/.exec(input.owner_urn)!;
-            new ScopeGuard(this.registry, this.store).authorize(
-              {
-                ...p.read,
-                path:
-                  '/rest/' +
-                  (kind === 'organization' ? 'organizations' : kind === 'person' ? 'people' : 'adAccounts') +
-                  '/' +
-                  owner,
-              },
-              c,
-            );
-          }
-          p.owner_urn = input.owner_urn;
-        }
-        if (p.platform === 'dv360' && Buffer.byteLength(p.filename) > 240)
-          fail('INVALID_ARGUMENT', 'DV360 filenames must fit in 240 UTF-8 bytes.');
-        const matches = this.matchingReceipts(actor, p);
-        if (input.reuse_existing === true && matches.length) {
-          const reused = await this.reuse(actor, matches[0]!);
-          this.store.removeStagedMedia(actor.tenantId, reviewId);
-          return reused;
-        }
-        const state = await this.state(actor, p),
-          stateHash = reviewStateHash(state),
-          fingerprint = sha256(stable({tenant: actor.tenantId, user: actor.userId, plan: p}));
-        this.access(actor, p.platform, account, c.id);
-        this.store.stageMedia(actor.tenantId, reviewId, file.bytes);
-        this.store.putDocument(actor.tenantId, 'media_review', reviewId, {
-          user_id: actor.userId,
-          created_at: Date.now(),
-          plan: p,
-          state,
-          state_hash: stateHash,
-          fingerprint,
-          expires_at: expires,
-        });
-        this.store.appendAudit(actor.tenantId, reviewId, {
-          event: 'media_prepared',
-          plan: p,
-          fingerprint,
-          state_hash: stateHash,
-        });
-        return {
-          success: true,
-          executed: false,
-          review_id: reviewId,
-          upload_session_id: reviewId,
-          idempotency_key: reviewId,
-          expires_at: new Date(expires).toISOString(),
-          request: p,
-          before_state: state,
-          state_hash: stateHash,
-          fingerprint,
-          matching_assets: matches.map(a => ({asset_id: a.id, media_id: a.media_id, sha256: a.sha256})),
-          confirmation_required: true,
-          steps: [
-            'Upload the reviewed file to ' + p.platform,
-            ...(p.platform === 'google_ads' && p.kind === 'video'
-              ? ['Create an UNLISTED video on the Google-managed YouTube channel for this advertising account']
-              : []),
-            ...(p.platform === 'x_ads' ? ['Register it in the selected account media library'] : []),
-          ],
-        };
-      } catch (e) {
-        this.store.removeStagedMedia(actor.tenantId, reviewId);
-        throw e;
-      }
-    }
-    if (
-      !['prepare_library', 'execute', 'resume', 'execute_async', 'job_status', 'status', 'recovery', 'cancel'].includes(
-        input.action,
-      ) ||
-      typeof input.review_id !== 'string'
-    )
+    // ARC-04 stage D: each action is an entry of an action table (src/tool-actions.ts), consulted in the order of the
+    // checks between them: the actions that name no review run first; the others name a frozen review, whose
+    // arguments, ownership and integrity are checked before they run, and an execution also needs its confirmation
+    // and a review still within its window. An action in no table is refused as the if-chain refused it.
+    const unreviewed = actionHandler(this.unreviewedActions, input.action);
+    if (unreviewed) return unreviewed({input, actor});
+    const onReview = actionHandler(this.reviewActions, input.action),
+      confirmed = actionHandler(this.confirmedActions, input.action);
+    if ((!onReview && !confirmed) || typeof input.review_id !== 'string')
       fail('INVALID_ARGUMENT', 'Use prepare, execute, status or cancel with a review_id.');
     if (
       [
@@ -1582,44 +1254,8 @@ export class MediaUploadService {
     const fingerprint = sha256(stable({tenant: actor.tenantId, user: actor.userId, plan: p}));
     if (fingerprint !== review.fingerprint) fail('REVIEW_CHANGED', 'Media review failed its integrity check.');
     const previous = writeClaimFingerprint(this.store, actor.tenantId, input.review_id);
-    if (input.action === 'prepare_library') return this.prepareLibrary(actor, p, review, input.review_id, previous);
-    if (input.action === 'job_status') {
-      if (!review.job_id) fail('NOT_FOUND', 'No background upload was queued for this review.');
-      const job = this.store.job(actor.tenantId, review.job_id);
-      return {
-        review_id: input.review_id,
-        job_id: job.id,
-        state: job.state,
-        error: job.error,
-        // Failed before any claim: nothing reached the platform, and execute_async queues the same review again,
-        // unless the refusal would repeat (retry_available:false: prepare the upload again).
-        not_submitted: job.state === 'failed' && !previous,
-        ...(job.state === 'failed' && !previous
-          ? {
-              busy: mediaBusyCodes.has(job.error?.code),
-              retry_available: !repeatsBeforeClaim.has(job.error?.code) && review.expires_at > Date.now(),
-            }
-          : {}),
-        result: job.result,
-        progress: review.progress ?? {},
-        journal: this.store.operationJournal(actor.tenantId, input.review_id),
-        expires_at: review.expires_at,
-      };
-    }
-    if (input.action === 'cancel') {
-      if (previous) fail('UPLOAD_ALREADY_SUBMITTED', 'An upload already submitted cannot be cancelled locally.');
-      if (review.job_id) cancelJobLease(this.store, actor.tenantId, review.job_id);
-      this.store.removeStagedMedia(actor.tenantId, input.review_id);
-      this.store.putDocument(actor.tenantId, 'media_review', input.review_id, {...review, expires_at: 0});
-      return {success: true, cancelled: true};
-    }
-    if (input.action === 'recovery') return this.recoveryRecord(actor, review);
-    if (input.action === 'status') {
-      const receipt = previous?.result ? JSON.parse(previous.result) : undefined;
-      if (previous?.state !== 'complete' || !receipt?.media_id)
-        fail('MEDIA_NOT_UPLOADED', 'There is no completed upload receipt for this review.');
-      return this.status(actor, p, receipt);
-    }
+    const call: ReviewCall = {input, actor, review, plan: p, fingerprint, previous};
+    if (onReview) return onReview(call);
     if (input.confirmed !== true || (input.idempotency_key ?? input.review_id) !== input.review_id)
       fail(
         'CONFIRMATION_REQUIRED',
@@ -1658,50 +1294,481 @@ export class MediaUploadService {
     // claim (MED-01 Stage D), which never outlasts a website upload's absolute deadline; older reviews keep theirs.
     const confirmBy = resuming ? (review.transfer_expires_at ?? review.expires_at) : review.expires_at;
     if (confirmBy <= Date.now()) fail('REVIEW_EXPIRED', 'Prepare and review the media again.');
-    if (input.action === 'execute_async') {
-      return this.store.transaction(() => {
-        const current = this.store.document(actor.tenantId, 'media_review', input.review_id),
-          // No claim exists here (a claimed review was refused above), so a failed job sent nothing: queue it again.
-          unsent = this.unsentJob(actor, current, false);
-        if (unsent && repeatsBeforeClaim.has(unsent.error?.code))
-          fail(
-            'MEDIA_RETRY_UNAVAILABLE',
-            'This upload stopped before anything was sent, for a reason that queueing it again would repeat. Prepare the upload again; upload the file again first when its 30-minute window is nearly over.',
-            {previous_error_code: unsent.error.code, provider_requests_sent: false},
+    return confirmed!({...call, resumable, resuming, confirmBy});
+  }
+  /** The actions that name no frozen review (ARC-04 stage D): sources, listings, the library, plans, variants, prepare. */
+  private readonly unreviewedActions: ActionTable<MediaCall> = {
+    retain_source: ({input, actor}) =>
+      this.sources.retain(actor, input.source_id, {
+        confirmed: input.confirmed,
+        expected_sha256: input.expected_sha256,
+      }),
+    remove_source: ({input, actor}) =>
+      this.sources.remove(actor, input.source_id, {
+        confirmed: input.confirmed,
+        expected_sha256: input.expected_sha256,
+      }),
+    list: call => this.listMedia(call),
+    library: ({input, actor}) => creativeLibrary(this.store, actor, input),
+    asset: ({input, actor}) => creativeLibrary(this.store, actor, input),
+    save_asset_metadata: ({input, actor}) => creativeLibrary(this.store, actor, input),
+    asset_performance: ({input, actor}) => creativeLibrary(this.store, actor, input),
+    reuse: call => this.reuseReceipt(call),
+    plan: ({input, actor}) => this.planPush(input, actor),
+    inspect_eligibility: call => this.inspectEligibility(call),
+    variant: call => this.stageVariant(call),
+    prepare: call => this.prepareUpload(call),
+  };
+  /** The actions on the frozen review a call names, after its arguments, ownership and integrity are checked. */
+  private readonly reviewActions: ActionTable<ReviewCall> = {
+    prepare_library: ({input, actor, review, plan: p, previous}) =>
+      this.prepareLibrary(actor, p, review, input.review_id, previous),
+    job_status: call => this.jobStatus(call),
+    cancel: call => this.cancelReview(call),
+    recovery: ({actor, review}) => this.recoveryRecord(actor, review),
+    status: call => this.receiptStatus(call),
+  };
+  /** The executions of a frozen review, after its confirmation and within its window. */
+  private readonly confirmedActions: ActionTable<ConfirmedCall> = {
+    execute_async: call => this.queueUpload(call),
+    execute: call => this.transfer(call),
+    resume: call => this.transfer(call),
+  };
+  /** list: receipts, recovery reviews, variants, presets and sources. */
+  private listMedia({input, actor}: MediaCall): JsonObject {
+    const offset = input.offset ?? 0,
+      limit = input.limit ?? 50,
+      // Recovery reviews page on their own cursor (MED-05); without one they follow `offset`, as before.
+      recoveryOffset = input.recovery_offset ?? offset;
+    if (
+      !Number.isInteger(offset) ||
+      offset < 0 ||
+      !Number.isInteger(recoveryOffset) ||
+      recoveryOffset < 0 ||
+      !Number.isInteger(limit) ||
+      limit < 1 ||
+      limit > 100
+    )
+      fail('INVALID_ARGUMENT', 'Invalid media pagination.');
+    if (input.include_assets !== undefined && typeof input.include_assets !== 'boolean')
+      fail('INVALID_ARGUMENT', 'include_assets is true or false.');
+    // A page that shows only recovery and sources (the website's media page) leaves the receipts out. The working
+    // client (SEC-08) keeps receipts and recovery of the accounts its profile binds, within current access.
+    const client = optionalClientView(this.store, actor, input.profile_id),
+      ofClient = (platform: string, account: unknown, connection: unknown) =>
+        !client || client.has(platform + '_native_action', account, connection),
+      withAssets = input.include_assets !== false,
+      assets = withAssets
+        ? this.assets(actor, input).filter(a => ofClient(a.platform, a.account_id, a.connection_id))
+        : [];
+    const reviews = this.store
+      .documents(actor.tenantId, 'media_review')
+      .filter(r => r.user_id === actor.userId)
+      .filter(r => {
+        const p = r.plan;
+        try {
+          this.access(actor, p.platform, p.account_id, p.connection_id);
+          return (
+            (!input.platform || p.platform === input.platform) &&
+            (!input.connection_id || p.connection_id === input.connection_id) &&
+            (!input.account_id || p.account_id === normalizeAccount(p.platform + '_native_action', input.account_id)) &&
+            ofClient(p.platform, p.account_id, p.connection_id)
           );
-        if (current.job_id && !unsent)
-          return {
-            review_id: input.review_id,
-            job_id: current.job_id,
-            state: this.store.job(actor.tenantId, current.job_id).state,
-          };
-        const jobId = this.store.enqueue(actor.tenantId, 'media_upload', {
-          review_id: input.review_id,
-          // The worker retries contention only until the review expires (worker.ts).
-          review_expires_at: review.expires_at,
-        });
-        if (unsent)
-          this.store.appendAudit(actor.tenantId, input.review_id, {
-            event: 'media_upload_requeued',
-            previous_job_id: unsent.id,
-            previous_error_code: unsent.error?.code ?? null,
-            job_id: jobId,
-            actor: actor.userId,
-          });
-        this.store.putDocument(actor.tenantId, 'media_review', input.review_id, {
-          ...current,
-          job_id: jobId,
-          actor_binding: this.store.bindJobActor(actor, 'media-job:' + input.review_id),
-        });
+        } catch {
+          return false;
+        }
+      })
+      .map(r => this.recoveryRecord(actor, r))
+      .filter(r => r.state !== 'complete' && (r.expires_at > Date.now() || ['pending', 'uncertain'].includes(r.state)))
+      .sort((a, b) => b.expires_at - a.expires_at);
+    return {
+      ...(withAssets
+        ? {
+            assets: assets.slice(offset, offset + limit),
+            total: assets.length,
+            has_more: offset + limit < assets.length,
+          }
+        : {}),
+      recovery_reviews: reviews.slice(recoveryOffset, recoveryOffset + limit),
+      recovery_total: reviews.length,
+      recovery_has_more: recoveryOffset + limit < reviews.length,
+      variants: this.store
+        .documents(actor.tenantId, 'media_variant')
+        .filter(v => (ownsRecord(actor, v) || actor.role === 'admin') && v.expires_at > Date.now())
+        .filter(v => {
+          try {
+            this.variant(actor, v.id);
+            return true;
+          } catch {
+            return false;
+          }
+        })
+        .map(({drive_url, ...v}) => v),
+      presets: variantPresets,
+      sources: this.sources.list(actor),
+      // Whether a push of several uploads runs on the server (amcp_campaign run_background, MED-03 B).
+      server_push: serverPushEnabled(),
+    };
+  }
+  /** reuse: an upload receipt of an accessible account, after a fresh availability check. */
+  private reuseReceipt({input, actor}: MediaCall): Promise<JsonObject> {
+    const asset = this.assets(actor, input).find(a => a.id === input.asset_id);
+    if (!asset) fail('MEDIA_NOT_READY', 'Select an upload receipt in an accessible account.');
+    return this.reuse(actor, asset!);
+  }
+  /** inspect_eligibility: the source against a placement preset, before any provider upload. */
+  private async inspectEligibility({input, actor}: MediaCall): Promise<JsonObject> {
+    if (actor.role === 'reader') fail('FORBIDDEN', 'An operator is required to stage media.');
+    const id = randomUUID();
+    this.store.reserveMedia(actor.tenantId, id, Date.now() + 300000);
+    try {
+      const file = await this.source(input, actor, id);
+      return {
+        ...(await withWebsiteUploadDeadline(file.upload_expires_at, () =>
+          inspectMediaPlacement(file.bytes, input.preset),
+        )),
+        sha256: sha256(file.bytes),
+        size_bytes: file.bytes.length,
+        executed: false,
+      };
+    } finally {
+      this.store.removeStagedMedia(actor.tenantId, id);
+    }
+  }
+  /** variant: an encrypted, expiring preview of the original file. */
+  private async stageVariant({input, actor}: MediaCall): Promise<JsonObject> {
+    if (actor.role === 'reader') fail('FORBIDDEN', 'An operator is required to stage media.');
+    if (input.variant_id !== undefined || !['source_id', 'source_url', 'drive_url'].some(k => input[k] !== undefined))
+      fail('INVALID_ARGUMENT', 'Name the original file: source_id, source_url or drive_url.');
+    const id = randomUUID();
+    let expires = Date.now() + 300000;
+    this.store.reserveMedia(actor.tenantId, id, expires);
+    try {
+      const file = await this.source(input, actor, id),
+        converted = await withWebsiteUploadDeadline(file.upload_expires_at, () =>
+          createMediaVariant(file.bytes, input.preset, input.fit),
+        ),
+        {bytes, ...metadata} = converted;
+      if (file.upload_expires_at !== undefined) {
+        expires = Math.min(expires, file.upload_expires_at);
+        this.store.capStagedMediaExpiry(actor.tenantId, id, expires);
+      }
+      this.store.assertActorActive(actor);
+      if (input.drive_connection_id) driveAccess(this.store, actor, input.drive_connection_id, input.drive_url);
+      this.store.stageMedia(actor.tenantId, id, bytes);
+      const record = {
+        ...metadata,
+        ...ownership(actor),
+        drive_url: input.drive_url,
+        drive_connection_id: file.source_drive?.connection_id ?? null,
+        sha256: sha256(bytes),
+        source_sha256: sha256(file.bytes),
+        ...(file.upload_expires_at !== undefined ? {upload_expires_at: file.upload_expires_at} : {}),
+        ...('origin' in file && file.origin ? {origin: file.origin} : {}),
+        size: bytes.length,
+        expires_at: expires,
+        preview_url: '/api/media/variants/' + id + '/preview',
+      };
+      this.store.putDocument(actor.tenantId, 'media_variant', id, record);
+      return {...record, id, variant_id: id, executed: false, client_download_required: false};
+    } catch (e) {
+      this.store.removeStagedMedia(actor.tenantId, id);
+      throw e;
+    }
+  }
+  /** prepare: the exact file frozen for a five-minute review, with the account state it was reviewed against. */
+  private async prepareUpload({input, actor}: MediaCall): Promise<JsonObject> {
+    if (
+      !platforms.includes(input.platform) ||
+      typeof input.account_id !== 'string' ||
+      !['source_id', 'source_url', 'drive_url', 'variant_id'].some(k => typeof input[k] === 'string')
+    )
+      fail(
+        'INVALID_ARGUMENT',
+        'prepare requires platform, account_id and one file: source_id, source_url, drive_url or variant_id.',
+      );
+    if (input.fit_to_platform !== undefined && typeof input.fit_to_platform !== 'boolean')
+      fail('INVALID_ARGUMENT', 'fit_to_platform is true or false.');
+    if (input.review_id !== undefined || input.idempotency_key !== undefined || input.confirmed !== undefined)
+      fail('INVALID_ARGUMENT', 'Preparation cannot execute an upload.');
+    const account = normalizeAccount(input.platform + '_native_action', input.account_id);
+    if (!/^[A-Za-z0-9_-]+$/.test(account)) fail('INVALID_ARGUMENT', 'Invalid account ID.');
+    const c = this.access(actor, input.platform, account, input.connection_id),
+      reviewId = randomUUID();
+    let expires = Date.now() + 300000;
+    if (
+      input.platform === 'linkedin' &&
+      typeof input.owner_urn === 'string' &&
+      input.owner_urn.startsWith('urn:li:organization:')
+    )
+      assertLinkedInOrganization(c, account, input.owner_urn);
+    if (
+      input.platform === 'linkedin' &&
+      input.media_type === 'video' &&
+      !/^urn:li:(?:organization|person):[A-Za-z0-9_-]+$/.test(input.owner_urn ?? '')
+    )
+      fail(
+        'LINKEDIN_VIDEO_OWNER_REQUIRED',
+        'LinkedIn video upload requires an explicitly bound organization or person owner; a sponsoredAccount URN is not a video owner.',
+      );
+    if (
+      input.name !== undefined &&
+      (typeof input.name !== 'string' ||
+        !input.name.trim() ||
+        input.name.length > 80 ||
+        /[\x00-\x1f\/\\]/.test(input.name))
+    )
+      fail('INVALID_ARGUMENT', 'Use a media name of 1–80 characters without paths or control characters.');
+    if (
+      input.dv360_target !== undefined &&
+      (input.platform !== 'dv360' || !['creative_asset', 'ad_asset'].includes(input.dv360_target))
+    )
+      fail(
+        'INVALID_ARGUMENT',
+        'dv360_target selects a DV360 creative asset (the default) or a Demand Gen image ad asset.',
+      );
+    const adAsset = input.dv360_target === 'ad_asset';
+    // An existing Snapchat allocation must be owned before any Drive download.
+    if (input.existing_media_id !== undefined) {
+      if (
+        input.platform !== 'snapchat' ||
+        typeof input.existing_media_id !== 'string' ||
+        !/^[-\w]+$/.test(input.existing_media_id)
+      )
+        fail('INVALID_ARGUMENT', 'existing_media_id identifies an existing Snapchat media allocation.');
+      new ScopeGuard(this.registry, this.store).authorize(
+        {...this.accountRead(input.platform, account), path: '/v1/media/' + input.existing_media_id},
+        c,
+      );
+    }
+    if (
+      input.synthetic_content !== undefined &&
+      (!adAsset || !['NOT_SYNTHETIC', 'IS_SYNTHETIC'].includes(input.synthetic_content))
+    )
+      fail('INVALID_ARGUMENT', 'synthetic_content (NOT_SYNTHETIC or IS_SYNTHETIC) labels a DV360 image ad asset.');
+    if (adAsset && input.media_type !== undefined && input.media_type !== 'image')
+      fail(
+        'MEDIA_TYPE_UNSUPPORTED',
+        'DV360 uploads only images as ad assets; YouTube video ad assets are created by video ID with DV360_ADVERTISERS_AD_ASSETS_CREATE.',
+      );
+    this.store.reserveMedia(actor.tenantId, reviewId, expires);
+    try {
+      const {file, transform} = await this.platformFile(
+        input,
+        await this.source(input, actor, reviewId),
+        adAsset,
+        actor,
+      );
+      if (file.upload_expires_at !== undefined) {
+        expires = Math.min(expires, file.upload_expires_at);
+        this.store.capStagedMediaExpiry(actor.tenantId, reviewId, expires);
+      }
+      const name = input.name?.trim() ?? 'AMCP media',
+        p: UploadPlan = {
+          platform: input.platform,
+          account_id: account,
+          connection_id: c.id,
+          name,
+          mime: file.mime,
+          kind: file.kind,
+          filename: name + '.' + file.extension,
+          size: file.bytes.length,
+          sha256: sha256(file.bytes),
+          read: this.accountRead(input.platform, account),
+          ...(file.source_drive ? {source_drive: file.source_drive} : {}),
+          ...(file.upload_expires_at !== undefined ? {upload_expires_at: file.upload_expires_at} : {}),
+          ...('origin' in file && file.origin ? {origin: file.origin} : {}),
+          ...(transform ? {transform} : {}),
+          ...(adAsset
+            ? {
+                dv360_target: 'ad_asset' as const,
+                ...(input.synthetic_content ? {synthetic_content: input.synthetic_content} : {}),
+              }
+            : {}),
+        };
+      if (input.existing_media_id !== undefined) {
+        if (
+          p.platform !== 'snapchat' ||
+          typeof input.existing_media_id !== 'string' ||
+          !/^[-\w]+$/.test(input.existing_media_id)
+        )
+          fail('INVALID_ARGUMENT', 'existing_media_id identifies an existing Snapchat media allocation.');
+        p.existing_media_id = input.existing_media_id;
+        p.read = {...p.read, path: '/v1/media/' + p.existing_media_id};
+        new ScopeGuard(this.registry, this.store).authorize(p.read, c);
+      }
+      if (input.owner_urn !== undefined) {
+        if (
+          p.platform !== 'linkedin' ||
+          typeof input.owner_urn !== 'string' ||
+          !/^urn:li:(?:sponsoredAccount|organization|person):[A-Za-z0-9_-]+$/.test(input.owner_urn)
+        )
+          fail('INVALID_ARGUMENT', 'owner_urn requires a LinkedIn account, organization or person URN.');
+        if (input.owner_urn !== 'urn:li:sponsoredAccount:' + account) {
+          const [, kind, owner] = /^urn:li:([^:]+):(.+)$/.exec(input.owner_urn)!;
+          new ScopeGuard(this.registry, this.store).authorize(
+            {
+              ...p.read,
+              path:
+                '/rest/' +
+                (kind === 'organization' ? 'organizations' : kind === 'person' ? 'people' : 'adAccounts') +
+                '/' +
+                owner,
+            },
+            c,
+          );
+        }
+        p.owner_urn = input.owner_urn;
+      }
+      if (p.platform === 'dv360' && Buffer.byteLength(p.filename) > 240)
+        fail('INVALID_ARGUMENT', 'DV360 filenames must fit in 240 UTF-8 bytes.');
+      const matches = this.matchingReceipts(actor, p);
+      if (input.reuse_existing === true && matches.length) {
+        const reused = await this.reuse(actor, matches[0]!);
+        this.store.removeStagedMedia(actor.tenantId, reviewId);
+        return reused;
+      }
+      const state = await this.state(actor, p),
+        stateHash = reviewStateHash(state),
+        fingerprint = sha256(stable({tenant: actor.tenantId, user: actor.userId, plan: p}));
+      this.access(actor, p.platform, account, c.id);
+      this.store.stageMedia(actor.tenantId, reviewId, file.bytes);
+      this.store.putDocument(actor.tenantId, 'media_review', reviewId, {
+        user_id: actor.userId,
+        created_at: Date.now(),
+        plan: p,
+        state,
+        state_hash: stateHash,
+        fingerprint,
+        expires_at: expires,
+      });
+      this.store.appendAudit(actor.tenantId, reviewId, {
+        event: 'media_prepared',
+        plan: p,
+        fingerprint,
+        state_hash: stateHash,
+      });
+      return {
+        success: true,
+        executed: false,
+        review_id: reviewId,
+        upload_session_id: reviewId,
+        idempotency_key: reviewId,
+        expires_at: new Date(expires).toISOString(),
+        request: p,
+        before_state: state,
+        state_hash: stateHash,
+        fingerprint,
+        matching_assets: matches.map(a => ({asset_id: a.id, media_id: a.media_id, sha256: a.sha256})),
+        confirmation_required: true,
+        steps: [
+          'Upload the reviewed file to ' + p.platform,
+          ...(p.platform === 'google_ads' && p.kind === 'video'
+            ? ['Create an UNLISTED video on the Google-managed YouTube channel for this advertising account']
+            : []),
+          ...(p.platform === 'x_ads' ? ['Register it in the selected account media library'] : []),
+        ],
+      };
+    } catch (e) {
+      this.store.removeStagedMedia(actor.tenantId, reviewId);
+      throw e;
+    }
+  }
+  /** job_status: the queued upload of the review, with its durable progress. */
+  private jobStatus({input, actor, review, previous}: ReviewCall): JsonObject {
+    if (!review.job_id) fail('NOT_FOUND', 'No background upload was queued for this review.');
+    const job = this.store.job(actor.tenantId, review.job_id);
+    return {
+      review_id: input.review_id,
+      job_id: job.id,
+      state: job.state,
+      error: job.error,
+      // Failed before any claim: nothing reached the platform, and execute_async queues the same review again,
+      // unless the refusal would repeat (retry_available:false: prepare the upload again).
+      not_submitted: job.state === 'failed' && !previous,
+      ...(job.state === 'failed' && !previous
+        ? {
+            busy: mediaBusyCodes.has(job.error?.code),
+            retry_available: !repeatsBeforeClaim.has(job.error?.code) && review.expires_at > Date.now(),
+          }
+        : {}),
+      result: job.result,
+      progress: review.progress ?? {},
+      journal: this.store.operationJournal(actor.tenantId, input.review_id),
+      expires_at: review.expires_at,
+    };
+  }
+  /** cancel: a review nothing was submitted for. */
+  private cancelReview({input, actor, review, previous}: ReviewCall): JsonObject {
+    if (previous) fail('UPLOAD_ALREADY_SUBMITTED', 'An upload already submitted cannot be cancelled locally.');
+    if (review.job_id) cancelJobLease(this.store, actor.tenantId, review.job_id);
+    this.store.removeStagedMedia(actor.tenantId, input.review_id);
+    this.store.putDocument(actor.tenantId, 'media_review', input.review_id, {...review, expires_at: 0});
+    return {success: true, cancelled: true};
+  }
+  /** status: the provider processing state of a completed upload. */
+  private receiptStatus({actor, plan: p, previous}: ReviewCall): Promise<JsonObject> {
+    const receipt = previous?.result ? JSON.parse(previous.result) : undefined;
+    if (previous?.state !== 'complete' || !receipt?.media_id)
+      fail('MEDIA_NOT_UPLOADED', 'There is no completed upload receipt for this review.');
+    return this.status(actor, p, receipt);
+  }
+  /** execute_async: the confirmed review queued for the worker, once. */
+  private queueUpload({input, actor, review}: ConfirmedCall): JsonObject {
+    return this.store.transaction(() => {
+      const current = this.store.document(actor.tenantId, 'media_review', input.review_id),
+        // No claim exists here (a claimed review was refused above), so a failed job sent nothing: queue it again.
+        unsent = this.unsentJob(actor, current, false);
+      if (unsent && repeatsBeforeClaim.has(unsent.error?.code))
+        fail(
+          'MEDIA_RETRY_UNAVAILABLE',
+          'This upload stopped before anything was sent, for a reason that queueing it again would repeat. Prepare the upload again; upload the file again first when its 30-minute window is nearly over.',
+          {previous_error_code: unsent.error.code, provider_requests_sent: false},
+        );
+      if (current.job_id && !unsent)
         return {
           review_id: input.review_id,
-          job_id: jobId,
-          state: 'queued',
-          expires_at: new Date(review.expires_at).toISOString(),
-          next_call: {tool: 'amcp_media', arguments: {action: 'job_status', review_id: input.review_id}},
+          job_id: current.job_id,
+          state: this.store.job(actor.tenantId, current.job_id).state,
         };
+      const jobId = this.store.enqueue(actor.tenantId, 'media_upload', {
+        review_id: input.review_id,
+        // The worker retries contention only until the review expires (worker.ts).
+        review_expires_at: review.expires_at,
       });
-    }
+      if (unsent)
+        this.store.appendAudit(actor.tenantId, input.review_id, {
+          event: 'media_upload_requeued',
+          previous_job_id: unsent.id,
+          previous_error_code: unsent.error?.code ?? null,
+          job_id: jobId,
+          actor: actor.userId,
+        });
+      this.store.putDocument(actor.tenantId, 'media_review', input.review_id, {
+        ...current,
+        job_id: jobId,
+        actor_binding: this.store.bindJobActor(actor, 'media-job:' + input.review_id),
+      });
+      return {
+        review_id: input.review_id,
+        job_id: jobId,
+        state: 'queued',
+        expires_at: new Date(review.expires_at).toISOString(),
+        next_call: {tool: 'amcp_media', arguments: {action: 'job_status', review_id: input.review_id}},
+      };
+    });
+  }
+  /** execute and resume: the frozen bytes sent once under the review’s claim, then their processing state read. */
+  private async transfer({
+    input,
+    actor,
+    review,
+    plan: p,
+    fingerprint,
+    resumable,
+    resuming,
+    confirmBy,
+  }: ConfirmedCall): Promise<JsonObject> {
     const bytes = p.library_media ? Buffer.alloc(0) : this.store.stagedMedia(actor.tenantId, input.review_id);
     if (!p.library_media && (bytes.length !== p.size || sha256(bytes) !== p.sha256 || mediaType(bytes).mime !== p.mime))
       fail('REVIEW_CHANGED', 'The staged media failed its integrity check.');

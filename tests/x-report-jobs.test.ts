@@ -966,6 +966,32 @@ test('X a busy deployment or lost result lease performs no unsafe result persist
   }
 });
 
+// QA-02 liveness pair (tests/fixtures/refusal-exits.json): since ARC-04 stage F moved the retrieval into the X report
+// job (src/x-report-download.ts), its busy refusal lies on the write path's import closure and names its way out.
+test('X a busy result retrieval is read again once the other retrieval ends, without resubmitting the job', async () => {
+  const f = fixture();
+  try {
+    const p = await f.prepare();
+    await f.execute(p);
+    f.state.status = 'SUCCESS';
+    f.store.acquireLock('x-report-memory:0', 'synthetic-other', 120000);
+    f.store.acquireLock('x-report-memory:1', 'synthetic-other', 120000);
+    const busy = await f.get();
+    assert.equal(busy.error.code, 'X_REPORT_DOWNLOAD_BUSY');
+    assert.equal(busy.error.retryable, true);
+    assert.equal(f.state.downloads, 0);
+    // The other retrieval ends and releases its memory slot: the same read downloads and validates the result once.
+    f.store.releaseLock('x-report-memory:0', 'synthetic-other');
+    const r = await f.get();
+    assert.equal(r.success, true, JSON.stringify(r));
+    assert.equal(r.data.data.report.complete, true);
+    assert.equal(f.state.downloads, 1);
+    assert.equal(f.state.writes, 1);
+  } finally {
+    f.store.close();
+  }
+});
+
 test('X expired review and changed frozen request cannot allocate a job', async () => {
   for (const mode of ['expired', 'changed']) {
     const f = fixture();

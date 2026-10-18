@@ -2,7 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {defineFamily, fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Scheduled Tweets of an X Ads account, Ads API v12 (Creatives reference and guide, "Scheduled Tweets"; docs.x.com copy
@@ -119,21 +119,9 @@ export function assertXScheduled(p: CompiledRequest): void {
     invalid('A scheduled Tweet needs text or media.');
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}): Read {
-  return {
-    ...p,
-    action: 'AMCP_X_SCHEDULED_TWEET_READ',
-    method: 'GET',
-    path: '/12/accounts/' + account(p) + path,
-    query,
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
+  return stateReadOf<Read>(p, 'AMCP_X_SCHEDULED_TWEET_READ', '/12/accounts/' + account(p) + path, query, {
     xScheduledState: undefined,
-  };
+  });
 }
 const stateRead = (p: CompiledRequest, state: State): Read => ({...read(p, ''), xScheduledState: state});
 /** One marked read of the account; the reader adds the scheduled Tweet, its author, card and media, and for deletions its promotions. */

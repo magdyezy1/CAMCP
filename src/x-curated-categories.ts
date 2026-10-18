@@ -1,7 +1,7 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {defineFamily, fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Curated categories of X Ads pre-roll line items, Ads API v12 (Campaign Management reference, "Line Item Curated
@@ -61,21 +61,9 @@ export function assertXCurated(p: CompiledRequest): void {
     invalid('curated_category_id is the native ID of a curated category.');
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}): Read {
-  return {
-    ...p,
-    action: 'AMCP_X_CURATED_READ',
-    method: 'GET',
-    path: '/12/accounts/' + account(p) + path,
-    query,
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
+  return stateReadOf<Read>(p, 'AMCP_X_CURATED_READ', '/12/accounts/' + account(p) + path, query, {
     xCuratedState: undefined,
-  };
+  });
 }
 const stateRead = (p: CompiledRequest, state: State): Read => ({...read(p, ''), xCuratedState: state});
 export function xCuratedSnapshots(p: CompiledRequest): Read[] {

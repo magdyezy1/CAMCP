@@ -196,7 +196,8 @@ test('the X families declare themselves through the kit and no module of waves 1
   for (const file of wave) {
     const source = fs.readFileSync(file, 'utf8');
     assert.doesNotMatch(source, /^function fail\(/m, file);
-    assert.match(source, /^import \{(?:defineFamily, )?fail\} from '\.\/family-kit\.js';$/m, file);
+    // The X, DV360 and Criteo families of these waves also take their state reads from the kit (stateReadOf).
+    assert.match(source, /^import \{(?:defineFamily, )?fail(?:, stateReadOf)?\} from '\.\/family-kit\.js';$/m, file);
     if (file.startsWith('src/x-')) assert.match(source, /: ReviewedFamily = defineFamily\(\{$/m, file);
   }
 });
@@ -522,4 +523,129 @@ test('the modules outside the localization inventory only shrink: each exists, r
     assert.ok(beforeTheKit.has(file), file + ' was inside the inventory before the kit; translate its reasons instead');
     assert.match(fs.readFileSync(file, 'utf8'), /^import \{[^}]*\} from '\.\/family-kit\.js';$/m, file);
   }
+});
+
+// ARC-04 stage C (the review's readsFor): the X, DV360 and Criteo families build their state reads with the kit's
+// stateReadOf instead of a copied builder. Each group's copies were identical but for the action and state fields.
+const kitReads = {
+  x: [
+    'x-curated-categories',
+    'x-custom-audiences',
+    'x-line-item-associations',
+    'x-media-library',
+    'x-preroll-ctas',
+    'x-scheduled-tweets',
+    'x-tracking-tags',
+  ],
+  dv360: [
+    'dv360-advertiser-settings',
+    'dv360-demand-gen-ad-groups',
+    'dv360-demand-gen-ads',
+    'dv360-line-item-bulk-update',
+    'dv360-line-item-duplicate',
+  ],
+  criteo: [
+    'criteo-auction-line-items',
+    'criteo-budget-overrides',
+    'criteo-preferred-line-items',
+    'criteo-targeting-writes',
+  ],
+};
+test('stateReadOf builds the read the X, DV360 and Criteo families had copied: the same keys, values and order', () => {
+  // Each group's builder as its modules had written it.
+  const base = (p, action, path, query) => ({
+    ...p,
+    action,
+    method: 'GET',
+    path,
+    query,
+    body: undefined,
+    headers: {},
+    readOnly: true,
+    destructive: false,
+    requiresConfirmation: false,
+    responseControls: undefined,
+    specialTransport: undefined,
+  });
+  const copied = {
+    x: (p, action, path, query, state) => ({...base(p, action, path, query), [state]: undefined}),
+    dv360: (p, action, path, state) => ({
+      ...base(p, action, path, {}),
+      queryArrayEncoding: undefined,
+      [state]: undefined,
+    }),
+    criteo: (p, action, path, query, state) => ({
+      ...base(p, action, path, query),
+      queryArrayEncoding: 'repeat',
+      [state]: undefined,
+    }),
+  };
+  const requests = [
+    // A write request carrying every field a read resets, and state fields of its own.
+    {
+      gateway: 'x_ads_native_action',
+      action: 'x_media_update',
+      method: 'PUT',
+      path: '/12/accounts/a1/media_library/3_1',
+      query: {},
+      body: {name: 'Renamed'},
+      headers: {'X-Synthetic': '1'},
+      accountId: 'a1',
+      readOnly: false,
+      destructive: true,
+      requiresConfirmation: true,
+      responseControls: {fields: ['id']},
+      specialTransport: 'upload',
+      queryArrayEncoding: 'comma',
+      xMediaState: {kind: 'library_update'},
+      criteoLineItemState: {kind: 'update'},
+    },
+    // One without the optional fields, so the read adds them after the request's own, in its order.
+    {
+      gateway: 'dv360_native_action',
+      action: 'dv360_patch',
+      method: 'PATCH',
+      path: '/v4/x',
+      query: {a: '1'},
+      accountId: '7',
+    },
+  ];
+  const same = (a, b) => assert.deepEqual(Object.entries(a), Object.entries(b));
+  for (const p of requests) {
+    same(
+      kit.stateReadOf(p, 'AMCP_X_MEDIA_READ', '/12/accounts/a1', {q: '1'}, {xMediaState: undefined}),
+      copied.x(p, 'AMCP_X_MEDIA_READ', '/12/accounts/a1', {q: '1'}, 'xMediaState'),
+    );
+    same(
+      kit.stateReadOf(
+        p,
+        'AMCP_DV360_AD_READ',
+        '/v4/advertisers/7',
+        {},
+        {queryArrayEncoding: undefined, dv360AdState: undefined},
+      ),
+      copied.dv360(p, 'AMCP_DV360_AD_READ', '/v4/advertisers/7', 'dv360AdState'),
+    );
+    same(
+      kit.stateReadOf(
+        p,
+        'AMCP_CRITEO_LINE_ITEM_READ',
+        '/2026-07/accounts',
+        {limitToId: ['1']},
+        {queryArrayEncoding: 'repeat', criteoLineItemState: undefined},
+      ),
+      copied.criteo(p, 'AMCP_CRITEO_LINE_ITEM_READ', '/2026-07/accounts', {limitToId: ['1']}, 'criteoLineItemState'),
+    );
+  }
+  // Each of those modules builds its read with the kit and keeps no copy of the builder.
+  for (const modules of Object.values(kitReads))
+    for (const module of modules) {
+      const source = fs.readFileSync('src/' + module + '.ts', 'utf8');
+      assert.match(source, /stateReadOf/, module);
+      assert.doesNotMatch(
+        source,
+        /requiresConfirmation: false,\s+responseControls: undefined,\s+specialTransport: undefined/,
+        module,
+      );
+    }
 });

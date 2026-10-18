@@ -2,7 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {defineFamily, fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Custom audiences of an X Ads account, Ads API v12 (Audiences reference, "Custom Audiences"; docs.x.com copy read on
@@ -81,21 +81,9 @@ export function assertXAudience(p: CompiledRequest): void {
     invalid('description has at most 1000 characters without control characters.');
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}): Read {
-  return {
-    ...p,
-    action: 'AMCP_X_CUSTOM_AUDIENCE_READ',
-    method: 'GET',
-    path: '/12/accounts/' + account(p) + path,
-    query,
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
+  return stateReadOf<Read>(p, 'AMCP_X_CUSTOM_AUDIENCE_READ', '/12/accounts/' + account(p) + path, query, {
     xAudienceState: undefined,
-  };
+  });
 }
 const stateRead = (p: CompiledRequest, state: State): Read => ({...read(p, ''), xAudienceState: state});
 /** One marked read of the account; the reader adds the audience, same-name audiences and, for deletions, what targets it. */

@@ -2,7 +2,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {assertDV360WriteScope} from './dv360-scope.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Bulk status and EU political advertising updates of DV360 line items, per the pinned Display & Video 360 API v4 Discovery
@@ -84,22 +84,13 @@ export function assertDV360LineItemBulk(p: CompiledRequest): void {
     );
 }
 function read(p: CompiledRequest, path: string): Read {
-  return {
-    ...p,
-    action: 'AMCP_DV360_LINE_ITEM_BULK_READ',
-    method: 'GET',
+  return stateReadOf<Read>(
+    p,
+    'AMCP_DV360_LINE_ITEM_BULK_READ',
     path,
-    query: {},
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
-    queryArrayEncoding: undefined,
-    dv360BulkLineItemState: undefined,
-  };
+    {},
+    {queryArrayEncoding: undefined, dv360BulkLineItemState: undefined},
+  );
 }
 /** One marked read of the advertiser; the reader adds each line item and its insertion order. */
 export function dv360LineItemBulkSnapshots(p: CompiledRequest): Read[] {

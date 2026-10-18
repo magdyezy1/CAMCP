@@ -60,8 +60,15 @@ test('provider modules are the provider filename groups; the lifecycle and the w
   // The registries shared code consults instead of naming providers (ARC-04 stages E and F).
   assert.equal(isProviderModule('src/portfolio.ts'), true);
   assert.equal(isProviderModule('src/report-sources.ts'), true);
+  // ARC-04 stage F: the report job registry; its contract is a leaf, as the report source contract is.
+  assert.equal(isProviderModule('src/report-jobs.ts'), true);
+  // ARC-04 stage C: the provider remedy registry src/errors.ts consults, and one provider's remedy table.
+  assert.equal(isProviderModule('src/provider-remedies.ts'), true);
+  assert.equal(isProviderModule('src/meta-remedies.ts'), true);
+  assert.equal(isProviderModule('src/errors.ts'), false);
   assert.equal(isProviderModule('src/portfolio-runner.ts'), false);
   assert.equal(isProviderModule('src/report-source.ts'), false);
+  assert.equal(isProviderModule('src/report-job.ts'), false);
   assert.equal(isProviderModule('src/provider-offering.ts'), false);
   assert.equal(isProviderModule('src/scope.ts'), false);
   assert.equal(isProviderModule('src/report-native.ts'), false);

@@ -14,6 +14,7 @@ import {
   pageAssetPaths,
   routeProblems,
   serverShellRoutes,
+  serverShellSource,
 } from '../tools/check-routes.mjs';
 
 const catalog = JSON.parse(fs.readFileSync('web/locales/ar.json', 'utf8')),
@@ -123,7 +124,7 @@ test('the registry, navigation, page assets and server shell pages agree', () =>
     assert.ok(entry.palette, entry.path + ' is findable');
   }
   // Every registered page is served by the server and client-navigable (clientNavigation reads the registry).
-  const served = serverShellRoutes(fs.readFileSync('server/website.ts', 'utf8'));
+  const served = serverShellRoutes(fs.readFileSync(serverShellSource, 'utf8'));
   assert.deepEqual([...served].sort(), Array.from(registry, entry => entry.path).sort());
 });
 
@@ -131,7 +132,7 @@ test('drift between the registry and its static consumers fails check-web', () =
   const base = {
     registry: loadRouteRegistry(),
     index,
-    server: serverShellRoutes(fs.readFileSync('server/website.ts', 'utf8')),
+    server: serverShellRoutes(fs.readFileSync(serverShellSource, 'utf8')),
     assets: pageAssetPaths(),
   };
   const renamed = base.index.replace(

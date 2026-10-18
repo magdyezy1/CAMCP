@@ -1,7 +1,7 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {defineFamily, fail} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Tracking tags of X Ads line items, Ads API v12 (Campaign Management reference, "Tracking Tags"; docs.x.com copy read on
@@ -80,21 +80,9 @@ export function assertXTrackingTag(p: CompiledRequest): void {
   if (kind !== 'delete') trackingUrl(b.tracking_tag_url);
 }
 function read(p: CompiledRequest, path: string, query: JsonObject = {}): Read {
-  return {
-    ...p,
-    action: 'AMCP_X_TRACKING_TAG_READ',
-    method: 'GET',
-    path: '/12/accounts/' + account(p) + path,
-    query,
-    body: undefined,
-    headers: {},
-    readOnly: true,
-    destructive: false,
-    requiresConfirmation: false,
-    responseControls: undefined,
-    specialTransport: undefined,
+  return stateReadOf<Read>(p, 'AMCP_X_TRACKING_TAG_READ', '/12/accounts/' + account(p) + path, query, {
     xTrackingTagState: undefined,
-  };
+  });
 }
 const stateRead = (p: CompiledRequest, state: State): Read => ({...read(p, ''), xTrackingTagState: state});
 /** One marked read of the account; the reader adds the tag, its line item and the line item's tags. */

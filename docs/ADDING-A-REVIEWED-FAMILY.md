@@ -64,6 +64,12 @@ projection is what makes `STATE_CHANGED` between prepare and execute meaningful.
 - `defineFamily(declaration)` checks a declaration when its module loads (a ledger family name, `src/` implementation
   modules, at least one test, a `kind` hook) and returns it unchanged; `tests/family-kit.test.mjs` applies it to every
   registered family.
+- `stateReadOf(p, action, path, query, fields)` builds a state read from the write request `p`: `p` with the read's
+  action and a GET of `path` with `query`, without the body, headers, confirmation, response controls or special
+  transport of a write, then `fields` in order (the family's state fields reset, a query encoding). Keep a `read`
+  wrapper in the module so its call sites stay the same, for example
+  `return stateReadOf<Read>(p, 'AMCP_X_MEDIA_READ', '/12/accounts/' + account(p) + path, query, {xMediaState: undefined});`.
+  The X, DV360 and Criteo families use it; a read that resets other fields keeps its own builder.
 - `FamilyCore`, `FamilyStateHooks`, `FamilyPolicyHooks`, `FamilyDeliveryHooks` and `FamilyVerificationHooks` group the
   hooks of `ReviewedFamily` by the stage that calls them; a new hook must join a group or the build fails
   (`everyFamilyHookHasAStage`).
@@ -75,6 +81,30 @@ a regression `npm run architecture:check` names (`local_fail_copies`, 0). Ninete
 localization inventory never followed (an arrow function, or a forwarder to another module's helper) are listed in
 `unlocalizedRefusalModules` (`tools/check-locales.mjs`): their reasons still have no Arabic and stay outside the
 inventory until they are translated. The list only shrinks; a new module never joins it.
+
+### Remedies of a family's refusals
+
+A refusal's `remedy` (what to do next, `errorRemedy` in `src/errors.ts`) comes first from the remedy table of the
+family's provider, `src/<provider>-remedies.ts`, which `src/provider-remedies.ts` registers by provider ID (ARC-04
+stage C). To give a new code its own remedy, add a rule to that table rather than to `errorRemedy`:
+
+```ts
+{
+  codes: ['X_TARGETING_LIMIT'], // exact codes, or a prefix written as 'X_TARGETING_*'
+  remedy: {category: 'state', owner: 'operator', action: 'Narrow the reviewed operation ...', mutation_retry_safe: false},
+},
+```
+
+- Put an exact code before a prefix that also matches it (the first rule of a table that answers wins); `when:
+  details => ...` narrows a rule by the refusal's details.
+- A table answers only its provider's own codes: no two providers may answer one code, and no table may answer a code
+  that one of `errorRemedy`'s shared rules names (`tests/provider-remedies.test.mjs`). A provider's rule answers even
+  a refusal that carries the provider's reply (`details.upstream`).
+- The table is a leaf: it imports only the `ProviderRemedy` type, because `src/errors.ts`, which every module imports,
+  imports the registry.
+- The `action` is a shared recovery hint the website shows: add its Arabic to `web/locales/ar.json`
+  (`node tools/check-locales.mjs` lists a missing one). A new provider's table is listed in `src/provider-remedies.ts`
+  and in `providerRemedyModules` (`tools/check-locales.mjs`).
 
 ## What a family module imports
 

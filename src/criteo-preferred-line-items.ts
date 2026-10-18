@@ -4,7 +4,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Criteo Retail Media preferred (onsite display) line items on API 2026-07 (unchanged from 2026-01), per the pinned
@@ -213,22 +213,11 @@ export function assertCriteoPreferredScopes(c: Connection, write = false): void 
   if (!required.every(s => c.scopes.includes(s)))
     fail('INSUFFICIENT_SCOPE', 'The selected Criteo connection needs ' + required.join(', ') + '.', {}, 403);
 }
-const read = (p: CompiledRequest, path: string, query: JsonObject = {}): CompiledRequest => ({
-  ...p,
-  action: 'AMCP_CRITEO_PREFERRED_READ',
-  method: 'GET',
-  path,
-  query,
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  queryArrayEncoding: 'repeat',
-  criteoPreferredState: undefined,
-});
+const read = (p: CompiledRequest, path: string, query: JsonObject = {}): CompiledRequest =>
+  stateReadOf(p, 'AMCP_CRITEO_PREFERRED_READ', path, query, {
+    queryArrayEncoding: 'repeat',
+    criteoPreferredState: undefined,
+  });
 export function criteoPreferredSnapshots(p: CompiledRequest): CompiledRequest[] {
   const kind = criteoPreferredKind(p)!,
     a = attributes(p);

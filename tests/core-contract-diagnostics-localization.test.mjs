@@ -8,7 +8,11 @@ import {accountWorkflowFixture} from './fixtures/account-workflows-ui.mjs';
 
 const counts = {
   'src/catalog.ts': 7,
-  'src/service.ts': 30,
+  // ARC-04 stage F moved the X and Microsoft report retrievals and the X and TikTok job-read checks from
+  // MirrorService to their report jobs (src/x-report-download.ts, src/microsoft-report-download.ts,
+  // src/tiktok-report-jobs.ts): their 14 reasons moved with them, unchanged, and stay owned, with the same Arabic, by
+  // the backend contract inventory (tests/backend-contract-localization.test.mjs).
+  'src/service.ts': 16,
   // ARC-02's review fixes add the refusal of a reserved workspace ID (INVALID_TENANT).
   'src/store.ts': 89,
   'src/transport.ts': 42,
@@ -55,7 +59,7 @@ test('core diagnostic ownership resolves runtime imports and excludes lexical sh
 test('all six selected core sources require every authored reason with native field names, limits and protocol tokens intact', () => {
   for (const [file, count] of Object.entries(counts))
     assert.equal(inspectCoreContractFailures(fs.readFileSync(file, 'utf8'), file).size, count, file);
-  assert.equal(owned.size, 257);
+  assert.equal(owned.size, 243);
   assert.deepEqual(localeProblems(catalog, owned), []);
   for (const message of owned) {
     const translated = catalog[message];

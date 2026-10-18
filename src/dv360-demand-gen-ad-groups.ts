@@ -6,7 +6,7 @@ import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {assertDV360WriteScope} from './dv360-scope.js';
 import {pinnedJson} from './pinned-json.js';
-import {fail} from './family-kit.js';
+import {fail, stateReadOf} from './family-kit.js';
 
 /**
  * Demand Gen ad groups on Display & Video 360 API v4, per the pinned Discovery document (AdGroup, adGroups.create, patch
@@ -218,22 +218,8 @@ export function assertDV360AdGroup(p: CompiledRequest): void {
 }
 
 type Scope = {adGroupId?: string; lineItemId?: string; optional?: boolean};
-const read = (p: CompiledRequest, path: string): CompiledRequest => ({
-  ...p,
-  action: 'AMCP_DV360_AD_GROUP_READ',
-  method: 'GET',
-  path,
-  query: {},
-  body: undefined,
-  headers: {},
-  readOnly: true,
-  destructive: false,
-  requiresConfirmation: false,
-  responseControls: undefined,
-  specialTransport: undefined,
-  queryArrayEncoding: undefined,
-  dv360AdGroupState: undefined,
-});
+const read = (p: CompiledRequest, path: string): CompiledRequest =>
+  stateReadOf(p, 'AMCP_DV360_AD_GROUP_READ', path, {}, {queryArrayEncoding: undefined, dv360AdGroupState: undefined});
 /** One marked read of the advertiser; the reader below adds the ad group and its line item. Ad group targeting reads it too. */
 export const dv360AdGroupStateRead = (p: CompiledRequest, scope: Scope): CompiledRequest => ({
   ...read(p, '/v4/advertisers/' + advertiserOf(p)),

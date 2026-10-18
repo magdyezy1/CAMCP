@@ -77,6 +77,7 @@ import {
   type ToolCall,
 } from './workspace-core.js';
 import {visibleProfile} from './client-scope.js';
+import {actionHandler, type ActionTable, type ToolContext} from './tool-actions.js';
 export const campaignTool = tool(
   'amcp_campaign',
   'Use this for a launch whose later steps need IDs that earlier steps create (campaign, then ad set, then ad); for one change use amcp_write. Create a durable campaign dependency plan from a brief and explicit native steps. Apply approved profiles/templates. recipe_eligibility checks the current business brief without saving a plan: local by default; live:true adds exact read-only account prerequisites. The four Google conversion Search recipes inspect current account-default goals and enabled explicit primary actions in a selected client using its own conversion customer; shared tracking stays unknown. Google Search with Maximize Conversion Value and Google Search with a target ROAS explicitly choose ACCOUNT_RECORDED_VALUES, leave goal and value settings unchanged and save a paused parent with a dedicated budget. target_roas is decimal ratio text from 0.01 to 1000 (3.5 means 350%), compiled to the native double; delivered values, conversion history, eligibility and actual return remain unverified. For the two value-bidding recipes, live eligibility also selects current default value, conversion currency and event-value override settings for the same matching primary actions. It also reads the last reported conversion date and last tag-detection time twice in the native account timezone. These optional aggregate dates remain unknown when absent; tag detection may have no attributable conversion, and no event-level records are read. Optional missing settings stay unknown; configuration does not prove received event values. Pending plans reread retired conversion-value proofs through their original accepted receipts before approval or advancing; completed historical runs are not replayed. The Snapchat website traffic recipe reuses an existing WEB_VIEW creative and saves three paused steps with an explicit AUTO_BID/SWIPES budget and offset schedule. Read-only preflight checks its selected-account ownership, creative type and original HTTPS destination syntax; advertising approval and destination availability remain unverified. The Snapchat lead-generation recipe reuses an existing LEAD_GENERATION creative and its original account-owned form, with an explicit SWIPES or LEAD_FORM_SUBMISSIONS goal. Preflight and native review inspect both definitions; no submitted leads are read, and provider eligibility, privacy and consent acceptance remain unverified. Readers can inspect these settings while existing write blockers remain active. Configuration does not prove event delivery, objective acceptance or write approval. prepare_next resolves only verified predecessor outputs and returns the existing native review; execute_next consumes that exact review, automatically reads back the result, and resumes without duplicate writes. Responses are compact: one row per step with its resource IDs, and the step the call acted on; get with step_id returns one step whole, and detail:"full" the whole plan. A step preflight blocked, or one that failed before reaching the provider, is amended in place with recover_step (patch one field, or send corrected arguments), following the next_call its refusal carries; nothing is sent until its new review. A step the provider refused without applying it (a Google request refused outright) is amended the same way under a new key; for a refusal AMCP cannot prove applied nothing (Meta), confirm_absent reads whether a resource of that name exists and, once the user confirms it does not, allows recover_step. continue_as_new {id, confirmed} carries the steps still to write into a new linked plan, adopting verified predecessors’ IDs with their provenance; the original plan becomes superseded. activation_plan {id} on a completed recipe plan creates a separate linked draft that activates its paused launch (Meta, Google: the campaign; Snapchat: campaign, ad squad, ad in order; Microsoft: refused without a positive location criterion), with its own approval and read-only gates at preflight. list returns compact rows newest first (accounts and platforms per plan), filtered by state, archived, gateway, account_id, connection_id, profile_id, search or awaiting_approval, continued with next_cursor. archive {id, confirmed} sets aside a complete, cancelled or superseded plan: get still returns it, the default list and the 500-plan limit leave it out; unarchive restores it. The plan’s owner or an administrator can assign {id, user_id, role} a workspace member as viewer (read), editor (prepare, run steps, amend, archive) or approver (approve and run); assign {id} lists members, unassign removes one; collaborators see a plan only within their current account access and every write still checks the acting person’s own grant. When the owner requires a distinct approver, a plan that changes spending or activates a launch cannot be approved by its own owner, and its steps execute only under another person’s current approval. To approve a whole plan once: approve returns what the approval covers (every step’s action, account, money and status fields, a large step aggregated with truncated: true; approve with its step_id lists every field); approve with confirmed, that plan_hash and its summary_hash records it; run then prepares and executes every step under it, each still a frozen, read-back review, and stops for anything that needs a person. run_background queues an approved plan whose steps are all media uploads to run on the server: leaving the page or client does not stop it, get shows its progress, and in a plan of independent uploads one failed upload does not hold the others. clone reads an existing Snapchat, Google Search, TikTok or LinkedIn campaign (source.campaign_id; a LinkedIn campaign group) into a new draft plan under a new name, with changes applied (set a field, drop a step); a Google copy is one all-or-nothing step (atomic: false for one step per resource type); the new campaign starts PAUSED and nothing is sent until the plan is reviewed or approved. create, create_from_recipe and clone accept an optional stable idempotency_key (8–100 letters, digits, hyphens or underscores); identical creation input reuses the original plan, while different input conflicts. Recipe and clone steps are saved literally; {{variable}} substitution applies only to the explicit and template steps of create. Allocation preview handoffs bind their exact source and budget ownership to the draft; stale source, changed ownership or amended proposal targets require a fresh preview. Search-exclusion preview handoffs similarly preserve exact retained terms and original ad groups; changed source or target arguments require a new preview. Accepted and uncertain receipts retain their original recovery. No fabricated IDs, implicit launch, or review bypass.',
@@ -343,6 +344,16 @@ const mediaPrepareBusy = (error: JsonObject | undefined) =>
   error?.retryable === true || ['MEDIA_STAGING_FULL', 'MEDIA_PROCESSOR_BUSY'].includes(error?.code);
 /** Rollback switch for the summary binding (WRT-05): AMCP_PLAN_SUMMARY_HASH=false accepts an approval by plan_hash alone. */
 const summaryHashRequired = () => process.env.AMCP_PLAN_SUMMARY_HASH !== 'false';
+/** One amcp_campaign call (ARC-04 stage D): its arguments and the caller. */
+type CampaignCall = ToolContext;
+/** A call on a saved plan, which the checks before its action read and left as it is. */
+interface PlanCall extends ToolContext {
+  readonly run: JsonObject;
+}
+/** A call on the plan's next step, as the next-step checks found it. */
+interface StepCall extends PlanCall {
+  readonly next: JsonObject;
+}
 export class CampaignRunner {
   /**
    * The origin of a create that create_from_recipe or clone builds, keyed by that exact input object, so tool input
@@ -1288,61 +1299,15 @@ export class CampaignRunner {
   async handle(input: JsonObject, actor: Actor): Promise<JsonObject> {
     validate(input, Object.keys(campaignTool.inputSchema.properties), 524288);
     this.store.assertActorActive(actor);
-    if (input.action === 'recipes') return {recipes: campaignRecipes};
-    // CMP-03: Microsoft location IDs and names from its geographical locations file, by name or by ID.
-    if (input.action === 'recipe_lookup' && input.lookup_kind === 'microsoft_location') {
-      if (!this.lookupMicrosoftLocations) throw microsoftLocationsUnpinned();
-      return this.lookupMicrosoftLocations(actor, input);
-    }
-    if (input.action === 'recipe_lookup') {
-      const query = String(input.query ?? '').trim();
-      if (!/^[A-Za-z -]{2,60}$/.test(query) || !['country', 'language'].includes(input.lookup_kind))
-        throw new MirrorError('INVALID_LOOKUP', 'Enter a country name/code or language name (2–60 letters).');
-      this.store.resolveConnection(actor, 'google_ads_native_action', input.account_id, input.connection_id);
-      const country = input.lookup_kind === 'country',
-        gaql = country
-          ? "SELECT geo_target_constant.id, geo_target_constant.name, geo_target_constant.country_code FROM geo_target_constant WHERE geo_target_constant.target_type = 'Country' AND " +
-            (query.length === 2
-              ? "geo_target_constant.country_code = '" + query.toUpperCase() + "'"
-              : "geo_target_constant.name LIKE '%" + query + "%'") +
-            ' LIMIT 100'
-          : 'SELECT language_constant.id, language_constant.name, language_constant.code FROM language_constant LIMIT 1000';
-      const out = await this.call(
-        'google_ads_native_action',
-        {
-          action: 'google_ads_v23_google_ads_search',
-          connection_id: input.connection_id,
-          account_id: input.account_id,
-          payload: {query: gaql},
-        },
-        actor,
-      );
-      if (!out.success) throw new MirrorError(out.error.code, out.error.message, out.error.details);
-      if (out.data.truncated)
-        throw new MirrorError('INCOMPLETE_LOOKUP', 'This lookup is incomplete. Narrow the search.');
-      const rows = out.data.data?.results;
-      if (!Array.isArray(rows))
-        throw new MirrorError('UPSTREAM_RESPONSE_INVALID', 'Google did not return targeting constants.');
-      return {
-        kind: input.lookup_kind,
-        results: rows
-          .map((r: JsonObject) => (country ? r.geoTargetConstant : r.languageConstant))
-          .filter(
-            (r: JsonObject) =>
-              r &&
-              typeof r.id === 'string' &&
-              (country ||
-                String(r.name ?? '')
-                  .toLowerCase()
-                  .includes(query.toLowerCase()) ||
-                String(r.code ?? '').toLowerCase() === query.toLowerCase()),
-          )
-          .slice(0, 50)
-          .map((r: JsonObject) => ({id: r.id, name: r.name, code: r.code ?? r.countryCode})),
-        provider_mutations: 0,
-      };
-    }
-    if (input.action === 'recipe_context') return recipeContext(this.store, actor, input.recipe, input.profile_id);
+    // ARC-04 stage D: each action is an entry of an action table (src/tool-actions.ts), consulted in the order of the
+    // checks the if-chain ran between them: the recipe catalog and its lookups; after the recipe-argument checks, the
+    // reads; after the write check, the creations; on a saved plan, after the right the action needs and the revision,
+    // its archive and collaborators; then, while it is neither archived, superseded nor cancelled, its confirmations,
+    // activation plans and step recoveries; after the account write grants, the draft checks and the preflight,
+    // approval and the runs it allows; and after the next step is found, preparing and executing it. An action in no
+    // table is refused where the chain refused it.
+    const recipe = actionHandler(this.recipeActions, input.action);
+    if (recipe) return recipe({input, actor});
     if (
       !['preview_recipe', 'recipe_eligibility', 'create_from_recipe'].includes(input.action) &&
       (input.brief_id !== undefined || input.apply_playbook_rules !== undefined)
@@ -1350,378 +1315,11 @@ export class CampaignRunner {
       bad('brief_id and apply_playbook_rules apply to preview_recipe, recipe_eligibility and create_from_recipe.');
     if (input.action !== 'create_from_recipe' && input.eligibility_ref !== undefined)
       bad('eligibility_ref applies to create_from_recipe only.');
-    if (input.action === 'recipe_eligibility')
-      return recipeEligibility(this.store, this.call, this.preflight, input, actor, this.inspectConversionGoals);
-    if (['preview_recipe', 'create_from_recipe'].includes(input.action)) {
-      input = resolveBrief(this.store, actor, input);
-      const context = recipeContext(this.store, actor, input.recipe, input.profile_id),
-        {business, provenance} = recipeInputs(context, input.business ?? {}, {
-          apply_playbook_rules: input.apply_playbook_rules,
-          client_brief: input.client_brief,
-        });
-      const missing = recipeMissing(context.recipe, business);
-      if (input.action === 'preview_recipe' && missing.length)
-        return {ready: false, missing_fields: missing, provenance, provider_mutations: 0};
-      const {recipe, ...plan} = campaignRecipe(input.recipe, business);
-      if (input.action === 'preview_recipe')
-        return {
-          ready: true,
-          plan,
-          recipe,
-          provenance,
-          provider_mutations: 0,
-          meaning: 'Local compilation. Run preflight before preparing mutations.',
-        };
-      writer(this.store, actor);
-      const create = {
-        ...plan,
-        ...(input.profile_id ? {profile_id: input.profile_id} : {}),
-        ...(input.idempotency_key !== undefined ? {idempotency_key: input.idempotency_key} : {}),
-        ...(input.acknowledge_temporary_sources !== undefined
-          ? {acknowledge_temporary_sources: input.acknowledge_temporary_sources}
-          : {}),
-        detail: 'full',
-      };
-      // The playbook-rule choice and the saved brief join the origin, so one creation key names one exact input.
-      this.origins.set(create, {
-        recipe: input.recipe,
-        business: input.business ?? {},
-        ...(input.apply_playbook_rules === false ? {playbook_rules: false} : {}),
-        ...(input.client_brief ? {client_brief: input.client_brief} : {}),
-      });
-      const result = await this.handle(create, actor);
-      let run = this.owned(actor, result.id);
-      // A repeated keyed request returns the original plan, whose provenance is already saved.
-      if (!run.recipe) {
-        run.recipe = {...recipe, provenance};
-        if (input.client_brief) run.client_brief = input.client_brief;
-        // A live eligibility check of this exact brief seeds preflight when every binding still matches (CMP-06).
-        const reuse =
-          input.eligibility_ref === undefined
-            ? undefined
-            : eligibilityReuse(this.store, actor, input.eligibility_ref, run, input.recipe, provenance);
-        if (reuse?.applied && !run.preflight) run.preflight = reuse.preflight;
-        run = this.save(actor, run);
-        const reused = reuse
-          ? {eligibility_reuse: Object.fromEntries(Object.entries(reuse).filter(([key]) => key !== 'preflight'))}
-          : {};
-        // With a reused preflight that blocked nothing, the response carries the approval summary at once.
-        if (reuse?.applied && run.preflight.status !== 'blocked') {
-          const approval = this.approve({id: run.id}, actor, run);
-          return {...approval, recipe: run.recipe, ...reused};
-        }
-        // Which value came from the user and which from the approved profile is what a person checks next.
-        return this.respond(input, run, undefined, {recipe: run.recipe, ...reused});
-      }
-      return this.respond(input, run, undefined, {recipe: run.recipe});
-    }
-    if (input.action === 'verify') return this.verifyWrite(actor, input.review_id);
-    if (input.action === 'validate_provider') return this.providerValidation(actor, input);
-    // Newest first, filtered, as an SQL projection with one account summary per plan (CMP-05).
-    if (input.action === 'list') return listPlans(this.store, actor, input);
-    if (input.action === 'get') {
-      const run = this.owned(actor, input.id),
-        journal = (steps: JsonObject[]) =>
-          steps
-            .filter((s: JsonObject) => s.review_id)
-            .map((s: JsonObject) => ({
-              step_id: s.id,
-              status: s.status,
-              review_id: s.review_id,
-              ...this.store.operationJournal(actor.tenantId, s.review_id),
-            }));
-      if (input.step_id !== undefined) {
-        const step = run.steps.find((s: JsonObject) => s.id === input.step_id);
-        if (!step)
-          bad(
-            'step_id ' +
-              JSON.stringify(String(input.step_id)) +
-              ' is not in this plan. Its steps: ' +
-              run.steps.map((s: JsonObject) => s.id).join(', ') +
-              '.',
-            'INVALID_ARGUMENT',
-            {field: 'step_id', allowed: run.steps.map((s: JsonObject) => s.id)},
-          );
-        return {
-          view: 'step',
-          id: run.id,
-          name: run.name,
-          revision: run.revision,
-          state: run.state,
-          plan_hash: run.plan_hash,
-          step,
-          execution_journal: journal([step]),
-        };
-      }
-      // A background run's state comes from its job (MED-03 B): queued, running, complete or failed.
-      const background = backgroundRunView(this.store, actor.tenantId, run),
-        running = background ? {background} : {};
-      if (input.detail === 'full') return {...run, execution_journal: journal(run.steps), ...running};
-      return compactPlan(run, undefined, {
-        ...(run.preflight ? {preflight: preflightView(run.preflight, true)} : {}),
-        ...running,
-        ...activationOffer(run),
-      });
-    }
+    const read = actionHandler(this.readActions, input.action);
+    if (read) return read({input, actor});
     writer(this.store, actor);
-    if (input.action === 'clone') {
-      assertCloneGateway(input.gateway);
-      const connection = this.store.resolveConnection(actor, input.gateway, input.account_id, input.connection_id);
-      // A keyed clone names its request, not what the source reads: a retry returns the original draft without reading
-      // the source again, and the key with another request conflicts before any read (CMP-02 b).
-      const origin = {
-        clone: {
-          gateway: input.gateway,
-          connection_id: connection.id,
-          account_id: input.account_id,
-          source: input.source ?? null,
-          changes: input.changes ?? null,
-          atomic: input.atomic ?? null,
-          name: input.name ?? null,
-          brief: input.brief ?? null,
-        },
-      };
-      if (input.idempotency_key !== undefined) {
-        const existing = optional(this.store, actor.tenantId, 'campaign_run', creationId(actor, input.idempotency_key));
-        if (existing && existing.creation_origin !== fingerprint(origin))
-          bad('This creation key belongs to a different campaign plan.', 'IDEMPOTENCY_CONFLICT');
-        if (existing?.clone) {
-          const run = this.owned(actor, existing.id);
-          return this.respond(input, run, undefined, {
-            clone: run.clone,
-            next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: run.id}},
-          });
-        }
-      }
-      const source = await clonePlan(this.call, actor, {...input, connection_id: connection.id}),
-        changed = applyCloneChanges(source.steps, input.changes);
-      if (changed.steps.length > 50 && (input.gateway !== 'google_ads_native_action' || input.atomic === false))
-        bad(
-          'The clone has ' +
-            changed.steps.length +
-            ' steps; a plan holds at most 50. Leave some out with changes.drop.',
-          'CLONE_SOURCE_TOO_LARGE',
-          {field: 'changes.drop', steps: changed.steps.slice(0, 100).map(s => s.id)},
-        );
-      // A Google clone is one all-or-nothing build unless the caller asks for step-by-step (atomic: false).
-      const atomic = input.gateway === 'google_ads_native_action' && input.atomic !== false;
-      const create = {
-        action: 'create',
-        name: input.name,
-        brief: input.brief ?? 'Clone of campaign ' + source.source.campaign_id + '.',
-        steps: atomic ? [composeGoogleBuild(changed.steps, String(input.account_id).replace(/-/g, ''))] : changed.steps,
-        ...(input.idempotency_key !== undefined ? {idempotency_key: input.idempotency_key} : {}),
-        detail: 'full',
-      };
-      this.origins.set(create, origin);
-      const created = await this.handle(create, actor),
-        run = this.owned(actor, created.id);
-      if (run.clone)
-        return this.respond(input, run, undefined, {
-          clone: run.clone,
-          next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: run.id}},
-        });
-      run.clone = {
-        source: source.source,
-        not_copied: source.notCopied,
-        ...(changed.set.length ? {set: changed.set} : {}),
-        ...(changed.dropped.length ? {dropped: changed.dropped} : {}),
-        ...(atomic ? {all_or_nothing: true, steps: changed.steps.map(s => s.id)} : {}),
-      };
-      audit(this.store, actor, 'campaign_plan_cloned', {id: run.id, source: source.source, plan_hash: run.plan_hash});
-      return this.respond(input, this.save(actor, run), undefined, {
-        clone: run.clone,
-        next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: run.id}},
-      });
-    }
-    if (input.action === 'create') {
-      const origin = this.origins.get(input);
-      if (
-        typeof input.name !== 'string' ||
-        !input.name.trim() ||
-        input.name.length > 100 ||
-        typeof input.brief !== 'string' ||
-        input.brief.length > 12000
-      )
-        bad('Provide a campaign name and brief.');
-      // A profile outside the actor's client access set is not found (SEC-08).
-      const profile = input.profile_id ? visibleProfile(this.store, actor, input.profile_id) : undefined,
-        variables = {...(profile?.variables ?? {}), ...(input.variables ?? {}), profile: profile ?? {}};
-      noSecrets(variables);
-      const raw = input.steps ?? profile?.templates?.[input.template];
-      if (!Array.isArray(raw) || !raw.length || raw.length > 50)
-        bad('Provide 1–50 explicit steps, or choose an approved saved template.');
-      const steps = origin ? structuredClone(raw) : substitute(raw, variables),
-        seen = new Set<string>();
-      for (const s of steps) {
-        validate(s, [
-          'id',
-          'kind',
-          'gateway',
-          'connection_id',
-          'account_id',
-          'arguments',
-          'depends_on',
-          'description',
-          'expected_currency',
-          'prerequisites',
-        ]);
-        const problems = [
-          !/^[A-Za-z][A-Za-z0-9_-]{0,50}$/.test(s.id) &&
-            'id must start with a letter (up to 51 letters, digits, _ or -)',
-          seen.has(s.id) && 'id must be unique',
-          !['write', 'media'].includes(s.kind) && 'kind must be "write" or "media"',
-          s.kind === 'write' &&
-            typeof s.gateway !== 'string' &&
-            'a write step needs gateway, e.g. "snapchat_native_action"',
-          !obj(s.arguments) && 'arguments must be the native tool input object',
-          typeof s.connection_id !== 'string' && 'connection_id is required',
-          typeof s.account_id !== 'string' && 'account_id is required',
-          s.expected_currency !== undefined &&
-            !/^[A-Z]{3}$/.test(s.expected_currency) &&
-            'expected_currency must be an ISO code such as "USD", or omitted',
-          s.prerequisites !== undefined &&
-            (!Array.isArray(s.prerequisites) ||
-              s.prerequisites.some(
-                (p: unknown) =>
-                  !['meta_image_hash', 'tiktok_spark_post', 'tiktok_pixel', 'linkedin_lead_form'].includes(p as string),
-              ) ||
-              new Set(s.prerequisites).size !== s.prerequisites.length) &&
-            'prerequisites lists checks preflight must make: "meta_image_hash", "tiktok_spark_post", "tiktok_pixel" or "linkedin_lead_form"',
-        ].filter(Boolean);
-        if (problems.length)
-          bad(
-            'Step ' +
-              JSON.stringify(String(s.id ?? '')) +
-              ': ' +
-              problems.join('; ') +
-              '. Each step is {"id","kind":"write","gateway","connection_id","account_id","arguments":{"action","payload"},"depends_on":[earlier ids]}; later steps use results as {"$ref":"<step id>#/data/<JSON pointer>"}.',
-          );
-        const deps = s.depends_on ?? [];
-        if (!Array.isArray(deps) || new Set(deps).size !== deps.length || deps.some(d => !seen.has(d)))
-          bad('Dependencies must refer to earlier steps.');
-        seen.add(s.id);
-        noSecrets(s.arguments);
-        const gateway = s.kind === 'media' ? s.arguments.platform + '_native_action' : s.gateway;
-        this.store.resolveConnection(actor, gateway, s.account_id, s.connection_id);
-        if (
-          profile?.bindings?.length &&
-          !profile.bindings.some(
-            (b: JsonObject) =>
-              b.gateway === gateway &&
-              b.connection_id === s.connection_id &&
-              normalizeAccount(gateway, b.account_id) === normalizeAccount(gateway, s.account_id),
-          )
-        )
-          bad(
-            'Step ' +
-              s.id +
-              ' is outside this approved client playbook’s account bindings. Choose a bound account or revise the playbook.',
-            'PROFILE_ACCOUNT_MISMATCH',
-          );
-        if (
-          s.kind === 'media' &&
-          ((s.arguments.action !== undefined && !['prepare', 'prepare_library'].includes(s.arguments.action)) ||
-            s.arguments.confirmed !== undefined ||
-            s.arguments.idempotency_key !== undefined)
-        )
-          bad('Media steps contain preparation inputs only.');
-        s.depends_on = deps;
-        s.status = 'pending';
-      }
-      if (
-        input.idempotency_key !== undefined &&
-        (typeof input.idempotency_key !== 'string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(input.idempotency_key))
-      )
-        bad('Use a stable campaign creation key of 8–100 letters, digits, hyphens or underscores.');
-      const allocation = allocationCreationBinding(this.store, actor, input, steps);
-      const search_exclusions = searchExclusionCreationBinding(this.store, actor, input, steps);
-      const gtm_consent = consentCreationBinding(this.store, actor, input, steps);
-      const catalog_removal = catalogRemovalCreationBinding(this.store, actor, input, steps);
-      // Where a catalog plan's products came from (COM-03): set only by amcp_workspace catalog_plan.
-      const catalog_lineage = catalogLineageCreationBinding(this.store, actor, input, steps);
-      // The retailer IDs the plan retires (COM-02 B): their native reviews must find an existing product.
-      const catalog_retirement = catalog_lineage
-        ? catalogRetirementCreationBinding(this.store, actor, input)
-        : undefined;
-      const creation_fingerprint = fingerprint({
-        name: input.name,
-        brief: input.brief,
-        user: actor.userId,
-        profile_id: profile?.id ?? null,
-        profile_revision: profile?.revision ?? null,
-        variables,
-        steps: structure(steps),
-        allocation: allocation ?? null,
-        ...(search_exclusions ? {search_exclusions} : {}),
-        ...(gtm_consent ? {gtm_consent} : {}),
-        ...(catalog_removal ? {catalog_removal} : {}),
-        ...(catalog_lineage ? {catalog_lineage} : {}),
-        ...(catalog_retirement ? {catalog_retirement} : {}),
-        ...(origin ? {origin} : {}),
-      });
-      const id = input.idempotency_key ? creationId(actor, input.idempotency_key) : randomUUID();
-      const existing = input.idempotency_key ? optional(this.store, actor.tenantId, 'campaign_run', id) : undefined;
-      if (existing) {
-        if (existing.creation_fingerprint !== creation_fingerprint)
-          bad('This creation key belongs to a different campaign plan.', 'IDEMPOTENCY_CONFLICT');
-        return this.respond(input, this.owned(actor, id));
-      }
-      // Temporary files are deleted 30 minutes after they started: a plan that uses them is saved only with that
-      // deadline acknowledged, and it records and shows the deadline (owner decision D23, MED-01).
-      const temporary = temporaryMediaSources(this.store, actor.tenantId, steps),
-        earliest = earliestDeadline(temporary);
-      if (temporary.length && input.acknowledge_temporary_sources !== true)
-        bad(
-          'This plan uses temporary files (uploads or imports with a source_id src-…), deleted 30 minutes after they started, so it must run before then. Save it with acknowledge_temporary_sources: true, or for a plan that can wait import the files from a link or Google Drive and have an owner retain them.',
-          'TEMPORARY_MEDIA_SOURCES',
-          {temporary_sources: temporary, earliest_expires_at: earliest},
-        );
-      assertRunnableSources(temporary);
-      // Archived plans do not count (CMP-05); the refusal names the remedy.
-      assertPlanRoom(this.store, actor);
-      const run = {
-        name: input.name,
-        brief: input.brief,
-        ...ownership(actor),
-        profile_id: profile?.id ?? null,
-        profile_revision: profile?.revision ?? null,
-        variables,
-        steps,
-        state: 'draft',
-        created_at: Date.now(),
-        updated_at: Date.now(),
-        plan_hash: fingerprint(structure(steps)),
-        ...(input.idempotency_key ? {creation_fingerprint} : {}),
-        ...(input.idempotency_key && origin ? {creation_origin: fingerprint(origin)} : {}),
-        ...(allocation ? {allocation} : {}),
-        ...(search_exclusions ? {search_exclusions} : {}),
-        ...(gtm_consent ? {gtm_consent} : {}),
-        ...(catalog_removal ? {catalog_removal} : {}),
-        ...(catalog_lineage ? {catalog_lineage} : {}),
-        ...(catalog_retirement ? {catalog_retirement} : {}),
-        ...(temporary.length
-          ? {
-              temporary_sources: {
-                acknowledged_by: actor.userId,
-                acknowledged_at: Date.now(),
-                earliest_expires_at: earliest,
-                sources: temporary,
-              },
-            }
-          : {}),
-        approval: gtm_consent
-          ? 'Each workspace tag update needs separate native review, execution confirmation and read-back. No container version is created or published.'
-          : search_exclusions
-            ? 'Each exact keyword exclusion requires separate native review, approval and read-back. This draft changes no advertising.'
-            : allocation
-              ? 'Each native budget update needs separate review and approval. This unapproved draft does not change campaign status.'
-              : 'Each resolved native request uses prepare → review → execute. A draft submits no provider changes; serving effects are stated in each native review.',
-      };
-      this.store.putDocument(actor.tenantId, 'campaign_run', id, run);
-      audit(this.store, actor, 'campaign_plan_created', {id, name: run.name, plan_hash: run.plan_hash});
-      return this.respond(input, this.owned(actor, id));
-    }
+    const creation = actionHandler(this.creationActions, input.action);
+    if (creation) return creation({input, actor});
     // What a collaborator may do (CMP-05): approve and run need an approver (and so do the calls run makes under the
     // approval), naming collaborators is the owner's, preflight serves editors and approvers, the rest needs an editor.
     const rights: PlanRight[] = this.underApproval.has(input)
@@ -1736,8 +1334,8 @@ export class CampaignRunner {
     let run = this.owned(actor, input.id, rights);
     if (input.expected_revision !== undefined && input.expected_revision !== run.revision)
       bad('Reload the current campaign plan.', 'REVISION_CONFLICT');
-    if (input.action === 'archive' || input.action === 'unarchive') return this.archive(input, actor, run);
-    if (input.action === 'assign' || input.action === 'unassign') return this.assign(input, actor, run);
+    const collaboration = actionHandler(this.collaborationActions, input.action);
+    if (collaboration) return collaboration({input, actor, run});
     if (run.archived)
       bad('This campaign plan is archived. Unarchive it to work on it again.', 'PLAN_ARCHIVED', {
         next_call: {tool: 'amcp_campaign', arguments: {action: 'unarchive', id: run.id}},
@@ -1754,301 +1352,10 @@ export class CampaignRunner {
           next_call: {tool: 'amcp_campaign', arguments: {action: 'get', id: run.superseded_by?.id}},
         },
       );
-    if (input.action === 'cancel') {
-      if (input.confirmed !== true)
-        bad(
-          'Set confirmed: true to cancel this plan. Steps not yet run will not run; anything already created at the provider stays.',
-          'INVALID_ARGUMENT',
-          {field: 'confirmed'},
-        );
-      run.state = 'cancelled';
-      run = this.save(actor, run);
-      return this.respond(input, run, undefined, {notice: 'Already created provider resources remain intact.'});
-    }
+    if (input.action === 'cancel') return this.cancelPlan({input, actor, run});
     if (run.state === 'cancelled') bad('This campaign plan was cancelled.');
-    if (input.action === 'confirm_absent') return this.confirmAbsent(input, actor, run);
-    if (input.action === 'activation_plan') return this.activationPlan(input, actor, run);
-    if (input.action === 'reconcile_step' && input.accept_observed !== undefined) {
-      const ids = run.steps.map((x: JsonObject) => x.id),
-        step = run.steps.find((x: JsonObject) => x.id === input.step_id);
-      if (!step)
-        bad(
-          'step_id ' +
-            JSON.stringify(String(input.step_id ?? '')) +
-            ' is not in this plan. Its steps: ' +
-            ids.join(', ') +
-            '.',
-          'INVALID_ARGUMENT',
-          {field: 'step_id', allowed: ids},
-        );
-      const disagrees =
-        step.kind === 'write' &&
-        typeof step.review_id === 'string' &&
-        (step.status === 'mismatch' ||
-          (step.status === 'verifying' && ['mismatch', 'inconclusive'].includes(step.verification?.status)));
-      if (!disagrees)
-        bad(
-          'Step ' +
-            step.id +
-            ' is ' +
-            step.status +
-            '. Only a written step whose read-back disagrees with what was sent can be accepted as observed.',
-          'RECOVERY_NOT_SAFE',
-          {step_id: step.id, status: step.status},
-        );
-      if (input.accept_observed !== true)
-        bad('Set accept_observed: true once the user accepts the observed state.', 'INVALID_ARGUMENT', {
-          field: 'accept_observed',
-        });
-      if (typeof input.actual_hash !== 'string')
-        bad(
-          'Send actual_hash: the observed state the user accepted (current.verification.actual_hash of step ' +
-            step.id +
-            ').',
-          'INVALID_ARGUMENT',
-          {field: 'actual_hash'},
-        );
-      if (this.claim(actor, step.review_id)?.state !== 'complete')
-        bad('Step ' + step.id + ' has no completed receipt to accept.', 'RECOVERY_NOT_SAFE', {step_id: step.id});
-      // Read it once more: the user accepts the state they saw, not whatever the provider holds by now.
-      const v = await this.verifyWrite(actor, step.review_id);
-      this.store.assertActorActive(actor);
-      step.verification = v;
-      if (v.status === 'verified') {
-        step.status = 'verified';
-        if (v.verified_resources) step.result = {...step.result, verified_resources: v.verified_resources};
-      } else if (v.actual_hash !== input.actual_hash) {
-        step.status = verificationStepStatus(v.status);
-        run.state = planState(run, step);
-        this.save(actor, run);
-        throw new MirrorError(
-          'STATE_CHANGED',
-          'The provider’s state for step ' +
-            step.id +
-            ' changed since that diff: actual_hash is now ' +
-            v.actual_hash +
-            '. Show the user current.verification again before accepting.',
-          {field: 'actual_hash', step_id: step.id, actual_hash: v.actual_hash ?? null},
-          409,
-        );
-      } else {
-        const changed = [...new Set(v.checks.flatMap((c: JsonObject) => c.changed_fields ?? []))];
-        step.status = 'verified_with_acceptance';
-        step.acceptance = {
-          at: Date.now(),
-          by: actor.userId,
-          review_id: step.review_id,
-          actual_hash: v.actual_hash,
-          changed_fields: changed,
-        };
-        audit(this.store, actor, 'campaign_step_accepted', {
-          id: run.id,
-          step_id: step.id,
-          review_id: step.review_id,
-          actual_hash: v.actual_hash,
-          changed_fields: changed,
-        });
-      }
-      delete step.error;
-      run.state = planState(run, step);
-      run = this.save(actor, run);
-      return this.respond(input, run, step.id, this.followUp(actor, run, step));
-    }
-    if (input.action === 'reconcile_step') {
-      const step = run.steps.find((s: JsonObject) => s.id === input.step_id);
-      if (
-        !step?.review_id ||
-        !['executing', 'uncertain', 'failed', 'verifying', 'mismatch', 'processing'].includes(step.status)
-      )
-        bad('Choose a submitted step requiring reconciliation.', 'RECOVERY_NOT_SAFE');
-      const claim = this.store.db
-        .prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?')
-        .get(actor.tenantId, step.review_id) as JsonObject | undefined;
-      if (claim?.state !== 'complete' || !claim.result)
-        bad(
-          'No completed original receipt exists. Inspect provider state; reconciliation never submits a mutation.',
-          'RECOVERY_NOT_SAFE',
-        );
-      const receipt = JSON.parse(claim.result);
-      if (step.kind === 'media') {
-        const status = await this.call('amcp_media', {action: 'status', review_id: step.review_id}, actor);
-        if (!status.success) throw new MirrorError(status.error.code, status.error.message, status.error.details);
-        step.result = {...receipt, ...status.data};
-        step.status = status.data.ready ? 'verified' : 'processing';
-      } else {
-        const verification = await this.verifyWrite(actor, step.review_id);
-        step.result = receipt;
-        step.verification = verification;
-        step.status = verificationStepStatus(verification.status);
-        if (step.status === 'verified' && verification.verified_resources)
-          step.result = {...step.result, verified_resources: verification.verified_resources};
-      }
-      this.store.assertActorActive(actor);
-      delete step.error;
-      run.state = planState(run, step);
-      run = this.save(actor, run);
-      return this.respond(input, run, step.id, step.kind === 'write' ? this.followUp(actor, run, step) : {});
-    }
-    if (input.action === 'recover_step') {
-      const ids = run.steps.map((x: JsonObject) => x.id),
-        step = run.steps.find((x: JsonObject) => x.id === input.step_id);
-      if (!step)
-        bad(
-          'step_id ' +
-            JSON.stringify(String(input.step_id ?? '')) +
-            ' is not in this plan. Its steps: ' +
-            ids.join(', ') +
-            '.',
-          'INVALID_ARGUMENT',
-          {field: 'step_id', allowed: ids},
-        );
-      const blockedCheck =
-        step.status === 'pending'
-          ? run.preflight?.checks?.find((c: JsonObject) => c.step === step.id && c.status === 'blocked')
-          : undefined;
-      // Whether the step can be recovered comes first: asking to confirm a recovery that is refused anyway helps no one.
-      if (step.status !== 'failed' && !blockedCheck)
-        bad(
-          'Step ' +
-            step.id +
-            ' is ' +
-            step.status +
-            '. Only a step preflight blocked, or one that failed before reaching the provider, can be amended; unknown, verifying and mismatched outcomes need investigation.',
-          'RECOVERY_NOT_SAFE',
-          {step_id: step.id, status: step.status},
-        );
-      // A key is retired, and the step amended under a new one, only when nothing of it was applied: a build Google
-      // refused, a refusal the family proves non-applied (rejected), or an absence the user confirmed (CMP-04).
-      const claim = this.claim(actor, step.review_id),
-        retired = !claim
-          ? undefined
-          : rejectedBuild(step)
-            ? 'rejected_build'
-            : claim.state === 'rejected'
-              ? 'rejected'
-              : absenceConfirmed(step)
-                ? 'confirmed_absent'
-                : undefined;
-      if (claim && !retired)
-        bad(
-          'Step ' +
-            step.id +
-            ' reached the provider or has an unknown outcome, so it is never sent again. Reconcile its existing resource; do not issue another create.',
-          'RECOVERY_NOT_SAFE',
-          {step_id: step.id, status: step.status},
-        );
-      const progressed = run.steps.find((x: JsonObject) => x.depends_on.includes(step.id) && x.status !== 'pending');
-      if (progressed)
-        bad(
-          'Step ' +
-            progressed.id +
-            ', which depends on ' +
-            step.id +
-            ', has already progressed; ' +
-            step.id +
-            ' can no longer change.',
-          'RECOVERY_NOT_SAFE',
-          {step_id: step.id, dependant: progressed.id},
-        );
-      if (input.patch !== undefined && input.arguments !== undefined)
-        bad('Send patch or arguments, not both.', 'INVALID_ARGUMENT', {field: 'patch'});
-      if (blockedCheck && input.patch === undefined && input.arguments === undefined)
-        bad(
-          'Preflight blocked step ' +
-            step.id +
-            ': send the correction as patch or arguments (the refusal’s next_call shows the field). To re-check prerequisites that changed outside the plan, run preflight.',
-          'INVALID_ARGUMENT',
-          {field: 'patch'},
-        );
-      if (input.confirmed !== true)
-        bad(
-          'Set confirmed: true to amend step ' +
-            step.id +
-            '; it is prepared and reviewed again before anything is sent.',
-          'INVALID_ARGUMENT',
-          {field: 'confirmed'},
-        );
-      const attempt: JsonObject = {
-        at: Date.now(),
-        ...(step.review_id ? {review_id: step.review_id} : {}),
-        ...(step.error ? {error: step.error} : {}),
-        ...(blockedCheck?.error ? {preflight_error: blockedCheck.error} : {}),
-      };
-      if (input.patch !== undefined) attempt.patch = applyPatch(step, input.patch);
-      else if (input.arguments !== undefined) {
-        if (blockedCheck && fingerprint(input.arguments) === fingerprint(step.arguments))
-          bad(
-            'The arguments are unchanged, so preflight would block step ' +
-              step.id +
-              ' again. Change what the refusal names.',
-            'INVALID_ARGUMENT',
-            {field: 'arguments'},
-          );
-        attempt.previous_arguments = step.arguments;
-        step.arguments = input.arguments;
-      }
-      noSecrets(step.arguments);
-      // A media step that now names another file (a replacement upload, MED-03 B) is prepared as a new review of that
-      // file; the old bytes are never reused. A temporary replacement is acknowledged like one in a new plan, must
-      // leave time to run, and moves the plan's run-by time.
-      if (step.kind === 'media') {
-        const a = step.arguments;
-        if (
-          (a.source_id !== undefined &&
-            (typeof a.source_id !== 'string' || !/^(?:src|lib)-[0-9a-f-]{36}$/.test(a.source_id))) ||
-          (a.expected_sha256 !== undefined &&
-            (typeof a.expected_sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(a.expected_sha256)))
-        )
-          bad(
-            'Name the new file by its source_id (src-… or lib-…) and the exact file.sha256 its amcp_media plan returned.',
-            'INVALID_ARGUMENT',
-            {field: 'patch'},
-          );
-        const replaced = temporaryMediaSources(this.store, actor.tenantId, [step]);
-        if (replaced.length && !run.temporary_sources && input.acknowledge_temporary_sources !== true)
-          bad(
-            'The replacement is a temporary file (source_id src-…), deleted 30 minutes after it started, so the plan must run before then. Send acknowledge_temporary_sources: true with this amendment.',
-            'TEMPORARY_MEDIA_SOURCES',
-            {temporary_sources: replaced, earliest_expires_at: earliestDeadline(replaced)},
-          );
-        assertRunnableSources(replaced);
-        const temporary = temporaryMediaSources(
-          this.store,
-          actor.tenantId,
-          run.steps.filter((s: JsonObject) => !settled(s)),
-        );
-        if (temporary.length)
-          run.temporary_sources = {
-            ...(run.temporary_sources ?? {acknowledged_by: actor.userId, acknowledged_at: Date.now()}),
-            earliest_expires_at: earliestDeadline(temporary),
-            sources: temporary,
-          };
-        else delete run.temporary_sources;
-      }
-      if (retired) {
-        const status = step.error?.details?.http_status ?? null;
-        if (retired === 'rejected_build') attempt.rejected_build = {http_status: status, key_retired: step.review_id};
-        else attempt.key_retired = {reason: retired, review_id: step.review_id, http_status: status};
-        if (retired === 'confirmed_absent') attempt.absence = step.absence;
-        audit(this.store, actor, 'campaign_step_recovered_after_rejection', {
-          id: run.id,
-          step_id: step.id,
-          review_id: step.review_id,
-          http_status: status,
-          reason: retired,
-        });
-      }
-      step.previous_attempts = [...(step.previous_attempts ?? []), attempt].slice(-10);
-      for (const k of ['review', 'review_id', 'resolved', 'error', 'result', 'verification', 'submission', 'absence'])
-        delete step[k];
-      step.status = 'pending';
-      run.state = 'draft';
-      run.plan_hash = fingerprint(structure(run.steps));
-      delete run.preflight;
-      return this.respond(input, this.save(actor, run), step.id, {
-        next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
-      });
-    }
+    const recovery = actionHandler(this.recoveryActions, input.action);
+    if (recovery) return recovery({input, actor, run});
     if (['prepare_next', 'execute_next', 'approve', 'run', 'run_background'].includes(input.action))
       for (const s of run.steps.filter((s: JsonObject) => !settled(s))) {
         const gateway = s.kind === 'media' ? s.arguments.platform + '_native_action' : s.gateway,
@@ -2160,9 +1467,8 @@ export class CampaignRunner {
         run = this.save(actor, run);
         if (step.status !== 'verified') return this.respond(input, run, step.id, this.followUp(actor, run, step));
       }
-    if (input.action === 'approve') return this.approve(input, actor, run);
-    if (input.action === 'run') return this.runApproved(input, actor, run);
-    if (input.action === 'run_background') return this.runInBackground(input, actor, run);
+    const approval = actionHandler(this.approvalActions, input.action);
+    if (approval) return approval({input, actor, run});
     let next = run.steps.find((s: JsonObject) => !settled(s));
     if (!next) return this.respond(input, {...run, state: 'complete'}, undefined, activationOffer(run));
     // In a plan of independent uploads run moves past an upload that needs a person: it prepares the next one, and
@@ -2225,232 +1531,992 @@ export class CampaignRunner {
       run = this.save(actor, run);
       next = run.steps.find((s: JsonObject) => s.id === other)!;
     }
-    if (input.action === 'prepare_next') {
-      if (
-        next.status === 'executing' ||
-        (next.status === 'review_ready' && Date.parse(next.review.expires_at) > Date.now())
-      )
-        this.assertReviewHolder(actor, run, next);
-      if (run.allocation) await assertAllocationStep(this.store, this.call, actor, run, next);
-      if (run.search_exclusions) await assertSearchExclusionStep(this.store, this.call, actor, run, next);
-      if (run.gtm_consent) await assertConsentStep(this.store, this.call, actor, run, next);
-      // A selected-removal step is checked by its own native review against the bound product (COM-02 C), and the
-      // review of a retirement step refuses a product the catalog does not have (COM-02 B).
-      const removal = run.catalog_removal ? assertCatalogRemovalStep(run, next) : undefined,
-        retiring = catalogRetirementOf(run, next);
-      // A resumed or still-valid review keeps the acknowledgements it needs, so run asks for the same ones.
-      if (next.status === 'executing')
-        return {
-          campaign_id: run.id,
-          step_id: next.id,
-          recovery: 'Resume the original execution with the same idempotency key.',
-          ...(next.review?.execute_requirements ? {execute_requirements: next.review.execute_requirements} : {}),
-          next_call: {
-            tool: 'amcp_campaign',
-            arguments: {
-              action: 'execute_next',
-              id: run.id,
-              review_id: next.review_id,
-              idempotency_key: next.review_id,
-              confirmed: true,
-            },
-          },
-        };
-      if (next.status === 'review_ready' && Date.parse(next.review.expires_at) > Date.now())
-        return {
-          ...(input.detail === 'full' ? {} : {view: 'compact'}),
-          campaign_id: run.id,
-          step_id: next.id,
-          review: input.detail === 'full' ? next.review : reviewView(next.review, run.id, next.id),
-          ...(next.review.execute_requirements ? {execute_requirements: next.review.execute_requirements} : {}),
-          next_call: {
-            tool: 'amcp_campaign',
-            arguments: {
-              action: 'execute_next',
-              id: run.id,
-              review_id: next.review_id,
-              idempotency_key: next.review_id,
-              confirmed: true,
-            },
-          },
-        };
-      if (next.depends_on.some((id: string) => !settled(run.steps.find((s: JsonObject) => s.id === id))))
-        bad('Wait for predecessor verification.', 'DEPENDENCY_PENDING');
-      const results = new Map<string, JsonObject>(run.steps.filter(settled).map((s: JsonObject) => [s.id, s.result]));
-      const resolved = references(next.arguments, results, new Set(next.depends_on));
-      let prepared: JsonObject;
-      // Native requests per step are recorded in the plan's journal metadata (COM-02 C).
-      const prepareCount = {reads: 0, writes: 0};
-      if (next.kind === 'media')
-        prepared = await meterNativeRequests(prepareCount, () =>
-          this.call(
-            'amcp_media',
-            resolved.action === 'prepare_library'
-              ? {action: 'prepare_library', review_id: resolved.review_id}
-              : {...resolved, action: 'prepare', account_id: next.account_id, connection_id: next.connection_id},
-            actor,
-          ),
-        );
-      else {
-        // DV360, Amazon and many delegated operations name the account with their own key and forbid account_id.
-        if (this.acceptsAccountId(next.gateway, resolved.operation)) {
-          if (resolved.operation) resolved.arguments = {...resolved.arguments, account_id: next.account_id};
-          else Object.assign(resolved, {account_id: next.account_id});
-        }
-        // Each step keeps a reference to the provider contract: the whole one is a single amcp_tool_help call away
-        // and would otherwise repeat 1.3-6.6 KB in every step of the run and its responses (F-29).
-        const prepare = () =>
-          this.call(
-            'amcp_write',
-            {
-              action: 'prepare',
-              gateway: next.gateway,
-              connection_id: next.connection_id,
-              arguments: resolved,
-              evidence: 'ref',
-            },
-            actor,
-          );
-        prepared = await meterNativeRequests(prepareCount, () =>
-          removal
-            ? withXCatalogRemovalExpectation(removal, prepare)
-            : retiring
-              ? withCatalogRetirement(retiring, prepare)
-              : prepare(),
-        );
+    const step = actionHandler(this.stepActions, input.action);
+    if (!step) bad('Unknown campaign action.');
+    return step({input, actor, run, next});
+  }
+  /** The recipe catalog and its lookups: no plan, and no recipe-argument check yet. */
+  private readonly recipeActions: ActionTable<CampaignCall> = {
+    recipes: () => ({recipes: campaignRecipes}),
+    recipe_lookup: call => this.recipeLookup(call),
+    recipe_context: ({input, actor}) => recipeContext(this.store, actor, input.recipe, input.profile_id),
+  };
+  /** The reads and recipe compilations: eligibility, previews and creations from a recipe, verification, plans. */
+  private readonly readActions: ActionTable<CampaignCall> = {
+    recipe_eligibility: ({input, actor}) =>
+      recipeEligibility(this.store, this.call, this.preflight, input, actor, this.inspectConversionGoals),
+    preview_recipe: call => this.fromRecipe(call),
+    create_from_recipe: call => this.fromRecipe(call),
+    verify: ({input, actor}) => this.verifyWrite(actor, input.review_id),
+    validate_provider: ({input, actor}) => this.providerValidation(actor, input),
+    // Newest first, filtered, as an SQL projection with one account summary per plan (CMP-05).
+    list: ({input, actor}) => listPlans(this.store, actor, input),
+    get: call => this.getPlan(call),
+  };
+  /** The creations of a plan, by a caller who may write. */
+  private readonly creationActions: ActionTable<CampaignCall> = {
+    clone: call => this.cloneCampaign(call),
+    create: call => this.createPlan(call),
+  };
+  /** A saved plan's archive and collaborators, before the checks of its state. */
+  private readonly collaborationActions: ActionTable<PlanCall> = {
+    archive: ({input, actor, run}) => this.archive(input, actor, run),
+    unarchive: ({input, actor, run}) => this.archive(input, actor, run),
+    assign: ({input, actor, run}) => this.assign(input, actor, run),
+    unassign: ({input, actor, run}) => this.assign(input, actor, run),
+  };
+  /** The confirmations, activation plans and step recoveries of a plan neither archived, superseded nor cancelled. */
+  private readonly recoveryActions: ActionTable<PlanCall> = {
+    confirm_absent: ({input, actor, run}) => this.confirmAbsent(input, actor, run),
+    activation_plan: ({input, actor, run}) => this.activationPlan(input, actor, run),
+    reconcile_step: call => this.reconcileStep(call),
+    recover_step: call => this.recoverStep(call),
+  };
+  /** Approval and the runs it allows, after the account write grants, the draft checks and the preflight. */
+  private readonly approvalActions: ActionTable<PlanCall> = {
+    approve: ({input, actor, run}) => this.approve(input, actor, run),
+    run: ({input, actor, run}) => this.runApproved(input, actor, run),
+    run_background: ({input, actor, run}) => this.runInBackground(input, actor, run),
+  };
+  /** The plan's next step: preparing its review, and executing the exact review prepared. */
+  private readonly stepActions: ActionTable<StepCall> = {
+    prepare_next: call => this.prepareNext(call),
+    execute_next: call => this.executeNext(call),
+  };
+  /** recipe_lookup: Microsoft locations from its geographical locations file, or Google country and language constants. */
+  private async recipeLookup({input, actor}: CampaignCall): Promise<JsonObject> {
+    // CMP-03: Microsoft location IDs and names from its geographical locations file, by name or by ID.
+    if (input.lookup_kind === 'microsoft_location') {
+      if (!this.lookupMicrosoftLocations) throw microsoftLocationsUnpinned();
+      return this.lookupMicrosoftLocations(actor, input);
+    }
+    const query = String(input.query ?? '').trim();
+    if (!/^[A-Za-z -]{2,60}$/.test(query) || !['country', 'language'].includes(input.lookup_kind))
+      throw new MirrorError('INVALID_LOOKUP', 'Enter a country name/code or language name (2–60 letters).');
+    this.store.resolveConnection(actor, 'google_ads_native_action', input.account_id, input.connection_id);
+    const country = input.lookup_kind === 'country',
+      gaql = country
+        ? "SELECT geo_target_constant.id, geo_target_constant.name, geo_target_constant.country_code FROM geo_target_constant WHERE geo_target_constant.target_type = 'Country' AND " +
+          (query.length === 2
+            ? "geo_target_constant.country_code = '" + query.toUpperCase() + "'"
+            : "geo_target_constant.name LIKE '%" + query + "%'") +
+          ' LIMIT 100'
+        : 'SELECT language_constant.id, language_constant.name, language_constant.code FROM language_constant LIMIT 1000';
+    const out = await this.call(
+      'google_ads_native_action',
+      {
+        action: 'google_ads_v23_google_ads_search',
+        connection_id: input.connection_id,
+        account_id: input.account_id,
+        payload: {query: gaql},
+      },
+      actor,
+    );
+    if (!out.success) throw new MirrorError(out.error.code, out.error.message, out.error.details);
+    if (out.data.truncated) throw new MirrorError('INCOMPLETE_LOOKUP', 'This lookup is incomplete. Narrow the search.');
+    const rows = out.data.data?.results;
+    if (!Array.isArray(rows))
+      throw new MirrorError('UPSTREAM_RESPONSE_INVALID', 'Google did not return targeting constants.');
+    return {
+      kind: input.lookup_kind,
+      results: rows
+        .map((r: JsonObject) => (country ? r.geoTargetConstant : r.languageConstant))
+        .filter(
+          (r: JsonObject) =>
+            r &&
+            typeof r.id === 'string' &&
+            (country ||
+              String(r.name ?? '')
+                .toLowerCase()
+                .includes(query.toLowerCase()) ||
+              String(r.code ?? '').toLowerCase() === query.toLowerCase()),
+        )
+        .slice(0, 50)
+        .map((r: JsonObject) => ({id: r.id, name: r.name, code: r.code ?? r.countryCode})),
+      provider_mutations: 0,
+    };
+  }
+  /** preview_recipe and create_from_recipe: a recipe compiled from the business inputs, and a plan created from it. */
+  private async fromRecipe({input, actor}: CampaignCall): Promise<JsonObject> {
+    input = resolveBrief(this.store, actor, input);
+    const context = recipeContext(this.store, actor, input.recipe, input.profile_id),
+      {business, provenance} = recipeInputs(context, input.business ?? {}, {
+        apply_playbook_rules: input.apply_playbook_rules,
+        client_brief: input.client_brief,
+      });
+    const missing = recipeMissing(context.recipe, business);
+    if (input.action === 'preview_recipe' && missing.length)
+      return {ready: false, missing_fields: missing, provenance, provider_mutations: 0};
+    const {recipe, ...plan} = campaignRecipe(input.recipe, business);
+    if (input.action === 'preview_recipe')
+      return {
+        ready: true,
+        plan,
+        recipe,
+        provenance,
+        provider_mutations: 0,
+        meaning: 'Local compilation. Run preflight before preparing mutations.',
+      };
+    writer(this.store, actor);
+    const create = {
+      ...plan,
+      ...(input.profile_id ? {profile_id: input.profile_id} : {}),
+      ...(input.idempotency_key !== undefined ? {idempotency_key: input.idempotency_key} : {}),
+      ...(input.acknowledge_temporary_sources !== undefined
+        ? {acknowledge_temporary_sources: input.acknowledge_temporary_sources}
+        : {}),
+      detail: 'full',
+    };
+    // The playbook-rule choice and the saved brief join the origin, so one creation key names one exact input.
+    this.origins.set(create, {
+      recipe: input.recipe,
+      business: input.business ?? {},
+      ...(input.apply_playbook_rules === false ? {playbook_rules: false} : {}),
+      ...(input.client_brief ? {client_brief: input.client_brief} : {}),
+    });
+    const result = await this.handle(create, actor);
+    let run = this.owned(actor, result.id);
+    // A repeated keyed request returns the original plan, whose provenance is already saved.
+    if (!run.recipe) {
+      run.recipe = {...recipe, provenance};
+      if (input.client_brief) run.client_brief = input.client_brief;
+      // A live eligibility check of this exact brief seeds preflight when every binding still matches (CMP-06).
+      const reuse =
+        input.eligibility_ref === undefined
+          ? undefined
+          : eligibilityReuse(this.store, actor, input.eligibility_ref, run, input.recipe, provenance);
+      if (reuse?.applied && !run.preflight) run.preflight = reuse.preflight;
+      run = this.save(actor, run);
+      const reused = reuse
+        ? {eligibility_reuse: Object.fromEntries(Object.entries(reuse).filter(([key]) => key !== 'preflight'))}
+        : {};
+      // With a reused preflight that blocked nothing, the response carries the approval summary at once.
+      if (reuse?.applied && run.preflight.status !== 'blocked') {
+        const approval = this.approve({id: run.id}, actor, run);
+        return {...approval, recipe: run.recipe, ...reused};
       }
-      next.native_requests = addNativeRequests(next.native_requests, 'prepare', prepareCount);
-      // The review read the selected product and it no longer matches its saved evidence: refused like before COM-02 C,
-      // the step unchanged and nothing retained, and the remedy is a new removal preview.
-      if (removal && !prepared.success && ['CATALOG_REMOVAL_CHANGED', 'STATE_NOT_FOUND'].includes(prepared.error?.code))
-        catalogRemovalChanged();
-      if (!prepared.success && alreadyCurrent(next, prepared.error)) {
-        // Nothing to change: recorded with the read evidence, and the plan moves on to its next step (COM-01).
-        next.status = 'skipped_unchanged';
-        next.submission = 'not_submitted';
-        next.result = {
-          already_current: true,
-          evidence: prepared.error.details.no_op_evidence,
-          checked_at: new Date().toISOString(),
-        };
-        delete next.error;
-        run.state = planState(run, next);
-        run = this.save(actor, run);
-        // The next step is prepared under the same authority: a call run made under the plan's approval stays one, so
-        // an approver collaborator is not refused after a skipped step (CMP-05).
-        const following: JsonObject = {
-          action: 'prepare_next',
-          id: run.id,
-          ...(input.detail ? {detail: input.detail} : {}),
-        };
-        return this.handle(this.underApproval.has(input) ? this.approved(following) : following, actor);
-      }
-      if (!prepared.success && next.kind === 'media' && mediaPrepareBusy(prepared.error)) {
-        // Nothing was staged or sent, and the cause clears with time: the step stays pending (MED-03 B).
-        const wait = Math.max(1000, Math.min(60000, Number(prepared.error.details?.retry_after_ms) || 5000));
-        next.busy = {code: prepared.error.code, message: prepared.error.message, retry_after_ms: wait, at: Date.now()};
-        run = this.save(actor, run);
-        return this.respond(input, run, next.id, {
-          busy: true,
-          retry_after_ms: wait,
-          next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
+      // Which value came from the user and which from the approved profile is what a person checks next.
+      return this.respond(input, run, undefined, {recipe: run.recipe, ...reused});
+    }
+    return this.respond(input, run, undefined, {recipe: run.recipe});
+  }
+  /** get: one plan, compact or in full, or one of its steps, with the execution journal. */
+  private getPlan({input, actor}: CampaignCall): JsonObject {
+    const run = this.owned(actor, input.id),
+      journal = (steps: JsonObject[]) =>
+        steps
+          .filter((s: JsonObject) => s.review_id)
+          .map((s: JsonObject) => ({
+            step_id: s.id,
+            status: s.status,
+            review_id: s.review_id,
+            ...this.store.operationJournal(actor.tenantId, s.review_id),
+          }));
+    if (input.step_id !== undefined) {
+      const step = run.steps.find((s: JsonObject) => s.id === input.step_id);
+      if (!step)
+        bad(
+          'step_id ' +
+            JSON.stringify(String(input.step_id)) +
+            ' is not in this plan. Its steps: ' +
+            run.steps.map((s: JsonObject) => s.id).join(', ') +
+            '.',
+          'INVALID_ARGUMENT',
+          {field: 'step_id', allowed: run.steps.map((s: JsonObject) => s.id)},
+        );
+      return {
+        view: 'step',
+        id: run.id,
+        name: run.name,
+        revision: run.revision,
+        state: run.state,
+        plan_hash: run.plan_hash,
+        step,
+        execution_journal: journal([step]),
+      };
+    }
+    // A background run's state comes from its job (MED-03 B): queued, running, complete or failed.
+    const background = backgroundRunView(this.store, actor.tenantId, run),
+      running = background ? {background} : {};
+    if (input.detail === 'full') return {...run, execution_journal: journal(run.steps), ...running};
+    return compactPlan(run, undefined, {
+      ...(run.preflight ? {preflight: preflightView(run.preflight, true)} : {}),
+      ...running,
+      ...activationOffer(run),
+    });
+  }
+  /** clone: a draft plan built from an existing campaign, created once per creation key. */
+  private async cloneCampaign({input, actor}: CampaignCall): Promise<JsonObject> {
+    assertCloneGateway(input.gateway);
+    const connection = this.store.resolveConnection(actor, input.gateway, input.account_id, input.connection_id);
+    // A keyed clone names its request, not what the source reads: a retry returns the original draft without reading
+    // the source again, and the key with another request conflicts before any read (CMP-02 b).
+    const origin = {
+      clone: {
+        gateway: input.gateway,
+        connection_id: connection.id,
+        account_id: input.account_id,
+        source: input.source ?? null,
+        changes: input.changes ?? null,
+        atomic: input.atomic ?? null,
+        name: input.name ?? null,
+        brief: input.brief ?? null,
+      },
+    };
+    if (input.idempotency_key !== undefined) {
+      const existing = optional(this.store, actor.tenantId, 'campaign_run', creationId(actor, input.idempotency_key));
+      if (existing && existing.creation_origin !== fingerprint(origin))
+        bad('This creation key belongs to a different campaign plan.', 'IDEMPOTENCY_CONFLICT');
+      if (existing?.clone) {
+        const run = this.owned(actor, existing.id);
+        return this.respond(input, run, undefined, {
+          clone: run.clone,
+          next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: run.id}},
         });
       }
-      if (!prepared.success) {
-        next.status = 'failed';
-        next.error = prepared.error;
-        next.submission = 'not_submitted';
-        run.state = 'attention';
-        return this.respond(
-          input,
-          this.save(actor, run),
-          next.id,
-          {
-            blocked: true,
-            // An ownership refusal's own next call (the ownership read) comes first; the step is amended after it. Other
-            // refusals that name a next call (a connection list, an inspect) need the step corrected, not retried.
-            next_call:
-              prepared.error?.code === 'RESOURCE_SCOPE_REQUIRED' && prepared.error?.details?.next_call
-                ? {
-                    ...prepared.error.details.next_call,
-                    then: {
-                      tool: 'amcp_campaign',
-                      arguments: {action: 'recover_step', id: run.id, step_id: next.id, confirmed: true},
-                    },
-                  }
-                : amendmentCall(run.id, next, prepared.error),
-          },
-          {error: prepared.error},
+    }
+    const source = await clonePlan(this.call, actor, {...input, connection_id: connection.id}),
+      changed = applyCloneChanges(source.steps, input.changes);
+    if (changed.steps.length > 50 && (input.gateway !== 'google_ads_native_action' || input.atomic === false))
+      bad(
+        'The clone has ' + changed.steps.length + ' steps; a plan holds at most 50. Leave some out with changes.drop.',
+        'CLONE_SOURCE_TOO_LARGE',
+        {field: 'changes.drop', steps: changed.steps.slice(0, 100).map(s => s.id)},
+      );
+    // A Google clone is one all-or-nothing build unless the caller asks for step-by-step (atomic: false).
+    const atomic = input.gateway === 'google_ads_native_action' && input.atomic !== false;
+    const create = {
+      action: 'create',
+      name: input.name,
+      brief: input.brief ?? 'Clone of campaign ' + source.source.campaign_id + '.',
+      steps: atomic ? [composeGoogleBuild(changed.steps, String(input.account_id).replace(/-/g, ''))] : changed.steps,
+      ...(input.idempotency_key !== undefined ? {idempotency_key: input.idempotency_key} : {}),
+      detail: 'full',
+    };
+    this.origins.set(create, origin);
+    const created = await this.handle(create, actor),
+      run = this.owned(actor, created.id);
+    if (run.clone)
+      return this.respond(input, run, undefined, {
+        clone: run.clone,
+        next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: run.id}},
+      });
+    run.clone = {
+      source: source.source,
+      not_copied: source.notCopied,
+      ...(changed.set.length ? {set: changed.set} : {}),
+      ...(changed.dropped.length ? {dropped: changed.dropped} : {}),
+      ...(atomic ? {all_or_nothing: true, steps: changed.steps.map(s => s.id)} : {}),
+    };
+    audit(this.store, actor, 'campaign_plan_cloned', {id: run.id, source: source.source, plan_hash: run.plan_hash});
+    return this.respond(input, this.save(actor, run), undefined, {
+      clone: run.clone,
+      next_call: {tool: 'amcp_campaign', arguments: {action: 'approve', id: run.id}},
+    });
+  }
+  /** create: a draft plan of explicit or templated steps, created once per creation key. */
+  private createPlan({input, actor}: CampaignCall): JsonObject {
+    const origin = this.origins.get(input);
+    if (
+      typeof input.name !== 'string' ||
+      !input.name.trim() ||
+      input.name.length > 100 ||
+      typeof input.brief !== 'string' ||
+      input.brief.length > 12000
+    )
+      bad('Provide a campaign name and brief.');
+    // A profile outside the actor's client access set is not found (SEC-08).
+    const profile = input.profile_id ? visibleProfile(this.store, actor, input.profile_id) : undefined,
+      variables = {...(profile?.variables ?? {}), ...(input.variables ?? {}), profile: profile ?? {}};
+    noSecrets(variables);
+    const raw = input.steps ?? profile?.templates?.[input.template];
+    if (!Array.isArray(raw) || !raw.length || raw.length > 50)
+      bad('Provide 1–50 explicit steps, or choose an approved saved template.');
+    const steps = origin ? structuredClone(raw) : substitute(raw, variables),
+      seen = new Set<string>();
+    for (const s of steps) {
+      validate(s, [
+        'id',
+        'kind',
+        'gateway',
+        'connection_id',
+        'account_id',
+        'arguments',
+        'depends_on',
+        'description',
+        'expected_currency',
+        'prerequisites',
+      ]);
+      const problems = [
+        !/^[A-Za-z][A-Za-z0-9_-]{0,50}$/.test(s.id) && 'id must start with a letter (up to 51 letters, digits, _ or -)',
+        seen.has(s.id) && 'id must be unique',
+        !['write', 'media'].includes(s.kind) && 'kind must be "write" or "media"',
+        s.kind === 'write' &&
+          typeof s.gateway !== 'string' &&
+          'a write step needs gateway, e.g. "snapchat_native_action"',
+        !obj(s.arguments) && 'arguments must be the native tool input object',
+        typeof s.connection_id !== 'string' && 'connection_id is required',
+        typeof s.account_id !== 'string' && 'account_id is required',
+        s.expected_currency !== undefined &&
+          !/^[A-Z]{3}$/.test(s.expected_currency) &&
+          'expected_currency must be an ISO code such as "USD", or omitted',
+        s.prerequisites !== undefined &&
+          (!Array.isArray(s.prerequisites) ||
+            s.prerequisites.some(
+              (p: unknown) =>
+                !['meta_image_hash', 'tiktok_spark_post', 'tiktok_pixel', 'linkedin_lead_form'].includes(p as string),
+            ) ||
+            new Set(s.prerequisites).size !== s.prerequisites.length) &&
+          'prerequisites lists checks preflight must make: "meta_image_hash", "tiktok_spark_post", "tiktok_pixel" or "linkedin_lead_form"',
+      ].filter(Boolean);
+      if (problems.length)
+        bad(
+          'Step ' +
+            JSON.stringify(String(s.id ?? '')) +
+            ': ' +
+            problems.join('; ') +
+            '. Each step is {"id","kind":"write","gateway","connection_id","account_id","arguments":{"action","payload"},"depends_on":[earlier ids]}; later steps use results as {"$ref":"<step id>#/data/<JSON pointer>"}.',
         );
-      }
-      const review = prepared.data;
-      delete next.busy;
-      // An expired review prepared again for the same request over unchanged state says so (WRT-05).
+      const deps = s.depends_on ?? [];
+      if (!Array.isArray(deps) || new Set(deps).size !== deps.length || deps.some(d => !seen.has(d)))
+        bad('Dependencies must refer to earlier steps.');
+      seen.add(s.id);
+      noSecrets(s.arguments);
+      const gateway = s.kind === 'media' ? s.arguments.platform + '_native_action' : s.gateway;
+      this.store.resolveConnection(actor, gateway, s.account_id, s.connection_id);
       if (
-        typeof next.review?.fingerprint === 'string' &&
-        next.review.review_id !== review.review_id &&
-        next.review.fingerprint === review.fingerprint &&
-        next.review.state_hash === review.state_hash
+        profile?.bindings?.length &&
+        !profile.bindings.some(
+          (b: JsonObject) =>
+            b.gateway === gateway &&
+            b.connection_id === s.connection_id &&
+            normalizeAccount(gateway, b.account_id) === normalizeAccount(gateway, s.account_id),
+        )
       )
-        review.unchanged_since_review = next.review.review_id;
-      if (review.reused === true) {
-        next.result = review;
-        next.status = 'verified';
-        run.state = uploadsState(run, next);
-        return this.respond(input, this.save(actor, run), next.id);
+        bad(
+          'Step ' +
+            s.id +
+            ' is outside this approved client playbook’s account bindings. Choose a bound account or revise the playbook.',
+          'PROFILE_ACCOUNT_MISMATCH',
+        );
+      if (
+        s.kind === 'media' &&
+        ((s.arguments.action !== undefined && !['prepare', 'prepare_library'].includes(s.arguments.action)) ||
+          s.arguments.confirmed !== undefined ||
+          s.arguments.idempotency_key !== undefined)
+      )
+        bad('Media steps contain preparation inputs only.');
+      s.depends_on = deps;
+      s.status = 'pending';
+    }
+    if (
+      input.idempotency_key !== undefined &&
+      (typeof input.idempotency_key !== 'string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(input.idempotency_key))
+    )
+      bad('Use a stable campaign creation key of 8–100 letters, digits, hyphens or underscores.');
+    const allocation = allocationCreationBinding(this.store, actor, input, steps);
+    const search_exclusions = searchExclusionCreationBinding(this.store, actor, input, steps);
+    const gtm_consent = consentCreationBinding(this.store, actor, input, steps);
+    const catalog_removal = catalogRemovalCreationBinding(this.store, actor, input, steps);
+    // Where a catalog plan's products came from (COM-03): set only by amcp_workspace catalog_plan.
+    const catalog_lineage = catalogLineageCreationBinding(this.store, actor, input, steps);
+    // The retailer IDs the plan retires (COM-02 B): their native reviews must find an existing product.
+    const catalog_retirement = catalog_lineage ? catalogRetirementCreationBinding(this.store, actor, input) : undefined;
+    const creation_fingerprint = fingerprint({
+      name: input.name,
+      brief: input.brief,
+      user: actor.userId,
+      profile_id: profile?.id ?? null,
+      profile_revision: profile?.revision ?? null,
+      variables,
+      steps: structure(steps),
+      allocation: allocation ?? null,
+      ...(search_exclusions ? {search_exclusions} : {}),
+      ...(gtm_consent ? {gtm_consent} : {}),
+      ...(catalog_removal ? {catalog_removal} : {}),
+      ...(catalog_lineage ? {catalog_lineage} : {}),
+      ...(catalog_retirement ? {catalog_retirement} : {}),
+      ...(origin ? {origin} : {}),
+    });
+    const id = input.idempotency_key ? creationId(actor, input.idempotency_key) : randomUUID();
+    const existing = input.idempotency_key ? optional(this.store, actor.tenantId, 'campaign_run', id) : undefined;
+    if (existing) {
+      if (existing.creation_fingerprint !== creation_fingerprint)
+        bad('This creation key belongs to a different campaign plan.', 'IDEMPOTENCY_CONFLICT');
+      return this.respond(input, this.owned(actor, id));
+    }
+    // Temporary files are deleted 30 minutes after they started: a plan that uses them is saved only with that
+    // deadline acknowledged, and it records and shows the deadline (owner decision D23, MED-01).
+    const temporary = temporaryMediaSources(this.store, actor.tenantId, steps),
+      earliest = earliestDeadline(temporary);
+    if (temporary.length && input.acknowledge_temporary_sources !== true)
+      bad(
+        'This plan uses temporary files (uploads or imports with a source_id src-…), deleted 30 minutes after they started, so it must run before then. Save it with acknowledge_temporary_sources: true, or for a plan that can wait import the files from a link or Google Drive and have an owner retain them.',
+        'TEMPORARY_MEDIA_SOURCES',
+        {temporary_sources: temporary, earliest_expires_at: earliest},
+      );
+    assertRunnableSources(temporary);
+    // Archived plans do not count (CMP-05); the refusal names the remedy.
+    assertPlanRoom(this.store, actor);
+    const run = {
+      name: input.name,
+      brief: input.brief,
+      ...ownership(actor),
+      profile_id: profile?.id ?? null,
+      profile_revision: profile?.revision ?? null,
+      variables,
+      steps,
+      state: 'draft',
+      created_at: Date.now(),
+      updated_at: Date.now(),
+      plan_hash: fingerprint(structure(steps)),
+      ...(input.idempotency_key ? {creation_fingerprint} : {}),
+      ...(input.idempotency_key && origin ? {creation_origin: fingerprint(origin)} : {}),
+      ...(allocation ? {allocation} : {}),
+      ...(search_exclusions ? {search_exclusions} : {}),
+      ...(gtm_consent ? {gtm_consent} : {}),
+      ...(catalog_removal ? {catalog_removal} : {}),
+      ...(catalog_lineage ? {catalog_lineage} : {}),
+      ...(catalog_retirement ? {catalog_retirement} : {}),
+      ...(temporary.length
+        ? {
+            temporary_sources: {
+              acknowledged_by: actor.userId,
+              acknowledged_at: Date.now(),
+              earliest_expires_at: earliest,
+              sources: temporary,
+            },
+          }
+        : {}),
+      approval: gtm_consent
+        ? 'Each workspace tag update needs separate native review, execution confirmation and read-back. No container version is created or published.'
+        : search_exclusions
+          ? 'Each exact keyword exclusion requires separate native review, approval and read-back. This draft changes no advertising.'
+          : allocation
+            ? 'Each native budget update needs separate review and approval. This unapproved draft does not change campaign status.'
+            : 'Each resolved native request uses prepare → review → execute. A draft submits no provider changes; serving effects are stated in each native review.',
+    };
+    this.store.putDocument(actor.tenantId, 'campaign_run', id, run);
+    audit(this.store, actor, 'campaign_plan_created', {id, name: run.name, plan_hash: run.plan_hash});
+    return this.respond(input, this.owned(actor, id));
+  }
+  /** cancel: the steps not yet run will not run; what the provider already created stays. */
+  private cancelPlan({input, actor, run}: PlanCall): JsonObject {
+    if (input.confirmed !== true)
+      bad(
+        'Set confirmed: true to cancel this plan. Steps not yet run will not run; anything already created at the provider stays.',
+        'INVALID_ARGUMENT',
+        {field: 'confirmed'},
+      );
+    run.state = 'cancelled';
+    run = this.save(actor, run);
+    return this.respond(input, run, undefined, {notice: 'Already created provider resources remain intact.'});
+  }
+  /** reconcile_step: a submitted step read back from its original receipt, or an observed state the user accepts. */
+  private async reconcileStep({input, actor, run}: PlanCall): Promise<JsonObject> {
+    if (input.accept_observed !== undefined) {
+      const ids = run.steps.map((x: JsonObject) => x.id),
+        step = run.steps.find((x: JsonObject) => x.id === input.step_id);
+      if (!step)
+        bad(
+          'step_id ' +
+            JSON.stringify(String(input.step_id ?? '')) +
+            ' is not in this plan. Its steps: ' +
+            ids.join(', ') +
+            '.',
+          'INVALID_ARGUMENT',
+          {field: 'step_id', allowed: ids},
+        );
+      const disagrees =
+        step.kind === 'write' &&
+        typeof step.review_id === 'string' &&
+        (step.status === 'mismatch' ||
+          (step.status === 'verifying' && ['mismatch', 'inconclusive'].includes(step.verification?.status)));
+      if (!disagrees)
+        bad(
+          'Step ' +
+            step.id +
+            ' is ' +
+            step.status +
+            '. Only a written step whose read-back disagrees with what was sent can be accepted as observed.',
+          'RECOVERY_NOT_SAFE',
+          {step_id: step.id, status: step.status},
+        );
+      if (input.accept_observed !== true)
+        bad('Set accept_observed: true once the user accepts the observed state.', 'INVALID_ARGUMENT', {
+          field: 'accept_observed',
+        });
+      if (typeof input.actual_hash !== 'string')
+        bad(
+          'Send actual_hash: the observed state the user accepted (current.verification.actual_hash of step ' +
+            step.id +
+            ').',
+          'INVALID_ARGUMENT',
+          {field: 'actual_hash'},
+        );
+      if (this.claim(actor, step.review_id)?.state !== 'complete')
+        bad('Step ' + step.id + ' has no completed receipt to accept.', 'RECOVERY_NOT_SAFE', {step_id: step.id});
+      // Read it once more: the user accepts the state they saw, not whatever the provider holds by now.
+      const v = await this.verifyWrite(actor, step.review_id);
+      this.store.assertActorActive(actor);
+      step.verification = v;
+      if (v.status === 'verified') {
+        step.status = 'verified';
+        if (v.verified_resources) step.result = {...step.result, verified_resources: v.verified_resources};
+      } else if (v.actual_hash !== input.actual_hash) {
+        step.status = verificationStepStatus(v.status);
+        run.state = planState(run, step);
+        this.save(actor, run);
+        throw new MirrorError(
+          'STATE_CHANGED',
+          'The provider’s state for step ' +
+            step.id +
+            ' changed since that diff: actual_hash is now ' +
+            v.actual_hash +
+            '. Show the user current.verification again before accepting.',
+          {field: 'actual_hash', step_id: step.id, actual_hash: v.actual_hash ?? null},
+          409,
+        );
+      } else {
+        const changed = [...new Set(v.checks.flatMap((c: JsonObject) => c.changed_fields ?? []))];
+        step.status = 'verified_with_acceptance';
+        step.acceptance = {
+          at: Date.now(),
+          by: actor.userId,
+          review_id: step.review_id,
+          actual_hash: v.actual_hash,
+          changed_fields: changed,
+        };
+        audit(this.store, actor, 'campaign_step_accepted', {
+          id: run.id,
+          step_id: step.id,
+          review_id: step.review_id,
+          actual_hash: v.actual_hash,
+          changed_fields: changed,
+        });
       }
-      next.review_id = review.review_id;
-      next.review = review;
-      next.resolved = resolved;
-      next.status = 'review_ready';
-      run.state = 'awaiting_review';
-      run = this.save(actor, run); // spend_change_confirmed is never pre-filled: execute_requirements says whether this step needs it, and the flag is the
-      // user's acknowledgement of the reviewed spending effect, not a value to copy from a suggested call.
+      delete step.error;
+      run.state = planState(run, step);
+      run = this.save(actor, run);
+      return this.respond(input, run, step.id, this.followUp(actor, run, step));
+    }
+    const step = run.steps.find((s: JsonObject) => s.id === input.step_id);
+    if (
+      !step?.review_id ||
+      !['executing', 'uncertain', 'failed', 'verifying', 'mismatch', 'processing'].includes(step.status)
+    )
+      bad('Choose a submitted step requiring reconciliation.', 'RECOVERY_NOT_SAFE');
+    const claim = this.store.db
+      .prepare('SELECT state,result FROM idempotency WHERE tenant_id=? AND key=?')
+      .get(actor.tenantId, step.review_id) as JsonObject | undefined;
+    if (claim?.state !== 'complete' || !claim.result)
+      bad(
+        'No completed original receipt exists. Inspect provider state; reconciliation never submits a mutation.',
+        'RECOVERY_NOT_SAFE',
+      );
+    const receipt = JSON.parse(claim.result);
+    if (step.kind === 'media') {
+      const status = await this.call('amcp_media', {action: 'status', review_id: step.review_id}, actor);
+      if (!status.success) throw new MirrorError(status.error.code, status.error.message, status.error.details);
+      step.result = {...receipt, ...status.data};
+      step.status = status.data.ready ? 'verified' : 'processing';
+    } else {
+      const verification = await this.verifyWrite(actor, step.review_id);
+      step.result = receipt;
+      step.verification = verification;
+      step.status = verificationStepStatus(verification.status);
+      if (step.status === 'verified' && verification.verified_resources)
+        step.result = {...step.result, verified_resources: verification.verified_resources};
+    }
+    this.store.assertActorActive(actor);
+    delete step.error;
+    run.state = planState(run, step);
+    run = this.save(actor, run);
+    return this.respond(input, run, step.id, step.kind === 'write' ? this.followUp(actor, run, step) : {});
+  }
+  /** recover_step: an unsent step amended in place, its earlier attempts kept. */
+  private recoverStep({input, actor, run}: PlanCall): JsonObject {
+    const ids = run.steps.map((x: JsonObject) => x.id),
+      step = run.steps.find((x: JsonObject) => x.id === input.step_id);
+    if (!step)
+      bad(
+        'step_id ' +
+          JSON.stringify(String(input.step_id ?? '')) +
+          ' is not in this plan. Its steps: ' +
+          ids.join(', ') +
+          '.',
+        'INVALID_ARGUMENT',
+        {field: 'step_id', allowed: ids},
+      );
+    const blockedCheck =
+      step.status === 'pending'
+        ? run.preflight?.checks?.find((c: JsonObject) => c.step === step.id && c.status === 'blocked')
+        : undefined;
+    // Whether the step can be recovered comes first: asking to confirm a recovery that is refused anyway helps no one.
+    if (step.status !== 'failed' && !blockedCheck)
+      bad(
+        'Step ' +
+          step.id +
+          ' is ' +
+          step.status +
+          '. Only a step preflight blocked, or one that failed before reaching the provider, can be amended; unknown, verifying and mismatched outcomes need investigation.',
+        'RECOVERY_NOT_SAFE',
+        {step_id: step.id, status: step.status},
+      );
+    // A key is retired, and the step amended under a new one, only when nothing of it was applied: a build Google
+    // refused, a refusal the family proves non-applied (rejected), or an absence the user confirmed (CMP-04).
+    const claim = this.claim(actor, step.review_id),
+      retired = !claim
+        ? undefined
+        : rejectedBuild(step)
+          ? 'rejected_build'
+          : claim.state === 'rejected'
+            ? 'rejected'
+            : absenceConfirmed(step)
+              ? 'confirmed_absent'
+              : undefined;
+    if (claim && !retired)
+      bad(
+        'Step ' +
+          step.id +
+          ' reached the provider or has an unknown outcome, so it is never sent again. Reconcile its existing resource; do not issue another create.',
+        'RECOVERY_NOT_SAFE',
+        {step_id: step.id, status: step.status},
+      );
+    const progressed = run.steps.find((x: JsonObject) => x.depends_on.includes(step.id) && x.status !== 'pending');
+    if (progressed)
+      bad(
+        'Step ' +
+          progressed.id +
+          ', which depends on ' +
+          step.id +
+          ', has already progressed; ' +
+          step.id +
+          ' can no longer change.',
+        'RECOVERY_NOT_SAFE',
+        {step_id: step.id, dependant: progressed.id},
+      );
+    if (input.patch !== undefined && input.arguments !== undefined)
+      bad('Send patch or arguments, not both.', 'INVALID_ARGUMENT', {field: 'patch'});
+    if (blockedCheck && input.patch === undefined && input.arguments === undefined)
+      bad(
+        'Preflight blocked step ' +
+          step.id +
+          ': send the correction as patch or arguments (the refusal’s next_call shows the field). To re-check prerequisites that changed outside the plan, run preflight.',
+        'INVALID_ARGUMENT',
+        {field: 'patch'},
+      );
+    if (input.confirmed !== true)
+      bad(
+        'Set confirmed: true to amend step ' + step.id + '; it is prepared and reviewed again before anything is sent.',
+        'INVALID_ARGUMENT',
+        {field: 'confirmed'},
+      );
+    const attempt: JsonObject = {
+      at: Date.now(),
+      ...(step.review_id ? {review_id: step.review_id} : {}),
+      ...(step.error ? {error: step.error} : {}),
+      ...(blockedCheck?.error ? {preflight_error: blockedCheck.error} : {}),
+    };
+    if (input.patch !== undefined) attempt.patch = applyPatch(step, input.patch);
+    else if (input.arguments !== undefined) {
+      if (blockedCheck && fingerprint(input.arguments) === fingerprint(step.arguments))
+        bad(
+          'The arguments are unchanged, so preflight would block step ' +
+            step.id +
+            ' again. Change what the refusal names.',
+          'INVALID_ARGUMENT',
+          {field: 'arguments'},
+        );
+      attempt.previous_arguments = step.arguments;
+      step.arguments = input.arguments;
+    }
+    noSecrets(step.arguments);
+    // A media step that now names another file (a replacement upload, MED-03 B) is prepared as a new review of that
+    // file; the old bytes are never reused. A temporary replacement is acknowledged like one in a new plan, must
+    // leave time to run, and moves the plan's run-by time.
+    if (step.kind === 'media') {
+      const a = step.arguments;
+      if (
+        (a.source_id !== undefined &&
+          (typeof a.source_id !== 'string' || !/^(?:src|lib)-[0-9a-f-]{36}$/.test(a.source_id))) ||
+        (a.expected_sha256 !== undefined &&
+          (typeof a.expected_sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(a.expected_sha256)))
+      )
+        bad(
+          'Name the new file by its source_id (src-… or lib-…) and the exact file.sha256 its amcp_media plan returned.',
+          'INVALID_ARGUMENT',
+          {field: 'patch'},
+        );
+      const replaced = temporaryMediaSources(this.store, actor.tenantId, [step]);
+      if (replaced.length && !run.temporary_sources && input.acknowledge_temporary_sources !== true)
+        bad(
+          'The replacement is a temporary file (source_id src-…), deleted 30 minutes after it started, so the plan must run before then. Send acknowledge_temporary_sources: true with this amendment.',
+          'TEMPORARY_MEDIA_SOURCES',
+          {temporary_sources: replaced, earliest_expires_at: earliestDeadline(replaced)},
+        );
+      assertRunnableSources(replaced);
+      const temporary = temporaryMediaSources(
+        this.store,
+        actor.tenantId,
+        run.steps.filter((s: JsonObject) => !settled(s)),
+      );
+      if (temporary.length)
+        run.temporary_sources = {
+          ...(run.temporary_sources ?? {acknowledged_by: actor.userId, acknowledged_at: Date.now()}),
+          earliest_expires_at: earliestDeadline(temporary),
+          sources: temporary,
+        };
+      else delete run.temporary_sources;
+    }
+    if (retired) {
+      const status = step.error?.details?.http_status ?? null;
+      if (retired === 'rejected_build') attempt.rejected_build = {http_status: status, key_retired: step.review_id};
+      else attempt.key_retired = {reason: retired, review_id: step.review_id, http_status: status};
+      if (retired === 'confirmed_absent') attempt.absence = step.absence;
+      audit(this.store, actor, 'campaign_step_recovered_after_rejection', {
+        id: run.id,
+        step_id: step.id,
+        review_id: step.review_id,
+        http_status: status,
+        reason: retired,
+      });
+    }
+    step.previous_attempts = [...(step.previous_attempts ?? []), attempt].slice(-10);
+    for (const k of ['review', 'review_id', 'resolved', 'error', 'result', 'verification', 'submission', 'absence'])
+      delete step[k];
+    step.status = 'pending';
+    run.state = 'draft';
+    run.plan_hash = fingerprint(structure(run.steps));
+    delete run.preflight;
+    return this.respond(input, this.save(actor, run), step.id, {
+      next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
+    });
+  }
+  /** prepare_next: the native review of the next step, or the one still valid or executing. */
+  private async prepareNext({input, actor, run, next}: StepCall): Promise<JsonObject> {
+    if (
+      next.status === 'executing' ||
+      (next.status === 'review_ready' && Date.parse(next.review.expires_at) > Date.now())
+    )
+      this.assertReviewHolder(actor, run, next);
+    if (run.allocation) await assertAllocationStep(this.store, this.call, actor, run, next);
+    if (run.search_exclusions) await assertSearchExclusionStep(this.store, this.call, actor, run, next);
+    if (run.gtm_consent) await assertConsentStep(this.store, this.call, actor, run, next);
+    // A selected-removal step is checked by its own native review against the bound product (COM-02 C), and the
+    // review of a retirement step refuses a product the catalog does not have (COM-02 B).
+    const removal = run.catalog_removal ? assertCatalogRemovalStep(run, next) : undefined,
+      retiring = catalogRetirementOf(run, next);
+    // A resumed or still-valid review keeps the acknowledgements it needs, so run asks for the same ones.
+    if (next.status === 'executing')
       return {
-        ...(input.detail === 'full' ? {} : {view: 'compact'}),
         campaign_id: run.id,
         step_id: next.id,
-        review: input.detail === 'full' ? review : reviewView(review, run.id, next.id),
-        revision: run.revision,
-        execute_requirements: review.execute_requirements,
+        recovery: 'Resume the original execution with the same idempotency key.',
+        ...(next.review?.execute_requirements ? {execute_requirements: next.review.execute_requirements} : {}),
         next_call: {
           tool: 'amcp_campaign',
           arguments: {
             action: 'execute_next',
             id: run.id,
-            review_id: review.review_id,
-            idempotency_key: review.idempotency_key,
+            review_id: next.review_id,
+            idempotency_key: next.review_id,
             confirmed: true,
           },
-          ...(review.execute_requirements?.spend_change_confirmed === true ||
-          review.execute_requirements?.cap_override_confirmed === true ||
-          review.execute_requirements?.creative_edit_confirmed === true ||
-          review.execute_requirements?.destructive_confirmed === true
-            ? {
-                add_after_user_approval: {
-                  ...(review.execute_requirements.spend_change_confirmed === true
-                    ? {spend_change_confirmed: true}
-                    : {}),
-                  ...(review.execute_requirements.cap_override_confirmed === true
-                    ? {cap_override_confirmed: true}
-                    : {}),
-                  ...(review.execute_requirements.creative_edit_confirmed === true
-                    ? {creative_edit_confirmed: true}
-                    : {}),
-                  ...(review.execute_requirements.destructive_confirmed === true ? {destructive_confirmed: true} : {}),
-                },
-              }
-            : {}),
-          // A deletion, a live publish or stopped delivery is shown to the user before execute_next (WRT-05).
-          ...(review.execute_requirements?.effects
-            ? {
-                disclose: (review.execute_requirements.reasons ?? []).filter((r: JsonObject) => r.effect),
-              }
-            : {}),
         },
       };
+    if (next.status === 'review_ready' && Date.parse(next.review.expires_at) > Date.now())
+      return {
+        ...(input.detail === 'full' ? {} : {view: 'compact'}),
+        campaign_id: run.id,
+        step_id: next.id,
+        review: input.detail === 'full' ? next.review : reviewView(next.review, run.id, next.id),
+        ...(next.review.execute_requirements ? {execute_requirements: next.review.execute_requirements} : {}),
+        next_call: {
+          tool: 'amcp_campaign',
+          arguments: {
+            action: 'execute_next',
+            id: run.id,
+            review_id: next.review_id,
+            idempotency_key: next.review_id,
+            confirmed: true,
+          },
+        },
+      };
+    if (next.depends_on.some((id: string) => !settled(run.steps.find((s: JsonObject) => s.id === id))))
+      bad('Wait for predecessor verification.', 'DEPENDENCY_PENDING');
+    const results = new Map<string, JsonObject>(run.steps.filter(settled).map((s: JsonObject) => [s.id, s.result]));
+    const resolved = references(next.arguments, results, new Set(next.depends_on));
+    let prepared: JsonObject;
+    // Native requests per step are recorded in the plan's journal metadata (COM-02 C).
+    const prepareCount = {reads: 0, writes: 0};
+    if (next.kind === 'media')
+      prepared = await meterNativeRequests(prepareCount, () =>
+        this.call(
+          'amcp_media',
+          resolved.action === 'prepare_library'
+            ? {action: 'prepare_library', review_id: resolved.review_id}
+            : {...resolved, action: 'prepare', account_id: next.account_id, connection_id: next.connection_id},
+          actor,
+        ),
+      );
+    else {
+      // DV360, Amazon and many delegated operations name the account with their own key and forbid account_id.
+      if (this.acceptsAccountId(next.gateway, resolved.operation)) {
+        if (resolved.operation) resolved.arguments = {...resolved.arguments, account_id: next.account_id};
+        else Object.assign(resolved, {account_id: next.account_id});
+      }
+      // Each step keeps a reference to the provider contract: the whole one is a single amcp_tool_help call away
+      // and would otherwise repeat 1.3-6.6 KB in every step of the run and its responses (F-29).
+      const prepare = () =>
+        this.call(
+          'amcp_write',
+          {
+            action: 'prepare',
+            gateway: next.gateway,
+            connection_id: next.connection_id,
+            arguments: resolved,
+            evidence: 'ref',
+          },
+          actor,
+        );
+      prepared = await meterNativeRequests(prepareCount, () =>
+        removal
+          ? withXCatalogRemovalExpectation(removal, prepare)
+          : retiring
+            ? withCatalogRetirement(retiring, prepare)
+            : prepare(),
+      );
     }
-    if (input.action !== 'execute_next') bad('Unknown campaign action.');
+    next.native_requests = addNativeRequests(next.native_requests, 'prepare', prepareCount);
+    // The review read the selected product and it no longer matches its saved evidence: refused like before COM-02 C,
+    // the step unchanged and nothing retained, and the remedy is a new removal preview.
+    if (removal && !prepared.success && ['CATALOG_REMOVAL_CHANGED', 'STATE_NOT_FOUND'].includes(prepared.error?.code))
+      catalogRemovalChanged();
+    if (!prepared.success && alreadyCurrent(next, prepared.error)) {
+      // Nothing to change: recorded with the read evidence, and the plan moves on to its next step (COM-01).
+      next.status = 'skipped_unchanged';
+      next.submission = 'not_submitted';
+      next.result = {
+        already_current: true,
+        evidence: prepared.error.details.no_op_evidence,
+        checked_at: new Date().toISOString(),
+      };
+      delete next.error;
+      run.state = planState(run, next);
+      run = this.save(actor, run);
+      // The next step is prepared under the same authority: a call run made under the plan's approval stays one, so
+      // an approver collaborator is not refused after a skipped step (CMP-05).
+      const following: JsonObject = {
+        action: 'prepare_next',
+        id: run.id,
+        ...(input.detail ? {detail: input.detail} : {}),
+      };
+      return this.handle(this.underApproval.has(input) ? this.approved(following) : following, actor);
+    }
+    if (!prepared.success && next.kind === 'media' && mediaPrepareBusy(prepared.error)) {
+      // Nothing was staged or sent, and the cause clears with time: the step stays pending (MED-03 B).
+      const wait = Math.max(1000, Math.min(60000, Number(prepared.error.details?.retry_after_ms) || 5000));
+      next.busy = {code: prepared.error.code, message: prepared.error.message, retry_after_ms: wait, at: Date.now()};
+      run = this.save(actor, run);
+      return this.respond(input, run, next.id, {
+        busy: true,
+        retry_after_ms: wait,
+        next_call: {tool: 'amcp_campaign', arguments: {action: 'prepare_next', id: run.id}},
+      });
+    }
+    if (!prepared.success) {
+      next.status = 'failed';
+      next.error = prepared.error;
+      next.submission = 'not_submitted';
+      run.state = 'attention';
+      return this.respond(
+        input,
+        this.save(actor, run),
+        next.id,
+        {
+          blocked: true,
+          // An ownership refusal's own next call (the ownership read) comes first; the step is amended after it. Other
+          // refusals that name a next call (a connection list, an inspect) need the step corrected, not retried.
+          next_call:
+            prepared.error?.code === 'RESOURCE_SCOPE_REQUIRED' && prepared.error?.details?.next_call
+              ? {
+                  ...prepared.error.details.next_call,
+                  then: {
+                    tool: 'amcp_campaign',
+                    arguments: {action: 'recover_step', id: run.id, step_id: next.id, confirmed: true},
+                  },
+                }
+              : amendmentCall(run.id, next, prepared.error),
+        },
+        {error: prepared.error},
+      );
+    }
+    const review = prepared.data;
+    delete next.busy;
+    // An expired review prepared again for the same request over unchanged state says so (WRT-05).
+    if (
+      typeof next.review?.fingerprint === 'string' &&
+      next.review.review_id !== review.review_id &&
+      next.review.fingerprint === review.fingerprint &&
+      next.review.state_hash === review.state_hash
+    )
+      review.unchanged_since_review = next.review.review_id;
+    if (review.reused === true) {
+      next.result = review;
+      next.status = 'verified';
+      run.state = uploadsState(run, next);
+      return this.respond(input, this.save(actor, run), next.id);
+    }
+    next.review_id = review.review_id;
+    next.review = review;
+    next.resolved = resolved;
+    next.status = 'review_ready';
+    run.state = 'awaiting_review';
+    run = this.save(actor, run); // spend_change_confirmed is never pre-filled: execute_requirements says whether this step needs it, and the flag is the
+    // user's acknowledgement of the reviewed spending effect, not a value to copy from a suggested call.
+    return {
+      ...(input.detail === 'full' ? {} : {view: 'compact'}),
+      campaign_id: run.id,
+      step_id: next.id,
+      review: input.detail === 'full' ? review : reviewView(review, run.id, next.id),
+      revision: run.revision,
+      execute_requirements: review.execute_requirements,
+      next_call: {
+        tool: 'amcp_campaign',
+        arguments: {
+          action: 'execute_next',
+          id: run.id,
+          review_id: review.review_id,
+          idempotency_key: review.idempotency_key,
+          confirmed: true,
+        },
+        ...(review.execute_requirements?.spend_change_confirmed === true ||
+        review.execute_requirements?.cap_override_confirmed === true ||
+        review.execute_requirements?.creative_edit_confirmed === true ||
+        review.execute_requirements?.destructive_confirmed === true
+          ? {
+              add_after_user_approval: {
+                ...(review.execute_requirements.spend_change_confirmed === true ? {spend_change_confirmed: true} : {}),
+                ...(review.execute_requirements.cap_override_confirmed === true ? {cap_override_confirmed: true} : {}),
+                ...(review.execute_requirements.creative_edit_confirmed === true
+                  ? {creative_edit_confirmed: true}
+                  : {}),
+                ...(review.execute_requirements.destructive_confirmed === true ? {destructive_confirmed: true} : {}),
+              },
+            }
+          : {}),
+        // A deletion, a live publish or stopped delivery is shown to the user before execute_next (WRT-05).
+        ...(review.execute_requirements?.effects
+          ? {
+              disclose: (review.execute_requirements.reasons ?? []).filter((r: JsonObject) => r.effect),
+            }
+          : {}),
+      },
+    };
+  }
+  /** execute_next: the exact review prepared for the next step, executed and read back. */
+  private async executeNext({input, actor, run, next}: StepCall): Promise<JsonObject> {
     if (
       (next.status !== 'review_ready' && next.status !== 'executing') ||
       input.review_id !== next.review_id ||
