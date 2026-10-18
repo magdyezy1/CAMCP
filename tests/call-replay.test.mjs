@@ -14,9 +14,12 @@ import {
   normalizeValue,
   readRecording,
   recordText,
+  recordingKey,
+  replayable,
   revive,
   targetOf,
   targets,
+  timingOption,
 } from '../tools/call-replay.mjs';
 
 // The call-replay equivalence proof of ARC-01 phase B: the recorder must see every call of a target without changing
@@ -98,6 +101,31 @@ test('only the compiled target modules are instrumented', () => {
     assert.match(id, /^dist\/(?:src|server)\/[a-z0-9-]+\.js$/);
     assert.ok((entry.functions?.length ?? 0) + Object.keys(entry.classes ?? {}).length, id);
   }
+});
+
+test('every target is a function or method of its compiled module; every replayable call is a target', async () => {
+  // A target that moved away (googleGlobalRead left execution-risk.js for Google Ads' adapter) wrote a `missing`
+  // record into every recording and a `missing` replay outcome; the recorder only wraps what this finds.
+  const functions = new Set();
+  for (const [id, entry] of Object.entries(targets)) {
+    const source = fs.readFileSync(id, 'utf8'),
+      loaded = await import(pathToFileURL(path.resolve(id)).href);
+    for (const name of entry.functions ?? []) {
+      functions.add(id + '#' + name);
+      assert.doesNotMatch(
+        instrument(source, {functions: [name]}, id),
+        /__amcpCallReplay\?\.missing\(/,
+        id + '#' + name,
+      );
+      assert.equal(typeof loaded[name], 'function', id + '#' + name);
+    }
+    for (const [cls, methods] of Object.entries(entry.classes ?? {}))
+      for (const method of methods)
+        assert.equal(typeof loaded[cls]?.prototype?.[method], 'function', id + '#' + cls + '.' + method);
+  }
+  for (const id of replayable) assert.ok(functions.has(id), id + ' is a target function');
+  assert.ok(functions.has('dist/src/google-ads-adapter.js#googleGlobalRead'));
+  assert.ok(!functions.has('dist/src/execution-risk.js#googleGlobalRead'));
 });
 
 test('recorded values are JSON-safe, secrets are digested and clock-derived values do not count', () => {
@@ -249,4 +277,122 @@ test('a calibration of two recordings of one build sets the noise a comparison m
   const refused = compareRecordings(recording([read('r3')]), recording([read('r4', {throws: {code: 'X'}})]), noise);
   assert.deepEqual(refused.differences[0].paths, ['/out/fixture', '/out/returns', '/out/throws']);
   assert.deepEqual([...differingPaths({a: [1, {b: 2}]}, {a: [1, {b: 3}]})], ['/a/#/b']);
+});
+
+// Records of one test file, each [record, count], as readRecording returns them.
+const recordingOf = (...entries) =>
+  Object.assign(new Map([['dist_tests_x.test.js', new Map(entries.map(([r, n = 1]) => [recordText(r), n]))]]), {
+    failed: new Set(),
+  });
+const request = (path, out = {returns: '1'}) => ({
+  id: 'dist/src/transport.js#NativeTransport.request',
+  in: [{path}],
+  out,
+});
+const refusedWith = (path, code) => request(path, {throws: {$error: 'MirrorError', code}});
+
+test('a function whose call count varied in the calibration is unsettled, never noise: a flip in it fails', () => {
+  // The same build served /v1/a twice in one run and three times in the other (a test racing promises).
+  const noise = noiseProfile(recordingOf([request('/v1/a'), 2]), recordingOf([request('/v1/a'), 3]));
+  assert.deepEqual([...noise.counts], ['dist_tests_x.test.js\ndist/src/transport.js#NativeTransport.request']);
+  // After the change one of those calls is refused. The count rule used to class it as noise, so the comparison passed.
+  const flipped = compareRecordings(
+    recordingOf([request('/v1/a'), 2]),
+    recordingOf([request('/v1/a')], [refusedWith('/v1/a', 'RESOURCE_SCOPE_REQUIRED')]),
+    noise,
+  );
+  assert.deepEqual([flipped.noise, flipped.differences.length], [{}, 0]);
+  assert.deepEqual(
+    flipped.unsettled.map(u => [u.reason, u.paths]),
+    [['call_count_varied_in_calibration', ['/out/returns', '/out/throws']]],
+  );
+  // A different number of the same calls is unsettled as well: the calibration cannot tell it from noise either.
+  const more = compareRecordings(recordingOf([request('/v1/a'), 2]), recordingOf([request('/v1/a'), 4]), noise);
+  assert.deepEqual(
+    [more.noise, more.differences.length, more.unsettled.map(u => u.reason)],
+    [{}, 0, ['call_count_varied_in_calibration', 'call_count_varied_in_calibration']],
+  );
+  // The same recordings without that calibration: every one of those records is a plain difference.
+  assert.equal(
+    compareRecordings(recordingOf([request('/v1/a'), 2]), recordingOf([request('/v1/a'), 4])).differences.length,
+    2,
+  );
+});
+
+test('a flip where the calibration flipped too is unsettled, never noise', () => {
+  // The same build allowed /v1/b in one run and refused it in the other: its paths are /out/returns and /out/throws.
+  const noise = noiseProfile(
+    recordingOf([request('/v1/b')]),
+    recordingOf([refusedWith('/v1/b', 'RESOURCE_SCOPE_REQUIRED')]),
+  );
+  assert.deepEqual(
+    [...noise.paths.values()].map(p => [...p].sort()),
+    [['/out/returns', '/out/throws']],
+  );
+  assert.deepEqual([...noise.counts], []);
+  const again = compareRecordings(
+    recordingOf([request('/v1/b')]),
+    recordingOf([refusedWith('/v1/b', 'RESOURCE_SCOPE_REQUIRED')]),
+    noise,
+  );
+  assert.deepEqual(
+    [again.noise, again.differences.length, again.unsettled.map(u => u.reason)],
+    [{}, 0, ['outcome_flipped_in_calibration']],
+  );
+  // A difference at a path the calibration did differ at, with the outcome kind kept, is still noise.
+  const kept = noiseProfile(
+    recordingOf([request('/v1/b', {returns: 'r1'})]),
+    recordingOf([request('/v1/b', {returns: 'r2'})]),
+  );
+  const same = compareRecordings(
+    recordingOf([request('/v1/b', {returns: 'r3'})]),
+    recordingOf([request('/v1/b', {returns: 'r4'})]),
+    kept,
+  );
+  assert.deepEqual(
+    [same.differences.length, same.unsettled.length, same.noise],
+    [0, 0, {'dist/src/transport.js#NativeTransport.request': 1}],
+  );
+});
+
+test('a named timing-dependent test file counts apart only its clock-decided refusals and repeated records', () => {
+  const limited = path => refusedWith(path, 'TENANT_RATE_LIMIT'),
+    sent = url => ({id: 'provider_request', in: {url, method: 'GET'}});
+  assert.equal(recordingKey('tests/x.test.ts'), 'dist_tests_x.test.js');
+  assert.equal(recordingKey('dist_tests_x.test.js'), 'dist_tests_x.test.js');
+  assert.equal(recordingKey('tests/x.test.mjs'), 'tests_x.test.mjs');
+  const timing = timingOption(['tests/x.test.ts=TENANT_RATE_LIMIT']);
+  assert.deepEqual(timing, {'dist_tests_x.test.js': ['TENANT_RATE_LIMIT']});
+  assert.throws(() => timingOption(['tests/x.test.ts=a=b']), /--timing-dependent/);
+  assert.throws(() => timingOption(['=TENANT_RATE_LIMIT']), /--timing-dependent/);
+  // The burst-pacing shape: of 80 concurrent requests the pacing budget served 62 in one run and 64 in the other.
+  const before = recordingOf([request('/v1/c'), 62], [limited('/v1/c'), 18], [sent('https://x.test/v1/c'), 62]),
+    after = recordingOf([request('/v1/c'), 64], [limited('/v1/c'), 16], [sent('https://x.test/v1/c'), 64]);
+  assert.equal(compareRecordings(before, after).differences.length, 4, 'two flips and two more requests sent');
+  const timed = compareRecordings(before, after, undefined, {timing});
+  assert.deepEqual(
+    [timed.differences.length, timed.unsettled.length, timed.timing_dependent],
+    [0, 0, {'dist/src/transport.js#NativeTransport.request': 2, provider_request: 2}],
+  );
+  // In that file a refusal its clock does not decide still fails, and so does a request neither run of the build sent.
+  const other = compareRecordings(
+    before,
+    recordingOf(
+      [request('/v1/c'), 63],
+      [refusedWith('/v1/c', 'RESOURCE_SCOPE_REQUIRED')],
+      [limited('/v1/c'), 16],
+      [sent('https://x.test/v1/c'), 64],
+      [sent('https://x.test/v1/other')],
+    ),
+    undefined,
+    {timing},
+  );
+  assert.deepEqual(other.timing_dependent, {'dist/src/transport.js#NativeTransport.request': 1, provider_request: 2});
+  assert.deepEqual(other.differences.map(d => [d.id, d.paths ?? 'unpaired']).sort(), [
+    ['dist/src/transport.js#NativeTransport.request', ['/out/throws/code']],
+    ['provider_request', 'unpaired'],
+  ]);
+  // A file named without codes counts only its repeated records apart: the flips still fail.
+  const counted = compareRecordings(before, after, undefined, {timing: timingOption(['tests/x.test.ts'])});
+  assert.deepEqual([counted.differences.length, counted.timing_dependent], [2, {provider_request: 2}]);
 });

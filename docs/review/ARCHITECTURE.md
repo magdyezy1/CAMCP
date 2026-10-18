@@ -351,8 +351,13 @@ build before the change and after it, a loader hook writing every call of the mo
 its result or refusal, and every request each transport sends (headers digested, never written); the two recordings
 must hold the same records per test file. Run-to-run noise is learned from two recordings of the build before the
 change (a calibration: a digest over clock-relative personal-data rows, a fixture's generated key) and reported
-apart; fixtures that draw `Math.random()` draw a seeded sequence. The distinct pure calls of the first recording also
-replay through the new build. Nothing is sent anywhere: the suites' synthetic fetchers answer.
+apart; fixtures that draw `Math.random()` draw a seeded sequence. An outcome flip (a result against a refusal) and
+every record of a function whose call count varied in the calibration are never noise: since the wave 4a merge review
+they are unsettled, each one printed, and fail the comparison, unless `--timing-dependent` names the test file and the
+refusal its clock decides (`tests/transport.test.ts=TENANT_RATE_LIMIT`, the burst-pacing test, whose records the
+proofs below report apart); the proofs below were compared under the earlier rule, which could absorb such a record
+as noise. The distinct pure calls of the first recording also replay through the new build. Nothing is sent
+anywhere: the suites' synthetic fetchers answer.
 
 | Concern | Now in the adapter | Shared stage that keeps the rule | Proof |
 |---|---|---|---|

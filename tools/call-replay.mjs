@@ -9,11 +9,17 @@
 //      recorded calls of the pure functions in `replayable` through the current build and compares their results.
 // Usage:
 //   npm run build && node tools/call-replay.mjs record <dir> [test file ...] [--list file] [--related source file ...]
-//   node tools/call-replay.mjs compare <before> <after> [--calibration <dir> <dir>] [--ignore id ...] [--show N]
+//   node tools/call-replay.mjs compare <before> <after> [--calibration <dir> <dir>] [--ignore id ...]
+//       [--timing-dependent <test file>[=CODE,...] ...] [--show N]
 //   node tools/call-replay.mjs replay <before dir> [--ignore id ...]
 // A calibration is two recordings of the build before the change: a paired record that differs only where they
-// differed (a fixture's random value, a clock-relative time inside a digest) is noise, reported apart; --ignore
-// names a helper that intentionally left its module, whose callers still compare.
+// differed (a fixture's random value, a clock-relative time inside a digest) is noise, reported apart. An outcome flip
+// (a result on one side, a refusal on the other) and the records of a function whose call count varied in the
+// calibration are never noise: when the calibration would have absorbed them they are unsettled, every one printed,
+// and fail the comparison. --timing-dependent names a test file whose clock decides how many of the same calls run and
+// which of them are refused with the named codes (the burst-pacing test: tests/transport.test.ts=TENANT_RATE_LIMIT);
+// those records are counted apart. --ignore names a helper that intentionally left its module, whose callers still
+// compare.
 // Recordings stay outside the repository (they hold test payloads); the commit that moves a concern states the counts.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -40,9 +46,11 @@ export const targets = Object.freeze({
   'dist/src/snapchat-scope.js': {functions: ['snapchatScopedResource', 'snapchatOrganizationPixels']},
   'dist/src/store.js': {classes: {Store: ['rememberResource', 'ownsResource']}},
   'dist/src/account-id.js': {functions: ['normalizeAccount']},
-  'dist/src/execution-risk.js': {
-    functions: ['applyExecutionRisk', 'independentlyReadOnly', 'bodyDeletion', 'googleGlobalRead'],
-  },
+  'dist/src/execution-risk.js': {functions: ['applyExecutionRisk', 'independentlyReadOnly', 'bodyDeletion']},
+  // Google Ads' global planning reads left execution-risk.js for its adapter (ARC-01 phase B, the read
+  // classification); a recording made before names it dist/src/execution-risk.js#googleGlobalRead (compare with
+  // --ignore for both).
+  'dist/src/google-ads-adapter.js': {functions: ['googleGlobalRead']},
   'dist/src/pagination.js': {functions: ['paginate', 'nextPage', 'continuationArguments', 'nextPageCall']},
   'dist/src/account-metadata.js': {
     functions: ['accountPlan', 'accountMetadata', 'accountCurrency', 'accountTimezone', 'accountKind'],
@@ -76,7 +84,7 @@ export const replayable = Object.freeze([
   'dist/src/execution-risk.js#applyExecutionRisk',
   'dist/src/execution-risk.js#independentlyReadOnly',
   'dist/src/execution-risk.js#bodyDeletion',
-  'dist/src/execution-risk.js#googleGlobalRead',
+  'dist/src/google-ads-adapter.js#googleGlobalRead',
   'dist/src/pagination.js#nextPage',
   'dist/src/pagination.js#continuationArguments',
   'dist/src/account-metadata.js#accountPlan',
@@ -357,8 +365,9 @@ function pairs(before, after) {
 }
 
 /**
- * What differs between two recordings of the same build: the noise a later comparison may ignore, as the paths where
- * paired records of each test file and function differed, and the functions whose call counts differed.
+ * What differs between two recordings of the same build: the paths where paired records of each test file and
+ * function differed, which a later comparison may ignore unless the outcome flipped, and the functions whose call
+ * counts differed, whose differences a later comparison never ignores (compareRecordings: they are unsettled).
  */
 export function noiseProfile(before, after) {
   const paths = new Map(),
@@ -371,14 +380,50 @@ export function noiseProfile(before, after) {
   return {paths, counts};
 }
 
+/** The key a recording gives a test file (`tests/transport.test.ts` -> `dist_tests_transport.test.js`), or the key. */
+export function recordingKey(testFile) {
+  const file = posix(String(testFile)),
+    run = file.startsWith('tests/') && file.endsWith('.ts') ? 'dist/' + file.replace(/\.ts$/, '.js') : file;
+  return run.replace(/[^\w.-]+/g, '_');
+}
+const outcomeOf = text => (text === undefined ? undefined : JSON.parse(text).out);
+const outcomeKind = text => {
+  const out = outcomeOf(text);
+  return out && typeof out === 'object'
+    ? Object.hasOwn(out, 'throws')
+      ? 'throws'
+      : Object.hasOwn(out, 'returns')
+        ? 'returns'
+        : undefined
+    : undefined;
+};
+/** A pair whose outcome kind changed: a call returned on one side and threw on the other (an allow and a refusal). */
+export const outcomeFlip = p =>
+  p.before !== undefined && p.after !== undefined && outcomeKind(p.before) !== outcomeKind(p.after);
+const refusalCode = text => {
+  const out = outcomeOf(text);
+  return typeof out?.throws?.code === 'string' ? out.throws.code : undefined;
+};
+
 /**
  * Differences between two recordings, per test file: a paired record that differs only where the calibration
  * (two recordings of one build) also differed is noise; every other paired or unpaired record is a difference.
+ * Two kinds of record are never noise, whatever the calibration shows: an outcome flip, and any record of a function
+ * whose call count differed in the calibration (a test racing promises or the clock pairs its records differently in
+ * each comparison, so the calibration cannot settle them; this rule once classed every difference of such a function
+ * as noise, a returns-to-throws flip included). Where the calibration would have absorbed them they are `unsettled`:
+ * listed in full and failing the comparison as a difference does. `timing` names, by test file (a path or its
+ * recording key), the refusal codes elapsed time decides there (tests/transport.test.ts's burst-pacing test:
+ * TENANT_RATE_LIMIT): in that file a flip between a result and one of those refusals, and a record both recordings hold
+ * a different number of times, are `timing_dependent`, counted apart without failing; everything else still compares.
  */
-export function compareRecordings(before, after, noise) {
+export function compareRecordings(before, after, noise, {timing = {}} = {}) {
   const differences = [],
+    unsettled = [],
     totals = {},
-    noisy = {};
+    noisy = {},
+    timed = {};
+  const timingCodes = new Map(Object.entries(timing).map(([file, codes]) => [recordingKey(file), new Set(codes)]));
   // Records per side; totals per function count the recording after the change.
   const count = recording =>
     [...recording.values()].reduce((n, map) => n + [...map.values()].reduce((a, c) => a + c, 0), 0);
@@ -389,10 +434,25 @@ export function compareRecordings(before, after, noise) {
     }
   for (const p of pairs(before, after)) {
     const key = p.test + '\n' + p.id,
-      allowed = noise?.paths.get(key);
-    // A function whose call count differed between two recordings of one build (a test racing promises) pairs its
-    // records differently in each comparison, so none of its differences in that test file is evidence.
-    if (noise?.counts.has(key) || (p.paths && allowed && p.paths.every(path => allowed.has(path)))) {
+      allowed = noise?.paths.get(key),
+      flip = outcomeFlip(p),
+      codes = timingCodes.get(p.test);
+    if (codes) {
+      // The named file's clock decides how many of the same calls are served, and which are refused with its codes.
+      const multiplicity = !p.paths && (p.before ? after.get(p.test)?.has(p.before) : before.get(p.test)?.has(p.after)),
+        timedFlip = flip && [refusalCode(p.before), refusalCode(p.after)].some(code => code && codes.has(code));
+      if (multiplicity || timedFlip) {
+        timed[p.id] = (timed[p.id] ?? 0) + 1;
+        continue;
+      }
+    }
+    const varied = noise?.counts.has(key),
+      withinCalibration = !!(p.paths && allowed && p.paths.every(path => allowed.has(path)));
+    if (varied || (flip && withinCalibration)) {
+      unsettled.push({...p, reason: varied ? 'call_count_varied_in_calibration' : 'outcome_flipped_in_calibration'});
+      continue;
+    }
+    if (withinCalibration) {
       noisy[p.id] = (noisy[p.id] ?? 0) + 1;
       continue;
     }
@@ -404,6 +464,8 @@ export function compareRecordings(before, after, noise) {
     records_after: count(after),
     totals,
     noise: noisy,
+    timing_dependent: timed,
+    unsettled,
     differences,
     failed_before: [...(before.failed ?? [])].sort(),
     failed_after: [...(after.failed ?? [])].sort(),
@@ -476,6 +538,22 @@ async function replay(root, directory, moved) {
 
 /** Values of a repeated option (`--ignore a --ignore b`). */
 const option = (args, name) => args.flatMap((a, i) => (a === name && args[i + 1] ? [args[i + 1]] : []));
+/**
+ * `--timing-dependent` values (`tests/transport.test.ts=TENANT_RATE_LIMIT`) as recording key -> the refusal codes the
+ * file's clock decides; a file named without codes has only the records it repeats a different number of times
+ * counted apart.
+ */
+export function timingOption(values) {
+  const out = {};
+  for (const value of values) {
+    const [file, codes = '', extra] = String(value).split('=');
+    if (!file || extra !== undefined || !/^[A-Z0-9_,]*$/.test(codes))
+      throw Error('--timing-dependent takes <test file>[=CODE,...]: ' + value);
+    const key = recordingKey(file);
+    out[key] = [...new Set([...(out[key] ?? []), ...codes.split(',').filter(Boolean)])].sort();
+  }
+  return out;
+}
 
 function main(argv) {
   const root = path.resolve(fileURLToPath(new URL('..', import.meta.url))),
@@ -539,10 +617,12 @@ function main(argv) {
     return exit === 0 ? 0 : 2;
   }
   if (mode === 'compare') {
-    // compare <before> <after> [--calibration <dir> <dir>] [--ignore id ...] [--show N]
+    // compare <before> <after> [--calibration <dir> <dir>] [--ignore id ...] [--timing-dependent file=CODE,...]
+    // [--show N]
     const [a, b] = rest,
       show = Number(option(rest, '--show')[0] ?? 10) || 10,
       ignore = new Set(option(rest, '--ignore')),
+      timing = timingOption(option(rest, '--timing-dependent')),
       at = rest.indexOf('--calibration'),
       calibration = at >= 0 ? [rest[at + 1], rest[at + 2]] : undefined;
     // An intended move (a helper that left its module) is named with --ignore; its callers' records still compare.
@@ -553,7 +633,7 @@ function main(argv) {
       return recording;
     };
     const noise = calibration ? noiseProfile(load(calibration[0]), load(calibration[1])) : undefined;
-    const result = compareRecordings(load(a), load(b), noise);
+    const result = compareRecordings(load(a), load(b), noise, {timing});
     console.log(
       JSON.stringify({
         event: 'call_replay_compare',
@@ -561,15 +641,20 @@ function main(argv) {
         records_before: result.records_before,
         records_after: result.records_after,
         differences: result.differences.length,
+        unsettled: result.unsettled.length,
         noise: result.noise,
+        timing_dependent: result.timing_dependent,
         ignored: [...ignore],
+        timing,
         failed_before: result.failed_before,
         failed_after: result.failed_after,
         totals: result.totals,
       }),
     );
     for (const d of result.differences.slice(0, show)) console.log(JSON.stringify(d).slice(0, 4000));
-    return result.differences.length ? 1 : 0;
+    // Every unsettled record prints: the calibration could not tell it from noise, so a person reads each one.
+    for (const d of result.unsettled) console.log(JSON.stringify({unsettled: d.reason, ...d}).slice(0, 4000));
+    return result.differences.length || result.unsettled.length ? 1 : 0;
   }
   if (mode === 'replay') {
     const [directory] = rest;
