@@ -370,11 +370,12 @@ export const documentKindSpecs = {
   },
   microsoft_report: {
     scope: 'tenant',
-    owner: 'src/scope.ts',
+    // ScopeGuard's observation of a report submission writes it, through Microsoft's scope hooks (ARC-01 phase B).
+    owner: 'src/microsoft-adapter.ts',
     version: 1,
     summary: 'A parsed Microsoft report download.',
     fields: {expires_at: 'number', 'connection_id?': 'string'},
-    retention: ownerExpiry('expires_at', 'Deleted once expired, when the next download is parsed.'),
+    retention: ownerExpiry('expires_at', 'Deleted once expired, when the next report is submitted.'),
     connection: {match: 'field', field: 'connection_id'},
   },
   monitor_notice: {

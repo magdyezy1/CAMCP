@@ -1,4 +1,4 @@
-import {reportDns, microsoftReportPage} from '../src/microsoft-report-download.js';
+import {reportDns, microsoftReportKey, microsoftReportPage} from '../src/microsoft-report-download.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {crc32, deflateRawSync} from 'node:zlib';
@@ -205,6 +205,11 @@ test('Microsoft submit → poll/download returns account-bound paged rows withou
     assert.equal(providerCalls, 0);
     assert.equal(downloads, 0);
     assert.equal((await service.call(gateway, poll, actor)).error.code, 'RESOURCE_SCOPE_REQUIRED');
+    // Receipts that expired are deleted when the next report is submitted (the kind's declared expiry, which
+    // Microsoft's scope hooks apply through the store layer); a live one and another workspace's are kept.
+    store.putDocument(actor.tenantId, 'microsoft_report', 'expired', {connection_id: 'ms', expires_at: 1});
+    store.putDocument(actor.tenantId, 'microsoft_report', 'live', {connection_id: 'ms', expires_at: Date.now() + 6e5});
+    store.putDocument('elsewhere', 'microsoft_report', 'expired', {connection_id: 'other', expires_at: 1});
     assert.equal(
       (
         await service.call(
@@ -215,7 +220,19 @@ test('Microsoft submit → poll/download returns account-bound paged rows withou
       ).success,
       true,
     );
-    const receipt = store.documents(actor.tenantId, 'microsoft_report')[0]!;
+    const key = microsoftReportKey('ms', '123', 'r1');
+    assert.deepEqual(
+      store
+        .documents(actor.tenantId, 'microsoft_report')
+        .map(d => d.id)
+        .sort(),
+      [key, 'live'].sort(),
+    );
+    assert.deepEqual(
+      store.documents('elsewhere', 'microsoft_report').map(d => d.id),
+      ['expired'],
+    );
+    const receipt = store.document(actor.tenantId, 'microsoft_report', key);
     assert.ok(receipt.expires_at > Date.now() + 23 * 3600000);
     store.db.exec('UPDATE resource_ownership SET expires_at=0');
     let r = await service.call(gateway, poll, actor);

@@ -59,11 +59,9 @@ function observeMicrosoft(plan: CompiledRequest, connection: Connection, id: str
   const d = data as JsonObject;
   if (plan.action !== 'SubmitGenerateReport' || typeof d?.ReportRequestId !== 'string') return;
   store.rememberResource(connection, id, 'report/' + d.ReportRequestId);
-  store.db
-    .prepare(
-      "DELETE FROM documents WHERE tenant_id=? AND kind='microsoft_report' AND json_extract(data,'$.expires_at')<=?",
-    )
-    .run(connection.tenantId, Date.now());
+  // The kind's declared expiry (src/document-kinds.ts: expires_at reached), applied through the store layer by this,
+  // its owner module, before it saves the next receipt.
+  store.repo('microsoft_report', connection.tenantId).purgeExpired(Date.now());
   store.putDocument(connection.tenantId, 'microsoft_report', microsoftReportKey(connection.id, id, d.ReportRequestId), {
     connection_id: connection.id,
     account_id: id,
