@@ -1,0 +1,42 @@
+<evaluation>
+   <qa_pair>
+      <question>Our outdoor-gear client has two Meta ad accounts connected to AMCP, but Meta will not let AMCP read one of them. Which ad account is it? Answer with the ad account ID only.</question>
+      <answer>1102</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>In which IANA time zone does the bakery client's Meta ad account report? Answer with the time zone name only, for example Europe/Paris.</question>
+      <answer>America/New_York</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>In the saved weekly performance report for the outdoor-gear client covering 1 to 7 September 2026, which campaign spent the most? Answer with the campaign name exactly as the report shows it.</question>
+      <answer>Trail Running Prospecting</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>What did the bakery client's campaigns spend in total in its saved weekly performance report for 1 to 7 September 2026? Answer in the report's currency as a number with two decimals and no currency sign.</question>
+      <answer>149.65</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>One of the captured Google Ads reports for the outdoor-gear client is marked as incomplete evidence. What source name was recorded for that capture? Answer with the source name exactly.</question>
+      <answer>Interrupted Google Ads export of 5 September</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Which saved campaign plan would create a Meta campaign whose objective is lead generation? Answer with the plan name exactly.</question>
+      <answer>Bluebell holiday lead form</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>How many saved campaign plans would create campaigns in the outdoor-gear client's Meta ad account that reports in euros? Answer with a number only.</question>
+      <answer>2</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>In the outdoor-gear client's Tag Manager workspace 66 of container 55, one tag waits for the visitor's consent to analytics storage before it fires. What is that tag's ID? Answer with the tag ID only.</question>
+      <answer>002</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>One image in the media library was uploaded to two different ad accounts from the very same original file. What is its name in the library? Answer with the name exactly.</question>
+      <answer>Trail shoe hero image</answer>
+   </qa_pair>
+   <qa_pair>
+      <question>Which campaign of the outdoor-gear client appears in its saved weekly performance report but is paused in Meta? Answer with the campaign name exactly.</question>
+      <answer>Winter Jackets Retargeting</answer>
+   </qa_pair>
+</evaluation>

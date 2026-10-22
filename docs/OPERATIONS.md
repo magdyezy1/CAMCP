@@ -787,6 +787,11 @@ in-process fake that refuses and counts any other host.
   schemas), instructions 1,446 bytes in both, and response bytes per run from −4 to +6,136 (J1's four branches grow
   about 10 % with the wave 2 readiness and attention data). No count, end state, tool choice or handoff changed, so
   guided runs still reach the goal for T3, T5 and H2 only.
+- **Re-baseline after the wave 4b MCP quality pass (2026-10-22).** The earlier file is git blob
+  `26242850dab19be87f60168f248e020047c29de3`. No count, end state, tool choice or handoff changed. tools/list grew
+  94,467 → 95,706 bytes (operation-mode write notes, two AMCP-owned descriptions) and instructions 1,446 → 1,479
+  bytes; response bytes per run grew 0 to +4,727 (J1's branches read `/api/platforms`, which lists the descriptions;
+  list pages carry the paging fields). The ten evaluation-set runs E1–E10 were added (below).
 - **Transcript privacy.** A sanitized transcript keeps argument keys only when they name a parameter (a plain
   identifier of at most 40 characters without a run of four digits); keys made of data, such as account IDs, names or
   metric IDs used as map keys, become `<key>`. A website path keeps route segments only and otherwise becomes
@@ -799,6 +804,52 @@ in-process fake that refuses and counts any other host.
   <new file>`, then measure the runs with `--external <runs.json>`. A transcript keeps argument shapes, result codes,
   states and sizes. It is refused if it carries argument values, provider text or bodies. Record the results with
   [the evaluation record template](review/MCP-EVALUATION-RECORD-TEMPLATE.md).
+
+#### MCP evaluation set and the mcp-builder LLM runner
+
+`tests/fixtures/mcp-evaluation/evaluation.xml` holds ten questions in the mcp-builder skill's evaluation format
+(`<evaluation><qa_pair><question>…</question><answer>…</answer></qa_pair>…</evaluation>`): realistic agency questions,
+independent and read-only, each needing two to four calls and with one stable answer. They are asked about a
+synthetic workspace (`workspace.mjs`): an outdoor-gear client with two Meta ad accounts (Meta refuses one), a Google
+Ads customer and a Tag Manager container, and a bakery with one Meta ad account, plus saved report snapshots,
+captured reports, campaign plans and a media library, all with fixed values and times. Every provider is an
+in-process fake; other hosts and every provider write are refused and counted. The workspace serves the person who
+seeded it in the reader role, so no call can change anything.
+
+- **Answers are proven, not asserted.** `solutions.mjs` answers each question through read-only AMCP calls, starting
+  from the connections as an assistant would. `tests/mcp-evaluation-set.test.mjs` runs each solution on a fresh
+  workspace through a real MCP SDK client and checks that the answer equals the XML answer, that every call is
+  read-only by its own hints, that the store is unchanged and that nothing left the process. The same questions are
+  a suite of `node tools/mcp-eval.mjs` (`--only E4`, or `--only evaluation_set`), held to the baseline like the B15
+  tasks.
+- **Keep the set fixed.** Like the hold-out tasks, these questions measure the descriptions; never tune a
+  description to them. Change a question only with its solution and a new baseline.
+- **The LLM runner is an owner step.** The skill's `scripts/evaluation.py` sends each question to the Anthropic API,
+  so it uses the owner's API key and usage. Nothing in the build, the tests or qualification runs it. The steps:
+  1. `npm run build`, so `dist/` serves the fixture.
+  2. Once, install the runner's packages (a download from PyPI):
+     `pip install -r C:/Users/abdom/.claude/skills/mcp-builder/scripts/requirements.txt`.
+  3. Set the key for that shell only (PowerShell: `$env:ANTHROPIC_API_KEY = "<your key>"`). Never write it into a
+     file in this repository.
+  4. From the repository root, run the runner through AMCP's wrapper, with a current Claude model (the runner's
+     default model may no longer be served) and a new report file under the ignored `.runtime/`:
+
+     ```
+     python tools/mcp-skill-evaluation.py --skill-scripts C:/Users/abdom/.claude/skills/mcp-builder/scripts -- -t stdio -c node -a tests/fixtures/mcp-evaluation/server.mjs -m <model> -o .runtime/mcp-evaluation/2026-10-22-report.md tests/fixtures/mcp-evaluation/evaluation.xml
+     ```
+
+     The runner starts `tests/fixtures/mcp-evaluation/server.mjs` itself over stdio. That server needs no database,
+     key, credential or network: it serves the fixture from memory, refuses the global fetch and logs to stderr only.
+  5. Measure the report: `node tools/mcp-eval.mjs --skill-report .runtime/mcp-evaluation/2026-10-22-report.md
+     --output .runtime/mcp-evaluation/2026-10-22-record.json`. It keeps, per question, whether the answer was
+     correct, the tool calls by tool and the calls beyond the reference solution's (from the baseline). It never
+     keeps the answers, summaries or feedback the report holds. Repeat the run, since a model's behaviour varies, and
+     pass several reports separated by commas to get ranges per question.
+- **Why the wrapper.** The installed runner (2026-10-22 copy) hands each tool result's content blocks, which the
+  `mcp` package returns as pydantic models, to `json.dumps`, which cannot serialize them, so every tool call would
+  reach the model as an error text. `tools/mcp-skill-evaluation.py` changes no skill file. It makes the runner's own
+  `call_tool` return the blocks as JSON data, then runs `evaluation.py` unchanged with the arguments after `--`.
+  The verifier test exercises it against stub runner modules, with no third-party package.
 
 The Dockerfile base image `node:24-bookworm-slim` and the apt `ffmpeg` package are tags, not digests. Pinning the base
 image by digest needs the digest from a registry the owner trusts; record it in the Dockerfile with a dated comment
