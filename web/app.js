@@ -314,16 +314,13 @@ const websiteMessages = {
   DESTRUCTIVE_CONFIRMATION_REQUIRED: () =>
     'The owner requires an explicit acknowledgement before anything is deleted on this account. Nothing was sent.',
 };
-// Codes whose server wording suits an MCP client but is technical for a person ("a new idempotency key"): the page
-// says them in its own words whatever the server wrote, and keeps the server's text under Technical details (design
-// review 2026-10). [message, what to do].
+// [message, what to do] the page always uses for a code whose server text is technical (design review 2026-10).
 const websiteWording = {
   WRITE_OUTCOME_UNCERTAIN: [
     'The provider’s answer to this change was lost, so AMCP cannot confirm whether it was applied.',
     'AMCP never sends it again. Read it back to check the account; a read-back changes nothing.',
   ],
 };
-/** The page's own message for an error, or ''. */
 function websiteOwnMessage(error) {
   return Object.hasOwn(websiteWording, error?.code ?? '') ? uiText(websiteWording[error.code][0]) : '';
 }

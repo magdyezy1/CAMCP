@@ -386,6 +386,10 @@ test('each cold route initializes its real scripts and required handlers in Engl
     '/capabilities': ['renderOperationsCenter', 'renderWorkbookBindings', ...builder],
     '/reports': ['renderOperationsCenter', 'renderWorkbookBindings'],
     '/report-pack': ['renderOperationsCenter', 'renderWorkbookBindings'],
+    // Design review 2026-10: Home and Schedules downloaded the campaign review and plan code (25.9 KB of Brotli, about
+    // 14% of Home) through work-center.js and called none of it.
+    '/dashboard': ['readableReview', 'bindCampaignWorkflow', 'campaignJournal'],
+    '/schedules': ['readableReview', 'bindCampaignWorkflow', 'campaignJournal'],
   };
   // The page bodies these modules provide through the route registry (AMCP.routes.register, web/routes.js).
   const registered = {

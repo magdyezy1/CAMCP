@@ -257,7 +257,6 @@ function workspaceBind(selector, fn, options = {}) {
       } catch (error) {
         failed = true;
         if (request) request.show(error);
-        // A refusal the page already shows beside its control (an authorization not ticked) is not repeated as a toast.
         else if (currentScope() && el.isConnected && error?.presented !== true) toast(errorMessage(error));
       } finally {
         if (button && latest()) button.disabled = options.disabled?.(button) === true;
@@ -415,7 +414,6 @@ async function renderCampaigns() {
       planHistory.querySelector('.empty')?.remove();
       planHistory.append(row);
     }
-    // The one emphasized action after a step went wrong: a read-back, or the correction (design review 2026-10).
     const lead = typeof campaignNextSafeAction === 'function' ? campaignNextSafeAction(run) : '';
     $('#campaign-detail').innerHTML =
       campaignRows(run) +

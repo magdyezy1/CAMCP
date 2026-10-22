@@ -87,8 +87,7 @@ html[data-theme='dark'],
   background: var(--white);
   border-color: var(--line);
 }
-/* IDs stay out of the shared groups: an :is() group takes its most specific entry's weight, and #command-results
-   once lifted every .button and .status above their variants (design review 2026-10). */
+/* No ID in a shared group: an :is() takes its heaviest entry's weight (design review 2026-10). */
 [data-theme='dark'] #command-results button {
   color: var(--ink);
   background: var(--white);
