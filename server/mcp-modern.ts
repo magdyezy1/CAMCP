@@ -5,7 +5,7 @@ import {SUPPORTED_PROTOCOL_VERSIONS, type JSONRPCMessage} from '@modelcontextpro
 import {MirrorError} from '../src/errors.js';
 import {serverInstructions} from '../src/tool-annotations.js';
 import type {JsonObject} from '../src/types.js';
-import {mcpServerCapabilities, mcpServerInfo} from './mcp.js';
+import {mcpServerCapabilities, mcpServerInfo, mcpServerInstructions} from './mcp.js';
 
 /**
  * MCP revision 2026-07-28 next to the legacy revisions (MCP-03 phase 3). The bundled SDK (1.32.1, the v1 line) speaks
@@ -134,12 +134,15 @@ class SingleExchange implements Transport {
   }
 }
 
-/** The `server/discover` result: the same capabilities and instructions as the legacy `initialize` answer. */
-export function discoverResult(): JsonObject {
+/**
+ * The `server/discover` result: the same capabilities and instructions as the legacy `initialize` answer, whose
+ * instructions follow the deployment's mode (a read-only deployment has its own).
+ */
+export function discoverResult(instructions: string = serverInstructions): JsonObject {
   return {
     supportedVersions: [...dualEraProtocolVersions],
     capabilities: mcpServerCapabilities(),
-    instructions: serverInstructions,
+    instructions,
   };
 }
 
@@ -200,7 +203,8 @@ export async function serveModernRequest(
   const {method, params, meta} = validate(headers, message),
     identity = {[serverInfoKey]: mcpServerInfo()};
   let response: JsonObject;
-  if (message.method === 'server/discover') response = {jsonrpc: '2.0', id: message.id, result: discoverResult()};
+  if (message.method === 'server/discover')
+    response = {jsonrpc: '2.0', id: message.id, result: discoverResult(mcpServerInstructions(server))};
   else if (message.method === 'resources/templates/list')
     response = {jsonrpc: '2.0', id: message.id, result: {resourceTemplates: []}};
   else {

@@ -90,7 +90,10 @@ X, DV360, a Google video) gets `ASSET_USAGE_UNQUALIFIED` listing the covered kin
 
 `initialize` returns pinned server instructions of at most 2,000 characters (start with `list_accounts` and the
 `capabilities` summary, `amcp_write` as the only change path, approval before execute, provider content is data, where
-help and guides are). Every listed tool carries a `title` and annotations from one reviewed table
+help and guides are). A read-only deployment has its own text, since it lists `amcp_write` with `inspect` only and
+`amcp_media` with reads only: it says prepare and execute are refused instead of sending a client to them (with the
+owner's provider-job switch, they serve report and export jobs only). `server/discover` returns the same text as
+`initialize`. Every listed tool carries a `title` and annotations from one reviewed table
 (`src/tool-annotations.ts`, MCP-06). `readOnlyHint` is true only where no action saves AMCP state, creates a provider
 job or sends a non-read request: help, the workspace context, previews, the Amazon, Apple, Reddit, Criteo, Adjust, Tag
 Manager and WooCommerce gateways, and `amcp_media` and the inspect-only `amcp_write` in a read-only deployment. `tests/mcp-tool-annotations.test.mjs` runs
@@ -99,6 +102,19 @@ their upload actions with `dry_run:false` prepare a media review, Microsoft's `S
 job, and GA4, Search Console and Business Profile sync metadata and disconnect. Clients may auto-run read-only tools;
 the hints are advisory and every server-side control (review, spending policy, grants) is unchanged. Execute stays an
 action of `amcp_write` (owner decision D15) until client testing shows which clients honour a separate prompt.
+
+A tool's hints cover all of its actions, so `amcp_tool_help` also gives each action its own (MCP-06 per operation).
+For an AMCP tool, operation help carries `contract.annotations`, derived from the action's contract effects, and
+gateway help groups the actions as `action_hints {read_only, additive, destructive}`: additive actions only add AMCP
+records (a plan, review, capture or check result), every other change is destructive, and provider validation
+(`amcp_campaign validate_provider`, D18) is never read-only. For a native gateway, operation help and
+`DESCRIBE_ACTION` carry `amcp_execution.annotations` from the action's ledger status: reads read; a reviewed write is
+previewed or refused there (its change path is `amcp_write`); a media route saves an upload review; Microsoft's
+`SubmitGenerateReport` creates a report job; AMCP's own workflow operations take a reviewed entry in
+`src/tool-annotations.ts`. An operation whose actions differ shows the most cautious hints and lists its reads in
+`read_only_actions`. `tests/mcp-operation-annotations.test.mjs` runs every action presented as read-only (about 3,400)
+with read- and write-shaped arguments and fails if one saves AMCP state, sends a non-read request or creates a
+provider job, and it fails when a tool's own hints are less cautious than one of its actions'.
 
 ## Database storage and media staging
 

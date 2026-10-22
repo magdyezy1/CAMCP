@@ -15,7 +15,7 @@ import {rememberAccountMetadata} from '../dist/src/account-metadata.js';
 import {workspaceCapabilities} from '../dist/src/capabilities.js';
 import {aliasUsageCacheMs, cachedLegacyAliasUsage, legacyAliasUsage} from '../dist/src/legacy-alias-usage.js';
 import {googleLegacyCoverage} from '../dist/src/google-legacy.js';
-import {serverInstructions} from '../dist/src/tool-annotations.js';
+import {serverInstructionsFor} from '../dist/src/tool-annotations.js';
 import {offerParkedProviders} from './helpers/parked-providers.mjs';
 
 // WooCommerce is parked (ARC-01, P9): this suite exercises it, so it offers it like a
@@ -177,7 +177,7 @@ test('descriptions are AMCP-owned: no tool that does not exist, Amazon says noth
           g + ' help',
           registry.help({gateway: g}, {mode: 'strict', flags: {}}).description ?? '',
         ]),
-        ['server instructions', serverInstructions],
+        ['server instructions', serverInstructionsFor({allowWrites})],
       ];
     for (const [where, text] of texts) {
       assert.doesNotMatch(text, /Prefer named tools|dv360_reporting_ops|semantic create_creative tool/, where);
