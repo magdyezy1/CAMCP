@@ -11483,5 +11483,14 @@
   "TikTok returned more pixel event statistics than one ledger reads.": "أعادت TikTok من إحصاءات أحداث البكسل أكثر مما يقرؤه سجل واحد.",
   "TikTok returned a malformed statistics field name.": "أعادت TikTok اسم حقل إحصاءات مشوّهًا.",
   "TikTok returned an unsafe number or an unreadable value in its pixel event statistics.": "أعادت TikTok رقمًا غير آمن أو قيمة غير قابلة للقراءة في إحصاءات أحداث البكسل.",
-  "TikTok returned a failed or unrecognized pixel event statistics response.": "أعادت TikTok استجابة فاشلة أو غير معروفة لإحصاءات أحداث البكسل."
+  "TikTok returned a failed or unrecognized pixel event statistics response.": "أعادت TikTok استجابة فاشلة أو غير معروفة لإحصاءات أحداث البكسل.",
+  "Tick the authorization above to execute this request.": "حدّد التفويض أعلاه لتنفيذ هذا الطلب.",
+  "Tick each authorization above to execute this request.": "حدّد كل تفويض أعلاه لتنفيذ هذا الطلب.",
+  "The provider’s answer to this step was lost, so AMCP cannot confirm the change. It is never sent again: use Read back submitted step to check the account.": "فُقد رد المنصة على هذه الخطوة، لذلك لا يستطيع AMCP تأكيد التغيير. لن تُرسَل مرة أخرى أبدًا: استخدم «إعادة قراءة نتيجة الخطوة المرسلة» للتحقق من الحساب.",
+  "This step did not complete. What happened and what to do are shown with the step.": "لم تكتمل هذه الخطوة. ما حدث وما يجب فعله معروضان مع الخطوة.",
+  "The provider’s answer to this change was lost, so AMCP cannot confirm whether it was applied.": "فُقد رد المنصة على هذا التغيير، لذلك لا يستطيع AMCP تأكيد ما إذا كان قد طُبّق.",
+  "AMCP never sends it again. Read it back to check the account; a read-back changes nothing.": "لن يرسله AMCP مرة أخرى أبدًا. أعد قراءته للتحقق من الحساب؛ فإعادة القراءة لا تغيّر شيئًا.",
+  "No spending policy protects this account. The workspace owner can set one for this account, or a default for every account, in Workspace settings.": "لا تحمي أي سياسة إنفاق هذا الحساب. يستطيع مالك مساحة العمل تعيين سياسة لهذا الحساب، أو سياسة افتراضية لكل الحسابات، من إعدادات مساحة العمل.",
+  "Open spending policies": "فتح سياسات الإنفاق",
+  "Request routing compiled locally; live behavioral parity is tracked separately.": "جُمِّع توجيه الطلب محليًا؛ ويُتابَع تطابق السلوك الفعلي مع المنصة بشكل منفصل."
 }

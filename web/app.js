@@ -314,10 +314,24 @@ const websiteMessages = {
   DESTRUCTIVE_CONFIRMATION_REQUIRED: () =>
     'The owner requires an explicit acknowledgement before anything is deleted on this account. Nothing was sent.',
 };
+// Codes whose server wording suits an MCP client but is technical for a person ("a new idempotency key"): the page
+// says them in its own words whatever the server wrote, and keeps the server's text under Technical details (design
+// review 2026-10). [message, what to do].
+const websiteWording = {
+  WRITE_OUTCOME_UNCERTAIN: [
+    'The provider’s answer to this change was lost, so AMCP cannot confirm whether it was applied.',
+    'AMCP never sends it again. Read it back to check the account; a read-back changes nothing.',
+  ],
+};
+/** The page's own message for an error, or ''. */
+function websiteOwnMessage(error) {
+  return Object.hasOwn(websiteWording, error?.code ?? '') ? uiText(websiteWording[error.code][0]) : '';
+}
 /** The remedy as the website words it, or ''. */
 function websiteRemedy(error) {
   const code = typeof error?.code === 'string' ? error.code : '',
     layer = error?.details?.layer;
+  if (Object.hasOwn(websiteWording, code)) return uiText(websiteWording[code][1]);
   if (typeof layer === 'string' && Object.hasOwn(providerLayerRemedies, layer))
     return uiText(providerLayerRemedies[layer]);
   const server =
@@ -391,9 +405,10 @@ function errorParts(error) {
   return {
     message: split
       ? uiText(parts.base).replace(/\.?$/, '') + ': ' + parts.suffix
-      : Object.hasOwn(websiteMessages, error.code) && agentDirected(raw)
-        ? uiText(websiteMessages[error.code](raw))
-        : uiText(raw),
+      : websiteOwnMessage(error) ||
+        (Object.hasOwn(websiteMessages, error.code) && agentDirected(raw)
+          ? uiText(websiteMessages[error.code](raw))
+          : uiText(raw)),
     remedy: websiteRemedy(error),
     provider: facts
       ? [

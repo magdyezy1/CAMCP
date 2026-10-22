@@ -257,7 +257,8 @@ function workspaceBind(selector, fn, options = {}) {
       } catch (error) {
         failed = true;
         if (request) request.show(error);
-        else if (currentScope() && el.isConnected) toast(errorMessage(error));
+        // A refusal the page already shows beside its control (an authorization not ticked) is not repeated as a toast.
+        else if (currentScope() && el.isConnected && error?.presented !== true) toast(errorMessage(error));
       } finally {
         if (button && latest()) button.disabled = options.disabled?.(button) === true;
         // A successful re-render can restore its replacement control. Obsolete failures cannot move focus.
@@ -414,13 +415,15 @@ async function renderCampaigns() {
       planHistory.querySelector('.empty')?.remove();
       planHistory.append(row);
     }
+    // The one emphasized action after a step went wrong: a read-back, or the correction (design review 2026-10).
+    const lead = typeof campaignNextSafeAction === 'function' ? campaignNextSafeAction(run) : '';
     $('#campaign-detail').innerHTML =
       campaignRows(run) +
       // WEB-03: an approval lasts 24 hours; an expired one offers the review again instead of a Run that fails.
       (campaignApprovalExpired(run)
         ? `<p class="notice" role="note">${esc(uiText('The plan approval expired 24 hours after it was given. Review the whole plan again to run it.'))}</p>`
         : '') +
-      `<div class="dialog-actions">${run.steps.some(s => s.review_id && ['executing', 'uncertain', 'failed', 'verifying', 'mismatch', 'processing'].includes(s.status)) ? `<button id="reconcile-campaign" class="button">${esc(uiText('Read back submitted step'))}</button>` : ''}<button id="preflight-campaign" class="button">${esc(uiText('Check prerequisites'))}</button><button id="next-campaign" class="button">${esc(uiText('Review next step'))}</button><button id="approve-campaign" class="button">${esc(uiText(campaignApprovalExpired(run) ? 'Review whole plan again' : 'Review whole plan'))}</button>${campaignApprovalCurrent(run) ? `<button id="run-campaign" class="button primary">${esc(uiText('Run approved plan / continue'))}</button>${run.steps.every(s => s.kind === 'media') && !['queued', 'running'].includes(run.background?.state) ? `<button id="run-background" class="button">${esc(uiText('Run on the AMCP server'))}</button>` : ''}` : ''}${campaignNeedsAmendment(run) ? `<button id="amend-campaign" class="button">${esc(uiText('Correct blocked step'))}</button>` : ''}${['attention', 'cancelled'].includes(run.state) && run.steps.some(s => !['verified', 'verified_with_acceptance', 'complete'].includes(s.status)) ? `<button id="continue-campaign" class="button">${esc(uiText('Continue in a new linked plan'))}</button>` : ''}${campaignCanActivate(run) ? `<button id="activate-campaign" class="button">${esc(uiText('Prepare activation'))}</button>` : ''}${run.steps
+      `<div class="dialog-actions">${run.steps.some(s => s.review_id && ['executing', 'uncertain', 'failed', 'verifying', 'mismatch', 'processing'].includes(s.status)) ? `<button id="reconcile-campaign" class="button${lead === 'reconcile' ? ' primary' : ''}">${esc(uiText('Read back submitted step'))}</button>` : ''}<button id="preflight-campaign" class="button">${esc(uiText('Check prerequisites'))}</button><button id="next-campaign" class="button">${esc(uiText('Review next step'))}</button><button id="approve-campaign" class="button">${esc(uiText(campaignApprovalExpired(run) ? 'Review whole plan again' : 'Review whole plan'))}</button>${campaignApprovalCurrent(run) ? `<button id="run-campaign" class="button${lead ? '' : ' primary'}">${esc(uiText('Run approved plan / continue'))}</button>${run.steps.every(s => s.kind === 'media') && !['queued', 'running'].includes(run.background?.state) ? `<button id="run-background" class="button">${esc(uiText('Run on the AMCP server'))}</button>` : ''}` : ''}${campaignNeedsAmendment(run) ? `<button id="amend-campaign" class="button${lead === 'amend' ? ' primary' : ''}">${esc(uiText('Correct blocked step'))}</button>` : ''}${['attention', 'cancelled'].includes(run.state) && run.steps.some(s => !['verified', 'verified_with_acceptance', 'complete'].includes(s.status)) ? `<button id="continue-campaign" class="button">${esc(uiText('Continue in a new linked plan'))}</button>` : ''}${campaignCanActivate(run) ? `<button id="activate-campaign" class="button">${esc(uiText('Prepare activation'))}</button>` : ''}${run.steps
         .filter(s => ['mismatch', 'verifying'].includes(s.status) && s.verification?.actual_hash)
         .map(
           s =>
@@ -695,9 +698,14 @@ async function renderMediaLibrary() {
       if (notSent) $('#media-review').insertAdjacentHTML('afterbegin', notSent);
     } else if (r.resume_available) {
       $('#media-review').innerHTML += reviewView(r, uiText('Resume original upload'));
+      bindReviewConsents();
       workspaceBind('#execute-reviewed', async () => {
         if (!$('#review-consent').checked)
-          throw Error(uiText('Review and authorize continuation of this original upload first.'));
+          reviewConsentRefusal(
+            ['review-consent'],
+            ['review-consent'],
+            'Review and authorize continuation of this original upload first.',
+          );
         try {
           await workspaceCall('media', {
             action: 'resume',

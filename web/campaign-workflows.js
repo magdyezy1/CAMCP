@@ -15,12 +15,14 @@ function reviewFields(value, path = '', out = []) {
   return out;
 }
 const reviewValue = value => (value === null ? uiText('Not supplied') : String(value ?? ''));
+// A request's warnings are AMCP's own notes: translated, unlike the native values beside them (design review 2026-10).
+const reviewNote = f => (/^\/warnings(\/|$)/.test(f.path) ? uiText(reviewValue(f.value)) : reviewValue(f.value));
 // `native`: which values are the native request or provider-observed state, kept literal in every language (QA-03):
 // true for all, or a test of the field path. AMCP's own notes (a request's warnings) stay translatable text.
 function reviewTable(value, caption, {native = false} = {}) {
   const fields = reviewFields(value);
   return fields.length
-    ? `<div class="data-scroll" role="region" aria-label="${esc(caption)}" tabindex="0"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr><th scope="col">${esc(uiText('Field / native unit'))}</th><th scope="col">${esc(uiText('Value'))}</th></tr></thead><tbody>${fields.map(f => `<tr><th scope="row"><code dir="ltr">${esc(f.path || 'value')}</code></th><td dir="auto"${(typeof native === 'function' ? native(f.path) : native) ? ' data-native' : ''}>${esc(reviewValue(f.value))}</td></tr>`).join('')}</tbody></table></div>${fields.length === 160 ? `<p class="form-note">${esc(uiText('Summary limited to 160 fields. Inspect the complete request below before approving.'))}</p>` : ''}`
+    ? `<div class="data-scroll" role="region" aria-label="${esc(caption)}" tabindex="0"><table class="review-table"><caption>${esc(caption)}</caption><thead><tr><th scope="col">${esc(uiText('Field / native unit'))}</th><th scope="col">${esc(uiText('Value'))}</th></tr></thead><tbody>${fields.map(f => `<tr><th scope="row"><code dir="ltr">${esc(f.path || 'value')}</code></th><td dir="auto"${(typeof native === 'function' ? native(f.path) : native) ? ' data-native' : ''}>${esc(reviewNote(f))}</td></tr>`).join('')}</tbody></table></div>${fields.length === 160 ? `<p class="form-note">${esc(uiText('Summary limited to 160 fields. Inspect the complete request below before approving.'))}</p>` : ''}`
     : blank(uiText('No values supplied.'));
 }
 const reviewConsentLabels = {
@@ -72,13 +74,57 @@ function requiredReviewConsents(review) {
     key => key === 'confirmed' || review.execute_requirements?.[key] === true,
   );
 }
+// WEB-03 (design review 2026-10): an authorization not ticked is refused beside its box, which takes focus; before, the
+// box's own label came back as a six-second toast in the corner that outlived the execution. Ticking clears it.
 function readReviewConsents(review) {
-  return Object.fromEntries(
-    requiredReviewConsents(review).map(key => {
-      if (!$('#' + reviewConsentIds[key])?.checked) throw Error(uiText(reviewConsentLabels[key]));
-      return [key, true];
-    }),
-  );
+  const ids = requiredReviewConsents(review).map(key => reviewConsentIds[key]),
+    missing = ids.filter(id => !$('#' + id)?.checked);
+  if (missing.length)
+    reviewConsentRefusal(
+      ids,
+      missing,
+      missing.length === 1
+        ? 'Tick the authorization above to execute this request.'
+        : 'Tick each authorization above to execute this request.',
+    );
+  reviewConsentMark(ids, []);
+  return Object.fromEntries(requiredReviewConsents(review).map(key => [key, true]));
+}
+/** Marks the boxes not ticked and shows (or, with none, hides) the refusal beside the authorizations. */
+function reviewConsentMark(ids, missing, text = '') {
+  const note = $('#review-consent-error');
+  if (note) {
+    note.textContent = text;
+    note.hidden = !missing.length;
+  }
+  for (const id of ids) {
+    const box = $('#' + id);
+    if (!box) continue;
+    if (missing.includes(id)) {
+      box.setAttribute('aria-invalid', 'true');
+      box.setAttribute('aria-describedby', 'review-consent-error');
+    } else {
+      box.removeAttribute('aria-invalid');
+      box.removeAttribute('aria-describedby');
+    }
+  }
+}
+/** Refuses an execution whose authorizations are not all ticked: shown in place, never as a toast. */
+function reviewConsentRefusal(ids, missing, message) {
+  const text = uiText(message);
+  reviewConsentMark(ids, missing, text);
+  $('#' + missing[0])?.focus();
+  throw Object.assign(Error(text), {code: 'CONSENT_REQUIRED', presented: true});
+}
+/** Ticking a box clears its own refusal; the note goes once every box is ticked. */
+function bindReviewConsents() {
+  const ids = Object.values(reviewConsentIds).filter(id => $('#' + id));
+  for (const id of ids)
+    $('#' + id).addEventListener?.('change', () => {
+      if (!$('#review-consent-error') || $('#review-consent-error').hidden) return;
+      const missing = ids.filter(other => !$('#' + other).checked);
+      reviewConsentMark(ids, missing, missing.length ? $('#review-consent-error').textContent : '');
+    });
 }
 // The server's one-line summary of a review (WRT-05): the operation is translated; entity, account, field names,
 // amounts and statuses stay as the server wrote them. The exact table below remains what is sent.
@@ -118,6 +164,8 @@ let reviewCountdownTimer;
  */
 function bindReviewCountdown(review, prepareAgain) {
   clearInterval(reviewCountdownTimer);
+  // Every review panel binds its countdown right after it renders; its authorizations are wired here too.
+  bindReviewConsents();
   const label = $('#review-countdown'),
     deadline = Date.parse(review?.expires_at);
   if (!label || !Number.isFinite(deadline)) return;
@@ -161,7 +209,7 @@ function readableReview(review, buttonLabel) {
   const request = review.request ?? {},
     needs = review.execute_requirements ?? {},
     sharing = reviewFields(request).find(f => f.path.endsWith('/is_adset_budget_sharing_enabled'));
-  return `<section class="panel workspace-form review-panel"><div class="panel-header"><h2>${esc(uiText('Review this change'))}</h2>${badge('awaiting_review')}</div><p>${esc(uiText('Expires'))} ${date(review.expires_at)}${esc(uiText('. Approval applies to this frozen request only.'))}</p><p class="form-note" id="review-countdown" role="timer"></p><div id="review-expired" role="status" hidden><p class="notice">${esc(uiText('This review expired before it was executed. Nothing was sent. Prepare it again: the current state is read again and a new review is created.'))}</p><button id="prepare-again" class="button" type="button">${esc(uiText('Prepare again'))}</button></div>${review.unchanged_since_review ? `<p class="form-note">${esc(uiText('Nothing changed since the expired review: the request and the state it read are the same.'))}</p>` : ''}${reviewSummaryLine(review.summary)}${effectBadges(review.effects ?? needs.effects, needs.reasons)}${reviewTable(request, uiText('Request to submit — exact native fields'), {native: path => !path.startsWith('/warnings')})}${sharing ? budgetSharingNote(sharing.value) : ''}${review.creative_impact ? reviewTable(review.creative_impact, uiText('Creative impact')) : ''}${review.spend_policy ? reviewTable(review.spend_policy, uiText('Spending-policy effects')) : ''}${review.before_state ? `<details><summary>${esc(uiText('Current state read from the provider'))}</summary>${reviewTable(review.before_state, uiText('Observed before preparation'), {native: true})}</details>` : ''}${needs.reasons ? reviewTable(needs.reasons, uiText('Why acknowledgement is required')) : ''}${reviewApprovalNotice(review.approval)}${recordDetails(review, uiText('Complete request, state, prerequisites and evidence'))}<fieldset class="review-consents"><legend>${esc(uiText('Authorize this request'))}</legend>${requiredReviewConsents(
+  return `<section class="panel workspace-form review-panel"><div class="panel-header"><h2>${esc(uiText('Review this change'))}</h2>${badge('awaiting_review')}</div><p>${esc(uiText('Expires'))} ${date(review.expires_at)}${esc(uiText('. Approval applies to this frozen request only.'))}</p><p class="form-note" id="review-countdown" role="timer"></p><div id="review-expired" role="status" hidden><p class="notice">${esc(uiText('This review expired before it was executed. Nothing was sent. Prepare it again: the current state is read again and a new review is created.'))}</p><button id="prepare-again" class="button" type="button">${esc(uiText('Prepare again'))}</button></div>${review.unchanged_since_review ? `<p class="form-note">${esc(uiText('Nothing changed since the expired review: the request and the state it read are the same.'))}</p>` : ''}${reviewSummaryLine(review.summary)}${effectBadges(review.effects ?? needs.effects, needs.reasons)}${reviewTable(request, uiText('Request to submit — exact native fields'), {native: path => !path.startsWith('/warnings')})}${sharing ? budgetSharingNote(sharing.value) : ''}${review.creative_impact ? reviewTable(review.creative_impact, uiText('Creative impact')) : ''}${review.spend_policy ? spendPolicyView(review.spend_policy) : ''}${review.before_state ? `<details><summary>${esc(uiText('Current state read from the provider'))}</summary>${reviewTable(review.before_state, uiText('Observed before preparation'), {native: true})}</details>` : ''}${needs.reasons ? reviewTable(needs.reasons, uiText('Why acknowledgement is required')) : ''}${reviewApprovalNotice(review.approval)}${recordDetails(review, uiText('Complete request, state, prerequisites and evidence'))}<fieldset class="review-consents"><legend>${esc(uiText('Authorize this request'))}</legend>${requiredReviewConsents(
     review,
   )
     .map(
@@ -170,7 +218,17 @@ function readableReview(review, buttonLabel) {
     )
     .join(
       '',
-    )}</fieldset><button id="execute-reviewed" type="button" class="button primary">${esc(uiText(buttonLabel))}</button></section>`;
+    )}<p id="review-consent-error" class="error" role="alert" hidden></p></fieldset><button id="execute-reviewed" type="button" class="button primary">${esc(uiText(buttonLabel))}</button></section>`;
+}
+/**
+ * A review's spending-policy effects (WEB-03, design review 2026-10). An account without a policy is said in the page's
+ * words, with where the owner sets one; the server's advice names an MCP tool and the rest of its record only says
+ * that. A configured policy keeps its exact table.
+ */
+function spendPolicyView(policy) {
+  if (policy?.unprotected !== true) return reviewTable(policy, uiText('Spending-policy effects'));
+  const owner = typeof session === 'object' && session?.workspaceRole === 'owner';
+  return `<p class="notice warning" role="note">${esc(uiText('No spending policy protects this account. The workspace owner can set one for this account, or a default for every account, in Workspace settings.'))}${owner ? ` <a href="/settings#owner-spend-policy">${esc(uiText('Open spending policies'))}</a>` : ''}</p>`;
 }
 const campaignNativeValue = value => `<bdi dir="ltr">${esc(value ?? uiText('Unknown'))}</bdi>`;
 const campaignProviderNames = {
@@ -573,7 +631,7 @@ function campaignJournal(run) {
   return `<h2 tabindex="-1"><bdi dir="auto">${esc(consent && run.name === 'Tag consent draft' ? uiText('Tag consent draft') : run.name)}</bdi></h2><div class="work-summary">${badge(run.state)}<span>${esc(uiText('Revision'))} ${campaignNativeValue(run.revision)}</span>${runBy}${server}<a href="/campaigns?id=${encodeURIComponent(run.id)}">${esc(uiText('Link to this plan'))}</a></div>${temporary}${linked}${context ? allocationProposalView(context) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : consent ? consentProposalView(consent) + `<details><summary>${esc(uiText('Original plan brief'))}</summary>${originalBrief}</details>` : recipeBrief}<ol class="campaign-steps">${run.steps
     .map(s => {
       const description = allocationStepDescription(s, context) ?? consentStepDescription(s, consent);
-      return `<li><div><strong>${description ?? `<bdi dir="auto">${esc(s.description ?? s.id)}</bdi>`}</strong><small>${campaignNativeValue(campaignProviderNames[s.gateway] ?? s.gateway ?? s.arguments?.platform)} · ${campaignNativeValue(s.account_id)}</small><small>${esc(uiText('Depends on:'))} ${esc(s.depends_on?.join(', ') || uiText('No predecessor'))}</small>${description ? `<details><summary>${esc(uiText('Original step description'))}</summary><p><bdi dir="auto">${esc(s.description ?? s.id)}</bdi></p></details>` : ''}</div>${badge(s.status)}${s.error ? `<p class="error">${esc(uiOwnedError(s.error).message)}</p>${campaignStepRemedy(s.error)}${recordDetails(s.error, uiText('Error and remedy'))}` : ''}${s.verification ? `${verificationComparison(s.verification)}${recordDetails(s.verification, uiText('Read-back evidence'))}` : ''}${s.review_id ? `<small>${esc(uiText('Original review:'))} <code dir="ltr">${esc(s.review_id)}</code></small>` : ''}${campaignReplaceable(s, run) ? `<button class="button small" type="button" data-replace-source="${esc(s.id)}">${esc(uiText('Replace the file'))}</button>` : ''}</li>`;
+      return `<li><div><strong>${description ?? `<bdi dir="auto">${esc(s.description ?? s.id)}</bdi>`}</strong><small>${campaignNativeValue(campaignProviderNames[s.gateway] ?? s.gateway ?? s.arguments?.platform)} · ${campaignNativeValue(s.account_id)}</small><small>${esc(uiText('Depends on:'))} ${esc(s.depends_on?.join(', ') || uiText('No predecessor'))}</small>${description ? `<details><summary>${esc(uiText('Original step description'))}</summary><p><bdi dir="auto">${esc(s.description ?? s.id)}</bdi></p></details>` : ''}</div>${badge(s.status)}${s.error ? `<p class="error">${esc((typeof websiteOwnMessage === 'function' && websiteOwnMessage(s.error)) || uiOwnedError(s.error).message)}</p>${campaignStepRemedy(s.error)}${recordDetails(s.error, uiText('Error and remedy'))}` : ''}${s.verification ? `${verificationComparison(s.verification)}${recordDetails(s.verification, uiText('Read-back evidence'))}` : ''}${s.review_id ? `<small>${esc(uiText('Original review:'))} <code dir="ltr">${esc(s.review_id)}</code></small>` : ''}${campaignReplaceable(s, run) ? `<button class="button small" type="button" data-replace-source="${esc(s.id)}">${esc(uiText('Replace the file'))}</button>` : ''}</li>`;
     })
     .join(
       '',
@@ -632,6 +690,20 @@ const runRecoveryLabels = {
   unconfirmed:
     'This step reached the provider and its result is not confirmed, so AMCP never sends it again. Check at the provider whether it exists; anything still to be written needs a new plan.',
 };
+// What became of the step a call executed, when it did not complete; its own message and remedy stand with the step.
+const executedStepOutcomes = {
+  uncertain:
+    'The provider’s answer to this step was lost, so AMCP cannot confirm the change. It is never sent again: use Read back submitted step to check the account.',
+  failed: 'This step did not complete. What happened and what to do are shown with the step.',
+};
+/**
+ * The plan's one emphasized action once a step went wrong (design review 2026-10): a read-back for a step whose result
+ * is not confirmed, otherwise the correction of a failed or blocked step; '' when neither applies.
+ */
+function campaignNextSafeAction(run) {
+  if (run?.steps?.some(s => s.status === 'uncertain' && s.review_id)) return 'reconcile';
+  return run?.steps && campaignNeedsAmendment(run) ? 'amend' : '';
+}
 function runRecoveryKind(out) {
   const call = out?.next_call,
     action = call?.arguments?.action;
@@ -679,6 +751,9 @@ function runOutcomeView(out, run) {
     lines.push(uiText('Prerequisites checked: nothing blocks this plan.'));
   else if (out?.background?.state) lines.push(campaignBackgroundLabel(out.background));
   else if (out?.approved) lines.push(uiText('Plan approved. Run it when you are ready; the approval lasts 24 hours.'));
+  // The step a call executed and that did not complete (design review 2026-10): it was announced as "Saved.".
+  else if (!recovery && Object.hasOwn(executedStepOutcomes, out?.current?.status ?? ''))
+    lines.push(uiText(executedStepOutcomes[out.current.status]));
   else if (!recovery)
     lines.push(
       uiText(

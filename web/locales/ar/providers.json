@@ -2117,6 +2117,7 @@
   "Reports require an explicit timeRange with start and end dates.": "تتطلب التقارير timeRange محددة صراحةً مع تاريخي بداية ونهاية.",
   "Request differs from the pinned provider model.": "يختلف الطلب عن نموذج المزوّد المثبت.",
   "Request differs from the pinned vendor contract.": "يختلف الطلب عن عقد المزوّد المثبت.",
+  "Request routing compiled locally; live behavioral parity is tracked separately.": "جُمِّع توجيه الطلب محليًا؛ ويُتابَع تطابق السلوك الفعلي مع المنصة بشكل منفصل.",
   "Requested budget exceeds the account policy.": "تتجاوز الميزانية المطلوبة سياسة الحساب.",
   "Resending or releasing an unconfirmed Sheets delivery is turned off in this deployment.": "إعادة إرسال تسليم Sheets غير المؤكَّد أو تحريره متوقفة في هذا النشر.",
   "Resolve Tag Manager workspace conflicts before creating a version.": "عالج تعارضات مساحة عمل Tag Manager قبل إنشاء إصدار.",
