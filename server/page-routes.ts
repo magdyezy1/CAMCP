@@ -6,8 +6,8 @@ import type {WebsiteSite} from './website-site.js';
 /**
  * The public website and the workspace shell (WEB-02): versioned assets, the policy, terms, deletion and About pages
  * without a session or JavaScript, robots.txt, security.txt and the favicon, every page of the route registry
- * (web/routes.js, tools/check-routes.mjs) answered with the shell, and the branded not-found page with a real 404.
- * Registered last: it answers every address the routes before it left.
+ * (web/routes.js, tools/check-routes.mjs) answered with the shell (/ sends a signed-in visitor to /dashboard, P12),
+ * and the branded not-found page with a real 404. Registered last: it answers every address the routes before it left.
  */
 export function pageRoutes({router, web, options, directory, publicAssets}: WebsiteSite) {
   router.use(
@@ -57,6 +57,15 @@ export function pageRoutes({router, web, options, directory, publicAssets}: Webs
     res.setHeader('Cache-Control', 'no-cache');
     res.redirect(302, '/assets/v/' + publicAssets.version + '/mark.svg');
   });
+  // Owner decision P12 (DOC-03): a signed-in visitor to / goes to Home; everyone else gets the public landing page. The
+  // address is a fixed path on this site, never taken from the request, so nothing a visitor sends can steer it.
+  const signedIn = (req: Request) => {
+    try {
+      return web.session(req) !== undefined;
+    } catch {
+      return false;
+    }
+  };
   for (const route of [
     '/dashboard',
     '/campaigns',
@@ -88,7 +97,11 @@ export function pageRoutes({router, web, options, directory, publicAssets}: Webs
     '/oauth/result',
     '/oauth/consent',
   ])
-    router.get(route, (_req, res) => res.type('html').send(publicAssets.html('index.html')));
+    router.get(route, (req, res) =>
+      route === '/' && signedIn(req)
+        ? res.redirect(302, '/dashboard')
+        : res.type('html').send(publicAssets.html('index.html')),
+    );
   // Every other page address gets the branded, localized not-found page with a real 404, never Express's default page;
   // an unknown API address gets the JSON error every API caller reads. Protocol and asset paths keep their own
   // responses (WEB-02).

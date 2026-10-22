@@ -370,9 +370,42 @@ test('refreshing an unchanged identity preserves its unsaved reporting setup', a
 
 test('fragment navigation scrolls to the requested section after the destination renders', async () => {
   const f = browserFixture();
+  // The landing page's sections are for visitors who are not signed in: a signed-in visitor at / opens Home (P12).
+  f.run('session = {authenticated: false, csrf: null}');
   await f.run("navigate('/#how-it-works')");
   assert.equal(f.location.hash, '#how-it-works');
   assert.equal(f.scrolls.at(-1), '#how-it-works');
+});
+
+// Owner decision P12 (DOC-03): a signed-in visitor to / goes to Home. The server redirects a load of /
+// (tests/signed-in-home.test.mjs); in the shell, Back to / or a link to / while signed in rendered the public landing
+// page instead, with an "Open your workspace" button.
+test('a signed-in visitor at / opens Home in place of the landing page; a signed-out visitor keeps the landing page', async () => {
+  const member = browserFixture();
+  let home = 0;
+  member.context.renderWorkspacePage = async () => {
+    home++;
+    member.node('#content').innerHTML = 'Home';
+  };
+  for (const address of ['/', '/#how-it-works']) {
+    member.updateLocation(address);
+    await member.run('render()');
+    assert.equal(member.location.pathname + member.location.hash, '/dashboard', address);
+    assert.equal(member.node('#content').innerHTML, 'Home', address);
+  }
+  assert.equal(home, 2);
+  // Back to the entry of / replaces it with Home too.
+  member.updateLocation('/');
+  await member.windowListeners.get('popstate')[0]();
+  assert.equal(member.location.pathname, '/dashboard');
+  assert.equal(home, 3);
+  const visitor = browserFixture();
+  visitor.run('session = {authenticated: false, csrf: null}');
+  visitor.context.renderWorkspacePage = async () => assert.fail('A signed-out visitor never renders Home');
+  visitor.updateLocation('/');
+  await visitor.run('render()');
+  assert.equal(visitor.location.pathname, '/');
+  assert.match(visitor.node('#content').innerHTML, /class="landing"/);
 });
 
 // WEB-01 regression: a native "#main" fragment step fired popstate, which re-rendered the route and cleared typed input.
