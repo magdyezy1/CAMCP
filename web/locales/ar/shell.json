@@ -1082,6 +1082,7 @@
   "Separate local implementation, provider reads, validation and verified writes": "فصل التنفيذ المحلي عن قراءات المنصة والتحقق والكتابات المؤكدة",
   "Server-side Apple Ads API credentials. No browser callback is required.": "بيانات اعتماد Apple Ads API محفوظة على الخادم. لا يلزم عنوان عودة للمتصفح.",
   "Session not found.": "لم يتم العثور على الجلسة.",
+  "Set AMCP_TEST_PASSWORD to give reviewers a sign-in button.": "عيّن AMCP_TEST_PASSWORD ليظهر للمراجعين زر لتسجيل الدخول.",
   "Set password": "تعيين كلمة المرور",
   "Set the email password for your existing workspace. Your connected accounts and campaign history stay here.": "عيّن كلمة مرور للبريد الخاص بمساحة عملك الحالية. ستبقى حساباتك المرتبطة وسجل حملاتك كما هي.",
   "Set up authenticator": "إعداد تطبيق المصادقة",

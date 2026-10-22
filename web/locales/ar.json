@@ -11492,5 +11492,16 @@
   "AMCP never sends it again. Read it back to check the account; a read-back changes nothing.": "لن يرسله AMCP مرة أخرى أبدًا. أعد قراءته للتحقق من الحساب؛ فإعادة القراءة لا تغيّر شيئًا.",
   "No spending policy protects this account. The workspace owner can set one for this account, or a default for every account, in Workspace settings.": "لا تحمي أي سياسة إنفاق هذا الحساب. يستطيع مالك مساحة العمل تعيين سياسة لهذا الحساب، أو سياسة افتراضية لكل الحسابات، من إعدادات مساحة العمل.",
   "Open spending policies": "فتح سياسات الإنفاق",
-  "Request routing compiled locally; live behavioral parity is tracked separately.": "جُمِّع توجيه الطلب محليًا؛ ويُتابَع تطابق السلوك الفعلي مع المنصة بشكل منفصل."
+  "Request routing compiled locally; live behavioral parity is tracked separately.": "جُمِّع توجيه الطلب محليًا؛ ويُتابَع تطابق السلوك الفعلي مع المنصة بشكل منفصل.",
+  "Inspect the current query revision, clock settings and future occurrences before changing this local reporting schedule.": "افحص إصدار الاستعلام الحالي وإعدادات الساعة والمواعيد القادمة قبل تغيير جدول التقارير المحلي هذا.",
+  "Inspect the original plan, step receipts and required approvals before continuing.": "افحص الخطة الأصلية وإيصالات خطواتها والموافقات المطلوبة قبل المتابعة.",
+  "Inspect this original review and retained receipt. Recovery decides whether the same upload can resume.": "افحص هذه المراجعة الأصلية والإيصال المحفوظ. يحدد الاسترداد ما إذا كان يمكن استئناف الرفع نفسه.",
+  "Inspect the measurement context and evidence before acknowledging or deferring attention.": "افحص سياق القياس والأدلة قبل الإقرار بالتنبيه أو تأجيله.",
+  "Inspect the schedule, current access and destination before resuming delivery.": "افحص الجدول وصلاحيات الوصول الحالية والوجهة قبل استئناف التسليم.",
+  "Inspect the original delivery job and destination receipt before an explicit retry.": "افحص مهمة التسليم الأصلية وإيصال الوجهة قبل إعادة المحاولة صراحةً.",
+  "Inspect collection evidence, completeness and retained delivery receipts.": "افحص أدلة الجمع واكتمالها وإيصالات التسليم المحفوظة.",
+  "Ad previews": "معاينات الإعلانات",
+  "Reviewed writes": "التغييرات الخاضعة للمراجعة",
+  "No verified backup receipt has been recorded. Use the encrypted backup command and test restoration before relying on recovery.": "لم يُسجَّل أي إيصال نسخ احتياطي مُتحقَّق منه. استخدم أمر النسخ الاحتياطي المشفّر واختبر الاستعادة قبل الاعتماد عليها.",
+  "Set AMCP_TEST_PASSWORD to give reviewers a sign-in button.": "عيّن AMCP_TEST_PASSWORD ليظهر للمراجعين زر لتسجيل الدخول."
 }

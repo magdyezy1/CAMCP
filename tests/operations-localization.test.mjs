@@ -384,3 +384,41 @@ test('Arabic personal monitor notices retain explicit consent and original subsc
     confirmed: true,
   });
 });
+
+// Design review 2026-10 (WEB-05): Operations' attention cards for campaign plans, uploads, incidents, schedules,
+// exports, reports and workbook schedules showed their next safe action in English on the Arabic page; only some kinds
+// of src/operations-feed.ts had a translation. Every guidance the feed can return is translated, and a value of no
+// known kind stays literal.
+test('every next safe action the operations feed returns reads in Arabic', async () => {
+  const {parsers} = await import('prettier/plugins/babel');
+  const guidance = new Set();
+  const visit = node => {
+    if (!node || typeof node !== 'object') return;
+    if (node.type === 'ObjectProperty' && node.key?.name === 'next_safe_action') {
+      const values = n =>
+        n?.type === 'StringLiteral'
+          ? [n.value]
+          : n?.type === 'ConditionalExpression'
+            ? [...values(n.consequent), ...values(n.alternate)]
+            : [];
+      for (const value of values(node.value)) guidance.add(value);
+    }
+    for (const [key, value] of Object.entries(node))
+      if (!['loc', 'extra', 'comments', 'leadingComments', 'trailingComments'].includes(key))
+        for (const child of Array.isArray(value) ? value : [value]) visit(child);
+  };
+  for (const file of ['src/operations-feed.ts', 'src/write-records.ts'])
+    visit(parsers['babel-ts'].parse(readFileSync(file, 'utf8')).program);
+  assert.ok(guidance.size >= 13, [...guidance].join('\n'));
+  const ar = fixture('ar'),
+    catalog = ar.context.catalog;
+  for (const text of guidance) {
+    assert.ok(Object.hasOwn(catalog, text), 'No Arabic for: ' + text);
+    ar.context.value = text;
+    assert.equal(ar.run('operationGuidance(value)'), catalog[text], text);
+  }
+  assert.equal(
+    fixture('en').run("operationGuidance('Inspect collection evidence, completeness and retained delivery receipts.')"),
+    'Inspect collection evidence, completeness and retained delivery receipts.',
+  );
+});

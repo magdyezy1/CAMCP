@@ -237,6 +237,8 @@ test('Home links only to internal paths and escapes feed names', () => {
   assert.equal(html.match(/href="\/operations\?state=attention"/g).length, 3);
   assert.ok(html.includes('href="/operations?write_id=w%201"'));
   assert.ok(html.includes('&lt;img src=x&gt;'));
+  // A record's name is the person's own text: its own direction, literal in Arabic (design review 2026-10, WEB-05).
+  assert.ok(html.includes('<strong dir="auto" data-native>&lt;img src=x&gt;</strong>'));
   assert.ok(html.includes('Monitor email notice · '));
   assert.ok(html.includes('>Reauthorization required</span>'));
   // The dashboard's own connection facts: one login is turned off.

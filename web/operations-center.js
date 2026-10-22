@@ -91,6 +91,25 @@ function operationGuidance(value) {
       return uiText(
         'Ask an administrator to reauthorize this login in place from Connections (Manage, then Reauthorize). It keeps the connection, its selections and saved reports; no provider request is sent until then.',
       );
+    // The other kinds of src/operations-feed.ts (design review 2026-10: Arabic cards showed them in English).
+    case 'Inspect the current query revision, clock settings and future occurrences before changing this local reporting schedule.':
+      return uiText(
+        'Inspect the current query revision, clock settings and future occurrences before changing this local reporting schedule.',
+      );
+    case 'Inspect the original plan, step receipts and required approvals before continuing.':
+      return uiText('Inspect the original plan, step receipts and required approvals before continuing.');
+    case 'Inspect this original review and retained receipt. Recovery decides whether the same upload can resume.':
+      return uiText(
+        'Inspect this original review and retained receipt. Recovery decides whether the same upload can resume.',
+      );
+    case 'Inspect the measurement context and evidence before acknowledging or deferring attention.':
+      return uiText('Inspect the measurement context and evidence before acknowledging or deferring attention.');
+    case 'Inspect the schedule, current access and destination before resuming delivery.':
+      return uiText('Inspect the schedule, current access and destination before resuming delivery.');
+    case 'Inspect the original delivery job and destination receipt before an explicit retry.':
+      return uiText('Inspect the original delivery job and destination receipt before an explicit retry.');
+    case 'Inspect collection evidence, completeness and retained delivery receipts.':
+      return uiText('Inspect collection evidence, completeness and retained delivery receipts.');
     default:
       return String(value ?? '');
   }
@@ -112,7 +131,7 @@ function operationGatewayLabel(gateway) {
   }
 }
 function operationCard(op) {
-  return `<article class="operation-card"><div class="operation-heading"><div><small>${esc(operationLabel(op.kind))} · ${op.updated_at ? date(op.updated_at) : uiText('Time unavailable')}</small><h3>${esc(op.name)}</h3></div>${badge(op.state)}</div><p class="form-note">${esc(uiText('Accounts'))} ${op.accounts.map(esc).join(' · ')}</p><p>${esc(operationGuidance(op.next_safe_action))}</p>${op.error_code ? `<p class="error">${esc(op.error_code)}</p>` : ''}${op.snoozed_until ? `<p>${esc(uiText('Attention resumes'))} ${date(op.snoozed_until)}</p>` : ''}${op.next_run_at ? `<p>${esc(uiText('Next delivery'))} ${esc(uiDateZoned(op.next_run_at))}</p>` : ''}<div class="dialog-actions work-actions"><a class="button small" href="${esc(op.website_path)}">${op.kind === 'incident' ? uiText('Inspect incident') : op.kind === 'write' ? uiText('Open original review') : op.kind === 'notice' ? uiText('Open monitor rule') : op.kind === 'connection' ? uiText('Open connection') : uiText('Open original work')}</a></div>${recordDetails(op.next_call, uiText('Continue in MCP'))}</article>`;
+  return `<article class="operation-card"><div class="operation-heading"><div><small>${esc(operationLabel(op.kind))} · ${op.updated_at ? date(op.updated_at) : uiText('Time unavailable')}</small><h3 dir="auto" data-native>${esc(op.name)}</h3></div>${badge(op.state)}</div><p class="form-note">${esc(uiText('Accounts'))} ${op.accounts.map(esc).join(' · ')}</p><p>${esc(operationGuidance(op.next_safe_action))}</p>${op.error_code ? `<p class="error">${esc(op.error_code)}</p>` : ''}${op.snoozed_until ? `<p>${esc(uiText('Attention resumes'))} ${date(op.snoozed_until)}</p>` : ''}${op.next_run_at ? `<p>${esc(uiText('Next delivery'))} ${esc(uiDateZoned(op.next_run_at))}</p>` : ''}<div class="dialog-actions work-actions"><a class="button small" href="${esc(op.website_path)}">${op.kind === 'incident' ? uiText('Inspect incident') : op.kind === 'write' ? uiText('Open original review') : op.kind === 'notice' ? uiText('Open monitor rule') : op.kind === 'connection' ? uiText('Open connection') : uiText('Open original work')}</a></div>${recordDetails(op.next_call, uiText('Continue in MCP'))}</article>`;
 }
 // What a person does next with a retained reviewed change (WRT-08), by its state. AMCP's own copy, localized.
 function writeGuidance(state) {
