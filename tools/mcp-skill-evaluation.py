@@ -6,6 +6,11 @@ reach the model as an error text instead of AMCP's answer. This wrapper changes 
 own connections module, makes MCPConnection.call_tool return the blocks as plain JSON data, and runs evaluation.py,
 unchanged, as __main__ with the arguments after "--".
 
+The runner writes its report (-o) with Python's default encoding, which on Windows is a code page that cannot encode
+the report's check marks, so a run would fail only after every question was asked. The wrapper therefore runs in
+Python's UTF-8 mode (it restarts itself with -X utf8), creates the report's folder, and refuses a report file that
+already exists, so a repeated run never overwrites an earlier one.
+
     python tools/mcp-skill-evaluation.py --skill-scripts <skill>/scripts -- -t stdio -c node \
         -a tests/fixtures/mcp-evaluation/server.mjs -m <model> -o <new report.md> \
         tests/fixtures/mcp-evaluation/evaluation.xml
@@ -15,6 +20,7 @@ wrapper never reads it. See docs/OPERATIONS.md, "MCP evaluation set".
 """
 
 import runpy
+import subprocess
 import sys
 from pathlib import Path
 
@@ -27,13 +33,30 @@ def plain(block):
     return dump(mode="json", exclude_none=True) if callable(dump) else block
 
 
+def report_path(arguments):
+    """The report file the runner's -o/--output names, if any."""
+    for at, argument in enumerate(arguments):
+        if argument in ("-o", "--output") and at + 1 < len(arguments):
+            return Path(arguments[at + 1])
+        if argument.startswith("--output="):
+            return Path(argument.split("=", 1)[1])
+    return None
+
+
 def main(argv):
     if len(argv) < 3 or argv[0] != "--skill-scripts" or argv[2] != "--":
         sys.exit(USAGE)
+    if not sys.flags.utf8_mode:
+        sys.exit(subprocess.run([sys.executable, "-X", "utf8", str(Path(__file__).resolve()), *argv]).returncode)
     scripts = Path(argv[1]).resolve()
     runner = scripts / "evaluation.py"
     if not runner.is_file() or not (scripts / "connections.py").is_file():
         sys.exit("MCP_SKILL_RUNNER_NOT_FOUND: " + str(scripts) + " holds no evaluation.py and connections.py")
+    report = report_path(argv[3:])
+    if report is not None:
+        if report.exists():
+            sys.exit("MCP_SKILL_REPORT_EXISTS: " + str(report) + " exists; name a new report file")
+        report.parent.mkdir(parents=True, exist_ok=True)
     sys.path.insert(0, str(scripts))
     import connections  # the runner's module; evaluation.py imports this same object
 

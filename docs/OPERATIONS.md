@@ -833,29 +833,37 @@ seeded it in the reader role, so no call can change anything.
 - **The LLM runner is an owner step.** The skill's `scripts/evaluation.py` sends each question to the Anthropic API,
   so it uses the owner's API key and usage. Nothing in the build, the tests or qualification runs it. The steps:
   1. `npm run build`, so `dist/` serves the fixture.
-  2. Once, install the runner's packages (a download from PyPI):
-     `pip install -r C:/Users/abdom/.claude/skills/mcp-builder/scripts/requirements.txt`.
+  2. Once, make a virtual environment for the runner under the ignored `.runtime/` with Python 3.10 or later and
+     install the runner's packages into it (a download from PyPI). On Windows `python` may be only the Microsoft Store
+     alias; the interpreter `AMCP_SCHEMA_PYTHON` names works:
+     `<python> -m venv .runtime/mcp-eval-venv`, then
+     `.runtime/mcp-eval-venv/Scripts/python -m pip install -r C:/Users/abdom/.claude/skills/mcp-builder/scripts/requirements.txt`
+     (`bin/python` instead of `Scripts/python` outside Windows).
   3. Set the key for that shell only (PowerShell: `$env:ANTHROPIC_API_KEY = "<your key>"`). Never write it into a
      file in this repository.
   4. From the repository root, run the runner through AMCP's wrapper, with a current Claude model (the runner's
      default model may no longer be served) and a new report file under the ignored `.runtime/`:
 
      ```
-     python tools/mcp-skill-evaluation.py --skill-scripts C:/Users/abdom/.claude/skills/mcp-builder/scripts -- -t stdio -c node -a tests/fixtures/mcp-evaluation/server.mjs -m <model> -o .runtime/mcp-evaluation/2026-10-22-report.md tests/fixtures/mcp-evaluation/evaluation.xml
+     .runtime/mcp-eval-venv/Scripts/python tools/mcp-skill-evaluation.py --skill-scripts C:/Users/abdom/.claude/skills/mcp-builder/scripts -- -t stdio -c node -a tests/fixtures/mcp-evaluation/server.mjs -m <model> -o .runtime/mcp-evaluation/<date>-report.md tests/fixtures/mcp-evaluation/evaluation.xml
      ```
 
      The runner starts `tests/fixtures/mcp-evaluation/server.mjs` itself over stdio. That server needs no database,
      key, credential or network: it serves the fixture from memory, refuses the global fetch and logs to stderr only.
-  5. Measure the report: `node tools/mcp-eval.mjs --skill-report .runtime/mcp-evaluation/2026-10-22-report.md
-     --output .runtime/mcp-evaluation/2026-10-22-record.json`. It keeps, per question, whether the answer was
+  5. Measure the report: `node tools/mcp-eval.mjs --skill-report .runtime/mcp-evaluation/<date>-report.md
+     --output .runtime/mcp-evaluation/<date>-record.json`. It keeps, per question, whether the answer was
      correct, the tool calls by tool and the calls beyond the reference solution's (from the baseline). It never
-     keeps the answers, summaries or feedback the report holds. Repeat the run, since a model's behaviour varies, and
-     pass several reports separated by commas to get ranges per question.
-- **Why the wrapper.** The installed runner (2026-10-22 copy) hands each tool result's content blocks, which the
-  `mcp` package returns as pydantic models, to `json.dumps`, which cannot serialize them, so every tool call would
-  reach the model as an error text. `tools/mcp-skill-evaluation.py` changes no skill file. It makes the runner's own
-  `call_tool` return the blocks as JSON data, then runs `evaluation.py` unchanged with the arguments after `--`.
-  The verifier test exercises it against stub runner modules, with no third-party package.
+     keeps the answers, summaries or feedback the report holds. Repeat the run with a new report name each time,
+     since a model's behaviour varies, and pass several reports separated by commas to get ranges per question.
+- **Why the wrapper.** The installed runner (2026-10-17 copy) has two defects that would waste a paid run. It hands
+  each tool result's content blocks, which the `mcp` package returns as pydantic models, to `json.dumps`, which
+  cannot serialize them, so every tool call would reach the model as an error text. And it writes the report with
+  Python's default encoding, which on Windows is a code page (cp1252 on the owner's PC) that cannot encode its check
+  marks, so the run would fail after the last question. `tools/mcp-skill-evaluation.py` changes no skill file. It
+  restarts itself in Python's UTF-8 mode (`-X utf8`), makes the runner's own `call_tool` return the blocks as JSON
+  data, creates the report's folder, refuses a report file that already exists (`MCP_SKILL_REPORT_EXISTS`, so an
+  earlier run is never overwritten), then runs `evaluation.py` unchanged with the arguments after `--`. The verifier
+  test exercises it against stub runner modules, with no third-party package.
 
 The Dockerfile base image `node:24-bookworm-slim` and the apt `ffmpeg` package are tags, not digests. Pinning the base
 image by digest needs the digest from a registry the owner trusts; record it in the Dockerfile with a dated comment

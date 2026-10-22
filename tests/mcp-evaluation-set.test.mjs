@@ -236,8 +236,11 @@ test('a report of the skill’s runner is measured against the reference solutio
 });
 
 test('the runner wrapper hands the runner JSON content blocks without changing the installed skill', t => {
-  // Stubs of the runner's two modules with the defect: connections.call_tool returns model objects, which the
-  // runner passes to json.dumps. The real ones import the anthropic and mcp packages, which only the owner installs.
+  // Stubs of the runner's two modules with its defects: connections.call_tool returns model objects, which the
+  // runner passes to json.dumps, and the report is written with Python's default encoding (a code page on Windows that
+  // cannot encode its check marks). The real ones import the anthropic and mcp packages, which only the owner installs.
+  const version = spawnSync(python, ['--version'], {encoding: 'utf8'});
+  assert.equal(version.status, 0, 'a Python 3.10 or later; set AMCP_SCHEMA_PYTHON when it is outside PATH');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-skill-runner-'));
   t.after(() => fs.rmSync(dir, {recursive: true, force: true}));
   fs.writeFileSync(
@@ -263,10 +266,13 @@ test('the runner wrapper hands the runner JSON content blocks without changing t
     path.join(dir, 'evaluation.py'),
     [
       'import asyncio, json, sys',
+      'from pathlib import Path',
       'from connections import create_connection',
       'async def main():',
       '    result = await create_connection().call_tool("amcp_tool_help", {})',
-      '    print(json.dumps({"argv": sys.argv[1:], "response": json.dumps(result)}))',
+      '    if "-o" in sys.argv:',
+      '        Path(sys.argv[sys.argv.index("-o") + 1]).write_text("**Correct**: \\u2705\\n")',
+      '    print(json.dumps({"argv": sys.argv[1:], "response": json.dumps(result), "utf8": sys.flags.utf8_mode}))',
       'if __name__ == "__main__":',
       '    asyncio.run(main())',
       '',
@@ -277,15 +283,23 @@ test('the runner wrapper hands the runner JSON content blocks without changing t
   const direct = spawnSync(python, [path.join(dir, 'evaluation.py')], {cwd: dir, encoding: 'utf8'});
   assert.notEqual(direct.status, 0);
   assert.match(direct.stderr, /not JSON serializable/);
-  const wrapped = spawnSync(
-    python,
-    [wrapper, '--skill-scripts', dir, '--', '-t', 'stdio', '-c', 'node', 'evaluation.xml'],
-    {encoding: 'utf8'},
-  );
+  // The report goes to a folder that does not exist yet, as a first run's .runtime/mcp-evaluation/ does not.
+  const report = path.join(dir, 'reports', 'run-1.md'),
+    runnerArgs = ['-t', 'stdio', '-c', 'node', '-o', report, 'evaluation.xml'],
+    wrapped = spawnSync(python, [wrapper, '--skill-scripts', dir, '--', ...runnerArgs], {encoding: 'utf8'});
   assert.equal(wrapped.status, 0, wrapped.stderr);
   const printed = JSON.parse(wrapped.stdout);
-  assert.deepEqual(printed.argv, ['-t', 'stdio', '-c', 'node', 'evaluation.xml']);
+  assert.deepEqual(printed.argv, runnerArgs);
   assert.deepEqual(JSON.parse(printed.response), [{type: 'text', text: '{"success":true}'}]);
+  // The runner ran in UTF-8 mode, so its report keeps the check mark on every platform (with CRLF on Windows).
+  assert.equal(printed.utf8, 1);
+  assert.equal(fs.readFileSync(report, 'utf8').replace(/\r\n/g, '\n'), '**Correct**: ✅\n');
+  // A repeated run naming the same report is refused before anything runs, and the earlier report is kept.
+  fs.writeFileSync(report, 'earlier run');
+  const again = spawnSync(python, [wrapper, '--skill-scripts', dir, '--', ...runnerArgs], {encoding: 'utf8'});
+  assert.notEqual(again.status, 0);
+  assert.match(again.stderr, /MCP_SKILL_REPORT_EXISTS/);
+  assert.equal(fs.readFileSync(report, 'utf8'), 'earlier run');
   assert.equal(fs.readFileSync(path.join(dir, 'connections.py'), 'utf8'), before, 'the skill files are unchanged');
   const usage = spawnSync(python, [wrapper, '--', 'x'], {encoding: 'utf8'});
   assert.notEqual(usage.status, 0);
