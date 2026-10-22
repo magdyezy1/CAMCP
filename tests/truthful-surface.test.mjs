@@ -7,7 +7,12 @@ import {MirrorService} from '../dist/src/service.js';
 import {NativeTransport} from '../dist/src/transport.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
 import {unavailableOperations} from '../dist/src/unavailable-operations.js';
-import {withoutExecutableActions} from '../dist/src/tool-notes.js';
+import {
+  delegatedWriteGateways,
+  providerJobQualifier,
+  readOnlyQualifier,
+  withoutExecutableActions,
+} from '../dist/src/tool-notes.js';
 import {linkedinVersion} from '../dist/src/linkedin-version.js';
 import {googleAdsVersion} from '../dist/src/google-version.js';
 import {metaApiVersion} from '../dist/src/meta-version.js';
@@ -538,4 +543,147 @@ test('the owner’s health carries the legacy alias baseline, counted from the a
   assert.equal(cached.computed_at, health.data.google_legacy_aliases.computed_at);
   const later = Date.parse(cached.computed_at) + aliasUsageCacheMs;
   assert.equal(cachedLegacyAliasUsage(store, actor, later).legacy_requests, 2, 'after an hour it is computed again');
+});
+
+// Wave 4b MCP quality pass (mcp-builder: descriptions narrowly and precisely match behavior). A read-only deployment
+// lists amcp_write with inspect only and amcp_media with reads only, yet every native gateway's listing still sent a
+// client to "amcp_write" for one reviewed change and to "amcp_media" for uploads, which that deployment refuses.
+test('a read-only deployment’s native listings route only to what it lists, and say where a named change is refused', async t => {
+  const writes = new Map(
+      fixture(t)
+        .service.listTools()
+        .map(tool => [tool.name, tool.description]),
+    ),
+    readOnly = fixture(t, {allowWrites: false}).service.listTools(),
+    native = readOnly.filter(tool => tool.name.endsWith('_native_action'));
+  assert.ok(native.length >= 15);
+  for (const tool of native) {
+    const text = tool.description;
+    assert.doesNotMatch(
+      text,
+      /for one reviewed change amcp_write|for uploads amcp_media|upload through amcp_media/,
+      tool.name,
+    );
+    assert.ok(text.length <= 2000, tool.name);
+    // Where the description still names amcp_write as a change path, the deployment says it is refused.
+    if (
+      text
+        .replace(/In this read-only deployment amcp_write[^.]*\./, '')
+        .replaceAll('amcp_write inspect', '')
+        .includes('amcp_write')
+    )
+      assert.ok(
+        text.includes(readOnlyQualifier),
+        tool.name + ' names amcp_write as a change path without the qualifier',
+      );
+  }
+  const byName = Object.fromEntries(readOnly.map(tool => [tool.name, tool.description]));
+  assert.match(byName.meta_native_action, /amcp_write inspect checks whether a change has a reviewed write contract/);
+  assert.match(byName.meta_native_action, /this deployment uploads nothing/);
+  for (const name of ['microsoft_ads_native_action', 'x_ads_native_action', 'amcp_native_action'])
+    assert.ok(byName[name].includes(readOnlyQualifier), name);
+  // A writes deployment keeps its text: the routing names every change path it lists.
+  assert.match(writes.get('meta_native_action'), /for one reviewed change amcp_write, for uploads amcp_media/);
+  assert.ok(![...writes.values()].some(text => text.includes(readOnlyQualifier)));
+  // With the owner's provider-job switch, amcp_write prepares and executes report and export jobs only (RPT-06).
+  const store = new Store(':memory:', Buffer.alloc(32, 77).toString('base64'));
+  t.after(() => store.close());
+  const jobs = new MirrorService(registry, store, new NativeTransport(), undefined, {
+    allowWrites: false,
+    providerJobs: true,
+    maxBudgetChange: 0,
+    requireBeforeState: true,
+  }).listTools();
+  assert.ok(jobs.find(tool => tool.name === 'x_ads_native_action').description.includes(providerJobQualifier));
+});
+
+test('operation-mode gateways with write actions say nothing is written from them, as the ledger and a call show', async t => {
+  const delegated = [...registry.tools.values()].filter(tool => tool.mode === 'delegated').map(tool => tool.name),
+    withWrites = delegated.filter(gateway =>
+      ledger.some(r => r.gateway === gateway && ['reviewed_write_family', 'blocked_write'].includes(r.status)),
+    );
+  assert.deepEqual([...delegatedWriteGateways].sort(), withWrites.sort());
+  const f = fixture(t),
+    listed = Object.fromEntries(f.service.listTools().map(tool => [tool.name, tool.description]));
+  for (const gateway of delegated.filter(g => listed[g]))
+    assert.equal(
+      listed[gateway].includes('Nothing is written from this tool: a write action is previewed'),
+      delegatedWriteGateways.has(gateway),
+      gateway,
+    );
+  // What the note says is what AMCP does: a write action with dry_run:false is refused toward amcp_write inspect.
+  const connection = '77000000-0000-4000-8000-0000000000aa';
+  f.store.putConnection(
+    f.actor,
+    {
+      id: connection,
+      tenantId: f.actor.tenantId,
+      gateway: 'reddit_native_action',
+      accounts: ['t2_abc'],
+      writeAccounts: ['t2_abc'],
+      enabled: true,
+      label: 'Synthetic Reddit',
+      scopes: ['adsread', 'adsedit'],
+    },
+    {accessToken: 'synthetic'},
+  );
+  const write = await f.call('reddit_native_action', {
+    operation: 'reddit_campaign_ops',
+    arguments: {
+      action: 'UPDATE_CAMPAIGN',
+      account_id: 't2_abc',
+      connection_id: connection,
+      params: {campaign_id: '1'},
+      payload: {data: {name: 'Synthetic'}},
+      dry_run: false,
+      confirmed: true,
+    },
+  });
+  assertRefused(write, 'WRITE_REVIEW_REQUIRED');
+  assert.equal(write.error.details.next_call.tool, 'amcp_write');
+  assert.equal(write.error.details.next_call.arguments.action, 'inspect');
+  // Without dry_run:false the same write is a preview.
+  const preview = await f.call('reddit_native_action', {
+    operation: 'reddit_campaign_ops',
+    arguments: {
+      action: 'UPDATE_CAMPAIGN',
+      account_id: 't2_abc',
+      connection_id: connection,
+      params: {campaign_id: '1'},
+      payload: {data: {name: 'Synthetic'}},
+    },
+  });
+  assert.equal(preview.success, true, JSON.stringify(preview.error));
+  assert.equal(preview.data.dry_run, true);
+  assert.equal(f.requests.length, 0);
+});
+
+test('the workspace context and Tag Manager listings name what their operations do, beside the captured text', t => {
+  const f = fixture(t),
+    listed = Object.fromEntries(f.service.listTools().map(tool => [tool.name, tool.description]));
+  assert.match(
+    listed.amcp_platform_workspace,
+    /no provider request: get_workspace_context .*list_accounts .*list_workspace_assets/,
+  );
+  assert.match(
+    listed.gtm_native_action,
+    /gtm_ops runs one Tag Manager API operation.*gtm_audit_ops audits.*gtm_action_job_status/,
+  );
+  for (const gateway of ['amcp_platform_workspace', 'gtm_native_action']) {
+    const help = registry.help({gateway}, {mode: 'strict', flags: {}});
+    assert.ok(help.captured_catalog?.description, gateway + ' keeps the captured text in help');
+    assert.notEqual(help.captured_catalog.description, listed[gateway]);
+  }
+  // The operations each listing names are its operations.
+  for (const [gateway, operations] of [
+    ['amcp_platform_workspace', ['get_workspace_context', 'list_accounts', 'list_workspace_assets']],
+    ['gtm_native_action', ['gtm_ops', 'gtm_audit_ops', 'gtm_action_job_status']],
+  ])
+    assert.deepEqual(
+      registry.tools
+        .get(gateway)
+        .operations.map(o => o.operation)
+        .sort(),
+      [...operations].sort(),
+    );
 });

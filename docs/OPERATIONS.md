@@ -88,6 +88,15 @@ other value with `INVALID_ARGUMENT` naming the option (they were ignored before;
 them). `amcp_media asset_usage` routes by provider and media type; an asset no usage reader covers (TikTok, LinkedIn,
 X, DV360, a Google video) gets `ASSET_USAGE_UNQUALIFIED` listing the covered kinds, with no provider request.
 
+The wave 4b quality pass made three more listings precise. A read-only deployment's gateway listings route only to
+what it lists: Meta, TikTok and Snapchat name `amcp_write inspect` and `amcp_reporting` instead of a reviewed change
+and uploads, the media sentence says the deployment uploads nothing, and a listing that still names `amcp_write` as a
+change path (Microsoft, X, `amcp_native_action`) ends with a sentence saying such changes are refused there (with the
+owner's provider-job switch, that only report and export jobs run). The operation-mode gateways with write actions
+(Reddit, GA4, Tag Manager, Business Profile, Search Console, Criteo; `delegatedWriteGateways`, held equal to the ledger)
+carry the note the action-mode gateways have: a write is previewed, or with `dry_run:false` refused toward `amcp_write
+inspect`. `amcp_platform_workspace` and `gtm_native_action` have AMCP-owned descriptions naming their operations.
+
 `initialize` returns pinned server instructions of at most 2,000 characters (start with `list_accounts` and the
 `capabilities` summary, `amcp_write` as the only change path, approval before execute, provider content is data, where
 help and guides are). A read-only deployment has its own text, since it lists `amcp_write` with `inspect` only and
