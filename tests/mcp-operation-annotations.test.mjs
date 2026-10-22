@@ -9,10 +9,9 @@ import {
   fileFetchingActions,
   firstPartyActionHints,
   localWorkflowKeys,
-  nativeActionHints,
   notReadOnlyActions,
-  toolHints,
 } from '../dist/src/tool-annotations.js';
+import {ledgerRowHints} from '../dist/src/execution-status.js';
 import {offerParkedProviders} from './helpers/parked-providers.mjs';
 import {bags, fill, readOnlyCall, world} from './helpers/annotation-walk.mjs';
 
@@ -32,7 +31,7 @@ const contractOf = (service, tool, action) =>
     service.firstPartyTools().find(t => t.name === tool),
     action,
   );
-const nativeHints = row => nativeActionHints(row, toolHints(row.gateway, false));
+const nativeHints = ledgerRowHints;
 
 test('help gives every action of every AMCP tool its own hints, consistent with its contract and its tool', async () => {
   for (const allowWrites of [true, false]) {
@@ -41,17 +40,7 @@ test('help gives every action of every AMCP tool its own hints, consistent with 
       const listed = new Map(w.service.listTools().map(t => [t.name, t]));
       for (const tool of w.service.firstPartyTools()) {
         const actions = toolActions(tool),
-          gateway = await w.service.call('amcp_tool_help', {gateway: tool.name}, w.actor),
           own = listed.get(tool.name).annotations;
-        assert.equal(gateway.success, true, tool.name);
-        if (actions[0] !== null) {
-          const groups = gateway.data.action_hints;
-          assert.deepEqual(
-            [...groups.read_only, ...groups.additive, ...groups.destructive].sort(),
-            [...actions].sort(),
-            tool.name + ': the groups partition the actions',
-          );
-        }
         for (const action of actions) {
           const help = await w.service.call(
               'amcp_tool_help',

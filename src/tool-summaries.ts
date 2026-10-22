@@ -1,5 +1,5 @@
 import type {JsonObject} from './types.js';
-import {actionSummaries, firstPartyContract, toolActions, type FirstPartyContract} from './first-party-contracts.js';
+import {actionSummaries, firstPartyContract, type FirstPartyContract} from './first-party-contracts.js';
 import {firstPartyActionHints} from './tool-annotations.js';
 
 /**
@@ -132,7 +132,6 @@ export function firstPartyHelp(
         ? {
             actions,
             action_summaries: actionSummaries(tool),
-            action_hints: actionHintGroups(tool),
             operation_help: {tool: 'amcp_tool_help', arguments: {gateway: tool.name, operation: '<action>'}},
           }
         : {}),
@@ -159,7 +158,8 @@ export function firstPartyHelp(
 }
 /**
  * A contract row as help serves it: the arguments as one JSON Schema, effects, the action's own MCP hints (MCP-06 per
- * operation: a tool's hints in tools/list cover all of its actions), role and the usual next calls.
+ * operation: a tool's hints in tools/list cover all of its actions; gateway help has no room for them under the
+ * one-call budget, D14), role and the usual next calls.
  */
 const contractView = (c: FirstPartyContract): JsonObject => ({
   arguments_schema: c.argumentsSchema,
@@ -170,22 +170,3 @@ const contractView = (c: FirstPartyContract): JsonObject => ({
   meaning:
     'Arguments outside arguments_schema are not read by this action: they draw a meta.argument_warnings entry now and are refused with INVALID_ARGUMENT in a later release. effects are the most a call can do; annotations are this action’s MCP hints.',
 });
-/** A tool's actions by their hints: those that only read, those that only add AMCP records, and the destructive ones. */
-function actionHintGroups(tool: {name: string; inputSchema: JsonObject}): JsonObject {
-  const groups: Record<'read_only' | 'additive' | 'destructive', string[]> = {
-    read_only: [],
-    additive: [],
-    destructive: [],
-  };
-  for (const action of toolActions(tool)) {
-    const c = action === null ? undefined : firstPartyContract(tool, action);
-    if (!c) continue;
-    const h = firstPartyActionHints(tool.name, action, c.effects);
-    groups[h.readOnlyHint ? 'read_only' : h.destructiveHint ? 'destructive' : 'additive'].push(action!);
-  }
-  return {
-    ...groups,
-    meaning:
-      'Each action’s MCP hints (amcp_tool_help {gateway, operation} gives them whole): read_only actions change nothing; additive ones only add AMCP records such as a plan, review, capture or check result; destructive ones may delete or replace what a person made, change an advertising account or write a Google Sheet.',
-  };
-}

@@ -255,19 +255,16 @@ export function firstPartyActionHints(tool: string, action: string | null, effec
  * Native operations (and actions) that AMCP runs itself (contract status local_workflow), with what calling them does:
  * `read` reads a provider, `local` reads AMCP's own records, `preview` previews or refuses a native write (its change path
  * is amcp_write), `saves` saves AMCP records by adding or replacing them, `removes` deletes AMCP records, and `media`
- * fetches a file and saves an upload review. A key is gateway/operation, or gateway/operation/action where an
- * operation's actions differ. A local workflow without an entry is presented with its tool's own hints.
+ * fetches a file and saves an upload review. Keyed by gateway, then operation, then, where an operation's actions
+ * differ, action. A local workflow without an entry is presented with its tool's own hints.
  */
 type LocalEffect = 'read' | 'local' | 'preview' | 'saves' | 'removes' | 'media';
-const localWorkflowEffects: Readonly<Record<string, LocalEffect>> = Object.freeze({
-  ...Object.fromEntries(
-    ['get_workspace_context', 'list_accounts', 'list_workspace_assets'].map(op => [
-      'amcp_platform_workspace/' + op,
-      'local' as const,
-    ]),
-  ),
-  ...Object.fromEntries(
-    [
+type OperationEffects = Readonly<Record<string, LocalEffect | Readonly<Record<string, LocalEffect>>>>;
+const each = (effect: LocalEffect, operations: string[]) => Object.fromEntries(operations.map(op => [op, effect]));
+const localWorkflowEffects: Readonly<Record<string, OperationEffects>> = Object.freeze({
+  amcp_platform_workspace: each('local', ['get_workspace_context', 'list_accounts', 'list_workspace_assets']),
+  amcp_native_action: {
+    ...each('local', [
       'compile_entity_payload',
       'get_workspace_context',
       'list_accounts',
@@ -280,10 +277,8 @@ const localWorkflowEffects: Readonly<Record<string, LocalEffect>> = Object.freez
       'get_reporting_storage_overview',
       'get_reporting_workbook_bootstrap',
       'list_reporting_templates',
-    ].map(op => ['amcp_native_action/' + op, 'local' as const]),
-  ),
-  ...Object.fromEntries(
-    [
+    ]),
+    ...each('read', [
       'audit_campaign',
       'estimate_audience_size',
       'export_report',
@@ -306,10 +301,8 @@ const localWorkflowEffects: Readonly<Record<string, LocalEffect>> = Object.freez
       'list_creatives',
       'list_media_assets',
       'search_ads_library',
-    ].map(op => ['amcp_native_action/' + op, 'read' as const]),
-  ),
-  ...Object.fromEntries(
-    [
+    ]),
+    ...each('preview', [
       'create_ad',
       'create_adset',
       'create_campaign',
@@ -318,10 +311,8 @@ const localWorkflowEffects: Readonly<Record<string, LocalEffect>> = Object.freez
       'publish_campaign',
       'set_entity_status',
       'update_entities',
-    ].map(op => ['amcp_native_action/' + op, 'preview' as const]),
-  ),
-  ...Object.fromEntries(
-    [
+    ]),
+    ...each('saves', [
       'bind_reporting_workbook',
       'create_reporting_query',
       'create_reporting_schedule',
@@ -329,24 +320,20 @@ const localWorkflowEffects: Readonly<Record<string, LocalEffect>> = Object.freez
       'save_workbook_preferences',
       'update_reporting_query',
       'update_reporting_schedule',
-    ].map(op => ['amcp_native_action/' + op, 'saves' as const]),
-  ),
-  'amcp_native_action/platform_media_upload': 'media',
-  'ga4_native_action/ga4_connection_ops/status': 'local',
-  'ga4_native_action/ga4_connection_ops/disconnect': 'removes',
-  'ga4_native_action/ga4_sync_properties': 'saves',
-  'google_search_console_native_action/gsc_connection_ops/status': 'local',
-  'google_search_console_native_action/gsc_connection_ops/disconnect': 'removes',
-  'google_search_console_native_action/gsc_connection_ops/sync_sites': 'saves',
-  'google_business_native_action/gmb_connection_ops/status': 'local',
-  'google_business_native_action/gmb_connection_ops/disconnect': 'removes',
-  'google_business_native_action/gmb_connection_ops/sync_assets': 'saves',
-  'google_business_native_action/gmb_qanda_ops': 'local',
-  'gtm_native_action/gtm_action_job_status': 'local',
-  'gtm_native_action/gtm_audit_ops': 'read',
-  'adjust_native_action/adjust_list_assets': 'local',
-  'adjust_native_action/adjust_reporting': 'read',
-  'commerce_native_action/woocommerce_list_stores': 'local',
+    ]),
+    platform_media_upload: 'media',
+  },
+  ga4_native_action: {ga4_connection_ops: {status: 'local', disconnect: 'removes'}, ga4_sync_properties: 'saves'},
+  google_search_console_native_action: {
+    gsc_connection_ops: {status: 'local', disconnect: 'removes', sync_sites: 'saves'},
+  },
+  google_business_native_action: {
+    gmb_connection_ops: {status: 'local', disconnect: 'removes', sync_assets: 'saves'},
+    gmb_qanda_ops: 'local',
+  },
+  gtm_native_action: {gtm_action_job_status: 'local', gtm_audit_ops: 'read'},
+  adjust_native_action: {adjust_list_assets: 'local', adjust_reporting: 'read'},
+  commerce_native_action: {woocommerce_list_stores: 'local'},
 });
 const localHints: Readonly<Record<LocalEffect, ToolHints>> = Object.freeze({
   read: hintsOf(true, false, true),
@@ -356,21 +343,30 @@ const localHints: Readonly<Record<LocalEffect, ToolHints>> = Object.freeze({
   removes: hintsOf(false, true, false),
   media: hintsOf(false, false, true),
 });
-/** The keys of the local-workflow table, for the test that holds it to the contracts ledger. */
-export const localWorkflowKeys = (): string[] => Object.keys(localWorkflowEffects);
+const own = <T>(table: Readonly<Record<string, T>> | undefined, key: string | undefined): T | undefined =>
+  table && key !== undefined && Object.hasOwn(table, key) ? table[key] : undefined;
+/** The local-workflow table as gateway/operation[/action] keys, for the test that holds it to the contracts ledger. */
+export const localWorkflowKeys = (): string[] =>
+  Object.entries(localWorkflowEffects).flatMap(([gateway, operations]) =>
+    Object.entries(operations).flatMap(([operation, effect]) =>
+      typeof effect === 'string'
+        ? [gateway + '/' + operation]
+        : Object.keys(effect).map(action => gateway + '/' + operation + '/' + action),
+    ),
+  );
 /**
  * The hints of calling a native gateway with one action (MCP-06 per operation), from the action's contract status. A
  * read reads the provider; a reviewed write is previewed or refused there, since amcp_write is the only change path, and
  * an action AMCP does not run is refused before anything is sent; a media route with dry_run:false fetches the file and
- * saves an upload review. Microsoft's report submission is a read plan that creates a provider report job (RPT-06).
- * A local workflow takes its entry in the table above, else `fallback`, its tool's own hints.
+ * saves an upload review. `providerJob` marks a read plan that creates a provider report job (Microsoft's report
+ * submission, RPT-06). A local workflow takes its entry in the table above, else `fallback`, its tool's own hints.
  */
 export function nativeActionHints(
   row: {gateway: string; operation?: string; action: string; status: ContractStatus},
   fallback: ToolHints,
+  providerJob = false,
 ): ToolHints {
-  if (row.gateway === 'microsoft_ads_native_action' && row.action === 'SubmitGenerateReport')
-    return hintsOf(false, false, true);
+  if (providerJob) return hintsOf(false, false, true);
   switch (row.status) {
     case 'native_read':
     case 'unqualified_read':
@@ -384,9 +380,8 @@ export function nativeActionHints(
     case 'media_workflow':
       return localHints.media;
     case 'local_workflow': {
-      const effect =
-        localWorkflowEffects[row.gateway + '/' + row.operation + '/' + row.action] ??
-        localWorkflowEffects[row.gateway + '/' + (row.operation ?? row.action)];
+      const entry = own(own(localWorkflowEffects, row.gateway), row.operation ?? row.action),
+        effect = typeof entry === 'object' ? own(entry, row.action) : entry;
       return effect ? localHints[effect] : fallback;
     }
   }
