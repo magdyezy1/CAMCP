@@ -102,12 +102,13 @@ test('every tool’s structuredContent validates against its outputSchema, with 
         assert.equal(result.content.length, 1, label);
         assert.equal(result.content[0].type, 'text', label);
         assert.deepEqual(JSON.parse(result.content[0].text), content, label + ': the text is the structured result');
-        assert.equal(result.isError === true, content.success === false, label + ': isError exactly on refusal');
         assert.equal(typeof content.meta?.requestId, 'string', label + ': request ID');
+        // isError is set exactly on a refusal, and a refusal names its code (below).
+        assert.equal(result.isError === true, content.success === false, label + ': isError exactly on refusal');
         if (content.success === false) {
-          refusals++;
           const e = content.error;
           assert.equal(typeof e.code, 'string', label);
+          refusals++;
           assert.ok(e.message.length > 0, label);
           assert.equal(typeof e.category, 'string', label);
           assert.equal(typeof e.retryable, 'boolean', label);
