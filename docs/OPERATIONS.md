@@ -642,8 +642,12 @@ The maintained GitHub workflow defines Docker builds and synthetic read-only/wri
   before a push; opt in with `cp tools/pre-push.sample .git/hooks/pre-push` (never installed automatically).
 - **Related tests.** `npm run test:related` selects by import-graph closure, adds the tests that read a changed `web/`
   file and a small critical set, prints selected and possible counts, and appends the freshness checks when `src/`,
-  `server/`, `tools/`, `docs/`, `generated/`, `codegen/` or `.mirror/` change. `--direct` keeps the old literal-import
-  selection and `--plan` prints the selection only.
+  `server/`, `tools/`, `docs/`, `generated/`, `codegen/` or `.mirror/` change. It also selects the suites that list
+  their inputs when they run (`dynamicSuites`): `tests/mutants.test.mjs` for a catalogued module or killing test,
+  `tests/web-locale-chunks.test.mjs` for `web/` and backend sources, and `tests/storage-boundary.test.mjs` for `src/`
+  and `server/` modules. It builds as `npm run build` does (`tsc`, then the release identity), so a fresh tree has
+  `dist/release-identity.json`. `--direct` keeps the old literal-import selection and `--plan` prints the selection
+  only.
 - **Release candidates.** `prepare-public-release` writes manifest v2 with `worktree_clean` and `differs_from_revision`;
   the verifier still reads v1 and refuses a v2 candidate assembled from a tree that differed from its revision.
   `NOTICE.md` and `.gitattributes` ship; every allow-listed file must be tracked. File and Git failures print

@@ -1,8 +1,9 @@
 // Runs the tests related to changed files (QA-01): the changed tests themselves, every test whose transitive import
-// closure contains a changed module, the tests that read a changed web/ file as text, and a small critical set (write
-// review, write outcome, review state, spend policy, transport, store, Sheets, reporting). When src/, server/, tools/,
-// docs/, generated/, codegen/ or .mirror/ change it also runs the deterministic freshness checks, so a stale tracked
-// report fails here instead of first in Railway's build.
+// closure contains a changed module, the tests that read a changed web/ file as text, the suites that enumerate their
+// inputs at run time (dynamicSuites), and a small critical set (write review, write outcome, review state, spend policy,
+// transport, store, Sheets, reporting). When src/, server/, tools/, docs/, generated/, codegen/ or .mirror/ change it
+// also runs the deterministic freshness checks, so a stale tracked report fails here instead of first in Railway's
+// build. It builds as `npm run build` does (buildSteps), so a fresh tree has dist/release-identity.json too.
 // Usage: npm run test:related [-- [--direct] [--plan] file ...]   (default: files changed against HEAD, plus untracked)
 //   --direct  the previous behavior: changed tests and tests whose text names a changed module (no closure, no extras)
 //   --plan    print the selection as JSON without building or running anything
@@ -12,6 +13,7 @@ import path from 'node:path';
 import {execFileSync, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {importSpecifiers} from './qualification-inputs.mjs';
+import {allowanceFile, registryFile, scanRoots} from './check-storage-boundary.mjs';
 
 export const criticalTests = [
   'tests/write-review.test.ts',
@@ -33,6 +35,55 @@ export const freshnessChecks = [
   // ARC-03: generated-artifact provenance (capture evidence, frozen catalog, Apple SDK evidence, embedded inputs).
   {name: 'generated_provenance_check', args: ['tools/generated-provenance.mjs', '--check']},
   {name: 'architecture_check', args: ['tools/architecture-map.mjs', '--check']},
+];
+/**
+ * What `npm run build` runs, in order: the compiler, then the release identity that tests reading
+ * dist/release-identity.json need (serverInfo, /versionz). A step runs only after the one before it succeeded.
+ */
+export const buildSteps = [
+  {name: 'tsc', args: ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.json']},
+  {name: 'release_identity', args: ['tools/build-release-identity.mjs']},
+];
+/** Runs the build steps with `spawn` (spawnSync's signature); the exit status of the first failing step, else 0. */
+export function runBuild(spawn = spawnSync) {
+  for (const step of buildSteps) {
+    const result = spawn(process.execPath, step.args, {stdio: 'inherit'});
+    if (result.status !== 0) return result.status ?? 1;
+  }
+  return 0;
+}
+/** The mutant catalogue tools/mutants.mjs applies (not imported here: mutants.mjs imports this module). */
+export const mutantCatalogue = 'tests/fixtures/mutant-catalogue.json';
+const backendSource = file => scanRoots.some(root => file.startsWith(root + '/')) && /\.ts$/.test(file);
+/**
+ * Suites that enumerate the files they check when they run, so no import edge leads to them (three wave 4a merge
+ * follow-ups came from these). Each is selected when a changed file is one of its inputs:
+ *   mutants             a catalogued module or killing test, or the catalogue: every edit must still apply exactly once
+ *   web-locale-chunks   web/ files and the TypeScript sources whose literals assign Arabic messages to chunks
+ *   storage-boundary    the src/ and server/ modules it scans for SQL, its allowance and the document-kind registry
+ */
+export const dynamicSuites = [
+  {
+    test: 'tests/mutants.test.mjs',
+    inputs: (file, root) => {
+      if (file === mutantCatalogue) return true;
+      let catalogue;
+      try {
+        catalogue = JSON.parse(fs.readFileSync(path.join(root, mutantCatalogue), 'utf8'));
+      } catch {
+        return false;
+      }
+      return (catalogue.mutants ?? []).some(m => m.file === file || (m.tests ?? []).includes(file));
+    },
+  },
+  {
+    test: 'tests/web-locale-chunks.test.mjs',
+    inputs: file => file.startsWith('web/') || (/^(?:src|server)\//.test(file) && /\.ts$/.test(file)),
+  },
+  {
+    test: 'tests/storage-boundary.test.mjs',
+    inputs: file => backendSource(file) || file === allowanceFile || file === registryFile,
+  },
 ];
 const freshnessScope = /^(?:src|server|tools|docs|generated|codegen|\.mirror)\//;
 const graphRoots = ['src', 'server', 'tools', 'tests', 'generated', 'codegen'];
@@ -140,6 +191,8 @@ export function relatedPlan({root = process.cwd(), changed, direct = false}) {
         needles = [file, "'web', '" + relative + "'", '/assets/' + relative];
       for (const test of tests) if (needles.some(needle => texts.get(test).includes(needle))) add(test, 'web_reader');
     }
+    for (const suite of dynamicSuites)
+      if (texts.has(suite.test) && files.some(file => suite.inputs(file, root))) add(suite.test, 'dynamic_inputs');
     if (files.length) for (const test of criticalTests) if (texts.has(test)) add(test, 'critical');
   }
   const counts = {};
@@ -176,10 +229,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.log('No related tests for: ' + (changed.join(', ') || '(no changes)'));
     process.exit(0);
   }
-  const build = spawnSync(process.execPath, ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.json'], {
-    stdio: 'inherit',
-  });
-  if (build.status !== 0) process.exit(build.status ?? 1);
+  const built = runBuild();
+  if (built !== 0) process.exit(built);
   let status = 0;
   const stale = [];
   for (const check of freshnessChecks.filter(c => plan.freshness.includes(c.name))) {
