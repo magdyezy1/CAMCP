@@ -1,12 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash, randomBytes, scryptSync} from 'node:crypto';
-import {spawnSync} from 'node:child_process';
-import {fileURLToPath} from 'node:url';
 import type {Request, Response} from 'express';
 import {Store} from '../src/store.js';
 import {WebStore, checkPassword, passwordHash, type WebSession} from '../server/web-store.js';
 import {McpOAuth} from '../server/mcp-oauth.js';
+import {runAdmin} from './admin-cli.js';
 
 // The two passwords configured on the server (the administrator's and the shared reviewer's) are doors: F-16.
 const master = Buffer.alloc(32, 83).toString('base64'),
@@ -180,8 +179,7 @@ test('the reviewer door: a new or removed reviewer password ends reviewer sessio
 });
 
 test('admin password-hash prints a scrypt-v3 hash of a password read from standard input', async () => {
-  const admin = fileURLToPath(new URL('../tools/admin.js', import.meta.url)),
-    run = (input: string) => spawnSync(process.execPath, [admin, 'password-hash'], {input, encoding: 'utf8'});
+  const run = (input: string) => runAdmin(['password-hash'], {input});
   const printed = run(first + '\n');
   assert.equal(printed.status, 0, printed.stderr);
   const hash = printed.stdout.trim();

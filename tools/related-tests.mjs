@@ -58,9 +58,11 @@ const backendSource = file => scanRoots.some(root => file.startsWith(root + '/')
 /**
  * Suites that enumerate the files they check when they run, so no import edge leads to them (three wave 4a merge
  * follow-ups came from these). Each is selected when a changed file is one of its inputs:
- *   mutants             a catalogued module or killing test, or the catalogue: every edit must still apply exactly once
- *   web-locale-chunks   web/ files and the TypeScript sources whose literals assign Arabic messages to chunks
- *   storage-boundary    the src/ and server/ modules it scans for SQL, its allowance and the document-kind registry
+ *   mutants               a catalogued module or killing test, or the catalogue: every edit must still apply exactly once
+ *   web-locale-chunks     web/ files and the TypeScript sources whose literals assign Arabic messages to chunks
+ *   storage-boundary      the src/ and server/ modules it scans for SQL, its allowance and the document-kind registry
+ *   root-independent-cli  every test file, which it scans for a bare admin CLI spawn, and the tools/ and server/
+ *                         modules it scans for an entry point that refuses root
  */
 export const dynamicSuites = [
   {
@@ -83,6 +85,10 @@ export const dynamicSuites = [
   {
     test: 'tests/storage-boundary.test.mjs',
     inputs: file => backendSource(file) || file === allowanceFile || file === registryFile,
+  },
+  {
+    test: 'tests/root-independent-cli.test.mjs',
+    inputs: file => /^(?:tests|tools|server)\/.+\.(?:ts|mjs|js)$/.test(file),
   },
 ];
 const freshnessScope = /^(?:src|server|tools|docs|generated|codegen|\.mirror)\//;

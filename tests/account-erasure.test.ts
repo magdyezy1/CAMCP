@@ -8,7 +8,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {spawnSync} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 import {Store} from '../src/store.js';
 import {WebStore} from '../server/web-store.js';
@@ -27,13 +26,13 @@ import {createEncryptedBackup, restoreEncryptedBackup, verifyEncryptedBackup} fr
 import {sha256} from '../src/security.js';
 import type {Connection, JsonObject} from '../src/types.js';
 import {removeTestDirectory} from './temp.js';
+import {runAdmin} from './admin-cli.js';
 
 const origin = 'https://amcp.shop',
   master = Buffer.alloc(32, 71).toString('base64'),
   day = 86400000,
   erasedEmail = 'erase.me@example.test',
   erasedName = 'Erasable Synthetic Person',
-  cli = path.resolve('dist/tools/admin.js'),
   prefix = 'amcp-account-erasure-';
 const options = {deploymentTenant: 'local', reason: 'operator_request', by: 'cli'} as const;
 
@@ -452,8 +451,7 @@ test('SEC-07 S4: erasure receipts are re-applied to a restored copy, by the libr
     closed = true;
     // The CLI: a dry run, a confirmed erasure, the receipts and their re-application to another restored copy.
     const env = {...process.env, MIRROR_DB: file, MIRROR_MASTER_KEY: master, AMCP_TENANT_ID: 'local'},
-      run = (...args: string[]) =>
-        spawnSync(process.execPath, [cli, ...args], {encoding: 'utf8', env: {...env}, timeout: 30000});
+      run = (...args: string[]) => runAdmin(args, {env: {...env}, timeout: 30000});
     const kept = run('erase-account', 'kept@example.test', '--dry-run');
     assert.equal(kept.status, 0, kept.stderr);
     assert.equal(JSON.parse(kept.stdout).status, 'planned', 'the kept workspace is no longer shared');
@@ -469,11 +467,7 @@ test('SEC-07 S4: erasure receipts are re-applied to a restored copy, by the libr
     assert.equal(JSON.parse(listed.stdout).length, 2);
     const second = path.join(dir, 'restored-cli.sqlite');
     await restoreEncryptedBackup(archive, second, master);
-    const reapplied = spawnSync(process.execPath, [cli, 'erasure-reapply', receiptFile], {
-      encoding: 'utf8',
-      env: {...env, MIRROR_DB: second},
-      timeout: 30000,
-    });
+    const reapplied = runAdmin(['erasure-reapply', receiptFile], {env: {...env, MIRROR_DB: second}, timeout: 30000});
     assert.equal(reapplied.status, 0, reapplied.stderr);
     const report = JSON.parse(reapplied.stdout);
     assert.equal(report.reapplied, 2);

@@ -100,11 +100,13 @@ test('the build is the one `npm run build` runs: tsc, then the release identity,
 });
 
 // Wave 4a follow-up: the mutant catalogue, the Arabic locale chunks and the storage boundary enumerate their inputs
-// when they run, so no import edge led to them and a change that broke them passed test:related.
+// when they run, so no import edge led to them and a change that broke them passed test:related. The root-handling
+// guard of the admin CLI spawns (tests/root-independent-cli.test.mjs) scans the tests and entry points the same way.
 test('the suites that enumerate their inputs are selected when one of their inputs changes', () => {
   assert.equal(mutantCatalogue, catalogueFile);
   assert.deepEqual(dynamicSuites.map(s => s.test).sort(), [
     'tests/mutants.test.mjs',
+    'tests/root-independent-cli.test.mjs',
     'tests/storage-boundary.test.mjs',
     'tests/web-locale-chunks.test.mjs',
   ]);
@@ -123,7 +125,9 @@ test('the suites that enumerate their inputs are selected when one of their inpu
     'tests/storage-boundary.test.mjs',
     'tests/web-locale-chunks.test.mjs',
   ]);
+  // A server module may also be an entry point that checks for root.
   assert.deepEqual(dynamic(['server/workspace-search.ts']), [
+    'tests/root-independent-cli.test.mjs',
     'tests/storage-boundary.test.mjs',
     'tests/web-locale-chunks.test.mjs',
   ]);
@@ -131,9 +135,11 @@ test('the suites that enumerate their inputs are selected when one of their inpu
   // A page script or a locale file changes which chunk carries a message.
   assert.deepEqual(dynamic(['web/owner-operations.js']), ['tests/web-locale-chunks.test.mjs']);
   assert.deepEqual(dynamic(['web/locales/ar.json']), ['tests/web-locale-chunks.test.mjs']);
-  // Documentation, a tool or an unrelated test is none of their inputs.
+  // A test could spawn the admin CLI bare, and a tool could check for root.
+  assert.deepEqual(dynamic(['tests/operations.test.ts']), ['tests/root-independent-cli.test.mjs']);
+  assert.deepEqual(dynamic(['tools/docs-index.mjs']), ['tests/root-independent-cli.test.mjs']);
+  // Documentation is none of their inputs.
   assert.deepEqual(dynamic(['docs/OPERATIONS.md']), []);
-  assert.deepEqual(dynamic(['tools/docs-index.mjs']), []);
   const reasons = relatedPlan({changed: ['src/csv-safety.ts']});
   assert.ok(reasons.reasons.dynamic_inputs >= 1);
   // --direct keeps the earlier literal selection.

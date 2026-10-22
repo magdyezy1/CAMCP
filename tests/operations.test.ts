@@ -3,14 +3,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {fileURLToPath} from 'node:url';
-import {execFile} from 'node:child_process';
-import {promisify} from 'node:util';
 import {DatabaseSync} from 'node:sqlite';
 import {Store} from '../src/store.js';
 import {removeTestDirectory} from './temp.js';
-const exec = promisify(execFile),
-  admin = fileURLToPath(new URL('../tools/admin.js', import.meta.url));
+import {execAdmin} from './admin-cli.js';
 
 test('administrator backup restores committed WAL data, encrypted credentials and audit integrity', async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-recovery-')),
@@ -36,14 +32,14 @@ test('administrator backup restores committed WAL data, encrypted credentials an
     store.putDocument('t', 'test', 'document', {version: 'before'});
     store.appendAudit('t', 'test', {event: 'backup_test'});
     const env = {...process.env, MIRROR_DB: source, MIRROR_MASTER_KEY: key};
-    const backed = await exec(process.execPath, [admin, 'backup', copy], {env});
+    const backed = await execAdmin(['backup', copy], {env});
     // Backups are encrypted only: the file is not a readable SQLite database, and it restores with the key.
     assert.match(backed.stdout, /sha256/);
     assert.notEqual(fs.readFileSync(copy).subarray(0, 15).toString('latin1'), 'SQLite format 3');
     assert.ok(!fs.readFileSync(copy).includes('backup_test'), 'no plaintext audit rows in the archive');
     store.putDocument('t', 'test', 'document', {version: 'after'});
     const database = copy + '.restored.sqlite';
-    await exec(process.execPath, [admin, 'backup-restore', copy, database], {env});
+    await execAdmin(['backup-restore', copy, database], {env});
     const restored = new Store(database, key);
     try {
       assert.equal(restored.document('t', 'test', 'document').version, 'before');
@@ -52,9 +48,9 @@ test('administrator backup restores committed WAL data, encrypted credentials an
     } finally {
       restored.close();
     }
-    const checked = await exec(process.execPath, [admin, 'audit-verify'], {env: {...env, MIRROR_DB: database}});
+    const checked = await execAdmin(['audit-verify'], {env: {...env, MIRROR_DB: database}});
     assert.match(checked.stdout, /verified/);
-    await assert.rejects(exec(process.execPath, [admin, 'backup', copy], {env}), (error: any) =>
+    await assert.rejects(execAdmin(['backup', copy], {env}), (error: any) =>
       error.stderr.includes('BACKUP_PATH_REQUIRED'),
     );
   } finally {
@@ -69,7 +65,7 @@ test('concurrent administrator startup serializes schema creation and unsupporte
   try {
     await Promise.all(
       Array.from({length: 4}, (_, i) =>
-        exec(process.execPath, [admin, 'init', 't' + i], {
+        execAdmin(['init', 't' + i], {
           env: {...process.env, MIRROR_DB: filename, MIRROR_MASTER_KEY: ''},
         }),
       ),
