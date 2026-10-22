@@ -7,7 +7,7 @@ Nothing here has been run live; ACC-01 stays open until the owner runs it ([rule
 
 ## What is proven locally
 
-- Every one of the 16 guided recipes has a synthetic run-to-read-back fixture: the Google Search recipes in
+- Every one of the <!-- fact:campaign_recipes -->16<!-- /fact --> guided recipes has a synthetic run-to-read-back fixture: the Google Search recipes in
   `tests/campaign-plan-recovery.test.mjs`, `tests/google-clicks-recipe.test.mjs`, `tests/google-conversion-recipes.test.mjs`
   and `tests/google-value-recipes.test.mjs`, Performance Max in `tests/google-pmax-recipe.test.mjs`; the Snapchat
   recipes in `tests/snapchat-traffic-recipe.test.mjs` and `tests/snapchat-lead-recipe.test.mjs`; the TikTok traffic and

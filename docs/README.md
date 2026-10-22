@@ -5,7 +5,7 @@ with the [repository README](../README.md) for what AMCP is.
 
 ## Start here
 
-- [Current product scope and completion walkthrough](CURRENT-READINESS.md)
+- [Current readiness](CURRENT-READINESS.md)
 - [Decisions](DECISIONS.md)
 - [Review summary for the owner](review/SUMMARY.md)
 - [AMCP architecture](review/ARCHITECTURE.md)

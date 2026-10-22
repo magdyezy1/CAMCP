@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {packageStatusTable, tableFile} from './package-status.mjs';
+import {docFacts} from './doc-facts.mjs';
 
 const docs = fileURLToPath(new URL('../docs/', import.meta.url)),
   target = path.join(docs, 'README.md');
@@ -326,6 +327,9 @@ const text = lines.join('\n') + '\n';
 const status = packageStatusTable(fileURLToPath(new URL('..', import.meta.url))),
   statusTarget = fileURLToPath(new URL('../' + tableFile, import.meta.url));
 for (const problem of status.problems) problems.push('package status: ' + problem);
+// DOC-01: the current pages' generated facts (tools/doc-facts.mjs), checked or written with the index. It needs dist/.
+const facts = docFacts(fileURLToPath(new URL('..', import.meta.url)), {write: !process.argv.includes('--check')});
+for (const problem of facts.problems) problems.push('documentation facts: ' + problem);
 if (problems.length) {
   console.error('Documentation index: ' + problems.join('; '));
   process.exit(1);

@@ -655,7 +655,11 @@ The maintained GitHub workflow defines Docker builds and synthetic read-only/wri
 - **Container parity.** `npm run qualify:container` (`tools/container-parity.mjs`, ACC-04) copies the release scope
   minus `.dockerignore` to a new directory outside any Git repository, links the installed dependencies and runs
   `npm run check` there with FFmpeg required and two test workers, as Railway's Dockerfile build does;
-  `-- --test <file>` runs the build and the named tests only. Its record holds counts, hashes and exit codes.
+  `-- --test <file>` runs the build and the named tests only. Its record holds counts, hashes and exit codes. It does
+  not reproduce the image's root user, Node patch version or Linux: on 2026-10-18 it passed every test on Windows while
+  Railway's build failed twice (the image's `node:sqlite` refused backup rate `-1`; a test met the admin CLI's root
+  refusal), so only the Railway build record is Linux evidence
+  ([what the deployment taught](DEPLOY-RAILWAY.md#what-the-2026-10-18-deployment-taught)).
 - **Railway build evidence.** `npm run evidence:railway` turns a build log the owner exported read-only into a
   counts-only record of the Linux check for that deployment
   ([per-release evidence](DEPLOY-RAILWAY.md#per-release-linux-evidence-from-railway-builds)).

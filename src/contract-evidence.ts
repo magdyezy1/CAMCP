@@ -28,7 +28,7 @@ export const providerMaintenance: Record<string, JsonObject> = {
     traps: [
       'v23 and v25 use start_date_time/end_date_time in customer timezone, not start_date/end_date.',
       'Discovery validates fields; review contracts still restrict mutation families and batch sizes.',
-      'Explorer access needs administrator/provider approval; do not infer a token sunset.',
+      'API access belongs to the OAuth client Cloud project (Explorer or higher); developer tokens were sunset 2026-09-09 and are never sent.',
     ],
   },
   microsoft: {

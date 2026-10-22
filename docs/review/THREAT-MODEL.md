@@ -156,7 +156,7 @@ Findings referenced as `F-nn` are in [FINDINGS.md](FINDINGS.md).
 | Master key `MIRROR_MASTER_KEY` | Railway variable | Decrypts every stored secret and backup |
 | Account credentials | `amcp_users` (scrypt), `amcp_mfa` (sealed TOTP secret, hashed recovery codes); the administrator and reviewer passwords (environment, `amcp_web_doors` records the hash each was last opened with) | Account takeover |
 | Customer and report data | Provider responses in reviews, receipts, audit rows, report exports, Sheets | Client confidentiality; lead forms can hold PII |
-| Integrity of the audit trail | `audit` (one hash chain across all workspaces; an account erasure leaves receipted tombstones, SEC-07) | Evidence of who changed what |
+| Integrity of the audit trail | `audit` (one append-only hash chain across all workspaces: each row links to the last row of the whole table; each workspace reads only its own rows; an account erasure leaves receipted tombstones, SEC-07) | Evidence of who changed what |
 
 ## 2. Actors
 
@@ -209,7 +209,7 @@ Rated by likelihood × impact for this deployment (one replica, one owner worksp
 | T12 | Cross-tenant access | Operator guesses another tenant's review or connection id | Tenant column in every key and query | Verified correct | Low |
 | T13 | SSRF | Media URL or Drive link to internal addresses | Host allowlists, pinned DNS for report downloads, `redirect: 'error'`; since batch 12 a public-link import (`source_url`) accepts HTTPS on port 443 with a host name, requires every resolved address to be public, connects to the checked address and re-checks each of at most three redirects | Verified correct; dot-segment hardening (F-20); link guard tested through the real HTTPS transport | Low |
 | T14 | Injection | CSV/Sheets formulas, GAQL, REST.li, path traversal, FFmpeg arguments | Escaping, strict regexes, `shell:false`, protocol whitelist | Verified correct | Low |
-| T15 | Repudiation | A write without a trail | Hash-chained audit (one chain across tenants) | Verified correct; retention missing (F-18) | Low |
+| T15 | Repudiation | A write without a trail | One append-only hash chain across all workspaces (`Store.appendAudit` links each row to the last row of the table); reads are per workspace (Activity, the website and MCP history), while `Store.verifyAudit`, `admin audit-verify` and the `audit_chain_valid` field of the per-workspace `admin status <workspace>` verify the whole chain | Verified correct as one global chain, tombstones included (SEC-07); there is no per-workspace verification, so a per-workspace answer reports the global one; retention missing (F-18) | Low |
 | T16 | Tampering: stored secret forgery | Truncated GCM tag accepted | AES-256-GCM | Tag length unchecked (F-19); needs DB write access | Low |
 | T17 | Downgrade | HTTP to the site | Cloudflare TLS, `Secure` cookies | No HSTS (F-17) | Low |
 | T18 | Availability: provider sunset | Microsoft SOAP 2027-01-31 (Google Ads moved from v23, sunset 2027-02, to v25 in batch 14) | Pinned versions, drift tooling, one Google version module | No dated sunset registry or alarm (F-50…F-56) | Medium |

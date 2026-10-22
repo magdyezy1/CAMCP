@@ -1,5 +1,10 @@
 # Recommendations: implementation and acceptance
 
+> **Archived (September 2026).** This page records one September release and is not current: its recipe, adapter and
+> limit statements are those of that release. For what AMCP does now, read [current readiness](CURRENT-READINESS.md)
+> (generated counts, tool surface and package status), [product workflows](PRODUCT-WORKFLOWS.md) and the
+> [decision record](DECISIONS.md).
+
 This release implements the attached account/MCP recommendations and Reporting Overview. The evidence is automated checks and synthetic browser QA, not certification of live provider acceptance or production deployment.
 
 | Area | Implemented |

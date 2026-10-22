@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "as_of": "2026-10-10",
-  "basis": "Re-baselined from the 2026-10-08 engineering review (packages audits A and B, ticket DOC-02) at commit 60ec2cc, applying owner decision D25; B01 also cites the identifier-error matrix run on 2026-10-10. Native acceptance is none for every package: no authorized live read or write evidence record exists for a package acceptance. The historical one-label matrix stays in IMPLEMENTATION-2026-10-01.md.",
+  "basis": "Re-baselined from the 2026-10-08 engineering review (packages audits A and B, ticket DOC-02) at commit 60ec2cc, applying owner decision D25; B01 also cites the identifier-error matrix run on 2026-10-10. Native acceptance is none for every package: no authorized live read or write evidence record exists for a package acceptance. On 2026-10-22 (DOC-01) the gap and remainder texts that later merged work or the 2026-10-17 documentation pins had closed were corrected; the states are those of 2026-10-10 until the owner approves re-baselined counts (D25). The historical one-label matrix stays in IMPLEMENTATION-2026-10-01.md.",
   "packages": [
     {
       "id": "B01",
@@ -125,14 +125,14 @@
       "blueprint_acceptance": "Each advertised workflow resolves prerequisites or names the precise unknown/blocker",
       "source": {
         "met": false,
-        "gap": "Readiness records requested Meta permissions as granted and does not record TikTok and X grants",
+        "gap": "ARC-03 stage B route anchors and the per-family manifests (below); the gap recorded on 2026-10-10, readiness that took requested Meta permissions as granted and recorded no TikTok or X grants, closed with CON-03 in wave 1",
         "tests": ["tests/capability-graph.test.ts", "tests/capability-eligibility.test.mjs", "tests/recipe-eligibility.test.mjs"]
       },
       "native": {"state": "none", "evidence": []},
       "manual": {"state": "not_recorded", "evidence": []},
       "remainders": [
-        {"text": "Truthful readiness from actually granted scopes", "disposition": "register_item", "ref": "CON-03"},
-        {"text": "Provider eligibility register for declared approvals and access levels", "disposition": "register_item", "ref": "ACC-05"},
+        {"text": "Truthful readiness from actually granted scopes is built (wave 1); an authorized Meta /me/permissions read matching the recorded grants remains", "disposition": "native_acceptance", "ref": "CON-03"},
+        {"text": "Provider eligibility register for declared approvals and access levels is built (wave 3a, docs/PROVIDER-ACCESS.md); the owner's declarations and approved probes remain", "disposition": "owner_action", "ref": "ACC-05"},
         {"text": "ARC-03 stage B route anchors per gateway (docs/implementation/ROUTE-ANCHOR-COVERAGE.md): no anchored executable route for LinkedIn (214), Snapchat (343), TikTok (384) and X (161), and 158 Meta routes resting on the captured catalog only; and the per-family manifests (src/families/<name>.manifest.ts) feeding the provider contracts, CONTRACTS.md, the ledger and PARITY", "disposition": "register_item", "ref": "ARC-03"}
       ]
     },
@@ -256,7 +256,7 @@
       "blueprint_acceptance": "Clients choose correct next actions with fewer unnecessary calls; UI links preserve identity",
       "source": {
         "met": false,
-        "gap": "'Fewer unnecessary calls' has a local journey and task baseline (QA-04) but no external-client runs yet, and AMCP-authored tools have no typed per-action output schemas",
+        "gap": "Source re-assessment pending (D25): the typed per-action contracts and outcome schemas the 2026-10-10 assessment found missing shipped with MCP-07 in wave 2; 'fewer unnecessary calls' has a local journey and task baseline (QA-04) but no external-client run yet (D14)",
         "tests": [
           "tests/mcp-workflow.test.mjs",
           "tests/mcp-operations-journey.test.mjs",
@@ -267,7 +267,7 @@
       "native": {"state": "none", "evidence": []},
       "manual": {"state": "not_recorded", "evidence": []},
       "remainders": [
-        {"text": "Typed per-action contracts and output schemas", "disposition": "register_item", "ref": "MCP-07"},
+        {"text": "Typed per-action contracts and output schemas are built (wave 2); their per-action argument checks stay report-only until the owner sets them to enforce", "disposition": "register_item", "ref": "MCP-07"},
         {"text": "Owner-run external-client sessions against the committed QA-04 baseline, and a re-baseline after MCP-07", "disposition": "register_item", "ref": "QA-04"},
         {"text": "Real AI-client interoperability matrix", "disposition": "native_acceptance", "ref": "ACC-02"}
       ]
@@ -278,16 +278,16 @@
       "blueprint_acceptance": "Separate reproducible local/CI/container/live evidence for the shipped workflow",
       "source": {
         "met": false,
-        "gap": "No captured Linux/container evidence and no finite manual assistive-technology acceptance",
+        "gap": "No harvested Linux evidence record: the owner reported the Railway build of cb338f68 successful on 2026-10-18, but its log is not yet recorded (ACC-04), and container parity outside Git cannot reproduce the image's root user, Node patch version or OS; the finite assistive-technology protocol (ACC-07) has not been run",
         "tests": ["tests/browser-wcag.test.mjs", "tests/browser-accessibility.test.mjs", "tests/release-assembly.test.mjs", "tests/qualify.test.mjs"]
       },
       "native": {"state": "none", "evidence": []},
       "manual": {"state": "amended", "evidence": ["D25: hosted CI waived by the owner; local qualification records replace it"]},
       "remainders": [
-        {"text": "Harvest Railway build logs and image digests as Linux/container evidence", "disposition": "register_item", "ref": "ACC-04"},
+        {"text": "Harvest Railway build logs and image digests as Linux/container evidence: the tools are built (wave 2); the owner exports the build log of the deployed cb338f68, records it with npm run evidence:railway and pins the base image digest it shows", "disposition": "owner_action", "ref": "ACC-04"},
         {"text": "Finite manual assistive-technology acceptance", "disposition": "register_item", "ref": "ACC-07"},
         {"text": "Railway settings before the 2026-12-01 cutoff and path-scoped deploys", "disposition": "register_item", "ref": "OPS-05"},
-        {"text": "ARC-03 manual acceptance: the owner reviews the unanchored route list (docs/implementation/ROUTE-ANCHOR-COVERAGE.md) and the withheld-capture declaration (.mirror/RAW/WITHHELD.json), and runs the network steps no check takes: the Apple SDK re-derivation at its pinned revision and pinning the TikTok SDK", "disposition": "owner_action", "ref": "ARC-03"},
+        {"text": "ARC-03 manual acceptance: the owner reviews the unanchored route list (docs/implementation/ROUTE-ANCHOR-COVERAGE.md) and the withheld-capture declaration (.mirror/RAW/WITHHELD.json); the network steps no check takes were completed on 2026-10-17 (the Apple SDK re-derivation passed with 0 problems, and the TikTok SDK specification was pinned at commit f809c396)", "disposition": "owner_action", "ref": "ARC-03"},
         {"text": "WEB-07 deployed acceptance: the release browser matrix, dark-mode screenshots matching local, and Arabic About and Home loading the shell chunk only (the local criterion, the full rendered qualification with axe-core and 0 contrast failures in either theme, passed on the wave 3b tree, wave3b-browser-1, and with the component colours from tokens on the wave 4a tree, wave4a-browser-1, docs/LOCAL-BROWSER-QA.md)", "disposition": "register_item", "ref": "WEB-07"},
         {"text": "WEB-07 visual diff sign-off per increment (theme tokens, escape-by-default markup, route bundles, and the component colours from tokens: the merged light-mode shades, the decorative borders and tints that read a little lighter, and the dark-mode borders of platform logos, report options, report platforms and the command key on the dark line, as docs/AMCP-IDENTITY.md lists them)", "disposition": "owner_action", "ref": "WEB-07"}
       ]
@@ -298,7 +298,7 @@
       "blueprint_acceptance": "Complete qualified campaign journey from brief to verified outcome",
       "source": {
         "met": false,
-        "gap": "Microsoft location targeting and activation gating are missing, and no recipe has a verified outcome",
+        "gap": "Source re-assessment pending (D25): the Microsoft location targeting and activation gating the 2026-10-10 assessment found missing shipped with CMP-03 in waves 2 to 3b, with the lookup by name since its Microsoft Learn page was pinned on 2026-10-17; no recipe has reached a verified outcome on a real account yet (native, ACC-01)",
         "tests": [
           "tests/google-clicks-recipe.test.mjs",
           "tests/meta-conversion-recipes.test.mjs",
@@ -309,7 +309,7 @@
       "native": {"state": "none", "evidence": []},
       "manual": {"state": "not_recorded", "evidence": []},
       "remainders": [
-        {"text": "Launch completion: Microsoft location targeting, activation gating and activation plans", "disposition": "register_item", "ref": "CMP-03"},
+        {"text": "Launch completion: Microsoft location targeting, activation gating, activation plans and the location lookup are built (the lookup's GetGeoLocationsFileUrl page pinned on 2026-10-17); one paused Microsoft campaign with location criteria created and read back on a non-serving account remains", "disposition": "native_acceptance", "ref": "CMP-03"},
         {"text": "Zero-spend live acceptance and one recipe verified outcome", "disposition": "native_acceptance", "ref": "ACC-01"},
         {"text": "Next launch packs chosen from client demand, beyond the four owner decision P7 named on 2026-10-11 (TikTok traffic and conversions, LinkedIn lead generation, Performance Max)", "disposition": "optional_stretch", "ref": "CMP-07"}
       ]
@@ -360,7 +360,7 @@
       "blueprint_acceptance": "Exact property/container/event evidence distinguishes setup from actual measurement",
       "source": {
         "met": false,
-        "gap": "Google Ads conversion goals are not reachable from the measurement workspace",
+        "gap": "Source re-assessment pending (D25): the Google Ads conversion goals the 2026-10-10 assessment found unreachable from the measurement workspace are reachable since MSR-02 in wave 2; what closes the package is native, one authorized goal inspection on the configured Google Ads account (ACC-06)",
         "tests": [
           "tests/measurement-events.test.mjs",
           "tests/measurement-event-identity.test.mjs",
@@ -372,8 +372,8 @@
       "native": {"state": "none", "evidence": []},
       "manual": {"state": "not_recorded", "evidence": []},
       "remainders": [
-        {"text": "Google conversion goals in the measurement workspace (closes the package)", "disposition": "register_item", "ref": "MSR-02"},
-        {"text": "A re-recorded authorized GA4 recent-events read, and one authorized read-only measurement ledger call per hub adapter applied under P8 (Meta pixel and dataset, Snapchat, TikTok, Search Console, Adjust) on a designated asset; TikTok pixel event statistics stay unavailable until such a read pins their contract", "disposition": "native_acceptance", "ref": "ACC-06"},
+        {"text": "Google conversion goals in the measurement workspace are built (wave 2); one authorized goal inspection on the configured Google Ads account closes the package", "disposition": "native_acceptance", "ref": "MSR-02"},
+        {"text": "A re-recorded authorized GA4 recent-events read, and one authorized read-only measurement ledger call per hub adapter applied under P8 (Meta pixel and dataset, Snapchat, TikTok, Search Console, Adjust) on a designated asset; TikTok pixel event statistics are read since their specification was pinned on 2026-10-17, and their layer stays unknown until such a read confirms what the fields mean", "disposition": "native_acceptance", "ref": "ACC-06"},
         {"text": "Raw event tracing and runtime consent, deduplication and attribution diagnosis", "disposition": "conditional_stretch", "ref": "B32"}
       ]
     },

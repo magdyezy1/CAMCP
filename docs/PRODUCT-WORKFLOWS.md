@@ -2103,7 +2103,7 @@ meta.requestId. The existing browser formatter presents that reference in either
 A matching six-field optional diagnostic event omits request payload, credentials and identity;
 production stdout/stderr wiring already exists. MCP errors and reviewed-write authority remain exact.
 See [website diagnostic evidence](review/DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md). Complete working-source local release/browser gates pass; exact committed-source qualification gates the sole push.
-B13/B16/B24 and the 13 implemented / 14 partial / one open matrix remain unchanged.
+B13/B16/B24 remained partial ([package status](review/PACKAGE-STATUS.md) is current).
 
 ## Core contract diagnostics and public source comparison — batch 171
 
@@ -2117,7 +2117,7 @@ An explicit public comparison command checks unauthenticated liveness and exact 
 asset bytes. Public HTTP 200 does not establish current backend Git/image or provider acceptance.
 The October 5 observed locale bytes match an older known file; Railway deployment cause/settings
 remain unverified. Complete working-source local release/browser gates pass; fresh exact committed-source checks gate the sole push.
-B13/B16/B24 and the 13 implemented / 14 partial / one open matrix remain unchanged.
+B13/B16/B24 remained partial ([package status](review/PACKAGE-STATUS.md) is current).
 
 ## Published WooCommerce inventory and owner worker observations — batches 182/183
 

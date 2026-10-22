@@ -3,14 +3,14 @@ import {MAX_MEDIA_BYTES} from '../src/drive-media.js';
 import {Registry} from '../src/catalog.js';
 import {DelegatedNativeCompiler} from '../src/delegated-native.js';
 import {googleLegacyCoverage} from '../src/google-legacy.js';
-import {businessWorkflowOperations} from '../src/workflows.js';
-import {reportingOperations} from '../src/reporting.js';
 import {verifyCapturedContracts} from '../src/verification.js';
 import {appleActions} from '../src/apple-native.js';
 import {microsoftActions, microsoftGateway} from '../src/microsoft-native.js';
 import {redditAudienceRoutes} from '../src/reddit-extensions.js';
 import {guidanceResources} from '../src/guidance.js';
+import {actionContracts} from '../src/action-contracts.js';
 import {assertGuidanceCoverage} from './guidance-coverage.js';
+import {assertExtensions, ledgerCount, parityMarkdown, unfinishedWorkflows} from './report-model.js';
 // The report files are tracked. `--check` (npm run check) fails when they are stale instead of rewriting them.
 const check = process.argv.includes('--check'),
   stale: string[] = [];
@@ -24,16 +24,10 @@ const write = (file: string, text: string) => {
 };
 const registry = new Registry(),
   vendor = new DelegatedNativeCompiler(),
-  legacy = googleLegacyCoverage();
-const unimplemented: string[] = [];
-const localReads = new Set([
-  'get_workspace_context',
-  'list_accounts',
-  'list_workspace_assets',
-  'get_creative_generation_job',
-  'inspect_google_drive_media',
-  'search_ads_library',
-]);
+  legacy = googleLegacyCoverage(),
+  // The action ledger's classification (DOC-01): the unfinished workflows and the reviewed-mutation counts below are
+  // the ledger's, so this report, .mirror/PARITY.md and docs/implementation/ACTION-CONTRACT-COVERAGE.json agree.
+  contracts = actionContracts(registry);
 const gateways = registry.data.catalogs.map(c => ({
   gateway: c.gateway,
   mode: c.mode,
@@ -51,46 +45,36 @@ const gateways = registry.data.catalogs.map(c => ({
   production_ready: false,
   gaps: c.gaps,
 }));
-const workflowGaps = registry.data.tools
-  .filter(t => t.mode === 'delegated')
-  .flatMap(t =>
-    (t.operations ?? [])
-      .filter(
-        op =>
-          t.name !== 'amcp_platform_workspace' &&
-          !vendor.isNativeOperation(t.name, op.operation) &&
-          !(
-            t.name === 'amcp_native_action' &&
-            (localReads.has(op.operation) ||
-              reportingOperations.has(op.operation) ||
-              (businessWorkflowOperations.has(op.operation) && !unimplemented.includes(op.operation)))
-          ),
-      )
-      .map(op => ({gateway: t.name, operation: op.operation, reason: 'Workflow/provider implementation incomplete'})),
-  );
+const workflowGaps = unfinishedWorkflows(contracts, gateway => registry.tools.get(gateway)?.mode === 'delegated');
+const microsoftMutations = microsoftActions.filter(a => !a.read_only).length;
+if (ledgerCount(contracts, microsoftGateway, 'reviewed_write_family') !== microsoftMutations)
+  throw new Error('The action ledger and the Microsoft action list disagree on the reviewed Microsoft mutations.');
+const extensions = assertExtensions([
+  {
+    gateway: microsoftGateway,
+    actions: microsoftActions.length,
+    reviewed_mutation_actions: microsoftMutations,
+    write_scope:
+      'Search campaigns, ad groups, responsive search ads and keywords, campaign location criteria and ad extension associations',
+    reporting:
+      'Native account-bound submit/poll with optional server CSV/TSV ZIP parsing and cached bounded pages; campaign overview normalizes Spend, Impressions, Clicks, Conversions and Revenue while retaining native metrics',
+    live_qualified: false,
+  },
+  {
+    gateway: 'reddit_native_action',
+    actions: ledgerCount(contracts, 'reddit_native_action'),
+    independent_routes: redditAudienceRoutes.length,
+    reviewed_mutation_actions: ledgerCount(contracts, 'reddit_native_action', 'reviewed_write_family'),
+    write_scope: 'Classic campaigns, ad groups, existing-post ads and saved Reddit targeting audiences',
+    live_qualified: false,
+  },
+]);
 const guidance = assertGuidanceCoverage();
 const report = {
   version: 2,
   production_ready: false,
   captured_tools: registry.data.tools.length,
-  independent_extensions: [
-    {
-      gateway: microsoftGateway,
-      actions: microsoftActions.length,
-      reviewed_mutation_actions: microsoftActions.filter(a => !a.read_only).length,
-      write_scope: 'Search campaigns, ad groups, responsive search ads and keywords',
-      reporting:
-        'Native account-bound submit/poll with optional server CSV/TSV ZIP parsing and cached bounded pages; campaign overview normalizes Spend, Impressions, Clicks, Conversions and Revenue while retaining native metrics',
-      live_qualified: false,
-    },
-    {
-      gateway: 'reddit_native_action',
-      actions: redditAudienceRoutes.length,
-      reviewed_mutation_actions: 8,
-      write_scope: 'Classic campaigns, ad groups, existing-post ads and saved Reddit targeting audiences',
-      live_qualified: false,
-    },
-  ],
+  independent_extensions: extensions,
   campaign_guidance: {
     resources: guidanceResources.length,
     prompt: 'amcp_build_campaign',
@@ -164,41 +148,17 @@ write(
   JSON.stringify({...report, compatibility_verification: compatibilityVerification}, null, 2) + '\n',
 );
 write('.mirror/REPORTS/compatibility-verification.json', JSON.stringify(compatibilityVerification, null, 2) + '\n');
-const lines = [
-  '# Implementation and verification status',
-  '',
-  'Production readiness: **not achieved**. Reviewed campaign-management writes are available when enabled; they remain disabled by default.',
-  '',
-  '| Gateway | Catalog records | Declared HTTP routes | Additional vendor routes | Full platform verified |',
-  '|---|---:|---:|---:|---|',
-  ...gateways.map(
-    g =>
-      `| ${g.gateway} | ${g.catalog_records}${g.known_denominator === null ? ' (denominator unknown)' : ''} | ${g.captured_http_routes} | ${g.vendor_documented_routes} | No |`,
-  ),
-  '',
-  'Google has 285 independently specified legacy adapters. They preserve native responses; exact AMCP legacy behavior is unverified. One legacy update (UPDATE_CUSTOMIZER_ATTRIBUTE) has no supported vendor update operation and is rejected.',
-  '',
-  '## Independent extensions',
-  '',
-  'Microsoft Advertising: ' +
-    microsoftActions.length +
-    ' actions, including 12 reviewed Search mutation routes. Live qualification remains incomplete; these actions are not part of the captured AMCP denominator.',
-  '',
-  'Campaign guidance: ' +
-    guidanceResources.length +
-    ' MCP resources and the amcp_build_campaign prompt. amcp_write inspect checks local execution contracts without network calls.',
-  '',
-  '## Unfinished workflows',
-  '',
-  ...workflowGaps.map(g => '- ' + g.gateway + '/' + g.operation),
-  '',
-  '## Limits',
-  '',
-  ...report.limitations.map(s => '- ' + s),
-  '',
-  'Detailed mapping and known vendor route gaps: REPORTS/implementation-status.json.',
-];
-write('.mirror/PARITY.md', lines.join('\n') + '\n');
+write(
+  '.mirror/PARITY.md',
+  parityMarkdown({
+    gateways,
+    legacyAdapters: legacy.total,
+    extensions,
+    guidanceResources: guidanceResources.length,
+    workflowGaps,
+    limitations: report.limitations,
+  }),
+);
 process.stdout.write(
   'Recorded ' +
     registry.tools.size +

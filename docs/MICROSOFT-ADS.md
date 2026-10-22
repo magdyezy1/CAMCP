@@ -23,7 +23,7 @@ Authorization and token endpoints are Microsoft's `https://login.microsoftonline
 
 ## Discover and read
 
-Use `microsoft_ads_native_action` with `action: LIST_ACTIONS` or `action: DESCRIBE_ACTION` and `target_action`. AMCP exposes 31 actions:
+Use `microsoft_ads_native_action` with `action: LIST_ACTIONS` or `action: DESCRIBE_ACTION` and `target_action`. AMCP exposes <!-- fact:microsoft_actions -->31<!-- /fact --> actions (generated from `microsoftActions`, `src/microsoft-native.ts`), <!-- fact:microsoft_mutations -->16<!-- /fact --> of them mutations:
 
 | Area | Actions |
 | --- | --- |
@@ -139,7 +139,7 @@ Choose an Account, Campaign, AdGroup, Ad, Keyword or SearchQuery performance rep
 
 This adapter does not implement the whole Microsoft API. Microsoft media imports, Bulk API, budget CRUD, targeting and criterion writes other than positive campaign location criteria, negative keyword lists, Shopping, Performance Max, asset groups, Audience campaigns, billing and customer-wide UET/conversion management are not qualified execution contracts. A native read may support formats beyond the tested Search workflow; that does not extend the write contract. Provider-required fields and account eligibility still need Microsoft validation.
 
-No Microsoft production credential or live mutation was used for this release. Tests cover OAuth, rotating refresh tokens, paginated discovery, selection and customer mapping, all 14 qualified mutation routes (12 Search routes and the two location-criterion routes), exact state reads, stale budgets, partial failures, no retry after uncertain submission, report scope, reader/operator grants and the website callback. Configure your app and use live reads before qualifying production execution.
+No Microsoft production credential or live mutation was used for this release. Tests cover OAuth, rotating refresh tokens, paginated discovery, selection and customer mapping, the reviewed mutations (the 12 Search routes, the two location-criterion routes and the two extension-association routes: `tests/microsoft.test.ts`, `tests/microsoft-campaign-criteria.test.ts`, `tests/microsoft-associations.test.ts`), read-back verification of each `Get*ByIds` contract (PRV-03), exact state reads, stale budgets, partial failures, no retry after uncertain submission, report scope, reader/operator grants and the website callback. Configure your app and use live reads before qualifying production execution.
 
 ### Server download example
 

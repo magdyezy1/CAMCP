@@ -2,12 +2,13 @@
 
 ## Current implementation — 1 October 2026
 
-The owner authorized work after receiving the full review. The
-[implementation and qualification matrix](IMPLEMENTATION-2026-10-01.md) is the current status for every B01–B28
-package, including delivered scope, partial scope and open expansions. See [Product workflows](../PRODUCT-WORKFLOWS.md)
-for the website and MCP behavior. B17 objective launch packs and B24 Arabic localization are partially delivered;
-B25 conditional provider programs remains open. The matrix names the remaining work in partial packages. No production or
-live-provider action is included.
+The owner authorized work after receiving the full review. Since 2026-10-10 each B01–B28 package reports source,
+native/live and manual/deployed acceptance separately in [package status](PACKAGE-STATUS.md) (owner decision D25); the
+[implementation and qualification matrix](IMPLEMENTATION-2026-10-01.md) keeps the historical narrative of delivered
+scope, partial scope and open expansions. See [Product workflows](../PRODUCT-WORKFLOWS.md) for the website and MCP
+behavior. B17 objective launch packs and B24 Arabic localization are partially delivered; B25 conditional provider
+programs is partial (its three program workflows exist, and LinkedIn's private programs and a DV360 advertiser stay
+blocked outside AMCP). No production or live-provider action is included.
 
 ## Original review-first sequence — 1 October 2026
 

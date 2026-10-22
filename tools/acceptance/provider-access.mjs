@@ -9,7 +9,8 @@ import {fileURLToPath, pathToFileURL} from 'node:url';
 
 const root = fileURLToPath(new URL('../..', import.meta.url)),
   target = path.join(root, 'docs/PROVIDER-ACCESS.md');
-const names = {
+/** Each provider's display name by provider ID; tools/doc-facts.mjs names providers the same way. */
+export const providerNames = Object.freeze({
   google: 'Google Ads',
   meta: 'Meta',
   tiktok: 'TikTok',
@@ -29,7 +30,9 @@ const names = {
   criteo: 'Criteo',
   adjust: 'Adjust',
   google_business: 'Google Business Profile',
-};
+  woocommerce: 'WooCommerce',
+});
+const names = providerNames;
 const cell = value => String(value ?? '—').replaceAll('|', '\\|');
 
 /** The document's text from the built register module and the committed action ledger. */

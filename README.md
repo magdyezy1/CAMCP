@@ -1,42 +1,49 @@
 # AMCP
 
-AMCP connects an advertising workspace to Codex and other MCP clients. It includes a responsive website, platform OAuth callbacks, multiple logins, account selection, related asset inventory, and revocable MCP access.
+AMCP is an advertising workspace for agencies and in-house teams. A website and an MCP endpoint, for AI assistants
+such as Claude, ChatGPT, Codex and Cursor, reach the same connected advertising, analytics and commerce accounts under
+the same rules. Nothing changes on an advertising platform until AMCP has read the current state, shown a reviewable
+before and after with its money and status effects, checked the owner's spending policy and received an explicit
+approval; it then sends the change once and reads it back. Reports keep the platform's own numbers, currency, time zone
+and attribution, and never invent zeros.
 
-**Deployment:** Railway runs the application; Cloudflare manages DNS for **amcp.shop**. Follow [the deployment guide](docs/DEPLOY-RAILWAY.md). The repository contains code, not an already deployed website.
+**Status.** amcp.shop runs branch `Work-here` at `cb338f68`, deployed through Railway on 2026-10-18. Every part
+described here is implemented in source and tested against synthetic provider fakes; no live write has been accepted
+yet, and live acceptance is owner-run. [Current readiness](docs/CURRENT-READINESS.md) gives the status of each area,
+the generated provider, tool and package tables, and the owner steps that remain.
 
-**Documentation:** the [documentation map](docs/README.md) lists every guide, review and implementation record.
+At a glance, generated from the code by `npm run docs:index` (`npm run check` fails when one is stale):
 
-Provider versions, reviewed workflow boundaries and evidence are published in [contracts](docs/CONTRACTS.md). See the [September contract review](docs/implementation/PLATFORM-CONTRACTS-2026-09-18.md) for implementation decisions and validation limits. The optional [sandbox verifier](docs/SANDBOX-VERIFICATION.md) uses approved fixtures and isolated provider hosts. Development checks require Python 3.10+ (standard library only) for Microsoft WSDL regeneration; set `AMCP_SCHEMA_PYTHON` when Python is outside PATH. Production does not require Python.
+- <!-- fact:reviewed_families -->170<!-- /fact --> reviewed write families and
+  <!-- fact:campaign_recipes -->16<!-- /fact --> guided campaign recipes;
+- <!-- fact:tools_writes -->25<!-- /fact --> MCP tools on a deployment with reviewed writes
+  (<!-- fact:tools_read_only -->25<!-- /fact --> on a read-only one) and <!-- fact:mcp_guides -->13<!-- /fact --> guide
+  resources for AI clients;
+- <!-- fact:ledger_actions -->3,261<!-- /fact --> catalogued provider actions in the
+  [action ledger](docs/implementation/ACTION-CONTRACT-COVERAGE.json), each with its contract status;
+- <!-- fact:providers_active -->17<!-- /fact --> active provider adapters; <!-- fact:providers_parked -->Criteo, WooCommerce and Amazon Ads<!-- /fact -->
+  are parked and not offered.
 
-## Website
+## What it does
 
-- Verified owner-account migration, email/password accounts, Google / Apple / Facebook linking, authenticator MFA, recovery codes, team memberships and revocable sessions. See [user accounts setup](docs/USER-ACCOUNTS.md). Social sign-in credentials are separate from advertising OAuth credentials.
-- A new ink, iris and apricot visual identity, public homepage, responsive workspace navigation, keyboard page search and guided entry points. See [identity and interface migration](docs/AMCP-IDENTITY.md).
-- Commerce combines explicit source-product review with optional read-only X listed-product inspection, local search/paging and retained source/variant limits. See [catalog workflow and checks](docs/review/DELIVERY-2026-10-06-X-CATALOG-SELECTION-INVENTORY.md).
-- Commerce can reconcile two bounded scans of published WooCommerce parents and all reported variable-parent children, with exact native IDs/prices and local bilingual inspection. See [inventory scope and checks](docs/review/DELIVERY-2026-10-06-WOOCOMMERCE-INVENTORY.md).
-- Owner settings show bounded shared worker observations and distinguish unavailable, stale and recently observed processes from actual job delivery. See [worker health and concurrent-client checks](docs/review/DELIVERY-2026-10-06-WORKER-HEALTH.md).
-- Workspace administrators can connect an existing WooCommerce Read key in Commerce, inspect its bounded read-verification receipt and explicitly remove its local connection. See [store setup, replay and removal](docs/review/DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).
-- Operations connects original runs and schedules to bounded status, confirmed recovery and workbook clock previews, editing, pause and resume. See [product workflows](docs/PRODUCT-WORKFLOWS.md).
-- English/Arabic interface choice extends through report building, saved reports and delivery schedules, with native fields and user content preserved. See [reporting language coverage and limits](docs/review/DELIVERY-2026-10-01-ARABIC-REPORTING.md).
+- **Connections.** Website OAuth for <!-- fact:website_platforms -->16<!-- /fact --> platforms with your own app
+  credentials (Google Ads, Meta, TikTok, Snapchat, LinkedIn, X, Microsoft Advertising, Apple Ads, Reddit, Display &
+  Video 360, GA4, Google Tag Manager, Search Console, Business Profile once Google approves the project, and Google
+  Drive and Sheets), several logins per provider and explicit account selection: the selected accounts are the
+  boundary of every read and write. See [the deployment guide](docs/DEPLOY-RAILWAY.md#3-register-provider-apps).
+- **Reviewed changes.** One change path for the website and AI clients, with owner spending policies, idempotency,
+  read-back verification and recovery of uncertain writes. See [write operations](docs/WRITE-OPERATIONS.md).
+- **Campaigns, media and commerce.** Guided paused launches, campaign plans with preflight and step recovery, media
+  pushed to several platforms after review, and catalog comparisons. See [product workflows](docs/PRODUCT-WORKFLOWS.md)
+  and [media uploads](docs/MEDIA-UPLOADS.md).
+- **Reporting and measurement.** Reporting Overview across platforms and accounts with exports to CSV, Excel, PDF and
+  Google Sheets, and a read-only measurement hub. See [reporting overview](docs/REPORTING-OVERVIEW.md) and
+  [measurement and Apple Ads](docs/MEASUREMENT-AND-APPLE.md).
+- **Teams and security.** Roles, two-step verification, clients within one workspace, revocable AI-client access and
+  self-service deletion. See [user accounts](docs/USER-ACCOUNTS.md) and [OAuth hardening](docs/OAUTH-HARDENING.md).
 
-- Whole-campaign preflight, business-input recipes, safe failed-step recovery, owner spending policies, resumable media transfer and encrypted restore-verified backups. See [recommendations and limits](docs/RECOMMENDATIONS-IMPLEMENTED.md).
-- Reporting Overview: multiple platforms/accounts/objectives, native/custom metrics, source evidence, advisory scale/pull-back decisions, CSV, Google Sheets and scheduled exports. See [reporting setup](docs/REPORTING-OVERVIEW.md).
-- Campaign plans with verified dependencies, account readiness, private Drive and reviewed media variants, automatic write read-back, source-linked reporting, evidence-based suggestions, reusable client profiles and a capability dashboard. See [workspace operations](docs/WORKSPACE-OPERATIONS.md).
-- Scheduled client PDF/Excel packs with frozen branding, encrypted local storage and per-format recovery. See [file delivery](docs/REPORTING-OVERVIEW.md#scheduled-pdf-and-excel-files).
-
-- Connections: Google Ads, Meta, TikTok, Snapchat, LinkedIn, X, Microsoft Advertising, GA4, Google Tag Manager / Google tag, Search Console, and Apple Ads, plus separate Google Drive media and Google Sheets export connections; each provider uses your own app credentials. See [measurement and Apple setup](docs/MEASUREMENT-AND-APPLE.md).
-- Microsoft Advertising v13: 24 native actions, account discovery, 12 reviewed Search mutation routes and account-bound server CSV/TSV report download/parsing. See [Microsoft setup and limits](docs/MICROSOFT-ADS.md).
-- MCP clients can load ten campaign/reporting guides through resources/list and the amcp_build_campaign prompt. amcp_write inspect checks local write support without network calls. See the [fresh capability review](docs/CAPABILITY-REVIEW-2026-09-08.md).
-- Multiple encrypted logins per provider, default login, synchronization, searchable account selection, and local disconnect.
-- Asset tabs show related inventory. Selected ad accounts, GA4 properties, Tag Manager accounts and Search Console sites are the enforced MCP access boundaries; some standalone resources need explicit ownership bindings.
-- OAuth completion page with authorization, credential exchange, and asset sync results.
-- MCP connector page with browser authorization, Codex/Cursor configurations, reader/operator access, expiring bearer tokens, and revocation.
-- Reviewed campaign mutations with five-minute state snapshots, explicit confirmation, account grants, and persistent duplicate-submission protection.
-- Configuration-only state guards ignore delivery telemetry and normalize unordered scalar arrays; failures identify changed fields and state hashes. Created Meta/Snapchat/Reddit resources immediately receive account ownership bindings.
-- Google Drive links work through native media actions, platform_media_upload and amcp_media, with a shared amcp_write review. The server transfers images and videos to Meta, TikTok, Snapchat, Google Ads, LinkedIn, X and DV360; MCP clients never download the file. Meta and Snapchat creative creation is supported. See [formats, limits and examples](docs/MEDIA-UPLOADS.md).
-- Reviewed Google keyword/targeting/shared-exclusion-list mutations and Reddit classic campaigns, ad groups, existing-post ads and saved targeting audiences.
-- Evidence-linked campaign audits and deterministic optimization suggestions with explicit unknown coverage.
-- Session authentication, CSRF protection, encrypted OAuth state, PKCE where supported, and activity records. Claude-compatible dynamic registration supports encrypted client secrets with client_secret_post alongside public clients. See [OAuth and hardening decisions](docs/OAUTH-HARDENING.md).
+Owner decisions are recorded in [decisions](docs/DECISIONS.md), and the [documentation map](docs/README.md) lists every
+guide, runbook and record.
 
 ## Run locally
 
@@ -52,22 +59,42 @@ npm run start:http
 `src`, `server`, `tools`, `tests`, `codegen` and `deploy` before committing.
 
 The full test suite accepts `AMCP_TEST_CONCURRENCY` as an integer from 1 to 32. An unset value preserves Node's
-local default; `npm run test:serial` remains explicitly serial. CI and the Docker build select two isolated test-file
-workers and still run every check with FFmpeg required. Test startup records the available CPU count and selected
+local default; `npm run test:serial` remains explicitly serial. The Docker build selects two isolated test-file
+workers and still runs every check with FFmpeg required. Test startup records the available CPU count and selected
 worker setting; malformed settings fail before any test starts. This setting controls test execution only.
 
-The default local URL is http://127.0.0.1:4317. Configure the variables in [.env.example](.env.example) in your process environment; the server does not automatically load that file. Set an administrator password and encryption key before signing in or connecting providers. For stdio MCP, use `npm start`.
+Development checks require Python 3.10+ (standard library only) for Microsoft WSDL regeneration; set
+`AMCP_SCHEMA_PYTHON` when Python is outside PATH. Production does not require Python.
+
+The default local URL is http://127.0.0.1:4317. Configure the variables in [.env.example](.env.example) in your process
+environment; the server does not automatically load that file. Set an administrator password and encryption key
+before signing in or connecting providers. For stdio MCP, use `npm start`.
 
 ## MCP compatibility and verification
 
-The server maintains a compact-v1 baseline with 20 tools, 19 gateways, and 112 nested operation schemas. Baseline metadata and fixtures are normalized to AMCP naming; the files are derived development inputs, not unmodified external transcripts. Microsoft Advertising is a separately identified extension. Generated route metadata and official vendor contracts are included for reproducible checks. AMCP is an independent implementation and is not affiliated with any advertising platform.
+The server keeps the captured compact-v1 baseline of <!-- fact:captured_tools -->20<!-- /fact --> tools,
+<!-- fact:captured_gateways -->19<!-- /fact --> gateways and <!-- fact:captured_schemas -->112<!-- /fact --> nested
+operation schemas as its compatibility denominator (owner decision D17). Baseline metadata and fixtures are normalized
+to AMCP naming; the files are derived development inputs, not unmodified external transcripts. Microsoft Advertising
+is a separately identified extension of <!-- fact:microsoft_actions -->31<!-- /fact --> actions. Parked providers
+(Amazon Ads, Criteo and WooCommerce) are not listed unless `AMCP_PROVIDERS` names them. Provider versions and reviewed
+boundaries are published in [contracts](docs/CONTRACTS.md). AMCP is an independent implementation and is not
+affiliated with any advertising platform.
 
-This release supports reads, local dry runs, and **reviewed advertising writes** through amcp_write and amcp_media. Advertising connections and OAuth clients default to read + reviewed write access; explicit read-only choices and existing grants are preserved. The deployment write kill switch, account boundaries and per-change review remain enforced. See [write setup and supported contracts](docs/WRITE-OPERATIONS.md). OAuth, tenant isolation, account grants, native request compilation, credential refresh, reporting jobs, and MCP transports have automated tests. Captured action counts describe catalog coverage and do not prove live behavior.
+Reviewed advertising writes run through `amcp_write`, `amcp_campaign` and `amcp_media` when the deployment allows
+them (`MIRROR_ALLOW_WRITES=true`); account write grants, the owner's write pause and per-change review stay enforced.
+Captured action counts describe catalog coverage and do not prove live behaviour. Production qualification of every
+provider and workflow is not complete: provider app approvals, live acceptance and the owner's manual checks are listed
+in [current readiness](docs/CURRENT-READINESS.md#8-owner-steps). Private account evidence, credentials, local
+databases and the original project brief are excluded from this repository.
 
-Full production qualification of every provider and workflow is **not complete**. Provider app approval, production OAuth round trips, complete asset discovery coverage, special media transports, and some delegated workflows remain outstanding. See [deployment acceptance limits](docs/DEPLOY-RAILWAY.md#operations-and-qualification) and run `npm run report` for the current implementation inventory. Private account evidence, credentials, local databases, and the original project brief are excluded from this public repository.
+## Deployment
 
-The [hardening review](docs/HARDENING-REVIEW.md) records parameter behavior, measured fixture checks, and suggestions deferred for insufficient evidence.
-
-## Deployment files
-
-Use the Dockerfile and set Railway's health check to `/healthz`, one replica, and the CI gate appropriate to the release mode. With the owner's current hosted-Actions waiver, set Wait for CI off and require the recorded clean-commit local qualification and Docker full check; restore the gate when Actions are explicitly restored. See [owner-waived CI deployment mode](docs/DEPLOY-RAILWAY.md#owner-waived-github-actions). `railway.json` is a legacy reference; new Railway services cannot opt into deprecated Config as Code. Attach a volume at `/data` and match domain target ports to the actual `PORT` (the existing AMCP deployment uses 8080). The website, MCP endpoint, and report worker run together. Register callbacks such as **https://amcp.shop/api/auth/snapchat/callback** after the domain is live.
+Railway runs the application from the Dockerfile; Cloudflare manages DNS for **amcp.shop**. Follow
+[the deployment guide](docs/DEPLOY-RAILWAY.md). The website, MCP endpoint and report worker run together in one
+service with one replica and a volume at `/data`; set the health check to `/healthz` and match domain target ports to
+the actual `PORT` (the existing deployment uses 8080). The Docker build runs the full `npm run check` with FFmpeg
+required, so a failing check fails the deploy. Under the owner's hosted-Actions waiver, Wait for CI is off and the
+recorded local qualification gates each push ([owner-waived CI](docs/DEPLOY-RAILWAY.md#owner-waived-github-actions)).
+`railway.json` is a legacy reference: Railway ends config as code on 2026-12-01, so the dashboard settings are the
+owner's record. Register callbacks such as **https://amcp.shop/api/auth/snapchat/callback** after the domain is live.

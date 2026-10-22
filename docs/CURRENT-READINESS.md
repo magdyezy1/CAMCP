@@ -1,500 +1,356 @@
-# Current product scope and completion walkthrough
-
-Use this guide to operate the delivered tool and finish the remaining plan without confusing
-local evidence with live acceptance. The sole repository is magdyezy1/CAMCP, branch Work-here,
-in CAMCP-Codes-final-branch. The original review/blueprint are dated design records; the
-[current implementation matrix](review/IMPLEMENTATION-2026-10-01.md) and newest delivery records
-describe actual progress.
-
-The newest increment adds exact retained Reddit account-scope recovery,
-browser-local sanitized event/consent trace inspection, and safe translation of
-authored diagnostic bases with literal native suffixes. See
-[batch 192](review/DELIVERY-2026-10-07-TRACE-RECOVERY.md) for the exact input,
-privacy, authority, evidence and qualification boundaries. Trace observations
-never become native/runtime acceptance merely because supplied order is valid.
-
-The preceding increment adds System/Light/Dark appearance across public and workspace pages,
-absolute thirty-minute website-upload expiry including variants/reviews, native ad and
-ad-set/ad-group detail in Reporting overview, and immediate snapshot export to an owned
-Google Sheets tab. Exact hierarchy, measurement and retention boundaries are described in
-[batch 191](review/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md).
-
-Public pages now bind their styles, scripts, lazy modules and Arabic catalog to one
-content-derived public asset version. This prevents the observed four-hour browser cache
-from mixing releases. A stale version that is unavailable in a new process requires a
-reload; API and uploaded-media routes retain their original identities and access rules.
-The public privacy contact also remains usable without JavaScript behind Cloudflare.
-
-Country evidence and explicit two-observation inventory comparison extend the read-only workflow.
-Their bounds and remaining live/point-in-time claims are documented in
-[country and inventory evidence](review/DELIVERY-2026-10-06-COUNTRY-INVENTORY-EVIDENCE.md).
-The owner restored sign-in by resizing the actual database volume. Public health and authenticated
-MCP reads independently recovered on the unchanged deployed build. The original numeric SQLite
-result was not captured. The diagnostic repair preserves sign-in controls and exposes future
-numeric results and browser references. See [incident evidence and recovery](review/INCIDENT-2026-10-06-SIGNIN-DATABASE.md).
-
-The 28-package plan currently has **13 implemented, 15 partial and zero open**. Implemented means
-the documented source behavior exists within its stated scope. It does not mean every provider,
-objective, device, live tenant or production deployment has passed acceptance. This walkthrough
-does not certify the remaining partial work. B25 now has three implemented conditional-program
-workflows, while successful live entitlement remains unqualified. Shopify, Salla, WooCommerce
-and Criteo expansion/live acceptance are parked for the owner's next prompt. The
-[fifteen-package acceptance audit](review/COMPLETION-2026-10-07.md) names the remaining code
-expansion and real acceptance without hiding them in a completion count.
-
-Capabilities now supports exact LinkedIn forecasts, aggregated Audience Insights and configured
-DV360 advertiser checks, with primary requirements, local zero-request inspection, explicit
-bounded native reads, bilingual guided forms and stale-result protection. The owner selected
-LinkedIn `559535022`: its ordinary account read succeeds, but both private products return 403.
-The owner confirms no DV360 advertiser yet. HTTP 403 does not establish a missing OAuth scope.
-Google/Snapchat allocation previews now repeat selected native budgets before retention.
-General MCP discovery has identical JSON text/structured envelopes; cached tool definitions
-must be refreshed for `program_check`. Terms/deletion/authentication legal copy follows the
-active language with unchanged deployment policy. See
-[contracts, actual reads and qualification](review/DELIVERY-2026-10-07-CONDITIONAL-PROGRAMS.md).
-
-Current shared workspace forms retain their current failure reason, recovery guidance and reference
-until an edit or explicit next submit. Obsolete identity/settings/attempt failure responses stay silent;
-editing does not automatically retry a provider operation. See the
-[shared form recovery evidence](review/DELIVERY-2026-10-05-WORKSPACE-FORM-FEEDBACK.md).
-
-LinkedIn conversion inspection now shows native registration method and reported ownership with
-an explicit default owned-rule request boundary. Missing/future fields stay unknown/exact; local
-search/paging, original authorization and unverified delivery states remain. See the
-[metadata and scope evidence](review/DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
-
-Measurement now provides named task/return links for its four native inspections and local trace task. Ordinary jumps
-retain draft entries, current results/local search, original URL/history and pending reads. Exact
-known fragments focus readable headings after existing handoff validation; no jump starts a read.
-See [task navigation evidence](review/DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md).
-
-Supported account inventory now translates all 131 selected direct AMCP-authored diagnostic
-sentences; 127 new Arabic pairs preserve every earlier value and literal native/protocol details.
-Original collectors and persistent form recovery remain unchanged. See [account inventory diagnostic evidence](review/DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md).
-
-Operation-specific Google/Meta help now follows the configured effective version. Known original
-catalog actions without a captured extended schema disclose that limitation. Native execution and
-write qualification remain separate. Invalid inventory responses receive provider-owned read
-recovery in English/Arabic with no automatic repeat. See [operation help and inventory recovery evidence](review/DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md).
-
-## Follow the connected workflow
-
-Workspace administrators can now connect an existing WooCommerce Read key directly in Commerce.
-The fixed bounded setup reads verify current product access and unchanged currency; merchant key
-permission is operator-recorded. Refresh the source list explicitly, then choose selected products,
-variations or the bounded published inventory. Local removal changes no native store/key.
-[Setup, authority, replay and qualification](review/DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).
-
-The current LinkedIn binding reads an owned campaign, but its native reach-forecast request is
-refused with HTTP 403; forecast product approval is separate from saved-media-plan scope. Criteo
-and DV360 discovery return no current bindings. The existing WooCommerce discovery operation now
-has a bounded adapter for configured store metadata, without opening credentials or making a
-provider request. No current live WooCommerce binding is configured; store access and product
-acceptance remain separate. See [current discovery qualification](review/DELIVERY-2026-10-06-COUNTRY-INVENTORY-EVIDENCE.md).
-The preceding `ffc0e08` release is independently verified live with its exact qualified packaged payload.
-Anonymous sign-in and About render in English/Arabic on mobile/desktop, and existing-client
-WooCommerce discovery correctly returns zero configured stores without provider requests.
-Cloudflare's sole About script insertion is explained while exact byte checks remain strict.
-[Current acceptance and caption correction](review/DELIVERY-2026-10-06-COUNTRY-INVENTORY-EVIDENCE.md).
-The October 7 pre-release public snapshot independently observes healthy `bf84eab`, with
-matching build/runtime payload and database/disk/MCP checks. Batch 190's pending new source
-is qualified separately before push; that earlier healthy snapshot is not its deployment proof.
-
-1. Open Connections, authorize the intended identity and explicitly select its account/property/site.
-   Provider token permissions and AMCP account grants are separate. Check current discovery; a failed
-   read is not an empty account list. [Connections and grants](WRITE-OPERATIONS.md).
-2. Select a supported guided recipe or an exact discovered native contract. Check its dependencies
-   and required source/identity evidence. Save an unapproved paused draft. Advanced JSON remains
-   available where a structured editor/native template has not been qualified.
-   [Product workflows](PRODUCT-WORKFLOWS.md).
-3. Inspect the original scope, before/after state, dependencies and spending policy. Prepare and
-   review the actual change; execute only the approved current review within its validity period.
-   A catalog listing alone does not establish a write contract. Keep each original receipt and
-   idempotency key. [Reviewed writes](WRITE-OPERATIONS.md).
-4. Verify the original result. An unknown/partial response or changed authority does not permit a
-   replacement request. Resume/reconcile only the continuation the original retained state makes
-   available. [Media and campaign recovery](PRODUCT-WORKFLOWS.md).
-5. Capture reports with their explicit date/timezone/currency/attribution definitions. Keep
-   unknown cells, native identifiers and exact values. Use retained evidence and owned destination
-   tabs; a successful empty result and an incomplete/failed read are different.
-   [Reporting setup](REPORTING-OVERVIEW.md).
-6. Inspect measurement evidence for its actual claim: GTM configuration, selected additional-consent
-   settings, aggregate recent GA4 counts, an existing synthetic test identifier or an explicitly
-   supplied browser-local sanitized sequence. None independently establishes
-   raw event delivery, runtime consent, deduplication, attribution or overall tracking health.
-   [Measurement boundaries](PRODUCT-WORKFLOWS.md#portfolio-measurement-and-commerce).
-7. Make an evidence-linked decision or allocation proposal, review any resulting native budget
-   draft separately, and inspect Operations/Activity for retained state and safe diagnostics.
-   A translated recovery instruction does not grant authority or retry an uncertain mutation.
-   [Current recovery guidance](review/DELIVERY-2026-10-05-SHARED-RECOVERY-GUIDANCE.md).
-
-About Us, the complete standalone privacy languages, principal workspace navigation and selected
-populated report/measurement/commerce workflows are implemented. English/Arabic keyboard/reflow
-checks use an owned isolated Chromium browser. Their evidence does not replace other-browser,
-touch-device, screen-reader or editorial acceptance. Screen-reader and touch acceptance is now a finite manual protocol:
-seven journeys with NVDA and VoiceOver in English and Arabic, 28 sessions
-([assistive-technology acceptance](acceptance/ASSISTIVE-TECHNOLOGY.md), ACC-07). None is recorded yet.
-
-## Complete deployment acceptance
-
-Use a fresh public release candidate for local checks; it excludes credentials/private runtime
-data and generates a literal empty live-read sample. Build it, regenerate the reports, then check
-freshness before running the full default check with required FFmpeg. Verify its public files
-against the exact committed Git source with the maintained release verifier. Run browser
-qualification on that clean source, and retain the hashes/counts. Avoid running the report
-generator against private root live-read samples.
-[Release/runbook](OPERATIONS.md), [browser setup and evidence](LOCAL-BROWSER-QA.md).
-
-Hosted Actions are waived because the owner exhausted its minutes. Do not rerun/poll them or treat
-that waiver as a successful CI result. Use the skip-ci marker on an authorized pushed batch.
-The Dockerfile still runs the full check; all tracked public reports must match generation.
-A successful local source check does not attest the current Railway revision.
-Verify the existing service is bound to the sole CAMCP/Work-here branch and has Wait for CI off
-in this owner-waived mode. A skip marker is neither a passed check nor a dashboard-setting proof.
-See [release-mode-specific Railway instructions](DEPLOY-RAILWAY.md#owner-waived-github-actions).
-
-On an actual Linux/Docker host, build the same exact source, exercise its synthetic read-only and
-write-enabled startup/authentication/MCP/restart/revocation smoke checks, and retain the source/image
-digests and results. Then verify the deployed revision, TLS/proxy origin configuration, persistent
-SQLite storage ownership, worker state and authenticated read behavior. Record what actually ran;
-this Windows checkout currently supplies neither a Docker runtime nor Linux deployment evidence.
-
-Inject the real secret values through the deployment secret manager. Consult
-[.env.example](../.env.example) for names rather than copying an existing environment. The current
-embedded-worker control is AMCP_RUN_WORKER; the public website origin is AMCP_PUBLIC_ORIGIN.
-Choose the intended embedded or standalone worker configuration explicitly. Both share stage
-recovery, but a local stop-callback test is not production Linux signal acceptance.
-[Worker recovery](review/DELIVERY-2026-10-05-WORKER-LOOP-RECOVERY.md).
-
-Prove backups and recovery with the actual host storage and permissions: encrypted backup,
-verification and restoration to a new offline destination, audit-chain checks and reconciliation
-against changes after the backup. Reconcile queued work, provider outcomes and access revocations
-before switching databases or enabling workers. Do not delete or overwrite the production database.
-
-## Complete live provider and destination acceptance
-
-The current owner instruction permits read-only acceptance on any discovered account and
-prohibits account changes. Bound account metadata and selected bounded reporting reads now
-pass for Google Ads, Meta, Snapchat, LinkedIn, GA4 and Search Console. Google hourly queries
-returned no rows; X catalog scope, actual WooCommerce store access and owner-only runtime health
-remain unavailable. Configured-store metadata discovery now succeeds with zero visible stores.
-A locally reproduced LinkedIn multi-field projection defect is corrected
-in source and separately gated for release. These results do not establish that the current
-checkout is deployed or authorize writes/exports. See the
-[actual read results, retained failures and transport correction](review/DELIVERY-2026-10-06-LINKEDIN-FIELD-PROJECTIONS.md).
-The measurement reads, TikTok's core reads, Reddit's purchase-value unit and X's publisher-network placement have an
-owner-run read harness that is dry by default ([read acceptance](acceptance/READ-ACCEPTANCE.md), ACC-06). None has
-been run, so TikTok is not in the list above, and Reddit reports say their conversion value unit is unverified.
-
-Build an acceptance matrix from the actual customer/app entitlement and explicitly allowed
-accounts, objectives, assets, stores and destinations. For each supported workflow retain its
-selected identity/account, current scope/version/capability evidence, original request/reference,
-native result and read-back. Treat unsupported/ineligible methods as refusals; broader credentials
-cannot create a missing contract.
-
-Start with account-scoped reads, discovered dependencies and report-source reconciliation.
-For a write, select an expressly authorized paused/synthetic resource and a protected account,
-review the concrete frozen change, execute once, and verify its original receipt. Activation,
-spending, personal data, asset publication and destructive changes need their actual task
-authorization and current grants; a test fixture grants none of these in a live account.
-
-For Sheets/report delivery verify the exact editable spreadsheet, owned tabs, scope/content hashes
-and retained recovery receipt. For email verify the configured site sender and a designated test
-mailbox. Sent/accepted does not prove inbox delivery, absence of bounces or webhook acceptance.
-External email/Drive-folder/object-storage report-file destinations remain optional expansion;
-current generated files and owned Sheets delivery do not implement all destination types.
-
-For WooCommerce supply the real store configuration and selected product/variation IDs; compare
-the supported native fields and exact prices/SKUs before any draft. Operator-reviewed variation
-titles and explicit Meta groups are different from native child names or a complete inventory.
-Products absent from an import are currently never deleted. Full inventory/variant reconciliation
-requires bounded collection, completeness/change guards and an explicit absent-source policy.
-
-For measurement use instrumentation and provider evidence that can establish the specific claim.
-An existing registered amcp_test_id plus an exact report can identify matching aggregate counts,
-but cannot prove event-by-event tracing or consent/deduplication/attribution. Those expansions need
-actual event-source contracts, consent transitions, identity/sequence evidence and representative
-success/refusal tests before presenting a new diagnosis or repair plan.
-
-## Remaining implementation and acceptance by package
-
-The table is a completion checklist, not a claim that these rows are finished.
-
-| Package | Remaining work                                                                          | Evidence needed to close it                                                                                             |
-| ------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| B08     | Objective/entity eligibility beyond the qualified prerequisites                         | Exact supported contracts and complete current native eligibility reads, with refusal tests                             |
-| B10     | Other creative formats/providers and historical assignment                              | Real source-format definitions, owned resource identity and validated usage/assignment adapters                         |
-| B13     | Broader telemetry and path-only/historical scope adapters                               | Exact legacy formats, independent scope authorization, bounded diagnostics and representative fixtures                  |
-| B15     | Measured task evaluations (fewer unnecessary calls) with external MCP clients           | Runs by the D14 clients compared with the local journey/task baseline (QA-04), and typed per-action outputs (MCP-07)    |
-| B16     | Linux/Docker, deployed/live and full accessibility acceptance                           | Same-source host/image proofs and actual browser/assistive results; hosted Actions remain waived                        |
-| B17     | Additional objective launch packs and live eligibility/events                           | Qualified recipe/native prerequisites, paused reviewed drafts and authorized native read-back                           |
-| B18     | LinkedIn conversion-window live capture; more packs by demand (source done, RPT-07)     | Official schema/meaning, scope/period/completeness checks and provider reconciliation                                   |
-| B20     | Raw tracing, runtime consent/deduplication/attribution and further repairs              | Event-level authoritative inputs and independently tested claim-specific contracts; aggregates are insufficient         |
-| B21     | Live store acceptance, additional destinations/source scopes and absence policies       | Native selected-store acceptance, qualified bounded snapshots and explicit independently verified absence policy        |
-| B22     | Historical creative assignment and more provider usage formats                          | Exact owned usage formats, immutable identifiers, attribution/processing boundaries and refusal coverage                |
-| B23     | Real tenant capacity, cache/fan-out and multi-worker limits                             | Measured representative workloads and provider quotas; original tenant/authority/lease isolation must survive           |
-| B24     | Provider-specific/static and dynamic reason copy, full Arabic/assistive acceptance      | Authored ownership inventory, literal native preservation, editorial review and actual assistive/browser tests          |
-| B25     | Positive private-program entitlement; selected LinkedIn is denied, DV360 not configured | Existing approved app/account and exact bounded native acceptance; three implemented program workflows remain available; requirements and the owner-authorized recheck are in [provider programs](acceptance/PROVIDER-PROGRAMS.md) (ACC-08) |
-| B26     | Live outcome capture and Meta budget read (source done, DEC-02); further native budget bindings | Authorized post-period capture and read-only Meta budget read; marketer review of the English and Arabic wording        |
-| B27     | Point-in-time reconciliation; live Microsoft portfolio read (adapter done, RPT-07); more inventory providers | Bounded complete/change-aware native collection and accurate observation-time claims                                    |
-
-The implemented B01–B07/B09/B11/B12/B14/B19/B28 packages still retain their documented external
-acceptance limits. Existing synthetic/real-SDK tests demonstrate their controlled local contracts.
-A current connected get_reporting_bootstrap help read returned public metadata. A separate actual
-connected-client bootstrap read succeeded: zero workbooks, queries and schedules are visible in
-its scope, Google Sheets is disconnected and external writes are false. Public /healthz and
-/about each returned HTTP 200 on October 5; exact deployed source and image remain unverified.
-A separate bounded connected Google Ads customer-metadata read also succeeds for one configured
-account with exact identity and complete selected fields; it does not qualify every account,
-objective or provider. These observations do not attest deployed source/image or broad client acceptance.
-
-Finish new source work one contract at a time: freeze the exact native meaning/scope, add a
-representative original success and refusal fixture, expose a useful reviewed workflow, then
-qualify the whole default suite/reports and clean-head website before the sole Work-here push.
-Keep incomplete expansion visible in the implementation matrix. Do not turn missing data,
-unverified runtime behavior, an unavailable entitlement or a waived CI run into a success claim.
-
-## Website account diagnostics and references — batch 170
-
-Thirteen selected website server files now have 232 exact authored reasons covered by the Arabic
-locale gate, with 193 new translations and all 4,222 prior catalog pairs retained. Early non-MCP
-HTTP errors reaching the common handler keep their status/code/message and add a generated
-meta.requestId. The existing browser formatter presents that reference in either language.
-A matching six-field optional diagnostic event omits request payload, credentials and identity;
-production stdout/stderr wiring already exists. MCP errors and reviewed-write authority remain exact.
-See [website diagnostic evidence](review/DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md). Complete working-source local release/browser gates pass; exact committed-source qualification gates the sole push.
-B13/B16/B24 and the 13 implemented / 14 partial / one open matrix remain unchanged.
-
-## Core contract diagnostics and public source comparison — batch 171
-
-Six selected core modules now require Arabic for 239 distinct authored MirrorError reasons.
-The catalog adds 239 translations, preserves every earlier 4,415 value and contains 4,654 entries;
-the complete locale gate requires 4,484 messages. Original native IDs, amounts, tokens, codes,
-authority, protocol and execution stay exact. Other static/dynamic copy and full editorial/assistive
-acceptance remain separate. See [core diagnostic evidence](review/DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).
-
-An explicit public comparison command checks unauthenticated liveness and exact About/Arabic
-asset bytes. Public HTTP 200 does not establish current backend Git/image or provider acceptance.
-The October 5 observed locale bytes match an older known file; Railway deployment cause/settings
-remain unverified. Complete working-source local release/browser gates pass; fresh exact committed-source checks gate the sole push.
-B13/B16/B24 and the 13 implemented / 14 partial / one open matrix remain unchanged.
-
-## Maintained browser semantics — batch 172
-
-The maintained 408-case browser runner now inspects the actual Chromium accessibility tree and
-local ID references before each journey and after its original workflow. Nineteen selected
-interactive/dialog roles require names; missing ARIA label/description/control references and
-duplicate IDs refuse the case. Initial views require one exposed main landmark and primary
-heading. Final views retain name/reference checks while allowing the original modal boundary.
-Inspection disables its accessibility domain and detaches its session, including refusal paths.
-Every prior case, native count, egress/write boundary, geometry/focus and workflow assertion stays
-exact. All 54 website files and 4,654 Arabic entries remain byte-identical.
-See [semantic evidence](review/DELIVERY-2026-10-05-BROWSER-SEMANTICS.md). Complete working-source semantic release/browser gates pass; exact committed-source checks gate the sole push.
-This automated browser guard does not establish physical assistive-technology or full WCAG
-acceptance. The whole-plan status remains 13 implemented / 14 partial / one open; Actions stay waived.
-
-## Complete directly owned backend Arabic — batch 173
-
-The Arabic catalog adds 806 directly owned static error reasons across 150 previously uncovered
-source files, retaining all 4,654 existing values exactly. A generalized import/lexical ownership
-selector now examines every regular TypeScript file under src/server, including future nested
-files. Its actual inventory is 424 files, 173 with selected reasons, and 1,288 distinct directly
-owned sentences. The complete locale gate requires 5,294 messages and has zero missing entries
-in the 5,460-value catalog. Native fields, numeric limits, response bytes, identifiers, uncertainty
-and request references retain their original meaning. Backend behavior and all earlier selectors
-and gate statements remain unchanged. See [evidence](review/DELIVERY-2026-10-05-BACKEND-CONTRACT-LOCALIZATION.md).
-Complete working-source backend-Arabic release/browser gates pass; exact committed-source checks gate the sole push. Dynamic/native messages and local wrapper-generated reasons remain outside this
-direct-constructor inventory; whole-plan Arabic, physical assistive and deployed acceptance remain
-partial. The matrix stays 13 implemented / 14 partial / one open, with hosted Actions owner-waived.
-
-## Packaged application identity — batch 174
-
-Public GET /versionz independently hashes fixed packaged application files and compares them
-with the build record written after compilation. It preserves the existing liveness, host,
-authentication and website boundaries. A worker keeps hashing outside HTTP's event loop, with
-coalesced refreshes, a deadline and timestamped ten-second cache. The reported Git revision is
-explicitly a nullable build claim; application bytes, Git authenticity and Docker image identity
-remain separate. Private state, dependencies and OS/image scope are excluded. See
-[operation and evidence](review/DELIVERY-2026-10-05-RELEASE-IDENTITY.md).
-The maintained backend inventory is now 427 TypeScript files after three identity sources;
-its 1,288 directly owned reasons, 173 reason files, 5,294 required messages and all 5,460 Arabic
-values remain unchanged. Whole-plan status stays 13 implemented / 14 partial / one open.
-Complete working-source release-identity gates pass; exact committed-source full/browser checks gate the sole push.
-
-## Qualified wrapper Arabic and catalog transport — batch 175
-
-The maintained ownership gate now includes static messages passed unchanged through top-level
-sole-throw local runtime helpers and their sole-call forwarders. The actual 427-file inventory
-contains 2,624 selected wrapper reasons across 168 files. All 2,596 missing messages receive
-manually authored Arabic, preserving every earlier 5,460 value; the complete catalog has 8,056
-entries and the full gate requires 7,890 messages with zero gaps. Native fields, amounts, enum
-values, request references, authorization and provider execution retain their exact meaning.
-
-The catalog reader limits received/decompressed UTF-8 bytes to 1 MiB per catalog chunk (WEB-07:
-pages load `/assets/locales/ar/<chunk>.json`, generated from `ar.json`, which `check-locales`
-still bounds at 2 MiB), enforces a 15-second abort/monotonic deadline, decodes split UTF-8
-strictly and releases reader/listener resources. Valid small positive stream reads are accepted;
-65 consecutive empty reads are refused. Invalid, oversized or unavailable catalogs retain the
-current view and a fixed notice; successful reads coalesce/cache and a failed read permits an
-explicit fresh attempt. The public diagnostic command still compares the authored `ar.json`
-under its 2 MiB ceiling; its three original credential-free GET routes and separate
-liveness/About limits remain unchanged.
-
-Focused local checks pass 60/60, zero failures/skips. Existing native/locale/browser assertions
-remain intact; broader helpers, dynamic/native reasons and complete Arabic editorial/physical
-assistive/deployed acceptance remain separate. The 28-package matrix stays 13 implemented /
-14 partial / one open. Hosted Actions remain explicitly owner-waived.
-Complete working-source wrapper-localization gates pass; exact committed-source full/browser checks gate the sole push.
-
-## Public liveness and LinkedIn forecast prerequisites — batches 176/177
-
-The explicit public comparison now accepts only the application's up/degraded liveness state
-and returns a fixed refusal for inconsistent HTTP-200 JSON. Forecast preflight requires an
-included geographic-only clause before transport while retaining all three read-only actions
-and native payloads. Audience Insights stays unchanged; one manually authored Arabic reason
-preserves all preceding 8,056 values. B08/B13/B26 remain partial, B25 open; counts stay 13/14/1.
-See [implementation and primary sources](review/DELIVERY-2026-10-05-LIVENESS-PLANNING-PREREQUISITES.md).
-Hosted Actions stay owner-waived; full local source/report/FFmpeg checks remain mandatory.
-Working-source checks pass; exact clean committed source/full/browser checks remain the sole push gate.
-
-## Batch 178 — selected rendered accessibility rules
-
-Owned Chromium inspection found sidebar and landing-page contrast failures, a workspace-search
-name that differed from its visible English/Arabic label and keyboard hint, and a small standalone
-Operations owner link. Scoped colors/readable captions, explicit translated-label/shortcut ID
-references and a wrapping 44-pixel owner action address those reproduced cases.
-The existing 408-case browser runner now optionally loads a hash-pinned local axe-core 4.14.0
-asset and retains selected WCAG A/AA initial/final violations and incomplete/manual evidence.
-All preceding semantic, keyboard, layout, workflow, native and manual-recovery assertions remain.
-No production dependency, external engine download, provider call or automatic retry is added.
-All previous Arabic values and provider runtime source remain exact. B16/B24 remain partial;
-full WCAG, physical assistive, editorial, deployed-image and live-provider acceptance are separate.
-Hosted Actions stay owner-waived; required local FFmpeg/source/report gates remain mandatory.
-[Scope, reproduced failures and primary references](review/DELIVERY-2026-10-05-BROWSER-WCAG.md).
-Working-source full/report and focused changed-state checks pass; exact clean committed full/browser checks remain the sole push gate.
-
-The retained first full selected-rule audit finds 88 populated-state failures. Shared
-pagination contrast and named keyboard-scrollable original-record regions now address those
-reproductions. Focused original journeys and a fresh complete clean-head browser run qualify
-the changed source separately; the failed audit is never reported as a passing release.
-[Scope and additional primary evidence](review/DELIVERY-2026-10-05-BROWSER-WCAG.md).
-
-## Batch 179 — original campaign/hour/day evidence
-
-The separate Google hourly preset preserves original hour 0–23/date/account timezone and full
-campaign resources, with explicit zero, complete-count/page/source checks and no inferred
-missing-hour activity or UTC/DST conversion. Retained search preserves full totals and every-row
-EN/AR Excel delivery. The hourly grain cannot qualify schedule, bid, budget or exclusion changes.
-The current-parent prototype passes 82 focused tests and 24 actual served EN/AR capture/current-
-error/stale-response journeys; all 576 original workbook rows and preceding 8,057 Arabic values
-remain. Nine new messages are authored. The maintained runner retains all 408 old cases and adds
-24 hourly cases, totaling 432 with 864 initial/final semantic and optional selected-rule snapshots.
-Fresh sanitized full/report and exact clean-head/browser gates still qualify the integrated
-source before its sole push; prototype passes cannot stand in for those checks. B18/B27/B15/
-B16/B24 remain partial, the matrix remains 13/14/1, and hosted Actions stays unused. See
-[scope, primary research and checks](review/DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md).
-
-## Batch 180 — other listed X products with explicit retention
-
-An opt-in read-only inspection extends the existing complete bounded X catalog comparison,
-retaining exact native IDs, supported price strings, original group evidence and source lineage.
-Two full scans must agree on every displayed supported observation; malformed policy, unsupported
-destination and other workspace actions refuse before reads/artifacts. The local searchable
-fifty-row-page EN/AR view keeps other listed products retained and outside drafts/removals.
-Full-store absence, complete variants and point-in-time reconciliation remain unverified.
-The isolated formatted-source prototype passes 75 focused checks and 24 served browser cases
-with 400 synthetic GETs, 2,904 original other-product observations, zero mutations/egress,
-48 semantic/pinned selected-rule snapshots and all manual evidence retained. All 8,066 earlier
-Arabic values remain; 25 are added. Fresh integrated full/report/source/browser gates follow.
-B21/B15/B16/B24 remain partial, B25 open; the matrix remains 13/14/1 and Actions remains unused.
-See [contract, workflow and qualification](review/DELIVERY-2026-10-06-X-CATALOG-SELECTION-INVENTORY.md).
-
-## Batches 182/183 — published source inventory and bounded worker health
-
-WooCommerce inventory reconciles two complete bounded scans of published parent products and all
-reported variable-parent children, with exact IDs/prices, current authority, currency and membership.
-English/Arabic local fifty-row paging/search retains absent products and never creates an artifact
-or approves a destination. The 40-case Commerce smoke and subsequent 480-case working-source full
-browser run pass; fresh integrated committed-source gates remain mandatory.
-[Inventory meaning and qualification](review/DELIVERY-2026-10-06-WOOCOMMERCE-INVENTORY.md).
-
-Owner health/support now project at most 100 valid shared process observations from a single
-SQLite statement, with aggregate counts, unavailable/uncertain states and no raw heartbeat bodies
-or IDs. Bilingual Settings show those limits and preserve current identity/navigation/request order.
-Two real concurrent loopback HTTP MCP tasks prove same-ID tenant isolation and independent caller
-revocation. Forty-six focused checks and eight final prototype rendered cases pass. The combined
-Arabic catalog preserves all earlier values and contains 8,144 entries; 7,973 selected messages
-are locale-gated. Compact valid-data latency increases are explicitly measured.
-[Worker and client evidence](review/DELIVERY-2026-10-06-WORKER-HEALTH.md).
-
-The matrix remains 13 implemented / 14 partial / one open. Live WooCommerce setup/eligibility,
-external client products, real tenant capacity, deployed-image and physical assistive acceptance
-remain separate. Hosted Actions remain unused, and no live provider account is changed.
-
-## Completed October 7 qualification
-
-System/Light/Dark appearance, original thirty-minute computer-upload expiry,
-qualified native ad/ad-set/ad-group Reporting overview and immediate immutable
-snapshot export to an AMCP-owned Google Sheets tab are implemented. The fresh
-public-only full suite now passes **5,081 + four capture tests**, required FFmpeg,
-with no failures or skips. The complete clean-source browser matrix passes
-**1,184/1,184** English/Arabic light/dark cases at 320/375/768/1280px.
-The real thirty-minute timer experiment removes stored upload data 1,292 ms
-after its original deadline and the next thumbnail read returns 404.
-
-The exact full-suite source, browser source, byte-identical application,
-generated public reports, real-clock proof and preserved earlier failures are
-in [the completed delivery qualification](review/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md#completed-october-7-qualification).
-All 8,547 Arabic catalog pairs and 8,360 selected owned messages pass the gate;
-the document index contains 358 documents. Root private environment/sample
-inputs remain unread; no hosted Actions or native account mutations occur.
-Bounded native Meta read primitives observe populated ad and ad-set identities
-and purchase fields; Google/LinkedIn reads are accepted empty observations.
-These are separate from full collection and live Sheets delivery.
-
-The versioned public-asset update has its own completed qualification below.
-Each later document or test-wait change must pass fresh source/report and
-packaged-identity verification before the sole Work-here push. Earlier healthy
-build observations do not prove deployment of the new source.
-The [fifteen-package audit](review/COMPLETION-2026-10-07.md) keeps **13 implemented /
-15 partial / zero open** and all broader code/external/manual/load acceptance
-visible. Shopify, Salla, WooCommerce and Criteo expansion/live acceptance remain
-parked; private LinkedIn approval, a DV360 advertiser and authoritative runtime
-measurement inputs cannot be supplied by synthetic fixtures.
-
-## Completed public-asset release qualification
-
-The versioned public-asset application passes **5,081 main tests plus four
-capture tests**, required FFmpeg and every default-check stage in a fresh
-public-only candidate. The clean `ea5ceb0` browser run passes **1,184/1,184**
-cases, and the real HTTP-cache regression passes five checks. The separately
-qualified snapshot-specific report wait passes all sixteen detailed-report
-journeys and is adopted unchanged. The original 30-minute retention inputs
-remain exact: 436 complete runtime files and the private upload-handler region.
-
-The optional installed-Chrome run was stopped after 157 failing observations
-and does not qualify that browser. Host-injected scripts and the original
-snapshot wait failures remain retained; no security setting or request guard
-was weakened. See [the exact release evidence and limits](review/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md#completed-public-asset-release-qualification).
-The wider 13 implemented / 15 partial / zero open audit stays unchanged.
-
-
-## Completed scoped recovery and trace inspection
-
-Retained Reddit account-scope recovery, browser-local sanitized event/consent
-traces and exact formatter-owned diagnostic translation are implemented.
-On clean `be3a630`, all **5,096 + four capture tests** and all **1,200 rendered
-cases** qualify the identical packaged application, with required FFmpeg,
-public report freshness and exact committed source. A fresh real thirty-minute
-upload experiment observes independent deletion 629 ms after the original
-deadline and a subsequent thumbnail 404. The catalog has 8,589 pairs, covering
-all 8,402 selected owned messages; the document index has 359 entries.
-See [actual scope, sources, preserved failures and completed qualification](review/DELIVERY-2026-10-07-TRACE-RECOVERY.md#completed-trace-and-recovery-qualification).
-
-This evidence covers isolated Windows services, synthetic provider/Sheets
-transports and selected automated accessibility rules. It does not certify
-live writes, private entitlement, authoritative runtime measurement, a Linux
-image digest, production load or complete manual/physical accessibility. The
-broader 13/15/0 audit remains visible. Final documentation/source identity and
-the sole Work-here deployment are independently verified; old deployed builds
-do not qualify new source.
+# Current readiness
+
+What AMCP does today, how far each part has been accepted, and what is left. This page describes branch `Work-here`
+of `magdyezy1/CAMCP` as deployed on amcp.shop (revision `cb338f68`, 2026-10-18) together with the wave 4b work that is
+committed locally and not yet deployed (section 2). It was rewritten on 2026-10-22 (DOC-01).
+
+Numbers in this page and every table marked "generated" are written from the code and the committed ledgers by
+`npm run docs:index`, and `npm run docs:index:check` (part of `npm run check` and the Docker build) fails when one of
+them no longer matches, so they cannot drift. Everything else is a dated description; the decision record
+([decisions](DECISIONS.md)) and the [package status](review/PACKAGE-STATUS.md) are the sources for owner decisions and
+package states.
+
+## 1. How to read a status
+
+Every part of AMCP is in one of these states:
+
+- **Implemented in source.** The behaviour exists in the code and passes its automated tests, which use synthetic
+  provider fakes and loopback browsers. No test reaches a real advertising account.
+- **Owner-run acceptance pending.** What proves the behaviour against real accounts, the deployed site or real people
+  (an authorized live read or write, a check on amcp.shop, an assistive-technology session, an editorial review) has
+  not been run. Only the owner can authorize it: provider accounts stay read-only (owner instruction of 2026-10-09),
+  and live acceptance stays read-only until test accounts are designated (R1). The runbooks are in
+  [acceptance](acceptance/README.md); none has been run.
+- **Externally blocked.** It needs an approval or a resource that only a provider can grant.
+- **Parked.** The owner deliberately put it aside; it is not offered.
+
+Nothing in AMCP is live-qualified yet: every one of the <!-- fact:ledger_actions -->3,261<!-- /fact --> actions in the
+[action ledger](implementation/ACTION-CONTRACT-COVERAGE.json) still has `live_qualification: unverified`, and no
+authorized live write has been accepted. Read-only observations made on owner-selected accounts in early October 2026
+(account metadata and bounded report reads for Google Ads, Meta, Snapchat, LinkedIn, GA4 and Search Console) are kept
+in the delivery records; they qualify no workflow, and no package acceptance rests on them.
+
+## 2. Deployed state
+
+**On amcp.shop (deployed 2026-10-18).** Waves 1 to 4a of the 2026-10-08 engineering review, the SDK upgrade to
+1.32.1, the public documentation pins and the owner-approved legal pages (D3) were pushed to `Work-here` at `5db67a71`
+on 2026-10-18. Railway's Linux build then failed twice where the Windows release gate and the Windows container-parity
+run had passed, and both causes were fixed and pushed:
+
+1. `node:sqlite` in the image refuses the backup rate `-1` (SQLite's "every page in one step"), so `snapshotDatabase`
+   uses `0x7fffffff`, the largest positive 32-bit page batch, which copies any database below 2^31 pages in one step
+   from one read snapshot (`998d711a`).
+2. The Docker build runs `npm run check` as root, and the admin CLI refuses root without `--allow-root`, so the
+   same-volume backup test passes `--allow-root` to reach the check it tests, `BACKUP_SAME_VOLUME` (`cb338f68`).
+
+Once the build passed, the deployment refused to start because of the Railway variable `AMCP_LINKEDIN_API_VERSION`:
+AMCP refuses to start with a LinkedIn version it has not reviewed. The owner set it to `202609`, and Railway reported
+the deployment successful and active at `cb338f68` (owner report, 2026-10-18). What the Railway build log proves is
+not yet recorded: the owner exports it and runs `npm run evidence:railway`
+([Linux evidence](DEPLOY-RAILWAY.md#per-release-linux-evidence-from-railway-builds)). The lessons for the next push are
+in [the deployment guide](DEPLOY-RAILWAY.md#what-the-2026-10-18-deployment-taught).
+
+**Local, not deployed.** Wave 4b, confirmed by the owner on 2026-10-22, runs in parallel packages: MCP quality,
+design review, design system, this current-state documentation and the owner guide. It reaches amcp.shop only with
+the next push, which the owner approves after the full gate, container parity and browser qualification.
+
+## 3. Package status
+
+The blueprint's 28 packages report three separate axes (owner decision D25): source acceptance against the package's
+blueprint property, native/live acceptance and manual/deployed acceptance. The axes are never added into one figure,
+and a documented blocker never completes an axis.
+
+<!-- doc-facts:package-status:begin (generated by npm run docs:index; do not edit) -->
+Generated from [package-status.json](review/package-status.json), status as of 2026-10-10.
+[Package status](review/PACKAGE-STATUS.md) has every remainder and the test files each package cites.
+
+| Axis | Count |
+|---|---|
+| Source acceptance (of 28) | met 20 · not met 8 |
+| Native/live acceptance | none 28 · read_verified 0 · write_verified 0 |
+| Manual/deployed acceptance | not_recorded 26 · pending_owner 1 · accepted 0 · amended 1 |
+
+| Package | Deliverable | Source | Native | Manual |
+|---|---|---|---|---|
+| B01 | Privacy and final dispatch-authority repairs | met | none | not recorded |
+| B02 | Identity-safe drafts and navigation | met | none | not recorded |
+| B03 | Reporting arithmetic, null and pagination correctness | met | none | not recorded |
+| B04 | Media/report recovery and useful errors | met | none | not recorded |
+| B05 | Requirements-driven readable review | met | none | not recorded |
+| B06 | Campaign list/detail, whole-plan run and journal | met | none | not recorded |
+| B07 | Guided clone, step amendment and observed-state comparison | met | none | not recorded |
+| B08 | Capability graph and account/objective eligibility | not met: ARC-03 stage B route anchors and the per-family manifests (below); the gap recorded on 2026-10-10, readiness that took requested Meta permissions as granted and recorded no TikTok or X grants, closed with CON-03 in wave 1 | none | not recorded |
+| B09 | Task-oriented Home, navigation and deep links | met | none | not recorded |
+| B10 | Creative library, preparation matrix and durable progress | met | none | not recorded |
+| B11 | Report library/builder/results, analysis bridge and whole-job collection bounds | met | none | not recorded |
+| B12 | Schedule index, timing preview and delivery recovery | met | none | not recorded |
+| B13 | Operations/recovery center and support bundle UI | met | none | pending owner |
+| B14 | Typed client playbooks and template preview | met | none | not recorded |
+| B15 | Typed MCP outcomes and workflow evaluations | not met: Source re-assessment pending (D25): the typed per-action contracts and outcome schemas the 2026-10-10 assessment found missing shipped with MCP-07 in wave 2; 'fewer unnecessary calls' has a local journey and task baseline (QA-04) but no external-client run yet (D14) | none | not recorded |
+| B16 | Browser, container, accessibility and acceptance qualification | not met: No harvested Linux evidence record: the owner reported the Railway build of cb338f68 successful on 2026-10-18, but its log is not yet recorded (ACC-04), and container parity outside Git cannot reproduce the image's root user, Node patch version or OS; the finite assistive-technology protocol (ACC-07) has not been run | none | amended |
+| B17 | First additional objective launch packs | not met: Source re-assessment pending (D25): the Microsoft location targeting and activation gating the 2026-10-10 assessment found missing shipped with CMP-03 in waves 2 to 3b, with the lookup by name since its Microsoft Learn page was pinned on 2026-10-17; no recipe has reached a verified outcome on a real account yet (native, ACC-01) | none | not recorded |
+| B18 | Guided native report capture and richer reconciliation | not met: LinkedIn conversion windows are not verified | none | not recorded |
+| B19 | Read-only monitors and incident lifecycle | met | none | not recorded |
+| B20 | Measurement diagnostics workspace | not met: Source re-assessment pending (D25): the Google Ads conversion goals the 2026-10-10 assessment found unreachable from the measurement workspace are reachable since MSR-02 in wave 2; what closes the package is native, one authorized goal inspection on the configured Google Ads account (ACC-06) | none | not recorded |
+| B21 | Commerce ingestion and destination reconciliation | met | none | not recorded |
+| B22 | Controlled bulk jobs and creative performance lineage | met | none | not recorded |
+| B23 | Measured scaling, caching and module simplification | met | none | not recorded |
+| B24 | Full Arabic localization | not met: Owned diagnostics with translations still render in English and some journeys are untranslated | none | not recorded |
+| B25 | Conditional provider programs and enterprise/reporting bridges | not met: No requested workflow has qualified: LinkedIn programs are denied for the owner-selected account and no DV360 advertiser is configured | none | not recorded |
+| B26 | Scenario planning and more advanced optimization proposals | met | none | not recorded |
+| B27 | Live account portfolio and qualified entity/dimension reporting | met | none | not recorded |
+| B28 | Client-facing report packs | met | none | not recorded |
+<!-- doc-facts:package-status:end -->
+
+## 4. What is implemented, by area
+
+Each area lists what exists in source, then what remains and who it waits for. The ticket-level detail is in the
+integration records of each wave and in [package status](review/PACKAGE-STATUS.md).
+
+### Website, accounts and teams
+
+- **In source.** Email and password accounts with Google, Apple and Facebook linking; two-step verification, required
+  for owners and administrators of write-enabled workspaces (P2); invitations that last 7 days; owner, administrator,
+  operator and viewer roles; a working client per workspace and optional client access sets (P1); self-service
+  account deletion with an erasure receipt; retention of sign-ups, revoked accounts and reports per document kind,
+  designed to GDPR and the KSA PDPL (P3); System, Light and Dark appearance; English and Arabic.
+- **Owner-run.** Walkthroughs on amcp.shop, counsel review of the privacy and data-deletion pages, the Arabic editorial
+  review, and the 28 assistive-technology sessions of [ACC-07](acceptance/ASSISTIVE-TECHNOLOGY.md).
+
+### Connections
+
+- **In source.** Website OAuth for <!-- fact:website_platforms -->16<!-- /fact --> platforms (the callback and variable
+  table is in [the deployment guide](DEPLOY-RAILWAY.md#3-register-provider-apps)), several logins per provider,
+  explicit account selection, readiness from the scopes a login was actually granted, reauthorization that keeps the
+  connection, and the provider access register ([provider access](PROVIDER-ACCESS.md)). Revoking a Google login at
+  Google on disconnect is built but off (`AMCP_PROVIDER_REVOCATION`) until the owner answers Q25 with disposable
+  logins.
+- **Externally blocked.** Google Business Profile waits for Google's approval of the Cloud project
+  (`AMCP_GBP_API_APPROVED`, R4).
+- **Owner-run.** Sync each website Google Ads login saved before manager routes were recorded once in Connections; one
+  authorized read per provider.
+
+### AI clients (MCP)
+
+- **In source.** <!-- fact:tools_writes -->25<!-- /fact --> tools on a deployment with reviewed writes, each with a
+  title and the annotations clients use to decide when to ask the user (section 7); one result envelope with typed
+  outcomes; OAuth with dynamic registration and client metadata documents, refresh-token rotation with a short reuse
+  window, per-credential rate limits and refused JSON-RPC batches; <!-- fact:mcp_guides -->13<!-- /fact --> guide
+  resources (an index and the workflow guides) and the `amcp_build_campaign` prompt. MCP revision 2026-07-28 is
+  served at `/mcp/next` when `AMCP_MCP_MODERN_PROTOCOL` is `next`, and at `/mcp` too when it is `on`; it is `off` by
+  default.
+- **Owner-run.** The client matrix of [ACC-02](acceptance/CLIENT-INTEROP.md) (Claude.ai and Desktop, Claude Code,
+  ChatGPT, Codex, Cursor, VS Code) on a staging deployment (R7); who runs the evaluation sessions (D14) is open.
+
+### Reviewed changes
+
+- **In source.** Every advertising change goes through one path: inspect, prepare a five-minute review that freezes
+  the current state, its effect and its spend, then execute once with idempotency, read back and verify. Owner
+  spending policies with caps in the account currency (P5); only the owner executes beyond a cap; an opt-in tier for
+  destructive confirmation and opt-in approval modes; a write pause; recovery of uncertain writes without sending
+  again. <!-- fact:reviewed_families -->170<!-- /fact --> reviewed write families cover
+  <!-- fact:ledger_reviewed_writes -->803<!-- /fact --> ledger actions ([adding a family](ADDING-A-REVIEWED-FAMILY.md)
+  lists them). A write to a route with a pinned vendor request schema is compared with it in `shadow` mode, which
+  records differences without refusing (`AMCP_WIRE_CONTRACTS`).
+- **Owner-run.** [ACC-01](acceptance/WRITE-ACCEPTANCE.md): one paused campaign created and verified on a designated
+  test account, then the same review refused as a duplicate. It needs test accounts (R1) and an explicit write
+  authorization; nothing has been written to a real account.
+
+### Campaigns
+
+- **In source.** <!-- fact:campaign_recipes -->16<!-- /fact --> guided recipes (<!-- fact:campaign_recipe_platforms -->Google Ads 7, Meta 3, Snapchat 2, TikTok 2, LinkedIn 1 and Microsoft Advertising 1<!-- /fact -->),
+  each with a synthetic run to read-back; campaign plans with preflight, step recovery, handoff to named colleagues,
+  client naming and UTM conventions, and post-launch checks. The Microsoft Search recipe targets locations and finds
+  them by name through Microsoft's geographical locations file, which became available when its Microsoft Learn
+  page was pinned on 2026-10-17.
+- **Owner-run.** A paused creation on a provider test account per recipe family (ACC-01).
+
+### Media
+
+- **In source.** Uploads from the computer, public links and Google Drive; fitted variants; push to Meta, TikTok,
+  Snapchat, Google Ads, LinkedIn, X and Display & Video 360 after review; a reusable account-bound library with
+  per-asset usage readers for Meta, Google images and Snapchat.
+- **Owner-run.** The provider spec table is unverified until each entry is compared with the provider's page
+  (`verified_on`, MED-06); one bounded Meta and one Google image usage read (B10).
+
+### Reporting
+
+- **In source.** Reporting Overview across platforms, accounts and objectives, with campaign, ad set or ad group and ad
+  levels, period comparison, retained snapshots, CSV, Excel and PDF files, Google Sheets export now or on a schedule,
+  and advisory decisions that never claim causality. Provider-side report and export jobs are their own effect class:
+  with writes off they run only under the owner's switch (`AMCP_PROVIDER_JOBS`) on accounts granted report jobs. The
+  guide AI clients read is [reporting overview](REPORTING-OVERVIEW.md).
+- **Owner-run.** [ACC-03](acceptance/SHEETS-DELIVERY.md) on a disposable spreadsheet; closed-period reconciliation reads
+  per platform, including the LinkedIn conversion window that closes B18.
+
+### Measurement
+
+- **In source.** The measurement hub (P8): Google Ads conversion goals, GA4, Tag Manager audits and consent drafts,
+  Meta pixels and datasets, Snapchat pixels, TikTok pixels, Search Console and Adjust, all read-only and with no test
+  events. TikTok pixel event statistics are read since their specification was pinned on 2026-10-17; their layer
+  stays unknown until a native read confirms what the fields mean.
+- **Owner-run.** One authorized read per adapter ([ACC-06](acceptance/READ-ACCEPTANCE.md)).
+
+### Commerce
+
+- **In source.** Catalog comparison and reviewed product updates for Meta and X, a read-only Snapchat comparison,
+  saved supplier column mappings and explicit removals of listed X products.
+- **Externally blocked.** Live X catalog changes need X's catalog early access (COM-02).
+- **Parked.** Shopify, Salla and WooCommerce store sources (PRK-01) and Criteo (PRK-02); Zoho CRM, scoped on
+  2026-10-13 as CRM to ads only, is not started. They are planned last, after everything else.
+
+### Operations
+
+- **In source.** `/healthz`, `/versionz` with the packaged identity, owner health, encrypted backups with a restore
+  drill and restore quarantine, schema migrations, workers and schedules, the Operations attention feed, the
+  qualification runner, container parity outside Git and the Railway build-evidence harvester.
+- **Owner-run.** Enable Railway's scheduled volume backups and run one restore drill (D4); record the Railway settings
+  before 2026-11-15 (D1; Railway's config as code ends 2026-12-01); turn off Cloudflare's Web Analytics injection and
+  serve unversioned assets with `no-cache` (D2); set `AMCP_CLIENT_IP_SOURCE=railway+cloudflare` (D5); remove
+  `AMCP_GOOGLE_DEVELOPER_TOKEN` if it is set.
+
+### Architecture
+
+- **In source.** Provider adapters with a lifecycle status (active or parked), registries for reviewed families,
+  remedies, portfolio adapters, report sources and jobs, website routes and document kinds (P11), and ratchets that
+  block regressions only: import cycles and provider coupling, SQL outside the store layer, hand-escaped markup,
+  literal colours and page bytes (D26). [Architecture](review/ARCHITECTURE.md) shows the ratchet table.
+- **Remaining, local.** The ARC-01 and ARC-04 targets (fewer shared modules naming a provider, the long functions),
+  ARC-03's route anchors for five gateways, and B23's and B24's web items, each listed in
+  [package status](review/PACKAGE-STATUS.md).
+
+### Arabic
+
+- **In source.** The website in English and Arabic with right-to-left layout, and Arabic for the owned refusal
+  reasons in the localization inventory.
+- **Remaining.** Owned text some journeys still show in English, and the refusal reasons of the family modules outside
+  the inventory (B24); then the Arabic editorial and assistive-technology reviews (owner-run).
+
+## 5. Recorded on 2026-10-17: public documentation pins
+
+These pins were the public, unauthenticated reads that earlier waves left to the owner. They were completed on
+2026-10-17 and are no longer pending owner steps:
+
+- **Microsoft Learn, `GetGeoLocationsFileUrl` and its `CompressionType`** (`1e03807b`). The page shows that `Zip` is
+  reserved for future use, so the location lookup now requests `GZip`. The Microsoft Search recipe's lookup by name is
+  on (CMP-03).
+- **TikTok Pixel Event Stats**, the SDK specification and the API reference at SDK commit `f809c396` (`9c42d9f0`). The
+  statistics read is sent only under this pin (MSR-03).
+- **Meta Business SDK v25.0.3 to v26.0.2**: the change evidence was regenerated from both complete PyPI releases
+  (`90023a25`).
+- **Apple Ads Platform API SDK**: the re-derivation of the model evidence at its pinned revision passed with 0
+  problems (ARC-03).
+
+Still owner-run from earlier waves: compare the 66 Meta currency rows with Meta's Currencies page (WRT-07), re-read
+the Data Manager v1 Discovery document and compare digests (PRV-05), and refresh the Cloudflare range snapshot before
+relying on `railway+cloudflare` (SEC-01).
+
+## 6. Providers
+
+<!-- doc-facts:provider-matrix:begin (generated by npm run docs:index; do not edit) -->
+Generated from the provider adapter registry (`src/provider-adapters.ts`), the provider contracts at the version
+AMCP sends by default (`src/provider-contracts.ts`), the sunset registry (`src/provider-sunsets.ts`), the
+reviewed-family registry and the [action ledger](implementation/ACTION-CONTRACT-COVERAGE.json). A parked provider
+is offered only where `AMCP_PROVIDERS` names it.
+
+| Provider | Gateway | Status | API version | Version ends | Reviewed families | Ledger actions | Reviewed write actions |
+|---|---|---|---|---|---:|---:|---:|
+| Google Ads | `google_ads_native_action` | active | v25 | 2027-08 (published) | 28 | 460 | 219 |
+| Google Business Profile | `google_business_native_action` | active | v1 | no date recorded | 5 | 59 | 14 |
+| Meta | `meta_native_action` | active | v26.0 | no date recorded | 21 | 593 | 74 |
+| TikTok | `tiktok_native_action` | active | v1.3 | no date recorded | 29 | 561 | 71 |
+| Snapchat | `snapchat_native_action` | active | v1 | no date recorded | 13 | 412 | 72 |
+| LinkedIn | `linkedin_native_action` | active | 202609 | 2027-09 (support period) | 18 | 287 | 68 |
+| X | `x_ads_native_action` | active | 12 | no date recorded | 17 | 186 | 67 |
+| Microsoft Advertising | `microsoft_ads_native_action` | active | v13 | no date recorded | 3 | 31 | 16 |
+| Apple Ads | `apple_ads_native_action` | active | v1 | no date recorded | 2 | 48 | 21 |
+| Reddit | `reddit_native_action` | active | v3 | no date recorded | 2 | 55 | 13 |
+| Display & Video 360 | `dv360_native_action` | active | v4 | no date recorded | 15 | 173 | 62 |
+| Google Analytics 4 | `ga4_native_action` | active | v1beta/v1alpha | no date recorded | 1 | 24 | 2 |
+| Google Tag Manager | `gtm_native_action` | active | v2 | no date recorded | 3 | 108 | 64 |
+| Google Search Console | `google_search_console_native_action` | active | v3/v1 | no date recorded | 1 | 16 | 4 |
+| Adjust | `adjust_native_action` | active | Reports Service (unversioned) | no date recorded | 0 | 29 | 0 |
+| Google Drive | `google_drive_native_action` | active | v3 | no date recorded | 0 | — | — |
+| Google Sheets | `google_sheets_native_action` | active | v4/v3 | no date recorded | 0 | — | — |
+| Criteo | `criteo_native_action` | parked (owner_parked) | 2026-07 | 2027-07 (support period) | 12 | 108 | 36 |
+| WooCommerce | `commerce_native_action` | parked (owner_parked) | — | — | 0 | 31 | 0 |
+| Amazon Ads | `amazon_native_action` | parked (unimplemented) | catalog-dependent | no date recorded | 0 | 0 | 0 |
+<!-- doc-facts:provider-matrix:end -->
+
+**Externally blocked.** LinkedIn's Media Planning and Audience Insights products answer 403 for the owner-selected
+account 559535022, and no Display & Video 360 advertiser is configured (ACC-08, [provider
+programs](acceptance/PROVIDER-PROGRAMS.md)); a 403 alone does not show a missing scope. Amazon Ads is not offered:
+it has no website login (CON-06).
+
+## 7. Tool surface
+
+<!-- doc-facts:tool-surface:begin (generated by npm run docs:index; do not edit) -->
+Generated from `tools/list` as an MCP client receives it, with `MIRROR_FLAGS` and `AMCP_PROVIDERS` unset.
+A read-only deployment lists 25 tools (92,170 bytes of `tools/list`),
+and a deployment with reviewed writes 25 (94,498 bytes).
+The hints tell clients when to ask the user; every safeguard stays on the server (`src/tool-annotations.ts`).
+Where the two deployments differ, the read-only value follows in brackets.
+
+| Tool | Title | Read-only | Destructive | Idempotent | Open world |
+|---|---|---|---|---|---|
+| `meta_native_action` | Meta Ads (native reads) | no | no | no | yes |
+| `tiktok_native_action` | TikTok Ads (native reads) | no | no | no | yes |
+| `snapchat_native_action` | Snapchat Ads (native reads) | no | no | no | yes |
+| `apple_ads_native_action` | Apple Ads (native reads) | yes | no | yes | yes |
+| `dv360_native_action` | Display & Video 360 (native reads) | no | no | no | yes |
+| `linkedin_native_action` | LinkedIn Ads (native reads) | no | no | no | yes |
+| `google_ads_native_action` | Google Ads (native reads) | no | no | no | yes |
+| `x_ads_native_action` | X Ads (native reads) | no | no | no | yes |
+| `amcp_platform_workspace` | AMCP workspace context | yes | no | yes | no |
+| `amcp_native_action` | AMCP workflow operations | no | yes | no | yes |
+| `reddit_native_action` | Reddit Ads (native reads) | yes | no | yes | yes |
+| `ga4_native_action` | Google Analytics 4 (native reads) | no | yes | no | yes |
+| `gtm_native_action` | Google Tag Manager (native reads) | yes | no | yes | yes |
+| `google_business_native_action` | Business Profile (native reads) | no | yes | no | yes |
+| `google_search_console_native_action` | Search Console (native reads) | no | yes | no | yes |
+| `adjust_native_action` | Adjust (native reads) | yes | no | yes | yes |
+| `amcp_tool_help` | AMCP tool help | yes | no | yes | no |
+| `microsoft_ads_native_action` | Microsoft Advertising (native reads) | no | no | no | yes |
+| `amcp_workspace` | AMCP workspace and readiness | no | yes | no | yes |
+| `amcp_campaign` | AMCP campaign plans | no | yes | no | yes |
+| `amcp_reporting` | AMCP report analysis | no | no | no | yes |
+| `amcp_reporting_overview` | AMCP client reports | no | yes | no | yes |
+| `amcp_ad_previews` | AMCP ad previews | yes | no | yes | yes |
+| `amcp_write` | AMCP reviewed writes (AMCP write inspection) | no (yes) | yes (no) | no (yes) | yes (no) |
+| `amcp_media` | AMCP media uploads (AMCP media library) | no (yes) | yes (no) | no (yes) | yes |
+<!-- doc-facts:tool-surface:end -->
+
+## 8. Owner steps
+
+After the 2026-10-18 deployment, in order of need:
+
+1. **Record the deployment.** Export the Railway build log of `cb338f68` and run `npm run evidence:railway` on it,
+   save `/versionz` and check that it names `cb338f68`, then pin the Dockerfile's two `node:24-bookworm-slim` stages
+   to the base image digest the record shows (ACC-04, OPS-08). Compare the public website bytes
+   (`npm run check:public-website`).
+2. **Settings and dashboards.** The Railway, Cloudflare and backup steps under Operations above; before 2027-04-01,
+   review the security contact and move `security.txt`'s `Expires` forward (D3).
+3. **Sign-offs.** A security reviewer signs off ARC-01 phase B's `src/scope.ts` and `src/transport.ts` changes and the
+   OAuth grant move; the owner signs off WEB-07's component colours in light and dark mode and says which "Home" its
+   shell-chunk criterion means; the owner approves the retention per document kind
+   ([document kinds](DOCUMENT-KINDS.md)) and the package-status taxonomy and counts (D25).
+4. **Behaviour the deployment changed.** The 2026-10-18 deployment was the first since `60ec2cc`, so it brought every
+   release note of waves 1 to 4a ([decisions](DECISIONS.md) holds them): 7-day invitations; owner-only execution
+   beyond a cap; caps without a currency that block money changes until the owner saves them again; Meta
+   destination-only values in the review set; Amazon Ads, Criteo and WooCommerce no longer offered; owners and
+   administrators of write-enabled workspaces must turn on two-step verification within 14 days; sign-ups never approved
+   are erased after 30 days, revoked accounts after 90 days and, in workspaces without their own period, finished
+   report records after 365 days; reviewer-workspace logins are removed after 7 days; a restore quarantines access by
+   default.
+5. **Acceptance.** The runbooks of [acceptance](acceptance/README.md), once the owner authorizes each one (R1 to R8).
+6. **Open decisions.** R1 to R8; D11's resend choice; D14's evaluator; D15's listing goal; D17's Adjust operations;
+   D25's license; D26's dependency and budget choices; D27's time-zone question; Q25.
+
+## 9. Keeping this page current
+
+A change is documented when the one guide that describes the behaviour says what it does now, and so does the guide AI
+clients read where they read one (`docs/REPORTING-OVERVIEW.md` and `Skills/amcp-campaign-builder/references/`, served
+as MCP resources). Counts and tables come from `npm run build` and `npm run docs:index`, never by hand; a dated account
+of how a change was built belongs in a record, not in this page or a guide. Outside its markers the check refuses the
+retired package vocabulary (B25 called "open", single-label package counts) and hand-typed family, recipe, guide or
+tool counts (`tools/doc-facts.mjs`).
