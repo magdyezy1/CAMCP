@@ -779,8 +779,11 @@ export class ReportingOverview {
         ...publicReport(store, tenant, r),
         rows: r.rows.slice(offset, offset + limit),
         row_count: r.rows.length,
+        // The paging fields every AMCP list carries (MCP-07): total, has_more and next_offset while it is true.
+        total: r.rows.length,
         offset,
         has_more: offset + limit < r.rows.length,
+        next_offset: offset + limit < r.rows.length ? offset + limit : null,
         exports: store
           .documents(tenant, 'overview_export')
           .filter(e => e.report_id === r.id)

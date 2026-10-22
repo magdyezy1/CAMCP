@@ -626,6 +626,8 @@ export function actionContractPage(registry: Registry, input: JsonObject) {
     offset,
     limit,
     has_more: offset + limit < rows.length,
+    // The paging fields every AMCP list carries (MCP-07): the offset of the next page while has_more is true.
+    next_offset: offset + limit < rows.length ? offset + limit : null,
     // Every row states its acceptance {status, scope, checked_at}; the layers count the whole filtered set (ACC-05).
     actions: shown.map(r => ({...r, acceptance: r.acceptance ?? {status: 'unverified' as const}})),
     acceptance_layers: acceptanceLayers(rows),

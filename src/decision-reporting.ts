@@ -305,7 +305,11 @@ function evidenceView(d: JsonObject, input: JsonObject) {
     row_count: d.rows.length,
     matched_row_count: rows.length,
     row_query: query,
+    // The paging fields every AMCP list carries (MCP-07), over the rows row_query matched.
+    total: rows.length,
     has_more: (input.offset ?? 0) + (input.limit ?? 50) < rows.length,
+    next_offset:
+      (input.offset ?? 0) + (input.limit ?? 50) < rows.length ? (input.offset ?? 0) + (input.limit ?? 50) : null,
   };
 }
 export class DecisionReporting {

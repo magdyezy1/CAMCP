@@ -98,6 +98,8 @@ export function workbookBindingPage(store: Store, actor: Actor, input: JsonObjec
   return {
     record_kind: 'workbook_bindings',
     bindings,
+    // The paging fields every AMCP list carries (MCP-07): has_more, and next_offset while it is true.
+    has_more: rows.length > scanned,
     next_offset: rows.length > scanned ? offset + scanned : null,
     network_requests: 0,
   };

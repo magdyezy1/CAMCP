@@ -327,6 +327,8 @@ function usage(store: Store, actor: Actor, assetId: string, input: JsonObject, a
   return {
     usage: result,
     usage_has_more: more,
+    // The paging fields every AMCP list carries (MCP-07): has_more, and next_cursor while it is true (usage pages).
+    has_more: more,
     next_cursor: more ? continuation(bound, last) : null,
     usage_evidence: 'retained_verified_plan_references',
     external_usage: 'unknown',

@@ -116,6 +116,17 @@ previewed or refused there (its change path is `amcp_write`); a media route save
 with read- and write-shaped arguments and fails if one saves AMCP state, sends a non-read request or creates a
 provider job, and it fails when a tool's own hints are less cautious than one of its actions'.
 
+Every paged AMCP list carries the same paging fields (MCP-07): `has_more`, and while it is true the `next_cursor`
+(cursor lists such as `amcp_campaign list`, `amcp_reporting list`, `amcp_media library`, operations, history and
+capabilities) or `next_offset` (offset lists) that continues it, and `total` where it is known. Some lists returned
+only one of the two before. The media list pages its recovery reviews apart (`recovery_has_more`,
+`recovery_next_offset`); an asset's usage pages keep `usage_has_more` beside `has_more`.
+`tests/mcp-pagination-metadata.test.mjs` holds every paged action to this, or names the suite that pages it.
+`tests/mcp-output-schema-parity.test.mjs` calls every tool of both modes through a real MCP SDK client, which
+validates `structuredContent` against the listed `outputSchema`, and checks that the text block is the same JSON,
+that `isError` is set exactly on refusals, and that each refusal names its code, category, remedy, next action and
+request ID.
+
 ## Database storage and media staging
 
 Uploaded and imported media stay in SQLite as encrypted 4 MiB chunks. Format v2 stores each chunk as one raw

@@ -146,6 +146,9 @@ export function searchExclusionCandidates(report: JsonObject, input: JsonObject)
     options,
     candidate_count: rows.length,
     candidates: rows.slice(offset, offset + limit),
+    // The paging fields every AMCP list carries (MCP-07): total, has_more, and next_offset while it is true.
+    total: rows.length,
+    has_more: offset + limit < rows.length,
     next_offset: offset + limit < rows.length ? offset + limit : null,
     network_requests: 0,
     meaning:

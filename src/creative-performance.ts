@@ -177,7 +177,10 @@ export function creativePerformance(
       .slice(offset, offset + limit)
       .map((r: JsonObject) => Object.fromEntries(fields.map(k => [k, r[k] ?? null]))),
     row_count: matched.length,
+    // The paging fields every AMCP list carries (MCP-07): total, has_more, and next_offset while it is true.
+    total: matched.length,
     offset,
+    has_more: offset + limit < matched.length,
     next_offset: offset + limit < matched.length ? offset + limit : null,
     matched_ad_ids: [...new Set(matched.map((r: JsonObject) => r.entity_id))],
     plan_ad_ids_without_rows: [...adIds].filter(id => !matched.some((r: JsonObject) => r.entity_id === id)),
