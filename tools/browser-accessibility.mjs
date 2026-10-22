@@ -117,7 +117,104 @@ export const focusIndicatorTargets = Object.freeze([
     selector:
       'main input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=file]), main select, main textarea',
   },
+  // Design review 2026-10: the landing page's closing call to action sits on the dark band (2.32:1 with the global
+  // ring), and a command block Chrome makes focusable once it scrolls showed the browser's own ring (1.21:1, dark).
+  {name: 'inverse band link', selector: '.closing-note a[href]'},
+  {name: 'scroll region', selector: 'main pre.code-block'},
 ]);
+
+/**
+ * Runs in the page: the visible controls that lie past the page's start edge, where no scrolling reaches them (WCAG
+ * 1.4.10). The reflow check measures only the end side (scrollWidth); a right-aligned action row that did not wrap put
+ * Reporting's "New report" at -114 px on a 375 px screen (design review 2026-10). A control inside a horizontal scroll
+ * region is left to that region, and the closed phone sidebar and the skip link are off-screen by design.
+ */
+export function collectStartOverflow() {
+  const width = document.documentElement.clientWidth,
+    rtl = getComputedStyle(document.documentElement).direction === 'rtl',
+    drawerClosed = !document.body.classList.contains('menu-open'),
+    out = [];
+  const scrolls = element => {
+    for (let node = element.parentElement; node && node !== document.body; node = node.parentElement)
+      if (/(auto|scroll)/.test(getComputedStyle(node).overflowX)) return true;
+    return false;
+  };
+  for (const element of document.querySelectorAll(
+    'a[href], button, input:not([type=hidden]), select, textarea, summary',
+  )) {
+    if (element.closest('[inert], [hidden], dialog:not([open]), .skip, .skip-link')) continue;
+    if (drawerClosed && element.closest('#workspace-sidebar')) continue;
+    const visible =
+      typeof element.checkVisibility === 'function'
+        ? element.checkVisibility({checkOpacity: true, checkVisibilityCSS: true})
+        : element.getClientRects().length > 0;
+    const box = element.getBoundingClientRect();
+    if (!visible || box.width <= 1 || box.height <= 1) continue;
+    out.push({
+      control:
+        element.tagName.toLowerCase() +
+        (element.id ? '#' + element.id : '') +
+        [...element.classList]
+          .slice(0, 2)
+          .map(name => '.' + name)
+          .join(''),
+      left: Math.round(box.left),
+      right: Math.round(box.right),
+      in_scroll_region: scrolls(element),
+    });
+  }
+  return {width, rtl, controls: out};
+}
+/** The controls of a start-overflow sample that no scrolling can bring into view. */
+export function startOverflowProblems(sample) {
+  const {width = 0, rtl = false, controls = []} = sample ?? {};
+  return controls
+    .filter(c => !c.in_scroll_region && (rtl ? c.right > width + 1 : c.left < -1))
+    .map(c => `${c.control} lies past the page's start edge (${c.left} to ${c.right} of ${width} px)`);
+}
+
+/**
+ * Runs in the page: the computed colours of the first visible button and status badge of each variant in main. In
+ * the dark theme a shared group of theme.css once outranked every variant (design review 2026-10), so a primary or
+ * danger button looked like any other button and status badges lost their tone.
+ */
+export function collectVariantColours() {
+  const first = selector =>
+    [...document.querySelectorAll(selector)].find(
+      element =>
+        !element.closest('[hidden], [inert], dialog:not([open])') &&
+        (typeof element.checkVisibility === 'function'
+          ? element.checkVisibility({checkOpacity: true, checkVisibilityCSS: true})
+          : element.getClientRects().length > 0),
+    );
+  const colours = selector => {
+    const element = first(selector);
+    if (!element) return null;
+    const style = getComputedStyle(element);
+    return {color: style.color, background: style.backgroundColor, border: style.borderTopColor};
+  };
+  return {
+    plain: colours('main .button:not(.primary):not(.danger):not(.quiet):not(:disabled)'),
+    primary: colours('main .button.primary:not(:disabled)'),
+    danger: colours('main .button.danger:not(:disabled)'),
+    online: colours('main .status.online'),
+    attention: colours('main .status.attention'),
+    offline: colours('main .status.offline'),
+  };
+}
+/** The variants that render exactly like their plain counterpart; a variant missing from the page is not measured. */
+export function variantColourProblems(sample) {
+  const same = (a, b, keys) => a && b && keys.every(key => a[key] === b[key]);
+  const problems = [];
+  if (same(sample?.primary, sample?.plain, ['color', 'background']))
+    problems.push('A primary button is coloured like a plain button');
+  if (same(sample?.danger, sample?.plain, ['color', 'background', 'border']))
+    problems.push('A danger button is coloured like a plain button');
+  for (const tone of ['online', 'attention'])
+    if (same(sample?.[tone], sample?.offline, ['color', 'background', 'border']))
+      problems.push('An ' + tone + ' status badge has the neutral badge’s colours');
+  return problems;
+}
 
 /**
  * Findings for measured focus samples. A ring that is shown must reach the threshold against every opaque colour

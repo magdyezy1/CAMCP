@@ -68,12 +68,20 @@ review of 2026-10-11 found that no recorded run backed the limits; that run clos
 lower bound: the allow-list skips `option` elements (closed select options are not visible text nodes, so they are
 never probed) and every `bdi`, not only `bdi[data-native]`.
 
-Every case also focuses the skip link, a sidebar link, a primary button and a form field in its own appearance. It
-requires each focus ring to reach 3:1 against the opaque surface behind it, with the worst gradient stop counting
-(WCAG 1.4.11). A focused control with no outline and no shadow fails. Accessibility semantics, the pinned WCAG rules
-(when configured) and the leak probe also run after a dialog opens, an alert is shown and an outcome renders in the
-write journeys. Report panels and evidence controls use the theme focus colour. The fixed purple they used measured
-2.57:1 on the dark panel.
+Every case also focuses the skip link, a sidebar link, a primary button, a form field, the landing page's closing call
+to action and a focusable command block in its own appearance (the last two since the design review of 2026-10, where
+they measured 2.32:1 and 1.21:1). It requires each focus ring to reach 3:1 against the opaque surface behind it, with
+the worst gradient stop counting (WCAG 1.4.11). A focused control with no outline and no shadow fails. Accessibility
+semantics, the pinned WCAG rules (when configured) and the leak probe also run after a dialog opens, an alert is shown
+and an outcome renders in the write journeys. Report panels and evidence controls use the theme focus colour. The fixed
+purple they used measured 2.57:1 on the dark panel.
+
+The final state of every case also checks (design review 2026-10) that no control lies past the page's start edge,
+where no scrolling reaches it (WCAG 1.4.10; the end-side `scrollWidth` check never saw Reporting's "New report" at
+-114 px on a 375 px phone), and that a primary or danger button and an online or attention status badge are not
+coloured exactly like their plain counterparts (in dark mode a shared `theme.css` group had erased all four). The
+export journey checks that the authorization box sits beside its text and that the status after an export covers
+neither the box nor the export button (WCAG 2.4.11).
 
 ## Wave 2 qualification regressions (2026-10-12)
 

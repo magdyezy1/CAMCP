@@ -236,6 +236,32 @@ export async function exerciseExportOutcomes({page, site, locale, result, checks
       assert.equal(await status.locator('#delivery-new-tab').isVisible(), true);
     } else assert.equal(await status.locator('a[href*="docs.google.com"]').count(), 1);
     await checks.intermediate('export-' + outcome);
+    // Design review 2026-10: the authorization box sits beside the first line of its text (the dialog's label grid had
+    // put it alone on a line above it), and the status that follows an export covers neither the box nor the export
+    // button (the sticky status bar hid both until the reader scrolled; WCAG 2.4.11).
+    const consent = dialog.locator('#report-export-confirm'),
+      lineup = await consent.evaluate(box => {
+        const text = [...box.closest('label').childNodes].find(n => n.nodeType === 3 && n.textContent.trim()),
+          range = document.createRange();
+        range.selectNodeContents(text);
+        const line = range.getClientRects()[0],
+          b = box.getBoundingClientRect(),
+          middle = (b.top + b.bottom) / 2;
+        return {
+          beside: b.right <= line.left + 1 || b.left >= line.right - 1,
+          level: middle >= line.top - 4 && middle <= line.bottom + 4,
+        };
+      });
+    assert.deepEqual(lineup, {beside: true, level: true}, 'The authorization box sits beside its text');
+    for (const control of [consent, dialog.locator('#report-export-now')]) {
+      await control.scrollIntoViewIfNeeded();
+      const cover = await control.evaluate(element => {
+        const r = element.getBoundingClientRect(),
+          top = document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2);
+        return top && !element.contains(top) && !top.contains(element) ? top.id || String(top.className) : null;
+      });
+      assert.equal(cover, null, 'The export status covers ' + outcome);
+    }
     const written = site.counts().syntheticWrites - before.syntheticWrites;
     assert.equal(written > 0, outcome === 'complete', 'Only the complete export writes the tab');
     assert.equal(site.exportOutcomes.tab.report, newer, 'The tab keeps the newer snapshot');

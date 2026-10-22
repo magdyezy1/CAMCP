@@ -4,6 +4,9 @@ import {
   accessibilityTreeSummary,
   accessibilityProblems,
   inspectBrowserAccessibility,
+  startOverflowProblems,
+  variantColourProblems,
+  focusIndicatorTargets,
 } from '../tools/browser-accessibility.mjs';
 
 const node = (role, name, extra = {}) => ({
@@ -82,6 +85,55 @@ test('initial landmarks and final modal boundaries keep ID/name refusals indepen
     'Expected one exposed main landmark, observed 2',
     'Expected one exposed primary heading, observed 2',
   ]);
+});
+
+// Design review 2026-10: a right-aligned action row that did not wrap put Reporting's "New report" at -114 px on a
+// 375 px phone; the page cannot scroll to its start side, and the end-side reflow check (scrollWidth) never saw it.
+test('a control past the page start is out of reach unless a scroll region holds it, in either direction', () => {
+  const control = (left, right, extra = {}) => ({control: 'button#x', left, right, in_scroll_region: false, ...extra});
+  assert.deepEqual(
+    startOverflowProblems({width: 375, rtl: false, controls: [control(-114, -10), control(0, 375), control(10, 380)]}),
+    ["button#x lies past the page's start edge (-114 to -10 of 375 px)"],
+  );
+  // A horizontally scrolling region (a wide table) brings its own controls into view.
+  assert.deepEqual(
+    startOverflowProblems({width: 375, rtl: false, controls: [control(-300, -200, {in_scroll_region: true})]}),
+    [],
+  );
+  // Right to left, the start edge is the right one; past the left edge is the end side.
+  assert.deepEqual(startOverflowProblems({width: 375, rtl: true, controls: [control(-50, 40)]}), []);
+  assert.equal(startOverflowProblems({width: 375, rtl: true, controls: [control(300, 420)]}).length, 1);
+  assert.deepEqual(startOverflowProblems(undefined), []);
+});
+
+// Design review 2026-10: in the dark theme every primary and danger button rendered like a plain button and status
+// badges lost their tone, because a shared dark group of theme.css outranked the variants.
+test('a variant coloured exactly like its plain counterpart is a problem; an absent variant is not measured', () => {
+  const plain = {color: 'rgb(242, 237, 248)', background: 'rgb(37, 32, 50)', border: 'rgb(81, 71, 95)'};
+  assert.deepEqual(
+    variantColourProblems({plain, primary: plain, danger: plain, online: plain, attention: plain, offline: plain}),
+    [
+      'A primary button is coloured like a plain button',
+      'A danger button is coloured like a plain button',
+      'An online status badge has the neutral badge’s colours',
+      'An attention status badge has the neutral badge’s colours',
+    ],
+  );
+  assert.deepEqual(
+    variantColourProblems({
+      plain,
+      primary: {...plain, color: 'rgb(33, 23, 47)', background: 'rgb(199, 173, 255)'},
+      danger: {...plain, color: 'rgb(255, 182, 191)', border: 'rgb(255, 182, 191)'},
+      online: {...plain, background: 'rgb(24, 56, 46)'},
+      attention: {...plain, background: 'rgb(61, 46, 25)'},
+      offline: plain,
+    }),
+    [],
+  );
+  assert.deepEqual(variantColourProblems({plain, primary: null, danger: null}), []);
+  // Every rendered case also measures the closing band's call to action and a focusable command block.
+  assert.ok(focusIndicatorTargets.some(t => t.selector === '.closing-note a[href]'));
+  assert.ok(focusIndicatorTargets.some(t => t.selector === 'main pre.code-block'));
 });
 
 test('a refused Chromium inspection detaches its session and never evaluates the page', async () => {

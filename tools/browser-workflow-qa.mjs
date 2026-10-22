@@ -30,6 +30,10 @@ import {
   accessibilityProblems,
   focusIndicatorContrast,
   focusIndicatorProblems,
+  collectStartOverflow,
+  startOverflowProblems,
+  collectVariantColours,
+  variantColourProblems,
 } from './browser-accessibility.mjs';
 import {readPinnedWcagEngine, inspectBrowserWcag, wcagTags, atDocumentStart, focusObscured} from './browser-wcag.mjs';
 import {agentTokenProbe} from './browser-agent-tokens.mjs';
@@ -2383,6 +2387,13 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       layout.scrollWidth <= layout.width + 1,
       `Page requires horizontal scroll: ${layout.scrollWidth}/${layout.width}`,
     );
+    // Design review 2026-10 (WCAG 1.4.10): scrollWidth sees only the end side. Nothing may sit past the start edge,
+    // where the page cannot scroll (an action row that did not wrap hid Reporting's "New report" at 375 px).
+    result.start_overflow = startOverflowProblems(await page.evaluate(collectStartOverflow));
+    assert.deepEqual(result.start_overflow, [], 'A control lies past the page start edge');
+    // Design review 2026-10: primary and danger buttons and status tones keep their colours, in both themes.
+    result.variant_colours = variantColourProblems(await page.evaluate(collectVariantColours));
+    assert.deepEqual(result.variant_colours, [], 'A button or status variant lost its colours');
     assert.deepEqual(result.errors, [], 'Browser script failed');
     assert.deepEqual(result.failed_responses, [], 'Owned website returned an error response');
     assert.deepEqual(result.blocked_external_requests, [], 'Website attempted external egress');

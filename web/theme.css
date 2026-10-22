@@ -67,7 +67,6 @@ html[data-theme='dark'],
     .empty,
     .endpoint-box,
     .command-trigger,
-    #command-results button,
     .floating-chip,
     .social-button,
     .report-control-panel,
@@ -84,6 +83,13 @@ html[data-theme='dark'],
     .about-control,
     dialog
   ) {
+  color: var(--ink);
+  background: var(--white);
+  border-color: var(--line);
+}
+/* IDs stay out of the shared groups: an :is() group takes its most specific entry's weight, and #command-results
+   once lifted every .button and .status above their variants (design review 2026-10). */
+[data-theme='dark'] #command-results button {
   color: var(--ink);
   background: var(--white);
   border-color: var(--line);
@@ -198,11 +204,13 @@ html[data-theme='dark'],
     .public-footer,
     .public-footer a,
     .public-nav nav a,
-    #breadcrumb,
     .breadcrumb span,
     footer,
     footer a
   ) {
+  color: var(--muted);
+}
+[data-theme='dark'] #breadcrumb {
   color: var(--muted);
 }
 [data-theme='dark']
@@ -244,10 +252,15 @@ html[data-theme='dark'],
   :is(
     .button:hover,
     .social-button:hover:not(:disabled),
-    #command-results button:hover,
-    #command-results button:focus,
     .measurement-task-links a:hover,
-    .measurement-task-links a:focus-visible,
+    .measurement-task-links a:focus-visible
+  ) {
+  color: var(--ink);
+  background: var(--surface-accent);
+  border-color: var(--line-strong);
+}
+[data-theme='dark']
+  :is(
     .metric-pills span,
     .filter-tab.active,
     .client-tab.active,
@@ -256,9 +269,13 @@ html[data-theme='dark'],
     .notice,
     .measurement-read-feedback,
     .workspace-form-feedback,
-    #capture-feedback,
     .avatar
   ) {
+  color: var(--ink);
+  background: var(--surface-accent);
+  border-color: var(--line-strong);
+}
+[data-theme='dark'] :is(#command-results button:hover, #command-results button:focus, #capture-feedback) {
   color: var(--ink);
   background: var(--surface-accent);
   border-color: var(--line-strong);

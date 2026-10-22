@@ -498,8 +498,10 @@ dialog {
 .workspace-form-feedback p {
   white-space: pre-line;
 }
+/* An action row wraps: a row that did not pushed its first action past a phone's start edge (design review 2026-10). */
 .dialog-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 24px;

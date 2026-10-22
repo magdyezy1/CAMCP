@@ -24,9 +24,10 @@ Google, Apple and Facebook sign-in require the separate app credentials document
 `--muted` `#696678` (the lightest text colour, 4.6:1 or more on paper, white and the light tints), `--iris-700`
 `#5a43bd` (focus rings and links, 7.06:1 on white) and `--line-strong` `#8e87a0` (input borders, 3.43:1 on white).
 `web/accessibility.css` loads after every other stylesheet and applies them: focus rings are 2 px `--iris-700` with a
-2 px offset, and readable text is at least 12 px. Surfaces that stay dark in the light theme (the sidebar, toast,
-connector hero and callback header) use `--focus-on-inverse` instead, and recommendation decisions use the
-`--decision-*` pairs. Measurements are in [the accessibility report](review/ACCESSIBILITY.md).
+2 px offset, on every focusable element (a scroll region Chrome makes focusable included), and readable text is at
+least 12 px. Surfaces that stay dark in the light theme (the sidebar, toast, connector hero, callback header and the
+landing page's closing band) use `--focus-on-inverse` instead, and recommendation decisions use the `--decision-*`
+pairs. Measurements are in [the accessibility report](review/ACCESSIBILITY.md).
 `tools/check-web.mjs` keeps `tokens.css` first (and `public-tokens.css` second on the static public pages) and refuses
 a token defined in any other stylesheet. The shades of individual components (about 500 one-off tints) were written
 where they were used until WEB-07 made them tokens too ([below](#component-colours-from-tokens-web-07-2026-10-18)).
@@ -125,7 +126,11 @@ key, which painted their light literal there (11 to 13:1 on the dark panel), are
 visual sign-off of this increment covers these changes (package status B16).
 
 `theme.css` still loads after the component sheets in the workspace, and its `:is()` groups often outrank the
-component rules (a group takes the specificity of its most specific entry). Where a component's colour became a
+component rules (a group takes the specificity of its most specific entry). No shared group lists an ID entry any more
+(design review 2026-10): `#command-results button`, `#capture-feedback` and `#breadcrumb` had lifted their groups to ID
+specificity, so in dark mode every primary and danger button looked like a plain one, warning notices lost their tone
+and status badges theirs; those IDs have rules of their own, the hover states and the shared surfaces are separate
+groups, and `tests/website-design-review.test.mjs` keeps every variant above the surfaces it refines. Where a component's colour became a
 component shade, the shade's dark value is the layer's value, so those entries only repeat the tokens; where a
 component uses a palette role, an entry can still decide its dark colours: the measurement task links, for example,
 take `--surface-subtle` and the ink there instead of `--paper` and `--iris-700`, and their hover and focus states the
