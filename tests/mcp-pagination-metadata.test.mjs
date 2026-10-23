@@ -78,8 +78,11 @@ function fixture(t) {
   };
   return {store, service, call, put: (kind, id, doc) => store.putDocument(actor.tenantId, kind, id, doc)};
 }
-/** A completed overview snapshot of the Meta account with `rows` rows (the journeys harness seeds the same shape). */
-function snapshot(f, id, capturedAt, rows = 3) {
+/**
+ * A completed overview snapshot of the Meta account with `rows` campaign rows over `range` (the journeys harness seeds
+ * the same shape). Two snapshots over equal windows, the second after the first, can be compared.
+ */
+function snapshot(f, id, capturedAt, rows = 3, range = {since: '2026-09-01', until: '2026-09-02'}) {
   const report = {
     state: 'complete',
     captured_at: capturedAt,
@@ -88,7 +91,7 @@ function snapshot(f, id, capturedAt, rows = 3) {
     config: {
       name: 'Pagination report ' + id,
       client_name: 'Pagination client',
-      date_range: {since: '2026-09-01', until: '2026-09-02'},
+      date_range: range,
       metrics: ['spend'],
       custom_metrics: [],
       targets: {},
@@ -100,14 +103,15 @@ function snapshot(f, id, capturedAt, rows = 3) {
     actor_binding: f.store.bindJobActor(actor, id),
     row_count: rows,
     rows: Array.from({length: rows}, (_, i) => ({
+      campaign_key: 'meta:123:' + (10 + i),
       platform: 'meta',
       account_id: '123',
       campaign_id: String(10 + i),
       campaign_name: 'Campaign ' + (i + 1),
       currency: 'USD',
       timezone: 'UTC',
-      date_from: '2026-09-01',
-      date_to: '2026-09-02',
+      date_from: range.since,
+      date_to: range.until,
       metrics: {spend: 10 + i},
       complete: true,
       captured_at: capturedAt,
@@ -180,9 +184,10 @@ test('the offset lists that returned only next_offset now say has_more, and the 
   assert.equal(assertPage(rest, 'amcp_reporting get, last page', 'offset'), false);
   const reports = await f.call('amcp_reporting', {action: 'list', limit: 1});
   assert.equal(assertPage(reports, 'amcp_reporting list', 'cursor'), true);
-  // A snapshot's rows, the snapshot list and its presentation profiles.
+  // A snapshot's rows, the snapshot list and its presentation profiles; snapshot-b covers the two days after
+  // snapshot-a, so the two can be compared.
   snapshot(f, 'snapshot-a', Date.parse('2026-09-03T00:00:00Z'));
-  snapshot(f, 'snapshot-b', Date.parse('2026-09-04T00:00:00Z'));
+  snapshot(f, 'snapshot-b', Date.parse('2026-09-05T00:00:00Z'), 3, {since: '2026-09-03', until: '2026-09-04'});
   const got = await f.call('amcp_reporting_overview', {action: 'get', id: 'snapshot-a', limit: 2});
   assert.equal(assertPage(got, 'amcp_reporting_overview get', 'offset'), true);
   assert.deepEqual([got.total, got.next_offset], [3, 2]);
@@ -206,6 +211,17 @@ test('the offset lists that returned only next_offset now say has_more, and the 
     'compare_candidates',
     'offset',
   );
+  // compare: has_more without next_offset or total before (wave 4b review). Three matched campaigns, two per page.
+  const compare = {action: 'compare', id: 'snapshot-b', baseline_id: 'snapshot-a', limit: 2},
+    compared = await f.call('amcp_reporting_overview', compare);
+  assert.equal(assertPage(compared, 'amcp_reporting_overview compare', 'offset'), true);
+  assert.deepEqual([compared.total, compared.row_count, compared.next_offset, compared.rows.length], [3, 3, 2, 2]);
+  const comparedTail = await f.call('amcp_reporting_overview', {...compare, offset: compared.next_offset});
+  assert.deepEqual(
+    comparedTail.rows.map(r => r.entity_id),
+    ['12'],
+  );
+  assert.equal(assertPage(comparedTail, 'amcp_reporting_overview compare, last page', 'offset'), false);
 });
 
 test('the media list pages its receipts and its recovery reviews each by its own offset', async t => {
@@ -323,13 +339,12 @@ test('the cursor lists keep has_more and next_cursor, and a followed cursor neve
   assertPage(sections.sections.accounts, 'dashboard accounts section', 'cursor');
 });
 
-// Paged actions held to the same fields by their own suites: their pages need provider reads or two comparable
-// snapshots (portfolio: tests/portfolio-adapter-contract.test.mjs; asset_usage: tests/mcp-meta-asset-usage.test.mjs
-// and the Google and Snapchat suites; compare: tests/report-period-compare.test.mjs).
+// Paged actions held to the same fields by their own suites, since their pages need provider reads (portfolio:
+// tests/portfolio-adapter-contract.test.mjs; asset_usage: tests/mcp-meta-asset-usage.test.mjs and the Google and
+// Snapchat suites). compare was listed here with a suite that never checked its paging fields; it is covered above.
 const pagedElsewhere = {
   amcp_workspace: ['portfolio'],
   amcp_media: ['asset_usage'],
-  amcp_reporting_overview: ['compare'],
 };
 test('every paged AMCP action is held to the convention here, or named with the suite that pages it', t => {
   const f = fixture(t);
@@ -347,7 +362,7 @@ test('every paged AMCP action is held to the convention here, or named with the 
     ],
     amcp_campaign: ['list'],
     amcp_reporting: ['get', 'list', 'allocation_candidates', 'search_exclusion_candidates'],
-    amcp_reporting_overview: ['get', 'list', 'presentation_profiles', 'compare_candidates'],
+    amcp_reporting_overview: ['get', 'list', 'presentation_profiles', 'compare_candidates', 'compare'],
     amcp_media: ['list', 'library', 'asset', 'asset_performance'],
   };
   const paged = [];

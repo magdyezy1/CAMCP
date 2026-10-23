@@ -212,7 +212,7 @@ function comparableCustom(current: JsonObject, baseline: JsonObject) {
 const listLimit = 200;
 /**
  * Compares `current` with `baseline` (two retained Overview snapshots). Refuses an ineligible pair with
- * REPORT_COMPARISON_INVALID naming each rule; rows are paged with offset/limit.
+ * REPORT_COMPARISON_INVALID naming each rule; rows are paged with offset/limit (total, has_more, next_offset).
  */
 export function compareSnapshots(
   current: JsonObject,
@@ -366,8 +366,11 @@ export function compareSnapshots(
     excluded_metrics: excludedMetrics,
     rows: sorted.slice(offset, offset + limit),
     row_count: sorted.length,
+    // The paging fields every AMCP list carries (MCP-07): total, has_more and next_offset while it is true.
+    total: sorted.length,
     offset,
     has_more: offset + limit < sorted.length,
+    next_offset: offset + limit < sorted.length ? offset + limit : null,
     group_totals: groupTotals,
     incompatible: incompatible.slice(0, listLimit),
     incompatible_count: incompatible.length,
