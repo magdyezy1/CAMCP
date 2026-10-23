@@ -36,12 +36,12 @@ summary {
 }
 .button {
   border-color: var(--border-control);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   min-height: 40px;
   transition:
-    background 0.18s,
-    transform 0.18s,
-    box-shadow 0.18s;
+    background var(--duration),
+    transform var(--duration),
+    box-shadow var(--duration);
 }
 .button:hover {
   background: var(--surface);
@@ -67,7 +67,7 @@ summary {
   padding: 15px 23px;
   font-size: 15px;
   min-height: 52px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
 }
 .button.small {
   min-height: 33px;
@@ -138,7 +138,7 @@ input[type='checkbox'] {
   border-color: var(--border-strong);
   color: var(--text);
   background: var(--white);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 .workspace-details summary {
   color: var(--text-accent);
@@ -152,7 +152,7 @@ input[type='checkbox'] {
 }
 .platform-card:hover {
   border-color: var(--border-accent);
-  box-shadow: 0 9px 30px var(--shadow-soft);
+  box-shadow: var(--elevation-2);
 }
 .platform-metrics {
   background: var(--surface-raised);
@@ -162,7 +162,7 @@ input[type='checkbox'] {
   color: var(--iris-soft);
 }
 .stat {
-  border-radius: 16px;
+  border-radius: var(--radius);
 }
 .asset-count {
   background: var(--surface-subtle);
@@ -171,12 +171,12 @@ input[type='checkbox'] {
   background: var(--surface-raised);
 }
 .manage-dialog {
-  border-radius: 22px;
+  border-radius: var(--radius-xl);
 }
 .toast {
   background: var(--surface-inverse-raised);
   border-color: var(--border-on-inverse);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
 }
 .empty {
   background: var(--surface-raised);
@@ -187,7 +187,7 @@ input[type='checkbox'] {
 .connector-hero {
   background: linear-gradient(120deg, var(--surface-inverse), var(--surface-inverse-accent));
   border: 1px solid var(--border-on-inverse);
-  border-radius: 22px;
+  border-radius: var(--radius-xl);
   padding: 36px;
 }
 .connector-hero p,
@@ -230,14 +230,14 @@ input[type='checkbox'] {
   padding: 13px 10px;
   border-color: var(--border-on-inverse);
   background: var(--fill-on-inverse-subtle);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   min-width: 0;
 }
 .workspace > div {
   min-width: 0;
 }
 .workspace strong {
-  font-size: 12px;
+  font-size: var(--type-xs);
   font-weight: 550;
   display: block;
   overflow: hidden;
@@ -257,7 +257,7 @@ input[type='checkbox'] {
   flex-shrink: 0;
 }
 .workspace-arrow {
-  font-size: 13px;
+  font-size: var(--type-sm);
   color: var(--text-on-inverse-secondary);
   margin-inline-start: auto;
 }
@@ -283,7 +283,7 @@ input[type='checkbox'] {
   margin-top: 6px;
   padding: 6px;
   border: 1px solid var(--border-on-inverse);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--fill-on-inverse);
 }
 .workspace-menu button,
@@ -295,11 +295,11 @@ input[type='checkbox'] {
   gap: 2px;
   padding: 8px 10px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: none;
   color: var(--text-on-inverse);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .workspace-menu button:not([disabled]):hover,
 .workspace-menu a:hover {
@@ -329,17 +329,17 @@ input[type='checkbox'] {
   scrollbar-color: var(--text-on-inverse-muted) var(--surface-inverse);
 }
 .sidebar nav a {
-  font-size: 13px;
+  font-size: var(--type-sm);
   color: var(--text-on-inverse-secondary);
   padding: 11px 13px;
   gap: 13px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   font-weight: 450;
   min-height: 42px;
 }
 .sidebar nav a span {
   width: 20px;
-  font-size: 16px;
+  font-size: var(--type-lg);
   display: flex;
   align-items: center;
 }
@@ -367,12 +367,12 @@ input[type='checkbox'] {
     var(--surface-inverse-raised)
   );
   padding: 17px 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   margin-bottom: 22px;
 }
 .sidebar-note strong {
   display: block;
-  font-size: 12px;
+  font-size: var(--type-xs);
   line-height: 1.7;
   font-weight: 450;
   color: var(--text-on-inverse);
@@ -420,7 +420,7 @@ input[type='checkbox'] {
   min-width: 0;
 }
 .breadcrumb {
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .breadcrumb b {
   color: var(--text-soft);
@@ -438,7 +438,7 @@ input[type='checkbox'] {
 .command-trigger {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   padding: 8px 10px;
   display: flex;
   align-items: center;
@@ -452,10 +452,10 @@ input[type='checkbox'] {
     sans-serif;
   padding: 2px 5px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
 }
 .topbar .button {
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 /* The top bar stays one row at every width in both languages (WEB-05): the avatar keeps its square, the breadcrumb
    shortens with an ellipsis, and the visible control labels give way before anything wraps. Every control keeps its
@@ -506,8 +506,8 @@ main {
   max-width: 1580px;
 }
 .panel {
-  border-radius: 17px;
-  box-shadow: 0 5px 20px var(--shadow-soft);
+  border-radius: var(--radius);
+  box-shadow: var(--elevation-1);
   border-color: var(--border);
 }
 .initial-loading {
@@ -522,7 +522,7 @@ main {
 }
 .command-dialog {
   width: min(580px, calc(100vw - 32px));
-  border-radius: 20px;
+  border-radius: var(--radius-xl);
   padding: 0;
 }
 .command-search {
@@ -536,7 +536,7 @@ main {
   outline: 0;
   min-width: 0;
   flex: 1;
-  font-size: 16px;
+  font-size: var(--type-lg);
   color: var(--ink);
 }
 #command-results {
@@ -553,7 +553,7 @@ main {
   border: 0;
   background: var(--white);
   padding: 13px 15px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   color: var(--ink);
 }
 #command-results button:hover,
@@ -561,7 +561,7 @@ main {
   background: var(--surface-subtle);
 }
 #command-results strong {
-  font-size: 13px;
+  font-size: var(--type-sm);
   font-weight: 550;
 }
 #command-results small {
@@ -629,7 +629,7 @@ body.public-view {
   gap: 24px;
 }
 .public-nav nav a {
-  font-size: 12px;
+  font-size: var(--type-xs);
   padding: 0;
   color: var(--text-secondary);
   white-space: nowrap;
@@ -643,17 +643,17 @@ body.public-view {
   display: flex;
   align-items: center;
   gap: 24px;
-  font-size: 13px;
+  font-size: var(--type-sm);
 }
 .public-nav .button {
-  font-size: 12px;
+  font-size: var(--type-xs);
   padding: 11px 18px;
 }
 .text-link {
   display: inline-flex;
   align-items: center;
   gap: 13px;
-  font-size: 13px;
+  font-size: var(--type-sm);
   font-weight: 550;
 }
 .text-link:hover {
@@ -696,7 +696,7 @@ body.public-view {
   color: var(--iris-soft);
 }
 .hero-copy > p {
-  font-size: 16px;
+  font-size: var(--type-lg);
   line-height: 1.85;
   max-width: 440px;
   font-weight: 400;
@@ -708,13 +708,13 @@ body.public-view {
   margin-top: 30px;
 }
 .hero-actions > .text-link {
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 /* Shown instead of a sign-up promise when registration cannot complete (WEB-02). */
 .hero-access {
   margin: 16px 0 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--type-sm);
 }
 .hero-note {
   display: flex;
@@ -883,7 +883,7 @@ body.public-view {
   gap: 11px;
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: 14px 17px;
   box-shadow: 0 12px 30px var(--shadow-soft);
   font-size: 11px;
@@ -902,7 +902,7 @@ body.public-view {
 .chip-icon {
   width: 35px;
   height: 35px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   display: grid;
   place-items: center;
 }
@@ -978,7 +978,7 @@ body.public-view {
 }
 .section-heading p {
   max-width: 290px;
-  font-size: 14px;
+  font-size: var(--type-md);
   margin: 0 0 4px;
 }
 .feature-bento {
@@ -988,7 +988,7 @@ body.public-view {
 }
 .feature-card {
   border: 1px solid var(--border);
-  border-radius: 22px;
+  border-radius: var(--radius-xl);
   padding: 30px;
   overflow: hidden;
   position: relative;
@@ -1003,7 +1003,7 @@ body.public-view {
   height: 39px;
   background: color-mix(in srgb, var(--surface-raised) 50%, transparent);
   border: 1px solid color-mix(in srgb, var(--surface-raised) 63%, transparent);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   display: grid;
   place-items: center;
   color: var(--iris-soft);
@@ -1049,7 +1049,7 @@ body.public-view {
 .mini-plan {
   background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
   border: 1px solid var(--border);
-  border-radius: 13px;
+  border-radius: var(--radius-lg);
   padding: 18px 14px;
   margin-top: 35px;
   transform: rotate(-3deg);
@@ -1086,7 +1086,7 @@ body.public-view {
 .mini-plan b {
   background: var(--surface-selected);
   padding: 4px 6px;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   margin-inline-start: auto;
   font-weight: 450;
 }
@@ -1160,7 +1160,7 @@ body.public-view {
 .client-cloud span {
   background: var(--surface-subtle);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   padding: 8px 10px;
   font-size: 10px;
 }
@@ -1178,7 +1178,7 @@ body.public-view {
 .evidence-tags span {
   background: color-mix(in srgb, var(--surface-raised) 58%, transparent);
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   padding: 6px 8px;
 }
 .how-section {
@@ -1191,7 +1191,7 @@ body.public-view {
 }
 .how-section .button {
   margin-top: 30px;
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .how-steps {
   list-style: none;
@@ -1208,7 +1208,7 @@ body.public-view {
   padding-top: 0;
 }
 .how-steps li > span {
-  font-size: 12px;
+  font-size: var(--type-xs);
   margin-top: 4px;
 }
 .how-steps h3 {
@@ -1217,7 +1217,7 @@ body.public-view {
   letter-spacing: -0.5px;
 }
 .how-steps p {
-  font-size: 13px;
+  font-size: var(--type-sm);
   margin: 8px 0;
 }
 .closing-note {
@@ -1245,7 +1245,7 @@ body.public-view {
   line-height: 1.22;
 }
 .closing-note .button {
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .public-footer {
   padding: 35px 5%;
@@ -1322,7 +1322,7 @@ body.public-view {
 }
 .auth-story > p {
   max-width: 330px;
-  font-size: 14px;
+  font-size: var(--type-md);
   line-height: 1.8;
 }
 .auth-art {
@@ -1392,7 +1392,7 @@ body.public-view {
   border: 1px solid var(--border-control);
   background: var(--surface-raised);
   color: var(--text-secondary-strong);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   min-height: 45px;
   display: flex;
   align-items: center;
@@ -1467,9 +1467,9 @@ body.public-view {
   padding: 12px 13px;
   border: 1px solid var(--border-strong);
   background: var(--surface-raised);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--type-sm);
   min-height: 45px;
 }
 .auth-form input:focus {
@@ -1503,7 +1503,7 @@ body.public-view {
   text-underline-offset: 3px;
 }
 .auth-form-card .error {
-  font-size: 12px;
+  font-size: var(--type-xs);
   line-height: 1.7;
 }
 .auth-form-card .error:empty {
@@ -1513,18 +1513,18 @@ body.public-view {
   background: var(--success-bg-subtle);
   border: 1px solid var(--success-line);
   padding: 20px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   display: flex;
   gap: 12px;
   color: var(--status-success-ink);
   margin: 20px 0;
-  font-size: 13px;
+  font-size: var(--type-sm);
 }
 .auth-success p {
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .auth-success .button {
-  font-size: 12px;
+  font-size: var(--type-xs);
   margin-top: 10px;
 }
 .account-hero {
@@ -1534,7 +1534,7 @@ body.public-view {
   padding: 27px;
   background: linear-gradient(110deg, var(--surface-selected), var(--surface-warm));
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: var(--radius-xl);
   margin-bottom: 25px;
 }
 .account-monogram {
@@ -1542,7 +1542,7 @@ body.public-view {
   width: 70px;
   display: grid;
   place-items: center;
-  border-radius: 20px;
+  border-radius: var(--radius-xl);
   background: var(--surface-raised);
   box-shadow: 0 5px 20px var(--shadow);
   font-size: 27px;
@@ -1554,7 +1554,7 @@ body.public-view {
 }
 .account-hero p {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .account-hero > .status {
   margin-inline-start: auto;
@@ -1589,7 +1589,7 @@ body.public-view {
   min-width: 0;
 }
 .identity-row strong {
-  font-size: 12px;
+  font-size: var(--type-xs);
   font-weight: 550;
 }
 .identity-row small {
@@ -1601,7 +1601,7 @@ body.public-view {
 .session-icon {
   background: var(--surface-subtle);
   padding: 9px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   color: var(--iris-soft);
 }
 .account-columns .panel h2 {
@@ -1629,7 +1629,7 @@ body.public-view {
     font-size: 32px;
   }
   .stage-flow p {
-    font-size: 12px;
+    font-size: var(--type-xs);
   }
   .stage-flow small {
     font-size: 9px;
@@ -1686,7 +1686,7 @@ body.public-view {
     width: calc(100% - 215px);
   }
   .sidebar nav a {
-    font-size: 12px;
+    font-size: var(--type-xs);
   }
   .workspace strong {
     max-width: 107px;
@@ -1745,7 +1745,7 @@ body.public-view {
     gap: 15px;
   }
   .hero-actions .button {
-    font-size: 12px;
+    font-size: var(--type-xs);
     padding: 13px 16px;
   }
   .feature-card {
@@ -1820,7 +1820,7 @@ body.public-view {
     transform: translateX(-100%);
     z-index: 30;
     padding: 28px 20px;
-    transition: transform 0.2s;
+    transition: transform var(--duration);
     overflow: auto;
   }
   .menu-open .sidebar {
@@ -1843,7 +1843,7 @@ body.public-view {
   }
   .sidebar nav a {
     padding: 11px 14px;
-    font-size: 13px;
+    font-size: var(--type-sm);
   }
   .sidebar .workspace strong {
     max-width: 140px;
@@ -1877,11 +1877,11 @@ body.public-view {
   }
   /* The 12px floor holds on phones too (WEB-01: these were 11px and 10px). */
   .topbar .button {
-    font-size: 12px;
+    font-size: var(--type-xs);
     padding: 6px;
   }
   .topbar .breadcrumb {
-    font-size: 12px;
+    font-size: var(--type-xs);
   }
   .public-nav {
     padding: 25px 5%;
@@ -1956,7 +1956,7 @@ body.public-view {
     text-align: center;
   }
   .platform-ribbon > div {
-    font-size: 16px;
+    font-size: var(--type-lg);
   }
   .possibilities {
     margin-top: 70px;
@@ -1992,7 +1992,7 @@ body.public-view {
     gap: 17px;
   }
   .how-steps p {
-    font-size: 12px;
+    font-size: var(--type-xs);
   }
   .closing-note {
     padding: 30px;
@@ -2029,7 +2029,7 @@ body.public-view {
     height: 260px;
   }
   .auth-story > p {
-    font-size: 12px;
+    font-size: var(--type-xs);
     margin-top: -15px;
   }
   .auth-form-side {
@@ -2108,7 +2108,7 @@ body.public-view {
     font-size: 29px;
   }
   .page-heading p {
-    font-size: 12px;
+    font-size: var(--type-xs);
   }
   .page-heading {
     gap: 10px;
@@ -2123,7 +2123,7 @@ body.public-view {
     flex-shrink: 0;
   }
   .account-hero h2 {
-    font-size: 22px;
+    font-size: var(--type-xl);
   }
   .identity-row {
     gap: 11px;
@@ -2162,7 +2162,7 @@ body.public-view {
     font-size: 11px;
   }
   .hero-copy > p {
-    font-size: 14px;
+    font-size: var(--type-md);
     line-height: 1.85;
   }
   .hero-actions {
@@ -2224,7 +2224,7 @@ body.public-view {
   .chip-one .chip-icon {
     width: 27px;
     height: 27px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
   }
   .chip-one svg {
     width: 18px;
@@ -2255,7 +2255,7 @@ body.public-view {
     padding: 25px 7%;
   }
   .platform-ribbon > div {
-    font-size: 14px;
+    font-size: var(--type-md);
   }
   .possibilities {
     padding: 0 6%;
@@ -2267,7 +2267,7 @@ body.public-view {
     letter-spacing: -1.3px;
   }
   .section-heading p {
-    font-size: 12px;
+    font-size: var(--type-xs);
   }
   .feature-bento {
     grid-template-columns: 1fr;
@@ -2304,7 +2304,7 @@ body.public-view {
     margin-bottom: 22px;
   }
   .feature-card .text-link {
-    font-size: 12px;
+    font-size: var(--type-xs);
     margin-top: 21px;
   }
   .creative-frames {
@@ -2372,7 +2372,7 @@ body.public-view {
     font-size: 42px;
   }
   .auth-form input {
-    font-size: 16px;
+    font-size: var(--type-lg);
   }
   .social-button {
     min-height: 48px;
@@ -2413,12 +2413,12 @@ body.public-view {
   padding: 18px;
   background: var(--white);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   color: var(--iris-soft);
-  font-size: 13px;
+  font-size: var(--type-sm);
   transition:
-    transform 0.15s,
-    border-color 0.15s;
+    transform var(--duration-fast),
+    border-color var(--duration-fast);
 }
 .quick-actions > a:hover {
   transform: translateY(-2px);
@@ -2429,7 +2429,7 @@ body.public-view {
   height: 35px;
   display: grid;
   place-items: center;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-subtle);
   flex-shrink: 0;
 }
@@ -2438,7 +2438,7 @@ body.public-view {
 }
 .quick-actions strong {
   display: block;
-  font-size: 12px;
+  font-size: var(--type-xs);
   color: var(--text-soft);
   font-weight: 550;
 }
@@ -2471,25 +2471,25 @@ body.public-view {
   color: var(--text-secondary);
 }
 .auth-switch {
-  font-size: 13px;
+  font-size: var(--type-sm);
 }
 .auth-form label {
-  font-size: 13px;
+  font-size: var(--type-sm);
 }
 .auth-subtitle {
-  font-size: 14px;
+  font-size: var(--type-md);
 }
 .social-button {
-  font-size: 14px;
+  font-size: var(--type-md);
 }
 .auth-form .button {
-  font-size: 14px;
+  font-size: var(--type-md);
 }
 .auth-form-card .eyebrow {
   font-size: 10px;
 }
 .feature-card p {
-  font-size: 13px;
+  font-size: var(--type-sm);
 }
 .hero-note {
   font-size: 11px;
@@ -2502,10 +2502,10 @@ body.public-view {
 }
 .public-footer > span,
 .public-footer > div {
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .account-columns .panel p {
-  font-size: 13px;
+  font-size: var(--type-sm);
 }
 @media (max-width: 1050px) {
   .quick-actions {
@@ -2523,7 +2523,7 @@ body.public-view {
     font-size: 11px;
   }
   .social-button {
-    font-size: 13px;
+    font-size: var(--type-sm);
   }
 }
 #navigation-scrim,
@@ -2568,7 +2568,7 @@ body.public-view {
   margin: 26px 0 4px;
   padding: 22px;
   border: 1px solid color-mix(in srgb, var(--iris) 28%, transparent);
-  border-radius: 16px;
+  border-radius: var(--radius);
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--iris) 8%, transparent),
@@ -2588,7 +2588,7 @@ body.public-view {
 }
 .owner-entry p {
   margin: 0 0 16px;
-  font-size: 13px;
+  font-size: var(--type-sm);
   line-height: 1.5;
   color: var(--text-secondary-strong);
 }
@@ -2597,6 +2597,6 @@ body.public-view {
     padding: 18px;
   }
   .owner-entry h2 {
-    font-size: 22px;
+    font-size: var(--type-xl);
   }
 }

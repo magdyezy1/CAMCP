@@ -107,14 +107,15 @@ test('troubleshooting and schedule text uses themed colours at the 12px floor', 
   for (const selector of ['.schedule-row small', '.custom-metric-row code']) {
     const rule = declarations(block(reporting, selector));
     assert.equal(rule.get('color'), 'var(--muted)', selector);
-    assert.equal(rule.get('font-size'), '12px', selector);
+    // A type token (WEB-07 design system) is read as its value.
+    assert.equal(resolve(light, rule.get('font-size')), '12px', selector);
   }
   // No top-bar text in any media query is below the floor (it was 11px and 10px at 850px and narrower).
   const identity = css('identity.css');
   for (const selector of ['.topbar .button', '.topbar .breadcrumb'])
     for (const match of identity.matchAll(new RegExp(selector.replaceAll('.', '\\.') + ' \\{([^}]*)\\}', 'g'))) {
       const size = declarations(match[1]).get('font-size');
-      if (size) assert.ok(Number.parseFloat(size) >= 12, selector + ' ' + size);
+      if (size) assert.ok(Number.parseFloat(resolve(light, size)) >= 12, selector + ' ' + size);
     }
 });
 

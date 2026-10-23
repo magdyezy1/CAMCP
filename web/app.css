@@ -48,7 +48,7 @@ button:disabled {
   gap: 10px;
   align-items: center;
   border: 1px solid;
-  font-size: 14px;
+  font-size: var(--type-md);
 }
 .workspace small {
   display: block;
@@ -60,7 +60,7 @@ button:disabled {
   height: 32px;
   display: grid;
   place-items: center;
-  font-size: 13px;
+  font-size: var(--type-sm);
 }
 nav {
   display: grid;
@@ -68,8 +68,8 @@ nav {
 }
 nav a {
   padding: 13px;
-  border-radius: 9px;
-  font-size: 14px;
+  border-radius: var(--radius-md);
+  font-size: var(--type-md);
   font-weight: 550;
   display: flex;
   gap: 12px;
@@ -120,7 +120,7 @@ nav a span {
   align-items: center;
 }
 .domain {
-  font-size: 12px;
+  font-size: var(--type-xs);
   color: var(--muted);
 }
 .avatar {
@@ -128,7 +128,7 @@ nav a span {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 13px;
+  font-size: var(--type-sm);
   font-weight: 650;
 }
 main {
@@ -149,13 +149,13 @@ h1 {
   font-weight: 650;
 }
 h2 {
-  font-size: 22px;
+  font-size: var(--type-xl);
   letter-spacing: -0.5px;
   font-weight: 650;
   margin: 0 0 10px;
 }
 h3 {
-  font-size: 16px;
+  font-size: var(--type-lg);
   font-weight: 650;
   margin: 0;
 }
@@ -163,7 +163,7 @@ p {
   line-height: 1.65;
 }
 .page-heading p {
-  font-size: 14px;
+  font-size: var(--type-md);
   margin: 0;
 }
 .button {
@@ -175,7 +175,7 @@ p {
   border: 1px solid;
   color: var(--ink);
   background: var(--surface-raised);
-  font-size: 14px;
+  font-size: var(--type-md);
   font-weight: 560;
   line-height: 1.4;
   white-space: nowrap;
@@ -192,7 +192,7 @@ p {
 }
 .button.small {
   padding: 7px 11px;
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .full {
   width: 100%;
@@ -212,7 +212,7 @@ p {
   align-items: center;
 }
 .stat-label {
-  font-size: 12px;
+  font-size: var(--type-xs);
   color: var(--muted);
   margin-bottom: 9px;
 }
@@ -225,10 +225,10 @@ p {
 .stat-icon {
   width: 42px;
   height: 42px;
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   display: grid;
   place-items: center;
-  font-size: 22px;
+  font-size: var(--type-xl);
 }
 .section-tools {
   display: flex;
@@ -245,8 +245,8 @@ p {
   padding: 8px 12px;
   border: 0;
   background: transparent;
-  border-radius: 7px;
-  font-size: 13px;
+  border-radius: var(--radius-sm);
+  font-size: var(--type-sm);
   color: var(--muted);
 }
 .filter-tab.active {
@@ -259,7 +259,7 @@ p {
   align-items: center;
   border: 1px solid var(--line);
   background: var(--white);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding-inline-start: 12px;
   color: var(--muted);
 }
@@ -267,7 +267,7 @@ p {
   border: 0;
   background: none;
   width: 100%;
-  font-size: 13px;
+  font-size: var(--type-sm);
   padding: 10px 12px;
   outline-offset: 0;
 }
@@ -281,7 +281,7 @@ p {
   border-radius: var(--radius);
   background: var(--white);
   overflow: hidden;
-  transition: border-color 0.15s;
+  transition: border-color var(--duration-fast);
 }
 .platform-main {
   padding: 22px 23px 19px;
@@ -299,7 +299,7 @@ p {
 }
 /* A settings platform name is a section heading (F-43) with the look of the h3 it replaced. */
 .platform-identity h2 {
-  font-size: 16px;
+  font-size: var(--type-lg);
   letter-spacing: inherit;
   margin: 0;
 }
@@ -307,11 +307,11 @@ p {
   height: 43px;
   width: 43px;
   border: 1px solid var(--border);
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   display: grid;
   place-items: center;
   font-weight: 750;
-  font-size: 22px;
+  font-size: var(--type-xl);
   background: var(--white);
   flex-shrink: 0;
 }
@@ -337,14 +337,14 @@ p {
 }
 .platform-logo.x {
   color: #000;
-  font-size: 22px;
+  font-size: var(--type-xl);
 }
 .platform-name {
-  font-size: 16px;
+  font-size: var(--type-lg);
   font-weight: 650;
 }
 .platform-kind {
-  font-size: 12px;
+  font-size: var(--type-xs);
   color: var(--muted);
   margin-top: 5px;
 }
@@ -357,7 +357,7 @@ p {
   font-weight: 650;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--line);
   white-space: nowrap;
 }
@@ -373,7 +373,7 @@ p {
   background: var(--warning-dot);
 }
 .platform-description {
-  font-size: 13px;
+  font-size: var(--type-sm);
   color: var(--muted);
   margin: 17px 0 22px;
   min-height: 21px;
@@ -386,7 +386,7 @@ p {
 }
 .platform-login {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .platform-actions {
   display: flex;
@@ -412,7 +412,7 @@ p {
   margin-bottom: 6px;
 }
 .platform-metrics b {
-  font-size: 16px;
+  font-size: var(--type-lg);
   font-weight: 550;
 }
 .notice {
@@ -421,9 +421,9 @@ p {
   gap: 12px;
   padding: 17px 20px;
   border: 1px solid;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   margin-bottom: 25px;
-  font-size: 13px;
+  font-size: var(--type-sm);
   line-height: 1.65;
 }
 .notice p {
@@ -446,8 +446,8 @@ p {
 }
 dialog {
   border: 1px solid var(--line);
-  border-radius: 16px;
-  box-shadow: 0 24px 100px var(--shadow-strong);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-3);
   padding: 0;
   color: var(--ink);
 }
@@ -456,7 +456,7 @@ dialog {
   padding: 28px;
 }
 .small-dialog p {
-  font-size: 14px;
+  font-size: var(--type-md);
 }
 .dialog-heading {
   display: flex;
@@ -471,26 +471,26 @@ dialog {
   font-size: 26px;
   line-height: 1;
   padding: 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 .small-dialog label {
   display: block;
-  font-size: 13px;
+  font-size: var(--type-sm);
   margin: 23px 0 8px;
 }
 .small-dialog input {
   padding: 12px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   width: 100%;
 }
 .form-note {
-  font-size: 12px !important;
+  font-size: var(--type-xs) !important;
   color: var(--muted);
 }
 .error {
   color: var(--danger-text);
-  font-size: 13px;
+  font-size: var(--type-sm);
 }
 /* WEB-03: an error's message, what to do, the provider's facts and the reference each start a new line. */
 .shell-alert,
@@ -529,11 +529,11 @@ dialog {
   align-items: center;
   gap: 11px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   padding: 14px;
 }
 .oauth-login strong {
-  font-size: 13px;
+  font-size: var(--type-sm);
 }
 .oauth-login small {
   display: block;
@@ -549,7 +549,7 @@ dialog {
 .default-badge {
   font-size: 9px;
   border: 1px solid;
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
   padding: 3px 5px;
   margin-inline-start: 6px;
   text-transform: uppercase;
@@ -566,7 +566,7 @@ dialog {
   border: 0;
   border-bottom: 2px solid transparent;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--type-xs);
   color: var(--muted);
   padding: 15px 0;
 }
@@ -575,7 +575,7 @@ dialog {
 }
 .asset-count {
   padding: 2px 5px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 10px;
 }
 .asset-toolbar {
@@ -588,7 +588,7 @@ dialog {
 .asset-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--type-sm);
 }
 .asset-table th {
   text-align: start;
@@ -624,9 +624,9 @@ dialog {
 .empty {
   text-align: center;
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--type-md);
   border: 1px dashed var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   margin-top: 12px;
 }
 .empty strong {
@@ -642,7 +642,7 @@ dialog {
   color: var(--text-on-inverse-strong);
   padding: 15px 22px;
   max-width: min(450px, 90vw);
-  font-size: 14px;
+  font-size: var(--type-md);
   box-shadow: 0 12px 35px var(--shadow-strong);
   z-index: 20;
 }
@@ -658,14 +658,14 @@ dialog {
   line-height: 1.25;
 }
 .connector-hero p {
-  font-size: 14px;
+  font-size: var(--type-md);
   max-width: 460px;
 }
 .endpoint-box {
   align-self: center;
   padding: 20px;
   border: 1px solid;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
 }
 .endpoint-box small {
   display: block;
@@ -697,7 +697,7 @@ dialog {
   margin-bottom: 20px;
 }
 .panel p {
-  font-size: 14px;
+  font-size: var(--type-md);
 }
 .client-tabs {
   display: flex;
@@ -708,14 +708,14 @@ dialog {
 .client-tab {
   border: 1px solid var(--line);
   background: var(--surface-raised);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 10px 17px;
-  font-size: 13px;
+  font-size: var(--type-sm);
 }
 .code-block {
   border: 1px solid var(--line);
   padding: 18px;
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   white-space: pre-wrap;
   overflow: auto;
   font:
@@ -731,7 +731,7 @@ dialog {
 .step {
   display: flex;
   gap: 14px;
-  font-size: 14px;
+  font-size: var(--type-md);
   line-height: 1.6;
 }
 .step:before {
@@ -744,7 +744,7 @@ dialog {
   height: 26px;
   display: grid;
   place-items: center;
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .token-row {
   display: flex;
@@ -752,7 +752,7 @@ dialog {
   gap: 15px;
   padding: 15px 0;
   border-bottom: 1px solid var(--line);
-  font-size: 13px;
+  font-size: var(--type-sm);
 }
 .token-row small {
   display: block;
@@ -772,7 +772,7 @@ dialog {
 }
 .setting-field {
   margin: 18px 0;
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .setting-field label {
   display: block;
@@ -781,7 +781,7 @@ dialog {
 }
 .setting-field code {
   word-break: break-all;
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .callback-layout {
   max-width: 530px;
@@ -790,7 +790,7 @@ dialog {
 .callback-card {
   background: var(--surface-raised);
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: var(--radius);
   overflow: hidden;
   box-shadow: 0 15px 50px var(--shadow);
 }
@@ -805,7 +805,7 @@ dialog {
   font-size: 28px;
 }
 .callback-top p {
-  font-size: 14px;
+  font-size: var(--type-md);
   margin-bottom: 0;
 }
 .callback-steps {
@@ -818,9 +818,9 @@ dialog {
   align-items: center;
   gap: 12px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   padding: 16px;
-  font-size: 14px;
+  font-size: var(--type-md);
 }
 .callback-step.failed {
   background: var(--surface-raised);
@@ -834,7 +834,7 @@ dialog {
   height: 24px;
   border: 1px solid var(--border-strong);
   border-radius: 50%;
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .callback-step small {
   font-size: 11px;
@@ -848,7 +848,7 @@ dialog {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 13px;
+  font-size: var(--type-sm);
 }
 .document {
   max-width: 780px;
@@ -869,7 +869,7 @@ dialog {
   color: var(--ink);
   background: var(--white);
   border: 1px solid var(--line-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 12px;
   z-index: 100;
 }
@@ -950,7 +950,7 @@ dialog {
     align-items: flex-start;
   }
   .page-heading .button {
-    font-size: 12px;
+    font-size: var(--type-xs);
     padding: 9px;
   }
   h1 {
@@ -1007,7 +1007,7 @@ dialog {
     padding: 21px;
   }
   .topbar .breadcrumb {
-    font-size: 12px;
+    font-size: var(--type-xs);
   }
   .notice {
     flex-wrap: wrap;
@@ -1018,10 +1018,10 @@ dialog {
 }
 
 .stat-denominator {
-  font-size: 16px;
+  font-size: var(--type-lg);
 }
 .login-caption {
-  font-size: 13px;
+  font-size: var(--type-sm);
   margin: 6px 0 0;
 }
 .asset-notice {
@@ -1029,10 +1029,10 @@ dialog {
   margin-bottom: 0;
 }
 .small-text {
-  font-size: 13px;
+  font-size: var(--type-sm);
 }
 .token-caption {
-  font-size: 13px;
+  font-size: var(--type-sm);
 }
 .connector-title {
   margin-top: 18px;
@@ -1115,7 +1115,7 @@ dialog {
 }
 .workspace-details summary {
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--type-sm);
 }
 .workspace-details pre {
   max-height: 380px;
@@ -1132,7 +1132,7 @@ dialog {
 .workspace-metrics article {
   padding: 22px;
   border: 1px solid;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
 }
 .workspace-metrics strong {
   display: block;
@@ -1140,7 +1140,7 @@ dialog {
   overflow-wrap: anywhere;
 }
 .workspace-metrics span {
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .workspace-copy {
   padding: 0 24px 16px;
@@ -1164,7 +1164,7 @@ dialog {
   max-height: 420px;
   object-fit: contain;
   background: var(--surface);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   margin: 18px 0;
 }
 #report-result {
@@ -1268,7 +1268,7 @@ dialog {
   margin-top: 18px;
 }
 .push-step h3 {
-  font-size: 16px;
+  font-size: var(--type-lg);
   margin: 0 0 12px;
 }
 .push-step h3:focus {
@@ -1306,7 +1306,7 @@ dialog {
   object-fit: contain;
   background: var(--paper);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 .push-file p {
   margin: 4px 0 8px;
@@ -1315,7 +1315,7 @@ dialog {
   display: grid;
   gap: 10px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   padding: 12px 14px;
   margin: 0;
 }
@@ -1338,7 +1338,7 @@ dialog {
   margin-top: 12px;
 }
 .push-drive h4 {
-  font-size: 14px;
+  font-size: var(--type-md);
   margin: 0 0 8px;
 }
 .push-table-wrap {
@@ -1349,7 +1349,7 @@ dialog {
   width: 100%;
   min-width: 600px;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: var(--type-md);
 }
 .push-table .status {
   white-space: nowrap;
@@ -1365,7 +1365,7 @@ dialog {
   vertical-align: top;
 }
 .push-table thead th {
-  font-size: 12px;
+  font-size: var(--type-xs);
   color: var(--muted);
   font-weight: 650;
 }
@@ -1409,7 +1409,7 @@ dialog {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--type-xs);
   color: var(--muted);
 }
 .working-client-control select {
@@ -1417,7 +1417,7 @@ dialog {
   min-height: 32px;
   max-width: 14rem;
   border: 1px solid var(--line-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 4px 7px;
   color: var(--ink);
   background: var(--white);

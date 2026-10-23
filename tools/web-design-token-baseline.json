@@ -1,0 +1,58 @@
+{
+  "meaning": "WEB-07 design-system ratchet: radius, shadow, motion and type values each shipped stylesheet writes itself instead of taking a token from web/tokens.css, and its spacing values off the 4px grid. Counts may only go down (node tools/check-design-tokens.mjs --write).",
+  "totals": {
+    "radius": 15,
+    "shadow": 17,
+    "motion": 0,
+    "type": 196,
+    "spacing": 471
+  },
+  "files": {
+    "about.css": {
+      "radius": 2,
+      "shadow": 1,
+      "type": 12,
+      "spacing": 20
+    },
+    "accessibility.css": {
+      "shadow": 1,
+      "type": 1,
+      "spacing": 1
+    },
+    "app.css": {
+      "shadow": 2,
+      "type": 26,
+      "spacing": 112
+    },
+    "identity.css": {
+      "radius": 9,
+      "shadow": 11,
+      "type": 114,
+      "spacing": 183
+    },
+    "localization.css": {
+      "spacing": 3
+    },
+    "privacy.css": {
+      "radius": 1,
+      "shadow": 1,
+      "type": 8,
+      "spacing": 20
+    },
+    "reporting.css": {
+      "radius": 1,
+      "shadow": 1,
+      "type": 20,
+      "spacing": 106
+    },
+    "theme.css": {
+      "radius": 2,
+      "type": 1,
+      "spacing": 2
+    },
+    "workflows.css": {
+      "type": 14,
+      "spacing": 24
+    }
+  }
+}

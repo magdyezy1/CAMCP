@@ -271,9 +271,25 @@ export const generatedArtifacts = [
     outputs: ['tools/web-colour-baseline.json'],
     generator: 'tools/check-colours.mjs',
     regenerate: 'node tools/check-colours.mjs --write, which refuses a count above its limit: the counts only go down',
-    inputs: ['web/*.css (the shipped stylesheets)', 'tools/web-colour-allowlist.json (reviewed by hand)'],
-    provenance: 'Per-stylesheet counts, their total and the allow-list size; check-web counts again and compares.',
+    inputs: [
+      'web/*.css (the shipped stylesheets)',
+      'web/*.js and web/*.html (the shipped scripts and pages)',
+      'tools/web-colour-allowlist.json (reviewed by hand)',
+    ],
+    provenance:
+      'Per-stylesheet counts, their total and the sizes of both reviewed lists; check-web counts again and compares.',
     check: {test: 'tests/web-colours.test.mjs', argv: ['tools/check-colours.mjs']},
+  },
+  {
+    id: 'web_design_token_baseline',
+    outputs: ['tools/web-design-token-baseline.json'],
+    generator: 'tools/check-design-tokens.mjs',
+    regenerate:
+      'node tools/check-design-tokens.mjs --write, which refuses a count above its limit: the counts only go down',
+    inputs: ['web/*.css (the shipped stylesheets)'],
+    provenance:
+      'Per-stylesheet counts per scale (radius, shadow, motion and type written by hand, spacing off the 4px grid) and their totals; check-web compares.',
+    check: {test: 'tests/web-design-tokens.test.mjs', argv: ['tools/check-design-tokens.mjs']},
   },
   {
     id: 'web_route_bytes_baseline',

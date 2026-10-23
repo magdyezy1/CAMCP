@@ -52,11 +52,11 @@ textarea {
 .command-trigger kbd,
 .forgot-link,
 .auth-legal {
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .auth-form .form-note {
   color: var(--muted);
-  font-size: 12px !important;
+  font-size: var(--type-xs) !important;
 }
 .status {
   color: var(--text-soft);
@@ -105,7 +105,7 @@ code {
 }
 .metric-formula {
   display: block;
-  font-size: 12px;
+  font-size: var(--type-xs);
   font-weight: 400;
   color: var(--muted);
 }
@@ -155,10 +155,10 @@ code {
 .report-table td details,
 .report-table tbody th details {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .report-table thead th {
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 /* Batch 19: the last text below 4.5:1 (docs/review/ACCESSIBILITY.md). The same hues, darkened until they reach 4.6:1 on
    their own backgrounds; the platform initials keep their brand hue. Text at 10px or less moves to the 12px floor. */
@@ -172,14 +172,14 @@ code {
 }
 .quick-actions small {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .quick-actions > a > i {
   font-style: normal;
 }
 .report-platform summary small {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 /* The section number of an opened report option sits on its #fcfafe summary, where #816c9c measured 4.44:1 (RPT-07's
    rendered case opens it); #7b6696 is the same hue at 4.84:1 there and 5.02:1 on white. */
@@ -194,7 +194,7 @@ code {
 }
 .evidence-tags span {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .how-steps li > span {
   color: var(--text-secondary);
@@ -246,15 +246,15 @@ select {
 .floating-chip small,
 .mini-plan-label {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .stage-window-bottom {
   color: var(--text-on-inverse-secondary);
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .mini-plan b {
   color: var(--iris-700);
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .owner-settings-link {
   min-height: 44px;
@@ -266,11 +266,11 @@ select {
 /* Populated report-pagination text measured 3.41:1; retain the shared component with readable identity ink. */
 .report-pagination {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 
 /* Owner/reviewer captions need contrast against the full card gradient, including its darker end. */
 .auth-form-card .owner-entry .eyebrow {
   color: var(--text-secondary-strong);
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
