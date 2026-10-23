@@ -686,15 +686,16 @@ The maintained GitHub workflow defines Docker builds and synthetic read-only/wri
   `server/`, `tools/`, `docs/`, `generated/`, `codegen/` or `.mirror/` change. It also selects the suites that list
   their inputs when they run (`dynamicSuites`): `tests/mutants.test.mjs` for a catalogued module or killing test,
   `tests/web-locale-chunks.test.mjs` for `web/` and backend sources, `tests/storage-boundary.test.mjs` for `src/`
-  and `server/` modules, and `tests/root-independent-cli.test.mjs` for any test, `tools/` or `server/` file. It
+  and `server/` modules, and `tests/root-independent-cli.test.mjs` for any test, `tools/`, `server/`, `src/` or
+  `deploy/` file. It
   builds as `npm run build` does (`tsc`, then the release identity), so a fresh tree has `dist/release-identity.json`.
   `--direct` keeps the old literal-import selection and `--plan` prints the selection only.
 - **Tests run as root.** Railway's Docker build runs `npm run check` as root, and in production the admin CLI refuses
   root unless `--allow-root` is given. Tests therefore spawn the CLI only through `tests/admin-cli.ts` (`runAdmin`,
   `execAdmin`), which always passes the flag, so each test reaches the command it checks whoever runs it.
-  `tests/root-independent-cli.test.mjs` fails when a test names the CLI any other way, or when another `tools/` or
-  `server/` entry point starts reading the user ID without such a helper, and shows under a simulated root that the
-  bare CLI is refused where the helper's call runs.
+  `tests/root-independent-cli.test.mjs` fails when a test names the CLI any other way, or when another entry point in
+  `tools/`, `server/`, `deploy/` or a shared `src/` module starts reading the user ID without such a helper, and shows
+  under a simulated root that the bare CLI is refused where the helper's call runs.
 - **Release candidates.** `prepare-public-release` writes manifest v2 with `worktree_clean` and `differs_from_revision`;
   the verifier still reads v1 and refuses a v2 candidate assembled from a tree that differed from its revision.
   `NOTICE.md` and `.gitattributes` ship; every allow-listed file must be tracked. File and Git failures print

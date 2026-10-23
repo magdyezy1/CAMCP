@@ -120,8 +120,10 @@ test('the suites that enumerate their inputs are selected when one of their inpu
   assert.ok(dynamic([catalogue.mutants[1].file]).includes('tests/mutants.test.mjs'));
   assert.ok(dynamic([catalogue.mutants[1].tests[0]]).includes('tests/mutants.test.mjs'));
   assert.ok(dynamic([catalogueFile]).includes('tests/mutants.test.mjs'));
-  // Every backend module is scanned for SQL and for the literals that assign Arabic messages to chunks.
+  // Every backend module is scanned for SQL and for the literals that assign Arabic messages to chunks, and a shared
+  // module may hold a root check for the entry points that import it.
   assert.deepEqual(dynamic(['src/guidance.ts']), [
+    'tests/root-independent-cli.test.mjs',
     'tests/storage-boundary.test.mjs',
     'tests/web-locale-chunks.test.mjs',
   ]);
@@ -138,6 +140,8 @@ test('the suites that enumerate their inputs are selected when one of their inpu
   // A test could spawn the admin CLI bare, and a tool could check for root.
   assert.deepEqual(dynamic(['tests/operations.test.ts']), ['tests/root-independent-cli.test.mjs']);
   assert.deepEqual(dynamic(['tools/docs-index.mjs']), ['tests/root-independent-cli.test.mjs']);
+  // So could a deploy script.
+  assert.deepEqual(dynamic(['deploy/smoke.mjs']), ['tests/root-independent-cli.test.mjs']);
   // Documentation is none of their inputs.
   assert.deepEqual(dynamic(['docs/OPERATIONS.md']), []);
   const reasons = relatedPlan({changed: ['src/csv-safety.ts']});

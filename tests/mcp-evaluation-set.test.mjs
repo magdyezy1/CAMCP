@@ -239,8 +239,22 @@ test('the runner wrapper hands the runner JSON content blocks without changing t
   // Stubs of the runner's two modules with its defects: connections.call_tool returns model objects, which the
   // runner passes to json.dumps, and the report is written with Python's default encoding (a code page on Windows that
   // cannot encode its check marks). The real ones import the anthropic and mcp packages, which only the owner installs.
-  const version = spawnSync(python, ['--version'], {encoding: 'utf8'});
-  assert.equal(version.status, 0, 'a Python 3.10 or later; set AMCP_SCHEMA_PYTHON when it is outside PATH');
+  // On Windows "python" on PATH may be the Microsoft Store alias, which runs no Python: it fails or prints nothing.
+  const version = spawnSync(python, ['--version'], {encoding: 'utf8'}),
+    answered = ((version.stdout ?? '') + (version.stderr ?? '')).trim(),
+    [, major, minor] = /^Python (\d+)\.(\d+)/.exec(answered) ?? [];
+  assert.ok(
+    version.status === 0 && (Number(major) > 3 || (Number(major) === 3 && Number(minor) >= 10)),
+    'this test runs ' +
+      python +
+      ' and needs Python 3.10 or later, but `' +
+      python +
+      ' --version` answered ' +
+      JSON.stringify(answered || String(version.error ?? 'nothing')) +
+      ' (exit ' +
+      version.status +
+      '). Set AMCP_SCHEMA_PYTHON to an installed Python (README); on Windows the Microsoft Store alias runs none.',
+  );
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-skill-runner-'));
   t.after(() => fs.rmSync(dir, {recursive: true, force: true}));
   fs.writeFileSync(

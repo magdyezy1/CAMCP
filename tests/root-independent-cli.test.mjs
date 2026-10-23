@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {adminArgs, runAdmin} from '../dist/tests/admin-cli.js';
 import {removeTestDirectory} from '../dist/tests/temp.js';
+import {dynamicSuites} from '../tools/related-tests.mjs';
 
 // QA follow-up from the Railway deploy (cb338f68): the Docker build runs `npm run check` as root, and in production the
 // admin CLI refuses root unless --allow-root is given (OPS-03), so a test that spawned the CLI bare reached only that
@@ -22,10 +23,15 @@ const rootHandling = {
 };
 /** How an entry point reads its user ID: process.getuid() or geteuid(), or os.userInfo().uid. */
 const readsUserId = /\bprocess\s*\.\s*gete?uid\b|\buserInfo\s*\([^)]*\)\s*\.\s*uid\b/;
+/**
+ * Where such a check could live: the CLIs and the server, the shared modules they import (a check in src/ reaches every
+ * entry point that imports it) and the deploy scripts. Only tools/ and server/ were scanned before (wave 4b review).
+ */
+const entryRoots = ['tools', 'server', 'src', 'deploy'];
 const self = 'tests/root-independent-cli.test.mjs';
 
 test('every entry point that refuses root has a helper that handles root for the tests', () => {
-  const refusing = ['tools', 'server'].flatMap(sources).filter(file => readsUserId.test(fs.readFileSync(file, 'utf8')));
+  const refusing = entryRoots.flatMap(sources).filter(file => readsUserId.test(fs.readFileSync(file, 'utf8')));
   assert.deepEqual(
     refusing,
     Object.keys(rootHandling),
@@ -34,6 +40,11 @@ test('every entry point that refuses root has a helper that handles root for the
   for (const {helper} of Object.values(rootHandling)) assert.ok(fs.existsSync(helper), helper);
   for (const form of ['uid: process.getuid?.(),', 'process.geteuid() === 0', 'os.userInfo().uid === 0'])
     assert.match(form, readsUserId, form);
+  // test:related selects this suite for a change in any folder it scans, and for any test file.
+  const suite = dynamicSuites.find(s => s.test === self);
+  for (const file of [...entryRoots.map(root => root + '/synthetic-entry.mjs'), 'tests/synthetic.test.mjs'])
+    assert.equal(suite.inputs(file, '.'), true, file);
+  assert.equal(suite.inputs('docs/OPERATIONS.md', '.'), false);
 });
 
 test('no test spawns a root-refusing entry point except through its helper', () => {
