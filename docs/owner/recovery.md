@@ -40,9 +40,10 @@ Refresh in a moment; never execute it twice.*
 
 ## The emergency stop
 
-**Workspace settings → Pause all writes** stops every reviewed change and media upload in the workspace (or only the
-changes, or only the report jobs) until an owner resumes. Reads, reviews and reports go on, and nothing already sent
-is undone. The reason you give is shown to everyone whose change is refused.
+**Workspace settings → Pause all writes** stops every reviewed change and media upload in the workspace, and the
+report and export jobs a platform runs for AMCP, such as a Microsoft Advertising report (or only the changes, or only
+those jobs), until an owner resumes. Reads, reviews and reports that only read go on, and nothing already sent is
+undone. The reason you give is shown to everyone whose change is refused.
 
 ## Getting help
 
