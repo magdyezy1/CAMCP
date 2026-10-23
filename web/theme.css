@@ -151,7 +151,7 @@
   border-color: var(--line-strong);
 }
 /* Recommendation decisions take their dark colours from the decision tokens (reporting.css), never from these groups. */
-[data-theme='dark'] :is(.status.online, .auth-success, .callback-step.done) {
+[data-theme='dark'] :is(.auth-success, .callback-step.done) {
   color: var(--success-ink);
   background: var(--success-bg);
   border-color: var(--success-ink);
