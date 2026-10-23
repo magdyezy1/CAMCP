@@ -79,7 +79,10 @@ purple they used measured 2.57:1 on the dark panel.
 The final state of every case also checks (design review 2026-10) that no control lies past the page's start edge,
 where no scrolling reaches it (WCAG 1.4.10; the end-side `scrollWidth` check never saw Reporting's "New report" at
 -114 px on a 375 px phone), and that a primary or danger button and an online or attention status badge are not
-coloured exactly like their plain counterparts (in dark mode a shared `theme.css` group had erased all four). The
+coloured exactly like their plain counterparts (in dark mode a shared `theme.css` group had erased all four), and that
+every visible checkbox sits beside the first line of its own words (a workspace form's label grid had put the plan
+filters' boxes alone above them). Period comparison in dark mode also runs axe over the checked metric pills, whose
+formulas measured 1.01:1 once that group no longer hid the filled pill. The
 export journey checks that the authorization box sits beside its text and that the status after an export covers
 neither the box nor the export button (WCAG 2.4.11). The shell chrome cases (851 to 1,280 px) open every navigation
 group and require each label to take the row beside its icon (wider than 40 px, not centred, at most two lines); the

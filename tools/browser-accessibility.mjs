@@ -217,6 +217,52 @@ export function variantColourProblems(sample) {
 }
 
 /**
+ * Runs in the page: where each visible checkbox or radio sits against the first line of its label's own words. A
+ * workspace form laid its labels out as grids (design review 2026-10), so the plan filters' boxes stood alone, centred,
+ * on a line above their words. A label whose words are inside a child element (the report builder's metric pills hide
+ * their box and style a span) has no first line of its own and is not measured.
+ */
+export function collectCheckboxLabels() {
+  const out = [];
+  for (const label of document.querySelectorAll('label')) {
+    const box = label.querySelector('input[type=checkbox], input[type=radio]');
+    if (!box || label.closest('[hidden], [inert], dialog:not([open])')) continue;
+    const visible =
+      typeof box.checkVisibility === 'function'
+        ? box.checkVisibility({checkOpacity: true, checkVisibilityCSS: true})
+        : box.getClientRects().length > 0;
+    const words = [...label.childNodes].find(node => node.nodeType === 3 && node.textContent.trim());
+    const b = box.getBoundingClientRect();
+    if (!visible || !words || b.width <= 2 || b.height <= 2) continue;
+    const range = document.createRange();
+    range.selectNodeContents(words);
+    const line = range.getClientRects()[0];
+    if (!line) continue;
+    out.push({
+      label: words.textContent.trim().slice(0, 60),
+      box: {left: Math.round(b.left), right: Math.round(b.right), top: Math.round(b.top), bottom: Math.round(b.bottom)},
+      line: {
+        left: Math.round(line.left),
+        right: Math.round(line.right),
+        top: Math.round(line.top),
+        bottom: Math.round(line.bottom),
+      },
+    });
+  }
+  return out;
+}
+/** The checkboxes that do not sit beside the first line of their words (they stand above or below them). */
+export function checkboxLabelProblems(samples) {
+  return (Array.isArray(samples) ? samples : [])
+    .filter(({box, line}) => {
+      const beside = box.right <= line.left + 2 || box.left >= line.right - 2,
+        middle = (box.top + box.bottom) / 2;
+      return !beside || middle < line.top - 6 || middle > line.bottom + 6;
+    })
+    .map(({label}) => `The box of “${label}” is not beside its words`);
+}
+
+/**
  * Findings for measured focus samples. A ring that is shown must reach the threshold against every opaque colour
  * behind it (the worst gradient stop counts); a focused control that shows no outline and no shadow has no indicator.
  */

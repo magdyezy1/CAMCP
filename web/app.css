@@ -1111,6 +1111,11 @@ dialog {
   display: flex;
   align-items: flex-start;
 }
+.workspace-form label:where(:has(> input[type='checkbox'])) {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
 .workspace-form input:not([type='checkbox']),
 .workspace-form select,
 .workspace-form textarea {

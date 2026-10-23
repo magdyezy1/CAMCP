@@ -252,3 +252,103 @@ test('a platform the deployment has not set up offers Set up only to those who c
   // The card still says why there is nothing to press.
   assert.match(app, /uiText\('Administrator setup required'\)/);
 });
+
+/** The dark theme's colour tokens (web/tokens.css), with var() references resolved. */
+function darkTokens() {
+  const text = readFileSync('web/tokens.css', 'utf8'),
+    block = selector => {
+      const at = text.indexOf(selector + ' {');
+      return [...text.slice(at, text.indexOf('\n}', at)).matchAll(/(--[\w-]+):\s*([^;]+);/g)];
+    },
+    tokens = Object.fromEntries([...block(':root'), ...block(":root[data-theme='dark']")].map(m => [m[1], m[2]]));
+  const resolve = value => {
+    const m = /^var\((--[\w-]+)\)$/.exec(value?.trim() ?? '');
+    return m ? resolve(tokens[m[1]]) : value;
+  };
+  return name => resolve(`var(${name})`);
+}
+function contrast(a, b) {
+  const luminance = hex => {
+    const [r, g, b] = [1, 3, 5].map(i => Number.parseInt(hex.slice(i, i + 2), 16) / 255);
+    const lin = c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  };
+  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (high + 0.05) / (low + 0.05);
+}
+
+// Before: in dark mode a checked metric pill on the report builder is filled with the iris accent, and the formula under
+// the metric's name kept the muted shade meant for the page: #c0b5ce on #c7adff, 1.01:1 (axe, period comparison in dark
+// mode). The ID-lifted dark group that 2026-10's first fix split had hidden it by never letting the filled pill apply.
+test('a checked metric pill keeps its formula readable in dark mode', () => {
+  const dark = rules(css('theme.css')).filter(r => r.selector.startsWith("[data-theme='dark']")),
+    token = darkTokens(),
+    filled = dark.find(r => isList(r.selector).includes('.metric-pills input:checked + span'));
+  assert.ok(filled, 'theme.css fills a checked metric pill in dark mode');
+  const pill = declarations(filled.body);
+  assert.equal(pill.get('background'), 'var(--iris)');
+  const formula = dark.find(
+    r => r.selector === "[data-theme='dark'] .metric-pills input:checked + span .metric-formula",
+  );
+  assert.ok(formula, 'the formula on a checked pill has a dark rule of its own');
+  const own = declarations(formula.body).get('color');
+  const colour = own === 'inherit' ? pill.get('color') : own;
+  assert.ok(
+    contrast(token(colour.replace(/^var\((.+)\)$/, '$1')), token('--iris')) >= 4.5,
+    'formula text on the filled pill reaches 4.5:1',
+  );
+  // It outranks the shared .metric-formula rule (accessibility.css, loaded last).
+  const shared = rules(css('accessibility.css')).find(r => r.selector === '.metric-formula');
+  assert.equal(declarations(shared.body).get('color'), 'var(--muted)');
+  assert.ok(compare(specificity(formula.selector), specificity(shared.selector)) > 0);
+  assert.ok(contrast(token('--muted'), token('--iris')) < 1.5, 'the shade it replaces is unreadable on the pill');
+});
+
+// Before: a workspace form laid every label out as a grid, so the plan filters' "Awaiting my approval" and "Archived
+// plans" boxes stood alone, centred, on a line above their words, right under the search field they seemed to belong to.
+test('a checkbox in a workspace form sits beside its words', () => {
+  const app = rules(css('app.css')),
+    grid = app.find(r => r.selector === '.workspace-form label'),
+    row = app.find(r => r.selector === ".workspace-form label:where(:has(> input[type='checkbox']))");
+  assert.equal(declarations(grid.body).get('display'), 'grid');
+  assert.ok(row, 'labels holding a checkbox are rows');
+  assert.equal(declarations(row.body).get('display'), 'flex');
+  // Same weight as the grid rule (:where adds none) and later, so it wins there, and a component's own checkbox
+  // layout (.form-note, .review-consents, the report platform checks) still decides its own.
+  assert.equal(compare(specificity(row.selector), specificity(grid.selector)), 0);
+  assert.ok(row.index > grid.index);
+  // The plan filters are such labels.
+  assert.match(
+    readFileSync('web/campaign-workflows.js', 'utf8'),
+    /<form id="campaign-filters" class="workspace-form"[\s\S]{0,800}?<label class="check"><input name="approval" type="checkbox"/,
+  );
+});
+
+// Before: the owner's Pause all writes, retention and approval forms had no form style: native square inputs with a
+// 2 px inset border beside the styled spending-policy form of the same Settings page.
+test('the owner settings forms take the workspace form style', () => {
+  const source = readFileSync('web/owner-operations.js', 'utf8');
+  for (const id of [
+    'owner-pause-writes',
+    'owner-retention',
+    'owner-plan-retention',
+    'owner-plan-policy',
+    'owner-export-policy',
+    'owner-spend-policy',
+  ])
+    assert.match(source, new RegExp(`<form id="${id}" class="workspace-form"`), id);
+  assert.doesNotMatch(source, /<form id="owner-[a-z-]+">/, 'no owner form without the shared style');
+});
+
+// Before: the measurement ledger's layer names broke inside words at 1280 px ("Configurat-ion", "diagnostic-s"): the
+// three value columns kept 10rem each and the row header shrank below its longest word.
+test('the measurement ledger breaks layer names between words', () => {
+  const workflows = rules(css('workflows.css')),
+    header = workflows.find(r => r.selector === '.measurement-ledger tbody th'),
+    shared = workflows.find(r => r.selector === '.measurement-ledger td, .measurement-ledger th');
+  assert.ok(header && shared);
+  assert.equal(declarations(shared.body).get('overflow-wrap'), 'anywhere');
+  assert.equal(declarations(header.body).get('overflow-wrap'), 'normal');
+  assert.ok(Number.parseFloat(declarations(header.body).get('min-width')) >= 8);
+  assert.ok(compare(specificity(header.selector), specificity('.measurement-ledger th')) > 0);
+});

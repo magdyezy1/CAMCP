@@ -284,6 +284,9 @@ html[data-theme='dark'],
   background: var(--iris);
   border-color: var(--iris);
 }
+[data-theme='dark'] .metric-pills input:checked + span .metric-formula {
+  color: inherit;
+}
 /* Recommendation decisions take their dark colours from the decision tokens (reporting.css), never from these groups. */
 [data-theme='dark'] :is(.status.online, .auth-success, .callback-step.done) {
   color: var(--success-ink);

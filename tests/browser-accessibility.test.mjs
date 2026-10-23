@@ -7,6 +7,7 @@ import {
   startOverflowProblems,
   variantColourProblems,
   focusIndicatorTargets,
+  checkboxLabelProblems,
 } from '../tools/browser-accessibility.mjs';
 
 const node = (role, name, extra = {}) => ({
@@ -134,6 +135,28 @@ test('a variant coloured exactly like its plain counterpart is a problem; an abs
   // Every rendered case also measures the closing band's call to action and a focusable command block.
   assert.ok(focusIndicatorTargets.some(t => t.selector === '.closing-note a[href]'));
   assert.ok(focusIndicatorTargets.some(t => t.selector === 'main pre.code-block'));
+});
+
+// Design review 2026-10: the plan filters' checkboxes stood alone, centred, above their words (a workspace form laid its
+// labels out as grids), so each box read as part of the search field above it.
+test('a checkbox that stands above or below its words is a problem; beside them, in either direction, it is not', () => {
+  const line = {left: 120, right: 260, top: 100, bottom: 121};
+  assert.deepEqual(
+    checkboxLabelProblems([
+      // Centred on a line of its own, above the words.
+      {label: 'Awaiting my approval', box: {left: 180, right: 198, top: 70, bottom: 88}, line},
+      // Beside the first line (left to right), and beside it on the right (right to left).
+      {label: 'Archived plans', box: {left: 96, right: 114, top: 101, bottom: 119}, line},
+      {label: 'خطط مؤرشفة', box: {left: 266, right: 284, top: 102, bottom: 120}, line},
+      // Beside, but level with a later line instead of the first.
+      {label: 'Viewers may download report files too', box: {left: 96, right: 114, top: 140, bottom: 158}, line},
+    ]),
+    [
+      'The box of “Awaiting my approval” is not beside its words',
+      'The box of “Viewers may download report files too” is not beside its words',
+    ],
+  );
+  assert.deepEqual(checkboxLabelProblems(undefined), []);
 });
 
 test('a refused Chromium inspection detaches its session and never evaluates the page', async () => {

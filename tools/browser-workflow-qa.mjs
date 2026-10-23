@@ -34,6 +34,8 @@ import {
   startOverflowProblems,
   collectVariantColours,
   variantColourProblems,
+  collectCheckboxLabels,
+  checkboxLabelProblems,
 } from './browser-accessibility.mjs';
 import {readPinnedWcagEngine, inspectBrowserWcag, wcagTags, atDocumentStart, focusObscured} from './browser-wcag.mjs';
 import {agentTokenProbe} from './browser-agent-tokens.mjs';
@@ -2394,6 +2396,9 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
     // Design review 2026-10: primary and danger buttons and status tones keep their colours, in both themes.
     result.variant_colours = variantColourProblems(await page.evaluate(collectVariantColours));
     assert.deepEqual(result.variant_colours, [], 'A button or status variant lost its colours');
+    // Design review 2026-10: a checkbox sits beside its words (the plan filters' boxes stood alone above them).
+    result.checkbox_labels = checkboxLabelProblems(await page.evaluate(collectCheckboxLabels));
+    assert.deepEqual(result.checkbox_labels, [], 'A checkbox stands apart from its words');
     assert.deepEqual(result.errors, [], 'Browser script failed');
     assert.deepEqual(result.failed_responses, [], 'Owned website returned an error response');
     assert.deepEqual(result.blocked_external_requests, [], 'Website attempted external egress');
