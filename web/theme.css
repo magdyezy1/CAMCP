@@ -156,11 +156,6 @@
   background: var(--success-bg);
   border-color: var(--success-ink);
 }
-[data-theme='dark'] :is(.status.attention, .notice.warning) {
-  color: var(--warning-ink);
-  background: var(--warning-bg);
-  border-color: var(--warning-ink);
-}
 [data-theme='dark'] :is(.button.danger, .button.danger:hover, .callback-step.failed) {
   color: var(--danger);
   background: var(--danger-bg);
