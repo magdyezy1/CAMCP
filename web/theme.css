@@ -35,9 +35,6 @@
 [data-theme='dark'] caption {
   color: var(--muted);
 }
-[data-theme='dark'] .report-table th[scope='row'] strong {
-  color: var(--ink);
-}
 /* RPT-07: a compared value (this window) in the dark theme; reporting.css's light ink measured 1.24:1 on the dark panel. */
 [data-theme='dark'] .report-table td strong {
   color: var(--ink);
