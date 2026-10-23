@@ -168,7 +168,9 @@ shown as written, in the interface language. A refusal classified by the provide
 refusal (the provider's answer, or a `PROVIDER_` code with the provider's HTTP status; not a link, Drive or AMCP status)
 the page shows only allow-listed facts (owner decision D21): the HTTP status, the provider's error code and its request
 ID when they are well-formed; never a provider body, message or token. The server's exact code, message and remedy stay
-under **Technical details**.
+under **Technical details**. A few codes whose server wording is right for an MCP client but technical for a person are
+always said in the page's words (design review 2026-10): `WRITE_OUTCOME_UNCERTAIN` says the provider's answer was lost,
+that AMCP never sends the change again and that a read-back checks the account, without "a new idempotency key".
 
 A campaign run says what its stop means and offers the one control that continues it, never the raw `run.stopped` code:
 **Continue the run** after a pause to stay responsive or a step not sent, **Read back** while a step settles, **Correct
@@ -179,7 +181,13 @@ that waits for a person's website approval or the owner's (WRT-09) says nothing 
 nothing continues the run before that approval. `APPROVAL_REQUIRED` and `PLAN_CHANGED` offer **Review plan approval**,
 `REVIEW_EXPIRED` and `STATE_CHANGED` offer **Prepare again**. A plan approval older than 24 hours, counted on the
 server's clock (from the `Date` of AMCP's responses), is no longer offered as **Run**: the page says it expired and
-labels the review **Review whole plan again**. The report builder shows a Pull or Save refusal next to its run bar,
+labels the review **Review whole plan again**. A step the person executed that did not complete is never announced as
+"Saved.": the outcome says its answer was lost (uncertain) or that it did not complete (failed), and the plan's
+emphasized action becomes **Read back submitted step** or **Correct blocked step**. Executing a review with an
+authorization not ticked is refused beside the boxes, which are marked invalid, and the first takes focus; ticking it
+clears the refusal (it was a passing toast that repeated the box's label). A review of an account without a spending
+policy says so in the page's words and, for the owner, links the policy form; the server's advice names an MCP tool
+and is not shown. The report builder shows a Pull or Save refusal next to its run bar,
 focused and scrolled into view; a Pull with no account, or a custom range that ends before it starts, is refused there
 before anything is sent. A JSON field that does not parse names the field. Owner Settings, recipe, account-approval and
 media-job errors keep their remedy and request reference.
@@ -1248,7 +1256,13 @@ person cannot use is named ("Previously selected account — check access"), nev
 the account and drill-down in its address: Back returns to the parent level, and a reload restores the selection and
 waits for *Read inventory*. Google, Snapchat and X micros show the exact account-currency decimal beside the native
 value; Meta and TikTok amounts stay unconverted. `tests/route-registry.test.mjs`, `tests/website-navigation.test.mjs`,
-`tests/website-deep-links.test.mjs` and `tests/portfolio-url-state.test.mjs` cover these.
+`tests/website-deep-links.test.mjs` and `tests/portfolio-url-state.test.mjs` cover these. Since the design review of
+2026-10 each navigation label takes the row beside its icon and reads from its start (the icon's 20 px box had held
+the label too, breaking two-word names word by word), the links of an opened group are 14 px; Home's one primary
+action is **Set up connections** until an account is connected, then **New campaign plan**; a platform the
+deployment has not set up offers **Set up →** only to the site administrator, whose Settings hold its setup (everyone
+else reads "Administrator setup required" on the card); and Home and Schedules no longer download the campaign plan
+and review code they never call.
 
 **Website composition and markup (WEB-07).** A page's lazily loaded scripts are its registry entry's `assets`. Scripts
 extend the shell through `AMCP` (`web/routes.js`): `AMCP.routes.register(path, {render})` gives a workspace page its

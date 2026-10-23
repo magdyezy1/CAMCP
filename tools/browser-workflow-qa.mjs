@@ -30,6 +30,12 @@ import {
   accessibilityProblems,
   focusIndicatorContrast,
   focusIndicatorProblems,
+  collectStartOverflow,
+  startOverflowProblems,
+  collectVariantColours,
+  variantColourProblems,
+  collectCheckboxLabels,
+  checkboxLabelProblems,
 } from './browser-accessibility.mjs';
 import {readPinnedWcagEngine, inspectBrowserWcag, wcagTags, atDocumentStart, focusObscured} from './browser-wcag.mjs';
 import {agentTokenProbe} from './browser-agent-tokens.mjs';
@@ -2383,6 +2389,16 @@ async function renderedCase(site, kind, route, locale, width, authenticated, wor
       layout.scrollWidth <= layout.width + 1,
       `Page requires horizontal scroll: ${layout.scrollWidth}/${layout.width}`,
     );
+    // Design review 2026-10 (WCAG 1.4.10): scrollWidth sees only the end side. Nothing may sit past the start edge,
+    // where the page cannot scroll (an action row that did not wrap hid Reporting's "New report" at 375 px).
+    result.start_overflow = startOverflowProblems(await page.evaluate(collectStartOverflow));
+    assert.deepEqual(result.start_overflow, [], 'A control lies past the page start edge');
+    // Design review 2026-10: primary and danger buttons and status tones keep their colours, in both themes.
+    result.variant_colours = variantColourProblems(await page.evaluate(collectVariantColours));
+    assert.deepEqual(result.variant_colours, [], 'A button or status variant lost its colours');
+    // Design review 2026-10: a checkbox sits beside its words (the plan filters' boxes stood alone above them).
+    result.checkbox_labels = checkboxLabelProblems(await page.evaluate(collectCheckboxLabels));
+    assert.deepEqual(result.checkbox_labels, [], 'A checkbox stands apart from its words');
     assert.deepEqual(result.errors, [], 'Browser script failed');
     assert.deepEqual(result.failed_responses, [], 'Owned website returned an error response');
     assert.deepEqual(result.blocked_external_requests, [], 'Website attempted external egress');
@@ -2552,8 +2568,28 @@ async function shellChromeCase(site, route, locale, width) {
         asciiStatuses: [...document.querySelectorAll('.status')]
           .map(element => element.textContent.trim())
           .filter(text => text && !/[؀-ۿ]/.test(text)),
+        // Design review 2026-10: each navigation label (groups opened) takes the row beside its icon, from its start.
+        // The icon's 20 px box once applied to the label too, so "Evidence & analysis" broke into three centred lines.
+        navLabels: (() => {
+          for (const group of document.querySelectorAll('#workspace-sidebar details.nav-more')) group.open = true;
+          return [...document.querySelectorAll('#workspace-sidebar nav a > span:last-child')].map(label => {
+            const range = document.createRange();
+            range.selectNodeContents(label);
+            return {
+              text: label.textContent.trim(),
+              width: Math.round(label.getBoundingClientRect().width),
+              lines: new Set([...range.getClientRects()].map(r => Math.round(r.top))).size,
+              align: getComputedStyle(label).textAlign,
+            };
+          });
+        })(),
       };
     });
+    for (const label of result.geometry.navLabels) {
+      assert.notEqual(label.align, 'center', label.text + ' starts at its own start edge');
+      assert.ok(label.width > 40, label.text + ' takes the row beside its icon: ' + label.width + ' px');
+      assert.ok(label.lines <= 2, label.text + ' wraps into ' + label.lines + ' lines');
+    }
     const {bar, items, avatar} = result.geometry;
     assert.equal(Math.round(avatar.width), Math.round(avatar.height), 'The avatar stays square');
     for (const item of items) {

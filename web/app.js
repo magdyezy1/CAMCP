@@ -314,10 +314,21 @@ const websiteMessages = {
   DESTRUCTIVE_CONFIRMATION_REQUIRED: () =>
     'The owner requires an explicit acknowledgement before anything is deleted on this account. Nothing was sent.',
 };
+// [message, what to do] the page always uses for a code whose server text is technical (design review 2026-10).
+const websiteWording = {
+  WRITE_OUTCOME_UNCERTAIN: [
+    'The provider’s answer to this change was lost, so AMCP cannot confirm whether it was applied.',
+    'AMCP never sends it again. Read it back to check the account before you repeat the change yourself; a read-back changes nothing.',
+  ],
+};
+function websiteOwnMessage(error) {
+  return Object.hasOwn(websiteWording, error?.code ?? '') ? uiText(websiteWording[error.code][0]) : '';
+}
 /** The remedy as the website words it, or ''. */
 function websiteRemedy(error) {
   const code = typeof error?.code === 'string' ? error.code : '',
     layer = error?.details?.layer;
+  if (Object.hasOwn(websiteWording, code)) return uiText(websiteWording[code][1]);
   if (typeof layer === 'string' && Object.hasOwn(providerLayerRemedies, layer))
     return uiText(providerLayerRemedies[layer]);
   const server =
@@ -391,9 +402,10 @@ function errorParts(error) {
   return {
     message: split
       ? uiText(parts.base).replace(/\.?$/, '') + ': ' + parts.suffix
-      : Object.hasOwn(websiteMessages, error.code) && agentDirected(raw)
-        ? uiText(websiteMessages[error.code](raw))
-        : uiText(raw),
+      : websiteOwnMessage(error) ||
+        (Object.hasOwn(websiteMessages, error.code) && agentDirected(raw)
+          ? uiText(websiteMessages[error.code](raw))
+          : uiText(raw)),
     remedy: websiteRemedy(error),
     provider: facts
       ? [
@@ -818,6 +830,11 @@ function renderConnections() {
   );
   renderPlatformCards();
 }
+// Set up → only for the site administrator, whose Settings hold the setup (design review 2026-10).
+function platformConnectButton(p, n) {
+  if (!n && !p.configured && !session.administrator) return false;
+  return html`<button class="button small ${n ? '' : 'primary'}" data-connect="${p.id}">${n ? uiText('+ Add login') : p.configured ? uiText('+ Connect') : uiText('Set up →')}</button>`;
+}
 function renderPlatformCards() {
   const visible = platforms.filter(
     p => (filter === 'all' || p.connections.length) && p.name.toLowerCase().includes(search.toLowerCase()),
@@ -836,7 +853,7 @@ function renderPlatformCards() {
             : uiText('Not connected'),
       metrics = p.assetKinds.slice(0, 3);
     while (metrics.length < 3) metrics.push(metrics.length === 1 ? 'logins' : 'selected');
-    return html`<article class="platform-card"><div class="platform-main"><div class="platform-top"><div class="platform-identity">${logo(p)}<div><div class="platform-name">${p.name}</div><div class="platform-kind">${uiText(p.kind)}</div></div></div><span class="status ${attention ? 'attention' : n ? 'online' : 'offline'}"><i></i>${status}</span></div><p class="platform-description">${uiText(p.description)}</p><div class="platform-bottom"><span class="platform-login">${n ? uiText('Connected logins: {count}', {count: uiNumber(n)}) : p.configured ? uiText('Ready to connect') : uiText('Administrator setup required')}</span><div class="platform-actions"><button class="button small" data-manage="${p.id}">${uiText('Manage')}</button><button class="button small ${n ? '' : 'primary'}" data-connect="${p.id}">${n ? uiText('+ Add login') : p.configured ? uiText('+ Connect') : uiText('Set up →')}</button></div></div></div><div class="platform-metrics">${metrics.map(k => html`<div><small>${uiText(labels[k] ?? k).toUpperCase()}</small><b>${k === 'logins' ? n : k === 'selected' ? p.connections.reduce((v, c) => v + c.accounts.length, 0) : assetsFor(p, k)}</b></div>`)}</div></article>`;
+    return html`<article class="platform-card"><div class="platform-main"><div class="platform-top"><div class="platform-identity">${logo(p)}<div><div class="platform-name">${p.name}</div><div class="platform-kind">${uiText(p.kind)}</div></div></div><span class="status ${attention ? 'attention' : n ? 'online' : 'offline'}"><i></i>${status}</span></div><p class="platform-description">${uiText(p.description)}</p><div class="platform-bottom"><span class="platform-login">${n ? uiText('Connected logins: {count}', {count: uiNumber(n)}) : p.configured ? uiText('Ready to connect') : uiText('Administrator setup required')}</span><div class="platform-actions"><button class="button small" data-manage="${p.id}">${uiText('Manage')}</button>${platformConnectButton(p, n)}</div></div></div><div class="platform-metrics">${metrics.map(k => html`<div><small>${uiText(labels[k] ?? k).toUpperCase()}</small><b>${k === 'logins' ? n : k === 'selected' ? p.connections.reduce((v, c) => v + c.accounts.length, 0) : assetsFor(p, k)}</b></div>`)}</div></article>`;
   };
   setHtml(
     $('#platform-grid'),

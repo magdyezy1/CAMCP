@@ -693,6 +693,19 @@ h2.report-section-label {
   background: var(--white);
   font: inherit;
 }
+.report-delivery-dialog label:has(> input[type='checkbox']) {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.report-delivery-dialog input[type='checkbox'] {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 1px 0 0;
+  padding: 0;
+}
 .report-delivery-dialog .workspace-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -794,6 +807,12 @@ h2.report-section-label {
 }
 .report-delivery-dialog .delivery-status[hidden] {
   display: none;
+}
+#report-delivery-content[data-mode='sheets_now'] .delivery-status {
+  position: static;
+}
+.report-delivery-dialog:has(.delivery-status:not([hidden])) {
+  scroll-padding-block-end: 160px;
 }
 .report-delivery-dialog .delivery-status.success {
   color: var(--success-ink);

@@ -36,11 +36,13 @@ function homeOperationKind(kind) {
  */
 function workHome(d, accounts, attention) {
   const recent = [...d.campaigns].sort((a, b) => b.updated_at - a.updated_at).slice(0, 8);
+  // A plan's or record's name is the person's own text: it keeps its direction and stays literal (WEB-05, design review
+  // 2026-10; the Arabic Home counted every English plan name as untranslated).
   const card = c =>
-    `<a href="/campaigns?id=${encodeURIComponent(c.id)}"><strong>${esc(c.name)}</strong><small>${badge(c.state)} · ${date(c.updated_at)}</small></a>`;
+    `<a href="/campaigns?id=${encodeURIComponent(c.id)}"><strong dir="auto" data-native>${esc(c.name)}</strong><small>${badge(c.state)} · ${date(c.updated_at)}</small></a>`;
   // The feed's original-record path is internal; anything else opens Operations instead.
   const work = op =>
-    `<a href="${esc(/^\/(?![/\\])/.test(op.website_path ?? '') ? op.website_path : '/operations?state=attention')}"><strong>${esc(op.name)}</strong><small>${esc(homeOperationKind(op.kind))} · ${badge(op.state)}${op.updated_at ? ' · ' + date(op.updated_at) : ''}</small></a>`;
+    `<a href="${esc(/^\/(?![/\\])/.test(op.website_path ?? '') ? op.website_path : '/operations?state=attention')}"><strong dir="auto" data-native>${esc(op.name)}</strong><small>${esc(homeOperationKind(op.kind))} · ${badge(op.state)}${op.updated_at ? ' · ' + date(op.updated_at) : ''}</small></a>`;
   const empty = `<p>${esc(uiText('Nothing needs attention: no campaign plans, uploads, reports, exports, schedules, incidents, workbook runs, reviewed changes, email notices or connection logins.'))}</p>`;
   const items = Array.isArray(attention?.operations) ? attention.operations : null;
   const attentionBody = items
@@ -60,7 +62,9 @@ function workHome(d, accounts, attention) {
           ? uiText('Welcome back, {name}. Continue your work or start a new task.', {name: session.name.split(' ')[0]})
           : uiText('Welcome back. Continue your work or start a new task.'),
       ),
-      `<a class="button primary" href="/campaigns#campaign-create">${esc(uiText('New campaign plan'))}</a>`,
+      // One primary action (WEB-06, design review 2026-10): a plan needs a connected account, so until one is
+      // connected the emphasized action is Set up connections below.
+      `<a class="button${accounts.length ? ' primary' : ''}" href="/campaigns#campaign-create">${esc(uiText('New campaign plan'))}</a>`,
     ) +
     (d.writes_paused
       ? `<div class="notice warning" role="status"><strong>${esc(uiText('Provider writes are paused'))}</strong><p>${esc(d.writes_paused.reason)}</p><a href="/settings#owner-write-pause">${esc(uiText('View operating controls'))}</a></div>`

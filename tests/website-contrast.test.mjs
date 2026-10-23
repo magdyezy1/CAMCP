@@ -57,7 +57,8 @@ test('focus rings on the dark sidebar, toast, connector hero and callback header
   // The regression itself: the global ring on these surfaces in the light theme.
   assert.ok(contrast(resolve(light, 'var(--iris-700)'), resolve(light, surfaces.sidebar)) < 3);
   const rule = css('accessibility.css');
-  assert.match(rule, /:is\(\.sidebar, \.toast, \.connector-hero, \.callback-top\)/);
+  // The design review of 2026-10 added the landing page's closing band (2.32:1 with the global ring).
+  assert.match(rule, /:is\(\.sidebar, \.toast, \.connector-hero, \.callback-top, \.closing-note\)/);
   assert.match(rule, /outline-color: var\(--focus-on-inverse\)/);
 });
 

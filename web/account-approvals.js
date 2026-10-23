@@ -51,8 +51,9 @@ async function renderAccountApprovals() {
           ? `<p class="muted">${esc(uiText('Email works. Set'))} ${vars(setup.ownerNotice)} ${esc(uiText('to be emailed when someone requests access, or migrate to an owner account.'))}</p>`
           : `<p class="muted">${esc(uiText('Access requests are emailed to'))} <strong>${approvalText(data.ownerEmail)}</strong>.</p>`,
     );
+    // The server's sentence is AMCP's own and is translated; the variable it names stays literal (design review 2026-10).
     if (setup.reviewer)
-      lines.push(`<p class="muted">${esc(uiText('Reviewer sign-in:'))} ${approvalText(setup.reviewer)}</p>`);
+      lines.push(`<p class="muted">${esc(uiText('Reviewer sign-in:'))} ${approvalText(uiText(setup.reviewer))}</p>`);
     if (setup.signup?.length)
       lines.push(
         `<p class="muted">${esc(uiText('Registration is closed. Set'))} ${vars(setup.signup)} ${esc(uiText('to let people request access.'))}</p>`,

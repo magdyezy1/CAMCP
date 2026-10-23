@@ -71,3 +71,32 @@ test('owner timing summaries translate bounds, distinguish unknown from zero and
     );
   }
 });
+
+// Design review 2026-10 (WEB-05): the Arabic timing table named three categories in English ("Reporting Overview", "Ad
+// previews", "Reviewed writes"); every category reads in Arabic, and the report builder by its canonical name (WEB-06).
+test('every owner timing category has an Arabic name, the report builder under its canonical name', () => {
+  const controller = readFileSync('web/owner-operations.js', 'utf8'),
+    catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8')),
+    block = controller.slice(controller.indexOf('function ownerServiceTimings('), controller.indexOf('const number ='));
+  const labels = [...block.matchAll(/^\s+[a-z_]+: '([^']+)',$/gm)].map(m => m[1]);
+  assert.ok(labels.length >= 8, labels.join());
+  for (const label of labels) assert.ok(Object.hasOwn(catalog, label), 'No Arabic for ' + label);
+  assert.ok(labels.includes('Report builder'));
+  assert.ok(!labels.includes('Reporting Overview'));
+});
+
+// Design review 2026-10 (WEB-05): Arabic Settings showed two of AMCP's own sentences in English: the backup card's
+// "No verified backup receipt has been recorded ..." and the reviewer sign-in line "Set AMCP_TEST_PASSWORD ...".
+test('the owner settings sentences AMCP writes about backups and reviewer sign-in read in Arabic', () => {
+  const catalog = JSON.parse(readFileSync('web/locales/ar.json', 'utf8')),
+    backup = /'(No verified backup receipt has been recorded\.[^']*)'/.exec(
+      readFileSync('src/owner-operations.ts', 'utf8'),
+    )[1],
+    reviewer = /'(Set AMCP_TEST_PASSWORD[^']*)'/.exec(readFileSync('server/user-accounts.ts', 'utf8'))[1];
+  for (const sentence of [backup, reviewer]) assert.ok(Object.hasOwn(catalog, sentence), 'No Arabic for ' + sentence);
+  // The variable name stays literal inside the Arabic sentence.
+  assert.match(catalog[reviewer], /AMCP_TEST_PASSWORD/);
+  // Both are rendered through the catalog (they were printed as the server wrote them).
+  assert.match(readFileSync('web/owner-operations.js', 'utf8'), /uiText\(h\.backup\.message\)/);
+  assert.match(readFileSync('web/account-approvals.js', 'utf8'), /approvalText\(uiText\(setup\.reviewer\)\)/);
+});

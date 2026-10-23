@@ -52,6 +52,10 @@
 .review-table td {
   min-width: 10rem;
 }
+.measurement-ledger tbody th {
+  min-width: 9rem;
+  overflow-wrap: normal;
+}
 #catalog-preview .review-table th[scope='row'],
 #woo-source-result .review-table th[scope='row'],
 #report-native-rows .review-table th[scope='row'],

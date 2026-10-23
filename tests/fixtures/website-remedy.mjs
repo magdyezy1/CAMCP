@@ -9,7 +9,10 @@ import assert from 'node:assert/strict';
  */
 export function assertWebsiteRemedy(f, display, hint, translated = hint) {
   f.context.websiteRemedyHint = hint;
-  if (f.run('agentDirected(websiteRemedyHint)')) {
+  // A refusal the page always words itself (websiteWording in web/app.js: an uncertain write, design review 2026-10)
+  // replaces the server's remedy as well; tests/shared-recovery-localization.test.mjs checks its safety facts.
+  const owned = f.run("typeof websiteOwnMessage === 'function' && websiteOwnMessage(error) !== ''");
+  if (owned || f.run('agentDirected(websiteRemedyHint)')) {
     assert.ok(!display.includes(hint), 'A remedy written for an MCP client is shown: ' + hint);
     assert.ok(!display.includes(translated), 'A remedy written for an MCP client is shown: ' + hint);
     const own = f.run('websiteRemedy(error)');

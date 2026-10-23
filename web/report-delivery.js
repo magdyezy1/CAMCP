@@ -168,6 +168,7 @@ async function renderReportDelivery(mode = 'delivery') {
     policyBlocked = r?.state === 'partial' && r.config.partial_delivery === 'complete_only';
   if (sheetsNow && !b.destinations.some(d => d.id === chosen && usable(d)))
     chosen = overviewState.exportDestinationId = '';
+  $('#report-delivery-content').setAttribute?.('data-mode', mode);
   $('#report-delivery-content').innerHTML = `
   <div class="dialog-heading"><div><p class="eyebrow">${esc(uiText('REPORT DELIVERY'))}</p><h2 id="report-delivery-title">${sheetsNow ? uiText('Export now to Google Sheets') : existing ? uiText('Edit schedule') : uiText('Report destinations & schedules')}</h2></div><button class="icon-button" id="report-delivery-close" aria-label="${esc(uiText('Close report delivery'))}">×</button></div>
   <div class="delivery-report-context"><strong dir="auto" data-native>${esc(overviewLabel(config))}</strong><p>${accounts.length ? accounts.map(esc).join(`<br>`) : uiText('Choose platform accounts in Reporting overview first.')}<br>${esc(uiText('Data grouping:'))} ${esc(reportLabel(config.grain ?? 'total'))}</p></div>

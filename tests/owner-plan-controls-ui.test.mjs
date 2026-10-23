@@ -109,7 +109,10 @@ test('CMP-05: the owner Settings show the saved plan retention and approval poli
     assert.match(html, /<section class="panel" id="owner-plan-policy-panel">/);
     assert.match(
       html,
-      new RegExp(`<form id="owner-plan-retention"><label>[^<]*<input name="days" [^>]*value="${days}"`),
+      // The workspace form style (design review 2026-10: the owner forms rendered unstyled native controls).
+      new RegExp(
+        `<form id="owner-plan-retention" class="workspace-form"><label>[^<]*<input name="days" [^>]*value="${days}"`,
+      ),
     );
     assert.equal(/name="distinct" type="checkbox" checked/.test(html), checked);
     assert.ok(f.bindings.has('#owner-plan-retention'));

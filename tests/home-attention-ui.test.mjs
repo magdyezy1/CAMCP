@@ -237,10 +237,22 @@ test('Home links only to internal paths and escapes feed names', () => {
   assert.equal(html.match(/href="\/operations\?state=attention"/g).length, 3);
   assert.ok(html.includes('href="/operations?write_id=w%201"'));
   assert.ok(html.includes('&lt;img src=x&gt;'));
+  // A record's name is the person's own text: its own direction, literal in Arabic (design review 2026-10, WEB-05).
+  assert.ok(html.includes('<strong dir="auto" data-native>&lt;img src=x&gt;</strong>'));
   assert.ok(html.includes('Monitor email notice · '));
   assert.ok(html.includes('>Reauthorization required</span>'));
   // The dashboard's own connection facts: one login is turned off.
   assert.match(html, /Connection logins turned off: 1\./);
+});
+
+// Design review 2026-10 (WEB-06): an empty workspace's Home offered two primary actions, "New campaign plan" in the
+// heading and "Set up connections" in the first panel; a plan needs a connected account first.
+test('Home has one primary action: Set up connections until an account is connected, then New campaign plan', () => {
+  const page = home('en');
+  page.context.d = {campaigns: [], connections: [], writes_paused: null};
+  const primaries = html => [...html.matchAll(/<a [^>]*class="button primary"[^>]*>([^<]+)</g)].map(m => m[1]);
+  assert.deepEqual(primaries(page.run('workHome(d, [], {operations: [], has_more: false})')), ['Set up connections']);
+  assert.deepEqual(primaries(page.run('workHome(d, [{}], {operations: [], has_more: false})')), ['New campaign plan']);
 });
 
 test('Home asks Operations for its attention page, keeps readiness and capability detail collapsed, and survives a failed feed', async () => {

@@ -4,6 +4,10 @@ import {
   accessibilityTreeSummary,
   accessibilityProblems,
   inspectBrowserAccessibility,
+  startOverflowProblems,
+  variantColourProblems,
+  focusIndicatorTargets,
+  checkboxLabelProblems,
 } from '../tools/browser-accessibility.mjs';
 
 const node = (role, name, extra = {}) => ({
@@ -82,6 +86,77 @@ test('initial landmarks and final modal boundaries keep ID/name refusals indepen
     'Expected one exposed main landmark, observed 2',
     'Expected one exposed primary heading, observed 2',
   ]);
+});
+
+// Design review 2026-10: a right-aligned action row that did not wrap put Reporting's "New report" at -114 px on a
+// 375 px phone; the page cannot scroll to its start side, and the end-side reflow check (scrollWidth) never saw it.
+test('a control past the page start is out of reach unless a scroll region holds it, in either direction', () => {
+  const control = (left, right, extra = {}) => ({control: 'button#x', left, right, in_scroll_region: false, ...extra});
+  assert.deepEqual(
+    startOverflowProblems({width: 375, rtl: false, controls: [control(-114, -10), control(0, 375), control(10, 380)]}),
+    ["button#x lies past the page's start edge (-114 to -10 of 375 px)"],
+  );
+  // A horizontally scrolling region (a wide table) brings its own controls into view.
+  assert.deepEqual(
+    startOverflowProblems({width: 375, rtl: false, controls: [control(-300, -200, {in_scroll_region: true})]}),
+    [],
+  );
+  // Right to left, the start edge is the right one; past the left edge is the end side.
+  assert.deepEqual(startOverflowProblems({width: 375, rtl: true, controls: [control(-50, 40)]}), []);
+  assert.equal(startOverflowProblems({width: 375, rtl: true, controls: [control(300, 420)]}).length, 1);
+  assert.deepEqual(startOverflowProblems(undefined), []);
+});
+
+// Design review 2026-10: in the dark theme every primary and danger button rendered like a plain button and status
+// badges lost their tone, because a shared dark group of theme.css outranked the variants.
+test('a variant coloured exactly like its plain counterpart is a problem; an absent variant is not measured', () => {
+  const plain = {color: 'rgb(242, 237, 248)', background: 'rgb(37, 32, 50)', border: 'rgb(81, 71, 95)'};
+  assert.deepEqual(
+    variantColourProblems({plain, primary: plain, danger: plain, online: plain, attention: plain, offline: plain}),
+    [
+      'A primary button is coloured like a plain button',
+      'A danger button is coloured like a plain button',
+      'An online status badge has the neutral badge’s colours',
+      'An attention status badge has the neutral badge’s colours',
+    ],
+  );
+  assert.deepEqual(
+    variantColourProblems({
+      plain,
+      primary: {...plain, color: 'rgb(33, 23, 47)', background: 'rgb(199, 173, 255)'},
+      danger: {...plain, color: 'rgb(255, 182, 191)', border: 'rgb(255, 182, 191)'},
+      online: {...plain, background: 'rgb(24, 56, 46)'},
+      attention: {...plain, background: 'rgb(61, 46, 25)'},
+      offline: plain,
+    }),
+    [],
+  );
+  assert.deepEqual(variantColourProblems({plain, primary: null, danger: null}), []);
+  // Every rendered case also measures the closing band's call to action and a focusable command block.
+  assert.ok(focusIndicatorTargets.some(t => t.selector === '.closing-note a[href]'));
+  assert.ok(focusIndicatorTargets.some(t => t.selector === 'main pre.code-block'));
+});
+
+// Design review 2026-10: the plan filters' checkboxes stood alone, centred, above their words (a workspace form laid its
+// labels out as grids), so each box read as part of the search field above it.
+test('a checkbox that stands above or below its words is a problem; beside them, in either direction, it is not', () => {
+  const line = {left: 120, right: 260, top: 100, bottom: 121};
+  assert.deepEqual(
+    checkboxLabelProblems([
+      // Centred on a line of its own, above the words.
+      {label: 'Awaiting my approval', box: {left: 180, right: 198, top: 70, bottom: 88}, line},
+      // Beside the first line (left to right), and beside it on the right (right to left).
+      {label: 'Archived plans', box: {left: 96, right: 114, top: 101, bottom: 119}, line},
+      {label: 'خطط مؤرشفة', box: {left: 266, right: 284, top: 102, bottom: 120}, line},
+      // Beside, but level with a later line instead of the first.
+      {label: 'Viewers may download report files too', box: {left: 96, right: 114, top: 140, bottom: 158}, line},
+    ]),
+    [
+      'The box of “Awaiting my approval” is not beside its words',
+      'The box of “Viewers may download report files too” is not beside its words',
+    ],
+  );
+  assert.deepEqual(checkboxLabelProblems(undefined), []);
 });
 
 test('a refused Chromium inspection detaches its session and never evaluates the page', async () => {

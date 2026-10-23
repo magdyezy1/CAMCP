@@ -97,7 +97,8 @@ test('SEC-05: the owner Settings show the saved viewer-download choice', async (
     const f = fixture(saved);
     await f.render();
     const html = f.areas[0].innerHTML;
-    assert.match(html, /<form id="owner-export-policy">/);
+    // The owner forms take the workspace form style (design review 2026-10: they rendered unstyled native controls).
+    assert.match(html, /<form id="owner-export-policy" class="workspace-form">/);
     assert.equal(/name="viewer_downloads" type="checkbox" checked/.test(html), checked);
     assert.ok(f.bindings.has('#owner-export-policy'));
   }

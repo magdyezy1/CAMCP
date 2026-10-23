@@ -119,5 +119,10 @@ test('the report builder keeps native account and login names and metric formula
     source,
     /\$\{esc\(uiText\('Login:'\)\)\} <bdi dir="auto" data-native>\$\{esc\(a\.connection_label \?\? a\.label\)\}<\/bdi>/,
   );
-  assert.match(source, /<small class="metric-formula" dir="ltr">\$\{esc\(m\.formula \?\? m\.aggregation\)\}<\/small>/);
+  // Design review 2026-10: only a formula is a left-to-right literal; a base metric's aggregation ("sum",
+  // "non_additive") showed raw and in English on the Arabic page, and is now said in words through the catalog.
+  assert.match(
+    source,
+    /<small class="metric-formula"\$\{m\.formula \? ' dir="ltr"' : ''\}>\$\{esc\(m\.formula \?\? uiText\(metricAggregations\[m\.aggregation\] \?\? m\.aggregation\)\)\}<\/small>/,
+  );
 });

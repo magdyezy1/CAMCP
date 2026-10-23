@@ -8,9 +8,24 @@ function fixture() {
     bindings = new Map(),
     calls = [];
   const node = id => {
-    if (!nodes.has(id)) nodes.set(id, {checked: false, innerHTML: ''});
+    if (!nodes.has(id))
+      nodes.set(id, {
+        checked: false,
+        innerHTML: '',
+        attributes: {},
+        setAttribute(name, value) {
+          this.attributes[name] = String(value);
+        },
+        removeAttribute(name) {
+          delete this.attributes[name];
+        },
+        focus() {
+          focused.push(id);
+        },
+      });
     return nodes.get(id);
   };
+  const focused = [];
   const context = createContext({
     document: {addEventListener() {}},
     $,
@@ -50,7 +65,7 @@ function fixture() {
   const run = source => new Script(source).runInContext(context);
   run(readFileSync('web/localization.js', 'utf8'));
   run(readFileSync('web/campaign-workflows.js', 'utf8'));
-  return {run, nodes, node, bindings, calls, context};
+  return {run, nodes, node, bindings, calls, context, focused};
 }
 test('required review acknowledgements start unchecked and no unrequested spending or cap consent is sent', () => {
   const f = fixture();
@@ -58,9 +73,17 @@ test('required review acknowledgements start unchecked and no unrequested spendi
     f.run("readableReview({request:{action:'rename'},execute_requirements:{}}, 'Execute')"),
     /spend-consent|cap-consent|checked/,
   );
-  assert.throws(() => f.run('readReviewConsents({})'), /authorize/);
+  // WEB-03 (design review 2026-10): the refusal is said beside the box, which is marked and focused; before, the box's
+  // own label ("… authorize its execution") came back as the error, in a toast. This expectation pinned that label.
+  assert.throws(
+    () => f.run('readReviewConsents({})'),
+    error => error.message === 'Tick the authorization above to execute this request.' && error.presented === true,
+  );
+  assert.equal(f.node('#review-consent').attributes['aria-invalid'], 'true');
+  assert.deepEqual(f.focused, ['#review-consent']);
   f.node('#review-consent').checked = true;
   assert.deepEqual(JSON.parse(JSON.stringify(f.run('readReviewConsents({})'))), {confirmed: true});
+  assert.equal(f.node('#review-consent').attributes['aria-invalid'], undefined, 'ticking clears the mark');
   for (const [flag, id] of [
     ['spend_change_confirmed', 'spend-consent'],
     ['cap_override_confirmed', 'cap-consent'],

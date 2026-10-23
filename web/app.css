@@ -512,6 +512,7 @@ dialog {
 }
 .dialog-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 24px;
@@ -1113,6 +1114,11 @@ dialog {
 .workspace-form label.form-note {
   display: flex;
   align-items: flex-start;
+}
+.workspace-form label:where(:has(> input[type='checkbox'])) {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
 }
 .workspace-form input:not([type='checkbox']),
 .workspace-form select,

@@ -961,9 +961,24 @@ test('WRT-09 approval page: it posts back the fingerprint it showed, after the p
 });
 
 test('WRT-09 website review: the destructive acknowledgement is asked for and the approval page is linked only on this site', () => {
-  const nodes = new Map();
+  const nodes = new Map(),
+    focused = [];
   const node = id => {
-    if (!nodes.has(id)) nodes.set(id, {checked: false, innerHTML: ''});
+    if (!nodes.has(id))
+      nodes.set(id, {
+        checked: false,
+        innerHTML: '',
+        attributes: {},
+        setAttribute(name, value) {
+          this.attributes[name] = String(value);
+        },
+        removeAttribute(name) {
+          delete this.attributes[name];
+        },
+        focus() {
+          focused.push(id);
+        },
+      });
     return nodes.get(id);
   };
   const context = createContext({
@@ -994,12 +1009,16 @@ test('WRT-09 website review: the destructive acknowledgement is asked for and th
   assert.match(html, /href="\/operations\?approve=r-1"/);
   assert.match(html, /Another member than the one who prepared it/);
   assert.match(html, /Only the workspace owner executes a change beyond a spending cap/);
-  // With the review consent given, the deletion still needs its own checkbox: the read names that acknowledgement.
+  // With the review consent given, the deletion still needs its own checkbox: the refusal points at that box (marked
+  // and focused, WEB-03 design review 2026-10); before, it named it by repeating the box's label as the error.
   node('#review-consent').checked = true;
   assert.throws(
     () => run(`readReviewConsents(${review('/operations?approve=r-1')})`),
-    /I authorize the deletion shown in this review/,
+    /Tick the authorization above to execute this request/,
   );
+  assert.equal(node('#destructive-consent').attributes['aria-invalid'], 'true');
+  assert.equal(node('#review-consent').attributes['aria-invalid'], undefined);
+  assert.deepEqual(focused, ['#destructive-consent']);
   node('#destructive-consent').checked = true;
   assert.equal(run(`readReviewConsents(${review('/operations?approve=r-1')}).destructive_confirmed`), true);
   // A path that leaves this site is not linked.

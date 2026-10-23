@@ -75,6 +75,8 @@ export function inspectLocaleSource(source, file = 'script.js') {
     'themeLabels',
     'statusLabels',
     'capabilityFeatureLabels',
+    // Design review 2026-10: a base metric's aggregation in words (web/reporting-overview.js).
+    'metricAggregations',
   ]);
   const collectValues = node => {
     if (!node || typeof node !== 'object') return;
@@ -107,6 +109,11 @@ export function inspectLocaleSource(source, file = 'script.js') {
       collectValues(node.init);
     if (node.type === 'VariableDeclarator' && node.id?.name === 'approvalState')
       for (const property of node.init?.properties ?? []) collectValues(property.value?.elements?.[1]);
+    // A counted message's singular and plural forms are both interface copy (uiPlural, RPT-05).
+    if (node.type === 'CallExpression' && node.callee?.name === 'uiPlural') {
+      collectMessage(node.arguments[1]);
+      collectMessage(node.arguments[2]);
+    }
     if (node.type === 'CallExpression' && ['uiText', 'uiMarkup'].includes(node.callee?.name)) {
       collectMessage(node.arguments[0]);
       if (/^_?[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/.test(node.arguments[0]?.value ?? ''))

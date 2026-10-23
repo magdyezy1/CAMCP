@@ -117,7 +117,150 @@ export const focusIndicatorTargets = Object.freeze([
     selector:
       'main input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=file]), main select, main textarea',
   },
+  // Design review 2026-10: the landing page's closing call to action sits on the dark band (2.32:1 with the global
+  // ring), and a command block Chrome makes focusable once it scrolls showed the browser's own ring (1.21:1, dark).
+  {name: 'inverse band link', selector: '.closing-note a[href]'},
+  {name: 'scroll region', selector: 'main pre.code-block'},
 ]);
+
+/**
+ * Runs in the page: the visible controls that lie past the page's start edge, where no scrolling reaches them (WCAG
+ * 1.4.10). The reflow check measures only the end side (scrollWidth); a right-aligned action row that did not wrap put
+ * Reporting's "New report" at -114 px on a 375 px screen (design review 2026-10). A control inside a horizontal scroll
+ * region is left to that region, and the closed phone sidebar and the skip link are off-screen by design.
+ */
+export function collectStartOverflow() {
+  const width = document.documentElement.clientWidth,
+    rtl = getComputedStyle(document.documentElement).direction === 'rtl',
+    drawerClosed = !document.body.classList.contains('menu-open'),
+    out = [];
+  const scrolls = element => {
+    for (let node = element.parentElement; node && node !== document.body; node = node.parentElement)
+      if (/(auto|scroll)/.test(getComputedStyle(node).overflowX)) return true;
+    return false;
+  };
+  for (const element of document.querySelectorAll(
+    'a[href], button, input:not([type=hidden]), select, textarea, summary',
+  )) {
+    if (element.closest('[inert], [hidden], dialog:not([open]), .skip, .skip-link')) continue;
+    if (drawerClosed && element.closest('#workspace-sidebar')) continue;
+    const visible =
+      typeof element.checkVisibility === 'function'
+        ? element.checkVisibility({checkOpacity: true, checkVisibilityCSS: true})
+        : element.getClientRects().length > 0;
+    const box = element.getBoundingClientRect();
+    if (!visible || box.width <= 1 || box.height <= 1) continue;
+    out.push({
+      control:
+        element.tagName.toLowerCase() +
+        (element.id ? '#' + element.id : '') +
+        [...element.classList]
+          .slice(0, 2)
+          .map(name => '.' + name)
+          .join(''),
+      left: Math.round(box.left),
+      right: Math.round(box.right),
+      in_scroll_region: scrolls(element),
+    });
+  }
+  return {width, rtl, controls: out};
+}
+/** The controls of a start-overflow sample that no scrolling can bring into view. */
+export function startOverflowProblems(sample) {
+  const {width = 0, rtl = false, controls = []} = sample ?? {};
+  return controls
+    .filter(c => !c.in_scroll_region && (rtl ? c.right > width + 1 : c.left < -1))
+    .map(c => `${c.control} lies past the page's start edge (${c.left} to ${c.right} of ${width} px)`);
+}
+
+/**
+ * Runs in the page: the computed colours of the first visible button and status badge of each variant in main. In
+ * the dark theme a shared group of theme.css once outranked every variant (design review 2026-10), so a primary or
+ * danger button looked like any other button and status badges lost their tone.
+ */
+export function collectVariantColours() {
+  const first = selector =>
+    [...document.querySelectorAll(selector)].find(
+      element =>
+        !element.closest('[hidden], [inert], dialog:not([open])') &&
+        (typeof element.checkVisibility === 'function'
+          ? element.checkVisibility({checkOpacity: true, checkVisibilityCSS: true})
+          : element.getClientRects().length > 0),
+    );
+  const colours = selector => {
+    const element = first(selector);
+    if (!element) return null;
+    const style = getComputedStyle(element);
+    return {color: style.color, background: style.backgroundColor, border: style.borderTopColor};
+  };
+  return {
+    plain: colours('main .button:not(.primary):not(.danger):not(.quiet):not(:disabled)'),
+    primary: colours('main .button.primary:not(:disabled)'),
+    danger: colours('main .button.danger:not(:disabled)'),
+    online: colours('main .status.online'),
+    attention: colours('main .status.attention'),
+    offline: colours('main .status.offline'),
+  };
+}
+/** The variants that render exactly like their plain counterpart; a variant missing from the page is not measured. */
+export function variantColourProblems(sample) {
+  const same = (a, b, keys) => a && b && keys.every(key => a[key] === b[key]);
+  const problems = [];
+  if (same(sample?.primary, sample?.plain, ['color', 'background']))
+    problems.push('A primary button is coloured like a plain button');
+  if (same(sample?.danger, sample?.plain, ['color', 'background', 'border']))
+    problems.push('A danger button is coloured like a plain button');
+  for (const tone of ['online', 'attention'])
+    if (same(sample?.[tone], sample?.offline, ['color', 'background', 'border']))
+      problems.push('An ' + tone + ' status badge has the neutral badge’s colours');
+  return problems;
+}
+
+/**
+ * Runs in the page: where each visible checkbox or radio sits against the first line of its label's own words. A
+ * workspace form laid its labels out as grids (design review 2026-10), so the plan filters' boxes stood alone, centred,
+ * on a line above their words. A label whose words are inside a child element (the report builder's metric pills hide
+ * their box and style a span) has no first line of its own and is not measured.
+ */
+export function collectCheckboxLabels() {
+  const out = [];
+  for (const label of document.querySelectorAll('label')) {
+    const box = label.querySelector('input[type=checkbox], input[type=radio]');
+    if (!box || label.closest('[hidden], [inert], dialog:not([open])')) continue;
+    const visible =
+      typeof box.checkVisibility === 'function'
+        ? box.checkVisibility({checkOpacity: true, checkVisibilityCSS: true})
+        : box.getClientRects().length > 0;
+    const words = [...label.childNodes].find(node => node.nodeType === 3 && node.textContent.trim());
+    const b = box.getBoundingClientRect();
+    if (!visible || !words || b.width <= 2 || b.height <= 2) continue;
+    const range = document.createRange();
+    range.selectNodeContents(words);
+    const line = range.getClientRects()[0];
+    if (!line) continue;
+    out.push({
+      label: words.textContent.trim().slice(0, 60),
+      box: {left: Math.round(b.left), right: Math.round(b.right), top: Math.round(b.top), bottom: Math.round(b.bottom)},
+      line: {
+        left: Math.round(line.left),
+        right: Math.round(line.right),
+        top: Math.round(line.top),
+        bottom: Math.round(line.bottom),
+      },
+    });
+  }
+  return out;
+}
+/** The checkboxes that do not sit beside the first line of their words (they stand above or below them). */
+export function checkboxLabelProblems(samples) {
+  return (Array.isArray(samples) ? samples : [])
+    .filter(({box, line}) => {
+      const beside = box.right <= line.left + 2 || box.left >= line.right - 2,
+        middle = (box.top + box.bottom) / 2;
+      return !beside || middle < line.top - 6 || middle > line.bottom + 6;
+    })
+    .map(({label}) => `The box of “${label}” is not beside its words`);
+}
 
 /**
  * Findings for measured focus samples. A ring that is shown must reach the threshold against every opaque colour

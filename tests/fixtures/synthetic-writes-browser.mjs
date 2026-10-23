@@ -55,19 +55,30 @@ export async function exerciseWriteJourney({page, site, locale, result, checks})
     assert.equal(await page.locator('#spend-consent').count(), 0, 'A paused create asks for consent only');
     assert.equal(site.counts().syntheticWrites, before.syntheticWrites, 'Preparing a review sends no mutation');
     await checks.intermediate('review-open');
-    // Execute without consent is refused in the page; the refusal is announced and nothing is sent.
+    // Execute without consent is refused in the page; the refusal is announced and nothing is sent. Design review
+    // 2026-10: the refusal stands beside the box it names and moves focus to it; before, a six-second toast in the
+    // corner repeated the box's label as if it were the error, and outlived the outcome of the execution.
     await page.locator('#execute-reviewed').click();
     actions++;
-    await page.locator('#toast:not([hidden])').waitFor();
-    assert.equal(
-      (await page.locator('#toast').innerText()).trim(),
-      text('I reviewed this exact request and authorize its execution.'),
+    const refusal = page.locator('#review-consent-error');
+    await refusal.waitFor({state: 'visible'});
+    assert.equal((await refusal.innerText()).trim(), text('Tick the authorization above to execute this request.'));
+    assert.equal(await refusal.getAttribute('role'), 'alert');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'review-consent');
+    assert.match(
+      (await page.locator('#review-consent').getAttribute('aria-describedby')) ?? '',
+      /review-consent-error/,
     );
+    assert.equal(await page.locator('#review-consent').getAttribute('aria-invalid'), 'true');
+    assert.equal(await page.locator('#toast').isVisible(), false, 'The refusal is not a passing toast');
     await checks.intermediate('consent-required-alert');
     assert.equal(site.counts().syntheticWrites, before.syntheticWrites, 'Execute without consent sends nothing');
     if (outcome === 'refused') site.writeJourney.changeAccountState();
     await page.locator('#review-consent').check();
     actions++;
+    // Ticking the box clears its refusal.
+    assert.equal(await refusal.isVisible(), false);
+    assert.equal(await page.locator('#review-consent').getAttribute('aria-invalid'), null);
     const executed = workspaceResponse(page, 'campaign', 'execute_next');
     await page.locator('#execute-reviewed').click();
     actions++;
@@ -85,6 +96,27 @@ export async function exerciseWriteJourney({page, site, locale, result, checks})
       assert.equal(await page.locator('#reconcile-campaign').isVisible(), true);
     }
     if (outcome === 'refused') assert.equal(step.error, 'STATE_CHANGED');
+    // Design review 2026-10: the outcome says what happened. Before, a step that failed or whose result was lost was
+    // announced as "Saved." (role=status), the same word as a plan saved without any execution.
+    const said = (await page.locator('#campaign-review .run-outcome').innerText()).trim();
+    assert.notEqual(said, text('Saved.'));
+    assert.ok(
+      said.includes(
+        text(
+          {
+            accepted: 'Every step of this plan is done.',
+            uncertain:
+              'The provider’s answer to this step was lost, so AMCP cannot confirm the change. It is never sent again: use Read back submitted step to check the account.',
+            refused: 'This step did not complete. What happened and what to do are shown with the step.',
+          }[outcome],
+        ),
+      ),
+      outcome + ': ' + said,
+    );
+    // The way on is the emphasized action of the plan: a read-back for an uncertain step, a correction for a refused one.
+    if (outcome === 'uncertain')
+      assert.match(await page.locator('#reconcile-campaign').getAttribute('class'), /\bprimary\b/);
+    if (outcome === 'refused') assert.match(await page.locator('#amend-campaign').getAttribute('class'), /\bprimary\b/);
     const after = site.counts();
     assert.equal(after.syntheticWrites - before.syntheticWrites, outcome === 'refused' ? 0 : 1, outcome);
     assert.equal(after.writes, 0, 'Synthetic journeys never write to a provider');
@@ -236,6 +268,32 @@ export async function exerciseExportOutcomes({page, site, locale, result, checks
       assert.equal(await status.locator('#delivery-new-tab').isVisible(), true);
     } else assert.equal(await status.locator('a[href*="docs.google.com"]').count(), 1);
     await checks.intermediate('export-' + outcome);
+    // Design review 2026-10: the authorization box sits beside the first line of its text (the dialog's label grid had
+    // put it alone on a line above it), and the status that follows an export covers neither the box nor the export
+    // button (the sticky status bar hid both until the reader scrolled; WCAG 2.4.11).
+    const consent = dialog.locator('#report-export-confirm'),
+      lineup = await consent.evaluate(box => {
+        const text = [...box.closest('label').childNodes].find(n => n.nodeType === 3 && n.textContent.trim()),
+          range = document.createRange();
+        range.selectNodeContents(text);
+        const line = range.getClientRects()[0],
+          b = box.getBoundingClientRect(),
+          middle = (b.top + b.bottom) / 2;
+        return {
+          beside: b.right <= line.left + 1 || b.left >= line.right - 1,
+          level: middle >= line.top - 4 && middle <= line.bottom + 4,
+        };
+      });
+    assert.deepEqual(lineup, {beside: true, level: true}, 'The authorization box sits beside its text');
+    for (const control of [consent, dialog.locator('#report-export-now')]) {
+      await control.scrollIntoViewIfNeeded();
+      const cover = await control.evaluate(element => {
+        const r = element.getBoundingClientRect(),
+          top = document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2);
+        return top && !element.contains(top) && !top.contains(element) ? top.id || String(top.className) : null;
+      });
+      assert.equal(cover, null, 'The export status covers ' + outcome);
+    }
     const written = site.counts().syntheticWrites - before.syntheticWrites;
     assert.equal(written > 0, outcome === 'complete', 'Only the complete export writes the tab');
     assert.equal(site.exportOutcomes.tab.report, newer, 'The tab keeps the newer snapshot');

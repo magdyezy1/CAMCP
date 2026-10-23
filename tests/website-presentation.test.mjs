@@ -377,11 +377,30 @@ for (const locale of ['en', 'ar'])
       assert.doesNotMatch(html, /checked/);
       assert.doesNotMatch(visible(html), /execute_next/);
       // Without the ticks nothing is sent; with them, exactly this review and key are executed.
-      // The first authorization not ticked is named; nothing is sent.
+      // Design review 2026-10: the refusal stands beside the boxes, focuses the first one not ticked and is not a toast
+      // (before, the error was the first box's label itself, shown for six seconds in the corner).
       await assert.rejects(p.bindings.get('#execute-reviewed')(), {
-        message: t(locale, 'I reviewed this exact request and authorize its execution.'),
+        message: t(locale, 'Tick each authorization above to execute this request.'),
+        presented: true,
       });
       assert.equal(p.calls.length, 0);
+      const refusalNote = p.node('#review-consent-error');
+      assert.equal(refusalNote.hidden, false);
+      assert.equal(refusalNote.textContent, t(locale, 'Tick each authorization above to execute this request.'));
+      assert.equal(p.context.document.activeElement, p.node('#review-consent'), 'the first box not ticked has focus');
+      for (const box of ['#review-consent', '#spend-consent']) {
+        assert.equal(p.node(box).getAttribute('aria-invalid'), 'true', box);
+        assert.match(p.node(box).getAttribute('aria-describedby'), /review-consent-error/, box);
+      }
+      assert.deepEqual(p.toasts, []);
+      // One box left: the refusal names a single authorization.
+      p.node('#review-consent').checked = true;
+      await assert.rejects(p.bindings.get('#execute-reviewed')(), {
+        message: t(locale, 'Tick the authorization above to execute this request.'),
+      });
+      assert.equal(p.node('#review-consent').getAttribute('aria-invalid'), null, 'a ticked box is no longer invalid');
+      assert.equal(p.context.document.activeElement, p.node('#spend-consent'));
+      p.node('#review-consent').checked = false;
       p.node('#review-consent').checked = true;
       p.node('#spend-consent').checked = true;
       p.respond(async () => ({run: {executed: ['budget'], stopped: 'complete'}}));
@@ -447,11 +466,14 @@ for (const locale of ['en', 'ar'])
       assert.ok(visible(html).includes(t(locale, labels.needs_destructive_confirmed)));
       assert.match(html, /id="destructive-consent" type="checkbox">/, 'the acknowledgement starts unchecked');
       assert.doesNotMatch(html, /checked/);
-      // The first authorization not ticked is named; nothing is sent.
+      // The authorizations not ticked are refused beside them (design review 2026-10: the error once repeated the
+      // first box's label as a toast); nothing is sent.
       await assert.rejects(p.bindings.get('#execute-reviewed')(), {
-        message: t(locale, 'I reviewed this exact request and authorize its execution.'),
+        message: t(locale, 'Tick each authorization above to execute this request.'),
+        presented: true,
       });
       assert.equal(p.calls.length, 0);
+      assert.equal(p.node('#destructive-consent').getAttribute('aria-invalid'), 'true');
       p.node('#review-consent').checked = true;
       p.node('#destructive-consent').checked = true;
       p.respond(async () => ({run: {executed: ['remove'], stopped: 'complete'}}));
@@ -916,3 +938,123 @@ for (const locale of ['en', 'ar'])
     p.run('noteServerClock')({headers: {get: () => null}});
     assert.equal(p.run('campaignApprovalExpired')(plan(Date.now() + 3 * 3600000 - 25 * 3600000)), true);
   });
+
+// Design review 2026-10 (WEB-03): after an executed step that failed or whose answer was lost, the outcome said
+// "Saved." (role=status), the word used for a plan saved without any execution.
+for (const locale of ['en', 'ar'])
+  test(locale + ': an executed step that did not complete is never announced as saved', () => {
+    const p = campaignPage(locale),
+      plan = {id: 'plan-1', steps: [{id: 'campaign', review_id: 'review-1', status: 'uncertain'}]};
+    p.context.plan = plan;
+    const outcomes = {
+      uncertain:
+        'The provider’s answer to this step was lost, so AMCP cannot confirm the change. It is never sent again: use Read back submitted step to check the account.',
+      failed: 'This step did not complete. What happened and what to do are shown with the step.',
+    };
+    for (const [status, wording] of Object.entries(outcomes)) {
+      // execute_next's compact answer: the plan in attention, the step it acted on, and no next call.
+      p.context.out = {
+        view: 'compact',
+        id: 'plan-1',
+        state: 'attention',
+        steps: [{id: 'campaign', status, error: status === 'uncertain' ? 'WRITE_OUTCOME_UNCERTAIN' : 'STATE_CHANGED'}],
+        current: {step_id: 'campaign', status},
+      };
+      const text = visible(p.run('runOutcomeView(out, plan)'));
+      assert.ok(text.includes(t(locale, wording)), status);
+      assert.ok(!text.includes(t(locale, 'Saved.')), status + ' is not "Saved."');
+      assert.ok(Object.hasOwn(catalog, wording), 'Arabic for ' + status);
+    }
+    // A plan saved without an execution still says so.
+    p.context.out = {view: 'compact', id: 'plan-1', state: 'draft'};
+    assert.ok(visible(p.run('runOutcomeView(out, plan)')).includes(t(locale, 'Saved.')));
+    // The plan's emphasized action is the safe way on: a read-back for an uncertain step, a correction for a failed one.
+    assert.equal(p.run('campaignNextSafeAction')(plan), 'reconcile');
+    assert.equal(p.run('campaignNextSafeAction')({steps: [{id: 'campaign', status: 'failed'}]}), 'amend');
+    assert.equal(p.run('campaignNextSafeAction')({steps: [{id: 'campaign', status: 'verified'}]}), '');
+  });
+
+// Design review 2026-10 (WEB-03): an uncertain write told people not to "retry with a new key" and to avoid "a new
+// idempotency key"; the page now says what happened and the one safe thing to do, in its own words.
+test('a lost write answer is explained without keys, and its exact server text stays under Technical details', () => {
+  for (const locale of ['en', 'ar']) {
+    const p = campaignPage(locale),
+      uncertain = refusal(
+        p,
+        'WRITE_OUTCOME_UNCERTAIN',
+        'The write response was lost. Do not retry with a new key; inspect platform state.',
+      );
+    p.context.error = uncertain;
+    const lines = p.run('errorLines(error)');
+    // The server's remedy also says not to create the resource again ("Do not create another resource or use a new
+    // idempotency key"); the page's words keep that: check by reading back before repeating the change yourself.
+    for (const owned of [
+      'The provider’s answer to this change was lost, so AMCP cannot confirm whether it was applied.',
+      'AMCP never sends it again. Read it back to check the account before you repeat the change yourself; a read-back changes nothing.',
+    ]) {
+      assert.ok(Object.hasOwn(catalog, owned), 'Arabic for ' + owned);
+      assert.ok(lines.includes(t(locale, owned)), owned);
+    }
+    assert.doesNotMatch(lines, /idempotency|new key/i);
+    assert.match(p.run('errorBlock(error)'), /error-technical[\s\S]*Do not retry with a new key/);
+    // The plan step shows the same words; the stored error stays under its details.
+    p.context.plan = {
+      id: 'plan-1',
+      name: 'Plan',
+      brief: 'Brief',
+      state: 'attention',
+      steps: [{id: 'campaign', status: 'uncertain', review_id: 'review-1', error: {...uncertain}}],
+    };
+    const html = p.run('campaignJournal(plan)');
+    assert.ok(
+      visible(html).includes(
+        t(locale, 'The provider’s answer to this change was lost, so AMCP cannot confirm whether it was applied.'),
+      ),
+    );
+    assert.doesNotMatch(visible(html), /idempotency|new key/i);
+    assert.match(html, /workspace-details[\s\S]*new key/, 'the exact error stays under its details');
+  }
+});
+
+// Design review 2026-10 (WEB-03): a review of an account without a spending policy showed the server's advice for
+// MCP clients ("… with amcp_workspace save_spend_policy") in a table of /configured false and /unprotected true, in
+// English on the Arabic page.
+test('a review of an unprotected account says so in the page’s words and links the owner to the policy', () => {
+  for (const locale of ['en', 'ar']) {
+    const p = campaignPage(locale),
+      advice =
+        'No spending policy protects this account. An owner can set one for this account, or a workspace default that covers every account, with amcp_workspace save_spend_policy.',
+      notice =
+        'No spending policy protects this account. The workspace owner can set one for this account, or a default for every account, in Workspace settings.';
+    p.context.review = {
+      review_id: 'review-3',
+      expires_at: new Date(Date.now() + 1e5).toISOString(),
+      request: {method: 'POST', path: '/act_1/campaigns', body: {status: 'PAUSED'}},
+      spend_policy: {configured: false, unprotected: true, advice},
+    };
+    let html = p.run("readableReview(review, 'Execute')");
+    assert.ok(visible(html).includes(t(locale, notice)));
+    assert.ok(Object.hasOwn(catalog, notice));
+    assert.doesNotMatch(visible(html), /amcp_workspace|save_spend_policy|\/unprotected/);
+    assert.match(html, /href="\/settings#owner-spend-policy"/, 'the owner opens the policy form from the review');
+    // A non-owner is told who sets it, without a link to a form they cannot use.
+    p.context.session.workspaceRole = 'operator';
+    html = p.run("readableReview(review, 'Execute')");
+    assert.doesNotMatch(html, /href="\/settings#owner-spend-policy"/);
+    // A configured policy keeps its exact table.
+    p.context.review.spend_policy = {configured: true, policy_id: 'p', enforcement: 'block', units: 'native'};
+    html = p.run("readableReview(review, 'Execute')");
+    assert.match(visible(html), /\/enforcement/);
+    // AMCP's own request warning is translated like the rest of the page (it stayed English in Arabic).
+    p.context.review.request = {
+      method: 'POST',
+      warnings: ['Request routing compiled locally; live behavioral parity is tracked separately.'],
+    };
+    html = p.run("readableReview(review, 'Execute')");
+    assert.ok(
+      visible(html).includes(
+        t(locale, 'Request routing compiled locally; live behavioral parity is tracked separately.'),
+      ),
+    );
+  }
+});

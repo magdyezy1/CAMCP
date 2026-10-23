@@ -41,7 +41,7 @@ const pageAssetDependencies = {
   'workbook-bindings.js': ['work-pages.js'],
   'workbook-rebinding.js': ['work-pages.js'],
   // The report builder's script left the shell (WEB-07); the modules that use its state and labels load it.
-  'work-center.js': ['report-library.js', 'reporting-overview.js', 'campaign-workflows.js'],
+  'work-center.js': ['report-library.js', 'reporting-overview.js'],
   'capability-center.js': ['work-pages.js'],
   'reporting-overview.js': ['report-library.js'],
   'report-library.js': ['reporting-overview.js'],
