@@ -8,8 +8,8 @@ import {colourSheets, cssDeclarations, tokenSheets} from './check-colours.mjs';
 // scale, and a count may only go down (tools/web-design-token-baseline.json), as the literal colours did. Circles
 // (50%), zero, "none" and inherited values are not scale values. Spacing stays component geometry with no tokens, so
 // what is counted there is a padding, margin or gap off the 4px grid (more than 2px and not a multiple of 4). Every
-// custom property a stylesheet reads must be defined in a token sheet: a misspelt or missing token silently falls back
-// (the review tables once asked for a --border that did not exist).
+// custom property a stylesheet reads must be defined in a token sheet that every page loading the stylesheet loads: a
+// misspelt or missing token silently falls back (the review tables once asked for a --border that did not exist).
 
 export const baselinePath = 'tools/web-design-token-baseline.json';
 const length = /(?<![\w-])-?(?:\d*\.)?\d+(?:px|rem|em|pt|vw|vh|vmin|vmax|ch|%)(?![\w-])/g;
@@ -62,23 +62,68 @@ export function designTokenCounts(root = process.cwd()) {
   }
   return {counts, found};
 }
-/** Custom properties read by a stylesheet and defined in no token sheet. */
+/**
+ * The stylesheets each shipped page loads, in order: its <link rel="stylesheet"> elements outside <noscript> (About
+ * loads public-tokens.css only for a reader without JavaScript, so its other sheets cannot rely on it).
+ */
+export function pageStylesheets(root = process.cwd()) {
+  return fs
+    .readdirSync(path.join(root, 'web'))
+    .filter(file => file.endsWith('.html'))
+    .sort()
+    .map(page => ({
+      page,
+      sheets: [
+        ...fs
+          .readFileSync(path.join(root, 'web', page), 'utf8')
+          .replace(/<noscript>[\s\S]*?<\/noscript>/g, '')
+          .matchAll(/<link rel="stylesheet" href="\/assets\/([^"?#]+)"/g),
+      ].map(m => m[1]),
+    }));
+}
+/**
+ * Custom properties a stylesheet reads that are defined in no token sheet, or only in a token sheet one of the pages
+ * loading it does not load (a workspace sheet reading a --policy-* token of public-tokens.css, which the workspace never
+ * downloads, falls back silently). A sheet no page links can rely on tokens.css only, which every page loads first.
+ */
 export function undefinedTokenProblems(root = process.cwd()) {
-  const defined = new Set(
-      tokenSheets.flatMap(file =>
-        cssDeclarations(fs.readFileSync(path.join(root, 'web', file), 'utf8'))
-          .map(d => d.property)
-          .filter(p => p.startsWith('--')),
-      ),
+  const definedIn = new Map(
+      tokenSheets.map(file => [
+        file,
+        new Set(
+          cssDeclarations(fs.readFileSync(path.join(root, 'web', file), 'utf8'))
+            .map(d => d.property)
+            .filter(p => p.startsWith('--')),
+        ),
+      ]),
     ),
+    pages = pageStylesheets(root),
     problems = [];
-  for (const file of [...tokenSheets, ...colourSheets(root)])
+  for (const file of [...tokenSheets, ...colourSheets(root)]) {
+    const loading = pages.filter(p => p.sheets.includes(file));
     for (const d of cssDeclarations(fs.readFileSync(path.join(root, 'web', file), 'utf8')))
-      for (const match of d.value.matchAll(/var\(\s*(--[\w-]+)/g))
-        if (!defined.has(match[1]))
+      for (const match of d.value.matchAll(/var\(\s*(--[\w-]+)/g)) {
+        const owners = tokenSheets.filter(sheet => definedIn.get(sheet).has(match[1])),
+          without = loading.filter(p => !owners.some(sheet => p.sheets.includes(sheet))).map(p => p.page),
+          at = 'web/' + file + ':' + d.line + ': ' + match[1] + ' is defined ';
+        if (!owners.length) problems.push(at + 'in no token sheet (' + d.selector + ')');
+        else if (without.length)
           problems.push(
-            'web/' + file + ':' + d.line + ': ' + match[1] + ' is defined in no token sheet (' + d.selector + ')',
+            at +
+              'only in ' +
+              owners.join(', ') +
+              ', which ' +
+              without.join(', ') +
+              ' does not load (' +
+              d.selector +
+              ')',
           );
+        else if (!loading.length && !owners.includes('tokens.css'))
+          problems.push(
+            at + 'only in ' + owners.join(', ') + ', and no page links this sheet to load it (' + d.selector + ')',
+          );
+      }
+  }
   return problems;
 }
 /** Every count above its committed limit (a new stylesheet's limit is 0). */

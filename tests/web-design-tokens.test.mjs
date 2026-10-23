@@ -8,7 +8,13 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {checkDesignTokens, designTokenRatchet, scales, undefinedTokenProblems} from '../tools/check-design-tokens.mjs';
+import {
+  checkDesignTokens,
+  designTokenRatchet,
+  pageStylesheets,
+  scales,
+  undefinedTokenProblems,
+} from '../tools/check-design-tokens.mjs';
 import {cssDeclarations} from '../tools/check-colours.mjs';
 
 const baseline = JSON.parse(fs.readFileSync('tools/web-design-token-baseline.json', 'utf8'));
@@ -87,6 +93,41 @@ test('a new hand-written value and an undefined token are refused', () => {
       '.a { border-radius: var(--radius-md); border: 1px solid var(--line); }\n.b { border-color: var(--border, #ddd); }\n',
     );
     assert.deepEqual(undefinedTokenProblems(directory), ['web/a.css:2: --border is defined in no token sheet (.b)']);
+  } finally {
+    fs.rmSync(directory, {recursive: true, force: true});
+  }
+});
+
+// Integration review of wave 4b: "defined" was the union of tokens.css and public-tokens.css for every stylesheet, so a
+// workspace sheet reading a --policy-* token (public-tokens.css, which the workspace never loads) passed and fell back
+// at runtime. A sheet may read a token only from a token sheet that every page loading it loads (outside <noscript>).
+test('a stylesheet reads only tokens that every page loading it also loads', () => {
+  const shipped = Object.fromEntries(pageStylesheets().map(({page, sheets}) => [page, sheets]));
+  assert.ok(!shipped['index.html'].includes('public-tokens.css'), 'the workspace does not load public-tokens.css');
+  assert.ok(!shipped['about.html'].includes('public-tokens.css'), "About's copy is inside <noscript>");
+  assert.ok(shipped['privacy.html'].includes('public-tokens.css'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-token-pages-'));
+  try {
+    fs.mkdirSync(path.join(directory, 'web'));
+    const write = (file, text) => fs.writeFileSync(path.join(directory, 'web', file), text);
+    const link = sheet => '<link rel="stylesheet" href="/assets/' + sheet + '">';
+    write('tokens.css', ':root { --line: #e5e1eb; }\n');
+    write('public-tokens.css', ':root { --policy-surface: #f8f6fb; --policy-text: var(--line); }\n');
+    write('index.html', [link('tokens.css'), link('w.css'), link('shared.css')].join(''));
+    write('p.html', [link('tokens.css'), link('public-tokens.css'), link('p.css'), link('shared.css')].join(''));
+    write('a.html', link('tokens.css') + '<noscript>' + link('public-tokens.css') + '</noscript>' + link('a.css'));
+    write('w.css', '.w { border-color: var(--line); background: var(--policy-surface); }\n');
+    write('p.css', '.p { color: var(--policy-text); background: var(--policy-surface); }\n');
+    write('shared.css', '.s { color: var(--policy-text); }\n');
+    write('a.css', '.a { color: var(--policy-text); }\n');
+    write('orphan.css', '.o { background: var(--policy-surface); border-color: var(--missing); }\n');
+    assert.deepEqual(undefinedTokenProblems(directory), [
+      'web/a.css:1: --policy-text is defined only in public-tokens.css, which a.html does not load (.a)',
+      'web/orphan.css:1: --policy-surface is defined only in public-tokens.css, and no page links this sheet to load it (.o)',
+      'web/orphan.css:1: --missing is defined in no token sheet (.o)',
+      'web/shared.css:1: --policy-text is defined only in public-tokens.css, which index.html does not load (.s)',
+      'web/w.css:1: --policy-surface is defined only in public-tokens.css, which index.html does not load (.w)',
+    ]);
   } finally {
     fs.rmSync(directory, {recursive: true, force: true});
   }
