@@ -257,12 +257,18 @@ tests passed 1,437 of 1,437; `check-web` keeps all 56 pages at or below their ro
 After the merge with the design system and the integration review's fixes (`a1c6ed7e`): the build, `check-web` (all 56
 pages within their route bytes, no literal colour, the design-token counts at their baseline) and the tests related to
 every file wave 4b's two web packages changed (1,484 of 1,484, with the freshness checks) pass, and section 7's
-screenshots were taken. The integration gate's browser qualification is the rendered acceptance of the merged tree.
+screenshots were taken. On the batch's last code commit (`2d674540`, only this record's wording uncommitted), a
+development subset of the browser runner with axe-core 4.14.0 (`--kinds` `empty`, `period-comparison`,
+`measurement-ledger`, `worker-health`, `write-journey`, `spend-policy-edit`, `export-outcomes`) passed 320 of 320
+cases in 7.7 minutes: no WCAG violation at any state (the checked pills of the dark period comparison included), 814
+focus rings at 3:1 or more, no Arabic leak on its 32 routes, 12 synthetic and no provider writes, no external request
+(`results.json` SHA-256 `a6752f18…`). The integration gate's browser qualification is the rendered acceptance of the
+merged tree.
 
 Regression guards added: `tests/website-design-review.test.mjs` (dark variants, rewritten at the merge for the
-design system's dark layer; wrapping rows, focus rings, sidebar
-labels, export dialog, Set up rule, checked-pill formula contrast from the tokens, checkbox rows, owner forms, ledger
-header, aggregation words, plurals), `tests/home-attention-ui.test.mjs`, `tests/website-presentation.test.mjs`,
+design system's dark layer; wrapping rows, focus rings, sidebar labels, export dialog, Set up rule, checked-pill
+formula contrast from the tokens, checkbox rows, owner forms, ledger header, aggregation words, plurals),
+`tests/home-attention-ui.test.mjs`, `tests/website-presentation.test.mjs`,
 `tests/route-assets.test.mjs`, and in every case of the browser runner the start-edge overflow, variant colour and
 checkbox checks (`tools/browser-accessibility.mjs`), plus the navigation-label check of the shell chrome cases
 ([local browser QA](../LOCAL-BROWSER-QA.md)).
@@ -280,8 +286,7 @@ container borders and hover tints read a little lighter. In dark mode the compon
 is in [the design system](../DESIGN-SYSTEM.md#what-changed-in-this-increment-for-the-owners-visual-sign-off): corners
 on the radius scale, the top bar's appearance and working-client selects at 36px and About's at 44px, new hover,
 disabled and busy states, error notices with the danger border, 3:1 field frames, the dark theme's variants, and a
-browser bar that follows the system appearance before JavaScript. In
-the dark layer, the groups that
+browser bar that follows the system appearance before JavaScript. In the dark layer, the groups that
 `#command-results button` and `#breadcrumb` still lift to ID specificity hold no component with variants any more
 (S1): primary buttons are iris, danger buttons and refusals rose, and success and warning badges and warning and error
 notices keep their pairs. A checked metric pill takes `--surface-selected` with the iris border, its formula at 6.03:1
