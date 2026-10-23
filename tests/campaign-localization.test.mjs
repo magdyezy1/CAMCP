@@ -20,6 +20,8 @@ function fixture(locale) {
         elements: {},
         addEventListener() {},
         setAttribute() {},
+        // The consent refusal (WEB-03) clears its marks once every box is ticked.
+        removeAttribute() {},
         focus() {},
         querySelector: node,
         querySelectorAll: () => [],
