@@ -52,9 +52,10 @@ build log proves is not yet recorded: the owner exports it and runs `npm run evi
 ([Linux evidence](DEPLOY-RAILWAY.md#per-release-linux-evidence-from-railway-builds)). The lessons for the next push are
 in [the deployment guide](DEPLOY-RAILWAY.md#what-the-2026-10-18-deployment-taught).
 
-**Local, not deployed.** Wave 4b, confirmed by the owner on 2026-10-22, runs in parallel packages: MCP quality,
-design review, design system, this current-state documentation and the owner guide. It reaches amcp.shop only with
-the next push, which the owner approves after the full gate, container parity and browser qualification.
+**Local, not deployed.** Wave 4b, confirmed by the owner on 2026-10-22, is implemented and merged into `Work-here`:
+MCP quality, design review, design system, this current-state documentation and the owner guide. Its release gate,
+container parity and browser qualification are pending; it reaches amcp.shop only with the next push, which the owner
+approves after them.
 
 ## 3. Package status
 
