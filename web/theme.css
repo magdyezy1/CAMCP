@@ -35,9 +35,6 @@
 [data-theme='dark'] caption {
   color: var(--muted);
 }
-[data-theme='dark'] .source-health strong {
-  color: var(--success-ink);
-}
 [data-theme='dark'] .source-health.attention strong {
   color: var(--warning-ink);
 }
