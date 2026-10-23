@@ -178,10 +178,6 @@ input[type='checkbox'] {
   border-color: var(--border-on-inverse);
   border-radius: 14px;
 }
-.spinner {
-  border-color: var(--surface-accent);
-  border-top-color: var(--iris);
-}
 .empty {
   background: var(--surface-raised);
   border-color: var(--border);
@@ -1366,35 +1362,6 @@ body.public-view {
   top: -7px;
   line-height: 1;
 }
-.auth-art-label {
-  position: absolute;
-  inset-inline-start: -10px;
-  bottom: 2px;
-  transform: rotate(-5deg);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px;
-  background: color-mix(in srgb, var(--surface-raised) 79%, transparent);
-  font-size: 8px;
-  letter-spacing: 1.5px;
-  color: var(--text-secondary);
-  backdrop-filter: blur(8px);
-}
-.auth-art-label b {
-  font-weight: 400;
-  display: block;
-  margin-top: 10px;
-  font-size: 6px;
-}
-.auth-story-footer {
-  margin-top: auto;
-  padding-top: 30px;
-  display: flex;
-  justify-content: space-between;
-  gap: 30px;
-  font-size: 8px;
-  letter-spacing: 1.3px;
-}
 .auth-form-side {
   display: flex;
   align-items: center;
@@ -1535,16 +1502,6 @@ body.public-view {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.admin-link {
-  display: block;
-  margin: 20px auto 0;
-  background: transparent;
-  border: 0;
-  font-size: 9px;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  min-height: 28px;
-}
 .auth-form-card .error {
   font-size: 12px;
   line-height: 1.7;
@@ -1569,11 +1526,6 @@ body.public-view {
 .auth-success .button {
   font-size: 12px;
   margin-top: 10px;
-}
-.setup-note {
-  font-size: 10px !important;
-  margin: 15px 0;
-  line-height: 1.7;
 }
 .account-hero {
   display: flex;
@@ -2080,10 +2032,6 @@ body.public-view {
     font-size: 12px;
     margin-top: -15px;
   }
-  .auth-story-footer {
-    font-size: 7px;
-    gap: 10px;
-  }
   .auth-form-side {
     padding: 110px 26px 40px;
   }
@@ -2435,9 +2383,6 @@ body.public-view {
   .auth-brand > .text-link {
     font-size: 11px;
   }
-  .admin-link {
-    font-size: 11px;
-  }
   .connector-hero {
     padding: 25px;
   }
@@ -2454,72 +2399,6 @@ body.public-view {
   .public-view .document {
     padding-top: 45px;
   }
-}
-.overview-welcome {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 25px;
-  background: linear-gradient(110deg, var(--surface-selected), var(--surface-warm));
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  padding: 32px 36px;
-  overflow: hidden;
-  margin-bottom: 22px;
-}
-.overview-welcome h2 {
-  font-size: 30px;
-  letter-spacing: -1px;
-  line-height: 1.25;
-  font-weight: 500;
-  margin-top: 13px;
-}
-.overview-welcome p {
-  font-size: 13px;
-  max-width: 510px;
-  color: var(--text-secondary);
-}
-.overview-welcome .button {
-  font-size: 12px;
-  margin-top: 8px;
-}
-.welcome-orbit {
-  position: relative;
-  width: 220px;
-  height: 200px;
-  flex-shrink: 0;
-}
-.welcome-orbit i {
-  position: absolute;
-  width: 180px;
-  height: 180px;
-  border: 1px solid var(--border-accent);
-  border-radius: 50%;
-  inset-inline-end: 0;
-  bottom: 0;
-}
-.welcome-orbit b {
-  position: absolute;
-  width: 90px;
-  height: 110px;
-  border-radius: 50px 50px 15px 15px;
-  bottom: 10px;
-  inset-inline-start: 20px;
-  display: grid;
-  place-items: center;
-  background: var(--iris);
-  color: var(--on-accent);
-  font-size: 48px;
-  font-weight: 450;
-  transform: rotate(-16deg);
-}
-.welcome-orbit > span {
-  position: absolute;
-  inset-inline-end: 5px;
-  top: 0;
-  color: var(--apricot-700);
-  font-size: 75px;
-  line-height: 1;
 }
 .quick-actions {
   display: grid;
@@ -2578,7 +2457,6 @@ body.public-view {
 .auth-form .form-note,
 .auth-legal,
 .auth-legal a,
-.setup-note,
 .identity-row small,
 .account-hero p {
   color: var(--text-secondary);
@@ -2589,7 +2467,6 @@ body.public-view {
 .auth-divider,
 .auth-brand > .text-link,
 .auth-brand .text-link,
-.admin-link,
 .forgot-link {
   color: var(--text-secondary);
 }
@@ -2627,9 +2504,6 @@ body.public-view {
 .public-footer > div {
   font-size: 12px;
 }
-.auth-story-footer {
-  color: var(--text-secondary);
-}
 .account-columns .panel p {
   font-size: 13px;
 }
@@ -2640,25 +2514,8 @@ body.public-view {
   .quick-actions > a {
     padding: 16px;
   }
-  .welcome-orbit {
-    width: 160px;
-    transform: scale(0.8);
-    transform-origin: right center;
-  }
 }
 @media (max-width: 590px) {
-  .overview-welcome {
-    padding: 26px;
-  }
-  .overview-welcome h2 {
-    font-size: 26px;
-  }
-  .welcome-orbit {
-    display: none;
-  }
-  .overview-welcome p {
-    font-size: 12px;
-  }
   .quick-actions {
     gap: 10px;
   }

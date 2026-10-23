@@ -362,15 +362,6 @@
     padding-inline-start: 1.2rem;
   }
 }
-@media (max-width: 520px) {
-  .monitor-row {
-    flex-wrap: wrap;
-    justify-content: flex-start;
-  }
-  .monitor-row > div {
-    flex-basis: 100%;
-  }
-}
 .capability-card {
   border-block-end: 1px solid var(--line);
   padding-block: 1rem;
