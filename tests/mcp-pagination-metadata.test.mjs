@@ -340,8 +340,9 @@ test('the cursor lists keep has_more and next_cursor, and a followed cursor neve
 });
 
 // Paged actions held to the same fields by their own suites, since their pages need provider reads (portfolio:
-// tests/portfolio-adapter-contract.test.mjs; asset_usage: tests/mcp-meta-asset-usage.test.mjs and the Google and
-// Snapchat suites). compare was listed here with a suite that never checked its paging fields; it is covered above.
+// tests/portfolio-adapter-contract.test.mjs; asset_usage: tests/meta-asset-usage.test.mjs,
+// tests/google-image-usage.test.mjs and tests/snapchat-asset-usage.test.mjs assert has_more and next_cursor). compare
+// was listed here with a suite that never checked its paging fields; it is covered above.
 const pagedElsewhere = {
   amcp_workspace: ['portfolio'],
   amcp_media: ['asset_usage'],
