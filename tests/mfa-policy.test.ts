@@ -8,7 +8,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import type {Request} from 'express';
 import {Store} from '../src/store.js';
@@ -21,6 +20,7 @@ import {UserAccounts, hashUserPassword} from '../server/user-accounts.js';
 import {AccountSecurity, totp} from '../server/account-security.js';
 import {mfaBaseline, mfaBaselineConfig, mfaRequirement} from '../server/mfa-policy.js';
 import {removeTestDirectory} from './temp.js';
+import {runAdmin} from './admin-cli.js';
 import type {Actor, JsonObject} from '../src/types.js';
 
 const origin = 'https://amcp.shop',
@@ -381,8 +381,7 @@ test('SEC-06 S3: `admin mfa-reset <email>` turns two-step verification off and e
       store.close();
     }
     const run = (...args: string[]) =>
-      spawnSync(process.execPath, [path.resolve('dist/tools/admin.js'), ...args], {
-        encoding: 'utf8',
+      runAdmin(args, {
         env: {...process.env, MIRROR_DB: database, MIRROR_MASTER_KEY: master, NODE_ENV: 'test'},
         timeout: 30000,
       });

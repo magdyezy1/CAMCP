@@ -116,9 +116,12 @@ export function presentationProfiles(store: Store, actor: Actor, report: JsonObj
     }
     if (profiles.length >= limit) break;
   }
+  const more = scanned < rows.length || rows.length === 100;
   return {
     profiles,
-    next_offset: scanned < rows.length || rows.length === 100 ? offset + scanned : null,
+    // The paging fields every AMCP list carries (MCP-07): has_more, and next_offset while it is true.
+    has_more: more,
+    next_offset: more ? offset + scanned : null,
     network_requests: 0,
   };
 }

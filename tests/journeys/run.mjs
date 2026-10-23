@@ -1,14 +1,19 @@
-// Runs the QA-04 journey and task suites and returns one metrics record. Shared by tools/mcp-eval.mjs (the local
-// check and baseline writer) and tests/mcp-eval.test.mjs.
+// Runs the QA-04 journey, task and evaluation-set suites and returns one metrics record. Shared by tools/mcp-eval.mjs
+// (the local check and baseline writer) and tests/mcp-eval.test.mjs.
 import assert from 'node:assert/strict';
 import {evaluationFixture, transcriptMetrics, sanitizeTranscript} from './harness.mjs';
 import {journeys, branchNames} from './journeys.mjs';
 import {taskSet, runTask} from './tasks.mjs';
+import {evaluationSet, runEvaluationSet} from './evaluation-set.mjs';
 
-/** Every run identifier the suites know: J1/success … J8/incomplete_evidence and T1/reference … H2/guided. */
+/**
+ * Every run identifier the suites know: J1/success … J8/incomplete_evidence, T1/reference … H2/guided, and the
+ * evaluation set's questions E1 … E10 (tests/fixtures/mcp-evaluation/evaluation.xml).
+ */
 export const runIds = Object.freeze({
   journeys: journeys.flatMap(journey => branchNames.map(branch => journey.id + '/' + branch)),
   tasks: taskSet.tasks.flatMap(task => ['reference', 'guided'].map(mode => task.id + '/' + mode)),
+  evaluation_set: evaluationSet().map(pair => pair.id),
 });
 const selected = (only, groupId, id) => !only || only.includes(groupId) || only.includes(id);
 
@@ -109,12 +114,23 @@ export function taskMeasures(taskRuns) {
 }
 
 /**
- * One metrics record for both suites. `only` selects journeys (J1), tasks (T3), or single runs (J2/failure,
- * T4/guided); an unknown name is refused rather than silently measuring nothing.
+ * One metrics record for the suites. `only` selects journeys (J1), tasks (T3), questions of the evaluation set (E4, or
+ * evaluation_set for all), or single runs (J2/failure, T4/guided); an unknown name is refused rather than silently
+ * measuring nothing. A response fault applies to the journeys and tasks; the evaluation set's reference solutions read
+ * fields a fault does not touch, and always run unfaulted.
  */
-export async function runEvaluation({fault, suites = ['journeys', 'tasks'], only, transcripts = false} = {}) {
+export async function runEvaluation({
+  fault,
+  suites = ['journeys', 'tasks', 'evaluation_set'],
+  only,
+  transcripts = false,
+} = {}) {
   if (only) {
-    const known = new Set([...runIds.journeys, ...runIds.tasks].flatMap(id => [id, id.split('/')[0]]));
+    const known = new Set([
+      ...[...runIds.journeys, ...runIds.tasks].flatMap(id => [id, id.split('/')[0]]),
+      ...runIds.evaluation_set,
+      'evaluation_set',
+    ]);
     const unknown = only.filter(name => !known.has(name));
     if (unknown.length) throw Error('MCP_EVAL_UNKNOWN_RUN ' + unknown.join(', '));
   }
@@ -126,6 +142,10 @@ export async function runEvaluation({fault, suites = ['journeys', 'tasks'], only
     const tasks = await runTasks({fault, only, transcripts});
     runs.tasks = tasks.runs;
     discovery = tasks.discovery;
+  }
+  if (suites.includes('evaluation_set')) {
+    const set = await runEvaluationSet({only, transcripts});
+    if (Object.keys(set).length || !only) runs.evaluation_set = set;
   }
   return {
     schema_version: 1,

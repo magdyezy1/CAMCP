@@ -21,7 +21,7 @@ import {
 } from '../src/guidance.js';
 import {MirrorError} from '../src/errors.js';
 import {serverIdentity} from '../src/server-identity.js';
-import {serverInstructions} from '../src/tool-annotations.js';
+import {serverInstructionsFor} from '../src/tool-annotations.js';
 /** JSON-RPC's "resource not found" (MCP-05); the SDK names only the generic codes. */
 const resourceNotFound = -32002;
 /**
@@ -53,12 +53,15 @@ export interface McpServerHooks {
 export const mcpServerInfo = () => ({name: 'amcp', version: String(serverIdentity().version)});
 /** What the server offers in both protocol eras; server/discover of the 2026-07-28 handler reports the same. */
 export const mcpServerCapabilities = () => ({tools: {}, resources: {}, prompts: {}});
+/** The instructions each server was created with, so server/discover (2026-07-28) answers what initialize does. */
+const createdInstructions = new WeakMap<Server, string>();
+export const mcpServerInstructions = (server: Server) => createdInstructions.get(server);
 export function createMcpServer(service: MirrorService, actor: Actor, hooks: McpServerHooks = {}) {
-  const server = new Server(
-    mcpServerInfo(),
-    // Orientation for every client, pinned at 2,000 characters (MCP-06).
-    {capabilities: mcpServerCapabilities(), instructions: serverInstructions},
-  );
+  // Orientation for every client, pinned at 2,000 characters (MCP-06), in the deployment's mode: a read-only one offers
+  // amcp_write inspect only, so its instructions never send a client to prepare or execute.
+  const instructions = serverInstructionsFor(service.policy),
+    server = new Server(mcpServerInfo(), {capabilities: mcpServerCapabilities(), instructions});
+  createdInstructions.set(server, instructions);
   server.setRequestHandler(ListResourcesRequestSchema, async () => {
     service.store.assertActorActive(actor);
     return {resources: guidanceResources};

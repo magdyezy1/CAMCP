@@ -31,7 +31,7 @@ import {gtmDiagnosticOperations, gtmDiagnostics} from './gtm-diagnostics.js';
 import {withEffects, workflowOutcome, writeErrorOutcome} from './workflow-outcomes.js';
 import {actionArgumentCheck} from './first-party-contracts.js';
 import {conditionalProgramDescription} from './conditional-programs.js';
-import {amcpNote, listedDescription, mediaListing} from './tool-notes.js';
+import {amcpNote, listedDescription, mediaListing, readOnlyTail} from './tool-notes.js';
 import {unavailableRefusal} from './unavailable-operations.js';
 import {amcpDescribed} from './execution-status.js';
 import {checkContextOptions, contextOperation} from './context-operations.js';
@@ -301,6 +301,7 @@ export class MirrorService {
   }
   private listedTools() {
     const compact = this.options.flags.compactDescriptions !== false,
+      readOnly = !this.policy.allowWrites,
       // A provider this deployment does not offer is not listed (CON-06, src/provider-offering.ts).
       offered = this.registry.listTools(this.options).filter(t => gatewayOffered(t.name));
     return [
@@ -308,13 +309,16 @@ export class MirrorService {
         const definition = this.registry.tools.get(t.name)!,
           media = mediaDiscovery(t.name) ? mediaInstructions : undefined;
         if (!compact) return {...t, ...(media ? {description: t.description + ' ' + media} : {})};
-        const note = amcpNote(definition);
+        const note = amcpNote(definition),
+          // A read-only deployment routes to what it lists: amcp_write inspect and amcp_media reads (D15).
+          listed = listedDescription(definition, readOnly);
         // AMCP's own description where the captured one is untrue, and a short media sentence (MCP-10).
         return {
           ...t,
-          description: fitCapturedDescription(t.name, listedDescription(definition), [
+          description: fitCapturedDescription(t.name, listed, [
             note ?? '',
-            media ? mediaListing(t.name) : '',
+            media ? mediaListing(t.name, readOnly) : '',
+            readOnly ? readOnlyTail(listed, this.policy.providerJobs === true) : '',
           ]),
         };
       }),

@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {spawnSync} from 'node:child_process';
 import {createHash, randomBytes} from 'node:crypto';
 import {Store} from '../src/store.js';
 import {Registry} from '../src/catalog.js';
@@ -15,6 +14,7 @@ import {createHttpApp} from '../server/http-app.js';
 import {endMcpGrants} from '../server/mcp-grants.js';
 import type {JsonObject} from '../src/types.js';
 import {removeTestDirectory} from './temp.js';
+import {runAdmin} from './admin-cli.js';
 
 /**
  * SEC-07 S1: a restore is quarantined by default. A backup taken before a compromise holds the sessions, connector keys
@@ -25,8 +25,7 @@ import {removeTestDirectory} from './temp.js';
 const origin = 'https://amcp.shop',
   redirect = 'https://claude.ai/api/mcp/auth_callback',
   master = Buffer.alloc(32, 93).toString('base64'),
-  password = 'synthetic-restore-admin-password',
-  cli = path.resolve('dist/tools/admin.js');
+  password = 'synthetic-restore-admin-password';
 
 async function site(store: Store) {
   const service = new MirrorService(new Registry(), store, new NativeTransport(), strictOptions, {
@@ -253,7 +252,7 @@ test('SEC-07 S1: the CLI restore and drill quarantine by default and accept --pr
   const f = await fixture();
   try {
     const env = {...process.env, MIRROR_DB: path.join(f.dir, 'must-not-exist.sqlite'), MIRROR_MASTER_KEY: master},
-      run = (...args: string[]) => spawnSync(process.execPath, [cli, ...args], {encoding: 'utf8', env, timeout: 30000});
+      run = (...args: string[]) => runAdmin(args, {env, timeout: 30000});
     const restored = run('backup-restore', f.archive, path.join(f.dir, 'cli.sqlite'));
     assert.equal(restored.status, 0, restored.stderr);
     assert.equal(JSON.parse(restored.stdout).access.quarantined, true);

@@ -361,7 +361,9 @@ Before pushing a change that touches how tests find files, run them the way the 
 `npm run qualify:container` copies the release scope minus `.dockerignore` outside any Git repository, links the
 installed dependencies and runs `npm run check` there (`-- --test tests/<name>.test.mjs` runs the build and the named
 tests only). A test that passes in the checkout but needs `.git`, an ignored file or a path outside the release scope
-fails there instead of in Railway's build.
+fails there instead of in Railway's build. The build runs as root, so tests spawn the admin CLI only through
+`tests/admin-cli.ts`, which passes `--allow-root` ([operations](OPERATIONS.md#qualification-records), "Tests run as
+root").
 
 Startup, sign-in, MCP, restart and revocation smoke on Linux needs a non-production Railway environment with its own
 volume, synthetic connections and `MIRROR_ALLOW_WRITES=false`, never production secrets or the production volume (owner

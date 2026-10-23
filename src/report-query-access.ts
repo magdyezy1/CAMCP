@@ -207,6 +207,8 @@ export function reportQueryPage(store: Store, actor: Actor, input: JsonObject) {
   return {
     record_kind: 'workbook_queries',
     queries: result,
+    // The paging fields every AMCP list carries (MCP-07): has_more, and next_offset while it is true.
+    has_more: rows.length > scanned,
     next_offset: rows.length > scanned ? offset + scanned : null,
     network_requests: 0,
   };

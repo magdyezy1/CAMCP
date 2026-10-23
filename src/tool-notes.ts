@@ -5,9 +5,25 @@ import type {ToolDefinition} from './types.js';
 
 const named =
   'For a launch use amcp_campaign, for one reviewed change amcp_write, for uploads amcp_media and for performance amcp_reporting.';
+/** The same routing for a read-only deployment, which lists amcp_write with inspect only and amcp_media reads only. */
+const readOnlyNamed =
+  'For performance use amcp_reporting; amcp_write inspect checks whether a change has a reviewed write contract.';
 const connectedOnWebsite = 'Providers are connected on the AMCP website (Connections).';
 /** Gateways whose catalog holds no action AMCP can run; tests hold this equal to the contracts ledger. */
 export const withoutExecutableActions: ReadonlySet<string> = new Set(['amazon_native_action']);
+/**
+ * Operation-mode gateways whose catalog has write actions (reviewed or blocked): like the action-mode gateways, they
+ * preview or refuse a write and name amcp_write inspect as its next call (MCP-09), and their listing now says so.
+ * tests/truthful-surface.test.mjs holds this equal to the contracts ledger.
+ */
+export const delegatedWriteGateways: ReadonlySet<string> = new Set([
+  'criteo_native_action',
+  'ga4_native_action',
+  'google_business_native_action',
+  'google_search_console_native_action',
+  'gtm_native_action',
+  'reddit_native_action',
+]);
 /**
  * AMCP-owned descriptions (MCP-10). Where a captured gateway description names a tool, provider, version or behaviour
  * AMCP does not have, AMCP's own text replaces it; the captured text stays available under captured_catalog in gateway
@@ -54,6 +70,11 @@ const ownedDescriptions: Readonly<Record<string, string | ((captured: string) =>
     connectedOnWebsite,
   adjust_native_action:
     'Adjust gateway: adjust_reporting (apps, events, filters, reports and pivots) and adjust_list_assets (the Adjust bindings configured in AMCP) run.',
+  // Wave 4b MCP quality pass: the captured texts only named a "gateway" and "native operations".
+  amcp_platform_workspace:
+    'The workspace and its connected accounts from AMCP’s own records, with no provider request: get_workspace_context (the workspace, your role, each enabled connection), list_accounts (each bound account with its platform, connection, write grant and the name, currency and time zone of its last live read) and list_workspace_assets. Pass the operation’s input in arguments.',
+  gtm_native_action:
+    'Google Tag Manager gateway: gtm_ops runs one Tag Manager API operation on accounts, containers, workspaces, versions, tags, triggers and variables; gtm_audit_ops audits a workspace’s configuration and consent settings; gtm_action_job_status reads the verification job of a reviewed Tag Manager write.',
   commerce_native_action:
     'Commerce gateway: woocommerce_list_stores lists the WooCommerce stores configured in AMCP, without a store request; store products are read through amcp_workspace catalog_sources and catalog_source. Shopify and Salla have no AMCP connection, and Shopify, Salla and WooCommerce expansion is parked.',
 };
@@ -65,8 +86,27 @@ const listedSummaries: Readonly<Record<string, string>> = {
   dv360_native_action:
     'Run one Display & Video 360 v4 REST action by name: a canonical DV360_* action such as DV360_ADVERTISERS_LIST, or resource and method (resource=advertisers, method=list); LIST_ACTIONS and DESCRIBE_ACTION find it. Path and query parameters go in params, pathParams or query, request bodies in body or payload. YouTube & Partners line items cannot be created or updated through the API, so AMCP refuses those writes, and AMCP has no DV360 reporting. The campaign flow, targeting and audience search, inventory and creative assignment: amcp_tool_help {gateway:"dv360_native_action"}.',
 };
-/** What tools/list shows of a gateway before its note: a routing summary, or the description itself. */
-export const listedDescription = (tool: ToolDefinition): string => listedSummaries[tool.name] ?? ownedDescription(tool);
+/**
+ * What tools/list shows of a gateway before its note: a routing summary, or the description itself. A read-only
+ * deployment routes to what it lists (wave 4b MCP quality pass: it named amcp_write and amcp_media as change paths).
+ */
+export const listedDescription = (tool: ToolDefinition, readOnly = false): string => {
+  const text = listedSummaries[tool.name] ?? ownedDescription(tool);
+  return readOnly ? text.replace(named, readOnlyNamed) : text;
+};
+/** Said where a read-only deployment's description still names amcp_write as a change path (owner decision D15). */
+export const readOnlyQualifier =
+  'In this read-only deployment amcp_write offers inspect only, so the changes named here are refused.';
+/** The same where the owner allows provider report and export jobs (RPT-06): those are the only changes it makes. */
+export const providerJobQualifier =
+  'In this read-only deployment amcp_write prepares and executes provider report and export jobs only; other changes named here are refused.';
+/** The sentence a read-only deployment adds after a gateway's description: the qualifier, where it applies. */
+export const readOnlyTail = (description: string, providerJobs = false): string =>
+  description.replaceAll('amcp_write inspect', '').includes('amcp_write')
+    ? providerJobs
+      ? providerJobQualifier
+      : readOnlyQualifier
+    : '';
 /** The sentence naming what a gateway lists but AMCP cannot run, from the table the contracts ledger holds (MCP-10). */
 export function unavailableSentence(gateway: string): string | undefined {
   const entries = Object.entries(unavailableOperations[gateway] ?? {});
@@ -107,6 +147,10 @@ export function amcpNote(tool: ToolDefinition): string | undefined {
     notes.push(
       'Nothing is written from this tool: writes are previews (dry_run:false, a refusal whose next_call is amcp_write inspect).',
     );
+  if (tool.mode === 'delegated' && delegatedWriteGateways.has(tool.name))
+    notes.push(
+      'Nothing is written from this tool: a write action is previewed, or with dry_run:false refused with amcp_write inspect as its next_call.',
+    );
   const refused = properties.filter(k => refusedParameters.includes(k));
   if (refused.length)
     notes.push(
@@ -125,12 +169,14 @@ export function amcpNote(tool: ToolDefinition): string | undefined {
  * The media sentence tools/list carries for a media gateway (MCP-10): where files go, in a few words. Gateway help keeps
  * the whole import route (amcp_media_import), so the listing no longer repeats it on every gateway.
  */
-export const mediaListing = (gateway: string) =>
-  'Media: never download media in the MCP client; upload through amcp_media or ' +
-  (gateway === 'amcp_native_action' ? 'platform_media_upload UPLOAD_FROM_URL' : 'payload.url on an upload action') +
-  ' (import route: amcp_tool_help {gateway:"' +
-  gateway +
-  '"}).';
+export const mediaListing = (gateway: string, readOnly = false) =>
+  readOnly
+    ? 'Media: never download media in the MCP client; this deployment uploads nothing (amcp_media offers library reads only).'
+    : 'Media: never download media in the MCP client; upload through amcp_media or ' +
+      (gateway === 'amcp_native_action' ? 'platform_media_upload UPLOAD_FROM_URL' : 'payload.url on an upload action') +
+      ' (import route: amcp_tool_help {gateway:"' +
+      gateway +
+      '"}).';
 /** The description a caller is shown: AMCP's own (or the accurate captured) text, then its AMCP note. */
 export const describedTool = (tool: ToolDefinition, captured = tool.description ?? ''): string => {
   const note = amcpNote(tool),

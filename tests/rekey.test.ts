@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {spawnSync} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 import type {Request} from 'express';
 import {Store} from '../src/store.js';
@@ -19,6 +18,7 @@ import {
 import {createEncryptedBackup, restoreEncryptedBackup, verifyEncryptedBackup} from '../src/backup.js';
 import type {Actor, Connection, JsonObject} from '../src/types.js';
 import {removeTestDirectory} from './temp.js';
+import {runAdmin} from './admin-cli.js';
 
 /**
  * SEC-07 S3: a master-key rotation. One key sealed everything with no way to change it, so a suspected key leak could
@@ -31,7 +31,6 @@ const oldKey = Buffer.alloc(32, 11).toString('base64'),
   actor: Actor = {tenantId: tenant, userId: 'operator', role: 'admin'},
   password = 'synthetic-rekey-admin-password',
   origin = 'http://localhost:4317',
-  cli = path.resolve('dist/tools/admin.js'),
   prefix = 'amcp-rekey-';
 const connection = (id: string): Connection => ({
   id,
@@ -333,8 +332,7 @@ test('SEC-07 S3: the CLI rekey reports pending work with exit code 2, re-seals, 
   try {
     populate(file);
     const run = (args: string[], previous = oldKey) =>
-      spawnSync(process.execPath, [cli, ...args], {
-        encoding: 'utf8',
+      runAdmin(args, {
         env: {...process.env, MIRROR_DB: file, MIRROR_MASTER_KEY: newKey, MIRROR_MASTER_KEY_PREVIOUS: previous},
         timeout: 60000,
       });

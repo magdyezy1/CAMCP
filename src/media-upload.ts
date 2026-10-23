@@ -1382,16 +1382,20 @@ export class MediaUploadService {
       .filter(r => r.state !== 'complete' && (r.expires_at > Date.now() || ['pending', 'uncertain'].includes(r.state)))
       .sort((a, b) => b.expires_at - a.expires_at);
     return {
+      // The paging fields every AMCP list carries (MCP-07): total, has_more and next_offset while it is true; the
+      // recovery reviews page apart, by recovery_offset.
       ...(withAssets
         ? {
             assets: assets.slice(offset, offset + limit),
             total: assets.length,
             has_more: offset + limit < assets.length,
+            next_offset: offset + limit < assets.length ? offset + limit : null,
           }
         : {}),
       recovery_reviews: reviews.slice(recoveryOffset, recoveryOffset + limit),
       recovery_total: reviews.length,
       recovery_has_more: recoveryOffset + limit < reviews.length,
+      recovery_next_offset: recoveryOffset + limit < reviews.length ? recoveryOffset + limit : null,
       variants: this.store
         .documents(actor.tenantId, 'media_variant')
         .filter(v => (ownsRecord(actor, v) || actor.role === 'admin') && v.expires_at > Date.now())

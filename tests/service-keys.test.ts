@@ -8,7 +8,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {spawnSync} from 'node:child_process';
 import type {Request} from 'express';
 import {Store} from '../src/store.js';
 import {serviceKeys} from '../src/owner-operations.js';
@@ -17,6 +16,7 @@ import {WebStore} from '../server/web-store.js';
 import {UserAccounts, hashUserPassword} from '../server/user-accounts.js';
 import {AccountSecurity, totp} from '../server/account-security.js';
 import {removeTestDirectory} from './temp.js';
+import {runAdmin} from './admin-cli.js';
 import type {JsonObject} from '../src/types.js';
 
 const master = Buffer.alloc(32, 71).toString('base64'),
@@ -89,15 +89,10 @@ test('SEC-06: `admin create-key` records the key as service-owned', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-service-key-')),
     database = path.join(dir, 'amcp.sqlite');
   try {
-    const run = spawnSync(
-      process.execPath,
-      [path.resolve('dist/tools/admin.js'), 'create-key', 'cli-tenant', 'ops', 'reader'],
-      {
-        encoding: 'utf8',
-        env: {...process.env, MIRROR_DB: database, MIRROR_MASTER_KEY: master, NODE_ENV: 'test'},
-        timeout: 30000,
-      },
-    );
+    const run = runAdmin(['create-key', 'cli-tenant', 'ops', 'reader'], {
+      env: {...process.env, MIRROR_DB: database, MIRROR_MASTER_KEY: master, NODE_ENV: 'test'},
+      timeout: 30000,
+    });
     assert.equal(run.status, 0, run.stderr);
     const token = run.stdout.trim(),
       store = new Store(database, master);

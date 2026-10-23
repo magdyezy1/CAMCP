@@ -199,6 +199,9 @@ export function allocationCandidates(report: JsonObject, input: JsonObject) {
       observed_spend: row.spend === null ? null : decimal(row.spend, 9),
       observed_conversions: row.conversions === null ? null : decimal(row.conversions, 9),
     })),
+    // The paging fields every AMCP list carries (MCP-07): total, has_more, and next_offset while it is true.
+    total: rows.length,
+    has_more: offset + limit < rows.length,
     next_offset: offset + limit < rows.length ? offset + limit : null,
     network_requests: 0,
   };

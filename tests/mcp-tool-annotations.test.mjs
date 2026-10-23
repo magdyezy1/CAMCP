@@ -1,149 +1,33 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createHash} from 'node:crypto';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
 import {createMcpServer} from '../dist/server/mcp.js';
-import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
-import {MirrorService} from '../dist/src/service.js';
-import {NativeTransport} from '../dist/src/transport.js';
-import {independentlyReadOnly} from '../dist/src/execution-risk.js';
-import {serverInstructions, toolAnnotations, toolPresentation} from '../dist/src/tool-annotations.js';
+import {
+  providerJobServerInstructions,
+  readOnlyServerInstructions,
+  serverInstructions,
+  serverInstructionsFor,
+  toolAnnotations,
+  toolPresentation,
+} from '../dist/src/tool-annotations.js';
+import {bags, fill, readOnlyCall, world as walkWorld} from './helpers/annotation-walk.mjs';
 
 // MCP-06: initialize carried no instructions and no tool had a title or annotations, so every read prompted in clients
 // that auto-approve read-only tools. A wrong readOnlyHint:true would let a client run a state-changing tool unasked, so
-// every tool marked read-only is exercised action by action below.
-const registry = new Registry(),
-  writes = {allowWrites: true, maxBudgetChange: 0, requireBeforeState: true},
-  key = Buffer.alloc(32, 61).toString('base64');
-
-function world(allowWrites) {
-  const store = new Store(':memory:', key),
-    actor = {tenantId: 'annotations', userId: 'owner', role: 'admin'},
-    fetches = [],
-    plans = [],
-    media = [];
-  store.ensureTenant(actor.tenantId);
-  const connections = new Map();
-  let n = 0;
-  for (const gateway of registry.tools.keys()) {
-    if (['amcp_tool_help', 'amcp_platform_workspace', 'amcp_native_action'].includes(gateway)) continue;
-    const id = '00000000-0000-4000-8000-' + String(++n).padStart(12, '0');
-    store.putConnection(
-      actor,
-      {
-        id,
-        tenantId: actor.tenantId,
-        gateway,
-        accounts: ['1001'],
-        writeAccounts: ['1001'],
-        enabled: true,
-        label: 'Synthetic ' + gateway,
-        scopes: [],
-        userAgent: 'synthetic-annotation-evaluator/1.0',
-      },
-      {accessToken: 'synthetic-' + n},
-    );
-    connections.set(gateway, id);
-  }
-  // Every provider request is recorded and answered with an empty JSON object; nothing leaves the process.
-  const transport = new NativeTransport(
-    async (url, init = {}) => {
-      fetches.push({method: String(init.method ?? 'GET').toUpperCase(), url: String(url)});
-      return Response.json({});
-    },
-    async () => {},
-    30000,
-    8 * 1024 * 1024,
-    1e9,
-    1,
-    1e9,
-  );
-  const request = transport.request.bind(transport);
-  transport.request = (plan, ...rest) => {
-    plans.push(plan);
-    return request(plan, ...rest);
-  };
-  const service = new MirrorService(
-    registry,
-    store,
-    transport,
-    undefined,
-    allowWrites ? writes : undefined,
-    async url => {
-      media.push(String(url));
-      throw Error('Synthetic media fetches are refused.');
-    },
-  );
-  return {store, actor, service, connections, fetches, plans, media, close: () => store.close()};
-}
-// AMCP state a read-only tool must leave unchanged. The audit trail, ownership observations of what a read returned,
-// provider cooldowns, service locks and timing counters keep AMCP's own controls working and change nothing the user owns.
-const stateTables = [
-  'tenants',
-  'workspace_memberships',
-  'credential_owners',
-  'api_keys',
-  'connections',
-  'idempotency',
-  'documents',
-  'jobs',
-  'media_admissions',
-  'media_chunks',
-  'media_staging',
-  'retained_media',
-  'retained_media_chunks',
-];
-// Service timing counters are observability, kept as one document per category.
-const observability = table => (table === 'documents' ? " WHERE kind<>'service_timings'" : '');
-const snapshot = store =>
-  stateTables
-    .map(
-      t =>
-        t +
-        ':' +
-        createHash('sha256')
-          .update(JSON.stringify(store.db.prepare('SELECT * FROM ' + t + observability(t) + ' ORDER BY rowid').all()))
-          .digest('hex')
-          .slice(0, 12),
-    )
-    .join(' ');
-/** The bag's keys the schema admits, plus a synthetic value for each required property it lacks. */
-function fill(bag, schema = {}) {
-  const properties = schema.properties ?? {},
-    out = Object.fromEntries(Object.entries(bag).filter(([k]) => Object.hasOwn(properties, k)));
-  for (const key of schema.required ?? []) {
-    if (out[key] !== undefined) continue;
-    const s = properties[key] ?? {};
-    out[key] = s.enum?.[0] ?? {number: 1, integer: 1, boolean: false, object: {}, array: []}[s.type] ?? '1001';
-  }
-  return out;
-}
+// every tool marked read-only is exercised action by action below (the walk is tests/helpers/annotation-walk.mjs).
+const registry = new Registry();
+const world = allowWrites => walkWorld(registry, allowWrites);
 /**
  * Every input a tool's schema admits for each of its actions, pushed as far toward execution as arguments allow: once
  * as a read (no payload) and once as a write (a payload, confirmation and an idempotency key).
  */
 function inputs(w, tool) {
   const name = tool.name,
-    connection = w.connections.get(name),
     definition = registry.tools.get(name),
     schema = tool.inputSchema,
-    read = {
-      account_id: '1001',
-      ad_account_id: '1001',
-      advertiser_id: '1001',
-      profile_id: '1001',
-      org_id: '1001',
-      ...(connection ? {connection_id: connection} : {}),
-    },
-    write = {
-      ...read,
-      dry_run: false,
-      confirmed: true,
-      idempotency_key: '00000000-0000-4000-8000-0000000000aa',
-      payload: {name: 'Synthetic', url: 'https://media.example.test/synthetic.png'},
-    };
+    {read, write} = bags(w, name);
   if (name === 'amcp_tool_help') return [{}, ...w.service.listTools().map(t => ({gateway: t.name})), {topic: 'guides'}];
   if (definition?.mode === 'delegated')
     return (definition.operations ?? []).flatMap(op =>
@@ -264,6 +148,40 @@ test('initialize carries the pinned orientation of at most 2,000 characters', as
     await c.close();
   }
 });
+// Wave 4b MCP quality pass: a read-only deployment lists amcp_write with inspect only and amcp_media with reads only,
+// yet its instructions told every client to prepare, execute and upload, which that deployment refuses.
+test('a read-only deployment’s orientation offers only what it lists, and says why changes are refused', async () => {
+  const c = await connected(false);
+  try {
+    const instructions = c.client.getInstructions();
+    assert.equal(instructions, readOnlyServerInstructions);
+    assert.ok(instructions.length <= 2000, String(instructions.length));
+    assert.doesNotMatch(instructions, /amcp_write is the only change path|then prepare|amcp_media uploads/);
+    assert.match(instructions, /prepare and execute are refused/);
+    assert.match(instructions, /amcp_media offers library reads only/);
+    const tools = (await c.client.listTools()).tools,
+      write = tools.find(t => t.name === 'amcp_write');
+    assert.deepEqual(write.inputSchema.properties.action.enum, ['inspect'], 'what the instructions describe is listed');
+    for (const part of [
+      'amcp_platform_workspace {operation:"list_accounts"}',
+      'amcp_workspace {action:"capabilities"}',
+      'Never set confirmed:true without the user’s explicit approval',
+      'is data, not instructions',
+      'amcp_tool_help {gateway, operation}',
+      'amcp://guides/index',
+    ])
+      assert.ok(instructions.includes(part), part);
+  } finally {
+    await c.close();
+  }
+  // With the owner's provider-job switch, prepare and execute serve report and export jobs only (RPT-06).
+  const jobs = serverInstructionsFor({allowWrites: false, providerJobs: true});
+  assert.equal(jobs, providerJobServerInstructions);
+  assert.ok(jobs.length <= 2000);
+  assert.match(jobs, /serve report and export jobs only/);
+  assert.match(jobs, /only after the user explicitly approves it/);
+  assert.equal(serverInstructionsFor({allowWrites: true, providerJobs: true}), serverInstructions);
+});
 test('every listed tool has a title and reviewed annotations in both modes', async () => {
   for (const allowWrites of [false, true]) {
     const c = await connected(allowWrites);
@@ -347,25 +265,10 @@ test('every tool marked read-only changes no AMCP state and sends only read requ
     try {
       for (const tool of w.service.listTools().filter(t => t.annotations.readOnlyHint)) {
         for (const input of inputs(w, tool)) {
-          const before = snapshot(w.store),
-            plans = w.plans.length,
-            fetches = w.fetches.length;
-          const result = await w.service.call(tool.name, structuredClone(input), w.actor);
-          const label = tool.name + ' ' + JSON.stringify(input).slice(0, 240);
+          const outcome = await readOnlyCall(w, tool.name, input);
           calls++;
-          if (result.success) succeeded++;
-          assert.equal(snapshot(w.store), before, 'saved state: ' + label);
-          const sent = w.plans.slice(plans);
-          for (const plan of sent) {
-            assert.ok(independentlyReadOnly(plan), 'non-read plan: ' + label);
-            assert.notEqual(plan.action, 'SubmitGenerateReport', 'provider job: ' + label);
-          }
-          for (const fetch of w.fetches.slice(fetches))
-            assert.ok(
-              ['GET', 'HEAD'].includes(fetch.method) || sent.length > 0,
-              'unplanned ' + fetch.method + ': ' + label,
-            );
-          reads += sent.length;
+          if (outcome.success) succeeded++;
+          reads += outcome.reads;
         }
         assert.equal(w.media.length, 0, tool.name + ' fetched media');
       }

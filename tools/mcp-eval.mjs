@@ -1,13 +1,16 @@
 // Journey and MCP evaluation (QA-04, B15 "measured"). Runs the eight user journeys (tests/journeys/journeys.mjs, four
-// branches each) and the B15 tasks (tests/journeys/b15-tasks.json, reference and guided runs) against an in-memory MCP
-// server, the loopback website and synthetic providers, with zero egress, and compares the metrics with the committed
-// baseline (tests/journeys/baseline.json). It also measures external AI clients' sanitized transcripts with the same
-// metric code, as ranges over repeated runs.
+// branches each), the B15 tasks (tests/journeys/b15-tasks.json, reference and guided runs) and the MCP evaluation set
+// (tests/fixtures/mcp-evaluation/evaluation.xml, each question answered by its reference solution) against an
+// in-memory MCP server, the loopback website and synthetic providers, with zero egress, and compares the metrics with
+// the committed baseline (tests/journeys/baseline.json). It also measures external AI clients' sanitized transcripts
+// with the same metric code, and the mcp-builder skill's LLM runner reports against the reference solutions, as ranges
+// over repeated runs.
 //
-//   node tools/mcp-eval.mjs [--check] [--only J1,T3,J2/failure] [--fault <name>] [--output <new file>] [--transcripts]
+//   node tools/mcp-eval.mjs [--check] [--only J1,T3,E4,J2/failure] [--fault <name>] [--output <new file>] [--transcripts]
 //   node tools/mcp-eval.mjs --write-baseline
 //   node tools/mcp-eval.mjs --sanitize <raw calls.json> --output <new file>
 //   node tools/mcp-eval.mjs --external <runs.json> [--output <new file>]
+//   node tools/mcp-eval.mjs --skill-report <report.md>[,<report.md>...] [--output <new file>]
 //
 // --check (the default) exits non-zero when a count rises, an end state, handoff or tool choice gets worse, or response
 // bytes grow beyond the tolerance. --fault applies a deliberate regression (strip-next-call, hide-attention) so the
@@ -21,7 +24,8 @@ export const baselineFile = fileURLToPath(new URL('../tests/journeys/baseline.js
 export const tolerance = Object.freeze({bytesTolerance: 0.1, bytesSlack: 512});
 const usage =
   'Use: node tools/mcp-eval.mjs [--check] [--only <ids>] [--fault <name>] [--output <new file>] [--transcripts] | ' +
-  '--write-baseline | --sanitize <raw.json> --output <new file> | --external <runs.json> [--output <new file>]';
+  '--write-baseline | --sanitize <raw.json> --output <new file> | --external <runs.json> [--output <new file>] | ' +
+  '--skill-report <report.md>[,<report.md>...] [--output <new file>]';
 
 /** Parses the arguments; every option at most once, and the modes exclusive. */
 export function evaluationArguments(argv) {
@@ -49,7 +53,7 @@ export function evaluationArguments(argv) {
     else if (argument === '--only') options.only = take(index++).split(',').filter(Boolean);
     else if (argument === '--fault') options.fault = take(index++);
     else if (argument === '--output') options.output = take(index++);
-    else if (argument === '--sanitize' || argument === '--external') {
+    else if (argument === '--sanitize' || argument === '--external' || argument === '--skill-report') {
       options.mode = options.mode === 'check' ? argument.slice(2) : null;
       options.input = take(index++);
     } else throw Error(usage);
@@ -59,9 +63,31 @@ export function evaluationArguments(argv) {
   if (options.mode === 'write-baseline' && (options.only || options.fault || options.output))
     throw Error('MCP_EVAL_BASELINE_PARTIAL: the baseline is written from a complete run without a fault.');
   if (options.mode === 'sanitize' && !options.output) throw Error(usage);
-  if (['sanitize', 'external'].includes(options.mode) && (options.only || options.fault || options.transcripts))
+  if (
+    ['sanitize', 'external', 'skill-report'].includes(options.mode) &&
+    (options.only || options.fault || options.transcripts)
+  )
     throw Error(usage);
   return options;
+}
+
+/**
+ * Measures one or more reports of the mcp-builder skill's LLM runner (scripts/evaluation.py -o <report.md>) against
+ * the evaluation set: each task's correctness, tool calls by tool, and the calls beyond the reference solution's
+ * (from the committed baseline). Several reports (repeated runs) are summarized as ranges per question.
+ */
+export async function measureSkillReports(files, baseline = readBaseline()) {
+  const {skillReport, skillRanges} = await import('../tests/journeys/evaluation-set.mjs');
+  const references = Object.fromEntries(
+    Object.entries(baseline.runs?.evaluation_set ?? {}).map(([id, run]) => [id, run.tool_calls]),
+  );
+  const records = files.map(file => skillReport(fs.readFileSync(file, 'utf8'), undefined, references));
+  return {
+    schema_version: 1,
+    record_kind: 'amcp_skill_evaluation_runs',
+    runs: records.map(r => ({tasks: r.tasks, correct: r.correct, total: r.total})),
+    ranges: skillRanges(records),
+  };
 }
 
 /** The committed baseline from a complete evaluation record: metrics only, no transcripts, no durations. */
@@ -158,6 +184,12 @@ async function main(argv) {
   }
   if (options.mode === 'external') {
     const measuredRuns = await measureExternal(JSON.parse(fs.readFileSync(options.input, 'utf8')));
+    if (options.output) writeNew(options.output, measuredRuns);
+    console.log(JSON.stringify(measuredRuns.ranges, null, 2));
+    return 0;
+  }
+  if (options.mode === 'skill-report') {
+    const measuredRuns = await measureSkillReports(options.input.split(',').filter(Boolean));
     if (options.output) writeNew(options.output, measuredRuns);
     console.log(JSON.stringify(measuredRuns.ranges, null, 2));
     return 0;

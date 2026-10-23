@@ -1,5 +1,6 @@
 import type {JsonObject} from './types.js';
 import {actionSummaries, firstPartyContract, type FirstPartyContract} from './first-party-contracts.js';
+import {firstPartyActionHints} from './tool-annotations.js';
 
 /**
  * What tools/list shows of each tool (MCP-01). Clients truncate a description at 2,048 characters, and under tool search
@@ -155,12 +156,17 @@ export function firstPartyHelp(
     see: {tool: 'amcp_tool_help', arguments: {gateway: tool.name}},
   };
 }
-/** A contract row as help serves it: the arguments as one JSON Schema, effects, role and the usual next calls. */
+/**
+ * A contract row as help serves it: the arguments as one JSON Schema, effects, the action's own MCP hints (MCP-06 per
+ * operation: a tool's hints in tools/list cover all of its actions; gateway help has no room for them under the
+ * one-call budget, D14), role and the usual next calls.
+ */
 const contractView = (c: FirstPartyContract): JsonObject => ({
   arguments_schema: c.argumentsSchema,
   effects: c.effects,
+  annotations: firstPartyActionHints(c.tool, c.action, c.effects),
   requires_role: c.requires_role,
   next: c.next.map(n => ({tool: n.tool, arguments: {action: n.action}})),
   meaning:
-    'Arguments outside arguments_schema are not read by this action: they draw a meta.argument_warnings entry now and are refused with INVALID_ARGUMENT in a later release. effects are the most a call can do.',
+    'Arguments outside arguments_schema are not read by this action: they draw a meta.argument_warnings entry now and are refused with INVALID_ARGUMENT in a later release. effects are the most a call can do; annotations are this action’s MCP hints.',
 });

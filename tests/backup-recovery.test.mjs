@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {spawn, spawnSync} from 'node:child_process';
+import {spawn} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
 import {createCipheriv, createHash, randomBytes} from 'node:crypto';
 import {DatabaseSync, backup} from 'node:sqlite';
@@ -12,10 +12,10 @@ import {Store} from '../dist/src/store.js';
 import {MirrorService} from '../dist/src/service.js';
 import {Registry} from '../dist/src/catalog.js';
 import {removeTestDirectory} from '../dist/tests/temp.js';
+import {runAdmin} from '../dist/tests/admin-cli.js';
 
 const key = Buffer.alloc(32, 67).toString('base64'),
-  actor = {tenantId: 'backup', userId: 'operator', role: 'admin'},
-  cli = path.resolve('dist/tools/admin.js');
+  actor = {tenantId: 'backup', userId: 'operator', role: 'admin'};
 async function fixture() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-backup-recovery-')),
     source = path.join(dir, 'source.amcp'),
@@ -52,7 +52,7 @@ test('Backup verification CLI never opens or creates MIRROR_DB', async () => {
   const f = await fixture();
   try {
     const unrelated = path.join(f.dir, 'must-not-exist.sqlite'),
-      run = spawnSync(process.execPath, [cli, 'backup-verify', f.source], {
+      run = runAdmin(['backup-verify', f.source], {
         encoding: 'utf8',
         env: {...process.env, MIRROR_DB: unrelated, MIRROR_MASTER_KEY: key},
         timeout: 15000,
@@ -94,7 +94,7 @@ test('Backup restore CLI remains offline even with a corrupt configured database
     const unrelated = path.join(f.dir, 'corrupt-current.sqlite'),
       sentinel = Buffer.from('This file must not be opened as SQLite.');
     fs.writeFileSync(unrelated, sentinel);
-    const run = spawnSync(process.execPath, [cli, 'backup-restore', f.source, f.target], {
+    const run = runAdmin(['backup-restore', f.source, f.target], {
       encoding: 'utf8',
       env: {...process.env, MIRROR_DB: unrelated, MIRROR_MASTER_KEY: key},
       timeout: 15000,
@@ -433,7 +433,7 @@ test('Invalid recovery CLI arguments never create or inspect a configured databa
       ['backup-restore', f.source],
       ['backup-restore', f.source, f.target, 'extra'],
     ]) {
-      const run = spawnSync(process.execPath, [cli, ...args], {
+      const run = runAdmin(args, {
         encoding: 'utf8',
         env: {...process.env, MIRROR_DB: unrelated, MIRROR_MASTER_KEY: key},
         timeout: 15000,
@@ -507,10 +507,10 @@ test('A process interruption before atomic publication leaves no destination or 
     fs.writeFileSync(hook, "import fs from 'node:fs'; fs.linkSync=()=>process.exit(73);\n");
     const before = fs.readFileSync(f.source),
       unrelated = path.join(f.dir, 'must-not-exist.sqlite'),
-      run = spawnSync(
-        process.execPath,
-        ['--import', pathToFileURL(hook).href, cli, 'backup-restore', f.source, f.target],
-        {encoding: 'utf8', env: {...process.env, MIRROR_DB: unrelated, MIRROR_MASTER_KEY: key}, timeout: 15000},
+      run = runAdmin(
+        ['backup-restore', f.source, f.target],
+        {env: {...process.env, MIRROR_DB: unrelated, MIRROR_MASTER_KEY: key}, timeout: 15000},
+        ['--import', pathToFileURL(hook).href],
       );
     assert.equal(run.status, 73, run.stderr);
     assert.equal(fs.existsSync(f.target), false);
@@ -678,8 +678,8 @@ test('in production a backup on the database volume is refused unless allowed, b
       NODE_ENV: 'production',
       AMCP_BACKUP_TMPDIR: f.dir,
     };
-    // Exercise the volume policy even when the Docker build runs the CLI as root.
-    const refused = spawnSync(process.execPath, [cli, '--allow-root', 'backup', path.join(f.dir, 'cli.amcp')], {
+    // runAdmin passes --allow-root, so the volume policy is exercised even when the Docker build runs the CLI as root.
+    const refused = runAdmin(['backup', path.join(f.dir, 'cli.amcp')], {
       encoding: 'utf8',
       env,
       timeout: 30000,
@@ -687,15 +687,11 @@ test('in production a backup on the database volume is refused unless allowed, b
     assert.equal(refused.status, 1);
     assert.match(refused.stderr, /BACKUP_SAME_VOLUME/);
     assert.equal(fs.existsSync(path.join(f.dir, 'cli.amcp')), false);
-    const forced = spawnSync(
-      process.execPath,
-      [cli, '--allow-root', 'backup', path.join(f.dir, 'cli.amcp'), '--allow-same-volume'],
-      {
-        encoding: 'utf8',
-        env,
-        timeout: 30000,
-      },
-    );
+    const forced = runAdmin(['backup', path.join(f.dir, 'cli.amcp'), '--allow-same-volume'], {
+      encoding: 'utf8',
+      env,
+      timeout: 30000,
+    });
     assert.equal(forced.status, 0, forced.stderr);
     assert.equal(JSON.parse(forced.stdout).destination_same_volume, true);
   } finally {
@@ -750,27 +746,19 @@ test('a restore drill records recovery time, recovery point and what to reconcil
     const unrelated = path.join(f.dir, 'must-not-exist.sqlite'),
       record = path.join(f.dir, 'drill-record.json'),
       env = {...process.env, MIRROR_DB: unrelated, MIRROR_MASTER_KEY: key},
-      run = spawnSync(
-        process.execPath,
-        [cli, 'backup-drill', archive, path.join(f.dir, 'drill-2.sqlite'), '--record', record],
-        {
-          encoding: 'utf8',
-          env,
-          timeout: 30000,
-        },
-      );
-    assert.equal(run.status, 0, run.stderr);
-    assert.equal(JSON.parse(fs.readFileSync(record, 'utf8')).record_kind, 'amcp_restore_drill');
-    assert.equal(fs.existsSync(unrelated), false);
-    const again = spawnSync(
-      process.execPath,
-      [cli, 'backup-drill', archive, path.join(f.dir, 'drill-3.sqlite'), '--record', record],
-      {
+      run = runAdmin(['backup-drill', archive, path.join(f.dir, 'drill-2.sqlite'), '--record', record], {
         encoding: 'utf8',
         env,
         timeout: 30000,
-      },
-    );
+      });
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(JSON.parse(fs.readFileSync(record, 'utf8')).record_kind, 'amcp_restore_drill');
+    assert.equal(fs.existsSync(unrelated), false);
+    const again = runAdmin(['backup-drill', archive, path.join(f.dir, 'drill-3.sqlite'), '--record', record], {
+      encoding: 'utf8',
+      env,
+      timeout: 30000,
+    });
     assert.equal(again.status, 1);
     assert.match(again.stderr, /BACKUP_PATH_REQUIRED/);
     assert.equal(fs.existsSync(path.join(f.dir, 'drill-3.sqlite')), false);

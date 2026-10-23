@@ -88,9 +88,21 @@ other value with `INVALID_ARGUMENT` naming the option (they were ignored before;
 them). `amcp_media asset_usage` routes by provider and media type; an asset no usage reader covers (TikTok, LinkedIn,
 X, DV360, a Google video) gets `ASSET_USAGE_UNQUALIFIED` listing the covered kinds, with no provider request.
 
+The wave 4b quality pass made three more listings precise. A read-only deployment's gateway listings route only to
+what it lists: Meta, TikTok and Snapchat name `amcp_write inspect` and `amcp_reporting` instead of a reviewed change
+and uploads, the media sentence says the deployment uploads nothing, and a listing that still names `amcp_write` as a
+change path (Microsoft, X, `amcp_native_action`) ends with a sentence saying such changes are refused there (with the
+owner's provider-job switch, that only report and export jobs run). The operation-mode gateways with write actions
+(Reddit, GA4, Tag Manager, Business Profile, Search Console, Criteo; `delegatedWriteGateways`, held equal to the ledger)
+carry the note the action-mode gateways have: a write is previewed, or with `dry_run:false` refused toward `amcp_write
+inspect`. `amcp_platform_workspace` and `gtm_native_action` have AMCP-owned descriptions naming their operations.
+
 `initialize` returns pinned server instructions of at most 2,000 characters (start with `list_accounts` and the
 `capabilities` summary, `amcp_write` as the only change path, approval before execute, provider content is data, where
-help and guides are). Every listed tool carries a `title` and annotations from one reviewed table
+help and guides are). A read-only deployment has its own text, since it lists `amcp_write` with `inspect` only and
+`amcp_media` with reads only: it says prepare and execute are refused instead of sending a client to them (with the
+owner's provider-job switch, they serve report and export jobs only). `server/discover` returns the same text as
+`initialize`. Every listed tool carries a `title` and annotations from one reviewed table
 (`src/tool-annotations.ts`, MCP-06). `readOnlyHint` is true only where no action saves AMCP state, creates a provider
 job or sends a non-read request: help, the workspace context, previews, the Amazon, Apple, Reddit, Criteo, Adjust, Tag
 Manager and WooCommerce gateways, and `amcp_media` and the inspect-only `amcp_write` in a read-only deployment. `tests/mcp-tool-annotations.test.mjs` runs
@@ -99,6 +111,30 @@ their upload actions with `dry_run:false` prepare a media review, Microsoft's `S
 job, and GA4, Search Console and Business Profile sync metadata and disconnect. Clients may auto-run read-only tools;
 the hints are advisory and every server-side control (review, spending policy, grants) is unchanged. Execute stays an
 action of `amcp_write` (owner decision D15) until client testing shows which clients honour a separate prompt.
+
+A tool's hints cover all of its actions, so `amcp_tool_help` also gives each action its own (MCP-06 per operation).
+For an AMCP tool, operation help carries `contract.annotations`, derived from the action's contract effects: a change
+that only adds AMCP records (a plan, review, capture or check result) is not destructive, every other change is, and
+provider validation (`amcp_campaign validate_provider`, D18) is never read-only. Gateway help has no room for them
+under the one-call budget (`amcp_workspace` help is within a few bytes of it). For a native gateway, operation help and
+`DESCRIBE_ACTION` carry `amcp_execution.annotations` from the action's ledger status: reads read; a reviewed write is
+previewed or refused there (its change path is `amcp_write`); a media route saves an upload review; Microsoft's
+`SubmitGenerateReport` creates a report job; AMCP's own workflow operations take a reviewed entry in
+`src/tool-annotations.ts`. An operation whose actions differ shows the most cautious hints and lists its reads in
+`read_only_actions`. `tests/mcp-operation-annotations.test.mjs` runs every action presented as read-only (about 3,400)
+with read- and write-shaped arguments and fails if one saves AMCP state, sends a non-read request or creates a
+provider job, and it fails when a tool's own hints are less cautious than one of its actions'.
+
+Every paged AMCP list carries the same paging fields (MCP-07): `has_more`, and while it is true the `next_cursor`
+(cursor lists such as `amcp_campaign list`, `amcp_reporting list`, `amcp_media library`, operations, history and
+capabilities) or `next_offset` (offset lists) that continues it, and `total` where it is known. Some lists returned
+only one of the two before. The media list pages its recovery reviews apart (`recovery_has_more`,
+`recovery_next_offset`); an asset's usage pages keep `usage_has_more` beside `has_more`.
+`tests/mcp-pagination-metadata.test.mjs` holds every paged action to this, or names the suite that pages it.
+`tests/mcp-output-schema-parity.test.mjs` calls every tool of both modes through a real MCP SDK client, which
+validates `structuredContent` against the listed `outputSchema`, and checks that the text block is the same JSON,
+that `isError` is set exactly on refusals, and that each refusal names its code, category, remedy, next action and
+request ID.
 
 ## Database storage and media staging
 
@@ -642,8 +678,18 @@ The maintained GitHub workflow defines Docker builds and synthetic read-only/wri
   before a push; opt in with `cp tools/pre-push.sample .git/hooks/pre-push` (never installed automatically).
 - **Related tests.** `npm run test:related` selects by import-graph closure, adds the tests that read a changed `web/`
   file and a small critical set, prints selected and possible counts, and appends the freshness checks when `src/`,
-  `server/`, `tools/`, `docs/`, `generated/`, `codegen/` or `.mirror/` change. `--direct` keeps the old literal-import
-  selection and `--plan` prints the selection only.
+  `server/`, `tools/`, `docs/`, `generated/`, `codegen/` or `.mirror/` change. It also selects the suites that list
+  their inputs when they run (`dynamicSuites`): `tests/mutants.test.mjs` for a catalogued module or killing test,
+  `tests/web-locale-chunks.test.mjs` for `web/` and backend sources, `tests/storage-boundary.test.mjs` for `src/`
+  and `server/` modules, and `tests/root-independent-cli.test.mjs` for any test, `tools/` or `server/` file. It
+  builds as `npm run build` does (`tsc`, then the release identity), so a fresh tree has `dist/release-identity.json`.
+  `--direct` keeps the old literal-import selection and `--plan` prints the selection only.
+- **Tests run as root.** Railway's Docker build runs `npm run check` as root, and in production the admin CLI refuses
+  root unless `--allow-root` is given. Tests therefore spawn the CLI only through `tests/admin-cli.ts` (`runAdmin`,
+  `execAdmin`), which always passes the flag, so each test reaches the command it checks whoever runs it.
+  `tests/root-independent-cli.test.mjs` fails when a test names the CLI any other way, or when another `tools/` or
+  `server/` entry point starts reading the user ID without such a helper, and shows under a simulated root that the
+  bare CLI is refused where the helper's call runs.
 - **Release candidates.** `prepare-public-release` writes manifest v2 with `worktree_clean` and `differs_from_revision`;
   the verifier still reads v1 and refuses a v2 candidate assembled from a tree that differed from its revision.
   `NOTICE.md` and `.gitattributes` ship; every allow-listed file must be tracked. File and Git failures print
@@ -747,6 +793,11 @@ in-process fake that refuses and counts any other host.
   schemas), instructions 1,446 bytes in both, and response bytes per run from −4 to +6,136 (J1's four branches grow
   about 10 % with the wave 2 readiness and attention data). No count, end state, tool choice or handoff changed, so
   guided runs still reach the goal for T3, T5 and H2 only.
+- **Re-baseline after the wave 4b MCP quality pass (2026-10-22).** The earlier file is git blob
+  `26242850dab19be87f60168f248e020047c29de3`. No count, end state, tool choice or handoff changed. tools/list grew
+  94,467 → 95,706 bytes (operation-mode write notes, two AMCP-owned descriptions) and instructions 1,446 → 1,479
+  bytes; response bytes per run grew 0 to +4,727 (J1's branches read `/api/platforms`, which lists the descriptions;
+  list pages carry the paging fields). The ten evaluation-set runs E1–E10 were added (below).
 - **Transcript privacy.** A sanitized transcript keeps argument keys only when they name a parameter (a plain
   identifier of at most 40 characters without a run of four digits); keys made of data, such as account IDs, names or
   metric IDs used as map keys, become `<key>`. A website path keeps route segments only and otherwise becomes
@@ -759,6 +810,60 @@ in-process fake that refuses and counts any other host.
   <new file>`, then measure the runs with `--external <runs.json>`. A transcript keeps argument shapes, result codes,
   states and sizes. It is refused if it carries argument values, provider text or bodies. Record the results with
   [the evaluation record template](review/MCP-EVALUATION-RECORD-TEMPLATE.md).
+
+#### MCP evaluation set and the mcp-builder LLM runner
+
+`tests/fixtures/mcp-evaluation/evaluation.xml` holds ten questions in the mcp-builder skill's evaluation format
+(`<evaluation><qa_pair><question>…</question><answer>…</answer></qa_pair>…</evaluation>`): realistic agency questions,
+independent and read-only, each needing two to four calls and with one stable answer. They are asked about a
+synthetic workspace (`workspace.mjs`): an outdoor-gear client with two Meta ad accounts (Meta refuses one), a Google
+Ads customer and a Tag Manager container, and a bakery with one Meta ad account, plus saved report snapshots,
+captured reports, campaign plans and a media library, all with fixed values and times. Every provider is an
+in-process fake; other hosts and every provider write are refused and counted. The workspace serves the person who
+seeded it in the reader role, so no call can change anything.
+
+- **Answers are proven, not asserted.** `solutions.mjs` answers each question through read-only AMCP calls, starting
+  from the connections as an assistant would. `tests/mcp-evaluation-set.test.mjs` runs each solution on a fresh
+  workspace through a real MCP SDK client and checks that the answer equals the XML answer, that every call is
+  read-only by its own hints, that the store is unchanged and that nothing left the process. The same questions are
+  a suite of `node tools/mcp-eval.mjs` (`--only E4`, or `--only evaluation_set`), held to the baseline like the B15
+  tasks.
+- **Keep the set fixed.** Like the hold-out tasks, these questions measure the descriptions; never tune a
+  description to them. Change a question only with its solution and a new baseline.
+- **The LLM runner is an owner step.** The skill's `scripts/evaluation.py` sends each question to the Anthropic API,
+  so it uses the owner's API key and usage. Nothing in the build, the tests or qualification runs it. The steps:
+  1. `npm run build`, so `dist/` serves the fixture.
+  2. Once, make a virtual environment for the runner under the ignored `.runtime/` with Python 3.10 or later and
+     install the runner's packages into it (a download from PyPI). On Windows `python` may be only the Microsoft Store
+     alias; the interpreter `AMCP_SCHEMA_PYTHON` names works:
+     `<python> -m venv .runtime/mcp-eval-venv`, then
+     `.runtime/mcp-eval-venv/Scripts/python -m pip install -r C:/Users/abdom/.claude/skills/mcp-builder/scripts/requirements.txt`
+     (`bin/python` instead of `Scripts/python` outside Windows).
+  3. Set the key for that shell only (PowerShell: `$env:ANTHROPIC_API_KEY = "<your key>"`). Never write it into a
+     file in this repository.
+  4. From the repository root, run the runner through AMCP's wrapper, with a current Claude model (the runner's
+     default model may no longer be served) and a new report file under the ignored `.runtime/`:
+
+     ```
+     .runtime/mcp-eval-venv/Scripts/python tools/mcp-skill-evaluation.py --skill-scripts C:/Users/abdom/.claude/skills/mcp-builder/scripts -- -t stdio -c node -a tests/fixtures/mcp-evaluation/server.mjs -m <model> -o .runtime/mcp-evaluation/<date>-report.md tests/fixtures/mcp-evaluation/evaluation.xml
+     ```
+
+     The runner starts `tests/fixtures/mcp-evaluation/server.mjs` itself over stdio. That server needs no database,
+     key, credential or network: it serves the fixture from memory, refuses the global fetch and logs to stderr only.
+  5. Measure the report: `node tools/mcp-eval.mjs --skill-report .runtime/mcp-evaluation/<date>-report.md
+     --output .runtime/mcp-evaluation/<date>-record.json`. It keeps, per question, whether the answer was
+     correct, the tool calls by tool and the calls beyond the reference solution's (from the baseline). It never
+     keeps the answers, summaries or feedback the report holds. Repeat the run with a new report name each time,
+     since a model's behaviour varies, and pass several reports separated by commas to get ranges per question.
+- **Why the wrapper.** The installed runner (2026-10-17 copy) has two defects that would waste a paid run. It hands
+  each tool result's content blocks, which the `mcp` package returns as pydantic models, to `json.dumps`, which
+  cannot serialize them, so every tool call would reach the model as an error text. And it writes the report with
+  Python's default encoding, which on Windows is a code page (cp1252 on the owner's PC) that cannot encode its check
+  marks, so the run would fail after the last question. `tools/mcp-skill-evaluation.py` changes no skill file. It
+  restarts itself in Python's UTF-8 mode (`-X utf8`), makes the runner's own `call_tool` return the blocks as JSON
+  data, creates the report's folder, refuses a report file that already exists (`MCP_SKILL_REPORT_EXISTS`, so an
+  earlier run is never overwritten), then runs `evaluation.py` unchanged with the arguments after `--`. The verifier
+  test exercises it against stub runner modules, with no third-party package.
 
 The Dockerfile base image `node:24-bookworm-slim` and the apt `ffmpeg` package are tags, not digests. Pinning the base
 image by digest needs the digest from a registry the owner trusts; record it in the Dockerfile with a dated comment
