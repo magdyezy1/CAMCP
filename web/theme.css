@@ -164,11 +164,6 @@
 [data-theme='dark'] :is(.error, .status.error) {
   color: var(--danger);
 }
-[data-theme='dark']
-  :is(.platform-meta, .platform-google, .platform-tiktok, .platform-snapchat, .platform-linkedin, .platform-microsoft) {
-  color: var(--ink);
-  background: var(--surface-accent);
-}
 [data-theme='dark'] :is(.about-art-card, .auth-form-card .owner-entry) {
   background: var(--surface-subtle);
 }
