@@ -13,6 +13,7 @@ import {
   readColourAllowlist,
   tokenSheets,
 } from './check-colours.mjs';
+import {checkDesignTokens} from './check-design-tokens.mjs';
 import {localeChunkProblems, planLocaleChunks} from './locale-chunks.mjs';
 import {readRouteBytesBaseline, routeBytes, routeBytesOpen, routeBytesProblems} from './web-route-bytes.mjs';
 
@@ -91,6 +92,9 @@ for (const sheet of stylesheets)
 // WEB-07: tokens.css sets every colour for both themes, and the literal colours left in stylesheets only go down.
 const colours = checkColours();
 problems.push(...colours.problems);
+// The radius, shadow, motion and type scales: hand-written values only go down, and every token read exists.
+const designTokens = checkDesignTokens();
+problems.push(...designTokens.problems);
 // WEB-05: one set of stylesheets serves both directions; a physical left/right side needs an allow-list entry.
 for (const sheet of fs
   .readdirSync('web', {recursive: true})
@@ -169,6 +173,15 @@ console.log(
   'Theme colours: tokens.css sets both themes; ' +
     Object.values(colours.counts).reduce((sum, count) => sum + count, 0) +
     ' literal colours remain in stylesheets, none above the baseline.',
+);
+console.log(
+  'Design tokens: ' +
+    ['radius', 'shadow', 'motion', 'type']
+      .map(scale => Object.values(designTokens.counts).reduce((sum, c) => sum + c[scale], 0) + ' ' + scale)
+      .join(', ') +
+    ' values written by hand and ' +
+    Object.values(designTokens.counts).reduce((sum, c) => sum + c.spacing, 0) +
+    ' spacing values off the 4px grid, none above the baseline; every token read is defined.',
 );
 console.log(
   'Arabic catalog covers ' +

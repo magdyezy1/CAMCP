@@ -1,5 +1,5 @@
 {
-  "meaning": "WEB-07: literal colours reviewed to stay literal in both themes (brand marks, print). Each entry names its stylesheet, selector, property and value exactly; the list may only shrink (tools/check-colours.mjs).",
+  "meaning": "WEB-07: literal colours reviewed to stay literal in both themes (brand marks, print). Each entry names its stylesheet, selector, property and value exactly; the list may only shrink (tools/check-colours.mjs). \"scripts\" lists the colours scripts write (data defaults, QR pixels, the downloaded report document) by file, value and count; it may only shrink too.",
   "entries": [
     {
       "file": "app.css",
@@ -84,6 +84,78 @@
       "property": "background",
       "value": "#fff",
       "reason": "Printed policies are always on white paper, whatever the screen's theme"
+    }
+  ],
+  "scripts": [
+    {
+      "file": "client-playbooks.js",
+      "value": "#354b67",
+      "within": "accent_color",
+      "count": 2,
+      "reason": "Default report accent a person may change (src/report-packs.ts defaultPresentation)"
+    },
+    {
+      "file": "report-delivery.js",
+      "value": "#354b67",
+      "within": "accent_color",
+      "count": 1,
+      "reason": "Default report accent a person may change (src/report-packs.ts defaultPresentation)"
+    },
+    {
+      "file": "report-presentation.js",
+      "value": "#354b67",
+      "within": "accent_color",
+      "count": 1,
+      "reason": "Default report accent a person may change (src/report-packs.ts defaultPresentation)"
+    },
+    {
+      "file": "evidence-workflows.js",
+      "value": "#354b67",
+      "within": "accent_color",
+      "count": 1,
+      "reason": "A report pack's own accent when it names none (src/report-packs.ts defaultPresentation)"
+    },
+    {
+      "file": "evidence-workflows.js",
+      "value": "#252336",
+      "within": "</title><style>",
+      "count": 1,
+      "reason": "Downloaded report document: a standalone file without the website's stylesheets"
+    },
+    {
+      "file": "evidence-workflows.js",
+      "value": "#ddd",
+      "within": "</title><style>",
+      "count": 2,
+      "reason": "Downloaded report document: a standalone file without the website's stylesheets"
+    },
+    {
+      "file": "evidence-workflows.js",
+      "value": "#ebe9f6",
+      "within": "</title><style>",
+      "count": 1,
+      "reason": "Downloaded report document's chart track; on the website .pack-track takes a token"
+    },
+    {
+      "file": "evidence-workflows.js",
+      "value": "#5a43ad",
+      "within": "</title><style>",
+      "count": 1,
+      "reason": "Downloaded report document's chart bar; on the website .pack-bar takes a token"
+    },
+    {
+      "file": "mfa-qr.js",
+      "value": "#fff",
+      "within": "fill=",
+      "count": 1,
+      "reason": "QR code ground: dark modules on white in both themes so authenticator apps can read it"
+    },
+    {
+      "file": "mfa-qr.js",
+      "value": "#000",
+      "within": "fill=",
+      "count": 1,
+      "reason": "QR code modules: dark modules on white in both themes so authenticator apps can read it"
     }
   ]
 }

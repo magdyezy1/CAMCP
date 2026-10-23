@@ -28,8 +28,8 @@
 .report-control-panel {
   border: 1px solid var(--border);
   background: var(--white);
-  border-radius: 22px;
-  box-shadow: 0 10px 35px var(--shadow-soft);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-2);
   overflow: hidden;
 }
 .report-control-top {
@@ -47,7 +47,7 @@
 .report-delivery-policy {
   display: grid;
   gap: 7px;
-  font-size: 12px;
+  font-size: var(--type-xs);
   color: var(--text-secondary-strong);
 }
 .report-control-top input,
@@ -63,7 +63,7 @@
   min-height: 40px;
   background: var(--white);
   border: 1px solid var(--border-strong);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   padding: 9px 12px;
   min-width: 0;
   width: 100%;
@@ -110,7 +110,7 @@ h2.report-section-label {
 }
 .report-section-label small {
   margin-inline-start: 5px;
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .report-platforms {
   display: grid;
@@ -121,7 +121,7 @@ h2.report-section-label {
 }
 .report-platform {
   border: 1px solid var(--border);
-  border-radius: 13px;
+  border-radius: var(--radius-lg);
   background: var(--white);
 }
 .report-platform summary {
@@ -144,8 +144,8 @@ h2.report-section-label {
   color: var(--text-accent);
   width: 30px;
   height: 30px;
-  border-radius: 10px;
-  font-size: 16px;
+  border-radius: var(--radius-md);
+  font-size: var(--type-lg);
 }
 .platform-meta {
   background: var(--platform-meta-bg);
@@ -207,12 +207,12 @@ h2.report-section-label {
 }
 .native-settings summary {
   padding: 0;
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .native-settings textarea {
   width: 100%;
   border: 1px solid var(--border-strong);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   padding: 8px;
   resize: vertical;
 }
@@ -263,7 +263,7 @@ h2.report-section-label {
   padding: 7px 10px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   font-size: 11px;
 }
 .metric-pills input:checked + span {
@@ -272,7 +272,7 @@ h2.report-section-label {
   color: var(--text-accent-strong);
 }
 .metric-pills input:focus-visible + span {
-  outline: 2px solid var(--iris-700);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 .custom-metric-heading {
@@ -283,7 +283,7 @@ h2.report-section-label {
   padding: 18px 24px 0;
 }
 .custom-metric-heading p {
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .custom-metric-row {
   display: flex;
@@ -291,7 +291,7 @@ h2.report-section-label {
   gap: 16px;
   border-top: 1px solid var(--border);
   padding: 13px 0;
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .custom-metric-row > div {
   flex: 1;
@@ -299,7 +299,7 @@ h2.report-section-label {
 .custom-metric-row code {
   display: block;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--type-xs);
   margin-top: 5px;
 }
 .custom-metric-fields {
@@ -320,7 +320,7 @@ h2.report-section-label {
 }
 .target-card {
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: 18px;
   background: var(--surface-raised);
 }
@@ -356,7 +356,7 @@ h2.report-section-label {
   padding: 18px 24px;
   border-top: 1px solid var(--border);
   background: var(--surface-raised);
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .report-runbar > div {
   display: flex;
@@ -378,13 +378,13 @@ h2.report-section-label {
   gap: 16px;
   background: var(--surface-subtle);
   border: 1px solid var(--border-accent);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   padding: 20px;
   margin: 15px 0;
   color: var(--text-accent-strong);
 }
 .report-progress p {
-  font-size: 12px;
+  font-size: var(--type-xs);
   margin: 6px 0;
 }
 /* RPT-05: partial snapshot strip, queued time and stall notice. */
@@ -393,13 +393,13 @@ h2.report-section-label {
   padding: 14px 18px;
   border: 1px solid var(--line-strong);
   border-inline-start: 4px solid var(--warning-ink);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--warning-bg);
   color: var(--ink);
 }
 .report-status-strip p {
   margin: 6px 0 0;
-  font-size: 13px;
+  font-size: var(--type-sm);
   line-height: 1.5;
 }
 .report-status-strip code {
@@ -407,7 +407,7 @@ h2.report-section-label {
 }
 .report-queued {
   margin: -6px 0 12px;
-  font-size: 12px;
+  font-size: var(--type-xs);
   color: var(--muted);
 }
 .report-stall .button,
@@ -446,7 +446,7 @@ h2.report-section-label {
 }
 .source-health {
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--white);
   padding: 10px 12px;
   min-width: 160px;
@@ -474,14 +474,14 @@ h2.report-section-label {
   max-height: 700px;
   background: var(--white);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
 }
 .report-table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .report-table th {
   position: sticky;
@@ -525,7 +525,7 @@ h2.report-section-label {
 .report-table td strong {
   display: block;
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .report-table td small {
   display: block;
@@ -555,18 +555,18 @@ h2.report-section-label {
 .recommendation-as-of {
   display: block;
   margin-top: 6px;
-  font-size: 12px;
+  font-size: var(--type-xs);
   color: var(--muted);
 }
 /* One token pair per decision meaning, in both themes, with a symbol so colour is not the only cue. Decisions without
    a budget direction (wait, needs review, needs a target, insufficient data, observe) share the neutral hold pair
    (WEB-01: the dark theme previously collapsed "Scale" and "Needs review" into one colour). */
 .recommendation-pill {
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--decision-hold-bg);
   color: var(--decision-hold-ink);
   padding: 5px 8px;
-  font-size: 12px;
+  font-size: var(--type-xs);
   display: inline-block;
 }
 .recommendation-pill::before {
@@ -619,7 +619,7 @@ h2.report-section-label {
 .native-field-tags code {
   padding: 6px;
   background: var(--surface-subtle);
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   font-size: 10px;
   overflow-wrap: anywhere;
 }
@@ -652,7 +652,7 @@ h2.report-section-label {
   width: min(740px, 94vw);
   padding: 28px;
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: var(--radius-xl);
   max-height: 90vh;
   overflow: auto;
   background: var(--surface-raised);
@@ -670,7 +670,7 @@ h2.report-section-label {
 /* WEB-01: #897593 measured 4.11:1 on the dialog, 3.69:1 on the report context and 3.57:1 on a notice (axe, browser
    QA wave 2); the themed muted ink reaches 4.5:1 on each, and a notice keeps its own ink. */
 .report-delivery-dialog p {
-  font-size: 13px;
+  font-size: var(--type-sm);
   line-height: 1.7;
   color: var(--muted);
 }
@@ -680,7 +680,7 @@ h2.report-section-label {
 .report-delivery-dialog label {
   display: grid;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--type-xs);
   margin: 12px 0;
 }
 .report-delivery-dialog input,
@@ -688,7 +688,7 @@ h2.report-section-label {
   min-height: 40px;
   width: 100%;
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 9px;
   background: var(--white);
   font: inherit;
@@ -711,7 +711,7 @@ h2.report-section-label {
   margin: 0;
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 #report-bind-files .work-filter,
 #report-bind-files .form-note {
@@ -727,7 +727,7 @@ h2.report-section-label {
   display: block;
   line-height: 1.7;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--type-xs);
   margin-top: 5px;
 }
 .password-field {
@@ -755,9 +755,9 @@ h2.report-section-label {
   padding: 18px;
   background: var(--surface-subtle);
   border: 1px dashed var(--border-accent-strong);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   overflow-wrap: anywhere;
-  font-size: 14px;
+  font-size: var(--type-md);
   line-height: 1.8;
   margin: 15px 0;
 }
@@ -773,7 +773,7 @@ h2.report-section-label {
 .team-list select {
   border: 1px solid var(--border-strong);
   padding: 8px;
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--white);
 }
 /* EXP-04 A: the delivery status bar stays at the foot of the dialog, beside the actions, in its tone. */
@@ -784,8 +784,8 @@ h2.report-section-label {
   margin-top: 18px;
   padding: 15px;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  font-size: 13px;
+  border-radius: var(--radius-md);
+  font-size: var(--type-sm);
   line-height: 1.7;
   color: var(--ink);
   background: var(--surface-accent);
@@ -911,7 +911,7 @@ h2.report-section-label {
 }
 .report-summary-card {
   border: 1px solid var(--line);
-  border-radius: 22px;
+  border-radius: var(--radius-xl);
   padding: 23px;
   background: linear-gradient(135deg, var(--paper-warm), var(--surface));
 }
@@ -920,10 +920,10 @@ h2.report-section-label {
 }
 .report-summary-card h3 {
   margin: 14px 0;
-  font-size: 22px;
+  font-size: var(--type-xl);
 }
 .report-summary-card h3 span {
-  font-size: 12px;
+  font-size: var(--type-xs);
   font-weight: 400;
 }
 /* The spend, clicks and CPC figures wrap: an Arabic currency figure ("170.30 US$") is wider than "$170.30", and the
@@ -943,7 +943,7 @@ h2.report-section-label {
   overflow-wrap: anywhere;
 }
 .report-summary-card p {
-  font-size: 13px;
+  font-size: var(--type-sm);
   color: var(--text-secondary-strong);
 }
 .report-summary-card code {
@@ -986,10 +986,14 @@ h2.report-section-label {
   min-height: 44px;
   padding-inline: 16px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--ink);
   background: var(--surface-subtle);
   text-decoration: none;
+}
+.settings-subnav a:hover {
+  border-color: var(--border-accent);
+  background: var(--surface-selected);
 }
 .settings-group {
   margin-block-end: 32px;
@@ -1012,8 +1016,8 @@ h2.report-section-label {
   min-height: 44px;
   padding-block: 0;
   padding-inline: 14px 36px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
   color: var(--ink);
   background: var(--surface-raised);
   font: inherit;
@@ -1035,7 +1039,7 @@ h2.report-section-label {
   padding: 12px 14px;
   background: var(--paper-warm);
   border: 1px solid var(--warning-line);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   color: var(--text-warm);
 }
 .source-health .report-actions {
@@ -1045,7 +1049,7 @@ h2.report-section-label {
   padding: 15px 20px;
   margin-bottom: 18px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--surface-raised);
 }
 .activity-failure > summary {
@@ -1057,7 +1061,7 @@ h2.report-section-label {
   flex-basis: 100%;
   margin: 0;
   color: var(--text);
-  font-size: 14px;
+  font-size: var(--type-md);
   font-weight: 600;
   line-height: 1.6;
 }
@@ -1078,7 +1082,7 @@ h2.report-section-label {
   padding: 16px 18px;
   background: var(--surface-subtle);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   margin: 14px 0;
 }
 .delivery-report-context p {
@@ -1093,7 +1097,7 @@ h2.report-section-label {
 }
 .delivery-alternatives summary {
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--type-sm);
 }
 .delivery-section > .button {
   margin-top: 12px;
@@ -1121,7 +1125,7 @@ h2.report-section-label {
 .report-library label {
   display: grid;
   gap: 7px;
-  font-size: 12px;
+  font-size: var(--type-xs);
   max-width: 100%;
   color: var(--text-soft);
 }
@@ -1131,7 +1135,7 @@ h2.report-section-label {
   width: min(360px, 80vw);
   padding: 9px;
   border: 1px solid var(--border-strong);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   background: var(--surface-raised);
   color: var(--text);
   font: inherit;
@@ -1175,7 +1179,7 @@ h2.report-section-label {
 /* The theme's focus colour: the fixed #7351a1 measured 2.57:1 on the dark-theme panel (QA-03 focus contrast). */
 .report-library :focus-visible,
 .report-delivery-dialog :focus-visible {
-  outline: 3px solid var(--iris-700);
+  outline: 3px solid var(--focus);
   outline-offset: 3px;
 }
 .report-table caption {
@@ -1236,7 +1240,7 @@ h2.report-section-label {
   background: var(--white);
   z-index: 1;
   color: inherit;
-  font-size: 12px;
+  font-size: var(--type-xs);
   font-weight: 400;
   letter-spacing: 0;
   padding: 17px 15px;
@@ -1251,7 +1255,7 @@ h2.report-section-label {
 .report-table tbody th strong {
   display: block;
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--type-xs);
 }
 .report-table tbody th small {
   display: block;
@@ -1348,7 +1352,7 @@ html[dir='rtl'] .report-sparkline {
     grid-column: 1 / -1;
   }
   .report-rows-table tbody th strong {
-    font-size: 14px;
+    font-size: var(--type-md);
   }
   .report-rows-table td[data-label]::before {
     content: attr(data-label);
@@ -1368,5 +1372,5 @@ html[dir='rtl'] .report-sparkline {
   margin: 12px 0;
   background: var(--white);
   border: 1px solid var(--line-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }

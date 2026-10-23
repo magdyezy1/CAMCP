@@ -94,15 +94,15 @@ main {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--type-xs);
   color: var(--muted);
 }
 .theme-control select {
   font: inherit;
-  min-height: 32px;
+  min-height: 44px;
   border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  padding: 4px 7px;
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
   color: var(--ink);
   background: var(--white);
 }
@@ -134,7 +134,7 @@ main {
   padding: 13px 25px;
   color: var(--white);
   background: var(--iris-700);
-  border-radius: 99px;
+  border-radius: var(--radius-pill);
   text-decoration: none;
   font-weight: 650;
 }
@@ -188,7 +188,7 @@ main {
   height: 8px;
   width: 92%;
   background: var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   margin-top: 14px;
 }
 .about-art-card .short {
@@ -297,7 +297,7 @@ main {
   color: var(--ink);
   background: var(--white);
   border: 1px solid var(--line-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 12px;
 }
 .skip:focus {

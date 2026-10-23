@@ -51,6 +51,8 @@ test('every file in generated/ and the ledger, report and guide outputs are decl
     'tools/web-markup-baseline.json',
     'tools/web-colour-baseline.json',
     'tools/web-route-bytes-baseline.json',
+    // The design-system scales' ratchet (WEB-07, wave 4b).
+    'tools/web-design-token-baseline.json',
   ])
     assert.ok(declared.includes(file), file);
   for (const artifact of generatedArtifacts) {

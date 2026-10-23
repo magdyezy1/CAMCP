@@ -1,4 +1,4 @@
-/* AMCP design tokens for both themes, loaded first (docs/AMCP-IDENTITY.md; checked by tools/check-colours.mjs). */
+/* AMCP design tokens, both themes (docs/DESIGN-SYSTEM.md). */
 :root {
   color-scheme: light;
   --ink: #222137;
@@ -19,7 +19,6 @@
   --warning-bg: #fff3db;
   --warning-ink: #714b14;
   --danger-bg: #fce5e8;
-  /* The focus ring on the inverse surfaces, and the recommendation decisions (WEB-01). */
   --focus-on-inverse: #c7adff;
   --decision-positive-bg: var(--success-bg);
   --decision-positive-ink: var(--success-ink);
@@ -31,7 +30,6 @@
   --decision-negative-ink: var(--danger);
   --decision-hold-bg: var(--surface-subtle);
   --decision-hold-ink: var(--muted);
-  /* Semantic roles, then component shades (WEB-07). */
   --surface: var(--paper);
   --surface-raised: var(--white);
   --text: var(--ink);
@@ -84,7 +82,7 @@
   --platform-linkedin-bg: #dceef4;
   --platform-microsoft: #8f5731;
   --platform-microsoft-bg: #f5e2d9;
-  /* Theme-invariant (tools/check-colours.mjs). */
+  /* Theme-invariant. */
   --surface-inverse: #201d30;
   --surface-inverse-raised: #292439;
   --surface-inverse-accent: #3d3059;
@@ -110,7 +108,24 @@
   --art-apricot: #e5b897;
   --art-cream: #ffdfb8;
   --art-highlight: #fff9f5;
+  /* Scales (docs/DESIGN-SYSTEM.md). */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
   --radius: 17px;
+  --radius-xl: 22px;
+  --radius-pill: 999px;
+  --elevation-1: 0 5px 20px var(--shadow-soft);
+  --elevation-2: 0 10px 35px var(--shadow-soft);
+  --elevation-3: 0 24px 100px var(--shadow-strong);
+  --duration-fast: 0.15s;
+  --duration: 0.18s;
+  --type-xs: 12px;
+  --type-sm: 13px;
+  --type-md: 14px;
+  --type-lg: 16px;
+  --type-xl: 22px;
   font-family: 'Aptos', 'Segoe UI', sans-serif;
   color: var(--ink);
   background: var(--paper);
@@ -118,7 +133,6 @@
   font-synthesis: none;
 }
 
-/* Dark: chosen in Appearance, or the system's (theme.js). */
 :root[data-theme='dark'] {
   color-scheme: dark;
   --ink: #f2edf8;

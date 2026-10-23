@@ -107,14 +107,15 @@ test('troubleshooting and schedule text uses themed colours at the 12px floor', 
   for (const selector of ['.schedule-row small', '.custom-metric-row code']) {
     const rule = declarations(block(reporting, selector));
     assert.equal(rule.get('color'), 'var(--muted)', selector);
-    assert.equal(rule.get('font-size'), '12px', selector);
+    // A type token (WEB-07 design system) is read as its value.
+    assert.equal(resolve(light, rule.get('font-size')), '12px', selector);
   }
   // No top-bar text in any media query is below the floor (it was 11px and 10px at 850px and narrower).
   const identity = css('identity.css');
   for (const selector of ['.topbar .button', '.topbar .breadcrumb'])
     for (const match of identity.matchAll(new RegExp(selector.replaceAll('.', '\\.') + ' \\{([^}]*)\\}', 'g'))) {
       const size = declarations(match[1]).get('font-size');
-      if (size) assert.ok(Number.parseFloat(size) >= 12, selector + ' ' + size);
+      if (size) assert.ok(Number.parseFloat(resolve(light, size)) >= 12, selector + ' ' + size);
     }
 });
 
@@ -139,16 +140,28 @@ test('report delivery dialog text reaches 4.5:1 on the dialog, its report contex
   assert.ok(surfaces.every(background => contrast('#897593', resolve(light, background)) < 4.5));
 });
 
-// WEB-01 asks for both themes. In the dark theme web/theme.css gives the dialog var(--white), its report context
-// var(--surface-subtle) and a notice var(--surface-accent); dialog paragraphs inherit the dialog's ink there, and the
-// light theme's muted token is checked too, so either text token stays readable on each dark surface.
+// WEB-01 asks for both themes. In the dark theme the dialog is var(--white), its report context var(--surface-subtle)
+// and a notice var(--surface-accent): a notice from web/theme.css's dark hover group, the dialog and its context from
+// their own rules in reporting.css since B23 removed the theme.css entries that only repeated those tokens' dark
+// values. Dialog paragraphs inherit the dialog's ink there, and the light theme's muted token is checked too, so either
+// text token stays readable on each dark surface.
+const escaped = selector => selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const darkBackground = (theme, selector) => {
-  const pattern = new RegExp('(^|[\\s(,])' + selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[,)]', 'g');
+  // A dark group member, also with a variant guard such as .notice:not(.warning, .error).
+  const pattern = new RegExp('(^|[\\s(,])' + escaped(selector) + '(?::not\\([^()]*\\))?\\s*[,)]', 'g');
   for (const match of theme.matchAll(pattern)) {
     const open = theme.indexOf('{', match.index),
       head = theme.slice(theme.lastIndexOf('}', match.index) + 1, open);
     if (!head.includes("[data-theme='dark']")) continue;
     const background = declarations(theme.slice(open + 1, theme.indexOf('}', open))).get('background');
+    if (background) return background;
+  }
+  // Otherwise the component's own surface, a token with a dark value.
+  for (const file of ['reporting.css', 'identity.css', 'app.css']) {
+    const text = css(file),
+      start = text.search(new RegExp('(^|\\n)' + escaped(selector) + ' \\{'));
+    if (start < 0) continue;
+    const background = declarations(text.slice(start, text.indexOf('}', start))).get('background');
     if (background) return background;
   }
   assert.fail('No dark-theme background for ' + selector);
@@ -203,9 +216,13 @@ test('an opened report option keeps its section number readable, and compared va
       number + ' on ' + surface + ': ' + contrast(number, surface).toFixed(2),
     );
   assert.ok(contrast('#816c9c', '#fcfafe') < 4.5, 'the regression itself (the summary was #fcfafe then)');
-  const value = rule('theme.css', "[data-theme='dark'] .report-table td strong").get('color');
-  assert.equal(value, 'var(--ink)');
+  // The compared value takes its ink from reporting.css's token, whose dark value is the dark ink (B23 removed the
+  // theme.css entry that repeated it).
+  const value = rule('reporting.css', '.report-table td strong').get('color');
+  assert.equal(value, 'var(--text)');
+  assert.equal(resolve(dark, value), resolve(dark, 'var(--ink)'));
   assert.ok(contrast(resolve(dark, value), resolve(dark, 'var(--white)')) >= 4.5);
-  const lightInk = resolve(light, rule('reporting.css', '.report-table td strong').get('color'));
-  assert.ok(contrast(lightInk, resolve(dark, 'var(--white)')) < 4.5, 'the regression itself');
+  assert.doesNotMatch(css('theme.css'), /\.report-table td strong/);
+  // The regression itself: the light ink on the dark panel.
+  assert.ok(contrast(resolve(light, value), resolve(dark, 'var(--white)')) < 4.5, 'the regression itself');
 });

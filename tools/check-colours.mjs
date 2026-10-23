@@ -15,7 +15,10 @@ import {fileURLToPath} from 'node:url';
 //              JavaScript (prefers-color-scheme) is exactly the [data-theme='dark'] block;
 //   literals   a colour written outside tokens.css is counted per stylesheet, unless the reviewed allow-list
 //              (tools/web-colour-allowlist.json: brand marks, QR codes, illustrations) names it with its reason; a
-//              count may only go down (tools/web-colour-baseline.json), and so may the allow-list.
+//              count may only go down (tools/web-colour-baseline.json), and so may the allow-list;
+//   markup     scripts and pages write no colour either, except the reviewed data defaults, QR pixels and the
+//              downloaded report document (allow-list "scripts", by file, value and count), and the theme-color
+//              values, which must equal --paper.
 
 export const baselinePath = 'tools/web-colour-baseline.json';
 /** The stylesheets that define tokens, in the order a page loads them. */
@@ -244,6 +247,102 @@ export function tokenParityProblems(css, label = 'web/tokens.css') {
     );
   return problems;
 }
+// Scripts and pages: a hex or functional colour in markup they write bypasses the tokens and stays light in dark mode
+// (the report pack's chart bars did). Vendored code is excluded; the theme-color values are read before any stylesheet
+// loads, so they stay literal but must equal --paper.
+const markupLiteral =
+  /(?<![\w#&-])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})(?![\w-])|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\([^()]*\)/g;
+/** Shipped scripts and pages (web/*.js, web/*.html), vendored files excluded. */
+export function markupFiles(root = process.cwd()) {
+  return fs
+    .readdirSync(path.join(root, 'web'), {recursive: true})
+    .map(file => file.replaceAll('\\', '/'))
+    .filter(file => /\.(?:js|html)$/.test(file) && !file.startsWith('vendor/'))
+    .sort();
+}
+/** Every literal colour a script or page writes: [{file, line, literal, text}]. */
+export function markupColours(text, file = '') {
+  const out = [];
+  text.split('\n').forEach((line, index) => {
+    for (const match of line.matchAll(markupLiteral))
+      out.push({file, line: index + 1, literal: match[0].toLowerCase(), text: line});
+  });
+  return out;
+}
+/** Literals in scripts and pages outside the reviewed list, and theme-color values that are not --paper. */
+export function markupColourProblems(
+  root = process.cwd(),
+  allowlist = readColourAllowlist(root),
+  baseline = readColourBaseline(root),
+) {
+  const declarations = cssDeclarations(fs.readFileSync(path.join(root, 'web/tokens.css'), 'utf8')),
+    paper = [tokenBlock(declarations, ...themeBlocks.light), tokenBlock(declarations, ...themeBlocks.dark)].map(block =>
+      block['--paper']?.toLowerCase(),
+    ),
+    reviewed = allowlist.scripts ?? [],
+    seen = new Map(),
+    problems = [];
+  for (const file of markupFiles(root))
+    for (const found of markupColours(fs.readFileSync(path.join(root, 'web', file), 'utf8'), file)) {
+      const mirror = /name="theme-color"|setAttribute\('content'/.test(found.text);
+      if (mirror) {
+        if (!paper.includes(found.literal))
+          problems.push(
+            'web/' +
+              file +
+              ':' +
+              found.line +
+              ': theme-color ' +
+              found.literal +
+              ' is not --paper (' +
+              paper.join(', ') +
+              ')',
+          );
+        continue;
+      }
+      const entry = reviewed.find(
+        e => e.file === file && e.value.toLowerCase() === found.literal && found.text.includes(e.within),
+      );
+      if (entry) seen.set(entry, (seen.get(entry) ?? 0) + 1);
+      else
+        problems.push(
+          'web/' +
+            file +
+            ':' +
+            found.line +
+            ': literal colour ' +
+            found.literal +
+            ' in markup; give the element a class whose colour comes from web/tokens.css (WEB-07)',
+        );
+    }
+  for (const entry of reviewed) {
+    if (!entry.reason || !entry.within)
+      problems.push(allowlistPath + ': scripts ' + entry.file + ' ' + entry.value + ' needs a reason and a context');
+    const count = seen.get(entry) ?? 0;
+    if (count !== entry.count)
+      problems.push(
+        allowlistPath +
+          ': scripts ' +
+          entry.file +
+          ' ' +
+          entry.value +
+          ' occurs ' +
+          count +
+          ' times, not ' +
+          entry.count,
+      );
+  }
+  if (reviewed.length > (baseline.script_entries ?? 0))
+    problems.push(
+      allowlistPath +
+        ': ' +
+        reviewed.length +
+        ' script entries (limit ' +
+        (baseline.script_entries ?? 0) +
+        '); the reviewed script colours only shrink (WEB-07)',
+    );
+  return problems;
+}
 export function checkColours(
   root = process.cwd(),
   baseline = readColourBaseline(root),
@@ -260,6 +359,7 @@ export function checkColours(
       ),
       ...problems,
       ...colourRatchet(counts, baseline, allowlist),
+      ...markupColourProblems(root, allowlist, baseline),
     ],
   };
 }
@@ -267,20 +367,23 @@ const total = counts => Object.values(counts).reduce((sum, value) => sum + value
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const explain = process.argv.indexOf('--explain');
   if (explain > 0) {
-    // Lists a stylesheet's literal colours: node tools/check-colours.mjs --explain web/app.css
+    // Lists a stylesheet's (or a script's) literal colours: node tools/check-colours.mjs --explain web/app.css
     const file = process.argv[explain + 1] ?? '';
-    for (const found of literalColours(fs.readFileSync(file, 'utf8')))
-      console.log(
-        file + ':' + found.line + ': ' + found.selector + ' { ' + found.property + ': ' + found.literal + ' }',
-      );
+    if (/\.(?:js|html)$/.test(file))
+      for (const found of markupColours(fs.readFileSync(file, 'utf8')))
+        console.log(file + ':' + found.line + ': ' + found.literal);
+    else
+      for (const found of literalColours(fs.readFileSync(file, 'utf8')))
+        console.log(
+          file + ':' + found.line + ': ' + found.selector + ' { ' + found.property + ': ' + found.literal + ' }',
+        );
   } else if (process.argv.includes('--write')) {
     // The baseline only moves down: a count above its limit must be fixed, never recorded.
-    const {counts, allowed, problems} = checkColours(
-      process.cwd(),
-      fs.existsSync(baselinePath)
-        ? readColourBaseline()
-        : {files: new Proxy({}, {get: () => Infinity}), allowlist_entries: Infinity},
-    );
+    // A limit the baseline does not record yet (the script entries before their first recording) starts open.
+    const existing = fs.existsSync(baselinePath)
+      ? readColourBaseline()
+      : {files: new Proxy({}, {get: () => Infinity}), allowlist_entries: Infinity};
+    const {counts, allowed, problems} = checkColours(process.cwd(), {script_entries: Infinity, ...existing});
     if (problems.length) {
       console.error(problems.join('\n'));
       process.exit(1);
@@ -291,9 +394,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       JSON.stringify(
         {
           meaning:
-            'WEB-07 ratchet: literal colours per shipped stylesheet outside web/tokens.css and outside the reviewed allow-list. Counts and the allow-list may only go down (node tools/check-colours.mjs --write).',
+            'WEB-07 ratchet: literal colours per shipped stylesheet outside web/tokens.css and outside the reviewed allow-list, and the reviewed colours scripts and pages write. Counts and both lists may only go down (node tools/check-colours.mjs --write).',
           total: total(counts),
           allowlist_entries: allowlist.entries.length,
+          script_entries: allowlist.scripts?.length ?? 0,
           files: Object.fromEntries(Object.entries(counts).filter(([, count]) => count)),
           allowed: Object.fromEntries(Object.entries(allowed).filter(([, count]) => count)),
         },

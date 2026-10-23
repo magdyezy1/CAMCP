@@ -174,6 +174,7 @@ const sections = [
       'DOCUMENT-KINDS.md',
       'ADDING-A-DOCUMENT-KIND.md',
       'LOCAL-BROWSER-QA.md',
+      'DESIGN-SYSTEM.md',
       'review/MCP-EVALUATION-RECORD-TEMPLATE.md',
       'USER-ACCOUNTS.md',
       'TEST-ACCOUNTS.md',

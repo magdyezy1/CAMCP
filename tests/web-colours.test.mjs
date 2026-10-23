@@ -5,11 +5,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import {
   checkColours,
   colourRatchet,
   cssDeclarations,
   literalColours,
+  markupColourProblems,
+  markupColours,
   readColourBaseline,
   readColourAllowlist,
   tokenParityProblems,
@@ -215,7 +219,8 @@ test('the tokens that replaced the literal colours keep or raise the contrast ea
   const pairs = [
     ['accessibility.css', '.status', 'color', '#4f4a5c', 'var(--white)'],
     ['identity.css', '.button.primary', 'background', '#7560da', 'var(--on-accent)'],
-    ['identity.css', '.button:hover', 'background', '#f4f0fc', 'var(--ink)'],
+    // A disabled button keeps its look under the pointer (WEB-07 design system): the hover rule is guarded.
+    ['identity.css', '.button:hover:where(:not(:disabled))', 'background', '#f4f0fc', 'var(--ink)'],
     ['identity.css', '.command-trigger', 'background', '#f5f2f9', 'var(--muted)'],
     ['identity.css', '.code-block', 'background', '#f5f3f9', 'var(--text-soft)'],
     ['identity.css', '.code-block', 'color', '#48415c', 'var(--surface)'],
@@ -264,7 +269,11 @@ test('every hover and focus surface differs from its element’s own surface in 
   let compared = 0;
   for (const state of surfaces)
     for (const part of state.parts) {
-      const element = part.replace(/:(?:hover|focus-visible|focus-within|focus)\b/g, '').trim(),
+      // A state's guard (:where(:not(:disabled))) adds no specificity and names the same element.
+      const element = part
+          .replace(/:(?:hover|focus-visible|focus-within|focus)\b/g, '')
+          .replace(/:where\((?:[^()]|\([^()]*\))*\)/g, '')
+          .trim(),
         own = element !== part && surfaces.findLast(d => d.parts.includes(element));
       if (!own) continue;
       for (const theme of ['light', 'dark']) {
@@ -329,6 +338,75 @@ test('colours that kept their light shade in the dark theme follow it now', () =
       resolve('dark', 'var(--line)'),
       selector + ' was ' + literal + ' in both themes',
     );
+});
+// WEB-07 (design system, wave 4b): scripts and pages wrote colours the tokens never reached. The report pack's
+// click-through chart painted its track and bar as SVG fills (#ebe9f6, #5a43ad), so the dark pack showed a light chart,
+// and the pages' theme-color placeholders (#171629, #201c32) were the colour of no theme. Scripts and pages now write no
+// colour outside a reviewed list (by file, value and count), and the theme-color values are the theme's --paper.
+test('scripts and pages write no colour of their own outside the reviewed list, and theme-color is --paper', () => {
+  assert.deepEqual(markupColourProblems(), []);
+  assert.equal(readColourAllowlist().scripts.length, readColourBaseline().script_entries);
+  for (const entry of readColourAllowlist().scripts)
+    assert.ok(entry.file && entry.value && entry.count && entry.reason);
+  // The regression itself: the chart's old markup is read as two literal colours.
+  assert.deepEqual(
+    markupColours('<rect width="500" height="18" fill="#ebe9f6"/><rect fill="#5a43ad"/>').map(found => found.literal),
+    ['#ebe9f6', '#5a43ad'],
+  );
+  // Element ids and fragments longer than a colour are not colours.
+  assert.deepEqual(markupColours('<a href="#add-1">x</a> #capture-feedback, #report-pack'), []);
+  const evidence = fs.readFileSync('web/evidence-workflows.js', 'utf8');
+  assert.match(evidence, /<rect class="pack-track" [^>]*\/><rect class="pack-bar" /);
+  assert.doesNotMatch(evidence, /<rect [^>]*fill="#/, 'the website chart takes its fills from the stylesheet');
+  assert.match(evidence, /\.pack-track\{fill:#ebe9f6\}\.pack-bar\{fill:#5a43ad\}/, 'the downloaded file keeps its own');
+  const css = cssDeclarations(fs.readFileSync('web/workflows.css', 'utf8')),
+    fill = selector => css.find(d => d.selector === selector && d.property === 'fill')?.value;
+  for (const theme of ['light', 'dark']) {
+    const [track, bar] = ['.report-pack .pack-track', '.report-pack .pack-bar'].map(s => resolve(theme, fill(s)));
+    assert.ok(contrast(bar, track) >= 3, `${theme}: the bar against its track: ${contrast(bar, track).toFixed(2)}`);
+    assert.ok(contrast(bar, resolve(theme, 'var(--surface-raised)')) >= 3, theme + ': the bar against the pack');
+  }
+  // A synthetic tree: a new literal in a script, a theme-color that is not --paper, and a reviewed entry whose count
+  // changed are refused; the list may only shrink.
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-markup-colours-'));
+  try {
+    fs.mkdirSync(path.join(directory, 'web/vendor'), {recursive: true});
+    fs.copyFileSync('web/tokens.css', path.join(directory, 'web/tokens.css'));
+    fs.writeFileSync(path.join(directory, 'web/a.js'), "const ink = '#123456';\n");
+    fs.writeFileSync(path.join(directory, 'web/b.js'), "const qr = 'fill=#fff';\nconst ground = '#fff';\n");
+    fs.writeFileSync(path.join(directory, 'web/vendor/lib.js'), "const black = '#000000';\n");
+    fs.writeFileSync(path.join(directory, 'web/p.html'), '<meta name="theme-color" content="#201c32">\n');
+    fs.writeFileSync(path.join(directory, 'web/q.html'), '<meta name="theme-color" content="#181522">\n');
+    const reviewed = {entries: [], scripts: [{file: 'b.js', value: '#fff', within: 'fill=', count: 2, reason: 'QR'}]},
+      problems = markupColourProblems(directory, reviewed, {script_entries: 1}).join('\n');
+    assert.match(problems, /web\/a\.js:1: literal colour #123456 in markup/);
+    assert.match(problems, /web\/b\.js:2: literal colour #fff in markup/, 'a reviewed colour outside its context');
+    assert.match(problems, /web\/p\.html:1: theme-color #201c32 is not --paper/);
+    assert.doesNotMatch(problems, /q\.html|vendor/, 'the dark --paper and vendored code pass');
+    assert.match(problems, /scripts b\.js #fff occurs 1 times, not 2/);
+    assert.match(
+      markupColourProblems(directory, reviewed, {script_entries: 0}).join('\n'),
+      /1 script entries \(limit 0\); the reviewed script colours only shrink/,
+    );
+    // The old chart markup is refused by the committed list (its colours are reviewed only in the downloaded file).
+    for (const file of ['a.js', 'b.js', 'p.html', 'q.html']) fs.rmSync(path.join(directory, 'web', file));
+    fs.writeFileSync(
+      path.join(directory, 'web/evidence-workflows.js'),
+      evidence.replace(
+        '<rect class="pack-track" width="500" height="18"/><rect class="pack-bar" width="${width * 5}" height="18"/>',
+        '<rect width="500" height="18" fill="#ebe9f6"/><rect width="${width * 5}" height="18" fill="#5a43ad"/>',
+      ),
+    );
+    const old = markupColourProblems(
+      directory,
+      {entries: [], scripts: readColourAllowlist().scripts.filter(entry => entry.file === 'evidence-workflows.js')},
+      readColourBaseline(),
+    ).join('\n');
+    assert.match(old, /evidence-workflows\.js:\d+: literal colour #ebe9f6 in markup/);
+    assert.match(old, /evidence-workflows\.js:\d+: literal colour #5a43ad in markup/);
+  } finally {
+    fs.rmSync(directory, {recursive: true, force: true});
+  }
 });
 test('no stylesheet writes a colour of its own: the ratchet is down to the reviewed allow-list', () => {
   const {counts} = checkColours(),

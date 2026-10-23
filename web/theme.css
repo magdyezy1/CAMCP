@@ -9,15 +9,16 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--type-xs);
   color: var(--muted);
 }
+/* The top bar's compact select (docs/DESIGN-SYSTEM.md). */
 .theme-control select {
   font: inherit;
-  min-height: 32px;
+  min-height: 36px;
   border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  padding: 4px 7px;
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
   color: var(--ink);
   background: var(--white);
 }
@@ -31,58 +32,25 @@
 .report-results-heading .eyebrow {
   color: var(--muted);
 }
+/* Dark: only what the components' tokens do not decide (docs/DESIGN-SYSTEM.md). */
 [data-theme='dark'] caption {
   color: var(--muted);
 }
-[data-theme='dark'] .source-health strong {
-  color: var(--success-ink);
-}
-[data-theme='dark'] .source-health.attention strong {
-  color: var(--warning-ink);
-}
-[data-theme='dark'] .report-table th[scope='row'] strong {
-  color: var(--ink);
-}
-/* RPT-07: a compared value (this window) in the dark theme; reporting.css's light ink measured 1.24:1 on the dark panel. */
-[data-theme='dark'] .report-table td strong {
-  color: var(--ink);
-}
-
 /* Preserve provider logos, photographs, videos and QR pixels. Only interface surfaces change. */
-html[data-theme='dark'],
-[data-theme='dark'] body,
-[data-theme='dark'] body.public-view {
+[data-theme='dark'] body {
   color: var(--ink);
   background: var(--paper);
 }
+/* An ID member gives the whole group its specificity: no component with variants or states here. */
 [data-theme='dark']
   :is(
-    .topbar,
-    .button,
-    .stat,
-    .platform-card,
-    .panel,
-    .client-tab,
-    .callback-card,
     .empty,
     .endpoint-box,
     .command-trigger,
     #command-results button,
-    .floating-chip,
     .social-button,
-    .report-control-panel,
-    .report-platform,
-    .target-card,
-    .source-health,
-    .report-table-wrap,
-    .report-delivery-dialog,
     .report-summary-card,
-    .report-pack,
-    .status,
-    .about-art-card,
-    .about-grid article,
-    .about-control,
-    dialog
+    .report-pack
   ) {
   color: var(--ink);
   background: var(--white);
@@ -99,11 +67,7 @@ html[data-theme='dark'],
     .platform-metrics,
     .stat-icon,
     .asset-count,
-    .step:before,
-    .feature-wide,
-    .feature-creative,
     .feature-ai,
-    .feature-reports,
     .feature-icon,
     .hero-stage,
     .mini-plan,
@@ -113,19 +77,15 @@ html[data-theme='dark'],
     .evidence-tags span,
     .auth-page,
     .auth-story,
-    .auth-art-label,
     .auth-divider span,
     .account-hero,
     .workspace-metrics article,
     .account-monogram,
     .session-icon,
-    .overview-welcome,
     .quick-actions > a,
     .quick-actions > a > span,
     .activity-failure,
-    .delivery-report-context,
     .source-next-action,
-    .native-field-tags code,
     .report-platform-dot,
     .measurement-task-links a,
     .recovery-key,
@@ -135,89 +95,19 @@ html[data-theme='dark'],
   background: var(--surface-subtle);
   border-color: var(--line);
 }
-[data-theme='dark']
-  :is(
-    p,
-    label,
-    summary,
-    th,
-    td,
-    dt,
-    dd,
-    h1,
-    h2,
-    h3,
-    h4,
-    .brand,
-    .about-brand,
-    .report-section-label strong,
-    .workspace-details summary,
-    .metric-pills span,
-    .how-steps li > span
-  ) {
+[data-theme='dark'] :is(p, label, summary, th, dt, .brand, .how-steps li > span) {
   color: inherit;
 }
-[data-theme='dark']
-  :is(
-    .muted,
-    small,
-    .form-note,
-    .eyebrow,
-    .auth-legal,
-    .auth-switch,
-    .forgot-link,
-    .page-footer,
-    .report-heading p,
-    .report-pagination,
-    .report-section-label small,
-    .report-section-label > span,
-    .workspace-copy,
-    .workspace-metrics span,
-    .auth-story > p,
-    .feature-card p,
-    .report-control-top label,
-    .target-fields label,
-    .target-currency-row label,
-    .report-platform-body label,
-    .custom-metric-fields label,
-    .report-delivery-policy,
-    .custom-metric-heading p,
-    .quick-actions small,
-    .account-monogram,
-    .native-settings,
-    .about-footer
-  ) {
+[data-theme='dark'] :is(small, .eyebrow, .report-section-label > span, .target-currency-row label) {
   color: var(--muted);
 }
-[data-theme='dark']
-  :is(
-    .hero-note,
-    .platform-ribbon > *,
-    .feature-index,
-    .mini-plan span,
-    .public-footer,
-    .public-footer a,
-    .public-nav nav a,
-    #breadcrumb,
-    .breadcrumb span,
-    footer,
-    footer a
-  ) {
+[data-theme='dark'] :is(.public-nav nav a, #breadcrumb, footer a) {
   color: var(--muted);
 }
-[data-theme='dark']
-  :is(
-    .quick-actions strong,
-    article li,
-    article strong,
-    .report-history-row,
-    .report-history-row strong,
-    .report-history-row > span
-  ) {
+[data-theme='dark'] article strong {
   color: var(--ink);
 }
-[data-theme='dark']
-  :is(a.text-link, .auth-switch a, .auth-legal a, .auth-story .auth-tagline em, .hero-copy h1 > span) {
+[data-theme='dark'] :is(a.text-link, .auth-legal a, .hero-copy h1 > span) {
   color: var(--iris-700);
 }
 [data-theme='dark'] .password-toggle {
@@ -225,13 +115,7 @@ html[data-theme='dark'],
   background: var(--white);
 }
 [data-theme='dark']
-  :is(
-    input:not([type='checkbox']):not([type='radio']):not([type='color']),
-    select,
-    textarea,
-    .search,
-    .auth-form input
-  ) {
+  :is(input:not([type='checkbox']):not([type='radio']):not([type='color']), select, textarea, .search) {
   color: var(--ink);
   background: var(--white);
   border-color: var(--line-strong);
@@ -240,59 +124,41 @@ html[data-theme='dark'],
   color: var(--muted);
   opacity: 1;
 }
+/* Hover and selected. Primary and danger buttons, warning and error notices keep their own. */
 [data-theme='dark']
   :is(
-    .button:hover,
+    .button:not(.primary, .danger):hover:where(:not(:disabled)),
     .social-button:hover:not(:disabled),
     #command-results button:hover,
     #command-results button:focus,
     .measurement-task-links a:hover,
     .measurement-task-links a:focus-visible,
-    .metric-pills span,
     .filter-tab.active,
     .client-tab.active,
     .default-badge,
     .report-table th,
-    .notice,
-    .measurement-read-feedback,
-    .workspace-form-feedback,
-    #capture-feedback,
+    .notice:not(.warning, .error),
     .avatar
   ) {
   color: var(--ink);
   background: var(--surface-accent);
   border-color: var(--line-strong);
 }
-[data-theme='dark'] :is(.button.primary, .button.primary:hover, .metric-pills input:checked + span) {
-  color: var(--on-accent);
-  background: var(--iris);
-  border-color: var(--iris);
-}
 /* Recommendation decisions take their dark colours from the decision tokens (reporting.css), never from these groups. */
-[data-theme='dark'] :is(.status.online, .auth-success, .callback-step.done) {
+[data-theme='dark'] :is(.auth-success, .callback-step.done) {
   color: var(--success-ink);
   background: var(--success-bg);
   border-color: var(--success-ink);
 }
-[data-theme='dark'] :is(.status.attention, .notice.warning) {
-  color: var(--warning-ink);
-  background: var(--warning-bg);
-  border-color: var(--warning-ink);
-}
-[data-theme='dark'] :is(.button.danger, .button.danger:hover, .callback-step.failed) {
+[data-theme='dark'] .callback-step.failed {
   color: var(--danger);
   background: var(--danger-bg);
   border-color: var(--danger);
 }
-[data-theme='dark'] :is(.error, .danger, .status.error) {
+[data-theme='dark'] :is(.error, .status.error) {
   color: var(--danger);
 }
-[data-theme='dark']
-  :is(.platform-meta, .platform-google, .platform-tiktok, .platform-snapchat, .platform-linkedin, .platform-microsoft) {
-  color: var(--ink);
-  background: var(--surface-accent);
-}
-[data-theme='dark'] :is(.about-art-card, .auth-form-card .owner-entry) {
+[data-theme='dark'] .auth-form-card .owner-entry {
   background: var(--surface-subtle);
 }
 [data-theme='dark'] .auth-form-card .owner-entry .eyebrow {

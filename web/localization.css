@@ -9,7 +9,7 @@
   align-items: center;
   gap: 6px;
   margin: 0;
-  font-size: 12px;
+  font-size: var(--type-xs);
   flex-shrink: 0;
 }
 .language-control select {
@@ -20,7 +20,7 @@
   border: 1px solid var(--line-strong);
   background: var(--white);
   color: var(--ink);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 .auth-brand {
   gap: 16px;

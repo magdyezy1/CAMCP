@@ -509,10 +509,12 @@ test('report panels and evidence controls use the theme focus colour; the fixed 
     const css = fs.readFileSync(file, 'utf8');
     assert.doesNotMatch(css, /outline:\s*\d+px solid #7[23]5[12]a[1a]/i, file + ' keeps no fixed focus purple');
   }
+  // The focus role token (WEB-07 design system), which is --iris-700 in both themes.
   assert.match(
     fs.readFileSync('web/reporting.css', 'utf8'),
-    /\.report-delivery-dialog :focus-visible \{\s*outline: 3px solid var\(--iris-700\)/,
+    /\.report-delivery-dialog :focus-visible \{\s*outline: 3px solid var\(--focus\)/,
   );
+  assert.match(fs.readFileSync('web/tokens.css', 'utf8'), /--focus: var\(--iris-700\);/);
 });
 
 test('names and native values the leak probe met are marked literal where rendered, and step errors are translated', () => {
