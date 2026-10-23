@@ -101,36 +101,7 @@
 [data-theme='dark'] :is(p, label, summary, th, dt, .brand, .how-steps li > span) {
   color: inherit;
 }
-[data-theme='dark']
-  :is(
-    .muted,
-    small,
-    .form-note,
-    .eyebrow,
-    .auth-legal,
-    .auth-switch,
-    .forgot-link,
-    .page-footer,
-    .report-heading p,
-    .report-pagination,
-    .report-section-label small,
-    .report-section-label > span,
-    .workspace-copy,
-    .workspace-metrics span,
-    .auth-story > p,
-    .feature-card p,
-    .report-control-top label,
-    .target-fields label,
-    .target-currency-row label,
-    .report-platform-body label,
-    .custom-metric-fields label,
-    .report-delivery-policy,
-    .custom-metric-heading p,
-    .quick-actions small,
-    .account-monogram,
-    .native-settings,
-    .about-footer
-  ) {
+[data-theme='dark'] :is(small, .eyebrow, .report-section-label > span, .target-currency-row label) {
   color: var(--muted);
 }
 [data-theme='dark']
