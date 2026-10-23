@@ -36,10 +36,38 @@ test('the repository keeps the documentation freeze, and the owner guide starts 
   for (const file of pages) assert.doesNotMatch(file, /^docs\/(?:records|archive|implementation)\//);
   for (const file of ['docs/README.md', 'docs/CONTRACTS.md', 'docs/review/PACKAGE-STATUS.md', 'docs/review/SUMMARY.md'])
     assert.ok(!pages.includes(file), file);
-  // The measured starting point the review's targets are compared with.
+  // The review's targets: the duplicate-line share is under 5% (it was 6.8% before the batch history below moved);
+  // the word count still waits on consolidating the long guides, so it is measured, not asserted.
   const s = summary('.');
   assert.equal(s.targets.words, 25000);
-  assert.ok(s.duplicate_share > 0 && s.duplicate_share < 1);
+  assert.ok(s.duplicate_share > 0 && s.duplicate_share < s.targets.duplicate_share, String(s.duplicate_share));
+});
+
+// DOC-03 implementation path, step 4: the batch sections of the write coverage and implementation pages are delivery
+// history. They held 106 batch headings and 335 long lines repeated on other current pages, about half of all the
+// repetition across current pages; they now live in docs/records/, kept as written, and each page links its history.
+test('the coverage and implementation pages keep no batch history; their records hold it, linked both ways', () => {
+  const {counts} = measure('.'),
+    pages = currentPages('.');
+  for (const [page, record, first, last] of [
+    ['docs/review/COVERAGE.md', 'docs/records/COVERAGE-BATCH-HISTORY.md', '## Done in batch 49', '## Batch 181 '],
+    [
+      'docs/review/IMPLEMENTATION-2026-10-01.md',
+      'docs/records/IMPLEMENTATION-2026-10-01-BATCH-HISTORY.md',
+      '## Batch 160 ',
+      '## Batch 192 ',
+    ],
+  ]) {
+    const text = fs.readFileSync(page, 'utf8'),
+      history = fs.readFileSync(record, 'utf8');
+    assert.equal(counts[page].batch_headings, 0, page);
+    assert.equal(counts[page].duplicate_lines, 0, page);
+    assert.doesNotMatch(text, /^## .*\bbatch(?:es)?\s+\d+/im, page);
+    assert.ok(text.includes('](../records/' + path.posix.basename(record) + ')'), page + ' links its history');
+    assert.ok(history.includes('](../review/' + path.posix.basename(page) + ')'), record + ' links its page');
+    assert.ok(history.includes('\n' + first) && history.includes('\n' + last), record);
+    assert.ok(pages.includes(page) && !pages.includes(record), record + ' is a record, not a current page');
+  }
 });
 
 test('a new batch heading, commit reference or repeated long line on a current page is refused; records may hold them', t => {

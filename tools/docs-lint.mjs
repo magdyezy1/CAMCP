@@ -4,8 +4,9 @@
 // page whose text starts "Generated"). On a current page, a heading may not name a batch ("Batch 149 — ..."), a line
 // may not cite a commit, and a line of 70 or more characters (outside code and tables) may not repeat verbatim on
 // another current page. The pages that already do are recorded in tools/docs-lint-baseline.json with their counts,
-// which may only fall; any other page must have none. Totals are reported against the review's targets (about 25,000
-// words in current pages and a duplicate-line share under 5%), which consolidating the long guides still has to reach.
+// which may only fall; any other page must have none. Totals are reported against the review's targets: a
+// duplicate-line share under 5%, met since the batch history of the coverage and implementation pages moved to
+// docs/records/, and about 25,000 words in current pages, which consolidating the long guides still has to reach.
 // Usage: node tools/docs-lint.mjs [--write [--allow-increase=<reason>]]
 import fs from 'node:fs';
 import path from 'node:path';

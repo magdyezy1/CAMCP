@@ -5,7 +5,7 @@
     "docs/CURRENT-READINESS.md": {
       "batch_headings": 11,
       "commit_refs": 4,
-      "duplicate_lines": 100
+      "duplicate_lines": 89
     },
     "docs/DECISIONS.md": {
       "batch_headings": 0,
@@ -20,7 +20,7 @@
     "docs/LOCAL-BROWSER-QA.md": {
       "batch_headings": 27,
       "commit_refs": 20,
-      "duplicate_lines": 67
+      "duplicate_lines": 61
     },
     "docs/OAUTH-HARDENING.md": {
       "batch_headings": 0,
@@ -68,19 +68,19 @@
       "duplicate_lines": 0
     },
     "docs/review/COVERAGE.md": {
-      "batch_headings": 79,
-      "commit_refs": 9,
-      "duplicate_lines": 183
+      "batch_headings": 0,
+      "commit_refs": 1,
+      "duplicate_lines": 0
     },
     "docs/review/FINDINGS.md": {
       "batch_headings": 0,
       "commit_refs": 22,
-      "duplicate_lines": 1
+      "duplicate_lines": 0
     },
     "docs/review/IMPLEMENTATION-2026-10-01.md": {
-      "batch_headings": 27,
-      "commit_refs": 12,
-      "duplicate_lines": 152
+      "batch_headings": 0,
+      "commit_refs": 6,
+      "duplicate_lines": 0
     },
     "docs/review/PERSONAL-DATA-POLICY.md": {
       "batch_headings": 1,

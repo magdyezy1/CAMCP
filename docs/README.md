@@ -337,10 +337,12 @@ verification file holds its machine-checked evidence.
 ## Records
 
 What was delivered, measured or found on a given day, kept as written: the delivery records of the October 2026
-review, the incident record and the September progress log.
+review, the incident record, the September progress log, and the batch history that the write coverage and
+implementation pages held until the documentation freeze.
 
 | Date | Document |
 |---|---|
+| — | [Write coverage: batch history](records/COVERAGE-BATCH-HISTORY.md) |
 | — | [Progress log](records/PROGRESS.md) |
 | 2026-10-01 | [Source-bound native budget drafts — 1 October 2026](records/DELIVERY-2026-10-01-ALLOCATION-PLANS.md) |
 | 2026-10-01 | [Constrained campaign allocation proposals — 1 October 2026](records/DELIVERY-2026-10-01-ALLOCATION.md) |
@@ -368,6 +370,7 @@ review, the incident record and the September progress log.
 | 2026-10-01 | [Saved query management and scoped reporting setup — 1 October 2026](records/DELIVERY-2026-10-01-REPORTING-MANAGEMENT.md) |
 | 2026-10-01 | [Workbook report operations — 1 October 2026](records/DELIVERY-2026-10-01-WORKBOOK-OPERATIONS.md) |
 | 2026-10-01 | [Workbook schedule operations — 1 October 2026](records/DELIVERY-2026-10-01-WORKBOOK-SCHEDULES.md) |
+| 2026-10-01 | [AMCP product implementation and qualification: batch history — 1 October 2026](records/IMPLEMENTATION-2026-10-01-BATCH-HISTORY.md) |
 | 2026-10-02 | [Arabic account explanations and GTM findings — 2 October 2026](records/DELIVERY-2026-10-02-ACCOUNT-EXPLANATIONS.md) |
 | 2026-10-02 | [Scoped audit history and Activity navigation — 2 October 2026](records/DELIVERY-2026-10-02-AUDIT-HISTORY.md) |
 | 2026-10-02 | [Supplier CSV column mapping for Commerce — 2 October 2026](records/DELIVERY-2026-10-02-CATALOG-MAPPING.md) |

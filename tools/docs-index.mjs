@@ -288,7 +288,8 @@ folder(
   'records',
   'Records',
   'What was delivered, measured or found on a given day, kept as written: the delivery records of the October 2026\n' +
-    'review, the incident record and the September progress log.',
+    'review, the incident record, the September progress log, and the batch history that the write coverage and\n' +
+    'implementation pages held until the documentation freeze.',
 );
 folder(
   'archive',

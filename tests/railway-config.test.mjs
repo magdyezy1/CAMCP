@@ -52,6 +52,11 @@ test('watch paths skip documentation, including docs/review, and keep every ship
     'docs/review/DELIVERY-2026-10-04-SCHEDULER-WORKERS.md',
     'docs/review/product/UX.md',
     'docs/OPERATIONS.md',
+    // DOC-03 (owner decision P12): the records, the archive and the bilingual owner guide.
+    'docs/records/DELIVERY-2026-10-04-SCHEDULER-WORKERS.md',
+    'docs/archive/REVIEW-2026-10-01.md',
+    'docs/owner/README.md',
+    'docs/owner/ar/privacy.md',
   ])
     assert.equal(watchTriggers(patterns, file), false, file);
   for (const file of [
