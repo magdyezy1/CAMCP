@@ -43,32 +43,17 @@
 }
 [data-theme='dark']
   :is(
-    .topbar,
     .button,
-    .stat,
     .platform-card,
-    .panel,
     .client-tab,
-    .callback-card,
     .empty,
     .endpoint-box,
     .command-trigger,
     #command-results button,
-    .floating-chip,
     .social-button,
-    .report-control-panel,
-    .report-platform,
-    .target-card,
-    .source-health,
-    .report-table-wrap,
-    .report-delivery-dialog,
     .report-summary-card,
     .report-pack,
-    .status,
-    .about-art-card,
-    .about-grid article,
-    .about-control,
-    dialog
+    .status
   ) {
   color: var(--ink);
   background: var(--white);
