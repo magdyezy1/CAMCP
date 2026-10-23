@@ -5,9 +5,11 @@
 // and the ledger (tools/report-model.ts), and PARITY renders the JSON's values.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {assertExtensions, ledgerCount, parityMarkdown, unfinishedWorkflows} from '../dist/tools/report-model.js';
 import {actionContracts} from '../dist/src/action-contracts.js';
 import {Registry} from '../dist/src/catalog.js';
+import {guidanceResources} from '../dist/src/guidance.js';
 import {microsoftActions, microsoftGateway} from '../dist/src/microsoft-native.js';
 
 const registry = new Registry(),
@@ -36,6 +38,56 @@ test('the unfinished workflows are the delegated operations with an unmapped led
     gaps.map(g => g.gateway + '/' + g.operation),
     [...listed].sort((a, b) => a.split('/')[0].localeCompare(b.split('/')[0]) || a.localeCompare(b)),
   );
+});
+
+// The tracked outputs themselves. `npm run report -- --check` compares them with a fresh run; this compares the two
+// files with each other and with the ledger, so a PARITY.md left behind by its JSON fails a test too. The regression:
+// the DOC-01 branch changed the generator without regenerating, and its tracked PARITY.md still said "31 actions,
+// including 12 reviewed Search mutation routes" and listed the old classifier's workflows beside a JSON of 16.
+test('the tracked PARITY.md states what the tracked implementation status and the action ledger state', () => {
+  const parity = fs.readFileSync('.mirror/PARITY.md', 'utf8').replaceAll('\r\n', '\n'),
+    status = JSON.parse(fs.readFileSync('.mirror/REPORTS/implementation-status.json', 'utf8'));
+  const microsoft = status.independent_extensions.find(e => e.gateway === microsoftGateway),
+    stated = /^Microsoft Advertising: (\d+) actions, including (\d+) reviewed mutation actions\./m.exec(parity);
+  assert.ok(stated, '.mirror/PARITY.md states the Microsoft counts in the generator’s words');
+  assert.deepEqual([Number(stated[1]), Number(stated[2])], [microsoft.actions, microsoft.reviewed_mutation_actions]);
+  assert.deepEqual(
+    [microsoft.actions, microsoft.reviewed_mutation_actions],
+    [microsoftActions.length, ledgerCount(contracts, microsoftGateway, 'reviewed_write_family')],
+  );
+  const reddit = status.independent_extensions.find(e => e.gateway === 'reddit_native_action');
+  assert.deepEqual(
+    [reddit.actions, reddit.reviewed_mutation_actions],
+    [
+      ledgerCount(contracts, 'reddit_native_action'),
+      ledgerCount(contracts, 'reddit_native_action', 'reviewed_write_family'),
+    ],
+  );
+  assert.equal(
+    Number(/^Google has (\d+) independently specified legacy adapters\./m.exec(parity)?.[1]),
+    status.google_legacy.total,
+  );
+  assert.equal(
+    Number(/^Campaign guidance: (\d+) MCP resources/m.exec(parity)?.[1]),
+    status.campaign_guidance.resources,
+  );
+  assert.equal(status.campaign_guidance.resources, guidanceResources.length);
+  // The unfinished workflows: PARITY's bullets, the JSON's gaps and the ledger's classification are one list.
+  const section = /\n## Unfinished workflows\n([\s\S]*?)\n## /.exec(parity)?.[1] ?? '',
+    bullets = section
+      .split('\n')
+      .filter(line => line.startsWith('- '))
+      .map(line => line.slice(2));
+  const rendered = g =>
+    g.gateway +
+    '/' +
+    g.operation +
+    (g.unmapped_actions.length === g.actions
+      ? ''
+      : ' (' + g.unmapped_actions.length + ' of ' + g.actions + ' actions)');
+  assert.ok(bullets.length > 0, '.mirror/PARITY.md lists the unfinished workflows');
+  assert.deepEqual(bullets, status.workflow_gaps.map(rendered));
+  assert.deepEqual(status.workflow_gaps, unfinishedWorkflows(contracts, delegated));
 });
 
 test('the model lists exactly the operations with an unmapped action, sorted, and counts partial ones', () => {

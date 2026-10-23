@@ -28,38 +28,32 @@ Google has 285 independently specified legacy adapters. They preserve native res
 
 ## Independent extensions
 
-Microsoft Advertising: 31 actions, including 12 reviewed Search mutation routes. Live qualification remains incomplete; these actions are not part of the captured AMCP denominator.
+Microsoft Advertising: 31 actions, including 16 reviewed mutation actions. Live qualification remains incomplete; these actions are not part of the captured AMCP denominator.
 
 Campaign guidance: 13 MCP resources and the amcp_build_campaign prompt. amcp_write inspect checks local execution contracts without network calls.
 
 ## Unfinished workflows
 
-- amcp_native_action/connect_google_reporting
-- amcp_native_action/cross_platform_transfer
-- amcp_native_action/disconnect_google_reporting
-- amcp_native_action/download_creative_asset
-- amcp_native_action/fetch_meta_existing_posts
-- amcp_native_action/generate_ad_content
-- amcp_native_action/generate_creative_design
-- amcp_native_action/get_creative_payload
-- amcp_native_action/openai_ads_ops
-- amcp_native_action/platform_media_upload
-- amcp_native_action/suggest_targeting
-- ga4_native_action/ga4_connection_ops
-- ga4_native_action/ga4_sync_properties
-- gtm_native_action/gtm_action_job_status
-- gtm_native_action/gtm_audit_ops
-- google_business_native_action/gmb_connection_ops
-- google_business_native_action/gmb_qanda_ops
-- google_search_console_native_action/gsc_connection_ops
+Delegated operations with an action the action ledger classifies as unmapped (no provider request mapping):
+
 - adjust_native_action/adjust_ad_spend
 - adjust_native_action/adjust_app_automation
 - adjust_native_action/adjust_campaign_api
 - adjust_native_action/adjust_deeplinks
-- adjust_native_action/adjust_list_assets
-- adjust_native_action/adjust_reporting
-- commerce_native_action/woocommerce_list_stores
+- amcp_native_action/connect_google_reporting
+- amcp_native_action/cross_platform_transfer
+- amcp_native_action/disconnect_google_reporting
+- amcp_native_action/download_creative_asset
+- amcp_native_action/generate_ad_content
+- amcp_native_action/generate_creative_design
+- amcp_native_action/get_creative_payload
+- amcp_native_action/openai_ads_ops
+- amcp_native_action/suggest_targeting
 - commerce_native_action/woocommerce_store_ops
+- ga4_native_action/ga4_connection_ops (3 of 5 actions)
+- google_business_native_action/gmb_connection_ops (3 of 6 actions)
+- google_business_native_action/gmb_engagement_ops (1 of 7 actions)
+- google_search_console_native_action/gsc_connection_ops (3 of 6 actions)
 
 ## Limits
 

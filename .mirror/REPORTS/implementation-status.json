@@ -7,14 +7,15 @@
       "gateway": "microsoft_ads_native_action",
       "actions": 31,
       "reviewed_mutation_actions": 16,
-      "write_scope": "Search campaigns, ad groups, responsive search ads and keywords",
+      "write_scope": "Search campaigns, ad groups, responsive search ads and keywords, campaign location criteria and ad extension associations",
       "reporting": "Native account-bound submit/poll with optional server CSV/TSV ZIP parsing and cached bounded pages; campaign overview normalizes Spend, Impressions, Clicks, Conversions and Revenue while retaining native metrics",
       "live_qualified": false
     },
     {
       "gateway": "reddit_native_action",
-      "actions": 2,
-      "reviewed_mutation_actions": 8,
+      "actions": 55,
+      "independent_routes": 2,
+      "reviewed_mutation_actions": 13,
       "write_scope": "Classic campaigns, ad groups, existing-post ads and saved Reddit targeting audiences",
       "live_qualified": false
     }
@@ -3294,134 +3295,226 @@
   },
   "workflow_gaps": [
     {
-      "gateway": "amcp_native_action",
-      "operation": "connect_google_reporting",
-      "reason": "Workflow/provider implementation incomplete"
-    },
-    {
-      "gateway": "amcp_native_action",
-      "operation": "cross_platform_transfer",
-      "reason": "Workflow/provider implementation incomplete"
-    },
-    {
-      "gateway": "amcp_native_action",
-      "operation": "disconnect_google_reporting",
-      "reason": "Workflow/provider implementation incomplete"
-    },
-    {
-      "gateway": "amcp_native_action",
-      "operation": "download_creative_asset",
-      "reason": "Workflow/provider implementation incomplete"
-    },
-    {
-      "gateway": "amcp_native_action",
-      "operation": "fetch_meta_existing_posts",
-      "reason": "Workflow/provider implementation incomplete"
-    },
-    {
-      "gateway": "amcp_native_action",
-      "operation": "generate_ad_content",
-      "reason": "Workflow/provider implementation incomplete"
-    },
-    {
-      "gateway": "amcp_native_action",
-      "operation": "generate_creative_design",
-      "reason": "Workflow/provider implementation incomplete"
-    },
-    {
-      "gateway": "amcp_native_action",
-      "operation": "get_creative_payload",
-      "reason": "Workflow/provider implementation incomplete"
-    },
-    {
-      "gateway": "amcp_native_action",
-      "operation": "openai_ads_ops",
-      "reason": "Workflow/provider implementation incomplete"
-    },
-    {
-      "gateway": "amcp_native_action",
-      "operation": "platform_media_upload",
-      "reason": "Workflow/provider implementation incomplete"
-    },
-    {
-      "gateway": "amcp_native_action",
-      "operation": "suggest_targeting",
-      "reason": "Workflow/provider implementation incomplete"
-    },
-    {
-      "gateway": "ga4_native_action",
-      "operation": "ga4_connection_ops",
-      "reason": "Workflow/provider implementation incomplete"
-    },
-    {
-      "gateway": "ga4_native_action",
-      "operation": "ga4_sync_properties",
-      "reason": "Workflow/provider implementation incomplete"
-    },
-    {
-      "gateway": "gtm_native_action",
-      "operation": "gtm_action_job_status",
-      "reason": "Workflow/provider implementation incomplete"
-    },
-    {
-      "gateway": "gtm_native_action",
-      "operation": "gtm_audit_ops",
-      "reason": "Workflow/provider implementation incomplete"
-    },
-    {
-      "gateway": "google_business_native_action",
-      "operation": "gmb_connection_ops",
-      "reason": "Workflow/provider implementation incomplete"
-    },
-    {
-      "gateway": "google_business_native_action",
-      "operation": "gmb_qanda_ops",
-      "reason": "Workflow/provider implementation incomplete"
-    },
-    {
-      "gateway": "google_search_console_native_action",
-      "operation": "gsc_connection_ops",
-      "reason": "Workflow/provider implementation incomplete"
-    },
-    {
       "gateway": "adjust_native_action",
       "operation": "adjust_ad_spend",
-      "reason": "Workflow/provider implementation incomplete"
+      "reason": "No provider request mapping for any of its actions (action ledger: unmapped)",
+      "unmapped_actions": [
+        "SEND_AD_SPEND",
+        "SEND_AD_SPEND_BULK"
+      ],
+      "actions": 2
     },
     {
       "gateway": "adjust_native_action",
       "operation": "adjust_app_automation",
-      "reason": "Workflow/provider implementation incomplete"
+      "reason": "No provider request mapping for any of its actions (action ledger: unmapped)",
+      "unmapped_actions": [
+        "CREATE_APP",
+        "GET_APP",
+        "GET_APP_BY_STORE_ID",
+        "GET_APP_SETTINGS",
+        "GET_JOB_STATUS",
+        "LIST_AUTOMATION_APPS",
+        "REACTIVATE_SECRET",
+        "REVOKE_OUTDATED_SECRETS",
+        "REVOKE_SECRET",
+        "UPDATE_APP",
+        "UPSERT_EVENTS"
+      ],
+      "actions": 11
     },
     {
       "gateway": "adjust_native_action",
       "operation": "adjust_campaign_api",
-      "reason": "Workflow/provider implementation incomplete"
+      "reason": "No provider request mapping for any of its actions (action ledger: unmapped)",
+      "unmapped_actions": [
+        "CREATE_TRACKER",
+        "LIST_PARTNERS",
+        "LIST_TRACKERS",
+        "LIST_TRACKER_CHILDREN",
+        "UPDATE_TRACKER"
+      ],
+      "actions": 5
     },
     {
       "gateway": "adjust_native_action",
       "operation": "adjust_deeplinks",
-      "reason": "Workflow/provider implementation incomplete"
+      "reason": "No provider request mapping for any of its actions (action ledger: unmapped)",
+      "unmapped_actions": [
+        "CREATE",
+        "CREATE_BULK",
+        "GET",
+        "GET_QUOTA",
+        "UPDATE"
+      ],
+      "actions": 5
     },
     {
-      "gateway": "adjust_native_action",
-      "operation": "adjust_list_assets",
-      "reason": "Workflow/provider implementation incomplete"
+      "gateway": "amcp_native_action",
+      "operation": "connect_google_reporting",
+      "reason": "No provider request mapping for any of its actions (action ledger: unmapped)",
+      "unmapped_actions": [
+        "exchange",
+        "start"
+      ],
+      "actions": 2
     },
     {
-      "gateway": "adjust_native_action",
-      "operation": "adjust_reporting",
-      "reason": "Workflow/provider implementation incomplete"
+      "gateway": "amcp_native_action",
+      "operation": "cross_platform_transfer",
+      "reason": "No provider request mapping for any of its actions (action ledger: unmapped)",
+      "unmapped_actions": [
+        "cross_platform_transfer"
+      ],
+      "actions": 1
     },
     {
-      "gateway": "commerce_native_action",
-      "operation": "woocommerce_list_stores",
-      "reason": "Workflow/provider implementation incomplete"
+      "gateway": "amcp_native_action",
+      "operation": "disconnect_google_reporting",
+      "reason": "No provider request mapping for any of its actions (action ledger: unmapped)",
+      "unmapped_actions": [
+        "disconnect_google_reporting"
+      ],
+      "actions": 1
+    },
+    {
+      "gateway": "amcp_native_action",
+      "operation": "download_creative_asset",
+      "reason": "No provider request mapping for any of its actions (action ledger: unmapped)",
+      "unmapped_actions": [
+        "download_creative_asset"
+      ],
+      "actions": 1
+    },
+    {
+      "gateway": "amcp_native_action",
+      "operation": "generate_ad_content",
+      "reason": "No provider request mapping for any of its actions (action ledger: unmapped)",
+      "unmapped_actions": [
+        "generate_ad_content"
+      ],
+      "actions": 1
+    },
+    {
+      "gateway": "amcp_native_action",
+      "operation": "generate_creative_design",
+      "reason": "No provider request mapping for any of its actions (action ledger: unmapped)",
+      "unmapped_actions": [
+        "generate_creative_design"
+      ],
+      "actions": 1
+    },
+    {
+      "gateway": "amcp_native_action",
+      "operation": "get_creative_payload",
+      "reason": "No provider request mapping for any of its actions (action ledger: unmapped)",
+      "unmapped_actions": [
+        "get_creative_payload"
+      ],
+      "actions": 1
+    },
+    {
+      "gateway": "amcp_native_action",
+      "operation": "openai_ads_ops",
+      "reason": "No provider request mapping for any of its actions (action ledger: unmapped)",
+      "unmapped_actions": [
+        "CREATE_CONVERSION_API_KEY",
+        "CREATE_CONVERSION_EVENT_SETTING",
+        "CREATE_CONVERSION_PIXEL",
+        "FETCH_CONVERSION_EVENT_SETTINGS",
+        "SEARCH_GEO_LOCATIONS",
+        "UPDATE_FEED_PRODUCTS"
+      ],
+      "actions": 6
+    },
+    {
+      "gateway": "amcp_native_action",
+      "operation": "suggest_targeting",
+      "reason": "No provider request mapping for any of its actions (action ledger: unmapped)",
+      "unmapped_actions": [
+        "suggest_targeting"
+      ],
+      "actions": 1
     },
     {
       "gateway": "commerce_native_action",
       "operation": "woocommerce_store_ops",
-      "reason": "Workflow/provider implementation incomplete"
+      "reason": "No provider request mapping for any of its actions (action ledger: unmapped)",
+      "unmapped_actions": [
+        "GET_ANALYTICS_REPORT",
+        "GET_CATEGORIES_REPORT",
+        "GET_CATEGORIES_STATS",
+        "GET_COUPONS_REPORT",
+        "GET_COUPONS_STATS",
+        "GET_CUSTOMERS_REPORT",
+        "GET_CUSTOMERS_STATS",
+        "GET_DOWNLOADS_REPORT",
+        "GET_DOWNLOADS_STATS",
+        "GET_ORDER",
+        "GET_ORDERS_REPORT",
+        "GET_ORDERS_STATS",
+        "GET_PRODUCT",
+        "GET_PRODUCTS_REPORT",
+        "GET_PRODUCTS_STATS",
+        "GET_REPORT_TOTALS",
+        "GET_REVENUE_STATS",
+        "GET_SALES_BREAKDOWN",
+        "GET_SALES_REPORT",
+        "GET_STOCK_REPORT",
+        "GET_TAXES_REPORT",
+        "GET_TAXES_STATS",
+        "GET_TOP_SELLERS",
+        "GET_VARIATIONS_REPORT",
+        "GET_VARIATIONS_STATS",
+        "LIST_COUPONS",
+        "LIST_CUSTOMERS",
+        "LIST_ORDERS",
+        "LIST_PRODUCTS",
+        "LIST_PRODUCT_CATEGORIES"
+      ],
+      "actions": 30
+    },
+    {
+      "gateway": "ga4_native_action",
+      "operation": "ga4_connection_ops",
+      "reason": "No provider request mapping for 3 of its 5 actions (action ledger: unmapped)",
+      "unmapped_actions": [
+        "exchange",
+        "refresh",
+        "start"
+      ],
+      "actions": 5
+    },
+    {
+      "gateway": "google_business_native_action",
+      "operation": "gmb_connection_ops",
+      "reason": "No provider request mapping for 3 of its 6 actions (action ledger: unmapped)",
+      "unmapped_actions": [
+        "exchange",
+        "refresh",
+        "start"
+      ],
+      "actions": 6
+    },
+    {
+      "gateway": "google_business_native_action",
+      "operation": "gmb_engagement_ops",
+      "reason": "No provider request mapping for 1 of its 7 actions (action ledger: unmapped)",
+      "unmapped_actions": [
+        "LEGACY_V4_REQUEST"
+      ],
+      "actions": 7
+    },
+    {
+      "gateway": "google_search_console_native_action",
+      "operation": "gsc_connection_ops",
+      "reason": "No provider request mapping for 3 of its 6 actions (action ledger: unmapped)",
+      "unmapped_actions": [
+        "exchange",
+        "refresh",
+        "start"
+      ],
+      "actions": 6
     }
   ],
   "limitations": [
