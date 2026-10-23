@@ -164,7 +164,7 @@
 [data-theme='dark'] :is(.error, .status.error) {
   color: var(--danger);
 }
-[data-theme='dark'] :is(.about-art-card, .auth-form-card .owner-entry) {
+[data-theme='dark'] :is(.auth-form-card .owner-entry) {
   background: var(--surface-subtle);
 }
 [data-theme='dark'] .auth-form-card .owner-entry .eyebrow {
