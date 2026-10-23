@@ -156,7 +156,7 @@
   background: var(--success-bg);
   border-color: var(--success-ink);
 }
-[data-theme='dark'] :is(.button.danger, .button.danger:hover, .callback-step.failed) {
+[data-theme='dark'] :is(.callback-step.failed) {
   color: var(--danger);
   background: var(--danger-bg);
   border-color: var(--danger);
