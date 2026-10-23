@@ -13,29 +13,17 @@
     }
   ],
   "pages": {
-    "docs/CURRENT-READINESS.md": {
-      "batch_headings": 11,
-      "commit_refs": 4,
-      "duplicate_lines": 89,
-      "package_counts": 13
-    },
-    "docs/DECISIONS.md": {
-      "batch_headings": 0,
-      "commit_refs": 1,
-      "duplicate_lines": 0,
-      "package_counts": 0
-    },
     "docs/DEPLOY-RAILWAY.md": {
       "batch_headings": 8,
-      "commit_refs": 2,
-      "duplicate_lines": 25,
-      "package_counts": 2
+      "commit_refs": 1,
+      "duplicate_lines": 13,
+      "package_counts": 0
     },
     "docs/LOCAL-BROWSER-QA.md": {
       "batch_headings": 27,
       "commit_refs": 20,
-      "duplicate_lines": 61,
-      "package_counts": 5
+      "duplicate_lines": 14,
+      "package_counts": 0
     },
     "docs/OAUTH-HARDENING.md": {
       "batch_headings": 0,
@@ -52,8 +40,8 @@
     "docs/PRODUCT-WORKFLOWS.md": {
       "batch_headings": 7,
       "commit_refs": 0,
-      "duplicate_lines": 70,
-      "package_counts": 2
+      "duplicate_lines": 53,
+      "package_counts": 0
     },
     "docs/USER-ACCOUNTS.md": {
       "batch_headings": 0,

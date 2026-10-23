@@ -278,13 +278,13 @@
       "blueprint_acceptance": "Separate reproducible local/CI/container/live evidence for the shipped workflow",
       "source": {
         "met": false,
-        "gap": "No harvested Linux evidence record: the owner reported the Railway build of cb338f68 successful on 2026-10-18, but its log is not yet recorded (ACC-04), and container parity outside Git cannot reproduce the image's root user, Node patch version or OS; the finite assistive-technology protocol (ACC-07) has not been run",
+        "gap": "No harvested Linux evidence record: the owner reported the Railway build of the 2026-10-18 deployment successful (docs/records/DEPLOYMENT-2026-10-18.md names its revision), but its log is not yet recorded (ACC-04), and container parity outside Git cannot reproduce the image's root user, Node patch version or OS; the finite assistive-technology protocol (ACC-07) has not been run",
         "tests": ["tests/browser-wcag.test.mjs", "tests/browser-accessibility.test.mjs", "tests/release-assembly.test.mjs", "tests/qualify.test.mjs"]
       },
       "native": {"state": "none", "evidence": []},
       "manual": {"state": "amended", "evidence": ["D25: hosted CI waived by the owner; local qualification records replace it"]},
       "remainders": [
-        {"text": "Harvest Railway build logs and image digests as Linux/container evidence: the tools are built (wave 2); the owner exports the build log of the deployed cb338f68, records it with npm run evidence:railway and pins the base image digest it shows", "disposition": "owner_action", "ref": "ACC-04"},
+        {"text": "Harvest Railway build logs and image digests as Linux/container evidence: the tools are built (wave 2); the owner exports the build log of the revision deployed on 2026-10-18 (docs/records/DEPLOYMENT-2026-10-18.md), records it with npm run evidence:railway and pins the base image digest it shows", "disposition": "owner_action", "ref": "ACC-04"},
         {"text": "Finite manual assistive-technology acceptance", "disposition": "register_item", "ref": "ACC-07"},
         {"text": "Railway settings before the 2026-12-01 cutoff and path-scoped deploys", "disposition": "register_item", "ref": "OPS-05"},
         {"text": "ARC-03 manual acceptance: the owner reviews the unanchored route list (docs/implementation/ROUTE-ANCHOR-COVERAGE.md) and the withheld-capture declaration (.mirror/RAW/WITHHELD.json); the network steps no check takes were completed on 2026-10-17 (the Apple SDK re-derivation passed with 0 problems, and the TikTok SDK specification was pinned at commit f809c396)", "disposition": "owner_action", "ref": "ARC-03"},

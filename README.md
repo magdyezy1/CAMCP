@@ -10,8 +10,9 @@ and attribution, and never invent zeros.
 **Workspace owners:** start with the [owner guide](docs/owner/README.md), also in [Arabic](docs/owner/ar/README.md):
 plain language, task by task, and what stays yours to do.
 
-**Status.** The last deployment the owner reported is branch `Work-here` at `cb338f68`, deployed to amcp.shop
-through Railway on 2026-10-18; later commits reach the site with the next push the owner approves. Every part
+**Status.** The last deployment the owner reported is branch `Work-here`, deployed to amcp.shop through Railway on
+2026-10-18 (its [deployment record](docs/records/DEPLOYMENT-2026-10-18.md) names the revision); later commits reach
+the site with the next push the owner approves. Every part
 described here is implemented in source and tested against synthetic provider fakes; no live write has been accepted
 yet, and live acceptance is owner-run. [Current readiness](docs/CURRENT-READINESS.md) gives the status of each area,
 the generated provider, tool and package tables, and the owner steps that remain.

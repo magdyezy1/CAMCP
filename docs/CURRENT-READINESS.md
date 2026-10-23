@@ -1,8 +1,9 @@
 # Current readiness
 
 What AMCP does today, how far each part has been accepted, and what is left. This page describes branch `Work-here`
-of `magdyezy1/CAMCP` as deployed on amcp.shop (revision `cb338f68`, 2026-10-18) together with the wave 4b work that is
-committed locally and not yet deployed (section 2). It was rewritten on 2026-10-22 (DOC-01).
+of `magdyezy1/CAMCP` as deployed on amcp.shop on 2026-10-18 (the [deployment record](records/DEPLOYMENT-2026-10-18.md)
+names the revision) together with the wave 4b work that is committed locally and not yet deployed (section 2). It was
+rewritten on 2026-10-22 (DOC-01).
 
 Numbers in this page and every table marked "generated" are written from the code and the committed ledgers by
 `npm run docs:index`, and `npm run docs:index:check` (part of `npm run check` and the Docker build) fails when one of
@@ -33,20 +34,21 @@ in the delivery records; they qualify no workflow, and no package acceptance res
 ## 2. Deployed state
 
 **On amcp.shop (deployed 2026-10-18).** Waves 1 to 4a of the 2026-10-08 engineering review, the SDK upgrade to
-1.32.1, the public documentation pins and the owner-approved legal pages (D3) were pushed to `Work-here` at `5db67a71`
-on 2026-10-18. Railway's Linux build then failed twice where the Windows release gate and the Windows container-parity
+1.32.1, the public documentation pins and the owner-approved legal pages (D3) were pushed to `Work-here` on
+2026-10-18. Railway's Linux build then failed twice where the Windows release gate and the Windows container-parity
 run had passed, and both causes were fixed and pushed:
 
 1. `node:sqlite` in the image refuses the backup rate `-1` (SQLite's "every page in one step"), so `snapshotDatabase`
    uses `0x7fffffff`, the largest positive 32-bit page batch, which copies any database below 2^31 pages in one step
-   from one read snapshot (`998d711a`).
+   from one read snapshot.
 2. The Docker build runs `npm run check` as root, and the admin CLI refuses root without `--allow-root`, so the
-   same-volume backup test passes `--allow-root` to reach the check it tests, `BACKUP_SAME_VOLUME` (`cb338f68`).
+   same-volume backup test passes `--allow-root` to reach the check it tests, `BACKUP_SAME_VOLUME`.
 
 Once the build passed, the deployment refused to start because of the Railway variable `AMCP_LINKEDIN_API_VERSION`:
 AMCP refuses to start with a LinkedIn version it has not reviewed. The owner set it to `202609`, and Railway reported
-the deployment successful and active at `cb338f68` (owner report, 2026-10-18). What the Railway build log proves is
-not yet recorded: the owner exports it and runs `npm run evidence:railway`
+the deployment of the second fix successful and active (owner report, 2026-10-18). The
+[deployment record](records/DEPLOYMENT-2026-10-18.md) names the pushed, fixed and deployed revisions. What the Railway
+build log proves is not yet recorded: the owner exports it and runs `npm run evidence:railway`
 ([Linux evidence](DEPLOY-RAILWAY.md#per-release-linux-evidence-from-railway-builds)). The lessons for the next push are
 in [the deployment guide](DEPLOY-RAILWAY.md#what-the-2026-10-18-deployment-taught).
 
@@ -87,7 +89,7 @@ Generated from [package-status.json](review/package-status.json), status as of 2
 | B13 | Operations/recovery center and support bundle UI | met | none | pending owner |
 | B14 | Typed client playbooks and template preview | met | none | not recorded |
 | B15 | Typed MCP outcomes and workflow evaluations | not met: Source re-assessment pending (D25): the typed per-action contracts and outcome schemas the 2026-10-10 assessment found missing shipped with MCP-07 in wave 2; 'fewer unnecessary calls' has a local journey and task baseline (QA-04) but no external-client run yet (D14) | none | not recorded |
-| B16 | Browser, container, accessibility and acceptance qualification | not met: No harvested Linux evidence record: the owner reported the Railway build of cb338f68 successful on 2026-10-18, but its log is not yet recorded (ACC-04), and container parity outside Git cannot reproduce the image's root user, Node patch version or OS; the finite assistive-technology protocol (ACC-07) has not been run | none | amended |
+| B16 | Browser, container, accessibility and acceptance qualification | not met: No harvested Linux evidence record: the owner reported the Railway build of the 2026-10-18 deployment successful (docs/records/DEPLOYMENT-2026-10-18.md names its revision), but its log is not yet recorded (ACC-04), and container parity outside Git cannot reproduce the image's root user, Node patch version or OS; the finite assistive-technology protocol (ACC-07) has not been run | none | amended |
 | B17 | First additional objective launch packs | not met: Source re-assessment pending (D25): the Microsoft location targeting and activation gating the 2026-10-10 assessment found missing shipped with CMP-03 in waves 2 to 3b, with the lookup by name since its Microsoft Learn page was pinned on 2026-10-17; no recipe has reached a verified outcome on a real account yet (native, ACC-01) | none | not recorded |
 | B18 | Guided native report capture and richer reconciliation | not met: LinkedIn conversion windows are not verified | none | not recorded |
 | B19 | Read-only monitors and incident lifecycle | met | none | not recorded |
@@ -230,15 +232,15 @@ integration records of each wave and in [package status](review/PACKAGE-STATUS.m
 ## 5. Recorded on 2026-10-17: public documentation pins
 
 These pins were the public, unauthenticated reads that earlier waves left to the owner. They were completed on
-2026-10-17 and are no longer pending owner steps:
+2026-10-17 and are no longer pending owner steps; the
+[deployment record](records/DEPLOYMENT-2026-10-18.md#the-public-documentation-pins-of-2026-10-17) names the commit that
+recorded each:
 
-- **Microsoft Learn, `GetGeoLocationsFileUrl` and its `CompressionType`** (`1e03807b`). The page shows that `Zip` is
-  reserved for future use, so the location lookup now requests `GZip`. The Microsoft Search recipe's lookup by name is
-  on (CMP-03).
-- **TikTok Pixel Event Stats**, the SDK specification and the API reference at SDK commit `f809c396` (`9c42d9f0`). The
-  statistics read is sent only under this pin (MSR-03).
-- **Meta Business SDK v25.0.3 to v26.0.2**: the change evidence was regenerated from both complete PyPI releases
-  (`90023a25`).
+- **Microsoft Learn, `GetGeoLocationsFileUrl` and its `CompressionType`.** The page shows that `Zip` is reserved for
+  future use, so the location lookup now requests `GZip`. The Microsoft Search recipe's lookup by name is on (CMP-03).
+- **TikTok Pixel Event Stats**, the SDK specification and the API reference at the SDK commit that
+  `.mirror/VENDOR/tiktok-pixel-event-stats.json` pins. The statistics read is sent only under this pin (MSR-03).
+- **Meta Business SDK v25.0.3 to v26.0.2**: the change evidence was regenerated from both complete PyPI releases.
 - **Apple Ads Platform API SDK**: the re-derivation of the model evidence at its pinned revision passed with 0
   problems (ARC-03).
 
@@ -327,9 +329,10 @@ Where the two deployments differ, the read-only value follows in brackets.
 
 After the 2026-10-18 deployment, in order of need:
 
-1. **Record the deployment.** Export the Railway build log of `cb338f68` and run `npm run evidence:railway` on it,
-   save `/versionz` and check that it names `cb338f68`, then pin the Dockerfile's two `node:24-bookworm-slim` stages
-   to the base image digest the record shows (ACC-04, OPS-08). Compare the public website bytes
+1. **Record the deployment.** Export the Railway build log of the deployed revision (the
+   [deployment record](records/DEPLOYMENT-2026-10-18.md) names it) and run `npm run evidence:railway` on it, save
+   `/versionz` and check that it names that revision, then pin the Dockerfile's two `node:24-bookworm-slim` stages to
+   the base image digest the evidence record shows (ACC-04, OPS-08). Compare the public website bytes
    (`npm run check:public-website`).
 2. **Settings and dashboards.** The Railway, Cloudflare and backup steps under Operations above; before 2027-04-01,
    review the security contact and move `security.txt`'s `Expires` forward (D3).
@@ -339,9 +342,10 @@ After the 2026-10-18 deployment, in order of need:
    ([route anchors](implementation/ROUTE-ANCHOR-COVERAGE.md)) and the withheld-capture declaration
    (`.mirror/RAW/WITHHELD.json`); the owner approves the retention per document kind
    ([document kinds](DOCUMENT-KINDS.md)) and the package-status taxonomy and counts (D25).
-4. **Behaviour the deployment changed.** The 2026-10-18 deployment was the first since `60ec2cc`, so it brought every
-   release note of waves 1 to 4a ([decisions](DECISIONS.md) holds them): 7-day invitations; owner-only execution
-   beyond a cap; caps without a currency that block money changes until the owner saves them again; Meta
+4. **Behaviour the deployment changed.** The 2026-10-18 deployment was the first since the revision the 2026-10-08
+   review examined, so it brought every release note of waves 1 to 4a ([decisions](DECISIONS.md) holds them): 7-day
+   invitations; owner-only execution beyond a cap; caps without a currency that block money changes until the owner
+   saves them again; Meta
    destination-only values in the review set; Amazon Ads, Criteo and WooCommerce no longer offered; owners and
    administrators of write-enabled workspaces must turn on two-step verification within 14 days; sign-ups never approved
    are erased after 30 days, revoked accounts after 90 days and, in workspaces without their own period, finished
@@ -356,7 +360,9 @@ After the 2026-10-18 deployment, in order of need:
 A change is documented when the one guide that describes the behaviour says what it does now, and so does the guide AI
 clients read where they read one (`docs/REPORTING-OVERVIEW.md` and `Skills/amcp-campaign-builder/references/`, served
 as MCP resources). Counts and tables come from `npm run build` and `npm run docs:index`, never by hand; a dated account
-of how a change was built belongs in a record, not in this page or a guide. The deployed revision in section 2 and in
-the README's status line is the owner's report of Railway, not something the code knows: update both when the owner
-reports a new deployment. Outside its markers the check refuses the retired package vocabulary (B25 called "open",
-single-label package counts) and hand-typed family, recipe, guide or tool counts (`tools/doc-facts.mjs`).
+of how a change was built belongs in a record, not in this page or a guide. The deployed revision is the owner's
+report of Railway, not something the code knows, and a commit reference on a current page breaks the documentation
+freeze (`tools/docs-lint.mjs`): when the owner reports a new deployment, add its dated record beside
+[the 2026-10-18 one](records/DEPLOYMENT-2026-10-18.md) and point section 2 and the README's status line at it.
+Outside its markers the check refuses the retired package vocabulary (B25 called "open", single-label package counts)
+and hand-typed family, recipe, guide or tool counts (`tools/doc-facts.mjs`).

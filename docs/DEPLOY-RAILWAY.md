@@ -368,8 +368,9 @@ and only for a build that ran the check rather than reusing it from the build ca
    `CHECK_STEP_CACHED`, `TESTS_FAILED`, `VERSIONZ_COMMIT_MISMATCH`).
 
 3. **Keep.** Store the record and excerpt with the release record outside the repository (qualification records stay
-   local, D25), starting with `cb338f68`, the revision deployed on 2026-10-18. The base
-   image digest in the record is the value to pin in the Dockerfile ([operations](OPERATIONS.md#qualification-records),
+   local, D25), starting with the revision deployed on 2026-10-18 (its
+   [deployment record](records/DEPLOYMENT-2026-10-18.md) names it). The base image digest in the record is the value
+   to pin in the Dockerfile ([operations](OPERATIONS.md#qualification-records),
    [what the 2026-10-18 deployment taught](#what-the-2026-10-18-deployment-taught)).
 
 Before pushing a change that touches how tests find files, run them the way the container build does:
@@ -386,15 +387,16 @@ resource R7). `deploy/smoke.mjs` runs the same checks against a locally built im
 
 ## What the 2026-10-18 deployment taught
 
-`Work-here` was pushed at `5db67a71` on 2026-10-18, after the Windows release gate (`wave4a-gate-3`) and the Windows
+`Work-here` was pushed on 2026-10-18, after the Windows release gate (`wave4a-gate-3`) and the Windows
 container-parity run (every test passed outside Git) had passed. Railway's Linux build then failed twice, and the first
-build that passed did not start (owner report, 2026-10-18):
+build that passed did not start (owner report, 2026-10-18; the [deployment record](records/DEPLOYMENT-2026-10-18.md)
+names each revision):
 
 | Step | What happened on Railway | Fix |
 | --- | --- | --- |
-| 1 | The backup tests failed: `node:sqlite` in the image refused the online-backup rate `-1`, SQLite's "all pages" value, which the Windows Node accepted | `snapshotDatabase` uses `0x7fffffff`, the largest positive 32-bit page batch, so a backup still copies the database in one step from one read snapshot (`998d711a`) |
-| 2 | The same-volume backup test failed: the build runs `npm run check` as root, and the admin CLI refuses root without `--allow-root`, so the test stopped at that refusal instead of `BACKUP_SAME_VOLUME` | The test's two admin CLI calls pass `--allow-root` (`cb338f68`); in production admin commands still run as `node` (`gosu node npm run admin -- <command>`) |
-| 3 | The deployment refused to start: the service variable `AMCP_LINKEDIN_API_VERSION` held a LinkedIn version AMCP has not reviewed | The owner set it to `202609`; Railway then reported the deployment of `cb338f68` successful and active |
+| 1 | The backup tests failed: `node:sqlite` in the image refused the online-backup rate `-1`, SQLite's "all pages" value, which the Windows Node accepted | `snapshotDatabase` uses `0x7fffffff`, the largest positive 32-bit page batch, so a backup still copies the database in one step from one read snapshot |
+| 2 | The same-volume backup test failed: the build runs `npm run check` as root, and the admin CLI refuses root without `--allow-root`, so the test stopped at that refusal instead of `BACKUP_SAME_VOLUME` | The test's two admin CLI calls pass `--allow-root`; in production admin commands still run as `node` (`gosu node npm run admin -- <command>`) |
+| 3 | The deployment refused to start: the service variable `AMCP_LINKEDIN_API_VERSION` held a LinkedIn version AMCP has not reviewed | The owner set it to `202609`; Railway then reported the deployment of the second fix successful and active |
 
 What follows for each push (ACC-04):
 
@@ -405,8 +407,8 @@ What follows for each push (ACC-04):
   ([per-release evidence](#per-release-linux-evidence-from-railway-builds)).
 - **Pin the base image (owner step).** Both `FROM node:24-bookworm-slim` stages of the Dockerfile follow a floating tag,
   so a later build can take another Node 24 patch than the one that passed. Pin both to the `base_image.digest` of the
-  evidence record of `cb338f68` (`FROM node:24-bookworm-slim@sha256:<digest>`), and move the pin deliberately when Node
-  is upgraded (OPS-08).
+  evidence record of the deployed revision (`FROM node:24-bookworm-slim@sha256:<digest>`), and move the pin
+  deliberately when Node is upgraded (OPS-08).
 - **Root in tests.** The admin CLI refuses root in production mode unless `--allow-root` is given
   (`adminRootRefusal` in `server/config.ts`), and the Docker build runs `npm run check` as root, so a test that runs
   the admin CLI for another purpose passes `--allow-root` and must give the same result as root and as another user.

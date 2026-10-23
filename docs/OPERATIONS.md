@@ -767,7 +767,8 @@ URL, the date read and a note; the generator refuses an entry whose route has mo
 The SDK evidence behind Meta's `sdk_method` anchors (`tests/fixtures/meta-sdk-changes-v26.json`, whose digest the
 anchors record) re-derives like the Apple evidence, from the two SDK releases the owner downloads:
 `node tools/meta-sdk-changes.mjs --from-dir <25.0.3 adobjects> --to-dir <26.0.2 adobjects> --check`. It was
-regenerated on 2026-10-17 from both complete PyPI releases (`90023a25`).
+regenerated on 2026-10-17 from both complete PyPI releases
+([deployment record](records/DEPLOYMENT-2026-10-18.md#the-public-documentation-pins-of-2026-10-17)).
 
 ### Journey and MCP evaluation (QA-04)
 
@@ -1551,8 +1552,8 @@ remaining ones. Meta Dataset Quality needs `ads_management`, or `ads_read` with 
 without either keeps that layer unknown. Snap asks for review before Signal Readiness data is displayed publicly, so it
 stays on signed-in workspace pages. The TikTok adapter sends one more read per ledger, the selected pixel's event
 statistics (`GET /v1.3/pixel/event/stats/`), exactly as TikTok's SDK specification of that request documents it. The
-specification is pinned in `.mirror/VENDOR/tiktok-pixel-event-stats.json`: SDK commit `f809c396` with its API
-reference, read publicly on 2026-10-17 (`9c42d9f0`); without a pin that layer is `unavailable` (`unpinned_request`)
+specification is pinned in `.mirror/VENDOR/tiktok-pixel-event-stats.json`: the SDK commit that file names, with its
+API reference, read publicly on 2026-10-17; without a pin that layer is `unavailable` (`unpinned_request`)
 and nothing is sent. To pin another commit, download
 `yml_files/pixel_event_stats.yml` of `tiktok/tiktok-business-api-sdk` at a full commit (for example
 `https://raw.githubusercontent.com/tiktok/tiktok-business-api-sdk/<commit>/yml_files/pixel_event_stats.yml`), run

@@ -341,8 +341,9 @@ verification file holds its machine-checked evidence.
 ## Records
 
 What was delivered, measured or found on a given day, kept as written: the delivery records of the October 2026
-review, the incident record, the September progress log, and the batch history that the write coverage and
-implementation pages held until the documentation freeze.
+review, the incident record, the design review, each deployment with the revisions it shipped, the September
+progress log, and the batch history that the write coverage and implementation pages held until the documentation
+freeze.
 
 | Date | Document |
 |---|---|
@@ -489,6 +490,7 @@ implementation pages held until the documentation freeze.
 | 2026-10-07 | [Appearance, thirty-minute uploads and detailed report export](records/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md) |
 | 2026-10-07 | [Conditional programs, repeated budget evidence and client parity](records/DELIVERY-2026-10-07-CONDITIONAL-PROGRAMS.md) |
 | 2026-10-07 | [Scoped report recovery and supplied measurement traces](records/DELIVERY-2026-10-07-TRACE-RECOVERY.md) |
+| 2026-10-18 | [Deployment of 2026-10-18](records/DEPLOYMENT-2026-10-18.md) |
 
 Data: [WORKBOOK-LOOKUP-2026-10-02.json](records/WORKBOOK-LOOKUP-2026-10-02.json).
 
