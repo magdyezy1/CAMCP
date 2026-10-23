@@ -161,7 +161,7 @@
   background: var(--danger-bg);
   border-color: var(--danger);
 }
-[data-theme='dark'] :is(.error, .danger, .status.error) {
+[data-theme='dark'] :is(.error, .status.error) {
   color: var(--danger);
 }
 [data-theme='dark']
