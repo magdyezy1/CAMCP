@@ -187,3 +187,69 @@ test('the compact selects share one size, focus rings take the focus role, and c
   // The regression itself: the decorative line against the white field.
   assert.ok(contrast(resolve('light', 'var(--line)'), resolve('light', 'var(--surface-raised)')) < 3);
 });
+
+test('no dark group re-colours a button, a status badge, a notice variant, a feedback alert or a metric pill', () => {
+  const members = darkMembers();
+  // The regression: these members sat in groups whose ID member outranked every variant rule.
+  for (const member of [
+    '.button',
+    '.status',
+    '.notice',
+    '.button:hover',
+    '.button.primary',
+    '.button.primary:hover',
+    '.button.danger',
+    '.button.danger:hover',
+    '.status.online',
+    '.status.attention',
+    '.notice.warning',
+    '.metric-pills span',
+    '.metric-pills input:checked + span',
+    '.measurement-read-feedback',
+    '.workspace-form-feedback',
+    '#capture-feedback',
+    'dialog',
+    '.client-tab',
+    '.platform-card',
+  ])
+    assert.ok(!members.includes(member), member + ' is re-coloured by theme.css');
+  // The dark hover surface leaves the variants their own hover, and notices their warning and error colours.
+  assert.ok(members.includes('.button:not(.primary, .danger):hover:where(:not(:disabled))'));
+  assert.ok(members.includes('.notice:not(.warning, .error)'));
+  // What the dark layer still decides only shrinks (B23 removed every entry that only repeated a token).
+  assert.ok(members.length <= 87, 'theme.css dark members: ' + members.length);
+});
+
+test('every button variant keeps its look in the dark theme, with readable text', () => {
+  const surfaceOf = selector =>
+    declared('identity.css', selector, 'background') ?? declared('app.css', selector, 'background');
+  // Primary: the accent fill and its text (the dark layer used to paint the panel colour over it).
+  const primary = [declared('identity.css', '.button.primary', 'color'), surfaceOf('.button.primary')];
+  for (const theme of ['light', 'dark']) {
+    const [ink, fill] = primary.map(value => resolve(theme, value));
+    assert.ok(contrast(ink, fill) >= 4.5, theme + ' primary: ' + contrast(ink, fill).toFixed(2));
+    assert.notEqual(fill, resolve(theme, 'var(--surface-raised)'), theme + ': a primary button is not a plain one');
+    const hover = resolve(
+      theme,
+      declared('identity.css', '.button.primary:hover:where(:not(:disabled))', 'background'),
+    );
+    assert.ok(contrast(ink, hover) >= 4.5, theme + ' primary hover: ' + contrast(ink, hover).toFixed(2));
+  }
+  // Dark: the inverse fill with the inverse text in both themes (var(--white) is the dark panel colour).
+  assert.equal(declared('app.css', '.button.dark', 'color'), 'var(--text-on-inverse-strong)');
+  for (const theme of ['light', 'dark'])
+    assert.ok(
+      contrast(resolve(theme, 'var(--text-on-inverse-strong)'), resolve(theme, surfaceOf('.button.dark'))) >= 4.5,
+    );
+  // Quiet: transparent until hovered, in both themes.
+  assert.equal(declared('app.css', '.button.quiet', 'background'), 'transparent');
+  // Danger: its ink and border on the panel, and a danger fill under the pointer, from its tokens in both themes.
+  const danger = declared('reporting.css', '.button.danger', 'color'),
+    rest = surfaceOf('.button.danger'),
+    hover = declared('identity.css', '.button.danger:hover:where(:not(:disabled))', 'background');
+  for (const theme of ['light', 'dark']) {
+    assert.ok(contrast(resolve(theme, danger), resolve(theme, rest)) >= 4.5, theme + ' danger');
+    assert.ok(contrast(resolve(theme, danger), resolve(theme, hover)) >= 4.5, theme + ' danger hover');
+    assert.notEqual(resolve(theme, hover), resolve(theme, rest), theme + ': the danger button shows its hover');
+  }
+});

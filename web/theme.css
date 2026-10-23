@@ -32,28 +32,25 @@
 .report-results-heading .eyebrow {
   color: var(--muted);
 }
+/* Dark: only what the components' tokens do not decide (docs/DESIGN-SYSTEM.md). */
 [data-theme='dark'] caption {
   color: var(--muted);
 }
-
 /* Preserve provider logos, photographs, videos and QR pixels. Only interface surfaces change. */
 [data-theme='dark'] body {
   color: var(--ink);
   background: var(--paper);
 }
+/* An ID member gives the whole group its specificity: no component with variants or states here. */
 [data-theme='dark']
   :is(
-    .button,
-    .platform-card,
-    .client-tab,
     .empty,
     .endpoint-box,
     .command-trigger,
     #command-results button,
     .social-button,
     .report-summary-card,
-    .report-pack,
-    .status
+    .report-pack
   ) {
   color: var(--ink);
   background: var(--white);
@@ -107,7 +104,7 @@
 [data-theme='dark'] :is(.public-nav nav a, #breadcrumb, footer a) {
   color: var(--muted);
 }
-[data-theme='dark'] :is(article strong) {
+[data-theme='dark'] article strong {
   color: var(--ink);
 }
 [data-theme='dark'] :is(a.text-link, .auth-legal a, .hero-copy h1 > span) {
@@ -127,23 +124,20 @@
   color: var(--muted);
   opacity: 1;
 }
+/* Hover and selected. Primary and danger buttons, warning and error notices keep their own. */
 [data-theme='dark']
   :is(
-    .button:hover,
+    .button:not(.primary, .danger):hover:where(:not(:disabled)),
     .social-button:hover:not(:disabled),
     #command-results button:hover,
     #command-results button:focus,
     .measurement-task-links a:hover,
     .measurement-task-links a:focus-visible,
-    .metric-pills span,
     .filter-tab.active,
     .client-tab.active,
     .default-badge,
     .report-table th,
-    .notice,
-    .measurement-read-feedback,
-    .workspace-form-feedback,
-    #capture-feedback,
+    .notice:not(.warning, .error),
     .avatar
   ) {
   color: var(--ink);
@@ -156,7 +150,7 @@
   background: var(--success-bg);
   border-color: var(--success-ink);
 }
-[data-theme='dark'] :is(.callback-step.failed) {
+[data-theme='dark'] .callback-step.failed {
   color: var(--danger);
   background: var(--danger-bg);
   border-color: var(--danger);
@@ -164,7 +158,7 @@
 [data-theme='dark'] :is(.error, .status.error) {
   color: var(--danger);
 }
-[data-theme='dark'] :is(.auth-form-card .owner-entry) {
+[data-theme='dark'] .auth-form-card .owner-entry {
   background: var(--surface-subtle);
 }
 [data-theme='dark'] .auth-form-card .owner-entry .eyebrow {
