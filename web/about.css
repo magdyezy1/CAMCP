@@ -99,10 +99,10 @@ main {
 }
 .theme-control select {
   font: inherit;
-  min-height: 32px;
+  min-height: 44px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
-  padding: 4px 7px;
+  padding: 4px 8px;
   color: var(--ink);
   background: var(--white);
 }

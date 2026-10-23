@@ -748,7 +748,7 @@
 #evidence-rows-page-size:focus-visible,
 #evidence-rows-page:focus-visible,
 #evidence-download-language:focus-visible {
-  outline: 3px solid var(--iris-700);
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
 @media (max-width: 680px) {
@@ -757,24 +757,8 @@
   }
 }
 
-#capture-feedback {
-  grid-column: 1 / -1;
-  min-width: 0;
-  padding: 16px;
-  border: 1px solid var(--danger);
-  border-radius: var(--radius-md);
-  background: var(--white);
-  color: var(--ink);
-  overflow-wrap: anywhere;
-}
-#capture-feedback strong {
-  color: var(--danger);
-}
-#capture-feedback p {
-  margin: 8px 0 0;
-  line-height: 1.5;
-}
-
+/* The feedback alert: a form's refusal, what to do and the reference, kept beside the form (docs/DESIGN-SYSTEM.md). */
+#capture-feedback,
 .measurement-read-feedback,
 .workspace-form-feedback {
   grid-column: 1 / -1;
@@ -786,10 +770,12 @@
   color: var(--ink);
   overflow-wrap: anywhere;
 }
+#capture-feedback strong,
 .measurement-read-feedback strong,
 .workspace-form-feedback strong {
   color: var(--danger);
 }
+#capture-feedback p,
 .measurement-read-feedback p,
 .workspace-form-feedback p {
   margin: 8px 0 0;
@@ -887,7 +873,7 @@
 .measurement-task-return:focus-visible,
 .measurement-section-heading h2:focus,
 #measurement-task-heading:focus {
-  outline: 3px solid var(--iris-700);
+  outline: 3px solid var(--focus);
   outline-offset: 3px;
 }
 

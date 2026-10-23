@@ -272,7 +272,7 @@ h2.report-section-label {
   color: var(--text-accent-strong);
 }
 .metric-pills input:focus-visible + span {
-  outline: 2px solid var(--iris-700);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 .custom-metric-heading {
@@ -1012,7 +1012,7 @@ h2.report-section-label {
   min-height: 44px;
   padding-block: 0;
   padding-inline: 14px 36px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   color: var(--ink);
   background: var(--surface-raised);
@@ -1175,7 +1175,7 @@ h2.report-section-label {
 /* The theme's focus colour: the fixed #7351a1 measured 2.57:1 on the dark-theme panel (QA-03 focus contrast). */
 .report-library :focus-visible,
 .report-delivery-dialog :focus-visible {
-  outline: 3px solid var(--iris-700);
+  outline: 3px solid var(--focus);
   outline-offset: 3px;
 }
 .report-table caption {

@@ -181,7 +181,10 @@ p {
   white-space: nowrap;
 }
 .button.dark {
-  color: var(--white);
+  color: var(--text-on-inverse-strong);
+}
+.button[aria-busy='true'] {
+  cursor: progress;
 }
 .button.quiet {
   border-color: transparent;
@@ -252,12 +255,16 @@ p {
 .filter-tab.active {
   font-weight: 650;
 }
+.filter-tab:hover {
+  color: var(--text);
+  background: var(--surface-subtle);
+}
 .search {
   max-width: 290px;
   min-width: 130px;
   display: flex;
   align-items: center;
-  border: 1px solid var(--line);
+  border: 1px solid var(--border-strong);
   background: var(--white);
   border-radius: var(--radius-sm);
   padding-inline-start: 12px;
@@ -445,6 +452,7 @@ p {
   border-top: 1px solid var(--line);
 }
 dialog {
+  background: var(--surface-raised);
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
   box-shadow: var(--elevation-3);
@@ -473,6 +481,10 @@ dialog {
   padding: 6px;
   border-radius: var(--radius-sm);
 }
+.icon-button:hover {
+  color: var(--text);
+  background: var(--surface-subtle);
+}
 .small-dialog label {
   display: block;
   font-size: var(--type-sm);
@@ -480,7 +492,7 @@ dialog {
 }
 .small-dialog input {
   padding: 12px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   width: 100%;
 }
@@ -570,7 +582,8 @@ dialog {
   color: var(--muted);
   padding: 15px 0;
 }
-.asset-tabs button.active {
+.asset-tabs button.active,
+.asset-tabs button:hover {
   color: var(--ink);
 }
 .asset-count {
@@ -707,10 +720,14 @@ dialog {
 }
 .client-tab {
   border: 1px solid var(--line);
+  color: var(--text);
   background: var(--surface-raised);
   border-radius: var(--radius-sm);
   padding: 10px 17px;
   font-size: var(--type-sm);
+}
+.client-tab:hover {
+  border-color: var(--border-accent);
 }
 .code-block {
   border: 1px solid var(--line);
@@ -1412,13 +1429,14 @@ dialog {
   font-size: var(--type-xs);
   color: var(--muted);
 }
+/* The compact select of the top bar (with the language and appearance selects: docs/DESIGN-SYSTEM.md). */
 .working-client-control select {
   font: inherit;
-  min-height: 32px;
+  min-height: 36px;
   max-width: 14rem;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
-  padding: 4px 7px;
+  padding: 4px 8px;
   color: var(--ink);
   background: var(--white);
 }

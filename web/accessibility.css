@@ -17,7 +17,7 @@ textarea:focus-visible,
 summary:focus-visible,
 [tabindex]:focus-visible,
 .command-search input:focus-visible {
-  outline: 2px solid var(--iris-700);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 /* The sidebar, toast, connector hero and callback header stay dark in the light theme, where the iris-700 ring
@@ -110,7 +110,7 @@ code {
   color: var(--muted);
 }
 .report-table-wrap:focus-visible {
-  outline: 2px solid var(--iris-700);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 .breadcrumb span,

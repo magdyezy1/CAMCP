@@ -43,7 +43,8 @@ summary {
     transform var(--duration),
     box-shadow var(--duration);
 }
-.button:hover {
+/* A disabled button keeps its look under the pointer; :where() adds no specificity. */
+.button:hover:where(:not(:disabled)) {
   background: var(--surface);
   border-color: var(--border-accent);
 }
@@ -53,7 +54,7 @@ summary {
   color: var(--on-accent);
   box-shadow: 0 3px 6px color-mix(in srgb, var(--iris-700) 7%, transparent);
 }
-.button.primary:hover {
+.button.primary:hover:where(:not(:disabled)) {
   background: var(--iris-700);
   border-color: var(--iris-700);
   transform: translateY(-1px);
@@ -72,7 +73,7 @@ summary {
 .button.small {
   min-height: 33px;
 }
-.button.danger:hover {
+.button.danger:hover:where(:not(:disabled)) {
   background: var(--danger-bg-subtle);
   border-color: var(--danger-line);
 }
@@ -94,6 +95,10 @@ summary {
   background: var(--warning-bg-subtle);
   border-color: var(--warning-line);
   color: var(--status-warning-ink);
+}
+.notice.error {
+  border-color: var(--danger-line);
+  color: var(--danger-text);
 }
 .default-badge {
   color: var(--text-accent-strong);
@@ -2529,6 +2534,10 @@ body.public-view {
 #navigation-scrim,
 .sidebar-close {
   display: none;
+}
+.sidebar .icon-button:hover {
+  color: var(--text-on-inverse-strong);
+  background: var(--fill-on-inverse);
 }
 @media (max-width: 850px) {
   .sidebar-close {

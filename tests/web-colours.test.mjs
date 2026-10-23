@@ -219,7 +219,8 @@ test('the tokens that replaced the literal colours keep or raise the contrast ea
   const pairs = [
     ['accessibility.css', '.status', 'color', '#4f4a5c', 'var(--white)'],
     ['identity.css', '.button.primary', 'background', '#7560da', 'var(--on-accent)'],
-    ['identity.css', '.button:hover', 'background', '#f4f0fc', 'var(--ink)'],
+    // A disabled button keeps its look under the pointer (WEB-07 design system): the hover rule is guarded.
+    ['identity.css', '.button:hover:where(:not(:disabled))', 'background', '#f4f0fc', 'var(--ink)'],
     ['identity.css', '.command-trigger', 'background', '#f5f2f9', 'var(--muted)'],
     ['identity.css', '.code-block', 'background', '#f5f3f9', 'var(--text-soft)'],
     ['identity.css', '.code-block', 'color', '#48415c', 'var(--surface)'],
@@ -268,7 +269,11 @@ test('every hover and focus surface differs from its element’s own surface in 
   let compared = 0;
   for (const state of surfaces)
     for (const part of state.parts) {
-      const element = part.replace(/:(?:hover|focus-visible|focus-within|focus)\b/g, '').trim(),
+      // A state's guard (:where(:not(:disabled))) adds no specificity and names the same element.
+      const element = part
+          .replace(/:(?:hover|focus-visible|focus-within|focus)\b/g, '')
+          .replace(/:where\((?:[^()]|\([^()]*\))*\)/g, '')
+          .trim(),
         own = element !== part && surfaces.findLast(d => d.parts.includes(element));
       if (!own) continue;
       for (const theme of ['light', 'dark']) {

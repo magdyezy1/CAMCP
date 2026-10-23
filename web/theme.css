@@ -9,15 +9,16 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--type-xs);
   color: var(--muted);
 }
+/* The top bar's compact select (docs/DESIGN-SYSTEM.md). */
 .theme-control select {
   font: inherit;
-  min-height: 32px;
+  min-height: 36px;
   border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  padding: 4px 7px;
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
   color: var(--ink);
   background: var(--white);
 }
