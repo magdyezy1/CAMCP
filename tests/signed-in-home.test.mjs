@@ -9,6 +9,10 @@ import {createPublicAssets} from '../dist/server/public-assets.js';
 import {UserAccounts} from '../dist/server/user-accounts.js';
 import {WebStore} from '../dist/server/web-store.js';
 import {listenForFetch} from '../dist/tests/http-listener.js';
+import {pageRoutes} from '../dist/server/page-routes.js';
+import express from 'express';
+
+const varyCookie = /(?:^|,)\s*cookie\s*(?:,|$)/i;
 
 // Owner decision P12 (DOC-03): a signed-in visitor to / goes to Home (/dashboard). Before it, / answered everyone with
 // the public landing page, and a signed-in visitor had to choose "Open your workspace" there. A visitor who is not
@@ -66,6 +70,7 @@ test('a signed-in visitor to / is sent to /dashboard with a same-site redirect t
         assert.equal(response.headers.get('location'), '/dashboard', method + ' ' + route);
         // A shared cache must never hand this answer to a visitor who is not signed in.
         assert.equal(response.headers.get('cache-control'), 'no-store', method + ' ' + route);
+        assert.match(response.headers.get('vary') ?? '', varyCookie, method + ' ' + route);
         assert.equal(response.headers.get('set-cookie'), null);
       }
     // The page it leads to is the workspace shell.
@@ -99,6 +104,9 @@ test('a visitor who is not signed in keeps the public landing page at /, whateve
       assert.equal(response.status, 200, String(cookie));
       assert.equal(response.headers.get('location'), null);
       assert.match(response.headers.get('content-type'), /^text\/html/);
+      // The landing page is the other answer of the same address, so it is never stored or shared either.
+      assert.equal(response.headers.get('cache-control'), 'no-store', String(cookie));
+      assert.match(response.headers.get('vary') ?? '', varyCookie, String(cookie));
       assert.equal(await response.text(), landing, String(cookie));
     }
     // A session that ended no longer redirects: its account was turned off.
@@ -109,5 +117,47 @@ test('a visitor who is not signed in keeps the public landing page at /, whateve
     assert.equal(s.providerCalls(), 0);
   } finally {
     await s.close();
+  }
+});
+
+// The review of DOC-03: both answers of / were kept out of caches only by the site-wide security headers, and neither
+// said that it depends on the cookie. Mounted without any other middleware, the page routes still mark both answers.
+test('both answers of / say no-store and Vary: Cookie by themselves, without the site-wide headers', async () => {
+  let session;
+  const app = express(),
+    router = express.Router(),
+    publicAssets = createPublicAssets('web');
+  pageRoutes({
+    router,
+    web: {origin: 'https://amcp.invalid', session: () => session},
+    options: {},
+    directory: 'web',
+    publicAssets,
+  });
+  app.use(router);
+  const listener = await listenForFetch(app);
+  try {
+    const base = 'http://127.0.0.1:' + listener.address().port;
+    for (const [state, status] of [
+      [undefined, 200],
+      [{id: 'session'}, 302],
+    ]) {
+      session = state;
+      for (const method of ['GET', 'HEAD']) {
+        const response = await fetch(base + '/', {method, redirect: 'manual'});
+        await response.arrayBuffer();
+        assert.equal(response.status, status, method);
+        assert.equal(response.headers.get('cache-control'), 'no-store', method + ' ' + status);
+        assert.match(response.headers.get('vary') ?? '', varyCookie, method + ' ' + status);
+      }
+    }
+    // Another shell address answers the same page to everyone: it does not vary by the cookie.
+    const dashboard = await fetch(base + '/dashboard');
+    assert.equal(await dashboard.text(), publicAssets.html('index.html'));
+    assert.doesNotMatch(dashboard.headers.get('vary') ?? '', varyCookie);
+  } finally {
+    const closed = new Promise(resolve => listener.close(resolve));
+    listener.closeAllConnections();
+    await closed;
   }
 });

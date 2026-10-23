@@ -66,6 +66,14 @@ export function pageRoutes({router, web, options, directory, publicAssets}: Webs
       return false;
     }
   };
+  // Whether / sends this visitor to Home. Either answer of / depends on the session cookie, so the response says so
+  // itself, whatever middleware runs before these routes: no cache may store it, and a shared cache that ignores that
+  // still keys it by the cookie.
+  const homeVisitor = (req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.vary('Cookie');
+    return signedIn(req);
+  };
   for (const route of [
     '/dashboard',
     '/campaigns',
@@ -98,7 +106,7 @@ export function pageRoutes({router, web, options, directory, publicAssets}: Webs
     '/oauth/consent',
   ])
     router.get(route, (req, res) =>
-      route === '/' && signedIn(req)
+      route === '/' && homeVisitor(req, res)
         ? res.redirect(302, '/dashboard')
         : res.type('html').send(publicAssets.html('index.html')),
     );
