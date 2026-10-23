@@ -3,7 +3,6 @@ import type {Server} from '@modelcontextprotocol/sdk/server/index.js';
 import type {Transport} from '@modelcontextprotocol/sdk/shared/transport.js';
 import {SUPPORTED_PROTOCOL_VERSIONS, type JSONRPCMessage} from '@modelcontextprotocol/sdk/types.js';
 import {MirrorError} from '../src/errors.js';
-import {serverInstructions} from '../src/tool-annotations.js';
 import type {JsonObject} from '../src/types.js';
 import {mcpServerCapabilities, mcpServerInfo, mcpServerInstructions} from './mcp.js';
 
@@ -138,7 +137,7 @@ class SingleExchange implements Transport {
  * The `server/discover` result: the same capabilities and instructions as the legacy `initialize` answer, whose
  * instructions follow the deployment's mode (a read-only deployment has its own).
  */
-export function discoverResult(instructions: string = serverInstructions): JsonObject {
+export function discoverResult(instructions: string): JsonObject {
   return {
     supportedVersions: [...dualEraProtocolVersions],
     capabilities: mcpServerCapabilities(),
@@ -203,9 +202,13 @@ export async function serveModernRequest(
   const {method, params, meta} = validate(headers, message),
     identity = {[serverInfoKey]: mcpServerInfo()};
   let response: JsonObject;
-  if (message.method === 'server/discover')
-    response = {jsonrpc: '2.0', id: message.id, result: discoverResult(mcpServerInstructions(server))};
-  else if (message.method === 'resources/templates/list')
+  if (message.method === 'server/discover') {
+    // The instructions createMcpServer gave this server in its deployment's mode. A server without them was not made for
+    // a deployment; answering with another mode's text could send a read-only deployment's client to prepare and execute.
+    const instructions = mcpServerInstructions(server);
+    if (instructions === undefined) throw Error('server/discover needs a server made by createMcpServer.');
+    response = {jsonrpc: '2.0', id: message.id, result: discoverResult(instructions)};
+  } else if (message.method === 'resources/templates/list')
     response = {jsonrpc: '2.0', id: message.id, result: {resourceTemplates: []}};
   else {
     const rest = Object.fromEntries(Object.entries(params).filter(([key]) => key !== '_meta')),

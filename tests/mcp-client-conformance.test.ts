@@ -27,6 +27,7 @@ import {
   type ModernProtocolMode,
 } from '../server/mcp-modern.js';
 import {loadConfig, modernProtocolModeNames} from '../server/config.js';
+import {readOnlyServerInstructions, serverInstructions} from '../src/tool-annotations.js';
 import type {LinkRequest} from '../src/media-link.js';
 import type {JsonObject} from '../src/types.js';
 
@@ -369,6 +370,7 @@ test('MCP-03 phase 3: 2026-07-28 server/discover, tools, resources and prompts a
     assert.ok(d.supportedVersions.includes('2025-11-25') && d.supportedVersions.includes('2025-06-18'));
     assert.deepEqual(d.capabilities, initialized.body.result.capabilities);
     assert.equal(d.instructions, initialized.body.result.instructions);
+    assert.equal(d.instructions, readOnlyServerInstructions, 'this read-only deployment’s own orientation');
     assert.deepEqual(d._meta['io.modelcontextprotocol/serverInfo'], initialized.body.result.serverInfo);
     assert.ok(Number.isInteger(d.ttlMs) && d.ttlMs >= 0);
     assert.equal(d.cacheScope, 'public');
@@ -664,6 +666,36 @@ test('MCP-03 phase 3: a viewer key gets the same tool refusal in both eras, and 
   } finally {
     await f.close();
   }
+});
+
+// Wave 4b review: server/discover took the deployment's instructions from the server createMcpServer made and fell back
+// to the writes-mode text for any other server, and only the read-only mode was compared with initialize.
+test('MCP-06: server/discover answers in the deployment’s own mode, and only for a server made for a deployment', async () => {
+  for (const writes of [false, true]) {
+    const f = await fixture('on', writes);
+    try {
+      const token = f.key(),
+        discover = await modernCall(f, '/mcp', token, 'server/discover'),
+        initialized = await legacyCall(f, '/mcp', token, {
+          method: 'initialize',
+          params: {protocolVersion: '2025-11-25', capabilities: {}, clientInfo: {name: 'legacy', version: '1'}},
+        });
+      assert.equal(discover.status, 200, JSON.stringify(discover.body));
+      assert.equal(discover.body.result.instructions, writes ? serverInstructions : readOnlyServerInstructions);
+      assert.equal(discover.body.result.instructions, initialized.body.result.instructions);
+    } finally {
+      await f.close();
+    }
+  }
+  // A bare SDK server has no deployment mode: discover fails instead of answering with another mode's orientation.
+  await assert.rejects(
+    serveModernRequest(
+      new Server({name: 'amcp', version: 'test'}, {capabilities: {tools: {}}}),
+      {'mcp-protocol-version': modern, 'mcp-method': 'server/discover'},
+      {jsonrpc: '2.0', id: 'discover-1', method: 'server/discover', params: {_meta: modernMeta()}},
+    ),
+    /server\/discover needs a server made by createMcpServer/,
+  );
 });
 
 test('MCP-03 phase 3: a 2026-07-28 request whose client goes away mid-call ends with connection closed instead of waiting for good', async () => {

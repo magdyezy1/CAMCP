@@ -102,7 +102,8 @@ inspect`. `amcp_platform_workspace` and `gtm_native_action` have AMCP-owned desc
 help and guides are). A read-only deployment has its own text, since it lists `amcp_write` with `inspect` only and
 `amcp_media` with reads only: it says prepare and execute are refused instead of sending a client to them (with the
 owner's provider-job switch, they serve report and export jobs only). `server/discover` returns the same text as
-`initialize`. Every listed tool carries a `title` and annotations from one reviewed table
+`initialize`, and fails rather than answer in another mode when a server has no recorded mode. Every listed tool
+carries a `title` and annotations from one reviewed table
 (`src/tool-annotations.ts`, MCP-06). `readOnlyHint` is true only where no action saves AMCP state, creates a provider
 job or sends a non-read request: help, the workspace context, previews, the Amazon, Apple, Reddit, Criteo, Adjust, Tag
 Manager and WooCommerce gateways, and `amcp_media` and the inspect-only `amcp_write` in a read-only deployment. `tests/mcp-tool-annotations.test.mjs` runs
