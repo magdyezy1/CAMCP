@@ -15,6 +15,7 @@ with the [repository README](../README.md) for what AMCP is.
 
 - [AMCP product implementation and qualification — 1 October 2026](review/IMPLEMENTATION-2026-10-01.md)
 - [Package status on three axes](review/PACKAGE-STATUS.md)
+- [Design, accessibility and UX-copy review — October 2026](review/DESIGN-REVIEW-2026-10.md)
 - [Operations and monitoring delivery — 1 October 2026](review/DELIVERY-2026-10-01-OPERATIONS.md)
 - [Capability, creative library and report delivery — 1 October 2026](review/DELIVERY-2026-10-01-CREATIVE-REPORTS.md)
 - [Conversion launches, Meta evidence and linked-ad results — 1 October 2026](review/DELIVERY-2026-10-01-LAUNCH-MEASUREMENT.md)

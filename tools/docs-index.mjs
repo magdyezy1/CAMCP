@@ -19,6 +19,7 @@ const sections = [
     [
       'review/IMPLEMENTATION-2026-10-01.md',
       'review/PACKAGE-STATUS.md',
+      'review/DESIGN-REVIEW-2026-10.md',
       'review/DELIVERY-2026-10-01-OPERATIONS.md',
       'review/DELIVERY-2026-10-01-CREATIVE-REPORTS.md',
       'review/DELIVERY-2026-10-01-LAUNCH-MEASUREMENT.md',

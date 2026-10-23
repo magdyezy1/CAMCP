@@ -130,7 +130,10 @@ component rules (a group takes the specificity of its most specific entry). No s
 (design review 2026-10): `#command-results button`, `#capture-feedback` and `#breadcrumb` had lifted their groups to ID
 specificity, so in dark mode every primary and danger button looked like a plain one, warning notices lost their tone
 and status badges theirs; those IDs have rules of their own, the hover states and the shared surfaces are separate
-groups, and `tests/website-design-review.test.mjs` keeps every variant above the surfaces it refines. Where a component's colour became a
+groups, and `tests/website-design-review.test.mjs` keeps every variant above the surfaces it refines. That let the
+filled dark style of a checked metric pill apply for the first time, and its formula, still in the page's muted shade,
+measured 1.01:1 on the iris; it now takes the pill's own ink. The screenshots for the owner's sign-off of these
+colours, light and dark, are in the [design review](review/DESIGN-REVIEW-2026-10.md#7-web-07-colour-sign-off). Where a component's colour became a
 component shade, the shade's dark value is the layer's value, so those entries only repeat the tokens; where a
 component uses a palette role, an entry can still decide its dark colours: the measurement task links, for example,
 take `--surface-subtle` and the ink there instead of `--paper` and `--iris-700`, and their hover and focus states the
