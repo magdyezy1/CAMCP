@@ -98,26 +98,7 @@
   background: var(--surface-subtle);
   border-color: var(--line);
 }
-[data-theme='dark']
-  :is(
-    p,
-    label,
-    summary,
-    th,
-    td,
-    dt,
-    dd,
-    h1,
-    h2,
-    h3,
-    h4,
-    .brand,
-    .about-brand,
-    .report-section-label strong,
-    .workspace-details summary,
-    .metric-pills span,
-    .how-steps li > span
-  ) {
+[data-theme='dark'] :is(p, label, summary, th, dt, .brand, .how-steps li > span) {
   color: inherit;
 }
 [data-theme='dark']
