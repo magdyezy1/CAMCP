@@ -117,7 +117,7 @@ For an AMCP tool, operation help carries `contract.annotations`, derived from th
 that only adds AMCP records (a plan, review, capture or check result) is not destructive, every other change is, and
 provider validation (`amcp_campaign validate_provider`, D18) is never read-only. The review gate is presented as
 destructive although it only records a person's word, because it decides what is sent next: `amcp_campaign approve`,
-`confirm_absent` and `reconcile_step`, and `amcp_write reconcile`. Gateway help has no room for them
+`confirm_absent` and `reconcile_step`, and `amcp_write reconcile`. Gateway help has no room for per-action hints
 under the one-call budget (`amcp_workspace` help is within a few bytes of it). For a native gateway, operation help and
 `DESCRIBE_ACTION` carry `amcp_execution.annotations` from the action's ledger status: reads read; a reviewed write is
 previewed or refused there (its change path is `amcp_write`); a media route saves an upload review; Microsoft's
@@ -125,7 +125,8 @@ previewed or refused there (its change path is `amcp_write`); a media route save
 `src/tool-annotations.ts`. An operation whose actions differ shows the most cautious hints and lists its reads in
 `read_only_actions`. `tests/mcp-operation-annotations.test.mjs` runs every action presented as read-only (about 3,400)
 with read- and write-shaped arguments and fails if one saves AMCP state, sends a non-read request or creates a
-provider job, and it fails when a tool's own hints are less cautious than one of its actions'.
+provider job, or if one presented as closed-world (`openWorldHint` false) sends any request; it fails too when a
+tool's own hints are less cautious than one of its actions'.
 
 Every paged AMCP list carries the same paging fields (MCP-07): `has_more`, and while it is true the `next_cursor`
 (cursor lists such as `amcp_campaign list`, `amcp_reporting list`, `amcp_media library`, operations, history and
@@ -136,7 +137,8 @@ only one of the two before. The media list pages its recovery reviews apart (`re
 `tests/mcp-output-schema-parity.test.mjs` calls every tool of both modes through a real MCP SDK client, which
 validates `structuredContent` against the listed `outputSchema`, and checks that the text block is the same JSON,
 that `isError` is set exactly on refusals, and that each refusal names its code, category, remedy, next action and
-request ID.
+request ID. Each tool has a call that must succeed and one that must be refused; only `amcp_ad_previews`, whose
+every call reads a provider, has no successful call there.
 
 ## Database storage and media staging
 

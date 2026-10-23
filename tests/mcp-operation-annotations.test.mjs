@@ -247,15 +247,17 @@ test('every action presented as read-only saves nothing, sends only reads and cr
   let calls = 0,
     succeeded = 0,
     reads = 0,
-    presented = 0;
+    presented = 0,
+    closed = 0;
   // AMCP's own tools, in both deployment modes.
   for (const allowWrites of [true, false]) {
     const w = world(registry, allowWrites);
     try {
       for (const tool of w.service.firstPartyTools())
         for (const action of toolActions(tool)) {
-          const c = firstPartyContract(tool, action);
-          if (!firstPartyActionHints(tool.name, action, c.effects).readOnlyHint) continue;
+          const c = firstPartyContract(tool, action),
+            h = firstPartyActionHints(tool.name, action, c.effects);
+          if (!h.readOnlyHint) continue;
           presented++;
           const {read, write} = bags(w, 'meta_native_action'),
             extra = {gateway: 'meta_native_action', asset_id: 'synthetic-asset', ad_ids: ['1001'], platform: 'meta'};
@@ -273,8 +275,12 @@ test('every action presented as read-only saves nothing, sends only reads and cr
                   fill({...bag, ...extra, ...(action === null ? {} : {action})}, c.argumentsSchema),
                 );
           for (const input of inputs) {
-            const outcome = await readOnlyCall(w, tool.name, input, tool.name + ' ' + action);
+            // A closed-world action (openWorldHint false) must also send nothing at all.
+            const outcome = await readOnlyCall(w, tool.name, input, tool.name + ' ' + action, {
+              closedWorld: !h.openWorldHint,
+            });
             calls++;
+            if (!h.openWorldHint) closed++;
             if (outcome.success) succeeded++;
             reads += outcome.reads;
           }
@@ -288,8 +294,9 @@ test('every action presented as read-only saves nothing, sends only reads and cr
   try {
     const schemas = new Map(w.service.listTools().map(t => [t.name, t.inputSchema]));
     for (const row of ledger) {
-      const tool = registry.tools.get(row.gateway);
-      if (!tool || !nativeHints(row).readOnlyHint) continue;
+      const tool = registry.tools.get(row.gateway),
+        h = nativeHints(row);
+      if (!tool || !h.readOnlyHint) continue;
       presented++;
       const {read, write} = bags(w, row.gateway);
       let inputs;
@@ -313,8 +320,10 @@ test('every action presented as read-only saves nothing, sends only reads and cr
           row.gateway,
           input,
           row.gateway + ' ' + (row.operation ?? '') + ' ' + row.action,
+          {closedWorld: !h.openWorldHint},
         );
         calls++;
+        if (!h.openWorldHint) closed++;
         if (outcome.success) succeeded++;
         reads += outcome.reads;
       }
@@ -328,4 +337,6 @@ test('every action presented as read-only saves nothing, sends only reads and cr
   assert.ok(calls > 6000, 'calls ' + calls);
   assert.ok(succeeded > 900, 'succeeded ' + succeeded);
   assert.ok(reads > 400, 'reads ' + reads);
+  // On 2026-10-23: 3,125 calls of actions presented as closed-world, none of which sent a request.
+  assert.ok(closed > 3000, 'closed-world calls ' + closed);
 });

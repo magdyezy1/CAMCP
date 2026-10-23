@@ -142,9 +142,11 @@ export function bags(w, gateway) {
 }
 /**
  * Runs one call that is presented as read-only and asserts it changed no AMCP state, sent only independently read-only
- * requests and no provider job, and fetched no media. Returns whether it succeeded and how many requests it sent.
+ * requests and no provider job, and fetched no media. A call also presented as closed-world (openWorldHint false) must
+ * send no request at all (wave 4b review: nothing held that hint). Returns whether it succeeded and how many requests
+ * it sent.
  */
-export async function readOnlyCall(w, tool, input, label = tool) {
+export async function readOnlyCall(w, tool, input, label = tool, {closedWorld = false} = {}) {
   const before = snapshot(w.store),
     plans = w.plans.length,
     fetches = w.fetches.length,
@@ -160,5 +162,9 @@ export async function readOnlyCall(w, tool, input, label = tool) {
   for (const fetch of w.fetches.slice(fetches))
     assert.ok(['GET', 'HEAD'].includes(fetch.method) || sent.length > 0, 'unplanned ' + fetch.method + ': ' + where);
   assert.equal(w.media.length, media, 'fetched media: ' + where);
+  if (closedWorld) {
+    assert.equal(sent.length, 0, 'a closed-world call sent a provider plan: ' + where);
+    assert.equal(w.fetches.length, fetches, 'a closed-world call reached the network: ' + where);
+  }
   return {success: result.success === true, reads: sent.length};
 }

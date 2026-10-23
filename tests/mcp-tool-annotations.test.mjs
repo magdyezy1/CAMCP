@@ -265,7 +265,10 @@ test('every tool marked read-only changes no AMCP state and sends only read requ
     try {
       for (const tool of w.service.listTools().filter(t => t.annotations.readOnlyHint)) {
         for (const input of inputs(w, tool)) {
-          const outcome = await readOnlyCall(w, tool.name, input);
+          // A closed-world tool (help, the workspace context, a read-only amcp_write) also sends nothing at all.
+          const outcome = await readOnlyCall(w, tool.name, input, tool.name, {
+            closedWorld: !tool.annotations.openWorldHint,
+          });
           calls++;
           if (outcome.success) succeeded++;
           reads += outcome.reads;
