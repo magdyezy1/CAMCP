@@ -4,10 +4,14 @@
 // page whose text starts "Generated"). On a current page, a heading may not name a batch ("Batch 149 — ..."), a line
 // may not cite a commit or type a package count ("13/14/1": docs/review/PACKAGE-STATUS.md is generated from the
 // package status, so a page links it), and a line of 70 or more characters (outside code and tables) may not repeat
-// verbatim on another current page. The pages that already do are recorded in tools/docs-lint-baseline.json with
-// their counts, which may only fall; any other page must have none. Totals are reported against the review's targets:
-// a duplicate-line share under 5%, met since the batch history of the coverage and implementation pages moved to
-// docs/records/, and about 25,000 words in current pages, which consolidating the long guides still has to reach.
+// verbatim on another current page. The decision record (docs/DECISIONS.md) is the one current page whose commit
+// references are not counted: each of its rows is dated and names the commits the decision governs, as a record does
+// (commitRecordPages); its other rules apply. Any other current page that needs a revision links a dated record in
+// docs/records/ instead, such as a deployment record. The pages that already break a rule are recorded in
+// tools/docs-lint-baseline.json with their counts, which may only fall; any other page must have none. Totals are
+// reported against the review's targets: a duplicate-line share under 5%, met since the batch history of the coverage
+// and implementation pages moved to docs/records/, and about 25,000 words in current pages, which consolidating the
+// long guides still has to reach.
 // Usage: node tools/docs-lint.mjs [--write [--allow-increase=<reason>]]
 import fs from 'node:fs';
 import path from 'node:path';
@@ -16,6 +20,12 @@ import {readMoves} from './docs-links.mjs';
 
 export const baselineFile = 'tools/docs-lint-baseline.json';
 export const targets = {words: 25000, duplicate_share: 0.05};
+/**
+ * Current pages whose commit references are their record, so the freeze does not count them: the decision record
+ * (DOC-02) dates each decision and names the commits it governs. Batch headings, typed package counts and repeated
+ * long lines are still refused there.
+ */
+export const commitRecordPages = Object.freeze(['docs/DECISIONS.md']);
 const posix = file => file.split(path.sep).join('/');
 
 /** The current pages, repository-relative, sorted. */
@@ -89,7 +99,7 @@ export function measure(root = process.cwd()) {
       repeated = long.filter(line => owners.get(line).length > 1);
     counts[file] = {
       batch_headings: prose(text).filter(line => batchHeading.test(line)).length,
-      commit_refs: (text.match(commit) ?? []).length,
+      commit_refs: commitRecordPages.includes(file) ? 0 : (text.match(commit) ?? []).length,
       duplicate_lines: repeated.length,
       package_counts: packageCounts(text),
     };

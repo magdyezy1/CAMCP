@@ -10,6 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   baselineFile,
+  commitRecordPages,
   currentPages,
   lintProblems,
   measure,
@@ -150,6 +151,37 @@ test('a new batch heading, commit reference, package count or repeated long line
       'docs/GUIDE.md: 1 literal package counts (link docs/review/PACKAGE-STATUS.md, generated from the package status, instead), above 0',
     ],
   );
+});
+
+// The integration of DOC-01 with DOC-03: the decision record's rows name the commits a decision governs (the
+// 2026-10-18 push, the two Railway fixes and the deployed revision), so counting them as delivery history refused the
+// decision record itself. Its commit references are not counted; every other rule still applies to it, and every
+// other current page still names a revision only through a dated record.
+test('the decision record may cite the commits its decisions govern; its other rules and other pages are unchanged', t => {
+  assert.deepEqual(commitRecordPages, ['docs/DECISIONS.md']);
+  const root = temporary(t);
+  write(root, 'README.md', '# Repo\n\nDeployed at `cb338f68` ([record](docs/records/DEPLOYMENT-2026-10-18.md)).\n');
+  write(
+    root,
+    'docs/DECISIONS.md',
+    '# Decisions\n\n| 2026-10-18 | Pushed at `5db67a71`; fixed in `998d711a` and `cb338f68` |\n\n' +
+      '## Batch 7 — a delivery\n\nThe matrix stays 13/14/1.\n',
+  );
+  write(root, 'docs/records/DEPLOYMENT-2026-10-18.md', '# Deployment\n\nPushed at `5db67a71`.\n');
+  assert.deepEqual(measure(root).counts['docs/DECISIONS.md'], {
+    batch_headings: 1,
+    commit_refs: 0,
+    duplicate_lines: 0,
+    package_counts: 1,
+  });
+  assert.deepEqual(lintProblems(root, {pages: {}}), [
+    'README.md: 1 commit references (a current page says what is true now; cite a record instead), above 0',
+    'docs/DECISIONS.md: 1 headings naming a batch (move the delivery history to docs/records/), above 0',
+    'docs/DECISIONS.md: 1 literal package counts (link docs/review/PACKAGE-STATUS.md, generated from the package status, instead), above 0',
+  ]);
+  // The repository's decision record does cite commits, so the exemption is exercised and not dead.
+  assert.match(fs.readFileSync('docs/DECISIONS.md', 'utf8'), /`(?=[0-9a-f]*[a-f])(?=[0-9a-f]*\d)[0-9a-f]{7,12}`/);
+  assert.equal(measure('.').counts['docs/DECISIONS.md'].commit_refs, 0);
 });
 
 test('a package count is three numbers that add up to the 28 packages, or the counts in words', () => {
