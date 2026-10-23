@@ -13,13 +13,13 @@ const docs = fileURLToPath(new URL('../docs/', import.meta.url)),
 const sections = [
   [
     'Start here',
-    ['CURRENT-READINESS.md', 'DECISIONS.md', 'review/SUMMARY.md', 'review/ARCHITECTURE.md', 'CONTRACTS.md'],
+    // DOC-01: current pages only; the September summary is listed with the September review below.
+    ['CURRENT-READINESS.md', 'review/PACKAGE-STATUS.md', 'DECISIONS.md', 'review/ARCHITECTURE.md', 'CONTRACTS.md'],
   ],
   [
     'October 2026 review',
     [
       'review/IMPLEMENTATION-2026-10-01.md',
-      'review/PACKAGE-STATUS.md',
       'review/DELIVERY-2026-10-01-OPERATIONS.md',
       'review/DELIVERY-2026-10-01-CREATIVE-REPORTS.md',
       'review/DELIVERY-2026-10-01-LAUNCH-MEASUREMENT.md',
@@ -213,6 +213,7 @@ const sections = [
   [
     'The September 2026 review',
     [
+      'review/SUMMARY.md',
       'review/FINDINGS.md',
       'review/COVERAGE.md',
       'review/PERSONAL-DATA-POLICY.md',

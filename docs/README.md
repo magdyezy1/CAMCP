@@ -6,15 +6,14 @@ with the [repository README](../README.md) for what AMCP is.
 ## Start here
 
 - [Current readiness](CURRENT-READINESS.md)
+- [Package status on three axes](review/PACKAGE-STATUS.md)
 - [Decisions](DECISIONS.md)
-- [Review summary for the owner](review/SUMMARY.md)
 - [AMCP architecture](review/ARCHITECTURE.md)
 - [AMCP platform contracts](CONTRACTS.md)
 
 ## October 2026 review
 
 - [AMCP product implementation and qualification — 1 October 2026](review/IMPLEMENTATION-2026-10-01.md)
-- [Package status on three axes](review/PACKAGE-STATUS.md)
 - [Operations and monitoring delivery — 1 October 2026](review/DELIVERY-2026-10-01-OPERATIONS.md)
 - [Capability, creative library and report delivery — 1 October 2026](review/DELIVERY-2026-10-01-CREATIVE-REPORTS.md)
 - [Conversion launches, Meta evidence and linked-ad results — 1 October 2026](review/DELIVERY-2026-10-01-LAUNCH-MEASUREMENT.md)
@@ -205,6 +204,7 @@ with the [repository README](../README.md) for what AMCP is.
 
 ## The September 2026 review
 
+- [Review summary for the owner](review/SUMMARY.md)
 - [Findings register](review/FINDINGS.md)
 - [Write coverage: what stays blocked and why](review/COVERAGE.md)
 - [Personal data in advertising writes: policy](review/PERSONAL-DATA-POLICY.md)

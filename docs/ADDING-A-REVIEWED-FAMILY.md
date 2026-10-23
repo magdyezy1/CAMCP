@@ -208,7 +208,10 @@ in a body (`status: DELETED`, `operation_status: DELETE`) belongs in its provide
    `npm run report`, and after adding the family's record to `docs/implementation/`, the documentation map:
    `npm run docs:index` (`npm run check` fails while any of them is stale). Name any
    new refusal code in a guide (`Skills/amcp-campaign-builder/references/`, listed in `src/guidance.ts`), or
-   declare it in `tools/guidance-coverage.ts` with a reason.
+   declare it in `tools/guidance-coverage.ts` with a reason. The change is documented when the one guide in `docs/`
+   that describes the provider's writes and the reference AI clients read for it (served as an MCP resource) both say
+   what the family does now. State the number of families only through the `reviewed_families` fact marker
+   (`tools/doc-facts.mjs`).
 8. `npm run format`, `npm run test:related`, then the full qualification in a release candidate (`docs/review/PROGRESS.md` shows the
    commands).
 

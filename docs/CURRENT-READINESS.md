@@ -212,7 +212,8 @@ integration records of each wave and in [package status](review/PACKAGE-STATUS.m
 ### Architecture
 
 - **In source.** Provider adapters with a lifecycle status (active or parked), registries for reviewed families,
-  remedies, portfolio adapters, report sources and jobs, website routes and document kinds (P11), and ratchets that
+  remedies, portfolio adapters, report sources and jobs, website routes and document kinds (P11), the composite MCP
+  tools' actions as entries of staged action tables (`src/tool-actions.ts`, ARC-04), and ratchets that
   block regressions only: import cycles and provider coupling, SQL outside the store layer, hand-escaped markup,
   literal colours and page bytes (D26). [Architecture](review/ARCHITECTURE.md) shows the ratchet table.
 - **Remaining, local.** The ARC-01 and ARC-04 targets (fewer shared modules naming a provider, the long functions),
@@ -241,9 +242,11 @@ These pins were the public, unauthenticated reads that earlier waves left to the
 - **Apple Ads Platform API SDK**: the re-derivation of the model evidence at its pinned revision passed with 0
   problems (ARC-03).
 
-Still owner-run from earlier waves: compare the 66 Meta currency rows with Meta's Currencies page (WRT-07), re-read
-the Data Manager v1 Discovery document and compare digests (PRV-05), and refresh the Cloudflare range snapshot before
-relying on `railway+cloudflare` (SEC-01).
+Still owner-run from earlier waves (each a public read, or a record that such reads were allowed): compare the 66
+Meta currency rows with Meta's Currencies page (WRT-07), re-read the Data Manager v1 Discovery document and compare
+digests (PRV-05), re-read the Microsoft Learn pages pinned before 2026-10-17
+(`node tools/microsoft-rest.mjs --refresh`, CMP-03), compare each media spec entry with the provider's page
+(`verified_on`, MED-06), and refresh the Cloudflare range snapshot before relying on `railway+cloudflare` (SEC-01).
 
 ## 6. Providers
 
@@ -332,7 +335,9 @@ After the 2026-10-18 deployment, in order of need:
    review the security contact and move `security.txt`'s `Expires` forward (D3).
 3. **Sign-offs.** A security reviewer signs off ARC-01 phase B's `src/scope.ts` and `src/transport.ts` changes and the
    OAuth grant move; the owner signs off WEB-07's component colours in light and dark mode and says which "Home" its
-   shell-chunk criterion means; the owner approves the retention per document kind
+   shell-chunk criterion means; the owner reviews ARC-03's unanchored routes
+   ([route anchors](implementation/ROUTE-ANCHOR-COVERAGE.md)) and the withheld-capture declaration
+   (`.mirror/RAW/WITHHELD.json`); the owner approves the retention per document kind
    ([document kinds](DOCUMENT-KINDS.md)) and the package-status taxonomy and counts (D25).
 4. **Behaviour the deployment changed.** The 2026-10-18 deployment was the first since `60ec2cc`, so it brought every
    release note of waves 1 to 4a ([decisions](DECISIONS.md) holds them): 7-day invitations; owner-only execution
@@ -351,6 +356,7 @@ After the 2026-10-18 deployment, in order of need:
 A change is documented when the one guide that describes the behaviour says what it does now, and so does the guide AI
 clients read where they read one (`docs/REPORTING-OVERVIEW.md` and `Skills/amcp-campaign-builder/references/`, served
 as MCP resources). Counts and tables come from `npm run build` and `npm run docs:index`, never by hand; a dated account
-of how a change was built belongs in a record, not in this page or a guide. Outside its markers the check refuses the
-retired package vocabulary (B25 called "open", single-label package counts) and hand-typed family, recipe, guide or
-tool counts (`tools/doc-facts.mjs`).
+of how a change was built belongs in a record, not in this page or a guide. The deployed revision in section 2 and in
+the README's status line is the owner's report of Railway, not something the code knows: update both when the owner
+reports a new deployment. Outside its markers the check refuses the retired package vocabulary (B25 called "open",
+single-label package counts) and hand-typed family, recipe, guide or tool counts (`tools/doc-facts.mjs`).

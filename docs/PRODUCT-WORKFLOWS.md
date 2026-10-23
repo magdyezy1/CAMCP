@@ -1020,11 +1020,11 @@ no test event, Conversions API call, `/events/validate` request or provider chan
   TikTok's official Business API SDK specification documents (`advertiser_id`, `pixel_ids` and `date_range`
   `{start_date, end_date}`, JSON-encoded). The dates have no documented format: AMCP sends the last seven complete UTC
   days as `YYYY-MM-DD`, which is a guess, not TikTok's documented format. AMCP sends a provider request only as a pinned
-  document states it, so this read is sent only once the deployment has pinned that specification
-  (`yml_files/pixel_event_stats.yml` of `tiktok/tiktok-business-api-sdk` at a full commit, with its SHA-256 and the
-  request fields it documents; see [operations](OPERATIONS.md)). Until then, or when the pin documents another method,
-  path, field or date format than AMCP sends, activity is `unavailable` (`unpinned_request`; a differing pin is named
-  with `evidence.problem`) and nothing is sent. Once pinned, the evidence names the pinned file the request followed
+  document states it, so this read follows the pinned specification (`yml_files/pixel_event_stats.yml` of
+  `tiktok/tiktok-business-api-sdk` at commit `f809c396`, pinned on 2026-10-17 with its SHA-256 and the request fields
+  it documents; see [operations](OPERATIONS.md)). Without a pin, or when the pin documents another method, path, field
+  or date format than AMCP sends, activity is `unavailable` (`unpinned_request`; a differing pin is named with
+  `evidence.problem`) and nothing is sent. With the pin, the evidence names the pinned file the request followed
   (`request_specification`). The specification leaves the answer's `data` unspecified and the portal page's response
   table is drawn by TikTok's scripts, so AMCP checks only the documented envelope (`code`, `message`, `request_id`,
   `data`) and safety: at most 200 values, 6 levels and 100 items an array, field names of letters, digits and `_`, no

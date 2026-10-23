@@ -7,7 +7,8 @@ before and after with its money and status effects, checked the owner's spending
 approval; it then sends the change once and reads it back. Reports keep the platform's own numbers, currency, time zone
 and attribution, and never invent zeros.
 
-**Status.** amcp.shop runs branch `Work-here` at `cb338f68`, deployed through Railway on 2026-10-18. Every part
+**Status.** The last deployment the owner reported is branch `Work-here` at `cb338f68`, deployed to amcp.shop
+through Railway on 2026-10-18; later commits reach the site with the next push the owner approves. Every part
 described here is implemented in source and tested against synthetic provider fakes; no live write has been accepted
 yet, and live acceptance is owner-run. [Current readiness](docs/CURRENT-READINESS.md) gives the status of each area,
 the generated provider, tool and package tables, and the owner steps that remain.

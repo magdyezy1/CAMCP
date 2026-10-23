@@ -405,13 +405,19 @@ What follows for each push (ACC-04):
   so a later build can take another Node 24 patch than the one that passed. Pin both to the `base_image.digest` of the
   evidence record of `cb338f68` (`FROM node:24-bookworm-slim@sha256:<digest>`), and move the pin deliberately when Node
   is upgraded (OPS-08).
-- **Root-refusing entry points in tests.** A test that runs the admin CLI, or another entry point that refuses root,
-  must behave the same whether the build runs as root or not: pass `--allow-root` where the test is about something
-  else. A guard for this is queued with the wave 4b QA follow-ups.
-- **Start-up settings.** Before a push, compare the service variables with the values the release accepts: a
-  `AMCP_LINKEDIN_API_VERSION` or `AMCP_META_API_VERSION` outside the reviewed versions, or a `MIRROR_DB` outside a
-  persistent volume, stops a new deployment from starting ([.env.example](../.env.example) names the accepted values;
-  other invalid values are reported at start-up and ignored).
+- **Root in tests.** The admin CLI refuses root in production mode unless `--allow-root` is given
+  (`adminRootRefusal` in `server/config.ts`), and the Docker build runs `npm run check` as root, so a test that runs
+  the admin CLI for another purpose passes `--allow-root` and must give the same result as root and as another user.
+  No check enforces this yet; until one does, review such tests by hand before a push.
+- **Start-up settings.** Before a push, compare the service variables with the values the release accepts. Start-up
+  stops on a LinkedIn or Meta version AMCP has not reviewed (`AMCP_LINKEDIN_API_VERSION`, `AMCP_META_API_VERSION`;
+  the `startup_failed` line names the stage `provider_versions`), a misspelt `AMCP_WIRE_CONTRACTS`, an invalid
+  `AMCP_PROVIDER_QUOTA_MODE` or `AMCP_PROVIDER_QUOTA_PROFILES`, a switch such as `MIRROR_ALLOW_WRITES` that is neither
+  `true` nor `false`, a production website without `MIRROR_MASTER_KEY` or an administrator password, and a production
+  database outside a verified persistent volume. A few optional values only warn (`config_problem`) and keep their
+  defaults, for example `AMCP_SHUTDOWN_GRACE_MS` or a provider ID `AMCP_PROVIDERS` does not know.
+  [.env.example](../.env.example) names the accepted values; after a deploy, read the start log as well as the build
+  log.
 
 ## Compare public website bytes before accepting a deployment
 
