@@ -129,8 +129,9 @@ component rules (a group takes the specificity of its most specific entry). Wher
 component shade, the shade's dark value is the layer's value, so those entries only repeat the tokens; where a
 component uses a palette role, an entry can still decide its dark colours: the measurement task links, for example,
 take `--surface-subtle` and the ink there instead of `--paper` and `--iris-700`, and their hover and focus states the
-layer's dark hover group. Removing the entries that only repeat a token, checked with the same computed-style
-comparison, is open (package status B23).
+layer's dark hover group. The entries that only repeated a token left on 2026-10-23 (B23), each removal proven by a
+dark-mode computed-style comparison, and the groups no longer mask the components' variants in dark mode: what the
+layer still decides, and what changed, is in [the design system](DESIGN-SYSTEM.md#the-dark-override-layer-themecss).
 
 A computed-style comparison with the tree before (every element, `::before`/`::after`/`::marker`/
 `::placeholder` and every forced hover, focus and active state) of the public and workspace pages of the empty

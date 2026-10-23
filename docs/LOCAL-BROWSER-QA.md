@@ -271,9 +271,11 @@ Arabic, both appearances, 320 to 1280 pixels), and it passed
 tokens (w4a, below) changed every page's colours after that run, so the wave 4a integration gate's `--qualification`
 with axe-core was their acceptance run, and it passed
 ([Wave 4a integration qualification](#wave-4a-integration-qualification-2026-10-18)). WEB-07's other open items are in
-the package status (B16 deployed and the owner's visual sign-off, B23 the `theme.css` entries that only repeat a token,
-B24 the providers chunk); English About's bytes gap closed when About stopped loading `theme.css`
-(docs/AMCP-IDENTITY.md).
+the package status (B16 deployed and the owner's visual sign-off, B24 the providers chunk); English About's bytes gap
+closed when About stopped loading `theme.css` (docs/AMCP-IDENTITY.md). The `theme.css` entries that only repeated a
+token left in wave 4b (B23), each proven by a dark-mode computed-style comparison, and the dark groups no longer mask the
+components' variants ([design system](DESIGN-SYSTEM.md#the-dark-override-layer-themecss)); the integration gate's
+`--qualification` is their rendered acceptance run.
 
 - **Development subsets so far** (no qualification; axe-core 4.14.0 on). On the package branch: the Live portfolio,
   Measurement and Commerce kinds, 144 of 144, and `empty`, `granular-reporting`, `export-outcomes`,

@@ -425,7 +425,6 @@
       "manual": {"state": "not_recorded", "evidence": []},
       "remainders": [
         {"text": "Real tenant load tests and shared-quota admission", "disposition": "register_item", "ref": "OPS-08"},
-        {"text": "WEB-07: theme.css keeps entries that only repeat a component shade token's dark value; remove them where a computed-style comparison of every page state, light and dark, shows no difference, so the layer holds only what it still decides", "disposition": "register_item", "ref": "WEB-07"},
         {"text": "WEB-07 ES modules with explicit imports instead of the shared global scope", "disposition": "optional_stretch", "ref": "WEB-07"}
       ]
     },
