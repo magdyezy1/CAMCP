@@ -35,9 +35,6 @@
 [data-theme='dark'] caption {
   color: var(--muted);
 }
-[data-theme='dark'] .source-health.attention strong {
-  color: var(--warning-ink);
-}
 [data-theme='dark'] .report-table th[scope='row'] strong {
   color: var(--ink);
 }
