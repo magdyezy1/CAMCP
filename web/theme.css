@@ -37,9 +37,7 @@
 }
 
 /* Preserve provider logos, photographs, videos and QR pixels. Only interface surfaces change. */
-html[data-theme='dark'],
-[data-theme='dark'] body,
-[data-theme='dark'] body.public-view {
+[data-theme='dark'] body {
   color: var(--ink);
   background: var(--paper);
 }
