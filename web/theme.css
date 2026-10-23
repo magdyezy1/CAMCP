@@ -118,13 +118,7 @@
   background: var(--white);
 }
 [data-theme='dark']
-  :is(
-    input:not([type='checkbox']):not([type='radio']):not([type='color']),
-    select,
-    textarea,
-    .search,
-    .auth-form input
-  ) {
+  :is(input:not([type='checkbox']):not([type='radio']):not([type='color']), select, textarea, .search) {
   color: var(--ink);
   background: var(--white);
   border-color: var(--line-strong);
