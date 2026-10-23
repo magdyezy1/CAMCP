@@ -2,8 +2,11 @@
 
 Review of the rendered AMCP website after wave 4a (WEB-07's colour consolidation), with the design-critique, WCAG 2.1
 AA and UX-copy guidance the owner installed for wave 4. Base: `Work-here` at `cb338f68` (deployed). Fixes: package
-`impl/w4-design-review` (tickets WEB-01, WEB-03, WEB-05, WEB-06). This document is also the owner's sign-off sheet for
-WEB-07's component colours ([section 7](#7-web-07-colour-sign-off)).
+`impl/w4-design-review` (tickets WEB-01, WEB-03, WEB-05, WEB-06), merged in wave 4b's integration after the design
+system (`impl/w4-design-system`, WEB-07 and WEB-08), which settled the dark layer its own way (S1 and R1 below). This
+is a dated record: what the website looks like now is in [the design system](../DESIGN-SYSTEM.md) and
+[AMCP identity](../AMCP-IDENTITY.md). It also holds the screenshots for the owner's sign-off of WEB-07's component
+colours ([section 7](#7-web-07-colour-sign-off)), taken from the integrated tree.
 
 ## 1. Scope and method
 
@@ -23,8 +26,9 @@ no network, no live account), in English and Arabic, light and dark, at 375 and 
 | Operations and attention | `write-journey` after its runs |
 | Settings and owner controls | `spend-policy-edit` (policy saved, weakening dialog), `worker-health` |
 
-The review ran in two passes. The first (2026-10-22) found the defects fixed in `e19917c1`, `30123080` and `1282d68b`;
-the second (2026-10-23) captured every screen again on top of those fixes and found the rest.
+The review ran in two passes on the package branch. The first (2026-10-22) found the defects fixed in `e19917c1`,
+`30123080` and `1282d68b`; the second (2026-10-23) captured every screen again on top of those fixes and found the
+rest. Section 7's screenshots were taken again after the merge, on the integrated tree.
 
 **What ran on every capture** of the second pass (424 captures): axe-core 4.14.0 with the WCAG 2.0/2.1/2.2 A and AA tags (the
 same pinned engine as the browser qualification), and layout probes for targets under 24 px, text under 12 px, form
@@ -62,7 +66,7 @@ M1 and R2 are S4 as Creative and the report builder showed it; they are counted 
 
 In the second pass axe found violations on 8 of the 424 captures: 56 nodes, one rule (`color-contrast`), all of them
 the checked metric pills of the report builder in dark mode (finding R1, which the first pass's S1 fix had exposed).
-After the fixes the same states pass. Its
+After the fixes the same states pass; in the integrated tree that pill style no longer exists (R1). Its
 *incomplete* results (manual review) were the avatar initial and the workspace-switch icon (`label-content-name-mismatch`:
 their names, "Your account" and "Switch workspace", are right) and contrast over gradients and icon glyphs.
 
@@ -74,7 +78,7 @@ Status names the commit that fixed a finding; "Open" findings are recommendation
 
 | # | Finding | Severity | Criterion / principle | Recommendation | Status |
 |---|---|---|---|---|---|
-| S1 | In dark mode every primary and danger button looked like a plain button, and status badges and warning notices lost their tone: `theme.css`'s shared dark `:is()` groups listed `#command-results button`, `#capture-feedback` and `#breadcrumb`, which lifted each whole group to ID specificity above the variants. | High | Hierarchy; 1.4.1 (tone is a cue; the badges keep their words) | IDs get rules of their own; no shared group mixes an ID with classes. | Fixed `e19917c1` |
+| S1 | In dark mode every primary and danger button looked like a plain button, and status badges and warning notices lost their tone: `theme.css`'s shared dark `:is()` groups listed `#command-results button`, `#capture-feedback` and `#breadcrumb`, which lifted each whole group to ID specificity above the variants. | High | Hierarchy; 1.4.1 (tone is a cue; the badges keep their words) | No component with variants in a group an ID lifts. | Fixed on the branch by rules of their own for the IDs (`e19917c1`). The merge kept the design system's fix instead (`f9a78cea`): `#command-results button` and `#breadcrumb` stay in their groups, the components with variants left them or are listed with a guard (the plain button's hover, the plain notice), and `#capture-feedback` left the layer; the branch's hunks were dropped and the guards rewritten for that structure (`9c01d97a`). |
 | S2 | Sidebar labels sat in the icon's 20 px box: two-word names broke word by word and centred ("Evidence & analysis" on three lines), and with a group open the current page could fall below the sidebar's foot. | Medium | Readability, scanning | The label takes the row beside its icon, from its start; group links 14 px. | Fixed `4760735c` |
 | S3 | Focus rings: the landing page's closing call to action measured 2.32:1 on its dark band, and a scroll region Chrome makes focusable (the AI connectors' command block) showed the browser's 1 px ring, 1.21:1 on the dark panel. | Medium | 2.4.7, 1.4.11 | The on-inverse ring on the band; the identity ring on any focusable element. | Fixed `e19917c1` |
 | S4 | Action rows never wrapped: on 320 and 375 px phones the first action of a right-aligned row lay past the start edge, where nothing scrolls (Report library's "New report" at −114 px, Schedules' "Create a report and schedule", Creative's "Previous recovery page"). | Medium | 1.4.10 Reflow | `.dialog-actions` wraps. | Fixed `e19917c1` |
@@ -133,7 +137,7 @@ Status names the commit that fixed a finding; "Open" findings are recommendation
 
 | # | Finding | Severity | Criterion / principle | Recommendation | Status |
 |---|---|---|---|---|---|
-| R1 | In dark mode a checked metric pill is filled with the iris accent and its formula kept the page's muted shade: #c0b5ce on #c7adff, 1.01:1, invisible. S1's fix unmasked it: the ID-lifted group had kept the filled pill from ever applying. | High | 1.4.3 Contrast | The formula on a checked pill takes the pill's own ink (8.83:1). | Fixed `ce59e589` |
+| R1 | In dark mode a checked metric pill is filled with the iris accent and its formula kept the page's muted shade: #c0b5ce on #c7adff, 1.01:1, invisible. S1's fix unmasked it: the ID-lifted group had kept the filled pill from ever applying. | High | 1.4.3 Contrast | The formula readable on a checked pill. | Fixed on the branch by the pill's own ink (`ce59e589`, 8.83:1). In the integrated tree the iris-filled dark rule is gone (`4e3f2623`): a checked pill keeps its own rule, `--surface-selected` with the `--iris` border in dark mode, and its formula in the muted ink measures 6.03:1 (4.65:1 in light). |
 | R2 | "New report" unreachable on a phone (S4). | Medium | 1.4.10 | Wrapping action rows. | Fixed `e19917c1` |
 | R3 | Export now: the authorization checkbox stood alone, centred, above its text, and the status after an export covered the authorization and the export button. | Medium | 2.4.11 Focus not obscured; proximity | The box beside its text; the status follows the actions in the flow. | Fixed `e19917c1` |
 | R4 | Metric pills showed a base metric's aggregation as its raw value ("sum", "non_additive", "native field"), in English on the Arabic page. | Medium | Plain words; Arabic | "Summed", "Not summed", "Native field", translated; formulas stay literal. | Fixed `166cec41` |
@@ -174,7 +178,7 @@ Status names the commit that fixed a finding; "Open" findings are recommendation
 |---|---|---|
 | Perceivable | 1.1.1 Non-text content | Pass: icons are hidden or named; the hero illustration is one described image. |
 | | 1.3.1 Info and relationships | Pass after CA6 and R3 (boxes beside their words); tables have scoped headers. |
-| | 1.4.1 Use of colour | Pass: badges and pills carry words; S1 restored the colour cue in dark mode. |
+| | 1.4.1 Use of colour | Pass: badges and pills carry words; the dark layer no longer masks the variants' colour cue (S1). |
 | | 1.4.3 Contrast (text) | Pass after R1; every token pair meets 4.5:1 in both themes. |
 | | 1.4.10 Reflow | Pass after S4 at 320 and 375 px; wide tables scroll inside labelled regions. |
 | | 1.4.11 Non-text contrast | Pass: control borders 3.43:1 (light) and 4.93:1 (dark) on cards; focus rings at least 6.57:1. |
@@ -201,7 +205,8 @@ Token pairs, computed from `web/tokens.css` (WCAG relative luminance):
 | Neutral status badge | `--text-soft` on `--surface-subtle` | 8.67:1 | 12.05:1 | 4.5:1 | Pass |
 | Links, focus ring on cards | `--iris-700` on `--white` | 7.06:1 | 10.51:1 | 4.5:1 | Pass |
 | Links, focus ring on the page | `--iris-700` on `--paper` | 6.57:1 | 11.97:1 | 4.5:1 | Pass |
-| Primary button label | `--on-accent` on `--iris` | 4.62:1 | 8.83:1 | 4.5:1 | Pass |
+| Primary button label | `--on-accent` on `--accent-fill` | 4.73:1 | 8.83:1 | 4.5:1 | Pass |
+| Checked metric pill formula | `--muted` on `--surface-selected` | 4.65:1 | 6.03:1 | 4.5:1 | Pass |
 | Success badge | `--success-ink` on `--success-bg` | 6.73:1 | 8.88:1 | 4.5:1 | Pass |
 | Warning notice and badge | `--warning-ink` on `--warning-bg` | 7.02:1 | 9.50:1 | 4.5:1 | Pass |
 | Danger text on its tint | `--danger` on `--danger-bg` | 5.05:1 | 7.94:1 | 4.5:1 | Pass |
@@ -215,14 +220,14 @@ Token pairs, computed from `web/tokens.css` (WCAG relative luminance):
 | Focus ring on the sidebar | `--focus-on-inverse` on `--surface-inverse` | 8.48:1 | 10.94:1 | 3:1 | Pass |
 | Focus ring on the toast | `--focus-on-inverse` on `--surface-inverse-raised` | 7.72:1 | 9.96:1 | 3:1 | Pass |
 
-Rendered states the review measured, before and after:
+Rendered states the review measured, before and after (after: the integrated tree):
 
 | State | Before | After |
 |---|---:|---:|
-| Checked metric pill formula, dark (R1) | 1.01:1 (#c0b5ce on #c7adff) | 8.83:1 |
+| Checked metric pill formula, dark (R1) | 1.01:1 (#c0b5ce on #c7adff) | 6.03:1 on `--surface-selected` (8.83:1 on the branch's iris fill) |
 | Closing call to action focus ring, light (S3) | 2.32:1 | 8.48:1 |
 | Focusable command block ring, dark (S3) | 1.21:1 (browser ring) | 10.51:1 |
-| Primary button, dark (S1) | coloured like a plain button | 8.83:1 on the iris fill |
+| Primary button, dark (S1) | coloured like a plain button | 8.83:1 on the iris fill (`--accent-fill`) |
 
 ## 6. Priority list
 
@@ -249,7 +254,13 @@ rendered and 880 of 880 for the other 55, so every fixture kind and the same 1,2
 with no axe violation, no Arabic leak above its ratchet and the new checkbox check on every case; the related unit
 tests passed 1,437 of 1,437; `check-web` keeps all 56 pages at or below their route bytes before WEB-07.
 
-Regression guards added: `tests/website-design-review.test.mjs` (dark variants, wrapping rows, focus rings, sidebar
+After the merge with the design system and the integration review's fixes (`a1c6ed7e`): the build, `check-web` (all 56
+pages within their route bytes, no literal colour, the design-token counts at their baseline) and the tests related to
+every file wave 4b's two web packages changed (1,484 of 1,484, with the freshness checks) pass, and section 7's
+screenshots were taken. The integration gate's browser qualification is the rendered acceptance of the merged tree.
+
+Regression guards added: `tests/website-design-review.test.mjs` (dark variants, rewritten at the merge for the
+design system's dark layer; wrapping rows, focus rings, sidebar
 labels, export dialog, Set up rule, checked-pill formula contrast from the tokens, checkbox rows, owner forms, ledger
 header, aggregation words, plurals), `tests/home-attention-ui.test.mjs`, `tests/website-presentation.test.mjs`,
 `tests/route-assets.test.mjs`, and in every case of the browser runner the start-edge overflow, variant colour and
@@ -265,14 +276,22 @@ merged into the palette. In light mode secondary text is the palette's muted ink
 two shades, icons one soft iris, the sidebar's links and labels lighter, the hero's chip white on the iris; some
 container borders and hover tints read a little lighter. In dark mode the component shades follow the dark palette.
 
-**What this review changed in that layer**: the dark override groups no longer list IDs (S1: primary, danger,
-status and warning tones are back in dark mode), and a checked metric pill's formula takes the pill's ink (R1). No
-token value changed.
+**What wave 4b changed since** (one sign-off for both lists): the design system's list for the owner's visual sign-off
+is in [the design system](../DESIGN-SYSTEM.md#what-changed-in-this-increment-for-the-owners-visual-sign-off): corners
+on the radius scale, the top bar's appearance and working-client selects at 36px and About's at 44px, new hover,
+disabled and busy states, error notices with the danger border, 3:1 field frames, and the dark theme's variants. In
+the dark layer, the groups that
+`#command-results button` and `#breadcrumb` still lift to ID specificity hold no component with variants any more
+(S1): primary buttons are iris, danger buttons and refusals rose, and success and warning badges and warning and error
+notices keep their pairs. A checked metric pill takes `--surface-selected` with the iris border, its formula at 6.03:1
+(R1). The 94 dark-layer entries that only repeated a token left (B23). This review's fixes add wrapping action rows,
+the focus rings, the sidebar labels beside their icons and the checkbox rows (section 3). No token value changed.
 
 **What to check** in the pairs below: primary buttons (iris), danger buttons and refusals (rose), success and warning
-badges, warning notices, the selected metric pills, focus rings on the dark sidebar, borders of inputs and cards, and
-that nothing reads as washed out in either theme. Each image is a 1280 × 800 viewport (Home also at 375 × 812 in
-Arabic), rendered from the synthetic fixtures at the package's last commit.
+badges, warning notices, the selected metric pills (an iris outline on the accent surface in dark mode), focus rings on
+the dark sidebar, borders of inputs and cards, the rounder corners and taller top-bar selects, and that nothing reads
+as washed out in either theme. Each image is a 1280 × 800 viewport (Home also at 375 × 812 in Arabic), rendered from
+the synthetic fixtures on the integrated tree (both packages merged with their review fixes) on 2026-10-23.
 
 | Screen | Light | Dark |
 |---|---|---|
@@ -288,4 +307,5 @@ Arabic), rendered from the synthetic fixtures at the package's last commit.
 | Operations | ![Operations, light](design-review-2026-10/operations-en-light-1280.png) | ![Operations, dark](design-review-2026-10/operations-en-dark-1280.png) |
 | Settings, Safety | ![Settings, light](design-review-2026-10/settings-en-light-1280.png) | ![Settings, dark](design-review-2026-10/settings-en-dark-1280.png) |
 
-Sign-off: the owner records approval (or the screens to revisit) in [package status](PACKAGE-STATUS.md) under B16.
+Sign-off: the owner records approval (or the screens to revisit) in [package status](../review/PACKAGE-STATUS.md)
+under B16.

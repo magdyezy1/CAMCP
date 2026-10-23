@@ -126,20 +126,22 @@ key, which painted their light literal there (11 to 13:1 on the dark panel), are
 visual sign-off of this increment covers these changes (package status B16).
 
 `theme.css` still loads after the component sheets in the workspace, and its `:is()` groups often outrank the
-component rules (a group takes the specificity of its most specific entry). No shared group lists an ID entry any more
-(design review 2026-10): `#command-results button`, `#capture-feedback` and `#breadcrumb` had lifted their groups to ID
-specificity, so in dark mode every primary and danger button looked like a plain one, warning notices lost their tone
-and status badges theirs; those IDs have rules of their own, the hover states and the shared surfaces are separate
-groups, and `tests/website-design-review.test.mjs` keeps every variant above the surfaces it refines. That let the
-filled dark style of a checked metric pill apply for the first time, and its formula, still in the page's muted shade,
-measured 1.01:1 on the iris; it now takes the pill's own ink. The screenshots for the owner's sign-off of these
-colours, light and dark, are in the [design review](review/DESIGN-REVIEW-2026-10.md#7-web-07-colour-sign-off). Where a component's colour became a
+component rules (a group takes the specificity of its most specific entry). Two IDs remain in the layer:
+`#command-results button` in the raised-surface and hover groups and `#breadcrumb` in a muted-text group, which lift
+each of those groups to ID specificity. Until wave 4b those groups also held the buttons, status badges, notices,
+metric pills and feedback alerts, so in dark mode every primary and danger button looked like a plain one and warning
+notices and status badges lost their tone (design review 2026-10, S1). Those components have left the groups or are
+listed with a guard that leaves their variants out, and `tests/web-components.test.mjs` and
+`tests/website-design-review.test.mjs` refuse a dark group that re-colours a variant. A checked metric pill keeps its
+own rule in dark mode, `--surface-selected` with the `--iris` border, where its muted formula reads at 6.03:1. The
+screenshots for the owner's sign-off of these colours, light and dark, are in the
+[design review record](records/DESIGN-REVIEW-2026-10.md#7-web-07-colour-sign-off). Where a component's colour became a
 component shade, the shade's dark value is the layer's value, so those entries only repeat the tokens; where a
 component uses a palette role, an entry can still decide its dark colours: the measurement task links, for example,
 take `--surface-subtle` and the ink there instead of `--paper` and `--iris-700`, and their hover and focus states the
 layer's dark hover group. The entries that only repeated a token left on 2026-10-23 (B23), each removal proven by a
-dark-mode computed-style comparison, and the groups no longer mask the components' variants in dark mode: what the
-layer still decides, and what changed, is in [the design system](DESIGN-SYSTEM.md#the-dark-override-layer-themecss).
+dark-mode computed-style comparison: what the layer still decides, and what changed, is in
+[the design system](DESIGN-SYSTEM.md#the-dark-override-layer-themecss).
 
 A computed-style comparison with the tree before (every element, `::before`/`::after`/`::marker`/
 `::placeholder` and every forced hover, focus and active state) of the public and workspace pages of the empty

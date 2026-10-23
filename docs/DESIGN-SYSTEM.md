@@ -428,9 +428,9 @@ deployed before wave 4b, both themes) found these differences and no other:
   blocks, feedback alerts and source health 7, 8, 9 or 12 to 10px; platform logos and stat icons 11 to 10px; the
   toast, sidebar note, quick actions, report table frame and report progress 14 to 12px, the landing page's mini plan
   and the report builder's platforms 13 to 12px; tags 5 to 4px; stat cards, the owner entry, the callback card and
-  report packs 16 or 18 to 17px; dialogs 16 or 20 to 22px, as are the account hero and monogram. Status badges, the default badge, creative tags and About's buttons became
-  `--radius-pill` (the same shape). A hovered platform card's shadow is `--elevation-2` (10px 35px instead of 9px
-  30px), and the phone drawer slides in 0.18s instead of 0.2s.
+  report packs 16 or 18 to 17px; dialogs 16 or 20 to 22px, as are the account hero and monogram. Status badges, the
+  default badge, creative tags and About's buttons became `--radius-pill` (the same shape). A hovered platform card's
+  shadow is `--elevation-2` (10px 35px instead of 9px 30px), and the phone drawer slides in 0.18s instead of 0.2s.
 - **Control sizes.** The top bar's appearance and working-client selects are 36px like its language select (they were
   32px with 7px side padding); About's appearance select is 44px like its language select.
 - **States.** Icon buttons, filter tabs, client tabs, asset tabs and the Settings section links show hover; a disabled
@@ -440,6 +440,10 @@ deployed before wave 4b, both themes) found these differences and no other:
 - **Dark mode.** The variants listed [above](#what-it-no-longer-masks-dark-variants-2026-10-23), and the report pack's
   click-through chart follows the theme (it painted light SVG fills on the dark pack); `theme-color` is the light
   `--paper` before JavaScript sets the theme's own.
+
+The owner signs off once for this list and the design review's own changes: the light and dark screenshots of the
+integrated website are in the [design review record](records/DESIGN-REVIEW-2026-10.md#7-web-07-colour-sign-off), and
+the approval (or the screens to revisit) goes in [package status](review/PACKAGE-STATUS.md) under B16.
 
 ## Known gaps
 

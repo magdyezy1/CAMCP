@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext, Script} from 'node:vm';
 
-// Static guards for the design review of October 2026 (docs/review/DESIGN-REVIEW-2026-10.md). Each one names the
+// Static guards for the design review of October 2026 (docs/records/DESIGN-REVIEW-2026-10.md). Each one names the
 // rendered defect it guards; the browser runner (tools/browser-workflow-qa.mjs) checks the same states in the page.
 const css = file => readFileSync('web/' + file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 /** The rules of a stylesheet outside @media blocks' own braces: {selector, body, index}. */
