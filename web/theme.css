@@ -110,8 +110,7 @@
 [data-theme='dark'] :is(article strong) {
   color: var(--ink);
 }
-[data-theme='dark']
-  :is(a.text-link, .auth-switch a, .auth-legal a, .auth-story .auth-tagline em, .hero-copy h1 > span) {
+[data-theme='dark'] :is(a.text-link, .auth-legal a, .hero-copy h1 > span) {
   color: var(--iris-700);
 }
 [data-theme='dark'] .password-toggle {
