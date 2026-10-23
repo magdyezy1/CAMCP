@@ -104,20 +104,7 @@
 [data-theme='dark'] :is(small, .eyebrow, .report-section-label > span, .target-currency-row label) {
   color: var(--muted);
 }
-[data-theme='dark']
-  :is(
-    .hero-note,
-    .platform-ribbon > *,
-    .feature-index,
-    .mini-plan span,
-    .public-footer,
-    .public-footer a,
-    .public-nav nav a,
-    #breadcrumb,
-    .breadcrumb span,
-    footer,
-    footer a
-  ) {
+[data-theme='dark'] :is(.public-nav nav a, #breadcrumb, footer a) {
   color: var(--muted);
 }
 [data-theme='dark']
