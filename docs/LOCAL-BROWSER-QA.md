@@ -75,6 +75,11 @@ requires each focus ring to reach 3:1 against the opaque surface behind it, with
 write journeys. Report panels and evidence controls use the theme focus colour. The fixed purple they used measured
 2.57:1 on the dark panel.
 
+The qualification records of waves 2 to 4a below stay where they were written. Record the next run in
+`docs/records/` (for example `QUALIFICATION-<wave>-<date>.md`, with its revision, digests and figures) and link
+it from here: since the documentation freeze (DOC-03), a current page cites no commit and repeats no long line of
+another current page, and `npm run docs:index:check` refuses one (`tools/docs-lint.mjs`).
+
 ## Wave 2 qualification regressions (2026-10-12)
 
 The first full rendered run after the wave 1 and 2 merges (revision `40ed7a5`: 1,248 cases, 933 passed, 315 failed,
