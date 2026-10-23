@@ -179,6 +179,8 @@ test('each Arabic page has its English page’s headings, lists, tables and link
       assert.ok(letters > 0 || latin < 25, page + ': untranslated passage: ' + block.slice(0, 80));
     }
     assert.match(read(arabic + '/' + page), /^# [^\n]*[؀-ۿ]/, page + ' has an Arabic title');
+    // Owner decision D27: Latin digits, as the website shows them, so a number reads the same in both languages.
+    assert.doesNotMatch(read(arabic + '/' + page), /[٠-٩۰-۹]/, page + ' uses Arabic-Indic digits');
   }
 });
 
