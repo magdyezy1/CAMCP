@@ -356,7 +356,7 @@ input[type='checkbox'] {
   text-align: start;
 }
 .sidebar .nav-more a span + span {
-  font-size: 14px;
+  font-size: var(--type-md);
 }
 .sidebar nav a svg {
   width: 18px;

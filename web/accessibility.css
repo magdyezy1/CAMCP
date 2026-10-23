@@ -10,7 +10,7 @@
 }
 
 :focus-visible {
-  outline: 2px solid var(--iris-700);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 button:focus-visible,
