@@ -203,9 +203,11 @@ measurement task links, the evidence row controls).
   until hovered), `dark` (the inverse fill of the public pages and connection prompts, `--text-on-inverse-strong`), and
   the sizes `small` (33px), the default (40px), `large` (52px) and `full` (full width). Each variant looks the same in
   both themes through its tokens (in dark: primary on `--iris`, danger in `--danger` ink and border on the panel).
-- **States.** Hover: `--surface` with `--border-accent` (dark: `--surface-accent` with `--line-strong`); primary
-  `--iris-700` and a 1px lift; danger `--danger-bg-subtle` (dark `--danger-bg`). Focus: the shared ring. Disabled
-  (`disabled`): 50% opacity, a not-allowed cursor and no hover change (the hover rules are guarded with
+- **States.** Hover: `--surface` with `--border-accent` (dark: `--surface-accent` with `--line-strong`), quiet buttons
+  included; primary `--iris-700` and a 1px lift; danger `--danger-bg-subtle` (dark `--danger-bg`). A dark button has no
+  hover of its own: in light mode it keeps its inverse fill under the pointer, and in dark mode the dark layer's hover
+  group gives it the plain dark hover (`--surface-accent`, `--ink` at 10.2:1, `--line-strong`). Focus: the shared
+  ring. Disabled (`disabled`): 50% opacity, a not-allowed cursor and no hover change (the hover rules are guarded with
   `:where(:not(:disabled))`, which adds no specificity). Busy: `aria-busy="true"` shows a progress cursor, and the label
   says what is happening ("Syncing…"); the sign-in forms set it while their request runs.
 - **Accessibility.** A native `button` takes Enter and Space; a link stays a link. An icon-only button needs an
@@ -360,14 +362,15 @@ that give a set of components one dark surface or ink their tokens do not give t
 | ink | `article strong` | `--ink` |
 | links | `a.text-link`, `.auth-legal a`, the hero's highlighted word | `--iris-700` |
 | fields | `input` (not checkbox, radio or colour), `select`, `textarea`, `.search`; `.password-toggle`; `::placeholder` | `--white` with `--ink` and `--line-strong`; `--muted` |
-| hover and selected | plain buttons under the pointer, social buttons, the palette's results, the measurement task links' hover and focus, active filter and client tabs, the default badge, report table headers, plain notices, avatars | `--surface-accent` with `--ink` and `--line-strong` |
+| hover and selected | plain, quiet and dark buttons under the pointer, social buttons, the palette's results, the measurement task links' hover and focus, active filter and client tabs, the default badge, report table headers, plain notices, avatars | `--surface-accent` with `--ink` and `--line-strong` |
 | steps and errors | `.auth-success`, `.callback-step.done`, `.callback-step.failed`; `.error`, `.status.error` | the success and danger pairs; `--danger` |
 | odds and ends | `caption`, the owner entry and its eyebrow, the sign-in divider line, the X logo (its light canvas), `::selection` | — |
 
 A group's specificity is that of its most specific member, so the groups that list `#command-results button` or
 `#breadcrumb` outrank every rule that names classes only, for every member: a member's variants and states lose to the
 group in dark mode. Components with variants or states are therefore not listed, or listed with a guard
-(`.button:not(.primary, .danger):hover:where(:not(:disabled))`, `.notice:not(.warning, .error)`). Do not add to the
+(`.button:not(.primary, .danger):hover:where(:not(:disabled))`, `.notice:not(.warning, .error)`); the guard keeps quiet
+and dark buttons in the hover group, which gives them the plain dark hover ([Button](#button)). Do not add to the
 layer: a new component's dark appearance comes from its tokens.
 
 ### What left it (B23, 2026-10-23)
@@ -412,13 +415,13 @@ light theme shows: primary buttons on `--iris` with `--on-accent` text (hover `-
 `--danger` ink and border with a `--danger-bg` hover, quiet buttons transparent, dark buttons on the inverse surface,
 status badges with their success and warning pairs (the plain badge transparent), warning and error notices with their
 pairs, the feedback alerts' `--danger` border, checked metric pills on `--surface-accent` with the `--iris` border, and
-hover borders on platform cards and client tabs. Text on them measures 7.85:1 or more (on the plain panel it was 10.2
-to 13.7:1).
+hover borders on platform cards and client tabs. Their labels measure 7.85:1 or more and a checked pill's formula 6.03:1
+(masked as plain components they measured 10.2 to 13.7:1).
 
 ## What changed in this increment (for the owner's visual sign-off)
 
-A computed-style comparison of every page state above against the tree before the design-system work (Work-here
-`cb338f68`, both themes) found these differences and no other:
+A computed-style comparison of every page state above against the tree before the design-system work (the release
+deployed before wave 4b, both themes) found these differences and no other:
 
 - **Corners on the scale.** Near-duplicate radii took the nearest step: icon buttons 6 to 8px; filter tabs, metric and
   recommendation pills, client chips 6 or 7 to 8px; sidebar links, the command trigger, text fields and selects, code
