@@ -1256,7 +1256,13 @@ person cannot use is named ("Previously selected account — check access"), nev
 the account and drill-down in its address: Back returns to the parent level, and a reload restores the selection and
 waits for *Read inventory*. Google, Snapchat and X micros show the exact account-currency decimal beside the native
 value; Meta and TikTok amounts stay unconverted. `tests/route-registry.test.mjs`, `tests/website-navigation.test.mjs`,
-`tests/website-deep-links.test.mjs` and `tests/portfolio-url-state.test.mjs` cover these.
+`tests/website-deep-links.test.mjs` and `tests/portfolio-url-state.test.mjs` cover these. Since the design review of
+2026-10 each navigation label takes the row beside its icon and reads from its start (the icon's 20 px box had held
+the label too, breaking two-word names word by word), the links of an opened group are 14 px; Home's one primary
+action is **Set up connections** until an account is connected, then **New campaign plan**; a platform the
+deployment has not set up offers **Set up →** only to the site administrator, whose Settings hold its setup (everyone
+else reads "Administrator setup required" on the card); and Home and Schedules no longer download the campaign plan
+and review code they never call.
 
 **Website composition and markup (WEB-07).** A page's lazily loaded scripts are its registry entry's `assets`. Scripts
 extend the shell through `AMCP` (`web/routes.js`): `AMCP.routes.register(path, {render})` gives a workspace page its

@@ -830,6 +830,11 @@ function renderConnections() {
   );
   renderPlatformCards();
 }
+// Set up → only for the site administrator, whose Settings hold the setup (design review 2026-10).
+function platformConnectButton(p, n) {
+  if (!n && !p.configured && !session.administrator) return false;
+  return html`<button class="button small ${n ? '' : 'primary'}" data-connect="${p.id}">${n ? uiText('+ Add login') : p.configured ? uiText('+ Connect') : uiText('Set up →')}</button>`;
+}
 function renderPlatformCards() {
   const visible = platforms.filter(
     p => (filter === 'all' || p.connections.length) && p.name.toLowerCase().includes(search.toLowerCase()),
@@ -848,7 +853,7 @@ function renderPlatformCards() {
             : uiText('Not connected'),
       metrics = p.assetKinds.slice(0, 3);
     while (metrics.length < 3) metrics.push(metrics.length === 1 ? 'logins' : 'selected');
-    return html`<article class="platform-card"><div class="platform-main"><div class="platform-top"><div class="platform-identity">${logo(p)}<div><div class="platform-name">${p.name}</div><div class="platform-kind">${uiText(p.kind)}</div></div></div><span class="status ${attention ? 'attention' : n ? 'online' : 'offline'}"><i></i>${status}</span></div><p class="platform-description">${uiText(p.description)}</p><div class="platform-bottom"><span class="platform-login">${n ? uiText('Connected logins: {count}', {count: uiNumber(n)}) : p.configured ? uiText('Ready to connect') : uiText('Administrator setup required')}</span><div class="platform-actions"><button class="button small" data-manage="${p.id}">${uiText('Manage')}</button><button class="button small ${n ? '' : 'primary'}" data-connect="${p.id}">${n ? uiText('+ Add login') : p.configured ? uiText('+ Connect') : uiText('Set up →')}</button></div></div></div><div class="platform-metrics">${metrics.map(k => html`<div><small>${uiText(labels[k] ?? k).toUpperCase()}</small><b>${k === 'logins' ? n : k === 'selected' ? p.connections.reduce((v, c) => v + c.accounts.length, 0) : assetsFor(p, k)}</b></div>`)}</div></article>`;
+    return html`<article class="platform-card"><div class="platform-main"><div class="platform-top"><div class="platform-identity">${logo(p)}<div><div class="platform-name">${p.name}</div><div class="platform-kind">${uiText(p.kind)}</div></div></div><span class="status ${attention ? 'attention' : n ? 'online' : 'offline'}"><i></i>${status}</span></div><p class="platform-description">${uiText(p.description)}</p><div class="platform-bottom"><span class="platform-login">${n ? uiText('Connected logins: {count}', {count: uiNumber(n)}) : p.configured ? uiText('Ready to connect') : uiText('Administrator setup required')}</span><div class="platform-actions"><button class="button small" data-manage="${p.id}">${uiText('Manage')}</button>${platformConnectButton(p, n)}</div></div></div><div class="platform-metrics">${metrics.map(k => html`<div><small>${uiText(labels[k] ?? k).toUpperCase()}</small><b>${k === 'logins' ? n : k === 'selected' ? p.connections.reduce((v, c) => v + c.accounts.length, 0) : assetsFor(p, k)}</b></div>`)}</div></article>`;
   };
   setHtml(
     $('#platform-grid'),

@@ -245,6 +245,16 @@ test('Home links only to internal paths and escapes feed names', () => {
   assert.match(html, /Connection logins turned off: 1\./);
 });
 
+// Design review 2026-10 (WEB-06): an empty workspace's Home offered two primary actions, "New campaign plan" in the
+// heading and "Set up connections" in the first panel; a plan needs a connected account first.
+test('Home has one primary action: Set up connections until an account is connected, then New campaign plan', () => {
+  const page = home('en');
+  page.context.d = {campaigns: [], connections: [], writes_paused: null};
+  const primaries = html => [...html.matchAll(/<a [^>]*class="button primary"[^>]*>([^<]+)</g)].map(m => m[1]);
+  assert.deepEqual(primaries(page.run('workHome(d, [], {operations: [], has_more: false})')), ['Set up connections']);
+  assert.deepEqual(primaries(page.run('workHome(d, [{}], {operations: [], has_more: false})')), ['New campaign plan']);
+});
+
 test('Home asks Operations for its attention page, keeps readiness and capability detail collapsed, and survives a failed feed', async () => {
   const accounts = ['101', '102', '103', '104', '105', '106'],
     checks = [

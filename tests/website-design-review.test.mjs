@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {createContext, Script} from 'node:vm';
 
 // Static guards for the design review of October 2026 (docs/review/DESIGN-REVIEW-2026-10.md). Each one names the
 // rendered defect it guards; the browser runner (tools/browser-workflow-qa.mjs) checks the same states in the page.
@@ -186,6 +187,26 @@ test('focus rings on the closing call to action and on focusable scroll regions 
   );
 });
 
+// Before: the sidebar's icon rule (.sidebar nav a span, 20 px wide) also sized each link's label, so a label of two or
+// more words broke at every space and centred: "Evidence & analysis" took three lines, and with a group open the
+// current page's link could fall below the sidebar's foot at 1280 x 900.
+test('a sidebar label takes the row beside its icon and reads from its start', () => {
+  const identity = rules(css('identity.css'));
+  const find = selector => identity.find(r => r.selector === selector);
+  const shared = find('.sidebar nav a span'),
+    label = find('.sidebar nav a span + span');
+  assert.ok(shared && label, 'the label has a rule of its own beside the icon box');
+  assert.equal(declarations(shared.body).get('width'), '20px', 'the icon keeps its 20 px box');
+  const values = declarations(label.body);
+  assert.equal(values.get('width'), 'auto', 'the label leaves the icon box');
+  assert.equal(values.get('text-align'), 'start');
+  assert.equal(values.get('min-width'), '0');
+  assert.match(values.get('flex'), /^1\b/);
+  // The label rule outranks the shared icon box and app.css's `nav a span` (21px, 23px wide, centred).
+  assert.ok(outranks(label, shared));
+  assert.ok(compare(specificity(label.selector), specificity('nav a span')) > 0);
+});
+
 // Before: the delivery dialog's labels were grids, so the export authorization's checkbox stood alone, centred, on a
 // line above its text; and the sticky status bar that follows an export covered the authorization and the button.
 test('the delivery dialog keeps a checkbox beside its text, and Export now keeps its status in the flow', () => {
@@ -200,4 +221,34 @@ test('the delivery dialog keeps a checkbox beside its text, and Export now keeps
   const clear = reporting.find(r => r.selector.startsWith('.report-delivery-dialog:has(.delivery-status'));
   assert.ok(Number.parseFloat(declarations(clear.body).get('scroll-padding-block-end')) >= 120);
   assert.match(readFileSync('web/report-delivery.js', 'utf8'), /setAttribute\?\.\('data-mode', mode\)/);
+});
+
+// Before (WEB-06): every platform the deployment had not set up showed a primary "Set up →" to everyone. Only the site
+// administrator's Settings hold a platform's setup (renderWorkspaceSettings); anyone else, workspace owners included,
+// landed at the top of their own Settings with a six-second toast saying the site administrator sets it up. The card's
+// "Administrator setup required" stays the explanation for them.
+test('a platform the deployment has not set up offers Set up only to those who can act on it', () => {
+  const app = readFileSync('web/app.js', 'utf8'),
+    source = app.slice(app.indexOf('function platformConnectButton('), app.indexOf('function renderPlatformCards('));
+  const context = createContext({Intl, document: {addEventListener() {}}, session: {}});
+  new Script(readFileSync('web/localization.js', 'utf8')).runInContext(context);
+  new Script(source).runInContext(context);
+  const button = (platform, logins, who) => {
+    context.session = who;
+    return String(context.platformConnectButton(platform, logins));
+  };
+  const unset = {id: 'reddit', configured: false},
+    ready = {id: 'meta', configured: true};
+  for (const role of ['viewer', 'operator', 'admin', 'owner']) {
+    assert.equal(button(unset, 0, {workspaceRole: role}), 'false', role + ' has nothing to set up');
+    assert.match(button(ready, 0, {workspaceRole: role}), /data-connect="meta"[^>]*>\+ Connect</);
+  }
+  assert.equal(button(unset, 0, {workspaceRole: 'owner', instanceOwner: true}), 'false');
+  assert.match(
+    button(unset, 0, {workspaceRole: 'owner', administrator: true}),
+    /class="button small primary" data-connect="reddit">Set up →</,
+  );
+  assert.match(button(unset, 1, {workspaceRole: 'viewer'}), /\+ Add login/, 'a login that exists keeps its action');
+  // The card still says why there is nothing to press.
+  assert.match(app, /uiText\('Administrator setup required'\)/);
 });

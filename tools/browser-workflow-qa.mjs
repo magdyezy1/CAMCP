@@ -2563,8 +2563,28 @@ async function shellChromeCase(site, route, locale, width) {
         asciiStatuses: [...document.querySelectorAll('.status')]
           .map(element => element.textContent.trim())
           .filter(text => text && !/[؀-ۿ]/.test(text)),
+        // Design review 2026-10: each navigation label (groups opened) takes the row beside its icon, from its start.
+        // The icon's 20 px box once applied to the label too, so "Evidence & analysis" broke into three centred lines.
+        navLabels: (() => {
+          for (const group of document.querySelectorAll('#workspace-sidebar details.nav-more')) group.open = true;
+          return [...document.querySelectorAll('#workspace-sidebar nav a > span:last-child')].map(label => {
+            const range = document.createRange();
+            range.selectNodeContents(label);
+            return {
+              text: label.textContent.trim(),
+              width: Math.round(label.getBoundingClientRect().width),
+              lines: new Set([...range.getClientRects()].map(r => Math.round(r.top))).size,
+              align: getComputedStyle(label).textAlign,
+            };
+          });
+        })(),
       };
     });
+    for (const label of result.geometry.navLabels) {
+      assert.notEqual(label.align, 'center', label.text + ' starts at its own start edge');
+      assert.ok(label.width > 40, label.text + ' takes the row beside its icon: ' + label.width + ' px');
+      assert.ok(label.lines <= 2, label.text + ' wraps into ' + label.lines + ' lines');
+    }
     const {bar, items, avatar} = result.geometry;
     assert.equal(Math.round(avatar.width), Math.round(avatar.height), 'The avatar stays square');
     for (const item of items) {

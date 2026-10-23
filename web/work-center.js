@@ -62,7 +62,9 @@ function workHome(d, accounts, attention) {
           ? uiText('Welcome back, {name}. Continue your work or start a new task.', {name: session.name.split(' ')[0]})
           : uiText('Welcome back. Continue your work or start a new task.'),
       ),
-      `<a class="button primary" href="/campaigns#campaign-create">${esc(uiText('New campaign plan'))}</a>`,
+      // One primary action (WEB-06, design review 2026-10): a plan needs a connected account, so until one is
+      // connected the emphasized action is Set up connections below.
+      `<a class="button${accounts.length ? ' primary' : ''}" href="/campaigns#campaign-create">${esc(uiText('New campaign plan'))}</a>`,
     ) +
     (d.writes_paused
       ? `<div class="notice warning" role="status"><strong>${esc(uiText('Provider writes are paused'))}</strong><p>${esc(d.writes_paused.reason)}</p><a href="/settings#owner-write-pause">${esc(uiText('View operating controls'))}</a></div>`

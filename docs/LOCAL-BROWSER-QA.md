@@ -81,7 +81,9 @@ where no scrolling reaches it (WCAG 1.4.10; the end-side `scrollWidth` check nev
 -114 px on a 375 px phone), and that a primary or danger button and an online or attention status badge are not
 coloured exactly like their plain counterparts (in dark mode a shared `theme.css` group had erased all four). The
 export journey checks that the authorization box sits beside its text and that the status after an export covers
-neither the box nor the export button (WCAG 2.4.11).
+neither the box nor the export button (WCAG 2.4.11). The shell chrome cases (851 to 1,280 px) open every navigation
+group and require each label to take the row beside its icon (wider than 40 px, not centred, at most two lines); the
+icon's 20 px box had broken "Evidence & analysis" into three centred lines.
 
 ## Wave 2 qualification regressions (2026-10-12)
 
