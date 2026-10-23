@@ -100,13 +100,16 @@ function reviewConsentMark(ids, missing, text = '') {
   for (const id of ids) {
     const box = $('#' + id);
     if (!box) continue;
+    // Only the refusal's own id is added or removed; a description the box already has stays.
+    const described = (box.getAttribute?.('aria-describedby') ?? '')
+      .split(/\s+/)
+      .filter(token => token && token !== 'review-consent-error');
     if (missing.includes(id)) {
       box.setAttribute('aria-invalid', 'true');
-      box.setAttribute('aria-describedby', 'review-consent-error');
-    } else {
-      box.removeAttribute('aria-invalid');
-      box.removeAttribute('aria-describedby');
-    }
+      described.push('review-consent-error');
+    } else box.removeAttribute('aria-invalid');
+    if (described.length) box.setAttribute('aria-describedby', described.join(' '));
+    else box.removeAttribute('aria-describedby');
   }
 }
 /** Refuses an execution whose authorizations are not all ticked: shown in place, never as a toast. */

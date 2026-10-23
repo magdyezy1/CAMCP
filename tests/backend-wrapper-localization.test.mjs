@@ -204,11 +204,12 @@ test('all actual qualified wrapper reasons have Arabic while native fields, limi
   // without wrapper reasons; its wire profile adds the Adjust and Amazon adapters and two leaves split from existing
   // modules (src/oauth1.ts, src/provider-error-core.ts), without wrapper reasons; its read authorizers add
   // src/snapchat-scope.ts, Snapchat's scoped paths, without wrapper reasons.
-  // The design review of 2026-10 adds 24 website entries to the catalog, none a wrapper reason.
+  // The design review of 2026-10 adds 24 website entries to the catalog, none a wrapper reason, and its review fixes
+  // three reviewer sign-in sentences and one uncertain-write message (its remedy replaced), none a wrapper reason.
   assert.equal(files.length, 669);
   assert.equal(selected.filter(row => row.messages.size).length, 186);
   assert.equal(owned.size, 2849);
-  assert.equal(Object.keys(catalog).length, 11509);
+  assert.equal(Object.keys(catalog).length, 11513);
   assert.deepEqual(localeProblems(catalog, owned), []);
   const rephrased = 'requestMetaData names only the ad account: {sponsoredAccountUrn: "urn:li:sponsoredAccount:<id>"}.';
   for (const message of owned) {

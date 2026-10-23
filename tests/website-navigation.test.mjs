@@ -79,13 +79,27 @@ test('structured server errors keep their recovery advice and request reference 
   assert.match(message, /Inspect the original receipt/);
   assert.match(message, /fixture-request/);
   // WEB-03 (design review 2026-10): an uncertain write is said in the page's own words, which keep its recovery advice
-  // (read back before repeating the change; nothing is sent again) and the reference; the server's text stays under
-  // Technical details. This case once pinned the server's advice verbatim.
-  const uncertain = new Script(
-    `errorMessage(requestError({error:{message:'The upload outcome is uncertain.',next_action:'Inspect the original receipt.',code:'WRITE_OUTCOME_UNCERTAIN',retryable:false},meta:{requestId:'fixture-request'}}))`,
-  ).runInContext(context);
-  assert.match(uncertain, /AMCP never sends it again\. Read it back to check the account before you repeat the change/);
-  assert.match(uncertain, /fixture-request/);
+  // (nothing is sent again; the change is not repeated unless a read-back or the account shows it was not applied, and
+  // an upload's recovery is in Operations, as uploads have no read-back) and the reference; the server's text stays
+  // under Technical details. This case once pinned the server's advice verbatim.
+  const uncertain = text =>
+    new Script(
+      `errorMessage(requestError({error:{message:${JSON.stringify(text)},next_action:'Inspect the original receipt.',code:'WRITE_OUTCOME_UNCERTAIN',retryable:false},meta:{requestId:'fixture-request'}}))`,
+    ).runInContext(context);
+  const upload = uncertain('The upload outcome is uncertain.');
+  assert.match(
+    upload,
+    /AMCP never repeats an upload or step whose outcome is not confirmed\. Check its recovery in Operations/,
+  );
+  assert.doesNotMatch(upload, /read-back/);
+  assert.match(upload, /fixture-request/);
+  const change = uncertain('The change outcome is uncertain.');
+  assert.match(change, /AMCP cannot confirm whether this change was applied\./);
+  assert.match(
+    change,
+    /AMCP never sends it again\. Do not repeat the change unless a read-back or the account itself shows it was not applied/,
+  );
+  assert.match(change, /fixture-request/);
 });
 
 // Execute the actual browser scripts with a small DOM adapter. Requests are entirely synthetic and deferred by

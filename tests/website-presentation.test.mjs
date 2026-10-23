@@ -379,6 +379,8 @@ for (const locale of ['en', 'ar'])
       // Without the ticks nothing is sent; with them, exactly this review and key are executed.
       // Design review 2026-10: the refusal stands beside the boxes, focuses the first one not ticked and is not a toast
       // (before, the error was the first box's label itself, shown for six seconds in the corner).
+      // A description a box already has stays beside the refusal and after it (review fix: it was overwritten).
+      p.node('#spend-consent').setAttribute('aria-describedby', 'spend-consent-help');
       await assert.rejects(p.bindings.get('#execute-reviewed')(), {
         message: t(locale, 'Tick each authorization above to execute this request.'),
         presented: true,
@@ -392,6 +394,10 @@ for (const locale of ['en', 'ar'])
         assert.equal(p.node(box).getAttribute('aria-invalid'), 'true', box);
         assert.match(p.node(box).getAttribute('aria-describedby'), /review-consent-error/, box);
       }
+      assert.equal(
+        p.node('#spend-consent').getAttribute('aria-describedby'),
+        'spend-consent-help review-consent-error',
+      );
       assert.deepEqual(p.toasts, []);
       // One box left: the refusal names a single authorization.
       p.node('#review-consent').checked = true;
@@ -405,6 +411,8 @@ for (const locale of ['en', 'ar'])
       p.node('#spend-consent').checked = true;
       p.respond(async () => ({run: {executed: ['budget'], stopped: 'complete'}}));
       await p.bindings.get('#execute-reviewed')();
+      assert.equal(p.node('#spend-consent').getAttribute('aria-describedby'), 'spend-consent-help');
+      assert.equal(p.node('#review-consent').getAttribute('aria-describedby'), null);
       assert.deepEqual(p.calls[0].args, {
         action: 'execute_next',
         id: 'plan-1',
@@ -987,23 +995,62 @@ test('a lost write answer is explained without keys, and its exact server text s
     p.context.error = uncertain;
     const lines = p.run('errorLines(error)');
     // The server's remedy also says not to create the resource again ("Do not create another resource or use a new
-    // idempotency key"); the page's words keep that: check by reading back before repeating the change yourself.
+    // idempotency key"); the page's words keep that as a prohibition: the change is not repeated unless a read-back (or
+    // the account) shows it was not applied (review fix: "before you repeat the change yourself" read as an invitation).
+    const remedy =
+      'AMCP never sends it again. Do not repeat the change unless a read-back or the account itself shows it was not applied; a read-back changes nothing.';
     for (const owned of [
       'The provider’s answer to this change was lost, so AMCP cannot confirm whether it was applied.',
-      'AMCP never sends it again. Read it back to check the account before you repeat the change yourself; a read-back changes nothing.',
+      remedy,
     ]) {
       assert.ok(Object.hasOwn(catalog, owned), 'Arabic for ' + owned);
       assert.ok(lines.includes(t(locale, owned)), owned);
     }
-    assert.doesNotMatch(lines, /idempotency|new key/i);
+    assert.doesNotMatch(lines, /idempotency|new key|repeat the change yourself/i);
     assert.match(p.run('errorBlock(error)'), /error-technical[\s\S]*Do not retry with a new key/);
-    // The plan step shows the same words; the stored error stays under its details.
+    // Review fix: another uncertain outcome is not called a lost answer, and an upload's remedy is its recovery in
+    // Operations (uploads have no read-back); each server text stays under Technical details.
+    for (const [message, upload] of [
+      ['This review was already submitted. Inspect provider state; do not retry with a new key.', false],
+      ['A library attachment was already submitted. Inspect the account library.', true],
+      ['The retained Google session could not be queried.', true],
+      ['Upload response was lost. Inspect the allocated media before retrying.', true],
+    ]) {
+      p.context.error = refusal(p, 'WRITE_OUTCOME_UNCERTAIN', message);
+      const shown = p.run('errorLines(error)'),
+        lost = /response was lost/.test(message);
+      assert.equal(
+        shown.includes(
+          t(locale, 'The provider’s answer to this change was lost, so AMCP cannot confirm whether it was applied.'),
+        ),
+        lost,
+        message,
+      );
+      if (!lost) assert.ok(shown.includes(t(locale, 'AMCP cannot confirm whether this change was applied.')), message);
+      const own = upload
+        ? 'AMCP never repeats an upload or step whose outcome is not confirmed. Check its recovery in Operations before you do anything else.'
+        : remedy;
+      assert.ok(Object.hasOwn(catalog, own) && shown.includes(t(locale, own)), message);
+      assert.doesNotMatch(shown, /idempotency|new key/i, message);
+      if (upload) assert.ok(!shown.includes(t(locale, remedy)), 'an upload is not offered a read-back: ' + message);
+      assert.ok(p.run('errorBlock(error)').includes(message), message);
+    }
+    p.context.error = uncertain;
+    // The plan step shows the same words; the stored error stays under its details. A step keeps the server's error
+    // envelope (src/campaign-runner.ts), message included (an Error's own message does not spread).
     p.context.plan = {
       id: 'plan-1',
       name: 'Plan',
       brief: 'Brief',
       state: 'attention',
-      steps: [{id: 'campaign', status: 'uncertain', review_id: 'review-1', error: {...uncertain}}],
+      steps: [
+        {
+          id: 'campaign',
+          status: 'uncertain',
+          review_id: 'review-1',
+          error: {...uncertain, message: uncertain.message},
+        },
+      ],
     };
     const html = p.run('campaignJournal(plan)');
     assert.ok(

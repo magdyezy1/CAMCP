@@ -96,6 +96,20 @@ test('the owner settings sentences AMCP writes about backups and reviewer sign-i
   for (const sentence of [backup, reviewer]) assert.ok(Object.hasOwn(catalog, sentence), 'No Arabic for ' + sentence);
   // The variable name stays literal inside the Arabic sentence.
   assert.match(catalog[reviewer], /AMCP_TEST_PASSWORD/);
+  // Every other reviewer line the server can return (setupGaps().reviewer is the web store's testPasswordProblem
+  // first): a bad hash, a short password, or the administrator's password reused (review fix: these three printed in
+  // English on the Arabic page).
+  const problems = [
+    ...readFileSync('server/web-store.ts', 'utf8').matchAll(/'(AMCP_TEST_PASSWORD\w* [^']*\.)'/g),
+    ...readFileSync('server/user-accounts.ts', 'utf8').matchAll(/'([^']*AMCP_TEST_PASSWORD\w* [^']*\.)'/g),
+  ].map(m => m[1]);
+  assert.ok(problems.length >= 4, problems.join(' | '));
+  assert.ok(problems.includes('AMCP_TEST_PASSWORD must differ from the administrator password.'));
+  for (const sentence of problems) {
+    assert.ok(Object.hasOwn(catalog, sentence), 'No Arabic for ' + sentence);
+    assert.match(catalog[sentence], /[؀-ۿ]/u, sentence);
+    for (const name of sentence.match(/\bAMCP_[A-Z_]+\b/g)) assert.ok(catalog[sentence].includes(name), name);
+  }
   // Both are rendered through the catalog (they were printed as the server wrote them).
   assert.match(readFileSync('web/owner-operations.js', 'utf8'), /uiText\(h\.backup\.message\)/);
   assert.match(readFileSync('web/account-approvals.js', 'utf8'), /approvalText\(uiText\(setup\.reviewer\)\)/);

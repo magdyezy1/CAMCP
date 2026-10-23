@@ -75,8 +75,12 @@ export function inspectLocaleSource(source, file = 'script.js') {
     'themeLabels',
     'statusLabels',
     'capabilityFeatureLabels',
-    // Design review 2026-10: a base metric's aggregation in words (web/reporting-overview.js).
+    // Design review 2026-10: a base metric's aggregation in words (web/reporting-overview.js), the page's own wording
+    // of a technical server message and its remedy (web/app.js; each value is a [message, remedy] pair), and what
+    // became of an executed step that did not complete (web/campaign-workflows.js).
     'metricAggregations',
+    'websiteWording',
+    'executedStepOutcomes',
   ]);
   const collectValues = node => {
     if (!node || typeof node !== 'object') return;

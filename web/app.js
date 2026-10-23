@@ -314,21 +314,33 @@ const websiteMessages = {
   DESTRUCTIVE_CONFIRMATION_REQUIRED: () =>
     'The owner requires an explicit acknowledgement before anything is deleted on this account. Nothing was sent.',
 };
-// [message, what to do] the page always uses for a code whose server text is technical (design review 2026-10).
+// The page's words for a code whose server text is technical (design review 2026-10): `lost` only where the server
+// says the answer was lost, and an upload's remedy points to Operations, which has its recovery (no read-back).
 const websiteWording = {
-  WRITE_OUTCOME_UNCERTAIN: [
-    'The provider’s answer to this change was lost, so AMCP cannot confirm whether it was applied.',
-    'AMCP never sends it again. Read it back to check the account before you repeat the change yourself; a read-back changes nothing.',
-  ],
+  WRITE_OUTCOME_UNCERTAIN: {
+    lost: 'The provider’s answer to this change was lost, so AMCP cannot confirm whether it was applied.',
+    message: 'AMCP cannot confirm whether this change was applied.',
+    remedy:
+      'AMCP never sends it again. Do not repeat the change unless a read-back or the account itself shows it was not applied; a read-back changes nothing.',
+    upload:
+      'AMCP never repeats an upload or step whose outcome is not confirmed. Check its recovery in Operations before you do anything else.',
+  },
 };
+const websiteWordingFor = error =>
+  Object.hasOwn(websiteWording, error?.code ?? '') ? websiteWording[error.code] : null;
 function websiteOwnMessage(error) {
-  return Object.hasOwn(websiteWording, error?.code ?? '') ? uiText(websiteWording[error.code][0]) : '';
+  const own = websiteWordingFor(error);
+  return own ? uiText(/\b(?:response|answer) was lost\b/i.test(error.message ?? '') ? own.lost : own.message) : '';
 }
 /** The remedy as the website words it, or ''. */
 function websiteRemedy(error) {
   const code = typeof error?.code === 'string' ? error.code : '',
-    layer = error?.details?.layer;
-  if (Object.hasOwn(websiteWording, code)) return uiText(websiteWording[code][1]);
+    layer = error?.details?.layer,
+    own = websiteWordingFor(error);
+  if (own)
+    return uiText(
+      /\b(?:upload|media|library)\b|\bGoogle session\b/i.test(error.message ?? '') ? own.upload : own.remedy,
+    );
   if (typeof layer === 'string' && Object.hasOwn(providerLayerRemedies, layer))
     return uiText(providerLayerRemedies[layer]);
   const server =
