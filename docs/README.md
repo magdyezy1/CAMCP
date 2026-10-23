@@ -42,7 +42,7 @@ on a current page, a new heading naming a batch, a commit reference, a typed pac
 
 ## Status and decisions
 
-- [Current product scope and completion walkthrough](CURRENT-READINESS.md)
+- [Current readiness](CURRENT-READINESS.md)
 - [Decisions](DECISIONS.md)
 - [Package status on three axes](review/PACKAGE-STATUS.md)
 - [Provider access register](PROVIDER-ACCESS.md)

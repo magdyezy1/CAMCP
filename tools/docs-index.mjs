@@ -6,7 +6,8 @@
 // folders. Every other guide or reference must be placed in a section below, so a new one cannot go unlisted. A moved
 // document's old address holds a redirect stub (docs/moved.json, tools/docs-links.mjs), which is never listed; this
 // writes the stubs, and fails on any broken relative link in the repository's Markdown and on a current page that
-// breaks the documentation freeze (tools/docs-lint.mjs).
+// breaks the documentation freeze (tools/docs-lint.mjs). It also writes, or with --check compares, the current pages'
+// facts generated from the code (tools/doc-facts.mjs, DOC-01), so it needs `npm run build` first.
 // Usage: node tools/docs-index.mjs [--check]
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,6 +15,7 @@ import {fileURLToPath} from 'node:url';
 import {linkProblems, markdownLinks, readMoves, writeStubs} from './docs-links.mjs';
 import {lintProblems} from './docs-lint.mjs';
 import {packageStatusTable, tableFile} from './package-status.mjs';
+import {docFacts} from './doc-facts.mjs';
 
 const docs = fileURLToPath(new URL('../docs/', import.meta.url)),
   target = path.join(docs, 'README.md');
@@ -308,6 +310,9 @@ const root = fileURLToPath(new URL('..', import.meta.url)),
   status = packageStatusTable(root),
   statusTarget = fileURLToPath(new URL('../' + tableFile, import.meta.url));
 for (const problem of status.problems) problems.push('package status: ' + problem);
+// DOC-01: the current pages' generated facts (tools/doc-facts.mjs), checked or written with the index. It needs dist/.
+const facts = docFacts(root, {write: !process.argv.includes('--check')});
+for (const problem of facts.problems) problems.push('documentation facts: ' + problem);
 if (problems.length) {
   console.error('Documentation index: ' + problems.join('; '));
   process.exit(1);

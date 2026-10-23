@@ -20,6 +20,7 @@ import {evidenceProvenance} from './evidence-hashes.mjs';
 import {captureProblems} from './catalog/normalize.mjs';
 import {appleModelProblems, appleModelsFile} from './apple-model-evidence.mjs';
 import {profileStages} from './qualify.mjs';
+import {factFiles} from './doc-facts.mjs';
 
 const textDigest = text => createHash('sha256').update(text.replaceAll('\r\n', '\n')).digest('hex');
 /** A freshness gate: its token in the `npm run check` chain, the node arguments it runs, its qualification stage. */
@@ -247,6 +248,22 @@ export const generatedArtifacts = [
       'node tools/docs-lint.mjs --write, which refuses a count above its record unless --allow-increase=<reason> records why',
     inputs: ['README.md and the current pages of docs/ (not records, archive, implementation records or stubs)'],
     provenance: 'Per-page counts and every recorded increase with its reason; npm run docs:index:check counts again.',
+    check: gates.docs,
+  },
+  {
+    // DOC-01: the counts and tables of the current pages, written between markers; tools/docs-index.mjs runs it.
+    id: 'doc_facts',
+    outputs: Object.keys(factFiles),
+    generator: 'tools/doc-facts.mjs',
+    regenerate: 'npm run build, then npm run docs:index',
+    inputs: [
+      'dist/src and dist/server (the registries, and tools/list of a read-only and a writes deployment)',
+      'docs/implementation/ACTION-CONTRACT-COVERAGE.json',
+      'docs/review/package-status.json',
+      '.env.example',
+    ],
+    provenance:
+      'Each value and block sits between doc-facts markers that name the generator; docs:index:check regenerates and compares them, in a child process with a fixed environment.',
     check: gates.docs,
   },
   {

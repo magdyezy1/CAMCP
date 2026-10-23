@@ -725,7 +725,7 @@ Every prior case, native count, egress/write boundary, geometry/focus and workfl
 exact. All 54 website files and 4,654 Arabic entries remain byte-identical.
 See [semantic evidence](records/DELIVERY-2026-10-05-BROWSER-SEMANTICS.md). Complete working-source semantic release/browser gates pass; exact committed-source checks gate the sole push.
 This automated browser guard does not establish physical assistive-technology or full WCAG
-acceptance. The whole-plan status remains 13 implemented / 14 partial / one open; Actions stay waived.
+acceptance. Package status is in [package status](review/PACKAGE-STATUS.md); Actions stay waived.
 
 ## Complete directly owned backend Arabic — batch 173
 
@@ -739,7 +739,7 @@ and request references retain their original meaning. Backend behavior and all e
 and gate statements remain unchanged. See [evidence](records/DELIVERY-2026-10-05-BACKEND-CONTRACT-LOCALIZATION.md).
 Complete working-source backend-Arabic release/browser gates pass; exact committed-source checks gate the sole push. Dynamic/native messages and local wrapper-generated reasons remain outside this
 direct-constructor inventory; whole-plan Arabic, physical assistive and deployed acceptance remain
-partial. The matrix stays 13 implemented / 14 partial / one open, with hosted Actions owner-waived.
+partial ([package status](review/PACKAGE-STATUS.md)), with hosted Actions owner-waived.
 
 ## Release identity HTTP scope — batch 174
 
@@ -770,8 +770,8 @@ separate liveness/About limits remain unchanged.
 
 Focused local checks pass 60/60, zero failures/skips. Existing native/locale/browser assertions
 remain intact; broader helpers, dynamic/native reasons and complete Arabic editorial/physical
-assistive/deployed acceptance remain separate. The 28-package matrix stays 13 implemented /
-14 partial / one open. Hosted Actions remain explicitly owner-waived.
+assistive/deployed acceptance remain separate ([package status](review/PACKAGE-STATUS.md)).
+Hosted Actions remain explicitly owner-waived.
 Complete working-source wrapper-localization gates pass; exact committed-source full/browser checks gate the sole push.
 
 ## Public liveness and LinkedIn forecast prerequisites — batches 176/177
@@ -780,7 +780,7 @@ The explicit public comparison now accepts only the application's up/degraded li
 and returns a fixed refusal for inconsistent HTTP-200 JSON. Forecast preflight requires an
 included geographic-only clause before transport while retaining all three read-only actions
 and native payloads. Audience Insights stays unchanged; one manually authored Arabic reason
-preserves all preceding 8,056 values. B08/B13/B26 remain partial, B25 open; counts stay 13/14/1.
+preserves all preceding 8,056 values. B08/B13/B26 remained partial ([package status](review/PACKAGE-STATUS.md)).
 See [implementation and primary sources](records/DELIVERY-2026-10-05-LIVENESS-PLANNING-PREREQUISITES.md).
 Hosted Actions stay owner-waived; full local source/report/FFmpeg checks remain mandatory.
 Working-source checks pass; exact clean committed source/full/browser checks remain the sole push gate.
@@ -839,7 +839,7 @@ The isolated formatted-source prototype passes 75 focused checks and 24 served b
 with 400 synthetic GETs, 2,904 original other-product observations, zero mutations/egress,
 48 semantic/pinned selected-rule snapshots and all manual evidence retained. All 8,066 earlier
 Arabic values remain; 25 are added. Fresh integrated full/report/source/browser gates follow.
-B21/B15/B16/B24 remain partial, B25 open; the matrix remains 13/14/1 and Actions remains unused.
+B21/B15/B16/B24 remained partial and Actions unused ([package status](review/PACKAGE-STATUS.md) is current).
 See [contract, workflow and qualification](records/DELIVERY-2026-10-06-X-CATALOG-SELECTION-INVENTORY.md).
 
 The maintained total is now 456 cases. Three new catalog kinds retain all 432 old identities,

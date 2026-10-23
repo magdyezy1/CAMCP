@@ -707,7 +707,11 @@ The maintained GitHub workflow defines Docker builds and synthetic read-only/wri
 - **Container parity.** `npm run qualify:container` (`tools/container-parity.mjs`, ACC-04) copies the release scope
   minus `.dockerignore` to a new directory outside any Git repository, links the installed dependencies and runs
   `npm run check` there with FFmpeg required and two test workers, as Railway's Dockerfile build does;
-  `-- --test <file>` runs the build and the named tests only. Its record holds counts, hashes and exit codes.
+  `-- --test <file>` runs the build and the named tests only. Its record holds counts, hashes and exit codes. It does
+  not reproduce the image's root user, Node patch version or Linux: on 2026-10-18 it passed every test on Windows while
+  Railway's build failed twice (the image's `node:sqlite` refused backup rate `-1`; a test met the admin CLI's root
+  refusal), so only the Railway build record is Linux evidence
+  ([what the deployment taught](DEPLOY-RAILWAY.md#what-the-2026-10-18-deployment-taught)).
 - **Railway build evidence.** `npm run evidence:railway` turns a build log the owner exported read-only into a
   counts-only record of the Linux check for that deployment
   ([per-release evidence](DEPLOY-RAILWAY.md#per-release-linux-evidence-from-railway-builds)).
@@ -747,7 +751,8 @@ digest an artifact recorded that no longer matches, and it runs the checks that 
 - **Apple SDK evidence.** `npm run generate:apple:check` checks `generated/apple-platform-v1-models.json` offline: its
   recorded digest, the pinned SDK revision in every source, and the shape of its models and methods. Re-deriving it
   from that revision needs the public SDK files, so it is an owner-run release step with network access:
-  `node tools/apple-model-evidence.mjs --fetch --sdk <empty directory> --check`. No build, test or check fetches.
+  `node tools/apple-model-evidence.mjs --fetch --sdk <empty directory> --check`. It last ran on 2026-10-17 at the
+  pinned revision and found 0 problems; run it again when the pinned revision moves. No build, test or check fetches.
 
 Routing truth is anchored apart from the captured catalog. `npm run contracts:actions` also writes
 `generated/route-anchors.json` and the per-gateway [route anchor coverage](implementation/ROUTE-ANCHOR-COVERAGE.md)
@@ -761,7 +766,8 @@ a documentation page you read, add the page to `tools/route-anchor-documents.jso
 URL, the date read and a note; the generator refuses an entry whose route has moved or that anchors no routed action.
 The SDK evidence behind Meta's `sdk_method` anchors (`tests/fixtures/meta-sdk-changes-v26.json`, whose digest the
 anchors record) re-derives like the Apple evidence, from the two SDK releases the owner downloads:
-`node tools/meta-sdk-changes.mjs --from-dir <25.0.3 adobjects> --to-dir <26.0.2 adobjects> --check`.
+`node tools/meta-sdk-changes.mjs --from-dir <25.0.3 adobjects> --to-dir <26.0.2 adobjects> --check`. It was
+regenerated on 2026-10-17 from both complete PyPI releases (`90023a25`).
 
 ### Journey and MCP evaluation (QA-04)
 
@@ -1544,8 +1550,10 @@ the ledger then refuses that gateway with `MEASUREMENT_LEDGER_UNQUALIFIED` befor
 remaining ones. Meta Dataset Quality needs `ads_management`, or `ads_read` with `business_management`; a login
 without either keeps that layer unknown. Snap asks for review before Signal Readiness data is displayed publicly, so it
 stays on signed-in workspace pages. The TikTok adapter sends one more read per ledger, the selected pixel's event
-statistics (`GET /v1.3/pixel/event/stats/`), only once the deployment has pinned TikTok's SDK specification of that
-request; until then that layer is `unavailable` (`unpinned_request`) and nothing is sent. To pin it, download
+statistics (`GET /v1.3/pixel/event/stats/`), exactly as TikTok's SDK specification of that request documents it. The
+specification is pinned in `.mirror/VENDOR/tiktok-pixel-event-stats.json`: SDK commit `f809c396` with its API
+reference, read publicly on 2026-10-17 (`9c42d9f0`); without a pin that layer is `unavailable` (`unpinned_request`)
+and nothing is sent. To pin another commit, download
 `yml_files/pixel_event_stats.yml` of `tiktok/tiktok-business-api-sdk` at a full commit (for example
 `https://raw.githubusercontent.com/tiktok/tiktok-business-api-sdk/<commit>/yml_files/pixel_event_stats.yml`), run
 `node tools/tiktok-event-stats-pin.mjs --source-file <file> --commit <commit>` (it refuses a file that does not document

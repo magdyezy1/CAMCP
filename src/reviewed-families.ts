@@ -173,10 +173,11 @@ import {xTrackingTagFamily} from './x-tracking-tags.js';
 import type {CompiledRequest} from './types.js';
 
 /*
- * The reviewed write families registered with the lifecycle. Each lifecycle stage (write-review, write-verification,
+ * The reviewed write families registered with the lifecycle: every reviewed family is listed here, and no lifecycle
+ * module names one (tests/reviewed-families.test.mjs). Each lifecycle stage (write-review, write-verification,
  * write-impact, preflight, review-state, reviewed-routes, scope, spend-policy, execution-risk, action-contracts)
- * consults this list at one point; families not yet registered are still wired into those modules one line each.
- * docs/ADDING-A-REVIEWED-FAMILY.md explains how to add one.
+ * consults this list at one point. docs/ADDING-A-REVIEWED-FAMILY.md explains how to add one and lists the registered
+ * families, generated from this list (tools/doc-facts.mjs).
  */
 let registered: readonly ReviewedFamily[] | undefined;
 

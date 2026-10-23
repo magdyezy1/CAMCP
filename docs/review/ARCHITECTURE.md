@@ -1,9 +1,12 @@
 # AMCP architecture
 
-This is the module map, request lifecycle and trust-boundary view of AMCP as of `Codex-branch`
-at `03ac8d3` (2026-09-28). It describes what the code does today; line numbers refer to that
-revision. For generated contract facts (pinned versions, reviewed scope) `docs/CONTRACTS.md`
-stays the source of truth.
+This is the module map, request lifecycle and trust-boundary view of AMCP. It is a dated baseline: sections 1 to 7 were
+written at `03ac8d3` (2026-09-28), where its line numbers point, and are corrected where the 2026-10-08 engineering
+review found them wrong (the audit chain, the family count); sections 8 onward record the October 2026 architecture
+work. Two parts are generated and checked, so they cannot drift: the ratchet table of section 8
+(`tools/architecture-map.mjs`) and the family count (`tools/doc-facts.mjs`). For generated contract facts (pinned
+versions, reviewed scope) `docs/CONTRACTS.md` stays the source of truth, and the current tool surface, providers and
+package status are in [current readiness](../CURRENT-READINESS.md).
 
 ## 1. Runtime shape
 
@@ -42,7 +45,7 @@ src/service.ts  MirrorService.call(tool, input, actor)
   │    ├─ review-state.ts (snapshot normalization, state hash)
   │    ├─ write-impact.ts (impact summaries)
   │    ├─ spend-policy.ts + policy-decimal.ts (owner spending policies)
-  │    └─ 148 family modules (x-entity-batches.ts, google-business-lodging.ts, …)
+  │    └─ the reviewed-family modules (x-entity-batches.ts, google-business-lodging.ts, …; §5)
   ├─ write-verification.ts (amcp_campaign verify: read-back comparison)
   ├─ media-upload.ts, media-routing.ts (amcp_media, Drive transfer, FFmpeg)
   ├─ workflows.ts, campaign-runner.ts, campaign-preflight.ts (plans)
@@ -204,9 +207,11 @@ of eleven lifecycle functions, recorded while the full suite ran on the previous
 differences. Authorization is not among them, so its order was checked by hand: every authorizer the moved ones now
 follow is guarded by another gateway, kind or read marker.
 
-Pass 4 (batch 33) registered the other 72, so all 143 reviewed families are registered and the table above is
+Pass 4 (batch 33) registered the other 72, so every family of that time (143) was registered and the table above is
 history: each stage consults the registry once and keeps only gateway logic (ADDING-A-REVIEWED-FAMILY.md, "Outside
-the registry"). It removed 2,901 lines from the fifteen lifecycle modules (267 added) and both reader chains. A
+the registry"). Families added since are registered the same way; the registry holds
+<!-- fact:reviewed_families -->170<!-- /fact --> today (`reviewedFamilies()`, listed by provider in
+ADDING-A-REVIEWED-FAMILY.md). It removed 2,901 lines from the fifteen lifecycle modules (267 added) and both reader chains. A
 family now owns what the chains could not express: whole-state reads, follow-up reads, actor checks, report-job
 admission and receipts, preview delivery and its own verification. The lifecycle passes a family its read builders
 and gateway fallbacks as arguments, so no family module imports a lifecycle module for them. The proof replays
@@ -228,7 +233,9 @@ response; a family may add an actor or connection check, a login binding and an 
 `src/store.ts`: `tenants`, `workspace_memberships`, `connections` (sealed credentials),
 `documents (tenant_id, kind, id, data, revision)` — reviews, policies, plans, receipts,
 reservations —, `idempotency (tenant_id, key, fingerprint, state, result)`, `jobs` (leases),
-`audit` (hash chain per tenant), `resource_ownership`, `api_keys` (hashed MCP tokens),
+`audit` (one append-only hash chain across all workspaces: `Store.appendAudit` links each row to the last row of the
+whole table, and `Store.verifyAudit` walks that single chain; reads such as Activity select one workspace's rows; an
+account erasure leaves receipted tombstones, SEC-07), `resource_ownership`, `api_keys` (hashed MCP tokens),
 `media_*`, `service_locks`, `provider_cooldowns`.
 `server/web-store.ts`: `amcp_users`, `amcp_identities`, `amcp_web_sessions` (hashed),
 `amcp_login_limits`, `amcp_oauth_states` (sealed), `amcp_mcp_clients`, `amcp_mcp_grants`,
@@ -372,7 +379,7 @@ anywhere: the suites' synthetic fetchers answer.
 | OAuth configuration: grants and website platforms | facts `grant`: each provider's OAuth grant (CON-02, CON-03: requested read and write scopes, the read and write requirements, the grant source, whether readiness has an exact account read, the website platform that authorizes it) and the scope names they use, in the registry with `grantOrder`, the order the grant registry lists them in (a load-time check: every adapter with a grant, once). `tests/provider-oauth-configs.test.mjs` pins the seam. | `src/provider-grants.ts` lists the grants (`providerGrants`, gateway first, the facts in their order), keeps `providerGrant`, `requestedScopes`, `missingScopes`, `recordedWriteGrant`, `publicGrants` and `grantedScopes`, and re-exports the scope names; `server/platform-oauth.ts` keeps the website platforms (names, copy, OAuth endpoints, asset kinds), each taking its gateway and default scopes from the adapter its ID names, and every OAuth flow step. Remainders: the flows' provider steps (X's OAuth 1.0a, TikTok's app ID and auth code, Meta's GET exchange and long-lived token, Reddit's Basic authentication and User-Agent, Microsoft's scope and developer token, Apple's client credentials) and each provider's asset discovery in `server/asset-discovery.ts` | the builds before and after recorded back to back: 4,748,259 records before, 4,748,263 after, 0 differences beyond calibration except 5 records of the burst-pacing test (one request more of its 80 served in one run; its records are those served in both), with 1,257 `PlatformOAuth.config`, 364 `platform`, 73 `exchange` and 122 asset-sync records; 85,638 distinct pure calls (17 `selectionKind`, 16 `selectableKinds`) replay with 0 differences |
 
 Not met yet of ARC-01's local criteria (open remainders of B18 and B27 in `docs/review/package-status.json`): the whole
-suite has not run with `AMCP_PROVIDERS=criteo,woocommerce` (the tool-surface suites assert the default 25 tools; only
+suite has not run with `AMCP_PROVIDERS=criteo,woocommerce` (the tool-surface suites assert the default tool list; only
 the gate test checks both modes), and phase B has moved nine concerns so far, so 76 shared modules still name a
 gateway (target 20 or fewer) and 235 shared-to-provider imports remain (target 30 or fewer). Of the fall from 496,
 163 imports are the reviewed-family registry's, no longer counted since phase B counts it as a registry (§8), and 9

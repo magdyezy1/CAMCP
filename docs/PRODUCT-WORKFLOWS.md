@@ -1028,11 +1028,11 @@ no test event, Conversions API call, `/events/validate` request or provider chan
   TikTok's official Business API SDK specification documents (`advertiser_id`, `pixel_ids` and `date_range`
   `{start_date, end_date}`, JSON-encoded). The dates have no documented format: AMCP sends the last seven complete UTC
   days as `YYYY-MM-DD`, which is a guess, not TikTok's documented format. AMCP sends a provider request only as a pinned
-  document states it, so this read is sent only once the deployment has pinned that specification
-  (`yml_files/pixel_event_stats.yml` of `tiktok/tiktok-business-api-sdk` at a full commit, with its SHA-256 and the
-  request fields it documents; see [operations](OPERATIONS.md)). Until then, or when the pin documents another method,
-  path, field or date format than AMCP sends, activity is `unavailable` (`unpinned_request`; a differing pin is named
-  with `evidence.problem`) and nothing is sent. Once pinned, the evidence names the pinned file the request followed
+  document states it, so this read follows the pinned specification (`yml_files/pixel_event_stats.yml` of
+  `tiktok/tiktok-business-api-sdk` at commit `f809c396`, pinned on 2026-10-17 with its SHA-256 and the request fields
+  it documents; see [operations](OPERATIONS.md)). Without a pin, or when the pin documents another method, path, field
+  or date format than AMCP sends, activity is `unavailable` (`unpinned_request`; a differing pin is named with
+  `evidence.problem`) and nothing is sent. With the pin, the evidence names the pinned file the request followed
   (`request_specification`). The specification leaves the answer's `data` unspecified and the portal page's response
   table is drawn by TikTok's scripts, so AMCP checks only the documented envelope (`code`, `message`, `request_id`,
   `data`) and safety: at most 200 values, 6 levels and 100 items an array, field names of letters, digits and `_`, no
@@ -2117,7 +2117,7 @@ meta.requestId. The existing browser formatter presents that reference in either
 A matching six-field optional diagnostic event omits request payload, credentials and identity;
 production stdout/stderr wiring already exists. MCP errors and reviewed-write authority remain exact.
 See [website diagnostic evidence](records/DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md). Complete working-source local release/browser gates pass; exact committed-source qualification gates the sole push.
-B13/B16/B24 and the 13 implemented / 14 partial / one open matrix remain unchanged.
+B13/B16/B24 remained partial ([package status](review/PACKAGE-STATUS.md) is current).
 
 ## Core contract diagnostics and public source comparison — batch 171
 
@@ -2131,7 +2131,7 @@ An explicit public comparison command checks unauthenticated liveness and exact 
 asset bytes. Public HTTP 200 does not establish current backend Git/image or provider acceptance.
 The October 5 observed locale bytes match an older known file; Railway deployment cause/settings
 remain unverified. Complete working-source local release/browser gates pass; fresh exact committed-source checks gate the sole push.
-B13/B16/B24 and the 13 implemented / 14 partial / one open matrix remain unchanged.
+B13/B16/B24 remained partial ([package status](review/PACKAGE-STATUS.md) is current).
 
 ## Published WooCommerce inventory and owner worker observations — batches 182/183
 
