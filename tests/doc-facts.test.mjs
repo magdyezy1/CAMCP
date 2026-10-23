@@ -13,14 +13,18 @@ import {
   applyFacts,
   collectCodeFacts,
   countRules,
+  currentPages,
   docFacts,
   environmentProblems,
   factFiles,
+  historicalPages,
+  historyLines,
   inlineFacts,
   lintText,
   renderBlocks,
   statusRules,
 } from '../tools/doc-facts.mjs';
+import {readMoves} from '../tools/docs-links.mjs';
 import {Store} from '../dist/src/store.js';
 import {Registry} from '../dist/src/catalog.js';
 import {MirrorService} from '../dist/src/service.js';
@@ -144,6 +148,73 @@ test('current pages refuse the retired status vocabulary and hand-typed counts o
   assert.deepEqual(status(block), [
     'docs/X.md:4: "B25 open" — B25 is partial, not open: state package status through docs/review/PACKAGE-STATUS.md.',
   ]);
+});
+
+// The count rules read only README, CURRENT-READINESS, ADDING-A-REVIEWED-FAMILY and WORKSPACE-OPERATIONS, so a
+// hand-typed count on any other current page (PRODUCT-WORKFLOWS, MICROSOFT-ADS, a guide AI clients read) passed.
+test('every current page takes its counts from a marker; only a listed dated line keeps the count of its day', t => {
+  const dir = copyTree(t),
+    check = () => docFacts(dir, {facts: facts()}).problems,
+    page = (file, text) => {
+      fs.mkdirSync(path.dirname(path.join(dir, file)), {recursive: true});
+      fs.writeFileSync(path.join(dir, file), text);
+    };
+  assert.deepEqual(check(), []);
+  page('docs/PRODUCT-WORKFLOWS.md', '# Product workflows\n\nAMCP lists 26 tools.\n');
+  assert.deepEqual(check(), [
+    'docs/PRODUCT-WORKFLOWS.md:3: "26 tools" — a hand-typed tool count: use <!-- fact:tools_writes --> or <!-- fact:tools_read_only -->.',
+  ]);
+  page('docs/PRODUCT-WORKFLOWS.md', '# Product workflows\n');
+  // A dated line that historyLines lists keeps its count; the status rules still read it.
+  page('docs/OPERATIONS.md', '# Operations\n\n- Re-baseline after the wave 2 merges: 28 → 27 tools.\n');
+  assert.deepEqual(check(), []);
+  page('docs/OPERATIONS.md', '# Operations\n\n- Re-baseline after the wave 2 merges: 28 → 27 tools; B25 open.\n');
+  assert.deepEqual(check(), [
+    'docs/OPERATIONS.md:3: "B25 open" — B25 is partial, not open: state package status through docs/review/PACKAGE-STATUS.md.',
+  ]);
+  // An allowance whose line is gone is reported, so the list cannot outlive the history it excuses.
+  page('docs/OPERATIONS.md', '# Operations\n');
+  assert.deepEqual(check(), [
+    'docs/OPERATIONS.md: historyLines in tools/doc-facts.mjs names "28 → 27 tools", which is no line of this current page any more; remove it.',
+  ]);
+  // The family rule's false positive on a current page: an RFC number before a comma is no count.
+  assert.deepEqual(lintText('`client_revoke` (RFC 7009, family revoke)', 'docs/X.md', countRules), []);
+  assert.equal(lintText('All 1,234 reviewed families are registered.', 'docs/X.md', countRules).length, 1);
+  // In the repository every listed page is a current page that holds each listed line.
+  const pages = currentPages(root);
+  for (const [file, parts] of Object.entries(historyLines)) {
+    assert.ok(pages.includes(file), file);
+    for (const part of parts) assert.ok(fs.readFileSync(path.join(root, file), 'utf8').includes(part), part);
+  }
+});
+
+// DOC-03 archived three dated reviews that historicalPages named, leaving redirect stubs at their old addresses.
+test('the redirect stubs of moved documents are no current pages, and no historical page is a stub', t => {
+  const {moves} = readMoves(root),
+    pages = currentPages(root);
+  for (const file of historicalPages) {
+    assert.ok(fs.existsSync(path.join(root, file)), file + ' exists');
+    assert.ok(!moves.has(file), file + ' moved (docs/moved.json); currentPages() leaves its stub out as a stub');
+  }
+  for (const file of moves.keys()) assert.ok(!pages.includes(file), file);
+  for (const file of [
+    'docs/CAPABILITY-REVIEW-2026-09-08.md',
+    'docs/HARDENING-REVIEW.md',
+    'docs/RECOMMENDATIONS-IMPLEMENTED.md',
+  ])
+    assert.ok(moves.has(file) && !pages.includes(file), file);
+  const dir = temporary(t);
+  for (const [file, text] of [
+    ['README.md', '# Repo\n'],
+    ['docs/GUIDE.md', '# Guide\n'],
+    ['docs/OLD.md', '# Moved: Old\n'],
+    ['docs/archive/OLD.md', '# Old\n\nB25 remains open.\n'],
+    ['docs/moved.json', JSON.stringify({date: '2026-10-22', moved: {'docs/OLD.md': 'docs/archive/OLD.md'}})],
+  ]) {
+    fs.mkdirSync(path.dirname(path.join(dir, file)), {recursive: true});
+    fs.writeFileSync(path.join(dir, file), text);
+  }
+  assert.deepEqual(currentPages(dir), ['README.md', 'docs/GUIDE.md']);
 });
 
 test('the documented tool surface equals listTools() of a read-only and a writes deployment', t => {

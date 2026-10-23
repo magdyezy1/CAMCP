@@ -7,7 +7,8 @@
 //   <!-- doc-facts:tool-surface:end -->                   a generated block
 //
 // Outside the markers it refuses what the 2026-10-08 review found typed by hand into current pages (R25): "B25 open",
-// the retired single-label package count and its triples, and family, recipe, guide or tool counts.
+// the retired single-label package count and its triples, and family, recipe, guide or tool counts, on every current
+// page; only the dated narrative lines listed in historyLines keep the counts of their day.
 //
 //   node tools/doc-facts.mjs           write every marker from the code (after npm run build)
 //   node tools/doc-facts.mjs --check   fail when a marker disagrees with the code or a ledger, or a page breaks a rule
@@ -24,6 +25,7 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {manualStates, nativeStates, statusFile} from './package-status.mjs';
 import {providerNames} from './acceptance/provider-access.mjs';
+import {readMoves} from './docs-links.mjs';
 
 const ledgerFile = 'docs/implementation/ACTION-CONTRACT-COVERAGE.json';
 /** Every file that holds markers, with the inline facts it must hold (so deleting a marker cannot pass the check). */
@@ -48,27 +50,31 @@ export const blockFiles = Object.freeze({
   'measurement-writes': 'docs/MEASUREMENT-AND-APPLE.md',
 });
 /**
- * Pages that are not current pages although they sit beside them: dated reviews and the decision record are history and
- * keep the words of their day. Every other page currentPages() returns (the guides, runbooks and references that
- * describe the product as it is now) may not use the retired status vocabulary outside a marker.
+ * Pages that are not current pages although they sit beside them: the decision record is history and keeps the words
+ * of its day. The dated reviews that sat here moved to docs/archive/ (DOC-03), and the redirect stub each left at its
+ * old address (docs/moved.json) is no current page either: currentPages() leaves every stub out. Every other page
+ * currentPages() returns (the guides, runbooks and references that describe the product as it is now) may not use the
+ * retired status vocabulary outside a marker.
  */
 export const historicalPages = Object.freeze([
-  'docs/CAPABILITY-REVIEW-2026-09-08.md',
-  'docs/HARDENING-REVIEW.md',
-  'docs/RECOMMENDATIONS-IMPLEMENTED.md',
   'docs/DECISIONS.md',
   // Generated from the ledger and the registries by their own tools; their own checks keep them current.
   'docs/CONTRACTS.md',
   'docs/DOCUMENT-KINDS.md',
   'docs/PROVIDER-ACCESS.md',
 ]);
-/** The pages whose counts must come from markers: the ones a reader takes the product's size from. */
-export const countPages = Object.freeze([
-  'README.md',
-  'docs/CURRENT-READINESS.md',
-  'docs/ADDING-A-REVIEWED-FAMILY.md',
-  'docs/WORKSPACE-OPERATIONS.md',
-]);
+/**
+ * Dated narrative lines that keep a count of their day, by page: the count rules skip a line of that page containing
+ * the quoted text (the status rules still apply to it). Each entry is history, never the product's size now, and an
+ * entry whose text its page no longer holds is a problem, so the list cannot outlive its lines. Every other line of
+ * every current page takes its family, recipe, guide and tool counts from a marker.
+ */
+export const historyLines = Object.freeze({
+  // The re-baseline of the MCP evaluation after the wave 2 merges (2026-10-11).
+  'docs/OPERATIONS.md': ['28 → 27 tools'],
+  // The registry passes of September 2026, family by family.
+  'docs/review/ARCHITECTURE.md': ['Pass 1 registered 41 families', '(57 families;', '(71 families;'],
+});
 
 const numberWord =
   '(?:\\d[\\d,]*|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)';
@@ -94,7 +100,8 @@ export const statusRules = Object.freeze([
 /** Counts a reader takes the product's size from: they come from a fact marker (or are left out). */
 export const countRules = Object.freeze([
   {
-    pattern: /\b\d[\d,]*\s+(?:registered\s+|reviewed\s+)*(?:write\s+)?famil(?:y|ies)\b/i,
+    // A number never ends in its group separator: "RFC 7009, family revoke" names no count.
+    pattern: /\b\d(?:[\d,]*\d)?\s+(?:registered\s+|reviewed\s+)*(?:write\s+)?famil(?:y|ies)\b/i,
     reason: 'a hand-typed family count: use <!-- fact:reviewed_families -->',
   },
   {
@@ -625,13 +632,17 @@ export function applyFacts(text, file, values, blocks) {
   return {text: out, problems};
 }
 
-/** Problems of one page's text outside its markers under the given rules (line numbers are the page's own). */
-export function lintText(text, file, rules) {
+/**
+ * Problems of one page's text outside its markers under the given rules (line numbers are the page's own). A line that
+ * contains one of `skip` (the page's historyLines, for the count rules) is not checked.
+ */
+export function lintText(text, file, rules, skip = []) {
   const outside = text
       .replace(blockMarker, block => '\n'.repeat(block.split('\n').length - 1))
       .replace(inlineMarker, ''),
     problems = [];
   outside.split('\n').forEach((line, i) => {
+    if (skip.some(part => line.includes(part))) return;
     for (const rule of rules) {
       const match = rule.pattern.exec(line);
       if (match) problems.push(file + ':' + (i + 1) + ': "' + match[0] + '" — ' + rule.reason + '.');
@@ -640,8 +651,12 @@ export function lintText(text, file, rules) {
   return problems;
 }
 
-/** The current pages, from the repository tree: the root README, the guides and the current engineering pages. */
+/**
+ * The current pages, from the repository tree: the root README, the guides and the current engineering pages, without
+ * the historical pages and the redirect stubs of moved documents (docs/moved.json).
+ */
 export function currentPages(root) {
+  const {moves} = readMoves(root);
   const markdown = dir =>
     fs.existsSync(path.join(root, dir))
       ? fs
@@ -663,7 +678,7 @@ export function currentPages(root) {
     'docs/review/THREAT-MODEL.md',
     ...markdown('Skills/amcp-campaign-builder'),
   ]
-    .filter(f => !historicalPages.includes(f) && fs.existsSync(path.join(root, f)))
+    .filter(f => !historicalPages.includes(f) && !moves.has(f) && fs.existsSync(path.join(root, f)))
     .sort();
 }
 
@@ -710,10 +725,24 @@ export function docFacts(root, {write = false, facts} = {}) {
         problems.push(file + ' states facts the code no longer has. Run npm run build, then npm run docs:index.');
     }
   }
-  for (const file of currentPages(root)) {
+  const pages = currentPages(root);
+  for (const file of pages) {
     const text = fs.readFileSync(path.join(root, file), 'utf8').replaceAll('\r\n', '\n');
     problems.push(...lintText(text, file, statusRules));
-    if (countPages.includes(file)) problems.push(...lintText(text, file, countRules));
+    problems.push(...lintText(text, file, countRules, historyLines[file]));
+  }
+  // An exemption may not outlive its line: its page must still be a current page that holds the quoted text.
+  for (const [file, parts] of Object.entries(historyLines)) {
+    if (!fs.existsSync(path.join(root, file))) continue;
+    const text = fs.readFileSync(path.join(root, file), 'utf8').replaceAll('\r\n', '\n');
+    for (const part of parts)
+      if (!pages.includes(file) || !text.includes(part))
+        problems.push(
+          file +
+            ': historyLines in tools/doc-facts.mjs names "' +
+            part +
+            '", which is no line of this current page any more; remove it.',
+        );
   }
   problems.push(...environmentProblems(root, facts));
   return {problems, changed, facts};

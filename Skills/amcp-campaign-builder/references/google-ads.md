@@ -1389,8 +1389,9 @@ their original contracts.
 
 ## Last reported primary conversion activity
 
-For the two value recipes, use the original live recipe eligibility check to inspect the selected native last
-conversion date and last tag-detection time. The server performs complete repeated own-client conversion-action
+For the value recipes (`google_search_conversion_value` and `google_search_target_roas`), use the original live
+recipe eligibility check to inspect the selected native last conversion date and last tag-detection time. The server
+performs complete repeated own-client conversion-action
 reads and joins exact IDs to enabled explicit primary actions matching biddable account-default goals. Current
 authority/brief checks and original collection limits remain. Missing/null/empty/absent rows stay unknown;
 the full-collection counters include undisplayed actions. Times retain the native account timezone. A detected
