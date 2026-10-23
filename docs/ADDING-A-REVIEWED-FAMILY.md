@@ -209,8 +209,8 @@ in a body (`status: DELETED`, `operation_status: DELETE`) belongs in its provide
    `npm run docs:index` (`npm run check` fails while any of them is stale). Name any
    new refusal code in a guide (`Skills/amcp-campaign-builder/references/`, listed in `src/guidance.ts`), or
    declare it in `tools/guidance-coverage.ts` with a reason.
-8. `npm run format`, `npm run test:related`, then the full qualification in a release candidate (`docs/review/PROGRESS.md` shows the
-   commands).
+8. `npm run format`, `npm run test:related`, then the full qualification in a release candidate (the progress log,
+   [`docs/records/PROGRESS.md`](records/PROGRESS.md), shows the commands).
 
 ## What the registry guarantees
 

@@ -3,7 +3,7 @@
 Finished snapshots also provide branded PDF and Excel downloads through client report packs. Generation is
 authenticated, bounded and rechecks every source account after rendering. See the
 [report-pack workflow](PRODUCT-WORKFLOWS.md#client-report-packs-and-recovery) and
-[format limits and evidence](review/DELIVERY-2026-10-01-CREATIVE-REPORTS.md).
+[format limits and evidence](records/DELIVERY-2026-10-01-CREATIVE-REPORTS.md).
 
 ## Client reports and reusable templates
 
@@ -602,4 +602,4 @@ punctuation. Other scalar values and account/date List/record parameters retain 
 encoding and ownership checks. A selector cannot add a sibling query filter. Native unknown-field
 failures remain explicit; a failed projected read never falls back to default metrics. A single
 cost-only response without identity/date fields is insufficient for a complete saved report.
-See [the reproduced defect, safe wire correction and read-only acceptance](review/DELIVERY-2026-10-06-LINKEDIN-FIELD-PROJECTIONS.md).
+See [the reproduced defect, safe wire correction and read-only acceptance](records/DELIVERY-2026-10-06-LINKEDIN-FIELD-PROJECTIONS.md).

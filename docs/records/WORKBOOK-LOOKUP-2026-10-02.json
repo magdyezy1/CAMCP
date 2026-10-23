@@ -1,0 +1,70 @@
+{
+  "benchmark": "workbook-association-lookup",
+  "created_at": "2026-10-01T21:28:45.239Z",
+  "synthetic": true,
+  "environment": {
+    "node": "v24.19.0",
+    "platform": "win32",
+    "sqlite": "3.53.3",
+    "storage": "memory"
+  },
+  "workload": {
+    "tenants": 2,
+    "bindings_per_tenant": 250,
+    "queries_per_binding": 20,
+    "iterations": 12,
+    "warmup_per_stage": 3,
+    "returned_bindings": 20
+  },
+  "before_plan": [
+    "SEARCH q USING INDEX sqlite_autoindex_documents_1 (tenant_id=? AND kind=?)"
+  ],
+  "after_plan": [
+    "SEARCH q USING INDEX reporting_query_workbook (tenant_id=? AND <expr>=?)"
+  ],
+  "before": {
+    "p50_ms": 217.73260000000005,
+    "p95_ms": 250.57539999999995,
+    "samples_ms": [
+      212.2578000000001,
+      217.73260000000005,
+      250.57539999999995,
+      212.31140000000028,
+      209.64120000000003,
+      246.70589999999993,
+      215.97440000000006,
+      221.98079999999982,
+      237.5527000000002,
+      208.58019999999988,
+      240.35829999999987,
+      206.82559999999967
+    ],
+    "max_sampled_rss_bytes": 243175424,
+    "structured_response_bytes": 13096
+  },
+  "after": {
+    "p50_ms": 123.8725999999997,
+    "p95_ms": 154.15229999999974,
+    "samples_ms": [
+      128.59540000000015,
+      154.15229999999974,
+      123.8725999999997,
+      121.71289999999954,
+      146.04460000000017,
+      120.34010000000035,
+      148.22739999999976,
+      119.00510000000031,
+      119.22119999999995,
+      148.34580000000005,
+      122.01649999999972,
+      120.0661
+    ],
+    "max_sampled_rss_bytes": 244961280,
+    "structured_response_bytes": 13096
+  },
+  "index_build_ms": 5.795999999999822,
+  "index_bytes": 335872,
+  "identical_projection_sha256": "5270c0df47a7becfd9118dc6b439ae8f2657369a997cab1e1f32649bdcacf799",
+  "provider_requests": 0,
+  "qualification": "One local synthetic process. Not production latency, a concurrent-user test, or continuous peak-memory measurement. Baseline removes only this index from the disposable in-memory fixture."
+}

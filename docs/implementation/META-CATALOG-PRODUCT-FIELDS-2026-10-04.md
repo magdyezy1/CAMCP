@@ -56,4 +56,4 @@ reads, one synthetic mutation, original receipt replay and revoked-access refusa
 requests. Twenty-two authored catalog diagnostics have Arabic translations; native IDs, fields and values
 remain exact. Full sanitized release evidence is recorded in the linked delivery record.
 
-[Delivery and scope](../review/DELIVERY-2026-10-04-META-CATALOG-FIELD-PROOF.md).
+[Delivery and scope](../records/DELIVERY-2026-10-04-META-CATALOG-FIELD-PROOF.md).

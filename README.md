@@ -1,10 +1,12 @@
 # AMCP
 
-AMCP connects an advertising workspace to Codex and other MCP clients. It includes a responsive website, platform OAuth callbacks, multiple logins, account selection, related asset inventory, and revocable MCP access.
+AMCP is a private advertising workspace for agencies and in-house teams. Connect your clients' ad accounts, check that they are ready, prepare campaigns that start paused and change only after a review, report results with each platform's own numbers, and keep a record of every change. The same workspace is open to AI assistants such as Claude, ChatGPT, Codex and Cursor through MCP, under the same rules. It includes a responsive website, platform OAuth callbacks, multiple logins, account selection, related asset inventory, and revocable MCP access.
+
+**Workspace owners:** start with the [owner guide](docs/owner/README.md), also in [Arabic](docs/owner/ar/README.md): plain language, task by task, and what stays yours to do.
 
 **Deployment:** Railway runs the application; Cloudflare manages DNS for **amcp.shop**. Follow [the deployment guide](docs/DEPLOY-RAILWAY.md). The repository contains code, not an already deployed website.
 
-**Documentation:** the [documentation map](docs/README.md) lists every guide, review and implementation record.
+**Documentation:** the [documentation map](docs/README.md) lists every guide, review and implementation record, in tiers for owners, operators and engineers; dated records are in [docs/records](docs/records/) and superseded reviews in [docs/archive](docs/archive/).
 
 Provider versions, reviewed workflow boundaries and evidence are published in [contracts](docs/CONTRACTS.md). See the [September contract review](docs/implementation/PLATFORM-CONTRACTS-2026-09-18.md) for implementation decisions and validation limits. The optional [sandbox verifier](docs/SANDBOX-VERIFICATION.md) uses approved fixtures and isolated provider hosts. Development checks require Python 3.10+ (standard library only) for Microsoft WSDL regeneration and the test of the MCP evaluation runner wrapper; set `AMCP_SCHEMA_PYTHON` when Python is outside PATH (on Windows `python` may be only the Microsoft Store alias). Production does not require Python.
 
@@ -12,21 +14,21 @@ Provider versions, reviewed workflow boundaries and evidence are published in [c
 
 - Verified owner-account migration, email/password accounts, Google / Apple / Facebook linking, authenticator MFA, recovery codes, team memberships and revocable sessions. See [user accounts setup](docs/USER-ACCOUNTS.md). Social sign-in credentials are separate from advertising OAuth credentials.
 - A new ink, iris and apricot visual identity, public homepage, responsive workspace navigation, keyboard page search and guided entry points. See [identity and interface migration](docs/AMCP-IDENTITY.md).
-- Commerce combines explicit source-product review with optional read-only X listed-product inspection, local search/paging and retained source/variant limits. See [catalog workflow and checks](docs/review/DELIVERY-2026-10-06-X-CATALOG-SELECTION-INVENTORY.md).
-- Commerce can reconcile two bounded scans of published WooCommerce parents and all reported variable-parent children, with exact native IDs/prices and local bilingual inspection. See [inventory scope and checks](docs/review/DELIVERY-2026-10-06-WOOCOMMERCE-INVENTORY.md).
-- Owner settings show bounded shared worker observations and distinguish unavailable, stale and recently observed processes from actual job delivery. See [worker health and concurrent-client checks](docs/review/DELIVERY-2026-10-06-WORKER-HEALTH.md).
-- Workspace administrators can connect an existing WooCommerce Read key in Commerce, inspect its bounded read-verification receipt and explicitly remove its local connection. See [store setup, replay and removal](docs/review/DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).
+- Commerce combines explicit source-product review with optional read-only X listed-product inspection, local search/paging and retained source/variant limits. See [catalog workflow and checks](docs/records/DELIVERY-2026-10-06-X-CATALOG-SELECTION-INVENTORY.md).
+- Commerce can reconcile two bounded scans of published WooCommerce parents and all reported variable-parent children, with exact native IDs/prices and local bilingual inspection. See [inventory scope and checks](docs/records/DELIVERY-2026-10-06-WOOCOMMERCE-INVENTORY.md).
+- Owner settings show bounded shared worker observations and distinguish unavailable, stale and recently observed processes from actual job delivery. See [worker health and concurrent-client checks](docs/records/DELIVERY-2026-10-06-WORKER-HEALTH.md).
+- Workspace administrators can connect an existing WooCommerce Read key in Commerce, inspect its bounded read-verification receipt and explicitly remove its local connection. See [store setup, replay and removal](docs/records/DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).
 - Operations connects original runs and schedules to bounded status, confirmed recovery and workbook clock previews, editing, pause and resume. See [product workflows](docs/PRODUCT-WORKFLOWS.md).
-- English/Arabic interface choice extends through report building, saved reports and delivery schedules, with native fields and user content preserved. See [reporting language coverage and limits](docs/review/DELIVERY-2026-10-01-ARABIC-REPORTING.md).
+- English/Arabic interface choice extends through report building, saved reports and delivery schedules, with native fields and user content preserved. See [reporting language coverage and limits](docs/records/DELIVERY-2026-10-01-ARABIC-REPORTING.md).
 
-- Whole-campaign preflight, business-input recipes, safe failed-step recovery, owner spending policies, resumable media transfer and encrypted restore-verified backups. See [recommendations and limits](docs/RECOMMENDATIONS-IMPLEMENTED.md).
+- Whole-campaign preflight, business-input recipes, safe failed-step recovery, owner spending policies, resumable media transfer and encrypted restore-verified backups. See [recommendations and limits](docs/archive/RECOMMENDATIONS-IMPLEMENTED.md).
 - Reporting Overview: multiple platforms/accounts/objectives, native/custom metrics, source evidence, advisory scale/pull-back decisions, CSV, Google Sheets and scheduled exports. See [reporting setup](docs/REPORTING-OVERVIEW.md).
 - Campaign plans with verified dependencies, account readiness, private Drive and reviewed media variants, automatic write read-back, source-linked reporting, evidence-based suggestions, reusable client profiles and a capability dashboard. See [workspace operations](docs/WORKSPACE-OPERATIONS.md).
 - Scheduled client PDF/Excel packs with frozen branding, encrypted local storage and per-format recovery. See [file delivery](docs/REPORTING-OVERVIEW.md#scheduled-pdf-and-excel-files).
 
 - Connections: Google Ads, Meta, TikTok, Snapchat, LinkedIn, X, Microsoft Advertising, GA4, Google Tag Manager / Google tag, Search Console, and Apple Ads, plus separate Google Drive media and Google Sheets export connections; each provider uses your own app credentials. See [measurement and Apple setup](docs/MEASUREMENT-AND-APPLE.md).
 - Microsoft Advertising v13: 24 native actions, account discovery, 12 reviewed Search mutation routes and account-bound server CSV/TSV report download/parsing. See [Microsoft setup and limits](docs/MICROSOFT-ADS.md).
-- MCP clients can load ten campaign/reporting guides through resources/list and the amcp_build_campaign prompt. amcp_write inspect checks local write support without network calls. See the [fresh capability review](docs/CAPABILITY-REVIEW-2026-09-08.md).
+- MCP clients can load ten campaign/reporting guides through resources/list and the amcp_build_campaign prompt. amcp_write inspect checks local write support without network calls. See the [fresh capability review](docs/archive/CAPABILITY-REVIEW-2026-09-08.md).
 - Multiple encrypted logins per provider, default login, synchronization, searchable account selection, and local disconnect.
 - Asset tabs show related inventory. Selected ad accounts, GA4 properties, Tag Manager accounts and Search Console sites are the enforced MCP access boundaries; some standalone resources need explicit ownership bindings.
 - OAuth completion page with authorization, credential exchange, and asset sync results.
@@ -66,7 +68,7 @@ This release supports reads, local dry runs, and **reviewed advertising writes**
 
 Full production qualification of every provider and workflow is **not complete**. Provider app approval, production OAuth round trips, complete asset discovery coverage, special media transports, and some delegated workflows remain outstanding. See [deployment acceptance limits](docs/DEPLOY-RAILWAY.md#operations-and-qualification) and run `npm run report` for the current implementation inventory. Private account evidence, credentials, local databases, and the original project brief are excluded from this public repository.
 
-The [hardening review](docs/HARDENING-REVIEW.md) records parameter behavior, measured fixture checks, and suggestions deferred for insufficient evidence.
+The [hardening review](docs/archive/HARDENING-REVIEW.md) records parameter behavior, measured fixture checks, and suggestions deferred for insufficient evidence.
 
 ## Deployment files
 

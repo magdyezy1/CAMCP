@@ -209,8 +209,44 @@ export const generatedArtifacts = [
     outputs: ['docs/README.md', 'docs/review/PACKAGE-STATUS.md'],
     generator: 'tools/docs-index.mjs',
     regenerate: 'npm run docs:index',
-    inputs: ['docs/**/*.md', 'docs/review/package-status.json'],
+    inputs: ['docs/**/*.md', 'docs/review/package-status.json', 'docs/moved.json'],
     provenance: 'Their headers name the generator.',
+    check: gates.docs,
+  },
+  {
+    // DOC-03 (owner decision P12): the redirect stub each moved document leaves at its old address.
+    id: 'docs_redirect_stubs',
+    outputs: [
+      'docs/review/DELIVERY-*.md',
+      'docs/review/INCIDENT-*.md',
+      'docs/review/WORKBOOK-LOOKUP-2026-10-02.json',
+      'docs/review/PROGRESS.md',
+      'docs/review/SUMMARY.md',
+      'docs/review/REVIEW-2026-10-01.md',
+      'docs/review/REVIEW-2026-10-01-EVIDENCE.json',
+      'docs/review/COMPLETION-2026-10-07.md',
+      'docs/review/PLATFORMS.md',
+      'docs/review/product/*.md',
+      'docs/CAPABILITY-REVIEW-2026-09-08.md',
+      'docs/HARDENING-REVIEW.md',
+      'docs/RECOMMENDATIONS-IMPLEMENTED.md',
+    ],
+    generator: 'tools/docs-links.mjs',
+    regenerate:
+      'npm run docs:index (or node tools/docs-links.mjs --write, which also rewrites links to moved addresses)',
+    inputs: ['docs/moved.json', 'the titles of the moved documents'],
+    provenance: 'docs/moved.json lists every move and its date; each stub names its document’s new address.',
+    check: gates.docs,
+  },
+  {
+    // DOC-03: the documentation freeze's recorded counts, which may only fall.
+    id: 'docs_lint_baseline',
+    outputs: ['tools/docs-lint-baseline.json'],
+    generator: 'tools/docs-lint.mjs',
+    regenerate:
+      'node tools/docs-lint.mjs --write, which refuses a count above its record unless --allow-increase=<reason> records why',
+    inputs: ['README.md and the current pages of docs/ (not records, archive, implementation records or stubs)'],
+    provenance: 'Per-page counts and every recorded increase with its reason; npm run docs:index:check counts again.',
     check: gates.docs,
   },
   {

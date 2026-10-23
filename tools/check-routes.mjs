@@ -41,10 +41,13 @@ export function navigationLinks(index) {
  * through its route registry, server/website.ts).
  */
 export const serverShellSource = 'server/page-routes.ts';
-/** The shell pages the server answers with index.html, from the source of serverShellSource. */
+/**
+ * The shell pages the server answers with index.html, from the source of serverShellSource. The handler is one
+ * expression that ends by sending index.html; it may first send a signed-in visitor of / to Home (P12, DOC-03).
+ */
 export function serverShellRoutes(source) {
   const list =
-    /for \(const route of \[([\s\S]*?)\]\)\s*router\.get\(route, \(_req, res\) => res\.type\('html'\)\.send\(publicAssets\.html\('index\.html'\)\)\)/.exec(
+    /for \(const route of \[([\s\S]*?)\]\)\s*router\.get\(route, \(_?req, res\) =>[^;]*?res\.type\('html'\)\.send\(publicAssets\.html\('index\.html'\)\),?\s*\)/.exec(
       source,
     )?.[1];
   return list ? [...list.matchAll(/'([^']+)'/g)].map(m => m[1]) : null;

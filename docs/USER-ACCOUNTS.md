@@ -109,4 +109,4 @@ event without sending passwords, OAuth tokens, callback query parameters or requ
 Known authored website reasons are displayed in your selected English/Arabic language.
 A reference records a refused or failed attempt; it does not authorize a retry, change your role
 or prove provider eligibility. Follow the original reason before explicitly trying again. See
-[website diagnostic evidence](review/DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md).
+[website diagnostic evidence](records/DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md).

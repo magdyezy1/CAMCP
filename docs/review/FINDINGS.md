@@ -2,7 +2,7 @@
 
 Review of `Codex-branch` from `03ac8d3` (2026-09-28). Areas follow the brief (5.1 architecture … 5.9 developer
 experience). Severity: **critical / high / medium / low / info**. Status: **fixed** (with the commit batch in
-[PROGRESS.md](PROGRESS.md)), **planned** (on the [roadmap](ROADMAP.md)), **owner** (needs an owner decision),
+[PROGRESS.md](../records/PROGRESS.md)), **planned** (on the [roadmap](ROADMAP.md)), **owner** (needs an owner decision),
 **accepted** (documented limitation). Evidence cites `path:line` at `03ac8d3`; the code is written in very long
 lines, so a line can hold several statements.
 
@@ -12,7 +12,7 @@ the code path was read end to end without running it.
 ## October findings — baseline and implementation status
 
 The following entries refer to `Work-here` at `c615cb7`, not the historical revision above. See the
-[comprehensive review](REVIEW-2026-10-01.md) for impact, scope, acceptance criteria, qualifications and the proposed
+[comprehensive review](../archive/REVIEW-2026-10-01.md) for impact, scope, acceptance criteria, qualifications and the proposed
 batch order. The owner subsequently authorized implementation; current status is linked to the
 [implementation record](IMPLEMENTATION-2026-10-01.md). Evidence locations below refer to the original baseline.
 P0/P1 priorities describe sequencing, while the severity column describes impact.
@@ -147,7 +147,7 @@ authorization changes. `src/google-portfolio.ts` now signs and expires authoriza
 account/parent/resource chains and money, projects selected metadata, and disables automatic native continuation.
 Eight backend red cases plus the real-SDK cursor case are fixed; one existing native guard case remains green.
 An omitted empty collection additionally requires its exact requested native field mask. Tests prove local integrity
-and minimization defects, not a live disclosure. See [delivery evidence](DELIVERY-2026-10-02-GOOGLE-PORTFOLIO.md).
+and minimization defects, not a live disclosure. See [delivery evidence](../records/DELIVERY-2026-10-02-GOOGLE-PORTFOLIO.md).
 
 ## Money and write safety (5.2, 5.7)
 
@@ -326,62 +326,62 @@ completion metadata, changing totals and overlapping dimension tuples as complet
 page_info retained successful metrics. Strict native page counts, stable totals and unique requested-dimensional
 tuples now stop those reports before metric retention. Sole-source failure remains a failed report with scoped
 diagnostics. Seven red/green regressions include native pagination and saved Overview jobs. This is local integrity
-evidence, not an assertion of observed incorrect deployed reporting. See [delivery evidence](DELIVERY-2026-10-02-TIKTOK-REPORT-COMPLETION.md).
+evidence, not an assertion of observed incorrect deployed reporting. See [delivery evidence](../records/DELIVERY-2026-10-02-TIKTOK-REPORT-COMPLETION.md).
 
 **Batch 94:** F-155 (medium), reproduced in full root regression on the batch-93 backup code: Windows EPERM
 while removing backup staging replaced BACKUP_AUDIT_FAILED with a raw filesystem exception. Cleanup now yields
 between six bounded attempts and reports a persistent failure with the original error code, known staging path
 and operation-completed flag, preserving a restore already published. Two injected regressions were red before
 repair; post-publication cleanup is covered separately. No specific OS lock holder or universal lock cure is claimed.
-See [delivery evidence](DELIVERY-2026-10-02-GTM-CONSENT.md).
+See [delivery evidence](../records/DELIVERY-2026-10-02-GTM-CONSENT.md).
 
 **Batch 95:** F-156 (medium), reproduced against the previous guided Google capture: foreign customer/currency/timezone,
 out-of-window dates, duplicate campaign/day rows and missing campaign identity were accepted and saved. Duplicate rows
 doubled spend in the synthetic probe. Guided presets now verify customer metadata before/after, complete native counts,
 current authority, exact hierarchy/resource identity and unique requested date grain. Ads/search terms preserve full
 native resource identity. Nine red/green cases plus a new SDK journey passed; no incorrect live result is asserted.
-See [delivery evidence](DELIVERY-2026-10-02-GOOGLE-EVIDENCE-INTEGRITY.md).
+See [delivery evidence](../records/DELIVERY-2026-10-02-GOOGLE-EVIDENCE-INTEGRITY.md).
 
 **Batch 98:** F-157 (medium), reproduced against the prior LinkedIn guided capture: credential/scope changes during native
 reads still allowed retention, account identity arrays were coerced to matching strings, and the single initial account
 read could not detect subsequent currency/identity changes. Guided capture now binds every await to current authorization,
 requires exact account identity, brackets a complete bounded analytics response with account checks and keeps all source
 references. Five backend cases and one bilingual UI case were observed red; no incorrect live result is asserted.
-See [delivery evidence](DELIVERY-2026-10-02-LINKEDIN-EVIDENCE-INTEGRITY.md).
+See [delivery evidence](../records/DELIVERY-2026-10-02-LINKEDIN-EVIDENCE-INTEGRITY.md).
 
 **Batch 100:** F-158 (medium), reproduced in a synthetic reviewed Google negative-keyword journey: after an initial
 SPEND_CONFIRMATION_REQUIRED refusal, a successfully acknowledged, executed and verified step still exposed the old
 error. Accepted native execution now clears that current-step diagnostic; original attempt evidence and receipt
 recovery remain intact. The observed red assertion and accepted-retry/replay checks passed.
-See [delivery evidence](DELIVERY-2026-10-02-SEARCH-EXCLUSION-PLANS.md).
+See [delivery evidence](../records/DELIVERY-2026-10-02-SEARCH-EXCLUSION-PLANS.md).
 
 **Batch 102:** F-159 (low), reproduced by directly importing the capability module in a fresh Node process: a circular
 dependency caused an eager scope-binding copy in the workspace module to access an uninitialized export. A live import
 alias preserves the same scope policy and allows that entry order. Normal service-first startup already worked; no
 deployed outage is asserted. The observed red subprocess regression now passes.
-See [delivery evidence](DELIVERY-2026-10-02-GOOGLE-CLICKS-RECIPE.md).
+See [delivery evidence](../records/DELIVERY-2026-10-02-GOOGLE-CLICKS-RECIPE.md).
 
-**Batch 104:** F-160 (high): eight synthetic cases accepted incomplete, malformed or mismatched Meta catalog evidence, including false price verification from another product ID. Exact native identities, complete bounded product pages and receipt-bound price/sale-price proof now refuse those cases. Thirty catalog checks and the full local suite pass; no live incident is asserted. See [delivery evidence](DELIVERY-2026-10-03-CATALOG-EVIDENCE.md).
+**Batch 104:** F-160 (high): eight synthetic cases accepted incomplete, malformed or mismatched Meta catalog evidence, including false price verification from another product ID. Exact native identities, complete bounded product pages and receipt-bound price/sale-price proof now refuse those cases. Thirty catalog checks and the full local suite pass; no live incident is asserted. See [delivery evidence](../records/DELIVERY-2026-10-03-CATALOG-EVIDENCE.md).
 
-**Batch 105:** F-161 (medium): existing campaign preflight accepted foreign/coerced account identity or unfinished native paging as currency evidence. Three observed red cases now require validated complete state and exact scalar identity before evidence retention (`src/campaign-preflight.ts:163`). F-162 (medium): delayed campaign inspections/errors and targeting results/errors overwrote changed form/account/query state; four observed red races now discard obsolete responses (`web/campaign-recipes.js:196`, `web/campaign-recipes.js:253`). No incorrect live result is asserted. See [delivery evidence](DELIVERY-2026-10-03-RECIPE-ELIGIBILITY.md).
+**Batch 105:** F-161 (medium): existing campaign preflight accepted foreign/coerced account identity or unfinished native paging as currency evidence. Three observed red cases now require validated complete state and exact scalar identity before evidence retention (`src/campaign-preflight.ts:163`). F-162 (medium): delayed campaign inspections/errors and targeting results/errors overwrote changed form/account/query state; four observed red races now discard obsolete responses (`web/campaign-recipes.js:196`, `web/campaign-recipes.js:253`). No incorrect live result is asserted. See [delivery evidence](../records/DELIVERY-2026-10-03-RECIPE-ELIGIBILITY.md).
 
-**Batch 106:** F-163 (high): explicit failed Snapchat collection/account/entity wrappers and foreign/coerced owner identities were accepted as cached ownership evidence. Six synthetic cases were observed red, including organization ownership and renewal beyond the original expiry. `src/scope.ts:503` now ignores failed observations and mismatched owner identities; three fake-transport service journeys prove they cannot authorize a later global stats request. Qualified account-edge observations retain existing behavior and TTL. No live incident is asserted. See [delivery evidence](DELIVERY-2026-10-03-SNAPCHAT-SQUAD-EVIDENCE.md).
+**Batch 106:** F-163 (high): explicit failed Snapchat collection/account/entity wrappers and foreign/coerced owner identities were accepted as cached ownership evidence. Six synthetic cases were observed red, including organization ownership and renewal beyond the original expiry. `src/scope.ts:503` now ignores failed observations and mismatched owner identities; three fake-transport service journeys prove they cannot authorize a later global stats request. Qualified account-edge observations retain existing behavior and TTL. No live incident is asserted. See [delivery evidence](../records/DELIVERY-2026-10-03-SNAPCHAT-SQUAD-EVIDENCE.md).
 
-**Batch 107:** F-164 (high): an existing Snapchat nested-update review omitted native ad-squad delivery mode from its frozen state. A synthetic race after allocation validation submitted one PATCH under a changed delivery mode. `src/snapchat-nested-updates.ts:540` now retains immutable native delivery context separately from the PUT/PATCH body; drift prevents dispatch and optional native enum shape is checked. No live incident or additional mutable field is asserted. See [delivery evidence](DELIVERY-2026-10-03-SNAPCHAT-ALLOCATION.md).
+**Batch 107:** F-164 (high): an existing Snapchat nested-update review omitted native ad-squad delivery mode from its frozen state. A synthetic race after allocation validation submitted one PATCH under a changed delivery mode. `src/snapchat-nested-updates.ts:540` now retains immutable native delivery context separately from the PUT/PATCH body; drift prevents dispatch and optional native enum shape is checked. No live incident or additional mutable field is asserted. See [delivery evidence](../records/DELIVERY-2026-10-03-SNAPCHAT-ALLOCATION.md).
 
-**Batch 108:** F-165 (low): actual synthetic ad-squad results/draft copy retained campaign and average-daily terminology; Arabic generic translations also inserted campaigns. Selected labels, diagnostics, model unit/parent metadata and draft descriptions now name the qualified native unit. F-166 (low): Tab from the final confirmation control put focus on BODY with the modal still open; forward/reverse wrapping and listener cleanup now pass red/green and actual browser checks. F-167 (low): long native IDs at 390 px expanded the RTL page to 435 px, and the global click delegate re-enabled selected controls owned by another controller. Scoped zero-minimum grid tracks, compact named Add/Added controls, wrapping actions, persistent selected state and ownership of delegated disabled state fix the observed cases; document/client width is now 375/375 px. No live incident or full accessibility certification is asserted. See [browser allocation qualification](DELIVERY-2026-10-03-BROWSER-ALLOCATION.md).
+**Batch 108:** F-165 (low): actual synthetic ad-squad results/draft copy retained campaign and average-daily terminology; Arabic generic translations also inserted campaigns. Selected labels, diagnostics, model unit/parent metadata and draft descriptions now name the qualified native unit. F-166 (low): Tab from the final confirmation control put focus on BODY with the modal still open; forward/reverse wrapping and listener cleanup now pass red/green and actual browser checks. F-167 (low): long native IDs at 390 px expanded the RTL page to 435 px, and the global click delegate re-enabled selected controls owned by another controller. Scoped zero-minimum grid tracks, compact named Add/Added controls, wrapping actions, persistent selected state and ownership of delegated disabled state fix the observed cases; document/client width is now 375/375 px. No live incident or full accessibility certification is asserted. See [browser allocation qualification](../records/DELIVERY-2026-10-03-BROWSER-ALLOCATION.md).
 
-**Batch 109:** F-168 (low): Arabic report cards exposed internal metric keys, missing metrics became blank, and newly opened plan rows retained English step-count text. Known labels and step counts are now translated; missing/null stay Unknown and exact zero/decimal values are preserved. F-169 (low): expanding the original brief's long fingerprint at 390 × 844 widened the RTL document to 534 px. Scoped paragraph/title wrapping restores 375/375 px without truncation. The saved Google/Snapchat proposal now has a readable source-linked bilingual summary while exact native requests, original descriptions and provenance remain intact. No live incident or full accessibility certification is asserted. See [allocation review evidence](DELIVERY-2026-10-03-ALLOCATION-REVIEW.md).
+**Batch 109:** F-168 (low): Arabic report cards exposed internal metric keys, missing metrics became blank, and newly opened plan rows retained English step-count text. Known labels and step counts are now translated; missing/null stay Unknown and exact zero/decimal values are preserved. F-169 (low): expanding the original brief's long fingerprint at 390 × 844 widened the RTL document to 534 px. Scoped paragraph/title wrapping restores 375/375 px without truncation. The saved Google/Snapchat proposal now has a readable source-linked bilingual summary while exact native requests, original descriptions and provenance remain intact. No live incident or full accessibility certification is asserted. See [allocation review evidence](../records/DELIVERY-2026-10-03-ALLOCATION-REVIEW.md).
 
-**Batch 111:** F-170 (low): the reusable recipe-default editor omitted the existing Google Maximize Clicks CPC ceiling. The field now preserves its exact text. F-171 (low): resolved playbook approval preview omitted returned campaign defaults and conversion mappings; both now appear, with readable references and escaped preserved complex JSON. F-172 (low): UTM labels and the known authored preview explanation remained English in Arabic; their exact first-party text is translated without changing native paths/unknown diagnostics. F-173 (low): the mobile profile preview widened the document to 540/375 px. Scoped minimum-width/wrapping changes restore 375/375 px in both languages and a 297/297 px conversion table. Red/green regressions and actual synthetic browser observations are in the [delivery record](DELIVERY-2026-10-03-CONVERSION-REFERENCES.md). No live incident or full accessibility certification is asserted.
+**Batch 111:** F-170 (low): the reusable recipe-default editor omitted the existing Google Maximize Clicks CPC ceiling. The field now preserves its exact text. F-171 (low): resolved playbook approval preview omitted returned campaign defaults and conversion mappings; both now appear, with readable references and escaped preserved complex JSON. F-172 (low): UTM labels and the known authored preview explanation remained English in Arabic; their exact first-party text is translated without changing native paths/unknown diagnostics. F-173 (low): the mobile profile preview widened the document to 540/375 px. Scoped minimum-width/wrapping changes restore 375/375 px in both languages and a 297/297 px conversion table. Red/green regressions and actual synthetic browser observations are in the [delivery record](../records/DELIVERY-2026-10-03-CONVERSION-REFERENCES.md). No live incident or full accessibility certification is asserted.
 
-**Batch 112:** F-174 (medium): owner-only access trusted an identified actor's stale owner membership even after current membership changed to administrator. Current active owner membership is now authoritative; a synthetic red reproduces the old fast path. F-175 (low): a long recent-source filename widened the actual mobile document to 419/375 px; scoped wrapping restores 375/375 px. F-176 (low): a connected Cancel control in a closed dialog prevented common focus restoration; a red regression and actual Arabic keyboard check now restore the originating file control. No live misuse or accessibility certification is asserted. The new owner-confirmed encrypted retention feature and its separate source/receipt/backup semantics are documented in [delivery evidence](DELIVERY-2026-10-03-RETAINED-ORIGINALS.md).
+**Batch 112:** F-174 (medium): owner-only access trusted an identified actor's stale owner membership even after current membership changed to administrator. Current active owner membership is now authoritative; a synthetic red reproduces the old fast path. F-175 (low): a long recent-source filename widened the actual mobile document to 419/375 px; scoped wrapping restores 375/375 px. F-176 (low): a connected Cancel control in a closed dialog prevented common focus restoration; a red regression and actual Arabic keyboard check now restore the originating file control. No live misuse or accessibility certification is asserted. The new owner-confirmed encrypted retention feature and its separate source/receipt/backup semantics are documented in [delivery evidence](../records/DELIVERY-2026-10-03-RETAINED-ORIGINALS.md).
 
-**Batch 113:** F-177 (low): SQLite quotes the `verified_resources` path segment in `json_tree`; the old literal prefix check missed existing retained Meta ad IDs in that array and omitted their creative usage association. A red regression reproduced `CREATIVE_USAGE_REQUIRED`. The scoped path projection now handles SQLite quotes while preserving native resource values. Verified references still require current provider/account/login authority and actual result references. The new Google Ads/Snapchat/standard TikTok joins, SDK revocation and bilingual readable table qualification are in the [delivery record](DELIVERY-2026-10-03-LINKED-AD-PERFORMANCE.md). No live incident or provider acceptance is asserted.
+**Batch 113:** F-177 (low): SQLite quotes the `verified_resources` path segment in `json_tree`; the old literal prefix check missed existing retained Meta ad IDs in that array and omitted their creative usage association. A red regression reproduced `CREATIVE_USAGE_REQUIRED`. The scoped path projection now handles SQLite quotes while preserving native resource values. Verified references still require current provider/account/login authority and actual result references. The new Google Ads/Snapchat/standard TikTok joins, SDK revocation and bilingual readable table qualification are in the [delivery record](../records/DELIVERY-2026-10-03-LINKED-AD-PERFORMANCE.md). No live incident or provider acceptance is asserted.
 
-**Batch 113:** F-178 (low): an unsafe numeric retained ad resource could be rounded by JavaScript and converted into another exact report identity. A synthetic TikTok record reproduced the invalid performance association offer. Unsafe numeric resource values are now withheld; exact strings and safe integers remain intact, and the join refuses without provider egress. See [qualification](DELIVERY-2026-10-03-LINKED-AD-PERFORMANCE.md). No real provider corruption or live incident is asserted.
+**Batch 113:** F-178 (low): an unsafe numeric retained ad resource could be rounded by JavaScript and converted into another exact report identity. A synthetic TikTok record reproduced the invalid performance association offer. Unsafe numeric resource values are now withheld; exact strings and safe integers remain intact, and the join refuses without provider egress. See [qualification](../records/DELIVERY-2026-10-03-LINKED-AD-PERFORMANCE.md). No real provider corruption or live incident is asserted.
 
-**Batch 113:** F-179 (low, test harness): committed-source qualification hit Windows `ENOTEMPTY` during owned retained-store fixture cleanup after its restart assertions passed. Both retained-store disposable directories now verify their parent/prefix before removal and use at most three native filesystem retries at 50 ms; all product assertions and eventual cleanup remain mandatory. The initial failed committed revision was not pushed. See [qualification](DELIVERY-2026-10-03-LINKED-AD-PERFORMANCE.md).
+**Batch 113:** F-179 (low, test harness): committed-source qualification hit Windows `ENOTEMPTY` during owned retained-store fixture cleanup after its restart assertions passed. Both retained-store disposable directories now verify their parent/prefix before removal and use at most three native filesystem retries at 50 ms; all product assertions and eventual cleanup remain mandatory. The initial failed committed revision was not pushed. See [qualification](../records/DELIVERY-2026-10-03-LINKED-AD-PERFORMANCE.md).
 
 **Batch 115:** F-180 (medium): a disposable probe against qualified f076d80 created a recognized-read saved
 definition containing a credential key inside JSON text, retained its synthetic value and exposed it in query
@@ -390,14 +390,14 @@ legacy query/bootstrap/run projections mask those fields, and workers refuse bef
 a separate actual red test showed a refused encoded credential input surviving in the service error audit.
 Reporting-aware error-input redaction now preserves existing privacy hooks and excludes that marker before
 new audit insertion. Historical source/audit bytes remain intact; no real credentials, live incident or provider
-acceptance is claimed. See [qualification](DELIVERY-2026-10-03-REPORT-BODY-SCOPE.md).
+acceptance is claimed. See [qualification](../records/DELIVERY-2026-10-03-REPORT-BODY-SCOPE.md).
 
 **Batch 116:** F-182 (medium): a read-only catalog permission refusal misleadingly required catalog write/app-review
 privileges despite the existing ads_read/ads_management read check. The message and required_any now reflect the
 actual read rule; write rules and provider permissions remain unchanged. F-183 (medium): a synthetic native review
 displayed accepted integer price 9007199254740893 as 90071992547408.94 SAR instead of 90071992547408.93 SAR.
 BigInt hundredths formatting fixes price and sale-price display without changing native integers or verification.
-No live monetary/security incident is claimed. See [qualification](DELIVERY-2026-10-03-CATALOG-COMPARISON.md).
+No live monetary/security incident is claimed. See [qualification](../records/DELIVERY-2026-10-03-CATALOG-COMPARISON.md).
 
 **F-184 (low), found during batch 116 browser QA:** after switching language, the footer replaced the session’s
 read-only/reviewed-write access label with the generic HTML localization marker. A real locale-lifecycle red test
@@ -410,13 +410,13 @@ An existing manual-CPC synthetic regression omitted manualCpc, reported TARGET_S
 verified. Four qualified standard schemes now require the exact native bidding type; Maximize Conversions
 also checks the selected exact or implicit-default target CPA. Wrong/missing evidence blocks verification
 and dependent steps without replaying accepted creation. No live incident is claimed. See
-[qualification](DELIVERY-2026-10-03-GOOGLE-CONVERSION-RECIPES.md).
+[qualification](../records/DELIVERY-2026-10-03-GOOGLE-CONVERSION-RECIPES.md).
 
 **F-186 (low), found during batch 117 browser qualification:** recipe saving retained its prior inspection,
 including the new 'No plan is saved' message beneath the saved draft. Successful saves now remove that old
 preview after opening the record; refused saves preserve it for correction. A bilingual lifecycle red/green
 regression and actual Arabic local save confirm the corrected state. No provider mutation occurred. See
-[qualification](DELIVERY-2026-10-03-GOOGLE-CONVERSION-RECIPES.md).
+[qualification](../records/DELIVERY-2026-10-03-GOOGLE-CONVERSION-RECIPES.md).
 
 **Batch 118 — F-187 (low):** first-party prerequisite blockers rendered only a control code and the opaque
 current_workspace_prerequisite source. Five existing controls now have readable English/Arabic explanations;
@@ -424,7 +424,7 @@ diagnostic codes and original collapsed source remain available. A visible-proje
 actual read-only browser checks confirm the result. **F-188 (low, test harness):** CI172's Docker ledger child
 hit the existing 30-second deadline after host qualification passed. It now has a bounded 90-second deadline
 for parallel-suite contention; all exact stale/missing/status/no-rewrite assertions remain. New Docker acceptance
-requires its own successful CI. See [evidence and limits](DELIVERY-2026-10-03-GOOGLE-GOAL-INSPECTION.md).
+requires its own successful CI. See [evidence and limits](../records/DELIVERY-2026-10-03-GOOGLE-GOAL-INSPECTION.md).
 
 **Batch 119 — F-189 (high):** metadata ignored canonical GA4/Search Console resource selectors. An actual
 synthetic red test exposed a property-200 retained result through an account-100 alias; valid canonical-only scopes
@@ -433,7 +433,7 @@ bounded exact scope or refuse ambiguity. Current actor/tenant/login/grants remai
 unchanged. **F-190 (low):** independent module imports reproduced two initialization cycles; pure vocabulary and
 one-time lazy SQL construction remove them. **F-191 (low):** actual Arabic browser QA showed English workbook
 instructions/unknown revision. Six selected first-party instructions and revision/attempt labels now localize;
-unfamiliar guidance and native/source values stay unchanged. See [evidence](DELIVERY-2026-10-03-REPORT-RESOURCE-SCOPE.md).
+unfamiliar guidance and native/source values stay unchanged. See [evidence](../records/DELIVERY-2026-10-03-REPORT-RESOURCE-SCOPE.md).
 No production incident or provider mutation is claimed.
 
 **Batch 120 — F-192 (medium, release reliability):** the supplied Railway log and a local sanitized reproduction
@@ -442,7 +442,7 @@ family counts). CI excluded the tracked reports and accepted their absence, so i
 the direct checkout failure. The status report is regenerated; public assembly now includes and requires all
 three tracked report artifacts, refuses account-bearing status reports, and preserves their manifest bytes.
 Missing reports fail without being rewritten; CI checks freshness before its full suite. Red/green path-selection,
-privacy and actual stale/missing-artifact checks confirm the change. See [evidence](DELIVERY-2026-10-03-RAILWAY-REPORT.md).
+privacy and actual stale/missing-artifact checks confirm the change. See [evidence](../records/DELIVERY-2026-10-03-RAILWAY-REPORT.md).
 Railway deployment recovery remains unverified.
 
 **Batch 121 — F-193 (high, S, fixed):** `src/report-resource-scope.ts:115` ignored canonical Tag Manager paths and
@@ -463,7 +463,7 @@ bytes/alias conflicts and leave other reads unchanged. No live provider failure 
 **F-196 (low, S, fixed):** `web/identity.css:2081` clipped the Arabic breadcrumb in a 375 px viewport: 84 px text
 extended above and below a 68 px header. Responsive CSS now fits the header while the main heading supplies
 context on narrow phones. Actual English/Arabic measurements at six widths from 320 to 1280 px show no breadcrumb
-clipping or document overflow, with header controls visible. See [evidence and limits](DELIVERY-2026-10-03-REPORT-PARENT-SCOPE.md).
+clipping or document overflow, with header controls visible. See [evidence and limits](../records/DELIVERY-2026-10-03-REPORT-PARENT-SCOPE.md).
 These are synthetic contract and browser checks; full editorial, assistive, provider and deployed acceptance remain separate.
 
 **Batch 122 — F-197 (high, S, fixed):** native Snapchat ad creation reviewed its owned paused parent but omitted the
@@ -478,7 +478,7 @@ any predecessors. No external destination fetch, provider acceptance or advertis
 inside a 238 px form. Actions now stack across 254 px with 44 px targets at a 375 px viewport. Both language previews
 retain exact native budget/schedule/creative fields; known spending notices and saved guided context localize while
 the original brief remains separately available. Actual widths from 320 to 1280 px remain within the document.
-See [evidence and limits](DELIVERY-2026-10-03-SNAPCHAT-TRAFFIC.md). Wider editorial and assistive acceptance remain partial.
+See [evidence and limits](../records/DELIVERY-2026-10-03-SNAPCHAT-TRAFFIC.md). Wider editorial and assistive acceptance remain partial.
 
 **Batch 125 — F-199 (high, S, fixed):** a synthetic native LEAD_GENERATION ad prepared with a WEB_VIEW creative,
 and the attached form was absent from frozen before-state. Ad creation and existing qualified creative replacement
@@ -488,7 +488,7 @@ write. Native review freezes both definitions, rejects changed questions/title/p
 explicit current account ownership and authority before dispatch. No submitted leads, policy URL fetch, consent
 acceptance or provider eligibility claim is introduced. The guided tenth recipe composes existing paused contracts.
 An observed mislabeled lead preview heading is also corrected in both languages, with actual failing renderer
-regressions. See [qualification and limits](DELIVERY-2026-10-04-SNAPCHAT-LEADS.md).
+regressions. See [qualification and limits](../records/DELIVERY-2026-10-04-SNAPCHAT-LEADS.md).
 
 **Batch 127 — F-200 (medium, S, fixed):** amcp_reporting.list ignored limit, loaded all complete retained reports into
 JavaScript, and removed only rows while retaining native request/page and arbitrary fields. The synthetic baseline
@@ -496,7 +496,7 @@ requested one report and returned three with original request/page markers; seve
 metadata projection now honors 1–100 limits, current account/actor checks and encrypted continuation under the same
 scope/session/query. At most 500 candidates are inspected per call; empty partial pages remain continuable. Full retained
 evidence and native write safeguards stay unchanged. Existing access checks were present; no cross-tenant disclosure is
-claimed. See [evidence and limits](DELIVERY-2026-10-04-EVIDENCE-INDEX.md).
+claimed. See [evidence and limits](../records/DELIVERY-2026-10-04-EVIDENCE-INDEX.md).
 
 **Batch 130 — F-201 (medium, S, fixed):** LinkedIn campaign-group portfolio projected only totalBudget, silently
 omitting dailyBudget and its exact-decimal/account-currency validation. Current native DYNAMIC groups support
@@ -504,14 +504,14 @@ daily money. Synthetic dynamic and malformed/foreign daily responses reproduced 
 amounts now validate before an ownership observation; child rows retain bounded current parent budget/pacing
 context with shared/independent/unknown distinctions. No extra read or write authority is added. The generic
 shortcut explanation is corrected; explicit native compilation remains DRAFT and is not newly qualified for
-group-budget execution. See [evidence and limits](DELIVERY-2026-10-04-LINKEDIN-BUDGET-CONTEXT.md).
+group-budget execution. See [evidence and limits](../records/DELIVERY-2026-10-04-LINKEDIN-BUDGET-CONTEXT.md).
 
 **Batch 131 — F-202 (medium, S, fixed):** read-only deployments omitted amcp_media entirely from compact MCP
 discovery, including its existing library, original asset and retained-performance reads. A corrected baseline
 regression observed no descriptor. Read-only discovery now advertises list/library/asset/asset_performance/
 asset_usage, and its schema rejects upload actions. The compact read-only count is 27; write-enabled discovery
 and existing role, account grant, native review, explicit confirmation, idempotency and read-back policies remain
-unchanged. No native write policy is enabled. See [evidence and limits](DELIVERY-2026-10-04-NATIVE-ASSET-REFERENCES.md).
+unchanged. No native write policy is enabled. See [evidence and limits](../records/DELIVERY-2026-10-04-NATIVE-ASSET-REFERENCES.md).
 
 **Batch 133 — F-203 (medium, S, fixed):** after a failed enqueue released its lock, Overview could overwrite a
 newer operator edit with the original failed snapshot and pause it. Workbook failure handling had an expected
@@ -519,7 +519,7 @@ revision, but an unhandled conflict aborted the pass before another tenant. Two 
 inject an edit through a second SQLite connection in that precise post-rollback window. Both paths now pause
 only the originally attempted revision inside a short reread/write transaction. Changed/deleted definitions
 remain intact; storage failures roll back; original authority and atomic enqueue de-duplication remain. See
-[qualification and worker scope](DELIVERY-2026-10-04-SCHEDULER-WORKERS.md).
+[qualification and worker scope](../records/DELIVERY-2026-10-04-SCHEDULER-WORKERS.md).
 
 **Batch 134 — F-204 (high, S, fixed):** the accepted X catalog decimal range lost precision in Number-based
 product/sale-price and product-set filter projections. Five failing baseline regressions reproduced false no-op
@@ -529,13 +529,13 @@ unchanged native wire/source values. Legacy numeric unsent reviews require fresh
 receipts remain recoverable without replay. Versioned caches of the two affected families retire old false
 verified results, retain current exact-cache reuse and withhold recovery after authority revocation. This is
 synthetic source/lifecycle evidence; no provider incident or account entitlement is inferred. See
-[qualification and upgrade behavior](DELIVERY-2026-10-04-X-CATALOG-PRICES.md).
+[qualification and upgrade behavior](../records/DELIVERY-2026-10-04-X-CATALOG-PRICES.md).
 
 **Batch 135 — F-205 (low, S, fixed):** generic stored-plan approval claimed creation remains paused for a Meta
 product import, although products are not paused campaign entities. One baseline source regression failed. The
 sentence now explains zero provider effects from a saved draft and defers serving effects to each native review.
 Actual paused launch payloads, reviewed acknowledgements, ownership, idempotency and receipts remain unchanged.
-See [qualification and workflow](DELIVERY-2026-10-04-X-CATALOG-IMPORT.md).
+See [qualification and workflow](../records/DELIVERY-2026-10-04-X-CATALOG-IMPORT.md).
 
 **Batch 136 — F-206 (high, S, fixed):** native X review treated an unreturned SKU as new despite a visible
 group potentially hiding it, omitted item_group_key from variant checks/before-state and allowed an unsent
@@ -543,7 +543,7 @@ request across a key-only group change. Three baseline synthetic lifecycle regre
 individual/grouped/unknown classifier, both original group fields and an explicit hidden-absence flag now
 withhold ambiguous upserts and invalidate changed before-state before PUT. Known individual updates, native
 JSON, delete scope and original accepted receipt recovery remain unchanged. No live incident is inferred. See
-[qualification and behavior](DELIVERY-2026-10-04-X-CATALOG-COMPARISON.md).
+[qualification and behavior](../records/DELIVERY-2026-10-04-X-CATALOG-COMPARISON.md).
 
 **Batch 137 — F-207 (high, S, fixed):** existing X catalog/product/set/feed readers and native outcomes
 coerced numeric identities, ignored explicit contradictory parents, accepted missing/duplicate product keys
@@ -552,7 +552,7 @@ also derived IDs from numeric original receipts. Eight baseline source/lifecycle
 shared collection/outcome/receipt guards now withhold those observations. All four identity-v3 caches retire
 older results without resetting original accepted keys or receipts, preserving current guarded cache reuse
 and read-only recovery. This is synthetic contract evidence; no real deletion or live incident is claimed. See
-[qualification and limits](DELIVERY-2026-10-04-X-CATALOG-IDENTITIES.md).
+[qualification and limits](../records/DELIVERY-2026-10-04-X-CATALOG-IDENTITIES.md).
 
 **Batch 140 — F-208 (high, S, fixed):** existing generic Google campaign verification accepted an empty
 MaximizeConversionValue intent despite a positive native target ROAS. One synthetic native regression failed
@@ -560,7 +560,7 @@ alongside two feature baselines. Exact selected strategy/target reads now prove 
 correct v25 proto3 shape; a local typed marker refuses coerced scalar shapes. A scoped v1 cache version retires
 older proofs without resetting original accepted receipts, keys or completed runs. Changed state follows
 original inconclusive/mismatch read-only recovery without resubmission. See
-[contract research and qualification](DELIVERY-2026-10-04-GOOGLE-VALUE-RECIPES.md). No live incident is inferred.
+[contract research and qualification](../records/DELIVERY-2026-10-04-GOOGLE-VALUE-RECIPES.md). No live incident is inferred.
 
 F-208 upgrade follow-up: a synthetic pending plan could still advance from an older stored step proof after
 cache retirement. One continuation baseline failed (879.236 ms). Preparation/execution/approval/run now
@@ -573,7 +573,7 @@ group key, custom label and sale date, omitted them from read-back and falsely r
 comparison; current field proof v2 retires partial caches. Pending plans recheck retired family proof
 before advancing a dependency, preserving accepted receipts/keys without resubmission. All three red
 cases now remain inconclusive and preserve one original fake mutation. SDK/field/current-state/cache
-regression passes 72 tests. [Evidence](DELIVERY-2026-10-04-META-CATALOG-FIELD-PROOF.md). No live incident
+regression passes 72 tests. [Evidence](../records/DELIVERY-2026-10-04-META-CATALOG-FIELD-PROOF.md). No live incident
 is inferred; complete variant inventory and provider acceptance remain separate.
 
 **Batch 149 — F-210 (medium, S, fixed):** About artwork widened 375/768-pixel English/Arabic pages.
@@ -586,7 +586,7 @@ search, restoring focus to its trigger. F-214 (medium, S, fixed) contains the ow
 in a named keyboard-scroll region with its original access controls. F-215 (low, S, fixed) supplies the
 missing Meta comparison caption using existing bilingual copy. F-216 (medium, S, fixed) fixes anonymous
 landing header/ornament reflow. F-217 (medium, S, fixed) makes the original privacy skip target focusable.
-See [rendered qualification and limits](DELIVERY-2026-10-04-RENDERED-WORKFLOWS.md). These are measured local synthetic interfaces, not reported production incidents.
+See [rendered qualification and limits](../records/DELIVERY-2026-10-04-RENDERED-WORKFLOWS.md). These are measured local synthetic interfaces, not reported production incidents.
 
 **Batch 150 — F-218 (medium, S, fixed):** selected supplied-product and WooCommerce row labels
 collapsed to 34–38 pixels, making names/IDs unnecessarily tall. Fourteen of sixteen actual baseline
@@ -597,24 +597,24 @@ regression. The original table regions, keyboard scrolling, unchecked products a
 Meta local previews accepted text/URL fields that their native review later refused. Two synthetic
 baseline contract checks failed. Source values remain unchanged and unselectable with authored
 bilingual blockers; local preview and native review share exact field validation before a plan is offered.
-Valid supplied values and exact native prices remain preserved. See [commerce readability and contract evidence](DELIVERY-2026-10-04-COMMERCE-READABILITY.md). No live incident is claimed.
+Valid supplied values and exact native prices remain preserved. See [commerce readability and contract evidence](../records/DELIVERY-2026-10-04-COMMERCE-READABILITY.md). No live incident is claimed.
 
 **Batch 151 improvement:** the standalone privacy policy now supplies all eight sections in Arabic
 with complete public no-script language routes and current-language website links. Original English
 policy content, dates, scopes and destinations remain. This closes the recorded English-only policy
-scope item; broader editorial/assistive/deployed acceptance remains separate. See [Arabic privacy delivery and boundaries](DELIVERY-2026-10-04-ARABIC-PRIVACY.md).
+scope item; broader editorial/assistive/deployed acceptance remains separate. See [Arabic privacy delivery and boundaries](../records/DELIVERY-2026-10-04-ARABIC-PRIVACY.md).
 
 **Batch 152 capability improvement:** selected WooCommerce child sources and explicit reviewed Meta
 groups were unsupported in two synthetic feature baselines. A bounded source union, repeated parent
 membership/child/currency evidence, literal source values and visibly reviewed titles now support
 that selected workflow. Missing/unsupported fields remain blockers, no native child name is invented
-and no group/full-inventory/live acceptance is inferred. See [evidence and remaining scope](DELIVERY-2026-10-04-WOOCOMMERCE-VARIATIONS.md).
+and no group/full-inventory/live acceptance is inferred. See [evidence and remaining scope](../records/DELIVERY-2026-10-04-WOOCOMMERCE-VARIATIONS.md).
 
 **Batch 153 capability/workflow improvement:** two synthetic feature baselines refused optional Meta
 groups in canonical and supplier CSV paths, and two actual selected WooCommerce views retained
 unrelated CSV layout controls. Exact optional group mapping, destination-bound loaded columns and
 scoped source-mode visibility now support that flow while retaining X refusal, original values and
-the existing per-product review/receipt/field proof. See [qualification](DELIVERY-2026-10-04-META-GROUP-CSV.md). No live incident is inferred.
+the existing per-product review/receipt/field proof. See [qualification](../records/DELIVERY-2026-10-04-META-GROUP-CSV.md). No live incident is inferred.
 
 **F-220 (low, S, fixed):** all sixteen selected populated GA4 summary/minute table instances lacked
 captions. Batch 154 uses the existing authored Recent event counts and Minute and stream evidence
@@ -623,51 +623,51 @@ labels, verified in actual English/Arabic served browser views.
 **F-221 (low, S, fixed):** ten of sixteen populated event table instances compressed native names
 below 120 CSS pixels, with a 32.203-pixel minimum and per-line purchase wrapping on an Arabic phone.
 Scoped row-label sizing now measures at least 192 pixels, with literal LTR values and contained
-keyboard scrolling. See [measurement and limits](DELIVERY-2026-10-04-GA4-EVENT-LAYOUT.md); no live incident is inferred.
+keyboard scrolling. See [measurement and limits](../records/DELIVERY-2026-10-04-GA4-EVENT-LAYOUT.md); no live incident is inferred.
 
 **F-222 (low, S, improved):** eight selected retained-evidence views marked every native identity
 cell as ordinary data, and fifty-row mobile pages provided no page-length choice. Scoped readable
 row identities and explicit 10/25/50/100 local page bounds improve navigation/context while preserving
 full original totals and workbook delivery. Baseline cells measured 160 pixels and reflow passed;
-no prior overflow/noncompliance/live incident is inferred. See [connected proof](DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md).
+no prior overflow/noncompliance/live incident is inferred. See [connected proof](../records/DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md).
 
 **F-223 (low, S, fixed):** screenshot inspection of the first batch-155 developer run showed exact
 9007199254.740993 spend wrapping onto a second line in a 160-pixel retained-report cell. Scoped
 LTR native identity/date/metric cells now stay on one line inside the existing scrolling region.
 The final maintained browser check measures actual text ranges for 2,000 native cells across eight
 views; translated unknowns and auto-direction names retain their normal wrapping. See
-[measurement and limits](DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md); no live incident is inferred.
+[measurement and limits](../records/DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md); no live incident is inferred.
 
 **Batch 156 capability improvement:** the four existing guided Google report levels lacked a native
 keyword/day dimension. Official v25 keyword_view documentation supports a separate positive Search
 criterion report. Exact native identity/text/match type, complete bounded pages and current authority
 now qualify local evidence capture, bilingual filtering and optional every-row Excel projection. This
-is a new reporting capability, not a claimed prior defect/live incident. See [scope and evidence](DELIVERY-2026-10-05-GOOGLE-KEYWORD-EVIDENCE.md).
+is a new reporting capability, not a claimed prior defect/live incident. See [scope and evidence](../records/DELIVERY-2026-10-05-GOOGLE-KEYWORD-EVIDENCE.md).
 
 **F-224 (low, S, improved):** 32 selected retained-report field instances measured 21–29 CSS pixels
 high with inherited 11-pixel type. Scoped readable field/action dimensions, explicit selector focus
 and contained phone/footer layout improve use while preserving original values and flow. Baseline
 reflow passed, and unmodified native-control exceptions remain relevant: no previous WCAG failure
-or live incident is inferred. See [actual measurements](DELIVERY-2026-10-05-EVIDENCE-CONTROL-LAYOUT.md).
+or live incident is inferred. See [actual measurements](../records/DELIVERY-2026-10-05-EVIDENCE-CONTROL-LAYOUT.md).
 
 **F-225 (low, S, improved):** the Arabic catalog omitted 27 selected AMCP-owned Google capture
 refusals and five applicable recovery hints. The old locale gate did not require them. Narrow
 owned-source selection and authored display copy now cover all 32; original API/native diagnostics,
 codes, request references and retry semantics remain. Real MCP and served failed-capture/explicit-
 retry journeys qualify no partial persistence and unchanged retained/downloaded evidence. See
-[scope and evidence](DELIVERY-2026-10-05-GOOGLE-CAPTURE-RECOVERY.md); no live incident is inferred.
+[scope and evidence](../records/DELIVERY-2026-10-05-GOOGLE-CAPTURE-RECOVERY.md); no live incident is inferred.
 
 **Batch 159 capability improvement:** guided Google evidence lacked a separate campaign/device/day
 view. Current official v25 segmentation/field/enum documentation supports it. Exact literal device
 categories, campaign resources, bounded current-authority capture, retained filtering and optional
 full-row Excel now qualify the selected local workflow. This is a capability extension, not a prior
-defect or live incident. See [research and evidence](DELIVERY-2026-10-05-GOOGLE-DEVICE-EVIDENCE.md).
+defect or live incident. See [research and evidence](../records/DELIVERY-2026-10-05-GOOGLE-DEVICE-EVIDENCE.md).
 
 **F-226 (low, S, improved):** actual English/Arabic phone captures confirmed that the six-second
 toast removed the only visible current capture reason and request reference. Scoped persistent,
 form-linked feedback now remains until an explicit edit or submission, with original diagnostic
 formatting, one alert and stale-result guards. Served timing/recovery/delayed-response checks
-qualify the selected workflow. See [baseline, research and limits](DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md); no prior full
+qualify the selected workflow. See [baseline, research and limits](../records/DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md); no prior full
 WCAG/assistive-technology failure or live incident is inferred.
 
 **F-227 (medium, S, improved):** the full local four-process queue gate exposed a SQLite BUSY
@@ -676,7 +676,7 @@ Only BUSY health writes/cleanup now defer to the next existing cycle, preserving
 age, independent lease renewal and exactly one completed result. Other database errors and
 critical lease/result failures retain their original rules. Four actual SQLite regressions and
 existing queue/concurrency/operations checks pass 19 cases. Fresh full qualification remains
-required. See [delivery](DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md).
+required. See [delivery](../records/DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md).
 
 **F-228 (low, S, improved):** the Arabic catalog omitted 76 exact AMCP-owned refusal sentences
 across four native capture collectors, including Snapchat shape checks, and three reachable shared
@@ -685,7 +685,7 @@ wire IDs/values and all existing controller/collector bytes unchanged. Actual fo
 cover 77 occurrences/15 codes in both languages; four real MCP-client foreign-account captures
 perform four fixed GETs and save no evidence or effects. The fresh focused run passes 23 cases.
 Fresh full and 32 additional served provider refusal journeys qualify this scope before release.
-See [delivery](DELIVERY-2026-10-05-PROVIDER-CAPTURE-LOCALIZATION.md).
+See [delivery](../records/DELIVERY-2026-10-05-PROVIDER-CAPTURE-LOCALIZATION.md).
 
 **F-229 (medium, S, improved):** inspected standalone worker code exited/closed on its first stage
 failure while the embedded worker already recovered. The owned original-body baseline confirms
@@ -693,7 +693,7 @@ early exit/cleanup. Both entry points now share paced recovery, metadata-only di
 shutdown stage boundaries; --once retains original exception/failure semantics. Real held-writer
 lease recovery completes exactly one original result and existing lease/authority/heartbeat/HTTP
 checks remain. Focused qualification passes 28 cases; complete fresh gates precede release. See
-[behavior, research and limits](DELIVERY-2026-10-05-WORKER-LOOP-RECOVERY.md).
+[behavior, research and limits](../records/DELIVERY-2026-10-05-WORKER-LOOP-RECOVERY.md).
 
 **F-230 (low, S, improved):** the existing GA4 read forms lost their only failure reason/reference
 when the six-second toast expired. An actual served 320-pixel baseline demonstrates the loss.
@@ -702,14 +702,14 @@ and silence obsolete responses. Forty Arabic additions cover all 34 exact owned 
 consent metadata refusals, four missing reachable hints and two labels; native/backend contracts
 and 3,909 preceding pairs remain unchanged. Focused tests pass 67/67, including two real SDK
 refusal/recovery journeys. Thirty-two maintained served cases and fresh exact full gates qualify
-the change before release. See [delivery](DELIVERY-2026-10-05-MEASUREMENT-READ-FEEDBACK.md).
+the change before release. See [delivery](../records/DELIVERY-2026-10-05-MEASUREMENT-READ-FEEDBACK.md).
 
 **F-231 (low, S, improved):** 110 of the 122 exact static shared recovery instructions remained
 English in the Arabic interface. The catalog now authors all shared hints, retaining technical
 names, numeric limits, dependencies, original native envelopes and uncertain-write rules. Exact
 AST ownership excludes native/dynamic/unrelated text. Seven new maintained evaluations and
 sixteen additional served native-403 journeys qualify the original diagnosis and explicit read
-recovery without access changes or effects. See [delivery](DELIVERY-2026-10-05-SHARED-RECOVERY-GUIDANCE.md).
+recovery without access changes or effects. See [delivery](../records/DELIVERY-2026-10-05-SHARED-RECOVERY-GUIDANCE.md).
 
 **F-232 (low, S, improved):** the accumulated dated records and older operations summary obscured
 current scope, selected retention/recovery and the owner-waived CI boundary. A current indexed
@@ -725,28 +725,28 @@ silences obsolete identity/settings/attempt/detached responses. Newer controls s
 until their own attempt ends, and successful re-render focus behavior remains. Twenty-five new
 shared-handler/real-MCP cases plus four existing binding checks pass. Thirty-two new served
 journeys and fresh complete exact gates qualify the scope before release.
-See [delivery](DELIVERY-2026-10-05-WORKSPACE-FORM-FEEDBACK.md).
+See [delivery](../records/DELIVERY-2026-10-05-WORKSPACE-FORM-FEEDBACK.md).
 
 **F-234 (low, S, improved):** the first populated LinkedIn conversion browser journeys expose
 a narrow rule/name/ID column that can split native identifiers character by character. Scoped
 styles now apply the existing readable native-row minimum and keep literal LTR IDs, types and
 precise amount/currency values together in the named scroll region. The original readable-label
 assertion remains; all eight English/Arabic widths and complete fresh gates qualify the fix.
-See [delivery](DELIVERY-2026-10-05-WORKSPACE-FORM-FEEDBACK.md).
+See [delivery](../records/DELIVERY-2026-10-05-WORKSPACE-FORM-FEEDBACK.md).
 
 **F-235 (low, S, improved):** original scoped conversion reads return native registration/ownership
 metadata that the projection omits, and the current website does not name its default owned-rule
 request boundary. Exact nullable native fields, a separate collection-request record and bilingual
 escaped/searchable table columns now retain those details without extra queries or access. Missing
 fields stay unknown, foreign-account evidence still refuses, and delivery/history remain unverified.
-See [baseline, research and evidence](DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
+See [baseline, research and evidence](../records/DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
 
 **F-236 (low, S, improved):** all 25 exact authored LinkedIn conversion refusal sentences remain
 English in the Arabic interface. A narrow source/helper/literal selector now requires their Arabic
 translations alongside four metadata labels/help/scope messages. Native envelopes, dynamic reasons,
 codes, raw values, request references and uncertain-write rules remain unchanged. Focused formatter,
 controller and real-MCP checks pass; complete served and exact-source gates precede release.
-See [delivery](DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
+See [delivery](../records/DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
 
 **F-237 (low, S, improved):** four stacked measurement inspections require long navigation at
 narrow widths; the observed 320-pixel LinkedIn headings start 3,505/3,879 px down the English/Arabic
@@ -756,7 +756,7 @@ The related workflow links remain in a native disclosure. Ordinary jumps do not 
 or submit reads. Six controller/native regressions and sixteen new served journeys preserve current
 identity/scope boundaries, exact values, unknown states and no automatic effects. Complete fresh
 working/committed gates qualify release; full accessibility/live acceptance remains separate.
-See [baseline, research and evidence](DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md).
+See [baseline, research and evidence](../records/DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md).
 
 **F-238 (low, S, improved):** the repository README and deployment guide still prescribe Wait for CI
 unconditionally after the owner explicitly waived hosted Actions. The deployment/readiness guides
@@ -773,133 +773,133 @@ served refusal journeys now cover that selected set. Original envelopes, native 
 collector semantics and persistent scope/focus/edit recovery remain unchanged. Native/dynamic
 fallback diagnostics and full Arabic/assistive/live acceptance remain separate. Complete fresh
 working/committed gates qualify release. See
-[baseline and evidence](DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md).
+[baseline and evidence](../records/DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md).
 
 **F-240 (medium, S, improved):** Operation help returns eight stale captured Google/Meta versions
 and generic gateway help for 1,039 known uncaptured original catalog operations. Existing effective
 version normalization and explicitly unverified catalog metadata now give accurate operation help.
 Captured evidence, schemas, original identifiers/risk flags, native execution and write authority
 remain unchanged. All recorded and catalog-only descriptions plus actual SDK/owned HTTP boundaries
-are tested. See [baseline and evidence](DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md).
+are tested. See [baseline and evidence](../records/DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md).
 
 **F-241 (low, S, improved):** PORTFOLIO_INVALID_RESPONSE misses the older response-invalid suffix
 family and gives generic correction/write advice. Exact-code provider-owned inventory read recovery
 and one required Arabic hint now retain the selected account/hierarchy and original request ID.
 Stronger provider-body guidance, uncertain writes, codes/details/status/retryability and input guards
 remain. Ten regressions and strengthened 48 served refusals qualify the selected boundary. See
-[evidence and limits](DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md).
+[evidence and limits](../records/DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md).
 
 **F-242 (low, S, improved):** Of 232 direct authored website-server reasons across thirteen files,
 193 lack Arabic entries. Exact imported, unshadowed constructor ownership now gates those reasons;
 193 authored translations preserve all prior values and original native/protocol data. Dynamic
 reasons, other backend copy and full editorial/assistive acceptance remain separate. See
-[scope and qualification](DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md).
+[scope and qualification](../records/DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md).
 
 **F-243 (medium, S, improved):** Early non-MCP errors reaching the shared HTTP handler lack a
 reportable reference and corresponding diagnostic event. They now add a generated UUID and a
 minimal matching optional log entry while preserving original refusals and exact MCP behavior.
 Actual local 400/500 cases and a failing sink are tested; deployment collection remains unverified.
-See [evidence and limits](DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md).
+See [evidence and limits](../records/DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md).
 
 **F-244 (low, S, improved):** All 239 distinct direct imported MirrorError reasons in six core
 modules lack authored Arabic. A shared exact imported-constructor selector and 239 translations
 now cover those selected catalog/service/storage/transport/delegation/workflow reasons. Prior
 translations, native values, codes, authority and execution stay exact. Other static/dynamic copy
-and full editorial/assistive acceptance remain open. See [evidence](DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).
+and full editorial/assistive acceptance remain open. See [evidence](../records/DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).
 
 **F-245 (medium, O, partial):** Public health/About return 200, but the observed Arabic asset
 bytes match an older known locale file, and connected Google operation metadata retains an older
 top-level version. An explicit bounded credential-free public comparison now detects selected
 static byte differences. Current deployed backend Git/image, Railway branch/settings/history
 and cause remain unverified; the diagnostic tool does not resolve the deployment gap. See
-[observations, limits and qualification](DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).
+[observations, limits and qualification](../records/DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).
 
 **F-246 (low, S, improved):** The isolated 100-view accessibility-tree review is not a
 maintained guard for all existing journeys and dynamic results. Actual initial/final Chromium
 trees now require names for nineteen selected roles, valid ARIA ID references and unique IDs,
 with initial landmarks, restored inspection sessions and unchanged original workflow/native
-assertions. Physical assistive and full WCAG acceptance remain separate. See [evidence](DELIVERY-2026-10-05-BROWSER-SEMANTICS.md).
+assertions. Physical assistive and full WCAG acceptance remain separate. See [evidence](../records/DELIVERY-2026-10-05-BROWSER-SEMANTICS.md).
 
 **F-247 (low, O, improved):** A public About raw-byte mismatch can be mistaken for changed
 page source. The actual 367-byte insertion contains a Cloudflare beacon; all other received
 bytes match the local page. The deployment guide now distinguishes exact received-byte mismatch
 from deployed-source conclusions. The raw comparison contract remains unchanged; the separate
-older Arabic asset and Railway/backend source gap remain unresolved. See [bounded observations](DELIVERY-2026-10-05-BROWSER-SEMANTICS.md).
+older Arabic asset and Railway/backend source gap remain unresolved. See [bounded observations](../records/DELIVERY-2026-10-05-BROWSER-SEMANTICS.md).
 
 **F-248 (low, S, improved):** 806 directly owned static backend reasons lacked Arabic
 outside preceding selected sources. Authored Arabic now preserves each source contract's fields,
 limits, account ownership, uncertainty and references, retaining all 4,654 previous values.
-Dynamic/native/wrapper copy and broader acceptance remain separate. See [evidence](DELIVERY-2026-10-05-BACKEND-CONTRACT-LOCALIZATION.md).
+Dynamic/native/wrapper copy and broader acceptance remain separate. See [evidence](../records/DELIVERY-2026-10-05-BACKEND-CONTRACT-LOCALIZATION.md).
 
 **F-249 (low, S, improved):** File-specific error inventories can omit a newly added backend
 source. The locale gate now discovers regular TypeScript files under src/server and resolves
 canonical runtime imports with the existing lexical ownership analysis; future untranslated
 direct static reasons refuse coverage. All old selectors and gate assertions stay exact.
-See [ownership and future-file checks](DELIVERY-2026-10-05-BACKEND-CONTRACT-LOCALIZATION.md).
+See [ownership and future-file checks](../records/DELIVERY-2026-10-05-BACKEND-CONTRACT-LOCALIZATION.md).
 
 **F-250 (medium, S, improved):** Anonymous liveness and static-byte responses cannot identify
 the backend release. A build-written bounded public record and independent /versionz application
 artifact observation now separate scoped file identity from a nullable Git claim. Deployed
 backend/source/image authenticity and Railway cause remain unverified; dependencies, private
-state and OS/image scope are excluded. See [scope and operation](DELIVERY-2026-10-05-RELEASE-IDENTITY.md).
+state and OS/image scope are excluded. See [scope and operation](../records/DELIVERY-2026-10-05-RELEASE-IDENTITY.md).
 
 **F-251 (low, S, improved):** Hashing the packaged tree synchronously for HTTP requests can
 stall other work. Runtime verification now uses a credential-free worker, coalesced refreshes,
 fixed deadline, bounded record/file/engine settings and a timestamped cache. Actual hung-worker,
 event-loop, private-message, environment and original HTTP boundary tests pass. These bounds
-do not certify tenant capacity or whole-process memory limits. See [checks](DELIVERY-2026-10-05-RELEASE-IDENTITY.md).
+do not certify tenant capacity or whole-process memory limits. See [checks](../records/DELIVERY-2026-10-05-RELEASE-IDENTITY.md).
 
 **F-252 (low, S, improved):** 2,596 authored reasons passed through qualified local error
 helpers lacked Arabic outside the direct-constructor inventory. Manually authored translations
 and conservative canonical sole-throw/forwarding ownership now cover those exact explanations,
 including future nested files, while preserving native contracts and every preceding value.
-Other helpers and dynamic/native copy remain outside this qualification. See [evidence](DELIVERY-2026-10-05-BACKEND-WRAPPER-LOCALIZATION.md).
+Other helpers and dynamic/native copy remain outside this qualification. See [evidence](../records/DELIVERY-2026-10-05-BACKEND-WRAPPER-LOCALIZATION.md).
 
 **F-253 (medium, S, improved):** Unbounded text decoding and the old public one-MiB ceiling
 do not accommodate the completed catalog with consistent byte/deadline bounds. Strict streaming
 UTF-8, a shared two-MiB byte budget, bounded abort/monotonic timing and per-operation listener
 cleanup now preserve the current view on failure and accept valid fine fragmentation. Refusal,
-overflow, real-loopback timeout and cache/retry regressions are retained. See [checks and limits](DELIVERY-2026-10-05-BACKEND-WRAPPER-LOCALIZATION.md).
+overflow, real-loopback timeout and cache/retry regressions are retained. See [checks and limits](../records/DELIVERY-2026-10-05-BACKEND-WRAPPER-LOCALIZATION.md).
 
 **F-254 (medium, S, improved):** A public HTTP-200 JSON object reporting unavailable was
 accepted as liveness. The bounded public comparison now requires the existing up/degraded
 states and retains only the fixed state, with ten actual loopback state/private-output
 regressions and all earlier comparison assertions. The runtime health endpoint is unchanged.
-See [scope and checks](DELIVERY-2026-10-05-LIVENESS-PLANNING-PREREQUISITES.md).
+See [scope and checks](../records/DELIVERY-2026-10-05-LIVENESS-PLANNING-PREREQUISITES.md).
 
 **F-255 (medium, S, improved):** Shape-only LinkedIn forecast targeting could dispatch without
 valid included geography. Forecast-only positive geographic clause validation now refuses
 six reproduced invalid prerequisites and mixed OR input before transport, preserving
 30 exact valid synthetic native payloads, all three reads, original notices and Audience
 Insights behavior. Provider audience size/entitlement/calibration stays unverified. See
-[primary contract and production-service qualification](DELIVERY-2026-10-05-LIVENESS-PLANNING-PREREQUISITES.md).
+[primary contract and production-service qualification](../records/DELIVERY-2026-10-05-LIVENESS-PLANNING-PREREQUISITES.md).
 
 **F-256 (medium, S, improved):** Owned rendered views reproduce low-contrast dark-sidebar and
 landing captions, workspace-search visible/name disagreement in English/Arabic and a narrow
 Operations target. Scoped colors/caption sizing, explicit translated label/shortcut references
 and a wrapping 44-pixel owner action correct those cases while preserving original navigation,
 provider runtime and all Arabic values. Full visual/assistive acceptance remains separate. See
-[measured behavior](DELIVERY-2026-10-05-BROWSER-WCAG.md).
+[measured behavior](../records/DELIVERY-2026-10-05-BROWSER-WCAG.md).
 
 **F-257 (low, S, improved):** Existing semantic/keyboard/reflow checks do not inspect selected
 WCAG automated rules in dynamic final states. Optional pinned local axe inspection now retains
 initial/final violations and incomplete/manual evidence for every preceding browser case, with
 fixed engine/byte/deadline guards and meaningful refusal regressions. No application dependency
 or egress is added, and incomplete rules do not become full certification. See
-[maintained checks and limits](DELIVERY-2026-10-05-BROWSER-WCAG.md).
+[maintained checks and limits](../records/DELIVERY-2026-10-05-BROWSER-WCAG.md).
 
 **F-258 (medium, S, improved):** Populated report/conversion pagination labels measure 3.41:1
 against white. The shared pagination component now uses the exact existing muted token and
 a 12-pixel caption floor, retaining source values, native reads and current paging behavior.
 The first 408-case selected-rule run remains a failed audit; fresh actual changed-source
-qualification is mandatory. See [reproductions](DELIVERY-2026-10-05-BROWSER-WCAG.md).
+qualification is mandatory. See [reproductions](../records/DELIVERY-2026-10-05-BROWSER-WCAG.md).
 
 **F-259 (medium, S, improved):** Expanded original-record JSON can overflow without a keyboard
 focus target. The shared renderer now uses its existing translated title for a named region
 with tabindex zero. The maintained actual browser check exercises balanced disclosure Tab
 order and vertical/horizontal arrow scrolling, restores focus/position and refuses provider
 effects. JSON, authorization and every earlier Arabic value remain exact. See
-[scope and primary references](DELIVERY-2026-10-05-BROWSER-WCAG.md).
+[scope and primary references](../records/DELIVERY-2026-10-05-BROWSER-WCAG.md).
 
 **F-260 (medium, S, improved):** Guided campaign evidence cannot retain native hourly grain.
 A separate source-linked Google campaign/hour/day preset now preserves explicit original hour
@@ -908,7 +908,7 @@ malformed hour cannot become midnight or complete saved evidence. Retained filte
 Excel keep every original row and full totals. Current/stale failures preserve reviewed settings
 and require an explicit retry. No timestamp, timezone conversion, schedule/bid/budget authority
 or missing-hour activity is inferred. See
-[primary contract, prototype and release boundaries](DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md).
+[primary contract, prototype and release boundaries](../records/DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md).
 
 **F-261 (medium, S, improved):** The LinkedIn-only transport encodes a CSV `fields` selector
 as one scalar, reproducing a provider HTTP-400 projected-field failure. Documented field/child/map
@@ -917,7 +917,7 @@ Account/date bindings, other query/provider encodings, bounds, retries and provi
 preserved. The formatted isolated source passes 32 focused regressions with zero skips; exact
 final source/default-full gates remain mandatory. Live default metrics and a single cost field
 passed, but corrected multi-field deployment acceptance remains unverified. See
-[the source reproduction, read-only observations and qualification](DELIVERY-2026-10-06-LINKEDIN-FIELD-PROJECTIONS.md).
+[the source reproduction, read-only observations and qualification](../records/DELIVERY-2026-10-06-LINKEDIN-FIELD-PROJECTIONS.md).
 
 **F-262 (medium, M, improved):** Selected WooCommerce IDs cannot inspect the complete bounded
 published-parent/reported-child inventory. A separate read-only two-scan mode now reconciles
@@ -925,31 +925,31 @@ native totals, memberships, exact IDs/prices, current scope and three currency o
 with shared row/page/byte/request/deadline limits. The bilingual fifty-row local view retains
 absent products and exact evidence; current failures preserve references and obsolete results
 stay silent. Unpublished parents, independently verified grouped membership, point-in-time and
-live store/destination acceptance remain separate. See [workflow and qualification](DELIVERY-2026-10-06-WOOCOMMERCE-INVENTORY.md).
+live store/destination acceptance remain separate. See [workflow and qualification](../records/DELIVERY-2026-10-06-WOOCOMMERCE-INVENTORY.md).
 
 **F-263 (medium, S, improved):** Owner health loads whole shared heartbeat documents without
 an observation cap and treats malformed state/clock data as liveness. A single bounded-metadata
 SQLite projection now reports all aggregate counts and at most 100 valid observations, with
 explicit unavailable/uncertain states and no process/body/credential fields. Bilingual owner
 settings explain shared process scope and reject stale refresh/identity/navigation responses.
-Separate-process measurements retain the compact-case latency tradeoff. See [evidence](DELIVERY-2026-10-06-WORKER-HEALTH.md).
+Separate-process measurements retain the compact-case latency tradeoff. See [evidence](../records/DELIVERY-2026-10-06-WORKER-HEALTH.md).
 
 **F-264 (low, S, improved):** Single-client synthetic SDK tasks do not exercise simultaneous
 HTTP callers. Two actual SDK clients on one real owned HTTP endpoint now prove isolated
 same-ID tenant inventories and independent in-flight revocation/cancellation. Schemas,
 text/structured parity, exact values and zero artifacts/provider effects are asserted. This
 adds local task evidence; external-client and live-provider acceptance remain unverified.
-See [tasks and measurements](DELIVERY-2026-10-06-WORKER-HEALTH.md).
+See [tasks and measurements](../records/DELIVERY-2026-10-06-WORKER-HEALTH.md).
 
 **F-265 (medium, M, improved):** Commerce readers lack a qualified administrator source setup/removal
 path. The new explicit workflow verifies an existing Read key through three fixed bounded GETs,
 persists encrypted local credentials and original-request proof atomically, and removes only the
 selected local connection with no provider request. Current authority/lease/identity/route guards,
 explicit refresh and strict public receipts preserve the source-only scope. Live store acceptance
-and merchant-side key permission remain separate. See [workflow and checks](DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).
+and merchant-side key permission remain separate. See [workflow and checks](../records/DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).
 
 **F-266 (low, S, fixed):** Repeated rendered table keyboard checks can begin at an already reached
 scroll boundary and report a timeout despite working keyboard access. The shared helper now sets
 a deterministic starting position, asserts keyboard movement, and restores both scroll axes while
 retaining caption, region-name and focusability checks. The original failed clean-source run is
-retained; fresh 512-case qualification gates publication. See [retained failures](DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).
+retained; fresh 512-case qualification gates publication. See [retained failures](../records/DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).

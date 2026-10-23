@@ -136,7 +136,7 @@ selected account (for example no DV360 login, or one with zero advertisers) has 
 "/connections"` and a `setup` listing its prerequisites, instead of a `program_check` that can only refuse; an empty
 DV360 discovery names the user profile and permission to set up. Forecast budgets display in USD currency style with
 the exact six-decimal value in the title.
-[Current contracts, primary sources and selected-account acceptance](review/DELIVERY-2026-10-07-CONDITIONAL-PROGRAMS.md).
+[Current contracts, primary sources and selected-account acceptance](records/DELIVERY-2026-10-07-CONDITIONAL-PROGRAMS.md).
 
 These three are `mode: "live_read"`. Five more provider programs are listed for discovery only (ACC-05,
 `src/discovery-programs.ts`): LinkedIn Lead Sync, LinkedIn Matched Audiences, LinkedIn saved media plans, X Ads API
@@ -282,7 +282,7 @@ JSON alongside variables and native templates. Duplicate guided/Advanced names a
 The preview includes campaign defaults (including the existing Maximize Clicks CPC ceiling), readable exact
 references and preserved complex mappings. References are declarations, not ownership/event-delivery evidence;
 campaign preflight is still required. Add/remove clears approval and preview. See the
-[conversion-reference delivery record](review/DELIVERY-2026-10-03-CONVERSION-REFERENCES.md).
+[conversion-reference delivery record](records/DELIVERY-2026-10-03-CONVERSION-REFERENCES.md).
 Preview resolves the same template function as campaign creation without provider calls. A nonempty binding list
 limits both recipe choices and generated/native plan steps to those exact accounts and connections. An empty list
 retains the previous behavior of allowing the actor's currently authorized choices. Profiles never grant access.
@@ -337,7 +337,7 @@ limitation. A read-back mismatch or lost receipt cannot count as a completed lau
 Native ad creates and creative replacements also read each unique referenced creative in the original
 selected account. A missing/foreign owner fails closed. The native review freezes its content, including the
 original destination; changing it after review prevents submission. Phone forms stack their actions and retain
-readable exact IDs in English and Arabic. See the [delivery evidence](review/DELIVERY-2026-10-03-SNAPCHAT-TRAFFIC.md).
+readable exact IDs in English and Arabic. See the [delivery evidence](records/DELIVERY-2026-10-03-SNAPCHAT-TRAFFIC.md).
 
 ### Snapchat lead generation with the original form
 
@@ -354,7 +354,7 @@ collections, unsafe references and revoked authority block writes. Optional poli
 approval, goal entitlement, policy availability and consent acceptance remain unknown. No terms are accepted and
 no lead exports or webhooks are enabled. Preserve uncertain receipts; activation remains separately reviewed.
 The English/Arabic preview preserves exact native goals, micros, IDs, original title and original policy URL.
-See [contract, SDK and browser qualification](review/DELIVERY-2026-10-04-SNAPCHAT-LEADS.md).
+See [contract, SDK and browser qualification](records/DELIVERY-2026-10-04-SNAPCHAT-LEADS.md).
 
 ### After a launch: launch check and serving diagnostics
 
@@ -461,7 +461,7 @@ levels are refused. Original native IDs and source rows remain available, additi
 and missing values and multi-day reach/frequency stay unknown. Select **Export now to Google Sheets** on a
 collected snapshot, choose its destination and confirm the immediate export. The original snapshot is exported
 even after setup edits; no schedule is created and unrelated spreadsheet tabs are preserved. See the
-[appearance, media and detail delivery record](review/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md).
+[appearance, media and detail delivery record](records/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md).
 
 Report library (`/report-library`) separates saved definitions, reusable account-free templates and retained
 snapshots. Search finds definitions by client/name; snapshot history pages through older accessible results. A
@@ -564,7 +564,7 @@ unchanged, and incompatible legacy mappings/grains cannot be reconciled. Native 
 1,000,000. Up to 100 pages share limits of 120 requests, 10,000 rows, 120 seconds and 32 MiB. Empty proto3 default
 responses require successful customer checks. Missing metrics stay unknown. Attribution and window completeness
 remain declarations; search-term visibility can prevent reconciliation to campaign totals. See the
-[Google evidence qualification](review/DELIVERY-2026-10-02-GOOGLE-EVIDENCE-INTEGRITY.md).
+[Google evidence qualification](records/DELIVERY-2026-10-02-GOOGLE-EVIDENCE-INTEGRITY.md).
 
 Meta presets are `meta_campaign`, `meta_adset` and `meta_ad`, each at entity × day grain. Supply currency, IANA
 timezone, dates, source name and completeness. Select the exact native `result_action_type` (for example,
@@ -580,7 +580,7 @@ when another page is advertised. At most 100 pages/10,000 rows share the same re
 checks and every page retain source references. On a delivered row (impressions above 0) an absent selected action
 counts as 0 and is named in `omitted_as_zero` (Meta omits zero-valued action entries); a row without delivery keeps
 it unknown. Overlapping action aliases are never added. Window completeness remains declared, and complete paging does not prove conversion delivery.
-See the [Meta evidence qualification](review/DELIVERY-2026-10-02-META-EVIDENCE-INTEGRITY.md); SDK/native fixture evidence
+See the [Meta evidence qualification](records/DELIVERY-2026-10-02-META-EVIDENCE-INTEGRITY.md); SDK/native fixture evidence
 does not certify live provider acceptance.
 
 **Dimension packs (RPT-07).** Five presets answer audience, placement, network and Performance Max questions that
@@ -667,7 +667,7 @@ native daily budgets, calibrated forecasts or approvals. Linear response ignores
 changing auctions; the conversion threshold is an explicit planning assumption, not statistical significance.
 Provider floors/caps, shared budget ownership and native units require separate validation before any reviewed
 change. Editing a constraint clears the old result; late results cannot restore stale inputs or another report.
-See the [allocation qualification record](review/DELIVERY-2026-10-01-ALLOCATION.md).
+See the [allocation qualification record](records/DELIVERY-2026-10-01-ALLOCATION.md).
 
 Schedules (`/schedules`) lists existing delivery definitions with a read-only preview of the next three windows.
 Pause/resume/delete, destination links and recovery use the existing schedule/export engine. Timing preview performs
@@ -716,7 +716,7 @@ Only failed transient delivery can be recovered: the same encrypted recipient/bo
 original 24-hour expiry. Five automatic attempts are allowed; one recovery permits up to ten total. `sent` means
 provider acceptance, not verified inbox delivery. Configuration needs the deployment's existing email sender/key,
 master key, public origin and running worker. Notice metadata lasts 30 days; failed transport does not remove inbox
-evidence. See the [delivery record](review/DELIVERY-2026-10-01-MONITOR-DELIVERY.md) for limits and lifecycle checks.
+evidence. See the [delivery record](records/DELIVERY-2026-10-01-MONITOR-DELIVERY.md) for limits and lifecycle checks.
 
 The existing owner-selected report retention period includes captured analysis reports and resolved/superseded history.
 Current open/acknowledged incidents and rules are preserved. Disconnecting a connection purges its retained reporting
@@ -772,7 +772,7 @@ full native parent chain. Limits are **50–100 rows** (the website uses 50), ei
 Only the validated opaque native cursor is reused; supplied URLs are never followed. Money stays in exact native
 micros with current currency/timezone, and configured status stays separate from review status/delivery codes.
 Created-at descending inventory uses provider default visibility and is not a point-in-time or deleted-entity
-snapshot. [Snapchat qualification](review/DELIVERY-2026-10-02-SNAPCHAT-PORTFOLIO.md) documents the bounds.
+snapshot. [Snapchat qualification](records/DELIVERY-2026-10-02-SNAPCHAT-PORTFOLIO.md) documents the bounds.
 
 TikTok supports the same portfolio action with `gateway:tiktok_native_action`, exact advertiser/login and
 `requirements:{entity:campaign}`; follow with `entity:adgroup,campaign_id` and `entity:ad,campaign_id,adgroup_id`.
@@ -835,7 +835,7 @@ repeated purchase keys do not establish native double counting, and an event
 under denied consent can be cookieless. The trace is never sent or retained;
 Clear/navigation/identity changes discard it. Native/runtime consent,
 deduplication and attribution remain unverified. See
-[input shape and actual qualification](review/DELIVERY-2026-10-07-TRACE-RECOVERY.md).
+[input shape and actual qualification](records/DELIVERY-2026-10-07-TRACE-RECOVERY.md).
 
 Version 1 stays accepted unchanged. **Trace version 2** (MSR-03) adds `scope.visitor_region` (a region code such as
 `US-CA`, or null), an optional `region` list and `wait_for_update_ms` (0–60,000) on consent defaults, and
@@ -906,7 +906,7 @@ events or stream if the complete table exceeds that bound. Changed scope or malf
 The website shows the same evidence in English/Arabic and clears it when inputs change. It never sends a test event,
 polls automatically or saves a report snapshot. Positive counts establish reported aggregate activity only; missing
 or zero counts may reflect delayed processing. Specific test identity, consent, deduplication, attribution and overall
-tracking health remain unverified. The [delivery record](review/DELIVERY-2026-10-02-MEASUREMENT-EVENTS.md) explains qualification.
+tracking health remain unverified. The [delivery record](records/DELIVERY-2026-10-02-MEASUREMENT-EVENTS.md) explains qualification.
 
 **Inspect a specific GA4 test identifier** uses an already registered event-scoped `amcp_test_id` custom dimension.
 Choose an exact login/property, event name and original synthetic `amcp-test-` identifier. Enter explicit dates
@@ -917,7 +917,7 @@ core report; source references remain inspectable. Counts remain exact strings a
 Above/below/matching counts compare only with your declaration. Higher counts are not proof of duplicate delivery,
 and missing/zero counts can reflect processing lag or filters. Consent, deduplication and attribution remain
 unverified. Original scope handoffs prefill without reading. Edits or generation clear prior evidence and pending
-results cannot overwrite a newer selection. See the [qualification record](review/DELIVERY-2026-10-03-MEASUREMENT-IDENTITY.md).
+results cannot overwrite a newer selection. See the [qualification record](records/DELIVERY-2026-10-03-MEASUREMENT-IDENTITY.md).
 
 **Realtime test identity** (MSR-04) is the faster report source of the same task. Choose **Realtime: user scope, test
 properties only** and a window of the last 1–30 minutes instead of dates. It reads a user-scoped
@@ -935,7 +935,7 @@ missing observations. This finder requests the provider default owned-rule selec
 Its collection_request describes the request separately from each reported ownership value. Search native
 names/IDs/types/methods/ownership locally and page 50 rows without another native request. Complete older
 envelopes without new fields stay readable with unknown metadata. See the
-[method, ownership and scope qualification](review/DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
+[method, ownership and scope qualification](records/DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
 The MCP action is `measurement_conversions` with `gateway:linkedin_native_action`, exact `account_id` and
 `connection_id`; it accepts no additional requirements. Its scoped website link only preselects the account.
 The **Observed activity** column (MSR-04) shows LinkedIn's own `lastCallbackAt` (the last time a rule's URL match
@@ -948,7 +948,7 @@ checks current authority around each read and retains source request/hash/time r
 25 pages, 30 requests, 8 MiB and 60 seconds; partial, changed or foreign-account evidence is refused. No snapshot
 is saved. Configured value is a rule setting, not spend or observed revenue. Campaign membership, event delivery,
 deduplication, consent and historical report attribution remain unverified. Current settings do not establish
-earlier reporting windows. No rule is changed or test event sent. See the [delivery record](review/DELIVERY-2026-10-02-LINKEDIN-CONVERSION-EVIDENCE.md).
+earlier reporting windows. No rule is changed or test event sent. See the [delivery record](records/DELIVERY-2026-10-02-LINKEDIN-CONVERSION-EVIDENCE.md).
 
 **Google Ads conversion goals** (MSR-02) reads one selected Google Ads customer's account-default conversion
 goals, enabled primary conversion actions with their value settings, and the last conversion date and last tag
@@ -1094,7 +1094,7 @@ The native product review and verification require exact account/catalog/busines
 bounded product page for the selected retailer. Malformed rows, foreign retailers, unfinished paging and coerced
 IDs are refused. Price and sale-price proof must identify the same product as the original mutation receipt.
 Read-back checks current account/catalog ownership again; incomplete proof cannot become a verified result or
-permission to repeat the product mutation. See the [catalog evidence repair](review/DELIVERY-2026-10-03-CATALOG-EVIDENCE.md).
+permission to repeat the product mutation. See the [catalog evidence repair](records/DELIVERY-2026-10-03-CATALOG-EVIDENCE.md).
 
 For supplier or WooCommerce CSV exports, select **Map supplier or WooCommerce export columns** and load the file.
 Choose source columns for the stable retailer ID, name, decimal price and image URL. Use either a currency column
@@ -1106,7 +1106,7 @@ starts from the saved columns. Inspect **Exact product fields sent for review** 
 file clears its mapping, and changing any input invalidates its preview/save.
 Header names must be unique/nonempty (1–100 columns, up to 200 characters each). Use UTF-8 CSV; a leading BOM is
 accepted. This is a local export-import workflow, not a connection to a live store. See the
-[mapping delivery record](review/DELIVERY-2026-10-02-CATALOG-MAPPING.md).
+[mapping delivery record](records/DELIVERY-2026-10-02-CATALOG-MAPPING.md).
 
 ## Client report packs and recovery
 
@@ -1136,7 +1136,7 @@ file export keeps its original language through retries; later settings cannot r
 This does not certify PDF/UA accessibility or independent Arabic editorial acceptance.
 
 Presentation metadata follows snapshot deletion/retention. See the
-[download limits and evidence](review/DELIVERY-2026-10-01-CREATIVE-REPORTS.md).
+[download limits and evidence](records/DELIVERY-2026-10-01-CREATIVE-REPORTS.md).
 
 Clients & templates can also retain optional `report_presentation` inside an approved client profile, using the
 same bounded brand/color/footer/layout fields. From a report pack, **Use approved client branding** lists compatible
@@ -1151,7 +1151,7 @@ most 100 candidate profiles checked per request. Continue with `next_offset` eve
 and preserves existing source rows. Later profile edits or deletion leave that copy unchanged; manual
 `save_presentation` clears the copied-profile provenance. The report title receives keyboard focus after saving,
 and delayed responses cannot replace a newer route or signed-in identity. Scheduled local file destinations are
-described below. See the [branding delivery record](review/DELIVERY-2026-10-01-PROFILE-BRANDING.md).
+described below. See the [branding delivery record](records/DELIVERY-2026-10-01-PROFILE-BRANDING.md).
 
 **Workbook setup** in Operations (`/operations?bindings=1`) lists saved local workbook associations. Search
 by name/ID or an exact saved spreadsheet ID, follow pagination and open the original association to see linked
@@ -1315,7 +1315,7 @@ strings, resource paths or provider results remain unavailable until a new expli
 Unscoped historical runs are not assigned an account by guesswork. Full job inputs/results, encrypted actor bindings,
 leases and raw errors are absent from status and the feed. Legacy workbook bindings still describe local storage;
 this view does not establish a live Google Sheets destination. See the
-[workbook Operations delivery record](review/DELIVERY-2026-10-01-WORKBOOK-OPERATIONS.md).
+[workbook Operations delivery record](records/DELIVERY-2026-10-01-WORKBOOK-OPERATIONS.md).
 
 Workbook schedules, shown as **Local report schedules**, open `/operations?workbook_schedule_id=<original-id>`, also
 reachable from Schedules. Their runs (shown as **Local report runs**) keep results in AMCP and never write to the saved
@@ -1335,7 +1335,7 @@ The preview makes no changes. Save through `save_report_schedule` with the same 
 The server rechecks current scope, operator access, schedule revision and saved query revision transactionally.
 `STALE_REPORT_SCHEDULE` requires refresh and another review. Readers can inspect but cannot save. This editor
 keeps query identity and workbook binding intact and does not configure external spreadsheet delivery.
-See the [workbook schedule delivery record](review/DELIVERY-2026-10-01-WORKBOOK-SCHEDULES.md).
+See the [workbook schedule delivery record](records/DELIVERY-2026-10-01-WORKBOOK-SCHEDULES.md).
 
 **Move to Reporting overview (EXP-04, owner policy P6).** A local schedule can move into Reporting overview, which
 delivers to the workbook's own spreadsheet. The move is explicit and reversible, and it never changes the saved query
@@ -1373,7 +1373,7 @@ unsubmitted report. Viewer access cannot save. The legacy setup bootstraps now r
 withhold oversized bodies; they do not establish a live Sheets destination. They also list, under
 `provider_deprecation_warnings`, each saved Reddit report (with its schedules) that Reddit's 2026-12-08 breakdown rules
 will refuse; from that day AMCP refuses such a run with `PROVIDER_DEPRECATED` before any request. See the
-[saved query delivery record](review/DELIVERY-2026-10-01-REPORTING-MANAGEMENT.md) for limits and qualification.
+[saved query delivery record](records/DELIVERY-2026-10-01-REPORTING-MANAGEMENT.md) for limits and qualification.
 
 Client packs can also be delivered on the existing report schedule to a local **PDF / Excel destination**.
 Create it in the delivery dialog with explicit formats, branding and storage confirmation; a Sheets connection is
@@ -1411,7 +1411,7 @@ MCP uses `preview_allocation_plan` with report `id`, allocation `options` and `c
 by `create_allocation_plan` with the same `id`, exact `preview_id`/`preview_hash` and `confirmed:true`. Preview is
 bound to the current session and lasts ten minutes. Follow its returned `amcp_campaign get` and website link to
 inspect the original draft. Lost responses reuse the same plan. `amcp_campaign create` also supports optional
-stable creation keys. See the [native budget-draft record](review/DELIVERY-2026-10-01-ALLOCATION-PLANS.md).
+stable creation keys. See the [native budget-draft record](records/DELIVERY-2026-10-01-ALLOCATION-PLANS.md).
 
 ### Factor provenance and indicators (DEC-02)
 
@@ -1488,8 +1488,8 @@ Switching language refreshes the current view. Changed inputs, visible recovery 
 save them first. Saved records remain available. Account names, campaign names, identifiers, exact numeric strings,
 native request fields and technical codes keep their original values. Dates use the chosen interface locale while
 report/schedule timezones keep their own meaning. The fixed local catalog is requested only for Arabic; if it
-cannot load, English remains usable. See the [foundation](review/DELIVERY-2026-10-01-ARABIC-FOUNDATION.md) and
-[connection/control localization record](review/DELIVERY-2026-10-01-ARABIC-CONNECTIONS.md).
+cannot load, English remains usable. See the [foundation](records/DELIVERY-2026-10-01-ARABIC-FOUNDATION.md) and
+[connection/control localization record](records/DELIVERY-2026-10-01-ARABIC-CONNECTIONS.md).
 
 ## Qualification boundaries
 
@@ -1512,7 +1512,7 @@ current exact keywords; conflicting positive or negative exact keywords block th
 campaign/shared/account-level coverage is not assessed. Confirming saves an **unapproved** draft under Campaigns.
 It changes no advertising account. Separate approval, spending acknowledgement, native review and verified execution
 remain required. A save retry retains the original preview and reuses its plan. Source or selection changes require
-a fresh preview; previews expire after ten minutes. See the [delivery record](review/DELIVERY-2026-10-02-SEARCH-EXCLUSION-PLANS.md).
+a fresh preview; previews expire after ten minutes. See the [delivery record](records/DELIVERY-2026-10-02-SEARCH-EXCLUSION-PLANS.md).
 
 MCP: `amcp_decision_report {action:"search_exclusion_candidates",id,options:{minimum_clicks,maximum_age_days},offset?,limit?}`;
 follow `next_offset` and explicitly select native row IDs. Then call `preview_search_exclusions` with the same
@@ -1577,14 +1577,14 @@ For MCP use `capture_preset` with `preset:"snapchat_campaign"` or `"snapchat_ad"
 `swipe_up_attribution_window` (`1_DAY`, `7_DAY`, `28_DAY`) and `view_attribution_window`
 (`none`, `1_HOUR`, `3_HOUR`, `6_HOUR`, `1_DAY`, `7_DAY`). Generic attribution/conversion text is replaced
 by the generated native settings. Provider finalization does not verify measurement setup or guarantee an atomic
-account snapshot. See [qualification and limits](review/DELIVERY-2026-10-02-SNAPCHAT-EVIDENCE.md).
+account snapshot. See [qualification and limits](records/DELIVERY-2026-10-02-SNAPCHAT-EVIDENCE.md).
 
 For ad-squad evidence choose `snapchat_adsquad` and supply the exact `campaign_id` from Portfolio. The server
 observes the campaign in this account's bounded native campaign collection, checks its exact ownership before/after
 all stats pages, and retains every parent/account/page request, hash and time. This preset uses the campaign stats
 route and native `AD_SQUAD` rows. English/Arabic forms require the parent only for this preset; other presets refuse
 the unsupported filter. Comparisons require the same parent campaign. Collection membership is a positive ownership
-observation, not complete inventory or an atomic snapshot. See [ad-squad qualification](review/DELIVERY-2026-10-03-SNAPCHAT-SQUAD-EVIDENCE.md).
+observation, not complete inventory or an atomic snapshot. See [ad-squad qualification](records/DELIVERY-2026-10-03-SNAPCHAT-SQUAD-EVIDENCE.md).
 
 ## Snapchat ad-squad allocation drafts
 
@@ -1605,17 +1605,17 @@ review also freezes native delivery mode so a change prevents dispatch.
 For MCP use `allocation_candidates`, `allocation`, `preview_allocation_plan` with `conversion:"equal_daily"`,
 then `create_allocation_plan` with that session's `preview_id`, `preview_hash` and `confirmed:true`. Retain exact
 report and account scope. Google retains its dedicated-budget flow, LinkedIn its independent-budget flow and Meta its
-owner-bound flow (above); other providers remain unqualified for this handoff. See [qualification and limits](review/DELIVERY-2026-10-03-SNAPCHAT-ALLOCATION.md).
+owner-bound flow (above); other providers remain unqualified for this handoff. See [qualification and limits](records/DELIVERY-2026-10-03-SNAPCHAT-ALLOCATION.md).
 
 ### Allocation selection and browser review
 
-Candidates use compact Add/Added controls with full accessible names. Added items remain disabled until removed; selection changes preserve each remaining item's bounds and invalidate obsolete results. Report buttons identify their source, account and dates. Snapchat model/candidate responses identify `entity_kind:ad_squad` and the exact `parent_campaign_id`; daily-budget copy stays provider-specific. Conversion tables retain exact decimal strings and micros inside named horizontal scroll regions. The confirmation starts on Cancel, wraps Tab/Shift+Tab between its controls and supports Escape cancellation. Long native IDs fit the English/Arabic narrow-screen form. See [browser and keyboard qualification](review/DELIVERY-2026-10-03-BROWSER-ALLOCATION.md).
+Candidates use compact Add/Added controls with full accessible names. Added items remain disabled until removed; selection changes preserve each remaining item's bounds and invalidate obsolete results. Report buttons identify their source, account and dates. Snapchat model/candidate responses identify `entity_kind:ad_squad` and the exact `parent_campaign_id`; daily-budget copy stays provider-specific. Conversion tables retain exact decimal strings and micros inside named horizontal scroll regions. The confirmation starts on Cancel, wraps Tab/Shift+Tab between its controls and supports Escape cancellation. Long native IDs fit the English/Arabic narrow-screen form. See [browser and keyboard qualification](records/DELIVERY-2026-10-03-BROWSER-ALLOCATION.md).
 
 ### Saved budget proposal review
 
 Opening a recognized allocation draft shows **Retained budget proposal** with the exact provider/account, currency, timezone, reference duration and Snapchat parent. Its keyboard-accessible table compares the saved budgets at preview with the proposed native daily/average-daily amounts and micros. These settings are retained evidence, not a new live read. Inspect the original report for its date window and measurement definitions. Reference-period amounts are not an ongoing spending cap or end date.
 
-The original plan brief and original native step descriptions remain expandable. A readable translated step is shown only for an exact matched single native budget request; additional/changed fields or older/unqualified bindings keep their stored descriptions. Language changes do not modify the original plan or request. Every advertising effect still needs the existing separate native review, spending acknowledgement and execution/read-back. Report metric cards and plan counts are available in both languages. See [review qualification](review/DELIVERY-2026-10-03-ALLOCATION-REVIEW.md).
+The original plan brief and original native step descriptions remain expandable. A readable translated step is shown only for an exact matched single native budget request; additional/changed fields or older/unqualified bindings keep their stored descriptions. Language changes do not modify the original plan or request. Every advertising effect still needs the existing separate native review, spending acknowledgement and execution/read-back. Report metric cards and plan counts are available in both languages. See [review qualification](records/DELIVERY-2026-10-03-ALLOCATION-REVIEW.md).
 
 ### Tool timings in workspace health
 
@@ -1625,7 +1625,7 @@ response counts, means, approximate median/p95 buckets and omitted measurements.
 and supports keyboard access. A successful response may contain a blocked/pending/failed workflow. Handler
 time excludes timing storage and response delivery; it does not measure end-to-end network latency.
 Current in-flight calls appear in a later health refresh. Empty intervals and unavailable evidence stay explicit.
-See [operating details](OPERATIONS.md#owner-tool-timings) and [delivery evidence](review/DELIVERY-2026-10-03-TOOL-TIMINGS.md).
+See [operating details](OPERATIONS.md#owner-tool-timings) and [delivery evidence](records/DELIVERY-2026-10-03-TOOL-TIMINGS.md).
 
 ### Owner Settings sections
 
@@ -1644,7 +1644,7 @@ Known credential fields in legacy definitions and run previews are masked; the e
 redaction flag identifies changed projections. Fresh unsafe definitions and queued collection are refused.
 Stored originals retain their own bytes and revision. See
 [operating limits](OPERATIONS.md#encoded-native-reporting-definitions) and
-[delivery evidence](review/DELIVERY-2026-10-03-REPORT-BODY-SCOPE.md).
+[delivery evidence](records/DELIVERY-2026-10-03-REPORT-BODY-SCOPE.md).
 
 ### Compare an import before saving its changes
 
@@ -1670,7 +1670,7 @@ source items are retained. Revalidate after editing the file, mappings, account 
 (`/commerce?catalog_comparison=1&gateway=…&connection_id=…&account_id=…&catalog_id=…`) select only a currently
 accessible account of that gateway and its catalog ID, and ask for the source CSV again, without an automatic read. A
 link without `gateway` is a Meta comparison; a gateway that does not match the account selects nothing.
-See [comparison qualification and limits](review/DELIVERY-2026-10-03-CATALOG-COMPARISON.md).
+See [comparison qualification and limits](records/DELIVERY-2026-10-03-CATALOG-COMPARISON.md).
 
 ### Google Search conversion bidding
 
@@ -1681,7 +1681,7 @@ intent, then save an unapproved plan. An approved client playbook may supply exa
 Check current goals and primary actions, conversion delivery and eligibility before separate activation.
 A target CPA is an average optimization target rather than a spending cap. Existing per-step review, native
 strategy/target verification and original receipt recovery still apply. See
-[batch 117 evidence](review/DELIVERY-2026-10-03-GOOGLE-CONVERSION-RECIPES.md).
+[batch 117 evidence](records/DELIVERY-2026-10-03-GOOGLE-CONVERSION-RECIPES.md).
 
 ### Google Search conversion-value bidding
 
@@ -1692,7 +1692,7 @@ the native request uses Google's double. Save an unapproved paused draft, then r
 Goals and value settings remain unchanged. Current primary goals can be inspected, but recorded-value delivery,
 conversion history and account eligibility need separate verification before activation. A ROAS target is an
 average optimization ratio rather than guaranteed return or a spending cap. See
-[contract research and evidence](review/DELIVERY-2026-10-04-GOOGLE-VALUE-RECIPES.md).
+[contract research and evidence](records/DELIVERY-2026-10-04-GOOGLE-VALUE-RECIPES.md).
 
 ### Current conversion configuration before activation
 
@@ -1707,7 +1707,7 @@ Read access can inspect this configuration while write authority remains blocked
 paused draft; it does not retain this check as continuing activation authority. Current settings can change.
 Verify event delivery, provider eligibility and current goals before the separate activation review. For MCP,
 use amcp_campaign recipe_eligibility with the original recipe/business/profile and live:true; omit live or use
-false for a local-only check. See [batch 118 qualification](review/DELIVERY-2026-10-03-GOOGLE-GOAL-INSPECTION.md).
+false for a local-only check. See [batch 118 qualification](records/DELIVERY-2026-10-03-GOOGLE-GOAL-INSPECTION.md).
 
 ## Snapchat submitted native lead forms
 
@@ -1727,7 +1727,7 @@ Inspect/search/page retained rows or download all rows with an explicit English/
 downloads include original campaign identity and retained parent/account/page hashes, without native request
 bodies. Creative library linked-ad performance separately offers compatible retained purchase or native-form
 snapshots for exact verified ad IDs; metric labels distinguish otherwise identical saved names. It makes no
-provider call and rechecks current access. See [qualification](review/DELIVERY-2026-10-04-SNAPCHAT-NATIVE-LEADS.md).
+provider call and rechecks current access. See [qualification](records/DELIVERY-2026-10-04-SNAPCHAT-NATIVE-LEADS.md).
 
 ## Finding saved evidence
 
@@ -1742,7 +1742,7 @@ For MCP, use amcp_reporting list with limit (default 30, maximum 100), optional 
 filters. Account filtering also requires gateway. Supply next_cursor under unchanged filters; nonzero offset is refused.
 Continuations expire after 15 minutes and bind current identity/session/role and connection grants. Complete report rows,
 native source definitions, analysis and exports remain available through the original report ID. See
-[qualification](review/DELIVERY-2026-10-04-EVIDENCE-INDEX.md).
+[qualification](records/DELIVERY-2026-10-04-EVIDENCE-INDEX.md).
 
 ## X source products and current comparison
 
@@ -1759,7 +1759,7 @@ Only original supplied rows are returned, with qualified omitted-attribute names
 Save only products needing review excludes matching/blocked rows. Both subset/all saves remain unapproved local
 drafts with no product mutation; native review applies the same group guards and fresh ownership independently.
 Missing source items are retained. This is sequential current evidence, not complete variant reconciliation or
-a point-in-time inventory. See [workflow and qualification](review/DELIVERY-2026-10-04-X-CATALOG-COMPARISON.md).
+a point-in-time inventory. See [workflow and qualification](records/DELIVERY-2026-10-04-X-CATALOG-COMPARISON.md).
 
 ### Preview explicitly selected X product removal
 
@@ -1770,7 +1770,7 @@ deleting any product. Every selected key has a separate native review, confirmat
 read-back; the review itself checks that the product it reads still matches the selected evidence, at prepare and
 again at execute. A feed may restore products it still contains. Products outside the explicit selection stay retained;
 missing/grouped/unknown records and deleting absent-source inventory are outside this workflow.
-See [delivery](review/DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md).
+See [delivery](records/DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md).
 
 ### Sale prices, retirement, variant groups and Snapchat comparisons
 
@@ -1813,7 +1813,7 @@ settings for the scoped English/Arabic table. Zero and false remain explicit; mi
 unknown. Counts cover the whole matched collection, including undisplayed rows. Current configuration does
 not confirm received values, conversion history, eligibility or actual return. It does not edit settings or
 authorize activation. Readers can inspect it while write blockers remain. See
-[scope and qualification](review/DELIVERY-2026-10-04-GOOGLE-VALUE-INSPECTION.md).
+[scope and qualification](records/DELIVERY-2026-10-04-GOOGLE-VALUE-INSPECTION.md).
 
 ### Last reported Google conversion activity
 
@@ -1822,7 +1822,7 @@ for the same current primary actions. Times retain the original advertising-acco
 stay explicit. Counters cover the full matching primary collection, while at most twenty rows are displayed.
 A detected tag may have no attributable conversion. These observations do not establish delivered values,
 recent volume, consent, deduplication, bidding eligibility or actual return. The check creates no advertising
-change or saved snapshot. See [scope and qualification](review/DELIVERY-2026-10-04-GOOGLE-CONVERSION-ACTIVITY.md).
+change or saved snapshot. See [scope and qualification](records/DELIVERY-2026-10-04-GOOGLE-CONVERSION-ACTIVITY.md).
 
 ## Current Google image links
 
@@ -1832,7 +1832,7 @@ App, Demand Gen and Responsive Search links are covered; Responsive Display, Per
 and historical attribution remain outside this selected view. Missing link flags/types stay unresolved and
 removed links are counted separately. Configured statuses do not prove serving or reuse eligibility. The
 English/Arabic table preserves exact native IDs and source names; late results cannot replace a changed view.
-Meta retains its existing reference pages. See [scope and qualification](review/DELIVERY-2026-10-04-GOOGLE-IMAGE-REFERENCES.md).
+Meta retains its existing reference pages. See [scope and qualification](records/DELIVERY-2026-10-04-GOOGLE-IMAGE-REFERENCES.md).
 
 ## Performance Max image asset-group links
 
@@ -1841,7 +1841,7 @@ and explicitly read the selected view. The result identifies asset groups rather
 enabled/paused link configuration, group/campaign status, removed links and unresolved links remain distinct.
 Changing the view or limit clears displayed results and invalidates pending reads. The default Google ad-link
 view and Meta paging remain. Campaign-level brand-guideline logos, other associations, serving and historical
-attribution stay outside this evidence. See [scope and qualification](review/DELIVERY-2026-10-04-GOOGLE-PMAX-IMAGE-REFERENCES.md).
+attribution stay outside this evidence. See [scope and qualification](records/DELIVERY-2026-10-04-GOOGLE-PMAX-IMAGE-REFERENCES.md).
 
 ### Original Performance Max campaign logo references
 
@@ -1851,7 +1851,7 @@ Performance Max campaign/image identity are required. LOGO/LANDSCAPE_LOGO link c
 unknown links remain distinct. Campaign links are not ads or asset groups. The default ad view and explicit
 asset-group view remain independent. Google handoffs retain the original asset, chosen view and bounded
 limit; the website waits for an explicit read and clears view choices when another asset is opened. No
-write grant, serving/performance/history or all-format absence is established. See [qualification](review/DELIVERY-2026-10-04-GOOGLE-PMAX-CAMPAIGN-LOGOS.md).
+write grant, serving/performance/history or all-format absence is established. See [qualification](records/DELIVERY-2026-10-04-GOOGLE-PMAX-CAMPAIGN-LOGOS.md).
 
 ### Selected WooCommerce source products
 
@@ -1865,7 +1865,7 @@ in headers on fresh public-DNS-checked sockets; redirects, caller URLs, incomple
 and sandbox routes are refused. No snapshots, writes or full inventory/variant/tax/acceptance claims
 are added. The bilingual source table exposes blockers; explicitly selected eligible simple products
 enter the existing Meta supplied-product preview/comparison/unapproved draft. X retains its ten explicit
-CSV fields. MCP handoffs preselect exact source IDs/price without an automatic read. See [qualification](review/DELIVERY-2026-10-04-WOOCOMMERCE-SOURCE.md).
+CSV fields. MCP handoffs preselect exact source IDs/price without an automatic read. See [qualification](records/DELIVERY-2026-10-04-WOOCOMMERCE-SOURCE.md).
 
 ### Original Snapchat top-snap references
 
@@ -1878,7 +1878,7 @@ bracketed original account/media observations must match. Native pages have 50 r
 write authority. Only literal `creative.top_snap_media_id` is inspected; other/nested media and history
 remain outside this view. Creative packaging/review and media processing do not prove ad serving.
 The bilingual table keeps exact UUIDs and separate statuses; changes clear old results, and qualified
-MCP handoffs preserve the original asset/bound without an automatic read. See [qualification](review/DELIVERY-2026-10-04-SNAPCHAT-TOP-SNAP-REFERENCES.md).
+MCP handoffs preserve the original asset/bound without an automatic read. See [qualification](records/DELIVERY-2026-10-04-SNAPCHAT-TOP-SNAP-REFERENCES.md).
 
 Native Meta catalog product read-back now covers all 35 accepted observable fields, including exact
 integer inventory, ordered additional images and literal sale dates. An accepted receipt alone cannot
@@ -1895,7 +1895,7 @@ keeps its visible Tab order until closed and restores its trigger after Escape o
 Owner-account and catalog comparison tables have named keyboard scroll regions/captions; privacy's
 original skip target receives focus. Account grants, product selections and provider writes retain their
 original controls. See [local browser setup and scope](LOCAL-BROWSER-QA.md) and
-[delivery evidence](review/DELIVERY-2026-10-04-RENDERED-WORKFLOWS.md). Hosted CI remains owner-paused;
+[delivery evidence](records/DELIVERY-2026-10-04-RENDERED-WORKFLOWS.md). Hosted CI remains owner-paused;
 continue exact local source/report/full gates with required FFmpeg. Full Arabic privacy, broader
 populated states, assistive technology and live/deployed/provider acceptance remain separate.
 
@@ -1906,7 +1906,7 @@ keyboard-scroll regions. A source SKU/name with surrounding whitespace stays exa
 cannot be selected for Meta; correct the original store value and explicitly reread it. The supplied
 Meta preview applies the native destination's product-field validation before offering a plan.
 No identifier is trimmed or invented, and products keep their separate ownership/read-back/write-review
-requirements. See [delivery evidence](review/DELIVERY-2026-10-04-COMMERCE-READABILITY.md) and
+requirements. See [delivery evidence](records/DELIVERY-2026-10-04-COMMERCE-READABILITY.md) and
 [local browser checks](LOCAL-BROWSER-QA.md). Broader inventory/variants and live acceptance remain separate.
 
 ### Batch 151 — complete privacy languages
@@ -1916,7 +1916,7 @@ The published privacy policy is fully readable in English/Arabic without login o
 Ordinary policy language links work without scripts, and the selected website language determines
 website privacy-link destinations. The choice does not change workspace preference, consent or
 provider permissions. English policy content, date, anchors and linked destinations remain.
-See [qualification](review/DELIVERY-2026-10-04-ARABIC-PRIVACY.md). Structural/rendered checks do not
+See [qualification](records/DELIVERY-2026-10-04-ARABIC-PRIVACY.md). Structural/rendered checks do not
 replace human legal/editorial or assistive/live/deployed acceptance.
 
 ### Selected WooCommerce variations and explicit Meta groups
@@ -1932,7 +1932,7 @@ source changes clear stale previews. Saving creates only an unapproved draft; na
 review and receipt/read-back remain required before execution. Six repeated/bracketed GETs enforce
 current access, parent membership, complete selected evidence, one deadline and combined body bounds.
 There is no automatic read, image ancestry/tax/full-inventory proof or missing-source deletion.
-Meta CSV also accepts an explicit optional group; X retains its ten original fields. See [qualification](review/DELIVERY-2026-10-04-WOOCOMMERCE-VARIATIONS.md) and [CSV group mapping](review/DELIVERY-2026-10-04-META-GROUP-CSV.md).
+Meta CSV also accepts an explicit optional group; X retains its ten original fields. See [qualification](records/DELIVERY-2026-10-04-WOOCOMMERCE-VARIATIONS.md) and [CSV group mapping](records/DELIVERY-2026-10-04-META-GROUP-CSV.md).
 
 ### Explicit Meta CSV product groups
 
@@ -1943,7 +1943,7 @@ Choose the destination before loading mapped columns; changing account/login/des
 old mapping/preview evidence. X retains its ten fields and refuses Meta groups before submission.
 Selected WooCommerce mode hides unrelated CSV layout controls; returning to CSV restores its choice.
 Group previews/comparisons retain the existing unapproved-draft and per-product native review/receipt/
-complete-field-proof path. See [workflow and qualification](review/DELIVERY-2026-10-04-META-GROUP-CSV.md).
+complete-field-proof path. See [workflow and qualification](records/DELIVERY-2026-10-04-META-GROUP-CSV.md).
 
 ### Readable recent GA4 event evidence
 
@@ -1951,7 +1951,7 @@ The recent-event summary and minute/stream details have English/Arabic captions 
 columns. Original names, exact counts and stream IDs stay literal with explicit LTR isolation.
 No count returned remains unknown; editing scope clears old evidence and only an explicit request
 reads the native aggregate report. Existing tracking-health/runtime-consent limits remain visible.
-See [measured qualification](review/DELIVERY-2026-10-04-GA4-EVENT-LAYOUT.md).
+See [measured qualification](records/DELIVERY-2026-10-04-GA4-EVENT-LAYOUT.md).
 
 ### Choose retained evidence page length
 
@@ -1959,7 +1959,7 @@ Rows per page offers explicit 10/25/50/100 choices above the saved-row table, de
 returns to the first page of the active search under the original report/source. Native identity
 columns form scoped row headers; hiding both never turns a metric into an identity. Search and
 column choices remain local views, totals stay complete and Excel still includes every original row.
-See [connected qualification](review/DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md).
+See [connected qualification](records/DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md).
 
 ### Retain Google keyword performance by day
 
@@ -1969,13 +1969,13 @@ positive Search keyword_view pages; native text, full resource identity and EXAC
 Search can filter the original match type; full totals and every-row Excel remain the original report.
 Only explicitly mapped keyword workbooks append the native match-type column. Attribution/completeness
 remain declared, and keyword evidence does not qualify exclusions or budget changes. See [workflow and
-qualification](review/DELIVERY-2026-10-05-GOOGLE-KEYWORD-EVIDENCE.md).
+qualification](records/DELIVERY-2026-10-05-GOOGLE-KEYWORD-EVIDENCE.md).
 
 ### Readable saved-report controls
 
 Retained row search, Rows per page, direct page choice and Excel language now use readable labels/type,
 roomier fields and visible keyboard focus. Search/actions wrap into a phone layout; original values,
-source identity, complete totals and every-row Excel remain. See [measurement and scope](review/DELIVERY-2026-10-05-EVIDENCE-CONTROL-LAYOUT.md).
+source identity, complete totals and every-row Excel remain. See [measurement and scope](records/DELIVERY-2026-10-05-EVIDENCE-CONTROL-LAYOUT.md).
 
 ### Recover from a refused Google evidence capture
 
@@ -1984,7 +1984,7 @@ language. Check the reported issue and the selected account/date/currency/timezo
 use **Read and retain evidence** again when appropriate. A failed collection saves no new report.
 The form keeps its selected scope and settings; another read starts only after your explicit submit.
 A successful capture retains original evidence, full totals and every-row Excel delivery. See
-[scope and qualification](review/DELIVERY-2026-10-05-GOOGLE-CAPTURE-RECOVERY.md).
+[scope and qualification](records/DELIVERY-2026-10-05-GOOGLE-CAPTURE-RECOVERY.md).
 
 ### Retain Google campaign performance by device
 
@@ -1993,7 +1993,7 @@ original currency/timezone/date/attribution settings. Explicit capture keeps cam
 by original device and account-local day; UNKNOWN and UNSPECIFIED remain original categories.
 Missing categories do not prove zero activity. Search by device changes only displayed rows;
 complete totals and every original Excel row remain. This report does not qualify device bids,
-campaign budgets or exclusions. See [scope and qualification](review/DELIVERY-2026-10-05-GOOGLE-DEVICE-EVIDENCE.md).
+campaign budgets or exclusions. See [scope and qualification](records/DELIVERY-2026-10-05-GOOGLE-DEVICE-EVIDENCE.md).
 
 ### Inspect other listed X products without inferring source absence
 
@@ -2010,7 +2010,7 @@ X listings may hide variants, and your supplied selection does not establish ful
 absence. Changed native observations require a new explicit read. A current failure stays
 visible with its request reference; editing the form clears old evidence and suppresses late
 responses. Ordinary saved drafts still contain only the supplied products. See
-[scope and checks](review/DELIVERY-2026-10-06-X-CATALOG-SELECTION-INVENTORY.md).
+[scope and checks](records/DELIVERY-2026-10-06-X-CATALOG-SELECTION-INVENTORY.md).
 
 ### Retain Google campaign performance by original hour
 
@@ -2020,14 +2020,14 @@ the original reported hour 0–23 and date with full campaign identities; midnig
 0. Missing hours do not prove zero activity. Search by hour changes the view; downloads include
 every captured row and the original full totals. No UTC/DST conversion or schedule, bid, budget
 or exclusion change is inferred. A failed capture saves nothing; review its reason/settings
-and explicitly submit again. See [scope and qualification](review/DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md).
+and explicitly submit again. See [scope and qualification](records/DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md).
 
 ### Keep a refused capture reason while reviewing settings
 
 A current detailed-capture failure remains beside **Read and retain evidence**, with its reason,
 recovery hint and original request reference. Review it and your settings before another explicit
 submit. Editing settings clears that old message and retains the original completeness rules.
-A reply from an older form/scope cannot paint a new error. See [scope and qualification](review/DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md).
+A reply from an older form/scope cannot paint a new error. See [scope and qualification](records/DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md).
 
 ### Provider capture refusals
 
@@ -2047,7 +2047,7 @@ settings survive. Editing invalidates the earlier observation and feedback witho
 provider read. A response from an obsolete selection stays silent. An explicit second read uses
 the current settings and retains exact native counts, unknown observations and property-calendar
 boundaries. AMCP sends no test event, stores no snapshot and does not infer consent, deduplication
-or attribution from these aggregates. See [measurement feedback delivery](review/DELIVERY-2026-10-05-MEASUREMENT-READ-FEEDBACK.md).
+or attribution from these aggregates. See [measurement feedback delivery](records/DELIVERY-2026-10-05-MEASUREMENT-READ-FEEDBACK.md).
 
 ### Shared recovery guidance in your interface language
 
@@ -2056,7 +2056,7 @@ recipe inputs, review/idempotency, connection discovery, report tasks, owner con
 The formatter retains the native reason, code, reference and retry metadata. Unknown text stays
 literal. A 403 remains a provider access denial and does not establish a missing OAuth scope.
 A translated instruction does not start a reconnect, grant access or retry an uncertain write.
-See [delivery](review/DELIVERY-2026-10-05-SHARED-RECOVERY-GUIDANCE.md) and the
+See [delivery](records/DELIVERY-2026-10-05-SHARED-RECOVERY-GUIDANCE.md) and the
 [current completion walkthrough](CURRENT-READINESS.md).
 
 ### Recovering other workspace forms
@@ -2068,7 +2068,7 @@ call. Failure responses from an obsolete identity, selection or attempt stay sil
 recovery guidance before continuing; an uncertain submitted write still needs its original receipt
 and reconciliation. GTM audit and LinkedIn conversion settings qualify explicit read-only recovery,
 while configuration remains distinct from live event delivery or historical attribution.
-See [shared form feedback](review/DELIVERY-2026-10-05-WORKSPACE-FORM-FEEDBACK.md).
+See [shared form feedback](records/DELIVERY-2026-10-05-WORKSPACE-FORM-FEEDBACK.md).
 
 LinkedIn conversion tables keep rule names and IDs in a readable column and preserve literal
 native IDs, types and exact amount/currency together. Use the named scroll region to inspect all
@@ -2086,14 +2086,14 @@ Open Related measurement workflows for reporting context, approved client conver
 exact capability discovery. Exact section fragments can focus a named inspection while keeping
 the original current-account handoff query; an unknown fragment does not select a task. The normal
 account/test/audit scope validation and read-only evidence boundaries still apply.
-See [navigation evidence and limits](review/DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md).
+See [navigation evidence and limits](records/DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md).
 
 ## Account inventory recovery language
 
 The six supported inventory collectors and dispatcher now require Arabic for all 131 selected
 AMCP-authored direct refusal/instruction sentences. Native/dynamic diagnostics and original
 codes/IDs/amounts/selectors remain separate. The existing persistent described form alert retains
-reason, recovery hint and reference; edit clearing makes no new read. See [account inventory diagnostic evidence](review/DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md).
+reason, recovery hint and reference; edit clearing makes no new read. See [account inventory diagnostic evidence](records/DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md).
 
 ## Effective operation help and inventory read recovery
 
@@ -2106,7 +2106,7 @@ qualification remain separate. Unknown/nonversioned/independent help retains its
 A malformed native inventory response now identifies provider-owned recovery: keep the original
 selected account/hierarchy, retry that read once, and report the original request ID if it recurs.
 Its authored Arabic hint is required by the existing locale gate. No elapsed time, edit, navigation
-or help read triggers an automatic provider retry. See [operation help and inventory recovery evidence](review/DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md).
+or help read triggers an automatic provider retry. See [operation help and inventory recovery evidence](records/DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md).
 
 ## Website account diagnostics and references — batch 170
 
@@ -2116,7 +2116,7 @@ HTTP errors reaching the common handler keep their status/code/message and add a
 meta.requestId. The existing browser formatter presents that reference in either language.
 A matching six-field optional diagnostic event omits request payload, credentials and identity;
 production stdout/stderr wiring already exists. MCP errors and reviewed-write authority remain exact.
-See [website diagnostic evidence](review/DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md). Complete working-source local release/browser gates pass; exact committed-source qualification gates the sole push.
+See [website diagnostic evidence](records/DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md). Complete working-source local release/browser gates pass; exact committed-source qualification gates the sole push.
 B13/B16/B24 and the 13 implemented / 14 partial / one open matrix remain unchanged.
 
 ## Core contract diagnostics and public source comparison — batch 171
@@ -2125,7 +2125,7 @@ Six selected core modules now require Arabic for 239 distinct authored MirrorErr
 The catalog adds 239 translations, preserves every earlier 4,415 value and contains 4,654 entries;
 the complete locale gate requires 4,484 messages. Original native IDs, amounts, tokens, codes,
 authority, protocol and execution stay exact. Other static/dynamic copy and full editorial/assistive
-acceptance remain separate. See [core diagnostic evidence](review/DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).
+acceptance remain separate. See [core diagnostic evidence](records/DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).
 
 An explicit public comparison command checks unauthenticated liveness and exact About/Arabic
 asset bytes. Public HTTP 200 does not establish current backend Git/image or provider acceptance.
@@ -2139,7 +2139,7 @@ Commerce now offers explicit complete bounded published-parent/reported-child in
 Choose the existing store/login and exact price field, submit once, and inspect exact native IDs,
 values, memberships, statuses and currency. Search/paging are local; absent products are retained.
 Inventory does not create a draft, establish unpublished-parent coverage or approve a destination.
-[Store inventory operation and limits](review/DELIVERY-2026-10-06-WOOCOMMERCE-INVENTORY.md).
+[Store inventory operation and limits](records/DELIVERY-2026-10-06-WOOCOMMERCE-INVENTORY.md).
 
 Owners can inspect shared process observations in Settings and refresh explicitly. The capped,
 bilingual table distinguishes unavailable, uncertain, stale and recently observed processes while
@@ -2147,7 +2147,7 @@ explaining that queue progression, capacity, provider acceptance and delivery ar
 (WEB-08): the newest report's age in human terms (for example "98 minutes"), the 90-second threshold and the
 working/idle counts of the observations shown; the table itself starts collapsed and gives each exact age in seconds
 on hover. Current request/session/identity/navigation checks prevent old health from replacing another view.
-[Worker scope, measured tradeoff and simultaneous-client tasks](review/DELIVERY-2026-10-06-WORKER-HEALTH.md).
+[Worker scope, measured tradeoff and simultaneous-client tasks](records/DELIVERY-2026-10-06-WORKER-HEALTH.md).
 
 ## Administrator store connections — batch 184
 
@@ -2161,4 +2161,4 @@ refresh action. An identical explicit retry recovers the original encrypted rece
 Local removal requires a specific source and two explicit confirmations. It removes the local
 connection/credential/proof and related retained report data, with no native request or key change.
 The removal tombstone prevents replay from recreating the old connection. Generic asset/write
-controls refuse commerce. [Operator steps, limits and checks](review/DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).
+controls refuse commerce. [Operator steps, limits and checks](records/DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).

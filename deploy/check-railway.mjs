@@ -37,6 +37,10 @@ export const mustDeploy = [
 export const mustNotDeploy = [
   'docs/OPERATIONS.md',
   'docs/review/DELIVERY-2026-10-04-SCHEDULER-WORKERS.md',
+  // DOC-03: the records, the archive and the owner guide in both languages are documentation too.
+  'docs/records/DELIVERY-2026-10-04-SCHEDULER-WORKERS.md',
+  'docs/archive/REVIEW-2026-10-01.md',
+  'docs/owner/ar/README.md',
   'docs/a/b.md',
 ];
 

@@ -89,6 +89,11 @@ neither the box nor the export button (WCAG 2.4.11). The shell chrome cases (851
 group and require each label to take the row beside its icon (wider than 40 px, not centred, at most two lines); the
 icon's 20 px box had broken "Evidence & analysis" into three centred lines.
 
+The qualification records of waves 2 to 4a below stay where they were written. Record the next run in
+`docs/records/` (for example `QUALIFICATION-<wave>-<date>.md`, with its revision, digests and figures) and link
+it from here: since the documentation freeze (DOC-03), a current page cites no commit and repeats no long line of
+another current page, and `npm run docs:index:check` refuses one (`tools/docs-lint.mjs`).
+
 ## Wave 2 qualification regressions (2026-10-12)
 
 The first full rendered run after the wave 1 and 2 merges (revision `40ed7a5`: 1,248 cases, 933 passed, 315 failed,
@@ -650,7 +655,7 @@ without retry and an explicit original-scope recovery makes three separate GETs.
 configuration after a selection edit must stay silent. These journeys require 112 fixed synthetic
 GETs, no external egress/effects/retained evidence and all original keyboard/table/reflow checks.
 Rejected preliminary runner artifacts are retained. Only complete fresh working/exact-HEAD
-receipts qualify the release. See [evidence and limits](review/DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
+receipts qualify the release. See [evidence and limits](records/DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
 
 ## Batch 167 — measurement task navigation
 
@@ -667,7 +672,7 @@ The shared helper source hash is part of the result record alongside website/run
 hashes. Held response handlers finish before interception is removed, preserving the strict native
 read bound. Rejected preliminary harness/visual evidence remains separate. These selected Chromium
 keyboard/reflow/contrast checks do not establish full screen-reader, touch or WCAG acceptance.
-See [delivery](review/DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md).
+See [delivery](records/DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md).
 
 ## Six-provider inventory diagnostics
 
@@ -678,7 +683,7 @@ synthetic read. The original described alert retains translated authored reason/
 for 6,600 ms, original selection/focus, and clears on edit with no automatic read or saved record.
 Both the dedicated browser helper and native fixture hashes are retained. Every preceding 360
 journey and its assertions remains required. This is local synthetic evidence, with live,
-physical-device, full Arabic editorial and assistive acceptance separate. See [account inventory diagnostic evidence](review/DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md).
+physical-device, full Arabic editorial and assistive acceptance separate. See [account inventory diagnostic evidence](records/DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md).
 
 ## Exact inventory read-recovery guidance
 
@@ -687,7 +692,7 @@ assert provider category/ownership, unchanged false retryable and mutation_retry
 authored Arabic recovery and explicit manual-read-only guidance. All original request/reference,
 selection/focus, 6,600 ms described-alert persistence, viewport and edit/no-read assertions remain.
 Catalog discovery SDK/HTTP regressions run in the default suite; discovery does not call a provider.
-See [operation help and inventory recovery evidence](review/DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md).
+See [operation help and inventory recovery evidence](records/DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md).
 
 ## Batch 170 diagnostic coverage
 
@@ -698,7 +703,7 @@ Twelve new non-browser tests additionally check all 232 selected server reasons 
 formatters and four actual owned early HTTP refusals, optional sink failure and original MCP auth.
 Do not label those synthetic HTTP/VM cases a live OAuth callback roundtrip or physical assistive
 technology test. All working-source 408 journeys pass; fresh exact clean-head qualification gates the sole push. See
-[website diagnostic evidence](review/DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md).
+[website diagnostic evidence](records/DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md).
 
 ## Core contract diagnostics and public source comparison — batch 171
 
@@ -706,7 +711,7 @@ The original 408 served journeys and every earlier assertion remain required in 
 at 320/375/768/1280 px. This increment changes only catalog copy on the browser side. Six new
 VM/ownership tests qualify all 239 selected core reasons; eight actual loopback HTTP tests
 qualify the bounded optional public comparison independently. Native execution, controllers,
-styles, browser helpers and existing fixtures remain exact. All working-source 408 journeys pass; fresh exact clean-head qualification gates the sole push. See [core diagnostic evidence](review/DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).
+styles, browser helpers and existing fixtures remain exact. All working-source 408 journeys pass; fresh exact clean-head qualification gates the sole push. See [core diagnostic evidence](records/DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).
 
 ## Maintained browser semantics — batch 172
 
@@ -718,7 +723,7 @@ heading. Final views retain name/reference checks while allowing the original mo
 Inspection disables its accessibility domain and detaches its session, including refusal paths.
 Every prior case, native count, egress/write boundary, geometry/focus and workflow assertion stays
 exact. All 54 website files and 4,654 Arabic entries remain byte-identical.
-See [semantic evidence](review/DELIVERY-2026-10-05-BROWSER-SEMANTICS.md). Complete working-source semantic release/browser gates pass; exact committed-source checks gate the sole push.
+See [semantic evidence](records/DELIVERY-2026-10-05-BROWSER-SEMANTICS.md). Complete working-source semantic release/browser gates pass; exact committed-source checks gate the sole push.
 This automated browser guard does not establish physical assistive-technology or full WCAG
 acceptance. The whole-plan status remains 13 implemented / 14 partial / one open; Actions stay waived.
 
@@ -731,7 +736,7 @@ files. Its actual inventory is 424 files, 173 with selected reasons, and 1,288 d
 owned sentences. The complete locale gate requires 5,294 messages and has zero missing entries
 in the 5,460-value catalog. Native fields, numeric limits, response bytes, identifiers, uncertainty
 and request references retain their original meaning. Backend behavior and all earlier selectors
-and gate statements remain unchanged. See [evidence](review/DELIVERY-2026-10-05-BACKEND-CONTRACT-LOCALIZATION.md).
+and gate statements remain unchanged. See [evidence](records/DELIVERY-2026-10-05-BACKEND-CONTRACT-LOCALIZATION.md).
 Complete working-source backend-Arabic release/browser gates pass; exact committed-source checks gate the sole push. Dynamic/native messages and local wrapper-generated reasons remain outside this
 direct-constructor inventory; whole-plan Arabic, physical assistive and deployed acceptance remain
 partial. The matrix stays 13 implemented / 14 partial / one open, with hosted Actions owner-waived.
@@ -743,7 +748,7 @@ of the existing 408 served website journeys. Every website file, runner/helper, 
 native read/recovery assertion and initial/completed accessibility check stays exact. The new
 route preserves original host/auth/health behavior and exposes only bounded scoped metadata.
 The only preceding test edit advances the exact backend file inventory from 424 to 427; all
-native/token/Arabic assertions remain unchanged. See [qualification and limits](review/DELIVERY-2026-10-05-RELEASE-IDENTITY.md).
+native/token/Arabic assertions remain unchanged. See [qualification and limits](records/DELIVERY-2026-10-05-RELEASE-IDENTITY.md).
 Complete working-source release-identity gates pass; exact committed-source full/browser checks gate the sole push.
 
 ## Qualified wrapper Arabic and catalog transport — batch 175
@@ -776,7 +781,7 @@ and returns a fixed refusal for inconsistent HTTP-200 JSON. Forecast preflight r
 included geographic-only clause before transport while retaining all three read-only actions
 and native payloads. Audience Insights stays unchanged; one manually authored Arabic reason
 preserves all preceding 8,056 values. B08/B13/B26 remain partial, B25 open; counts stay 13/14/1.
-See [implementation and primary sources](review/DELIVERY-2026-10-05-LIVENESS-PLANNING-PREREQUISITES.md).
+See [implementation and primary sources](records/DELIVERY-2026-10-05-LIVENESS-PLANNING-PREREQUISITES.md).
 Hosted Actions stay owner-waived; full local source/report/FFmpeg checks remain mandatory.
 Working-source checks pass; exact clean committed source/full/browser checks remain the sole push gate.
 
@@ -798,14 +803,14 @@ case. Incomplete rules retain manual_review_required and their original evidence
 deadline, unexpected engine or malformed result refuses qualification rather than dropping it.
 An unset optional path retains the earlier browser checks. The root dependency/lockfile and
 application runtime stay exact. Selected automated pass is not full WCAG or physical AT.
-[Reproductions, primary sources and limits](review/DELIVERY-2026-10-05-BROWSER-WCAG.md).
+[Reproductions, primary sources and limits](records/DELIVERY-2026-10-05-BROWSER-WCAG.md).
 Working-source full/report and focused changed-state checks pass; exact clean committed full/browser checks remain the sole push gate.
 
 The retained first full selected-rule audit finds 88 populated-state failures. Shared
 pagination contrast and named keyboard-scrollable original-record regions now address those
 reproductions. Focused original journeys and a fresh complete clean-head browser run qualify
 the changed source separately; the failed audit is never reported as a passing release.
-[Scope and additional primary evidence](review/DELIVERY-2026-10-05-BROWSER-WCAG.md).
+[Scope and additional primary evidence](records/DELIVERY-2026-10-05-BROWSER-WCAG.md).
 
 ## Batch 179 — original hourly evidence and explicit recovery
 
@@ -820,7 +825,7 @@ reflow, semantic and optional selected-WCAG checks apply to these served pages. 
 assertions remain. New fixture/helper hashes are recorded with exact runner/source evidence.
 Prototype qualification is labeled separately from clean committed-source qualification.
 No real-provider read/write or advertising artifact is allowed. See
-[interpretation and release checks](review/DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md).
+[interpretation and release checks](records/DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md).
 
 ## Batch 180 — other listed X products with explicit retention
 
@@ -835,7 +840,7 @@ with 400 synthetic GETs, 2,904 original other-product observations, zero mutatio
 48 semantic/pinned selected-rule snapshots and all manual evidence retained. All 8,066 earlier
 Arabic values remain; 25 are added. Fresh integrated full/report/source/browser gates follow.
 B21/B15/B16/B24 remain partial, B25 open; the matrix remains 13/14/1 and Actions remains unused.
-See [contract, workflow and qualification](review/DELIVERY-2026-10-06-X-CATALOG-SELECTION-INVENTORY.md).
+See [contract, workflow and qualification](records/DELIVERY-2026-10-06-X-CATALOG-SELECTION-INVENTORY.md).
 
 The maintained total is now 456 cases. Three new catalog kinds retain all 432 old identities,
 keyboard/native assertions and deadlines. Each locale/width checks the exact safe 121 outside-
@@ -863,11 +868,11 @@ still retain incomplete/manual evidence; the suite does not certify physical ass
 or full Arabic editorial acceptance. A working-source run is identified as such. Any later
 committed-source claim must prove the exact website, compiled backend and maintained browser
 inputs match the tested bytes. See
-[contract/qualification record](review/DELIVERY-2026-10-07-CONDITIONAL-PROGRAMS.md).
+[contract/qualification record](records/DELIVERY-2026-10-07-CONDITIONAL-PROGRAMS.md).
 
 ## Appearance and immediate detail export
 
-All selected public/workspace and populated/refusal journeys run in both light and dark appearance. Dark cases verify system resolution, an explicit light/dark switch, reload persistence and returning to system. The granular Overview fixture exercises ad and ad-set reports, original native IDs, preserving form inputs during appearance changes, exporting the original snapshot after setup edits, unchecked export confirmation, real synthetic worker/Sheets batches, preserving the original tab and creating no schedule. Automated contrast inspection includes populated results; manual/physical-assistive acceptance remains separate. See [batch 191](review/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md).
+All selected public/workspace and populated/refusal journeys run in both light and dark appearance. Dark cases verify system resolution, an explicit light/dark switch, reload persistence and returning to system. The granular Overview fixture exercises ad and ad-set reports, original native IDs, preserving form inputs during appearance changes, exporting the original snapshot after setup edits, unchecked export confirmation, real synthetic worker/Sheets batches, preserving the original tab and creating no schedule. Automated contrast inspection includes populated results; manual/physical-assistive acceptance remains separate. See [batch 191](records/DELIVERY-2026-10-07-APPEARANCE-MEDIA-DETAIL.md).
 
 ## Pending rendered journeys
 

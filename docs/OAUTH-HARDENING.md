@@ -64,4 +64,4 @@ identity, message and stack. An unavailable sink does not prevent the original r
 server/http.ts already writes configured events to stdout/stderr; deployment retention is separate.
 The original MCP JSON-RPC branch and MCP finish log remain byte-identical. These local contracts
 do not establish live OAuth-provider acceptance or privacy of every other existing log. See
-[website diagnostic evidence](review/DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md).
+[website diagnostic evidence](records/DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md).

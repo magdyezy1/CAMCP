@@ -12,7 +12,7 @@ live-provider action is included.
 ## Original review-first sequence — 1 October 2026
 
 The owner requested a comprehensive review before implementation, on `magdyezy1/CAMCP`, branch `Work-here` only.
-The [new review](REVIEW-2026-10-01.md) evaluates the existing system, separates reproduced defects from hypotheses
+The [new review](../archive/REVIEW-2026-10-01.md) evaluates the existing system, separates reproduced defects from hypotheses
 and opportunities, and gives acceptance criteria. The [full product blueprint](PRODUCT-BLUEPRINT-2026-10-01.md)
 adds 28 consolidated work packages, dependencies and acceptance criteria for workflows, provider contracts, website
 design and new capabilities. Its three detailed specifications include ten journeys and 21 page/view layouts.

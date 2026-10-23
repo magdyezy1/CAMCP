@@ -25,9 +25,9 @@ After committing the reviewed source/report artifacts, assemble a fresh candidat
 file against exact unfiltered Git blobs, original manifest metadata, three report artifacts and one empty
 generated sample. CI requires this step before installation/report/full/container gates and uploads its proof.
 This is source verification; continue all behavioral and report freshness checks. See
-[maintained source gate](review/DELIVERY-2026-10-04-RELEASE-SOURCE.md).
+[maintained source gate](records/DELIVERY-2026-10-04-RELEASE-SOURCE.md).
 
-See the [October 3 report freshness fix](review/DELIVERY-2026-10-03-RAILWAY-REPORT.md) for the reproduced failure
+See the [October 3 report freshness fix](records/DELIVERY-2026-10-03-RAILWAY-REPORT.md) for the reproduced failure
 and qualification. A successful source check or CI run does not by itself establish deployed service health.
 
 ## Owner-waived GitHub Actions
@@ -99,7 +99,7 @@ locking, constraint, schema or I/O failures; `ERR_SQLITE_ERROR` alone is insuffi
 MCP tool failures on SQLite storage or contention return `STORAGE_FULL` or `DATABASE_BUSY` with a request ID and write one `mcp_tool_failed` line.
 Actual `SQLITE_FULL` returns `STORAGE_FULL` with a capacity explanation and server reference;
 it does not bypass sign-in limits or reset a password. Preserve the database and encryption
-key during capacity repairs. See the [sign-in incident](review/INCIDENT-2026-10-06-SIGNIN-DATABASE.md).
+key during capacity repairs. See the [sign-in incident](records/INCIDENT-2026-10-06-SIGNIN-DATABASE.md).
 
 ## Railway service settings (owner record, D1)
 
@@ -388,7 +388,7 @@ actual Railway service's connected repository/branch, deployment source/revision
 logs, watch paths and environment history to resolve it. Never infer a failed Docker build or
 CI-block setting from public health alone. Keep the service bound only to magdyezy1/CAMCP and
 Work-here; owner-waived hosted Actions remain disabled unless the owner restores them.
-See [comparison evidence and scope](review/DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).
+See [comparison evidence and scope](records/DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).
 
 ### Interpret a received HTML byte mismatch
 
@@ -399,7 +399,7 @@ correctly reports the raw difference. That alone does not mean a changed About s
 Docker build or different backend image. Inspect the actual difference and authenticated service
 history. The separately observed Arabic asset still matches an older known locale file. Never
 normalize away an unknown insertion or turn liveness/static observations into backend acceptance.
-See [bounded public evidence](review/DELIVERY-2026-10-05-BROWSER-SEMANTICS.md).
+See [bounded public evidence](records/DELIVERY-2026-10-05-BROWSER-SEMANTICS.md).
 
 ## Public packaged release identity — batch 174
 
@@ -414,7 +414,7 @@ The scan-start observation is cached for ten seconds, and hashing runs in a coal
 credential-free worker. This covers the fixed application artifact scope, excluding private
 state, dependencies, entrypoint/OS binaries and image/provenance. It is unsigned, and a matching
 response does not certify source authenticity, atomic snapshot consistency or provider execution.
-Keep Railway healthcheckPath at /healthz. See [scope, checks and remaining evidence](review/DELIVERY-2026-10-05-RELEASE-IDENTITY.md).
+Keep Railway healthcheckPath at /healthz. See [scope, checks and remaining evidence](records/DELIVERY-2026-10-05-RELEASE-IDENTITY.md).
 Identity schema 2 (QA-01) adds `package-lock.json` as a component (the image copies the committed lockfile) and
 hashes compiled tests as their own `dist/tests` component, so a test-only change leaves the runtime `dist` component
 equal; schema 1 records stay readable but never match a schema 2 runtime. `/versionz` also reports `toolchain` (Node
@@ -434,7 +434,7 @@ credential-free normal-TLS GET /versionz returned 404; its body was not read. Th
 only route unavailability at that observation, not a deployment cause or Git/image identity.
 The Railway project/service/environment and recent deployment evidence remain unavailable
 through the current tools. Hosted Actions remain owner-waived; local release gates remain
-mandatory. See [local ownership/loading qualification](review/DELIVERY-2026-10-05-BACKEND-WRAPPER-LOCALIZATION.md).
+mandatory. See [local ownership/loading qualification](records/DELIVERY-2026-10-05-BACKEND-WRAPPER-LOCALIZATION.md).
 
 ## Interpreting public liveness
 
@@ -443,7 +443,7 @@ up/degraded state. It records only reported_liveness, not returned version/check
 Missing, malformed or other states refuse with PUBLIC_LIVENESS_STATE_INVALID. Degraded is
 liveness, not complete readiness. The original health route/HTTP behavior, fixed GET routes,
 credential omission, redirect refusal and raw About/Arabic comparisons remain unchanged.
-See [local state regressions](review/DELIVERY-2026-10-05-LIVENESS-PLANNING-PREREQUISITES.md).
+See [local state regressions](records/DELIVERY-2026-10-05-LIVENESS-PLANNING-PREREQUISITES.md).
 A successful bounded public comparison does not establish deployed Git/image or native
 provider/program acceptance. The owner waived hosted Actions; fresh complete local
 build/report/freshness/default-full/required-FFmpeg and clean-source checks continue.
@@ -471,7 +471,7 @@ remain. Nine new messages are authored. The maintained runner retains all 408 ol
 Fresh sanitized full/report and exact clean-head/browser gates still qualify the integrated
 source before its sole push; prototype passes cannot stand in for those checks. B18/B27/B15/
 B16/B24 remain partial, the matrix remains 13/14/1, and hosted Actions stays unused. See
-[scope, primary research and checks](review/DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md).
+[scope, primary research and checks](records/DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md).
 
 ## Batch 180 — other listed X products with explicit retention
 
@@ -486,7 +486,7 @@ with 400 synthetic GETs, 2,904 original other-product observations, zero mutatio
 48 semantic/pinned selected-rule snapshots and all manual evidence retained. All 8,066 earlier
 Arabic values remain; 25 are added. Fresh integrated full/report/source/browser gates follow.
 B21/B15/B16/B24 remain partial, B25 open; the matrix remains 13/14/1 and Actions remains unused.
-See [contract, workflow and qualification](review/DELIVERY-2026-10-06-X-CATALOG-SELECTION-INVENTORY.md).
+See [contract, workflow and qualification](records/DELIVERY-2026-10-06-X-CATALOG-SELECTION-INVENTORY.md).
 
 ## Batches 182/183 — inventory and bounded worker observations
 
@@ -499,8 +499,8 @@ verification precede the sole Work-here push. Hosted Actions remain owner-waived
 maintained browser runner contains 488 cases, retaining all previous journeys and adding eight
 worker-health cases. Earlier prototype/working-source passes do not establish this final run,
 deployed source/image or live store/client eligibility.
-[Inventory qualification](review/DELIVERY-2026-10-06-WOOCOMMERCE-INVENTORY.md),
-[worker health and concurrent client qualification](review/DELIVERY-2026-10-06-WORKER-HEALTH.md).
+[Inventory qualification](records/DELIVERY-2026-10-06-WOOCOMMERCE-INVENTORY.md),
+[worker health and concurrent client qualification](records/DELIVERY-2026-10-06-WORKER-HEALTH.md).
 
 ## Batch 184 — administrator commerce connections and final browser gates
 
@@ -511,7 +511,7 @@ The maintained browser now has 512 cases. Previous 487/488 browser and 4,849/4,8
 results are retained failures; corrected current-source full checks, report freshness and exact
 source verification must pass before publication. The Windows Railway configuration check does
 not establish a Linux image build or the currently deployed revision.
-[Workflow, corrections and acceptance boundaries](review/DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).
+[Workflow, corrections and acceptance boundaries](records/DELIVERY-2026-10-06-WOOCOMMERCE-CONNECTIONS.md).
 
 ## Batch 185 — public payload and intermediary diagnosis
 
@@ -522,4 +522,4 @@ script. The maintained checker explains a strict known insertion while preservin
 byte result and every original hash. This does not establish dashboard settings or change CSP.
 No Docker/Podman/Linux runtime or functioning browser-control session is available on this host.
 Fresh final-source checks and a post-push public revision/payload read remain required; hosted
-Actions stay unused. [Actual observations and limits](review/DELIVERY-2026-10-06-RELEASE-ACCEPTANCE.md).
+Actions stay unused. [Actual observations and limits](records/DELIVERY-2026-10-06-RELEASE-ACCEPTANCE.md).

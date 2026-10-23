@@ -531,7 +531,7 @@ before a new continuous cycle. Successful work drains immediately; idle cycles w
 unsuccessful. The original one-shot exception presentation is unchanged. Shutdown waits for an
 already awaited stage and starts no later mail/job stage or claim once its stop flag is observed.
 Existing lease, authority, uncertain-mutation and listener cleanup rules remain. See
-[local qualification and platform limits](review/DELIVERY-2026-10-05-WORKER-LOOP-RECOVERY.md).
+[local qualification and platform limits](records/DELIVERY-2026-10-05-WORKER-LOOP-RECOVERY.md).
 
 Each stage keeps its own failure state. A stage that has been failing for more than ten seconds backs off
 (2 s, 4 s, ... at most 60 s, with jitter that only shortens the wait) while the other stages keep running; a
@@ -721,7 +721,9 @@ The maintained GitHub workflow defines Docker builds and synthetic read-only/wri
 the captured catalog, the action ledger, `docs/CONTRACTS.md`, the tracked report under `.mirror/REPORTS`, the
 generated guides, the architecture ratchet's baseline (`docs/review/architecture-baseline.json`), the Arabic catalog
 chunks (`web/locales/ar/`) and the website ratchets' baselines (`tools/web-markup-baseline.json`,
-`tools/web-colour-baseline.json`, `tools/web-route-bytes-baseline.json`; `check-web` and their tests compare them), each with its
+`tools/web-colour-baseline.json`, `tools/web-route-bytes-baseline.json`; `check-web` and their tests compare them), the
+redirect stubs of moved documents (`docs/moved.json`) and the documentation freeze's baseline
+(`tools/docs-lint-baseline.json`; `npm run docs:index:check` compares both, DOC-03), each with its
 generator, its inputs, where it records their digests and the check that fails when it is edited by hand or stale. `npm run provenance:check` is a gate of `npm run check`, `check:fast`, qualification
 (`generated_provenance_check`) and `test:related`. It fails on a file in `generated/` that no artifact declares, a
 declared output that is missing, a check that is not a gate of both `npm run check` and qualification, or an input
@@ -919,7 +921,7 @@ digest the last build resolved (`base_image.digest`), which is the value to pin 
 
 ## Accounts, reporting and operating controls
 
-See [account setup](USER-ACCOUNTS.md), [Reporting Overview](REPORTING-OVERVIEW.md) and [implementation/acceptance notes](RECOMMENDATIONS-IMPLEMENTED.md) for owner migration, team access, MFA, custom metrics, scheduled Sheets exports, campaign preflight/recovery, spending policies, asynchronous media and encrypted backups.
+See [account setup](USER-ACCOUNTS.md), [Reporting Overview](REPORTING-OVERVIEW.md) and [implementation/acceptance notes](archive/RECOMMENDATIONS-IMPLEMENTED.md) for owner migration, team access, MFA, custom metrics, scheduled Sheets exports, campaign preflight/recovery, spending policies, asynchronous media and encrypted backups.
 
 ### Workbook records withheld from Operations
 
@@ -1008,7 +1010,7 @@ updated" with **Reload page** instead of "Try again", and a reload with unsaved 
 Run `node tools/benchmark-web-assets.mjs` from the repository for exact file hashes and raw/gzip/Brotli bytes per
 route. This excludes CSS/fonts/locale JSON/headers and is not a browser timing test. The normal regression suite
 covers the manifest, cold English/Arabic source initialization and HTTP revalidation. See
-[qualification and limits](review/DELIVERY-2026-10-02-ROUTE-ASSETS.md) before making performance claims.
+[qualification and limits](records/DELIVERY-2026-10-02-ROUTE-ASSETS.md) before making performance claims.
 
 `node tools/web-route-bytes.mjs` adds the stylesheets and the Arabic chunks: the Brotli (quality 5) bytes each page
 downloads before it renders, per language (a stylesheet inside `<noscript>` is not counted), against
@@ -1063,7 +1065,7 @@ from measured zero; saturation, omissions, invalid counters and clock resets are
 Timing-storage failure preserves the original tool result and never retries a provider. The failure total is
 process-local and resets on restart. Old idle interval data is omitted; there is no historical timing series.
 These counters do not certify service-level objectives or tenant capacity. See
-[qualification and measurement limits](review/DELIVERY-2026-10-03-TOOL-TIMINGS.md).
+[qualification and measurement limits](records/DELIVERY-2026-10-03-TOOL-TIMINGS.md).
 
 ### Owner review oversight
 
@@ -1095,7 +1097,7 @@ keeps its original spacing and integer text. Legacy stored inputs and historical
 owner discovers a real exposed credential, review/correct the definition and rotate it through Connections
 and its provider's credential workflow. No automatic destructive cleanup is performed.
 
-See [scope, credential findings and qualification](review/DELIVERY-2026-10-03-REPORT-BODY-SCOPE.md).
+See [scope, credential findings and qualification](records/DELIVERY-2026-10-03-REPORT-BODY-SCOPE.md).
 
 ### Bounded catalog comparisons
 
@@ -1110,7 +1112,7 @@ point-in-time or complete catalog snapshot. Native price values and source bytes
 Read-permission diagnostics now name existing ads_read/ads_management alternatives; they do not instruct a
 read-only user to request catalog write privileges. Existing write requirements remain intact. Native review
 price/sale-price display uses exact integer hundredths throughout the accepted safe range. See
-[delivery and reproduced defects](review/DELIVERY-2026-10-03-CATALOG-COMPARISON.md).
+[delivery and reproduced defects](records/DELIVERY-2026-10-03-CATALOG-COMPARISON.md).
 
 ### Exact X catalog prices after upgrade
 
@@ -1120,7 +1122,7 @@ neighbors compare exactly; rounded read-back remains inconclusive or mismatch. A
 legacy numeric views requires a fresh review. Accepted writes retain their original receipt and key; verification
 is read-only and cannot make repeating a mutation safe. Older verified caches of these two families require a
 fresh exact read; current caches still require current account/actor access. See
-[upgrade, contract qualification and early-access limits](review/DELIVERY-2026-10-04-X-CATALOG-PRICES.md).
+[upgrade, contract qualification and early-access limits](records/DELIVERY-2026-10-04-X-CATALOG-PRICES.md).
 
 ### Search conversion strategy read-back
 
@@ -1129,7 +1131,7 @@ Do not infer goal/event delivery acceptance from currency checks or local compil
 verification now checks the exact native standard bidding type; missing/wrong type or an unexpected/different
 target remains unresolved and prevents dependent steps. Inspect the original receipt and retry its read-back;
 do not replay an accepted creation to fix a mismatch. Account goals require current separate inspection before
-activation. See [batch 117](review/DELIVERY-2026-10-03-GOOGLE-CONVERSION-RECIPES.md).
+activation. See [batch 117](records/DELIVERY-2026-10-03-GOOGLE-CONVERSION-RECIPES.md).
 
 ### Google conversion configuration inspection
 
@@ -1139,7 +1141,7 @@ and exact current authority. Limits are 64 attempts including retries, 4,000 row
 supply partial goal or primary-action readiness. Narrow supported scope or repeat the read; do not change
 native goals or replay an accepted campaign to resolve this diagnostic. Manager/shared conversion customers
 remain unqualified and do not trigger reads against the other customer. Complete configuration does not verify
-events, performance or objective acceptance. See [batch 118](review/DELIVERY-2026-10-03-GOOGLE-GOAL-INSPECTION.md).
+events, performance or objective acceptance. See [batch 118](records/DELIVERY-2026-10-03-GOOGLE-GOAL-INSPECTION.md).
 
 ### Local schedule and worker measurements
 
@@ -1150,7 +1152,7 @@ database/account inputs and make no provider request or advertising mutation. No
 worker/replica setting changes. A failed enqueue pauses only its attempted revision, preserving newer edits and
 removals. Two additive indexes enter normal serialized bootstrap without rewriting data or schema version.
 Latency and sampled memory apply only to the declared local workload. See
-[method, regressions and limits](review/DELIVERY-2026-10-04-SCHEDULER-WORKERS.md).
+[method, regressions and limits](records/DELIVERY-2026-10-04-SCHEDULER-WORKERS.md).
 
 `node tools/benchmark-schedules.mjs --sweep [--tenants 12,100,1000,10000]` (after `npm run build`) measures one
 selection pass per schedule kind against the workspace count: 12 workspaces with 100 schedules per kind and the rest
@@ -1169,7 +1171,7 @@ before saving an unapproved plan. Each SKU retains its existing native review an
 Create-only imports, variants, absent-item deletion and live store synchronization are not qualified. A saved
 draft does not prove X early-access entitlement. Stable rounded read-back stays mismatch; recover the original
 receipt without resubmission and use a separately reviewed correction when appropriate. See
-[workflow, requirements and qualification](review/DELIVERY-2026-10-04-X-CATALOG-IMPORT.md).
+[workflow, requirements and qualification](records/DELIVERY-2026-10-04-X-CATALOG-IMPORT.md).
 
 ### Read exact supplied X catalog differences
 
@@ -1181,7 +1183,7 @@ not bypass the same variant guards. A saved product that still holds every suppl
 is recorded as `skipped_unchanged` with the read evidence and is not sent, so the plan can complete; it is not a
 failure and needs no correction. Any difference gets an ordinary review. Unsent legacy group projections need fresh review; accepted receipts
 retain original recovery. No inventory deletion or point-in-time/complete variant proof is inferred. See
-[workflow and exact collection bounds](review/DELIVERY-2026-10-04-X-CATALOG-COMPARISON.md).
+[workflow and exact collection bounds](records/DELIVERY-2026-10-04-X-CATALOG-COMPARISON.md).
 
 **Variant groups (COM-02 E).** X lists only the first product of a group, so a grouped record can hide a supplied SKU.
 When the catalog lists grouped records, the comparison returns `variant_groups` (the grouped record count, up to ten
@@ -1204,7 +1206,7 @@ duplicate, contradictory or incomplete observations stay unverified. Identity-v3
 of these four families while preserving original accepted keys/receipts; current v3 caches still require
 current authority. Recover original accepted receipts without resubmission. A numeric original generated
 catalog/set/feed ID cannot become a guessed verification target; investigate the original receipt rather
-than rewriting it. See [qualification and recovery](review/DELIVERY-2026-10-04-X-CATALOG-IDENTITIES.md).
+than rewriting it. See [qualification and recovery](records/DELIVERY-2026-10-04-X-CATALOG-IDENTITIES.md).
 
 ### Explicit selected X product removals
 
@@ -1220,7 +1222,7 @@ down from about 130). Every campaign step records its native request attempts pe
 (`native_requests: {prepare|execute|verify: {reads, writes}}`). Accepted/uncertain deletion receipts
 retain original keys and read-only recovery. Deletion is permanent and a scheduled feed may restore a product
 it still contains. No source-absence deletion policy or feed rewrite is inferred.
-See [workflow, exact limits and synthetic qualification](review/DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md).
+See [workflow, exact limits and synthetic qualification](records/DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md).
 
 **Listed products outside the source (COM-02 B; P9, as recorded in the [decision record](DECISIONS.md)).** A discontinued SKU that is no longer in the
 source can be removed only by explicit intent: inspect the other listed X products, select individual products by
@@ -1313,7 +1315,7 @@ assemble a fresh candidate and run `npm run release:verify -- .release/candidate
 This proves exact committed public bytes, the original manifest and an empty generated sample; it does not
 regenerate reports or qualify behavior. Preserve the proof with release evidence, then run offline/normal
 installation, build, early `report -- --check`, the full required checks and Railway/container qualification.
-CI performs the same source proof before installation. See [boundaries and fixture qualification](review/DELIVERY-2026-10-04-RELEASE-SOURCE.md).
+CI performs the same source proof before installation. See [boundaries and fixture qualification](records/DELIVERY-2026-10-04-RELEASE-SOURCE.md).
 
 ## Current primary-action value defaults
 
@@ -1339,7 +1341,7 @@ to current explicit primary actions; all current authority and brief checks rema
 and absent metric rows are unknown. Original account-local date/time strings are preserved; no UTC age,
 recent volume or event-health threshold is inferred. No raw events, persons or mutations are read/submitted.
 Keep these known-date observations separate from delivered values/history/eligibility and real acceptance.
-See [scope and qualification](review/DELIVERY-2026-10-04-GOOGLE-CONVERSION-ACTIVITY.md).
+See [scope and qualification](records/DELIVERY-2026-10-04-GOOGLE-CONVERSION-ACTIVITY.md).
 
 ## Original Google image reference reads
 
@@ -1348,7 +1350,7 @@ bracketed native asset/customer reads and two complete matching link collections
 24 attempts, 2100 rows, 4 MiB and 60 seconds bound work and retries. Overflow, continuation or inconsistent
 counts refuse a partial inventory. Current actor/session/scopes/credentials/source metadata remain guarded.
 This reader-compatible flow creates no snapshot or provider mutation and makes no all-format/history/delivery
-claim. See [scope and qualification](review/DELIVERY-2026-10-04-GOOGLE-IMAGE-REFERENCES.md).
+claim. See [scope and qualification](records/DELIVERY-2026-10-04-GOOGLE-IMAGE-REFERENCES.md).
 
 ## Selected Performance Max image reference view
 
@@ -1357,7 +1359,7 @@ Each selected view independently uses original exact IMAGE/receipt/SHA/client/ac
 searches and two complete matching collections with the existing authority and 24-attempt/2100-row/4-MiB/60-second
 limits. PMax projects exact group/campaign/image links and requires explicit PERFORMANCE_MAX mode. Enabled and
 paused links remain configurations, removed links separate, missing roles/statuses unresolved. No mutation,
-snapshot, all-format absence, serving or historical attribution is implied. See [evidence](review/DELIVERY-2026-10-04-GOOGLE-PMAX-IMAGE-REFERENCES.md).
+snapshot, all-format absence, serving or historical attribution is implied. See [evidence](records/DELIVERY-2026-10-04-GOOGLE-PMAX-IMAGE-REFERENCES.md).
 
 ### Original Performance Max campaign logo references
 
@@ -1367,7 +1369,7 @@ Performance Max campaign/image identity are required. LOGO/LANDSCAPE_LOGO link c
 unknown links remain distinct. Campaign links are not ads or asset groups. The default ad view and explicit
 asset-group view remain independent. Google handoffs retain the original asset, chosen view and bounded
 limit; the website waits for an explicit read and clears view choices when another asset is opened. No
-write grant, serving/performance/history or all-format absence is established. See [qualification](review/DELIVERY-2026-10-04-GOOGLE-PMAX-CAMPAIGN-LOGOS.md).
+write grant, serving/performance/history or all-format absence is established. See [qualification](records/DELIVERY-2026-10-04-GOOGLE-PMAX-CAMPAIGN-LOGOS.md).
 
 ### Selected WooCommerce source products
 
@@ -1381,7 +1383,7 @@ in headers on fresh public-DNS-checked sockets; redirects, caller URLs, incomple
 and sandbox routes are refused. No snapshots, writes or full inventory/variant/tax/acceptance claims
 are added. The bilingual source table exposes blockers; explicitly selected eligible simple products
 enter the existing Meta supplied-product preview/comparison/unapproved draft. X retains its ten explicit
-CSV fields. MCP handoffs preselect exact source IDs/price without an automatic read. See [qualification](review/DELIVERY-2026-10-04-WOOCOMMERCE-SOURCE.md).
+CSV fields. MCP handoffs preselect exact source IDs/price without an automatic read. See [qualification](records/DELIVERY-2026-10-04-WOOCOMMERCE-SOURCE.md).
 
 ### Original Snapchat top-snap references
 
@@ -1394,7 +1396,7 @@ bracketed original account/media observations must match. Native pages have 50 r
 write authority. Only literal `creative.top_snap_media_id` is inspected; other/nested media and history
 remain outside this view. Creative packaging/review and media processing do not prove ad serving.
 The bilingual table keeps exact UUIDs and separate statuses; changes clear old results, and qualified
-MCP handoffs preserve the original asset/bound without an automatic read. See [qualification](review/DELIVERY-2026-10-04-SNAPCHAT-TOP-SNAP-REFERENCES.md).
+MCP handoffs preserve the original asset/bound without an automatic read. See [qualification](records/DELIVERY-2026-10-04-SNAPCHAT-TOP-SNAP-REFERENCES.md).
 
 ### Current owner-directed release checks
 
@@ -1422,7 +1424,7 @@ keeps its visible Tab order until closed and restores its trigger after Escape o
 Owner-account and catalog comparison tables have named keyboard scroll regions/captions; privacy's
 original skip target receives focus. Account grants, product selections and provider writes retain their
 original controls. See [local browser setup and scope](LOCAL-BROWSER-QA.md) and
-[delivery evidence](review/DELIVERY-2026-10-04-RENDERED-WORKFLOWS.md). Hosted CI remains owner-paused;
+[delivery evidence](records/DELIVERY-2026-10-04-RENDERED-WORKFLOWS.md). Hosted CI remains owner-paused;
 continue exact local source/report/full gates with required FFmpeg. Full Arabic privacy, broader
 populated states, assistive technology and live/deployed/provider acceptance remain separate.
 
@@ -1433,7 +1435,7 @@ keyboard-scroll regions. A source SKU/name with surrounding whitespace stays exa
 cannot be selected for Meta; correct the original store value and explicitly reread it. The supplied
 Meta preview applies the native destination's product-field validation before offering a plan.
 No identifier is trimmed or invented, and products keep their separate ownership/read-back/write-review
-requirements. See [delivery evidence](review/DELIVERY-2026-10-04-COMMERCE-READABILITY.md) and
+requirements. See [delivery evidence](records/DELIVERY-2026-10-04-COMMERCE-READABILITY.md) and
 [local browser checks](LOCAL-BROWSER-QA.md). Broader inventory/variants and live acceptance remain separate.
 
 ### Batch 151 — complete privacy languages
@@ -1443,7 +1445,7 @@ The published privacy policy is fully readable in English/Arabic without login o
 Ordinary policy language links work without scripts, and the selected website language determines
 website privacy-link destinations. The choice does not change workspace preference, consent or
 provider permissions. English policy content, date, anchors and linked destinations remain.
-See [qualification](review/DELIVERY-2026-10-04-ARABIC-PRIVACY.md). Structural/rendered checks do not
+See [qualification](records/DELIVERY-2026-10-04-ARABIC-PRIVACY.md). Structural/rendered checks do not
 replace human legal/editorial or assistive/live/deployed acceptance.
 
 Selected WooCommerce variation sources use the existing encrypted one-store wc/v3 Read connection.
@@ -1451,41 +1453,41 @@ Choose exact parent/child IDs; keys are never entered on Commerce. Six fixed GET
 and repeat parent membership/child projections with current authorization, a shared 30-second deadline,
 4 MiB and 102 collected-row bounds. Unsupported fields stay visible blockers. Exact reviewed titles
 and parent-SKU Meta groups create only unapproved drafts; there is no automatic sync or deletion.
-See [workflow and qualification](review/DELIVERY-2026-10-04-WOOCOMMERCE-VARIATIONS.md). Owner-directed hosted CI skipping remains active.
+See [workflow and qualification](records/DELIVERY-2026-10-04-WOOCOMMERCE-VARIATIONS.md). Owner-directed hosted CI skipping remains active.
 
 Website Meta canonical and explicitly mapped supplier CSVs accept optional retailer_product_group_id
 through the existing reviewed product field contract. No group is inferred, native strings are
 preserved and blank optionals remain omitted. X refuses group intent. Column evidence binds the
 selected account/login/gateway and is invalidated on scope changes; WooCommerce mode hides unrelated
-CSV controls. Native group proof/cache/receipt behavior remains unchanged. See [qualification](review/DELIVERY-2026-10-04-META-GROUP-CSV.md).
+CSV controls. Native group proof/cache/receipt behavior remains unchanged. See [qualification](records/DELIVERY-2026-10-04-META-GROUP-CSV.md).
 
 Recent GA4 event tables now use authored captions and readable event-name columns in both languages,
 with literal exact native count/stream display. The isolated browser qualification treats Google's
 exact runRealtimeReport POST as a semantic read and refuses event senders/other provider actions.
 No native contract, permissions, event delivery, retained snapshot or tracking-health claim changes.
-See [scope and evidence](review/DELIVERY-2026-10-04-GA4-EVENT-LAYOUT.md).
+See [scope and evidence](records/DELIVERY-2026-10-04-GA4-EVENT-LAYOUT.md).
 
 Saved evidence now supports explicit 10/25/50/100-row local page bounds with current-view/source
 validation, pending-control fences, scoped retry and first-page reset under the active search.
 The original 151-row synthetic browser journey verifies an all-row same-language Excel download
 from a one-row filtered view. No provider request, native mutation, report revision or retained binary
-is added. See [scope and proof](review/DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md).
+is added. See [scope and proof](records/DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md).
 
 Google keyword/day evidence uses the existing v25 Search read with exact positive Search criterion/view
 identity, native text/match type and bracketed account/page source hashes. Complete paging and every
 current-authority checkpoint precede persistence. Guided keyword evidence is excluded from the original
 negative-exclusion and campaign-budget plan predicates. Retained filters/downloads add no provider read;
-old workbook headers remain. See [scope and local proof](review/DELIVERY-2026-10-05-GOOGLE-KEYWORD-EVIDENCE.md).
+old workbook headers remain. See [scope and local proof](records/DELIVERY-2026-10-05-GOOGLE-KEYWORD-EVIDENCE.md).
 
 Saved evidence controls use scoped first-party styling with readable type, usable dimensions and
 explicit selector focus. Native values, query/page bounds, pending/current-view guards and download
-semantics remain. The original strict CSP is unchanged. See [local qualification](review/DELIVERY-2026-10-05-EVIDENCE-CONTROL-LAYOUT.md).
+semantics remain. The original strict CSP is unchanged. See [local qualification](records/DELIVERY-2026-10-05-EVIDENCE-CONTROL-LAYOUT.md).
 
 Selected Google reporting failures and their recovery hints use authored English/Arabic display.
 The original API messages, codes, request references and native details remain exact. Failed
 collection is not retained; a retry is a separate explicit capture using current authority and
 full original completeness guards. No automatic retry or provider write is added. See
-[connected negative/recovery evidence](review/DELIVERY-2026-10-05-GOOGLE-CAPTURE-RECOVERY.md).
+[connected negative/recovery evidence](records/DELIVERY-2026-10-05-GOOGLE-CAPTURE-RECOVERY.md).
 
 ## Campaign/device/day evidence qualification
 
@@ -1493,7 +1495,7 @@ The sixth Google preset uses the existing v25 Search read contract and bounded c
 exact two-field date/device grain and full campaign resources. Preserve literal native enums,
 complete row-count/page evidence and both customer checks; missing categories are not zero proof.
 Keep this grain separate from campaign allocation and exclusion workflows. See [scope and local
-release evidence](review/DELIVERY-2026-10-05-GOOGLE-DEVICE-EVIDENCE.md). Hosted Actions remains owner-skipped; current local checks
+release evidence](records/DELIVERY-2026-10-05-GOOGLE-DEVICE-EVIDENCE.md). Hosted Actions remains owner-skipped; current local checks
 do not establish Linux/Docker, deployed Railway or native-provider acceptance.
 
 ## Persistent evidence capture feedback
@@ -1502,7 +1504,7 @@ Current guided failures retain the existing reason/remediation/reference in a fo
 the shared toast/formatter/native collector remain unchanged. Explicit edits or new submission
 clear that current message and superseded replies stay silent. Capture transport errors do not
 automatically prove that no report was saved; follow the displayed reason before another submit.
-See [baseline and qualification](review/DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md); no automatic retry is introduced.
+See [baseline and qualification](records/DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md); no automatic retry is introduced.
 
 ### Worker health under SQLite contention
 

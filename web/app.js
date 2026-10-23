@@ -1849,6 +1849,8 @@ async function render() {
   return result;
 }
 async function renderCurrentPage() {
+  // P12: a signed-in visitor to / opens Home, as the server redirects a load of / (server/page-routes.ts).
+  if (location.pathname === '/' && session.authenticated) history.replaceState(history.state, '', '/dashboard');
   const generation = ++navigationGeneration,
     identity = identityGeneration,
     pathname = location.pathname,
