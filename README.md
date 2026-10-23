@@ -6,7 +6,7 @@ AMCP connects an advertising workspace to Codex and other MCP clients. It includ
 
 **Documentation:** the [documentation map](docs/README.md) lists every guide, review and implementation record.
 
-Provider versions, reviewed workflow boundaries and evidence are published in [contracts](docs/CONTRACTS.md). See the [September contract review](docs/implementation/PLATFORM-CONTRACTS-2026-09-18.md) for implementation decisions and validation limits. The optional [sandbox verifier](docs/SANDBOX-VERIFICATION.md) uses approved fixtures and isolated provider hosts. Development checks require Python 3.10+ (standard library only) for Microsoft WSDL regeneration; set `AMCP_SCHEMA_PYTHON` when Python is outside PATH. Production does not require Python.
+Provider versions, reviewed workflow boundaries and evidence are published in [contracts](docs/CONTRACTS.md). See the [September contract review](docs/implementation/PLATFORM-CONTRACTS-2026-09-18.md) for implementation decisions and validation limits. The optional [sandbox verifier](docs/SANDBOX-VERIFICATION.md) uses approved fixtures and isolated provider hosts. Development checks require Python 3.10+ (standard library only) for Microsoft WSDL regeneration and the test of the MCP evaluation runner wrapper; set `AMCP_SCHEMA_PYTHON` when Python is outside PATH (on Windows `python` may be only the Microsoft Store alias). Production does not require Python.
 
 ## Website
 
