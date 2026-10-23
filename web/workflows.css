@@ -192,6 +192,13 @@
   max-height: 1.3rem;
   margin-top: 0.4rem;
 }
+/* The click-through bars follow the theme; the downloaded document sets its own fills. */
+.report-pack .pack-track {
+  fill: var(--surface-accent);
+}
+.report-pack .pack-bar {
+  fill: var(--iris-700);
+}
 .report-pack h2 {
   margin-top: 2rem;
 }
