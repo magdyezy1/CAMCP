@@ -165,9 +165,13 @@ const keyed = (table: Readonly<Record<string, readonly string[]>>) =>
   new Set(Object.entries(table).flatMap(([tool, actions]) => actions.map(action => tool + ' ' + action)));
 /**
  * Actions of AMCP's own tools that change AMCP state only by adding to it: a new plan, review, capture, check result,
- * observation, approval, preview or variant, a queued run, or a recorded acknowledgement. They never delete, replace or
+ * observation, preview or variant, a queued run, or a recorded acknowledgement. They never delete, replace or
  * overwrite what a person made, send a provider mutation or write a Google Sheet, so they are not destructive. Every
- * other action that is not read-only is presented as destructive, the cautious default (MCP-06 per operation).
+ * other action that is not read-only is presented as destructive, the cautious default (MCP-06 per operation). That
+ * includes the review gate itself, which only records a person's word but decides what is sent next: amcp_campaign
+ * approve (the approval run executes every spending step under), confirm_absent (a refused step's resource is absent,
+ * so the step may be amended and sent again), reconcile_step (accept_observed takes a mismatched state as the step's
+ * result) and amcp_write reconcile (accept_applied settles an uncertain write as applied).
  */
 export const additiveActions: Readonly<Record<string, readonly string[]>> = Object.freeze({
   amcp_workspace: [
@@ -189,12 +193,9 @@ export const additiveActions: Readonly<Record<string, readonly string[]>> = Obje
     'verify',
     'validate_provider',
     'preflight',
-    'reconcile_step',
-    'approve',
     'recipe_eligibility',
     'create_from_recipe',
     'clone',
-    'confirm_absent',
     'activation_plan',
   ],
   amcp_reporting: [
@@ -210,7 +211,7 @@ export const additiveActions: Readonly<Record<string, readonly string[]>> = Obje
     'create_search_exclusion_plan',
   ],
   amcp_reporting_overview: ['run', 'schedule', 'bind_file_destination'],
-  amcp_write: ['prepare', 'reconcile'],
+  amcp_write: ['prepare'],
   amcp_media: ['prepare', 'prepare_library', 'variant', 'plan', 'retain_source'],
 });
 /**

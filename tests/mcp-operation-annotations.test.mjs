@@ -86,6 +86,14 @@ test('the hints of a few actions are pinned, so a change to their derivation is 
     assert.deepEqual(hint('amcp_campaign', 'create'), [false, false, false, false], 'a new draft plan only adds');
     assert.deepEqual(hint('amcp_campaign', 'execute_next'), [false, true, false, true]);
     assert.deepEqual(hint('amcp_campaign', 'validate_provider'), [false, false, false, true], 'owner opt-in, D18');
+    // The review gate records only a person's word, but it decides what is sent next (wave 4b review): approve lets run
+    // execute every spending step, confirm_absent lets a refused step be sent again, and accepting an observed or
+    // applied outcome settles a write. They were presented as additive, so a client honouring per-action hints could
+    // record an approval without asking.
+    assert.deepEqual(hint('amcp_campaign', 'approve'), [false, true, false, false], 'the plan-wide approval');
+    assert.deepEqual(hint('amcp_campaign', 'confirm_absent'), [false, true, false, true], 'it reads the provider');
+    assert.deepEqual(hint('amcp_campaign', 'reconcile_step'), [false, true, false, true]);
+    assert.deepEqual(hint('amcp_write', 'reconcile'), [false, true, false, true]);
     assert.deepEqual(hint('amcp_reporting', 'analyze'), [true, false, true, false]);
     assert.deepEqual(hint('amcp_reporting', 'capture_preset'), [false, false, false, true]);
     assert.deepEqual(hint('amcp_reporting_overview', 'export'), [false, true, false, true], 'replaces a Sheets tab');

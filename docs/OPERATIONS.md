@@ -115,7 +115,9 @@ action of `amcp_write` (owner decision D15) until client testing shows which cli
 A tool's hints cover all of its actions, so `amcp_tool_help` also gives each action its own (MCP-06 per operation).
 For an AMCP tool, operation help carries `contract.annotations`, derived from the action's contract effects: a change
 that only adds AMCP records (a plan, review, capture or check result) is not destructive, every other change is, and
-provider validation (`amcp_campaign validate_provider`, D18) is never read-only. Gateway help has no room for them
+provider validation (`amcp_campaign validate_provider`, D18) is never read-only. The review gate is presented as
+destructive although it only records a person's word, because it decides what is sent next: `amcp_campaign approve`,
+`confirm_absent` and `reconcile_step`, and `amcp_write reconcile`. Gateway help has no room for them
 under the one-call budget (`amcp_workspace` help is within a few bytes of it). For a native gateway, operation help and
 `DESCRIBE_ACTION` carry `amcp_execution.annotations` from the action's ledger status: reads read; a reviewed write is
 previewed or refused there (its change path is `amcp_write`); a media route saves an upload review; Microsoft's
