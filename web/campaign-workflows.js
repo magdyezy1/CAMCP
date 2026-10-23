@@ -944,7 +944,7 @@ function campaignPlanRow(c) {
     ...(c.platforms ?? []).map(p => campaignProviderNames[p + '_native_action'] ?? p),
     ...(c.accounts ?? []).map(a => a.account_id),
   ];
-  return `<div class="token-row"><div><strong dir="auto" data-native>${esc(c.name)}</strong><small>${esc(uiText('{count} steps', {count: uiNumber(c.step_count)}))} · ${date(c.updated_at)}${where.length ? ' · ' + where.map(campaignNativeValue).join(', ') : ''}${c.access && c.access !== 'owner' ? ' · ' + esc(uiText(collaboratorAccessLabels[c.access] ?? c.access)) : ''}${c.archived ? ' · ' + esc(uiText('Archived')) : ''}</small></div>${badge(c.state)}<button class="button small" data-run="${esc(c.id)}">${esc(uiText('Open'))}</button></div>`;
+  return `<div class="token-row"><div><strong dir="auto" data-native>${esc(c.name)}</strong><small>${esc(uiPlural(c.step_count, '{count} step', '{count} steps'))} · ${date(c.updated_at)}${where.length ? ' · ' + where.map(campaignNativeValue).join(', ') : ''}${c.access && c.access !== 'owner' ? ' · ' + esc(uiText(collaboratorAccessLabels[c.access] ?? c.access)) : ''}${c.archived ? ' · ' + esc(uiText('Archived')) : ''}</small></div>${badge(c.state)}<button class="button small" data-run="${esc(c.id)}">${esc(uiText('Open'))}</button></div>`;
 }
 /** Filters reload the list with their state in the URL; "Load more" continues the same filters with next_cursor. */
 function bindCampaignList(page, filters, open) {

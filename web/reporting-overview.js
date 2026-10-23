@@ -410,6 +410,8 @@ function overviewConfig() {
     objectives: [...document.querySelectorAll('[data-report-objective]:checked')].map(el => el.value),
   };
 }
+// A metric without a formula: how it combines across rows (src/report-metrics.ts).
+const metricAggregations = {sum: 'Summed', non_additive: 'Not summed', 'native field': 'Native field'};
 async function renderReportingOverview() {
   if (!session.authenticated) {
     showLogin();
@@ -478,7 +480,7 @@ async function renderReportingOverview() {
     .map(
       ([id, m]) =>
         // A formula is written in metric identifiers (spend / clicks), read left to right in either language.
-        `<label><input type="checkbox" data-report-metric value="${id}" ${c.metrics.includes(id) ? 'checked' : ''}><span>${esc(b.metrics[id] ? uiText(m.label) : m.label)}<small class="metric-formula" dir="ltr">${esc(m.formula ?? m.aggregation)}</small></span></label>`,
+        `<label><input type="checkbox" data-report-metric value="${id}" ${c.metrics.includes(id) ? 'checked' : ''}><span>${esc(b.metrics[id] ? uiText(m.label) : m.label)}<small class="metric-formula"${m.formula ? ' dir="ltr"' : ''}>${esc(m.formula ?? uiText(metricAggregations[m.aggregation] ?? m.aggregation))}</small></span></label>`,
     )
     .join(
       '',

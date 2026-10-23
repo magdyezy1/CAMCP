@@ -11503,5 +11503,9 @@
   "Ad previews": "معاينات الإعلانات",
   "Reviewed writes": "التغييرات الخاضعة للمراجعة",
   "No verified backup receipt has been recorded. Use the encrypted backup command and test restoration before relying on recovery.": "لم يُسجَّل أي إيصال نسخ احتياطي مُتحقَّق منه. استخدم أمر النسخ الاحتياطي المشفّر واختبر الاستعادة قبل الاعتماد عليها.",
-  "Set AMCP_TEST_PASSWORD to give reviewers a sign-in button.": "عيّن AMCP_TEST_PASSWORD ليظهر للمراجعين زر لتسجيل الدخول."
+  "Set AMCP_TEST_PASSWORD to give reviewers a sign-in button.": "عيّن AMCP_TEST_PASSWORD ليظهر للمراجعين زر لتسجيل الدخول.",
+  "Summed": "يُجمع",
+  "Not summed": "لا يُجمع",
+  "Native field": "حقل أصلي",
+  "{count} step": "عدد الخطوات: {count}"
 }

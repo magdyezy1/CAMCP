@@ -400,7 +400,7 @@ async function renderCampaigns() {
       `<div><strong dir="auto" data-native>` +
       esc(run.name) +
       `</strong><small>` +
-      esc(uiText('{count} steps', {count: uiNumber(run.steps.length)})) +
+      esc(uiPlural(run.steps.length, '{count} step', '{count} steps')) +
       ' · ' +
       date(run.updated_at) +
       `</small></div>` +

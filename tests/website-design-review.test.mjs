@@ -352,3 +352,37 @@ test('the measurement ledger breaks layer names between words', () => {
   assert.ok(Number.parseFloat(declarations(header.body).get('min-width')) >= 8);
   assert.ok(compare(specificity(header.selector), specificity('.measurement-ledger th')) > 0);
 });
+
+const arabic = JSON.parse(readFileSync('web/locales/ar.json', 'utf8'));
+
+// Before: the report builder's metric pills showed a base metric's aggregation as the raw value ("sum",
+// "non_additive", "native field"), left to right and in English on the Arabic page.
+test('a base metric says how it combines in words, in both languages; a formula stays a literal', () => {
+  const source = readFileSync('web/reporting-overview.js', 'utf8'),
+    map = source.match(/^const metricAggregations = (\{[^\n]*\});$/m);
+  assert.ok(map, 'reporting-overview.js names each aggregation');
+  const labels = new Function('return ' + map[1])();
+  // Every aggregation the server assigns to a base metric (src/report-metrics.ts) has words and Arabic.
+  const assigned = new Set(
+    [...readFileSync('src/report-metrics.ts', 'utf8').matchAll(/aggregation: '([a-z_]+)'/g)].map(m => m[1]),
+  );
+  assert.ok(assigned.size >= 2);
+  for (const value of [...assigned, 'native field']) {
+    assert.ok(labels[value], value + ' has words');
+    assert.ok(arabic[labels[value]], labels[value] + ' has Arabic');
+  }
+  assert.match(source, /uiText\(metricAggregations\[m\.aggregation\] \?\? m\.aggregation\)/);
+  assert.match(source, /class="metric-formula"\$\{m\.formula \? ' dir="ltr"' : ''\}/);
+  assert.match(readFileSync('tools/check-locales.mjs', 'utf8'), /'metricAggregations'/);
+});
+
+// Before: a plan of one step read "1 steps" in the plan list and the plan history.
+test('a plan of one step says one step', () => {
+  for (const file of ['web/campaign-workflows.js', 'web/workspace.js']) {
+    const source = readFileSync(file, 'utf8');
+    assert.match(source, /uiPlural\([^,]+, '\{count\} step', '\{count\} steps'\)/, file);
+    assert.doesNotMatch(source, /uiText\('\{count\} steps'/, file);
+  }
+  assert.ok(arabic['{count} step'] && arabic['{count} steps']);
+  assert.match(readFileSync('tools/check-locales.mjs', 'utf8'), /callee\?\.name === 'uiPlural'/);
+});

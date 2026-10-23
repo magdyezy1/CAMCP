@@ -1582,6 +1582,7 @@
   "{count} more accounts were not checked; check them from Home.": "لم يُفحص {count} من الحسابات الأخرى؛ افحصها من الرئيسية.",
   "{count} platform logins": "{count} من تسجيلات الدخول إلى المنصات",
   "{count} saved records, such as reports and plans": "{count} من السجلات المحفوظة، مثل التقارير والخطط",
+  "{count} step": "عدد الخطوات: {count}",
   "{count} steps": "عدد الخطوات: {count}",
   "{field} is not valid JSON. Check its braces, quotes and commas.": "{field} ليس JSON صالحًا. تحقق من الأقواس وعلامات الاقتباس والفواصل.",
   "{field} must be a JSON list in square brackets.": "يجب أن يكون {field} قائمة JSON بين قوسين مربعين.",
