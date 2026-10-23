@@ -991,6 +991,10 @@ h2.report-section-label {
   background: var(--surface-subtle);
   text-decoration: none;
 }
+.settings-subnav a:hover {
+  border-color: var(--border-accent);
+  background: var(--surface-selected);
+}
 .settings-group {
   margin-block-end: 32px;
   scroll-margin-block-start: 16px;

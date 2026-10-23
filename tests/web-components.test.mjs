@@ -253,3 +253,33 @@ test('every button variant keeps its look in the dark theme, with readable text'
     assert.notEqual(resolve(theme, hover), resolve(theme, rest), theme + ': the danger button shows its hover');
   }
 });
+
+// WEB-08 (design system pass): the owner Settings section links had no hover state, and in the dark theme the owner's
+// own "You" badge (a .status.online pill) and the access rows' Limit and Remove buttons (danger buttons) lost their
+// colours to theme.css's group above. The links show hover in both themes with readable ink, and the badge and the
+// buttons take their own tokens.
+test('WEB-08: the owner Settings section links show hover, and the You badge keeps the success pair in the dark theme', () => {
+  for (const theme of ['light', 'dark']) {
+    const rest = resolve(theme, declared('reporting.css', '.settings-subnav a', 'background')),
+      hover = resolve(theme, declared('reporting.css', '.settings-subnav a:hover', 'background')),
+      ink = resolve(theme, declared('reporting.css', '.settings-subnav a', 'color'));
+    assert.notEqual(rest, hover, theme + ': the section link shows hover');
+    assert.ok(contrast(ink, hover) >= 4.5, theme + ': ' + contrast(ink, hover).toFixed(2));
+    assert.notEqual(
+      resolve(theme, declared('reporting.css', '.settings-subnav a:hover', 'border-color')),
+      resolve(theme, 'var(--line)'),
+    );
+  }
+  assert.match(read('account-approvals.js'), /<span class="status online">\$\{esc\(uiText\('You'\)\)\}<\/span>/);
+  const badge = ['color', 'background'].map(property => declared('identity.css', '.status.online', property));
+  for (const theme of ['light', 'dark']) {
+    const [ink, fill] = badge.map(value => resolve(theme, value));
+    assert.ok(contrast(ink, fill) >= 4.5, theme + ' You badge: ' + contrast(ink, fill).toFixed(2));
+  }
+  assert.equal(resolve('dark', badge[1]), resolve('dark', 'var(--success-bg)'));
+  assert.deepEqual(
+    darkMembers().filter(member => /^\.status(?:$|[.:])/.test(member) && member !== '.status.error'),
+    [],
+    'no dark group re-colours the badge',
+  );
+});
