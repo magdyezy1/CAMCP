@@ -68,7 +68,9 @@ These are still open in [decisions](../DECISIONS.md):
 - who runs the evaluation sessions with AI assistants, and whether an AI-client directory listing is a goal;
 - whether times in the audit history, sessions and tokens show a time zone;
 - which Adjust operations matter to you;
-- whether disconnecting a Google login should also revoke AMCP at Google, after one test with disposable logins;
-- whether to open public sign-up, which needs an email provider.
+- whether disconnecting a Google login should also revoke AMCP at Google, after one test with disposable logins.
+
+You decided to keep sign-up closed: new members join by invitation. If you want people to sign up on the website
+later, it needs an email provider, and each new sign-up then waits for your approval.
 
 Back to the [owner guide](README.md).
