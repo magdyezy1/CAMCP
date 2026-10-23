@@ -39,9 +39,9 @@ const AMCPTheme = (() => {
     const resolved = preference === 'system' ? (system?.matches ? 'dark' : 'light') : preference;
     document.documentElement.dataset.theme = resolved;
     document.documentElement.dataset.themePreference = preference;
-    document
-      .querySelector('meta[name="theme-color"]')
-      ?.setAttribute('content', resolved === 'dark' ? '#181522' : '#f7f6fa');
+    // The light and the dark meta both take the chosen theme.
+    for (const meta of document.querySelectorAll('meta[name="theme-color"]'))
+      meta.setAttribute('content', resolved === 'dark' ? '#181522' : '#f7f6fa');
     sync();
   }
   function set(value) {

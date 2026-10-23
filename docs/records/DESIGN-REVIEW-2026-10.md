@@ -279,7 +279,8 @@ container borders and hover tints read a little lighter. In dark mode the compon
 **What wave 4b changed since** (one sign-off for both lists): the design system's list for the owner's visual sign-off
 is in [the design system](../DESIGN-SYSTEM.md#what-changed-in-this-increment-for-the-owners-visual-sign-off): corners
 on the radius scale, the top bar's appearance and working-client selects at 36px and About's at 44px, new hover,
-disabled and busy states, error notices with the danger border, 3:1 field frames, and the dark theme's variants. In
+disabled and busy states, error notices with the danger border, 3:1 field frames, the dark theme's variants, and a
+browser bar that follows the system appearance before JavaScript. In
 the dark layer, the groups that
 `#command-results button` and `#breadcrumb` still lift to ID specificity hold no component with variants any more
 (S1): primary buttons are iris, danger buttons and refusals rose, and success and warning badges and warning and error

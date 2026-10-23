@@ -438,8 +438,11 @@ deployed before wave 4b, both themes) found these differences and no other:
   `aria-pressed`; an error notice has the danger border and ink; the search field's frame and the report actions'
   select have the 3:1 control border (they had the 1.29:1 decorative line in light mode).
 - **Dark mode.** The variants listed [above](#what-it-no-longer-masks-dark-variants-2026-10-23), and the report pack's
-  click-through chart follows the theme (it painted light SVG fills on the dark pack); `theme-color` is the light
-  `--paper` before JavaScript sets the theme's own.
+  click-through chart follows the theme (it painted light SVG fills on the dark pack).
+- **Browser bar.** Before JavaScript runs, and on a page read without it, the browser's bar (`theme-color`) follows
+  the system appearance: the light `--paper` (`#f7f6fa`) or the dark one (`#181522`), from a light and a dark meta on
+  every page. The deployed release painted it `#171629` (workspace) or `#201c32` (the other pages) in both. Once
+  `theme.js` runs, both metas take the chosen theme's `--paper`, as before.
 
 The owner signs off once for this list and the design review's own changes: the light and dark screenshots of the
 integrated website are in the [design review record](records/DESIGN-REVIEW-2026-10.md#7-web-07-colour-sign-off), and
@@ -467,7 +470,7 @@ reviewed:
 
 | Check | Refuses | Baseline or list |
 |---|---|---|
-| `tools/check-colours.mjs` | a colour token without a dark value or with a dark value that differs without JavaScript; a literal colour in a stylesheet; a literal colour in a script or page (hex, functional, or a named colour in a colour attribute or style text) outside the reviewed list (data defaults, QR pixels, the downloaded report document, by file, value, context and count); a `theme-color` that is not `--paper` | `tools/web-colour-baseline.json` (0; the reviewed script entries and the total of their counts only go down), `tools/web-colour-allowlist.json` (only shrinks); `tests/web-colours.test.mjs` |
+| `tools/check-colours.mjs` | a colour token without a dark value or with a dark value that differs without JavaScript; a literal colour in a stylesheet; a literal colour in a script or page (hex, functional, or a named colour in a colour attribute or style text) outside the reviewed list (data defaults, QR pixels, the downloaded report document, by file, value, context and count); a `theme-color` meta that is not its appearance's `--paper`, or a page without a light and a dark one | `tools/web-colour-baseline.json` (0; the reviewed script entries and the total of their counts only go down), `tools/web-colour-allowlist.json` (only shrinks); `tests/web-colours.test.mjs` |
 | `tools/check-design-tokens.mjs` | a radius, shadow, duration or type size written by hand, or a padding, margin or gap off the 4px grid, above its stylesheet's count; a custom property read by a stylesheet and defined in no token sheet that every page loading it loads (the workspace has no `public-tokens.css`) | `tools/web-design-token-baseline.json` (only goes down); `tests/web-design-tokens.test.mjs`, which also requires every token to be documented here |
 | `tools/web-route-bytes.mjs` | a page that downloads more (Brotli) before it renders than its recorded value | `tools/web-route-bytes-baseline.json`; `tests/web-route-bytes.test.mjs` |
 | `tools/check-markup.mjs` | new markup escaped by hand instead of `` html`…` `` | `tools/web-markup-baseline.json` |

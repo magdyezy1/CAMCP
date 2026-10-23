@@ -292,7 +292,28 @@ export function markupColours(text, file = '') {
 }
 /** The literals the reviewed script entries admit: the total of their counts, which may only go down. */
 export const reviewedScriptLiterals = scripts => scripts.reduce((sum, entry) => sum + (Number(entry.count) || 0), 0);
-/** Literals in scripts and pages outside the reviewed list, and theme-color values that are not --paper. */
+const themeColorMeta = /<meta\b[^>]*\bname="theme-color"[^>]*>/g;
+/**
+ * A page's theme-color metas: [{line, media, dark, content}]. A meta whose media names the dark scheme is the dark
+ * one; any other (light media, or none) is read as the light one.
+ */
+export function themeColorMetas(text) {
+  return [...text.matchAll(themeColorMeta)].map(m => {
+    const media = /\bmedia="([^"]*)"/.exec(m[0])?.[1] ?? '';
+    return {
+      line: text.slice(0, m.index).split('\n').length,
+      media,
+      dark: /prefers-color-scheme:\s*dark/.test(media),
+      light: /prefers-color-scheme:\s*light/.test(media),
+      content: (/\bcontent="([^"]*)"/.exec(m[0])?.[1] ?? '').trim().toLowerCase(),
+    };
+  });
+}
+/**
+ * Literals in scripts and pages outside the reviewed list, and theme-color values that are not --paper: a page's
+ * metas are read before any stylesheet, so they stay literal, one per appearance (media prefers-color-scheme), each
+ * the --paper of its appearance, and the browser bar follows a dark system before JavaScript sets the chosen theme.
+ */
 export function markupColourProblems(
   root = process.cwd(),
   allowlist = readColourAllowlist(root),
@@ -305,8 +326,34 @@ export function markupColourProblems(
     reviewed = allowlist.scripts ?? [],
     seen = new Map(),
     problems = [];
-  for (const file of markupFiles(root))
-    for (const found of markupColours(fs.readFileSync(path.join(root, 'web', file), 'utf8'), file)) {
+  for (const file of markupFiles(root)) {
+    const source = fs.readFileSync(path.join(root, 'web', file), 'utf8'),
+      metas = themeColorMetas(source);
+    for (const meta of metas) {
+      const expected = paper[meta.dark ? 1 : 0];
+      if (meta.content !== expected)
+        problems.push(
+          'web/' +
+            file +
+            ':' +
+            meta.line +
+            ': theme-color ' +
+            (meta.content || '(empty)') +
+            ' is not --paper (' +
+            expected +
+            (meta.media ? ' for ' + meta.media : '') +
+            ')',
+        );
+    }
+    if (metas.length && !(metas.some(meta => meta.dark) && metas.some(meta => meta.light)))
+      problems.push(
+        'web/' +
+          file +
+          ': theme-color needs a light and a dark meta (media "(prefers-color-scheme: light)" and "(prefers-color-scheme: dark)"), so the browser bar follows the system before JavaScript',
+      );
+    // The metas are checked above; their literals are not script colours.
+    const text = source.replace(themeColorMeta, tag => ' '.repeat(tag.length));
+    for (const found of markupColours(text, file)) {
       const mirror = /name="theme-color"|setAttribute\('content'/.test(found.text);
       if (mirror) {
         if (!paper.includes(found.literal))
@@ -338,6 +385,7 @@ export function markupColourProblems(
             ' in markup; give the element a class whose colour comes from web/tokens.css (WEB-07)',
         );
     }
+  }
   for (const entry of reviewed) {
     if (!entry.reason || !entry.within)
       problems.push(allowlistPath + ': scripts ' + entry.file + ' ' + entry.value + ' needs a reason and a context');

@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {createContext, Script} from 'node:vm';
 import {
   checkColours,
   colourRatchet,
@@ -17,6 +18,7 @@ import {
   readColourBaseline,
   readColourAllowlist,
   reviewedScriptLiterals,
+  themeColorMetas,
   tokenParityProblems,
 } from '../tools/check-colours.mjs';
 
@@ -377,13 +379,17 @@ test('scripts and pages write no colour of their own outside the reviewed list, 
     fs.writeFileSync(path.join(directory, 'web/b.js'), "const qr = 'fill=#fff';\nconst ground = '#fff';\n");
     fs.writeFileSync(path.join(directory, 'web/vendor/lib.js'), "const black = '#000000';\n");
     fs.writeFileSync(path.join(directory, 'web/p.html'), '<meta name="theme-color" content="#201c32">\n');
-    fs.writeFileSync(path.join(directory, 'web/q.html'), '<meta name="theme-color" content="#181522">\n');
+    fs.writeFileSync(
+      path.join(directory, 'web/q.html'),
+      '<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7f6fa">\n' +
+        '<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#181522">\n',
+    );
     const reviewed = {entries: [], scripts: [{file: 'b.js', value: '#fff', within: 'fill=', count: 2, reason: 'QR'}]},
       problems = markupColourProblems(directory, reviewed, {script_entries: 1}).join('\n');
     assert.match(problems, /web\/a\.js:1: literal colour #123456 in markup/);
     assert.match(problems, /web\/b\.js:2: literal colour #fff in markup/, 'a reviewed colour outside its context');
     assert.match(problems, /web\/p\.html:1: theme-color #201c32 is not --paper/);
-    assert.doesNotMatch(problems, /q\.html|vendor/, 'the dark --paper and vendored code pass');
+    assert.doesNotMatch(problems, /q\.html|vendor/, 'a light and a dark --paper meta and vendored code pass');
     assert.match(problems, /scripts b\.js #fff occurs 1 times, not 2/);
     assert.match(
       markupColourProblems(directory, reviewed, {script_entries: 0}).join('\n'),
@@ -455,6 +461,78 @@ test('the reviewed script colours admit no more literals than recorded, and a na
   } finally {
     fs.rmSync(directory, {recursive: true, force: true});
   }
+});
+// Integration review of wave 4b: every page's theme-color became the light --paper, so a visitor with a dark system saw
+// a light browser bar until theme.js ran, and always without JavaScript. Each page now has a light and a dark meta
+// (media prefers-color-scheme), each its appearance's --paper, and theme.js sets both to the chosen theme.
+test('theme-color follows the system appearance before JavaScript, and the chosen theme after', () => {
+  const pages = fs.readdirSync('web').filter(file => file.endsWith('.html'));
+  assert.ok(pages.length >= 10);
+  for (const page of pages)
+    assert.deepEqual(
+      themeColorMetas(fs.readFileSync('web/' + page, 'utf8')).map(({light, dark, content}) => [light, dark, content]),
+      [
+        [true, false, '#f7f6fa'],
+        [false, true, '#181522'],
+      ],
+      page,
+    );
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-theme-color-'));
+  try {
+    fs.mkdirSync(path.join(directory, 'web'));
+    fs.copyFileSync('web/tokens.css', path.join(directory, 'web/tokens.css'));
+    const write = (file, ...metas) =>
+      fs.writeFileSync(
+        path.join(directory, 'web', file),
+        metas.map(([media, content]) => `<meta name="theme-color" media="${media}" content="${content}">`).join('\n'),
+      );
+    const light = '(prefers-color-scheme: light)',
+      dark = '(prefers-color-scheme: dark)';
+    write('swapped.html', [light, '#181522'], [dark, '#f7f6fa']);
+    write('named.html', [light, 'white'], [dark, '#181522']);
+    fs.writeFileSync(path.join(directory, 'web/single.html'), '<meta name="theme-color" content="#f7f6fa">\n');
+    const problems = markupColourProblems(directory, {entries: [], scripts: []}, {script_entries: 0}).join('\n');
+    assert.match(
+      problems,
+      /swapped\.html:1: theme-color #181522 is not --paper \(#f7f6fa for \(prefers-color-scheme: light\)\)/,
+    );
+    assert.match(
+      problems,
+      /swapped\.html:2: theme-color #f7f6fa is not --paper \(#181522 for \(prefers-color-scheme: dark\)\)/,
+    );
+    assert.match(problems, /named\.html:1: theme-color white is not --paper/);
+    assert.match(problems, /single\.html: theme-color needs a light and a dark meta/);
+    assert.doesNotMatch(
+      problems,
+      /single\.html:1/,
+      'a meta without media is the light one, and #f7f6fa is its --paper',
+    );
+  } finally {
+    fs.rmSync(directory, {recursive: true, force: true});
+  }
+  // theme.js gives both metas the chosen theme's --paper, whatever the system says.
+  const metas = [{}, {}].map(meta => Object.assign(meta, {setAttribute: (name, value) => (meta[name] = value)}));
+  const context = createContext({
+    localStorage: {getItem: () => 'dark', setItem() {}},
+    matchMedia: () => ({matches: false, addEventListener() {}}),
+    addEventListener() {},
+    document: {
+      currentScript: null,
+      documentElement: {dataset: {}},
+      querySelectorAll: selector => (selector === 'meta[name="theme-color"]' ? metas : []),
+      addEventListener() {},
+    },
+  });
+  new Script(fs.readFileSync('web/theme.js', 'utf8')).runInContext(context);
+  assert.deepEqual(
+    metas.map(meta => meta.content),
+    ['#181522', '#181522'],
+  );
+  new Script("AMCPTheme.set('light')").runInContext(context);
+  assert.deepEqual(
+    metas.map(meta => meta.content),
+    ['#f7f6fa', '#f7f6fa'],
+  );
 });
 test('no stylesheet writes a colour of its own: the ratchet is down to the reviewed allow-list', () => {
   const {counts} = checkColours(),
