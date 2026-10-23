@@ -533,7 +533,11 @@ test('names and native values the leak probe met are marked literal where render
   ])
     assert.ok(read(file).includes(marked), file + ': ' + marked);
   // Regression: a failed or uncertain step showed AMCP's English message raw in the Arabic interface.
-  assert.match(read('campaign-workflows.js'), /<p class="error">\$\{esc\(uiOwnedError\(s\.error\)\.message\)\}<\/p>/);
+  // WEB-03 (design review 2026-10): a step error the page words itself (an uncertain write) comes first, translated.
+  assert.match(
+    read('campaign-workflows.js'),
+    /<p class="error">\$\{esc\(\(typeof websiteOwnMessage === 'function' && websiteOwnMessage\(s\.error\)\) \|\| uiOwnedError\(s\.error\)\.message\)\}<\/p>/,
+  );
   for (const message of [
     'The provider configuration changed after preparation. Prepare and review a fresh request.',
     'The write response was lost. Do not retry with a new key; inspect platform state.',

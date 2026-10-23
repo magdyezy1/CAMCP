@@ -412,7 +412,8 @@ test('Arabic Home translates task labels while preserving and escaping campaign 
   };
   const html = f.run('workHome(data,[{}])');
   assert.match(html, /<h1>الرئيسية<\/h1>/);
-  assert.match(html, /<strong>Home<\/strong>/);
+  // The plan's name is the person's own text: isolated and literal (WEB-05, design review 2026-10).
+  assert.match(html, /<strong dir="auto" data-native>Home<\/strong>/);
   assert.match(html, /campaigns\?id=native%2F001/);
   assert.doesNotMatch(html, /<img/);
   assert.match(html, /&lt;img/);

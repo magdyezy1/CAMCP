@@ -318,7 +318,7 @@ const websiteMessages = {
 const websiteWording = {
   WRITE_OUTCOME_UNCERTAIN: [
     'The provider’s answer to this change was lost, so AMCP cannot confirm whether it was applied.',
-    'AMCP never sends it again. Read it back to check the account; a read-back changes nothing.',
+    'AMCP never sends it again. Read it back to check the account before you repeat the change yourself; a read-back changes nothing.',
   ],
 };
 function websiteOwnMessage(error) {

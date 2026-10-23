@@ -59,7 +59,7 @@
   "AMCP is receiving many uploads right now. Send this part again in a moment.": "يتلقى AMCP عددًا كبيرًا من عمليات الرفع حاليًا. أعد إرسال هذا الجزء بعد قليل.",
   "AMCP lists advertisers through the partners this Google identity can access. Ask a Display & Video 360 administrator to give it a user profile with Admin, Standard or Read only access to the partner or advertiser, keep the Display & Video 360 permission granted at sign-in, then sync again.": "يعرض AMCP المعلنين من خلال الشركاء الذين يمكن لهوية Google هذه الوصول إليهم. اطلب من مسؤول Display & Video 360 منحها ملف مستخدم بصلاحية Admin أو Standard أو Read only على الشريك أو المعلن، وأبقِ إذن Display & Video 360 ممنوحًا عند تسجيل الدخول، ثم زامن مرة أخرى.",
   "AMCP never repeats an upload or step whose outcome is not confirmed. Check its recovery in Operations before you do anything else.": "لا يكرر AMCP أبدًا رفعًا أو خطوة لم تتأكد نتيجتها. تحقق من استعادتها في صفحة العمليات قبل أي إجراء آخر.",
-  "AMCP never sends it again. Read it back to check the account; a read-back changes nothing.": "لن يرسله AMCP مرة أخرى أبدًا. أعد قراءته للتحقق من الحساب؛ فإعادة القراءة لا تغيّر شيئًا.",
+  "AMCP never sends it again. Read it back to check the account before you repeat the change yourself; a read-back changes nothing.": "لن يرسله AMCP مرة أخرى أبدًا. أعد قراءته للتحقق من الحساب قبل أن تكرر التغيير بنفسك؛ فإعادة القراءة لا تغيّر شيئًا.",
   "AMCP storage is full. The deployment administrator must restore capacity before sign-in or saving can continue.": "مساحة تخزين AMCP ممتلئة. يجب على مسؤول النشر استعادة السعة المتاحة قبل متابعة تسجيل الدخول أو حفظ التغييرات.",
   "AMCP was updated": "تم تحديث AMCP",
   "AMCP was updated. Reload to continue.": "تم تحديث AMCP. أعد تحميل الصفحة للمتابعة.",

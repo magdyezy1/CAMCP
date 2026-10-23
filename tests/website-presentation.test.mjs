@@ -986,9 +986,11 @@ test('a lost write answer is explained without keys, and its exact server text s
       );
     p.context.error = uncertain;
     const lines = p.run('errorLines(error)');
+    // The server's remedy also says not to create the resource again ("Do not create another resource or use a new
+    // idempotency key"); the page's words keep that: check by reading back before repeating the change yourself.
     for (const owned of [
       'The provider’s answer to this change was lost, so AMCP cannot confirm whether it was applied.',
-      'AMCP never sends it again. Read it back to check the account; a read-back changes nothing.',
+      'AMCP never sends it again. Read it back to check the account before you repeat the change yourself; a read-back changes nothing.',
     ]) {
       assert.ok(Object.hasOwn(catalog, owned), 'Arabic for ' + owned);
       assert.ok(lines.includes(t(locale, owned)), owned);

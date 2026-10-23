@@ -74,10 +74,18 @@ test('structured server errors keep their recovery advice and request reference 
     context,
   );
   const message = new Script(
-    `errorMessage(requestError({error:{message:'The upload outcome is uncertain.',next_action:'Inspect the original receipt.',code:'WRITE_OUTCOME_UNCERTAIN',retryable:false},meta:{requestId:'fixture-request'}}))`,
+    `errorMessage(requestError({error:{message:'The plan state changed.',next_action:'Inspect the original receipt.',code:'STATE_CHANGED',retryable:false},meta:{requestId:'fixture-request'}}))`,
   ).runInContext(context);
   assert.match(message, /Inspect the original receipt/);
   assert.match(message, /fixture-request/);
+  // WEB-03 (design review 2026-10): an uncertain write is said in the page's own words, which keep its recovery advice
+  // (read back before repeating the change; nothing is sent again) and the reference; the server's text stays under
+  // Technical details. This case once pinned the server's advice verbatim.
+  const uncertain = new Script(
+    `errorMessage(requestError({error:{message:'The upload outcome is uncertain.',next_action:'Inspect the original receipt.',code:'WRITE_OUTCOME_UNCERTAIN',retryable:false},meta:{requestId:'fixture-request'}}))`,
+  ).runInContext(context);
+  assert.match(uncertain, /AMCP never sends it again\. Read it back to check the account before you repeat the change/);
+  assert.match(uncertain, /fixture-request/);
 });
 
 // Execute the actual browser scripts with a small DOM adapter. Requests are entirely synthetic and deferred by

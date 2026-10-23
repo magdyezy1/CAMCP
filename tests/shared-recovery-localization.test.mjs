@@ -170,6 +170,19 @@ test('actual safety-critical remedy branches remain distinct and never change su
         if (/never authorizes a write/i.test(response.error.next_action))
           assert.ok(display.includes(t('A failed or incomplete read never authorizes a change.')), code);
       }
+      // A refusal the page words itself (an uncertain write, design review 2026-10) keeps the server remedy's safety
+      // facts in its words: AMCP sends nothing again, and the person reads back before repeating the change (the
+      // server says "Do not create another resource or use a new idempotency key"). A remedy without the second
+      // fact would let a person recreate a resource the provider may already have applied.
+      if (f.run("websiteOwnMessage(error) !== ''")) {
+        assert.equal(code, 'WRITE_OUTCOME_UNCERTAIN');
+        assert.match(response.error.next_action, /Do not create another resource/);
+        const own = t(
+          'AMCP never sends it again. Read it back to check the account before you repeat the change yourself; a read-back changes nothing.',
+        );
+        assert.ok(own && display.includes(own), code);
+        assert.ok(display.includes('critical-recovery-reference'), code);
+      }
       assert.equal(JSON.stringify(response), before);
     }
     // Each replaced remedy is the page's own wording for that refusal, never one shared text for several of them.
