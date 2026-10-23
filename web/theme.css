@@ -107,15 +107,7 @@
 [data-theme='dark'] :is(.public-nav nav a, #breadcrumb, footer a) {
   color: var(--muted);
 }
-[data-theme='dark']
-  :is(
-    .quick-actions strong,
-    article li,
-    article strong,
-    .report-history-row,
-    .report-history-row strong,
-    .report-history-row > span
-  ) {
+[data-theme='dark'] :is(article strong) {
   color: var(--ink);
 }
 [data-theme='dark']
