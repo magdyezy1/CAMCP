@@ -16,6 +16,7 @@ import {
   markupColours,
   readColourBaseline,
   readColourAllowlist,
+  reviewedScriptLiterals,
   tokenParityProblems,
 } from '../tools/check-colours.mjs';
 
@@ -404,6 +405,53 @@ test('scripts and pages write no colour of their own outside the reviewed list, 
     ).join('\n');
     assert.match(old, /evidence-workflows\.js:\d+: literal colour #ebe9f6 in markup/);
     assert.match(old, /evidence-workflows\.js:\d+: literal colour #5a43ad in markup/);
+  } finally {
+    fs.rmSync(directory, {recursive: true, force: true});
+  }
+});
+// Integration review of wave 4b: the script list could be bypassed two ways. Each entry's count is written by hand, so
+// raising one admitted more literals of that value in that context (only the number of entries was limited), and a
+// named colour a script wrote (fill="white", "color:red" in a generated document) was not read at all.
+test('the reviewed script colours admit no more literals than recorded, and a named colour in markup is a colour', () => {
+  const scripts = readColourAllowlist().scripts;
+  assert.equal(reviewedScriptLiterals(scripts), readColourBaseline().script_literals);
+  // Named colours where markup gives a colour: attributes (quoted, escaped or unquoted) and CSS declarations.
+  assert.deepEqual(
+    markupColours(
+      '<rect fill="white"/><circle stroke=\'Red\'/><stop stop-color=black /><text fill=\\"navy\\">' +
+        "'</title><style>body{color:black;background:#fff}td{border:1px solid silver}</style>'",
+    ).map(found => found.literal),
+    ['#fff', 'white', 'red', 'black', 'navy', 'black', 'silver'],
+  );
+  // The words in prose, class names, other attributes and the colour keywords are not literal colours.
+  assert.deepEqual(
+    markupColours(
+      '<p class="red">The white paper, a red flag</p><b data-fill="white" title="color: tan">x</b>' +
+        '<svg fill="none" stroke="currentColor"><rect fill="transparent"/></svg>',
+    ),
+    [],
+  );
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'amcp-script-literals-'));
+  try {
+    fs.mkdirSync(path.join(directory, 'web'), {recursive: true});
+    fs.copyFileSync('web/tokens.css', path.join(directory, 'web/tokens.css'));
+    fs.writeFileSync(path.join(directory, 'web/chart.js'), 'const bar = \'<rect fill="white"/>\';\n');
+    fs.writeFileSync(path.join(directory, 'web/qr.js'), "const a = 'fill=#fff';\nconst b = 'fill=#fff';\n");
+    const one = {file: 'qr.js', value: '#fff', within: 'fill=', count: 2, reason: 'QR'},
+      problems = markupColourProblems(
+        directory,
+        {entries: [], scripts: [one]},
+        {script_entries: 1, script_literals: 1},
+      );
+    assert.match(problems.join('\n'), /web\/chart\.js:1: literal colour white in markup/);
+    // The entry's count matches its file, but raising it by hand above the recorded total is refused.
+    assert.doesNotMatch(problems.join('\n'), /occurs/);
+    assert.match(
+      problems.join('\n'),
+      /the script entries admit 2 literal colours \(limit 1\); a reviewed count only goes down/,
+    );
+    const atLimit = {script_entries: 1, script_literals: 2};
+    assert.doesNotMatch(markupColourProblems(directory, {entries: [], scripts: [one]}, atLimit).join('\n'), /admit/);
   } finally {
     fs.rmSync(directory, {recursive: true, force: true});
   }

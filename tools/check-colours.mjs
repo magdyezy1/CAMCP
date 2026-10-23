@@ -17,8 +17,10 @@ import {fileURLToPath} from 'node:url';
 //              (tools/web-colour-allowlist.json: brand marks, QR codes, illustrations) names it with its reason; a
 //              count may only go down (tools/web-colour-baseline.json), and so may the allow-list;
 //   markup     scripts and pages write no colour either, except the reviewed data defaults, QR pixels and the
-//              downloaded report document (allow-list "scripts", by file, value and count), and the theme-color
-//              values, which must equal --paper.
+//              downloaded report document (allow-list "scripts", by file, value and count; the number of entries and
+//              the total of their counts may only go down), and the theme-color values, which must equal --paper. A
+//              named colour counts where markup gives a colour (a fill, stroke or color attribute, a CSS declaration
+//              in style text), not in prose.
 
 export const baselinePath = 'tools/web-colour-baseline.json';
 /** The stylesheets that define tokens, in the order a page loads them. */
@@ -252,6 +254,22 @@ export function tokenParityProblems(css, label = 'web/tokens.css') {
 // loads, so they stay literal but must equal --paper.
 const markupLiteral =
   /(?<![\w#&-])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})(?![\w-])|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\([^()]*\)/g;
+// A named colour is a colour only where markup gives one: a colour attribute (fill="white", also escaped or unquoted in
+// a script's string) or a CSS declaration in style text a script writes (the downloaded report document's <style>): one
+// that follows "{" or ";", starts a line or starts a style attribute. "The white paper" and title="color: tan" are
+// prose. The colour name is the first capture group.
+const markupNamedColour = [
+  new RegExp(
+    `(?<![\\w-])(?:fill|stroke|color|stop-color|flood-color|lighting-color|bgcolor)\\s*=\\s*\\\\?["']?\\s*(${namedColours})(?![\\w-])`,
+    'gi',
+  ),
+  new RegExp(
+    `(?<=(?:^|[{;]|(?<![\\w-])style\\s*=\\s*\\\\?["'])\\s*)` +
+      '(?:color|background(?:-color)?|border(?:-[a-z]+)*|outline(?:-color)?|fill|stroke|stop-color|caret-color|' +
+      `accent-color|text-decoration(?:-color)?|column-rule(?:-color)?|box-shadow|text-shadow)\\s*:\\s*[^;{}"'\`<>]*?(?<![\\w-])(${namedColours})(?![\\w-])`,
+    'gi',
+  ),
+];
 /** Shipped scripts and pages (web/*.js, web/*.html), vendored files excluded. */
 export function markupFiles(root = process.cwd()) {
   return fs
@@ -266,9 +284,14 @@ export function markupColours(text, file = '') {
   text.split('\n').forEach((line, index) => {
     for (const match of line.matchAll(markupLiteral))
       out.push({file, line: index + 1, literal: match[0].toLowerCase(), text: line});
+    for (const pattern of markupNamedColour)
+      for (const match of line.matchAll(pattern))
+        out.push({file, line: index + 1, literal: match[1].toLowerCase(), text: line});
   });
   return out;
 }
+/** The literals the reviewed script entries admit: the total of their counts, which may only go down. */
+export const reviewedScriptLiterals = scripts => scripts.reduce((sum, entry) => sum + (Number(entry.count) || 0), 0);
 /** Literals in scripts and pages outside the reviewed list, and theme-color values that are not --paper. */
 export function markupColourProblems(
   root = process.cwd(),
@@ -341,6 +364,18 @@ export function markupColourProblems(
         (baseline.script_entries ?? 0) +
         '); the reviewed script colours only shrink (WEB-07)',
     );
+  // Each entry's count must match what its file writes, so raising a count by hand would admit more literals of that
+  // value in that context; the total of the counts is recorded and may only go down.
+  const literals = reviewedScriptLiterals(reviewed);
+  if (literals > (baseline.script_literals ?? 0))
+    problems.push(
+      allowlistPath +
+        ': the script entries admit ' +
+        literals +
+        ' literal colours (limit ' +
+        (baseline.script_literals ?? 0) +
+        '); a reviewed count only goes down (WEB-07)',
+    );
   return problems;
 }
 export function checkColours(
@@ -379,11 +414,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         );
   } else if (process.argv.includes('--write')) {
     // The baseline only moves down: a count above its limit must be fixed, never recorded.
-    // A limit the baseline does not record yet (the script entries before their first recording) starts open.
+    // A limit the baseline does not record yet (the script entries and their total before their first recording)
+    // starts open.
     const existing = fs.existsSync(baselinePath)
       ? readColourBaseline()
       : {files: new Proxy({}, {get: () => Infinity}), allowlist_entries: Infinity};
-    const {counts, allowed, problems} = checkColours(process.cwd(), {script_entries: Infinity, ...existing});
+    const {counts, allowed, problems} = checkColours(process.cwd(), {
+      script_entries: Infinity,
+      script_literals: Infinity,
+      ...existing,
+    });
     if (problems.length) {
       console.error(problems.join('\n'));
       process.exit(1);
@@ -398,6 +438,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
           total: total(counts),
           allowlist_entries: allowlist.entries.length,
           script_entries: allowlist.scripts?.length ?? 0,
+          script_literals: reviewedScriptLiterals(allowlist.scripts ?? []),
           files: Object.fromEntries(Object.entries(counts).filter(([, count]) => count)),
           allowed: Object.fromEntries(Object.entries(allowed).filter(([, count]) => count)),
         },

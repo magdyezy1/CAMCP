@@ -3,6 +3,7 @@
   "total": 0,
   "allowlist_entries": 12,
   "script_entries": 10,
+  "script_literals": 12,
   "files": {},
   "allowed": {
     "app.css": 8,
