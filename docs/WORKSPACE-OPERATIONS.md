@@ -12,7 +12,7 @@ The [workspace workflow guide](../Skills/amcp-campaign-builder/references/worksp
 
 ## Runtime dependencies and setup
 
-- Node.js 24 and the existing SQLite volume retain plans, profiles, source-linked reports, upload receipts and verification jobs across restart. Generated report downloads use pinned ExcelJS, PDFKit and Fontkit dependencies plus the licensed bundled font; see [generation bounds](review/DELIVERY-2026-10-01-CREATIVE-REPORTS.md).
+- Node.js 24 and the existing SQLite volume retain plans, profiles, source-linked reports, upload receipts and verification jobs across restart. Generated report downloads use pinned ExcelJS, PDFKit and Fontkit dependencies plus the licensed bundled font; see [generation bounds](records/DELIVERY-2026-10-01-CREATIVE-REPORTS.md).
 - The Docker build and runtime include FFmpeg/ffprobe. Local users install these binaries and may set `AMCP_FFMPEG_PATH` and `AMCP_FFPROBE_PATH`. Conversion accepts one image/video stream, up to 40 megapixels and 180 seconds, with input and output within the configured media limit (128 MiB by default). At most two conversions run at once. The process uses no shell, fixed format/codec arguments, a protocol allowlist and strict time/output limits; originals are never overwritten.
 - Google Drive uses `AMCP_DRIVE_CLIENT_ID` and `AMCP_DRIVE_CLIENT_SECRET`, or the existing Google app when both dedicated variables are unset. Enable Drive API, register `https://amcp.shop/api/auth/drive/callback`, and authorize the `drive.readonly` scope. It may require provider app verification. Connect Drive, sync files and select only the files AMCP may import. Drive access is always a read-only media source, independent of advertising write defaults. Refresh tokens are encrypted through the existing credential store.
 - Reports and write-verification jobs run in the existing HTTP worker (unless `AMCP_RUN_WORKER=false`) or `npm run worker`. A stdio-only process can use `amcp_campaign verify` explicitly. Background verification retains the originating connector identity and stops when its key or account access is revoked. Verification never resubmits a mutation.
@@ -40,7 +40,7 @@ Provider behavior follows [Google Drive download documentation](https://develope
 
 ## Accounts, reporting and operating controls
 
-See [account setup](USER-ACCOUNTS.md), [Reporting Overview](REPORTING-OVERVIEW.md) and [implementation/acceptance notes](RECOMMENDATIONS-IMPLEMENTED.md) for owner migration, team access, MFA, custom metrics, scheduled Sheets exports, campaign preflight/recovery, spending policies, asynchronous media and encrypted backups.
+See [account setup](USER-ACCOUNTS.md), [Reporting Overview](REPORTING-OVERVIEW.md) and [implementation/acceptance notes](archive/RECOMMENDATIONS-IMPLEMENTED.md) for owner migration, team access, MFA, custom metrics, scheduled Sheets exports, campaign preflight/recovery, spending policies, asynchronous media and encrypted backups.
 
 
 ## Recovering original measurement reports
@@ -62,8 +62,8 @@ It does not infer scope from arbitrary paths, inspected page URLs or provider re
 do not expand the schema accepted for fresh queries. Tag Manager account parents retain exact opaque IDs;
 Business Profile location names retain locations/{id}. Conflicting canonical parents or location selectors fail
 closed. Account and location grants are separate contexts, and metadata parsing cannot establish provider ownership.
-See [GA4/Search Console qualification](review/DELIVERY-2026-10-03-REPORT-RESOURCE-SCOPE.md) and
-[Tag Manager/Business Profile qualification](review/DELIVERY-2026-10-03-REPORT-PARENT-SCOPE.md).
+See [GA4/Search Console qualification](records/DELIVERY-2026-10-03-REPORT-RESOURCE-SCOPE.md) and
+[Tag Manager/Business Profile qualification](records/DELIVERY-2026-10-03-REPORT-PARENT-SCOPE.md).
 
 For new Business Profile GET_LOCATION and GET_LODGING reads, supply an explicit query.readMask. A location can
 select "name,title"; a caller may deliberately choose "*" for lodging. Missing or blank masks fail before dispatch.

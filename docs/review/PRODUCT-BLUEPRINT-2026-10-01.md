@@ -25,11 +25,11 @@ Read this document for the decisions and sequence. The linked specifications car
 
 | Document | What it provides |
 |---|---|
-| [Engineering review](REVIEW-2026-10-01.md) | Current architecture, reproduced defects, source-traced findings, measurements, security, testing and deployment assessment |
-| [Contract and integration specification](product/CONTRACTS-2026-10-01.md) | 18 initiatives, provider-by-provider opportunities, current contract evidence, prerequisites, limits and acceptance criteria |
-| [Website and workflow specification](product/UX-2026-10-01.md) | Current route map, 12 backend-to-website comparisons, seven navigation groups, ten complete journeys, 21 page/view specifications and 12 design priorities |
-| [Campaign, reporting and creative specification](product/WORKFLOWS-2026-10-01.md) | Feature matrix and detailed capability initiatives, distinguishing existing engines from interface completion and new work |
-| [Evidence record](REVIEW-2026-10-01-EVIDENCE.json) | Baseline checks, measurements and hashes of the synthetic technical reproduction artifacts |
+| [Engineering review](../archive/REVIEW-2026-10-01.md) | Current architecture, reproduced defects, source-traced findings, measurements, security, testing and deployment assessment |
+| [Contract and integration specification](../archive/CONTRACTS-2026-10-01.md) | 18 initiatives, provider-by-provider opportunities, current contract evidence, prerequisites, limits and acceptance criteria |
+| [Website and workflow specification](../archive/UX-2026-10-01.md) | Current route map, 12 backend-to-website comparisons, seven navigation groups, ten complete journeys, 21 page/view specifications and 12 design priorities |
+| [Campaign, reporting and creative specification](../archive/WORKFLOWS-2026-10-01.md) | Feature matrix and detailed capability initiatives, distinguishing existing engines from interface completion and new work |
+| [Evidence record](../archive/REVIEW-2026-10-01-EVIDENCE.json) | Baseline checks, measurements and hashes of the synthetic technical reproduction artifacts |
 
 These specifications overlap intentionally at their interfaces; their initiative counts must not be added together
 as a count of distinct projects. The numbered work packages in section 12 are the consolidated delivery sequence.

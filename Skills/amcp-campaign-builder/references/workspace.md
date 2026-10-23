@@ -919,7 +919,7 @@ current exact keywords; conflicting positive or negative exact keywords block th
 campaign/shared/account-level coverage is not assessed. Confirming saves an **unapproved** draft under Campaigns.
 It changes no advertising account. Separate approval, spending acknowledgement, native review and verified execution
 remain required. A save retry retains the original preview and reuses its plan. Source or selection changes require
-a fresh preview; previews expire after ten minutes. See the [delivery record](../../../docs/review/DELIVERY-2026-10-02-SEARCH-EXCLUSION-PLANS.md).
+a fresh preview; previews expire after ten minutes. See the [delivery record](../../../docs/records/DELIVERY-2026-10-02-SEARCH-EXCLUSION-PLANS.md).
 
 MCP: `amcp_decision_report {action:"search_exclusion_candidates",id,options:{minimum_clicks,maximum_age_days},offset?,limit?}`;
 follow `next_offset` and explicitly select native row IDs. Then call `preview_search_exclusions` with the same
@@ -955,14 +955,14 @@ For MCP use `capture_preset` with `preset:"snapchat_campaign"` or `"snapchat_ad"
 `swipe_up_attribution_window` (`1_DAY`, `7_DAY`, `28_DAY`) and `view_attribution_window`
 (`none`, `1_HOUR`, `3_HOUR`, `6_HOUR`, `1_DAY`, `7_DAY`). Generic attribution/conversion text is replaced
 by the generated native settings. Provider finalization does not verify measurement setup or guarantee an atomic
-account snapshot. See [qualification and limits](../../../docs/review/DELIVERY-2026-10-02-SNAPCHAT-EVIDENCE.md).
+account snapshot. See [qualification and limits](../../../docs/records/DELIVERY-2026-10-02-SNAPCHAT-EVIDENCE.md).
 
 For ad-squad evidence choose `snapchat_adsquad` and supply the exact `campaign_id` from Portfolio. The server
 observes the campaign in this account's bounded native campaign collection, checks its exact ownership before/after
 all stats pages, and retains every parent/account/page request, hash and time. This preset uses the campaign stats
 route and native `AD_SQUAD` rows. English/Arabic forms require the parent only for this preset; other presets refuse
 the unsupported filter. Comparisons require the same parent campaign. Collection membership is a positive ownership
-observation, not complete inventory or an atomic snapshot. See [ad-squad qualification](../../../docs/review/DELIVERY-2026-10-03-SNAPCHAT-SQUAD-EVIDENCE.md).
+observation, not complete inventory or an atomic snapshot. See [ad-squad qualification](../../../docs/records/DELIVERY-2026-10-03-SNAPCHAT-SQUAD-EVIDENCE.md).
 
 ## Snapchat ad-squad allocation drafts
 
@@ -982,19 +982,19 @@ review also freezes native delivery mode so a change prevents dispatch.
 For MCP use `allocation_candidates`, `allocation`, `preview_allocation_plan` with `conversion:"equal_daily"`,
 then `create_allocation_plan` with that session's `preview_id`, `preview_hash` and `confirmed:true`. Retain exact
 report and account scope. Other providers remain unqualified for this handoff; Google retains its dedicated-budget
-flow. See [qualification and limits](../../../docs/review/DELIVERY-2026-10-03-SNAPCHAT-ALLOCATION.md).
+flow. See [qualification and limits](../../../docs/records/DELIVERY-2026-10-03-SNAPCHAT-ALLOCATION.md).
 
 
 ### Allocation selection and browser review
 
-Candidates use compact Add/Added controls with full accessible names. Added items remain disabled until removed; selection changes preserve each remaining item's bounds and invalidate obsolete results. Report buttons identify their source, account and dates. Snapchat model/candidate responses identify `entity_kind:ad_squad` and the exact `parent_campaign_id`; daily-budget copy stays provider-specific. Conversion tables retain exact decimal strings and micros inside named horizontal scroll regions. The confirmation starts on Cancel, wraps Tab/Shift+Tab between its controls and supports Escape cancellation. Long native IDs fit the English/Arabic narrow-screen form. See [browser and keyboard qualification](../../../docs/review/DELIVERY-2026-10-03-BROWSER-ALLOCATION.md).
+Candidates use compact Add/Added controls with full accessible names. Added items remain disabled until removed; selection changes preserve each remaining item's bounds and invalidate obsolete results. Report buttons identify their source, account and dates. Snapchat model/candidate responses identify `entity_kind:ad_squad` and the exact `parent_campaign_id`; daily-budget copy stays provider-specific. Conversion tables retain exact decimal strings and micros inside named horizontal scroll regions. The confirmation starts on Cancel, wraps Tab/Shift+Tab between its controls and supports Escape cancellation. Long native IDs fit the English/Arabic narrow-screen form. See [browser and keyboard qualification](../../../docs/records/DELIVERY-2026-10-03-BROWSER-ALLOCATION.md).
 
 
 ### Saved budget proposal review
 
 Opening a recognized allocation draft shows **Retained budget proposal** with the exact provider/account, currency, timezone, reference duration and Snapchat parent. Its keyboard-accessible table compares the saved budgets at preview with the proposed native daily/average-daily amounts and micros. These settings are retained evidence, not a new live read. Inspect the original report for its date window and measurement definitions. Reference-period amounts are not an ongoing spending cap or end date.
 
-The original plan brief and original native step descriptions remain expandable. A readable translated step is shown only for an exact matched single native budget request; additional/changed fields or older/unqualified bindings keep their stored descriptions. Language changes do not modify the original plan or request. Every advertising effect still needs the existing separate native review, spending acknowledgement and execution/read-back. Report metric cards and plan counts are available in both languages. See [review qualification](../../../docs/review/DELIVERY-2026-10-03-ALLOCATION-REVIEW.md).
+The original plan brief and original native step descriptions remain expandable. A readable translated step is shown only for an exact matched single native budget request; additional/changed fields or older/unqualified bindings keep their stored descriptions. Language changes do not modify the original plan or request. Every advertising effect still needs the existing separate native review, spending acknowledgement and execution/read-back. Report metric cards and plan counts are available in both languages. See [review qualification](../../../docs/records/DELIVERY-2026-10-03-ALLOCATION-REVIEW.md).
 
 ### Discovering saved evidence
 
@@ -1012,7 +1012,7 @@ Changed access or query requires restarting. Do not log opaque cursor tokens. No
 Use `action:"get",id:<original report ID>` for its complete source definitions and retained row paging; discovery
 does not replace evidence inspection. Website search/reset/load-more updates comparison choices while preserving
 the open report. Language changes preserve native IDs, source text and wire arguments. No provider call or saved
-change is made by index search. See [qualification and limits](../../../docs/review/DELIVERY-2026-10-04-EVIDENCE-INDEX.md).
+change is made by index search. See [qualification and limits](../../../docs/records/DELIVERY-2026-10-04-EVIDENCE-INDEX.md).
 
 ## LinkedIn independent daily-budget allocation drafts
 
@@ -1235,7 +1235,7 @@ Performance Max campaign/image identity are required. LOGO/LANDSCAPE_LOGO link c
 unknown links remain distinct. Campaign links are not ads or asset groups. The default ad view and explicit
 asset-group view remain independent. Google handoffs retain the original asset, chosen view and bounded
 limit; the website waits for an explicit read and clears view choices when another asset is opened. No
-write grant, serving/performance/history or all-format absence is established. See [qualification](../../../docs/review/DELIVERY-2026-10-04-GOOGLE-PMAX-CAMPAIGN-LOGOS.md).
+write grant, serving/performance/history or all-format absence is established. See [qualification](../../../docs/records/DELIVERY-2026-10-04-GOOGLE-PMAX-CAMPAIGN-LOGOS.md).
 
 ### Selected WooCommerce source products
 
@@ -1249,7 +1249,7 @@ in headers on fresh public-DNS-checked sockets; redirects, caller URLs, incomple
 and sandbox routes are refused. No snapshots, writes or full inventory/variant/tax/acceptance claims
 are added. The bilingual source table exposes blockers; explicitly selected eligible simple products
 enter the existing Meta supplied-product preview/comparison/unapproved draft. X retains its ten explicit
-CSV fields. MCP handoffs preselect exact source IDs/price without an automatic read. See [qualification](../../../docs/review/DELIVERY-2026-10-04-WOOCOMMERCE-SOURCE.md).
+CSV fields. MCP handoffs preselect exact source IDs/price without an automatic read. See [qualification](../../../docs/records/DELIVERY-2026-10-04-WOOCOMMERCE-SOURCE.md).
 
 ### Original Snapchat top-snap references
 
@@ -1262,7 +1262,7 @@ bracketed original account/media observations must match. Native pages have 50 r
 write authority. Only literal `creative.top_snap_media_id` is inspected; other/nested media and history
 remain outside this view. Creative packaging/review and media processing do not prove ad serving.
 The bilingual table keeps exact UUIDs and separate statuses; changes clear old results, and qualified
-MCP handoffs preserve the original asset/bound without an automatic read. See [qualification](../../../docs/review/DELIVERY-2026-10-04-SNAPCHAT-TOP-SNAP-REFERENCES.md).
+MCP handoffs preserve the original asset/bound without an automatic read. See [qualification](../../../docs/records/DELIVERY-2026-10-04-SNAPCHAT-TOP-SNAP-REFERENCES.md).
 
 Native Meta catalog product read-back now covers all 35 accepted observable fields, including exact
 integer inventory, ordered additional images and literal sale dates. An accepted receipt alone cannot

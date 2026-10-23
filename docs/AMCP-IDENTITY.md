@@ -8,6 +8,8 @@ The website uses ink (`#222137`), iris (`#7661df`), apricot (`#ffbd96`) and warm
 `web/tokens.css`, which loads before every other stylesheet. It includes:
 
 - A public homepage with a clearly labeled workflow illustration, feature panels and working links into the product.
+  It is for visitors who are not signed in: a signed-in visitor to `/` goes to Home (`/dashboard`), by a 302 from the
+  server and in place in the shell (owner decision P12, DOC-03).
 - Dedicated sign-in, account creation, verification and password recovery screens.
 - A personal account/security page with explicit provider-configuration states.
 - A workspace sidebar, responsive mobile navigation and keyboard page search (`Ctrl/Cmd + K`).

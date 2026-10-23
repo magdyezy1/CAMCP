@@ -313,7 +313,7 @@ snapshots; website references also require current WEB_VIEW and HTTPS fields. Ca
 selected account's complete bounded creative collection before creating predecessors. The three paused steps,
 explicit offset schedule and exact daily micros are synthetic-qualified; live creative approval, objective
 eligibility, destination availability and conditional programs remain unqualified. See
-[delivery](DELIVERY-2026-10-03-SNAPCHAT-TRAFFIC.md).
+[delivery](../records/DELIVERY-2026-10-03-SNAPCHAT-TRAFFIC.md).
 
 ## Batch 125 — guided Snapchat leads and original form dependencies
 
@@ -323,7 +323,7 @@ and form collection proofs precede global definition reads; native ad creation a
 freeze the exact original linked form. The two supported explicit goals, three PAUSED steps, optional native policy
 fields, no-personal-data read scope, current ownership and no-replay behavior have synthetic contract/SDK/browser
 qualification. Provider approval, consent acceptance, optimization entitlement and broader launch packs remain
-unqualified. See [delivery](DELIVERY-2026-10-04-SNAPCHAT-LEADS.md).
+unqualified. See [delivery](../records/DELIVERY-2026-10-04-SNAPCHAT-LEADS.md).
 
 ## Batch 126 — aggregate Snapchat native lead evidence
 
@@ -332,7 +332,7 @@ ad-squad/ad capture retains exact current parent ownership; all levels retain co
 current account/authority checks. Original purchase definitions remain separate. Compatible verified
 linked-ad performance and English/Arabic all-row exports preserve exact counts and parent references.
 No submitted leads, new native routes/scopes/families or advertising writes are introduced. Native ledger
-counts remain unchanged. See [delivery](DELIVERY-2026-10-04-SNAPCHAT-NATIVE-LEADS.md).
+counts remain unchanged. See [delivery](../records/DELIVERY-2026-10-04-SNAPCHAT-NATIVE-LEADS.md).
 
 ## Batch 127 — saved-evidence metadata index
 
@@ -343,7 +343,7 @@ get and existing exports. Ten synthetic index checks and the real advertised SDK
 scope/session/filter binding, bounded scans, original IDs, legacy unknown metadata and restored storage. EN/AR renderer
 checks qualify search/paging/comparison behavior; actual visual/assistive and external-client acceptance remain separate.
 The reproducible benchmark qualifies this local in-memory workload only. See
-[delivery](DELIVERY-2026-10-04-EVIDENCE-INDEX.md). Original package totals remain 13 implemented / 14 partial / one open.
+[delivery](../records/DELIVERY-2026-10-04-EVIDENCE-INDEX.md). Original package totals remain 13 implemented / 14 partial / one open.
 
 ## Batch 128 — source-bound additional-consent drafts
 
@@ -355,7 +355,7 @@ refusals, leaving wire/native diagnostics unchanged. The new synthetic fixture/b
 identity, strict model bounds, current source/authority/session, saved replay, concurrency, independent native
 acceptance/read-back and original uncertainty recovery. No new native action/family/scope or provider publish.
 3,247 actions / 167 families / 1,712 reads / 800 reviewed writes / 502 blocked writes remain unchanged.
-See [delivery](DELIVERY-2026-10-04-GTM-CONSENT-PLANS.md); actual new visual/keyboard/assistive, external/live/deployed acceptance remain separate.
+See [delivery](../records/DELIVERY-2026-10-04-GTM-CONSENT-PLANS.md); actual new visual/keyboard/assistive, external/live/deployed acceptance remain separate.
 Package totals remain 13 implemented / 14 partial / one open.
 
 ## Batch 129 — LinkedIn source-bound daily budgets
@@ -368,7 +368,7 @@ guide describe the same bounded workflow. Website allocation controls/preview an
 retain original IDs/native decimal amounts, group caps, overage and confirmation/expiry/current-view behavior.
 Selected authored allocation refusals/explanations and controls gain 65 Arabic entries. Fifteen backend, five UI
 and one SDK checks cover these boundaries; related set 152/152/0/0. No native action/family/scope or live mutation.
-See [delivery](DELIVERY-2026-10-04-LINKEDIN-ALLOCATION.md); native ledger and 13/14/1 package totals unchanged.
+See [delivery](../records/DELIVERY-2026-10-04-LINKEDIN-ALLOCATION.md); native ledger and 13/14/1 package totals unchanged.
 New visual/assistive, real-provider/deployed and current revision CI acceptance remain separate.
 
 ## Batch 130 — LinkedIn observed budget controls
@@ -379,7 +379,7 @@ compilation. account-workflows.js and ar.json display exact context/unknown mode
 The workspace guide retains the independent allocation boundary. Three backend, two UI, one compiler and one
 real-SDK regression cover the source omission, unknown modes, original hierarchy, schema parity and revoked
 continuations. A shared synthetic fixture serves backend and SDK checks. Related 31/31/0/0, 11 GETs/no writes.
-See [qualification and limits](DELIVERY-2026-10-04-LINKEDIN-BUDGET-CONTEXT.md). Native and 13/14/1 package totals remain unchanged.
+See [qualification and limits](../records/DELIVERY-2026-10-04-LINKEDIN-BUDGET-CONTEXT.md). Native and 13/14/1 package totals remain unchanged.
 
 ## Batch 131 — current native upload references
 
@@ -392,7 +392,7 @@ and refusals localize through a finite checked set. Native diagnostics and wire 
 Eleven backend, two authenticated HTTP, four UI, one discovery and one SDK regressions qualify these paths;
 related suite 145/145/0/0. The selected official SDK field matrix and synthetic transports do not certify live
 eligibility, historical attribution, unsupported creative formats or point-in-time reconciliation. See
-[delivery](DELIVERY-2026-10-04-NATIVE-ASSET-REFERENCES.md). Native ledger and 13/14/1 package totals remain unchanged.
+[delivery](../records/DELIVERY-2026-10-04-NATIVE-ASSET-REFERENCES.md). Native ledger and 13/14/1 package totals remain unchanged.
 
 ## Batch 132 — chronological efficiency diagnostics
 
@@ -404,7 +404,7 @@ adds explicit reader-compatible bilingual evaluation/use, source-bound pending-r
 callback invalidation. report-quality.js/check-locales.mjs translate only the selected authored set; original
 provider messages and IDs remain exact. Fourteen backend, five UI, one full-panel integration, one authenticated
 HTTP and one real-SDK regression qualify these paths; related set 119/119/0/0. Zero native requests, saved records
-or advertising mutations occur from calibration. See [method and qualification](DELIVERY-2026-10-04-ALLOCATION-CALIBRATION.md).
+or advertising mutations occur from calibration. See [method and qualification](../records/DELIVERY-2026-10-04-ALLOCATION-CALIBRATION.md).
 The diagnostic does not certify future forecasts, causal budget effects, real load, new browser/assistive or
 deployed/provider acceptance. Native ledger and 13/14/1 package totals remain unchanged.
 
@@ -416,7 +416,7 @@ indexes inside serialized bootstrap. Existing creator authority, native effects,
 leases remain. F-203's two failing races use a second SQLite connection. Eight backend/five actual child-process
 checks qualify projection/coercion/upgrade/backup, pending revocation, expired generations and owned databases.
 Two no-input synthetic benchmarks measure independent schedule scans and one/four-worker contention without
-provider actions or production settings. Related **3,386/3,381/0/5**. See [delivery and limits](DELIVERY-2026-10-04-SCHEDULER-WORKERS.md);
+provider actions or production settings. Related **3,386/3,381/0/5**. See [delivery and limits](../records/DELIVERY-2026-10-04-SCHEDULER-WORKERS.md);
 native and 13/14/1 package totals unchanged.
 
 ## Batch 134 — exact X price projections and legacy recovery
@@ -428,7 +428,7 @@ family cache versions without changing other families, retaining original accept
 The existing X fixture exposes its synthetic service/actor to a real SDK evaluator. A shared price fixture and
 15 new backend/set/SDK checks qualify stale reviews, old caches, stable read-back mismatch and original-key
 recovery; ordinary native catalog tests retain exact wire fields. Focused 34/34/0/0; zero external requests.
-See [delivery and limits](DELIVERY-2026-10-04-X-CATALOG-PRICES.md). No native action/family/scope is added and
+See [delivery and limits](../records/DELIVERY-2026-10-04-X-CATALOG-PRICES.md). No native action/family/scope is added and
 the 13 implemented / 14 partial / one open roadmap count remains unchanged.
 
 ## Batch 135 — source-product adapter and bilingual X workflow
@@ -440,7 +440,7 @@ account-workflows.js supplier parser/mapping/controller now selects Meta/X, pres
 unsupported canonical headers and fences pending scope/form changes. Finite known messages/refusals localize
 through check-locales.mjs and ar.json; shared deterministic UI fixtures retain existing Meta tests. Six backend,
 five UI, one approval and one real-SDK regression qualify the bounded scope, with final focused **78/78/0/0**.
-See [delivery and remaining scope](DELIVERY-2026-10-04-X-CATALOG-IMPORT.md). No action/family/scope or entitlement
+See [delivery and remaining scope](../records/DELIVERY-2026-10-04-X-CATALOG-IMPORT.md). No action/family/scope or entitlement
 is added; live stores, other mappings and full reconciliation/deletion remain partial.
 
 ## Batch 136 — bounded X source comparison and native group evidence
@@ -452,7 +452,7 @@ before-state retains both original group fields and prevents hidden/unknown abse
 workspace.ts advertises exact bounds. account-workflows.js validates/renders X differences and source subsets
 with existing form/view guards; ten authored messages localize. Eight backend, four controller, one real-SDK
 and three native guard checks qualify the scope; final focused **107/107/0/0**. See
-[delivery and limits](DELIVERY-2026-10-04-X-CATALOG-COMPARISON.md). Native/roadmap totals remain unchanged.
+[delivery and limits](../records/DELIVERY-2026-10-04-X-CATALOG-COMPARISON.md). Native/roadmap totals remain unchanged.
 
 ## Batch 137 — shared X native identity boundaries
 
@@ -461,7 +461,7 @@ bounds and complete manual membership without added reads. Existing four native 
 cache versions, exact outcome IDs and uncoerced original create receipts; native bodies, price/group semantics
 and accepted receipt recovery remain. Eight native/lifecycle and one real-SDK checks qualify the correction;
 final focused **82/82/0/0**. The existing decimal regression now expects the current v3 marker. See
-[delivery and upgrade behavior](DELIVERY-2026-10-04-X-CATALOG-IDENTITIES.md). No action/family/scope is added;
+[delivery and upgrade behavior](../records/DELIVERY-2026-10-04-X-CATALOG-IDENTITIES.md). No action/family/scope is added;
 native and 13/14/1 roadmap totals remain unchanged.
 
 ## Batch 138 — selected product deletion provenance and recovery
@@ -473,7 +473,7 @@ selection; campaign-runner.ts binds/checks them without changing accepted native
 keeps compact original-scope provenance. account-workflows.js renders unchecked per-SKU controls and guarded
 English/Arabic exact-key preview/save. check-locales.mjs narrowly validates the new authored meanings/refusals,
 including literal fallback copy while retaining original native diagnostics. Eleven backend, three controller
-and one real SDK checks plus 329 related regressions qualify the scope. See [delivery](DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md).
+and one real SDK checks plus 329 related regressions qualify the scope. See [delivery](../records/DELIVERY-2026-10-04-X-CATALOG-REMOVAL.md).
 No new native action/family or live/browser/entitlement claim is added.
 
 ## Batch 139 — maintained release source gate
@@ -482,7 +482,7 @@ verify-public-release.mjs provides bounded manifest/path/regular-file/HEAD/blob/
 read-only proof output. package.json exposes `release:verify`; checks.yml requires and uploads its proof before
 other gates. Dockerfile includes Git in the build stage for six real-Git failure-mode fixtures, covering Arabic/space
 paths and filter-masked CRLF alongside existing private-sample assembly checks. No provider contract, deployment
-mutation, private root sample or new supported native route is involved. See [delivery](DELIVERY-2026-10-04-RELEASE-SOURCE.md).
+mutation, private root sample or new supported native route is involved. See [delivery](../records/DELIVERY-2026-10-04-RELEASE-SOURCE.md).
 
 ## Batch 140 — Google Search value bidding and exact native target proof
 
@@ -493,7 +493,7 @@ without changing accepted wire requests or receipt recovery. campaign-runner.ts 
 description. campaign-recipes.js/client-playbooks.js and authored Arabic copy render explicit choices and
 exact readable previews. Twelve backend, three bilingual controller and one real SDK tests cover both modes;
 capability and contract-example loops qualify every discovered recipe. Related suite: 237/237/0/0.
-See [delivery](DELIVERY-2026-10-04-GOOGLE-VALUE-RECIPES.md). Delivered values/history and live/provider/browser
+See [delivery](../records/DELIVERY-2026-10-04-GOOGLE-VALUE-RECIPES.md). Delivered values/history and live/provider/browser
 acceptance remain separate; no new native route, scope or provider action is introduced.
 
 Batch 140 upgrade follow-up also guards retired value proofs in pending plans through original receipts;
@@ -512,7 +512,7 @@ recipe-eligibility.ts declare the narrow configuration dependency; campaign-runn
 it. campaign-recipes.js renders an escaped scope-bound bilingual accessible table, and controller fixtures use
 the real localization module. Eight backend, two controller and one real SDK additions qualify the feature;
 combined focused 55/55/0/0 and final related 156/156/0/0. See
-[delivery](DELIVERY-2026-10-04-GOOGLE-VALUE-INSPECTION.md). No new provider action, event read or write scope is added.
+[delivery](../records/DELIVERY-2026-10-04-GOOGLE-VALUE-INSPECTION.md). No new provider action, event read or write scope is added.
 
 Batch 141 sanitized gates: main 4,202/4,197/0/5; capture 4/4/0/0. All three public reports regenerated unchanged and retained their exact bytes. Final committed source proof and full qualification follow separately.
 
@@ -522,7 +522,7 @@ Covered selected v25 optional metrics, exact action joins, original timezone/dat
 collections, collection/authority/brief limits, null/empty/missing observations and whole-primary counts;
 bilingual current-scope rendering, real localization and SDK schema/text parity with source/receipt boundaries.
 Focused 66/66/0/0; related 159/159/0/0; website checks passed. See
-[delivery record](DELIVERY-2026-10-04-GOOGLE-CONVERSION-ACTIVITY.md). No native/package totals change or live verdict.
+[delivery record](../records/DELIVERY-2026-10-04-GOOGLE-CONVERSION-ACTIVITY.md). No native/package totals change or live verdict.
 
 Batch 142 fresh sanitized full gates: main 4,213/4,208/0/5, capture 4/4/0/0; all three public reports regenerated unchanged and retained their exact bytes. Final committed source proof and qualification follow separately. Actual browser runtime remains unavailable after a fresh attempt.
 
@@ -533,7 +533,7 @@ complete repeated collections and result counts, native hierarchy/string IDs, bo
 current source/session/key/login/scopes/credentials, reader and disabled-write access, overflow refusal and
 synthetic native retries. Added Google-specific bilingual bounds/table/limits, real localization, authenticated
 HTTP CSRF/session boundaries and real MCP schema/text/asset-handoff qualification. Focused **42/42/0/0**; web checks
-passed. See [delivery record](DELIVERY-2026-10-04-GOOGLE-IMAGE-REFERENCES.md). No provider/program/package total or live verdict changes.
+passed. See [delivery record](../records/DELIVERY-2026-10-04-GOOGLE-IMAGE-REFERENCES.md). No provider/program/package total or live verdict changes.
 
 Batch 143 sanitized full gate: main 4,229/4,224/0/5; capture 4/4/0/0. Final report regeneration/freshness and byte preservation passed. Final committed source and full checks follow separately.
 
@@ -544,7 +544,7 @@ explicit view selection, enabled/paused/removed/unknown semantics, duplicate and
 matching order-independent collections, bounds/count gaps/continuation, current authority/source withdrawal,
 default/Meta separation, bilingual original IDs/escaping/counts, selector/limit invalidation and response-order
 guards, authenticated viewer/CSRF/no-store and actual SDK discovery/schema/text/original handoff/revocation.
-Focused 54/54/0/0; related 28/28/0/0; website checks passed. See [delivery](DELIVERY-2026-10-04-GOOGLE-PMAX-IMAGE-REFERENCES.md). Native/package totals
+Focused 54/54/0/0; related 28/28/0/0; website checks passed. See [delivery](../records/DELIVERY-2026-10-04-GOOGLE-PMAX-IMAGE-REFERENCES.md). Native/package totals
 and real acceptance states are unchanged.
 
 Batch 144 sanitized full gate: main 4,241/4,236/0/5; capture 4/4/0/0. Final report regeneration/freshness and byte preservation passed. Final committed source and full checks follow separately.
@@ -584,7 +584,7 @@ Complete native selection/counts, malformed body/overflow/changed source and san
 Unsupported source types/delivery/missing SKU/image/price precision/duplicate SKUs stay visible blockers.
 Bilingual unchecked selections, exact fields, stale-view guards and original MCP handoff pass synthetic
 checks; X still requires full explicit CSV fields. No actual store credentials, provider write or production
-settings were accessed. [Delivery evidence](DELIVERY-2026-10-04-WOOCOMMERCE-SOURCE.md). Combined focused 100/100/0/0; related 3,256/3,251/0/5;
+settings were accessed. [Delivery evidence](../records/DELIVERY-2026-10-04-WOOCOMMERCE-SOURCE.md). Combined focused 100/100/0/0; related 3,256/3,251/0/5;
 SDK seven calls/8,318 structured bytes/four synthetic reads/one unapproved draft/zero external or mutation.
 Website 34 scripts/three pages/3,500 selected Arabic messages; 3,657 previous values preserved plus 48.
 Full sanitized/current-source evidence follows independently. B21 remains partial for live acceptance,
@@ -605,7 +605,7 @@ foreign/partial/duplicate/cursor/overflow refusals and shared bounds prevent inc
 write, retained reference snapshot or standalone ownership grant is added. Packaging/review/media statuses
 remain separate from ad delivery; nested references and history remain outside the view. Bilingual explicit
 reads keep exact escaped fields and original bounded MCP handoffs with stale-view refusal.
-[Delivery evidence](DELIVERY-2026-10-04-SNAPCHAT-TOP-SNAP-REFERENCES.md). Combined reference regression 81/81/0/0 (18.866 seconds); real SDK four calls,
+[Delivery evidence](../records/DELIVERY-2026-10-04-SNAPCHAT-TOP-SNAP-REFERENCES.md). Combined reference regression 81/81/0/0 (18.866 seconds); real SDK four calls,
 7,350 structured bytes, six synthetic native reads and zero external/mutation. Maximum positive search:
 1,000 creatives, original media at 1,000-row bound, 82 requests/4,002 rows. Website 34 scripts/three pages/
 3,535 selected Arabic messages; all 3,705 previous values preserved plus 36 (3,741 total).
@@ -628,7 +628,7 @@ text. Before/after 3/3/0/0 (5.805 seconds); combined catalog/cache/Google-value/
 (20.744 seconds). Ten added tests include current v26.0.2 SDK models, malformed/missing/changed fields,
 original receipt replay, legacy-cache retirement and pending dependency refusal. Real SDK five calls,
 21,805 structured bytes, eleven synthetic reads, one synthetic mutation and zero external requests.
-[Delivery and limits](DELIVERY-2026-10-04-META-CATALOG-FIELD-PROOF.md).
+[Delivery and limits](../records/DELIVERY-2026-10-04-META-CATALOG-FIELD-PROOF.md).
 
 Pending chains read the current family verification version before relying on retired proof, preserving
 original accepted keys/receipts and completed historical records. Twenty-two authored catalog diagnostic
@@ -645,7 +645,7 @@ Batch 148 sanitized full gate: main 4,303/4,303/0/0; capture 4/4/0/0; required l
 Eight observed reflow/focus/table defects F-210–F-217 are corrected using actual isolated Chromium
 journeys and original first-party source. The maintained runner and synthetic fixture use current served
 controllers/APIs, 132 selected cases/27 paths, exact native values, no implicit provider reads, unchecked
-selections and stale source/limit clearing. Public privacy retains its English policy scope. See [rendered qualification and limits](DELIVERY-2026-10-04-RENDERED-WORKFLOWS.md).
+selections and stale source/limit clearing. Public privacy retains its English policy scope. See [rendered qualification and limits](../records/DELIVERY-2026-10-04-RENDERED-WORKFLOWS.md).
 
 The 36 narrow About/navigation/source/reference/catalog-plan regressions pass with no failures/skips;
 final rendered and source-specific full release results are recorded separately. Browser evidence is
@@ -671,7 +671,7 @@ Fourteen of sixteen actual baseline product-column measurements failed at the or
 sixteen now retain at least 192 pixels without whole-page overflow. Two of four baseline contract tests
 failed; shared native field validation and preserved whitespace blockers address those mismatches.
 Eight focused suites pass 75/75/0/0, including original values, bilingual blocked selections and native
-lifecycle behavior. See [commerce readability and contract evidence](DELIVERY-2026-10-04-COMMERCE-READABILITY.md). B16/B21/B24 remain partial; no live, full-inventory, variant,
+lifecycle behavior. See [commerce readability and contract evidence](../records/DELIVERY-2026-10-04-COMMERCE-READABILITY.md). B16/B21/B24 remain partial; no live, full-inventory, variant,
 assistive, deployed or current Linux/Docker acceptance is inferred.
 
 ## Batch 150 full local release preflight
@@ -695,7 +695,7 @@ technical scopes/methods, linked destinations, anchors and date. Public GET/HEAD
 selection and deterministic invalid/repeated fallback without authentication, session cookies,
 JavaScript or provider access. Existing English article bytes and Arabic interface entries remain.
 Five focused suites pass 31/31/0/0; eight no-script rendered views and inspected screenshots support
-the selected layout. Maintained browser cases extend to 136. See [Arabic privacy delivery and boundaries](DELIVERY-2026-10-04-ARABIC-PRIVACY.md). B16/B24 stay partial;
+the selected layout. Maintained browser cases extend to 136. See [Arabic privacy delivery and boundaries](../records/DELIVERY-2026-10-04-ARABIC-PRIVACY.md). B16/B24 stay partial;
 structural/rendering checks do not establish human legal/editorial, assistive, deployed or live acceptance.
 
 ## Batch 151 final local release preflight
@@ -723,7 +723,7 @@ retailer_product_group_id. Group intent is displayed, compared and retained in t
 draft; existing complete field proof and per-child native review/receipts remain. Eighteen authored
 Arabic entries preserve all previous 3,765 pairs. Current-authority interruption, 50-child bounds,
 changed hierarchy, original native values, real SDK and bilingual stale-response checks are recorded
-in [delivery evidence](DELIVERY-2026-10-04-WOOCOMMERCE-VARIATIONS.md). The maintained browser runner adds eight variation cases.
+in [delivery evidence](../records/DELIVERY-2026-10-04-WOOCOMMERCE-VARIATIONS.md). The maintained browser runner adds eight variation cases.
 Fresh full/source/browser release proof follows. B15/B16/B21/B24 remain partial; full-plan work continues.
 
 ## Focused and rendered qualification
@@ -760,7 +760,7 @@ parent relationships, omitted-row changes or private-column disclosure. X/unknow
 refuse group intent. Loaded mappings bind exact destination scope, changed scope/file/view invalidates
 old results and WooCommerce mode hides unrelated CSV layout controls. One authored Arabic message
 preserves all 3,783 earlier pairs. Real MCP, bilingual controllers and eight added served-browser
-cases qualify selected source-to-unapproved-plan behavior. See [evidence](DELIVERY-2026-10-04-META-GROUP-CSV.md).
+cases qualify selected source-to-unapproved-plan behavior. See [evidence](../records/DELIVERY-2026-10-04-META-GROUP-CSV.md).
 Fresh full/source/browser gates follow; B15/B16/B21/B24 remain partial and the whole plan continues.
 
 ## Final focused and rendered evidence
@@ -798,7 +798,7 @@ Sixteen actual selected tables lacked captions and ten had compressed event labe
 authored captions, scoped readable columns and literal LTR native values now improve English/Arabic
 summary/minute views. Eight maintained rendered journeys preserve exact large counts, unknown missing
 events, explicit-only reads and changed-window invalidation. No contract/permissions/tracking-health
-meaning changes; all 3,784 Arabic pairs remain byte-identical. See [evidence](DELIVERY-2026-10-04-GA4-EVENT-LAYOUT.md).
+meaning changes; all 3,784 Arabic pairs remain byte-identical. See [evidence](../records/DELIVERY-2026-10-04-GA4-EVENT-LAYOUT.md).
 B16/B20/B24 stay partial and the full remaining plan continues.
 
 ## Final focused and rendered evidence
@@ -836,7 +836,7 @@ and totals, pending-control/response fences and scoped retry. Visible native ide
 readable scoped row headers; local hiding/restoring preserves original values. Four meaningful
 feature regressions, a four-call measured real SDK journey and eight added actual served-browser
 workflows qualify page/search/column and filtered-view-to-all-151-row workbook delivery. One
-authored Arabic message preserves all 3,784 earlier pairs. See [evidence](DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md).
+authored Arabic message preserves all 3,784 earlier pairs. See [evidence](../records/DELIVERY-2026-10-04-RETAINED-ROW-BROWSING.md).
 B15/B16/B18/B24 stay partial; whole-plan work continues.
 
 ## Final focused and rendered evidence
@@ -878,7 +878,7 @@ count/immutable-metadata checks, current authority around every read and bracket
 precede persistence. Authored bilingual scope/filter labels and optional native workbook columns preserve
 all earlier catalog values and report formats. Six focused suites pass 62/62/0/0; the real SDK journey
 measures five calls/37,253 response bytes and four synthetic native reads, with no effects/plans/reviews.
-See [research, workflow and qualification](DELIVERY-2026-10-05-GOOGLE-KEYWORD-EVIDENCE.md). B18/B27 and connected B15/B16/B24 remain partial;
+See [research, workflow and qualification](../records/DELIVERY-2026-10-05-GOOGLE-KEYWORD-EVIDENCE.md). B18/B27 and connected B15/B16/B24 remain partial;
 full package counts stay 13 implemented / 14 partial / one open. Hosted CI stays owner-skipped.
 
 ## Final local release and rendered qualification
@@ -910,7 +910,7 @@ Measured 21–29-pixel native report fields with inherited 11-pixel type now use
 16-pixel fields, usable dimensions and explicit selector focus. Search/actions fit a phone grid and
 footer controls wrap. Sixteen served journeys check 144 control targets, literal values and all
 1,240 downloaded source rows; seven focused suites pass 56/56/0/0. Every report/native contract and
-all 3,789 Arabic catalog pairs remain. See [measurement and limits](DELIVERY-2026-10-05-EVIDENCE-CONTROL-LAYOUT.md). B16/B24 remain partial;
+all 3,789 Arabic catalog pairs remain. See [measurement and limits](../records/DELIVERY-2026-10-05-EVIDENCE-CONTROL-LAYOUT.md). B16/B24 remain partial;
 counts stay 13 implemented / 14 partial / one open. Full local qualification and whole-plan work continue.
 
 ## Final local release and rendered qualification
@@ -957,7 +957,7 @@ direct owned refusal literals and the specific shared recovery branches reached 
 failure codes. Dynamic native diagnostics, fallback expressions, error codes and protocol values
 are excluded. The original collector, error envelope, error formatter and capture workflow remain
 byte-identical. B15/B16/B24 advance; the full-plan matrix stays 13 implemented / 14 partial / one open.
-See [scope and qualification](DELIVERY-2026-10-05-GOOGLE-CAPTURE-RECOVERY.md).
+See [scope and qualification](../records/DELIVERY-2026-10-05-GOOGLE-CAPTURE-RECOVERY.md).
 
 ## Final repaired-source qualification
 
@@ -1009,7 +1009,7 @@ twelve-column workbooks remain. English/Arabic controls retain full resources, o
 values/totals and every original workbook row. Primary current v25 field/proto/segmentation
 research supports the selected query; no live-provider acceptance is claimed. Focused Google and
 evidence verification passes 58/58/0/0 in 3.694 seconds, including the six-call real SDK journey.
-See [research, scope and qualification](DELIVERY-2026-10-05-GOOGLE-DEVICE-EVIDENCE.md). Fresh full/source/browser gates follow;
+See [research, scope and qualification](../records/DELIVERY-2026-10-05-GOOGLE-DEVICE-EVIDENCE.md). Fresh full/source/browser gates follow;
 B18/B27/B15/B16/B24 stay partial and whole-plan work continues under owner-skipped hosted CI.
 
 ## Final working-source qualification
@@ -1044,7 +1044,7 @@ Focused controller/localization/binding/route verification passes 57/57/0/0 in 1
 provider wire values and all earlier catalog pairs remain. Primary W3C informative guidance supports
 descriptive persistent feedback and programmatic announcements; independent assistive acceptance
 remains separate. The maintained served suite retains 192 cases and adds eight actual delayed-response
-journeys while strengthening eight persistent failure/recovery cases. See [research and qualification](DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md).
+journeys while strengthening eight persistent failure/recovery cases. See [research and qualification](../records/DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md).
 Fresh full/source/browser gates follow. B15/B16/B24 stay partial and the whole remaining plan continues.
 
 ## Stable submit identity correction
@@ -1067,7 +1067,7 @@ regressions prove one completed result, independent lease renewal, strict critic
 recovery. Four new tests plus existing queue/concurrency/operations tests pass 19/19/0/0. The
 199/200 browser attempt passes all new error journeys; one early heading count now waits for its
 original visible render before keeping the exact count assertion. Earlier attempts remain
-diagnostic. See [scope and primary sources](DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md).
+diagnostic. See [scope and primary sources](../records/DELIVERY-2026-10-05-PERSISTENT-CAPTURE-FEEDBACK.md).
 B16/B23/B24 remain partial; counts stay 13 implemented / 14 partial / one open.
 
 ## Complete working-source qualification
@@ -1090,7 +1090,7 @@ browser checks follow before the sole Work-here push; Actions remains owner-skip
 
 ## Batch 161 — authored provider capture refusal localization
 
-[Delivery](DELIVERY-2026-10-05-PROVIDER-CAPTURE-LOCALIZATION.md) adds 76 distinct exact-owned Meta,
+[Delivery](../records/DELIVERY-2026-10-05-PROVIDER-CAPTURE-LOCALIZATION.md) adds 76 distinct exact-owned Meta,
 LinkedIn, TikTok and Snapchat refusal sentences plus three reachable recovery hints, preserving
 all 3,830 previous catalog pairs and fifteen native/controller files byte-for-byte. All 77 source
 occurrences and 15 codes/eight shared hints use the actual English/Arabic formatter with unchanged
@@ -1124,7 +1124,7 @@ browser qualification follow before the sole Work-here push, with Actions waived
 
 ## Batch 162 — shared worker stage recovery
 
-[Delivery](DELIVERY-2026-10-05-WORKER-LOOP-RECOVERY.md) closes an inspected standalone/embedded
+[Delivery](../records/DELIVERY-2026-10-05-WORKER-LOOP-RECOVERY.md) closes an inspected standalone/embedded
 loop gap: continuous schedule/mail/job failures now retain metadata-only diagnostics and one-second
 pacing in both entry points. Explicit --once still propagates its original failure. Stop checks
 prevent new stages/claims after observed shutdown while awaited work settles; original cleanup,
@@ -1163,7 +1163,7 @@ write family, collector, event sender, provider acceptance or consent/deduplicat
 The 29 new controlled/real-SDK cases preserve original refusal/native evidence and explicit
 recovery; the maintained served selection adds 32 English/Arabic current/obsolete cases to 232.
 The 34 exact owned sentences, four missing hints and two labels preserve all 3,909 existing
-catalog pairs. B15/B16/B20/B24 stay partial. See [delivery](DELIVERY-2026-10-05-MEASUREMENT-READ-FEEDBACK.md).
+catalog pairs. B15/B16/B20/B24 stay partial. See [delivery](../records/DELIVERY-2026-10-05-MEASUREMENT-READ-FEEDBACK.md).
 
 ## Complete working-source qualification
 
@@ -1196,7 +1196,7 @@ backend/controller bytes or the preceding 3,949 pairs. Two actual SDK and sixtee
 native-403 journeys retain original access denial and explicit read recovery, with zero effects.
 [Current completion walkthrough](../CURRENT-READINESS.md) maps remaining implementation and
 external acceptance for all 28 packages; B15/B16/B24 remain partial. No new write family, provider
-entitlement or production/readiness claim is added. See [delivery](DELIVERY-2026-10-05-SHARED-RECOVERY-GUIDANCE.md).
+entitlement or production/readiness claim is added. See [delivery](../records/DELIVERY-2026-10-05-SHARED-RECOVERY-GUIDANCE.md).
 
 ## Complete working-source qualification
 
@@ -1272,7 +1272,7 @@ pass with no skips; 39 cases are new. All 424 other backend and 52 other website
 The maintained browser selection adds 32 scoped metadata/refusal/recovery/obsolete-success journeys
 to all preceding 312. Failed preliminary runner evidence remains rejected; fresh complete and
 exact-HEAD qualification precede the sole Work-here push. B15/B16/B20/B24 remain partial; the whole-plan counts stay 13/14/1.
-See [delivery](DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
+See [delivery](../records/DELIVERY-2026-10-05-LINKEDIN-CONVERSION-METADATA.md).
 
 ## Complete working-source qualification
 
@@ -1315,7 +1315,7 @@ focus, link reflow and normal/hover contrast. Rejected earlier harness/timeouts/
 is retained. The maintained selection extends 344 to 360; complete fresh working and clean-HEAD
 qualification follows before the sole Work-here push. B15/B16/B20/B24 remain partial; the whole-plan
 matrix remains 13 implemented / 14 partial / one open.
-See [delivery](DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md).
+See [delivery](../records/DELIVERY-2026-10-05-MEASUREMENT-NAVIGATION.md).
 
 ## Complete working-source qualification
 
@@ -1367,7 +1367,7 @@ retry/effect/saved record. Rejected first-probe reference-location evidence rema
 The maintained selection preserves all 360 preceding journeys and adds 48 across six providers,
 two languages and four widths. Complete fresh working and exact committed gates precede the sole
 Work-here push. B16/B24 and the 13 implemented / 14 partial / one open matrix remain unchanged.
-See [delivery](DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md).
+See [delivery](../records/DELIVERY-2026-10-05-PORTFOLIO-DIAGNOSTICS.md).
 
 ## Complete working-source qualification
 
@@ -1444,7 +1444,7 @@ The maintained full 408 browser journeys retain all prior assertions, with stron
 recovery/Arabic checks in the 48 inventory refusals. Fresh complete source/report/default FFmpeg
 and working/clean-HEAD browser gates precede the sole guarded Work-here push. B15/B16/B24 and the
 13 implemented / 14 partial / one open matrix remain unchanged. See
-[delivery](DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md).
+[delivery](../records/DELIVERY-2026-10-05-DISCOVERY-RECOVERY.md).
 
 Exact source review: src/catalog.ts (help branch and unchanged Registry methods), src/errors.ts
 (exact inventory code after stronger provider/access rules), web/locales/ar.json (one authored hint),
@@ -1507,7 +1507,7 @@ HTTP errors reaching the common handler keep their status/code/message and add a
 meta.requestId. The existing browser formatter presents that reference in either language.
 A matching six-field optional diagnostic event omits request payload, credentials and identity;
 production stdout/stderr wiring already exists. MCP errors and reviewed-write authority remain exact.
-See [website diagnostic evidence](DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md). Complete working-source local release/browser gates pass; exact committed-source qualification gates the sole push.
+See [website diagnostic evidence](../records/DELIVERY-2026-10-05-WEBSITE-DIAGNOSTICS.md). Complete working-source local release/browser gates pass; exact committed-source qualification gates the sole push.
 B13/B16/B24 and the 13 implemented / 14 partial / one open matrix remain unchanged.
 
 ## Complete working-source qualification
@@ -1544,7 +1544,7 @@ Six selected core modules now require Arabic for 239 distinct authored MirrorErr
 The catalog adds 239 translations, preserves every earlier 4,415 value and contains 4,654 entries;
 the complete locale gate requires 4,484 messages. Original native IDs, amounts, tokens, codes,
 authority, protocol and execution stay exact. Other static/dynamic copy and full editorial/assistive
-acceptance remain separate. See [core diagnostic evidence](DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).
+acceptance remain separate. See [core diagnostic evidence](../records/DELIVERY-2026-10-05-CORE-CONTRACT-DIAGNOSTICS.md).
 
 An explicit public comparison command checks unauthenticated liveness and exact About/Arabic
 asset bytes. Public HTTP 200 does not establish current backend Git/image or provider acceptance.
@@ -1585,7 +1585,7 @@ heading. Final views retain name/reference checks while allowing the original mo
 Inspection disables its accessibility domain and detaches its session, including refusal paths.
 Every prior case, native count, egress/write boundary, geometry/focus and workflow assertion stays
 exact. All 54 website files and 4,654 Arabic entries remain byte-identical.
-See [semantic evidence](DELIVERY-2026-10-05-BROWSER-SEMANTICS.md). Complete working-source semantic release/browser gates pass; exact committed-source checks gate the sole push.
+See [semantic evidence](../records/DELIVERY-2026-10-05-BROWSER-SEMANTICS.md). Complete working-source semantic release/browser gates pass; exact committed-source checks gate the sole push.
 This automated browser guard does not establish physical assistive-technology or full WCAG
 acceptance. The whole-plan status remains 13 implemented / 14 partial / one open; Actions stay waived.
 
@@ -1624,7 +1624,7 @@ files. Its actual inventory is 424 files, 173 with selected reasons, and 1,288 d
 owned sentences. The complete locale gate requires 5,294 messages and has zero missing entries
 in the 5,460-value catalog. Native fields, numeric limits, response bytes, identifiers, uncertainty
 and request references retain their original meaning. Backend behavior and all earlier selectors
-and gate statements remain unchanged. See [evidence](DELIVERY-2026-10-05-BACKEND-CONTRACT-LOCALIZATION.md).
+and gate statements remain unchanged. See [evidence](../records/DELIVERY-2026-10-05-BACKEND-CONTRACT-LOCALIZATION.md).
 Complete working-source backend-Arabic release/browser gates pass; exact committed-source checks gate the sole push. Dynamic/native messages and local wrapper-generated reasons remain outside this
 direct-constructor inventory; whole-plan Arabic, physical assistive and deployed acceptance remain
 partial. The matrix stays 13 implemented / 14 partial / one open, with hosted Actions owner-waived.
@@ -1679,7 +1679,7 @@ bounded scope, privacy, immutable response copies, mutation detection, strict me
 Host/auth/health behavior and event-loop progress. Every previous browser/locale/native assertion
 is preserved; only the old exact backend file count changes 424 to 427. The new metadata does not
 establish source authenticity, atomic snapshot consistency, dependencies/OS/image identity or
-provider/program acceptance. See [evidence](DELIVERY-2026-10-05-RELEASE-IDENTITY.md).
+provider/program acceptance. See [evidence](../records/DELIVERY-2026-10-05-RELEASE-IDENTITY.md).
 Complete working-source release-identity gates pass; exact committed-source full/browser checks gate the sole push.
 
 ## Complete working-source qualification
@@ -1775,7 +1775,7 @@ and returns a fixed refusal for inconsistent HTTP-200 JSON. Forecast preflight r
 included geographic-only clause before transport while retaining all three read-only actions
 and native payloads. Audience Insights stays unchanged; one manually authored Arabic reason
 preserves all preceding 8,056 values. B08/B13/B26 remain partial, B25 open; counts stay 13/14/1.
-See [implementation and primary sources](DELIVERY-2026-10-05-LIVENESS-PLANNING-PREREQUISITES.md).
+See [implementation and primary sources](../records/DELIVERY-2026-10-05-LIVENESS-PLANNING-PREREQUISITES.md).
 Hosted Actions stay owner-waived; full local source/report/FFmpeg checks remain mandatory.
 Working-source checks pass; exact clean committed source/full/browser checks remain the sole push gate.
 
@@ -1821,7 +1821,7 @@ No production dependency, external engine download, provider call or automatic r
 All previous Arabic values and provider runtime source remain exact. B16/B24 remain partial;
 full WCAG, physical assistive, editorial, deployed-image and live-provider acceptance are separate.
 Hosted Actions stay owner-waived; required local FFmpeg/source/report gates remain mandatory.
-[Scope, reproduced failures and primary references](DELIVERY-2026-10-05-BROWSER-WCAG.md).
+[Scope, reproduced failures and primary references](../records/DELIVERY-2026-10-05-BROWSER-WCAG.md).
 Working-source full/report and focused changed-state checks pass; exact clean committed full/browser checks remain the sole push gate.
 
 ## Populated-state audit and additional shared corrections
@@ -1890,7 +1890,7 @@ remain. Nine new messages are authored. The maintained runner retains all 408 ol
 Fresh sanitized full/report and exact clean-head/browser gates still qualify the integrated
 source before its sole push; prototype passes cannot stand in for those checks. B18/B27/B15/
 B16/B24 remain partial, the matrix remains 13/14/1, and hosted Actions stays unused. See
-[scope, primary research and checks](DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md).
+[scope, primary research and checks](../records/DELIVERY-2026-10-06-GOOGLE-HOUR-EVIDENCE.md).
 
 ## Retained first full run and additional language guard
 
@@ -1940,7 +1940,7 @@ with 400 synthetic GETs, 2,904 original other-product observations, zero mutatio
 48 semantic/pinned selected-rule snapshots and all manual evidence retained. All 8,066 earlier
 Arabic values remain; 25 are added. Fresh integrated full/report/source/browser gates follow.
 B21/B15/B16/B24 remain partial, B25 open; the matrix remains 13/14/1 and Actions remains unused.
-See [contract, workflow and qualification](DELIVERY-2026-10-06-X-CATALOG-SELECTION-INVENTORY.md).
+See [contract, workflow and qualification](../records/DELIVERY-2026-10-06-X-CATALOG-SELECTION-INVENTORY.md).
 
 ## Batch 181 — LinkedIn field selectors and authorized read-only acceptance
 
@@ -1960,4 +1960,4 @@ were changed. The completed clean batch-180 456-case/912-snapshot browser record
 only the byte-identical browser component after explicit equality checks. It is not a browser
 run on a later backend commit. B18/B15/B16/B24/B21 remain partial, B25 open; the matrix stays
 13/14/1 and hosted Actions remains unused. See
-[actual observations, correction and qualification](DELIVERY-2026-10-06-LINKEDIN-FIELD-PROJECTIONS.md).
+[actual observations, correction and qualification](../records/DELIVERY-2026-10-06-LINKEDIN-FIELD-PROJECTIONS.md).

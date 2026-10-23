@@ -51,7 +51,7 @@ part not built yet is named there as work, not as an open decision. The owner ma
 | P9 | Commerce and parked visibility | Approved: populated Meta destination-only attributes put the item in the review set as `unknown`; parked providers are gated by a lifecycle status on Commerce, in navigation, `tools/list` and the family registry; `amazon_native_action` is marked parked (unimplemented) by that status; explicit removal of listed X products stays allowed only with explicit intent. | Built: since wave 3b a Meta product whose only differences are such attributes is `unknown` and in the review set (before, a note on a matching product; COM-02); removal of listed X products only by an explicit selection with a typed count and `allow_deletion` (COM-02 B); Amazon Ads is not offered (CON-06). The lifecycle status follows in ARC-01 (wave 3b) | COM-01, COM-02, ARC-01, CON-06 |
 | P10 | Provider lifecycle ownership | Approved: the workspace owner owns the manual TikTok lifecycle check, monthly; LinkedIn keeps a reviewed version window and per-call `api_version` stays only within it; the Meta v25.0 rollback gets a monitored deadline once Meta publishes its expiry; lifecycle alarms run locally in the qualification runner. | Built (PRV-02, PRV-04): the TikTok check is due to the workspace owner every 30 days; a LinkedIn version outside the reviewed table is refused; the Meta deadline waits on Meta's published date | PRV-02, PRV-04 |
 | P11 | Architecture end state | Approved: in-repo registries only, no per-provider packages; ledger family `files` paths may change for directory moves; a retention period per document kind as ARC-02 defines it; `docs/review/ARCHITECTURE.md` becomes partly generated. | Follows in wave 3b (ARC-01 to ARC-04) | ARC-01, ARC-02, ARC-04 |
-| P12 | Documentation audience | Approved: the primary audience is workspace owners at agencies and in-house teams; owner documentation is bilingual (English first, then the Arabic translation); the delivery records move to `docs/records/` and `docs/archive/` with links preserved; signed-in visitors to `/` go to `/dashboard`. | Follows in wave 4 (DOC-03, WEB-06); today `/` shows everyone the landing page, with "Open your workspace" for a signed-in visitor | DOC-03, WEB-06 |
+| P12 | Documentation audience | Approved: the primary audience is workspace owners at agencies and in-house teams; owner documentation is bilingual (English first, then the Arabic translation); the delivery records move to `docs/records/` and `docs/archive/` with links preserved; signed-in visitors to `/` go to `/dashboard`. | Built in wave 4b (DOC-03): the [owner guide](owner/README.md) in English with its complete [Arabic translation](owner/ar/README.md); the [documentation map](README.md) in tiers for owners, operators and engineers; the delivery, incident and progress records in `docs/records/` and superseded reviews in `docs/archive/`, each old address keeping a redirect stub ([moves](moved.json)) and every relative link checked by `npm run docs:index:check`; a signed-in visitor to `/` gets a 302 to `/dashboard`, and the shell opens Home in place of the landing page | DOC-03, WEB-06 |
 
 ### Release notes for the push after wave 4
 
@@ -339,13 +339,13 @@ stretch).
 | Date | Decision | Outcome | Revisit trigger | Governs |
 |---|---|---|---|---|
 | 2026-10 | Hosted GitHub Actions waived after the Actions minutes ran out; local qualification continues | Accepted (recorded as a B16 acceptance amendment under D25) | Actions minutes restored | B16, ACC-04 |
-| 2026-10 | Shopify, Salla, WooCommerce and Criteo expansion and live acceptance parked ([completion audit](review/COMPLETION-2026-10-07.md)) | Deferred (parked); the 2026-10-09 instruction schedules the parked providers last ([delivery instructions](#october-2026-delivery-instructions)) | The owner unparks a store platform or Criteo | PRK-01, PRK-02 |
+| 2026-10 | Shopify, Salla, WooCommerce and Criteo expansion and live acceptance parked ([completion audit](archive/COMPLETION-2026-10-07.md)) | Deferred (parked); the 2026-10-09 instruction schedules the parked providers last ([delivery instructions](#october-2026-delivery-instructions)) | The owner unparks a store platform or Criteo | PRK-01, PRK-02 |
 | 2026-10 | Live acceptance is read-only: no changes to real advertising accounts | Accepted | Test accounts are designated (R1) | ACC-01, ACC-06 |
 
 ## September 2026 decisions
 
 Answered by the owner on 2026-09-28, and "do what is best" on 2026-09-29 (moved from the
-[September summary](review/SUMMARY.md#decisions)).
+[September summary](archive/SUMMARY.md#decisions)).
 
 | Date | Decision | Outcome | Where it stands |
 |---|---|---|---|
@@ -368,8 +368,8 @@ Answered by the owner on 2026-09-28, and "do what is best" on 2026-09-29 (moved 
 
 ## Dispositions of earlier recommendations
 
-Every item of the [October review](review/REVIEW-2026-10-01.md) sections 5 and 6.13 and of the
-[UX audit](review/product/UX-2026-10-01.md) section 3, and each commitment D25 lists as dropped, has one row.
+Every item of the [October review](archive/REVIEW-2026-10-01.md) sections 5 and 6.13 and of the
+[UX audit](archive/UX-2026-10-01.md) section 3, and each commitment D25 lists as dropped, has one row.
 Recorded 2026-10-09 under D25.
 
 | Source | Recommendation | Disposition | Governs | Revisit trigger |
@@ -410,4 +410,4 @@ Recorded 2026-10-09 under D25.
 | D25 list | B10's integrated cross-provider usage view | Replaced by per-asset provider readers (Meta, Google image, Snapchat); further adapters are optional stretch | B10, MED-04 | Client demand |
 | D25 list | B13's "complete audit telemetry" | Replaced by a finite list: withheld workbook records by reason (owner health) and feed and job failure counts by code | B13, OPS-02 | — |
 | D25 list | B15's "measured" fewer unnecessary calls | Partly implemented: measured by the journey and MCP evaluation harness; the local baseline exists, external-client sessions (D14) remain | QA-04, ACC-02 | External sessions recorded |
-| D25 list | Separate concise entry points for owners, engineers and MCP clients | Accepted: tiered documentation and an owner guide | DOC-03 | DOC-03 lands |
+| D25 list | Separate concise entry points for owners, engineers and MCP clients | Implemented (DOC-03): the bilingual [owner guide](owner/README.md) and the documentation map in tiers for owners, operators and engineers; MCP clients keep their guide resources | DOC-03 | The owner guide drifts from the website (`tests/owner-guide.test.mjs`) |

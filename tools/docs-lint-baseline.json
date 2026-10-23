@@ -1,0 +1,96 @@
+{
+  "meaning": "DOC-03 documentation freeze: per current page, the headings naming a batch, the commit references and the long lines repeated on another current page that it already held; each count may only fall, and a page not listed must have none (node tools/docs-lint.mjs, run by npm run docs:index:check).",
+  "increases": [],
+  "pages": {
+    "docs/CURRENT-READINESS.md": {
+      "batch_headings": 11,
+      "commit_refs": 4,
+      "duplicate_lines": 100
+    },
+    "docs/DECISIONS.md": {
+      "batch_headings": 0,
+      "commit_refs": 1,
+      "duplicate_lines": 0
+    },
+    "docs/DEPLOY-RAILWAY.md": {
+      "batch_headings": 8,
+      "commit_refs": 2,
+      "duplicate_lines": 25
+    },
+    "docs/LOCAL-BROWSER-QA.md": {
+      "batch_headings": 27,
+      "commit_refs": 20,
+      "duplicate_lines": 67
+    },
+    "docs/OAUTH-HARDENING.md": {
+      "batch_headings": 0,
+      "commit_refs": 0,
+      "duplicate_lines": 1
+    },
+    "docs/OPERATIONS.md": {
+      "batch_headings": 3,
+      "commit_refs": 1,
+      "duplicate_lines": 54
+    },
+    "docs/PRODUCT-WORKFLOWS.md": {
+      "batch_headings": 7,
+      "commit_refs": 0,
+      "duplicate_lines": 70
+    },
+    "docs/USER-ACCOUNTS.md": {
+      "batch_headings": 0,
+      "commit_refs": 0,
+      "duplicate_lines": 1
+    },
+    "docs/WORKSPACE-OPERATIONS.md": {
+      "batch_headings": 0,
+      "commit_refs": 0,
+      "duplicate_lines": 1
+    },
+    "docs/acceptance/READ-ACCEPTANCE.md": {
+      "batch_headings": 0,
+      "commit_refs": 0,
+      "duplicate_lines": 3
+    },
+    "docs/acceptance/WRITE-ACCEPTANCE.md": {
+      "batch_headings": 0,
+      "commit_refs": 0,
+      "duplicate_lines": 3
+    },
+    "docs/review/ACCESSIBILITY.md": {
+      "batch_headings": 0,
+      "commit_refs": 3,
+      "duplicate_lines": 0
+    },
+    "docs/review/ARCHITECTURE.md": {
+      "batch_headings": 0,
+      "commit_refs": 4,
+      "duplicate_lines": 0
+    },
+    "docs/review/COVERAGE.md": {
+      "batch_headings": 79,
+      "commit_refs": 9,
+      "duplicate_lines": 183
+    },
+    "docs/review/FINDINGS.md": {
+      "batch_headings": 0,
+      "commit_refs": 22,
+      "duplicate_lines": 1
+    },
+    "docs/review/IMPLEMENTATION-2026-10-01.md": {
+      "batch_headings": 27,
+      "commit_refs": 12,
+      "duplicate_lines": 152
+    },
+    "docs/review/PERSONAL-DATA-POLICY.md": {
+      "batch_headings": 1,
+      "commit_refs": 0,
+      "duplicate_lines": 0
+    },
+    "docs/review/PRODUCT-BLUEPRINT-2026-10-01.md": {
+      "batch_headings": 0,
+      "commit_refs": 1,
+      "duplicate_lines": 0
+    }
+  }
+}

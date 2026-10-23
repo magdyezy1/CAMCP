@@ -112,10 +112,11 @@ const tableRows = (file, heading) => {
 test('every earlier recommendation and every review decision D1-D27 has exactly one recorded disposition', () => {
   const decisions = 'docs/DECISIONS.md',
     dispositions = tableRows(decisions, '## Dispositions of earlier recommendations');
+  // Both reviews are archived since DOC-03 (owner decision P12); their old addresses hold redirect stubs.
   const sources = [
-    ['Review §5', firstCells('docs/review/REVIEW-2026-10-01.md', '## 5. ')],
-    ['Review §6.13', firstCells('docs/review/REVIEW-2026-10-01.md', '### 6.13 ')],
-    ['UX §3', firstCells('docs/review/product/UX-2026-10-01.md', '## 3. ')],
+    ['Review §5', firstCells('docs/archive/REVIEW-2026-10-01.md', '## 5. ')],
+    ['Review §6.13', firstCells('docs/archive/REVIEW-2026-10-01.md', '### 6.13 ')],
+    ['UX §3', firstCells('docs/archive/UX-2026-10-01.md', '## 3. ')],
   ];
   for (const [source, items] of sources) {
     assert.ok(items.length >= 10, source);
