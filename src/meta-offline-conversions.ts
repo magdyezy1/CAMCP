@@ -209,6 +209,11 @@ export const metaOfflineConversionPeople: PersonalDataSpec = {
     };
   },
   body: (p, rows) => ({data: rows.map(r => event(r, record(p)!.schema))}),
+  // Meta's Conversions API test_event_code sends production events that are not dropped, so Meta has no rehearsal.
+  rehearsal: Object.freeze({
+    provider: 'Meta Conversions API events',
+    note: 'Meta has no rehearsal for conversions: events sent with test_event_code are production events that are not dropped, so AMCP never offers it.',
+  }),
 };
 
 /** The request as AMCP builds it: the events of the reviewed people, nothing else. */

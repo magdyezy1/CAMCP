@@ -234,6 +234,12 @@ export const googleOfflineConversionPeople: PersonalDataSpec = {
       encoding: 'HEX',
     };
   },
+  // Google documents validateOnly on events:ingest: "the request is validated but not executed".
+  rehearsal: Object.freeze({
+    provider: 'Google Data Manager events:ingest',
+    flag: 'validateOnly',
+    note: 'Google documents validateOnly on events:ingest: the request is validated but not executed. It still sends the hashed people, so AMCP does not send it.',
+  }),
 };
 
 /** The rows back from a body, to check them against the review's digest. */

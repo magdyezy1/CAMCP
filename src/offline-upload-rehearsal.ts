@@ -1,7 +1,6 @@
 import {MirrorError} from './errors.js';
 import {sha256, stable} from './security.js';
-import {dataManagerKind} from './google-data-manager.js';
-import {metaOfflineConversionKind} from './meta-offline-conversions.js';
+import {familyOf} from './reviewed-families.js';
 import {hashPeople, type PersonalDataSpec} from './personal-data.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 
@@ -13,33 +12,11 @@ import type {CompiledRequest, JsonObject} from './types.js';
  * one waits for a reviewed rehearsal path, designated test resources and write-class authorization. The result is
  * recorded as a rehearsal, creates no review and can never be executed.
  *
- * Which provider "test" paths are rehearsals, and which are production writes:
+ * Which provider "test" paths are rehearsals, and which are production writes, is each conversion family's fact (the
+ * `rehearsal` of its personal-data spec, ARC-01 phase B):
  * - Google Data Manager events:ingest documents validateOnly: "the request is validated but not executed".
  * - Meta's Conversions API test_event_code sends production events that are not dropped, so Meta has no rehearsal.
  */
-interface RehearsalRoute {
-  provider: string;
-  /** The documented no-execution flag of the provider's request, or undefined when the provider has none. */
-  flag?: string;
-  note: string;
-}
-const routes: {kind: (p: CompiledRequest) => boolean; route: RehearsalRoute}[] = [
-  {
-    kind: p => dataManagerKind(p) === 'events',
-    route: {
-      provider: 'Google Data Manager events:ingest',
-      flag: 'validateOnly',
-      note: 'Google documents validateOnly on events:ingest: the request is validated but not executed. It still sends the hashed people, so AMCP does not send it.',
-    },
-  },
-  {
-    kind: metaOfflineConversionKind,
-    route: {
-      provider: 'Meta Conversions API events',
-      note: 'Meta has no rehearsal for conversions: events sent with test_event_code are production events that are not dropped, so AMCP never offers it.',
-    },
-  },
-];
 const hash = (value: unknown) => sha256(stable(value));
 
 /** The rehearsal of an offline conversion upload, or undefined for any other request. Nothing is sent or saved. */
@@ -49,7 +26,9 @@ export function offlineUploadRehearsal(
   people: unknown,
   now = Date.now(),
 ): JsonObject | undefined {
-  const route = routes.find(r => r.kind(plan))?.route;
+  // The rehearsal of the family whose request this is, whatever spec the caller passes: a request of no conversion
+  // family has none.
+  const route = familyOf(plan)?.personalData?.rehearsal;
   if (!route) return undefined;
   // The provider's time limits apply here, unlike the contract check, which skips them.
   let batch, timeWindow: JsonObject;
