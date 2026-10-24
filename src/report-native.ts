@@ -3,21 +3,11 @@ import type {Actor, CompiledRequest, JsonObject} from './types.js';
 import type {MirrorService} from './service.js';
 import {MirrorError} from './errors.js';
 import {accountPlan, accountMetadata, accountCurrency, accountTimezone} from './account-metadata.js';
-import {compileMicrosoft, microsoftGateway} from './microsoft-native.js';
-import {
-  admitProviderJob,
-  beginProviderJob,
-  failedJobState,
-  providerJobReceipt,
-  settleProviderJob,
-} from './provider-jobs.js';
-import {assertWritesNotPaused} from './owner-operations.js';
 import {reportPlatforms, metricNumber, objectiveGroup} from './report-metrics.js';
 import {campaignAttributionProfile, overviewSourceLevel, collectDetailedOverview} from './overview-granularity.js';
 import {detailParentsUnavailableWarning, optionalReadRefused} from './overview-parents.js';
 import {
   appleDetail,
-  microsoftDetail,
   nativeDetailLookupLimit,
   nativeDetailLookupLimitedWarning,
   nativeDetailPlatforms,
@@ -28,13 +18,6 @@ import {markReportWindow} from './report-windows.js';
 import {reportSource, reportSourceList} from './report-sources.js';
 import {reportList, type AccountLookupCache, type ReportCollection, type ReportSourceRow} from './report-source.js';
 import {reportRange} from './report-periods.js';
-import {
-  assertMicrosoftWindowClosed,
-  microsoftCompleteData,
-  microsoftFallbackReportTimeZone,
-  microsoftFallbackWarning,
-  microsoftReportZone,
-} from './microsoft-timezones.js';
 
 /** Native metrics the Overview suggests per platform, from each platform's report source (ARC-04 stage F). */
 export const nativeMetricExamples: Record<string, string[]> = Object.fromEntries(
@@ -448,147 +431,6 @@ export class NativeCampaignReports {
       ({metadata, currency, timezone, raw, attribution, resultDefinition, complete, collectionComplete, quality} =
         collection);
       detailRows = collection.detailRows;
-    } else if (p === 'microsoft') {
-      // RPT-04 (owner policy P6): report days follow the account time zone. A checkpoint from an earlier London-zone
-      // run keeps its own zone, so a resumed report is never re-labelled.
-      const zone =
-        checkpoint.report_id && checkpoint.report_time_zone === undefined
-          ? microsoftReportZone(microsoftFallbackReportTimeZone)
-          : microsoftReportZone(checkpoint.report_time_zone ?? timezone);
-      timezone = zone.timezone;
-      const date = (s: string) => {
-        const [Year, Month, Day] = s.split('-').map(Number);
-        return {Year, Month, Day};
-      };
-      let reportId = checkpoint.report_id;
-      if (!reportId) {
-        assertMicrosoftWindowClosed(range, zone.timezone);
-        // RPT-06: the report submission is the reporting pipeline's provider job. It is admitted against the hourly
-        // bound and recorded with a receipt in the checkpoint before it is sent; a resume whose earlier submission may
-        // have reached Microsoft never submits again (only a definitive refusal, which created nothing, may).
-        const store = this.service.store,
-          tenant = actor.tenantId,
-          earlier = checkpoint.provider_job_receipt;
-        if (earlier !== undefined && providerJobReceipt(store, tenant, earlier)?.state !== 'rejected')
-          throw new MirrorError(
-            'PROVIDER_JOB_UNCERTAIN',
-            'Microsoft may have received this report request, but its answer was lost. AMCP never submits a report job again automatically; run a new snapshot.',
-            {receipt_id: earlier, submission_started: true, resubmission: 'never_automatic'},
-            409,
-          );
-        assertWritesNotPaused(store, tenant, 'provider_jobs');
-        admitProviderJob(store, microsoftGateway, account);
-        const receipt = beginProviderJob(store, tenant, {
-          gateway: microsoftGateway,
-          account_id: account,
-          connection_id: connection,
-          actor: actor.userId,
-          source: 'reporting_pipeline',
-        });
-        save({provider_job_receipt: receipt});
-        let d: JsonObject;
-        try {
-          d = await microsoftCompleteData(() =>
-            run(
-              compileMicrosoft({
-                action: 'SubmitGenerateReport',
-                account_id: account,
-                payload: {
-                  ReportRequest: {
-                    // RPT-07: ad group and ad levels use the native performance reports that name their parents.
-                    Type:
-                      detail === 'adset'
-                        ? 'AdGroupPerformanceReportRequest'
-                        : detail === 'ad'
-                          ? 'AdPerformanceReportRequest'
-                          : 'CampaignPerformanceReportRequest',
-                    Aggregation: 'Summary',
-                    Format: 'Csv',
-                    ReportName:
-                      detail === 'adset'
-                        ? 'AMCP ad group overview'
-                        : detail === 'ad'
-                          ? 'AMCP ad overview'
-                          : 'AMCP campaign overview',
-                    ReturnOnlyCompleteData: true,
-                    Columns: [
-                      ...new Set([
-                        'AccountId',
-                        'CampaignId',
-                        'CampaignName',
-                        ...(detail ? ['AdGroupId', 'AdGroupName'] : []),
-                        ...(detail === 'ad' ? ['AdId', 'AdTitle'] : []),
-                        'CurrencyCode',
-                        'Spend',
-                        'Impressions',
-                        'Clicks',
-                        'Conversions',
-                        'Revenue',
-                        ...extra,
-                      ]),
-                    ],
-                    Scope: {AccountIds: [account]},
-                    Time: {
-                      CustomDateRangeStart: date(range.since),
-                      CustomDateRangeEnd: date(range.until),
-                      ReportTimeZone: zone.report_time_zone,
-                    },
-                  },
-                },
-              }),
-              false,
-            ),
-          );
-        } catch (e) {
-          // Microsoft's "complete data not yet available" (2004) is a refusal that created no report job.
-          const refused = e instanceof MirrorError && e.code === 'REPORT_PENDING' && e.details.provider_code === '2004';
-          settleProviderJob(store, tenant, receipt, refused ? 'rejected' : failedJobState(e), {
-            code: e instanceof MirrorError ? e.code : 'INTERNAL_ERROR',
-          });
-          throw e;
-        }
-        reportId = d.ReportRequestId;
-        settleProviderJob(store, tenant, receipt, reportId ? 'accepted' : 'uncertain', {
-          job_id: reportId ? String(reportId) : null,
-        });
-        save({report_id: reportId, report_time_zone: zone.report_time_zone, provider_job_receipt: receipt});
-      }
-      let offset = 0;
-      for (let page = 0; page < 100; page++) {
-        const d = await microsoftCompleteData(() =>
-          run(
-            compileMicrosoft({
-              action: 'PollGenerateReport',
-              account_id: account,
-              payload: {ReportRequestId: reportId},
-              download_report: true,
-              offset,
-              limit: 100,
-            }),
-            false,
-          ),
-        );
-        if (d.ReportRequestStatus?.Status === 'Pending' || d.status === 'Pending')
-          throw new MirrorError(
-            'REPORT_PENDING',
-            'Microsoft is preparing the report.',
-            {retry_after_ms: 30000, report_id: reportId},
-            503,
-            true,
-          );
-        if (!d.download_complete)
-          throw new MirrorError('REPORT_DOWNLOAD_FAILED', 'Microsoft report is not complete.', {}, 502);
-        raw.push(...list(d.rows));
-        if (d.potentially_incomplete !== false) complete = false;
-        if (!d.has_more) break;
-        offset += d.rows.length;
-        if (!d.rows.length || page === 99)
-          throw new MirrorError('INCOMPLETE_REPORT', 'Microsoft report exceeded the row limit.');
-      }
-      resultDefinition = 'Microsoft conversions included in the Conversions column';
-      context.report_time_zone = zone.report_time_zone;
-      if (zone.fallback) warnings.push(microsoftFallbackWarning);
-      if (detail) detailRows = microsoftDetail(detail, account, currency, raw, detailRounding);
     } else if (p === 'apple') {
       const m = await run({...plan('/v1/ad-accounts/' + account), origin: 'https://api.ads.apple.com'}, false);
       metadata = m.result ?? m;

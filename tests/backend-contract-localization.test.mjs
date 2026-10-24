@@ -179,9 +179,9 @@ test('all actual directly owned backend reasons have Arabic with original native
   // ARC-04 stage F (wave 4c) moves each platform's collection from src/report-native.ts into its report source, with
   // the refusals of its requests, and the shared collection helpers into the report source contract
   // (src/report-source.ts): files with reasons are added, the reasons are the same (the contract; then the LinkedIn
-  // report source, with LinkedIn's account and currency refusals).
+  // report source, with LinkedIn's account and currency refusals; the Microsoft one, with its report job refusals).
   assert.equal(files.length, 669);
-  assert.equal(selected.filter(row => row.messages.size).length, 255);
+  assert.equal(selected.filter(row => row.messages.size).length, 256);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11513);
   assert.deepEqual(localeProblems(catalog, owned), []);
