@@ -17,6 +17,11 @@ import type {Store} from './store.js';
 import type {Registry} from './catalog.js';
 import type {TransportResult} from './transport.js';
 import type {VerificationRead} from './reviewed-family.js';
+// Writes and campaigns (wave 4c): what the review gives a provider's own state read.
+import type {Actor} from './types.js';
+import type {NativeTransport} from './transport.js';
+import type {CredentialProvider} from './auth.js';
+import type {VendorRoute} from './delegated-native.js';
 
 /** `active` providers are offered; a `parked` one is offered only where AMCP_PROVIDERS names it. */
 export type ProviderStatus = 'active' | 'parked';
@@ -471,6 +476,8 @@ export interface ProviderHooks {
   readonly review?: ReviewProjections;
   /** Its guided campaign recipes (wave 4c, writes and campaigns). */
   readonly campaign?: CampaignHooks;
+  /** Its parts of the reviewed write lifecycle (wave 4c, writes and campaigns). */
+  readonly writes?: WriteReviewHooks;
 }
 
 export interface ProviderAdapter {
@@ -548,4 +555,74 @@ export type RecipeDefinition = JsonObject & {
 export interface CampaignHooks {
   /** Its guided recipes, in the order the recipe catalog lists them. */
   readonly recipes?: readonly CampaignRecipe[];
+}
+
+/** What the review gives a provider that reads part of a write's state itself: the review's services and access check. */
+export interface ReviewStateContext {
+  readonly store: Store;
+  readonly transport: NativeTransport;
+  readonly credentials: CredentialProvider;
+  readonly actor: Actor;
+  /** The review's access check (actor, deployment, grants, the write's scope), run again; it returns the connection. */
+  readonly access: () => Connection;
+}
+/** What the review gives a provider whose write changes other accounts while it reads state (Apple's shared budget). */
+export interface SharedAccountContext {
+  /** Binds another account to the review's connection with its write grant, or refuses. */
+  bind(account: string): void;
+  /** The review's reads, in order; the provider may append reads. */
+  readonly reads: CompiledRequest[];
+}
+/**
+ * A provider's parts of the reviewed write lifecycle (ARC-01 phase B, wave 4c: src/write-review.ts named the provider
+ * at each). The review keeps the actor, deployment, role and account-grant checks, ScopeGuard, the family hooks, every
+ * read's authority checks, the state hash, the spending policy, the approvals, the claim and the single send, in their
+ * order; a provider answers only where the review asked about it, for its own writes (and reads, where so marked).
+ */
+export interface WriteReviewHooks {
+  // The review's access check (WriteReviewService.access), in its order.
+  /** The other accounts the write changes (Apple's shared budget): each is bound to the connection with its grant. */
+  sharedAccounts?(plan: CompiledRequest): string[];
+  /** The connection's write scopes, before the family's scope check (Reddit's adsread and adsedit); refuses. */
+  writeScopes?(connection: Connection): void;
+  /** The connection's write grant, after the family's scope check (Microsoft's msads.manage); refuses. */
+  writeGrant?(connection: Connection): void;
+  /** The write permission the provider requires, after ScopeGuard (Search Console, GA4, Apple, Tag Manager); refuses. */
+  writePermission?(plan: CompiledRequest, connection: Connection): void;
+  // The review's state (WriteReviewService.state), in its order.
+  /** A write whose state is its first read and what the provider reads itself (a Meta creative's identity). */
+  readonly ownState?: {
+    claims(plan: CompiledRequest): boolean;
+    state(plan: CompiledRequest, context: ReviewStateContext): Promise<unknown>;
+  };
+  /** After each read of this provider's: ScopeGuard learns ownership from it (Snapchat). */
+  readonly observeState?: true;
+  /** After each read: the reads it shows the write depends on, before the paused parent's (Snapchat's lead forms). */
+  dependentReads?(plan: CompiledRequest, read: CompiledRequest, data: unknown): CompiledRequest[];
+  /** After each read of this provider's, after the paused parent's: the rest of its pages (TikTok's Instant Forms). */
+  morePages?(read: CompiledRequest, data: unknown): CompiledRequest[];
+  /** After each read: the accounts of a shared budget it shows, bound and read too (Apple). */
+  sharedState?(plan: CompiledRequest, read: CompiledRequest, data: unknown, context: SharedAccountContext): void;
+  /** After every read and the family's prerequisites, before the paused-parent check: the provider's (refuses). */
+  prerequisites?(plan: CompiledRequest, values: unknown[], reads: CompiledRequest[]): void;
+  /** After the paused-parent check (Meta's ad set audience choice, X's paused line item); refuses. */
+  parentChecks?(plan: CompiledRequest, values: unknown[]): void;
+  // The review's preparation and execution (prepareReview, submit).
+  /** The request as a review shows and returns it (Business Profile's place-action links made safe); itself without. */
+  shownRequest?(plan: CompiledRequest): unknown;
+  /** The concurrency token a route takes from the state, unless its family owns it (Tag Manager's fingerprint). */
+  concurrency?(plan: CompiledRequest, state: unknown[], routes: readonly VendorRoute[]): void;
+  /** The provider's resources the state names, each owned by the account (Snapchat's creative references); refuses. */
+  ownedReferences?(plan: CompiledRequest, state: unknown[], owns: (resource: string) => boolean): void;
+  /**
+   * The ads a creative edit changes (Snapchat), read through the review's guarded reader with reads `stateRead` builds
+   * (src/write-snapshots.ts, passed in so that no adapter imports a lifecycle module); a provider failure of the read
+   * leaves them unknown, an authority failure refuses.
+   */
+  affectedAds?(
+    plan: CompiledRequest,
+    creativeIds: unknown[],
+    read: (request: CompiledRequest) => Promise<TransportResult>,
+    stateRead: (plan: CompiledRequest, path: string, query?: JsonObject) => CompiledRequest,
+  ): Promise<JsonObject>;
 }

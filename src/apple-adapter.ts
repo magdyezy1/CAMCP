@@ -3,6 +3,10 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
 import {assertMeasurementWrite, validateMeasurementState} from './measurement-writes.js';
+// Writes and campaigns (wave 4c).
+import type {SharedAccountContext} from './provider-adapter.js';
+import {assertMeasurementScopes} from './measurement-writes.js';
+import {appleSharedAccountReads, appleSharedAccounts, appleSharedBudget} from './apple-entity-writes.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 // SDK output-only processing/approval observations are not advertiser edits.
@@ -117,4 +121,44 @@ export const appleHooks: ProviderHooks = Object.freeze({
             : 'orgId=' + plan.accountId;
     },
   }),
+  // Writes and campaigns (wave 4c): its parts of the reviewed write lifecycle (src/write-review.ts). A shared budget
+  // changes every account it spans, each bound and granted like the selected one; its organization is frozen.
+  writes: Object.freeze({
+    sharedAccounts: (plan: CompiledRequest) => appleSharedAccounts(plan),
+    writePermission: assertMeasurementScopes,
+    sharedState: appleSharedBudgetState,
+    prerequisites: appleSharedBudgetScope,
+  }),
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from WriteReviewService.state (src/write-review.ts).
+/** A shared budget's own read binds each account it spans; the first one also freezes them and reads each account. */
+function appleSharedBudgetState(
+  plan: CompiledRequest,
+  read: CompiledRequest,
+  data: unknown,
+  {bind, reads}: SharedAccountContext,
+): void {
+  if (!appleSharedBudget(plan) || read.path !== plan.path) return;
+  const accounts = appleSharedAccounts(plan, data),
+    frozen = plan.scopeContext?.appleSharedAccountIds;
+  for (const account of accounts) bind(account);
+  if (!frozen) {
+    plan.scopeContext = {...plan.scopeContext, appleSharedAccountIds: accounts};
+    for (const extra of appleSharedAccountReads(plan, accounts))
+      if (!reads.some(r => r.path === extra.path)) reads.push(extra);
+  }
+}
+/** The organization of the selected account and the accounts a shared budget's result spans, frozen with the review. */
+function appleSharedBudgetScope(plan: CompiledRequest, values: unknown[], reads: CompiledRequest[]): void {
+  if (appleSharedBudget(plan) && !plan.scopeContext?.appleSharedOrgId) {
+    const account = obj(values[reads.findIndex(r => r.path === '/v1/ad-accounts/' + plan.accountId)]).result;
+    const target = obj(values[reads.findIndex(r => r.path === plan.path)]).result;
+    plan.scopeContext = {
+      ...plan.scopeContext,
+      appleSharedAccountIds: appleSharedAccounts(plan),
+      appleSharedOrgId: String(account.orgId),
+      appleSharedResultAccounts: (obj(plan.body).adAccountIds ?? target.adAccountIds).map(String),
+    };
+  }
+}

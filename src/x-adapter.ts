@@ -2,6 +2,8 @@ import type {ExpectState, ProviderHooks, ProviderVerificationRead, StateTarget} 
 import type {CompiledRequest, Credentials, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {assertXTargeting} from './x-targeting-writes.js';
+// Writes and campaigns (wave 4c).
+import {validateXTargetingState} from './x-targeting-writes.js';
 import {authorizeXAudienceEstimate, xAudienceEstimateRoute} from './x-audience-estimate.js';
 import {scopeKey, sha256} from './security.js';
 import {oauth1} from './oauth1.js';
@@ -128,4 +130,7 @@ export const xHooks: ProviderHooks = Object.freeze({
       },
     }),
   }),
+  // Writes and campaigns (wave 4c): targeting criteria are applied only under a paused line item, checked after the
+  // review's paused-parent check (src/write-review.ts).
+  writes: Object.freeze({parentChecks: validateXTargetingState}),
 });

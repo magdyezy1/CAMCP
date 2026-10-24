@@ -17,6 +17,8 @@ import type {TransportResult} from './transport.js';
 import {microsoftReportKey} from './microsoft-report-download.js';
 // Writes and campaigns (wave 4c).
 import {buildMicrosoftSearchRecipe, microsoftSearchRecipe} from './microsoft-search-recipe.js';
+import {recordedWriteGrant} from './provider-grants.js';
+import {fail} from './write-common.js';
 
 /**
  * Microsoft's resource scope, after the account path: the mandatory CustomerAccountId header confines Campaign
@@ -129,4 +131,13 @@ export const microsoftHooks: ProviderHooks = Object.freeze({
   campaign: Object.freeze({
     recipes: Object.freeze([Object.freeze({definition: microsoftSearchRecipe, build: buildMicrosoftSearchRecipe})]),
   }),
+  // Its review needs msads.manage, after the family's scope check (src/write-review.ts).
+  writes: Object.freeze({writeGrant: microsoftWriteGrant}),
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from WriteReviewService.access (src/write-review.ts).
+/** The one grant registry (CON-03): msads.manage, recorded in its full or short form. */
+function microsoftWriteGrant(connection: Connection): void {
+  if (recordedWriteGrant(connection) === false)
+    fail('INSUFFICIENT_SCOPE', 'Reconnect Microsoft Advertising with msads.manage permission.');
+}

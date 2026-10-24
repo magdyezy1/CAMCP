@@ -32,6 +32,9 @@ import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from 
 // Writes and campaigns (wave 4c).
 import {buildMetaWebsiteRecipe, metaWebsiteRecipes} from './meta-website-recipes.js';
 import {metaWriteShapeBefore} from './meta-write-shape.js';
+import type {ReviewStateContext} from './provider-adapter.js';
+import {metaAdSetAudienceChoice} from './meta-contracts.js';
+import {metaCreativeCreate, metaCreativeState} from './meta-creative-state.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 
@@ -288,5 +291,17 @@ export const metaHooks: ProviderHooks = Object.freeze({
         Object.freeze({definition, build: (b: JsonObject) => buildMetaWebsiteRecipe(definition.id, b)}),
       ),
     ),
+  }),
+  // Its parts of the reviewed write lifecycle (src/write-review.ts): a new creative's state is the account read and the
+  // creative's identity sources, which Meta's module reads itself through the review's access check; an ad set's audience
+  // choice is checked after the review's paused-parent check.
+  writes: Object.freeze({
+    ownState: Object.freeze({
+      claims: metaCreativeCreate,
+      state: async (plan: CompiledRequest, {store, transport, credentials, actor, access}: ReviewStateContext) => ({
+        creative_source: await metaCreativeState(plan, store, transport, credentials, actor, access),
+      }),
+    }),
+    parentChecks: metaAdSetAudienceChoice,
   }),
 });

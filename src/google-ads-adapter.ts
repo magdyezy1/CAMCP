@@ -32,6 +32,8 @@ import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from 
 // Writes and campaigns (wave 4c).
 import {buildGoogleSearchRecipe, googleSearchRecipes} from './google-search-recipes.js';
 import {buildGooglePmaxRecipe, googlePmaxRecipe} from './google-pmax-recipe.js';
+import {validateGoogleTargetingState} from './google-targeting-writes.js';
+import {validateGooglePausedParents} from './google-paused-parents.js';
 
 /** The first errorCode token of a Google Ads failure (GoogleAdsFailure details), else the RPC status. */
 function googleErrorCode(body: unknown): string | number | undefined {
@@ -555,5 +557,13 @@ export const googleAdsHooks: ProviderHooks = Object.freeze({
       ),
       Object.freeze({definition: googlePmaxRecipe, build: buildGooglePmaxRecipe}),
     ]),
+  }),
+  // Its parts of the reviewed write lifecycle (src/write-review.ts): targeting and the paused parents of new entities are
+  // checked against the state, in that order, before the review's paused-parent check.
+  writes: Object.freeze({
+    prerequisites(plan: CompiledRequest, values: unknown[]) {
+      validateGoogleTargetingState(plan, values);
+      validateGooglePausedParents(plan, values);
+    },
   }),
 });

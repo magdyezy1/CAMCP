@@ -33,6 +33,9 @@ import {
   snapchatLeadRecipe,
   snapchatTrafficRecipe,
 } from './snapchat-traffic-recipe.js';
+import {snapAdCreativePrerequisites, snapAdLeadFormFollowUps} from './snapchat-ad-creatives.js';
+import {assertSnapCreativeReferences} from './snapchat-lead-forms.js';
+import {snapchatAffectedAdsDisclosure} from './snapchat-affected-ad-pages.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /** The list read that establishes ownership of each scoped entity kind. */
@@ -407,5 +410,15 @@ export const snapchatHooks: ProviderHooks = Object.freeze({
       Object.freeze({definition: snapchatTrafficRecipe, build: buildSnapchatTrafficRecipe}),
       Object.freeze({definition: snapchatLeadRecipe, build: buildSnapchatLeadRecipe}),
     ]),
+  }),
+  // Its parts of the reviewed write lifecycle (src/write-review.ts): ScopeGuard learns ownership from each of its state
+  // reads; an ad's lead form is read after its creative, and its creatives' prerequisites are checked after every read;
+  // an edited creative's references must be the account's, and the ads a creative edit changes are listed.
+  writes: Object.freeze({
+    observeState: true as const,
+    dependentReads: snapAdLeadFormFollowUps,
+    prerequisites: (plan: CompiledRequest, values: unknown[]) => snapAdCreativePrerequisites(plan, values),
+    ownedReferences: assertSnapCreativeReferences,
+    affectedAds: snapchatAffectedAdsDisclosure,
   }),
 });

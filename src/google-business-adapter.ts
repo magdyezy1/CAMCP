@@ -3,6 +3,8 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import {errorObject} from './provider-error-core.js';
 import type {ProviderErrorClass, ProviderErrorContext, ProviderErrorInput} from './provider-error-taxonomy.js';
 import {authorizePlaceActionDiscovery, placeActionReadKind} from './google-place-action-discovery.js';
+// Writes and campaigns (wave 4c).
+import {placeActionSafe} from './google-place-action-links.js';
 
 /**
  * Business Profile's resource scope, after the account path: a business account's path names it, and a location's
@@ -98,4 +100,7 @@ export const googleBusinessHooks: ProviderHooks = Object.freeze({
       },
     }),
   }),
+  // Writes and campaigns (wave 4c): a review shows and returns a place action's request with its links made safe
+  // (src/write-review.ts).
+  writes: Object.freeze({shownRequest: placeActionSafe}),
 });

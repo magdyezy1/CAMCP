@@ -181,8 +181,10 @@ test('all actual directly owned backend reasons have Arabic with original native
   // the catalog's own): four more files with reasons, the same reasons. ARC-01 (wave 4c) adds Reddit's page step, whose
   // five refusals moved with it from src/reddit-adapter.ts (src/reddit-paging.ts: one more file with reasons, the same
   // reasons), and Meta's first write-shape checks (src/meta-write-shape.ts, whose refusals this inventory never owned in
-  // src/write-shape.ts either).
-  assert.equal(files.length, 675);
+  // src/write-shape.ts either). Its review hooks move Snapchat's affected-ads read to the leaf
+  // src/snapchat-affected-ad-pages.ts, whose one reason moved with it from src/snapchat-affected-ads.ts (which keeps its
+  // signature): one more file, the same files with reasons and the same reasons.
+  assert.equal(files.length, 676);
   assert.equal(selected.filter(row => row.messages.size).length, 258);
   assert.equal(owned.size, 1588);
   assert.equal(Object.keys(catalog).length, 11513);

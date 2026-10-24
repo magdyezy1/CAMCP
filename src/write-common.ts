@@ -2,6 +2,7 @@
 import {MirrorError} from './errors.js';
 import {fail} from './family-kit.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import type {TransportResult} from './transport.js';
 
 /** A provider identifier: a non-empty string or a safe integer. */
 /** A provider response body as an object ({} when it is not one). */
@@ -76,4 +77,21 @@ export function assertNoMethodOverride(plan: CompiledRequest): void {
       !['CREATE', 'PARTIAL_UPDATE', 'DELETE'].includes(plan.headers['X-RestLi-Method'].toUpperCase()))
   )
     fail('WRITE_CONTRACT_UNAVAILABLE', 'This REST.li method override is not qualified for reviewed execution.');
+}
+/**
+ * 404 is evidence of absence only for a derived optional target, never for its parent or permission failures. A
+ * lifecycle rule for every family's AMCP_STATE_OPTIONAL reads (the measurement providers', DV360's, Tag Manager's and
+ * Apple's), moved with ARC-01 wave 4c from src/measurement-writes.ts, which re-exports it, so the review imports no
+ * provider module for it.
+ */
+export function optionalMissingState(read: CompiledRequest, e: unknown): TransportResult | undefined {
+  if (
+    read.action === 'AMCP_STATE_OPTIONAL' &&
+    read.method === 'GET' &&
+    e instanceof MirrorError &&
+    e.code === 'UPSTREAM_ERROR' &&
+    e.status === 404
+  )
+    return {data: {amcp_absent: true, path: read.path}, status: 404, headers: {}};
+  return undefined;
 }

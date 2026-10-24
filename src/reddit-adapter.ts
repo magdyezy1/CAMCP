@@ -6,7 +6,7 @@ import {authorizeRedditPlanningRead} from './reddit-extensions.js';
 import {redditNextPage} from './reddit-paging.js';
 // Writes and campaigns (wave 4c).
 import type {TransportResult} from './transport.js';
-import {assertRedditWrite, validateRedditState} from './reddit-writes.js';
+import {assertRedditWrite, assertRedditWriteScopes, validateRedditState} from './reddit-writes.js';
 
 /** Reddit's account-agnostic reference reads, which any bound account may make. */
 const globalReads = [
@@ -152,4 +152,6 @@ export const redditHooks: ProviderHooks = Object.freeze({
       target: (read: CompiledRequest, result: TransportResult) => validateRedditState(read, result),
     }),
   }),
+  // Its review needs adsread and adsedit on the connection, before the family's scope check (src/write-review.ts).
+  writes: Object.freeze({writeScopes: assertRedditWriteScopes}),
 });

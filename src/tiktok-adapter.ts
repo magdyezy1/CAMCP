@@ -61,6 +61,10 @@ import {
 } from './tiktok-report-pagination.js';
 // Writes and campaigns (wave 4c).
 import {buildTiktokLaunchRecipe, tiktokConversionRecipe, tiktokTrafficRecipe} from './tiktok-launch-recipes.js';
+import {tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions.js';
+import {tiktokCtaPortfolioPrerequisites} from './tiktok-cta-portfolios.js';
+import {tiktokManualAdIdentityPrerequisites} from './tiktok-manual-ad-identities.js';
+import {tiktokInstantFormFollowUps} from './tiktok-instant-forms.js';
 
 const obj = (v: unknown): JsonObject => (v && typeof v === 'object' && !Array.isArray(v) ? (v as JsonObject) : {});
 /**
@@ -436,5 +440,16 @@ export const tiktokHooks: ProviderHooks = Object.freeze({
       Object.freeze({definition: tiktokTrafficRecipe, build: (b: JsonObject) => buildTiktokLaunchRecipe(b, false)}),
       Object.freeze({definition: tiktokConversionRecipe, build: (b: JsonObject) => buildTiktokLaunchRecipe(b, true)}),
     ]),
+  }),
+  // Its parts of the reviewed write lifecycle (src/write-review.ts): Instant Forms cannot be read by ID, so the first
+  // page of their read names how many more to read; a custom conversion, a CTA portfolio and a manual ad identity are
+  // checked against the state, in that order, after every read.
+  writes: Object.freeze({
+    morePages: tiktokInstantFormFollowUps,
+    prerequisites(plan: CompiledRequest, values: unknown[]) {
+      tiktokAdgroupConversionPrerequisites(plan, values);
+      tiktokCtaPortfolioPrerequisites(plan, values);
+      tiktokManualAdIdentityPrerequisites(plan, values);
+    },
   }),
 });

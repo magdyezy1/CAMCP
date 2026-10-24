@@ -1,13 +1,4 @@
-import {assertSnapCreativeReferences} from './snapchat-lead-forms.js';
-import {snapAdCreativePrerequisites, snapAdLeadFormFollowUps} from './snapchat-ad-creatives.js';
-import {tiktokAdgroupConversionPrerequisites} from './tiktok-adgroup-conversions.js';
-import {tiktokCtaPortfolioPrerequisites} from './tiktok-cta-portfolios.js';
-import {tiktokManualAdIdentityPrerequisites} from './tiktok-manual-ad-identities.js';
-import {tiktokInstantFormFollowUps} from './tiktok-instant-forms.js';
-import {metaCreativeCreate, metaCreativeState} from './meta-creative-state.js';
-import {placeActionSafe} from './google-place-action-links.js';
 import {unsupportedProviderAlias} from './retired-provider-actions.js';
-import {appleSharedAccounts, appleSharedAccountReads, appleSharedBudget} from './apple-entity-writes.js';
 import {checkSpendPolicy, describeExceeded, exceededCaps, workspaceOwner} from './spend-policy.js';
 import {randomUUID} from 'node:crypto';
 import {MirrorError, connectorReadOnly, errorRemedy, preciseMessage, readOnlyDeployment} from './errors.js';
@@ -36,15 +27,7 @@ import {nativeAuthority} from './native-authority.js';
 import {DelegatedNativeCompiler} from './delegated-native.js';
 import {normalizeSnapshot, reviewStateHash, changedStateFields} from './review-state.js';
 import {accountWriteGranted, assertAccountWrite} from './write-access.js';
-import {validateGoogleTargetingState} from './google-targeting-writes.js';
-import {validateGooglePausedParents} from './google-paused-parents.js';
 import {pausedParentFollowUp, validatePausedParents} from './paused-parents.js';
-import {metaAdSetAudienceChoice} from './meta-contracts.js';
-import {validateXTargetingState} from './x-targeting-writes.js';
-import {assertRedditWriteScopes} from './reddit-writes.js';
-import {microsoftGateway} from './microsoft-native.js';
-import {recordedWriteGrant} from './provider-grants.js';
-import {assertMeasurementScopes, optionalMissingState} from './measurement-writes.js';
 import {familyOf, readThroughFamilies} from './reviewed-families.js';
 import {assertWritesNotPaused} from './owner-operations.js';
 import {planPolicy} from './campaign-inventory.js';
@@ -53,6 +36,7 @@ import {
   object,
   fail,
   notSent,
+  optionalMissingState,
   releaseUnsentClaims,
   serializeTargets,
   targetWaitMs,
@@ -68,7 +52,7 @@ import {nonAppliedRejection, rejectedError} from './write-rejection.js';
 import {validateState} from './write-state.js';
 import {assertWriteShape} from './write-shape.js';
 import {wireContractCheck} from './wire-contracts.js';
-import {snapshotPlans} from './write-snapshots.js';
+import {snapshotPlans, stateRead} from './write-snapshots.js';
 import {
   confirmations,
   hashPeople,
@@ -87,8 +71,20 @@ import {
   type ProviderCheck,
 } from './provider-validation.js';
 import {effectNames, effectReasons, writeEffects} from './write-effects.js';
-import {snapchatAffectedAds} from './snapchat-affected-ads.js';
 import {reviewSummary} from './review-summary.js';
+// Each provider's parts of the review (ARC-01 phase B, wave 4c): its adapter's `writes` hooks, asked where the review
+// named the provider before; the review imports no provider module.
+import {providerHooks} from './provider-hooks.js';
+import {providerById} from './provider-adapters.js';
+import type {WriteReviewHooks} from './provider-adapter.js';
+
+/** The review hooks of a gateway's provider. */
+const reviewHooks = (gateway: unknown): WriteReviewHooks | undefined => providerHooks(gateway)?.writes;
+/** The request as a review shows and returns it: its provider's view (place-action links made safe), or itself. */
+const shownRequest = (plan: CompiledRequest): unknown => {
+  const shown = reviewHooks(plan.gateway)?.shownRequest;
+  return shown ? shown(plan) : plan;
+};
 
 export const writeTool = {
   name: 'amcp_write',
@@ -364,18 +360,21 @@ export class WriteReviewService {
       id = normalizeAccount(plan.gateway, plan.accountId ?? (c.accounts.length === 1 ? c.accounts[0] : ''));
     if (job) assertProviderJobAccount(this.store, actor, c, id, this.policy.allowWrites);
     else assertAccountWrite(this.store, c, id);
-    for (const account of appleSharedAccounts(plan)) {
+    // The provider's checks, where the review named it (src/<provider>-adapter.ts `writes`): the other accounts a
+    // write changes (Apple's shared budget), its write scopes before the family's scope check (Reddit's), its write
+    // grant after it (Microsoft's msads.manage), and the write permission it requires after ScopeGuard (the
+    // measurement providers').
+    const writes = reviewHooks(plan.gateway);
+    for (const account of writes?.sharedAccounts?.(plan) ?? []) {
       this.store.resolveConnection(actor, plan.gateway, account, c.id);
       assertAccountWrite(this.store, c, account);
     }
-    if (plan.gateway === 'reddit_native_action') assertRedditWriteScopes(c);
+    writes?.writeScopes?.(c);
     familyOf(plan)?.scope?.(c, true, plan);
-    // The one grant registry (CON-03): msads.manage, recorded in its full or short form.
-    if (plan.gateway === microsoftGateway && recordedWriteGrant(c) === false)
-      fail('INSUFFICIENT_SCOPE', 'Reconnect Microsoft Advertising with msads.manage permission.');
+    writes?.writeGrant?.(c);
     plan.accountId = id;
     new ScopeGuard(this.registry, this.store).authorize(plan, c);
-    assertMeasurementScopes(plan, c);
+    writes?.writePermission?.(plan, c);
     return c;
   }
   /**
@@ -468,7 +467,11 @@ export class WriteReviewService {
         guarded: (unsafe, binding) => this.guardedReader(actor, plan, connectionId, unsafe, binding),
         sameLogin,
       });
-    if (metaCreativeCreate(plan)) {
+    // The provider's parts of the state, where the review named it (src/<provider>-adapter.ts `writes`).
+    const writes = reviewHooks(plan.gateway),
+      ownState = writes?.ownState;
+    // A write whose state is its first read and what its provider reads itself (a Meta creative's identity).
+    if (ownState?.claims(plan)) {
       const read = reads[0]!,
         access = () => this.access(actor, plan, connectionId),
         c = access();
@@ -480,7 +483,13 @@ export class WriteReviewService {
       validateState(read, result);
       return [
         normalizeSnapshot(read, result.data),
-        {creative_source: await metaCreativeState(plan, this.store, this.transport, this.credentials, actor, access)},
+        await ownState.state(plan, {
+          store: this.store,
+          transport: this.transport,
+          credentials: this.credentials,
+          actor,
+          access,
+        }),
       ];
     }
     const values: unknown[] = [];
@@ -507,56 +516,40 @@ export class WriteReviewService {
       }
       const reader = this.access(actor, plan, connectionId);
       validateState(read, result);
-      if (read.gateway === 'snapchat_native_action')
+      // A provider that learns ownership from each of its state reads (Snapchat).
+      if (reviewHooks(read.gateway)?.observeState)
         new ScopeGuard(this.registry, this.store).observe(read, reader, result.data);
       // A family may read more once a read names what it depends on (a Smart+ bid edit: the campaign's ad groups).
       for (const more of familyOf(plan)?.followUps?.(plan, read, result.data) ?? [])
         if (!reads.some(r => r.path === more.path && stable(r.query) === stable(more.query))) reads.push(more);
-      for (const more of snapAdLeadFormFollowUps(plan, read, result.data))
+      // So may the write's provider (an ad's Snapchat lead form, after its creative).
+      for (const more of writes?.dependentReads?.(plan, read, result.data) ?? [])
         if (!reads.some(r => r.path === more.path && stable(r.query) === stable(more.query))) reads.push(more);
       // An active ad under a serving ad squad, ad set or ad group also reads the campaign its parent names.
       const campaign = pausedParentFollowUp(plan, read, result.data);
       if (campaign && !reads.some(r => r.path === campaign.path && stable(r.query) === stable(campaign.query)))
         reads.push(campaign);
-      // Instant Forms cannot be read by ID; the first page names how many more pages to read.
-      for (const more of tiktokInstantFormFollowUps(read, result.data))
+      // A read whose first page names how many more to read (TikTok's Instant Forms, which cannot be read by ID).
+      for (const more of reviewHooks(read.gateway)?.morePages?.(read, result.data) ?? [])
         if (!reads.some(r => r.path === more.path && stable(r.query) === stable(more.query))) reads.push(more);
-      if (appleSharedBudget(plan) && read.path === plan.path) {
-        const accounts = appleSharedAccounts(plan, result.data),
-          frozen = plan.scopeContext?.appleSharedAccountIds;
-        for (const account of accounts) {
+      // A write that changes other accounts binds each one its read shows, and reads them (Apple's shared budget).
+      writes?.sharedState?.(plan, read, result.data, {
+        bind: account => {
           const current = this.store.resolveConnection(actor, plan.gateway, account, connectionId);
           assertAccountWrite(this.store, current, account);
-        }
-        if (!frozen) {
-          plan.scopeContext = {...plan.scopeContext, appleSharedAccountIds: accounts};
-          for (const extra of appleSharedAccountReads(plan, accounts))
-            if (!reads.some(r => r.path === extra.path)) reads.push(extra);
-        }
-      }
+        },
+        reads,
+      });
       const own = familyOf(plan)?.snapshotValue?.(plan, read, object(result.data));
       values.push(own !== undefined ? own : normalizeSnapshot(read, result.data));
     }
     familyOf(plan)?.prerequisites?.(plan, values, reads);
-    snapAdCreativePrerequisites(plan, values);
-    tiktokAdgroupConversionPrerequisites(plan, values);
-    tiktokCtaPortfolioPrerequisites(plan, values);
-    tiktokManualAdIdentityPrerequisites(plan, values);
-    if (appleSharedBudget(plan) && !plan.scopeContext?.appleSharedOrgId) {
-      const account = object(values[reads.findIndex(r => r.path === '/v1/ad-accounts/' + plan.accountId)]).result;
-      const target = object(values[reads.findIndex(r => r.path === plan.path)]).result;
-      plan.scopeContext = {
-        ...plan.scopeContext,
-        appleSharedAccountIds: appleSharedAccounts(plan),
-        appleSharedOrgId: String(account.orgId),
-        appleSharedResultAccounts: (object(plan.body).adAccountIds ?? target.adAccountIds).map(String),
-      };
-    }
-    validateGoogleTargetingState(plan, values);
-    validateGooglePausedParents(plan, values);
+    // The provider's prerequisites (Snapchat's creatives; TikTok's conversions, CTA portfolios and identities; Apple's
+    // shared organization; Google's targeting and paused parents), then the paused-parent check, then the provider's
+    // checks after it (Meta's ad set audience choice, X's paused line item).
+    writes?.prerequisites?.(plan, values, reads);
     validatePausedParents(plan, values);
-    metaAdSetAudienceChoice(plan, values);
-    validateXTargetingState(plan, values);
+    writes?.parentChecks?.(plan, values);
     return values;
   }
   /**
@@ -590,15 +583,16 @@ export class WriteReviewService {
     return check;
   }
   /**
-   * The ads a Snapchat creative edit changes, read through the review's guarded reader. A provider failure of this
-   * disclosure read leaves the list unknown (null, incomplete) instead of refusing the review; an authority failure
-   * (access, grants, login) is raised as for any state read.
+   * The ads a creative edit changes, read by its provider (Snapchat's `writes.affectedAds`) through the review's guarded
+   * reader. A provider failure of this disclosure read leaves the list unknown (null, incomplete) instead of refusing
+   * the review; an authority failure (access, grants, login) is raised as for any state read.
    */
-  private async snapchatAds(
+  private async affectedAds(
     actor: Actor,
     plan: CompiledRequest,
     connectionId: string,
     creativeIds: unknown[],
+    affected: NonNullable<WriteReviewHooks['affectedAds']>,
   ): Promise<JsonObject> {
     const {read} = this.guardedReader(
       actor,
@@ -606,25 +600,7 @@ export class WriteReviewService {
       connectionId,
       'The affected-ads read of a creative review must be read-only.',
     );
-    try {
-      return await snapchatAffectedAds(plan, creativeIds, read);
-    } catch (e) {
-      if (
-        !(e instanceof MirrorError) ||
-        !(
-          typeof e.details.http_status === 'number' ||
-          /^(?:UPSTREAM_|PLATFORM_|PROVIDER_|CIRCUIT_OPEN$|TENANT_RATE_LIMIT$|SNAPCHAT_ADS_READ_INVALID$)/.test(e.code)
-        )
-      )
-        throw e;
-      return {
-        affected_ad_ids: null,
-        affected_ads: null,
-        incomplete: true,
-        enumeration: 'read_failed',
-        read_error: e.code,
-      };
-    }
+    return affected(plan, creativeIds, read, stateRead);
   }
   /**
    * What a group checks for every part before its first part is sent (WRT-04): the review's owner, request shape,
@@ -802,7 +778,7 @@ export class WriteReviewService {
           executed: false,
           network_requests: 0,
           review_contract_supported: true,
-          request: redact(plan.gateway === 'google_business_native_action' ? placeActionSafe(plan) : plan),
+          request: redact(shownRequest(plan)),
           contract_evidence: executionEvidence(plan, evidence),
           state_reads: reads.map(r => ({method: r.method, path: r.path})),
           live_permissions_verified: false,
@@ -848,7 +824,7 @@ export class WriteReviewService {
           executed: false,
           network_requests: 0,
           review_contract_supported: false,
-          request: redact(plan.gateway === 'google_business_native_action' ? placeActionSafe(plan) : plan),
+          request: redact(shownRequest(plan)),
           contract_evidence: executionEvidence(plan, evidence),
           error: {code: e.code, message: preciseMessage(e), details: e.details, category: remedy.category, remedy},
           live_permissions_verified: false,
@@ -873,31 +849,33 @@ export class WriteReviewService {
     const reads = snapshotPlans(plan, this.registry),
       state = await this.state(actor, plan, c.id, reads);
     familyOf(plan)?.stateChecks?.(plan, state, true);
-    if (plan.gateway === 'gtm_native_action' && !familyOf(plan)?.ownsConcurrency) {
-      const route = this.delegated.data.routes.find(
-          r => r.gateway === plan.gateway && r.operation + (r.action ? '/' + r.action : '') === plan.action,
-        ),
-        fingerprint = object(state[0]).fingerprint;
-      if (route?.parameters.fingerprint && typeof fingerprint === 'string' && fingerprint) {
-        if (plan.query.fingerprint !== undefined && plan.query.fingerprint !== fingerprint)
-          fail('STATE_CHANGED', 'The supplied Tag Manager fingerprint is stale.');
-        plan.query.fingerprint = fingerprint;
-      }
-    }
+    // The concurrency token a route takes from the state, unless the family owns it (Tag Manager's fingerprint).
+    if (!familyOf(plan)?.ownsConcurrency)
+      reviewHooks(plan.gateway)?.concurrency?.(plan, state, this.delegated.data.routes);
     if (input.creative_edit_confirmed !== undefined && !familyOf(plan)?.creativeEditConfirmation?.(plan))
       fail(
         'INVALID_ARGUMENT',
         'creative_edit_confirmed is only for an X creative edit or deletion, or a TikTok Smart+ ad edit.',
       );
     const creativeImpact = writeImpact(plan, state, input.creative_edit_confirmed === true, c.id);
-    // A Snapchat creative edit changes every ad that uses the creative: name them, from a bounded read (WRT-05).
+    // A creative edit changes every ad that uses the creative: its provider names them, from a bounded read (WRT-05;
+    // Snapchat's, whose impact lists the creatives and leaves the ads to this read).
+    const affected =
+      typeof creativeImpact?.provider === 'string'
+        ? reviewHooks(providerById(creativeImpact.provider)?.gateway)?.affectedAds
+        : undefined;
     if (
-      creativeImpact?.provider === 'snapchat' &&
+      affected &&
+      creativeImpact &&
       creativeImpact.affected_ad_ids === null &&
       Array.isArray(creativeImpact.affected_creative_ids)
     )
-      Object.assign(creativeImpact, await this.snapchatAds(actor, plan, c.id, creativeImpact.affected_creative_ids));
-    assertSnapCreativeReferences(plan, state, resource =>
+      Object.assign(
+        creativeImpact,
+        await this.affectedAds(actor, plan, c.id, creativeImpact.affected_creative_ids, affected),
+      );
+    // The provider's resources the state names must be the account's (Snapchat's creative references).
+    reviewHooks(plan.gateway)?.ownedReferences?.(plan, state, resource =>
       this.store.ownsResource(c, normalizeAccount(plan.gateway, plan.accountId!), resource),
     );
     const override = input.creative_edit_confirmed === true ? {creative_edit_confirmed: true} : {};
@@ -994,7 +972,7 @@ export class WriteReviewService {
       review_id: reviewId,
       idempotency_key: reviewId,
       expires_at: new Date(expiresAt).toISOString(),
-      request: redact(plan.gateway === 'google_business_native_action' ? placeActionSafe(plan) : plan),
+      request: redact(shownRequest(plan)),
       contract_evidence: executionEvidence(plan, evidence),
       before_state: redact(state),
       spend_policy: spendPolicy,
@@ -1290,7 +1268,7 @@ export class WriteReviewService {
     const c = this.access(actor, plan, review.connection_id),
       auth = await this.credentials.get(c);
     this.access(actor, plan, review.connection_id);
-    assertSnapCreativeReferences(plan, current, resource =>
+    reviewHooks(plan.gateway)?.ownedReferences?.(plan, current, resource =>
       this.store.ownsResource(c, normalizeAccount(plan.gateway, plan.accountId!), resource),
     );
     if (review.expires_at <= Date.now())

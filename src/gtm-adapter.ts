@@ -3,6 +3,10 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {assertMeasurementWrite, validateMeasurementState} from './measurement-writes.js';
 import {gtmSafeConfiguration} from './gtm-workflow-writes.js';
+// Writes and campaigns (wave 4c).
+import type {VendorRoute} from './delegated-native.js';
+import {assertMeasurementScopes} from './measurement-writes.js';
+import {fail, object} from './write-common.js';
 
 /**
  * Google Tag Manager's provider hooks (ARC-01 phase B; registered in src/provider-hooks.ts). Read classification: a
@@ -40,4 +44,21 @@ export const gtmHooks: ProviderHooks = Object.freeze({
   wire: Object.freeze({
     emptyWrite: (plan: CompiledRequest, response: Response) => response.status === 200 && plan.method === 'DELETE',
   }),
+  // Writes and campaigns (wave 4c): its parts of the reviewed write lifecycle (src/write-review.ts): the Tag Manager
+  // permission a write needs, and the workspace fingerprint a route takes from the state read.
+  writes: Object.freeze({writePermission: assertMeasurementScopes, concurrency: gtmConcurrency}),
 });
+
+// Writes and campaigns (wave 4c): moved verbatim from WriteReviewService.prepareReview (src/write-review.ts).
+/** A route that takes the workspace fingerprint takes the state read's, refusing a stale one the caller supplied. */
+function gtmConcurrency(plan: CompiledRequest, state: unknown[], routes: readonly VendorRoute[]): void {
+  const route = routes.find(
+      r => r.gateway === plan.gateway && r.operation + (r.action ? '/' + r.action : '') === plan.action,
+    ),
+    fingerprint = object(state[0]).fingerprint;
+  if (route?.parameters.fingerprint && typeof fingerprint === 'string' && fingerprint) {
+    if (plan.query.fingerprint !== undefined && plan.query.fingerprint !== fingerprint)
+      fail('STATE_CHANGED', 'The supplied Tag Manager fingerprint is stale.');
+    plan.query.fingerprint = fingerprint;
+  }
+}
