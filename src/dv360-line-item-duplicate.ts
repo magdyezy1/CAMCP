@@ -2,7 +2,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {assertDV360WriteScope} from './dv360-scope.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Duplication of DV360 line items, per the pinned Display & Video 360 API v4 Discovery document
@@ -224,7 +224,7 @@ export function dv360LineItemDuplicateObserved(_read: CompiledRequest, data: Jso
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const dv360LineItemDuplicateFamily: ReviewedFamily = {
+export const dv360LineItemDuplicateFamily: ReviewedFamily = defineFamily({
   name: 'dv360_line_item_duplicate',
   files: ['src/dv360-line-item-duplicate.ts', ['tests/dv360-line-item-duplicate.test.mjs']],
   kind: dv360LineItemDuplicateKind,
@@ -240,4 +240,4 @@ export const dv360LineItemDuplicateFamily: ReviewedFamily = {
   verification: dv360LineItemDuplicateVerification,
   observed: dv360LineItemDuplicateObserved,
   exemptFromSpendTextMatch: true,
-};
+});

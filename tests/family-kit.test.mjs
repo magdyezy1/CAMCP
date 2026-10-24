@@ -12,7 +12,7 @@ import {
   unlocalizedRefusalModules,
 } from '../tools/check-locales.mjs';
 
-const {defineFamily, everyFamilyHookHasAStage, fail} = kit;
+const {defineFamily, everyFamilyHookHasAStage, fail, familyStages} = kit;
 
 // ARC-04 stage C: the reviewed-family kit. Loading the catalog first evaluates the registry, as entry points do.
 new Registry();
@@ -43,6 +43,27 @@ test('every registered family is a well-formed declaration, and defineFamily ret
   for (const family of families) assert.equal(defineFamily(family), family, family.name);
 });
 
+test('every registered family is declared through defineFamily, which checks it when its module loads', () => {
+  const families = reviewedFamilies();
+  const modules = [...new Set(families.flatMap(f => f.files[0].split(' / ')))].sort();
+  let declared = 0;
+  for (const file of modules) {
+    const program = parsers['babel-ts'].parse(fs.readFileSync(file, 'utf8'), {filepath: file}).program;
+    for (const statement of program.body) {
+      const declaration = statement.type === 'ExportNamedDeclaration' ? statement.declaration : statement;
+      if (declaration?.type !== 'VariableDeclaration') continue;
+      for (const d of declaration.declarations) {
+        if (d.id.typeAnnotation?.typeAnnotation?.typeName?.name !== 'ReviewedFamily') continue;
+        // `export const xFamily: ReviewedFamily = defineFamily({...});`, never a bare object literal.
+        assert.equal(d.init?.type, 'CallExpression', file + ' ' + d.id.name);
+        assert.equal(d.init.callee.name, 'defineFamily', file + ' ' + d.id.name);
+        declared++;
+      }
+    }
+  }
+  assert.equal(declared, families.length);
+});
+
 test('defineFamily refuses a malformed declaration when its module loads', () => {
   const valid = {
     name: 'x_example_family',
@@ -58,13 +79,45 @@ test('defineFamily refuses a malformed declaration when its module loads', () =>
     ['no test file', {...valid, files: ['src/x-example.ts', []]}],
     ['a test outside tests', {...valid, files: ['src/x-example.ts', ['src/x-example.test.mjs']]}],
     ['no kind hook', {...valid, kind: undefined}],
+    // A member no stage calls: a misspelt hook would never apply. The type check of an object literal refuses it before
+    // the build (tests/family-declaration.test.ts), but not when a spread brings it, so the load-time check does too.
+    ['a misspelt hook', {...valid, verfication: () => []}],
+    ['a member a spread brings', {...valid, ...{snapshot: () => []}}],
   ])
     assert.throws(
       () => defineFamily(family),
       e => e.code === 'REVIEWED_FAMILY_INVALID' && e.status === 500,
       what,
     );
+  assert.throws(
+    () => defineFamily({...valid, verfication: () => []}),
+    e => e.message === 'A reviewed family declaration is malformed: its member verfication is no hook of any stage.',
+  );
   assert.ok(defineFamily({...valid, files: ['src/x-a.ts / src/x-b.ts', ['tests/x-a.test.mjs']]}));
+  // Every hook of every stage is accepted, whichever stage it belongs to.
+  const everyHook = Object.fromEntries(Object.values(familyStages).flatMap(hooks => hooks.map(hook => [hook, true])));
+  assert.ok(defineFamily({...everyHook, ...valid}));
+});
+
+test('each hook belongs to one stage, the stages are frozen, and every hook a registered family declares has one', () => {
+  const stages = Object.entries(familyStages);
+  assert.deepEqual(
+    stages.map(([stage]) => stage),
+    ['core', 'state', 'policy', 'delivery', 'verification'],
+  );
+  assert.ok(Object.isFrozen(familyStages));
+  const seen = new Map();
+  for (const [stage, hooks] of stages) {
+    assert.ok(Object.isFrozen(hooks), stage);
+    for (const hook of hooks) {
+      assert.ok(!seen.has(hook), hook + ' is in ' + seen.get(hook) + ' and ' + stage);
+      seen.set(hook, stage);
+    }
+  }
+  // ReviewedFamily's members (everyFamilyHookHasAStage holds that each has a stage when the build compiles).
+  assert.equal(seen.size, 57);
+  for (const family of reviewedFamilies())
+    for (const member of Object.keys(family)) assert.ok(seen.has(member), family.name + ' ' + member);
 });
 
 // The modules each codemod wave moved onto the kit's fail, by provider prefix: wave 1 the X families, wave 2 the TikTok

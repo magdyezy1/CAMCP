@@ -5,7 +5,7 @@ import {validateDiscoveryBody} from './discovery-body.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {pinnedJson} from './pinned-json.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * YouTube video ad assets of DV360 advertisers on Display & Video 360 API v4, per the pinned Discovery document (AdAsset,
@@ -221,7 +221,7 @@ export function dv360AdAssetVerification(
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const dv360AdAssetFamily: ReviewedFamily = {
+export const dv360AdAssetFamily: ReviewedFamily = defineFamily({
   name: 'dv360_ad_assets',
   files: ['src/dv360-ad-assets.ts', ['tests/dv360-ad-assets.test.mjs']],
   kind: dv360AdAssetKind,
@@ -236,4 +236,4 @@ export const dv360AdAssetFamily: ReviewedFamily = {
   verification: dv360AdAssetVerification,
   scope: assertDV360WriteScope,
   exemptFromSpendTextMatch: true,
-};
+});

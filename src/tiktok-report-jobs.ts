@@ -1,7 +1,7 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
+import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import type {NativeReportJob} from './report-job.js';
 import {redact, scopeKey, sha256, stable} from './security.js';
 import type {Store} from './store.js';
@@ -665,7 +665,7 @@ export const tiktokReportImpact = {
 };
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokReportFamily: ReviewedFamily = {
+export const tiktokReportFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_report_jobs',
   files: ['src/tiktok-report-jobs.ts', ['tests/tiktok-report-jobs.test.ts']],
   kind: tiktokReportKind,
@@ -728,4 +728,4 @@ export const tiktokReportFamily: ReviewedFamily = {
   },
   verifyEveryTime: true,
   exemptFromSpendTextMatch: true,
-};
+});

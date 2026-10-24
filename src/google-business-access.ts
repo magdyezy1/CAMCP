@@ -1,6 +1,6 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
+import {defineFamily, familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
 import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state-core.js';
 import {assertPlaceActionScope, placeActionSafeError, placeActionSafe} from './google-place-action-links.js';
@@ -479,7 +479,7 @@ export function businessAccessImpact(p: CompiledRequest, state: unknown[]): Json
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const businessAccessFamily: ReviewedFamily = {
+export const businessAccessFamily: ReviewedFamily = defineFamily({
   name: 'google_business_access',
   files: ['src/google-business-access.ts', ['tests/google-business-access.test.ts']],
   kind: businessAccessKind,
@@ -506,4 +506,4 @@ export const businessAccessFamily: ReviewedFamily = {
     ),
   exemptFromSpendTextMatch: true,
   administratorRequired: true,
-};
+});

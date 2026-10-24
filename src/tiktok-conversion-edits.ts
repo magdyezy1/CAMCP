@@ -6,7 +6,7 @@ import {
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Renaming and deleting TikTok custom conversions of pixels, per API for Business v1.3 "Update a Custom Conversion",
@@ -280,7 +280,7 @@ export function tiktokConversionEditObserved(_read: CompiledRequest, data: JsonO
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokConversionEditFamily: ReviewedFamily = {
+export const tiktokConversionEditFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_custom_conversion_edits',
   files: ['src/tiktok-conversion-edits.ts', ['tests/tiktok-conversion-edits.test.mjs']],
   kind: tiktokConversionEditKind,
@@ -295,4 +295,4 @@ export const tiktokConversionEditFamily: ReviewedFamily = {
   verification: tiktokConversionEditVerification,
   observed: tiktokConversionEditObserved,
   exemptFromSpendTextMatch: true,
-};
+});

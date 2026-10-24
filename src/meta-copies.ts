@@ -4,6 +4,7 @@ import {responseData} from './write-common.js';
 import type {GatewayStateChecks, ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {defineFamily} from './family-kit.js';
 
 /**
  * Meta native copies, per the Marketing API reference for Ad Campaign Group, Ad Campaign and Adgroup /copies
@@ -342,7 +343,7 @@ export function validateMetaCopyChildren(
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaCopyFamily: ReviewedFamily = {
+export const metaCopyFamily: ReviewedFamily = defineFamily({
   name: 'meta_copies',
   files: ['src/meta-copies.ts', ['tests/meta-copies.test.mjs']],
   kind: metaCopyKind,
@@ -360,4 +361,4 @@ export const metaCopyFamily: ReviewedFamily = {
   verification: (plan, result, before, verificationRead) =>
     metaCopyVerification(plan, result, before).map(v => ({...v, read: verificationRead(v.path, v.query)})),
   policyAmounts: (plan, before) => metaCopyPolicyAmounts(plan, before),
-};
+});

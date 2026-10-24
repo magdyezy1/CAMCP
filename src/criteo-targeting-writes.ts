@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, type ReasonFirstRefusal, stateReadOf} from './family-kit.js';
+import {defineFamily, familyErrors, type ReasonFirstRefusal, stateReadOf} from './family-kit.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -367,7 +367,7 @@ export function criteoTargetingImpact(): JsonObject {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const criteoTargetingFamily: ReviewedFamily = {
+export const criteoTargetingFamily: ReviewedFamily = defineFamily({
   name: 'criteo_targeting',
   files: ['src/criteo-targeting-writes.ts', ['tests/criteo-targeting-writes.test.ts']],
   kind: criteoTargetingKind,
@@ -398,4 +398,4 @@ export const criteoTargetingFamily: ReviewedFamily = {
   },
   activates: () => true,
   destructive: plan => plan.path.endsWith('/delete'),
-};
+});

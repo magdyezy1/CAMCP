@@ -21,6 +21,7 @@ import {
   xSnowflake,
   type Fetch,
 } from './x-catalogs.js';
+import {defineFamily} from './family-kit.js';
 
 /**
  * Product sets of X catalogs, opened by the owner on 2026-09-29. X Ads API v12, "Catalog Management" and its API
@@ -384,7 +385,7 @@ export function xProductSetObserved(_read: CompiledRequest, data: JsonObject): J
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const xProductSetFamily: ReviewedFamily = {
+export const xProductSetFamily: ReviewedFamily = defineFamily({
   name: 'x_product_sets',
   verificationCacheVersion: xCatalogVerificationVersion,
   files: ['src/x-product-sets.ts', ['tests/x-product-sets.test.mjs']],
@@ -401,4 +402,4 @@ export const xProductSetFamily: ReviewedFamily = {
   verification: xProductSetVerification,
   observed: xProductSetObserved,
   destructive: plan => xProductSetKind(plan) === 'delete',
-};
+});

@@ -3,7 +3,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {googleAdsCustomers} from './google-version.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Customer types of Google Ads user lists, API v23 (pinned Discovery document: UserListCustomerTypeService
@@ -394,7 +394,7 @@ export function googleCustomerTypeObserved(_read: CompiledRequest, data: JsonObj
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleCustomerTypeFamily: ReviewedFamily = {
+export const googleCustomerTypeFamily: ReviewedFamily = defineFamily({
   name: 'google_user_list_customer_types',
   files: ['src/google-user-list-customer-types.ts', ['tests/google-user-list-customer-types.test.mjs']],
   kind: googleCustomerTypeKind,
@@ -409,4 +409,4 @@ export const googleCustomerTypeFamily: ReviewedFamily = {
   outcome: googleCustomerTypeOutcome,
   verification: googleCustomerTypeVerification,
   observed: googleCustomerTypeObserved,
-};
+});

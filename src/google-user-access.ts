@@ -1,6 +1,6 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
+import {defineFamily, familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state-core.js';
@@ -446,7 +446,7 @@ export function googleAccessImpact(p: CompiledRequest, state: unknown[]): JsonOb
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleAccessFamily: ReviewedFamily = {
+export const googleAccessFamily: ReviewedFamily = defineFamily({
   name: 'google_user_access',
   files: ['src/google-user-access.ts', ['tests/google-user-access.test.ts']],
   kind: googleAccessKind,
@@ -471,4 +471,4 @@ export const googleAccessFamily: ReviewedFamily = {
     ).then(o => ({status: o.status, checks: o.checks})),
   exemptFromSpendTextMatch: true,
   administratorRequired: true,
-};
+});

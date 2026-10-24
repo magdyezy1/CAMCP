@@ -1,7 +1,7 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Renaming Snapchat pixels, Marketing API v1 ("Snap Pixel"; checked 2026-09-27). PUT /v1/adaccounts/{ad_account_id}/pixels
@@ -274,7 +274,7 @@ export function snapPixelNameObserved(_read: CompiledRequest, data: JsonObject):
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const snapPixelNameFamily: ReviewedFamily = {
+export const snapPixelNameFamily: ReviewedFamily = defineFamily({
   name: 'snapchat_pixel_names',
   files: ['src/snapchat-pixel-names.ts', ['tests/snapchat-pixel-names.test.mjs']],
   kind: snapPixelNameKind,
@@ -290,4 +290,4 @@ export const snapPixelNameFamily: ReviewedFamily = {
   verification: snapPixelNameVerification,
   observed: snapPixelNameObserved,
   exemptFromSpendTextMatch: true,
-};
+});

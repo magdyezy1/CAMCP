@@ -1,7 +1,7 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Snapchat custom conversions of a pixel, Marketing API v1 ("Custom Conversions"; checked 2026-09-27). POST
@@ -352,7 +352,7 @@ export function snapConversionObserved(_read: CompiledRequest, data: JsonObject)
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const snapConversionFamily: ReviewedFamily = {
+export const snapConversionFamily: ReviewedFamily = defineFamily({
   name: 'snapchat_custom_conversions',
   files: ['src/snapchat-custom-conversions.ts', ['tests/snapchat-custom-conversions.test.mjs']],
   kind: snapConversionKind,
@@ -368,4 +368,4 @@ export const snapConversionFamily: ReviewedFamily = {
   verification: snapConversionVerification,
   observed: snapConversionObserved,
   exemptFromSpendTextMatch: true,
-};
+});

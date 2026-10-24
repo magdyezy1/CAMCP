@@ -3,7 +3,7 @@ import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * LinkedIn A/B tests, per the "A/B Testing Management API" of the Marketing API (li-lms-2025-10 to li-lms-2026-09, checked
@@ -511,7 +511,7 @@ export function linkedinAbObserved(_read: CompiledRequest, data: JsonObject): Js
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const linkedinAbFamily: ReviewedFamily = {
+export const linkedinAbFamily: ReviewedFamily = defineFamily({
   name: 'linkedin_ab_tests',
   files: ['src/linkedin-ab-tests.ts', ['tests/linkedin-ab-tests.test.mjs']],
   kind: linkedinAbKind,
@@ -534,4 +534,4 @@ export const linkedinAbFamily: ReviewedFamily = {
   },
   exemptFromSpendTextMatch: true,
   activates: linkedinAbNeedsConfirmation,
-};
+});

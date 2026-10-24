@@ -4,7 +4,7 @@ import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Budget overrides of Criteo Retail Media campaigns and line items, API 2026-07 (unchanged from 2026-01; pinned OpenAPI
@@ -504,7 +504,7 @@ export function criteoOverrideObserved(_read: CompiledRequest, data: JsonObject)
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const criteoOverrideFamily: ReviewedFamily = {
+export const criteoOverrideFamily: ReviewedFamily = defineFamily({
   name: 'criteo_budget_overrides',
   files: ['src/criteo-budget-overrides.ts', ['tests/criteo-budget-overrides.test.mjs']],
   kind: criteoOverrideKind,
@@ -527,4 +527,4 @@ export const criteoOverrideFamily: ReviewedFamily = {
       'Budget overrides replace the daily or monthly spending caps of their periods and remove every override left out. Review them and provide spend_change_confirmed=true.',
   },
   policyAmounts: criteoOverridePolicyAmounts,
-};
+});

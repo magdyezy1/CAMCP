@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
+import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {parseLinkedInValue, linkedinQuery} from './linkedin-restli.js';
 import {linkedinConversionConfiguration} from './linkedin-conversion-state.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -374,7 +374,7 @@ export const linkedinConversionImpact = {
 };
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const linkedinConversionFamily: ReviewedFamily = {
+export const linkedinConversionFamily: ReviewedFamily = defineFamily({
   name: 'linkedin_conversion_links',
   files: ['src/linkedin-conversion-links.ts', ['tests/linkedin-conversion-links.test.ts']],
   kind: linkedinConversionKind,
@@ -395,4 +395,4 @@ export const linkedinConversionFamily: ReviewedFamily = {
       'Campaign conversion associations can affect optimization. Review the selected campaigns and conversion rules and provide spend_change_confirmed=true.',
   },
   activates: () => true,
-};
+});

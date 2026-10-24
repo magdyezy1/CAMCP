@@ -3,7 +3,7 @@ import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Snapchat product sets of catalogs, Marketing API v1 (Dynamic Product Ads guide, "Product Set"; checked 2026-09-27).
@@ -626,7 +626,7 @@ export function snapProductSetObserved(_read: CompiledRequest, data: JsonObject)
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const snapProductSetFamily: ReviewedFamily = {
+export const snapProductSetFamily: ReviewedFamily = defineFamily({
   name: 'snapchat_product_sets',
   files: ['src/snapchat-product-sets.ts', ['tests/snapchat-product-sets.test.mjs']],
   kind: snapProductSetKind,
@@ -642,4 +642,4 @@ export const snapProductSetFamily: ReviewedFamily = {
   verification: snapProductSetVerification,
   observed: snapProductSetObserved,
   exemptFromSpendTextMatch: true,
-};
+});

@@ -2,6 +2,7 @@ import {assertNoMethodOverride, object} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {defineFamily} from './family-kit.js';
 
 /**
  * Meta lookalike audiences, per the Marketing API Lookalike Audiences guide (checked 2026-09-26): a LOOKALIKE
@@ -184,7 +185,7 @@ export function metaLookalikeVerification(
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaLookalikeFamily: ReviewedFamily = {
+export const metaLookalikeFamily: ReviewedFamily = defineFamily({
   name: 'meta_lookalikes',
   files: ['src/meta-lookalikes.ts', ['tests/meta-lookalikes.test.mjs']],
   kind: metaLookalikeKind,
@@ -203,4 +204,4 @@ export const metaLookalikeFamily: ReviewedFamily = {
     metaLookalikeVerification(plan, result).map(v => ({...v, read: verificationRead(v.path, v.query)})),
   observed: (read: CompiledRequest, data: JsonObject) =>
     data.amcp_absent === true ? data : (metaLookalikeProjection(data) as JsonObject),
-};
+});

@@ -1,7 +1,7 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 import {stable, sha256} from './security.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -770,7 +770,7 @@ export function gtmWorkspaceImpact(plan: CompiledRequest): JsonObject {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const gtmWorkspaceFamily: ReviewedFamily = {
+export const gtmWorkspaceFamily: ReviewedFamily = defineFamily({
   name: 'gtm_workspace',
   files: ['src/gtm-workspace-writes.ts', ['tests/gtm-workspace-writes.test.ts']],
   kind: gtmWorkspaceKind,
@@ -791,4 +791,4 @@ export const gtmWorkspaceFamily: ReviewedFamily = {
   observed: gtmWorkspaceObserved,
   destructive: plan => !!gtmWorkspaceDestructive(plan),
   ownsConcurrency: true,
-};
+});

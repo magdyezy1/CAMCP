@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 import {sha256} from './security.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import type {Actor, CompiledRequest, JsonObject} from './types.js';
@@ -596,7 +596,7 @@ export function gtmWorkflowImpact(plan: CompiledRequest): JsonObject {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const gtmWorkflowFamily: ReviewedFamily = {
+export const gtmWorkflowFamily: ReviewedFamily = defineFamily({
   name: 'gtm_workflows',
   files: ['src/gtm-workflow-writes.ts', ['tests/gtm-workflow-writes.test.ts']],
   kind: gtmWorkflowKind,
@@ -622,4 +622,4 @@ export const gtmWorkflowFamily: ReviewedFamily = {
   observed: (read: CompiledRequest, data: JsonObject) =>
     data.amcp_absent === true ? data : gtmWorkflowObserved(read, data),
   destructive: plan => !!gtmWorkflowDestructive(plan),
-};
+});

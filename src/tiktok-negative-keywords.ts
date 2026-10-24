@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
@@ -438,7 +438,7 @@ export function tiktokNegativeKeywordRemoves(p: CompiledRequest): boolean {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokNegativeKeywordFamily: ReviewedFamily = {
+export const tiktokNegativeKeywordFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_negative_keywords',
   files: ['src/tiktok-negative-keywords.ts', ['tests/tiktok-negative-keywords.test.mjs']],
   kind: tiktokNegativeKeywordKind,
@@ -462,4 +462,4 @@ export const tiktokNegativeKeywordFamily: ReviewedFamily = {
   },
   activates: plan => !!tiktokNegativeKeywordWidens(plan),
   destructive: plan => !!tiktokNegativeKeywordRemoves(plan),
-};
+});

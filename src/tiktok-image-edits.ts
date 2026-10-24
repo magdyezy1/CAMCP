@@ -1,7 +1,7 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Editing TikTok library images, per API for Business v1.3 "Edit an image" (checked 2026-09-28). POST
@@ -224,7 +224,7 @@ export function tiktokImageEditObserved(read: CompiledRequest, data: JsonObject)
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokImageEditFamily: ReviewedFamily = {
+export const tiktokImageEditFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_image_edits',
   files: ['src/tiktok-image-edits.ts', ['tests/tiktok-image-edits.test.mjs']],
   kind: tiktokImageEditKind,
@@ -239,4 +239,4 @@ export const tiktokImageEditFamily: ReviewedFamily = {
   verification: tiktokImageEditVerification,
   observed: tiktokImageEditObserved,
   exemptFromSpendTextMatch: true,
-};
+});

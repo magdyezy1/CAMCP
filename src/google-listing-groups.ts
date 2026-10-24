@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 import {googleJson, validateGoogleRequest, assertGoogleAdsScope} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -477,7 +477,7 @@ export function googleListingGroupServing(p: CompiledRequest, before: unknown): 
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleListingGroupFamily: ReviewedFamily = {
+export const googleListingGroupFamily: ReviewedFamily = defineFamily({
   name: 'google_listing_groups',
   files: ['src/google-listing-groups.ts', ['tests/google-listing-groups.test.ts']],
   kind: googleListingGroupKind,
@@ -507,4 +507,4 @@ export const googleListingGroupFamily: ReviewedFamily = {
   },
   activates: (plan, before) => !!googleListingGroupServing(plan, before),
   destructive: plan => !!googleListingGroupRemoves(plan),
-};
+});

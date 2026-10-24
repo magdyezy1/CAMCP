@@ -3,7 +3,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {googleAdsCustomers} from './google-version.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Removal of automatically created assets, Google Ads API v23 (pinned Discovery document:
@@ -319,7 +319,7 @@ export function googleAutoAssetObserved(read: CompiledRequest, data: JsonObject)
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleAutoAssetFamily: ReviewedFamily = {
+export const googleAutoAssetFamily: ReviewedFamily = defineFamily({
   name: 'google_auto_assets',
   files: ['src/google-auto-assets.ts', ['tests/google-auto-assets.test.mjs']],
   kind: googleAutoAssetKind,
@@ -336,4 +336,4 @@ export const googleAutoAssetFamily: ReviewedFamily = {
   observed: googleAutoAssetObserved,
   exemptFromSpendTextMatch: true,
   destructive: googleAutoAssetRemoves,
-};
+});

@@ -1,7 +1,7 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
+import {defineFamily, familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
 import {stable} from './security.js';
 import {changedStateFields} from './review-state-core.js';
 import {
@@ -653,7 +653,7 @@ export const snapUpdateImpact = {
  * src/snapchat-adsquad-targeting.ts): each hook below hands it to that contract, which has its own checks, state, impact,
  * activation rule and read-back. The ledger names one family per route, so the contract cannot be a family of its own.
  */
-export const snapUpdateFamily: ReviewedFamily = {
+export const snapUpdateFamily: ReviewedFamily = defineFamily({
   name: 'snapchat_nested_updates',
   files: [
     'src/snapchat-nested-updates.ts / src/snapchat-adsquad-targeting.ts',
@@ -700,4 +700,4 @@ export const snapUpdateFamily: ReviewedFamily = {
   exemptFromActivationScan: true,
   // A targeting edit names no budget or bid; the owner's amount caps have nothing to measure in it.
   policyAmounts: (plan, before) => (snapTargetingKind(plan) ? undefined : snapUpdateAmounts(plan, before)),
-};
+});

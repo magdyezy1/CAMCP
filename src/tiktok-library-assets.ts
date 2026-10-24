@@ -1,7 +1,7 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * TikTok asset library edits, per API for Business v1.3 "Update the name of an image", "Update the name of a video",
@@ -387,7 +387,7 @@ export function tiktokLibraryObserved(read: CompiledRequest, data: JsonObject): 
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokLibraryFamily: ReviewedFamily = {
+export const tiktokLibraryFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_library_assets',
   files: ['src/tiktok-library-assets.ts', ['tests/tiktok-library-assets.test.mjs']],
   kind: tiktokLibraryKind,
@@ -402,4 +402,4 @@ export const tiktokLibraryFamily: ReviewedFamily = {
   verification: tiktokLibraryVerification,
   observed: tiktokLibraryObserved,
   exemptFromSpendTextMatch: true,
-};
+});

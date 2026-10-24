@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
+import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {parseLinkedInValue} from './linkedin-restli.js';
 import {linkedinConversionConfiguration} from './linkedin-conversion-state.js';
 import {assertLinkedInConversionScope} from './linkedin-conversion-links.js';
@@ -516,7 +516,7 @@ export const linkedinRuleImpact = {
 };
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const linkedinRuleFamily: ReviewedFamily = {
+export const linkedinRuleFamily: ReviewedFamily = defineFamily({
   name: 'linkedin_conversion_rules',
   files: ['src/linkedin-conversion-rules.ts', ['tests/linkedin-conversion-rules.test.ts']],
   kind: linkedinRuleKind,
@@ -537,4 +537,4 @@ export const linkedinRuleFamily: ReviewedFamily = {
       'Conversion-rule enablement, attribution and matching can affect optimization. Review every associated campaign and provide spend_change_confirmed=true.',
   },
   activates: plan => !!linkedinRuleServing(plan),
-};
+});

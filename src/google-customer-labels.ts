@@ -1,6 +1,6 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
+import {defineFamily, familyStateErrors, readOf, type StateFlaggedRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state-core.js';
@@ -222,7 +222,7 @@ export async function verifyGoogleCustomerLabels(p: CompiledRequest, send: Send)
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleCustomerLabelFamily: ReviewedFamily = {
+export const googleCustomerLabelFamily: ReviewedFamily = defineFamily({
   name: 'google_customer_labels',
   files: ['src/google-customer-labels.ts', ['tests/google-customer-labels.test.mjs']],
   kind: googleCustomerLabelKind,
@@ -241,4 +241,4 @@ export const googleCustomerLabelFamily: ReviewedFamily = {
     ).then(o => ({status: o.status, checks: o.checks})),
   exemptFromSpendTextMatch: true,
   destructive: () => true,
-};
+});

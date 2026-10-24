@@ -4,7 +4,7 @@ import type {Store} from './store.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Criteo Retail Media catalog requests and exports on API 2026-07 (unchanged from 2026-01), per the pinned OpenAPI
@@ -305,7 +305,7 @@ export function criteoCatalogCreated(_p: CompiledRequest, actual: JsonObject): s
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const criteoCatalogFamily: ReviewedFamily = {
+export const criteoCatalogFamily: ReviewedFamily = defineFamily({
   name: 'criteo_catalog_requests',
   files: ['src/criteo-catalog-requests.ts', ['tests/criteo-catalog-requests.test.mjs']],
   kind: criteoCatalogKind,
@@ -323,4 +323,4 @@ export const criteoCatalogFamily: ReviewedFamily = {
   scope: criteoCatalogScope,
   verifiedResources: criteoCatalogCreated,
   exemptFromSpendTextMatch: true,
-};
+});

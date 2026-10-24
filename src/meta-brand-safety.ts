@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 import {stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -308,7 +308,7 @@ export function metaAccountControlsKind(p: CompiledRequest): boolean {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaBrandSafetyFamily: ReviewedFamily = {
+export const metaBrandSafetyFamily: ReviewedFamily = defineFamily({
   name: 'meta_brand_safety',
   files: ['src/meta-brand-safety.ts', ['tests/meta-brand-safety.test.mjs']],
   kind: metaBrandSafetyKind,
@@ -329,4 +329,4 @@ export const metaBrandSafetyFamily: ReviewedFamily = {
       'Account controls change the audience and placements of every eligible Advantage+ campaign of the account. Review the controls and provide spend_change_confirmed=true.',
   },
   activates: plan => !!metaAccountControlsKind(plan),
-};
+});

@@ -3,7 +3,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Creating custom conversions in a Meta ad account, Marketing API v25.0 ("Ad Account Customconversions" reference,
@@ -299,7 +299,7 @@ export function metaConversionObserved(read: CompiledRequest, data: JsonObject):
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaConversionFamily: ReviewedFamily = {
+export const metaConversionFamily: ReviewedFamily = defineFamily({
   name: 'meta_custom_conversions',
   files: ['src/meta-custom-conversions.ts', ['tests/meta-custom-conversions.test.mjs']],
   kind: metaConversionKind,
@@ -315,4 +315,4 @@ export const metaConversionFamily: ReviewedFamily = {
   verification: metaConversionVerification,
   observed: metaConversionObserved,
   exemptFromSpendTextMatch: true,
-};
+});

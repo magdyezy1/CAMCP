@@ -2,7 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * LinkedIn Insight Tags, per "Conversion Tracking" of the Marketing API (li-lms-2025-10 to li-lms-2026-09, checked
@@ -318,7 +318,7 @@ export function linkedinInsightObserved(_read: CompiledRequest, data: JsonObject
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const linkedinInsightFamily: ReviewedFamily = {
+export const linkedinInsightFamily: ReviewedFamily = defineFamily({
   name: 'linkedin_insight_tags',
   files: ['src/linkedin-insight-tags.ts', ['tests/linkedin-insight-tags.test.mjs']],
   kind: linkedinInsightKind,
@@ -335,4 +335,4 @@ export const linkedinInsightFamily: ReviewedFamily = {
   verification: linkedinInsightVerification,
   observed: linkedinInsightObserved,
   exemptFromSpendTextMatch: true,
-};
+});

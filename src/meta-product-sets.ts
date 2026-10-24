@@ -12,7 +12,7 @@ import {
   metaRefusal,
   optionalMetaRead,
 } from './meta-catalogs.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Product sets of Meta catalogs, opened by the owner on 2026-09-29 ("Product catalogs: make it available").
@@ -559,7 +559,7 @@ export function metaProductSetObserved(read: CompiledRequest, data: JsonObject):
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaProductSetFamily: ReviewedFamily = {
+export const metaProductSetFamily: ReviewedFamily = defineFamily({
   name: 'meta_product_sets',
   files: ['src/meta-product-sets.ts', ['tests/meta-product-sets.test.mjs']],
   kind: metaProductSetKind,
@@ -576,4 +576,4 @@ export const metaProductSetFamily: ReviewedFamily = {
   verification: metaProductSetVerification,
   observed: metaProductSetObserved,
   destructive: plan => metaProductSetKind(plan) === 'delete',
-};
+});

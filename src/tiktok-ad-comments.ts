@@ -1,7 +1,7 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Hiding and unhiding comments on an advertiser's ads (PRV-06 B), per TikTok's official Business API SDK
@@ -298,7 +298,7 @@ export function tiktokCommentObserved(_read: CompiledRequest, data: JsonObject):
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokCommentFamily: ReviewedFamily = {
+export const tiktokCommentFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_ad_comments',
   files: ['src/tiktok-ad-comments.ts', ['tests/tiktok-ad-comments.test.mjs']],
   kind: tiktokCommentKind,
@@ -316,4 +316,4 @@ export const tiktokCommentFamily: ReviewedFamily = {
   exemptFromSpendTextMatch: true,
   activates: () => false,
   destructive: () => false,
-};
+});

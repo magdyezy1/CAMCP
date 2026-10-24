@@ -2,6 +2,7 @@ import {responseData, assertNoMethodOverride, object} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {defineFamily} from './family-kit.js';
 
 /**
  * Pausing and enabling Upgraded Smart+ campaigns, ad groups and ads, per API for Business v1.3 "Update the
@@ -167,7 +168,7 @@ export function tiktokSmartPlusStatusVerification(
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokSmartPlusStatusFamily: ReviewedFamily = {
+export const tiktokSmartPlusStatusFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_smart_plus_status',
   files: ['src/tiktok-smart-plus-status.ts', ['tests/tiktok-smart-plus-status.test.mjs']],
   kind: tiktokSmartPlusStatusKind,
@@ -193,4 +194,4 @@ export const tiktokSmartPlusStatusFamily: ReviewedFamily = {
       expected: v.expected,
       id: v.id,
     })),
-};
+});

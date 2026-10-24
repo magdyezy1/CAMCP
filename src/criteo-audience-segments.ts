@@ -2,7 +2,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {criteoPrefix, criteoRoute} from './criteo-version.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Audience segments of a Criteo Retail Media account, API 2026-07 (unchanged from 2026-01; pinned OpenAPI document:
@@ -483,7 +483,7 @@ export function criteoSegmentObserved(read: CompiledRequest, data: JsonObject): 
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const criteoSegmentFamily: ReviewedFamily = {
+export const criteoSegmentFamily: ReviewedFamily = defineFamily({
   name: 'criteo_audience_segments',
   files: ['src/criteo-audience-segments.ts', ['tests/criteo-audience-segments.test.mjs']],
   kind: criteoSegmentKind,
@@ -506,4 +506,4 @@ export const criteoSegmentFamily: ReviewedFamily = {
   exemptFromSpendTextMatch: true,
   activates: criteoSegmentServing,
   destructive: criteoSegmentRemoves,
-};
+});

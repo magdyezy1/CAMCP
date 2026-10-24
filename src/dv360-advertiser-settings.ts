@@ -3,7 +3,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {assertDV360WriteScope} from './dv360-scope.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Settings of the selected DV360 advertiser, Display & Video 360 API v4 (pinned Discovery document: advertisers.patch,
@@ -303,7 +303,7 @@ export function dv360AdvertiserObserved(_read: CompiledRequest, data: JsonObject
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const dv360AdvertiserFamily: ReviewedFamily = {
+export const dv360AdvertiserFamily: ReviewedFamily = defineFamily({
   name: 'dv360_advertiser_settings',
   files: ['src/dv360-advertiser-settings.ts', ['tests/dv360-advertiser-settings.test.mjs']],
   kind: dv360AdvertiserKind,
@@ -325,4 +325,4 @@ export const dv360AdvertiserFamily: ReviewedFamily = {
   },
   exemptFromSpendTextMatch: true,
   activates: dv360AdvertiserActivates,
-};
+});

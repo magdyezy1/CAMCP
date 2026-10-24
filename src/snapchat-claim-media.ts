@@ -2,7 +2,7 @@ import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Claiming an organic Snap into an ad account, per Snap's "Claim Media" page (read 2026-09-30): POST
@@ -154,7 +154,7 @@ export function snapchatClaimMediaObserved(r: CompiledRequest, data: JsonObject)
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const snapchatClaimMediaFamily: ReviewedFamily = {
+export const snapchatClaimMediaFamily: ReviewedFamily = defineFamily({
   name: 'snapchat_claim_media',
   files: ['src/snapchat-claim-media.ts', ['tests/snapchat-claim-media.test.mjs']],
   kind: snapchatClaimMediaKind,
@@ -179,4 +179,4 @@ export const snapchatClaimMediaFamily: ReviewedFamily = {
   exemptFromActivationScan: true,
   activates: () => false,
   destructive: () => false,
-};
+});

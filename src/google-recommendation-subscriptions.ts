@@ -3,7 +3,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {googleAdsCustomers} from './google-version.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Auto-apply recommendation subscriptions, Google Ads API v23 (pinned Discovery document:
@@ -251,7 +251,7 @@ export function googleSubscriptionObserved(read: CompiledRequest, data: JsonObje
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleSubscriptionFamily: ReviewedFamily = {
+export const googleSubscriptionFamily: ReviewedFamily = defineFamily({
   name: 'google_recommendation_subscriptions',
   files: ['src/google-recommendation-subscriptions.ts', ['tests/google-recommendation-subscriptions.test.mjs']],
   kind: googleSubscriptionKind,
@@ -273,4 +273,4 @@ export const googleSubscriptionFamily: ReviewedFamily = {
   },
   exemptFromSpendTextMatch: true,
   activates: googleSubscriptionEnables,
-};
+});

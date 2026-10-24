@@ -2,7 +2,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Meta ad account settings, Marketing API v25.0 "Ad Account" reference (Updating and Reading, checked 2026-09-27).
@@ -180,7 +180,7 @@ export function metaAccountSettingsObserved(_read: CompiledRequest, data: JsonOb
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaAccountSettingsFamily: ReviewedFamily = {
+export const metaAccountSettingsFamily: ReviewedFamily = defineFamily({
   name: 'meta_account_settings',
   files: ['src/meta-account-settings.ts', ['tests/meta-account-settings.test.mjs']],
   kind: metaAccountSettingsKind,
@@ -196,4 +196,4 @@ export const metaAccountSettingsFamily: ReviewedFamily = {
   verification: metaAccountSettingsVerification,
   observed: metaAccountSettingsObserved,
   exemptFromSpendTextMatch: true,
-};
+});

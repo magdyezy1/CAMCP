@@ -135,96 +135,112 @@ export function stateReadOf<R extends CompiledRequest = CompiledRequest>(
   return readOf<R>(p, {action, path, query}, fields);
 }
 
-/** The hooks of a family, by the stage that calls them (src/reviewed-family.ts documents each hook). */
-export type FamilyCore = Pick<
-  ReviewedFamily,
-  | 'name'
-  | 'files'
-  | 'kind'
-  | 'effect'
-  | 'available'
-  | 'actor'
-  | 'credentials'
-  | 'assert'
-  | 'scope'
-  | 'authorize'
-  | 'observe'
->;
-export type FamilyStateHooks = Pick<
-  ReviewedFamily,
-  | 'snapshots'
-  | 'state'
-  | 'isRead'
-  | 'reader'
-  | 'validateState'
-  | 'snapshotState'
-  | 'snapshotValue'
-  | 'followUps'
-  | 'prerequisites'
-  | 'stateChecks'
-  | 'impact'
-  | 'stateAsRead'
-  | 'ownsConcurrency'
-  | 'creativeEditConfirmation'
-  | 'warnings'
->;
-export type FamilyPolicyHooks = Pick<
-  ReviewedFamily,
-  | 'spendConfirmation'
-  | 'exemptFromSpendTextMatch'
-  | 'activates'
-  | 'exemptFromActivationScan'
-  | 'destructive'
-  | 'publishes'
-  | 'policyAmounts'
-  | 'requiresSpendPolicy'
-  | 'personalData'
-  | 'administratorRequired'
->;
-export type FamilyDeliveryHooks = Pick<
-  ReviewedFamily,
-  | 'outcome'
-  | 'receipt'
-  | 'beforeSubmit'
-  | 'admit'
-  | 'safeOutcome'
-  | 'retain'
-  | 'deliver'
-  | 'safeError'
-  | 'rejectionIsNonApplied'
-  | 'created'
->;
-export type FamilyVerificationHooks = Pick<
-  ReviewedFamily,
-  | 'verification'
-  | 'verify'
-  | 'bindVerificationRead'
-  | 'readCheck'
-  | 'observed'
-  | 'afterReadBack'
-  | 'pendingOnRetryableError'
-  | 'retryReadAfterMs'
-  | 'verifyEveryTime'
-  | 'verificationCacheVersion'
-  | 'verifiedResources'
->;
-type GroupedHook =
-  | keyof FamilyCore
-  | keyof FamilyStateHooks
-  | keyof FamilyPolicyHooks
-  | keyof FamilyDeliveryHooks
-  | keyof FamilyVerificationHooks;
-/** Fails to compile while a ReviewedFamily hook belongs to no group above: add a new hook to the group of its stage. */
-export const everyFamilyHookHasAStage: [Exclude<keyof ReviewedFamily, GroupedHook>] extends [never] ? true : never =
-  true;
+/**
+ * The hooks of a family, by the stage that calls them (src/reviewed-family.ts documents each hook): its core (who it is,
+ * what it owns, who may use it), the review's state reads and checks, the owner's policies, the submission and its
+ * outcome, and the read-back. Each hook belongs to one stage (tests/family-kit.test.mjs). A list at run time too, so
+ * defineFamily refuses a member of no stage that the type check of an object literal never sees, one a spread brings.
+ */
+export const familyStages = Object.freeze({
+  core: Object.freeze([
+    'name',
+    'files',
+    'kind',
+    'effect',
+    'available',
+    'actor',
+    'credentials',
+    'assert',
+    'scope',
+    'authorize',
+    'observe',
+  ] as const),
+  state: Object.freeze([
+    'snapshots',
+    'state',
+    'isRead',
+    'reader',
+    'validateState',
+    'snapshotState',
+    'snapshotValue',
+    'followUps',
+    'prerequisites',
+    'stateChecks',
+    'impact',
+    'stateAsRead',
+    'ownsConcurrency',
+    'creativeEditConfirmation',
+    'warnings',
+  ] as const),
+  policy: Object.freeze([
+    'spendConfirmation',
+    'exemptFromSpendTextMatch',
+    'activates',
+    'exemptFromActivationScan',
+    'destructive',
+    'publishes',
+    'policyAmounts',
+    'requiresSpendPolicy',
+    'personalData',
+    'administratorRequired',
+  ] as const),
+  delivery: Object.freeze([
+    'outcome',
+    'receipt',
+    'beforeSubmit',
+    'admit',
+    'safeOutcome',
+    'retain',
+    'deliver',
+    'safeError',
+    'rejectionIsNonApplied',
+    'created',
+  ] as const),
+  verification: Object.freeze([
+    'verification',
+    'verify',
+    'bindVerificationRead',
+    'readCheck',
+    'observed',
+    'afterReadBack',
+    'pendingOnRetryableError',
+    'retryReadAfterMs',
+    'verifyEveryTime',
+    'verificationCacheVersion',
+    'verifiedResources',
+  ] as const),
+}) satisfies Readonly<Record<string, readonly (keyof ReviewedFamily)[]>>;
+type FamilyStage = keyof typeof familyStages;
+type StageHook<S extends FamilyStage> = (typeof familyStages)[S][number];
+/** The hooks of each stage, typed as ReviewedFamily declares them. */
+export type FamilyCore = Pick<ReviewedFamily, StageHook<'core'>>;
+export type FamilyStateHooks = Pick<ReviewedFamily, StageHook<'state'>>;
+export type FamilyPolicyHooks = Pick<ReviewedFamily, StageHook<'policy'>>;
+export type FamilyDeliveryHooks = Pick<ReviewedFamily, StageHook<'delivery'>>;
+export type FamilyVerificationHooks = Pick<ReviewedFamily, StageHook<'verification'>>;
+/** Fails to compile while a ReviewedFamily hook belongs to no stage above: add a new hook to the list of its stage. */
+export const everyFamilyHookHasAStage: [Exclude<keyof ReviewedFamily, StageHook<FamilyStage>>] extends [never]
+  ? true
+  : never = true;
+/**
+ * A family's declaration, by stage: its core, and the hooks of each stage it takes part in. Typed by the stages, so a
+ * declaration that names a member of no stage (a misspelt hook, which no stage would ever call) fails to compile.
+ */
+export type FamilyDeclaration = FamilyCore &
+  FamilyStateHooks &
+  FamilyPolicyHooks &
+  FamilyDeliveryHooks &
+  FamilyVerificationHooks;
+const stagedHooks: ReadonlySet<string> = new Set(Object.values(familyStages).flat());
 
 /**
  * Checks a family declaration where it is made, so a malformed one fails when its module loads (which
  * tests/import-order.test.mjs exercises for every module) rather than at its first request: a ledger family name, its
- * implementation module and tests, a membership hook, and a function or a value for every hook. Returns the
- * declaration itself, unchanged.
+ * implementation module and tests, a membership hook, and no member outside the stages (`familyStages`; its type,
+ * `FamilyDeclaration`, checks that before the build too). Returns the declaration itself, unchanged. Every registered
+ * family is declared through it (tests/family-kit.test.mjs).
  */
-export function defineFamily<F extends ReviewedFamily>(family: F): F {
+export function defineFamily(family: FamilyDeclaration): ReviewedFamily {
   const malformed = (what: string): never => {
     throw new MirrorError(
       'REVIEWED_FAMILY_INVALID',
@@ -249,5 +265,8 @@ export function defineFamily<F extends ReviewedFamily>(family: F): F {
   )
     malformed('it names no test file');
   if (typeof family.kind !== 'function') malformed('it has no kind hook');
+  // A member no stage calls would be ignored at run time, so a misspelt hook would silently not apply.
+  for (const member of Object.keys(family))
+    if (!stagedHooks.has(member)) malformed('its member ' + member + ' is no hook of any stage');
   return family;
 }

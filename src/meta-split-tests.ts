@@ -3,7 +3,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Meta split tests, Marketing API v25.0 ("Ad Study" reference, updated 2026-03-24; "Split Testing" guide, updated
@@ -529,7 +529,7 @@ export function metaSplitTestObserved(_read: CompiledRequest, data: JsonObject):
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaSplitTestFamily: ReviewedFamily = {
+export const metaSplitTestFamily: ReviewedFamily = defineFamily({
   name: 'meta_split_tests',
   files: ['src/meta-split-tests.ts', ['tests/meta-split-tests.test.mjs']],
   kind: metaSplitTestKind,
@@ -551,4 +551,4 @@ export const metaSplitTestFamily: ReviewedFamily = {
       'A split test divides the audience of its ad sets or campaigns until it ends. Review it and provide spend_change_confirmed=true.',
   },
   exemptFromSpendTextMatch: true,
-};
+});

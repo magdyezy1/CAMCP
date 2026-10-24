@@ -4,7 +4,7 @@ import type {PolicyAmounts, ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
 import {assertNoMethodOverride} from './write-common.js';
 import {optionalMetaRead} from './meta-catalogs.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Meta automated rules (the Ad Rules Engine), unblocked by the owner on 2026-09-30. Meta's references (read 2026-09-30):
@@ -740,7 +740,7 @@ export function metaRuleObserved(_read: CompiledRequest, data: JsonObject): Json
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaRuleFamily: ReviewedFamily = {
+export const metaRuleFamily: ReviewedFamily = defineFamily({
   name: 'meta_ad_rules',
   files: ['src/meta-ad-rules.ts', ['tests/meta-ad-rules.test.mjs']],
   kind: metaRuleKind,
@@ -772,4 +772,4 @@ export const metaRuleFamily: ReviewedFamily = {
   exemptFromSpendTextMatch: true,
   exemptFromActivationScan: true,
   destructive: plan => metaRuleKind(plan) === 'delete',
-};
+});

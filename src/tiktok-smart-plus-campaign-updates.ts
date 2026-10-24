@@ -2,6 +2,7 @@ import {assertNoMethodOverride, object} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {defineFamily} from './family-kit.js';
 
 /**
  * Upgraded Smart+ campaign edits, per API for Business v1.3 "Update an Upgraded Smart+ Campaign" and "Get Upgraded
@@ -169,7 +170,7 @@ export function tiktokSmartPlusCampaignUpdateVerification(plan: CompiledRequest)
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokSmartPlusCampaignUpdateFamily: ReviewedFamily = {
+export const tiktokSmartPlusCampaignUpdateFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_smart_plus_campaign_edits',
   files: ['src/tiktok-smart-plus-campaign-updates.ts', ['tests/tiktok-smart-plus-campaign-updates.test.mjs']],
   kind: tiktokSmartPlusCampaignUpdateKind,
@@ -191,4 +192,4 @@ export const tiktokSmartPlusCampaignUpdateFamily: ReviewedFamily = {
       read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_campaign_get'},
     })),
   policyAmounts: (plan, before) => tiktokSmartPlusCampaignUpdatePolicyAmounts(plan, before),
-};
+});

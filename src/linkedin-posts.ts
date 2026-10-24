@@ -1,7 +1,7 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {failWithStatus, readOf, type StatusRefusal} from './family-kit.js';
+import {defineFamily, failWithStatus, readOf, type StatusRefusal} from './family-kit.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {Store} from './store.js';
 import {writeClaim} from './job-repository.js';
@@ -262,7 +262,7 @@ export function rememberLinkedInPost(store: Store, c: Connection, plan: Compiled
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const linkedinDSCFamily: ReviewedFamily = {
+export const linkedinDSCFamily: ReviewedFamily = defineFamily({
   name: 'linkedin_dsc',
   files: ['src/linkedin-posts.ts', ['tests/linkedin-posts.test.ts']],
   kind: linkedinDSC,
@@ -295,4 +295,4 @@ export const linkedinDSCFamily: ReviewedFamily = {
         verification.result.headers['x-restli-id'],
       );
   },
-};
+});

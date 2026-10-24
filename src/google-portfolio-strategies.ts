@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
+import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {sha256, stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -616,7 +616,7 @@ export const googlePortfolioImpact = {
 };
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googlePortfolioFamily: ReviewedFamily = {
+export const googlePortfolioFamily: ReviewedFamily = defineFamily({
   name: 'google_portfolio_strategies',
   files: ['src/google-portfolio-strategies.ts', ['tests/google-portfolio-strategies.test.ts']],
   kind: googlePortfolioKind,
@@ -654,4 +654,4 @@ export const googlePortfolioFamily: ReviewedFamily = {
   },
   exemptFromSpendTextMatch: true,
   activates: plan => !!googlePortfolioServing(plan),
-};
+});

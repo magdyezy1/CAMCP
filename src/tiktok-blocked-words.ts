@@ -1,7 +1,7 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Ad comment blocked words, per TikTok API for Business v1.3 "Create blocked words", "Update a blocked word", "Delete
@@ -250,7 +250,7 @@ export function tiktokBlockedWordObserved(_read: CompiledRequest, data: JsonObje
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokBlockedWordFamily: ReviewedFamily = {
+export const tiktokBlockedWordFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_blocked_words',
   files: ['src/tiktok-blocked-words.ts', ['tests/tiktok-blocked-words.test.mjs']],
   kind: tiktokBlockedWordKind,
@@ -265,4 +265,4 @@ export const tiktokBlockedWordFamily: ReviewedFamily = {
   verification: tiktokBlockedWordVerification,
   observed: tiktokBlockedWordObserved,
   exemptFromSpendTextMatch: true,
-};
+});

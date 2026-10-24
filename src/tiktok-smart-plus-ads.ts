@@ -4,6 +4,7 @@ import {MirrorError} from './errors.js';
 import {tiktokPortfolioGetPath, tiktokCtaPortfolioCheck} from './tiktok-cta-portfolios.js';
 import {tiktokInstantFormRead, tiktokInstantFormCheck} from './tiktok-instant-forms.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {defineFamily} from './family-kit.js';
 
 /**
  * Paused Upgraded Smart+ website conversion and Instant Form lead generation Spark Ads from existing TikTok posts, per
@@ -642,7 +643,7 @@ export function tiktokSmartPlusAdVerification(plan: CompiledRequest, result: Jso
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokSmartPlusAdFamily: ReviewedFamily = {
+export const tiktokSmartPlusAdFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_smart_plus_ads',
   files: [
     'src/tiktok-smart-plus-ads.ts',
@@ -671,4 +672,4 @@ export const tiktokSmartPlusAdFamily: ReviewedFamily = {
       ...v,
       read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_ad_get'},
     })),
-};
+});

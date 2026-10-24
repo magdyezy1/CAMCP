@@ -3,6 +3,7 @@ import {responseData, assertNoMethodOverride, object} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {defineFamily} from './family-kit.js';
 
 /**
  * Dynamic call-to-action portfolios, per API for Business v1.3 "Create a portfolio", "Get a portfolio by ID", "Get
@@ -233,7 +234,7 @@ export function tiktokCtaPortfolioVerification(plan: CompiledRequest, result: Js
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokCtaPortfolioFamily: ReviewedFamily = {
+export const tiktokCtaPortfolioFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_cta_portfolios',
   files: ['src/tiktok-cta-portfolios.ts', ['tests/tiktok-cta-portfolios.test.mjs']],
   kind: tiktokCtaPortfolioKind,
@@ -256,4 +257,4 @@ export const tiktokCtaPortfolioFamily: ReviewedFamily = {
       ...v,
       read: {...verificationRead(v.path, v.query), action: 'tiktok_creative_portfolio_get'},
     })),
-};
+});

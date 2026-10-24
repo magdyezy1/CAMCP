@@ -10,7 +10,7 @@ import {
   criteoBidMultiplierPages,
 } from './criteo-auction-line-items.js';
 import {criteoDocs, criteoRoute} from './criteo-version.js';
-import {fail} from './family-kit.js';
+import {defineFamily, fail} from './family-kit.js';
 
 /**
  * Keywords and bid multipliers of Criteo auction line items on Retail Media API 2026-07 (unchanged from 2026-01), per
@@ -409,7 +409,7 @@ export function criteoLineItemBiddingVerification(
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const criteoBidMultiplierFamily: ReviewedFamily = {
+export const criteoBidMultiplierFamily: ReviewedFamily = defineFamily({
   name: 'criteo_bid_multipliers',
   files: ['src/criteo-line-item-bidding.ts', ['tests/criteo-line-item-bidding.test.mjs']],
   kind: criteoBidMultiplierKind,
@@ -431,10 +431,10 @@ export const criteoBidMultiplierFamily: ReviewedFamily = {
   },
   exemptFromSpendTextMatch: true,
   activates: (plan, before) => !!criteoLineItemBiddingServing(plan, before),
-};
+});
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const criteoKeywordFamily: ReviewedFamily = {
+export const criteoKeywordFamily: ReviewedFamily = defineFamily({
   name: 'criteo_keywords',
   files: ['src/criteo-line-item-bidding.ts', ['tests/criteo-line-item-bidding.test.mjs']],
   kind: criteoKeywordKind,
@@ -457,4 +457,4 @@ export const criteoKeywordFamily: ReviewedFamily = {
   },
   exemptFromSpendTextMatch: true,
   activates: (plan, before) => !!criteoLineItemBiddingServing(plan, before),
-};
+});

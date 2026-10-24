@@ -4,7 +4,7 @@ import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
 import {assertMetaCatalogOfBusiness, assertMetaCatalogScope, optionalMetaRead} from './meta-catalogs.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Meta product catalogs themselves, opened by the owner on 2026-09-29. Meta's references (read 2026-09-29): "Business
@@ -392,7 +392,7 @@ export function metaProductCatalogObserved(_read: CompiledRequest, data: JsonObj
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaProductCatalogFamily: ReviewedFamily = {
+export const metaProductCatalogFamily: ReviewedFamily = defineFamily({
   name: 'meta_product_catalogs',
   files: ['src/meta-product-catalogs.ts', ['tests/meta-product-catalogs.test.mjs']],
   kind: metaProductCatalogKind,
@@ -408,4 +408,4 @@ export const metaProductCatalogFamily: ReviewedFamily = {
   verification: metaProductCatalogVerification,
   observed: metaProductCatalogObserved,
   destructive: plan => metaProductCatalogKind(plan) === 'delete',
-};
+});

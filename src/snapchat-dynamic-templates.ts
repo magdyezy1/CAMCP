@@ -2,7 +2,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Snapchat dynamic templates, Marketing API v1 (Dynamic Product Ads guide, "Dynamic Templates"; checked 2026-09-27).
@@ -454,7 +454,7 @@ export function snapTemplateObserved(_read: CompiledRequest, data: JsonObject): 
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const snapTemplateFamily: ReviewedFamily = {
+export const snapTemplateFamily: ReviewedFamily = defineFamily({
   name: 'snapchat_dynamic_templates',
   files: ['src/snapchat-dynamic-templates.ts', ['tests/snapchat-dynamic-templates.test.mjs']],
   kind: snapTemplateKind,
@@ -470,4 +470,4 @@ export const snapTemplateFamily: ReviewedFamily = {
   verification: snapTemplateVerification,
   observed: snapTemplateObserved,
   exemptFromSpendTextMatch: true,
-};
+});

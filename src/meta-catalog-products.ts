@@ -11,7 +11,7 @@ import {
   metaCatalogView,
   optionalMetaRead,
 } from './meta-catalogs.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Products of Meta catalogs, one at a time, opened by the owner on 2026-09-29. Meta's "Product Catalog Products"
@@ -607,7 +607,7 @@ export function metaCatalogProductObserved(_read: CompiledRequest, data: JsonObj
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaCatalogProductFamily: ReviewedFamily = {
+export const metaCatalogProductFamily: ReviewedFamily = defineFamily({
   name: 'meta_catalog_products',
   files: ['src/meta-catalog-products.ts', ['tests/meta-catalog-products.test.mjs']],
   kind: metaCatalogProductKind,
@@ -625,4 +625,4 @@ export const metaCatalogProductFamily: ReviewedFamily = {
   verification: metaCatalogProductVerification,
   observed: metaCatalogProductObserved,
   verificationCacheVersion: metaCatalogProductVerificationVersion,
-};
+});

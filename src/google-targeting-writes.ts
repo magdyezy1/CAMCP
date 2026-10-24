@@ -3,7 +3,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {googleAdsCustomers} from './google-version.js';
-import {readOf} from './family-kit.js';
+import {defineFamily, readOf} from './family-kit.js';
 
 const snake = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -458,7 +458,7 @@ function googleTargetingActivates(plan: CompiledRequest, before: unknown): boole
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleTargetingFamily: ReviewedFamily = {
+export const googleTargetingFamily: ReviewedFamily = defineFamily({
   name: 'google_targeting',
   files: ['src/google-targeting-writes.ts', ['tests/google-targeting-writes.test.ts']],
   kind: googleTargetingKind,
@@ -473,4 +473,4 @@ export const googleTargetingFamily: ReviewedFamily = {
     needed: googleTargetingWidens,
     message: 'Targeting, serving and shared-list changes require spend_change_confirmed=true.',
   },
-};
+});

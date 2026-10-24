@@ -2,7 +2,7 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {familyCodeError, type OneCodeRefusal, stateReadOf} from './family-kit.js';
+import {defineFamily, familyCodeError, type OneCodeRefusal, stateReadOf} from './family-kit.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -761,7 +761,7 @@ export async function verifyXCreative(
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const xCreativeFamily: ReviewedFamily = {
+export const xCreativeFamily: ReviewedFamily = defineFamily({
   name: 'x_creatives',
   files: ['src/x-creative-writes.ts', ['tests/x-creative-writes.test.ts', 'tests/x-legacy-card-edits.test.mjs']],
   kind: xCreativeKind,
@@ -797,4 +797,4 @@ export const xCreativeFamily: ReviewedFamily = {
   warnings: plan => xCreativeWarnings(plan),
   creativeEditConfirmation: plan => !!xCreativeEdit(plan),
   stateAsRead: true,
-};
+});

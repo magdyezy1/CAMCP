@@ -1,7 +1,7 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
-import {familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
+import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import type {NativeReportJob} from './report-job.js';
 import {scopeKey, stable} from './security.js';
 import type {Store} from './store.js';
@@ -810,7 +810,7 @@ export const criteoReportImpact = {
 };
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const criteoReportFamily: ReviewedFamily = {
+export const criteoReportFamily: ReviewedFamily = defineFamily({
   name: 'criteo_report_jobs',
   files: ['src/criteo-report-jobs.ts', ['tests/criteo-report-jobs.test.ts']],
   kind: criteoReportKind,
@@ -859,4 +859,4 @@ export const criteoReportFamily: ReviewedFamily = {
   },
   retryReadAfterMs: 6000,
   exemptFromSpendTextMatch: true,
-};
+});

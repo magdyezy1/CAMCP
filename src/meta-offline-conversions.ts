@@ -12,7 +12,7 @@ import {
   type PersonalDataSpec,
   type Row,
 } from './personal-data.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Meta offline conversions through the Conversions API, under the personal-data policy the owner approved on
@@ -375,7 +375,7 @@ function verifyEvents(p: CompiledRequest, result: JsonObject): Verified {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaOfflineConversionFamily: ReviewedFamily = {
+export const metaOfflineConversionFamily: ReviewedFamily = defineFamily({
   name: 'meta_offline_conversions',
   files: ['src/meta-offline-conversions.ts', ['tests/meta-offline-conversions.test.mjs']],
   kind: metaOfflineConversionKind,
@@ -395,4 +395,4 @@ export const metaOfflineConversionFamily: ReviewedFamily = {
   exemptFromActivationScan: true,
   activates: () => false,
   destructive: () => false,
-};
+});

@@ -62,8 +62,11 @@ projection is what makes `STATE_CHANGED` between prepare and execute meaningful.
   The localization check owns the reason of a call to a binding built this way, at the argument the factory's refusal
   takes it in (`kitRefusalFactories`), and of a forwarder to it, as for `fail`.
 - `defineFamily(declaration)` checks a declaration when its module loads (a ledger family name, `src/` implementation
-  modules, at least one test, a `kind` hook) and returns it unchanged; `tests/family-kit.test.mjs` applies it to every
-  registered family.
+  modules, at least one test, a `kind` hook, no member outside the stages) and returns it unchanged. Every registered
+  family is declared through it (`tests/family-kit.test.mjs`). It takes a `FamilyDeclaration`, the five stages below
+  together, so a member that is no hook of any stage (a misspelt hook, which no stage would call) fails to compile
+  (`tests/family-declaration.test.ts`), and a hook written in place is typed by its stage; such a member brought in by a
+  spread, which that type check does not see, fails when the module loads.
 - `readOf(p, read, fields)` builds a state read from the write request `p`: `p`, then `read.before` (a binding the
   read replaces, such as `accountId` or `origin`, what it never carries, such as `personalData`, or state fields a
   family sets first), the read's action, method (`GET` unless it posts a search `body`), path, query, body and headers
@@ -78,9 +81,10 @@ projection is what makes `STATE_CHANGED` between prepare and execute meaningful.
   with them: `tests/family-reads.test.mjs` holds each layout the families had copied, compares the kit's read with it
   key by key and in order for every combination of the fields a request may carry, and fails when a family module
   spreads a request into a read of its own.
-- `FamilyCore`, `FamilyStateHooks`, `FamilyPolicyHooks`, `FamilyDeliveryHooks` and `FamilyVerificationHooks` group the
-  hooks of `ReviewedFamily` by the stage that calls them; a new hook must join a group or the build fails
-  (`everyFamilyHookHasAStage`).
+- `familyStages` lists the hooks of `ReviewedFamily` by the stage that calls them (`core`, `state`, `policy`,
+  `delivery`, `verification`), each hook in one stage; `FamilyCore`, `FamilyStateHooks`, `FamilyPolicyHooks`,
+  `FamilyDeliveryHooks` and `FamilyVerificationHooks` are their types, and `FamilyDeclaration` is all five. A new hook
+  joins the list of its stage or the build fails (`everyFamilyHookHasAStage`); then a declaration may name it.
 
 Every module is on the kit: the byte-identical copies moved in waves 1 to 3 (X, then TikTok, Google Ads, Criteo, DV360,
 LinkedIn, Meta and Snapchat), and wave 4 moved the variants with their own codes and statuses onto the factories, each

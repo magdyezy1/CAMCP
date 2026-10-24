@@ -1,6 +1,6 @@
 import {assertDV360WriteScope} from './dv360-scope.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 import {validateDiscoveryBody} from './discovery-body.js';
 import {dv360AdGroupStateRead} from './dv360-demand-gen-ad-groups.js';
 import {dv360AudienceCollections} from './dv360-audiences.js';
@@ -1440,7 +1440,7 @@ export function dv360TargetingServing(p: CompiledRequest, before: unknown): bool
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const dv360AdGroupTargetingFamily: ReviewedFamily = {
+export const dv360AdGroupTargetingFamily: ReviewedFamily = defineFamily({
   name: 'dv360_ad_group_targeting',
   files: ['src/dv360-line-item-targeting.ts', ['tests/dv360-ad-group-targeting.test.mjs']],
   kind: dv360AdGroupTargetingKind,
@@ -1461,10 +1461,10 @@ export const dv360AdGroupTargetingFamily: ReviewedFamily = {
   },
   activates: (plan, before) => !!dv360TargetingServing(plan, before),
   destructive: plan => !!dv360TargetingRemoves(plan),
-};
+});
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const dv360AdvertiserTargetingFamily: ReviewedFamily = {
+export const dv360AdvertiserTargetingFamily: ReviewedFamily = defineFamily({
   name: 'dv360_advertiser_targeting',
   files: ['src/dv360-line-item-targeting.ts', ['tests/dv360-advertiser-targeting.test.ts']],
   kind: dv360AdvertiserTargetingKind,
@@ -1485,10 +1485,10 @@ export const dv360AdvertiserTargetingFamily: ReviewedFamily = {
   },
   activates: (plan, before) => !!dv360TargetingServing(plan, before),
   destructive: plan => !!dv360TargetingRemoves(plan),
-};
+});
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const dv360LineItemTargetingFamily: ReviewedFamily = {
+export const dv360LineItemTargetingFamily: ReviewedFamily = defineFamily({
   name: 'dv360_line_item_targeting',
   files: ['src/dv360-line-item-targeting.ts', ['tests/dv360-line-item-targeting.test.ts']],
   kind: dv360LineItemTargetingKind,
@@ -1516,4 +1516,4 @@ export const dv360LineItemTargetingFamily: ReviewedFamily = {
   },
   activates: (plan, before) => !!dv360TargetingServing(plan, before),
   destructive: plan => !!dv360TargetingRemoves(plan),
-};
+});

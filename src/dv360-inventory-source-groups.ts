@@ -3,7 +3,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {assertDV360WriteScope} from './dv360-scope.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Advertiser-owned inventory source groups on Display & Video 360 API v4, per the pinned Discovery document
@@ -556,7 +556,7 @@ export function dv360InventoryGroupObserved(p: CompiledRequest, data: JsonObject
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const dv360InventoryGroupFamily: ReviewedFamily = {
+export const dv360InventoryGroupFamily: ReviewedFamily = defineFamily({
   name: 'dv360_inventory_source_groups',
   files: ['src/dv360-inventory-source-groups.ts', ['tests/dv360-inventory-source-groups.test.mjs']],
   kind: dv360InventoryGroupKind,
@@ -580,4 +580,4 @@ export const dv360InventoryGroupFamily: ReviewedFamily = {
   exemptFromSpendTextMatch: true,
   activates: dv360InventoryGroupServing,
   destructive: dv360InventoryGroupRemoves,
-};
+});

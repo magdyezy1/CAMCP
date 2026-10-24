@@ -3,6 +3,7 @@ import {responseData, assertNoMethodOverride, object} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {defineFamily} from './family-kit.js';
 
 /**
  * Paused Upgraded Smart+ website-conversion and lead-generation campaigns, per API for Business v1.3 "Create an
@@ -203,7 +204,7 @@ export function tiktokSmartPlusCampaignProjection(row: unknown): JsonObject | un
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokSmartPlusCampaignFamily: ReviewedFamily = {
+export const tiktokSmartPlusCampaignFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_smart_plus_campaigns',
   files: ['src/tiktok-smart-plus-campaigns.ts', ['tests/tiktok-smart-plus-campaigns.test.mjs']],
   kind: tiktokSmartPlusCampaignKind,
@@ -226,4 +227,4 @@ export const tiktokSmartPlusCampaignFamily: ReviewedFamily = {
       ...v,
       read: {...verificationRead(v.path, v.query), action: 'tiktok_smart_plus_campaign_get'},
     })),
-};
+});

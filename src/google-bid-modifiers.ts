@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
+import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import * as campaignBid from './google-campaign-bid-modifiers.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable} from './security.js';
@@ -562,7 +562,7 @@ export const googleBidImpactFor = (p: CompiledRequest) =>
   campaignBid.googleCampaignBidKind(p) ? campaignBid.googleCampaignBidImpact : googleBidImpact;
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleBidFamily: ReviewedFamily = {
+export const googleBidFamily: ReviewedFamily = defineFamily({
   name: 'google_bid_modifiers',
   files: [
     'src/google-bid-modifiers.ts / src/google-campaign-bid-modifiers.ts',
@@ -591,4 +591,4 @@ export const googleBidFamily: ReviewedFamily = {
   readCheck: c => assertGoogleAdsScope(c),
   observed: (read: CompiledRequest, data: JsonObject) => data,
   activates: () => true,
-};
+});

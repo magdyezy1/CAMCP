@@ -1,7 +1,7 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Snapchat event details, Marketing API v1 ("Event Details"; checked 2026-09-27). POST
@@ -433,7 +433,7 @@ export function snapEventObserved(_read: CompiledRequest, data: JsonObject): Jso
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const snapEventFamily: ReviewedFamily = {
+export const snapEventFamily: ReviewedFamily = defineFamily({
   name: 'snapchat_event_details',
   files: ['src/snapchat-event-details.ts', ['tests/snapchat-event-details.test.mjs']],
   kind: snapEventKind,
@@ -449,4 +449,4 @@ export const snapEventFamily: ReviewedFamily = {
   verification: snapEventVerification,
   observed: snapEventObserved,
   exemptFromSpendTextMatch: true,
-};
+});

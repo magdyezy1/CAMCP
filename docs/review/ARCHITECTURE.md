@@ -479,16 +479,21 @@ the transport reach a job's own requests as the hooks of `ReportJobPage`. Neithe
 
 ARC-04 stage C. `src/family-kit.ts`, a leaf, holds the refusal helper family modules had copied (`fail`), the refusal
 factories for modules with their own codes (`familyErrors`, `familyStateErrors`, `familyCodeError`, `failWithStatus`), a
-load-time check of a family declaration (`defineFamily`) and the hook groups of `ReviewedFamily` by stage. Wave 1 (the
+load-time check of a family declaration (`defineFamily`) and the hooks of `ReviewedFamily` by stage. Wave 1 (the
 nine X families), wave 2 (ten TikTok and fourteen Google Ads families) and wave 3 (8 Criteo, 11 DV360, 13 LinkedIn, 15
 Meta and 14 Snapchat families) import its `fail`; wave 4 moved the 58 variants onto `fail` or a factory with the codes
 and statuses each helper gave, and the shared helpers other modules import (`write-common.ts`, `personal-data.ts`,
-`x-catalogs.ts`) re-export the kit's `fail` under their old name. The X families declare themselves through
-`defineFamily`. The localization check owns the reasons of the kit's `fail` and of a kit-built refusal as it owned each
-local helper (`tools/check-locales.mjs`), so the owned reasons and their Arabic are unchanged: 2,553 reasons in the 152
-modules on the kit, the same set before stage C and after each wave. Nineteen modules whose former arrow or forwarding
-helper the inventory never followed stay outside it (`unlocalizedRefusalModules`; about 420 of their 430 reasons have
-no Arabic), a gap now named rather than implicit (an open remainder of B24 in `docs/review/package-status.json`).
+`x-catalogs.ts`) re-export the kit's `fail` under their old name. Every registered family declares itself through
+`defineFamily` (the nine X families first, then the other 161 declarations by a codemod that wrapped each object
+literal unchanged), so each declaration is checked when its module loads; its parameter is the five stages together
+(`FamilyDeclaration`), so a member that is no hook of any stage fails to compile, which the earlier generic signature
+let through, and the load refuses one that a spread brought in, where that type check does not look (`familyStages`,
+each hook in one stage, is the same list at run time). The localization check owns the reasons of the kit's `fail`
+and of a kit-built refusal as it owned each local helper (`tools/check-locales.mjs`), so the owned reasons and their
+Arabic are unchanged: 2,553 reasons in the 152 modules on the kit, the same set before stage C and after each wave.
+Nineteen modules whose former arrow or forwarding helper the inventory never followed stay outside it
+(`unlocalizedRefusalModules`; about 420 of their 430 reasons have no Arabic), a gap now named rather than implicit (an
+open remainder of B24 in `docs/review/package-status.json`).
 `local_fail_copies` fell from 153 to 0 and is ratcheted (§8). The `fail` that `src/errors.ts` exported moved to the kit
 and is intentionally not re-exported there: `family-kit.ts` imports `MirrorError` from `errors.ts`, so a re-export
 would join the two in a runtime import cycle (§8), and a second definition would be a local copy again; nothing in the

@@ -3,7 +3,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Snapchat media copy between ad accounts of one organization, per the Ads API "Media" reference (Copy Media, checked
@@ -313,7 +313,7 @@ export function snapchatMediaCopyObserved(read: CompiledRequest, data: JsonObjec
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const snapchatMediaCopyFamily: ReviewedFamily = {
+export const snapchatMediaCopyFamily: ReviewedFamily = defineFamily({
   name: 'snapchat_media_copy',
   files: ['src/snapchat-media-copy.ts', ['tests/snapchat-media-copy.test.mjs']],
   kind: snapchatMediaCopyKind,
@@ -334,4 +334,4 @@ export const snapchatMediaCopyFamily: ReviewedFamily = {
   verification: snapchatMediaCopyVerification,
   observed: (read, data, gateway) =>
     data.amcp_absent !== true && isSnapchatMediaCopyCheck(read) ? snapchatMediaCopyObserved(read, data) : gateway(),
-};
+});

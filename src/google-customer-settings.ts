@@ -3,7 +3,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {googleAdsCustomers} from './google-version.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Account settings of a Google Ads customer, API v23 (pinned Discovery document: CustomerService.MutateCustomer,
@@ -368,7 +368,7 @@ export function googleCustomerSettingsObserved(_read: CompiledRequest, data: Jso
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleCustomerSettingsFamily: ReviewedFamily = {
+export const googleCustomerSettingsFamily: ReviewedFamily = defineFamily({
   name: 'google_customer_settings',
   files: ['src/google-customer-settings.ts', ['tests/google-customer-settings.test.mjs']],
   kind: googleCustomerSettingsKind,
@@ -390,4 +390,4 @@ export const googleCustomerSettingsFamily: ReviewedFamily = {
   },
   exemptFromSpendTextMatch: true,
   activates: googleCustomerSettingsWidens,
-};
+});

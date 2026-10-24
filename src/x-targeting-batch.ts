@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, type ReasonFirstRefusal, stateReadOf} from './family-kit.js';
+import {defineFamily, familyErrors, type ReasonFirstRefusal, stateReadOf} from './family-kit.js';
 import {changedStateFields, normalizeReviewState} from './review-state-core.js';
 import {sha256, stable} from './security.js';
 import {xAudienceCriteriaTypes} from './x-audience-estimate.js';
@@ -473,7 +473,7 @@ export const xTargetingBatchImpact = () => ({
 });
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const xTargetingBatchRouteFamily: ReviewedFamily = {
+export const xTargetingBatchRouteFamily: ReviewedFamily = defineFamily({
   name: 'x_targeting_batch',
   files: ['src/x-targeting-batch.ts', ['tests/x-targeting-batch.test.mjs']],
   kind: xTargetingBatchRoute,
@@ -500,4 +500,4 @@ export const xTargetingBatchRouteFamily: ReviewedFamily = {
     ).then(o => ({status: o.status, checks: o.checks})),
   verifyEveryTime: true,
   destructive: plan => !!xTargetingBatchDeletes(plan),
-};
+});

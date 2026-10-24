@@ -11,7 +11,7 @@ import {
   type PersonalDataRecord,
   type PersonalDataSpec,
 } from './personal-data.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Meta customer lists (customer-file custom audiences) under the personal-data policy the owner approved on
@@ -410,7 +410,7 @@ async function verifyPeople(
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaCustomerListFamily: ReviewedFamily = {
+export const metaCustomerListFamily: ReviewedFamily = defineFamily({
   name: 'meta_customer_lists',
   files: ['src/meta-customer-lists.ts', ['tests/meta-customer-lists.test.mjs']],
   kind: metaCustomerListKind,
@@ -435,4 +435,4 @@ export const metaCustomerListFamily: ReviewedFamily = {
   exemptFromActivationScan: true,
   activates: () => false,
   destructive: () => false,
-};
+});

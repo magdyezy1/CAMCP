@@ -8,7 +8,7 @@ import type {TransportResult} from './transport.js';
 import {dv360AdGroupStateRead, readDV360AdGroups} from './dv360-demand-gen-ad-groups.js';
 import {pinnedJson} from './pinned-json.js';
 import {deprecationEffective, refuseDeprecated} from './provider-deprecations.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Demand Gen ads on Display & Video 360 API v4, per the pinned Discovery document (AdGroupAd, DemandGenVideoAd,
@@ -563,7 +563,7 @@ export function dv360AdSnapshotState(_read: CompiledRequest, d: JsonObject): Jso
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const dv360AdFamily: ReviewedFamily = {
+export const dv360AdFamily: ReviewedFamily = defineFamily({
   name: 'dv360_demand_gen_ads',
   files: ['src/dv360-demand-gen-ads.ts', ['tests/dv360-demand-gen-ads.test.mjs']],
   kind: dv360AdKind,
@@ -585,4 +585,4 @@ export const dv360AdFamily: ReviewedFamily = {
       'An active Demand Gen ad serves once its ad group and line item are active. Review the ad and provide spend_change_confirmed=true.',
   },
   exemptFromSpendTextMatch: true,
-};
+});

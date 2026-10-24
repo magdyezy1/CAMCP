@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
+import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {googleJson, assertGoogleAdsScope} from './google-contracts.js';
 import {stable, sha256} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
@@ -748,7 +748,7 @@ export const googleConversionGoalImpact = {
 };
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleConversionGoalFamily: ReviewedFamily = {
+export const googleConversionGoalFamily: ReviewedFamily = defineFamily({
   name: 'google_conversion_goals',
   files: ['src/google-conversion-goals.ts', ['tests/google-conversion-goals.test.ts']],
   kind: googleConversionGoalKind,
@@ -785,4 +785,4 @@ export const googleConversionGoalFamily: ReviewedFamily = {
   exemptFromSpendTextMatch: true,
   activates: plan => !!googleConversionGoalServing(plan),
   exemptFromActivationScan: true,
-};
+});

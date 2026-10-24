@@ -1,7 +1,7 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * TikTok custom audience edits, per API for Business v1.3 "Update an audience", "Delete audiences", "Apply audiences to
@@ -569,7 +569,7 @@ export function tiktokAudienceEditObserved(read: CompiledRequest, data: JsonObje
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokAudienceEditFamily: ReviewedFamily = {
+export const tiktokAudienceEditFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_audience_edits',
   files: ['src/tiktok-audience-edits.ts', ['tests/tiktok-audience-edits.test.mjs']],
   kind: tiktokAudienceEditKind,
@@ -589,4 +589,4 @@ export const tiktokAudienceEditFamily: ReviewedFamily = {
       'Applying or disconnecting an audience changes whom the ad groups reach while they deliver. Review the ad groups and provide spend_change_confirmed=true.',
   },
   exemptFromSpendTextMatch: true,
-};
+});

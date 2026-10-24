@@ -2,7 +2,7 @@ import {assertBusinessNotificationActor} from './google-business-notification-ki
 import type {ReviewedFamily} from './reviewed-family.js';
 import {isIP} from 'node:net';
 import {MirrorError} from './errors.js';
-import {familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
+import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {stable, sha256} from './security.js';
 import {changedStateFields} from './review-state-core.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
@@ -471,7 +471,7 @@ export function placeActionImpact(p: CompiledRequest, state: unknown[]): JsonObj
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const placeActionFamily: ReviewedFamily = {
+export const placeActionFamily: ReviewedFamily = defineFamily({
   name: 'google_place_actions',
   files: ['src/google-place-action-links.ts', ['tests/google-place-action-links.test.ts']],
   kind: placeActionKind,
@@ -497,4 +497,4 @@ export const placeActionFamily: ReviewedFamily = {
     ),
   exemptFromSpendTextMatch: true,
   activates: plan => placeActionKind(plan) !== 'delete',
-};
+});

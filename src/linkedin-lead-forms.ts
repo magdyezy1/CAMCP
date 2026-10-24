@@ -5,7 +5,7 @@ import {parseLinkedInValue} from './linkedin-restli.js';
 import type {Store} from './store.js';
 import type {TransportResult} from './transport.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
-import {readOf} from './family-kit.js';
+import {defineFamily, readOf} from './family-kit.js';
 
 /**
  * LinkedIn sponsored lead gen forms, per Microsoft Learn "Lead Syncing" and "Lead Syncing Schema" (li-lms-2026-09,
@@ -577,7 +577,7 @@ export function linkedinLeadFormImpact(p: CompiledRequest, state: unknown[]): Js
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const linkedinLeadFormFamily: ReviewedFamily = {
+export const linkedinLeadFormFamily: ReviewedFamily = defineFamily({
   name: 'linkedin_lead_forms',
   files: ['src/linkedin-lead-forms.ts', ['tests/linkedin-lead-forms.test.mjs']],
   kind: linkedinLeadFormKind,
@@ -598,4 +598,4 @@ export const linkedinLeadFormFamily: ReviewedFamily = {
   verification: linkedinLeadFormVerification,
   observed: (read: CompiledRequest, data: JsonObject) => linkedinLeadFormProjection(data),
   exemptFromSpendTextMatch: true,
-};
+});

@@ -2,7 +2,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {assertNoMethodOverride} from './write-common.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Creating and renaming TikTok pixels, API for Business v1.3. The request fields come from TikTok's official Business
@@ -257,7 +257,7 @@ export function tiktokPixelObserved(_read: CompiledRequest, data: JsonObject): J
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokPixelFamily: ReviewedFamily = {
+export const tiktokPixelFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_pixels',
   files: ['src/tiktok-pixels.ts', ['tests/tiktok-pixels.test.mjs']],
   kind: tiktokPixelKind,
@@ -272,4 +272,4 @@ export const tiktokPixelFamily: ReviewedFamily = {
   verification: tiktokPixelVerification,
   observed: tiktokPixelObserved,
   exemptFromSpendTextMatch: true,
-};
+});

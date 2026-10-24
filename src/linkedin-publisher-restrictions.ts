@@ -2,7 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * LinkedIn Audience Network publisher lists, per "Manage Audience Restrictions" of the Marketing API (li-lms-2025-10 to
@@ -380,7 +380,7 @@ export function linkedinPublisherObserved(_read: CompiledRequest, data: JsonObje
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const linkedinPublisherFamily: ReviewedFamily = {
+export const linkedinPublisherFamily: ReviewedFamily = defineFamily({
   name: 'linkedin_publisher_restrictions',
   files: ['src/linkedin-publisher-restrictions.ts', ['tests/linkedin-publisher-restrictions.test.mjs']],
   kind: linkedinPublisherKind,
@@ -396,4 +396,4 @@ export const linkedinPublisherFamily: ReviewedFamily = {
   verification: linkedinPublisherVerification,
   observed: linkedinPublisherObserved,
   exemptFromSpendTextMatch: true,
-};
+});

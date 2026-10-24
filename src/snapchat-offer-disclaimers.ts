@@ -1,7 +1,7 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Snapchat offer disclaimers, Marketing API v1 ("Offer Disclaimers", checked 2026-09-27). Ads in regulated verticals
@@ -254,7 +254,7 @@ export function snapDisclaimerObserved(read: CompiledRequest, data: JsonObject):
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const snapDisclaimerFamily: ReviewedFamily = {
+export const snapDisclaimerFamily: ReviewedFamily = defineFamily({
   name: 'snapchat_offer_disclaimers',
   files: ['src/snapchat-offer-disclaimers.ts', ['tests/snapchat-offer-disclaimers.test.mjs']],
   kind: snapDisclaimerKind,
@@ -269,4 +269,4 @@ export const snapDisclaimerFamily: ReviewedFamily = {
   verification: snapDisclaimerVerification,
   observed: snapDisclaimerObserved,
   exemptFromSpendTextMatch: true,
-};
+});

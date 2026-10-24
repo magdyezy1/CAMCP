@@ -3,7 +3,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {googleAdsCustomers} from './google-version.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Smart campaign settings, Google Ads API v23 (pinned Discovery document: SmartCampaignSettingService.
@@ -293,7 +293,7 @@ export function googleSmartObserved(read: CompiledRequest, data: JsonObject): Js
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleSmartFamily: ReviewedFamily = {
+export const googleSmartFamily: ReviewedFamily = defineFamily({
   name: 'google_smart_campaign_settings',
   files: ['src/google-smart-campaign-settings.ts', ['tests/google-smart-campaign-settings.test.mjs']],
   kind: googleSmartKind,
@@ -309,4 +309,4 @@ export const googleSmartFamily: ReviewedFamily = {
   verification: googleSmartVerification,
   observed: googleSmartObserved,
   exemptFromSpendTextMatch: true,
-};
+});

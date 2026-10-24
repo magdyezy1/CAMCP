@@ -6,7 +6,7 @@ import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {assertDV360WriteScope} from './dv360-scope.js';
 import {pinnedJson} from './pinned-json.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Demand Gen ad groups on Display & Video 360 API v4, per the pinned Discovery document (AdGroup, adGroups.create, patch
@@ -518,7 +518,7 @@ export function dv360AdGroupObserved(_read: CompiledRequest, data: JsonObject): 
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const dv360AdGroupFamily: ReviewedFamily = {
+export const dv360AdGroupFamily: ReviewedFamily = defineFamily({
   name: 'dv360_demand_gen_ad_groups',
   files: ['src/dv360-demand-gen-ad-groups.ts', ['tests/dv360-demand-gen-ad-groups.test.mjs']],
   kind: dv360AdGroupKind,
@@ -540,4 +540,4 @@ export const dv360AdGroupFamily: ReviewedFamily = {
       'An active Demand Gen ad group bids once its line item and an ad are active, and a bid value changes what it pays. Review the ad group and provide spend_change_confirmed=true.',
   },
   exemptFromSpendTextMatch: true,
-};
+});

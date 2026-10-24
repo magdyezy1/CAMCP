@@ -1,7 +1,7 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Deleting TikTok saved audiences and custom identities, per API for Business v1.3 "Delete Saved Audiences", "Get details
@@ -267,7 +267,7 @@ export function tiktokDeletionObserved(_read: CompiledRequest, data: JsonObject)
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokDeletionFamily: ReviewedFamily = {
+export const tiktokDeletionFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_deletions',
   files: ['src/tiktok-deletions.ts', ['tests/tiktok-deletions.test.mjs']],
   kind: tiktokDeletionKind,
@@ -282,4 +282,4 @@ export const tiktokDeletionFamily: ReviewedFamily = {
   verification: tiktokDeletionVerification,
   observed: tiktokDeletionObserved,
   exemptFromSpendTextMatch: true,
-};
+});

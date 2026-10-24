@@ -15,7 +15,7 @@ import {
   type PersonalDataSpec,
   type Row,
 } from './personal-data.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Google Customer Match and offline conversions through the Data Manager API, which the owner opened on 2026-09-30
@@ -656,7 +656,7 @@ const common = {
   destructive: () => false,
 };
 /** Registers the Customer Match family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleCustomerMatchFamily: ReviewedFamily = {
+export const googleCustomerMatchFamily: ReviewedFamily = defineFamily({
   name: 'google_customer_match',
   files: ['src/google-data-manager.ts', ['tests/google-data-manager.test.mjs']],
   kind: p => {
@@ -665,12 +665,12 @@ export const googleCustomerMatchFamily: ReviewedFamily = {
   },
   ...common,
   personalData: googleCustomerMatchPeople,
-};
+});
 /** Registers the offline conversions family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleOfflineConversionFamily: ReviewedFamily = {
+export const googleOfflineConversionFamily: ReviewedFamily = defineFamily({
   name: 'google_offline_conversions',
   files: ['src/google-data-manager.ts', ['tests/google-data-manager.test.mjs']],
   kind: p => dataManagerKind(p) === 'events',
   ...common,
   personalData: googleOfflineConversionPeople,
-};
+});

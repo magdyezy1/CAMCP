@@ -21,7 +21,7 @@ import {
   pmaxImpact,
   type PmaxOp,
 } from './google-pmax-build.js';
-import {readOf} from './family-kit.js';
+import {defineFamily, readOf} from './family-kit.js';
 
 /**
  * All-or-nothing Google builds (the owner's item 5 and decision 1, 2026-09-29): one reviewed `googleAds:mutate` that
@@ -670,7 +670,7 @@ export function composeGoogleBuild(steps: JsonObject[], account: string): JsonOb
   };
 }
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleAtomicFamily: ReviewedFamily = {
+export const googleAtomicFamily: ReviewedFamily = defineFamily({
   name: 'google_atomic_builds',
   files: ['src/google-atomic-builds.ts', ['tests/google-atomic-builds.test.ts', 'tests/google-pmax-build.test.mjs']],
   kind: googleAtomicKind,
@@ -690,4 +690,4 @@ export const googleAtomicFamily: ReviewedFamily = {
   exemptFromSpendTextMatch: true,
   activates: googleAtomicActivates,
   policyAmounts: googleAtomicPolicyAmounts,
-};
+});

@@ -1,7 +1,7 @@
 import type {ReviewedFamily} from './reviewed-family.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Deleting Snapchat audience segments, Marketing API v1 (Audiences, "Delete a Segment"; checked 2026-09-27):
@@ -204,7 +204,7 @@ export function snapSegmentDeleteObserved(_read: CompiledRequest, data: JsonObje
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const snapSegmentDeleteFamily: ReviewedFamily = {
+export const snapSegmentDeleteFamily: ReviewedFamily = defineFamily({
   name: 'snapchat_segment_deletions',
   files: ['src/snapchat-segment-deletions.ts', ['tests/snapchat-segment-deletions.test.mjs']],
   kind: snapSegmentDeleteKind,
@@ -219,4 +219,4 @@ export const snapSegmentDeleteFamily: ReviewedFamily = {
   verification: snapSegmentDeleteVerification,
   observed: snapSegmentDeleteObserved,
   exemptFromSpendTextMatch: true,
-};
+});

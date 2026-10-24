@@ -3,7 +3,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {assertDV360WriteScope} from './dv360-scope.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Advertiser-owned custom bidding algorithms on Display & Video 360 API v4, per the pinned Discovery document
@@ -296,7 +296,7 @@ export function dv360BiddingObserved(_read: CompiledRequest, data: JsonObject): 
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const dv360BiddingFamily: ReviewedFamily = {
+export const dv360BiddingFamily: ReviewedFamily = defineFamily({
   name: 'dv360_custom_bidding',
   files: ['src/dv360-custom-bidding.ts', ['tests/dv360-custom-bidding.test.mjs']],
   kind: dv360BiddingKind,
@@ -313,4 +313,4 @@ export const dv360BiddingFamily: ReviewedFamily = {
   verification: dv360BiddingVerification,
   observed: dv360BiddingObserved,
   exemptFromSpendTextMatch: true,
-};
+});

@@ -56,7 +56,7 @@ import {
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {googleAdsCustomers} from './google-version.js';
-import {readOf} from './family-kit.js';
+import {defineFamily, readOf} from './family-kit.js';
 
 type Reference = {field: string; collection: string; parts: number; resource: string; fields: string[]};
 type Contract = {
@@ -970,7 +970,7 @@ export function googleConfigurationImpact(plan: CompiledRequest): JsonObject {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleConfigurationFamily: ReviewedFamily = {
+export const googleConfigurationFamily: ReviewedFamily = defineFamily({
   name: 'google_configuration',
   files: [
     'src/google-configuration-writes.ts',
@@ -1024,4 +1024,4 @@ export const googleConfigurationFamily: ReviewedFamily = {
   activates: plan => !!googleConfigurationServing(plan),
   exemptFromActivationScan: plan => !!googleSegmentKind(plan),
   destructive: plan => !!googleSegmentRemoval(plan),
-};
+});

@@ -2,7 +2,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Meta pixels of an ad account, Marketing API v25.0 ("Ad Account Adspixels" and "Ad Pixel" references, checked
@@ -222,7 +222,7 @@ export function metaPixelObserved(read: CompiledRequest, data: JsonObject): Json
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaPixelFamily: ReviewedFamily = {
+export const metaPixelFamily: ReviewedFamily = defineFamily({
   name: 'meta_pixels',
   files: ['src/meta-pixels.ts', ['tests/meta-pixels.test.mjs']],
   kind: metaPixelKind,
@@ -239,4 +239,4 @@ export const metaPixelFamily: ReviewedFamily = {
   verification: metaPixelVerification,
   observed: metaPixelObserved,
   exemptFromSpendTextMatch: true,
-};
+});

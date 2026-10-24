@@ -2,6 +2,7 @@ import {assertNoMethodOverride, object} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {defineFamily} from './family-kit.js';
 
 /**
  * TikTok custom conversions for a pixel, per API for Business v1.3 "Create a Custom Conversion", "Get the details
@@ -451,7 +452,7 @@ export function tiktokCustomConversionVerification(
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokCustomConversionFamily: ReviewedFamily = {
+export const tiktokCustomConversionFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_custom_conversions',
   files: ['src/tiktok-custom-conversions.ts', ['tests/tiktok-custom-conversions.test.mjs']],
   kind: tiktokCustomConversionKind,
@@ -473,4 +474,4 @@ export const tiktokCustomConversionFamily: ReviewedFamily = {
       read: {...verificationRead(v.path, v.query), action: 'tiktok_custom_conversion_get'},
     })),
   exemptFromSpendTextMatch: true,
-};
+});

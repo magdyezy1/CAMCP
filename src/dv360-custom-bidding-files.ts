@@ -2,7 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Registering uploaded custom bidding scripts and rules on Display & Video 360 API v4, per the pinned Discovery document
@@ -319,7 +319,7 @@ export function dv360BiddingFileObserved(_read: CompiledRequest, data: JsonObjec
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const dv360BiddingFileFamily: ReviewedFamily = {
+export const dv360BiddingFileFamily: ReviewedFamily = defineFamily({
   name: 'dv360_custom_bidding_files',
   files: ['src/dv360-custom-bidding-files.ts', ['tests/dv360-custom-bidding-files.test.mjs']],
   kind: dv360BiddingFileKind,
@@ -335,4 +335,4 @@ export const dv360BiddingFileFamily: ReviewedFamily = {
   verification: dv360BiddingFileVerification,
   observed: dv360BiddingFileObserved,
   exemptFromSpendTextMatch: true,
-};
+});

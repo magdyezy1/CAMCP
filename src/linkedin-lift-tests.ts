@@ -3,7 +3,7 @@ import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * LinkedIn brand lift tests, per the Brand Lift Testing pages of the Marketing API (Overview, Lift Test Management API,
@@ -606,7 +606,7 @@ export function linkedinLiftObserved(read: CompiledRequest, data: JsonObject): J
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const linkedinLiftFamily: ReviewedFamily = {
+export const linkedinLiftFamily: ReviewedFamily = defineFamily({
   name: 'linkedin_lift_tests',
   files: ['src/linkedin-lift-tests.ts', ['tests/linkedin-lift-tests.test.mjs']],
   kind: linkedinLiftKind,
@@ -634,4 +634,4 @@ export const linkedinLiftFamily: ReviewedFamily = {
   exemptFromSpendTextMatch: true,
   activates: linkedinLiftActivates,
   destructive: p => ['delete', 'surveys'].includes(linkedinLiftKind(p) ?? ''),
-};
+});

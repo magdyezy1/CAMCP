@@ -4,6 +4,7 @@ import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import {tiktokAudienceGetPath, tiktokLookalikePath} from './tiktok-paths.js';
+import {defineFamily} from './family-kit.js';
 
 /**
  * TikTok lookalike audiences, per API for Business v1.3 "Create a lookalike audience", "Get audience details" and
@@ -201,7 +202,7 @@ export function tiktokLookalikeVerification(
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokLookalikeFamily: ReviewedFamily = {
+export const tiktokLookalikeFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_lookalikes',
   files: ['src/tiktok-lookalikes.ts', ['tests/tiktok-lookalikes.test.mjs']],
   kind: tiktokLookalikeKind,
@@ -229,4 +230,4 @@ export const tiktokLookalikeFamily: ReviewedFamily = {
       ...v,
       read: {...verificationRead(v.path, v.query), action: 'tiktok_dmp_custom_audience_get'},
     })),
-};
+});

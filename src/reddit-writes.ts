@@ -9,7 +9,7 @@ import {
 import type {CompiledRequest, JsonObject, Connection} from './types.js';
 import type {TransportResult} from './transport.js';
 import {MirrorError} from './errors.js';
-import {familyCodeError, type OneCodeRefusal, readOf} from './family-kit.js';
+import {defineFamily, familyCodeError, type OneCodeRefusal, readOf} from './family-kit.js';
 import {recordedWriteGrant} from './provider-grants.js';
 const kinds = ['campaigns', 'ad_groups', 'ads', 'saved_audiences'];
 const object = (v: unknown): v is JsonObject => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -435,7 +435,7 @@ export function redditOutcome(plan: CompiledRequest, result: TransportResult) {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const redditWriteFamily: ReviewedFamily = {
+export const redditWriteFamily: ReviewedFamily = defineFamily({
   name: 'reddit_classic',
   files: ['src/reddit-writes.ts', ['tests/reddit-writes.test.ts', 'tests/reddit-pixel-check.test.mjs']],
   kind: redditWriteKind,
@@ -453,4 +453,4 @@ export const redditWriteFamily: ReviewedFamily = {
   impact: redditPixelImpact,
   outcome: redditOutcome,
   policyAmounts: redditPolicyAmounts,
-};
+});

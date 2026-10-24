@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 
@@ -308,7 +308,7 @@ export function tiktokBrandSafetyHubKind(p: CompiledRequest): boolean {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokBrandSafetyFamily: ReviewedFamily = {
+export const tiktokBrandSafetyFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_brand_safety',
   files: ['src/tiktok-brand-safety.ts', ['tests/tiktok-brand-safety.test.mjs']],
   kind: tiktokBrandSafetyKind,
@@ -333,4 +333,4 @@ export const tiktokBrandSafetyFamily: ReviewedFamily = {
   },
   activates: plan => !!tiktokBrandSafetyWidens(plan),
   destructive: plan => !!tiktokBrandSafetyRemoves(plan),
-};
+});

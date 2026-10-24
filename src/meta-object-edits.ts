@@ -3,7 +3,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Renaming and deleting Meta ad creatives and custom audiences, Marketing API v25.0 ("Ad Creative" and "Custom Audience"
@@ -222,7 +222,7 @@ export function metaObjectObserved(_read: CompiledRequest, data: JsonObject): Js
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaObjectFamily: ReviewedFamily = {
+export const metaObjectFamily: ReviewedFamily = defineFamily({
   name: 'meta_object_edits',
   files: ['src/meta-object-edits.ts', ['tests/meta-object-edits.test.mjs']],
   kind: metaObjectKind,
@@ -238,4 +238,4 @@ export const metaObjectFamily: ReviewedFamily = {
   verification: metaObjectVerification,
   observed: metaObjectObserved,
   exemptFromSpendTextMatch: true,
-};
+});

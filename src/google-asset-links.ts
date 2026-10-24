@@ -5,7 +5,7 @@ import {googleJson} from './google-contracts.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {googleAdsCustomers} from './google-version.js';
-import {readOf} from './family-kit.js';
+import {defineFamily, readOf} from './family-kit.js';
 
 // Native association contracts, independent of whether the caller used an RPC
 // name or a legacy alias. Source: Google Ads v23 resource and GAQL references.
@@ -474,7 +474,7 @@ export function googleAssetLinkImpact(plan: CompiledRequest): JsonObject {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleAssetLinkFamily: ReviewedFamily = {
+export const googleAssetLinkFamily: ReviewedFamily = defineFamily({
   name: 'google_asset_links',
   files: ['src/google-asset-links.ts', ['tests/google-asset-links.test.ts']],
   kind: googleAssetLinkKind,
@@ -497,4 +497,4 @@ export const googleAssetLinkFamily: ReviewedFamily = {
       'Asset associations change which creative can serve. Review the parent state and provide spend_change_confirmed=true.',
   },
   activates: plan => !!googleAssetLinkActivates(plan),
-};
+});

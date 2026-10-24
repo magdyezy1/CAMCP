@@ -10,7 +10,7 @@ import {
   metaCatalogView,
   optionalMetaRead,
 } from './meta-catalogs.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Scheduled product feeds of Meta catalogs, opened by the owner on 2026-09-29. Meta's references (read 2026-09-29):
@@ -510,7 +510,7 @@ export function metaProductFeedObserved(_read: CompiledRequest, data: JsonObject
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaProductFeedFamily: ReviewedFamily = {
+export const metaProductFeedFamily: ReviewedFamily = defineFamily({
   name: 'meta_product_feeds',
   files: ['src/meta-product-feeds.ts', ['tests/meta-product-feeds.test.mjs']],
   kind: metaProductFeedKind,
@@ -527,4 +527,4 @@ export const metaProductFeedFamily: ReviewedFamily = {
   verification: metaProductFeedVerification,
   observed: metaProductFeedObserved,
   destructive: metaProductFeedDeletes,
-};
+});

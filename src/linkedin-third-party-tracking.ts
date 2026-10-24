@@ -2,7 +2,7 @@ import {MirrorError} from './errors.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * LinkedIn third-party tracking tags, per "Third-Party Tracking" of the Marketing API (li-lms-2025-10 to li-lms-2026-09,
@@ -364,7 +364,7 @@ export function linkedinThirdPartyObserved(read: CompiledRequest, data: JsonObje
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const linkedinThirdPartyFamily: ReviewedFamily = {
+export const linkedinThirdPartyFamily: ReviewedFamily = defineFamily({
   name: 'linkedin_third_party_tracking',
   files: ['src/linkedin-third-party-tracking.ts', ['tests/linkedin-third-party-tracking.test.mjs']],
   kind: linkedinThirdPartyKind,
@@ -381,4 +381,4 @@ export const linkedinThirdPartyFamily: ReviewedFamily = {
   verification: linkedinThirdPartyVerification,
   observed: linkedinThirdPartyObserved,
   exemptFromSpendTextMatch: true,
-};
+});

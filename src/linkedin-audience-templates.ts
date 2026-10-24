@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
+import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import {parseLinkedInValue} from './linkedin-restli.js';
 import {assertLinkedInConversionScope} from './linkedin-conversion-links.js';
 import {stable} from './security.js';
@@ -545,7 +545,7 @@ export const linkedinTemplateImpact = {
 };
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const linkedinTemplateFamily: ReviewedFamily = {
+export const linkedinTemplateFamily: ReviewedFamily = defineFamily({
   name: 'linkedin_audience_templates',
   files: ['src/linkedin-audience-templates.ts', ['tests/linkedin-audience-templates.test.mjs']],
   kind: linkedinTemplateKind,
@@ -575,4 +575,4 @@ export const linkedinTemplateFamily: ReviewedFamily = {
       }),
     ).then(o => ({status: o.status, checks: o.checks})),
   verifyEveryTime: true,
-};
+});

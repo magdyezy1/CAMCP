@@ -3,7 +3,7 @@ import {MirrorError} from './errors.js';
 import {stable} from './security.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Product feeds of Snapchat catalogs, opened by the owner on 2026-09-29 ("Product catalogs: make it available").
@@ -468,7 +468,7 @@ export function snapProductFeedObserved(_read: CompiledRequest, data: JsonObject
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const snapProductFeedFamily: ReviewedFamily = {
+export const snapProductFeedFamily: ReviewedFamily = defineFamily({
   name: 'snapchat_product_feeds',
   files: ['src/snapchat-product-feeds.ts', ['tests/snapchat-product-feeds.test.mjs']],
   kind: snapProductFeedKind,
@@ -484,4 +484,4 @@ export const snapProductFeedFamily: ReviewedFamily = {
   verification: snapProductFeedVerification,
   observed: snapProductFeedObserved,
   destructive: plan => snapProductFeedKind(plan) === 'delete',
-};
+});

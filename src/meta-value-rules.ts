@@ -1,5 +1,5 @@
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 import {stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
@@ -398,7 +398,7 @@ export function metaValueRuleRemoves(p: CompiledRequest): boolean {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaValueRuleFamily: ReviewedFamily = {
+export const metaValueRuleFamily: ReviewedFamily = defineFamily({
   name: 'meta_value_rules',
   files: ['src/meta-value-rules.ts', ['tests/meta-value-rules.test.mjs']],
   kind: metaValueRuleKind,
@@ -420,4 +420,4 @@ export const metaValueRuleFamily: ReviewedFamily = {
   },
   activates: plan => !!metaValueRuleServing(plan),
   destructive: plan => !!metaValueRuleRemoves(plan),
-};
+});

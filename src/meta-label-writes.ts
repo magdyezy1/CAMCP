@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, type ReasonFirstRefusal, stateReadOf} from './family-kit.js';
+import {defineFamily, familyErrors, type ReasonFirstRefusal, stateReadOf} from './family-kit.js';
 import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
@@ -329,7 +329,7 @@ export function metaLabelImpact(p: CompiledRequest): JsonObject | undefined {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaLabelFamily: ReviewedFamily = {
+export const metaLabelFamily: ReviewedFamily = defineFamily({
   name: 'meta_labels',
   files: ['src/meta-label-writes.ts', ['tests/meta-label-writes.test.ts']],
   kind: metaLabelKind,
@@ -354,4 +354,4 @@ export const metaLabelFamily: ReviewedFamily = {
       verification.store.rememberResource(current, plan.accountId!, check.id);
     }
   },
-};
+});

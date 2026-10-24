@@ -15,7 +15,7 @@ import {nextPage} from './pagination.js';
 import {stable} from './security.js';
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
-import {stateReadOf} from './family-kit.js';
+import {defineFamily, stateReadOf} from './family-kit.js';
 
 export const redditLeadFormSunset = '2026-09-21T00:00:00Z';
 export const redditLeadFormSource = 'https://ads-api.reddit.com/docs/v3/history';
@@ -292,7 +292,7 @@ export function redditCreativeImpact(plan: CompiledRequest): JsonObject {
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const redditCreativeFamily: ReviewedFamily = {
+export const redditCreativeFamily: ReviewedFamily = defineFamily({
   name: 'reddit_creatives',
   files: [
     'src/reddit-creative-writes.ts / src/reddit-post-creation.ts',
@@ -336,4 +336,4 @@ export const redditCreativeFamily: ReviewedFamily = {
       : undefined,
   pendingOnRetryableError: plan => !!redditPostCreation(plan),
   activates: plan => !!redditCreativeServing(plan),
-};
+});

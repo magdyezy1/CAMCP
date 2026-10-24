@@ -2,7 +2,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Removing videos from a Meta ad account's video library, Marketing API ("Ad Account Advideos" reference, Deleting; read
@@ -179,7 +179,7 @@ export function metaVideoObserved(_read: CompiledRequest, data: JsonObject): Jso
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaVideoFamily: ReviewedFamily = {
+export const metaVideoFamily: ReviewedFamily = defineFamily({
   name: 'meta_ad_videos',
   files: ['src/meta-ad-videos.ts', ['tests/meta-ad-videos.test.mjs']],
   kind: metaVideoKind,
@@ -195,4 +195,4 @@ export const metaVideoFamily: ReviewedFamily = {
   verification: metaVideoVerification,
   observed: metaVideoObserved,
   exemptFromSpendTextMatch: true,
-};
+});

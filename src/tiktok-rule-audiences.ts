@@ -1,7 +1,7 @@
 import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * TikTok audiences by rule, per API for Business v1.3 "Create an audience by rule", "Get audience details" and the
@@ -437,7 +437,7 @@ export function tiktokRuleAudienceObserved(_read: CompiledRequest, data: JsonObj
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokRuleAudienceFamily: ReviewedFamily = {
+export const tiktokRuleAudienceFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_rule_audiences',
   files: ['src/tiktok-rule-audiences.ts', ['tests/tiktok-rule-audiences.test.mjs']],
   kind: tiktokRuleAudienceKind,
@@ -452,4 +452,4 @@ export const tiktokRuleAudienceFamily: ReviewedFamily = {
   verification: tiktokRuleAudienceVerification,
   observed: tiktokRuleAudienceObserved,
   exemptFromSpendTextMatch: true,
-};
+});

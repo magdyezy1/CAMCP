@@ -3,7 +3,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {googleAdsCustomers} from './google-version.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Campaign drafts, Google Ads API v23 (pinned Discovery document: CampaignDraftService MutateCampaignDrafts and
@@ -510,7 +510,7 @@ export function googleDraftObserved(read: CompiledRequest, data: JsonObject): Js
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleDraftFamily: ReviewedFamily = {
+export const googleDraftFamily: ReviewedFamily = defineFamily({
   name: 'google_campaign_drafts',
   files: ['src/google-campaign-drafts.ts', ['tests/google-campaign-drafts.test.mjs']],
   kind: googleDraftKind,
@@ -532,4 +532,4 @@ export const googleDraftFamily: ReviewedFamily = {
   },
   exemptFromSpendTextMatch: true,
   activates: googleDraftNeedsConfirmation,
-};
+});

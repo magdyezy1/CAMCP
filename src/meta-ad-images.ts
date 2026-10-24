@@ -2,7 +2,7 @@ import type {CompiledRequest, Connection, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {metaPrefix, metaRoute} from './meta-version.js';
-import {fail, stateReadOf} from './family-kit.js';
+import {defineFamily, fail, stateReadOf} from './family-kit.js';
 
 /**
  * Deleting ad images from a Meta ad account's library, Marketing API v25.0 ("Ad Image" reference, Deleting; checked
@@ -130,7 +130,7 @@ export function metaImageObserved(_read: CompiledRequest, data: JsonObject): Jso
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaImageFamily: ReviewedFamily = {
+export const metaImageFamily: ReviewedFamily = defineFamily({
   name: 'meta_ad_images',
   files: ['src/meta-ad-images.ts', ['tests/meta-ad-images.test.mjs']],
   kind: metaImageKind,
@@ -146,4 +146,4 @@ export const metaImageFamily: ReviewedFamily = {
   verification: metaImageVerification,
   observed: metaImageObserved,
   exemptFromSpendTextMatch: true,
-};
+});

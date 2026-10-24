@@ -3,7 +3,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {googleAdsCustomers} from './google-version.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Brand guidelines of existing Performance Max campaigns, Google Ads API v23 (pinned Discovery document:
@@ -470,7 +470,7 @@ export function googleBrandGuidelinesObserved(_read: CompiledRequest, data: Json
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleBrandGuidelinesFamily: ReviewedFamily = {
+export const googleBrandGuidelinesFamily: ReviewedFamily = defineFamily({
   name: 'google_pmax_brand_guidelines',
   files: ['src/google-pmax-brand-guidelines.ts', ['tests/google-pmax-brand-guidelines.test.mjs']],
   kind: googleBrandGuidelinesKind,
@@ -491,4 +491,4 @@ export const googleBrandGuidelinesFamily: ReviewedFamily = {
       'Brand guidelines change the brand assets of each campaign at once and cannot be turned off again. Review the campaigns and assets and provide spend_change_confirmed=true.',
   },
   exemptFromSpendTextMatch: true,
-};
+});

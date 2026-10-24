@@ -1,5 +1,5 @@
 import {MirrorError} from './errors.js';
-import {failWithStatus, readOf, type StatusRefusal} from './family-kit.js';
+import {defineFamily, failWithStatus, readOf, type StatusRefusal} from './family-kit.js';
 import {assertGoogleAdsScope} from './google-contracts.js';
 import type {Classify, ReadBuilder, ReviewedFamily, VerificationRead} from './reviewed-family.js';
 import type {TransportResult} from './transport.js';
@@ -532,7 +532,7 @@ export function googleLifecycleGoalVerification(
 }
 export const googleLifecycleGoalRemoves = (p: CompiledRequest) => operations(p).some(o => o.type === 'remove');
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleLifecycleGoalFamily: ReviewedFamily = {
+export const googleLifecycleGoalFamily: ReviewedFamily = defineFamily({
   name: 'google_lifecycle_goals',
   files: ['src/google-lifecycle-goals.ts', ['tests/google-lifecycle-goals.test.ts']],
   kind: googleLifecycleGoalKind,
@@ -552,4 +552,4 @@ export const googleLifecycleGoalFamily: ReviewedFamily = {
   },
   exemptFromSpendTextMatch: true,
   destructive: googleLifecycleGoalRemoves,
-};
+});

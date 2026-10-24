@@ -3,6 +3,7 @@ import {normalizeAccount} from './account-id.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {MirrorError} from './errors.js';
 import type {CompiledRequest, JsonObject} from './types.js';
+import {defineFamily} from './family-kit.js';
 
 /**
  * TikTok manual ad group budget updates, per API for Business v1.3 "Update the budgets of manual ad groups" and
@@ -162,7 +163,7 @@ export function tiktokBudgetVerification(
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const tiktokBudgetFamily: ReviewedFamily = {
+export const tiktokBudgetFamily: ReviewedFamily = defineFamily({
   name: 'tiktok_budgets',
   files: ['src/tiktok-budgets.ts', ['tests/tiktok-budgets.test.mjs']],
   kind: tiktokBudgetKind,
@@ -188,4 +189,4 @@ export const tiktokBudgetFamily: ReviewedFamily = {
       read: {...verificationRead(v.path, v.query), action: 'tiktok_adgroup_get'},
     })),
   policyAmounts: (plan, before) => tiktokBudgetPolicyAmounts(plan, before),
-};
+});

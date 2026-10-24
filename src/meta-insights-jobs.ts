@@ -1,6 +1,6 @@
 import {assertNoMethodOverride} from './write-common.js';
 import type {ReviewedFamily} from './reviewed-family.js';
-import {familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
+import {defineFamily, familyErrors, readOf, type ReasonFirstRefusal} from './family-kit.js';
 import type {NativeReportJob} from './report-job.js';
 import {stable} from './security.js';
 import type {Store} from './store.js';
@@ -668,7 +668,7 @@ export const metaReportImpact = {
 };
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const metaReportFamily: ReviewedFamily = {
+export const metaReportFamily: ReviewedFamily = defineFamily({
   name: 'meta_insights_jobs',
   files: ['src/meta-insights-jobs.ts', ['tests/meta-insights-jobs.test.ts']],
   kind: metaReportKind,
@@ -709,4 +709,4 @@ export const metaReportFamily: ReviewedFamily = {
     return verified;
   },
   exemptFromSpendTextMatch: true,
-};
+});

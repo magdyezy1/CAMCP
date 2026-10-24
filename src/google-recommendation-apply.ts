@@ -3,7 +3,7 @@ import type {CompiledRequest, JsonObject} from './types.js';
 import type {TransportResult} from './transport.js';
 import type {ReviewedFamily} from './reviewed-family.js';
 import {googleAdsCustomers} from './google-version.js';
-import {fail, readOf} from './family-kit.js';
+import {defineFamily, fail, readOf} from './family-kit.js';
 
 /**
  * Applying keyword and campaign budget recommendations, Google Ads API v23 (pinned Discovery document:
@@ -541,7 +541,7 @@ export function googleApplyObserved(_read: CompiledRequest, data: JsonObject): J
 }
 
 /** Registers this family with the reviewed write lifecycle (src/reviewed-families.ts). */
-export const googleApplyFamily: ReviewedFamily = {
+export const googleApplyFamily: ReviewedFamily = defineFamily({
   name: 'google_recommendation_apply',
   files: ['src/google-recommendation-apply.ts', ['tests/google-recommendation-apply.test.mjs']],
   kind: googleApplyKind,
@@ -563,4 +563,4 @@ export const googleApplyFamily: ReviewedFamily = {
   },
   activates: googleApplyActivates,
   policyAmounts: googleApplyPolicyAmounts,
-};
+});
